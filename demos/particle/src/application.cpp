@@ -1,4 +1,17 @@
-#include "protegon/protegon.h"
+#include <string_view>
+
+#include "core/game.h"
+#include "event/input_handler.h"
+#include "math/math.h"
+#include "math/vector2.h"
+#include "renderer/color.h"
+#include "renderer/origin.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "tile/grid.h"
+#include "ui/button.h"
+#include "utility/time.h"
+#include "vfx/particle.h"
 
 using namespace ptgn;
 
@@ -6,55 +19,54 @@ constexpr V2_int window_size{ 800, 800 };
 
 class ParticleExample : public Scene {
 public:
-	ParticleManager p;
+	ParticleEmitter p{ manager };
 
 	Grid<Button> grid{ { 1, 3 } };
 
-	Button CreateButton(std::string_view content, const ButtonCallback& on_activate, const Color& bg_color = color::Gold) {
-		Button b;
-		b.Set<ButtonProperty::BackgroundColor>(bg_color);
-		b.Set<ButtonProperty::Bordered>(true);
-		b.Set<ButtonProperty::BorderColor>(color::LightGray);
-		b.Set<ButtonProperty::BorderThickness>(3.0f);
-		Text text{ content, color::Black };
-		b.Set<ButtonProperty::Text>(text);
-		b.Set<ButtonProperty::OnActivate>(on_activate);
+	Button CreateButton(std::string_view content, const ButtonCallback& on_activate) {
+		Button b{ manager };
+		b.SetBackgroundColor(color::Gold);
+		b.SetBackgroundColor(color::Red, ButtonState::Hover);
+		b.SetBackgroundColor(color::DarkRed, ButtonState::Hover);
+		b.SetBorderColor(color::LightGray);
+		b.SetBorderWidth(3.0f);
+		b.SetText(content, color::Black);
+		b.OnActivate(on_activate);
 		return b;
 	}
 
 	const int number_of_shapes{ 2 };
 
 	void Enter() override {
-		p.info.total_particles	  = 1000;
-		p.info.particle_shape	  = ParticleShape::Circle;
-		p.info.start_color 		  = color::Red;
-		p.info.end_color		  = color::Blue;
-		p.info.emission_frequency = milliseconds{ 1 };
-		p.info.radius			  = 30.0f;
+		p.SetMaxParticles(1000);
+		p.SetShape(ParticleShape::Circle);
+		p.SetRadius(30.0f);
+		p.SetStartColor(color::Red);
+		p.SetEndColor(color::Blue);
+		p.SetEmissionDelay(milliseconds{ 1 });
 		p.Start();
 
-		grid.Set({ 0, 0 }, CreateButton("Switch Particle Shape", [&](){
-			int shape{ static_cast<int>(p.info.particle_shape) };
-			shape++;
-			shape = Mod(shape, number_of_shapes);
-			p.info.particle_shape = static_cast<ParticleShape>(shape);
-		}));
-		grid.Set({ 0, 1 }, CreateButton("Toggle Particle Emission", [&](){
-			p.Toggle();
-		}));
-		grid.Set({ 0, 2 }, CreateButton("Toggle Gravity", [&](){
-			if (p.info.gravity.IsZero()) {
-				p.info.gravity = { 0, 300.0f };
-			} else {
-				p.info.gravity = {};
-			}
-		}));
+		grid.Set({ 0, 0 }, CreateButton("Switch Particle Shape", [&]() {
+					 int shape{ static_cast<int>(p.GetShape()) };
+					 shape++;
+					 shape = Mod(shape, number_of_shapes);
+					 p.SetShape(static_cast<ParticleShape>(shape));
+				 }));
+		grid.Set({ 0, 1 }, CreateButton("Toggle Particle Emission", [&]() { p.Toggle(); }));
+		grid.Set({ 0, 2 }, CreateButton("Toggle Gravity", [&]() {
+					 if (p.GetGravity().IsZero()) {
+						 p.SetGravity({ 0, 300.0f });
+					 } else {
+						 p.SetGravity({});
+					 }
+				 }));
 
 		V2_int offset{ 6, 6 };
 		V2_int size{ 200, 90 };
 
 		grid.ForEach([&](auto coord, Button& b) {
-			b.SetRect({ coord * size + (coord + V2_int{ 1, 1 }) * offset, size, Origin::TopLeft });
+			b.SetPosition(coord * size + (coord + V2_int{ 1, 1 }) * offset);
+			b.SetRect(size, Origin::TopLeft);
 		});
 	}
 
@@ -63,14 +75,7 @@ public:
 	}
 
 	void Update() override {
-		grid.ForEachElement([&](Button& b) {
-			b.Draw();
-		});
-
-		p.info.starting_position = game.input.GetMousePosition();
-		p.Update();
-		p.Draw();
-		
+		p.SetPosition(game.input.GetMousePosition());
 	}
 };
 

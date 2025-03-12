@@ -135,7 +135,7 @@ bool IsImmovable(const ecs::Entity& e) {
 std::array<V2_float, 4> GetTextureCoordinates(const ecs::Entity& e, bool flip_vertically) {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
 
-	if (!e.IsAlive()) {
+	if (e == ecs::Entity{} && !e.IsAlive()) {
 		return tex_coords;
 	}
 

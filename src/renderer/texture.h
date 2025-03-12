@@ -287,6 +287,8 @@ public:
 	// @return True if the texture key is loaded.
 	[[nodiscard]] bool Has(std::string_view key) const;
 
+	[[nodiscard]] const Texture& Get(std::string_view key) const;
+
 private:
 	friend class RenderData;
 

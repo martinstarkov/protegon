@@ -49,6 +49,7 @@ public:
 		BlendMode blend_mode, const V4_float& color, bool connect_last_to_first, bool debug
 	);
 
+	// @param e Passing {} will result in default texture coordinates being used.
 	void AddTexture(
 		const ecs::Entity& e, const Texture& texture, const V2_float& position,
 		const V2_float& size, Origin origin, const Depth& depth, BlendMode blend_mode,

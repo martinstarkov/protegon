@@ -1,8 +1,9 @@
 #pragma once
 
-#include <cmath>
-#include <utility>
+#include <string_view>
 
+#include "components/transform.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/math.h"
 #include "math/rng.h"
@@ -13,6 +14,8 @@
 #include "utility/timer.h"
 
 namespace ptgn {
+
+class Scene;
 
 enum class ParticleShape {
 	Circle,
@@ -34,23 +37,20 @@ struct Particle {
 struct ParticleInfo {
 	ParticleInfo() = default;
 
-	// TODO: Fix.
-	// Texture texture;
+	std::string_view texture_key{};
 	bool texture_enabled{ false };
 	bool tint_texture{ true };
 
-	V2_float starting_position;
-
 	std::size_t total_particles{ 200 };
 
-	milliseconds emission_frequency{ 60 };
+	milliseconds emission_delay{ 60 };
 	milliseconds lifetime{ 2000 };
 
 	float speed{ 10.0f };
 	float starting_angle{ DegToRad(0.0f) };
 
 	// -1.0f means shape is solid. Only applies if texture_enabled == false.
-	float line_thickness{ -1.0f };
+	float line_width{ -1.0f };
 
 	ParticleShape particle_shape{ ParticleShape::Circle };
 
@@ -70,122 +70,81 @@ struct ParticleInfo {
 	V2_float position_variance{ 5.0f };
 	V2_float gravity;
 
-	// TODO: Implement.
+	// TODO: Implement functionality.
 	Color start_color_variance{ color::Red };
 	Color end_color_variance{ color::Orange };
-	BlendMode blend_mode{ BlendMode::Add };
 	V2_float radial_acceleration;
 	V2_float radial_acceleration_variance;
 	V2_float tangential_acceleration;
 	V2_float tangential_acceleration_variance;
 };
 
-class ParticleManager {
-public:
-	ParticleManager() = default;
+namespace impl {
 
+class RenderData;
+
+struct ParticleEmitterComponent {
 	ParticleInfo info;
+	std::size_t particle_count{ 0 };
+	Timer emission;
+	Gaussian<float> rng{ -1.0f, 1.0f };
+	ecs::Manager manager;
 
-	explicit ParticleManager(const ParticleInfo& info) : info{ info } {
-		manager_.Reserve(info.total_particles);
-	}
+	void Update(const V2_float& start_position);
 
-	void Update();
+	void EmitParticle(const V2_float& start_position);
 
-	void Draw() {
-		// TOOD: Add blend mode
-		// TODO: Fix drawing.
-		/*
-		if (info.texture_enabled) {
-			TextureInfo i;
-			PTGN_ASSERT(info.texture.IsValid());
-			for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
-				if (info.tint_texture) {
-					i.tint = p.color;
-				} else {
-					i.tint = color::White;
-				}
-				info.texture.Draw(
-					Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center }, i
-				);
-			}
-			return;
-		}
-		switch (info.particle_shape) {
-			case ParticleShape::Circle: {
-				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
-					// TODO: Fix drawing.
-					//Circle{ p.position, p.radius }.Draw(p.color, info.line_thickness);
-				}
-				break;
-			}
-			case ParticleShape::Square: {
-				for (const auto& [e, p] : manager_.EntitiesWith<Particle>()) {
-					// TODO: Add rect rotation.
-					// TODO: Fix drawing.
-					//Rect{ p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center
-		}.Draw(p.color, info.line_thickness);
-				}
-				break;
-			}
-			}
-		*/
-	}
+	void ResetParticle(const V2_float& start_position, Particle& p);
+};
+
+} // namespace impl
+
+class ParticleEmitter : public GameObject {
+public:
+	ParticleEmitter() = delete;
+	explicit ParticleEmitter(ecs::Manager& manager);
+	explicit ParticleEmitter(ecs::Manager& manager, const ParticleInfo& info);
 
 	// Starts emitting particles.
-	void Start() {
-		emission_.Start();
-	}
+	ParticleEmitter& Start();
 
 	// Stops emitting particles.
-	void Stop() {
-		emission_.Stop();
-	}
+	ParticleEmitter& Stop();
 
 	// Toggle particle emission.
-	void Toggle() {
-		emission_.Toggle();
-	}
+	ParticleEmitter& Toggle();
 
-	void EmitParticle() {
-		particle_count_++;
-		auto e{ manager_.CreateEntity() };
-		auto& p = e.Add<Particle>();
-		p.timer.Start();
-		ResetParticle(p);
-		manager_.Refresh();
-	}
+	ParticleEmitter& EmitParticle();
 
-	void Clear() {
-		manager_.Clear();
-	}
+	ParticleEmitter& Reset();
 
-	void Reset() {
-		manager_.Reset();
-	}
+	ParticleEmitter& SetGravity(const V2_float& particle_gravity);
+	[[nodiscard]] V2_float GetGravity() const;
+
+	ParticleEmitter& SetMaxParticles(std::size_t max_particles);
+	[[nodiscard]] std::size_t GetMaxParticles() const;
+
+	ParticleEmitter& SetShape(ParticleShape shape);
+	[[nodiscard]] ParticleShape GetShape() const;
+
+	ParticleEmitter& SetRadius(float particle_radius);
+	[[nodiscard]] float GetRadius() const;
+
+	ParticleEmitter& SetStartColor(const Color& start_color);
+	[[nodiscard]] Color GetStartColor() const;
+
+	ParticleEmitter& SetEndColor(const Color& end_color);
+	[[nodiscard]] Color GetEndColor() const;
+
+	ParticleEmitter& SetEmissionDelay(milliseconds emission_delay);
+	[[nodiscard]] milliseconds GetEmissionDelay() const;
 
 private:
-	std::size_t particle_count_{ 0 };
-	Timer emission_;
+	friend class impl::RenderData;
 
-	void ResetParticle(Particle& p) {
-		p.position = info.starting_position + info.position_variance * V2_float{ rng_(), rng_() };
-		p.velocity = {
-			info.speed + info.speed_variance * rng_() *
-							 std::cos(info.starting_angle + info.angle_variance * rng_()),
-			info.speed + info.speed_variance * rng_() *
-							 std::sin(info.starting_angle + info.angle_variance * rng_())
-		};
-		p.start_radius = std::max(info.radius + info.radius_variance * rng_(), 0.0f);
-		// TODO: Fix multiplications.
-		// TODO: Add clamping of values.
-		p.start_color = info.start_color; // + info.start_color_variance * rng_();
-		p.end_color	  = info.end_color;	  // + info.end_color_variance * rng_();
-		p.lifetime	  = info.lifetime;	  // + info.lifetime_variance * rng_();
-	}
-
-	Gaussian<float> rng_{ -1.0f, 1.0f };
-	ecs::Manager manager_;
+	static void Draw(
+		const ecs::Entity& e, impl::RenderData& r, const Depth& depth, BlendMode blend_mode
+	);
 };
 
 } // namespace ptgn

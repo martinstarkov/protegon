@@ -45,6 +45,7 @@
 #include "utility/log.h"
 #include "utility/utility.h"
 #include "vfx/light.h"
+#include "vfx/particle.h"
 
 namespace ptgn::impl {
 
@@ -627,6 +628,8 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 	float angle{ GetRotation(o) + offset_transform.rotation };
 	V4_float tint{ GetTint(o).Normalized() };
 
+	// TODO: Move from using tags to some sort of RenderComponent.
+
 	if (o.Has<impl::ButtonTag>()) {
 		AddButton(o, pos, depth, blend_mode, tint, angle, scale);
 		return;
@@ -650,6 +653,9 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		return;
 	} else if (o.Has<PointLight>()) {
 		AddPointLight(o, depth);
+		return;
+	} else if (o.Has<impl::ParticleEmitterComponent>()) {
+		ParticleEmitter::Draw(o, *this, depth, blend_mode);
 		return;
 	}
 

@@ -11,6 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "core/game.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -20,15 +24,13 @@
 #include "renderer/gl_loader.h"
 #include "renderer/gl_renderer.h"
 #include "renderer/gl_types.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/assert.h"
 #include "utility/file.h"
 #include "utility/log.h"
 #include "utility/stats.h"
+
+// TODO: Move to using TextureKey inside the texture manager.
 
 namespace ptgn {
 
@@ -457,6 +459,10 @@ V2_int TextureManager::GetSize(std::string_view key) const {
 
 bool TextureManager::Has(std::string_view key) const {
 	return Has(Hash(key));
+}
+
+const Texture& TextureManager::Get(std::string_view key) const {
+	return Get(Hash(key));
 }
 
 const Texture& TextureManager::Get(std::size_t key) const {

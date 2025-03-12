@@ -1,14 +1,17 @@
 #include "scene/scene.h"
 
+#include "components/draw.h"
 #include "components/lifetime.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "math/collision/collision.h"
 #include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "utility/tween.h"
+#include "vfx/particle.h"
 #include "vfx/tween_effects.h"
 
 namespace ptgn {
@@ -64,9 +67,15 @@ void Scene::PreUpdate() {
 }
 
 void Scene::PostUpdate() {
+	// TODO: Add multiple manager support?
+
 	manager.Refresh();
 	Update();
 	manager.Refresh();
+	for (auto [e, enabled, particle_manager] :
+		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
+		particle_manager.Update(GetPosition(e));
+	}
 	// std::size_t tween_update_count{ 0 };
 	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
 		tween.Step(game.dt());
