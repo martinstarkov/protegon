@@ -246,55 +246,59 @@ void Camera::StartFollow(ecs::Entity target_entity, bool force) {
 			start = e.Get<impl::CameraInfo>().GetPosition();
 		}
 	};
+
+	auto pan_func = [target_entity, e = GetEntity(), pe = pan_effects_.GetEntity()]() mutable {
+		if (target_entity == ecs::null || !target_entity.IsAlive() ||
+			!target_entity.Has<Transform>()) {
+			// If target is invalid or has no transform, move onto to the next item in the pan
+			// queue.
+			pe.Get<Tween>().IncrementTweenPoint();
+			return;
+		}
+		V2_float offset{ pe.Has<impl::CameraOffset>() ? pe.Get<impl::CameraOffset>()
+													  : impl::CameraOffset{} };
+		auto target_pos{ ptgn::GetPosition(target_entity) + offset };
+		V2_float lerp{ pe.Has<impl::CameraLerp>() ? pe.Get<impl::CameraLerp>()
+												  : impl::CameraLerp{} };
+		V2_float deadzone_size{ pe.Has<impl::CameraDeadzone>() ? pe.Get<impl::CameraDeadzone>()
+															   : impl::CameraDeadzone{} };
+		auto& info{ e.Get<impl::CameraInfo>() };
+		auto zoom{ info.GetZoom() };
+		PTGN_ASSERT(zoom != 0.0f, "Cannot have negative zoom");
+		deadzone_size /= zoom;
+		auto pos{ info.GetPosition() };
+
+		V2_float lerp_dt{ 1.0f - std::pow(1.0f - lerp.x, game.dt()),
+						  1.0f - std::pow(1.0f - lerp.y, game.dt()) };
+
+		if (deadzone_size.IsZero()) {
+			// TODO: Make this a damped or dt lerp functions.
+			auto new_pos{ Lerp(pos, target_pos, lerp_dt) };
+			info.SetPosition(new_pos);
+			return;
+		}
+
+		// TODO: Consider adding a custom deadzone origin in the future.
+		V2_float deadzone_half{ deadzone_size * 0.5f };
+		V2_float min{ target_pos - deadzone_half };
+		V2_float max{ target_pos + deadzone_half };
+		if (pos.x < min.x) {
+			pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
+		} else if (pos.x > max.x) {
+			pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
+		}
+		if (pos.y < min.y) {
+			pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
+		} else if (pos.y > max.y) {
+			pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
+		}
+		info.SetPosition(pos);
+	};
+
 	tween.During(milliseconds{ 0 })
 		.Repeat(-1)
-		.OnUpdate([target_entity, e = GetEntity(), pe = pan_effects_.GetEntity()]() mutable {
-			if (target_entity == ecs::null || !target_entity.IsAlive() ||
-				!target_entity.Has<Transform>()) {
-				// If target is invalid or has no transform, move onto to the next item in the pan
-				// queue.
-				pe.Get<Tween>().IncrementTweenPoint();
-				return;
-			}
-			V2_float offset{ pe.Has<impl::CameraOffset>() ? pe.Get<impl::CameraOffset>()
-														  : impl::CameraOffset{} };
-			auto target_pos{ ptgn::GetPosition(target_entity) + offset };
-			V2_float lerp{ pe.Has<impl::CameraLerp>() ? pe.Get<impl::CameraLerp>()
-													  : impl::CameraLerp{} };
-			V2_float deadzone_size{ pe.Has<impl::CameraDeadzone>() ? pe.Get<impl::CameraDeadzone>()
-																   : impl::CameraDeadzone{} };
-			auto& info{ e.Get<impl::CameraInfo>() };
-			auto zoom{ info.GetZoom() };
-			PTGN_ASSERT(zoom != 0.0f, "Cannot have negative zoom");
-			deadzone_size /= zoom;
-			auto pos{ info.GetPosition() };
-
-			V2_float lerp_dt{ 1.0f - std::pow(1.0f - lerp.x, game.dt()),
-							  1.0f - std::pow(1.0f - lerp.y, game.dt()) };
-
-			if (deadzone_size.IsZero()) {
-				// TODO: Make this a damped or dt lerp functions.
-				auto new_pos{ Lerp(pos, target_pos, lerp_dt) };
-				info.SetPosition(new_pos);
-				return;
-			}
-
-			// TODO: Consider adding a custom deadzone origin in the future.
-			V2_float deadzone_half{ deadzone_size * 0.5f };
-			V2_float min{ target_pos - deadzone_half };
-			V2_float max{ target_pos + deadzone_half };
-			if (pos.x < min.x) {
-				pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
-			} else if (pos.x > max.x) {
-				pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
-			}
-			if (pos.y < min.y) {
-				pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
-			} else if (pos.y > max.y) {
-				pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
-			}
-			info.SetPosition(pos);
-		})
+		.OnStart(pan_func)
+		.OnUpdate(pan_func)
 		.OnComplete(update_pan)
 		.OnStop(update_pan)
 		.OnReset(update_pan);
