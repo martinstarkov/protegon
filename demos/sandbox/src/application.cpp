@@ -1,4 +1,4 @@
-
+/*
 #include "core/game.h"
 #include "core/game_object.h"
 #include "core/window.h"
@@ -126,5 +126,269 @@ public:
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Sandbox", { 1280, 720 }, color::Transparent);
 	game.scene.Enter<Sandbox>("sandbox");
+	return 0;
+}
+*/
+
+#include <cstdint>
+#include <cstdlib>
+#include <functional>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <typeindex>
+#include <typeinfo>
+#include <unordered_map>
+// If you can't use C++17's standard library, you'll need to use the GSL
+// string_view or implement your own struct (which would not be very difficult,
+// since we only need a few methods here)
+
+template <typename T>
+constexpr std::string_view type_name();
+
+template <>
+constexpr std::string_view type_name<void>() {
+	return "void";
+}
+
+namespace detail {
+
+using type_name_prober = void;
+
+template <typename T>
+constexpr std::string_view wrapped_type_name() {
+#ifdef __clang__
+	return __PRETTY_FUNCTION__;
+#elif defined(__GNUC__)
+	return __PRETTY_FUNCTION__;
+#elif defined(_MSC_VER)
+	return __FUNCSIG__;
+#else
+#error "Unsupported compiler"
+#endif
+}
+
+constexpr std::string_view remove_class_or_struct_prefix(std::string_view input) {
+	constexpr std::string_view class_prefix	 = "class ";
+	constexpr std::string_view struct_prefix = "struct ";
+
+	if (input.size() >= class_prefix.size() &&
+		std::equal(class_prefix.begin(), class_prefix.end(), input.begin())) {
+		return input.substr(class_prefix.size());
+	} else if (input.size() >= struct_prefix.size() &&
+               std::equal(struct_prefix.begin(), struct_prefix.end(), input.begin())) {
+		return input.substr(struct_prefix.size());
+	} else {
+		return input;
+	}
+}
+
+constexpr std::size_t wrapped_type_name_prefix_length() {
+	return wrapped_type_name<type_name_prober>().find(type_name<type_name_prober>());
+}
+
+constexpr std::size_t wrapped_type_name_suffix_length() {
+	return wrapped_type_name<type_name_prober>().length() - wrapped_type_name_prefix_length() -
+		   type_name<type_name_prober>().length();
+}
+
+} // namespace detail
+
+template <typename T>
+constexpr std::string_view type_name() {
+	constexpr auto wrapped_name		= detail::wrapped_type_name<T>();
+	constexpr auto prefix_length	= detail::wrapped_type_name_prefix_length();
+	constexpr auto suffix_length	= detail::wrapped_type_name_suffix_length();
+	constexpr auto type_name_length = wrapped_name.length() - prefix_length - suffix_length;
+	return detail::remove_class_or_struct_prefix(
+		wrapped_name.substr(prefix_length, type_name_length)
+	);
+}
+
+std::size_t Hash(std::string_view str) {
+	// FNV-1a hash algorithm (cross-compiler consistent)
+	std::size_t hash				= 14695981039346656037ULL; // FNV_offset_basis
+	constexpr std::size_t FNV_prime = 1099511628211ULL;
+
+	for (char c : str) {
+		hash ^= static_cast<std::uint8_t>(c); // XOR with byte
+		hash *= FNV_prime;					  // Multiply by prime
+	}
+
+	return hash;
+}
+
+template <class Base, class... Args>
+class Factory {
+public:
+	template <class... T>
+	static std::unique_ptr<Base> create(std::string_view class_name, T&&... args) {
+		auto it = data().find(Hash(class_name));
+		if (it == data().end()) {
+			std::cout << "Failed to find hash for " << class_name << std::endl;
+		}
+		return it->second(std::forward<T>(args)...);
+	}
+
+	template <class T>
+	struct Registrar : Base {
+		friend T;
+
+		static bool registerT() {
+			const auto raw_name{ type_name<T>() };
+			std::cout << "Registering hash for " << raw_name << std::endl;
+			const auto name		  = Hash(raw_name);
+			Factory::data()[name] = [](Args... args) -> std::unique_ptr<Base> {
+				return std::make_unique<T>(std::forward<Args>(args)...);
+			};
+			return true;
+		}
+
+		static bool registered;
+
+	private:
+		Registrar() : Base(Key{}) {
+			(void)registered;
+		}
+	};
+
+	friend Base;
+
+private:
+	class Key {
+		Key(){};
+		template <class T>
+		friend struct Registrar;
+	};
+
+	using FuncType = std::unique_ptr<Base> (*)(Args...);
+	Factory()	   = default;
+
+	static auto& data() {
+		static std::unordered_map<std::size_t, FuncType> s;
+		return s;
+	}
+};
+
+template <class Base, class... Args>
+template <class T>
+bool Factory<Base, Args...>::Registrar<T>::registered =
+	Factory<Base, Args...>::Registrar<T>::registerT();
+
+struct Animal : Factory<Animal, int> {
+	Animal(Key) {}
+
+	virtual ~Animal()		 = default;
+	virtual void makeNoise() = 0;
+};
+
+class Dog : public Animal::Registrar<Dog> {
+public:
+	Dog(int x) : m_x(x) {}
+
+	void makeNoise() {
+		std::cout << "Dog: " << m_x << "\n";
+	}
+
+private:
+	int m_x;
+};
+
+class Cat : public Animal::Registrar<Cat> {
+public:
+	Cat(int x) : m_x(x) {}
+
+	void makeNoise() {
+		std::cout << "Cat: " << m_x << "\n";
+	}
+
+private:
+	int m_x;
+};
+
+// Won't compile because of the private CRTP constructor
+// class Spider : public Animal::Registrar<Cat> {
+// public:
+//     Spider(int x) : m_x(x) {}
+
+//     void makeNoise() { std::cerr << "Spider: " << m_x << "\n"; }
+
+// private:
+//     int m_x;
+// };
+
+// Won't compile because of the pass key idiom
+// class Zob : public Animal {
+// public:
+//     Zob(int x) : Animal({}), m_x(x) {}
+
+//      void makeNoise() { std::cerr << "Zob: " << m_x << "\n"; }
+//     std::unique_ptr<Animal> clone() const { return
+//     std::make_unique<Zob>(*this); }
+
+// private:
+//      int m_x;
+
+// };
+
+// An example that shows that rvalues are handled correctly, and
+// that this all works with move only types
+
+struct Creature : Factory<Creature, std::unique_ptr<int>> {
+	Creature(Key) {}
+
+	virtual ~Creature()		 = default;
+	virtual void makeNoise() = 0;
+};
+
+class Ghost : public Creature::Registrar<Ghost> {
+public:
+	Ghost(std::unique_ptr<int>&& x) : m_x(*x) {}
+
+	void makeNoise() {
+		std::cout << "Ghost: " << m_x << "\n";
+	}
+
+private:
+	int m_x;
+};
+
+struct Script : Factory<Script> {
+	Script(Key) {}
+
+	virtual ~Script()		 = default;
+	virtual void makeNoise() = 0;
+};
+
+class CollisionScript : public Script::Registrar<CollisionScript> {
+public:
+	void makeNoise() {
+		std::cout << "Collision Script ran\n";
+	}
+};
+
+template <typename T>
+std::string_view GetName() {
+	return type_name<T>();
+}
+
+// This will register the hash.
+void CreateCreature() {
+	auto test = new CollisionScript();
+}
+
+int main() {
+	std::cout << "Start\n";
+	auto x = Animal::create("Dog", 3);
+	auto y = Animal::create("Cat", 2);
+	x->makeNoise();
+	y->makeNoise();
+	auto z = Creature::create("Ghost", std::make_unique<int>(4));
+	z->makeNoise();
+	auto w = Script::create("CollisionScript");
+	w->makeNoise();
+	std::cout << "Stop\n";
 	return 0;
 }
