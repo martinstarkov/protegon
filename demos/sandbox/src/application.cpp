@@ -233,7 +233,7 @@ public:
 	}
 
 	template <class T>
-	struct Registrar : Base {
+	struct Registrar : public Base {
 		friend T;
 
 		static bool registerT() {
@@ -248,7 +248,7 @@ public:
 
 		static bool registered;
 
-	private:
+		// private:
 		Registrar() : Base(Key{}) {
 			(void)registered;
 		}
@@ -355,17 +355,25 @@ private:
 	int m_x;
 };
 
-struct Script : Factory<Script> {
-	Script(Key) {}
+struct ScriptS : Factory<ScriptS> {
+	ScriptS(Key) {}
 
-	virtual ~Script()		 = default;
+	virtual ~ScriptS()		 = default;
 	virtual void makeNoise() = 0;
 };
 
-class CollisionScript : public Script::Registrar<CollisionScript> {
+template <typename T>
+class CollisionScript : public ScriptS::Registrar<T> {
 public:
-	void makeNoise() {
-		std::cout << "Collision Script ran\n";
+	virtual void OnCollide() = 0;
+};
+
+class MyCollisionScript : public CollisionScript<MyCollisionScript> {
+public:
+	MyCollisionScript() {}
+
+	void OnCollide() override {
+		std::cout << "My Collision Script ran\n";
 	}
 };
 
@@ -375,11 +383,80 @@ std::string_view GetName() {
 }
 
 // This will register the hash.
-void CreateCreature() {
-	auto test = new CollisionScript();
+// void CreateCreature() {
+//	auto test = new CollisionScript();
+//}
+
+template <typename R, typename... ARGS>
+using function = R (*)(ARGS...);
+
+struct Script : Factory<Script, int> {
+	Script(Key) {}
+
+	virtual ~Script() = default;
+
+	virtual void OnStart() {}
+
+	virtual void OnUpdate(float f) {}
+
+	virtual void OnStop() {}
+};
+
+class TweenScript1 : public Script::Registrar<TweenScript1> {
+public:
+	TweenScript1(int e) : e{ e } {}
+
+	void OnUpdate(float f) {
+		std::cout << "updated entity " << e << " tween with f: " << f << std::endl;
+	}
+
+	int e{ 0 };
+};
+
+//#define RegisterCallback(name, callback)            \
+//	class name : public Callback::Registrar<name> { \
+//	public:                                         \
+//		name() {}                                   \
+//		void execute() override {                   \
+//			std::invoke(callback);                  \
+//		}                                           \
+//	};
+
+template <typename T, typename... Ts>
+std::unique_ptr<Script> script(Ts&&... args) {
+	return std::make_unique<T>(args...);
+}
+
+std::unique_ptr<Script> test;
+
+void UpdateScript(float f) {
+	if (test) {
+		test->OnUpdate(f);
+	}
+}
+
+void Add(std::unique_ptr<Script>&& func) {
+	test = std::move(func);
 }
 
 int main() {
+	/*Add(script<TweenScript1>(10));
+
+	UpdateScript(0.1f);
+
+	std::cout << "Serializing script with name: " << type_name<TweenScript1>() << std::endl;
+
+	std::string_view from_file{ "TweenScript1" };
+
+	std::cout << "Deserializing script with name: " << from_file << std::endl;
+
+	Add(Script::create(from_file, 10));
+
+	UpdateScript(0.9f);*/
+
+	/*auto f2 = Script::create("TweenScript1");
+	Execute(f2);*/
+
 	std::cout << "Start\n";
 	auto x = Animal::create("Dog", 3);
 	auto y = Animal::create("Cat", 2);
@@ -387,7 +464,7 @@ int main() {
 	y->makeNoise();
 	auto z = Creature::create("Ghost", std::make_unique<int>(4));
 	z->makeNoise();
-	auto w = Script::create("CollisionScript");
+	auto w = ScriptS::create("MyCollisionScript");
 	w->makeNoise();
 	std::cout << "Stop\n";
 	return 0;
