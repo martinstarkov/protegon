@@ -223,21 +223,33 @@ std::size_t Hash(std::string_view str) {
 template <class Base, class... Args>
 class Factory {
 public:
+	virtual ~Factory() = default;
+
+	virtual std::string_view GetName() {
+		return name_;
+	}
+
 	template <class... T>
 	static std::unique_ptr<Base> create(std::string_view class_name, T&&... args) {
 		auto it = data().find(Hash(class_name));
 		if (it == data().end()) {
 			std::cout << "Failed to find hash for " << class_name << std::endl;
 		}
-		return it->second(std::forward<T>(args)...);
+		auto ptr{ it->second(std::forward<T>(args)...) };
+		ptr->name_ = class_name;
+		return ptr;
 	}
 
 	template <class T>
 	struct Registrar : public Base {
 		friend T;
 
+		virtual std::string_view GetName() {
+			return type_name<T>();
+		}
+
 		static bool registerT() {
-			const auto raw_name{ type_name<T>() };
+			auto raw_name{ type_name<T>() };
 			std::cout << "Registering hash for " << raw_name << std::endl;
 			const auto name		  = Hash(raw_name);
 			Factory::data()[name] = [](Args... args) -> std::unique_ptr<Base> {
@@ -263,13 +275,15 @@ private:
 		friend struct Registrar;
 	};
 
-	using FuncType = std::unique_ptr<Base> (*)(Args...);
-	Factory()	   = default;
+	using FactoryFuncType = std::unique_ptr<Base> (*)(Args...);
+	Factory()			  = default;
 
 	static auto& data() {
-		static std::unordered_map<std::size_t, FuncType> s;
+		static std::unordered_map<std::size_t, FactoryFuncType> s;
 		return s;
 	}
+
+	std::string_view name_;
 };
 
 template <class Base, class... Args>
@@ -277,195 +291,89 @@ template <class T>
 bool Factory<Base, Args...>::Registrar<T>::registered =
 	Factory<Base, Args...>::Registrar<T>::registerT();
 
-struct Animal : Factory<Animal, int> {
-	Animal(Key) {}
+struct TweenScript : Factory<TweenScript, int> {
+	TweenScript(Key) {}
 
-	virtual ~Animal()		 = default;
-	virtual void makeNoise() = 0;
-};
-
-class Dog : public Animal::Registrar<Dog> {
-public:
-	Dog(int x) : m_x(x) {}
-
-	void makeNoise() {
-		std::cout << "Dog: " << m_x << "\n";
-	}
-
-private:
-	int m_x;
-};
-
-class Cat : public Animal::Registrar<Cat> {
-public:
-	Cat(int x) : m_x(x) {}
-
-	void makeNoise() {
-		std::cout << "Cat: " << m_x << "\n";
-	}
-
-private:
-	int m_x;
-};
-
-// Won't compile because of the private CRTP constructor
-// class Spider : public Animal::Registrar<Cat> {
-// public:
-//     Spider(int x) : m_x(x) {}
-
-//     void makeNoise() { std::cerr << "Spider: " << m_x << "\n"; }
-
-// private:
-//     int m_x;
-// };
-
-// Won't compile because of the pass key idiom
-// class Zob : public Animal {
-// public:
-//     Zob(int x) : Animal({}), m_x(x) {}
-
-//      void makeNoise() { std::cerr << "Zob: " << m_x << "\n"; }
-//     std::unique_ptr<Animal> clone() const { return
-//     std::make_unique<Zob>(*this); }
-
-// private:
-//      int m_x;
-
-// };
-
-// An example that shows that rvalues are handled correctly, and
-// that this all works with move only types
-
-struct Creature : Factory<Creature, std::unique_ptr<int>> {
-	Creature(Key) {}
-
-	virtual ~Creature()		 = default;
-	virtual void makeNoise() = 0;
-};
-
-class Ghost : public Creature::Registrar<Ghost> {
-public:
-	Ghost(std::unique_ptr<int>&& x) : m_x(*x) {}
-
-	void makeNoise() {
-		std::cout << "Ghost: " << m_x << "\n";
-	}
-
-private:
-	int m_x;
-};
-
-struct ScriptS : Factory<ScriptS> {
-	ScriptS(Key) {}
-
-	virtual ~ScriptS()		 = default;
-	virtual void makeNoise() = 0;
-};
-
-template <typename T>
-class CollisionScript : public ScriptS::Registrar<T> {
-public:
-	virtual void OnCollide() = 0;
-};
-
-class MyCollisionScript : public CollisionScript<MyCollisionScript> {
-public:
-	MyCollisionScript() {}
-
-	void OnCollide() override {
-		std::cout << "My Collision Script ran\n";
-	}
-};
-
-template <typename T>
-std::string_view GetName() {
-	return type_name<T>();
-}
-
-// This will register the hash.
-// void CreateCreature() {
-//	auto test = new CollisionScript();
-//}
-
-template <typename R, typename... ARGS>
-using function = R (*)(ARGS...);
-
-struct Script : Factory<Script, int> {
-	Script(Key) {}
-
-	virtual ~Script() = default;
-
-	virtual void OnStart() {}
+	virtual ~TweenScript() override = default;
 
 	virtual void OnUpdate(float f) {}
-
-	virtual void OnStop() {}
 };
 
-class TweenScript1 : public Script::Registrar<TweenScript1> {
+class TweenScript1 : public TweenScript::Registrar<TweenScript1> {
 public:
-	TweenScript1(int e) : e{ e } {}
+	TweenScript1(int e) : e(e) {}
 
-	void OnUpdate(float f) {
-		std::cout << "updated entity " << e << " tween with f: " << f << std::endl;
+	void OnUpdate(float f) override {
+		std::cout << "TweenScript1: " << e << " updated with " << f << "\n";
 	}
 
+private:
 	int e{ 0 };
 };
 
-//#define RegisterCallback(name, callback)            \
-//	class name : public Callback::Registrar<name> { \
-//	public:                                         \
-//		name() {}                                   \
-//		void execute() override {                   \
-//			std::invoke(callback);                  \
-//		}                                           \
-//	};
+class TweenScript2 : public TweenScript::Registrar<TweenScript2> {
+public:
+	TweenScript2(int e) : e(e) {}
+
+	void OnUpdate(float f) override {
+		std::cout << "TweenScript2: " << e << " updated with " << f << "\n";
+	}
+
+private:
+	int e{ 0 };
+};
 
 template <typename T, typename... Ts>
-std::unique_ptr<Script> script(Ts&&... args) {
+std::unique_ptr<TweenScript> create_tween_script(Ts&&... args) {
 	return std::make_unique<T>(args...);
 }
 
-std::unique_ptr<Script> test;
+std::unique_ptr<TweenScript> test;
 
-void UpdateScript(float f) {
+void UpdateTweenScript(float f) {
 	if (test) {
 		test->OnUpdate(f);
 	}
 }
 
-void Add(std::unique_ptr<Script>&& func) {
-	test = std::move(func);
+template <typename T, typename... Args>
+void AddTweenScript(Args... args) {
+	test = create_tween_script<T>(args...);
+}
+
+template <typename T>
+void AddTweenScript(std::unique_ptr<T>&& tween_script) {
+	test = std::move(tween_script);
+}
+
+std::string_view GetTweenScriptName() {
+	return test->GetName();
 }
 
 int main() {
-	/*Add(script<TweenScript1>(10));
+	AddTweenScript<TweenScript1>(10);
 
-	UpdateScript(0.1f);
+	UpdateTweenScript(0.1f);
 
-	std::cout << "Serializing script with name: " << type_name<TweenScript1>() << std::endl;
+	std::cout << "Serializing script with name: " << GetTweenScriptName() << std::endl;
 
 	std::string_view from_file{ "TweenScript1" };
 
 	std::cout << "Deserializing script with name: " << from_file << std::endl;
 
-	Add(Script::create(from_file, 10));
+	AddTweenScript(TweenScript::create(from_file, 10));
 
-	UpdateScript(0.9f);*/
+	UpdateTweenScript(0.9f);
 
-	/*auto f2 = Script::create("TweenScript1");
-	Execute(f2);*/
-
-	std::cout << "Start\n";
-	auto x = Animal::create("Dog", 3);
-	auto y = Animal::create("Cat", 2);
-	x->makeNoise();
-	y->makeNoise();
-	auto z = Creature::create("Ghost", std::make_unique<int>(4));
-	z->makeNoise();
-	auto w = ScriptS::create("MyCollisionScript");
-	w->makeNoise();
-	std::cout << "Stop\n";
+	// std::cout << "Start\n";
+	// auto x = TweenScript::create("TweenScript1", 3);
+	// auto y = TweenScript::create("TweenScript2", 2);
+	// auto x = create_tween_script<TweenScript1>(3);
+	// auto y = create_tween_script<TweenScript2>(2);
+	// x->OnUpdate(0.1f);
+	// y->OnUpdate(0.1f);
+	// std::cout << "Name of x for serialization: " << x->GetName() << "\n";
+	// std::cout << "Name of y for serialization: " << y->GetName() << "\n";
+	// std::cout << "Stop\n";
 	return 0;
 }
