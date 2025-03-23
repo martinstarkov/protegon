@@ -361,6 +361,7 @@ int main() {
 
 	std::cout << "Deserializing script with name: " << from_file << std::endl;
 
+	// TODO: Check if from_file is a TweenScript.
 	AddTweenScript(TweenScript::create(from_file, 10));
 
 	UpdateTweenScript(0.9f);
