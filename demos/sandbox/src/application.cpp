@@ -178,7 +178,7 @@ constexpr std::string_view remove_class_or_struct_prefix(std::string_view input)
 		std::equal(class_prefix.begin(), class_prefix.end(), input.begin())) {
 		return input.substr(class_prefix.size());
 	} else if (input.size() >= struct_prefix.size() &&
-               std::equal(struct_prefix.begin(), struct_prefix.end(), input.begin())) {
+			   std::equal(struct_prefix.begin(), struct_prefix.end(), input.begin())) {
 		return input.substr(struct_prefix.size());
 	} else {
 		return input;
@@ -270,7 +270,7 @@ public:
 
 private:
 	class Key {
-		Key(){};
+		Key() {};
 		template <class T>
 		friend struct Registrar;
 	};
@@ -288,8 +288,8 @@ private:
 
 template <class Base, class... Args>
 template <class T>
-bool Factory<Base, Args...>::Registrar<T>::registered =
-	Factory<Base, Args...>::Registrar<T>::registerT();
+bool Factory<Base, Args...>::template Registrar<T>::registered =
+	Factory<Base, Args...>::template Registrar<T>::registerT();
 
 struct TweenScript : Factory<TweenScript, int> {
 	TweenScript(Key) {}
@@ -299,7 +299,13 @@ struct TweenScript : Factory<TweenScript, int> {
 	virtual void OnUpdate(float f) {}
 };
 
-class TweenScript1 : public TweenScript::Registrar<TweenScript1> {
+template <typename BaseScript, typename TScript>
+using Script = typename BaseScript::template Registrar<TScript>;
+
+template <typename TScript>
+using TweenScriptClass = Script<TweenScript, TScript>;
+
+class TweenScript1 : public TweenScriptClass<TweenScript1> {
 public:
 	TweenScript1(int e) : e(e) {}
 
@@ -311,7 +317,7 @@ private:
 	int e{ 0 };
 };
 
-class TweenScript2 : public TweenScript::Registrar<TweenScript2> {
+class TweenScript2 : public TweenScriptClass<TweenScript1> {
 public:
 	TweenScript2(int e) : e(e) {}
 
@@ -349,6 +355,19 @@ void AddTweenScript(std::unique_ptr<T>&& tween_script) {
 std::string_view GetTweenScriptName() {
 	return test->GetName();
 }
+
+// TODO: To serialize an entity, write its
+// UUID
+
+// Number of components
+// (Write zeros equivalent to the above)
+
+// Size of each component.
+
+// To serialize a component, write its
+// Component Id
+// Component size
+// Component data
 
 int main() {
 	AddTweenScript<TweenScript1>(10);
