@@ -1,6 +1,6 @@
 #include "components/draw.h"
 #include "components/input.h"
-#include "components/transform.h"
+#include "core/transform.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "ecs/ecs.h"

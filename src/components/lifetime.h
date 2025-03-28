@@ -7,6 +7,7 @@
 namespace ptgn {
 
 struct Lifetime {
+	// TODO: Move to cpp.
 	Lifetime(milliseconds duration, bool start = false) : duration{ duration } {
 		if (start) {
 			timer_.Start();

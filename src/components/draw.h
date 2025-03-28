@@ -34,12 +34,6 @@ struct Visible : public ArithmeticComponent<bool> {
 	Visible() : ArithmeticComponent{ true } {}
 };
 
-struct Enabled : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	Enabled() : ArithmeticComponent{ true } {}
-};
-
 struct DisplaySize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
@@ -66,6 +60,7 @@ struct TextureKey : public ArithmeticComponent<std::size_t> {
 
 namespace callback {
 
+// TODO: Change to scripts.
 struct AnimationRepeat : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
 };

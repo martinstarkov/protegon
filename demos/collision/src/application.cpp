@@ -1,9 +1,11 @@
 #include <memory>
 #include <vector>
 
-#include "components/transform.h"
+#include "components/common.h"
+#include "components/movement.h"
 #include "core/game.h"
 #include "core/game_object.h"
+#include "core/transform.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
@@ -11,7 +13,6 @@
 #include "math/collision/collider.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "physics/movement.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "renderer/origin.h"

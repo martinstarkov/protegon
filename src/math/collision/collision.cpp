@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "components/common.h"
 #include "components/draw.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
@@ -108,8 +109,8 @@ V2_float CollisionHandler::GetRemainingVelocity(
 }
 
 void CollisionHandler::Update(ecs::Manager& manager) {
-	auto boxes{ manager.EntitiesWith<Enabled, BoxCollider>() };
-	auto circles{ manager.EntitiesWith<Enabled, CircleCollider>() };
+	auto boxes{ std::as_const(manager).EntitiesWith<Enabled, BoxCollider>() };
+	auto circles{ std::as_const(manager).EntitiesWith<Enabled, CircleCollider>() };
 
 	for (auto [e1, enabled, b1] : boxes) {
 		if (!enabled) {

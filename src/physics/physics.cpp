@@ -1,11 +1,12 @@
 #include "physics/physics.h"
 
+#include "components/common.h"
 #include "components/draw.h"
-#include "components/transform.h"
+#include "components/movement.h"
 #include "core/game.h"
+#include "core/transform.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
-#include "physics/movement.h"
 #include "physics/rigid_body.h"
 
 namespace ptgn {

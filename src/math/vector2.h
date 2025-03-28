@@ -9,7 +9,6 @@
 
 #include "math/math.h"
 #include "math/rng.h"
-#include "serialization/fwd.h"
 #include "utility/assert.h"
 #include "utility/type_traits.h"
 
@@ -388,12 +387,6 @@ template <typename T>
 [[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& a, const Vector2<T>& b) {
 	return Vector2<T>{ (a + b) / 2.0f };
 }
-
-template <typename T>
-void to_json(json& j, const Vector2<T>& v);
-
-template <typename T>
-void from_json(const json& j, Vector2<T>& v);
 
 } // namespace ptgn
 

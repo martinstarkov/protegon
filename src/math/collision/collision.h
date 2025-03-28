@@ -3,10 +3,11 @@
 #include <unordered_set>
 #include <vector>
 
+#include "components/common.h"
 #include "components/draw.h"
-#include "components/transform.h"
 #include "core/game.h"
 #include "core/game_object.h"
+#include "core/transform.h"
 #include "ecs/ecs.h"
 #include "math/collision/collider.h"
 #include "math/collision/intersect.h"
@@ -59,8 +60,8 @@ public:
 
 	template <typename T>
 	static void Overlap(
-		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<Enabled, CircleCollider>& circles
+		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles
 	) {
 		if (!entity.Get<T>().overlap_only) {
 			return;
@@ -94,8 +95,8 @@ public:
 
 	template <typename T>
 	static void Intersect(
-		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<Enabled, CircleCollider>& circles
+		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles
 	) {
 		if (entity.Get<T>().overlap_only) {
 			return;
@@ -157,8 +158,8 @@ public:
 	// Updates the velocity of the object to prevent it from colliding with the target objects.
 	template <typename T>
 	static void Sweep(
-		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<Enabled, CircleCollider>&
+		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<true, Enabled, CircleCollider>&
 			circles /* TODO: Fix or get rid of: , bool debug_draw = false */
 	) {
 		if (const auto& collider{ entity.Get<T>() };
@@ -306,8 +307,8 @@ private:
 	// the remaining velocity.
 	template <typename T>
 	[[nodiscard]] static std::vector<SweepCollision> GetSortedCollisions(
-		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<Enabled, CircleCollider>& circles, const V2_float& offset,
+		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles, const V2_float& offset,
 		const V2_float& vel
 	) {
 		std::vector<SweepCollision> collisions;
@@ -333,8 +334,8 @@ private:
 
 	template <typename T>
 	static void HandleCollisions(
-		ecs::Entity entity, const ecs::EntitiesWith<Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<Enabled, CircleCollider>& circles
+		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles
 	) {
 		auto& collider{ entity.Get<T>() };
 

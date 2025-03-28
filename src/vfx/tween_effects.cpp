@@ -8,8 +8,9 @@
 #include <type_traits>
 
 #include "components/draw.h"
-#include "components/transform.h"
+#include "components/offsets.h"
 #include "core/game_object.h"
+#include "core/transform.h"
 #include "ecs/ecs.h"
 #include "math/math.h"
 #include "math/noise.h"

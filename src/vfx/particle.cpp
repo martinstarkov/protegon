@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <utility>
 
-#include "components/transform.h"
+#include "core/transform.h"
 #include "core/game.h"
 #include "core/game_object.h"
 #include "ecs/ecs.h"

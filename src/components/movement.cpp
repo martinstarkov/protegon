@@ -1,19 +1,19 @@
-#include "physics/movement.h"
+#include "components/movement.h"
 
 #include <algorithm>
 #include <cmath>
 #include <type_traits>
 #include <utility>
 
-#include "components/transform.h"
 #include "core/game.h"
+#include "core/transform.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "math/collision/collider.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "rigid_body.h"
+#include "physics/rigid_body.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/timer.h"

@@ -35,7 +35,7 @@ void GLContext::LoadGLFunctions() {
 #ifndef PTGN_PLATFORM_MACOS
 
 #define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
 	GL_LIST_1
 #undef GLE
 
@@ -44,11 +44,11 @@ void GLContext::LoadGLFunctions() {
 #ifdef __EMSCRIPTEN__
 
 #define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##OESPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	gl::name = (gl::PFNGL##caps_name##OESPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
 	GL_LIST_2
 #undef GLE
 #define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##EXTPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	gl::name = (gl::PFNGL##caps_name##EXTPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
 	GL_LIST_3
 #undef GLE
 
@@ -57,7 +57,7 @@ void GLContext::LoadGLFunctions() {
 #ifndef PTGN_PLATFORM_MACOS
 
 #define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY_MACRO(gl##name));
+	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
 	GL_LIST_2
 	GL_LIST_3
 #undef GLE
@@ -72,7 +72,7 @@ void GLContext::LoadGLFunctions() {
 
 // For debugging which commands were not initialized.
 #define GLE(name, caps_name) \
-	PTGN_ASSERT(gl::name, "Failed to load ", PTGN_STRINGIFY_MACRO(gl::name));
+	PTGN_ASSERT(gl::name, "Failed to load ", PTGN_STRINGIFY(gl::name));
 	GL_LIST_1
 	GL_LIST_2
 	GL_LIST_3

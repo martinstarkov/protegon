@@ -3,7 +3,7 @@
 #include <cmath>
 #include <utility>
 
-#include "components/transform.h"
+#include "core/transform.h"
 #include "core/game.h"
 #include "math/collision/overlap.h"
 #include "math/geometry/circle.h"

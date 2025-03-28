@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "components/transform.h"
+#include "components/common.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "math/vector4.h"

@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 
+#include "utility/macro.h"
 #include "utility/platform.h"
 
 #ifndef NDEBUG
@@ -28,9 +29,6 @@
 #endif
 
 #endif
-
-#define PTGN_EXPAND_MACRO(x)	x
-#define PTGN_STRINGIFY_MACRO(x) #x
 
 // Function signature macro: PTGN_FULL_FUNCTION_SIGNATURE
 #if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || \

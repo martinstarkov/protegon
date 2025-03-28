@@ -8,7 +8,7 @@
 #include "components/draw.h"
 #include "components/generic.h"
 #include "core/game_object.h"
-#include "core/manager.h"
+#include "core/resource_manager.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"

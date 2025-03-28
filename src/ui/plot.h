@@ -7,7 +7,7 @@
 // #include <vector>
 //
 // #include "components/generic.h"
-// #include "core/manager.h"
+// #include "core/resource_manager.h"
 // #include "ecs/ecs.h"
 // #include "math/geometry/line.h"
 // #include "math/geometry/polygon.h"

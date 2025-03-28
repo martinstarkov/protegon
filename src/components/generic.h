@@ -68,6 +68,7 @@ private:
 	std::string value_;
 };
 
+// TODO: Get rid of this in favor of scripts.
 template <typename... TArgs>
 struct CallbackComponent {
 	CallbackComponent() = default;

@@ -3,10 +3,12 @@
 #include <array>
 #include <type_traits>
 
+#include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
-#include "components/transform.h"
+#include "components/offsets.h"
 #include "core/game.h"
+#include "core/transform.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"

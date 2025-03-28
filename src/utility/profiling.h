@@ -5,7 +5,7 @@
 #include <string_view>
 #include <type_traits>
 
-#include "core/manager.h"
+#include "core/resource_manager.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/timer.h"
@@ -85,16 +85,16 @@ private:
 
 } // namespace ptgn::impl
 
-#define PTGN_PROFILE_FUNCTION(...)                                                               \
-	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(                                \
-		PTGN_EXPAND_MACRO(PTGN_FULL_FUNCTION_SIGNATURE), std::invoke([&]() -> std::string_view { \
-			if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                                \
-				return __VA_ARGS__;                                                              \
-			} else {                                                                             \
-				return "";                                                                       \
-			}                                                                                    \
-		})                                                                                       \
-                                                                                                 \
+#define PTGN_PROFILE_FUNCTION(...)                                                         \
+	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(                          \
+		PTGN_EXPAND(PTGN_FULL_FUNCTION_SIGNATURE), std::invoke([&]() -> std::string_view { \
+			if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                          \
+				return __VA_ARGS__;                                                        \
+			} else {                                                                       \
+				return "";                                                                 \
+			}                                                                              \
+		})                                                                                 \
+                                                                                           \
 	)
 
 // Optional: In the future profiling could be disabled for distribution builds.

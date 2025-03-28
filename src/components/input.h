@@ -57,6 +57,8 @@ struct InteractiveRects {
 	std::vector<InteractiveRect> rects;
 };
 
+// TODO: Replace these with scripts.
+
 namespace callback {
 
 struct Show : public CallbackComponent<> {

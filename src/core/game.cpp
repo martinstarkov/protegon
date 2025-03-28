@@ -7,7 +7,7 @@
 #include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/gl_context.h"
-#include "core/manager.h"
+#include "core/resource_manager.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "event/event_handler.h"

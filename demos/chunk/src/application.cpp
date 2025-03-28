@@ -6,7 +6,7 @@
 #include "event/input_handler.h"
 #include "math/geometry/polygon.h"
 #include "math/noise.h"
-#include "physics/movement.h"
+#include "components/movement.h"
 #include "renderer/color.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"

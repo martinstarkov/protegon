@@ -55,6 +55,7 @@ ecs::Entity CreateAnimation(
 	};
 
 	// TODO: Consider breaking this up into individual tween points using a for loop.
+	// TODO: Switch to using a system.
 	entity.Add<Tween>()
 		.During(frame_duration)
 		.Repeat(-1)

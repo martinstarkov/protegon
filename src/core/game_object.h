@@ -3,7 +3,8 @@
 #include <array>
 #include <unordered_set>
 
-#include "components/transform.h"
+#include "components/common.h"
+#include "core/transform.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/blend_mode.h"

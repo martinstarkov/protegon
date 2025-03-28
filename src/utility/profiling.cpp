@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-#include "core/manager.h"
+#include "core/resource_manager.h"
 #include "core/game.h"
 #include "math/hash.h"
 #include "utility/timer.h"

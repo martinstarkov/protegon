@@ -1,7 +1,6 @@
 #pragma once
 
 #include "math/vector2.h"
-#include "serialization/fwd.h"
 
 namespace ptgn {
 
@@ -27,9 +26,5 @@ struct RigidBody {
 	// @param dt Unit: seconds.
 	void Update(const V2_float& physics_gravity, float dt);
 };
-
-void to_json(json& j, const RigidBody& rb);
-
-void from_json(const json& j, RigidBody& rb);
 
 } // namespace ptgn

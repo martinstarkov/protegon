@@ -10,7 +10,7 @@
 #include <utility>
 
 #include "components/draw.h"
-#include "components/transform.h"
+#include "core/transform.h"
 #include "core/game.h"
 #include "core/game_object.h"
 #include "core/window.h"

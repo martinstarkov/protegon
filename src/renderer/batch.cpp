@@ -5,24 +5,13 @@
 #include <utility>
 #include <vector>
 
-#include "components/draw.h"
-#include "components/transform.h"
-#include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/blend_mode.h"
-#include "renderer/render_data.h"
-#include "renderer/render_target.h"
 #include "renderer/shader.h"
-#include "renderer/text.h"
 #include "renderer/texture.h"
 #include "utility/assert.h"
-#include "utility/log.h"
-#include "vfx/light.h"
 
 namespace ptgn::impl {
 

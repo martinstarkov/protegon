@@ -1,10 +1,10 @@
-#include "scene_input.h"
+#include "scene/scene_input.h"
 
 #include <functional>
 
+#include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
-#include "components/transform.h"
 #include "core/game.h"
 #include "core/game_object.h"
 #include "ecs/ecs.h"

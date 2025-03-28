@@ -1,8 +1,8 @@
 #include "scene/scene.h"
 
-#include "components/draw.h"
+#include "components/common.h"
 #include "components/lifetime.h"
-#include "components/transform.h"
+#include "components/offsets.h"
 #include "core/game.h"
 #include "core/game_object.h"
 #include "ecs/ecs.h"

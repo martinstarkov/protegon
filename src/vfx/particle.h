@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-#include "components/transform.h"
+#include "core/transform.h"
 #include "core/game_object.h"
 #include "ecs/ecs.h"
 #include "math/math.h"
