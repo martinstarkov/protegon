@@ -10,8 +10,6 @@
 #include <variant>
 #include <vector>
 
-#include "serialization/stream_reader.h"
-#include "serialization/stream_writer.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/time.h"
@@ -67,25 +65,26 @@ void TweenPoint::SetReversed(bool reversed) {
 	currently_reversed_ = start_reversed_;
 }
 
-void TweenPoint::Serialize(ptgn::StreamWriter* w, const TweenPoint& tween_point) {
-	w->Write(tween_point.current_repeat_);
-	w->Write(tween_point.total_repeats_);
-	w->Write(tween_point.yoyo_);
-	w->Write(tween_point.currently_reversed_);
-	w->Write(tween_point.start_reversed_);
-	w->Write(tween_point.duration_);
-	w->Write(tween_point.easing_func_);
-}
-
-void TweenPoint::Deserialize(ptgn::StreamReader* r, TweenPoint& tween_point) {
-	r->Read(tween_point.current_repeat_);
-	r->Read(tween_point.total_repeats_);
-	r->Read(tween_point.yoyo_);
-	r->Read(tween_point.currently_reversed_);
-	r->Read(tween_point.start_reversed_);
-	r->Read(tween_point.duration_);
-	r->Read(tween_point.easing_func_);
-}
+// TODO: Get rid of these.
+// void TweenPoint::Serialize(ptgn::StreamWriter* w, const TweenPoint& tween_point) {
+//	w->Write(tween_point.current_repeat_);
+//	w->Write(tween_point.total_repeats_);
+//	w->Write(tween_point.yoyo_);
+//	w->Write(tween_point.currently_reversed_);
+//	w->Write(tween_point.start_reversed_);
+//	w->Write(tween_point.duration_);
+//	w->Write(tween_point.easing_func_);
+//}
+//
+// void TweenPoint::Deserialize(ptgn::StreamReader* r, TweenPoint& tween_point) {
+//	r->Read(tween_point.current_repeat_);
+//	r->Read(tween_point.total_repeats_);
+//	r->Read(tween_point.yoyo_);
+//	r->Read(tween_point.currently_reversed_);
+//	r->Read(tween_point.start_reversed_);
+//	r->Read(tween_point.duration_);
+//	r->Read(tween_point.easing_func_);
+//}
 
 } // namespace impl
 
@@ -269,6 +268,8 @@ Tween& Tween::SetDuration(milliseconds duration, std::size_t tween_point_index) 
 	return *this;
 }
 
+// TODO: Get rid of these.
+/*
 void Tween::Serialize(StreamWriter* w, const Tween& tween) {
 	w->Write(tween.progress_);
 	w->Write(tween.index_);
@@ -284,6 +285,7 @@ void Tween::Deserialize(StreamReader* w, Tween& tween) {
 	w->Read(tween.paused_);
 	w->Read(tween.started_);
 }
+*/
 
 Tween& Tween::OnUpdate(const TweenCallback& callback) {
 	GetLastTweenPoint().on_update_ = callback;
