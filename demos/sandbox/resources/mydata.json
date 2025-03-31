@@ -1,5 +1,5 @@
 {
-    "value0": 456,
-    "value1": "JSON Data",
-    "value2": 2.7100000381469727
+    "id": 456,
+    "message": "JSON Data",
+    "value": 2.7100000381469727
 }
