@@ -184,43 +184,17 @@ struct is_std_array : public std::false_type {};
 template <typename T, std::size_t I>
 struct is_std_array<std::array<T, I>> : public std::true_type {};
 
-template <typename T, typename StreamWriterType, typename = void>
-struct has_static_serialize : std::false_type {};
-
-template <typename T, typename StreamWriterType>
-struct has_static_serialize<
-	T, StreamWriterType,
-	std::void_t<decltype(T::Serialize(std::declval<StreamWriterType*>(), std::declval<const T&>())
-	)>> : std::true_type {};
-
-template <typename T, typename StreamReaderType, typename = void>
-struct has_static_deserialize : std::false_type {};
-
-template <typename T, typename StreamReaderType>
-struct has_static_deserialize<
-	T, StreamReaderType,
-	std::void_t<decltype(T::Deserialize(std::declval<StreamReaderType*>(), std::declval<T&>()))>> :
-	std::true_type {};
-
 } // namespace impl
-
-template <typename T, typename StreamWriterType>
-inline constexpr bool is_serializable_v{ impl::has_static_serialize<T, StreamWriterType>::value };
-
-template <typename T, typename StreamReaderType>
-inline constexpr bool is_deserializable_v{
-	impl::has_static_deserialize<T, StreamReaderType>::value
-};
 
 template <typename T>
 inline constexpr bool is_std_array_or_vector_v{ impl::is_std_array<T>::value ||
 												impl::is_std_vector<T>::value };
 
 template <typename T>
-inline constexpr bool is_std_array_v{ impl::is_std_array<T>::value };
+inline constexpr bool is_std_array_v{ impl::is_std_array<std::decay_t<T>>::value };
 
 template <typename T>
-inline constexpr bool is_std_vector_v{ impl::is_std_vector<T>::value };
+inline constexpr bool is_std_vector_v{ impl::is_std_vector<std::decay_t<T>>::value };
 
 template <typename T, typename U>
 inline constexpr bool is_equals_comparable_v{ impl::is_equals_comparable<T, U>::value };
@@ -268,21 +242,15 @@ template <typename T, typename... Ts>
 inline constexpr bool is_safely_castable_to_one_of_v{ (is_safely_castable_v<T, Ts> || ...) };
 
 template <typename T>
-inline constexpr bool is_string_like_v{ impl::is_string_like<T>::value };
+inline constexpr bool is_string_like_v{ impl::is_string_like<std::decay_t<T>>::value };
 
 template <typename T>
-inline constexpr bool is_map_like_v{ impl::is_map_like<T>{} };
+inline constexpr bool is_map_like_v{ impl::is_map_like<std::decay_t<T>>{} };
 
 // SFINAE helpers.
 
 template <bool Condition>
 using enable = std::enable_if_t<Condition, bool>;
-
-template <typename T, typename StreamWriterType>
-using serializable = enable<is_serializable_v<T, StreamWriterType>>;
-
-template <typename T, typename StreamReaderType>
-using deserializable = enable<is_deserializable_v<T, StreamReaderType>>;
 
 template <typename T>
 using string_like = enable<is_string_like_v<T>>;
