@@ -5,22 +5,26 @@
 PTGN_HAS_TEMPLATE_FUNCTION(Serialize);
 PTGN_HAS_TEMPLATE_FUNCTION(Deserialize);
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 template <typename T>
 struct JsonKeyValuePair {
 	std::string_view key;
 	T& value;
 
-	JsonKeyValuePair(std::string_view key, T& value) : key(key), value(value) {}
+	JsonKeyValuePair(std::string_view key, T& value) : key{ key }, value{ value } {}
 };
 
 template <typename T>
 JsonKeyValuePair<T> KeyValue(std::string_view key, T& value) {
-	return JsonKeyValuePair<T>(key, value);
+	return { key, value };
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
 
 #define PTGN_KEY_VALUE_PAIR(x, instance) ptgn::impl::KeyValue(#x, instance.x)
 

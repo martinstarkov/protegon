@@ -45,7 +45,7 @@ void DrawDebugPoint(const V2_float position, const Color& color);
 // TODO: Fix.
 /*
 void DrawDebugText(
-	const ecs::Entity& o, const V2_float& position, const V2_float& size, const Color& color,
+	const Entity& o, const V2_float& position, const V2_float& size, const Color& color,
 	Origin origin = Origin::Center, float rotation = 0.0f
 );
 */

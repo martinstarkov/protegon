@@ -3,7 +3,8 @@
 #include <string_view>
 
 #include "components/generic.h"
-#include "ecs/ecs.h"
+#include "core/entity.h"
+#include "core/manager.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -13,7 +14,7 @@ namespace ptgn {
 
 // @param manager Which manager the entity is added to.
 // @param texture_key Key of the texture loaded into the texture manager.
-ecs::Entity CreateSprite(ecs::Manager& manager, std::string_view texture_key);
+Entity CreateSprite(Manager& manager, std::string_view texture_key);
 
 // @param manager Which manager the entity is added to.
 // @param texture_key Key of the texture loaded into the texture manager.
@@ -22,8 +23,8 @@ ecs::Entity CreateSprite(ecs::Manager& manager, std::string_view texture_key);
 // @param animation_duration Duration of the full animation sequence.
 // @param start_pixel Pixel within the texture which indicates the top left position of the
 // animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
-ecs::Entity CreateAnimation(
-	ecs::Manager& manager, std::string_view texture_key, std::size_t frame_count,
+Entity CreateAnimation(
+	Manager& manager, std::string_view texture_key, std::size_t frame_count,
 	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel = {},
 	std::size_t start_frame = 0
 );

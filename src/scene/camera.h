@@ -4,8 +4,9 @@
 #include <iosfwd>
 
 #include "components/generic.h"
+#include "core/entity.h"
 #include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
@@ -139,7 +140,7 @@ struct CameraInfo {
 class Camera : public GameObject {
 public:
 	Camera() = default;
-	explicit Camera(ecs::Manager& manager);
+	explicit Camera(Manager& manager);
 	Camera(const Camera&)				 = delete;
 	Camera& operator=(const Camera&)	 = delete;
 	Camera(Camera&&) noexcept			 = default;
@@ -212,7 +213,7 @@ public:
 	// @param target The target entity for the camera to follow.
 	// @param force If false, the follow is queued in the pan queue, if true the follow is executed
 	// immediately, clearing any previously queued pans or target following.
-	void StartFollow(ecs::Entity target, bool force = false);
+	void StartFollow(Entity target, bool force = false);
 
 	// Stop following the current target and moves onto to the next item in the pan queue.
 	// @param force If true, clears the pan queue.
@@ -373,9 +374,9 @@ public:
 	// Only applies when camera is following a target.
 	// Sets an offset such that the camera follows target.transform + offset.
 	// If {}, offset is removed.
-	void SetOffset(const V2_float& offset = {});
+	void SetFollowOffset(const V2_float& offset = {});
 
-	[[nodiscard]] V2_float GetOffset() const;
+	[[nodiscard]] V2_float GetFollowOffset() const;
 
 	void PrintInfo() const;
 
@@ -430,7 +431,7 @@ public:
 private:
 	friend class Scene;
 
-	void Init(ecs::Manager& manager);
+	void Init(Manager& manager);
 };
 
 /*

@@ -3,7 +3,7 @@
 #include <string_view>
 #include <type_traits>
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "math/vector2.h"
 
 namespace ptgn {
@@ -17,13 +17,13 @@ namespace ptgn {
 	return std::hash<std::string_view>()(string);
 }
 
-[[nodiscard]] inline std::size_t Hash(const ecs::Entity& e) {
-	return std::hash<ecs::Entity>()(e);
-}
-
 template <typename T>
 [[nodiscard]] inline std::size_t Hash(const Vector2<T>& vector) {
 	return std::hash<Vector2<T>>()(vector);
+}
+
+[[nodiscard]] inline std::size_t Hash(const Entity& entity) {
+	return std::hash<Entity>()(entity);
 }
 
 } // namespace ptgn

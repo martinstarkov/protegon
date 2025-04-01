@@ -5,11 +5,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/origin.h"
 
 namespace ptgn {
 
@@ -22,11 +21,11 @@ class CollisionHandler;
 struct Collision {
 	Collision() = default;
 
-	Collision(ecs::Entity e1, ecs::Entity e2, const V2_float& normal) :
+	Collision(Entity e1, Entity e2, const V2_float& normal) :
 		entity1{ e1 }, entity2{ e2 }, normal{ normal } {}
 
-	ecs::Entity entity1;
-	ecs::Entity entity2;
+	Entity entity1;
+	Entity entity2;
 	// Normal set to {} for overlap only collisions.
 	V2_float normal;
 
@@ -43,8 +42,8 @@ struct std::hash<ptgn::Collision> {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
 		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<ecs::Entity>()(c.entity1);
-		hash = hash * 31 + std::hash<ecs::Entity>()(c.entity2);
+		hash = hash * 31 + c.entity1.GetHash();
+		hash = hash * 31 + c.entity2.GetHash();
 		hash = hash * 31 + std::hash<ptgn::V2_float>()(c.normal);
 		return hash;
 	}
@@ -73,7 +72,7 @@ struct Collider {
 	std::unordered_set<Collision> prev_collisions;
 
 	// Must return true for collisions to be checked.
-	std::function<bool(ecs::Entity, ecs::Entity)> before_collision;
+	std::function<bool(Entity, Entity)> before_collision;
 
 	CollisionCallback on_collision_start;
 	CollisionCallback on_collision;
@@ -99,7 +98,7 @@ struct Collider {
 	void ResetCollidesWith();
 
 	// May invalidate all existing component references.
-	[[nodiscard]] bool ProcessCallback(ecs::Entity e1, ecs::Entity e2);
+	[[nodiscard]] bool ProcessCallback(Entity e1, Entity e2);
 
 	[[nodiscard]] bool CanCollideWith(const CollisionCategory& category) const;
 

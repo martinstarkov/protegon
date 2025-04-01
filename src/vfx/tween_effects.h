@@ -5,8 +5,9 @@
 
 #include "components/draw.h"
 #include "components/generic.h"
+#include "core/entity.h"
 #include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -36,7 +37,7 @@ struct ShakeConfig {
 namespace impl {
 
 [[nodiscard]] Tween& DoEffect(
-	const ecs::Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
+	const Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
 	milliseconds duration, TweenEase ease, bool force
 );
 
@@ -45,10 +46,10 @@ struct StartPosition : public Vector2Component<float> {
 };
 
 struct TranslateEffect : public GameObject {
-	explicit TranslateEffect(ecs::Manager& manager);
+	explicit TranslateEffect(Manager& manager);
 
 	[[nodiscard]] Tween& TranslateTo(
-		ecs::Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
+		Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
 		bool force
 	);
 };
@@ -58,11 +59,11 @@ struct StartAngle : public ArithmeticComponent<float> {
 };
 
 struct RotateEffect : public GameObject {
-	explicit RotateEffect(ecs::Manager& manager);
+	explicit RotateEffect(Manager& manager);
 
 	// @param target_angle In radians.
 	[[nodiscard]] Tween& RotateTo(
-		ecs::Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
+		Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
 	);
 };
 
@@ -71,10 +72,10 @@ struct StartScale : public Vector2Component<float> {
 };
 
 struct ScaleEffect : public GameObject {
-	explicit ScaleEffect(ecs::Manager& manager);
+	explicit ScaleEffect(Manager& manager);
 
 	[[nodiscard]] Tween& ScaleTo(
-		ecs::Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease,
+		Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease,
 		bool force
 	);
 };
@@ -84,35 +85,34 @@ struct StartTint : public Tint {
 };
 
 struct TintEffect : public GameObject {
-	explicit TintEffect(ecs::Manager& manager);
+	explicit TintEffect(Manager& manager);
 
 	[[nodiscard]] Tween& TintTo(
-		ecs::Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease,
-		bool force
+		Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
 	);
 };
 
 struct BounceEffect : public GameObject {
-	explicit BounceEffect(ecs::Manager& manager);
+	explicit BounceEffect(Manager& manager);
 
 	[[nodiscard]] Tween& Bounce(
-		ecs::Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
+		Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
 		milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
 	);
 };
 
 struct ContinuousShakeEffect : public GameObject {
-	explicit ContinuousShakeEffect(ecs::Manager& manager);
+	explicit ContinuousShakeEffect(Manager& manager);
 
-	void Reset(ecs::Entity& entity);
+	void Reset(Entity& entity);
 
 	[[nodiscard]] Tween& Shake(
-		ecs::Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
+		Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
 		bool force
 	);
 
 	[[nodiscard]] Tween& Shake(
-		ecs::Entity& entity, float intensity, const ShakeConfig& config, bool force
+		Entity& entity, float intensity, const ShakeConfig& config, bool force
 	);
 };
 
@@ -123,7 +123,7 @@ struct ShakeEffect {
 
 	// Needs to be called once a frame to update the local translation and rotation of the camera
 	// shake.
-	void Update(ecs::Entity& entity, float dt, float time);
+	void Update(Entity& entity, float dt, float time);
 
 	// Resets camera shake back to 0.
 	void Reset();
@@ -145,62 +145,62 @@ private:
 } // namespace impl
 
 Tween& TranslateTo(
-	ecs::Entity& e, const V2_float& target_position, milliseconds duration,
+	Entity& e, const V2_float& target_position, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
 Tween& RotateTo(
-	ecs::Entity& e, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
+	Entity& e, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 	bool force = true
 );
 
 Tween& ScaleTo(
-	ecs::Entity& e, const V2_float& target_scale, milliseconds duration,
+	Entity& e, const V2_float& target_scale, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
 Tween& TintTo(
-	ecs::Entity& e, const Color& target_tint, milliseconds duration,
-	TweenEase ease = TweenEase::Linear, bool force = true
+	Entity& e, const Color& target_tint, milliseconds duration, TweenEase ease = TweenEase::Linear,
+	bool force = true
 );
 
 Tween& FadeIn(
-	ecs::Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
+	Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
 );
 
 Tween& FadeOut(
-	ecs::Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
+	Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
 );
 
 // Stops the current bounce tween and moves onto the next one in the queue.
 // @param force If true, clears the entire bounce queue.
-void StopBounce(ecs::Entity& e, bool force = true);
+void StopBounce(Entity& e, bool force = true);
 
 // Bounce starts with upward motion unless reversed.
 // @param duration Duration of the upward motion.
 // @param repeats If -1, bounce continues until StopBounce is called.
 // @param static_offset A continuous offset from the entity position.
 Tween& Bounce(
-	ecs::Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
+	Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
 	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force = true
 );
 
 // @param intensity Range: [0, 1].
 Tween& Shake(
-	ecs::Entity& e, float intensity, milliseconds duration, const ShakeConfig& config = {},
+	Entity& e, float intensity, milliseconds duration, const ShakeConfig& config = {},
 	bool force = true
 );
 
 // @param intensity Range: [0, 1].
-Tween& Shake(ecs::Entity& e, float intensity, const ShakeConfig& config = {}, bool force = true);
+Tween& Shake(Entity& e, float intensity, const ShakeConfig& config = {}, bool force = true);
 
-void StopShake(ecs::Entity& e, bool force = true);
+void StopShake(Entity& e, bool force = true);
 
 // Calls the callback after the given duration has elapsed.
-Tween& After(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback);
+Tween& After(Manager& manager, milliseconds duration, const std::function<void()>& callback);
 
 // Calls the callback during the given duration.
-Tween& During(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback);
+Tween& During(Manager& manager, milliseconds duration, const std::function<void()>& callback);
 
 // Calls the callback every duration for a certain number of repeats.
 // @param repeats If -1, repeats indefinitely until exit_condition_callback returns true. Warning:
@@ -208,7 +208,7 @@ Tween& During(ecs::Manager& manager, milliseconds duration, const std::function<
 // @param exit_condition_callback Called every frame of the duration. If it ever returns true, the
 // callback repetition is stopped.
 Tween& Every(
-	ecs::Manager& manager, milliseconds duration, std::int64_t repeats,
+	Manager& manager, milliseconds duration, std::int64_t repeats,
 	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
 );
 

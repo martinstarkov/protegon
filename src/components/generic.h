@@ -1,14 +1,15 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <string_view>
 #include <type_traits>
 
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "utility/function.h"
 #include "utility/type_traits.h"
-#include "utility/utility.h"
 
 namespace ptgn {
 

@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "components/common.h"
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/blend_mode.h"
@@ -52,7 +52,7 @@ struct Batch {
 	std::vector<std::uint32_t> texture_ids;
 	std::vector<Vertex> vertices;
 	std::vector<IndexType> indices;
-	std::vector<ecs::Entity> lights;
+	std::vector<Entity> lights;
 
 	void AddTexturedQuad(
 		const std::array<V2_float, quad_vertex_count>& positions,

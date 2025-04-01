@@ -4,11 +4,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
+#include "core/entity.h"
 #include "math/vector2.h"
-#include "renderer/origin.h"
 
 namespace ptgn {
 
@@ -36,7 +33,7 @@ void Collider::ResetCollidesWith() {
 	mask_ = {};
 }
 
-bool Collider::ProcessCallback(ecs::Entity e1, ecs::Entity e2) {
+bool Collider::ProcessCallback(Entity e1, Entity e2) {
 	return before_collision == nullptr || std::invoke(before_collision, e1, e2);
 }
 

@@ -1,20 +1,18 @@
 #include "tile/chunk.h"
 
+#include <type_traits>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "utility/assert.h"
 
 namespace ptgn {
 
-Chunk::Chunk(const std::vector<ecs::Entity>& entities) : entities{ entities } {}
+Chunk::Chunk(const std::vector<Entity>& entities) : entities{ entities } {}
 
 Chunk::Chunk(Chunk&& other) noexcept : entities{ std::exchange(other.entities, {}) } {}
 
@@ -31,8 +29,7 @@ Chunk::~Chunk() {
 	}
 }
 
-ecs::Entity NoiseLayer::GetEntity(const V2_float& tile_coordinate, const V2_float& tile_size)
-	const {
+Entity NoiseLayer::GetEntity(const V2_float& tile_coordinate, const V2_float& tile_size) const {
 	if (callback == nullptr) {
 		return {};
 	}
@@ -126,15 +123,15 @@ void ChunkManager::Update(const Camera& camera) {
 	}*/
 }
 
-[[nodiscard]] std::vector<ecs::Entity> ChunkManager::GenerateEntities(const V2_int& chunk_coordinate
+[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(const V2_int& chunk_coordinate
 ) const {
-	std::vector<ecs::Entity> entities;
+	std::vector<Entity> entities;
 	for (const auto& layer : noise_layers) {
 		for (int i{ 0 }; i < chunk_size.x; i++) {
 			for (int j{ 0 }; j < chunk_size.y; j++) {
 				auto tile_coordinate{ chunk_coordinate * chunk_size + V2_int{ i, j } };
 				auto entity{ layer.GetEntity(tile_coordinate, tile_size) };
-				if (entity == ecs::Entity{}) {
+				if (entity == Entity{}) {
 					continue;
 				}
 				entities.emplace_back(entity);

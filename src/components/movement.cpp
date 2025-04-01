@@ -5,9 +5,9 @@
 #include <type_traits>
 #include <utility>
 
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/transform.h"
-#include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "math/collision/collider.h"
@@ -373,7 +373,7 @@ void PlatformerMovement::RunWithAcceleration(
 	rb.velocity.x = impl::MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
 }
 
-void PlatformerJump::Ground(Collision c, CollisionCategory ground_category) {
+void PlatformerJump::Ground(const Collision& c, const CollisionCategory& ground_category) {
 	PTGN_ASSERT((c.entity2.HasAny<BoxCollider, CircleCollider>()));
 	if ((c.entity2.Has<BoxCollider>() && c.entity2.Get<BoxCollider>().IsCategory(ground_category)
 		) ||

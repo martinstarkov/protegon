@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "event/event.h"
 #include "event/events.h"
 #include "math/vector2.h"
@@ -39,7 +39,7 @@ private:
 	void OnMouseEvent(MouseEvent type, const Event& event);
 	void OnKeyEvent(KeyEvent type, const Event& event);
 
-	[[nodiscard]] static bool PointerIsInside(const V2_float& pointer, const ecs::Entity& entity);
+	[[nodiscard]] static bool PointerIsInside(const V2_float& pointer, const Entity& entity);
 
 	void Init(Scene* scene);
 	void Shutdown();

@@ -3,9 +3,9 @@
 #include "components/common.h"
 #include "components/lifetime.h"
 #include "components/offsets.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "event/input_handler.h"
 #include "math/collision/collision.h"
 #include "renderer/renderer.h"
@@ -25,6 +25,10 @@ void Scene::ClearTarget() {
 
 void Scene::Add(Action new_status) {
 	actions_.insert(new_status);
+}
+
+Entity Scene::CreateEntity() {
+	return manager.CreateEntity();
 }
 
 void Scene::InternalEnter() {
@@ -74,7 +78,7 @@ void Scene::PostUpdate() {
 	manager.Refresh();
 	for (auto [e, enabled, particle_manager] :
 		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
-		particle_manager.Update(GetPosition(e));
+		particle_manager.Update(e.GetPosition());
 	}
 	// std::size_t tween_update_count{ 0 };
 	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {

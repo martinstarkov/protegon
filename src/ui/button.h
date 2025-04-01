@@ -7,9 +7,10 @@
 
 #include "components/draw.h"
 #include "components/generic.h"
+#include "core/entity.h"
 #include "core/game_object.h"
+#include "core/manager.h"
 #include "core/resource_manager.h"
-#include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
@@ -142,8 +143,8 @@ struct ButtonTextureToggled : public ButtonTexture {
 
 struct ButtonText {
 	ButtonText(
-		const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
-		const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+		const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+		const TextColor& text_color, const FontKey& font_key
 	);
 
 	[[nodiscard]] Color GetTextColor(ButtonState state) const;
@@ -155,8 +156,8 @@ struct ButtonText {
 	[[nodiscard]] Text& GetValid(ButtonState state);
 	[[nodiscard]] Text& Get(ButtonState state);
 	void Set(
-		const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
-		const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+		const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+		const TextColor& text_color, const FontKey& font_key
 	);
 
 	Text default_;
@@ -174,7 +175,7 @@ using ButtonCallback = std::function<void()>;
 
 struct Button : public GameObject {
 	Button() = default;
-	explicit Button(ecs::Manager& manager);
+	explicit Button(Manager& manager);
 	Button(const Button&)				 = delete;
 	Button& operator=(const Button&)	 = delete;
 	Button(Button&&) noexcept			 = default;
@@ -276,7 +277,7 @@ private:
 
 	// Internal constructor so that toggle button can avoid setting up callbacks with nullptr
 	// internal_on_activate.
-	Button(ecs::Manager& manager, bool);
+	Button(Manager& manager, bool);
 
 	Button& OnInternalActivate(const ButtonCallback& callback);
 
@@ -285,17 +286,17 @@ private:
 
 	void StateChange(impl::InternalButtonState new_state);
 
-	[[nodiscard]] static ButtonState GetState(const ecs::Entity& e);
+	[[nodiscard]] static ButtonState GetState(const Entity& e);
 
-	static void Activate(const ecs::Entity& e);
-	static void StartHover(const ecs::Entity& e);
-	static void StopHover(const ecs::Entity& e);
-	static void StateChange(const ecs::Entity& e, impl::InternalButtonState new_state);
+	static void Activate(const Entity& e);
+	static void StartHover(const Entity& e);
+	static void StopHover(const Entity& e);
+	static void StateChange(const Entity& e, impl::InternalButtonState new_state);
 };
 
 struct ToggleButton : public Button {
 	ToggleButton() = default;
-	ToggleButton(ecs::Manager& manager, bool toggled = false);
+	ToggleButton(Manager& manager, bool toggled = false);
 
 	void Activate() final;
 
@@ -349,8 +350,8 @@ struct ToggleButton : public Button {
 private:
 	friend class ToggleButtonGroup;
 
-	static void SetToggled(ecs::Entity e, bool toggled);
-	static void Toggle(ecs::Entity e);
+	static void SetToggled(Entity e, bool toggled);
+	static void Toggle(Entity e);
 };
 
 class ToggleButtonGroup : public MapManager<ToggleButton, std::string_view, std::string, false> {

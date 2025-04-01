@@ -2,9 +2,10 @@
 
 #include <string_view>
 
-#include "core/transform.h"
+#include "components/common.h"
+#include "core/entity.h"
 #include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
@@ -88,7 +89,7 @@ struct ParticleEmitterComponent {
 	std::size_t particle_count{ 0 };
 	Timer emission;
 	Gaussian<float> rng{ -1.0f, 1.0f };
-	ecs::Manager manager;
+	Manager manager;
 
 	void Update(const V2_float& start_position);
 
@@ -102,8 +103,8 @@ struct ParticleEmitterComponent {
 class ParticleEmitter : public GameObject {
 public:
 	ParticleEmitter() = delete;
-	explicit ParticleEmitter(ecs::Manager& manager);
-	explicit ParticleEmitter(ecs::Manager& manager, const ParticleInfo& info);
+	explicit ParticleEmitter(Manager& manager);
+	explicit ParticleEmitter(Manager& manager, const ParticleInfo& info);
 
 	// Starts emitting particles.
 	ParticleEmitter& Start();
@@ -143,7 +144,7 @@ private:
 	friend class impl::RenderData;
 
 	static void Draw(
-		const ecs::Entity& e, impl::RenderData& r, const Depth& depth, BlendMode blend_mode
+		const Entity& e, impl::RenderData& r, const Depth& depth, BlendMode blend_mode
 	);
 };
 

@@ -5,9 +5,8 @@
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
-#include "ecs/ecs.h"
 #include "event/event.h"
 #include "event/event_handler.h"
 #include "event/events.h"
@@ -24,12 +23,12 @@
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "utility/assert.h"
+#include "utility/function.h"
 #include "utility/log.h"
-#include "utility/utility.h"
 
 namespace ptgn {
 
-bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& entity) {
+bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) {
 	constexpr bool draw_interactives{ true };
 
 	bool is_circle{ entity.Has<InteractiveCircles>() };
@@ -38,14 +37,14 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 		!(is_rect && is_circle),
 		"Entity cannot have both an interactive radius and an interactive size"
 	);
-	auto scale{ GetScale(entity) };
-	auto pos{ GetPosition(entity) };
-	auto origin{ GetOrigin(entity) };
+	auto scale{ entity.GetScale() };
+	auto pos{ entity.GetPosition() };
+	auto origin{ entity.GetOrigin() };
 	bool overlapping{ false };
 	if (is_rect || is_circle) {
 		std::size_t count{ 0 };
 		if (is_rect) {
-			auto rotation{ GetRotation(entity) };
+			auto rotation{ entity.GetRotation() };
 			const auto& interactives{ entity.Get<InteractiveRects>() };
 			count += interactives.rects.size();
 			for (const auto& interactive : interactives.rects) {
@@ -119,7 +118,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 				auto size{ r.size * scale };
 				origin = r.origin;
 				auto center{ pos + GetOriginOffset(origin, r.size) };
-				auto rotation{ GetRotation(entity) };
+				auto rotation{ entity.GetRotation() };
 				if constexpr (draw_interactives) {
 					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
 				}
@@ -137,7 +136,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const ecs::Entity& ent
 		const auto& texture_key{ entity.Get<TextureKey>() };
 		auto size{ game.texture.GetSize(texture_key) * scale };
 		auto center{ pos + GetOriginOffset(origin, size) };
-		auto rotation{ GetRotation(entity) };
+		auto rotation{ entity.GetRotation() };
 		if constexpr (draw_interactives) {
 			DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
 		}
@@ -162,7 +161,7 @@ void SceneInput::UpdateCurrent() {
 	PTGN_ASSERT(scene_ != nullptr);
 	V2_float pos{ GetMousePosition() };
 	Depth top_depth;
-	ecs::Entity top_entity;
+	Entity top_entity;
 	bool send_mouse_event{ false };
 	for (auto [e, enabled, interactive] : scene_->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
@@ -175,8 +174,8 @@ void SceneInput::UpdateCurrent() {
 			}
 			if (top_only_) {
 				if (is_inside) {
-					auto depth{ GetDepth(e) };
-					if (depth >= top_depth || top_entity == ecs::Entity{}) {
+					auto depth{ e.GetDepth() };
+					if (depth >= top_depth || top_entity == Entity{}) {
 						top_depth  = depth;
 						top_entity = e;
 					}
@@ -188,7 +187,7 @@ void SceneInput::UpdateCurrent() {
 			}
 		}
 	}
-	if (top_only_ && top_entity != ecs::Entity{}) {
+	if (top_only_ && top_entity != Entity{}) {
 		PTGN_ASSERT(top_entity.Has<Enabled>() && top_entity.Get<Enabled>());
 		PTGN_ASSERT(top_entity.Has<Interactive>());
 		auto& top_interactive{ top_entity.Get<Interactive>() };
@@ -253,7 +252,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 						if (auto& draggable{ e.Get<Draggable>() }; !draggable.dragging) {
 							draggable.dragging = true;
 							draggable.start	   = pos;
-							draggable.offset   = GetPosition(e) - draggable.start;
+							draggable.offset   = e.GetPosition() - draggable.start;
 							draggable.target   = e;
 							Invoke<callback::DragStart>(e, pos);
 						}
@@ -280,7 +279,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					if (auto& draggable{ e.Get<Draggable>() }; draggable.dragging) {
 						draggable.dragging = false;
 						draggable.offset   = {};
-						draggable.target   = ecs::null;
+						draggable.target   = Entity{};
 						Invoke<callback::DragStop>(e, pos);
 					}
 				}
@@ -400,7 +399,7 @@ void SceneInput::SetTopOnly(bool top_only) {
 
 V2_float SceneInput::TransformToCamera(const V2_float& screen_position) const {
 	PTGN_ASSERT(scene_ != nullptr);
-	if (scene_->camera.primary != ecs::Entity{} && scene_->camera.primary.Has<impl::CameraInfo>()) {
+	if (scene_->camera.primary != Entity{} && scene_->camera.primary.Has<impl::CameraInfo>()) {
 		return scene_->camera.primary.TransformToCamera(screen_position);
 	}
 	return screen_position;

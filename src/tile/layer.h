@@ -1,7 +1,9 @@
 #pragma once
 
+// TODO: Come back to this.
+/*
 #include "core/game.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/geometry/polygon.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -12,14 +14,12 @@
 
 namespace ptgn {
 
-// TODO: Come back to this.
-/*
 class EntityLayer {
 public:
 	EntityLayer() = default;
 
 private:
-	ecs::Manager manager;
+	Manager manager;
 };
 
 namespace impl {
@@ -89,6 +89,7 @@ class GridLayer : public Grid<T> {
 public:
 private:
 };
-*/
 
 } // namespace ptgn
+
+*/

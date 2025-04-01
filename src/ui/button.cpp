@@ -8,8 +8,9 @@
 
 #include "components/generic.h"
 #include "components/input.h"
+#include "core/entity.h"
 #include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "event/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
@@ -18,6 +19,7 @@
 #include "renderer/origin.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "utility/function.h"
 #include "utility/log.h"
 
 namespace ptgn {
@@ -43,8 +45,8 @@ Color& ButtonColor::Get(ButtonState state) {
 }
 
 ButtonText::ButtonText(
-	const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
-	const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+	const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+	const TextColor& text_color, const FontKey& font_key
 ) {
 	Set(parent, manager, ButtonState::Default, text_content, text_color, font_key);
 	if (state != ButtonState::Default) {
@@ -98,8 +100,8 @@ TextJustify ButtonText::GetTextJustify(ButtonState state) const {
 }
 
 void ButtonText::Set(
-	const ecs::Entity& parent, ecs::Manager& manager, ButtonState state,
-	const TextContent& text_content, const TextColor& text_color, const FontKey& font_key
+	const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+	const TextColor& text_color, const FontKey& font_key
 ) {
 	PTGN_ASSERT(
 		state != ButtonState::Current,
@@ -133,9 +135,9 @@ TextureKey& ButtonTexture::Get(ButtonState state) {
 }
 } // namespace impl
 
-Button::Button(ecs::Manager& manager, bool) : GameObject{ manager } {}
+Button::Button(Manager& manager, bool) : GameObject{ manager } {}
 
-Button::Button(ecs::Manager& manager) : Button{ manager, true } {
+Button::Button(Manager& manager) : Button{ manager, true } {
 	Setup();
 	SetupCallbacks(nullptr);
 }
@@ -556,7 +558,7 @@ impl::InternalButtonState Button::GetInternalState() const {
 	return Get<impl::InternalButtonState>();
 }
 
-ButtonState Button::GetState(const ecs::Entity& e) {
+ButtonState Button::GetState(const Entity& e) {
 	PTGN_ASSERT(e.Has<impl::InternalButtonState>());
 	const auto& state{ e.Get<impl::InternalButtonState>() };
 	if (state == impl::InternalButtonState::Hover ||
@@ -570,11 +572,12 @@ ButtonState Button::GetState(const ecs::Entity& e) {
 	}
 }
 
-void Button::StateChange(const ecs::Entity& e, impl::InternalButtonState new_state) {
+void Button::StateChange(const Entity& e, impl::InternalButtonState new_state) {
 	e.Get<impl::InternalButtonState>() = new_state;
 }
 
-void Button::Activate(const ecs::Entity& e) {
+void Button::Activate(const Entity& e) {
+	// TODO: Replace with Invoke<Component>(). And do the same for the button other callbacks.
 	if (e.Has<impl::InternalButtonActivate>()) {
 		if (const auto& callback{ e.Get<impl::InternalButtonActivate>() }; callback != nullptr) {
 			std::invoke(callback);
@@ -587,7 +590,7 @@ void Button::Activate(const ecs::Entity& e) {
 	}
 }
 
-void Button::StartHover(const ecs::Entity& e) {
+void Button::StartHover(const Entity& e) {
 	if (e.Has<impl::ButtonHoverStart>()) {
 		if (const auto& callback{ e.Get<impl::ButtonHoverStart>() }; callback != nullptr) {
 			std::invoke(callback);
@@ -595,7 +598,7 @@ void Button::StartHover(const ecs::Entity& e) {
 	}
 }
 
-void Button::StopHover(const ecs::Entity& e) {
+void Button::StopHover(const Entity& e) {
 	if (e.Has<impl::ButtonHoverStop>()) {
 		if (const auto& callback{ e.Get<impl::ButtonHoverStop>() }; callback != nullptr) {
 			std::invoke(callback);
@@ -603,7 +606,7 @@ void Button::StopHover(const ecs::Entity& e) {
 	}
 }
 
-ToggleButton::ToggleButton(ecs::Manager& manager, bool toggled) : Button{ manager, true } {
+ToggleButton::ToggleButton(Manager& manager, bool toggled) : Button{ manager, true } {
 	Button::Setup();
 	Add<impl::ButtonToggled>(toggled);
 	Button::SetupCallbacks([e = GetEntity()]() { Toggle(e); });
@@ -623,7 +626,7 @@ ToggleButton& ToggleButton::SetToggled(bool toggled) {
 	return *this;
 }
 
-void ToggleButton::SetToggled(ecs::Entity e, bool toggled) {
+void ToggleButton::SetToggled(Entity e, bool toggled) {
 	auto& t{ e.Get<impl::ButtonToggled>() };
 	t = toggled;
 }
@@ -633,7 +636,7 @@ ToggleButton& ToggleButton::Toggle() {
 	return *this;
 }
 
-void ToggleButton::Toggle(ecs::Entity e) {
+void ToggleButton::Toggle(Entity e) {
 	auto& toggled{ e.Get<impl::ButtonToggled>() };
 	toggled = !toggled;
 }

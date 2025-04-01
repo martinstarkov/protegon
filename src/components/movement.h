@@ -12,8 +12,6 @@
 #include "utility/time.h"
 #include "utility/timer.h"
 
-// TODO: Move functions to cpp file.
-
 namespace ptgn {
 
 enum class MoveDirection {
@@ -208,7 +206,7 @@ public:
 	// Duration of time after leaving the ground for which the player can jump.
 	milliseconds coyote_time{ 150 };
 
-	static void Ground(Collision c, CollisionCategory ground_category);
+	static void Ground(const Collision& c, const CollisionCategory& ground_category);
 
 	// Gravity when grounded or near zero velocity.
 	float default_gravity_scale{ 5.0f };

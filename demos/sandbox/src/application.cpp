@@ -351,6 +351,7 @@ int main() {
 #include <utility>
 
 #include "serialization/binary_archive.h"
+#include "serialization/json_archive.h"
 #include "serialization/serializable.h"
 
 using namespace ptgn;
@@ -359,37 +360,6 @@ using namespace ptgn;
 // JSON Archive classes
 class JsonOutputArchive {
 public:
-	JsonOutputArchive(const std::filesystem::path& filePath) :
-		filePath_(filePath), valueCounter_(0), os_(filePath, std::ios::out) {
-		if (!os_.is_open()) {
-			throw std::runtime_error("Failed to open json file for writing: " + filePath.string());
-		}
-	}
-
-	~JsonOutputArchive() {
-		os_.close(); // Close even if not open (no effect if already closed)
-		if (!filePath_.empty() && !jsonData_.empty()) {
-			std::ofstream temp_os(filePath_, std::ios::out);
-			temp_os << jsonData_.dump(4);
-		}
-	}
-
-	template <typename T>
-	void write(const T& value, std::string_view key) {
-		jsonData_[key] = value;
-	}
-
-	template <typename... Ts>
-	void operator()(Ts&&... values) {
-		(write_json_impl(std::forward<Ts>(values)), ...);
-	}
-
-private:
-	std::ofstream os_;
-	json jsonData_;
-	std::filesystem::path filePath_;
-	int valueCounter_;
-
 	template <typename T>
 	void write_json_impl(T&& value) {
 		write(std::forward<T>(value), "value" + std::to_string(valueCounter_++));
@@ -454,6 +424,8 @@ public:
 };
 
 int main() {
+	static_assert(has_template_function_Serialize_v<MyData>);
+	static_assert(has_template_function_Deserialize_v<MyData>);
 	// Binary Serialization
 	{
 		BinaryOutputArchive binary_output("resources/mydata.bin");
@@ -461,7 +433,6 @@ int main() {
 		data1.id	  = 123;
 		data1.message = "Binary Data";
 		data1.value	  = 3.14f;
-		static_assert(has_template_function_Serialize_v<MyData>);
 		binary_output.Write(data1);
 	}
 
@@ -469,14 +440,12 @@ int main() {
 	{
 		BinaryInputArchive binary_input("resources/mydata.bin");
 		MyData data2;
-		static_assert(has_template_function_Deserialize_v<MyData>);
 		binary_input.Read(data2);
 
 		std::cout << "Binary: id=" << data2.id << ", message=\"" << data2.message
 				  << "\", value=" << data2.value << std::endl;
 	}
 
-	/*
 	// JSON Serialization
 	{
 		JsonOutputArchive json_output("resources/mydata.json");
@@ -485,19 +454,19 @@ int main() {
 		data3.message = "JSON Data";
 		data3.value	  = 2.71f;
 
-		json_output.Write(data3);
+		json_output.Write("data3", data3);
 	}
 
 	// JSON Deserialization
 	{
 		JsonInputArchive json_input("resources/mydata.json");
 		MyData data4;
-		json_input.Read(data4);
+
+		json_input.Read("data3", data4);
 
 		std::cout << "JSON: id=" << data4.id << ", message=\"" << data4.message
 				  << "\", value=" << data4.value << std::endl;
 	}
-	*/
 
 	return 0;
 }

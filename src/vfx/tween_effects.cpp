@@ -9,9 +9,10 @@
 
 #include "components/draw.h"
 #include "components/offsets.h"
+#include "core/entity.h"
 #include "core/game_object.h"
+#include "core/manager.h"
 #include "core/transform.h"
-#include "ecs/ecs.h"
 #include "math/math.h"
 #include "math/noise.h"
 #include "math/rng.h"
@@ -25,7 +26,7 @@ namespace ptgn {
 namespace impl {
 
 Tween& DoEffect(
-	const ecs::Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
+	const Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
 	milliseconds duration, TweenEase ease, bool force
 ) {
 	auto& tween{ effect_entity.Get<Tween>() };
@@ -43,13 +44,13 @@ Tween& DoEffect(
 	return effect_entity.Get<Tween>();
 }
 
-TranslateEffect::TranslateEffect(ecs::Manager& manager) : GameObject{ manager } {
+TranslateEffect::TranslateEffect(Manager& manager) : GameObject{ manager } {
 	Add<Tween>();
 	Add<StartPosition>();
 }
 
 Tween& TranslateEffect::TranslateTo(
-	ecs::Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
+	Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
 	bool force
 ) {
 	if (!entity.Has<Transform>()) {
@@ -71,13 +72,13 @@ Tween& TranslateEffect::TranslateTo(
 	);
 }
 
-RotateEffect::RotateEffect(ecs::Manager& manager) : GameObject{ manager } {
+RotateEffect::RotateEffect(Manager& manager) : GameObject{ manager } {
 	Add<Tween>();
 	Add<StartAngle>();
 }
 
 Tween& RotateEffect::RotateTo(
-	ecs::Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
+	Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
 ) {
 	if (!entity.Has<Transform>()) {
 		entity.Add<Transform>();
@@ -97,14 +98,13 @@ Tween& RotateEffect::RotateTo(
 	);
 }
 
-ScaleEffect::ScaleEffect(ecs::Manager& manager) : GameObject{ manager } {
+ScaleEffect::ScaleEffect(Manager& manager) : GameObject{ manager } {
 	Add<Tween>();
 	Add<StartScale>();
 }
 
 Tween& ScaleEffect::ScaleTo(
-	ecs::Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease,
-	bool force
+	Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
 ) {
 	if (!entity.Has<Transform>()) {
 		entity.Add<Transform>();
@@ -122,13 +122,13 @@ Tween& ScaleEffect::ScaleTo(
 	);
 }
 
-TintEffect::TintEffect(ecs::Manager& manager) : GameObject{ manager } {
+TintEffect::TintEffect(Manager& manager) : GameObject{ manager } {
 	Add<Tween>();
 	Add<StartTint>();
 }
 
 Tween& TintEffect::TintTo(
-	ecs::Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
+	Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
 ) {
 	if (!entity.Has<Tint>()) {
 		entity.Add<Tint>();
@@ -145,12 +145,12 @@ Tween& TintEffect::TintTo(
 	);
 }
 
-BounceEffect::BounceEffect(ecs::Manager& manager) : GameObject{ manager } {
+BounceEffect::BounceEffect(Manager& manager) : GameObject{ manager } {
 	Add<Tween>();
 }
 
 Tween& BounceEffect::Bounce(
-	ecs::Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
+	Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
 	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
 ) {
 	auto& tween{ impl::DoEffect(
@@ -184,7 +184,7 @@ void ShakeEffect::SetConfig(const ShakeConfig& config) {
 	config_ = config;
 }
 
-void ShakeEffect::Update(ecs::Entity& entity, float dt, float time) {
+void ShakeEffect::Update(Entity& entity, float dt, float time) {
 	if (!entity.Has<impl::Offsets>()) {
 		return;
 	}
@@ -228,11 +228,11 @@ void ShakeEffect::SetIntensity(float intensity) {
 	trauma_ = std::clamp(intensity, 0.0f, 1.0f);
 }
 
-ContinuousShakeEffect::ContinuousShakeEffect(ecs::Manager& manager) : GameObject{ manager } {
+ContinuousShakeEffect::ContinuousShakeEffect(Manager& manager) : GameObject{ manager } {
 	Add<Tween>();
 }
 
-void ContinuousShakeEffect::Reset(ecs::Entity& entity) {
+void ContinuousShakeEffect::Reset(Entity& entity) {
 	if (entity.Has<Offsets>()) {
 		entity.Get<Offsets>().shake = {};
 	}
@@ -240,8 +240,7 @@ void ContinuousShakeEffect::Reset(ecs::Entity& entity) {
 }
 
 Tween& ContinuousShakeEffect::Shake(
-	ecs::Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
-	bool force
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force
 ) {
 	return impl::DoEffect(
 		GetEntity(),
@@ -267,7 +266,7 @@ Tween& ContinuousShakeEffect::Shake(
 }
 
 Tween& ContinuousShakeEffect::Shake(
-	ecs::Entity& entity, float intensity, const ShakeConfig& config, bool force
+	Entity& entity, float intensity, const ShakeConfig& config, bool force
 ) {
 	return impl::DoEffect(
 		GetEntity(),
@@ -289,7 +288,7 @@ Tween& ContinuousShakeEffect::Shake(
 } // namespace impl
 
 template <typename TEffect>
-TEffect& AddEffect(ecs::Entity& e) {
+TEffect& AddEffect(Entity& e) {
 	if (!e.Has<TEffect>()) {
 		e.Add<TEffect>(e.GetManager());
 	}
@@ -297,41 +296,38 @@ TEffect& AddEffect(ecs::Entity& e) {
 }
 
 Tween& TintTo(
-	ecs::Entity& e, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
+	Entity& e, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
 ) {
 	return AddEffect<impl::TintEffect>(e).TintTo(e, target_tint, duration, ease, force);
 }
 
-Tween& FadeIn(ecs::Entity& e, milliseconds duration, TweenEase ease, bool force) {
+Tween& FadeIn(Entity& e, milliseconds duration, TweenEase ease, bool force) {
 	return TintTo(e, color::White, duration, ease, force);
 }
 
-Tween& FadeOut(ecs::Entity& e, milliseconds duration, TweenEase ease, bool force) {
+Tween& FadeOut(Entity& e, milliseconds duration, TweenEase ease, bool force) {
 	return TintTo(e, color::Transparent, duration, ease, force);
 }
 
 Tween& ScaleTo(
-	ecs::Entity& e, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
+	Entity& e, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
 ) {
 	return AddEffect<impl::ScaleEffect>(e).ScaleTo(e, target_scale, duration, ease, force);
 }
 
 Tween& TranslateTo(
-	ecs::Entity& e, const V2_float& target_position, milliseconds duration, TweenEase ease,
-	bool force
+	Entity& e, const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
 ) {
 	return AddEffect<impl::TranslateEffect>(e).TranslateTo(
 		e, target_position, duration, ease, force
 	);
 }
 
-Tween& RotateTo(
-	ecs::Entity& e, float target_angle, milliseconds duration, TweenEase ease, bool force
-) {
+Tween& RotateTo(Entity& e, float target_angle, milliseconds duration, TweenEase ease, bool force) {
 	return AddEffect<impl::RotateEffect>(e).RotateTo(e, target_angle, duration, ease, force);
 }
 
-void StopBounce(ecs::Entity& e, bool force) {
+void StopBounce(Entity& e, bool force) {
 	if (!e.Has<impl::BounceEffect>()) {
 		return;
 	}
@@ -344,7 +340,7 @@ void StopBounce(ecs::Entity& e, bool force) {
 }
 
 Tween& Bounce(
-	ecs::Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
+	Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
 	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
 ) {
 	return AddEffect<impl::BounceEffect>(e).Bounce(
@@ -353,16 +349,16 @@ Tween& Bounce(
 }
 
 Tween& Shake(
-	ecs::Entity& e, float intensity, milliseconds duration, const ShakeConfig& config, bool force
+	Entity& e, float intensity, milliseconds duration, const ShakeConfig& config, bool force
 ) {
 	return AddEffect<impl::ContinuousShakeEffect>(e).Shake(e, intensity, duration, config, force);
 }
 
-Tween& Shake(ecs::Entity& e, float intensity, const ShakeConfig& config, bool force) {
+Tween& Shake(Entity& e, float intensity, const ShakeConfig& config, bool force) {
 	return AddEffect<impl::ContinuousShakeEffect>(e).Shake(e, intensity, config, force);
 }
 
-void StopShake(ecs::Entity& e, bool force) {
+void StopShake(Entity& e, bool force) {
 	if (!e.Has<impl::ContinuousShakeEffect>()) {
 		return;
 	}
@@ -375,7 +371,7 @@ void StopShake(ecs::Entity& e, bool force) {
 	}
 }
 
-Tween& After(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback) {
+Tween& After(Manager& manager, milliseconds duration, const std::function<void()>& callback) {
 	auto entity{ manager.CreateEntity() };
 	return entity.Add<Tween>()
 		.During(duration)
@@ -386,7 +382,7 @@ Tween& After(ecs::Manager& manager, milliseconds duration, const std::function<v
 		.Start();
 }
 
-Tween& During(ecs::Manager& manager, milliseconds duration, const std::function<void()>& callback) {
+Tween& During(Manager& manager, milliseconds duration, const std::function<void()>& callback) {
 	auto entity{ manager.CreateEntity() };
 	return entity.Add<Tween>().During(duration).OnUpdate([callback]() { std::invoke(callback); }
 	).OnComplete([entity]() mutable {
@@ -395,7 +391,7 @@ Tween& During(ecs::Manager& manager, milliseconds duration, const std::function<
 }
 
 Tween& Every(
-	ecs::Manager& manager, milliseconds duration, std::int64_t repeats,
+	Manager& manager, milliseconds duration, std::int64_t repeats,
 	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
 ) {
 	auto entity{ manager.CreateEntity() };

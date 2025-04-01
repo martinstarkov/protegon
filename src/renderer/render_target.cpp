@@ -2,8 +2,9 @@
 
 #include <utility>
 
+#include "core/entity.h"
 #include "core/game.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
@@ -30,7 +31,7 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 }
 */
 
-RenderTarget::RenderTarget(ecs::Manager& manager, const V2_float& size, const Color& clear_color) :
+RenderTarget::RenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) :
 	RenderTarget{ size, clear_color } {
 	camera = Camera{ manager };
 }
@@ -64,7 +65,7 @@ RenderTarget::~RenderTarget() {
 	// UnsubscribeFromEvents();
 }
 
-void RenderTarget::Draw(const ecs::Entity& e) const {
+void RenderTarget::Draw(const Entity& e) const {
 	PTGN_ASSERT(frame_buffer_.IsBound(), "Cannot draw to render target unless it is first bound");
 	PTGN_ASSERT(
 		camera != Camera{}, "Cannot draw to render target with invalid or uninitialized camera"

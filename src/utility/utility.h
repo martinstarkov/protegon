@@ -7,7 +7,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ecs/ecs.h"
 #include "utility/type_traits.h"
 
 namespace ptgn {
@@ -65,21 +64,6 @@ static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 		v.emplace_back(a);
 	}
 	return v;
-}
-
-template <typename Callable, typename... Args>
-static void Invoke(const Callable& callable, Args&&... args) {
-	if (callable != nullptr) {
-		std::invoke(callable, std::forward<Args>(args)...);
-	}
-}
-
-template <typename TCallback, typename... TArgs>
-static void Invoke(const ecs::Entity& e, TArgs&&... args) {
-	if (e.Has<TCallback>()) {
-		const auto& callback{ e.Get<TCallback>() };
-		Invoke(callback, std::forward<TArgs>(args)...);
-	}
 }
 
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>

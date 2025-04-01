@@ -2,9 +2,7 @@
 
 #include "core/transform.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 // Various transform offsets which do not permanently change the transform of an entity, i.e. camera
 // shake, bounce.
@@ -17,6 +15,4 @@ struct Offsets {
 	Transform bounce;
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

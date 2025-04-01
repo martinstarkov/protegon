@@ -1,11 +1,10 @@
 #include "physics/physics.h"
 
 #include "components/common.h"
-#include "components/draw.h"
 #include "components/movement.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "core/transform.h"
-#include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 
@@ -24,7 +23,7 @@ float Physics::dt() const {
 	return game.dt();
 }
 
-void Physics::PreCollisionUpdate(ecs::Manager& manager) const {
+void Physics::PreCollisionUpdate(Manager& manager) const {
 	float dt{ Physics::dt() };
 	for (auto [e, enabled, t, rb, m] :
 		 manager.EntitiesWith<Enabled, Transform, RigidBody, TopDownMovement>()) {
@@ -56,7 +55,7 @@ void Physics::PreCollisionUpdate(ecs::Manager& manager) const {
 	}
 }
 
-void Physics::PostCollisionUpdate(ecs::Manager& manager) const {
+void Physics::PostCollisionUpdate(Manager& manager) const {
 	float dt{ Physics::dt() };
 	for (auto [e, enabled, t, rb] : manager.EntitiesWith<Enabled, Transform, RigidBody>()) {
 		if (!enabled) {

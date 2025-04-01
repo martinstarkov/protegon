@@ -4,9 +4,11 @@
 #include <string_view>
 #include <type_traits>
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
+#include "core/manager.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -50,7 +52,7 @@ public:
 		auto key{ GetInternalKey(scene_key) };
 		auto scene{ GetScene(key) };
 		SceneComponent* sc{ nullptr };
-		if (scene == ecs::null) { // New scene.
+		if (scene == Entity{}) { // New scene.
 			scene = scenes_.CreateEntity();
 			sc	  = &scene.Add<SceneComponent>(
 				   std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
@@ -135,7 +137,7 @@ public:
 			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
 		);
 		auto scene{ GetScene(GetInternalKey(scene_key)) };
-		PTGN_ASSERT(scene != ecs::null, "Scene key does not exist in the scene manager");
+		PTGN_ASSERT(scene != Entity{}, "Scene key does not exist in the scene manager");
 		PTGN_ASSERT(scene.Has<SceneComponent>());
 		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
 	}
@@ -188,10 +190,10 @@ private:
 	[[nodiscard]] bool HasScene(std::size_t scene_key) const;
 	[[nodiscard]] bool HasActiveScene(std::size_t scene_key) const;
 
-	[[nodiscard]] ecs::Entity GetScene(std::size_t scene_key) const;
-	[[nodiscard]] ecs::Entity GetActiveScene(std::size_t scene_key) const;
+	[[nodiscard]] Entity GetScene(std::size_t scene_key) const;
+	[[nodiscard]] Entity GetActiveScene(std::size_t scene_key) const;
 
-	ecs::Manager scenes_;
+	Manager scenes_;
 };
 
 } // namespace impl

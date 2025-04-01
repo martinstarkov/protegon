@@ -8,7 +8,7 @@
 // #include <vector>
 //
 // #include "core/game.h"
-// #include "ecs/ecs.h"
+// #include "core/entity.h"
 // #include "event/input_handler.h"
 // #include "event/mouse.h"
 // #include "math/geometry/line.h"
@@ -123,7 +123,7 @@
 // void Plot::Draw(const Rect& destination) {
 //	// TODO: Fix.
 //	/*
-//	PTGN_ASSERT(entity_ != ecs::null, "Cannot draw plot before it has been initialized");
+//	PTGN_ASSERT(entity_ != Entity{}, "Cannot draw plot before it has been initialized");
 //
 //	Rect dest{ destination };
 //
@@ -392,7 +392,7 @@
 //		return V2_float{ dest.size * frac };
 //	};
 //
-//	auto draw_marker = [&](ecs::Entity entity, const V2_float& frac) {
+//	auto draw_marker = [&](Entity entity, const V2_float& frac) {
 //		if (!entity.Has<DataPointColor>() || !entity.Has<DataPointRadius>()) {
 //			return;
 //		}
@@ -403,7 +403,7 @@
 //		dest_pixel.Draw(entity.Get<DataPointColor>(), entity.Get<DataPointRadius>(), 200);
 //	};
 //
-//	auto draw_line = [&](ecs::Entity entity, const V2_float& frac_current,
+//	auto draw_line = [&](Entity entity, const V2_float& frac_current,
 //						 const V2_float& frac_next) {
 //		if (!entity.Has<LineColor>() || !entity.Has<LineWidth>()) {
 //			return;

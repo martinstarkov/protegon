@@ -2,12 +2,11 @@
 
 #include <functional>
 #include <unordered_map>
-#include <utility>
+#include <vector>
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "math/noise.h"
 #include "math/vector2.h"
-#include "tile/grid.h"
 
 namespace ptgn {
 
@@ -15,29 +14,27 @@ class Camera;
 
 class Chunk {
 public:
-	explicit Chunk(const std::vector<ecs::Entity>& entities);
+	explicit Chunk(const std::vector<Entity>& entities);
 	Chunk(const Chunk&)			   = delete;
 	Chunk& operator=(const Chunk&) = delete;
 	Chunk(Chunk&& other) noexcept;
 	Chunk& operator=(Chunk&& other) noexcept;
 	~Chunk();
 
-	std::vector<ecs::Entity> entities;
+	std::vector<Entity> entities;
 };
 
 struct NoiseLayer {
 	NoiseLayer() = default;
 
-	NoiseLayer(
-		const FractalNoise& noise, const std::function<ecs::Entity(V2_float, float)>& callback
-	) :
+	NoiseLayer(const FractalNoise& noise, const std::function<Entity(V2_float, float)>& callback) :
 		noise{ noise }, callback{ callback } {}
 
 	FractalNoise noise;
 	// Out: entity, In: coordinate, noise value
-	std::function<ecs::Entity(V2_float, float)> callback;
+	std::function<Entity(V2_float, float)> callback;
 
-	ecs::Entity GetEntity(const V2_float& tile_coordinate, const V2_float& tile_size) const;
+	Entity GetEntity(const V2_float& tile_coordinate, const V2_float& tile_size) const;
 };
 
 class ChunkManager {
@@ -59,7 +56,7 @@ public:
 	V2_float chunk_size{ 16, 16 };
 
 private:
-	[[nodiscard]] std::vector<ecs::Entity> GenerateEntities(const V2_int& chunk_coordinate) const;
+	[[nodiscard]] std::vector<Entity> GenerateEntities(const V2_int& chunk_coordinate) const;
 };
 
 } // namespace ptgn

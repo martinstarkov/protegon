@@ -1,6 +1,7 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
+#include "core/manager.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/frame_buffer.h"
@@ -39,12 +40,12 @@ public:
 	// @param size The size of the render target.
 	// @param clear_color The background color of the render target.
 	RenderTarget(
-		ecs::Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
+		Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
 	);
 
 	// Draw an entity to the render target.
 	// The entity must have the Transform and Visible components.
-	void Draw(const ecs::Entity& entity) const;
+	void Draw(const Entity& entity) const;
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;

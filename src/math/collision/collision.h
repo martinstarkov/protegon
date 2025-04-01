@@ -4,17 +4,13 @@
 #include <vector>
 
 #include "components/common.h"
-#include "components/draw.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
-#include "core/transform.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/collision/collider.h"
 #include "math/collision/intersect.h"
 #include "math/collision/overlap.h"
 #include "math/collision/raycast.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "utility/assert.h"
@@ -39,17 +35,17 @@ public:
 
 	template <typename T, typename S>
 	[[nodiscard]] static bool CanCollide(
-		const ecs::Entity& e1, const T& colliderA, const ecs::Entity& e2, const S& colliderB
+		const Entity& e1, const T& colliderA, const Entity& e2, const S& colliderB
 	) {
-		PTGN_ASSERT(IsEnabled(e1) && IsEnabled(e2));
+		PTGN_ASSERT(e1.IsEnabled() && e2.IsEnabled());
 		// TODO: Check if the "oldest" parents are equal.
-		if (GetParent(e1) == GetParent(e2)) {
+		if (e1.GetParent() == e2.GetParent()) {
 			return false;
 		}
-		if (!GetParent(e1).IsAlive()) {
+		if (!e1.GetParent().IsAlive()) {
 			return false;
 		}
-		if (!GetParent(e2).IsAlive()) {
+		if (!e2.GetParent().IsAlive()) {
 			return false;
 		}
 		if (!colliderA.CanCollideWith(colliderB.GetCollisionCategory())) {
@@ -60,19 +56,19 @@ public:
 
 	template <typename T>
 	static void Overlap(
-		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<true, Enabled, CircleCollider>& circles
 	) {
 		if (!entity.Get<T>().overlap_only) {
 			return;
 		}
 
-		const auto process_overlap = [&](const auto& collider2, ecs::Entity e2) {
+		const auto process_overlap = [&](const auto& collider2, Entity e2) {
 			const auto& collider{ entity.Get<T>() };
 			if (!CanCollide(entity, collider, e2, collider2)) {
 				return;
 			}
-			if (Overlaps(GetTransform(entity), collider, GetTransform(e2), collider2)) {
+			if (Overlaps(entity.GetTransform(), collider, e2.GetTransform(), collider2)) {
 				// ProcessCallback may invalidate all component references.
 				ProcessCallback<T>(entity, e2, {});
 			}
@@ -95,8 +91,8 @@ public:
 
 	template <typename T>
 	static void Intersect(
-		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<true, Enabled, CircleCollider>& circles
 	) {
 		if (entity.Get<T>().overlap_only) {
 			return;
@@ -108,14 +104,14 @@ public:
 			return;
 		}
 
-		const auto process_intersection = [&](const auto& collider2, ecs::Entity e2) {
+		const auto process_intersection = [&](const auto& collider2, Entity e2) {
 			const auto& collider{ entity.Get<T>() };
 			if (collider2.overlap_only || !CanCollide(entity, collider, e2, collider2)) {
 				return;
 			}
 
 			auto intersection{
-				Intersects(GetTransform(entity), collider, GetTransform(e2), collider2)
+				Intersects(entity.GetTransform(), collider, e2.GetTransform(), collider2)
 			};
 
 			if (!intersection.Occurred()) {
@@ -126,16 +122,16 @@ public:
 				return;
 			}
 			auto& rb{ entity.Get<RigidBody>() };
-			if (IsImmovable(entity)) {
+			if (entity.IsImmovable()) {
 				return;
 			}
 			/*if (entity.Has<Transform>()) {
 				entity.Get<Transform>().position +=
 					intersection.normal * (intersection.depth + slop);
 			}*/
-			auto& absolute_transform{ GetAbsoluteTransform(entity) };
-			absolute_transform.position += intersection.normal * (intersection.depth + slop);
-			rb.velocity					 = GetRemainingVelocity(
+			auto& root_transform{ entity.GetRootTransform() };
+			root_transform.position += intersection.normal * (intersection.depth + slop);
+			rb.velocity				 = GetRemainingVelocity(
 				 rb.velocity, { 0.0f, intersection.normal }, entity.Get<T>().response
 			 );
 		};
@@ -158,8 +154,8 @@ public:
 	// Updates the velocity of the object to prevent it from colliding with the target objects.
 	template <typename T>
 	static void Sweep(
-		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<true, Enabled, CircleCollider>&
+		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<true, Enabled, CircleCollider>&
 			circles /* TODO: Fix or get rid of: , bool debug_draw = false */
 	) {
 		if (const auto& collider{ entity.Get<T>() };
@@ -245,22 +241,22 @@ private:
 	friend class Physics;
 	friend class ptgn::Scene;
 
-	static void Update(ecs::Manager& manager);
+	static void Update(Manager& manager);
 
 	struct SweepCollision {
 		SweepCollision() = default;
 
-		SweepCollision(const RaycastResult& c, float dist2, ecs::Entity e) :
+		SweepCollision(const RaycastResult& c, float dist2, Entity e) :
 			e{ e }, c{ c }, dist2{ dist2 } {}
 
 		// Collision entity.
-		ecs::Entity e;
+		Entity e;
 		RaycastResult c;
 		float dist2{ 0.0f };
 	};
 
 	template <typename T>
-	static bool ProcessCallback(ecs::Entity e1, ecs::Entity e2, const V2_float& normal) {
+	static bool ProcessCallback(Entity e1, Entity e2, const V2_float& normal) {
 		// Process callback can invalidate the collider reference.
 		if (e1.Get<T>().ProcessCallback(e1, e2)) {
 			e1.Get<T>().collisions.emplace(e1, e2, normal);
@@ -272,8 +268,8 @@ private:
 	// T, S are the collider types.
 	template <typename T, typename S>
 	static void ProcessRaycast(
-		std::vector<SweepCollision>& collisions, ecs::Entity entity, ecs::Entity e2,
-		const V2_float& offset, const V2_float& vel
+		std::vector<SweepCollision>& collisions, Entity entity, Entity e2, const V2_float& offset,
+		const V2_float& vel
 	) {
 		auto& collider{ entity.Get<T>() };
 		const auto& collider2{ e2.Get<S>() };
@@ -282,8 +278,8 @@ private:
 		}
 		// TODO: Figure out a better way to do the second sweep without generating a new game
 		// object or changing the position of the existing one.
-		auto transform1{ GetTransform(entity) };
-		auto transform2{ GetTransform(e2) };
+		auto transform1{ entity.GetTransform() };
+		auto transform2{ e2.GetTransform() };
 
 		auto offset_transform{ transform1 };
 		offset_transform.position += offset;
@@ -307,8 +303,8 @@ private:
 	// the remaining velocity.
 	template <typename T>
 	[[nodiscard]] static std::vector<SweepCollision> GetSortedCollisions(
-		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles, const V2_float& offset,
+		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<true, Enabled, CircleCollider>& circles, const V2_float& offset,
 		const V2_float& vel
 	) {
 		std::vector<SweepCollision> collisions;
@@ -334,14 +330,14 @@ private:
 
 	template <typename T>
 	static void HandleCollisions(
-		ecs::Entity entity, const ecs::EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const ecs::EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<true, Enabled, CircleCollider>& circles
 	) {
 		auto& collider{ entity.Get<T>() };
 
 		collider.ResetCollisions();
 
-		PTGN_ASSERT(IsEnabled(entity));
+		PTGN_ASSERT(entity.IsEnabled());
 
 		Intersect<T>(entity, boxes, circles);
 		Sweep<T>(entity, boxes, circles);
@@ -364,7 +360,7 @@ private:
 	// Adds all collisions which occurred at the earliest time to box.collisions. This ensures all
 	// callbacks are called.
 	static void AddEarliestCollisions(
-		ecs::Entity entity, const std::vector<SweepCollision>& sweep_collisions,
+		Entity entity, const std::vector<SweepCollision>& sweep_collisions,
 		std::unordered_set<Collision>& entities
 	);
 
@@ -374,7 +370,7 @@ private:
 		const V2_float& velocity, const RaycastResult& c, CollisionResponse response
 	);
 
-	[[nodiscard]] static V2_float GetRelativeVelocity(const V2_float& vel, ecs::Entity e2);
+	[[nodiscard]] static V2_float GetRelativeVelocity(const V2_float& vel, Entity e2);
 
 	constexpr static float slop{ 0.0005f };
 };

@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <utility>
 
-#include "core/transform.h"
+#include "components/common.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
+#include "core/transform.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -70,14 +72,14 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 
 } // namespace impl
 
-ParticleEmitter::ParticleEmitter(ecs::Manager& manager) : GameObject{ manager } {
+ParticleEmitter::ParticleEmitter(Manager& manager) : GameObject{ manager } {
 	Add<impl::ParticleEmitterComponent>();
 	SetVisible(true);
 	SetEnabled(true);
 	Add<Transform>();
 }
 
-ParticleEmitter::ParticleEmitter(ecs::Manager& manager, const ParticleInfo& info) :
+ParticleEmitter::ParticleEmitter(Manager& manager, const ParticleInfo& info) :
 	ParticleEmitter{ manager } {
 	auto& i{ Get<impl::ParticleEmitterComponent>() };
 	i.info = info;
@@ -85,7 +87,7 @@ ParticleEmitter::ParticleEmitter(ecs::Manager& manager, const ParticleInfo& info
 }
 
 void ParticleEmitter::Draw(
-	const ecs::Entity& e, impl::RenderData& r, const Depth& depth, BlendMode blend_mode
+	const Entity& e, impl::RenderData& r, const Depth& depth, BlendMode blend_mode
 ) {
 	auto& i{ e.Get<impl::ParticleEmitterComponent>() };
 	if (i.info.texture_enabled && i.info.texture_key != "") {

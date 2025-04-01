@@ -6,8 +6,9 @@
 #include <string_view>
 
 #include "components/generic.h"
+#include "core/entity.h"
 #include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -91,17 +92,17 @@ public:
 	Text& operator=(Text&&) noexcept = default;
 	~Text()							 = default;
 
-	explicit Text(ecs::Manager& manager);
+	explicit Text(Manager& manager);
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
 	Text(
-		ecs::Manager& manager, std::string_view content, const Color& text_color = color::Black,
+		Manager& manager, std::string_view content, const Color& text_color = color::Black,
 		std::string_view font_key = ""
 	);
 
 	Text(
-		ecs::Manager& manager, const TextContent& content, const TextColor& text_color = {},
+		Manager& manager, const TextContent& content, const TextColor& text_color = {},
 		const FontKey& font_key = {}
 	);
 

@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "utility/assert.h"
+#include "utility/function.h"
 #include "utility/log.h"
 #include "utility/time.h"
-#include "utility/utility.h"
 
 namespace ptgn {
 

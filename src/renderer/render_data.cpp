@@ -11,11 +11,12 @@
 #include <vector>
 
 #include "components/draw.h"
-#include "core/transform.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/game_object.h"
+#include "core/manager.h"
+#include "core/transform.h"
 #include "core/window.h"
-#include "ecs/ecs.h"
 #include "event/event_handler.h"
 #include "event/events.h"
 #include "math/collision/collider.h"
@@ -89,7 +90,7 @@ void RenderData::Init() {
 }
 
 /*
-std::pair<std::size_t, std::size_t> RenderData::GetVertexIndexCount(const ecs::Entity& e) {
+std::pair<std::size_t, std::size_t> RenderData::GetVertexIndexCount(const Entity& e) {
 	if (e.HasAny<TextureKey, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
 		// Lines are rotated quads.
 		// Points are either circles or quads.
@@ -276,7 +277,7 @@ void RenderData::AddTexturedQuad(
 	batch.AddTexturedQuad(vertices, tex_coords, texture_index, color, depth, pixel_rounding);
 }
 
-void RenderData::AddPointLight(const ecs::Entity& o, const Depth& depth) {
+void RenderData::AddPointLight(const Entity& o, const Depth& depth) {
 	PTGN_ASSERT(o.Has<PointLight>());
 
 	auto [it, inserted] = batch_map.try_emplace(depth);
@@ -302,7 +303,7 @@ void RenderData::AddPointLight(const ecs::Entity& o, const Depth& depth) {
 }
 
 V2_float RenderData::GetTextureSize(
-	const ecs::Entity& o, const Texture& texture, const V2_float& scale
+	const Entity& o, const Texture& texture, const V2_float& scale
 ) {
 	V2_float size;
 	if (o.Has<TextureCrop>()) {
@@ -390,7 +391,7 @@ void RenderData::AddQuad(
 }
 
 void RenderData::AddTexture(
-	const ecs::Entity& e, const Texture& texture, const V2_float& position, const V2_float& size,
+	const Entity& e, const Texture& texture, const V2_float& position, const V2_float& size,
 	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
 	bool debug, bool flip_vertically
 ) {
@@ -398,17 +399,17 @@ void RenderData::AddTexture(
 		impl::GetVertices(
 			{ position + GetOriginOffset(origin, size), rotation }, { size, Origin::Center }
 		),
-		ptgn::GetTextureCoordinates(e, flip_vertically), texture, depth, blend_mode, tint, debug
+		e.GetTextureCoordinates(flip_vertically), texture, depth, blend_mode, tint, debug
 	);
 }
 
 void RenderData::AddText(
-	const ecs::Entity& e, const V2_float& position, const V2_float& size, Origin origin,
+	const Entity& e, const V2_float& position, const V2_float& size, Origin origin,
 	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation, bool debug
 ) {
 	PTGN_ASSERT(e.Has<impl::TextTag>());
 	const auto& texture{ e.Get<impl::Texture>() };
-	auto text_can_draw = [](const ecs::Entity& e) {
+	auto text_can_draw = [](const Entity& e) {
 		if (e.Has<TextColor>() && e.Get<TextColor>().a == 0) {
 			return false;
 		}
@@ -428,19 +429,18 @@ void RenderData::AddText(
 }
 
 void RenderData::AddRenderTarget(
-	const ecs::Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
+	const Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
 	const V4_float& tint
 ) {
 	const auto& texture{ rt.GetTexture() };
 	// TODO: Add custom size.
 	AddTexturedQuad(
-		camera_vertices, ptgn::GetTextureCoordinates(o, true), texture, depth, blend_mode, tint,
-		false
+		camera_vertices, o.GetTextureCoordinates(true), texture, depth, blend_mode, tint, false
 	);
 }
 
 void RenderData::AddButton(
-	const ecs::Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
+	const Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
 	const V4_float& tint, float rotation, const V2_float& scale
 ) {
 	PTGN_ASSERT(o.Has<impl::ButtonTag>());
@@ -467,7 +467,7 @@ void RenderData::AddButton(
 	}
 	if (o.Has<TextureKey>()) {
 		auto& key{ o.Get<TextureKey>() };
-		if (!ptgn::IsEnabled(o) && o.Has<impl::ButtonDisabledTextureKey>()) {
+		if (!o.IsEnabled() && o.Has<impl::ButtonDisabledTextureKey>()) {
 			key = o.Get<impl::ButtonDisabledTextureKey>();
 		} else if (o.Has<impl::ButtonToggled>() && o.Has<impl::ButtonTextureToggled>()) {
 			key = o.Get<impl::ButtonTextureToggled>().Get(state);
@@ -570,16 +570,16 @@ void RenderData::AddButton(
 		if (NearlyEqual(text_size.y, 0.0f)) {
 			text_size.y = size.y;
 		}
-		auto offset_transform{ GetOffsetTransform(*text) };
-		auto text_scale{ GetScale(*text) * offset_transform.scale };
+		auto offset_transform{ text->GetOffset() };
+		auto text_scale{ text->GetScale() * offset_transform.scale };
 		text_size *= text_scale;
 		// Offset by button size so that text is initially centered on button center.
-		auto text_pos{ GetPosition(*text) + GetOriginOffset(origin, size) +
+		auto text_pos{ text->GetPosition() + GetOriginOffset(origin, size) +
 					   offset_transform.position };
-		auto text_rotation{ GetRotation(*text) + offset_transform.rotation };
+		auto text_rotation{ text->GetRotation() + offset_transform.rotation };
 		AddText(
-			text->GetEntity(), text_pos, text_size, GetOrigin(*text), GetDepth(*text),
-			GetBlendMode(*text), GetTint(*text).Normalized() * tint, text_rotation, false
+			*text, text_pos, text_size, text->GetOrigin(), text->GetDepth(), text->GetBlendMode(),
+			text->GetTint().Normalized() * tint, text_rotation, false
 		);
 	}
 
@@ -611,7 +611,7 @@ void RenderData::AddButton(
 	}
 }
 
-void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
+void RenderData::AddToBatch(const Entity& o, bool check_visibility) {
 	PTGN_ASSERT(
 		(o.Has<Transform, Visible>()), "Cannot render entity without transform or visible component"
 	);
@@ -620,13 +620,13 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		return;
 	}
 
-	const auto& depth{ GetDepth(o) };
-	BlendMode blend_mode{ GetBlendMode(o) };
-	auto offset_transform{ GetOffsetTransform(o) };
-	V2_float pos{ GetPosition(o) + offset_transform.position };
-	auto scale{ GetScale(o) * offset_transform.scale };
-	float angle{ GetRotation(o) + offset_transform.rotation };
-	V4_float tint{ GetTint(o).Normalized() };
+	auto depth{ o.GetDepth() };
+	auto blend_mode{ o.GetBlendMode() };
+	auto offset_transform{ o.GetOffset() };
+	auto pos{ o.GetPosition() + offset_transform.position };
+	auto scale{ o.GetScale() * offset_transform.scale };
+	auto angle{ o.GetRotation() + offset_transform.rotation };
+	auto tint{ o.GetTint().Normalized() };
 
 	// TODO: Move from using tags to some sort of RenderComponent.
 
@@ -637,13 +637,13 @@ void RenderData::AddToBatch(const ecs::Entity& o, bool check_visibility) {
 		const auto& texture_key{ o.Get<TextureKey>() };
 		const auto& texture{ game.texture.Get(texture_key) };
 		AddTexture(
-			o, texture, pos, GetTextureSize(o, texture, scale), GetOrigin(o), depth, blend_mode,
+			o, texture, pos, GetTextureSize(o, texture, scale), o.GetOrigin(), depth, blend_mode,
 			tint, angle, false, false
 		);
 		return;
 	} else if (o.Has<TextTag>()) {
 		AddText(
-			o, pos, GetTextureSize(o, o.Get<impl::Texture>(), scale), GetOrigin(o), depth,
+			o, pos, GetTextureSize(o, o.Get<impl::Texture>(), scale), o.GetOrigin(), depth,
 			blend_mode, tint, angle, false
 		);
 		return;
@@ -742,7 +742,7 @@ void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& came
 }
 
 void RenderData::Render(
-	const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager
+	const FrameBuffer& frame_buffer, const Camera& camera, const Manager& manager
 ) {
 	SetupRender(frame_buffer, camera);
 	for (auto [e, t, v] : manager.EntitiesWith<Transform, Visible>()) {
@@ -753,8 +753,7 @@ void RenderData::Render(
 }
 
 void RenderData::Render(
-	const FrameBuffer& frame_buffer, const Camera& camera, const ecs::Entity& o,
-	bool check_visibility
+	const FrameBuffer& frame_buffer, const Camera& camera, const Entity& o, bool check_visibility
 ) {
 	SetupRender(frame_buffer, camera);
 	AddToBatch(o, check_visibility);
@@ -826,9 +825,9 @@ void RenderData::FlushBatches(
 					lights_found = true;
 				}
 				const auto& light{ e.Get<PointLight>() };
-				auto offset_transform{ GetOffsetTransform(e) };
-				auto position{ GetPosition(e) + offset_transform.position };
-				float radius{ light.GetRadius() * GetScale(e).x * offset_transform.scale.x };
+				auto offset_transform{ e.GetOffset() };
+				auto position{ e.GetPosition() + offset_transform.position };
+				float radius{ light.GetRadius() * e.GetScale().x * offset_transform.scale.x };
 				batch.shader.SetUniform("u_LightPosition", position);
 				batch.shader.SetUniform("u_LightIntensity", light.GetIntensity());
 				batch.shader.SetUniform("u_LightRadius", radius);

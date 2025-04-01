@@ -5,7 +5,8 @@
 #include <vector>
 
 #include "components/common.h"
-#include "ecs/ecs.h"
+#include "core/entity.h"
+#include "core/manager.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/batch.h"
@@ -30,10 +31,10 @@ class RenderData {
 public:
 	void Init();
 
-	void Render(const FrameBuffer& frame_buffer, const Camera& camera, ecs::Manager& manager);
+	void Render(const FrameBuffer& frame_buffer, const Camera& camera, const Manager& manager);
 
 	void Render(
-		const FrameBuffer& frame_buffer, const Camera& camera, const ecs::Entity& o,
+		const FrameBuffer& frame_buffer, const Camera& camera, const Entity& o,
 		bool check_visibility
 	);
 
@@ -51,9 +52,9 @@ public:
 
 	// @param e Passing {} will result in default texture coordinates being used.
 	void AddTexture(
-		const ecs::Entity& e, const Texture& texture, const V2_float& position,
-		const V2_float& size, Origin origin, const Depth& depth, BlendMode blend_mode,
-		const V4_float& color, float rotation, bool debug, bool flip_vertically
+		const Entity& e, const Texture& texture, const V2_float& position, const V2_float& size,
+		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
+		float rotation, bool debug, bool flip_vertically
 	);
 
 	void AddTriangle(
@@ -81,20 +82,20 @@ public:
 		bool debug
 	);
 
-	void AddPointLight(const ecs::Entity& o, const Depth& depth);
+	void AddPointLight(const Entity& o, const Depth& depth);
 
 	void AddText(
-		const ecs::Entity& o, const V2_float& position, const V2_float& size, Origin origin,
+		const Entity& o, const V2_float& position, const V2_float& size, Origin origin,
 		const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
 	);
 
 	void AddRenderTarget(
-		const ecs::Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
+		const Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
 		const V4_float& tint
 	);
 
 	void AddButton(
-		const ecs::Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
+		const Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
 		const V4_float& tint, float rotation, const V2_float& scale
 	);
 
@@ -127,7 +128,7 @@ private:
 	);
 
 	[[nodiscard]] V2_float GetTextureSize(
-		const ecs::Entity& o, const Texture& texture, const V2_float& scale
+		const Entity& o, const Texture& texture, const V2_float& scale
 	);
 
 	[[nodiscard]] Batch& GetBatch(
@@ -137,7 +138,7 @@ private:
 
 	[[nodiscard]] float GetTextureIndex(Batch& batch, const Texture& texture);
 
-	void AddToBatch(const ecs::Entity& object, bool check_visibility);
+	void AddToBatch(const Entity& object, bool check_visibility);
 
 	void SetVertexArrayToWindow(
 		const Camera& camera, const Color& color, const Depth& depth, float texture_index

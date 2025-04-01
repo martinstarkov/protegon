@@ -2,7 +2,8 @@
 
 #include <set>
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
+#include "core/manager.h"
 #include "physics/physics.h"
 #include "scene/camera.h"
 #include "scene/scene_input.h"
@@ -36,6 +37,8 @@ private:
 
 	std::set<Action> actions_;
 
+	Entity CreateEntity();
+
 public:
 	Scene()			 = default;
 	virtual ~Scene() = default;
@@ -55,7 +58,7 @@ public:
 		/* user implementation */
 	}
 
-	ecs::Manager manager;
+	Manager manager;
 	SceneInput input;
 	Physics physics;
 	CameraManager camera;

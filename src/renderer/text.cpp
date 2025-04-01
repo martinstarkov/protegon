@@ -10,9 +10,10 @@
 #include "SDL_rect.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -23,18 +24,17 @@
 
 namespace ptgn {
 
-Text::Text(ecs::Manager& manager) : GameObject{ manager } {
+Text::Text(Manager& manager) : GameObject{ manager } {
 	SetVisible(true);
 }
 
 Text::Text(
-	ecs::Manager& manager, std::string_view content, const Color& text_color,
-	std::string_view font_key
+	Manager& manager, std::string_view content, const Color& text_color, std::string_view font_key
 ) :
 	Text{ manager, TextContent{ content }, TextColor{ text_color }, FontKey{ font_key } } {}
 
 Text::Text(
-	ecs::Manager& manager, const TextContent& content, const TextColor& text_color,
+	Manager& manager, const TextContent& content, const TextColor& text_color,
 	const FontKey& font_key
 ) :
 	Text{ manager } {

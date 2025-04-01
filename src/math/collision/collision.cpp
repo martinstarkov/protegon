@@ -2,12 +2,13 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "components/common.h"
-#include "components/draw.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/collision/collider.h"
 #include "math/collision/raycast.h"
 #include "math/math.h"
@@ -18,7 +19,7 @@
 
 namespace ptgn::impl {
 
-V2_float CollisionHandler::GetRelativeVelocity(const V2_float& vel, ecs::Entity e2) {
+V2_float CollisionHandler::GetRelativeVelocity(const V2_float& vel, Entity e2) {
 	V2_float relative_velocity{ vel };
 	if (e2.Has<RigidBody>()) {
 		// TODO: Use physics.dt() here and elsewhere.
@@ -28,7 +29,7 @@ V2_float CollisionHandler::GetRelativeVelocity(const V2_float& vel, ecs::Entity 
 }
 
 void CollisionHandler::AddEarliestCollisions(
-	ecs::Entity e, const std::vector<SweepCollision>& sweep_collisions,
+	Entity e, const std::vector<SweepCollision>& sweep_collisions,
 	std::unordered_set<Collision>& entities
 ) {
 	PTGN_ASSERT(!sweep_collisions.empty());
@@ -108,7 +109,7 @@ V2_float CollisionHandler::GetRemainingVelocity(
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
 
-void CollisionHandler::Update(ecs::Manager& manager) {
+void CollisionHandler::Update(Manager& manager) {
 	auto boxes{ std::as_const(manager).EntitiesWith<Enabled, BoxCollider>() };
 	auto circles{ std::as_const(manager).EntitiesWith<Enabled, CircleCollider>() };
 

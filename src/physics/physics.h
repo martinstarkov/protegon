@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include "core/manager.h"
 #include "math/vector2.h"
 
 namespace ptgn {
@@ -25,8 +25,8 @@ private:
 	friend class impl::Game;
 	friend class ptgn::Scene;
 
-	void PreCollisionUpdate(ecs::Manager& manager) const;
-	void PostCollisionUpdate(ecs::Manager& manager) const;
+	void PreCollisionUpdate(Manager& manager) const;
+	void PostCollisionUpdate(Manager& manager) const;
 
 	V2_float gravity_{ 0.0f, 0.0f };
 };

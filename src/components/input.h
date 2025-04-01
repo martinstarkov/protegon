@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "components/generic.h"
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "event/key.h"
 #include "event/mouse.h"
 #include "math/geometry/circle.h"
@@ -25,7 +25,7 @@ struct Draggable {
 	// Mouse position where the drag started.
 	V2_float start;
 	// Drag target.
-	ecs::Entity target;
+	Entity target;
 	bool dragging{ false };
 };
 

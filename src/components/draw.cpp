@@ -1,22 +1,17 @@
 #include "components/draw.h"
 
-#include <string_view>
-#include <type_traits>
-
+#include "core/entity.h"
 #include "core/game.h"
-#include "ecs/ecs.h"
-#include "math/hash.h"
+#include "core/manager.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/texture.h"
 #include "utility/assert.h"
-#include "utility/time.h"
 #include "utility/tween.h"
-#include "utility/utility.h"
 
 namespace ptgn {
 
-ecs::Entity CreateSprite(ecs::Manager& manager, std::string_view texture_key) {
+Entity CreateSprite(Manager& manager, std::string_view texture_key) {
 	PTGN_ASSERT(
 		game.texture.Has(texture_key), "Sprite texture key must be loaded in the texture manager"
 	);
@@ -29,8 +24,8 @@ ecs::Entity CreateSprite(ecs::Manager& manager, std::string_view texture_key) {
 	return entity;
 }
 
-ecs::Entity CreateAnimation(
-	ecs::Manager& manager, std::string_view texture_key, std::size_t frame_count,
+Entity CreateAnimation(
+	Manager& manager, std::string_view texture_key, std::size_t frame_count,
 	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel,
 	std::size_t start_frame
 ) {
