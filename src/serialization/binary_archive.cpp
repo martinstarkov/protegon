@@ -7,9 +7,9 @@
 
 namespace ptgn {
 
-BinaryInputArchive::BinaryInputArchive(const path& filename) :
-	stream_{ std::ifstream(filename, std::ifstream::in | std::ifstream::binary) } {
-	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for reading: " + filename.string());
+BinaryInputArchive::BinaryInputArchive(const path& filepath) :
+	stream_{ std::ifstream(filepath, std::ifstream::in | std::ifstream::binary) } {
+	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for reading: " + filepath.string());
 }
 
 BinaryInputArchive::~BinaryInputArchive() {
@@ -36,9 +36,9 @@ BinaryInputArchive::operator bool() const {
 	return IsStreamGood();
 }
 
-BinaryOutputArchive::BinaryOutputArchive(const path& filename) :
-	stream_{ std::ofstream(filename, std::ifstream::out | std::ifstream::binary) } {
-	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for writing: " + filename.string());
+BinaryOutputArchive::BinaryOutputArchive(const path& filepath) :
+	stream_{ std::ofstream(filepath, std::ifstream::out | std::ifstream::binary) } {
+	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for writing: " + filepath.string());
 }
 
 BinaryOutputArchive::~BinaryOutputArchive() {

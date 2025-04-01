@@ -6,7 +6,7 @@
 #include <string_view>
 #include <type_traits>
 
-#include "ecs/ecs.h"
+#include "core/entity.h"
 #include "serialization/serializable.h"
 #include "utility/assert.h"
 #include "utility/file.h"
@@ -18,7 +18,7 @@ namespace ptgn {
 class BinaryInputArchive {
 public:
 	BinaryInputArchive() = delete;
-	explicit BinaryInputArchive(const path& filename);
+	explicit BinaryInputArchive(const path& filepath);
 	BinaryInputArchive& operator=(BinaryInputArchive&&) noexcept = default;
 	BinaryInputArchive(BinaryInputArchive&&) noexcept			 = default;
 	BinaryInputArchive& operator=(const BinaryInputArchive&)	 = delete;
@@ -98,7 +98,7 @@ public:
 	}
 
 	template <typename... Ts>
-	void ReadEntity(ecs::Entity& o) {
+	void ReadEntity(Entity& o) {
 		static_assert(sizeof...(Ts) > 0, "Cannot deserialize entity without specified components");
 		static_assert(
 			(is_deserializable_v<Ts> && ...),
@@ -126,7 +126,7 @@ private:
 class BinaryOutputArchive {
 public:
 	BinaryOutputArchive() = delete;
-	explicit BinaryOutputArchive(const path& filename);
+	explicit BinaryOutputArchive(const path& filepath);
 	BinaryOutputArchive& operator=(BinaryOutputArchive&&) noexcept = default;
 	BinaryOutputArchive(BinaryOutputArchive&&) noexcept			   = default;
 	BinaryOutputArchive& operator=(const BinaryOutputArchive&)	   = delete;
@@ -197,7 +197,7 @@ public:
 	}
 
 	template <typename... Ts>
-	void WriteEntity(const ecs::Entity& o) {
+	void WriteEntity(const Entity& o) {
 		static_assert(sizeof...(Ts) > 0, "Cannot serialize entity without specified components");
 		static_assert(
 			(is_serializable_v<Ts> && ...),
