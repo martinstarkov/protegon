@@ -53,6 +53,14 @@ constexpr std::size_t wrapped_type_name_suffix_length() {
 		   type_name<type_name_prober>().length();
 }
 
+constexpr std::string_view trim_to_last_colon(std::string_view input) {
+	if (std::size_t last_colon_pos{ input.rfind(':') }; last_colon_pos != std::string_view::npos) {
+		return input.substr(last_colon_pos + 1);
+	} else {
+		return input;
+	}
+}
+
 } // namespace impl
 
 template <typename T>
@@ -63,6 +71,11 @@ constexpr std::string_view type_name() {
 	constexpr auto type_name_length = wrapped_name.length() - prefix_length - suffix_length;
 	return impl::remove_class_or_struct_prefix(wrapped_name.substr(prefix_length, type_name_length)
 	);
+}
+
+template <typename T>
+constexpr std::string_view type_name_without_namespaces() {
+	return impl::trim_to_last_colon(type_name<T>());
 }
 
 } // namespace ptgn
