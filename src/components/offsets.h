@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/transform.h"
+#include "serialization/serializable.h"
 
 namespace ptgn::impl {
 
@@ -13,6 +14,8 @@ struct Offsets {
 
 	Transform shake;
 	Transform bounce;
+
+	PTGN_SERIALIZER_REGISTER(shake, bounce)
 };
 
 } // namespace ptgn::impl

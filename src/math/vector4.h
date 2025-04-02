@@ -4,6 +4,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "serialization/serializable.h"
 #include "utility/assert.h"
 #include "utility/type_traits.h"
 
@@ -166,6 +167,8 @@ struct Vector4 {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 }) &&
 			   NearlyEqual(w, T{ 0 });
 	}
+
+	PTGN_SERIALIZER_REGISTER(x, y, z, w)
 };
 
 using V4_int	= Vector4<int>;

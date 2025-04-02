@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -24,6 +25,8 @@ struct Transform {
 	V2_float position;
 	float rotation{ 0.0f };
 	V2_float scale{ 1.0f, 1.0f };
+
+	PTGN_SERIALIZER_REGISTER(position, rotation, scale)
 };
 
 } // namespace ptgn

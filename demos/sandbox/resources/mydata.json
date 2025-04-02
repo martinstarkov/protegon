@@ -1,7 +1,126 @@
 {
-    "value1": {
-        "id": 456,
-        "message": "JSON Data",
-        "value": 2.7100000381469727
-    }
+    "AnimationInfo": {
+        "current_frame": 0,
+        "frame_count": 5,
+        "frame_repeats": 0,
+        "frame_size": {
+            "x": 32.0,
+            "y": 32.0
+        },
+        "start_frame": 0,
+        "start_pixel": {
+            "x": 0.0,
+            "y": 0.0
+        }
+    },
+    "Arc": {
+        "end_angle": 1.0471975803375244,
+        "radius": 25.0,
+        "start_angle": 0.5235987901687622
+    },
+    "Capsule": {
+        "end": {
+            "x": 200.0,
+            "y": 200.0
+        },
+        "radius": 35.0,
+        "start": {
+            "x": 100.0,
+            "y": 100.0
+        }
+    },
+    "Circle": {
+        "radius": 25.0
+    },
+    "Depth": 22,
+    "DisplaySize": {
+        "x": 300.0,
+        "y": 400.0
+    },
+    "Ellipse": {
+        "radius": {
+            "x": 30.0,
+            "y": 40.0
+        }
+    },
+    "Enabled": true,
+    "Interactive": {
+        "is_inside": false,
+        "was_inside": false
+    },
+    "Line": {
+        "end": {
+            "x": 300.0,
+            "y": 300.0
+        },
+        "start": {
+            "x": 200.0,
+            "y": 200.0
+        }
+    },
+    "LineWidth": 3.5,
+    "Offsets": {
+        "bounce": {
+            "position": {
+                "x": 0.0,
+                "y": 0.0
+            },
+            "rotation": 0.0,
+            "scale": {
+                "x": 1.0,
+                "y": 1.0
+            }
+        },
+        "shake": {
+            "position": {
+                "x": 0.0,
+                "y": 0.0
+            },
+            "rotation": 0.0,
+            "scale": {
+                "x": 1.0,
+                "y": 1.0
+            }
+        }
+    },
+    "RigidBody": {
+        "drag": 0.0,
+        "gravity": 0.0,
+        "immovable": false,
+        "max_speed": -1.0,
+        "velocity": {
+            "x": 0.0,
+            "y": 0.0
+        }
+    },
+    "TextureCrop": {
+        "position": {
+            "x": 1.0,
+            "y": 2.0
+        },
+        "size": {
+            "x": 11.0,
+            "y": 12.0
+        }
+    },
+    "TextureKey": 123456789,
+    "Tint": {
+        "a": 255,
+        "b": 255,
+        "g": 0,
+        "r": 0
+    },
+    "Transform": {
+        "position": {
+            "x": 30.0,
+            "y": 50.0
+        },
+        "rotation": 2.140000104904175,
+        "scale": {
+            "x": 2.0,
+            "y": 2.0
+        }
+    },
+    "UUID": 1090567497579984180,
+    "Visible": false
 }

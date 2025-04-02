@@ -8,6 +8,7 @@
 
 #include "core/entity.h"
 #include "serialization/serializable.h"
+#include "serialization/type_traits.h"
 #include "utility/assert.h"
 #include "utility/file.h"
 #include "utility/type_info.h"
@@ -98,7 +99,7 @@ public:
 	}
 
 	template <typename... Ts>
-	void ReadEntity(Entity& o) {
+	void Read(Entity& o) {
 		static_assert(sizeof...(Ts) > 0, "Cannot deserialize entity without specified components");
 		static_assert(
 			(is_deserializable_v<Ts> && ...),
@@ -197,7 +198,7 @@ public:
 	}
 
 	template <typename... Ts>
-	void WriteEntity(const Entity& o) {
+	void Write(const Entity& o) {
 		static_assert(sizeof...(Ts) > 0, "Cannot serialize entity without specified components");
 		static_assert(
 			(is_serializable_v<Ts> && ...),

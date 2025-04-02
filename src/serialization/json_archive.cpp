@@ -3,6 +3,19 @@
 #include <cstdint>
 #include <iosfwd>
 
+#include "components/common.h"
+#include "components/draw.h"
+#include "components/input.h"
+#include "components/lifetime.h"
+#include "components/offsets.h"
+#include "core/entity.h"
+#include "core/transform.h"
+#include "core/uuid.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "physics/rigid_body.h"
+#include "utility/assert.h"
 #include "utility/file.h"
 
 namespace ptgn {
@@ -15,6 +28,12 @@ JsonInputArchive::JsonInputArchive(const path& filepath) {
 
 JsonOutputArchive::JsonOutputArchive(const path& filepath) : filepath_{ filepath } {}
 
+JsonOutputArchive::~JsonOutputArchive() {
+	if (!filepath_.empty()) {
+		WriteToFile();
+	}
+}
+
 void JsonOutputArchive::WriteToFile() const {
 	PTGN_ASSERT(!filepath_.empty(), "Cannot write to empty filepath");
 	if (!data_.empty()) {
@@ -26,10 +45,22 @@ void JsonOutputArchive::WriteToFile() const {
 	}
 }
 
-JsonOutputArchive::~JsonOutputArchive() {
-	if (!filepath_.empty()) {
-		WriteToFile();
-	}
+void JsonInputArchive::Read(Entity& entity, Manager& manager) {
+	Read<
+		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
+		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
+		Ellipse, Capsule, Line>(entity, manager);
+}
+
+void JsonOutputArchive::Write(const Entity& entity) {
+	PTGN_ASSERT(entity != Entity{}, "Cannot serialize invalid entity");
+	TryWriteComponents<
+		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
+		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
+		Ellipse, Capsule, Line>(entity);
+	// TODO: Fix the components: Rect, Polygon, Triangle, Lifetime
+	// TODO: Add BoxCollider & CircleCollider & Movement components & UI components  &
+	// impl::ParticleEmitterComponent & Tween.
 }
 
 } // namespace ptgn

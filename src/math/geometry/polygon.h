@@ -6,6 +6,7 @@
 #include "core/transform.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -33,6 +34,8 @@ struct Triangle {
 	}
 
 	std::array<V2_float, 3> vertices;
+
+	PTGN_SERIALIZER_REGISTER(vertices)
 };
 
 struct Rect {
@@ -55,6 +58,9 @@ struct Rect {
 
 	V2_float size;
 	Origin origin{ Origin::Center };
+
+	// TODO: Figure out how to serialize origin / enums.
+	// PTGN_SERIALIZER_REGISTER(size, origin)
 };
 
 /*
@@ -101,6 +107,8 @@ struct Polygon {
 	[[nodiscard]] bool IsConcave() const;
 
 	std::vector<V2_float> vertices;
+
+	PTGN_SERIALIZER_REGISTER(vertices)
 };
 
 namespace impl {

@@ -44,7 +44,7 @@ struct Vector2Component {
 		return value_;
 	}
 
-private:
+protected:
 	Vector2<T> value_{ 0 };
 };
 
@@ -65,7 +65,7 @@ struct StringComponent {
 		return value_;
 	}
 
-private:
+protected:
 	std::string value_;
 };
 

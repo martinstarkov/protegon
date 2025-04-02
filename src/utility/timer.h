@@ -3,6 +3,7 @@
 #include <chrono>
 #include <type_traits>
 
+#include "serialization/serializable.h"
 #include "utility/assert.h"
 #include "utility/time.h"
 
@@ -83,6 +84,11 @@ public:
 		return percentage;
 	}
 
+	PTGN_SERIALIZER_REGISTER_NAMELESS(
+		KeyValue("start_time", start_time_), KeyValue("stop_time", stop_time_),
+		KeyValue("pause_time", pause_time_), KeyValue("running", running_),
+		KeyValue("paused", paused_)
+	)
 private:
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 	std::chrono::time_point<std::chrono::steady_clock> stop_time_;

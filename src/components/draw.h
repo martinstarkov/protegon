@@ -8,6 +8,7 @@
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "serialization/serializable.h"
 #include "utility/time.h"
 
 namespace ptgn {
@@ -33,10 +34,14 @@ struct Visible : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	Visible() : ArithmeticComponent{ true } {}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
 };
 
 struct DisplaySize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
 };
 
 struct Tint : public ColorComponent {
@@ -49,6 +54,8 @@ struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	LineWidth() : ArithmeticComponent{ 1.0f } {}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
 };
 
 struct TextureKey : public ArithmeticComponent<std::size_t> {
@@ -57,6 +64,8 @@ struct TextureKey : public ArithmeticComponent<std::size_t> {
 	TextureKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
 
 	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
 };
 
 namespace callback {
@@ -73,6 +82,11 @@ struct AnimationStart : public CallbackComponent<> {
 } // namespace callback
 
 struct TextureCrop {
+	TextureCrop() = default;
+
+	TextureCrop(const V2_float& position, const V2_float& size) :
+		position_{ position }, size_{ size } {}
+
 	void SetPosition(const V2_float& position);
 	void SetSize(const V2_float& size);
 
@@ -82,6 +96,7 @@ struct TextureCrop {
 	bool operator==(const TextureCrop& other) const;
 	bool operator!=(const TextureCrop& other) const;
 
+	PTGN_SERIALIZER_REGISTER_NAMELESS(KeyValue("position", position_), KeyValue("size", size_))
 private:
 	// Top left position (in pixels) within the texture from which the crop starts.
 	V2_float position_;
@@ -93,6 +108,8 @@ private:
 namespace impl {
 
 struct AnimationInfo {
+	AnimationInfo() = default;
+
 	AnimationInfo(
 		std::size_t frame_count, const V2_float& frame_size, const V2_float& start_pixel,
 		std::size_t start_frame
@@ -121,6 +138,11 @@ struct AnimationInfo {
 
 	[[nodiscard]] std::size_t GetStartFrame() const;
 
+	PTGN_SERIALIZER_REGISTER_NAMELESS(
+		KeyValue("frame_count", frame_count_), KeyValue("frame_size", frame_size_),
+		KeyValue("start_pixel", start_pixel_), KeyValue("start_frame", start_frame_),
+		KeyValue("current_frame", current_frame_), KeyValue("frame_repeats", frame_repeats_)
+	)
 private:
 	// Number of frames in the animation.
 	std::size_t frame_count_{ 0 };

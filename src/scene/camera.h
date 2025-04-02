@@ -26,6 +26,8 @@ class CameraManager;
 
 namespace impl {
 
+// TODO: Add all these as serializable components.
+
 struct CameraPanStart : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };

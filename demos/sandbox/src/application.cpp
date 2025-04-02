@@ -350,67 +350,26 @@ int main() {
 #include <type_traits>
 #include <utility>
 
+#include "components/common.h"
+#include "components/draw.h"
+#include "components/input.h"
+#include "components/lifetime.h"
+#include "components/offsets.h"
+#include "core/entity.h"
+#include "core/manager.h"
+#include "core/transform.h"
+#include "core/uuid.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/vector2.h"
+#include "physics/rigid_body.h"
 #include "serialization/binary_archive.h"
 #include "serialization/json_archive.h"
 #include "serialization/serializable.h"
+#include "serialization/type_traits.h"
 
 using namespace ptgn;
-
-/*
-// JSON Archive classes
-class JsonOutputArchive {
-public:
-	template <typename T>
-	void write_json_impl(T&& value) {
-		write(std::forward<T>(value), "value" + std::to_string(valueCounter_++));
-	}
-
-	template <typename T>
-	void write_json_impl(JsonKeyValuePair<T> pair) {
-		write(pair.value, pair.key);
-	}
-};
-
-class JsonInputArchive {
-public:
-	JsonInputArchive(const std::filesystem::path& filePath) :
-		valueCounter_(0), is_(filePath, std::ios::in) {
-		if (!is_.is_open()) {
-			throw std::runtime_error("Failed to open json file for reading: " + filePath.string());
-		}
-		is_ >> jsonData_;
-	}
-
-	~JsonInputArchive() {
-		is_.close(); // Close even if not open (no effect if already closed)
-	}
-
-	template <typename T>
-	void read(T& value, std::string_view key) {
-		value = jsonData_[key].get<T>();
-	}
-
-	template <typename... Ts>
-	void operator()(Ts&&... values) {
-		(read_json_impl(std::forward<Ts>(values)), ...);
-	}
-
-private:
-	std::ifstream is_;
-	json jsonData_;
-	int valueCounter_;
-
-	template <typename T>
-	void read_json_impl(T&& value) {
-		read(std::forward<T>(value), "value" + std::to_string(valueCounter_++));
-	}
-
-	template <typename T>
-	void read_json_impl(JsonKeyValuePair<T> pair) {
-		read(pair.value, pair.key);
-	}
-};
-*/
 
 class MyData {
 public:
@@ -426,7 +385,92 @@ public:
 int main() {
 	static_assert(has_template_function_Serialize_v<MyData>);
 	static_assert(has_template_function_Deserialize_v<MyData>);
-	// Binary Serialization
+
+	Manager m;
+
+	auto e1 = m.CreateEntity();
+	e1.Add<Transform>(V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f });
+	e1.Add<Enabled>(true);
+	e1.Add<Visible>(false);
+	e1.Add<Depth>(22);
+	e1.Add<DisplaySize>(V2_float{ 300, 400 });
+	e1.Add<Tint>(color::Blue);
+	e1.Add<LineWidth>(3.5f);
+	e1.Add<TextureKey>(123456789);
+	e1.Add<impl::AnimationInfo>(5, V2_float{ 32, 32 }, V2_float{ 0, 0 }, 0);
+	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
+	e1.Add<RigidBody>();
+	e1.Add<Interactive>();
+	e1.Add<impl::Offsets>();
+	e1.Add<Circle>(25.0f);
+	e1.Add<Arc>(25.0f, DegToRad(30.0f), DegToRad(60.0f));
+	e1.Add<Ellipse>(V2_float{ 30, 40 });
+	e1.Add<Capsule>(V2_float{ 100, 100 }, V2_float{ 200, 200 }, 35.0f);
+	e1.Add<Line>(V2_float{ 200, 200 }, V2_float{ 300, 300 });
+	// TODO: Fix.
+	// e1.Add<Rect>(V2_float{ 100, 100 }, Origin::TopLeft);
+	// TODO: Fix.
+	// e1.Add<Polygon>(std::vector<V2_float>{ V2_float{ 200, 200 }, V2_float{ 300, 300 }, V2_float{
+	// 600, 600 } });
+	// TODO: Fix.
+	// e1.Add<Triangle>(V2_float{ 0, 0 }, V2_float{ -300, -300 }, V2_float{ 600, 600 });
+	// TODO: Fix.
+	// e1.Add<Lifetime>(milliseconds{ 300 });
+
+	/*
+	{
+		BinaryOutputArchive binary_output("resources/mydata.bin");
+		binary_output.Write(e1);
+	}
+
+	{
+		BinaryInputArchive binary_input("resources/mydata.bin");
+		Entity e2;
+		binary_input.Read(e2);
+
+		std::cout << "Binary: transform=" << e2.Get<Transform>() << std::endl;
+	}
+	*/
+
+	{
+		JsonOutputArchive json_output("resources/mydata.json");
+		json_output.Write(e1);
+
+		PTGN_LOG("Successfully serialized all entity components");
+	}
+
+	{
+		JsonInputArchive json_input("resources/mydata.json");
+		Entity e2;
+		json_input.Read(e2, m);
+
+		PTGN_ASSERT(e2.Has<Transform>());
+		PTGN_ASSERT(e2.Has<Enabled>());
+		PTGN_ASSERT(e2.Has<Visible>());
+		PTGN_ASSERT(e2.Has<Depth>());
+		PTGN_ASSERT(e2.Has<DisplaySize>());
+		PTGN_ASSERT(e2.Has<Tint>());
+		PTGN_ASSERT(e2.Has<LineWidth>());
+		PTGN_ASSERT(e2.Has<TextureKey>());
+		PTGN_ASSERT(e2.Has<impl::AnimationInfo>());
+		PTGN_ASSERT(e2.Has<TextureCrop>());
+		PTGN_ASSERT(e2.Has<RigidBody>());
+		PTGN_ASSERT(e2.Has<Interactive>());
+		PTGN_ASSERT(e2.Has<impl::Offsets>());
+		PTGN_ASSERT(e2.Has<Circle>());
+		PTGN_ASSERT(e2.Has<Arc>());
+		PTGN_ASSERT(e2.Has<Ellipse>());
+		PTGN_ASSERT(e2.Has<Capsule>());
+		PTGN_ASSERT(e2.Has<Line>());
+		// PTGN_ASSERT(e1.Has<Polygon>());
+		// PTGN_ASSERT(e1.Has<Rect>());
+		// PTGN_ASSERT(e1.Has<Triangle>());
+		// PTGN_ASSERT(e1.Has<Lifetime>());
+
+		PTGN_LOG("Successfully deserialized all entity components");
+	}
+
+	/*
 	{
 		BinaryOutputArchive binary_output("resources/mydata.bin");
 		MyData data1;
@@ -436,7 +480,6 @@ int main() {
 		binary_output.Write(data1);
 	}
 
-	// Binary Deserialization
 	{
 		BinaryInputArchive binary_input("resources/mydata.bin");
 		MyData data2;
@@ -446,7 +489,6 @@ int main() {
 				  << "\", value=" << data2.value << std::endl;
 	}
 
-	// JSON Serialization
 	{
 		JsonOutputArchive json_output("resources/mydata.json");
 		MyData data3;
@@ -457,7 +499,6 @@ int main() {
 		json_output.Write("data3", data3);
 	}
 
-	// JSON Deserialization
 	{
 		JsonInputArchive json_input("resources/mydata.json");
 		MyData data4;
@@ -467,6 +508,7 @@ int main() {
 		std::cout << "JSON: id=" << data4.id << ", message=\"" << data4.message
 				  << "\", value=" << data4.value << std::endl;
 	}
+	*/
 
 	return 0;
 }

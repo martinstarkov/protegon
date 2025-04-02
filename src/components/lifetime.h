@@ -1,5 +1,6 @@
 #pragma once
 
+#include "serialization/serializable.h"
 #include "utility/time.h"
 #include "utility/timer.h"
 
@@ -17,6 +18,7 @@ struct Lifetime {
 
 	milliseconds duration{ 0 };
 
+	PTGN_SERIALIZER_REGISTER_NAMELESS(KeyValue("duration", duration), KeyValue("timer", timer_))
 private:
 	Timer timer_;
 };

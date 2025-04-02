@@ -10,12 +10,15 @@
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "renderer/origin.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
 struct Interactive {
 	bool is_inside{ false };
 	bool was_inside{ false };
+
+	PTGN_SERIALIZER_REGISTER(is_inside, was_inside)
 };
 
 struct Draggable {
@@ -27,6 +30,9 @@ struct Draggable {
 	// Drag target.
 	Entity target;
 	bool dragging{ false };
+
+	// TODO: Figure out how to serialize an internal entity:
+	// PTGN_SERIALIZER_REGISTER(offset, start, target, dragging)
 };
 
 struct InteractiveCircles {

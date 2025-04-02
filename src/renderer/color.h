@@ -6,6 +6,7 @@
 
 #include "math/math.h"
 #include "math/vector4.h"
+#include "serialization/serializable.h"
 #include "utility/type_traits.h"
 
 struct SDL_Color;
@@ -53,6 +54,8 @@ struct Color {
 	[[nodiscard]] friend bool operator!=(const Color& lhs, const Color& rhs) {
 		return !operator==(lhs, rhs);
 	}
+
+	PTGN_SERIALIZER_REGISTER(r, g, b, a)
 };
 
 template <typename U, tt::floating_point<U> = true>

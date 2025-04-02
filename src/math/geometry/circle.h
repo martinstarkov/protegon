@@ -4,6 +4,7 @@
 
 #include "core/transform.h"
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -12,6 +13,8 @@ struct Circle {
 	explicit Circle(float radius);
 
 	float radius{ 0.0f };
+
+	PTGN_SERIALIZER_REGISTER(radius)
 };
 
 struct Arc {
@@ -24,6 +27,7 @@ struct Arc {
 	// Radians counter-clockwise from the right.
 	float end_angle{ 0.0f };
 
+	PTGN_SERIALIZER_REGISTER(radius, start_angle, end_angle)
 private:
 	// @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
 	// (false).
@@ -40,6 +44,8 @@ struct Ellipse {
 	explicit Ellipse(const V2_float& radius);
 
 	V2_float radius;
+
+	PTGN_SERIALIZER_REGISTER(radius)
 };
 
 [[nodiscard]] V2_float GetCenter(const Transform& transform, const Circle& circle);

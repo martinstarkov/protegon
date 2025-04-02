@@ -9,6 +9,7 @@
 
 #include "math/math.h"
 #include "math/rng.h"
+#include "serialization/serializable.h"
 #include "utility/assert.h"
 #include "utility/type_traits.h"
 
@@ -243,6 +244,8 @@ struct Vector2 {
 	}
 
 	[[nodiscard]] bool IsZero() const noexcept;
+
+	PTGN_SERIALIZER_REGISTER(x, y)
 };
 
 using V2_int	= Vector2<int>;
