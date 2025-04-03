@@ -49,7 +49,7 @@ void JsonInputArchive::Read(Entity& entity, Manager& manager) {
 	Read<
 		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
-		Ellipse, Capsule, Line>(entity, manager);
+		Ellipse, Capsule, Line, Rect>(entity, manager);
 }
 
 void JsonOutputArchive::Write(const Entity& entity) {
@@ -57,8 +57,8 @@ void JsonOutputArchive::Write(const Entity& entity) {
 	TryWriteComponents<
 		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
-		Ellipse, Capsule, Line>(entity);
-	// TODO: Fix the components: Rect, Polygon, Triangle, Lifetime
+		Ellipse, Capsule, Line, Rect>(entity);
+	// TODO: Fix the components: Polygon, Triangle, Lifetime
 	// TODO: Add BoxCollider & CircleCollider & Movement components & UI components  &
 	// impl::ParticleEmitterComponent & Tween.
 }

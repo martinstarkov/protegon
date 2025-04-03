@@ -30,9 +30,10 @@ public:
 
 	template <typename T>
 	static constexpr bool is_deserializable_v{
-		std::is_arithmetic_v<std::decay_t<T>> || std::is_same_v<T, std::string> ||
-		tt::is_map_like_v<T> || tt::is_std_array_v<T> || tt::is_std_vector_v<T> ||
-		has_template_function_Deserialize_v<T> || std::is_trivially_copyable_v<T>
+		std::is_enum_v<std::decay_t<T>> || std::is_arithmetic_v<std::decay_t<T>> ||
+		std::is_same_v<T, std::string> || tt::is_map_like_v<T> || tt::is_std_array_v<T> ||
+		tt::is_std_vector_v<T> || has_template_function_Deserialize_v<T> ||
+		std::is_trivially_copyable_v<T>
 	};
 
 	template <typename... Ts>
@@ -67,6 +68,10 @@ public:
 		static_assert(is_deserializable_v<T>, "Json output archive type is not deserializable");
 		if constexpr (has_template_function_Deserialize_v<T>) {
 			value.Deserialize(*this);
+		} else if constexpr (std::is_enum_v<std::decay_t<T>>) {
+			value = static_cast<std::decay_t<T>>(
+				GetObject().get<std::underlying_type_t<std::decay_t<T>>>()
+			);
 		} else {
 			value = GetObject().get<std::decay_t<T>>();
 		}
@@ -83,6 +88,11 @@ public:
 			SetObject(key);
 			value.Deserialize(*this);
 			SetObject(obj);
+		} else if constexpr (std::is_enum_v<std::decay_t<T>>) {
+			auto& j{ GetObject() };
+			PTGN_ASSERT(j.contains(key), "Could not read key '", key, "' from json object");
+			value =
+				static_cast<std::decay_t<T>>(j[key].get<std::underlying_type_t<std::decay_t<T>>>());
 		} else {
 			auto& j{ GetObject() };
 			PTGN_ASSERT(j.contains(key), "Could not read key '", key, "' from json object");
@@ -117,6 +127,10 @@ public:
 		 ...);
 	}
 
+	[[nodiscard]] const json& GetRootObject() const {
+		return data_;
+	}
+
 private:
 	template <typename T>
 	void Read(impl::JsonKeyValuePair<T> value) {
@@ -142,7 +156,8 @@ public:
 	~JsonOutputArchive();
 
 	template <typename T>
-	static constexpr bool is_serializable_v{ std::is_arithmetic_v<std::decay_t<T>> ||
+	static constexpr bool is_serializable_v{ std::is_enum_v<std::decay_t<T>> ||
+											 std::is_arithmetic_v<std::decay_t<T>> ||
 											 tt::is_string_like_v<T> || tt::is_map_like_v<T> ||
 											 tt::is_std_array_v<T> || tt::is_std_vector_v<T> ||
 											 has_template_function_Serialize_v<T> ||
@@ -160,6 +175,8 @@ public:
 		static_assert(is_serializable_v<T>, "Json output archive type is not serializable");
 		if constexpr (has_template_function_Serialize_v<T>) {
 			value.Serialize(*this);
+		} else if constexpr (std::is_enum_v<std::decay_t<T>>) {
+			GetObject() = static_cast<std::underlying_type_t<std::decay_t<T>>>(value);
 		} else {
 			GetObject() = value;
 		}
@@ -177,6 +194,9 @@ public:
 			SetObject(key);
 			value.Serialize(*this);
 			SetObject(obj);
+		} else if constexpr (std::is_enum_v<std::decay_t<T>>) {
+			auto& j{ GetObject() };
+			j[key] = static_cast<std::underlying_type_t<std::decay_t<T>>>(value);
 		} else {
 			auto& j{ GetObject() };
 			j[key] = value;
@@ -194,7 +214,6 @@ public:
 
 	void CreateObject(std::string_view key) {
 		GetObject()[key] = json::object();
-		std::cout << data_.dump(4) << std::endl;
 	}
 
 	void SetObject(json* object) {
@@ -218,6 +237,10 @@ public:
 	void Write(const Entity& entity) {
 		PTGN_ASSERT(entity != Entity{}, "Cannot serialize invalid entity");
 		TryWriteComponents<UUID, Ts...>(entity);
+	}
+
+	[[nodiscard]] const json& GetRootObject() const {
+		return data_;
 	}
 
 private:
@@ -247,5 +270,15 @@ private:
 	json* object_{ nullptr };
 	path filepath_;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const JsonOutputArchive& o) {
+	os << o.GetRootObject().dump(4) << "\n";
+	return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const JsonInputArchive& o) {
+	os << o.GetRootObject().dump(4) << "\n";
+	return os;
+}
 
 } // namespace ptgn

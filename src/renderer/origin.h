@@ -10,14 +10,14 @@ namespace ptgn {
 
 enum class Origin {
 	Center,
-	CenterTop,
-	CenterLeft,
-	CenterRight,
-	CenterBottom,
 	TopLeft,
+	CenterTop,
 	TopRight,
-	BottomLeft,
+	CenterRight,
 	BottomRight,
+	CenterBottom,
+	BottomLeft,
+	CenterLeft,
 };
 
 // @return Vector to be added to a position to get the object center given an origin and size.

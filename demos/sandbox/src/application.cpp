@@ -408,7 +408,7 @@ int main() {
 	e1.Add<Capsule>(V2_float{ 100, 100 }, V2_float{ 200, 200 }, 35.0f);
 	e1.Add<Line>(V2_float{ 200, 200 }, V2_float{ 300, 300 });
 	// TODO: Fix.
-	// e1.Add<Rect>(V2_float{ 100, 100 }, Origin::TopLeft);
+	e1.Add<Rect>(V2_float{ 100, 100 }, Origin::TopLeft);
 	// TODO: Fix.
 	// e1.Add<Polygon>(std::vector<V2_float>{ V2_float{ 200, 200 }, V2_float{ 300, 300 }, V2_float{
 	// 600, 600 } });
@@ -436,11 +436,12 @@ int main() {
 		JsonOutputArchive json_output("resources/mydata.json");
 		json_output.Write(e1);
 
-		PTGN_LOG("Successfully serialized all entity components");
+		PTGN_LOG("Successfully serialized all entity components: ", json_output);
 	}
 
 	{
 		JsonInputArchive json_input("resources/mydata.json");
+
 		Entity e2;
 		json_input.Read(e2, m);
 
@@ -462,10 +463,10 @@ int main() {
 		PTGN_ASSERT(e2.Has<Ellipse>());
 		PTGN_ASSERT(e2.Has<Capsule>());
 		PTGN_ASSERT(e2.Has<Line>());
-		// PTGN_ASSERT(e1.Has<Polygon>());
-		// PTGN_ASSERT(e1.Has<Rect>());
-		// PTGN_ASSERT(e1.Has<Triangle>());
-		// PTGN_ASSERT(e1.Has<Lifetime>());
+		PTGN_ASSERT(e2.Has<Rect>());
+		// PTGN_ASSERT(e2.Has<Polygon>());
+		// PTGN_ASSERT(e2.Has<Triangle>());
+		// PTGN_ASSERT(e2.Has<Lifetime>());
 
 		PTGN_LOG("Successfully deserialized all entity components");
 	}

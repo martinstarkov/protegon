@@ -59,8 +59,7 @@ struct Rect {
 	V2_float size;
 	Origin origin{ Origin::Center };
 
-	// TODO: Figure out how to serialize origin / enums.
-	// PTGN_SERIALIZER_REGISTER(size, origin)
+	PTGN_SERIALIZER_REGISTER(size, origin)
 };
 
 /*
