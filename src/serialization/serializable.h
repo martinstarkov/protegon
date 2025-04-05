@@ -1,8 +1,10 @@
 #pragma once
 
+#include <nlohmann/detail/macro_scope.hpp>
+#include <nlohmann/detail/meta/type_traits.hpp>
 #include <string_view>
 
-#include "utility/macro.h"
+#include "serialization/json.h"
 
 namespace ptgn {
 
@@ -16,6 +18,15 @@ struct JsonKeyValuePair {
 	JsonKeyValuePair(std::string_view key, T& value) : key{ key }, value{ value } {}
 };
 
+template <typename>
+struct is_json_pair : public std::false_type {};
+
+template <typename T>
+struct is_json_pair<JsonKeyValuePair<T>> : public std::true_type {};
+
+template <typename T>
+inline constexpr bool is_json_pair_v{ is_json_pair<T>::value };
+
 } // namespace impl
 
 template <typename T>
@@ -25,27 +36,59 @@ impl::JsonKeyValuePair<T> KeyValue(std::string_view key, T& value) {
 
 } // namespace ptgn
 
-#define PTGN_KEY_VALUE_PAIR(x, instance) ptgn::KeyValue(#x, instance.x)
+#define PTGN_KEY_VALUE_TO_JSON(kv) nlohmann_json_j[kv.key] = kv.value;
 
-#define PTGN_KEY_VALUE_PAIR_LIST(instance, ...) \
-	PTGN_MAP_LIST_DATA(PTGN_KEY_VALUE_PAIR, instance, __VA_ARGS__)
+#define PTGN_KEY_VALUE_FROM_JSON(kv) nlohmann_json_j[kv.key].get_to(kv.value);
 
-#define PTGN_SERIALIZER_REGISTER(...)                            \
-	template <typename Archive>                                  \
-	void Serialize(Archive& archive) const {                     \
-		archive(PTGN_KEY_VALUE_PAIR_LIST((*this), __VA_ARGS__)); \
-	}                                                            \
-	template <typename Archive>                                  \
-	void Deserialize(Archive& archive) {                         \
-		archive(PTGN_KEY_VALUE_PAIR_LIST((*this), __VA_ARGS__)); \
+#define PTGN_SERIALIZER_REGISTER(Type, ...) \
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(Type, __VA_ARGS__)
+
+// Must be placed in public field of class.
+#define PTGN_SERIALIZER_REGISTER_NAMED(Type, ...)                                        \
+private:                                                                                 \
+	template <                                                                           \
+		typename BasicJsonType,                                                          \
+		nlohmann::detail::enable_if_t<                                                   \
+			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
+	void local_to_json_impl(BasicJsonType& nlohmann_json_j) const {                      \
+		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_KEY_VALUE_TO_JSON, __VA_ARGS__))   \
+	}                                                                                    \
+	template <                                                                           \
+		typename BasicJsonType,                                                          \
+		nlohmann::detail::enable_if_t<                                                   \
+			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
+	void local_from_json_impl(const BasicJsonType& nlohmann_json_j) {                    \
+		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_KEY_VALUE_FROM_JSON, __VA_ARGS__)) \
+	}                                                                                    \
+                                                                                         \
+public:                                                                                  \
+	template <                                                                           \
+		typename BasicJsonType,                                                          \
+		nlohmann::detail::enable_if_t<                                                   \
+			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
+	friend void to_json(BasicJsonType& nlohmann_json_j, const Type& nlohmann_json_t) {   \
+		nlohmann_json_t.local_to_json_impl(nlohmann_json_j);                             \
+	}                                                                                    \
+	template <                                                                           \
+		typename BasicJsonType,                                                          \
+		nlohmann::detail::enable_if_t<                                                   \
+			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
+	friend void from_json(const BasicJsonType& nlohmann_json_j, Type& nlohmann_json_t) { \
+		nlohmann_json_t.local_from_json_impl(nlohmann_json_j);                           \
 	}
 
-#define PTGN_SERIALIZER_REGISTER_NAMELESS(...) \
-	template <typename Archive>                \
-	void Serialize(Archive& archive) const {   \
-		archive(__VA_ARGS__);                  \
-	}                                          \
-	template <typename Archive>                \
-	void Deserialize(Archive& archive) {       \
-		archive(__VA_ARGS__);                  \
+#define PTGN_SERIALIZER_REGISTER_NAMELESS(Type, member)                                  \
+	template <                                                                           \
+		typename BasicJsonType,                                                          \
+		nlohmann::detail::enable_if_t<                                                   \
+			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
+	friend void to_json(BasicJsonType& nlohmann_json_j, const Type& nlohmann_json_t) {   \
+		nlohmann_json_j = nlohmann_json_t.member;                                        \
+	}                                                                                    \
+	template <                                                                           \
+		typename BasicJsonType,                                                          \
+		nlohmann::detail::enable_if_t<                                                   \
+			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
+	friend void from_json(const BasicJsonType& nlohmann_json_j, Type& nlohmann_json_t) { \
+		nlohmann_json_j.get_to(nlohmann_json_t.member);                                  \
 	}

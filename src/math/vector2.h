@@ -245,7 +245,7 @@ struct Vector2 {
 
 	[[nodiscard]] bool IsZero() const noexcept;
 
-	PTGN_SERIALIZER_REGISTER(x, y)
+	PTGN_SERIALIZER_REGISTER(Vector2<T>, x, y)
 };
 
 using V2_int	= Vector2<int>;

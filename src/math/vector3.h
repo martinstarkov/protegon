@@ -171,7 +171,7 @@ struct Vector3 {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 });
 	}
 
-	PTGN_SERIALIZER_REGISTER(x, y, z)
+	PTGN_SERIALIZER_REGISTER(Vector3<T>, x, y, z)
 };
 
 using V3_int	= Vector3<int>;

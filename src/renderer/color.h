@@ -55,7 +55,7 @@ struct Color {
 		return !operator==(lhs, rhs);
 	}
 
-	PTGN_SERIALIZER_REGISTER(r, g, b, a)
+	PTGN_SERIALIZER_REGISTER(Color, r, g, b, a)
 };
 
 template <typename U, tt::floating_point<U> = true>

@@ -14,7 +14,7 @@ struct Circle {
 
 	float radius{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER(radius)
+	PTGN_SERIALIZER_REGISTER(Circle, radius)
 };
 
 struct Arc {
@@ -27,7 +27,7 @@ struct Arc {
 	// Radians counter-clockwise from the right.
 	float end_angle{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER(radius, start_angle, end_angle)
+	PTGN_SERIALIZER_REGISTER(Arc, radius, start_angle, end_angle)
 private:
 	// @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
 	// (false).
@@ -45,7 +45,7 @@ struct Ellipse {
 
 	V2_float radius;
 
-	PTGN_SERIALIZER_REGISTER(radius)
+	PTGN_SERIALIZER_REGISTER(Ellipse, radius)
 };
 
 [[nodiscard]] V2_float GetCenter(const Transform& transform, const Circle& circle);

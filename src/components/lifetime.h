@@ -9,6 +9,8 @@ namespace ptgn {
 class Entity;
 
 struct Lifetime {
+	Lifetime() = default;
+
 	Lifetime(milliseconds duration, bool start = false);
 
 	// Will restart if lifetime is already running.
@@ -18,7 +20,10 @@ struct Lifetime {
 
 	milliseconds duration{ 0 };
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(KeyValue("duration", duration), KeyValue("timer", timer_))
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Lifetime, KeyValue("duration", duration), KeyValue("timer", timer_)
+	)
+
 private:
 	Timer timer_;
 };

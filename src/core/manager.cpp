@@ -3,6 +3,8 @@
 #include "core/entity.h"
 #include "core/uuid.h"
 #include "ecs/ecs.h"
+#include "serialization/json.h"
+#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -16,6 +18,13 @@ void Manager::Refresh() {
 
 void Manager::Reserve(std::size_t capacity) {
 	ecs::Manager::Reserve(capacity);
+}
+
+Entity Manager::CreateEntity(const json& j) {
+	Entity entity{ ecs::Manager::CreateEntity() };
+	j.get_to(entity);
+	PTGN_ASSERT(entity.Has<UUID>(), "Entity created from json must have a UUID");
+	return entity;
 }
 
 Entity Manager::CreateEntity(UUID uuid) {

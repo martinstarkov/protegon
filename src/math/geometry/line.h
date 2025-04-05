@@ -16,7 +16,7 @@ struct Line {
 	V2_float start;
 	V2_float end;
 
-	PTGN_SERIALIZER_REGISTER(start, end)
+	PTGN_SERIALIZER_REGISTER(Line, start, end)
 };
 
 struct Capsule {
@@ -27,7 +27,7 @@ struct Capsule {
 	V2_float end;
 	float radius{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER(start, end, radius)
+	PTGN_SERIALIZER_REGISTER(Capsule, start, end, radius)
 };
 
 } // namespace ptgn

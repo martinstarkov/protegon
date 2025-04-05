@@ -5,6 +5,7 @@
 #include "core/entity.h"
 #include "core/uuid.h"
 #include "ecs/ecs.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
@@ -48,6 +49,10 @@ public:
 	// Make sure to call Refresh() after this function.
 	// Creates an entity with a specific uuid.
 	Entity CreateEntity(UUID uuid);
+
+	// Make sure to call Refresh() after this function.
+	// Creates an entity from a json object.
+	Entity CreateEntity(const json& j);
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {

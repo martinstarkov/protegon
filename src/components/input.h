@@ -18,7 +18,7 @@ struct Interactive {
 	bool is_inside{ false };
 	bool was_inside{ false };
 
-	PTGN_SERIALIZER_REGISTER(is_inside, was_inside)
+	PTGN_SERIALIZER_REGISTER(Interactive, is_inside, was_inside)
 };
 
 struct Draggable {
@@ -32,7 +32,7 @@ struct Draggable {
 	bool dragging{ false };
 
 	// TODO: Figure out how to serialize an internal entity:
-	// PTGN_SERIALIZER_REGISTER(offset, start, target, dragging)
+	// PTGN_SERIALIZER_REGISTER(Draggable, offset, start, target, dragging)
 };
 
 struct InteractiveCircles {

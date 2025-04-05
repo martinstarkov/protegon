@@ -11,6 +11,7 @@
 #include "renderer/blend_mode.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
@@ -188,6 +189,9 @@ public:
 	[[nodiscard]] bool HasParent() const;
 
 	[[nodiscard]] std::size_t GetHash() const;
+
+	friend void to_json(json& j, const Entity& e);
+	friend void from_json(const json& j, Entity& e);
 
 protected:
 	friend class impl::RenderData;

@@ -5,6 +5,8 @@
 #include <ratio>
 #include <type_traits>
 
+#include "serialization/json.h"
+
 namespace ptgn {
 
 template <typename Rep, typename Period = std::ratio<1>>
@@ -67,3 +69,31 @@ std::ostream& operator<<(std::ostream& os, ptgn::duration<T, ptgn::hours::period
 }
 
 } // namespace ptgn
+
+namespace nlohmann {
+
+template <typename Rep, typename Period>
+struct adl_serializer<std::chrono::duration<Rep, Period>> {
+	static void to_json(json& j, const std::chrono::duration<Rep, Period>& d) {
+		j = std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
+	}
+
+	static void from_json(const json& j, std::chrono::duration<Rep, Period>& d) {
+		d = std::chrono::duration<Rep, Period>(
+			static_cast<Rep>(j.get<double>() / Period::num * Period::den)
+		);
+	}
+};
+
+template <typename Clock, typename Duration>
+struct adl_serializer<std::chrono::time_point<Clock, Duration>> {
+	static void to_json(json& j, const std::chrono::time_point<Clock, Duration>& tp) {
+		j = tp.time_since_epoch().count();
+	}
+
+	static void from_json(const json& j, std::chrono::time_point<Clock, Duration>& tp) {
+		tp = Clock::time_point(std::chrono::nanoseconds(j.get<typename Duration::rep>()));
+	}
+};
+
+} // namespace nlohmann

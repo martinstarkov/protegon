@@ -35,7 +35,7 @@ struct Triangle {
 
 	std::array<V2_float, 3> vertices;
 
-	PTGN_SERIALIZER_REGISTER(vertices)
+	PTGN_SERIALIZER_REGISTER(Triangle, vertices)
 };
 
 struct Rect {
@@ -59,7 +59,7 @@ struct Rect {
 	V2_float size;
 	Origin origin{ Origin::Center };
 
-	PTGN_SERIALIZER_REGISTER(size, origin)
+	PTGN_SERIALIZER_REGISTER(Rect, size, origin)
 };
 
 /*
@@ -107,7 +107,7 @@ struct Polygon {
 
 	std::vector<V2_float> vertices;
 
-	PTGN_SERIALIZER_REGISTER(vertices)
+	PTGN_SERIALIZER_REGISTER(Polygon, vertices)
 };
 
 namespace impl {

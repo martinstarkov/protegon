@@ -7,12 +7,16 @@
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
+#include "components/lifetime.h"
 #include "components/offsets.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/transform.h"
 #include "core/uuid.h"
 #include "ecs/ecs.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/blend_mode.h"
@@ -22,7 +26,10 @@
 #include "renderer/render_target.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "serialization/fwd.h"
+#include "serialization/json.h"
 #include "utility/assert.h"
+#include "utility/type_info.h"
 
 namespace ptgn {
 
@@ -254,8 +261,7 @@ std::array<V2_float, 4> Entity::GetTextureCoordinates(bool flip_vertically) cons
 	if (Has<TextureCrop>()) {
 		const auto& crop{ Get<TextureCrop>() };
 		if (crop != TextureCrop{}) {
-			tex_coords =
-				impl::GetTextureCoordinates(crop.GetPosition(), crop.GetSize(), texture_size);
+			tex_coords = impl::GetTextureCoordinates(crop.position, crop.size, texture_size);
 		}
 	}
 
@@ -383,6 +389,48 @@ void Children::Remove(const Entity& o) {
 
 bool Children::IsEmpty() const {
 	return children_.empty();
+}
+
+namespace impl {
+
+template <typename T>
+void to_json_single(json& j, const Entity& e) {
+	if (e.Has<T>()) {
+		j[type_name_without_namespaces<T>()] = e.Get<T>();
+	}
+}
+
+template <typename... Ts>
+void to_json(json& j, const Entity& e) {
+	(to_json_single<Ts>(j, e), ...);
+}
+
+template <typename T>
+void from_json_single(const json& j, Entity& e) {
+	j[type_name_without_namespaces<T>()].get_to(e.Has<T>() ? e.Get<T>() : e.Add<T>());
+}
+
+template <typename... Ts>
+void from_json(const json& j, Entity& e) {
+	(from_json_single<Ts>(j, e), ...);
+}
+
+} // namespace impl
+
+void to_json(json& j, const Entity& e) {
+	j = json{};
+	impl::to_json<
+		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
+		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
+		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime>(j, e);
+}
+
+void from_json(const json& j, Entity& e) {
+	PTGN_ASSERT(e != Entity{}, "Cannot read JSON into null entity");
+	impl::from_json<
+		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
+		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
+		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime>(j, e);
 }
 
 } // namespace ptgn

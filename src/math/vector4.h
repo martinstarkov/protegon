@@ -168,7 +168,7 @@ struct Vector4 {
 			   NearlyEqual(w, T{ 0 });
 	}
 
-	PTGN_SERIALIZER_REGISTER(x, y, z, w)
+	PTGN_SERIALIZER_REGISTER(Vector4<T>, x, y, z, w)
 };
 
 using V4_int	= Vector4<int>;

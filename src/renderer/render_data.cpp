@@ -307,7 +307,7 @@ V2_float RenderData::GetTextureSize(
 ) {
 	V2_float size;
 	if (o.Has<TextureCrop>()) {
-		size = o.Get<TextureCrop>().GetSize();
+		size = o.Get<TextureCrop>().size;
 	}
 	if (o.Has<DisplaySize>()) {
 		size = o.Get<DisplaySize>();

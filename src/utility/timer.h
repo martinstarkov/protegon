@@ -84,8 +84,8 @@ public:
 		return percentage;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(
-		KeyValue("start_time", start_time_), KeyValue("stop_time", stop_time_),
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Timer, KeyValue("start_time", start_time_), KeyValue("stop_time", stop_time_),
 		KeyValue("pause_time", pause_time_), KeyValue("running", running_),
 		KeyValue("paused", paused_)
 	)

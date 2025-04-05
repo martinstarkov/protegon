@@ -45,8 +45,8 @@ Entity CreateAnimation(
 	milliseconds frame_duration{ animation_duration / frame_count };
 
 	auto update_crop = [](TextureCrop& crop, const impl::AnimationInfo& anim) {
-		crop.SetPosition(anim.GetCurrentFramePosition());
-		crop.SetSize(anim.GetFrameSize());
+		crop.position = anim.GetCurrentFramePosition();
+		crop.size	  = anim.GetFrameSize();
 	};
 
 	// TODO: Consider breaking this up into individual tween points using a for loop.
@@ -75,30 +75,6 @@ Entity CreateAnimation(
 		});
 
 	return entity;
-}
-
-void TextureCrop::SetSize(const V2_float& size) {
-	size_ = size;
-}
-
-V2_float TextureCrop::GetSize() const {
-	return size_;
-}
-
-void TextureCrop::SetPosition(const V2_float& position) {
-	position_ = position;
-}
-
-V2_float TextureCrop::GetPosition() const {
-	return position_;
-}
-
-bool TextureCrop::operator==(const TextureCrop& other) const {
-	return position_ == other.position_ && size_ == other.size_;
-}
-
-bool TextureCrop::operator!=(const TextureCrop& other) const {
-	return !(*this == other);
 }
 
 namespace impl {

@@ -35,13 +35,13 @@ struct Visible : public ArithmeticComponent<bool> {
 
 	Visible() : ArithmeticComponent{ true } {}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS(Visible, value_)
 };
 
 struct DisplaySize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS(DisplaySize, value_)
 };
 
 struct Tint : public ColorComponent {
@@ -55,7 +55,7 @@ struct LineWidth : public ArithmeticComponent<float> {
 
 	LineWidth() : ArithmeticComponent{ 1.0f } {}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS(LineWidth, value_)
 };
 
 struct TextureKey : public ArithmeticComponent<std::size_t> {
@@ -65,7 +65,7 @@ struct TextureKey : public ArithmeticComponent<std::size_t> {
 
 	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureKey, value_)
 };
 
 namespace callback {
@@ -82,27 +82,21 @@ struct AnimationStart : public CallbackComponent<> {
 } // namespace callback
 
 struct TextureCrop {
-	TextureCrop() = default;
-
-	TextureCrop(const V2_float& position, const V2_float& size) :
-		position_{ position }, size_{ size } {}
-
-	void SetPosition(const V2_float& position);
-	void SetSize(const V2_float& size);
-
-	[[nodiscard]] V2_float GetPosition() const;
-	[[nodiscard]] V2_float GetSize() const;
-
-	bool operator==(const TextureCrop& other) const;
-	bool operator!=(const TextureCrop& other) const;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(KeyValue("position", position_), KeyValue("size", size_))
-private:
 	// Top left position (in pixels) within the texture from which the crop starts.
-	V2_float position_;
+	V2_float position;
 
 	// Size of the crop in pixels. Zero size will use full size of texture.
-	V2_float size_;
+	V2_float size;
+
+	friend bool operator==(const TextureCrop& a, const TextureCrop& b) {
+		return a.position == b.position && a.size == b.size;
+	}
+
+	friend bool operator!=(const TextureCrop& a, const TextureCrop& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER(TextureCrop, position, size)
 };
 
 namespace impl {
@@ -138,8 +132,8 @@ struct AnimationInfo {
 
 	[[nodiscard]] std::size_t GetStartFrame() const;
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(
-		KeyValue("frame_count", frame_count_), KeyValue("frame_size", frame_size_),
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		AnimationInfo, KeyValue("frame_count", frame_count_), KeyValue("frame_size", frame_size_),
 		KeyValue("start_pixel", start_pixel_), KeyValue("start_frame", start_frame_),
 		KeyValue("current_frame", current_frame_), KeyValue("frame_repeats", frame_repeats_)
 	)

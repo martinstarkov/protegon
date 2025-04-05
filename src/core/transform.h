@@ -26,7 +26,7 @@ struct Transform {
 	float rotation{ 0.0f };
 	V2_float scale{ 1.0f, 1.0f };
 
-	PTGN_SERIALIZER_REGISTER(position, rotation, scale)
+	PTGN_SERIALIZER_REGISTER(Transform, position, rotation, scale)
 };
 
 } // namespace ptgn

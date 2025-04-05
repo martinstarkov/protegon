@@ -15,7 +15,7 @@ struct Offsets {
 	Transform shake;
 	Transform bounce;
 
-	PTGN_SERIALIZER_REGISTER(shake, bounce)
+	PTGN_SERIALIZER_REGISTER(Offsets, shake, bounce)
 };
 
 } // namespace ptgn::impl

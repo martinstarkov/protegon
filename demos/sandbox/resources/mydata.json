@@ -48,6 +48,16 @@
         "is_inside": false,
         "was_inside": false
     },
+    "Lifetime": {
+        "duration": 0.3,
+        "timer": {
+            "pause_time": 0,
+            "paused": false,
+            "running": true,
+            "start_time": 483124651201900,
+            "stop_time": 0
+        }
+    },
     "Line": {
         "end": {
             "x": 300.0,
@@ -82,6 +92,22 @@
                 "y": 1.0
             }
         }
+    },
+    "Polygon": {
+        "vertices": [
+            {
+                "x": 200.0,
+                "y": 200.0
+            },
+            {
+                "x": 300.0,
+                "y": 300.0
+            },
+            {
+                "x": 600.0,
+                "y": 600.0
+            }
+        ]
     },
     "Rect": {
         "origin": 1,
@@ -128,6 +154,22 @@
             "y": 2.0
         }
     },
-    "UUID": 1885147393041433512,
+    "Triangle": {
+        "vertices": [
+            {
+                "x": 0.0,
+                "y": 0.0
+            },
+            {
+                "x": -300.0,
+                "y": -300.0
+            },
+            {
+                "x": 600.0,
+                "y": 600.0
+            }
+        ]
+    },
+    "UUID": 5378727150893505649,
     "Visible": false
 }
