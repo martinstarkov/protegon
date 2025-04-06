@@ -5,12 +5,15 @@
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
 struct RaycastResult {
 	float t{ 1.0f }; // How far along the ray the impact occurred.
 	V2_float normal; // Normal of the impact (normalised).
+
+	PTGN_SERIALIZER_REGISTER(RaycastResult, t, normal)
 
 	[[nodiscard]] bool Occurred() const;
 };

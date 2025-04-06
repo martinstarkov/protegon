@@ -6,12 +6,15 @@
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
 struct Intersection {
 	float depth{ 0.0f };
 	V2_float normal;
+
+	PTGN_SERIALIZER_REGISTER(Intersection, depth, normal)
 
 	[[nodiscard]] bool Occurred() const;
 };

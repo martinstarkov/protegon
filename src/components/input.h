@@ -39,12 +39,16 @@ struct InteractiveCircles {
 	struct InteractiveCircle {
 		Circle circle;
 		V2_float offset;
+
+		PTGN_SERIALIZER_REGISTER(InteractiveCircle, circle, offset)
 	};
 
 	InteractiveCircles() = default;
 
 	InteractiveCircles(float radius, const V2_float& offset) :
 		circles{ InteractiveCircle{ Circle{ radius }, offset } } {}
+
+	PTGN_SERIALIZER_REGISTER(InteractiveCircles, circles)
 
 	std::vector<InteractiveCircle> circles;
 };
@@ -53,6 +57,8 @@ struct InteractiveRects {
 	struct InteractiveRect {
 		Rect rect;
 		V2_float offset;
+
+		PTGN_SERIALIZER_REGISTER(InteractiveRect, rect, offset)
 	};
 
 	InteractiveRects() = default;
@@ -60,12 +66,14 @@ struct InteractiveRects {
 	InteractiveRects(const V2_float& size, Origin origin, const V2_float& offset) :
 		rects{ InteractiveRect{ Rect{ size, origin }, offset } } {}
 
+	PTGN_SERIALIZER_REGISTER(InteractiveRects, rects)
+
 	std::vector<InteractiveRect> rects;
 };
 
-// TODO: Replace these with scripts.
-
 namespace callback {
+
+// TODO: Replace these with scripts.
 
 struct Show : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
