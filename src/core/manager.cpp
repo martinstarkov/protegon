@@ -20,6 +20,16 @@ void Manager::Reserve(std::size_t capacity) {
 	ecs::Manager::Reserve(capacity);
 }
 
+Entity Manager::GetEntityByUUID(const UUID& uuid) const {
+	auto entities{ Entities() };
+	for (auto e : entities) {
+		if (e.Get<UUID>() == uuid) {
+			return e;
+		}
+	}
+	return {};
+}
+
 Entity Manager::CreateEntity(const json& j) {
 	Entity entity{ ecs::Manager::CreateEntity() };
 	j.get_to(entity);

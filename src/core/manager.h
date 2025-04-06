@@ -43,6 +43,9 @@ public:
 
 	void Reserve(std::size_t capacity);
 
+	// @return {} if no entity with the given uuid exists in the manager.
+	Entity GetEntityByUUID(const UUID& uuid) const;
+
 	// Make sure to call Refresh() after this function.
 	Entity CreateEntity();
 
