@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <nlohmann/detail/meta/type_traits.hpp>
 #include <random>
 #include <type_traits>
 
@@ -58,7 +59,8 @@ public:
 
 	// Custom range seeded distribution.
 	// Range: [min, max] (inclusive).
-	RNG(std::uint32_t seed, T min, T max) : min_{ min }, max_{ max }, generator_{ seed } {
+	RNG(std::uint32_t seed, T min, T max) :
+		seed_{ seed }, min_{ min }, max_{ max }, generator_{ seed_ } {
 		SetupDistribution();
 	}
 
@@ -81,7 +83,41 @@ public:
 
 	// Change seed of random number generator.
 	void SetSeed(std::uint32_t new_seed) {
-		generator_.seed(new_seed);
+		seed_ = new_seed;
+		generator_.seed(seed_);
+	}
+
+	[[nodiscard]] std::uint32_t GetSeed() const {
+		return seed_;
+	}
+
+	[[nodiscard]] T GetMin() const {
+		return min_;
+	}
+
+	[[nodiscard]] T GetMax() const {
+		return max_;
+	}
+
+	// TODO: Add binary de/serialization.
+
+	template <
+		typename BasicJsonType, nlohmann::detail::enable_if_t<
+									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
+	friend void to_json(BasicJsonType& nlohmann_json_j, const RNG& nlohmann_json_t) {
+		nlohmann_json_j["seed"] = nlohmann_json_t.seed_;
+		nlohmann_json_j["min"]	= nlohmann_json_t.min_;
+		nlohmann_json_j["max"]	= nlohmann_json_t.max_;
+	}
+
+	template <
+		typename BasicJsonType, nlohmann::detail::enable_if_t<
+									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
+	friend void from_json(const BasicJsonType& nlohmann_json_j, RNG& nlohmann_json_t) {
+		nlohmann_json_t.min_ = nlohmann_json_j["min"];
+		nlohmann_json_t.max_ = nlohmann_json_j["max"];
+		nlohmann_json_t.SetSeed(nlohmann_json_j["seed"]);
+		nlohmann_json_t.SetupDistribution();
 	}
 
 private:
@@ -109,15 +145,17 @@ private:
 		}
 	}
 
-	T min_{};
-	T max_{};
+	std::uint32_t seed_{ std::invoke(std::random_device{}) };
+
+	T min_{ 0 };
+	T max_{ 1 };
 
 	// Internal random number generator.
-	E generator_{ std::invoke(std::random_device{}) };
+	E generator_{ seed_ };
 
 	// Defined internal distribution.
 	// Range: [0, 1] (inclusive).
-	distribution distribution_{ 0, 1 };
+	distribution distribution_{ min_, max_ };
 };
 
 template <typename T>

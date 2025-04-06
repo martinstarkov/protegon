@@ -366,6 +366,7 @@ int main() {
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
+#include "math/rng.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
@@ -447,15 +448,25 @@ int main() {
 	{
 		json j = e1;
 
-		std::ofstream o("resources/mydata.json");
-		o << std::setw(4) << j << std::endl;
+		SaveJson(j, "resources/mydata.json");
 
 		PTGN_LOG("Successfully serialized all entity components: ", j.dump(4));
+
+		RNG<float> rng{ 3, 0.5f, 1.5f };
+		json j2 = rng;
+
+		PTGN_LOG("Successfully serialized rng: ", j2.dump(4));
+
+		RNG<float> rng2;
+		j2.get_to(rng2);
+
+		PTGN_ASSERT(rng2.GetSeed() == 3);
+		PTGN_ASSERT(rng2.GetMin() == 0.5f);
+		PTGN_ASSERT(rng2.GetMax() == 1.5f);
 	}
 
 	{
-		std::ifstream f("resources/mydata.json");
-		json j = json::parse(f);
+		auto j{ LoadJson("resources/mydata.json") };
 
 		Entity e2{ m.CreateEntity(j) };
 
