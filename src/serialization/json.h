@@ -9,6 +9,8 @@
 
 namespace ptgn {
 
+void SaveJson(const json& j, const path& filepath);
+
 [[nodiscard]] json LoadJson(const path& filepath);
 
 // template <typename T>
