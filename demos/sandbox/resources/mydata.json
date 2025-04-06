@@ -54,7 +54,7 @@
             "pause_time": 0,
             "paused": false,
             "running": true,
-            "start_time": 483124651201900,
+            "start_time": 525652069332100,
             "stop_time": 0
         }
     },
@@ -136,7 +136,7 @@
             "y": 12.0
         }
     },
-    "TextureKey": 123456789,
+    "TextureKey": "sheep1",
     "Tint": {
         "a": 255,
         "b": 255,
@@ -170,6 +170,6 @@
             }
         ]
     },
-    "UUID": 5378727150893505649,
+    "UUID": 9936380605395316436,
     "Visible": false
 }

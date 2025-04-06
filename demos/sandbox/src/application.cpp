@@ -370,6 +370,7 @@ int main() {
 #include "physics/rigid_body.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "renderer/texture.h"
 #include "serialization/binary_archive.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
@@ -404,7 +405,7 @@ int main() {
 	e1.Add<DisplaySize>(V2_float{ 300, 400 });
 	e1.Add<Tint>(color::Blue);
 	e1.Add<LineWidth>(3.5f);
-	e1.Add<TextureKey>(123456789);
+	e1.Add<TextureKey>("sheep1");
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	e1.Add<Interactive>();

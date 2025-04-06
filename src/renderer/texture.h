@@ -7,9 +7,11 @@
 #include <unordered_map>
 #include <vector>
 
+#include "components/generic.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/flip.h"
+#include "serialization/serializable.h"
 #include "utility/file.h"
 
 struct SDL_Surface;
@@ -53,6 +55,12 @@ enum class TextureScaling {
 	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
 	LinearMipmapNearest	 = 0x2701, // GL_LINEAR_MIPMAP_NEAREST
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
+};
+
+struct TextureKey : public StringComponent {
+	using StringComponent::StringComponent;
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureKey, value_)
 };
 
 namespace impl {
@@ -274,23 +282,25 @@ public:
 	//    ...
 	// }
 	void Load(const path& json_filepath);
+	void Unload(const path& json_filepath);
 
 	// If key exists in the texture manager, does nothing.
-	void Load(std::string_view key, const path& filepath);
+	void Load(const TextureKey& key, const path& filepath);
 
-	void Unload(std::string_view key);
+	void Unload(const TextureKey& key);
 
 	// @return Size of the texture.
-	[[nodiscard]] V2_int GetSize(std::string_view key) const;
-	[[nodiscard]] V2_int GetSize(std::size_t key) const;
+	[[nodiscard]] V2_int GetSize(const TextureKey& key) const;
 
 	// @return True if the texture key is loaded.
-	[[nodiscard]] bool Has(std::string_view key) const;
+	[[nodiscard]] bool Has(const TextureKey& key) const;
 
-	[[nodiscard]] const Texture& Get(std::string_view key) const;
+	[[nodiscard]] const Texture& Get(const TextureKey& key) const;
 
 private:
 	friend class RenderData;
+
+	[[nodiscard]] V2_int GetSize(std::size_t key) const;
 
 	[[nodiscard]] const Texture& Get(std::size_t key) const;
 

@@ -1,5 +1,8 @@
 #include "components/draw.h"
 
+#include <string_view>
+#include <type_traits>
+
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
@@ -7,6 +10,7 @@
 #include "math/vector2.h"
 #include "renderer/texture.h"
 #include "utility/assert.h"
+#include "utility/time.h"
 #include "utility/tween.h"
 
 namespace ptgn {
@@ -18,7 +22,7 @@ Entity CreateSprite(Manager& manager, std::string_view texture_key) {
 
 	auto entity{ manager.CreateEntity() };
 
-	entity.Add<TextureKey>(Hash(texture_key));
+	entity.Add<TextureKey>(texture_key);
 	entity.Add<Visible>();
 
 	return entity;
@@ -37,7 +41,7 @@ Entity CreateAnimation(
 
 	auto entity{ manager.CreateEntity() };
 
-	entity.Add<TextureKey>(Hash(texture_key));
+	entity.Add<TextureKey>(texture_key);
 	entity.Add<Visible>();
 	entity.Add<TextureCrop>();
 	entity.Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);

@@ -204,13 +204,13 @@ struct Button : public GameObject {
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] TextureKey GetTextureKey(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] const TextureKey& GetTextureKey(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextureKey(std::string_view texture_key, ButtonState state = ButtonState::Default);
 
 	Button& SetDisabledTextureKey(std::string_view texture_key);
 
-	[[nodiscard]] TextureKey GetDisabledTextureKey() const;
+	[[nodiscard]] const TextureKey& GetDisabledTextureKey() const;
 
 	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current) const;
 
@@ -312,7 +312,8 @@ struct ToggleButton : public Button {
 		const Color& color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] TextureKey GetTextureKeyToggled(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] const TextureKey& GetTextureKeyToggled(ButtonState state = ButtonState::Default)
+		const;
 
 	ToggleButton& SetTextureKeyToggled(
 		std::string_view texture_key, ButtonState state = ButtonState::Default

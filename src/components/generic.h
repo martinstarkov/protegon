@@ -8,6 +8,7 @@
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"
+#include "utility/file.h"
 #include "utility/function.h"
 #include "utility/type_traits.h"
 
@@ -51,14 +52,20 @@ protected:
 struct StringComponent {
 	StringComponent() = default;
 
+	StringComponent(const path& p) = delete;
+
+	StringComponent(const std::string& value) : value_{ value } {}
+
 	StringComponent(std::string_view value) : value_{ value } {}
 
-	bool operator==(const StringComponent& other) const {
-		return value_ == other.value_;
+	StringComponent(const char* value) : value_{ value } {}
+
+	friend bool operator==(const StringComponent& a, const StringComponent& b) {
+		return a.value_ == b.value_;
 	}
 
-	bool operator!=(const StringComponent& other) const {
-		return !(*this == other);
+	friend bool operator!=(const StringComponent& a, const StringComponent& b) {
+		return !(a == b);
 	}
 
 	operator std::string_view() const {

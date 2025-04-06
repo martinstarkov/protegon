@@ -58,16 +58,6 @@ struct LineWidth : public ArithmeticComponent<float> {
 	PTGN_SERIALIZER_REGISTER_NAMELESS(LineWidth, value_)
 };
 
-struct TextureKey : public ArithmeticComponent<std::size_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	TextureKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
-
-	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureKey, value_)
-};
-
 namespace callback {
 
 // TODO: Change to scripts.

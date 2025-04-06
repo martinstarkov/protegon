@@ -133,6 +133,7 @@ const TextureKey& ButtonTexture::Get(ButtonState state) const {
 TextureKey& ButtonTexture::Get(ButtonState state) {
 	return const_cast<TextureKey&>(std::as_const(*this).Get(state));
 }
+
 } // namespace impl
 
 Button::Button(Manager& manager, bool) : GameObject{ manager } {}
@@ -407,7 +408,7 @@ Button& Button::SetFontSize(std::int32_t font_size, ButtonState state) {
 	return *this;
 }
 
-TextureKey Button::GetTextureKey(ButtonState state) const {
+const TextureKey& Button::GetTextureKey(ButtonState state) const {
 	if (state == ButtonState::Current) {
 		PTGN_ASSERT(
 			Has<TextureKey>(),
@@ -448,7 +449,7 @@ Button& Button::SetDisabledTextureKey(std::string_view texture_key) {
 	return *this;
 }
 
-TextureKey Button::GetDisabledTextureKey() const {
+const TextureKey& Button::GetDisabledTextureKey() const {
 	PTGN_ASSERT(
 		Has<impl::ButtonDisabledTextureKey>(),
 		"Cannot retrieve disabled texture key as it has not been set for the button"
@@ -731,7 +732,7 @@ ToggleButton& ToggleButton::SetBorderColorToggled(const Color& color, ButtonStat
 	return *this;
 }
 
-TextureKey ToggleButton::GetTextureKeyToggled(ButtonState state) const {
+const TextureKey& ToggleButton::GetTextureKeyToggled(ButtonState state) const {
 	if (state == ButtonState::Current) {
 		PTGN_ASSERT(
 			Has<TextureKey>(),

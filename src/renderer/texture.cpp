@@ -431,19 +431,26 @@ void Texture::SetSubData(
 
 void TextureManager::Load(const path& json_filepath) {
 	auto textures{ LoadJson(json_filepath) };
-	for (auto& [texture_key, texture_path] : textures.items()) {
+	for (const auto& [texture_key, texture_path] : textures.items()) {
 		Load(texture_key, texture_path);
 	}
 }
 
-void TextureManager::Load(std::string_view key, const path& filepath) {
+void TextureManager::Unload(const path& json_filepath) {
+	auto textures{ LoadJson(json_filepath) };
+	for (const auto& [texture_key, texture_path] : textures.items()) {
+		Unload(TextureKey{ texture_key });
+	}
+}
+
+void TextureManager::Load(const TextureKey& key, const path& filepath) {
 	auto [it, inserted] = textures_.try_emplace(Hash(key));
 	if (inserted) {
 		it->second = LoadFromFile(filepath);
 	}
 }
 
-void TextureManager::Unload(std::string_view key) {
+void TextureManager::Unload(const TextureKey& key) {
 	textures_.erase(Hash(key));
 }
 
@@ -452,16 +459,15 @@ V2_int TextureManager::GetSize(std::size_t key) const {
 	return textures_.find(key)->second.GetSize();
 }
 
-V2_int TextureManager::GetSize(std::string_view key) const {
-	PTGN_ASSERT(Has(key), "Cannot get size of texture which has not been loaded");
-	return textures_.find(Hash(key))->second.GetSize();
+V2_int TextureManager::GetSize(const TextureKey& key) const {
+	return GetSize(Hash(key));
 }
 
-bool TextureManager::Has(std::string_view key) const {
+bool TextureManager::Has(const TextureKey& key) const {
 	return Has(Hash(key));
 }
 
-const Texture& TextureManager::Get(std::string_view key) const {
+const Texture& TextureManager::Get(const TextureKey& key) const {
 	return Get(Hash(key));
 }
 
