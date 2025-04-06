@@ -30,6 +30,7 @@
 #include "serialization/json.h"
 #include "utility/assert.h"
 #include "utility/type_info.h"
+#include "vfx/light.h"
 
 namespace ptgn {
 
@@ -422,7 +423,7 @@ void to_json(json& j, const Entity& e) {
 	impl::to_json<
 		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
-		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime>(j, e);
+		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime, PointLight>(j, e);
 }
 
 void from_json(const json& j, Entity& e) {
@@ -430,7 +431,7 @@ void from_json(const json& j, Entity& e) {
 	impl::from_json<
 		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
-		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime>(j, e);
+		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime, PointLight>(j, e);
 }
 
 } // namespace ptgn

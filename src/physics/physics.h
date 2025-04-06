@@ -2,6 +2,7 @@
 
 #include "core/manager.h"
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -20,6 +21,8 @@ public:
 
 	// @return Physics time step in seconds.
 	[[nodiscard]] float dt() const;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(Physics, KeyValue("gravity", gravity_))
 
 private:
 	friend class impl::Game;

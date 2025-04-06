@@ -54,7 +54,7 @@
             "pause_time": 0,
             "paused": false,
             "running": true,
-            "start_time": 525652069332100,
+            "start_time": 529351871926000,
             "stop_time": 0
         }
     },
@@ -92,6 +92,24 @@
                 "y": 1.0
             }
         }
+    },
+    "PointLight": {
+        "ambient_color": {
+            "a": 255,
+            "b": 255,
+            "g": 0,
+            "r": 0
+        },
+        "ambient_intensity": 0.20000000298023224,
+        "color": {
+            "a": 255,
+            "b": 203,
+            "g": 192,
+            "r": 255
+        },
+        "falloff": 3.0,
+        "intensity": 1.0,
+        "radius": 250.0
     },
     "Polygon": {
         "vertices": [
@@ -170,6 +188,6 @@
             }
         ]
     },
-    "UUID": 9936380605395316436,
+    "UUID": 8770373680041760074,
     "Visible": false
 }

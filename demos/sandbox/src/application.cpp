@@ -342,6 +342,7 @@ int main() {
 
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iosfwd>
 #include <iostream>
 #include <sstream>
@@ -361,7 +362,6 @@ int main() {
 #include "core/manager.h"
 #include "core/transform.h"
 #include "core/uuid.h"
-#include "iomanip"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
@@ -379,6 +379,7 @@ int main() {
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/time.h"
+#include "vfx/light.h"
 
 using namespace ptgn;
 
@@ -409,6 +410,13 @@ int main() {
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	e1.Add<Interactive>();
+	e1.Add<PointLight>()
+		.SetRadius(250.0f)
+		.SetIntensity(1.0f)
+		.SetFalloff(3.0f)
+		.SetColor(color::Pink)
+		.SetAmbientIntensity(0.2f)
+		.SetAmbientColor(color::Blue);
 	e1.Add<impl::Offsets>();
 	e1.Add<Circle>(25.0f);
 	e1.Add<Arc>(25.0f, DegToRad(30.0f), DegToRad(60.0f));
@@ -460,6 +468,7 @@ int main() {
 		PTGN_ASSERT(e2.Has<Depth>());
 		PTGN_ASSERT(e2.Has<DisplaySize>());
 		PTGN_ASSERT(e2.Has<Tint>());
+		PTGN_ASSERT(e2.Has<PointLight>());
 		PTGN_ASSERT(e2.Has<LineWidth>());
 		PTGN_ASSERT(e2.Has<TextureKey>());
 		PTGN_ASSERT(e2.Has<RigidBody>());

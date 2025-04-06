@@ -2,14 +2,23 @@
 
 #include "math/vector3.h"
 #include "renderer/color.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
 // Lights must be added to the LightManager to be drawn to the screen.
 class PointLight {
 public:
-	bool operator==(const PointLight& o) const;
-	bool operator!=(const PointLight& o) const;
+	friend bool operator==(const PointLight& a, const PointLight& b) {
+		return a.color_ == b.color_ && a.intensity_ == b.intensity_ &&
+			   a.ambient_intensity_ == b.ambient_intensity_ &&
+			   a.ambient_color_ == b.ambient_color_ && a.radius_ == b.radius_ &&
+			   a.falloff_ == b.falloff_;
+	}
+
+	friend bool operator!=(const PointLight& a, const PointLight& b) {
+		return !(a == b);
+	}
 
 	PointLight& SetIntensity(float intensity);
 	[[nodiscard]] float GetIntensity() const;
@@ -31,6 +40,13 @@ public:
 
 	// @return color_ normalized and without alpha value.
 	[[nodiscard]] static V3_float GetShaderColor(const Color& color);
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		PointLight, KeyValue("intensity", intensity_), KeyValue("color", color_),
+		KeyValue("ambient_intensity", ambient_intensity_),
+		KeyValue("ambient_color", ambient_color_), KeyValue("radius", radius_),
+		KeyValue("falloff", falloff_)
+	)
 
 private:
 	// Intensity of the light. Range: [0, 1].

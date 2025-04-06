@@ -7,16 +7,6 @@
 
 namespace ptgn {
 
-bool PointLight::operator==(const PointLight& o) const {
-	return color_ == o.color_ && intensity_ == o.intensity_ &&
-		   ambient_intensity_ == o.ambient_intensity_ && ambient_color_ == o.ambient_color_ &&
-		   radius_ == o.radius_ && falloff_ == o.falloff_;
-}
-
-bool PointLight::operator!=(const PointLight& o) const {
-	return !(*this == o);
-}
-
 PointLight& PointLight::SetIntensity(float intensity) {
 	intensity_ = intensity;
 	return *this;

@@ -142,6 +142,7 @@ private:
 	}
 
 	std::int32_t seed_{ 0 };
+
 	// Sampling rate of the first layer of noise as a % of the provided noise array.
 	// Lower value means the initial noise layer has a higher noise frequency.
 	float frequency_{ 0.01f };
