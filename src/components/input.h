@@ -27,12 +27,10 @@ struct Draggable {
 	V2_float offset;
 	// Mouse position where the drag started.
 	V2_float start;
-	// Drag target.
-	Entity target;
+
 	bool dragging{ false };
 
-	// TODO: Figure out how to serialize an internal entity:
-	// PTGN_SERIALIZER_REGISTER(Draggable, offset, start, target, dragging)
+	PTGN_SERIALIZER_REGISTER(Draggable, offset, start, dragging)
 };
 
 struct InteractiveCircles {

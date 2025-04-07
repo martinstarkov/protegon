@@ -398,7 +398,11 @@ public:
 int main() {
 	Manager m;
 
+	auto e0 = m.CreateEntity();
+	e0.Add<Transform>(V2_float{ -69, -69 });
+
 	auto e1 = m.CreateEntity();
+	e1.Add<Draggable>(V2_float{ 1, 1 }, V2_float{ 30, 40 }, true);
 	e1.Add<Transform>(V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f });
 	e1.Add<impl::AnimationInfo>(5, V2_float{ 32, 32 }, V2_float{ 0, 0 }, 0);
 	e1.Add<Enabled>(true);
@@ -472,6 +476,7 @@ int main() {
 
 		PTGN_ASSERT(e2.Has<Transform>());
 		PTGN_ASSERT(e2.Has<UUID>());
+		PTGN_ASSERT(e2.Has<Draggable>());
 		PTGN_ASSERT(e2.Has<impl::AnimationInfo>());
 		PTGN_ASSERT(e2.Has<TextureCrop>());
 		PTGN_ASSERT(e2.Has<Enabled>());

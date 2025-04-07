@@ -253,7 +253,6 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 							draggable.dragging = true;
 							draggable.start	   = pos;
 							draggable.offset   = e.GetPosition() - draggable.start;
-							draggable.target   = e;
 							Invoke<callback::DragStart>(e, pos);
 						}
 					}
@@ -279,7 +278,6 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					if (auto& draggable{ e.Get<Draggable>() }; draggable.dragging) {
 						draggable.dragging = false;
 						draggable.offset   = {};
-						draggable.target   = Entity{};
 						Invoke<callback::DragStop>(e, pos);
 					}
 				}

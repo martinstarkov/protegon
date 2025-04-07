@@ -420,16 +420,18 @@ void from_json(const json& j, Entity& e) {
 
 void to_json(json& j, const Entity& e) {
 	j = json{};
+	impl::to_json<UUID>(j, e);
 	impl::to_json<
-		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
+		Draggable, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
 		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime, PointLight>(j, e);
 }
 
 void from_json(const json& j, Entity& e) {
 	PTGN_ASSERT(e != Entity{}, "Cannot read JSON into null entity");
+	impl::from_json<UUID>(j, e);
 	impl::from_json<
-		UUID, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
+		Draggable, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
 		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime, PointLight>(j, e);
 }

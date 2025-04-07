@@ -37,6 +37,31 @@
         "x": 300.0,
         "y": 400.0
     },
+    "Draggable": {
+        "dragging": true,
+        "offset": {
+            "x": 1.0,
+            "y": 1.0
+        },
+        "start": {
+            "x": 30.0,
+            "y": 40.0
+        },
+        "target": {
+            "Transform": {
+                "position": {
+                    "x": -69.0,
+                    "y": -69.0
+                },
+                "rotation": 0.0,
+                "scale": {
+                    "x": 1.0,
+                    "y": 1.0
+                }
+            },
+            "UUID": 8885763144343133330
+        }
+    },
     "Ellipse": {
         "radius": {
             "x": 30.0,
@@ -54,7 +79,7 @@
             "pause_time": 0,
             "paused": false,
             "running": true,
-            "start_time": 10201882503100,
+            "start_time": 10724708728300,
             "stop_time": 0
         }
     },
@@ -188,6 +213,6 @@
             }
         ]
     },
-    "UUID": 1367159103125398775,
+    "UUID": 16336155653710707217,
     "Visible": false
 }

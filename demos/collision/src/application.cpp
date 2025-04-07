@@ -1,13 +1,13 @@
 #include <memory>
 #include <vector>
 
-#include "components/common.h"
 #include "components/movement.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/game_object.h"
+#include "core/manager.h"
 #include "core/transform.h"
 #include "core/window.h"
-#include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
 #include "math/collision/collider.h"
@@ -15,6 +15,7 @@
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
+#include "renderer/color.h"
 #include "renderer/origin.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -30,10 +31,10 @@ V2_float ws;
 struct CollisionTest {
 	virtual ~CollisionTest() = default;
 
-	ecs::Manager manager;
+	Manager* manager;
 
 	CollisionTest() {
-		manager = game.scene.Get("collision_example_scene").manager;
+		manager = &game.scene.Get("collision_example_scene").manager;
 	}
 
 	virtual void Enter() {}
@@ -61,12 +62,13 @@ public:
 	V2_float speed{ 300.0f };
 
 	void Enter() override {
-		intersect		 = GameObject{ manager };
-		sweep			 = GameObject{ manager };
-		overlap			 = GameObject{ manager };
-		intersect_circle = GameObject{ manager };
-		sweep_circle	 = GameObject{ manager };
-		overlap_circle	 = GameObject{ manager };
+		PTGN_ASSERT(manager != nullptr);
+		intersect		 = GameObject{ *manager };
+		sweep			 = GameObject{ *manager };
+		overlap			 = GameObject{ *manager };
+		intersect_circle = GameObject{ *manager };
+		sweep_circle	 = GameObject{ *manager };
+		overlap_circle	 = GameObject{ *manager };
 
 		intersect.SetVisible(true);
 		sweep.SetVisible(true);
@@ -130,113 +132,113 @@ public:
 
 		b1.on_collision_start = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " started intersect collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " started intersect collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 		b1.on_collision = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " continued intersect collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " continued intersect collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 		b1.on_collision_stop = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " stopped intersect collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " stopped intersect collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 
 		b2.on_collision_start = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " started overlap collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " started overlap collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 		b2.on_collision = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " continued overlap collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " continued overlap collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 		b2.on_collision_stop = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " stopped overlap collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " stopped overlap collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 
 		b3.on_collision_start = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " started sweep collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " started sweep collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 		b3.on_collision = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " continued sweep collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " continued sweep collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 		b3.on_collision_stop = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " stopped sweep collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " stopped sweep collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 		c1.on_collision_start = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " started intersect collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " started intersect collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 		c1.on_collision = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " continued intersect collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " continued intersect collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 		c1.on_collision_stop = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " stopped intersect collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " stopped intersect collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 
 		c2.on_collision_start = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " started overlap collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " started overlap collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 		c2.on_collision = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " continued overlap collision with #", c.entity2.GetId(),
-				", normal: ", c.normal
+				"#", c.entity1.GetUUID(), " continued overlap collision with #",
+				c.entity2.GetUUID(), ", normal: ", c.normal
 			);
 		};
 		c2.on_collision_stop = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " stopped overlap collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " stopped overlap collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 
 		c3.on_collision_start = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " started sweep collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " started sweep collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 		c3.on_collision = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " continued sweep collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " continued sweep collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
 		c3.on_collision_stop = [](Collision c) {
 			PTGN_LOG(
-				"#", c.entity1.GetId(), " stopped sweep collision with #", c.entity2.GetId(),
+				"#", c.entity1.GetUUID(), " stopped sweep collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
 		};
@@ -248,7 +250,8 @@ public:
 	}
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
-		auto obstacle = manager.CreateEntity();
+		PTGN_ASSERT(manager != nullptr);
+		auto obstacle = manager->CreateEntity();
 		obstacle.Add<Transform>(pos);
 		obstacle.Add<BoxCollider>(size, origin);
 	}
