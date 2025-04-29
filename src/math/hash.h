@@ -23,6 +23,21 @@ namespace ptgn {
 		hash = (33 * hash) ^ c;
 	}
 	return hash;
+
+	// Or alternatively:
+
+	/*
+	// FNV-1a hash algorithm (cross-compiler consistent)
+	std::size_t hash				= 14695981039346656037ULL; // FNV_offset_basis
+	constexpr std::size_t FNV_prime = 1099511628211ULL;
+
+	for (char c : str) {
+		hash ^= static_cast<std::uint8_t>(c); // XOR with byte
+		hash *= FNV_prime;					  // Multiply by prime
+	}
+
+	return hash;
+	*/
 }
 
 template <typename T>
