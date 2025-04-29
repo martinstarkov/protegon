@@ -46,20 +46,6 @@
         "start": {
             "x": 30.0,
             "y": 40.0
-        },
-        "target": {
-            "Transform": {
-                "position": {
-                    "x": -69.0,
-                    "y": -69.0
-                },
-                "rotation": 0.0,
-                "scale": {
-                    "x": 1.0,
-                    "y": 1.0
-                }
-            },
-            "UUID": 8885763144343133330
         }
     },
     "Ellipse": {
@@ -79,7 +65,7 @@
             "pause_time": 0,
             "paused": false,
             "running": true,
-            "start_time": 10724708728300,
+            "start_time": 22967831135700,
             "stop_time": 0
         }
     },
@@ -213,6 +199,6 @@
             }
         ]
     },
-    "UUID": 16336155653710707217,
+    "UUID": 13295957113789980010,
     "Visible": false
 }

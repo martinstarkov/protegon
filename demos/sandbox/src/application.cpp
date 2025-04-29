@@ -130,7 +130,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 }
 */
 
-/*
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -142,31 +141,40 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
-// If you can't use C++17's standard library, you'll need to use the GSL
-// string_view or implement your own struct (which would not be very difficult,
-// since we only need a few methods here)
 
-std::size_t Hash(std::string_view str) {
-	// FNV-1a hash algorithm (cross-compiler consistent)
-	std::size_t hash				= 14695981039346656037ULL; // FNV_offset_basis
-	constexpr std::size_t FNV_prime = 1099511628211ULL;
+#include "math/hash.h"
+#include "serialization/fwd.h"
+#include "serialization/serializable.h"
+#include "utility/type_info.h"
 
-	for (char c : str) {
-		hash ^= static_cast<std::uint8_t>(c); // XOR with byte
-		hash *= FNV_prime;					  // Multiply by prime
-	}
-
-	return hash;
-}
+using namespace ptgn;
 
 template <class Base, class... Args>
 class Factory {
 public:
 	virtual ~Factory() = default;
 
-	virtual std::string_view GetName() {
+	virtual std::string_view GetName() const {
 		return name_;
 	}
+
+	template <
+		typename BasicJsonType, nlohmann::detail::enable_if_t<
+									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
+	friend void to_json(BasicJsonType& nlohmann_json_j, const Factory& nlohmann_json_t) {
+		static_cast<const Base*>(&nlohmann_json_t)->to_json_impl(nlohmann_json_j);
+	}
+
+	template <
+		typename BasicJsonType, nlohmann::detail::enable_if_t<
+									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
+	friend void from_json(const BasicJsonType& nlohmann_json_j, Factory& nlohmann_json_t) {
+		static_cast<Base*>(&nlohmann_json_t)->from_json_impl(nlohmann_json_j);
+	}
+
+	virtual void to_json_impl(json& j) const {}
+
+	virtual void from_json_impl(const json& j) {}
 
 	template <class... T>
 	static std::unique_ptr<Base> create(std::string_view class_name, T&&... args) {
@@ -179,11 +187,31 @@ public:
 		return ptr;
 	}
 
+	static std::unique_ptr<Base> create(const json& j) {
+		std::string_view class_name{ j["name"] };
+		auto it = dataJ().find(Hash(class_name));
+		if (it == dataJ().end()) {
+			std::cout << "Failed to find hash for " << class_name << std::endl;
+		}
+		auto ptr{ it->second(j) };
+		ptr->name_ = class_name;
+		return ptr;
+	}
+
 	template <class T>
 	struct Registrar : public Base {
 		friend T;
 
-		virtual std::string_view GetName() {
+		void to_json_impl(json& j) const final {
+			j		  = *static_cast<const T*>(this);
+			j["name"] = GetName();
+		}
+
+		void from_json_impl(const json& j) final {
+			j.get_to(*static_cast<T*>(this));
+		}
+
+		virtual std::string_view GetName() const {
 			return type_name<T>();
 		}
 
@@ -197,11 +225,25 @@ public:
 			return true;
 		}
 
+		static bool registerTJ() {
+			auto raw_name{ type_name<T>() };
+			std::cout << "Registering json hash for " << raw_name << std::endl;
+			const auto name		   = Hash(raw_name);
+			Factory::dataJ()[name] = [](const json& j) -> std::unique_ptr<Base> {
+				auto ptr{ std::make_unique<T>() };
+				j.get_to(*ptr);
+				return ptr;
+			};
+			return true;
+		}
+
 		static bool registered;
+		static bool registeredJ;
 
 		// private:
 		Registrar() : Base(Key{}) {
 			(void)registered;
+			(void)registeredJ;
 		}
 	};
 
@@ -209,16 +251,22 @@ public:
 
 private:
 	class Key {
-		Key() {};
+		Key(){};
 		template <class T>
 		friend struct Registrar;
 	};
 
-	using FactoryFuncType = std::unique_ptr<Base> (*)(Args...);
-	Factory()			  = default;
+	using FactoryFuncType  = std::unique_ptr<Base> (*)(Args...);
+	using FactoryFuncTypeJ = std::unique_ptr<Base> (*)(const json&);
+	Factory()			   = default;
 
 	static auto& data() {
 		static std::unordered_map<std::size_t, FactoryFuncType> s;
+		return s;
+	}
+
+	static auto& dataJ() {
+		static std::unordered_map<std::size_t, FactoryFuncTypeJ> s;
 		return s;
 	}
 
@@ -229,6 +277,11 @@ template <class Base, class... Args>
 template <class T>
 bool Factory<Base, Args...>::template Registrar<T>::registered =
 	Factory<Base, Args...>::template Registrar<T>::registerT();
+
+template <class Base, class... Args>
+template <class T>
+bool Factory<Base, Args...>::template Registrar<T>::registeredJ =
+	Factory<Base, Args...>::template Registrar<T>::registerTJ();
 
 struct TweenScript : Factory<TweenScript, int> {
 	TweenScript(Key) {}
@@ -246,11 +299,15 @@ using TweenScriptClass = Script<TweenScript, TScript>;
 
 class TweenScript1 : public TweenScriptClass<TweenScript1> {
 public:
+	TweenScript1() = default;
+
 	TweenScript1(int e) : e(e) {}
 
 	void OnUpdate(float f) override {
 		std::cout << "TweenScript1: " << e << " updated with " << f << "\n";
 	}
+
+	PTGN_SERIALIZER_REGISTER(TweenScript1, e)
 
 private:
 	int e{ 0 };
@@ -258,42 +315,19 @@ private:
 
 class TweenScript2 : public TweenScriptClass<TweenScript1> {
 public:
+	TweenScript2() = default;
+
 	TweenScript2(int e) : e(e) {}
 
 	void OnUpdate(float f) override {
 		std::cout << "TweenScript2: " << e << " updated with " << f << "\n";
 	}
 
+	PTGN_SERIALIZER_REGISTER(TweenScript2, e)
+
 private:
 	int e{ 0 };
 };
-
-template <typename T, typename... Ts>
-std::unique_ptr<TweenScript> create_tween_script(Ts&&... args) {
-	return std::make_unique<T>(args...);
-}
-
-std::unique_ptr<TweenScript> test;
-
-void UpdateTweenScript(float f) {
-	if (test) {
-		test->OnUpdate(f);
-	}
-}
-
-template <typename T, typename... Args>
-void AddTweenScript(Args... args) {
-	test = create_tween_script<T>(args...);
-}
-
-template <typename T>
-void AddTweenScript(std::unique_ptr<T>&& tween_script) {
-	test = std::move(tween_script);
-}
-
-std::string_view GetTweenScriptName() {
-	return test->GetName();
-}
 
 // Do not serialize all components, but instead use a T system.
 
@@ -311,20 +345,44 @@ std::string_view GetTweenScriptName() {
 // Component data
 
 int main() {
-	AddTweenScript<TweenScript1>(10);
+	{
+		std::unique_ptr<TweenScript> test;
 
-	UpdateTweenScript(0.1f);
+		test = std::make_unique<TweenScript1>(10);
 
-	std::cout << "Serializing script with name: " << GetTweenScriptName() << std::endl;
+		test->OnUpdate(0.1f);
 
+		json j = *test;
+
+		PTGN_LOG("Serialized script with name: ", test->GetName(), "\n", j.dump(4));
+
+		SaveJson(j, "resources/myscripts.json");
+	}
+	{
+		auto j{ LoadJson("resources/myscripts.json") };
+
+		std::unique_ptr<TweenScript> test;
+
+		// j.get_to(*test);
+		test = TweenScript::create(j);
+
+		PTGN_LOG("Deserialized script with name: ", test->GetName());
+
+		test->OnUpdate(0.9f);
+
+		// test = TweenScript::create(from_file, 10);
+	}
+
+	/*
 	std::string_view from_file{ "TweenScript1" };
 
 	std::cout << "Deserializing script with name: " << from_file << std::endl;
 
 	// TODO: Check if from_file is a TweenScript.
-	AddTweenScript(TweenScript::create(from_file, 10));
+	test = TweenScript::create(from_file, 10);
 
-	UpdateTweenScript(0.9f);
+	test->OnUpdate(0.9f);
+	*/
 
 	// std::cout << "Start\n";
 	// auto x = TweenScript::create("TweenScript1", 3);
@@ -338,7 +396,8 @@ int main() {
 	// std::cout << "Stop\n";
 	return 0;
 }
-*/
+
+/*
 
 #include <filesystem>
 #include <fstream>
@@ -434,12 +493,10 @@ int main() {
 	e1.Add<Triangle>(V2_float{ 0, 0 }, V2_float{ -300, -300 }, V2_float{ 600, 600 });
 	e1.Add<Lifetime>(milliseconds{ 300 }).Start();
 
-	/*
 	{
 		BinaryOutputArchive binary_output("resources/mydata.bin");
 		binary_output.Write(e1);
 	}
-
 	{
 		BinaryInputArchive binary_input("resources/mydata.bin");
 		Entity e2;
@@ -447,7 +504,6 @@ int main() {
 
 		std::cout << "Binary: transform=" << e2.Get<Transform>() << std::endl;
 	}
-	*/
 
 	{
 		json j = e1;
@@ -503,7 +559,6 @@ int main() {
 		PTGN_LOG("Successfully deserialized all entity components");
 	}
 
-	/*
 	{
 		BinaryOutputArchive binary_output("resources/mydata.bin");
 		MyData data1;
@@ -541,7 +596,7 @@ int main() {
 		std::cout << "JSON: id=" << data4.id << ", message=\"" << data4.message
 				  << "\", value=" << data4.value << std::endl;
 	}
-	*/
 
-	return 0;
+return 0;
 }
+*/
