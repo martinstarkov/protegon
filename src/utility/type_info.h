@@ -29,15 +29,25 @@ constexpr std::string_view wrapped_type_name() {
 #endif
 }
 
-constexpr std::string_view remove_class_or_struct_prefix(std::string_view input) {
-	constexpr std::string_view class_prefix	 = "class ";
-	constexpr std::string_view struct_prefix = "struct ";
+constexpr bool starts_with(std::string_view input, std::string_view prefix) {
+	if (input.size() < prefix.size()) {
+		return false;
+	}
+	for (std::size_t i{ 0 }; i < prefix.size(); ++i) {
+		if (input[i] != prefix[i]) {
+			return false;
+		}
+	}
+	return true;
+}
 
-	if (input.size() >= class_prefix.size() &&
-		std::equal(class_prefix.begin(), class_prefix.end(), input.begin())) {
+constexpr std::string_view remove_class_or_struct_prefix(std::string_view input) {
+	constexpr std::string_view class_prefix{ "class " };
+	constexpr std::string_view struct_prefix{ "struct " };
+
+	if (starts_with(input, class_prefix)) {
 		return input.substr(class_prefix.size());
-	} else if (input.size() >= struct_prefix.size() &&
-			   std::equal(struct_prefix.begin(), struct_prefix.end(), input.begin())) {
+	} else if (starts_with(input, struct_prefix)) {
 		return input.substr(struct_prefix.size());
 	} else {
 		return input;
