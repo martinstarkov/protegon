@@ -1,13 +1,19 @@
 #pragma once
 
+#include <type_traits>
+
+#define PTGN_FUNCTION_IS_OVERRIDDEN(Base, Child, Func) \
+	(std::is_base_of_v<Base, Child> &&                 \
+	 !std::is_same_v<decltype(&Base::Func), decltype(&Child::Func)>)
+
 #define PTGN_HAS_TEMPLATE_FUNCTION(NAME)                                                           \
-	namespace ptgn {                                                                               \
+	namespace ptgn::tt {                                                                           \
 	namespace impl {                                                                               \
 	template <typename T>                                                                          \
 	struct has_template_function_##NAME {                                                          \
 		template <typename U>                                                                      \
-		static auto check(U* ptr                                                                   \
-		) -> decltype(ptr->template NAME<int>(std::declval<int&>()), std::true_type{});            \
+		static auto check(U* ptr)                                                                  \
+			-> decltype(ptr->template NAME<int>(std::declval<int&>()), std::true_type{});          \
 		template <typename U>                                                                      \
 		static std::false_type check(...);                                                         \
 		static constexpr bool value = std::is_same_v<decltype(check<T>(nullptr)), std::true_type>; \
@@ -19,36 +25,40 @@
 	};                                                                                             \
 	}
 
-#define PTGN_HAS_MEMBER_FUNCTION(NAME)                                        \
-	namespace ptgn {                                                          \
-	namespace impl {                                                          \
-	template <class Class, typename Type = void>                              \
-	struct has_member_function_##NAME {                                       \
-		typedef char (&yes)[2];                                               \
-		template <unsigned long>                                              \
-		struct exists;                                                        \
-		template <typename V>                                                 \
-		static yes Check(exists<sizeof(static_cast<Type>(&V::NAME))>*);       \
-		template <typename>                                                   \
-		static char Check(...);                                               \
-		static const bool value = (sizeof(Check<Class>(0)) == sizeof(yes));   \
-	};                                                                        \
-	template <class Class>                                                    \
-	struct has_member_function_##NAME<Class, void> {                          \
-		typedef char (&yes)[2];                                               \
-		template <unsigned long>                                              \
-		struct exists;                                                        \
-		template <typename V>                                                 \
-		static yes Check(exists<sizeof(&V::NAME)>*);                          \
-		template <typename>                                                   \
-		static char Check(...);                                               \
-		static const bool value = (sizeof(Check<Class>(0)) == sizeof(yes));   \
-	};                                                                        \
-	}                                                                         \
-	template <typename T, typename FunctionPtr>                               \
-	inline constexpr bool has_member_function_##NAME_v{                       \
-		impl::has_member_function_##NAME<std::decay_t<T>, FunctionPtr>::value \
-	};                                                                        \
+#define PTGN_HAS_MEMBER_FUNCTION(NAME)                                                       \
+	namespace ptgn::tt {                                                                     \
+	namespace impl {                                                                         \
+	template <typename T, typename Ret, typename... Args>                                    \
+	class has_member_function_##NAME##_impl {                                                \
+		template <typename U>                                                                \
+		static auto test(U*)                                                                 \
+			-> decltype(static_cast<Ret (U::*)(Args...)>(&U::NAME), std::true_type{});       \
+                                                                                             \
+		template <typename>                                                                  \
+		static auto test(...) -> std::false_type;                                            \
+                                                                                             \
+	public:                                                                                  \
+		static constexpr bool value = decltype(test<T>(nullptr))::value;                     \
+	};                                                                                       \
+                                                                                             \
+	template <typename T, typename Ret, typename... Args>                                    \
+	class has_member_function_##NAME##_const_impl {                                          \
+		template <typename U>                                                                \
+		static auto test(U*)                                                                 \
+			-> decltype(static_cast<Ret (U::*)(Args...) const>(&U::NAME), std::true_type{}); \
+                                                                                             \
+		template <typename>                                                                  \
+		static auto test(...) -> std::false_type;                                            \
+                                                                                             \
+	public:                                                                                  \
+		static constexpr bool value = decltype(test<T>(nullptr))::value;                     \
+	};                                                                                       \
+	}                                                                                        \
+                                                                                             \
+	template <typename T, typename Ret, typename... Args>                                    \
+	inline constexpr bool has_member_function_##NAME##_v =                                   \
+		impl::has_member_function_##NAME##_impl<std::decay_t<T>, Ret, Args...>::value ||     \
+		impl::has_member_function_##NAME##_const_impl<std::decay_t<T>, Ret, Args...>::value; \
 	}
 
 #define PTGN_EXPAND(x)	  x

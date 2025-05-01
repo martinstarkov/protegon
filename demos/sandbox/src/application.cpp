@@ -145,6 +145,8 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 #include "math/hash.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
+#include "serialization/type_traits.h"
+#include "utility/macro.h"
 #include "utility/type_info.h"
 
 using namespace ptgn;
@@ -176,13 +178,25 @@ public:
 
 	virtual void from_json_impl(const json& j) {}
 
-	template <class... T>
-	static std::unique_ptr<Base> create(std::string_view class_name, T&&... args) {
+	template <typename... Ts>
+	static std::unique_ptr<Base> create(std::string_view class_name, Ts&&... args) {
 		auto it = data().find(Hash(class_name));
 		if (it == data().end()) {
 			std::cout << "Failed to find hash for " << class_name << std::endl;
 		}
-		auto ptr{ it->second(std::forward<T>(args)...) };
+		auto ptr{ it->second(std::forward<Ts>(args)...) };
+		ptr->name_ = class_name;
+		return ptr;
+	}
+
+	template <typename T, typename... Ts>
+	static std::unique_ptr<Base> create(Ts&&... args) {
+		constexpr std::string_view class_name{ type_name<T>() };
+		auto it = data().find(Hash(class_name));
+		if (it == data().end()) {
+			std::cout << "Failed to find constructor hash for " << class_name << std::endl;
+		}
+		auto ptr{ it->second(std::forward<Ts>(args)...) };
 		ptr->name_ = class_name;
 		return ptr;
 	}
@@ -191,7 +205,7 @@ public:
 		std::string_view class_name{ j["name"] };
 		auto it = dataJ().find(Hash(class_name));
 		if (it == dataJ().end()) {
-			std::cout << "Failed to find hash for " << class_name << std::endl;
+			std::cout << "Failed to find json constructor hash for " << class_name << std::endl;
 		}
 		auto ptr{ it->second(j) };
 		ptr->name_ = class_name;
@@ -203,11 +217,19 @@ public:
 		friend T;
 
 		void to_json_impl(json& j) const final {
+			PTGN_ASSERT(
+				tt::is_to_json_convertible_v<T>,
+				"Cannot serialize script type without a to_json function"
+			);
 			j		  = *static_cast<const T*>(this);
 			j["name"] = GetName();
 		}
 
 		void from_json_impl(const json& j) final {
+			PTGN_ASSERT(
+				tt::is_from_json_convertible_v<T>,
+				"Cannot deserialize script type without a from_json function"
+			);
 			j.get_to(*static_cast<T*>(this));
 		}
 
@@ -216,20 +238,18 @@ public:
 		}
 
 		static bool registerT() {
-			auto raw_name{ type_name<T>() };
-			std::cout << "Registering hash for " << raw_name << std::endl;
-			const auto name		  = Hash(raw_name);
-			Factory::data()[name] = [](Args... args) -> std::unique_ptr<Base> {
+			constexpr std::string_view class_name{ type_name<T>() };
+			std::cout << "Registering constructor hash for " << class_name << std::endl;
+			Factory::data()[Hash(class_name)] = [](Args... args) -> std::unique_ptr<Base> {
 				return std::make_unique<T>(std::forward<Args>(args)...);
 			};
 			return true;
 		}
 
 		static bool registerTJ() {
-			auto raw_name{ type_name<T>() };
-			std::cout << "Registering json hash for " << raw_name << std::endl;
-			const auto name		   = Hash(raw_name);
-			Factory::dataJ()[name] = [](const json& j) -> std::unique_ptr<Base> {
+			constexpr std::string_view class_name{ type_name<T>() };
+			std::cout << "Registering json constructor hash for " << class_name << std::endl;
+			Factory::dataJ()[Hash(class_name)] = [](const json& j) -> std::unique_ptr<Base> {
 				auto ptr{ std::make_unique<T>() };
 				j.get_to(*ptr);
 				return ptr;
@@ -307,7 +327,7 @@ public:
 		std::cout << "TweenScript1: " << e << " updated with " << f << "\n";
 	}
 
-	PTGN_SERIALIZER_REGISTER(TweenScript1, e)
+	// PTGN_SERIALIZER_REGISTER(TweenScript1, e)
 
 private:
 	int e{ 0 };
@@ -348,7 +368,7 @@ int main() {
 	{
 		std::unique_ptr<TweenScript> test;
 
-		test = std::make_unique<TweenScript1>(10);
+		test = TweenScript::create<TweenScript1>(10);
 
 		test->OnUpdate(0.1f);
 
@@ -363,7 +383,6 @@ int main() {
 
 		std::unique_ptr<TweenScript> test;
 
-		// j.get_to(*test);
 		test = TweenScript::create(j);
 
 		PTGN_LOG("Deserialized script with name: ", test->GetName());

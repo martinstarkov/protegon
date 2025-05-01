@@ -30,7 +30,7 @@ public:
 	static constexpr bool is_deserializable_v{ std::is_same_v<T, std::string> ||
 											   tt::is_map_like_v<T> || tt::is_std_array_v<T> ||
 											   tt::is_std_vector_v<T> ||
-											   has_template_function_Deserialize_v<T> ||
+											   tt::has_template_function_Deserialize_v<T> ||
 											   std::is_trivially_copyable_v<T> };
 
 	template <typename... Ts>
@@ -50,7 +50,7 @@ public:
 
 	template <typename T, tt::enable<is_deserializable_v<T>> = true>
 	void Read(T& type) {
-		if constexpr (has_template_function_Deserialize_v<T>) {
+		if constexpr (tt::has_template_function_Deserialize_v<T>) {
 			type.Deserialize(*this);
 		} else if constexpr (tt::is_map_like_v<T>) {
 			std::size_t size{ 0 };
@@ -137,7 +137,7 @@ public:
 	template <typename T>
 	static constexpr bool is_serializable_v{ tt::is_string_like_v<T> || tt::is_map_like_v<T> ||
 											 tt::is_std_array_v<T> || tt::is_std_vector_v<T> ||
-											 has_template_function_Serialize_v<T> ||
+											 tt::has_template_function_Serialize_v<T> ||
 											 std::is_trivially_copyable_v<T> };
 
 	template <typename... Ts>
@@ -159,7 +159,7 @@ public:
 
 	template <typename T, tt::enable<is_serializable_v<T>> = true>
 	void Write(const T& type) {
-		if constexpr (has_template_function_Serialize_v<T>) {
+		if constexpr (tt::has_template_function_Serialize_v<T>) {
 			type.Serialize(*this);
 		} else if constexpr (tt::is_map_like_v<T>) {
 			WriteRaw(type.size());
