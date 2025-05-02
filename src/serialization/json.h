@@ -22,4 +22,17 @@ void SaveJson(const json& j, const path& filepath);
 //	}
 // }
 
+namespace tt {
+
+template <typename T>
+inline constexpr bool has_to_json_v = nlohmann::detail::has_to_json<json, T>::value;
+
+template <typename T>
+inline constexpr bool has_from_json_v = nlohmann::detail::has_from_json<json, T>::value;
+
+template <typename T>
+inline constexpr bool is_json_convertible_v = has_to_json_v<T> && has_from_json_v<T>;
+
+} // namespace tt
+
 } // namespace ptgn
