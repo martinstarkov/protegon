@@ -1,7 +1,10 @@
 function(set_compiler_settings project_name)   
-    if(MSVC)
-        target_compile_options(${project_name} PRIVATE /MP /bigobj)
-    endif()
+    target_compile_options(${project_name} 
+        PUBLIC 
+            $<$<CXX_COMPILER_ID:MSVC>:/MP>
+        PRIVATE 
+            $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+    )
 
     set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 

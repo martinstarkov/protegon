@@ -12,13 +12,14 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CreateSymlink.cmake")
 
 if (NOT EMSCRIPTEN)
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupSDL2.cmake")
-  if (MSVC)
-    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVCSetup.cmake")
-  endif()
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerSettings.cmake")
   set_project_warnings(protegon)
   set_compiler_settings(protegon)
+endif()
+
+if (MSVC)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVCSetup.cmake")
 endif()
 
 include(FetchContent)
