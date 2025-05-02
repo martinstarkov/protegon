@@ -144,39 +144,23 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 
 #include "math/hash.h"
 #include "serialization/fwd.h"
+#include "serialization/json.h"
 #include "serialization/serializable.h"
-#include "serialization/type_traits.h"
-#include "utility/macro.h"
 #include "utility/type_info.h"
+#include "utility/type_traits.h"
 
 using namespace ptgn;
 
 template <class Base, class... Args>
 class Factory {
 public:
+	using FactoryBase = typename Base;
+
 	virtual ~Factory() = default;
 
 	virtual std::string_view GetName() const {
 		return name_;
 	}
-
-	template <
-		typename BasicJsonType, nlohmann::detail::enable_if_t<
-									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
-	friend void to_json(BasicJsonType& nlohmann_json_j, const Factory& nlohmann_json_t) {
-		static_cast<const Base*>(&nlohmann_json_t)->to_json_impl(nlohmann_json_j);
-	}
-
-	template <
-		typename BasicJsonType, nlohmann::detail::enable_if_t<
-									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
-	friend void from_json(const BasicJsonType& nlohmann_json_j, Factory& nlohmann_json_t) {
-		static_cast<Base*>(&nlohmann_json_t)->from_json_impl(nlohmann_json_j);
-	}
-
-	virtual void to_json_impl(json& j) const {}
-
-	virtual void from_json_impl(const json& j) {}
 
 	template <typename... Ts>
 	static std::unique_ptr<Base> create(std::string_view class_name, Ts&&... args) {
@@ -192,8 +176,8 @@ public:
 	template <typename T, typename... Ts>
 	static std::unique_ptr<Base> create(Ts&&... args) {
 		constexpr std::string_view class_name{ type_name<T>() };
-		auto it = data().find(Hash(class_name));
-		if (it == data().end()) {
+		auto it = Factory::data().find(Hash(class_name));
+		if (it == Factory::data().end()) {
 			std::cout << "Failed to find constructor hash for " << class_name << std::endl;
 		}
 		auto ptr{ it->second(std::forward<Ts>(args)...) };
@@ -203,8 +187,8 @@ public:
 
 	static std::unique_ptr<Base> create(const json& j) {
 		std::string_view class_name{ j["name"] };
-		auto it = dataJ().find(Hash(class_name));
-		if (it == dataJ().end()) {
+		auto it = Factory::dataJ().find(Hash(class_name));
+		if (it == Factory::dataJ().end()) {
 			std::cout << "Failed to find json constructor hash for " << class_name << std::endl;
 		}
 		auto ptr{ it->second(j) };
@@ -212,25 +196,35 @@ public:
 		return ptr;
 	}
 
-	template <class T>
+	virtual void to_json_impl(json& j) const {
+		PTGN_ERROR("Fail");
+	}
+
+	virtual void from_json_impl(const json& j) {
+		PTGN_ERROR("Fail");
+	}
+
+	template <typename T>
 	struct Registrar : public Base {
 		friend T;
 
 		void to_json_impl(json& j) const final {
-			PTGN_ASSERT(
-				tt::is_to_json_convertible_v<T>,
-				"Cannot serialize script type without a to_json function"
-			);
-			j		  = *static_cast<const T*>(this);
-			j["name"] = GetName();
+			if constexpr (nlohmann::detail::has_to_json<json, T>::value) {
+				j		  = *static_cast<const T*>(this);
+				j["name"] = GetName();
+			} else {
+				// TODO: Update error msg.
+				PTGN_ERROR("Fail");
+			}
 		}
 
 		void from_json_impl(const json& j) final {
-			PTGN_ASSERT(
-				tt::is_from_json_convertible_v<T>,
-				"Cannot deserialize script type without a from_json function"
-			);
-			j.get_to(*static_cast<T*>(this));
+			if constexpr (nlohmann::detail::has_from_json<json, T>::value) {
+				j.get_to(*static_cast<T*>(this));
+			} else {
+				// TODO: Update error msg.
+				PTGN_ERROR("Fail");
+			}
 		}
 
 		virtual std::string_view GetName() const {
@@ -246,13 +240,19 @@ public:
 			return true;
 		}
 
+		// TODO: Combine into register T.
 		static bool registerTJ() {
 			constexpr std::string_view class_name{ type_name<T>() };
 			std::cout << "Registering json constructor hash for " << class_name << std::endl;
 			Factory::dataJ()[Hash(class_name)] = [](const json& j) -> std::unique_ptr<Base> {
-				auto ptr{ std::make_unique<T>() };
-				j.get_to(*ptr);
-				return ptr;
+				if constexpr (nlohmann::detail::has_from_json<json, T>::value) {
+					auto ptr{ std::make_unique<T>() };
+					j.get_to(*ptr);
+					return ptr;
+				} else {
+					// TODO: Update error msg.
+					PTGN_ERROR("Fail");
+				}
 			};
 			return true;
 		}
@@ -269,6 +269,16 @@ public:
 
 	friend Base;
 
+	static auto& data() {
+		static std::unordered_map<std::size_t, FactoryFuncType> s;
+		return s;
+	}
+
+	static auto& dataJ() {
+		static std::unordered_map<std::size_t, FactoryFuncTypeJ> s;
+		return s;
+	}
+
 private:
 	class Key {
 		Key(){};
@@ -279,16 +289,6 @@ private:
 	using FactoryFuncType  = std::unique_ptr<Base> (*)(Args...);
 	using FactoryFuncTypeJ = std::unique_ptr<Base> (*)(const json&);
 	Factory()			   = default;
-
-	static auto& data() {
-		static std::unordered_map<std::size_t, FactoryFuncType> s;
-		return s;
-	}
-
-	static auto& dataJ() {
-		static std::unordered_map<std::size_t, FactoryFuncTypeJ> s;
-		return s;
-	}
 
 	std::string_view name_;
 };
@@ -303,7 +303,41 @@ template <class T>
 bool Factory<Base, Args...>::template Registrar<T>::registeredJ =
 	Factory<Base, Args...>::template Registrar<T>::registerTJ();
 
-struct TweenScript : Factory<TweenScript, int> {
+// TODO: Move to type_traits namespace.
+template <typename, typename = std::void_t<>>
+struct has_factory_base : std::false_type {};
+
+template <typename T>
+struct has_factory_base<T, std::void_t<typename T::FactoryBase>> : std::true_type {};
+
+template <typename T>
+constexpr bool has_factory_base_v = has_factory_base<T>::value;
+
+template <typename T, typename = void>
+struct is_self_factory : std::false_type {};
+
+template <typename T>
+struct is_self_factory<T, std::enable_if_t<std::is_same_v<typename T::FactoryBase, T>>> :
+	std::true_type {};
+
+template <typename T>
+constexpr bool is_self_factory_v = has_factory_base<T>::value && is_self_factory<T>::value;
+
+// TODO: Hide somehow?
+template <typename T>
+std::enable_if_t<is_self_factory_v<T>> to_json(json& nlohmann_json_j, const T& nlohmann_json_t) {
+	nlohmann_json_t.to_json_impl(nlohmann_json_j);
+}
+
+template <typename T>
+std::enable_if_t<is_self_factory_v<T>> from_json(const json& nlohmann_json_j, T& nlohmann_json_t) {
+	nlohmann_json_t.from_json_impl(nlohmann_json_j);
+}
+
+template <typename ScriptInterface, typename ScriptType>
+using Script = typename ScriptInterface::template Registrar<ScriptType>;
+
+struct TweenScript : public Factory<TweenScript, int> {
 	TweenScript(Key) {}
 
 	virtual ~TweenScript() override = default;
@@ -311,13 +345,7 @@ struct TweenScript : Factory<TweenScript, int> {
 	virtual void OnUpdate(float f) {}
 };
 
-template <typename BaseScript, typename TScript>
-using Script = typename BaseScript::template Registrar<TScript>;
-
-template <typename TScript>
-using TweenScriptClass = Script<TweenScript, TScript>;
-
-class TweenScript1 : public TweenScriptClass<TweenScript1> {
+class TweenScript1 : public Script<TweenScript, TweenScript1> {
 public:
 	TweenScript1() = default;
 
@@ -327,13 +355,13 @@ public:
 		std::cout << "TweenScript1: " << e << " updated with " << f << "\n";
 	}
 
-	// PTGN_SERIALIZER_REGISTER(TweenScript1, e)
+	PTGN_SERIALIZER_REGISTER(TweenScript1, e)
 
 private:
 	int e{ 0 };
 };
 
-class TweenScript2 : public TweenScriptClass<TweenScript1> {
+class TweenScript2 : public Script<TweenScript, TweenScript2> {
 public:
 	TweenScript2() = default;
 
@@ -343,7 +371,7 @@ public:
 		std::cout << "TweenScript2: " << e << " updated with " << f << "\n";
 	}
 
-	PTGN_SERIALIZER_REGISTER(TweenScript2, e)
+	// PTGN_SERIALIZER_REGISTER(TweenScript2, e)
 
 private:
 	int e{ 0 };
@@ -365,6 +393,10 @@ private:
 // Component data
 
 int main() {
+	// static_assert(!nlohmann::detail::has_to_json<json, TweenScript1>::value);
+	//  static_assert(nlohmann::detail::has_to_json<json, TweenScript1>::value);
+	// static_assert(nlohmann::detail::has_to_json<json, TweenScript>::value);
+
 	{
 		std::unique_ptr<TweenScript> test;
 
@@ -380,6 +412,11 @@ int main() {
 	}
 	{
 		auto j{ LoadJson("resources/myscripts.json") };
+
+		std::unique_ptr<TweenScript> test2{ std::make_unique<TweenScript1>() };
+		j.get_to(*test2);
+
+		test2->OnUpdate(0.5f);
 
 		std::unique_ptr<TweenScript> test;
 
