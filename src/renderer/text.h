@@ -150,6 +150,7 @@ public:
 	[[nodiscard]] std::int32_t GetFontSize() const;
 
 	// @return The unscaled size of the text texture given the current content and font.
+	[[nodiscard]] static V2_int GetSize(const Entity& text);
 	[[nodiscard]] V2_int GetSize() const;
 
 	void RecreateTexture();
@@ -179,13 +180,18 @@ public:
 
 	template <typename T>
 	[[nodiscard]] const T& GetParameter(const T& default_value) const {
+		return GetParameter<T>(GetEntity(), default_value);
+	}
+
+	template <typename T>
+	[[nodiscard]] static const T& GetParameter(const Entity& text, const T& default_value) {
 		static_assert(tt::is_any_of_v<
 					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
 					  TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>);
-		if (!Has<T>()) {
+		if (!text.Has<T>()) {
 			return default_value;
 		}
-		return Get<T>();
+		return text.Get<T>();
 	}
 };
 

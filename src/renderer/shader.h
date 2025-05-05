@@ -25,17 +25,17 @@
 #endif
 // clang-format on
 
-namespace ptgn::impl {
+namespace ptgn {
 
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
-struct ShaderSource {
-	ShaderSource() = default;
+struct ShaderCode {
+	ShaderCode() = default;
 
 	// Explicit construction prevents conflict with Shader path construction.
-	explicit ShaderSource(const std::string& source) : source_{ source } {}
+	explicit ShaderCode(const std::string& source) : source_{ source } {}
 
-	~ShaderSource() = default;
+	~ShaderCode() = default;
 
 	std::string source_;
 };
@@ -45,7 +45,7 @@ struct ShaderSource {
 class Shader {
 public:
 	Shader() = default;
-	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
+	Shader(const ShaderCode& vertex_shader, const ShaderCode& fragment_shader);
 	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
@@ -74,8 +74,9 @@ public:
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-		const;
+	void SetUniform(
+		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+	) const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
@@ -99,14 +100,16 @@ public:
 	[[nodiscard]] bool IsValid() const;
 
 private:
-	void CreateProgram();
-	void DeleteProgram() noexcept;
+	void Create();
+	void Delete() noexcept;
 
-	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
+	[[nodiscard]] std::int32_t GetUniform(const std::string& name) const;
 
-	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
+	// Compile program
+	void Compile(const std::string& vertex_shader, const std::string& fragment_shader);
 
-	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
+	// Compile shader
+	[[nodiscard]] static std::uint32_t Compile(std::uint32_t type, const std::string& source);
 
 	std::uint32_t id_{ 0 };
 
@@ -133,6 +136,8 @@ enum class ShapeShader {
 enum class OtherShader {
 	Light
 };
+
+namespace impl {
 
 class ShaderManager {
 public:
@@ -186,71 +191,71 @@ private:
 	void InitShapeShaders() {
 		// Quad is initialized in cpp because it depends on texture slots.
 
-		circle_ = { ShaderSource{
+		circle_ = { ShaderCode{
 #include PTGN_SHADER_PATH(quad.vert)
 					},
-					ShaderSource{
+					ShaderCode{
 #include PTGN_SHADER_PATH(circle.frag)
 					} };
 	}
 
 	void InitScreenShaders() {
-		default_ = { ShaderSource{
+		default_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					 },
-					 ShaderSource{
+					 ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.frag)
 					 } };
 
-		blur_ = { ShaderSource{
+		blur_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 				  },
-				  ShaderSource{
+				  ShaderCode{
 #include PTGN_SHADER_PATH(screen_blur.frag)
 				  } };
 
-		gaussian_blur_ = { ShaderSource{
+		gaussian_blur_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 						   },
-						   ShaderSource{
+						   ShaderCode{
 #include PTGN_SHADER_PATH(screen_gaussian_blur.frag)
 						   } };
 
-		edge_detection_ = { ShaderSource{
+		edge_detection_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 							},
-							ShaderSource{
+							ShaderCode{
 #include PTGN_SHADER_PATH(screen_edge_detection.frag)
 							} };
 
-		grayscale_ = { ShaderSource{
+		grayscale_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					   },
-					   ShaderSource{
+					   ShaderCode{
 #include PTGN_SHADER_PATH(screen_grayscale.frag)
 					   } };
 
-		inverse_color_ = { ShaderSource{
+		inverse_color_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 						   },
-						   ShaderSource{
+						   ShaderCode{
 #include PTGN_SHADER_PATH(screen_inverse_color.frag)
 						   } };
 
-		sharpen_ = { ShaderSource{
+		sharpen_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					 },
-					 ShaderSource{
+					 ShaderCode{
 #include PTGN_SHADER_PATH(screen_sharpen.frag)
 					 } };
 	}
 
 	void InitOtherShaders() {
 		light_ = Shader(
-			ShaderSource{
+			ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 			},
-			ShaderSource{
+			ShaderCode{
 #include PTGN_SHADER_PATH(lighting.frag)
 			}
 		);
@@ -273,4 +278,6 @@ private:
 	Shader light_;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

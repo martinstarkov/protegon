@@ -20,7 +20,7 @@ namespace ptgn {
 [[nodiscard]] constexpr std::size_t Hash(std::string_view string) {
 	std::size_t hash{ 5381 };
 	for (const auto& c : string) {
-		hash = (33 * hash) ^ c;
+		hash = (33 * hash) ^ static_cast<std::size_t>(c);
 	}
 	return hash;
 

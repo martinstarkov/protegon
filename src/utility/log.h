@@ -55,14 +55,14 @@ inline void Print(std::ostream& ostream, int precision, bool scientific, TArgs&&
 
 // Print desired items to the console. If a newline is desired, use PrintLine()
 // instead.
-template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void Print(TArgs&&... items) {
 	impl::Print(std::cout, -1, false, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
 // desired, use Print() instead.
-template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void PrintLine(TArgs&&... items) {
 	ptgn::Print(std::forward<TArgs>(items)...);
 	std::cout << "\n";
@@ -74,14 +74,14 @@ inline void PrintLine() {
 
 // Print desired items to the console. If a newline is desired, use PrintLine()
 // instead.
-template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void PrintPrecise(int precision, bool scientific, TArgs&&... items) {
 	impl::Print(std::cout, precision, scientific, std::forward<TArgs>(items)...);
 }
 
 // Print desired items to the console and add a newline. If no newline is
 // desired, use Print() instead.
-template <typename... TArgs, tt::stream_writable<std::ostream, TArgs...> = true>
+template <typename... TArgs>
 inline void PrintPreciseLine(int precision, bool scientific, TArgs&&... items) {
 	ptgn::PrintPrecise(precision, scientific, std::forward<TArgs>(items)...);
 	std::cout << "\n";

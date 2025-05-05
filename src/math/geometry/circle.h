@@ -48,6 +48,6 @@ struct Ellipse {
 	PTGN_SERIALIZER_REGISTER(Ellipse, radius)
 };
 
-[[nodiscard]] V2_float GetCenter(const Transform& transform, const Circle& circle);
+[[nodiscard]] V2_float GetCenter(const Transform& transform, const Circle&);
 
 } // namespace ptgn

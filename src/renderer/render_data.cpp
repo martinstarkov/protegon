@@ -404,11 +404,11 @@ void RenderData::AddTexture(
 }
 
 void RenderData::AddText(
-	const Entity& e, const V2_float& position, const V2_float& size, Origin origin,
-	const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation, bool debug
+	const Entity& text, const V2_float& position, V2_float size, Origin origin, const Depth& depth,
+	BlendMode blend_mode, const V4_float& tint, float rotation, bool debug
 ) {
-	PTGN_ASSERT(e.Has<impl::TextTag>());
-	const auto& texture{ e.Get<impl::Texture>() };
+	PTGN_ASSERT(text.Has<impl::TextTag>());
+	const auto& texture{ text.Get<impl::Texture>() };
 	auto text_can_draw = [](const Entity& e) {
 		if (e.Has<TextColor>() && e.Get<TextColor>().a == 0) {
 			return false;
@@ -421,9 +421,15 @@ void RenderData::AddText(
 		}
 		return true;
 	};
-	if (texture.IsValid() && std::invoke(text_can_draw, e)) {
+	if (size.IsZero()) {
+		size = Text::GetSize(text);
+		auto offset_transform{ text.GetOffset() };
+		auto text_scale{ text.GetScale() * offset_transform.scale };
+		size *= text_scale;
+	}
+	if (texture.IsValid() && std::invoke(text_can_draw, text)) {
 		AddTexture(
-			e, texture, position, size, origin, depth, blend_mode, tint, rotation, debug, false
+			text, texture, position, size, origin, depth, blend_mode, tint, rotation, debug, false
 		);
 	}
 }

@@ -138,12 +138,16 @@ std::int32_t Text::GetFontSize() const {
 }
 
 V2_int Text::GetSize() const {
-	auto font_key{ GetFontKey() };
+	return GetSize(GetEntity());
+}
+
+V2_int Text::GetSize(const Entity& text) {
+	auto font_key{ GetParameter(text, FontKey{}) };
 	PTGN_ASSERT(
 		game.font.Has(font_key),
 		"Cannot get size of text texture unless its font is loaded in the font manager"
 	);
-	return game.font.GetSize(font_key, std::string(GetContent()));
+	return game.font.GetSize(font_key, std::string(GetParameter(text, TextContent{})));
 }
 
 void Text::RecreateTexture() {
@@ -231,7 +235,8 @@ void Text::RecreateTexture() {
 			surface = TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), text_color, wrap_after);
 			break;
 		default:
-			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR(
+				"Unrecognized render mode given when creating surface from font information"
 			);
 	}
 

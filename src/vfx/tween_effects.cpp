@@ -256,7 +256,7 @@ Tween& ContinuousShakeEffect::Shake(
 			auto& shake{ entity.Get<ShakeEffect>() };
 			shake.SetConfig(config);
 		},
-		[intensity, entity](float progress) mutable {
+		[intensity, entity]([[maybe_unused]] float progress) mutable {
 			if (entity.Has<ShakeEffect>()) {
 				entity.Get<ShakeEffect>().SetIntensity(intensity);
 			}

@@ -169,7 +169,7 @@ void SceneInput::UpdateCurrent() {
 			interactive.was_inside = false;
 		} else {
 			bool is_inside{ PointerIsInside(pos, e) };
-			if (!interactive.was_inside && is_inside || interactive.was_inside && !is_inside) {
+			if ((!interactive.was_inside && is_inside) || (interactive.was_inside && !is_inside)) {
 				send_mouse_event = true;
 			}
 			if (top_only_) {

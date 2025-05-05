@@ -225,7 +225,7 @@ std::size_t Entity::GetHash() const {
 }
 
 bool Entity::IsImmovable() const {
-	return Has<RigidBody>() && Get<RigidBody>().immovable ||
+	return (Has<RigidBody>() && Get<RigidBody>().immovable) ||
 		   (HasParent() ? GetParent().IsImmovable() : false);
 }
 

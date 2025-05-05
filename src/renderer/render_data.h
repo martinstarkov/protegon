@@ -85,7 +85,7 @@ public:
 	void AddPointLight(const Entity& o, const Depth& depth);
 
 	void AddText(
-		const Entity& o, const V2_float& position, const V2_float& size, Origin origin,
+		const Entity& text, const V2_float& position, V2_float size, Origin origin,
 		const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
 	);
 

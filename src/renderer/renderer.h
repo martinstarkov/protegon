@@ -10,8 +10,15 @@
 #include "renderer/color.h"
 #include "renderer/origin.h"
 #include "renderer/render_data.h"
+#include "renderer/text.h"
 
 namespace ptgn {
+
+// @param size {} results in unscaled size of text based on font.
+void DrawDebugText(
+	const Text& text, const V2_float& position, const V2_float& size = {},
+	Origin origin = Origin::Center, float rotation = 0.0f
+);
 
 void DrawDebugLine(
 	const V2_float& line_start, const V2_float& line_end, const Color& color,
@@ -42,14 +49,6 @@ void DrawDebugPolygon(
 
 void DrawDebugPoint(const V2_float position, const Color& color);
 
-// TODO: Fix.
-/*
-void DrawDebugText(
-	const Entity& o, const V2_float& position, const V2_float& size, const Color& color,
-	Origin origin = Origin::Center, float rotation = 0.0f
-);
-*/
-
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {
 	Disabled,  /**< There is no scaling in effect */
@@ -62,9 +61,10 @@ enum class ResolutionMode {
 					 resolution */
 };
 
+class Shader;
+
 namespace impl {
 
-class Shader;
 class FrameBuffer;
 class VertexArray;
 class Game;
@@ -151,7 +151,7 @@ public:
 	[[nodiscard]] RenderData& GetRenderData();
 
 private:
-	friend class Shader;
+	friend class ptgn::Shader;
 	friend class VertexArray;
 	friend class FrameBuffer;
 	friend class RenderTarget;

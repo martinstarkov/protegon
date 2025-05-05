@@ -11,10 +11,6 @@ GameObject::~GameObject() {
 	Entity::Destroy();
 }
 
-GameObject::operator Entity() const {
-	return *this;
-}
-
 Entity GameObject::GetEntity() const {
 	return *this;
 }

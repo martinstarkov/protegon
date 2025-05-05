@@ -75,29 +75,31 @@ create_resource_symlink(<target_name> <source_parent_dir> <destination_parent_di
 
 # Emscripten (WebGL)
 
-Additional Dependencies:
+## Additional Dependencies:
+
+- [Emscripten SDK](https://emscripten.org/): Check that Emscripten is added to PATH by running `emcc --version`
+- [Ninja](https://ninja-build.org/) or [MinGW](https://www.mingw-w64.org/): Check that Ninja/MinGW is added to PATH by running `ninja --version` or `gcc --version` respectively
+
 ---
-* [Emscripten SDK](https://emscripten.org/): Check that Emscripten is added to PATH by running ```emcc --version```
-* [Ninja](https://ninja-build.org/) or [MinGW](https://www.mingw-w64.org/): Check that Ninja/MinGW is added to PATH by running ```ninja --version``` or ```gcc --version``` respectively
----
-Emscripten Building
----
+
+## Emscripten Building
+
 Navigate to the scripts directory:
 
-```cd scripts```
+`cd scripts`
 
 Run any of the following script commands:
 
-| Command    | Description |
-| -------- | ------- |
-| ```./build-emscripten.sh```  | Generates emscripten build files (index.html, etc) in the build directory |
-| ```./run-emscripten.sh``` | Runs the generate build files locally using emrun |
-| ```./build-run-emscripten.sh```    | Combines the two above scripts |
-| ```./zip-for-itch.sh```    | Zips the generated build files and places the zip in the build directory |
-| ```./build-itch.sh```    | Combines the above build and zip scripts |
+| Command                     | Description                                                               |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `./build-emscripten.sh`     | Generates emscripten build files (index.html, etc) in the build directory |
+| `./run-emscripten.sh`       | Runs the generate build files locally using emrun                         |
+| `./build-run-emscripten.sh` | Combines the two above scripts                                            |
+| `./zip-for-itch.sh`         | Zips the generated build files and places the zip in the build directory  |
+| `./build-itch.sh`           | Combines the above build and zip scripts                                  |
 
 ---
 
 # Misc Information
 
-- If you get the error ```A required privilege is not held by the client``` when creating a symlink using ```create_resource_symlink``` on Windows, [turn on Developer mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).
+- If you get the error `A required privilege is not held by the client` when creating a symlink using `create_resource_symlink` on Windows, [turn on Developer mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).

@@ -153,7 +153,7 @@ void Button::Setup() {
 }
 
 void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
-	Add<callback::MouseEnter>([e = GetEntity()](auto mouse) mutable {
+	Add<callback::MouseEnter>([e = GetEntity()]([[maybe_unused]] auto mouse) mutable {
 		const auto& state{ e.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::IdleUp) {
 			StateChange(e, impl::InternalButtonState::Hover);
@@ -166,7 +166,7 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 		}
 	});
 
-	Add<callback::MouseLeave>([e = GetEntity()](auto mouse) mutable {
+	Add<callback::MouseLeave>([e = GetEntity()]([[maybe_unused]] auto mouse) mutable {
 		const auto& state{ e.Get<impl::InternalButtonState>() };
 		if (state == impl::InternalButtonState::Hover) {
 			StateChange(e, impl::InternalButtonState::IdleUp);

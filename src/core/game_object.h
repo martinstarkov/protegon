@@ -15,8 +15,6 @@ public:
 	GameObject& operator=(GameObject&&) noexcept = default;
 	virtual ~GameObject();
 
-	operator Entity() const;
-
 	Entity GetEntity() const;
 };
 

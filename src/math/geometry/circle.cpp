@@ -70,8 +70,9 @@ void Arc::DrawThick(
 }
 */
 
-std::vector<V2_float> Arc::GetVertices(const V2_float& center, bool clockwise, float sa, float ea)
-	const {
+std::vector<V2_float> Arc::GetVertices(
+	const V2_float& center, bool clockwise, float sa, float ea
+) const {
 	if (sa > ea) {
 		ea += two_pi<float>;
 	}
@@ -112,7 +113,7 @@ std::vector<V2_float> Arc::GetVertices(const V2_float& center, bool clockwise, f
 
 Ellipse::Ellipse(const V2_float& radius) : radius{ radius } {}
 
-V2_float GetCenter(const Transform& transform, const Circle& circle) {
+V2_float GetCenter(const Transform& transform, const Circle&) {
 	return transform.position;
 }
 

@@ -81,7 +81,7 @@ enum class GLBinding {
 	FrameBufferRead = 0x8CAA, // GL_READ_FRAMEBUFFER_BINDING
 	RenderBuffer	= 0x8CA7, // GL_RENDERBUFFER_BINDING
 	Texture2D		= 0x8069, // GL_TEXTURE_BINDING_2D
-	ActiveTexture	= 0x84E0  // GL_ACTIVE_TEXTURE
+	ActiveUnit		= 0x84E0  // GL_ACTIVE_TEXTURE
 };
 
 template <BufferType T>

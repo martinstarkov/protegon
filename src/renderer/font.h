@@ -69,7 +69,7 @@ public:
 
 private:
 	friend class Game;
-	friend class Text;
+	friend class ptgn::Text;
 
 	using Font = std::unique_ptr<TTF_Font, TTF_FontDeleter>;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -211,14 +212,18 @@ struct is_safe_numeric_cast :
 		(both_integral<T, F>::value && ((sizeof(T) > sizeof(F)) || (sizeof(T) == sizeof(F))) &&
 		 same_signage<T, F>::value)> {};
 
-// Source: https://stackoverflow.com/a/49026811
-template <typename Stream, typename Type, typename = void>
-struct is_stream_writable : std::false_type {};
+// Source: https://stackoverflow.com/a/22759544
+template <typename S, typename T>
+class is_stream_writable {
+	template <typename SS, typename TT>
+	static auto test(int) -> decltype(std::declval<SS&>() << std::declval<TT>(), std::true_type());
 
-template <typename Stream, typename Type>
-struct is_stream_writable<
-	Stream, Type, std::void_t<decltype(std::declval<Stream&>() << std::declval<Type>())>> :
-	std::true_type {};
+	template <typename, typename>
+	static auto test(...) -> std::false_type;
+
+public:
+	static const bool value = decltype(test<S, T>(0))::value;
+};
 
 // Source: https://stackoverflow.com/a/50473559
 template <typename T, typename U, typename = void>

@@ -87,7 +87,7 @@ void VertexArray::Bind(std::uint32_t id) {
 	}
 #ifdef PTGN_PLATFORM_MACOS
 	// MacOS complains about binding 0 id vertex array.
-	if (!IsValid()) {
+	if (id == 0) {
 		return;
 	}
 #endif
@@ -128,18 +128,22 @@ void VertexArray::SetBufferElement(
 ) const {
 	GLCall(gl::EnableVertexAttribArray(i));
 	if (element.is_integer) {
-		GLCall(gl::VertexAttribIPointer(
-			i, element.count, static_cast<gl::GLenum>(element.type), stride,
-			reinterpret_cast<const void*>(element.offset)
-		));
+		GLCall(
+			gl::VertexAttribIPointer(
+				i, element.count, static_cast<gl::GLenum>(element.type), stride,
+				reinterpret_cast<const void*>(element.offset)
+			)
+		);
 		return;
 	}
-	GLCall(gl::VertexAttribPointer(
-		i, element.count, static_cast<gl::GLenum>(element.type),
-		element.normalized ? static_cast<gl::GLboolean>(GL_TRUE)
-						   : static_cast<gl::GLboolean>(GL_FALSE),
-		stride, reinterpret_cast<const void*>(element.offset)
-	));
+	GLCall(
+		gl::VertexAttribPointer(
+			i, element.count, static_cast<gl::GLenum>(element.type),
+			element.normalized ? static_cast<gl::GLboolean>(GL_TRUE)
+							   : static_cast<gl::GLboolean>(GL_FALSE),
+			stride, reinterpret_cast<const void*>(element.offset)
+		)
+	);
 }
 
 bool VertexArray::HasVertexBuffer() const {

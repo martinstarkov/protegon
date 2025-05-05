@@ -37,7 +37,7 @@ public:
 		V2_int mouse_pos = game.input.GetMousePosition();
 
 		V2_int mouse_tile = mouse_pos / tile_size;
-		Rect mouse_box{ mouse_tile * tile_size, tile_size, Origin::TopLeft };
+		Rect mouse_box{ tile_size, Origin::TopLeft };
 
 		if (grid.Has(mouse_tile)) {
 			if (game.input.MousePressed(Mouse::Left)) {
@@ -50,19 +50,23 @@ public:
 
 		grid.ForEachCoordinate([&](const V2_int& p) {
 			Color c = color::Red;
-			Rect r{ V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, Origin::TopLeft };
+			Rect r{ tile_size, Origin::TopLeft };
 			if (grid.Has(p)) {
 				switch (grid.Get(p)) {
 					case 0: c = color::Gray; break;
 					case 1: c = color::Green; break;
 				}
 			}
-			r.Draw(c, -1.0f);
+			DrawDebugRect(
+				V2_int{ p.x * tile_size.x, p.y * tile_size.y }, r.size, c, r.origin, -1.0f
+			);
 		});
 		if (grid.Has(mouse_tile)) {
-			mouse_box.Draw(color::Yellow);
+			DrawDebugRect(mouse_tile * tile_size, mouse_box.size, color::Yellow, mouse_box.origin);
 		}
-		Text{ ToString(mouse_tile), color::Red }.Draw(Rect{ mouse_box.Center(), {}, Origin::Center }
+		DrawDebugText(
+			Text{ manager, ToString(mouse_tile), color::Red },
+			GetCenter(Transform{ mouse_tile * tile_size }, mouse_box)
 		);
 	}
 };

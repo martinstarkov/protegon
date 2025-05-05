@@ -4,6 +4,7 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
 
+/*
 static void EnterScene(std::string_view key, milliseconds duration = milliseconds{ 250 }) {
 	if (game.input.KeyDown(Key::W)) {
 		game.scene.Enter(key, { TransitionType::CoverDown, duration });
@@ -107,11 +108,12 @@ public:
 	void Update() override {}
 };
 
+*/
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample: Press E to fade through black", window_size);
-	game.scene.Enter<SceneTransitionExample>(
-		"scene_transition_example",
-		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 5000 } }
-	);
+	// game.Init("SceneTransitionExample: Press E to fade through black", window_size);
+	// game.scene.Enter<SceneTransitionExample>(
+	//	"scene_transition_example",
+	//	SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 5000 } }
+	//);
 	return 0;
 }

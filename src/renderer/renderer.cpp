@@ -6,8 +6,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "core/transform.h"
 #include "core/game.h"
+#include "core/transform.h"
 #include "core/window.h"
 #include "math/vector2.h"
 #include "renderer/blend_mode.h"
@@ -16,12 +16,22 @@
 #include "renderer/gl_renderer.h"
 #include "renderer/origin.h"
 #include "renderer/render_data.h"
+#include "renderer/text.h"
 #include "utility/assert.h"
 
 namespace ptgn {
 
 const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
 const BlendMode debug_blend_mode{ BlendMode::Blend };
+
+void DrawDebugText(
+	const Text& text, const V2_float& position, const V2_float& size, Origin origin, float rotation
+) {
+	game.renderer.GetRenderData().AddText(
+		text, position, size, origin, max_depth, debug_blend_mode,
+		color::White.Normalized() /* no tint, color comes from text */, rotation, true
+	);
+}
 
 void DrawDebugLine(
 	const V2_float& line_start, const V2_float& line_end, const Color& color, float line_width

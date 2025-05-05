@@ -67,7 +67,7 @@ public:
 	template <typename... Ts>
 	Entity CopyEntity(const Entity& from) {
 		auto entity{ ecs::Manager::CopyEntity<Ts...>(from) };
-		entity.Add<UUID>();
+		entity.template Add<UUID>();
 		return entity;
 	}
 

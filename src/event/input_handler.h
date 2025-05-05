@@ -104,10 +104,10 @@ public:
 	[[nodiscard]] bool KeyUp(Key key);
 
 private:
-	friend class Scene;
+	friend class ptgn::Scene;
 	friend class SceneManager;
 	friend class Game;
-	friend class SceneInput;
+	friend class ptgn::SceneInput;
 
 	// Updates the user inputs and posts any triggered input events. Run internally when using game
 	// scenes.

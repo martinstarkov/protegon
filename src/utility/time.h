@@ -38,34 +38,27 @@ using duration = std::enable_if_t<is_duration_v<T>, bool>;
 
 } // namespace tt
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, ptgn::duration<T, std::nano> v) {
-	return os << v.count() << "ns";
-}
+template <typename Rep, typename Period>
+std::ostream& operator<<(std::ostream& os, const std::chrono::duration<Rep, Period>& d) {
+	os << d.count();
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, ptgn::duration<T, std::micro> v) {
-	return os << v.count() << "us";
-}
+	if constexpr (std::is_same_v<Period, std::milli>) {
+		os << " ms";			// Milliseconds
+	} else if constexpr (std::is_same_v<Period, std::micro>) {
+		os << " us";			// Microseconds
+	} else if constexpr (std::is_same_v<Period, std::nano>) {
+		os << " ns";			// Nanoseconds
+	} else if constexpr (std::is_same_v<Period, std::ratio<1>>) {
+		os << " s";				// Seconds
+	} else if constexpr (std::is_same_v<Period, std::ratio<60>>) {
+		os << " min";			// Minutes
+	} else if constexpr (std::is_same_v<Period, std::ratio<3600>>) {
+		os << " h";				// Hours
+	} else {
+		os << " [custom unit]"; // Fallback for other units
+	}
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, ptgn::duration<T, std::milli> v) {
-	return os << v.count() << "ms";
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& os, ptgn::duration<T, ptgn::seconds::period> v) {
-	return os << v.count() << "s";
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& os, ptgn::duration<T, ptgn::minutes::period> v) {
-	return os << v.count() << "min";
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& os, ptgn::duration<T, ptgn::hours::period> v) {
-	return os << v.count() << "h";
+	return os;
 }
 
 } // namespace ptgn
@@ -92,7 +85,7 @@ struct adl_serializer<std::chrono::time_point<Clock, Duration>> {
 	}
 
 	static void from_json(const json& j, std::chrono::time_point<Clock, Duration>& tp) {
-		tp = Clock::time_point(std::chrono::nanoseconds(j.get<typename Duration::rep>()));
+		tp = typename Clock::time_point(std::chrono::nanoseconds(j.get<typename Duration::rep>()));
 	}
 };
 
