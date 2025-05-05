@@ -31,6 +31,10 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
+	[[nodiscard]] T& GetValue() {
+		return value_;
+	}
+
 protected:
 	T value_{};
 };
