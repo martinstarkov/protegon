@@ -344,28 +344,53 @@ Entity& Entity::SetOrigin(Origin origin) {
 	return *this;
 }
 
-Entity& Entity::AddChild(const Entity& o) {
+void Entity::AddChild(const Entity& child) {
 	if (Has<Children>()) {
-		Get<Children>().Add(o);
+		Get<Children>().Add(child);
 	} else {
-		Add<Children>(o);
+		Add<Children>(child);
 	}
-	return *this;
 }
 
-Entity& Entity::RemoveChild(const Entity& o) {
+void Entity::AddChild(std::string_view name, const Entity& child) {
+	if (Has<Children>()) {
+		Get<Children>().Add(name, child);
+	} else {
+		Add<Children>(name, child);
+	}
+}
+
+Entity Entity::GetChild(std::string_view name) {
 	if (!Has<Children>()) {
-		return *this;
+		return {};
 	}
 	auto& children{ Get<Children>() };
-	children.Remove(o);
+	return children.Get(name);
+}
+
+void Entity::RemoveChild(const Entity& child) {
+	if (!Has<Children>()) {
+		return;
+	}
+	auto& children{ Get<Children>() };
+	children.Remove(child);
 	if (children.IsEmpty()) {
 		Remove<Children>();
 	}
-	return *this;
 }
 
-Entity& Entity::SetParent(const Entity& o) {
+void Entity::RemoveChild(std::string_view name) {
+	if (!Has<Children>()) {
+		return;
+	}
+	auto& children{ Get<Children>() };
+	children.Remove(name);
+	if (children.IsEmpty()) {
+		Remove<Children>();
+	}
+}
+
+void Entity::SetParent(const Entity& o) {
 	PTGN_ASSERT(*this != o, "Cannot add game object as its own parent");
 	PTGN_ASSERT(o != Entity{}, "Cannot add null game object as its own parent");
 	if (HasParent()) {
@@ -373,23 +398,41 @@ Entity& Entity::SetParent(const Entity& o) {
 	} else {
 		Add<Entity>(o);
 	}
-	return *this;
 }
 
-Children::Children(const Entity& o) {
-	children_.emplace(o);
+Children::Children(std::string_view name, const Entity& child) {
+	Add(name, child);
 }
 
-void Children::Add(const Entity& o) {
-	children_.emplace(o);
+Children::Children(const Entity& child) {
+	Add(child);
 }
 
-void Children::Remove(const Entity& o) {
-	children_.erase(o);
+void Children::Add(const Entity& child) {
+	children_.emplace(child);
+}
+
+void Children::Remove(const Entity& child) {
+	children_.erase(child);
+}
+
+void Children::Add(std::string_view name, const Entity& child) {
+	named_children_.emplace(Hash(name), child);
+}
+
+void Children::Remove(std::string_view name) {
+	named_children_.erase(Hash(name));
+}
+
+Entity Children::Get(std::string_view name) {
+	if (auto it{ named_children_.find(Hash(name)) }; it != named_children_.end()) {
+		return it->second;
+	}
+	return {};
 }
 
 bool Children::IsEmpty() const {
-	return children_.empty();
+	return children_.empty() && named_children_.empty();
 }
 
 namespace impl {

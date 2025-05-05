@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "components/common.h"
@@ -175,13 +177,17 @@ public:
 
 	[[nodiscard]] bool IsImmovable() const;
 
-	// @return *this.
-	Entity& AddChild(const Entity& o);
+	void AddChild(const Entity& child);
 
-	// @return *this.
-	Entity& RemoveChild(const Entity& o);
+	void AddChild(std::string_view name, const Entity& child);
 
-	Entity& SetParent(const Entity& o);
+	// @return Child entity with the given name, or null entity is no such child exists.
+	Entity GetChild(std::string_view name);
+
+	void RemoveChild(const Entity& child);
+	void RemoveChild(std::string_view name);
+
+	void SetParent(const Entity& child);
 
 	// If object has no parent, returns *this.
 	[[nodiscard]] Entity GetParent() const;
@@ -228,15 +234,22 @@ struct hash<ptgn::Entity> {
 namespace ptgn {
 
 struct Children {
-	Children(const Entity& o);
+	Children(std::string_view name, const Entity& child);
+	Children(const Entity& child);
 
-	void Add(const Entity& o);
-	void Remove(const Entity& o);
+	void Add(const Entity& child);
+	void Remove(const Entity& child);
+
+	void Add(std::string_view name, const Entity& child);
+	void Remove(std::string_view name);
+	// @return Entity with given name, or null entity is no such entity exists.
+	Entity Get(std::string_view name);
 
 	[[nodiscard]] bool IsEmpty() const;
 
 private:
 	std::unordered_set<Entity> children_;
+	std::unordered_map<std::size_t, Entity> named_children_;
 };
 
 } // namespace ptgn
