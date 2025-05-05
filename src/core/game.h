@@ -5,9 +5,23 @@
 
 #include "math/vector2.h"
 #include "renderer/color.h"
+#include "serialization/fwd.h"
 #include "utility/stats.h"
 
 namespace ptgn {
+
+// Load various different resource types from a json file. Json format must be:
+// {
+//    "resource_key": "path/to/resource/file.extension",
+//    ...
+// }
+// Supported extensions:
+// Texture: .PNG, .JPG, .BMP, .GIF
+// Sound: .OGG (only one supported by Emscripten), MP3, WAV, OPUS
+// Font: .TTF
+// JSON: .JSON
+// TODO: Add shader loading support (.VERT + .FRAG)
+void LoadResources(const json& resource_file);
 
 class LightManager;
 class RenderTarget;
