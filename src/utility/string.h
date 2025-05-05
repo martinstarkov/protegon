@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <iomanip>
 #include <iosfwd>
 #include <sstream>
@@ -30,6 +32,20 @@ std::string ToString(const T& object, int precision) {
 	} else {
 		return ss.str();
 	}
+}
+
+std::string ToLower(const std::string& str) {
+	std::string lower{ str };
+	std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+	return lower;
+}
+
+std::string ToUpper(const std::string& str) {
+	std::string upper{ str };
+	std::transform(upper.begin(), upper.end(), upper.begin(), [](unsigned char c) {
+		return std::toupper(c);
+	});
+	return upper;
 }
 
 } // namespace ptgn
