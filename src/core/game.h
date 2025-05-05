@@ -5,7 +5,6 @@
 
 #include "math/vector2.h"
 #include "renderer/color.h"
-#include "serialization/fwd.h"
 #include "utility/stats.h"
 
 namespace ptgn {
@@ -21,7 +20,7 @@ namespace ptgn {
 // Font: .TTF
 // JSON: .JSON
 // TODO: Add shader loading support (.VERT + .FRAG)
-void LoadResources(const json& resource_file);
+void LoadResources(const path& resource_file);
 
 class LightManager;
 class RenderTarget;

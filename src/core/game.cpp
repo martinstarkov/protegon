@@ -19,7 +19,6 @@
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
 #include "SDL_timer.h"
-#include "serialization/json.h"
 #include "serialization/json_manager.h"
 #include "utility/debug.h"
 #include "utility/file.h"
@@ -48,6 +47,9 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include <unordered_set>
+
+#include "math/hash.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 
@@ -306,9 +308,22 @@ void Game::Update() {
 
 } // namespace impl
 
-void LoadResources(const json& resource_file) {
+void LoadResources(const path& resource_file) {
 	auto resources{ LoadJson(resource_file) };
+
+	// Track unique resource keys.
+	std::unordered_set<std::size_t> taken_resource_keys;
+
 	for (const auto& [key, resource_path] : resources.items()) {
+		auto key_hash{ Hash(key) };
+
+		PTGN_ASSERT(
+			taken_resource_keys.count(key_hash) == 0,
+			"Resource key should not be repeated more than once: ", key
+		);
+
+		taken_resource_keys.insert(key_hash);
+
 		path p{ resource_path.get<std::string>() };
 
 		PTGN_ASSERT(
