@@ -121,7 +121,8 @@ std::size_t AnimationInfo::GetCurrentFrame() const {
 }
 
 V2_float AnimationInfo::GetCurrentFramePosition() const {
-	return { start_pixel_.x + frame_size_.x * current_frame_, start_pixel_.y };
+	V2_float frame_pos{ start_pixel_.x + frame_size_.x * current_frame_, start_pixel_.y };
+	return frame_pos;
 }
 
 V2_float AnimationInfo::GetFrameSize() const {
@@ -133,5 +134,18 @@ std::size_t AnimationInfo::GetStartFrame() const {
 }
 
 } // namespace impl
+
+bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
+	if (auto internal_key{ GetInternalKey(key) }; internal_key == active_key_) {
+		return false;
+	}
+	auto& active{ GetActive() };
+	active.Hide();
+	active.Get<Tween>().Pause();
+	ActiveMapManager::SetActive(key);
+	auto& new_active{ GetActive() };
+	new_active.Show();
+	return true;
+}
 
 } // namespace ptgn

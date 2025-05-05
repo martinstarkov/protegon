@@ -5,6 +5,7 @@
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/resource_manager.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
@@ -150,11 +151,10 @@ private:
 
 } // namespace impl
 
-/*
-// TODO: Fix.
-struct AnimationMap : public ActiveMapManager<Animation> {
+struct AnimationMap : public ActiveMapManager<Entity> {
 public:
 	using ActiveMapManager::ActiveMapManager;
+
 	AnimationMap()									 = delete;
 	~AnimationMap() override						 = default;
 	AnimationMap(AnimationMap&&) noexcept			 = default;
@@ -165,15 +165,7 @@ public:
 	// If the provided key is a not currently active, this function pauses the previously active
 	// animation. If the key is already active, does nothing.
 	// @return True if active value changed, false otherwise.
-	bool SetActive(const ActiveMapManager::Key& key) {
-		if (auto internal_key{ GetInternalKey(key) }; internal_key == active_key_) {
-			return false;
-		}
-		GetActive().Pause();
-		ActiveMapManager::SetActive(key);
-		return true;
-	}
+	bool SetActive(const ActiveMapManager::Key& key);
 };
-*/
 
 } // namespace ptgn
