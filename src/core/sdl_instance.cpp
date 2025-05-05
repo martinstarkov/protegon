@@ -6,6 +6,7 @@
 #include <ostream>
 #include <thread>
 
+#include "renderer/gl_renderer.h"
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_hints.h"
@@ -15,7 +16,6 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "renderer/gl_renderer.h"
 #include "utility/assert.h"
 #include "utility/log.h"
 #include "utility/time.h"
