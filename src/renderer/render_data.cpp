@@ -618,9 +618,7 @@ void RenderData::AddButton(
 }
 
 void RenderData::AddToBatch(const Entity& o, bool check_visibility) {
-	PTGN_ASSERT(
-		(o.Has<Transform, Visible>()), "Cannot render entity without transform or visible component"
-	);
+	PTGN_ASSERT((o.Has<Visible>()), "Cannot render entity without transform or visible component");
 
 	if (check_visibility && !o.Get<Visible>()) {
 		return;
@@ -751,7 +749,7 @@ void RenderData::Render(
 	const FrameBuffer& frame_buffer, const Camera& camera, const Manager& manager
 ) {
 	SetupRender(frame_buffer, camera);
-	for (auto [e, t, v] : manager.EntitiesWith<Transform, Visible>()) {
+	for (auto [e, v] : manager.EntitiesWith<Visible>()) {
 		AddToBatch(e, true);
 	}
 	Flush(frame_buffer, camera);
