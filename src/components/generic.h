@@ -31,6 +31,10 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
+	[[nodiscard]] T GetValue() const {
+		return value_;
+	}
+
 	[[nodiscard]] T& GetValue() {
 		return value_;
 	}
@@ -46,6 +50,14 @@ struct Vector2Component {
 	Vector2Component(const Vector2<T>& value) : value_{ value } {}
 
 	operator Vector2<T>() const {
+		return value_;
+	}
+
+	[[nodiscard]] Vector2<T> GetValue() const {
+		return value_;
+	}
+
+	[[nodiscard]] Vector2<T>& GetValue() {
 		return value_;
 	}
 
@@ -73,6 +85,14 @@ struct StringComponent {
 	}
 
 	operator std::string_view() const {
+		return value_;
+	}
+
+	[[nodiscard]] const std::string& GetValue() const {
+		return value_;
+	}
+
+	[[nodiscard]] std::string& GetValue() {
 		return value_;
 	}
 
@@ -113,6 +133,14 @@ struct OriginComponent {
 	OriginComponent(Origin origin) : origin_{ origin } {}
 
 	operator Origin() const {
+		return origin_;
+	}
+
+	[[nodiscard]] Origin GetValue() const {
+		return origin_;
+	}
+
+	[[nodiscard]] Origin& GetValue() {
 		return origin_;
 	}
 
