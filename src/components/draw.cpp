@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 
 #include "core/entity.h"
 #include "core/game.h"
@@ -134,6 +135,14 @@ std::size_t AnimationInfo::GetStartFrame() const {
 }
 
 } // namespace impl
+
+Entity& AnimationMap::Load(const ActiveMapManager::Key& key, const Entity& entity, bool hide) {
+	auto [it, inserted] = GetMap().try_emplace(GetInternalKey(key), entity);
+	if (hide) {
+		it->second.Hide();
+	}
+	return it->second;
+}
 
 bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 	if (auto internal_key{ GetInternalKey(key) }; internal_key == active_key_) {

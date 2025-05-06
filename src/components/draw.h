@@ -162,6 +162,14 @@ public:
 	AnimationMap(const AnimationMap&)				 = delete;
 	AnimationMap& operator=(const AnimationMap&)	 = delete;
 
+	/*
+	 * The loaded animation is hidden be default.
+	 * If key already exists, does nothing.
+	 * @param key Unique id of the animation to be loaded.
+	 * @return Reference to the loaded animation.
+	 */
+	Entity& Load(const ActiveMapManager::Key& key, const Entity& entity, bool hide = true);
+
 	// If the provided key is a not currently active, this function pauses the previously active
 	// animation. If the key is already active, does nothing.
 	// @return True if active value changed, false otherwise.
