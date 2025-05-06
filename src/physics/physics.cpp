@@ -4,7 +4,7 @@
 #include "components/movement.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/transform.h"
+#include "components/transform.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 

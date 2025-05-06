@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "math/vector2.h"
-#include "utility/assert.h"
-#include "utility/type_traits.h"
+#include "common/assert.h"
+#include "common/type_traits.h"
 
 namespace ptgn {
 

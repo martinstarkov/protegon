@@ -4,12 +4,12 @@
 #include <cmath>
 #include <vector>
 
-#include "core/transform.h"
+#include "components/transform.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
-#include "renderer/origin.h"
-#include "utility/assert.h"
+#include "rendering/api/origin.h"
+#include "common/assert.h"
 
 namespace ptgn {
 

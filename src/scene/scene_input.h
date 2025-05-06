@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/entity.h"
-#include "event/event.h"
-#include "event/events.h"
+#include "events/event.h"
+#include "events/events.h"
 #include "math/vector2.h"
 
 namespace ptgn {

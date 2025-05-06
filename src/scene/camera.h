@@ -11,12 +11,12 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
-#include "renderer/color.h"
-#include "renderer/flip.h"
-#include "renderer/origin.h"
-#include "utility/time.h"
-#include "utility/tween.h"
-#include "vfx/tween_effects.h"
+#include "rendering/api/color.h"
+#include "rendering/api/flip.h"
+#include "rendering/api/origin.h"
+#include "core/time.h"
+#include "core/tween.h"
+#include "rendering/graphics/vfx/tween_effects.h"
 
 namespace ptgn {
 

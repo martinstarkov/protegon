@@ -5,7 +5,7 @@
 #include <string_view>
 
 #include "math/vector2.h"
-#include "utility/handle.h"
+#include "common/handle.h"
 
 struct SDL_Window;
 

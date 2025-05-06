@@ -9,10 +9,10 @@
 #include "core/manager.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "renderer/texture.h"
-#include "utility/assert.h"
-#include "utility/time.h"
-#include "utility/tween.h"
+#include "rendering/resources/texture.h"
+#include "common/assert.h"
+#include "core/time.h"
+#include "core/tween.h"
 
 namespace ptgn {
 

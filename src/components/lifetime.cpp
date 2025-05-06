@@ -1,8 +1,8 @@
 #include "components/lifetime.h"
 
 #include "core/entity.h"
-#include "utility/time.h"
-#include "utility/timer.h"
+#include "core/time.h"
+#include "core/timer.h"
 
 namespace ptgn {
 

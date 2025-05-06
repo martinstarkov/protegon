@@ -2,10 +2,10 @@
 
 #include <array>
 
-#include "core/transform.h"
+#include "components/transform.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/origin.h"
+#include "rendering/api/origin.h"
 
 namespace ptgn {
 

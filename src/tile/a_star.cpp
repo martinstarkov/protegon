@@ -8,10 +8,10 @@
 #include "core/game.h"
 #include "math/geometry/line.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/renderer.h"
+#include "rendering/api/color.h"
+#include "rendering/renderer.h"
 #include "tile/grid.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 
 namespace ptgn {
 

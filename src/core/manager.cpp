@@ -1,10 +1,10 @@
 #include "core/manager.h"
 
 #include "core/entity.h"
-#include "core/uuid.h"
+#include "components/uuid.h"
 #include "ecs/ecs.h"
 #include "serialization/json.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 
 namespace ptgn {
 

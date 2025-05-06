@@ -10,8 +10,8 @@
 #include "math/math.h"
 #include "math/rng.h"
 #include "serialization/serializable.h"
-#include "utility/assert.h"
-#include "utility/type_traits.h"
+#include "common/assert.h"
+#include "common/type_traits.h"
 
 // TODO: Add xyz() and xyzw() functions.
 // TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.

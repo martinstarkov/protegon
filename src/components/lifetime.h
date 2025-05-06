@@ -1,8 +1,8 @@
 #pragma once
 
 #include "serialization/serializable.h"
-#include "utility/time.h"
-#include "utility/timer.h"
+#include "core/time.h"
+#include "core/timer.h"
 
 namespace ptgn {
 

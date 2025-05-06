@@ -6,7 +6,10 @@
 #include <ostream>
 #include <thread>
 
-#include "renderer/gl_renderer.h"
+#include "common/assert.h"
+#include "core/time.h"
+#include "debug/log.h"
+#include "rendering/gl/gl_renderer.h"
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_hints.h"
@@ -16,9 +19,6 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "utility/assert.h"
-#include "utility/log.h"
-#include "utility/time.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
 	os << static_cast<int>(v.major) << "." << static_cast<int>(v.minor) << "."

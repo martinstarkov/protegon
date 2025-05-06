@@ -5,9 +5,9 @@
 //
 // #include "math/geometry/polygon.h"
 // #include "math/vector2.h"
-// #include "renderer/origin.h"
+// #include "rendering/api/origin.h"
 // #include "ui/button.h"
-// #include "utility/assert.h"
+// #include "common/assert.h"
 //
 // namespace ptgn {
 //

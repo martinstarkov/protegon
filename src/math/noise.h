@@ -11,7 +11,7 @@
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 
 namespace ptgn {
 

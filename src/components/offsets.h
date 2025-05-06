@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/transform.h"
+#include "components/transform.h"
 #include "serialization/serializable.h"
 
 namespace ptgn::impl {

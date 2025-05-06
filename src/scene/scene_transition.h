@@ -2,9 +2,9 @@
 
 #include <functional>
 
-#include "renderer/color.h"
+#include "rendering/api/color.h"
 #include "scene/scene.h"
-#include "utility/time.h"
+#include "core/time.h"
 
 // TODO: Add polymorphic classes which inherit from scene transition and in their constructors add
 // properties to the parent entity. Then use that parent entity to retrieve based on a type that is

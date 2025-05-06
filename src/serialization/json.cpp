@@ -7,7 +7,7 @@
 #include <ostream>
 
 #include "serialization/fwd.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 #include "utility/file.h"
 
 namespace ptgn {

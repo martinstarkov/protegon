@@ -5,12 +5,12 @@
 #include <string_view>
 #include <type_traits>
 
+#include "common/function.h"
+#include "common/type_traits.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
 #include "utility/file.h"
-#include "utility/function.h"
-#include "utility/type_traits.h"
 
 namespace ptgn {
 

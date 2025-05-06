@@ -5,27 +5,27 @@
 #include <string>
 
 #include "audio/audio.h"
-#include "core/gl_context.h"
 #include "core/resource_manager.h"
 #include "core/sdl_instance.h"
+#include "core/time.h"
 #include "core/window.h"
-#include "event/event_handler.h"
-#include "event/input_handler.h"
+#include "debug/debug.h"
+#include "debug/profiling.h"
+#include "debug/stats.h"
+#include "events/event_handler.h"
+#include "events/input_handler.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/font.h"
-#include "renderer/renderer.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
+#include "rendering/api/color.h"
+#include "rendering/gl/gl_context.h"
+#include "rendering/renderer.h"
+#include "rendering/resources/font.h"
+#include "rendering/resources/shader.h"
+#include "rendering/resources/texture.h"
 #include "scene/scene_manager.h"
 #include "SDL_timer.h"
 #include "serialization/json_manager.h"
-#include "utility/debug.h"
 #include "utility/file.h"
-#include "utility/profiling.h"
-#include "utility/stats.h"
 #include "utility/string.h"
-#include "utility/time.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -49,9 +49,9 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #endif
 #include <unordered_set>
 
+#include "common/assert.h"
+#include "debug/log.h"
 #include "math/hash.h"
-#include "utility/assert.h"
-#include "utility/log.h"
 
 namespace ptgn {
 

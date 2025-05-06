@@ -4,12 +4,12 @@
 
 #include "components/generic.h"
 #include "core/entity.h"
-#include "event/key.h"
-#include "event/mouse.h"
+#include "events/key.h"
+#include "events/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/origin.h"
+#include "rendering/api/origin.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {

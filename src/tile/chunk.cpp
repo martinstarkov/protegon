@@ -8,7 +8,7 @@
 #include "core/entity.h"
 #include "math/vector2.h"
 #include "scene/camera.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 
 namespace ptgn {
 

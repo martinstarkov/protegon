@@ -4,7 +4,7 @@
 
 #include "math/hash.h"
 #include "serialization/json.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 
 namespace ptgn::impl {
 

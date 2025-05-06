@@ -8,7 +8,7 @@
 #include "core/manager.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 
 namespace ptgn {
 

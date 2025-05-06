@@ -8,9 +8,9 @@
 #include "core/resource_manager.h"
 #include "math/hash.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
+#include "rendering/api/color.h"
 #include "serialization/serializable.h"
-#include "utility/time.h"
+#include "core/time.h"
 
 namespace ptgn {
 

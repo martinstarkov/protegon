@@ -10,8 +10,8 @@
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "serialization/serializable.h"
-#include "utility/assert.h"
-#include "utility/type_traits.h"
+#include "common/assert.h"
+#include "common/type_traits.h"
 
 namespace ptgn {
 

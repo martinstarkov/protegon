@@ -11,16 +11,16 @@
 #include "core/entity.h"
 #include "core/game_object.h"
 #include "core/manager.h"
-#include "event/mouse.h"
+#include "events/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/text.h"
-#include "renderer/texture.h"
-#include "utility/function.h"
-#include "utility/log.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/resources/text.h"
+#include "rendering/resources/texture.h"
+#include "common/function.h"
+#include "debug/log.h"
 
 namespace ptgn {
 

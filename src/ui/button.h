@@ -12,11 +12,11 @@
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/text.h"
-#include "utility/log.h"
-#include "utility/type_traits.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/resources/text.h"
+#include "debug/log.h"
+#include "common/type_traits.h"
 
 namespace ptgn {
 

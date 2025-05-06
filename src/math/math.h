@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "utility/type_traits.h"
+#include "common/type_traits.h"
 
 namespace ptgn {
 

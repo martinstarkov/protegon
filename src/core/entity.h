@@ -6,13 +6,13 @@
 #include <unordered_set>
 
 #include "components/common.h"
-#include "core/transform.h"
-#include "core/uuid.h"
+#include "components/transform.h"
+#include "components/uuid.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
-#include "renderer/blend_mode.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
+#include "rendering/api/blend_mode.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
 #include "serialization/fwd.h"
 
 namespace ptgn {

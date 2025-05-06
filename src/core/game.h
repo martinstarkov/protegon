@@ -3,9 +3,9 @@
 #include <memory>
 #include <string>
 
+#include "debug/stats.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "utility/stats.h"
+#include "rendering/api/color.h"
 
 namespace ptgn {
 

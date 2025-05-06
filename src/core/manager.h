@@ -3,7 +3,7 @@
 #include <type_traits>
 
 #include "core/entity.h"
-#include "core/uuid.h"
+#include "components/uuid.h"
 #include "ecs/ecs.h"
 #include "serialization/fwd.h"
 

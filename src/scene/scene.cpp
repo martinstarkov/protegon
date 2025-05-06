@@ -6,13 +6,14 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "event/input_handler.h"
-#include "math/collision/collision.h"
-#include "renderer/renderer.h"
+#include "core/tween.h"
+#include "events/input_handler.h"
+#include "physics/collision/collision.h"
+#include "rendering/graphics/vfx/light.h"
+#include "rendering/graphics/vfx/particle.h"
+#include "rendering/graphics/vfx/tween_effects.h"
+#include "rendering/renderer.h"
 #include "scene/camera.h"
-#include "utility/tween.h"
-#include "vfx/particle.h"
-#include "vfx/tween_effects.h"
 
 namespace ptgn {
 

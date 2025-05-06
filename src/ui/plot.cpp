@@ -9,19 +9,19 @@
 //
 // #include "core/game.h"
 // #include "core/entity.h"
-// #include "event/input_handler.h"
-// #include "event/mouse.h"
+// #include "events/input_handler.h"
+// #include "events/mouse.h"
 // #include "math/geometry/line.h"
 // #include "math/geometry/polygon.h"
 // #include "math/math.h"
 // #include "math/vector2.h"
-// #include "renderer/color.h"
-// #include "renderer/font.h"
-// #include "renderer/origin.h"
-// #include "renderer/text.h"
+// #include "rendering/api/color.h"
+// #include "rendering/resources/font.h"
+// #include "rendering/api/origin.h"
+// #include "rendering/resources/text.h"
 // #include "resources/fonts.h"
 // #include "ui/button.h"
-// #include "utility/assert.h"
+// #include "common/assert.h"
 //
 // namespace ptgn {
 //

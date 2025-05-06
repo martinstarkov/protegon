@@ -5,7 +5,7 @@
 #include <limits>
 #include <utility>
 
-#include "renderer/color.h"
+#include "rendering/api/color.h"
 #include "tile/grid.h"
 #include "math/vector2.h"
 

@@ -3,8 +3,8 @@
 #include <cstdint>
 
 #include "math/math.h"
-#include "utility/assert.h"
-#include "utility/log.h"
+#include "common/assert.h"
+#include "debug/log.h"
 
 namespace ptgn {
 

@@ -8,10 +8,10 @@
 
 #include "core/entity.h"
 #include "serialization/serializable.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 #include "utility/file.h"
-#include "utility/type_info.h"
-#include "utility/type_traits.h"
+#include "common/type_info.h"
+#include "common/type_traits.h"
 
 PTGN_HAS_TEMPLATE_FUNCTION(Serialize);
 PTGN_HAS_TEMPLATE_FUNCTION(Deserialize);

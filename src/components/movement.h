@@ -3,14 +3,14 @@
 #include <functional>
 #include <iosfwd>
 
-#include "core/transform.h"
-#include "event/key.h"
-#include "math/collision/collider.h"
+#include "components/transform.h"
+#include "events/key.h"
+#include "physics/collision/collider.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
-#include "utility/log.h"
-#include "utility/time.h"
-#include "utility/timer.h"
+#include "debug/log.h"
+#include "core/time.h"
+#include "core/timer.h"
 
 namespace ptgn {
 

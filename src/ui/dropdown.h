@@ -4,8 +4,8 @@
 // #include <vector>
 //
 // #include "math/vector2.h"
-// #include "renderer/origin.h"
-// #include "utility/handle.h"
+// #include "rendering/api/origin.h"
+// #include "common/handle.h"
 //
 // namespace ptgn {
 //
