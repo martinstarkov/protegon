@@ -35,16 +35,16 @@ struct Draggable {
 
 struct InteractiveCircles {
 	struct InteractiveCircle {
-		Circle circle;
+		float radius{ 0.0f };
 		V2_float offset;
 
-		PTGN_SERIALIZER_REGISTER(InteractiveCircle, circle, offset)
+		PTGN_SERIALIZER_REGISTER(InteractiveCircle, radius, offset)
 	};
 
 	InteractiveCircles() = default;
 
 	InteractiveCircles(float radius, const V2_float& offset) :
-		circles{ InteractiveCircle{ Circle{ radius }, offset } } {}
+		circles{ InteractiveCircle{ radius, offset } } {}
 
 	PTGN_SERIALIZER_REGISTER(InteractiveCircles, circles)
 
@@ -53,16 +53,17 @@ struct InteractiveCircles {
 
 struct InteractiveRects {
 	struct InteractiveRect {
-		Rect rect;
+		V2_float size;
+		Origin origin{ Origin::Center };
 		V2_float offset;
 
-		PTGN_SERIALIZER_REGISTER(InteractiveRect, rect, offset)
+		PTGN_SERIALIZER_REGISTER(InteractiveRect, size, origin, offset)
 	};
 
 	InteractiveRects() = default;
 
 	InteractiveRects(const V2_float& size, Origin origin, const V2_float& offset) :
-		rects{ InteractiveRect{ Rect{ size, origin }, offset } } {}
+		rects{ InteractiveRect{ size, origin, offset } } {}
 
 	PTGN_SERIALIZER_REGISTER(InteractiveRects, rects)
 

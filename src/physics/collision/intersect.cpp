@@ -4,18 +4,18 @@
 #include <limits>
 #include <utility>
 
+#include "common/assert.h"
 #include "components/transform.h"
 #include "core/game.h"
-#include "physics/collision/overlap.h"
+#include "debug/debug.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
+#include "physics/collision/overlap.h"
 #include "rendering/api/origin.h"
-#include "common/assert.h"
-#include "debug/debug.h"
 
 namespace ptgn {
 
@@ -245,7 +245,7 @@ Intersection Intersects(const Transform& a, Circle A, const Transform& b, Circle
 Intersection Intersects(const Transform& a, Circle A, Transform b, Rect B) {
 	A.radius   *= a.scale.x;
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::IntersectCircleRect(a.position, A.radius, b.position, B.size);
 }
 
@@ -257,9 +257,9 @@ Intersection Intersects(const Transform& a, const Rect& A, const Transform& b, c
 
 Intersection Intersects(Transform a, Rect A, Transform b, Rect B) {
 	A.size	   *= a.scale;
-	a.position += A.GetCenterOffset();
+	a.position += GetOriginOffset(A.origin, A.size);
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::IntersectRectRect(a.position, A.size, a.rotation, b.position, B.size, b.rotation);
 }
 

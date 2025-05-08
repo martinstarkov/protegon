@@ -4,21 +4,72 @@
 #include <cmath>
 #include <vector>
 
+#include "common/assert.h"
 #include "components/transform.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "rendering/api/origin.h"
-#include "common/assert.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-namespace impl {
+std::vector<V2_float> GetVertices(
+	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise,
+	float sa, float ea
+) const {
+	if (sa > ea) {
+		ea += two_pi<float>;
+	}
 
-std::array<V2_float, 4> GetVertices(const Transform& transform, Rect rect) {
-	rect.size *= transform.scale;
+	float arc_angle{ ea - sa };
 
-	auto half{ rect.Half() };
+	PTGN_ASSERT(arc_angle >= 0.0f);
+
+	// Resolution indicates the number of vertices the arc is made up of. Each consecutive vertex,
+	// alongside the center of the arc, makes up a triangle which is used to draw solid arcs.
+	std::size_t resolution{
+		std::max(static_cast<std::size_t>(360), static_cast<std::size_t>(30.0f * radius))
+	};
+
+	PTGN_ASSERT(
+		resolution > 1, "Arc must be made up of at least two vertices (forming one triangle with "
+						"the arc center point)"
+	);
+
+	float delta_angle{ arc_angle / static_cast<float>(resolution) };
+
+	std::vector<V2_float> vertices(resolution);
+
+	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
+		float angle{ start_angle };
+		float delta{ static_cast<float>(i) * delta_angle };
+		if (clockwise) {
+			angle -= delta;
+		} else {
+			angle += delta;
+		}
+
+		vertices[i] = center + radius * V2_float{ std::cos(angle), std::sin(angle) };
+	}
+
+	return vertices;
+}
+
+std::array<V2_float, 4> GetQuadVertices(
+	const V2_float& start, const V2_float& end, float line_width
+) const {
+	auto dir{ end - start };
+	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
+	auto center{ start + dir * 0.5f };
+	float rotation{ dir.Angle() };
+	V2_float size{ dir.Magnitude(), line_width };
+	return GetVertices(Transform{ center, rotation }, size, Origin::Center);
+}
+
+std::array<V2_float, 4> GetVertices(const Transform& transform, V2_float size, Origin origin) {
+	size *= transform.scale;
+
+	auto half{ size * 0.5f };
 
 	V2_float top_left{ -half };
 	V2_float top_right{ half.x, -half.y };
@@ -33,7 +84,7 @@ std::array<V2_float, 4> GetVertices(const Transform& transform, Rect rect) {
 		sin = std::sin(transform.rotation);
 	}
 
-	auto center{ transform.position + rect.GetCenterOffset() };
+	auto center{ transform.position + GetOriginOffset(origin, size) };
 
 	auto rotated = [&](const V2_float& point) {
 		return center + V2_float{ cos * point.x - sin * point.y, sin * point.x + cos * point.y };
@@ -76,7 +127,7 @@ bool TriangulateInsideTriangle(
 	float bCROSScp = bx * cpy - by * cpx;
 
 	return ((aCROSSbp >= 0.0f) && (bCROSScp >= 0.0f) && (cCROSSap >= 0.0f));
-};
+}
 
 bool TriangulateSnip(
 	const V2_float* contour, int u, int v, int w, int n, const std::vector<int>& V
@@ -108,8 +159,6 @@ bool TriangulateSnip(
 
 	return true;
 }
-
-} // namespace impl
 
 std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::size_t count) {
 	// From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
@@ -162,15 +211,17 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			w = 0; /* next     */
 		}
 
-		if (impl::TriangulateSnip(contour, u, v, w, nv, V)) {
+		if (TriangulateSnip(contour, u, v, w, nv, V)) {
 			/* true names of the vertices */
 			int a = V[static_cast<std::size_t>(u)];
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
-														 contour[static_cast<std::size_t>(b)],
-														 contour[static_cast<std::size_t>(c)] });
+			result.emplace_back(
+				std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+										 contour[static_cast<std::size_t>(b)],
+										 contour[static_cast<std::size_t>(c)] }
+			);
 
 			m++;
 
@@ -191,12 +242,12 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 	return result;
 }
 
-V2_float GetCenter(const Transform& transform, Rect rect) {
-	rect.size *= transform.scale;
-	return transform.position + rect.GetCenterOffset();
+V2_float GetCenter(const Transform& transform, V2_float size, Origin origin) {
+	size *= transform.scale;
+	return transform.position + GetOriginOffset(origin, size);
 }
 
-V2_float GetPolygonCenter(const V2_float* vertices, std::size_t vertex_count) {
+V2_float GetCenter(const V2_float* vertices, std::size_t vertex_count) {
 	// Source: https://stackoverflow.com/a/63901131
 	V2_float centroid;
 	float signed_area{ 0.0f };
@@ -226,29 +277,125 @@ V2_float GetPolygonCenter(const V2_float* vertices, std::size_t vertex_count) {
 	return centroid;
 }
 
-Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) : vertices{ a, b, c } {}
+/*
+void Arc::Draw(bool clockwise, const Color& color, float line_width, std::int32_t render_layer)
+	const {
+	PTGN_ASSERT(radius >= 0.0f, "Cannot draw filled arc with negative radius");
 
-Triangle::Triangle(const std::array<V2_float, 3>& vertices) : vertices{ vertices } {}
+	// Edge case where arc is a point.
+	if (NearlyEqual(radius, 0.0f)) {
+		impl::Point::Draw(center.x, center.y, color.Normalized(), render_layer);
+		return;
+	}
 
-Rect::Rect(const V2_float& size, Origin origin) : size{ size }, origin{ origin } {}
+	// Clamped start angle.
+	float sa{ ClampAngle2Pi(start_angle) };
 
-V2_float Rect::Half() const {
-	return size * 0.5f;
+	// Clamped end angle.
+	float ea{ ClampAngle2Pi(end_angle) };
+
+	// Edge case where start and end angles match (considered a full rotation).
+	if (float range{ sa - ea }; NearlyEqual(range, 0.0f) || NearlyEqual(range, two_pi<float>)) {
+		Circle c{ center, radius };
+		c.Draw(color, line_width, render_layer);
+		return;
+	}
+
+	auto norm_color{ color.Normalized() };
+
+	if (line_width == -1.0f) {
+		DrawSolid(clockwise, sa, ea, norm_color, render_layer);
+		return;
+	}
+
+	DrawThick(line_width, clockwise, sa, ea, norm_color, render_layer);
 }
 
-V2_float Rect::GetCenterOffset() const {
-	return GetOriginOffset(origin, size);
+void Arc::DrawSolid(
+	bool clockwise, float sa, float ea, const V4_float& color, std::int32_t render_layer
+) const {
+	auto vertices{ GetVertices(clockwise, sa, ea) };
+	std::size_t vertex_count{ vertices.size() - 1 };
+	for (std::size_t i{ 0 }; i < vertex_count; i++) {
+		game.renderer.GetRenderData().AddPrimitiveTriangle(
+			{ center, vertices[i], vertices[i + 1] }, render_layer, color
+		);
+	}
 }
+
+void Arc::DrawThick(
+	float line_width, bool clockwise, float sa, float ea, const V4_float& color,
+	std::int32_t render_layer
+) const {
+	auto vertices{ GetVertices(clockwise, sa, ea) };
+	impl::DrawVertices(
+		vertices.data(), vertices.size() - 1, line_width, color, render_layer, vertices.size()
+	);
+}
+*/
 
 /*
-RoundedRect::RoundedRect(
-	const V2_float& position, float radius, const V2_float& size, Origin origin, float rotation
-) :
-	Rect{ position, size, origin, rotation } {
-	PTGN_ASSERT(radius >= 0.0f);
-	this->radius = radius;
-}
+void Capsule::Draw(const Color& color, float line_width, std::int32_t render_layer) const {
+	V2_float dir{ line.Direction() };
+	float dir2{ dir.Dot(dir) };
 
+	// Edge case where capsule has no length, i.e. it is a circle.
+	if (NearlyEqual(dir2, 0.0f)) {
+		Circle c{ line.a, radius };
+		c.Draw(color, line_width, render_layer);
+		return;
+	}
+
+	float angle{ dir.Angle() + half_pi<float> };
+	float start_angle{ angle };
+	float end_angle{ angle };
+
+	auto norm_color{ color.Normalized() };
+
+	Arc a1{ line.a, radius, start_angle, end_angle + pi<float> };
+	Arc a2{ line.b, radius, start_angle + pi<float>, end_angle };
+
+	if (line_width == -1.0f) {
+		line.DrawThick(radius * 2.0f, norm_color, render_layer);
+
+		// How many radians into the line the arc protrudes.
+		constexpr float delta{ DegToRad(0.5f) };
+		a1.start_angle -= delta;
+		a1.end_angle   += delta;
+		a2.start_angle -= delta;
+		a2.end_angle   += delta;
+
+		a1.DrawSolid(
+			false, ClampAngle2Pi(a1.start_angle), ClampAngle2Pi(a1.end_angle), norm_color,
+			render_layer
+		);
+		a2.DrawSolid(
+			false, ClampAngle2Pi(a2.start_angle), ClampAngle2Pi(a2.end_angle), norm_color,
+			render_layer
+		);
+		return;
+	}
+
+	V2_float tangent_r{ Floor(dir.Skewed() / std::sqrt(dir2) * radius) };
+
+	Line l1{ line.a + tangent_r, line.b + tangent_r };
+	Line l2{ line.a - tangent_r, line.b - tangent_r };
+
+	l1.DrawThick(line_width, norm_color, render_layer);
+	l2.DrawThick(line_width, norm_color, render_layer);
+
+	a1.DrawThick(
+		line_width, false, ClampAngle2Pi(a1.start_angle), ClampAngle2Pi(a1.end_angle), norm_color,
+		render_layer
+	);
+	a2.DrawThick(
+		line_width, false, ClampAngle2Pi(a2.start_angle), ClampAngle2Pi(a2.end_angle), norm_color,
+		render_layer
+	);
+}
+*/
+
+/*
 Rect RoundedRect::GetInnerRect() const {
 	return { position - GetOffsetFromCenter(size, origin), size - V2_float{ radius } * 2.0f,
 			 Origin::Center, rotation };
@@ -354,16 +501,4 @@ void RoundedRect::Draw(
 }
 */
 
-Polygon::Polygon(const std::vector<V2_float>& vertices) : vertices{ vertices } {
-	PTGN_ASSERT(vertices.size() >= 3, "Cannot construct polygon from less than 3 vertices");
-}
-
-bool Polygon::IsConvex() const {
-	return impl::IsConvexPolygon(vertices.data(), vertices.size());
-}
-
-bool Polygon::IsConcave() const {
-	return !IsConvex();
-}
-
-} // namespace ptgn
+} // namespace ptgn::impl

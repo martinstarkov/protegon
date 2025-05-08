@@ -6,11 +6,13 @@
 #include <utility>
 #include <vector>
 
+#include "common/function.h"
 #include "components/generic.h"
 #include "components/input.h"
 #include "core/entity.h"
 #include "core/game_object.h"
 #include "core/manager.h"
+#include "debug/log.h"
 #include "events/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
@@ -19,8 +21,6 @@
 #include "rendering/api/origin.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
-#include "common/function.h"
-#include "debug/log.h"
 
 namespace ptgn {
 
@@ -226,7 +226,7 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 Button& Button::AddInteractableRect(const V2_float& size, Origin origin, const V2_float& offset) {
 	if (Has<InteractiveRects>()) {
 		auto& interactives{ Get<InteractiveRects>() };
-		interactives.rects.push_back({ Rect{ size, origin }, offset });
+		interactives.rects.push_back({ size, origin, offset });
 	} else {
 		Add<InteractiveRects>(size, origin, offset);
 	}
@@ -236,7 +236,7 @@ Button& Button::AddInteractableRect(const V2_float& size, Origin origin, const V
 Button& Button::AddInteractableCircle(float radius, const V2_float& offset) {
 	if (Has<InteractiveCircles>()) {
 		auto& interactives{ Get<InteractiveCircles>() };
-		interactives.circles.push_back({ Circle{ radius }, offset });
+		interactives.circles.push_back({ radius, offset });
 	} else {
 		Add<InteractiveCircles>(radius, offset);
 	}

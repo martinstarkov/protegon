@@ -5,11 +5,11 @@
 #include <utility>
 #include <vector>
 
+#include "common/assert.h"
 #include "geometry/axis.h"
 #include "math/geometry/line.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "common/assert.h"
 
 namespace ptgn {
 
@@ -279,6 +279,10 @@ bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count) {
 
 	// Convex.
 	return true;
+}
+
+bool IsConcavePolygon(const V2_float* vertices, std::size_t vertex_count) {
+	return !IsConvexPolygon(vertices, vertex_count);
 }
 
 } // namespace impl

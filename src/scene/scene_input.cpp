@@ -2,29 +2,29 @@
 
 #include <functional>
 
+#include "common/assert.h"
+#include "common/function.h"
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "debug/log.h"
 #include "events/event.h"
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "events/input_handler.h"
 #include "events/key.h"
 #include "events/mouse.h"
-#include "physics/collision/overlap.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "physics/collision/overlap.h"
 #include "rendering/api/origin.h"
 #include "rendering/renderer.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "common/assert.h"
-#include "common/function.h"
-#include "debug/log.h"
 
 namespace ptgn {
 
@@ -48,8 +48,8 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			const auto& interactives{ entity.Get<InteractiveRects>() };
 			count += interactives.rects.size();
 			for (const auto& interactive : interactives.rects) {
-				auto size{ interactive.rect.size * scale };
-				origin = interactive.rect.origin;
+				auto size{ interactive.size * scale };
+				origin = interactive.origin;
 				auto center{ pos + interactive.offset * scale + GetOriginOffset(origin, size) };
 				if constexpr (draw_interactives) {
 					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
@@ -67,7 +67,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			const auto& interactives{ entity.Get<InteractiveCircles>() };
 			count += interactives.circles.size();
 			for (const auto& interactive : interactives.circles) {
-				auto radius{ interactive.circle.radius * scale.x };
+				auto radius{ interactive.radius * scale.x };
 				auto center{ pos + interactive.offset * scale };
 				if constexpr (draw_interactives) {
 					DrawDebugCircle(center, radius, color::Magenta, 1.0f);

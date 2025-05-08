@@ -124,10 +124,10 @@ public:
 
 	// Sets the viewport for the current render target.
 	// @param viewport Where to draw the current render target.
-	void SetViewport(const Rect& viewport);
+	// void SetViewport(const Rect& viewport);
 
 	// @return Viewport of the current render target.
-	[[nodiscard]] Rect GetViewport() const;
+	//[[nodiscard]] Rect GetViewport() const;
 
 	// @param resolution The resolution size to which the renderer will be displayed.
 	// Note: If no resolution mode is set, setting the resolution will default it to

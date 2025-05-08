@@ -3,17 +3,17 @@
 #include <cmath>
 #include <utility>
 
+#include "common/assert.h"
 #include "components/transform.h"
 #include "core/game.h"
-#include "physics/collision/overlap.h"
+#include "debug/debug.h"
+#include "debug/stats.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "common/assert.h"
-#include "debug/debug.h"
-#include "debug/stats.h"
+#include "physics/collision/overlap.h"
 
 namespace ptgn {
 
@@ -512,7 +512,7 @@ RaycastResult Raycast(const Transform& a, Line A, Transform b, Rect B) {
 	A.start	   += a.position;
 	A.end	   += a.position;
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::RaycastLineRect(A.start, A.end, b.position, B.size);
 }
 
@@ -551,7 +551,7 @@ RaycastResult Raycast(
 RaycastResult Raycast(const Transform& a, Circle A, const V2_float& ray, Transform b, Rect B) {
 	A.radius   *= a.scale.x;
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::RaycastCircleRect(a.position, A.radius, ray, b.position, B.size);
 }
 
@@ -569,16 +569,16 @@ RaycastResult Raycast(
 
 RaycastResult Raycast(Transform a, Rect A, const V2_float& ray, const Transform& b, Circle B) {
 	A.size	   *= a.scale;
-	a.position += A.GetCenterOffset();
+	a.position += GetOriginOffset(A.origin, A.size);
 	B.radius   *= b.scale.x;
 	return impl::RaycastRectCircle(a.position, A.size, ray, b.position, B.radius);
 }
 
 RaycastResult Raycast(Transform a, Rect A, const V2_float& ray, Transform b, Rect B) {
 	A.size	   *= a.scale;
-	a.position += A.GetCenterOffset();
+	a.position += GetOriginOffset(A.origin, A.size);
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::RaycastRectRect(a.position, A.size, ray, b.position, B.size);
 }
 

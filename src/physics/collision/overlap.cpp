@@ -4,8 +4,10 @@
 #include <limits>
 #include <utility>
 
+#include "common/assert.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "debug/debug.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -14,8 +16,6 @@
 #include "math/utility.h"
 #include "math/vector2.h"
 #include "rendering/api/origin.h"
-#include "common/assert.h"
-#include "debug/debug.h"
 
 namespace ptgn {
 
@@ -812,7 +812,7 @@ bool Overlaps(const V2_float& point, const Transform& transform, Triangle triang
 
 bool Overlaps(const V2_float& point, Transform transform, Rect rect) {
 	rect.size		   *= transform.scale;
-	transform.position += rect.GetCenterOffset();
+	transform.position += GetOriginOffset(rect.origin, rect.size);
 	return impl::OverlapPointRect(point, transform.position, rect.size, transform.rotation);
 }
 
@@ -864,7 +864,7 @@ bool Overlaps(const Transform& a, Line A, Transform b, Rect B) {
 	A.start	   += a.position;
 	A.end	   += a.position;
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::OverlapLineRect(A.start, A.end, b.position, B.size);
 }
 
@@ -904,7 +904,7 @@ bool Overlaps(const Transform& a, Circle A, const Transform& b, Triangle B) {
 bool Overlaps(const Transform& a, Circle A, Transform b, Rect B) {
 	A.radius   *= a.scale.x;
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::OverlapCircleRect(a.position, A.radius, b.position, B.size);
 }
 
@@ -945,7 +945,7 @@ bool Overlaps(const Transform& a, Triangle A, Transform b, Rect B) {
 		v += a.position;
 	}
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::OverlapTriangleRect(
 		A.vertices[0], A.vertices[1], A.vertices[2], b.position, B.size, b.rotation
 	);
@@ -979,15 +979,15 @@ bool Overlaps(Transform a, const Rect& A, const Transform& b, const Triangle& B)
 
 bool Overlaps(Transform a, Rect A, Transform b, Rect B) {
 	A.size	   *= a.scale;
-	a.position += A.GetCenterOffset();
+	a.position += GetOriginOffset(A.origin, A.size);
 	B.size	   *= b.scale;
-	b.position += B.GetCenterOffset();
+	b.position += GetOriginOffset(B.origin, B.size);
 	return impl::OverlapRectRect(a.position, A.size, a.rotation, b.position, B.size, b.rotation);
 }
 
 bool Overlaps(Transform a, Rect A, const Transform& b, Polygon B) {
 	A.size	   *= a.scale;
-	a.position += A.GetCenterOffset();
+	a.position += GetOriginOffset(A.origin, A.size);
 	for (auto& v : B.vertices) {
 		v *= b.scale;
 		v += b.position;
