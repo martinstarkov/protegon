@@ -6,12 +6,12 @@
 #include <string_view>
 #include <type_traits>
 
-#include "core/entity.h"
-#include "serialization/serializable.h"
 #include "common/assert.h"
-#include "utility/file.h"
 #include "common/type_info.h"
 #include "common/type_traits.h"
+#include "core/entity.h"
+#include "serialization/serializable.h"
+#include "utility/file.h"
 
 PTGN_HAS_TEMPLATE_FUNCTION(Serialize);
 PTGN_HAS_TEMPLATE_FUNCTION(Deserialize);
@@ -46,7 +46,7 @@ public:
 
 	void SetStreamPosition(std::uint64_t position);
 
-	void ReadData(char* destination, size_t size);
+	void ReadData(char* destination, std::streamsize size);
 
 	operator bool() const;
 
@@ -150,7 +150,7 @@ public:
 	bool IsStreamGood() const;
 	std::uint64_t GetStreamPosition();
 	void SetStreamPosition(std::uint64_t position);
-	void WriteData(const char* data, std::size_t size);
+	void WriteData(const char* data, std::streamsize size);
 
 	operator bool() const;
 

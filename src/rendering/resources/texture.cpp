@@ -11,7 +11,14 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
+#include "common/assert.h"
 #include "core/game.h"
+#include "debug/log.h"
+#include "debug/stats.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -20,15 +27,8 @@
 #include "rendering/gl/gl_loader.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "serialization/json.h"
-#include "common/assert.h"
 #include "utility/file.h"
-#include "debug/log.h"
-#include "debug/stats.h"
 
 // TODO: Move to using TextureKey inside the texture manager.
 
@@ -272,30 +272,38 @@ V2_int Texture::GetSize() const {
 void Texture::SetParameterI(TextureParameter parameter, std::int32_t value) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-	GLCall(gl::glTexParameteri(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter), value
-	));
+	GLCall(
+		gl::glTexParameteri(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
+			value
+		)
+	);
 }
 
 std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its parameters");
 	std::int32_t value{ -1 };
-	GLCall(gl::glGetTexParameteriv(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
-		&value
-	));
+	GLCall(
+		gl::glGetTexParameteriv(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
+			&value
+		)
+	);
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 	return value;
 }
 
-std::int32_t Texture::GetLevelParameterI(TextureLevelParameter parameter, std::int32_t level)
-	const {
+std::int32_t Texture::GetLevelParameterI(
+	TextureLevelParameter parameter, std::int32_t level
+) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its level parameters");
 	std::int32_t value{ -1 };
-	GLCall(gl::glGetTexLevelParameteriv(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), level,
-		static_cast<gl::GLenum>(parameter), &value
-	));
+	GLCall(
+		gl::glGetTexLevelParameteriv(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), level,
+			static_cast<gl::GLenum>(parameter), &value
+		)
+	);
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture level parameter");
 	return value;
 }
@@ -402,12 +410,14 @@ void Texture::SetData(
 
 	constexpr std::int32_t border{ 0 };
 
-	GLCall(gl::glTexImage2D(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level,
-		static_cast<gl::GLint>(formats.internal_format), size.x, size.y, border,
-		static_cast<gl::GLenum>(formats.input_format),
-		static_cast<gl::GLenum>(GLType::UnsignedByte), pixel_data
-	));
+	GLCall(
+		gl::glTexImage2D(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level,
+			static_cast<gl::GLint>(formats.internal_format), size.x, size.y, border,
+			static_cast<gl::GLenum>(formats.input_format),
+			static_cast<gl::GLenum>(GLType::UnsignedByte), pixel_data
+		)
+	);
 
 	size_ = size;
 }
@@ -422,11 +432,13 @@ void Texture::SetSubData(
 
 	auto formats{ GetGLFormats(format) };
 
-	GLCall(gl::glTexSubImage2D(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y, size.x,
-		size.y, static_cast<gl::GLenum>(formats.input_format),
-		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-	));
+	GLCall(
+		gl::glTexSubImage2D(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y,
+			size.x, size.y, static_cast<gl::GLenum>(formats.input_format),
+			static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
+		)
+	);
 }
 
 void TextureManager::Load(const path& json_filepath) {
@@ -496,7 +508,8 @@ Color Surface::GetPixel(const V2_int& coordinate) const {
 	PTGN_ASSERT(coordinate.y >= 0, "Y Coordinate outside of range of grid");
 	PTGN_ASSERT(coordinate.x < size.x, "X Coordinate outside of range of grid");
 	PTGN_ASSERT(coordinate.y < size.y, "Y Coordinate outside of range of grid");
-	auto index{ (static_cast<std::size_t>(coordinate.y) * size.x + coordinate.x) *
+	auto index{ (static_cast<std::size_t>(coordinate.y) * static_cast<std::size_t>(size.x) +
+				 static_cast<std::size_t>(coordinate.x)) *
 				bytes_per_pixel };
 	return GetPixel(index);
 }
@@ -546,15 +559,16 @@ Surface::Surface(SDL_Surface* sdl_surface) {
 
 	size = { surface->w, surface->h };
 
-	std::size_t total_pixels{ static_cast<std::size_t>(size.x) * size.y * bytes_per_pixel };
+	std::size_t total_pixels{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) *
+							  bytes_per_pixel };
 
 	data.reserve(total_pixels);
 
-	for (int y = 0; y < size.y; ++y) {
-		auto row = static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch;
-		for (int x = 0; x < size.x; ++x) {
-			auto pixel = row + x * bytes_per_pixel;
-			for (int b = 0; b < bytes_per_pixel; ++b) {
+	for (int y{ 0 }; y < size.y; ++y) {
+		auto row{ static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch };
+		for (int x{ 0 }; x < size.x; ++x) {
+			auto pixel{ row + static_cast<std::size_t>(x) * bytes_per_pixel };
+			for (std::size_t b{ 0 }; b < bytes_per_pixel; ++b) {
 				data.push_back(pixel[b]);
 			}
 		}
@@ -597,10 +611,10 @@ void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)
 	PTGN_ASSERT(!data.empty(), "Cannot loop through each pixel of an empty surface");
 	PTGN_ASSERT(function != nullptr, "Invalid loop function");
 	for (int j{ 0 }; j < size.y; j++) {
-		auto idx_row{ static_cast<std::size_t>(j) * size.x };
+		auto idx_row{ static_cast<std::size_t>(j) * static_cast<std::size_t>(size.x) };
 		for (int i{ 0 }; i < size.x; i++) {
 			V2_int coordinate{ i, j };
-			auto index{ idx_row + i };
+			auto index{ idx_row + static_cast<std::size_t>(i) };
 			std::invoke(function, coordinate, GetPixel(index));
 		}
 	}

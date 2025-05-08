@@ -12,8 +12,8 @@
 
 #include "common/assert.h"
 #include "common/function.h"
-#include "debug/log.h"
 #include "core/time.h"
+#include "debug/log.h"
 
 namespace ptgn {
 
@@ -145,9 +145,9 @@ Tween::Tween(Tween&& other) noexcept :
 	progress_{ std::exchange(other.progress_, 0.0f) },
 	index_{ std::exchange(other.index_, 0) },
 	tween_points_{ std::exchange(other.tween_points_, {}) },
-	on_reset_{ std::exchange(other.on_reset_, {}) },
 	paused_{ std::exchange(other.paused_, false) },
-	started_{ std::exchange(other.started_, false) } {}
+	started_{ std::exchange(other.started_, false) },
+	on_reset_{ std::exchange(other.on_reset_, {}) } {}
 
 Tween& Tween::operator=(Tween&& other) noexcept {
 	if (this != &other) {

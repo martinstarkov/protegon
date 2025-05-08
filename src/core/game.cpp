@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/resource_manager.h"
 #include "core/sdl_instance.h"
@@ -22,7 +23,6 @@
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
 #include "serialization/json_manager.h"
 #include "utility/file.h"
 #include "utility/string.h"
@@ -314,7 +314,10 @@ void LoadResources(const path& resource_file) {
 	// Track unique resource keys.
 	std::unordered_set<std::size_t> taken_resource_keys;
 
-	for (const auto& [key, resource_path] : resources.items()) {
+	for (const auto& item : resources.items()) {
+		const auto& key			  = item.key();
+		const auto& resource_path = item.value();
+
 		auto key_hash{ Hash(key) };
 
 		PTGN_ASSERT(

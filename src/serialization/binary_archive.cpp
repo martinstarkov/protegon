@@ -21,14 +21,16 @@ bool BinaryInputArchive::IsStreamGood() const {
 }
 
 std::uint64_t BinaryInputArchive::GetStreamPosition() {
-	return stream_.tellg();
+	auto pos{ stream_.tellg() };
+	PTGN_ASSERT(pos >= 0, "Failed to retrieve a valid stream position");
+	return static_cast<std::uint64_t>(pos);
 }
 
 void BinaryInputArchive::SetStreamPosition(std::uint64_t position) {
-	stream_.seekg(position);
+	stream_.seekg(static_cast<std::streamoff>(position));
 }
 
-void BinaryInputArchive::ReadData(char* destination, std::size_t size) {
+void BinaryInputArchive::ReadData(char* destination, std::streamsize size) {
 	stream_.read(destination, size);
 }
 
@@ -50,14 +52,16 @@ bool BinaryOutputArchive::IsStreamGood() const {
 }
 
 std::uint64_t BinaryOutputArchive::GetStreamPosition() {
-	return stream_.tellp();
+	auto pos{ stream_.tellp() };
+	PTGN_ASSERT(pos >= 0, "Failed to retrieve a valid stream position");
+	return static_cast<std::uint64_t>(pos);
 }
 
 void BinaryOutputArchive::SetStreamPosition(std::uint64_t position) {
-	stream_.seekp(position);
+	stream_.seekp(static_cast<std::int64_t>(position));
 }
 
-void BinaryOutputArchive::WriteData(const char* data, std::size_t size) {
+void BinaryOutputArchive::WriteData(const char* data, std::streamsize size) {
 	stream_.write(data, size);
 }
 

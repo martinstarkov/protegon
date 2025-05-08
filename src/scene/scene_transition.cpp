@@ -37,7 +37,8 @@ SceneTransition& SceneTransition::SetFadeThroughColor(const Color& color) {
 }
 
 void SceneTransition::Start(
-	bool transition_in, std::size_t key, std::size_t other_key, Scene* scene
+	[[maybe_unused]] bool transition_in, [[maybe_unused]] std::size_t key,
+	[[maybe_unused]] std::size_t other_key, [[maybe_unused]] Scene* scene
 ) const {
 	/*
 	Tween tween{ duration_ };

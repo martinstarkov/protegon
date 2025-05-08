@@ -52,7 +52,7 @@ struct Drawable {
 };
 
 template <class T>
-bool Drawable::template Registrar<T>::registered = Drawable::template Registrar<T>::registerT();
+bool Drawable::Registrar<T>::registered = Drawable::Registrar<T>::registerT();
 
 struct Enemy : public GameObject, public Drawable::Registrar<Enemy> {
 	Enemy() = default;

@@ -9,13 +9,17 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/assert.h"
 #include "components/draw.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/game_object.h"
 #include "core/manager.h"
-#include "components/transform.h"
+#include "core/time.h"
+#include "core/tween.h"
 #include "core/window.h"
+#include "debug/log.h"
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "math/geometry/polygon.h"
@@ -27,10 +31,6 @@
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
-#include "common/assert.h"
-#include "debug/log.h"
-#include "core/time.h"
-#include "core/tween.h"
 #include "rendering/graphics/vfx/tween_effects.h"
 
 namespace ptgn {
@@ -488,7 +488,7 @@ Tween& Camera::FadeFromTo(
 			fade = Lerp(start_color, end_color, progress);
 		}
 	};
-	auto show = [fe = fade_effects_.GetEntity()](float f) mutable {
+	auto show = [fe = fade_effects_.GetEntity()]([[maybe_unused]] float f) mutable {
 		auto& visible{ fe.Get<Visible>() };
 		visible = true;
 	};
