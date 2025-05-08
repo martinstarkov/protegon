@@ -59,6 +59,15 @@ bool Entity::IsIdenticalTo(const Entity& e) const {
 	return ecs::Entity::IsIdenticalTo(e);
 }
 
+bool Entity::HasDraw() const {
+	return Has<IDrawable>();
+}
+
+Entity& Entity::RemoveDraw() {
+	Remove<IDrawable>();
+	return *this;
+}
+
 Entity& Entity::SetVisible(bool visible) {
 	bool was_visible{ Has<Enabled>() && Get<Enabled>() };
 	if (visible) {

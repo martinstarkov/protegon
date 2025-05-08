@@ -153,13 +153,8 @@ public:
 	// Copying an entity with no components simply returns a new entity.
 	// Make sure to call manager.Refresh() after this function.
 	template <typename... Ts>
-	Entity Copy() {
+	[[nodiscard]] Entity Copy() {
 		return ecs::Entity::Copy<Ts...>();
-	}
-
-	template <typename T, tt::enable<tt::is_drawable_v<T>> = true>
-	IDrawable& Add() {
-		return ecs::Entity::Add<IDrawable>(T::GetName());
 	}
 
 	template <typename T, typename... Ts>
@@ -205,6 +200,16 @@ public:
 	[[nodiscard]] bool IsIdenticalTo(const Entity& e) const;
 
 	// Component manipulation functions.
+
+	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
+	Entity& SetDraw() {
+		Add<IDrawable>(T::GetName());
+		return *this;
+	}
+
+	[[nodiscard]] bool HasDraw() const;
+
+	Entity& RemoveDraw();
 
 	// @return *this.
 	Entity& SetVisible(bool visible);

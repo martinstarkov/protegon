@@ -6,28 +6,17 @@
 
 using namespace ptgn;
 
-struct EnemyComponent {
-	V2_float size{ 32, 32 };
-	float radius{ 32 };
-	TextureKey key{ "test" };
-};
-
-struct PlayerComponent {
-	V2_float size{ 16, 16 };
-	float radius{ 16 };
-	TextureKey key{ "test" };
-};
-
 struct Enemy : public GameObject, public Drawable<Enemy> {
 	Enemy() = default;
 
-	Enemy(Manager& m) : GameObject{ m } {}
+	Enemy(Manager& m) : GameObject{ m } {
+		SetDraw<Enemy>();
+	}
 
-	static void Draw(impl::RenderData& rd, const Entity& entity) {
-		const auto& e{ entity.Get<EnemyComponent>() };
+	static void Draw(impl::RenderData& rd, [[maybe_unused]] const Entity& entity) {
 		rd.AddEllipse(
-			e.size, V2_float{ e.radius }, -1.0f, Depth{}, BlendMode{}, color::Red.Normalized(),
-			0.0f, false
+			{ 32, 32 }, V2_float{ 32 }, -1.0f, Depth{}, BlendMode{}, color::Red.Normalized(), 0.0f,
+			false
 		);
 	}
 };
@@ -35,12 +24,13 @@ struct Enemy : public GameObject, public Drawable<Enemy> {
 struct Player : public GameObject, public Drawable<Player> {
 	Player() = default;
 
-	Player(Manager& m) : GameObject{ m } {}
+	Player(Manager& m) : GameObject{ m } {
+		SetDraw<Player>();
+	}
 
-	static void Draw(impl::RenderData& rd, const Entity& entity) {
-		const auto& e{ entity.Get<PlayerComponent>() };
+	static void Draw(impl::RenderData& rd, [[maybe_unused]] const Entity& entity) {
 		rd.AddEllipse(
-			e.size, V2_float{ e.radius }, -1.0f, Depth{ 1 }, BlendMode{}, color::Blue.Normalized(),
+			{ 32, 32 }, V2_float{ 16 }, -1.0f, Depth{ 1 }, BlendMode{}, color::Blue.Normalized(),
 			0.0f, false
 		);
 	}
@@ -53,12 +43,8 @@ public:
 
 	void Enter() {
 		enemy1 = Enemy{ manager };
-		enemy1.Add<EnemyComponent>();
-		enemy1.Add<Drawable<Enemy>>();
 
 		player1 = Player{ manager };
-		player1.Add<PlayerComponent>();
-		player1.Add<Drawable<Player>>();
 
 		game.texture.Load("test", "resources/test.png");
 
@@ -66,6 +52,9 @@ public:
 	}
 
 	void Update() {
+		if (game.input.KeyDown(Key::R)) {
+			player1.RemoveDraw();
+		}
 		for (auto [e, d] : manager.EntitiesWith<IDrawable>()) {
 			auto it = IDrawable::data().find(d.hash);
 			PTGN_ASSERT(it != IDrawable::data().end());
