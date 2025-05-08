@@ -18,43 +18,7 @@ struct PlayerComponent {
 	TextureKey key{ "test" };
 };
 
-struct Drawable {
-	Drawable() = default;
-
-	Drawable(std::string_view name) : hash{ Hash(name) } {}
-
-	using DrawFunc = void (*)(impl::RenderData& rd, const Entity& entity);
-
-	static auto& data() {
-		static std::unordered_map<std::size_t, DrawFunc> s;
-		return s;
-	}
-
-	template <typename T>
-	class Registrar {
-		friend T;
-
-		static bool registerT() {
-			constexpr std::string_view class_name{ type_name<T>() };
-			std::cout << "Registering draw hash for " << class_name << std::endl;
-			Drawable::data()[Hash(class_name)] = &T::Draw;
-			return true;
-		}
-
-		static bool registered;
-
-		Registrar() {
-			(void)registered;
-		}
-	};
-
-	std::size_t hash{ 0 };
-};
-
-template <class T>
-bool Drawable::Registrar<T>::registered = Drawable::Registrar<T>::registerT();
-
-struct Enemy : public GameObject, public Drawable::Registrar<Enemy> {
+struct Enemy : public GameObject, public Drawable<Enemy> {
 	Enemy() = default;
 
 	Enemy(Manager& m) : GameObject{ m } {}
@@ -68,7 +32,7 @@ struct Enemy : public GameObject, public Drawable::Registrar<Enemy> {
 	}
 };
 
-struct Player : public GameObject, public Drawable::Registrar<Player> {
+struct Player : public GameObject, public Drawable<Player> {
 	Player() = default;
 
 	Player(Manager& m) : GameObject{ m } {}
@@ -90,11 +54,11 @@ public:
 	void Enter() {
 		enemy1 = Enemy{ manager };
 		enemy1.Add<EnemyComponent>();
-		enemy1.Add<Drawable>(type_name<Enemy>());
+		enemy1.Add<Drawable<Enemy>>();
 
 		player1 = Player{ manager };
 		player1.Add<PlayerComponent>();
-		player1.Add<Drawable>(type_name<Player>());
+		player1.Add<Drawable<Player>>();
 
 		game.texture.Load("test", "resources/test.png");
 
@@ -102,9 +66,9 @@ public:
 	}
 
 	void Update() {
-		for (auto [e, d] : manager.EntitiesWith<Drawable>()) {
-			auto it = Drawable::data().find(d.hash);
-			PTGN_ASSERT(it != Drawable::data().end());
+		for (auto [e, d] : manager.EntitiesWith<IDrawable>()) {
+			auto it = IDrawable::data().find(d.hash);
+			PTGN_ASSERT(it != IDrawable::data().end());
 			auto& f = it->second;
 			std::invoke(f, game.renderer.GetRenderData(), e);
 		}

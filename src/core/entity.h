@@ -5,10 +5,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "common/type_info.h"
 #include "components/common.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "ecs/ecs.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
@@ -16,6 +18,109 @@
 #include "serialization/fwd.h"
 
 namespace ptgn {
+
+// TODO: Move to different file.
+
+// Forward declarations for parameter types
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
+
+class Entity;
+
+namespace tt {
+
+namespace impl {
+
+template <typename, typename = std::void_t<>>
+struct has_static_draw : std::false_type {};
+
+template <typename T>
+struct has_static_draw<
+	T, std::void_t<decltype(T::Draw(
+		   std::declval<ptgn::impl::RenderData&>(), std::declval<const Entity&>()
+	   ))>> :
+	std::is_same<
+		decltype(T::Draw(std::declval<ptgn::impl::RenderData&>(), std::declval<const Entity&>())),
+		void> {};
+
+} // namespace impl
+
+// Trait to detect static void Draw(impl::RenderData&, const Entity&)
+template <typename T>
+inline constexpr bool has_static_draw_v = impl::has_static_draw<T>::value;
+
+} // namespace tt
+
+class IDrawable {
+public:
+	IDrawable() = default;
+
+	IDrawable(std::string_view name) : hash{ Hash(name) } {}
+
+	using DrawFunc = void (*)(impl::RenderData& rd, const Entity& entity);
+
+	static auto& data() {
+		static std::unordered_map<std::size_t, DrawFunc> s;
+		return s;
+	}
+
+	template <typename T>
+	class Registrar {
+		friend Entity;
+
+		static constexpr std::string_view GetName() {
+			return type_name<T>();
+		}
+
+		friend T;
+
+		static bool registerT() {
+			static_assert(
+				tt::has_static_draw_v<T>,
+				"Cannot register draw interface class without static void "
+				"Draw(impl::RenderData&, const Entity&) function"
+			);
+			constexpr auto name{ GetName() };
+			std::cout << "Registering draw hash for " << name << std::endl;
+			IDrawable::data()[Hash(name)] = &T::Draw;
+			return true;
+		}
+
+		static bool registered;
+
+		Registrar() {
+			(void)registered;
+		}
+	};
+
+	std::size_t hash{ 0 };
+};
+
+template <typename T>
+using Drawable = IDrawable::Registrar<T>;
+
+template <typename T>
+bool IDrawable::Registrar<T>::registered = IDrawable::Registrar<T>::registerT();
+
+namespace tt {
+
+namespace impl {
+
+template <typename T>
+struct is_drawable : std::false_type {};
+
+template <typename T>
+struct is_drawable<IDrawable::Registrar<T>> : std::true_type {};
+
+} // namespace impl
+
+template <typename T>
+inline constexpr bool is_drawable_v = impl::is_drawable<T>::value;
+
+} // namespace tt
 
 namespace impl {
 
@@ -50,6 +155,11 @@ public:
 	template <typename... Ts>
 	Entity Copy() {
 		return ecs::Entity::Copy<Ts...>();
+	}
+
+	template <typename T, tt::enable<tt::is_drawable_v<T>> = true>
+	IDrawable& Add() {
+		return ecs::Entity::Add<IDrawable>(T::GetName());
 	}
 
 	template <typename T, typename... Ts>
