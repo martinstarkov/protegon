@@ -1,3 +1,123 @@
+#include "core/game_object.h"
+#include "core/manager.h"
+#include "math/hash.h"
+#include "protegon/protegon.h"
+#include "rendering/batching/render_data.h"
+
+using namespace ptgn;
+
+struct EnemyComponent {
+	V2_float size{ 32, 32 };
+	float radius{ 32 };
+	TextureKey key{ "test" };
+};
+
+struct PlayerComponent {
+	V2_float size{ 16, 16 };
+	float radius{ 16 };
+	TextureKey key{ "test" };
+};
+
+struct Drawable {
+	Drawable() = default;
+
+	Drawable(std::string_view name) : hash{ Hash(name) } {}
+
+	using DrawFunc = void (*)(impl::RenderData& rd, const Entity& entity);
+
+	static auto& data() {
+		static std::unordered_map<std::size_t, DrawFunc> s;
+		return s;
+	}
+
+	template <typename T>
+	class Registrar {
+		friend T;
+
+		static bool registerT() {
+			constexpr std::string_view class_name{ type_name<T>() };
+			std::cout << "Registering draw hash for " << class_name << std::endl;
+			Drawable::data()[Hash(class_name)] = &T::Draw;
+			return true;
+		}
+
+		static bool registered;
+
+		Registrar() {
+			(void)registered;
+		}
+	};
+
+	std::size_t hash{ 0 };
+};
+
+template <class T>
+bool Drawable::template Registrar<T>::registered = Drawable::template Registrar<T>::registerT();
+
+struct Enemy : public GameObject, public Drawable::Registrar<Enemy> {
+	Enemy() = default;
+
+	Enemy(Manager& m) : GameObject{ m } {}
+
+	static void Draw(impl::RenderData& rd, const Entity& entity) {
+		const auto& e{ entity.Get<EnemyComponent>() };
+		rd.AddEllipse(
+			e.size, V2_float{ e.radius }, -1.0f, Depth{}, BlendMode{}, color::Red.Normalized(),
+			0.0f, false
+		);
+	}
+};
+
+struct Player : public GameObject, public Drawable::Registrar<Player> {
+	Player() = default;
+
+	Player(Manager& m) : GameObject{ m } {}
+
+	static void Draw(impl::RenderData& rd, const Entity& entity) {
+		const auto& e{ entity.Get<PlayerComponent>() };
+		rd.AddEllipse(
+			e.size, V2_float{ e.radius }, -1.0f, Depth{ 1 }, BlendMode{}, color::Blue.Normalized(),
+			0.0f, false
+		);
+	}
+};
+
+class Sandbox : public Scene {
+public:
+	Enemy enemy1;
+	Player player1;
+
+	void Enter() {
+		enemy1 = Enemy{ manager };
+		enemy1.Add<EnemyComponent>();
+		enemy1.Add<Drawable>(type_name<Enemy>());
+
+		player1 = Player{ manager };
+		player1.Add<PlayerComponent>();
+		player1.Add<Drawable>(type_name<Player>());
+
+		game.texture.Load("test", "resources/test.png");
+
+		PTGN_LOG("Enter");
+	}
+
+	void Update() {
+		for (auto [e, d] : manager.EntitiesWith<Drawable>()) {
+			auto it = Drawable::data().find(d.hash);
+			PTGN_ASSERT(it != Drawable::data().end());
+			auto& f = it->second;
+			std::invoke(f, game.renderer.GetRenderData(), e);
+		}
+		PTGN_LOG("Update");
+	}
+};
+
+int main() {
+	game.Init("Sandbox");
+	game.scene.Enter<Sandbox>("sandbox");
+}
+
+/*
 #include <algorithm>
 #include <functional>
 #include <iostream>
@@ -207,6 +327,8 @@ int main() {
 
 	return 0;
 }
+
+*/
 
 /*
 #include "components/movement.h"

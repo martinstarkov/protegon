@@ -25,6 +25,7 @@
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "rendering/batching/render_data.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/resources/render_target.h"
 #include "rendering/resources/text.h"

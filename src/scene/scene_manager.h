@@ -4,11 +4,11 @@
 #include <string_view>
 #include <type_traits>
 
+#include "common/assert.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
-#include "common/assert.h"
 
 namespace ptgn {
 
