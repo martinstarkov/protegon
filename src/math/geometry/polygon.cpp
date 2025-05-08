@@ -16,7 +16,7 @@ namespace ptgn::impl {
 std::vector<V2_float> GetVertices(
 	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise,
 	float sa, float ea
-) const {
+) {
 	if (sa > ea) {
 		ea += two_pi<float>;
 	}
@@ -57,7 +57,7 @@ std::vector<V2_float> GetVertices(
 
 std::array<V2_float, 4> GetQuadVertices(
 	const V2_float& start, const V2_float& end, float line_width
-) const {
+) {
 	auto dir{ end - start };
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	auto center{ start + dir * 0.5f };

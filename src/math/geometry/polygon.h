@@ -19,7 +19,7 @@ namespace ptgn::impl {
 // @return The vertices which make up the arc.
 [[nodiscard]] std::vector<V2_float> GetVertices(
 	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise
-) const;
+);
 
 [[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
 	const V2_float& start, const V2_float& end, float line_width
