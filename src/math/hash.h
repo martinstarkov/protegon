@@ -3,10 +3,12 @@
 #include <string_view>
 #include <type_traits>
 
-#include "core/entity.h"
-#include "math/vector2.h"
-
 namespace ptgn {
+
+class Entity;
+
+template <typename T>
+struct Vector2;
 
 //[[nodiscard]] inline std::size_t Hash(std::string_view string) {
 //	return std::hash<std::string_view>()(string);
@@ -41,12 +43,8 @@ namespace ptgn {
 }
 
 template <typename T>
-[[nodiscard]] inline std::size_t Hash(const Vector2<T>& vector) {
-	return std::hash<Vector2<T>>()(vector);
-}
+[[nodiscard]] std::size_t Hash(const Vector2<T>& vector);
 
-[[nodiscard]] inline std::size_t Hash(const Entity& entity) {
-	return std::hash<Entity>()(entity);
-}
+[[nodiscard]] std::size_t Hash(const Entity& entity);
 
 } // namespace ptgn
