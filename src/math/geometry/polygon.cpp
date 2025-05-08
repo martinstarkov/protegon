@@ -248,6 +248,7 @@ V2_float GetCenter(const Transform& transform, V2_float size, Origin origin) {
 }
 
 V2_float GetCenter(const V2_float* vertices, std::size_t vertex_count) {
+	PTGN_ASSERT(vertex_count >= 3);
 	// Source: https://stackoverflow.com/a/63901131
 	V2_float centroid;
 	float signed_area{ 0.0f };

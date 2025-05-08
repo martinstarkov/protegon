@@ -3,17 +3,17 @@
 #include <unordered_set>
 #include <vector>
 
+#include "common/assert.h"
 #include "components/common.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/collision/intersect.h"
 #include "physics/collision/overlap.h"
 #include "physics/collision/raycast.h"
-#include "math/vector2.h"
 #include "physics/rigid_body.h"
-#include "common/assert.h"
 
 namespace ptgn {
 
@@ -290,6 +290,7 @@ private:
 
 		// ProcessCallback may invalidate all component references.
 		if (raycast.Occurred() && entity.Get<T>().ProcessCallback(entity, e2)) {
+			// TODO: Fix these GetCenter functions.
 			auto center1{ GetCenter(offset_transform, collider) };
 			auto center2{ GetCenter(transform2, collider2) };
 			auto dist2{ (center1 - center2).MagnitudeSquared() };
