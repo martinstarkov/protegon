@@ -15,6 +15,8 @@ struct Intersection {
 };
 
 /*
+// TODO: Readd somehow otherwise.
+
 [[nodiscard]] Intersection Intersects(const Transform& a, Circle A, const Transform& b, Circle B);
 
 [[nodiscard]] Intersection Intersects(const Transform& a, Circle A, Transform b, Rect B);

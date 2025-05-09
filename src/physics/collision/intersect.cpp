@@ -235,6 +235,7 @@ Intersection IntersectPolygonPolygon(
 
 /*
 
+// TODO: Readd somehow otherwise.
 Intersection Intersects(const Transform& a, Circle A, const Transform& b, Circle B) {
 	A.radius *= a.scale.x;
 	B.radius *= b.scale.x;

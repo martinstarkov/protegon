@@ -483,6 +483,7 @@ RaycastResult RaycastCapsuleCircle(
 
 /*
 
+// TODO: Readd somehow otherwise.
 RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Line B) {
 	A.start *= a.scale;
 	A.end	*= a.scale;

@@ -16,6 +16,8 @@ struct RaycastResult {
 
 /*
 
+// TODO: Readd somehow otherwise.
+
 [[nodiscard]] RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Line B);
 
 [[nodiscard]] RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Circle B);
