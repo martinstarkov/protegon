@@ -2,34 +2,32 @@
 
 #include <string_view>
 
+#include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
+#include "core/time.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "serialization/serializable.h"
-#include "core/time.h"
 
 namespace ptgn {
 
-// @param manager Which manager the entity is added to.
-// @param texture_key Key of the texture loaded into the texture manager.
-Entity CreateSprite(Manager& manager, std::string_view texture_key);
+namespace impl {
 
-// @param manager Which manager the entity is added to.
-// @param texture_key Key of the texture loaded into the texture manager.
-// @param frame_count Number of frames in the animation sequence.
-// @param frame_size Pixel size of an individual animation frame within the texture.
-// @param animation_duration Duration of the full animation sequence.
-// @param start_pixel Pixel within the texture which indicates the top left position of the
-// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
-Entity CreateAnimation(
-	Manager& manager, std::string_view texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel = {},
-	std::size_t start_frame = 0
-);
+class RenderData;
+
+} // namespace impl
+
+/*
+// TODO: Move to game factory.
+
+
+
+*/
 
 struct Visible : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
@@ -150,6 +148,35 @@ private:
 };
 
 } // namespace impl
+
+struct Sprite : public GameObject, public Drawable<Sprite> {
+	Sprite() = default;
+
+	// @param manager Which manager the entity is added to.
+	// @param texture_key Key of the texture loaded into the texture manager.
+	explicit Sprite(Manager& manager, std::string_view texture_key);
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
+};
+
+struct Animation : public Sprite, public Drawable<Animation> {
+	Animation() = default;
+
+	// @param manager Which manager the entity is added to.
+	// @param texture_key Key of the texture loaded into the texture manager.
+	// @param frame_count Number of frames in the animation sequence.
+	// @param frame_size Pixel size of an individual animation frame within the texture.
+	// @param animation_duration Duration of the full animation sequence.
+	// @param start_pixel Pixel within the texture which indicates the top left position of the
+	// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
+	explicit Animation(
+		Manager& manager, std::string_view texture_key, std::size_t frame_count,
+		const V2_float& frame_size, milliseconds animation_duration,
+		const V2_float& start_pixel = {}, std::size_t start_frame = 0
+	);
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
+};
 
 struct AnimationMap : public ActiveMapManager<Entity> {
 public:

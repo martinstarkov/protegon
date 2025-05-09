@@ -6,18 +6,22 @@
 #include <type_traits>
 #include <vector>
 
-#include "core/game.h"
+#include "common/assert.h"
+#include "components/common.h"
 #include "components/transform.h"
+#include "core/entity.h"
+#include "core/game.h"
 #include "core/window.h"
+#include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
-#include "rendering/buffers/frame_buffer.h"
-#include "rendering/gl/gl_renderer.h"
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
+#include "rendering/buffers/frame_buffer.h"
+#include "rendering/gl/gl_renderer.h"
 #include "rendering/resources/text.h"
-#include "common/assert.h"
+#include "resources/texture.h"
 
 namespace ptgn {
 
@@ -25,11 +29,24 @@ const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
 const BlendMode debug_blend_mode{ BlendMode::Blend };
 
 void DrawDebugText(
-	const Text& text, const V2_float& position, const V2_float& size, Origin origin, float rotation
+	Text& text, const V2_float& position, const V2_float& size, Origin origin, float rotation
 ) {
-	game.renderer.GetRenderData().AddText(
-		text, position, size, origin, max_depth, debug_blend_mode,
-		color::White.Normalized() /* no tint, color comes from text */, rotation, true
+	const auto& texture{ text.Get<impl::Texture>() };
+
+	if (!texture.IsValid()) {
+		return;
+	}
+
+	Transform transform{ position, rotation };
+
+	game.renderer.GetRenderData().AddTexturedQuad(
+		impl::GetVertices(
+			{ transform.position + GetOriginOffset(origin, size), transform.rotation,
+			  transform.scale },
+			size, Origin::Center
+		),
+		text.GetTextureCoordinates(false), texture, max_depth, debug_blend_mode,
+		color::White.Normalized(), true
 	);
 }
 

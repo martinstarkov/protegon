@@ -9,15 +9,15 @@
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "rendering/batching/batch.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
-#include "rendering/buffers/frame_buffer.h"
 #include "rendering/api/origin.h"
+#include "rendering/batching/batch.h"
+#include "rendering/buffers/frame_buffer.h"
+#include "rendering/buffers/vertex_array.h"
 #include "rendering/resources/render_target.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
-#include "rendering/buffers/vertex_array.h"
 #include "scene/camera.h"
 
 namespace ptgn {
@@ -50,13 +50,6 @@ public:
 		BlendMode blend_mode, const V4_float& color, bool connect_last_to_first, bool debug
 	);
 
-	// @param e Passing {} will result in default texture coordinates being used.
-	void AddTexture(
-		const Entity& e, const Texture& texture, const V2_float& position, const V2_float& size,
-		Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& color,
-		float rotation, bool debug, bool flip_vertically
-	);
-
 	void AddTriangle(
 		const std::array<V2_float, 3>& vertices, float line_width, const Depth& depth,
 		BlendMode blend_mode, const V4_float& color, bool debug
@@ -82,33 +75,38 @@ public:
 		bool debug
 	);
 
-	void AddPointLight(const Entity& o, const Depth& depth);
-
-	void AddText(
-		const Entity& text, const V2_float& position, V2_float size, Origin origin,
-		const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
+	void AddTexturedQuad(
+		const std::array<V2_float, Batch::quad_vertex_count>& vertices,
+		const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
+		const Depth& depth, BlendMode blend_mode, const V4_float& color, bool debug
 	);
 
-	void AddRenderTarget(
-		const Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
-		const V4_float& tint
-	);
+	// Set once before adding to batch.
+	std::array<V2_float, Batch::quad_vertex_count> camera_vertices;
 
-	void AddButton(
-		const Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
-		const V4_float& tint, float rotation, const V2_float& scale
-	);
+	bool pixel_rounding{ false };
+
+	constexpr static float min_line_width{ 1.0f };
+
+	std::size_t max_texture_slots{ 0 };
+
+	Texture white_texture;
+
+	Manager light_manager;
+	RenderTarget lights;
+
+	BlendMode light_blend_mode{ BlendMode::Add };
+
+	VertexArray triangle_vao;
+
+	std::map<Depth, Batches> batch_map;
+
+	Batches debug_batches;
 
 private:
 	void AddFilledTriangle(
 		const std::array<V2_float, Batch::triangle_vertex_count>& vertices, const Depth& depth,
 		BlendMode blend_mode, const V4_float& color, bool debug
-	);
-
-	void AddTexturedQuad(
-		const std::array<V2_float, Batch::quad_vertex_count>& vertices,
-		const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
-		const Depth& depth, BlendMode blend_mode, const V4_float& color, bool debug
 	);
 
 	void AddFilledQuad(
@@ -125,10 +123,6 @@ private:
 		const std::array<V2_float, Batch::quad_vertex_count>& vertices, float line_width,
 		const V2_float& radius, const Depth& depth, BlendMode blend_mode, const V4_float& color,
 		bool debug
-	);
-
-	[[nodiscard]] V2_float GetTextureSize(
-		const Entity& o, const Texture& texture, const V2_float& scale
 	);
 
 	[[nodiscard]] Batch& GetBatch(
@@ -154,27 +148,6 @@ private:
 	);
 
 	void FlushDebugBatches(const FrameBuffer& frame_buffer, const Camera& camera);
-
-	// Set once before adding to batch.
-	std::array<V2_float, Batch::quad_vertex_count> camera_vertices;
-
-	bool pixel_rounding{ false };
-
-	constexpr static float min_line_width{ 1.0f };
-
-	std::size_t max_texture_slots{ 0 };
-
-	Texture white_texture;
-
-	RenderTarget lights;
-
-	BlendMode light_blend_mode{ BlendMode::Add };
-
-	VertexArray triangle_vao;
-
-	std::map<Depth, Batches> batch_map;
-
-	Batches debug_batches;
 };
 
 } // namespace impl

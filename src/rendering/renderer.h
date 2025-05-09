@@ -16,8 +16,8 @@ namespace ptgn {
 
 // @param size {} results in unscaled size of text based on font.
 void DrawDebugText(
-	const Text& text, const V2_float& position, const V2_float& size = {},
-	Origin origin = Origin::Center, float rotation = 0.0f
+	Text& text, const V2_float& position, const V2_float& size = {}, Origin origin = Origin::Center,
+	float rotation = 0.0f
 );
 
 void DrawDebugLine(

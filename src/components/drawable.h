@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "common/type_info.h"
 #include "math/hash.h"
 
 namespace ptgn {

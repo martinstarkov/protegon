@@ -4,83 +4,23 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "common/assert.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "core/manager.h"
-#include "math/math.h"
-#include "math/vector2.h"
-#include "rendering/resources/texture.h"
-#include "common/assert.h"
 #include "core/time.h"
 #include "core/tween.h"
+#include "math/geometry.h"
+#include "math/math.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/batching/render_data.h"
+#include "rendering/resources/texture.h"
 
 namespace ptgn {
-
-Entity CreateSprite(Manager& manager, std::string_view texture_key) {
-	PTGN_ASSERT(
-		game.texture.Has(texture_key), "Sprite texture key must be loaded in the texture manager"
-	);
-
-	auto entity{ manager.CreateEntity() };
-
-	entity.Add<TextureKey>(texture_key);
-	entity.Add<Visible>();
-
-	return entity;
-}
-
-Entity CreateAnimation(
-	Manager& manager, std::string_view texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel,
-	std::size_t start_frame
-) {
-	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
-
-	PTGN_ASSERT(
-		game.texture.Has(texture_key), "Animation texture key must be loaded in the texture manager"
-	);
-
-	auto entity{ manager.CreateEntity() };
-
-	entity.Add<TextureKey>(texture_key);
-	entity.Add<Visible>();
-	entity.Add<TextureCrop>();
-	entity.Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
-
-	milliseconds frame_duration{ animation_duration / frame_count };
-
-	auto update_crop = [](TextureCrop& crop, const impl::AnimationInfo& anim) {
-		crop.position = anim.GetCurrentFramePosition();
-		crop.size	  = anim.GetFrameSize();
-	};
-
-	// TODO: Consider breaking this up into individual tween points using a for loop.
-	// TODO: Switch to using a system.
-	entity.Add<Tween>()
-		.During(frame_duration)
-		.Repeat(-1)
-		.OnStart([=]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.ResetToStartFrame();
-			std::invoke(update_crop, crop, anim);
-			Invoke<callback::AnimationStart>(entity);
-		})
-		.OnRepeat([=]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.IncrementFrame();
-			std::invoke(update_crop, crop, anim);
-			if (anim.GetFrameRepeats() % anim.GetFrameCount() == 0) {
-				Invoke<callback::AnimationRepeat>(entity);
-			}
-		})
-		.OnReset([=]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.ResetToStartFrame();
-			std::invoke(update_crop, crop, anim);
-		});
-
-	return entity;
-}
 
 namespace impl {
 
@@ -155,6 +95,96 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 	auto& new_active{ GetActive() };
 	new_active.Show();
 	return true;
+}
+
+Sprite::Sprite(Manager& manager, std::string_view texture_key) : GameObject{ manager } {
+	SetDraw<Sprite>();
+
+	PTGN_ASSERT(
+		game.texture.Has(texture_key), "Sprite texture key must be loaded in the texture manager"
+	);
+
+	Add<TextureKey>(texture_key);
+	Add<Visible>();
+}
+
+void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
+	const auto& transform{ entity.GetAbsoluteTransform() };
+	auto depth{ entity.GetDepth() };
+	auto blend_mode{ entity.GetBlendMode() };
+	auto tint{ entity.GetTint().Normalized() };
+	auto origin{ entity.GetOrigin() };
+
+	const auto& texture_key{ entity.Get<TextureKey>() };
+	const auto& texture{ game.texture.Get(texture_key) };
+
+	V2_float size;
+	if (entity.Has<TextureCrop>()) {
+		size = entity.Get<TextureCrop>().size;
+	}
+	if (entity.Has<DisplaySize>()) {
+		size = entity.Get<DisplaySize>();
+	}
+	if (size.IsZero()) {
+		size = texture.GetSize();
+	}
+
+	size *= transform.scale;
+
+	ctx.AddTexturedQuad(
+		impl::GetVertices(
+			{ transform.position + GetOriginOffset(origin, size), transform.rotation,
+			  transform.scale },
+			size, Origin::Center
+		),
+		entity.GetTextureCoordinates(false), texture, depth, blend_mode, tint, false
+	);
+}
+
+Animation::Animation(
+	Manager& manager, std::string_view texture_key, std::size_t frame_count,
+	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel,
+	std::size_t start_frame
+) :
+	Sprite{ manager, texture_key } {
+	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
+
+	Add<TextureCrop>();
+	Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
+
+	milliseconds frame_duration{ animation_duration / frame_count };
+
+	// TODO: Consider breaking this up into individual tween points using a for loop.
+	// TODO: Switch to using a system.
+	Add<Tween>()
+		.During(frame_duration)
+		.Repeat(-1)
+		.OnStart([entity = GetEntity()]() mutable {
+			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			anim.ResetToStartFrame();
+			crop.position = anim.GetCurrentFramePosition();
+			crop.size	  = anim.GetFrameSize();
+			Invoke<callback::AnimationStart>(entity);
+		})
+		.OnRepeat([entity = GetEntity()]() mutable {
+			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			anim.IncrementFrame();
+			crop.position = anim.GetCurrentFramePosition();
+			crop.size	  = anim.GetFrameSize();
+			if (anim.GetFrameRepeats() % anim.GetFrameCount() == 0) {
+				Invoke<callback::AnimationRepeat>(entity);
+			}
+		})
+		.OnReset([entity = GetEntity()]() mutable {
+			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			anim.ResetToStartFrame();
+			crop.position = anim.GetCurrentFramePosition();
+			crop.size	  = anim.GetFrameSize();
+		});
+}
+
+void Animation::Draw(impl::RenderData& ctx, const Entity& entity) {
+	Sprite::Draw(ctx, entity);
 }
 
 } // namespace ptgn

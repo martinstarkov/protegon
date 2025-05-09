@@ -12,6 +12,7 @@
 
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -43,7 +44,6 @@
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
-#include "ui/button.h"
 #include "utility/span.h"
 
 namespace ptgn::impl {
@@ -79,7 +79,7 @@ void RenderData::Init() {
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
 	// TODO: Once window resizing is implemented, get rid of this.
-	lights = RenderTarget{ { 1, 1 }, color::Transparent };
+	lights = std::move(RenderTarget{ light_manager, { 1, 1 }, color::Transparent });
 
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this,
@@ -275,48 +275,6 @@ void RenderData::AddTexturedQuad(
 	batch.AddTexturedQuad(vertices, tex_coords, texture_index, color, depth, pixel_rounding);
 }
 
-void RenderData::AddPointLight(const Entity& o, const Depth& depth) {
-	PTGN_ASSERT(o.Has<PointLight>());
-
-	auto [it, inserted] = batch_map.try_emplace(depth);
-
-	auto& batches{ it->second };
-
-	auto& batch_vector{ batches.vector };
-
-	Batch* b{ nullptr };
-
-	const auto& shader{ game.shader.Get<OtherShader::Light>() };
-
-	if (batch_vector.empty()) {
-		b = &batch_vector.emplace_back(shader, light_blend_mode);
-	} else {
-		b = &batch_vector.back();
-		if (!b->Uses(shader, light_blend_mode)) {
-			b = &batch_vector.emplace_back(shader, light_blend_mode);
-		}
-	}
-	PTGN_ASSERT(b != nullptr, "Failed to find batch for light");
-	b->lights.emplace_back(o);
-}
-
-V2_float RenderData::GetTextureSize(
-	const Entity& o, const Texture& texture, const V2_float& scale
-) {
-	V2_float size;
-	if (o.Has<TextureCrop>()) {
-		size = o.Get<TextureCrop>().size;
-	}
-	if (o.Has<DisplaySize>()) {
-		size = o.Get<DisplaySize>();
-	}
-	if (size.IsZero()) {
-		size = texture.GetSize();
-	}
-	size *= scale;
-	return size;
-}
-
 void RenderData::AddEllipse(
 	const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
 	BlendMode blend_mode, const V4_float& color, float rotation, bool debug
@@ -388,282 +346,27 @@ void RenderData::AddQuad(
 	}
 }
 
-void RenderData::AddTexture(
-	const Entity& e, const Texture& texture, const V2_float& position, const V2_float& size,
-	Origin origin, const Depth& depth, BlendMode blend_mode, const V4_float& tint, float rotation,
-	bool debug, bool flip_vertically
-) {
-	AddTexturedQuad(
-		impl::GetVertices(
-			{ position + GetOriginOffset(origin, size), rotation }, size, Origin::Center
-		),
-		e.GetTextureCoordinates(flip_vertically), texture, depth, blend_mode, tint, debug
+void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
+	PTGN_ASSERT(
+		(entity.Has<Visible, IDrawable>()),
+		"Cannot render entity without drawable or visible component"
 	);
-}
 
-void RenderData::AddText(
-	const Entity& text, const V2_float& position, V2_float size, Origin origin, const Depth& depth,
-	BlendMode blend_mode, const V4_float& tint, float rotation, bool debug
-) {
-	PTGN_ASSERT(text.Has<impl::TextTag>());
-	const auto& texture{ text.Get<impl::Texture>() };
-	auto text_can_draw = [](const Entity& e) {
-		if (e.Has<TextColor>() && e.Get<TextColor>().a == 0) {
-			return false;
-		}
-		if (!e.Has<TextContent>()) {
-			return false;
-		}
-		if (std::string_view{ e.Get<TextContent>() }.empty()) {
-			return false;
-		}
-		return true;
-	};
-	if (size.IsZero()) {
-		size = Text::GetSize(text);
-		auto offset_transform{ text.GetOffset() };
-		auto text_scale{ text.GetScale() * offset_transform.scale };
-		size *= text_scale;
-	}
-	if (texture.IsValid() && std::invoke(text_can_draw, text)) {
-		AddTexture(
-			text, texture, position, size, origin, depth, blend_mode, tint, rotation, debug, false
-		);
-	}
-}
-
-void RenderData::AddRenderTarget(
-	const Entity& o, const RenderTarget& rt, const Depth& depth, BlendMode blend_mode,
-	const V4_float& tint
-) {
-	const auto& texture{ rt.GetTexture() };
-	// TODO: Add custom size.
-	AddTexturedQuad(
-		camera_vertices, o.GetTextureCoordinates(true), texture, depth, blend_mode, tint, false
-	);
-}
-
-void RenderData::AddButton(
-	const Entity& o, const V2_float& position, const Depth& depth, BlendMode blend_mode,
-	const V4_float& tint, float rotation, const V2_float& scale
-) {
-	PTGN_ASSERT(o.Has<impl::ButtonTag>());
-
-	auto state{ Button::GetState(o) };
-
-	if (o.Has<impl::ButtonColor>()) {
-		o.Get<impl::ButtonColor>().SetToState(state);
-	}
-	if (o.Has<impl::ButtonColorToggled>()) {
-		o.Get<impl::ButtonColorToggled>().SetToState(state);
-	}
-	if (o.Has<impl::ButtonTint>()) {
-		o.Get<impl::ButtonTint>().SetToState(state);
-	}
-	if (o.Has<impl::ButtonTintToggled>()) {
-		o.Get<impl::ButtonTintToggled>().SetToState(state);
-	}
-	if (o.Has<impl::ButtonBorderColor>()) {
-		o.Get<impl::ButtonBorderColor>().SetToState(state);
-	}
-	if (o.Has<impl::ButtonBorderColorToggled>()) {
-		o.Get<impl::ButtonBorderColorToggled>().SetToState(state);
-	}
-	if (o.Has<TextureKey>()) {
-		auto& key{ o.Get<TextureKey>() };
-		if (!o.IsEnabled() && o.Has<impl::ButtonDisabledTextureKey>()) {
-			key = o.Get<impl::ButtonDisabledTextureKey>();
-		} else if (o.Has<impl::ButtonToggled>() && o.Has<impl::ButtonTextureToggled>()) {
-			key = o.Get<impl::ButtonTextureToggled>().Get(state);
-		} else if (o.Has<impl::ButtonTexture>()) {
-			key = o.Get<impl::ButtonTexture>().Get(state);
-		}
-	}
-
-	// TODO: Move this all to a separate functions.
-	// TODO: Reduce repeated code.
-
-	Origin origin{ Origin::Center };
-	V2_float size;
-
-	if (o.Has<ButtonSize>()) {
-		size = o.Get<ButtonSize>();
-	} else if (o.Has<ButtonRadius>()) {
-		size = V2_float{ o.Get<ButtonRadius>() * 2.0f };
-	}
-
-	if (o.Has<ButtonOrigin>()) {
-		origin = o.Get<ButtonOrigin>();
-	}
-
-	TextureKey button_texture_key;
-	if (o.Has<TextureKey>()) {
-		button_texture_key = o.Get<TextureKey>();
-	}
-	const Texture* button_texture{ nullptr };
-	if (game.texture.Has(button_texture_key)) {
-		button_texture = &game.texture.Get(button_texture_key);
-	}
-
-	if (button_texture != nullptr && size.IsZero()) {
-		size = button_texture->GetSize();
-	}
-
-	size *= scale;
-	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
-
-	if (button_texture != nullptr && *button_texture != Texture{}) {
-		Color button_tint{ color::White };
-		if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
-			o.Has<impl::ButtonTintToggled>()) {
-			button_tint = o.Get<impl::ButtonTintToggled>().current_;
-		} else if (o.Has<impl::ButtonTint>()) {
-			button_tint = o.Get<impl::ButtonTint>().current_;
-		}
-		V4_float final_tint_n{ button_tint.Normalized() * tint };
-		AddTexture(
-			{}, *button_texture, position, size, origin, depth, blend_mode, final_tint_n, rotation,
-			false, false
-		);
-	} else {
-		ButtonBackgroundWidth background_line_width;
-		if (o.Has<impl::ButtonBackgroundWidth>()) {
-			background_line_width = o.Get<impl::ButtonBackgroundWidth>();
-		}
-		if (background_line_width != 0.0f) {
-			Color button_color;
-			if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
-				o.Has<impl::ButtonColorToggled>()) {
-				button_color = o.Get<impl::ButtonColorToggled>().current_;
-			} else if (o.Has<impl::ButtonColor>()) {
-				button_color = o.Get<impl::ButtonColor>().current_;
-			}
-			V4_float background_color_n{ button_color.Normalized() };
-			if (background_color_n != V4_float{}) {
-				// TODO: Add rounded buttons.
-				/*if (radius_ > 0.0f) {
-					RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
-									i.rect_.rotation };
-					r.Draw(bg, i.line_thickness_, i.render_layer_);
-				} else {*/
-				AddQuad(
-					position, size, origin, background_line_width, depth, blend_mode,
-					background_color_n, rotation, false
-				);
-			}
-		}
-	}
-
-	const Text* text{ nullptr };
-	if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
-		o.Has<impl::ButtonTextToggled>()) {
-		const auto& button_text_toggled{ o.Get<impl::ButtonTextToggled>() };
-		text = &button_text_toggled.GetValid(state);
-	} else if (o.Has<impl::ButtonText>()) {
-		const auto& button_text{ o.Get<impl::ButtonText>() };
-		text = &button_text.GetValid(state);
-	}
-	if (text != nullptr && *text != Text{}) {
-		V2_float text_size;
-		if (o.Has<impl::ButtonTextFixedSize>()) {
-			text_size = o.Get<impl::ButtonTextFixedSize>();
-		} else {
-			text_size = text->GetSize();
-		}
-		if (NearlyEqual(text_size.x, 0.0f)) {
-			text_size.x = size.x;
-		}
-		if (NearlyEqual(text_size.y, 0.0f)) {
-			text_size.y = size.y;
-		}
-		auto offset_transform{ text->GetOffset() };
-		auto text_scale{ text->GetScale() * offset_transform.scale };
-		text_size *= text_scale;
-		// Offset by button size so that text is initially centered on button center.
-		auto text_pos{ text->GetPosition() + GetOriginOffset(origin, size) +
-					   offset_transform.position };
-		auto text_rotation{ text->GetRotation() + offset_transform.rotation };
-		AddText(
-			*text, text_pos, text_size, text->GetOrigin(), text->GetDepth(), text->GetBlendMode(),
-			text->GetTint().Normalized() * tint, text_rotation, false
-		);
-	}
-
-	ButtonBorderWidth border_width;
-	if (o.Has<impl::ButtonBorderWidth>()) {
-		border_width = o.Get<impl::ButtonBorderWidth>();
-	}
-	if (border_width != 0.0f) {
-		Color border_color;
-		if (o.Has<impl::ButtonToggled>() && o.Get<impl::ButtonToggled>() &&
-			o.Has<impl::ButtonBorderColorToggled>()) {
-			border_color = o.Get<impl::ButtonBorderColorToggled>().current_;
-		} else if (o.Has<impl::ButtonBorderColor>()) {
-			border_color = o.Get<impl::ButtonBorderColor>().current_;
-		}
-		V4_float border_color_n{ border_color.Normalized() };
-		if (border_color_n != V4_float{}) {
-			// TODO: Readd rounded buttons.
-			/*if (i.radius_ > 0.0f) {
-				RoundedRect r{ i.rect_.position, i.radius_, i.rect_.size, i.rect_.origin,
-								i.rect_.rotation };
-				r.Draw(border_color, border_width, i.render_layer_ + 2);
-			} else {*/
-			AddQuad(
-				position, size, origin, border_width, depth, blend_mode, border_color_n, rotation,
-				false
-			);
-		}
-	}
-}
-
-void RenderData::AddToBatch(const Entity& o, bool check_visibility) {
-	PTGN_ASSERT((o.Has<Visible>()), "Cannot render entity without transform or visible component");
-
-	if (check_visibility && !o.Get<Visible>()) {
+	if (check_visibility && !entity.Get<Visible>()) {
 		return;
 	}
 
-	auto depth{ o.GetDepth() };
-	auto blend_mode{ o.GetBlendMode() };
-	auto offset_transform{ o.GetOffset() };
-	auto pos{ o.GetPosition() + offset_transform.position };
-	auto scale{ o.GetScale() * offset_transform.scale };
-	auto angle{ o.GetRotation() + offset_transform.rotation };
-	auto tint{ o.GetTint().Normalized() };
+	const auto& drawable{ entity.Get<IDrawable>() };
 
-	// TODO: Move from using tags to some sort of RenderComponent.
+	const auto& drawable_functions{ IDrawable::data() };
 
-	if (o.Has<impl::ButtonTag>()) {
-		AddButton(o, pos, depth, blend_mode, tint, angle, scale);
-		return;
-	} else if (o.Has<TextureKey>()) {
-		const auto& texture_key{ o.Get<TextureKey>() };
-		const auto& texture{ game.texture.Get(texture_key) };
-		AddTexture(
-			o, texture, pos, GetTextureSize(o, texture, scale), o.GetOrigin(), depth, blend_mode,
-			tint, angle, false, false
-		);
-		return;
-	} else if (o.Has<TextTag>()) {
-		AddText(
-			o, pos, GetTextureSize(o, o.Get<impl::Texture>(), scale), o.GetOrigin(), depth,
-			blend_mode, tint, angle, false
-		);
-		return;
-	} else if (o.Has<RenderTarget>()) {
-		const auto& rt{ o.Get<RenderTarget>() };
-		AddRenderTarget(o, rt, depth, blend_mode, tint);
-		return;
-	} else if (o.Has<PointLight>()) {
-		AddPointLight(o, depth);
-		return;
-	} else if (o.Has<impl::ParticleEmitterComponent>()) {
-		ParticleEmitter::Draw(o, *this, depth, blend_mode);
-		return;
-	}
+	const auto it{ drawable_functions.find(drawable.hash) };
 
-	PTGN_ERROR("Unknown drawable");
+	PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
+
+	const auto& draw_function{ it->second };
+
+	std::invoke(draw_function, *this, entity);
 
 	// TODO: Replace with graphics object.
 	/*
@@ -753,7 +456,7 @@ void RenderData::Render(
 	const FrameBuffer& frame_buffer, const Camera& camera, const Manager& manager
 ) {
 	SetupRender(frame_buffer, camera);
-	for (auto [e, v] : manager.EntitiesWith<Visible>()) {
+	for (auto [e, v, d] : manager.EntitiesWith<Visible, IDrawable>()) {
 		AddToBatch(e, true);
 	}
 	Flush(frame_buffer, camera);

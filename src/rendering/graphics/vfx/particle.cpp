@@ -12,6 +12,7 @@
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "math/geometry.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -86,29 +87,32 @@ ParticleEmitter::ParticleEmitter(Manager& manager, const ParticleInfo& info) :
 	i.manager.Reserve(i.info.total_particles);
 }
 
-void ParticleEmitter::Draw(
-	const Entity& e, impl::RenderData& r, const Depth& depth, BlendMode blend_mode
-) {
-	auto& i{ e.Get<impl::ParticleEmitterComponent>() };
+void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
+	auto blend_mode{ entity.GetBlendMode() };
+	auto depth{ entity.GetDepth() };
+
+	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 	if (i.info.texture_enabled && i.info.texture_key != "") {
 		V4_float tint{ color::White.Normalized() };
-		for (const auto& [entity, p] : i.manager.EntitiesWith<Particle>()) {
+		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 			if (i.info.tint_texture) {
 				tint = p.color.Normalized();
 			}
-			// TODO: Add texture rotaiton.
-			r.AddTexture(
-				{}, game.texture.Get(i.info.texture_key), p.position,
-				{ 2.0f * p.radius, 2.0f * p.radius }, Origin::Center, depth, blend_mode, tint, 0.0f,
-				false, false
+
+			// TODO: Add texture rotation.
+			Transform t{ p.position };
+			ctx.AddTexturedQuad(
+				impl::GetVertices(t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center),
+				e.GetTextureCoordinates(false), game.texture.Get(i.info.texture_key), depth,
+				blend_mode, tint, false
 			);
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
-			for (const auto& [entity, p] : i.manager.EntitiesWith<Particle>()) {
-				r.AddEllipse(
+			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
+				ctx.AddEllipse(
 					p.position, V2_float{ p.radius }, i.info.line_width, depth, blend_mode,
 					p.color.Normalized(), 0.0f, false
 				);
@@ -116,9 +120,9 @@ void ParticleEmitter::Draw(
 			break;
 		}
 		case ParticleShape::Square: {
-			for (const auto& [entity, p] : i.manager.EntitiesWith<Particle>()) {
-				// TODO: Add rect rotation
-				r.AddQuad(
+			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
+				// TODO: Add rect rotation.
+				ctx.AddQuad(
 					p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center,
 					i.info.line_width, depth, blend_mode, p.color.Normalized(), 0.0f, false
 				);

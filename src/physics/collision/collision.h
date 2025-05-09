@@ -317,7 +317,7 @@ private:
 	};
 
 	template <typename T>
-	[[nodiscard]] static bool ProcessCallback(Entity e1, Entity e2, const V2_float& normal) {
+	static bool ProcessCallback(Entity e1, Entity e2, const V2_float& normal) {
 		// Process callback can invalidate the collider reference.
 		if (e1.Get<T>().ProcessCallback(e1, e2)) {
 			e1.Get<T>().collisions.emplace(e1, e2, normal);

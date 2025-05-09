@@ -140,8 +140,9 @@ const Transform& Entity::GetRootTransform() const {
 
 	auto transform{ get_transform(*this) };
 	PTGN_ASSERT(
-		transform != nullptr, "Game object does not have an absolute, i.e. neither this entity nor "
-							  "any of its parents have a transform component"
+		transform != nullptr,
+		"Game object does not have a root transform, i.e. neither this entity nor "
+		"any of its parents have a transform component"
 	);
 	return *transform;
 }
@@ -158,6 +159,10 @@ Transform Entity::GetTransform() const {
 	return GetRelativeTransform().RelativeTo(
 		HasParent() ? GetParent().GetTransform() : Transform{}
 	);
+}
+
+Transform Entity::GetAbsoluteTransform() const {
+	return GetTransform().RelativeTo(GetOffset());
 }
 
 Transform Entity::GetRelativeOffset() const {

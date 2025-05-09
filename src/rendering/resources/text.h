@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 
+#include "common/type_traits.h"
+#include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/game_object.h"
@@ -14,13 +16,12 @@
 #include "rendering/api/color.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
-#include "common/type_traits.h"
 
 namespace ptgn {
 
 namespace impl {
 
-struct TextTag {};
+class RenderData;
 
 } // namespace impl
 
@@ -83,7 +84,7 @@ struct TextShadingColor : public ColorComponent {
 	TextShadingColor() : ColorComponent{ color::White } {}
 };
 
-class Text : public GameObject {
+class Text : public GameObject, public Drawable<Text> {
 public:
 	Text()							 = default;
 	Text(const Text&)				 = delete;
@@ -105,6 +106,8 @@ public:
 		Manager& manager, const TextContent& content, const TextColor& text_color = {},
 		const FontKey& font_key = {}
 	);
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.

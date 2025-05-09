@@ -1,68 +1,25 @@
-#include "core/game_object.h"
-#include "core/manager.h"
-#include "math/hash.h"
+#include "components/draw.h"
+#include "core/game.h"
 #include "protegon/protegon.h"
-#include "rendering/batching/render_data.h"
+#include "rendering/resources/texture.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-struct Enemy : public GameObject, public Drawable<Enemy> {
-	Enemy() = default;
-
-	Enemy(Manager& m) : GameObject{ m } {
-		SetDraw<Enemy>();
-	}
-
-	static void Draw(impl::RenderData& rd, [[maybe_unused]] const Entity& entity) {
-		rd.AddEllipse(
-			{ 32, 32 }, V2_float{ 32 }, -1.0f, Depth{}, BlendMode{}, color::Red.Normalized(), 0.0f,
-			false
-		);
-	}
-};
-
-struct Player : public GameObject, public Drawable<Player> {
-	Player() = default;
-
-	Player(Manager& m) : GameObject{ m } {
-		SetDraw<Player>();
-	}
-
-	static void Draw(impl::RenderData& rd, [[maybe_unused]] const Entity& entity) {
-		rd.AddEllipse(
-			{ 32, 32 }, V2_float{ 16 }, -1.0f, Depth{ 1 }, BlendMode{}, color::Blue.Normalized(),
-			0.0f, false
-		);
-	}
-};
-
 class Sandbox : public Scene {
 public:
-	Enemy enemy1;
-	Player player1;
+	Sprite s1;
 
 	void Enter() {
-		enemy1 = Enemy{ manager };
-
-		player1 = Player{ manager };
-
 		game.texture.Load("test", "resources/test.png");
 
-		PTGN_LOG("Enter");
+		s1 = Sprite{ manager, "test" };
+
+		s1.SetPosition(camera.primary.GetPosition());
 	}
 
-	void Update() {
-		if (game.input.KeyDown(Key::R)) {
-			player1.RemoveDraw();
-		}
-		for (auto [e, d] : manager.EntitiesWith<IDrawable>()) {
-			auto it = IDrawable::data().find(d.hash);
-			PTGN_ASSERT(it != IDrawable::data().end());
-			auto& f = it->second;
-			std::invoke(f, game.renderer.GetRenderData(), e);
-		}
-		PTGN_LOG("Update");
-	}
+	void Update() {}
 };
 
 int main() {
@@ -745,8 +702,6 @@ int main() {
 #include "core/manager.h"
 #include "core/transform.h"
 #include "core/uuid.h"
-
-
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/rng.h"

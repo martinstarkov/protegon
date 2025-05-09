@@ -2,17 +2,16 @@
 
 #include <string_view>
 
-#include "components/common.h"
+#include "components/drawable.h"
 #include "core/entity.h"
 #include "core/game_object.h"
 #include "core/manager.h"
+#include "core/time.h"
+#include "core/timer.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
-#include "core/time.h"
-#include "core/timer.h"
 
 namespace ptgn {
 
@@ -100,11 +99,13 @@ struct ParticleEmitterComponent {
 
 } // namespace impl
 
-class ParticleEmitter : public GameObject {
+class ParticleEmitter : public GameObject, public Drawable<ParticleEmitter> {
 public:
 	ParticleEmitter() = delete;
 	explicit ParticleEmitter(Manager& manager);
 	explicit ParticleEmitter(Manager& manager, const ParticleInfo& info);
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	// Starts emitting particles.
 	ParticleEmitter& Start();
@@ -139,13 +140,6 @@ public:
 
 	ParticleEmitter& SetEmissionDelay(milliseconds emission_delay);
 	[[nodiscard]] milliseconds GetEmissionDelay() const;
-
-private:
-	friend class impl::RenderData;
-
-	static void Draw(
-		const Entity& e, impl::RenderData& r, const Depth& depth, BlendMode blend_mode
-	);
 };
 
 } // namespace ptgn

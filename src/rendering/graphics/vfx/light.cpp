@@ -1,11 +1,45 @@
 #include "rendering/graphics/vfx/light.h"
 
+#include <map>
+#include <utility>
+#include <vector>
+
+#include "common/assert.h"
+#include "core/entity.h"
+#include "core/game.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "rendering/api/color.h"
-#include "common/assert.h"
+#include "rendering/batching/batch.h"
+#include "rendering/batching/render_data.h"
+#include "rendering/resources/shader.h"
 
 namespace ptgn {
+
+void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
+	auto depth{ entity.GetDepth() };
+
+	auto [it, inserted] = ctx.batch_map.try_emplace(depth);
+
+	auto& batches{ it->second };
+
+	auto& batch_vector{ batches.vector };
+
+	impl::Batch* b{ nullptr };
+
+	const auto& shader{ game.shader.Get<OtherShader::Light>() };
+
+	if (batch_vector.empty()) {
+		b = &batch_vector.emplace_back(shader, ctx.light_blend_mode);
+	} else {
+		b = &batch_vector.back();
+		if (!b->Uses(shader, ctx.light_blend_mode)) {
+			b = &batch_vector.emplace_back(shader, ctx.light_blend_mode);
+		}
+	}
+	PTGN_ASSERT(b != nullptr, "Failed to find batch for light");
+	b->lights.emplace_back(entity);
+}
 
 PointLight& PointLight::SetIntensity(float intensity) {
 	intensity_ = intensity;

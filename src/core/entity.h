@@ -141,6 +141,9 @@ public:
 
 	[[nodiscard]] Transform GetTransform() const;
 
+	// @return The root transform of the entity relative to all of its parent offsets.
+	[[nodiscard]] Transform GetAbsoluteTransform() const;
+
 	[[nodiscard]] V2_float GetRelativePosition() const;
 
 	[[nodiscard]] V2_float GetPosition() const;
@@ -211,9 +214,6 @@ public:
 
 	friend void to_json(json& j, const Entity& e);
 	friend void from_json(const json& j, Entity& e);
-
-protected:
-	friend class impl::RenderData;
 
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 

@@ -7,6 +7,7 @@
 
 #include "common/type_traits.h"
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/game_object.h"
@@ -20,6 +21,12 @@
 
 namespace ptgn {
 
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
+
 struct ToggleButton;
 class ToggleButtonGroup;
 
@@ -31,10 +38,6 @@ enum class ButtonState : std::uint8_t {
 };
 
 namespace impl {
-
-class RenderData;
-
-struct ButtonTag {};
 
 struct ButtonHoverStart : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
@@ -185,7 +188,7 @@ struct ButtonRadius : public ArithmeticComponent<float> {
 
 using ButtonCallback = std::function<void()>;
 
-struct Button : public GameObject {
+struct Button : public GameObject, public Drawable<Button> {
 	Button() = default;
 	explicit Button(Manager& manager);
 	Button(const Button&)				 = delete;
@@ -193,6 +196,8 @@ struct Button : public GameObject {
 	Button(Button&&) noexcept			 = default;
 	Button& operator=(Button&&) noexcept = default;
 	virtual ~Button()					 = default;
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	Button& AddInteractableRect(
 		const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}

@@ -2,17 +2,19 @@
 
 #include <utility>
 
+#include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "rendering/batching/render_data.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/renderer.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
-#include "common/assert.h"
 
 namespace ptgn {
 
@@ -32,51 +34,47 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 */
 
 RenderTarget::RenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) :
-	RenderTarget{ size, clear_color } {
-	camera = Camera{ manager };
-}
-
-RenderTarget::RenderTarget(const V2_float& size, const Color& clear_color) :
-	frame_buffer_{ impl::Texture(nullptr, size) }, clear_color_{ clear_color } {
-	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
-	PTGN_ASSERT(frame_buffer_.IsBound(), "Failed to bind frame buffer for render target");
+	GameObject{ manager } {
+	Add<Camera>(manager);
+	Add<impl::ClearColor>(clear_color);
+	auto& fb = Add<impl::FrameBuffer>(impl::Texture{ nullptr, size });
+	PTGN_ASSERT(fb.IsValid(), "Failed to create valid frame buffer for render target");
+	PTGN_ASSERT(fb.IsBound(), "Failed to bind frame buffer for render target");
 	Clear();
 }
 
-RenderTarget::RenderTarget(RenderTarget&& other) noexcept :
-	camera{ std::exchange(other.camera, {}) },
-	frame_buffer_{ std::exchange(other.frame_buffer_, {}) },
-	clear_color_{ std::exchange(other.clear_color_, {}) } {
-	// TODO: Add window subscribe stuff here.
-}
+void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
+	// TODO: Add custom size.
+	// const auto& transform{ entity.GetAbsoluteTransform() };
 
-RenderTarget& RenderTarget::operator=(RenderTarget&& other) noexcept {
-	if (this != &other) {
-		// TODO: Add window subscribe stuff here.
-		camera		  = std::exchange(other.camera, {});
-		frame_buffer_ = std::exchange(other.frame_buffer_, {});
-		clear_color_  = std::exchange(other.clear_color_, {});
-	}
-	return *this;
-}
+	auto blend_mode{ entity.GetBlendMode() };
+	auto depth{ entity.GetDepth() };
+	auto tint{ entity.GetTint().Normalized() };
 
-RenderTarget::~RenderTarget() {
-	// TODO: Add window subscribe stuff here.
-	// UnsubscribeFromEvents();
+	const auto& fb{ entity.Get<impl::FrameBuffer>() };
+	const auto& texture{ fb.GetTexture() };
+
+	ctx.AddTexturedQuad(
+		ctx.camera_vertices, entity.GetTextureCoordinates(true), texture, depth, blend_mode, tint,
+		false
+	);
 }
 
 void RenderTarget::Draw(const Entity& e) const {
-	PTGN_ASSERT(frame_buffer_.IsBound(), "Cannot draw to render target unless it is first bound");
+	const auto& fb	   = Get<impl::FrameBuffer>();
+	const auto& camera = Get<Camera>();
+	PTGN_ASSERT(fb.IsBound(), "Cannot draw to render target unless it is first bound");
 	PTGN_ASSERT(
 		camera != Camera{}, "Cannot draw to render target with invalid or uninitialized camera"
 	);
-	game.renderer.GetRenderData().Render(frame_buffer_, camera, e, false);
+	game.renderer.GetRenderData().Render(fb, camera, e, false);
 }
 
 void RenderTarget::Bind() const {
-	PTGN_ASSERT(frame_buffer_.IsValid(), "Cannot bind invalid or uninitialized frame buffer");
-	frame_buffer_.Bind();
-	PTGN_ASSERT(frame_buffer_.IsBound(), "Failed to bind render target frame buffer");
+	const auto& fb = Get<impl::FrameBuffer>();
+	PTGN_ASSERT(fb.IsValid(), "Cannot bind invalid or uninitialized frame buffer");
+	fb.Bind();
+	PTGN_ASSERT(fb.IsBound(), "Failed to bind render target frame buffer");
 }
 
 /*
@@ -95,18 +93,10 @@ void RenderTarget::UnsubscribeFromEvents() const {
 */
 
 void RenderTarget::Clear() const {
-	PTGN_ASSERT(
-		frame_buffer_.IsBound(), "Render target frame buffer must be bound before clearing"
-	);
-	impl::GLRenderer::ClearToColor(clear_color_);
-}
-
-void RenderTarget::SetTint(const Color& color) {
-	tint_color_ = color;
-}
-
-Color RenderTarget::GetTint() const {
-	return tint_color_;
+	const auto& fb = Get<impl::FrameBuffer>();
+	PTGN_ASSERT(fb.IsBound(), "Render target frame buffer must be bound before clearing");
+	const auto& clear_color = Get<impl::ClearColor>();
+	impl::GLRenderer::ClearToColor(clear_color);
 }
 
 /*
@@ -142,23 +132,27 @@ void RenderTarget::Draw(const TextureInfo& texture_info, Shader shader, bool cle
 */
 
 Color RenderTarget::GetClearColor() const {
-	return clear_color_;
+	return Has<impl::ClearColor>() ? Get<impl::ClearColor>() : impl::ClearColor{};
 }
 
 void RenderTarget::SetClearColor(const Color& clear_color) {
-	clear_color_ = clear_color;
+	if (Has<impl::ClearColor>()) {
+		Get<impl::ClearColor>() = clear_color;
+	} else {
+		Add<impl::ClearColor>(clear_color);
+	}
 }
 
 const impl::Texture& RenderTarget::GetTexture() const {
-	return frame_buffer_.GetTexture();
+	return Get<impl::FrameBuffer>().GetTexture();
 }
 
 impl::Texture& RenderTarget::GetTexture() {
-	return frame_buffer_.GetTexture();
+	return Get<impl::FrameBuffer>().GetTexture();
 }
 
 const impl::FrameBuffer& RenderTarget::GetFrameBuffer() const {
-	return frame_buffer_;
+	return Get<impl::FrameBuffer>();
 }
 
 } // namespace ptgn

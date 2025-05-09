@@ -1,6 +1,8 @@
 #pragma once
 
+#include "components/drawable.h"
 #include "core/entity.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -16,20 +18,29 @@ namespace impl {
 
 class RenderData;
 
+struct RenderTargetInfo {
+	Camera camera_;
+	impl::FrameBuffer frame_buffer_;
+};
+
+struct ClearColor : public ColorComponent {
+	using ColorComponent::ColorComponent;
+
+	ClearColor() : ColorComponent{ color::Transparent } {}
+};
+
 } // namespace impl
 
 // Each render target is initialized with a window camera.
-class RenderTarget {
+class RenderTarget : public GameObject, public Drawable<RenderTarget> {
 public:
 	// A default render target will result in the screen being used as the render target.
-	RenderTarget() = default;
-
-	RenderTarget(const RenderTarget&)			 = delete;
-	RenderTarget& operator=(const RenderTarget&) = delete;
-	RenderTarget(RenderTarget&& other) noexcept;
-	RenderTarget& operator=(RenderTarget&& other) noexcept;
-
-	~RenderTarget();
+	RenderTarget()									 = default;
+	RenderTarget(const RenderTarget&)				 = delete;
+	RenderTarget& operator=(const RenderTarget&)	 = delete;
+	RenderTarget(RenderTarget&&) noexcept			 = default;
+	RenderTarget& operator=(RenderTarget&&) noexcept = default;
+	~RenderTarget()									 = default;
 
 	// TODO: Implement window resizing.
 	// Create a render target that is continuously sized to the window.
@@ -42,6 +53,8 @@ public:
 	RenderTarget(
 		Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
 	);
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	// Draw an entity to the render target.
 	// The entity must have the Transform and Visible components.
@@ -76,18 +89,6 @@ public:
 		bool clear_after_draw = true
 	) const;*/
 
-	Camera camera;
-
-	// Setting tint to color::White will apply no tint to the render target texture.
-	void SetTint(const Color& color = color::White);
-
-	[[nodiscard]] Color GetTint() const;
-
-private:
-	friend class impl::RenderData;
-	friend class Scene;
-
-	RenderTarget(const V2_float& size, const Color& clear_color);
 	// TODO: Add window subscribe stuff here.
 	// Subscribes viewport to being resized to window size.
 	// Will also set the viewport to the current window size.
@@ -103,10 +104,6 @@ private:
 
 	//// @param shader {} will result in default screen shader being used.
 	// void Draw(const TextureInfo& texture_info, Shader shader, bool clear_after_draw) const;
-
-	impl::FrameBuffer frame_buffer_;
-	Color clear_color_{ color::Transparent };
-	Color tint_color_{ color::White };
 };
 
 } // namespace ptgn

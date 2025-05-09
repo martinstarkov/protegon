@@ -1,13 +1,22 @@
 #pragma once
 
+#include "components/drawable.h"
+#include "core/entity.h"
+#include "core/game_object.h"
 #include "math/vector3.h"
 #include "rendering/api/color.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
 
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
+
 // Lights must be added to the LightManager to be drawn to the screen.
-class PointLight {
+class PointLight : public GameObject, public Drawable<PointLight> {
 public:
 	friend bool operator==(const PointLight& a, const PointLight& b) {
 		return a.color_ == b.color_ && a.intensity_ == b.intensity_ &&
@@ -19,6 +28,8 @@ public:
 	friend bool operator!=(const PointLight& a, const PointLight& b) {
 		return !(a == b);
 	}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	PointLight& SetIntensity(float intensity);
 	[[nodiscard]] float GetIntensity() const;
