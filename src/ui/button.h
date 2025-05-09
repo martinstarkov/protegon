@@ -146,7 +146,7 @@ struct ButtonTextureToggled : public ButtonTexture {
 
 struct ButtonText {
 	ButtonText(
-		const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontKey& font_key
 	);
 
@@ -159,7 +159,7 @@ struct ButtonText {
 	[[nodiscard]] Text& GetValid(ButtonState state);
 	[[nodiscard]] Text& Get(ButtonState state);
 	void Set(
-		const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontKey& font_key
 	);
 

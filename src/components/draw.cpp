@@ -76,8 +76,8 @@ std::size_t AnimationInfo::GetStartFrame() const {
 
 } // namespace impl
 
-Entity& AnimationMap::Load(const ActiveMapManager::Key& key, const Entity& entity, bool hide) {
-	auto [it, inserted] = GetMap().try_emplace(GetInternalKey(key), entity);
+Animation& AnimationMap::Load(const ActiveMapManager::Key& key, Animation&& entity, bool hide) {
+	auto [it, inserted] = GetMap().try_emplace(GetInternalKey(key), std::move(entity));
 	if (hide) {
 		it->second.Hide();
 	}
@@ -109,7 +109,7 @@ Sprite::Sprite(Manager& manager, std::string_view texture_key) : GameObject{ man
 }
 
 void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
-	const auto& transform{ entity.GetAbsoluteTransform() };
+	auto transform{ entity.GetAbsoluteTransform() };
 	auto depth{ entity.GetDepth() };
 	auto blend_mode{ entity.GetBlendMode() };
 	auto tint{ entity.GetTint().Normalized() };
@@ -117,28 +117,11 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	const auto& texture_key{ entity.Get<TextureKey>() };
 	const auto& texture{ game.texture.Get(texture_key) };
+	auto size{ entity.GetSize() };
+	auto coords{ entity.GetTextureCoordinates(false) };
+	auto vertices{ impl::GetVertices(transform, size, origin) };
 
-	V2_float size;
-	if (entity.Has<TextureCrop>()) {
-		size = entity.Get<TextureCrop>().size;
-	}
-	if (entity.Has<DisplaySize>()) {
-		size = entity.Get<DisplaySize>();
-	}
-	if (size.IsZero()) {
-		size = texture.GetSize();
-	}
-
-	size *= transform.scale;
-
-	ctx.AddTexturedQuad(
-		impl::GetVertices(
-			{ transform.position + GetOriginOffset(origin, size), transform.rotation,
-			  transform.scale },
-			size, Origin::Center
-		),
-		entity.GetTextureCoordinates(false), texture, depth, blend_mode, tint, false
-	);
+	ctx.AddTexturedQuad(vertices, coords, texture, depth, blend_mode, tint, false);
 }
 
 Animation::Animation(
@@ -149,8 +132,11 @@ Animation::Animation(
 	Sprite{ manager, texture_key } {
 	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
 
-	Add<TextureCrop>();
-	Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
+	auto& crop = Add<TextureCrop>();
+	auto& anim = Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
+
+	crop.position = anim.GetCurrentFramePosition();
+	crop.size	  = anim.GetFrameSize();
 
 	milliseconds frame_duration{ animation_duration / frame_count };
 

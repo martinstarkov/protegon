@@ -51,7 +51,7 @@ Color& ButtonColor::Get(ButtonState state) {
 }
 
 ButtonText::ButtonText(
-	const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 	const TextColor& text_color, const FontKey& font_key
 ) {
 	Set(parent, manager, ButtonState::Default, text_content, text_color, font_key);
@@ -106,7 +106,7 @@ TextJustify ButtonText::GetTextJustify(ButtonState state) const {
 }
 
 void ButtonText::Set(
-	const Entity& parent, Manager& manager, ButtonState state, const TextContent& text_content,
+	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 	const TextColor& text_color, const FontKey& font_key
 ) {
 	PTGN_ASSERT(
@@ -296,8 +296,6 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		size = button_texture->GetSize();
 	}
 
-	size *= transform.scale;
-
 	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
 
 	if (button_texture != nullptr && *button_texture != impl::Texture{}) {
@@ -311,13 +309,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		V4_float final_tint_n{ button_tint.Normalized() * tint };
 
 		ctx.AddTexturedQuad(
-			impl::GetVertices(
-				{ transform.position + GetOriginOffset(origin, size), transform.rotation,
-				  transform.scale },
-				size, Origin::Center
-			),
-			entity.GetTextureCoordinates(false), *button_texture, depth, blend_mode, final_tint_n,
-			false
+			impl::GetVertices(transform, size, origin), entity.GetTextureCoordinates(false),
+			*button_texture, depth, blend_mode, final_tint_n, false
 		);
 	} else {
 		impl::ButtonBackgroundWidth background_line_width;
@@ -341,8 +334,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 					r.Draw(bg, i.line_thickness_, i.render_layer_);
 				} else {*/
 				ctx.AddQuad(
-					transform.position, size, origin, background_line_width, depth, blend_mode,
-					background_color_n, transform.rotation, false
+					transform.position, size * transform.scale, origin, background_line_width,
+					depth, blend_mode, background_color_n, transform.rotation, false
 				);
 			}
 		}
@@ -377,7 +370,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 		// TODO: Fix this centering.
 		// Offset by button size so that text is initially centered on button center.
-		// text_transform.position += GetOriginOffset(origin, size);
+		// text_transform.position += GetOriginOffset(origin, size * text_transform.scale);
 
 		// TODO: Fix text tinting: text->GetTint().Normalized() * tint
 		Text::Draw(ctx, *text);

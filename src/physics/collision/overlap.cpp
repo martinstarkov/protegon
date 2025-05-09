@@ -781,21 +781,21 @@ bool OverlapPolygonPolygon(
 
 // TODO: Readd somehow otherwise.
 bool Overlaps(const V2_float& point, const Transform& transform, Line line) {
-	line.start *= transform.scale;
-	line.end   *= transform.scale;
+	line.start *= Abs(transform.scale);
+	line.end   *= Abs(transform.scale);
 	line.start += transform.position;
 	line.end   += transform.position;
 	return impl::OverlapPointLine(point, line.start, line.end);
 }
 
 bool Overlaps(const V2_float& point, const Transform& transform, Circle circle) {
-	circle.radius *= transform.scale.x;
+	circle.radius *= Abs(transform.scale).x;
 	return impl::OverlapPointCircle(point, transform.position, circle.radius);
 }
 
 bool Overlaps(const V2_float& point, const Transform& transform, Triangle triangle) {
 	for (auto& v : triangle.vertices) {
-		v *= transform.scale;
+		v *= Abs(transform.scale);
 		v += transform.position;
 	}
 	return impl::OverlapPointTriangle(
@@ -804,17 +804,17 @@ bool Overlaps(const V2_float& point, const Transform& transform, Triangle triang
 }
 
 bool Overlaps(const V2_float& point, Transform transform, Rect rect) {
-	rect.size		   *= transform.scale;
+	rect.size		   *= Abs(transform.scale);
 	transform.position += GetOriginOffset(rect.origin, rect.size);
 	return impl::OverlapPointRect(point, transform.position, rect.size, transform.rotation);
 }
 
 bool Overlaps(const V2_float& point, const Transform& transform, Capsule capsule) {
-	capsule.start  *= transform.scale;
-	capsule.end	   *= transform.scale;
+	capsule.start  *= Abs(transform.scale);
+	capsule.end	   *= Abs(transform.scale);
 	capsule.start  += transform.position;
 	capsule.end	   += transform.position;
-	capsule.radius *= transform.scale.x;
+	capsule.radius *= Abs(transform.scale).x;
 	return impl::OverlapPointCapsule(point, capsule.start, capsule.end, capsule.radius);
 }
 

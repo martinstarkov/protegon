@@ -103,6 +103,8 @@ public:
 
 	Batches debug_batches;
 
+	bool sort_entity_drawing_by_y{ true };
+
 private:
 	void AddFilledTriangle(
 		const std::array<V2_float, Batch::triangle_vertex_count>& vertices, const Depth& depth,
@@ -137,6 +139,8 @@ private:
 	void SetVertexArrayToWindow(
 		const Camera& camera, const Color& color, const Depth& depth, float texture_index
 	);
+
+	void SortEntitiesByY(std::vector<Entity>& entities);
 
 	void SetupRender(const FrameBuffer& frame_buffer, const Camera& camera);
 

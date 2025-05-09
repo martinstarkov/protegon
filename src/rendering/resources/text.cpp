@@ -74,27 +74,15 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto tint{ entity.GetTint().Normalized() };
 	auto origin{ entity.GetOrigin() };
 
-	V2_float size;
+	auto size{ entity.GetSize() };
 
-	if (entity.Has<TextureCrop>()) {
-		size = entity.Get<TextureCrop>().size;
-	}
-	if (entity.Has<DisplaySize>()) {
-		size = entity.Get<DisplaySize>();
-	}
 	if (size.IsZero()) {
 		size = Text::GetSize(entity);
 	}
 
-	size *= transform.scale;
-
 	ctx.AddTexturedQuad(
-		impl::GetVertices(
-			{ transform.position + GetOriginOffset(origin, size), transform.rotation,
-			  transform.scale },
-			size, Origin::Center
-		),
-		entity.GetTextureCoordinates(false), texture, depth, blend_mode, tint, false
+		impl::GetVertices(transform, size, origin), entity.GetTextureCoordinates(false), texture,
+		depth, blend_mode, tint, false
 	);
 }
 

@@ -27,6 +27,7 @@
 #include "rendering/resources/texture.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
+#include "utility/span.h"
 
 namespace ptgn {
 
@@ -122,6 +123,49 @@ bool Entity::IsEnabled() const {
 UUID Entity::GetUUID() const {
 	PTGN_ASSERT(Has<UUID>());
 	return Get<UUID>();
+}
+
+float Entity::GetLowestY() const {
+	const auto& transform{ GetAbsoluteTransform() };
+
+	auto size{ GetSize() * transform.scale };
+
+	auto center{ transform.position + GetOriginOffset(GetOrigin(), size) };
+
+	return center.y + size.y * 0.5f;
+}
+
+V2_float Entity::GetSize() const {
+	V2_float size;
+
+	if (Has<TextureCrop>()) {
+		size = Get<TextureCrop>().size;
+	}
+	if (Has<DisplaySize>()) {
+		size = Get<DisplaySize>();
+	}
+	if (size.IsZero() && Has<TextureKey>()) {
+		const auto& texture_key{ Get<TextureKey>() };
+		const auto& texture{ game.texture.Get(texture_key) };
+		size = texture.GetSize();
+	}
+	if (size.IsZero() && Has<Children>()) {
+		const auto& children{ Get<Children>() };
+		for (const auto& [name, child] : children.named_children_) {
+			size = child.GetSize();
+			if (!size.IsZero()) {
+				break;
+			}
+		}
+		for (const auto& child : children.children_) {
+			size = child.GetSize();
+			if (!size.IsZero()) {
+				break;
+			}
+		}
+	}
+
+	return size;
 }
 
 const Transform& Entity::GetRootTransform() const {
@@ -354,19 +398,31 @@ Entity& Entity::SetOrigin(Origin origin) {
 	return *this;
 }
 
-void Entity::AddChild(const Entity& child) {
+void Entity::AddChild(Entity& child) {
 	if (Has<Children>()) {
 		Get<Children>().Add(child);
 	} else {
 		Add<Children>(child);
 	}
+	// Set child's parent.
+	if (child.HasParent()) {
+		child.Get<Entity>() = *this;
+	} else {
+		child.Add<Entity>(*this);
+	}
 }
 
-void Entity::AddChild(std::string_view name, const Entity& child) {
+void Entity::AddChild(std::string_view name, Entity& child) {
 	if (Has<Children>()) {
 		Get<Children>().Add(name, child);
 	} else {
 		Add<Children>(name, child);
+	}
+	// Set child's parent.
+	if (child.HasParent()) {
+		child.Get<Entity>() = *this;
+	} else {
+		child.Add<Entity>(*this);
 	}
 }
 
@@ -378,7 +434,15 @@ Entity Entity::GetChild(std::string_view name) {
 	return children.Get(name);
 }
 
-void Entity::RemoveChild(const Entity& child) {
+bool Entity::HasChild(const Entity& child) const {
+	if (!Has<Children>()) {
+		return false;
+	}
+	auto& children{ Get<Children>() };
+	return children.Has(child);
+}
+
+void Entity::RemoveChild(Entity& child) {
 	if (!Has<Children>()) {
 		return;
 	}
@@ -387,6 +451,10 @@ void Entity::RemoveChild(const Entity& child) {
 	if (children.IsEmpty()) {
 		Remove<Children>();
 	}
+	// Remove child's parent.
+	if (child.Has<Entity>()) {
+		child.Remove<Entity>();
+	}
 }
 
 void Entity::RemoveChild(std::string_view name) {
@@ -394,15 +462,26 @@ void Entity::RemoveChild(std::string_view name) {
 		return;
 	}
 	auto& children{ Get<Children>() };
+	auto child = children.Get(name);
 	children.Remove(name);
 	if (children.IsEmpty()) {
 		Remove<Children>();
 	}
+	// Remove child's parent.
+	if (child.Has<Entity>()) {
+		child.Remove<Entity>();
+	}
 }
 
-void Entity::SetParent(const Entity& o) {
+void Entity::SetParent(Entity& o) {
 	PTGN_ASSERT(*this != o, "Cannot add game object as its own parent");
 	PTGN_ASSERT(o != Entity{}, "Cannot add null game object as its own parent");
+	// Add child to parent's children.
+	if (o.Has<Children>()) {
+		o.Get<Children>().Add(*this);
+	} else {
+		o.Add<Children>(*this);
+	}
 	if (HasParent()) {
 		Get<Entity>() = o;
 	} else {
@@ -439,6 +518,13 @@ Entity Children::Get(std::string_view name) {
 		return it->second;
 	}
 	return {};
+}
+
+bool Children::Has(const Entity& child) const {
+	if (children_.count(child) > 0) {
+		return true;
+	}
+	return MapContains(named_children_, child);
 }
 
 bool Children::IsEmpty() const {

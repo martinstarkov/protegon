@@ -132,6 +132,11 @@ public:
 
 	[[nodiscard]] UUID GetUUID() const;
 
+	// @return The lowest y coordinate of the object.
+	[[nodiscard]] float GetLowestY() const;
+
+	[[nodiscard]] V2_float GetSize() const;
+
 	// @return Reference to the transform of the top most parent entity. If none of the entities
 	// have a transform component, an assertion is called.
 	[[nodiscard]] const Transform& GetRootTransform() const;
@@ -193,17 +198,20 @@ public:
 
 	[[nodiscard]] bool IsImmovable() const;
 
-	void AddChild(const Entity& child);
+	void AddChild(Entity& child);
 
-	void AddChild(std::string_view name, const Entity& child);
+	void AddChild(std::string_view name, Entity& child);
 
 	// @return Child entity with the given name, or null entity is no such child exists.
 	Entity GetChild(std::string_view name);
 
-	void RemoveChild(const Entity& child);
+	// @return True if the entity has the given child, named or unnamed. False otherwise.
+	[[nodiscard]] bool HasChild(const Entity& child) const;
+
+	void RemoveChild(Entity& child);
 	void RemoveChild(std::string_view name);
 
-	void SetParent(const Entity& child);
+	void SetParent(Entity& child);
 
 	// If object has no parent, returns *this.
 	[[nodiscard]] Entity GetParent() const;
@@ -260,7 +268,11 @@ struct Children {
 
 	[[nodiscard]] bool IsEmpty() const;
 
+	[[nodiscard]] bool Has(const Entity& child) const;
+
 private:
+	friend class Entity;
+
 	std::unordered_set<Entity> children_;
 	std::unordered_map<std::size_t, Entity> named_children_;
 };

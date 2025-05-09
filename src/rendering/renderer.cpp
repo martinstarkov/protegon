@@ -40,13 +40,8 @@ void DrawDebugText(
 	Transform transform{ position, rotation };
 
 	game.renderer.GetRenderData().AddTexturedQuad(
-		impl::GetVertices(
-			{ transform.position + GetOriginOffset(origin, size), transform.rotation,
-			  transform.scale },
-			size, Origin::Center
-		),
-		text.GetTextureCoordinates(false), texture, max_depth, debug_blend_mode,
-		color::White.Normalized(), true
+		impl::GetVertices(transform, size, origin), text.GetTextureCoordinates(false), texture,
+		max_depth, debug_blend_mode, color::White.Normalized(), true
 	);
 }
 

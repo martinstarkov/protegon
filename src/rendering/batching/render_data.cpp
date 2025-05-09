@@ -20,6 +20,7 @@
 #include "core/manager.h"
 #include "core/window.h"
 #include "debug/log.h"
+#include "ecs/ecs.h"
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "math/geometry.h"
@@ -335,9 +336,7 @@ void RenderData::AddQuad(
 	if (size.IsZero()) {
 		vertices = camera_vertices;
 	} else {
-		vertices = impl::GetVertices(
-			{ position + GetOriginOffset(origin, size), rotation }, size, Origin::Center
-		);
+		vertices = impl::GetVertices({ position, rotation }, size, origin);
 	}
 	if (line_width == -1.0f) {
 		AddFilledQuad(vertices, depth, blend_mode, color, debug);
@@ -391,7 +390,7 @@ void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
 	} else if (o.Has<Polygon>()) {
 		Polygon polygon{ o.Get<Polygon>() };
 		for (auto& v : polygon.vertices) {
-			v *= scale;
+			v *= Abs(scale);
 			v += pos;
 		}
 		AddPolygon(polygon.vertices, line_width, depth, blend_mode, tint, false);
@@ -413,7 +412,7 @@ void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
 	} else if (o.Has<Triangle>()) {
 		Triangle triangle{ o.Get<Triangle>() };
 		for (auto& v : triangle.vertices) {
-			v *= scale;
+			v *= Abs(scale);
 			v += pos;
 		}
 		AddTriangle(triangle.vertices, line_width, depth, blend_mode, tint, false);
@@ -452,11 +451,24 @@ void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& came
 	GLRenderer::SetViewport(position, position + size);
 }
 
+void RenderData::SortEntitiesByY(std::vector<Entity>& entities) {
+	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+		return a.GetLowestY() < b.GetLowestY();
+	});
+}
+
 void RenderData::Render(
 	const FrameBuffer& frame_buffer, const Camera& camera, const Manager& manager
 ) {
 	SetupRender(frame_buffer, camera);
-	for (auto [e, v, d] : manager.EntitiesWith<Visible, IDrawable>()) {
+
+	auto entities{ manager.EntitiesWith<Visible, IDrawable>().GetVector() };
+
+	if (sort_entity_drawing_by_y) {
+		SortEntitiesByY(entities);
+	}
+
+	for (const auto& e : entities) {
 		AddToBatch(e, true);
 	}
 	Flush(frame_buffer, camera);

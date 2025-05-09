@@ -178,7 +178,7 @@ struct Animation : public Sprite, public Drawable<Animation> {
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 };
 
-struct AnimationMap : public ActiveMapManager<Entity> {
+struct AnimationMap : public ActiveMapManager<Animation> {
 public:
 	using ActiveMapManager::ActiveMapManager;
 
@@ -195,7 +195,7 @@ public:
 	 * @param key Unique id of the animation to be loaded.
 	 * @return Reference to the loaded animation.
 	 */
-	Entity& Load(const ActiveMapManager::Key& key, const Entity& entity, bool hide = true);
+	Animation& Load(const ActiveMapManager::Key& key, Animation&& entity, bool hide = true);
 
 	// If the provided key is a not currently active, this function pauses the previously active
 	// animation. If the key is already active, does nothing.

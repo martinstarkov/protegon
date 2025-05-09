@@ -124,12 +124,19 @@ private:
 
 struct BoxCollider : public Collider {
 	BoxCollider() = delete;
+
+	explicit BoxCollider(const V2_float& size, Origin origin = Origin::Center) :
+		size{ size }, origin{ origin } {}
+
 	V2_float size;
 	Origin origin{ Origin::Center };
 };
 
 struct CircleCollider : public Collider {
 	CircleCollider() = delete;
+
+	explicit CircleCollider(float radius) : radius{ radius } {}
+
 	float radius{ 0.0f };
 };
 
