@@ -21,9 +21,7 @@
 #include "debug/log.h"
 #include "events/event_handler.h"
 #include "events/events.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
+#include "math/geometry.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -183,7 +181,7 @@ void RenderData::AddLine(
 	BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	PTGN_ASSERT(line_width >= min_line_width, "-1.0f is an invalid line width for lines");
-	auto vertices{ Line{ line_start, line_end }.GetQuadVertices(line_width) };
+	auto vertices{ GetQuadVertices(line_start, line_end, line_width) };
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
@@ -325,7 +323,7 @@ void RenderData::AddEllipse(
 ) {
 	PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius");
 	V2_float diameter{ radius * 2.0f };
-	auto vertices{ impl::GetVertices({ center, rotation }, { diameter, Origin::Center }) };
+	auto vertices{ impl::GetVertices({ center, rotation }, diameter, Origin::Center) };
 	if (line_width == -1.0f) {
 		AddFilledEllipse(vertices, depth, blend_mode, color, debug);
 	} else {
@@ -380,7 +378,7 @@ void RenderData::AddQuad(
 		vertices = camera_vertices;
 	} else {
 		vertices = impl::GetVertices(
-			{ position + GetOriginOffset(origin, size), rotation }, { size, Origin::Center }
+			{ position + GetOriginOffset(origin, size), rotation }, size, Origin::Center
 		);
 	}
 	if (line_width == -1.0f) {
@@ -397,7 +395,7 @@ void RenderData::AddTexture(
 ) {
 	AddTexturedQuad(
 		impl::GetVertices(
-			{ position + GetOriginOffset(origin, size), rotation }, { size, Origin::Center }
+			{ position + GetOriginOffset(origin, size), rotation }, size, Origin::Center
 		),
 		e.GetTextureCoordinates(flip_vertically), texture, depth, blend_mode, tint, debug
 	);
@@ -488,12 +486,14 @@ void RenderData::AddButton(
 	Origin origin{ Origin::Center };
 	V2_float size;
 
-	if (o.Has<Rect>()) {
-		const auto& rect{ o.Get<Rect>() };
-		size   = rect.size;
-		origin = rect.origin;
-	} else if (o.Has<Circle>()) {
-		size = V2_float{ o.Get<Circle>().radius * 2.0f };
+	if (o.Has<ButtonSize>()) {
+		size = o.Get<ButtonSize>();
+	} else if (o.Has<ButtonRadius>()) {
+		size = V2_float{ o.Get<ButtonRadius>() * 2.0f };
+	}
+
+	if (o.Has<ButtonOrigin>()) {
+		origin = o.Get<ButtonOrigin>();
 	}
 
 	TextureKey button_texture_key;
@@ -663,6 +663,10 @@ void RenderData::AddToBatch(const Entity& o, bool check_visibility) {
 		return;
 	}
 
+	PTGN_ERROR("Unknown drawable");
+
+	// TODO: Replace with graphics object.
+	/*
 	auto line_width{ o.Has<LineWidth>() ? o.Get<LineWidth>() : LineWidth{ -1.0f } };
 
 	auto add_rect = [&](const auto& rect) {
@@ -718,11 +722,10 @@ void RenderData::AddToBatch(const Entity& o, bool check_visibility) {
 	} else if (o.Has<Arc>()) {
 		// TODO: Implement.
 		PTGN_ERROR("Arc drawing not implemented yet");
-	} /*else if (o.Has<RoundedRect>()) {
+	} else if (o.Has<RoundedRect>()) {
 		// TODO: Implement.
 		PTGN_ERROR("Rounded rectangle drawing not implemented yet");
-	}*/
-	else if (o.Has<Capsule>()) {
+	} else if (o.Has<Capsule>()) {
 		// TODO: Implement.
 		PTGN_ERROR("Capsule drawing not implemented yet");
 	} else if (o.Has<CircleCollider>()) {
@@ -734,6 +737,7 @@ void RenderData::AddToBatch(const Entity& o, bool check_visibility) {
 	} else {
 		PTGN_ERROR("Unknown drawable");
 	}
+	*/
 }
 
 void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) {

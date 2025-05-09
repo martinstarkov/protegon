@@ -6,8 +6,8 @@
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
 #include "event/key.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
+
+#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"

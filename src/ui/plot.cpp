@@ -11,8 +11,8 @@
 // #include "core/entity.h"
 // #include "events/input_handler.h"
 // #include "events/mouse.h"
-// #include "math/geometry/line.h"
-// #include "math/geometry/polygon.h"
+// 
+// #include "math/geometry.h"
 // #include "math/math.h"
 // #include "math/vector2.h"
 // #include "rendering/api/color.h"

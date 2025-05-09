@@ -4,7 +4,7 @@
 #include "core/window.h"
 #include "ecs/ecs.h"
 #include "event/input_handler.h"
-#include "math/geometry/polygon.h"
+#include "math/geometry.h"
 #include "math/noise.h"
 #include "components/movement.h"
 #include "renderer/color.h"

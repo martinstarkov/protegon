@@ -10,8 +10,8 @@
 // #include "core/resource_manager.h"
 // #include "core/entity.h"
 // #include "core/manager.h"
-// #include "math/geometry/line.h"
-// #include "math/geometry/polygon.h"
+// 
+// #include "math/geometry.h"
 // #include "math/vector2.h"
 // #include "rendering/api/color.h"
 // #include "rendering/resources/font.h"

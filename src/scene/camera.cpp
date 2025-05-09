@@ -22,7 +22,7 @@
 #include "debug/log.h"
 #include "events/event_handler.h"
 #include "events/events.h"
-#include "math/geometry/polygon.h"
+#include "math/geometry.h"
 #include "math/math.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
@@ -470,9 +470,9 @@ Tween& Camera::FadeFromTo(
 	if (!fade_effects_.Has<Tween>()) {
 		fade_effects_.Add<Tween>();
 	}
-	if (!fade_effects_.Has<Rect>()) {
+	if (!fade_effects_.Has<Visible>()) {
 		fade_effects_.Add<Transform>();
-		fade_effects_.Add<Rect>();
+		// TODO: Add rect graphics object.
 		fade_effects_.Add<Tint>(start_color);
 		fade_effects_.Add<Visible>(false);
 		fade_effects_.Add<Depth>(std::numeric_limits<std::int32_t>::max());
@@ -618,7 +618,7 @@ void Camera::CenterOnWindow(bool continuously) {
 
 std::array<V2_float, 4> Camera::GetVertices() const {
 	return impl::GetVertices(
-		{ GetPosition(Origin::Center), GetRotation() }, { GetSize() / GetZoom(), Origin::Center }
+		{ GetPosition(Origin::Center), GetRotation() }, GetSize() / GetZoom(), Origin::Center
 	);
 }
 

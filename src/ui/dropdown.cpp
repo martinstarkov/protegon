@@ -3,7 +3,7 @@
 // #include <cstdint>
 // #include <vector>
 //
-// #include "math/geometry/polygon.h"
+// #include "math/geometry.h"
 // #include "math/vector2.h"
 // #include "rendering/api/origin.h"
 // #include "ui/button.h"

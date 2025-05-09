@@ -6,8 +6,7 @@
 #include <vector>
 
 #include "common/assert.h"
-#include "geometry/axis.h"
-#include "math/geometry/line.h"
+#include "math/axis.h"
 #include "math/math.h"
 #include "math/vector2.h"
 

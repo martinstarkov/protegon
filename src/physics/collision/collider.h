@@ -6,9 +6,8 @@
 #include <vector>
 
 #include "core/entity.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
+#include "rendering/api/origin.h"
 
 namespace ptgn {
 
@@ -123,14 +122,15 @@ private:
 	CollisionCategory category_{ 0 };
 };
 
-struct BoxCollider : public Rect, public Collider {
+struct BoxCollider : public Collider {
 	BoxCollider() = delete;
-	using Rect::Rect;
+	V2_float size;
+	Origin origin{ Origin::Center };
 };
 
-struct CircleCollider : public Circle, public Collider {
+struct CircleCollider : public Collider {
 	CircleCollider() = delete;
-	using Circle::Circle;
+	float radius{ 0.0f };
 };
 
 // struct PolygonCollider : public Collider {

@@ -8,10 +8,8 @@
 #include "components/transform.h"
 #include "core/game.h"
 #include "debug/debug.h"
-#include "math/geometry/axis.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
+#include "math/axis.h"
+#include "math/geometry.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
@@ -187,9 +185,7 @@ bool OverlapPointRect(
 	game.stats.overlap_point_rect++;
 #endif
 	if (rect_rotation != 0.0f) {
-		auto rect_polygon{
-			impl::GetVertices({ rect_center, rect_rotation }, { rect_size, Origin::Center })
-		};
+		auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
 		return OverlapPointPolygon(point, rect_polygon.data(), rect_polygon.size());
 	}
 
@@ -584,9 +580,7 @@ bool OverlapTriangleRect(
 #ifdef PTGN_DEBUG
 	game.stats.overlap_triangle_rect++;
 #endif
-	auto rect_polygon{
-		impl::GetVertices({ rect_center, rect_rotation }, { rect_size, Origin::Center })
-	};
+	auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
 	std::array<V2_float, 3> triangle{ triangle_a, triangle_b, triangle_c };
 	return OverlapPolygonPolygon(
 		triangle.data(), triangle.size(), rect_polygon.data(), rect_polygon.size()
@@ -621,10 +615,10 @@ bool OverlapRectRect(
 ) {
 	if (rectA_rotation != 0.0f || rectB_rotation != 0.0f) {
 		auto rectA_polygon{
-			impl::GetVertices({ rectA_center, rectA_rotation }, { rectA_size, Origin::Center })
+			GetVertices({ rectA_center, rectA_rotation }, rectA_size, Origin::Center)
 		};
 		auto rectB_polygon{
-			impl::GetVertices({ rectB_center, rectB_rotation }, { rectB_size, Origin::Center })
+			GetVertices({ rectB_center, rectB_rotation }, rectB_size, Origin::Center)
 		};
 		return OverlapPolygonPolygon(
 			rectA_polygon.data(), rectA_polygon.size(), rectB_polygon.data(), rectB_polygon.size()
@@ -683,9 +677,7 @@ bool OverlapRectCapsule(
 
 	// Rotated rect.
 	if (rect_rotation != 0.0f) {
-		auto rect_polygon{
-			impl::GetVertices({ rect_center, rect_rotation }, { rect_size, Origin::Center })
-		};
+		auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
 		if (OverlapLineCapsule(
 				rect_polygon[0], rect_polygon[1], capsule_start, capsule_end, capsule_radius
 			)) {
@@ -742,9 +734,7 @@ bool OverlapRectPolygon(
 	if (rect_size.IsZero()) {
 		return false;
 	}
-	auto rect_polygon{
-		impl::GetVertices({ rect_center, rect_rotation }, { rect_size, Origin::Center })
-	};
+	auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
 	return OverlapPolygonPolygon(rect_polygon.data(), rect_polygon.size(), vertices, vertex_count);
 }
 
@@ -786,6 +776,8 @@ bool OverlapPolygonPolygon(
 }
 
 } // namespace impl
+
+/*
 
 bool Overlaps(const V2_float& point, const Transform& transform, Line line) {
 	line.start *= transform.scale;
@@ -1026,5 +1018,7 @@ bool Overlaps(const Transform& a, Polygon A, const Transform& b, Polygon B) {
 		A.vertices.data(), A.vertices.size(), B.vertices.data(), B.vertices.size()
 	);
 }
+
+*/
 
 } // namespace ptgn

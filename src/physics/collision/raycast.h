@@ -1,9 +1,5 @@
 #pragma once
 
-#include "components/transform.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
@@ -17,6 +13,8 @@ struct RaycastResult {
 
 	[[nodiscard]] bool Occurred() const;
 };
+
+/*
 
 [[nodiscard]] RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Line B);
 
@@ -51,6 +49,8 @@ struct RaycastResult {
 [[nodiscard]] RaycastResult Raycast(
 	const Transform& a, Capsule A, const V2_float& ray, const Transform& b, Circle B
 );
+
+*/
 
 namespace impl {
 

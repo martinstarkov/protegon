@@ -1,10 +1,5 @@
 #pragma once
 
-#include <vector>
-
-#include "components/transform.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
@@ -19,6 +14,7 @@ struct Intersection {
 	[[nodiscard]] bool Occurred() const;
 };
 
+/*
 [[nodiscard]] Intersection Intersects(const Transform& a, Circle A, const Transform& b, Circle B);
 
 [[nodiscard]] Intersection Intersects(const Transform& a, Circle A, Transform b, Rect B);
@@ -30,6 +26,7 @@ struct Intersection {
 [[nodiscard]] Intersection Intersects(Transform a, Rect A, Transform b, Rect B);
 
 [[nodiscard]] Intersection Intersects(const Transform& a, Polygon A, const Transform& b, Polygon B);
+*/
 
 namespace impl {
 

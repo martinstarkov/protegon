@@ -4,13 +4,9 @@
 #include <utility>
 
 #include "common/assert.h"
-#include "components/transform.h"
 #include "core/game.h"
 #include "debug/debug.h"
 #include "debug/stats.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/collision/overlap.h"
@@ -485,6 +481,8 @@ RaycastResult RaycastCapsuleCircle(
 
 } // namespace impl
 
+/*
+
 RaycastResult Raycast(const Transform& a, Line A, const Transform& b, Line B) {
 	A.start *= a.scale;
 	A.end	*= a.scale;
@@ -593,5 +591,7 @@ RaycastResult Raycast(
 	B.radius *= b.scale.x;
 	return impl::RaycastCapsuleCircle(A.start, A.end, A.radius, ray, b.position, B.radius);
 }
+
+*/
 
 } // namespace ptgn

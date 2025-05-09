@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <type_traits>
+#include <unordered_set>
 #include <vector>
 
 #include "core/entity.h"

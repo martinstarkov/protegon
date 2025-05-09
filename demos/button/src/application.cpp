@@ -6,7 +6,7 @@
 #include "core/game.h"
 #include "core/game_object.h"
 #include "ecs/ecs.h"
-#include "math/geometry/polygon.h"
+#include "math/geometry.h"
 #include "math/vector2.h"
 #include "protegon/protegon.h"
 #include "renderer/color.h"

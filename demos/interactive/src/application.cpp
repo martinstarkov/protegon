@@ -7,8 +7,8 @@
 #include "core/game.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
+
+#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/color.h"
 #include "renderer/origin.h"

@@ -5,12 +5,10 @@
 #include <utility>
 
 #include "common/assert.h"
-#include "components/transform.h"
 #include "core/game.h"
 #include "debug/debug.h"
-#include "math/geometry/axis.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
+#include "math/axis.h"
+#include "math/geometry.h"
 #include "math/math.h"
 #include "math/utility.h"
 #include "math/vector2.h"
@@ -126,10 +124,10 @@ Intersection IntersectRectRect(
 
 	if (rectA_rotation != 0.0f || rectB_rotation != 0.0f) {
 		auto rectA_polygon{
-			impl::GetVertices({ rectA_center, rectA_rotation }, { rectA_size, Origin::Center })
+			GetVertices({ rectA_center, rectA_rotation }, rectA_size, Origin::Center)
 		};
 		auto rectB_polygon{
-			impl::GetVertices({ rectB_center, rectB_rotation }, { rectB_size, Origin::Center })
+			GetVertices({ rectB_center, rectB_rotation }, rectB_size, Origin::Center)
 		};
 		return IntersectPolygonPolygon(
 			rectA_polygon.data(), rectA_polygon.size(), rectB_polygon.data(), rectB_polygon.size()
@@ -194,8 +192,7 @@ Intersection IntersectPolygonPolygon(
 	PTGN_ASSERT(depth >= 0.0f);
 
 	// Make sure the vector is pointing from polygon1 to polygon2.
-	if (V2_float dir{ GetPolygonCenter(pAv, pA_vertex_count) -
-					  GetPolygonCenter(pBv, pB_vertex_count) };
+	if (V2_float dir{ GetCenter(pAv, pA_vertex_count) - GetCenter(pBv, pB_vertex_count) };
 		dir.Dot(axis.direction) < 0) {
 		axis.direction *= -1.0f;
 	}
@@ -235,6 +232,8 @@ Intersection IntersectPolygonPolygon(
 }
 
 } // namespace impl
+
+/*
 
 Intersection Intersects(const Transform& a, Circle A, const Transform& b, Circle B) {
 	A.radius *= a.scale.x;
@@ -276,5 +275,7 @@ Intersection Intersects(const Transform& a, Polygon A, const Transform& b, Polyg
 		A.vertices.data(), A.vertices.size(), B.vertices.data(), B.vertices.size()
 	);
 }
+
+*/
 
 } // namespace ptgn

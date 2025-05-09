@@ -5,18 +5,18 @@
 #include <iosfwd>
 #include <string_view>
 
+#include "common/type_traits.h"
 #include "components/draw.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/game_object.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
+#include "debug/log.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "rendering/resources/text.h"
-#include "debug/log.h"
-#include "common/type_traits.h"
 
 namespace ptgn {
 
@@ -169,6 +169,18 @@ struct ButtonTextToggled : public ButtonText {
 	using ButtonText::ButtonText;
 };
 
+struct ButtonSize : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
+struct ButtonOrigin : public OriginComponent {
+	using OriginComponent::OriginComponent;
+};
+
+struct ButtonRadius : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
 } // namespace impl
 
 using ButtonCallback = std::function<void()>;
@@ -187,11 +199,13 @@ struct Button : public GameObject {
 	);
 	Button& AddInteractableCircle(float radius, const V2_float& offset = {});
 
-	// @param size {} Results in texture sized button.
-	Button& SetRect(const V2_float& size = {}, Origin origin = Origin::Center);
+	// @param size {} results in texture sized button.
+	Button& SetSize(const V2_float& size = {});
+
+	Button& SetOrigin(Origin origin = Origin::Center);
 
 	// @param radius 0.0f results in texture sized button.
-	Button& SetCircle(float radius = 0.0f);
+	Button& SetRadius(float radius = 0.0f);
 
 	// These allow for manually triggering button callback events.
 	virtual void Activate();

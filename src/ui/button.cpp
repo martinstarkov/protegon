@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <functional>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,8 +14,6 @@
 #include "core/manager.h"
 #include "debug/log.h"
 #include "events/mouse.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
@@ -243,24 +241,33 @@ Button& Button::AddInteractableCircle(float radius, const V2_float& offset) {
 	return *this;
 }
 
-Button& Button::SetRect(const V2_float& size, Origin origin) {
-	Remove<Circle>();
-	if (Has<Rect>()) {
-		auto& rect{ Get<Rect>() };
-		rect.size	= size;
-		rect.origin = origin;
+Button& Button::SetSize(const V2_float& size) {
+	Remove<impl::ButtonRadius>();
+	if (Has<impl::ButtonSize>()) {
+		Get<impl::ButtonSize>() = size;
 	} else {
-		Add<Rect>(size, origin);
+		Add<impl::ButtonSize>(size);
 	}
 	return *this;
 }
 
-Button& Button::SetCircle(float radius) {
-	Remove<Rect>();
-	if (Has<Circle>()) {
-		Get<Circle>().radius = radius;
+Button& Button::SetOrigin(Origin origin) {
+	Remove<impl::ButtonRadius>();
+	if (Has<impl::ButtonOrigin>()) {
+		Get<impl::ButtonOrigin>() = origin;
 	} else {
-		Add<Circle>(radius);
+		Add<impl::ButtonOrigin>(origin);
+	}
+	return *this;
+}
+
+Button& Button::SetRadius(float radius) {
+	Remove<impl::ButtonSize>();
+	Remove<impl::ButtonOrigin>();
+	if (Has<impl::ButtonRadius>()) {
+		Get<impl::ButtonRadius>() = radius;
+	} else {
+		Add<impl::ButtonRadius>(radius);
 	}
 	return *this;
 }
@@ -565,8 +572,7 @@ ButtonState Button::GetState(const Entity& e) {
 	if (state == impl::InternalButtonState::Hover ||
 		state == impl::InternalButtonState::HoverPressed) {
 		return ButtonState::Hover;
-	} else if (state == impl::InternalButtonState::Pressed ||
-			   state == impl::InternalButtonState::HeldOutside) {
+	} else if (state == impl::InternalButtonState::Pressed || state == impl::InternalButtonState::HeldOutside) {
 		return ButtonState::Pressed;
 	} else {
 		return ButtonState::Default;

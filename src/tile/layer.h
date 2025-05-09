@@ -4,7 +4,7 @@
 /*
 #include "core/game.h"
 #include "core/manager.h"
-#include "math/geometry/polygon.h"
+#include "math/geometry.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/resources/texture.h"

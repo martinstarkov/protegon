@@ -1,14 +1,11 @@
 #pragma once
 
-#include "components/transform.h"
-#include "math/geometry/axis.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
+#include "math/axis.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
+/*
 [[nodiscard]] bool Overlaps(const V2_float& point, const Transform& transform, Line line);
 [[nodiscard]] bool Overlaps(const V2_float& point, const Transform& transform, Circle circle);
 [[nodiscard]] bool Overlaps(const V2_float& point, const Transform& transform, Triangle triangle);
@@ -48,6 +45,7 @@ namespace ptgn {
 [[nodiscard]] bool Overlaps(const Transform& a, const Polygon& A, const Transform& b, Triangle B);
 [[nodiscard]] bool Overlaps(const Transform& a, const Polygon& A, const Transform& b, Rect B);
 [[nodiscard]] bool Overlaps(const Transform& a, Polygon A, const Transform& b, Polygon B);
+*/
 
 namespace impl {
 

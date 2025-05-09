@@ -7,6 +7,8 @@
 #include "core/entity.h"
 #include "core/game_object.h"
 #include "core/manager.h"
+#include "core/time.h"
+#include "core/tween.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
@@ -14,8 +16,6 @@
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
-#include "core/time.h"
-#include "core/tween.h"
 #include "rendering/graphics/vfx/tween_effects.h"
 
 namespace ptgn {
@@ -97,7 +97,7 @@ struct CameraInfo {
 		const V2_float& camera_size, float camera_zoom
 	);
 
-	// TODO: Convert some of this to be components.
+	// TODO: Convert some of these to be components.
 	struct Data {
 		V2_float viewport_position;
 		V2_float viewport_size;

@@ -5,7 +5,6 @@
 #include "common/assert.h"
 #include "common/function.h"
 #include "components/common.h"
-#include "components/draw.h"
 #include "components/input.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -16,8 +15,6 @@
 #include "events/input_handler.h"
 #include "events/key.h"
 #include "events/mouse.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "physics/collision/overlap.h"
 #include "rendering/api/origin.h"
@@ -90,6 +87,9 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			return false;
 		}
 	}
+
+	// TODO: Consider readding this with circle and rect objects.
+	/*
 	is_circle = entity.Has<Circle>();
 	is_rect	  = entity.Has<Rect>();
 	if (is_circle || is_rect) {
@@ -131,6 +131,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			return false;
 		}
 	}
+	*/
 
 	if (entity.Has<TextureKey>()) {
 		const auto& texture_key{ entity.Get<TextureKey>() };

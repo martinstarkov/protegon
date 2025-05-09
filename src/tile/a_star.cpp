@@ -7,7 +7,7 @@
 
 #include "common/assert.h"
 #include "core/game.h"
-#include "math/geometry/line.h"
+
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/renderer.h"

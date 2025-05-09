@@ -16,9 +16,9 @@
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "events/input_handler.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
+
+
+#include "math/geometry.h"
 #include "math/hash.h"
 #include "math/math.h"
 #include "math/matrix4.h"

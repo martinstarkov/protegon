@@ -745,8 +745,8 @@ int main() {
 #include "core/manager.h"
 #include "core/transform.h"
 #include "core/uuid.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
+
+
 #include "math/geometry/polygon.h"
 #include "math/math.h"
 #include "math/rng.h"

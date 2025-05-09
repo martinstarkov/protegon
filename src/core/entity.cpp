@@ -5,7 +5,6 @@
 #include <utility>
 
 #include "common/assert.h"
-#include "common/type_info.h"
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
@@ -16,16 +15,12 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
-#include "rendering/batching/render_data.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/resources/render_target.h"
 #include "rendering/resources/text.h"
@@ -476,8 +471,8 @@ void to_json(json& j, const Entity& e) {
 	impl::to_json<UUID>(j, e);
 	impl::to_json<
 		Draggable, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
-		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
-		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime, PointLight>(j, e);
+		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Lifetime,
+		PointLight>(j, e);
 }
 
 void from_json(const json& j, Entity& e) {
@@ -485,8 +480,8 @@ void from_json(const json& j, Entity& e) {
 	impl::from_json<UUID>(j, e);
 	impl::from_json<
 		Draggable, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureKey,
-		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Circle, Arc,
-		Ellipse, Capsule, Line, Rect, Polygon, Triangle, Lifetime, PointLight>(j, e);
+		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Lifetime,
+		PointLight>(j, e);
 }
 
 } // namespace ptgn

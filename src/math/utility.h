@@ -3,7 +3,7 @@
 #include <utility>
 #include <vector>
 
-#include "math/geometry/axis.h"
+#include "math/axis.h"
 #include "math/vector2.h"
 
 namespace ptgn {
