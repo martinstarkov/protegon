@@ -255,15 +255,16 @@ Depth Entity::GetDepth() const {
 }
 
 BlendMode Entity::GetBlendMode() const {
-	return Has<BlendMode>() ? Get<BlendMode>() : BlendMode::Blend;
+	return Has<BlendMode>() ? Get<BlendMode>()
+							: (HasParent() ? GetParent().GetBlendMode() : BlendMode::Blend);
 }
 
 Origin Entity::GetOrigin() const {
-	return Has<Origin>() ? Get<Origin>() : Origin::Center;
+	return Has<Origin>() ? Get<Origin>() : (HasParent() ? GetParent().GetOrigin() : Origin::Center);
 }
 
 Color Entity::GetTint() const {
-	return Has<Tint>() ? Get<Tint>() : Tint{};
+	return Has<Tint>() ? Get<Tint>() : (HasParent() ? GetParent().GetTint() : Tint{});
 }
 
 Entity Entity::GetParent() const {
