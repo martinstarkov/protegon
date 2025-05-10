@@ -12,6 +12,7 @@
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "rendering/resources/texture.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -60,11 +61,15 @@ struct LineWidth : public ArithmeticComponent<float> {
 namespace callback {
 
 // TODO: Change to scripts.
-struct AnimationRepeat : public CallbackComponent<> {
+struct AnimationRepeat : public CallbackComponent<Entity> {
 	using CallbackComponent::CallbackComponent;
 };
 
-struct AnimationStart : public CallbackComponent<> {
+struct AnimationStart : public CallbackComponent<Entity> {
+	using CallbackComponent::CallbackComponent;
+};
+
+struct AnimationComplete : public CallbackComponent<Entity> {
 	using CallbackComponent::CallbackComponent;
 };
 
@@ -154,7 +159,7 @@ struct Sprite : public GameObject, public Drawable<Sprite> {
 
 	// @param manager Which manager the entity is added to.
 	// @param texture_key Key of the texture loaded into the texture manager.
-	explicit Sprite(Manager& manager, std::string_view texture_key);
+	explicit Sprite(Manager& manager, const TextureKey& texture_key);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 };
@@ -167,11 +172,12 @@ struct Animation : public Sprite, public Drawable<Animation> {
 	// @param frame_count Number of frames in the animation sequence.
 	// @param frame_size Pixel size of an individual animation frame within the texture.
 	// @param animation_duration Duration of the full animation sequence.
+	// @param repeats Number of repeats that the animation plays for, -1 for infinite replay.
 	// @param start_pixel Pixel within the texture which indicates the top left position of the
 	// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
 	explicit Animation(
 		Manager& manager, std::string_view texture_key, std::size_t frame_count,
-		const V2_float& frame_size, milliseconds animation_duration,
+		const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats = -1,
 		const V2_float& start_pixel = {}, std::size_t start_frame = 0
 	);
 

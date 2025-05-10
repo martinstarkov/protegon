@@ -97,7 +97,7 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 	return true;
 }
 
-Sprite::Sprite(Manager& manager, std::string_view texture_key) : GameObject{ manager } {
+Sprite::Sprite(Manager& manager, const TextureKey& texture_key) : GameObject{ manager } {
 	SetDraw<Sprite>();
 
 	PTGN_ASSERT(
@@ -115,6 +115,8 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto tint{ entity.GetTint().Normalized() };
 	auto origin{ entity.GetOrigin() };
 
+	PTGN_ASSERT(entity.Has<TextureKey>());
+
 	const auto& texture_key{ entity.Get<TextureKey>() };
 	const auto& texture{ game.texture.Get(texture_key) };
 	auto size{ entity.GetSize() };
@@ -126,8 +128,8 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 Animation::Animation(
 	Manager& manager, std::string_view texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel,
-	std::size_t start_frame
+	const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats,
+	const V2_float& start_pixel, std::size_t start_frame
 ) :
 	Sprite{ manager, texture_key } {
 	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
@@ -140,25 +142,33 @@ Animation::Animation(
 
 	milliseconds frame_duration{ animation_duration / frame_count };
 
+	std::int64_t frame_repeats{ repeats == -1 ? -1
+											  : repeats * static_cast<std::int64_t>(frame_count) };
+
 	// TODO: Consider breaking this up into individual tween points using a for loop.
 	// TODO: Switch to using a system.
 	Add<Tween>()
 		.During(frame_duration)
-		.Repeat(-1)
+		.Repeat(frame_repeats)
 		.OnStart([entity = GetEntity()]() mutable {
 			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
 			a.ResetToStartFrame();
 			c.position = a.GetCurrentFramePosition();
 			c.size	   = a.GetFrameSize();
-			Invoke<callback::AnimationStart>(entity);
+			Invoke<callback::AnimationStart>(entity, entity);
 		})
-		.OnRepeat([entity = GetEntity()]() mutable {
+		.OnRepeat([entity = GetEntity()](Tween& tween) mutable {
 			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
 			a.IncrementFrame();
 			c.position = a.GetCurrentFramePosition();
 			c.size	   = a.GetFrameSize();
-			if (a.GetFrameRepeats() % a.GetFrameCount() == 0) {
-				Invoke<callback::AnimationRepeat>(entity);
+			auto anim_frame_count{ a.GetFrameCount() };
+			auto tween_repeats{ tween.GetRepeats() };
+			if (tween_repeats != -1 &&
+				static_cast<std::size_t>(tween_repeats) == anim_frame_count) {
+				Invoke<callback::AnimationComplete>(entity, entity);
+			} else if (a.GetFrameRepeats() % anim_frame_count == 0) {
+				Invoke<callback::AnimationRepeat>(entity, entity);
 			}
 		})
 		.OnReset([entity = GetEntity()]() mutable {
