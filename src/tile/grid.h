@@ -4,9 +4,9 @@
 #include <type_traits>
 #include <vector>
 
-#include "math/vector2.h"
 #include "common/assert.h"
 #include "common/type_traits.h"
+#include "math/vector2.h"
 
 namespace ptgn {
 
@@ -90,8 +90,19 @@ public:
 		return Get(OneDimensionalize(coordinate));
 	}
 
+	[[nodiscard]] T Pop(const V2_int& coordinate) {
+		return Pop(OneDimensionalize(coordinate));
+	}
+
 	[[nodiscard]] T& Get(const V2_int& coordinate) {
 		return Get(OneDimensionalize(coordinate));
+	}
+
+	[[nodiscard]] T Pop(int index) {
+		PTGN_ASSERT(Has(index), "Cannot pop grid element which is outside the grid");
+		T popped{ std::move(cells[static_cast<std::size_t>(index)]) };
+		cells[static_cast<std::size_t>(index)] = T{};
+		return popped;
 	}
 
 	[[nodiscard]] const T& Get(int index) const {
