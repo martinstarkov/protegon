@@ -34,6 +34,10 @@ struct Vector2 {
 
 	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
+	explicit constexpr Vector2(const json& j) {
+		j.get_to<Vector2<T>>(*this);
+	}
+
 	template <typename U, typename S>
 	constexpr Vector2(U x, S y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
 
