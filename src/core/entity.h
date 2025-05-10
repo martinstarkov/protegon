@@ -212,6 +212,7 @@ public:
 	void RemoveChild(std::string_view name);
 
 	void SetParent(Entity& child);
+	void RemoveParent();
 
 	// If object has no parent, returns *this.
 	[[nodiscard]] Entity GetParent() const;
@@ -273,6 +274,7 @@ struct Children {
 private:
 	friend class Entity;
 
+	// TODO: Switch to giving children a name tag.
 	std::unordered_set<Entity> children_;
 	std::unordered_map<std::size_t, Entity> named_children_;
 };

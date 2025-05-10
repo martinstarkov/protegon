@@ -346,14 +346,14 @@ void RenderData::AddQuad(
 }
 
 void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
-	PTGN_ASSERT(
-		(entity.Has<Visible, IDrawable>()),
-		"Cannot render entity without drawable or visible component"
-	);
-
-	if (check_visibility && !entity.Get<Visible>()) {
-		return;
+	if (check_visibility) {
+		PTGN_ASSERT(entity.Has<Visible>(), "Cannot render entity without visible component");
+		if (!entity.Get<Visible>()) {
+			return;
+		}
 	}
+
+	PTGN_ASSERT((entity.Has<IDrawable>()), "Cannot render entity without drawable component");
 
 	const auto& drawable{ entity.Get<IDrawable>() };
 
@@ -452,6 +452,7 @@ void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& came
 }
 
 void RenderData::SortEntitiesByY(std::vector<Entity>& entities) {
+	// TODO: Investigate making this faster for large numbers of static entities.
 	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
 		return a.GetLowestY() < b.GetLowestY();
 	});
@@ -462,13 +463,13 @@ void RenderData::Render(
 ) {
 	SetupRender(frame_buffer, camera);
 
-	auto entities{ manager.EntitiesWith<Visible, IDrawable>().GetVector() };
+	// auto entities{ .GetVector() };
 
-	if (sort_entity_drawing_by_y) {
+	/*if (sort_entity_drawing_by_y) {
 		SortEntitiesByY(entities);
-	}
+	}*/
 
-	for (const auto& e : entities) {
+	for (auto [e, v, d] : manager.EntitiesWith<Visible, IDrawable>()) {
 		AddToBatch(e, true);
 	}
 	Flush(frame_buffer, camera);

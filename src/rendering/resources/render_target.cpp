@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "common/assert.h"
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/game_object.h"
@@ -36,6 +37,8 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 RenderTarget::RenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) :
 	GameObject{ manager } {
 	Add<Camera>(manager);
+	Add<Visible>();
+	SetDraw<RenderTarget>();
 	Add<impl::ClearColor>(clear_color);
 	auto& fb = Add<impl::FrameBuffer>(impl::Texture{ nullptr, size });
 	PTGN_ASSERT(fb.IsValid(), "Failed to create valid frame buffer for render target");
@@ -63,6 +66,7 @@ void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
 void RenderTarget::Draw(const Entity& e) const {
 	const auto& fb	   = Get<impl::FrameBuffer>();
 	const auto& camera = Get<Camera>();
+	fb.Bind();
 	PTGN_ASSERT(fb.IsBound(), "Cannot draw to render target unless it is first bound");
 	PTGN_ASSERT(
 		camera != Camera{}, "Cannot draw to render target with invalid or uninitialized camera"
@@ -94,6 +98,7 @@ void RenderTarget::UnsubscribeFromEvents() const {
 
 void RenderTarget::Clear() const {
 	const auto& fb = Get<impl::FrameBuffer>();
+	fb.Bind();
 	PTGN_ASSERT(fb.IsBound(), "Render target frame buffer must be bound before clearing");
 	const auto& clear_color = Get<impl::ClearColor>();
 	impl::GLRenderer::ClearToColor(clear_color);

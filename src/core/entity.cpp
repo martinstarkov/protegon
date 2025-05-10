@@ -132,7 +132,8 @@ float Entity::GetLowestY() const {
 
 	auto center{ transform.position + GetOriginOffset(GetOrigin(), size) };
 
-	return center.y + size.y * 0.5f;
+	float lowest_y{ center.y + size.y * 0.5f };
+	return lowest_y;
 }
 
 V2_float Entity::GetSize() const {
@@ -297,6 +298,9 @@ std::array<V2_float, 4> Entity::GetTextureCoordinates(bool flip_vertically) cons
 	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
 
 	if (*this == Entity{} && !IsAlive()) {
+		if (flip_vertically) {
+			impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+		}
 		return tex_coords;
 	}
 
@@ -311,6 +315,9 @@ std::array<V2_float, 4> Entity::GetTextureCoordinates(bool flip_vertically) cons
 	}
 
 	if (texture_size.IsZero()) {
+		if (flip_vertically) {
+			impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+		}
 		return tex_coords;
 	}
 
@@ -400,6 +407,9 @@ Entity& Entity::SetOrigin(Origin origin) {
 }
 
 void Entity::AddChild(Entity& child) {
+	PTGN_ASSERT(
+		GetManager() == child.GetManager(), "Cannot set cross manager parent-child relationships"
+	);
 	if (Has<Children>()) {
 		Get<Children>().Add(child);
 	} else {
@@ -414,6 +424,9 @@ void Entity::AddChild(Entity& child) {
 }
 
 void Entity::AddChild(std::string_view name, Entity& child) {
+	PTGN_ASSERT(
+		GetManager() == child.GetManager(), "Cannot set cross manager parent-child relationships"
+	);
 	if (Has<Children>()) {
 		Get<Children>().Add(name, child);
 	} else {
@@ -475,6 +488,9 @@ void Entity::RemoveChild(std::string_view name) {
 }
 
 void Entity::SetParent(Entity& o) {
+	PTGN_ASSERT(
+		GetManager() == o.GetManager(), "Cannot set cross manager parent-child relationships"
+	);
 	PTGN_ASSERT(*this != o, "Cannot add game object as its own parent");
 	PTGN_ASSERT(o != Entity{}, "Cannot add null game object as its own parent");
 	// Add child to parent's children.
@@ -487,6 +503,15 @@ void Entity::SetParent(Entity& o) {
 		Get<Entity>() = o;
 	} else {
 		Add<Entity>(o);
+	}
+}
+
+void Entity::RemoveParent() {
+	if (Has<Entity>()) {
+		auto& parent = Get<Entity>();
+		auto& children{ parent.Get<Children>() };
+		children.Remove(*this);
+		Remove<Entity>();
 	}
 }
 
@@ -504,6 +529,13 @@ void Children::Add(const Entity& child) {
 
 void Children::Remove(const Entity& child) {
 	children_.erase(child);
+	for (auto it = named_children_.begin(); it != named_children_.end();) {
+		if (it->second == child) {
+			it = named_children_.erase(it); // erase returns next iterator
+		} else {
+			++it;
+		}
+	}
 }
 
 void Children::Add(std::string_view name, const Entity& child) {
