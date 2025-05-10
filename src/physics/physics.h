@@ -16,6 +16,11 @@ class Game;
 
 class Physics {
 public:
+	[[nodiscard]] V2_float GetBoundsTopLeft() const;
+	[[nodiscard]] V2_float GetBoundsSize() const;
+	// Default values of {} result in no boundary enforcement.
+	void SetBounds(const V2_float& top_left_position = {}, const V2_float& size = {});
+
 	[[nodiscard]] V2_float GetGravity() const;
 	void SetGravity(const V2_float& gravity);
 
@@ -31,6 +36,8 @@ private:
 	void PreCollisionUpdate(Manager& manager) const;
 	void PostCollisionUpdate(Manager& manager) const;
 
+	V2_float bounds_top_left_;
+	V2_float bounds_size_;
 	V2_float gravity_{ 0.0f, 0.0f };
 };
 
