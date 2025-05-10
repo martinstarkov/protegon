@@ -3,11 +3,13 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
 
 #include "components/generic.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
@@ -57,8 +59,14 @@ enum class TextureScaling {
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
 };
 
-struct TextureKey : public StringComponent {
-	using StringComponent::StringComponent;
+struct TextureKey : public ArithmeticComponent<std::size_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	TextureKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
+
+	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
+
+	TextureKey(const std::string& key) : ArithmeticComponent{ Hash(key) } {}
 
 	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureKey, value_)
 };
@@ -299,12 +307,6 @@ public:
 
 private:
 	friend class RenderData;
-
-	[[nodiscard]] V2_int GetSize(std::size_t key) const;
-
-	[[nodiscard]] const Texture& Get(std::size_t key) const;
-
-	[[nodiscard]] bool Has(std::size_t key) const;
 
 	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
 
