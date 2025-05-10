@@ -4,13 +4,13 @@
 #include <iosfwd>
 
 #include "components/transform.h"
-#include "events/key.h"
-#include "physics/collision/collider.h"
-#include "math/vector2.h"
-#include "physics/rigid_body.h"
-#include "debug/log.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "debug/log.h"
+#include "events/key.h"
+#include "math/vector2.h"
+#include "physics/collision/collider.h"
+#include "physics/rigid_body.h"
 
 namespace ptgn {
 
@@ -133,6 +133,8 @@ struct TopDownMovement {
 
 	// @return The previous direction of movement.
 	[[nodiscard]] MoveDirection GetPreviousDirection() const;
+
+	V2_float facing_direction;
 
 private:
 	// @param dt Unit: seconds.

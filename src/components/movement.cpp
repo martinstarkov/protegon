@@ -98,6 +98,10 @@ void TopDownMovement::Update(Transform& transform, RigidBody& rb, float dt) {
 		dir.y = 0.0f;
 	}
 
+	if (!dir.IsZero()) {
+		facing_direction = dir;
+	}
+
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
 	if (dir.x != 0.0f) {
@@ -267,9 +271,8 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(
-	const V2_float& desired_velocity, RigidBody& rb, float dt
-) const {
+void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
+	const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
