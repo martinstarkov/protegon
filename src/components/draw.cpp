@@ -146,26 +146,26 @@ Animation::Animation(
 		.During(frame_duration)
 		.Repeat(-1)
 		.OnStart([entity = GetEntity()]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.ResetToStartFrame();
-			crop.position = anim.GetCurrentFramePosition();
-			crop.size	  = anim.GetFrameSize();
+			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			a.ResetToStartFrame();
+			c.position = a.GetCurrentFramePosition();
+			c.size	   = a.GetFrameSize();
 			Invoke<callback::AnimationStart>(entity);
 		})
 		.OnRepeat([entity = GetEntity()]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.IncrementFrame();
-			crop.position = anim.GetCurrentFramePosition();
-			crop.size	  = anim.GetFrameSize();
-			if (anim.GetFrameRepeats() % anim.GetFrameCount() == 0) {
+			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			a.IncrementFrame();
+			c.position = a.GetCurrentFramePosition();
+			c.size	   = a.GetFrameSize();
+			if (a.GetFrameRepeats() % a.GetFrameCount() == 0) {
 				Invoke<callback::AnimationRepeat>(entity);
 			}
 		})
 		.OnReset([entity = GetEntity()]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.ResetToStartFrame();
-			crop.position = anim.GetCurrentFramePosition();
-			crop.size	  = anim.GetFrameSize();
+			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			a.ResetToStartFrame();
+			c.position = a.GetCurrentFramePosition();
+			c.size	   = a.GetFrameSize();
 		});
 }
 

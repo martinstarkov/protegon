@@ -5,18 +5,18 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/assert.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "components/transform.h"
+#include "core/timer.h"
+#include "debug/log.h"
 #include "events/input_handler.h"
 #include "events/key.h"
-#include "physics/collision/collider.h"
 #include "math/math.h"
 #include "math/vector2.h"
+#include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
-#include "common/assert.h"
-#include "debug/log.h"
-#include "core/timer.h"
 
 namespace ptgn {
 
@@ -48,7 +48,7 @@ void MoveImpl(
 }
 
 float MoveTowards(float current, float target, float maxDelta) {
-	if (FastAbs(target - current) <= maxDelta) {
+	if (Abs(target - current) <= maxDelta) {
 		return target;
 	}
 	return current + Sign(target - current) * maxDelta;
@@ -101,10 +101,10 @@ void TopDownMovement::Update(Transform& transform, RigidBody& rb, float dt) {
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
 	if (dir.x != 0.0f) {
-		transform.scale.x = FastAbs(transform.scale.x) * Sign(dir.x);
+		transform.scale.x = Abs(transform.scale.x) * Sign(dir.x);
 	}
 	if (flip_vertically && dir.y != 0.0f) {
-		transform.scale.y = FastAbs(transform.scale.y) * Sign(dir.y);
+		transform.scale.y = Abs(transform.scale.y) * Sign(dir.y);
 	}
 
 	// Calculate's the character's desired velocity - which is the direction you are facing,
@@ -267,8 +267,9 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
-	const {
+void TopDownMovement::RunWithAcceleration(
+	const V2_float& desired_velocity, RigidBody& rb, float dt
+) const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
@@ -318,7 +319,7 @@ void PlatformerMovement::Update(Transform& transform, RigidBody& rb, float dt) c
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
 	if (dir_x != 0.0f) {
-		transform.scale.x = FastAbs(transform.scale.x) * Sign(dir_x);
+		transform.scale.x = Abs(transform.scale.x) * Sign(dir_x);
 	}
 
 	// Calculate's the character's desired velocity - which is the direction you are facing,
@@ -432,7 +433,7 @@ void PlatformerJump::Jump(RigidBody& rb, const V2_float& gravity) {
 	if (rb.velocity.y < 0.0f) {
 		jump_speed = std::max(jump_speed - rb.velocity.y, 0.0f);
 	} else if (rb.velocity.y > 0.0f) {
-		jump_speed += FastAbs(rb.velocity.y);
+		jump_speed += Abs(rb.velocity.y);
 	}
 
 	rb.velocity.y -= jump_speed;

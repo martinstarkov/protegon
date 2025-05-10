@@ -60,29 +60,30 @@ public:
 	template <typename T, typename S>
 	[[nodiscard]] static bool Overlaps(Transform a, T A, Transform b, S B) {
 		if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, BoxCollider>) {
-			A.size	   *= a.scale;
+			A.size	   *= Abs(a.scale);
 			a.position += GetOriginOffset(A.origin, A.size);
-			B.size	   *= b.scale;
+			B.size	   *= Abs(b.scale);
 			b.position += GetOriginOffset(B.origin, B.size);
 			return impl::OverlapRectRect(
 				a.position, A.size, a.rotation, b.position, B.size, b.rotation
 			);
-		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, CircleCollider>) {
-			A.radius *= a.scale.x;
-			B.radius *= b.scale.x;
+		} else if constexpr (std::is_same_v<T, CircleCollider> &&
+							 std::is_same_v<S, CircleCollider>) {
+			A.radius *= Abs(a.scale.x);
+			B.radius *= Abs(b.scale.x);
 			return impl::OverlapCircleCircle(a.position, A.radius, b.position, B.radius);
 		} else if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, CircleCollider>) {
-			B.radius   *= b.scale.x;
-			A.size	   *= a.scale;
+			B.radius   *= Abs(b.scale.x);
+			A.size	   *= Abs(a.scale);
 			a.position += GetOriginOffset(A.origin, A.size);
 			return impl::OverlapCircleRect(b.position, B.radius, a.position, A.size);
 		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, BoxCollider>) {
-			A.radius   *= a.scale.x;
-			B.size	   *= b.scale;
+			A.radius   *= Abs(a.scale.x);
+			B.size	   *= Abs(b.scale);
 			b.position += GetOriginOffset(B.origin, B.size);
 			return impl::OverlapCircleRect(a.position, A.radius, b.position, B.size);
 		} else {
-			static_assert("Unrecognized collider types");
+			static_assert(false, "Unrecognized collider types");
 		}
 	}
 
@@ -100,7 +101,9 @@ public:
 			if (!CanCollide(entity, collider, e2, collider2)) {
 				return;
 			}
-			if (Overlaps(entity.GetTransform(), collider, e2.GetTransform(), collider2)) {
+			if (Overlaps(
+					entity.GetAbsoluteTransform(), collider, e2.GetAbsoluteTransform(), collider2
+				)) {
 				// ProcessCallback may invalidate all component references.
 				ProcessCallback<T>(entity, e2, {});
 			}
@@ -124,29 +127,30 @@ public:
 	template <typename T, typename S>
 	[[nodiscard]] static Intersection Intersects(Transform a, T A, Transform b, S B) {
 		if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, BoxCollider>) {
-			A.size	   *= a.scale;
+			A.size	   *= Abs(a.scale);
 			a.position += GetOriginOffset(A.origin, A.size);
-			B.size	   *= b.scale;
+			B.size	   *= Abs(b.scale);
 			b.position += GetOriginOffset(B.origin, B.size);
 			return impl::IntersectRectRect(
 				a.position, A.size, a.rotation, b.position, B.size, b.rotation
 			);
-		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, CircleCollider>) {
-			A.radius *= a.scale.x;
-			B.radius *= b.scale.x;
+		} else if constexpr (std::is_same_v<T, CircleCollider> &&
+							 std::is_same_v<S, CircleCollider>) {
+			A.radius *= Abs(a.scale.x);
+			B.radius *= Abs(b.scale.x);
 			return impl::IntersectCircleCircle(a.position, A.radius, b.position, B.radius);
 		} else if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, CircleCollider>) {
-			B.radius   *= b.scale.x;
-			A.size	   *= a.scale;
+			B.radius   *= Abs(b.scale.x);
+			A.size	   *= Abs(a.scale);
 			a.position += GetOriginOffset(A.origin, A.size);
 			return impl::IntersectCircleRect(b.position, B.radius, a.position, A.size);
 		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, BoxCollider>) {
-			A.radius   *= a.scale.x;
-			B.size	   *= b.scale;
+			A.radius   *= Abs(a.scale.x);
+			B.size	   *= Abs(b.scale);
 			b.position += GetOriginOffset(B.origin, B.size);
 			return impl::IntersectCircleRect(a.position, A.radius, b.position, B.size);
 		} else {
-			static_assert("Unrecognized collider types");
+			static_assert(false, "Unrecognized collider types");
 		}
 	}
 
@@ -171,9 +175,9 @@ public:
 				return;
 			}
 
-			auto intersection{
-				Intersects(entity.GetTransform(), collider, e2.GetTransform(), collider2)
-			};
+			auto intersection{ Intersects(
+				entity.GetAbsoluteTransform(), collider, e2.GetAbsoluteTransform(), collider2
+			) };
 
 			if (!intersection.Occurred()) {
 				return;
@@ -331,27 +335,28 @@ private:
 		Transform a, T A, const V2_float& ray, Transform b, S B
 	) {
 		if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, BoxCollider>) {
-			A.size	   *= a.scale;
+			A.size	   *= Abs(a.scale);
 			a.position += GetOriginOffset(A.origin, A.size);
-			B.size	   *= b.scale;
+			B.size	   *= Abs(b.scale);
 			b.position += GetOriginOffset(B.origin, B.size);
 			return impl::RaycastRectRect(a.position, A.size, ray, b.position, B.size);
-		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, CircleCollider>) {
-			A.radius *= a.scale.x;
-			B.radius *= b.scale.x;
+		} else if constexpr (std::is_same_v<T, CircleCollider> &&
+							 std::is_same_v<S, CircleCollider>) {
+			A.radius *= Abs(a.scale.x);
+			B.radius *= Abs(b.scale.x);
 			return impl::RaycastCircleCircle(a.position, A.radius, ray, b.position, B.radius);
 		} else if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, CircleCollider>) {
-			A.size	   *= a.scale;
+			A.size	   *= Abs(a.scale);
 			a.position += GetOriginOffset(A.origin, A.size);
-			B.radius   *= b.scale.x;
+			B.radius   *= Abs(b.scale.x);
 			return impl::RaycastRectCircle(a.position, A.size, ray, b.position, B.radius);
 		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, BoxCollider>) {
-			A.radius   *= a.scale.x;
-			B.size	   *= b.scale;
+			A.radius   *= Abs(a.scale.x);
+			B.size	   *= Abs(b.scale);
 			b.position += GetOriginOffset(B.origin, B.size);
 			return impl::RaycastCircleRect(a.position, A.radius, ray, b.position, B.size);
 		} else {
-			static_assert("Unrecognized collider types");
+			static_assert(false, "Unrecognized collider types");
 		}
 	}
 
@@ -362,7 +367,7 @@ private:
 		} else if constexpr (std::is_same_v<T, CircleCollider>) {
 			return transform.position;
 		} else {
-			static_assert("Unrecognized collider types");
+			static_assert(false, "Unrecognized collider types");
 		}
 	}
 
@@ -379,8 +384,8 @@ private:
 		}
 		// TODO: Figure out a better way to do the second sweep without generating a new game
 		// object or changing the position of the existing one.
-		auto transform1{ entity.GetTransform() };
-		auto transform2{ e2.GetTransform() };
+		auto transform1{ entity.GetAbsoluteTransform() };
+		auto transform2{ e2.GetAbsoluteTransform() };
 
 		auto offset_transform{ transform1 };
 		offset_transform.position += offset;

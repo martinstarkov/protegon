@@ -10,7 +10,7 @@
 // #include "core/resource_manager.h"
 // #include "core/entity.h"
 // #include "core/manager.h"
-// 
+//
 // #include "math/geometry.h"
 // #include "math/vector2.h"
 // #include "rendering/api/color.h"
@@ -322,7 +322,7 @@
 //		V2_float division_length{ division_dir * axis.division_length };
 //
 //		// By how many pixels each division is separated.
-//		float division_offset{ FastAbs(edge_length[component_index]) / axis.divisions };
+//		float division_offset{ Abs(edge_length[component_index]) / axis.divisions };
 //
 //		V2_float axis_length{ current_axis_.GetLength() };
 //

@@ -96,10 +96,10 @@ V2_float CollisionHandler::GetRemainingVelocity(
 		}
 		case CollisionResponse::Bounce: {
 			auto new_velocity{ velocity * remaining_time };
-			if (!NearlyEqual(FastAbs(c.normal.x), 0.0f)) {
+			if (!NearlyEqual(Abs(c.normal.x), 0.0f)) {
 				new_velocity.x *= -1.0f;
 			}
-			if (!NearlyEqual(FastAbs(c.normal.y), 0.0f)) {
+			if (!NearlyEqual(Abs(c.normal.y), 0.0f)) {
 				new_velocity.y *= -1.0f;
 			}
 			return new_velocity;

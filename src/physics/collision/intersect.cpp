@@ -103,7 +103,7 @@ Intersection IntersectCircleRect(
 	V2_float mid{ rect_center };
 	V2_float d{ mid - circle_center };
 
-	if (V2_float overlap{ half - V2_float{ FastAbs(d.x), FastAbs(d.y) } }; overlap.x < overlap.y) {
+	if (V2_float overlap{ half - V2_float{ Abs(d.x), Abs(d.y) } }; overlap.x < overlap.y) {
 		c.depth	   = circle_radius + overlap.x;
 		c.normal.x = d.x < 0 ? 1.0f : -1.0f;
 	} else {
@@ -141,7 +141,7 @@ Intersection IntersectRectRect(
 	V2_float a_h{ rectA_size * 0.5f };
 	V2_float b_h{ rectB_size * 0.5f };
 	V2_float d{ rectB_center - rectA_center };
-	V2_float pen{ a_h + b_h - V2_float{ FastAbs(d.x), FastAbs(d.y) } };
+	V2_float pen{ a_h + b_h - V2_float{ Abs(d.x), Abs(d.y) } };
 
 	// Optional: To include seams in collision, simply remove the NearlyEqual calls from this if
 	// statement.
@@ -155,10 +155,10 @@ Intersection IntersectRectRect(
 		c.depth	   = a_h.y + b_h.y;
 	} else if (pen.y < pen.x) {
 		c.normal.y = -Sign(d.y);
-		c.depth	   = FastAbs(pen.y);
+		c.depth	   = Abs(pen.y);
 	} else {
 		c.normal.x = -Sign(d.x);
-		c.depth	   = FastAbs(pen.x);
+		c.depth	   = Abs(pen.x);
 	}
 
 	PTGN_ASSERT(c.depth >= 0.0f);

@@ -13,6 +13,7 @@
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/graphics/vfx/tween_effects.h"
 #include "rendering/renderer.h"
+#include "scene.h"
 #include "scene/camera.h"
 
 namespace ptgn {
@@ -30,6 +31,14 @@ void Scene::Add(Action new_status) {
 
 Entity Scene::CreateEntity() {
 	return manager.CreateEntity();
+}
+
+void Scene::SetColliderColor(const Color& collider_color) {
+	collider_color_ = collider_color;
+}
+
+void Scene::SetColliderVisibility(bool collider_visibility) {
+	collider_visibility_ = collider_visibility;
 }
 
 void Scene::InternalEnter() {
@@ -106,6 +115,18 @@ void Scene::PostUpdate() {
 	manager.Refresh();
 	physics.PostCollisionUpdate(manager);
 	manager.Refresh();
+	if (collider_visibility_) {
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+			const auto& transform{ e.GetAbsoluteTransform() };
+			DrawDebugRect(
+				transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
+			);
+		}
+		for (auto [e, c] : manager.EntitiesWith<CircleCollider>()) {
+			const auto& transform{ e.GetAbsoluteTransform() };
+			DrawDebugCircle(transform.position, c.radius, collider_color_, 1.0f);
+		}
+	}
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.Render({} /*target_.GetFrameBuffer()*/, camera.primary, manager);
 

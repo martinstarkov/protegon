@@ -801,7 +801,7 @@ void Camera::RecalculateView(const Transform& offset_transform) const {
 	}
 
 	if (info.pixel_rounding) {
-		position = FastRound(position);
+		position = Round(position);
 	}
 
 	V3_float mirror_position{ -position.x, -position.y, position.z };
@@ -816,7 +816,7 @@ void Camera::RecalculateProjection() const {
 	// TODO: Potentially add two zoom components in the future.
 	V2_float extents{ info.size / 2.0f / info.zoom };
 	if (info.pixel_rounding) {
-		extents = FastRound(extents);
+		extents = Round(extents);
 	}
 	V2_float flip_dir{ 1.0f, 1.0f };
 	switch (info.flip) {

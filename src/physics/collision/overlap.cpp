@@ -343,7 +343,7 @@ bool OverlapLineCircle(
 	float max_dist2{ std::max(OP_dist2, OQ_dist2) };
 
 	if (OP.Dot(-PQ) > 0.0f && OQ.Dot(PQ) > 0.0f) {
-		float triangle_area{ FastAbs(impl::ParallelogramArea(circle_center, line_start, line_end)) /
+		float triangle_area{ Abs(impl::ParallelogramArea(circle_center, line_start, line_end)) /
 							 2.0f };
 		min_dist2 = 4.0f * triangle_area * triangle_area / PQ.Dot(PQ);
 	} else {
@@ -385,13 +385,13 @@ bool OverlapLineRect(
 	m = m - c;					// Translate box and segment to origin
 
 	// Try world coordinate axes as separating axes.
-	float adx{ FastAbs(d.x) };
-	if (FastAbs(m.x) >= e.x + adx) {
+	float adx{ Abs(d.x) };
+	if (Abs(m.x) >= e.x + adx) {
 		return false;
 	}
 
-	float ady{ FastAbs(d.y) };
-	if (FastAbs(m.y) >= e.y + ady) {
+	float ady{ Abs(d.y) };
+	if (Abs(m.y) >= e.y + ady) {
 		return false;
 	}
 
@@ -403,7 +403,7 @@ bool OverlapLineRect(
 	// Try cross products of segment direction vector with coordinate axes.
 	float cross{ m.Cross(d) };
 
-	if (float dot{ e.Dot({ ady, adx }) }; FastAbs(cross) > dot) {
+	if (float dot{ e.Dot({ ady, adx }) }; Abs(cross) > dot) {
 		return false;
 	}
 

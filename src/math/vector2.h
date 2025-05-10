@@ -7,11 +7,11 @@
 #include <ostream>
 #include <type_traits>
 
+#include "common/assert.h"
+#include "common/type_traits.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "serialization/serializable.h"
-#include "common/assert.h"
-#include "common/type_traits.h"
 
 // TODO: Add xyz() and xyzw() functions.
 // TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.
@@ -343,25 +343,25 @@ template <typename T>
 // Ceil both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
-	return { FastCeil(vector.x), FastCeil(vector.y) };
+	return { Ceil(vector.x), Ceil(vector.y) };
 }
 
 // Floor both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
-	return { FastFloor(vector.x), FastFloor(vector.y) };
+	return { Floor(vector.x), Floor(vector.y) };
 }
 
 // Round both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
-	return { FastRound(vector.x), FastRound(vector.y) };
+	return { Round(vector.x), Round(vector.y) };
 }
 
 // Absolute value for both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Abs(const Vector2<T>& vector) {
-	return { FastAbs(vector.x), FastAbs(vector.y) };
+	return { Abs(vector.x), Abs(vector.y) };
 }
 
 // Swap both components of vectors a and b.
@@ -389,6 +389,18 @@ template <typename T>
 template <typename T>
 [[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& a, const Vector2<T>& b) {
 	return Vector2<T>{ (a + b) / 2.0f };
+}
+
+// @return The larger component of a vector.
+template <typename T>
+[[nodiscard]] inline T Max(const Vector2<T>& vector) {
+	return std::max(vector.x, vector.y);
+}
+
+// @return The smaller component of a vector.
+template <typename T>
+[[nodiscard]] inline T Min(const Vector2<T>& vector) {
+	return std::min(vector.x, vector.y);
 }
 
 } // namespace ptgn

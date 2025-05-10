@@ -169,7 +169,7 @@ template <typename T>
 // Source: https://stackoverflow.com/a/30308919.
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastFloor(T value) {
+[[nodiscard]] T Floor(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return static_cast<T>(
 			static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value))
@@ -181,9 +181,9 @@ template <typename T>
 
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastRound(T value) {
+[[nodiscard]] T Round(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
-		return FastFloor(value + 0.5f);
+		return Floor(value + 0.5f);
 	} else {
 		return value;
 	}
@@ -191,7 +191,7 @@ template <typename T>
 
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastCeil(T value) {
+[[nodiscard]] T Ceil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return static_cast<T>(
 			static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value))
@@ -203,17 +203,17 @@ template <typename T>
 
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastAbs(T value) noexcept {
+[[nodiscard]] T Abs(T value) noexcept {
 	return value >= 0 ? value : -value;
 }
 
 template <typename T>
-[[nodiscard]] T FastMin(T a, T b) {
+[[nodiscard]] T Min(T a, T b) {
 	return a < b ? a : b;
 }
 
 template <typename T>
-[[nodiscard]] T FastMax(T a, T b) {
+[[nodiscard]] T Max(T a, T b) {
 	return a > b ? a : b;
 }
 
@@ -222,8 +222,9 @@ template <typename T>
 // tolerances. The absolute tolerance test fails when x and y become large. The
 // relative tolerance test fails when x and y become small.
 template <typename T>
-[[nodiscard]] bool
-NearlyEqual(T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * epsilon<T>) noexcept {
+[[nodiscard]] bool NearlyEqual(
+	T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * epsilon<T>
+) noexcept {
 	if constexpr (std::is_floating_point_v<T>) {
 		// TODO: Fix this.
 		bool a_inf{ std::isinf(a) };
@@ -234,8 +235,7 @@ NearlyEqual(T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * ep
 			}
 			return false;
 		}
-		return a == b ||
-			   FastAbs(a - b) <= std::max(abs_tol, rel_tol * std::max(FastAbs(a), FastAbs(b)));
+		return a == b || Abs(a - b) <= std::max(abs_tol, rel_tol * std::max(Abs(a), Abs(b)));
 	} else {
 		return a == b;
 	}

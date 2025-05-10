@@ -79,9 +79,9 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-	// TODO: Once window resizing is implemented, get rid of this.
-	lights = std::move(RenderTarget{ light_manager, { 1, 1 }, color::Transparent });
+	lights = RenderTarget{ light_manager, { 1, 1 }, color::Transparent };
 
+	// TODO: Once window resizing is implemented, get rid of this.
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this,
 		std::function([&](const WindowResizedEvent& e) { lights.GetTexture().Resize(e.size); })

@@ -37,7 +37,11 @@ private:
 
 	std::set<Action> actions_;
 
+protected:
 	Entity CreateEntity();
+
+	void SetColliderColor(const Color& collider_color);
+	void SetColliderVisibility(bool collider_visibility);
 
 public:
 	Scene()			 = default;
@@ -74,6 +78,9 @@ private:
 	void InternalExit();
 
 	void Add(Action new_action);
+
+	bool collider_visibility_{ false };
+	Color collider_color_{ color::Blue };
 };
 
 } // namespace ptgn

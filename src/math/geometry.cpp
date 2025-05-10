@@ -14,14 +14,13 @@
 namespace ptgn::impl {
 
 std::vector<V2_float> GetVertices(
-	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise,
-	float sa, float ea
+	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise
 ) {
-	if (sa > ea) {
-		ea += two_pi<float>;
+	if (start_angle > end_angle) {
+		end_angle += two_pi<float>;
 	}
 
-	float arc_angle{ ea - sa };
+	float arc_angle{ end_angle - start_angle };
 
 	PTGN_ASSERT(arc_angle >= 0.0f);
 
@@ -217,9 +216,11 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
-														 contour[static_cast<std::size_t>(b)],
-														 contour[static_cast<std::size_t>(c)] });
+			result.emplace_back(
+				std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+										 contour[static_cast<std::size_t>(b)],
+										 contour[static_cast<std::size_t>(c)] }
+			);
 
 			m++;
 

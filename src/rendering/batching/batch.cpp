@@ -5,13 +5,13 @@
 #include <utility>
 #include <vector>
 
+#include "common/assert.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
-#include "common/assert.h"
 
 namespace ptgn::impl {
 
@@ -27,7 +27,7 @@ void Batch::AddTexturedQuad(
 		Vertex v{};
 
 		if (pixel_rounding) {
-			v.position = { FastRound(positions[i].x), FastRound(positions[i].y),
+			v.position = { Round(positions[i].x), Round(positions[i].y),
 						   static_cast<float>(depth) };
 		} else {
 			v.position = { positions[i].x, positions[i].y, static_cast<float>(depth) };
@@ -89,7 +89,7 @@ void Batch::AddFilledTriangle(
 		Vertex v{};
 
 		if (pixel_rounding) {
-			v.position = { FastRound(positions[i].x), FastRound(positions[i].y),
+			v.position = { Round(positions[i].x), Round(positions[i].y),
 						   static_cast<float>(depth) };
 		} else {
 			v.position = { positions[i].x, positions[i].y, static_cast<float>(depth) };
