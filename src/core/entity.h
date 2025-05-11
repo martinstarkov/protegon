@@ -39,6 +39,10 @@ public:
 	Entity& operator=(Entity&&) noexcept = default;
 	~Entity()							 = default;
 
+	explicit operator bool() const {
+		return ecs::Entity::operator bool();
+	}
+
 	friend bool operator==(const Entity& a, const Entity& b) {
 		return ecs::Entity{ a } == ecs::Entity{ b };
 	}
