@@ -26,6 +26,115 @@ class RenderData;
 /*
 // TODO: Move to game factory.
 
+// @return *this.
+Entity& SetVisible(bool visible);
+
+// @return *this.
+Entity& Show();
+
+// @return *this.
+Entity& Hide();
+
+// @return *this.
+Entity& SetEnabled(bool enabled);
+
+// @return *this.
+Entity& Disable();
+
+// @return *this.
+Entity& Enable();
+
+[[nodiscard]] bool IsVisible() const;
+[[nodiscard]] bool IsEnabled() const;
+
+[[nodiscard]] UUID GetUUID() const;
+
+// @return The parent most entity, or *this if no parent exists.
+[[nodiscard]] Entity GetRootEntity() const;
+
+[[nodiscard]] Transform GetRelativeTransform() const;
+
+[[nodiscard]] Transform GetTransform() const;
+
+// @return The root transform of the entity relative to all of its parent offsets.
+[[nodiscard]] Transform GetAbsoluteTransform() const;
+
+[[nodiscard]] V2_float GetRelativePosition() const;
+
+[[nodiscard]] V2_float GetPosition() const;
+
+[[nodiscard]] Transform GetRelativeOffset() const;
+
+[[nodiscard]] Transform GetOffset() const;
+
+// @return Rotation of the object in radians relative to { 1, 0 }, clockwise positive.
+[[nodiscard]] float GetRelativeRotation() const;
+
+// @return Rotation of the object in radians relative to its parent object and { 1, 0 },
+// clockwise positive.
+[[nodiscard]] float GetRotation() const;
+
+[[nodiscard]] V2_float GetRelativeScale() const;
+
+[[nodiscard]] V2_float GetScale() const;
+
+// Set the local position of this game object.
+// @return *this.
+Entity& SetPosition(const V2_float& position);
+
+// Set the local rotation of this game object.
+// @return *this.
+Entity& SetRotation(float rotation);
+
+// Set the local scale of this game object.
+// @return *this.
+Entity& SetScale(const V2_float& scale);
+
+Entity& SetDepth(const Depth& depth);
+
+[[nodiscard]] Depth GetDepth() const;
+
+Entity& SetBlendMode(BlendMode blend_mode);
+
+[[nodiscard]] BlendMode GetBlendMode() const;
+
+Entity& SetOrigin(Origin origin);
+
+[[nodiscard]] Origin GetOrigin() const;
+
+Entity& SetTint(const Color& color);
+
+[[nodiscard]] Color GetTint() const;
+
+[[nodiscard]] bool IsImmovable() const;
+
+void AddChild(Entity& child);
+
+void AddChild(std::string_view name, Entity& child);
+
+// @return Child entity with the given name, or null entity is no such child exists.
+Entity GetChild(std::string_view name);
+
+// @return True if the entity has the given child, named or unnamed. False otherwise.
+[[nodiscard]] bool HasChild(const Entity& child) const;
+
+void RemoveChild(Entity& child);
+void RemoveChild(std::string_view name);
+
+void SetParent(Entity& child);
+void RemoveParent();
+
+// If object has no parent, returns *this.
+[[nodiscard]] Entity GetParent() const;
+
+[[nodiscard]] bool HasParent() const;
+
+[[nodiscard]] std::size_t GetHash() const;
+
+friend void to_json(json& j, const Entity& e);
+friend void from_json(const json& j, Entity& e);
+
+[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 
 
 */

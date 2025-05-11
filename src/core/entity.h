@@ -2,7 +2,6 @@
 
 #include <array>
 #include <string_view>
-#include <unordered_map>
 #include <unordered_set>
 
 #include "common/type_info.h"
@@ -17,6 +16,7 @@
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "serialization/fwd.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -30,6 +30,12 @@ class Manager;
 
 class Entity : private ecs::Entity {
 public:
+	// Interface functions.
+
+	virtual void Draw(impl::RenderData& ctx) {}
+
+	// Entity wrapper functionality.
+
 	using ecs::Entity::Entity;
 
 	Entity()							 = default;
@@ -93,7 +99,7 @@ public:
 
 	[[nodiscard]] bool IsAlive() const;
 
-	void Destroy();
+	Entity& Destroy();
 
 	[[nodiscard]] Manager& GetManager();
 
@@ -103,146 +109,42 @@ public:
 
 	// Component manipulation functions.
 
-	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
-	Entity& SetDraw() {
-		Add<IDrawable>(T::GetName());
-		return *this;
-	}
-
-	[[nodiscard]] bool HasDraw() const;
-
-	Entity& RemoveDraw();
-
-	// @return *this.
-	Entity& SetVisible(bool visible);
-
-	// @return *this.
-	Entity& Show();
-
-	// @return *this.
-	Entity& Hide();
-
-	// @return *this.
-	Entity& SetEnabled(bool enabled);
-
-	// @return *this.
-	Entity& Disable();
-
-	// @return *this.
-	Entity& Enable();
-
-	[[nodiscard]] bool IsVisible() const;
-	[[nodiscard]] bool IsEnabled() const;
-
-	[[nodiscard]] UUID GetUUID() const;
-
-	// @return The lowest y coordinate of the object.
-	[[nodiscard]] float GetLowestY() const;
-
-	[[nodiscard]] V2_float GetSize() const;
-
-	// @return Reference to the transform of the top most parent entity. If none of the entities
-	// have a transform component, an assertion is called.
-	[[nodiscard]] const Transform& GetRootTransform() const;
-	[[nodiscard]] Transform& GetRootTransform();
-
-	[[nodiscard]] Transform GetRelativeTransform() const;
-
-	[[nodiscard]] Transform GetTransform() const;
-
-	// @return The root transform of the entity relative to all of its parent offsets.
-	[[nodiscard]] Transform GetAbsoluteTransform() const;
-
-	[[nodiscard]] V2_float GetRelativePosition() const;
-
-	[[nodiscard]] V2_float GetPosition() const;
-
-	[[nodiscard]] Transform GetRelativeOffset() const;
-
-	[[nodiscard]] Transform GetOffset() const;
-
-	// @return Rotation of the object in radians relative to { 1, 0 }, clockwise positive.
-	[[nodiscard]] float GetRelativeRotation() const;
-
-	// @return Rotation of the object in radians relative to its parent object and { 1, 0 },
-	// clockwise positive.
-	[[nodiscard]] float GetRotation() const;
-
-	[[nodiscard]] V2_float GetRelativeScale() const;
-
-	[[nodiscard]] V2_float GetScale() const;
-
-	// Set the local position of this game object.
-	// @return *this.
-	Entity& SetPosition(const V2_float& position);
-
-	// Set the local rotation of this game object.
-	// @return *this.
-	Entity& SetRotation(float rotation);
-
-	// Set the local scale of this game object.
-	// @return *this.
-	Entity& SetScale(const V2_float& scale);
-
-	Entity& SetDepth(const Depth& depth);
-
-	[[nodiscard]] Depth GetDepth() const;
-
-	Entity& SetBlendMode(BlendMode blend_mode);
-
-	[[nodiscard]] BlendMode GetBlendMode() const;
-
-	Entity& SetOrigin(Origin origin);
-
-	[[nodiscard]] Origin GetOrigin() const;
-
-	Entity& SetTint(const Color& color);
-
-	[[nodiscard]] Color GetTint() const;
-
-	[[nodiscard]] bool IsImmovable() const;
-
-	void AddChild(Entity& child);
-
-	void AddChild(std::string_view name, Entity& child);
-
-	// @return Child entity with the given name, or null entity is no such child exists.
-	Entity GetChild(std::string_view name);
-
-	// @return True if the entity has the given child, named or unnamed. False otherwise.
-	[[nodiscard]] bool HasChild(const Entity& child) const;
-
-	void RemoveChild(Entity& child);
-	void RemoveChild(std::string_view name);
-
-	void SetParent(Entity& child);
-	void RemoveParent();
-
-	// If object has no parent, returns *this.
-	[[nodiscard]] Entity GetParent() const;
-
-	[[nodiscard]] bool HasParent() const;
-
-	[[nodiscard]] std::size_t GetHash() const;
-
-	friend void to_json(json& j, const Entity& e);
-	friend void from_json(const json& j, Entity& e);
-
-	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
-
 private:
 	friend class Manager;
 
 	explicit Entity(const ecs::Entity& e) : ecs::Entity{ e } {}
 };
 
-template <typename TCallback, typename... TArgs>
-static void Invoke(const Entity& e, TArgs&&... args) {
-	if (e.Has<TCallback>()) {
-		const auto& callback{ e.Get<TCallback>() };
-		Invoke(callback, std::forward<TArgs>(args)...);
-	}
-}
+namespace impl {
+
+struct ChildKey : public HashComponent {
+	using HashComponent::HashComponent;
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(ChildKey, value_)
+};
+
+struct Children {
+	Children(const Entity& child, std::string_view name = {});
+
+	void Add(const Entity& child, std::string_view name = {});
+	void Remove(const Entity& child);
+	void Remove(std::string_view name);
+
+	// @return Entity with given name, or null entity is no such entity exists.
+	[[nodiscard]] Entity Get(std::string_view name);
+
+	[[nodiscard]] bool IsEmpty() const;
+
+	[[nodiscard]] bool Has(const Entity& child) const;
+	[[nodiscard]] bool Has(std::string_view name) const;
+
+private:
+	friend class Entity;
+
+	std::unordered_set<Entity> children_;
+};
+
+} // namespace impl
 
 } // namespace ptgn
 
@@ -256,31 +158,3 @@ struct hash<ptgn::Entity> {
 };
 
 } // namespace std
-
-namespace ptgn {
-
-struct Children {
-	Children(std::string_view name, const Entity& child);
-	Children(const Entity& child);
-
-	void Add(const Entity& child);
-	void Remove(const Entity& child);
-
-	void Add(std::string_view name, const Entity& child);
-	void Remove(std::string_view name);
-	// @return Entity with given name, or null entity is no such entity exists.
-	Entity Get(std::string_view name);
-
-	[[nodiscard]] bool IsEmpty() const;
-
-	[[nodiscard]] bool Has(const Entity& child) const;
-
-private:
-	friend class Entity;
-
-	// TODO: Switch to giving children a name tag.
-	std::unordered_set<Entity> children_;
-	std::unordered_map<std::size_t, Entity> named_children_;
-};
-
-} // namespace ptgn

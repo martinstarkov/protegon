@@ -59,14 +59,8 @@ enum class TextureScaling {
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
 };
 
-struct TextureKey : public ArithmeticComponent<std::size_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	TextureKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
-
-	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
-
-	TextureKey(const std::string& key) : ArithmeticComponent{ Hash(key) } {}
+struct TextureKey : public HashComponent {
+	using HashComponent::HashComponent;
 
 	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureKey, value_)
 };

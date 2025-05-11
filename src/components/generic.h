@@ -43,6 +43,16 @@ protected:
 	T value_{};
 };
 
+struct HashComponent : public ArithmeticComponent<std::size_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	HashComponent(std::string_view key);
+
+	HashComponent(const char* key);
+
+	HashComponent(const std::string& key);
+};
+
 template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
 struct Vector2Component {
 	Vector2Component() = default;

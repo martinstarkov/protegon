@@ -18,6 +18,8 @@ struct Enabled : public ArithmeticComponent<bool> {
 struct Depth : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 
+	[[nodiscard]] Depth RelativeTo(Depth parent) const;
+
 	PTGN_SERIALIZER_REGISTER_NAMELESS(Depth, value_)
 };
 
