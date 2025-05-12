@@ -5,10 +5,10 @@
 #include <utility>
 #include <vector>
 
+#include "common/assert.h"
 #include "core/entity.h"
 #include "math/vector2.h"
 #include "scene/camera.h"
-#include "common/assert.h"
 
 namespace ptgn {
 
@@ -123,7 +123,8 @@ void ChunkManager::Update(const Camera& camera) {
 	}*/
 }
 
-[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(const V2_int& chunk_coordinate
+[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(
+	const V2_int& chunk_coordinate
 ) const {
 	std::vector<Entity> entities;
 	for (const auto& layer : noise_layers) {
@@ -131,7 +132,7 @@ void ChunkManager::Update(const Camera& camera) {
 			for (int j{ 0 }; j < chunk_size.y; j++) {
 				auto tile_coordinate{ chunk_coordinate * chunk_size + V2_int{ i, j } };
 				auto entity{ layer.GetEntity(tile_coordinate, tile_size) };
-				if (entity == Entity{}) {
+				if (!entity) {
 					continue;
 				}
 				entities.emplace_back(entity);

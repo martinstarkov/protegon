@@ -32,7 +32,7 @@ class Entity : private ecs::Entity {
 public:
 	// Interface functions.
 
-	virtual void Draw(impl::RenderData& ctx) {}
+	virtual void Draw(impl::RenderData& ctx) const {}
 
 	// Entity wrapper functionality.
 
@@ -57,7 +57,7 @@ public:
 		return !(a == b);
 	}
 
-	// Copying a destroyed entity will return Entity{}.
+	// Copying a destroyed entity will return a null entity.
 	// Copying an entity with no components simply returns a new entity.
 	// Make sure to call manager.Refresh() after this function.
 	template <typename... Ts>
@@ -119,6 +119,8 @@ public:
 	// Entity property functions.
 
 	[[nodiscard]] UUID GetUUID() const;
+
+	[[nodiscard]] std::size_t GetHash() const;
 
 	// Entity hierarchy functions.
 
@@ -215,8 +217,37 @@ public:
 	// @return The absolute scale of the entity with respect to its parent scene camera scale.
 	[[nodiscard]] V2_float GetAbsoluteScale() const;
 
+	Entity& SetOrigin(Origin origin);
+
+	[[nodiscard]] Origin GetOrigin() const;
+
+	friend void to_json(json& j, const Entity& entity);
+	friend void from_json(const json& j, Entity& entity);
+
 private:
 	friend class Manager;
+
+	template <typename T, typename... TArgs>
+	Entity& AddOrRemove(bool condition, TArgs&&... args) {
+		if (condition) {
+			Add<T>(std::forward<TArgs>(args)...);
+		} else {
+			Remove<T>();
+		}
+		return *this;
+	}
+
+	template <typename T, typename... TArgs>
+	[[nodiscard]] T GetOrDefault(TArgs&&... args) const {
+		return Has<T>() ? Get<T>() : T{ std::forward<TArgs>(args)... };
+	}
+
+	template <typename T, typename... TArgs>
+	[[nodiscard]] T GetOrParentOrDefault(TArgs&&... args) const {
+		return Has<T>() ? Get<T>()
+						: (HasParent() ? GetParent().GetOrDefault<T>(std::forward<TArgs>(args)...)
+									   : T{ std::forward<TArgs>(args)... });
+	}
 
 	void AddChildImpl(Entity& child, std::string_view name);
 

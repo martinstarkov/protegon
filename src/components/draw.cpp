@@ -8,7 +8,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/tween.h"
@@ -22,79 +21,100 @@
 
 namespace ptgn {
 
-template <typename T, typename... TArgs>
-inline Entity& AddOrRemove(Entity& e, bool condition, TArgs&&... args) {
-	if (condition) {
-		e.Add<T>(std::forward<TArgs>(args)...);
+void Sprite::Draw(impl::RenderData& ctx) const {
+	auto transform{ GetAbsoluteTransform() };
+	auto depth{ GetDepth() };
+	auto blend_mode{ GetBlendMode() };
+	auto tint{ GetTint().Normalized() };
+	auto origin{ GetOrigin() };
+
+	const auto& texture{ GetTexture() };
+
+	auto size{ GetTextureSize() };
+	auto coords{ GetTextureCoordinates(false) };
+	auto vertices{ impl::GetVertices(transform, size, origin) };
+
+	ctx.AddTexturedQuad(vertices, coords, texture, depth, blend_mode, tint, false);
+}
+
+Entity& Sprite::SetTextureKey(const TextureHandle& texture_key) {
+	if (Has<TextureHandle>()) {
+		Get<TextureHandle>() = texture_key;
 	} else {
-		e.Remove<T>();
+		Add<TextureHandle>(texture_key);
 	}
-	return e;
+	return *this;
 }
 
-template <typename T>
-inline T GetOrDefault(const Entity& e, TArgs&&... args) {
-	return e.Has<T>() ? e.Get<T>() : T{ std::forward<TArgs>(args)... };
+const impl::Texture& Sprite::GetTexture() const {
+	PTGN_ASSERT(
+		Has<TextureHandle>(),
+		"Failed to retrieve texture handle associated with sprite or sprite-derived entity"
+	);
+
+	const auto& texture_handle{ Get<TextureHandle>() };
+	return texture_handle.GetTexture(*this);
 }
 
-template <typename T>
-inline T GetOrParentOrDefault(const Entity& e, TArgs&&... args) {
-	return e.Has<T>()
-			 ? e.Get<T>()
-			 : (e.HasParent() ? e.GetParent().GetOrDefault<T>(e, std::forward<TArgs>(args)...)
-							  : T{ std::forward<TArgs>(args)... });
+impl::Texture& Sprite::GetTexture() {
+	return const_cast<impl::Texture&>(std::as_const(*this).GetTexture());
 }
 
-Entity& Entity::SetVisible(bool visible) {
-	return AddOrRemove<Visible>(*this, visible);
+Entity& Sprite::SetVisible(bool visible) {
+	return AddOrRemove<Visible>(visible);
 }
 
-Entity& Entity::Show() {
+Entity& Sprite::Show() {
 	return SetVisible(true);
 }
 
-Entity& Entity::Hide() {
+Entity& Sprite::Hide() {
 	return SetVisible(false);
 }
 
-bool Entity::IsVisible() const {
-	return GetOrParentOrDefault<Visible>(*this, false);
+bool Sprite::IsVisible() const {
+	return GetOrParentOrDefault<Visible>(false);
 }
 
-Depth Entity::GetDepth() const {
-	return GetOrDefault<Depth>(*this);
+Entity& Sprite::SetDepth(const Depth& depth) {
+	if (Has<Depth>()) {
+		Get<Depth>() = depth;
+	} else {
+		Add<Depth>(depth);
+	}
+	return *this;
 }
 
-BlendMode Entity::GetBlendMode() const {
-	return GetOrDefault<BlendMode>(*this, BlendMode::Blend);
+Depth Sprite::GetDepth() const {
+	return GetOrDefault<Depth>();
 }
 
-Origin Entity::GetBlendMode() const {
-	return GetOrDefault<Origin>(*this, Origin::Center);
+Entity& Sprite::SetBlendMode(BlendMode blend_mode) {
+	if (Has<BlendMode>()) {
+		Get<BlendMode>() = blend_mode;
+	} else {
+		Add<BlendMode>(blend_mode);
+	}
+	return *this;
 }
 
-Color Entity::GetTint() const {
-	return GetOrDefault<Tint>(*this);
+BlendMode Sprite::GetBlendMode() const {
+	return GetOrDefault<BlendMode>(BlendMode::Blend);
 }
 
-std::size_t Entity::GetHash() const {
-	return std::hash<ecs::Entity>()(*this);
+Entity& Sprite::SetTint(const Color& color) {
+	return AddOrRemove(*color != Tint{}, color);
 }
 
-bool Entity::IsImmovable() const {
-	return (Has<RigidBody>() && Get<RigidBody>().immovable) ||
-		   (HasParent() ? GetParent().IsImmovable() : false);
+Color Sprite::GetTint() const {
+	return GetOrDefault<Tint>();
 }
 
-Entity& Entity::SetTint(const Color& color) {
-	return AddOrRemove(*this, color != Tint{}, color);
-}
-
-V2_int Entity::GetTextureSize() const {
+V2_int Sprite::GetTextureSize() const {
 	return Has<TextureHandle>() ? Get<TextureHandle>().GetSize(*this) : V2_int{};
 }
 
-std::array<V2_float, 4> Entity::GetTextureCoordinates(bool flip_vertically) const {
+std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) const {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
 
 	auto check_vertical_flip = [flip_vertically, &tex_coords]() {
@@ -143,33 +163,6 @@ std::array<V2_float, 4> Entity::GetTextureCoordinates(bool flip_vertically) cons
 	std::invoke(check_vertical_flip);
 
 	return tex_coords;
-}
-
-Entity& Entity::SetDepth(const Depth& depth) {
-	if (Has<Depth>()) {
-		Get<Depth>() = depth;
-	} else {
-		Add<Depth>(depth);
-	}
-	return *this;
-}
-
-Entity& Entity::SetBlendMode(BlendMode blend_mode) {
-	if (Has<BlendMode>()) {
-		Get<BlendMode>() = blend_mode;
-	} else {
-		Add<BlendMode>(blend_mode);
-	}
-	return *this;
-}
-
-Entity& Entity::SetOrigin(Origin origin) {
-	if (Has<Origin>()) {
-		Get<Origin>() = origin;
-	} else {
-		Add<Origin>(origin);
-	}
-	return *this;
 }
 
 namespace impl {
@@ -245,35 +238,6 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 	auto& new_active{ GetActive() };
 	new_active.Show();
 	return true;
-}
-
-Sprite::Sprite(Manager& manager, const TextureHandle& texture_key) : GameObject{ manager } {
-	SetDraw<Sprite>();
-
-	PTGN_ASSERT(
-		game.texture.Has(texture_key), "Sprite texture key must be loaded in the texture manager"
-	);
-
-	Add<TextureHandle>(texture_key);
-	Add<Visible>();
-}
-
-void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ entity.GetAbsoluteTransform() };
-	auto depth{ entity.GetDepth() };
-	auto blend_mode{ entity.GetBlendMode() };
-	auto tint{ entity.GetTint().Normalized() };
-	auto origin{ entity.GetOrigin() };
-
-	PTGN_ASSERT(entity.Has<TextureHandle>());
-
-	const auto& texture_key{ entity.Get<TextureHandle>() };
-	const auto& texture{ game.texture.Get(texture_key) };
-	auto size{ entity.GetSize() };
-	auto coords{ entity.GetTextureCoordinates(false) };
-	auto vertices{ impl::GetVertices(transform, size, origin) };
-
-	ctx.AddTexturedQuad(vertices, coords, texture, depth, blend_mode, tint, false);
 }
 
 Animation::Animation(

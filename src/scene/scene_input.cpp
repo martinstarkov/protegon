@@ -176,7 +176,7 @@ void SceneInput::UpdateCurrent() {
 			if (top_only_) {
 				if (is_inside) {
 					auto depth{ e.GetDepth() };
-					if (depth >= top_depth || top_entity == Entity{}) {
+					if (depth >= top_depth || !top_entity) {
 						top_depth  = depth;
 						top_entity = e;
 					}
@@ -188,7 +188,7 @@ void SceneInput::UpdateCurrent() {
 			}
 		}
 	}
-	if (top_only_ && top_entity != Entity{}) {
+	if (top_only_ && top_entity) {
 		PTGN_ASSERT(top_entity.Has<Enabled>() && top_entity.Get<Enabled>());
 		PTGN_ASSERT(top_entity.Has<Interactive>());
 		auto& top_interactive{ top_entity.Get<Interactive>() };
@@ -398,7 +398,7 @@ void SceneInput::SetTopOnly(bool top_only) {
 
 V2_float SceneInput::TransformToCamera(const V2_float& screen_position) const {
 	PTGN_ASSERT(scene_ != nullptr);
-	if (scene_->camera.primary != Entity{} && scene_->camera.primary.Has<impl::CameraInfo>()) {
+	if (scene_->camera.primary && scene_->camera.primary.Has<impl::CameraInfo>()) {
 		return scene_->camera.primary.TransformToCamera(screen_position);
 	}
 	return screen_position;

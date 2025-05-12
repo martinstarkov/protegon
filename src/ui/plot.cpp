@@ -11,7 +11,7 @@
 // #include "core/entity.h"
 // #include "events/input_handler.h"
 // #include "events/mouse.h"
-// 
+//
 // #include "math/geometry.h"
 // #include "math/math.h"
 // #include "math/vector2.h"
@@ -123,7 +123,7 @@
 // void Plot::Draw(const Rect& destination) {
 //	// TODO: Fix.
 //	/*
-//	PTGN_ASSERT(entity_ != Entity{}, "Cannot draw plot before it has been initialized");
+//	PTGN_ASSERT(entity_, "Cannot draw plot before it has been initialized");
 //
 //	Rect dest{ destination };
 //

@@ -61,6 +61,10 @@ UUID Entity::GetUUID() const {
 	return Get<UUID>();
 }
 
+std::size_t Entity::GetHash() const {
+	return std::hash<ecs::Entity>()(*this);
+}
+
 Entity Entity::GetRootEntity() const {
 	return HasParent() ? GetParent().GetRootEntity() : *this;
 }
@@ -165,7 +169,7 @@ Entity Entity::GetChild(std::string_view name) {
 }
 
 Entity& Entity::SetEnabled(bool enabled) {
-	return AddOrRemove<Enabled>(*this, enabled);
+	return AddOrRemove<Enabled>(enabled);
 }
 
 Entity& Entity::Disable() {
@@ -177,7 +181,7 @@ Entity& Entity::Enable() {
 }
 
 bool Entity::IsEnabled() const {
-	return GetOrParentOrDefault<Enabled>(*this, false);
+	return GetOrParentOrDefault<Enabled>(false);
 }
 
 Entity& Entity::SetTransform(const Transform& transform) {
@@ -190,7 +194,7 @@ Entity& Entity::SetTransform(const Transform& transform) {
 }
 
 Transform Entity::GetTransform() const {
-	return GetOrDefault<Transform>(*this);
+	return GetOrDefault<Transform>();
 }
 
 Transform Entity::GetAbsoluteTransform() const {
@@ -248,6 +252,19 @@ V2_float Entity::GetScale() const {
 
 V2_float Entity::GetAbsoluteScale() const {
 	return GetAbsoluteTransform().scale;
+}
+
+Entity& Entity::SetOrigin(Origin origin) {
+	if (Has<Origin>()) {
+		Get<Origin>() = origin;
+	} else {
+		Add<Origin>(origin);
+	}
+	return *this;
+}
+
+Origin Entity::GetOrigin() const {
+	return GetOrDefault<Origin>(Origin::Center);
 }
 
 namespace impl {
@@ -328,22 +345,22 @@ void from_json(const json& j, Entity& e) {
 
 } // namespace impl
 
-void to_json(json& j, const Entity& e) {
+void to_json(json& j, const Entity& entity) {
 	j = json{};
-	impl::to_json<UUID>(j, e);
+	impl::to_json<UUID>(j, entity);
 	impl::to_json<
-		Draggable, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureHandle,
+		Draggable, Transform, Enabled, Depth, Visible, Tint, LineWidth, TextureHandle,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Lifetime,
-		PointLight>(j, e);
+		PointLight>(j, entity);
 }
 
-void from_json(const json& j, Entity& e) {
-	PTGN_ASSERT(e != Entity{}, "Cannot read JSON into null entity");
-	impl::from_json<UUID>(j, e);
+void from_json(const json& j, Entity& entity) {
+	PTGN_ASSERT(entity, "Cannot read JSON into null entity");
+	impl::from_json<UUID>(j, entity);
 	impl::from_json<
-		Draggable, Transform, Enabled, Depth, Visible, DisplaySize, Tint, LineWidth, TextureHandle,
+		Draggable, Transform, Enabled, Depth, Visible, Tint, LineWidth, TextureHandle,
 		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Lifetime,
-		PointLight>(j, e);
+		PointLight>(j, entity);
 }
 
 } // namespace ptgn

@@ -52,7 +52,7 @@ public:
 		auto key{ GetInternalKey(scene_key) };
 		auto scene{ GetScene(key) };
 		SceneComponent* sc{ nullptr };
-		if (scene == Entity{}) { // New scene.
+		if (!scene) { // New scene.
 			scene = scenes_.CreateEntity();
 			sc	  = &scene.Add<SceneComponent>(
 				   std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
@@ -137,7 +137,7 @@ public:
 			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
 		);
 		auto scene{ GetScene(GetInternalKey(scene_key)) };
-		PTGN_ASSERT(scene != Entity{}, "Scene key does not exist in the scene manager");
+		PTGN_ASSERT(scene, "Scene key does not exist in the scene manager");
 		PTGN_ASSERT(scene.Has<SceneComponent>());
 		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
 	}

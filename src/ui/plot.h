@@ -90,13 +90,13 @@
 //
 //	template <typename T>
 //	T& GetProperty() {
-//		PTGN_ASSERT(entity_ != Entity{}, "Failed to find valid entity for data series");
+//		PTGN_ASSERT(entity_, "Failed to find valid entity for data series");
 //		return entity_.Get<T>();
 //	}
 //
 //	template <typename T>
 //	void AddProperty(const T& property) {
-//		PTGN_ASSERT(entity_ != Entity{}, "Failed to find valid entity for data series");
+//		PTGN_ASSERT(entity_, "Failed to find valid entity for data series");
 //		static_assert(
 //			tt::is_any_of_v<T, DataPointRadius, DataPointColor, LineColor, LineWidth>,
 //			"Invalid type for plot property"
@@ -250,7 +250,7 @@
 //	template <typename T>
 //	void AddProperty(const T& property) {
 //		PTGN_ASSERT(
-//			entity_ != Entity{}, "Cannot add plot property before plot has been initialized"
+//			entity_, "Cannot add plot property before plot has been initialized"
 //		);
 //		static_assert(
 //			tt::is_any_of_v<

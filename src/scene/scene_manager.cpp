@@ -14,14 +14,14 @@ namespace ptgn::impl {
 
 void SceneManager::UnloadImpl(std::size_t scene_key) {
 	auto scene{ GetScene(scene_key) };
-	if (scene != Entity{}) {
+	if (scene) {
 		scene.Get<SceneComponent>().scene->Add(Scene::Action::Unload);
 	}
 }
 
 void SceneManager::EnterScene(std::size_t scene_key) {
 	auto scene{ GetScene(scene_key) };
-	PTGN_ASSERT(scene != Entity{}, "Cannot initialize a scene unless it has been loaded first");
+	PTGN_ASSERT(scene, "Cannot initialize a scene unless it has been loaded first");
 	scene.Get<SceneComponent>().scene->Add(Scene::Action::Enter);
 }
 
@@ -30,7 +30,7 @@ void SceneManager::EnterImpl(std::size_t scene_key) {
 		return;
 	}
 	auto scene{ GetScene(scene_key) };
-	PTGN_ASSERT(scene != Entity{}, "Cannot enter scene unless it has been loaded first");
+	PTGN_ASSERT(scene, "Cannot enter scene unless it has been loaded first");
 
 	bool first_scene{ GetActiveSceneCount() == 0 };
 
@@ -60,7 +60,7 @@ void SceneManager::UnloadAllScenes() {
 
 void SceneManager::ExitImpl(std::size_t scene_key) {
 	auto scene{ GetScene(scene_key) };
-	if (scene == Entity{}) {
+	if (!scene) {
 		return;
 	}
 	auto& sc{ scene.Get<SceneComponent>() };
@@ -182,11 +182,11 @@ std::size_t SceneManager::GetActiveSceneCount() const {
 }
 
 bool SceneManager::HasActiveScene(std::size_t scene_key) const {
-	return GetActiveScene(scene_key) != Entity{};
+	return GetActiveScene(scene_key);
 }
 
 bool SceneManager::HasScene(std::size_t scene_key) const {
-	return GetScene(scene_key) != Entity{};
+	return GetScene(scene_key);
 }
 
 Entity SceneManager::GetActiveScene(std::size_t scene_key) const {
@@ -196,7 +196,7 @@ Entity SceneManager::GetActiveScene(std::size_t scene_key) const {
 			return e;
 		}
 	}
-	return Entity{};
+	return {};
 }
 
 Entity SceneManager::GetScene(std::size_t scene_key) const {
@@ -206,7 +206,7 @@ Entity SceneManager::GetScene(std::size_t scene_key) const {
 			return e;
 		}
 	}
-	return Entity{};
+	return {};
 }
 
 } // namespace ptgn::impl

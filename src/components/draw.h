@@ -5,7 +5,6 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
@@ -23,62 +22,12 @@ class RenderData;
 
 } // namespace impl
 
-/*
-// TODO: Move to sprite.
-
-// @return *this.
-Entity& SetVisible(bool visible);
-
-// @return *this.
-Entity& Show();
-
-// @return *this.
-Entity& Hide();
-
-[[nodiscard]] bool IsVisible() const;
-
-Entity& SetDepth(const Depth& depth);
-
-[[nodiscard]] Depth GetDepth() const;
-
-Entity& SetBlendMode(BlendMode blend_mode);
-
-[[nodiscard]] BlendMode GetBlendMode() const;
-
-Entity& SetOrigin(Origin origin);
-
-[[nodiscard]] Origin GetOrigin() const;
-
-Entity& SetTint(const Color& color);
-
-[[nodiscard]] Color GetTint() const;
-
-[[nodiscard]] bool IsImmovable() const;
-
-[[nodiscard]] V2_int GetTextureSize() const;
-
-[[nodiscard]] std::size_t GetHash() const;
-
-friend void to_json(json& j, const Entity& e);
-friend void from_json(const json& j, Entity& e);
-
-[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
-
-
-*/
-
 struct Visible : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	Visible() : ArithmeticComponent{ true } {}
 
 	PTGN_SERIALIZER_REGISTER_NAMELESS(Visible, value_)
-};
-
-struct DisplaySize : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(DisplaySize, value_)
 };
 
 struct Tint : public ColorComponent {
@@ -94,23 +43,6 @@ struct LineWidth : public ArithmeticComponent<float> {
 
 	PTGN_SERIALIZER_REGISTER_NAMELESS(LineWidth, value_)
 };
-
-namespace callback {
-
-// TODO: Change to scripts.
-struct AnimationRepeat : public CallbackComponent<Entity> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct AnimationStart : public CallbackComponent<Entity> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct AnimationComplete : public CallbackComponent<Entity> {
-	using CallbackComponent::CallbackComponent;
-};
-
-} // namespace callback
 
 struct TextureCrop {
 	// Top left position (in pixels) within the texture from which the crop starts.
@@ -191,14 +123,43 @@ private:
 
 } // namespace impl
 
-struct Sprite : public GameObject, public Drawable<Sprite> {
+struct Sprite : public Entity {
 	Sprite() = default;
 
-	// @param manager Which manager the entity is added to.
-	// @param texture_key Key of the texture loaded into the texture manager.
-	explicit Sprite(Manager& manager, const TextureHandle& texture_key);
+	void Draw(impl::RenderData& ctx) const override;
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	Entity& SetTextureKey(const TextureHandle& texture_key);
+
+	[[nodiscard]] const impl::Texture& GetTexture() const;
+
+	[[nodiscard]] impl::Texture& GetTexture();
+
+	// @return *this.
+	Entity& SetVisible(bool visible);
+
+	// @return *this.
+	Entity& Show();
+
+	// @return *this.
+	Entity& Hide();
+
+	[[nodiscard]] bool IsVisible() const;
+
+	Entity& SetDepth(const Depth& depth);
+
+	[[nodiscard]] Depth GetDepth() const;
+
+	Entity& SetBlendMode(BlendMode blend_mode);
+
+	[[nodiscard]] BlendMode GetBlendMode() const;
+
+	Entity& SetTint(const Color& color);
+
+	[[nodiscard]] Color GetTint() const;
+
+	[[nodiscard]] V2_int GetTextureSize() const;
+
+	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
 
 struct Animation : public Sprite, public Drawable<Animation> {

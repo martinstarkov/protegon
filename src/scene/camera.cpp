@@ -217,7 +217,7 @@ void CameraInfo::SetBounds(const V2_float& position, const V2_float& size) {
 
 void Camera::StopFollow(bool force) {
 	// TODO: Replace with tween effects function call?
-	if (pan_effects_ == Entity{} || !pan_effects_.IsAlive() || !pan_effects_.Has<Tween>()) {
+	if (!pan_effects_ || !pan_effects_.IsAlive() || !pan_effects_.Has<Tween>()) {
 		return;
 	}
 	auto& tween{ pan_effects_.Get<Tween>() };
@@ -230,7 +230,7 @@ void Camera::StopFollow(bool force) {
 
 void Camera::StartFollow(Entity target_entity, bool force) {
 	// TODO: Replace with tween effects function call?
-	if (pan_effects_ == Entity{}) {
+	if (!pan_effects_) {
 		pan_effects_ = GameObject{ GetManager() };
 	}
 	if (!pan_effects_.Has<Tween>()) {
@@ -249,8 +249,7 @@ void Camera::StartFollow(Entity target_entity, bool force) {
 	};
 
 	auto pan_func = [target_entity, e = GetEntity(), pe = pan_effects_.GetEntity()]() mutable {
-		if (target_entity == Entity{} || !target_entity.IsAlive() ||
-			!target_entity.Has<Transform>()) {
+		if (!target_entity || !target_entity.IsAlive() || !target_entity.Has<Transform>()) {
 			// If target is invalid or has no transform, move onto to the next item in the pan
 			// queue.
 			pe.Get<Tween>().IncrementTweenPoint();
@@ -330,7 +329,7 @@ Tween& Camera::PanTo(
 ) {
 	// TODO: Replace with tween effects function call once camera game object uses transform
 	// component.
-	if (pan_effects_ == Entity{}) {
+	if (!pan_effects_) {
 		pan_effects_ = GameObject{ GetManager() };
 	}
 	if (!pan_effects_.Has<Tween>()) {
@@ -367,7 +366,7 @@ Tween& Camera::PanTo(
 Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bool force) {
 	// TODO: Replace with tween effects function call?
 	PTGN_ASSERT(target_zoom > 0.0f, "Target zoom cannot be negative or zero");
-	if (zoom_effects_ == Entity{}) {
+	if (!zoom_effects_) {
 		zoom_effects_ = GameObject{ GetManager() };
 	}
 	if (!zoom_effects_.Has<Tween>()) {
@@ -403,7 +402,7 @@ Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, 
 Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease, bool force) {
 	// TODO: Replace with tween effects function call once camera game object uses transform
 	// component.
-	if (rotation_effects_ == Entity{}) {
+	if (!rotation_effects_) {
 		rotation_effects_ = GameObject{ GetManager() };
 	}
 	if (!rotation_effects_.Has<Tween>()) {
@@ -464,7 +463,7 @@ Tween& Camera::FadeFromTo(
 	bool force
 ) {
 	// TODO: Replace with tween effects function call.
-	if (fade_effects_ == Entity{}) {
+	if (!fade_effects_) {
 		fade_effects_ = GameObject{ GetManager() };
 	}
 	if (!fade_effects_.Has<Tween>()) {
@@ -839,14 +838,14 @@ void Camera::RecalculateProjection() const {
 void Camera::SetLerp(const V2_float& lerp) {
 	PTGN_ASSERT(lerp.x >= 0.0f && lerp.x <= 1.0f, "Lerp value outside of range 0 to 1");
 	PTGN_ASSERT(lerp.y >= 0.0f && lerp.y <= 1.0f, "Lerp value outside of range 0 to 1");
-	if (pan_effects_ == Entity{}) {
+	if (!pan_effects_) {
 		pan_effects_ = GameObject{ GetManager() };
 	}
 	pan_effects_.Add<impl::CameraLerp>(lerp);
 }
 
 V2_float Camera::GetLerp() const {
-	if (pan_effects_ == Entity{} || !pan_effects_.Has<impl::CameraLerp>()) {
+	if (!pan_effects_ || !pan_effects_.Has<impl::CameraLerp>()) {
 		return impl::CameraLerp{};
 	}
 	return pan_effects_.Get<impl::CameraLerp>();
@@ -855,7 +854,7 @@ V2_float Camera::GetLerp() const {
 void Camera::SetDeadzone(const V2_float& size) {
 	PTGN_ASSERT(size.x >= 0.0f, "Deadzone width cannot be negative");
 	PTGN_ASSERT(size.y >= 0.0f, "Deadzone height cannot be negative");
-	if (pan_effects_ == Entity{}) {
+	if (!pan_effects_) {
 		pan_effects_ = GameObject{ GetManager() };
 	}
 	if (size.IsZero()) {
@@ -866,14 +865,14 @@ void Camera::SetDeadzone(const V2_float& size) {
 }
 
 V2_float Camera::GetDeadzone() const {
-	if (pan_effects_ == Entity{} || !pan_effects_.Has<impl::CameraDeadzone>()) {
+	if (!pan_effects_ || !pan_effects_.Has<impl::CameraDeadzone>()) {
 		return impl::CameraDeadzone{};
 	}
 	return pan_effects_.Get<impl::CameraDeadzone>();
 }
 
 void Camera::SetFollowOffset(const V2_float& offset) {
-	if (pan_effects_ == Entity{}) {
+	if (!pan_effects_) {
 		pan_effects_ = GameObject{ GetManager() };
 	}
 	if (offset.IsZero()) {
@@ -884,7 +883,7 @@ void Camera::SetFollowOffset(const V2_float& offset) {
 }
 
 V2_float Camera::GetFollowOffset() const {
-	if (pan_effects_ == Entity{} || !pan_effects_.Has<impl::CameraOffset>()) {
+	if (!pan_effects_ || !pan_effects_.Has<impl::CameraOffset>()) {
 		return impl::CameraOffset{};
 	}
 	return pan_effects_.Get<impl::CameraOffset>();

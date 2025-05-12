@@ -572,7 +572,7 @@ V2_float Button::GetTextFixedSize() const {
 }
 
 Button& Button::SetTextFixedSize(const V2_float& size) {
-	// TODO: Fix this by using DisplaySize component.
+	// TODO: Fix this by using DisplaySize or scale component.
 	PTGN_ASSERT(size.x >= 0.0f && size.y >= 0.0f, "Invalid button text fixed size");
 	Add<impl::ButtonTextFixedSize>(size);
 	return *this;
