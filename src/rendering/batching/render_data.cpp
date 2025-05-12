@@ -90,7 +90,7 @@ void RenderData::Init() {
 
 /*
 std::pair<std::size_t, std::size_t> RenderData::GetVertexIndexCount(const Entity& e) {
-	if (e.HasAny<TextureKey, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
+	if (e.HasAny<TextureHandle, Text, RenderTarget, Rect, Line, Circle, Ellipse, Point>()) {
 		// Lines are rotated quads.
 		// Points are either circles or quads.
 		return { Batch::quad_vertex_count, Batch::quad_index_count };

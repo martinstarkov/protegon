@@ -20,6 +20,8 @@ struct SDL_Surface;
 
 namespace ptgn {
 
+class Entity;
+
 // @param coordinate Pixel coordinate from [0, size).
 // @return Color value of the given pixel.
 [[nodiscard]] Color GetPixel(const path& texture_filepath, const V2_int& coordinate);
@@ -57,12 +59,6 @@ enum class TextureScaling {
 	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
 	LinearMipmapNearest	 = 0x2701, // GL_LINEAR_MIPMAP_NEAREST
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
-};
-
-struct TextureKey : public HashComponent {
-	using HashComponent::HashComponent;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureKey, value_)
 };
 
 namespace impl {
@@ -287,17 +283,17 @@ public:
 	void Unload(const path& json_filepath);
 
 	// If key exists in the texture manager, does nothing.
-	void Load(const TextureKey& key, const path& filepath);
+	void Load(const TextureHandle& key, const path& filepath);
 
-	void Unload(const TextureKey& key);
+	void Unload(const TextureHandle& key);
 
 	// @return Size of the texture.
-	[[nodiscard]] V2_int GetSize(const TextureKey& key) const;
+	[[nodiscard]] V2_int GetSize(const TextureHandle& key) const;
 
 	// @return True if the texture key is loaded.
-	[[nodiscard]] bool Has(const TextureKey& key) const;
+	[[nodiscard]] bool Has(const TextureHandle& key) const;
 
-	[[nodiscard]] const Texture& Get(const TextureKey& key) const;
+	[[nodiscard]] const Texture& Get(const TextureHandle& key) const;
 
 private:
 	friend class RenderData;
@@ -315,5 +311,15 @@ private:
 };
 
 } // namespace impl
+
+struct TextureHandle : public HashComponent {
+	using HashComponent::HashComponent;
+
+	[[nodiscard]] const impl::Texture& GetTexture(const Entity& text) const;
+	[[nodiscard]] impl::Texture& GetTexture(Entity& text);
+	[[nodiscard]] V2_int GetSize(const Entity& text);
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureHandle, value_)
+};
 
 } // namespace ptgn

@@ -1,4 +1,5 @@
 
+#include "components/movement.h"
 #include "core/game.h"
 #include "core/game_object.h"
 #include "core/window.h"
@@ -6,7 +7,6 @@
 #include "event/input_handler.h"
 #include "math/geometry.h"
 #include "math/noise.h"
-#include "components/movement.h"
 #include "renderer/color.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
@@ -27,7 +27,7 @@ public:
 		e.Add<Transform>(position);
 		e.Add<Visible>();
 		e.Add<Depth>(1);
-		e.Add<TextureKey>("sheep");
+		e.Add<TextureHandle>("sheep");
 		return e;
 	}
 
@@ -38,7 +38,7 @@ public:
 		e.Add<Transform>(position);
 		e.Add<Visible>();
 		e.Add<Origin>(Origin::TopLeft);
-		e.Add<TextureKey>(texture_key);
+		e.Add<TextureHandle>(texture_key);
 		return e;
 	}
 

@@ -319,7 +319,7 @@ public:
 		auto e = manager.CreateEntity();
 		e.Add<Transform>(position);
 		e.Add<Visible>();
-		e.Add<TextureKey>("sheep");
+		e.Add<TextureHandle>("sheep");
 		e.Add<TargetPosition>();
 		V2_float ws{ game.window.GetSize() };
 		std::array<V2_float, 4> coordinates{
@@ -349,7 +349,7 @@ public:
 
 	void Exit() override {
 		FileStreamWriter w{ "resources/sheep.bin" };
-		w.WriteEntity<Transform, Visible, TextureKey, TargetPosition, Tween>(sheep);
+		w.WriteEntity<Transform, Visible, TextureHandle, TargetPosition, Tween>(sheep);
 	}
 
 	void Enter() override {
@@ -360,7 +360,7 @@ public:
 		sheep = CreateSheep(manager, V2_float{ 0, 0 });
 		if (FileExists("resources/sheep.bin")) {
 			FileStreamReader r{ "resources/sheep.bin" };
-			r.ReadEntity<Transform, Visible, TextureKey, TargetPosition, Tween>(sheep);
+			r.ReadEntity<Transform, Visible, TextureHandle, TargetPosition, Tween>(sheep);
 		}
 	}
 };
@@ -749,7 +749,7 @@ int main() {
 	e1.Add<DisplaySize>(V2_float{ 300, 400 });
 	e1.Add<Tint>(color::Blue);
 	e1.Add<LineWidth>(3.5f);
-	e1.Add<TextureKey>("sheep1");
+	e1.Add<TextureHandle>("sheep1");
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	e1.Add<Interactive>();
@@ -821,7 +821,7 @@ int main() {
 		PTGN_ASSERT(e2.Has<Tint>());
 		PTGN_ASSERT(e2.Has<PointLight>());
 		PTGN_ASSERT(e2.Has<LineWidth>());
-		PTGN_ASSERT(e2.Has<TextureKey>());
+		PTGN_ASSERT(e2.Has<TextureHandle>());
 		PTGN_ASSERT(e2.Has<RigidBody>());
 		PTGN_ASSERT(e2.Has<Interactive>());
 		PTGN_ASSERT(e2.Has<impl::Offsets>());

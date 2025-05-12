@@ -126,7 +126,7 @@ void ButtonText::Set(
 	}
 }
 
-const TextureKey& ButtonTexture::Get(ButtonState state) const {
+const TextureHandle& ButtonTexture::Get(ButtonState state) const {
 	switch (state) {
 		case ButtonState::Default: return default_;
 		case ButtonState::Hover:   return hover_;
@@ -136,8 +136,8 @@ const TextureKey& ButtonTexture::Get(ButtonState state) const {
 	}
 }
 
-TextureKey& ButtonTexture::Get(ButtonState state) {
-	return const_cast<TextureKey&>(std::as_const(*this).Get(state));
+TextureHandle& ButtonTexture::Get(ButtonState state) {
+	return const_cast<TextureHandle&>(std::as_const(*this).Get(state));
 }
 
 } // namespace impl
@@ -254,8 +254,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	if (entity.Has<impl::ButtonBorderColorToggled>()) {
 		entity.Get<impl::ButtonBorderColorToggled>().SetToState(state);
 	}
-	if (entity.Has<TextureKey>()) {
-		auto& key{ entity.Get<TextureKey>() };
+	if (entity.Has<TextureHandle>()) {
+		auto& key{ entity.Get<TextureHandle>() };
 		if (!entity.IsEnabled() && entity.Has<impl::ButtonDisabledTextureKey>()) {
 			key = entity.Get<impl::ButtonDisabledTextureKey>();
 		} else if (entity.Has<impl::ButtonToggled>() && entity.Has<impl::ButtonTextureToggled>()) {
@@ -281,9 +281,9 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		origin = entity.Get<impl::ButtonOrigin>();
 	}
 
-	TextureKey button_texture_key;
-	if (entity.Has<TextureKey>()) {
-		button_texture_key = entity.Get<TextureKey>();
+	TextureHandle button_texture_key;
+	if (entity.Has<TextureHandle>()) {
+		button_texture_key = entity.Get<TextureHandle>();
 	}
 
 	const impl::Texture* button_texture{ nullptr };
@@ -601,13 +601,13 @@ Button& Button::SetFontSize(std::int32_t font_size, ButtonState state) {
 	return *this;
 }
 
-const TextureKey& Button::GetTextureKey(ButtonState state) const {
+const TextureHandle& Button::GetTextureKey(ButtonState state) const {
 	if (state == ButtonState::Current) {
 		PTGN_ASSERT(
-			Has<TextureKey>(),
+			Has<TextureHandle>(),
 			"Cannot retrieve current texture key as no texture has been added to the button"
 		);
-		return Get<TextureKey>();
+		return Get<TextureHandle>();
 	}
 	PTGN_ASSERT(
 		Has<impl::ButtonTexture>(),
@@ -617,11 +617,11 @@ const TextureKey& Button::GetTextureKey(ButtonState state) const {
 }
 
 Button& Button::SetTextureKey(std::string_view texture_key, ButtonState state) {
-	TextureKey tk{ texture_key };
-	if (!Has<TextureKey>()) {
-		Add<TextureKey>(tk);
+	TextureHandle tk{ texture_key };
+	if (!Has<TextureHandle>()) {
+		Add<TextureHandle>(tk);
 	} else if (state == ButtonState::Current) {
-		Add<TextureKey>(tk);
+		Add<TextureHandle>(tk);
 		return *this;
 	}
 	if (!Has<impl::ButtonTexture>()) {
@@ -642,7 +642,7 @@ Button& Button::SetDisabledTextureKey(std::string_view texture_key) {
 	return *this;
 }
 
-const TextureKey& Button::GetDisabledTextureKey() const {
+const TextureHandle& Button::GetDisabledTextureKey() const {
 	PTGN_ASSERT(
 		Has<impl::ButtonDisabledTextureKey>(),
 		"Cannot retrieve disabled texture key as it has not been set for the button"
@@ -758,7 +758,8 @@ ButtonState Button::GetState(const Entity& e) {
 	if (state == impl::InternalButtonState::Hover ||
 		state == impl::InternalButtonState::HoverPressed) {
 		return ButtonState::Hover;
-	} else if (state == impl::InternalButtonState::Pressed || state == impl::InternalButtonState::HeldOutside) {
+	} else if (state == impl::InternalButtonState::Pressed ||
+			   state == impl::InternalButtonState::HeldOutside) {
 		return ButtonState::Pressed;
 	} else {
 		return ButtonState::Default;
@@ -924,13 +925,13 @@ ToggleButton& ToggleButton::SetBorderColorToggled(const Color& color, ButtonStat
 	return *this;
 }
 
-const TextureKey& ToggleButton::GetTextureKeyToggled(ButtonState state) const {
+const TextureHandle& ToggleButton::GetTextureKeyToggled(ButtonState state) const {
 	if (state == ButtonState::Current) {
 		PTGN_ASSERT(
-			Has<TextureKey>(),
+			Has<TextureHandle>(),
 			"Cannot retrieve current texture key as no texture has been added to the button"
 		);
-		return Get<TextureKey>();
+		return Get<TextureHandle>();
 	}
 	PTGN_ASSERT(
 		Has<impl::ButtonTextureToggled>(),
@@ -940,11 +941,11 @@ const TextureKey& ToggleButton::GetTextureKeyToggled(ButtonState state) const {
 }
 
 ToggleButton& ToggleButton::SetTextureKeyToggled(std::string_view texture_key, ButtonState state) {
-	TextureKey tk{ texture_key };
-	if (!Has<TextureKey>()) {
-		Add<TextureKey>(tk);
+	TextureHandle tk{ texture_key };
+	if (!Has<TextureHandle>()) {
+		Add<TextureHandle>(tk);
 	} else if (state == ButtonState::Current && Get<impl::ButtonToggled>()) {
-		Add<TextureKey>(tk);
+		Add<TextureHandle>(tk);
 		return *this;
 	}
 	if (!Has<impl::ButtonTextureToggled>()) {

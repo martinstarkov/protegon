@@ -133,8 +133,8 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 	}
 	*/
 
-	if (entity.Has<TextureKey>()) {
-		const auto& texture_key{ entity.Get<TextureKey>() };
+	if (entity.Has<TextureHandle>()) {
+		const auto& texture_key{ entity.Get<TextureHandle>() };
 		auto size{ game.texture.GetSize(texture_key) * scale };
 		auto center{ pos + GetOriginOffset(origin, size) };
 		auto rotation{ entity.GetRotation() };

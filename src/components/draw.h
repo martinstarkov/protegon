@@ -24,7 +24,7 @@ class RenderData;
 } // namespace impl
 
 /*
-// TODO: Move to game factory.
+// TODO: Move to sprite.
 
 // @return *this.
 Entity& SetVisible(bool visible);
@@ -35,60 +35,7 @@ Entity& Show();
 // @return *this.
 Entity& Hide();
 
-// @return *this.
-Entity& SetEnabled(bool enabled);
-
-// @return *this.
-Entity& Disable();
-
-// @return *this.
-Entity& Enable();
-
 [[nodiscard]] bool IsVisible() const;
-[[nodiscard]] bool IsEnabled() const;
-
-[[nodiscard]] UUID GetUUID() const;
-
-// @return The parent most entity, or *this if no parent exists.
-[[nodiscard]] Entity GetRootEntity() const;
-
-[[nodiscard]] Transform GetRelativeTransform() const;
-
-[[nodiscard]] Transform GetTransform() const;
-
-// @return The root transform of the entity relative to all of its parent offsets.
-[[nodiscard]] Transform GetAbsoluteTransform() const;
-
-[[nodiscard]] V2_float GetRelativePosition() const;
-
-[[nodiscard]] V2_float GetPosition() const;
-
-[[nodiscard]] Transform GetRelativeOffset() const;
-
-[[nodiscard]] Transform GetOffset() const;
-
-// @return Rotation of the object in radians relative to { 1, 0 }, clockwise positive.
-[[nodiscard]] float GetRelativeRotation() const;
-
-// @return Rotation of the object in radians relative to its parent object and { 1, 0 },
-// clockwise positive.
-[[nodiscard]] float GetRotation() const;
-
-[[nodiscard]] V2_float GetRelativeScale() const;
-
-[[nodiscard]] V2_float GetScale() const;
-
-// Set the local position of this game object.
-// @return *this.
-Entity& SetPosition(const V2_float& position);
-
-// Set the local rotation of this game object.
-// @return *this.
-Entity& SetRotation(float rotation);
-
-// Set the local scale of this game object.
-// @return *this.
-Entity& SetScale(const V2_float& scale);
 
 Entity& SetDepth(const Depth& depth);
 
@@ -108,26 +55,7 @@ Entity& SetTint(const Color& color);
 
 [[nodiscard]] bool IsImmovable() const;
 
-void AddChild(Entity& child);
-
-void AddChild(std::string_view name, Entity& child);
-
-// @return Child entity with the given name, or null entity is no such child exists.
-Entity GetChild(std::string_view name);
-
-// @return True if the entity has the given child, named or unnamed. False otherwise.
-[[nodiscard]] bool HasChild(const Entity& child) const;
-
-void RemoveChild(Entity& child);
-void RemoveChild(std::string_view name);
-
-void SetParent(Entity& child);
-void RemoveParent();
-
-// If object has no parent, returns *this.
-[[nodiscard]] Entity GetParent() const;
-
-[[nodiscard]] bool HasParent() const;
+[[nodiscard]] V2_int GetTextureSize() const;
 
 [[nodiscard]] std::size_t GetHash() const;
 
@@ -268,7 +196,7 @@ struct Sprite : public GameObject, public Drawable<Sprite> {
 
 	// @param manager Which manager the entity is added to.
 	// @param texture_key Key of the texture loaded into the texture manager.
-	explicit Sprite(Manager& manager, const TextureKey& texture_key);
+	explicit Sprite(Manager& manager, const TextureHandle& texture_key);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 };

@@ -70,6 +70,15 @@ public:
 		return ecs::Entity::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
+	// Get a component of the entity, and if it does not exist add it.
+	template <typename T, typename... Ts>
+	T& GetOrAdd(Ts&&... constructor_args) {
+		if (Has<T>()) {
+			return Get<T>();
+		}
+		return Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	}
+
 	template <typename... Ts>
 	void Remove() {
 		ecs::Entity::Remove<Ts...>();
@@ -107,10 +116,113 @@ public:
 
 	[[nodiscard]] bool IsIdenticalTo(const Entity& e) const;
 
-	// Component manipulation functions.
+	// Entity property functions.
+
+	[[nodiscard]] UUID GetUUID() const;
+
+	// Entity hierarchy functions.
+
+	// @return The parent most entity, or *this if no parent exists.
+	[[nodiscard]] Entity GetRootEntity() const;
+
+	// @return Parent entity of the object. If object has no parent, returns *this.
+	[[nodiscard]] Entity GetParent() const;
+
+	[[nodiscard]] bool HasParent() const;
+
+	void SetParent(Entity& parent);
+
+	void RemoveParent();
+
+	void AddChild(Entity& child, std::string_view name = {});
+
+	void RemoveChild(Entity& child);
+	void RemoveChild(std::string_view name);
+
+	// @return True if the entity has the given child, false otherwise.
+	[[nodiscard]] bool HasChild(const Entity& child) const;
+	[[nodiscard]] bool HasChild(std::string_view name) const;
+
+	// @return Child entity with the given name, or null entity is no such child exists.
+	[[nodiscard]] Entity GetChild(std::string_view name);
+
+	// Entity activation functions.
+
+	// If not enabled, removes the entity from the scene update list.
+	// @return *this.
+	Entity& SetEnabled(bool enabled);
+
+	// Removes the entity from the scene update list.
+	// @return *this.
+	Entity& Disable();
+
+	// Add the entity to the scene update list (if not already there).
+	// @return *this.
+	Entity& Enable();
+
+	// @return True if the entity is in the scene update list.
+	[[nodiscard]] bool IsEnabled() const;
+
+	// Entity transform functions.
+
+	// Set the relative transform of the entity with respect to its parent entity, camera, or
+	// scene camera transform.
+	// @return *this.
+	Entity& SetTransform(const Transform& transform);
+
+	// @return The relative transform of the entity with respect to its parent entity, camera, or
+	// scene camera transform.
+	[[nodiscard]] Transform GetTransform() const;
+
+	// @return The absolute transform of the entity with respect to its parent scene camera
+	// transform.
+	[[nodiscard]] Transform GetAbsoluteTransform() const;
+
+	// Set the relative position of the entity with respect to its parent entity, camera, or
+	// scene camera position.
+	// @return *this.
+	Entity& SetPosition(const V2_float& position);
+
+	// @return The relative position of the entity with respect to its parent entity, camera, or
+	// scene camera position.
+	[[nodiscard]] V2_float GetPosition() const;
+
+	// @return The absolute position of the entity with respect to its parent scene camera position.
+	[[nodiscard]] V2_float GetAbsolutePosition() const;
+
+	// Set the relative rotation of the entity with respect to its parent entity, camera, or
+	// scene camera rotation. Clockwise positive. Unit: Radians.
+	// @return *this.
+	Entity& SetRotation(float rotation);
+
+	// @return The relative rotation of the entity with respect to its parent entity, camera, or
+	// scene camera rotation. Clockwise positive. Unit: Radians.
+	[[nodiscard]] float GetRotation() const;
+
+	// @return The absolute rotation of the entity with respect to its parent scene camera rotation.
+	// Clockwise positive. Unit: Radians.
+	[[nodiscard]] float GetAbsoluteRotation() const;
+
+	// Set the relative scale of the entity with respect to its parent entity, camera, or
+	// scene camera scale.
+	// @return *this.
+	Entity& SetScale(const V2_float& scale);
+
+	// @return The relative scale of the entity with respect to its parent entity, camera, or
+	// scene camera scale.
+	[[nodiscard]] V2_float GetScale() const;
+
+	// @return The absolute scale of the entity with respect to its parent scene camera scale.
+	[[nodiscard]] V2_float GetAbsoluteScale() const;
 
 private:
 	friend class Manager;
+
+	void AddChildImpl(Entity& child, std::string_view name);
+
+	void SetParentImpl(Entity& parent);
+
+	void RemoveParentImpl();
 
 	explicit Entity(const ecs::Entity& e) : ecs::Entity{ e } {}
 };
@@ -123,8 +235,12 @@ struct ChildKey : public HashComponent {
 	PTGN_SERIALIZER_REGISTER_NAMELESS(ChildKey, value_)
 };
 
+struct Parent : public Entity {
+	using Entity::Entity;
+};
+
 struct Children {
-	Children(const Entity& child, std::string_view name = {});
+	Children() = default;
 
 	void Add(const Entity& child, std::string_view name = {});
 	void Remove(const Entity& child);

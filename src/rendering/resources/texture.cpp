@@ -11,7 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "common/assert.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "debug/log.h"
 #include "debug/stats.h"
@@ -23,14 +28,8 @@
 #include "rendering/gl/gl_loader.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/file.h"
-
-// TODO: Move to using TextureKey inside the texture manager.
 
 namespace ptgn {
 
@@ -272,30 +271,38 @@ V2_int Texture::GetSize() const {
 void Texture::SetParameterI(TextureParameter parameter, std::int32_t value) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-	GLCall(gl::glTexParameteri(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter), value
-	));
+	GLCall(
+		gl::glTexParameteri(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
+			value
+		)
+	);
 }
 
 std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its parameters");
 	std::int32_t value{ -1 };
-	GLCall(gl::glGetTexParameteriv(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
-		&value
-	));
+	GLCall(
+		gl::glGetTexParameteriv(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
+			&value
+		)
+	);
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 	return value;
 }
 
-std::int32_t Texture::GetLevelParameterI(TextureLevelParameter parameter, std::int32_t level)
-	const {
+std::int32_t Texture::GetLevelParameterI(
+	TextureLevelParameter parameter, std::int32_t level
+) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its level parameters");
 	std::int32_t value{ -1 };
-	GLCall(gl::glGetTexLevelParameteriv(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), level,
-		static_cast<gl::GLenum>(parameter), &value
-	));
+	GLCall(
+		gl::glGetTexLevelParameteriv(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), level,
+			static_cast<gl::GLenum>(parameter), &value
+		)
+	);
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture level parameter");
 	return value;
 }
@@ -402,12 +409,14 @@ void Texture::SetData(
 
 	constexpr std::int32_t border{ 0 };
 
-	GLCall(gl::glTexImage2D(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level,
-		static_cast<gl::GLint>(formats.internal_format), size.x, size.y, border,
-		static_cast<gl::GLenum>(formats.input_format),
-		static_cast<gl::GLenum>(GLType::UnsignedByte), pixel_data
-	));
+	GLCall(
+		gl::glTexImage2D(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level,
+			static_cast<gl::GLint>(formats.internal_format), size.x, size.y, border,
+			static_cast<gl::GLenum>(formats.input_format),
+			static_cast<gl::GLenum>(GLType::UnsignedByte), pixel_data
+		)
+	);
 
 	size_ = size;
 }
@@ -422,11 +431,13 @@ void Texture::SetSubData(
 
 	auto formats{ GetGLFormats(format) };
 
-	GLCall(gl::glTexSubImage2D(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y, size.x,
-		size.y, static_cast<gl::GLenum>(formats.input_format),
-		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-	));
+	GLCall(
+		gl::glTexSubImage2D(
+			static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y,
+			size.x, size.y, static_cast<gl::GLenum>(formats.input_format),
+			static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
+		)
+	);
 }
 
 void TextureManager::Load(const path& json_filepath) {
@@ -439,31 +450,31 @@ void TextureManager::Load(const path& json_filepath) {
 void TextureManager::Unload(const path& json_filepath) {
 	auto textures{ LoadJson(json_filepath) };
 	for (const auto& [texture_key, texture_path] : textures.items()) {
-		Unload(TextureKey{ texture_key });
+		Unload(TextureHandle{ texture_key });
 	}
 }
 
-void TextureManager::Load(const TextureKey& key, const path& filepath) {
+void TextureManager::Load(const TextureHandle& key, const path& filepath) {
 	auto [it, inserted] = textures_.try_emplace(key);
 	if (inserted) {
 		it->second = LoadFromFile(filepath);
 	}
 }
 
-void TextureManager::Unload(const TextureKey& key) {
+void TextureManager::Unload(const TextureHandle& key) {
 	textures_.erase(key);
 }
 
-V2_int TextureManager::GetSize(const TextureKey& key) const {
+V2_int TextureManager::GetSize(const TextureHandle& key) const {
 	PTGN_ASSERT(Has(key), "Cannot get size of texture which has not been loaded");
 	return textures_.find(key)->second.GetSize();
 }
 
-bool TextureManager::Has(const TextureKey& key) const {
+bool TextureManager::Has(const TextureHandle& key) const {
 	return textures_.find(key) != textures_.end();
 }
 
-const Texture& TextureManager::Get(const TextureKey& key) const {
+const Texture& TextureManager::Get(const TextureHandle& key) const {
 	PTGN_ASSERT(Has(key), "Cannot get texture which has not been loaded");
 	return textures_.find(key)->second;
 }
@@ -618,5 +629,21 @@ void Texture::SetClampBorderColor(const Color& color) const {
 */
 
 } // namespace impl
+
+const impl::Texture& TextureHandle::GetTexture(const Entity& text) const {
+	if (value_) {
+		return game.texture.Get(*this);
+	}
+	PTGN_ASSERT(text.Has<impl::Texture>(), "Entity does not have a valid texture handle");
+	return text.Get<impl::Texture>();
+}
+
+impl::Texture& TextureHandle::GetTexture(Entity& text) {
+	return const_cast<impl::Texture&>(std::as_const(*this).GetTexture(text));
+}
+
+V2_int TextureHandle::GetSize(const Entity& text) {
+	return GetTexture(text).GetSize();
+}
 
 } // namespace ptgn
