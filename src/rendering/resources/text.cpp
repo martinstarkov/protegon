@@ -4,8 +4,14 @@
 #include <limits>
 #include <string>
 
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
@@ -16,15 +22,12 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 
 namespace ptgn {
 
-Text::Text(Manager& manager) : Sprite{ manager } {}
+Text::Text(Manager& manager) : Sprite{ manager } {
+	SetDraw<Text>();
+}
 
 Text::Text(
 	Manager& manager, std::string_view content, const Color& text_color, std::string_view font_key
@@ -42,20 +45,20 @@ Text::Text(
 	RecreateTexture();
 }
 
-void Text::Draw(impl::RenderData& ctx) const {
-	if (Has<TextColor>() && Get<TextColor>().a == 0) {
+void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
+	if (entity.Has<TextColor>() && entity.Get<TextColor>().a == 0) {
 		return;
 	}
 
-	if (!Has<TextContent>()) {
+	if (!entity.Has<TextContent>()) {
 		return;
 	}
 
-	if (std::string_view{ Get<TextContent>() }.empty()) {
+	if (std::string_view{ entity.Get<TextContent>() }.empty()) {
 		return;
 	}
 
-	Sprite::Draw(ctx);
+	Sprite::Draw(ctx, entity);
 }
 
 Text& Text::SetFont(std::string_view font_key) {
@@ -248,7 +251,8 @@ void Text::RecreateTexture() {
 			surface = TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), text_color, wrap_after);
 			break;
 		default:
-			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR(
+				"Unrecognized render mode given when creating surface from font information"
 			);
 	}
 

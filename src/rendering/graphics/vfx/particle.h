@@ -100,13 +100,13 @@ struct ParticleEmitterComponent {
 
 } // namespace impl
 
-class ParticleEmitter : public Sprite {
+class ParticleEmitter : public Sprite, public Drawable<ParticleEmitter> {
 public:
 	ParticleEmitter() = delete;
 	explicit ParticleEmitter(Manager& manager);
 	explicit ParticleEmitter(Manager& manager, const ParticleInfo& info);
 
-	void Draw(impl::RenderData& ctx) const override;
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	// Starts emitting particles.
 	ParticleEmitter& Start();

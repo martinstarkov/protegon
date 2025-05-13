@@ -75,6 +75,7 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 } // namespace impl
 
 ParticleEmitter::ParticleEmitter(Manager& manager) : Sprite{ manager } {
+	SetDraw<ParticleEmitter>();
 	Add<impl::ParticleEmitterComponent>();
 	SetVisible(true);
 	SetEnabled(true);
@@ -88,11 +89,13 @@ ParticleEmitter::ParticleEmitter(Manager& manager, const ParticleInfo& info) :
 	i.manager.Reserve(i.info.total_particles);
 }
 
-void ParticleEmitter::Draw(impl::RenderData& ctx) const {
-	auto blend_mode{ GetBlendMode() };
-	auto depth{ GetDepth() };
+void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
+	Sprite sprite{ entity };
 
-	auto& i{ Get<impl::ParticleEmitterComponent>() };
+	auto blend_mode{ sprite.GetBlendMode() };
+	auto depth{ sprite.GetDepth() };
+
+	auto& i{ sprite.Get<impl::ParticleEmitterComponent>() };
 	if (i.info.texture_enabled && i.info.texture_key) {
 		V4_float tint{ color::White.Normalized() };
 		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
@@ -104,7 +107,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx) const {
 			Transform t{ p.position };
 			ctx.AddTexturedQuad(
 				impl::GetVertices(t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center),
-				/* Default texture coordinates */ Sprite{}.GetTextureCoordinates(false),
+				/* Default texture coordinates */ sprite.GetTextureCoordinates(false),
 				game.texture.Get(i.info.texture_key), depth, blend_mode, tint, false
 			);
 		}

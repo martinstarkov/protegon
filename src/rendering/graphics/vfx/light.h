@@ -1,6 +1,7 @@
 #pragma once
 
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "math/vector3.h"
 #include "rendering/api/color.h"
 #include "serialization/serializable.h"
@@ -14,9 +15,11 @@ class RenderData;
 } // namespace impl
 
 // Lights must be added to the LightManager to be drawn to the screen.
-class PointLight : public Sprite {
+class PointLight : public Sprite, public Drawable<PointLight> {
 public:
 	PointLight() = default;
+
+	// TODO: Add drawable constructor
 
 	friend bool operator==(const PointLight& a, const PointLight& b) {
 		return a.color_ == b.color_ && a.intensity_ == b.intensity_ &&
@@ -29,7 +32,7 @@ public:
 		return !(a == b);
 	}
 
-	void Draw(impl::RenderData& ctx) const override;
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	PointLight& SetIntensity(float intensity);
 	[[nodiscard]] float GetIntensity() const;

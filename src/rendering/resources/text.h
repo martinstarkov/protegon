@@ -7,6 +7,7 @@
 
 #include "common/type_traits.h"
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/manager.h"
@@ -83,7 +84,7 @@ struct TextShadingColor : public ColorComponent {
 	TextShadingColor() : ColorComponent{ color::White } {}
 };
 
-class Text : public Sprite {
+class Text : public Sprite, public Drawable<Text> {
 public:
 	Text() = default;
 
@@ -103,7 +104,7 @@ public:
 		const FontKey& font_key = {}
 	);
 
-	void Draw(impl::RenderData& ctx) const override;
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.

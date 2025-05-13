@@ -187,7 +187,7 @@ struct ButtonRadius : public ArithmeticComponent<float> {
 
 using ButtonCallback = std::function<void()>;
 
-struct Button : public Sprite {
+struct Button : public Sprite, public Drawable<Button> {
 	Button() = default;
 	explicit Button(Manager& manager);
 	Button(const Button&)				 = default;
@@ -196,7 +196,7 @@ struct Button : public Sprite {
 	Button& operator=(Button&&) noexcept = default;
 	~Button() override					 = default;
 
-	void Draw(impl::RenderData& ctx) const override;
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	Button& AddInteractableRect(
 		const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}

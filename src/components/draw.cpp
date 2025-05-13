@@ -30,33 +30,32 @@ namespace ptgn {
 
 Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
 
-Sprite::Sprite(Entity& entity, const TextureHandle& texture_key) : Entity{ entity } {
-	Add<Drawable>();
+Sprite::Sprite(Entity entity, const TextureHandle& texture_key) : Entity{ entity } {
+	SetDraw<Sprite>();
 	SetTextureKey(texture_key);
 	Show();
 }
 
-Sprite::Sprite(Manager& manager, const TextureHandle& texture_key) : Entity{ manager } {
-	Add<Drawable>();
-	SetTextureKey(texture_key);
-	Show();
-}
+Sprite::Sprite(Manager& manager, const TextureHandle& texture_key) :
+	Sprite{ manager.CreateEntity(), texture_key } {}
 
-void Sprite::Draw(impl::RenderData& ctx) const {
-	const auto& texture{ GetTexture() };
+void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
+	Sprite sprite{ entity };
+
+	const auto& texture{ sprite.GetTexture() };
 
 	if (!texture.IsValid()) {
 		return;
 	}
 
-	auto transform{ GetAbsoluteTransform() };
-	auto depth{ GetDepth() };
-	auto blend_mode{ GetBlendMode() };
-	auto tint{ GetTint().Normalized() };
-	auto origin{ GetOrigin() };
+	auto transform{ sprite.GetAbsoluteTransform() };
+	auto depth{ sprite.GetDepth() };
+	auto blend_mode{ sprite.GetBlendMode() };
+	auto tint{ sprite.GetTint().Normalized() };
+	auto origin{ sprite.GetOrigin() };
 
-	auto size{ GetTextureSize() };
-	auto coords{ GetTextureCoordinates(false) };
+	auto size{ sprite.GetTextureSize() };
+	auto coords{ sprite.GetTextureCoordinates(false) };
 	auto vertices{ impl::GetVertices(transform, size, origin) };
 
 	ctx.AddTexturedQuad(vertices, coords, texture, depth, blend_mode, tint, false);

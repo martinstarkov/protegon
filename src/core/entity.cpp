@@ -6,6 +6,7 @@
 #include "common/type_info.h"
 #include "components/common.h"
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "components/input.h"
 #include "components/lifetime.h"
 #include "components/offsets.h"
@@ -59,6 +60,15 @@ UUID Entity::GetUUID() const {
 
 std::size_t Entity::GetHash() const {
 	return std::hash<ecs::Entity>()(*this);
+}
+
+bool Entity::HasDraw() const {
+	return Has<IDrawable>();
+}
+
+Entity& Entity::RemoveDraw() {
+	Remove<IDrawable>();
+	return *this;
 }
 
 Entity Entity::GetRootEntity() const {

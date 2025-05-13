@@ -80,41 +80,7 @@ void Scene::PreUpdate() {
 	manager.Refresh();
 }
 
-void Scene::PostUpdate() {
-	// TODO: Add multiple manager support?
-
-	manager.Refresh();
-	Update();
-	manager.Refresh();
-	for (auto [e, enabled, particle_manager] :
-		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
-		particle_manager.Update(e.GetPosition());
-	}
-	// std::size_t tween_update_count{ 0 };
-	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
-		tween.Step(game.dt());
-		// tween_update_count++;
-	}
-	float dt{ game.dt() };
-	float time{ game.time() };
-	for (auto [e, shake, offsets] : manager.EntitiesWith<impl::ShakeEffect, impl::Offsets>()) {
-		shake.Update(e, dt, time);
-	}
-	// PTGN_LOG("Scene ", key_, " updated ", tween_update_count, " tweens this frame");
-	manager.Refresh();
-	// std::size_t lifetime_update_count{ 0 };
-	for (auto [e, lifetime] : manager.EntitiesWith<Lifetime>()) {
-		lifetime.Update(e);
-		// lifetime_update_count++;
-	}
-	// PTGN_LOG("Scene ", key_, " updated ", lifetime_update_count, " lifetimes this frame");
-	manager.Refresh();
-	physics.PreCollisionUpdate(manager);
-	manager.Refresh();
-	impl::CollisionHandler::Update(manager);
-	manager.Refresh();
-	physics.PostCollisionUpdate(manager);
-	manager.Refresh();
+void Scene::Draw() {
 	if (collider_visibility_) {
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			const auto& transform{ e.GetAbsoluteTransform() };
@@ -129,8 +95,54 @@ void Scene::PostUpdate() {
 	}
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.Render({} /*target_.GetFrameBuffer()*/, camera.primary, manager);
-
 	// render_data.RenderToScreen(target_, camera.primary);
+}
+
+void Scene::PostUpdate() {
+	// TODO: Add multiple manager support?
+
+	manager.Refresh();
+	Update();
+
+	manager.Refresh();
+	for (auto [e, enabled, particle_manager] :
+		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
+		particle_manager.Update(e.GetPosition());
+	}
+
+	float dt{ game.dt() };
+
+	// std::size_t tween_update_count{ 0 };
+	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
+		tween.Step(dt);
+		// tween_update_count++;
+	}
+
+	float time{ game.time() };
+	for (auto [e, shake, offsets] : manager.EntitiesWith<impl::ShakeEffect, impl::Offsets>()) {
+		shake.Update(e, dt, time);
+	}
+	// PTGN_LOG("Scene ", key_, " updated ", tween_update_count, " tweens this frame");
+	manager.Refresh();
+
+	// std::size_t lifetime_update_count{ 0 };
+	for (auto [e, lifetime] : manager.EntitiesWith<Lifetime>()) {
+		lifetime.Update(e);
+		// lifetime_update_count++;
+	}
+	// PTGN_LOG("Scene ", key_, " updated ", lifetime_update_count, " lifetimes this frame");
+	manager.Refresh();
+
+	physics.PreCollisionUpdate(manager);
+	manager.Refresh();
+
+	impl::CollisionHandler::Update(manager);
+	manager.Refresh();
+
+	physics.PostCollisionUpdate(manager);
+	manager.Refresh();
+
+	Draw();
 }
 
 } // namespace ptgn

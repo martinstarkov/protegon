@@ -125,18 +125,18 @@ private:
 
 } // namespace impl
 
-struct Sprite : public Entity {
+struct Sprite : public Entity, public Drawable<Sprite> {
 	using Entity::Entity;
 
 	Sprite() = default;
 
 	Sprite(const Entity& entity);
 
-	explicit Sprite(Entity& entity, const TextureHandle& texture_key);
+	explicit Sprite(Entity entity, const TextureHandle& texture_key);
 
 	explicit Sprite(Manager& manager, const TextureHandle& texture_key);
 
-	void Draw(impl::RenderData& ctx) const override;
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
 	Sprite& SetTextureKey(const TextureHandle& texture_key);
 

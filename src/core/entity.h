@@ -3,6 +3,7 @@
 #include <string_view>
 #include <unordered_set>
 
+#include "components/drawable.h"
 #include "components/generic.h"
 #include "components/transform.h"
 #include "components/uuid.h"
@@ -24,12 +25,6 @@ class Manager;
 
 class Entity : private ecs::Entity {
 public:
-	// Interface functions.
-
-	virtual void Draw(impl::RenderData&) const {
-		/* Optional user implementation */
-	}
-
 	// Entity wrapper functionality.
 
 	using ecs::Entity::Entity;
@@ -131,6 +126,16 @@ public:
 	[[nodiscard]] UUID GetUUID() const;
 
 	[[nodiscard]] std::size_t GetHash() const;
+
+	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
+	Entity& SetDraw() {
+		Add<IDrawable>(type_name<T>());
+		return *this;
+	}
+
+	[[nodiscard]] bool HasDraw() const;
+
+	Entity& RemoveDraw();
 
 	// Entity hierarchy functions.
 

@@ -352,11 +352,19 @@ void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
 		}
 	}
 
-	if (!entity.Has<Drawable>()) {
-		return;
-	}
+	PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
 
-	entity.Draw(*this);
+	const auto& drawable{ entity.Get<IDrawable>() };
+
+	const auto& drawable_functions{ IDrawable::data() };
+
+	const auto it{ drawable_functions.find(drawable.hash) };
+
+	PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
+
+	const auto& draw_function{ it->second };
+
+	std::invoke(draw_function, *this, entity);
 
 	// TODO: Replace with graphics object.
 	/*
@@ -460,7 +468,7 @@ void RenderData::Render(
 		SortEntitiesByY(entities);
 	}*/
 
-	for (auto [e, v, d] : manager.EntitiesWith<Visible, Drawable>()) {
+	for (auto [e, v, d] : manager.EntitiesWith<Visible, IDrawable>()) {
 		AddToBatch(e, true);
 	}
 	Flush(frame_buffer, camera);

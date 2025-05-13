@@ -75,6 +75,7 @@ private:
 	void InternalEnter();
 	void PreUpdate();
 	void PostUpdate();
+	void Draw();
 	void InternalExit();
 
 	void Add(Action new_action);

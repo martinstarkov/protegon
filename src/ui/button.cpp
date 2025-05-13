@@ -227,40 +227,42 @@ void Button::SetupCallbacks(const std::function<void()>& internal_on_activate) {
 	});
 }
 
-void Button::Draw(impl::RenderData& ctx) const {
-	auto state{ Button::GetState(*this) };
+void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
+	Sprite sprite{ entity };
 
-	const auto& transform{ GetAbsoluteTransform() };
-	auto blend_mode{ GetBlendMode() };
-	auto depth{ GetDepth() };
-	auto tint{ GetTint().Normalized() };
+	auto state{ Button::GetState(sprite) };
 
-	if (Has<impl::ButtonColor>()) {
-		Get<impl::ButtonColor>().SetToState(state);
+	const auto& transform{ sprite.GetAbsoluteTransform() };
+	auto blend_mode{ sprite.GetBlendMode() };
+	auto depth{ sprite.GetDepth() };
+	auto tint{ sprite.GetTint().Normalized() };
+
+	if (sprite.Has<impl::ButtonColor>()) {
+		sprite.Get<impl::ButtonColor>().SetToState(state);
 	}
-	if (Has<impl::ButtonColorToggled>()) {
-		Get<impl::ButtonColorToggled>().SetToState(state);
+	if (sprite.Has<impl::ButtonColorToggled>()) {
+		sprite.Get<impl::ButtonColorToggled>().SetToState(state);
 	}
-	if (Has<impl::ButtonTint>()) {
-		Get<impl::ButtonTint>().SetToState(state);
+	if (sprite.Has<impl::ButtonTint>()) {
+		sprite.Get<impl::ButtonTint>().SetToState(state);
 	}
-	if (Has<impl::ButtonTintToggled>()) {
-		Get<impl::ButtonTintToggled>().SetToState(state);
+	if (sprite.Has<impl::ButtonTintToggled>()) {
+		sprite.Get<impl::ButtonTintToggled>().SetToState(state);
 	}
-	if (Has<impl::ButtonBorderColor>()) {
-		Get<impl::ButtonBorderColor>().SetToState(state);
+	if (sprite.Has<impl::ButtonBorderColor>()) {
+		sprite.Get<impl::ButtonBorderColor>().SetToState(state);
 	}
-	if (Has<impl::ButtonBorderColorToggled>()) {
-		Get<impl::ButtonBorderColorToggled>().SetToState(state);
+	if (sprite.Has<impl::ButtonBorderColorToggled>()) {
+		sprite.Get<impl::ButtonBorderColorToggled>().SetToState(state);
 	}
-	if (Has<TextureHandle>()) {
-		auto& key{ Get<TextureHandle>() };
-		if (!IsEnabled() && Has<impl::ButtonDisabledTextureKey>()) {
-			key = Get<impl::ButtonDisabledTextureKey>();
-		} else if (Has<impl::ButtonToggled>() && Has<impl::ButtonTextureToggled>()) {
-			key = Get<impl::ButtonTextureToggled>().Get(state);
-		} else if (Has<impl::ButtonTexture>()) {
-			key = Get<impl::ButtonTexture>().Get(state);
+	if (sprite.Has<TextureHandle>()) {
+		auto& key{ sprite.Get<TextureHandle>() };
+		if (!sprite.IsEnabled() && sprite.Has<impl::ButtonDisabledTextureKey>()) {
+			key = sprite.Get<impl::ButtonDisabledTextureKey>();
+		} else if (sprite.Has<impl::ButtonToggled>() && sprite.Has<impl::ButtonTextureToggled>()) {
+			key = sprite.Get<impl::ButtonTextureToggled>().Get(state);
+		} else if (sprite.Has<impl::ButtonTexture>()) {
+			key = sprite.Get<impl::ButtonTexture>().Get(state);
 		}
 	}
 
@@ -270,19 +272,19 @@ void Button::Draw(impl::RenderData& ctx) const {
 	Origin origin{ Origin::Center };
 	V2_float size;
 
-	if (Has<impl::ButtonSize>()) {
-		size = Get<impl::ButtonSize>();
-	} else if (Has<impl::ButtonRadius>()) {
-		size = V2_float{ Get<impl::ButtonRadius>() * 2.0f };
+	if (sprite.Has<impl::ButtonSize>()) {
+		size = sprite.Get<impl::ButtonSize>();
+	} else if (sprite.Has<impl::ButtonRadius>()) {
+		size = V2_float{ sprite.Get<impl::ButtonRadius>() * 2.0f };
 	}
 
-	if (Has<impl::ButtonOrigin>()) {
-		origin = Get<impl::ButtonOrigin>();
+	if (sprite.Has<impl::ButtonOrigin>()) {
+		origin = sprite.Get<impl::ButtonOrigin>();
 	}
 
 	TextureHandle button_texture_key;
-	if (Has<TextureHandle>()) {
-		button_texture_key = Get<TextureHandle>();
+	if (sprite.Has<TextureHandle>()) {
+		button_texture_key = sprite.Get<TextureHandle>();
 	}
 
 	const impl::Texture* button_texture{ nullptr };
@@ -299,30 +301,30 @@ void Button::Draw(impl::RenderData& ctx) const {
 
 	if (button_texture != nullptr && *button_texture != impl::Texture{}) {
 		Color button_tint{ color::White };
-		if (Has<impl::ButtonToggled>() && Get<impl::ButtonToggled>() &&
-			Has<impl::ButtonTintToggled>()) {
-			button_tint = Get<impl::ButtonTintToggled>().current_;
-		} else if (Has<impl::ButtonTint>()) {
-			button_tint = Get<impl::ButtonTint>().current_;
+		if (sprite.Has<impl::ButtonToggled>() && sprite.Get<impl::ButtonToggled>() &&
+			sprite.Has<impl::ButtonTintToggled>()) {
+			button_tint = sprite.Get<impl::ButtonTintToggled>().current_;
+		} else if (sprite.Has<impl::ButtonTint>()) {
+			button_tint = sprite.Get<impl::ButtonTint>().current_;
 		}
 		V4_float final_tint_n{ button_tint.Normalized() * tint };
 
 		ctx.AddTexturedQuad(
-			impl::GetVertices(transform, size, origin), GetTextureCoordinates(false),
+			impl::GetVertices(transform, size, origin), sprite.GetTextureCoordinates(false),
 			*button_texture, depth, blend_mode, final_tint_n, false
 		);
 	} else {
 		impl::ButtonBackgroundWidth background_line_width;
-		if (Has<impl::ButtonBackgroundWidth>()) {
-			background_line_width = Get<impl::ButtonBackgroundWidth>();
+		if (sprite.Has<impl::ButtonBackgroundWidth>()) {
+			background_line_width = sprite.Get<impl::ButtonBackgroundWidth>();
 		}
 		if (background_line_width != 0.0f) {
 			Color button_color;
-			if (Has<impl::ButtonToggled>() && Get<impl::ButtonToggled>() &&
-				Has<impl::ButtonColorToggled>()) {
-				button_color = Get<impl::ButtonColorToggled>().current_;
-			} else if (Has<impl::ButtonColor>()) {
-				button_color = Get<impl::ButtonColor>().current_;
+			if (sprite.Has<impl::ButtonToggled>() && sprite.Get<impl::ButtonToggled>() &&
+				sprite.Has<impl::ButtonColorToggled>()) {
+				button_color = sprite.Get<impl::ButtonColorToggled>().current_;
+			} else if (sprite.Has<impl::ButtonColor>()) {
+				button_color = sprite.Get<impl::ButtonColor>().current_;
 			}
 			V4_float background_color_n{ button_color.Normalized() };
 			if (background_color_n != V4_float{}) {
@@ -341,20 +343,20 @@ void Button::Draw(impl::RenderData& ctx) const {
 	}
 
 	const Text* text{ nullptr };
-	if (Has<impl::ButtonToggled>() && Get<impl::ButtonToggled>() &&
-		Has<impl::ButtonTextToggled>()) {
-		const auto& button_text_toggled{ Get<impl::ButtonTextToggled>() };
+	if (sprite.Has<impl::ButtonToggled>() && sprite.Get<impl::ButtonToggled>() &&
+		sprite.Has<impl::ButtonTextToggled>()) {
+		const auto& button_text_toggled{ sprite.Get<impl::ButtonTextToggled>() };
 		text = &button_text_toggled.GetValid(state);
-	} else if (Has<impl::ButtonText>()) {
-		const auto& button_text{ Get<impl::ButtonText>() };
+	} else if (sprite.Has<impl::ButtonText>()) {
+		const auto& button_text{ sprite.Get<impl::ButtonText>() };
 		text = &button_text.GetValid(state);
 	}
 	if (text != nullptr && *text != Text{}) {
 		/*
 		// TODO: Fix ButtonTextFixedSize
 		V2_float text_size;
-		if (Has<impl::ButtonTextFixedSize>()) {
-			text_size = Get<impl::ButtonTextFixedSize>();
+		if (sprite.Has<impl::ButtonTextFixedSize>()) {
+			text_size = sprite.Get<impl::ButtonTextFixedSize>();
 		} else {
 			text_size = text->GetSize();
 		}
@@ -372,20 +374,20 @@ void Button::Draw(impl::RenderData& ctx) const {
 		// text_transform.position += GetOriginOffset(origin, size * text_transform.scale);
 
 		// TODO: Fix text tinting: text->GetTint().Normalized() * tint
-		text->Draw(ctx);
+		Text::Draw(ctx, *text);
 	}
 
 	impl::ButtonBorderWidth border_width;
-	if (Has<impl::ButtonBorderWidth>()) {
-		border_width = Get<impl::ButtonBorderWidth>();
+	if (sprite.Has<impl::ButtonBorderWidth>()) {
+		border_width = sprite.Get<impl::ButtonBorderWidth>();
 	}
 	if (border_width != 0.0f) {
 		Color border_color;
-		if (Has<impl::ButtonToggled>() && Get<impl::ButtonToggled>() &&
-			Has<impl::ButtonBorderColorToggled>()) {
-			border_color = Get<impl::ButtonBorderColorToggled>().current_;
-		} else if (Has<impl::ButtonBorderColor>()) {
-			border_color = Get<impl::ButtonBorderColor>().current_;
+		if (sprite.Has<impl::ButtonToggled>() && sprite.Get<impl::ButtonToggled>() &&
+			sprite.Has<impl::ButtonBorderColorToggled>()) {
+			border_color = sprite.Get<impl::ButtonBorderColorToggled>().current_;
+		} else if (sprite.Has<impl::ButtonBorderColor>()) {
+			border_color = sprite.Get<impl::ButtonBorderColor>().current_;
 		}
 		V4_float border_color_n{ border_color.Normalized() };
 		if (border_color_n != V4_float{}) {
@@ -757,7 +759,8 @@ ButtonState Button::GetState(const Entity& e) {
 	if (state == impl::InternalButtonState::Hover ||
 		state == impl::InternalButtonState::HoverPressed) {
 		return ButtonState::Hover;
-	} else if (state == impl::InternalButtonState::Pressed || state == impl::InternalButtonState::HeldOutside) {
+	} else if (state == impl::InternalButtonState::Pressed ||
+			   state == impl::InternalButtonState::HeldOutside) {
 		return ButtonState::Pressed;
 	} else {
 		return ButtonState::Default;

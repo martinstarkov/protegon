@@ -17,8 +17,10 @@
 
 namespace ptgn {
 
-void PointLight::Draw(impl::RenderData& ctx) const {
-	auto depth{ GetDepth() };
+void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
+	Sprite sprite{ entity };
+
+	auto depth{ sprite.GetDepth() };
 
 	auto [it, inserted] = ctx.batch_map.try_emplace(depth);
 
@@ -39,7 +41,7 @@ void PointLight::Draw(impl::RenderData& ctx) const {
 		}
 	}
 	PTGN_ASSERT(b != nullptr, "Failed to find batch for light");
-	b->lights.emplace_back(*this);
+	b->lights.emplace_back(entity);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {
