@@ -15,9 +15,11 @@ class RenderData;
 } // namespace impl
 
 // Lights must be added to the LightManager to be drawn to the screen.
-class PointLight : public Sprite, public Drawable<PointLight> {
+class PointLight : public Entity, public Drawable<PointLight> {
 public:
 	PointLight() = default;
+
+	PointLight(const Entity& entity);
 
 	// TODO: Add drawable constructor
 
@@ -81,5 +83,15 @@ private:
 	// Higher -> Less light reaches the outer radius.
 	float falloff_{ 2.0f };
 };
+
+// @param position Starting point of the light.
+// @param radius The higher the radius, the further light reaches out from the center.
+// @param color Color of the light.
+// @param intensity Intensity of the light source. Range: [0, 1].
+// @param falloff The higher the value, the Less light reaches the outer radius.
+[[nodiscard]] PointLight CreatePointLight(
+	Manager& manager, const V2_float& position, float radius, const Color& color,
+	float intensity = 0.5f, float falloff = 2.0f
+);
 
 } // namespace ptgn

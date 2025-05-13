@@ -35,12 +35,8 @@ struct TextContent : public StringComponent {
 	using StringComponent::StringComponent;
 };
 
-struct FontKey : public ArithmeticComponent<std::size_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	FontKey() : ArithmeticComponent{ Hash("") } {}
-
-	FontKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
+struct FontKey : public HashComponent {
+	using HashComponent::HashComponent;
 };
 
 struct FontSize : public ArithmeticComponent<std::int32_t> {
@@ -84,25 +80,11 @@ struct TextShadingColor : public ColorComponent {
 	TextShadingColor() : ColorComponent{ color::White } {}
 };
 
-class Text : public Sprite, public Drawable<Text> {
+class Text : public Entity, public Drawable<Text> {
 public:
 	Text() = default;
 
-	Text(const Entity& entity) : Sprite{ entity } {}
-
-	explicit Text(Manager& manager);
-
-	// @param font_key Default: "" corresponds to the default engine font (use
-	// game.font.SetDefault(...) to change.
-	Text(
-		Manager& manager, std::string_view content, const Color& text_color = color::Black,
-		std::string_view font_key = ""
-	);
-
-	Text(
-		Manager& manager, const TextContent& content, const TextColor& text_color = {},
-		const FontKey& font_key = {}
-	);
+	Text(const Entity& entity);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
@@ -194,5 +176,12 @@ public:
 		return text.Get<T>();
 	}
 };
+
+// @param font_key Default: "" corresponds to the default engine font (use
+// game.font.SetDefault(...) to change.
+[[nodiscard]] Text CreateText(
+	Manager& manager, const TextContent& content, const TextColor& text_color = {},
+	const FontKey& font_key = {}
+);
 
 } // namespace ptgn

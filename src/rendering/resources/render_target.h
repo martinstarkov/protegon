@@ -33,10 +33,8 @@ struct ClearColor : public ColorComponent {
 } // namespace impl
 
 // Each render target is initialized with a window camera.
-class RenderTarget : public Sprite {
+class RenderTarget : public Entity, public Drawable<RenderTarget> {
 public:
-	using Sprite::Sprite;
-
 	// A default render target will result in the screen being used as the render target.
 	RenderTarget()									 = default;
 	RenderTarget(const RenderTarget&)				 = delete;
@@ -45,21 +43,18 @@ public:
 	RenderTarget& operator=(RenderTarget&&) noexcept = default;
 	~RenderTarget()									 = default;
 
+	RenderTarget(const Entity& entity);
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
+
 	// TODO: Implement window resizing.
 	// Create a render target that is continuously sized to the window.
 	// @param clear_color The background color of the render target.
 	// explicit RenderTarget(const Color& clear_color);
 
-	// Create a render target with a custom size.
-	// @param size The size of the render target.
-	// @param clear_color The background color of the render target.
-	RenderTarget(
-		Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
-	);
-
 	// Draw an entity to the render target.
 	// The entity must have the Transform and Visible components.
-	void DrawEntity(const Entity& entity) const;
+	void Draw(const Entity& entity) const;
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
@@ -106,5 +101,12 @@ public:
 	//// @param shader {} will result in default screen shader being used.
 	// void Draw(const TextureInfo& texture_info, Shader shader, bool clear_after_draw) const;
 };
+
+// Create a render target with a custom size.
+// @param size The size of the render target.
+// @param clear_color The background color of the render target.
+[[nodiscard]] RenderTarget CreateRenderTarget(
+	Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
+);
 
 } // namespace ptgn

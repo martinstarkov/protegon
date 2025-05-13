@@ -176,7 +176,7 @@ void SceneInput::UpdateCurrent() {
 			}
 			if (top_only_) {
 				if (is_inside) {
-					auto depth{ Sprite{ e }.GetDepth() };
+					auto depth{ e.GetDepth() };
 					if (depth >= top_depth || !top_entity) {
 						top_depth  = depth;
 						top_entity = e;

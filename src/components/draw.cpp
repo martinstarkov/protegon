@@ -28,16 +28,75 @@
 
 namespace ptgn {
 
-Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
-
-Sprite::Sprite(Entity entity, const TextureHandle& texture_key) : Entity{ entity } {
-	SetDraw<Sprite>();
-	SetTextureKey(texture_key);
-	Show();
+Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key) {
+	Sprite sprite{ manager.CreateEntity() };
+	sprite.SetDraw<Sprite>();
+	sprite.SetTextureKey(texture_key);
+	sprite.Show();
+	return sprite;
 }
 
-Sprite::Sprite(Manager& manager, const TextureHandle& texture_key) :
-	Sprite{ manager.CreateEntity(), texture_key } {}
+Animation CreateAnimation(
+	Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
+	const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats,
+	const V2_float& start_pixel, std::size_t start_frame
+) {
+	Animation animation{ CreateSprite(manager, texture_key) };
+
+	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
+
+	auto& crop = animation.Add<TextureCrop>();
+	auto& anim =
+		animation.Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
+
+	crop.position = anim.GetCurrentFramePosition();
+	crop.size	  = anim.GetFrameSize();
+
+	milliseconds frame_duration{ animation_duration / frame_count };
+
+	std::int64_t frame_repeats{ repeats == -1 ? -1
+											  : repeats * static_cast<std::int64_t>(frame_count) };
+
+	// TODO: Consider breaking this up into individual tween points using a for loop.
+	// TODO: Switch to using a system.
+	animation.Add<Tween>()
+		.During(frame_duration)
+		.Repeat(frame_repeats)
+		.OnStart([entity = animation]() mutable {
+			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			a.ResetToStartFrame();
+			c.position = a.GetCurrentFramePosition();
+			c.size	   = a.GetFrameSize();
+			// TODO: Fix.
+			// Invoke<callback::AnimationStart>(entity, entity);
+		})
+		.OnRepeat([entity = animation](Tween& tween) mutable {
+			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			a.IncrementFrame();
+			c.position = a.GetCurrentFramePosition();
+			c.size	   = a.GetFrameSize();
+			auto anim_frame_count{ a.GetFrameCount() };
+			auto tween_repeats{ tween.GetRepeats() };
+			if (tween_repeats != -1 &&
+				static_cast<std::size_t>(tween_repeats) == anim_frame_count) {
+				// TODO: Fix.
+				// Invoke<callback::AnimationComplete>(entity, entity);
+			} else if (a.GetFrameRepeats() % anim_frame_count == 0) {
+				// TODO: Fix.
+				// Invoke<callback::AnimationRepeat>(entity, entity);
+			}
+		})
+		.OnReset([entity = animation]() mutable {
+			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
+			a.ResetToStartFrame();
+			c.position = a.GetCurrentFramePosition();
+			c.size	   = a.GetFrameSize();
+		});
+
+	return animation;
+}
+
+Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
 
 void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite sprite{ entity };
@@ -79,58 +138,6 @@ const impl::Texture& Sprite::GetTexture() const {
 
 impl::Texture& Sprite::GetTexture() {
 	return const_cast<impl::Texture&>(std::as_const(*this).GetTexture());
-}
-
-Sprite& Sprite::SetVisible(bool visible) {
-	AddOrRemove<Visible>(visible);
-	return *this;
-}
-
-Sprite& Sprite::Show() {
-	return SetVisible(true);
-}
-
-Sprite& Sprite::Hide() {
-	return SetVisible(false);
-}
-
-bool Sprite::IsVisible() const {
-	return GetOrParentOrDefault<Visible>(false);
-}
-
-Sprite& Sprite::SetDepth(const Depth& depth) {
-	if (Has<Depth>()) {
-		Get<Depth>() = depth;
-	} else {
-		Add<Depth>(depth);
-	}
-	return *this;
-}
-
-Depth Sprite::GetDepth() const {
-	return GetOrDefault<Depth>();
-}
-
-Sprite& Sprite::SetBlendMode(BlendMode blend_mode) {
-	if (Has<BlendMode>()) {
-		Get<BlendMode>() = blend_mode;
-	} else {
-		Add<BlendMode>(blend_mode);
-	}
-	return *this;
-}
-
-BlendMode Sprite::GetBlendMode() const {
-	return GetOrDefault<BlendMode>(BlendMode::Blend);
-}
-
-Sprite& Sprite::SetTint(const Color& color) {
-	AddOrRemove<Tint>(color != Tint{}, color);
-	return *this;
-}
-
-Color Sprite::GetTint() const {
-	return GetOrDefault<Tint>();
 }
 
 V2_int Sprite::GetTextureSize() const {
@@ -261,62 +268,6 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 	auto& new_active{ GetActive() };
 	new_active.Show();
 	return true;
-}
-
-Animation::Animation(
-	Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats,
-	const V2_float& start_pixel, std::size_t start_frame
-) :
-	Sprite{ manager, texture_key } {
-	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
-
-	auto& crop = Add<TextureCrop>();
-	auto& anim = Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
-
-	crop.position = anim.GetCurrentFramePosition();
-	crop.size	  = anim.GetFrameSize();
-
-	milliseconds frame_duration{ animation_duration / frame_count };
-
-	std::int64_t frame_repeats{ repeats == -1 ? -1
-											  : repeats * static_cast<std::int64_t>(frame_count) };
-
-	// TODO: Consider breaking this up into individual tween points using a for loop.
-	// TODO: Switch to using a system.
-	Add<Tween>()
-		.During(frame_duration)
-		.Repeat(frame_repeats)
-		.OnStart([entity = *this]() mutable {
-			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			a.ResetToStartFrame();
-			c.position = a.GetCurrentFramePosition();
-			c.size	   = a.GetFrameSize();
-			// TODO: Fix.
-			// Invoke<callback::AnimationStart>(entity, entity);
-		})
-		.OnRepeat([entity = *this](Tween& tween) mutable {
-			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			a.IncrementFrame();
-			c.position = a.GetCurrentFramePosition();
-			c.size	   = a.GetFrameSize();
-			auto anim_frame_count{ a.GetFrameCount() };
-			auto tween_repeats{ tween.GetRepeats() };
-			if (tween_repeats != -1 &&
-				static_cast<std::size_t>(tween_repeats) == anim_frame_count) {
-				// TODO: Fix.
-				// Invoke<callback::AnimationComplete>(entity, entity);
-			} else if (a.GetFrameRepeats() % anim_frame_count == 0) {
-				// TODO: Fix.
-				// Invoke<callback::AnimationRepeat>(entity, entity);
-			}
-		})
-		.OnReset([entity = *this]() mutable {
-			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			a.ResetToStartFrame();
-			c.position = a.GetCurrentFramePosition();
-			c.size	   = a.GetFrameSize();
-		});
 }
 
 } // namespace ptgn

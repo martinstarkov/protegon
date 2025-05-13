@@ -24,20 +24,6 @@ class RenderData;
 
 } // namespace impl
 
-struct Visible : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	Visible() : ArithmeticComponent{ true } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(Visible, value_)
-};
-
-struct Tint : public ColorComponent {
-	using ColorComponent::ColorComponent;
-
-	Tint() : ColorComponent{ color::White } {}
-};
-
 struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 
@@ -126,15 +112,8 @@ private:
 } // namespace impl
 
 struct Sprite : public Entity, public Drawable<Sprite> {
-	using Entity::Entity;
-
 	Sprite() = default;
-
 	Sprite(const Entity& entity);
-
-	explicit Sprite(Entity entity, const TextureHandle& texture_key);
-
-	explicit Sprite(Manager& manager, const TextureHandle& texture_key);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
@@ -144,53 +123,32 @@ struct Sprite : public Entity, public Drawable<Sprite> {
 
 	[[nodiscard]] impl::Texture& GetTexture();
 
-	// @return *this.
-	Sprite& SetVisible(bool visible);
-
-	// @return *this.
-	Sprite& Show();
-
-	// @return *this.
-	Sprite& Hide();
-
-	[[nodiscard]] bool IsVisible() const;
-
-	Sprite& SetDepth(const Depth& depth);
-
-	[[nodiscard]] Depth GetDepth() const;
-
-	Sprite& SetBlendMode(BlendMode blend_mode);
-
-	[[nodiscard]] BlendMode GetBlendMode() const;
-
-	Sprite& SetTint(const Color& color);
-
-	[[nodiscard]] Color GetTint() const;
-
 	[[nodiscard]] V2_int GetTextureSize() const;
 
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
 
+[[nodiscard]] Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key);
+
 struct Animation : public Sprite {
 	using Sprite::Sprite;
 
 	Animation() = default;
-
-	// @param manager Which manager the entity is added to.
-	// @param texture_key Key of the texture loaded into the texture manager.
-	// @param frame_count Number of frames in the animation sequence.
-	// @param frame_size Pixel size of an individual animation frame within the texture.
-	// @param animation_duration Duration of the full animation sequence.
-	// @param repeats Number of repeats that the animation plays for, -1 for infinite replay.
-	// @param start_pixel Pixel within the texture which indicates the top left position of the
-	// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
-	explicit Animation(
-		Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
-		const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats = -1,
-		const V2_float& start_pixel = {}, std::size_t start_frame = 0
-	);
 };
+
+// @param manager Which manager the entity is added to.
+// @param texture_key Key of the texture loaded into the texture manager.
+// @param frame_count Number of frames in the animation sequence.
+// @param frame_size Pixel size of an individual animation frame within the texture.
+// @param animation_duration Duration of the full animation sequence.
+// @param repeats Number of repeats that the animation plays for, -1 for infinite replay.
+// @param start_pixel Pixel within the texture which indicates the top left position of the
+// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
+[[nodiscard]] Animation CreateAnimation(
+	Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
+	const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats = -1,
+	const V2_float& start_pixel = {}, std::size_t start_frame = 0
+);
 
 struct AnimationMap : public ActiveMapManager<Animation> {
 public:

@@ -17,10 +17,32 @@
 
 namespace ptgn {
 
-void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
-	Sprite sprite{ entity };
+PointLight CreatePointLight(
+	Manager& manager, const V2_float& position, float radius, const Color& color, float intensity,
+	float falloff
+) {
+	PointLight point_light{ manager.CreateEntity() };
 
-	auto depth{ sprite.GetDepth() };
+	// Entity properties.
+
+	point_light.SetDraw<PointLight>();
+	point_light.Show();
+	point_light.SetPosition(position);
+
+	// Point light properties.
+
+	point_light.SetColor(color);
+	point_light.SetIntensity(intensity);
+	point_light.SetRadius(radius);
+	point_light.SetFalloff(falloff);
+
+	return point_light;
+}
+
+PointLight::PointLight(const Entity& entity) : Entity{ entity } {}
+
+void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
+	auto depth{ entity.GetDepth() };
 
 	auto [it, inserted] = ctx.batch_map.try_emplace(depth);
 

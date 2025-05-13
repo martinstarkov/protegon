@@ -8,6 +8,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "math/vector2.h"
+#include "render_target.h"
 #include "rendering/api/color.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/buffers/frame_buffer.h"
@@ -17,6 +18,18 @@
 #include "scene/camera.h"
 
 namespace ptgn {
+
+RenderTarget CreateRenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) {
+	RenderTarget render_target{ manager.CreateEntity() };
+	render_target.SetDraw<RenderTarget>();
+	render_target.Add<Camera>(manager);
+	render_target.Add<impl::ClearColor>(clear_color);
+	auto& fb = render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size });
+	PTGN_ASSERT(fb.IsValid(), "Failed to create valid frame buffer for render target");
+	PTGN_ASSERT(fb.IsBound(), "Failed to bind frame buffer for render target");
+	render_target.Clear();
+	return render_target;
+}
 
 /*
 RenderTarget::RenderTarget(const Color& clear_color) :
@@ -33,17 +46,13 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 }
 */
 
-RenderTarget::RenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) :
-	Sprite{ manager } {
-	Add<Camera>(manager);
-	Add<impl::ClearColor>(clear_color);
-	auto& fb = Add<impl::FrameBuffer>(impl::Texture{ nullptr, size });
-	PTGN_ASSERT(fb.IsValid(), "Failed to create valid frame buffer for render target");
-	PTGN_ASSERT(fb.IsBound(), "Failed to bind frame buffer for render target");
-	Clear();
+RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
+
+void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
+	Sprite::Draw(ctx, entity);
 }
 
-void RenderTarget::DrawEntity(const Entity& e) const {
+void RenderTarget::Draw(const Entity& e) const {
 	const auto& fb	   = Get<impl::FrameBuffer>();
 	const auto& camera = Get<Camera>();
 	fb.Bind();

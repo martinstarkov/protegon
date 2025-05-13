@@ -281,6 +281,58 @@ Origin Entity::GetOrigin() const {
 	return GetOrDefault<Origin>(Origin::Center);
 }
 
+Entity& Entity::SetVisible(bool visible) {
+	AddOrRemove<Visible>(visible);
+	return *this;
+}
+
+Entity& Entity::Show() {
+	return SetVisible(true);
+}
+
+Entity& Entity::Hide() {
+	return SetVisible(false);
+}
+
+bool Entity::IsVisible() const {
+	return GetOrParentOrDefault<Visible>(false);
+}
+
+Entity& Entity::SetDepth(const Depth& depth) {
+	if (Has<Depth>()) {
+		Get<Depth>() = depth;
+	} else {
+		Add<Depth>(depth);
+	}
+	return *this;
+}
+
+Depth Entity::GetDepth() const {
+	return GetOrDefault<Depth>();
+}
+
+Entity& Entity::SetBlendMode(BlendMode blend_mode) {
+	if (Has<BlendMode>()) {
+		Get<BlendMode>() = blend_mode;
+	} else {
+		Add<BlendMode>(blend_mode);
+	}
+	return *this;
+}
+
+BlendMode Entity::GetBlendMode() const {
+	return GetOrDefault<BlendMode>(BlendMode::Blend);
+}
+
+Entity& Entity::SetTint(const Color& color) {
+	AddOrRemove<Tint>(color != Tint{}, color);
+	return *this;
+}
+
+Color Entity::GetTint() const {
+	return GetOrDefault<Tint>();
+}
+
 namespace impl {
 
 void Children::Add(Entity& child, std::string_view name) {

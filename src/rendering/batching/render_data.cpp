@@ -78,7 +78,7 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-	lights = RenderTarget{ light_manager, { 1, 1 }, color::Transparent };
+	lights = CreateRenderTarget(light_manager, { 1, 1 }, color::Transparent);
 
 	// TODO: Once window resizing is implemented, get rid of this.
 	game.event.window.Subscribe(

@@ -102,9 +102,9 @@ struct ParticleEmitterComponent {
 
 class ParticleEmitter : public Sprite, public Drawable<ParticleEmitter> {
 public:
-	ParticleEmitter() = delete;
-	explicit ParticleEmitter(Manager& manager);
-	explicit ParticleEmitter(Manager& manager, const ParticleInfo& info);
+	ParticleEmitter() = default;
+
+	using Sprite::Sprite;
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
@@ -142,5 +142,9 @@ public:
 	ParticleEmitter& SetEmissionDelay(milliseconds emission_delay);
 	[[nodiscard]] milliseconds GetEmissionDelay() const;
 };
+
+[[nodiscard]] ParticleEmitter CreateParticleEmitter(
+	Manager& manager, const ParticleInfo& info = {}
+);
 
 } // namespace ptgn

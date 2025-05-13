@@ -8,6 +8,7 @@
 
 #include "common/assert.h"
 #include "components/common.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -40,8 +41,8 @@ void DrawDebugText(
 	Transform transform{ position, rotation };
 
 	game.renderer.GetRenderData().AddTexturedQuad(
-		impl::GetVertices(transform, size, origin), text.GetTextureCoordinates(false), texture,
-		max_depth, debug_blend_mode, color::White.Normalized(), true
+		impl::GetVertices(transform, size, origin), Sprite{ text }.GetTextureCoordinates(false),
+		texture, max_depth, debug_blend_mode, color::White.Normalized(), true
 	);
 }
 

@@ -14,7 +14,7 @@ public:
 	void Enter() {
 		game.texture.Load("test", "resources/test.png");
 
-		s1 = Sprite{ manager, "test" };
+		s1 = CreateSprite(manager, "test");
 
 		s1.SetPosition(camera.primary.GetPosition());
 	}

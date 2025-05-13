@@ -18,15 +18,23 @@
 #include "rendering/api/origin.h"
 #include "rendering/resources/text.h"
 
+// TODO: Add serialization.
+
 namespace ptgn {
+
+class Button;
 
 namespace impl {
 
 class RenderData;
 
+void SetupButton(Button& button);
+
+void SetupButtonCallbacks(Button& button, const std::function<void()>& internal_on_activate);
+
 } // namespace impl
 
-struct ToggleButton;
+class ToggleButton;
 class ToggleButtonGroup;
 
 enum class ButtonState : std::uint8_t {
@@ -175,10 +183,6 @@ struct ButtonSize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
-struct ButtonOrigin : public OriginComponent {
-	using OriginComponent::OriginComponent;
-};
-
 struct ButtonRadius : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
@@ -187,14 +191,10 @@ struct ButtonRadius : public ArithmeticComponent<float> {
 
 using ButtonCallback = std::function<void()>;
 
-struct Button : public Sprite, public Drawable<Button> {
+class Button : public Entity, public Drawable<Button> {
+public:
 	Button() = default;
-	explicit Button(Manager& manager);
-	Button(const Button&)				 = default;
-	Button& operator=(const Button&)	 = default;
-	Button(Button&&) noexcept			 = default;
-	Button& operator=(Button&&) noexcept = default;
-	~Button() override					 = default;
+	Button(const Entity& entity);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
@@ -205,8 +205,6 @@ struct Button : public Sprite, public Drawable<Button> {
 
 	// @param size {} results in texture sized button.
 	Button& SetSize(const V2_float& size = {});
-
-	Button& SetOrigin(Origin origin = Origin::Center);
 
 	// @param radius 0.0f results in texture sized button.
 	Button& SetRadius(float radius = 0.0f);
@@ -226,23 +224,25 @@ struct Button : public Sprite, public Drawable<Button> {
 		ButtonState state = ButtonState::Current
 	) const;
 
-	Button& SetTextureKey(std::string_view texture_key, ButtonState state = ButtonState::Default);
+	Button& SetTextureKey(
+		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
+	);
 
-	Button& SetDisabledTextureKey(std::string_view texture_key);
+	Button& SetDisabledTextureKey(const TextureHandle& texture_key);
 
 	[[nodiscard]] const TextureHandle& GetDisabledTextureKey() const;
 
-	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetButtonTint(ButtonState state = ButtonState::Current) const;
 
-	Button& SetTint(const Color& color, ButtonState state = ButtonState::Default);
+	Button& SetButtonTint(const Color& color, ButtonState state = ButtonState::Default);
 
 	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
 
-	Button& SetTextColor(const Color& color, ButtonState state = ButtonState::Default);
+	Button& SetTextColor(const TextColor& text_color, ButtonState state = ButtonState::Default);
 
 	[[nodiscard]] std::string_view GetTextContent(ButtonState state = ButtonState::Current) const;
 
-	Button& SetTextContent(std::string_view content, ButtonState state = ButtonState::Default);
+	Button& SetTextContent(const TextContent& content, ButtonState state = ButtonState::Default);
 
 	[[nodiscard]] TextJustify GetTextJustify(ButtonState state = ButtonState::Current) const;
 
@@ -263,8 +263,8 @@ struct Button : public Sprite, public Drawable<Button> {
 	Button& SetFontSize(std::int32_t font_size, ButtonState state = ButtonState::Default);
 
 	Button& SetText(
-		std::string_view content, const Color& text_color = color::Black,
-		std::string_view font_key = "", ButtonState state = ButtonState::Default
+		const TextContent& content, const TextColor& text_color = color::Black,
+		const FontKey& font_key = {}, ButtonState state = ButtonState::Default
 	);
 
 	[[nodiscard]] const Text& GetText(ButtonState state = ButtonState::Current) const;
@@ -292,31 +292,21 @@ struct Button : public Sprite, public Drawable<Button> {
 
 private:
 	friend class impl::RenderData;
-	friend struct ToggleButton;
+	friend class ToggleButton;
 	friend class ToggleButtonGroup;
-
-	// Internal constructor so that toggle button can avoid setting up callbacks with nullptr
-	// internal_on_activate.
-	Button(Manager& manager, bool);
+	friend void impl::SetupButtonCallbacks(
+		Button& button, const std::function<void()>& internal_on_activate
+	);
 
 	Button& OnInternalActivate(const ButtonCallback& callback);
 
-	void Setup();
-	void SetupCallbacks(const std::function<void()>& internal_on_activate);
-
 	void StateChange(impl::InternalButtonState new_state);
-
-	[[nodiscard]] static ButtonState GetState(const Entity& e);
-
-	static void Activate(const Entity& e);
-	static void StartHover(const Entity& e);
-	static void StopHover(const Entity& e);
-	static void StateChange(const Entity& e, impl::InternalButtonState new_state);
 };
 
-struct ToggleButton : public Button {
+class ToggleButton : public Button {
+public:
 	ToggleButton() = default;
-	ToggleButton(Manager& manager, bool toggled = false);
+	using Button::Button;
 
 	void Activate() final;
 
@@ -337,28 +327,32 @@ struct ToggleButton : public Button {
 	) const;
 
 	ToggleButton& SetTextureKeyToggled(
-		std::string_view texture_key, ButtonState state = ButtonState::Default
+		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetButtonTintToggled(ButtonState state = ButtonState::Current) const;
 
-	ToggleButton& SetTintToggled(const Color& color, ButtonState state = ButtonState::Default);
+	ToggleButton& SetButtonTintToggled(
+		const Color& color, ButtonState state = ButtonState::Default
+	);
 
 	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
 
-	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
+	ToggleButton& SetTextColorToggled(
+		const TextColor& text_color, ButtonState state = ButtonState::Default
+	);
 
 	[[nodiscard]] std::string_view GetTextContentToggled(
 		ButtonState state = ButtonState::Current
 	) const;
 
 	ToggleButton& SetTextContentToggled(
-		std::string_view content, ButtonState state = ButtonState::Default
+		const TextContent& content, ButtonState state = ButtonState::Default
 	);
 
 	ToggleButton& SetTextToggled(
-		std::string_view content, const Color& text_color = color::Black,
-		std::string_view font_key = "", ButtonState state = ButtonState::Default
+		const TextContent& content, const TextColor& text_color = color::Black,
+		const FontKey& font_key = "", ButtonState state = ButtonState::Default
 	);
 
 	[[nodiscard]] const Text& GetTextToggled(ButtonState state = ButtonState::Current) const;
@@ -369,18 +363,12 @@ struct ToggleButton : public Button {
 	ToggleButton& SetBorderColorToggled(
 		const Color& color, ButtonState state = ButtonState::Default
 	);
-
-private:
-	friend class ToggleButtonGroup;
-
-	static void SetToggled(Entity e, bool toggled);
-	static void Toggle(Entity e);
 };
 
 class ToggleButtonGroup : public MapManager<ToggleButton, std::string_view, std::string, false> {
 public:
 	ToggleButtonGroup()										   = default;
-	virtual ~ToggleButtonGroup() override					   = default;
+	~ToggleButtonGroup() override							   = default;
 	ToggleButtonGroup(ToggleButtonGroup&&) noexcept			   = default;
 	ToggleButtonGroup& operator=(ToggleButtonGroup&&) noexcept = default;
 	ToggleButtonGroup(const ToggleButtonGroup&)				   = delete;
@@ -393,9 +381,9 @@ public:
 			MapManager::Load(key, ToggleButton{ std::forward<TArgs>(constructor_args)... })
 		};
 		// Toggle all other buttons when one is pressed.
-		button.OnInternalActivate([this, e = button]() {
-			ForEachValue([](const ToggleButton& b) { ToggleButton::SetToggled(b, false); });
-			ToggleButton::SetToggled(e, true);
+		button.OnInternalActivate([this, e = button]() mutable {
+			ForEachValue([](ToggleButton& b) { b.SetToggled(false); });
+			e.SetToggled(true);
 		});
 		return button;
 	}
@@ -423,5 +411,10 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	}
 	return os;
 }
+
+[[nodiscard]] Button CreateButton(Manager& manager);
+
+// @param toggled Whether or not the button start in the toggled state.
+[[nodiscard]] ToggleButton CreateToggleButton(Manager& manager, bool toggled = false);
 
 } // namespace ptgn

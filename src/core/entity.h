@@ -3,12 +3,14 @@
 #include <string_view>
 #include <unordered_set>
 
+#include "components/common.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
+#include "rendering/api/blend_mode.h"
 #include "rendering/api/origin.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
@@ -243,6 +245,33 @@ public:
 	Entity& SetOrigin(Origin origin);
 
 	[[nodiscard]] Origin GetOrigin() const;
+
+	// Draw functions.
+
+	// @return *this.
+	Entity& SetVisible(bool visible);
+
+	// @return *this.
+	Entity& Show();
+
+	// @return *this.
+	Entity& Hide();
+
+	[[nodiscard]] bool IsVisible() const;
+
+	Entity& SetDepth(const Depth& depth);
+
+	[[nodiscard]] Depth GetDepth() const;
+
+	Entity& SetBlendMode(BlendMode blend_mode);
+
+	[[nodiscard]] BlendMode GetBlendMode() const;
+
+	Entity& SetTint(const Color& color);
+
+	[[nodiscard]] Color GetTint() const;
+
+	// Serialization.
 
 	friend void to_json(json& j, const Entity& entity);
 	friend void from_json(const json& j, Entity& entity);

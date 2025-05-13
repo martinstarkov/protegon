@@ -22,28 +22,25 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
+#include "text.h"
 
 namespace ptgn {
 
-Text::Text(Manager& manager) : Sprite{ manager } {
-	SetDraw<Text>();
-}
-
-Text::Text(
-	Manager& manager, std::string_view content, const Color& text_color, std::string_view font_key
-) :
-	Text{ manager, TextContent{ content }, TextColor{ text_color }, FontKey{ font_key } } {}
-
-Text::Text(
+Text CreateText(
 	Manager& manager, const TextContent& content, const TextColor& text_color,
 	const FontKey& font_key
-) :
-	Text{ manager } {
-	SetParameter(content, false);
-	SetParameter(text_color, false);
-	SetParameter(font_key, false);
-	RecreateTexture();
+) {
+	Text text{ manager.CreateEntity() };
+	text.SetDraw<Text>();
+	text.SetParameter(content, false);
+	text.SetParameter(text_color, false);
+	text.SetParameter(font_key, false);
+	text.RecreateTexture();
+
+	return text;
 }
+
+Text::Text(const Entity& entity) : Entity{ entity } {}
 
 void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 	if (entity.Has<TextColor>() && entity.Get<TextColor>().a == 0) {
