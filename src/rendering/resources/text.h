@@ -6,10 +6,9 @@
 #include <string_view>
 
 #include "common/type_traits.h"
-#include "components/drawable.h"
+#include "components/draw.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -84,14 +83,11 @@ struct TextShadingColor : public ColorComponent {
 	TextShadingColor() : ColorComponent{ color::White } {}
 };
 
-class Text : public GameObject, public Drawable<Text> {
+class Text : public Sprite {
 public:
-	Text()							 = default;
-	Text(const Text&)				 = delete;
-	Text& operator=(const Text&)	 = delete;
-	Text(Text&&) noexcept			 = default;
-	Text& operator=(Text&&) noexcept = default;
-	~Text()							 = default;
+	Text() = default;
+
+	Text(const Entity& entity) : Sprite{ entity } {}
 
 	explicit Text(Manager& manager);
 
@@ -107,7 +103,7 @@ public:
 		const FontKey& font_key = {}
 	);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	void Draw(impl::RenderData& ctx) const override;
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
@@ -183,7 +179,7 @@ public:
 
 	template <typename T>
 	[[nodiscard]] const T& GetParameter(const T& default_value) const {
-		return GetParameter<T>(GetEntity(), default_value);
+		return GetParameter<T>(*this, default_value);
 	}
 
 	template <typename T>

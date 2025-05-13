@@ -10,11 +10,12 @@
 #include <utility>
 
 #include "common/assert.h"
+#include "components/common.h"
 #include "components/draw.h"
+#include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/tween.h"
@@ -36,6 +37,16 @@
 namespace ptgn {
 
 namespace impl {
+
+Transform GetRelativeOffset(const Entity& entity) {
+	return entity.Has<impl::Offsets>() ? entity.Get<impl::Offsets>().GetTotal() : Transform{};
+}
+
+Transform GetOffset(const Entity& entity) {
+	return GetRelativeOffset(entity).RelativeTo(
+		entity.HasParent() ? GetRelativeOffset(entity.GetParent()) : Transform{}
+	);
+}
 
 CameraInfo::CameraInfo() {
 	data.center_to_window = true;
@@ -231,7 +242,7 @@ void Camera::StopFollow(bool force) {
 void Camera::StartFollow(Entity target_entity, bool force) {
 	// TODO: Replace with tween effects function call?
 	if (!pan_effects_) {
-		pan_effects_ = GameObject{ GetManager() };
+		pan_effects_ = Entity{ GetManager() };
 	}
 	if (!pan_effects_.Has<Tween>()) {
 		pan_effects_.Add<Tween>();
@@ -240,7 +251,7 @@ void Camera::StartFollow(Entity target_entity, bool force) {
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_pan = [e = GetEntity(), pe = pan_effects_.GetEntity()]() mutable {
+	auto update_pan = [e = *this, pe = pan_effects_]() mutable {
 		// If a pan starts after this follow, its start position must be updated.
 		if (pe.Has<impl::CameraPanStart>()) {
 			auto& start{ pe.Get<impl::CameraPanStart>() };
@@ -248,7 +259,7 @@ void Camera::StartFollow(Entity target_entity, bool force) {
 		}
 	};
 
-	auto pan_func = [target_entity, e = GetEntity(), pe = pan_effects_.GetEntity()]() mutable {
+	auto pan_func = [target_entity, e = *this, pe = pan_effects_]() mutable {
 		if (!target_entity || !target_entity.IsAlive() || !target_entity.Has<Transform>()) {
 			// If target is invalid or has no transform, move onto to the next item in the pan
 			// queue.
@@ -305,7 +316,7 @@ void Camera::StartFollow(Entity target_entity, bool force) {
 	tween.Start(force);
 }
 
-Camera::Camera(Manager& manager) : GameObject{ manager } {
+Camera::Camera(Manager& manager) : Entity{ manager } {
 	Add<impl::CameraInfo>();
 }
 
@@ -330,7 +341,7 @@ Tween& Camera::PanTo(
 	// TODO: Replace with tween effects function call once camera game object uses transform
 	// component.
 	if (!pan_effects_) {
-		pan_effects_ = GameObject{ GetManager() };
+		pan_effects_ = Entity{ GetManager() };
 	}
 	if (!pan_effects_.Has<Tween>()) {
 		pan_effects_.Add<Tween>();
@@ -343,14 +354,13 @@ Tween& Camera::PanTo(
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_pan = [e = GetEntity(), pe = pan_effects_.GetEntity()]() mutable {
+	auto update_pan = [e = *this, pe = pan_effects_]() mutable {
 		auto& start{ pe.Get<impl::CameraPanStart>() };
 		start = e.Get<impl::CameraInfo>().GetPosition();
 	};
 	tween.During(duration)
 		.Ease(ease)
-		.OnUpdate([target_position, e = GetEntity(),
-				   pe = pan_effects_.GetEntity()](float f) mutable {
+		.OnUpdate([target_position, e = *this, pe = pan_effects_](float f) mutable {
 			V2_float start{ pe.Get<impl::CameraPanStart>() };
 			V2_float dir{ target_position - start };
 			auto new_pos{ start + f * dir };
@@ -367,7 +377,7 @@ Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, 
 	// TODO: Replace with tween effects function call?
 	PTGN_ASSERT(target_zoom > 0.0f, "Target zoom cannot be negative or zero");
 	if (!zoom_effects_) {
-		zoom_effects_ = GameObject{ GetManager() };
+		zoom_effects_ = Entity{ GetManager() };
 	}
 	if (!zoom_effects_.Has<Tween>()) {
 		zoom_effects_.Add<Tween>();
@@ -380,13 +390,13 @@ Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_zoom = [e = GetEntity(), ze = zoom_effects_.GetEntity()]() mutable {
+	auto update_zoom = [e = *this, ze = zoom_effects_]() mutable {
 		auto& start{ ze.Get<impl::CameraZoomStart>() };
 		start = e.Get<impl::CameraInfo>().GetZoom();
 	};
 	tween.During(duration)
 		.Ease(ease)
-		.OnUpdate([target_zoom, e = GetEntity(), ze = zoom_effects_.GetEntity()](float f) mutable {
+		.OnUpdate([target_zoom, e = *this, ze = zoom_effects_](float f) mutable {
 			float start{ ze.Get<impl::CameraZoomStart>() };
 			float dir{ target_zoom - start };
 			float new_zoom{ start + f * dir };
@@ -403,7 +413,7 @@ Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase eas
 	// TODO: Replace with tween effects function call once camera game object uses transform
 	// component.
 	if (!rotation_effects_) {
-		rotation_effects_ = GameObject{ GetManager() };
+		rotation_effects_ = Entity{ GetManager() };
 	}
 	if (!rotation_effects_.Has<Tween>()) {
 		rotation_effects_.Add<Tween>();
@@ -416,14 +426,13 @@ Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase eas
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_rotation = [e = GetEntity(), re = rotation_effects_.GetEntity()]() mutable {
+	auto update_rotation = [e = *this, re = rotation_effects_]() mutable {
 		auto& start{ re.Get<impl::CameraRotationStart>() };
 		start = e.Get<impl::CameraInfo>().GetRotation();
 	};
 	tween.During(duration)
 		.Ease(ease)
-		.OnUpdate([target_angle, e = GetEntity(),
-				   re = rotation_effects_.GetEntity()](float f) mutable {
+		.OnUpdate([target_angle, e = *this, re = rotation_effects_](float f) mutable {
 			float start{ re.Get<impl::CameraRotationStart>() };
 
 			float dir{ target_angle - start };
@@ -440,13 +449,13 @@ Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase eas
 Tween& Camera::Shake(
 	float intensity, milliseconds duration, const ShakeConfig& config, bool force
 ) {
-	return ptgn::Shake(*this, intensity, duration, config, force).OnComplete([e = GetEntity()]() {
+	return ptgn::Shake(*this, intensity, duration, config, force).OnComplete([e = *this]() {
 		e.Get<impl::CameraInfo>().data.recalculate_view = true;
 	});
 }
 
 Tween& Camera::Shake(float intensity, const ShakeConfig& config, bool force) {
-	return ptgn::Shake(*this, intensity, config, force).OnComplete([e = GetEntity()]() {
+	return ptgn::Shake(*this, intensity, config, force).OnComplete([e = *this]() {
 		e.Get<impl::CameraInfo>().data.recalculate_view = true;
 	});
 }
@@ -464,7 +473,7 @@ Tween& Camera::FadeFromTo(
 ) {
 	// TODO: Replace with tween effects function call.
 	if (!fade_effects_) {
-		fade_effects_ = GameObject{ GetManager() };
+		fade_effects_ = Entity{ GetManager() };
 	}
 	if (!fade_effects_.Has<Tween>()) {
 		fade_effects_.Add<Tween>();
@@ -480,18 +489,17 @@ Tween& Camera::FadeFromTo(
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
-	auto update_fade_rect = [start_color, end_color,
-							 fe = fade_effects_.GetEntity()](float progress) mutable {
+	auto update_fade_rect = [start_color, end_color, fe = fade_effects_](float progress) mutable {
 		if (fe.Has<Tint>()) {
 			auto& fade{ fe.Get<Tint>() };
 			fade = Lerp(start_color, end_color, progress);
 		}
 	};
-	auto show = [fe = fade_effects_.GetEntity()]([[maybe_unused]] float f) mutable {
+	auto show = [fe = fade_effects_]([[maybe_unused]] float f) mutable {
 		auto& visible{ fe.Get<Visible>() };
 		visible = true;
 	};
-	auto hide = [fe = fade_effects_.GetEntity()]() mutable {
+	auto hide = [fe = fade_effects_]() mutable {
 		auto& visible{ fe.Get<Visible>() };
 		visible = false;
 	};
@@ -652,7 +660,7 @@ void Camera::SetFlip(Flip new_flip) {
 const Matrix4& Camera::GetView() const {
 	const auto& info{ Get<impl::CameraInfo>().data };
 	if (info.recalculate_view) {
-		RecalculateView(GameObject::GetOffset());
+		RecalculateView(impl::GetOffset(*this));
 	}
 	return info.view;
 }
@@ -667,7 +675,7 @@ const Matrix4& Camera::GetProjection() const {
 
 const Matrix4& Camera::GetViewProjection() const {
 	const auto& info{ Get<impl::CameraInfo>().data };
-	auto offset_transform{ GameObject::GetOffset() };
+	auto offset_transform{ impl::GetOffset(*this) };
 	bool has_offset{ offset_transform != Transform{} };
 	bool update_view{ info.recalculate_view || has_offset };
 	bool updated_matrix{ update_view || info.recalculate_projection };
@@ -839,7 +847,7 @@ void Camera::SetLerp(const V2_float& lerp) {
 	PTGN_ASSERT(lerp.x >= 0.0f && lerp.x <= 1.0f, "Lerp value outside of range 0 to 1");
 	PTGN_ASSERT(lerp.y >= 0.0f && lerp.y <= 1.0f, "Lerp value outside of range 0 to 1");
 	if (!pan_effects_) {
-		pan_effects_ = GameObject{ GetManager() };
+		pan_effects_ = Entity{ GetManager() };
 	}
 	pan_effects_.Add<impl::CameraLerp>(lerp);
 }
@@ -855,7 +863,7 @@ void Camera::SetDeadzone(const V2_float& size) {
 	PTGN_ASSERT(size.x >= 0.0f, "Deadzone width cannot be negative");
 	PTGN_ASSERT(size.y >= 0.0f, "Deadzone height cannot be negative");
 	if (!pan_effects_) {
-		pan_effects_ = GameObject{ GetManager() };
+		pan_effects_ = Entity{ GetManager() };
 	}
 	if (size.IsZero()) {
 		pan_effects_.Remove<impl::CameraDeadzone>();
@@ -873,7 +881,7 @@ V2_float Camera::GetDeadzone() const {
 
 void Camera::SetFollowOffset(const V2_float& offset) {
 	if (!pan_effects_) {
-		pan_effects_ = GameObject{ GetManager() };
+		pan_effects_ = Entity{ GetManager() };
 	}
 	if (offset.IsZero()) {
 		pan_effects_.Remove<impl::CameraOffset>();

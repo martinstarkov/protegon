@@ -3,36 +3,28 @@
 #include <cstdint>
 #include <limits>
 #include <string>
-#include <string_view>
 
+#include "common/assert.h"
+#include "components/draw.h"
+#include "core/entity.h"
+#include "core/game.h"
+#include "core/manager.h"
+#include "debug/log.h"
+#include "math/hash.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/batching/render_data.h"
+#include "rendering/resources/font.h"
+#include "rendering/resources/texture.h"
 #include "SDL_blendmode.h"
 #include "SDL_pixels.h"
 #include "SDL_rect.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
-#include "common/assert.h"
-#include "components/draw.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/game_object.h"
-#include "core/manager.h"
-#include "debug/log.h"
-#include "math/geometry.h"
-#include "math/hash.h"
-#include "math/vector2.h"
-#include "rendering/api/color.h"
-#include "rendering/api/origin.h"
-#include "rendering/batching/render_data.h"
-#include "rendering/resources/font.h"
-#include "rendering/resources/texture.h"
 
 namespace ptgn {
 
-Text::Text(Manager& manager) : GameObject{ manager } {
-	SetDraw<Text>();
-	SetVisible(true);
-}
+Text::Text(Manager& manager) : Sprite{ manager } {}
 
 Text::Text(
 	Manager& manager, std::string_view content, const Color& text_color, std::string_view font_key
@@ -50,41 +42,20 @@ Text::Text(
 	RecreateTexture();
 }
 
-void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
-	if (entity.Has<TextColor>() && entity.Get<TextColor>().a == 0) {
+void Text::Draw(impl::RenderData& ctx) const {
+	if (Has<TextColor>() && Get<TextColor>().a == 0) {
 		return;
 	}
 
-	if (!entity.Has<TextContent>()) {
+	if (!Has<TextContent>()) {
 		return;
 	}
 
-	if (std::string_view{ entity.Get<TextContent>() }.empty()) {
+	if (std::string_view{ Get<TextContent>() }.empty()) {
 		return;
 	}
 
-	const auto& texture{ entity.Get<impl::Texture>() };
-
-	if (!texture.IsValid()) {
-		return;
-	}
-
-	const auto& transform{ entity.GetAbsoluteTransform() };
-	auto blend_mode{ entity.GetBlendMode() };
-	auto depth{ entity.GetDepth() };
-	auto tint{ entity.GetTint().Normalized() };
-	auto origin{ entity.GetOrigin() };
-
-	auto size{ entity.GetSize() };
-
-	if (size.IsZero()) {
-		size = Text::GetSize(entity);
-	}
-
-	ctx.AddTexturedQuad(
-		impl::GetVertices(transform, size, origin), entity.GetTextureCoordinates(false), texture,
-		depth, blend_mode, tint, false
-	);
+	Sprite::Draw(ctx);
 }
 
 Text& Text::SetFont(std::string_view font_key) {
@@ -180,11 +151,11 @@ std::int32_t Text::GetFontSize() const {
 }
 
 V2_int Text::GetSize() const {
-	return GetSize(GetEntity());
+	return GetSize(*this);
 }
 
 V2_int Text::GetSize(const Entity& text) {
-	auto font_key{ GetParameter(text, FontKey{}) };
+	const auto& font_key{ GetParameter(text, FontKey{}) };
 	PTGN_ASSERT(
 		game.font.Has(font_key),
 		"Cannot get size of text texture unless its font is loaded in the font manager"
@@ -277,8 +248,7 @@ void Text::RecreateTexture() {
 			surface = TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), text_color, wrap_after);
 			break;
 		default:
-			PTGN_ERROR(
-				"Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
 			);
 	}
 

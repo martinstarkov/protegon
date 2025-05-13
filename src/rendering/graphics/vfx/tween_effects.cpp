@@ -9,17 +9,16 @@
 
 #include "components/draw.h"
 #include "components/offsets.h"
-#include "core/entity.h"
-#include "core/game_object.h"
-#include "core/manager.h"
 #include "components/transform.h"
+#include "core/entity.h"
+#include "core/manager.h"
+#include "core/time.h"
+#include "core/tween.h"
 #include "math/math.h"
 #include "math/noise.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "core/time.h"
-#include "core/tween.h"
 
 namespace ptgn {
 
@@ -44,7 +43,7 @@ Tween& DoEffect(
 	return effect_entity.Get<Tween>();
 }
 
-TranslateEffect::TranslateEffect(Manager& manager) : GameObject{ manager } {
+TranslateEffect::TranslateEffect(Manager& manager) : Entity{ manager } {
 	Add<Tween>();
 	Add<StartPosition>();
 }
@@ -57,11 +56,9 @@ Tween& TranslateEffect::TranslateTo(
 		entity.Add<Transform>();
 	}
 	return impl::DoEffect(
-		GetEntity(),
-		[entity, e = GetEntity()]() mutable {
-			e.Add<StartPosition>(entity.Get<Transform>().position);
-		},
-		[target_position, entity, e = GetEntity()](float progress) mutable {
+		*this,
+		[entity, e = *this]() mutable { e.Add<StartPosition>(entity.Get<Transform>().position); },
+		[target_position, entity, e = *this](float progress) mutable {
 			if (entity.Has<Transform>()) {
 				auto& transform{ entity.Get<Transform>() };
 				transform.position =
@@ -72,7 +69,7 @@ Tween& TranslateEffect::TranslateTo(
 	);
 }
 
-RotateEffect::RotateEffect(Manager& manager) : GameObject{ manager } {
+RotateEffect::RotateEffect(Manager& manager) : Entity{ manager } {
 	Add<Tween>();
 	Add<StartAngle>();
 }
@@ -84,11 +81,9 @@ Tween& RotateEffect::RotateTo(
 		entity.Add<Transform>();
 	}
 	return impl::DoEffect(
-		GetEntity(),
-		[entity, e = GetEntity()]() mutable {
-			e.Add<StartAngle>(entity.Get<Transform>().rotation);
-		},
-		[target_angle, entity, e = GetEntity()](float progress) mutable {
+		*this,
+		[entity, e = *this]() mutable { e.Add<StartAngle>(entity.Get<Transform>().rotation); },
+		[target_angle, entity, e = *this](float progress) mutable {
 			if (entity.Has<Transform>()) {
 				auto& transform{ entity.Get<Transform>() };
 				transform.rotation = Lerp(float{ e.Get<StartAngle>() }, target_angle, progress);
@@ -98,7 +93,7 @@ Tween& RotateEffect::RotateTo(
 	);
 }
 
-ScaleEffect::ScaleEffect(Manager& manager) : GameObject{ manager } {
+ScaleEffect::ScaleEffect(Manager& manager) : Entity{ manager } {
 	Add<Tween>();
 	Add<StartScale>();
 }
@@ -110,9 +105,8 @@ Tween& ScaleEffect::ScaleTo(
 		entity.Add<Transform>();
 	}
 	return impl::DoEffect(
-		GetEntity(),
-		[entity, e = GetEntity()]() mutable { e.Add<StartScale>(entity.Get<Transform>().scale); },
-		[target_scale, entity, e = GetEntity()](float progress) mutable {
+		*this, [entity, e = *this]() mutable { e.Add<StartScale>(entity.Get<Transform>().scale); },
+		[target_scale, entity, e = *this](float progress) mutable {
 			if (entity.Has<Transform>()) {
 				auto& transform{ entity.Get<Transform>() };
 				transform.scale = Lerp(V2_float{ e.Get<StartScale>() }, target_scale, progress);
@@ -122,7 +116,7 @@ Tween& ScaleEffect::ScaleTo(
 	);
 }
 
-TintEffect::TintEffect(Manager& manager) : GameObject{ manager } {
+TintEffect::TintEffect(Manager& manager) : Entity{ manager } {
 	Add<Tween>();
 	Add<StartTint>();
 }
@@ -134,8 +128,8 @@ Tween& TintEffect::TintTo(
 		entity.Add<Tint>();
 	}
 	return impl::DoEffect(
-		GetEntity(), [entity, e = GetEntity()]() mutable { e.Add<StartTint>(entity.Get<Tint>()); },
-		[target_tint, entity, e = GetEntity()](float progress) mutable {
+		*this, [entity, e = *this]() mutable { e.Add<StartTint>(entity.Get<Tint>()); },
+		[target_tint, entity, e = *this](float progress) mutable {
 			if (entity.Has<Tint>()) {
 				auto& fade{ entity.Get<Tint>() };
 				fade = Lerp(e.Get<StartTint>(), target_tint, progress);
@@ -145,7 +139,7 @@ Tween& TintEffect::TintTo(
 	);
 }
 
-BounceEffect::BounceEffect(Manager& manager) : GameObject{ manager } {
+BounceEffect::BounceEffect(Manager& manager) : Entity{ manager } {
 	Add<Tween>();
 }
 
@@ -154,7 +148,7 @@ Tween& BounceEffect::Bounce(
 	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
 ) {
 	auto& tween{ impl::DoEffect(
-		GetEntity(),
+		*this,
 		[entity]() mutable {
 			if (!entity.Has<Offsets>()) {
 				entity.Add<Offsets>();
@@ -228,7 +222,7 @@ void ShakeEffect::SetIntensity(float intensity) {
 	trauma_ = std::clamp(intensity, 0.0f, 1.0f);
 }
 
-ContinuousShakeEffect::ContinuousShakeEffect(Manager& manager) : GameObject{ manager } {
+ContinuousShakeEffect::ContinuousShakeEffect(Manager& manager) : Entity{ manager } {
 	Add<Tween>();
 }
 
@@ -243,7 +237,7 @@ Tween& ContinuousShakeEffect::Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force
 ) {
 	return impl::DoEffect(
-		GetEntity(),
+		*this,
 		[config, entity]() mutable {
 			if (!entity.Has<ShakeEffect>()) {
 				entity.Add<ShakeEffect>();
@@ -269,7 +263,7 @@ Tween& ContinuousShakeEffect::Shake(
 	Entity& entity, float intensity, const ShakeConfig& config, bool force
 ) {
 	return impl::DoEffect(
-		GetEntity(),
+		*this,
 		[config, intensity, entity]() mutable {
 			if (!entity.Has<ShakeEffect>()) {
 				entity.Add<ShakeEffect>();

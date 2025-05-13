@@ -6,13 +6,12 @@
 #include "components/draw.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/manager.h"
+#include "core/time.h"
+#include "core/tween.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "core/time.h"
-#include "core/tween.h"
 
 namespace ptgn {
 
@@ -45,7 +44,7 @@ struct StartPosition : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
-struct TranslateEffect : public GameObject {
+struct TranslateEffect : public Entity {
 	explicit TranslateEffect(Manager& manager);
 
 	[[nodiscard]] Tween& TranslateTo(
@@ -58,7 +57,7 @@ struct StartAngle : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
 
-struct RotateEffect : public GameObject {
+struct RotateEffect : public Entity {
 	explicit RotateEffect(Manager& manager);
 
 	// @param target_angle In radians.
@@ -71,7 +70,7 @@ struct StartScale : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
-struct ScaleEffect : public GameObject {
+struct ScaleEffect : public Entity {
 	explicit ScaleEffect(Manager& manager);
 
 	[[nodiscard]] Tween& ScaleTo(
@@ -84,7 +83,7 @@ struct StartTint : public Tint {
 	using Tint::Tint;
 };
 
-struct TintEffect : public GameObject {
+struct TintEffect : public Entity {
 	explicit TintEffect(Manager& manager);
 
 	[[nodiscard]] Tween& TintTo(
@@ -92,7 +91,7 @@ struct TintEffect : public GameObject {
 	);
 };
 
-struct BounceEffect : public GameObject {
+struct BounceEffect : public Entity {
 	explicit BounceEffect(Manager& manager);
 
 	[[nodiscard]] Tween& Bounce(
@@ -101,7 +100,7 @@ struct BounceEffect : public GameObject {
 	);
 };
 
-struct ContinuousShakeEffect : public GameObject {
+struct ContinuousShakeEffect : public Entity {
 	explicit ContinuousShakeEffect(Manager& manager);
 
 	void Reset(Entity& entity);

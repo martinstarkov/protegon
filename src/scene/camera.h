@@ -4,8 +4,8 @@
 #include <iosfwd>
 
 #include "components/generic.h"
+#include "components/transform.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/tween.h"
@@ -25,6 +25,10 @@ class Scene;
 class CameraManager;
 
 namespace impl {
+
+[[nodiscard]] Transform GetRelativeOffset(const Entity& entity);
+
+[[nodiscard]] Transform GetOffset(const Entity& entity);
 
 // TODO: Add all these as serializable components.
 
@@ -139,15 +143,15 @@ struct CameraInfo {
 
 } // namespace impl
 
-class Camera : public GameObject {
+class Camera : public Entity {
 public:
 	Camera() = default;
 	explicit Camera(Manager& manager);
-	Camera(const Camera&)				 = delete;
-	Camera& operator=(const Camera&)	 = delete;
+	Camera(const Camera&)				 = default;
+	Camera& operator=(const Camera&)	 = default;
 	Camera(Camera&&) noexcept			 = default;
 	Camera& operator=(Camera&&) noexcept = default;
-	~Camera()							 = default;
+	~Camera() override					 = default;
 
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;
@@ -410,10 +414,11 @@ protected:
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 
-	GameObject pan_effects_;
-	GameObject rotation_effects_;
-	GameObject zoom_effects_;
-	GameObject fade_effects_;
+	// TODO: Get rid of these in favor of systems.
+	Entity pan_effects_;
+	Entity rotation_effects_;
+	Entity zoom_effects_;
+	Entity fade_effects_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {

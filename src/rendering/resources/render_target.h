@@ -1,8 +1,9 @@
 #pragma once
 
+#include "components/draw.h"
 #include "components/drawable.h"
+#include "components/generic.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -32,8 +33,10 @@ struct ClearColor : public ColorComponent {
 } // namespace impl
 
 // Each render target is initialized with a window camera.
-class RenderTarget : public GameObject, public Drawable<RenderTarget> {
+class RenderTarget : public Sprite {
 public:
+	using Sprite::Sprite;
+
 	// A default render target will result in the screen being used as the render target.
 	RenderTarget()									 = default;
 	RenderTarget(const RenderTarget&)				 = delete;
@@ -54,11 +57,9 @@ public:
 		Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
 	);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
-
 	// Draw an entity to the render target.
 	// The entity must have the Transform and Visible components.
-	void Draw(const Entity& entity) const;
+	void DrawEntity(const Entity& entity) const;
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;

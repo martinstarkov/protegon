@@ -1,5 +1,9 @@
 #include "components/draw.h"
 
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <list>
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
@@ -7,8 +11,10 @@
 
 #include "common/assert.h"
 #include "components/common.h"
+#include "components/drawable.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/resource_manager.h"
 #include "core/time.h"
 #include "core/tween.h"
 #include "math/geometry.h"
@@ -16,19 +22,38 @@
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
+#include "rendering/api/flip.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/texture.h"
 
 namespace ptgn {
 
+Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
+
+Sprite::Sprite(Entity& entity, const TextureHandle& texture_key) : Entity{ entity } {
+	Add<Drawable>();
+	SetTextureKey(texture_key);
+	Show();
+}
+
+Sprite::Sprite(Manager& manager, const TextureHandle& texture_key) : Entity{ manager } {
+	Add<Drawable>();
+	SetTextureKey(texture_key);
+	Show();
+}
+
 void Sprite::Draw(impl::RenderData& ctx) const {
+	const auto& texture{ GetTexture() };
+
+	if (!texture.IsValid()) {
+		return;
+	}
+
 	auto transform{ GetAbsoluteTransform() };
 	auto depth{ GetDepth() };
 	auto blend_mode{ GetBlendMode() };
 	auto tint{ GetTint().Normalized() };
 	auto origin{ GetOrigin() };
-
-	const auto& texture{ GetTexture() };
 
 	auto size{ GetTextureSize() };
 	auto coords{ GetTextureCoordinates(false) };
@@ -240,7 +265,7 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 }
 
 Animation::Animation(
-	Manager& manager, std::string_view texture_key, std::size_t frame_count,
+	Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
 	const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats,
 	const V2_float& start_pixel, std::size_t start_frame
 ) :
@@ -260,17 +285,18 @@ Animation::Animation(
 
 	// TODO: Consider breaking this up into individual tween points using a for loop.
 	// TODO: Switch to using a system.
-	/*Add<Tween>()
+	Add<Tween>()
 		.During(frame_duration)
 		.Repeat(frame_repeats)
-		.OnStart([entity = GetEntity()]() mutable {
+		.OnStart([entity = *this]() mutable {
 			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
 			a.ResetToStartFrame();
 			c.position = a.GetCurrentFramePosition();
 			c.size	   = a.GetFrameSize();
-			Invoke<callback::AnimationStart>(entity, entity);
+			// TODO: Fix.
+			// Invoke<callback::AnimationStart>(entity, entity);
 		})
-		.OnRepeat([entity = GetEntity()](Tween& tween) mutable {
+		.OnRepeat([entity = *this](Tween& tween) mutable {
 			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
 			a.IncrementFrame();
 			c.position = a.GetCurrentFramePosition();
@@ -279,17 +305,19 @@ Animation::Animation(
 			auto tween_repeats{ tween.GetRepeats() };
 			if (tween_repeats != -1 &&
 				static_cast<std::size_t>(tween_repeats) == anim_frame_count) {
-				Invoke<callback::AnimationComplete>(entity, entity);
+				// TODO: Fix.
+				// Invoke<callback::AnimationComplete>(entity, entity);
 			} else if (a.GetFrameRepeats() % anim_frame_count == 0) {
-				Invoke<callback::AnimationRepeat>(entity, entity);
+				// TODO: Fix.
+				// Invoke<callback::AnimationRepeat>(entity, entity);
 			}
 		})
-		.OnReset([entity = GetEntity()]() mutable {
+		.OnReset([entity = *this]() mutable {
 			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
 			a.ResetToStartFrame();
 			c.position = a.GetCurrentFramePosition();
 			c.size	   = a.GetFrameSize();
-		});*/
+		});
 }
 
 } // namespace ptgn

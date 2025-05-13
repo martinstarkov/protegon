@@ -6,7 +6,6 @@
 #include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -35,10 +34,8 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 */
 
 RenderTarget::RenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) :
-	GameObject{ manager } {
+	Sprite{ manager } {
 	Add<Camera>(manager);
-	Add<Visible>();
-	SetDraw<RenderTarget>();
 	Add<impl::ClearColor>(clear_color);
 	auto& fb = Add<impl::FrameBuffer>(impl::Texture{ nullptr, size });
 	PTGN_ASSERT(fb.IsValid(), "Failed to create valid frame buffer for render target");
@@ -46,24 +43,7 @@ RenderTarget::RenderTarget(Manager& manager, const V2_float& size, const Color& 
 	Clear();
 }
 
-void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
-	// TODO: Add custom size.
-	// const auto& transform{ entity.GetAbsoluteTransform() };
-
-	auto blend_mode{ entity.GetBlendMode() };
-	auto depth{ entity.GetDepth() };
-	auto tint{ entity.GetTint().Normalized() };
-
-	const auto& fb{ entity.Get<impl::FrameBuffer>() };
-	const auto& texture{ fb.GetTexture() };
-
-	ctx.AddTexturedQuad(
-		ctx.camera_vertices, entity.GetTextureCoordinates(true), texture, depth, blend_mode, tint,
-		false
-	);
-}
-
-void RenderTarget::Draw(const Entity& e) const {
+void RenderTarget::DrawEntity(const Entity& e) const {
 	const auto& fb	   = Get<impl::FrameBuffer>();
 	const auto& camera = Get<Camera>();
 	fb.Bind();

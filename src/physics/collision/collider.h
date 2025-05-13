@@ -20,6 +20,8 @@ class CollisionHandler;
 struct PhysicsBody : public Entity {
 	using Entity::Entity;
 
+	PhysicsBody(const Entity& entity) : Entity{ entity } {}
+
 	// @return True if the current entity or any of its parent entities is immovable.
 	[[nodiscard]] bool IsImmovable() const;
 };
@@ -35,9 +37,13 @@ struct Collision {
 	// Normal set to {} for overlap only collisions.
 	V2_float normal;
 
-	bool operator==(const Collision& o) const;
+	friend bool operator==(const Collision& a, const Collision& b) {
+		return a.entity1 == b.entity1 && a.entity2 == b.entity2 && a.normal == b.normal;
+	}
 
-	bool operator!=(const Collision& o) const;
+	friend bool operator!=(const Collision& a, const Collision& b) {
+		return !operator==(a, b);
+	}
 };
 
 } // namespace ptgn

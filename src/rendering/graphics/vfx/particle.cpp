@@ -1,25 +1,26 @@
 #include "rendering/graphics/vfx/particle.h"
 
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <utility>
 
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/geometry.h"
 #include "math/math.h"
+#include "math/rng.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
+#include "rendering/resources/texture.h"
 
 namespace ptgn {
 
@@ -73,7 +74,7 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 
 } // namespace impl
 
-ParticleEmitter::ParticleEmitter(Manager& manager) : GameObject{ manager } {
+ParticleEmitter::ParticleEmitter(Manager& manager) : Sprite{ manager } {
 	Add<impl::ParticleEmitterComponent>();
 	SetVisible(true);
 	SetEnabled(true);
@@ -87,12 +88,12 @@ ParticleEmitter::ParticleEmitter(Manager& manager, const ParticleInfo& info) :
 	i.manager.Reserve(i.info.total_particles);
 }
 
-void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto blend_mode{ entity.GetBlendMode() };
-	auto depth{ entity.GetDepth() };
+void ParticleEmitter::Draw(impl::RenderData& ctx) const {
+	auto blend_mode{ GetBlendMode() };
+	auto depth{ GetDepth() };
 
-	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
-	if (i.info.texture_enabled && i.info.texture_key != "") {
+	auto& i{ Get<impl::ParticleEmitterComponent>() };
+	if (i.info.texture_enabled && i.info.texture_key) {
 		V4_float tint{ color::White.Normalized() };
 		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 			if (i.info.tint_texture) {
@@ -103,8 +104,8 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 			Transform t{ p.position };
 			ctx.AddTexturedQuad(
 				impl::GetVertices(t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center),
-				e.GetTextureCoordinates(false), game.texture.Get(i.info.texture_key), depth,
-				blend_mode, tint, false
+				/* Default texture coordinates */ Sprite{}.GetTextureCoordinates(false),
+				game.texture.Get(i.info.texture_key), depth, blend_mode, tint, false
 			);
 		}
 		return;

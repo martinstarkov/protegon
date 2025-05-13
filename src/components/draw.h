@@ -1,13 +1,17 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <string_view>
 
+#include "components/common.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
 #include "math/vector2.h"
+#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/resources/texture.h"
 #include "serialization/serializable.h"
@@ -122,8 +126,15 @@ private:
 } // namespace impl
 
 struct Sprite : public Entity {
-	Sprite()		   = default;
-	~Sprite() override = default;
+	using Entity::Entity;
+
+	Sprite() = default;
+
+	Sprite(const Entity& entity);
+
+	explicit Sprite(Entity& entity, const TextureHandle& texture_key);
+
+	explicit Sprite(Manager& manager, const TextureHandle& texture_key);
 
 	void Draw(impl::RenderData& ctx) const override;
 
@@ -162,6 +173,8 @@ struct Sprite : public Entity {
 };
 
 struct Animation : public Sprite {
+	using Sprite::Sprite;
+
 	Animation() = default;
 
 	// @param manager Which manager the entity is added to.
@@ -173,7 +186,7 @@ struct Animation : public Sprite {
 	// @param start_pixel Pixel within the texture which indicates the top left position of the
 	// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
 	explicit Animation(
-		Manager& manager, std::string_view texture_key, std::size_t frame_count,
+		Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
 		const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats = -1,
 		const V2_float& start_pixel = {}, std::size_t start_frame = 0
 	);
@@ -183,12 +196,12 @@ struct AnimationMap : public ActiveMapManager<Animation> {
 public:
 	using ActiveMapManager::ActiveMapManager;
 
-	AnimationMap()									 = delete;
-	~AnimationMap() override						 = default;
+	AnimationMap()									 = default;
+	AnimationMap(const AnimationMap&)				 = default;
+	AnimationMap& operator=(const AnimationMap&)	 = default;
 	AnimationMap(AnimationMap&&) noexcept			 = default;
 	AnimationMap& operator=(AnimationMap&&) noexcept = default;
-	AnimationMap(const AnimationMap&)				 = delete;
-	AnimationMap& operator=(const AnimationMap&)	 = delete;
+	~AnimationMap() override						 = default;
 
 	/*
 	 * The loaded animation is hidden be default.

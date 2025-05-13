@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "math/vector3.h"
@@ -16,8 +17,8 @@
 
 namespace ptgn {
 
-void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto depth{ entity.GetDepth() };
+void PointLight::Draw(impl::RenderData& ctx) const {
+	auto depth{ GetDepth() };
 
 	auto [it, inserted] = ctx.batch_map.try_emplace(depth);
 
@@ -38,7 +39,7 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 		}
 	}
 	PTGN_ASSERT(b != nullptr, "Failed to find batch for light");
-	b->lights.emplace_back(entity);
+	b->lights.emplace_back(*this);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {

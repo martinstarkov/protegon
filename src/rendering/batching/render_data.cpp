@@ -16,7 +16,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/window.h"
 #include "debug/log.h"
@@ -353,19 +352,11 @@ void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
 		}
 	}
 
-	PTGN_ASSERT((entity.Has<IDrawable>()), "Cannot render entity without drawable component");
+	if (!entity.Has<Drawable>()) {
+		return;
+	}
 
-	const auto& drawable{ entity.Get<IDrawable>() };
-
-	const auto& drawable_functions{ IDrawable::data() };
-
-	const auto it{ drawable_functions.find(drawable.hash) };
-
-	PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
-
-	const auto& draw_function{ it->second };
-
-	std::invoke(draw_function, *this, entity);
+	entity.Draw(*this);
 
 	// TODO: Replace with graphics object.
 	/*
@@ -453,9 +444,9 @@ void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& came
 
 void RenderData::SortEntitiesByY(std::vector<Entity>& entities) {
 	// TODO: Investigate making this faster for large numbers of static entities.
-	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+	/*std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
 		return a.GetLowestY() < b.GetLowestY();
-	});
+	});*/
 }
 
 void RenderData::Render(
@@ -469,7 +460,7 @@ void RenderData::Render(
 		SortEntitiesByY(entities);
 	}*/
 
-	for (auto [e, v, d] : manager.EntitiesWith<Visible, IDrawable>()) {
+	for (auto [e, v, d] : manager.EntitiesWith<Visible, Drawable>()) {
 		AddToBatch(e, true);
 	}
 	Flush(frame_buffer, camera);
@@ -549,7 +540,7 @@ void RenderData::FlushBatches(
 					lights_found = true;
 				}
 				const auto& light{ e.Get<PointLight>() };
-				auto offset_transform{ e.GetOffset() };
+				auto offset_transform{ impl::GetOffset(e) };
 				auto position{ e.GetPosition() + offset_transform.position };
 				float radius{ light.GetRadius() * e.GetScale().x * offset_transform.scale.x };
 				batch.shader.SetUniform("u_LightPosition", position);

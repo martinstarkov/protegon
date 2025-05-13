@@ -1,10 +1,10 @@
 #include "core/manager.h"
 
-#include "core/entity.h"
+#include "common/assert.h"
 #include "components/uuid.h"
+#include "core/entity.h"
 #include "ecs/ecs.h"
 #include "serialization/json.h"
-#include "common/assert.h"
 
 namespace ptgn {
 
@@ -22,7 +22,7 @@ void Manager::Reserve(std::size_t capacity) {
 
 Entity Manager::GetEntityByUUID(const UUID& uuid) const {
 	auto entities{ Entities() };
-	for (auto e : entities) {
+	for (Entity e : entities) {
 		if (e.Get<UUID>() == uuid) {
 			return e;
 		}

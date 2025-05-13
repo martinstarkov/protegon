@@ -2,7 +2,6 @@
 
 #include <string_view>
 #include <unordered_set>
-#include <utility>
 
 #include "components/generic.h"
 #include "components/transform.h"
@@ -23,30 +22,31 @@ class RenderData;
 
 class Manager;
 
-class Entity : private ecs::Entity {
+class Entity {
 public:
 	// Interface functions.
-	virtual ~Entity() = default;
 
-	virtual void Draw(impl::RenderData& ctx) const {}
+	virtual void Draw(impl::RenderData& ctx) const {
+		/* Optional user implementation */
+	}
 
 	// Entity wrapper functionality.
-
-	using ecs::Entity::Entity;
 
 	Entity()							 = default;
 	Entity(const Entity&)				 = default;
 	Entity& operator=(const Entity&)	 = default;
 	Entity(Entity&&) noexcept			 = default;
 	Entity& operator=(Entity&&) noexcept = default;
-	~Entity()							 = default;
+	virtual ~Entity()					 = default;
+
+	explicit Entity(Manager& manager);
 
 	explicit operator bool() const {
-		return ecs::Entity::operator bool();
+		return entity_.operator bool();
 	}
 
 	friend bool operator==(const Entity& a, const Entity& b) {
-		return ecs::Entity{ a } == ecs::Entity{ b };
+		return a.entity_ == b.entity_;
 	}
 
 	friend bool operator!=(const Entity& a, const Entity& b) {
@@ -58,12 +58,24 @@ public:
 	// Make sure to call manager.Refresh() after this function.
 	template <typename... Ts>
 	[[nodiscard]] Entity Copy() {
-		return ecs::Entity::Copy<Ts...>();
+		return entity_.Copy<Ts...>();
 	}
 
+	// Adds or replaces the component if the entity already has it.
+	// @return Reference to the added or replaced component.
 	template <typename T, typename... Ts>
 	T& Add(Ts&&... constructor_args) {
-		return ecs::Entity::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return entity_.Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	}
+
+	// Only adds the component if one does not exist on the entity.
+	// @return Reference to the added or existing component.
+	template <typename T, typename... Ts>
+	T& TryAdd(Ts&&... constructor_args) {
+		if (!Has<T>()) {
+			return Add<T>(std::forward<Ts>(constructor_args)...);
+		}
+		return Get<T>();
 	}
 
 	// Get a component of the entity, and if it does not exist add it.
@@ -77,27 +89,27 @@ public:
 
 	template <typename... Ts>
 	void Remove() {
-		ecs::Entity::Remove<Ts...>();
+		entity_.Remove<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool Has() const {
-		return ecs::Entity::Has<Ts...>();
+		return entity_.Has<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool HasAny() const {
-		return ecs::Entity::HasAny<Ts...>();
+		return entity_.HasAny<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() const {
-		return ecs::Entity::Get<Ts...>();
+		return entity_.Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() {
-		return ecs::Entity::Get<Ts...>();
+		return entity_.Get<Ts...>();
 	}
 
 	void Clear() const;
@@ -229,8 +241,6 @@ public:
 	friend void from_json(const json& j, Entity& entity);
 
 protected:
-	friend class Manager;
-
 	template <typename T, typename... TArgs>
 	Entity& AddOrRemove(bool condition, TArgs&&... args) {
 		if (condition) {
@@ -244,7 +254,7 @@ protected:
 	template <typename T, typename... TArgs>
 	[[nodiscard]] T GetOrDefault(TArgs&&... args) const {
 		if (Has<T>()) {
-			return Get<T>()
+			return Get<T>();
 		}
 		return T{ std::forward<TArgs>(args)... };
 	}
@@ -252,13 +262,16 @@ protected:
 	template <typename T, typename... TArgs>
 	[[nodiscard]] T GetOrParentOrDefault(TArgs&&... args) const {
 		if (Has<T>()) {
-			return Get<T>()
+			return Get<T>();
 		}
 		if (HasParent()) {
-			return GetParent().GetOrDefault<T>(std::forward<TArgs>(args)...) :
+			return GetParent().GetOrDefault<T>(std::forward<TArgs>(args)...);
 		}
-		return T{ std::forward<TArgs>(args)... });
+		return T{ std::forward<TArgs>(args)... };
 	}
+
+private:
+	friend class Manager;
 
 	void AddChildImpl(Entity& child, std::string_view name = {});
 
@@ -266,8 +279,32 @@ protected:
 
 	void RemoveParentImpl();
 
-	explicit Entity(const ecs::Entity& e) : ecs::Entity{ e } {}
+	// TODO: Convert back to inheriting from ecs::Entity...
+
+	explicit Entity(
+		ecs::impl::Index entity, ecs::impl::Version version, const ecs::Manager* manager
+	) :
+		entity_{ entity, version, manager } {}
+
+	explicit Entity(const ecs::Entity& e);
+
+	ecs::Entity entity_;
 };
+
+} // namespace ptgn
+
+namespace std {
+
+template <>
+struct hash<ptgn::Entity> {
+	std::size_t operator()(const ptgn::Entity& entity) const {
+		return entity.GetHash();
+	}
+};
+
+} // namespace std
+
+namespace ptgn {
 
 namespace impl {
 
@@ -280,9 +317,7 @@ struct ChildKey : public HashComponent {
 struct Parent : public Entity {
 	using Entity::Entity;
 
-	Parent(const Entity& e) : Entity{ e } {}
-
-	Parent(Entity&& e) : Entity{ std::exchange(e, {}) } {}
+	Parent(const Entity& entity) : Entity{ entity } {}
 };
 
 struct Children {
@@ -310,14 +345,3 @@ private:
 } // namespace impl
 
 } // namespace ptgn
-
-namespace std {
-
-template <>
-struct hash<ptgn::Entity> {
-	size_t operator()(const ptgn::Entity& entity) const {
-		return entity.GetHash();
-	}
-};
-
-} // namespace std

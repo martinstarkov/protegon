@@ -2,8 +2,8 @@
 
 #include <type_traits>
 
-#include "core/entity.h"
 #include "components/uuid.h"
+#include "core/entity.h"
 #include "ecs/ecs.h"
 #include "serialization/fwd.h"
 

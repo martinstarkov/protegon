@@ -10,7 +10,6 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "debug/log.h"
@@ -188,16 +187,16 @@ struct ButtonRadius : public ArithmeticComponent<float> {
 
 using ButtonCallback = std::function<void()>;
 
-struct Button : public GameObject, public Drawable<Button> {
+struct Button : public Sprite {
 	Button() = default;
 	explicit Button(Manager& manager);
-	Button(const Button&)				 = delete;
-	Button& operator=(const Button&)	 = delete;
+	Button(const Button&)				 = default;
+	Button& operator=(const Button&)	 = default;
 	Button(Button&&) noexcept			 = default;
 	Button& operator=(Button&&) noexcept = default;
-	virtual ~Button()					 = default;
+	~Button() override					 = default;
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	void Draw(impl::RenderData& ctx) const override;
 
 	Button& AddInteractableRect(
 		const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}
@@ -223,9 +222,8 @@ struct Button : public GameObject, public Drawable<Button> {
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(std::string_view texture_key, ButtonState state = ButtonState::Default);
 
@@ -349,9 +347,8 @@ struct ToggleButton : public Button {
 
 	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
+		const;
 
 	ToggleButton& SetTextContentToggled(
 		std::string_view content, ButtonState state = ButtonState::Default

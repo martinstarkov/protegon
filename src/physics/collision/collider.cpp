@@ -6,22 +6,18 @@
 #include <vector>
 
 #include "core/entity.h"
-#include "math/vector2.h"
 #include "physics/rigid_body.h"
 
 namespace ptgn {
 
 bool PhysicsBody::IsImmovable() const {
-	return (Has<RigidBody>() && Get<RigidBody>().immovable) ||
-		   (HasParent() ? PhysicsBody{ GetParent() }.IsImmovable() : false);
-}
-
-bool Collision::operator==(const Collision& o) const {
-	return entity1 == o.entity1 && entity2 == o.entity2 && normal == o.normal;
-}
-
-bool Collision::operator!=(const Collision& o) const {
-	return !(*this == o);
+	if (Has<RigidBody>() && Get<RigidBody>().immovable) {
+		return true;
+	}
+	if (HasParent()) {
+		return PhysicsBody{ GetParent() }.IsImmovable();
+	}
+	return false;
 }
 
 CollisionCategory Collider::GetCollisionCategory() const {

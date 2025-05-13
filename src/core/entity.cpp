@@ -3,6 +3,7 @@
 #include <unordered_set>
 
 #include "common/assert.h"
+#include "common/type_info.h"
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
@@ -18,33 +19,37 @@
 #include "rendering/api/origin.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/resources/texture.h"
-#include "serialization/fwd.h"
+#include "serialization/json.h"
 
 namespace ptgn {
 
+Entity::Entity(Manager& manager) : Entity{ manager.CreateEntity() } {}
+
+Entity::Entity(const ecs::Entity& entity) : entity_{ entity } {}
+
 void Entity::Clear() const {
-	ecs::Entity::Clear();
+	entity_.Clear();
 }
 
 bool Entity::IsAlive() const {
-	return ecs::Entity::IsAlive();
+	return entity_.IsAlive();
 }
 
 Entity& Entity::Destroy() {
-	ecs::Entity::Destroy();
+	entity_.Destroy();
 	return *this;
 }
 
 Manager& Entity::GetManager() {
-	return static_cast<Manager&>(ecs::Entity::GetManager());
+	return static_cast<Manager&>(entity_.GetManager());
 }
 
 const Manager& Entity::GetManager() const {
-	return static_cast<const Manager&>(ecs::Entity::GetManager());
+	return static_cast<const Manager&>(entity_.GetManager());
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
-	return ecs::Entity::IsIdenticalTo(e);
+	return entity_.IsIdenticalTo(e.entity_);
 }
 
 UUID Entity::GetUUID() const {
@@ -53,7 +58,7 @@ UUID Entity::GetUUID() const {
 }
 
 std::size_t Entity::GetHash() const {
-	return std::hash<ecs::Entity>()(*this);
+	return std::hash<ecs::Entity>()(entity_);
 }
 
 Entity Entity::GetRootEntity() const {
@@ -130,7 +135,7 @@ void Entity::RemoveChild(std::string_view name) {
 	if (!Has<impl::Children>()) {
 		return;
 	}
-	auto& children{ Get<impl::Children>() };
+	const auto& children{ Get<impl::Children>() };
 	auto child{ children.Get(name) };
 	child.RemoveParent();
 }

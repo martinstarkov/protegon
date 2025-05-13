@@ -3,13 +3,11 @@
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
 
 #include "components/generic.h"
-#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
@@ -21,6 +19,12 @@ struct SDL_Surface;
 namespace ptgn {
 
 class Entity;
+
+namespace impl {
+
+class Texture;
+
+} // namespace impl
 
 // @param coordinate Pixel coordinate from [0, size).
 // @return Color value of the given pixel.
@@ -59,6 +63,16 @@ enum class TextureScaling {
 	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
 	LinearMipmapNearest	 = 0x2701, // GL_LINEAR_MIPMAP_NEAREST
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
+};
+
+struct TextureHandle : public HashComponent {
+	using HashComponent::HashComponent;
+
+	[[nodiscard]] const impl::Texture& GetTexture(const Entity& entity) const;
+	[[nodiscard]] impl::Texture& GetTexture(Entity& entity);
+	[[nodiscard]] V2_int GetSize(const Entity& entity) const;
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureHandle, value_)
 };
 
 namespace impl {
@@ -311,15 +325,5 @@ private:
 };
 
 } // namespace impl
-
-struct TextureHandle : public HashComponent {
-	using HashComponent::HashComponent;
-
-	[[nodiscard]] const impl::Texture& GetTexture(const Entity& text) const;
-	[[nodiscard]] impl::Texture& GetTexture(Entity& text);
-	[[nodiscard]] V2_int GetSize(const Entity& text);
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureHandle, value_)
-};
 
 } // namespace ptgn

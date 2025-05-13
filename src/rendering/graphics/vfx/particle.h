@@ -2,9 +2,9 @@
 
 #include <string_view>
 
+#include "components/draw.h"
 #include "components/drawable.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
@@ -12,6 +12,7 @@
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "rendering/resources/texture.h"
 
 namespace ptgn {
 
@@ -37,7 +38,7 @@ struct Particle {
 struct ParticleInfo {
 	ParticleInfo() = default;
 
-	std::string_view texture_key{};
+	TextureHandle texture_key;
 	bool texture_enabled{ false };
 	bool tint_texture{ true };
 
@@ -99,13 +100,13 @@ struct ParticleEmitterComponent {
 
 } // namespace impl
 
-class ParticleEmitter : public GameObject, public Drawable<ParticleEmitter> {
+class ParticleEmitter : public Sprite {
 public:
 	ParticleEmitter() = delete;
 	explicit ParticleEmitter(Manager& manager);
 	explicit ParticleEmitter(Manager& manager, const ParticleInfo& info);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	void Draw(impl::RenderData& ctx) const override;
 
 	// Starts emitting particles.
 	ParticleEmitter& Start();

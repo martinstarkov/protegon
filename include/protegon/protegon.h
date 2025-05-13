@@ -16,8 +16,6 @@
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "events/input_handler.h"
-
-
 #include "math/geometry.h"
 #include "math/hash.h"
 #include "math/math.h"
