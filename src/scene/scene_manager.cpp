@@ -182,11 +182,11 @@ std::size_t SceneManager::GetActiveSceneCount() const {
 }
 
 bool SceneManager::HasActiveScene(std::size_t scene_key) const {
-	return GetActiveScene(scene_key);
+	return GetActiveScene(scene_key).operator bool();
 }
 
 bool SceneManager::HasScene(std::size_t scene_key) const {
-	return GetScene(scene_key);
+	return GetScene(scene_key).operator bool();
 }
 
 Entity SceneManager::GetActiveScene(std::size_t scene_key) const {

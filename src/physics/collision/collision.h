@@ -187,14 +187,15 @@ public:
 				return;
 			}
 			auto& rb{ entity.Get<RigidBody>() };
-			if (entity.IsImmovable()) {
+			PhysicsBody body{ entity };
+			if (body.IsImmovable()) {
 				return;
 			}
 			/*if (entity.Has<Transform>()) {
 				entity.Get<Transform>().position +=
 					intersection.normal * (intersection.depth + slop);
 			}*/
-			auto& root_transform{ entity.GetRootTransform() };
+			auto& root_transform{ body.GetRootTransform() };
 			root_transform.position += intersection.normal * (intersection.depth + slop);
 			rb.velocity				 = GetRemainingVelocity(
 				 rb.velocity, { 0.0f, intersection.normal }, entity.Get<T>().response

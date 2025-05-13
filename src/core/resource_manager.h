@@ -3,8 +3,8 @@
 #include <type_traits>
 #include <unordered_map>
 
-#include "math/hash.h"
 #include "common/assert.h"
+#include "math/hash.h"
 
 namespace ptgn {
 
@@ -214,10 +214,10 @@ public:
 	// Requires providing an initial active item.
 	ActiveMapManager()										 = delete;
 	~ActiveMapManager() override							 = default;
-	ActiveMapManager(ActiveMapManager&&) noexcept			 = default;
-	ActiveMapManager& operator=(ActiveMapManager&&) noexcept = default;
 	ActiveMapManager(const ActiveMapManager&)				 = delete;
 	ActiveMapManager& operator=(const ActiveMapManager&)	 = delete;
+	ActiveMapManager(ActiveMapManager&&) noexcept			 = default;
+	ActiveMapManager& operator=(ActiveMapManager&&) noexcept = default;
 
 	// Load the initial active item into the manager.
 	template <typename... TArgs>

@@ -5,6 +5,7 @@
 #include "common/assert.h"
 #include "common/function.h"
 #include "components/common.h"
+#include "components/draw.h"
 #include "components/input.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -175,7 +176,7 @@ void SceneInput::UpdateCurrent() {
 			}
 			if (top_only_) {
 				if (is_inside) {
-					auto depth{ e.GetDepth() };
+					auto depth{ Sprite{ e }.GetDepth() };
 					if (depth >= top_depth || !top_entity) {
 						top_depth  = depth;
 						top_entity = e;
@@ -209,31 +210,31 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				Invoke<callback::MouseMove>(e, pos);
+				// TODO: Fix: Invoke<callback::MouseMove>(e, pos);
 				bool entered{ interactive.is_inside && !interactive.was_inside };
 				bool exited{ !interactive.is_inside && interactive.was_inside };
 				if (entered) {
-					Invoke<callback::MouseEnter>(e, pos);
+					// TODO: Fix: Invoke<callback::MouseEnter>(e, pos);
 				}
 				if (exited) {
-					Invoke<callback::MouseLeave>(e, pos);
+					// TODO: Fix: Invoke<callback::MouseLeave>(e, pos);
 				}
 				if (interactive.is_inside) {
-					Invoke<callback::MouseOver>(e, pos);
+					// TODO: Fix: Invoke<callback::MouseOver>(e, pos);
 				} else {
-					Invoke<callback::MouseOut>(e, pos);
+					// TODO: Fix: Invoke<callback::MouseOut>(e, pos);
 				}
 				if (e.Has<Draggable>() && e.Get<Draggable>().dragging) {
-					Invoke<callback::Drag>(e, pos);
+					// TODO: Fix: Invoke<callback::Drag>(e, pos);
 					if (interactive.is_inside) {
-						Invoke<callback::DragOver>(e, pos);
+						// TODO: Fix: Invoke<callback::DragOver>(e, pos);
 						if (!interactive.was_inside) {
-							Invoke<callback::DragEnter>(e, pos);
+							// TODO: Fix: Invoke<callback::DragEnter>(e, pos);
 						}
 					} else {
-						Invoke<callback::DragOut>(e, pos);
+						// TODO: Fix: Invoke<callback::DragOut>(e, pos);
 						if (interactive.was_inside) {
-							Invoke<callback::DragLeave>(e, pos);
+							// TODO: Fix: Invoke<callback::DragLeave>(e, pos);
 						}
 					}
 				}
@@ -248,17 +249,17 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					Invoke<callback::MouseDown>(e, mouse);
+					// TODO: Fix: Invoke<callback::MouseDown>(e, mouse);
 					if (e.Has<Draggable>()) {
 						if (auto& draggable{ e.Get<Draggable>() }; !draggable.dragging) {
 							draggable.dragging = true;
 							draggable.start	   = pos;
 							draggable.offset   = e.GetPosition() - draggable.start;
-							Invoke<callback::DragStart>(e, pos);
+							// TODO: Fix: Invoke<callback::DragStart>(e, pos);
 						}
 					}
 				} else {
-					Invoke<callback::MouseDownOutside>(e, mouse);
+					// TODO: Fix: Invoke<callback::MouseDownOutside>(e, mouse);
 				}
 			}
 			break;
@@ -271,15 +272,15 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					Invoke<callback::MouseUp>(e, mouse);
+					// TODO: Fix: Invoke<callback::MouseUp>(e, mouse);
 				} else {
-					Invoke<callback::MouseUpOutside>(e, mouse);
+					// TODO: Fix: Invoke<callback::MouseUpOutside>(e, mouse);
 				}
 				if (e.Has<Draggable>()) {
 					if (auto& draggable{ e.Get<Draggable>() }; draggable.dragging) {
 						draggable.dragging = false;
 						draggable.offset   = {};
-						Invoke<callback::DragStop>(e, pos);
+						// TODO: Fix: Invoke<callback::DragStop>(e, pos);
 					}
 				}
 			}
@@ -306,7 +307,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					Invoke(callback, scroll);
+					// TODO: Fix: Invoke(callback, scroll);
 				}
 			}
 			break;
@@ -325,7 +326,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				Invoke(callback, key);
+				// TODO: Fix: Invoke(callback, key);
 			}
 			break;
 		}
@@ -336,7 +337,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				Invoke(callback, key);
+				// TODO: Fix: Invoke(callback, key);
 			}
 			break;
 		}
@@ -347,7 +348,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				Invoke(callback, key);
+				// TODO: Fix: Invoke(callback, key);
 			}
 			break;
 		}

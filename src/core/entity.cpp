@@ -25,31 +25,31 @@ namespace ptgn {
 
 Entity::Entity(Manager& manager) : Entity{ manager.CreateEntity() } {}
 
-Entity::Entity(const ecs::Entity& entity) : entity_{ entity } {}
+Entity::Entity(const ecs::Entity& entity) : ecs::Entity{ entity } {}
 
 void Entity::Clear() const {
-	entity_.Clear();
+	ecs::Entity::Clear();
 }
 
 bool Entity::IsAlive() const {
-	return entity_.IsAlive();
+	return ecs::Entity::IsAlive();
 }
 
 Entity& Entity::Destroy() {
-	entity_.Destroy();
+	ecs::Entity::Destroy();
 	return *this;
 }
 
 Manager& Entity::GetManager() {
-	return static_cast<Manager&>(entity_.GetManager());
+	return static_cast<Manager&>(ecs::Entity::GetManager());
 }
 
 const Manager& Entity::GetManager() const {
-	return static_cast<const Manager&>(entity_.GetManager());
+	return static_cast<const Manager&>(ecs::Entity::GetManager());
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
-	return entity_.IsIdenticalTo(e.entity_);
+	return ecs::Entity::IsIdenticalTo(e);
 }
 
 UUID Entity::GetUUID() const {
@@ -58,7 +58,7 @@ UUID Entity::GetUUID() const {
 }
 
 std::size_t Entity::GetHash() const {
-	return std::hash<ecs::Entity>()(entity_);
+	return std::hash<ecs::Entity>()(*this);
 }
 
 Entity Entity::GetRootEntity() const {

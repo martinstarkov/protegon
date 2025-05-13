@@ -442,7 +442,7 @@ void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& came
 	GLRenderer::SetViewport(position, position + size);
 }
 
-void RenderData::SortEntitiesByY(std::vector<Entity>& entities) {
+void RenderData::SortEntitiesByY(std::vector<Entity>&) {
 	// TODO: Investigate making this faster for large numbers of static entities.
 	/*std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
 		return a.GetLowestY() < b.GetLowestY();

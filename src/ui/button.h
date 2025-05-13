@@ -222,8 +222,9 @@ struct Button : public Sprite {
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(std::string_view texture_key, ButtonState state = ButtonState::Default);
 
@@ -347,8 +348,9 @@ struct ToggleButton : public Button {
 
 	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] std::string_view GetTextContentToggled(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	ToggleButton& SetTextContentToggled(
 		std::string_view content, ButtonState state = ButtonState::Default
@@ -391,7 +393,7 @@ public:
 			MapManager::Load(key, ToggleButton{ std::forward<TArgs>(constructor_args)... })
 		};
 		// Toggle all other buttons when one is pressed.
-		button.OnInternalActivate([this, e = button.GetEntity()]() {
+		button.OnInternalActivate([this, e = button]() {
 			ForEachValue([](const ToggleButton& b) { ToggleButton::SetToggled(b, false); });
 			ToggleButton::SetToggled(e, true);
 		});

@@ -22,15 +22,17 @@ class RenderData;
 
 class Manager;
 
-class Entity {
+class Entity : private ecs::Entity {
 public:
 	// Interface functions.
 
-	virtual void Draw(impl::RenderData& ctx) const {
+	virtual void Draw(impl::RenderData&) const {
 		/* Optional user implementation */
 	}
 
 	// Entity wrapper functionality.
+
+	using ecs::Entity::Entity;
 
 	Entity()							 = default;
 	Entity(const Entity&)				 = default;
@@ -42,11 +44,11 @@ public:
 	explicit Entity(Manager& manager);
 
 	explicit operator bool() const {
-		return entity_.operator bool();
+		return ecs::Entity::operator bool();
 	}
 
 	friend bool operator==(const Entity& a, const Entity& b) {
-		return a.entity_ == b.entity_;
+		return static_cast<const ecs::Entity&>(a) == static_cast<const ecs::Entity&>(b);
 	}
 
 	friend bool operator!=(const Entity& a, const Entity& b) {
@@ -58,14 +60,14 @@ public:
 	// Make sure to call manager.Refresh() after this function.
 	template <typename... Ts>
 	[[nodiscard]] Entity Copy() {
-		return entity_.Copy<Ts...>();
+		return ecs::Entity::Copy<Ts...>();
 	}
 
 	// Adds or replaces the component if the entity already has it.
 	// @return Reference to the added or replaced component.
 	template <typename T, typename... Ts>
 	T& Add(Ts&&... constructor_args) {
-		return entity_.Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return ecs::Entity::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	// Only adds the component if one does not exist on the entity.
@@ -89,27 +91,27 @@ public:
 
 	template <typename... Ts>
 	void Remove() {
-		entity_.Remove<Ts...>();
+		ecs::Entity::Remove<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool Has() const {
-		return entity_.Has<Ts...>();
+		return ecs::Entity::Has<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool HasAny() const {
-		return entity_.HasAny<Ts...>();
+		return ecs::Entity::HasAny<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() const {
-		return entity_.Get<Ts...>();
+		return ecs::Entity::Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() {
-		return entity_.Get<Ts...>();
+		return ecs::Entity::Get<Ts...>();
 	}
 
 	void Clear() const;
@@ -279,16 +281,7 @@ private:
 
 	void RemoveParentImpl();
 
-	// TODO: Convert back to inheriting from ecs::Entity...
-
-	explicit Entity(
-		ecs::impl::Index entity, ecs::impl::Version version, const ecs::Manager* manager
-	) :
-		entity_{ entity, version, manager } {}
-
 	explicit Entity(const ecs::Entity& e);
-
-	ecs::Entity entity_;
 };
 
 } // namespace ptgn
@@ -337,7 +330,7 @@ struct Children {
 	[[nodiscard]] bool Has(std::string_view name) const;
 
 private:
-	friend class Entity;
+	friend class ptgn::Entity;
 
 	std::unordered_set<Entity> children_;
 };

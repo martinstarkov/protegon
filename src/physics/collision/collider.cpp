@@ -20,6 +20,13 @@ bool PhysicsBody::IsImmovable() const {
 	return false;
 }
 
+[[nodiscard]] Transform& PhysicsBody::GetRootTransform() {
+	auto root_entity{ Entity::GetRootEntity() };
+	PTGN_ASSERT(root_entity, "Physics body must have a valid root entity (or itself)");
+	PTGN_ASSERT(root_entity.Has<Transform>(), "Root entity must have a transform component");
+	return root_entity.Get<Transform>();
+}
+
 CollisionCategory Collider::GetCollisionCategory() const {
 	return category_;
 }

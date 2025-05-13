@@ -24,6 +24,8 @@ struct PhysicsBody : public Entity {
 
 	// @return True if the current entity or any of its parent entities is immovable.
 	[[nodiscard]] bool IsImmovable() const;
+
+	[[nodiscard]] Transform& GetRootTransform();
 };
 
 struct Collision {

@@ -196,9 +196,9 @@ struct AnimationMap : public ActiveMapManager<Animation> {
 public:
 	using ActiveMapManager::ActiveMapManager;
 
-	AnimationMap()									 = default;
-	AnimationMap(const AnimationMap&)				 = default;
-	AnimationMap& operator=(const AnimationMap&)	 = default;
+	AnimationMap()									 = delete;
+	AnimationMap(const AnimationMap&)				 = delete;
+	AnimationMap& operator=(const AnimationMap&)	 = delete;
 	AnimationMap(AnimationMap&&) noexcept			 = default;
 	AnimationMap& operator=(AnimationMap&&) noexcept = default;
 	~AnimationMap() override						 = default;
