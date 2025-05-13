@@ -15,6 +15,8 @@
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
 
+// TODO: Add tests for entity hierarchy functions.
+
 namespace ptgn {
 
 namespace impl {

@@ -11,7 +11,7 @@ class Sandbox : public Scene {
 public:
 	Sprite s1;
 
-	void Enter() {
+	void Enter() override {
 		game.texture.Load("test", "resources/test.png");
 
 		s1 = CreateSprite(manager, "test");
@@ -19,7 +19,7 @@ public:
 		s1.SetPosition(camera.primary.GetPosition());
 	}
 
-	void Update() {}
+	void Update() override { /**/ }
 };
 
 int main() {
