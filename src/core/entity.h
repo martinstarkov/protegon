@@ -1,19 +1,14 @@
 #pragma once
 
-#include <array>
 #include <string_view>
 #include <unordered_set>
+#include <utility>
 
-#include "common/type_info.h"
-#include "components/common.h"
-#include "components/drawable.h"
+#include "components/generic.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "ecs/ecs.h"
-#include "math/hash.h"
 #include "math/vector2.h"
-#include "rendering/api/blend_mode.h"
-#include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
@@ -31,6 +26,7 @@ class Manager;
 class Entity : private ecs::Entity {
 public:
 	// Interface functions.
+	virtual ~Entity() = default;
 
 	virtual void Draw(impl::RenderData& ctx) const {}
 
@@ -136,6 +132,11 @@ public:
 
 	void RemoveParent();
 
+	// Creates a child in the same manager as the parent entity.
+	// @param name Optional name to retrieve the child handle by later. Note: If no name is
+	// provided, the returned handle will be the only way to access the child directly.
+	[[nodiscard]] Entity CreateChild(std::string_view name = {});
+
 	void AddChild(Entity& child, std::string_view name = {});
 
 	void RemoveChild(Entity& child);
@@ -146,7 +147,10 @@ public:
 	[[nodiscard]] bool HasChild(std::string_view name) const;
 
 	// @return Child entity with the given name, or null entity is no such child exists.
-	[[nodiscard]] Entity GetChild(std::string_view name);
+	[[nodiscard]] Entity GetChild(std::string_view name) const;
+
+	// @return All childs entities tied to the object
+	[[nodiscard]] std::unordered_set<Entity> GetChildren() const;
 
 	// Entity activation functions.
 
@@ -224,7 +228,7 @@ public:
 	friend void to_json(json& j, const Entity& entity);
 	friend void from_json(const json& j, Entity& entity);
 
-private:
+protected:
 	friend class Manager;
 
 	template <typename T, typename... TArgs>
@@ -239,17 +243,24 @@ private:
 
 	template <typename T, typename... TArgs>
 	[[nodiscard]] T GetOrDefault(TArgs&&... args) const {
-		return Has<T>() ? Get<T>() : T{ std::forward<TArgs>(args)... };
+		if (Has<T>()) {
+			return Get<T>()
+		}
+		return T{ std::forward<TArgs>(args)... };
 	}
 
 	template <typename T, typename... TArgs>
 	[[nodiscard]] T GetOrParentOrDefault(TArgs&&... args) const {
-		return Has<T>() ? Get<T>()
-						: (HasParent() ? GetParent().GetOrDefault<T>(std::forward<TArgs>(args)...)
-									   : T{ std::forward<TArgs>(args)... });
+		if (Has<T>()) {
+			return Get<T>()
+		}
+		if (HasParent()) {
+			return GetParent().GetOrDefault<T>(std::forward<TArgs>(args)...) :
+		}
+		return T{ std::forward<TArgs>(args)... });
 	}
 
-	void AddChildImpl(Entity& child, std::string_view name);
+	void AddChildImpl(Entity& child, std::string_view name = {});
 
 	void SetParentImpl(Entity& parent);
 
@@ -268,17 +279,22 @@ struct ChildKey : public HashComponent {
 
 struct Parent : public Entity {
 	using Entity::Entity;
+
+	Parent(const Entity& e) : Entity{ e } {}
+
+	Parent(Entity&& e) : Entity{ std::exchange(e, {}) } {}
 };
 
 struct Children {
 	Children() = default;
 
-	void Add(const Entity& child, std::string_view name = {});
+	void Add(Entity& child, std::string_view name = {});
+
 	void Remove(const Entity& child);
 	void Remove(std::string_view name);
 
 	// @return Entity with given name, or null entity is no such entity exists.
-	[[nodiscard]] Entity Get(std::string_view name);
+	[[nodiscard]] Entity Get(std::string_view name) const;
 
 	[[nodiscard]] bool IsEmpty() const;
 

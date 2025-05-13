@@ -2,13 +2,11 @@
 
 #include <string_view>
 
-#include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
-#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/resources/texture.h"
@@ -124,36 +122,37 @@ private:
 } // namespace impl
 
 struct Sprite : public Entity {
-	Sprite() = default;
+	Sprite()		   = default;
+	~Sprite() override = default;
 
 	void Draw(impl::RenderData& ctx) const override;
 
-	Entity& SetTextureKey(const TextureHandle& texture_key);
+	Sprite& SetTextureKey(const TextureHandle& texture_key);
 
 	[[nodiscard]] const impl::Texture& GetTexture() const;
 
 	[[nodiscard]] impl::Texture& GetTexture();
 
 	// @return *this.
-	Entity& SetVisible(bool visible);
+	Sprite& SetVisible(bool visible);
 
 	// @return *this.
-	Entity& Show();
+	Sprite& Show();
 
 	// @return *this.
-	Entity& Hide();
+	Sprite& Hide();
 
 	[[nodiscard]] bool IsVisible() const;
 
-	Entity& SetDepth(const Depth& depth);
+	Sprite& SetDepth(const Depth& depth);
 
 	[[nodiscard]] Depth GetDepth() const;
 
-	Entity& SetBlendMode(BlendMode blend_mode);
+	Sprite& SetBlendMode(BlendMode blend_mode);
 
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
-	Entity& SetTint(const Color& color);
+	Sprite& SetTint(const Color& color);
 
 	[[nodiscard]] Color GetTint() const;
 
@@ -162,7 +161,7 @@ struct Sprite : public Entity {
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
 
-struct Animation : public Sprite, public Drawable<Animation> {
+struct Animation : public Sprite {
 	Animation() = default;
 
 	// @param manager Which manager the entity is added to.
@@ -178,8 +177,6 @@ struct Animation : public Sprite, public Drawable<Animation> {
 		const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats = -1,
 		const V2_float& start_pixel = {}, std::size_t start_frame = 0
 	);
-
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
 };
 
 struct AnimationMap : public ActiveMapManager<Animation> {

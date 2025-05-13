@@ -3,19 +3,19 @@
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 
 #include "common/assert.h"
-#include "components/transform.h"
+#include "components/common.h"
 #include "core/entity.h"
-#include "core/game.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/tween.h"
 #include "math/geometry.h"
 #include "math/math.h"
 #include "math/vector2.h"
+#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
-#include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/texture.h"
 
@@ -37,7 +37,7 @@ void Sprite::Draw(impl::RenderData& ctx) const {
 	ctx.AddTexturedQuad(vertices, coords, texture, depth, blend_mode, tint, false);
 }
 
-Entity& Sprite::SetTextureKey(const TextureHandle& texture_key) {
+Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {
 	if (Has<TextureHandle>()) {
 		Get<TextureHandle>() = texture_key;
 	} else {
@@ -47,10 +47,7 @@ Entity& Sprite::SetTextureKey(const TextureHandle& texture_key) {
 }
 
 const impl::Texture& Sprite::GetTexture() const {
-	PTGN_ASSERT(
-		Has<TextureHandle>(),
-		"Failed to retrieve texture handle associated with sprite or sprite-derived entity"
-	);
+	PTGN_ASSERT(Has<TextureHandle>(), "Failed to retrieve texture handle associated with sprite");
 
 	const auto& texture_handle{ Get<TextureHandle>() };
 	return texture_handle.GetTexture(*this);
@@ -60,15 +57,16 @@ impl::Texture& Sprite::GetTexture() {
 	return const_cast<impl::Texture&>(std::as_const(*this).GetTexture());
 }
 
-Entity& Sprite::SetVisible(bool visible) {
-	return AddOrRemove<Visible>(visible);
+Sprite& Sprite::SetVisible(bool visible) {
+	AddOrRemove<Visible>(visible);
+	return *this;
 }
 
-Entity& Sprite::Show() {
+Sprite& Sprite::Show() {
 	return SetVisible(true);
 }
 
-Entity& Sprite::Hide() {
+Sprite& Sprite::Hide() {
 	return SetVisible(false);
 }
 
@@ -76,7 +74,7 @@ bool Sprite::IsVisible() const {
 	return GetOrParentOrDefault<Visible>(false);
 }
 
-Entity& Sprite::SetDepth(const Depth& depth) {
+Sprite& Sprite::SetDepth(const Depth& depth) {
 	if (Has<Depth>()) {
 		Get<Depth>() = depth;
 	} else {
@@ -89,7 +87,7 @@ Depth Sprite::GetDepth() const {
 	return GetOrDefault<Depth>();
 }
 
-Entity& Sprite::SetBlendMode(BlendMode blend_mode) {
+Sprite& Sprite::SetBlendMode(BlendMode blend_mode) {
 	if (Has<BlendMode>()) {
 		Get<BlendMode>() = blend_mode;
 	} else {
@@ -102,8 +100,9 @@ BlendMode Sprite::GetBlendMode() const {
 	return GetOrDefault<BlendMode>(BlendMode::Blend);
 }
 
-Entity& Sprite::SetTint(const Color& color) {
-	return AddOrRemove(*color != Tint{}, color);
+Sprite& Sprite::SetTint(const Color& color) {
+	AddOrRemove<Tint>(color != Tint{}, color);
+	return *this;
 }
 
 Color Sprite::GetTint() const {
@@ -261,7 +260,7 @@ Animation::Animation(
 
 	// TODO: Consider breaking this up into individual tween points using a for loop.
 	// TODO: Switch to using a system.
-	Add<Tween>()
+	/*Add<Tween>()
 		.During(frame_duration)
 		.Repeat(frame_repeats)
 		.OnStart([entity = GetEntity()]() mutable {
@@ -290,11 +289,7 @@ Animation::Animation(
 			a.ResetToStartFrame();
 			c.position = a.GetCurrentFramePosition();
 			c.size	   = a.GetFrameSize();
-		});
-}
-
-void Animation::Draw(impl::RenderData& ctx, const Entity& entity) {
-	Sprite::Draw(ctx, entity);
+		});*/
 }
 
 } // namespace ptgn

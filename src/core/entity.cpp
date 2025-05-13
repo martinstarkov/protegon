@@ -1,8 +1,6 @@
 #include "core/entity.h"
 
-#include <array>
-#include <functional>
-#include <utility>
+#include <unordered_set>
 
 #include "common/assert.h"
 #include "components/common.h"
@@ -12,22 +10,15 @@
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "components/uuid.h"
-#include "core/game.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
+#include "nlohmann/json.hpp"
 #include "physics/rigid_body.h"
-#include "rendering/api/blend_mode.h"
-#include "rendering/api/color.h"
-#include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
 #include "rendering/graphics/vfx/light.h"
-#include "rendering/resources/render_target.h"
-#include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
 #include "serialization/fwd.h"
-#include "serialization/json.h"
-#include "utility/span.h"
 
 namespace ptgn {
 
@@ -111,7 +102,7 @@ void Entity::SetParent(Entity& parent) {
 }
 
 Entity Entity::CreateChild(std::string_view name) {
-	auto entity = GetManager().CreateEntity();
+	auto entity{ GetManager().CreateEntity() };
 	AddChild(entity, name);
 	return entity;
 }
@@ -132,7 +123,7 @@ void Entity::AddChild(Entity& child, std::string_view name) {
 }
 
 void Entity::RemoveChild(Entity& child) {
-	child.RemoveParent(*this);
+	child.RemoveParent();
 }
 
 void Entity::RemoveChild(std::string_view name) {
@@ -141,7 +132,7 @@ void Entity::RemoveChild(std::string_view name) {
 	}
 	auto& children{ Get<impl::Children>() };
 	auto child{ children.Get(name) };
-	child.RemoveParent(*this);
+	child.RemoveParent();
 }
 
 bool Entity::HasChild(std::string_view name) const {
@@ -160,12 +151,20 @@ bool Entity::HasChild(const Entity& child) const {
 	return children.Has(child);
 }
 
-Entity Entity::GetChild(std::string_view name) {
+Entity Entity::GetChild(std::string_view name) const {
 	if (!Has<impl::Children>()) {
 		return {};
 	}
 	const auto& children{ Get<impl::Children>() };
 	return children.Get(name);
+}
+
+std::unordered_set<Entity> Entity::GetChildren() const {
+	if (!Has<impl::Children>()) {
+		return {};
+	}
+	const auto& children{ Get<impl::Children>() };
+	return children.children_;
 }
 
 Entity& Entity::SetEnabled(bool enabled) {
@@ -269,11 +268,11 @@ Origin Entity::GetOrigin() const {
 
 namespace impl {
 
-void Children::Add(const Entity& child, std::string_view name) {
-	auto [it, _] = children_.emplace(child);
-	if (name) {
-		it->Add<ChildKey>(name);
+void Children::Add(Entity& child, std::string_view name) {
+	if (!name.empty()) {
+		child.Add<ChildKey>(name);
 	}
+	children_.emplace(child);
 }
 
 void Children::Remove(const Entity& child) {
@@ -293,10 +292,10 @@ void Children::Remove(std::string_view name) {
 	}
 }
 
-[[nodiscard]] Entity Children::Get(std::string_view name) {
+[[nodiscard]] Entity Children::Get(std::string_view name) const {
 	ChildKey k{ name };
 	for (const auto& entity : children_) {
-		if (it->Has<ChildKey>() && it->Get<ChildKey>() == k) {
+		if (entity.Has<ChildKey>() && entity.Get<ChildKey>() == k) {
 			return entity;
 		}
 	}
@@ -314,7 +313,7 @@ void Children::Remove(std::string_view name) {
 [[nodiscard]] bool Children::Has(std::string_view name) const {
 	ChildKey k{ name };
 	for (const auto& entity : children_) {
-		if (it->Has<ChildKey>() && it->Get<ChildKey>() == k) {
+		if (entity.Has<ChildKey>() && entity.Get<ChildKey>() == k) {
 			return true;
 		}
 	}
