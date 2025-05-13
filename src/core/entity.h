@@ -127,16 +127,6 @@ public:
 
 	[[nodiscard]] std::size_t GetHash() const;
 
-	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
-	Entity& SetDraw() {
-		Add<IDrawable>(type_name<T>());
-		return *this;
-	}
-
-	[[nodiscard]] bool HasDraw() const;
-
-	Entity& RemoveDraw();
-
 	// Entity hierarchy functions.
 
 	// @return The parent most entity, or *this if no parent exists.
@@ -248,6 +238,16 @@ public:
 	friend void from_json(const json& j, Entity& entity);
 
 protected:
+	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
+	Entity& SetDraw() {
+		Add<IDrawable>(type_name<T>());
+		return *this;
+	}
+
+	[[nodiscard]] bool HasDraw() const;
+
+	Entity& RemoveDraw();
+
 	template <typename T, typename... TArgs>
 	Entity& AddOrRemove(bool condition, TArgs&&... args) {
 		if (condition) {
