@@ -36,6 +36,12 @@
 
 namespace ptgn {
 
+Camera CreateCamera(Manager& manager) {
+	Camera camera{ manager.CreateEntity() };
+	camera.Add<impl::CameraInfo>();
+	return camera;
+}
+
 namespace impl {
 
 Transform GetRelativeOffset(const Entity& entity) {
@@ -316,9 +322,7 @@ void Camera::StartFollow(Entity target_entity, bool force) {
 	tween.Start(force);
 }
 
-Camera::Camera(Manager& manager) : Entity{ manager } {
-	Add<impl::CameraInfo>();
-}
+Camera::Camera(const Entity& entity) : Entity{ entity } {}
 
 void Camera::SetPixelRounding(bool enabled) {
 	auto& info{ Get<impl::CameraInfo>() };
@@ -914,13 +918,13 @@ void Camera::PrintInfo() const {
 }
 
 void CameraManager::Init(Manager& manager) {
-	primary = Camera{ manager };
-	window	= Camera{ manager };
+	primary = CreateCamera(manager);
+	window	= CreateCamera(manager);
 }
 
 void CameraManager::Reset() {
-	primary = Camera{ primary.GetManager() };
-	window	= Camera{ window.GetManager() };
+	primary = CreateCamera(primary.GetManager());
+	window	= CreateCamera(window.GetManager());
 };
 
 /*

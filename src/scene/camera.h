@@ -146,12 +146,7 @@ struct CameraInfo {
 class Camera : public Entity {
 public:
 	Camera() = default;
-	explicit Camera(Manager& manager);
-	Camera(const Camera&)				 = default;
-	Camera& operator=(const Camera&)	 = default;
-	Camera(Camera&&) noexcept			 = default;
-	Camera& operator=(Camera&&) noexcept = default;
-	~Camera() override					 = default;
+	Camera(const Entity& entity);
 
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;
@@ -440,6 +435,8 @@ private:
 
 	void Init(Manager& manager);
 };
+
+[[nodiscard]] Camera CreateCamera(Manager& manager);
 
 /*
 class CameraController;
