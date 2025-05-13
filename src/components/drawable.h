@@ -10,6 +10,12 @@
 #include "common/type_info.h"
 #include "math/hash.h"
 
+// The reason for this instead of a virtual Draw() function in the entity class is because when
+// using entity looping functions, the manager constructs Entity objects, which disables
+// polymorphism. Instead, I opt for automatically registering classes which inherit from
+// Drawable<ClassName> into a static map which contains static Draw functions and can be queried by
+// the type name of the class.
+
 namespace ptgn {
 
 namespace impl {
