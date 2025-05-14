@@ -3,9 +3,9 @@
 #include <chrono>
 #include <type_traits>
 
-#include "serialization/serializable.h"
 #include "common/assert.h"
 #include "core/time.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -31,7 +31,7 @@ public:
 
 	void Pause();
 
-	void Unpause();
+	void Resume();
 
 	// @return True if the timer is currently paused, false otherwise.
 	[[nodiscard]] bool IsPaused() const;

@@ -10,6 +10,7 @@
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
+#include "core/timer.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
@@ -23,6 +24,8 @@ namespace impl {
 class RenderData;
 
 } // namespace impl
+
+// TODO: Add graphics object.
 
 struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
@@ -50,67 +53,6 @@ struct TextureCrop {
 	PTGN_SERIALIZER_REGISTER(TextureCrop, position, size)
 };
 
-namespace impl {
-
-struct AnimationInfo {
-	AnimationInfo() = default;
-
-	AnimationInfo(
-		std::size_t frame_count, const V2_float& frame_size, const V2_float& start_pixel,
-		std::size_t start_frame
-	);
-
-	// @return The number of repeats of the full animation sequence so far.
-	[[nodiscard]] std::size_t GetSequenceRepeats() const;
-
-	// @return The total number of repeats of individual animation frames so far.
-	[[nodiscard]] std::size_t GetFrameRepeats() const;
-
-	[[nodiscard]] std::size_t GetFrameCount() const;
-
-	// new_frame is wrapped around frame_count using Mod().
-	void SetCurrentFrame(std::size_t new_frame);
-
-	void IncrementFrame();
-
-	void ResetToStartFrame();
-
-	[[nodiscard]] std::size_t GetCurrentFrame() const;
-
-	[[nodiscard]] V2_float GetCurrentFramePosition() const;
-
-	[[nodiscard]] V2_float GetFrameSize() const;
-
-	[[nodiscard]] std::size_t GetStartFrame() const;
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		AnimationInfo, KeyValue("frame_count", frame_count_), KeyValue("frame_size", frame_size_),
-		KeyValue("start_pixel", start_pixel_), KeyValue("start_frame", start_frame_),
-		KeyValue("current_frame", current_frame_), KeyValue("frame_repeats", frame_repeats_)
-	)
-private:
-	// Number of frames in the animation.
-	std::size_t frame_count_{ 0 };
-
-	// Size of an individual animation frame.
-	V2_float frame_size_;
-
-	// Pixel within the texture which indicates the top left position of the animation sequence.
-	V2_float start_pixel_;
-
-	// Starting frame of the animation.
-	std::size_t start_frame_{ 0 };
-
-	// Current frame of the animation.
-	std::size_t current_frame_{ 0 };
-
-	// Number of frames the animation has gone through. frame_repeats_ / frame_count_ gives the
-	// number of repeats of the full animation sequence.
-	std::size_t frame_repeats_{ 0 };
-};
-
-} // namespace impl
-
 struct Sprite : public Entity, public Drawable<Sprite> {
 	Sprite() = default;
 	Sprite(const Entity& entity);
@@ -124,6 +66,7 @@ struct Sprite : public Entity, public Drawable<Sprite> {
 	[[nodiscard]] impl::Texture& GetTexture();
 
 	[[nodiscard]] V2_int GetTextureSize() const;
+	[[nodiscard]] V2_int GetDisplaySize() const;
 
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
@@ -134,20 +77,68 @@ struct Animation : public Sprite {
 	using Sprite::Sprite;
 
 	Animation() = default;
+
+	// Starts the animation. Can also be used to restart the animation.
+	// @param force If false, only starts the animation if it is not already playing.
+	void Start(bool force = true);
+
+	// Stops and resets the animation.
+	void Reset();
+
+	void Stop();
+
+	// Toggles the pause state of the animation.
+	void Toggle();
+
+	void Pause();
+
+	void Resume();
+
+	// @return True if the animation is currently paused, false otherwise.
+	[[nodiscard]] bool IsPaused() const;
+
+	// @return True if the animation is currently playing, false otherwise.
+	[[nodiscard]] bool IsPlaying() const;
+
+	// @return The number of plays of the full animation sequence so far.
+	[[nodiscard]] std::size_t GetPlayCount() const;
+
+	// @return The total number of plays of individual animation frames so far.
+	[[nodiscard]] std::size_t GetFramePlayCount() const;
+
+	// @return Duration of the full animation sequence.
+	[[nodiscard]] milliseconds GetDuration() const;
+
+	// @return Duration of a single animation frame (all frames currently have the same duration).
+	[[nodiscard]] milliseconds GetFrameDuration() const;
+
+	[[nodiscard]] std::size_t GetFrameCount() const;
+
+	// Set the current animation frame.
+	// new_frame is wrapped around frame_count using Mod().
+	void SetCurrentFrame(std::size_t new_frame);
+
+	void IncrementFrame();
+
+	[[nodiscard]] std::size_t GetCurrentFrame() const;
+
+	[[nodiscard]] V2_int GetCurrentFramePosition() const;
+
+	[[nodiscard]] V2_int GetFrameSize() const;
 };
 
 // @param manager Which manager the entity is added to.
 // @param texture_key Key of the texture loaded into the texture manager.
+// @param animation_duration Duration of the full animation sequence.
 // @param frame_count Number of frames in the animation sequence.
 // @param frame_size Pixel size of an individual animation frame within the texture.
-// @param animation_duration Duration of the full animation sequence.
-// @param repeats Number of repeats that the animation plays for, -1 for infinite replay.
+// @param play_count Number of times that the animation plays for, -1 for infinite replay.
 // @param start_pixel Pixel within the texture which indicates the top left position of the
-// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
+// animation sequence.
 [[nodiscard]] Animation CreateAnimation(
-	Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats = -1,
-	const V2_float& start_pixel = {}, std::size_t start_frame = 0
+	Manager& manager, const TextureHandle& texture_key, milliseconds animation_duration,
+	std::size_t frame_count, const V2_int& frame_size, std::int64_t play_count = -1,
+	const V2_int& start_pixel = {}
 );
 
 struct AnimationMap : public ActiveMapManager<Animation> {
@@ -174,5 +165,58 @@ public:
 	// @return True if active value changed, false otherwise.
 	bool SetActive(const ActiveMapManager::Key& key);
 };
+
+namespace impl {
+
+class AnimationInfo {
+public:
+	AnimationInfo() = default;
+
+	AnimationInfo(
+		milliseconds duration, std::size_t frame_count, const V2_float& frame_size,
+		std::int64_t play_count, const V2_float& start_pixel
+	);
+
+	[[nodiscard]] milliseconds GetFrameDuration() const;
+	[[nodiscard]] V2_int GetCurrentFramePosition() const;
+
+	void SetCurrentFrame(std::size_t new_frame);
+	void IncrementFrame();
+
+	PTGN_SERIALIZER_REGISTER(
+		AnimationInfo, duration, frame_timer, frame_count, frame_size, play_count, start_pixel,
+		current_frame, frames_played
+	)
+
+	milliseconds duration{ 0 };
+
+	Timer frame_timer;
+
+	// Number of frames in the animation.
+	std::size_t frame_count{ 0 };
+
+	// Size of an individual animation frame.
+	V2_int frame_size;
+
+	// Number of times the full animation is played. -1 for infinite playback.
+	std::int64_t play_count{ 1 };
+
+	// Pixel within the texture which indicates the top left position of the animation sequence.
+	V2_int start_pixel;
+
+	// Current frame of the animation.
+	std::size_t current_frame{ 0 };
+
+	// Number of frames the animation has gone through. frames_played / frame_count gives the
+	// number of repeats of the full animation sequence.
+	std::size_t frames_played{ 0 };
+};
+
+class AnimationSystem {
+public:
+	static void Update(Manager& manager);
+};
+
+} // namespace impl
 
 } // namespace ptgn

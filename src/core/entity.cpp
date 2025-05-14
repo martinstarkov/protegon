@@ -251,6 +251,10 @@ float Entity::GetAbsoluteRotation() const {
 	return GetAbsoluteTransform().rotation;
 }
 
+Entity& Entity::SetScale(float scale) {
+	return SetScale(V2_float{ scale });
+}
+
 Entity& Entity::SetScale(const V2_float& scale) {
 	if (Has<Transform>()) {
 		Get<Transform>().scale = scale;

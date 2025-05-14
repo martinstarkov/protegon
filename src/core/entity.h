@@ -236,6 +236,7 @@ public:
 	// scene camera scale.
 	// @return *this.
 	Entity& SetScale(const V2_float& scale);
+	Entity& SetScale(float scale);
 
 	// @return The relative scale of the entity with respect to its parent entity, camera, or
 	// scene camera scale.

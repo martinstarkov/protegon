@@ -16,6 +16,7 @@
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
+#include "core/timer.h"
 #include "core/tween.h"
 #include "math/geometry.h"
 #include "math/math.h"
@@ -37,61 +38,24 @@ Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key) {
 }
 
 Animation CreateAnimation(
-	Manager& manager, const TextureHandle& texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, std::int64_t repeats,
-	const V2_float& start_pixel, std::size_t start_frame
+	Manager& manager, const TextureHandle& texture_key, milliseconds animation_duration,
+	std::size_t frame_count, const V2_int& frame_size, std::int64_t play_count,
+	const V2_int& start_pixel
 ) {
+	PTGN_ASSERT(
+		play_count == -1 || play_count >= 0,
+		"Play count must be -1 (infinite) or otherwise non-negative"
+	);
+
 	Animation animation{ CreateSprite(manager, texture_key) };
 
-	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
-
+	const auto& anim = animation.Add<impl::AnimationInfo>(
+		animation_duration, frame_count, frame_size, play_count, start_pixel
+	);
 	auto& crop = animation.Add<TextureCrop>();
-	auto& anim =
-		animation.Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
 
 	crop.position = anim.GetCurrentFramePosition();
-	crop.size	  = anim.GetFrameSize();
-
-	milliseconds frame_duration{ animation_duration / frame_count };
-
-	std::int64_t frame_repeats{ repeats == -1 ? -1
-											  : repeats * static_cast<std::int64_t>(frame_count) };
-
-	// TODO: Consider breaking this up into individual tween points using a for loop.
-	// TODO: Switch to using a system.
-	animation.Add<Tween>()
-		.During(frame_duration)
-		.Repeat(frame_repeats)
-		.OnStart([entity = animation]() mutable {
-			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			a.ResetToStartFrame();
-			c.position = a.GetCurrentFramePosition();
-			c.size	   = a.GetFrameSize();
-			// TODO: Fix.
-			// Invoke<callback::AnimationStart>(entity, entity);
-		})
-		.OnRepeat([entity = animation](Tween& tween) mutable {
-			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			a.IncrementFrame();
-			c.position = a.GetCurrentFramePosition();
-			c.size	   = a.GetFrameSize();
-			auto anim_frame_count{ a.GetFrameCount() };
-			auto tween_repeats{ tween.GetRepeats() };
-			if (tween_repeats != -1 &&
-				static_cast<std::size_t>(tween_repeats) == anim_frame_count) {
-				// TODO: Fix.
-				// Invoke<callback::AnimationComplete>(entity, entity);
-			} else if (a.GetFrameRepeats() % anim_frame_count == 0) {
-				// TODO: Fix.
-				// Invoke<callback::AnimationRepeat>(entity, entity);
-			}
-		})
-		.OnReset([entity = animation]() mutable {
-			auto [a, c] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			a.ResetToStartFrame();
-			c.position = a.GetCurrentFramePosition();
-			c.size	   = a.GetFrameSize();
-		});
+	crop.size	  = anim.frame_size;
 
 	return animation;
 }
@@ -113,9 +77,9 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto tint{ sprite.GetTint().Normalized() };
 	auto origin{ sprite.GetOrigin() };
 
-	auto size{ sprite.GetTextureSize() };
+	auto display_size{ sprite.GetDisplaySize() };
 	auto coords{ sprite.GetTextureCoordinates(false) };
-	auto vertices{ impl::GetVertices(transform, size, origin) };
+	auto vertices{ impl::GetVertices(transform, display_size, origin) };
 
 	ctx.AddTexturedQuad(vertices, coords, texture, depth, blend_mode, tint, false);
 }
@@ -141,7 +105,20 @@ impl::Texture& Sprite::GetTexture() {
 }
 
 V2_int Sprite::GetTextureSize() const {
-	return Has<TextureHandle>() ? Get<TextureHandle>().GetSize(*this) : V2_int{};
+	if (Has<TextureHandle>()) {
+		return Get<TextureHandle>().GetSize(*this);
+	}
+
+	PTGN_ERROR("Texture does not have a valid size");
+}
+
+V2_int Sprite::GetDisplaySize() const {
+	if (Has<TextureCrop>()) {
+		const auto& crop{ Get<TextureCrop>() };
+		return crop.size;
+	}
+
+	return GetTextureSize();
 }
 
 std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) const {
@@ -195,56 +172,187 @@ std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) cons
 	return tex_coords;
 }
 
+void Animation::Start(bool force) {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	PTGN_ASSERT(Has<TextureCrop>(), "Animation must have TextureCrop component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.current_frame = 0;
+	anim.frames_played = 0;
+	auto& crop		   = Get<TextureCrop>();
+	crop.position	   = anim.GetCurrentFramePosition();
+	crop.size		   = anim.frame_size;
+	anim.frame_timer.Start(force);
+}
+
+void Animation::Reset() {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	PTGN_ASSERT(Has<TextureCrop>(), "Animation must have TextureCrop component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.current_frame = 0;
+	anim.frames_played = 0;
+	auto& crop		   = Get<TextureCrop>();
+	crop.position	   = anim.GetCurrentFramePosition();
+	crop.size		   = anim.frame_size;
+	anim.frame_timer.Reset();
+}
+
+void Animation::Stop() {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.frame_timer.Stop();
+}
+
+void Animation::Toggle() {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.frame_timer.Toggle();
+}
+
+void Animation::Pause() {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.frame_timer.Pause();
+}
+
+void Animation::Resume() {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.frame_timer.Resume();
+}
+
+bool Animation::IsPaused() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.frame_timer.IsPaused();
+}
+
+bool Animation::IsPlaying() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.frame_timer.IsRunning();
+}
+
+std::size_t Animation::GetPlayCount() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.frames_played / anim.frame_count;
+}
+
+std::size_t Animation::GetFramePlayCount() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.frames_played;
+}
+
+milliseconds Animation::GetDuration() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.duration;
+}
+
+milliseconds Animation::GetFrameDuration() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	milliseconds frame_duration{ anim.duration / anim.frame_count };
+	return frame_duration;
+}
+
+std::size_t Animation::GetFrameCount() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.frame_count;
+}
+
+void Animation::SetCurrentFrame(std::size_t new_frame) {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.SetCurrentFrame(new_frame);
+}
+
+void Animation::IncrementFrame() {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	auto& anim{ Get<impl::AnimationInfo>() };
+	anim.IncrementFrame();
+}
+
+std::size_t Animation::GetCurrentFrame() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.current_frame;
+}
+
+V2_int Animation::GetCurrentFramePosition() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.GetCurrentFramePosition();
+}
+
+V2_int Animation::GetFrameSize() const {
+	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	const auto& anim{ Get<impl::AnimationInfo>() };
+	return anim.frame_size;
+}
+
 namespace impl {
 
 AnimationInfo::AnimationInfo(
-	std::size_t frame_count, const V2_float& frame_size, const V2_float& start_pixel,
-	std::size_t start_frame
+	milliseconds duration, std::size_t frame_count, const V2_float& frame_size,
+	std::int64_t play_count, const V2_float& start_pixel
 ) :
-	frame_count_{ frame_count },
-	frame_size_{ frame_size },
-	start_pixel_{ start_pixel },
-	start_frame_{ start_frame } {}
+	duration{ duration },
+	frame_count{ frame_count },
+	frame_size{ frame_size },
+	play_count{ play_count },
+	start_pixel{ start_pixel } {}
 
-std::size_t AnimationInfo::GetSequenceRepeats() const {
-	return frame_repeats_ / frame_count_;
+milliseconds AnimationInfo::GetFrameDuration() const {
+	return duration / frame_count;
 }
 
-std::size_t AnimationInfo::GetFrameRepeats() const {
-	return frame_repeats_;
-}
-
-std::size_t AnimationInfo::GetFrameCount() const {
-	return frame_count_;
+V2_int AnimationInfo::GetCurrentFramePosition() const {
+	return { start_pixel.x + frame_size.x * current_frame, start_pixel.y };
 }
 
 void AnimationInfo::SetCurrentFrame(std::size_t new_frame) {
-	current_frame_ = Mod(new_frame, frame_count_);
+	current_frame = new_frame % frame_count;
 }
 
 void AnimationInfo::IncrementFrame() {
-	SetCurrentFrame(++current_frame_);
+	SetCurrentFrame(current_frame + 1);
 }
 
-void AnimationInfo::ResetToStartFrame() {
-	current_frame_ = start_frame_;
-}
+void AnimationSystem::Update(Manager& manager) {
+	for (auto [entity, anim, crop] : manager.EntitiesWith<AnimationInfo, TextureCrop>()) {
+		if (anim.frame_count == 0 || anim.duration <= milliseconds{ 0 } ||
+			!anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused()) {
+			continue;
+		}
 
-std::size_t AnimationInfo::GetCurrentFrame() const {
-	return current_frame_;
-}
+		if (anim.play_count != -1 && anim.frames_played >= anim.play_count * anim.frame_count) {
+			// Reset animation to start frame after it finishes.
+			anim.current_frame = 0;
+			crop.size		   = anim.frame_size;
+			crop.position	   = anim.GetCurrentFramePosition();
+			anim.frame_timer.Stop();
+			continue;
+		}
 
-V2_float AnimationInfo::GetCurrentFramePosition() const {
-	V2_float frame_pos{ start_pixel_.x + frame_size_.x * current_frame_, start_pixel_.y };
-	return frame_pos;
-}
+		if (auto frame_duration{ anim.GetFrameDuration() };
+			!anim.frame_timer.Completed(frame_duration)) {
+			continue;
+		}
 
-V2_float AnimationInfo::GetFrameSize() const {
-	return frame_size_;
-}
+		// Frame completed.
 
-std::size_t AnimationInfo::GetStartFrame() const {
-	return start_frame_;
+		anim.frames_played++;
+
+		anim.current_frame = (anim.current_frame + 1) % anim.frame_count;
+
+		crop.size	  = anim.frame_size;
+		crop.position = anim.GetCurrentFramePosition();
+
+		anim.frame_timer.Start(true);
+	}
 }
 
 } // namespace impl

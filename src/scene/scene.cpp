@@ -1,6 +1,7 @@
 #include "scene/scene.h"
 
 #include "components/common.h"
+#include "components/draw.h"
 #include "components/lifetime.h"
 #include "components/offsets.h"
 #include "core/entity.h"
@@ -13,7 +14,6 @@
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/graphics/vfx/tween_effects.h"
 #include "rendering/renderer.h"
-#include "scene.h"
 #include "scene/camera.h"
 
 namespace ptgn {
@@ -117,6 +117,8 @@ void Scene::PostUpdate() {
 		tween.Step(dt);
 		// tween_update_count++;
 	}
+
+	impl::AnimationSystem::Update(manager);
 
 	float time{ game.time() };
 	for (auto [e, shake, offsets] : manager.EntitiesWith<impl::ShakeEffect, impl::Offsets>()) {

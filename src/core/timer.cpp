@@ -50,7 +50,7 @@ void Timer::Pause() {
 	}
 }
 
-void Timer::Unpause() {
+void Timer::Resume() {
 	if (!running_ && paused_) {
 		// Calculate elapsed time during pause.
 		auto pause_duration = std::chrono::steady_clock::now() - pause_time_;

@@ -918,13 +918,14 @@ void Camera::PrintInfo() const {
 }
 
 void CameraManager::Init(Manager& manager) {
+	PTGN_ASSERT(!window && !primary);
 	primary = CreateCamera(manager);
 	window	= CreateCamera(manager);
 }
 
 void CameraManager::Reset() {
-	primary = CreateCamera(primary.GetManager());
-	window	= CreateCamera(window.GetManager());
+	primary.Get<impl::CameraInfo>() = {};
+	window.Get<impl::CameraInfo>()	= {};
 };
 
 /*
