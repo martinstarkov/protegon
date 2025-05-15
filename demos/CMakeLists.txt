@@ -1,4 +1,4 @@
-add_subdirectory(basic_rectangle)
+add_subdirectory(graphics_object)
 add_subdirectory(sandbox)
 add_subdirectory(binary_serialization)
 add_subdirectory(paint)

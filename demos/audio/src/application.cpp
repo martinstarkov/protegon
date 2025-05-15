@@ -1,11 +1,15 @@
 #include <algorithm>
 #include <string>
-#include <string_view>
 
 #include "audio/audio.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "ecs/ecs.h"
+#include "core/manager.h"
+#include "core/time.h"
 #include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/resources/text.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "tile/grid.h"

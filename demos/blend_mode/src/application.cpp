@@ -2,9 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
-
-struct BlendModeExampleScene : public Scene {
+struct BlendModeScene : public Scene {
 	Texture semitransparent{ "resources/semitransparent.png" };
 	Texture opaque{ "resources/opaque.png" };
 
@@ -27,7 +25,7 @@ struct BlendModeExampleScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BlendModeExample", window_size, color::Transparent);
-	game.scene.Enter<BlendModeExampleScene>("blend_mode_example");
+	game.Init("BlendModeScene");
+	game.scene.Enter<BlendModeScene>("");
 	return 0;
 }
