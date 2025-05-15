@@ -1,4 +1,5 @@
 add_subdirectory(graphics_object)
+add_subdirectory(texture_format)
 add_subdirectory(sandbox)
 add_subdirectory(translate_effect)
 
