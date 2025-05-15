@@ -5,9 +5,10 @@
 #include <vector>
 
 #include "common/assert.h"
-#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
+#include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "rendering/api/color.h"
@@ -31,10 +32,12 @@ PointLight CreatePointLight(
 
 	// Point light properties.
 
-	point_light.SetColor(color);
-	point_light.SetIntensity(intensity);
-	point_light.SetRadius(radius);
-	point_light.SetFalloff(falloff);
+	auto& light_properties{ point_light.Add<impl::LightProperties>() };
+
+	light_properties.color	   = color;
+	light_properties.intensity = intensity;
+	light_properties.radius	   = radius;
+	light_properties.falloff   = falloff;
 
 	return point_light;
 }
@@ -67,59 +70,71 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {
-	intensity_ = intensity;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	Get<impl::LightProperties>().intensity = intensity;
 	return *this;
 }
 
 float PointLight::GetIntensity() const {
-	return intensity_;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	return Get<impl::LightProperties>().intensity;
 }
 
 PointLight& PointLight::SetColor(const Color& color) {
-	color_ = color;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	Get<impl::LightProperties>().color = color;
 	return *this;
 }
 
 Color PointLight::GetColor() const {
-	return color_;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	return Get<impl::LightProperties>().color;
 }
 
 PointLight& PointLight::SetAmbientIntensity(float ambient_intensity) {
-	ambient_intensity_ = ambient_intensity;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	Get<impl::LightProperties>().ambient_intensity = ambient_intensity;
 	return *this;
 }
 
 float PointLight::GetAmbientIntensity() const {
-	return ambient_intensity_;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	return Get<impl::LightProperties>().ambient_intensity;
 }
 
 PointLight& PointLight::SetAmbientColor(const Color& ambient_color) {
-	ambient_color_ = ambient_color;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	Get<impl::LightProperties>().ambient_color = ambient_color;
 	return *this;
 }
 
 Color PointLight::GetAmbientColor() const {
-	return ambient_color_;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	return Get<impl::LightProperties>().ambient_color;
 }
 
 PointLight& PointLight::SetRadius(float radius) {
 	PTGN_ASSERT(radius > 0.0f, "Point light radius must be above 0");
-	radius_ = radius;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	Get<impl::LightProperties>().radius = radius;
 	return *this;
 }
 
 float PointLight::GetRadius() const {
-	return radius_;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	return Get<impl::LightProperties>().radius;
 }
 
 PointLight& PointLight::SetFalloff(float falloff) {
 	PTGN_ASSERT(falloff >= 0.0f, "Point light falloff must be above or equal to 0");
-	falloff_ = falloff;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	Get<impl::LightProperties>().falloff = falloff;
 	return *this;
 }
 
 float PointLight::GetFalloff() const {
-	return falloff_;
+	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
+	return Get<impl::LightProperties>().falloff;
 }
 
 V3_float PointLight::GetShaderColor(const Color& color) {

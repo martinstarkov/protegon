@@ -534,7 +534,6 @@ void RenderData::FlushBatches(
 				if (!e.Has<Visible>() || !e.Get<Visible>()) {
 					continue;
 				}
-				PTGN_ASSERT((e.Has<PointLight>()));
 				if (!lights_found) {
 					lights.Bind();
 					lights.Clear();
@@ -547,18 +546,20 @@ void RenderData::FlushBatches(
 					SetVertexArrayToWindow(camera, color::White, depth, 1.0f);
 					lights_found = true;
 				}
-				const auto& light{ e.Get<PointLight>() };
+				PTGN_ASSERT(e.Has<impl::LightProperties>());
+				const auto& light{ e.Get<impl::LightProperties>() };
 				auto offset_transform{ impl::GetOffset(e) };
-				auto position{ e.GetPosition() + offset_transform.position };
-				float radius{ light.GetRadius() * e.GetScale().x * offset_transform.scale.x };
-				batch.shader.SetUniform("u_LightPosition", position);
-				batch.shader.SetUniform("u_LightIntensity", light.GetIntensity());
+				auto transform{ e.GetAbsoluteTransform() };
+				transform = transform.RelativeTo(offset_transform);
+				float radius{ light.radius * Abs(transform.scale.x) };
+				batch.shader.SetUniform("u_LightPosition", transform.position);
+				batch.shader.SetUniform("u_LightIntensity", light.intensity);
 				batch.shader.SetUniform("u_LightRadius", radius);
-				batch.shader.SetUniform("u_Falloff", light.GetFalloff());
-				batch.shader.SetUniform("u_Color", light.GetColor().Normalized());
-				auto ac{ PointLight::GetShaderColor(light.GetAmbientColor()) };
+				batch.shader.SetUniform("u_Falloff", light.falloff);
+				batch.shader.SetUniform("u_Color", light.color.Normalized());
+				auto ac{ PointLight::GetShaderColor(light.ambient_color) };
 				batch.shader.SetUniform("u_AmbientColor", ac);
-				batch.shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
+				batch.shader.SetUniform("u_AmbientIntensity", light.ambient_intensity);
 				GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
 			}
 			if (!lights_found) {
