@@ -29,21 +29,40 @@
 
 namespace ptgn {
 
-Button CreateButton(Manager& manager) {
+Button CreateButton(Manager& manager, const ButtonCallback& on_activate) {
 	Button button{ manager.CreateEntity() };
 
 	impl::SetupButton(button);
 	impl::SetupButtonCallbacks(button, nullptr);
 
+	if (on_activate) {
+		button.OnActivate(on_activate);
+	}
+
 	return button;
 }
 
-ToggleButton CreateToggleButton(Manager& manager, bool toggled) {
+Button CreateTextButton(
+	Manager& manager, const TextContent& text_content, const TextColor& text_color,
+	const ButtonCallback& on_activate
+) {
+	Button text_button{ CreateButton(manager, on_activate) };
+
+	text_button.SetText(text_content, text_color);
+
+	return text_button;
+}
+
+ToggleButton CreateToggleButton(Manager& manager, bool toggled, const ButtonCallback& on_activate) {
 	ToggleButton toggle_button{ manager.CreateEntity() };
 
 	impl::SetupButton(toggle_button);
 	impl::SetupButtonCallbacks(toggle_button, [e = toggle_button]() mutable { e.Toggle(); });
 	toggle_button.Add<impl::ButtonToggled>(toggled);
+
+	if (on_activate) {
+		toggle_button.OnActivate(on_activate);
+	}
 
 	return toggle_button;
 }
@@ -53,6 +72,7 @@ namespace impl {
 void SetupButton(Button& button) {
 	button.Show();
 	button.Enable();
+	button.SetDraw<Button>();
 
 	button.Add<Interactive>();
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
@@ -344,7 +364,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 					r.Draw(bg, i.line_thickness_, i.render_layer_);
 				} else {*/
 				ctx.AddQuad(
-					transform.position, size * transform.scale, origin, background_line_width,
+					transform.position, size * Abs(transform.scale), origin, background_line_width,
 					depth, blend_mode, background_color_n, transform.rotation, false
 				);
 			}
@@ -360,31 +380,6 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		const auto& button_text{ entity.Get<impl::ButtonText>() };
 		text = &button_text.GetValid(state);
 	}
-	if (text != nullptr && *text != Text{}) {
-		/*
-		// TODO: Fix ButtonTextFixedSize
-		V2_float text_size;
-		if (entity.Has<impl::ButtonTextFixedSize>()) {
-			text_size = entity.Get<impl::ButtonTextFixedSize>();
-		} else {
-			text_size = text->GetSize();
-		}
-		if (NearlyEqual(text_size.x, 0.0f)) {
-			text_size.x = size.x;
-		}
-		if (NearlyEqual(text_size.y, 0.0f)) {
-			text_size.y = size.y;
-		}
-		text_size *= text_transform.scale;
-		*/
-
-		// TODO: Fix this centering.
-		// Offset by button size so that text is initially centered on button center.
-		// text_transform.position += GetOriginOffset(origin, size * text_transform.scale);
-
-		// TODO: Fix text tinting: text->GetTint().Normalized() * tint
-		Text::Draw(ctx, *text);
-	}
 
 	impl::ButtonBorderWidth border_width;
 	if (entity.Has<impl::ButtonBorderWidth>()) {
@@ -398,7 +393,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		} else if (entity.Has<impl::ButtonBorderColor>()) {
 			border_color = entity.Get<impl::ButtonBorderColor>().current_;
 		}
-		V4_float border_color_n{ border_color.Normalized() };
+		V4_float border_color_n{ border_color.Normalized() * tint };
 		if (border_color_n != V4_float{}) {
 			// TODO: Readd rounded buttons.
 			/*if (i.radius_ > 0.0f) {
@@ -411,6 +406,61 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 				transform.rotation, false
 			);
 		}
+	}
+
+	if (text != nullptr && *text != Text{}) {
+		auto text_transform{ text->GetAbsoluteTransform() };
+
+		V2_float text_size;
+		if (entity.Has<impl::ButtonTextFixedSize>()) {
+			text_size = entity.Get<impl::ButtonTextFixedSize>();
+		} else {
+			text_size = text->GetSize();
+		}
+		if (NearlyEqual(text_size.x, 0.0f)) {
+			text_size.x = size.x;
+		}
+		if (NearlyEqual(text_size.y, 0.0f)) {
+			text_size.y = size.y;
+		}
+		text_size *= Abs(text_transform.scale);
+
+		Sprite text_sprite{ *text };
+
+		// Offset by button size so that text is initially centered on button center.
+		text_transform.position += GetOriginOffset(origin, size * Abs(text_transform.scale));
+
+		if (text_sprite.Has<TextColor>() && text_sprite.Get<TextColor>().a == 0) {
+			return;
+		}
+
+		if (!text_sprite.Has<TextContent>()) {
+			return;
+		}
+
+		if (std::string_view{ text_sprite.Get<TextContent>() }.empty()) {
+			return;
+		}
+
+		const auto& text_texture{ text_sprite.GetTexture() };
+
+		if (!text_texture.IsValid()) {
+			return;
+		}
+
+		auto text_depth{ text->GetDepth() };
+		auto text_blend_mode{ text->GetBlendMode() };
+		auto text_tint{ text->GetTint().Normalized() };
+		auto text_origin{ text->GetOrigin() };
+
+		auto text_display_size{ text_sprite.GetDisplaySize() };
+		auto text_coords{ text_sprite.GetTextureCoordinates(false) };
+		auto text_vertices{ impl::GetVertices(text_transform, text_display_size, text_origin) };
+
+		ctx.AddTexturedQuad(
+			text_vertices, text_coords, text_texture, text_depth, text_blend_mode, text_tint * tint,
+			false
+		);
 	}
 }
 
@@ -727,8 +777,7 @@ ButtonState Button::GetState() const {
 	if (state == impl::InternalButtonState::Hover ||
 		state == impl::InternalButtonState::HoverPressed) {
 		return ButtonState::Hover;
-	} else if (state == impl::InternalButtonState::Pressed ||
-			   state == impl::InternalButtonState::HeldOutside) {
+	} else if (state == impl::InternalButtonState::Pressed || state == impl::InternalButtonState::HeldOutside) {
 		return ButtonState::Pressed;
 	} else {
 		return ButtonState::Default;

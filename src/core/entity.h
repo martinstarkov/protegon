@@ -3,6 +3,7 @@
 #include <string_view>
 #include <unordered_set>
 
+#include "common/function.h"
 #include "components/common.h"
 #include "components/drawable.h"
 #include "components/generic.h"
@@ -320,6 +321,14 @@ private:
 
 	explicit Entity(const ecs::Entity& e);
 };
+
+template <typename TCallback, typename... TArgs>
+static void Invoke(const Entity& e, TArgs&&... args) {
+	if (e.Has<TCallback>()) {
+		const auto& callback{ e.Get<TCallback>() };
+		Invoke(callback, std::forward<TArgs>(args)...);
+	}
+}
 
 } // namespace ptgn
 

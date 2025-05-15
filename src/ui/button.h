@@ -220,9 +220,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -342,9 +341,8 @@ public:
 		const TextColor& text_color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
+		const;
 
 	ToggleButton& SetTextContentToggled(
 		const TextContent& content, ButtonState state = ButtonState::Default
@@ -412,9 +410,16 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	return os;
 }
 
-[[nodiscard]] Button CreateButton(Manager& manager);
+[[nodiscard]] Button CreateButton(Manager& manager, const ButtonCallback& on_activate = {});
+
+[[nodiscard]] Button CreateTextButton(
+	Manager& manager, const TextContent& text_content, const TextColor& text_color = color::Black,
+	const ButtonCallback& on_activate = {}
+);
 
 // @param toggled Whether or not the button start in the toggled state.
-[[nodiscard]] ToggleButton CreateToggleButton(Manager& manager, bool toggled = false);
+[[nodiscard]] ToggleButton CreateToggleButton(
+	Manager& manager, bool toggled = false, const ButtonCallback& on_activate = {}
+);
 
 } // namespace ptgn

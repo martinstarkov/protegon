@@ -16,6 +16,7 @@
 #include "events/input_handler.h"
 #include "events/key.h"
 #include "events/mouse.h"
+#include "math/math.h"
 #include "math/vector2.h"
 #include "physics/collision/overlap.h"
 #include "rendering/api/origin.h"
@@ -23,12 +24,11 @@
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "ui/button.h"
 
 namespace ptgn {
 
 bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) {
-	constexpr bool draw_interactives{ true };
-
 	bool is_circle{ entity.Has<InteractiveCircles>() };
 	bool is_rect{ entity.Has<InteractiveRects>() };
 	PTGN_ASSERT(
@@ -36,7 +36,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 		"Entity cannot have both an interactive radius and an interactive size"
 	);
 	auto scale{ entity.GetScale() };
-	auto pos{ entity.GetPosition() };
+	auto pos{ entity.GetAbsolutePosition() };
 	auto origin{ entity.GetOrigin() };
 	bool overlapping{ false };
 	if (is_rect || is_circle) {
@@ -46,9 +46,10 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			const auto& interactives{ entity.Get<InteractiveRects>() };
 			count += interactives.rects.size();
 			for (const auto& interactive : interactives.rects) {
-				auto size{ interactive.size * scale };
+				auto size{ interactive.size * Abs(scale) };
 				origin = interactive.origin;
-				auto center{ pos + interactive.offset * scale + GetOriginOffset(origin, size) };
+				auto center{ pos + interactive.offset * Abs(scale) +
+							 GetOriginOffset(origin, size) };
 				if constexpr (draw_interactives) {
 					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
 				}
@@ -65,8 +66,8 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			const auto& interactives{ entity.Get<InteractiveCircles>() };
 			count += interactives.circles.size();
 			for (const auto& interactive : interactives.circles) {
-				auto radius{ interactive.radius * scale.x };
-				auto center{ pos + interactive.offset * scale };
+				auto radius{ interactive.radius * Abs(scale.x) };
+				auto center{ pos + interactive.offset * Abs(scale) };
 				if constexpr (draw_interactives) {
 					DrawDebugCircle(center, radius, color::Magenta, 1.0f);
 				}
@@ -90,40 +91,41 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 	}
 
 	// TODO: Consider readding this with circle and rect objects.
-	/*
-	is_circle = entity.Has<Circle>();
-	is_rect	  = entity.Has<Rect>();
+	is_circle = entity.Has<impl::ButtonRadius>();
+	is_rect	  = entity.Has<impl::ButtonSize>();
 	if (is_circle || is_rect) {
 		bool zero_sized{ false };
 		if (is_circle) {
-			const auto& c{ entity.Get<Circle>() };
-			if (c.radius == 0.0f) {
+			float radius{ entity.Get<impl::ButtonRadius>() };
+			if (radius == 0.0f) {
 				zero_sized = true;
 			} else {
-				auto r{ c.radius * scale.x };
+				auto radius_scaled{ radius * Abs(scale.x) };
 				zero_sized = false;
 				if constexpr (draw_interactives) {
-					DrawDebugCircle(pos, r, color::Magenta, 1.0f);
+					DrawDebugCircle(pos, radius_scaled, color::Magenta, 1.0f);
 				}
-				if (impl ::OverlapPointCircle(pointer, pos, r)) {
+				if (impl ::OverlapPointCircle(pointer, pos, radius_scaled)) {
 					return true;
 				}
 			}
 		}
 		if (is_rect) {
-			const auto& r{ entity.Get<Rect>() };
-			if (r.size.IsZero()) {
+			V2_float size{ entity.Get<impl::ButtonSize>() };
+			if (size.IsZero()) {
 				zero_sized = true;
 			} else {
 				zero_sized = false;
-				auto size{ r.size * scale };
-				origin = r.origin;
-				auto center{ pos + GetOriginOffset(origin, r.size) };
+				auto size_scaled{ size * Abs(scale) };
+				origin = entity.GetOrigin();
+				auto center{ pos + GetOriginOffset(origin, size_scaled) };
 				auto rotation{ entity.GetRotation() };
 				if constexpr (draw_interactives) {
-					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
+					DrawDebugRect(
+						center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation
+					);
 				}
-				if (impl::OverlapPointRect(pointer, center, size, rotation)) {
+				if (impl::OverlapPointRect(pointer, center, size_scaled, rotation)) {
 					return true;
 				}
 			}
@@ -132,17 +134,16 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			return false;
 		}
 	}
-	*/
 
 	if (entity.Has<TextureHandle>()) {
 		const auto& texture_key{ entity.Get<TextureHandle>() };
-		auto size{ game.texture.GetSize(texture_key) * scale };
-		auto center{ pos + GetOriginOffset(origin, size) };
+		auto size_scaled{ texture_key.GetSize(entity) * Abs(scale) };
+		auto center{ pos + GetOriginOffset(origin, size_scaled) };
 		auto rotation{ entity.GetRotation() };
 		if constexpr (draw_interactives) {
-			DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
+			DrawDebugRect(center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation);
 		}
-		return impl::OverlapPointRect(pointer, center, size, rotation);
+		return impl::OverlapPointRect(pointer, center, size_scaled, rotation);
 	}
 
 	return false;
@@ -210,31 +211,31 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				// TODO: Fix: Invoke<callback::MouseMove>(e, pos);
+				Invoke<callback::MouseMove>(e, pos);
 				bool entered{ interactive.is_inside && !interactive.was_inside };
 				bool exited{ !interactive.is_inside && interactive.was_inside };
 				if (entered) {
-					// TODO: Fix: Invoke<callback::MouseEnter>(e, pos);
+					Invoke<callback::MouseEnter>(e, pos);
 				}
 				if (exited) {
-					// TODO: Fix: Invoke<callback::MouseLeave>(e, pos);
+					Invoke<callback::MouseLeave>(e, pos);
 				}
 				if (interactive.is_inside) {
-					// TODO: Fix: Invoke<callback::MouseOver>(e, pos);
+					Invoke<callback::MouseOver>(e, pos);
 				} else {
-					// TODO: Fix: Invoke<callback::MouseOut>(e, pos);
+					Invoke<callback::MouseOut>(e, pos);
 				}
 				if (e.Has<Draggable>() && e.Get<Draggable>().dragging) {
-					// TODO: Fix: Invoke<callback::Drag>(e, pos);
+					Invoke<callback::Drag>(e, pos);
 					if (interactive.is_inside) {
-						// TODO: Fix: Invoke<callback::DragOver>(e, pos);
+						Invoke<callback::DragOver>(e, pos);
 						if (!interactive.was_inside) {
-							// TODO: Fix: Invoke<callback::DragEnter>(e, pos);
+							Invoke<callback::DragEnter>(e, pos);
 						}
 					} else {
-						// TODO: Fix: Invoke<callback::DragOut>(e, pos);
+						Invoke<callback::DragOut>(e, pos);
 						if (interactive.was_inside) {
-							// TODO: Fix: Invoke<callback::DragLeave>(e, pos);
+							Invoke<callback::DragLeave>(e, pos);
 						}
 					}
 				}
@@ -249,17 +250,17 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					// TODO: Fix: Invoke<callback::MouseDown>(e, mouse);
+					Invoke<callback::MouseDown>(e, mouse);
 					if (e.Has<Draggable>()) {
 						if (auto& draggable{ e.Get<Draggable>() }; !draggable.dragging) {
 							draggable.dragging = true;
 							draggable.start	   = pos;
 							draggable.offset   = e.GetPosition() - draggable.start;
-							// TODO: Fix: Invoke<callback::DragStart>(e, pos);
+							Invoke<callback::DragStart>(e, pos);
 						}
 					}
 				} else {
-					// TODO: Fix: Invoke<callback::MouseDownOutside>(e, mouse);
+					Invoke<callback::MouseDownOutside>(e, mouse);
 				}
 			}
 			break;
@@ -272,15 +273,15 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					// TODO: Fix: Invoke<callback::MouseUp>(e, mouse);
+					Invoke<callback::MouseUp>(e, mouse);
 				} else {
-					// TODO: Fix: Invoke<callback::MouseUpOutside>(e, mouse);
+					Invoke<callback::MouseUpOutside>(e, mouse);
 				}
 				if (e.Has<Draggable>()) {
 					if (auto& draggable{ e.Get<Draggable>() }; draggable.dragging) {
 						draggable.dragging = false;
 						draggable.offset   = {};
-						// TODO: Fix: Invoke<callback::DragStop>(e, pos);
+						Invoke<callback::DragStop>(e, pos);
 					}
 				}
 			}
@@ -307,7 +308,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					// TODO: Fix: Invoke(callback, scroll);
+					Invoke(callback, scroll);
 				}
 			}
 			break;
@@ -326,7 +327,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				// TODO: Fix: Invoke(callback, key);
+				Invoke(callback, key);
 			}
 			break;
 		}
@@ -337,7 +338,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				// TODO: Fix: Invoke(callback, key);
+				Invoke(callback, key);
 			}
 			break;
 		}
@@ -348,7 +349,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				// TODO: Fix: Invoke(callback, key);
+				Invoke(callback, key);
 			}
 			break;
 		}
@@ -364,6 +365,10 @@ void SceneInput::ResetInteractives() {
 }
 
 void SceneInput::Init(Scene* scene) {
+	if (draw_interactives) {
+		PTGN_WARN("Drawing interactable hitboxes");
+	}
+
 	scene_ = scene;
 	// Input is reset to ensure no previously pressed keys are considered held.
 	game.input.ResetKeyStates();

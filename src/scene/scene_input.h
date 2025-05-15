@@ -47,6 +47,8 @@ private:
 	Scene* scene_{ nullptr };
 
 	bool top_only_{ false };
+
+	static constexpr bool draw_interactives{ true };
 };
 
 } // namespace ptgn
