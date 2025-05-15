@@ -522,24 +522,12 @@ Color Surface::GetPixel(std::size_t index) const {
 Surface::Surface(SDL_Surface* sdl_surface) {
 	PTGN_ASSERT(sdl_surface != nullptr, "Invalid surface");
 
-	SDL_Surface* surface{ sdl_surface };
-
-	format			= GetFormatFromSDL(surface->format->format);
+	format				 = TextureFormat::RGBA8888;
+	SDL_Surface* surface = SDL_ConvertSurfaceFormat(
+		sdl_surface, static_cast<std::uint32_t>(SDL_PIXELFORMAT_RGBA32), 0
+	);
+	PTGN_ASSERT(surface != nullptr, SDL_GetError());
 	bytes_per_pixel = surface->format->BytesPerPixel;
-
-	auto convert_to_format = [&](TextureFormat f) {
-		format			= f;
-		surface			= SDL_ConvertSurfaceFormat(surface, static_cast<std::uint32_t>(format), 0);
-		bytes_per_pixel = surface->format->BytesPerPixel;
-		PTGN_ASSERT(surface != nullptr, SDL_GetError());
-	};
-
-	if (format == TextureFormat::Unknown) {
-		// Convert format to RGBA8888.
-		std::invoke(convert_to_format, TextureFormat::RGBA8888);
-	} else if (format == TextureFormat::A8) {
-		std::invoke(convert_to_format, TextureFormat::ABGR8888);
-	}
 
 	int lock{ SDL_LockSurface(surface) };
 	PTGN_ASSERT(lock == 0, "Failed to lock surface when copying pixels");
@@ -567,7 +555,6 @@ Surface::Surface(SDL_Surface* sdl_surface) {
 		// Surface was converted so new surface must be freed.
 		SDL_FreeSurface(surface);
 	}
-
 	SDL_FreeSurface(sdl_surface);
 }
 
