@@ -8,7 +8,6 @@
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
-#include "core/tween.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
@@ -16,7 +15,8 @@
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
-#include "rendering/graphics/vfx/tween_effects.h"
+#include "tweening/tween.h"
+#include "tweening/tween_effects.h"
 
 namespace ptgn {
 
@@ -151,6 +151,7 @@ public:
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;
 
+	/*
 	// @param target_position Position to pan to.
 	// @param duration Duration of pan.
 	// @param ease Easing function for pan.
@@ -177,14 +178,13 @@ public:
 	// @param ease Easing function for rotation.
 	// @param force If false, the rotation is queued in the rotation queue, if true the rotation is
 	// executed immediately, clearing any previously queued rotations.
-	/* Range: (-3.14159, 3.14159].
-	 * (clockwise positive).
-	 *            -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *             1.5708
-	 */
+	// Range: (-3.14159, 3.14159].
+	// (clockwise positive).
+	//            -1.5708
+	//               |
+	//    3.14159 ---o--- 0
+	//               |
+	//             1.5708
 	Tween& RotateTo(
 		float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 		bool force = false
@@ -241,6 +241,7 @@ public:
 	);
 
 	Tween& SetColor(const Color& color, bool force = false);
+	*/
 
 	// Top left position.
 	[[nodiscard]] V2_float GetViewportPosition() const;

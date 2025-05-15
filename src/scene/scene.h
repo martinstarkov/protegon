@@ -7,6 +7,7 @@
 #include "physics/physics.h"
 #include "scene/camera.h"
 #include "scene/scene_input.h"
+#include "tweening/tween_effects.h"
 
 namespace ptgn {
 
@@ -70,6 +71,11 @@ public:
 private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
+
+	impl::TranslateEffectSystem translate_effects_;
+	impl::RotateEffectSystem rotate_effects_;
+	impl::ScaleEffectSystem scale_effects_;
+	impl::TintEffectSystem tint_effects_;
 
 	// void ClearTarget();
 	void InternalEnter();

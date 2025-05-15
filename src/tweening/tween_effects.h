@@ -1,17 +1,17 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <functional>
 
-#include "components/draw.h"
-#include "components/generic.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
-#include "core/tween.h"
+#include "core/timer.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "tweening/tween.h"
 
 namespace ptgn {
 
@@ -35,62 +35,7 @@ struct ShakeConfig {
 
 namespace impl {
 
-[[nodiscard]] Tween& DoEffect(
-	const Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
-	milliseconds duration, TweenEase ease, bool force
-);
-
-struct StartPosition : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
-struct TranslateEffect : public Entity {
-	explicit TranslateEffect(Manager& manager);
-
-	[[nodiscard]] Tween& TranslateTo(
-		Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
-		bool force
-	);
-};
-
-struct StartAngle : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-};
-
-struct RotateEffect : public Entity {
-	explicit RotateEffect(Manager& manager);
-
-	// @param target_angle In radians.
-	[[nodiscard]] Tween& RotateTo(
-		Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
-	);
-};
-
-struct StartScale : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
-struct ScaleEffect : public Entity {
-	explicit ScaleEffect(Manager& manager);
-
-	[[nodiscard]] Tween& ScaleTo(
-		Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease,
-		bool force
-	);
-};
-
-struct StartTint : public Tint {
-	using Tint::Tint;
-};
-
-struct TintEffect : public Entity {
-	explicit TintEffect(Manager& manager);
-
-	[[nodiscard]] Tween& TintTo(
-		Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
-	);
-};
-
+/*
 struct BounceEffect : public Entity {
 	explicit BounceEffect(Manager& manager);
 
@@ -140,29 +85,135 @@ private:
 	// Perlin noise seed.
 	std::int32_t seed_{ 0 };
 };
+*/
+
+[[nodiscard]] float ApplyEasing(TweenEase ease, float t);
+
+template <typename TComponent, typename T>
+class EffectSystemBase {
+public:
+	virtual ~EffectSystemBase() = default;
+
+	void Update(Manager& manager) {
+		for (auto [entity, effect] : manager.EntitiesWith<TComponent>()) {
+			if (effect.tasks.empty()) {
+				continue;
+			}
+
+			auto& task = effect.tasks.front();
+
+			float t = task.timer.template ElapsedPercentage<milliseconds, float>(task.duration);
+			float eased_t = ApplyEasing(task.ease, t);
+			T value{ Lerp(task.start_value, task.target_value, eased_t) };
+
+			Apply(entity, value);
+
+			if (task.timer.Completed(task.duration)) {
+				effect.tasks.pop_front();
+			}
+		}
+	}
+
+protected:
+	virtual void Apply(Entity& entity, const T& value) = 0;
+};
+
+template <typename T>
+struct EffectInfo {
+	T start_value{};
+	T target_value{};
+	milliseconds duration{ 0 };
+	TweenEase ease{ TweenEase::Linear };
+	Timer timer;
+
+	EffectInfo(const T& start, const T& target, milliseconds duration, TweenEase ease_type) :
+		start_value{ start },
+		target_value{ target },
+		duration{ duration },
+		ease{ ease_type },
+		timer{ true /* start timer immediately upon effect addition */ } {}
+};
+
+template <typename T>
+struct EffectComponent {
+	std::deque<EffectInfo<T>> tasks;
+};
+
+using TranslateEffect = EffectComponent<V2_float>;
+using RotateEffect	  = EffectComponent<float>;
+using ScaleEffect	  = EffectComponent<V2_float>;
+using TintEffect	  = EffectComponent<Color>;
+
+class TranslateEffectSystem : public EffectSystemBase<TranslateEffect, V2_float> {
+protected:
+	void Apply(Entity& entity, const V2_float& value) override {
+		entity.SetPosition(value);
+	}
+};
+
+class RotateEffectSystem : public EffectSystemBase<RotateEffect, float> {
+protected:
+	void Apply(Entity& entity, const float& value) override {
+		entity.SetRotation(value);
+	}
+};
+
+class ScaleEffectSystem : public EffectSystemBase<ScaleEffect, V2_float> {
+protected:
+	void Apply(Entity& entity, const V2_float& value) override {
+		entity.SetScale(value);
+	}
+};
+
+class TintEffectSystem : public EffectSystemBase<TintEffect, Color> {
+protected:
+	void Apply(Entity& entity, const Color& value) override {
+		entity.SetTint(value);
+	}
+};
+
+template <typename TComponent, typename T>
+void AddTweenEffect(
+	Entity& entity, const T& target, milliseconds duration, TweenEase ease, bool force,
+	const T& current_value
+) {
+	auto& comp = entity.GetOrAdd<TComponent>();
+
+	T start{};
+	if (force || comp.tasks.empty()) {
+		comp.tasks.clear();
+		start = current_value;
+	} else {
+		// Use previous task's target value as new starting point.
+		start = comp.tasks.back().target_value;
+	}
+
+	comp.tasks.emplace_back(start, target, duration, ease);
+}
 
 } // namespace impl
 
-Tween& TranslateTo(
-	Entity& e, const V2_float& target_position, milliseconds duration,
+void TranslateTo(
+	Entity& entity, const V2_float& target_position, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-Tween& RotateTo(
+void RotateTo(
 	Entity& e, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 	bool force = true
 );
 
-Tween& ScaleTo(
+void ScaleTo(
 	Entity& e, const V2_float& target_scale, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-Tween& TintTo(
+void TintTo(
 	Entity& e, const Color& target_tint, milliseconds duration, TweenEase ease = TweenEase::Linear,
 	bool force = true
 );
 
+/*
 Tween& FadeIn(
 	Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
 );
@@ -210,5 +261,7 @@ Tween& Every(
 	Manager& manager, milliseconds duration, std::int64_t repeats,
 	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
 );
+
+*/
 
 } // namespace ptgn

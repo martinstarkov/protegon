@@ -17,7 +17,6 @@
 #include "core/resource_manager.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "core/tween.h"
 #include "math/geometry.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -26,6 +25,7 @@
 #include "rendering/api/flip.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/texture.h"
+#include "tweening/tween.h"
 
 namespace ptgn {
 
@@ -310,7 +310,7 @@ milliseconds AnimationInfo::GetFrameDuration() const {
 }
 
 V2_int AnimationInfo::GetCurrentFramePosition() const {
-	return { start_pixel.x + frame_size.x * current_frame, start_pixel.y };
+	return { start_pixel.x + frame_size.x * static_cast<int>(current_frame), start_pixel.y };
 }
 
 void AnimationInfo::SetCurrentFrame(std::size_t new_frame) {
@@ -328,7 +328,8 @@ void AnimationSystem::Update(Manager& manager) {
 			continue;
 		}
 
-		if (anim.play_count != -1 && anim.frames_played >= anim.play_count * anim.frame_count) {
+		if (anim.play_count != -1 &&
+			anim.frames_played >= static_cast<std::size_t>(anim.play_count) * anim.frame_count) {
 			// Reset animation to start frame after it finishes.
 			anim.current_frame = 0;
 			crop.size		   = anim.frame_size;

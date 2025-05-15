@@ -1,5 +1,13 @@
 add_subdirectory(graphics_object)
 add_subdirectory(sandbox)
+add_subdirectory(translate_effect)
+
+# add_subdirectory(rotate_effect)
+# add_subdirectory(scale_effect)
+# add_subdirectory(tint_effect)
+# add_subdirectory(shake_effect)
+# add_subdirectory(bounce_effect)
+# add_subdirectory(fade_effect)
 add_subdirectory(binary_serialization)
 add_subdirectory(paint)
 add_subdirectory(chunk)

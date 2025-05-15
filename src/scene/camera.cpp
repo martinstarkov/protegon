@@ -18,7 +18,6 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/time.h"
-#include "core/tween.h"
 #include "core/window.h"
 #include "debug/log.h"
 #include "events/event_handler.h"
@@ -32,7 +31,8 @@
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
-#include "rendering/graphics/vfx/tween_effects.h"
+#include "tweening/tween.h"
+#include "tweening/tween_effects.h"
 
 namespace ptgn {
 
@@ -232,6 +232,24 @@ void CameraInfo::SetBounds(const V2_float& position, const V2_float& size) {
 
 } // namespace impl
 
+Camera::Camera(const Entity& entity) : Entity{ entity } {}
+
+void Camera::SetPixelRounding(bool enabled) {
+	auto& info{ Get<impl::CameraInfo>() };
+	bool changed{ info.data.pixel_rounding != enabled };
+	if (changed) {
+		info.data.pixel_rounding		 = enabled;
+		info.data.recalculate_projection = true;
+		info.data.recalculate_view		 = true;
+	}
+}
+
+bool Camera::IsPixelRoundingEnabled() const {
+	const auto& info{ Get<impl::CameraInfo>() };
+	return info.data.pixel_rounding;
+}
+
+/*
 void Camera::StopFollow(bool force) {
 	// TODO: Replace with tween effects function call?
 	if (!pan_effects_ || !pan_effects_.IsAlive() || !pan_effects_.Has<Tween>()) {
@@ -321,24 +339,9 @@ void Camera::StartFollow(Entity target_entity, bool force) {
 		.OnReset(update_pan);
 	tween.Start(force);
 }
+*/
 
-Camera::Camera(const Entity& entity) : Entity{ entity } {}
-
-void Camera::SetPixelRounding(bool enabled) {
-	auto& info{ Get<impl::CameraInfo>() };
-	bool changed{ info.data.pixel_rounding != enabled };
-	if (changed) {
-		info.data.pixel_rounding		 = enabled;
-		info.data.recalculate_projection = true;
-		info.data.recalculate_view		 = true;
-	}
-}
-
-bool Camera::IsPixelRoundingEnabled() const {
-	const auto& info{ Get<impl::CameraInfo>() };
-	return info.data.pixel_rounding;
-}
-
+/*
 Tween& Camera::PanTo(
 	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
 ) {
@@ -537,6 +540,7 @@ Tween& Camera::FadeFrom(const Color& color, milliseconds duration, TweenEase eas
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade from fully transparent color");
 	return FadeFromTo(color, color::Transparent, duration, ease, force);
 }
+*/
 
 V2_float Camera::GetViewportPosition() const {
 	return Get<impl::CameraInfo>().data.viewport_position;

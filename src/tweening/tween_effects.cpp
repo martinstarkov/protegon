@@ -1,4 +1,4 @@
-#include "rendering/graphics/vfx/tween_effects.h"
+#include "tweening/tween_effects.h"
 
 #include <algorithm>
 #include <cmath>
@@ -13,17 +13,18 @@
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
-#include "core/tween.h"
 #include "math/math.h"
 #include "math/noise.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "tweening/tween.h"
 
 namespace ptgn {
 
 namespace impl {
 
+/*
 Tween& DoEffect(
 	const Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
 	milliseconds duration, TweenEase ease, bool force
@@ -42,103 +43,9 @@ Tween& DoEffect(
 	tween.Start(force);
 	return effect_entity.Get<Tween>();
 }
+*/
 
-TranslateEffect::TranslateEffect(Manager& manager) : Entity{ manager } {
-	Add<Tween>();
-	Add<StartPosition>();
-}
-
-Tween& TranslateEffect::TranslateTo(
-	Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
-	bool force
-) {
-	if (!entity.Has<Transform>()) {
-		entity.Add<Transform>();
-	}
-	return impl::DoEffect(
-		*this,
-		[entity, e = *this]() mutable { e.Add<StartPosition>(entity.Get<Transform>().position); },
-		[target_position, entity, e = *this](float progress) mutable {
-			if (entity.Has<Transform>()) {
-				auto& transform{ entity.Get<Transform>() };
-				transform.position =
-					Lerp(V2_float{ e.Get<StartPosition>() }, target_position, progress);
-			}
-		},
-		duration, ease, force
-	);
-}
-
-RotateEffect::RotateEffect(Manager& manager) : Entity{ manager } {
-	Add<Tween>();
-	Add<StartAngle>();
-}
-
-Tween& RotateEffect::RotateTo(
-	Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
-) {
-	if (!entity.Has<Transform>()) {
-		entity.Add<Transform>();
-	}
-	return impl::DoEffect(
-		*this,
-		[entity, e = *this]() mutable { e.Add<StartAngle>(entity.Get<Transform>().rotation); },
-		[target_angle, entity, e = *this](float progress) mutable {
-			if (entity.Has<Transform>()) {
-				auto& transform{ entity.Get<Transform>() };
-				transform.rotation = Lerp(float{ e.Get<StartAngle>() }, target_angle, progress);
-			}
-		},
-		duration, ease, force
-	);
-}
-
-ScaleEffect::ScaleEffect(Manager& manager) : Entity{ manager } {
-	Add<Tween>();
-	Add<StartScale>();
-}
-
-Tween& ScaleEffect::ScaleTo(
-	Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
-) {
-	if (!entity.Has<Transform>()) {
-		entity.Add<Transform>();
-	}
-	return impl::DoEffect(
-		*this, [entity, e = *this]() mutable { e.Add<StartScale>(entity.Get<Transform>().scale); },
-		[target_scale, entity, e = *this](float progress) mutable {
-			if (entity.Has<Transform>()) {
-				auto& transform{ entity.Get<Transform>() };
-				transform.scale = Lerp(V2_float{ e.Get<StartScale>() }, target_scale, progress);
-			}
-		},
-		duration, ease, force
-	);
-}
-
-TintEffect::TintEffect(Manager& manager) : Entity{ manager } {
-	Add<Tween>();
-	Add<StartTint>();
-}
-
-Tween& TintEffect::TintTo(
-	Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
-) {
-	if (!entity.Has<Tint>()) {
-		entity.Add<Tint>();
-	}
-	return impl::DoEffect(
-		*this, [entity, e = *this]() mutable { e.Add<StartTint>(entity.Get<Tint>()); },
-		[target_tint, entity, e = *this](float progress) mutable {
-			if (entity.Has<Tint>()) {
-				auto& fade{ entity.Get<Tint>() };
-				fade = Lerp(e.Get<StartTint>(), target_tint, progress);
-			}
-		},
-		duration, ease, force
-	);
-}
-
+/*
 BounceEffect::BounceEffect(Manager& manager) : Entity{ manager } {
 	Add<Tween>();
 }
@@ -278,22 +185,54 @@ Tween& ContinuousShakeEffect::Shake(
 		[]() {}, milliseconds{ 0 }, TweenEase::Linear, force
 	);
 }
+*/
+
+float ApplyEasing(TweenEase ease, float t) {
+	switch (ease) {
+		case TweenEase::Linear:	   return t;
+		case TweenEase::InSine:	   return 1.0f - std::cos(t * half_pi<float>);
+		case TweenEase::OutSine:   return std::sin(t * half_pi<float>);
+		case TweenEase::InOutSine: return -(std::cos(pi<float> * t) - 1.0f) / 2.0f;
+		default:				   return t;
+	}
+}
 
 } // namespace impl
 
-template <typename TEffect>
-TEffect& AddEffect(Entity& e) {
-	if (!e.Has<TEffect>()) {
-		e.Add<TEffect>(e.GetManager());
-	}
-	return e.Get<TEffect>();
+void TranslateTo(
+	Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
+	bool force
+) {
+	impl::AddTweenEffect<impl::TranslateEffect>(
+		entity, target_position, duration, ease, force, entity.GetPosition()
+	);
 }
 
-Tween& TintTo(
-	Entity& e, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
+void RotateTo(
+	Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
 ) {
-	return AddEffect<impl::TintEffect>(e).TintTo(e, target_tint, duration, ease, force);
+	impl::AddTweenEffect<impl::RotateEffect>(
+		entity, target_angle, duration, ease, force, entity.GetRotation()
+	);
 }
+
+void ScaleTo(
+	Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
+) {
+	impl::AddTweenEffect<impl::ScaleEffect>(
+		entity, target_scale, duration, ease, force, entity.GetScale()
+	);
+}
+
+void TintTo(
+	Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
+) {
+	impl::AddTweenEffect<impl::TintEffect>(
+		entity, target_tint, duration, ease, force, entity.GetTint()
+	);
+}
+
+/*
 
 Tween& FadeIn(Entity& e, milliseconds duration, TweenEase ease, bool force) {
 	return TintTo(e, color::White, duration, ease, force);
@@ -301,24 +240,6 @@ Tween& FadeIn(Entity& e, milliseconds duration, TweenEase ease, bool force) {
 
 Tween& FadeOut(Entity& e, milliseconds duration, TweenEase ease, bool force) {
 	return TintTo(e, color::Transparent, duration, ease, force);
-}
-
-Tween& ScaleTo(
-	Entity& e, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
-) {
-	return AddEffect<impl::ScaleEffect>(e).ScaleTo(e, target_scale, duration, ease, force);
-}
-
-Tween& TranslateTo(
-	Entity& e, const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
-) {
-	return AddEffect<impl::TranslateEffect>(e).TranslateTo(
-		e, target_position, duration, ease, force
-	);
-}
-
-Tween& RotateTo(Entity& e, float target_angle, milliseconds duration, TweenEase ease, bool force) {
-	return AddEffect<impl::RotateEffect>(e).RotateTo(e, target_angle, duration, ease, force);
 }
 
 void StopBounce(Entity& e, bool force) {
@@ -402,5 +323,6 @@ Tween& Every(
 		.OnComplete([entity]() mutable { entity.Destroy(); })
 		.Start();
 }
+*/
 
 } // namespace ptgn

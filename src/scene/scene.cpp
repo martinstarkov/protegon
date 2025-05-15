@@ -7,14 +7,14 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/tween.h"
 #include "events/input_handler.h"
 #include "physics/collision/collision.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/graphics/vfx/particle.h"
-#include "rendering/graphics/vfx/tween_effects.h"
 #include "rendering/renderer.h"
 #include "scene/camera.h"
+#include "tweening/tween.h"
+#include "tweening/tween_effects.h"
 
 namespace ptgn {
 
@@ -118,12 +118,18 @@ void Scene::PostUpdate() {
 		// tween_update_count++;
 	}
 
+	translate_effects_.Update(manager);
+	rotate_effects_.Update(manager);
+	scale_effects_.Update(manager);
+	tint_effects_.Update(manager);
+
 	impl::AnimationSystem::Update(manager);
 
-	float time{ game.time() };
-	for (auto [e, shake, offsets] : manager.EntitiesWith<impl::ShakeEffect, impl::Offsets>()) {
-		shake.Update(e, dt, time);
-	}
+	// TODO: Fix shake system.
+	// float time{ game.time() };
+	// for (auto [e, shake, offsets] : manager.EntitiesWith<impl::ShakeEffect, impl::Offsets>()) {
+	// 	shake.Update(e, dt, time);
+	// }
 	// PTGN_LOG("Scene ", key_, " updated ", tween_update_count, " tweens this frame");
 	manager.Refresh();
 
