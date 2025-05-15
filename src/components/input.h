@@ -6,7 +6,6 @@
 #include "core/entity.h"
 #include "events/key.h"
 #include "events/mouse.h"
-
 #include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/origin.h"
