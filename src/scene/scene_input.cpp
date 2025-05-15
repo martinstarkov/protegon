@@ -162,6 +162,7 @@ void SceneInput::UpdatePrevious() {
 
 void SceneInput::UpdateCurrent() {
 	PTGN_ASSERT(scene_ != nullptr);
+	// TODO: Use entity's camera.
 	V2_float pos{ GetMousePosition() };
 	Depth top_depth;
 	Entity top_entity;
@@ -203,6 +204,7 @@ void SceneInput::UpdateCurrent() {
 
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	PTGN_ASSERT(scene_ != nullptr);
+	// TODO: Use entity's camera.
 	V2_float pos{ GetMousePosition() };
 	switch (type) {
 		case MouseEvent::Move: {
