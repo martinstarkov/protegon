@@ -522,10 +522,18 @@ Color Surface::GetPixel(std::size_t index) const {
 Surface::Surface(SDL_Surface* sdl_surface) {
 	PTGN_ASSERT(sdl_surface != nullptr, "Invalid surface");
 
-	format				 = TextureFormat::RGBA8888;
+	format = TextureFormat::RGBA8888;
+
+	// TODO: In the future, instead of converting all formats to RGBA, figure out how to deal with
+	// Windows and MacOS discrepencies between image formats and SDL2 surface formats to enable the
+	// use of RGB888 format (faster for JPGs). When I was using this approach in the past, MacOS had
+	// an issue rendering JPG images as it perceived them as having 4 bytes per pixel with BGRA8888
+	// format even though SDL2 said they were RGB888. Whereas on Windows, the same JPGs opened as 3
+	// channel RGB888 surfaces as expected.
 	SDL_Surface* surface = SDL_ConvertSurfaceFormat(
 		sdl_surface, static_cast<std::uint32_t>(SDL_PIXELFORMAT_RGBA32), 0
 	);
+
 	PTGN_ASSERT(surface != nullptr, SDL_GetError());
 	bytes_per_pixel = surface->format->BytesPerPixel;
 
