@@ -2,6 +2,9 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "debug/stats.h"
 #include "math/vector2.h"
@@ -21,6 +24,8 @@ namespace ptgn {
 // JSON: .JSON
 // TODO: Add shader loading support (.VERT + .FRAG)
 void LoadResources(const path& resource_file);
+void LoadResource(std::string_view key, const path& resource_path);
+void LoadResources(const std::vector<std::pair<std::string_view, path>>& resource_paths);
 
 class LightManager;
 class RenderTarget;

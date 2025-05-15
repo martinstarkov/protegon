@@ -48,6 +48,8 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 
 #endif
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "common/assert.h"
 #include "debug/log.h"
@@ -308,6 +310,43 @@ void Game::Update() {
 
 } // namespace impl
 
+void LoadResource(std::string_view key, const path& resource_path) {
+	PTGN_ASSERT(
+		FileExists(resource_path),
+		"Cannot load non-existent resource file: ", resource_path.string()
+	);
+
+	std::string ext{ ToLower(resource_path.extension().string()) };
+
+	PTGN_ASSERT(!ext.empty(), "Resource file extension is invalid: ", resource_path.string());
+
+	if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif") {
+		game.texture.Load(key, resource_path);
+	} else if (ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus") {
+		game.sound.Load(key, resource_path);
+	} else if (ext == ".ttf") {
+		game.font.Load(key, resource_path);
+	} else if (ext == ".json") {
+		game.json.Load(key, resource_path);
+	} /*
+	  // TODO: Add shader loading support.
+	  else if (ext == ".vert" || ext == ".frag") {
+		game.shader.Load(key, p);
+	} */
+	else {
+		PTGN_ERROR(
+			"Attempting to load unsupported file extension from resource file: ",
+			resource_path.string()
+		);
+	}
+}
+
+void LoadResources(const std::vector<std::pair<std::string_view, path>>& resource_paths) {
+	for (const auto& [key, resource_path] : resource_paths) {
+		LoadResource(key, resource_path);
+	}
+}
+
 void LoadResources(const path& resource_file) {
 	auto resources{ LoadJson(resource_file) };
 
@@ -327,34 +366,7 @@ void LoadResources(const path& resource_file) {
 
 		taken_resource_keys.insert(key_hash);
 
-		path p{ resource_path.get<std::string>() };
-
-		PTGN_ASSERT(
-			FileExists(p), "Cannot load invalid resource path from resource file: ", p.string()
-		);
-
-		std::string ext{ ToLower(p.extension().string()) };
-
-		PTGN_ASSERT(!ext.empty(), "Resource file extension is invalid: ", p.string());
-
-		if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif") {
-			game.texture.Load(key, p);
-		} else if (ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus") {
-			game.sound.Load(key, p);
-		} else if (ext == ".ttf") {
-			game.font.Load(key, p);
-		} else if (ext == ".json") {
-			game.json.Load(key, p);
-		} /*
-		  // TODO: Add shader loading support.
-		  else if (ext == ".vert" || ext == ".frag") {
-			game.shader.Load(key, p);
-		} */
-		else {
-			PTGN_ERROR(
-				"Attempting to load unsupported file extension from resource file: ", p.string()
-			);
-		}
+		LoadResource(key, resource_path.get<std::string>());
 	}
 }
 
