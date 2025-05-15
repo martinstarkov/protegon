@@ -5,15 +5,15 @@
 #include <string_view>
 #include <utility>
 
-#include "SDL_error.h"
-#include "SDL_rwops.h"
-#include "SDL_ttf.h"
+#include "common/assert.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "resources/fonts.h"
-#include "common/assert.h"
+#include "SDL_error.h"
+#include "SDL_rwops.h"
+#include "SDL_ttf.h"
 #include "utility/file.h"
 
 namespace ptgn::impl {
@@ -25,32 +25,32 @@ void TTF_FontDeleter::operator()(TTF_Font* font) const {
 }
 
 void FontManager::Init() {
-	Load("", LiberationSansRegular, 20);
-	SetDefault("");
+	Load(FontKey{}, LiberationSansRegular, 20);
+	SetDefault(FontKey{});
 }
 
-V2_int FontManager::GetSize(std::size_t key, const std::string& content) const {
+V2_int FontManager::GetSize(const FontKey& key, const std::string& content) const {
 	PTGN_ASSERT(Has(key), "Cannot get size of font which has not been loaded");
 	V2_int size;
 	TTF_SizeUTF8(Get(key), content.c_str(), &size.x, &size.y);
 	return size;
 }
 
-void FontManager::SetDefault(std::string_view key) {
-	PTGN_ASSERT(Has(Hash(key)), "Font key must be loaded before setting it as default");
-	default_key_ = Hash(key);
+void FontManager::SetDefault(const FontKey& key) {
+	PTGN_ASSERT(Has(key), "Font key must be loaded before setting it as default");
+	default_key_ = key;
 }
 
-TTF_Font* FontManager::Get(std::size_t key) const {
+TTF_Font* FontManager::Get(const FontKey& key) const {
 	PTGN_ASSERT(Has(key), "Cannot get font key which is not loaded");
 	return fonts_.find(key)->second.get();
 }
 
-std::int32_t FontManager::GetHeight(std::size_t key) const {
+std::int32_t FontManager::GetHeight(const FontKey& key) const {
 	return TTF_FontHeight(Get(key));
 }
 
-bool FontManager::Has(std::size_t key) const {
+bool FontManager::Has(const FontKey& key) const {
 	return fonts_.find(key) != fonts_.end();
 }
 
@@ -79,19 +79,19 @@ FontManager::Font FontManager::LoadFromBinary(
 }
 
 void FontManager::Load(
-	std::string_view key, const path& filepath, std::int32_t size, std::int32_t index
+	const FontKey& key, const path& filepath, std::int32_t size, std::int32_t index
 ) {
-	fonts_.try_emplace(Hash(key), LoadFromFile(filepath, size, index));
+	fonts_.try_emplace(key, LoadFromFile(filepath, size, index));
 }
 
 void FontManager::Load(
-	std::string_view key, const FontBinary& binary, std::int32_t size, std::int32_t index
+	const FontKey& key, const FontBinary& binary, std::int32_t size, std::int32_t index
 ) {
-	fonts_.try_emplace(Hash(key), LoadFromBinary(binary, size, index));
+	fonts_.try_emplace(key, LoadFromBinary(binary, size, index));
 }
 
-void FontManager::Unload(std::string_view key) {
-	fonts_.erase(Hash(key));
+void FontManager::Unload(const FontKey& key) {
+	fonts_.erase(key);
 }
 
 } // namespace ptgn::impl

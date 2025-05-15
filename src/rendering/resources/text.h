@@ -35,10 +35,6 @@ struct TextContent : public StringComponent {
 	using StringComponent::StringComponent;
 };
 
-struct FontKey : public HashComponent {
-	using HashComponent::HashComponent;
-};
-
 struct FontSize : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 
@@ -90,9 +86,9 @@ public:
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
-	Text& SetFont(std::string_view font_key = "");
-	Text& SetContent(std::string_view content);
-	Text& SetColor(const Color& color);
+	Text& SetFont(const FontKey& font_key = "");
+	Text& SetContent(const TextContent& content);
+	Text& SetColor(const TextColor& color);
 
 	// To create text with multiple FontStyles, simply use &&, e.g.
 	// FontStyle::Italic && FontStyle::Bold
@@ -120,9 +116,9 @@ public:
 	// Determines how text is justified.
 	Text& SetTextJustify(TextJustify text_justify);
 
-	[[nodiscard]] std::size_t GetFontKey() const;
-	[[nodiscard]] std::string_view GetContent() const;
-	[[nodiscard]] Color GetColor() const;
+	[[nodiscard]] FontKey GetFontKey() const;
+	[[nodiscard]] TextContent GetContent() const;
+	[[nodiscard]] TextColor GetColor() const;
 	[[nodiscard]] FontStyle GetFontStyle() const;
 	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
 	[[nodiscard]] Color GetShadingColor() const;

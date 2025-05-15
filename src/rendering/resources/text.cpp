@@ -4,11 +4,6 @@
 #include <limits>
 #include <string>
 
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/drawable.h"
@@ -22,6 +17,11 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "text.h"
 
 namespace ptgn {
@@ -31,6 +31,7 @@ Text CreateText(
 	const FontKey& font_key
 ) {
 	Text text{ manager.CreateEntity() };
+	text.Add<TextureHandle>();
 	text.SetDraw<Text>();
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);
@@ -58,16 +59,16 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite::Draw(ctx, entity);
 }
 
-Text& Text::SetFont(std::string_view font_key) {
-	return SetParameter(FontKey{ Hash(font_key) });
+Text& Text::SetFont(const FontKey& font_key) {
+	return SetParameter(font_key);
 }
 
-Text& Text::SetContent(std::string_view content) {
-	return SetParameter(TextContent{ content });
+Text& Text::SetContent(const TextContent& content) {
+	return SetParameter(content);
 }
 
-Text& Text::SetColor(const Color& color) {
-	return SetParameter(TextColor{ color });
+Text& Text::SetColor(const TextColor& color) {
+	return SetParameter(color);
 }
 
 Text& Text::SetFontStyle(FontStyle font_style) {
@@ -104,15 +105,15 @@ Text& Text::SetTextJustify(TextJustify text_justify) {
 	return SetParameter(text_justify);
 }
 
-std::size_t Text::GetFontKey() const {
+FontKey Text::GetFontKey() const {
 	return GetParameter(FontKey{});
 }
 
-std::string_view Text::GetContent() const {
+TextContent Text::GetContent() const {
 	return GetParameter(TextContent{});
 }
 
-Color Text::GetColor() const {
+TextColor Text::GetColor() const {
 	return GetParameter(TextColor{});
 }
 
@@ -248,8 +249,7 @@ void Text::RecreateTexture() {
 			surface = TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), text_color, wrap_after);
 			break;
 		default:
-			PTGN_ERROR(
-				"Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
 			);
 	}
 

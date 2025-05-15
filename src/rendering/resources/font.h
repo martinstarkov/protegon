@@ -6,6 +6,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "components/generic.h"
 #include "math/vector2.h"
 #include "resources/fonts.h"
 #include "utility/file.h"
@@ -43,6 +44,10 @@ enum class FontStyle : int {
 	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
 
+struct FontKey : public HashComponent {
+	using HashComponent::HashComponent;
+};
+
 namespace impl {
 
 class Game;
@@ -54,18 +59,17 @@ struct TTF_FontDeleter {
 class FontManager {
 public:
 	void Load(
-		std::string_view key, const path& filepath, std::int32_t size = 20, std::int32_t index = 0
+		const FontKey& key, const path& filepath, std::int32_t size = 20, std::int32_t index = 0
 	);
 
 	void Load(
-		std::string_view key, const FontBinary& binary, std::int32_t size = 20,
-		std::int32_t index = 0
+		const FontKey& key, const FontBinary& binary, std::int32_t size = 20, std::int32_t index = 0
 	);
 
-	void Unload(std::string_view key);
+	void Unload(const FontKey& key);
 
-	// Empty string corresponds to the engine default font.
-	void SetDefault(std::string_view key = "");
+	// Empty font key corresponds to the engine default font.
+	void SetDefault(const FontKey& key = {});
 
 private:
 	friend class Game;
@@ -75,12 +79,12 @@ private:
 
 	void Init();
 
-	[[nodiscard]] V2_int GetSize(std::size_t key, const std::string& content) const;
+	[[nodiscard]] V2_int GetSize(const FontKey& key, const std::string& content) const;
 
 	// @return Total height of the font in pixels.
-	[[nodiscard]] std::int32_t GetHeight(std::size_t key) const;
+	[[nodiscard]] std::int32_t GetHeight(const FontKey& key) const;
 
-	[[nodiscard]] bool Has(std::size_t key) const;
+	[[nodiscard]] bool Has(const FontKey& key) const;
 
 	[[nodiscard]] static Font LoadFromBinary(
 		const FontBinary& binary, std::int32_t size, std::int32_t index
@@ -90,11 +94,11 @@ private:
 		const path& filepath, std::int32_t size, std::int32_t index
 	);
 
-	[[nodiscard]] TTF_Font* Get(std::size_t key) const;
+	[[nodiscard]] TTF_Font* Get(const FontKey& key) const;
 
 	std::unordered_map<std::size_t, Font> fonts_;
 
-	std::size_t default_key_;
+	FontKey default_key_;
 };
 
 } // namespace impl
