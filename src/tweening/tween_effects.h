@@ -97,10 +97,13 @@ public:
 	void Update(Manager& manager) {
 		for (auto [entity, effect] : manager.EntitiesWith<TComponent>()) {
 			if (effect.tasks.empty()) {
+				entity.template Remove<TComponent>();
 				continue;
 			}
 
 			auto& task = effect.tasks.front();
+
+			PTGN_ASSERT(task.timer.IsRunning());
 
 			float t = task.timer.template ElapsedPercentage<milliseconds, float>(task.duration);
 			float eased_t = ApplyEasing(task.ease, t);
@@ -110,6 +113,7 @@ public:
 
 			if (task.timer.Completed(task.duration)) {
 				effect.tasks.pop_front();
+				effect.tasks.front().timer.Start(true);
 			}
 		}
 	}
@@ -127,22 +131,24 @@ struct EffectInfo {
 	Timer timer;
 
 	EffectInfo(const T& start, const T& target, milliseconds duration, TweenEase ease_type) :
-		start_value{ start },
-		target_value{ target },
-		duration{ duration },
-		ease{ ease_type },
-		timer{ true /* start timer immediately upon effect addition */ } {}
+		start_value{ start }, target_value{ target }, duration{ duration }, ease{ ease_type } {}
 };
 
-template <typename T>
-struct EffectComponent {
-	std::deque<EffectInfo<T>> tasks;
+struct TranslateEffect {
+	std::deque<EffectInfo<V2_float>> tasks;
 };
 
-using TranslateEffect = EffectComponent<V2_float>;
-using RotateEffect	  = EffectComponent<float>;
-using ScaleEffect	  = EffectComponent<V2_float>;
-using TintEffect	  = EffectComponent<Color>;
+struct RotateEffect {
+	std::deque<EffectInfo<float>> tasks;
+};
+
+struct ScaleEffect {
+	std::deque<EffectInfo<V2_float>> tasks;
+};
+
+struct TintEffect {
+	std::deque<EffectInfo<Color>> tasks;
+};
 
 class TranslateEffectSystem : public EffectSystemBase<TranslateEffect, V2_float> {
 protected:
@@ -180,7 +186,10 @@ void AddTweenEffect(
 	auto& comp = entity.GetOrAdd<TComponent>();
 
 	T start{};
-	if (force || comp.tasks.empty()) {
+
+	bool first_task{ force || comp.tasks.empty() };
+
+	if (first_task) {
 		comp.tasks.clear();
 		start = current_value;
 	} else {
@@ -188,7 +197,11 @@ void AddTweenEffect(
 		start = comp.tasks.back().target_value;
 	}
 
-	comp.tasks.emplace_back(start, target, duration, ease);
+	auto& task = comp.tasks.emplace_back(start, target, duration, ease);
+
+	if (first_task) {
+		task.timer.Start(true);
+	}
 }
 
 } // namespace impl
