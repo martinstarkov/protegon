@@ -1,49 +1,44 @@
+#include "core/entity.h"
 #include "core/game.h"
+#include "debug/log.h"
 #include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "ui/button.h"
-#include "utility/log.h"
 
 using namespace ptgn;
 
-class ToggleButtonGroupExample : public Scene {
-	ToggleButtonGroup g;
+class ToggleButtonGroupScene : public Scene {
+	ToggleButtonGroup group;
 
-	V2_float size{ 200, 130 };
-	float x1{ 50 };
-	float x2{ 400 };
-	float y{ 50 };
-	float y_step{ 130 };
-
-	ToggleButton CreateToggleButton(const V2_float& position, const ButtonCallback& on_activate) {
-		ToggleButton b{ manager };
+	ToggleButton CreateToggleButtonGroupItem(
+		const V2_float& position, const ButtonCallback& on_activate
+	) {
+		ToggleButton b{ CreateToggleButton(manager, false, on_activate) };
 		b.SetPosition(position);
-		b.SetRect(size, Origin::TopLeft);
+		b.SetSize({ 200, 130 });
+		b.SetOrigin(Origin::TopLeft);
 		b.SetBackgroundColor(color::LightRed);
 		b.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
 		b.SetBackgroundColorToggled(color::LightBlue);
 		b.SetBackgroundColorToggled(color::Blue, ButtonState::Hover);
 		b.SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed);
-		b.OnActivate(on_activate);
 		return b;
 	}
 
 	void Enter() override {
-		g.Clear();
-
-		y_step = 180;
-
-		g.Load("1", CreateToggleButton(V2_float{ x1, y + y_step * 0 }, []() { PTGN_LOG("1"); }));
-		g.Load("2", CreateToggleButton(V2_float{ x1, y + y_step * 1 }, []() { PTGN_LOG("2"); }));
-		g.Load("3", CreateToggleButton(V2_float{ x1, y + y_step * 2 }, []() { PTGN_LOG("3"); }));
-		g.Load("4", CreateToggleButton(V2_float{ x1, y + y_step * 3 }, []() { PTGN_LOG("4"); }));
+		group.Load("1", CreateToggleButtonGroupItem(V2_float{ 50, 50 }, []() { PTGN_LOG("1"); }));
+		group.Load("2", CreateToggleButtonGroupItem(V2_float{ 50, 230 }, []() { PTGN_LOG("2"); }));
+		group.Load("3", CreateToggleButtonGroupItem(V2_float{ 50, 410 }, []() { PTGN_LOG("3"); }));
+		group.Load("4", CreateToggleButtonGroupItem(V2_float{ 50, 590 }, []() { PTGN_LOG("4"); }));
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ToggleButtonGroupExample");
-	game.scene.Enter<ToggleButtonGroupExample>("toggle_button_group_example");
+	game.Init("ToggleButtonGroupScene");
+	game.scene.Enter<ToggleButtonGroupScene>("");
 	return 0;
 }
