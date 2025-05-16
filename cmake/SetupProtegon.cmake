@@ -52,8 +52,6 @@ endif()
 target_include_directories(protegon
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/ecs/include"
-         "${CMAKE_CURRENT_SOURCE_DIR}/modules/json/single_include"
-         "${CMAKE_CURRENT_SOURCE_DIR}/modules/luple/include"
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 # Add d to debug static lib files to differentiate them from release
