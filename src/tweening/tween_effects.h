@@ -113,7 +113,9 @@ public:
 
 			if (task.timer.Completed(task.duration)) {
 				effect.tasks.pop_front();
-				effect.tasks.front().timer.Start(true);
+				if (!effect.tasks.empty()) {
+					effect.tasks.front().timer.Start(true);
+				}
 			}
 		}
 	}
@@ -206,21 +208,61 @@ void AddTweenEffect(
 
 } // namespace impl
 
+/**
+ * @brief Translates an entity to a target position over a specified duration using a tweening
+ * function.
+ *
+ * @param entity The entity to be moved.
+ * @param target_position The position to move the entity to.
+ * @param duration The duration over which the translation should occur.
+ * @param ease The easing function to apply for the translation animation. Defaults to
+ * TweenEase::Linear.
+ * @param force If true, forcibly overrides any ongoing translation. Defaults to true.
+ */
 void TranslateTo(
 	Entity& entity, const V2_float& target_position, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
+/**
+ * @brief Rotates an entity to a target angle over a specified duration using a tweening function.
+ *
+ * @param e The entity to be rotated.
+ * @param target_angle The angle (in radians) to rotate the entity to. Positive clockwise, negative
+ * counter-clockwise.
+ * @param duration The duration over which the rotation should occur.
+ * @param ease The easing function to apply for the rotation animation. Defaults to
+ * TweenEase::Linear.
+ * @param force If true, forcibly overrides any ongoing rotation. Defaults to true.
+ */
 void RotateTo(
 	Entity& e, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 	bool force = true
 );
 
+/**
+ * @brief Scales an entity to a target size over a specified duration using a tweening function.
+ *
+ * @param e The entity to be scaled.
+ * @param target_scale The target scale (width, height) to apply to the entity.
+ * @param duration The duration over which the scaling should occur.
+ * @param ease The easing function to apply for the scale animation. Defaults to TweenEase::Linear.
+ * @param force If true, forcibly overrides any ongoing scaling. Defaults to true.
+ */
 void ScaleTo(
 	Entity& e, const V2_float& target_scale, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
+/**
+ * @brief Tints an entity to a target color over a specified duration using a tweening function.
+ *
+ * @param e The entity to be tinted.
+ * @param target_tint The target color tint to apply to the entity.
+ * @param duration The duration over which the tinting should occur.
+ * @param ease The easing function to apply for the tint animation. Defaults to TweenEase::Linear.
+ * @param force If true, forcibly overrides any ongoing tinting. Defaults to true.
+ */
 void TintTo(
 	Entity& e, const Color& target_tint, milliseconds duration, TweenEase ease = TweenEase::Linear,
 	bool force = true
