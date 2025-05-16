@@ -62,17 +62,6 @@ public:
 		}
 	}
 
-	// Get clamped index based off of coordinates.
-	std::size_t IX(int xcoord, int ycoord) const {
-		/*PTGN_ASSERT(xcoord >= 0 && xcoord <= size.x - 1);
-		PTGN_ASSERT(ycoord >= 0 && ycoord <= size.y - 1);*/
-		// Clamp coordinates.
-		/*xcoord = std::clamp(xcoord, 0, size.x - 1);
-		ycoord = std::clamp(ycoord, 0, size.y - 1);*/
-
-		return ycoord * size.x + xcoord;
-	}
-
 	// Add density to the density field.
 	void AddDensity(int xcoord, int ycoord, float amount, int radius = 0) {
 		if (xcoord < 0 || xcoord > size.x - 1 || ycoord < 0 || ycoord > size.y - 1) {
@@ -80,16 +69,18 @@ public:
 		}
 
 		if (radius > 0) {
-			for (int i{ -radius }; i <= radius; ++i) {
-				for (int j{ -radius }; j <= radius; ++j) {
+			auto ycoordsize{ ycoord * size.x };
+			for (int j{ -radius }; j <= radius; ++j) {
+				auto row{ ycoordsize + j * size.x };
+				for (int i{ -radius }; i <= radius; ++i) {
 					if (i * i + j * j <= radius * radius) {
-						auto index{ IX(xcoord + i, ycoord + j) };
+						auto index{ xcoord + i + row };
 						this->density[index] += amount;
 					}
 				}
 			}
 		} else {
-			auto index{ IX(xcoord, ycoord) };
+			auto index{ xcoord + ycoord * size.x };
 			this->density[index] += amount;
 		}
 	}
@@ -100,7 +91,7 @@ public:
 			return;
 		}
 
-		auto index{ IX(xcoord, ycoord) };
+		auto index{ xcoord + ycoord * size.x };
 		this->x[index] += pxs;
 		this->y[index] += pys;
 	}
@@ -109,14 +100,14 @@ public:
 
 	// Set boundaries to opposite of adjacent layer.
 	void SetBoundaries(int b, std::vector<float>& xs) const {
-		for (int i = 1; i < size.x - 1; ++i) {
+		for (int i{ 1 }; i < size.x - 1; ++i) {
 			int top					= size.x + i;
 			int bottom				= length - 2 * size.x + i;
 			xs[i]					= (b == 2 ? -xs[top] : xs[top]);
 			xs[length - size.x + i] = (b == 2 ? -xs[bottom] : xs[bottom]);
 		}
 
-		for (int j = 1; j < size.y - 1; ++j) {
+		for (int j{ 1 }; j < size.y - 1; ++j) {
 			int row				 = j * size.x;
 			xs[row]				 = (b == 1 ? -xs[row + 1] : xs[row + 1]);
 			xs[row + size.x - 1] = (b == 1 ? -xs[row + size.x - 2] : xs[row + size.x - 2]);
@@ -138,11 +129,13 @@ public:
 		float c_reciprocal{ 1.0f / c };
 		for (std::size_t iteration{ 0 }; iteration < iterations; ++iteration) {
 			for (int j{ 1 }; j < size.y - 1; ++j) {
+				auto row{ j * size.x };
 				for (int i{ 1 }; i < size.x - 1; ++i) {
-					auto index{ IX(i, j) };
+					auto index{ row + i };
+
 					xs[index] =
-						(x0[index] + a * (xs[IX(i + 1, j)] + xs[IX(i - 1, j)] + xs[IX(i, j + 1)] +
-										  xs[IX(i, j - 1)] + xs[index] + xs[index])) *
+						(x0[index] + a * (xs[index + 1] + xs[index] + xs[index - 1] +
+										  xs[index + size.x] + xs[index] + xs[index - size.x])) *
 						c_reciprocal;
 				}
 			}
@@ -165,10 +158,11 @@ public:
 		std::vector<float>& div, std::size_t iterations
 	) {
 		for (int j{ 1 }; j < size.y - 1; ++j) {
+			auto row{ j * size.x };
 			for (int i{ 1 }; i < size.x - 1; ++i) {
-				auto index{ IX(i, j) };
-				div[index] = -0.5f * ((vx[IX(i + 1, j)] - vx[IX(i - 1, j)]) / size.x +
-									  (vy[IX(i, j + 1)] - vy[IX(i, j - 1)]) / size.y);
+				auto index{ row + i };
+				div[index] = -0.5f * ((vx[index + 1] - vx[index - 1]) / size.x +
+									  (vy[index + size.x] - vy[index - size.x]) / size.y);
 				p[index]   = 0;
 			}
 		}
@@ -179,10 +173,11 @@ public:
 		LinSolve(0, p, div, 1, 6, iterations);
 
 		for (int j{ 1 }; j < size.y - 1; ++j) {
+			auto row{ j * size.x };
 			for (int i{ 1 }; i < size.x - 1; ++i) {
-				auto index{ IX(i, j) };
-				vx[index] -= 0.5f * (p[IX(i + 1, j)] - p[IX(i - 1, j)]) * size.x;
-				vy[index] -= 0.5f * (p[IX(i, j + 1)] - p[IX(i, j - 1)]) * size.y;
+				auto index{ row + i };
+				vx[index] -= 0.5f * (p[index + 1] - p[index - 1]) * size.x;
+				vy[index] -= 0.5f * (p[index + size.x] - p[index - size.x]) * size.y;
 			}
 		}
 
@@ -197,9 +192,10 @@ public:
 	) {
 		float dt0x{ delta_time * size.x };
 		float dt0y{ delta_time * size.y };
-		for (int i{ 1 }; i < size.x - 1; ++i) {
-			for (int j{ 1 }; j < size.y - 1; ++j) {
-				auto index{ IX(i, j) };
+		for (int j{ 1 }; j < size.y - 1; ++j) {
+			auto row{ j * size.x };
+			for (int i{ 1 }; i < size.x - 1; ++i) {
+				auto index{ row + i };
 
 				float xs{ i - dt0x * u[index] };
 				float ys{ j - dt0y * v[index] };
@@ -213,8 +209,8 @@ public:
 				float s0{ 1 - s1 };
 				float t1{ ys - j0 };
 				float t0{ 1 - t1 };
-				d[index] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
-						   s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
+				d[index] = s0 * (t0 * d0[i0 + j0 * size.x] + t1 * d0[i0 + j1 * size.x]) +
+						   s1 * (t0 * d0[i1 + j0 * size.x] + t1 * d0[i1 + j1 * size.x]);
 			}
 		}
 		SetBoundaries(b, d);
@@ -296,12 +292,13 @@ public:
 			density_graph = !density_graph;
 		}
 
-		for (int i{ 0 }; i < fluid.size.x; ++i) {
-			for (int j{ 0 }; j < fluid.size.y; ++j) {
+		for (int j{ 0 }; j < fluid.size.y; ++j) {
+			auto row{ fluid.size.x * j };
+			for (int i{ 0 }; i < fluid.size.x; ++i) {
 				V2_int position{ i, j };
 				Color color{ 0, 0, 0, 255 };
 
-				auto index = fluid.IX(i, j);
+				auto index{ i + row };
 
 				auto density{ fluid.density[index] };
 
