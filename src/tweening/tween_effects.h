@@ -227,7 +227,7 @@ void TranslateTo(
 /**
  * @brief Rotates an entity to a target angle over a specified duration using a tweening function.
  *
- * @param e The entity to be rotated.
+ * @param entity The entity to be rotated.
  * @param target_angle The angle (in radians) to rotate the entity to. Positive clockwise, negative
  * counter-clockwise.
  * @param duration The duration over which the rotation should occur.
@@ -236,87 +236,159 @@ void TranslateTo(
  * @param force If true, forcibly overrides any ongoing rotation. Defaults to true.
  */
 void RotateTo(
-	Entity& e, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
+	Entity& entity, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
 	bool force = true
 );
 
 /**
  * @brief Scales an entity to a target size over a specified duration using a tweening function.
  *
- * @param e The entity to be scaled.
+ * @param entity The entity to be scaled.
  * @param target_scale The target scale (width, height) to apply to the entity.
  * @param duration The duration over which the scaling should occur.
  * @param ease The easing function to apply for the scale animation. Defaults to TweenEase::Linear.
  * @param force If true, forcibly overrides any ongoing scaling. Defaults to true.
  */
 void ScaleTo(
-	Entity& e, const V2_float& target_scale, milliseconds duration,
+	Entity& entity, const V2_float& target_scale, milliseconds duration,
 	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
 /**
  * @brief Tints an entity to a target color over a specified duration using a tweening function.
  *
- * @param e The entity to be tinted.
+ * @param entity The entity to be tinted.
  * @param target_tint The target color tint to apply to the entity.
  * @param duration The duration over which the tinting should occur.
  * @param ease The easing function to apply for the tint animation. Defaults to TweenEase::Linear.
  * @param force If true, forcibly overrides any ongoing tinting. Defaults to true.
  */
 void TintTo(
-	Entity& e, const Color& target_tint, milliseconds duration, TweenEase ease = TweenEase::Linear,
-	bool force = true
+	Entity& entity, const Color& target_tint, milliseconds duration,
+	TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-/*
-Tween& FadeIn(
-	Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
+/**
+ * @brief Fades in the specified entity over a given duration.
+ *
+ * @param entity The entity to apply the fade-in effect to.
+ * @param duration The time span over which the fade-in will occur.
+ * @param ease The easing function used to interpolate the fade (default is linear).
+ * @param force If true, the fade-in will override any ongoing fade effect (default is true).
+ */
+void FadeIn(
+	Entity& entity, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-Tween& FadeOut(
-	Entity& e, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
+/**
+ * @brief Fades out the specified entity over a given duration.
+ *
+ * @param entity The entity to apply the fade-out effect to.
+ * @param duration The time span over which the fade-out will occur.
+ * @param ease The easing function used to interpolate the fade (default is linear).
+ * @param force If true, the fade-out will override any ongoing fade effect (default is true).
+ */
+void FadeOut(
+	Entity& entity, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
 );
 
-// Stops the current bounce tween and moves onto the next one in the queue.
-// @param force If true, clears the entire bounce queue.
-void StopBounce(Entity& e, bool force = true);
+/**
+ * @brief Stops the current bounce tween and proceeds to the next one in the queue.
+ *
+ * @param entity The entity whose bounce animation should be stopped.
+ * @param force If true, clears the entire bounce queue instead of just the current tween.
+ */
+void StopBounce(Entity& entity, bool force = true);
 
-// Bounce starts with upward motion unless reversed.
-// @param duration Duration of the upward motion.
-// @param repeats If -1, bounce continues until StopBounce is called.
-// @param static_offset A continuous offset from the entity position.
-Tween& Bounce(
-	Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
+/**
+ * @brief Applies a bouncing motion to the specified entity.
+ *
+ * The bounce starts with an upward motion unless reversed. It uses a tweening function
+ * for smooth animation and can repeat a specified number of times or indefinitely.
+ *
+ * @param entity The entity to apply the bounce effect to.
+ * @param bounce_amplitude The peak offset applied during the bounce animation.
+ * @param static_offset A constant offset added to the entity's position throughout the animation.
+ * @param duration The duration of one bounce cycle (e.g., up and down).
+ * @param ease The easing function to use for the animation.
+ * @param repeats Number of bounce cycles. If -1, bounce continues until StopBounce is called.
+ * @param force If true, overrides any existing bounce effect on the entity.
+ */
+void Bounce(
+	Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
 	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force = true
 );
 
-// @param intensity Range: [0, 1].
-Tween& Shake(
-	Entity& e, float intensity, milliseconds duration, const ShakeConfig& config = {},
+/**
+ * @brief Applies a shaking effect to the specified entity.
+ *
+ * @param entity The entity to apply the shake effect to.
+ * @param intensity The intensity of the shake, in the range [0, 1].
+ * @param duration The total duration of the shake effect.
+ * @param config Configuration parameters for the shake behavior.
+ * @param force If true, overrides any existing shake effect.
+ */
+void Shake(
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
 	bool force = true
 );
 
-// @param intensity Range: [0, 1].
-Tween& Shake(Entity& e, float intensity, const ShakeConfig& config = {}, bool force = true);
+/**
+ * @brief Applies a continuous shake effect to the specified entity.
+ *
+ * This overload does not specify a duration and is used for indefinite shaking
+ * until stopped with StopShake.
+ *
+ * @param entity The entity to apply the shake effect to.
+ * @param intensity The intensity of the shake, in the range [0, 1].
+ * @param config Configuration parameters for the shake behavior.
+ * @param force If true, overrides any existing shake effect.
+ */
+void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool force = true);
 
-void StopShake(Entity& e, bool force = true);
+/**
+ * @brief Stops any ongoing shake effect on the specified entity.
+ *
+ * @param entity The entity whose shake effect should be stopped.
+ * @param force If true, clears all queued or active shake effects.
+ */
+void StopShake(Entity& entity, bool force = true);
 
-// Calls the callback after the given duration has elapsed.
-Tween& After(Manager& manager, milliseconds duration, const std::function<void()>& callback);
+/**
+ * @brief Executes a callback once after a specified delay.
+ *
+ * @param manager The animation or tween manager responsible for scheduling the callback.
+ * @param duration The delay before the callback is triggered.
+ * @param callback The function to call after the delay has elapsed.
+ */
+void After(Manager& manager, milliseconds duration, const std::function<void()>& callback);
 
-// Calls the callback during the given duration.
-Tween& During(Manager& manager, milliseconds duration, const std::function<void()>& callback);
+/**
+ * @brief Executes a callback continuously during a specified time window.
+ *
+ * @param manager The animation or tween manager responsible for scheduling the callback.
+ * @param duration The duration during which the callback will be invoked repeatedly (e.g., once per
+ * frame).
+ * @param callback The function to invoke during the duration.
+ */
+void During(Manager& manager, milliseconds duration, const std::function<void()>& callback);
 
-// Calls the callback every duration for a certain number of repeats.
-// @param repeats If -1, repeats indefinitely until exit_condition_callback returns true. Warning:
-// if condition_callback is nullptr, the callback will repeat until the manager is cleared!
-// @param exit_condition_callback Called every frame of the duration. If it ever returns true, the
-// callback repetition is stopped.
-Tween& Every(
+/**
+ * @brief Executes a callback repeatedly at fixed intervals, with optional exit conditions.
+ *
+ * @param manager The animation or tween manager responsible for scheduling the callback.
+ * @param duration The interval between each callback execution.
+ * @param repeats Number of repetitions. If -1, repeats indefinitely until the exit condition is
+ * met.
+ * @param callback The function to call every interval.
+ * @param exit_condition_callback A function called every frame during the interval.
+ *                                If it returns true, repetition stops early.
+ *                                WARNING: If this is nullptr and repeats == -1, the callback will
+ * repeat indefinitely.
+ */
+void Every(
 	Manager& manager, milliseconds duration, std::int64_t repeats,
 	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
 );
-
-*/
 
 } // namespace ptgn

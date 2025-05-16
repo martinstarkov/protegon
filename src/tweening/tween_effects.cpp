@@ -232,15 +232,15 @@ void TintTo(
 	);
 }
 
+void FadeIn(Entity& entity, milliseconds duration, TweenEase ease, bool force) {
+	return TintTo(entity, color::White, duration, ease, force);
+}
+
+void FadeOut(Entity& entity, milliseconds duration, TweenEase ease, bool force) {
+	return TintTo(entity, color::Transparent, duration, ease, force);
+}
+
 /*
-
-Tween& FadeIn(Entity& e, milliseconds duration, TweenEase ease, bool force) {
-	return TintTo(e, color::White, duration, ease, force);
-}
-
-Tween& FadeOut(Entity& e, milliseconds duration, TweenEase ease, bool force) {
-	return TintTo(e, color::Transparent, duration, ease, force);
-}
 
 void StopBounce(Entity& e, bool force) {
 	if (!e.Has<impl::BounceEffect>()) {
