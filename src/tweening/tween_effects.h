@@ -4,6 +4,7 @@
 #include <deque>
 #include <functional>
 
+#include "components/offsets.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
@@ -15,6 +16,7 @@
 
 namespace ptgn {
 
+/*
 struct ShakeConfig {
 	// Maximum translation distance during shaking.
 	V2_float maximum_translation{ 30.0f, 30.0f };
@@ -32,6 +34,7 @@ struct ShakeConfig {
 	// Amount of trauma per second that is recovered.
 	float recovery_speed{ 0.5f };
 };
+*/
 
 namespace impl {
 
@@ -132,6 +135,8 @@ struct EffectInfo {
 	TweenEase ease{ TweenEase::Linear };
 	Timer timer;
 
+	EffectInfo() = default;
+
 	EffectInfo(const T& start, const T& target, milliseconds duration, TweenEase ease_type) :
 		start_value{ start }, target_value{ target }, duration{ duration }, ease{ ease_type } {}
 };
@@ -150,6 +155,26 @@ struct ScaleEffect {
 
 struct TintEffect {
 	std::deque<EffectInfo<Color>> tasks;
+};
+
+struct BounceEffect {
+	std::deque<EffectInfo<V2_float>> tasks;
+	V2_float static_offset;
+	std::int64_t remaining_repeats{ -1 }; // -1 means infinite
+};
+
+struct ShakeConfig {
+	float frequency = 20.0f; // shakes per second
+	float damping	= 1.0f;	 // how quickly shake fades
+};
+
+struct ShakeEffect {
+	bool indefinite = false;
+	float intensity = 1.0f;
+	ShakeConfig config;
+	Timer timer;
+	milliseconds duration{ 0 };
+	V2_float original_position;
 };
 
 class TranslateEffectSystem : public EffectSystemBase<TranslateEffect, V2_float> {
@@ -177,6 +202,38 @@ class TintEffectSystem : public EffectSystemBase<TintEffect, Color> {
 protected:
 	void Apply(Entity& entity, const Color& value) override {
 		entity.SetTint(value);
+	}
+};
+
+class BounceEffectSystem : public EffectSystemBase<BounceEffect, V2_float> {
+protected:
+	void Apply(Entity& entity, const V2_float& value) override {
+		auto& offsets			= entity.Get<Offsets>();
+		auto& bounce			= entity.Get<BounceEffect>();
+		offsets.bounce.position = bounce.static_offset + value;
+	}
+};
+
+class ShakeEffectSystem {
+public:
+	void Update(Manager& manager) {
+		for (auto [entity, shake] : manager.EntitiesWith<ShakeEffect>()) {
+			float t = shake.timer.Elapsed<duration<float, seconds::period>>().count();
+			if (!shake.indefinite && shake.timer.Completed(shake.duration)) {
+				entity.Get<Offsets>().shake = {};
+				entity.Remove<ShakeEffect>();
+				continue;
+			}
+
+			// TODO: Switch to different algorithm.
+
+			float damp	  = std::exp(-shake.config.damping * t);
+			float angle	  = two_pi<float> * shake.config.frequency * t;
+			float offsetX = std::sin(angle) * shake.intensity * damp;
+			float offsetY = std::cos(angle) * shake.intensity * damp;
+
+			entity.Get<Offsets>().shake.position = V2_float{ offsetX, offsetY };
+		}
 	}
 };
 

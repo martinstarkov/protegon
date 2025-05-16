@@ -122,6 +122,8 @@ void Scene::PostUpdate() {
 	rotate_effects_.Update(manager);
 	scale_effects_.Update(manager);
 	tint_effects_.Update(manager);
+	bounce_effects_.Update(manager);
+	shake_effects_.Update(manager);
 
 	impl::AnimationSystem::Update(manager);
 

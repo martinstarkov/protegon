@@ -240,6 +240,85 @@ void FadeOut(Entity& entity, milliseconds duration, TweenEase ease, bool force) 
 	return TintTo(entity, color::Transparent, duration, ease, force);
 }
 
+void Bounce(
+	Entity& entity, const V2_float& amplitude, const V2_float& static_offset, milliseconds duration,
+	TweenEase ease, std::int64_t repeats, bool force
+) {
+	auto& bounce = entity.GetOrAdd<impl::BounceEffect>();
+	if (force) {
+		bounce.tasks.clear();
+		bounce.remaining_repeats = repeats;
+	}
+
+	bounce.static_offset	  = static_offset;
+	std::int64_t bounce_count = (repeats < 0) ? 2 : 2 * repeats;
+
+	V2_float down = { 0, 0 }; // assuming origin
+	V2_float up	  = amplitude;
+
+	for (std::int64_t i = 0; i < bounce_count; ++i) {
+		V2_float target = (i % 2 == 0) ? up : down;
+		auto& task =
+			bounce.tasks.emplace_back((i % 2 == 0) ? down : up, target, duration / 2, ease);
+		if (i == 0) {
+			task.timer.Start(true);
+		}
+	}
+}
+
+void Shake(
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force
+) {
+	auto& shake = entity.GetOrAdd<impl::ShakeEffect>();
+	if (force || !entity.Has<impl::ShakeEffect>()) {
+		shake.timer.Start(true);
+		shake.original_position = entity.GetPosition();
+		shake.duration			= duration;
+		shake.intensity			= intensity;
+		shake.indefinite		= false;
+		shake.config			= config;
+	}
+}
+
+void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
+	auto& shake = entity.GetOrAdd<impl::ShakeEffect>();
+	if (force || !entity.Has<impl::ShakeEffect>()) {
+		shake.timer.Start(true);
+		shake.original_position = entity.GetPosition();
+		shake.duration			= milliseconds(0);
+		shake.intensity			= intensity;
+		shake.indefinite		= true;
+		shake.config			= config;
+	}
+}
+
+void StopBounce(Entity& entity, bool force) {
+	if (!entity.Has<impl::BounceEffect>()) {
+		return;
+	}
+
+	auto& bounce			= entity.Get<impl::BounceEffect>();
+	auto& offsets			= entity.Get<impl::Offsets>();
+	offsets.bounce.position = bounce.static_offset; // reset to just static
+
+	if (force) {
+		bounce.tasks.clear();
+	} else if (!bounce.tasks.empty()) {
+		bounce.tasks.pop_front();
+		if (!bounce.tasks.empty()) {
+			bounce.tasks.front().timer.Start(true);
+		}
+	}
+}
+
+void StopShake(Entity& entity, bool force) {
+	if (!entity.Has<impl::ShakeEffect>()) {
+		return;
+	}
+	entity.Get<impl::Offsets>().shake = {};
+	entity.Remove<impl::ShakeEffect>();
+}
+
 /*
 
 void StopBounce(Entity& e, bool force) {
@@ -285,6 +364,10 @@ void StopShake(Entity& e, bool force) {
 		effect.Reset(e);
 	}
 }
+
+*/
+
+/*
 
 Tween& After(Manager& manager, milliseconds duration, const std::function<void()>& callback) {
 	auto entity{ manager.CreateEntity() };

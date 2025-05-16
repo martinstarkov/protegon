@@ -76,6 +76,8 @@ private:
 	impl::RotateEffectSystem rotate_effects_;
 	impl::ScaleEffectSystem scale_effects_;
 	impl::TintEffectSystem tint_effects_;
+	impl::BounceEffectSystem bounce_effects_;
+	impl::ShakeEffectSystem shake_effects_;
 
 	// void ClearTarget();
 	void InternalEnter();
