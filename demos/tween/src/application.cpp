@@ -2,9 +2,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
-
-class TweenExampleScene : public Scene {
+class TweenScene : public Scene {
 public:
 	Color color;
 	V2_float pos;
@@ -199,7 +197,7 @@ public:
 		config10.Reverse();
 		config10.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
-		config11.Ease(TweenEase::OutSine);
+		config11.Ease(AsymmetricalEase::OutSine);
 		config11.Yoyo();
 		config11.Repeat(-1);
 		config11.Reverse();
@@ -215,9 +213,6 @@ public:
 		for (std::size_t i = 0; i < tweens.size(); ++i) {
 			std::get<V2_float>(tweens[i]) = get_pos(i);
 			auto& t						  = std::get<Tween>(tweens[i]);
-			if (!t.IsValid()) {
-				continue;
-			}
 			t.Start();
 		}
 
@@ -226,18 +221,11 @@ public:
 
 	void Update() override {
 		for (auto& [t, c, p] : tweens) {
-			if (!t.IsValid()) {
-				continue;
-			}
 			t.Step(game.dt());
 		}
 
 		if (game.input.KeyDown(Key::P)) {
 			for (auto& [t, c, p] : tweens) {
-				if (!t.IsValid()) {
-					continue;
-				}
-
 				if (t.IsPaused()) {
 					t.Resume();
 				} else {
@@ -248,10 +236,6 @@ public:
 
 		if (game.input.KeyDown(Key::R)) {
 			for (auto& [t, c, p] : tweens) {
-				if (!t.IsValid()) {
-					continue;
-				}
-
 				t.Start();
 			}
 		}
@@ -259,7 +243,6 @@ public:
 		if (game.input.KeyDown(Key::S)) {
 			PTGN_ASSERT(!tweens.empty());
 			auto& [t, c, p] = tweens[0];
-			PTGN_ASSERT(t.IsValid());
 			t.Stop();
 		}
 
@@ -268,18 +251,14 @@ public:
 
 	void Draw() {
 		for (auto& [t, c, p] : tweens) {
-			if (!t.IsValid()) {
-				continue;
-			}
-
 			p.x = game.window.GetSize().x * t.GetProgress();
-			Rect{ p, size, Origin::CenterTop }.Draw(c);
+			DrawDebugRect(p, size, c, Origin::CenterTop, -1.0f);
 		}
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TweenExample", window_size);
-	game.scene.Enter<TweenExampleScene>("tween_example");
+	game.Init("TweenScene");
+	game.scene.Enter<TweenScene>("");
 	return 0;
 }
