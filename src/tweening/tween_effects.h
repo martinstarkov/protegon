@@ -4,6 +4,7 @@
 #include <deque>
 #include <functional>
 
+#include "common/assert.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
@@ -14,7 +15,6 @@
 
 namespace ptgn {
 
-/*
 struct ShakeConfig {
 	// Maximum translation distance during shaking.
 	V2_float maximum_translation{ 30.0f, 30.0f };
@@ -32,66 +32,8 @@ struct ShakeConfig {
 	// Amount of trauma per second that is recovered.
 	float recovery_speed{ 0.5f };
 };
-*/
-
-struct ShakeConfig {
-	float frequency = 20.0f; // shakes per second
-	float damping	= 1.0f;	 // how quickly shake fades
-};
 
 namespace impl {
-
-/*
-struct BounceEffect : public Entity {
-	explicit BounceEffect(Manager& manager);
-
-	[[nodiscard]] Tween& Bounce(
-		Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
-		milliseconds duration, const Ease& ease, std::int64_t repeats, bool force
-	);
-};
-
-struct ContinuousShakeEffect : public Entity {
-	explicit ContinuousShakeEffect(Manager& manager);
-
-	void Reset(Entity& entity);
-
-	[[nodiscard]] Tween& Shake(
-		Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
-		bool force
-	);
-
-	[[nodiscard]] Tween& Shake(
-		Entity& entity, float intensity, const ShakeConfig& config, bool force
-	);
-};
-
-struct ShakeEffect {
-	ShakeEffect(const ShakeConfig& config = {});
-
-	void SetConfig(const ShakeConfig& config);
-
-	// Needs to be called once a frame to update the local translation and rotation of the camera
-	// shake.
-	void Update(Entity& entity, float dt, float time);
-
-	// Resets camera shake back to 0.
-	void Reset();
-
-	void AddIntensity(float intensity);
-
-	void SetIntensity(float intensity);
-
-private:
-	ShakeConfig config_;
-
-	// Range [0, 1] defining the current amount of stress this entity is enduring.
-	float trauma_{ 0.0f };
-
-	// Perlin noise seed.
-	std::int32_t seed_{ 0 };
-};
-*/
 
 template <typename T>
 struct EffectInfo {
@@ -146,13 +88,25 @@ struct BounceEffect {
 	std::deque<BounceEffectInfo> tasks;
 };
 
-struct ShakeEffect {
-	bool indefinite{ false };
-	float intensity{ 1.0f };
+struct ShakeEffectInfo : public EffectInfo<float> {
+	ShakeEffectInfo() = default;
+
+	ShakeEffectInfo(
+		float start_intensity, float target_intensity, milliseconds duration, const Ease& ease,
+		const ShakeConfig& config, std::int32_t seed
+	);
+
 	ShakeConfig config;
-	Timer timer;
-	milliseconds duration{ 0 };
-	V2_float original_position;
+
+	// Perlin noise seed.
+	std::int32_t seed{ 0 };
+
+	// Range [0, 1] defining the current amount of stress this entity is enduring.
+	float trauma{ 0.0f };
+};
+
+struct ShakeEffect {
+	std::deque<ShakeEffectInfo> tasks;
 };
 
 class TranslateEffectSystem {
@@ -185,7 +139,7 @@ private:
 
 class ShakeEffectSystem {
 public:
-	void Update(Manager& manager) const;
+	void Update(Manager& manager, float time, float dt) const;
 };
 
 template <typename TComponent, typename T>
@@ -193,6 +147,8 @@ void AddTweenEffect(
 	Entity& entity, const T& target, milliseconds duration, const Ease& ease, bool force,
 	const T& current_value
 ) {
+	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
+
 	auto& comp = entity.GetOrAdd<TComponent>();
 
 	T start{};
@@ -365,27 +321,16 @@ void StopBounce(Entity& entity, bool force = true);
  *
  * @param entity The entity to apply the shake effect to.
  * @param intensity The intensity of the shake, in the range [0, 1].
- * @param duration The total duration of the shake effect.
+ * @param duration The total duration of the shake effect. If -1, the shake is continuous
  * @param config Configuration parameters for the shake behavior.
+ * @param ease The easing function to use for the shake. If SymmetricalEase::None, shake remains at
+ * full intensity for the entire time.
  * @param force If true, overrides any existing shake effect.
  */
 void Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
-	bool force = true
+	const Ease& ease = SymmetricalEase::None, bool force = true
 );
-
-/**
- * @brief Applies a continuous shake effect to the specified entity.
- *
- * This overload does not specify a duration and is used for indefinite shaking
- * until stopped with StopShake.
- *
- * @param entity The entity to apply the shake effect to.
- * @param intensity The intensity of the shake, in the range [0, 1].
- * @param config Configuration parameters for the shake behavior.
- * @param force If true, overrides any existing shake effect.
- */
-void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool force = true);
 
 /**
  * @brief Stops any ongoing shake effect on the specified entity.

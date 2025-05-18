@@ -1,20 +1,25 @@
 #include "tweening/tween_effects.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <deque>
+#include <limits>
 #include <variant>
 
 #include "common/assert.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
+#include "core/game.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/easing.h"
 #include "math/math.h"
+#include "math/noise.h"
+#include "math/rng.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 
@@ -22,119 +27,22 @@ namespace ptgn {
 
 namespace impl {
 
-/*
-
-ShakeEffect::ShakeEffect(const ShakeConfig& config) : config_{ config } {
-	using type = decltype(seed_);
-	RNG<type> rng_float{ std::numeric_limits<type>::min(), std::numeric_limits<type>::max() };
-	seed_ = rng_float();
-}
-
-void ShakeEffect::SetConfig(const ShakeConfig& config) {
-	config_ = config;
-}
-
-void ShakeEffect::Update(Entity& entity, float dt, float time) {
-	if (!entity.Has<impl::Offsets>()) {
-		return;
-	}
-
-	auto& offsets{ entity.Get<impl::Offsets>() };
-
-	if (trauma_ <= 0.0f) {
-		offsets.shake = {};
-		return;
-	}
-
-	// Shake algorithm based on: https://roystan.net/articles/camera-shake/
-
-	// Taking trauma to an exponent allows the ability to smoothen
-	// out the transition from shaking to being static.
-	float shake{ std::pow(trauma_, config_.trauma_exponent) };
-
-	offsets.shake.position =
-		V2_float{ config_.maximum_translation.x *
-					  (PerlinNoise::GetValue(time * config_.frequency, 0.0f, seed_ + 0) * 2 - 1),
-				  config_.maximum_translation.y *
-					  (PerlinNoise::GetValue(time * config_.frequency, 0.0f, seed_ + 1) * 2 - 1) } *
-		shake;
-
-	offsets.shake.rotation =
-		config_.maximum_rotation *
-		(PerlinNoise::GetValue(time * config_.frequency, 0.0f, seed_ + 3) * 2 - 1) * shake;
-
-	trauma_ = std::clamp(trauma_ - config_.recovery_speed * dt, 0.0f, 1.0f);
-}
-
-void ShakeEffect::Reset() {
-	trauma_ = 0.0f;
-}
-
-void ShakeEffect::AddIntensity(float intensity) {
-	trauma_ = std::clamp(trauma_ + intensity, 0.0f, 1.0f);
-}
-
-void ShakeEffect::SetIntensity(float intensity) {
-	trauma_ = std::clamp(intensity, 0.0f, 1.0f);
-}
-
-ContinuousShakeEffect::ContinuousShakeEffect(Manager& manager) : Entity{ manager } {
-	Add<Tween>();
-}
-
-void ContinuousShakeEffect::Reset(Entity& entity) {
-	if (entity.Has<Offsets>()) {
-		entity.Get<Offsets>().shake = {};
-	}
-	entity.Remove<ShakeEffect>();
-}
-
-Tween& ContinuousShakeEffect::Shake(
-	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force
-) {
-	return impl::DoEffect(
-		*this,
-		[config, entity]() mutable {
-			if (!entity.Has<ShakeEffect>()) {
-				entity.Add<ShakeEffect>();
-			}
-			if (!entity.Has<Offsets>()) {
-				entity.Add<Offsets>();
-			}
-			auto& offsets{ entity.Get<Offsets>() };
-			offsets.shake = {};
-			auto& shake{ entity.Get<ShakeEffect>() };
-			shake.SetConfig(config);
-		},
-		[intensity, entity]([[maybe_unused]] float progress) mutable {
-			if (entity.Has<ShakeEffect>()) {
-				entity.Get<ShakeEffect>().SetIntensity(intensity);
-			}
-		},
-		duration, SymmetricalEase::Linear, force
+ShakeEffectInfo::ShakeEffectInfo(
+	float start_intensity, float target_intensity, milliseconds duration, const Ease& ease,
+	const ShakeConfig& config, std::int32_t seed
+) :
+	EffectInfo<float>{ start_intensity, target_intensity, duration, ease } {
+	PTGN_ASSERT(
+		start_intensity >= 0.0f && start_intensity <= 1.0f,
+		"Shake effect intensity must be in range [0.0, 1.0]"
+	)
+	PTGN_ASSERT(
+		target_intensity >= 0.0f && target_intensity <= 1.0f,
+		"Shake effect intensity must be in range [0.0, 1.0]"
 	);
+	this->config = config;
+	this->seed	 = seed;
 }
-
-Tween& ContinuousShakeEffect::Shake(
-	Entity& entity, float intensity, const ShakeConfig& config, bool force
-) {
-	return impl::DoEffect(
-		*this,
-		[config, intensity, entity]() mutable {
-			if (!entity.Has<ShakeEffect>()) {
-				entity.Add<ShakeEffect>();
-			}
-			if (!entity.Has<Offsets>()) {
-				entity.Add<Offsets>();
-			}
-			auto& shake{ entity.Get<ShakeEffect>() };
-			shake.SetConfig(config);
-			shake.AddIntensity(intensity);
-		},
-		[]() {}, milliseconds{ 0 }, SymmetricalEase::Linear, force
-	);
-}
-*/
 
 template <typename T>
 auto GetTaskValue(T& task) {
@@ -319,23 +227,67 @@ float BounceEffectSystem::ApplyEase(float t, bool symmetrical, const Ease& ease)
 	return 2.0f * eased_t - 1.0f;
 }
 
-void ShakeEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, shake, offsets] : manager.EntitiesWith<ShakeEffect, Offsets>()) {
-		float t = shake.timer.Elapsed<duration<float, seconds::period>>().count();
-		if (!shake.indefinite && shake.timer.Completed(shake.duration)) {
+void ShakeEffectSystem::Update(Manager& manager, float time, float dt) const {
+	for (auto [entity, effect, offsets] : manager.EntitiesWith<ShakeEffect, Offsets>()) {
+		if (effect.tasks.empty()) {
 			offsets.shake = {};
-			entity.Remove<ShakeEffect>();
+			entity.template Remove<ShakeEffect>();
 			continue;
 		}
 
-		// TODO: Switch to different algorithm.
+		auto& task{ effect.tasks.front() };
 
-		float damp	  = std::exp(-shake.config.damping * t);
-		float angle	  = two_pi<float> * shake.config.frequency * t;
-		float offsetX = std::sin(angle) * shake.intensity * damp;
-		float offsetY = std::cos(angle) * shake.intensity * damp;
+		float intensity{ GetTaskValue(task) };
 
-		offsets.shake.position = V2_float{ offsetX, offsetY };
+		PTGN_ASSERT(intensity >= 0.0f && intensity <= 1.0f);
+
+		task.trauma = intensity;
+
+		if (task.trauma <= 0.0f) {
+			offsets.shake = {};
+			entity.template Remove<ShakeEffect>();
+			continue;
+		}
+
+		// Shake algorithm based on: https://roystan.net/articles/camera-shake/
+
+		// Taking trauma to an exponent allows the ability to smoothen
+		// out the transition from shaking to being static.
+		float shake{ std::pow(task.trauma, task.config.trauma_exponent) };
+
+		float x{ time * task.config.frequency };
+
+		V2_float position_noise{ PerlinNoise::GetValue(x, 0.0f, task.seed + 0) * 2.0f - 1.0f,
+								 PerlinNoise::GetValue(x, 0.0f, task.seed + 1) * 2.0f - 1.0f };
+
+		float rotation_noise{ PerlinNoise::GetValue(x, 0.0f, task.seed + 3) * 2.0f - 1.0f };
+
+		offsets.shake.position = shake * task.config.maximum_translation * position_noise;
+		offsets.shake.rotation = shake * task.config.maximum_rotation * rotation_noise;
+
+		task.trauma = std::clamp(task.trauma - task.config.recovery_speed * dt, 0.0f, 1.0f);
+
+		PTGN_LOG("trauma: ", task.trauma);
+
+		if (!task.timer.Completed(task.duration)) {
+			continue;
+		}
+
+		// Infinite task.
+		if (task.duration == milliseconds{ -1 }) {
+			task.timer.Start(true);
+			continue;
+		}
+
+		// Task completed.
+		effect.tasks.pop_front();
+
+		if (effect.tasks.empty()) {
+			continue;
+		}
+
+		// Start next task.
+		effect.tasks.front().timer.Start(true);
 	}
 }
 
@@ -439,28 +391,32 @@ void StopBounce(Entity& entity, bool force) {
 }
 
 void Shake(
-	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
+	const Ease& ease, bool force
 ) {
-	auto& shake = entity.GetOrAdd<impl::ShakeEffect>();
-	if (force || !entity.Has<impl::ShakeEffect>()) {
-		shake.timer.Start(true);
-		shake.original_position = entity.GetPosition();
-		shake.duration			= duration;
-		shake.intensity			= intensity;
-		shake.indefinite		= false;
-		shake.config			= config;
-	}
-}
+	auto& comp = entity.GetOrAdd<impl::ShakeEffect>();
+	entity.GetOrAdd<impl::Offsets>();
 
-void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
-	auto& shake = entity.GetOrAdd<impl::ShakeEffect>();
-	if (force || !entity.Has<impl::ShakeEffect>()) {
-		shake.timer.Start(true);
-		shake.original_position = entity.GetPosition();
-		shake.duration			= milliseconds(0);
-		shake.intensity			= intensity;
-		shake.indefinite		= true;
-		shake.config			= config;
+	float start_intensity{ 0.0f };
+
+	bool first_task{ force || comp.tasks.empty() };
+
+	if (first_task) {
+		comp.tasks.clear();
+	} else {
+		start_intensity = comp.tasks.back().target_value;
+	}
+
+	RNG<std::int32_t> rng{ std::numeric_limits<std::int32_t>::min(),
+						   std::numeric_limits<std::int32_t>::max() };
+	std::int32_t seed{ rng() };
+
+	auto& task = comp.tasks.emplace_back(
+		start_intensity, start_intensity + intensity, duration, ease, config, seed
+	);
+
+	if (first_task) {
+		task.timer.Start(true);
 	}
 }
 
@@ -468,57 +424,20 @@ void StopShake(Entity& entity, bool force) {
 	if (!entity.Has<impl::ShakeEffect>()) {
 		return;
 	}
-	entity.Get<impl::Offsets>().shake = {};
-	entity.Remove<impl::ShakeEffect>();
-}
 
-/*
+	auto& shake	  = entity.Get<impl::ShakeEffect>();
+	auto& offsets = entity.Get<impl::Offsets>();
+	offsets.shake = {};
 
-void StopBounce(Entity& e, bool force) {
-	if (!e.Has<impl::BounceEffect>()) {
-		return;
-	}
-	auto& effect{ e.Get<impl::BounceEffect>() };
-	auto& tween{ effect.Get<Tween>() };
-	tween.IncrementTweenPoint();
-	if (force || tween.IsCompleted()) {
-		tween.Clear();
+	if (force) {
+		shake.tasks.clear();
+	} else if (!shake.tasks.empty()) {
+		shake.tasks.pop_front();
+		if (!shake.tasks.empty()) {
+			shake.tasks.front().timer.Start(true);
+		}
 	}
 }
-
-Tween& Bounce(
-	Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
-	milliseconds duration, const Ease& ease, std::int64_t repeats, bool force
-) {
-	return AddEffect<impl::BounceEffect>(e).Bounce(
-		e, bounce_amplitude, static_offset, duration, ease, repeats, force
-	);
-}
-
-Tween& Shake(
-	Entity& e, float intensity, milliseconds duration, const ShakeConfig& config, bool force
-) {
-	return AddEffect<impl::ContinuousShakeEffect>(e).Shake(e, intensity, duration, config, force);
-}
-
-Tween& Shake(Entity& e, float intensity, const ShakeConfig& config, bool force) {
-	return AddEffect<impl::ContinuousShakeEffect>(e).Shake(e, intensity, config, force);
-}
-
-void StopShake(Entity& e, bool force) {
-	if (!e.Has<impl::ContinuousShakeEffect>()) {
-		return;
-	}
-	auto& effect{ e.Get<impl::ContinuousShakeEffect>() };
-	auto& tween{ effect.Get<Tween>() };
-	tween.IncrementTweenPoint();
-	if (force || tween.IsCompleted()) {
-		tween.Clear();
-		effect.Reset(e);
-	}
-}
-
-*/
 
 /*
 

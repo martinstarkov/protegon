@@ -14,6 +14,7 @@ float ApplyEase(float t, SymmetricalEase ease) {
 
 	switch (ease) {
 		case SymmetricalEase::Linear:	 return t;
+		case SymmetricalEase::None:		 return 1.0f;
 		case SymmetricalEase::InOutSine: return -(std::cos(pi<float> * t) - 1.0f) / 2.0f;
 		case SymmetricalEase::InOutQuad:
 			return t < 0.5f ? 2.0f * t * t : 1.0f - std::pow(-2.0f * t + 2.0f, 2.0f) / 2.0f;

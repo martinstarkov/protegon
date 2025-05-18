@@ -99,6 +99,9 @@ void Scene::Draw() {
 }
 
 void Scene::PostUpdate() {
+	float dt{ game.dt() };
+	float time{ game.time() };
+
 	// TODO: Add multiple manager support?
 
 	manager.Refresh();
@@ -109,8 +112,6 @@ void Scene::PostUpdate() {
 		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
 		particle_manager.Update(e.GetPosition());
 	}
-
-	float dt{ game.dt() };
 
 	// std::size_t tween_update_count{ 0 };
 	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
@@ -123,7 +124,7 @@ void Scene::PostUpdate() {
 	scale_effects_.Update(manager);
 	tint_effects_.Update(manager);
 	bounce_effects_.Update(manager);
-	shake_effects_.Update(manager);
+	shake_effects_.Update(manager, time, dt);
 
 	impl::AnimationSystem::Update(manager);
 

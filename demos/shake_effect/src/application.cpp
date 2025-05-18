@@ -1,6 +1,9 @@
 #include "components/draw.h"
+#include "core/entity.h"
 #include "core/game.h"
+#include "core/time.h"
 #include "events/input_handler.h"
+#include "math/easing.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "tweening/tween_effects.h"
@@ -24,6 +27,8 @@ struct ShakeEffectScene : public Scene {
 		sprite3.SetPosition({ 600, 100 });
 
 		// TODO: Implement shake effects.
+
+		Shake(sprite1, 1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::Linear, false);
 
 		/*
 		RotateTo(sprite1, DegToRad(180.0f), milliseconds{ 4000 }, SymmetricalEase::Linear);
