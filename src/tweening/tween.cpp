@@ -14,49 +14,11 @@
 #include "common/function.h"
 #include "core/time.h"
 #include "debug/log.h"
+#include "math/easing.h"
 
 namespace ptgn {
 
 namespace impl {
-
-TweenEaseFunction GetEaseFunction(TweenEase V) {
-	if (V == TweenEase::Linear) {
-		return [](float t, float a, float b) {
-			float c{ b - a };
-			return a + t * c;
-		};
-	} else if (V == TweenEase::InSine) {
-		return [](float t, float a, float b) {
-			float c{ b - a };
-			return -c * std::cos(t * half_pi<float>) + b;
-		};
-	} else if (V == TweenEase::OutSine) {
-		return [](float t, float a, float b) {
-			float c{ b - a };
-			return c * std::sin(t * half_pi<float>) + a;
-		};
-	} else if (V == TweenEase::InOutSine) {
-		return [](float t, float a, float b) {
-			float c{ b - a };
-			return -c / float{ 2 } * (std::cos(pi<float> * t) - float{ 1 }) + a;
-		};
-	} else {
-		PTGN_ERROR("Invalid or unimplemented tween ease function");
-	}
-	// TODO: Implement these.
-	// TweenEase::InQuad
-	// TweenEase::OutQuad
-	// TweenEase::InOutQuad
-	// TweenEase::InCubic
-	// TweenEase::OutCubic
-	// TweenEase::InOutCubic
-	// TweenEase::InExponential
-	// TweenEase::OutExponential
-	// TweenEase::InOutExponential
-	// TweenEase::InCircular
-	// TweenEase::OutCircular
-	// TweenEase::InOutCircular
-}
 
 TweenPoint::TweenPoint(milliseconds duration) : duration_{ duration } {}
 
@@ -64,27 +26,6 @@ void TweenPoint::SetReversed(bool reversed) {
 	start_reversed_		= reversed;
 	currently_reversed_ = start_reversed_;
 }
-
-// TODO: Get rid of these.
-// void TweenPoint::Serialize(ptgn::StreamWriter* w, const TweenPoint& tween_point) {
-//	w->Write(tween_point.current_repeat_);
-//	w->Write(tween_point.total_repeats_);
-//	w->Write(tween_point.yoyo_);
-//	w->Write(tween_point.currently_reversed_);
-//	w->Write(tween_point.start_reversed_);
-//	w->Write(tween_point.duration_);
-//	w->Write(tween_point.easing_func_);
-//}
-//
-// void TweenPoint::Deserialize(ptgn::StreamReader* r, TweenPoint& tween_point) {
-//	r->Read(tween_point.current_repeat_);
-//	r->Read(tween_point.total_repeats_);
-//	r->Read(tween_point.yoyo_);
-//	r->Read(tween_point.currently_reversed_);
-//	r->Read(tween_point.start_reversed_);
-//	r->Read(tween_point.duration_);
-//	r->Read(tween_point.easing_func_);
-//}
 
 } // namespace impl
 
@@ -120,7 +61,7 @@ float Tween::GetProgress() const {
 
 	PTGN_ASSERT(progress >= 0.0f && progress <= 1.0f, "Progress updating failed");
 
-	return std::invoke(impl::GetEaseFunction(current.easing_func_), progress, 0.0f, 1.0f);
+	return ApplyEase(progress, current.ease_);
 }
 
 const impl::TweenPoint& Tween::GetCurrentTweenPoint() const {
@@ -221,8 +162,8 @@ Tween& Tween::Repeat(std::int64_t repeats) {
 	return *this;
 }
 
-Tween& Tween::Ease(TweenEase ease) {
-	GetLastTweenPoint().easing_func_ = ease;
+Tween& Tween::Ease(const ptgn::Ease& ease) {
+	GetLastTweenPoint().ease_ = ease;
 	return *this;
 }
 

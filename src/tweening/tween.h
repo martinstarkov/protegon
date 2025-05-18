@@ -9,33 +9,11 @@
 #include <variant>
 #include <vector>
 
-#include "math/math.h"
 #include "core/time.h"
+#include "math/easing.h"
+#include "math/math.h"
 
 namespace ptgn {
-
-class StreamWriter;
-class StreamReader;
-
-enum class TweenEase {
-	Linear,
-	InSine,
-	OutSine,
-	InOutSine,
-	// InQuad,
-	// OutQuad,
-	// InOutQuad,
-	// InCubic,
-	// OutCubic,
-	// InOutCubic,
-	// InExponential,
-	// OutExponential,
-	// InOutExponential,
-	// InCircular,
-	// OutCircular,
-	// InOutCircular,
-	//  TODO: Add custom easing function support
-};
 
 class Tween;
 
@@ -46,10 +24,6 @@ using TweenCallback = std::variant<
 namespace impl {
 
 class Game;
-
-using TweenEaseFunction = std::function<float(float, float, float)>;
-
-[[nodiscard]] TweenEaseFunction GetEaseFunction(TweenEase V);
 
 struct TweenPoint {
 	TweenPoint() = default;
@@ -75,7 +49,7 @@ struct TweenPoint {
 	milliseconds duration_{ 0 };
 
 	// easing function between tween start and end value.
-	TweenEase easing_func_{ TweenEase::Linear };
+	Ease ease_{ SymmetricalEase::Linear };
 
 	TweenCallback on_complete_;
 	TweenCallback on_repeat_;
@@ -85,27 +59,24 @@ struct TweenPoint {
 	TweenCallback on_update_;
 	TweenCallback on_pause_;
 	TweenCallback on_resume_;
-
-	static void Serialize(ptgn::StreamWriter* w, const TweenPoint& tween_point);
-	static void Deserialize(ptgn::StreamReader* r, TweenPoint& tween_point);
 };
 
 } // namespace impl
 
 class Tween {
 public:
-	Tween()								 = default;
-	Tween(const Tween& other)			 = default;
-	Tween& operator=(const Tween& other) = default;
-	Tween(Tween&& other) noexcept;
-	Tween& operator=(Tween&& other) noexcept;
+	Tween()						   = default;
+	Tween(const Tween&)			   = default;
+	Tween& operator=(const Tween&) = default;
+	Tween(Tween&&) noexcept;
+	Tween& operator=(Tween&&) noexcept;
 	~Tween();
 
 	// @param duration The time it takes to take progress from 0 to 1, or vice versa for reversed
 	// tweens. Yoyo tweens take twice the duration to complete a full
 	// yoyo cycle.
 	Tween& During(milliseconds duration);
-	Tween& Ease(TweenEase ease);
+	Tween& Ease(const ptgn::Ease& ease);
 
 	// -1 for infinite repeats.
 	Tween& Repeat(std::int64_t repeats);
@@ -190,9 +161,6 @@ public:
 	// @param duration Duration to set for the tween.
 	// @param tween_point_index Which tween point to set the duration of.
 	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
-
-	static void Serialize(StreamWriter* w, const Tween& tween);
-	static void Deserialize(StreamReader* w, Tween& tween);
 
 private:
 	// @return New progress of the tween after seeking.
