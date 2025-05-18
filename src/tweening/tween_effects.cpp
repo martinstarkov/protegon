@@ -1,79 +1,28 @@
 #include "tweening/tween_effects.h"
 
-#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <functional>
-#include <limits>
-#include <type_traits>
+#include <deque>
+#include <variant>
 
-#include "components/draw.h"
+#include "common/assert.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
+#include "core/timer.h"
+#include "math/easing.h"
 #include "math/math.h"
-#include "math/noise.h"
-#include "math/rng.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "tweening/tween.h"
 
 namespace ptgn {
 
 namespace impl {
 
 /*
-Tween& DoEffect(
-	const Entity& effect_entity, const TweenCallback& start, const TweenCallback& update,
-	milliseconds duration, TweenEase ease, bool force
-) {
-	auto& tween{ effect_entity.Get<Tween>() };
-	if (force || tween.IsCompleted()) {
-		tween.Clear();
-	}
-	tween.During(duration)
-		.Ease(ease)
-		.OnStart(start)
-		.OnUpdate(update)
-		.OnComplete(start)
-		.OnStop(start)
-		.OnReset(start);
-	tween.Start(force);
-	return effect_entity.Get<Tween>();
-}
-*/
-
-/*
-BounceEffect::BounceEffect(Manager& manager) : Entity{ manager } {
-	Add<Tween>();
-}
-
-Tween& BounceEffect::Bounce(
-	Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
-	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
-) {
-	auto& tween{ impl::DoEffect(
-		*this,
-		[entity]() mutable {
-			if (!entity.Has<Offsets>()) {
-				entity.Add<Offsets>();
-			}
-			entity.Get<Offsets>().bounce = {};
-		},
-		[bounce_amplitude, static_offset, entity](float progress) mutable {
-			if (entity.Has<Offsets>()) {
-				auto& offsets{ entity.Get<Offsets>() };
-				offsets.bounce.position = static_offset + bounce_amplitude * progress;
-			}
-		},
-		duration, ease, force
-	) };
-	tween.Yoyo();
-	tween.Repeat(repeats);
-	return tween;
-}
 
 ShakeEffect::ShakeEffect(const ShakeConfig& config) : config_{ config } {
 	using type = decltype(seed_);
@@ -162,7 +111,7 @@ Tween& ContinuousShakeEffect::Shake(
 				entity.Get<ShakeEffect>().SetIntensity(intensity);
 			}
 		},
-		duration, TweenEase::Linear, force
+		duration, SymmetricalEase::Linear, force
 	);
 }
 
@@ -182,25 +131,245 @@ Tween& ContinuousShakeEffect::Shake(
 			shake.SetConfig(config);
 			shake.AddIntensity(intensity);
 		},
-		[]() {}, milliseconds{ 0 }, TweenEase::Linear, force
+		[]() {}, milliseconds{ 0 }, SymmetricalEase::Linear, force
 	);
 }
 */
 
-float ApplyEasing(TweenEase ease, float t) {
-	switch (ease) {
-		case TweenEase::Linear:	   return t;
-		case TweenEase::InSine:	   return 1.0f - std::cos(t * half_pi<float>);
-		case TweenEase::OutSine:   return std::sin(t * half_pi<float>);
-		case TweenEase::InOutSine: return -(std::cos(pi<float> * t) - 1.0f) / 2.0f;
-		default:				   return t;
+template <typename T>
+auto GetTaskValue(T& task) {
+	PTGN_ASSERT(task.timer.IsRunning());
+
+	float t{ task.timer.template ElapsedPercentage<milliseconds, float>(task.duration) };
+
+	float eased_t{ ApplyEase(t, task.ease) };
+
+	return Lerp(task.start_value, task.target_value, eased_t);
+}
+
+template <typename T, typename F>
+void UpdateTask(T& effect, F& task) {
+	if (!task.timer.Completed(task.duration)) {
+		return;
+	}
+
+	// Task completed.
+	effect.tasks.pop_front();
+
+	if (effect.tasks.empty()) {
+		return;
+	}
+
+	// Start next task.
+	effect.tasks.front().timer.Start(true);
+}
+
+void TranslateEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<TranslateEffect>()) {
+		if (effect.tasks.empty()) {
+			entity.template Remove<TranslateEffect>();
+			return;
+		}
+
+		auto& task{ effect.tasks.front() };
+
+		entity.SetPosition(GetTaskValue(task));
+
+		UpdateTask(effect, task);
+	}
+}
+
+void RotateEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<RotateEffect>()) {
+		if (effect.tasks.empty()) {
+			entity.template Remove<RotateEffect>();
+			return;
+		}
+
+		auto& task{ effect.tasks.front() };
+
+		entity.SetRotation(GetTaskValue(task));
+
+		UpdateTask(effect, task);
+	}
+}
+
+void ScaleEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<ScaleEffect>()) {
+		if (effect.tasks.empty()) {
+			entity.template Remove<ScaleEffect>();
+			return;
+		}
+
+		auto& task{ effect.tasks.front() };
+
+		entity.SetScale(GetTaskValue(task));
+
+		UpdateTask(effect, task);
+	}
+}
+
+void TintEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<TintEffect>()) {
+		if (effect.tasks.empty()) {
+			entity.template Remove<TintEffect>();
+			return;
+		}
+
+		auto& task{ effect.tasks.front() };
+
+		entity.SetTint(GetTaskValue(task));
+
+		UpdateTask(effect, task);
+	}
+}
+
+BounceEffectInfo::BounceEffectInfo(
+	const V2_float& start, const V2_float& target, milliseconds duration, const Ease& ease,
+	const V2_float& static_offset, std::int64_t total_periods, bool symmetrical
+) :
+	EffectInfo<V2_float>{ start, target, duration, ease } {
+	PTGN_ASSERT(
+		total_periods == -1 || total_periods > 0,
+		"Invalid number of total periods for bounce effect"
+	);
+	this->static_offset = static_offset;
+	this->total_periods = total_periods;
+	this->symmetrical	= symmetrical;
+}
+
+void BounceEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect, offsets] : manager.EntitiesWith<BounceEffect, Offsets>()) {
+		if (effect.tasks.empty()) {
+			offsets.bounce = {};
+			entity.template Remove<BounceEffect>();
+			continue;
+		}
+
+		auto& task{ effect.tasks.front() };
+
+		PTGN_ASSERT(task.timer.IsRunning());
+
+		float t{ task.timer.template ElapsedPercentage<milliseconds, float>(task.duration) };
+
+		float eased_t{ ApplyEase(t, task.symmetrical, task.ease) };
+
+		offsets.bounce.position =
+			task.static_offset + (task.target_value - task.start_value) * eased_t;
+
+		if (!task.timer.Completed(task.duration)) {
+			continue;
+		}
+
+		// Bounce timer completed.
+
+		task.periods_completed++;
+
+		if (task.total_periods == -1 || task.periods_completed < task.total_periods) {
+			task.timer.Start(true);
+			continue;
+		}
+
+		// Bounce repeats completed.
+
+		effect.tasks.pop_front();
+
+		if (effect.tasks.empty()) {
+			continue;
+		}
+
+		// New bounce effect.
+
+		effect.tasks.front().timer.Start(true);
+	}
+}
+
+float BounceEffectSystem::ApplyEase(float t, bool symmetrical, const Ease& ease) {
+	if (!symmetrical) {
+		// Standard up-down bounce.
+
+		// Triangle wave with y=1.0 peak at t=0.5.
+		float triangle_t{ TriangleWave(t, 2.0f, 0.25f) };
+		float eased_t{ ptgn::ApplyEase(triangle_t, ease) };
+		return eased_t;
+	}
+
+	// Symmetrical bounce.
+
+	PTGN_ASSERT(
+		std::holds_alternative<SymmetricalEase>(ease),
+		"Symmetrical bounces only support symmetrical easing functions"
+	);
+
+	// In essence this is a piece wise triangle wave function which rises from 0.5 to 1.0 in the
+	// domain [0, 0.25], falls from 1.0 to 0.0 in the domain [0.25, 0.75] and rises again from 0.0
+	// to 0.5 in the domain [0.75, 1.0].
+	float triangle_t{ 0.0f };
+	if (t < 0.25f) {
+		triangle_t = 1.0f + (2.0f * t - 0.5f);
+	} else if (t > 0.75f) {
+		triangle_t = -1.0f + (2.0f * t - 0.5f);
+	} else {
+		triangle_t = 1.0f - (2.0f * t - 0.5f);
+	}
+
+	float eased_t{ ptgn::ApplyEase(triangle_t, ease) };
+	// Transform to -1 to 1 range for symmetrical amplitudes.
+	return 2.0f * eased_t - 1.0f;
+}
+
+void ShakeEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, shake, offsets] : manager.EntitiesWith<ShakeEffect, Offsets>()) {
+		float t = shake.timer.Elapsed<duration<float, seconds::period>>().count();
+		if (!shake.indefinite && shake.timer.Completed(shake.duration)) {
+			offsets.shake = {};
+			entity.Remove<ShakeEffect>();
+			continue;
+		}
+
+		// TODO: Switch to different algorithm.
+
+		float damp	  = std::exp(-shake.config.damping * t);
+		float angle	  = two_pi<float> * shake.config.frequency * t;
+		float offsetX = std::sin(angle) * shake.intensity * damp;
+		float offsetY = std::cos(angle) * shake.intensity * damp;
+
+		offsets.shake.position = V2_float{ offsetX, offsetY };
+	}
+}
+
+void BounceImpl(
+	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
+	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
+) {
+	auto& bounce{ entity.GetOrAdd<impl::BounceEffect>() };
+	entity.GetOrAdd<impl::Offsets>();
+
+	V2_float start;
+
+	bool first_task{ force || bounce.tasks.empty() };
+
+	if (first_task) {
+		bounce.tasks.clear();
+		start = {};
+	} else {
+		// Use previous task's target value as new starting point.
+		start = bounce.tasks.back().target_value;
+	}
+
+	auto& task{ bounce.tasks.emplace_back(
+		start, start + amplitude, duration, ease, static_offset, total_periods, symmetrical
+	) };
+
+	if (first_task) {
+		task.timer.Start(true);
 	}
 }
 
 } // namespace impl
 
 void TranslateTo(
-	Entity& entity, const V2_float& target_position, milliseconds duration, TweenEase ease,
+	Entity& entity, const V2_float& target_position, milliseconds duration, const Ease& ease,
 	bool force
 ) {
 	impl::AddTweenEffect<impl::TranslateEffect>(
@@ -209,7 +378,7 @@ void TranslateTo(
 }
 
 void RotateTo(
-	Entity& entity, float target_angle, milliseconds duration, TweenEase ease, bool force
+	Entity& entity, float target_angle, milliseconds duration, const Ease& ease, bool force
 ) {
 	impl::AddTweenEffect<impl::RotateEffect>(
 		entity, target_angle, duration, ease, force, entity.GetRotation()
@@ -217,7 +386,8 @@ void RotateTo(
 }
 
 void ScaleTo(
-	Entity& entity, const V2_float& target_scale, milliseconds duration, TweenEase ease, bool force
+	Entity& entity, const V2_float& target_scale, milliseconds duration, const Ease& ease,
+	bool force
 ) {
 	impl::AddTweenEffect<impl::ScaleEffect>(
 		entity, target_scale, duration, ease, force, entity.GetScale()
@@ -225,43 +395,50 @@ void ScaleTo(
 }
 
 void TintTo(
-	Entity& entity, const Color& target_tint, milliseconds duration, TweenEase ease, bool force
+	Entity& entity, const Color& target_tint, milliseconds duration, const Ease& ease, bool force
 ) {
 	impl::AddTweenEffect<impl::TintEffect>(
 		entity, target_tint, duration, ease, force, entity.GetTint()
 	);
 }
 
-void FadeIn(Entity& entity, milliseconds duration, TweenEase ease, bool force) {
+void FadeIn(Entity& entity, milliseconds duration, const Ease& ease, bool force) {
 	return TintTo(entity, color::White, duration, ease, force);
 }
 
-void FadeOut(Entity& entity, milliseconds duration, TweenEase ease, bool force) {
+void FadeOut(Entity& entity, milliseconds duration, const Ease& ease, bool force) {
 	return TintTo(entity, color::Transparent, duration, ease, force);
 }
 
 void Bounce(
-	Entity& entity, const V2_float& amplitude, const V2_float& static_offset, milliseconds duration,
-	TweenEase ease, std::int64_t repeats, bool force
+	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
+	const Ease& ease, const V2_float& static_offset, bool force
 ) {
-	auto& bounce = entity.GetOrAdd<impl::BounceEffect>();
-	if (force) {
-		bounce.tasks.clear();
-		bounce.remaining_repeats = repeats;
+	impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force, false);
+}
+
+void SymmetricalBounce(
+	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
+	SymmetricalEase ease, const V2_float& static_offset, bool force
+) {
+	impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force, true);
+}
+
+void StopBounce(Entity& entity, bool force) {
+	if (!entity.Has<impl::BounceEffect>()) {
+		return;
 	}
 
-	bounce.static_offset	  = static_offset;
-	std::int64_t bounce_count = (repeats < 0) ? 2 : 2 * repeats;
+	auto& bounce   = entity.Get<impl::BounceEffect>();
+	auto& offsets  = entity.Get<impl::Offsets>();
+	offsets.bounce = {}; // or reset to bounce.static_offset
 
-	V2_float down = { 0, 0 }; // assuming origin
-	V2_float up	  = amplitude;
-
-	for (std::int64_t i = 0; i < bounce_count; ++i) {
-		V2_float target = (i % 2 == 0) ? up : down;
-		auto& task =
-			bounce.tasks.emplace_back((i % 2 == 0) ? down : up, target, duration / 2, ease);
-		if (i == 0) {
-			task.timer.Start(true);
+	if (force) {
+		bounce.tasks.clear();
+	} else if (!bounce.tasks.empty()) {
+		bounce.tasks.pop_front();
+		if (!bounce.tasks.empty()) {
+			bounce.tasks.front().timer.Start(true);
 		}
 	}
 }
@@ -292,25 +469,6 @@ void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool forc
 	}
 }
 
-void StopBounce(Entity& entity, bool force) {
-	if (!entity.Has<impl::BounceEffect>()) {
-		return;
-	}
-
-	auto& bounce			= entity.Get<impl::BounceEffect>();
-	auto& offsets			= entity.Get<impl::Offsets>();
-	offsets.bounce.position = bounce.static_offset; // reset to just static
-
-	if (force) {
-		bounce.tasks.clear();
-	} else if (!bounce.tasks.empty()) {
-		bounce.tasks.pop_front();
-		if (!bounce.tasks.empty()) {
-			bounce.tasks.front().timer.Start(true);
-		}
-	}
-}
-
 void StopShake(Entity& entity, bool force) {
 	if (!entity.Has<impl::ShakeEffect>()) {
 		return;
@@ -335,7 +493,7 @@ void StopBounce(Entity& e, bool force) {
 
 Tween& Bounce(
 	Entity& e, const V2_float& bounce_amplitude, const V2_float& static_offset,
-	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
+	milliseconds duration, const Ease& ease, std::int64_t repeats, bool force
 ) {
 	return AddEffect<impl::BounceEffect>(e).Bounce(
 		e, bounce_amplitude, static_offset, duration, ease, repeats, force

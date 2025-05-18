@@ -3,12 +3,15 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <variant>
 
 #include "components/offsets.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "math/easing.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -36,6 +39,11 @@ struct ShakeConfig {
 };
 */
 
+struct ShakeConfig {
+	float frequency = 20.0f; // shakes per second
+	float damping	= 1.0f;	 // how quickly shake fades
+};
+
 namespace impl {
 
 /*
@@ -44,7 +52,7 @@ struct BounceEffect : public Entity {
 
 	[[nodiscard]] Tween& Bounce(
 		Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
-		milliseconds duration, TweenEase ease, std::int64_t repeats, bool force
+		milliseconds duration, const Ease& ease, std::int64_t repeats, bool force
 	);
 };
 
@@ -90,55 +98,18 @@ private:
 };
 */
 
-[[nodiscard]] float ApplyEasing(TweenEase ease, float t);
-
-template <typename TComponent, typename T>
-class EffectSystemBase {
-public:
-	virtual ~EffectSystemBase() = default;
-
-	void Update(Manager& manager) {
-		for (auto [entity, effect] : manager.EntitiesWith<TComponent>()) {
-			if (effect.tasks.empty()) {
-				entity.template Remove<TComponent>();
-				continue;
-			}
-
-			auto& task = effect.tasks.front();
-
-			PTGN_ASSERT(task.timer.IsRunning());
-
-			float t = task.timer.template ElapsedPercentage<milliseconds, float>(task.duration);
-			float eased_t = ApplyEasing(task.ease, t);
-			T value{ Lerp(task.start_value, task.target_value, eased_t) };
-
-			Apply(entity, value);
-
-			if (task.timer.Completed(task.duration)) {
-				effect.tasks.pop_front();
-				if (!effect.tasks.empty()) {
-					effect.tasks.front().timer.Start(true);
-				}
-			}
-		}
-	}
-
-protected:
-	virtual void Apply(Entity& entity, const T& value) = 0;
-};
-
 template <typename T>
 struct EffectInfo {
+	EffectInfo() = default;
+
+	EffectInfo(const T& start, const T& target, milliseconds duration, const Ease& ease) :
+		start_value{ start }, target_value{ target }, duration{ duration }, ease{ ease } {}
+
 	T start_value{};
 	T target_value{};
 	milliseconds duration{ 0 };
-	TweenEase ease{ TweenEase::Linear };
+	Ease ease{ SymmetricalEase::Linear };
 	Timer timer;
-
-	EffectInfo() = default;
-
-	EffectInfo(const T& start, const T& target, milliseconds duration, TweenEase ease_type) :
-		start_value{ start }, target_value{ target }, duration{ duration }, ease{ ease_type } {}
 };
 
 struct TranslateEffect {
@@ -157,89 +128,70 @@ struct TintEffect {
 	std::deque<EffectInfo<Color>> tasks;
 };
 
-struct BounceEffect {
-	std::deque<EffectInfo<V2_float>> tasks;
+struct BounceEffectInfo : public EffectInfo<V2_float> {
+	BounceEffectInfo() = default;
+
+	BounceEffectInfo(
+		const V2_float& start, const V2_float& target, milliseconds duration, const Ease& ease,
+		const V2_float& static_offset, std::int64_t total_periods, bool symmetrical
+	);
+
 	V2_float static_offset;
-	std::int64_t remaining_repeats{ -1 }; // -1 means infinite
+	std::int64_t total_periods{ -1 };	 // -1 means infinite
+	std::int64_t periods_completed{ 0 }; // How many times the bounce has repeated so far.
+	bool symmetrical{ false }; // If true, bounce origin is the middle point of the movement. If
+							   // false, bounce origin is the bottom (or top) point of the movement.
 };
 
-struct ShakeConfig {
-	float frequency = 20.0f; // shakes per second
-	float damping	= 1.0f;	 // how quickly shake fades
+struct BounceEffect {
+	std::deque<BounceEffectInfo> tasks;
 };
 
 struct ShakeEffect {
-	bool indefinite = false;
-	float intensity = 1.0f;
+	bool indefinite{ false };
+	float intensity{ 1.0f };
 	ShakeConfig config;
 	Timer timer;
 	milliseconds duration{ 0 };
 	V2_float original_position;
 };
 
-class TranslateEffectSystem : public EffectSystemBase<TranslateEffect, V2_float> {
-protected:
-	void Apply(Entity& entity, const V2_float& value) override {
-		entity.SetPosition(value);
-	}
+class TranslateEffectSystem {
+public:
+	void Update(Manager& manager) const;
 };
 
-class RotateEffectSystem : public EffectSystemBase<RotateEffect, float> {
-protected:
-	void Apply(Entity& entity, const float& value) override {
-		entity.SetRotation(value);
-	}
+class RotateEffectSystem {
+public:
+	void Update(Manager& manager) const;
 };
 
-class ScaleEffectSystem : public EffectSystemBase<ScaleEffect, V2_float> {
-protected:
-	void Apply(Entity& entity, const V2_float& value) override {
-		entity.SetScale(value);
-	}
+class ScaleEffectSystem {
+public:
+	void Update(Manager& manager) const;
 };
 
-class TintEffectSystem : public EffectSystemBase<TintEffect, Color> {
-protected:
-	void Apply(Entity& entity, const Color& value) override {
-		entity.SetTint(value);
-	}
+class TintEffectSystem {
+public:
+	void Update(Manager& manager) const;
 };
 
-class BounceEffectSystem : public EffectSystemBase<BounceEffect, V2_float> {
-protected:
-	void Apply(Entity& entity, const V2_float& value) override {
-		auto& offsets			= entity.Get<Offsets>();
-		auto& bounce			= entity.Get<BounceEffect>();
-		offsets.bounce.position = bounce.static_offset + value;
-	}
+class BounceEffectSystem {
+public:
+	void Update(Manager& manager) const;
+
+private:
+	[[nodiscard]] static float ApplyEase(float t, bool symmetrical, const Ease& ease);
 };
 
 class ShakeEffectSystem {
 public:
-	void Update(Manager& manager) {
-		for (auto [entity, shake] : manager.EntitiesWith<ShakeEffect>()) {
-			float t = shake.timer.Elapsed<duration<float, seconds::period>>().count();
-			if (!shake.indefinite && shake.timer.Completed(shake.duration)) {
-				entity.Get<Offsets>().shake = {};
-				entity.Remove<ShakeEffect>();
-				continue;
-			}
-
-			// TODO: Switch to different algorithm.
-
-			float damp	  = std::exp(-shake.config.damping * t);
-			float angle	  = two_pi<float> * shake.config.frequency * t;
-			float offsetX = std::sin(angle) * shake.intensity * damp;
-			float offsetY = std::cos(angle) * shake.intensity * damp;
-
-			entity.Get<Offsets>().shake.position = V2_float{ offsetX, offsetY };
-		}
-	}
+	void Update(Manager& manager) const;
 };
 
 template <typename TComponent, typename T>
 void AddTweenEffect(
-	Entity& entity, const T& target, milliseconds duration, TweenEase ease, bool force,
+	Entity& entity, const T& target, milliseconds duration, const Ease& ease, bool force,
 	const T& current_value
 ) {
 	auto& comp = entity.GetOrAdd<TComponent>();
@@ -263,6 +215,11 @@ void AddTweenEffect(
 	}
 }
 
+void BounceImpl(
+	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
+	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
+);
+
 } // namespace impl
 
 /**
@@ -272,13 +229,12 @@ void AddTweenEffect(
  * @param entity The entity to be moved.
  * @param target_position The position to move the entity to.
  * @param duration The duration over which the translation should occur.
- * @param ease The easing function to apply for the translation animation. Defaults to
- * TweenEase::Linear.
- * @param force If true, forcibly overrides any ongoing translation. Defaults to true.
+ * @param ease The easing function to apply for the translation animation.
+ * @param force If true, forcibly overrides any ongoing translation.
  */
 void TranslateTo(
 	Entity& entity, const V2_float& target_position, milliseconds duration,
-	TweenEase ease = TweenEase::Linear, bool force = true
+	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
 
 /**
@@ -288,13 +244,12 @@ void TranslateTo(
  * @param target_angle The angle (in radians) to rotate the entity to. Positive clockwise, negative
  * counter-clockwise.
  * @param duration The duration over which the rotation should occur.
- * @param ease The easing function to apply for the rotation animation. Defaults to
- * TweenEase::Linear.
- * @param force If true, forcibly overrides any ongoing rotation. Defaults to true.
+ * @param ease The easing function to apply for the rotation animation.
+ * @param force If true, forcibly overrides any ongoing rotation.
  */
 void RotateTo(
-	Entity& entity, float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
-	bool force = true
+	Entity& entity, float target_angle, milliseconds duration,
+	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
 
 /**
@@ -303,12 +258,12 @@ void RotateTo(
  * @param entity The entity to be scaled.
  * @param target_scale The target scale (width, height) to apply to the entity.
  * @param duration The duration over which the scaling should occur.
- * @param ease The easing function to apply for the scale animation. Defaults to TweenEase::Linear.
- * @param force If true, forcibly overrides any ongoing scaling. Defaults to true.
+ * @param ease The easing function to apply for the scale animation.
+ * @param force If true, forcibly overrides any ongoing scaling.
  */
 void ScaleTo(
 	Entity& entity, const V2_float& target_scale, milliseconds duration,
-	TweenEase ease = TweenEase::Linear, bool force = true
+	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
 
 /**
@@ -317,12 +272,12 @@ void ScaleTo(
  * @param entity The entity to be tinted.
  * @param target_tint The target color tint to apply to the entity.
  * @param duration The duration over which the tinting should occur.
- * @param ease The easing function to apply for the tint animation. Defaults to TweenEase::Linear.
- * @param force If true, forcibly overrides any ongoing tinting. Defaults to true.
+ * @param ease The easing function to apply for the tint animation.
+ * @param force If true, forcibly overrides any ongoing tinting.
  */
 void TintTo(
 	Entity& entity, const Color& target_tint, milliseconds duration,
-	TweenEase ease = TweenEase::Linear, bool force = true
+	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
 
 /**
@@ -330,11 +285,12 @@ void TintTo(
  *
  * @param entity The entity to apply the fade-in effect to.
  * @param duration The time span over which the fade-in will occur.
- * @param ease The easing function used to interpolate the fade (default is linear).
- * @param force If true, the fade-in will override any ongoing fade effect (default is true).
+ * @param ease The easing function used to interpolate the fade.
+ * @param force If true, the fade-in will override any ongoing fade effect.
  */
 void FadeIn(
-	Entity& entity, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
+	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
+	bool force = true
 );
 
 /**
@@ -342,11 +298,59 @@ void FadeIn(
  *
  * @param entity The entity to apply the fade-out effect to.
  * @param duration The time span over which the fade-out will occur.
- * @param ease The easing function used to interpolate the fade (default is linear).
- * @param force If true, the fade-out will override any ongoing fade effect (default is true).
+ * @param ease The easing function used to interpolate the fade.
+ * @param force If true, the fade-out will override any ongoing fade effect.
  */
 void FadeOut(
-	Entity& entity, milliseconds duration, TweenEase ease = TweenEase::Linear, bool force = true
+	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
+	bool force = true
+);
+
+/**
+ * @brief Applies a bouncing motion to the specified entity.
+ *
+ * The bounce starts at the entity position (or previously queued bounce end point), approaches the
+ * amplitude offset and then returns back to the origin point all within a single duration and can
+ * repeat a specified number of times or indefinitely.
+ *
+ * @param entity The entity to apply the bounce effect to.
+ * @param bounce_amplitude The peak offset applied during the bounce.
+ * @param duration The duration of one bounce cycle (e.g., up and down).
+ * @param total_periods Number of up and down bounce cycles. If -1, bounce continues indefinitely
+ * until StopBounce is called.
+ * @param ease The easing function to use for the bounce.
+ * @param static_offset A constant offset added to the entity's position throughout the bounce.
+ * @param force If true, overrides any existing bounce effect on the entity.
+ */
+void Bounce(
+	Entity& entity, const V2_float& bounce_amplitude, milliseconds duration,
+	std::int64_t total_periods = -1, const Ease& ease = SymmetricalEase::Linear,
+	const V2_float& static_offset = {}, bool force = true
+);
+
+/**
+ * @brief Applies a symmetrical bouncing motion to the specified entity.
+ *
+ * Similar to a regular bounce, the symmetrical bounce starts at the entity position (or previously
+ * queued bounce end point), approaches the amplitude offset and then goes to a negative amplitude
+ * offset before returning back to the origin point all within a single duration and can repeat a
+ * specified number of times or indefinitely. As a result, a symmetrical bounce requires a
+ * symmetrical easing function. Note: Symmetrical bounces occupy the same effect queue as regular
+ * bounces, i.e. they can not occur at the same time for the same entity.
+ *
+ * @param entity The entity to apply the bounce effect to.
+ * @param bounce_amplitude The peak offset applied during the bounce.
+ * @param duration The duration of one bounce cycle (e.g., up and down).
+ * @param total_periods Number of up and down bounce cycles. If -1, bounce continues indefinitely
+ * until StopBounce is called.
+ * @param ease The symmetrical easing function to use for the bounce.
+ * @param static_offset A constant offset added to the entity's position throughout the bounce.
+ * @param force If true, overrides any existing bounce effect on the entity.
+ */
+void SymmetricalBounce(
+	Entity& entity, const V2_float& bounce_amplitude, milliseconds duration,
+	std::int64_t total_periods = -1, SymmetricalEase ease = SymmetricalEase::Linear,
+	const V2_float& static_offset = {}, bool force = true
 );
 
 /**
@@ -356,25 +360,6 @@ void FadeOut(
  * @param force If true, clears the entire bounce queue instead of just the current tween.
  */
 void StopBounce(Entity& entity, bool force = true);
-
-/**
- * @brief Applies a bouncing motion to the specified entity.
- *
- * The bounce starts with an upward motion unless reversed. It uses a tweening function
- * for smooth animation and can repeat a specified number of times or indefinitely.
- *
- * @param entity The entity to apply the bounce effect to.
- * @param bounce_amplitude The peak offset applied during the bounce animation.
- * @param static_offset A constant offset added to the entity's position throughout the animation.
- * @param duration The duration of one bounce cycle (e.g., up and down).
- * @param ease The easing function to use for the animation.
- * @param repeats Number of bounce cycles. If -1, bounce continues until StopBounce is called.
- * @param force If true, overrides any existing bounce effect on the entity.
- */
-void Bounce(
-	Entity& entity, const V2_float& bounce_amplitude, const V2_float& static_offset,
-	milliseconds duration, TweenEase ease, std::int64_t repeats, bool force = true
-);
 
 /**
  * @brief Applies a shaking effect to the specified entity.
