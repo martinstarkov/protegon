@@ -1,11 +1,26 @@
 #include "components/offsets.h"
 
 #include "components/transform.h"
+#include "core/entity.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 Transform Offsets::GetTotal() const {
 	return shake.RelativeTo(bounce);
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+Transform GetRelativeOffset(const Entity& entity) {
+	return entity.Has<impl::Offsets>() ? entity.Get<impl::Offsets>().GetTotal() : Transform{};
+}
+
+Transform GetOffset(const Entity& entity) {
+	return GetRelativeOffset(entity).RelativeTo(
+		entity.HasParent() ? GetRelativeOffset(entity.GetParent()) : Transform{}
+	);
+}
+
+} // namespace ptgn

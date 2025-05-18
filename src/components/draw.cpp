@@ -12,6 +12,7 @@
 #include "common/assert.h"
 #include "components/common.h"
 #include "components/drawable.h"
+#include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
@@ -80,7 +81,7 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	auto display_size{ sprite.GetDisplaySize() };
 	auto coords{ sprite.GetTextureCoordinates(false) };
-	auto offset_transform{ impl::GetOffset(sprite) };
+	auto offset_transform{ GetOffset(sprite) };
 	transform = transform.RelativeTo(offset_transform);
 	auto vertices{ impl::GetVertices(transform, display_size, origin) };
 

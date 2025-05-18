@@ -8,6 +8,7 @@
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
+#include "math/easing.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
@@ -16,7 +17,6 @@
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
 #include "tweening/tween.h"
-#include "tweening/tween_effects.h"
 
 namespace ptgn {
 
@@ -25,10 +25,6 @@ class Scene;
 class CameraManager;
 
 namespace impl {
-
-[[nodiscard]] Transform GetRelativeOffset(const Entity& entity);
-
-[[nodiscard]] Transform GetOffset(const Entity& entity);
 
 // TODO: Add all these as serializable components.
 
@@ -158,8 +154,8 @@ public:
 	// @param force If false, the pan is queued in the pan queue, if true the pan is executed
 	// immediately, clearing any previously queued pans or target following.
 	Tween& PanTo(
-		const V2_float& target_position, milliseconds duration, TweenEase ease = TweenEase::Linear,
-		bool force = false
+		const V2_float& target_position, milliseconds duration, const Ease& ease = const
+	Ease&::Linear, bool force = false
 	);
 
 	// @param target_zoom Zoom level to go to.
@@ -168,7 +164,7 @@ public:
 	// @param force If false, the zoom is queued in the zoom queue, if true the zoom is executed
 	// immediately, clearing any previously queued zooms.
 	Tween& ZoomTo(
-		float target_zoom, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		float target_zoom, milliseconds duration, const Ease& ease = const Ease&::Linear,
 		bool force = false
 	);
 
@@ -186,7 +182,7 @@ public:
 	//               |
 	//             1.5708
 	Tween& RotateTo(
-		float target_angle, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		float target_angle, milliseconds duration, const Ease& ease = const Ease&::Linear,
 		bool force = false
 	);
 
@@ -226,7 +222,7 @@ public:
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
 	Tween& FadeFrom(
-		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		const Color& color, milliseconds duration, const Ease& ease = const Ease&::Linear,
 		bool force = false
 	);
 
@@ -236,7 +232,7 @@ public:
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
 	Tween& FadeTo(
-		const Color& color, milliseconds duration, TweenEase ease = TweenEase::Linear,
+		const Color& color, milliseconds duration, const Ease& ease = const Ease&::Linear,
 		bool force = false
 	);
 
@@ -396,7 +392,7 @@ protected:
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
 	Tween& FadeFromTo(
-		const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
+		const Color& start_color, const Color& end_color, milliseconds duration, const Ease& ease,
 		bool force
 	);
 

@@ -13,6 +13,7 @@
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/drawable.h"
+#include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -548,7 +549,7 @@ void RenderData::FlushBatches(
 				}
 				PTGN_ASSERT(e.Has<impl::LightProperties>());
 				const auto& light{ e.Get<impl::LightProperties>() };
-				auto offset_transform{ impl::GetOffset(e) };
+				auto offset_transform{ GetOffset(e) };
 				auto transform{ e.GetAbsoluteTransform() };
 				transform = transform.RelativeTo(offset_transform);
 				float radius{ light.radius * Abs(transform.scale.x) };

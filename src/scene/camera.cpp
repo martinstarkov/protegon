@@ -2,22 +2,17 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <cstdint>
 #include <functional>
 #include <limits>
 #include <type_traits>
 #include <utility>
 
 #include "common/assert.h"
-#include "components/common.h"
-#include "components/draw.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/time.h"
 #include "core/window.h"
 #include "debug/log.h"
 #include "events/event_handler.h"
@@ -28,11 +23,8 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
-#include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
-#include "tweening/tween.h"
-#include "tweening/tween_effects.h"
 
 namespace ptgn {
 
@@ -43,16 +35,6 @@ Camera CreateCamera(Manager& manager) {
 }
 
 namespace impl {
-
-Transform GetRelativeOffset(const Entity& entity) {
-	return entity.Has<impl::Offsets>() ? entity.Get<impl::Offsets>().GetTotal() : Transform{};
-}
-
-Transform GetOffset(const Entity& entity) {
-	return GetRelativeOffset(entity).RelativeTo(
-		entity.HasParent() ? GetRelativeOffset(entity.GetParent()) : Transform{}
-	);
-}
 
 CameraInfo::CameraInfo() {
 	data.center_to_window = true;
@@ -343,7 +325,7 @@ void Camera::StartFollow(Entity target_entity, bool force) {
 
 /*
 Tween& Camera::PanTo(
-	const V2_float& target_position, milliseconds duration, TweenEase ease, bool force
+	const V2_float& target_position, milliseconds duration, const Ease& ease, bool force
 ) {
 	// TODO: Replace with tween effects function call once camera game object uses transform
 	// component.
@@ -380,7 +362,7 @@ Tween& Camera::PanTo(
 	return pan_effects_.Get<Tween>();
 }
 
-Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, const Ease& ease, bool force) {
 	// TODO: Replace with tween effects function call?
 	PTGN_ASSERT(target_zoom > 0.0f, "Target zoom cannot be negative or zero");
 	if (!zoom_effects_) {
@@ -416,7 +398,7 @@ Tween& Camera::ZoomTo(float target_zoom, milliseconds duration, TweenEase ease, 
 	return zoom_effects_.Get<Tween>();
 }
 
-Tween& Camera::RotateTo(float target_angle, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::RotateTo(float target_angle, milliseconds duration, const Ease& ease, bool force) {
 	// TODO: Replace with tween effects function call once camera game object uses transform
 	// component.
 	if (!rotation_effects_) {
@@ -475,7 +457,7 @@ void Camera::StopShake(bool force) {
 }
 
 Tween& Camera::FadeFromTo(
-	const Color& start_color, const Color& end_color, milliseconds duration, TweenEase ease,
+	const Color& start_color, const Color& end_color, milliseconds duration, const Ease& ease,
 	bool force
 ) {
 	// TODO: Replace with tween effects function call.
@@ -524,18 +506,18 @@ Tween& Camera::FadeFromTo(
 Tween& Camera::SetColor(const Color& color, bool force) {
 	// TODO: Replace with tween effects function call?
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade to fully transparent color");
-	auto& tween{ FadeFromTo(color, color, milliseconds{ 0 }, TweenEase::Linear, force) };
+	auto& tween{ FadeFromTo(color, color, milliseconds{ 0 }, SymmetricalEase::Linear, force) };
 	tween.Repeat(-1);
 	return tween;
 }
 
-Tween& Camera::FadeTo(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::FadeTo(const Color& color, milliseconds duration, const Ease& ease, bool force) {
 	// TODO: Replace with tween effects function call.
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade to fully transparent color");
 	return FadeFromTo(color::Transparent, color, duration, ease, force);
 }
 
-Tween& Camera::FadeFrom(const Color& color, milliseconds duration, TweenEase ease, bool force) {
+Tween& Camera::FadeFrom(const Color& color, milliseconds duration, const Ease& ease, bool force) {
 	// TODO: Replace with tween effects function call.
 	PTGN_ASSERT(color != color::Transparent, "Cannot fade from fully transparent color");
 	return FadeFromTo(color, color::Transparent, duration, ease, force);
@@ -668,7 +650,7 @@ void Camera::SetFlip(Flip new_flip) {
 const Matrix4& Camera::GetView() const {
 	const auto& info{ Get<impl::CameraInfo>().data };
 	if (info.recalculate_view) {
-		RecalculateView(impl::GetOffset(*this));
+		RecalculateView(GetOffset(*this));
 	}
 	return info.view;
 }
@@ -683,7 +665,7 @@ const Matrix4& Camera::GetProjection() const {
 
 const Matrix4& Camera::GetViewProjection() const {
 	const auto& info{ Get<impl::CameraInfo>().data };
-	auto offset_transform{ impl::GetOffset(*this) };
+	auto offset_transform{ GetOffset(*this) };
 	bool has_offset{ offset_transform != Transform{} };
 	bool update_view{ info.recalculate_view || has_offset };
 	bool updated_matrix{ update_view || info.recalculate_projection };
