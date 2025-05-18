@@ -225,17 +225,19 @@ void TintEffectSystem::Update(Manager& manager) const {
 }
 
 BounceEffectInfo::BounceEffectInfo(
-	const V2_float& start, const V2_float& target, milliseconds duration, const Ease& ease,
+	const V2_float& amplitude, milliseconds duration, const Ease& ease,
 	const V2_float& static_offset, std::int64_t total_periods, bool symmetrical
 ) :
-	EffectInfo<V2_float>{ start, target, duration, ease } {
+	amplitude{ amplitude },
+	duration{ duration },
+	ease{ ease },
+	static_offset{ static_offset },
+	total_periods{ total_periods },
+	symmetrical{ symmetrical } {
 	PTGN_ASSERT(
 		total_periods == -1 || total_periods > 0,
 		"Invalid number of total periods for bounce effect"
 	);
-	this->static_offset = static_offset;
-	this->total_periods = total_periods;
-	this->symmetrical	= symmetrical;
 }
 
 void BounceEffectSystem::Update(Manager& manager) const {
@@ -254,8 +256,7 @@ void BounceEffectSystem::Update(Manager& manager) const {
 
 		float eased_t{ ApplyEase(t, task.symmetrical, task.ease) };
 
-		offsets.bounce.position =
-			task.static_offset + (task.target_value - task.start_value) * eased_t;
+		offsets.bounce.position = task.static_offset + task.amplitude * eased_t;
 
 		if (!task.timer.Completed(task.duration)) {
 			continue;
@@ -345,20 +346,14 @@ void BounceImpl(
 	auto& bounce{ entity.GetOrAdd<impl::BounceEffect>() };
 	entity.GetOrAdd<impl::Offsets>();
 
-	V2_float start;
-
 	bool first_task{ force || bounce.tasks.empty() };
 
 	if (first_task) {
 		bounce.tasks.clear();
-		start = {};
-	} else {
-		// Use previous task's target value as new starting point.
-		start = bounce.tasks.back().target_value;
 	}
 
 	auto& task{ bounce.tasks.emplace_back(
-		start, start + amplitude, duration, ease, static_offset, total_periods, symmetrical
+		amplitude, duration, ease, static_offset, total_periods, symmetrical
 	) };
 
 	if (first_task) {

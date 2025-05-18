@@ -128,14 +128,18 @@ struct TintEffect {
 	std::deque<EffectInfo<Color>> tasks;
 };
 
-struct BounceEffectInfo : public EffectInfo<V2_float> {
+struct BounceEffectInfo {
 	BounceEffectInfo() = default;
 
 	BounceEffectInfo(
-		const V2_float& start, const V2_float& target, milliseconds duration, const Ease& ease,
+		const V2_float& amplitude, milliseconds duration, const Ease& ease,
 		const V2_float& static_offset, std::int64_t total_periods, bool symmetrical
 	);
 
+	V2_float amplitude;
+	milliseconds duration{ 0 };
+	Ease ease{ SymmetricalEase::Linear };
+	Timer timer;
 	V2_float static_offset;
 	std::int64_t total_periods{ -1 };	 // -1 means infinite
 	std::int64_t periods_completed{ 0 }; // How many times the bounce has repeated so far.
