@@ -3,19 +3,14 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
-#include <variant>
 
-#include "components/offsets.h"
-#include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/easing.h"
-#include "math/math.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "tweening/tween.h"
 
 namespace ptgn {
 
