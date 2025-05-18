@@ -1,18 +1,17 @@
 #include "components/draw.h"
 #include "components/input.h"
-#include "core/transform.h"
+#include "components/transform.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
-#include "event/input_handler.h"
-#include "event/key.h"
-
+#include "events/input_handler.h"
+#include "events/key.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
-#include "renderer/render_target.h"
-#include "renderer/texture.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/resources/render_target.h"
+#include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -200,7 +199,7 @@ public:
 				camera.primary.TransformToCamera(game.input.GetMousePosition());
 			/*camera.primary.PanTo(
 				camera.primary.TransformToCamera(game.input.GetMousePosition()), seconds{ 4 },
-				TweenEase::InOutSine, false
+				SymmetricalEase::InOutSine, false
 			);*/
 		} else if (game.input.MouseDown(Mouse::Right)) {
 			camera.primary.StopFollow();

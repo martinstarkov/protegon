@@ -164,7 +164,7 @@ public:
 	// @param force If false, the zoom is queued in the zoom queue, if true the zoom is executed
 	// immediately, clearing any previously queued zooms.
 	Tween& ZoomTo(
-		float target_zoom, milliseconds duration, const Ease& ease = const Ease&::Linear,
+		float target_zoom, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 		bool force = false
 	);
 
@@ -182,7 +182,7 @@ public:
 	//               |
 	//             1.5708
 	Tween& RotateTo(
-		float target_angle, milliseconds duration, const Ease& ease = const Ease&::Linear,
+		float target_angle, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 		bool force = false
 	);
 
@@ -222,7 +222,7 @@ public:
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
 	Tween& FadeFrom(
-		const Color& color, milliseconds duration, const Ease& ease = const Ease&::Linear,
+		const Color& color, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 		bool force = false
 	);
 
@@ -232,7 +232,7 @@ public:
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
 	Tween& FadeTo(
-		const Color& color, milliseconds duration, const Ease& ease = const Ease&::Linear,
+		const Color& color, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 		bool force = false
 	);
 

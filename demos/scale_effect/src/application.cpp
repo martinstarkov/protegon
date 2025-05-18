@@ -23,20 +23,20 @@ struct ScaleEffectScene : public Scene {
 		sprite2.SetPosition({ 100, 600 });
 		sprite3.SetPosition({ 600, 100 });
 
-		ScaleTo(sprite1, { 3.0f, 3.0f }, milliseconds{ 4000 }, TweenEase::Linear);
-		ScaleTo(sprite1, { 1.0f, 1.0f }, milliseconds{ 1000 }, TweenEase::Linear, false);
-		ScaleTo(sprite2, { 0.33f, 0.33f }, milliseconds{ 4000 }, TweenEase::InOutSine);
-		ScaleTo(sprite2, { 1.0f, 1.0f }, milliseconds{ 1000 }, TweenEase::InOutSine, false);
-		ScaleTo(sprite3, { 0.33f, 3.0f }, milliseconds{ 4000 }, TweenEase::InSine);
-		ScaleTo(sprite3, { 1.0f, 1.0f }, milliseconds{ 1000 }, TweenEase::InSine, false);
+		ScaleTo(sprite1, { 3.0f, 3.0f }, milliseconds{ 4000 }, SymmetricalEase::Linear);
+		ScaleTo(sprite1, { 1.0f, 1.0f }, milliseconds{ 1000 }, SymmetricalEase::Linear, false);
+		ScaleTo(sprite2, { 0.33f, 0.33f }, milliseconds{ 4000 }, SymmetricalEase::InOutSine);
+		ScaleTo(sprite2, { 1.0f, 1.0f }, milliseconds{ 1000 }, SymmetricalEase::InOutSine, false);
+		ScaleTo(sprite3, { 0.33f, 3.0f }, milliseconds{ 4000 }, AsymmetricalEase::InSine);
+		ScaleTo(sprite3, { 1.0f, 1.0f }, milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
 	}
 
 	void Update() override {
 		if (game.input.MouseDown(Mouse::Left)) {
-			ScaleTo(sprite1, { 5.0f, 5.0f }, milliseconds{ 4000 }, TweenEase::Linear, true);
+			ScaleTo(sprite1, { 5.0f, 5.0f }, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 		if (game.input.MouseDown(Mouse::Right)) {
-			ScaleTo(sprite1, { 0.25f, 0.25f }, milliseconds{ 4000 }, TweenEase::Linear, true);
+			ScaleTo(sprite1, { 0.25f, 0.25f }, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}
 };

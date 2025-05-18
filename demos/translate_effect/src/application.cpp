@@ -23,19 +23,19 @@ struct TranslateEffectScene : public Scene {
 		sprite2.SetPosition({ 100, 600 });
 		sprite3.SetPosition({ 600, 100 });
 
-		TranslateTo(sprite1, { 600, 600 }, milliseconds{ 4000 }, TweenEase::Linear);
-		TranslateTo(sprite1, { 100, 100 }, milliseconds{ 1000 }, TweenEase::Linear, false);
-		TranslateTo(sprite2, { 600, 600 }, milliseconds{ 4000 }, TweenEase::InOutSine);
-		TranslateTo(sprite2, { 100, 600 }, milliseconds{ 1000 }, TweenEase::InOutSine, false);
-		TranslateTo(sprite3, { 600, 600 }, milliseconds{ 4000 }, TweenEase::InSine);
-		TranslateTo(sprite3, { 600, 100 }, milliseconds{ 1000 }, TweenEase::InSine, false);
+		TranslateTo(sprite1, { 600, 600 }, milliseconds{ 4000 }, SymmetricalEase::Linear);
+		TranslateTo(sprite1, { 100, 100 }, milliseconds{ 1000 }, SymmetricalEase::Linear, false);
+		TranslateTo(sprite2, { 600, 600 }, milliseconds{ 4000 }, SymmetricalEase::InOutSine);
+		TranslateTo(sprite2, { 100, 600 }, milliseconds{ 1000 }, SymmetricalEase::InOutSine, false);
+		TranslateTo(sprite3, { 600, 600 }, milliseconds{ 4000 }, AsymmetricalEase::InSine);
+		TranslateTo(sprite3, { 600, 100 }, milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
 	}
 
 	void Update() override {
 		if (game.input.MouseDown(Mouse::Left)) {
 			TranslateTo(
-				sprite1, game.input.GetMousePosition(), milliseconds{ 1000 }, TweenEase::Linear,
-				true
+				sprite1, game.input.GetMousePosition(), milliseconds{ 1000 },
+				SymmetricalEase::Linear, true
 			);
 		}
 	}

@@ -23,20 +23,22 @@ struct RotateEffectScene : public Scene {
 		sprite2.SetPosition({ 100, 600 });
 		sprite3.SetPosition({ 600, 100 });
 
-		RotateTo(sprite1, DegToRad(180.0f), milliseconds{ 4000 }, TweenEase::Linear);
-		RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 1000 }, TweenEase::Linear, false);
-		RotateTo(sprite2, DegToRad(-180.0f), milliseconds{ 4000 }, TweenEase::InOutSine);
-		RotateTo(sprite2, DegToRad(0.0f), milliseconds{ 1000 }, TweenEase::InOutSine, false);
-		RotateTo(sprite3, DegToRad(360.0f), milliseconds{ 4000 }, TweenEase::InSine);
-		RotateTo(sprite3, DegToRad(0.0f), milliseconds{ 1000 }, TweenEase::InSine, false);
+		RotateTo(sprite1, DegToRad(180.0f), milliseconds{ 4000 }, SymmetricalEase::Linear);
+		RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 1000 }, SymmetricalEase::Linear, false);
+		RotateTo(sprite2, DegToRad(-180.0f), milliseconds{ 4000 }, SymmetricalEase::InOutSine);
+		RotateTo(sprite2, DegToRad(0.0f), milliseconds{ 1000 }, SymmetricalEase::InOutSine, false);
+		RotateTo(sprite3, DegToRad(360.0f), milliseconds{ 4000 }, AsymmetricalEase::InSine);
+		RotateTo(sprite3, DegToRad(0.0f), milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
 	}
 
 	void Update() override {
 		if (game.input.MouseDown(Mouse::Left)) {
-			RotateTo(sprite1, DegToRad(360.0f), milliseconds{ 4000 }, TweenEase::Linear, true);
+			RotateTo(
+				sprite1, DegToRad(360.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true
+			);
 		}
 		if (game.input.MouseDown(Mouse::Right)) {
-			RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 4000 }, TweenEase::Linear, true);
+			RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}
 };

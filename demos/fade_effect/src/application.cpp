@@ -22,18 +22,18 @@ struct FadeEffectScene : public Scene {
 		sprite1.SetPosition({ 100, 100 });
 		sprite2.SetPosition({ 600, 600 });
 
-		FadeIn(sprite1, milliseconds{ 4000 }, TweenEase::Linear);
-		FadeOut(sprite1, milliseconds{ 4000 }, TweenEase::Linear, false);
-		FadeOut(sprite2, milliseconds{ 4000 }, TweenEase::InSine);
-		FadeIn(sprite2, milliseconds{ 4000 }, TweenEase::InSine, false);
+		FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear);
+		FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, false);
+		FadeOut(sprite2, milliseconds{ 4000 }, AsymmetricalEase::InSine);
+		FadeIn(sprite2, milliseconds{ 4000 }, AsymmetricalEase::InSine, false);
 	}
 
 	void Update() override {
 		if (game.input.MouseDown(Mouse::Left)) {
-			FadeIn(sprite1, milliseconds{ 4000 }, TweenEase::Linear, true);
+			FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 		if (game.input.MouseDown(Mouse::Right)) {
-			FadeOut(sprite1, milliseconds{ 4000 }, TweenEase::Linear, true);
+			FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}
 };
