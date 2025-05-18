@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/assert.h"
 #include "common/type_traits.h"
 
 namespace ptgn {
@@ -222,9 +223,8 @@ template <typename T>
 // tolerances. The absolute tolerance test fails when x and y become large. The
 // relative tolerance test fails when x and y become small.
 template <typename T>
-[[nodiscard]] bool NearlyEqual(
-	T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * epsilon<T>
-) noexcept {
+[[nodiscard]] bool
+NearlyEqual(T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * epsilon<T>) noexcept {
 	if constexpr (std::is_floating_point_v<T>) {
 		// TODO: Fix this.
 		bool a_inf{ std::isinf(a) };
@@ -258,6 +258,19 @@ template <typename T, tt::floating_point<T> = true>
 	const T q = (b > 0.0f) ? -0.5f * (b + std::sqrt(disc)) : -0.5f * (b - std::sqrt(disc));
 	// This may look weird but the algebra checks out here (I checked).
 	return { true, q / a, c / q };
+}
+
+// Triangle wave mimicking the typical sine wave. y values in range [-1, 1], x values in domain [0,
+// 1]. Starts from y=0 going toward y=1.
+template <typename T, tt::floating_point<T> = true>
+[[nodiscard]] T TriangleWave(
+	T t, T period = static_cast<T>(1.0), T phase_shift = static_cast<T>(0.0)
+) {
+	PTGN_ASSERT(period != static_cast<T>(0.0), "Triangle wave period can not be 0");
+	t += phase_shift + static_cast<T>(0.25);
+	t /= period;
+	return static_cast<T>(2.0) * Abs(static_cast<T>(2.0) * (t - Floor(t + static_cast<T>(0.5)))) -
+		   static_cast<T>(1.0);
 }
 
 template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>
