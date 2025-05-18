@@ -48,7 +48,11 @@ template <typename T>
 auto GetTaskValue(T& task) {
 	PTGN_ASSERT(task.timer.IsRunning());
 
-	float t{ task.timer.template ElapsedPercentage<milliseconds, float>(task.duration) };
+	float t{ 1.0f };
+
+	if (task.duration >= milliseconds{ 0 }) {
+		t = task.timer.template ElapsedPercentage<milliseconds, float>(task.duration);
+	}
 
 	float eased_t{ ApplyEase(t, task.ease) };
 
@@ -237,16 +241,19 @@ void ShakeEffectSystem::Update(Manager& manager, float time, float dt) const {
 
 		auto& task{ effect.tasks.front() };
 
-		float intensity{ GetTaskValue(task) };
+		bool completed{ task.timer.Completed(task.duration) };
 
-		PTGN_ASSERT(intensity >= 0.0f && intensity <= 1.0f);
+		if (completed) {
+			// Shake effect has finished but trauma needs to be decayed (organically).
+			task.trauma = std::clamp(task.trauma - task.config.recovery_speed * dt, 0.0f, 1.0f);
+		} else {
+			// Shake effect is ongoing, update trauma value with intensity.
 
-		task.trauma = intensity;
+			float intensity{ GetTaskValue(task) };
 
-		if (task.trauma <= 0.0f) {
-			offsets.shake = {};
-			entity.template Remove<ShakeEffect>();
-			continue;
+			PTGN_ASSERT(intensity >= 0.0f && intensity <= 1.0f);
+
+			task.trauma = intensity;
 		}
 
 		// Shake algorithm based on: https://roystan.net/articles/camera-shake/
@@ -265,28 +272,33 @@ void ShakeEffectSystem::Update(Manager& manager, float time, float dt) const {
 		offsets.shake.position = shake * task.config.maximum_translation * position_noise;
 		offsets.shake.rotation = shake * task.config.maximum_rotation * rotation_noise;
 
-		task.trauma = std::clamp(task.trauma - task.config.recovery_speed * dt, 0.0f, 1.0f);
-
-		PTGN_LOG("trauma: ", task.trauma);
-
-		if (!task.timer.Completed(task.duration)) {
+		if (!completed) {
+			// Shake effect has not finished yet.
 			continue;
 		}
 
-		// Infinite task.
 		if (task.duration == milliseconds{ -1 }) {
+			// Shake effect is infinite, restart the timer.
 			task.timer.Start(true);
 			continue;
 		}
 
-		// Task completed.
-		effect.tasks.pop_front();
-
-		if (effect.tasks.empty()) {
+		if (task.trauma >= 0.0f && effect.tasks.size() == 1) {
+			// Shake effect has finished and is the only queued effect, but there is some trauma
+			// left to decay.
 			continue;
 		}
 
-		// Start next task.
+		// Shake effect has finished and all trauma has been decayed (or another queued shake
+		// starts).
+		effect.tasks.pop_front();
+
+		if (effect.tasks.empty()) {
+			// No more shake effects.
+			continue;
+		}
+
+		// Start next shake effect.
 		effect.tasks.front().timer.Start(true);
 	}
 }
@@ -394,6 +406,10 @@ void Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
 	const Ease& ease, bool force
 ) {
+	PTGN_ASSERT(
+		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
+	);
+
 	auto& comp = entity.GetOrAdd<impl::ShakeEffect>();
 	entity.GetOrAdd<impl::Offsets>();
 
@@ -412,8 +428,53 @@ void Shake(
 	std::int32_t seed{ rng() };
 
 	auto& task = comp.tasks.emplace_back(
-		start_intensity, start_intensity + intensity, duration, ease, config, seed
+		start_intensity, std::clamp(start_intensity + intensity, 0.0f, 1.0f), duration, ease,
+		config, seed
 	);
+
+	task.trauma = start_intensity;
+
+	if (first_task) {
+		task.timer.Start(true);
+	}
+}
+
+void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
+	auto& comp = entity.GetOrAdd<impl::ShakeEffect>();
+	entity.GetOrAdd<impl::Offsets>();
+	PTGN_ASSERT(
+		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
+	);
+
+	float start_intensity{ 0.0f };
+
+	bool first_task{ force || comp.tasks.empty() };
+
+	if (first_task) {
+		comp.tasks.clear();
+	} else {
+		start_intensity = comp.tasks.back().target_value;
+	}
+
+	// If a previous instantenous shake exists with 0 duration, add to its trauma instead of
+	// queueing a new shake effect.
+	if (!comp.tasks.empty()) {
+		if (auto& back_task{ comp.tasks.back() }; back_task.duration == milliseconds{ 0 }) {
+			back_task.trauma = std::clamp(back_task.trauma + intensity, 0.0f, 1.0f);
+			return;
+		}
+	}
+
+	RNG<std::int32_t> rng{ std::numeric_limits<std::int32_t>::min(),
+						   std::numeric_limits<std::int32_t>::max() };
+	std::int32_t seed{ rng() };
+
+	auto& task = comp.tasks.emplace_back(
+		start_intensity, std::clamp(start_intensity + intensity, 0.0f, 1.0f), milliseconds{ 0 },
+		SymmetricalEase::None, config, seed
+	);
+
+	task.trauma = intensity;
 
 	if (first_task) {
 		task.timer.Start(true);

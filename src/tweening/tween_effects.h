@@ -317,11 +317,12 @@ void SymmetricalBounce(
 void StopBounce(Entity& entity, bool force = true);
 
 /**
- * @brief Applies a shaking effect to the specified entity.
+ * @brief Applies a continuous shake effect to the specified entity.
  *
  * @param entity The entity to apply the shake effect to.
  * @param intensity The intensity of the shake, in the range [0, 1].
- * @param duration The total duration of the shake effect. If -1, the shake is continuous
+ * @param duration The total duration of the shake effect. If -1, the shake continues until
+ * StopShake is called.
  * @param config Configuration parameters for the shake behavior.
  * @param ease The easing function to use for the shake. If SymmetricalEase::None, shake remains at
  * full intensity for the entire time.
@@ -331,6 +332,16 @@ void Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
 	const Ease& ease = SymmetricalEase::None, bool force = true
 );
+
+/**
+ * @brief Applies an instantenous shake effect to the specified entity.
+ *
+ * @param entity The entity to apply the shake effect to.
+ * @param intensity The intensity of the shake, in the range [0, 1].
+ * @param config Configuration parameters for the shake behavior.
+ * @param force If true, overrides any existing shake effect.
+ */
+void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool force = true);
 
 /**
  * @brief Stops any ongoing shake effect on the specified entity.

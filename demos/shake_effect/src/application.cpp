@@ -28,29 +28,19 @@ struct ShakeEffectScene : public Scene {
 
 		// TODO: Implement shake effects.
 
-		Shake(sprite1, 1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::Linear, false);
-
-		/*
-		RotateTo(sprite1, DegToRad(180.0f), milliseconds{ 4000 }, SymmetricalEase::Linear);
-		RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 1000 }, SymmetricalEase::Linear, false);
-		RotateTo(sprite2, DegToRad(-180.0f), milliseconds{ 4000 }, SymmetricalEase::InOutSine);
-		RotateTo(sprite2, DegToRad(0.0f), milliseconds{ 1000 }, SymmetricalEase::InOutSine, false);
-		RotateTo(sprite3, DegToRad(360.0f), milliseconds{ 4000 }, AsymmetricalEase::InSine);
-		RotateTo(sprite3, DegToRad(0.0f), milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
-		*/
+		Shake(sprite1, 1.0f, milliseconds{ 8000 }, {}, SymmetricalEase::Linear, false);
+		Shake(sprite1, -1.0f, milliseconds{ 8000 }, {}, SymmetricalEase::Linear, false);
+		Shake(sprite2, 1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::None, false);
+		Shake(sprite3, 0.5f, milliseconds{ -1 }, {}, SymmetricalEase::Linear, false);
 	}
 
 	void Update() override {
-		/*
 		if (game.input.MouseDown(Mouse::Left)) {
-			RotateTo(
-				sprite1, DegToRad(360.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true
-			);
+			Shake(sprite2, 0.25f, {}, false);
 		}
 		if (game.input.MouseDown(Mouse::Right)) {
-			RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true);
+			StopShake(sprite2, true);
 		}
-		*/
 	}
 };
 
