@@ -5,6 +5,7 @@
 namespace ptgn {
 
 enum class SymmetricalEase {
+	None,
 	Linear,
 	InOutSine,
 	InOutQuad,
