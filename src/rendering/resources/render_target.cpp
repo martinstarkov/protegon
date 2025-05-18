@@ -1,14 +1,11 @@
 #include "rendering/resources/render_target.h"
 
-#include <utility>
-
 #include "common/assert.h"
 #include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "math/vector2.h"
-#include "render_target.h"
 #include "rendering/api/color.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/buffers/frame_buffer.h"

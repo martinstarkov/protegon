@@ -4,10 +4,10 @@
 #include <iosfwd>
 #include <ostream>
 
+#include "common/type_traits.h"
 #include "math/math.h"
 #include "math/vector4.h"
 #include "serialization/serializable.h"
-#include "common/type_traits.h"
 
 struct SDL_Color;
 

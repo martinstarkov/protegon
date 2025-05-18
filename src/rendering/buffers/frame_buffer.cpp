@@ -6,7 +6,10 @@
 #include <utility>
 #include <vector>
 
+#include "common/assert.h"
 #include "core/game.h"
+#include "debug/debug.h"
+#include "debug/stats.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/gl/gl_helper.h"
@@ -14,9 +17,6 @@
 #include "rendering/gl/gl_types.h"
 #include "rendering/renderer.h"
 #include "rendering/resources/texture.h"
-#include "common/assert.h"
-#include "debug/debug.h"
-#include "debug/stats.h"
 
 namespace ptgn::impl {
 

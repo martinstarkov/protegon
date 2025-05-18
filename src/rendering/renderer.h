@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <vector>
 
-#include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"

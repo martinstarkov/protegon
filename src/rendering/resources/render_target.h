@@ -1,6 +1,5 @@
 #pragma once
 
-#include "components/draw.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
@@ -9,7 +8,6 @@
 #include "rendering/api/color.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/resources/texture.h"
-#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -18,11 +16,6 @@ class Scene;
 namespace impl {
 
 class RenderData;
-
-struct RenderTargetInfo {
-	Camera camera_;
-	impl::FrameBuffer frame_buffer_;
-};
 
 struct ClearColor : public ColorComponent {
 	using ColorComponent::ColorComponent;

@@ -16,14 +16,15 @@
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/buffers/vertex_array.h"
 #include "rendering/resources/render_target.h"
-#include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
-#include "scene/camera.h"
 
 namespace ptgn {
 
 // TODO: Figure out what to do with this.
 struct Point {};
+
+class Shader;
+class Camera;
 
 namespace impl {
 
