@@ -173,7 +173,7 @@ public:
 	}
 };
 
-// @param font_key Default: "" corresponds to the default engine font (use
+// @param font_key Default: {} corresponds to the default engine font (use
 // game.font.SetDefault(...) to change.
 [[nodiscard]] Text CreateText(
 	Manager& manager, const TextContent& content, const TextColor& text_color = {},

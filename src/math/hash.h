@@ -20,6 +20,9 @@ struct Vector2;
  * @return Unique positive integer corresponding to the string.
  */
 [[nodiscard]] constexpr std::size_t Hash(std::string_view string) {
+	if (string.empty()) {
+		return 0;
+	}
 	std::size_t hash{ 5381 };
 	for (const auto& c : string) {
 		hash = (33 * hash) ^ static_cast<std::size_t>(c);

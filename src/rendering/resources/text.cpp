@@ -6,12 +6,10 @@
 
 #include "common/assert.h"
 #include "components/draw.h"
-#include "components/drawable.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "debug/log.h"
-#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/batching/render_data.h"
@@ -22,7 +20,6 @@
 #include "SDL_rect.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
-#include "text.h"
 
 namespace ptgn {
 
@@ -33,6 +30,7 @@ Text CreateText(
 	Text text{ manager.CreateEntity() };
 	text.Add<TextureHandle>();
 	text.SetDraw<Text>();
+	text.Show();
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);
 	text.SetParameter(font_key, false);

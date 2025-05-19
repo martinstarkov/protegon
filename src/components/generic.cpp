@@ -1,5 +1,8 @@
 #include "components/generic.h"
 
+#include <string>
+#include <string_view>
+
 #include "math/hash.h"
 
 namespace ptgn {
