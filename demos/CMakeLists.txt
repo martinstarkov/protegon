@@ -36,15 +36,14 @@ add_subdirectory(paint)
 add_subdirectory(chunk)
 add_subdirectory(noise)
 add_subdirectory(pathfinding)
-
-add_subdirectory(audio)
-
 add_subdirectory(particle)
 add_subdirectory(fluid)
 
+add_subdirectory(audio)
 add_subdirectory(scene_transition)
 add_subdirectory(fullscreen)
 add_subdirectory(resolution)
+add_subdirectory(script)
 add_subdirectory(tween)
 
 add_subdirectory(parallax)
