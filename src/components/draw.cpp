@@ -376,7 +376,7 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 	}
 	auto& active{ GetActive() };
 	active.Hide();
-	active.Get<Tween>().Pause();
+	active.Pause();
 	ActiveMapManager::SetActive(key);
 	auto& new_active{ GetActive() };
 	new_active.Show();
