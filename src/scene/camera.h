@@ -20,25 +20,10 @@
 
 namespace ptgn {
 
-struct WindowResizedEvent;
 class Scene;
 class CameraManager;
 
 namespace impl {
-
-// TODO: Add all these as serializable components.
-
-struct CameraPanStart : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
-struct CameraZoomStart : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-};
-
-struct CameraRotationStart : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-};
 
 struct CameraLerp : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
@@ -55,98 +40,44 @@ struct CameraOffset : public Vector2Component<float> {
 };
 
 struct CameraInfo {
-	CameraInfo();
-	CameraInfo(const CameraInfo& other);
-	CameraInfo& operator=(const CameraInfo& other);
-	CameraInfo(CameraInfo&& other) noexcept;
-	CameraInfo& operator=(CameraInfo&& other) noexcept;
-	~CameraInfo();
+	V2_float viewport_position;
+	V2_float viewport_size;
 
-	[[nodiscard]] float GetZoom() const;
-	[[nodiscard]] V2_float GetSize() const;
-	[[nodiscard]] V2_float GetPosition() const;
-	// Gets only the yaw.
-	[[nodiscard]] float GetRotation() const;
+	float position_z{ 0.0f };
 
-	void SetZoom(float new_zoom);
+	V2_float size;
 
-	void SetSize(const V2_float& new_size);
+	// If true, rounds camera position to pixel precision.
+	// TODO: Check that this works.
+	bool pixel_rounding{ false };
 
-	// Sets yaw only.
-	void SetRotation(float yaw_angle_radians);
+	float orientation_y{ 0.0f };
+	float orientation_z{ 0.0f };
 
-	void SetRotation(const V3_float& new_angle_radians);
+	// Top left position.
+	V2_float bounding_box_position;
+	// If size is {}, no bounds are enforced.
+	V2_float bounding_box_size;
 
-	void SetPosition(const V2_float& new_position);
-	void SetPosition(const V3_float& new_position);
+	Flip flip{ Flip::None };
 
-	void SetBounds(const V2_float& position, const V2_float& size);
+	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
+	// multiplications.
+	mutable Matrix4 view{ 1.0f };
+	mutable Matrix4 projection{ 1.0f };
+	mutable Matrix4 view_projection{ 1.0f };
 
-	// Will resize the camera.
-	void SubscribeToEvents() noexcept;
+	mutable bool recalculate_view{ false };
+	mutable bool recalculate_projection{ false };
 
-	void UnsubscribeFromEvents() noexcept;
-
-	void OnWindowResize(const WindowResizedEvent& e) noexcept;
-
-	void RefreshBounds() noexcept;
-
-	// If bounding_box_size.IsZero(), returns position.
-	[[nodiscard]] static V2_float ClampToBounds(
-		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
-		const V2_float& camera_size, float camera_zoom
-	);
-
-	// TODO: Convert some of these to be components.
-	struct Data {
-		V2_float viewport_position;
-		V2_float viewport_size;
-
-		// Top left position of camera.
-		V3_float position;
-
-		V2_float size;
-
-		float zoom{ 1.0f };
-
-		// If true, rounds camera position to pixel precision.
-		// TODO: Check that this works.
-		bool pixel_rounding{ false };
-
-		V3_float orientation;
-
-		// Top left position.
-		V2_float bounding_box_position;
-		// If size is {}, no bounds are enforced.
-		V2_float bounding_box_size;
-
-		Flip flip{ Flip::None };
-
-		// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
-		// multiplications.
-		mutable Matrix4 view{ 1.0f };
-		mutable Matrix4 projection{ 1.0f };
-		mutable Matrix4 view_projection{ 1.0f };
-		mutable bool recalculate_view{ false };
-		mutable bool recalculate_projection{ false };
-
-		bool center_to_window{ true };
-		bool resize_to_window{ true };
-	};
-
-	Data data;
+	bool center_to_window{ true };
+	bool resize_to_window{ true };
 };
 
 } // namespace impl
 
 class Camera : public Entity {
 public:
-	Camera() = default;
-	Camera(const Entity& entity);
-
-	void SetPixelRounding(bool enabled);
-	[[nodiscard]] bool IsPixelRoundingEnabled() const;
-
 	/*
 	// @param target_position Position to pan to.
 	// @param duration Duration of pan.
@@ -239,6 +170,12 @@ public:
 	Tween& SetColor(const Color& color, bool force = false);
 	*/
 
+	Camera() = default;
+	Camera(const Entity& entity);
+
+	void SetPixelRounding(bool enabled);
+	[[nodiscard]] bool IsPixelRoundingEnabled() const;
+
 	// Top left position.
 	[[nodiscard]] V2_float GetViewportPosition() const;
 	[[nodiscard]] V2_float GetViewportSize() const;
@@ -271,7 +208,7 @@ public:
 
 	[[nodiscard]] V2_float GetSize() const;
 
-	[[nodiscard]] float GetZoom() const;
+	[[nodiscard]] V2_float GetZoom() const;
 
 	[[nodiscard]] V2_float GetBoundsPosition() const;
 	[[nodiscard]] V2_float GetBoundsSize() const;
@@ -279,15 +216,6 @@ public:
 	// @param origin What point on the camera the position represents.
 	// @return The position of the camera.
 	[[nodiscard]] V2_float GetPosition(Origin origin = Origin::Center) const;
-
-	// @return (yaw, pitch, roll) (radians).
-	[[nodiscard]] V3_float GetOrientation() const;
-
-	// @return Yaw (2D rotation) (radians).
-	[[nodiscard]] float GetRotation() const;
-
-	// Orientation as a quaternion.
-	[[nodiscard]] Quaternion GetQuaternion() const;
 
 	[[nodiscard]] Flip GetFlip() const;
 
@@ -306,14 +234,16 @@ public:
 	void Translate(const V2_float& position_change);
 
 	void SetZoom(float new_zoom);
+	void SetZoom(const V2_float& new_zoom);
 
 	void Zoom(float zoom_change_amount);
+	void Zoom(const V2_float& zoom_change_amount);
 
 	// (yaw, pitch, roll) in radians.
-	void SetRotation(const V3_float& new_angle_radians);
+	// void SetRotation(const V3_float& new_angle_radians);
 
 	// (yaw, pitch, roll) in radians.
-	void Rotate(const V3_float& angle_change_radians);
+	// void Rotate(const V3_float& angle_change_radians);
 
 	// Set 2D rotation angle in radians.
 	/* Range: (-3.14159, 3.14159].
@@ -338,23 +268,24 @@ public:
 	void Rotate(float angle_change_radians);
 
 	// Angle in radians.
-	void SetYaw(float angle_radians);
+	// void SetYaw(float angle_radians);
 
-	// Angle in radians.
-	void Yaw(float angle_change_radians);
+	//// Angle in radians.
+	// void Yaw(float angle_change_radians);
 
-	// Angle in radians.
-	void SetPitch(float angle_radians);
+	//// Angle in radians.
+	// void SetPitch(float angle_radians);
 
-	// Angle in radians.
-	void Pitch(float angle_change_radians);
+	//// Angle in radians.
+	// void Pitch(float angle_change_radians);
 
-	// Angle in radians.
-	void SetRoll(float angle_radians);
+	//// Angle in radians.
+	// void SetRoll(float angle_radians);
 
-	// Angle in radians.
-	void Roll(float angle_change_radians);
+	//// Angle in radians.
+	// void Roll(float angle_change_radians);
 
+	/*
 	// Only applies when camera is following a target.
 	// Range: [0, 1]. Determines how smoothly the camera tracks to the target's position. 1 for
 	// instant tracking, 0 to disable tracking.
@@ -375,6 +306,9 @@ public:
 	void SetFollowOffset(const V2_float& offset = {});
 
 	[[nodiscard]] V2_float GetFollowOffset() const;
+	*/
+
+	void Reset();
 
 	void PrintInfo() const;
 
@@ -384,6 +318,16 @@ public:
 
 protected:
 	friend class CameraManager;
+	friend Camera CreateCamera(Manager& manager);
+
+	// @return (yaw, pitch, roll) (radians).
+	[[nodiscard]] V3_float GetOrientation() const;
+
+	// Orientation as a quaternion.
+	[[nodiscard]] Quaternion GetQuaternion() const;
+
+	void SubscribeToWindowEvents();
+	void UnsubscribeFromWindowEvents();
 
 	// @param start_color Starting color.
 	// @param end_color Ending color.
@@ -391,26 +335,29 @@ protected:
 	// @param ease Easing function for the fade.
 	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
 	// immediately, clearing any previously queued fades.
-	Tween& FadeFromTo(
+	/*Tween& FadeFromTo(
 		const Color& start_color, const Color& end_color, milliseconds duration, const Ease& ease,
 		bool force
-	);
+	);*/
 
 	[[nodiscard]] const Matrix4& GetView() const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
 
 	// Set the point which is at the center of the camera view.
-	void SetPosition(const V3_float& new_position);
+	// void SetPosition(const V3_float& new_position);
 
 	void RecalculateView(const Transform& offset_transform) const;
 	void RecalculateProjection() const;
 	void RecalculateViewProjection() const;
 
-	// TODO: Get rid of these in favor of systems.
-	Entity pan_effects_;
-	Entity rotation_effects_;
-	Entity zoom_effects_;
-	Entity fade_effects_;
+	void RefreshBounds();
+
+	void OnWindowResize(const V2_int& size);
+
+	[[nodiscard]] static V2_float ClampToBounds(
+		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
+		const V2_float& camera_size, const V2_float& camera_zoom
+	);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {

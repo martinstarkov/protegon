@@ -1,27 +1,17 @@
 #include "components/draw.h"
-#include "components/input.h"
-#include "components/transform.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "core/window.h"
-#include "ecs/ecs.h"
 #include "events/input_handler.h"
 #include "events/key.h"
-#include "math/geometry.h"
-#include "math/vector2.h"
-#include "rendering/api/color.h"
-#include "rendering/api/origin.h"
-#include "rendering/resources/render_target.h"
-#include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
-constexpr V2_int deadzone_size{ 150, 150 };
-
+/*
 class CameraUIScene : public Scene {
+constexpr V2_int deadzone_size{ 150, 150 };
 public:
 	void Enter() override {
 		game.texture.Load("ui_texture2", "resources/ui2.jpg");
@@ -49,16 +39,18 @@ public:
 		camera.primary.FadeFrom(color::Red, seconds{ 3 });
 	}
 };
+*/
 
+/*
 class CameraExampleScene : public Scene {
 public:
 	const float pan_speed	   = 200.0f;
 	const float rotation_speed = 1.0f;
 	const float zoom_speed{ 0.4f };
 
-	ecs::Entity rt;
-	ecs::Entity ui;
-	ecs::Entity mouse;
+	Entity rt;
+	Entity ui;
+	Entity mouse;
 
 	CameraExampleScene() {
 		game.scene.Load<CameraUIScene>("ui_scene");
@@ -197,11 +189,8 @@ public:
 		if (game.input.MouseDown(Mouse::Left)) {
 			mouse.Get<Transform>().position =
 				camera.primary.TransformToCamera(game.input.GetMousePosition());
-			/*camera.primary.PanTo(
-				camera.primary.TransformToCamera(game.input.GetMousePosition()), seconds{ 4 },
-				SymmetricalEase::InOutSine, false
-			);*/
-		} else if (game.input.MouseDown(Mouse::Right)) {
+			//camera.primary.PanTo(camera.primary.TransformToCamera(game.input.GetMousePosition()),
+seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (game.input.MouseDown(Mouse::Right)) {
 			camera.primary.StopFollow();
 		}
 
@@ -212,9 +201,57 @@ public:
 		r.Draw(ui);
 	}
 };
+*/
+
+class CameraScene : public Scene {
+public:
+	const float pan_speed{ 200.0f };
+	const float rotation_speed{ 1.0f };
+	const float zoom_speed{ 0.4f };
+
+	void Enter() override {
+		LoadResource("tree", "resources/test1.jpg");
+
+		CreateSprite(manager, "tree").SetPosition({ 400, 400 });
+
+		RotateTo(camera.primary, DegToRad(360.0f), seconds{ 5 });
+	}
+
+	void Update() override {
+		float dt{ game.dt() };
+
+		if (game.input.KeyPressed(Key::W)) {
+			camera.primary.Translate({ 0, -pan_speed * dt });
+		}
+		if (game.input.KeyPressed(Key::S)) {
+			camera.primary.Translate({ 0, pan_speed * dt });
+		}
+		if (game.input.KeyPressed(Key::A)) {
+			camera.primary.Translate({ -pan_speed * dt, 0 });
+		}
+		if (game.input.KeyPressed(Key::D)) {
+			camera.primary.Translate({ pan_speed * dt, 0 });
+		}
+
+		if (game.input.KeyPressed(Key::Z)) {
+			camera.primary.Rotate(rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::X)) {
+			camera.primary.Rotate(-rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::E)) {
+			camera.primary.Zoom(zoom_speed * dt);
+		}
+		if (game.input.KeyPressed(Key::Q)) {
+			camera.primary.Zoom(-zoom_speed * dt);
+		}
+	}
+};
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Camera: WASD move, Q/E zoom, R reset, 1/2 swap cameras", window_size, color::White);
-	game.scene.Enter<CameraExampleScene>("camera_example_scene");
+	game.Init("Camera: WASD move, Q/E zoom, R reset, 1/2 swap cameras");
+	game.scene.Enter<CameraScene>("");
 	return 0;
 }
