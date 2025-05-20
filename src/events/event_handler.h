@@ -5,9 +5,10 @@
 #include <unordered_map>
 #include <utility>
 
+#include "common/assert.h"
+#include "core/entity.h"
 #include "events/event.h"
 #include "events/events.h"
-#include "common/assert.h"
 
 namespace ptgn {
 
@@ -33,28 +34,36 @@ public:
 		general_observers_[key] = func;
 	}
 
+	void Subscribe(const Entity& entity, const GeneralEventCallback& func) {
+		PTGN_ASSERT(entity, "Cannot subscribe to events with null entity");
+		auto key{ entity.GetHash() };
+		general_observers_[key] = func;
+	}
+
 	// Specific event observation.
 	template <typename TEvent, typename S>
-	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) noexcept {
+	void Subscribe(T type, const S* ptr, const TEventCallback<TEvent>& func) {
 		PTGN_ASSERT(ptr != nullptr);
 		auto key{ GetKey(ptr) };
-		using TEventType = std::decay_t<TEvent>;
-		static_assert(std::is_base_of_v<Event, TEventType>, "Events must inherit from Event class");
-		auto it = observers_.find(key);
-		std::pair<T, EventCallback> entry{ type, std::function([func](const Event& event) {
-											   const auto& e =
-												   static_cast<const TEventType&>(event);
-											   func(e);
-										   }) };
-		if (it == observers_.end()) {
-			observers_[key] = EventCallbacks{ entry };
-		} else {
-			it->second[entry.first] = entry.second;
+		Subscribe<TEvent>(type, key, func);
+	}
+
+	template <typename TEvent>
+	void Subscribe(T type, const Entity& entity, const TEventCallback<TEvent>& func) {
+		PTGN_ASSERT(entity, "Cannot subscribe to events with null entity");
+		auto key{ entity.GetHash() };
+		Subscribe<TEvent>(type, key, func);
+	}
+
+	void Unsubscribe(const Entity& entity) {
+		if (!entity) {
+			return;
 		}
+		Unsubscribe(entity.GetHash());
 	}
 
 	template <typename S>
-	void Unsubscribe(const S* ptr) noexcept {
+	void Unsubscribe(const S* ptr) {
 		if (ptr == nullptr) {
 			return;
 		}
@@ -95,8 +104,19 @@ public:
 		}
 	};
 
+	[[nodiscard]] bool IsSubscribed(const Entity& entity) const {
+		if (!entity) {
+			return false;
+		}
+
+		auto key{ entity.GetHash() };
+
+		return observers_.find(key) != observers_.end() ||
+			   general_observers_.find(key) != general_observers_.end();
+	}
+
 	template <typename S>
-	[[nodiscard]] bool IsSubscribed(const S* ptr) const noexcept {
+	[[nodiscard]] bool IsSubscribed(const S* ptr) const {
 		if (ptr == nullptr) {
 			return false;
 		}
@@ -126,11 +146,28 @@ public:
 
 private:
 	template <typename S>
-	[[nodiscard]] static Key GetKey(const S* ptr) noexcept {
+	[[nodiscard]] static Key GetKey(const S* ptr) {
 		return std::hash<const void*>()(ptr);
 	}
 
-	void Unsubscribe(std::size_t key) noexcept {
+	template <typename TEvent>
+	void Subscribe(T type, std::size_t key, const TEventCallback<TEvent>& func) {
+		using TEventType = std::decay_t<TEvent>;
+		static_assert(std::is_base_of_v<Event, TEventType>, "Events must inherit from Event class");
+		auto it = observers_.find(key);
+		std::pair<T, EventCallback> entry{ type, std::function([func](const Event& event) {
+											   const auto& e =
+												   static_cast<const TEventType&>(event);
+											   func(e);
+										   }) };
+		if (it == observers_.end()) {
+			observers_[key] = EventCallbacks{ entry };
+		} else {
+			it->second[entry.first] = entry.second;
+		}
+	}
+
+	void Unsubscribe(std::size_t key) {
 		if (auto it{ observers_.find(key) }; it != observers_.end()) {
 			observers_.erase(it);
 		}
@@ -169,6 +206,8 @@ public:
 		mouse.Unsubscribe(ptr);
 		window.Unsubscribe(ptr);
 	}
+
+	void UnsubscribeAll(const Entity& entity);
 
 	void Reset();
 

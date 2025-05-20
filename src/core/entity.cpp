@@ -12,8 +12,10 @@
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "components/uuid.h"
+#include "core/game.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
+#include "events/event_handler.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
 #include "physics/rigid_body.h"
@@ -37,6 +39,7 @@ bool Entity::IsAlive() const {
 }
 
 Entity& Entity::Destroy() {
+	game.event.UnsubscribeAll(*this);
 	ecs::Entity::Destroy();
 	return *this;
 }
