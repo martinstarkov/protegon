@@ -1,4 +1,4 @@
-#include "components/draw.h"
+/*#include "components/draw.h"
 #include "core/game.h"
 #include "protegon/protegon.h"
 #include "rendering/resources/texture.h"
@@ -19,16 +19,15 @@ public:
 		s1.SetPosition(camera.primary.GetPosition());
 	}
 
-	void Update() override { /**/
-	}
+	void Update() override {}
 };
 
 int main() {
 	game.Init("Sandbox");
 	game.scene.Enter<Sandbox>("sandbox");
 }
+*/
 
-/*
 #include <algorithm>
 #include <functional>
 #include <iostream>
@@ -37,6 +36,9 @@ int main() {
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "common/type_info.h"
+#include "math/hash.h"
 
 using json = nlohmann::json;
 
@@ -70,19 +72,19 @@ public:
 };
 
 // Base ScriptComponent class
-class ScriptComponent {
+class TweenScript {
 public:
-	virtual ~ScriptComponent() = default;
+	virtual ~TweenScript() = default;
 
 	virtual void OnCreate(Entity& entity)			= 0;
 	virtual void OnUpdate(Entity& entity, float dt) = 0;
 
-	virtual std::string GetTypeName() const = 0;
 	virtual json Serialize() const			= 0;
 	virtual void Deserialize(const json& j) = 0;
 };
 
 // Script Registry to hold and create scripts
+template <typename Base>
 class ScriptRegistry {
 public:
 	static ScriptRegistry& Instance() {
@@ -90,37 +92,31 @@ public:
 		return instance;
 	}
 
-	void Register(
-		const std::string& typeName, std::function<std::unique_ptr<ScriptComponent>()> factory
-	) {
-		registry[typeName] = std::move(factory);
+	void Register(std::string_view typeName, std::function<std::unique_ptr<Base>()> factory) {
+		registry[ptgn::Hash(typeName)] = std::move(factory);
 	}
 
-	std::unique_ptr<ScriptComponent> Create(const std::string& typeName) {
-		auto it = registry.find(typeName);
+	std::unique_ptr<Base> Create(std::string_view typeName) {
+		auto it = registry.find(ptgn::Hash(typeName));
 		return it != registry.end() ? it->second() : nullptr;
 	}
 
 private:
-	std::unordered_map<std::string, std::function<std::unique_ptr<ScriptComponent>()>> registry;
+	std::unordered_map<std::size_t, std::function<std::unique_ptr<Base>()>> registry;
 };
 
-template <typename Derived>
-class ScriptComponentBase : public ScriptComponent {
+template <typename Derived, typename Base>
+class Script : public Base {
 public:
 	// Constructor ensures that the static variable 'isRegistered' is initialized
-	ScriptComponentBase() {
+	Script() {
 		// Ensuring static variable is initialized to trigger registration
 		(void)isRegistered;
 	}
 
-	std::string GetTypeName() const override {
-		return Derived::StaticTypeName();
-	}
-
 	json Serialize() const override {
 		json j	  = *static_cast<const Derived*>(this); // Cast to Derived and serialize
-		j["type"] = Derived::StaticTypeName();
+		j["type"] = ptgn::type_name<Derived>();
 		return j;
 	}
 
@@ -134,30 +130,28 @@ private:
 
 	// The static Register function handles the actual registration of the class
 	static bool Register() {
-		ScriptRegistry::Instance().Register(
-			Derived::StaticTypeName(),
-			[]() -> std::unique_ptr<ScriptComponent> { return std::make_unique<Derived>(); }
+		ScriptRegistry<Base>::Instance().Register(
+			ptgn::type_name<Derived>(),
+			[]() -> std::unique_ptr<Base> { return std::make_unique<Derived>(); }
 		);
 		return true;
 	}
 };
 
 // Initialize static variable, which will trigger the Register function
-template <typename Derived>
-bool ScriptComponentBase<Derived>::isRegistered = ScriptComponentBase<Derived>::Register();
+template <typename Derived, typename Base>
+bool Script<Derived, Base>::isRegistered = Script<Derived, Base>::Register();
 
-#define DEFINE_SCRIPT_COMPONENT(TYPE, ...)  \
-public:                                     \
-	using Base = ScriptComponentBase<TYPE>; \
-	TYPE() : Base() {}                      \
-	static std::string StaticTypeName() {   \
-		return #TYPE;                       \
-	}                                       \
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(TYPE, __VA_ARGS__)
+#define DEFINE_SCRIPT_COMPONENT(TYPE, ...) public:
 
-class TweenMove : public ScriptComponentBase<TweenMove> {
+class TweenMove : public Script<TweenMove, TweenScript> {
 public:
-	float targetX = 0.0f, targetY = 0.0f;
+	TweenMove() {}
+
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(TweenMove, targetX, targetY, duration)
+
+	float targetX  = 0.0f;
+	float targetY  = 0.0f;
 	float duration = 1.0f;
 	float elapsed  = 0.0f;
 	Vec2 startPos;
@@ -173,16 +167,14 @@ public:
 						 startPos.y + (targetY - startPos.y) * t };
 		entity.SetPosition(newPos);
 	}
-
-	DEFINE_SCRIPT_COMPONENT(TweenMove, targetX, targetY, duration)
 };
 
 class ScriptComponentContainer {
-	std::vector<std::unique_ptr<ScriptComponent>> scripts;
+	std::vector<std::unique_ptr<TweenScript>> scripts;
 
 public:
-	void AddScript(const std::string& typeName, const json& config, Entity& owner) {
-		auto script = ScriptRegistry::Instance().Create(typeName);
+	void AddScript(std::string_view typeName, const json& config, Entity& owner) {
+		auto script = ScriptRegistry<TweenScript>::Instance().Create(typeName);
 		if (script) {
 			script->Deserialize(config);
 			script->OnCreate(owner);
@@ -191,7 +183,7 @@ public:
 	}
 
 	void UpdateAll(Entity& owner, float dt) {
-		for (auto& script : scripts) {
+		for (const auto& script : scripts) {
 			script->OnUpdate(owner, dt);
 		}
 	}
@@ -222,24 +214,23 @@ int main() {
 
 	// Simulate loading from JSON
 	json scriptJson = {
-		{ { "type", "TweenMove" }, { "targetX", 10.0 }, { "targetY", 5.0 }, { "duration", 2.0 } }
+		{ { "type", "TweenMove" }, { "targetX", 20.0 }, { "targetY", 25.0 }, { "duration", 3.0 } }
 	};
 
 	DeserializeScripts(scriptContainer, scriptJson, entity);
 
 	// Simulate update loop
-	for (int i = 0; i <= 20; ++i) {
+	for (int i = 0; i <= 30; ++i) {
 		float dt = 0.1f; // Simulated delta time
 		scriptContainer.UpdateAll(entity, dt);
 
 		Vec2 pos = entity.GetPosition();
-		std::cout << "Time: " << i * dt << "s - Position: (" << pos.x << ", " << pos.y << ")\n";
+		std::cout << "Time: " << static_cast<float>(i) * dt << "s - Position: (" << pos.x << ", "
+				  << pos.y << ")\n";
 	}
 
 	return 0;
 }
-
-*/
 
 /*
 
@@ -438,19 +429,20 @@ constexpr bool is_self_factory_v = has_factory_base<T>::value && is_self_factory
 
 // TODO: Hide somehow?
 template <typename T>
-std::enable_if_t<is_self_factory_v<T>> to_json(json& nlohmann_json_j, const T& nlohmann_json_t) {
-	nlohmann_json_t.to_json_impl(nlohmann_json_j);
+std::enable_if_t<is_self_factory_v<T>> to_json(json& nlohmann_json_j, const T& nlohmann_json_t)
+{ nlohmann_json_t.to_json_impl(nlohmann_json_j);
 }
 
 template <typename T>
-std::enable_if_t<is_self_factory_v<T>> from_json(const json& nlohmann_json_j, T& nlohmann_json_t) {
-	nlohmann_json_t.from_json_impl(nlohmann_json_j);
+std::enable_if_t<is_self_factory_v<T>> from_json(const json& nlohmann_json_j, T&
+nlohmann_json_t) { nlohmann_json_t.from_json_impl(nlohmann_json_j);
 }
 
 template <typename ScriptInterface, typename ScriptType>
 using Script = typename ScriptInterface::template Registrar<ScriptType>;
 
-// TODO: Consider making this a template class and moving OnUpdate to a base class so pointers can
+// TODO: Consider making this a template class and moving OnUpdate to a base class so pointers
+can
 // be stored.
 struct TweenScript : public Factory<TweenScript, int> {
 	TweenScript(Key) {}
