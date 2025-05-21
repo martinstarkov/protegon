@@ -78,8 +78,9 @@ public:
 
 	void UpdatePosition(const V2_float& position);
 
-	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
-		const;
+	[[nodiscard]] const Matrix4& GetViewProjection(
+		const Transform& current, const Entity& entity
+	) const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -97,9 +98,9 @@ public:
 	);
 
 private:
-	// Keep track of previous transform since other systems may modify the position, rotation, or
-	// scale (zoom) of the camera without setting the dirty flags to true.
-	Transform previous;
+	// Keep track of previous transform since other external ECS systems may modify the position,
+	// rotation, or scale (zoom) of the camera without setting the dirty flags to true.
+	mutable Transform previous;
 
 	mutable bool view_dirty{ false };
 	mutable bool projection_dirty{ false };

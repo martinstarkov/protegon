@@ -202,6 +202,8 @@ const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Ent
 		RecalculateViewProjection();
 	}
 
+	previous = current;
+
 	return view_projection;
 }
 
@@ -209,8 +211,9 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
-	const {
+void CameraInfo::RecalculateView(
+	const Transform& current, const Transform& offset_transform
+) const {
 	V3_float position{ current.position.x, current.position.y, position_z };
 	V3_float orientation{ current.rotation, orientation_y, orientation_z };
 
@@ -316,10 +319,10 @@ void Camera::SubscribeToWindowEvents() {
 	if (game.event.window.IsSubscribed(*this)) {
 		return;
 	}
-	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
-													   ) mutable {
-		OnWindowResize(e.size);
-	};
+	std::function<void(const WindowResizedEvent&)> f =
+		[*this](const WindowResizedEvent& e) mutable {
+			OnWindowResize(e.size);
+		};
 	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
 	OnWindowResize(game.window.GetSize());
 }

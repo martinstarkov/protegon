@@ -218,8 +218,9 @@ public:
 		CreateSprite(manager, "tree").SetPosition({ 400, 400 });
 		CreateSprite(manager, "tree").SetPosition({ 600, 400 });
 
-		// RotateTo(camera.primary, DegToRad(360.0f), seconds{ 5 });
-		Shake(camera.primary, 0.5, seconds{ 5 }, {}, SymmetricalEase::Linear);
+		RotateTo(camera.primary, DegToRad(360.0f), seconds{ 5 });
+		// Shake(camera.primary, 1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// Shake(camera.primary, 0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
 	}
 
 	void Update() override {
