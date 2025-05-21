@@ -215,7 +215,7 @@ public:
 	void Enter() override {
 		LoadResource("tree", "resources/test1.jpg");
 
-		CreateSprite(manager, "tree").SetPosition({ 400, 400 });
+		CreateSprite(manager, "tree").SetPosition({ 200, 400 });
 		CreateSprite(manager, "tree").SetPosition({ 600, 400 });
 
 		RotateTo(camera.primary, DegToRad(360.0f), seconds{ 5 });
