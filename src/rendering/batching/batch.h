@@ -29,7 +29,8 @@ struct Vertex {
 constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
 	quad_vertex_layout;
 
-struct Batch {
+class Batch {
+public:
 	using IndexType = std::uint32_t;
 
 	// Batch capacity based on quads because they are the most common shape.
@@ -100,9 +101,12 @@ struct Batch {
 	bool HasRoomForShape(std::size_t vertex_count, std::size_t index_count) const;
 
 	void BindTextures() const;
+
+	void FlushLights();
 };
 
-struct Batches {
+class Batches {
+public:
 	std::vector<Batch> vector;
 };
 

@@ -109,7 +109,7 @@ private:
 	friend struct TTF_FontDeleter;
 	friend class GLContext;
 	friend class SceneManager;
-	friend class RenderTarget;
+	friend class ptgn::RenderTarget;
 #ifdef __EMSCRIPTEN__
 	friend void EmscriptenLoop();
 #endif

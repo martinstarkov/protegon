@@ -28,6 +28,7 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "physics/collision/collider.h"
+#include "render_data.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
@@ -79,12 +80,13 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-	lights = CreateRenderTarget(light_manager, { 1, 1 }, color::Transparent);
+	light_target = CreateRenderTarget(light_manager, { 1, 1 }, color::Transparent);
 
 	// TODO: Once window resizing is implemented, get rid of this.
 	game.event.window.Subscribe(
-		WindowEvent::Resized, this,
-		std::function([&](const WindowResizedEvent& e) { lights.GetTexture().Resize(e.size); })
+		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
+			light_target.GetTexture().Resize(e.size);
+		})
 	);
 }
 
@@ -155,16 +157,22 @@ Batch& RenderData::GetBatch(
 	Batch* b{ nullptr };
 
 	if (batch_vector.empty()) {
+		// Add new batch.
 		b = &batch_vector.emplace_back(shader, blend_mode);
 	} else {
 		b = &batch_vector.back();
+		// Check if the back batch is suitable for use.
+		// It is unsuitable if any of the following prerequisites fail:
 		if (!b->Uses(shader, blend_mode) ||
 			!b->HasRoomForTexture(texture, white_texture, max_texture_slots) ||
 			!b->HasRoomForShape(vertex_count, index_count)) {
+			// Add new batch.
 			b = &batch_vector.emplace_back(shader, blend_mode);
 		}
 	}
+
 	PTGN_ASSERT(b != nullptr, "Failed to create or find a valid batch to add to");
+
 	return *b;
 }
 
@@ -306,7 +314,7 @@ void RenderData::AddPolygon(
 }
 
 void RenderData::AddPoint(
-	const V2_float position, const Depth& depth, BlendMode blend_mode, const V4_float& color,
+	const V2_float& position, const Depth& depth, BlendMode blend_mode, const V4_float& color,
 	bool debug
 ) {
 	constexpr V2_float half{ 0.5f };
@@ -366,89 +374,92 @@ void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
 	const auto& draw_function{ it->second };
 
 	std::invoke(draw_function, *this, entity);
-
-	// TODO: Replace with graphics object.
-	/*
-	auto line_width{ o.Has<LineWidth>() ? o.Get<LineWidth>() : LineWidth{ -1.0f } };
-
-	auto add_rect = [&](const auto& rect) {
-		AddQuad(
-			pos, rect.size * scale, rect.origin, line_width, depth, blend_mode, tint, angle, false
-		);
-	};
-
-	auto add_circle = [&](const auto& circle) {
-		AddEllipse(
-			pos, V2_float{ circle.radius } * scale, line_width, depth, blend_mode, tint, angle,
-			false
-		);
-	};
-
-	if (o.Has<Rect>()) {
-		std::invoke(add_rect, o.Get<Rect>());
-		return;
-	} else if (o.Has<Polygon>()) {
-		Polygon polygon{ o.Get<Polygon>() };
-		for (auto& v : polygon.vertices) {
-			v *= Abs(scale);
-			v += pos;
-		}
-		AddPolygon(polygon.vertices, line_width, depth, blend_mode, tint, false);
-		return;
-	} else if (o.Has<Line>()) {
-		const auto& line{ o.Get<Line>() };
-		AddLine(
-			line.start * scale + pos, line.end * scale + pos, line_width, depth, blend_mode, tint,
-			false
-		);
-		return;
-	} else if (o.Has<Circle>()) {
-		std::invoke(add_circle, o.Get<Circle>());
-		return;
-	} else if (o.Has<Ellipse>()) {
-		const auto& ellipse{ o.Get<Ellipse>() };
-		AddEllipse(pos, ellipse.radius * scale, line_width, depth, blend_mode, tint, angle, false);
-		return;
-	} else if (o.Has<Triangle>()) {
-		Triangle triangle{ o.Get<Triangle>() };
-		for (auto& v : triangle.vertices) {
-			v *= Abs(scale);
-			v += pos;
-		}
-		AddTriangle(triangle.vertices, line_width, depth, blend_mode, tint, false);
-		return;
-	} else if (o.Has<Point>()) {
-		PTGN_ASSERT(!o.Has<LineWidth>(), "Points cannot have a line width");
-		AddPoint(pos, depth, blend_mode, tint, false);
-		return;
-	} else if (o.Has<Arc>()) {
-		// TODO: Implement.
-		PTGN_ERROR("Arc drawing not implemented yet");
-	} else if (o.Has<RoundedRect>()) {
-		// TODO: Implement.
-		PTGN_ERROR("Rounded rectangle drawing not implemented yet");
-	} else if (o.Has<Capsule>()) {
-		// TODO: Implement.
-		PTGN_ERROR("Capsule drawing not implemented yet");
-	} else if (o.Has<CircleCollider>()) {
-		std::invoke(add_circle, o.Get<CircleCollider>());
-		return;
-	} else if (o.Has<BoxCollider>()) {
-		std::invoke(add_rect, o.Get<BoxCollider>());
-		return;
-	} else {
-		PTGN_ERROR("Unknown drawable");
-	}
-	*/
 }
 
 void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) {
 	frame_buffer.Bind();
+
 	pixel_rounding	= camera.IsPixelRoundingEnabled();
 	camera_vertices = camera.GetVertices();
+
 	auto position{ camera.GetViewportPosition() };
 	auto size{ camera.GetViewportSize() };
+
 	GLRenderer::SetViewport(position, position + size);
+}
+
+bool RenderData::FlushLights(
+	Batch& batch, const FrameBuffer& frame_buffer, const Camera& camera,
+	const V2_float& window_size, const Depth& depth
+) {
+	if (batch.lights.empty()) {
+		return false;
+	}
+
+	PTGN_ASSERT(batch.texture_ids.empty());
+
+	bool lights_found{ false };
+
+	for (const auto& e : batch.lights) {
+		if (!e.IsVisible()) {
+			continue;
+		}
+
+		if (!lights_found) {
+			light_target.Bind();
+			light_target.Clear();
+
+			GLRenderer::SetBlendMode(BlendMode::Blend);
+
+			batch.shader.Bind();
+			batch.shader.SetUniform("u_Texture", 1);
+			batch.shader.SetUniform("u_ViewProjection", camera);
+			batch.shader.SetUniform("u_Resolution", window_size);
+
+			light_target.GetTexture().Bind(1);
+
+			SetVertexArrayToWindow(camera, color::White, depth, 1.0f);
+
+			lights_found = true;
+		}
+
+		PointLight light{ e };
+
+		auto offset_transform{ GetOffset(e) };
+		auto transform{ e.GetAbsoluteTransform() };
+		transform = transform.RelativeTo(offset_transform);
+		float radius{ light.GetRadius() * Abs(transform.scale.x) };
+
+		batch.shader.SetUniform("u_LightPosition", transform.position);
+		batch.shader.SetUniform("u_LightIntensity", light.GetIntensity());
+		batch.shader.SetUniform("u_LightRadius", radius);
+		batch.shader.SetUniform("u_Falloff", light.GetFalloff());
+		batch.shader.SetUniform("u_Color", light.GetColor().Normalized());
+		auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
+		batch.shader.SetUniform("u_AmbientColor", ambient_color);
+		batch.shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
+
+		GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
+	}
+
+	if (!lights_found) {
+		return false;
+	}
+
+	frame_buffer.Bind();
+
+	GLRenderer::SetBlendMode(batch.blend_mode);
+
+	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+
+	quad_shader.Bind();
+	quad_shader.SetUniform("u_ViewProjection", camera);
+
+	light_target.GetTexture().Bind(1);
+
+	GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
+
+	return true;
 }
 
 void RenderData::SortEntitiesByY(std::vector<Entity>&) {
@@ -472,7 +483,9 @@ void RenderData::Render(
 	for (auto [e, v, d] : manager.EntitiesWith<Visible, IDrawable>()) {
 		AddToBatch(e, true);
 	}
+
 	Flush(frame_buffer, camera);
+
 	FlushDebugBatches(frame_buffer, camera);
 }
 
@@ -486,14 +499,20 @@ void RenderData::Render(
 
 void RenderData::RenderToScreen(const RenderTarget& target, const Camera& camera) {
 	FrameBuffer::Unbind();
+
 	GLRenderer::SetBlendMode(BlendMode::Blend);
+
 	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+
 	quad_shader.Bind();
 	quad_shader.SetUniform("u_ViewProjection", camera);
 	quad_shader.SetUniform("u_Texture", 1);
 	quad_shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+
 	target.GetFrameBuffer().GetTexture().Bind(1);
+
 	SetVertexArrayToWindow(camera, target.GetTint(), Depth{ 0 }, 1.0f);
+
 	GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
 }
 
@@ -501,11 +520,16 @@ void RenderData::SetVertexArrayToWindow(
 	const Camera& camera, const Color& color, const Depth& depth, float texture_index
 ) {
 	std::array<Batch::IndexType, Batch::quad_index_count> indices{ 0, 1, 2, 2, 3, 0 };
+
 	auto positions{ camera.GetVertices() };
 	auto tex_coords{ GetDefaultTextureCoordinates() };
+
 	FlipTextureCoordinates(tex_coords, Flip::Vertical);
+
 	auto c{ color.Normalized() };
+
 	std::array<Vertex, Batch::quad_vertex_count> vertices{};
+
 	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
 		vertices[i].position  = { positions[i].x, positions[i].y, static_cast<float>(depth) };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
@@ -513,9 +537,11 @@ void RenderData::SetVertexArrayToWindow(
 		vertices[i].tex_index = { texture_index };
 	}
 	triangle_vao.Bind();
+
 	triangle_vao.GetVertexBuffer().SetSubData(
 		vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false
 	);
+
 	triangle_vao.GetIndexBuffer().SetSubData(
 		indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Batch::IndexType),
 		false
@@ -527,75 +553,41 @@ void RenderData::FlushBatches(
 	const V2_float& window_size, const Depth& depth
 ) {
 	for (auto& batch : batches.vector) {
-		// TODO: Move this somewhere else and simplify.
-		if (!batch.lights.empty()) {
-			PTGN_ASSERT(batch.texture_ids.size() == 0);
-			bool lights_found{ false };
-			for (const auto& e : batch.lights) {
-				if (!e.Has<Visible>() || !e.Get<Visible>()) {
-					continue;
-				}
-				if (!lights_found) {
-					lights.Bind();
-					lights.Clear();
-					GLRenderer::SetBlendMode(BlendMode::Blend);
-					batch.shader.Bind();
-					batch.shader.SetUniform("u_Texture", 1);
-					batch.shader.SetUniform("u_ViewProjection", camera);
-					batch.shader.SetUniform("u_Resolution", window_size);
-					lights.GetTexture().Bind(1);
-					SetVertexArrayToWindow(camera, color::White, depth, 1.0f);
-					lights_found = true;
-				}
-				PTGN_ASSERT(e.Has<impl::LightProperties>());
-				const auto& light{ e.Get<impl::LightProperties>() };
-				auto offset_transform{ GetOffset(e) };
-				auto transform{ e.GetAbsoluteTransform() };
-				transform = transform.RelativeTo(offset_transform);
-				float radius{ light.radius * Abs(transform.scale.x) };
-				batch.shader.SetUniform("u_LightPosition", transform.position);
-				batch.shader.SetUniform("u_LightIntensity", light.intensity);
-				batch.shader.SetUniform("u_LightRadius", radius);
-				batch.shader.SetUniform("u_Falloff", light.falloff);
-				batch.shader.SetUniform("u_Color", light.color.Normalized());
-				auto ac{ PointLight::GetShaderColor(light.ambient_color) };
-				batch.shader.SetUniform("u_AmbientColor", ac);
-				batch.shader.SetUniform("u_AmbientIntensity", light.ambient_intensity);
-				GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
-			}
-			if (!lights_found) {
-				return;
-			}
-			frame_buffer.Bind();
-			GLRenderer::SetBlendMode(batch.blend_mode);
-			const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
-			quad_shader.Bind();
-			quad_shader.SetUniform("u_ViewProjection", camera);
-			lights.GetTexture().Bind(1);
-			GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
-			return;
+		bool light_only_batch{ FlushLights(batch, frame_buffer, camera, window_size, depth) };
+		if (light_only_batch) {
+			continue;
 		}
-		// TODO: Change to an assert once all shapes have been implemented.
-		if (batch.vertices.empty() || batch.indices.empty()) {
-			PTGN_WARN("Attempting to draw a shape with no vertices or indices in the batch");
-			return;
-		}
-		frame_buffer.Bind();
-		GLRenderer::SetBlendMode(batch.blend_mode);
-		batch.shader.Bind();
-		batch.shader.SetUniform("u_ViewProjection", camera);
-		batch.BindTextures();
-		triangle_vao.Bind();
-		triangle_vao.GetVertexBuffer().SetSubData(
-			batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()),
-			sizeof(Vertex), false
-		);
-		triangle_vao.GetIndexBuffer().SetSubData(
-			batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
-			sizeof(Batch::IndexType), false
-		);
-		GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
+		FlushBatch(batch, frame_buffer, camera);
 	}
+}
+
+void RenderData::FlushBatch(Batch& batch, const FrameBuffer& frame_buffer, const Camera& camera) {
+	PTGN_ASSERT(
+		!batch.vertices.empty() && !batch.indices.empty(),
+		"Attempting to draw a shape with no vertices or indices in the batch"
+	);
+
+	frame_buffer.Bind();
+
+	GLRenderer::SetBlendMode(batch.blend_mode);
+
+	batch.shader.Bind();
+	batch.shader.SetUniform("u_ViewProjection", camera);
+	batch.BindTextures();
+
+	triangle_vao.Bind();
+
+	triangle_vao.GetVertexBuffer().SetSubData(
+		batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()), sizeof(Vertex),
+		false
+	);
+
+	triangle_vao.GetIndexBuffer().SetSubData(
+		batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
+		sizeof(Batch::IndexType), false
+	);
+
+	GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
 }
 
 void RenderData::FlushDebugBatches(const FrameBuffer& frame_buffer, const Camera& camera) {

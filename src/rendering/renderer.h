@@ -61,6 +61,7 @@ enum class ResolutionMode {
 };
 
 class Shader;
+class RenderTarget;
 
 namespace impl {
 
@@ -69,11 +70,8 @@ class VertexArray;
 class Game;
 class SceneManager;
 class SceneCamera;
-struct Batch;
+class Batch;
 class GLRenderer;
-struct RenderTargetInstance;
-struct TextureInstance;
-struct ShaderInstance;
 class InputHandler;
 
 class Renderer {
@@ -151,15 +149,12 @@ public:
 
 private:
 	friend class ptgn::Shader;
+	friend class ptgn::RenderTarget;
 	friend class VertexArray;
 	friend class FrameBuffer;
-	friend class RenderTarget;
 	friend class GLRenderer;
 	friend class Game;
-	friend struct RenderTargetInstance;
-	friend struct ShaderInstance;
-	friend struct TextureInstance;
-	friend struct Batch;
+	friend class Batch;
 
 	// Present the screen target to the window.
 	void PresentScreen();

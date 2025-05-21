@@ -20,13 +20,12 @@
 
 namespace ptgn {
 
-// TODO: Figure out what to do with this.
-struct Point {};
-
 class Shader;
 class Camera;
 
 namespace impl {
+
+class Batch;
 
 class RenderData {
 public:
@@ -72,7 +71,7 @@ public:
 	);
 
 	void AddPoint(
-		const V2_float position, const Depth& depth, BlendMode blend_mode, const V4_float& color,
+		const V2_float& position, const Depth& depth, BlendMode blend_mode, const V4_float& color,
 		bool debug
 	);
 
@@ -94,7 +93,7 @@ public:
 	Texture white_texture;
 
 	Manager light_manager;
-	RenderTarget lights;
+	RenderTarget light_target;
 
 	BlendMode light_blend_mode{ BlendMode::Add };
 
@@ -107,6 +106,8 @@ public:
 	bool sort_entity_drawing_by_y{ true };
 
 private:
+	friend class Batch;
+
 	void AddFilledTriangle(
 		const std::array<V2_float, Batch::triangle_vertex_count>& vertices, const Depth& depth,
 		BlendMode blend_mode, const V4_float& color, bool debug
@@ -145,12 +146,21 @@ private:
 
 	void SetupRender(const FrameBuffer& frame_buffer, const Camera& camera);
 
+	// @return True if the batch contains lights, false otherwise. Note: Light batches do not
+	// contain other drawables.
+	bool FlushLights(
+		Batch& batch, const FrameBuffer& frame_buffer, const Camera& camera,
+		const V2_float& window_size, const Depth& depth
+	);
+
 	void Flush(const FrameBuffer& frame_buffer, const Camera& camera);
 
 	void FlushBatches(
 		Batches& batches, const FrameBuffer& frame_buffer, const Camera& camera,
 		const V2_float& window_size, const Depth& depth
 	);
+
+	void FlushBatch(Batch& batch, const FrameBuffer& frame_buffer, const Camera& camera);
 
 	void FlushDebugBatches(const FrameBuffer& frame_buffer, const Camera& camera);
 };
