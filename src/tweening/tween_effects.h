@@ -351,6 +351,18 @@ void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool
  */
 void StopShake(Entity& entity, bool force = true);
 
+// TODO: Add follow system.
+// TODO: Add teleport on start setting to follow system.
+// TODO: Add follow x setting.
+// TODO: Add follow y setting.
+// TODO: Add MoveMode either Snap, Lerp or Velocity.
+// TODO: FollowMode Target, Offset or Path (vector of waypoints, currentWaypoint, loopPath boolean).
+// For Position mode
+// float lerpFactor = 1.0f;
+//// For Velocity mode
+// float maxSpeed = 100.0f;
+// float acceleration = 500.0f;
+
 /**
  * @brief Executes a callback once after a specified delay.
  *

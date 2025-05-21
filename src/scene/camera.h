@@ -2,21 +2,18 @@
 
 #include <array>
 #include <iosfwd>
+#include <ostream>
 
 #include "components/generic.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
-#include "core/time.h"
-#include "math/easing.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
-#include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
-#include "tweening/tween.h"
 
 namespace ptgn {
 
@@ -39,20 +36,89 @@ struct CameraOffset : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
 
-struct CameraInfo {
+class CameraInfo {
+public:
+	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
+	// @param position Top left.
+	void SetBoundingBox(const V2_float& new_bounding_position, const V2_float& new_bounding_size);
+
+	void SetResizeToWindow(bool resize);
+	void SetCenterOnWindow(bool center);
+
+	void SetFlip(Flip flip);
+
+	void SetSize(const V2_float& size);
+
+	void SetPositionZ(float z);
+	void SetRotationY(float rotation_y);
+	void SetRotationZ(float rotation_z);
+
+	void SetPixelRounding(bool enabled);
+
+	[[nodiscard]] V2_float GetViewportPosition() const;
+	[[nodiscard]] V2_float GetViewportSize() const;
+
+	// @return Top left position.
+	[[nodiscard]] V2_float GetBoundingBoxPosition() const;
+	// @return Size of the bounding box.
+	[[nodiscard]] V2_float GetBoundingBoxSize() const;
+
+	[[nodiscard]] bool GetResizeToWindow() const;
+	[[nodiscard]] bool GetCenterOnWindow() const;
+
+	[[nodiscard]] Flip GetFlip() const;
+
+	[[nodiscard]] V2_float GetSize() const;
+
+	[[nodiscard]] float GetPositionZ() const;
+	[[nodiscard]] float GetRotationY() const;
+	[[nodiscard]] float GetRotationZ() const;
+
+	[[nodiscard]] bool GetPixelRounding() const;
+
+	void UpdatePosition(const V2_float& position);
+
+	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
+		const;
+
+	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
+	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
+
+	// Set the point which is at the center of the camera view.
+	// void SetPosition(const V3_float& new_position);
+
+	void RecalculateView(const Transform& current, const Transform& offset_transform) const;
+	void RecalculateProjection(const Transform& current) const;
+	void RecalculateViewProjection() const;
+
+	[[nodiscard]] static V2_float ClampToBounds(
+		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
+		const V2_float& camera_size, const V2_float& camera_zoom
+	);
+
+private:
+	// Keep track of previous transform since other systems may modify the position, rotation, or
+	// scale (zoom) of the camera without setting the dirty flags to true.
+	Transform previous;
+
+	mutable bool view_dirty{ false };
+	mutable bool projection_dirty{ false };
+
+	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
+	// multiplications.
+	mutable Matrix4 view{ 1.0f };
+	mutable Matrix4 projection{ 1.0f };
+	mutable Matrix4 view_projection{ 1.0f };
+
 	V2_float viewport_position;
 	V2_float viewport_size;
 
-	float position_z{ 0.0f };
-
-	V2_float size;
+	bool center_on_window{ true };
+	bool resize_to_window{ true };
 
 	// If true, rounds camera position to pixel precision.
 	// TODO: Check that this works.
 	bool pixel_rounding{ false };
-
-	float orientation_y{ 0.0f };
-	float orientation_z{ 0.0f };
 
 	// Top left position.
 	V2_float bounding_box_position;
@@ -61,17 +127,11 @@ struct CameraInfo {
 
 	Flip flip{ Flip::None };
 
-	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
-	// multiplications.
-	mutable Matrix4 view{ 1.0f };
-	mutable Matrix4 projection{ 1.0f };
-	mutable Matrix4 view_projection{ 1.0f };
+	float position_z{ 0.0f };
+	float orientation_y{ 0.0f };
+	float orientation_z{ 0.0f };
 
-	mutable bool recalculate_view{ false };
-	mutable bool recalculate_projection{ false };
-
-	bool center_to_window{ true };
-	bool resize_to_window{ true };
+	V2_float size;
 };
 
 } // namespace impl
@@ -228,9 +288,6 @@ public:
 
 	void SetSize(const V2_float& size);
 
-	// Set the point which is at the center of the camera view.
-	void SetPosition(const V2_float& new_position);
-
 	void Translate(const V2_float& position_change);
 
 	void SetZoom(float new_zoom);
@@ -254,7 +311,7 @@ public:
 	 *               |
 	 *             1.5708
 	 */
-	void SetRotation(float angle_radians);
+	// void SetRotation(float angle_radians);
 
 	// Rotate camera in 2D (radians).
 	/* Range: (-3.14159, 3.14159].
@@ -340,24 +397,9 @@ protected:
 		bool force
 	);*/
 
-	[[nodiscard]] const Matrix4& GetView() const;
-	[[nodiscard]] const Matrix4& GetProjection() const;
-
-	// Set the point which is at the center of the camera view.
-	// void SetPosition(const V3_float& new_position);
-
-	void RecalculateView(const Transform& offset_transform) const;
-	void RecalculateProjection() const;
-	void RecalculateViewProjection() const;
-
 	void RefreshBounds();
 
 	void OnWindowResize(const V2_int& size);
-
-	[[nodiscard]] static V2_float ClampToBounds(
-		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
-		const V2_float& camera_size, const V2_float& camera_zoom
-	);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {

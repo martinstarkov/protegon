@@ -1,11 +1,14 @@
 #include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/time.h"
 #include "events/input_handler.h"
 #include "events/key.h"
+#include "math/easing.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
+#include "tweening/tween_effects.h"
 
 using namespace ptgn;
 
@@ -213,8 +216,10 @@ public:
 		LoadResource("tree", "resources/test1.jpg");
 
 		CreateSprite(manager, "tree").SetPosition({ 400, 400 });
+		CreateSprite(manager, "tree").SetPosition({ 600, 400 });
 
-		RotateTo(camera.primary, DegToRad(360.0f), seconds{ 5 });
+		// RotateTo(camera.primary, DegToRad(360.0f), seconds{ 5 });
+		Shake(camera.primary, 0.5, seconds{ 5 }, {}, SymmetricalEase::Linear);
 	}
 
 	void Update() override {
