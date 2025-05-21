@@ -164,6 +164,16 @@ void CameraInfo::UpdatePosition(const V2_float& position) {
 	view_dirty		  = true;
 }
 
+void CameraInfo::UpdateRotation(float rotation) {
+	previous.rotation = rotation;
+	view_dirty		  = true;
+}
+
+void CameraInfo::UpdateScale(const V2_float& scale) {
+	previous.scale	 = scale;
+	projection_dirty = true;
+}
+
 const Matrix4& CameraInfo::GetView(const Transform& current, const Entity& entity) const {
 	if (view_dirty) {
 		RecalculateView(current, GetOffset(entity));
@@ -341,7 +351,9 @@ void Camera::OnWindowResize(const V2_int& size) {
 		info.SetSize(size);
 	}
 	if (center) {
-		SetPosition(size * 0.5f);
+		auto pos{ size * 0.5f };
+		SetPosition(pos);
+		info.UpdatePosition(pos);
 	}
 	if (resize || center) {
 		RefreshBounds();
@@ -410,7 +422,10 @@ void Camera::SetToWindow(bool continuously) {
 
 void Camera::CenterOnArea(const V2_float& new_size) {
 	SetSize(new_size);
-	SetPosition(new_size / 2.0f);
+	auto pos{ new_size / 2.0f };
+	auto& info{ Get<impl::CameraInfo>() };
+	SetPosition(pos);
+	info.UpdatePosition(pos);
 }
 
 V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
@@ -523,6 +538,8 @@ void Camera::SetSize(const V2_float& new_size) {
 
 void Camera::SetZoom(const V2_float& new_zoom) {
 	Entity::SetScale(new_zoom);
+	auto& info{ Get<impl::CameraInfo>() };
+	info.UpdateScale(new_zoom);
 }
 
 void Camera::SetZoom(float new_zoom) {
@@ -554,7 +571,10 @@ void Camera::Zoom(float zoom_change) {
 }
 
 void Camera::Rotate(float angle_change_radians) {
-	SetRotation(GetRotation() + angle_change_radians);
+	auto rotation{ GetRotation() + angle_change_radians };
+	SetRotation(rotation);
+	auto& info{ Get<impl::CameraInfo>() };
+	info.UpdateRotation(rotation);
 }
 
 /*

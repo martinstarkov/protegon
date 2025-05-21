@@ -76,7 +76,10 @@ public:
 
 	[[nodiscard]] bool GetPixelRounding() const;
 
+	// Update the internal transform vector.
 	void UpdatePosition(const V2_float& position);
+	void UpdateRotation(float rotation);
+	void UpdateScale(const V2_float& scale);
 
 	[[nodiscard]] const Matrix4& GetViewProjection(
 		const Transform& current, const Entity& entity
