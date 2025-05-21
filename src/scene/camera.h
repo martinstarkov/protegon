@@ -8,12 +8,14 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "math/easing.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "tweening/shake_config.h"
 
 namespace ptgn {
 
@@ -142,97 +144,125 @@ private:
 
 class Camera : public Entity {
 public:
-	/*
-	// @param target_position Position to pan to.
-	// @param duration Duration of pan.
-	// @param ease Easing function for pan.
-	// @param force If false, the pan is queued in the pan queue, if true the pan is executed
-	// immediately, clearing any previously queued pans or target following.
-	Tween& PanTo(
-		const V2_float& target_position, milliseconds duration, const Ease& ease = const
-	Ease&::Linear, bool force = false
+	/**
+	 * @brief Translates the camera to a target position over a specified duration.
+	 *
+	 * @param target_position The position to move the camera's center to.
+	 * @param duration The duration over which the translation should occur.
+	 * @param ease The easing function to apply for the translation animation.
+	 * @param force If true, forcibly overrides any ongoing translation.
+	 */
+	Camera& TranslateTo(
+		const V2_float& target_position, milliseconds duration,
+		const Ease& ease = SymmetricalEase::Linear, bool force = true
 	);
 
-	// @param target_zoom Zoom level to go to.
-	// @param duration Duration of zoom.
-	// @param ease Easing function for zoom.
-	// @param force If false, the zoom is queued in the zoom queue, if true the zoom is executed
-	// immediately, clearing any previously queued zooms.
-	Tween& ZoomTo(
-		float target_zoom, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
-		bool force = false
-	);
-
-	// @param target_angle Angle (in radians) to rotate to (refer to diagram below). If positive,
-	// rotation is clockwise, if negative rotation is counter-clockwise.
-	// @param duration Duration of rotation.
-	// @param ease Easing function for rotation.
-	// @param force If false, the rotation is queued in the rotation queue, if true the rotation is
-	// executed immediately, clearing any previously queued rotations.
-	// Range: (-3.14159, 3.14159].
-	// (clockwise positive).
-	//            -1.5708
-	//               |
-	//    3.14159 ---o--- 0
-	//               |
-	//             1.5708
-	Tween& RotateTo(
+	/**
+	 * @brief Rotates the camera to a target angle over a specified duration.
+	 *
+	 * @param target_angle The angle (in radians) to rotate the camera to. Positive clockwise,
+	 * negative counter-clockwise.
+	 * @param duration The duration over which the rotation should occur.
+	 * @param ease The easing function to apply for the rotation animation.
+	 * @param force If true, forcibly overrides any ongoing rotation.
+	 *            -1.5708
+	 *               |
+	 *    3.14159 ---o--- 0
+	 *               |
+	 *             1.5708
+	 */
+	Camera& RotateTo(
 		float target_angle, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
-		bool force = false
+		bool force = true
 	);
 
-	// Execute a continuous shake effect on the camera.
-	// @param intensity Range: [0, 1] for how intensely the camera shakes, 1 being the most intense.
-	// @param duration Duration of the shake effect.
-	// @param config Shake specification (max translation, etc).
-	// @param force If false, the shake is queued in the shake queue, if true the shake is executed
-	// immediately, clearing any previously queued shake effects.
-	Tween& Shake(
-		float intensity, milliseconds duration, const ShakeConfig& config = {}, bool force = false
+	/**
+	 * @brief Zooms the camera to a target zoom over a specified duration.
+	 *
+	 * @param target_zoom The target zoom (x, y) to apply to the camera.
+	 * @param duration The duration over which the zooming should occur.
+	 * @param ease The easing function to apply for the zoom animation.
+	 * @param force If true, forcibly overrides any ongoing zooming.
+	 */
+	Camera& ZoomTo(
+		const V2_float& target_zoom, milliseconds duration,
+		const Ease& ease = SymmetricalEase::Linear, bool force = true
 	);
 
-	void StopShake(bool force = true);
+	/**
+	 * @brief Applies a continuous shake effect to the camera.
+	 *
+	 * @param intensity The intensity of the shake, in the range [0, 1].
+	 * @param duration The total duration of the shake effect. If -1, the shake continues until
+	 * StopShake is called.
+	 * @param config Configuration parameters for the shake behavior.
+	 * @param ease The easing function to use for the shake. If SymmetricalEase::None, shake remains
+	 * at full intensity for the entire time.
+	 * @param force If true, overrides any existing shake effect.
+	 */
+	Camera& Shake(
+		float intensity, milliseconds duration, const ShakeConfig& config = {},
+		const Ease& ease = SymmetricalEase::None, bool force = true
+	);
 
-	// Execute a momentary shake effect on the camera.
-	// @param intensity Range: [0, 1] for how intensely the camera shakes, 1 being the most intense.
-	// @param config Shake specification (max translation, etc).
-	// @param force If false, the shake is queued in the shake queue, if true the shake is executed
-	// immediately, clearing any previously queued shake effects.
-	Tween& Shake(float intensity, const ShakeConfig& config = {}, bool force = false);
+	/**
+	 * @brief Applies an instantenous shake effect to the camera.
+	 *
+	 * @param entity The entity to apply the shake effect to.
+	 * @param intensity The intensity of the shake, in the range [0, 1].
+	 * @param config Configuration parameters for the shake behavior.
+	 * @param force If true, overrides any existing shake effect.
+	 */
+	Camera& Shake(float intensity, const ShakeConfig& config = {}, bool force = true);
+
+	/**
+	 * @brief Stops any ongoing camera shake.
+	 *
+	 * @param force If true, clears all queued or active shake effects.
+	 */
+	Camera& StopShake(bool force = true);
 
 	// Note: If the target entity is destroyed, set to null, or its transform component is removed
 	// the camera will stop following it.
 	// @param target The target entity for the camera to follow.
 	// @param force If false, the follow is queued in the pan queue, if true the follow is executed
 	// immediately, clearing any previously queued pans or target following.
-	void StartFollow(Entity target, bool force = false);
+	// Camera& StartFollow(Entity target, bool force = false);
 
 	// Stop following the current target and moves onto to the next item in the pan queue.
 	// @param force If true, clears the pan queue.
-	void StopFollow(bool force = false);
+	// Camera& StopFollow(bool force = false);
 
-	// @param color Starting color.
-	// @param duration Duration of fade.
-	// @param ease Easing function for the fade.
-	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
-	// immediately, clearing any previously queued fades.
-	Tween& FadeFrom(
-		const Color& color, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
-		bool force = false
-	);
+	/**
+	 * @brief Fades the camera from its current tint to a color over a specified duration.
+	 *
+	 * @param target_color The target color to fade the camera to.
+	 * @param duration The duration over which the fade should occur.
+	 * @param ease The easing function to apply for the fade animation.
+	 * @param force If true, forcibly overrides any ongoing fading.
+	 */
+	// TODO: Implement.
+	// Camera& FadeTo(
+	// 	const Color& target_color, milliseconds duration,
+	// 	const Ease& ease = SymmetricalEase::Linear, bool force = true
+	// );
 
-	// @param color End color.
-	// @param duration Duration of fade.
-	// @param ease Easing function for the fade.
-	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
-	// immediately, clearing any previously queued fades.
-	Tween& FadeTo(
-		const Color& color, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
-		bool force = false
-	);
+	/**
+	 * @brief Fades the camera from the specified color to transparent over a specified duration.
+	 *
+	 * @param start_color The color that the camera fades from.
+	 * @param duration The duration over which the fade should occur.
+	 * @param ease The easing function to apply for the fade animation.
+	 * @param force If true, forcibly overrides any ongoing fading.
+	 */
+	// TODO: Implement.
+	// Camera& FadeFrom(
+	// 	const Color& start_color, milliseconds duration,
+	// 	const Ease& ease = SymmetricalEase::Linear, bool force = true
+	// );
 
-	Tween& SetColor(const Color& color, bool force = false);
-	*/
+	// TODO: Implement.
+	// Camera& SetColor(const Color& color, bool force = false);
 
 	Camera() = default;
 	Camera(const Entity& entity);

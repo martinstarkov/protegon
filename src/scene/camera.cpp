@@ -15,6 +15,7 @@
 #include "debug/log.h"
 #include "events/event_handler.h"
 #include "events/events.h"
+#include "math/easing.h"
 #include "math/geometry.h"
 #include "math/math.h"
 #include "math/matrix4.h"
@@ -23,6 +24,8 @@
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "tweening/shake_config.h"
+#include "tweening/tween_effects.h"
 
 namespace ptgn {
 
@@ -678,6 +681,42 @@ V2_float Camera::GetFollowOffset() const {
 	return pan_effects_.Get<impl::CameraOffset>();
 }
 */
+
+Camera& Camera::TranslateTo(
+	const V2_float& target_position, milliseconds duration, const Ease& ease, bool force
+) {
+	ptgn::TranslateTo(*this, target_position, duration, ease, force);
+	return *this;
+}
+
+Camera& Camera::RotateTo(float target_angle, milliseconds duration, const Ease& ease, bool force) {
+	ptgn::RotateTo(*this, target_angle, duration, ease, force);
+	return *this;
+}
+
+Camera& Camera::ZoomTo(
+	const V2_float& target_zoom, milliseconds duration, const Ease& ease, bool force
+) {
+	ptgn::ScaleTo(*this, target_zoom, duration, ease, force);
+	return *this;
+}
+
+Camera& Camera::Shake(
+	float intensity, milliseconds duration, const ShakeConfig& config, const Ease& ease, bool force
+) {
+	ptgn::Shake(*this, intensity, duration, config, ease, force);
+	return *this;
+}
+
+Camera& Camera::Shake(float intensity, const ShakeConfig& config, bool force) {
+	ptgn::Shake(*this, intensity, config, force);
+	return *this;
+}
+
+Camera& Camera::StopShake(bool force) {
+	ptgn::StopShake(*this, force);
+	return *this;
+}
 
 void Camera::PrintInfo() const {
 	auto bounds_position{ GetBoundsPosition() };
