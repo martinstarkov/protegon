@@ -1,0 +1,26 @@
+#pragma once
+
+#include "math/math.h"
+#include "math/vector2.h"
+
+namespace ptgn {
+
+struct ShakeConfig {
+	// Maximum translation distance during shaking.
+	V2_float maximum_translation{ 30.0f, 30.0f };
+
+	// Maximum rotation (in radians) during shaking.
+	float maximum_rotation{ DegToRad(30.0f) };
+
+	// Frequency of the Perlin noise function. Higher values will result in faster shaking.
+	float frequency{ 10.0f };
+
+	// Trauma is taken to this power before shaking is applied. Higher values will result in a
+	// smoother falloff as trauma reduces.
+	float trauma_exponent{ 2.0f };
+
+	// Amount of trauma per second that is recovered.
+	float recovery_speed{ 0.5f };
+};
+
+} // namespace ptgn

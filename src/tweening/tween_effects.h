@@ -12,26 +12,9 @@
 #include "math/easing.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "tweening/shake_config.h"
 
 namespace ptgn {
-
-struct ShakeConfig {
-	// Maximum translation distance during shaking.
-	V2_float maximum_translation{ 30.0f, 30.0f };
-
-	// Maximum rotation (in radians) during shaking.
-	float maximum_rotation{ DegToRad(30.0f) };
-
-	// Frequency of the Perlin noise function. Higher values will result in faster shaking.
-	float frequency{ 10.0f };
-
-	// Trauma is taken to this power before shaking is applied. Higher values will result in a
-	// smoother falloff as trauma reduces.
-	float trauma_exponent{ 2.0f };
-
-	// Amount of trauma per second that is recovered.
-	float recovery_speed{ 0.5f };
-};
 
 namespace impl {
 
@@ -370,7 +353,8 @@ void StopShake(Entity& entity, bool force = true);
  * @param duration The delay before the callback is triggered.
  * @param callback The function to call after the delay has elapsed.
  */
-void After(Manager& manager, milliseconds duration, const std::function<void()>& callback);
+// TODO: Implement once callbacks are scripts.
+// void After(Manager& manager, milliseconds duration, const std::function<void()>& callback);
 
 /**
  * @brief Executes a callback continuously during a specified time window.
@@ -380,7 +364,8 @@ void After(Manager& manager, milliseconds duration, const std::function<void()>&
  * frame).
  * @param callback The function to invoke during the duration.
  */
-void During(Manager& manager, milliseconds duration, const std::function<void()>& callback);
+// TODO: Implement once callbacks are scripts.
+// void During(Manager& manager, milliseconds duration, const std::function<void()>& callback);
 
 /**
  * @brief Executes a callback repeatedly at fixed intervals, with optional exit conditions.
@@ -395,9 +380,10 @@ void During(Manager& manager, milliseconds duration, const std::function<void()>
  *                                WARNING: If this is nullptr and repeats == -1, the callback will
  * repeat indefinitely.
  */
-void Every(
-	Manager& manager, milliseconds duration, std::int64_t repeats,
-	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
-);
+// TODO: Implement once callbacks are scripts.
+// void Every(
+//	Manager& manager, milliseconds duration, std::int64_t repeats,
+//	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
+//);
 
 } // namespace ptgn
