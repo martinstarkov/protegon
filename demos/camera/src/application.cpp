@@ -218,9 +218,11 @@ public:
 		CreateSprite(manager, "tree").SetPosition({ 200, 400 });
 		CreateSprite(manager, "tree").SetPosition({ 600, 400 });
 
-		RotateTo(camera.primary, DegToRad(360.0f), seconds{ 5 });
-		// Shake(camera.primary, 1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
-		// Shake(camera.primary, 0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// camera.primary.Shake(0.5f, seconds{ 5 });
+		camera.primary.RotateTo(DegToRad(360.0f), seconds{ 5 });
+		//  camera.primary.Shake(1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		//  camera.primary.Shake(0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// camera.primary.FadeTo(color::Black, seconds{ 5 });
 	}
 
 	void Update() override {
