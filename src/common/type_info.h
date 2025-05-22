@@ -79,7 +79,8 @@ constexpr std::string_view type_name() {
 	constexpr auto prefix_length	= impl::wrapped_type_name_prefix_length();
 	constexpr auto suffix_length	= impl::wrapped_type_name_suffix_length();
 	constexpr auto type_name_length = wrapped_name.length() - prefix_length - suffix_length;
-	return impl::remove_class_or_struct_prefix(wrapped_name.substr(prefix_length, type_name_length)
+	return impl::remove_class_or_struct_prefix(
+		wrapped_name.substr(prefix_length, type_name_length)
 	);
 }
 

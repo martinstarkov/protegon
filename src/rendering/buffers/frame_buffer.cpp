@@ -8,7 +8,7 @@
 
 #include "common/assert.h"
 #include "core/game.h"
-#include "debug/debug.h"
+#include "debug/debugging.h"
 #include "debug/stats.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -23,10 +23,12 @@ namespace ptgn::impl {
 RenderBuffer::RenderBuffer(const V2_int& size) {
 	GenerateRenderBuffer();
 	Bind();
-	GLCall(gl::RenderbufferStorage(
-		GL_RENDERBUFFER, static_cast<gl::GLenum>(InternalGLDepthFormat::DEPTH24_STENCIL8), size.x,
-		size.y
-	));
+	GLCall(
+		gl::RenderbufferStorage(
+			GL_RENDERBUFFER, static_cast<gl::GLenum>(InternalGLDepthFormat::DEPTH24_STENCIL8),
+			size.x, size.y
+		)
+	);
 }
 
 RenderBuffer::RenderBuffer(RenderBuffer&& other) noexcept : id_{ std::exchange(other.id_, 0) } {}
@@ -147,9 +149,11 @@ void FrameBuffer::AttachTexture(Texture&& texture) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
 	texture_ = std::move(texture);
-	GLCall(gl::FramebufferTexture2D(
-		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_.GetId(), 0
-	));
+	GLCall(
+		gl::FramebufferTexture2D(
+			GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_.GetId(), 0
+		)
+	);
 	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer");
 }
 
@@ -157,9 +161,11 @@ void FrameBuffer::AttachRenderBuffer(RenderBuffer&& render_buffer) {
 	PTGN_ASSERT(render_buffer.IsValid(), "Cannot attach invalid render buffer to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach render buffer until frame buffer is bound");
 	render_buffer_ = std::move(render_buffer);
-	GLCall(gl::FramebufferRenderbuffer(
-		GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer_.GetId()
-	));
+	GLCall(
+		gl::FramebufferRenderbuffer(
+			GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer_.GetId()
+		)
+	);
 	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer");
 }
 
@@ -244,10 +250,12 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 	int y{ size.y - 1 - coordinate.y };
 	PTGN_ASSERT(y >= 0);
 	Bind();
-	GLCall(gl::glReadPixels(
-		coordinate.x, y, 1, 1, static_cast<gl::GLenum>(formats.input_format),
-		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
-	));
+	GLCall(
+		gl::glReadPixels(
+			coordinate.x, y, 1, 1, static_cast<gl::GLenum>(formats.input_format),
+			static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
+		)
+	);
 	return Color{ v[0], v[1], v[2],
 				  formats.color_components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
 }
@@ -261,13 +269,16 @@ void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) c
 		"Textures with less than 3 pixel components cannot currently be queried"
 	);
 
-	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
+	std::vector<std::uint8_t> v(
+		static_cast<std::size_t>(formats.color_components * size.x * size.y)
 	);
 	Bind();
-	GLCall(gl::glReadPixels(
-		0, 0, size.x, size.y, static_cast<gl::GLenum>(formats.input_format),
-		static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
-	));
+	GLCall(
+		gl::glReadPixels(
+			0, 0, size.x, size.y, static_cast<gl::GLenum>(formats.input_format),
+			static_cast<gl::GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
+		)
+	);
 	for (int j{ 0 }; j < size.y; j++) {
 		// Ensure left-to-right and top-to-bottom iteration.
 		int row{ (size.y - 1 - j) * size.x * formats.color_components };

@@ -1,11 +1,12 @@
 #include "physics/collision/raycast.h"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
 #include "common/assert.h"
 #include "core/game.h"
-#include "debug/debug.h"
+#include "debug/debugging.h"
 #include "debug/stats.h"
 #include "math/math.h"
 #include "math/vector2.h"

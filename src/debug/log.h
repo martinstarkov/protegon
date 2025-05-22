@@ -10,10 +10,11 @@
 #include <string_view>
 #include <type_traits>
 
-#include "debug/debug.h"
-#include "utility/string.h"
-#include "core/time.h"
 #include "common/type_traits.h"
+#include "core/time.h"
+#include "debug/debugging.h"
+#include "utility/string.h"
+
 
 namespace ptgn {
 

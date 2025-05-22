@@ -6,7 +6,7 @@
 
 #include "common/assert.h"
 #include "core/game.h"
-#include "debug/debug.h"
+#include "debug/debugging.h"
 #include "math/axis.h"
 #include "math/geometry.h"
 #include "math/math.h"

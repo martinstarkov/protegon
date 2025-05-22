@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "debug/debug.h"
+#include "debug/debugging.h"
 #include "debug/log.h"
 
 #ifdef PTGN_DEBUG

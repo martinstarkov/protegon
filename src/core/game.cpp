@@ -4,12 +4,13 @@
 #include <memory>
 #include <string>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "core/resource_manager.h"
 #include "core/sdl_instance.h"
 #include "core/time.h"
 #include "core/window.h"
-#include "debug/debug.h"
+#include "debug/debugging.h"
 #include "debug/profiling.h"
 #include "debug/stats.h"
 #include "events/event_handler.h"
@@ -22,10 +23,10 @@
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
 #include "serialization/json_manager.h"
 #include "utility/file.h"
 #include "utility/string.h"
+
 
 #ifdef __EMSCRIPTEN__
 
