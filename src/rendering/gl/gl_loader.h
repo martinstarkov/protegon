@@ -13,6 +13,8 @@
 
 #ifdef PTGN_PLATFORM_MACOS
 
+#define GL_SILENCE_DEPRECATION
+
 #include <OpenGL/gl3.h>
 #include <OpenGL/gl3ext.h>
 
@@ -48,8 +50,6 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #else
 
 #ifdef PTGN_PLATFORM_MACOS
-
-#define GL_SILENCE_DEPRECATION
 
 #define CompileShader			glCompileShader
 #define ShaderSource			glShaderSource
