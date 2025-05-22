@@ -4,10 +4,12 @@
 
 namespace ptgn {
 
-Transform::Transform(const V2_float& position) : position{ position } {}
+Transform::Transform(const V2_float& transform_position) : position{ transform_position } {}
 
-Transform::Transform(const V2_float& position, float rotation, const V2_float& scale) :
-	position{ position }, rotation{ rotation }, scale{ scale } {}
+Transform::Transform(
+	const V2_float& transform_position, float transform_rotation, const V2_float& transform_scale
+) :
+	position{ transform_position }, rotation{ transform_rotation }, scale{ transform_scale } {}
 
 Transform Transform::RelativeTo(Transform parent) const {
 	parent.position += position;

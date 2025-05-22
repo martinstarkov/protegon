@@ -1,8 +1,9 @@
 #pragma once
 
-#include "serialization/serializable.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "serialization/serializable.h"
+
 
 namespace ptgn {
 
@@ -11,7 +12,7 @@ class Entity;
 struct Lifetime {
 	Lifetime() = default;
 
-	Lifetime(milliseconds duration, bool start = false);
+	Lifetime(milliseconds lifetime, bool start = false);
 
 	// Will restart if lifetime is already running.
 	void Start();

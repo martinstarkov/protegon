@@ -11,9 +11,13 @@ namespace ptgn::impl {
 
 struct BufferElement {
 	constexpr BufferElement(
-		std::uint16_t size, std::uint16_t count, impl::GLType type, bool is_integer
+		std::uint16_t buffer_size, std::uint16_t buffer_count, impl::GLType buffer_type,
+		bool buffer_is_integer
 	) :
-		size{ size }, count{ count }, type{ type }, is_integer{ is_integer } {}
+		size{ buffer_size },
+		count{ buffer_count },
+		type{ buffer_type },
+		is_integer{ buffer_is_integer } {}
 
 	std::uint16_t size{ 0 };  // Number of elements x Size of element.
 	std::uint16_t count{ 0 }; // Number of elements
@@ -74,8 +78,8 @@ struct BufferLayout {
 		stride_ = static_cast<std::int32_t>(offset);
 	}
 
-	[[nodiscard]] constexpr const std::array<impl::BufferElement, sizeof...(Ts)>& GetElements(
-	) const {
+	[[nodiscard]] constexpr const std::array<impl::BufferElement, sizeof...(Ts)>&
+	GetElements() const {
 		return elements_;
 	}
 };

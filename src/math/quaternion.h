@@ -5,10 +5,11 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "common/assert.h"
 #include "math/matrix4.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "common/assert.h"
+
 
 namespace ptgn {
 
@@ -24,7 +25,7 @@ public:
 		return Quaternion(-x, -y, -z, w);
 	}
 
-	[[nodiscard]] Quaternion Inverse() const {
+	[[nodiscard]] constexpr Quaternion Inverse() const {
 		float dot{ Dot(*this) };
 		PTGN_ASSERT(dot > 0.0f);
 		return Quaternion(Conjugate() / dot);

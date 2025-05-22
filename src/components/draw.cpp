@@ -300,14 +300,15 @@ V2_int Animation::GetFrameSize() const {
 namespace impl {
 
 AnimationInfo::AnimationInfo(
-	milliseconds duration, std::size_t frame_count, const V2_float& frame_size,
-	std::int64_t play_count, const V2_float& start_pixel
+	milliseconds animation_duration, std::size_t animation_frame_count,
+	const V2_float& animation_frame_size, std::int64_t animation_play_count,
+	const V2_float& animation_start_pixel
 ) :
-	duration{ duration },
-	frame_count{ frame_count },
-	frame_size{ frame_size },
-	play_count{ play_count },
-	start_pixel{ start_pixel } {}
+	duration{ animation_duration },
+	frame_count{ animation_frame_count },
+	frame_size{ animation_frame_size },
+	play_count{ animation_play_count },
+	start_pixel{ animation_start_pixel } {}
 
 milliseconds AnimationInfo::GetFrameDuration() const {
 	return duration / frame_count;

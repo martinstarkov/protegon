@@ -15,7 +15,8 @@ struct JsonKeyValuePair {
 	std::string_view key;
 	T& value;
 
-	JsonKeyValuePair(std::string_view key, T& value) : key{ key }, value{ value } {}
+	JsonKeyValuePair(std::string_view json_key, T& json_value) :
+		key{ json_key }, value{ json_value } {}
 };
 
 template <typename>

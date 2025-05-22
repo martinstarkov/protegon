@@ -4,6 +4,11 @@
 #include <limits>
 #include <string>
 
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/draw.h"
 #include "core/entity.h"
@@ -15,11 +20,7 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
+
 
 namespace ptgn {
 
@@ -154,7 +155,7 @@ V2_int Text::GetSize() const {
 }
 
 V2_int Text::GetSize(const Entity& text) {
-	const auto& font_key{ GetParameter(text, FontKey{}) };
+	auto font_key{ GetParameter(text, FontKey{}) };
 	PTGN_ASSERT(
 		game.font.Has(font_key),
 		"Cannot get size of text texture unless its font is loaded in the font manager"
@@ -247,7 +248,8 @@ void Text::RecreateTexture() {
 			surface = TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), text_color, wrap_after);
 			break;
 		default:
-			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR(
+				"Unrecognized render mode given when creating surface from font information"
 			);
 	}
 

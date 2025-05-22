@@ -22,8 +22,13 @@ template <typename T>
 struct EffectInfo {
 	EffectInfo() = default;
 
-	EffectInfo(const T& start, const T& target, milliseconds duration, const Ease& ease) :
-		start_value{ start }, target_value{ target }, duration{ duration }, ease{ ease } {}
+	EffectInfo(
+		const T& start, const T& target, milliseconds tween_duration, const Ease& tween_ease
+	) :
+		start_value{ start },
+		target_value{ target },
+		duration{ tween_duration },
+		ease{ tween_ease } {}
 
 	T start_value{};
 	T target_value{};

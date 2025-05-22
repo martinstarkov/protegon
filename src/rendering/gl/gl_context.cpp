@@ -6,14 +6,14 @@
 #include <string_view>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_video.h"
 #include "common/assert.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "debug/log.h"
 #include "rendering/gl/gl_loader.h"
-#include "SDL_error.h"
-#include "SDL_video.h"
 #include "utility/file.h"
 
 namespace ptgn::impl {
@@ -34,8 +34,10 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 void GLContext::LoadGLFunctions() {
 #ifndef PTGN_PLATFORM_MACOS
 
-#define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
+#define GLE(name, caps_name)                                 \
+	gl::name = reinterpret_cast<gl::PFNGL##caps_name##PROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))      \
+	);
 	GL_LIST_1
 #undef GLE
 
@@ -43,12 +45,16 @@ void GLContext::LoadGLFunctions() {
 
 #ifdef __EMSCRIPTEN__
 
-#define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##OESPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
+#define GLE(name, caps_name)                                    \
+	gl::name = reinterpret_cast<gl::PFNGL##caps_name##OESPROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))         \
+	);
 	GL_LIST_2
 #undef GLE
-#define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##EXTPROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
+#define GLE(name, caps_name)                                    \
+	gl::name = reinterpret_cast<gl::PFNGL##caps_name##EXTPROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))         \
+	);
 	GL_LIST_3
 #undef GLE
 
@@ -56,8 +62,10 @@ void GLContext::LoadGLFunctions() {
 
 #ifndef PTGN_PLATFORM_MACOS
 
-#define GLE(name, caps_name) \
-	gl::name = (gl::PFNGL##caps_name##PROC)SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name));
+#define GLE(name, caps_name)                                 \
+	gl::name = reinterpret_cast<gl::PFNGL##caps_name##PROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))      \
+	);
 	GL_LIST_2
 	GL_LIST_3
 #undef GLE
@@ -125,15 +133,15 @@ void GLContext::Shutdown() {
 void GLContext::ClearErrors() {
 	while (game.running_ && game.gl_context_->IsInitialized() &&
 		   game.sdl_instance_->IsInitialized() &&
-		   gl::glGetError() != static_cast<gl::GLenum>(GLError::None)
-	) { /* glGetError clears the error queue */
+		   gl::glGetError() !=
+			   static_cast<gl::GLenum>(GLError::None)) { /* glGetError clears the error queue */
 	}
 }
 
 std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
-	while (game.running_ && game.gl_context_->IsInitialized() && game.sdl_instance_->IsInitialized()
-	) {
+	while (game.running_ && game.gl_context_->IsInitialized() &&
+		   game.sdl_instance_->IsInitialized()) {
 		gl::GLenum error{ gl::glGetError() };
 		auto e{ static_cast<GLError>(error) };
 		if (e == GLError::None) {

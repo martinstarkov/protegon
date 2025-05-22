@@ -31,8 +31,8 @@ struct PhysicsBody : public Entity {
 struct Collision {
 	Collision() = default;
 
-	Collision(Entity e1, Entity e2, const V2_float& normal) :
-		entity1{ e1 }, entity2{ e2 }, normal{ normal } {}
+	Collision(Entity e1, Entity e2, const V2_float& collision_normal) :
+		entity1{ e1 }, entity2{ e2 }, normal{ collision_normal } {}
 
 	Entity entity1;
 	Entity entity2;
@@ -55,11 +55,11 @@ struct std::hash<ptgn::Collision> {
 	std::size_t operator()(const ptgn::Collision& c) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
-		std::size_t hash{ 17 };
-		hash = hash * 31 + c.entity1.GetHash();
-		hash = hash * 31 + c.entity2.GetHash();
-		hash = hash * 31 + std::hash<ptgn::V2_float>()(c.normal);
-		return hash;
+		std::size_t value{ 17 };
+		value = value * 31 + c.entity1.GetHash();
+		value = value * 31 + c.entity2.GetHash();
+		value = value * 31 + std::hash<ptgn::V2_float>()(c.normal);
+		return value;
 	}
 };
 
@@ -140,8 +140,8 @@ private:
 struct BoxCollider : public Collider {
 	BoxCollider() = delete;
 
-	explicit BoxCollider(const V2_float& size, Origin origin = Origin::Center) :
-		size{ size }, origin{ origin } {}
+	explicit BoxCollider(const V2_float& collider_size, Origin collider_origin = Origin::Center) :
+		size{ collider_size }, origin{ collider_origin } {}
 
 	V2_float size;
 	Origin origin{ Origin::Center };
@@ -150,7 +150,7 @@ struct BoxCollider : public Collider {
 struct CircleCollider : public Collider {
 	CircleCollider() = delete;
 
-	explicit CircleCollider(float radius) : radius{ radius } {}
+	explicit CircleCollider(float collider_radius) : radius{ collider_radius } {}
 
 	float radius{ 0.0f };
 };

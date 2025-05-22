@@ -312,8 +312,10 @@ private:
 	struct SweepCollision {
 		SweepCollision() = default;
 
-		SweepCollision(const RaycastResult& c, float dist2, Entity e) :
-			e{ e }, c{ c }, dist2{ dist2 } {}
+		SweepCollision(
+			const RaycastResult& raycast_result, float distance_squared, Entity sweep_entity
+		) :
+			e{ sweep_entity }, c{ raycast_result }, dist2{ distance_squared } {}
 
 		// Collision entity.
 		Entity e;

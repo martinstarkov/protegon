@@ -173,8 +173,9 @@ public:
 	AnimationInfo() = default;
 
 	AnimationInfo(
-		milliseconds duration, std::size_t frame_count, const V2_float& frame_size,
-		std::int64_t play_count, const V2_float& start_pixel
+		milliseconds animation_duration, std::size_t animation_frame_count,
+		const V2_float& animation_frame_size, std::int64_t animation_play_count,
+		const V2_float& animation_start_pixel
 	);
 
 	[[nodiscard]] milliseconds GetFrameDuration() const;

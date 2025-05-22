@@ -39,7 +39,8 @@ struct Vector2 {
 	}
 
 	template <typename U, typename S>
-	constexpr Vector2(U x, S y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
+	constexpr Vector2(U x_component, S y_component) :
+		x{ static_cast<T>(x_component) }, y{ static_cast<T>(y_component) } {}
 
 	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
@@ -55,7 +56,6 @@ struct Vector2 {
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
-		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
 		}
@@ -64,7 +64,6 @@ struct Vector2 {
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
-		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
 		}
@@ -319,7 +318,8 @@ template <
 	typename V, typename U, tt::arithmetic<U> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, U rhs) {
-	return { lhs.x / rhs, lhs.y / rhs };
+	return { static_cast<S>(lhs.x) / static_cast<S>(rhs),
+			 static_cast<S>(lhs.y) / static_cast<S>(rhs) };
 }
 
 // Clamp both components of a vector between min and max (component specific).
@@ -416,9 +416,9 @@ struct std::hash<ptgn::Vector2<T>> {
 	std::size_t operator()(const ptgn::Vector2<T>& v) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
-		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<T>()(v.x);
-		hash = hash * 31 + std::hash<T>()(v.y);
-		return hash;
+		std::size_t value{ 17 };
+		value = value * 31 + std::hash<T>()(v.x);
+		value = value * 31 + std::hash<T>()(v.y);
+		return value;
 	}
 };

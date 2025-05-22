@@ -15,8 +15,8 @@
 
 namespace ptgn::impl {
 
-Batch::Batch(const Shader& shader, const BlendMode& blend_mode) :
-	shader{ shader }, blend_mode{ blend_mode } {}
+Batch::Batch(const Shader& batch_shader, const BlendMode& batch_blend_mode) :
+	shader{ batch_shader }, blend_mode{ batch_blend_mode } {}
 
 void Batch::AddTexturedQuad(
 	const std::array<V2_float, quad_vertex_count>& positions,

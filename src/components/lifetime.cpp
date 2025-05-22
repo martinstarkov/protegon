@@ -6,7 +6,7 @@
 
 namespace ptgn {
 
-Lifetime::Lifetime(milliseconds duration, bool start) : duration{ duration } {
+Lifetime::Lifetime(milliseconds lifetime, bool start) : duration{ lifetime } {
 	if (start) {
 		timer_.Start();
 	}

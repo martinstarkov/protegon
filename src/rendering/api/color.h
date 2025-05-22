@@ -22,8 +22,8 @@ struct Color {
 	// Default color is black.
 	constexpr Color() = default;
 
-	constexpr Color(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a) :
-		r{ r }, g{ g }, b{ b }, a{ a } {}
+	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
+		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
 
 	// @param alpha [0.0f, 1.0f] value of transparency to set for the color.
 	// @return A copy of the color with the alpha value changed.

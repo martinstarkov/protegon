@@ -4,9 +4,9 @@
 #include <ostream>
 #include <type_traits>
 
-#include "serialization/serializable.h"
 #include "common/assert.h"
 #include "common/type_traits.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -25,7 +25,8 @@ struct Vector3 {
 
 	explicit constexpr Vector3(T all) : x{ all }, y{ all }, z{ all } {}
 
-	constexpr Vector3(T x, T y, T z) : x{ x }, y{ y }, z{ z } {}
+	constexpr Vector3(T x_component, T y_component, T z_component) :
+		x{ x_component }, y{ y_component }, z{ z_component } {}
 
 	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
 	template <typename U, tt::not_narrowing<U, T> = true>
@@ -35,8 +36,10 @@ struct Vector3 {
 	// Note: use of explicit keyword for narrowing constructors.
 
 	template <typename U, tt::narrowing<U, T> = true>
-	explicit constexpr Vector3(U x, U y, U z) :
-		x{ static_cast<T>(x) }, y{ static_cast<T>(y) }, z{ static_cast<T>(z) } {}
+	explicit constexpr Vector3(U x_component, U y_component, U z_component) :
+		x{ static_cast<T>(x_component) },
+		y{ static_cast<T>(y_component) },
+		z{ static_cast<T>(z_component) } {}
 
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector3(const Vector3<U>& o) :
@@ -44,24 +47,22 @@ struct Vector3 {
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
-		PTGN_ASSERT(idx >= 0 && idx < 3, "Vector3 subscript out of range");
-		if (idx == 0) {
-			return x;
-		} else if (idx == 1) {
+		if (idx == 1) {
 			return y;
+		} else if (idx == 2) {
+			return z;
 		}
-		return z; // idx == 2
+		return x; // 0
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
-		PTGN_ASSERT(idx >= 0 && idx < 3, "Vector3 subscript out of range");
-		if (idx == 0) {
-			return x;
-		} else if (idx == 1) {
+		if (idx == 1) {
 			return y;
+		} else if (idx == 2) {
+			return z;
 		}
-		return z; // idx == 2
+		return x; // 0
 	}
 
 	[[nodiscard]] constexpr Vector3 operator-() const {
@@ -252,10 +253,10 @@ struct std::hash<ptgn::Vector3<T>> {
 	std::size_t operator()(const ptgn::Vector3<T>& v) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
-		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<T>()(v.x);
-		hash = hash * 31 + std::hash<T>()(v.y);
-		hash = hash * 31 + std::hash<T>()(v.z);
-		return hash;
+		std::size_t value{ 17 };
+		value = value * 31 + std::hash<T>()(v.x);
+		value = value * 31 + std::hash<T>()(v.y);
+		value = value * 31 + std::hash<T>()(v.z);
+		return value;
 	}
 };

@@ -14,8 +14,8 @@ void RigidBody::Update(const V2_float& physics_gravity, float dt) {
 	}
 }
 
-RigidBody::RigidBody(float max_speed, float drag, float gravity, bool immovable) :
-	max_speed{ max_speed }, drag{ drag }, gravity{ gravity }, immovable{ immovable } {}
+RigidBody::RigidBody(float rb_max_speed, float rb_drag, float rb_gravity, bool rb_immovable) :
+	max_speed{ rb_max_speed }, drag{ rb_drag }, gravity{ rb_gravity }, immovable{ rb_immovable } {}
 
 void RigidBody::AddAcceleration(const V2_float& acceleration, float dt) {
 	velocity += acceleration * dt;

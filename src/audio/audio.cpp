@@ -4,10 +4,11 @@
 #include <ratio>
 
 #include "SDL_mixer.h"
+#include "common/assert.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/hash.h"
-#include "common/assert.h"
+
 
 namespace ptgn::impl {
 
@@ -172,7 +173,7 @@ int SoundManager::GetVolume(std::string_view key) const {
 	PTGN_ASSERT(
 		Has(Hash(key)), "Cannot get volume of sound which has not been loaded in the music manager"
 	);
-	return Mix_VolumeChunk(const_cast<Mix_Chunk*>(Get(Hash(key))), -1);
+	return Mix_VolumeChunk(Get(Hash(key)), -1);
 }
 
 void SoundManager::ToggleVolume(std::string_view key, int new_volume) {
