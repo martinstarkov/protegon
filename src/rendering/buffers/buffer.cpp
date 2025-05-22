@@ -2,11 +2,11 @@
 
 #include <cstdint>
 
-#include "rendering/gl/gl_helper.h"
-#include "rendering/gl/gl_loader.h"
-#include "rendering/buffers/vertex_array.h"
 #include "common/assert.h"
 #include "debug/stats.h"
+#include "rendering/buffers/vertex_array.h"
+#include "rendering/gl/gl_helper.h"
+#include "rendering/gl/gl_loader.h"
 
 namespace ptgn::impl {
 
@@ -27,7 +27,7 @@ Buffer<BT>::Buffer(
 
 	Bind();
 
-	GLCall(gl::BufferData(static_cast<gl::GLenum>(BT), size, data, static_cast<gl::GLenum>(usage)));
+	GLCall(BufferData(static_cast<GLenum>(BT), size, data, static_cast<GLenum>(usage)));
 }
 
 template <BufferType BT>
@@ -79,7 +79,7 @@ void Buffer<BT>::SetSubData(
 	std::uint32_t size{ element_count * element_size };
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(size <= GetBoundSize(), "Attempting to bind data outside of allocated buffer size");
-	GLCall(gl::BufferSubData(static_cast<gl::GLenum>(BT), byte_offset, size, data));
+	GLCall(BufferSubData(static_cast<GLenum>(BT), byte_offset, size, data));
 }
 
 template <BufferType BT>
@@ -90,7 +90,7 @@ std::uint32_t Buffer<BT>::GetElementCount() const {
 template <BufferType BT>
 std::uint32_t Buffer<BT>::GetBoundId() {
 	std::int32_t id{ -1 };
-	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GetGLBinding<BT>()), &id));
+	GLCall(glGetIntegerv(static_cast<GLenum>(impl::GetGLBinding<BT>()), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound buffer id");
 	return static_cast<std::uint32_t>(id);
 }
@@ -98,7 +98,7 @@ std::uint32_t Buffer<BT>::GetBoundId() {
 template <BufferType BT>
 std::uint32_t Buffer<BT>::GetBoundSize() {
 	std::int32_t size{ -1 };
-	GLCall(gl::GetBufferParameteriv(static_cast<gl::GLenum>(BT), GL_BUFFER_SIZE, &size));
+	GLCall(GetBufferParameteriv(static_cast<GLenum>(BT), GL_BUFFER_SIZE, &size));
 	PTGN_ASSERT(size >= 0, "Could not determine bound buffer size correctly");
 	return static_cast<std::uint32_t>(size);
 }
@@ -106,7 +106,7 @@ std::uint32_t Buffer<BT>::GetBoundSize() {
 template <BufferType BT>
 BufferUsage Buffer<BT>::GetBoundUsage() {
 	std::int32_t usage{ -1 };
-	GLCall(gl::GetBufferParameteriv(static_cast<gl::GLenum>(BT), GL_BUFFER_SIZE, &usage));
+	GLCall(GetBufferParameteriv(static_cast<GLenum>(BT), GL_BUFFER_SIZE, &usage));
 	PTGN_ASSERT(usage >= 0, "Could not determine bound buffer usage correctly");
 	return static_cast<BufferUsage>(usage);
 }
@@ -124,7 +124,7 @@ bool Buffer<BT>::IsBound() const {
 
 template <BufferType BT>
 void Buffer<BT>::Bind(std::uint32_t id) {
-	GLCall(gl::BindBuffer(static_cast<gl::GLenum>(BT), id));
+	GLCall(BindBuffer(static_cast<GLenum>(BT), id));
 #ifdef PTGN_DEBUG
 	++game.stats.buffer_binds;
 #endif
@@ -135,7 +135,7 @@ void Buffer<BT>::Bind(std::uint32_t id) {
 
 template <BufferType BT>
 void Buffer<BT>::GenerateBuffer() {
-	GLCall(gl::GenBuffers(1, &id_));
+	GLCall(GenBuffers(1, &id_));
 	PTGN_ASSERT(IsValid(), "Failed to generate buffer using OpenGL context");
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Generated buffer with id ", id_);
@@ -147,7 +147,7 @@ void Buffer<BT>::DeleteBuffer() noexcept {
 	if (!IsValid()) {
 		return;
 	}
-	GLCall(gl::DeleteBuffers(1, &id_));
+	GLCall(DeleteBuffers(1, &id_));
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Deleted buffer with id ", id_);
 #endif

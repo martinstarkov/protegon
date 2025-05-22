@@ -240,7 +240,7 @@ bool Texture::operator!=(const Texture& other) const {
 }
 
 void Texture::GenerateTexture() {
-	GLCall(gl::glGenTextures(1, &id_));
+	GLCall(glGenTextures(1, &id_));
 	PTGN_ASSERT(IsValid(), "Failed to generate texture using OpenGL context");
 #ifdef GL_ANNOUNCE_TEXTURE_CALLS
 	PTGN_LOG("GL: Generated texture with id ", id_);
@@ -251,7 +251,7 @@ void Texture::DeleteTexture() noexcept {
 	if (!IsValid()) {
 		return;
 	}
-	GLCall(gl::glDeleteTextures(1, &id_));
+	GLCall(glDeleteTextures(1, &id_));
 #ifdef GL_ANNOUNCE_TEXTURE_CALLS
 	PTGN_LOG("GL: Deleted texture with id ", id_);
 #endif
@@ -271,23 +271,17 @@ V2_int Texture::GetSize() const {
 void Texture::SetParameterI(TextureParameter parameter, std::int32_t value) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-	GLCall(
-		gl::glTexParameteri(
-			static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
-			value
-		)
-	);
+	GLCall(glTexParameteri(
+		static_cast<GLenum>(TextureTarget::Texture2D), static_cast<GLenum>(parameter), value
+	));
 }
 
 std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its parameters");
 	std::int32_t value{ -1 };
-	GLCall(
-		gl::glGetTexParameteriv(
-			static_cast<gl::GLenum>(TextureTarget::Texture2D), static_cast<gl::GLenum>(parameter),
-			&value
-		)
-	);
+	GLCall(glGetTexParameteriv(
+		static_cast<GLenum>(TextureTarget::Texture2D), static_cast<GLenum>(parameter), &value
+	));
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 	return value;
 }
@@ -297,12 +291,9 @@ std::int32_t Texture::GetLevelParameterI(
 ) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its level parameters");
 	std::int32_t value{ -1 };
-	GLCall(
-		gl::glGetTexLevelParameteriv(
-			static_cast<gl::GLenum>(TextureTarget::Texture2D), level,
-			static_cast<gl::GLenum>(parameter), &value
-		)
-	);
+	GLCall(glGetTexLevelParameteriv(
+		static_cast<GLenum>(TextureTarget::Texture2D), level, static_cast<GLenum>(parameter), &value
+	));
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture level parameter");
 	return value;
 }
@@ -315,7 +306,7 @@ void Texture::GenerateMipmaps() const {
 		),
 		"Set texture minifying scaling to mipmap type before generating mipmaps"
 	);
-	GLCall(gl::GenerateMipmap(static_cast<gl::GLenum>(TextureTarget::Texture2D)));
+	GLCall(GenerateMipmap(static_cast<GLenum>(TextureTarget::Texture2D)));
 }
 
 void Texture::Unbind(std::uint32_t slot) {
@@ -324,7 +315,7 @@ void Texture::Unbind(std::uint32_t slot) {
 }
 
 void Texture::BindId(std::uint32_t id) {
-	GLCall(gl::glBindTexture(static_cast<gl::GLenum>(TextureTarget::Texture2D), id));
+	GLCall(glBindTexture(static_cast<GLenum>(TextureTarget::Texture2D), id));
 #ifdef PTGN_DEBUG
 	++game.stats.texture_binds;
 #endif
@@ -352,7 +343,7 @@ void Texture::SetActiveSlot(std::uint32_t slot) {
 		slot < GLRenderer::GetMaxTextureSlots(),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
-	GLCall(gl::ActiveTexture(GL_TEXTURE0 + slot));
+	GLCall(ActiveTexture(GL_TEXTURE0 + slot));
 #ifdef GL_ANNOUNCE_TEXTURE_CALLS
 	PTGN_LOG("GL: Set active texture slot to ", slot);
 #endif
@@ -360,7 +351,7 @@ void Texture::SetActiveSlot(std::uint32_t slot) {
 
 std::uint32_t Texture::GetBoundId() {
 	std::int32_t id{ -1 };
-	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::Texture2D), &id));
+	GLCall(glGetIntegerv(static_cast<GLenum>(impl::GLBinding::Texture2D), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound texture id");
 	return static_cast<std::uint32_t>(id);
 }
@@ -379,7 +370,7 @@ std::uint32_t Texture::GetId() const {
 
 std::uint32_t Texture::GetActiveSlot() {
 	std::int32_t id{ -1 };
-	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(impl::GLBinding::ActiveUnit), &id));
+	GLCall(glGetIntegerv(static_cast<GLenum>(impl::GLBinding::ActiveUnit), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve the currently active texture slot");
 	return static_cast<std::uint32_t>(id);
 }
@@ -409,14 +400,12 @@ void Texture::SetData(
 
 	constexpr std::int32_t border{ 0 };
 
-	GLCall(
-		gl::glTexImage2D(
-			static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level,
-			static_cast<gl::GLint>(formats.internal_format), size.x, size.y, border,
-			static_cast<gl::GLenum>(formats.input_format),
-			static_cast<gl::GLenum>(GLType::UnsignedByte), pixel_data
-		)
-	);
+	GLCall(glTexImage2D(
+		static_cast<GLenum>(TextureTarget::Texture2D), mipmap_level,
+		static_cast<GLint>(formats.internal_format), size.x, size.y, border,
+		static_cast<GLenum>(formats.input_format), static_cast<GLenum>(GLType::UnsignedByte),
+		pixel_data
+	));
 
 	size_ = size;
 }
@@ -431,13 +420,11 @@ void Texture::SetSubData(
 
 	auto formats{ GetGLFormats(format) };
 
-	GLCall(
-		gl::glTexSubImage2D(
-			static_cast<gl::GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y,
-			size.x, size.y, static_cast<gl::GLenum>(formats.input_format),
-			static_cast<gl::GLenum>(impl::GLType::UnsignedByte), pixel_data
-		)
-	);
+	GLCall(glTexSubImage2D(
+		static_cast<GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y, size.x,
+		size.y, static_cast<GLenum>(formats.input_format),
+		static_cast<GLenum>(impl::GLType::UnsignedByte), pixel_data
+	));
 }
 
 void TextureManager::Load(const path& json_filepath) {
@@ -614,9 +601,9 @@ void Texture::SetClampBorderColor(const Color& color) const {
 	V4_float c{ color.Normalized() };
 	std::array<float, 4> border_color{ c.x, c.y, c.z, c.w };
 
-	GLCall(gl::glTexParameterfv(
-		static_cast<gl::GLenum>(TextureTarget::Texture2D),
-		static_cast<gl::GLenum>(impl::TextureParameter::BorderColor), border_color.data()
+	GLCall(glTexParameterfv(
+		static_cast<GLenum>(TextureTarget::Texture2D),
+		static_cast<GLenum>(impl::TextureParameter::BorderColor), border_color.data()
 	));
 
 	Texture::BindId(restore_id);

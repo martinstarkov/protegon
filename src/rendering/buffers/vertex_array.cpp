@@ -3,14 +3,14 @@
 #include <array>
 #include <cstdint>
 
+#include "common/assert.h"
 #include "core/game.h"
+#include "debug/stats.h"
 #include "rendering/buffers/buffer.h"
 #include "rendering/buffers/buffer_layout.h"
 #include "rendering/gl/gl_helper.h"
 #include "rendering/gl/gl_loader.h"
 #include "rendering/renderer.h"
-#include "common/assert.h"
-#include "debug/stats.h"
 
 namespace ptgn::impl {
 
@@ -44,7 +44,7 @@ bool VertexArray::operator!=(const VertexArray& other) const {
 }
 
 void VertexArray::GenerateVertexArray() {
-	GLCall(gl::GenVertexArrays(1, &id_));
+	GLCall(GenVertexArrays(1, &id_));
 	PTGN_ASSERT(IsValid(), "Failed to generate vertex array using OpenGL context");
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
 	PTGN_LOG("GL: Generated vertex array with id ", id_);
@@ -55,7 +55,7 @@ void VertexArray::DeleteVertexArray() noexcept {
 	if (!IsValid()) {
 		return;
 	}
-	GLCall(gl::DeleteVertexArrays(1, &id_));
+	GLCall(DeleteVertexArrays(1, &id_));
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
 	PTGN_LOG("GL: Deleted vertex array with id ", id_);
 #endif
@@ -64,14 +64,14 @@ void VertexArray::DeleteVertexArray() noexcept {
 
 std::uint32_t VertexArray::GetBoundId() {
 	std::int32_t id{ -1 };
-	GLCall(gl::glGetIntegerv(static_cast<gl::GLenum>(GLBinding::VertexArray), &id));
+	GLCall(glGetIntegerv(static_cast<GLenum>(GLBinding::VertexArray), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound vertex array id");
 	return static_cast<std::uint32_t>(id);
 }
 
 std::uint32_t VertexArray::GetMaxAttributes() {
 	std::int32_t max_attributes{ 0 };
-	GLCall(gl::glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes));
+	GLCall(glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_attributes));
 	PTGN_ASSERT(max_attributes >= 0, "Failed to retrieve max vertex attributes");
 	return static_cast<std::uint32_t>(max_attributes);
 }
@@ -91,7 +91,7 @@ void VertexArray::Bind(std::uint32_t id) {
 		return;
 	}
 #endif
-	GLCall(gl::BindVertexArray(id));
+	GLCall(BindVertexArray(id));
 	game.renderer.bound_.vertex_array_id = id;
 #ifdef PTGN_DEBUG
 	++game.stats.vertex_array_binds;
@@ -126,24 +126,19 @@ void VertexArray::SetIndexBuffer(IndexBuffer&& index_buffer) {
 void VertexArray::SetBufferElement(
 	std::uint32_t i, const BufferElement& element, std::int32_t stride
 ) const {
-	GLCall(gl::EnableVertexAttribArray(i));
+	GLCall(EnableVertexAttribArray(i));
 	if (element.is_integer) {
-		GLCall(
-			gl::VertexAttribIPointer(
-				i, element.count, static_cast<gl::GLenum>(element.type), stride,
-				reinterpret_cast<const void*>(element.offset)
-			)
-		);
+		GLCall(VertexAttribIPointer(
+			i, element.count, static_cast<GLenum>(element.type), stride,
+			reinterpret_cast<const void*>(element.offset)
+		));
 		return;
 	}
-	GLCall(
-		gl::VertexAttribPointer(
-			i, element.count, static_cast<gl::GLenum>(element.type),
-			element.normalized ? static_cast<gl::GLboolean>(GL_TRUE)
-							   : static_cast<gl::GLboolean>(GL_FALSE),
-			stride, reinterpret_cast<const void*>(element.offset)
-		)
-	);
+	GLCall(VertexAttribPointer(
+		i, element.count, static_cast<GLenum>(element.type),
+		element.normalized ? static_cast<GLboolean>(GL_TRUE) : static_cast<GLboolean>(GL_FALSE),
+		stride, reinterpret_cast<const void*>(element.offset)
+	));
 }
 
 bool VertexArray::HasVertexBuffer() const {

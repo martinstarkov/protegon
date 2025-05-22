@@ -1,7 +1,5 @@
 #include "rendering/gl/gl_loader.h"
 
-namespace ptgn::gl {
-
 #ifndef PTGN_PLATFORM_MACOS
 
 #define GLE(name, caps_name) PFNGL##caps_name##PROC name;
@@ -31,6 +29,3 @@ GL_LIST_3
 #endif
 
 #endif
-
-
-} // namespace ptgn::gl

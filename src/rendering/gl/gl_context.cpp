@@ -34,10 +34,9 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 void GLContext::LoadGLFunctions() {
 #ifndef PTGN_PLATFORM_MACOS
 
-#define GLE(name, caps_name)                                 \
-	gl::name = reinterpret_cast<gl::PFNGL##caps_name##PROC>( \
-		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))      \
-	);
+#define GLE(name, caps_name) \
+	name =                   \
+		reinterpret_cast<PFNGL##caps_name##PROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)));
 	GL_LIST_1
 #undef GLE
 
@@ -45,15 +44,15 @@ void GLContext::LoadGLFunctions() {
 
 #ifdef __EMSCRIPTEN__
 
-#define GLE(name, caps_name)                                    \
-	gl::name = reinterpret_cast<gl::PFNGL##caps_name##OESPROC>( \
-		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))         \
+#define GLE(name, caps_name)                            \
+	name = reinterpret_cast<PFNGL##caps_name##OESPROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)) \
 	);
 	GL_LIST_2
 #undef GLE
-#define GLE(name, caps_name)                                    \
-	gl::name = reinterpret_cast<gl::PFNGL##caps_name##EXTPROC>( \
-		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))         \
+#define GLE(name, caps_name)                            \
+	name = reinterpret_cast<PFNGL##caps_name##EXTPROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)) \
 	);
 	GL_LIST_3
 #undef GLE
@@ -62,10 +61,9 @@ void GLContext::LoadGLFunctions() {
 
 #ifndef PTGN_PLATFORM_MACOS
 
-#define GLE(name, caps_name)                                 \
-	gl::name = reinterpret_cast<gl::PFNGL##caps_name##PROC>( \
-		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name))      \
-	);
+#define GLE(name, caps_name) \
+	name =                   \
+		reinterpret_cast<PFNGL##caps_name##PROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)));
 	GL_LIST_2
 	GL_LIST_3
 #undef GLE
@@ -74,19 +72,19 @@ void GLContext::LoadGLFunctions() {
 
 #endif
 
-	// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
+	// PTGN_LOG("OpenGL Build: ", GLCall(glGetString(GL_VERSION)));
 
 #ifndef PTGN_PLATFORM_MACOS
 
 // For debugging which commands were not initialized.
-#define GLE(name, caps_name) PTGN_ASSERT(gl::name, "Failed to load ", PTGN_STRINGIFY(gl::name));
+#define GLE(name, caps_name) PTGN_ASSERT(name, "Failed to load ", PTGN_STRINGIFY(name));
 	GL_LIST_1
 	GL_LIST_2
 	GL_LIST_3
 #undef GLE
 
 // Check that each of the loaded gl functions was found.
-#define GLE(name, caps_name) gl::name&&
+#define GLE(name, caps_name) name&&
 	bool gl_init = GL_LIST_1 GL_LIST_2 GL_LIST_3 true;
 #undef GLE
 	PTGN_ASSERT(gl_init, "Failed to load OpenGL functions");
@@ -133,8 +131,8 @@ void GLContext::Shutdown() {
 void GLContext::ClearErrors() {
 	while (game.running_ && game.gl_context_->IsInitialized() &&
 		   game.sdl_instance_->IsInitialized() &&
-		   gl::glGetError() !=
-			   static_cast<gl::GLenum>(GLError::None)) { /* glGetError clears the error queue */
+		   glGetError() !=
+			   static_cast<GLenum>(GLError::None)) { /* glGetError clears the error queue */
 	}
 }
 
@@ -142,7 +140,7 @@ std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
 	while (game.running_ && game.gl_context_->IsInitialized() &&
 		   game.sdl_instance_->IsInitialized()) {
-		gl::GLenum error{ gl::glGetError() };
+		GLenum error{ glGetError() };
 		auto e{ static_cast<GLError>(error) };
 		if (e == GLError::None) {
 			break;

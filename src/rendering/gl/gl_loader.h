@@ -5,11 +5,27 @@
 // IMPORTANT: This file is not meant to be included outside the protegon library
 // so keep it in .cpp files only!
 
-namespace ptgn::gl {
-
 #ifdef __EMSCRIPTEN__
 
 #include "SDL_opengles2.h"
+
+#else
+
+#ifdef PTGN_PLATFORM_MACOS
+
+#include <OpenGL/gl3.h>
+#include <OpenGL/gl3ext.h>
+
+#else
+
+#include <SDL_opengl.h>
+#include <SDL_opengl_glext.h>
+
+#endif
+
+#endif
+
+#ifdef __EMSCRIPTEN__
 
 typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 	GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer
@@ -34,9 +50,6 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #ifdef PTGN_PLATFORM_MACOS
 
 #define GL_SILENCE_DEPRECATION
-
-#include <OpenGL/gl3.h>
-#include <OpenGL/gl3ext.h>
 
 #define CompileShader			glCompileShader
 #define ShaderSource			glShaderSource
@@ -92,11 +105,6 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #define UniformMatrix4fv		glUniformMatrix4fv
 #define BlendEquationSeparate	glBlendEquationSeparate
 #define BlendFuncSeparate		glBlendFuncSeparate
-
-#else
-
-#include <SDL_opengl.h>
-#include <SDL_opengl_glext.h>
 
 #endif
 
@@ -220,5 +228,3 @@ GL_LIST_3
 #endif
 
 #endif
-
-} // namespace ptgn::gl
