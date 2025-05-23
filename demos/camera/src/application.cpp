@@ -1,13 +1,18 @@
 #include "components/draw.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "core/time.h"
 #include "events/input_handler.h"
 #include "events/key.h"
+#include "events/mouse.h"
 #include "math/easing.h"
+#include "math/math.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
+#include "tweening/follow_config.h"
 #include "tweening/tween_effects.h"
 
 using namespace ptgn;
@@ -212,21 +217,33 @@ public:
 	const float rotation_speed{ 1.0f };
 	const float zoom_speed{ 0.4f };
 
+	Entity mouse;
+	FollowConfig follow_config;
+
 	void Enter() override {
 		LoadResource("tree", "resources/test1.jpg");
+
+		mouse = manager.CreateEntity();
+		mouse.Add<Transform>();
 
 		CreateSprite(manager, "tree").SetPosition({ 200, 400 });
 		CreateSprite(manager, "tree").SetPosition({ 600, 400 });
 
+		follow_config.move_mode	  = MoveMode::Lerp;
+		follow_config.lerp_factor = { 0.5f, 0.5f };
+
 		// camera.primary.Shake(0.5f, seconds{ 5 });
-		camera.primary.RotateTo(DegToRad(360.0f), seconds{ 5 });
+		// camera.primary.RotateTo(DegToRad(360.0f), seconds{ 5 });
 		//  camera.primary.Shake(1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
 		//  camera.primary.Shake(0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
 		// camera.primary.FadeTo(color::Black, seconds{ 5 });
+		camera.primary.StartFollow(mouse, follow_config);
 	}
 
 	void Update() override {
 		float dt{ game.dt() };
+
+		mouse.SetPosition(input.GetMousePosition());
 
 		if (game.input.KeyPressed(Key::W)) {
 			camera.primary.Translate({ 0, -pan_speed * dt });
@@ -254,6 +271,12 @@ public:
 		}
 		if (game.input.KeyPressed(Key::Q)) {
 			camera.primary.Zoom(-zoom_speed * dt);
+		}
+
+		if (game.input.MouseDown(Mouse::Left)) {
+			camera.primary.StopFollow();
+		} else if (game.input.MouseDown(Mouse::Right)) {
+			camera.primary.StartFollow(mouse, follow_config);
 		}
 	}
 };
