@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "common/assert.h"
+#include "components/movement.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -21,6 +22,7 @@
 #include "math/noise.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "physics/rigid_body.h"
 #include "rendering/api/color.h"
 
 namespace ptgn {
@@ -325,6 +327,211 @@ void BounceImpl(
 	}
 }
 
+FollowEffectInfo::FollowEffectInfo(Entity follow_target, const FollowConfig& follow_config) :
+	target{ follow_target }, config{ follow_config } {}
+
+void FollowEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<FollowEffect>()) {
+		if (effect.tasks.empty()) {
+			entity.template Remove<FollowEffect>();
+			entity.template Remove<TopDownMovement>();
+			entity.template Remove<RigidBody>();
+			continue;
+		}
+
+		auto& task{ effect.tasks.front() };
+
+		if (!task.config.follow_x && !task.config.follow_y) {
+			continue;
+		}
+
+		if (!task.target || !task.target.IsAlive()) {
+			effect.tasks.pop_front();
+			if (!effect.tasks.empty()) {
+				auto front{ effect.tasks.front() };
+				if (front.config.teleport_on_start) {
+					entity.SetPosition(front.target.GetPosition());
+				}
+				if (front.config.move_mode == MoveMode::Velocity) {
+					entity.Enable();
+					entity.GetOrAdd<RigidBody>();
+					entity.GetOrAdd<Transform>();
+					auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+					movement.max_acceleration		  = front.config.max_acceleration;
+					movement.max_deceleration		  = front.config.max_acceleration;
+					movement.max_speed				  = front.config.max_speed;
+					movement.keys_enabled			  = false;
+					movement.only_orthogonal_movement = false;
+				} else {
+					entity.template Remove<TopDownMovement>();
+					entity.template Remove<RigidBody>();
+				}
+			}
+			continue;
+		}
+
+		auto pos{ entity.GetAbsolutePosition() };
+
+		V2_float target_pos;
+
+		if (task.config.follow_mode == FollowMode::Target) {
+			target_pos = task.target.GetAbsolutePosition() + task.config.offset;
+		} else if (task.config.follow_mode == FollowMode::Path) {
+			PTGN_ASSERT(
+				!task.config.waypoints.empty(),
+				"Cannot set FollowMode::Path without providing at least one waypoint"
+			);
+			PTGN_ASSERT(
+				task.config.stop_distance >= epsilon<float>,
+				"Stopping distance cannot be negative or 0 when following waypoints"
+			);
+
+			PTGN_ASSERT(task.current_waypoint < task.config.waypoints.size());
+
+			target_pos = task.config.waypoints[task.current_waypoint] + task.config.offset;
+
+			auto dir{ target_pos - pos };
+
+			if (dir.MagnitudeSquared() < task.config.stop_distance * task.config.stop_distance) {
+				if (task.current_waypoint + 1 < task.config.waypoints.size()) {
+					task.current_waypoint++;
+				} else if (task.config.loop_path) {
+					task.current_waypoint = 0;
+				} else {
+					effect.tasks.pop_front();
+					if (!effect.tasks.empty()) {
+						auto front{ effect.tasks.front() };
+						if (front.config.teleport_on_start) {
+							entity.SetPosition(front.target.GetPosition());
+						}
+						if (front.config.move_mode == MoveMode::Velocity) {
+							entity.Enable();
+							entity.GetOrAdd<RigidBody>();
+							entity.GetOrAdd<Transform>();
+							auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+							movement.max_acceleration		  = front.config.max_acceleration;
+							movement.max_deceleration		  = front.config.max_acceleration;
+							movement.max_speed				  = front.config.max_speed;
+							movement.keys_enabled			  = false;
+							movement.only_orthogonal_movement = false;
+						} else {
+							entity.template Remove<TopDownMovement>();
+							entity.template Remove<RigidBody>();
+						}
+					}
+					continue;
+				}
+			}
+		}
+
+		if (task.config.move_mode == MoveMode::Velocity) {
+			PTGN_ASSERT(
+				entity.Has<TopDownMovement>(),
+				"Entity with MoveMode::Velocity must have a TopDownMovement component"
+			);
+			auto& movement = entity.Get<TopDownMovement>();
+			auto dir{ target_pos - pos };
+
+			auto dist2{ dir.MagnitudeSquared() };
+
+			if (task.config.stop_distance >= epsilon<float> &&
+				dist2 < task.config.stop_distance * task.config.stop_distance) {
+				effect.tasks.pop_front();
+				if (!effect.tasks.empty()) {
+					auto front{ effect.tasks.front() };
+					if (front.config.teleport_on_start) {
+						entity.SetPosition(front.target.GetPosition());
+					}
+					if (front.config.move_mode != MoveMode::Velocity) {
+						entity.template Remove<TopDownMovement>();
+						entity.template Remove<RigidBody>();
+					}
+				}
+			} else {
+				if (!NearlyEqual(dist2, 0.0f)) {
+					auto norm_dir{ dir / std::sqrt(dist2) };
+					if (!task.config.follow_x) {
+						norm_dir = { 0.0f, Sign(norm_dir.y) };
+					}
+					if (!task.config.follow_y) {
+						norm_dir = { Sign(norm_dir.x), 0.0f };
+					}
+					movement.Move(norm_dir);
+				}
+			}
+		} else if (task.config.move_mode == MoveMode::Lerp || task.config.move_mode == MoveMode::Snap) {
+			PTGN_ASSERT(task.config.lerp_factor.x >= 0.0f && task.config.lerp_factor.x <= 1.0f);
+			PTGN_ASSERT(task.config.lerp_factor.y >= 0.0f && task.config.lerp_factor.y <= 1.0f);
+
+			V2_float lerp_dt{ 1.0f - std::pow(1.0f - task.config.lerp_factor.x, game.dt()),
+							  1.0f - std::pow(1.0f - task.config.lerp_factor.y, game.dt()) };
+
+			V2_float new_pos;
+
+			if (task.config.deadzone.IsZero()) {
+				new_pos = Lerp(pos, target_pos, lerp_dt);
+			} else {
+				// TODO: Consider adding a custom deadzone origin in the future.
+				V2_float deadzone_half{ task.config.deadzone * 0.5f };
+
+				V2_float min{ target_pos - deadzone_half };
+				V2_float max{ target_pos + deadzone_half };
+
+				if (pos.x < min.x) {
+					new_pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
+				} else if (pos.x > max.x) {
+					new_pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
+				}
+				if (pos.y < min.y) {
+					new_pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
+				} else if (pos.y > max.y) {
+					new_pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
+				}
+			}
+
+			if (!task.config.follow_x) {
+				new_pos.x = pos.x;
+			}
+			if (!task.config.follow_y) {
+				new_pos.y = pos.y;
+			}
+
+			entity.SetPosition(new_pos);
+
+			auto dir{ target_pos - new_pos };
+
+			auto dist2{ dir.MagnitudeSquared() };
+
+			if (task.config.stop_distance >= epsilon<float> &&
+				dist2 < task.config.stop_distance * task.config.stop_distance) {
+				effect.tasks.pop_front();
+				if (!effect.tasks.empty()) {
+					auto front{ effect.tasks.front() };
+					if (front.config.teleport_on_start) {
+						entity.SetPosition(front.target.GetPosition());
+					}
+					if (front.config.move_mode == MoveMode::Velocity) {
+						entity.Enable();
+						entity.GetOrAdd<RigidBody>();
+						entity.GetOrAdd<Transform>();
+						auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+						movement.max_acceleration		  = front.config.max_acceleration;
+						movement.max_deceleration		  = front.config.max_acceleration;
+						movement.max_speed				  = front.config.max_speed;
+						movement.keys_enabled			  = false;
+						movement.only_orthogonal_movement = false;
+					} else {
+						entity.template Remove<TopDownMovement>();
+						entity.template Remove<RigidBody>();
+					}
+				}
+			}
+		} else {
+			PTGN_ERROR("Unrecognized move mode");
+		}
+	}
+}
+
 } // namespace impl
 
 void TranslateTo(
@@ -496,6 +703,74 @@ void StopShake(Entity& entity, bool force) {
 		shake.tasks.pop_front();
 		if (!shake.tasks.empty()) {
 			shake.tasks.front().timer.Start(true);
+		}
+	}
+}
+
+void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) {
+	PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
+	PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
+
+	auto& comp = entity.GetOrAdd<impl::FollowEffect>();
+
+	bool first_task{ force || comp.tasks.empty() };
+
+	if (first_task) {
+		comp.tasks.clear();
+	}
+
+	if (config.teleport_on_start) {
+		entity.SetPosition(target.GetPosition());
+	}
+
+	if (config.move_mode == MoveMode::Velocity) {
+		// TODO: Consider making the movement system not require enabling an entity.
+		entity.Enable();
+		entity.GetOrAdd<RigidBody>();
+		entity.GetOrAdd<Transform>();
+		auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+		movement.max_acceleration		  = config.max_acceleration;
+		movement.max_deceleration		  = config.max_acceleration;
+		movement.max_speed				  = config.max_speed;
+		movement.keys_enabled			  = false;
+		movement.only_orthogonal_movement = false;
+	} else if (config.move_mode == MoveMode::Snap) {
+		config.lerp_factor = { 1.0f, 1.0f };
+	}
+
+	comp.tasks.emplace_back(target, config);
+}
+
+void StopFollow(Entity entity, bool force) {
+	if (!entity.Has<impl::FollowEffect>()) {
+		return;
+	}
+
+	auto& follow = entity.Get<impl::FollowEffect>();
+
+	if (force) {
+		follow.tasks.clear();
+	} else if (!follow.tasks.empty()) {
+		follow.tasks.pop_front();
+		if (!follow.tasks.empty()) {
+			auto front{ follow.tasks.front() };
+			if (front.config.teleport_on_start) {
+				entity.SetPosition(front.target.GetPosition());
+			}
+			if (front.config.move_mode == MoveMode::Velocity) {
+				entity.Enable();
+				entity.GetOrAdd<RigidBody>();
+				entity.GetOrAdd<Transform>();
+				auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+				movement.max_acceleration		  = front.config.max_acceleration;
+				movement.max_deceleration		  = front.config.max_acceleration;
+				movement.max_speed				  = front.config.max_speed;
+				movement.keys_enabled			  = false;
+				movement.only_orthogonal_movement = false;
+			} else {
+				entity.template Remove<TopDownMovement>();
+				entity.template Remove<RigidBody>();
+			}
 		}
 	}
 }

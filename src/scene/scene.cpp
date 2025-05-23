@@ -125,15 +125,10 @@ void Scene::PostUpdate() {
 	tint_effects_.Update(manager);
 	bounce_effects_.Update(manager);
 	shake_effects_.Update(manager, time, dt);
+	follow_effects_.Update(manager);
 
 	impl::AnimationSystem::Update(manager);
 
-	// TODO: Fix shake system.
-	// float time{ game.time() };
-	// for (auto [e, shake, offsets] : manager.EntitiesWith<impl::ShakeEffect, impl::Offsets>()) {
-	// 	shake.Update(e, dt, time);
-	// }
-	// PTGN_LOG("Scene ", key_, " updated ", tween_update_count, " tweens this frame");
 	manager.Refresh();
 
 	// std::size_t lifetime_update_count{ 0 };

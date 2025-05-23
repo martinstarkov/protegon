@@ -3,12 +3,14 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <vector>
 
 #include "common/assert.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "debug/log.h"
 #include "math/easing.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -16,7 +18,50 @@
 
 namespace ptgn {
 
+enum class MoveMode {
+	Snap,
+	Lerp,
+	Velocity
+};
+
+enum class FollowMode {
+	Target,
+	Path
+};
+
+class FollowConfig {
+public:
+	MoveMode move_mode{ MoveMode::Snap };
+	FollowMode follow_mode{ FollowMode::Target };
+	bool follow_x{ true };
+	bool follow_y{ true };
+	bool teleport_on_start{ false };
+	bool loop_path{ false };
+	std::vector<V2_float> waypoints;
+	float stop_distance{ -1.0f }; // Never stop following the target.
+	V2_float lerp_factor{ 1.0f, 1.0f };
+	V2_float deadzone;
+	float max_speed{ 4.0f * 60.0f };
+	float max_acceleration{ 20.0f * 60.0f };
+	V2_float offset;
+};
+
 namespace impl {
+
+struct FollowEffectInfo {
+	FollowEffectInfo() = default;
+
+	FollowEffectInfo(Entity follow_target, const FollowConfig& follow_config);
+
+	Entity target;
+	FollowConfig config;
+
+	std::size_t current_waypoint{ 0 };
+};
+
+struct FollowEffect {
+	std::deque<FollowEffectInfo> tasks;
+};
 
 template <typename T>
 struct EffectInfo {
@@ -128,6 +173,11 @@ private:
 class ShakeEffectSystem {
 public:
 	void Update(Manager& manager, float time, float dt) const;
+};
+
+class FollowEffectSystem {
+public:
+	void Update(Manager& manager) const;
 };
 
 template <typename TComponent, typename T>
@@ -339,7 +389,6 @@ void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool
  */
 void StopShake(Entity& entity, bool force = true);
 
-// TODO: Add follow system.
 // TODO: Add teleport on start setting to follow system.
 // TODO: Add follow x setting.
 // TODO: Add follow y setting.
@@ -350,6 +399,10 @@ void StopShake(Entity& entity, bool force = true);
 //// For Velocity mode
 // float maxSpeed = 100.0f;
 // float acceleration = 500.0f;
+
+void StartFollow(Entity entity, Entity target, FollowConfig config = {}, bool force = true);
+
+void StopFollow(Entity entity, bool force = true);
 
 /**
  * @brief Executes a callback once after a specified delay.

@@ -78,6 +78,7 @@ private:
 	impl::TintEffectSystem tint_effects_;
 	impl::BounceEffectSystem bounce_effects_;
 	impl::ShakeEffectSystem shake_effects_;
+	impl::FollowEffectSystem follow_effects_;
 
 	// void ClearTarget();
 	void InternalEnter();
