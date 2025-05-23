@@ -86,7 +86,7 @@ void TopDownMovement::Update(Transform& transform, RigidBody& rb, float dt) {
 		dir.x = -1.0f;
 	} else if (right_input && !left_input) {
 		dir.x = 1.0f;
-	} else {
+	} else if (only_orthogonal_movement) {
 		dir.x = 0.0f;
 	}
 
@@ -94,7 +94,7 @@ void TopDownMovement::Update(Transform& transform, RigidBody& rb, float dt) {
 		dir.y = -1.0f;
 	} else if (down_input && !up_input) {
 		dir.y = 1.0f;
-	} else {
+	} else if (only_orthogonal_movement) {
 		dir.y = 0.0f;
 	}
 
@@ -237,6 +237,15 @@ MoveDirection TopDownMovement::GetDirection() const {
 
 MoveDirection TopDownMovement::GetPreviousDirection() const {
 	return GetDirectionState(prev_dir);
+}
+
+void TopDownMovement::Move(const V2_float& direction) {
+	PTGN_ASSERT(
+		!only_orthogonal_movement,
+		"Cannot move entity in orthogonal direction unless orthogonal movement is enabled"
+	);
+	// PTGN_ASSERT(direction.MagnitudeSquared() <= 1.0f, "Move direction must be normalized");
+	dir = direction;
 }
 
 void TopDownMovement::Move(MoveDirection direction) {

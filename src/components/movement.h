@@ -70,7 +70,7 @@ struct TopDownMovement {
 	// How fast to stop when changing direction.
 	float max_turn_speed{ 60.0f * 60.0f };
 
-	float friction;
+	float friction{ 0.0f };
 
 	// If false, velocity will be immediately set to desired velocity. Otherwise integration is
 	// used.
@@ -82,12 +82,15 @@ struct TopDownMovement {
 	// Whether or not the movement keys cause movement.
 	bool keys_enabled{ true };
 
+	// If true, only permits vertical and horizontal movement.
+	bool only_orthogonal_movement{ true };
+
 	Key up_key{ Key::W };
 	Key left_key{ Key::A };
 	Key down_key{ Key::S };
 	Key right_key{ Key::D };
 
-	// Callbacks.
+	// TODO: Turn all these callbacks into optional script components.
 
 	// Called every frame that the player is moving.
 	std::function<void()> on_move;
@@ -121,6 +124,8 @@ struct TopDownMovement {
 	// Invoke a movement command in a specific direction the same as a key input would. If move
 	// direction is none, movement inputs will be set to false.
 	void Move(MoveDirection direction);
+
+	void Move(const V2_float& direction);
 
 	// @return True if the player is moving in the specified direction.
 	[[nodiscard]] bool IsMoving(MoveDirection direction) const;
