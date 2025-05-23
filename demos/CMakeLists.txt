@@ -5,6 +5,7 @@ add_subdirectory(effect_tint)
 add_subdirectory(effect_fade)
 add_subdirectory(effect_bounce)
 add_subdirectory(effect_shake)
+add_subdirectory(effect_follow)
 
 add_subdirectory(camera)
 add_subdirectory(camera_shake)
