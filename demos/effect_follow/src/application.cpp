@@ -50,7 +50,7 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void Update() override {
-		mouse.SetPosition(game.input.GetMousePosition());
+		mouse.SetPosition(input.GetMousePosition());
 		if (game.input.MouseDown(Mouse::Left)) {
 			StopFollow(entity1);
 			StopFollow(entity2);
