@@ -15,6 +15,7 @@
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
 
 namespace ptgn {
@@ -83,9 +84,8 @@ public:
 	void UpdateRotation(float rotation);
 	void UpdateScale(const V2_float& scale);
 
-	[[nodiscard]] const Matrix4& GetViewProjection(
-		const Transform& current, const Entity& entity
-	) const;
+	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
+		const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -222,16 +222,9 @@ public:
 	 */
 	Camera& StopShake(bool force = true);
 
-	// Note: If the target entity is destroyed, set to null, or its transform component is removed
-	// the camera will stop following it.
-	// @param target The target entity for the camera to follow.
-	// @param force If false, the follow is queued in the pan queue, if true the follow is executed
-	// immediately, clearing any previously queued pans or target following.
-	// Camera& StartFollow(Entity target, bool force = false);
+	Camera& StartFollow(Entity target, const FollowConfig& config = {}, bool force = true);
 
-	// Stop following the current target and moves onto to the next item in the pan queue.
-	// @param force If true, clears the pan queue.
-	// Camera& StopFollow(bool force = false);
+	Camera& StopFollow(bool force = false);
 
 	/**
 	 * @brief Fades the camera from its current tint to a color over a specified duration.

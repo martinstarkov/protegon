@@ -11,6 +11,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/time.h"
 #include "core/window.h"
 #include "debug/log.h"
 #include "events/event_handler.h"
@@ -24,6 +25,7 @@
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
 #include "tweening/tween_effects.h"
 
@@ -234,7 +236,7 @@ void CameraInfo::RecalculateView(const Transform& current, const Transform& offs
 	orientation.x += offset_transform.rotation;
 
 	if (!offset_transform.position.IsZero()) {
-		auto zoom{ current.scale };
+		auto zoom{ Abs(current.scale) };
 		// Reclamp offset position to ensure camera shake does not move the camera out of
 		// bounds.
 		auto clamped{ ClampToBounds(
@@ -257,7 +259,7 @@ void CameraInfo::RecalculateView(const Transform& current, const Transform& offs
 }
 
 void CameraInfo::RecalculateProjection(const Transform& current) const {
-	auto zoom{ current.scale };
+	auto zoom{ Abs(current.scale) };
 	PTGN_ASSERT(zoom.x > 0.0f && zoom.y > 0.0f);
 	V2_float extents{ (size * 0.5f) / zoom };
 	if (pixel_rounding) {
@@ -504,7 +506,7 @@ V2_float Camera::GetSize() const {
 }
 
 V2_float Camera::GetZoom() const {
-	return GetScale();
+	return Abs(GetScale());
 }
 
 V3_float Camera::GetOrientation() const {
@@ -542,6 +544,8 @@ void Camera::SetZoom(const V2_float& new_zoom) {
 	PTGN_ASSERT(new_zoom.x > 0.0f && new_zoom.y > 0.0f, "New zoom cannot be negative or zero");
 	V2_float clamped{ std::clamp(new_zoom.x, epsilon<float>, std::numeric_limits<float>::max()),
 					  std::clamp(new_zoom.y, epsilon<float>, std::numeric_limits<float>::max()) };
+	auto scale{ Entity::GetScale() };
+	clamped *= V2_float{ Sign(scale.x), Sign(scale.y) };
 	Entity::SetScale(clamped);
 	auto& info{ Get<impl::CameraInfo>() };
 	info.UpdateScale(clamped);
@@ -683,6 +687,16 @@ V2_float Camera::GetFollowOffset() const {
 	return pan_effects_.Get<impl::CameraOffset>();
 }
 */
+
+Camera& Camera::StartFollow(Entity target, const FollowConfig& config, bool force) {
+	ptgn::StartFollow(*this, target, config, force);
+	return *this;
+}
+
+Camera& Camera::StopFollow(bool force) {
+	ptgn::StopFollow(*this, force);
+	return *this;
+}
 
 Camera& Camera::TranslateTo(
 	const V2_float& target_position, milliseconds duration, const Ease& ease, bool force
