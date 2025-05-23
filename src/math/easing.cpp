@@ -6,6 +6,7 @@
 #include "common/assert.h"
 #include "debug/log.h"
 #include "math/math.h"
+#include "serialization/json.h"
 
 namespace ptgn {
 

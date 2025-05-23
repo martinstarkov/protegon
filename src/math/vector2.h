@@ -35,7 +35,7 @@ struct Vector2 {
 	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
 	explicit constexpr Vector2(const json& j) {
-		j.get_to<Vector2<T>>(*this);
+		j.get_to(*this);
 	}
 
 	template <typename U, typename S>

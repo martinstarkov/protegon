@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <string_view>
 
+#include "common/type_info.h"
 #include "serialization/fwd.h"
 #include "utility/file.h"
 
@@ -36,3 +37,41 @@ inline constexpr bool is_json_convertible_v = has_to_json_v<T> && has_from_json_
 } // namespace tt
 
 } // namespace ptgn
+
+namespace nlohmann {
+
+namespace impl {
+
+template <typename T, typename... Ts>
+bool variant_from_json(const nlohmann::json& j, std::variant<Ts...>& data) {
+	if (j.at("type").get<std::string_view>() != ptgn::type_name_without_namespaces<T>()) {
+		return false;
+	}
+	data = j.at("data").get<T>();
+	return true;
+}
+
+} // namespace impl
+
+template <typename... Ts>
+struct adl_serializer<std::variant<Ts...>> {
+	static void to_json(json& j, const std::variant<Ts...>& data) {
+		std::visit(
+			[&j](const auto& v) {
+				using T	  = std::decay_t<decltype(v)>;
+				j["type"] = ptgn::type_name_without_namespaces<T>();
+				j["data"] = v;
+			},
+			data
+		);
+	}
+
+	static void from_json(const json& j, std::variant<Ts...>& data) {
+		// Call variant_from_json for all types, only one will succeed
+		bool found = (impl::variant_from_json<Ts>(j, data) || ...);
+		if (!found) {
+			throw std::bad_variant_access();
+		}
+	}
+};
+} // namespace nlohmann

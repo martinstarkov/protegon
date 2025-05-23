@@ -12,6 +12,7 @@
 #include "core/time.h"
 #include "math/easing.h"
 #include "math/math.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -59,6 +60,16 @@ struct TweenPoint {
 	TweenCallback on_update_;
 	TweenCallback on_pause_;
 	TweenCallback on_resume_;
+
+	// TODO: Add scripts to serialization.
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		TweenPoint, KeyValue("current_repeat", current_repeat_),
+		KeyValue("total_repeats", total_repeats_), KeyValue("yoyo", yoyo_),
+		KeyValue("currently_reversed", currently_reversed_),
+		KeyValue("start_reversed", start_reversed_), KeyValue("duration", duration_),
+		KeyValue("ease", ease_)
+	)
 };
 
 } // namespace impl
@@ -197,6 +208,14 @@ private:
 	bool started_{ false };
 
 	TweenCallback on_reset_;
+
+	// TODO: Add scripts to serialization.
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Tween, KeyValue("progress", progress_), KeyValue("index", index),
+		KeyValue("tween_points", tween_points_), KeyValue("paused", paused_),
+		KeyValue("started", started_)
+	)
 };
 
 } // namespace ptgn

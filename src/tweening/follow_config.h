@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -41,6 +42,11 @@ public:
 
 	float max_speed{ 4.0f * 60.0f };
 	float max_acceleration{ 20.0f * 60.0f };
+
+	PTGN_SERIALIZER_REGISTER(
+		FollowConfig, move_mode, follow_mode, follow_x, follow_y, teleport_on_start, waypoints,
+		loop_path, stop_distance, lerp_factor, deadzone, offset, max_speed, max_acceleration
+	)
 };
 
 } // namespace ptgn

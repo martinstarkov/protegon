@@ -2,6 +2,7 @@
 
 #include "math/math.h"
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -21,6 +22,11 @@ struct ShakeConfig {
 
 	// Amount of trauma per second that is recovered.
 	float recovery_speed{ 0.5f };
+
+	PTGN_SERIALIZER_REGISTER(
+		ShakeConfig, maximum_translation, maximum_rotation, frequency, trauma_exponent,
+		recovery_speed
+	)
 };
 
 } // namespace ptgn

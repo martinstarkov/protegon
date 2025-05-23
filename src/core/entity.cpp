@@ -394,46 +394,25 @@ void Children::Remove(std::string_view name) {
 	return false;
 }
 
-template <typename T>
-void to_json_single(json& j, const Entity& e) {
-	if (e.Has<T>()) {
-		j[type_name_without_namespaces<T>()] = e.Get<T>();
-	}
-}
-
-template <typename... Ts>
-void to_json(json& j, const Entity& e) {
-	(to_json_single<Ts>(j, e), ...);
-}
-
-template <typename T>
-void from_json_single(const json& j, Entity& e) {
-	j[type_name_without_namespaces<T>()].get_to(e.Has<T>() ? e.Get<T>() : e.Add<T>());
-}
-
-template <typename... Ts>
-void from_json(const json& j, Entity& e) {
-	(from_json_single<Ts>(j, e), ...);
-}
-
 } // namespace impl
 
 void to_json(json& j, const Entity& entity) {
 	j = json{};
-	impl::to_json<UUID>(j, entity);
-	impl::to_json<
-		Draggable, Transform, Enabled, Depth, Visible, Tint, LineWidth, TextureHandle,
-		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Lifetime,
-		PointLight>(j, entity);
+
+	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
+	j[uuid_name] = entity.GetUUID();
 }
 
 void from_json(const json& j, Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot read JSON into null entity");
-	impl::from_json<UUID>(j, entity);
-	impl::from_json<
-		Draggable, Transform, Enabled, Depth, Visible, Tint, LineWidth, TextureHandle,
-		impl::AnimationInfo, TextureCrop, RigidBody, Interactive, impl::Offsets, Lifetime,
-		PointLight>(j, entity);
+	UUID uuid;
+	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
+	PTGN_ASSERT(
+		j.contains(uuid_name), "Cannot create entity from JSON which does not contain a UUID"
+	);
+	j[uuid_name].get_to(uuid);
+	entity = entity.GetManager().GetEntityByUUID(uuid);
+	PTGN_ASSERT(entity, "Failed to find entity with UUID: ", uuid);
 }
 
 } // namespace ptgn

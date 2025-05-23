@@ -11,6 +11,7 @@
 #include "math/easing.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "serialization/serializable.h"
 #include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
 
@@ -27,10 +28,14 @@ struct FollowEffectInfo {
 	FollowConfig config;
 
 	std::size_t current_waypoint{ 0 };
+
+	PTGN_SERIALIZER_REGISTER(FollowEffectInfo, target, config, current_waypoint)
 };
 
 struct FollowEffect {
 	std::deque<FollowEffectInfo> tasks;
+
+	PTGN_SERIALIZER_REGISTER(FollowEffect, tasks)
 };
 
 template <typename T>
@@ -50,22 +55,32 @@ struct EffectInfo {
 	milliseconds duration{ 0 };
 	Ease ease{ SymmetricalEase::Linear };
 	Timer timer;
+
+	PTGN_SERIALIZER_REGISTER(EffectInfo, start_value, target_value, duration, ease, timer)
 };
 
 struct TranslateEffect {
 	std::deque<EffectInfo<V2_float>> tasks;
+
+	PTGN_SERIALIZER_REGISTER(TranslateEffect, tasks)
 };
 
 struct RotateEffect {
 	std::deque<EffectInfo<float>> tasks;
+
+	PTGN_SERIALIZER_REGISTER(RotateEffect, tasks)
 };
 
 struct ScaleEffect {
 	std::deque<EffectInfo<V2_float>> tasks;
+
+	PTGN_SERIALIZER_REGISTER(ScaleEffect, tasks)
 };
 
 struct TintEffect {
 	std::deque<EffectInfo<Color>> tasks;
+
+	PTGN_SERIALIZER_REGISTER(TintEffect, tasks)
 };
 
 struct BounceEffectInfo {
@@ -85,10 +100,17 @@ struct BounceEffectInfo {
 	std::int64_t periods_completed{ 0 }; // How many times the bounce has repeated so far.
 	bool symmetrical{ false }; // If true, bounce origin is the middle point of the movement. If
 							   // false, bounce origin is the bottom (or top) point of the movement.
+
+	PTGN_SERIALIZER_REGISTER(
+		BounceEffectInfo, amplitude, duration, ease, timer, static_offset, total_periods,
+		periods_completed, symmetrical
+	)
 };
 
 struct BounceEffect {
 	std::deque<BounceEffectInfo> tasks;
+
+	PTGN_SERIALIZER_REGISTER(BounceEffect, tasks)
 };
 
 struct ShakeEffectInfo : public EffectInfo<float> {
@@ -106,10 +128,16 @@ struct ShakeEffectInfo : public EffectInfo<float> {
 
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
+
+	PTGN_SERIALIZER_REGISTER(
+		ShakeEffectInfo, start_value, target_value, duration, ease, timer, config, seed, trauma
+	)
 };
 
 struct ShakeEffect {
 	std::deque<ShakeEffectInfo> tasks;
+
+	PTGN_SERIALIZER_REGISTER(ShakeEffect, tasks)
 };
 
 class TranslateEffectSystem {

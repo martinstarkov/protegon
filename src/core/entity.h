@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "common/function.h"
+#include "common/type_info.h"
 #include "components/common.h"
 #include "components/drawable.h"
 #include "components/generic.h"
@@ -280,6 +281,21 @@ public:
 	friend void to_json(json& j, const Entity& entity);
 	friend void from_json(const json& j, Entity& entity);
 
+	// Converts the specified entity components to a JSON object.
+	template <typename... Ts>
+	json ToJson() const {
+		json j{};
+		(ToJson<Ts>(j), ...);
+		return j;
+	}
+
+	// Populates the entity's components based on a JSON object. Does not impact existing
+	// components, unless they are specified as part of Ts, in which case they are replaced.
+	template <typename... Ts>
+	void FromJson(const json& j) {
+		(FromJson<Ts>(j), ...);
+	}
+
 protected:
 	template <typename T, typename... TArgs>
 	Entity& AddOrRemove(bool condition, TArgs&&... args) {
@@ -312,6 +328,20 @@ protected:
 
 private:
 	friend class Manager;
+
+	template <typename T>
+	void ToJson(json& j) const {
+		PTGN_ASSERT(Has<T>(), "Entity must have component which is being converted to JSON");
+		constexpr auto component_name{ type_name_without_namespaces<T>() };
+		j[component_name] = Get<T>();
+	}
+
+	template <typename T>
+	void FromJson(const json& j) {
+		constexpr auto component_name{ type_name_without_namespaces<T>() };
+		PTGN_ASSERT(j.contains(component_name), "JSON does not contain ", component_name);
+		j[component_name].get_to(GetOrAdd<T>());
+	}
 
 	void AddChildImpl(Entity& child, std::string_view name = {});
 
