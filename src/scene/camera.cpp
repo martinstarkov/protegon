@@ -224,9 +224,8 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(
-	const Transform& current, const Transform& offset_transform
-) const {
+void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
+	const {
 	V3_float position{ current.position.x, current.position.y, position_z };
 	V3_float orientation{ current.rotation, orientation_y, orientation_z };
 
@@ -332,10 +331,10 @@ void Camera::SubscribeToWindowEvents() {
 	if (game.event.window.IsSubscribed(*this)) {
 		return;
 	}
-	std::function<void(const WindowResizedEvent&)> f =
-		[*this](const WindowResizedEvent& e) mutable {
-			OnWindowResize(e.size);
-		};
+	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
+													   ) mutable {
+		OnWindowResize(e.size);
+	};
 	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
 	OnWindowResize(game.window.GetSize());
 }
@@ -540,9 +539,12 @@ void Camera::SetSize(const V2_float& new_size) {
 }
 
 void Camera::SetZoom(const V2_float& new_zoom) {
-	Entity::SetScale(new_zoom);
+	PTGN_ASSERT(new_zoom.x > 0.0f && new_zoom.y > 0.0f, "New zoom cannot be negative or zero");
+	V2_float clamped{ std::clamp(new_zoom.x, epsilon<float>, std::numeric_limits<float>::max()),
+					  std::clamp(new_zoom.y, epsilon<float>, std::numeric_limits<float>::max()) };
+	Entity::SetScale(clamped);
 	auto& info{ Get<impl::CameraInfo>() };
-	info.UpdateScale(new_zoom);
+	info.UpdateScale(clamped);
 }
 
 void Camera::SetZoom(float new_zoom) {
