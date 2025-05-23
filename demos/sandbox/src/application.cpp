@@ -29,47 +29,19 @@ int main() {
 */
 
 #include <algorithm>
-#include <functional>
 #include <iostream>
-#include <memory>
 #include <nlohmann/json.hpp>
-#include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "common/type_info.h"
-#include "math/hash.h"
+#include "components/transform.h"
+#include "core/entity.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "math/vector2.h"
+#include "serialization/json.h"
 
-using json = nlohmann::json;
-
-// Entity class for position and transform
-struct Vec2 {
-	float x = 0.0f;
-	float y = 0.0f;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(Vec2, x, y)
-};
-
-struct TransformComponent {
-	Vec2 position;
-};
-
-class Entity {
-	TransformComponent transform;
-
-public:
-	TransformComponent& GetComponent() {
-		return transform;
-	}
-
-	void SetPosition(Vec2 pos) {
-		transform.position = pos;
-	}
-
-	Vec2 GetPosition() const {
-		return transform.position;
-	}
-};
+using namespace ptgn;
 
 // Base ScriptComponent class
 class TweenScript {
@@ -83,98 +55,37 @@ public:
 	virtual void Deserialize(const json& j) = 0;
 };
 
-// Script Registry to hold and create scripts
-template <typename Base>
-class ScriptRegistry {
-public:
-	static ScriptRegistry& Instance() {
-		static ScriptRegistry instance;
-		return instance;
-	}
-
-	void Register(std::string_view typeName, std::function<std::unique_ptr<Base>()> factory) {
-		registry[ptgn::Hash(typeName)] = std::move(factory);
-	}
-
-	std::unique_ptr<Base> Create(std::string_view typeName) {
-		auto it = registry.find(ptgn::Hash(typeName));
-		return it != registry.end() ? it->second() : nullptr;
-	}
-
-private:
-	std::unordered_map<std::size_t, std::function<std::unique_ptr<Base>()>> registry;
-};
-
-template <typename Derived, typename Base>
-class Script : public Base {
-public:
-	// Constructor ensures that the static variable 'isRegistered' is initialized
-	Script() {
-		// Ensuring static variable is initialized to trigger registration
-		(void)isRegistered;
-	}
-
-	json Serialize() const override {
-		json j	  = *static_cast<const Derived*>(this); // Cast to Derived and serialize
-		j["type"] = ptgn::type_name<Derived>();
-		return j;
-	}
-
-	void Deserialize(const json& j) override {
-		*static_cast<Derived*>(this) = j.get<Derived>(); // Deserialize into derived type
-	}
-
-private:
-	// Static variable for ensuring class is registered once and for all
-	static bool isRegistered;
-
-	// The static Register function handles the actual registration of the class
-	static bool Register() {
-		ScriptRegistry<Base>::Instance().Register(
-			ptgn::type_name<Derived>(),
-			[]() -> std::unique_ptr<Base> { return std::make_unique<Derived>(); }
-		);
-		return true;
-	}
-};
-
-// Initialize static variable, which will trigger the Register function
-template <typename Derived, typename Base>
-bool Script<Derived, Base>::isRegistered = Script<Derived, Base>::Register();
-
-#define DEFINE_SCRIPT_COMPONENT(TYPE, ...) public:
-
 class TweenMove : public Script<TweenMove, TweenScript> {
 public:
 	TweenMove() {}
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(TweenMove, targetX, targetY, duration)
 
 	float targetX  = 0.0f;
 	float targetY  = 0.0f;
 	float duration = 1.0f;
 	float elapsed  = 0.0f;
-	Vec2 startPos;
+	V2_float startPos;
 
 	void OnCreate(Entity& entity) override {
-		startPos = entity.GetComponent().position;
+		startPos = entity.GetPosition();
 	}
 
 	void OnUpdate(Entity& entity, float dt) override {
-		elapsed		+= dt;
-		float t		 = std::min(elapsed / duration, 1.0f);
-		Vec2 newPos	 = { startPos.x + (targetX - startPos.x) * t,
-						 startPos.y + (targetY - startPos.y) * t };
+		elapsed			+= dt;
+		float t			 = std::min(elapsed / duration, 1.0f);
+		V2_float newPos	 = { startPos.x + (targetX - startPos.x) * t,
+							 startPos.y + (targetY - startPos.y) * t };
 		entity.SetPosition(newPos);
 	}
+
+	PTGN_SERIALIZER_REGISTER(TweenMove, targetX, targetY, duration)
 };
 
 class ScriptComponentContainer {
 	std::vector<std::unique_ptr<TweenScript>> scripts;
 
 public:
-	void AddScript(std::string_view typeName, const json& config, Entity& owner) {
-		auto script = ScriptRegistry<TweenScript>::Instance().Create(typeName);
+	void AddScript(std::string_view type_name, const json& config, Entity& owner) {
+		auto script = ScriptRegistry<TweenScript>::Instance().Create(type_name);
 		if (script) {
 			script->Deserialize(config);
 			script->OnCreate(owner);
@@ -209,7 +120,10 @@ void DeserializeScripts(ScriptComponentContainer& container, const json& arr, En
 }
 
 int main() {
-	Entity entity;
+	Manager manager;
+	Entity entity{ manager.CreateEntity() };
+	entity.Add<Transform>(V2_float{ 0, 0 });
+
 	ScriptComponentContainer scriptContainer;
 
 	// Simulate loading from JSON
@@ -219,14 +133,13 @@ int main() {
 
 	DeserializeScripts(scriptContainer, scriptJson, entity);
 
+	float dt = 0.1f; // Simulated delta time
+
 	// Simulate update loop
 	for (int i = 0; i <= 30; ++i) {
-		float dt = 0.1f; // Simulated delta time
+		V2_float pos = entity.GetPosition();
+		PTGN_LOG("Time: ", i * dt, "s - Position: ", pos);
 		scriptContainer.UpdateAll(entity, dt);
-
-		Vec2 pos = entity.GetPosition();
-		std::cout << "Time: " << static_cast<float>(i) * dt << "s - Position: (" << pos.x << ", "
-				  << pos.y << ")\n";
 	}
 
 	return 0;

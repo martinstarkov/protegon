@@ -1,92 +1,73 @@
 #pragma once
 
-#include <chrono>
-#include <iosfwd>
-#include <ratio>
-#include <type_traits>
+#include <functional>
+#include <memory>
+#include <string_view>
+#include <unordered_map>
 
+#include "common/type_info.h"
+#include "math/hash.h"
 #include "serialization/json.h"
 
 namespace ptgn {
 
-template <typename Rep, typename Period = std::ratio<1>>
-using duration	   = std::chrono::duration<Rep, Period>;
-using hours		   = std::chrono::hours;
-using minutes	   = std::chrono::minutes;
-using seconds	   = std::chrono::seconds;
-using milliseconds = std::chrono::milliseconds;
-using microseconds = std::chrono::microseconds;
-using nanoseconds  = std::chrono::nanoseconds;
-
-namespace tt {
-
-namespace impl {
-
-template <typename T>
-struct is_duration : std::false_type {};
-
-template <typename Rep, typename Period>
-struct is_duration<ptgn::duration<Rep, Period>> : std::true_type {};
-
-} // namespace impl
-
-template <typename T>
-inline constexpr bool is_duration_v{ impl::is_duration<T>::value };
-
-template <typename T>
-using duration = std::enable_if_t<is_duration_v<T>, bool>;
-
-} // namespace tt
-
-template <typename Rep, typename Period>
-std::ostream& operator<<(std::ostream& os, const std::chrono::duration<Rep, Period>& d) {
-	os << d.count();
-
-	if constexpr (std::is_same_v<Period, std::milli>) {
-		os << " ms";			// Milliseconds
-	} else if constexpr (std::is_same_v<Period, std::micro>) {
-		os << " us";			// Microseconds
-	} else if constexpr (std::is_same_v<Period, std::nano>) {
-		os << " ns";			// Nanoseconds
-	} else if constexpr (std::is_same_v<Period, std::ratio<1>>) {
-		os << " s";				// Seconds
-	} else if constexpr (std::is_same_v<Period, std::ratio<60>>) {
-		os << " min";			// Minutes
-	} else if constexpr (std::is_same_v<Period, std::ratio<3600>>) {
-		os << " h";				// Hours
-	} else {
-		os << " [custom unit]"; // Fallback for other units
+// Script Registry to hold and create scripts
+template <typename Base>
+class ScriptRegistry {
+public:
+	static ScriptRegistry& Instance() {
+		static ScriptRegistry instance;
+		return instance;
 	}
 
-	return os;
-}
+	void Register(std::string_view type_name, std::function<std::unique_ptr<Base>()> factory) {
+		registry_[Hash(type_name)] = std::move(factory);
+	}
+
+	std::unique_ptr<Base> Create(std::string_view type_name) {
+		auto it = registry_.find(Hash(type_name));
+		return it != registry_.end() ? it->second() : nullptr;
+	}
+
+private:
+	std::unordered_map<std::size_t, std::function<std::unique_ptr<Base>()>> registry_;
+};
+
+template <typename Derived, typename Base>
+class Script : public Base {
+public:
+	// Constructor ensures that the static variable 'is_registered_' is initialized
+	Script() {
+		// Ensuring static variable is initialized to trigger registration
+		(void)is_registered_;
+	}
+
+	json Serialize() const override {
+		json j	  = *static_cast<const Derived*>(this); // Cast to Derived and serialize
+		j["type"] = type_name<Derived>();
+		return j;
+	}
+
+	void Deserialize(const json& j) override {
+		*static_cast<Derived*>(this) = j.get<Derived>(); // Deserialize into derived type
+	}
+
+private:
+	// Static variable for ensuring class is registered once and for all
+	static bool is_registered_;
+
+	// The static Register function handles the actual registration of the class
+	static bool Register() {
+		ScriptRegistry<Base>::Instance().Register(
+			type_name<Derived>(),
+			[]() -> std::unique_ptr<Base> { return std::make_unique<Derived>(); }
+		);
+		return true;
+	}
+};
+
+// Initialize static variable, which will trigger the Register function
+template <typename Derived, typename Base>
+bool Script<Derived, Base>::is_registered_ = Script<Derived, Base>::Register();
 
 } // namespace ptgn
-
-namespace nlohmann {
-
-template <typename Rep, typename Period>
-struct adl_serializer<std::chrono::duration<Rep, Period>> {
-	static void to_json(json& j, const std::chrono::duration<Rep, Period>& d) {
-		j = std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
-	}
-
-	static void from_json(const json& j, std::chrono::duration<Rep, Period>& d) {
-		d = std::chrono::duration<Rep, Period>(
-			static_cast<Rep>(j.get<double>() / Period::num * Period::den)
-		);
-	}
-};
-
-template <typename Clock, typename Duration>
-struct adl_serializer<std::chrono::time_point<Clock, Duration>> {
-	static void to_json(json& j, const std::chrono::time_point<Clock, Duration>& tp) {
-		j = tp.time_since_epoch().count();
-	}
-
-	static void from_json(const json& j, std::chrono::time_point<Clock, Duration>& tp) {
-		tp = typename Clock::time_point(std::chrono::nanoseconds(j.get<typename Duration::rep>()));
-	}
-};
-
-} // namespace nlohmann
