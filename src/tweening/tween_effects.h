@@ -2,49 +2,19 @@
 
 #include <cstdint>
 #include <deque>
-#include <functional>
-#include <vector>
 
 #include "common/assert.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "debug/log.h"
 #include "math/easing.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
 
 namespace ptgn {
-
-enum class MoveMode {
-	Snap,
-	Lerp,
-	Velocity
-};
-
-enum class FollowMode {
-	Target,
-	Path
-};
-
-class FollowConfig {
-public:
-	MoveMode move_mode{ MoveMode::Snap };
-	FollowMode follow_mode{ FollowMode::Target };
-	bool follow_x{ true };
-	bool follow_y{ true };
-	bool teleport_on_start{ false };
-	bool loop_path{ false };
-	std::vector<V2_float> waypoints;
-	float stop_distance{ -1.0f }; // Never stop following the target.
-	V2_float lerp_factor{ 1.0f, 1.0f };
-	V2_float deadzone;
-	float max_speed{ 4.0f * 60.0f };
-	float max_acceleration{ 20.0f * 60.0f };
-	V2_float offset;
-};
 
 namespace impl {
 
@@ -389,16 +359,7 @@ void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool
  */
 void StopShake(Entity& entity, bool force = true);
 
-// TODO: Add teleport on start setting to follow system.
-// TODO: Add follow x setting.
-// TODO: Add follow y setting.
-// TODO: Add MoveMode either Snap, Lerp or Velocity.
-// TODO: FollowMode Target, Offset or Path (vector of waypoints, currentWaypoint, loopPath boolean).
-// For Position mode
-// float lerpFactor = 1.0f;
-//// For Velocity mode
-// float maxSpeed = 100.0f;
-// float acceleration = 500.0f;
+// TODO: Add documentation
 
 void StartFollow(Entity entity, Entity target, FollowConfig config = {}, bool force = true);
 

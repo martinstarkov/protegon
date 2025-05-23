@@ -498,31 +498,30 @@ void FollowEffectSystem::Update(Manager& manager) const {
 
 			entity.SetPosition(new_pos);
 
-			auto dir{ target_pos - new_pos };
-
-			auto dist2{ dir.MagnitudeSquared() };
-
-			if (task.config.stop_distance >= epsilon<float> &&
-				dist2 < task.config.stop_distance * task.config.stop_distance) {
-				effect.tasks.pop_front();
-				if (!effect.tasks.empty()) {
-					auto front{ effect.tasks.front() };
-					if (front.config.teleport_on_start) {
-						entity.SetPosition(front.target.GetPosition());
-					}
-					if (front.config.move_mode == MoveMode::Velocity) {
-						entity.Enable();
-						entity.GetOrAdd<RigidBody>();
-						entity.GetOrAdd<Transform>();
-						auto& movement					  = entity.GetOrAdd<TopDownMovement>();
-						movement.max_acceleration		  = front.config.max_acceleration;
-						movement.max_deceleration		  = front.config.max_acceleration;
-						movement.max_speed				  = front.config.max_speed;
-						movement.keys_enabled			  = false;
-						movement.only_orthogonal_movement = false;
-					} else {
-						entity.template Remove<TopDownMovement>();
-						entity.template Remove<RigidBody>();
+			if (task.config.stop_distance >= epsilon<float>) {
+				auto dir{ target_pos - new_pos };
+				if (auto dist2{ dir.MagnitudeSquared() };
+					dist2 < task.config.stop_distance * task.config.stop_distance) {
+					effect.tasks.pop_front();
+					if (!effect.tasks.empty()) {
+						auto front{ effect.tasks.front() };
+						if (front.config.teleport_on_start) {
+							entity.SetPosition(front.target.GetPosition());
+						}
+						if (front.config.move_mode == MoveMode::Velocity) {
+							entity.Enable();
+							entity.GetOrAdd<RigidBody>();
+							entity.GetOrAdd<Transform>();
+							auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+							movement.max_acceleration		  = front.config.max_acceleration;
+							movement.max_deceleration		  = front.config.max_acceleration;
+							movement.max_speed				  = front.config.max_speed;
+							movement.keys_enabled			  = false;
+							movement.only_orthogonal_movement = false;
+						} else {
+							entity.template Remove<TopDownMovement>();
+							entity.template Remove<RigidBody>();
+						}
 					}
 				}
 			}
