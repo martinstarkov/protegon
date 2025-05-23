@@ -459,14 +459,15 @@ void FollowEffectSystem::Update(Manager& manager) const {
 					movement.Move(norm_dir);
 				}
 			}
-		} else if (task.config.move_mode == MoveMode::Lerp || task.config.move_mode == MoveMode::Snap) {
+		} else if (task.config.move_mode == MoveMode::Lerp ||
+				   task.config.move_mode == MoveMode::Snap) {
 			PTGN_ASSERT(task.config.lerp_factor.x >= 0.0f && task.config.lerp_factor.x <= 1.0f);
 			PTGN_ASSERT(task.config.lerp_factor.y >= 0.0f && task.config.lerp_factor.y <= 1.0f);
 
 			V2_float lerp_dt{ 1.0f - std::pow(1.0f - task.config.lerp_factor.x, game.dt()),
 							  1.0f - std::pow(1.0f - task.config.lerp_factor.y, game.dt()) };
 
-			V2_float new_pos;
+			V2_float new_pos{ pos };
 
 			if (task.config.deadzone.IsZero()) {
 				new_pos = Lerp(pos, target_pos, lerp_dt);

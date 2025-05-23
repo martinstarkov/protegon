@@ -231,6 +231,7 @@ public:
 
 		follow_config.move_mode	  = MoveMode::Lerp;
 		follow_config.lerp_factor = { 0.5f, 0.5f };
+		follow_config.deadzone	  = { 300, 300 };
 
 		// camera.primary.Shake(0.5f, seconds{ 5 });
 		// camera.primary.RotateTo(DegToRad(360.0f), seconds{ 5 });
