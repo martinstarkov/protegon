@@ -80,6 +80,15 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
+#ifdef PTGN_PLATFORM_MACOS
+	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X GLD_TEXTURE_INDEX_2D
+	// is unloadable and bound to sampler type (Float) - using zero texture because texture
+	// unloadable."
+	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+		Texture::Bind(white_texture.GetId(), slot);
+	}
+#endif
+
 	light_target = CreateRenderTarget(light_manager, { 1, 1 }, color::Transparent);
 
 	// TODO: Once window resizing is implemented, get rid of this.
