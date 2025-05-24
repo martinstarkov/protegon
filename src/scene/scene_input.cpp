@@ -24,6 +24,7 @@
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "ui/button.h"
 
 namespace ptgn {
@@ -50,11 +51,11 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 				origin = interactive.origin;
 				auto center{ pos + interactive.offset * Abs(scale) +
 							 GetOriginOffset(origin, size) };
-				if constexpr (draw_interactives) {
+				if (draw_interactives_) {
 					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation);
 				}
 				if (impl::OverlapPointRect(pointer, center, size, rotation)) {
-					if constexpr (draw_interactives) {
+					if (draw_interactives_) {
 						overlapping = true;
 					} else {
 						return true;
@@ -68,11 +69,11 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			for (const auto& interactive : interactives.circles) {
 				auto radius{ interactive.radius * Abs(scale.x) };
 				auto center{ pos + interactive.offset * Abs(scale) };
-				if constexpr (draw_interactives) {
+				if (draw_interactives_) {
 					DrawDebugCircle(center, radius, color::Magenta, 1.0f);
 				}
 				if (impl::OverlapPointCircle(pointer, center, radius)) {
-					if constexpr (draw_interactives) {
+					if (draw_interactives_) {
 						overlapping = true;
 					} else {
 						return true;
@@ -81,7 +82,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			}
 		}
 		if (count) {
-			if constexpr (draw_interactives) {
+			if (draw_interactives_) {
 				if (overlapping) {
 					return true;
 				}
@@ -102,7 +103,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 			} else {
 				auto radius_scaled{ radius * Abs(scale.x) };
 				zero_sized = false;
-				if constexpr (draw_interactives) {
+				if (draw_interactives_) {
 					DrawDebugCircle(pos, radius_scaled, color::Magenta, 1.0f);
 				}
 				if (impl ::OverlapPointCircle(pointer, pos, radius_scaled)) {
@@ -120,7 +121,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 				origin = entity.GetOrigin();
 				auto center{ pos + GetOriginOffset(origin, size_scaled) };
 				auto rotation{ entity.GetRotation() };
-				if constexpr (draw_interactives) {
+				if (draw_interactives_) {
 					DrawDebugRect(
 						center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation
 					);
@@ -140,7 +141,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 		auto size_scaled{ texture_key.GetSize(entity) * Abs(scale) };
 		auto center{ pos + GetOriginOffset(origin, size_scaled) };
 		auto rotation{ entity.GetRotation() };
-		if constexpr (draw_interactives) {
+		if (draw_interactives_) {
 			DrawDebugRect(center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation);
 		}
 		return impl::OverlapPointRect(pointer, center, size_scaled, rotation);
@@ -149,9 +150,9 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Entity& entity) 
 	return false;
 }
 
-void SceneInput::UpdatePrevious() {
-	PTGN_ASSERT(scene_ != nullptr);
-	for (auto [e, enabled, interactive] : scene_->manager.EntitiesWith<Enabled, Interactive>()) {
+void SceneInput::UpdatePrevious(Scene* scene) {
+	PTGN_ASSERT(scene != nullptr);
+	for (auto [e, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			continue;
 		}
@@ -160,14 +161,14 @@ void SceneInput::UpdatePrevious() {
 	}
 }
 
-void SceneInput::UpdateCurrent() {
-	PTGN_ASSERT(scene_ != nullptr);
+void SceneInput::UpdateCurrent(Scene* scene) {
+	PTGN_ASSERT(scene != nullptr);
 	// TODO: Use entity's camera.
 	V2_float pos{ GetMousePosition() };
 	Depth top_depth;
 	Entity top_entity;
 	bool send_mouse_event{ false };
-	for (auto [e, enabled, interactive] : scene_->manager.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [e, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			interactive.is_inside  = false;
 			interactive.was_inside = false;
@@ -203,13 +204,14 @@ void SceneInput::UpdateCurrent() {
 }
 
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
-	PTGN_ASSERT(scene_ != nullptr);
+	// TODO: Figure out a smart way to cache the scene.
+	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	// TODO: Use entity's camera.
 	V2_float pos{ GetMousePosition() };
 	switch (type) {
 		case MouseEvent::Move: {
 			for (auto [e, enabled, interactive] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -247,7 +249,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Down: {
 			Mouse mouse{ static_cast<const MouseDownEvent&>(event).mouse };
 			for (auto [e, enabled, interactive] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -270,7 +272,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Up: {
 			Mouse mouse{ static_cast<const MouseUpEvent&>(event).mouse };
 			for (auto [e, enabled, interactive] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -292,7 +294,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Pressed: {
 			Mouse mouse{ static_cast<const MousePressedEvent&>(event).mouse };
 			for (const auto& [e, enabled, interactive, callback] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive, callback::MousePressed>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive, callback::MousePressed>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -305,7 +307,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Scroll: {
 			V2_int scroll{ static_cast<const MouseScrollEvent&>(event).scroll };
 			for (auto [e, enabled, interactive, callback] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive, callback::MouseScroll>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive, callback::MouseScroll>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -320,12 +322,12 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 }
 
 void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
-	PTGN_ASSERT(scene_ != nullptr);
+	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	switch (type) {
 		case KeyEvent::Down: {
 			Key key{ static_cast<const KeyDownEvent&>(event).key };
 			for (auto [e, enabled, interactive, callback] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive, callback::KeyDown>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive, callback::KeyDown>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -336,7 +338,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 		case KeyEvent::Up: {
 			Key key{ static_cast<const KeyUpEvent&>(event).key };
 			for (auto [e, enabled, interactive, callback] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive, callback::KeyUp>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive, callback::KeyUp>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -347,7 +349,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 		case KeyEvent::Pressed: {
 			Key key{ static_cast<const KeyPressedEvent&>(event).key };
 			for (auto [e, enabled, interactive, callback] :
-				 scene_->manager.EntitiesWith<Enabled, Interactive, callback::KeyPressed>()) {
+				 scene.manager.EntitiesWith<Enabled, Interactive, callback::KeyPressed>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -359,26 +361,28 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 	}
 }
 
-void SceneInput::ResetInteractives() {
-	for (auto [e, enabled, interactive] : scene_->manager.EntitiesWith<Enabled, Interactive>()) {
+void SceneInput::ResetInteractives(Scene* scene) {
+	for (auto [e, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}
 }
 
-void SceneInput::Init(Scene* scene) {
-	if (draw_interactives) {
+void SceneInput::Init(std::size_t scene_key) {
+	if (draw_interactives_) {
 		PTGN_WARN("Drawing interactable hitboxes");
 	}
 
-	scene_ = scene;
+	scene_key_ = scene_key;
 	// Input is reset to ensure no previously pressed keys are considered held.
 	game.input.ResetKeyStates();
 	game.input.ResetMouseStates();
 	game.input.Update();
 
-	ResetInteractives();
-	UpdateCurrent();
+	auto& scene{ game.scene.Get<Scene>(scene_key_) };
+
+	ResetInteractives(&scene);
+	UpdateCurrent(&scene);
 	OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
 
 	// TODO: Cache interactive entity list every frame to avoid repeated calls for each
@@ -397,7 +401,8 @@ void SceneInput::Init(Scene* scene) {
 void SceneInput::Shutdown() {
 	game.event.key.Unsubscribe(this);
 	game.event.mouse.Unsubscribe(this);
-	ResetInteractives();
+	auto& scene{ game.scene.Get<Scene>(scene_key_) };
+	ResetInteractives(&scene);
 }
 
 void SceneInput::SetTopOnly(bool top_only) {
@@ -405,11 +410,15 @@ void SceneInput::SetTopOnly(bool top_only) {
 }
 
 V2_float SceneInput::TransformToCamera(const V2_float& screen_position) const {
-	PTGN_ASSERT(scene_ != nullptr);
-	if (scene_->camera.primary && scene_->camera.primary.Has<impl::CameraInfo>()) {
-		return scene_->camera.primary.TransformToCamera(screen_position);
+	auto& scene{ game.scene.Get<Scene>(scene_key_) };
+	if (scene.camera.primary && scene.camera.primary.Has<impl::CameraInfo>()) {
+		return scene.camera.primary.TransformToCamera(screen_position);
 	}
 	return screen_position;
+}
+
+void SceneInput::SetDrawInteractives(bool draw_interactives) {
+	draw_interactives_ = draw_interactives;
 }
 
 V2_float SceneInput::GetMousePosition() const {

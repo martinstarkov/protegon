@@ -38,7 +38,7 @@ inline constexpr bool is_json_convertible_v = has_to_json_v<T> && has_from_json_
 
 } // namespace ptgn
 
-namespace nlohmann {
+NLOHMANN_JSON_NAMESPACE_BEGIN
 
 namespace impl {
 
@@ -74,4 +74,5 @@ struct adl_serializer<std::variant<Ts...>> {
 		}
 	}
 };
-} // namespace nlohmann
+
+NLOHMANN_JSON_NAMESPACE_END

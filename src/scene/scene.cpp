@@ -57,7 +57,7 @@ void Scene::InternalEnter() {
 	Enter();
 	manager.Refresh();
 
-	input.Init(this);
+	input.Init(key_);
 	manager.Refresh();
 }
 
@@ -74,9 +74,9 @@ void Scene::InternalExit() {
 
 void Scene::PreUpdate() {
 	manager.Refresh();
-	input.UpdatePrevious();
+	input.UpdatePrevious(this);
 	manager.Refresh();
-	input.UpdateCurrent();
+	input.UpdateCurrent(this);
 	manager.Refresh();
 }
 

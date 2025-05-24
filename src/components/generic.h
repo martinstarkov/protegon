@@ -9,7 +9,7 @@
 #include "common/type_traits.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "rendering/api/origin.h"
+#include "serialization/serializable.h"
 #include "utility/file.h"
 
 namespace ptgn {
@@ -38,6 +38,8 @@ struct ArithmeticComponent {
 	[[nodiscard]] T& GetValue() {
 		return value_;
 	}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(ArithmeticComponent, value_)
 
 protected:
 	T value_{};
@@ -70,6 +72,8 @@ struct Vector2Component {
 	[[nodiscard]] Vector2<T>& GetValue() {
 		return value_;
 	}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(Vector2Component, value_)
 
 protected:
 	Vector2<T> value_{ 0 };
@@ -106,6 +110,8 @@ struct StringComponent {
 		return value_;
 	}
 
+	PTGN_SERIALIZER_REGISTER_NAMELESS(StringComponent, value_)
+
 protected:
 	std::string value_;
 };
@@ -135,27 +141,6 @@ struct CallbackComponent {
 
 protected:
 	std::function<void(TArgs...)> callback_{};
-};
-
-struct OriginComponent {
-	OriginComponent() = default;
-
-	OriginComponent(Origin origin) : origin_{ origin } {}
-
-	operator Origin() const {
-		return origin_;
-	}
-
-	[[nodiscard]] Origin GetValue() const {
-		return origin_;
-	}
-
-	[[nodiscard]] Origin& GetValue() {
-		return origin_;
-	}
-
-protected:
-	Origin origin_{ Origin::Center };
 };
 
 } // namespace ptgn

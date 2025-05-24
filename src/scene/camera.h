@@ -15,6 +15,7 @@
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "serialization/serializable.h"
 #include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
 
@@ -84,8 +85,9 @@ public:
 	void UpdateRotation(float rotation);
 	void UpdateScale(const V2_float& scale);
 
-	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
-		const;
+	[[nodiscard]] const Matrix4& GetViewProjection(
+		const Transform& current, const Entity& entity
+	) const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -101,6 +103,16 @@ public:
 		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
 		const V2_float& camera_size, const V2_float& camera_zoom
 	);
+
+	// TODO: Change this to recalculate view and projection matrices based on position instead of
+	// storing it. This requires that the entity CameraInfo component is processed after Transform.
+
+	PTGN_SERIALIZER_REGISTER(
+		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
+		viewport_position, viewport_size, center_on_window, resize_to_window, pixel_rounding,
+		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z,
+		size
+	)
 
 private:
 	// Keep track of previous transform since other external ECS systems may modify the position,
@@ -442,6 +454,8 @@ public:
 
 	Camera primary;
 	Camera window;
+
+	PTGN_SERIALIZER_REGISTER(CameraManager, primary, window)
 
 private:
 	friend class Scene;

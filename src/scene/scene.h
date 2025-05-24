@@ -7,6 +7,7 @@
 #include "physics/physics.h"
 #include "scene/camera.h"
 #include "scene/scene_input.h"
+#include "serialization/serializable.h"
 #include "tweening/tween_effects.h"
 
 namespace ptgn {
@@ -67,6 +68,13 @@ public:
 	SceneInput input;
 	Physics physics;
 	CameraManager camera;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Scene, KeyValue("key", key_), KeyValue("active", active_), KeyValue("actions", actions_),
+		KeyValue("manager", manager), KeyValue("input", input), KeyValue("physics", physics),
+		KeyValue("camera", camera), KeyValue("collider_visibility", collider_visibility_),
+		KeyValue("collider_color", collider_color_)
+	)
 
 private:
 	friend class impl::SceneManager;

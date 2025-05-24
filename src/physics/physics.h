@@ -27,7 +27,10 @@ public:
 	// @return Physics time step in seconds.
 	[[nodiscard]] float dt() const;
 
-	PTGN_SERIALIZER_REGISTER_NAMED(Physics, KeyValue("gravity", gravity_))
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Physics, KeyValue("gravity", gravity_), KeyValue("bounds_top_left", bounds_top_left_),
+		KeyValue("bounds_size", bounds_size_)
+	)
 
 private:
 	friend class impl::Game;

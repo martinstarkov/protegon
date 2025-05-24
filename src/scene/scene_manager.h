@@ -13,6 +13,7 @@
 namespace ptgn {
 
 class SceneTransition;
+class SceneInput;
 
 namespace impl {
 
@@ -132,14 +133,7 @@ public:
 	// @return A shared pointer to the desired scene.
 	template <typename TScene = Scene>
 	[[nodiscard]] TScene& Get(std::string_view scene_key) {
-		static_assert(
-			std::is_base_of_v<Scene, TScene> || std::is_same_v<TScene, Scene>,
-			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
-		);
-		auto scene{ GetScene(GetInternalKey(scene_key)) };
-		PTGN_ASSERT(scene, "Scene key does not exist in the scene manager");
-		PTGN_ASSERT(scene.Has<SceneComponent>());
-		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
+		return Get<TScene>(GetInternalKey(scene_key));
 	}
 
 	// Exits all active scenes. This does not unload the scenes from the
@@ -155,6 +149,19 @@ private:
 	friend class ptgn::SceneTransition;
 	friend class Game;
 	friend class Renderer;
+	friend class ptgn::SceneInput;
+
+	template <typename TScene = Scene>
+	[[nodiscard]] TScene& Get(std::size_t scene_key) {
+		static_assert(
+			std::is_base_of_v<Scene, TScene> || std::is_same_v<TScene, Scene>,
+			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
+		);
+		auto scene{ GetScene(scene_key) };
+		PTGN_ASSERT(scene, "Scene key does not exist in the scene manager");
+		PTGN_ASSERT(scene.Has<SceneComponent>());
+		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
+	}
 
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 

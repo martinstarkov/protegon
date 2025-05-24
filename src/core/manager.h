@@ -117,6 +117,9 @@ public:
 
 	void Reset();
 
+	friend void to_json(json& j, const Manager& manager);
+	friend void from_json(const json& j, Manager& manager);
+
 private:
 	explicit Manager(ecs::Manager&& manager) : ecs::Manager{ std::move(manager) } {}
 
@@ -124,3 +127,22 @@ private:
 };
 
 } // namespace ptgn
+
+NLOHMANN_JSON_NAMESPACE_BEGIN
+
+struct adl_serializer<> {
+	static void to_json(json& j, const ecs::impl::DynamicBitset& bitset) {
+		j["bit_count"] = bitset.GetBitCount();
+		j["data"]	   = bitset.GetData();
+	}
+
+	static void from_json(const json& j, ecs::impl::DynamicBitset& bitset) {
+		std::vector<std::uint8_t> data;
+		std::size_t bit_count{ 0 };
+		j.at("bit_count").get_to(bit_count);
+		j.at("data").get_to(data);
+		bitset = { bit_count, data };
+	}
+};
+
+NLOHMANN_JSON_NAMESPACE_END

@@ -4,6 +4,7 @@
 #include "events/event.h"
 #include "events/events.h"
 #include "math/vector2.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -28,27 +29,34 @@ public:
 
 	[[nodiscard]] V2_float TransformToCamera(const V2_float& screen_position) const;
 
+	void SetDrawInteractives(bool draw_interactives);
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		SceneInput, KeyValue("scene_key", scene_key_), KeyValue("top_only", top_only_),
+		KeyValue("draw_interactives", draw_interactives_)
+	)
+
 private:
 	friend class Scene;
 
-	void UpdatePrevious();
-	void UpdateCurrent();
+	void UpdatePrevious(Scene* scene);
+	void UpdateCurrent(Scene* scene);
 
-	void ResetInteractives();
+	void ResetInteractives(Scene* scene);
 
 	void OnMouseEvent(MouseEvent type, const Event& event);
 	void OnKeyEvent(KeyEvent type, const Event& event);
 
-	[[nodiscard]] static bool PointerIsInside(const V2_float& pointer, const Entity& entity);
+	[[nodiscard]] bool PointerIsInside(const V2_float& pointer, const Entity& entity);
 
-	void Init(Scene* scene);
+	void Init(std::size_t scene_key);
 	void Shutdown();
 
-	Scene* scene_{ nullptr };
+	std::size_t scene_key_{ 0 };
 
 	bool top_only_{ false };
 
-	static constexpr bool draw_interactives{ true };
+	bool draw_interactives_{ true };
 };
 
 } // namespace ptgn

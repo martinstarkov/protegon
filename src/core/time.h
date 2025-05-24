@@ -63,7 +63,7 @@ std::ostream& operator<<(std::ostream& os, const std::chrono::duration<Rep, Peri
 
 } // namespace ptgn
 
-namespace nlohmann {
+NLOHMANN_JSON_NAMESPACE_BEGIN
 
 template <typename Rep, typename Period>
 struct adl_serializer<std::chrono::duration<Rep, Period>> {
@@ -89,4 +89,4 @@ struct adl_serializer<std::chrono::time_point<Clock, Duration>> {
 	}
 };
 
-} // namespace nlohmann
+NLOHMANN_JSON_NAMESPACE_END

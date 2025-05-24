@@ -17,23 +17,11 @@
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "rendering/resources/text.h"
-
-// TODO: Add serialization.
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
 class Button;
-
-namespace impl {
-
-class RenderData;
-
-void SetupButton(Button& button);
-
-void SetupButtonCallbacks(Button& button, const std::function<void()>& internal_on_activate);
-
-} // namespace impl
-
 class ToggleButton;
 class ToggleButtonGroup;
 
@@ -45,6 +33,21 @@ enum class ButtonState : std::uint8_t {
 };
 
 namespace impl {
+
+class RenderData;
+
+enum class InternalButtonState : std::size_t {
+	IdleUp		 = 0,
+	Hover		 = 1,
+	Pressed		 = 2,
+	HeldOutside	 = 3,
+	IdleDown	 = 4,
+	HoverPressed = 5
+};
+
+void SetupButton(Button& button);
+
+void SetupButtonCallbacks(Button& button, const std::function<void()>& internal_on_activate);
 
 struct ButtonHoverStart : public CallbackComponent<> {
 	using CallbackComponent::CallbackComponent;
@@ -68,15 +71,6 @@ struct ButtonToggled : public ArithmeticComponent<bool> {
 
 struct ButtonDisabledTextureKey : public TextureHandle {
 	using TextureHandle::TextureHandle;
-};
-
-enum class InternalButtonState : std::size_t {
-	IdleUp		 = 0,
-	Hover		 = 1,
-	Pressed		 = 2,
-	HeldOutside	 = 3,
-	IdleDown	 = 4,
-	HoverPressed = 5
 };
 
 struct ButtonTextFixedSize : public Vector2Component<float> {
@@ -110,6 +104,11 @@ struct ButtonColor {
 	Color default_;
 	Color hover_;
 	Color pressed_;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		ButtonColor, KeyValue("current", current_), KeyValue("default", default_),
+		KeyValue("hover", hover_), KeyValue("pressed", pressed_)
+	)
 };
 
 struct ButtonColorToggled : public ButtonColor {
@@ -145,6 +144,11 @@ struct ButtonTexture {
 	TextureHandle default_;
 	TextureHandle hover_;
 	TextureHandle pressed_;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		ButtonTexture, KeyValue("default", default_), KeyValue("hover", hover_),
+		KeyValue("pressed", pressed_)
+	)
 };
 
 struct ButtonTextureToggled : public ButtonTexture {
@@ -165,6 +169,7 @@ struct ButtonText {
 	[[nodiscard]] const Text& GetValid(ButtonState state) const;
 	[[nodiscard]] Text& GetValid(ButtonState state);
 	[[nodiscard]] Text& Get(ButtonState state);
+
 	void Set(
 		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontKey& font_key
@@ -173,6 +178,11 @@ struct ButtonText {
 	Text default_;
 	Text hover_;
 	Text pressed_;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		ButtonText, KeyValue("default", default_), KeyValue("hover", hover_),
+		KeyValue("pressed", pressed_)
+	)
 };
 
 struct ButtonTextToggled : public ButtonText {
@@ -220,8 +230,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -341,8 +352,9 @@ public:
 		const TextColor& text_color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] std::string_view GetTextContentToggled(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	ToggleButton& SetTextContentToggled(
 		const TextContent& content, ButtonState state = ButtonState::Default

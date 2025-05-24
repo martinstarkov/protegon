@@ -39,7 +39,7 @@ impl::JsonKeyValuePair<T> KeyValue(std::string_view key, T& value) {
 
 #define PTGN_KEY_VALUE_TO_JSON(kv) nlohmann_json_j[kv.key] = kv.value;
 
-#define PTGN_KEY_VALUE_FROM_JSON(kv) nlohmann_json_j[kv.key].get_to(kv.value);
+#define PTGN_KEY_VALUE_FROM_JSON(kv) nlohmann_json_j.at(kv.key).get_to(kv.value);
 
 #define PTGN_SERIALIZER_REGISTER(Type, ...) \
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(Type, __VA_ARGS__)
