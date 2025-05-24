@@ -69,20 +69,46 @@ void Manager::Reset() {
 }
 
 void to_json(json& j, const Manager& manager) {
-	j.at("next_entity")		 = manager.next_entity_;
-	j.at("count")			 = manager.count_;
-	j.at("refresh_required") = manager.refresh_required_;
-	j.at("entities")		 = manager.entities_;
-	j.at("refresh")			 = manager.refresh_;
-	j.at("versions")		 = manager.versions_;
-	j.at("free_entities")	 = manager.free_entities_;
+	j["next_entity"]	  = manager.next_entity_;
+	j["count"]			  = manager.count_;
+	j["refresh_required"] = manager.refresh_required_;
+	j["entities"]		  = manager.entities_;
+	j["refresh"]		  = manager.refresh_;
+	j["free_entities"]	  = manager.free_entities_;
+	j["versions"]		  = manager.versions_;
 
 	// TODO: Serialize component pools.
 	// std::vector<std::unique_ptr<impl::AbstractPool>> pools_;
 }
 
 void from_json(const json& j, Manager& manager) {
-	// TODO: Implement.
+	j.at("next_entity").get_to(manager.next_entity_);
+	j.at("count").get_to(manager.count_);
+	j.at("refresh_required").get_to(manager.refresh_required_);
+	j.at("entities").get_to(manager.entities_);
+	j.at("refresh").get_to(manager.refresh_);
+	j.at("free_entities").get_to(manager.free_entities_);
+	j.at("versions").get_to(manager.versions_);
+
+	// TODO: Deserialize component pools.
+	// std::vector<std::unique_ptr<impl::AbstractPool>> pools_;
 }
 
 } // namespace ptgn
+
+namespace ecs::impl {
+
+void to_json(json& j, const DynamicBitset& bitset) {
+	j["bit_count"] = bitset.GetBitCount();
+	j["data"]	   = bitset.GetData();
+}
+
+void from_json(const json& j, DynamicBitset& bitset) {
+	std::vector<std::uint8_t> data;
+	std::size_t bit_count{ 0 };
+	j.at("bit_count").get_to(bit_count);
+	j.at("data").get_to(data);
+	bitset = { bit_count, data };
+}
+
+} // namespace ecs::impl

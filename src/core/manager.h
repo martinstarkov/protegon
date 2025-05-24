@@ -128,21 +128,10 @@ private:
 
 } // namespace ptgn
 
-NLOHMANN_JSON_NAMESPACE_BEGIN
+namespace ecs::impl {
 
-struct adl_serializer<> {
-	static void to_json(json& j, const ecs::impl::DynamicBitset& bitset) {
-		j["bit_count"] = bitset.GetBitCount();
-		j["data"]	   = bitset.GetData();
-	}
+void to_json(json& j, const DynamicBitset& bitset);
 
-	static void from_json(const json& j, ecs::impl::DynamicBitset& bitset) {
-		std::vector<std::uint8_t> data;
-		std::size_t bit_count{ 0 };
-		j.at("bit_count").get_to(bit_count);
-		j.at("data").get_to(data);
-		bitset = { bit_count, data };
-	}
-};
+void from_json(const json& j, DynamicBitset& bitset);
 
-NLOHMANN_JSON_NAMESPACE_END
+} // namespace ecs::impl
