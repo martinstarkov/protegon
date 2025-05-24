@@ -51,7 +51,7 @@ public:
 	PTGN_SERIALIZER_REGISTER(MyData, id, message, value)
 };
 
-int main() {
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager m;
 
 	auto e0 = m.CreateEntity();

@@ -22,7 +22,7 @@ public:
 	void Update() override {}
 };
 
-int main() {
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("Sandbox");
 	game.scene.Enter<Sandbox>("sandbox");
 }
@@ -30,7 +30,6 @@ int main() {
 
 #include <algorithm>
 #include <iostream>
-#include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -119,30 +118,41 @@ void DeserializeScripts(ScriptComponentContainer& container, const json& arr, En
 	}
 }
 
-int main() {
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
 	entity.Add<Transform>(V2_float{ 0, 0 });
+	manager.Refresh();
 
-	ScriptComponentContainer scriptContainer;
+	json j = manager;
 
-	// Simulate loading from JSON
-	json scriptJson = {
-		{ { "type", "TweenMove" }, { "targetX", 20.0 }, { "targetY", 25.0 }, { "duration", 3.0 } }
-	};
+	std::string s = j.dump(4);
 
-	DeserializeScripts(scriptContainer, scriptJson, entity);
+	PTGN_LOG("Manager: ", s);
 
-	float dt = 0.1f; // Simulated delta time
+	Manager manager2 = j;
 
-	// Simulate update loop
-	for (int i = 0; i <= 30; ++i) {
-		V2_float pos = entity.GetPosition();
-		PTGN_LOG("Time: ", i * dt, "s - Position: ", pos);
-		scriptContainer.UpdateAll(entity, dt);
-	}
+	/*
+		ScriptComponentContainer scriptContainer;
 
-	return 0;
+		// Simulate loading from JSON
+		json scriptJson = {
+			{ { "type", "TweenMove" }, { "targetX", 20.0 }, { "targetY", 25.0 }, { "duration", 3.0 }
+	   }
+		};
+
+		DeserializeScripts(scriptContainer, scriptJson, entity);
+
+		float dt = 0.1f; // Simulated delta time
+
+		// Simulate update loop
+		for (int i = 0; i <= 30; ++i) {
+			V2_float pos = entity.GetPosition();
+			PTGN_LOG("Time: ", static_cast<float>(i) * dt, "s - Position: ", pos);
+			scriptContainer.UpdateAll(entity, dt);
+		}
+
+		return 0;*/
 }
 
 /*
@@ -412,7 +422,7 @@ private:
 // Component size
 // Component data
 
-int main() {
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	// static_assert(!nlohmann::detail::has_to_json<json, TweenScript1>::value);
 	//  static_assert(nlohmann::detail::has_to_json<json, TweenScript1>::value);
 	// static_assert(nlohmann::detail::has_to_json<json, TweenScript>::value);
