@@ -3,6 +3,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string_view>
+#include <variant>
 
 #include "common/type_info.h"
 #include "serialization/fwd.h"

@@ -12,7 +12,7 @@
 
 namespace ptgn {
 
-Chunk::Chunk(const std::vector<Entity>& entities) : entities{ entities } {}
+Chunk::Chunk(const std::vector<Entity>& chunk_entities) : entities{ chunk_entities } {}
 
 Chunk::Chunk(Chunk&& other) noexcept : entities{ std::exchange(other.entities, {}) } {}
 
@@ -29,12 +29,14 @@ Chunk::~Chunk() {
 	}
 }
 
-Entity NoiseLayer::GetEntity(const V2_float& tile_coordinate, const V2_float& tile_size) const {
+Entity NoiseLayer::GetEntity(const V2_int& tile_coordinate, const V2_int& tile_size) const {
 	if (callback == nullptr) {
 		return {};
 	}
-	float noise_value{ noise.Get(tile_coordinate.x, tile_coordinate.y) };
-	V2_float coordinate{ tile_coordinate * tile_size };
+	float noise_value{
+		noise.Get(static_cast<float>(tile_coordinate.x), static_cast<float>(tile_coordinate.y))
+	};
+	auto coordinate{ tile_coordinate * tile_size };
 	return std::invoke(callback, coordinate, noise_value);
 }
 
@@ -67,7 +69,7 @@ ChunkManager::~ChunkManager() {
 void ChunkManager::Update(const Camera& camera) {
 	auto cam_rect{ camera.GetVertices() };
 
-	V2_float chunk_pixel_size{ tile_size * chunk_size };
+	auto chunk_pixel_size{ tile_size * chunk_size };
 
 	// Number of additional chunks on each side that are loaded past the camera view rectangle.
 	V2_int chunk_padding{ 1, 1 };

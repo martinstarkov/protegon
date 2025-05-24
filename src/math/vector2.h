@@ -275,43 +275,50 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<S>& v) {
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator+(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x + rhs.x, lhs.y + rhs.y };
+	return { static_cast<S>(lhs.x) + static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) + static_cast<S>(rhs.y) };
 }
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator-(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x - rhs.x, lhs.y - rhs.y };
+	return { static_cast<S>(lhs.x) - static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) - static_cast<S>(rhs.y) };
 }
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x * rhs.x, lhs.y * rhs.y };
+	return { static_cast<S>(lhs.x) * static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) * static_cast<S>(rhs.y) };
 }
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x / rhs.x, lhs.y / rhs.y };
+	return { static_cast<S>(lhs.x) / static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) / static_cast<S>(rhs.y) };
 }
 
 template <
 	typename V, typename U, tt::arithmetic<V> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(V lhs, const Vector2<U>& rhs) {
-	return { lhs * rhs.x, lhs * rhs.y };
+	return { static_cast<S>(lhs) * static_cast<S>(rhs.x),
+			 static_cast<S>(lhs) * static_cast<S>(rhs.y) };
 }
 
 template <
 	typename V, typename U, tt::arithmetic<U> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, U rhs) {
-	return { lhs.x * rhs, lhs.y * rhs };
+	return { static_cast<S>(lhs.x) * static_cast<S>(rhs),
+			 static_cast<S>(lhs.y) * static_cast<S>(rhs) };
 }
 
 template <
 	typename V, typename U, tt::arithmetic<V> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator/(V lhs, const Vector2<U>& rhs) {
-	return { lhs / rhs.x, lhs / rhs.y };
+	return { static_cast<S>(lhs) / static_cast<S>(rhs.x),
+			 static_cast<S>(lhs) / static_cast<S>(rhs.y) };
 }
 
 template <

@@ -483,7 +483,8 @@ float Tween::AccumulateProgress(float new_progress) {
 		}
 	}
 
-	PTGN_ASSERT(new_progress >= loops);
+	PTGN_ASSERT(new_progress >= 0.0f);
+	PTGN_ASSERT(static_cast<std::size_t>(new_progress) >= loops);
 
 	new_progress -= static_cast<float>(loops);
 

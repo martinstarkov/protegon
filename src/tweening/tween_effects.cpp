@@ -30,10 +30,10 @@ namespace ptgn {
 namespace impl {
 
 ShakeEffectInfo::ShakeEffectInfo(
-	float start_intensity, float target_intensity, milliseconds duration, const Ease& ease,
-	const ShakeConfig& config, std::int32_t seed
+	float start_intensity, float target_intensity, milliseconds shake_duration,
+	const Ease& shake_ease, const ShakeConfig& shake_config, std::int32_t shake_seed
 ) :
-	EffectInfo<float>{ start_intensity, target_intensity, duration, ease } {
+	EffectInfo<float>{ start_intensity, target_intensity, shake_duration, shake_ease } {
 	PTGN_ASSERT(
 		start_intensity >= 0.0f && start_intensity <= 1.0f,
 		"Shake effect intensity must be in range [0.0, 1.0]"
@@ -42,8 +42,8 @@ ShakeEffectInfo::ShakeEffectInfo(
 		target_intensity >= 0.0f && target_intensity <= 1.0f,
 		"Shake effect intensity must be in range [0.0, 1.0]"
 	);
-	this->config = config;
-	this->seed	 = seed;
+	config = shake_config;
+	seed   = shake_seed;
 }
 
 template <typename T>
@@ -139,15 +139,15 @@ void TintEffectSystem::Update(Manager& manager) const {
 }
 
 BounceEffectInfo::BounceEffectInfo(
-	const V2_float& amplitude, milliseconds duration, const Ease& ease,
-	const V2_float& static_offset, std::int64_t total_periods, bool symmetrical
+	const V2_float& shake_amplitude, milliseconds shake_duration, const Ease& shake_ease,
+	const V2_float& shake_static_offset, std::int64_t shake_total_periods, bool shake_symmetrical
 ) :
-	amplitude{ amplitude },
-	duration{ duration },
-	ease{ ease },
-	static_offset{ static_offset },
-	total_periods{ total_periods },
-	symmetrical{ symmetrical } {
+	amplitude{ shake_amplitude },
+	duration{ shake_duration },
+	ease{ shake_ease },
+	static_offset{ shake_static_offset },
+	total_periods{ shake_total_periods },
+	symmetrical{ shake_symmetrical } {
 	PTGN_ASSERT(
 		total_periods == -1 || total_periods > 0,
 		"Invalid number of total periods for bounce effect"

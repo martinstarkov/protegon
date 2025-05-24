@@ -212,7 +212,7 @@ private:
 	// TODO: Add scripts to serialization.
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
-		Tween, KeyValue("progress", progress_), KeyValue("index", index),
+		Tween, KeyValue("progress", progress_), KeyValue("index", index_),
 		KeyValue("tween_points", tween_points_), KeyValue("paused", paused_),
 		KeyValue("started", started_)
 	)
