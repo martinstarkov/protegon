@@ -1,0 +1,244 @@
+{
+  "actions": [2],
+  "active": true,
+  "camera": {
+    "scene_key": 7424304434491585380,
+    "primary": {
+      "UUID": 10508518725183659818
+    },
+    "window": {
+      "UUID": 12559462381919851904
+    }
+  },
+  "collider_color": {
+    "a": 255,
+    "b": 255,
+    "g": 0,
+    "r": 0
+  },
+  "collider_visibility": false,
+  "input": {
+    "draw_interactives": true,
+    "scene_key": 7424304434491585380,
+    "top_only": false
+  },
+  "key": 7424304434491585380,
+  "manager": {
+    "count": 3,
+    "entities": {
+      "bit_count": 4,
+      "data": [7]
+    },
+    "free_entities": [],
+    "next_entity": 3,
+    "pools": {
+      "AnimationInfo": [
+        {
+          "current_frame": 2,
+          "duration": 0.5,
+          "frame_count": 4,
+          "frame_size": {
+            "x": 16,
+            "y": 32
+          },
+          "frame_timer": {
+            "pause_time": 0,
+            "paused": false,
+            "running": true,
+            "start_time": 2262940861267500,
+            "stop_time": 0
+          },
+          "frames_played": 18,
+          "play_count": -1,
+          "start_pixel": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ],
+      "CameraInfo": [
+        {
+          "bounding_box_position": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "bounding_box_size": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "center_on_window": true,
+          "flip": 0,
+          "orientation_y": 0.0,
+          "orientation_z": 0.0,
+          "pixel_rounding": false,
+          "position_z": 0.0,
+          "previous": {
+            "position": {
+              "x": 400.0,
+              "y": 400.0
+            },
+            "rotation": 0.0,
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            }
+          },
+          "projection": [
+            0.0024999999441206455, 0.0, 0.0, 0.0, 0.0, -0.0024999999441206455,
+            0.0, 0.0, 0.0, 0.0, -0.0, 0.0, -0.0, 0.0, -0.0, 1.0
+          ],
+          "projection_dirty": false,
+          "resize_to_window": true,
+          "size": {
+            "x": 800.0,
+            "y": 800.0
+          },
+          "view": [
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -400.0,
+            -400.0, 0.0, 1.0
+          ],
+          "view_dirty": false,
+          "view_projection": [
+            0.0024999999441206455, 0.0, 0.0, 0.0, 0.0, -0.0024999999441206455,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 1.0
+          ],
+          "viewport_position": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "viewport_size": {
+            "x": 800.0,
+            "y": 800.0
+          }
+        },
+        {
+          "bounding_box_position": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "bounding_box_size": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "center_on_window": true,
+          "flip": 0,
+          "orientation_y": 0.0,
+          "orientation_z": 0.0,
+          "pixel_rounding": false,
+          "position_z": 0.0,
+          "previous": {
+            "position": {
+              "x": 400.0,
+              "y": 400.0
+            },
+            "rotation": 0.0,
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            }
+          },
+          "projection": [
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0
+          ],
+          "projection_dirty": true,
+          "resize_to_window": true,
+          "size": {
+            "x": 800.0,
+            "y": 800.0
+          },
+          "view": [
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0
+          ],
+          "view_dirty": true,
+          "view_projection": [
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0
+          ],
+          "viewport_position": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "viewport_size": {
+            "x": 800.0,
+            "y": 800.0
+          }
+        }
+      ],
+      "IDrawable": [12046072236507568353],
+      "TextureCrop": [
+        {
+          "position": {
+            "x": 32.0,
+            "y": 0.0
+          },
+          "size": {
+            "x": 16.0,
+            "y": 32.0
+          }
+        }
+      ],
+      "TextureHandle": [6382523150],
+      "Transform": [
+        {
+          "position": {
+            "x": 400.0,
+            "y": 400.0
+          },
+          "rotation": 0.0,
+          "scale": {
+            "x": 1.0,
+            "y": 1.0
+          }
+        },
+        {
+          "position": {
+            "x": 400.0,
+            "y": 400.0
+          },
+          "rotation": 0.0,
+          "scale": {
+            "x": 1.0,
+            "y": 1.0
+          }
+        },
+        {
+          "position": {
+            "x": 400.0,
+            "y": 400.0
+          },
+          "rotation": 0.0,
+          "scale": {
+            "x": 3.0,
+            "y": 3.0
+          }
+        }
+      ],
+      "UUID": [
+        10508518725183659818, 12559462381919851904, 11301911080234214872
+      ],
+      "Visible": [true]
+    },
+    "refresh": {
+      "bit_count": 4,
+      "data": [0]
+    },
+    "refresh_required": false,
+    "versions": [1, 1, 1, 0]
+  },
+  "physics": {
+    "bounds_size": {
+      "x": 0.0,
+      "y": 0.0
+    },
+    "bounds_top_left": {
+      "x": 0.0,
+      "y": 0.0
+    },
+    "gravity": {
+      "x": 0.0,
+      "y": 0.0
+    }
+  }
+}
