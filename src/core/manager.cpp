@@ -76,6 +76,9 @@ void to_json(json& j, const Manager& manager) {
 	JSONArchiver archiver;
 
 	for (const auto& pool : manager.pools_) {
+		if (pool == nullptr) {
+			continue;
+		}
 		pool->Serialize(archiver);
 	}
 
@@ -95,6 +98,9 @@ void from_json(const json& j, Manager& manager) {
 	archiver.j = j.at("pools");
 
 	for (auto& pool : manager.pools_) {
+		if (pool == nullptr) {
+			continue;
+		}
 		pool->Deserialize(archiver);
 	}
 }
