@@ -38,6 +38,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 #include "core/manager.h"
 #include "core/script.h"
 #include "math/vector2.h"
+#include "physics/collision/collider.h"
 #include "serialization/json.h"
 
 using namespace ptgn;
@@ -121,7 +122,8 @@ void DeserializeScripts(ScriptComponentContainer& container, const json& arr, En
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
-	entity.Add<Transform>(V2_float{ 0, 0 });
+	entity.Add<Transform>(V2_float{ 30, 50 });
+	entity.Add<BoxCollider>(V2_float{ 100, 120 });
 	manager.Refresh();
 
 	json j = manager;
