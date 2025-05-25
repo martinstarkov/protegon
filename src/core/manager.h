@@ -38,6 +38,11 @@ public:
 		return !(a == b);
 	}
 
+	template <typename T>
+	void RegisterType() {
+		ecs::Manager<JSONArchiver>::GetOrAddPool<T>(ecs::Manager<JSONArchiver>::GetId<T>());
+	}
+
 	void Refresh();
 
 	void Reserve(std::size_t capacity);

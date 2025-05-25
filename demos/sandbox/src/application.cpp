@@ -39,6 +39,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 #include "core/script.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
+#include "serialization/component_registry.h"
 #include "serialization/json.h"
 
 using namespace ptgn;
@@ -126,13 +127,20 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	entity.Add<BoxCollider>(V2_float{ 100, 120 });
 	manager.Refresh();
 
+	impl::ComponentRegistry::Register<Transform>();
+	impl::ComponentRegistry::Register<BoxCollider>();
+
 	json j = manager;
 
 	std::string s = j.dump(4);
 
 	PTGN_LOG("Manager: ", s);
 
-	Manager manager2 = j;
+	Manager manager2;
+
+	j.get_to(manager2);
+
+	PTGN_LOG("Hello");
 
 	/*
 		ScriptComponentContainer scriptContainer;

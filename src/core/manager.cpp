@@ -5,6 +5,7 @@
 #include "core/entity.h"
 #include "ecs/ecs.h"
 #include "manager.h"
+#include "serialization/component_registry.h"
 #include "serialization/json.h"
 
 namespace ptgn {
@@ -96,6 +97,10 @@ void from_json(const json& j, Manager& manager) {
 
 	JSONArchiver archiver;
 	archiver.j = j.at("pools");
+
+	impl::ComponentRegistry::AddTypes(manager);
+
+	PTGN_ASSERT(!manager.pools_.empty(), "Failed to create any valid manager component pool types");
 
 	for (auto& pool : manager.pools_) {
 		if (pool == nullptr) {
