@@ -145,7 +145,7 @@ protected:
 };
 
 struct BoxCollider : public Collider {
-	BoxCollider() = delete;
+	BoxCollider() = default;
 
 	explicit BoxCollider(const V2_float& collider_size, Origin collider_origin = Origin::Center) :
 		size{ collider_size }, origin{ collider_origin } {}
@@ -162,7 +162,7 @@ struct BoxCollider : public Collider {
 };
 
 struct CircleCollider : public Collider {
-	CircleCollider() = delete;
+	CircleCollider() = default;
 
 	explicit CircleCollider(float collider_radius) : radius{ collider_radius } {}
 

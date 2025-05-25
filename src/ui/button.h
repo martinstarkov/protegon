@@ -156,6 +156,8 @@ struct ButtonTextureToggled : public ButtonTexture {
 };
 
 struct ButtonText {
+	ButtonText() = default;
+
 	ButtonText(
 		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontKey& font_key
