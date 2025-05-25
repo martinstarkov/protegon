@@ -21,6 +21,7 @@ RenderTarget CreateRenderTarget(Manager& manager, const V2_float& size, const Co
 	render_target.SetDraw<RenderTarget>();
 	render_target.Add<Camera>(CreateCamera(manager));
 	render_target.Add<impl::ClearColor>(clear_color);
+	// TODO: Move frame buffer object to a FrameBufferManager.
 	auto& fb = render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size });
 	PTGN_ASSERT(fb.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(fb.IsBound(), "Failed to bind frame buffer for render target");

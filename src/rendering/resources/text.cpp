@@ -21,7 +21,6 @@
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
 
-
 namespace ptgn {
 
 Text CreateText(
@@ -164,6 +163,7 @@ V2_int Text::GetSize(const Entity& text) {
 }
 
 void Text::RecreateTexture() {
+	// TODO: Move texture location to TextureManager.
 	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
 
 	std::string content{ GetParameter(TextContent{}) };
