@@ -9,16 +9,12 @@
 
 namespace ptgn {
 
-Manager Manager::Clone() const {
-	return Manager{ ecs::Manager::Clone() };
-}
-
 void Manager::Refresh() {
-	ecs::Manager::Refresh();
+	ecs::Manager<JSONArchiver>::Refresh();
 }
 
 void Manager::Reserve(std::size_t capacity) {
-	ecs::Manager::Reserve(capacity);
+	ecs::Manager<JSONArchiver>::Reserve(capacity);
 }
 
 Entity Manager::GetEntityByUUID(const UUID& uuid) const {
@@ -32,14 +28,14 @@ Entity Manager::GetEntityByUUID(const UUID& uuid) const {
 }
 
 Entity Manager::CreateEntity(const json& j) {
-	Entity entity{ ecs::Manager::CreateEntity() };
+	Entity entity{ ecs::Manager<JSONArchiver>::CreateEntity() };
 	j.get_to(entity);
 	PTGN_ASSERT(entity.Has<UUID>(), "Entity created from json must have a UUID");
 	return entity;
 }
 
 Entity Manager::CreateEntity(UUID uuid) {
-	Entity entity{ ecs::Manager::CreateEntity() };
+	Entity entity{ ecs::Manager<JSONArchiver>::CreateEntity() };
 	entity.Add<UUID>(uuid);
 	return entity;
 }
@@ -49,23 +45,23 @@ Entity Manager::CreateEntity() {
 }
 
 std::size_t Manager::Size() const {
-	return ecs::Manager::Size();
+	return ecs::Manager<JSONArchiver>::Size();
 }
 
 bool Manager::IsEmpty() const {
-	return ecs::Manager::IsEmpty();
+	return ecs::Manager<JSONArchiver>::IsEmpty();
 }
 
 std::size_t Manager::Capacity() const {
-	return ecs::Manager::Capacity();
+	return ecs::Manager<JSONArchiver>::Capacity();
 }
 
 void Manager::Clear() {
-	return ecs::Manager::Clear();
+	return ecs::Manager<JSONArchiver>::Clear();
 }
 
 void Manager::Reset() {
-	return ecs::Manager::Reset();
+	return ecs::Manager<JSONArchiver>::Reset();
 }
 
 void to_json(json& j, const Manager& manager) {
@@ -77,8 +73,13 @@ void to_json(json& j, const Manager& manager) {
 	j["free_entities"]	  = manager.free_entities_;
 	j["versions"]		  = manager.versions_;
 
-	// TODO: Serialize component pools.
-	// std::vector<std::unique_ptr<impl::AbstractPool>> pools_;
+	JSONArchiver archiver;
+
+	for (const auto& pool : manager.pools_) {
+		pool->Serialize(archiver);
+	}
+
+	j["pools"] = archiver.j;
 }
 
 void from_json(const json& j, Manager& manager) {
@@ -90,8 +91,12 @@ void from_json(const json& j, Manager& manager) {
 	j.at("free_entities").get_to(manager.free_entities_);
 	j.at("versions").get_to(manager.versions_);
 
-	// TODO: Deserialize component pools.
-	// std::vector<std::unique_ptr<impl::AbstractPool>> pools_;
+	JSONArchiver archiver;
+	archiver.j = j.at("pools");
+
+	for (auto& pool : manager.pools_) {
+		pool->Deserialize(archiver);
+	}
 }
 
 } // namespace ptgn

@@ -6,25 +6,26 @@
 #include "core/entity.h"
 #include "ecs/ecs.h"
 #include "serialization/fwd.h"
+#include "serialization/json_archiver.h"
 
 namespace ptgn {
 
-template <bool is_const>
-using Entities = ecs::EntityContainer<Entity, is_const, ecs::impl::LoopCriterion::None>;
+template <typename Archiver, bool is_const>
+using Entities = ecs::EntityContainer<Entity, Archiver, is_const, ecs::impl::LoopCriterion::None>;
 
-template <bool is_const, typename... TComponents>
+template <typename Archiver, bool is_const, typename... TComponents>
 using EntitiesWith = ecs::EntityContainer<
-	Entity, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
+	Entity, Archiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
 
-template <bool is_const, typename... TComponents>
+template <typename Archiver, bool is_const, typename... TComponents>
 using EntitiesWithout = ecs::EntityContainer<
-	Entity, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
+	Entity, Archiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
 
-class Manager : private ecs::Manager {
+class Manager : private ecs::Manager<JSONArchiver> {
 public:
 	Manager()							   = default;
-	Manager(const Manager&)				   = delete;
-	Manager& operator=(const Manager&)	   = delete;
+	Manager(const Manager&)				   = default;
+	Manager& operator=(const Manager&)	   = default;
 	Manager(Manager&&) noexcept			   = default;
 	Manager& operator=(Manager&&) noexcept = default;
 	~Manager()							   = default;
@@ -36,8 +37,6 @@ public:
 	friend bool operator!=(const Manager& a, const Manager& b) {
 		return !(a == b);
 	}
-
-	[[nodiscard]] Manager Clone() const;
 
 	void Refresh();
 
@@ -59,52 +58,56 @@ public:
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
-		ecs::Manager::CopyEntity<UUID>(from, to);
-		ecs::Manager::CopyEntity<Ts...>(from, to);
+		ecs::Manager<JSONArchiver>::CopyEntity<UUID>(from, to);
+		ecs::Manager<JSONArchiver>::CopyEntity<Ts...>(from, to);
 	}
 
 	// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(const Entity& from) {
-		auto entity{ ecs::Manager::CopyEntity<Ts...>(from) };
+		auto entity{ ecs::Manager<JSONArchiver>::CopyEntity<Ts...>(from) };
 		entity.template Add<UUID>();
 		return entity;
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWith<true, Ts...> EntitiesWith() const {
+	ptgn::EntitiesWith<JSONArchiver, true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, true, Ts...>{
-					 ecs::Manager::GetPool<Ts>(ecs::Manager::GetId<Ts>())... } };
+				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 )... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWith<false, Ts...> EntitiesWith() {
+	ptgn::EntitiesWith<JSONArchiver, false, Ts...> EntitiesWith() {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, false, Ts...>{
-					 ecs::Manager::GetPool<Ts>(ecs::Manager::GetId<Ts>())... } };
+				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 )... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWithout<true, Ts...> EntitiesWithout() const {
+	ptgn::EntitiesWithout<JSONArchiver, true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, true, Ts...>{
-					 ecs::Manager::GetPool<Ts>(ecs::Manager::GetId<Ts>())... } };
+				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 )... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWithout<false, Ts...> EntitiesWithout() {
+	ptgn::EntitiesWithout<JSONArchiver, false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, false, Ts...>{
-					 ecs::Manager::GetPool<Ts>(ecs::Manager::GetId<Ts>())... } };
+				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 )... } };
 	}
 
-	ptgn::Entities<true> Entities() const {
-		return { this, next_entity_, ecs::impl::Pools<Entity, true>{} };
+	ptgn::Entities<JSONArchiver, true> Entities() const {
+		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, true>{} };
 	}
 
-	ptgn::Entities<false> Entities() {
-		return { this, next_entity_, ecs::impl::Pools<Entity, false>{} };
+	ptgn::Entities<JSONArchiver, false> Entities() {
+		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, false>{} };
 	}
 
 	[[nodiscard]] std::size_t Size() const;
@@ -121,7 +124,8 @@ public:
 	friend void from_json(const json& j, Manager& manager);
 
 private:
-	explicit Manager(ecs::Manager&& manager) : ecs::Manager{ std::move(manager) } {}
+	explicit Manager(ecs::Manager<JSONArchiver>&& manager) :
+		ecs::Manager<JSONArchiver>{ std::move(manager) } {}
 
 	friend class Entity;
 };

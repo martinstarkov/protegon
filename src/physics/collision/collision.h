@@ -17,6 +17,7 @@
 #include "physics/collision/overlap.h"
 #include "physics/collision/raycast.h"
 #include "physics/rigid_body.h"
+#include "serialization/json_archiver.h"
 
 namespace ptgn {
 
@@ -89,8 +90,8 @@ public:
 
 	template <typename T>
 	static void Overlap(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const EntitiesWith<JSONArchiver, true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<JSONArchiver, true, Enabled, CircleCollider>& circles
 	) {
 		if (!entity.Get<T>().overlap_only) {
 			return;
@@ -156,8 +157,8 @@ public:
 
 	template <typename T>
 	static void Intersect(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const EntitiesWith<JSONArchiver, true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<JSONArchiver, true, Enabled, CircleCollider>& circles
 	) {
 		if (entity.Get<T>().overlap_only) {
 			return;
@@ -220,8 +221,8 @@ public:
 	// Updates the velocity of the object to prevent it from colliding with the target objects.
 	template <typename T>
 	static void Sweep(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>&
+		Entity entity, const EntitiesWith<JSONArchiver, true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<JSONArchiver, true, Enabled, CircleCollider>&
 			circles /* TODO: Fix or get rid of: , bool debug_draw = false */
 	) {
 		if (const auto& collider{ entity.Get<T>() };
@@ -413,9 +414,9 @@ private:
 	// the remaining velocity.
 	template <typename T>
 	[[nodiscard]] static std::vector<SweepCollision> GetSortedCollisions(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles, const V2_float& offset,
-		const V2_float& vel
+		Entity entity, const EntitiesWith<JSONArchiver, true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<JSONArchiver, true, Enabled, CircleCollider>& circles,
+		const V2_float& offset, const V2_float& vel
 	) {
 		std::vector<SweepCollision> collisions;
 
@@ -440,8 +441,8 @@ private:
 
 	template <typename T>
 	static void HandleCollisions(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const EntitiesWith<JSONArchiver, true, Enabled, BoxCollider>& boxes,
+		const EntitiesWith<JSONArchiver, true, Enabled, CircleCollider>& circles
 	) {
 		auto& collider{ entity.Get<T>() };
 

@@ -110,8 +110,12 @@ V2_float CollisionHandler::GetRemainingVelocity(
 }
 
 void CollisionHandler::Update(Manager& manager) {
-	auto boxes{ std::as_const(manager).EntitiesWith<Enabled, BoxCollider>() };
-	auto circles{ std::as_const(manager).EntitiesWith<Enabled, CircleCollider>() };
+	ptgn::EntitiesWith<JSONArchiver, true, Enabled, BoxCollider> boxes{
+		std::as_const(manager).EntitiesWith<Enabled, BoxCollider>()
+	};
+	ptgn::EntitiesWith<JSONArchiver, true, Enabled, CircleCollider> circles{
+		std::as_const(manager).EntitiesWith<Enabled, CircleCollider>()
+	};
 
 	for (auto [e1, enabled, b1] : boxes) {
 		if (!enabled) {

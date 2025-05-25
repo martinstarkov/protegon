@@ -15,6 +15,7 @@
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/origin.h"
 #include "serialization/fwd.h"
+#include "serialization/json_archiver.h"
 #include "serialization/serializable.h"
 
 // TODO: Add tests for entity hierarchy functions.
@@ -29,11 +30,11 @@ class RenderData;
 
 class Manager;
 
-class Entity : private ecs::Entity {
+class Entity : private ecs::Entity<JSONArchiver> {
 public:
 	// Entity wrapper functionality.
 
-	using ecs::Entity::Entity;
+	using ecs::Entity<JSONArchiver>::Entity;
 
 	Entity()							 = default;
 	Entity(const Entity&)				 = default;
@@ -45,11 +46,12 @@ public:
 	explicit Entity(Manager& manager);
 
 	explicit operator bool() const {
-		return ecs::Entity::operator bool();
+		return ecs::Entity<JSONArchiver>::operator bool();
 	}
 
 	friend bool operator==(const Entity& a, const Entity& b) {
-		return static_cast<const ecs::Entity&>(a) == static_cast<const ecs::Entity&>(b);
+		return static_cast<const ecs::Entity<JSONArchiver>&>(a) ==
+			   static_cast<const ecs::Entity<JSONArchiver>&>(b);
 	}
 
 	friend bool operator!=(const Entity& a, const Entity& b) {
@@ -61,14 +63,14 @@ public:
 	// Make sure to call manager.Refresh() after this function.
 	template <typename... Ts>
 	[[nodiscard]] Entity Copy() {
-		return ecs::Entity::Copy<Ts...>();
+		return ecs::Entity<JSONArchiver>::Copy<Ts...>();
 	}
 
 	// Adds or replaces the component if the entity already has it.
 	// @return Reference to the added or replaced component.
 	template <typename T, typename... Ts>
 	T& Add(Ts&&... constructor_args) {
-		return ecs::Entity::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return ecs::Entity<JSONArchiver>::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	// Only adds the component if one does not exist on the entity.
@@ -92,27 +94,27 @@ public:
 
 	template <typename... Ts>
 	void Remove() {
-		ecs::Entity::Remove<Ts...>();
+		ecs::Entity<JSONArchiver>::Remove<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool Has() const {
-		return ecs::Entity::Has<Ts...>();
+		return ecs::Entity<JSONArchiver>::Has<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool HasAny() const {
-		return ecs::Entity::HasAny<Ts...>();
+		return ecs::Entity<JSONArchiver>::HasAny<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() const {
-		return ecs::Entity::Get<Ts...>();
+		return ecs::Entity<JSONArchiver>::Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() {
-		return ecs::Entity::Get<Ts...>();
+		return ecs::Entity<JSONArchiver>::Get<Ts...>();
 	}
 
 	void Clear() const;
@@ -349,7 +351,7 @@ private:
 
 	void RemoveParentImpl();
 
-	explicit Entity(const ecs::Entity& e);
+	explicit Entity(const ecs::Entity<JSONArchiver>& e);
 };
 
 template <typename TCallback, typename... TArgs>
@@ -379,8 +381,6 @@ namespace impl {
 
 struct ChildKey : public HashComponent {
 	using HashComponent::HashComponent;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(ChildKey, value_)
 };
 
 struct Parent : public Entity {
@@ -404,6 +404,8 @@ struct Children {
 
 	[[nodiscard]] bool Has(const Entity& child) const;
 	[[nodiscard]] bool Has(std::string_view name) const;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(Children, KeyValue("children", children_))
 
 private:
 	friend class ptgn::Entity;

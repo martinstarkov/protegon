@@ -28,32 +28,32 @@ namespace ptgn {
 
 Entity::Entity(Manager& manager) : Entity{ manager.CreateEntity() } {}
 
-Entity::Entity(const ecs::Entity& entity) : ecs::Entity{ entity } {}
+Entity::Entity(const ecs::Entity<JSONArchiver>& entity) : ecs::Entity<JSONArchiver>{ entity } {}
 
 void Entity::Clear() const {
-	ecs::Entity::Clear();
+	ecs::Entity<JSONArchiver>::Clear();
 }
 
 bool Entity::IsAlive() const {
-	return ecs::Entity::IsAlive();
+	return ecs::Entity<JSONArchiver>::IsAlive();
 }
 
 Entity& Entity::Destroy() {
 	game.event.UnsubscribeAll(*this);
-	ecs::Entity::Destroy();
+	ecs::Entity<JSONArchiver>::Destroy();
 	return *this;
 }
 
 Manager& Entity::GetManager() {
-	return static_cast<Manager&>(ecs::Entity::GetManager());
+	return static_cast<Manager&>(ecs::Entity<JSONArchiver>::GetManager());
 }
 
 const Manager& Entity::GetManager() const {
-	return static_cast<const Manager&>(ecs::Entity::GetManager());
+	return static_cast<const Manager&>(ecs::Entity<JSONArchiver>::GetManager());
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
-	return ecs::Entity::IsIdenticalTo(e);
+	return ecs::Entity<JSONArchiver>::IsIdenticalTo(e);
 }
 
 UUID Entity::GetUUID() const {
@@ -62,7 +62,7 @@ UUID Entity::GetUUID() const {
 }
 
 std::size_t Entity::GetHash() const {
-	return std::hash<ecs::Entity>()(*this);
+	return std::hash<ecs::Entity<JSONArchiver>>()(*this);
 }
 
 bool Entity::HasDraw() const {
