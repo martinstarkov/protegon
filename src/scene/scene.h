@@ -69,12 +69,8 @@ public:
 	Physics physics;
 	CameraManager camera;
 
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		Scene, KeyValue("key", key_), KeyValue("active", active_), KeyValue("actions", actions_),
-		KeyValue("manager", manager), KeyValue("input", input), KeyValue("physics", physics),
-		KeyValue("camera", camera), KeyValue("collider_visibility", collider_visibility_),
-		KeyValue("collider_color", collider_color_)
-	)
+	friend void to_json(json& j, const Scene& scene);
+	friend void from_json(const json& j, Scene& scene);
 
 private:
 	friend class impl::SceneManager;
@@ -88,7 +84,9 @@ private:
 	impl::ShakeEffectSystem shake_effects_;
 	impl::FollowEffectSystem follow_effects_;
 
+	void Init();
 	// void ClearTarget();
+	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
 	void PreUpdate();
 	void PostUpdate();

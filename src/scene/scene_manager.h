@@ -13,7 +13,6 @@
 namespace ptgn {
 
 class SceneTransition;
-class SceneInput;
 
 namespace impl {
 
@@ -145,12 +144,6 @@ public:
 	// If a scene was active, it is exited first.
 	void UnloadAllScenes();
 
-private:
-	friend class ptgn::SceneTransition;
-	friend class Game;
-	friend class Renderer;
-	friend class ptgn::SceneInput;
-
 	template <typename TScene = Scene>
 	[[nodiscard]] TScene& Get(std::size_t scene_key) {
 		static_assert(
@@ -162,6 +155,11 @@ private:
 		PTGN_ASSERT(scene.Has<SceneComponent>());
 		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
 	}
+
+private:
+	friend class ptgn::SceneTransition;
+	friend class Game;
+	friend class Renderer;
 
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 

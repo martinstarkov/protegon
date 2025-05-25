@@ -41,7 +41,7 @@ void Scene::SetColliderVisibility(bool collider_visibility) {
 	collider_visibility_ = collider_visibility;
 }
 
-void Scene::InternalEnter() {
+void Scene::Init() {
 	active_ = true;
 	// Input is reset to ensure no previously pressed keys are considered held.
 	game.input.ResetKeyStates();
@@ -53,11 +53,13 @@ void Scene::InternalEnter() {
 		std::function([&](const WindowResizedEvent& e) { target_.GetTexture().Resize(e.size); })
 	);*/
 
-	camera.Init(manager);
-	Enter();
-	manager.Refresh();
-
+	camera.Init(key_);
 	input.Init(key_);
+}
+
+void Scene::InternalEnter() {
+	Init();
+	Enter();
 	manager.Refresh();
 }
 
@@ -149,6 +151,38 @@ void Scene::PostUpdate() {
 	manager.Refresh();
 
 	Draw();
+}
+
+void to_json(json& j, const Scene& scene) {
+	j["key"]				 = scene.key_;
+	j["active"]				 = scene.active_;
+	j["actions"]			 = scene.actions_;
+	j["manager"]			 = scene.manager;
+	j["physics"]			 = scene.physics;
+	j["input"]				 = scene.input;
+	j["camera"]				 = scene.camera;
+	j["collider_visibility"] = scene.collider_visibility_;
+	j["collider_color"]		 = scene.collider_color_;
+}
+
+void from_json(const json& j, Scene& scene) {
+	scene.manager.Reset();
+
+	j.at("key").get_to(scene.key_);
+	j.at("active").get_to(scene.active_);
+	j.at("actions").get_to(scene.actions_);
+
+	// Ensure manager is deserialized before any of the other scene systems which may reference
+	// manager entities (such as the CameraManager).
+	j.at("manager").get_to(scene.manager);
+
+	j.at("physics").get_to(scene.physics);
+
+	j.at("collider_visibility").get_to(scene.collider_visibility_);
+	j.at("collider_color").get_to(scene.collider_color_);
+
+	j.at("input").get_to(scene.input);
+	j.at("camera").get_to(scene.camera);
 }
 
 } // namespace ptgn

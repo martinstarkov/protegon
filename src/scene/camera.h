@@ -455,12 +455,15 @@ public:
 	Camera primary;
 	Camera window;
 
-	PTGN_SERIALIZER_REGISTER(CameraManager, primary, window)
+	friend void to_json(json& j, const CameraManager& camera_manager);
+	friend void from_json(const json& j, CameraManager& camera_manager);
 
 private:
 	friend class Scene;
 
-	void Init(Manager& manager);
+	void Init(std::size_t scene_key);
+
+	std::size_t scene_key_{ 0 };
 };
 
 [[nodiscard]] Camera CreateCamera(Manager& manager);

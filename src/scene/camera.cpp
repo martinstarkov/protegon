@@ -25,6 +25,7 @@
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "scene/scene_manager.h"
 #include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
 #include "tweening/tween_effects.h"
@@ -226,8 +227,9 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
-	const {
+void CameraInfo::RecalculateView(
+	const Transform& current, const Transform& offset_transform
+) const {
 	V3_float position{ current.position.x, current.position.y, position_z };
 	V3_float orientation{ current.rotation, orientation_y, orientation_z };
 
@@ -333,10 +335,10 @@ void Camera::SubscribeToWindowEvents() {
 	if (game.event.window.IsSubscribed(*this)) {
 		return;
 	}
-	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
-													   ) mutable {
-		OnWindowResize(e.size);
-	};
+	std::function<void(const WindowResizedEvent&)> f =
+		[*this](const WindowResizedEvent& e) mutable {
+			OnWindowResize(e.size);
+		};
 	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
 	OnWindowResize(game.window.GetSize());
 }
@@ -754,16 +756,31 @@ const Matrix4& Camera::GetViewProjection() const {
 	return Get<impl::CameraInfo>().GetViewProjection(Entity::GetTransform(), *this);
 }
 
-void CameraManager::Init(Manager& manager) {
+void CameraManager::Init(std::size_t scene_key) {
+	scene_key_ = scene_key;
+	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	PTGN_ASSERT(!window && !primary);
-	primary = CreateCamera(manager);
-	window	= CreateCamera(manager);
+	primary = CreateCamera(scene.manager);
+	window	= CreateCamera(scene.manager);
 }
 
 void CameraManager::Reset() {
 	primary.Reset();
 	window.Reset();
-};
+}
+
+void to_json(json& j, const CameraManager& camera_manager) {
+	j["scene_key"] = camera_manager.scene_key_;
+	j["primary"]   = camera_manager.primary;
+	j["window"]	   = camera_manager.window;
+}
+
+void from_json(const json& j, CameraManager& camera_manager) {
+	j.at("scene_key").get_to(camera_manager.scene_key_);
+	auto& scene{ game.scene.Get<Scene>(camera_manager.scene_key_) };
+	camera_manager.primary = scene.manager.GetEntityByUUID(j.at("primary").at("UUID"));
+	camera_manager.window  = scene.manager.GetEntityByUUID(j.at("window").at("UUID"));
+}
 
 /*
 // To move camera according to mouse drag (in 3D):
