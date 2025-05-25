@@ -46,6 +46,8 @@ struct Collision {
 	friend bool operator!=(const Collision& a, const Collision& b) {
 		return !operator==(a, b);
 	}
+
+	PTGN_SERIALIZER_REGISTER(Collision, entity1, entity2, normal)
 };
 
 } // namespace ptgn
@@ -126,7 +128,12 @@ struct Collider {
 
 	void InvokeCollisionCallbacks();
 
-private:
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Collider, KeyValue("collisions", collisions), KeyValue("prev_collisions", prev_collisions),
+		KeyValue("overlap_only", overlap_only), KeyValue("continuous", continuous),
+		KeyValue("response", response), KeyValue("mask", mask_), KeyValue("category", category_)
+	)
+protected:
 	friend class impl::CollisionHandler;
 
 	void ResetCollisions();
@@ -145,6 +152,13 @@ struct BoxCollider : public Collider {
 
 	V2_float size;
 	Origin origin{ Origin::Center };
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		BoxCollider, KeyValue("collisions", collisions),
+		KeyValue("prev_collisions", prev_collisions), KeyValue("overlap_only", overlap_only),
+		KeyValue("continuous", continuous), KeyValue("response", response), KeyValue("mask", mask_),
+		KeyValue("category", category_), KeyValue("size", size), KeyValue("origin", origin)
+	)
 };
 
 struct CircleCollider : public Collider {
@@ -153,6 +167,13 @@ struct CircleCollider : public Collider {
 	explicit CircleCollider(float collider_radius) : radius{ collider_radius } {}
 
 	float radius{ 0.0f };
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		CircleCollider, KeyValue("collisions", collisions),
+		KeyValue("prev_collisions", prev_collisions), KeyValue("overlap_only", overlap_only),
+		KeyValue("continuous", continuous), KeyValue("response", response), KeyValue("mask", mask_),
+		KeyValue("category", category_), KeyValue("radius", radius)
+	)
 };
 
 // struct PolygonCollider : public Collider {

@@ -9,6 +9,7 @@
 
 #include "common/type_info.h"
 #include "math/hash.h"
+#include "serialization/serializable.h"
 
 // The reason for this instead of a virtual Draw() function in the entity class is because when
 // using entity looping functions, the manager constructs Entity objects, which disables
@@ -86,6 +87,8 @@ public:
 			(void)registered_draw;
 		}
 	};
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(IDrawable, hash)
 
 	std::size_t hash{ 0 };
 };

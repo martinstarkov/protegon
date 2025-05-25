@@ -71,8 +71,6 @@ struct TextureHandle : public HashComponent {
 	[[nodiscard]] const impl::Texture& GetTexture(const Entity& entity) const;
 	[[nodiscard]] impl::Texture& GetTexture(Entity& entity);
 	[[nodiscard]] V2_int GetSize(const Entity& entity) const;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS(TextureHandle, value_)
 };
 
 namespace impl {

@@ -16,6 +16,7 @@
 #include "rendering/api/color.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -68,6 +69,8 @@ struct TextOutline {
 	friend bool operator!=(const TextOutline& a, const TextOutline& b) {
 		return !(a == b);
 	}
+
+	PTGN_SERIALIZER_REGISTER(TextOutline, width, color)
 };
 
 struct TextShadingColor : public ColorComponent {

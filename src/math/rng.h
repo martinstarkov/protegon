@@ -6,6 +6,9 @@
 #include <random>
 #include <type_traits>
 
+#include "serialization/json.h"
+#include "serialization/serializable.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -118,6 +121,16 @@ public:
 		nlohmann_json_t.max_ = nlohmann_json_j["max"];
 		nlohmann_json_t.SetSeed(nlohmann_json_j["seed"]);
 		nlohmann_json_t.SetupDistribution();
+	}
+
+	friend void to_json(json& j, const RNG& rng) {
+		j["seed"] = rng.GetSeed();
+		j["min"]  = rng.GetMin();
+		j["max"]  = rng.GetMax();
+	}
+
+	friend void from_json(const json& j, RNG& rng) {
+		rng = RNG{ j.at("seed"), j.at("min"), j.at("max") };
 	}
 
 private:
