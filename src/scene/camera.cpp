@@ -407,6 +407,7 @@ V2_float Camera::GetBoundsSize() const {
 }
 
 V2_float Camera::GetPosition(Origin origin) const {
+	PTGN_ASSERT(Has<impl::CameraInfo>());
 	const auto& info{ Get<impl::CameraInfo>() };
 	auto position{ Entity::GetPosition() };
 	auto zoom{ GetZoom() };
@@ -633,62 +634,6 @@ void Camera::Reset() {
 	info = {};
 	SubscribeToWindowEvents();
 }
-
-/*
-void Camera::SetLerp(const V2_float& lerp) {
-	PTGN_ASSERT(lerp.x >= 0.0f && lerp.x <= 1.0f, "Lerp value outside of range 0 to 1");
-	PTGN_ASSERT(lerp.y >= 0.0f && lerp.y <= 1.0f, "Lerp value outside of range 0 to 1");
-	if (!pan_effects_) {
-		pan_effects_ = Entity{ GetManager() };
-	}
-	pan_effects_.Add<impl::CameraLerp>(lerp);
-}
-
-V2_float Camera::GetLerp() const {
-	if (!pan_effects_ || !pan_effects_.Has<impl::CameraLerp>()) {
-		return impl::CameraLerp{};
-	}
-	return pan_effects_.Get<impl::CameraLerp>();
-}
-
-void Camera::SetDeadzone(const V2_float& size) {
-	PTGN_ASSERT(size.x >= 0.0f, "Deadzone width cannot be negative");
-	PTGN_ASSERT(size.y >= 0.0f, "Deadzone height cannot be negative");
-	if (!pan_effects_) {
-		pan_effects_ = Entity{ GetManager() };
-	}
-	if (size.IsZero()) {
-		pan_effects_.Remove<impl::CameraDeadzone>();
-	} else {
-		pan_effects_.Add<impl::CameraDeadzone>(size);
-	}
-}
-
-V2_float Camera::GetDeadzone() const {
-	if (!pan_effects_ || !pan_effects_.Has<impl::CameraDeadzone>()) {
-		return impl::CameraDeadzone{};
-	}
-	return pan_effects_.Get<impl::CameraDeadzone>();
-}
-
-void Camera::SetFollowOffset(const V2_float& offset) {
-	if (!pan_effects_) {
-		pan_effects_ = Entity{ GetManager() };
-	}
-	if (offset.IsZero()) {
-		pan_effects_.Remove<impl::CameraOffset>();
-	} else {
-		pan_effects_.Add<impl::CameraOffset>(offset);
-	}
-}
-
-V2_float Camera::GetFollowOffset() const {
-	if (!pan_effects_ || !pan_effects_.Has<impl::CameraOffset>()) {
-		return impl::CameraOffset{};
-	}
-	return pan_effects_.Get<impl::CameraOffset>();
-}
-*/
 
 Camera& Camera::StartFollow(Entity target, const FollowConfig& config, bool force) {
 	ptgn::StartFollow(*this, target, config, force);

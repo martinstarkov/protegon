@@ -26,20 +26,6 @@ class CameraManager;
 
 namespace impl {
 
-struct CameraLerp : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-
-	CameraLerp() : Vector2Component{ V2_float{ 1.0f, 1.0f } } {}
-};
-
-struct CameraDeadzone : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
-struct CameraOffset : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
 class CameraInfo {
 public:
 	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
