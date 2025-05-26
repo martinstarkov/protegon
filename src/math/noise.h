@@ -8,10 +8,12 @@
 #include <utility>
 #include <vector>
 
+#include "common/assert.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "common/assert.h"
+
+// TODO: Add serialization.
 
 namespace ptgn {
 
