@@ -144,26 +144,24 @@ void SceneManager::Update() {
 
 void SceneManager::HandleSceneEvents() {
 	for (auto [e, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		auto& scene{ *sc.scene };
-
-		while (!scene.actions_.empty()) {
-			auto action{ scene.actions_.begin() };
+		while (!sc.scene->actions_.empty()) {
+			auto action{ sc.scene->actions_.begin() };
 			switch (*action) {
 				case Scene::Action::Enter:
-					if (scene.active_) {
-						scene.InternalExit();
+					if (sc.scene->active_) {
+						sc.scene->InternalExit();
 					}
-					scene.InternalEnter();
+					sc.scene->InternalEnter();
 					break;
-				case Scene::Action::Exit: scene.InternalExit(); break;
+				case Scene::Action::Exit: sc.scene->InternalExit(); break;
 				case Scene::Action::Unload:
-					if (scene.active_) {
-						scene.InternalExit();
+					if (sc.scene->active_) {
+						sc.scene->InternalExit();
 					}
 					e.Destroy();
 					break;
 			}
-			scene.actions_.erase(action);
+			sc.scene->actions_.erase(action);
 		}
 	}
 
