@@ -11,6 +11,7 @@
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -141,6 +142,13 @@ struct TopDownMovement {
 
 	V2_float facing_direction;
 
+	PTGN_SERIALIZER_REGISTER(
+		TopDownMovement, max_speed, max_acceleration, max_deceleration, max_turn_speed, friction,
+		use_acceleration, flip_vertically, keys_enabled, only_orthogonal_movement, up_key, left_key,
+		down_key, right_key, facing_direction, up_input, down_input, left_input, right_input, dir,
+		prev_dir
+	)
+
 private:
 	// @param dt Unit: seconds.
 	void RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt) const;
@@ -196,10 +204,16 @@ struct PlatformerMovement {
 	// @param dt Unit: seconds.
 	void Update(Transform& transform, RigidBody& rb, float dt) const;
 
+	PTGN_SERIALIZER_REGISTER(
+		PlatformerMovement, grounded, max_speed, max_acceleration, max_deceleration, max_turn_speed,
+		max_air_acceleration, max_air_deceleration, max_air_turn_speed, use_acceleration, friction,
+		left_key, right_key
+	)
 private:
 	// @param dt Unit: seconds.
-	void RunWithAcceleration(const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt)
-		const;
+	void RunWithAcceleration(
+		const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt
+	) const;
 };
 
 struct PlatformerJump {
@@ -233,6 +247,21 @@ public:
 	float terminal_velocity{ 36000.0f };
 	float jump_height{ 150.0f };
 	float time_to_jump_apex{ 1.0f };
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		PlatformerJump, KeyValue("jump_key", jump_key), KeyValue("down_key", down_key),
+		KeyValue("jump_buffer_time", jump_buffer_time), KeyValue("coyote_time", coyote_time),
+		KeyValue("default_gravity_scale", default_gravity_scale),
+		KeyValue("upward_gravity_multiplier", upward_gravity_multiplier),
+		KeyValue("downward_gravity_multiplier", downward_gravity_multiplier),
+		KeyValue("jump_cut_off_gravity_multiplier", jump_cut_off_gravity_multiplier),
+		KeyValue("downward_speedup_gravity_multiplier", downward_speedup_gravity_multiplier),
+		KeyValue("downward_key_speedup", downward_key_speedup),
+		KeyValue("variable_jump_height", variable_jump_height),
+		KeyValue("terminal_velocity", terminal_velocity), KeyValue("jump_height", jump_height),
+		KeyValue("time_to_jump_apex", time_to_jump_apex), KeyValue("jumping", jumping_),
+		KeyValue("jump_buffer", jump_buffer_), KeyValue("coyote_timer", coyote_timer_)
+	)
 
 private:
 	bool jumping_{ false };
