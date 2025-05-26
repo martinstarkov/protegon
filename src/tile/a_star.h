@@ -5,9 +5,11 @@
 #include <limits>
 #include <utility>
 
+#include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "tile/grid.h"
-#include "math/vector2.h"
+
+// TODO: Add serialization.
 
 namespace ptgn {
 

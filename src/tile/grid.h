@@ -8,6 +8,8 @@
 #include "common/type_traits.h"
 #include "math/vector2.h"
 
+// TODO: Add serialization.
+
 namespace ptgn {
 
 template <typename T>

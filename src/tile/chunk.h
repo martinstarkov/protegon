@@ -8,6 +8,8 @@
 #include "math/noise.h"
 #include "math/vector2.h"
 
+// TODO: Add serialization.
+
 namespace ptgn {
 
 class Camera;
@@ -50,8 +52,6 @@ public:
 	~ChunkManager();
 
 	void Update(const Camera& camera);
-
-	// TODO: Figure out how to serialize chunks.
 
 	std::unordered_map<V2_int, Chunk> chunks;
 	std::vector<NoiseLayer> noise_layers;

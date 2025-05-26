@@ -2,9 +2,9 @@
 
 #include <functional>
 
+#include "core/time.h"
 #include "rendering/api/color.h"
 #include "scene/scene.h"
-#include "core/time.h"
 
 // TODO: Add polymorphic classes which inherit from scene transition and in their constructors add
 // properties to the parent entity. Then use that parent entity to retrieve based on a type that is
@@ -18,6 +18,7 @@ namespace impl {
 class SceneManager;
 
 } // namespace impl
+
 enum class TransitionType {
 	None,
 	Custom,
