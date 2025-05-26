@@ -5,7 +5,7 @@
 
 #include "common/assert.h"
 #include "core/time.h"
-#include "serialization/serializable.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
@@ -84,11 +84,9 @@ public:
 		return percentage;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		Timer, KeyValue("start_time", start_time_), KeyValue("stop_time", stop_time_),
-		KeyValue("pause_time", pause_time_), KeyValue("running", running_),
-		KeyValue("paused", paused_)
-	)
+	friend void to_json(json& j, const Timer& timer);
+	friend void from_json(const json& j, Timer& timer);
+
 private:
 	std::chrono::time_point<std::chrono::steady_clock> start_time_;
 	std::chrono::time_point<std::chrono::steady_clock> stop_time_;

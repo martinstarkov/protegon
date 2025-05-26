@@ -2,6 +2,8 @@
 
 #include <chrono>
 
+#include "serialization/json.h"
+
 namespace ptgn {
 
 Timer::Timer(bool start) {
@@ -69,6 +71,26 @@ bool Timer::IsPaused() const {
 
 bool Timer::IsRunning() const {
 	return running_;
+}
+
+void to_json(json& j, const Timer& timer) {
+	j["running"] = timer.running_;
+	j["paused"]	 = timer.paused_;
+}
+
+void from_json(const json& j, Timer& timer) {
+	j.at("running").get_to(timer.running_);
+	j.at("paused").get_to(timer.paused_);
+	if (timer.running_) {
+		timer.Start(true);
+	} else {
+		timer.Stop();
+	}
+	if (timer.paused_) {
+		timer.Pause();
+	} else {
+		timer.Resume();
+	}
 }
 
 } // namespace ptgn
