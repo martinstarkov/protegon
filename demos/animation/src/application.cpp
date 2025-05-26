@@ -31,6 +31,11 @@ public:
 
 		animation.Start();
 	}
+
+	void Exit() {
+		json j = *this;
+		SaveJson(j, "resources/animation_scene.json");
+	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {

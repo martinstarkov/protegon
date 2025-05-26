@@ -127,9 +127,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	entity.Add<BoxCollider>(V2_float{ 100, 120 });
 	manager.Refresh();
 
-	impl::ComponentRegistry::Register<Transform>();
-	impl::ComponentRegistry::Register<BoxCollider>();
-
 	json j = manager;
 
 	std::string s = j.dump(4);
@@ -139,8 +136,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager2;
 
 	j.get_to(manager2);
-
-	PTGN_LOG("Hello");
 
 	/*
 		ScriptComponentContainer scriptContainer;
