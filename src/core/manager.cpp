@@ -21,6 +21,7 @@ void Manager::Reserve(std::size_t capacity) {
 Entity Manager::GetEntityByUUID(const UUID& uuid) const {
 	auto entities{ Entities() };
 	for (Entity e : entities) {
+		PTGN_ASSERT(e.Has<UUID>(), "Entity does not have a valid UUID component");
 		if (e.Get<UUID>() == uuid) {
 			return e;
 		}
