@@ -4,7 +4,7 @@ function(set_compiler_settings project_name)
     PUBLIC
       $<$<CXX_COMPILER_ID:MSVC>:/MP>
       # $<$<AND:$<CXX_COMPILER_ID:GNU>,$<PLATFORM_ID:Windows>>:-static-libstdc++>
-    PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
+    PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
 
   set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 
