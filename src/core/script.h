@@ -89,6 +89,10 @@ public:
 			"Cannot add script which does not inherit from the base script class"
 		);
 		static_assert(
+			std::is_base_of_v<Script<S, TBaseScript>, S>,
+			"Cannot add script which does not inherit from the base script class"
+		);
+		static_assert(
 			std::is_constructible_v<S, TArgs...>,
 			"Script must be constructible from the given arguments"
 		);
