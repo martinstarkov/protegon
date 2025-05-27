@@ -53,9 +53,9 @@ public:
 	template <typename T>
 	static bool Register() {
 		constexpr auto class_name{ type_name<T>() };
-		PTGN_LOG("Registering component: ", class_name);
+		// PTGN_LOG("Registering component: ", class_name);
 		auto& registry{ GetData() };
-		registry[Hash(class_name)] = [](Manager& manager) -> void {
+		registry[Hash(class_name)] = [](Manager& manager) {
 			manager.template RegisterType<T>();
 		};
 		return true;
