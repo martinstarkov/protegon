@@ -92,6 +92,18 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
 	entity.Add<Transform>(V2_float{ 30, 50 });
+
+	/*json entity_json = entity.Serialize<Transform, UUID>();
+
+	PTGN_LOG(entity_json.dump(4));
+
+	Entity test{ manager.CreateEntity() };
+	test.Deserialize<Transform, UUID>(entity_json);
+
+	json entity_json2 = test.Serialize<Transform, UUID>();
+
+	PTGN_LOG(entity_json2.dump(4));*/
+
 	/*
 	entity.Add<BoxCollider>(V2_float{ 100, 120 });
 	manager.Refresh();

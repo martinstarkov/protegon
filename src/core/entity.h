@@ -285,17 +285,22 @@ public:
 
 	// Converts the specified entity components to a JSON object.
 	template <typename... Ts>
-	json ToJson() const {
+	json Serialize() const {
+		static_assert(
+			sizeof...(Ts) > 0, "Cannot serialize entity without providing desired components"
+		);
+		PTGN_ASSERT(*this, "Cannot serialize a null entity");
 		json j{};
-		(ToJson<Ts>(j), ...);
+		(SerializeImpl<Ts>(j), ...);
 		return j;
 	}
 
 	// Populates the entity's components based on a JSON object. Does not impact existing
 	// components, unless they are specified as part of Ts, in which case they are replaced.
-	template <typename... Ts>
-	void FromJson(const json& j) {
-		(FromJson<Ts>(j), ...);
+	template <typename... Ts, tt::enable<(sizeof...(Ts) > 0)> = true>
+	void Deserialize(const json& j) {
+		PTGN_ASSERT(*this, "Cannot deserialize to a null entity");
+		(DeserializeImpl<Ts>(j), ...);
 	}
 
 protected:
@@ -332,14 +337,20 @@ private:
 	friend class Manager;
 
 	template <typename T>
-	void ToJson(json& j) const {
-		PTGN_ASSERT(Has<T>(), "Entity must have component which is being converted to JSON");
+	void SerializeImpl(json& j) const {
+		static_assert(
+			tt::has_to_json_v<T>, "Component has not been registered with the serializer"
+		);
+		PTGN_ASSERT(Has<T>(), "Entity must have component which is being serialized");
 		constexpr auto component_name{ type_name_without_namespaces<T>() };
 		j[component_name] = Get<T>();
 	}
 
 	template <typename T>
-	void FromJson(const json& j) {
+	void DeserializeImpl(const json& j) {
+		static_assert(
+			tt::has_from_json_v<T>, "Component has not been registered with the serializer"
+		);
 		constexpr auto component_name{ type_name_without_namespaces<T>() };
 		PTGN_ASSERT(j.contains(component_name), "JSON does not contain ", component_name);
 		j[component_name].get_to(GetOrAdd<T>());
