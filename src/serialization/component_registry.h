@@ -56,7 +56,7 @@ public:
 		PTGN_LOG("Registering component: ", class_name);
 		auto& registry{ GetData() };
 		registry[Hash(class_name)] = [](Manager& manager) -> void {
-			manager.RegisterType<T>();
+			manager.template RegisterType<T>();
 		};
 		return true;
 	}

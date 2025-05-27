@@ -4,14 +4,12 @@
 
 using namespace ptgn;
 
-struct GraphicsObjectScene : public Scene {
-	void Enter() override {
-		// TODO: Implement.
-	}
+struct ScriptScene : public Scene {
+	void Enter() override {}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("GraphicsObjectScene");
-	game.scene.Enter<GraphicsObjectScene>("");
+	game.Init("ScriptScene");
+	game.scene.Enter<ScriptScene>("");
 	return 0;
 }

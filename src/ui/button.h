@@ -36,7 +36,7 @@ namespace impl {
 
 class RenderData;
 
-enum class InternalButtonState : std::size_t {
+enum class InternalButtonState {
 	IdleUp		 = 0,
 	Hover		 = 1,
 	Pressed		 = 2,

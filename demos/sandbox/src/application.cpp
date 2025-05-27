@@ -123,6 +123,7 @@ void DeserializeScripts(ScriptComponentContainer& container, const json& arr, En
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
+	/*
 	entity.Add<Transform>(V2_float{ 30, 50 });
 	entity.Add<BoxCollider>(V2_float{ 100, 120 });
 	manager.Refresh();
@@ -136,28 +137,27 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager2;
 
 	j.get_to(manager2);
+	*/
 
-	/*
-		ScriptComponentContainer scriptContainer;
+	ScriptComponentContainer scriptContainer;
 
-		// Simulate loading from JSON
-		json scriptJson = {
-			{ { "type", "TweenMove" }, { "targetX", 20.0 }, { "targetY", 25.0 }, { "duration", 3.0 }
-	   }
-		};
+	// Simulate loading from JSON
+	json scriptJson = {
+		{ { "type", "TweenMove" }, { "targetX", 20.0 }, { "targetY", 25.0 }, { "duration", 3.0 } }
+	};
 
-		DeserializeScripts(scriptContainer, scriptJson, entity);
+	DeserializeScripts(scriptContainer, scriptJson, entity);
 
-		float dt = 0.1f; // Simulated delta time
+	float dt = 0.1f; // Simulated delta time
 
-		// Simulate update loop
-		for (int i = 0; i <= 30; ++i) {
-			V2_float pos = entity.GetPosition();
-			PTGN_LOG("Time: ", static_cast<float>(i) * dt, "s - Position: ", pos);
-			scriptContainer.UpdateAll(entity, dt);
-		}
+	// Simulate update loop
+	for (int i = 0; i <= 30; ++i) {
+		V2_float pos = entity.GetPosition();
+		PTGN_LOG("Time: ", static_cast<float>(i) * dt, "s - Position: ", pos);
+		scriptContainer.UpdateAll(entity, dt);
+	}
 
-		return 0;*/
+	return 0;
 }
 
 /*
