@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 
 #include "common/type_info.h"
@@ -43,13 +44,21 @@ public:
 	}
 
 	json Serialize() const override {
-		json j	  = *static_cast<const Derived*>(this); // Cast to Derived and serialize
+		json j;
 		j["type"] = type_name<Derived>();
+		if constexpr (tt::has_to_json_v<Derived>) {
+			j["data"] = *static_cast<const Derived*>(this);
+		} // else script does not have a defined serialization.
 		return j;
 	}
 
 	void Deserialize(const json& j) override {
-		*static_cast<Derived*>(this) = j.get<Derived>(); // Deserialize into derived type
+		if constexpr (tt::has_from_json_v<Derived>) {
+			PTGN_ASSERT(
+				j.contains("data"), "Failed to deserialize data for type ", type_name<Derived>()
+			);
+			*static_cast<Derived*>(this) = j.at("data").get<Derived>();
+		} // else script does not have a defined deserialization.
 	}
 
 private:
@@ -69,5 +78,59 @@ private:
 // Initialize static variable, which will trigger the Register function
 template <typename Derived, typename Base>
 bool Script<Derived, Base>::is_registered_ = Script<Derived, Base>::Register();
+
+template <typename TBaseScript>
+class ScriptContainer {
+public:
+	template <typename S, typename... TArgs>
+	void AddScript(TArgs&&... args) {
+		static_assert(
+			std::is_base_of_v<TBaseScript, S>,
+			"Cannot add script which does not inherit from the base script class"
+		);
+		static_assert(
+			std::is_constructible_v<S, TArgs...>,
+			"Script must be constructible from the given arguments"
+		);
+		std::unique_ptr<TBaseScript> script{ std::make_unique<S>(std::forward<TArgs>(args)...) };
+		scripts.push_back(std::move(script));
+	}
+
+	friend void to_json(json& j, const ScriptContainer& container) {
+		if (container.scripts.empty()) {
+			return;
+		}
+		if (container.scripts.size() == 1) {
+			j = container.scripts.front()->Serialize();
+		} else {
+			j = json::array();
+			for (const auto& script : container.scripts) {
+				j.push_back(script->Serialize());
+			}
+		}
+	}
+
+	friend void from_json(const json& j, ScriptContainer& container) {
+		container					  = {};
+		const auto deserialize_script = [&container](const json& script) {
+			std::string type_name{ script.at("type") };
+			auto instance{ ScriptRegistry<TBaseScript>::Instance().Create(type_name) };
+			if (instance) {
+				instance->Deserialize(script);
+				container.scripts.push_back(std::move(instance));
+			}
+		};
+		if (j.is_array()) {
+			for (const auto& json_script : j) {
+				std::invoke(deserialize_script, json_script);
+			}
+		} else {
+			PTGN_ASSERT(j.contains("type"));
+			std::invoke(deserialize_script, j);
+		}
+	}
+
+	std::vector<std::unique_ptr<TBaseScript>> scripts;
+};
 
 } // namespace ptgn
