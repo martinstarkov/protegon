@@ -30,27 +30,23 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 
 #include <algorithm>
 #include <iostream>
-#include <unordered_map>
-#include <vector>
 
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/script.h"
 #include "math/vector2.h"
-#include "physics/collision/collider.h"
-#include "serialization/component_registry.h"
 #include "serialization/json.h"
 
 using namespace ptgn;
 
-// Base ScriptComponent class
 class TweenScript {
 public:
 	virtual ~TweenScript() = default;
 
-	virtual void OnCreate(Entity& entity)			= 0;
-	virtual void OnUpdate(Entity& entity, float dt) = 0;
+	virtual void OnCreate(Entity& entity) {}
+
+	virtual void OnUpdate(Entity& entity, float dt) {}
 
 	virtual json Serialize() const			= 0;
 	virtual void Deserialize(const json& j) = 0;
@@ -60,71 +56,43 @@ class TweenMove : public Script<TweenMove, TweenScript> {
 public:
 	TweenMove() {}
 
-	float targetX  = 0.0f;
-	float targetY  = 0.0f;
+	TweenMove(float x, float y, float dur) : target_x{ x }, target_y{ y }, duration{ dur } {}
+
+	float target_x = 0.0f;
+	float target_y = 0.0f;
 	float duration = 1.0f;
 	float elapsed  = 0.0f;
-	V2_float startPos;
+	V2_float start_pos;
 
 	void OnCreate(Entity& entity) override {
-		startPos = entity.GetPosition();
+		start_pos = entity.GetPosition();
 	}
 
 	void OnUpdate(Entity& entity, float dt) override {
-		elapsed			+= dt;
-		float t			 = std::min(elapsed / duration, 1.0f);
-		V2_float newPos	 = { startPos.x + (targetX - startPos.x) * t,
-							 startPos.y + (targetY - startPos.y) * t };
-		entity.SetPosition(newPos);
+		elapsed			 += dt;
+		float t			  = std::min(elapsed / duration, 1.0f);
+		V2_float new_pos  = { start_pos.x + (target_x - start_pos.x) * t,
+							  start_pos.y + (target_y - start_pos.y) * t };
+		entity.SetPosition(new_pos);
 	}
 
-	PTGN_SERIALIZER_REGISTER(TweenMove, targetX, targetY, duration)
+	PTGN_SERIALIZER_REGISTER(TweenMove, target_x, target_y, duration)
 };
 
-class ScriptComponentContainer {
-	std::vector<std::unique_ptr<TweenScript>> scripts;
-
+class TweenMove2 : public Script<TweenMove2, TweenScript> {
 public:
-	void AddScript(std::string_view type_name, const json& config, Entity& owner) {
-		auto script = ScriptRegistry<TweenScript>::Instance().Create(type_name);
-		if (script) {
-			script->Deserialize(config);
-			script->OnCreate(owner);
-			scripts.push_back(std::move(script));
-		}
-	}
+	TweenMove2() {}
 
-	void UpdateAll(Entity& owner, float dt) {
-		for (const auto& script : scripts) {
-			script->OnUpdate(owner, dt);
-		}
-	}
-
-	const auto& GetScripts() const {
-		return scripts;
+	void OnUpdate(Entity& entity, float dt) override {
+		PTGN_LOG("Entity ", entity.GetUUID(), " was updated!");
 	}
 };
-
-json SerializeScripts(const ScriptComponentContainer& container) {
-	json arr = json::array();
-	for (const auto& script : container.GetScripts()) {
-		arr.push_back(script->Serialize());
-	}
-	return arr;
-}
-
-void DeserializeScripts(ScriptComponentContainer& container, const json& arr, Entity& owner) {
-	for (const auto& scriptJson : arr) {
-		std::string type = scriptJson.at("type");
-		container.AddScript(type, scriptJson, owner);
-	}
-}
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
-	/*
 	entity.Add<Transform>(V2_float{ 30, 50 });
+	/*
 	entity.Add<BoxCollider>(V2_float{ 100, 120 });
 	manager.Refresh();
 
@@ -139,14 +107,28 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	j.get_to(manager2);
 	*/
 
-	ScriptComponentContainer scriptContainer;
+	ScriptContainer<TweenScript> script_container;
 
-	// Simulate loading from JSON
-	json scriptJson = {
-		{ { "type", "TweenMove" }, { "targetX", 20.0 }, { "targetY", 25.0 }, { "duration", 3.0 } }
-	};
+	/*json j;
+	j["type"] = "TweenMove";
+	j["data"] = { { "target_x", 20.0 }, { "target_y", 25.0 }, { "duration", 3.0 } };*/
 
-	DeserializeScripts(scriptContainer, scriptJson, entity);
+	json j = json::array();
+	j.push_back({ { "type", "TweenMove" },
+				  { "data", { { "target_x", 20.0 }, { "target_y", 25.0 }, { "duration", 3.0 } } } }
+	);
+	j.push_back({ { "type", "TweenMove2" } });
+
+	PTGN_LOG(j.dump(4));
+
+	j.get_to(script_container);
+
+	// script_container.AddScript<TweenMove>(30.0f, 35.0f, 3.0f);
+	// script_container.AddScript<TweenMove2>();
+
+	for (const auto& script : script_container.scripts) {
+		script->OnCreate(entity);
+	}
 
 	float dt = 0.1f; // Simulated delta time
 
@@ -154,8 +136,14 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	for (int i = 0; i <= 30; ++i) {
 		V2_float pos = entity.GetPosition();
 		PTGN_LOG("Time: ", static_cast<float>(i) * dt, "s - Position: ", pos);
-		scriptContainer.UpdateAll(entity, dt);
+		for (const auto& script : script_container.scripts) {
+			script->OnUpdate(entity, dt);
+		}
 	}
+
+	json j2 = script_container;
+
+	PTGN_LOG(j2.dump(4));
 
 	return 0;
 }
