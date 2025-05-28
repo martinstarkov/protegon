@@ -116,8 +116,8 @@ void Scene::PostUpdate() {
 	}
 
 	// std::size_t tween_update_count{ 0 };
-	for (auto [e, tween] : manager.EntitiesWith<Tween>()) {
-		tween.Step(dt);
+	for (auto [e, tween] : manager.EntitiesWith<impl::TweenInstance>()) {
+		Tween{ e }.Step(dt);
 		// tween_update_count++;
 	}
 

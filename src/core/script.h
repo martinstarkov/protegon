@@ -21,17 +21,17 @@ public:
 		return instance;
 	}
 
-	void Register(std::string_view type_name, std::function<std::unique_ptr<Base>()> factory) {
+	void Register(std::string_view type_name, std::function<std::shared_ptr<Base>()> factory) {
 		registry_[Hash(type_name)] = std::move(factory);
 	}
 
-	std::unique_ptr<Base> Create(std::string_view type_name) {
+	std::shared_ptr<Base> Create(std::string_view type_name) {
 		auto it = registry_.find(Hash(type_name));
 		return it != registry_.end() ? it->second() : nullptr;
 	}
 
 private:
-	std::unordered_map<std::size_t, std::function<std::unique_ptr<Base>()>> registry_;
+	std::unordered_map<std::size_t, std::function<std::shared_ptr<Base>()>> registry_;
 };
 
 template <typename Derived, typename Base>
@@ -69,7 +69,7 @@ private:
 	static bool Register() {
 		ScriptRegistry<Base>::Instance().Register(
 			type_name<Derived>(),
-			[]() -> std::unique_ptr<Base> { return std::make_unique<Derived>(); }
+			[]() -> std::shared_ptr<Base> { return std::make_shared<Derived>(); }
 		);
 		return true;
 	}
@@ -96,7 +96,7 @@ public:
 			std::is_constructible_v<S, TArgs...>,
 			"Script must be constructible from the given arguments"
 		);
-		std::unique_ptr<TBaseScript> script{ std::make_unique<S>(std::forward<TArgs>(args)...) };
+		std::shared_ptr<TBaseScript> script{ std::make_shared<S>(std::forward<TArgs>(args)...) };
 		scripts.push_back(std::move(script));
 	}
 
@@ -134,7 +134,7 @@ public:
 		}
 	}
 
-	std::vector<std::unique_ptr<TBaseScript>> scripts;
+	std::vector<std::shared_ptr<TBaseScript>> scripts;
 };
 
 } // namespace ptgn

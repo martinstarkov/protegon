@@ -9,6 +9,8 @@
 #include <variant>
 #include <vector>
 
+#include "core/entity.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "math/easing.h"
 #include "math/math.h"
@@ -16,72 +18,23 @@
 
 namespace ptgn {
 
-class Tween;
-
-using TweenCallback = std::variant<
-	std::function<void(Tween&, float)>, std::function<void(Tween&)>, std::function<void(float)>,
-	std::function<void()>>;
+class Manager;
 
 namespace impl {
 
-class Game;
-
-struct TweenPoint {
-	TweenPoint() = default;
-
-	explicit TweenPoint(milliseconds duration);
-
-	void SetReversed(bool reversed);
-
-	// current number of repetitions of the tween.
-	std::int64_t current_repeat_{ 0 };
-
-	// total number of repetitions of the tween (-1 for infinite tween).
-	std::int64_t total_repeats_{ 0 };
-
-	// go back and fourth between values (requires repeat != 0) (both
-	// directions take duration time).
-	bool yoyo_{ false };
-
-	bool currently_reversed_{ false };
-
-	bool start_reversed_{ false };
-
-	milliseconds duration_{ 0 };
-
-	// easing function between tween start and end value.
-	Ease ease_{ SymmetricalEase::Linear };
-
-	TweenCallback on_complete_;
-	TweenCallback on_repeat_;
-	TweenCallback on_yoyo_;
-	TweenCallback on_start_;
-	TweenCallback on_stop_;
-	TweenCallback on_update_;
-	TweenCallback on_pause_;
-	TweenCallback on_resume_;
-
-	// TODO: Add scripts to serialization.
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		TweenPoint, KeyValue("current_repeat", current_repeat_),
-		KeyValue("total_repeats", total_repeats_), KeyValue("yoyo", yoyo_),
-		KeyValue("currently_reversed", currently_reversed_),
-		KeyValue("start_reversed", start_reversed_), KeyValue("duration", duration_),
-		KeyValue("ease", ease_)
-	)
-};
+struct TweenPoint;
 
 } // namespace impl
 
-class Tween {
+class Tween : public Entity {
 public:
-	Tween()						   = default;
-	Tween(const Tween&)			   = default;
-	Tween& operator=(const Tween&) = default;
-	Tween(Tween&&) noexcept;
-	Tween& operator=(Tween&&) noexcept;
-	~Tween();
+	Tween() = default;
+	Tween(const Entity& entity);
+	Tween(const Tween&)				   = default;
+	Tween& operator=(const Tween&)	   = default;
+	Tween(Tween&&) noexcept			   = default;
+	Tween& operator=(Tween&&) noexcept = default;
+	~Tween()						   = default;
 
 	// @param duration The time it takes to take progress from 0 to 1, or vice versa for reversed
 	// tweens. Yoyo tweens take twice the duration to complete a full
@@ -94,15 +47,8 @@ public:
 	Tween& Reverse(bool reversed = true);
 	Tween& Yoyo(bool yoyo = true);
 
-	Tween& OnUpdate(const TweenCallback& callback);
-	Tween& OnStart(const TweenCallback& callback);
-	Tween& OnComplete(const TweenCallback& callback);
-	Tween& OnStop(const TweenCallback& callback);
-	Tween& OnPause(const TweenCallback& callback);
-	Tween& OnResume(const TweenCallback& callback);
-	Tween& OnRepeat(const TweenCallback& callback);
-	Tween& OnYoyo(const TweenCallback& callback);
-	Tween& OnReset(const TweenCallback& callback);
+	template <typename T, typename... TArgs>
+	Tween& AddScript(TArgs&&... args);
 
 	// @return Current progress of the tween [0.0f, 1.0f].
 	[[nodiscard]] float GetProgress() const;
@@ -147,6 +93,9 @@ public:
 	// completed or is in the middle of the final tween point, this function does nothing.
 	Tween& IncrementTweenPoint();
 
+	// @return Index of the current tween point.
+	[[nodiscard]] std::size_t GetCurrentIndex() const;
+
 	// Toggles the tween between started and stopped.
 	Tween& Toggle();
 
@@ -183,7 +132,6 @@ private:
 	// @return New progress of the tween after accumulating.
 	[[nodiscard]] float AccumulateProgress(float new_progress);
 
-	void ActivateCallback(const TweenCallback& callback);
 	void PointCompleted();
 	void HandleCallbacks(bool suppress_update);
 
@@ -195,6 +143,91 @@ private:
 	[[nodiscard]] impl::TweenPoint& GetCurrentTweenPoint();
 	[[nodiscard]] const impl::TweenPoint& GetCurrentTweenPoint() const;
 	[[nodiscard]] impl::TweenPoint& GetLastTweenPoint();
+};
+
+struct TweenInfo {
+	TweenInfo() = delete;
+
+	TweenInfo(const Tween& tween_object, float tween_progress, const Entity& tween_parent) :
+		tween{ tween_object }, progress{ tween_progress }, parent{ tween_parent } {}
+
+	Tween tween;
+	float progress{ 0.0f };
+	Entity parent; // can be same as "tween" if tween is not attached to another entity.
+};
+
+namespace impl {
+
+class ITweenScript {
+public:
+	virtual ~ITweenScript() = default;
+
+	virtual void OnComplete([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnRepeat([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnYoyo([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnStart([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnStop([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnUpdate([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnPause([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnResume([[maybe_unused]] TweenInfo info) {}
+
+	virtual void OnReset([[maybe_unused]] TweenInfo info) {}
+
+	virtual json Serialize() const			= 0;
+	virtual void Deserialize(const json& j) = 0;
+};
+
+struct TweenPoint {
+	TweenPoint() = default;
+
+	explicit TweenPoint(milliseconds duration);
+
+	void SetReversed(bool reversed);
+
+	// current number of repetitions of the tween.
+	std::int64_t current_repeat_{ 0 };
+
+	// total number of repetitions of the tween (-1 for infinite tween).
+	std::int64_t total_repeats_{ 0 };
+
+	// go back and fourth between values (requires repeat != 0) (both
+	// directions take duration time).
+	bool yoyo_{ false };
+
+	bool currently_reversed_{ false };
+
+	bool start_reversed_{ false };
+
+	milliseconds duration_{ 0 };
+
+	// easing function between tween start and end value.
+	Ease ease_{ SymmetricalEase::Linear };
+
+	ScriptContainer<ITweenScript> script_container_;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		TweenPoint, KeyValue("current_repeat", current_repeat_),
+		KeyValue("total_repeats", total_repeats_), KeyValue("yoyo", yoyo_),
+		KeyValue("currently_reversed", currently_reversed_),
+		KeyValue("start_reversed", start_reversed_), KeyValue("duration", duration_),
+		KeyValue("ease", ease_), KeyValue("script_container", script_container_)
+	)
+};
+
+struct TweenInstance {
+	TweenInstance()								   = default;
+	TweenInstance(const TweenInstance&)			   = default;
+	TweenInstance& operator=(const TweenInstance&) = default;
+	TweenInstance(TweenInstance&&) noexcept;
+	TweenInstance& operator=(TweenInstance&&) noexcept;
+	~TweenInstance();
 
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
 	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
@@ -202,20 +235,29 @@ private:
 	float progress_{ 0.0f };
 
 	std::size_t index_{ 0 };
-	std::vector<impl::TweenPoint> tween_points_;
+	std::vector<TweenPoint> points_;
 
 	bool paused_{ false };
 	bool started_{ false };
 
-	TweenCallback on_reset_;
-
-	// TODO: Add scripts to serialization.
-
 	PTGN_SERIALIZER_REGISTER_NAMED(
-		Tween, KeyValue("progress", progress_), KeyValue("index", index_),
-		KeyValue("tween_points", tween_points_), KeyValue("paused", paused_),
+		TweenInstance, KeyValue("progress", progress_), KeyValue("index", index_),
+		KeyValue("tween_points", points_), KeyValue("paused", paused_),
 		KeyValue("started", started_)
 	)
 };
+
+} // namespace impl
+
+template <typename T, typename... TArgs>
+Tween& Tween::AddScript(TArgs&&... args) {
+	GetLastTweenPoint().script_container_.AddScript<T>(std::forward<TArgs>(args)...);
+	return *this;
+}
+
+template <typename T>
+using TweenScript = Script<T, impl::ITweenScript>;
+
+[[nodiscard]] Tween CreateTween(Manager& manager);
 
 } // namespace ptgn

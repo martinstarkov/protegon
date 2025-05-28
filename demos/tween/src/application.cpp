@@ -1,6 +1,112 @@
-#include "protegon/protegon.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "events/input_handler.h"
+#include "rendering/renderer.h"
+#include "rendering/resources/texture.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "tweening/tween.h"
 
 using namespace ptgn;
+
+class TweenConfig00 : public TweenScript<TweenConfig00> {
+public:
+	void OnComplete([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Completed tween 00");
+	}
+};
+
+class TweenConfig0 : public TweenScript<TweenConfig0> {
+public:
+	void OnPause([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Paused tween 0");
+	}
+
+	void OnResume([[maybe_unused]] TweenInfo info) override {
+		PTGN_ERROR("Tween 0 should remain paused");
+	}
+};
+
+class TweenConfig1 : public TweenScript<TweenConfig1> {
+public:
+	void OnStart([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Starting tween1 with value ", info.progress);
+	}
+
+	void OnUpdate([[maybe_unused]] TweenInfo info
+	) override { /*PTGN_LOG("Updated Value: ", info.progress);*/ }
+
+	void OnComplete([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Completed tween1 with value ", info.progress);
+	}
+
+	void OnStop([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Stopped tween1 with value ", info.progress);
+	}
+
+	void OnPause([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Paused tween1 with value ", info.progress);
+	}
+
+	void OnResume([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Resumed tween1 with value ", info.progress);
+	}
+
+	void OnRepeat([[maybe_unused]] TweenInfo info) override {
+		PTGN_ERROR("This repeat should never be triggered");
+	}
+};
+
+class TweenConfig3 : public TweenScript<TweenConfig3> {
+public:
+	void OnRepeat([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Repeating tween3 (repeat #", info.tween.GetRepeats(), ")");
+	}
+};
+
+class TweenConfig5 : public TweenScript<TweenConfig5> {
+public:
+	void OnYoyo([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Yoyoing tween5 (repeat #", info.tween.GetRepeats(), ")");
+	}
+};
+
+class TweenConfig7 : public TweenScript<TweenConfig7> {
+public:
+	void OnRepeat([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Infinitely repeating tween7 (repeat #", info.tween.GetRepeats(), ")");
+	}
+};
+
+class TweenConfigCustom : public TweenScript<TweenConfigCustom> {
+public:
+	TweenConfigCustom() {}
+
+	TweenConfigCustom(
+		std::string_view name, Color* color, V2_float* pos, const Color& color_change
+	) :
+		name{ name }, color{ color }, pos{ pos }, color_change{ color_change } {}
+
+	std::string_view name;
+	Color* color{ nullptr };
+	V2_float* pos{ nullptr };
+	Color color_change{ color::Green };
+
+	void OnStart([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Starting ", name, " tween point: ", info.tween.GetCurrentIndex());
+	}
+
+	void OnComplete([[maybe_unused]] TweenInfo info) override {
+		PTGN_LOG("Completed ", name, " tween point: ", info.tween.GetCurrentIndex());
+		PTGN_ASSERT(color != nullptr);
+		*color = color_change;
+	}
+
+	void OnUpdate([[maybe_unused]] TweenInfo info) override {
+		PTGN_ASSERT(pos != nullptr);
+		*pos = { info.progress * 800.0f, 0.0f };
+	}
+};
 
 class TweenScene : public Scene {
 public:
@@ -21,187 +127,122 @@ public:
 	void Enter() override {
 		tweens.clear();
 
-		Tween config00{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Black, V2_float{}))
-		};
-		Tween config0{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Red, V2_float{}))
-		};
-		Tween config1{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Blue, V2_float{}))
-		};
-		Tween config2{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Green, V2_float{}))
-		};
-		Tween config3{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Cyan, V2_float{}))
-		};
-		Tween config4{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Magenta, V2_float{}))
-		};
-		Tween config5{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Orange, V2_float{}))
-		};
-		Tween config6{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Lime, V2_float{}))
-		};
-		Tween config7{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Brown, V2_float{}))
-		};
-		Tween config8{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Gray, V2_float{}))
-		};
-		Tween config9{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::LightGray, V2_float{}))
-		};
-		Tween config10{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Yellow, V2_float{}))
-		};
-		Tween config11{
-			std::get<Tween>(tweens.emplace_back(Tween{ duration }, color::Pink, V2_float{}))
-		};
+		Tween config00{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Black, V2_float{})
+		) };
+		Tween config0{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Red, V2_float{})
+		) };
+		Tween config1{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Blue, V2_float{})
+		) };
+		Tween config2{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Green, V2_float{})
+		) };
+		Tween config3{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Cyan, V2_float{})
+		) };
+		Tween config4{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Magenta, V2_float{})
+		) };
+		Tween config5{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Orange, V2_float{})
+		) };
+		Tween config6{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::LimeGreen, V2_float{})
+		) };
+		Tween config7{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Brown, V2_float{})
+		) };
+		Tween config8{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Gray, V2_float{})
+		) };
+		Tween config9{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::LightGray, V2_float{})
+		) };
+		Tween config10{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Yellow, V2_float{})
+		) };
+		Tween config11{ std::get<Tween>(
+			tweens.emplace_back(CreateTween(manager).During(duration), color::Pink, V2_float{})
+		) };
 		Tween config12{ std::get<Tween>(tweens.emplace_back(
-			Tween{}
+			CreateTween(manager)
 				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting first tween point"); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed first tween point");
-					color = color::Green;
-				})
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				})
+				.AddScript<TweenConfigCustom>("regular", &color, &pos, color::Green)
 				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting second tween point"); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed second tween point");
-					color = color::Purple;
-				})
-				.Reverse()
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				}),
+				.AddScript<TweenConfigCustom>("regular", &color, &pos, color::Purple)
+				.Reverse(),
 			color::Purple, V2_float{}
 		)) };
 
 		Tween config13{ std::get<Tween>(tweens.emplace_back(
-			Tween{}
+			CreateTween(manager)
 				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting first repeated tween point"); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed first repeated tween point");
-					color = color::Green;
-				})
+				.AddScript<TweenConfigCustom>("repeat", &color, &pos, color::Green)
 				.Repeat(repeats)
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				})
 				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting second repeated tween point"); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed second repeated tween point");
-					color = color::Purple;
-				})
 				.Repeat(repeats)
 				.Reverse()
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				}),
+				.AddScript<TweenConfigCustom>("repeat", &color, &pos, color::Purple),
 			color::Teal, V2_float{}
 		)) };
 
 		Tween config14{ std::get<Tween>(tweens.emplace_back(
-			Tween{}
+			CreateTween(manager)
 				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting first yoyoed tween point"); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed first yoyoed tween point");
-					color = color::Green;
-				})
+				.AddScript<TweenConfigCustom>("yoyo", &color, &pos, color::Green)
 				.Yoyo()
 				.Repeat(repeats)
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				})
 				.During(duration)
-				.OnStart([](float v) { PTGN_LOG("Starting second yoyoed tween point"); })
-				.OnComplete([&](float v) {
-					PTGN_LOG("Completed second yoyoed tween point");
-					color = color::Purple;
-				})
+				.AddScript<TweenConfigCustom>("yoyo", &color, &pos, color::Purple)
 				.Yoyo()
 				.Repeat(repeats)
-				.Reverse()
-				.OnUpdate([&](float v) {
-					pos = { v * 800.0f, 0.0f };
-				}),
+				.Reverse(),
 			color::DarkRed, V2_float{}
 		)) };
 
+		// TODO: Add destruction upon completion.
 		// Destroyed upon completion.
-		config00.KeepAlive(false);
-		config00.OnComplete([]() { PTGN_LOG("Completed tween 00"); });
-		config00.OnDestroy([]() { PTGN_LOG("Destroyed tween 00"); });
+		config00.AddScript<TweenConfig00>();
 
 		// Paused after starting.
-		config0.OnPause([](float v) { PTGN_LOG("Paused tween0"); });
-		config0.OnResume([](float v) { PTGN_ERROR("tween0 should remain paused"); });
-
-		config1.OnStart([](float v) { PTGN_LOG("Starting tween1 with value ", v); });
-		config1.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
-		config1.OnComplete([](float v) { PTGN_LOG("Completed tween1 with value ", v); });
-		config1.OnStop([](float v) { PTGN_LOG("Stopped tween1 with value ", v); });
-		config1.OnPause([](float v) { PTGN_LOG("Paused tween1 with value ", v); });
-		config1.OnResume([](float v) { PTGN_LOG("Resumed tween1 with value ", v); });
-		config1.OnRepeat([](float v) { PTGN_ERROR("This repeat should never be triggered"); });
+		config0.AddScript<TweenConfig0>();
+		config1.AddScript<TweenConfig1>();
 
 		config2.Reverse();
-		config2.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 		config3.Repeat(repeats);
-		config3.OnRepeat([](Tween t) {
-			PTGN_LOG("Repeating tween3 (repeat #", t.GetRepeats(), ")");
-		});
-		config3.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config3.AddScript<TweenConfig3>();
 
 		config4.Repeat(repeats);
 		config4.Reverse();
-		config4.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 		config5.Yoyo();
 		config5.Repeat(repeats);
-		config5.OnYoyo([](Tween t) { PTGN_LOG("Yoyoing tween5 (repeat #", t.GetRepeats(), ")"); });
-		config5.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config5.AddScript<TweenConfig5>();
 
 		config6.Yoyo();
 		config6.Repeat(repeats);
 		config6.Reverse();
-		config6.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 		config7.Repeat(-1);
-		config7.OnRepeat([](Tween t) {
-			PTGN_LOG("Infinitely repeating tween7 (repeat #", t.GetRepeats(), ")");
-		});
-		config7.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
+		config7.AddScript<TweenConfig7>();
 
 		config8.Repeat(-1);
 		config8.Reverse();
-		config8.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 		config9.Yoyo();
 		config9.Repeat(-1);
-		config9.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 		config10.Yoyo();
 		config10.Repeat(-1);
 		config10.Reverse();
-		config10.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 		config11.Ease(AsymmetricalEase::OutSine);
 		config11.Yoyo();
 		config11.Repeat(-1);
 		config11.Reverse();
-		config11.OnUpdate([](float v) { /*PTGN_LOG("Updated Value: ", v);*/ });
 
 		size   = { 0, game.window.GetSize().y / static_cast<float>(tweens.size()) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
@@ -220,10 +261,6 @@ public:
 	}
 
 	void Update() override {
-		for (auto& [t, c, p] : tweens) {
-			t.Step(game.dt());
-		}
-
 		if (game.input.KeyDown(Key::P)) {
 			for (auto& [t, c, p] : tweens) {
 				if (t.IsPaused()) {

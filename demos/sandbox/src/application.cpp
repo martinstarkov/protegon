@@ -37,56 +37,9 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 #include "core/script.h"
 #include "math/vector2.h"
 #include "serialization/json.h"
+#include "tweening/tween.h"
 
 using namespace ptgn;
-
-class TweenScript {
-public:
-	virtual ~TweenScript() = default;
-
-	virtual void OnCreate(Entity& entity) {}
-
-	virtual void OnUpdate(Entity& entity, float dt) {}
-
-	virtual json Serialize() const			= 0;
-	virtual void Deserialize(const json& j) = 0;
-};
-
-class TweenMove : public Script<TweenMove, TweenScript> {
-public:
-	TweenMove() {}
-
-	TweenMove(float x, float y, float dur) : target_x{ x }, target_y{ y }, duration{ dur } {}
-
-	float target_x = 0.0f;
-	float target_y = 0.0f;
-	float duration = 1.0f;
-	float elapsed  = 0.0f;
-	V2_float start_pos;
-
-	void OnCreate(Entity& entity) override {
-		start_pos = entity.GetPosition();
-	}
-
-	void OnUpdate(Entity& entity, float dt) override {
-		elapsed			 += dt;
-		float t			  = std::min(elapsed / duration, 1.0f);
-		V2_float new_pos  = { start_pos.x + (target_x - start_pos.x) * t,
-							  start_pos.y + (target_y - start_pos.y) * t };
-		entity.SetPosition(new_pos);
-	}
-
-	PTGN_SERIALIZER_REGISTER(TweenMove, target_x, target_y, duration)
-};
-
-class TweenMove2 : public Script<TweenMove2, TweenScript> {
-public:
-	TweenMove2() {}
-
-	void OnUpdate(Entity& entity, float dt) override {
-		PTGN_LOG("Entity ", entity.GetUUID(), " was updated!");
-	}
-};
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
@@ -119,15 +72,15 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	j.get_to(manager2);
 	*/
 
-	ScriptContainer<TweenScript> script_container;
-
 	/*json j;
 	j["type"] = "TweenMove";
 	j["data"] = { { "target_x", 20.0 }, { "target_y", 25.0 }, { "duration", 3.0 } };*/
 
+	/*
 	json j = json::array();
-	j.push_back({ { "type", "TweenMove" },
-				  { "data", { { "target_x", 20.0 }, { "target_y", 25.0 }, { "duration", 3.0 } } } }
+	j.push_back(
+		{ { "type", "TweenMove" },
+		  { "data", { { "target_x", 20.0 }, { "target_y", 25.0 }, { "duration", 3.0 } } } }
 	);
 	j.push_back({ { "type", "TweenMove2" } });
 
@@ -156,6 +109,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	json j2 = script_container;
 
 	PTGN_LOG(j2.dump(4));
+	*/
 
 	return 0;
 }
