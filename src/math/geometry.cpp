@@ -66,7 +66,8 @@ std::array<V2_float, 4> GetQuadVertices(
 }
 
 std::array<V2_float, 4> GetVertices(const Transform& transform, V2_float size, Origin origin) {
-	size *= Abs(transform.scale);
+	// Leave out Abs() around scale to enable texture flipping via negative scales.
+	size *= transform.scale;
 
 	auto half{ size * 0.5f };
 
@@ -216,11 +217,9 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(
-				std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
-										 contour[static_cast<std::size_t>(b)],
-										 contour[static_cast<std::size_t>(c)] }
-			);
+			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+														 contour[static_cast<std::size_t>(b)],
+														 contour[static_cast<std::size_t>(c)] });
 
 			m++;
 
