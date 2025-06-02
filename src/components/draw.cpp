@@ -98,7 +98,7 @@ Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {
 }
 
 const impl::Texture& Sprite::GetTexture() const {
-	PTGN_ASSERT(Has<TextureHandle>(), "Failed to retrieve texture handle associated with sprite");
+	PTGN_ASSERT(Has<TextureHandle>(), "Every sprite must have a texture handle component");
 
 	const auto& texture_handle{ Get<TextureHandle>() };
 	return texture_handle.GetTexture(*this);

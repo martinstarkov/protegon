@@ -19,6 +19,8 @@ namespace ptgn {
 RenderTarget CreateRenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) {
 	RenderTarget render_target{ manager.CreateEntity() };
 	render_target.SetDraw<RenderTarget>();
+	render_target.Add<TextureHandle>();
+	render_target.Show();
 	render_target.Add<Camera>(CreateCamera(manager));
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
