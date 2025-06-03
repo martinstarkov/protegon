@@ -315,7 +315,14 @@ Entity& Entity::SetDepth(const Depth& depth) {
 }
 
 Depth Entity::GetDepth() const {
-	return GetOrDefault<Depth>();
+	Depth parent_depth{};
+	if (HasParent()) {
+		auto parent{ GetParent() };
+		if (parent != *this && parent.Has<Depth>()) {
+			parent_depth = parent.GetDepth();
+		}
+	}
+	return parent_depth + GetOrDefault<Depth>();
 }
 
 Entity& Entity::SetBlendMode(BlendMode blend_mode) {
