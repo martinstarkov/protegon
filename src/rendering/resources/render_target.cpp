@@ -49,18 +49,44 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
 void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
-	Sprite::Draw(ctx, entity);
+	RenderTarget rt{ entity };
+
+	const auto& texture{ rt.GetTexture() };
+
+	PTGN_ASSERT(texture.IsValid(), "Cannot draw a render target with an invalid texture");
+
+	auto depth{ entity.GetDepth() };
+	auto blend_mode{ entity.GetBlendMode() };
+	auto tint{ entity.GetTint().Normalized() };
+
+	Sprite sprite{ entity };
+	auto coords{ sprite.GetTextureCoordinates(true) };
+
+	ctx.AddTexturedQuad(
+		game.renderer.GetRenderData().camera_vertices, coords, texture, depth, blend_mode, tint,
+		false
+	);
 }
 
 void RenderTarget::Draw(const Entity& e) const {
 	const auto& fb	   = Get<impl::FrameBuffer>();
-	const auto& camera = Get<Camera>();
+	const auto& camera = GetCamera();
 	fb.Bind();
 	PTGN_ASSERT(fb.IsBound(), "Cannot draw to render target unless it is first bound");
 	PTGN_ASSERT(
 		camera != Camera{}, "Cannot draw to render target with invalid or uninitialized camera"
 	);
 	game.renderer.GetRenderData().Render(fb, camera, e, false);
+}
+
+const Camera& RenderTarget::GetCamera() const {
+	PTGN_ASSERT(Has<Camera>(), "Render target must have a camera attached to it");
+	return Get<Camera>();
+}
+
+Camera& RenderTarget::GetCamera() {
+	PTGN_ASSERT(Has<Camera>(), "Render target must have a camera attached to it");
+	return Get<Camera>();
 }
 
 void RenderTarget::Bind() const {

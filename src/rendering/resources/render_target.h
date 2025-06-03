@@ -12,6 +12,7 @@
 namespace ptgn {
 
 class Scene;
+class Camera;
 
 namespace impl {
 
@@ -51,6 +52,9 @@ public:
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
+
+	[[nodiscard]] const Camera& GetCamera() const;
+	[[nodiscard]] Camera& GetCamera();
 
 	// @param clear_color The clear color to set for the render target. This only takes effect after
 	// the render target is cleared.
