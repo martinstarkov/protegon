@@ -119,7 +119,10 @@ void GLContext::Init() {
 
 	// From: https://nullprogram.com/blog/2023/01/08/
 	// Set a non-zero SDL_GL_SetSwapInterval so that SDL_GL_SwapWindow synchronizes.
-	SDL_GL_SetSwapInterval(PTGN_VSYNC_MODE);
+	if (!SDL_GL_SetSwapInterval(PTGN_VSYNC_MODE)) {
+		// If no adaptive VSYNC available, fallback to VSYNC.
+		SDL_GL_SetSwapInterval(1);
+	}
 
 	LoadGLFunctions();
 }
