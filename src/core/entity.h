@@ -303,6 +303,14 @@ public:
 		(DeserializeImpl<Ts>(j), ...);
 	}
 
+	template <typename T, typename... TArgs>
+	[[nodiscard]] T GetOrDefault(TArgs&&... args) const {
+		if (Has<T>()) {
+			return Get<T>();
+		}
+		return T{ std::forward<TArgs>(args)... };
+	}
+
 protected:
 	template <typename T, typename... TArgs>
 	Entity& AddOrRemove(bool condition, TArgs&&... args) {
@@ -312,14 +320,6 @@ protected:
 			Remove<T>();
 		}
 		return *this;
-	}
-
-	template <typename T, typename... TArgs>
-	[[nodiscard]] T GetOrDefault(TArgs&&... args) const {
-		if (Has<T>()) {
-			return Get<T>();
-		}
-		return T{ std::forward<TArgs>(args)... };
 	}
 
 	template <typename T, typename... TArgs>
