@@ -320,9 +320,6 @@ V2_float CameraInfo::ClampToBounds(
 
 } // namespace impl
 
-// TODO: Store Transform in camera, and at the end of the frame compare the transform of the camera
-// to see if the view or projection needs to be updated.
-
 Camera CreateCamera(Manager& manager) {
 	Camera camera{ manager.CreateEntity() };
 	camera.Add<Transform>();
