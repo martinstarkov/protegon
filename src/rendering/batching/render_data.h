@@ -23,6 +23,7 @@ namespace ptgn {
 
 class Shader;
 class Camera;
+class RenderTarget;
 
 namespace impl {
 
@@ -34,11 +35,6 @@ public:
 
 	void Render(
 		const FrameBuffer& frame_buffer, const Manager& manager
-	);
-
-	void Render(
-		const FrameBuffer& frame_buffer, const Camera& target_camera, const Entity& entity,
-		bool check_visibility
 	);
 
 	//void RenderToScreen(const RenderTarget& target, const Camera& camera);
@@ -113,6 +109,7 @@ public:
 
 private:
 	friend class Batch;
+	friend class ptgn::RenderTarget;
 
 	void AddFilledTriangle(
 		const std::array<V2_float, Batch::triangle_vertex_count>& vertices, const Depth& depth,

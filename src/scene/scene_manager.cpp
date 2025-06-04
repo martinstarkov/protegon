@@ -129,15 +129,11 @@ void SceneManager::ClearSceneTargets() {
 */
 
 void SceneManager::Update() {
-	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		if (sc.scene->active_) {
-			sc.scene->PreUpdate();
-		}
-	}
 	game.input.Update();
+
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		if (sc.scene->active_) {
-			sc.scene->PostUpdate();
+			sc.scene->InternalUpdate();
 		}
 	}
 }

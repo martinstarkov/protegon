@@ -140,6 +140,19 @@ void Entity::AddChild(Entity& child, std::string_view name) {
 	child.SetParentImpl(*this);
 }
 
+void Entity::ClearChildren() {
+	if (!Has<impl::Children>()) {
+		return;
+	}
+
+	auto& children{ Get<impl::Children>() };
+	// Cannot use reference here due to unordered_set const iterator.
+	for (Entity child : children.children_) {
+		child.Remove<impl::Parent>();
+	}
+	children.Clear();
+}
+
 void Entity::RemoveChild(Entity& child) {
 	child.RemoveParent();
 }
@@ -348,6 +361,12 @@ Color Entity::GetTint() const {
 }
 
 namespace impl {
+
+Parent::Parent(const Entity& entity) : Entity{ entity } {}
+
+void Children::Clear() {
+	children_.clear();
+}
 
 void Children::Add(Entity& child, std::string_view name) {
 	if (!name.empty()) {

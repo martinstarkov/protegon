@@ -21,6 +21,7 @@ RenderTarget CreateRenderTarget(Manager& manager, const V2_float& size, const Co
 	RenderTarget render_target{ manager.CreateEntity() };
 	render_target.SetDraw<RenderTarget>();
 	render_target.Add<TextureHandle>();
+	render_target.Add<impl::RenderTargetEntities>();
 	render_target.Show();
 	render_target.Add<Camera>(CreateCamera(manager));
 	render_target.Add<impl::ClearColor>(clear_color);
@@ -62,11 +63,10 @@ void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	Sprite sprite{ entity };
 	auto coords{ sprite.GetTextureCoordinates(true) };
-	Camera camera{ rt.GetCamera() };
 
 	// TODO: Add custom sizing for render targets.
 	ctx.AddTexturedQuad(
-		game.renderer.GetRenderData().camera_vertices, coords, texture, depth, camera,
+		game.renderer.GetRenderData().camera_vertices, coords, texture, depth, Camera{},
 		blend_mode, tint,
 		false
 	);
@@ -74,11 +74,20 @@ void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 void RenderTarget::Draw(const Entity& entity) const {
 	PTGN_ASSERT(entity, "Cannot draw invalid entity to render target");
-	const auto& fb	   = Get<impl::FrameBuffer>();
-	const auto& camera = GetCamera();
-	fb.Bind();
-	PTGN_ASSERT(fb.IsBound(), "Cannot draw to render target unless it is first bound");
-	game.renderer.GetRenderData().Render(fb, camera, entity, false);
+	
+	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
+	frame_buffer.Bind();
+	PTGN_ASSERT(frame_buffer.IsBound(), "Cannot draw to render target unless it is first bound");
+
+	auto& rd{ game.renderer.GetRenderData() };
+
+	const auto& camera{ GetCamera() };
+	rd.fallback_camera = camera;
+	rd.UseCamera(camera);
+
+	rd.AddToBatch(entity, false);
+
+	rd.Flush(frame_buffer);
 }
 
 const Camera& RenderTarget::GetCamera() const {
@@ -114,10 +123,11 @@ void RenderTarget::UnsubscribeFromEvents() const {
 */
 
 void RenderTarget::Clear() const {
+	PTGN_ASSERT(Has<impl::FrameBuffer>(), "Cannot clear render target with no frame buffer");
 	const auto& fb = Get<impl::FrameBuffer>();
 	fb.Bind();
 	PTGN_ASSERT(fb.IsBound(), "Render target frame buffer must be bound before clearing");
-	const auto& clear_color = Get<impl::ClearColor>();
+	auto clear_color{ GetOrDefault<impl::ClearColor>() };
 	impl::GLRenderer::ClearToColor(clear_color);
 }
 
@@ -152,6 +162,24 @@ void RenderTarget::Draw(const TextureInfo& texture_info, Shader shader, bool cle
 	}
 }
 */
+
+void RenderTarget::ClearEntities() {
+	PTGN_ASSERT(Has<impl::RenderTargetEntities>());
+	auto& entities{ Get<impl::RenderTargetEntities>().entities };
+	for (Entity entity : entities) {
+		if (entity) {
+			entity.Remove<RenderTarget>();
+		}
+	}
+	entities.clear();
+}
+
+void RenderTarget::AddEntity(Entity& entity) {
+	PTGN_ASSERT(entity, "Cannot add invalid entity to render target");
+	PTGN_ASSERT(Has<impl::RenderTargetEntities>());
+	Get<impl::RenderTargetEntities>().entities.emplace(entity);
+	entity.Add<RenderTarget>(*this);
+}
 
 Color RenderTarget::GetClearColor() const {
 	return Has<impl::ClearColor>() ? Get<impl::ClearColor>() : impl::ClearColor{};

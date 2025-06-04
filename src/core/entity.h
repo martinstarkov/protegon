@@ -164,6 +164,8 @@ public:
 	// provided, the returned handle will be the only way to access the child directly.
 	[[nodiscard]] Entity CreateChild(std::string_view name = {});
 
+	void ClearChildren();
+
 	void AddChild(Entity& child, std::string_view name = {});
 
 	void RemoveChild(Entity& child);
@@ -274,7 +276,8 @@ public:
 
 	[[nodiscard]] BlendMode GetBlendMode() const;
 
-	Entity& SetTint(const Color& color);
+	// color::White will clear tint.
+	Entity& SetTint(const Color& color = color::White);
 
 	[[nodiscard]] Color GetTint() const;
 
@@ -397,11 +400,13 @@ struct ChildKey : public HashComponent {
 struct Parent : public Entity {
 	using Entity::Entity;
 
-	Parent(const Entity& entity) : Entity{ entity } {}
+	Parent(const Entity& entity);
 };
 
 struct Children {
 	Children() = default;
+
+	void Clear();
 
 	void Add(Entity& child, std::string_view name = {});
 

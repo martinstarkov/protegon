@@ -75,18 +75,6 @@ void Scene::InternalExit() {
 	manager.Refresh();
 }
 
-void Scene::PreUpdate() {
-	game.scene.current_ = game.scene.GetActiveScene(key_);
-
-	manager.Refresh();
-	input.UpdatePrevious(this);
-	manager.Refresh();
-	input.UpdateCurrent(this);
-	manager.Refresh();
-
-	game.scene.current_ = {};
-}
-
 void Scene::Draw() {
 	if (collider_visibility_) {
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
@@ -105,7 +93,7 @@ void Scene::Draw() {
 	// render_data.RenderToScreen(target_, camera.primary);
 }
 
-void Scene::PostUpdate() {
+void Scene::InternalUpdate() {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 
 	float dt{ game.dt() };
@@ -114,9 +102,21 @@ void Scene::PostUpdate() {
 	// TODO: Add multiple manager support?
 
 	manager.Refresh();
+
 	Update();
 
 	manager.Refresh();
+	
+	input.UpdatePrevious(this);
+	
+	manager.Refresh();
+	
+	input.UpdateCurrent(this);
+	
+	manager.Refresh();
+
+	manager.Refresh();
+	
 	for (auto [e, enabled, particle_manager] :
 		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
 		particle_manager.Update(e.GetPosition());
@@ -149,12 +149,15 @@ void Scene::PostUpdate() {
 	manager.Refresh();
 
 	physics.PreCollisionUpdate(manager);
+	
 	manager.Refresh();
 
 	impl::CollisionHandler::Update(manager);
+	
 	manager.Refresh();
 
 	physics.PostCollisionUpdate(manager);
+	
 	manager.Refresh();
 
 	Draw();

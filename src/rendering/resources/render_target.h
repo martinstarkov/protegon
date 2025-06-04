@@ -8,6 +8,7 @@
 #include "rendering/api/color.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/resources/texture.h"
+#include <unordered_set>
 
 namespace ptgn {
 
@@ -17,6 +18,10 @@ class Camera;
 namespace impl {
 
 class RenderData;
+
+struct RenderTargetEntities {
+	std::unordered_set<Entity> entities;
+};
 
 struct ClearColor : public ColorComponent {
 	using ColorComponent::ColorComponent;
@@ -31,8 +36,8 @@ class RenderTarget : public Entity, public Drawable<RenderTarget> {
 public:
 	// A default render target will result in the screen being used as the render target.
 	RenderTarget()									 = default;
-	RenderTarget(const RenderTarget&)				 = delete;
-	RenderTarget& operator=(const RenderTarget&)	 = delete;
+	RenderTarget(const RenderTarget&)				 = default;
+	RenderTarget& operator=(const RenderTarget&)	 = default;
 	RenderTarget(RenderTarget&&) noexcept			 = default;
 	RenderTarget& operator=(RenderTarget&&) noexcept = default;
 	~RenderTarget()									 = default;
@@ -46,9 +51,8 @@ public:
 	// @param clear_color The background color of the render target.
 	// explicit RenderTarget(const Color& clear_color);
 
-	// Draw an entity to the render target.
-	// The entity must have the Transform and Visible components.
-	void Draw(const Entity& entity) const;
+	void ClearEntities();
+	void AddEntity(Entity& entity);
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
@@ -66,6 +70,17 @@ public:
 
 	// @return Frame buffer of the render target.
 	[[nodiscard]] const impl::FrameBuffer& GetFrameBuffer() const;
+
+private:
+	friend class impl::RenderData;
+
+	friend RenderTarget CreateRenderTarget(
+		Manager& manager, const V2_float& size, const Color& clear_color
+	);
+
+	// Draw an entity to the render target.
+	// The entity must have the Transform and Visible components.
+	void Draw(const Entity& entity) const;
 
 	void Bind() const;
 

@@ -487,8 +487,18 @@ void RenderData::SortEntitiesByY(std::vector<Entity>&) {
 }
 
 void RenderData::Render(
-	const FrameBuffer& frame_buffer, const Manager& manager
-) {
+	const FrameBuffer& frame_buffer, const Manager& manager) {
+	for (auto [e, v, d, fb, rt_entities] : manager.EntitiesWith<Visible, IDrawable, FrameBuffer, RenderTargetEntities>()) {
+		RenderTarget rt{ e };
+		rt.Clear();
+
+		for (const auto& child : rt_entities.entities) {
+			if (child) {
+				rt.Draw(child);
+			}
+		}
+	}
+
 	frame_buffer.Bind();
 
 	fallback_camera = game.scene.GetCurrent().camera.primary;
@@ -507,20 +517,6 @@ void RenderData::Render(
 	Flush(frame_buffer);
 
 	FlushDebugBatches(frame_buffer);
-}
-
-void RenderData::Render(
-	const FrameBuffer& frame_buffer, const Camera& target_camera, const Entity& entity, bool check_visibility
-) {
-	frame_buffer.Bind();
-
-	fallback_camera = target_camera;
-	
-	UseCamera(target_camera);
-
-	AddToBatch(entity, check_visibility);
-
-	Flush(frame_buffer);
 }
 
 /*

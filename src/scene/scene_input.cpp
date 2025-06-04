@@ -22,6 +22,7 @@
 #include "rendering/api/origin.h"
 #include "rendering/renderer.h"
 #include "rendering/resources/texture.h"
+#include "rendering/resources/render_target.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -163,26 +164,37 @@ void SceneInput::UpdatePrevious(Scene* scene) {
 
 void SceneInput::UpdateCurrent(Scene* scene) {
 	PTGN_ASSERT(scene != nullptr);
-	// TODO: Use entity's camera.
-	V2_float pos{ GetMousePosition() };
+	V2_float mouse_pos{ GetMousePosition() };
+	auto pos{ mouse_pos };
 	Depth top_depth;
 	Entity top_entity;
 	bool send_mouse_event{ false };
-	for (auto [e, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			interactive.is_inside  = false;
 			interactive.was_inside = false;
 		} else {
-			bool is_inside{ PointerIsInside(pos, e) };
+			if (entity.Has<Camera>()) {
+				auto screen_pos{ game.input.GetMousePosition() };
+				const auto& camera{ entity.Get<Camera>() };
+				pos = camera.TransformToCamera(screen_pos);
+			} else if (entity.Has<RenderTarget>()) {
+				auto screen_pos{ game.input.GetMousePosition() };
+				const auto& camera{ entity.Get<RenderTarget>().GetCamera() };
+				pos = camera.TransformToCamera(screen_pos);
+			} else {
+				pos = mouse_pos;
+			}
+			bool is_inside{ PointerIsInside(pos, entity) };
 			if ((!interactive.was_inside && is_inside) || (interactive.was_inside && !is_inside)) {
 				send_mouse_event = true;
 			}
 			if (top_only_) {
 				if (is_inside) {
-					auto depth{ e.GetDepth() };
+					auto depth{ entity.GetDepth() };
 					if (depth >= top_depth || !top_entity) {
 						top_depth  = depth;
-						top_entity = e;
+						top_entity = entity;
 					}
 				} else {
 					interactive.is_inside = false;
