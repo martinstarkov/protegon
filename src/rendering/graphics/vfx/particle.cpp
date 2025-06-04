@@ -9,6 +9,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "scene/camera.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
@@ -92,6 +93,7 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto blend_mode{ entity.GetBlendMode() };
 	auto depth{ entity.GetDepth() };
+	auto camera{ entity.GetOrDefault<Camera>() };
 
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 	if (i.info.texture_enabled && i.info.texture_key) {
@@ -106,7 +108,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 			ctx.AddTexturedQuad(
 				impl::GetVertices(t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center),
 				impl::GetDefaultTextureCoordinates(), game.texture.Get(i.info.texture_key), depth,
-				blend_mode, tint, false
+				camera, blend_mode, tint, false
 			);
 		}
 		return;
@@ -115,7 +117,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 		case ParticleShape::Circle: {
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				ctx.AddEllipse(
-					p.position, V2_float{ p.radius }, i.info.line_width, depth, blend_mode,
+					p.position, V2_float{ p.radius }, i.info.line_width, depth, camera, blend_mode,
 					p.color.Normalized(), 0.0f, false
 				);
 			}
@@ -126,7 +128,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 				// TODO: Add rect rotation.
 				ctx.AddQuad(
 					p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center,
-					i.info.line_width, depth, blend_mode, p.color.Normalized(), 0.0f, false
+					i.info.line_width, depth, camera, blend_mode, p.color.Normalized(), 0.0f, false
 				);
 			}
 			break;

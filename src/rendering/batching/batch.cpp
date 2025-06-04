@@ -7,6 +7,7 @@
 
 #include "common/assert.h"
 #include "math/math.h"
+#include "scene/camera.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
@@ -15,8 +16,8 @@
 
 namespace ptgn::impl {
 
-Batch::Batch(const Shader& batch_shader, const BlendMode& batch_blend_mode) :
-	shader{ batch_shader }, blend_mode{ batch_blend_mode } {}
+Batch::Batch(const Shader& batch_shader, const Camera& batch_camera, BlendMode batch_blend_mode) :
+	shader{ batch_shader }, camera{ batch_camera }, blend_mode{ batch_blend_mode } {}
 
 void Batch::AddTexturedQuad(
 	const std::array<V2_float, quad_vertex_count>& positions,
@@ -142,8 +143,10 @@ float Batch::GetTextureIndex(
 	return static_cast<float>(texture_ids.size());
 }
 
-bool Batch::Uses(const Shader& other_shader, BlendMode other_blend_mode) const {
-	return shader == other_shader && blend_mode == other_blend_mode;
+bool Batch::Uses(const Shader& other_shader, const Camera& other_camera, BlendMode other_blend_mode)
+	const {
+	return shader == other_shader && blend_mode == other_blend_mode &&
+		   camera == other_camera;
 }
 
 bool Batch::HasRoomForTexture(

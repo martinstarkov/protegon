@@ -5,13 +5,11 @@
 #include <functional>
 #include <limits>
 #include <numeric>
-#include <string_view>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "common/assert.h"
-#include "components/draw.h"
+#include "components/common.h"
 #include "components/drawable.h"
 #include "components/offsets.h"
 #include "components/transform.h"
@@ -19,16 +17,12 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/window.h"
-#include "debug/log.h"
-#include "ecs/ecs.h"
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "math/geometry.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "physics/collision/collider.h"
-#include "render_data.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
@@ -40,12 +34,11 @@
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
 #include "rendering/graphics/vfx/light.h"
-#include "rendering/graphics/vfx/particle.h"
 #include "rendering/resources/render_target.h"
 #include "rendering/resources/shader.h"
-#include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
+#include "scene/scene_manager.h"
 #include "utility/span.h"
 
 namespace ptgn::impl {
@@ -147,7 +140,7 @@ std::pair<std::size_t, std::size_t> RenderData::GetVertexIndexCount(const Entity
 
 Batch& RenderData::GetBatch(
 	std::size_t vertex_count, std::size_t index_count, const Texture& texture, const Shader& shader,
-	BlendMode blend_mode, const Depth& depth, bool debug
+	const Camera& camera, BlendMode blend_mode, const Depth& depth, bool debug
 ) {
 	PTGN_ASSERT(texture.IsValid());
 
@@ -167,16 +160,16 @@ Batch& RenderData::GetBatch(
 
 	if (batch_vector.empty()) {
 		// Add new batch.
-		b = &batch_vector.emplace_back(shader, blend_mode);
+		b = &batch_vector.emplace_back(shader, camera, blend_mode);
 	} else {
 		b = &batch_vector.back();
 		// Check if the back batch is suitable for use.
 		// It is unsuitable if any of the following prerequisites fail:
-		if (!b->Uses(shader, blend_mode) ||
+		if (!b->Uses(shader, camera, blend_mode) ||
 			!b->HasRoomForTexture(texture, white_texture, max_texture_slots) ||
 			!b->HasRoomForShape(vertex_count, index_count)) {
 			// Add new batch.
-			b = &batch_vector.emplace_back(shader, blend_mode);
+			b = &batch_vector.emplace_back(shader, camera, blend_mode);
 		}
 	}
 
@@ -196,20 +189,20 @@ float RenderData::GetTextureIndex(Batch& batch, const Texture& texture) {
 
 void RenderData::AddLine(
 	const V2_float& line_start, const V2_float& line_end, float line_width, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	PTGN_ASSERT(line_width >= min_line_width, "-1.0f is an invalid line width for lines");
 	auto vertices{ GetQuadVertices(line_start, line_end, line_width) };
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
+		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
 	batch.AddFilledQuad(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddLines(
 	const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, bool connect_last_to_first, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool connect_last_to_first, bool debug
 ) {
 	std::size_t vertex_modulo{ vertices.size() };
 
@@ -228,7 +221,7 @@ void RenderData::AddLines(
 
 	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
 		AddLine(
-			vertices[i], vertices[(i + 1) % vertex_modulo], line_width, depth, blend_mode, color,
+			vertices[i], vertices[(i + 1) % vertex_modulo], line_width, depth, camera, blend_mode, color,
 			debug
 		);
 	}
@@ -236,45 +229,46 @@ void RenderData::AddLines(
 
 void RenderData::AddFilledTriangle(
 	const std::array<V2_float, Batch::triangle_vertex_count>& vertices, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	auto& batch{ GetBatch(
 		Batch::triangle_vertex_count, Batch::triangle_index_count, white_texture,
-		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
+		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
 	batch.AddFilledTriangle(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddFilledQuad(
 	const std::array<V2_float, Batch::quad_vertex_count>& vertices, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
+		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
 	batch.AddFilledQuad(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddFilledEllipse(
 	const std::array<V2_float, Batch::quad_vertex_count>& vertices, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Circle>(), blend_mode, depth, debug
+		game.shader.Get<ShapeShader::Circle>(), camera, blend_mode, depth, debug
 	) };
 	batch.AddFilledEllipse(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddHollowEllipse(
 	const std::array<V2_float, Batch::quad_vertex_count>& vertices, float line_width,
-	const V2_float& radius, const Depth& depth, BlendMode blend_mode, const V4_float& color,
+	const V2_float& radius, const Depth& depth, const Camera& camera, BlendMode blend_mode,
+	const V4_float& color,
 	bool debug
 ) {
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Circle>(), blend_mode, depth, debug
+		game.shader.Get<ShapeShader::Circle>(), camera, blend_mode, depth, debug
 	) };
 	batch.AddHollowEllipse(vertices, line_width, radius, color, depth, pixel_rounding);
 }
@@ -282,11 +276,11 @@ void RenderData::AddHollowEllipse(
 void RenderData::AddTexturedQuad(
 	const std::array<V2_float, Batch::quad_vertex_count>& vertices,
 	const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
-	const Depth& depth, BlendMode blend_mode, const V4_float& color, bool debug
+	const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, texture,
-		game.shader.Get<ShapeShader::Quad>(), blend_mode, depth, debug
+		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
 	float texture_index{ GetTextureIndex(batch, texture) };
 	PTGN_ASSERT(texture_index > 0.0f, "Failed to find a valid texture index");
@@ -295,59 +289,59 @@ void RenderData::AddTexturedQuad(
 
 void RenderData::AddEllipse(
 	const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, float rotation, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
 ) {
 	PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius");
 	V2_float diameter{ radius * 2.0f };
 	auto vertices{ impl::GetVertices({ center, rotation }, diameter, Origin::Center) };
 	if (line_width == -1.0f) {
-		AddFilledEllipse(vertices, depth, blend_mode, color, debug);
+		AddFilledEllipse(vertices, depth, camera, blend_mode, color, debug);
 	} else {
-		AddHollowEllipse(vertices, line_width, V2_float{ radius }, depth, blend_mode, color, debug);
+		AddHollowEllipse(vertices, line_width, V2_float{ radius }, depth, camera, blend_mode, color, debug);
 	}
 }
 
 void RenderData::AddPolygon(
 	const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	PTGN_ASSERT(vertices.size() >= 3, "Polygon must have at least 3 vertices");
 	if (line_width == -1.0f) {
 		auto triangles{ Triangulate(vertices.data(), vertices.size()) };
 		for (const auto& triangle : triangles) {
-			AddFilledTriangle(triangle, depth, blend_mode, color, debug);
+			AddFilledTriangle(triangle, depth, camera, blend_mode, color, debug);
 		}
 	} else {
-		AddLines(vertices, line_width, depth, blend_mode, color, true, debug);
+		AddLines(vertices, line_width, depth, camera, blend_mode, color, true, debug);
 	}
 }
 
 void RenderData::AddPoint(
-	const V2_float& position, const Depth& depth, BlendMode blend_mode, const V4_float& color,
+	const V2_float& position, const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
 	bool debug
 ) {
 	constexpr V2_float half{ 0.5f };
 	AddFilledQuad(
 		{ position - half, position + V2_float{ half.x, -half.y }, position + half,
 		  position + V2_float{ -half.x, half.y } },
-		depth, blend_mode, color, debug
+		depth, camera, blend_mode, color, debug
 	);
 }
 
 void RenderData::AddTriangle(
 	const std::array<V2_float, 3>& vertices, float line_width, const Depth& depth,
-	BlendMode blend_mode, const V4_float& color, bool debug
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	if (line_width == -1.0f) {
-		AddFilledTriangle(vertices, depth, blend_mode, color, debug);
+		AddFilledTriangle(vertices, depth, camera, blend_mode, color, debug);
 	} else {
-		AddLines(ToVector(vertices), line_width, depth, blend_mode, color, true, debug);
+		AddLines(ToVector(vertices), line_width, depth, camera, blend_mode, color, true, debug);
 	}
 }
 
 void RenderData::AddQuad(
 	const V2_float& position, const V2_float& size, Origin origin, float line_width,
-	const Depth& depth, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
+	const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
 ) {
 	std::array<V2_float, Batch::quad_vertex_count> vertices;
 	if (size.IsZero()) {
@@ -356,9 +350,9 @@ void RenderData::AddQuad(
 		vertices = impl::GetVertices({ position, rotation }, size, origin);
 	}
 	if (line_width == -1.0f) {
-		AddFilledQuad(vertices, depth, blend_mode, color, debug);
+		AddFilledQuad(vertices, depth, camera, blend_mode, color, debug);
 	} else {
-		AddLines(ToVector(vertices), line_width, depth, blend_mode, color, true, debug);
+		AddLines(ToVector(vertices), line_width, depth, camera, blend_mode, color, true, debug);
 	}
 }
 
@@ -385,20 +379,27 @@ void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
 	std::invoke(draw_function, *this, entity);
 }
 
-void RenderData::SetupRender(const FrameBuffer& frame_buffer, const Camera& camera) {
-	frame_buffer.Bind();
+void RenderData::UseCamera(const Camera& camera) {
+	if (camera == active_camera) {
+		return;
+	}
+	
+	active_camera = camera ? camera : fallback_camera; 
 
-	pixel_rounding	= camera.IsPixelRoundingEnabled();
-	camera_vertices = camera.GetVertices();
+	PTGN_ASSERT(active_camera, "Cannot render to invalid camera");
+	PTGN_ASSERT(active_camera.Has<impl::CameraInfo>(), "Active render camera must have camera info component");
 
-	auto position{ camera.GetViewportPosition() };
-	auto size{ camera.GetViewportSize() };
+	pixel_rounding	= active_camera.IsPixelRoundingEnabled();
+	camera_vertices = active_camera.GetVertices();
+
+	auto position{ active_camera.GetViewportPosition() };
+	auto size{ active_camera.GetViewportSize() };
 
 	GLRenderer::SetViewport(position, position + size);
 }
 
 bool RenderData::FlushLights(
-	Batch& batch, const FrameBuffer& frame_buffer, const Camera& camera,
+	Batch& batch, const FrameBuffer& frame_buffer,
 	const V2_float& window_size, const Depth& depth
 ) {
 	if (batch.lights.empty()) {
@@ -414,6 +415,10 @@ bool RenderData::FlushLights(
 			continue;
 		}
 
+		auto light_camera{ e.GetOrDefault<Camera>() };
+
+		UseCamera(light_camera);
+		
 		if (!lights_found) {
 			light_target.Bind();
 			light_target.Clear();
@@ -422,12 +427,12 @@ bool RenderData::FlushLights(
 
 			batch.shader.Bind();
 			batch.shader.SetUniform("u_Texture", 1);
-			batch.shader.SetUniform("u_ViewProjection", camera);
+			batch.shader.SetUniform("u_ViewProjection", active_camera);
 			batch.shader.SetUniform("u_Resolution", window_size);
 
 			light_target.GetTexture().Bind(1);
 
-			SetVertexArrayToWindow(camera, color::White, depth, 1.0f);
+			SetVertexArrayToWindow(color::White, depth, 1.0f);
 
 			lights_found = true;
 		}
@@ -462,7 +467,10 @@ bool RenderData::FlushLights(
 	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
 
 	quad_shader.Bind();
-	quad_shader.SetUniform("u_ViewProjection", camera);
+
+	UseCamera(light_target.GetCamera());
+
+	quad_shader.SetUniform("u_ViewProjection", active_camera);
 
 	light_target.GetTexture().Bind(1);
 
@@ -479,9 +487,11 @@ void RenderData::SortEntitiesByY(std::vector<Entity>&) {
 }
 
 void RenderData::Render(
-	const FrameBuffer& frame_buffer, const Camera& camera, const Manager& manager
+	const FrameBuffer& frame_buffer, const Manager& manager
 ) {
-	SetupRender(frame_buffer, camera);
+	frame_buffer.Bind();
+
+	fallback_camera = game.scene.GetCurrent().camera.primary;
 
 	// auto entities{ .GetVector() };
 
@@ -493,19 +503,26 @@ void RenderData::Render(
 		AddToBatch(e, true);
 	}
 
-	Flush(frame_buffer, camera);
+	Flush(frame_buffer);
 
-	FlushDebugBatches(frame_buffer, camera);
+	FlushDebugBatches(frame_buffer);
 }
 
 void RenderData::Render(
-	const FrameBuffer& frame_buffer, const Camera& camera, const Entity& o, bool check_visibility
+	const FrameBuffer& frame_buffer, const Camera& target_camera, const Entity& entity, bool check_visibility
 ) {
-	SetupRender(frame_buffer, camera);
-	AddToBatch(o, check_visibility);
-	Flush(frame_buffer, camera);
+	frame_buffer.Bind();
+
+	fallback_camera = target_camera;
+	
+	UseCamera(target_camera);
+
+	AddToBatch(entity, check_visibility);
+
+	Flush(frame_buffer);
 }
 
+/*
 void RenderData::RenderToScreen(const RenderTarget& target, const Camera& camera) {
 	FrameBuffer::Unbind();
 
@@ -514,23 +531,26 @@ void RenderData::RenderToScreen(const RenderTarget& target, const Camera& camera
 	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
 
 	quad_shader.Bind();
-	quad_shader.SetUniform("u_ViewProjection", camera);
+	
+	UseCamera(camera);
+
+	quad_shader.SetUniform("u_ViewProjection", active_camera);
 	quad_shader.SetUniform("u_Texture", 1);
 	quad_shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
 
 	target.GetFrameBuffer().GetTexture().Bind(1);
 
-	SetVertexArrayToWindow(camera, target.GetTint(), Depth{ 0 }, 1.0f);
+	SetVertexArrayToWindow(target.GetTint(), Depth{ 0 }, 1.0f);
 
 	GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
 }
+*/
 
-void RenderData::SetVertexArrayToWindow(
-	const Camera& camera, const Color& color, const Depth& depth, float texture_index
+void RenderData::SetVertexArrayToWindow(const Color& color, const Depth& depth, float texture_index
 ) {
 	std::array<Batch::IndexType, Batch::quad_index_count> indices{ 0, 1, 2, 2, 3, 0 };
 
-	auto positions{ camera.GetVertices() };
+	const auto& positions{ camera_vertices };
 	auto tex_coords{ GetDefaultTextureCoordinates() };
 
 	FlipTextureCoordinates(tex_coords, Flip::Vertical);
@@ -558,19 +578,19 @@ void RenderData::SetVertexArrayToWindow(
 }
 
 void RenderData::FlushBatches(
-	Batches& batches, const FrameBuffer& frame_buffer, const Camera& camera,
+	Batches& batches, const FrameBuffer& frame_buffer,
 	const V2_float& window_size, const Depth& depth
 ) {
 	for (auto& batch : batches.vector) {
-		bool light_only_batch{ FlushLights(batch, frame_buffer, camera, window_size, depth) };
+		bool light_only_batch{ FlushLights(batch, frame_buffer, window_size, depth) };
 		if (light_only_batch) {
 			continue;
 		}
-		FlushBatch(batch, frame_buffer, camera);
+		FlushBatch(batch, frame_buffer);
 	}
 }
 
-void RenderData::FlushBatch(Batch& batch, const FrameBuffer& frame_buffer, const Camera& camera) {
+void RenderData::FlushBatch(Batch& batch, const FrameBuffer& frame_buffer) {
 	PTGN_ASSERT(
 		!batch.vertices.empty() && !batch.indices.empty(),
 		"Attempting to draw a shape with no vertices or indices in the batch"
@@ -581,7 +601,10 @@ void RenderData::FlushBatch(Batch& batch, const FrameBuffer& frame_buffer, const
 	GLRenderer::SetBlendMode(batch.blend_mode);
 
 	batch.shader.Bind();
-	batch.shader.SetUniform("u_ViewProjection", camera);
+
+	UseCamera(batch.camera);
+
+	batch.shader.SetUniform("u_ViewProjection", active_camera);
 	batch.BindTextures();
 
 	triangle_vao.Bind();
@@ -599,20 +622,20 @@ void RenderData::FlushBatch(Batch& batch, const FrameBuffer& frame_buffer, const
 	GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
 }
 
-void RenderData::FlushDebugBatches(const FrameBuffer& frame_buffer, const Camera& camera) {
+void RenderData::FlushDebugBatches(const FrameBuffer& frame_buffer) {
 	FlushBatches(
-		debug_batches, frame_buffer, camera, game.window.GetSize(),
+		debug_batches, frame_buffer, game.window.GetSize(),
 		std::numeric_limits<std::int32_t>::max()
 	);
 	debug_batches = {};
 }
 
-void RenderData::Flush(const FrameBuffer& frame_buffer, const Camera& camera) {
+void RenderData::Flush(const FrameBuffer& frame_buffer) {
 	white_texture.Bind();
 	V2_float window_size{ game.window.GetSize() };
 	// Assume depth map sorted.
 	for (auto& [depth, batches] : batch_map) {
-		FlushBatches(batches, frame_buffer, camera, window_size, depth);
+		FlushBatches(batches, frame_buffer, window_size, depth);
 	}
 
 	/*if (batch_map.empty()) {

@@ -14,6 +14,7 @@
 #include "core/game.h"
 #include "core/window.h"
 #include "math/geometry.h"
+#include "scene/camera.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
@@ -42,7 +43,7 @@ void DrawDebugText(
 
 	game.renderer.GetRenderData().AddTexturedQuad(
 		impl::GetVertices(transform, size, origin), Sprite{ text }.GetTextureCoordinates(false),
-		texture, max_depth, debug_blend_mode, color::White.Normalized(), true
+		texture, max_depth, Camera{}, debug_blend_mode, color::White.Normalized(), true
 	);
 }
 
@@ -50,7 +51,7 @@ void DrawDebugLine(
 	const V2_float& line_start, const V2_float& line_end, const Color& color, float line_width
 ) {
 	game.renderer.GetRenderData().AddLine(
-		line_start, line_end, line_width, max_depth, debug_blend_mode, color.Normalized(), true
+		line_start, line_end, line_width, max_depth, Camera{}, debug_blend_mode, color.Normalized(), true
 	);
 }
 
@@ -58,7 +59,7 @@ void DrawDebugTriangle(
 	const std::array<V2_float, 3>& vertices, const Color& color, float line_width
 ) {
 	game.renderer.GetRenderData().AddTriangle(
-		vertices, line_width, max_depth, debug_blend_mode, color.Normalized(), true
+		vertices, line_width, max_depth, Camera{}, debug_blend_mode, color.Normalized(), true
 	);
 }
 
@@ -67,7 +68,7 @@ void DrawDebugRect(
 	float line_width, float rotation
 ) {
 	game.renderer.GetRenderData().AddQuad(
-		position, size, origin, line_width, max_depth, debug_blend_mode, color.Normalized(),
+		position, size, origin, line_width, max_depth, Camera{}, debug_blend_mode, color.Normalized(),
 		rotation, true
 	);
 }
@@ -77,26 +78,26 @@ void DrawDebugEllipse(
 	float rotation
 ) {
 	game.renderer.GetRenderData().AddEllipse(
-		center, radius, line_width, max_depth, debug_blend_mode, color.Normalized(), rotation, true
+		center, radius, line_width, max_depth, Camera{}, debug_blend_mode, color.Normalized(), rotation, true
 	);
 }
 
 void DrawDebugCircle(const V2_float& center, float radius, const Color& color, float line_width) {
 	game.renderer.GetRenderData().AddEllipse(
-		center, V2_float{ radius }, line_width, max_depth, debug_blend_mode, color.Normalized(),
+		center, V2_float{ radius }, line_width, max_depth, Camera{}, debug_blend_mode, color.Normalized(),
 		0.0f, true
 	);
 }
 
 void DrawDebugPolygon(const std::vector<V2_float>& vertices, const Color& color, float line_width) {
 	game.renderer.GetRenderData().AddPolygon(
-		vertices, line_width, max_depth, debug_blend_mode, color.Normalized(), true
+		vertices, line_width, max_depth, Camera{}, debug_blend_mode, color.Normalized(), true
 	);
 }
 
 void DrawDebugPoint(const V2_float position, const Color& color) {
 	game.renderer.GetRenderData().AddPoint(
-		position, max_depth, debug_blend_mode, color.Normalized(), true
+		position, max_depth, Camera{}, debug_blend_mode, color.Normalized(), true
 	);
 }
 

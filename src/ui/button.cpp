@@ -26,6 +26,7 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -327,6 +328,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
 
+	auto camera{ entity.GetOrDefault<Camera>() };
+
 	if (button_texture != nullptr && *button_texture != impl::Texture{}) {
 		Color button_tint{ color::White };
 		if (entity.Has<impl::ButtonToggled>() && entity.Get<impl::ButtonToggled>() &&
@@ -339,7 +342,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 		ctx.AddTexturedQuad(
 			impl::GetVertices(transform, size, origin),
-			Sprite{ entity }.GetTextureCoordinates(false), *button_texture, depth, blend_mode,
+			Sprite{ entity }.GetTextureCoordinates(false), *button_texture, depth, camera, blend_mode,
 			final_tint_n, false
 		);
 	} else {
@@ -365,7 +368,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 				} else {*/
 				ctx.AddQuad(
 					transform.position, size * Abs(transform.scale), origin, background_line_width,
-					depth, blend_mode, background_color_n, transform.rotation, false
+					depth, camera, blend_mode, background_color_n, transform.rotation, false
 				);
 			}
 		}
@@ -402,7 +405,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 				r.Draw(border_color, border_width, i.render_layer_ + 2);
 			} else {*/
 			ctx.AddQuad(
-				transform.position, size, origin, border_width, depth, blend_mode, border_color_n,
+				transform.position, size, origin, border_width, depth, camera, blend_mode, border_color_n,
 				transform.rotation, false
 			);
 		}
@@ -452,13 +455,20 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		auto text_blend_mode{ text->GetBlendMode() };
 		auto text_tint{ text->GetTint().Normalized() };
 		auto text_origin{ text->GetOrigin() };
+		Camera* text_camera{ nullptr };
+		if (text->Has<Camera>()) {
+			text_camera = &text->Get<Camera>();
+		}
+		else {
+			text_camera = &camera;
+		}
 
 		auto text_display_size{ text_sprite.GetDisplaySize() };
 		auto text_coords{ text_sprite.GetTextureCoordinates(false) };
 		auto text_vertices{ impl::GetVertices(text_transform, text_display_size, text_origin) };
 
 		ctx.AddTexturedQuad(
-			text_vertices, text_coords, text_texture, text_depth, text_blend_mode, text_tint * tint,
+			text_vertices, text_coords, text_texture, text_depth, *text_camera, text_blend_mode, text_tint * tint,
 			false
 		);
 	}

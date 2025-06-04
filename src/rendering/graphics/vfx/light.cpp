@@ -15,6 +15,7 @@
 #include "rendering/batching/batch.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/shader.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -58,11 +59,11 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	const auto& shader{ game.shader.Get<OtherShader::Light>() };
 
 	if (batch_vector.empty()) {
-		b = &batch_vector.emplace_back(shader, ctx.light_blend_mode);
+		b = &batch_vector.emplace_back(shader, Camera{}, ctx.light_blend_mode);
 	} else {
 		b = &batch_vector.back();
-		if (!b->Uses(shader, ctx.light_blend_mode)) {
-			b = &batch_vector.emplace_back(shader, ctx.light_blend_mode);
+		if (!b->Uses(shader, Camera{}, ctx.light_blend_mode)) {
+			b = &batch_vector.emplace_back(shader, Camera{}, ctx.light_blend_mode);
 		}
 	}
 	PTGN_ASSERT(b != nullptr, "Failed to find batch for light");

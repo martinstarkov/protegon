@@ -84,8 +84,9 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto offset_transform{ GetOffset(sprite) };
 	transform = transform.RelativeTo(offset_transform);
 	auto vertices{ impl::GetVertices(transform, display_size, origin) };
+	auto camera{ entity.GetOrDefault<Camera>() };
 
-	ctx.AddTexturedQuad(vertices, coords, texture, depth, blend_mode, tint, false);
+	ctx.AddTexturedQuad(vertices, coords, texture, depth, camera, blend_mode, tint, false);
 }
 
 Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {

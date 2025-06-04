@@ -13,8 +13,11 @@
 #include "rendering/gl/gl_types.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
+#include "scene/camera.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 struct Vertex {
 	glsl::vec3 position;
@@ -46,10 +49,11 @@ public:
 	constexpr static inline std::uint32_t index_batch_capacity{ quad_index_count *
 																vertex_batch_capacity };
 
-	Batch(const Shader& shader, const BlendMode& blend_mode);
+	Batch(const Shader& shader, const Camera& batch_camera, BlendMode blend_mode);
 
 	const Shader& shader;
-	BlendMode blend_mode;
+	Camera camera;
+	BlendMode blend_mode{ BlendMode::Blend };
 	std::vector<std::uint32_t> texture_ids;
 	std::vector<Vertex> vertices;
 	std::vector<IndexType> indices;
@@ -89,7 +93,7 @@ public:
 	);
 
 	// @return True if the batch uses the specified shader and blend mode.
-	bool Uses(const Shader& other_shader, BlendMode other_blend_mode) const;
+	bool Uses(const Shader& other_shader, const Camera& other_camera, BlendMode other_blend_mode) const;
 
 	// @return True if the batch has room for the texture (or the texture id already exists in the
 	// batch).
@@ -101,8 +105,6 @@ public:
 	bool HasRoomForShape(std::size_t vertex_count, std::size_t index_count) const;
 
 	void BindTextures() const;
-
-	void FlushLights();
 };
 
 class Batches {
@@ -110,4 +112,6 @@ public:
 	std::vector<Batch> vector;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
