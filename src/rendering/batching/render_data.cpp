@@ -380,7 +380,7 @@ void RenderData::AddToBatch(const Entity& entity, bool check_visibility) {
 }
 
 void RenderData::UseCamera(const Camera& camera) {
-	if (camera == active_camera) {
+	if (camera != Camera{} && camera == active_camera) {
 		return;
 	}
 	
@@ -492,6 +492,7 @@ void RenderData::Render(
 	frame_buffer.Bind();
 
 	fallback_camera = game.scene.GetCurrent().camera.primary;
+	UseCamera(Camera{});
 
 	// auto entities{ .GetVector() };
 
