@@ -16,6 +16,8 @@
 #include "rendering/gl/gl_loader.h"
 #include "utility/file.h"
 
+#define PTGN_VSYNC_MODE -1
+
 namespace ptgn::impl {
 
 GLVersion::GLVersion() {
@@ -117,7 +119,7 @@ void GLContext::Init() {
 
 	// From: https://nullprogram.com/blog/2023/01/08/
 	// Set a non-zero SDL_GL_SetSwapInterval so that SDL_GL_SwapWindow synchronizes.
-	SDL_GL_SetSwapInterval(1);
+	SDL_GL_SetSwapInterval(PTGN_VSYNC_MODE);
 
 	LoadGLFunctions();
 }
