@@ -9,6 +9,7 @@
 namespace ptgn {
 
 class Scene;
+class Camera;
 
 class SceneInput {
 public:
@@ -33,7 +34,8 @@ public:
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		SceneInput, KeyValue("scene_key", scene_key_), KeyValue("top_only", top_only_),
-		KeyValue("draw_interactives", draw_interactives_)
+		KeyValue("draw_interactives", draw_interactives_),
+		KeyValue("triggered_callbacks", triggered_callbacks_)
 	)
 
 private:
@@ -47,12 +49,16 @@ private:
 	void OnMouseEvent(MouseEvent type, const Event& event);
 	void OnKeyEvent(KeyEvent type, const Event& event);
 
-	[[nodiscard]] bool PointerIsInside(const V2_float& pointer, const Entity& entity);
+	[[nodiscard]] bool PointerIsInside(
+		const V2_float& pointer, const Camera& camera, const Entity& entity
+	);
 
 	void Init(std::size_t scene_key);
 	void Shutdown();
 
 	std::size_t scene_key_{ 0 };
+
+	bool triggered_callbacks_{ false };
 
 	bool top_only_{ false };
 

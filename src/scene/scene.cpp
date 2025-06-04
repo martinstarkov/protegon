@@ -93,7 +93,19 @@ void Scene::Draw() {
 	// render_data.RenderToScreen(target_, camera.primary);
 }
 
-void Scene::InternalUpdate() {
+void Scene::PreUpdate() {
+	manager.Refresh();
+
+	input.UpdatePrevious(this);
+
+	manager.Refresh();
+
+	input.UpdateCurrent(this);
+
+	manager.Refresh();
+}
+
+void Scene::PostUpdate() {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 
 	float dt{ game.dt() };
@@ -104,16 +116,6 @@ void Scene::InternalUpdate() {
 	manager.Refresh();
 
 	Update();
-
-	manager.Refresh();
-	
-	input.UpdatePrevious(this);
-	
-	manager.Refresh();
-	
-	input.UpdateCurrent(this);
-	
-	manager.Refresh();
 
 	manager.Refresh();
 	

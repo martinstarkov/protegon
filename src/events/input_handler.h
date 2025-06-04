@@ -52,8 +52,11 @@ public:
 	// @param Whether or not mouse relative mode should be turned on or not.
 	void SetRelativeMouseMode(bool on) const;
 
-	// @return Mouse position relative to the top left of the window.
+	// @return Mouse position relative to the top left of the window, clamped to the range [0, window_size].
 	[[nodiscard]] V2_float GetMousePosition() const;
+
+	// @return Mouse position relative to the top left of the window, without clamping to the range [0, window_size].
+	[[nodiscard]] V2_float GetMousePositionUnclamped() const;
 
 	// @return Mouse position during the previous frame relative to the top left of the window.
 	[[nodiscard]] V2_float GetMousePositionPrevious() const;

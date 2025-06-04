@@ -200,6 +200,10 @@ V2_float InputHandler::GetMousePosition() const {
 	return mouse_pos_;
 }
 
+V2_float InputHandler::GetMousePositionUnclamped() const {
+	return GetMousePositionGlobal() - game.window.GetPosition();
+}
+
 V2_float InputHandler::GetMousePositionPrevious() const {
 	return prev_mouse_pos_;
 }

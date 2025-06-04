@@ -10,43 +10,48 @@
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/text.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
 // @param size {} results in unscaled size of text based on font.
 void DrawDebugText(
 	Text& text, const V2_float& position, const V2_float& size = {}, Origin origin = Origin::Center,
-	float rotation = 0.0f
+	float rotation = 0.0f, const Camera& camera = {}
 );
 
 void DrawDebugLine(
 	const V2_float& line_start, const V2_float& line_end, const Color& color,
-	float line_width = 1.0f
+	float line_width = 1.0f, const Camera& camera = {}
 );
 
 void DrawDebugTriangle(
-	const std::array<V2_float, 3>& vertices, const Color& color, float line_width = 1.0f
+	const std::array<V2_float, 3>& vertices, const Color& color, float line_width = 1.0f,
+	const Camera& camera = {}
 );
 
 void DrawDebugRect(
 	const V2_float& position, const V2_float& size, const Color& color,
-	Origin origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f
+	Origin origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+	const Camera& camera = {}
 );
 
 void DrawDebugEllipse(
 	const V2_float& center, const V2_float& radius, const Color& color, float line_width = 1.0f,
-	float rotation = 0.0f
+	float rotation = 0.0f, const Camera& camera = {}
 );
 
 void DrawDebugCircle(
-	const V2_float& center, float radius, const Color& color, float line_width = 1.0f
+	const V2_float& center, float radius, const Color& color, float line_width = 1.0f,
+	const Camera& camera = {}
 );
 
 void DrawDebugPolygon(
-	const std::vector<V2_float>& vertices, const Color& color, float line_width = 1.0f
+	const std::vector<V2_float>& vertices, const Color& color, float line_width = 1.0f,
+	const Camera& camera = {}
 );
 
-void DrawDebugPoint(const V2_float position, const Color& color);
+void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera = {});
 
 // How the renderer resolution is scaled to the window size.
 enum class ResolutionMode {

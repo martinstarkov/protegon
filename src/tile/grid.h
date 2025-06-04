@@ -20,14 +20,14 @@ class Grid {
 public:
 	Grid() = default;
 
-	explicit Grid(const Vector2<int>& grid_size, const std::vector<T>& grid_cells) :
-		size{ grid_size }, length{ grid_size.x * grid_size.y }, cells{ grid_cells } {
+	explicit Grid(const Vector2<int>& grid_dimensions, const std::vector<T>& grid_cells) :
+		size{ grid_dimensions }, length{ grid_dimensions.x * grid_dimensions.y }, cells{ grid_cells } {
 		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
-	explicit Grid(const Vector2<int>& grid_size) :
-		size{ grid_size },
-		length{ grid_size.x * grid_size.y },
+	explicit Grid(const Vector2<int>& grid_dimensions) :
+		size{ grid_dimensions },
+		length{ grid_dimensions.x * grid_dimensions.y },
 		cells(static_cast<std::size_t>(length)) {
 		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
