@@ -42,7 +42,7 @@ struct InteractiveCircles {
 
 	InteractiveCircles() = default;
 
-	InteractiveCircles(float radius, const V2_float& offset) :
+	InteractiveCircles(float radius, const V2_float& offset = {}) :
 		circles{ InteractiveCircle{ radius, offset } } {}
 
 	PTGN_SERIALIZER_REGISTER(InteractiveCircles, circles)
@@ -61,7 +61,7 @@ struct InteractiveRects {
 
 	InteractiveRects() = default;
 
-	InteractiveRects(const V2_float& size, Origin origin, const V2_float& offset) :
+	InteractiveRects(const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}) :
 		rects{ InteractiveRect{ size, origin, offset } } {}
 
 	PTGN_SERIALIZER_REGISTER(InteractiveRects, rects)
