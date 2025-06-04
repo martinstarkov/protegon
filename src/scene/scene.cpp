@@ -6,6 +6,7 @@
 #include "components/offsets.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "scene/scene_manager.h"
 #include "core/manager.h"
 #include "events/input_handler.h"
 #include "physics/collision/collision.h"
@@ -75,11 +76,15 @@ void Scene::InternalExit() {
 }
 
 void Scene::PreUpdate() {
+	game.scene.current_ = game.scene.GetActiveScene(key_);
+
 	manager.Refresh();
 	input.UpdatePrevious(this);
 	manager.Refresh();
 	input.UpdateCurrent(this);
 	manager.Refresh();
+
+	game.scene.current_ = {};
 }
 
 void Scene::Draw() {
@@ -96,11 +101,13 @@ void Scene::Draw() {
 		}
 	}
 	auto& render_data{ game.renderer.GetRenderData() };
-	render_data.Render({} /*target_.GetFrameBuffer()*/, camera.primary, manager);
+	render_data.Render({} /*target_.GetFrameBuffer()*/, manager);
 	// render_data.RenderToScreen(target_, camera.primary);
 }
 
 void Scene::PostUpdate() {
+	game.scene.current_ = game.scene.GetActiveScene(key_);
+
 	float dt{ game.dt() };
 	float time{ game.time() };
 
@@ -151,6 +158,8 @@ void Scene::PostUpdate() {
 	manager.Refresh();
 
 	Draw();
+
+	game.scene.current_ = {};
 }
 
 void to_json(json& j, const Scene& scene) {

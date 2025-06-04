@@ -156,9 +156,15 @@ public:
 		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
 	}
 
+	[[nodiscard]] const Scene& GetCurrent() const {
+		PTGN_ASSERT(current_, "Cannot get current scene when one has not been set");
+		return *current_.Get<SceneComponent>().scene;
+	}
+
 private:
 	friend class ptgn::SceneTransition;
 	friend class Game;
+	friend class ptgn::Scene;
 	friend class Renderer;
 
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
@@ -199,6 +205,7 @@ private:
 	[[nodiscard]] Entity GetActiveScene(std::size_t scene_key) const;
 
 	Manager scenes_;
+	Entity current_;
 };
 
 } // namespace impl
