@@ -31,14 +31,21 @@
 
 namespace ptgn {
 
-bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, const Entity& entity) {
+bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
+	const {
+	pointer = game.input.GetMousePositionUnclamped();
+	auto window_size{ game.window.GetSize() };
+	if (!impl::OverlapPointRect(pointer, window_size / 2.0f, window_size, 0.0f)) {
+		// Mouse outside of screen.
+		return false;
+	}
 	bool is_circle{ entity.Has<InteractiveCircles>() };
 	bool is_rect{ entity.Has<InteractiveRects>() };
 	PTGN_ASSERT(
 		!(is_rect && is_circle),
 		"Entity cannot have both an interactive radius and an interactive size"
 	);
-	auto scale{ entity.GetScale() };
+	auto scale{ Abs(entity.GetScale()) };
 	auto pos{ entity.GetAbsolutePosition() };
 	auto origin{ entity.GetOrigin() };
 	bool overlapping{ false };
@@ -49,14 +56,18 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, 
 			const auto& interactives{ entity.Get<InteractiveRects>() };
 			count += interactives.rects.size();
 			for (const auto& interactive : interactives.rects) {
-				auto size{ interactive.size * Abs(scale) };
+				auto size{ interactive.size * scale };
 				origin = interactive.origin;
-				auto center{ pos + interactive.offset * Abs(scale) +
-							 GetOriginOffset(origin, size) };
+				auto center{ pos + interactive.offset * scale + GetOriginOffset(origin, size) };
 				if (draw_interactives_) {
-					DrawDebugRect(center, size, color::Magenta, Origin::Center, 1.0f, rotation, camera);
+					DrawDebugRect(
+						center, size, color::Magenta, Origin::Center, 1.0f, rotation, camera
+					);
 				}
-				if (impl::OverlapPointRect(pointer, center, size, rotation)) {
+				if (impl::OverlapPointRect(
+						pointer, camera.TransformToScreen(center), camera.ScaleToScreen(size),
+						rotation
+					)) {
 					if (draw_interactives_) {
 						overlapping = true;
 					} else {
@@ -69,12 +80,14 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, 
 			const auto& interactives{ entity.Get<InteractiveCircles>() };
 			count += interactives.circles.size();
 			for (const auto& interactive : interactives.circles) {
-				auto radius{ interactive.radius * Abs(scale.x) };
-				auto center{ pos + interactive.offset * Abs(scale) };
+				auto radius{ interactive.radius * scale.x };
+				auto center{ pos + interactive.offset * scale };
 				if (draw_interactives_) {
 					DrawDebugCircle(center, radius, color::Magenta, 1.0f, camera);
 				}
-				if (impl::OverlapPointCircle(pointer, center, radius)) {
+				if (impl::OverlapPointCircle(
+						pointer, camera.TransformToScreen(center), camera.ScaleToScreen(radius)
+					)) {
 					if (draw_interactives_) {
 						overlapping = true;
 					} else {
@@ -103,12 +116,14 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, 
 			if (radius == 0.0f) {
 				zero_sized = true;
 			} else {
-				auto radius_scaled{ radius * Abs(scale.x) };
+				auto radius_scaled{ radius * scale.x };
 				zero_sized = false;
 				if (draw_interactives_) {
 					DrawDebugCircle(pos, radius_scaled, color::Magenta, 1.0f, camera);
 				}
-				if (impl ::OverlapPointCircle(pointer, pos, radius_scaled)) {
+				if (impl ::OverlapPointCircle(
+						pointer, camera.TransformToScreen(pos), camera.ScaleToScreen(radius_scaled)
+					)) {
 					return true;
 				}
 			}
@@ -119,7 +134,7 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, 
 				zero_sized = true;
 			} else {
 				zero_sized = false;
-				auto size_scaled{ size * Abs(scale) };
+				auto size_scaled{ size * scale };
 				origin = entity.GetOrigin();
 				auto center{ pos + GetOriginOffset(origin, size_scaled) };
 				auto rotation{ entity.GetRotation() };
@@ -128,7 +143,10 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, 
 						center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation, camera
 					);
 				}
-				if (impl::OverlapPointRect(pointer, center, size_scaled, rotation)) {
+				if (impl::OverlapPointRect(
+						pointer, camera.TransformToScreen(center),
+						camera.ScaleToScreen(size_scaled), rotation
+					)) {
 					return true;
 				}
 			}
@@ -140,13 +158,17 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, 
 
 	if (entity.Has<TextureHandle>()) {
 		const auto& texture_key{ entity.Get<TextureHandle>() };
-		auto size_scaled{ texture_key.GetSize(entity) * Abs(scale) };
+		auto size_scaled{ texture_key.GetSize(entity) * scale };
 		auto center{ pos + GetOriginOffset(origin, size_scaled) };
 		auto rotation{ entity.GetRotation() };
 		if (draw_interactives_) {
-			DrawDebugRect(center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation, camera);
+			DrawDebugRect(
+				center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation, camera
+			);
 		}
-		return impl::OverlapPointRect(pointer, center, size_scaled, rotation);
+		return impl::OverlapPointRect(
+			pointer, camera.TransformToScreen(center), camera.ScaleToScreen(size_scaled), rotation
+		);
 	}
 
 	return false;
@@ -155,7 +177,8 @@ bool SceneInput::PointerIsInside(const V2_float& pointer, const Camera& camera, 
 void SceneInput::UpdatePrevious(Scene* scene) {
 	triggered_callbacks_ = false;
 	PTGN_ASSERT(scene != nullptr);
-	for (auto [entity, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] :
+		 scene->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			continue;
 		}
@@ -174,7 +197,10 @@ RenderTarget GetParentRenderTarget(const Entity& entity) {
 	return entity;
 }
 
-void GetMousePosAndCamera(const Entity& entity, const V2_float& mouse_pos, const Camera& primary, V2_float& pos, Camera& camera) {
+void GetMousePosAndCamera(
+	const Entity& entity, const V2_float& mouse_pos, const Camera& primary, V2_float& pos,
+	Camera& camera
+) {
 	if (entity.Has<Camera>()) {
 		camera = entity.Get<Camera>();
 		if (!camera) {
@@ -203,12 +229,12 @@ void GetMousePosAndCamera(const Entity& entity, const V2_float& mouse_pos, const
 
 void SceneInput::UpdateCurrent(Scene* scene) {
 	PTGN_ASSERT(scene != nullptr);
-	//auto mouse_pos{ game.input.GetMousePosition() };
+	// auto mouse_pos{ game.input.GetMousePosition() };
 	auto mouse_pos{ game.input.GetMousePositionUnclamped() };
 	auto pos{ mouse_pos };
 	Camera camera;
 	if (scene->camera.primary && scene->camera.primary.Has<impl::CameraInfo>()) {
-		pos = scene->camera.primary.TransformToCamera(mouse_pos);
+		pos	   = scene->camera.primary.TransformToCamera(mouse_pos);
 		camera = scene->camera.primary;
 	} else {
 		// Scene camera has not been set yet.
@@ -217,7 +243,8 @@ void SceneInput::UpdateCurrent(Scene* scene) {
 	Depth top_depth;
 	Entity top_entity;
 	bool send_mouse_event{ false };
-	for (auto [entity, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] :
+		 scene->manager.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			interactive.is_inside  = false;
 			interactive.was_inside = false;
@@ -265,7 +292,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	auto pos{ mouse_pos };
 	Camera camera; // unused
 	if (scene.camera.primary && scene.camera.primary.Has<impl::CameraInfo>()) {
-		pos	   = scene.camera.primary.TransformToCamera(mouse_pos);
+		pos = scene.camera.primary.TransformToCamera(mouse_pos);
 	} else {
 		// Scene camera has not been set yet.
 		return;
@@ -429,7 +456,8 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 }
 
 void SceneInput::ResetInteractives(Scene* scene) {
-	for (auto [entity, enabled, interactive] : scene->manager.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] :
+		 scene->manager.EntitiesWith<Enabled, Interactive>()) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}

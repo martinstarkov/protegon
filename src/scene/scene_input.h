@@ -49,9 +49,8 @@ private:
 	void OnMouseEvent(MouseEvent type, const Event& event);
 	void OnKeyEvent(KeyEvent type, const Event& event);
 
-	[[nodiscard]] bool PointerIsInside(
-		const V2_float& pointer, const Camera& camera, const Entity& entity
-	);
+	[[nodiscard]] bool PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
+		const;
 
 	void Init(std::size_t scene_key);
 	void Shutdown();
