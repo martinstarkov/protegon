@@ -162,23 +162,23 @@ class ITweenScript {
 public:
 	virtual ~ITweenScript() = default;
 
-	virtual void OnComplete([[maybe_unused]] TweenInfo info) {}
+	virtual void OnComplete([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnRepeat([[maybe_unused]] TweenInfo info) {}
+	virtual void OnRepeat([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnYoyo([[maybe_unused]] TweenInfo info) {}
+	virtual void OnYoyo([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnStart([[maybe_unused]] TweenInfo info) {}
+	virtual void OnStart([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnStop([[maybe_unused]] TweenInfo info) {}
+	virtual void OnStop([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnUpdate([[maybe_unused]] TweenInfo info) {}
+	virtual void OnUpdate([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnPause([[maybe_unused]] TweenInfo info) {}
+	virtual void OnPause([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnResume([[maybe_unused]] TweenInfo info) {}
+	virtual void OnResume([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
-	virtual void OnReset([[maybe_unused]] TweenInfo info) {}
+	virtual void OnReset([[maybe_unused]] TweenInfo info) { /* user implementation */ }
 
 	virtual json Serialize() const			= 0;
 	virtual void Deserialize(const json& j) = 0;
