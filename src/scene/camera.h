@@ -71,9 +71,8 @@ public:
 	void UpdateRotation(float rotation);
 	void UpdateScale(const V2_float& scale);
 
-	[[nodiscard]] const Matrix4& GetViewProjection(
-		const Transform& current, const Entity& entity
-	) const;
+	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
+		const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -280,6 +279,16 @@ public:
 	// Set the camera to be centered on area of the given size. Effectively the same as changing the
 	// size and position of the camera.
 	void CenterOnArea(const V2_float& size);
+
+	// Transforms a window relative pixel size to being relative to the camera.
+	// @param screen_relative_size The size to be scaled.
+	[[nodiscard]] V2_float ScaleToCamera(const V2_float& screen_relative_size) const;
+	[[nodiscard]] float ScaleToCamera(float screen_relative_size) const;
+
+	// Transforms a camera relative world size to being relative to the screen (pixels).
+	// @param camera_relative_size The size to be scaled.
+	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
+	[[nodiscard]] float ScaleToScreen(float camera_relative_size) const;
 
 	// Transforms a window relative pixel coordinate to being relative to the camera.
 	// @param screen_relative_coordinate The coordinate to be transformed.

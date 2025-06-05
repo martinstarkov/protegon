@@ -227,9 +227,8 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(
-	const Transform& current, const Transform& offset_transform
-) const {
+void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
+	const {
 	V3_float position{ current.position.x, current.position.y, position_z };
 	V3_float orientation{ current.rotation, orientation_y, orientation_z };
 
@@ -332,10 +331,10 @@ void Camera::SubscribeToWindowEvents() {
 	if (game.event.window.IsSubscribed(*this)) {
 		return;
 	}
-	std::function<void(const WindowResizedEvent&)> f =
-		[*this](const WindowResizedEvent& e) mutable {
-			OnWindowResize(e.size);
-		};
+	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
+													   ) mutable {
+		OnWindowResize(e.size);
+	};
 	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
 	OnWindowResize(game.window.GetSize());
 }
@@ -432,53 +431,99 @@ void Camera::CenterOnArea(const V2_float& new_size) {
 	info.UpdatePosition(pos);
 }
 
+V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
+	const auto& info{ Get<impl::CameraInfo>() };
+
+	auto camera_zoom{ GetZoom() };
+	PTGN_ASSERT(camera_zoom.x != 0.0f && camera_zoom.y != 0.0f);
+
+	auto viewport_size{ info.GetViewportSize() };
+	PTGN_ASSERT(viewport_size.x != 0.0f && viewport_size.y != 0.0f);
+
+	auto camera_size{ info.GetSize() };
+
+	// Ratio of camera size (in world units) to viewport size (in pixels).
+	auto pixels_to_world{ (camera_size / viewport_size) / camera_zoom };
+
+	// Convert screen size in pixels to world units.
+	auto world_size{ screen_relative_size * pixels_to_world };
+
+	return world_size;
+}
+
+float Camera::ScaleToCamera(float screen_relative_size) const {
+	return ScaleToCamera(V2_float{ screen_relative_size }).x;
+}
+
+V2_float Camera::ScaleToScreen(const V2_float& camera_relative_size) const {
+	const auto& info{ Get<impl::CameraInfo>() };
+
+	auto camera_size{ info.GetSize() };
+	PTGN_ASSERT(camera_size.x != 0.0f && camera_size.y != 0.0f);
+
+	auto camera_zoom{ GetZoom() };
+	auto viewport_size{ info.GetViewportSize() };
+
+	// Scale camera size by zoom.
+	auto zoomed_size{ camera_relative_size * camera_zoom };
+
+	// Convert to screen pixels.
+	auto pixels_per_world_unit{ viewport_size / camera_size };
+	auto screen_size{ zoomed_size * pixels_per_world_unit };
+
+	return screen_size;
+}
+
+float Camera::ScaleToScreen(float camera_relative_size) const {
+	return ScaleToScreen(V2_float{ camera_relative_size }).x;
+}
+
 V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
 	// TODO: Take into account camera rotation.
 	const auto& info{ Get<impl::CameraInfo>() };
 
-	auto zoom{ GetZoom() };
-	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
+	auto camera_zoom{ GetZoom() };
+	PTGN_ASSERT(camera_zoom.x != 0.0f && camera_zoom.y != 0.0f);
 
 	auto viewport_pos{ info.GetViewportPosition() };
 	auto viewport_size{ info.GetViewportSize() };
 	PTGN_ASSERT(viewport_size.x != 0.0f && viewport_size.y != 0.0f);
 
 	// Normalize screen coordinates to [0, 1] range.
-	V2_float normalized{ (screen_relative_coordinate - viewport_pos) / viewport_size };
+	auto normalized_coordinate{ (screen_relative_coordinate - viewport_pos) / viewport_size };
 
-	// Scale normalized coordinates to camera size.
-	V2_float world{ normalized * info.GetSize() };
+	auto camera_size{ info.GetSize() };
 
-	// Apply zoom.
-	world /= zoom;
+	// Scale normalized coordinates to camera size and apply zoom.
+	auto world_coordinate{ (normalized_coordinate * camera_size) / camera_zoom };
 
-	// Translate to camera position.
-	world += GetPosition(Origin::BottomRight);
+	// Translate to camera position (using bottom right as origin because viewport is relative to
+	// top left).
+	world_coordinate += GetPosition(Origin::BottomRight);
 
-	return world;
+	return world_coordinate;
 }
 
 V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
 	// TODO: Take into account camera rotation.
 	const auto& info{ Get<impl::CameraInfo>() };
 
-	auto size{ info.GetSize() };
-	PTGN_ASSERT(size.x != 0.0f && size.y != 0.0f);
+	auto camera_size{ info.GetSize() };
+	PTGN_ASSERT(camera_size.x != 0.0f && camera_size.y != 0.0f);
 
-	auto zoom{ GetZoom() };
+	auto camera_zoom{ GetZoom() };
 
 	auto viewport_pos{ info.GetViewportPosition() };
 	auto viewport_size{ info.GetViewportSize() };
 
-	V2_float relative{ camera_relative_coordinate - GetPosition(Origin::BottomRight) };
+	V2_float relative_coordinate{ (camera_relative_coordinate - GetPosition(Origin::BottomRight)) *
+								  camera_zoom };
 
-	relative *= zoom;
+	V2_float normalized_coordinate{ relative_coordinate / camera_size };
 
-	V2_float normalized{ relative / size };
+	V2_float screen_coordinate{ viewport_pos + normalized_coordinate * viewport_size };
 
-	V2_float screen{ viewport_pos + normalized * viewport_size };
-
-	return screen;
+	return screen_coordinate;
 }
 
 void Camera::CenterOnWindow(bool continuously) {
