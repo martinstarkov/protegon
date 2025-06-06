@@ -1,19 +1,22 @@
 #include "scene/scene.h"
 
+#include <memory>
+
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/lifetime.h"
 #include "components/offsets.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "scene/scene_manager.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "events/input_handler.h"
 #include "physics/collision/collision.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/renderer.h"
 #include "scene/camera.h"
+#include "scene/scene_manager.h"
 #include "tweening/tween.h"
 #include "tweening/tween_effects.h"
 
@@ -115,10 +118,16 @@ void Scene::PostUpdate() {
 
 	manager.Refresh();
 
+	for (auto [entity, scripts] : manager.EntitiesWith<Scripts>()) {
+		for (const auto& [key, script] : scripts.scripts) {
+			script->OnUpdate(dt);
+		}
+	}
+
 	Update();
 
 	manager.Refresh();
-	
+
 	for (auto [e, enabled, particle_manager] :
 		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
 		particle_manager.Update(e.GetPosition());
@@ -151,15 +160,15 @@ void Scene::PostUpdate() {
 	manager.Refresh();
 
 	physics.PreCollisionUpdate(manager);
-	
+
 	manager.Refresh();
 
 	impl::CollisionHandler::Update(manager);
-	
+
 	manager.Refresh();
 
 	physics.PostCollisionUpdate(manager);
-	
+
 	manager.Refresh();
 
 	Draw();

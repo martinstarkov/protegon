@@ -12,6 +12,8 @@
 
 namespace ptgn {
 
+namespace impl {
+
 // Script Registry to hold and create scripts
 template <typename Base>
 class ScriptRegistry {
@@ -43,7 +45,7 @@ public:
 		(void)is_registered_;
 	}
 
-	json Serialize() const override {
+	json Serialize() const final {
 		json j;
 		j["type"] = type_name<Derived>();
 		if constexpr (tt::has_to_json_v<Derived>) {
@@ -52,7 +54,7 @@ public:
 		return j;
 	}
 
-	void Deserialize(const json& j) override {
+	void Deserialize(const json& j) final {
 		if constexpr (tt::has_from_json_v<Derived>) {
 			PTGN_ASSERT(
 				j.contains("data"), "Failed to deserialize data for type ", type_name<Derived>()
@@ -82,22 +84,63 @@ bool Script<Derived, Base>::is_registered_ = Script<Derived, Base>::Register();
 template <typename TBaseScript>
 class ScriptContainer {
 public:
-	template <typename S, typename... TArgs>
-	void AddScript(TArgs&&... args) {
+	template <typename T, typename... TArgs>
+	T& AddScript(TArgs&&... args) {
 		static_assert(
-			std::is_base_of_v<TBaseScript, S>,
+			std::is_base_of_v<TBaseScript, T>,
 			"Cannot add script which does not inherit from the base script class"
 		);
 		static_assert(
-			std::is_base_of_v<Script<S, TBaseScript>, S>,
+			std::is_base_of_v<Script<T, TBaseScript>, T>,
 			"Cannot add script which does not inherit from the base script class"
 		);
 		static_assert(
-			std::is_constructible_v<S, TArgs...>,
+			std::is_constructible_v<T, TArgs...>,
 			"Script must be constructible from the given arguments"
 		);
-		std::shared_ptr<TBaseScript> script{ std::make_shared<S>(std::forward<TArgs>(args)...) };
-		scripts.push_back(std::move(script));
+		auto script{ std::make_shared<T>(std::forward<TArgs>(args)...) };
+		constexpr auto class_name{ type_name<T>() };
+		constexpr auto hash{ Hash(class_name) };
+		scripts.emplace(hash, script);
+		return *script;
+	}
+
+	template <typename T>
+	[[nodiscard]] bool HasScript() const {
+		constexpr auto class_name{ type_name<T>() };
+		constexpr auto hash{ Hash(class_name) };
+		return scripts.find(hash) != scripts.end();
+	}
+
+	template <typename T>
+	[[nodiscard]] const T& GetScript() const {
+		constexpr auto class_name{ type_name<T>() };
+		constexpr auto hash{ Hash(class_name) };
+		auto it{ scripts.find(hash) };
+		PTGN_ASSERT(
+			it != scripts.end(), "Cannot get script which does not exist in ScriptContainer"
+		);
+		return *it->second;
+	}
+
+	template <typename T>
+	[[nodiscard]] T& GetScript() {
+		return const_cast<T&>(std::as_const(*this).GetScript<T>());
+	}
+
+	template <typename T>
+	void RemoveScript() {
+		constexpr auto class_name{ type_name<T>() };
+		constexpr auto hash{ Hash(class_name) };
+		scripts.erase(hash);
+	}
+
+	[[nodiscard]] bool IsEmpty() const {
+		return scripts.empty();
+	}
+
+	[[nodiscard]] std::size_t Size() const {
+		return scripts.size();
 	}
 
 	friend void to_json(json& j, const ScriptContainer& container) {
@@ -105,10 +148,11 @@ public:
 			return;
 		}
 		if (container.scripts.size() == 1) {
-			j = container.scripts.front()->Serialize();
+			auto it{ container.scripts.begin() };
+			j = it->second->Serialize();
 		} else {
 			j = json::array();
-			for (const auto& script : container.scripts) {
+			for (const auto& [key, script] : container.scripts) {
 				j.push_back(script->Serialize());
 			}
 		}
@@ -117,11 +161,11 @@ public:
 	friend void from_json(const json& j, ScriptContainer& container) {
 		container					  = {};
 		const auto deserialize_script = [&container](const json& script) {
-			std::string type_name{ script.at("type") };
-			auto instance{ ScriptRegistry<TBaseScript>::Instance().Create(type_name) };
+			std::string class_name{ script.at("type") };
+			auto instance{ ScriptRegistry<TBaseScript>::Instance().Create(class_name) };
 			if (instance) {
 				instance->Deserialize(script);
-				container.scripts.push_back(std::move(instance));
+				container.scripts.emplace(Hash(class_name), std::move(instance));
 			}
 		};
 		if (j.is_array()) {
@@ -134,7 +178,9 @@ public:
 		}
 	}
 
-	std::vector<std::shared_ptr<TBaseScript>> scripts;
+	std::unordered_map<std::size_t, std::shared_ptr<TBaseScript>> scripts;
 };
+
+} // namespace impl
 
 } // namespace ptgn

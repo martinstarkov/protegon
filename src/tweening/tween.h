@@ -30,11 +30,6 @@ class Tween : public Entity {
 public:
 	Tween() = default;
 	Tween(const Entity& entity);
-	Tween(const Tween&)				   = default;
-	Tween& operator=(const Tween&)	   = default;
-	Tween(Tween&&) noexcept			   = default;
-	Tween& operator=(Tween&&) noexcept = default;
-	~Tween()						   = default;
 
 	// @param duration The time it takes to take progress from 0 to 1, or vice versa for reversed
 	// tweens. Yoyo tweens take twice the duration to complete a full
@@ -48,7 +43,7 @@ public:
 	Tween& Yoyo(bool yoyo = true);
 
 	template <typename T, typename... TArgs>
-	Tween& AddScript(TArgs&&... args);
+	Tween& AddTweenScript(TArgs&&... args);
 
 	// @return Current progress of the tween [0.0f, 1.0f].
 	[[nodiscard]] float GetProgress() const;
@@ -250,13 +245,13 @@ struct TweenInstance {
 } // namespace impl
 
 template <typename T, typename... TArgs>
-Tween& Tween::AddScript(TArgs&&... args) {
+Tween& Tween::AddTweenScript(TArgs&&... args) {
 	GetLastTweenPoint().script_container_.AddScript<T>(std::forward<TArgs>(args)...);
 	return *this;
 }
 
 template <typename T>
-using TweenScript = Script<T, impl::ITweenScript>;
+using TweenScript = impl::Script<T, impl::ITweenScript>;
 
 [[nodiscard]] Tween CreateTween(Manager& manager);
 

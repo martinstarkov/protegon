@@ -10,7 +10,10 @@
 #include "components/generic.h"
 #include "components/transform.h"
 #include "components/uuid.h"
+#include "core/script.h"
 #include "ecs/ecs.h"
+#include "events/key.h"
+#include "events/mouse.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/origin.h"
@@ -281,6 +284,23 @@ public:
 
 	[[nodiscard]] Color GetTint() const;
 
+	// Scripting.
+
+	template <typename T, typename... TArgs>
+	T& AddScript(TArgs&&... args);
+
+	template <typename T>
+	[[nodiscard]] bool HasScript() const;
+
+	template <typename T>
+	[[nodiscard]] const T& GetScript() const;
+
+	template <typename T>
+	[[nodiscard]] T& GetScript();
+
+	template <typename T>
+	void RemoveScript();
+
 	// Serialization.
 
 	friend void to_json(json& j, const Entity& entity);
@@ -368,11 +388,142 @@ private:
 	explicit Entity(const ecs::Entity<JSONArchiver>& e);
 };
 
+namespace impl {
+
+class IScript {
+public:
+	Entity entity;
+
+	virtual ~IScript() = default;
+
+	// Lifecycle.
+	virtual void OnCreate() {}	// Called when script is first instantiated.
+
+	virtual void OnDestroy() {} // Called before script is destroyed.
+
+	virtual void OnEnable() {}	// Called when entity is enabled.
+
+	virtual void OnDisable() {} // Called when entity is disabled.
+
+	virtual void OnShow() {}	// Called when entity is shown.
+
+	virtual void OnHide() {}	// Called when entity is hidden.
+
+	// Update.
+	virtual void OnUpdate(float dt) {}			  // Called every frame.
+
+	virtual void OnFixedUpdate(float fixed_dt) {} // Called at fixed intervals (physics).
+
+	// Input.
+	virtual void OnKeyPressed(Key key) {}
+
+	virtual void OnKeyReleased(Key key) {}
+
+	virtual void OnMouseButtonPressed(Mouse button) {}
+
+	virtual void OnMouseButtonReleased(Mouse button) {}
+
+	virtual void OnMouseMove(V2_int mouse_pos) {}
+
+	virtual void OnMouseScroll(V2_int scroll_amount) {}
+
+	// Collision / Physics.
+	virtual void OnCollisionEnter(Entity other) {}
+
+	virtual void OnCollisionStay(Entity other) {}
+
+	virtual void OnCollisionExit(Entity other) {}
+
+	virtual void OnTriggerEnter(Entity other) {}
+
+	virtual void OnTriggerStay(Entity other) {}
+
+	virtual void OnTriggerExit(Entity other) {}
+
+	// Animation.
+	virtual void OnAnimationStart() {}
+
+	virtual void OnAnimationEnd() {}
+
+	virtual void OnAnimationRepeat(int repeat_count) {}
+
+	// UI / Interaction.
+	virtual void OnClick() {}
+
+	virtual void OnHoverEnter() {}
+
+	virtual void OnHoverExit() {}
+
+	// Serialization (do not override these, as this is handled automatically by the
+	// ScriptRegistry).
+	virtual json Serialize() const			= 0;
+	virtual void Deserialize(const json& j) = 0;
+};
+
+} // namespace impl
+
+using Scripts = impl::ScriptContainer<impl::IScript>;
+
+template <typename T>
+using Script = impl::Script<T, impl::IScript>;
+
 template <typename TCallback, typename... TArgs>
 static void Invoke(const Entity& e, TArgs&&... args) {
 	if (e.Has<TCallback>()) {
 		const auto& callback{ e.Get<TCallback>() };
 		Invoke(callback, std::forward<TArgs>(args)...);
+	}
+}
+
+template <typename T, typename... TArgs>
+T& Entity::AddScript(TArgs&&... args) {
+	auto& scripts{ GetOrAdd<Scripts>() };
+
+	auto& script{ scripts.AddScript<T>(std::forward<TArgs>(args)...) };
+
+	script.entity = *this;
+	script.OnCreate();
+
+	return script;
+}
+
+template <typename T>
+[[nodiscard]] bool Entity::HasScript() const {
+	return Has<Scripts>() && Get<Scripts>().HasScript<T>();
+}
+
+template <typename T>
+[[nodiscard]] const T& Entity::GetScript() const {
+	PTGN_ASSERT(Has<Scripts>());
+	auto& scripts{ Get<Scripts>() };
+	return scripts.GetScript<T>();
+}
+
+template <typename T>
+[[nodiscard]] T& Entity::GetScript() {
+	return const_cast<T&>(std::as_const(*this).GetScript<T>());
+}
+
+template <typename T>
+void Entity::RemoveScript() {
+	if (!Has<Scripts>()) {
+		return;
+	}
+
+	auto& scripts{ Get<Scripts>() };
+
+	if (!scripts.HasScript<T>()) {
+		return;
+	}
+
+	auto& script{ scripts.GetScript<T>() };
+
+	script.OnDestroy();
+
+	scripts.RemoveScript<T>();
+
+	if (scripts.IsEmpty()) {
+		Remove<Scripts>();
 	}
 }
 
