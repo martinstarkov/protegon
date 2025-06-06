@@ -15,7 +15,6 @@
 #include "debug/debugging.h"
 #include "utility/string.h"
 
-
 namespace ptgn {
 
 namespace impl {
