@@ -28,16 +28,10 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 }
 */
 
-#include <algorithm>
-#include <iostream>
-
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
-#include "core/script.h"
 #include "math/vector2.h"
-#include "serialization/json.h"
-#include "tweening/tween.h"
 
 using namespace ptgn;
 

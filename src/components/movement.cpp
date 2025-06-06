@@ -62,7 +62,7 @@ void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unp
 
 void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed) {
 	impl::MoveImpl(
-		vel, amount, Key::LEFT, Key::RIGHT, Key::UP, Key::DOWN, cancel_velocity_if_unpressed
+		vel, amount, Key::Left, Key::Right, Key::Up, Key::Down, cancel_velocity_if_unpressed
 	);
 }
 

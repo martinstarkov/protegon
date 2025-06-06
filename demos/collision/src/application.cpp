@@ -1441,7 +1441,7 @@ struct SweepTest : public CollisionTest {
 			game.collision.Intersect(player, collider, boxes, circles);
 		}
 
-		if (game.input.KeyDown(Key::SPACE)) {
+		if (game.input.KeyDown(Key::Space)) {
 			transform.position += rb.velocity * game.dt();
 		}
 
@@ -1631,7 +1631,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	}
 
 	void Update() override {
-		bool space_down = game.input.KeyDown(Key::SPACE);
+		bool space_down = game.input.KeyDown(Key::Space);
 		for (auto [e, rb, id] : manager.EntitiesWith<RigidBody, Id>()) {
 			PTGN_ASSERT(id < entity_data.size());
 			rb.velocity = entity_data[id].velocity;

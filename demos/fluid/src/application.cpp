@@ -248,7 +248,7 @@ public:
 
 	void Update() override {
 		// Reset the screen.
-		if (game.input.KeyDown(Key::SPACE)) {
+		if (game.input.KeyDown(Key::Space)) {
 			fluid.Reset();
 		}
 
@@ -257,13 +257,13 @@ public:
 			gravity = {};
 		}
 		// Increment gravity.
-		if (game.input.KeyDown(Key::DOWN)) {
+		if (game.input.KeyDown(Key::Down)) {
 			gravity.y += gravity_increment;
-		} else if (game.input.KeyDown(Key::UP)) {
+		} else if (game.input.KeyDown(Key::Up)) {
 			gravity.y -= gravity_increment;
-		} else if (game.input.KeyDown(Key::LEFT)) {
+		} else if (game.input.KeyDown(Key::Left)) {
 			gravity.x -= gravity_increment;
-		} else if (game.input.KeyDown(Key::RIGHT)) {
+		} else if (game.input.KeyDown(Key::Right)) {
 			gravity.x += gravity_increment;
 		}
 		// Add fluid.
