@@ -1,5 +1,7 @@
 #pragma once
+
 #include <iosfwd>
+#include <ostream>
 
 #include "debug/log.h"
 
@@ -24,7 +26,7 @@ inline std::ostream& operator<<(std::ostream& os, Mouse mouse) {
 		case Mouse::Left:	os << "Left"; break;
 		case Mouse::Right:	os << "Right"; break;
 		case Mouse::Middle: os << "Middle"; break;
-		default:			PTGN_ERROR("Invalid mouse type");
+		default:			PTGN_ERROR("Invalid mouse type")
 	}
 
 	return os;
