@@ -387,50 +387,23 @@ void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool
  */
 void StopShake(Entity& entity, bool force = true);
 
-// TODO: Add documentation
-
+/**
+ * @brief Starts a follow behavior where one entity follows another based on the specified
+ * configuration.
+ *
+ * @param entity The entity that will follow the target.
+ * @param target The entity to be followed.
+ * @param config The configuration parameters that define how the follow behavior should operate.
+ * @param force If true, forces the replacement of any existing follow behavior on the entity.
+ */
 void StartFollow(Entity entity, Entity target, FollowConfig config = {}, bool force = true);
 
+/**
+ * @brief Stops any active follow behavior on the specified entity.
+ *
+ * @param entity The entity whose follow behavior should be stopped.
+ * @param force If true, clears all queued follows effects.
+ */
 void StopFollow(Entity entity, bool force = true);
-
-/**
- * @brief Executes a callback once after a specified delay.
- *
- * @param manager The animation or tween manager responsible for scheduling the callback.
- * @param duration The delay before the callback is triggered.
- * @param callback The function to call after the delay has elapsed.
- */
-// TODO: Implement once callbacks are scripts.
-// void After(Manager& manager, milliseconds duration, const std::function<void()>& callback);
-
-/**
- * @brief Executes a callback continuously during a specified time window.
- *
- * @param manager The animation or tween manager responsible for scheduling the callback.
- * @param duration The duration during which the callback will be invoked repeatedly (e.g., once per
- * frame).
- * @param callback The function to invoke during the duration.
- */
-// TODO: Implement once callbacks are scripts.
-// void During(Manager& manager, milliseconds duration, const std::function<void()>& callback);
-
-/**
- * @brief Executes a callback repeatedly at fixed intervals, with optional exit conditions.
- *
- * @param manager The animation or tween manager responsible for scheduling the callback.
- * @param duration The interval between each callback execution.
- * @param repeats Number of repetitions. If -1, repeats indefinitely until the exit condition is
- * met.
- * @param callback The function to call every interval.
- * @param exit_condition_callback A function called every frame during the interval.
- *                                If it returns true, repetition stops early.
- *                                WARNING: If this is nullptr and repeats == -1, the callback will
- * repeat indefinitely.
- */
-// TODO: Implement once callbacks are scripts.
-// void Every(
-//	Manager& manager, milliseconds duration, std::int64_t repeats,
-//	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
-//);
 
 } // namespace ptgn

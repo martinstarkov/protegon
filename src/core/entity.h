@@ -286,18 +286,92 @@ public:
 
 	// Scripting.
 
+	/**
+	 * @brief Adds a script of type T to the entity.
+	 *
+	 * Constructs and attaches a script of the specified type using the provided constructor
+	 * arguments.
+	 *
+	 * @tparam T The script type to be added.
+	 * @tparam TArgs The types of arguments to pass to the script constructor.
+	 * @param args Arguments forwarded to the script's constructor.
+	 * @return A reference to the newly added script.
+	 */
 	template <typename T, typename... TArgs>
 	T& AddScript(TArgs&&... args);
 
+	/**
+	 * @brief Adds a script that executes continuously for a specified duration.
+	 *
+	 * The script will be updated over the given time duration, then automatically stopped and
+	 * removed.
+	 *
+	 * @tparam T The script type to be added.
+	 * @tparam TArgs The types of arguments to pass to the script constructor.
+	 * @param execution_duration The total duration (in milliseconds) the script should be executed
+	 * for.
+	 * @param args Arguments forwarded to the script's constructor.
+	 * @return A reference to the newly added timed script.
+	 */
+	template <typename T, typename... TArgs>
+	T& AddTimerScript(milliseconds execution_duration, TArgs&&... args);
+
+	/**
+	 * @brief Adds a script that executes repeatedly with a fixed delay between executions.
+	 *
+	 * The script will be called a specified number of times with a fixed delay between each call,
+	 * then automatically stopped and removed. Optionally, it can be triggered immediately upon
+	 * adding.
+	 *
+	 * @tparam T The script type to be added.
+	 * @tparam TArgs The types of arguments to pass to the script constructor.
+	 * @param execution_delay The delay (in milliseconds) between each script execution.
+	 * @param execution_count The total number of times the script will be executed (-1 for
+	 * indefinite execution, which can be stopped with RemoveScript<T>()).
+	 * @param execute_immediately If true, the script is executed once immediately before the first
+	 * delay.
+	 * @param args Arguments forwarded to the script's constructor.
+	 * @return A reference to the newly added repeat script.
+	 */
+	template <typename T, typename... TArgs>
+	T& AddRepeatScript(
+		milliseconds execution_delay, int execution_count, bool execute_immediately, TArgs&&... args
+	);
+
+	/**
+	 * @brief Checks whether a script of the specified type is attached to the entity.
+	 *
+	 * @tparam T The script type to check.
+	 * @return True if the script exists, false otherwise.
+	 */
 	template <typename T>
 	[[nodiscard]] bool HasScript() const;
 
+	/**
+	 * @brief Retrieves a const reference to the script of the specified type.
+	 *
+	 * @tparam T The script type to retrieve.
+	 * @return A const reference to the script.
+	 * @throws Assert if the script is not found.
+	 */
 	template <typename T>
 	[[nodiscard]] const T& GetScript() const;
 
+	/**
+	 * @brief Retrieves a mutable reference to the script of the specified type.
+	 *
+	 * @tparam T The script type to retrieve.
+	 * @return A reference to the script.
+	 * @throws Assert if the script is not found.
+	 */
 	template <typename T>
 	[[nodiscard]] T& GetScript();
 
+	/**
+	 * @brief Removes the script of the specified type from the entity.
+	 *
+	 * @tparam T The script type to remove.
+	 */
 	template <typename T>
 	void RemoveScript();
 
@@ -390,6 +464,8 @@ private:
 
 namespace impl {
 
+// TODO: Figure out a way to move IScript to a different file.
+
 class IScript {
 public:
 	Entity entity;
@@ -408,6 +484,20 @@ public:
 	virtual void OnShow() {}	// Called when entity is shown.
 
 	virtual void OnHide() {}	// Called when entity is hidden.
+
+	// Timed script triggers.
+	virtual void OnTimerStart() {}
+
+	virtual void OnTimerUpdate(float elapsed_fraction) {}
+
+	virtual void OnTimerStop() {}
+
+	// Repeated script triggers.
+	virtual void OnRepeatStart() {}
+
+	virtual void OnRepeatUpdate(int repeat) {}
+
+	virtual void OnRepeatStop() {}
 
 	// Update.
 	virtual void OnUpdate(float dt) {}			  // Called every frame.
@@ -483,6 +573,31 @@ T& Entity::AddScript(TArgs&&... args) {
 
 	script.entity = *this;
 	script.OnCreate();
+
+	return script;
+}
+
+template <typename T, typename... TArgs>
+T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
+	auto& script{ AddScript<T>(std::forward<TArgs>(args)...) };
+
+	// std::unordered_map<std::size_t, Timer>
+	// TODO: Add script timer component.
+	// TODO: Trigger timer start.
+
+	return script;
+}
+
+template <typename T, typename... TArgs>
+T& Entity::AddRepeatScript(
+	milliseconds execution_delay, int execution_count, bool execute_immediately, TArgs&&... args
+) {
+	auto& script{ AddScript<T>(std::forward<TArgs>(args)...) };
+
+	// std::unordered_map<std::size_t, RepeatInfo>
+	// TODO: Add script repeat component.
+	// TODO: Trigger timer start.
+	// if (execute_immediately) { script->OnRepeatStart(); }
 
 	return script;
 }

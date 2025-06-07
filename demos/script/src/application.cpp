@@ -23,14 +23,33 @@ public:
 	}
 };
 
-class FootstepSound : public Script<FootstepSound> {
+class TimedScript : public Script<TimedScript> {
 public:
-	void OnUpdate(float dt) override {
-		PlaySound();
+	void OnTimerStart() override {
+		PTGN_LOG("Timed script started");
 	}
 
-	void PlaySound() const {
-		PTGN_LOG("Playing sound for entity ", entity.GetUUID());
+	void OnTimerUpdate(float elapsed_fraction) override {
+		PTGN_LOG("Timed script: ", elapsed_fraction);
+	}
+
+	void OnTimerStop() override {
+		PTGN_LOG("Timed script stopped");
+	}
+};
+
+class RepeatedScript : public Script<TimedScript> {
+public:
+	void OnRepeatStart() override {
+		PTGN_LOG("Repeated script started");
+	}
+
+	void OnRepeatUpdate(int repeat) override {
+		PTGN_LOG("Repeated script: ", repeat);
+	}
+
+	void OnRepeatStop() override {
+		PTGN_LOG("Repeated script stopped");
 	}
 };
 
@@ -41,7 +60,9 @@ struct ScriptScene : public Scene {
 		entity = CreateEntity();
 
 		entity.AddScript<PlayerController>();
-		entity.AddScript<FootstepSound>();
+
+		entity.AddTimerScript<TimedScript>(seconds{ 1000 });
+		entity.AddRepeatScript<RepeatedScript>(seconds{ 500 }, 3, true);
 	}
 };
 
