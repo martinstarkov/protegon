@@ -59,10 +59,10 @@ struct ScriptScene : public Scene {
 	void Enter() override {
 		entity = CreateEntity();
 
-		entity.AddScript<PlayerController>();
+		// entity.AddScript<PlayerController>();
 
-		entity.AddTimerScript<TimedScript>(seconds{ 1000 });
-		entity.AddRepeatScript<RepeatedScript>(seconds{ 500 }, 3, true);
+		entity.AddTimerScript<TimedScript>(seconds{ 3 });
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 5 }, 3, true);
 	}
 };
 

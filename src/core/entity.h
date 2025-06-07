@@ -11,6 +11,7 @@
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "core/script.h"
+#include "core/timer.h"
 #include "ecs/ecs.h"
 #include "events/key.h"
 #include "events/mouse.h"
@@ -477,66 +478,82 @@ public:
 
 	virtual void OnDestroy() {} // Called before script is destroyed.
 
+	// TODO: Implement.
 	virtual void OnEnable() {}	// Called when entity is enabled.
 
 	virtual void OnDisable() {} // Called when entity is disabled.
 
-	virtual void OnShow() {}	// Called when entity is shown.
+	// TODO: Implement.
+	virtual void OnShow() {} // Called when entity is shown.
 
-	virtual void OnHide() {}	// Called when entity is hidden.
+	virtual void OnHide() {} // Called when entity is hidden.
 
 	// Timed script triggers.
 	virtual void OnTimerStart() {}
 
-	virtual void OnTimerUpdate(float elapsed_fraction) {}
+	// TODO: Implement.
+	virtual void OnTimerUpdate([[maybe_unused]] float elapsed_fraction) {}
 
+	// TODO: Implement.
 	virtual void OnTimerStop() {}
 
 	// Repeated script triggers.
 	virtual void OnRepeatStart() {}
 
-	virtual void OnRepeatUpdate(int repeat) {}
+	// TODO: Implement.
+	virtual void OnRepeatUpdate([[maybe_unused]] int repeat) {}
 
+	// TODO: Implement.
 	virtual void OnRepeatStop() {}
 
 	// Update.
-	virtual void OnUpdate(float dt) {}			  // Called every frame.
+	virtual void OnUpdate([[maybe_unused]] float dt) {} // Called every frame.
 
-	virtual void OnFixedUpdate(float fixed_dt) {} // Called at fixed intervals (physics).
+	// TODO: Implement?
+	// virtual void OnFixedUpdate([[maybe_unused]] float fixed_dt) {} // Called at fixed intervals
+	// (physics).
 
+	// TODO: Implement.
 	// Input.
-	virtual void OnKeyPressed(Key key) {}
+	virtual void OnKeyPressed([[maybe_unused]] Key key) {}
 
-	virtual void OnKeyReleased(Key key) {}
+	virtual void OnKeyReleased([[maybe_unused]] Key key) {}
 
-	virtual void OnMouseButtonPressed(Mouse button) {}
+	virtual void OnMousePressed([[maybe_unused]] Mouse button) {}
 
-	virtual void OnMouseButtonReleased(Mouse button) {}
+	// TODO: Implement.
+	virtual void OnMouseReleased([[maybe_unused]] Mouse button) {}
 
-	virtual void OnMouseMove(V2_int mouse_pos) {}
+	// TODO: Implement.
+	virtual void OnMouseMove([[maybe_unused]] V2_int mouse_pos) {}
 
-	virtual void OnMouseScroll(V2_int scroll_amount) {}
+	// TODO: Implement.
+	virtual void OnMouseScroll([[maybe_unused]] V2_int scroll_amount) {}
 
+	// TODO: Implement.
 	// Collision / Physics.
-	virtual void OnCollisionEnter(Entity other) {}
+	virtual void OnCollisionEnter([[maybe_unused]] Entity other) {}
 
-	virtual void OnCollisionStay(Entity other) {}
+	virtual void OnCollisionStay([[maybe_unused]] Entity other) {}
 
-	virtual void OnCollisionExit(Entity other) {}
+	virtual void OnCollisionExit([[maybe_unused]] Entity other) {}
 
-	virtual void OnTriggerEnter(Entity other) {}
+	// TODO: Implement.
+	virtual void OnTriggerEnter([[maybe_unused]] Entity other) {}
 
-	virtual void OnTriggerStay(Entity other) {}
+	virtual void OnTriggerStay([[maybe_unused]] Entity other) {}
 
-	virtual void OnTriggerExit(Entity other) {}
+	virtual void OnTriggerExit([[maybe_unused]] Entity other) {}
 
+	// TODO: Implement.
 	// Animation.
 	virtual void OnAnimationStart() {}
 
 	virtual void OnAnimationEnd() {}
 
-	virtual void OnAnimationRepeat(int repeat_count) {}
+	virtual void OnAnimationRepeat([[maybe_unused]] int repeat) {}
 
+	// TODO: Implement.
 	// UI / Interaction.
 	virtual void OnClick() {}
 
@@ -577,8 +594,15 @@ T& Entity::AddScript(TArgs&&... args) {
 	return script;
 }
 
+// TODO: Move to separate file.
 class ScriptTimers {
-	std::unordered_map<std::size_t, Timer> timers;
+public:
+	struct TimerInfo {
+		Timer timer;
+		milliseconds duration{ 0 };
+	};
+
+	std::unordered_map<std::size_t, TimerInfo> timers;
 };
 
 template <typename T, typename... TArgs>
@@ -594,9 +618,14 @@ T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 	constexpr auto class_name{ type_name<T>() };
 	constexpr auto hash{ Hash(class_name) };
 
-	timer_scripts.emplace(hash, Timer{ true });
+	timer_scripts.timers.emplace(
+		hash, ScriptTimers::TimerInfo{ Timer{ true }, execution_duration }
+	);
 
 	// TODO: Check this all works as intended.
+	// TODO: Add system which calls OnTimerUpdate() and OnTimerStop().
+
+	// TODO: Modify RemoveScript to remove ScriptTimers.
 
 	script.OnTimerStart();
 
@@ -613,6 +642,8 @@ T& Entity::AddRepeatScript(
 	// TODO: Add script repeat component.
 	// TODO: Trigger timer start.
 	// if (execute_immediately) { script->OnRepeatStart(); }
+
+	// TODO: Modify RemoveScript to remove ScriptRepeats.
 
 	return script;
 }
@@ -636,6 +667,9 @@ template <typename T>
 
 template <typename T>
 void Entity::RemoveScript() {
+	// TODO: Remove ScriptTimers and call OnTimerStop.
+	// TODO: Remove ScriptRepeats and call OnRepeatStop.
+
 	if (!Has<Scripts>()) {
 		return;
 	}

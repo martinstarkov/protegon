@@ -125,7 +125,7 @@ public:
 
 	template <typename T>
 	[[nodiscard]] T& GetScript() {
-		return const_cast<T&>(std::as_const(*this).GetScript<T>());
+		return const_cast<T&>(std::as_const(*this).template GetScript<T>());
 	}
 
 	template <typename T>

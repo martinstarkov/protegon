@@ -118,11 +118,40 @@ void Scene::PostUpdate() {
 
 	manager.Refresh();
 
+	// TODO: Move to a separate file.
 	for (auto [entity, scripts] : manager.EntitiesWith<Scripts>()) {
 		for (const auto& [key, script] : scripts.scripts) {
 			script->OnUpdate(dt);
 		}
 	}
+
+	// TODO: Move to a separate file.
+	for (auto [entity, scripts, script_timer] : manager.EntitiesWith<Scripts, ScriptTimers>()) {
+		for (const auto& [key, timer_info] : script_timer.timers) {
+			PTGN_ASSERT(
+				timer_info.timer.IsRunning(),
+				"Script timer must be started upon addition of script to entity"
+			);
+			auto it{ scripts.scripts.find(key) };
+			PTGN_ASSERT(
+				it != scripts.scripts.end(), "Each script timer must have an associated script"
+			);
+			auto& script{ *it->second };
+			auto elapsed_fraction{ timer_info.timer.ElapsedPercentage(timer_info.duration) };
+			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
+			if (elapsed_fraction < 1.0f) {
+				script.OnTimerUpdate(elapsed_fraction);
+			} else {
+				script.OnTimerStop();
+				script_timer.timers.erase(key);
+			}
+		}
+		if (script_timer.timers.empty()) {
+			entity.Remove<ScriptTimers>();
+		}
+	}
+
+	// TODO: Add ScriptRepeat system.
 
 	Update();
 
