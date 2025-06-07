@@ -185,7 +185,7 @@ void AddTweenEffect(
 ) {
 	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
 
-	auto& comp = entity.GetOrAdd<TComponent>();
+	auto& comp{ entity.GetOrAdd<TComponent>() };
 
 	T start{};
 
@@ -199,7 +199,7 @@ void AddTweenEffect(
 		start = comp.tasks.back().target_value;
 	}
 
-	auto& task = comp.tasks.emplace_back(start, target, duration, ease);
+	auto& task{ comp.tasks.emplace_back(start, target, duration, ease) };
 
 	if (first_task) {
 		task.timer.Start(true);

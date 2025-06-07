@@ -345,6 +345,8 @@ void FollowEffectSystem::Update(Manager& manager) const {
 			continue;
 		}
 
+		// TODO: Clean up repeated code.
+
 		if (!task.target || !task.target.IsAlive()) {
 			effect.tasks.pop_front();
 			if (!effect.tasks.empty()) {
@@ -356,7 +358,7 @@ void FollowEffectSystem::Update(Manager& manager) const {
 					entity.Enable();
 					entity.GetOrAdd<RigidBody>();
 					entity.GetOrAdd<Transform>();
-					auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+					auto& movement{ entity.GetOrAdd<TopDownMovement>() };
 					movement.max_acceleration		  = front.config.max_acceleration;
 					movement.max_deceleration		  = front.config.max_acceleration;
 					movement.max_speed				  = front.config.max_speed;
@@ -408,7 +410,7 @@ void FollowEffectSystem::Update(Manager& manager) const {
 							entity.Enable();
 							entity.GetOrAdd<RigidBody>();
 							entity.GetOrAdd<Transform>();
-							auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+							auto& movement{ entity.GetOrAdd<TopDownMovement>() };
 							movement.max_acceleration		  = front.config.max_acceleration;
 							movement.max_deceleration		  = front.config.max_acceleration;
 							movement.max_speed				  = front.config.max_speed;
@@ -429,7 +431,7 @@ void FollowEffectSystem::Update(Manager& manager) const {
 				entity.Has<TopDownMovement>(),
 				"Entity with MoveMode::Velocity must have a TopDownMovement component"
 			);
-			auto& movement = entity.Get<TopDownMovement>();
+			auto& movement{ entity.Get<TopDownMovement>() };
 			auto dir{ target_pos - pos };
 
 			auto dist2{ dir.MagnitudeSquared() };
@@ -595,8 +597,8 @@ void StopBounce(Entity& entity, bool force) {
 		return;
 	}
 
-	auto& bounce   = entity.Get<impl::BounceEffect>();
-	auto& offsets  = entity.Get<impl::Offsets>();
+	auto& bounce{ entity.Get<impl::BounceEffect>() };
+	auto& offsets{ entity.Get<impl::Offsets>() };
 	offsets.bounce = {}; // or reset to bounce.static_offset
 
 	if (force) {
@@ -617,7 +619,7 @@ void Shake(
 		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
 	);
 
-	auto& comp = entity.GetOrAdd<impl::ShakeEffect>();
+	auto& comp{ entity.GetOrAdd<impl::ShakeEffect>() };
 	entity.GetOrAdd<impl::Offsets>();
 
 	float start_intensity{ 0.0f };
@@ -647,7 +649,7 @@ void Shake(
 }
 
 void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
-	auto& comp = entity.GetOrAdd<impl::ShakeEffect>();
+	auto& comp{ entity.GetOrAdd<impl::ShakeEffect>() };
 	entity.GetOrAdd<impl::Offsets>();
 	PTGN_ASSERT(
 		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
@@ -693,8 +695,8 @@ void StopShake(Entity& entity, bool force) {
 		return;
 	}
 
-	auto& shake	  = entity.Get<impl::ShakeEffect>();
-	auto& offsets = entity.Get<impl::Offsets>();
+	auto& shake{ entity.Get<impl::ShakeEffect>() };
+	auto& offsets{ entity.Get<impl::Offsets>() };
 	offsets.shake = {};
 
 	if (force) {
@@ -711,7 +713,7 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 	PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
 	PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
 
-	auto& comp = entity.GetOrAdd<impl::FollowEffect>();
+	auto& comp{ entity.GetOrAdd<impl::FollowEffect>() };
 
 	bool first_task{ force || comp.tasks.empty() };
 
@@ -728,7 +730,7 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 		entity.Enable();
 		entity.GetOrAdd<RigidBody>();
 		entity.GetOrAdd<Transform>();
-		auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+		auto& movement{ entity.GetOrAdd<TopDownMovement>() };
 		movement.max_acceleration		  = config.max_acceleration;
 		movement.max_deceleration		  = config.max_acceleration;
 		movement.max_speed				  = config.max_speed;
@@ -746,7 +748,7 @@ void StopFollow(Entity entity, bool force) {
 		return;
 	}
 
-	auto& follow = entity.Get<impl::FollowEffect>();
+	auto& follow{ entity.Get<impl::FollowEffect>() };
 
 	if (force) {
 		follow.tasks.clear();
@@ -774,46 +776,5 @@ void StopFollow(Entity entity, bool force) {
 		}
 	}
 }
-
-/*
-
-Tween& After(Manager& manager, milliseconds duration, const std::function<void()>& callback) {
-	auto entity{ manager.CreateEntity() };
-	return entity.Add<Tween>()
-		.During(duration)
-		.OnComplete([entity, callback]() mutable {
-			std::invoke(callback);
-			entity.Destroy();
-		})
-		.Start();
-}
-
-Tween& During(Manager& manager, milliseconds duration, const std::function<void()>& callback) {
-	auto entity{ manager.CreateEntity() };
-	return entity.Add<Tween>().During(duration).OnUpdate([callback]() { std::invoke(callback); }
-	).OnComplete([entity]() mutable {
-		 entity.Destroy();
-	 }).Start();
-}
-
-Tween& Every(
-	Manager& manager, milliseconds duration, std::int64_t repeats,
-	const std::function<void()>& callback, const std::function<bool()>& exit_condition_callback
-) {
-	auto entity{ manager.CreateEntity() };
-	return entity.Add<Tween>()
-		.During(duration)
-		.Repeat(repeats)
-		.OnUpdate([entity, exit_condition_callback]() mutable {
-			// If callback returns true, stop repetitions.
-			if (exit_condition_callback != nullptr && std::invoke(exit_condition_callback)) {
-				entity.Get<Tween>().IncrementTweenPoint();
-			}
-		})
-		.OnRepeat(callback)
-		.OnComplete([entity]() mutable { entity.Destroy(); })
-		.Start();
-}
-*/
 
 } // namespace ptgn

@@ -577,13 +577,28 @@ T& Entity::AddScript(TArgs&&... args) {
 	return script;
 }
 
+class ScriptTimers {
+	std::unordered_map<std::size_t, Timer> timers;
+};
+
 template <typename T, typename... TArgs>
 T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 	auto& script{ AddScript<T>(std::forward<TArgs>(args)...) };
 
-	// std::unordered_map<std::size_t, Timer>
-	// TODO: Add script timer component.
-	// TODO: Trigger timer start.
+	PTGN_ASSERT(
+		execution_duration >= milliseconds{ 0 }, "Timer script must have a positive duration"
+	);
+
+	auto& timer_scripts{ GetOrAdd<ScriptTimers>() };
+
+	constexpr auto class_name{ type_name<T>() };
+	constexpr auto hash{ Hash(class_name) };
+
+	timer_scripts.emplace(hash, Timer{ true });
+
+	// TODO: Check this all works as intended.
+
+	script.OnTimerStart();
 
 	return script;
 }
