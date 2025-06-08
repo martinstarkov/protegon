@@ -4,19 +4,17 @@
 #include "components/draw.h"
 #include "components/drawable.h"
 #include "components/input.h"
-#include "core/game.h"
+#include "components/offsets.h"
 #include "components/transform.h"
+#include "core/game.h"
 #include "core/window.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
+#include "rendering/batching/render_data.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "rendering/batching/render_data.h"
-#include "components/offsets.h"
 
 using namespace ptgn;
-
-constexpr V2_int window_size{ 1280, 720 };
 
 // TODO: Move these into the engine.
 
@@ -48,8 +46,7 @@ struct Circle : public Drawable<Circle> {
 
 		ctx.AddEllipse(
 			transform.position, V2_float{ scaled_radius }, line_width, depth, camera, blend_mode,
-			tint,
-			transform.rotation, false
+			tint, transform.rotation, false
 		);
 	}
 };
@@ -57,8 +54,7 @@ struct Circle : public Drawable<Circle> {
 struct Rect : public Drawable<Rect> {
 	Rect() = default;
 
-	explicit Rect(const V2_float& rect_size) :
-		size{ rect_size } {}
+	explicit Rect(const V2_float& rect_size) : size{ rect_size } {}
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		PTGN_ASSERT(entity.Has<Rect>());
@@ -71,7 +67,7 @@ struct Rect : public Drawable<Rect> {
 
 		auto rect{ entity.Get<Rect>() };
 		auto line_width{ entity.GetOrDefault<LineWidth>() };
-		
+
 		auto offset_transform{ GetOffset(entity) };
 		transform = transform.RelativeTo(offset_transform);
 
@@ -79,10 +75,364 @@ struct Rect : public Drawable<Rect> {
 
 		auto scaled_size{ rect.size * Abs(transform.scale) };
 
-		ctx.AddQuad(transform.position, scaled_size, origin, line_width, depth, camera, blend_mode, tint, transform.rotation, false);
+		ctx.AddQuad(
+			transform.position, scaled_size, origin, line_width, depth, camera, blend_mode, tint,
+			transform.rotation, false
+		);
 	}
 
 	V2_float size;
+};
+
+struct ScriptC0 : public Script<ScriptC0> {
+	void OnKeyDown(Key key) override {
+		PTGN_LOG("c0 Key down");
+	}
+
+	void OnKeyPressed(Key key) override {
+		PTGN_LOG("c0 Key pressed");
+	}
+
+	void OnKeyUp(Key key) override {
+		PTGN_LOG("c0 Key up");
+	}
+
+	void OnMouseDown(Mouse mouse) override {
+		PTGN_LOG("c0 Mouse down: ", mouse);
+	}
+
+	void OnMouseDownOutside(Mouse mouse) override {
+		PTGN_LOG("c0 Mouse down outside: ", mouse);
+	}
+
+	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("c0 Mouse move: ", mouse);*/ }
+
+	void OnMouseLeave(V2_float mouse) override {
+		PTGN_LOG("c0 Mouse leave: ", mouse);
+	}
+
+	void OnMouseEnter(V2_float mouse) override {
+		PTGN_LOG("c0 Mouse enter: ", mouse);
+	}
+
+	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("c0 Mouse out: ", mouse);*/ }
+
+	void OnMouseOver(V2_float mouse) override {
+		PTGN_LOG("c0 Mouse over: ", mouse);
+	}
+
+	void OnMousePressed(Mouse mouse) override {
+		PTGN_LOG("c0 Mouse pressed: ", mouse);
+	}
+
+	void OnMouseScroll(V2_int mouse) override {
+		PTGN_LOG("c0 Mouse scroll: ", mouse);
+	}
+
+	void OnMouseUp(Mouse mouse) override {
+		PTGN_LOG("c0 Mouse up: ", mouse);
+	}
+
+	void OnMouseUpOutside(Mouse mouse) override {
+		PTGN_LOG("c0 Mouse up outside: ", mouse);
+	}
+};
+
+struct ScriptC1 : public Script<ScriptC1> {
+	void OnKeyDown(Key key) override {
+		PTGN_LOG("c1 Key down");
+	}
+
+	void OnKeyPressed(Key key) override {
+		PTGN_LOG("c1 Key pressed");
+	}
+
+	void OnKeyUp(Key key) override {
+		PTGN_LOG("c1 Key up");
+	}
+
+	void OnMouseDown(Mouse mouse) override {
+		PTGN_LOG("c1 Mouse down: ", mouse);
+	}
+
+	void OnMouseDownOutside(Mouse mouse) override {
+		PTGN_LOG("c1 Mouse down outside: ", mouse);
+	}
+
+	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("c1 Mouse move: ", mouse);*/ }
+
+	void OnMouseLeave(V2_float mouse) override {
+		PTGN_LOG("c1 Mouse leave: ", mouse);
+	}
+
+	void OnMouseEnter(V2_float mouse) override {
+		PTGN_LOG("c1 Mouse enter: ", mouse);
+	}
+
+	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("c1 Mouse out: ", mouse);*/ }
+
+	void OnMouseOver(V2_float mouse) override {
+		PTGN_LOG("c1 Mouse over: ", mouse);
+	}
+
+	void OnMousePressed(Mouse mouse) override {
+		PTGN_LOG("c1 Mouse pressed: ", mouse);
+	}
+
+	void OnMouseScroll(V2_int mouse) override {
+		PTGN_LOG("c1 Mouse scroll: ", mouse);
+	}
+
+	void OnMouseUp(Mouse mouse) override {
+		PTGN_LOG("c1 Mouse up: ", mouse);
+	}
+
+	void OnMouseUpOutside(Mouse mouse) override {
+		PTGN_LOG("c1 Mouse up outside: ", mouse);
+	}
+};
+
+struct ScriptR0 : public Script<ScriptR0> {
+	void OnKeyDown(Key key) override {
+		PTGN_LOG("r0 Key down");
+	}
+
+	void OnKeyPressed(Key key) override {
+		PTGN_LOG("r0 Key pressed");
+	}
+
+	void OnKeyUp(Key key) override {
+		PTGN_LOG("r0 Key up");
+	}
+
+	void OnMouseDown(Mouse mouse) override {
+		PTGN_LOG("r0 Mouse down: ", mouse);
+	}
+
+	void OnMouseDownOutside(Mouse mouse) override {
+		PTGN_LOG("r0 Mouse down outside: ", mouse);
+	}
+
+	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("r0 Mouse move: ", mouse);*/ }
+
+	void OnMouseLeave(V2_float mouse) override {
+		PTGN_LOG("r0 Mouse leave: ", mouse);
+	}
+
+	void OnMouseEnter(V2_float mouse) override {
+		PTGN_LOG("r0 Mouse enter: ", mouse);
+	}
+
+	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("r0 Mouse out: ", mouse);*/ }
+
+	void OnMouseOver(V2_float mouse) override {
+		PTGN_LOG("r0 Mouse over: ", mouse);
+	}
+
+	void OnMousePressed(Mouse mouse) override {
+		PTGN_LOG("r0 Mouse pressed: ", mouse);
+	}
+
+	void OnMouseScroll(V2_int mouse) override {
+		PTGN_LOG("r0 Mouse scroll: ", mouse);
+	}
+
+	void OnMouseUp(Mouse mouse) override {
+		PTGN_LOG("r0 Mouse up: ", mouse);
+	}
+
+	void OnMouseUpOutside(Mouse mouse) override {
+		PTGN_LOG("r0 Mouse up outside: ", mouse);
+	}
+};
+
+struct ScriptR1 : public Script<ScriptR1> {
+	void OnKeyDown(Key key) override {
+		PTGN_LOG("r1 Key down");
+	}
+
+	void OnKeyPressed(Key key) override {
+		PTGN_LOG("r1 Key pressed");
+	}
+
+	void OnKeyUp(Key key) override {
+		PTGN_LOG("r1 Key up");
+	}
+
+	void OnMouseDown(Mouse mouse) override {
+		PTGN_LOG("r1 Mouse down: ", mouse);
+	}
+
+	void OnMouseDownOutside(Mouse mouse) override {
+		PTGN_LOG("r1 Mouse down outside: ", mouse);
+	}
+
+	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("r1 Mouse move: ", mouse);*/ }
+
+	void OnMouseLeave(V2_float mouse) override {
+		PTGN_LOG("r1 Mouse leave: ", mouse);
+	}
+
+	void OnMouseEnter(V2_float mouse) override {
+		PTGN_LOG("r1 Mouse enter: ", mouse);
+	}
+
+	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("r1 Mouse out: ", mouse);*/ }
+
+	void OnMouseOver(V2_float mouse) override {
+		PTGN_LOG("r1 Mouse over: ", mouse);
+	}
+
+	void OnMousePressed(Mouse mouse) override {
+		PTGN_LOG("r1 Mouse pressed: ", mouse);
+	}
+
+	void OnMouseScroll(V2_int mouse) override {
+		PTGN_LOG("r1 Mouse scroll: ", mouse);
+	}
+
+	void OnMouseUp(Mouse mouse) override {
+		PTGN_LOG("r1 Mouse up: ", mouse);
+	}
+
+	void OnMouseUpOutside(Mouse mouse) override {
+		PTGN_LOG("r1 Mouse up outside: ", mouse);
+	}
+};
+
+struct ScriptR2 : public Script<ScriptR2> {
+	void OnKeyDown(Key key) override {
+		PTGN_LOG("r2 Key down");
+	}
+
+	void OnKeyPressed(Key key) override {
+		PTGN_LOG("r2 Key pressed");
+	}
+
+	void OnKeyUp(Key key) override {
+		PTGN_LOG("r2 Key up");
+	}
+
+	void OnMouseDown(Mouse mouse) override {
+		PTGN_LOG("r2 Mouse down: ", mouse);
+	}
+
+	void OnMouseDownOutside(Mouse mouse) override {
+		PTGN_LOG("r2 Mouse down outside: ", mouse);
+	}
+
+	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("r2 Mouse move: ", mouse);*/ }
+
+	void OnMouseLeave(V2_float mouse) override {
+		PTGN_LOG("r2 Mouse leave: ", mouse);
+	}
+
+	void OnMouseEnter(V2_float mouse) override {
+		PTGN_LOG("r2 Mouse enter: ", mouse);
+	}
+
+	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("r2 Mouse out: ", mouse);*/ }
+
+	void OnMouseOver(V2_float mouse) override {
+		PTGN_LOG("r2 Mouse over: ", mouse);
+	}
+
+	void OnMousePressed(Mouse mouse) override {
+		PTGN_LOG("r2 Mouse pressed: ", mouse);
+	}
+
+	void OnMouseScroll(V2_int mouse) override {
+		PTGN_LOG("r2 Mouse scroll: ", mouse);
+	}
+
+	void OnMouseUp(Mouse mouse) override {
+		PTGN_LOG("r2 Mouse up: ", mouse);
+	}
+
+	void OnMouseUpOutside(Mouse mouse) override {
+		PTGN_LOG("r2 Mouse up outside: ", mouse);
+	}
+};
+
+struct ScriptR3 : public Script<ScriptR3> {
+	void OnDrag(V2_float mouse) override {
+		PTGN_LOG("r3 Drag: ", mouse);
+		entity.Get<Transform>().position = mouse + entity.Get<Draggable>().offset;
+	}
+
+	void OnDragEnter(V2_float mouse) override {
+		PTGN_LOG("r3 Drag enter: ", mouse);
+	}
+
+	void OnDragLeave(V2_float mouse) override {
+		PTGN_LOG("r3 Drag leave: ", mouse);
+	}
+
+	void OnDragOut(V2_float mouse) override {
+		PTGN_LOG("r3 Drag out: ", mouse);
+	}
+
+	void OnDragOver(V2_float mouse) override {
+		PTGN_LOG("r3 Drag over: ", mouse);
+	}
+
+	void OnDragStart(V2_float mouse) override {
+		PTGN_LOG("r3 Drag start: ", mouse);
+	}
+
+	void OnDragStop(V2_float mouse) override {
+		PTGN_LOG("r3 Drag stop: ", mouse);
+	}
+};
+
+struct ScriptC3 : public Script<ScriptC3> {
+	void OnDrag(V2_float mouse) override {
+		PTGN_LOG("c3 Drag: ", mouse);
+		entity.Get<Transform>().position = mouse + entity.Get<Draggable>().offset;
+	}
+
+	// void OnMouseDown(Mouse mouse) override {
+	//	PTGN_LOG("c3 Mouse down: ", mouse);
+	// }
+	// void OnMouseDownOutside(Mouse mouse) override {
+	//	PTGN_LOG("c3 Mouse down outside: ", mouse);
+	// }
+	// void OnMousePressed(Mouse mouse) override {
+	//	PTGN_LOG("c3 Mouse pressed: ", mouse);
+	// }
+	// void OnMouseScroll(V2_int mouse) override {
+	//	PTGN_LOG("c3 Mouse scroll: ", mouse);
+	// }
+	// void OnMouseUp(Mouse mouse) override {
+	//	PTGN_LOG("c3 Mouse up: ", mouse);
+	// }
+	// void OnMouseUpOutside(Mouse mouse) override {
+	//	PTGN_LOG("c3 Mouse up outside: ", mouse);
+	// }
+
+	void OnDragEnter(V2_float mouse) override {
+		PTGN_LOG("c3 Drag enter: ", mouse);
+	}
+
+	void OnDragLeave(V2_float mouse) override {
+		PTGN_LOG("c3 Drag leave: ", mouse);
+	}
+
+	void OnDragOut(V2_float mouse) override {
+		PTGN_LOG("c3 Drag out: ", mouse);
+	}
+
+	void OnDragOver(V2_float mouse) override {
+		PTGN_LOG("c3 Drag over: ", mouse);
+	}
+
+	void OnDragStart(V2_float mouse) override {
+		PTGN_LOG("c3 Drag start: ", mouse);
+	}
+
+	void OnDragStop(V2_float mouse) override {
+		PTGN_LOG("c3 Drag stop: ", mouse);
+	}
 };
 
 struct InteractiveScene : public Scene {
@@ -98,24 +448,7 @@ struct InteractiveScene : public Scene {
 		c0.Add<Visible>();
 		c0.Add<Interactive>();
 		c0.Add<Enabled>();
-		c0.Add<callback::KeyDown>([](auto key) { PTGN_LOG("c0 Key down"); });
-		c0.Add<callback::KeyPressed>([](auto key) { PTGN_LOG("c0 Key pressed"); });
-		c0.Add<callback::KeyUp>([](auto key) { PTGN_LOG("c0 Key up"); });
-		c0.Add<callback::MouseDown>([](auto mouse) { PTGN_LOG("c0 Mouse down: ", mouse); });
-		c0.Add<callback::MouseDownOutside>([](auto mouse) {
-			PTGN_LOG("c0 Mouse down outside: ", mouse);
-		});
-		c0.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("c0 Mouse move: ", mouse);*/ });
-		c0.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("c0 Mouse leave: ", mouse); });
-		c0.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("c0 Mouse enter: ", mouse); });
-		c0.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("c0 Mouse out: ", mouse);*/ });
-		c0.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("c0 Mouse over: ", mouse); });
-		c0.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("c0 Mouse pressed: ", mouse); });
-		c0.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("c0 Mouse scroll: ", mouse); });
-		c0.Add<callback::MouseUp>([](auto mouse) { PTGN_LOG("c0 Mouse up: ", mouse); });
-		c0.Add<callback::MouseUpOutside>([](auto mouse) {
-			PTGN_LOG("c0 Mouse up outside: ", mouse);
-		});
+		c0.AddScript<ScriptC0>();
 
 		auto c1 = manager.CreateEntity();
 		c1.Add<Circle>(45.0f);
@@ -126,24 +459,7 @@ struct InteractiveScene : public Scene {
 		c1.Add<Visible>();
 		c1.Add<Interactive>();
 		c1.Add<Enabled>();
-		c1.Add<callback::KeyDown>([](auto key) { PTGN_LOG("c1 Key down"); });
-		c1.Add<callback::KeyPressed>([](auto key) { PTGN_LOG("c1 Key pressed"); });
-		c1.Add<callback::KeyUp>([](auto key) { PTGN_LOG("c1 Key up"); });
-		c1.Add<callback::MouseDown>([](auto mouse) { PTGN_LOG("c1 Mouse down: ", mouse); });
-		c1.Add<callback::MouseDownOutside>([](auto mouse) {
-			PTGN_LOG("c1 Mouse down outside: ", mouse);
-		});
-		c1.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("c1 Mouse move: ", mouse);*/ });
-		c1.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("c1 Mouse leave: ", mouse); });
-		c1.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("c1 Mouse enter: ", mouse); });
-		c1.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("c1 Mouse out: ", mouse);*/ });
-		c1.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("c1 Mouse over: ", mouse); });
-		c1.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("c1 Mouse pressed: ", mouse); });
-		c1.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("c1 Mouse scroll: ", mouse); });
-		c1.Add<callback::MouseUp>([](auto mouse) { PTGN_LOG("c1 Mouse up: ", mouse); });
-		c1.Add<callback::MouseUpOutside>([](auto mouse) {
-			PTGN_LOG("c1 Mouse up outside: ", mouse);
-		});
+		c1.AddScript<ScriptC1>();
 
 		auto r0 = manager.CreateEntity();
 		r0.Add<Rect>(V2_float{ 200, 100 });
@@ -154,24 +470,7 @@ struct InteractiveScene : public Scene {
 		r0.Add<Visible>();
 		r0.Add<Interactive>();
 		r0.Add<Enabled>();
-		r0.Add<callback::KeyDown>([](auto key) { PTGN_LOG("r0 Key down"); });
-		r0.Add<callback::KeyPressed>([](auto key) { PTGN_LOG("r0 Key pressed"); });
-		r0.Add<callback::KeyUp>([](auto key) { PTGN_LOG("r0 Key up"); });
-		r0.Add<callback::MouseDown>([](auto mouse) { PTGN_LOG("r0 Mouse down: ", mouse); });
-		r0.Add<callback::MouseDownOutside>([](auto mouse) {
-			PTGN_LOG("r0 Mouse down outside: ", mouse);
-		});
-		r0.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("r0 Mouse move: ", mouse);*/ });
-		r0.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("r0 Mouse leave: ", mouse); });
-		r0.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("r0 Mouse enter: ", mouse); });
-		r0.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("r0 Mouse out: ", mouse);*/ });
-		r0.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("r0 Mouse over: ", mouse); });
-		r0.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("r0 Mouse pressed: ", mouse); });
-		r0.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("r0 Mouse scroll: ", mouse); });
-		r0.Add<callback::MouseUp>([](auto mouse) { PTGN_LOG("r0 Mouse up: ", mouse); });
-		r0.Add<callback::MouseUpOutside>([](auto mouse) {
-			PTGN_LOG("r0 Mouse up outside: ", mouse);
-		});
+		r0.AddScript<ScriptR0>();
 
 		auto r1 = manager.CreateEntity();
 		V2_float r1size{ r1.Add<Rect>(V2_float{ 100, 50 }).size };
@@ -183,24 +482,7 @@ struct InteractiveScene : public Scene {
 		r1.Add<Visible>();
 		r1.Add<Interactive>();
 		r1.Add<Enabled>();
-		r1.Add<callback::KeyDown>([](auto key) { PTGN_LOG("r1 Key down"); });
-		r1.Add<callback::KeyPressed>([](auto key) { PTGN_LOG("r1 Key pressed"); });
-		r1.Add<callback::KeyUp>([](auto key) { PTGN_LOG("r1 Key up"); });
-		r1.Add<callback::MouseDown>([](auto mouse) { PTGN_LOG("r1 Mouse down: ", mouse); });
-		r1.Add<callback::MouseDownOutside>([](auto mouse) {
-			PTGN_LOG("r1 Mouse down outside: ", mouse);
-		});
-		r1.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("r1 Mouse move: ", mouse);*/ });
-		r1.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("r1 Mouse leave: ", mouse); });
-		r1.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("r1 Mouse enter: ", mouse); });
-		r1.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("r1 Mouse out: ", mouse);*/ });
-		r1.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("r1 Mouse over: ", mouse); });
-		r1.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("r1 Mouse pressed: ", mouse); });
-		r1.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("r1 Mouse scroll: ", mouse); });
-		r1.Add<callback::MouseUp>([](auto mouse) { PTGN_LOG("r1 Mouse up: ", mouse); });
-		r1.Add<callback::MouseUpOutside>([](auto mouse) {
-			PTGN_LOG("r1 Mouse up outside: ", mouse);
-		});
+		r1.AddScript<ScriptR1>();
 
 		game.texture.Load("box", "resources/box.png");
 
@@ -209,24 +491,7 @@ struct InteractiveScene : public Scene {
 		r2.Add<Origin>(Origin::Center);
 		r2.Add<Interactive>();
 		r2.Add<Enabled>();
-		r2.Add<callback::KeyDown>([](auto key) { PTGN_LOG("r2 Key down"); });
-		r2.Add<callback::KeyPressed>([](auto key) { PTGN_LOG("r2 Key pressed"); });
-		r2.Add<callback::KeyUp>([](auto key) { PTGN_LOG("r2 Key up"); });
-		r2.Add<callback::MouseDown>([](auto mouse) { PTGN_LOG("r2 Mouse down: ", mouse); });
-		r2.Add<callback::MouseDownOutside>([](auto mouse) {
-			PTGN_LOG("r2 Mouse down outside: ", mouse);
-		});
-		r2.Add<callback::MouseMove>([](auto mouse) { /*PTGN_LOG("r2 Mouse move: ", mouse);*/ });
-		r2.Add<callback::MouseLeave>([](auto mouse) { PTGN_LOG("r2 Mouse leave: ", mouse); });
-		r2.Add<callback::MouseEnter>([](auto mouse) { PTGN_LOG("r2 Mouse enter: ", mouse); });
-		r2.Add<callback::MouseOut>([](auto mouse) { /*PTGN_LOG("r2 Mouse out: ", mouse);*/ });
-		r2.Add<callback::MouseOver>([](auto mouse) { PTGN_LOG("r2 Mouse over: ", mouse); });
-		r2.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("r2 Mouse pressed: ", mouse); });
-		r2.Add<callback::MouseScroll>([](auto mouse) { PTGN_LOG("r2 Mouse scroll: ", mouse); });
-		r2.Add<callback::MouseUp>([](auto mouse) { PTGN_LOG("r2 Mouse up: ", mouse); });
-		r2.Add<callback::MouseUpOutside>([](auto mouse) {
-			PTGN_LOG("r2 Mouse up outside: ", mouse);
-		});
+		r2.AddScript<ScriptR2>();
 
 		game.texture.Load("drag", "resources/drag.png");
 		game.texture.Load("drag_circle", "resources/drag_circle.png");
@@ -237,16 +502,7 @@ struct InteractiveScene : public Scene {
 		r3.Add<Interactive>();
 		r3.Add<Enabled>();
 		r3.Add<Draggable>();
-		r3.Add<callback::Drag>([=](auto mouse) mutable {
-			PTGN_LOG("r3 Drag: ", mouse);
-			r3.Get<Transform>().position = mouse + r3.Get<Draggable>().offset;
-		});
-		r3.Add<callback::DragEnter>([](auto mouse) { PTGN_LOG("r3 Drag enter: ", mouse); });
-		r3.Add<callback::DragLeave>([](auto mouse) { PTGN_LOG("r3 Drag leave: ", mouse); });
-		r3.Add<callback::DragOut>([](auto mouse) { PTGN_LOG("r3 Drag out: ", mouse); });
-		r3.Add<callback::DragOver>([](auto mouse) { PTGN_LOG("r3 Drag over: ", mouse); });
-		r3.Add<callback::DragStart>([](auto mouse) { PTGN_LOG("r3 Drag start: ", mouse); });
-		r3.Add<callback::DragStop>([](auto mouse) { PTGN_LOG("r3 Drag stop: ", mouse); });
+		r3.AddScript<ScriptR3>();
 
 		auto c3 = CreateSprite(manager, "drag_circle");
 		c3.Add<Transform>(center + V2_float{ 0, 0 });
@@ -255,16 +511,7 @@ struct InteractiveScene : public Scene {
 		c3.Add<Interactive>();
 		c3.Add<Enabled>();
 		c3.Add<Draggable>();
-		c3.Add<callback::Drag>([=](auto mouse) mutable {
-			PTGN_LOG("c3 Drag: ", mouse);
-			c3.Get<Transform>().position = mouse + c3.Get<Draggable>().offset;
-		});
-		c3.Add<callback::DragEnter>([](auto mouse) { PTGN_LOG("c3 Drag enter: ", mouse); });
-		c3.Add<callback::DragLeave>([](auto mouse) { PTGN_LOG("c3 Drag leave: ", mouse); });
-		c3.Add<callback::DragOut>([](auto mouse) { PTGN_LOG("c3 Drag out: ", mouse); });
-		c3.Add<callback::DragOver>([](auto mouse) { PTGN_LOG("c3 Drag over: ", mouse); });
-		c3.Add<callback::DragStart>([](auto mouse) { PTGN_LOG("c3 Drag start: ", mouse); });
-		c3.Add<callback::DragStop>([](auto mouse) { PTGN_LOG("c3 Drag stop: ", mouse); });
+		c3.AddScript<ScriptC3>();
 	}
 };
 

@@ -3,7 +3,6 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "common/function.h"
 #include "common/type_info.h"
 #include "components/common.h"
 #include "components/drawable.h"
@@ -512,53 +511,67 @@ public:
 	// virtual void OnFixedUpdate([[maybe_unused]] float fixed_dt) {} // Called at fixed intervals
 	// (physics).
 
-	// TODO: Implement.
-	// Input.
-	virtual void OnKeyPressed([[maybe_unused]] Key key) {}
+	// Keyboard events.
 
-	virtual void OnKeyReleased([[maybe_unused]] Key key) {}
+	virtual void OnKeyDown([[maybe_unused]] Key key) { /* user implementation */ }
 
-	virtual void OnMousePressed([[maybe_unused]] Mouse button) {}
+	virtual void OnKeyPressed([[maybe_unused]] Key key) { /* user implementation */ }
 
-	// TODO: Implement.
-	virtual void OnMouseReleased([[maybe_unused]] Mouse button) {}
+	virtual void OnKeyUp([[maybe_unused]] Key key) { /* user implementation */ }
 
-	// TODO: Implement.
-	virtual void OnMouseMove([[maybe_unused]] V2_int mouse_pos) {}
+	// Mouse events.
 
-	// TODO: Implement.
-	virtual void OnMouseScroll([[maybe_unused]] V2_int scroll_amount) {}
+	virtual void OnMouseDown([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	// TODO: Implement.
-	// Collision / Physics.
-	virtual void OnCollisionEnter([[maybe_unused]] Entity other) {}
+	virtual void OnMouseDownOutside([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnCollisionStay([[maybe_unused]] Entity other) {}
+	virtual void OnMouseMove([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
 
-	virtual void OnCollisionExit([[maybe_unused]] Entity other) {}
+	virtual void OnMouseEnter([[maybe_unused]] V2_float mouse_position) { /* user implementation */
+	}
 
-	// TODO: Implement.
-	virtual void OnTriggerEnter([[maybe_unused]] Entity other) {}
+	virtual void OnMouseLeave([[maybe_unused]] V2_float mouse_position) { /* user implementation */
+	}
 
-	virtual void OnTriggerStay([[maybe_unused]] Entity other) {}
+	virtual void OnMouseOut([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
 
-	virtual void OnTriggerExit([[maybe_unused]] Entity other) {}
+	virtual void OnMouseOver([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
 
-	// TODO: Implement.
-	// Animation.
-	virtual void OnAnimationStart() {}
+	virtual void OnMouseUp([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnAnimationEnd() {}
+	virtual void OnMouseUpOutside([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnAnimationRepeat([[maybe_unused]] int repeat) {}
+	virtual void OnMousePressed([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	// TODO: Implement.
-	// UI / Interaction.
-	virtual void OnClick() {}
+	// Scroll amount in each direction.
+	virtual void OnMouseScroll([[maybe_unused]] V2_int scroll_amount) { /* user implementation */ }
 
-	virtual void OnHoverEnter() {}
+	// Draggable events.
 
-	virtual void OnHoverExit() {}
+	virtual void OnDragStart([[maybe_unused]] V2_float start_position) { /* user implementation */ }
+
+	virtual void OnDragStop([[maybe_unused]] V2_float stop_position) { /* user implementation */ }
+
+	virtual void OnDrag([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+
+	virtual void OnDragEnter([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+
+	virtual void OnDragLeave([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+
+	virtual void OnDragOver([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+
+	virtual void OnDragOut([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+
+	// TODO: Consider adding OnDrop event(s).
+
+	// TODO: Add OnMovement events.
+	// TODO: Add OnCollision events.
+
+	virtual void OnButtonHoverStart() { /* user implementation */ }
+
+	virtual void OnButtonHoverStop() { /* user implementation */ }
+
+	virtual void OnButtonActivate() { /* user implementation */ }
 
 	// Serialization (do not override these, as this is handled automatically by the
 	// ScriptRegistry).
@@ -573,11 +586,14 @@ using Scripts = impl::ScriptContainer<impl::IScript>;
 template <typename T>
 using Script = impl::Script<T, impl::IScript>;
 
-template <typename TCallback, typename... TArgs>
-static void Invoke(const Entity& e, TArgs&&... args) {
-	if (e.Has<TCallback>()) {
-		const auto& callback{ e.Get<TCallback>() };
-		Invoke(callback, std::forward<TArgs>(args)...);
+template <auto TCallback, typename... TArgs>
+static void InvokeScript(const Entity& entity, TArgs&&... args) {
+	if (entity.Has<Scripts>()) {
+		const auto& scripts{ entity.Get<Scripts>().scripts };
+		for (const auto& [key, script] : scripts) {
+			PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
+			std::invoke(TCallback, script, std::forward<TArgs>(args)...);
+		}
 	}
 }
 

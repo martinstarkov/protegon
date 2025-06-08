@@ -19,16 +19,33 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
 
+class AudioScript : public Script<AudioScript> {
+public:
+	AudioScript() = default;
+
+	AudioScript(const std::function<void()>& on_activate_callback) :
+		on_activate{ on_activate_callback } {}
+
+	void OnButtonActivate() override {
+		if (on_activate) {
+			std::invoke(on_activate);
+		}
+	}
+
+	std::function<void()> on_activate;
+};
+
 Button CreateAudioButton(
-	Manager& manager, const TextContent& content, const ButtonCallback& on_activate,
+	Manager& manager, const TextContent& content, const std::function<void()>& on_activate,
 	const Color& bg_color = color::LightGray
 ) {
-	Button b{ CreateTextButton(manager, content, color::Black, on_activate) };
+	Button b{ CreateTextButton(manager, content, color::Black) };
 	b.SetBackgroundColor(bg_color);
 	b.SetBackgroundColor(color::Gray, ButtonState::Hover);
 	b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 	b.SetBorderColor(color::LightGray);
 	b.SetBorderWidth(3.0f);
+	b.AddScript<AudioScript>(on_activate);
 	return b;
 }
 
@@ -68,11 +85,7 @@ public:
 		game.sound.SetVolume("sound1", starting_volume);
 		game.sound.SetVolume("sound2", starting_volume);
 
-		b1 = grid.Set(
-			{ 0, 0 }, CreateAudioButton(
-						  manager, "Music Volume: ", []() {}, music_color
-					  )
-		);
+		b1 = grid.Set({ 0, 0 }, CreateAudioButton(manager, "Music Volume: ", []() {}, music_color));
 		b2 = grid.Set(
 			{ 0, 1 }, CreateAudioButton(
 						  manager, "Music Is Playing: ", []() {}, music_color

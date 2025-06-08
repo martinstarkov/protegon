@@ -199,7 +199,14 @@ std::unordered_set<Entity> Entity::GetChildren() const {
 }
 
 Entity& Entity::SetEnabled(bool enabled) {
-	return AddOrRemove<Enabled>(enabled);
+	if (enabled) {
+		Add<Enabled>(enabled);
+		InvokeScript<&impl::IScript::OnEnable>(*this);
+	} else {
+		InvokeScript<&impl::IScript::OnDisable>(*this);
+		Remove<Enabled>();
+	}
+	return *this;
 }
 
 Entity& Entity::Disable() {
@@ -302,7 +309,13 @@ Origin Entity::GetOrigin() const {
 }
 
 Entity& Entity::SetVisible(bool visible) {
-	AddOrRemove<Visible>(visible);
+	if (visible) {
+		Add<Visible>(visible);
+		InvokeScript<&impl::IScript::OnShow>(*this);
+	} else {
+		InvokeScript<&impl::IScript::OnHide>(*this);
+		Remove<Visible>();
+	}
 	return *this;
 }
 

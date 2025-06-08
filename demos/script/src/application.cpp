@@ -65,8 +65,8 @@ struct ScriptScene : public Scene {
 		// entity.AddScript<PlayerController>();
 
 		// TODO: Make on stop get 1.0 completion and on start get 0.0.
-		// entity.AddTimerScript<TimedScript>(seconds{ 3 });
-		entity.AddTimerScript<TimedScript>(seconds{ 0 });
+		entity.AddTimerScript<TimedScript>(seconds{ 3 });
+		// entity.AddTimerScript<TimedScript>(seconds{ 0 });
 
 		// Errors:
 		// entity.AddTimerScript<TimedScript>(seconds{ -3 });

@@ -5,7 +5,6 @@
 #include <string_view>
 #include <type_traits>
 
-#include "common/function.h"
 #include "common/type_traits.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
@@ -114,33 +113,6 @@ struct StringComponent {
 
 protected:
 	std::string value_;
-};
-
-// TODO: Get rid of this in favor of scripts.
-template <typename... TArgs>
-struct CallbackComponent {
-	CallbackComponent() = default;
-
-	CallbackComponent(const std::function<void(TArgs...)>& callback) : callback_{ callback } {}
-
-	void operator()(TArgs... args) const {
-		Invoke(callback_, args...);
-	}
-
-	bool operator==(std::nullptr_t) const {
-		return callback_ == nullptr;
-	}
-
-	bool operator!=(std::nullptr_t) const {
-		return callback_ != nullptr;
-	}
-
-	operator std::function<void(TArgs...)>() const {
-		return callback_;
-	}
-
-protected:
-	std::function<void(TArgs...)> callback_{};
 };
 
 } // namespace ptgn

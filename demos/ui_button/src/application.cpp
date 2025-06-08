@@ -13,13 +13,26 @@
 
 using namespace ptgn;
 
+struct ButtonScript1 : public Script<ButtonScript1> {
+	void OnButtonActivate() override {
+		PTGN_LOG("Clicked regular button");
+	}
+};
+
+struct ToggleButtonScript1 : public Script<ToggleButtonScript1> {
+	void OnButtonActivate() override {
+		PTGN_LOG("Toggled button");
+	}
+};
+
 class ButtonScene : public Scene {
 public:
 	Button b1;
 	ToggleButton b2;
 
 	void Enter() override {
-		b1 = CreateButton(manager, []() { PTGN_LOG("Clicked regular button"); });
+		b1 = CreateButton(manager);
+		b1.AddScript<ButtonScript1>();
 		b1.SetPosition(V2_float{ 50, 50 });
 		b1.SetSize({ 200, 100 });
 		b1.SetOrigin(Origin::TopLeft);
@@ -27,7 +40,8 @@ public:
 		b1.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b1.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
 
-		b2 = CreateToggleButton(manager, false, []() { PTGN_LOG("Toggled button"); });
+		b2 = CreateToggleButton(manager, false);
+		b2.AddScript<ToggleButtonScript1>();
 		b2.SetPosition(V2_float{ 50, 300 });
 		b2.SetSize({ 200, 100 });
 		b2.SetOrigin(Origin::TopLeft);

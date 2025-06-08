@@ -3,7 +3,6 @@
 #include <functional>
 
 #include "common/assert.h"
-#include "common/function.h"
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
@@ -281,11 +280,6 @@ void SceneInput::UpdateCurrent(Scene* scene) {
 }
 
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
-	if (triggered_callbacks_) {
-		return;
-	} else {
-		triggered_callbacks_ = true;
-	}
 	// TODO: Figure out a smart way to cache the scene.
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	auto mouse_pos{ game.input.GetMousePositionUnclamped() };
@@ -299,37 +293,43 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	}
 	switch (type) {
 		case MouseEvent::Move: {
+			// Prevent mouse move event from triggering twice per frame.
+			if (triggered_callbacks_) {
+				return;
+			} else {
+				triggered_callbacks_ = true;
+			}
 			for (auto [entity, enabled, interactive] :
 				 scene.manager.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					continue;
 				}
 				GetMousePosAndCamera(entity, mouse_pos, scene.camera.primary, pos, camera);
-				Invoke<callback::MouseMove>(entity, pos);
+				InvokeScript<&impl::IScript::OnMouseMove>(entity, pos);
 				bool entered{ interactive.is_inside && !interactive.was_inside };
 				bool exited{ !interactive.is_inside && interactive.was_inside };
 				if (entered) {
-					Invoke<callback::MouseEnter>(entity, pos);
+					InvokeScript<&impl::IScript::OnMouseEnter>(entity, pos);
 				}
 				if (exited) {
-					Invoke<callback::MouseLeave>(entity, pos);
+					InvokeScript<&impl::IScript::OnMouseLeave>(entity, pos);
 				}
 				if (interactive.is_inside) {
-					Invoke<callback::MouseOver>(entity, pos);
+					InvokeScript<&impl::IScript::OnMouseOver>(entity, pos);
 				} else {
-					Invoke<callback::MouseOut>(entity, pos);
+					InvokeScript<&impl::IScript::OnMouseOut>(entity, pos);
 				}
 				if (entity.Has<Draggable>() && entity.Get<Draggable>().dragging) {
-					Invoke<callback::Drag>(entity, pos);
+					InvokeScript<&impl::IScript::OnDrag>(entity, pos);
 					if (interactive.is_inside) {
-						Invoke<callback::DragOver>(entity, pos);
+						InvokeScript<&impl::IScript::OnDragOver>(entity, pos);
 						if (!interactive.was_inside) {
-							Invoke<callback::DragEnter>(entity, pos);
+							InvokeScript<&impl::IScript::OnDragEnter>(entity, pos);
 						}
 					} else {
-						Invoke<callback::DragOut>(entity, pos);
+						InvokeScript<&impl::IScript::OnDragOut>(entity, pos);
 						if (interactive.was_inside) {
-							Invoke<callback::DragLeave>(entity, pos);
+							InvokeScript<&impl::IScript::OnDragLeave>(entity, pos);
 						}
 					}
 				}
@@ -344,7 +344,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					Invoke<callback::MouseDown>(entity, mouse);
+					InvokeScript<&impl::IScript::OnMouseDown>(entity, mouse);
 					if (entity.Has<Draggable>()) {
 						if (auto& draggable{ entity.Get<Draggable>() }; !draggable.dragging) {
 							GetMousePosAndCamera(
@@ -353,11 +353,11 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 							draggable.dragging = true;
 							draggable.start	   = pos;
 							draggable.offset   = entity.GetPosition() - draggable.start;
-							Invoke<callback::DragStart>(entity, pos);
+							InvokeScript<&impl::IScript::OnDragStart>(entity, pos);
 						}
 					}
 				} else {
-					Invoke<callback::MouseDownOutside>(entity, mouse);
+					InvokeScript<&impl::IScript::OnMouseDownOutside>(entity, mouse);
 				}
 			}
 			break;
@@ -370,16 +370,16 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					Invoke<callback::MouseUp>(entity, mouse);
+					InvokeScript<&impl::IScript::OnMouseUp>(entity, mouse);
 				} else {
-					Invoke<callback::MouseUpOutside>(entity, mouse);
+					InvokeScript<&impl::IScript::OnMouseUpOutside>(entity, mouse);
 				}
 				if (entity.Has<Draggable>()) {
 					if (auto& draggable{ entity.Get<Draggable>() }; draggable.dragging) {
 						GetMousePosAndCamera(entity, mouse_pos, scene.camera.primary, pos, camera);
 						draggable.dragging = false;
 						draggable.offset   = {};
-						Invoke<callback::DragStop>(entity, pos);
+						InvokeScript<&impl::IScript::OnDragStop>(entity, pos);
 					}
 				}
 			}
@@ -387,26 +387,26 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Pressed: {
 			Mouse mouse{ static_cast<const MousePressedEvent&>(event).mouse };
-			for (const auto& [entity, enabled, interactive, callback] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, callback::MousePressed>()) {
+			for (const auto& [entity, enabled, interactive, scripts] :
+				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					Invoke(callback, mouse);
+					InvokeScript<&impl::IScript::OnMousePressed>(entity, mouse);
 				}
 			}
 			break;
 		}
 		case MouseEvent::Scroll: {
 			V2_int scroll{ static_cast<const MouseScrollEvent&>(event).scroll };
-			for (auto [entity, enabled, interactive, callback] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, callback::MouseScroll>()) {
+			for (auto [entity, enabled, interactive, scripts] :
+				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					Invoke(callback, scroll);
+					InvokeScript<&impl::IScript::OnMouseScroll>(entity, scroll);
 				}
 			}
 			break;
@@ -420,34 +420,34 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 	switch (type) {
 		case KeyEvent::Down: {
 			Key key{ static_cast<const KeyDownEvent&>(event).key };
-			for (auto [entity, enabled, interactive, callback] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, callback::KeyDown>()) {
+			for (auto [entity, enabled, interactive, scripts] :
+				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
-				Invoke(callback, key);
+				InvokeScript<&impl::IScript::OnKeyDown>(entity, key);
 			}
 			break;
 		}
 		case KeyEvent::Up: {
 			Key key{ static_cast<const KeyUpEvent&>(event).key };
-			for (auto [entity, enabled, interactive, callback] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, callback::KeyUp>()) {
+			for (auto [entity, enabled, interactive, scripts] :
+				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
-				Invoke(callback, key);
+				InvokeScript<&impl::IScript::OnKeyUp>(entity, key);
 			}
 			break;
 		}
 		case KeyEvent::Pressed: {
 			Key key{ static_cast<const KeyPressedEvent&>(event).key };
-			for (auto [entity, enabled, interactive, callback] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, callback::KeyPressed>()) {
+			for (auto [entity, enabled, interactive, scripts] :
+				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
-				Invoke(callback, key);
+				InvokeScript<&impl::IScript::OnKeyPressed>(entity, key);
 			}
 			break;
 		}
