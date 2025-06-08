@@ -121,6 +121,7 @@ void Scene::PostUpdate() {
 	// TODO: Move to a separate file.
 	for (auto [entity, scripts] : manager.EntitiesWith<Scripts>()) {
 		for (const auto& [key, script] : scripts.scripts) {
+			PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
 			script->OnUpdate(dt);
 		}
 	}
@@ -143,6 +144,8 @@ void Scene::PostUpdate() {
 				script_it != scripts.scripts.end(),
 				"Each script timer must have an associated script"
 			);
+
+			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
 
 			auto& script{ *script_it->second };
 
@@ -182,6 +185,8 @@ void Scene::PostUpdate() {
 				script_it != scripts.scripts.end(),
 				"Each repeating script info must have an associated script"
 			);
+
+			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
 
 			auto& script{ *script_it->second };
 
