@@ -93,9 +93,9 @@ inline void PrintPreciseLine() {
 
 } // namespace ptgn
 
-#define PTGN_LOG(...) ptgn::PrintLine(__VA_ARGS__);
+#define PTGN_LOG(...) ptgn::PrintLine(__VA_ARGS__)
 #define PTGN_LOG_PRECISE(precision, scientific, ...) \
-	ptgn::PrintPreciseLine(precision, scientific, __VA_ARGS__);
+	ptgn::PrintPreciseLine(precision, scientific, __VA_ARGS__)
 #define PTGN_INFO(...)                \
 	{                                 \
 		ptgn::Print("INFO: ");        \
