@@ -474,21 +474,21 @@ public:
 	virtual ~IScript() = default;
 
 	// Lifecycle.
+
 	virtual void OnCreate() {}	// Called when script is first instantiated.
 
 	virtual void OnDestroy() {} // Called before script is destroyed.
 
-	// TODO: Implement.
 	virtual void OnEnable() {}	// Called when entity is enabled.
 
 	virtual void OnDisable() {} // Called when entity is disabled.
 
-	// TODO: Implement.
-	virtual void OnShow() {} // Called when entity is shown.
+	virtual void OnShow() {}	// Called when entity is shown.
 
-	virtual void OnHide() {} // Called when entity is hidden.
+	virtual void OnHide() {}	// Called when entity is hidden.
 
 	// Timed script triggers.
+
 	virtual void OnTimerStart() {}
 
 	virtual void OnTimerUpdate([[maybe_unused]] float elapsed_fraction) {}
@@ -496,18 +496,17 @@ public:
 	virtual void OnTimerStop() {}
 
 	// Repeated script triggers.
+
 	virtual void OnRepeatStart() {}
 
 	// @param repeat starts from 0.
 	virtual void OnRepeatUpdate([[maybe_unused]] int repeat) {}
 
-	// TODO: Implement.
 	virtual void OnRepeatStop() {}
 
-	// Update.
 	virtual void OnUpdate([[maybe_unused]] float dt) {} // Called every frame.
 
-	// TODO: Implement?
+	// TODO: Consider implementing?
 	// virtual void OnFixedUpdate([[maybe_unused]] float fixed_dt) {} // Called at fixed intervals
 	// (physics).
 
