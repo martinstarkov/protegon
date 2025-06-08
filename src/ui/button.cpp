@@ -1,15 +1,12 @@
 #include "ui/button.h"
 
 #include <cstdint>
-#include <functional>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "common/assert.h"
-#include "common/function.h"
-#include "components/generic.h"
+#include "components/draw.h"
 #include "components/input.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -18,136 +15,138 @@
 #include "debug/log.h"
 #include "events/mouse.h"
 #include "math/geometry.h"
+#include "math/hash.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
+#include "rendering/resources/font.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 
 namespace ptgn {
 
-Button CreateButton(Manager& manager, const ButtonCallback& on_activate) {
+Button CreateButton(Manager& manager) {
 	Button button{ manager.CreateEntity() };
 
-	impl::SetupButton(button);
-	impl::SetupButtonCallbacks(button, nullptr);
-
-	if (on_activate) {
-		button.OnActivate(on_activate);
-	}
-
-	return button;
-}
-
-Button CreateTextButton(
-	Manager& manager, const TextContent& text_content, const TextColor& text_color,
-	const ButtonCallback& on_activate
-) {
-	Button text_button{ CreateButton(manager, on_activate) };
-
-	text_button.SetText(text_content, text_color);
-
-	return text_button;
-}
-
-ToggleButton CreateToggleButton(Manager& manager, bool toggled, const ButtonCallback& on_activate) {
-	ToggleButton toggle_button{ manager.CreateEntity() };
-
-	impl::SetupButton(toggle_button);
-	impl::SetupButtonCallbacks(toggle_button, [e = toggle_button]() mutable { e.Toggle(); });
-	toggle_button.Add<impl::ButtonToggled>(toggled);
-
-	if (on_activate) {
-		toggle_button.OnActivate(on_activate);
-	}
-
-	return toggle_button;
-}
-
-namespace impl {
-
-void SetupButton(Button& button) {
 	button.Show();
 	button.Enable();
 	button.SetDraw<Button>();
 
 	button.Add<Interactive>();
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
+
+	button.AddScript<impl::ButtonScript>();
+
+	return button;
 }
 
-void SetupButtonCallbacks(Button& button, const std::function<void()>& internal_on_activate) {
-	button.Add<callback::MouseEnter>([e = button]([[maybe_unused]] auto mouse) mutable {
-		const auto& state{ e.Get<impl::InternalButtonState>() };
-		if (state == impl::InternalButtonState::IdleUp) {
-			e.StateChange(impl::InternalButtonState::Hover);
-			e.StartHover();
-		} else if (state == impl::InternalButtonState::IdleDown) {
-			e.StateChange(impl::InternalButtonState::HoverPressed);
-			e.StartHover();
-		} else if (state == impl::InternalButtonState::HeldOutside) {
-			e.StateChange(impl::InternalButtonState::Pressed);
-		}
-	});
+Button CreateTextButton(
+	Manager& manager, const TextContent& text_content, const TextColor& text_color
+) {
+	Button text_button{ CreateButton(manager) };
 
-	button.Add<callback::MouseLeave>([e = button]([[maybe_unused]] auto mouse) mutable {
-		const auto& state{ e.Get<impl::InternalButtonState>() };
-		if (state == impl::InternalButtonState::Hover) {
-			e.StateChange(impl::InternalButtonState::IdleUp);
-			e.StopHover();
-		} else if (state == impl::InternalButtonState::Pressed) {
-			e.StateChange(impl::InternalButtonState::HeldOutside);
-			e.StopHover();
-		} else if (state == impl::InternalButtonState::HoverPressed) {
-			e.StateChange(impl::InternalButtonState::IdleDown);
-			e.StopHover();
-		}
-	});
+	text_button.SetText(text_content, text_color);
 
-	button.Add<callback::MouseDown>([e = button](auto mouse) mutable {
-		if (mouse == Mouse::Left) {
-			const auto& state{ e.Get<impl::InternalButtonState>() };
-			if (state == impl::InternalButtonState::Hover) {
-				e.StateChange(impl::InternalButtonState::Pressed);
-			}
-		}
-	});
+	return text_button;
+}
 
-	button.Add<callback::MouseDownOutside>([e = button](auto mouse) mutable {
-		if (mouse == Mouse::Left) {
-			const auto& state{ e.Get<impl::InternalButtonState>() };
-			if (state == impl::InternalButtonState::IdleUp) {
-				e.StateChange(impl::InternalButtonState::IdleDown);
-			}
-		}
-	});
+ToggleButton CreateToggleButton(Manager& manager, bool toggled) {
+	ToggleButton toggle_button{ CreateButton(manager) };
 
-	button.Add<callback::MouseUp>([internal_on_activate, e = button](auto mouse) mutable {
-		if (mouse == Mouse::Left) {
-			const auto& state{ e.Get<impl::InternalButtonState>() };
-			if (state == impl::InternalButtonState::Pressed) {
-				e.StateChange(impl::InternalButtonState::Hover);
-				Invoke(internal_on_activate);
-				e.Activate();
-			} else if (state == impl::InternalButtonState::HoverPressed) {
-				e.StateChange(impl::InternalButtonState::Hover);
-			}
-		}
-	});
+	toggle_button.AddScript<impl::ToggleButtonScript>();
+	toggle_button.Add<impl::ButtonToggled>(toggled);
 
-	button.Add<callback::MouseUpOutside>([e = button](auto mouse) mutable {
-		if (mouse == Mouse::Left) {
-			const auto& state{ e.Get<impl::InternalButtonState>() };
-			if (state == impl::InternalButtonState::IdleDown) {
-				e.StateChange(impl::InternalButtonState::IdleUp);
-			} else if (state == impl::InternalButtonState::HeldOutside) {
-				e.StateChange(impl::InternalButtonState::IdleUp);
-			}
+	return toggle_button;
+}
+
+namespace impl {
+
+void ButtonScript::OnMouseEnter(V2_float mouse) {
+	auto& state{ entity.Get<InternalButtonState>() };
+	Button button{ entity };
+	if (state == InternalButtonState::IdleUp) {
+		state = InternalButtonState::Hover;
+		button.StartHover();
+	} else if (state == InternalButtonState::IdleDown) {
+		state = InternalButtonState::HoverPressed;
+		button.StartHover();
+	} else if (state == InternalButtonState::HeldOutside) {
+		state = InternalButtonState::Pressed;
+	}
+}
+
+void ButtonScript::OnMouseLeave(V2_float mouse) {
+	auto& state{ entity.Get<InternalButtonState>() };
+	Button button{ entity };
+	if (state == InternalButtonState::Hover) {
+		state = InternalButtonState::IdleUp;
+		button.StopHover();
+	} else if (state == InternalButtonState::Pressed) {
+		state = InternalButtonState::HeldOutside;
+		button.StopHover();
+	} else if (state == InternalButtonState::HoverPressed) {
+		state = InternalButtonState::IdleDown;
+		button.StopHover();
+	}
+}
+
+void ButtonScript::OnMouseDown(Mouse mouse) {
+	if (mouse == Mouse::Left) {
+		auto& state{ entity.Get<InternalButtonState>() };
+		if (state == InternalButtonState::Hover) {
+			state = InternalButtonState::Pressed;
 		}
-	});
+	}
+}
+
+void ButtonScript::OnMouseDownOutside(Mouse mouse) {
+	if (mouse == Mouse::Left) {
+		auto& state{ entity.Get<InternalButtonState>() };
+		if (state == InternalButtonState::IdleUp) {
+			state = InternalButtonState::IdleDown;
+		}
+	}
+}
+
+void ButtonScript::OnMouseUp(Mouse mouse) {
+	if (mouse == Mouse::Left) {
+		auto& state{ entity.Get<InternalButtonState>() };
+		if (state == InternalButtonState::Pressed) {
+			state = InternalButtonState::Hover;
+			Button{ entity }.Activate();
+		} else if (state == InternalButtonState::HoverPressed) {
+			state = InternalButtonState::Hover;
+		}
+	}
+}
+
+void ButtonScript::OnMouseUpOutside(Mouse mouse) {
+	if (mouse == Mouse::Left) {
+		auto& state{ entity.Get<InternalButtonState>() };
+		if (state == InternalButtonState::IdleDown) {
+			state = InternalButtonState::IdleUp;
+		} else if (state == InternalButtonState::HeldOutside) {
+			state = InternalButtonState::IdleUp;
+		}
+	}
+}
+
+void ToggleButtonScript::OnButtonActivate() {
+	ToggleButton{ entity }.Toggle();
+}
+
+ToggleButtonGroupScript::ToggleButtonGroupScript(const ToggleButtonGroup& group) :
+	toggle_button_group{ group } {}
+
+void ToggleButtonGroupScript::OnButtonActivate() {
+	for (auto& [key, toggle_button] : toggle_button_group.buttons_) {
+		toggle_button.SetToggled(false);
+	}
+	ToggleButton{ entity }.SetToggled(true);
 }
 
 void ButtonColor::SetToState(ButtonState state) {
@@ -342,8 +341,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 		ctx.AddTexturedQuad(
 			impl::GetVertices(transform, size, origin),
-			Sprite{ entity }.GetTextureCoordinates(false), *button_texture, depth, camera, blend_mode,
-			final_tint_n, false
+			Sprite{ entity }.GetTextureCoordinates(false), *button_texture, depth, camera,
+			blend_mode, final_tint_n, false
 		);
 	} else {
 		impl::ButtonBackgroundWidth background_line_width;
@@ -405,8 +404,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 				r.Draw(border_color, border_width, i.render_layer_ + 2);
 			} else {*/
 			ctx.AddQuad(
-				transform.position, size, origin, border_width, depth, camera, blend_mode, border_color_n,
-				transform.rotation, false
+				transform.position, size, origin, border_width, depth, camera, blend_mode,
+				border_color_n, transform.rotation, false
 			);
 		}
 	}
@@ -458,8 +457,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		Camera* text_camera{ nullptr };
 		if (text->Has<Camera>()) {
 			text_camera = &text->Get<Camera>();
-		}
-		else {
+		} else {
 			text_camera = &camera;
 		}
 
@@ -468,8 +466,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		auto text_vertices{ impl::GetVertices(text_transform, text_display_size, text_origin) };
 
 		ctx.AddTexturedQuad(
-			text_vertices, text_coords, text_texture, text_depth, *text_camera, text_blend_mode, text_tint * tint,
-			false
+			text_vertices, text_coords, text_texture, text_depth, *text_camera, text_blend_mode,
+			text_tint * tint, false
 		);
 	}
 }
@@ -741,42 +739,6 @@ Button& Button::SetBorderWidth(float line_width) {
 	return *this;
 }
 
-Button& Button::OnHoverStart(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		Remove<impl::ButtonHoverStart>();
-	} else {
-		Add<impl::ButtonHoverStart>(callback);
-	}
-	return *this;
-}
-
-Button& Button::OnHoverStop(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		Remove<impl::ButtonHoverStop>();
-	} else {
-		Add<impl::ButtonHoverStop>(callback);
-	}
-	return *this;
-}
-
-Button& Button::OnActivate(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		Remove<impl::ButtonActivate>();
-	} else {
-		Add<impl::ButtonActivate>(callback);
-	}
-	return *this;
-}
-
-Button& Button::OnInternalActivate(const ButtonCallback& callback) {
-	if (callback == nullptr) {
-		Remove<impl::InternalButtonActivate>();
-	} else {
-		Add<impl::InternalButtonActivate>(callback);
-	}
-	return *this;
-}
-
 impl::InternalButtonState Button::GetInternalState() const {
 	return Get<impl::InternalButtonState>();
 }
@@ -787,50 +749,24 @@ ButtonState Button::GetState() const {
 	if (state == impl::InternalButtonState::Hover ||
 		state == impl::InternalButtonState::HoverPressed) {
 		return ButtonState::Hover;
-	} else if (state == impl::InternalButtonState::Pressed || state == impl::InternalButtonState::HeldOutside) {
+	} else if (state == impl::InternalButtonState::Pressed ||
+			   state == impl::InternalButtonState::HeldOutside) {
 		return ButtonState::Pressed;
 	} else {
 		return ButtonState::Default;
 	}
 }
 
-void Button::StateChange(impl::InternalButtonState new_state) {
-	Get<impl::InternalButtonState>() = new_state;
-}
-
 void Button::Activate() {
-	// TODO: Replace with Invoke<Component>(). And do the same for the button other callbacks.
-	if (Has<impl::InternalButtonActivate>()) {
-		if (const auto& callback{ Get<impl::InternalButtonActivate>() }; callback != nullptr) {
-			std::invoke(callback);
-		}
-	}
-	if (Has<impl::ButtonActivate>()) {
-		if (const auto& callback{ Get<impl::ButtonActivate>() }; callback != nullptr) {
-			std::invoke(callback);
-		}
-	}
+	InvokeScript<&impl::IScript::OnButtonActivate>(*this);
 }
 
 void Button::StartHover() {
-	if (Has<impl::ButtonHoverStart>()) {
-		if (const auto& callback{ Get<impl::ButtonHoverStart>() }; callback != nullptr) {
-			std::invoke(callback);
-		}
-	}
+	InvokeScript<&impl::IScript::OnButtonHoverStart>(*this);
 }
 
 void Button::StopHover() {
-	if (Has<impl::ButtonHoverStop>()) {
-		if (const auto& callback{ Get<impl::ButtonHoverStop>() }; callback != nullptr) {
-			std::invoke(callback);
-		}
-	}
-}
-
-void ToggleButton::Activate() {
-	Toggle();
-	Button::Activate();
+	InvokeScript<&impl::IScript::OnButtonHoverStop>(*this);
 }
 
 bool ToggleButton::IsToggled() const {
@@ -980,6 +916,14 @@ ToggleButton& ToggleButton::SetButtonTintToggled(const Color& color, ButtonState
 		c.Get(state) = color;
 	}
 	return *this;
+}
+
+void ToggleButtonGroup::Unload(std::string_view button_key) {
+	buttons_.erase(Hash(button_key));
+}
+
+void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {
+	target.AddScript<impl::ToggleButtonGroupScript>(*this);
 }
 
 } // namespace ptgn

@@ -1,22 +1,27 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
-#include <iosfwd>
+#include <list>
+#include <ostream>
 #include <string_view>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 
 #include "common/type_traits.h"
-#include "components/draw.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/manager.h"
-#include "core/resource_manager.h"
 #include "debug/log.h"
+#include "events/mouse.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
+#include "rendering/resources/font.h"
 #include "rendering/resources/text.h"
+#include "rendering/resources/texture.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -35,6 +40,7 @@ enum class ButtonState : std::uint8_t {
 namespace impl {
 
 class RenderData;
+class ToggleButtonGroupScript;
 
 enum class InternalButtonState {
 	IdleUp		 = 0,
@@ -45,24 +51,24 @@ enum class InternalButtonState {
 	HoverPressed = 5
 };
 
-void SetupButton(Button& button);
+class ButtonScript : public ptgn::Script<ButtonScript> {
+public:
+	void OnMouseEnter([[maybe_unused]] V2_float mouse) override;
 
-void SetupButtonCallbacks(Button& button, const std::function<void()>& internal_on_activate);
+	void OnMouseLeave([[maybe_unused]] V2_float mouse) override;
 
-struct ButtonHoverStart : public CallbackComponent<> {
-	using CallbackComponent::CallbackComponent;
+	void OnMouseDown(Mouse mouse) override;
+
+	void OnMouseDownOutside(Mouse mouse) override;
+
+	void OnMouseUp(Mouse mouse) override;
+
+	void OnMouseUpOutside(Mouse mouse) override;
 };
 
-struct ButtonHoverStop : public CallbackComponent<> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct ButtonActivate : public CallbackComponent<> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct InternalButtonActivate : public CallbackComponent<> {
-	using CallbackComponent::CallbackComponent;
+class ToggleButtonScript : public ptgn::Script<ToggleButtonScript> {
+public:
+	void OnButtonActivate() override;
 };
 
 struct ButtonToggled : public ArithmeticComponent<bool> {
@@ -201,8 +207,6 @@ struct ButtonRadius : public ArithmeticComponent<float> {
 
 } // namespace impl
 
-using ButtonCallback = std::function<void()>;
-
 class Button : public Entity, public Drawable<Button> {
 public:
 	Button() = default;
@@ -222,9 +226,9 @@ public:
 	Button& SetRadius(float radius = 0.0f);
 
 	// These allow for manually triggering button callback events.
-	virtual void Activate();
-	virtual void StartHover();
-	virtual void StopHover();
+	void Activate();
+	void StartHover();
+	void StopHover();
 
 	[[nodiscard]] ButtonState GetState() const;
 
@@ -232,9 +236,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -296,31 +299,13 @@ public:
 
 	Button& SetBorderWidth(float line_width);
 
-	Button& OnHoverStart(const ButtonCallback& callback);
-	Button& OnHoverStop(const ButtonCallback& callback);
-	Button& OnActivate(const ButtonCallback& callback);
-
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
-
-private:
-	friend class impl::RenderData;
-	friend class ToggleButton;
-	friend class ToggleButtonGroup;
-	friend void impl::SetupButtonCallbacks(
-		Button& button, const std::function<void()>& internal_on_activate
-	);
-
-	Button& OnInternalActivate(const ButtonCallback& callback);
-
-	void StateChange(impl::InternalButtonState new_state);
 };
 
 class ToggleButton : public Button {
 public:
 	ToggleButton() = default;
 	using Button::Button;
-
-	void Activate() final;
 
 	[[nodiscard]] bool IsToggled() const;
 
@@ -354,9 +339,8 @@ public:
 		const TextColor& text_color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
+		const;
 
 	ToggleButton& SetTextContentToggled(
 		const TextContent& content, ButtonState state = ButtonState::Default
@@ -377,36 +361,58 @@ public:
 	);
 };
 
-class ToggleButtonGroup : public MapManager<ToggleButton, std::string_view, std::string, false> {
+class ToggleButtonGroup : public Entity {
 public:
-	ToggleButtonGroup()										   = default;
-	~ToggleButtonGroup() override							   = default;
-	ToggleButtonGroup(ToggleButtonGroup&&) noexcept			   = default;
-	ToggleButtonGroup& operator=(ToggleButtonGroup&&) noexcept = default;
-	ToggleButtonGroup(const ToggleButtonGroup&)				   = delete;
-	ToggleButtonGroup& operator=(const ToggleButtonGroup&)	   = delete;
+	template <typename... TArgs, tt::constructible<ToggleButton, TArgs...> = true>
+	ToggleButton& Load(std::string_view button_key, TArgs&&... constructor_args) {
+		static_assert(
+			std::is_constructible_v<ToggleButton, TArgs...>,
+			"Toggle button must be constructible from provided constructor arguments"
+		);
 
-	template <typename TKey, typename... TArgs, tt::constructible<ToggleButton, TArgs...> = true>
-	ToggleButton& Load(const TKey& key, TArgs&&... constructor_args) {
-		auto k{ GetInternalKey(key) };
-		ToggleButton& button{
-			MapManager::Load(key, ToggleButton{ std::forward<TArgs>(constructor_args)... })
-		};
-		// Toggle all other buttons when one is pressed.
-		button.OnInternalActivate([this, e = button]() mutable {
-			ForEachValue([](ToggleButton& b) { b.SetToggled(false); });
-			e.SetToggled(true);
-		});
-		return button;
+		auto [it, inserted] = buttons_.try_emplace(
+			Hash(button_key), ToggleButton{ std::forward<TArgs>(constructor_args)... }
+		);
+
+		if (inserted) {
+			AddToggleScript(it->second);
+		}
+
+		return it->second;
 	}
+
+	void Unload(std::string_view button_key);
+
+	// TODO: Add more utility functions.
+
+private:
+	friend class impl::ToggleButtonGroupScript;
+
+	void AddToggleScript(ToggleButton& target);
+
+	std::unordered_map<std::size_t, ToggleButton> buttons_;
 };
+
+namespace impl {
+
+class ToggleButtonGroupScript : public ptgn::Script<ToggleButtonGroupScript> {
+public:
+	ToggleButtonGroupScript() = default;
+	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
+
+	void OnButtonActivate() override;
+
+	ToggleButtonGroup toggle_button_group;
+};
+
+} // namespace impl
 
 inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 	switch (state) {
 		case ButtonState::Default: os << "Default"; break;
 		case ButtonState::Hover:   os << "Hover"; break;
 		case ButtonState::Pressed: os << "Pressed"; break;
-		default:				   PTGN_ERROR("Invalid button state");
+		default:				   PTGN_ERROR("Invalid button state")
 	}
 	return os;
 }
@@ -419,21 +425,18 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 		case impl::InternalButtonState::HoverPressed: os << "Hover Pressed"; break;
 		case impl::InternalButtonState::Pressed:	  os << "Pressed"; break;
 		case impl::InternalButtonState::HeldOutside:  os << "Held Outside"; break;
-		default:									  PTGN_ERROR("Invalid internal button state");
+		default:									  PTGN_ERROR("Invalid internal button state")
 	}
 	return os;
 }
 
-[[nodiscard]] Button CreateButton(Manager& manager, const ButtonCallback& on_activate = {});
+[[nodiscard]] Button CreateButton(Manager& manager);
 
 [[nodiscard]] Button CreateTextButton(
-	Manager& manager, const TextContent& text_content, const TextColor& text_color = color::Black,
-	const ButtonCallback& on_activate = {}
+	Manager& manager, const TextContent& text_content, const TextColor& text_color = color::Black
 );
 
 // @param toggled Whether or not the button start in the toggled state.
-[[nodiscard]] ToggleButton CreateToggleButton(
-	Manager& manager, bool toggled = false, const ButtonCallback& on_activate = {}
-);
+[[nodiscard]] ToggleButton CreateToggleButton(Manager& manager, bool toggled = false);
 
 } // namespace ptgn
