@@ -1,7 +1,10 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/script.h"
+#include "core/time.h"
 #include "debug/log.h"
+#include "events/input_handler.h"
+#include "events/key.h"
 #include "math/vector2.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -38,7 +41,7 @@ public:
 	}
 };
 
-class RepeatedScript : public Script<TimedScript> {
+class RepeatedScript : public Script<RepeatedScript> {
 public:
 	void OnRepeatStart() override {
 		PTGN_LOG("Repeated script started");
@@ -61,8 +64,32 @@ struct ScriptScene : public Scene {
 
 		// entity.AddScript<PlayerController>();
 
-		entity.AddTimerScript<TimedScript>(seconds{ 3 });
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 5 }, 3, true);
+		// TODO: Make on stop get 1.0 completion and on start get 0.0.
+		// entity.AddTimerScript<TimedScript>(seconds{ 3 });
+		entity.AddTimerScript<TimedScript>(seconds{ 0 });
+
+		// Errors:
+		// entity.AddTimerScript<TimedScript>(seconds{ -3 });
+
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, -1, false);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, -1, true);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 3, true);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 3, false);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 1, true);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 1, false);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 0 }, 1, false);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 0 }, 3, true);
+
+		// Errors:
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 0, false);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, -2, false);
+		// entity.AddRepeatScript<RepeatedScript>(seconds{ -1 }, 1, false);
+	}
+
+	void Update() override {
+		if (game.input.KeyDown(Key::E)) {
+			entity.RemoveScript<RepeatedScript>();
+		}
 	}
 };
 

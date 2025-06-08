@@ -113,7 +113,15 @@ public:
 	}
 
 	template <typename T>
-	[[nodiscard]] const T& GetScript() const {
+	[[nodiscard]] const TBaseScript& GetScript() const {
+		static_assert(
+			std::is_base_of_v<TBaseScript, T>,
+			"Cannot get script which does not inherit from the base script class"
+		);
+		static_assert(
+			std::is_base_of_v<Script<T, TBaseScript>, T>,
+			"Cannot get script which does not inherit from the base script class"
+		);
 		constexpr auto class_name{ type_name<T>() };
 		constexpr auto hash{ Hash(class_name) };
 		auto it{ scripts.find(hash) };
@@ -124,8 +132,8 @@ public:
 	}
 
 	template <typename T>
-	[[nodiscard]] T& GetScript() {
-		return const_cast<T&>(std::as_const(*this).template GetScript<T>());
+	[[nodiscard]] TBaseScript& GetScript() {
+		return const_cast<TBaseScript&>(std::as_const(*this).template GetScript<T>());
 	}
 
 	template <typename T>

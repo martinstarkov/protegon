@@ -29,6 +29,7 @@ namespace ptgn {
 namespace impl {
 
 class RenderData;
+class IScript;
 
 } // namespace impl
 
@@ -328,7 +329,7 @@ public:
 	 * @tparam TArgs The types of arguments to pass to the script constructor.
 	 * @param execution_delay The delay (in milliseconds) between each script execution.
 	 * @param execution_count The total number of times the script will be executed (-1 for
-	 * indefinite execution, which can be stopped with RemoveScript<T>()).
+	 * infinite execution, which can be stopped with RemoveScript<T>()).
 	 * @param execute_immediately If true, the script is executed once immediately before the first
 	 * delay.
 	 * @param args Arguments forwarded to the script's constructor.
@@ -352,21 +353,21 @@ public:
 	 * @brief Retrieves a const reference to the script of the specified type.
 	 *
 	 * @tparam T The script type to retrieve.
-	 * @return A const reference to the script.
+	 * @return A const reference to the base script.
 	 * @throws Assert if the script is not found.
 	 */
 	template <typename T>
-	[[nodiscard]] const T& GetScript() const;
+	[[nodiscard]] const impl::IScript& GetScript() const;
 
 	/**
 	 * @brief Retrieves a mutable reference to the script of the specified type.
 	 *
 	 * @tparam T The script type to retrieve.
-	 * @return A reference to the script.
+	 * @return A reference to the base script.
 	 * @throws Assert if the script is not found.
 	 */
 	template <typename T>
-	[[nodiscard]] T& GetScript();
+	[[nodiscard]] impl::IScript& GetScript();
 
 	/**
 	 * @brief Removes the script of the specified type from the entity.
@@ -491,16 +492,14 @@ public:
 	// Timed script triggers.
 	virtual void OnTimerStart() {}
 
-	// TODO: Implement.
 	virtual void OnTimerUpdate([[maybe_unused]] float elapsed_fraction) {}
 
-	// TODO: Implement.
 	virtual void OnTimerStop() {}
 
 	// Repeated script triggers.
 	virtual void OnRepeatStart() {}
 
-	// TODO: Implement.
+	// @param repeat starts from 0.
 	virtual void OnRepeatUpdate([[maybe_unused]] int repeat) {}
 
 	// TODO: Implement.
@@ -599,10 +598,27 @@ class ScriptTimers {
 public:
 	struct TimerInfo {
 		Timer timer;
+		// Duration of the timer.
 		milliseconds duration{ 0 };
 	};
 
 	std::unordered_map<std::size_t, TimerInfo> timers;
+};
+
+// TODO: Move to separate file.
+class ScriptRepeats {
+public:
+	struct RepeatInfo {
+		Timer timer;
+		// delay to next execution.
+		milliseconds delay{ 0 };
+		// current number of executions (first value passed to OnRepeatUpdate is 0).
+		int current_executions{ 0 };
+		// -1 for infinite executions.
+		int max_executions{ 0 };
+	};
+
+	std::unordered_map<std::size_t, RepeatInfo> repeats;
 };
 
 template <typename T, typename... TArgs>
@@ -622,12 +638,9 @@ T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 		hash, ScriptTimers::TimerInfo{ Timer{ true }, execution_duration }
 	);
 
-	// TODO: Check this all works as intended.
-	// TODO: Add system which calls OnTimerUpdate() and OnTimerStop().
-
-	// TODO: Modify RemoveScript to remove ScriptTimers.
-
 	script.OnTimerStart();
+
+	script.OnTimerUpdate(0.0f);
 
 	return script;
 }
@@ -638,12 +651,42 @@ T& Entity::AddRepeatScript(
 ) {
 	auto& script{ AddScript<T>(std::forward<TArgs>(args)...) };
 
-	// std::unordered_map<std::size_t, RepeatInfo>
-	// TODO: Add script repeat component.
-	// TODO: Trigger timer start.
-	// if (execute_immediately) { script->OnRepeatStart(); }
+	PTGN_ASSERT(
+		execution_delay >= milliseconds{ 0 }, "Repeat script must have a positive execution_delay"
+	);
 
-	// TODO: Modify RemoveScript to remove ScriptRepeats.
+	bool infinite_execution{ execution_count == -1 };
+
+	PTGN_ASSERT(
+		infinite_execution || execution_count > 0,
+		"Repeated script execution count must be above 0 or -1 for infinite execution"
+	);
+
+	script.OnRepeatStart();
+
+	int current_executions{ 0 };
+
+	if (execute_immediately) {
+		script.OnRepeatUpdate(current_executions);
+		current_executions++;
+
+		if (!infinite_execution && current_executions >= execution_count) {
+			script.OnRepeatStop();
+			return script;
+		}
+
+		// More than one script execution requested.
+	}
+
+	auto& repeat_scripts{ GetOrAdd<ScriptRepeats>() };
+
+	constexpr auto class_name{ type_name<T>() };
+	constexpr auto hash{ Hash(class_name) };
+
+	repeat_scripts.repeats.emplace(
+		hash, ScriptRepeats::RepeatInfo{ Timer{ true }, execution_delay, current_executions,
+										 execution_count }
+	);
 
 	return script;
 }
@@ -654,22 +697,19 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] const T& Entity::GetScript() const {
+[[nodiscard]] const impl::IScript& Entity::GetScript() const {
 	PTGN_ASSERT(Has<Scripts>());
 	auto& scripts{ Get<Scripts>() };
 	return scripts.GetScript<T>();
 }
 
 template <typename T>
-[[nodiscard]] T& Entity::GetScript() {
-	return const_cast<T&>(std::as_const(*this).GetScript<T>());
+[[nodiscard]] impl::IScript& Entity::GetScript() {
+	return const_cast<impl::IScript&>(std::as_const(*this).GetScript<T>());
 }
 
 template <typename T>
 void Entity::RemoveScript() {
-	// TODO: Remove ScriptTimers and call OnTimerStop.
-	// TODO: Remove ScriptRepeats and call OnRepeatStop.
-
 	if (!Has<Scripts>()) {
 		return;
 	}
@@ -681,6 +721,38 @@ void Entity::RemoveScript() {
 	}
 
 	auto& script{ scripts.GetScript<T>() };
+
+	if (Has<ScriptTimers>()) {
+		// TODO: Consider replacing with a different callback / hook for early timer stop?
+		script.OnTimerStop();
+
+		auto& timers{ Get<ScriptTimers>().timers };
+
+		constexpr auto class_name{ type_name<T>() };
+		constexpr auto hash{ Hash(class_name) };
+
+		timers.erase(hash);
+
+		if (timers.empty()) {
+			Remove<ScriptTimers>();
+		}
+	}
+
+	if (Has<ScriptRepeats>()) {
+		// TODO: Consider replacing with a different callback / hook for early repeat stop?
+		script.OnRepeatStop();
+
+		auto& repeats{ Get<ScriptRepeats>().repeats };
+
+		constexpr auto class_name{ type_name<T>() };
+		constexpr auto hash{ Hash(class_name) };
+
+		repeats.erase(hash);
+
+		if (repeats.empty()) {
+			Remove<ScriptRepeats>();
+		}
+	}
 
 	script.OnDestroy();
 

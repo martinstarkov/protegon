@@ -125,25 +125,37 @@ void Scene::PostUpdate() {
 		}
 	}
 
+	manager.Refresh();
+
 	// TODO: Move to a separate file.
 	for (auto [entity, scripts, script_timer] : manager.EntitiesWith<Scripts, ScriptTimers>()) {
-		for (const auto& [key, timer_info] : script_timer.timers) {
+		for (auto timer_it{ script_timer.timers.begin() }; timer_it != script_timer.timers.end();) {
+			const auto& [key, timer_info] = *timer_it;
+
 			PTGN_ASSERT(
 				timer_info.timer.IsRunning(),
 				"Script timer must be started upon addition of script to entity"
 			);
-			auto it{ scripts.scripts.find(key) };
+
+			auto script_it{ scripts.scripts.find(key) };
+
 			PTGN_ASSERT(
-				it != scripts.scripts.end(), "Each script timer must have an associated script"
+				script_it != scripts.scripts.end(),
+				"Each script timer must have an associated script"
 			);
-			auto& script{ *it->second };
+
+			auto& script{ *script_it->second };
+
 			auto elapsed_fraction{ timer_info.timer.ElapsedPercentage(timer_info.duration) };
 			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
+
+			script.OnTimerUpdate(elapsed_fraction);
+
 			if (elapsed_fraction < 1.0f) {
-				script.OnTimerUpdate(elapsed_fraction);
+				timer_it++;
 			} else {
 				script.OnTimerStop();
-				script_timer.timers.erase(key);
+				timer_it = script_timer.timers.erase(timer_it);
 			}
 		}
 		if (script_timer.timers.empty()) {
@@ -151,7 +163,57 @@ void Scene::PostUpdate() {
 		}
 	}
 
-	// TODO: Add ScriptRepeat system.
+	manager.Refresh();
+
+	// TODO: Move to a separate file.
+	for (auto [entity, scripts, script_repeat] : manager.EntitiesWith<Scripts, ScriptRepeats>()) {
+		for (auto repeat_it{ script_repeat.repeats.begin() };
+			 repeat_it != script_repeat.repeats.end();) {
+			auto& [key, repeat_info] = *repeat_it;
+
+			PTGN_ASSERT(
+				repeat_info.timer.IsRunning(),
+				"Script repeat delay timer must be started upon addition of script to entity"
+			);
+
+			auto script_it{ scripts.scripts.find(key) };
+
+			PTGN_ASSERT(
+				script_it != scripts.scripts.end(),
+				"Each repeating script info must have an associated script"
+			);
+
+			auto& script{ *script_it->second };
+
+			auto elapsed_fraction{ repeat_info.timer.ElapsedPercentage(repeat_info.delay) };
+
+			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
+
+			if (elapsed_fraction < 1.0f) {
+				// Delay has not passed yet, do nothing.
+				repeat_it++;
+				continue;
+			}
+
+			// Repeat delay has fully elapsed.
+
+			script.OnRepeatUpdate(repeat_info.current_executions);
+			repeat_info.current_executions++;
+
+			bool infinite_execution{ repeat_info.max_executions == -1 };
+
+			if (!infinite_execution &&
+				repeat_info.current_executions >= repeat_info.max_executions) {
+				script.OnRepeatStop();
+				repeat_it = script_repeat.repeats.erase(repeat_it);
+			} else {
+				repeat_info.timer.Start(true);
+			}
+		}
+		if (script_repeat.repeats.empty()) {
+			entity.Remove<ScriptRepeats>();
+		}
+	}
 
 	Update();
 
