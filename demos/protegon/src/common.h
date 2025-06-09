@@ -8,21 +8,21 @@
 
 #include "core/game.h"
 #include "core/window.h"
+#include "debug/debugging.h"
 #include "ecs/ecs.h"
-#include "event/event_handler.h"
-#include "event/events.h"
-#include "event/input_handler.h"
-#include "event/key.h"
+#include "events/event_handler.h"
+#include "events/events.h"
+#include "events/input_handler.h"
+#include "events/key.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "renderer/renderer.h"
-#include "utility/debug.h"
+#include "rendering/renderer.h"
 
 using namespace ptgn;
 
 const static std::string test_instructions{ "'ESC' (++category), '1' (--test); '2' (++test)" };
-const static std::array<Key, 2> test_switch_keys{ Key::ONE, Key::TWO };
-const static Key test_category_switch_key{ Key::ESCAPE };
+const static std::array<Key, 2> test_switch_keys{ Key::K_1, Key::K_2 };
+const static Key test_category_switch_key{ Key::Escape };
 
 namespace ptgn {
 
@@ -57,7 +57,6 @@ struct Test {
 		if (!initialized_) {
 			game.event.window.Subscribe(
 				WindowEvent::Quit, this, std::function([this](const WindowQuitEvent&) {
-					game.camera.ResetPrimary();
 					Shutdown();
 					game.window.SetTitle("");
 					game.window.Center();
@@ -93,8 +92,8 @@ private:
 
 struct EntityTest : public Test {
 public:
-	ecs::Manager manager;
-	ecs::Entity entity;
+	Manager manager;
+	Entity entity;
 
 	EntityTest() {
 		entity = manager.CreateEntity();
