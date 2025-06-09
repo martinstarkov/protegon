@@ -66,7 +66,7 @@ void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_i
 	);
 }
 
-void TopDownMovement::Update(Transform& transform, RigidBody& rb, float dt) {
+void TopDownMovement::Update(Entity& entity, Transform& transform, RigidBody& rb, float dt) {
 	if (keys_enabled) {
 		if (game.input.KeyPressed(up_key)) {
 			up_input = true;
@@ -129,7 +129,7 @@ void TopDownMovement::Update(Transform& transform, RigidBody& rb, float dt) {
 		rb.velocity = desired_velocity;
 	}
 
-	InvokeCallbacks();
+	InvokeCallbacks(entity);
 
 	// Cancel inputs for next frame.
 	Move(MoveDirection::None);
@@ -162,49 +162,58 @@ MoveDirection TopDownMovement::GetDirectionState(const V2_float& d) {
 	}
 }
 
-void TopDownMovement::InvokeCallbacks() {
-	auto callbacks = [](bool was_moving, bool is_moving, const auto& start_func,
-						const auto& continue_func, const auto& stop_func) {
-		if (!was_moving && is_moving && start_func) {
-			std::invoke(start_func);
-		}
-		if (is_moving && continue_func) {
-			std::invoke(continue_func);
-		}
-		if (was_moving && !is_moving && stop_func) {
-			std::invoke(stop_func);
-		}
-	};
+template <auto StartFunc, auto ContinueFunc, auto StopFunc>
+void InvokeMoveCallbacks(const Scripts& scripts, bool was_moving, bool is_moving) {
+	if (!was_moving && is_moving) {
+		scripts.Invoke<StartFunc>();
+	}
+	if (is_moving) {
+		scripts.Invoke<ContinueFunc>();
+	}
+	if (was_moving && !is_moving) {
+		scripts.Invoke<StopFunc>();
+	}
+}
 
-	if (dir != prev_dir && on_direction_change) {
+void TopDownMovement::InvokeCallbacks(Entity& entity) {
+	if (!entity.Has<Scripts>()) {
+		return;
+	}
+	const auto& scripts{ entity.Get<Scripts>() };
+
+	if (dir != prev_dir) {
 		// Clamp because turning from left to right can cause a difference in direction of 2.0f,
 		// which we see as the same as 1.0f.
 		V2_float diff{ Clamp(dir - prev_dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
-		std::invoke(on_direction_change, GetDirectionState(diff));
+		auto dir_state{ GetDirectionState(diff) };
+		scripts.Invoke<&impl::IScript::OnMoveDirectionChange>(dir_state);
 	}
 
-	// TODO: Instead of using WasMoving, IsMoving, switch to providing an index and comparison with
-	// -1 or 1 or 0.
+	// TODO: Consider instead of using WasMoving, IsMoving, switch to providing an index and
+	// comparison with -1 or 1 or 0.
 
-	std::invoke(
-		callbacks, !WasMoving(MoveDirection::None), !IsMoving(MoveDirection::None), on_move_start,
-		on_move, on_move_stop
+	InvokeMoveCallbacks<
+		&impl::IScript::OnMoveStart, &impl::IScript::OnMove, &impl::IScript::OnMoveStop>(
+		scripts, !WasMoving(MoveDirection::None), !IsMoving(MoveDirection::None)
 	);
-	std::invoke(
-		callbacks, WasMoving(MoveDirection::Up), IsMoving(MoveDirection::Up), on_move_up_start,
-		on_move_up, on_move_up_stop
+	InvokeMoveCallbacks<
+		&impl::IScript::OnMoveUpStart, &impl::IScript::OnMoveUp, &impl::IScript::OnMoveUpStop>(
+		scripts, WasMoving(MoveDirection::Up), IsMoving(MoveDirection::Up)
 	);
-	std::invoke(
-		callbacks, WasMoving(MoveDirection::Down), IsMoving(MoveDirection::Down),
-		on_move_down_start, on_move_down, on_move_down_stop
+	InvokeMoveCallbacks<
+		&impl::IScript::OnMoveDownStart, &impl::IScript::OnMoveDown,
+		&impl::IScript::OnMoveDownStop>(
+		scripts, WasMoving(MoveDirection::Down), IsMoving(MoveDirection::Down)
 	);
-	std::invoke(
-		callbacks, WasMoving(MoveDirection::Left), IsMoving(MoveDirection::Left),
-		on_move_left_start, on_move_left, on_move_left_stop
+	InvokeMoveCallbacks<
+		&impl::IScript::OnMoveLeftStart, &impl::IScript::OnMoveLeft,
+		&impl::IScript::OnMoveLeftStop>(
+		scripts, WasMoving(MoveDirection::Left), IsMoving(MoveDirection::Left)
 	);
-	std::invoke(
-		callbacks, WasMoving(MoveDirection::Right), IsMoving(MoveDirection::Right),
-		on_move_right_start, on_move_right, on_move_right_stop
+	InvokeMoveCallbacks<
+		&impl::IScript::OnMoveRightStart, &impl::IScript::OnMoveRight,
+		&impl::IScript::OnMoveRightStop>(
+		scripts, WasMoving(MoveDirection::Right), IsMoving(MoveDirection::Right)
 	);
 }
 
@@ -280,8 +289,9 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
-	const {
+void TopDownMovement::RunWithAcceleration(
+	const V2_float& desired_velocity, RigidBody& rb, float dt
+) const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
