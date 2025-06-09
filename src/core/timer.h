@@ -9,6 +9,8 @@
 
 namespace ptgn {
 
+class Manager;
+
 // Monotonic clock to prevent time variations if system time is changed.
 class Timer {
 public:
@@ -19,7 +21,8 @@ public:
 
 	// Starts the timer. Can also be used to restart the timer.
 	// @param force If false, only starts the timer if it is not already running.
-	void Start(bool force = true);
+	// @return True if the timer is newly started, false if it was already running.
+	bool Start(bool force = true);
 
 	// Stops and resets the timer.
 	void Reset();
@@ -95,5 +98,39 @@ private:
 	bool running_{ false };
 	bool paused_{ false };
 };
+
+namespace impl {
+
+struct TimerInfo {
+	Timer timer;
+	// Duration of the timer.
+	milliseconds duration{ 0 };
+};
+
+class ScriptTimers {
+public:
+	static void Update(Manager& manager);
+
+	std::unordered_map<std::size_t, TimerInfo> timers;
+};
+
+struct RepeatInfo {
+	Timer timer;
+	// delay to next execution.
+	milliseconds delay{ 0 };
+	// current number of executions (first value passed to OnRepeatUpdate is 0).
+	int current_executions{ 0 };
+	// -1 for infinite executions.
+	int max_executions{ 0 };
+};
+
+class ScriptRepeats {
+public:
+	static void Update(Manager& manager);
+
+	std::unordered_map<std::size_t, RepeatInfo> repeats;
+};
+
+} // namespace impl
 
 } // namespace ptgn
