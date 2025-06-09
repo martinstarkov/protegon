@@ -351,6 +351,7 @@ void AnimationSystem::Update(Manager& manager) {
 		if (bool infinite_playback{ anim.play_count == -1 };
 			!infinite_playback &&
 			anim.frames_played >= static_cast<std::size_t>(anim.play_count) * anim.frame_count) {
+			entity.InvokeScript<&impl::IScript::OnAnimationComplete>();
 			// Reset animation to start frame after it finishes.
 			anim.SetCurrentFrame(0);
 			entity.InvokeScript<&impl::IScript::OnAnimationFrameChange>(anim.current_frame);
