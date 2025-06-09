@@ -25,7 +25,7 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "physics/collision/collision.h"
+#include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "rendering/api/color.h"

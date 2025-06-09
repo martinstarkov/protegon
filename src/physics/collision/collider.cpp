@@ -44,7 +44,22 @@ void Collider::ResetCollidesWith() {
 }
 
 bool Collider::ProcessCallback(Entity e1, Entity e2) {
-	return before_collision == nullptr || std::invoke(before_collision, e1, e2);
+	if (!e1.Has<Scripts>()) {
+		return true;
+	}
+
+	const auto& scripts{ e1.Get<Scripts>() };
+
+	// Check that each entity script allows for the pre-collision condition to pass.
+	for (const auto& [key, script] : scripts.scripts) {
+		PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
+		bool condition_met{ std::invoke(&impl::IScript::PreCollisionCondition, script, e2) };
+		if (!condition_met) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool Collider::CanCollideWith(const CollisionCategory& category) const {
@@ -70,26 +85,17 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	}
 }
 
-void Collider::InvokeCollisionCallbacks() {
-	bool has_on_stop{ on_collision_stop != nullptr };
-	bool has_on_collision{ on_collision != nullptr };
-	if (has_on_collision || has_on_stop) {
-		for (const auto& prev : prev_collisions) {
-			if (collisions.count(prev) == 0) {
-				if (has_on_stop) {
-					std::invoke(on_collision_stop, prev);
-				}
-			} else if (has_on_collision) {
-				std::invoke(on_collision, prev);
-			}
+void Collider::InvokeCollisionCallbacks(Entity& entity) {
+	for (const auto& prev : prev_collisions) {
+		if (collisions.count(prev) == 0) {
+			entity.InvokeScript<&impl::IScript::OnCollisionStop>(prev);
+		} else {
+			entity.InvokeScript<&impl::IScript::OnCollision>(prev);
 		}
-	}
-	if (on_collision_start == nullptr) {
-		return;
 	}
 	for (const auto& current : collisions) {
 		if (prev_collisions.count(current) == 0) {
-			std::invoke(on_collision_start, current);
+			entity.InvokeScript<&impl::IScript::OnCollisionStart>(current);
 		}
 	}
 }

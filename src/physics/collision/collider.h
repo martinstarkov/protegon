@@ -28,28 +28,6 @@ struct PhysicsBody : public Entity {
 	[[nodiscard]] Transform& GetRootTransform();
 };
 
-struct Collision {
-	Collision() = default;
-
-	Collision(Entity e1, Entity e2, const V2_float& collision_normal) :
-		entity1{ e1 }, entity2{ e2 }, normal{ collision_normal } {}
-
-	Entity entity1;
-	Entity entity2;
-	// Normal set to {} for overlap only collisions.
-	V2_float normal;
-
-	friend bool operator==(const Collision& a, const Collision& b) {
-		return a.entity1 == b.entity1 && a.entity2 == b.entity2 && a.normal == b.normal;
-	}
-
-	friend bool operator!=(const Collision& a, const Collision& b) {
-		return !operator==(a, b);
-	}
-
-	PTGN_SERIALIZER_REGISTER(Collision, entity1, entity2, normal)
-};
-
 } // namespace ptgn
 
 template <>
@@ -58,8 +36,7 @@ struct std::hash<ptgn::Collision> {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
 		std::size_t value{ 17 };
-		value = value * 31 + c.entity1.GetHash();
-		value = value * 31 + c.entity2.GetHash();
+		value = value * 31 + c.entity.GetHash();
 		value = value * 31 + std::hash<ptgn::V2_float>()(c.normal);
 		return value;
 	}
@@ -69,7 +46,6 @@ namespace ptgn {
 
 using CollisionCategory		 = std::int64_t;
 using CollidesWithCategories = std::vector<CollisionCategory>;
-using CollisionCallback		 = std::function<void(Collision)>;
 
 enum class CollisionResponse {
 	Slide,
@@ -86,13 +62,6 @@ struct Collider {
 
 	// Collisions from the previous frame.
 	std::unordered_set<Collision> prev_collisions;
-
-	// Must return true for collisions to be checked.
-	std::function<bool(Entity, Entity)> before_collision;
-
-	CollisionCallback on_collision_start;
-	CollisionCallback on_collision;
-	CollisionCallback on_collision_stop;
 
 	// Overwrites continuous/regular collision in favor of overlap checks.
 	bool overlap_only{ false };
@@ -126,7 +95,7 @@ struct Collider {
 
 	void SetCollidesWith(const CollidesWithCategories& categories);
 
-	void InvokeCollisionCallbacks();
+	void InvokeCollisionCallbacks(Entity& entity);
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		Collider, KeyValue("collisions", collisions), KeyValue("prev_collisions", prev_collisions),

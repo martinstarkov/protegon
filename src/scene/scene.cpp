@@ -11,7 +11,7 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "events/input_handler.h"
-#include "physics/collision/collision.h"
+#include "physics/collision/collision_handler.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/renderer.h"
