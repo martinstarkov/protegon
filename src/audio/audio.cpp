@@ -247,6 +247,10 @@ Mix_Chunk* SoundManager::Get(std::size_t key) const {
 	return sounds_.find(key)->second.get();
 }
 
+bool SoundManager::Has(std::string_view sound_key) const {
+	return Has(Hash(sound_key));
+}
+
 bool SoundManager::Has(std::size_t key) const {
 	return sounds_.find(key) != sounds_.end();
 }

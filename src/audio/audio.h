@@ -154,6 +154,8 @@ public:
 
 	void Clear();
 
+	[[nodiscard]] bool Has(std::string_view sound_key) const;
+
 private:
 	using Sound = std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter>;
 
