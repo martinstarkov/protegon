@@ -396,15 +396,26 @@ void PlatformerMovement::RunWithAcceleration(
 	rb.velocity.x = impl::MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
 }
 
-void PlatformerJump::Ground(const Collision& c, const CollisionCategory& ground_category) {
-	PTGN_ASSERT((c.entity2.HasAny<BoxCollider, CircleCollider>()));
-	if ((c.entity2.Has<BoxCollider>() && c.entity2.Get<BoxCollider>().IsCategory(ground_category)
-		) ||
-		(c.entity2.Has<CircleCollider>() &&
-		 c.entity2.Get<CircleCollider>().IsCategory(ground_category))) {
-		if (c.entity1.Has<PlatformerMovement>() && c.normal == V2_float{ 0.0f, -1.0f }) {
-			c.entity1.Get<PlatformerMovement>().grounded = true;
-		}
+void PlatformerJump::Ground(
+	Entity& entity, const Collision& collision, const CollisionCategory& ground_category
+) {
+	if (!entity.Has<PlatformerMovement>()) {
+		return;
+	}
+
+	PTGN_ASSERT((collision.entity.HasAny<BoxCollider, CircleCollider>()));
+
+	bool is_ground_collision{ collision.normal == V2_float{ 0.0f, -1.0f } };
+
+	if (!is_ground_collision) {
+		return;
+	}
+
+	if ((collision.entity.Has<BoxCollider>() &&
+		 collision.entity.Get<BoxCollider>().IsCategory(ground_category)) ||
+		(collision.entity.Has<CircleCollider>() &&
+		 collision.entity.Get<CircleCollider>().IsCategory(ground_category))) {
+		entity.Get<PlatformerMovement>().grounded = true;
 	}
 }
 
