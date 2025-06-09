@@ -600,10 +600,11 @@ public:
 
 	// Called for each repeat of the full animation.
 	// @param repeat Starts from 0.
-	virtual void OnAnimationRepeat([[maybe_unused]] int repeat) { /* user implementation */ }
+	virtual void OnAnimationRepeat([[maybe_unused]] std::size_t repeat) { /* user implementation */ }
 
 	// Called when the frame of the animation changes
-	virtual void OnAnimationFrameChange([[maybe_unused]] int new_frame) { /* user implementation */
+	virtual void OnAnimationFrameChange([[maybe_unused]] std::size_t new_frame
+	) { /* user implementation */
 	}
 
 	virtual void OnAnimationPause() { /* user implementation */ }
