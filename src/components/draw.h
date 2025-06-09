@@ -181,6 +181,9 @@ public:
 	[[nodiscard]] milliseconds GetFrameDuration() const;
 	[[nodiscard]] V2_int GetCurrentFramePosition() const;
 
+	// @return Total number of animation repeats.
+	[[nodiscard]] std::size_t GetPlayCount() const;
+
 	void SetCurrentFrame(std::size_t new_frame);
 	void IncrementFrame();
 

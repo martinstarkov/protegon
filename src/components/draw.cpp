@@ -186,7 +186,10 @@ void Animation::Start(bool force) {
 	auto& crop		   = Get<TextureCrop>();
 	crop.position	   = anim.GetCurrentFramePosition();
 	crop.size		   = anim.frame_size;
-	anim.frame_timer.Start(force);
+	bool started{ anim.frame_timer.Start(force) };
+	if (started) {
+		InvokeScript<&impl::IScript::OnAnimationStart>();
+	}
 }
 
 void Animation::Reset() {
@@ -198,30 +201,36 @@ void Animation::Reset() {
 	auto& crop		   = Get<TextureCrop>();
 	crop.position	   = anim.GetCurrentFramePosition();
 	crop.size		   = anim.frame_size;
+	InvokeScript<&impl::IScript::OnAnimationStop>();
 	anim.frame_timer.Reset();
 }
 
 void Animation::Stop() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
+	InvokeScript<&impl::IScript::OnAnimationStop>();
 	anim.frame_timer.Stop();
 }
 
 void Animation::Toggle() {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	auto& anim{ Get<impl::AnimationInfo>() };
-	anim.frame_timer.Toggle();
+	if (IsPlaying()) {
+		Stop();
+	} else {
+		Start();
+	}
 }
 
 void Animation::Pause() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
+	InvokeScript<&impl::IScript::OnAnimationPause>();
 	anim.frame_timer.Pause();
 }
 
 void Animation::Resume() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
+	InvokeScript<&impl::IScript::OnAnimationResume>();
 	anim.frame_timer.Resume();
 }
 
@@ -240,7 +249,7 @@ bool Animation::IsPlaying() const {
 std::size_t Animation::GetPlayCount() const {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	const auto& anim{ Get<impl::AnimationInfo>() };
-	return anim.frames_played / anim.frame_count;
+	return anim.GetPlayCount();
 }
 
 std::size_t Animation::GetFramePlayCount() const {
@@ -319,6 +328,10 @@ V2_int AnimationInfo::GetCurrentFramePosition() const {
 	return { start_pixel.x + frame_size.x * static_cast<int>(current_frame), start_pixel.y };
 }
 
+std::size_t AnimationInfo::GetPlayCount() const {
+	return frames_played / frame_count;
+}
+
 void AnimationInfo::SetCurrentFrame(std::size_t new_frame) {
 	current_frame = new_frame % frame_count;
 }
@@ -331,18 +344,24 @@ void AnimationSystem::Update(Manager& manager) {
 	for (auto [entity, anim, crop] : manager.EntitiesWith<AnimationInfo, TextureCrop>()) {
 		if (anim.frame_count == 0 || anim.duration <= milliseconds{ 0 } ||
 			!anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused()) {
+			// Timer is not active or animation has no frames / duration.
 			continue;
 		}
 
-		if (anim.play_count != -1 &&
+		if (bool infinite_playback{ anim.play_count == -1 };
+			!infinite_playback &&
 			anim.frames_played >= static_cast<std::size_t>(anim.play_count) * anim.frame_count) {
 			// Reset animation to start frame after it finishes.
-			anim.current_frame = 0;
-			crop.size		   = anim.frame_size;
-			crop.position	   = anim.GetCurrentFramePosition();
+			anim.SetCurrentFrame(0);
+			entity.InvokeScript<&impl::IScript::OnAnimationFrameChange>(anim.current_frame);
+			crop.size	  = anim.frame_size;
+			crop.position = anim.GetCurrentFramePosition();
 			anim.frame_timer.Stop();
+			entity.InvokeScript<&impl::IScript::OnAnimationStop>();
 			continue;
 		}
+
+		entity.InvokeScript<&impl::IScript::OnAnimationUpdate>();
 
 		if (auto frame_duration{ anim.GetFrameDuration() };
 			!anim.frame_timer.Completed(frame_duration)) {
@@ -353,13 +372,21 @@ void AnimationSystem::Update(Manager& manager) {
 
 		anim.frames_played++;
 
-		anim.current_frame = (anim.current_frame + 1) % anim.frame_count;
+		anim.IncrementFrame();
+
+		entity.InvokeScript<&impl::IScript::OnAnimationFrameChange>(anim.current_frame);
 
 		crop.size	  = anim.frame_size;
 		crop.position = anim.GetCurrentFramePosition();
 
+		if (anim.frames_played % anim.frame_count == 0) {
+			entity.InvokeScript<&impl::IScript::OnAnimationRepeat>(anim.GetPlayCount());
+		}
+
 		anim.frame_timer.Start(true);
 	}
+
+	manager.Refresh();
 }
 
 } // namespace impl
