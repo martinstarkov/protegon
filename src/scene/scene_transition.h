@@ -54,17 +54,7 @@ public:
 	// when using TransitionType::FadeThroughColor. Does not apply to other transitions.
 	SceneTransition& SetColorFadeFraction(float color_fade_fraction);
 
-	// Custom transition callbacks.
-
-	// float is fraction from 0 to 1 of the duration.
-	std::function<void(float)> update_in;
-	std::function<void()> start_in;
-	std::function<void()> stop_in;
-
-	// float is fraction from 0 to 1 of the duration.
-	std::function<void(float)> update_out;
-	std::function<void()> start_out;
-	std::function<void()> stop_out;
+	// TODO: Add custom transition callbacks.
 
 private:
 	friend class impl::SceneManager;

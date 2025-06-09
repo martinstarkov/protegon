@@ -225,7 +225,7 @@ public:
 	// @param radius 0.0f results in texture sized button.
 	Button& SetRadius(float radius = 0.0f);
 
-	// These allow for manually triggering button callback events.
+	// Manual button script triggers.
 	void Activate();
 	void StartHover();
 	void StopHover();
