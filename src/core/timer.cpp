@@ -2,6 +2,7 @@
 
 #include <chrono>
 
+#include "core/manager.h"
 #include "serialization/json.h"
 
 namespace ptgn {
@@ -14,19 +15,18 @@ Timer::Timer(bool start) {
 
 void Timer::Reset() {
 	start_time_ = std::chrono::steady_clock::now();
-	stop_time_	= std::chrono::steady_clock::now();
 	pause_time_ = std::chrono::steady_clock::now();
-	running_	= false;
-	paused_		= false;
+	Stop();
 }
 
-void Timer::Start(bool force) {
+bool Timer::Start(bool force) {
 	if (!force && IsRunning()) {
-		return;
+		return false;
 	}
 	start_time_ = std::chrono::steady_clock::now();
 	running_	= true;
 	paused_		= false;
+	return true;
 }
 
 void Timer::Stop() {
@@ -92,5 +92,105 @@ void from_json(const json& j, Timer& timer) {
 		timer.Resume();
 	}
 }
+
+namespace impl {
+
+void ScriptTimers::Update(Manager& manager) {
+	for (auto [entity, scripts, script_timer] : manager.EntitiesWith<Scripts, ScriptTimers>()) {
+		for (auto timer_it{ script_timer.timers.begin() }; timer_it != script_timer.timers.end();) {
+			const auto& [key, timer_info] = *timer_it;
+
+			PTGN_ASSERT(
+				timer_info.timer.IsRunning(),
+				"Script timer must be started upon addition of script to entity"
+			);
+
+			auto script_it{ scripts.scripts.find(key) };
+
+			PTGN_ASSERT(
+				script_it != scripts.scripts.end(),
+				"Each script timer must have an associated script"
+			);
+
+			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
+
+			auto& script{ *script_it->second };
+
+			auto elapsed_fraction{ timer_info.timer.ElapsedPercentage(timer_info.duration) };
+			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
+
+			script.OnTimerUpdate(elapsed_fraction);
+
+			if (elapsed_fraction < 1.0f) {
+				timer_it++;
+			} else {
+				script.OnTimerStop();
+				timer_it = script_timer.timers.erase(timer_it);
+			}
+		}
+		if (script_timer.timers.empty()) {
+			entity.Remove<ScriptTimers>();
+		}
+	}
+
+	manager.Refresh();
+}
+
+void ScriptRepeats::Update(Manager& manager) {
+	for (auto [entity, scripts, script_repeat] : manager.EntitiesWith<Scripts, ScriptRepeats>()) {
+		for (auto repeat_it{ script_repeat.repeats.begin() };
+			 repeat_it != script_repeat.repeats.end();) {
+			auto& [key, repeat_info] = *repeat_it;
+
+			PTGN_ASSERT(
+				repeat_info.timer.IsRunning(),
+				"Script repeat delay timer must be started upon addition of script to entity"
+			);
+
+			auto script_it{ scripts.scripts.find(key) };
+
+			PTGN_ASSERT(
+				script_it != scripts.scripts.end(),
+				"Each repeating script info must have an associated script"
+			);
+
+			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
+
+			auto& script{ *script_it->second };
+
+			auto elapsed_fraction{ repeat_info.timer.ElapsedPercentage(repeat_info.delay) };
+
+			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
+
+			if (elapsed_fraction < 1.0f) {
+				// Delay has not passed yet, do nothing.
+				repeat_it++;
+				continue;
+			}
+
+			// Repeat delay has fully elapsed.
+
+			script.OnRepeatUpdate(repeat_info.current_executions);
+			repeat_info.current_executions++;
+
+			bool infinite_execution{ repeat_info.max_executions == -1 };
+
+			if (!infinite_execution &&
+				repeat_info.current_executions >= repeat_info.max_executions) {
+				script.OnRepeatStop();
+				repeat_it = script_repeat.repeats.erase(repeat_it);
+			} else {
+				repeat_info.timer.Start(true);
+			}
+		}
+		if (script_repeat.repeats.empty()) {
+			entity.Remove<ScriptRepeats>();
+		}
+	}
+
+	manager.Refresh();
+}
+
+} // namespace impl
 
 } // namespace ptgn
