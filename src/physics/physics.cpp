@@ -41,34 +41,40 @@ float Physics::dt() const {
 
 void Physics::PreCollisionUpdate(Manager& manager) const {
 	float dt{ Physics::dt() };
-	for (auto [e, enabled, t, rb, m] :
+
+	for (auto [entity, enabled, transform, rigid_body, movement] :
 		 manager.EntitiesWith<Enabled, Transform, RigidBody, TopDownMovement>()) {
 		if (!enabled) {
 			continue;
 		}
-		m.Update(t, rb, dt);
+		movement.Update(entity, transform, rigid_body, dt);
 	}
-	for (auto [e, enabled, t, rb, m, j] :
+
+	for (auto [e, enabled, transform, rigid_body, movement, jump] :
 		 manager.EntitiesWith<Enabled, Transform, RigidBody, PlatformerMovement, PlatformerJump>(
 		 )) {
 		if (!enabled) {
 			continue;
 		}
-		m.Update(t, rb, dt);
-		j.Update(rb, m.grounded, gravity_);
+		movement.Update(transform, rigid_body, dt);
+		jump.Update(rigid_body, movement.grounded, gravity_);
 	}
-	for (auto [e, enabled, rb] : manager.EntitiesWith<Enabled, RigidBody>()) {
+
+	for (auto [e, enabled, rigid_body] : manager.EntitiesWith<Enabled, RigidBody>()) {
 		if (!enabled) {
 			continue;
 		}
-		rb.Update(gravity_, dt);
+		rigid_body.Update(gravity_, dt);
 	}
-	for (auto [e, enabled, m] : manager.EntitiesWith<Enabled, PlatformerMovement>()) {
+
+	for (auto [e, enabled, movement] : manager.EntitiesWith<Enabled, PlatformerMovement>()) {
 		if (!enabled) {
 			continue;
 		}
-		m.grounded = false;
+		movement.grounded = false;
 	}
+
+	manager.Refresh();
 }
 
 void Physics::PostCollisionUpdate(Manager& manager) const {
@@ -79,12 +85,13 @@ void Physics::PostCollisionUpdate(Manager& manager) const {
 
 	bool enforce_bounds{ !bounds_size_.IsZero() };
 
-	for (auto [e, enabled, t, rb] : manager.EntitiesWith<Enabled, Transform, RigidBody>()) {
+	for (auto [entity, enabled, transform, rigid_body] :
+		 manager.EntitiesWith<Enabled, Transform, RigidBody>()) {
 		if (!enabled) {
 			continue;
 		}
 
-		t.position += rb.velocity * dt;
+		transform.position += rigid_body.velocity * dt;
 
 		if (!enforce_bounds) {
 			continue;
@@ -92,18 +99,20 @@ void Physics::PostCollisionUpdate(Manager& manager) const {
 
 		// Enforce rough world bounds.
 
-		if (t.position.x < min_bounds.x) {
-			t.position.x -= t.position.x - min_bounds.x;
-		} else if (t.position.x > max_bounds.x) {
-			t.position.x += max_bounds.x - t.position.x;
+		if (transform.position.x < min_bounds.x) {
+			transform.position.x -= transform.position.x - min_bounds.x;
+		} else if (transform.position.x > max_bounds.x) {
+			transform.position.x += max_bounds.x - transform.position.x;
 		}
 
-		if (t.position.y < min_bounds.y) {
-			t.position.y -= t.position.y - min_bounds.y;
-		} else if (t.position.y > max_bounds.y) {
-			t.position.y += max_bounds.y - t.position.y;
+		if (transform.position.y < min_bounds.y) {
+			transform.position.y -= transform.position.y - min_bounds.y;
+		} else if (transform.position.y > max_bounds.y) {
+			transform.position.y += max_bounds.y - transform.position.y;
 		}
 	}
+
+	manager.Refresh();
 }
 
 } // namespace ptgn

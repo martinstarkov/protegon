@@ -110,26 +110,24 @@ V2_float CollisionHandler::GetRemainingVelocity(
 }
 
 void CollisionHandler::Update(Manager& manager) {
-	ptgn::EntitiesWith<JSONArchiver, true, Enabled, BoxCollider> boxes{
-		std::as_const(manager).EntitiesWith<Enabled, BoxCollider>()
-	};
-	ptgn::EntitiesWith<JSONArchiver, true, Enabled, CircleCollider> circles{
-		std::as_const(manager).EntitiesWith<Enabled, CircleCollider>()
-	};
+	auto boxes{ std::as_const(manager).EntitiesWith<Enabled, BoxCollider>() };
+	auto circles{ std::as_const(manager).EntitiesWith<Enabled, CircleCollider>() };
 
-	for (auto [e1, enabled, b1] : boxes) {
+	for (auto [entity1, enabled, box1] : boxes) {
 		if (!enabled) {
 			continue;
 		}
-		HandleCollisions<BoxCollider>(e1, boxes, circles);
+		HandleCollisions<BoxCollider>(entity1, boxes, circles);
 	}
 
-	for (auto [e1, enabled, c1] : circles) {
+	for (auto [entity1, enabled, circle1] : circles) {
 		if (!enabled) {
 			continue;
 		}
-		HandleCollisions<CircleCollider>(e1, boxes, circles);
+		HandleCollisions<CircleCollider>(entity1, boxes, circles);
 	}
+
+	manager.Refresh();
 }
 
 } // namespace ptgn::impl

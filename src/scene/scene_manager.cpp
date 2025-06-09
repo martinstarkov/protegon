@@ -130,16 +130,18 @@ void SceneManager::ClearSceneTargets() {
 
 void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
+		PTGN_ASSERT(sc.scene != nullptr);
 		if (sc.scene->active_) {
-			sc.scene->PreUpdate();
+			sc.scene->PreUpdate(sc.scene->manager);
 		}
 	}
 
 	game.input.Update();
 
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
+		PTGN_ASSERT(sc.scene != nullptr);
 		if (sc.scene->active_) {
-			sc.scene->PostUpdate();
+			sc.scene->PostUpdate(sc.scene->manager);
 		}
 	}
 }

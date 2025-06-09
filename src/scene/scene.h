@@ -88,8 +88,8 @@ private:
 	// void ClearTarget();
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void PreUpdate();
-	void PostUpdate();
+	void PreUpdate(Manager& m);
+	void PostUpdate(Manager& m);
 	void Draw();
 	void InternalExit();
 

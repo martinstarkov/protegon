@@ -96,176 +96,60 @@ void Scene::Draw() {
 	// render_data.RenderToScreen(target_, camera.primary);
 }
 
-void Scene::PreUpdate() {
-	manager.Refresh();
+void Scene::PreUpdate(Manager& m) {
+	m.Refresh();
 
 	input.UpdatePrevious(this);
 
-	manager.Refresh();
+	m.Refresh();
 
 	input.UpdateCurrent(this);
 
-	manager.Refresh();
+	m.Refresh();
 }
 
-void Scene::PostUpdate() {
+void Scene::PostUpdate(Manager& m) {
+	// TODO: Add multiple manager support?
+
+	m.Refresh();
+
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 
 	float dt{ game.dt() };
 	float time{ game.time() };
 
-	// TODO: Add multiple manager support?
+	Scripts::Update(m, dt);
 
-	manager.Refresh();
-
-	// TODO: Move to a separate file.
-	for (auto [entity, scripts] : manager.EntitiesWith<Scripts>()) {
-		for (const auto& [key, script] : scripts.scripts) {
-			PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
-			script->OnUpdate(dt);
-		}
-	}
-
-	manager.Refresh();
-
-	// TODO: Move to a separate file.
-	for (auto [entity, scripts, script_timer] : manager.EntitiesWith<Scripts, ScriptTimers>()) {
-		for (auto timer_it{ script_timer.timers.begin() }; timer_it != script_timer.timers.end();) {
-			const auto& [key, timer_info] = *timer_it;
-
-			PTGN_ASSERT(
-				timer_info.timer.IsRunning(),
-				"Script timer must be started upon addition of script to entity"
-			);
-
-			auto script_it{ scripts.scripts.find(key) };
-
-			PTGN_ASSERT(
-				script_it != scripts.scripts.end(),
-				"Each script timer must have an associated script"
-			);
-
-			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
-
-			auto& script{ *script_it->second };
-
-			auto elapsed_fraction{ timer_info.timer.ElapsedPercentage(timer_info.duration) };
-			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-
-			script.OnTimerUpdate(elapsed_fraction);
-
-			if (elapsed_fraction < 1.0f) {
-				timer_it++;
-			} else {
-				script.OnTimerStop();
-				timer_it = script_timer.timers.erase(timer_it);
-			}
-		}
-		if (script_timer.timers.empty()) {
-			entity.Remove<ScriptTimers>();
-		}
-	}
-
-	manager.Refresh();
-
-	// TODO: Move to a separate file.
-	for (auto [entity, scripts, script_repeat] : manager.EntitiesWith<Scripts, ScriptRepeats>()) {
-		for (auto repeat_it{ script_repeat.repeats.begin() };
-			 repeat_it != script_repeat.repeats.end();) {
-			auto& [key, repeat_info] = *repeat_it;
-
-			PTGN_ASSERT(
-				repeat_info.timer.IsRunning(),
-				"Script repeat delay timer must be started upon addition of script to entity"
-			);
-
-			auto script_it{ scripts.scripts.find(key) };
-
-			PTGN_ASSERT(
-				script_it != scripts.scripts.end(),
-				"Each repeating script info must have an associated script"
-			);
-
-			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
-
-			auto& script{ *script_it->second };
-
-			auto elapsed_fraction{ repeat_info.timer.ElapsedPercentage(repeat_info.delay) };
-
-			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-
-			if (elapsed_fraction < 1.0f) {
-				// Delay has not passed yet, do nothing.
-				repeat_it++;
-				continue;
-			}
-
-			// Repeat delay has fully elapsed.
-
-			script.OnRepeatUpdate(repeat_info.current_executions);
-			repeat_info.current_executions++;
-
-			bool infinite_execution{ repeat_info.max_executions == -1 };
-
-			if (!infinite_execution &&
-				repeat_info.current_executions >= repeat_info.max_executions) {
-				script.OnRepeatStop();
-				repeat_it = script_repeat.repeats.erase(repeat_it);
-			} else {
-				repeat_info.timer.Start(true);
-			}
-		}
-		if (script_repeat.repeats.empty()) {
-			entity.Remove<ScriptRepeats>();
-		}
-	}
+	impl::ScriptTimers::Update(m);
+	impl::ScriptRepeats::Update(manager);
 
 	Update();
 
-	manager.Refresh();
+	m.Refresh();
 
-	for (auto [e, enabled, particle_manager] :
-		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
-		particle_manager.Update(e.GetPosition());
+	ParticleEmitter::Update(m);
+
+	for (auto [entity, tween] : m.EntitiesWith<impl::TweenInstance>()) {
+		Tween{ entity }.Step(dt);
 	}
 
-	// std::size_t tween_update_count{ 0 };
-	for (auto [e, tween] : manager.EntitiesWith<impl::TweenInstance>()) {
-		Tween{ e }.Step(dt);
-		// tween_update_count++;
-	}
+	translate_effects_.Update(m);
+	rotate_effects_.Update(m);
+	scale_effects_.Update(m);
+	tint_effects_.Update(m);
+	bounce_effects_.Update(m);
+	shake_effects_.Update(m, time, dt);
+	follow_effects_.Update(m);
 
-	translate_effects_.Update(manager);
-	rotate_effects_.Update(manager);
-	scale_effects_.Update(manager);
-	tint_effects_.Update(manager);
-	bounce_effects_.Update(manager);
-	shake_effects_.Update(manager, time, dt);
-	follow_effects_.Update(manager);
+	impl::AnimationSystem::Update(m);
 
-	impl::AnimationSystem::Update(manager);
+	Lifetime::Update(m);
 
-	manager.Refresh();
+	physics.PreCollisionUpdate(m);
 
-	// std::size_t lifetime_update_count{ 0 };
-	for (auto [e, lifetime] : manager.EntitiesWith<Lifetime>()) {
-		lifetime.Update(e);
-		// lifetime_update_count++;
-	}
-	// PTGN_LOG("Scene ", key_, " updated ", lifetime_update_count, " lifetimes this frame");
-	manager.Refresh();
+	impl::CollisionHandler::Update(m);
 
-	physics.PreCollisionUpdate(manager);
-
-	manager.Refresh();
-
-	impl::CollisionHandler::Update(manager);
-
-	manager.Refresh();
-
-	physics.PostCollisionUpdate(manager);
-
-	manager.Refresh();
+	physics.PostCollisionUpdate(m);
 
 	Draw();
 

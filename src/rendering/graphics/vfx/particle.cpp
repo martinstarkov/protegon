@@ -9,7 +9,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "scene/camera.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
@@ -23,6 +22,7 @@
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/texture.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -222,6 +222,15 @@ ParticleEmitter& ParticleEmitter::SetEmissionDelay(milliseconds emission_delay) 
 
 milliseconds ParticleEmitter::GetEmissionDelay() const {
 	return Get<impl::ParticleEmitterComponent>().info.emission_delay;
+}
+
+void ParticleEmitter::Update(Manager& manager) {
+	for (auto [entity, enabled, particle_manager] :
+		 manager.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
+		particle_manager.Update(entity.GetPosition());
+	}
+
+	manager.Refresh();
 }
 
 } // namespace ptgn

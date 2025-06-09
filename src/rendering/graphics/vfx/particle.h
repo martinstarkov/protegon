@@ -17,6 +17,7 @@
 namespace ptgn {
 
 class Scene;
+class Manager;
 
 enum class ParticleShape {
 	Circle,
@@ -156,6 +157,11 @@ public:
 
 	ParticleEmitter& SetEmissionDelay(milliseconds emission_delay);
 	[[nodiscard]] milliseconds GetEmissionDelay() const;
+
+private:
+	friend class Scene;
+
+	static void Update(Manager& manager);
 };
 
 [[nodiscard]] ParticleEmitter CreateParticleEmitter(

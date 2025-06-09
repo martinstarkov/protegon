@@ -1,6 +1,7 @@
 #include "components/lifetime.h"
 
 #include "core/entity.h"
+#include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 
@@ -17,10 +18,18 @@ void Lifetime::Start() {
 	timer_.Start();
 }
 
-void Lifetime::Update(Entity& e) const {
+void Lifetime::Update(Entity& entity) const {
 	if (timer_.Completed(duration)) {
-		e.Destroy();
+		entity.Destroy();
 	}
+}
+
+void Lifetime::Update(Manager& manager) {
+	for (auto [entity, lifetime] : manager.EntitiesWith<Lifetime>()) {
+		lifetime.Update(entity);
+	}
+
+	manager.Refresh();
 }
 
 } // namespace ptgn

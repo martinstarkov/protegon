@@ -4,9 +4,9 @@
 #include "core/timer.h"
 #include "serialization/serializable.h"
 
-
 namespace ptgn {
 
+class Manager;
 class Entity;
 
 struct Lifetime {
@@ -17,7 +17,7 @@ struct Lifetime {
 	// Will restart if lifetime is already running.
 	void Start();
 
-	void Update(Entity& e) const;
+	void Update(Entity& entity) const;
 
 	milliseconds duration{ 0 };
 
@@ -26,6 +26,10 @@ struct Lifetime {
 	)
 
 private:
+	friend class Scene;
+
+	static void Update(Manager& manager);
+
 	Timer timer_;
 };
 
