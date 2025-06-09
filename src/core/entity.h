@@ -46,7 +46,7 @@ public:
 	Entity& operator=(const Entity&)	 = default;
 	Entity(Entity&&) noexcept			 = default;
 	Entity& operator=(Entity&&) noexcept = default;
-	virtual ~Entity()					 = default;
+	~Entity()							 = default;
 
 	explicit Entity(Manager& manager);
 
@@ -467,6 +467,28 @@ private:
 	explicit Entity(const ecs::Entity<JSONArchiver>& e);
 };
 
+// TODO: Move elsewhere once IScript is not tied to entity.
+struct Collision {
+	Collision() = default;
+
+	Collision(const Entity& other, const V2_float& collision_normal) :
+		entity{ other }, normal{ collision_normal } {}
+
+	Entity entity;
+	// Normal set to {} for overlap only collisions.
+	V2_float normal;
+
+	friend bool operator==(const Collision& a, const Collision& b) {
+		return a.entity == b.entity && a.normal == b.normal;
+	}
+
+	friend bool operator!=(const Collision& a, const Collision& b) {
+		return !operator==(a, b);
+	}
+
+	PTGN_SERIALIZER_REGISTER(Collision, entity, normal)
+};
+
 namespace impl {
 
 // TODO: Figure out a way to move IScript to a different file.
@@ -479,36 +501,39 @@ public:
 
 	// Lifecycle.
 
-	virtual void OnCreate() {}	// Called when script is first instantiated.
+	virtual void OnCreate() { /* user implementation */
+	} // Called when script is first instantiated.
 
-	virtual void OnDestroy() {} // Called before script is destroyed.
+	virtual void OnDestroy() { /* user implementation */ } // Called before script is destroyed.
 
-	virtual void OnEnable() {}	// Called when entity is enabled.
+	virtual void OnEnable() { /* user implementation */ }  // Called when entity is enabled.
 
-	virtual void OnDisable() {} // Called when entity is disabled.
+	virtual void OnDisable() { /* user implementation */ } // Called when entity is disabled.
 
-	virtual void OnShow() {}	// Called when entity is shown.
+	virtual void OnShow() { /* user implementation */ }	   // Called when entity is shown.
 
-	virtual void OnHide() {}	// Called when entity is hidden.
+	virtual void OnHide() { /* user implementation */ }	   // Called when entity is hidden.
 
 	// Timed script triggers.
 
-	virtual void OnTimerStart() {}
+	virtual void OnTimerStart() { /* user implementation */ }
 
-	virtual void OnTimerUpdate([[maybe_unused]] float elapsed_fraction) {}
+	virtual void OnTimerUpdate([[maybe_unused]] float elapsed_fraction) { /* user implementation */
+	}
 
-	virtual void OnTimerStop() {}
+	virtual void OnTimerStop() { /* user implementation */ }
 
 	// Repeated script triggers.
 
-	virtual void OnRepeatStart() {}
+	virtual void OnRepeatStart() { /* user implementation */ }
 
 	// @param repeat starts from 0.
-	virtual void OnRepeatUpdate([[maybe_unused]] int repeat) {}
+	virtual void OnRepeatUpdate([[maybe_unused]] int repeat) { /* user implementation */ }
 
-	virtual void OnRepeatStop() {}
+	virtual void OnRepeatStop() { /* user implementation */ }
 
-	virtual void OnUpdate([[maybe_unused]] float dt) {} // Called every frame.
+	virtual void OnUpdate([[maybe_unused]] float dt) { /* user implementation */
+	} // Called every frame.
 
 	// TODO: Consider implementing?
 	// virtual void OnFixedUpdate([[maybe_unused]] float fixed_dt) {} // Called at fixed intervals
@@ -626,7 +651,18 @@ public:
 
 	virtual void OnMoveRightStop() { /* user implementation */ }
 
-	// TODO: Add OnCollision events.
+	// Must return true for collision to be checked.
+	// Defaults to true.
+	virtual bool PreCollisionCondition([[maybe_unused]] Entity other) {
+		return true;
+	}
+
+	virtual void OnCollisionStart([[maybe_unused]] Collision collision) { /* user implementation */
+	}
+
+	virtual void OnCollision([[maybe_unused]] Collision collision) { /* user implementation */ }
+
+	virtual void OnCollisionStop([[maybe_unused]] Collision collision) { /* user implementation */ }
 
 	// Button events.
 
