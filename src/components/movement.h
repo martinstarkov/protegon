@@ -1,8 +1,8 @@
 #pragma once
 
 #include <functional>
-#include <iosfwd>
 
+#include "common/move_direction.h"
 #include "components/transform.h"
 #include "core/time.h"
 #include "core/timer.h"
@@ -14,35 +14,6 @@
 #include "serialization/serializable.h"
 
 namespace ptgn {
-
-enum class MoveDirection {
-	Up,
-	Right,
-	Down,
-	Left,
-	UpLeft,
-	UpRight,
-	DownRight,
-	DownLeft,
-	None
-};
-
-inline std::ostream& operator<<(std::ostream& os, MoveDirection direction) {
-	switch (direction) {
-		case MoveDirection::UpLeft:	   os << "Up Left"; break;
-		case MoveDirection::Up:		   os << "Up"; break;
-		case MoveDirection::UpRight:   os << "Up Right"; break;
-		case MoveDirection::Left:	   os << "Left"; break;
-		case MoveDirection::None:	   os << "None"; break;
-		case MoveDirection::Right:	   os << "Right"; break;
-		case MoveDirection::DownLeft:  os << "Down Left"; break;
-		case MoveDirection::Down:	   os << "Down"; break;
-		case MoveDirection::DownRight: os << "Down Right"; break;
-		default:					   PTGN_ERROR("Invalid movement direction");
-	}
-
-	return os;
-}
 
 namespace impl {
 
@@ -91,36 +62,8 @@ struct TopDownMovement {
 	Key down_key{ Key::S };
 	Key right_key{ Key::D };
 
-	// TODO: Turn all these callbacks into optional script components.
-
-	// Called every frame that the player is moving.
-	std::function<void()> on_move;
-	// Called on the first frame of player movement.
-	std::function<void()> on_move_start;
-	// Called on the first frame of player stopping their movement.
-	std::function<void()> on_move_stop;
-	// Called when the movement direction changes. Passed parameter is the difference in direction.
-	// If not moving, this is simply the new direction. If moving already, this is the newly added
-	// component of movement. To get the current direction instead, simply use GetDirection().
-	std::function<void(MoveDirection direction_difference)> on_direction_change;
-
-	std::function<void()> on_move_up;
-	std::function<void()> on_move_down;
-	std::function<void()> on_move_left;
-	std::function<void()> on_move_right;
-
-	std::function<void()> on_move_up_start;
-	std::function<void()> on_move_down_start;
-	std::function<void()> on_move_left_start;
-	std::function<void()> on_move_right_start;
-
-	std::function<void()> on_move_up_stop;
-	std::function<void()> on_move_down_stop;
-	std::function<void()> on_move_left_stop;
-	std::function<void()> on_move_right_stop;
-
 	// @param dt Unit: seconds.
-	void Update(Transform& transform, RigidBody& rb, float dt);
+	void Update(Entity& entity, Transform& transform, RigidBody& rb, float dt);
 
 	// Invoke a movement command in a specific direction the same as a key input would. If move
 	// direction is none, movement inputs will be set to false.
@@ -157,7 +100,7 @@ private:
 
 	[[nodiscard]] static MoveDirection GetDirectionState(const V2_float& d);
 
-	void InvokeCallbacks();
+	void InvokeCallbacks(Entity& entity);
 
 	// Whether or not an input of this type has been given in this frame.
 	// Useful for moving a player without having to press keys.
@@ -165,6 +108,7 @@ private:
 	bool down_input{ false };
 	bool left_input{ false };
 	bool right_input{ false };
+
 	// Keep track of movement starting and stopping.
 	V2_float dir;
 	V2_float prev_dir;
