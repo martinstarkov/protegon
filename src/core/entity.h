@@ -33,6 +33,14 @@ namespace impl {
 class RenderData;
 class IScript;
 
+struct IgnoreParentTransform : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	IgnoreParentTransform() : ArithmeticComponent{ true } {}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS(IgnoreParentTransform, value_)
+};
+
 } // namespace impl
 
 class Entity : private ecs::Entity<JSONArchiver> {
@@ -160,7 +168,9 @@ public:
 
 	[[nodiscard]] bool HasParent() const;
 
-	void SetParent(Entity& parent);
+	void IgnoreParentTransform(bool ignore_parent_transform);
+
+	void SetParent(Entity& parent, bool ignore_parent_transform = false);
 
 	void RemoveParent();
 
@@ -606,6 +616,9 @@ public:
 	virtual void OnAnimationFrameChange([[maybe_unused]] std::size_t new_frame
 	) { /* user implementation */
 	}
+
+	// Called once when the animation goes through its first full cycle.
+	virtual void OnAnimationComplete() { /* user implementation */ }
 
 	virtual void OnAnimationPause() { /* user implementation */ }
 

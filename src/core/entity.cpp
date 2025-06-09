@@ -112,7 +112,12 @@ void Entity::SetParentImpl(Entity& parent) {
 	}
 }
 
-void Entity::SetParent(Entity& parent) {
+void Entity::IgnoreParentTransform(bool ignore_parent_transform) {
+	AddOrRemove<impl::IgnoreParentTransform>(ignore_parent_transform, ignore_parent_transform);
+}
+
+void Entity::SetParent(Entity& parent, bool ignore_parent_transform) {
+	IgnoreParentTransform(ignore_parent_transform);
 	SetParentImpl(parent);
 	if (parent && parent != *this) {
 		parent.AddChildImpl(*this);
@@ -235,7 +240,11 @@ Transform Entity::GetTransform() const {
 }
 
 Transform Entity::GetAbsoluteTransform() const {
-	return GetTransform().RelativeTo(
+	auto transform{ GetTransform() };
+	if (Has<impl::IgnoreParentTransform>() && Get<impl::IgnoreParentTransform>()) {
+		return transform;
+	}
+	return transform.RelativeTo(
 		HasParent() ? GetParent().GetAbsoluteTransform() : Transform{}
 	);
 }
