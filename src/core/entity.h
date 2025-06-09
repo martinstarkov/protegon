@@ -3,6 +3,7 @@
 #include <string_view>
 #include <unordered_set>
 
+#include "common/move_direction.h"
 #include "common/type_info.h"
 #include "components/common.h"
 #include "components/drawable.h"
@@ -25,14 +26,14 @@
 
 namespace ptgn {
 
+class Manager;
+
 namespace impl {
 
 class RenderData;
 class IScript;
 
 } // namespace impl
-
-class Manager;
 
 class Entity : private ecs::Entity<JSONArchiver> {
 public:
@@ -301,6 +302,9 @@ public:
 	template <typename T, typename... TArgs>
 	T& AddScript(TArgs&&... args);
 
+	template <auto TCallback, typename... TArgs>
+	void InvokeScript(TArgs&&... args) const;
+
 	/**
 	 * @brief Adds a script that executes continuously for a specified duration.
 	 *
@@ -563,8 +567,68 @@ public:
 
 	// TODO: Consider adding OnDrop event(s).
 
-	// TODO: Add OnMovement events.
+	// Animation events.
+
+	virtual void OnAnimationStart() { /* user implementation */ }
+
+	virtual void OnAnimationUpdate() { /* user implementation */ }
+
+	// Called for each repeat of the full animation.
+	// @param repeat Starts from 0.
+	virtual void OnAnimationRepeat([[maybe_unused]] int repeat) { /* user implementation */ }
+
+	// Called when the frame of the animation changes
+	virtual void OnAnimationFrameChange([[maybe_unused]] int new_frame) { /* user implementation */
+	}
+
+	virtual void OnAnimationPause() { /* user implementation */ }
+
+	virtual void OnAnimationResume() { /* user implementation */ }
+
+	virtual void OnAnimationStop() { /* user implementation */ }
+
+	// Called every frame that the player is moving.
+	virtual void OnMove() { /* user implementation */ }
+
+	// Called on the first frame of player movement.
+	virtual void OnMoveStart() { /* user implementation */ }
+
+	// Called on the first frame of player stopping their movement.
+	virtual void OnMoveStop() { /* user implementation */ }
+
+	// Called when the movement direction changes. Passed parameter is the difference in direction.
+	// If not moving, this is simply the new direction. If moving already, this is the newly added
+	// component of movement. To get the current direction instead, simply use GetDirection().
+	virtual void OnMoveDirectionChange([[maybe_unused]] MoveDirection direction_difference
+	) { /* user implementation */ }
+
+	virtual void OnMoveUp() { /* user implementation */ }
+
+	virtual void OnMoveDown() { /* user implementation */ }
+
+	virtual void OnMoveLeft() { /* user implementation */ }
+
+	virtual void OnMoveRight() { /* user implementation */ }
+
+	virtual void OnMoveUpStart() { /* user implementation */ }
+
+	virtual void OnMoveDownStart() { /* user implementation */ }
+
+	virtual void OnMoveLeftStart() { /* user implementation */ }
+
+	virtual void OnMoveRightStart() { /* user implementation */ }
+
+	virtual void OnMoveUpStop() { /* user implementation */ }
+
+	virtual void OnMoveDownStop() { /* user implementation */ }
+
+	virtual void OnMoveLeftStop() { /* user implementation */ }
+
+	virtual void OnMoveRightStop() { /* user implementation */ }
+
 	// TODO: Add OnCollision events.
+
+	// Button events.
 
 	virtual void OnButtonHoverStart() { /* user implementation */ }
 
@@ -580,20 +644,31 @@ public:
 
 } // namespace impl
 
-using Scripts = impl::ScriptContainer<impl::IScript>;
+class Scripts : public impl::ScriptContainer<impl::IScript> {
+public:
+	static void Update(Manager& manager, float dt);
 
-template <typename T>
-using Script = impl::Script<T, impl::IScript>;
-
-template <auto TCallback, typename... TArgs>
-static void InvokeScript(const Entity& entity, TArgs&&... args) {
-	if (entity.Has<Scripts>()) {
-		const auto& scripts{ entity.Get<Scripts>().scripts };
+	template <auto TCallback, typename... TArgs>
+	void Invoke(TArgs&&... args) const {
 		for (const auto& [key, script] : scripts) {
 			PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
 			std::invoke(TCallback, script, std::forward<TArgs>(args)...);
 		}
 	}
+};
+
+template <typename T>
+using Script = impl::Script<T, impl::IScript>;
+
+template <auto TCallback, typename... TArgs>
+void Entity::InvokeScript(TArgs&&... args) const {
+	if (!Has<Scripts>()) {
+		return;
+	}
+
+	const auto& scripts{ Get<Scripts>() };
+
+	scripts.Invoke<TCallback>(std::forward<TArgs>(args)...);
 }
 
 template <typename T, typename... TArgs>
@@ -608,34 +683,6 @@ T& Entity::AddScript(TArgs&&... args) {
 	return script;
 }
 
-// TODO: Move to separate file.
-class ScriptTimers {
-public:
-	struct TimerInfo {
-		Timer timer;
-		// Duration of the timer.
-		milliseconds duration{ 0 };
-	};
-
-	std::unordered_map<std::size_t, TimerInfo> timers;
-};
-
-// TODO: Move to separate file.
-class ScriptRepeats {
-public:
-	struct RepeatInfo {
-		Timer timer;
-		// delay to next execution.
-		milliseconds delay{ 0 };
-		// current number of executions (first value passed to OnRepeatUpdate is 0).
-		int current_executions{ 0 };
-		// -1 for infinite executions.
-		int max_executions{ 0 };
-	};
-
-	std::unordered_map<std::size_t, RepeatInfo> repeats;
-};
-
 template <typename T, typename... TArgs>
 T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 	auto& script{ AddScript<T>(std::forward<TArgs>(args)...) };
@@ -644,14 +691,12 @@ T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 		execution_duration >= milliseconds{ 0 }, "Timer script must have a positive duration"
 	);
 
-	auto& timer_scripts{ GetOrAdd<ScriptTimers>() };
+	auto& timer_scripts{ GetOrAdd<impl::ScriptTimers>() };
 
 	constexpr auto class_name{ type_name<T>() };
 	constexpr auto hash{ Hash(class_name) };
 
-	timer_scripts.timers.emplace(
-		hash, ScriptTimers::TimerInfo{ Timer{ true }, execution_duration }
-	);
+	timer_scripts.timers.emplace(hash, impl::TimerInfo{ Timer{ true }, execution_duration });
 
 	script.OnTimerStart();
 
@@ -693,14 +738,14 @@ T& Entity::AddRepeatScript(
 		// More than one script execution requested.
 	}
 
-	auto& repeat_scripts{ GetOrAdd<ScriptRepeats>() };
+	auto& repeat_scripts{ GetOrAdd<impl::ScriptRepeats>() };
 
 	constexpr auto class_name{ type_name<T>() };
 	constexpr auto hash{ Hash(class_name) };
 
 	repeat_scripts.repeats.emplace(
-		hash, ScriptRepeats::RepeatInfo{ Timer{ true }, execution_delay, current_executions,
-										 execution_count }
+		hash,
+		impl::RepeatInfo{ Timer{ true }, execution_delay, current_executions, execution_count }
 	);
 
 	return script;
@@ -737,11 +782,11 @@ void Entity::RemoveScript() {
 
 	auto& script{ scripts.GetScript<T>() };
 
-	if (Has<ScriptTimers>()) {
+	if (Has<impl::ScriptTimers>()) {
 		// TODO: Consider replacing with a different callback / hook for early timer stop?
 		script.OnTimerStop();
 
-		auto& timers{ Get<ScriptTimers>().timers };
+		auto& timers{ Get<impl::ScriptTimers>().timers };
 
 		constexpr auto class_name{ type_name<T>() };
 		constexpr auto hash{ Hash(class_name) };
@@ -749,15 +794,15 @@ void Entity::RemoveScript() {
 		timers.erase(hash);
 
 		if (timers.empty()) {
-			Remove<ScriptTimers>();
+			Remove<impl::ScriptTimers>();
 		}
 	}
 
-	if (Has<ScriptRepeats>()) {
+	if (Has<impl::ScriptRepeats>()) {
 		// TODO: Consider replacing with a different callback / hook for early repeat stop?
 		script.OnRepeatStop();
 
-		auto& repeats{ Get<ScriptRepeats>().repeats };
+		auto& repeats{ Get<impl::ScriptRepeats>().repeats };
 
 		constexpr auto class_name{ type_name<T>() };
 		constexpr auto hash{ Hash(class_name) };
@@ -765,7 +810,7 @@ void Entity::RemoveScript() {
 		repeats.erase(hash);
 
 		if (repeats.empty()) {
-			Remove<ScriptRepeats>();
+			Remove<impl::ScriptRepeats>();
 		}
 	}
 

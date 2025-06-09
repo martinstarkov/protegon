@@ -65,7 +65,7 @@ ToggleButton CreateToggleButton(Manager& manager, bool toggled) {
 
 namespace impl {
 
-void ButtonScript::OnMouseEnter(V2_float mouse) {
+void ButtonScript::OnMouseEnter([[maybe_unused]] V2_float mouse) {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (state == InternalButtonState::IdleUp) {
@@ -79,7 +79,7 @@ void ButtonScript::OnMouseEnter(V2_float mouse) {
 	}
 }
 
-void ButtonScript::OnMouseLeave(V2_float mouse) {
+void ButtonScript::OnMouseLeave([[maybe_unused]] V2_float mouse) {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (state == InternalButtonState::Hover) {
@@ -758,15 +758,15 @@ ButtonState Button::GetState() const {
 }
 
 void Button::Activate() {
-	InvokeScript<&impl::IScript::OnButtonActivate>(*this);
+	InvokeScript<&impl::IScript::OnButtonActivate>();
 }
 
 void Button::StartHover() {
-	InvokeScript<&impl::IScript::OnButtonHoverStart>(*this);
+	InvokeScript<&impl::IScript::OnButtonHoverStart>();
 }
 
 void Button::StopHover() {
-	InvokeScript<&impl::IScript::OnButtonHoverStop>(*this);
+	InvokeScript<&impl::IScript::OnButtonHoverStop>();
 }
 
 bool ToggleButton::IsToggled() const {

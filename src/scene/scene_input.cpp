@@ -30,8 +30,9 @@
 
 namespace ptgn {
 
-bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
-	const {
+bool SceneInput::PointerIsInside(
+	V2_float pointer, const Camera& camera, const Entity& entity
+) const {
 	pointer = game.input.GetMousePositionUnclamped();
 	auto window_size{ game.window.GetSize() };
 	if (!impl::OverlapPointRect(pointer, window_size / 2.0f, window_size, 0.0f)) {
@@ -305,31 +306,31 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				GetMousePosAndCamera(entity, mouse_pos, scene.camera.primary, pos, camera);
-				InvokeScript<&impl::IScript::OnMouseMove>(entity, pos);
+				entity.InvokeScript<&impl::IScript::OnMouseMove>(pos);
 				bool entered{ interactive.is_inside && !interactive.was_inside };
 				bool exited{ !interactive.is_inside && interactive.was_inside };
 				if (entered) {
-					InvokeScript<&impl::IScript::OnMouseEnter>(entity, pos);
+					entity.InvokeScript<&impl::IScript::OnMouseEnter>(pos);
 				}
 				if (exited) {
-					InvokeScript<&impl::IScript::OnMouseLeave>(entity, pos);
+					entity.InvokeScript<&impl::IScript::OnMouseLeave>(pos);
 				}
 				if (interactive.is_inside) {
-					InvokeScript<&impl::IScript::OnMouseOver>(entity, pos);
+					entity.InvokeScript<&impl::IScript::OnMouseOver>(pos);
 				} else {
-					InvokeScript<&impl::IScript::OnMouseOut>(entity, pos);
+					entity.InvokeScript<&impl::IScript::OnMouseOut>(pos);
 				}
 				if (entity.Has<Draggable>() && entity.Get<Draggable>().dragging) {
-					InvokeScript<&impl::IScript::OnDrag>(entity, pos);
+					entity.InvokeScript<&impl::IScript::OnDrag>(pos);
 					if (interactive.is_inside) {
-						InvokeScript<&impl::IScript::OnDragOver>(entity, pos);
+						entity.InvokeScript<&impl::IScript::OnDragOver>(pos);
 						if (!interactive.was_inside) {
-							InvokeScript<&impl::IScript::OnDragEnter>(entity, pos);
+							entity.InvokeScript<&impl::IScript::OnDragEnter>(pos);
 						}
 					} else {
-						InvokeScript<&impl::IScript::OnDragOut>(entity, pos);
+						entity.InvokeScript<&impl::IScript::OnDragOut>(pos);
 						if (interactive.was_inside) {
-							InvokeScript<&impl::IScript::OnDragLeave>(entity, pos);
+							entity.InvokeScript<&impl::IScript::OnDragLeave>(pos);
 						}
 					}
 				}
@@ -344,7 +345,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					InvokeScript<&impl::IScript::OnMouseDown>(entity, mouse);
+					entity.InvokeScript<&impl::IScript::OnMouseDown>(mouse);
 					if (entity.Has<Draggable>()) {
 						if (auto& draggable{ entity.Get<Draggable>() }; !draggable.dragging) {
 							GetMousePosAndCamera(
@@ -353,11 +354,11 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 							draggable.dragging = true;
 							draggable.start	   = pos;
 							draggable.offset   = entity.GetPosition() - draggable.start;
-							InvokeScript<&impl::IScript::OnDragStart>(entity, pos);
+							entity.InvokeScript<&impl::IScript::OnDragStart>(pos);
 						}
 					}
 				} else {
-					InvokeScript<&impl::IScript::OnMouseDownOutside>(entity, mouse);
+					entity.InvokeScript<&impl::IScript::OnMouseDownOutside>(mouse);
 				}
 			}
 			break;
@@ -370,16 +371,16 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					InvokeScript<&impl::IScript::OnMouseUp>(entity, mouse);
+					entity.InvokeScript<&impl::IScript::OnMouseUp>(mouse);
 				} else {
-					InvokeScript<&impl::IScript::OnMouseUpOutside>(entity, mouse);
+					entity.InvokeScript<&impl::IScript::OnMouseUpOutside>(mouse);
 				}
 				if (entity.Has<Draggable>()) {
 					if (auto& draggable{ entity.Get<Draggable>() }; draggable.dragging) {
 						GetMousePosAndCamera(entity, mouse_pos, scene.camera.primary, pos, camera);
 						draggable.dragging = false;
 						draggable.offset   = {};
-						InvokeScript<&impl::IScript::OnDragStop>(entity, pos);
+						entity.InvokeScript<&impl::IScript::OnDragStop>(pos);
 					}
 				}
 			}
@@ -393,7 +394,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					InvokeScript<&impl::IScript::OnMousePressed>(entity, mouse);
+					entity.InvokeScript<&impl::IScript::OnMousePressed>(mouse);
 				}
 			}
 			break;
@@ -406,7 +407,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					continue;
 				}
 				if (interactive.is_inside) {
-					InvokeScript<&impl::IScript::OnMouseScroll>(entity, scroll);
+					entity.InvokeScript<&impl::IScript::OnMouseScroll>(scroll);
 				}
 			}
 			break;
@@ -425,7 +426,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				InvokeScript<&impl::IScript::OnKeyDown>(entity, key);
+				entity.InvokeScript<&impl::IScript::OnKeyDown>(key);
 			}
 			break;
 		}
@@ -436,7 +437,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				InvokeScript<&impl::IScript::OnKeyUp>(entity, key);
+				entity.InvokeScript<&impl::IScript::OnKeyUp>(key);
 			}
 			break;
 		}
@@ -447,7 +448,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				InvokeScript<&impl::IScript::OnKeyPressed>(entity, key);
+				entity.InvokeScript<&impl::IScript::OnKeyPressed>(key);
 			}
 			break;
 		}

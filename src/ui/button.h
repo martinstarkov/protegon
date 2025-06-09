@@ -53,9 +53,9 @@ enum class InternalButtonState {
 
 class ButtonScript : public ptgn::Script<ButtonScript> {
 public:
-	void OnMouseEnter([[maybe_unused]] V2_float mouse) override;
+	void OnMouseEnter(V2_float mouse) override;
 
-	void OnMouseLeave([[maybe_unused]] V2_float mouse) override;
+	void OnMouseLeave(V2_float mouse) override;
 
 	void OnMouseDown(Mouse mouse) override;
 
@@ -236,8 +236,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -339,8 +340,9 @@ public:
 		const TextColor& text_color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] std::string_view GetTextContentToggled(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	ToggleButton& SetTextContentToggled(
 		const TextContent& content, ButtonState state = ButtonState::Default

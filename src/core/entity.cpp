@@ -201,9 +201,9 @@ std::unordered_set<Entity> Entity::GetChildren() const {
 Entity& Entity::SetEnabled(bool enabled) {
 	if (enabled) {
 		Add<Enabled>(enabled);
-		InvokeScript<&impl::IScript::OnEnable>(*this);
+		InvokeScript<&impl::IScript::OnEnable>();
 	} else {
-		InvokeScript<&impl::IScript::OnDisable>(*this);
+		InvokeScript<&impl::IScript::OnDisable>();
 		Remove<Enabled>();
 	}
 	return *this;
@@ -311,9 +311,9 @@ Origin Entity::GetOrigin() const {
 Entity& Entity::SetVisible(bool visible) {
 	if (visible) {
 		Add<Visible>(visible);
-		InvokeScript<&impl::IScript::OnShow>(*this);
+		InvokeScript<&impl::IScript::OnShow>();
 	} else {
-		InvokeScript<&impl::IScript::OnHide>(*this);
+		InvokeScript<&impl::IScript::OnHide>();
 		Remove<Visible>();
 	}
 	return *this;
@@ -371,6 +371,14 @@ Entity& Entity::SetTint(const Color& color) {
 
 Color Entity::GetTint() const {
 	return GetOrDefault<Tint>();
+}
+
+void Scripts::Update(Manager& manager, float dt) {
+	for (auto [entity, scripts] : manager.EntitiesWith<Scripts>()) {
+		scripts.Invoke<&impl::IScript::OnUpdate>(dt);
+	}
+
+	manager.Refresh();
 }
 
 namespace impl {
