@@ -74,6 +74,9 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 
 	auto transform{ sprite.GetAbsoluteTransform() };
+	auto offset_transform{ GetOffset(sprite) };
+	transform = transform.RelativeTo(offset_transform);
+
 	auto depth{ sprite.GetDepth() };
 	auto blend_mode{ sprite.GetBlendMode() };
 	auto tint{ sprite.GetTint().Normalized() };
@@ -81,8 +84,6 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	auto display_size{ sprite.GetDisplaySize() };
 	auto coords{ sprite.GetTextureCoordinates(false) };
-	auto offset_transform{ GetOffset(sprite) };
-	transform = transform.RelativeTo(offset_transform);
 	auto vertices{ impl::GetVertices(transform, display_size, origin) };
 	auto camera{ entity.GetOrDefault<Camera>() };
 
