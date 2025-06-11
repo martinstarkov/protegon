@@ -161,6 +161,10 @@ public:
 		return *current_.Get<SceneComponent>().scene;
 	}
 
+	[[nodiscard]] Scene& GetCurrent() {
+		return const_cast<Scene&>(std::as_const(*this).GetCurrent());
+	}
+
 private:
 	friend class ptgn::SceneTransition;
 	friend class Game;
