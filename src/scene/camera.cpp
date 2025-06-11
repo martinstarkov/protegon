@@ -227,8 +227,9 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
-	const {
+void CameraInfo::RecalculateView(
+	const Transform& current, const Transform& offset_transform
+) const {
 	V3_float position{ current.position.x, current.position.y, position_z };
 	V3_float orientation{ current.rotation, orientation_y, orientation_z };
 
@@ -331,10 +332,10 @@ void Camera::SubscribeToWindowEvents() {
 	if (game.event.window.IsSubscribed(*this)) {
 		return;
 	}
-	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
-													   ) mutable {
-		OnWindowResize(e.size);
-	};
+	std::function<void(const WindowResizedEvent&)> f =
+		[*this](const WindowResizedEvent& e) mutable {
+			OnWindowResize(e.size);
+		};
 	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
 	OnWindowResize(game.window.GetSize());
 }
@@ -747,19 +748,25 @@ void CameraManager::Init(std::size_t scene_key) {
 	scene_key_ = scene_key;
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	PTGN_ASSERT(!window && !primary);
-	primary = CreateCamera(scene.manager);
-	window	= CreateCamera(scene.manager);
+	primary			 = CreateCamera(scene.manager);
+	window			 = CreateCamera(scene.manager);
+	primary_unzoomed = CreateCamera(scene.manager);
+	window_unzoomed	 = CreateCamera(scene.manager);
 }
 
 void CameraManager::Reset() {
 	primary.Reset();
 	window.Reset();
+	primary_unzoomed.Reset();
+	window_unzoomed.Reset();
 }
 
 void to_json(json& j, const CameraManager& camera_manager) {
-	j["scene_key"] = camera_manager.scene_key_;
-	j["primary"]   = camera_manager.primary;
-	j["window"]	   = camera_manager.window;
+	j["scene_key"]		  = camera_manager.scene_key_;
+	j["primary"]		  = camera_manager.primary;
+	j["window"]			  = camera_manager.window;
+	j["primary_unzoomed"] = camera_manager.primary_unzoomed;
+	j["window_unzoomed"]  = camera_manager.window_unzoomed;
 }
 
 void from_json(const json& j, CameraManager& camera_manager) {
@@ -767,6 +774,10 @@ void from_json(const json& j, CameraManager& camera_manager) {
 	auto& scene{ game.scene.Get<Scene>(camera_manager.scene_key_) };
 	camera_manager.primary = scene.manager.GetEntityByUUID(j.at("primary").at("UUID"));
 	camera_manager.window  = scene.manager.GetEntityByUUID(j.at("window").at("UUID"));
+	camera_manager.primary_unzoomed =
+		scene.manager.GetEntityByUUID(j.at("primary_unzoomed").at("UUID"));
+	camera_manager.window_unzoomed =
+		scene.manager.GetEntityByUUID(j.at("window_unzoomed").at("UUID"));
 }
 
 /*

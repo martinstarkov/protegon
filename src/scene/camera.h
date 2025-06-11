@@ -26,6 +26,8 @@ class CameraManager;
 
 namespace impl {
 
+class RenderData;
+
 class CameraInfo {
 public:
 	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
@@ -71,8 +73,9 @@ public:
 	void UpdateRotation(float rotation);
 	void UpdateScale(const V2_float& scale);
 
-	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
-		const;
+	[[nodiscard]] const Matrix4& GetViewProjection(
+		const Transform& current, const Entity& entity
+	) const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -455,6 +458,10 @@ public:
 
 private:
 	friend class Scene;
+	friend class impl::RenderData;
+
+	Camera primary_unzoomed;
+	Camera window_unzoomed;
 
 	void Init(std::size_t scene_key);
 
