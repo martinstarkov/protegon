@@ -19,6 +19,8 @@
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 
+// TODO: Move to RenderTarget's owning their own batches.
+
 namespace ptgn {
 
 class Shader;
@@ -33,11 +35,9 @@ class RenderData {
 public:
 	void Init();
 
-	void Render(
-		const FrameBuffer& frame_buffer, const Manager& manager
-	);
+	void Render(const FrameBuffer& frame_buffer, const Manager& manager);
 
-	//void RenderToScreen(const RenderTarget& target, const Camera& camera);
+	// void RenderToScreen(const RenderTarget& target, const Camera& camera);
 
 	void AddLine(
 		const V2_float& line_start, const V2_float& line_end, float line_width, const Depth& depth,
@@ -46,8 +46,8 @@ public:
 
 	void AddLines(
 		const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
-		const Camera& camera, BlendMode blend_mode, const V4_float& color, bool connect_last_to_first,
-		bool debug
+		const Camera& camera, BlendMode blend_mode, const V4_float& color,
+		bool connect_last_to_first, bool debug
 	);
 
 	void AddTriangle(
@@ -57,12 +57,14 @@ public:
 
 	void AddQuad(
 		const V2_float& position, const V2_float& size, Origin origin, float line_width,
-		const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
+		const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
+		float rotation, bool debug
 	);
 
 	void AddEllipse(
 		const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
-		const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
+		const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation,
+		bool debug
 	);
 
 	void AddPolygon(
@@ -71,14 +73,15 @@ public:
 	);
 
 	void AddPoint(
-		const V2_float& position, const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
-		bool debug
+		const V2_float& position, const Depth& depth, const Camera& camera, BlendMode blend_mode,
+		const V4_float& color, bool debug
 	);
 
 	void AddTexturedQuad(
 		const std::array<V2_float, Batch::quad_vertex_count>& vertices,
 		const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
-		const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
+		const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
+		bool debug
 	);
 
 	// Set once before adding to batch.
@@ -128,8 +131,8 @@ private:
 
 	void AddHollowEllipse(
 		const std::array<V2_float, Batch::quad_vertex_count>& vertices, float line_width,
-		const V2_float& radius, const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
-		bool debug
+		const V2_float& radius, const Depth& depth, const Camera& camera, BlendMode blend_mode,
+		const V4_float& color, bool debug
 	);
 
 	[[nodiscard]] Batch& GetBatch(
@@ -142,9 +145,7 @@ private:
 
 	void AddToBatch(const Entity& object, bool check_visibility);
 
-	void SetVertexArrayToWindow(
-		const Color& color, const Depth& depth, float texture_index
-	);
+	void SetVertexArrayToWindow(const Color& color, const Depth& depth, float texture_index);
 
 	void SortEntitiesByY(std::vector<Entity>& entities);
 
@@ -153,15 +154,15 @@ private:
 	// @return True if the batch contains lights, false otherwise. Note: Light batches do not
 	// contain other drawables.
 	bool FlushLights(
-		Batch& batch, const FrameBuffer& frame_buffer,
-		const V2_float& window_size, const Depth& depth
+		Batch& batch, const FrameBuffer& frame_buffer, const V2_float& window_size,
+		const Depth& depth
 	);
 
 	void Flush(const FrameBuffer& frame_buffer);
 
 	void FlushBatches(
-		Batches& batches, const FrameBuffer& frame_buffer,
-		const V2_float& window_size, const Depth& depth
+		Batches& batches, const FrameBuffer& frame_buffer, const V2_float& window_size,
+		const Depth& depth
 	);
 
 	void FlushBatch(Batch& batch, const FrameBuffer& frame_buffer);
