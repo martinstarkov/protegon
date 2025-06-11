@@ -494,6 +494,18 @@ void RenderData::SortEntitiesByY(std::vector<Entity>&) {
 }
 
 void RenderData::Render(const FrameBuffer& frame_buffer, const Manager& manager) {
+	auto& current_scene{ game.scene.GetCurrent() };
+
+	// current_scene.camera.primary.GetManager().CopyEntity<Transform, impl::CameraInfo>(
+	// 	current_scene.camera.primary, current_scene.camera.primary_unzoomed
+	// );
+	// current_scene.camera.window.GetManager().CopyEntity<Transform, impl::CameraInfo>(
+	// 	current_scene.camera.window, current_scene.camera.window_unzoomed
+	// );
+
+	// current_scene.camera.primary_unzoomed.SetZoom(1.0f);
+	// current_scene.camera.window_unzoomed.SetZoom(1.0f);
+
 	for (auto [e, v, d, fb, rt_entities] :
 		 manager.EntitiesWith<Visible, IDrawable, FrameBuffer, RenderTargetEntities>()) {
 		RenderTarget rt{ e };
@@ -508,7 +520,7 @@ void RenderData::Render(const FrameBuffer& frame_buffer, const Manager& manager)
 
 	frame_buffer.Bind();
 
-	fallback_camera = game.scene.GetCurrent().camera.primary;
+	fallback_camera = current_scene.camera.primary;
 
 	// auto entities{ .GetVector() };
 
@@ -517,8 +529,11 @@ void RenderData::Render(const FrameBuffer& frame_buffer, const Manager& manager)
 	}*/
 
 	for (auto [entity, visible, drawable] : manager.EntitiesWith<Visible, IDrawable>()) {
-		auto camera{ entity.GetOrDefault<Camera>() };
-		UseCamera(camera);
+		// Do not use render target camera here.
+		if (!entity.Has<RenderTargetEntities>()) {
+			auto camera{ entity.GetOrDefault<Camera>() };
+			UseCamera(camera);
+		}
 		AddToBatch(entity, true);
 	}
 
