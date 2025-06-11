@@ -8,7 +8,6 @@
 namespace ptgn {
 
 enum class MoveMode {
-	Snap,
 	Lerp,
 	Velocity
 };
@@ -20,7 +19,7 @@ enum class FollowMode {
 
 class FollowConfig {
 public:
-	MoveMode move_mode{ MoveMode::Snap };
+	MoveMode move_mode{ MoveMode::Lerp };
 	FollowMode follow_mode{ FollowMode::Target };
 
 	bool follow_x{ true };

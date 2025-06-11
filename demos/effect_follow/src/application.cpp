@@ -39,9 +39,8 @@ struct FollowEffectScene : public Scene {
 		entity2.SetPosition({ 600, 600 });
 		entity3.SetPosition({ 150, 600 });
 
-		config1.move_mode	= MoveMode::Snap;	  // Red
-		config2.move_mode	= MoveMode::Lerp;	  // Green
-		config2.lerp_factor = { 0.5f, 0.5f };
+		config1.lerp_factor = { 1.0f, 1.0f };	  // Red
+		config2.lerp_factor = { 0.5f, 0.5f };	  // Green.
 		config3.move_mode	= MoveMode::Velocity; // Blue
 
 		StartFollow(entity1, mouse, config1);

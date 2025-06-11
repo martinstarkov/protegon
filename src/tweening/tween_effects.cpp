@@ -461,8 +461,7 @@ void FollowEffectSystem::Update(Manager& manager) const {
 					movement.Move(norm_dir);
 				}
 			}
-		} else if (task.config.move_mode == MoveMode::Lerp ||
-				   task.config.move_mode == MoveMode::Snap) {
+		} else if (task.config.move_mode == MoveMode::Lerp) {
 			PTGN_ASSERT(task.config.lerp_factor.x >= 0.0f && task.config.lerp_factor.x <= 1.0f);
 			PTGN_ASSERT(task.config.lerp_factor.y >= 0.0f && task.config.lerp_factor.y <= 1.0f);
 
@@ -736,8 +735,6 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 		movement.max_speed				  = config.max_speed;
 		movement.keys_enabled			  = false;
 		movement.only_orthogonal_movement = false;
-	} else if (config.move_mode == MoveMode::Snap) {
-		config.lerp_factor = { 1.0f, 1.0f };
 	}
 
 	comp.tasks.emplace_back(target, config);

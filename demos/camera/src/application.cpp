@@ -283,7 +283,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Camera: WASD move, Q/E zoom, R reset, 1/2 swap cameras");
+	game.Init("Camera: WASD move, Q/E zoom");
 	game.scene.Enter<CameraScene>("");
 	return 0;
 }
