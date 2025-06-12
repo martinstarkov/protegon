@@ -496,16 +496,6 @@ void RenderData::SortEntitiesByY(std::vector<Entity>&) {
 void RenderData::Render(const FrameBuffer& frame_buffer, const Manager& manager) {
 	auto& current_scene{ game.scene.GetCurrent() };
 
-	// current_scene.camera.primary.GetManager().CopyEntity<Transform, impl::CameraInfo>(
-	// 	current_scene.camera.primary, current_scene.camera.primary_unzoomed
-	// );
-	// current_scene.camera.window.GetManager().CopyEntity<Transform, impl::CameraInfo>(
-	// 	current_scene.camera.window, current_scene.camera.window_unzoomed
-	// );
-
-	// current_scene.camera.primary_unzoomed.SetZoom(1.0f);
-	// current_scene.camera.window_unzoomed.SetZoom(1.0f);
-
 	for (auto [e, v, d, fb, rt_entities] :
 		 manager.EntitiesWith<Visible, IDrawable, FrameBuffer, RenderTargetEntities>()) {
 		RenderTarget rt{ e };

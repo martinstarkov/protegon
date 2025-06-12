@@ -456,12 +456,12 @@ public:
 	friend void to_json(json& j, const CameraManager& camera_manager);
 	friend void from_json(const json& j, CameraManager& camera_manager);
 
+	Camera primary_unzoomed;
+	Camera window_unzoomed;
+
 private:
 	friend class Scene;
 	friend class impl::RenderData;
-
-	Camera primary_unzoomed;
-	Camera window_unzoomed;
 
 	void Init(std::size_t scene_key);
 

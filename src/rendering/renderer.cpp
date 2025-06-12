@@ -14,7 +14,6 @@
 #include "core/game.h"
 #include "core/window.h"
 #include "math/geometry.h"
-#include "scene/camera.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
@@ -24,6 +23,7 @@
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/resources/text.h"
 #include "resources/texture.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -53,7 +53,8 @@ void DrawDebugLine(
 	const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddLine(
-		line_start, line_end, line_width, max_depth, camera, debug_blend_mode, color.Normalized(), true
+		line_start, line_end, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
+		true
 	);
 }
 
@@ -81,7 +82,8 @@ void DrawDebugEllipse(
 	float rotation, const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddEllipse(
-		center, radius, line_width, max_depth, camera, debug_blend_mode, color.Normalized(), rotation, true
+		center, radius, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
+		rotation, true
 	);
 }
 
@@ -89,8 +91,8 @@ void DrawDebugCircle(
 	const V2_float& center, float radius, const Color& color, float line_width, const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddEllipse(
-		center, V2_float{ radius }, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
-		0.0f, true
+		center, V2_float{ radius }, line_width, max_depth, camera, debug_blend_mode,
+		color.Normalized(), 0.0f, true
 	);
 }
 
@@ -238,19 +240,19 @@ RenderData& Renderer::GetRenderData() {
 void Renderer::PresentScreen() {
 	FrameBuffer::Unbind();
 
-	PTGN_ASSERT(
-		std::invoke([]() {
-			auto viewport_size{ GLRenderer::GetViewportSize() };
-			if (viewport_size.IsZero()) {
-				return false;
-			}
-			if (viewport_size.x == 1 && viewport_size.y == 1) {
-				return false;
-			}
-			return true;
-		}),
-		"Attempting to render to 0 or 1 sized viewport"
-	);
+	// PTGN_ASSERT(
+	// 	std::invoke([]() {
+	// 		auto viewport_size{ GLRenderer::GetViewportSize() };
+	// 		if (viewport_size.IsZero()) {
+	// 			return false;
+	// 		}
+	// 		if (viewport_size.x == 1 && viewport_size.y == 1) {
+	// 			return false;
+	// 		}
+	// 		return true;
+	// 	}),
+	// 	"Attempting to render to 0 or 1 sized viewport"
+	// );
 
 	PTGN_ASSERT(
 		FrameBuffer::IsUnbound(),

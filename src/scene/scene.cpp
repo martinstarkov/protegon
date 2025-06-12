@@ -151,6 +151,16 @@ void Scene::PostUpdate(Manager& m) {
 
 	physics.PostCollisionUpdate(m);
 
+	// TODO: Use Entity::Copy() instead. It caused some weird bug when I tried.
+
+	camera.primary_unzoomed.Get<Transform>()		= camera.primary.Get<Transform>();
+	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
+	camera.window_unzoomed.Get<Transform>()			= camera.window.Get<Transform>();
+	camera.window_unzoomed.Get<impl::CameraInfo>()	= camera.window.Get<impl::CameraInfo>();
+
+	camera.primary_unzoomed.SetZoom(1.0f);
+	camera.window_unzoomed.SetZoom(1.0f);
+
 	Draw();
 
 	game.scene.current_ = {};
