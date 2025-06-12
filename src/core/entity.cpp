@@ -1,15 +1,12 @@
 #include "core/entity.h"
 
 #include <unordered_set>
+#include <utility>
 
 #include "common/assert.h"
 #include "common/type_info.h"
 #include "components/common.h"
-#include "components/draw.h"
 #include "components/drawable.h"
-#include "components/input.h"
-#include "components/lifetime.h"
-#include "components/offsets.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "core/game.h"
@@ -18,15 +15,16 @@
 #include "events/event_handler.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
-#include "physics/rigid_body.h"
 #include "rendering/api/origin.h"
-#include "rendering/graphics/vfx/light.h"
-#include "rendering/resources/texture.h"
+#include "scene/scene.h"
+#include "scene/scene_key.h"
+#include "scene/scene_manager.h"
 #include "serialization/json.h"
+#include "serialization/json_archiver.h"
 
 namespace ptgn {
 
-Entity::Entity(Manager& manager) : Entity{ manager.CreateEntity() } {}
+Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
 
 Entity::Entity(const ecs::Entity<JSONArchiver>& entity) : ecs::Entity<JSONArchiver>{ entity } {}
 
@@ -50,6 +48,17 @@ Manager& Entity::GetManager() {
 
 const Manager& Entity::GetManager() const {
 	return static_cast<const Manager&>(ecs::Entity<JSONArchiver>::GetManager());
+}
+
+const Scene& Entity::GetScene() const {
+	PTGN_ASSERT(Has<impl::SceneKey>());
+	const auto& scene_key{ Get<impl::SceneKey>() };
+	PTGN_ASSERT(game.scene.HasScene(scene_key));
+	return game.scene.Get(scene_key);
+}
+
+Scene& Entity::GetScene() {
+	return const_cast<Scene&>(std::as_const(*this).GetScene());
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
@@ -244,9 +253,7 @@ Transform Entity::GetAbsoluteTransform() const {
 	if (Has<impl::IgnoreParentTransform>() && Get<impl::IgnoreParentTransform>()) {
 		return transform;
 	}
-	return transform.RelativeTo(
-		HasParent() ? GetParent().GetAbsoluteTransform() : Transform{}
-	);
+	return transform.RelativeTo(HasParent() ? GetParent().GetAbsoluteTransform() : Transform{});
 }
 
 Entity& Entity::SetPosition(const V2_float& position) {
@@ -382,12 +389,12 @@ Color Entity::GetTint() const {
 	return GetOrDefault<Tint>();
 }
 
-void Scripts::Update(Manager& manager, float dt) {
-	for (auto [entity, scripts] : manager.EntitiesWith<Scripts>()) {
+void Scripts::Update(Scene& scene, float dt) {
+	for (auto [entity, scripts] : scene.EntitiesWith<Scripts>()) {
 		scripts.Invoke<&impl::IScript::OnUpdate>(dt);
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
 namespace impl {
@@ -456,19 +463,39 @@ void to_json(json& j, const Entity& entity) {
 	j = json{};
 
 	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
+
 	j[uuid_name] = entity.GetUUID();
+
+	if (entity.Has<impl::SceneKey>()) {
+		constexpr auto scene_key_name{ type_name_without_namespaces<impl::SceneKey>() };
+		j[scene_key_name] = entity.Get<impl::SceneKey>();
+	}
 }
 
 void from_json(const json& j, Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot read JSON into null entity");
-	UUID uuid;
+
 	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
+
 	PTGN_ASSERT(
 		j.contains(uuid_name), "Cannot create entity from JSON which does not contain a UUID"
 	);
+
+	UUID uuid;
+
 	j[uuid_name].get_to(uuid);
+
 	entity = entity.GetManager().GetEntityByUUID(uuid);
+
 	PTGN_ASSERT(entity, "Failed to find entity with UUID: ", uuid);
+
+	constexpr auto scene_key_name{ type_name_without_namespaces<impl::SceneKey>() };
+
+	if (j.contains(scene_key_name)) {
+		impl::SceneKey scene_key;
+		j[scene_key_name].get_to(scene_key);
+		entity.Add<impl::SceneKey>(scene_key);
+	}
 }
 
 } // namespace ptgn

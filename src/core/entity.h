@@ -27,6 +27,7 @@
 namespace ptgn {
 
 class Manager;
+class Scene;
 
 namespace impl {
 
@@ -56,7 +57,7 @@ public:
 	Entity& operator=(Entity&&) noexcept = default;
 	~Entity()							 = default;
 
-	explicit Entity(Manager& manager);
+	explicit Entity(Scene& scene);
 
 	explicit operator bool() const {
 		return ecs::Entity<JSONArchiver>::operator bool();
@@ -136,9 +137,13 @@ public:
 
 	Entity& Destroy();
 
-	[[nodiscard]] Manager& GetManager();
+	[[nodiscard]] const Scene& GetScene() const;
+
+	[[nodiscard]] Scene& GetScene();
 
 	[[nodiscard]] const Manager& GetManager() const;
+
+	[[nodiscard]] Manager& GetManager();
 
 	[[nodiscard]] bool IsIdenticalTo(const Entity& e) const;
 
@@ -610,12 +615,12 @@ public:
 
 	// Called for each repeat of the full animation.
 	// @param repeat Starts from 0.
-	virtual void OnAnimationRepeat([[maybe_unused]] std::size_t repeat) { /* user implementation */ }
+	virtual void OnAnimationRepeat([[maybe_unused]] std::size_t repeat) { /* user implementation */
+	}
 
 	// Called when the frame of the animation changes
 	virtual void OnAnimationFrameChange([[maybe_unused]] std::size_t new_frame
-	) { /* user implementation */
-	}
+	) { /* user implementation */ }
 
 	// Called once when the animation goes through its first full cycle.
 	virtual void OnAnimationComplete() { /* user implementation */ }
@@ -696,7 +701,7 @@ public:
 
 class Scripts : public impl::ScriptContainer<impl::IScript> {
 public:
-	static void Update(Manager& manager, float dt);
+	static void Update(Scene& scene, float dt);
 
 	template <auto TCallback, typename... TArgs>
 	void Invoke(TArgs&&... args) const {
