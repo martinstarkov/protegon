@@ -428,6 +428,17 @@ public:
 		return T{ std::forward<TArgs>(args)... };
 	}
 
+	template <typename T, typename... TArgs>
+	[[nodiscard]] T GetOrParentOrDefault(TArgs&&... args) const {
+		if (Has<T>()) {
+			return Get<T>();
+		}
+		if (HasParent()) {
+			return GetParent().GetOrParentOrDefault<T>(std::forward<TArgs>(args)...);
+		}
+		return T{ std::forward<TArgs>(args)... };
+	}
+
 protected:
 	template <typename T, typename... TArgs>
 	Entity& AddOrRemove(bool condition, TArgs&&... args) {
@@ -437,17 +448,6 @@ protected:
 			Remove<T>();
 		}
 		return *this;
-	}
-
-	template <typename T, typename... TArgs>
-	[[nodiscard]] T GetOrParentOrDefault(TArgs&&... args) const {
-		if (Has<T>()) {
-			return Get<T>();
-		}
-		if (HasParent()) {
-			return GetParent().GetOrDefault<T>(std::forward<TArgs>(args)...);
-		}
-		return T{ std::forward<TArgs>(args)... };
 	}
 
 private:

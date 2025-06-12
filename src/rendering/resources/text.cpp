@@ -31,7 +31,7 @@ Text CreateText(
 	Text text{ scene.CreateEntity() };
 	text.Add<TextureHandle>();
 	text.SetDraw<Text>();
-	text.Add<Camera>(scene.camera.primary_unzoomed);
+	text.Add<Camera>(scene.camera.window_unzoomed);
 	text.Show();
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);

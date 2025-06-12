@@ -80,7 +80,7 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	auto display_size{ sprite.GetDisplaySize() };
 	auto coords{ sprite.GetTextureCoordinates(false) };
-	auto camera{ entity.GetOrDefault<Camera>() };
+	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
 	ctx.AddTexturedQuad(
 		transform, display_size, origin, coords, texture, depth, camera, blend_mode, tint, false

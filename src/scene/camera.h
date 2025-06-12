@@ -331,7 +331,7 @@ public:
 	void Translate(const V2_float& position_change);
 
 	void SetZoom(float new_zoom);
-	void SetZoom(const V2_float& new_zoom);
+	void SetZoom(V2_float new_zoom);
 
 	void Zoom(float zoom_change_amount);
 	void Zoom(const V2_float& zoom_change_amount);
@@ -442,7 +442,7 @@ protected:
 
 	void RefreshBounds();
 
-	void OnWindowResize(const V2_int& size);
+	void OnWindowResize(V2_float size);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {

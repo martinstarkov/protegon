@@ -94,7 +94,7 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto blend_mode{ entity.GetBlendMode() };
 	auto depth{ entity.GetDepth() };
-	auto camera{ entity.GetOrDefault<Camera>() };
+	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 	if (i.info.texture_enabled && i.info.texture_key) {

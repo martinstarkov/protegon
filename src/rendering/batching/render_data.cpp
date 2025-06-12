@@ -447,7 +447,7 @@ bool RenderData::FlushLights(
 			continue;
 		}
 
-		auto light_camera{ e.GetOrDefault<Camera>() };
+		auto light_camera{ e.GetOrParentOrDefault<Camera>() };
 
 		UseCamera(light_camera);
 
@@ -546,7 +546,7 @@ void RenderData::Render(const FrameBuffer& frame_buffer, const Scene& scene) {
 	for (auto [entity, visible, drawable] : scene.EntitiesWith<Visible, IDrawable>()) {
 		// Do not use render target camera here.
 		if (!entity.Has<RenderTargetEntities>()) {
-			auto camera{ entity.GetOrDefault<Camera>() };
+			auto camera{ entity.GetOrParentOrDefault<Camera>() };
 			UseCamera(camera);
 		} else {
 			UseCamera({});

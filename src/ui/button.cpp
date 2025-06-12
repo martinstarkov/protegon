@@ -327,7 +327,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
 
-	auto camera{ entity.GetOrDefault<Camera>() };
+	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
 	if (button_texture != nullptr && *button_texture != impl::Texture{}) {
 		Color button_tint{ color::White };
