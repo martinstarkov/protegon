@@ -529,6 +529,8 @@ void RenderData::Render(const FrameBuffer& frame_buffer, const Manager& manager)
 		if (!entity.Has<RenderTargetEntities>()) {
 			auto camera{ entity.GetOrDefault<Camera>() };
 			UseCamera(camera);
+		} else {
+			UseCamera({});
 		}
 		AddToBatch(entity, true);
 	}
