@@ -52,7 +52,7 @@ public:
 	);
 
 	void AddTriangle(
-		const std::array<V2_float, 3>& vertices, float line_width, const Depth& depth,
+		std::array<V2_float, 3> vertices, float line_width, const Depth& depth,
 		const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 	);
 
@@ -69,12 +69,12 @@ public:
 	);
 
 	void AddPolygon(
-		const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
-		const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
+		std::vector<V2_float> vertices, float line_width, const Depth& depth, const Camera& camera,
+		BlendMode blend_mode, const V4_float& color, bool debug
 	);
 
 	void AddPoint(
-		const V2_float& position, const Depth& depth, const Camera& camera, BlendMode blend_mode,
+		V2_float position, const Depth& depth, const Camera& camera, BlendMode blend_mode,
 		const V4_float& color, bool debug
 	);
 

@@ -83,7 +83,7 @@ void RenderData::Init() {
 	}
 #endif
 
-	light_target = CreateRenderTarget(light_manager, { 1, 1 }, color::Transparent);
+	light_target = impl::CreateRenderTarget(light_manager, { 1, 1 }, color::Transparent);
 
 	// TODO: Once window resizing is implemented, get rid of this.
 	game.event.window.Subscribe(
@@ -193,7 +193,9 @@ void RenderData::AddLine(
 	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	PTGN_ASSERT(line_width >= min_line_width, "-1.0f is an invalid line width for lines");
-	auto vertices{ GetQuadVertices(line_start, line_end, line_width) };
+	auto vertices{
+		GetQuadVertices(camera.ZoomIfNeeded(line_start), camera.ZoomIfNeeded(line_end), line_width)
+	};
 	auto& batch{ GetBatch(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
@@ -288,7 +290,10 @@ void RenderData::AddTexturedQuad(
 	if (size.IsZero()) {
 		vertices = camera_vertices;
 	} else {
-		vertices = impl::GetVertices(transform, size, origin);
+		vertices = impl::GetVertices(
+			{ camera.ZoomIfNeeded(transform.position), transform.rotation, transform.scale }, size,
+			origin
+		);
 	}
 	float texture_index{ GetTextureIndex(batch, texture) };
 	PTGN_ASSERT(texture_index > 0.0f, "Failed to find a valid texture index");
@@ -301,7 +306,9 @@ void RenderData::AddEllipse(
 ) {
 	PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius");
 	V2_float diameter{ radius * 2.0f };
-	auto vertices{ impl::GetVertices({ center, rotation }, diameter, Origin::Center) };
+	auto vertices{
+		impl::GetVertices({ camera.ZoomIfNeeded(center), rotation }, diameter, Origin::Center)
+	};
 	if (line_width == -1.0f) {
 		AddFilledEllipse(vertices, depth, camera, blend_mode, color, debug);
 	} else {
@@ -312,10 +319,15 @@ void RenderData::AddEllipse(
 }
 
 void RenderData::AddPolygon(
-	const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
+	std::vector<V2_float> vertices, float line_width, const Depth& depth, const Camera& camera,
+	BlendMode blend_mode, const V4_float& color, bool debug
 ) {
 	PTGN_ASSERT(vertices.size() >= 3, "Polygon must have at least 3 vertices");
+
+	for (auto& v : vertices) {
+		v = camera.ZoomIfNeeded(v);
+	}
+
 	if (line_width == -1.0f) {
 		auto triangles{ Triangulate(vertices.data(), vertices.size()) };
 		for (const auto& triangle : triangles) {
@@ -327,10 +339,11 @@ void RenderData::AddPolygon(
 }
 
 void RenderData::AddPoint(
-	const V2_float& position, const Depth& depth, const Camera& camera, BlendMode blend_mode,
+	V2_float position, const Depth& depth, const Camera& camera, BlendMode blend_mode,
 	const V4_float& color, bool debug
 ) {
 	constexpr V2_float half{ 0.5f };
+	position = camera.ZoomIfNeeded(position);
 	AddFilledQuad(
 		{ position - half, position + V2_float{ half.x, -half.y }, position + half,
 		  position + V2_float{ -half.x, half.y } },
@@ -339,9 +352,12 @@ void RenderData::AddPoint(
 }
 
 void RenderData::AddTriangle(
-	const std::array<V2_float, 3>& vertices, float line_width, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
+	std::array<V2_float, 3> vertices, float line_width, const Depth& depth, const Camera& camera,
+	BlendMode blend_mode, const V4_float& color, bool debug
 ) {
+	for (auto& v : vertices) {
+		v = camera.ZoomIfNeeded(v);
+	}
 	if (line_width == -1.0f) {
 		AddFilledTriangle(vertices, depth, camera, blend_mode, color, debug);
 	} else {
@@ -358,7 +374,7 @@ void RenderData::AddQuad(
 	if (size.IsZero()) {
 		vertices = camera_vertices;
 	} else {
-		vertices = impl::GetVertices({ position, rotation }, size, origin);
+		vertices = impl::GetVertices({ camera.ZoomIfNeeded(position), rotation }, size, origin);
 	}
 	if (line_width == -1.0f) {
 		AddFilledQuad(vertices, depth, camera, blend_mode, color, debug);
