@@ -170,16 +170,25 @@ bool CameraInfo::GetPixelRounding() const {
 }
 
 void CameraInfo::UpdatePosition(const V2_float& position) {
+	if (previous.position == position) {
+		return;
+	}
 	previous.position = position;
 	view_dirty		  = true;
 }
 
 void CameraInfo::UpdateRotation(float rotation) {
+	if (previous.rotation == rotation) {
+		return;
+	}
 	previous.rotation = rotation;
 	view_dirty		  = true;
 }
 
 void CameraInfo::UpdateScale(const V2_float& scale) {
+	if (previous.scale == scale) {
+		return;
+	}
 	previous.scale	 = scale;
 	projection_dirty = true;
 }
@@ -377,8 +386,9 @@ void Camera::UnsubscribeFromWindowEvents() {
 	game.event.window.Unsubscribe(*this);
 }
 
-void Camera::OnWindowResize(const V2_int& size) {
+void Camera::OnWindowResize(V2_float size) {
 	auto& info{ Get<impl::CameraInfo>() };
+	size *= GetZoom();
 	// TODO: Potentially allow this to be modified in the future.
 	info.SetViewport({}, game.window.GetSize());
 	bool resize{ info.GetResizeToWindow() };
@@ -444,7 +454,7 @@ V2_float Camera::GetPosition(Origin origin) const {
 	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
 	auto size{ info.GetSize() };
 	auto offset{ GetOriginOffset(origin, size / zoom) };
-	return position + offset;
+	return position - offset;
 }
 
 void Camera::SetToWindow(bool continuously) {
@@ -619,15 +629,15 @@ void Camera::SetSize(const V2_float& new_size) {
 	RefreshBounds();
 }
 
-void Camera::SetZoom(const V2_float& new_zoom) {
+void Camera::SetZoom(V2_float new_zoom) {
 	PTGN_ASSERT(new_zoom.x > 0.0f && new_zoom.y > 0.0f, "New zoom cannot be negative or zero");
-	V2_float clamped{ std::clamp(new_zoom.x, epsilon<float>, std::numeric_limits<float>::max()),
-					  std::clamp(new_zoom.y, epsilon<float>, std::numeric_limits<float>::max()) };
-	auto scale{ Entity::GetScale() };
-	clamped *= V2_float{ Sign(scale.x), Sign(scale.y) };
-	Entity::SetScale(clamped);
+	new_zoom.x = std::clamp(new_zoom.x, epsilon<float>, std::numeric_limits<float>::max());
+	new_zoom.y = std::clamp(new_zoom.y, epsilon<float>, std::numeric_limits<float>::max());
+	auto zoom{ Entity::GetScale() };
+	new_zoom *= V2_float{ Sign(zoom.x), Sign(zoom.y) };
+	Entity::SetScale(new_zoom);
 	auto& info{ Get<impl::CameraInfo>() };
-	info.UpdateScale(clamped);
+	info.UpdateScale(new_zoom);
 }
 
 void Camera::SetZoom(float new_zoom) {
