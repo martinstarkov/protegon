@@ -7,12 +7,12 @@
 
 #include "common/assert.h"
 #include "math/math.h"
-#include "scene/camera.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
+#include "scene/camera.h"
 
 namespace ptgn::impl {
 
@@ -145,8 +145,7 @@ float Batch::GetTextureIndex(
 
 bool Batch::Uses(const Shader& other_shader, const Camera& other_camera, BlendMode other_blend_mode)
 	const {
-	return shader == other_shader && blend_mode == other_blend_mode &&
-		   camera == other_camera;
+	return shader == other_shader && blend_mode == other_blend_mode && camera == other_camera;
 }
 
 bool Batch::HasRoomForTexture(

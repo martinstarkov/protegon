@@ -7,6 +7,7 @@
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/gl/gl_renderer.h"
@@ -66,15 +67,13 @@ void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	// TODO: Add custom sizing for render targets.
 	ctx.AddTexturedQuad(
-		game.renderer.GetRenderData().camera_vertices, coords, texture, depth, Camera{},
-		blend_mode, tint,
-		false
+		{}, {}, Origin::Center, coords, texture, depth, Camera{}, blend_mode, tint, false
 	);
 }
 
 void RenderTarget::Draw(const Entity& entity) const {
 	PTGN_ASSERT(entity, "Cannot draw invalid entity to render target");
-	
+
 	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
 	frame_buffer.Bind();
 	PTGN_ASSERT(frame_buffer.IsBound(), "Cannot draw to render target unless it is first bound");

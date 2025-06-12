@@ -275,7 +275,7 @@ void RenderData::AddHollowEllipse(
 }
 
 void RenderData::AddTexturedQuad(
-	const std::array<V2_float, Batch::quad_vertex_count>& vertices,
+	const Transform& transform, const V2_float& size, Origin origin,
 	const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
 	const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
 	bool debug
@@ -284,6 +284,12 @@ void RenderData::AddTexturedQuad(
 		Batch::quad_vertex_count, Batch::quad_index_count, texture,
 		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
+	std::array<V2_float, Batch::quad_vertex_count> vertices;
+	if (size.IsZero()) {
+		vertices = camera_vertices;
+	} else {
+		vertices = impl::GetVertices(transform, size, origin);
+	}
 	float texture_index{ GetTextureIndex(batch, texture) };
 	PTGN_ASSERT(texture_index > 0.0f, "Failed to find a valid texture index");
 	batch.AddTexturedQuad(vertices, tex_coords, texture_index, color, depth, pixel_rounding);

@@ -340,9 +340,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		V4_float final_tint_n{ button_tint.Normalized() * tint };
 
 		ctx.AddTexturedQuad(
-			impl::GetVertices(transform, size, origin),
-			Sprite{ entity }.GetTextureCoordinates(false), *button_texture, depth, camera,
-			blend_mode, final_tint_n, false
+			transform, size, origin, Sprite{ entity }.GetTextureCoordinates(false), *button_texture,
+			depth, camera, blend_mode, final_tint_n, false
 		);
 	} else {
 		impl::ButtonBackgroundWidth background_line_width;
@@ -463,11 +462,10 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 		auto text_display_size{ text_sprite.GetDisplaySize() };
 		auto text_coords{ text_sprite.GetTextureCoordinates(false) };
-		auto text_vertices{ impl::GetVertices(text_transform, text_display_size, text_origin) };
 
 		ctx.AddTexturedQuad(
-			text_vertices, text_coords, text_texture, text_depth, *text_camera, text_blend_mode,
-			text_tint * tint, false
+			text_transform, text_display_size, text_origin, text_coords, text_texture, text_depth,
+			*text_camera, text_blend_mode, text_tint * tint, false
 		);
 	}
 }

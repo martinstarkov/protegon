@@ -66,6 +66,7 @@ std::array<V2_float, 4> GetQuadVertices(
 }
 
 std::array<V2_float, 4> GetVertices(const Transform& transform, V2_float size, Origin origin) {
+	PTGN_ASSERT(!size.IsZero(), "Cannot get vertices for a sizeless object");
 	// Leave out Abs() around scale to enable texture flipping via negative scales.
 	size *= transform.scale;
 

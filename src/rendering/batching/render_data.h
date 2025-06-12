@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "components/common.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "math/vector2.h"
@@ -78,7 +79,7 @@ public:
 	);
 
 	void AddTexturedQuad(
-		const std::array<V2_float, Batch::quad_vertex_count>& vertices,
+		const Transform& transform, const V2_float& size, Origin origin,
 		const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
 		const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
 		bool debug

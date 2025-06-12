@@ -27,6 +27,7 @@
 #include "rendering/api/flip.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/texture.h"
+#include "scene/camera.h"
 #include "tweening/tween.h"
 
 namespace ptgn {
@@ -84,10 +85,11 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	auto display_size{ sprite.GetDisplaySize() };
 	auto coords{ sprite.GetTextureCoordinates(false) };
-	auto vertices{ impl::GetVertices(transform, display_size, origin) };
 	auto camera{ entity.GetOrDefault<Camera>() };
 
-	ctx.AddTexturedQuad(vertices, coords, texture, depth, camera, blend_mode, tint, false);
+	ctx.AddTexturedQuad(
+		transform, display_size, origin, coords, texture, depth, camera, blend_mode, tint, false
+	);
 }
 
 Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {

@@ -106,7 +106,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 			// TODO: Add texture rotation.
 			Transform t{ p.position };
 			ctx.AddTexturedQuad(
-				impl::GetVertices(t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center),
+				t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center,
 				impl::GetDefaultTextureCoordinates(), game.texture.Get(i.info.texture_key), depth,
 				camera, blend_mode, tint, false
 			);
