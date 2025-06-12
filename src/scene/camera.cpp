@@ -25,6 +25,10 @@
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "rendering/batching/render_data.h"
+#include "rendering/renderer.h"
+#include "scene/scene.h"
+#include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 #include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
@@ -227,9 +231,8 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(
-	const Transform& current, const Transform& offset_transform
-) const {
+void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
+	const {
 	V3_float position{ current.position.x, current.position.y, position_z };
 	V3_float orientation{ current.rotation, orientation_y, orientation_z };
 
@@ -318,24 +321,54 @@ V2_float CameraInfo::ClampToBounds(
 	return position;
 }
 
-} // namespace impl
-
-Camera CreateCamera(Manager& manager) {
-	Camera camera{ manager.CreateEntity() };
+Camera CreateCamera(const Entity& entity) {
+	Camera camera{ entity };
 	camera.Add<Transform>();
 	camera.Add<impl::CameraInfo>();
 	camera.SubscribeToWindowEvents();
 	return camera;
 }
 
+} // namespace impl
+
+Camera CreateCamera(Scene& scene) {
+	return impl::CreateCamera(scene.CreateEntity());
+}
+
+V2_float Camera::ZoomIfNeeded(const V2_float& zoomed_coordinate) const {
+	const auto& camera_manager{ game.scene.GetCurrent().camera };
+
+	V2_float center;
+
+	if (*this == Camera{}) {
+		center = game.renderer.GetRenderData().active_camera.GetPosition();
+	} else {
+		center = GetPosition();
+	}
+
+	V2_float zoom{ 1.0f, 1.0f };
+
+	if (*this == camera_manager.window_unzoomed) {
+		zoom = camera_manager.window.GetZoom();
+	} else if (*this == camera_manager.primary_unzoomed) {
+		zoom = camera_manager.primary.GetZoom();
+	} else {
+		return zoomed_coordinate;
+	}
+
+	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
+
+	return (zoomed_coordinate - center) * zoom + center;
+}
+
 void Camera::SubscribeToWindowEvents() {
 	if (game.event.window.IsSubscribed(*this)) {
 		return;
 	}
-	std::function<void(const WindowResizedEvent&)> f =
-		[*this](const WindowResizedEvent& e) mutable {
-			OnWindowResize(e.size);
-		};
+	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
+													   ) mutable {
+		OnWindowResize(e.size);
+	};
 	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
 	OnWindowResize(game.window.GetSize());
 }
@@ -744,14 +777,14 @@ const Matrix4& Camera::GetViewProjection() const {
 	return Get<impl::CameraInfo>().GetViewProjection(Entity::GetTransform(), *this);
 }
 
-void CameraManager::Init(std::size_t scene_key) {
+void CameraManager::Init(impl::SceneKey scene_key) {
 	scene_key_ = scene_key;
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	PTGN_ASSERT(!window && !primary);
-	primary			 = CreateCamera(scene.manager);
-	window			 = CreateCamera(scene.manager);
-	primary_unzoomed = CreateCamera(scene.manager);
-	window_unzoomed	 = CreateCamera(scene.manager);
+	primary			 = CreateCamera(scene);
+	window			 = CreateCamera(scene);
+	primary_unzoomed = CreateCamera(scene);
+	window_unzoomed	 = CreateCamera(scene);
 }
 
 void CameraManager::Reset() {
@@ -772,12 +805,10 @@ void to_json(json& j, const CameraManager& camera_manager) {
 void from_json(const json& j, CameraManager& camera_manager) {
 	j.at("scene_key").get_to(camera_manager.scene_key_);
 	auto& scene{ game.scene.Get<Scene>(camera_manager.scene_key_) };
-	camera_manager.primary = scene.manager.GetEntityByUUID(j.at("primary").at("UUID"));
-	camera_manager.window  = scene.manager.GetEntityByUUID(j.at("window").at("UUID"));
-	camera_manager.primary_unzoomed =
-		scene.manager.GetEntityByUUID(j.at("primary_unzoomed").at("UUID"));
-	camera_manager.window_unzoomed =
-		scene.manager.GetEntityByUUID(j.at("window_unzoomed").at("UUID"));
+	camera_manager.primary			= scene.GetEntityByUUID(j.at("primary").at("UUID"));
+	camera_manager.window			= scene.GetEntityByUUID(j.at("window").at("UUID"));
+	camera_manager.primary_unzoomed = scene.GetEntityByUUID(j.at("primary_unzoomed").at("UUID"));
+	camera_manager.window_unzoomed	= scene.GetEntityByUUID(j.at("window_unzoomed").at("UUID"));
 }
 
 /*

@@ -4,10 +4,9 @@
 #include <iosfwd>
 #include <ostream>
 
-#include "components/generic.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "core/manager.h"
+#include "core/time.h"
 #include "math/easing.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
@@ -15,6 +14,8 @@
 #include "math/vector3.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "scene/scene_key.h"
+#include "serialization/fwd.h"
 #include "serialization/serializable.h"
 #include "tweening/follow_config.h"
 #include "tweening/shake_config.h"
@@ -23,8 +24,11 @@ namespace ptgn {
 
 class Scene;
 class CameraManager;
+class Camera;
 
 namespace impl {
+
+[[nodiscard]] Camera CreateCamera(const Entity& entity);
 
 class RenderData;
 
@@ -73,9 +77,8 @@ public:
 	void UpdateRotation(float rotation);
 	void UpdateScale(const V2_float& scale);
 
-	[[nodiscard]] const Matrix4& GetViewProjection(
-		const Transform& current, const Entity& entity
-	) const;
+	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
+		const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -412,7 +415,10 @@ public:
 
 protected:
 	friend class CameraManager;
-	friend Camera CreateCamera(Manager& manager);
+	friend class impl::RenderData;
+	friend Camera impl::CreateCamera(const Entity& entity);
+
+	[[nodiscard]] V2_float ZoomIfNeeded(const V2_float& zoomed_coordinate) const;
 
 	// @return (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
@@ -463,12 +469,12 @@ private:
 	friend class Scene;
 	friend class impl::RenderData;
 
-	void Init(std::size_t scene_key);
+	void Init(impl::SceneKey scene_key);
 
-	std::size_t scene_key_{ 0 };
+	impl::SceneKey scene_key_{ 0 };
 };
 
-[[nodiscard]] Camera CreateCamera(Manager& manager);
+[[nodiscard]] Camera CreateCamera(Scene& scene);
 
 /*
 class CameraController;
