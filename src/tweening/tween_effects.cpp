@@ -7,6 +7,7 @@
 #include <deque>
 #include <limits>
 #include <variant>
+#include <vector>
 
 #include "common/assert.h"
 #include "components/movement.h"
@@ -14,9 +15,9 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "debug/log.h"
 #include "math/easing.h"
 #include "math/math.h"
 #include "math/noise.h"
@@ -24,6 +25,8 @@
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "rendering/api/color.h"
+#include "scene/scene.h"
+#include "tweening/follow_config.h"
 
 namespace ptgn {
 
@@ -78,8 +81,8 @@ void UpdateTask(T& effect, F& task) {
 	effect.tasks.front().timer.Start(true);
 }
 
-void TranslateEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, effect] : manager.EntitiesWith<TranslateEffect>()) {
+void TranslateEffectSystem::Update(Scene& scene) const {
+	for (auto [entity, effect] : scene.EntitiesWith<TranslateEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<TranslateEffect>();
 			return;
@@ -93,8 +96,8 @@ void TranslateEffectSystem::Update(Manager& manager) const {
 	}
 }
 
-void RotateEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, effect] : manager.EntitiesWith<RotateEffect>()) {
+void RotateEffectSystem::Update(Scene& scene) const {
+	for (auto [entity, effect] : scene.EntitiesWith<RotateEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<RotateEffect>();
 			return;
@@ -108,8 +111,8 @@ void RotateEffectSystem::Update(Manager& manager) const {
 	}
 }
 
-void ScaleEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, effect] : manager.EntitiesWith<ScaleEffect>()) {
+void ScaleEffectSystem::Update(Scene& scene) const {
+	for (auto [entity, effect] : scene.EntitiesWith<ScaleEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<ScaleEffect>();
 			return;
@@ -123,8 +126,8 @@ void ScaleEffectSystem::Update(Manager& manager) const {
 	}
 }
 
-void TintEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, effect] : manager.EntitiesWith<TintEffect>()) {
+void TintEffectSystem::Update(Scene& scene) const {
+	for (auto [entity, effect] : scene.EntitiesWith<TintEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<TintEffect>();
 			return;
@@ -154,8 +157,8 @@ BounceEffectInfo::BounceEffectInfo(
 	);
 }
 
-void BounceEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, effect, offsets] : manager.EntitiesWith<BounceEffect, Offsets>()) {
+void BounceEffectSystem::Update(Scene& scene) const {
+	for (auto [entity, effect, offsets] : scene.EntitiesWith<BounceEffect, Offsets>()) {
 		if (effect.tasks.empty()) {
 			offsets.bounce = {};
 			entity.template Remove<BounceEffect>();
@@ -233,8 +236,8 @@ float BounceEffectSystem::ApplyEase(float t, bool symmetrical, const Ease& ease)
 	return 2.0f * eased_t - 1.0f;
 }
 
-void ShakeEffectSystem::Update(Manager& manager, float time, float dt) const {
-	for (auto [entity, effect, offsets] : manager.EntitiesWith<ShakeEffect, Offsets>()) {
+void ShakeEffectSystem::Update(Scene& scene, float time, float dt) const {
+	for (auto [entity, effect, offsets] : scene.EntitiesWith<ShakeEffect, Offsets>()) {
 		if (effect.tasks.empty()) {
 			offsets.shake = {};
 			entity.template Remove<ShakeEffect>();
@@ -330,8 +333,8 @@ void BounceImpl(
 FollowEffectInfo::FollowEffectInfo(Entity follow_target, const FollowConfig& follow_config) :
 	target{ follow_target }, config{ follow_config } {}
 
-void FollowEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, effect] : manager.EntitiesWith<FollowEffect>()) {
+void FollowEffectSystem::Update(Scene& scene) const {
+	for (auto [entity, effect] : scene.EntitiesWith<FollowEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<FollowEffect>();
 			entity.template Remove<TopDownMovement>();
@@ -528,7 +531,7 @@ void FollowEffectSystem::Update(Manager& manager) const {
 				}
 			}
 		} else {
-			PTGN_ERROR("Unrecognized move mode");
+			PTGN_ERROR("Unrecognized move mode")
 		}
 	}
 }

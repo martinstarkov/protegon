@@ -2,13 +2,14 @@
 
 #include "components/drawable.h"
 #include "core/entity.h"
-#include "core/manager.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "rendering/api/color.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
+
+class Scene;
 
 namespace impl {
 
@@ -77,7 +78,7 @@ public:
 // @param intensity Intensity of the light source. Range: [0, 1].
 // @param falloff The higher the value, the Less light reaches the outer radius.
 [[nodiscard]] PointLight CreatePointLight(
-	Manager& manager, const V2_float& position, float radius, const Color& color,
+	Scene& scene, const V2_float& position, float radius, const Color& color,
 	float intensity = 0.5f, float falloff = 2.0f
 );
 

@@ -19,6 +19,8 @@
 
 namespace ptgn {
 
+class Scene;
+
 namespace impl {
 
 class RenderData;
@@ -71,7 +73,7 @@ struct Sprite : public Entity, public Drawable<Sprite> {
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
 
-[[nodiscard]] Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key);
+[[nodiscard]] Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key);
 
 struct Animation : public Sprite {
 	using Sprite::Sprite;
@@ -127,7 +129,7 @@ struct Animation : public Sprite {
 	[[nodiscard]] V2_int GetFrameSize() const;
 };
 
-// @param manager Which manager the entity is added to.
+// @param scene Which scene the entity is added to.
 // @param texture_key Key of the texture loaded into the texture manager.
 // @param animation_duration Duration of the full animation sequence.
 // @param frame_count Number of frames in the animation sequence.
@@ -136,7 +138,7 @@ struct Animation : public Sprite {
 // @param start_pixel Pixel within the texture which indicates the top left position of the
 // animation sequence.
 [[nodiscard]] Animation CreateAnimation(
-	Manager& manager, const TextureHandle& texture_key, milliseconds animation_duration,
+	Scene& scene, const TextureHandle& texture_key, milliseconds animation_duration,
 	std::size_t frame_count, const V2_int& frame_size, std::int64_t play_count = -1,
 	const V2_int& start_pixel = {}
 );
@@ -218,7 +220,7 @@ public:
 
 class AnimationSystem {
 public:
-	static void Update(Manager& manager);
+	static void Update(Scene& scene);
 };
 
 } // namespace impl

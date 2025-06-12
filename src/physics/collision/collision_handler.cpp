@@ -16,6 +16,7 @@
 #include "physics/collision/collider.h"
 #include "physics/collision/raycast.h"
 #include "physics/rigid_body.h"
+#include "scene/scene.h"
 
 namespace ptgn::impl {
 
@@ -110,9 +111,9 @@ V2_float CollisionHandler::GetRemainingVelocity(
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
 
-void CollisionHandler::Update(Manager& manager) {
-	auto boxes{ std::as_const(manager).EntitiesWith<Enabled, BoxCollider>() };
-	auto circles{ std::as_const(manager).EntitiesWith<Enabled, CircleCollider>() };
+void CollisionHandler::Update(Scene& scene) {
+	auto boxes{ std::as_const(scene).EntitiesWith<Enabled, BoxCollider>() };
+	auto circles{ std::as_const(scene).EntitiesWith<Enabled, CircleCollider>() };
 
 	for (auto [entity1, enabled, box1] : boxes) {
 		if (!enabled) {
@@ -128,7 +129,7 @@ void CollisionHandler::Update(Manager& manager) {
 		HandleCollisions<CircleCollider>(entity1, boxes, circles);
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
 } // namespace ptgn::impl

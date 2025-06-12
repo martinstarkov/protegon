@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-class Manager;
+class Scene;
 
 // Monotonic clock to prevent time variations if system time is changed.
 class Timer {
@@ -109,7 +109,7 @@ struct TimerInfo {
 
 class ScriptTimers {
 public:
-	static void Update(Manager& manager);
+	static void Update(Scene& scene);
 
 	std::unordered_map<std::size_t, TimerInfo> timers;
 };
@@ -126,7 +126,7 @@ struct RepeatInfo {
 
 class ScriptRepeats {
 public:
-	static void Update(Manager& manager);
+	static void Update(Scene& scene);
 
 	std::unordered_map<std::size_t, RepeatInfo> repeats;
 };

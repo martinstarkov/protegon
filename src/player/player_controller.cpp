@@ -1,22 +1,25 @@
 #include "player/player_controller.h"
 
+#include "audio/audio.h"
+#include "common/move_direction.h"
+#include "components/common.h"
+#include "components/draw.h"
+#include "components/movement.h"
+#include "components/transform.h"
 #include "core/entity.h"
+#include "core/game.h"
+#include "core/manager.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
-#include "common/move_direction.h"
-#include "components/common.h"
-#include "components/transform.h"
-#include "core/manager.h"
 #include "rendering/api/origin.h"
-#include "components/movement.h"
-#include "components/draw.h"
-#include "core/game.h"
-#include "audio/audio.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
-Entity CreateTopDownPlayer(Manager& manager, const V2_float& position, const TopDownPlayerConfig& config) {
+Entity CreateTopDownPlayer(
+	Scene& scene, const V2_float& position, const TopDownPlayerConfig& config
+) {
 	PTGN_ASSERT(
 		game.texture.Has(config.animation_texture_key),
 		"Cannot create player with animation key which has not been loaded"
@@ -25,22 +28,22 @@ Entity CreateTopDownPlayer(Manager& manager, const V2_float& position, const Top
 		game.sound.Has(config.walk_sound_key),
 		"Cannot create player with walk sound key which has not been loaded"
 	);
-	
-	auto player{ manager.CreateEntity() };
-	
+
+	auto player{ scene.CreateEntity() };
+
 	player.Add<Transform>(position);
-	
+
 	auto& rb{ player.Add<RigidBody>() };
 	player.Enable();
 	player.Add<Depth>(config.depth);
 
-	auto body_hitbox{ manager.CreateEntity() };
+	auto body_hitbox{ scene.CreateEntity() };
 	body_hitbox.Add<BoxCollider>(config.body_hitbox_size, config.body_hitbox_origin);
 	body_hitbox.Add<Transform>(config.body_hitbox_offset);
 	body_hitbox.Enable();
 	body_hitbox.Add<RigidBody>();
 
-	auto interaction_hitbox{ manager.CreateEntity() };
+	auto interaction_hitbox{ scene.CreateEntity() };
 	auto& interaction_collider = interaction_hitbox.Add<BoxCollider>(
 		config.interaction_hitbox_size, config.interaction_hitbox_origin
 	);
@@ -58,27 +61,27 @@ Entity CreateTopDownPlayer(Manager& manager, const V2_float& position, const Top
 	movement.max_turn_speed	  = config.max_turn_speed;
 	movement.friction		  = config.friction;
 
-	auto& anim_map			= player.Add<AnimationMap>(
-			"down", CreateAnimation(
-						manager, config.animation_texture_key, config.animation_duration,
-						config.animation_frame_count.x, config.animation_frame_size
-					)
-		);
+	auto& anim_map = player.Add<AnimationMap>(
+		"down", CreateAnimation(
+					scene, config.animation_texture_key, config.animation_duration,
+					config.animation_frame_count.x, config.animation_frame_size
+				)
+	);
 
 	auto& a0 = anim_map.GetActive();
 	auto& a1 = anim_map.Load(
-		"right",
-		CreateAnimation(
-			manager, config.animation_texture_key, config.animation_duration,
-			config.animation_frame_count.x, config.animation_frame_size, -1, V2_float{ 0, config.animation_frame_size.y }
-		)
+		"right", CreateAnimation(
+					 scene, config.animation_texture_key, config.animation_duration,
+					 config.animation_frame_count.x, config.animation_frame_size, -1,
+					 V2_float{ 0, config.animation_frame_size.y }
+				 )
 	);
 	auto& a2 = anim_map.Load(
 		"up", CreateAnimation(
-					manager, config.animation_texture_key, config.animation_duration,
-					config.animation_frame_count.x, config.animation_frame_size, -1,
-					V2_float{ 0, 2.0f * config.animation_frame_size.y }
-				)
+				  scene, config.animation_texture_key, config.animation_duration,
+				  config.animation_frame_count.x, config.animation_frame_size, -1,
+				  V2_float{ 0, 2.0f * config.animation_frame_size.y }
+			  )
 	);
 
 	a0.SetParent(player);

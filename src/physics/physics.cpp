@@ -7,6 +7,7 @@
 #include "core/manager.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
@@ -39,11 +40,11 @@ float Physics::dt() const {
 	return game.dt();
 }
 
-void Physics::PreCollisionUpdate(Manager& manager) const {
+void Physics::PreCollisionUpdate(Scene& scene) const {
 	float dt{ Physics::dt() };
 
 	for (auto [entity, enabled, transform, rigid_body, movement] :
-		 manager.EntitiesWith<Enabled, Transform, RigidBody, TopDownMovement>()) {
+		 scene.EntitiesWith<Enabled, Transform, RigidBody, TopDownMovement>()) {
 		if (!enabled) {
 			continue;
 		}
@@ -51,8 +52,7 @@ void Physics::PreCollisionUpdate(Manager& manager) const {
 	}
 
 	for (auto [e, enabled, transform, rigid_body, movement, jump] :
-		 manager.EntitiesWith<Enabled, Transform, RigidBody, PlatformerMovement, PlatformerJump>(
-		 )) {
+		 scene.EntitiesWith<Enabled, Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 		if (!enabled) {
 			continue;
 		}
@@ -60,24 +60,24 @@ void Physics::PreCollisionUpdate(Manager& manager) const {
 		jump.Update(rigid_body, movement.grounded, gravity_);
 	}
 
-	for (auto [e, enabled, rigid_body] : manager.EntitiesWith<Enabled, RigidBody>()) {
+	for (auto [e, enabled, rigid_body] : scene.EntitiesWith<Enabled, RigidBody>()) {
 		if (!enabled) {
 			continue;
 		}
 		rigid_body.Update(gravity_, dt);
 	}
 
-	for (auto [e, enabled, movement] : manager.EntitiesWith<Enabled, PlatformerMovement>()) {
+	for (auto [e, enabled, movement] : scene.EntitiesWith<Enabled, PlatformerMovement>()) {
 		if (!enabled) {
 			continue;
 		}
 		movement.grounded = false;
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
-void Physics::PostCollisionUpdate(Manager& manager) const {
+void Physics::PostCollisionUpdate(Scene& scene) const {
 	float dt{ Physics::dt() };
 
 	V2_float min_bounds{ bounds_top_left_ };
@@ -86,7 +86,7 @@ void Physics::PostCollisionUpdate(Manager& manager) const {
 	bool enforce_bounds{ !bounds_size_.IsZero() };
 
 	for (auto [entity, enabled, transform, rigid_body] :
-		 manager.EntitiesWith<Enabled, Transform, RigidBody>()) {
+		 scene.EntitiesWith<Enabled, Transform, RigidBody>()) {
 		if (!enabled) {
 			continue;
 		}
@@ -112,7 +112,7 @@ void Physics::PostCollisionUpdate(Manager& manager) const {
 		}
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
 } // namespace ptgn

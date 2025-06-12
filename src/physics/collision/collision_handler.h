@@ -314,7 +314,7 @@ private:
 	friend class Physics;
 	friend class ptgn::Scene;
 
-	static void Update(Manager& manager);
+	static void Update(Scene& scene);
 
 	struct SweepCollision {
 		SweepCollision() = default;

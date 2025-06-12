@@ -14,7 +14,6 @@
 #include "core/manager.h"
 #include "debug/log.h"
 #include "events/mouse.h"
-#include "math/geometry.h"
 #include "math/hash.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -26,11 +25,12 @@
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
-Button CreateButton(Manager& manager) {
-	Button button{ manager.CreateEntity() };
+Button CreateButton(Scene& scene) {
+	Button button{ scene.CreateEntity() };
 
 	button.Show();
 	button.Enable();
@@ -45,17 +45,17 @@ Button CreateButton(Manager& manager) {
 }
 
 Button CreateTextButton(
-	Manager& manager, const TextContent& text_content, const TextColor& text_color
+	Scene& scene, const TextContent& text_content, const TextColor& text_color
 ) {
-	Button text_button{ CreateButton(manager) };
+	Button text_button{ CreateButton(scene) };
 
 	text_button.SetText(text_content, text_color);
 
 	return text_button;
 }
 
-ToggleButton CreateToggleButton(Manager& manager, bool toggled) {
-	ToggleButton toggle_button{ CreateButton(manager) };
+ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
+	ToggleButton toggle_button{ CreateButton(scene) };
 
 	toggle_button.AddScript<impl::ToggleButtonScript>();
 	toggle_button.Add<impl::ButtonToggled>(toggled);
@@ -168,12 +168,12 @@ Color& ButtonColor::Get(ButtonState state) {
 }
 
 ButtonText::ButtonText(
-	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
+	Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
 	const TextColor& text_color, const FontKey& font_key
 ) {
-	Set(parent, manager, ButtonState::Default, text_content, text_color, font_key);
+	Set(parent, scene, ButtonState::Default, text_content, text_color, font_key);
 	if (state != ButtonState::Default) {
-		Set(parent, manager, state, text_content, text_color, font_key);
+		Set(parent, scene, state, text_content, text_color, font_key);
 	}
 }
 
@@ -223,7 +223,7 @@ TextJustify ButtonText::GetTextJustify(ButtonState state) const {
 }
 
 void ButtonText::Set(
-	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
+	Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
 	const TextColor& text_color, const FontKey& font_key
 ) {
 	PTGN_ASSERT(
@@ -232,7 +232,7 @@ void ButtonText::Set(
 	);
 	auto& text{ Get(state) };
 	if (text == Text{}) {
-		text = CreateText(manager, text_content, text_color, font_key);
+		text = CreateText(scene, text_content, text_color, font_key);
 		text.Hide();
 		text.SetParent(parent);
 	} else {
@@ -530,10 +530,10 @@ Button& Button::SetText(
 	ButtonState state
 ) {
 	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(*this, GetManager(), state, content, text_color, font_key);
+		Add<impl::ButtonText>(*this, GetScene(), state, content, text_color, font_key);
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
-		c.Set(*this, GetManager(), state, content, text_color, font_key);
+		c.Set(*this, GetScene(), state, content, text_color, font_key);
 	}
 	return *this;
 }
@@ -552,7 +552,7 @@ Color Button::GetTextColor(ButtonState state) const {
 
 Button& Button::SetTextColor(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(*this, GetManager(), state, TextContent{}, text_color, FontKey{});
+		Add<impl::ButtonText>(*this, GetScene(), state, TextContent{}, text_color, FontKey{});
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
 		c.Get(state).SetColor(text_color);
@@ -566,7 +566,7 @@ std::string_view Button::GetTextContent(ButtonState state) const {
 
 Button& Button::SetTextContent(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(*this, GetManager(), state, content, TextColor{}, FontKey{});
+		Add<impl::ButtonText>(*this, GetScene(), state, content, TextColor{}, FontKey{});
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
 		c.Get(state).SetContent(content);
@@ -581,7 +581,7 @@ TextJustify Button::GetTextJustify(ButtonState state) const {
 Button& Button::SetTextJustify(const TextJustify& justify, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		auto& c{
-			Add<impl::ButtonText>(*this, GetManager(), state, TextContent{}, TextColor{}, FontKey{})
+			Add<impl::ButtonText>(*this, GetScene(), state, TextContent{}, TextColor{}, FontKey{})
 		};
 		c.Get(state).SetTextJustify(justify);
 	} else {
@@ -617,7 +617,7 @@ std::int32_t Button::GetFontSize(ButtonState state) const {
 Button& Button::SetFontSize(std::int32_t font_size, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		auto& c{
-			Add<impl::ButtonText>(*this, GetManager(), state, TextContent{}, TextColor{}, FontKey{})
+			Add<impl::ButtonText>(*this, GetScene(), state, TextContent{}, TextColor{}, FontKey{})
 		};
 		c.Get(state).SetFontSize(font_size);
 	} else {
@@ -806,7 +806,7 @@ Color ToggleButton::GetTextColorToggled(ButtonState state) const {
 ToggleButton& ToggleButton::SetTextColorToggled(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
-			*this, GetManager(), state, TextContent{}, text_color, FontKey{}
+			*this, GetScene(), state, TextContent{}, text_color, FontKey{}
 		);
 	} else {
 		auto& c{ Get<impl::ButtonTextToggled>() };
@@ -821,7 +821,7 @@ std::string_view ToggleButton::GetTextContentToggled(ButtonState state) const {
 
 ToggleButton& ToggleButton::SetTextContentToggled(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
-		Add<impl::ButtonTextToggled>(*this, GetManager(), state, content, TextColor{}, FontKey{});
+		Add<impl::ButtonTextToggled>(*this, GetScene(), state, content, TextColor{}, FontKey{});
 	} else {
 		auto& c{ Get<impl::ButtonTextToggled>() };
 		c.Get(state).SetContent(content);
@@ -834,10 +834,10 @@ ToggleButton& ToggleButton::SetTextToggled(
 	ButtonState state
 ) {
 	if (!Has<impl::ButtonTextToggled>()) {
-		Add<impl::ButtonTextToggled>(*this, GetManager(), state, content, text_color, font_key);
+		Add<impl::ButtonTextToggled>(*this, GetScene(), state, content, text_color, font_key);
 	} else {
 		auto& c{ Get<impl::ButtonTextToggled>() };
-		c.Set(*this, GetManager(), state, content, text_color, font_key);
+		c.Set(*this, GetScene(), state, content, text_color, font_key);
 	}
 	return *this;
 }

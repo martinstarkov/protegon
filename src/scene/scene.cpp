@@ -6,6 +6,7 @@
 #include "components/draw.h"
 #include "components/lifetime.h"
 #include "components/offsets.h"
+#include "components/uuid.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
@@ -16,6 +17,7 @@
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/renderer.h"
 #include "scene/camera.h"
+#include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 #include "tweening/tween.h"
 #include "tweening/tween_effects.h"
@@ -34,7 +36,23 @@ void Scene::Add(Action new_status) {
 }
 
 Entity Scene::CreateEntity() {
-	return manager.CreateEntity();
+	auto entity{ Manager::CreateEntity() };
+	entity.template Add<impl::SceneKey>(key_);
+	return entity;
+}
+
+Entity Scene::CreateEntity(UUID uuid) {
+	auto entity{ Manager::CreateEntity(uuid) };
+	entity.template Add<impl::SceneKey>(key_);
+	return entity;
+}
+
+Entity Scene::CreateEntity(const json& j) {
+	auto entity{ Manager::CreateEntity(j) };
+	PTGN_ASSERT(
+		entity.Has<impl::SceneKey>(), "Scene entity created from json must have a scene key"
+	);
+	return entity;
 }
 
 void Scene::SetColliderColor(const Color& collider_color) {
@@ -64,92 +82,92 @@ void Scene::Init() {
 void Scene::InternalEnter() {
 	Init();
 	Enter();
-	manager.Refresh();
+	Refresh();
 }
 
 void Scene::InternalExit() {
-	manager.Refresh();
+	Refresh();
 	Exit();
-	manager.Refresh();
-	manager.Reset();
+	Refresh();
+	Reset();
 	input.Shutdown();
 	// game.event.window.Unsubscribe(this);
 	active_ = false;
-	manager.Refresh();
+	Refresh();
 }
 
 void Scene::Draw() {
 	if (collider_visibility_) {
-		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+		for (auto [e, b] : EntitiesWith<BoxCollider>()) {
 			const auto& transform{ e.GetAbsoluteTransform() };
 			DrawDebugRect(
 				transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
 			);
 		}
-		for (auto [e, c] : manager.EntitiesWith<CircleCollider>()) {
+		for (auto [e, c] : EntitiesWith<CircleCollider>()) {
 			const auto& transform{ e.GetAbsoluteTransform() };
 			DrawDebugCircle(transform.position, c.radius, collider_color_, 1.0f);
 		}
 	}
 	auto& render_data{ game.renderer.GetRenderData() };
-	render_data.Render({} /*target_.GetFrameBuffer()*/, manager);
+	render_data.Render({} /*target_.GetFrameBuffer()*/, *this);
 	// render_data.RenderToScreen(target_, camera.primary);
 }
 
-void Scene::PreUpdate(Manager& m) {
-	m.Refresh();
+void Scene::PreUpdate() {
+	Refresh();
 
 	input.UpdatePrevious(this);
 
-	m.Refresh();
+	Refresh();
 
 	input.UpdateCurrent(this);
 
-	m.Refresh();
+	Refresh();
 }
 
-void Scene::PostUpdate(Manager& m) {
+void Scene::PostUpdate() {
 	// TODO: Add multiple manager support?
 
-	m.Refresh();
+	Refresh();
 
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 
 	float dt{ game.dt() };
 	float time{ game.time() };
 
-	Scripts::Update(m, dt);
+	Scripts::Update(*this, dt);
 
-	impl::ScriptTimers::Update(m);
-	impl::ScriptRepeats::Update(manager);
+	impl::ScriptTimers::Update(*this);
+	impl::ScriptRepeats::Update(*this);
 
 	Update();
 
-	m.Refresh();
+	Refresh();
 
-	ParticleEmitter::Update(m);
+	ParticleEmitter::Update(*this);
 
-	for (auto [entity, tween] : m.EntitiesWith<impl::TweenInstance>()) {
+	for (auto [entity, tween] : EntitiesWith<impl::TweenInstance>()) {
 		Tween{ entity }.Step(dt);
 	}
 
-	translate_effects_.Update(m);
-	rotate_effects_.Update(m);
-	scale_effects_.Update(m);
-	tint_effects_.Update(m);
-	bounce_effects_.Update(m);
-	shake_effects_.Update(m, time, dt);
-	follow_effects_.Update(m);
+	translate_effects_.Update(*this);
+	rotate_effects_.Update(*this);
+	scale_effects_.Update(*this);
+	tint_effects_.Update(*this);
+	bounce_effects_.Update(*this);
+	shake_effects_.Update(*this, time, dt);
+	follow_effects_.Update(*this);
 
-	impl::AnimationSystem::Update(m);
+	impl::AnimationSystem::Update(*this);
 
-	Lifetime::Update(m);
+	Lifetime::Update(*this);
 
-	physics.PreCollisionUpdate(m);
+	physics.PreCollisionUpdate(*this);
 
-	impl::CollisionHandler::Update(m);
+	impl::CollisionHandler::Update(*this);
 
-	physics.PostCollisionUpdate(m);
+	physics.PostCollisionUpdate(*this);
 
 	// TODO: Use Entity::Copy() instead. It caused some weird bug when I tried.
 
@@ -167,10 +185,10 @@ void Scene::PostUpdate(Manager& m) {
 }
 
 void to_json(json& j, const Scene& scene) {
+	to_json(j["manager"], static_cast<const Manager&>(scene));
 	j["key"]				 = scene.key_;
 	j["active"]				 = scene.active_;
 	j["actions"]			 = scene.actions_;
-	j["manager"]			 = scene.manager;
 	j["physics"]			 = scene.physics;
 	j["input"]				 = scene.input;
 	j["camera"]				 = scene.camera;
@@ -179,7 +197,7 @@ void to_json(json& j, const Scene& scene) {
 }
 
 void from_json(const json& j, Scene& scene) {
-	scene.manager.Reset();
+	scene.Reset();
 
 	j.at("key").get_to(scene.key_);
 	j.at("active").get_to(scene.active_);
@@ -187,7 +205,7 @@ void from_json(const json& j, Scene& scene) {
 
 	// Ensure manager is deserialized before any of the other scene systems which may reference
 	// manager entities (such as the CameraManager).
-	j.at("manager").get_to(scene.manager);
+	from_json(j.at("manager"), static_cast<Manager&>(scene));
 
 	j.at("physics").get_to(scene.physics);
 

@@ -83,7 +83,10 @@ void RenderData::Init() {
 	}
 #endif
 
-	light_target = impl::CreateRenderTarget(light_manager, { 1, 1 }, color::Transparent);
+	light_target = impl::CreateRenderTarget(
+		light_manager.CreateEntity(), impl::CreateCamera(light_manager.CreateEntity()), { 1, 1 },
+		color::Transparent
+	);
 
 	// TODO: Once window resizing is implemented, get rid of this.
 	game.event.window.Subscribe(
@@ -515,11 +518,11 @@ void RenderData::SortEntitiesByY(std::vector<Entity>&) {
 	});*/
 }
 
-void RenderData::Render(const FrameBuffer& frame_buffer, const Manager& manager) {
+void RenderData::Render(const FrameBuffer& frame_buffer, const Scene& scene) {
 	auto& current_scene{ game.scene.GetCurrent() };
 
 	for (auto [e, v, d, fb, rt_entities] :
-		 manager.EntitiesWith<Visible, IDrawable, FrameBuffer, RenderTargetEntities>()) {
+		 scene.EntitiesWith<Visible, IDrawable, FrameBuffer, RenderTargetEntities>()) {
 		RenderTarget rt{ e };
 		rt.Clear();
 
@@ -540,7 +543,7 @@ void RenderData::Render(const FrameBuffer& frame_buffer, const Manager& manager)
 		SortEntitiesByY(entities);
 	}*/
 
-	for (auto [entity, visible, drawable] : manager.EntitiesWith<Visible, IDrawable>()) {
+	for (auto [entity, visible, drawable] : scene.EntitiesWith<Visible, IDrawable>()) {
 		// Do not use render target camera here.
 		if (!entity.Has<RenderTargetEntities>()) {
 			auto camera{ entity.GetOrDefault<Camera>() };

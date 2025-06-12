@@ -4,11 +4,6 @@
 #include <limits>
 #include <string>
 
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/draw.h"
 #include "core/entity.h"
@@ -20,16 +15,23 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 
 namespace ptgn {
 
 Text CreateText(
-	Manager& manager, const TextContent& content, const TextColor& text_color,
-	const FontKey& font_key
+	Scene& scene, const TextContent& content, const TextColor& text_color, const FontKey& font_key
 ) {
-	Text text{ manager.CreateEntity() };
+	Text text{ scene.CreateEntity() };
 	text.Add<TextureHandle>();
 	text.SetDraw<Text>();
+	text.Add<Camera>(scene.camera.primary_unzoomed);
 	text.Show();
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);
@@ -248,8 +250,7 @@ void Text::RecreateTexture() {
 			surface = TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), text_color, wrap_after);
 			break;
 		default:
-			PTGN_ERROR(
-				"Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
 			);
 	}
 

@@ -28,7 +28,7 @@ public:
 	Manager& operator=(const Manager&)	   = default;
 	Manager(Manager&&) noexcept			   = default;
 	Manager& operator=(Manager&&) noexcept = default;
-	~Manager()							   = default;
+	virtual ~Manager()					   = default;
 
 	friend bool operator==(const Manager& a, const Manager& b) {
 		return &a == &b;
@@ -48,18 +48,18 @@ public:
 	void Reserve(std::size_t capacity);
 
 	// @return {} if no entity with the given uuid exists in the manager.
-	Entity GetEntityByUUID(const UUID& uuid) const;
+	[[nodiscard]] Entity GetEntityByUUID(const UUID& uuid) const;
 
 	// Make sure to call Refresh() after this function.
-	Entity CreateEntity();
+	virtual Entity CreateEntity();
 
 	// Make sure to call Refresh() after this function.
 	// Creates an entity with a specific uuid.
-	Entity CreateEntity(UUID uuid);
+	virtual Entity CreateEntity(UUID uuid);
 
 	// Make sure to call Refresh() after this function.
 	// Creates an entity from a json object.
-	Entity CreateEntity(const json& j);
+	virtual Entity CreateEntity(const json& j);
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {

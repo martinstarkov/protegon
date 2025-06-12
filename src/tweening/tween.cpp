@@ -10,10 +10,10 @@
 
 #include "common/assert.h"
 #include "core/entity.h"
-#include "core/manager.h"
 #include "core/script.h"
 #include "core/time.h"
 #include "math/easing.h"
+#include "scene/scene.h"
 
 #define PTGN_CALL_TWEEN_SCRIPTS(FUNC_NAME)                                         \
 	auto& FUNC_NAME##_scripts{ GetCurrentTweenPoint().script_container_.scripts }; \
@@ -23,8 +23,8 @@
 
 namespace ptgn {
 
-Tween CreateTween(Manager& manager) {
-	Tween tween{ manager.CreateEntity() };
+Tween CreateTween(Scene& scene) {
+	Tween tween{ scene.CreateEntity() };
 
 	tween.Add<impl::TweenInstance>();
 

@@ -30,9 +30,8 @@
 
 namespace ptgn {
 
-bool SceneInput::PointerIsInside(
-	V2_float pointer, const Camera& camera, const Entity& entity
-) const {
+bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
+	const {
 	pointer = game.input.GetMousePositionUnclamped();
 	auto window_size{ game.window.GetSize() };
 	if (!impl::OverlapPointRect(pointer, window_size / 2.0f, window_size, 0.0f)) {
@@ -177,8 +176,7 @@ bool SceneInput::PointerIsInside(
 void SceneInput::UpdatePrevious(Scene* scene) {
 	triggered_callbacks_ = false;
 	PTGN_ASSERT(scene != nullptr);
-	for (auto [entity, enabled, interactive] :
-		 scene->manager.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] : scene->EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			continue;
 		}
@@ -243,8 +241,7 @@ void SceneInput::UpdateCurrent(Scene* scene) {
 	Depth top_depth;
 	Entity top_entity;
 	bool send_mouse_event{ false };
-	for (auto [entity, enabled, interactive] :
-		 scene->manager.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] : scene->EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			interactive.is_inside  = false;
 			interactive.was_inside = false;
@@ -300,8 +297,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 			} else {
 				triggered_callbacks_ = true;
 			}
-			for (auto [entity, enabled, interactive] :
-				 scene.manager.EntitiesWith<Enabled, Interactive>()) {
+			for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -339,8 +335,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Down: {
 			Mouse mouse{ static_cast<const MouseDownEvent&>(event).mouse };
-			for (auto [entity, enabled, interactive] :
-				 scene.manager.EntitiesWith<Enabled, Interactive>()) {
+			for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -365,8 +360,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Up: {
 			Mouse mouse{ static_cast<const MouseUpEvent&>(event).mouse };
-			for (auto [entity, enabled, interactive] :
-				 scene.manager.EntitiesWith<Enabled, Interactive>()) {
+			for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -389,7 +383,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Pressed: {
 			Mouse mouse{ static_cast<const MousePressedEvent&>(event).mouse };
 			for (const auto& [entity, enabled, interactive, scripts] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
+				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -402,7 +396,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Scroll: {
 			V2_int scroll{ static_cast<const MouseScrollEvent&>(event).scroll };
 			for (auto [entity, enabled, interactive, scripts] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
+				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -422,7 +416,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 		case KeyEvent::Down: {
 			Key key{ static_cast<const KeyDownEvent&>(event).key };
 			for (auto [entity, enabled, interactive, scripts] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
+				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -433,7 +427,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 		case KeyEvent::Up: {
 			Key key{ static_cast<const KeyUpEvent&>(event).key };
 			for (auto [entity, enabled, interactive, scripts] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
+				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -444,7 +438,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 		case KeyEvent::Pressed: {
 			Key key{ static_cast<const KeyPressedEvent&>(event).key };
 			for (auto [entity, enabled, interactive, scripts] :
-				 scene.manager.EntitiesWith<Enabled, Interactive, Scripts>()) {
+				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
 				if (!enabled) {
 					continue;
 				}
@@ -457,8 +451,8 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 }
 
 void SceneInput::ResetInteractives(Scene* scene) {
-	for (auto [entity, enabled, interactive] :
-		 scene->manager.EntitiesWith<Enabled, Interactive>()) {
+	PTGN_ASSERT(scene != nullptr);
+	for (auto [entity, enabled, interactive] : scene->EntitiesWith<Enabled, Interactive>()) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}

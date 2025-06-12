@@ -14,24 +14,34 @@
 #include "rendering/renderer.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
-#include "scene/scene_manager.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
-RenderTarget CreateRenderTarget(Manager& manager, const V2_float& size, const Color& clear_color) {
-	RenderTarget render_target{ manager.CreateEntity() };
+namespace impl {
+
+RenderTarget CreateRenderTarget(
+	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color
+) {
+	RenderTarget render_target{ entity };
 	render_target.SetDraw<RenderTarget>();
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::RenderTargetEntities>();
 	render_target.Show();
-	render_target.Add<Camera>(CreateCamera(manager));
+	render_target.Add<Camera>(camera);
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
-	auto& fb = render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size });
-	PTGN_ASSERT(fb.IsValid(), "Failed to create valid frame buffer for render target");
-	PTGN_ASSERT(fb.IsBound(), "Failed to bind frame buffer for render target");
+	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size }) };
+	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
+	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
 	render_target.Clear();
 	return render_target;
+}
+
+} // namespace impl
+
+RenderTarget CreateRenderTarget(Scene& scene, const V2_float& size, const Color& clear_color) {
+	return impl::CreateRenderTarget(scene.CreateEntity(), CreateCamera(scene), size, clear_color);
 }
 
 /*
@@ -100,10 +110,10 @@ Camera& RenderTarget::GetCamera() {
 }
 
 void RenderTarget::Bind() const {
-	const auto& fb = Get<impl::FrameBuffer>();
-	PTGN_ASSERT(fb.IsValid(), "Cannot bind invalid or uninitialized frame buffer");
-	fb.Bind();
-	PTGN_ASSERT(fb.IsBound(), "Failed to bind render target frame buffer");
+	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
+	PTGN_ASSERT(frame_buffer.IsValid(), "Cannot bind invalid or uninitialized frame buffer");
+	frame_buffer.Bind();
+	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind render target frame buffer");
 }
 
 /*
@@ -123,9 +133,9 @@ void RenderTarget::UnsubscribeFromEvents() const {
 
 void RenderTarget::Clear() const {
 	PTGN_ASSERT(Has<impl::FrameBuffer>(), "Cannot clear render target with no frame buffer");
-	const auto& fb = Get<impl::FrameBuffer>();
-	fb.Bind();
-	PTGN_ASSERT(fb.IsBound(), "Render target frame buffer must be bound before clearing");
+	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
+	frame_buffer.Bind();
+	PTGN_ASSERT(frame_buffer.IsBound(), "Render target frame buffer must be bound before clearing");
 	auto clear_color{ GetOrDefault<impl::ClearColor>() };
 	impl::GLRenderer::ClearToColor(clear_color);
 }

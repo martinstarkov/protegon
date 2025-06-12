@@ -12,7 +12,6 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/manager.h"
 #include "debug/log.h"
 #include "events/mouse.h"
 #include "math/hash.h"
@@ -26,6 +25,7 @@
 
 namespace ptgn {
 
+class Scene;
 class Button;
 class ToggleButton;
 class ToggleButtonGroup;
@@ -165,7 +165,7 @@ struct ButtonText {
 	ButtonText() = default;
 
 	ButtonText(
-		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
+		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontKey& font_key
 	);
 
@@ -179,7 +179,7 @@ struct ButtonText {
 	[[nodiscard]] Text& Get(ButtonState state);
 
 	void Set(
-		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
+		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontKey& font_key
 	);
 
@@ -236,9 +236,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -340,9 +339,8 @@ public:
 		const TextColor& text_color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
+		const;
 
 	ToggleButton& SetTextContentToggled(
 		const TextContent& content, ButtonState state = ButtonState::Default
@@ -432,13 +430,13 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	return os;
 }
 
-[[nodiscard]] Button CreateButton(Manager& manager);
+[[nodiscard]] Button CreateButton(Scene& scene);
 
 [[nodiscard]] Button CreateTextButton(
-	Manager& manager, const TextContent& text_content, const TextColor& text_color = color::Black
+	Scene& scene, const TextContent& text_content, const TextColor& text_color = color::Black
 );
 
 // @param toggled Whether or not the button start in the toggled state.
-[[nodiscard]] ToggleButton CreateToggleButton(Manager& manager, bool toggled = false);
+[[nodiscard]] ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
 
 } // namespace ptgn

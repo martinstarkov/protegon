@@ -7,7 +7,6 @@
 #include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
@@ -16,14 +15,15 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/shader.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
 PointLight CreatePointLight(
-	Manager& manager, const V2_float& position, float radius, const Color& color, float intensity,
+	Scene& scene, const V2_float& position, float radius, const Color& color, float intensity,
 	float falloff
 ) {
-	PointLight point_light{ manager.CreateEntity() };
+	PointLight point_light{ scene.CreateEntity() };
 
 	// Entity properties.
 

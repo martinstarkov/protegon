@@ -1,21 +1,26 @@
 #pragma once
 
+#include <unordered_set>
+
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/manager.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/resources/texture.h"
-#include <unordered_set>
 
 namespace ptgn {
 
 class Scene;
 class Camera;
+class RenderTarget;
 
 namespace impl {
+
+[[nodiscard]] RenderTarget CreateRenderTarget(
+	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color
+);
 
 class RenderData;
 
@@ -74,8 +79,8 @@ public:
 private:
 	friend class impl::RenderData;
 
-	friend RenderTarget CreateRenderTarget(
-		Manager& manager, const V2_float& size, const Color& clear_color
+	friend RenderTarget impl::CreateRenderTarget(
+		const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color
 	);
 
 	// Draw an entity to the render target.
@@ -118,7 +123,7 @@ private:
 // @param size The size of the render target.
 // @param clear_color The background color of the render target.
 [[nodiscard]] RenderTarget CreateRenderTarget(
-	Manager& manager, const V2_float& size, const Color& clear_color = color::Transparent
+	Scene& scene, const V2_float& size, const Color& clear_color = color::Transparent
 );
 
 } // namespace ptgn

@@ -2,11 +2,14 @@
 
 #include <set>
 
+#include "components/uuid.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "physics/physics.h"
 #include "scene/camera.h"
 #include "scene/scene_input.h"
+#include "scene/scene_key.h"
+#include "serialization/fwd.h"
 #include "serialization/serializable.h"
 #include "tweening/tween_effects.h"
 
@@ -21,11 +24,11 @@ class SceneManager;
 
 } // namespace impl
 
-class Scene {
+class Scene : public Manager {
 private:
 	// RenderTarget target_;
 
-	std::size_t key_{ 0 };
+	impl::SceneKey key_;
 
 	bool active_{ false };
 
@@ -40,14 +43,31 @@ private:
 	std::set<Action> actions_;
 
 protected:
-	Entity CreateEntity();
-
 	void SetColliderColor(const Color& collider_color);
 	void SetColliderVisibility(bool collider_visibility);
 
 public:
-	Scene()			 = default;
-	virtual ~Scene() = default;
+	Scene()			  = default;
+	~Scene() override = default;
+
+	// Make sure to call Refresh() after this function.
+	Entity CreateEntity() final;
+
+	// Make sure to call Refresh() after this function.
+	// Creates an entity with a specific uuid.
+	Entity CreateEntity(UUID uuid) final;
+
+	// Make sure to call Refresh() after this function.
+	// Creates an entity from a json object.
+	Entity CreateEntity(const json& j) final;
+
+	// Make sure to call Refresh() after this function.
+	template <typename... Ts>
+	Entity CopyEntity(const Entity& from) {
+		auto entity{ Manager::CopyEntity<Ts...>(from) };
+		entity.template Add<impl::SceneKey>(key_);
+		return entity;
+	}
 
 	// Called when the scene is added to active scenes.
 	virtual void Enter() {
@@ -64,7 +84,6 @@ public:
 		/* user implementation */
 	}
 
-	Manager manager;
 	SceneInput input;
 	Physics physics;
 	CameraManager camera;
@@ -88,8 +107,8 @@ private:
 	// void ClearTarget();
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void PreUpdate(Manager& m);
-	void PostUpdate(Manager& m);
+	void PreUpdate();
+	void PostUpdate();
 	void Draw();
 	void InternalExit();
 

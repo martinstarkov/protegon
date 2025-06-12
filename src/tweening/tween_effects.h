@@ -5,7 +5,6 @@
 
 #include "common/assert.h"
 #include "core/entity.h"
-#include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/easing.h"
@@ -16,6 +15,8 @@
 #include "tweening/shake_config.h"
 
 namespace ptgn {
+
+class Scene;
 
 namespace impl {
 
@@ -142,27 +143,27 @@ struct ShakeEffect {
 
 class TranslateEffectSystem {
 public:
-	void Update(Manager& manager) const;
+	void Update(Scene& scene) const;
 };
 
 class RotateEffectSystem {
 public:
-	void Update(Manager& manager) const;
+	void Update(Scene& scene) const;
 };
 
 class ScaleEffectSystem {
 public:
-	void Update(Manager& manager) const;
+	void Update(Scene& scene) const;
 };
 
 class TintEffectSystem {
 public:
-	void Update(Manager& manager) const;
+	void Update(Scene& scene) const;
 };
 
 class BounceEffectSystem {
 public:
-	void Update(Manager& manager) const;
+	void Update(Scene& scene) const;
 
 private:
 	[[nodiscard]] static float ApplyEase(float t, bool symmetrical, const Ease& ease);
@@ -170,12 +171,12 @@ private:
 
 class ShakeEffectSystem {
 public:
-	void Update(Manager& manager, float time, float dt) const;
+	void Update(Scene& scene, float time, float dt) const;
 };
 
 class FollowEffectSystem {
 public:
-	void Update(Manager& manager) const;
+	void Update(Scene& scene) const;
 };
 
 template <typename TComponent, typename T>

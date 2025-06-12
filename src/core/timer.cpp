@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-#include "core/manager.h"
+#include "scene/scene.h"
 #include "serialization/json.h"
 
 namespace ptgn {
@@ -95,8 +95,8 @@ void from_json(const json& j, Timer& timer) {
 
 namespace impl {
 
-void ScriptTimers::Update(Manager& manager) {
-	for (auto [entity, scripts, script_timer] : manager.EntitiesWith<Scripts, ScriptTimers>()) {
+void ScriptTimers::Update(Scene& scene) {
+	for (auto [entity, scripts, script_timer] : scene.EntitiesWith<Scripts, ScriptTimers>()) {
 		for (auto timer_it{ script_timer.timers.begin() }; timer_it != script_timer.timers.end();) {
 			const auto& [key, timer_info] = *timer_it;
 
@@ -133,11 +133,11 @@ void ScriptTimers::Update(Manager& manager) {
 		}
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
-void ScriptRepeats::Update(Manager& manager) {
-	for (auto [entity, scripts, script_repeat] : manager.EntitiesWith<Scripts, ScriptRepeats>()) {
+void ScriptRepeats::Update(Scene& scene) {
+	for (auto [entity, scripts, script_repeat] : scene.EntitiesWith<Scripts, ScriptRepeats>()) {
 		for (auto repeat_it{ script_repeat.repeats.begin() };
 			 repeat_it != script_repeat.repeats.end();) {
 			auto& [key, repeat_info] = *repeat_it;
@@ -188,7 +188,7 @@ void ScriptRepeats::Update(Manager& manager) {
 		}
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
 } // namespace impl

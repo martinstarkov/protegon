@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/manager.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
@@ -36,8 +35,8 @@ private:
 	friend class impl::Game;
 	friend class ptgn::Scene;
 
-	void PreCollisionUpdate(Manager& manager) const;
-	void PostCollisionUpdate(Manager& manager) const;
+	void PreCollisionUpdate(Scene& scene) const;
+	void PostCollisionUpdate(Scene& scene) const;
 
 	V2_float bounds_top_left_;
 	V2_float bounds_size_;

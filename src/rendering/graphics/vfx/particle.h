@@ -161,11 +161,9 @@ public:
 private:
 	friend class Scene;
 
-	static void Update(Manager& manager);
+	static void Update(Scene& scene);
 };
 
-[[nodiscard]] ParticleEmitter CreateParticleEmitter(
-	Manager& manager, const ParticleInfo& info = {}
-);
+[[nodiscard]] ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info = {});
 
 } // namespace ptgn

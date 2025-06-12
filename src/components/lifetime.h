@@ -8,6 +8,7 @@ namespace ptgn {
 
 class Manager;
 class Entity;
+class Scene;
 
 struct Lifetime {
 	Lifetime() = default;
@@ -28,7 +29,7 @@ struct Lifetime {
 private:
 	friend class Scene;
 
-	static void Update(Manager& manager);
+	static void Update(Scene& scene);
 
 	Timer timer_;
 };

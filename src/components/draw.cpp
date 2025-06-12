@@ -3,15 +3,12 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <list>
-#include <string_view>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
 #include "common/assert.h"
-#include "components/common.h"
-#include "components/drawable.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -19,21 +16,19 @@
 #include "core/resource_manager.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "math/geometry.h"
-#include "math/math.h"
+#include "debug/log.h"
 #include "math/vector2.h"
-#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
-#include "tweening/tween.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
-Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key) {
-	Sprite sprite{ manager.CreateEntity() };
+Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key) {
+	Sprite sprite{ scene.CreateEntity() };
 	sprite.SetDraw<Sprite>();
 	sprite.SetTextureKey(texture_key);
 	sprite.Show();
@@ -41,7 +36,7 @@ Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key) {
 }
 
 Animation CreateAnimation(
-	Manager& manager, const TextureHandle& texture_key, milliseconds animation_duration,
+	Scene& scene, const TextureHandle& texture_key, milliseconds animation_duration,
 	std::size_t frame_count, const V2_int& frame_size, std::int64_t play_count,
 	const V2_int& start_pixel
 ) {
@@ -50,7 +45,7 @@ Animation CreateAnimation(
 		"Play count must be -1 (infinite) or otherwise non-negative"
 	);
 
-	Animation animation{ CreateSprite(manager, texture_key) };
+	Animation animation{ CreateSprite(scene, texture_key) };
 
 	const auto& anim = animation.Add<impl::AnimationInfo>(
 		animation_duration, frame_count, frame_size, play_count, start_pixel
@@ -343,8 +338,8 @@ void AnimationInfo::IncrementFrame() {
 	SetCurrentFrame(current_frame + 1);
 }
 
-void AnimationSystem::Update(Manager& manager) {
-	for (auto [entity, anim, crop] : manager.EntitiesWith<AnimationInfo, TextureCrop>()) {
+void AnimationSystem::Update(Scene& scene) {
+	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationInfo, TextureCrop>()) {
 		if (anim.frame_count == 0 || anim.duration <= milliseconds{ 0 } ||
 			!anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused()) {
 			// Timer is not active or animation has no frames / duration.
@@ -390,7 +385,7 @@ void AnimationSystem::Update(Manager& manager) {
 		anim.frame_timer.Start(true);
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
 } // namespace impl

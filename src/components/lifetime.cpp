@@ -1,9 +1,9 @@
 #include "components/lifetime.h"
 
 #include "core/entity.h"
-#include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
@@ -24,12 +24,12 @@ void Lifetime::Update(Entity& entity) const {
 	}
 }
 
-void Lifetime::Update(Manager& manager) {
-	for (auto [entity, lifetime] : manager.EntitiesWith<Lifetime>()) {
+void Lifetime::Update(Scene& scene) {
+	for (auto [entity, lifetime] : scene.EntitiesWith<Lifetime>()) {
 		lifetime.Update(entity);
 	}
 
-	manager.Refresh();
+	scene.Refresh();
 }
 
 } // namespace ptgn

@@ -19,6 +19,7 @@
 namespace ptgn {
 
 class Manager;
+class Scene;
 
 namespace impl {
 
@@ -253,6 +254,6 @@ Tween& Tween::AddTweenScript(TArgs&&... args) {
 template <typename T>
 using TweenScript = impl::Script<T, impl::ITweenScript>;
 
-[[nodiscard]] Tween CreateTween(Manager& manager);
+[[nodiscard]] Tween CreateTween(Scene& scene);
 
 } // namespace ptgn

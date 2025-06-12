@@ -18,7 +18,6 @@
 #include "rendering/buffers/vertex_array.h"
 #include "rendering/resources/render_target.h"
 #include "rendering/resources/texture.h"
-#include "scene/camera.h"
 
 // TODO: Move to RenderTarget's owning their own batches.
 
@@ -27,6 +26,7 @@ namespace ptgn {
 class Shader;
 class Camera;
 class RenderTarget;
+class Scene;
 
 namespace impl {
 
@@ -36,7 +36,7 @@ class RenderData {
 public:
 	void Init();
 
-	void Render(const FrameBuffer& frame_buffer, const Manager& manager);
+	void Render(const FrameBuffer& frame_buffer, const Scene& scene);
 
 	// void RenderToScreen(const RenderTarget& target, const Camera& camera);
 

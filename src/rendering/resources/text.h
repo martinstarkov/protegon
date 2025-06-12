@@ -2,16 +2,11 @@
 
 #include <cstdint>
 #include <limits>
-#include <string>
-#include <string_view>
 
 #include "common/type_traits.h"
-#include "components/draw.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/manager.h"
-#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/resources/font.h"
@@ -19,6 +14,8 @@
 #include "serialization/serializable.h"
 
 namespace ptgn {
+
+class Scene;
 
 namespace impl {
 
@@ -179,7 +176,7 @@ public:
 // @param font_key Default: {} corresponds to the default engine font (use
 // game.font.SetDefault(...) to change.
 [[nodiscard]] Text CreateText(
-	Manager& manager, const TextContent& content, const TextColor& text_color = {},
+	Scene& scene, const TextContent& content, const TextColor& text_color = {},
 	const FontKey& font_key = {}
 );
 

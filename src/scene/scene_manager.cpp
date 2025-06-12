@@ -132,7 +132,7 @@ void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
 		if (sc.scene->active_) {
-			sc.scene->PreUpdate(sc.scene->manager);
+			sc.scene->PreUpdate();
 		}
 	}
 
@@ -141,7 +141,7 @@ void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
 		if (sc.scene->active_) {
-			sc.scene->PostUpdate(sc.scene->manager);
+			sc.scene->PostUpdate();
 		}
 	}
 }
