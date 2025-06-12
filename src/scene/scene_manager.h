@@ -12,6 +12,7 @@
 
 namespace ptgn {
 
+class Entity;
 class SceneTransition;
 
 namespace impl {
@@ -170,6 +171,7 @@ private:
 	friend class Game;
 	friend class ptgn::Scene;
 	friend class Renderer;
+	friend class ptgn::Entity;
 
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 
