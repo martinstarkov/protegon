@@ -21,10 +21,12 @@ namespace ptgn::impl {
 	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise
 );
 
+// @return Quad vertices that for a line with a given thickness.
 [[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
 	const V2_float& start, const V2_float& end, float line_width
 );
 
+// @return Quad vertices for a transform with a given size and origin.
 [[nodiscard]] std::array<V2_float, 4> GetVertices(
 	const Transform& transform, V2_float size, Origin origin
 );
