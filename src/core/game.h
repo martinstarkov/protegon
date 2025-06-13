@@ -89,7 +89,7 @@ public:
 	// game.renderer.SetClearColor(color::Black);
 	void Init(
 		const std::string& title = "Default Title", const V2_int& window_size = { 800, 800 },
-		const Color& background_color = color::White
+		const Color& background_color = color::Transparent
 	);
 
 	// Stops the game from running.
