@@ -9,6 +9,7 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
+#include "rendering/batching/vertex.h"
 #include "rendering/buffers/buffer_layout.h"
 #include "rendering/gl/gl_types.h"
 #include "rendering/resources/shader.h"
@@ -18,16 +19,6 @@
 namespace ptgn {
 
 namespace impl {
-
-struct Vertex {
-	glsl::vec3 position;
-	glsl::vec4 color;
-	glsl::vec2 tex_coord;
-	// For textures this is from 1 to max_texture_slots.
-	// For solid triangles/quads this is 0 (white 1x1 texture).
-	// For circles this stores the thickness: 0 is hollow, 1 is solid.
-	glsl::float_ tex_index;
-};
 
 constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
 	quad_vertex_layout;
@@ -93,7 +84,8 @@ public:
 	);
 
 	// @return True if the batch uses the specified shader and blend mode.
-	bool Uses(const Shader& other_shader, const Camera& other_camera, BlendMode other_blend_mode) const;
+	bool Uses(const Shader& other_shader, const Camera& other_camera, BlendMode other_blend_mode)
+		const;
 
 	// @return True if the batch has room for the texture (or the texture id already exists in the
 	// batch).
