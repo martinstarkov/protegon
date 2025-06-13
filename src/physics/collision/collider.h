@@ -69,6 +69,8 @@ struct Collider {
 	// Continuous collision detection for high velocity colliders.
 	bool continuous{ false };
 
+	Collider& SetOverlapOnly();
+
 	// How the velocity of the sweep should respond to obstacles.
 	// Not applicable if continuous is set to false.
 	CollisionResponse response{ CollisionResponse::Slide };

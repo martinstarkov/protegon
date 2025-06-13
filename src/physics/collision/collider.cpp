@@ -27,6 +27,11 @@ bool PhysicsBody::IsImmovable() const {
 	return root_entity.Get<Transform>();
 }
 
+Collider& Collider::SetOverlapOnly() {
+	overlap_only = true;
+	return *this;
+}
+
 CollisionCategory Collider::GetCollisionCategory() const {
 	return category_;
 }
