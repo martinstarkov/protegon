@@ -179,7 +179,9 @@ void Scene::PostUpdate() {
 	camera.primary_unzoomed.SetZoom(1.0f);
 	camera.window_unzoomed.SetZoom(1.0f);
 
-	Draw();
+	Render();
+	// TODO: Readd.
+	// Draw();
 
 	game.scene.current_ = {};
 }

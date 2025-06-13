@@ -79,6 +79,11 @@ public:
 		/* user implementation */
 	}
 
+	// Called once per frame after the end of the scene update.
+	virtual void Render() {
+		/* user implementation */
+	}
+
 	// Called when the scene is removed from active scenes.
 	virtual void Exit() {
 		/* user implementation */
