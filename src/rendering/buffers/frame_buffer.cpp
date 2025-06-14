@@ -62,7 +62,7 @@ void RenderBuffer::DeleteRenderBuffer() noexcept {
 	id_ = 0;
 }
 
-void RenderBuffer::Bind(std::uint32_t id) {
+void RenderBuffer::Bind(RenderBufferId id) {
 	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
 #ifdef GL_ANNOUNCE_RENDER_BUFFER_CALLS
 	PTGN_LOG("GL: Bound render buffer with id ", id);
@@ -78,18 +78,18 @@ void RenderBuffer::Unbind() {
 	Bind(0);
 }
 
-std::uint32_t RenderBuffer::GetBoundId() {
+RenderBufferId RenderBuffer::GetBoundId() {
 	std::int32_t id{ -1 };
 	GLCall(glGetIntegerv(static_cast<GLenum>(impl::GLBinding::RenderBuffer), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound render buffer id");
-	return static_cast<std::uint32_t>(id);
-}
-
-std::uint32_t RenderBuffer::GetId() const {
-	return id_;
+	return static_cast<RenderBufferId>(id);
 }
 
 bool RenderBuffer::IsValid() const {
+	return id_;
+}
+
+RenderBufferId RenderBuffer::GetId() const {
 	return id_;
 }
 
@@ -163,10 +163,6 @@ void FrameBuffer::AttachRenderBuffer(RenderBuffer&& render_buffer) {
 	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer");
 }
 
-bool FrameBuffer::IsBound() const {
-	return GetBoundId() == id_;
-}
-
 bool FrameBuffer::IsComplete() const {
 	PTGN_ASSERT(IsBound(), "Cannot check status of frame buffer until it is bound");
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
@@ -187,7 +183,7 @@ const RenderBuffer& FrameBuffer::GetRenderBuffer() const {
 	return render_buffer_;
 }
 
-void FrameBuffer::Bind(std::uint32_t id) {
+void FrameBuffer::Bind(FrameBufferId id) {
 	if (game.renderer.bound_.frame_buffer_id == id) {
 		return;
 	}
@@ -201,11 +197,19 @@ void FrameBuffer::Bind(std::uint32_t id) {
 #endif
 }
 
+bool FrameBuffer::IsBound() const {
+	return GetBoundId() == id_;
+}
+
 bool FrameBuffer::IsUnbound() {
 	return GetBoundId() == 0;
 }
 
 bool FrameBuffer::IsValid() const {
+	return id_;
+}
+
+FrameBufferId FrameBuffer::GetId() const {
 	return id_;
 }
 
@@ -217,11 +221,11 @@ void FrameBuffer::Unbind() {
 	Bind(0);
 }
 
-std::uint32_t FrameBuffer::GetBoundId() {
+FrameBufferId FrameBuffer::GetBoundId() {
 	std::int32_t id{ -1 };
 	GLCall(glGetIntegerv(static_cast<GLenum>(impl::GLBinding::FrameBufferDraw), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound frame buffer id");
-	return static_cast<std::uint32_t>(id);
+	return static_cast<FrameBufferId>(id);
 }
 
 Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
@@ -261,8 +265,7 @@ void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) c
 		"Textures with less than 3 pixel components cannot currently be queried"
 	);
 
-	std::vector<std::uint8_t> v(
-		static_cast<std::size_t>(formats.color_components * size.x * size.y)
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
 	);
 	Bind();
 	GLCall(glReadPixels(

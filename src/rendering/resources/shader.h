@@ -6,13 +6,13 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "common/assert.h"
+#include "debug/log.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "common/assert.h"
 #include "utility/file.h"
-#include "debug/log.h"
 
 // clang-format off
 #define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY(x)
@@ -41,6 +41,8 @@ struct ShaderCode {
 };
 
 [[nodiscard]] std::string_view GetShaderName(std::uint32_t shader_type);
+
+using ShaderId = std::uint32_t;
 
 class Shader {
 public:
@@ -74,9 +76,8 @@ public:
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(
-		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-	) const;
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+		const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
@@ -88,16 +89,18 @@ public:
 	void Bind() const;
 
 	// Bind a shader id as the current shader.
-	static void Bind(std::uint32_t id);
+	static void Bind(ShaderId id);
 
 	// @return True if the shader is currently bound.
 	[[nodiscard]] bool IsBound() const;
 
 	// @return The id of the currently bound shader.
-	[[nodiscard]] static std::uint32_t GetBoundId();
+	[[nodiscard]] static ShaderId GetBoundId();
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
+
+	[[nodiscard]] ShaderId GetId() const;
 
 private:
 	void Create();
@@ -109,9 +112,9 @@ private:
 	void Compile(const std::string& vertex_shader, const std::string& fragment_shader);
 
 	// Compile shader
-	[[nodiscard]] static std::uint32_t Compile(std::uint32_t type, const std::string& source);
+	[[nodiscard]] static ShaderId Compile(std::uint32_t type, const std::string& source);
 
-	std::uint32_t id_{ 0 };
+	ShaderId id_{ 0 };
 
 	// Location cache should not prevent const calls.
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;

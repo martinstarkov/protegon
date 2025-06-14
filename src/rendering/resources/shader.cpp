@@ -19,7 +19,6 @@
 #include "rendering/renderer.h"
 #include "utility/file.h"
 
-
 namespace ptgn {
 
 std::string_view GetShaderName(std::uint32_t shader_type) {
@@ -97,8 +96,8 @@ void Shader::Delete() noexcept {
 	id_ = 0;
 }
 
-std::uint32_t Shader::Compile(std::uint32_t type, const std::string& source) {
-	std::uint32_t id{ GLCallReturn(CreateShader(type)) };
+ShaderId Shader::Compile(std::uint32_t type, const std::string& source) {
+	ShaderId id{ GLCallReturn(CreateShader(type)) };
 
 	auto src{ source.c_str() };
 
@@ -127,8 +126,8 @@ std::uint32_t Shader::Compile(std::uint32_t type, const std::string& source) {
 void Shader::Compile(const std::string& vertex_source, const std::string& fragment_source) {
 	location_cache_.clear();
 
-	std::uint32_t vertex{ Compile(GL_VERTEX_SHADER, vertex_source) };
-	std::uint32_t fragment{ Compile(GL_FRAGMENT_SHADER, fragment_source) };
+	ShaderId vertex{ Compile(GL_VERTEX_SHADER, vertex_source) };
+	ShaderId fragment{ Compile(GL_FRAGMENT_SHADER, fragment_source) };
 
 	if (vertex && fragment) {
 		GLCall(AttachShader(id_, vertex));
@@ -169,7 +168,7 @@ void Shader::Compile(const std::string& vertex_source, const std::string& fragme
 	}
 }
 
-void Shader::Bind(std::uint32_t id) {
+void Shader::Bind(ShaderId id) {
 	if (game.renderer.bound_.shader_id == id) {
 		return;
 	}
@@ -190,6 +189,13 @@ void Shader::Bind() const {
 
 bool Shader::IsBound() const {
 	return GetBoundId() == id_;
+}
+
+ShaderId Shader::GetBoundId() {
+	std::int32_t id{ -1 };
+	GLCall(glGetIntegerv(GL_CURRENT_PROGRAM, &id));
+	PTGN_ASSERT(id >= 0, "Failed to retrieve bound shader id");
+	return static_cast<ShaderId>(id);
 }
 
 std::int32_t Shader::GetUniform(const std::string& name) const {
@@ -232,9 +238,8 @@ void Shader::SetUniform(const std::string& name, const Matrix4& m) const {
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, const std::int32_t* data, std::int32_t count
-) const {
+void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
@@ -311,9 +316,8 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-) const {
+void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
@@ -333,14 +337,11 @@ void Shader::SetUniform(const std::string& name, bool value) const {
 	SetUniform(name, static_cast<std::int32_t>(value));
 }
 
-std::uint32_t Shader::GetBoundId() {
-	std::int32_t id{ -1 };
-	GLCall(glGetIntegerv(GL_CURRENT_PROGRAM, &id));
-	PTGN_ASSERT(id >= 0, "Failed to retrieve bound shader id");
-	return static_cast<std::uint32_t>(id);
+bool Shader::IsValid() const {
+	return id_;
 }
 
-bool Shader::IsValid() const {
+ShaderId Shader::GetId() const {
 	return id_;
 }
 

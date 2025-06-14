@@ -9,6 +9,8 @@
 
 namespace ptgn::impl {
 
+using RenderBufferId = std::uint32_t;
+
 class RenderBuffer {
 public:
 	RenderBuffer() = default;
@@ -23,17 +25,17 @@ public:
 	~RenderBuffer();
 
 	// @return Id of the currently bound render buffer.
-	[[nodiscard]] static std::uint32_t GetBoundId();
+	[[nodiscard]] static RenderBufferId GetBoundId();
 
 	// Bind a specific id as the current render buffer.
-	static void Bind(std::uint32_t id);
+	static void Bind(RenderBufferId id);
 
 	void Bind() const;
 
 	static void Unbind();
 
 	// @return The id of the render buffer.
-	[[nodiscard]] std::uint32_t GetId() const;
+	[[nodiscard]] RenderBufferId GetId() const;
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
@@ -42,8 +44,10 @@ private:
 	void GenerateRenderBuffer();
 	void DeleteRenderBuffer() noexcept;
 
-	std::uint32_t id_{ 0 };
+	RenderBufferId id_{ 0 };
 };
+
+using FrameBufferId = std::uint32_t;
 
 class FrameBuffer {
 public:
@@ -76,7 +80,7 @@ public:
 	// Bind a specific id as the current frame buffer.
 	// Note: Calling this outside of the FrameBuffer class may mess with the renderer as it keeps
 	// track of the currently bound frame buffer.
-	static void Bind(std::uint32_t id);
+	static void Bind(FrameBufferId id);
 
 	void Bind() const;
 
@@ -85,7 +89,7 @@ public:
 	static void Unbind();
 
 	// @return Id of the currently bound frame buffer.
-	[[nodiscard]] static std::uint32_t GetBoundId();
+	[[nodiscard]] static FrameBufferId GetBoundId();
 
 	// @return True if the frame buffer is currently bound to the context, false otherwise.
 	[[nodiscard]] bool IsBound() const;
@@ -95,6 +99,9 @@ public:
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
+
+	// @return The id of the frame buffer.
+	[[nodiscard]] FrameBufferId GetId() const;
 
 	// WARNING: This function is slow and should be primarily used for debugging frame buffers.
 	// @param coordinate Pixel coordinate from [0, size).
@@ -111,7 +118,7 @@ private:
 	void GenerateFrameBuffer();
 	void DeleteFrameBuffer() noexcept;
 
-	std::uint32_t id_{ 0 };
+	FrameBufferId id_{ 0 };
 	Texture texture_;
 	RenderBuffer render_buffer_;
 };
