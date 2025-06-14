@@ -55,8 +55,13 @@ public:
 	Shader& operator=(Shader&& other) noexcept;
 	~Shader();
 
-	bool operator==(const Shader& other) const;
-	bool operator!=(const Shader& other) const;
+	friend bool operator==(const Shader& a, const Shader& b) {
+		return a.id_ == b.id_;
+	}
+
+	friend bool operator!=(const Shader& a, const Shader& b) {
+		return !(a == b);
+	}
 
 	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
 	// shader, nothing happens.

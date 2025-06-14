@@ -69,14 +69,6 @@ Shader::~Shader() {
 	Delete();
 }
 
-bool Shader::operator==(const Shader& other) const {
-	return id_ == other.id_;
-}
-
-bool Shader::operator!=(const Shader& other) const {
-	return !(*this == other);
-}
-
 void Shader::Create() {
 	id_ = GLCallReturn(CreateProgram());
 	PTGN_ASSERT(IsValid(), "Failed to create shader program using OpenGL context");
