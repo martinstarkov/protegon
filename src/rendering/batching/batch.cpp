@@ -126,7 +126,7 @@ float Batch::GetTextureIndex(
 	if (texture_id == white_texture_id) {
 		return 0.0f;
 	}
-	// TextureManager::Texture exists in batch, therefore do not add it again.
+	// Texture exists in batch, therefore do not add it again.
 	for (std::size_t i{ 0 }; i < texture_ids.size(); i++) {
 		if (texture_ids[i] == texture_id) {
 			// i + 1 because first texture index is white texture.
@@ -134,10 +134,10 @@ float Batch::GetTextureIndex(
 		}
 	}
 	if (static_cast<std::uint32_t>(texture_ids.size()) == max_texture_slots - 1) {
-		// TextureManager::Texture does not exist in batch and batch is full.
+		// Texture does not exist in batch and batch is full.
 		return -1.0f;
 	}
-	// TextureManager::Texture does not exist in batch but can be added.
+	// Texture does not exist in batch but can be added.
 	texture_ids.emplace_back(texture_id);
 	// i + 1 is implicit here because size is taken after emplacing.
 	return static_cast<float>(texture_ids.size());
