@@ -175,6 +175,8 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
 [[nodiscard]] GLFormats GetGLFormats(TextureFormat format);
 
+using TextureId = std::uint32_t;
+
 class Texture {
 public:
 	Texture() = default;
@@ -194,8 +196,13 @@ public:
 	Texture& operator=(Texture&& other) noexcept;
 	~Texture();
 
-	bool operator==(const Texture& other) const;
-	bool operator!=(const Texture& other) const;
+	friend bool operator==(const Texture& a, const Texture& b) {
+		return a.id_ == b.id_;
+	}
+
+	friend bool operator!=(const Texture& a, const Texture& b) {
+		return !(a == b);
+	}
 
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize() const;
@@ -214,9 +221,9 @@ public:
 	);
 
 	// Set the specified texture slot to active and bind the texture id to that slot.
-	static void Bind(std::uint32_t id, std::uint32_t slot);
+	static void Bind(TextureId id, std::uint32_t slot);
 
-	static void BindId(std::uint32_t id);
+	static void BindId(TextureId id);
 
 	// Set the specified texture slot to active and bind the texture to that slot.
 	void Bind(std::uint32_t slot) const;
@@ -228,7 +235,7 @@ public:
 	static void Unbind(std::uint32_t slot);
 
 	// @return Id of the texture bound to the currently active texture slot.
-	[[nodiscard]] static std::uint32_t GetBoundId();
+	[[nodiscard]] static TextureId GetBoundId();
 
 	// @return True if the texture is currently bound, false otherwise.
 	[[nodiscard]] bool IsBound() const;
@@ -240,7 +247,7 @@ public:
 	[[nodiscard]] static std::uint32_t GetActiveSlot();
 
 	// @return Id of the texture object.
-	[[nodiscard]] std::uint32_t GetId() const;
+	[[nodiscard]] TextureId GetId() const;
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
@@ -280,7 +287,7 @@ private:
 	// Automatically generate mipmaps for the currently bound texture.
 	void GenerateMipmaps() const;
 
-	std::uint32_t id_{ 0 };
+	TextureId id_{ 0 };
 	V2_int size_;
 };
 

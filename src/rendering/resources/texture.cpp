@@ -11,10 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -28,6 +24,10 @@
 #include "rendering/gl/gl_loader.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/file.h"
 
@@ -231,14 +231,6 @@ Texture::~Texture() {
 	DeleteTexture();
 }
 
-bool Texture::operator==(const Texture& other) const {
-	return id_ == other.id_;
-}
-
-bool Texture::operator!=(const Texture& other) const {
-	return !(*this == other);
-}
-
 void Texture::GenerateTexture() {
 	GLCall(glGenTextures(1, &id_));
 	PTGN_ASSERT(IsValid(), "Failed to generate texture using OpenGL context");
@@ -286,9 +278,8 @@ std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 	return value;
 }
 
-std::int32_t Texture::GetLevelParameterI(
-	TextureLevelParameter parameter, std::int32_t level
-) const {
+std::int32_t Texture::GetLevelParameterI(TextureLevelParameter parameter, std::int32_t level)
+	const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its level parameters");
 	std::int32_t value{ -1 };
 	GLCall(glGetTexLevelParameteriv(
@@ -314,7 +305,7 @@ void Texture::Unbind(std::uint32_t slot) {
 	BindId(0);
 }
 
-void Texture::BindId(std::uint32_t id) {
+void Texture::BindId(TextureId id) {
 	GLCall(glBindTexture(static_cast<GLenum>(TextureTarget::Texture2D), id));
 #ifdef PTGN_DEBUG
 	++game.stats.texture_binds;
@@ -324,7 +315,7 @@ void Texture::BindId(std::uint32_t id) {
 #endif
 }
 
-void Texture::Bind(std::uint32_t id, std::uint32_t slot) {
+void Texture::Bind(TextureId id, std::uint32_t slot) {
 	SetActiveSlot(slot);
 	BindId(id);
 }
@@ -349,11 +340,11 @@ void Texture::SetActiveSlot(std::uint32_t slot) {
 #endif
 }
 
-std::uint32_t Texture::GetBoundId() {
+TextureId Texture::GetBoundId() {
 	std::int32_t id{ -1 };
 	GLCall(glGetIntegerv(static_cast<GLenum>(impl::GLBinding::Texture2D), &id));
 	PTGN_ASSERT(id >= 0, "Failed to retrieve bound texture id");
-	return static_cast<std::uint32_t>(id);
+	return static_cast<TextureId>(id);
 }
 
 bool Texture::IsBound() const {
@@ -364,7 +355,7 @@ bool Texture::IsValid() const {
 	return id_;
 }
 
-std::uint32_t Texture::GetId() const {
+TextureId Texture::GetId() const {
 	return id_;
 }
 
@@ -594,7 +585,7 @@ void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)
 void Texture::SetClampBorderColor(const Color& color) const {
 	PTGN_ASSERT(IsValid(), "Cannot set clamp border color of invalid or uninitialized texture");
 
-	std::uint32_t restore_id{ Texture::GetBoundId() };
+	TextureId restore_id{ Texture::GetBoundId() };
 
 	Bind();
 
