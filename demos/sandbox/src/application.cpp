@@ -1,416 +1,416 @@
-/*#include "components/draw.h"
+#include <array>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <map>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "common/assert.h"
+#include "components/common.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "protegon/protegon.h"
+#include "debug/log.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
+#include "rendering/api/blend_mode.h"
+#include "rendering/api/color.h"
+#include "rendering/batching/vertex.h"
+#include "rendering/buffers/buffer.h"
+#include "rendering/buffers/buffer_layout.h"
+#include "rendering/buffers/frame_buffer.h"
+#include "rendering/buffers/vertex_array.h"
+#include "rendering/gl/gl_renderer.h"
+#include "rendering/gl/gl_types.h"
+#include "rendering/resources/render_target.h"
+#include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-class Sandbox : public Scene {
-public:
-	Sprite s1;
+constexpr V2_int window_size{ 1000, 1000 }; //{ 1280, 720 };
 
-	void Enter() override {
-		game.texture.Load("test", "resources/test.png");
+namespace ptgn {
 
-		s1 = CreateSprite(manager, "test");
+namespace impl {
 
-		s1.SetPosition(camera.primary.GetPosition());
-	}
+using Index = std::uint32_t;
 
-	void Update() override {}
-};
+template <bool have_render_targets = false>
+void SortEntities(std::vector<Entity>& entities) {
+	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+		auto depthA{ a.GetDepth() };
+		auto depthB{ b.GetDepth() };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Sandbox");
-	game.scene.Enter<Sandbox>("sandbox");
-}
-*/
-
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/manager.h"
-#include "math/vector2.h"
-
-using namespace ptgn;
-
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Manager manager;
-	Entity entity{ manager.CreateEntity() };
-	entity.Add<Transform>(V2_float{ 30, 50 });
-
-	/*json entity_json = entity.Serialize<Transform, UUID>();
-
-	PTGN_LOG(entity_json.dump(4));
-
-	Entity test{ manager.CreateEntity() };
-	test.Deserialize<Transform, UUID>(entity_json);
-
-	json entity_json2 = test.Serialize<Transform, UUID>();
-
-	PTGN_LOG(entity_json2.dump(4));*/
-
-	/*
-	entity.Add<BoxCollider>(V2_float{ 100, 120 });
-	manager.Refresh();
-
-	json j = manager;
-
-	std::string s = j.dump(4);
-
-	PTGN_LOG("Manager: ", s);
-
-	Manager manager2;
-
-	j.get_to(manager2);
-	*/
-
-	/*json j;
-	j["type"] = "TweenMove";
-	j["data"] = { { "target_x", 20.0 }, { "target_y", 25.0 }, { "duration", 3.0 } };*/
-
-	/*
-	json j = json::array();
-	j.push_back(
-		{ { "type", "TweenMove" },
-		  { "data", { { "target_x", 20.0 }, { "target_y", 25.0 }, { "duration", 3.0 } } } }
-	);
-	j.push_back({ { "type", "TweenMove2" } });
-
-	PTGN_LOG(j.dump(4));
-
-	j.get_to(script_container);
-
-	// script_container.AddScript<TweenMove>(30.0f, 35.0f, 3.0f);
-	// script_container.AddScript<TweenMove2>();
-
-	for (const auto& script : script_container.scripts) {
-		script->OnCreate(entity);
-	}
-
-	float dt = 0.1f; // Simulated delta time
-
-	// Simulate update loop
-	for (int i = 0; i <= 30; ++i) {
-		V2_float pos = entity.GetPosition();
-		PTGN_LOG("Time: ", static_cast<float>(i) * dt, "s - Position: ", pos);
-		for (const auto& script : script_container.scripts) {
-			script->OnUpdate(entity, dt);
+		if constexpr (!have_render_targets) {
+			return depthA < depthB;
 		}
-	}
 
-	json j2 = script_container;
+		if (depthA != depthB) {
+			return depthA < depthB; // Smaller depth first
+		}
 
-	PTGN_LOG(j2.dump(4));
-	*/
+		PTGN_ASSERT(a.Has<RenderTarget>());
+		PTGN_ASSERT(b.Has<RenderTarget>());
 
-	return 0;
+		// If depths are equal, compare framebuffer IDs
+		auto idA{ a.Get<RenderTarget>().GetFrameBuffer().GetId() };
+		auto idB{ b.Get<RenderTarget>().GetFrameBuffer().GetId() };
+		return idA < idB;
+	});
 }
 
 /*
 
-#include <cstdint>
-#include <cstdlib>
-#include <functional>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <typeindex>
-#include <typeinfo>
-#include <unordered_map>
+Things that trigger Batch flush:
 
-#include "math/hash.h"
-#include "serialization/fwd.h"
-#include "serialization/json.h"
-#include "serialization/serializable.h"
-#include "utility/type_info.h"
-#include "utility/type_traits.h"
+Frame Buffer / Render Target Bind
+Shader Bind
+Blend Mode Change
+Uniform Change
+Viewport Change
+Camera Change -> Uniform Change
+view_projection_dirty
+shader_dirty (uniform has changed so flush previous batch)
 
-using namespace ptgn;
+TODO: Think of what a typical Quad batch looks like, then consider what happens when a Circle batch
+is added. Then consider what happens if a custom render target shader is used such as with lighting.
 
-template <class Base, class... Args>
-class Factory {
-public:
-	using FactoryBase = typename Base;
+white_texture.Bind();
+frame_buffer.Bind();
 
-	virtual ~Factory() = default;
+auto new_vertex_count{ vertices.size() + X };
+auto new_index_count{ indices.size() + Y };
+auto new_texture_count{ textures.size() + Z };
+auto chosen_camera{ camera ? camera : fallback_camera -> scene camera or render target camera };
 
-	virtual std::string_view GetName() const {
-		return name_;
-	}
+if (bound_shader != quad_shader || bound_camera != chosen_camera || new_texture_count >
+texture_capacity || bound_blend_mode != blend_mode || new_vertex_count > vertex_capacity ||
+new_index_count > index_capacity) { Flush(); bound_shader = quad_shader; bound_blend_mode =
+blend_mode; bound_camera = chosen_camera;
+}
+vertices.Add(X);
+indices.Add(Y);
+textures.Add(Z);
 
-	template <typename... Ts>
-	static std::unique_ptr<Base> create(std::string_view class_name, Ts&&... args) {
-		auto it = data().find(Hash(class_name));
-		if (it == data().end()) {
-			std::cout << "Failed to find hash for " << class_name << std::endl;
-		}
-		auto ptr{ it->second(std::forward<Ts>(args)...) };
-		ptr->name_ = class_name;
-		return ptr;
-	}
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawQuad();
+ctx.DrawCircle();
+ctx.DrawCircle();
+ctx.DrawCircle();
+ctx.DrawLight();
+ctx.DrawLight();
+ctx.DrawLight();
 
-	template <typename T, typename... Ts>
-	static std::unique_ptr<Base> create(Ts&&... args) {
-		constexpr std::string_view class_name{ type_name<T>() };
-		auto it = Factory::data().find(Hash(class_name));
-		if (it == Factory::data().end()) {
-			std::cout << "Failed to find constructor hash for " << class_name << std::endl;
-		}
-		auto ptr{ it->second(std::forward<Ts>(args)...) };
-		ptr->name_ = class_name;
-		return ptr;
-	}
 
-	static std::unique_ptr<Base> create(const json& j) {
-		std::string_view class_name{ j["name"] };
-		auto it = Factory::dataJ().find(Hash(class_name));
-		if (it == Factory::dataJ().end()) {
-			std::cout << "Failed to find json constructor hash for " << class_name << std::endl;
-		}
-		auto ptr{ it->second(j) };
-		ptr->name_ = class_name;
-		return ptr;
-	}
+// If entity has a blend mode:
+SetBlendMode(GetBlendMode());
 
-	virtual void to_json_impl(json& j) const {
-		PTGN_ERROR("Fail");
-	}
+// If entity is a specific type.
+quad_shader.Bind();
 
-	virtual void from_json_impl(const json& j) {
-		PTGN_ERROR("Fail");
-	}
-
-	template <typename T>
-	struct Registrar : public Base {
-		friend T;
-
-		void to_json_impl(json& j) const final {
-			if constexpr (nlohmann::detail::has_to_json<json, T>::value) {
-				j		  = *static_cast<const T*>(this);
-				j["name"] = GetName();
-			} else {
-				// TODO: Update error msg.
-				PTGN_ERROR("Fail");
-			}
-		}
-
-		void from_json_impl(const json& j) final {
-			if constexpr (nlohmann::detail::has_from_json<json, T>::value) {
-				j.get_to(*static_cast<T*>(this));
-			} else {
-				// TODO: Update error msg.
-				PTGN_ERROR("Fail");
-			}
-		}
-
-		virtual std::string_view GetName() const {
-			return type_name<T>();
-		}
-
-		static bool registerT() {
-			constexpr std::string_view class_name{ type_name<T>() };
-			std::cout << "Registering constructor hash for " << class_name << std::endl;
-			Factory::data()[Hash(class_name)] = [](Args... args) -> std::unique_ptr<Base> {
-				return std::make_unique<T>(std::forward<Args>(args)...);
-			};
-			return true;
-		}
-
-		// TODO: Combine into register T.
-		static bool registerTJ() {
-			constexpr std::string_view class_name{ type_name<T>() };
-			std::cout << "Registering json constructor hash for " << class_name << std::endl;
-			Factory::dataJ()[Hash(class_name)] = [](const json& j) -> std::unique_ptr<Base> {
-				if constexpr (nlohmann::detail::has_from_json<json, T>::value) {
-					auto ptr{ std::make_unique<T>() };
-					j.get_to(*ptr);
-					return ptr;
-				} else {
-					// TODO: Update error msg.
-					PTGN_ERROR("Fail");
-				}
-			};
-			return true;
-		}
-
-		static bool registered;
-		static bool registeredJ;
-
-		// private:
-		Registrar() : Base(Key{}) {
-			(void)registered;
-			(void)registeredJ;
-		}
-	};
-
-	friend Base;
-
-	static auto& data() {
-		static std::unordered_map<std::size_t, FactoryFuncType> s;
-		return s;
-	}
-
-	static auto& dataJ() {
-		static std::unordered_map<std::size_t, FactoryFuncTypeJ> s;
-		return s;
-	}
-
-private:
-	class Key {
-		Key(){};
-		template <class T>
-		friend struct Registrar;
-	};
-
-	using FactoryFuncType  = std::unique_ptr<Base> (*)(Args...);
-	using FactoryFuncTypeJ = std::unique_ptr<Base> (*)(const json&);
-	Factory()			   = default;
-
-	std::string_view name_;
-};
-
-template <class Base, class... Args>
-template <class T>
-bool Factory<Base, Args...>::template Registrar<T>::registered =
-	Factory<Base, Args...>::template Registrar<T>::registerT();
-
-template <class Base, class... Args>
-template <class T>
-bool Factory<Base, Args...>::template Registrar<T>::registeredJ =
-	Factory<Base, Args...>::template Registrar<T>::registerTJ();
-
-// TODO: Move to type_traits namespace.
-template <typename, typename = std::void_t<>>
-struct has_factory_base : std::false_type {};
-
-template <typename T>
-struct has_factory_base<T, std::void_t<typename T::FactoryBase>> : std::true_type {};
-
-template <typename T>
-constexpr bool has_factory_base_v = has_factory_base<T>::value;
-
-template <typename T, typename = void>
-struct is_self_factory : std::false_type {};
-
-template <typename T>
-struct is_self_factory<T, std::enable_if_t<std::is_same_v<typename T::FactoryBase, T>>> :
-	std::true_type {};
-
-template <typename T>
-constexpr bool is_self_factory_v = has_factory_base<T>::value && is_self_factory<T>::value;
-
-// TODO: Hide somehow?
-template <typename T>
-std::enable_if_t<is_self_factory_v<T>> to_json(json& nlohmann_json_j, const T& nlohmann_json_t)
-{ nlohmann_json_t.to_json_impl(nlohmann_json_j);
+// If entity has a new camera.
+if (camera_dirty) {
+	quad_shader.Bind();
+	quad_shader.SetUniform("u_ViewProjection", camera);
+	SetViewport(camera.GetViewport());
 }
 
-template <typename T>
-std::enable_if_t<is_self_factory_v<T>> from_json(const json& nlohmann_json_j, T&
-nlohmann_json_t) { nlohmann_json_t.from_json_impl(nlohmann_json_j);
+
+
+DrawCustomShader(first = [](){
+	shader.SetUniform(u_Texture, 1);
+	shader.SetUniform(u_Resolution);
+}, every = [](){
+	shader.SetUniform(light.GetRadius());
+	shader.SetUniform(light.GetOtherThing());
+});
+
+Flush(flush_to_target) {
+if (render_target != {}) {
+	flush_to_target.Bind();
+	SetBlendMode();
+	quad_shader.Bind();
+	quad_shader.SetUniform(render_target.GetCamera());
+	SetViewport(render_target.GetCamera());
+	render_target.GetTexture().Bind(1);
+	draw();
+	return;
+}
+flush_to_target.Bind();
+set blend mode
+set shader
+set uniforms (camera);
+set viewport
+set textures
+set vbos
+draw();
 }
 
-template <typename ScriptInterface, typename ScriptType>
-using Script = typename ScriptInterface::template Registrar<ScriptType>;
+DrawCustomShader(first, every) {
 
-// TODO: Consider making this a template class and moving OnUpdate to a base class so pointers
-can
-// be stored.
-struct TweenScript : public Factory<TweenScript, int> {
-	TweenScript(Key) {}
-
-	virtual ~TweenScript() override = default;
-
-	virtual void OnUpdate(float f) {}
-};
-
-class TweenScript1 : public Script<TweenScript, TweenScript1> {
-public:
-	TweenScript1() = default;
-
-	TweenScript1(int e) : e(e) {}
-
-	void OnUpdate(float f) override {
-		std::cout << "TweenScript1: " << e << " updated with " << f << "\n";
-	}
-
-	PTGN_SERIALIZER_REGISTER(TweenScript1, e)
-
-private:
-	int e{ 0 };
-};
-
-class TweenScript2 : public Script<TweenScript, TweenScript2> {
-public:
-	TweenScript2() = default;
-
-	TweenScript2(int e) : e(e) {}
-
-	void OnUpdate(float f) override {
-		std::cout << "TweenScript2: " << e << " updated with " << f << "\n";
-	}
-
-	// PTGN_SERIALIZER_REGISTER(TweenScript2, e)
-
-private:
-	int e{ 0 };
-};
-
-// Do not serialize all components, but instead use a T system.
-
-// TODO: To serialize an entity, write its
-// UUID
-
-// Number of components
-// (Write zeros equivalent to the above)
-
-// Size of each component.
-
-// To serialize a component, write its
-// Component Id
-// Component size
-// Component data
-
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	// static_assert(!nlohmann::detail::has_to_json<json, TweenScript1>::value);
-	//  static_assert(nlohmann::detail::has_to_json<json, TweenScript1>::value);
-	// static_assert(nlohmann::detail::has_to_json<json, TweenScript>::value);
-
-	{
-		std::unique_ptr<TweenScript> test;
-
-		test = TweenScript::create<TweenScript1>(10);
-
-		test->OnUpdate(0.1f);
-
-		json j = *test;
-
-		PTGN_LOG("Serialized script with name: ", test->GetName(), "\n", j.dump(4));
-
-		SaveJson(j, "resources/myscripts.json");
-	}
-	{
-		auto j{ LoadJson("resources/myscripts.json") };
-
-		std::unique_ptr<TweenScript> test2{ std::make_unique<TweenScript1>() };
-		j.get_to(*test2);
-
-		test2->OnUpdate(0.5f);
-
-		std::unique_ptr<TweenScript> test;
-
-		test = TweenScript::create(j);
-
-		PTGN_LOG("Deserialized script with name: ", test->GetName());
-
-		test->OnUpdate(0.9f);
-
-		// test = TweenScript::create(from_file, 10);
-	}
+if (not shader) {
+	Flush();
+	Bind And Set(render_target); // Clear all render targets at the start of render cycle.
+	shader.Bind();
+	first();
+	render_target.Bind(1);
+	VAO.BindAndSetData(window);
 }
+
+every();
+draw();
+
+}
+
+
+
+
+
+
+
+
+
+// Flush
+BindTextures();
+VAO.Bind();
+VAO.SetSubData(vertices, indices);
+GLDraw(VAO);
+
+Hmm: ?
+
+Frame Buffer / Render Target Clear.
+Shader Uniform Set.
+
+const Shader* shader_{ nullptr };
+BlendMode blend_mode_{ BlendMode::None };
+Camera camera_;
+std::function<void(const Shader& shader)> uniform_callback_;
+bool view_projection_dirty_{ true };
 
 */
+
+struct Batch {
+	std::vector<Vertex> vertices;
+	std::vector<Index> indices;
+	std::vector<TextureId> textures;
+	Index index_offset{ 0 };
+};
+
+constexpr std::array<V2_float, 4> default_texture_coordinates{
+	V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
+};
+
+constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
+	quad_vertex_layout;
+
+constexpr std::size_t batch_capacity{ 4000 };
+constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
+constexpr std::size_t index_capacity{ batch_capacity * 6 };
+
+class RenderState {
+public:
+	RenderState() = default;
+
+	RenderState(
+		const RenderTarget& render_target, const Shader* shader, BlendMode blend_mode,
+		const Camera& camera
+	) :
+		render_target_{ render_target },
+		shader_{ shader },
+		blend_mode_{ blend_mode },
+		camera_{ camera } {}
+
+	friend bool operator==(const RenderState& a, const RenderState& b) {
+		return a.shader_ == b.shader_ && a.camera_ == b.camera_ &&
+			   a.render_target_ == b.render_target_ && a.blend_mode_ == b.blend_mode_;
+	}
+
+	friend bool operator!=(const RenderState& a, const RenderState& b) {
+		return !(a == b);
+	}
+
+private:
+	RenderTarget render_target_;
+	const Shader* shader_{ nullptr };
+	BlendMode blend_mode_{ BlendMode::None };
+	Camera camera_;
+};
+
+class RenderDataThing {
+public:
+	void Init() {
+		max_texture_slots = GLRenderer::GetMaxTextureSlots();
+
+		const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+
+		PTGN_ASSERT(quad_shader.IsValid());
+		PTGN_ASSERT(game.shader.Get<ShapeShader::Circle>().IsValid());
+		PTGN_ASSERT(game.shader.Get<ScreenShader::Default>().IsValid());
+		PTGN_ASSERT(game.shader.Get<OtherShader::Light>().IsValid());
+
+		std::vector<std::int32_t> samplers(max_texture_slots);
+		std::iota(samplers.begin(), samplers.end(), 0);
+
+		quad_shader.Bind();
+		quad_shader.SetUniform(
+			"u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
+		);
+
+		IndexBuffer quad_ib{ nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)),
+							 BufferUsage::DynamicDraw };
+		VertexBuffer quad_vb{ nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)),
+							  BufferUsage::DynamicDraw };
+
+		triangle_vao = VertexArray(
+			PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
+		);
+
+		white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
+
+#ifdef PTGN_PLATFORM_MACOS
+		// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+		// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+		// texture because texture unloadable."
+		for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+			Texture::Bind(white_texture.GetId(), slot);
+		}
+#endif
+
+		SetState(RenderState{ {}, &game.shader.Get<ShapeShader::Quad>(), BlendMode::Blend, {} });
+	}
+
+	void SetState(const RenderState& new_render_state) {
+		if (new_render_state == render_state) {
+			return;
+		}
+		Flush();
+		render_state = new_render_state;
+	}
+
+	void Flush() {
+		for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(batch.textures.size()); i++) {
+			// Save first texture slot for empty white texture.
+			std::uint32_t slot{ i + 1 };
+			Texture::Bind(batch.textures[i], slot);
+		}
+
+		triangle_vao.Bind();
+
+		triangle_vao.GetVertexBuffer().SetSubData(
+			batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()),
+			sizeof(Vertex), false
+		);
+
+		triangle_vao.GetIndexBuffer().SetSubData(
+			batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
+			sizeof(Index), false
+		);
+
+		GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
+	}
+
+	void Draw(Scene& scene) {
+		white_texture.Bind(0);
+
+		std::vector<Entity> regular_entities;
+		regular_entities.reserve(scene.Size());
+		std::vector<Entity> rt_entities;
+
+		for (auto [e, rt] : scene.EntitiesWith<RenderTarget>()) {
+			if (!e.Has<Visible>()) {
+				continue;
+			}
+			rt_entities.emplace_back(e);
+		}
+
+		for (auto e : scene.EntitiesWithout<RenderTarget>()) {
+			if (!e.Has<Visible>()) {
+				continue;
+			}
+			if (e.Has<QuadVertices>()) {
+				regular_entities.emplace_back(e);
+			}
+			// TODO: Add general vertices.
+		}
+
+		SortEntities<true>(rt_entities);
+		SortEntities<false>(regular_entities);
+
+		for (auto e : rt_entities) {
+			auto& rt = e.Get<RenderTarget>();
+			// rt.Draw(e);
+		}
+	}
+
+	RenderState render_state;
+	Batch batch;
+	std::size_t max_texture_slots{ 0 };
+	Texture white_texture;
+	VertexArray triangle_vao;
+};
+
+[[nodiscard]] static std::array<Vertex, 4> GetQuadVertices(
+	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth
+) {
+	std::array<Vertex, 4> vertices{};
+
+	V4_float c{ color.Normalized() };
+
+	PTGN_ASSERT(vertices.size() == default_texture_coordinates.size());
+
+	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
+		vertices[i].position  = { quad_points[i].x, quad_points[i].y, static_cast<float>(depth) };
+		vertices[i].color	  = { c.x, c.y, c.z, c.w };
+		vertices[i].tex_coord = { default_texture_coordinates[i].x,
+								  default_texture_coordinates[i].y };
+		vertices[i].tex_index = { 0.0f };
+	}
+
+	return vertices;
+}
+
+} // namespace impl
+
+} // namespace ptgn
+
+struct QuadVertices {
+	std::array<impl::Vertex, 4> vertices;
+};
+
+struct SandboxScene : public Scene {
+	std::array<V2_float, 4> points{ V2_float{ 50.0f, 50.0f }, V2_float{ 200.0f, 50.0f },
+									V2_float{ 200.0f, 200.0f }, V2_float{ 50.0f, 200.0f } };
+
+	QuadVertices v;
+
+	impl::RenderDataThing renderer;
+
+	Entity e;
+
+	void Enter() override {
+		e		   = CreateEntity();
+		v.vertices = impl::GetQuadVertices(points, color::Red, Depth{ 1 });
+		e.Add<QuadVertices>(v);
+		e.Show();
+
+		renderer.Init();
+	}
+
+	void Render() {
+		renderer.Draw(*this);
+	}
+};
+
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("SandboxScene");
+	game.scene.Enter<SandboxScene>("");
+	return 0;
+}
