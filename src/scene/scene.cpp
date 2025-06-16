@@ -13,6 +13,7 @@
 #include "core/script.h"
 #include "events/input_handler.h"
 #include "physics/collision/collision_handler.h"
+#include "rendering/batching/render_data.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/renderer.h"
@@ -23,13 +24,6 @@
 #include "tweening/tween_effects.h"
 
 namespace ptgn {
-
-/*
-void Scene::ClearTarget() {
-	target_.Bind();
-	target_.Clear();
-}
-*/
 
 void Scene::Add(Action new_status) {
 	actions_.insert(new_status);
@@ -65,15 +59,10 @@ void Scene::SetColliderVisibility(bool collider_visibility) {
 
 void Scene::Init() {
 	active_ = true;
+
 	// Input is reset to ensure no previously pressed keys are considered held.
 	game.input.ResetKeyStates();
 	game.input.ResetMouseStates();
-	/*target_ = RenderTarget{ game.window.GetSize(), color::Transparent };
-
-	game.event.window.Subscribe(
-		WindowEvent::Resized, this,
-		std::function([&](const WindowResizedEvent& e) { target_.GetTexture().Resize(e.size); })
-	);*/
 
 	camera.Init(key_);
 	input.Init(key_);
@@ -91,7 +80,6 @@ void Scene::InternalExit() {
 	Refresh();
 	Reset();
 	input.Shutdown();
-	// game.event.window.Unsubscribe(this);
 	active_ = false;
 	Refresh();
 }
@@ -110,8 +98,7 @@ void Scene::Draw() {
 		}
 	}
 	auto& render_data{ game.renderer.GetRenderData() };
-	render_data.Render({} /*target_.GetFrameBuffer()*/, *this);
-	// render_data.RenderToScreen(target_, camera.primary);
+	render_data.Draw(*this);
 }
 
 void Scene::PreUpdate() {
@@ -127,8 +114,6 @@ void Scene::PreUpdate() {
 }
 
 void Scene::PostUpdate() {
-	// TODO: Add multiple manager support?
-
 	Refresh();
 
 	game.scene.current_ = game.scene.GetActiveScene(key_);
@@ -179,9 +164,9 @@ void Scene::PostUpdate() {
 	camera.primary_unzoomed.SetZoom(1.0f);
 	camera.window_unzoomed.SetZoom(1.0f);
 
-	Render();
-	// TODO: Readd.
-	// Draw();
+	// TODO: Update dirty vertex caches.
+
+	Draw();
 
 	game.scene.current_ = {};
 }

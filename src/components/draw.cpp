@@ -82,9 +82,10 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto coords{ sprite.GetTextureCoordinates(false) };
 	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
-	ctx.AddTexturedQuad(
+	// TODO: Fix.
+	/*ctx.AddTexturedQuad(
 		transform, display_size, origin, coords, texture, depth, camera, blend_mode, tint, false
-	);
+	);*/
 }
 
 Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {

@@ -339,10 +339,11 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		}
 		V4_float final_tint_n{ button_tint.Normalized() * tint };
 
-		ctx.AddTexturedQuad(
+		// TODO: Fix.
+		/*ctx.AddTexturedQuad(
 			transform, size, origin, Sprite{ entity }.GetTextureCoordinates(false), *button_texture,
 			depth, camera, blend_mode, final_tint_n, false
-		);
+		);*/
 	} else {
 		impl::ButtonBackgroundWidth background_line_width;
 		if (entity.Has<impl::ButtonBackgroundWidth>()) {
@@ -364,10 +365,11 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 									i.rect_.rotation };
 					r.Draw(bg, i.line_thickness_, i.render_layer_);
 				} else {*/
-				ctx.AddQuad(
+				// TODO: Fix.
+				/*ctx.AddQuad(
 					transform.position, size * Abs(transform.scale), origin, background_line_width,
 					depth, camera, blend_mode, background_color_n, transform.rotation, false
-				);
+				);*/
 			}
 		}
 	}
@@ -402,10 +404,11 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 								i.rect_.rotation };
 				r.Draw(border_color, border_width, i.render_layer_ + 2);
 			} else {*/
-			ctx.AddQuad(
+			// TODO: Fix.
+			/*ctx.AddQuad(
 				transform.position, size, origin, border_width, depth, camera, blend_mode,
 				border_color_n, transform.rotation, false
-			);
+			);*/
 		}
 	}
 
@@ -463,10 +466,11 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		auto text_display_size{ text_sprite.GetDisplaySize() };
 		auto text_coords{ text_sprite.GetTextureCoordinates(false) };
 
-		ctx.AddTexturedQuad(
+		// TODO: Fix.
+		/*ctx.AddTexturedQuad(
 			text_transform, text_display_size, text_origin, text_coords, text_texture, text_depth,
 			*text_camera, text_blend_mode, text_tint * tint, false
-		);
+		);*/
 	}
 }
 

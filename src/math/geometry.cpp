@@ -54,7 +54,7 @@ std::vector<V2_float> GetVertices(
 	return vertices;
 }
 
-std::array<V2_float, 4> GetQuadVertices(
+std::array<V2_float, 4> GetLineQuadVertices(
 	const V2_float& start, const V2_float& end, float line_width
 ) {
 	auto dir{ end - start };

@@ -76,9 +76,10 @@ void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto coords{ sprite.GetTextureCoordinates(true) };
 
 	// TODO: Add custom sizing for render targets.
-	ctx.AddTexturedQuad(
+	// TODO: Fix.
+	/*ctx.AddTexturedQuad(
 		{}, {}, Origin::Center, coords, texture, depth, Camera{}, blend_mode, tint, false
-	);
+	);*/
 }
 
 void RenderTarget::Draw(const Entity& entity) const {
@@ -88,7 +89,8 @@ void RenderTarget::Draw(const Entity& entity) const {
 	frame_buffer.Bind();
 	PTGN_ASSERT(frame_buffer.IsBound(), "Cannot draw to render target unless it is first bound");
 
-	auto& rd{ game.renderer.GetRenderData() };
+	// TODO: Fix.
+	/*auto& rd{ game.renderer.GetRenderData() };
 
 	const auto& camera{ GetCamera() };
 	rd.fallback_camera = camera;
@@ -96,7 +98,7 @@ void RenderTarget::Draw(const Entity& entity) const {
 
 	rd.AddToBatch(entity, false);
 
-	rd.Flush(frame_buffer);
+	rd.Flush(frame_buffer);*/
 }
 
 const Camera& RenderTarget::GetCamera() const {

@@ -46,7 +46,8 @@ PointLight CreatePointLight(
 PointLight::PointLight(const Entity& entity) : Entity{ entity } {}
 
 void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto depth{ entity.GetDepth() };
+	// TODO: Fix.
+	/*auto depth{ entity.GetDepth() };
 
 	auto [it, inserted] = ctx.batch_map.try_emplace(depth);
 
@@ -67,7 +68,7 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 		}
 	}
 	PTGN_ASSERT(b != nullptr, "Failed to find batch for light");
-	b->lights.emplace_back(entity);
+	b->lights.emplace_back(entity);*/
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {

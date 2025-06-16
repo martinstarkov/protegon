@@ -106,31 +106,34 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 			// TODO: Add texture rotation.
 			Transform t{ p.position };
-			ctx.AddTexturedQuad(
+			// TODO: Fix.
+			/*ctx.AddTexturedQuad(
 				t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center,
 				impl::GetDefaultTextureCoordinates(), game.texture.Get(i.info.texture_key), depth,
 				camera, blend_mode, tint, false
-			);
+			);*/
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
-				ctx.AddEllipse(
+				// TODO: Fix.
+				/*ctx.AddEllipse(
 					p.position, V2_float{ p.radius }, i.info.line_width, depth, camera, blend_mode,
 					p.color.Normalized(), 0.0f, false
-				);
+				);*/
 			}
 			break;
 		}
 		case ParticleShape::Square: {
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				// TODO: Add rect rotation.
-				ctx.AddQuad(
+				// TODO: Fix.
+				/*ctx.AddQuad(
 					p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center,
 					i.info.line_width, depth, camera, blend_mode, p.color.Normalized(), 0.0f, false
-				);
+				);*/
 			}
 			break;
 		}

@@ -22,7 +22,7 @@ namespace ptgn::impl {
 );
 
 // @return Quad vertices that for a line with a given thickness.
-[[nodiscard]] std::array<V2_float, 4> GetQuadVertices(
+[[nodiscard]] std::array<V2_float, 4> GetLineQuadVertices(
 	const V2_float& start, const V2_float& end, float line_width
 );
 

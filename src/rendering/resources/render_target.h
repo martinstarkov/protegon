@@ -76,6 +76,11 @@ public:
 	// @return Frame buffer of the render target.
 	[[nodiscard]] const impl::FrameBuffer& GetFrameBuffer() const;
 
+	void Bind() const;
+
+	// Clear the render target.
+	void Clear() const;
+
 private:
 	friend class impl::RenderData;
 
@@ -86,11 +91,6 @@ private:
 	// Draw an entity to the render target.
 	// The entity must have the Transform and Visible components.
 	void Draw(const Entity& entity) const;
-
-	void Bind() const;
-
-	// Clear the render target.
-	void Clear() const;
 
 	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
 	// center of the texture associated with this render target.

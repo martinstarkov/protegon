@@ -25,6 +25,9 @@
 #include "resources/texture.h"
 #include "scene/camera.h"
 
+// TODO: Fix.
+// TODO: Fix all the debug functions.
+
 namespace ptgn {
 
 const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
@@ -42,73 +45,73 @@ void DrawDebugText(
 
 	Transform transform{ position, rotation };
 
-	game.renderer.GetRenderData().AddTexturedQuad(
+	/*game.renderer.GetRenderData().AddTexturedQuad(
 		transform, size, origin, Sprite{ text }.GetTextureCoordinates(false), texture, max_depth,
 		camera, debug_blend_mode, color::White.Normalized(), true
-	);
+	);*/
 }
 
 void DrawDebugLine(
 	const V2_float& line_start, const V2_float& line_end, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddLine(
+	/*game.renderer.GetRenderData().AddLine(
 		line_start, line_end, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
 		true
-	);
+	);*/
 }
 
 void DrawDebugTriangle(
 	const std::array<V2_float, 3>& vertices, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddTriangle(
+	/*game.renderer.GetRenderData().AddTriangle(
 		vertices, line_width, max_depth, camera, debug_blend_mode, color.Normalized(), true
-	);
+	);*/
 }
 
 void DrawDebugRect(
 	const V2_float& position, const V2_float& size, const Color& color, Origin origin,
 	float line_width, float rotation, const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddQuad(
+	/*game.renderer.GetRenderData().AddQuad(
 		position, size, origin, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
 		rotation, true
-	);
+	);*/
 }
 
 void DrawDebugEllipse(
 	const V2_float& center, const V2_float& radius, const Color& color, float line_width,
 	float rotation, const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddEllipse(
+	/*game.renderer.GetRenderData().AddEllipse(
 		center, radius, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
 		rotation, true
-	);
+	);*/
 }
 
 void DrawDebugCircle(
 	const V2_float& center, float radius, const Color& color, float line_width, const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddEllipse(
+	/*game.renderer.GetRenderData().AddEllipse(
 		center, V2_float{ radius }, line_width, max_depth, camera, debug_blend_mode,
 		color.Normalized(), 0.0f, true
-	);
+	);*/
 }
 
 void DrawDebugPolygon(
 	const std::vector<V2_float>& vertices, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddPolygon(
+	/*game.renderer.GetRenderData().AddPolygon(
 		vertices, line_width, max_depth, camera, debug_blend_mode, color.Normalized(), true
-	);
+	);*/
 }
 
 void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera) {
-	game.renderer.GetRenderData().AddPoint(
+	/*game.renderer.GetRenderData().AddPoint(
 		position, max_depth, camera, debug_blend_mode, color.Normalized(), true
-	);
+	);*/
 }
 
 namespace impl {
