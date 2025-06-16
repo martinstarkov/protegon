@@ -237,7 +237,6 @@ public:
 		return !(a == b);
 	}
 
-private:
 	RenderTarget render_target_;
 	const Shader* shader_{ nullptr };
 	BlendMode blend_mode_{ BlendMode::None };
@@ -287,6 +286,62 @@ public:
 		SetState(RenderState{ {}, &game.shader.Get<ShapeShader::Quad>(), BlendMode::Blend, {} });
 	}
 
+	void AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state) {
+		SetState(state);
+		// TODO: Get rid of magic numbers.
+		if (batch.vertices.size() + 3 > vertex_capacity ||
+			batch.indices.size() + 3 > index_capacity) {
+			Flush();
+		}
+
+		batch.vertices.reserve(batch.vertices.size() + 3);
+
+		batch.vertices.insert(batch.vertices.end(), vertices.begin(), vertices.end());
+
+		batch.indices.reserve(batch.indices.size() + 3);
+
+		batch.indices.push_back(batch.index_offset + 0);
+		batch.indices.push_back(batch.index_offset + 1);
+		batch.indices.push_back(batch.index_offset + 2);
+
+		batch.index_offset += 3;
+	}
+
+	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state) {
+		SetState(state);
+		// TODO: Get rid of magic numbers.
+		if (batch.vertices.size() + 4 > vertex_capacity ||
+			batch.indices.size() + 6 > index_capacity) {
+			Flush();
+		}
+
+		batch.vertices.reserve(batch.vertices.size() + 4);
+
+		batch.vertices.insert(batch.vertices.end(), vertices.begin(), vertices.end());
+
+		batch.indices.reserve(batch.indices.size() + 6);
+
+		batch.indices.push_back(batch.index_offset + 0);
+		batch.indices.push_back(batch.index_offset + 1);
+		batch.indices.push_back(batch.index_offset + 2);
+		batch.indices.push_back(batch.index_offset + 2);
+		batch.indices.push_back(batch.index_offset + 3);
+		batch.indices.push_back(batch.index_offset + 0);
+
+		batch.index_offset += 4;
+	}
+
+	template <typename T>
+	void AddVertices(const T& vertices, const RenderState& state) {
+		if constexpr (std::is_same_v<T, std::array<Vertex, 3>>) {
+			AddTriangle(vertices, state);
+		} else if constexpr (std::is_same_v<T, std::array<Vertex, 4>>) {
+			AddQuad(vertices, state);
+		} else if constexpr (std::is_same_v<T, std::vector<Vertex>>) {
+			// TODO: Implement specific cases in terms of the other two.
+		}
+	}
+
 	void SetState(const RenderState& new_render_state) {
 		if (new_render_state == render_state) {
 			return;
@@ -296,6 +351,26 @@ public:
 	}
 
 	void Flush() {
+		if (batch.vertices.empty() || batch.indices.empty()) {
+			return;
+		}
+
+		if (render_state.render_target_) {
+			render_state.render_target_.Bind();
+			// TODO: Clear all render targets before the render draw.
+		} else {
+			FrameBuffer::Unbind();
+		}
+
+		render_state.shader_->Bind();
+		const auto& camera_vp{ render_state.camera_.GetViewProjection() };
+		render_state.shader_->SetUniform("u_ViewProjection", camera_vp);
+
+		game.renderer.SetBlendMode(render_state.blend_mode_);
+		game.renderer.SetViewport(
+			render_state.camera_.GetViewportPosition(), render_state.camera_.GetViewportSize()
+		);
+
 		for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(batch.textures.size()); i++) {
 			// Save first texture slot for empty white texture.
 			std::uint32_t slot{ i + 1 };
@@ -315,6 +390,11 @@ public:
 		);
 
 		GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
+
+		batch.vertices.clear();
+		batch.indices.clear();
+		batch.textures.clear();
+		batch.index_offset = 0;
 	}
 
 	void Draw(Scene& scene) {
@@ -322,31 +402,49 @@ public:
 
 		std::vector<Entity> regular_entities;
 		regular_entities.reserve(scene.Size());
-		std::vector<Entity> rt_entities;
 
-		for (auto [e, rt] : scene.EntitiesWith<RenderTarget>()) {
-			if (!e.Has<Visible>()) {
-				continue;
-			}
+		// TODO: Fix render target entities.
+
+		// std::vector<Entity> rt_entities;
+
+		/*for (auto [e, rt] : scene.EntitiesWith<Visible, IDrawable, RenderTarget>()) {
 			rt_entities.emplace_back(e);
-		}
+		}*/
 
-		for (auto e : scene.EntitiesWithout<RenderTarget>()) {
-			if (!e.Has<Visible>()) {
+		for (auto [entity, visible, drawable] : scene.EntitiesWith<Visible, IDrawable>()) {
+			if (!visible || entity.Has<RenderTarget>()) {
 				continue;
 			}
-			if (e.Has<QuadVertices>()) {
-				regular_entities.emplace_back(e);
+			if (entity.Has<QuadVertices>()) {
+				regular_entities.emplace_back(entity);
+			} else {
+				// TODO: Add general vertices.
+				// regular_entities.emplace_back(entity);
 			}
-			// TODO: Add general vertices.
 		}
 
-		SortEntities<true>(rt_entities);
+		// SortEntities<true>(rt_entities);
 		SortEntities<false>(regular_entities);
 
-		for (auto e : rt_entities) {
-			auto& rt = e.Get<RenderTarget>();
-			// rt.Draw(e);
+		// for (auto e : rt_entities) {
+		//	auto& rt = e.Get<RenderTarget>();
+		//	// rt.Draw(e);
+		// }
+
+		for (const auto& entity : regular_entities) {
+			PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
+
+			const auto& drawable{ entity.Get<IDrawable>() };
+
+			const auto& drawable_functions{ IDrawable::data() };
+
+			const auto it{ drawable_functions.find(drawable.hash) };
+
+			PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
+
+			const auto& draw_function{ it->second };
+
+			std::invoke(draw_function, *this, entity);
 		}
 	}
 
