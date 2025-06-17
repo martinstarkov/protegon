@@ -14,6 +14,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/window.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
@@ -181,13 +182,14 @@ void RenderData::Flush() {
 
 	Camera fallback_camera;
 
+	FrameBuffer::Unbind();
+
 	if (render_state.render_target_) {
-		render_state.render_target_.Bind();
+		// TODO: Check if render target should be bound here or elsewhere.
 		fallback_camera = render_state.render_target_.GetCamera();
 		// TODO: Clear all render targets before the render draw.
 	} else {
 		fallback_camera = game.scene.GetCurrent().camera.primary;
-		FrameBuffer::Unbind();
 	}
 
 	PTGN_ASSERT(fallback_camera);
@@ -204,6 +206,12 @@ void RenderData::Flush() {
 
 	render_state.shader_->Bind();
 	render_state.shader_->SetUniform("u_ViewProjection", camera_vp);
+	render_state.shader_->SetUniform("u_Resolution", game.window.GetSize());
+
+	if (render_state.render_target_) {
+		// TODO: Check if this is a bug or not.
+		render_state.shader_->SetUniform("u_Texture", 1);
+	}
 
 	GLRenderer::SetBlendMode(render_state.blend_mode_);
 	GLRenderer::SetViewport(chosen_camera.GetViewportPosition(), chosen_camera.GetViewportSize());
@@ -587,7 +595,7 @@ void RenderData::SetVertexArrayToWindow(
 
 	const auto& positions{ camera_vertices };
 	auto tex_coords{ GetDefaultTextureCoordinates() };
-
+	GetQuadVertices
 	FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
 	auto c{ color.Normalized() };
