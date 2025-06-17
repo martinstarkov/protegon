@@ -5,6 +5,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "math/vector2.h"
+#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/shader.h"
@@ -42,6 +43,22 @@ struct Shape : public Drawable<Shape> {
 	}
 };
 
+struct Light : public Drawable<Light> {
+	Light() {}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		impl::RenderState render_state;
+		render_state.render_target_ = ctx.light_target;
+		render_state.blend_mode_	= BlendMode::Blend;
+		render_state.shader_		= &game.shader.Get<OtherShader::Light>();
+		render_state.camera_		= ctx.light_target.GetCamera();
+		auto vertices{ impl::GetQuadVertices(render_state.camera_.GetVertices(), color::White, entity.GetDepth() };
+		ctx.AddTexturedQuad(
+			vertices, render_state, render_state.render_target_.GetTexture().GetId()
+		);
+	}
+};
+
 struct SandboxScene : public Scene {
 	static constexpr int X = 100;									// Number of random quads
 
@@ -69,7 +86,7 @@ struct SandboxScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SandboxScene", window_size, color::White);
+	game.Init("SandboxScene", window_size, color::Transparent);
 	game.scene.Enter<SandboxScene>("");
 	return 0;
 }

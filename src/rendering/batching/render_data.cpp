@@ -15,6 +15,8 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/window.h"
+#include "events/event_handler.h"
+#include "events/events.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
@@ -82,6 +84,19 @@ void RenderData::Init() {
 	);
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
+
+	light_target = impl::CreateRenderTarget(
+		light_manager.CreateEntity(), impl::CreateCamera(light_manager.CreateEntity()), { 1, 1 },
+		color::Transparent
+	);
+	light_target.SetBlendMode(BlendMode::Add);
+
+	// TODO: Once render target window resizing is implemented, get rid of this.
+	game.event.window.Subscribe(
+		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
+			light_target.GetTexture().Resize(e.size);
+		})
+	);
 
 #ifdef PTGN_PLATFORM_MACOS
 	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
@@ -180,17 +195,9 @@ void RenderData::Flush() {
 		return;
 	}
 
-	Camera fallback_camera;
-
 	FrameBuffer::Unbind();
 
-	if (render_state.render_target_) {
-		// TODO: Check if render target should be bound here or elsewhere.
-		fallback_camera = render_state.render_target_.GetCamera();
-		// TODO: Clear all render targets before the render draw.
-	} else {
-		fallback_camera = game.scene.GetCurrent().camera.primary;
-	}
+	Camera fallback_camera{ game.scene.GetCurrent().camera.primary };
 
 	PTGN_ASSERT(fallback_camera);
 
@@ -206,12 +213,7 @@ void RenderData::Flush() {
 
 	render_state.shader_->Bind();
 	render_state.shader_->SetUniform("u_ViewProjection", camera_vp);
-	render_state.shader_->SetUniform("u_Resolution", game.window.GetSize());
-
-	if (render_state.render_target_) {
-		// TODO: Check if this is a bug or not.
-		render_state.shader_->SetUniform("u_Texture", 1);
-	}
+	// render_state.shader_->SetUniform("u_Resolution", game.window.GetSize());
 
 	GLRenderer::SetBlendMode(render_state.blend_mode_);
 	GLRenderer::SetViewport(chosen_camera.GetViewportPosition(), chosen_camera.GetViewportSize());

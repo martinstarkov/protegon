@@ -125,6 +125,8 @@ public:
 
 	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state);
 
+	RenderTarget light_target;
+
 private:
 	friend class ptgn::Scene;
 	friend class Renderer;
@@ -141,6 +143,7 @@ private:
 	void Draw(Scene& scene);
 
 	constexpr static float min_line_width{ 1.0f };
+	Manager light_manager;
 	RenderState render_state;
 	Batch batch;
 	std::size_t max_texture_slots{ 0 };
