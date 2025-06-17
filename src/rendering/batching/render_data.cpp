@@ -159,6 +159,16 @@ void RenderData::AddTexturedQuad(
 	AddQuad(vertices, state);
 }
 
+void RenderData::AddTexturedQuad(
+	std::array<Vertex, 4>& vertices, const RenderState& state, TextureId texture_id
+) {
+	float texture_index{ GetTextureIndex(texture_id) };
+	for (auto& v : vertices) {
+		v.tex_index = { texture_index };
+	}
+	AddQuad(vertices, state);
+}
+
 void RenderData::AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state) {
 	SetState(state);
 	// TODO: Get rid of magic numbers.
