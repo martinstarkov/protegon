@@ -19,7 +19,8 @@ class RenderTarget;
 namespace impl {
 
 [[nodiscard]] RenderTarget CreateRenderTarget(
-	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color
+	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color,
+	TextureFormat texture_format
 );
 
 class RenderData;
@@ -85,7 +86,8 @@ private:
 	friend class impl::RenderData;
 
 	friend RenderTarget impl::CreateRenderTarget(
-		const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color
+		const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color,
+		TextureFormat texture_format
 	);
 
 	// Draw an entity to the render target.
@@ -123,7 +125,8 @@ private:
 // @param size The size of the render target.
 // @param clear_color The background color of the render target.
 [[nodiscard]] RenderTarget CreateRenderTarget(
-	Scene& scene, const V2_float& size, const Color& clear_color = color::Transparent
+	Scene& scene, const V2_float& size, const Color& clear_color = color::Transparent,
+	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 
 } // namespace ptgn

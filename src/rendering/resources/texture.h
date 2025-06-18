@@ -39,7 +39,9 @@ V2_int ForEachPixel(
 // Format of pixels for a texture or surface.
 // e.g. RGBA8888 means 8 bits per color channel (32 bits total).
 enum class TextureFormat : std::uint32_t {
-	Unknown	 = 0,		  // SDL_PIXELFORMAT_UNKNOWN
+	Unknown	 = 0, // SDL_PIXELFORMAT_UNKNOWN
+	HDR_RGB	 = 999999998,
+	HDR_RGBA = 999999999,
 	RGB888	 = 370546692, // SDL_PIXELFORMAT_RGB888
 	RGBA8888 = 373694468, // SDL_PIXELFORMAT_RGBA8888
 	BGRA8888 = 377888772, // SDL_PIXELFORMAT_BGRA8888
@@ -108,9 +110,11 @@ private:
 };
 
 enum class InternalGLFormat : std::int32_t {
-	R8	  = 0x8229, // GL_R8
-	RGB8  = 0x8051, // GL_RGB8
-	RGBA8 = 0x8058, // GL_RGBA8
+	R8		 = 0x8229, // GL_R8
+	RGB8	 = 0x8051, // GL_RGB8
+	RGBA8	 = 0x8058, // GL_RGBA8
+	HDR_RGBA = 0x881A, // GL_RGBA16F
+	HDR_RGB	 = 0x881B  // GL_RGB16F
 };
 
 enum class InputGLFormat {

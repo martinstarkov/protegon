@@ -32,6 +32,8 @@ enum class PolygonMode {
 
 class GLRenderer {
 public:
+	static void EnableGammaCorrection();
+	static void DisableGammaCorrection();
 	static void EnableDepthWriting();
 	static void DisableDepthWriting();
 

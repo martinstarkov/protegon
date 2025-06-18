@@ -50,10 +50,12 @@ namespace impl {
 
 TextureFormat GetFormatFromOpenGL(InternalGLFormat opengl_internal_format) {
 	switch (opengl_internal_format) {
-		case InternalGLFormat::RGBA8: return TextureFormat::RGBA8888;
-		case InternalGLFormat::RGB8:  return TextureFormat::RGB888;
-		case InternalGLFormat::R8:	  return TextureFormat::A8;
-		default:					  PTGN_ERROR("Unsupported or unrecognized OpenGL format");
+		case InternalGLFormat::RGBA8:	 return TextureFormat::RGBA8888;
+		case InternalGLFormat::RGB8:	 return TextureFormat::RGB888;
+		case InternalGLFormat::R8:		 return TextureFormat::A8;
+		case InternalGLFormat::HDR_RGBA: return TextureFormat::HDR_RGBA;
+		case InternalGLFormat::HDR_RGB:	 return TextureFormat::HDR_RGB;
+		default:						 PTGN_ERROR("Unsupported or unrecognized OpenGL format");
 	}
 }
 
@@ -108,6 +110,12 @@ GLFormats GetGLFormats(TextureFormat format) {
 		case TextureFormat::ABGR8888: [[fallthrough]];
 		case TextureFormat::RGBA8888: {
 			return { InternalGLFormat::RGBA8, InputGLFormat::RGBA, 4 };
+		}
+		case TextureFormat::HDR_RGBA: {
+			return { InternalGLFormat::HDR_RGBA, InputGLFormat::RGBA, 4 };
+		}
+		case TextureFormat::HDR_RGB: {
+			return { InternalGLFormat::HDR_RGB, InputGLFormat::RGB, 3 };
 		}
 		case TextureFormat::RGB888: {
 			return { InternalGLFormat::RGB8, InputGLFormat::RGB, 3 };
@@ -391,11 +399,17 @@ void Texture::SetData(
 
 	constexpr std::int32_t border{ 0 };
 
+	GLType type{ GLType::UnsignedByte };
+
+	if (formats.internal_format == InternalGLFormat::HDR_RGBA ||
+		formats.internal_format == InternalGLFormat::HDR_RGB) {
+		type = GLType::Float;
+	}
+
 	GLCall(glTexImage2D(
 		static_cast<GLenum>(TextureTarget::Texture2D), mipmap_level,
 		static_cast<GLint>(formats.internal_format), size.x, size.y, border,
-		static_cast<GLenum>(formats.input_format), static_cast<GLenum>(GLType::UnsignedByte),
-		pixel_data
+		static_cast<GLenum>(formats.input_format), static_cast<GLenum>(type), pixel_data
 	));
 
 	size_ = size;

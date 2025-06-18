@@ -21,7 +21,8 @@ namespace ptgn {
 namespace impl {
 
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color
+	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color,
+	TextureFormat format
 ) {
 	RenderTarget render_target{ entity };
 	render_target.SetDraw<RenderTarget>();
@@ -31,7 +32,8 @@ RenderTarget CreateRenderTarget(
 	render_target.Add<Camera>(camera);
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
-	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size }) };
+	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size, format }
+	) };
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
 	render_target.Clear();
@@ -40,8 +42,12 @@ RenderTarget CreateRenderTarget(
 
 } // namespace impl
 
-RenderTarget CreateRenderTarget(Scene& scene, const V2_float& size, const Color& clear_color) {
-	return impl::CreateRenderTarget(scene.CreateEntity(), CreateCamera(scene), size, clear_color);
+RenderTarget CreateRenderTarget(
+	Scene& scene, const V2_float& size, const Color& clear_color, TextureFormat texture_format
+) {
+	return impl::CreateRenderTarget(
+		scene.CreateEntity(), CreateCamera(scene), size, clear_color, texture_format
+	);
 }
 
 /*

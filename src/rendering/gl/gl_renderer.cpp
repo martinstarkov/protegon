@@ -99,6 +99,20 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 #endif
 }
 
+void GLRenderer::EnableGammaCorrection() {
+	GLCall(glEnable(GL_FRAMEBUFFER_SRGB));
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Enabled gamma correction");
+#endif
+}
+
+void GLRenderer::DisableGammaCorrection() {
+	GLCall(glDisable(GL_FRAMEBUFFER_SRGB));
+#ifdef GL_ANNOUNCE_RENDERER_CALLS
+	PTGN_LOG("GL: Disabled gamma correction");
+#endif
+}
+
 void GLRenderer::EnableDepthWriting() {
 	GLCall(glDepthMask(GL_TRUE));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS

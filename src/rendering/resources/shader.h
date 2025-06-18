@@ -142,7 +142,8 @@ enum class ShapeShader {
 };
 
 enum class OtherShader {
-	Light
+	Light,
+	ToneMapping
 };
 
 namespace impl {
@@ -163,6 +164,8 @@ public:
 		} else if constexpr (std::is_same_v<ShaderType, OtherShader>) {
 			if constexpr (S == OtherShader::Light) {
 				return light_;
+			} else if constexpr (S == OtherShader::ToneMapping) {
+				return tone_mapping_;
 			} else {
 				PTGN_ERROR("Cannot retrieve unrecognized other shader");
 			}
@@ -267,6 +270,15 @@ private:
 #include PTGN_SHADER_PATH(lighting.frag)
 			}
 		);
+
+		tone_mapping_ = Shader(
+			ShaderCode{
+#include PTGN_SHADER_PATH(screen_default.vert)
+			},
+			ShaderCode{
+#include PTGN_SHADER_PATH(tone_mapping.frag)
+			}
+		);
 	}
 
 	// Screen shaders.
@@ -284,6 +296,7 @@ private:
 
 	// Other shaders.
 	Shader light_;
+	Shader tone_mapping_;
 };
 
 } // namespace impl
