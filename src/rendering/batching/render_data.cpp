@@ -34,6 +34,8 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
+#define HDR_ENABLED 0
+
 namespace ptgn::impl {
 
 std::array<Vertex, 4> GetQuadVertices(
@@ -58,7 +60,14 @@ std::array<Vertex, 4> GetQuadVertices(
 }
 
 void RenderData::Init() {
+	GLRenderer::DisableGammaCorrection();
+
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
+
+	const auto& screen_shader{ game.shader.Get<ScreenShader::Default>() };
+	PTGN_ASSERT(screen_shader.IsValid());
+	screen_shader.Bind();
+	screen_shader.SetUniform("u_Texture", 1);
 
 	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
 
@@ -88,15 +97,15 @@ void RenderData::Init() {
 
 	screen_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Black
+		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	fbo1 = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Black
+		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	fbo2 = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Black
+		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	current_fbo = {};
 
@@ -118,7 +127,7 @@ void RenderData::Init() {
 	}
 #endif
 
-	SetState(RenderState{ { &game.shader.Get<ShapeShader::Quad>() }, BlendMode::Blend, {} });
+	SetState(RenderState{ { &game.shader.Get<ScreenShader::Default>() }, BlendMode::None, {} });
 }
 
 void RenderData::AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state) {
@@ -319,7 +328,7 @@ void RenderData::Flush() {
 	}
 
 	if (current_fbo) {
-		// PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 500, 500 }));
+		PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 0, 0 }));
 
 		screen_fbo.Bind();
 
@@ -338,7 +347,7 @@ void RenderData::Flush() {
 			ApplyPostFX();
 		}
 		*/
-		const auto& shader{ game.shader.Get<ShapeShader::Quad>() };
+		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 		shader.Bind();
 		shader.SetUniform("u_ViewProjection", camera_vp);
 		/*PTGN_ASSERT(batch.vertices.size() == 0);
@@ -470,22 +479,34 @@ void RenderData::Draw(Scene& scene) {
 
 	FrameBuffer::Unbind();
 
-	GLRenderer::SetBlendMode(BlendMode::Blend);
+	GLRenderer::SetBlendMode(BlendMode::None);
 
 	Camera camera{ game.scene.GetCurrent().camera.window };
+
+	SetCameraVertices(camera);
 
 	const auto& camera_vp{ camera.GetViewProjection() };
 
 	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
 
-	const auto& shader{ game.shader.Get<ShapeShader::Quad>() };
+	const Shader* shader{ nullptr };
 
-	shader.Bind();
-	shader.SetUniform("u_ViewProjection", camera_vp);
+	if constexpr (HDR_ENABLED) {
+		shader = &game.shader.Get<OtherShader::ToneMapping>();
+
+		shader->Bind();
+		shader->SetUniform("u_Texture", 1);
+		shader->SetUniform("u_Exposure", 1.0f);
+		// Figure out why the shader's gamma correction needs to be cancelled out to prevent
+		// redness.
+		shader->SetUniform("u_Gamma", 1.0f / 2.2f);
+	} else {
+		shader = &game.shader.Get<ScreenShader::Default>();
+		shader->Bind();
+	}
+	shader->SetUniform("u_ViewProjection", camera_vp);
 
 	screen_fbo.GetTexture().Bind(1);
-
-	SetCameraVertices(camera);
 
 	GLRenderer::DrawElements(triangle_vao, 6, false);
 
