@@ -28,12 +28,12 @@ float attenuate_no_cusp(float distance, float radius,
 {
     float s = distance / radius;
 
-    if (s >= 1.0)
-        return 0.0;
+    if (s >= 1.0f)
+        return 0.0f;
 
     float s2 = sqr(s);
 
-    return max_intensity * sqr(1.0 - s2) / (1.0 + falloff * s2);
+    return max_intensity * sqr(1.0f - s2) / (1.0f + falloff * s2);
 }
 
 float attenuate_cusp(float distance, float radius,
@@ -41,12 +41,12 @@ float attenuate_cusp(float distance, float radius,
 {
     float s = distance / radius;
 
-    if (s >= 1.0)
-        return 0.0;
+    if (s >= 1.0f)
+        return 0.0f;
 
     float s2 = sqr(s);
 
-    return max_intensity * sqr(1.0 - s2) / (1.0 + falloff * s);
+    return max_intensity * sqr(1.0f - s2) / (1.0f + falloff * s); // uses s instead of s2
 }
 
 void main() {
@@ -59,10 +59,11 @@ void main() {
 
     // Various alternative light attenuation functions:
     // float attenuation = attenuate_no_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
-    // float attenuation = 1.0 / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
-    // float attenuation = clamp(1.0 - distance * distance / (u_LightRadius * u_LightRadius), 0.0, 1.0);
-    // float attenuation = 1.0 - smoothstep(0.0, u_LightRadius, distance);
+    // float attenuation = 1.0f / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
+    // float attenuation = 1.0f - distance * distance / (u_LightRadius * u_LightRadius);
+    // float attenuation = 1.0f - smoothstep(0.0f, u_LightRadius, distance);
+    // float attenuation = pow(clamp(1.0f - distance / u_LightRadius, 0.0f, 1.0f), 2.0f) * u_LightIntensity;
 
-    o_Color = (attenuation * u_Color + u_AmbientIntensity * vec4(u_AmbientColor.x, u_AmbientColor.y, u_AmbientColor.z, 1.0)) * v_Color;
+    o_Color = (attenuation * u_Color + u_AmbientIntensity * vec4(u_AmbientColor.x, u_AmbientColor.y, u_AmbientColor.z, 1.0f)) * v_Color;
 }
 )"
