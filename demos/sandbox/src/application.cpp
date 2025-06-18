@@ -95,7 +95,7 @@ struct SandboxScene : public Scene {
 	RNG<float> pos_rngy{ 0.0f, static_cast<float>(window_size.y) }; // Position
 	RNG<float> size_rng{ 10.0f, 70.0f };							// Size range
 	RNG<float> light_radius_rng{ 10.0f, 100.0f };					// Light radius range
-	RNG<float> intensity_rng{ 0.0f, 1.0f };							// Intensity range
+	RNG<float> intensity_rng{ 0.0f, 10.0f };						// Intensity range
 
 	void Enter() override {
 		for (int i = 0; i < X; ++i) {

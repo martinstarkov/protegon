@@ -34,7 +34,7 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
-#define HDR_ENABLED 0
+#define HDR_ENABLED 1
 
 namespace ptgn::impl {
 
@@ -497,9 +497,7 @@ void RenderData::Draw(Scene& scene) {
 		shader->Bind();
 		shader->SetUniform("u_Texture", 1);
 		shader->SetUniform("u_Exposure", 1.0f);
-		// Figure out why the shader's gamma correction needs to be cancelled out to prevent
-		// redness.
-		shader->SetUniform("u_Gamma", 1.0f / 2.2f);
+		shader->SetUniform("u_Gamma", 2.2f);
 	} else {
 		shader = &game.shader.Get<ScreenShader::Default>();
 		shader->Bind();

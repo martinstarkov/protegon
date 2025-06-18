@@ -23,10 +23,10 @@ struct LightProperties {
 	Color color{ color::Cyan };
 
 	// Intensity of the ambient light. Range: [0, 1].
-	float ambient_intensity{ 0.03f };
+	float ambient_intensity{ 0.0f };
 
 	// Color of the ambient light.
-	Color ambient_color{ color::Red };
+	Color ambient_color{ color::Transparent };
 
 	// Higher -> Light reaches further out from the center.
 	float radius{ 100.0f };
