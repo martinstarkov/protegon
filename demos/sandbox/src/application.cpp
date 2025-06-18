@@ -89,10 +89,13 @@ struct Light : public Drawable<Light> {
 
 struct SandboxScene : public Scene {
 	static constexpr int X = 100;									// Number of random quads
+	static constexpr int Y = 100;									// Number of random lights
 
 	RNG<float> pos_rngx{ 0.0f, static_cast<float>(window_size.x) }; // Position range
-	RNG<float> pos_rngy{ 0.0f, static_cast<float>(window_size.y) }; // Position range
-	RNG<float> size_rng{ 10.0f, 50 };								// Size range
+	RNG<float> pos_rngy{ 0.0f, static_cast<float>(window_size.y) }; // Position
+	RNG<float> size_rng{ 10.0f, 70.0f };							// Size range
+	RNG<float> light_radius_rng{ 10.0f, 100.0f };					// Light radius range
+	RNG<float> intensity_rng{ 0.0f, 1.0f };							// Intensity range
 
 	void Enter() override {
 		for (int i = 0; i < X; ++i) {
@@ -105,20 +108,49 @@ struct SandboxScene : public Scene {
 											{ top_left.x + size.x, top_left.y + size.y },
 											{ top_left.x, top_left.y + size.y } };
 
-			auto e{ CreatePointLight(*this, top_left, 50.0f, color::Blue, 1.0f, 2.0f) };
+			/*auto e{ CreatePointLight(*this, top_left, 50.0f, color::Blue, 1.0f, 2.0f) };
+			e.SetDraw<Light>();
+			e.Show();*/
+			auto e{ CreateEntity() };
+			float texture_index{ 0.0f };
+			float line_width{ 10.0f };
+			V2_float radius{ size };
+			texture_index = 0.0f; // 1.0f; // 0.005f + line_width / std::min(radius.x, radius.y);
+								  // e.SetDraw<Circle>();
+			e.SetDraw<Quad>();
+			e.Add<QuadVertices>(
+				impl::GetQuadVertices(points, Color::RandomTransparent(), {}, texture_index)
+			);
+			e.Show();
+		}
+
+		for (int i = 0; i < Y; ++i) {
+			V2_float top_left{ pos_rngx(), pos_rngy() };
+
+			V2_float size{ size_rng(), size_rng() };
+
+			std::array<V2_float, 4> points{ top_left,
+											{ top_left.x + size.x, top_left.y },
+											{ top_left.x + size.x, top_left.y + size.y },
+											{ top_left.x, top_left.y + size.y } };
+
+			auto e{ CreatePointLight(
+				*this, top_left, light_radius_rng(), color::Blue, intensity_rng(), 0.2f
+			) };
 			e.SetDraw<Light>();
 			e.Show();
-			// auto e{ CreateEntity() };
-			// float texture_index{ 0.0f };
-			// float line_width{ 10.0f };
-			// V2_float radius{ size };
-			// texture_index = 0.0f; // 1.0f; // 0.005f + line_width / std::min(radius.x, radius.y);
-			//// e.SetDraw<Circle>();
-			// e.SetDraw<Quad>();
-			// e.Add<QuadVertices>(
+			//   auto e{ CreateEntity() };
+			//   float texture_index{ 0.0f };
+			//   float line_width{ 10.0f };
+			//   V2_float radius{ size };
+			//   texture_index = 0.0f; // 1.0f; // 0.005f + line_width / std::min(radius.x,
+			//   radius.y);
+			//					  // e.SetDraw<Circle>();
+			//   e.SetDraw<Quad>();
+			//   e.Add<QuadVertices>(
 			//	impl::GetQuadVertices(points, Color::RandomTransparent(), {}, texture_index)
 			//);
-			// e.Show();
+			//   e.Show();
 		}
 	}
 };
