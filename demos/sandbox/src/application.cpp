@@ -2,12 +2,15 @@
 
 #include "components/common.h"
 #include "components/drawable.h"
+#include "components/offsets.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "math/math.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/batching/render_data.h"
+#include "rendering/graphics/vfx/light.h"
 #include "rendering/resources/shader.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -32,13 +35,24 @@ ctx.DrawLight();
 
 */
 
-struct Shape : public Drawable<Shape> {
-	Shape() {}
+struct Quad : public Drawable<Quad> {
+	Quad() {}
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
 		render_state.blend_mode_ = entity.GetBlendMode();
-		render_state.shader_	 = &game.shader.Get<ShapeShader::Quad>();
+		render_state.shader_	 = { &game.shader.Get<ShapeShader::Quad>() };
+		ctx.AddQuad(entity.Get<QuadVertices>().vertices, render_state);
+	}
+};
+
+struct Circle : public Drawable<Circle> {
+	Circle() {}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		impl::RenderState render_state;
+		render_state.blend_mode_ = entity.GetBlendMode();
+		render_state.shader_	 = { &game.shader.Get<ShapeShader::Circle>() };
 		ctx.AddQuad(entity.Get<QuadVertices>().vertices, render_state);
 	}
 };
@@ -48,13 +62,27 @@ struct Light : public Drawable<Light> {
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
-		render_state.render_target_ = ctx.light_target;
-		render_state.blend_mode_	= BlendMode::Blend;
-		render_state.shader_		= &game.shader.Get<OtherShader::Light>();
-		render_state.camera_		= ctx.light_target.GetCamera();
-		auto vertices{ impl::GetQuadVertices(render_state.camera_.GetVertices(), color::White, entity.GetDepth() };
-		ctx.AddTexturedQuad(
-			vertices, render_state, render_state.render_target_.GetTexture().GetId()
+		render_state.blend_mode_ = BlendMode::Add;
+		render_state.shader_	 = { &game.shader.Get<OtherShader::Light>() };
+		ctx.AddShader(
+			render_state, { std::function([entity](const Shader& shader) {
+				PointLight light{ entity };
+
+				auto offset_transform{ GetOffset(entity) };
+				auto transform{ entity.GetAbsoluteTransform() };
+				transform = transform.RelativeTo(offset_transform);
+				float radius{ light.GetRadius() * Abs(transform.scale.x) };
+
+				shader.SetUniform("u_LightPosition", transform.position);
+				shader.SetUniform("u_LightIntensity", light.GetIntensity());
+				shader.SetUniform("u_LightRadius", radius);
+				shader.SetUniform("u_Falloff", light.GetFalloff());
+				shader.SetUniform("u_Color", light.GetColor().Normalized());
+				auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
+				shader.SetUniform("u_AmbientColor", ambient_color);
+				shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
+			}) },
+			BlendMode::Add, false
 		);
 	}
 };
@@ -77,10 +105,20 @@ struct SandboxScene : public Scene {
 											{ top_left.x + size.x, top_left.y + size.y },
 											{ top_left.x, top_left.y + size.y } };
 
-			auto e{ CreateEntity() };
-			e.Add<QuadVertices>(impl::GetQuadVertices(points, Color::RandomTransparent(), {}));
-			e.SetDraw<Shape>();
+			auto e{ CreatePointLight(*this, top_left, 50.0f, color::Blue, 1.0f, 2.0f) };
+			e.SetDraw<Light>();
 			e.Show();
+			// auto e{ CreateEntity() };
+			// float texture_index{ 0.0f };
+			// float line_width{ 10.0f };
+			// V2_float radius{ size };
+			// texture_index = 0.0f; // 1.0f; // 0.005f + line_width / std::min(radius.x, radius.y);
+			//// e.SetDraw<Circle>();
+			// e.SetDraw<Quad>();
+			// e.Add<QuadVertices>(
+			//	impl::GetQuadVertices(points, Color::RandomTransparent(), {}, texture_index)
+			//);
+			// e.Show();
 		}
 	}
 };

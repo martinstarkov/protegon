@@ -3,20 +3,20 @@
 #include <filesystem>
 #include <type_traits>
 
+#include "common/assert.h"
 #include "core/game.h"
 #include "rendering/gl/gl_context.h"
 #include "rendering/gl/gl_types.h"
-#include "common/assert.h"
 
 #ifdef PTGN_DEBUG
 // Uncomment for debugging purposes
-// #define GL_ANNOUNCE_RENDERER_CALLS
-// #define GL_ANNOUNCE_VERTEX_ARRAY_CALLS
-// #define GL_ANNOUNCE_FRAME_BUFFER_CALLS
-// #define GL_ANNOUNCE_BUFFER_CALLS
-// #define GL_ANNOUNCE_RENDER_BUFFER_CALLS
-// #define GL_ANNOUNCE_SHADER_CALLS
-// #define GL_ANNOUNCE_TEXTURE_CALLS
+#define GL_ANNOUNCE_RENDERER_CALLS
+#define GL_ANNOUNCE_VERTEX_ARRAY_CALLS
+#define GL_ANNOUNCE_FRAME_BUFFER_CALLS
+#define GL_ANNOUNCE_BUFFER_CALLS
+#define GL_ANNOUNCE_RENDER_BUFFER_CALLS
+#define GL_ANNOUNCE_SHADER_CALLS
+#define GL_ANNOUNCE_TEXTURE_CALLS
 #endif
 
 namespace ptgn::impl {

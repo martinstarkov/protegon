@@ -68,8 +68,7 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			));
 			break;
 		case BlendMode::BlendPremultiplied:
-			GLCall(
-				BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 			);
 			break;
 		case BlendMode::Add:
@@ -261,7 +260,7 @@ void GLRenderer::ClearToColor(const V4_float& normalized_color) {
 	++game.stats.clears;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
-	PTGN_LOG("GL: Cleared to color ", color);
+	PTGN_LOG("GL: Cleared to color ", normalized_color);
 #endif
 }
 

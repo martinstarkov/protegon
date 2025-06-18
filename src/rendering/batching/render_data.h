@@ -7,6 +7,7 @@
 #include "common/assert.h"
 #include "components/common.h"
 #include "core/entity.h"
+#include "core/manager.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
@@ -51,7 +52,8 @@ constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
 [[nodiscard]] std::array<Vertex, 4> GetQuadVertices(
-	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth
+	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
+	float texture_index = 0.0f
 );
 
 template <bool have_render_targets = false>
@@ -92,25 +94,19 @@ public:
 	RenderState() = default;
 
 	RenderState(
-		const RenderTarget& render_target, const Shader* shader, BlendMode blend_mode,
-		const Camera& camera
+		const std::vector<const Shader*>& shader, BlendMode blend_mode, const Camera& camera
 	) :
-		render_target_{ render_target },
-		shader_{ shader },
-		blend_mode_{ blend_mode },
-		camera_{ camera } {}
+		shader_{ shader }, blend_mode_{ blend_mode }, camera_{ camera } {}
 
 	friend bool operator==(const RenderState& a, const RenderState& b) {
-		return a.shader_ == b.shader_ && a.camera_ == b.camera_ &&
-			   a.render_target_ == b.render_target_ && a.blend_mode_ == b.blend_mode_;
+		return a.shader_ == b.shader_ && a.camera_ == b.camera_ && a.blend_mode_ == b.blend_mode_;
 	}
 
 	friend bool operator!=(const RenderState& a, const RenderState& b) {
 		return !(a == b);
 	}
 
-	RenderTarget render_target_;
-	const Shader* shader_{ nullptr };
+	std::vector<const Shader*> shader_;
 	BlendMode blend_mode_{ BlendMode::None };
 	Camera camera_;
 };
@@ -125,12 +121,24 @@ public:
 
 	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state);
 
-	RenderTarget light_target;
+	void AddShader(
+		const RenderState& render_state,
+		const std::vector<std::function<void(const Shader&)>>& uniforms, BlendMode fbo_blendmode,
+		bool ping_pong
+	);
+
+	RenderTarget screen_fbo;
+	RenderTarget fbo1;
+	RenderTarget fbo2;
+	RenderTarget current_fbo;
+	BlendMode fbo_blend_mode;
 
 private:
 	friend class ptgn::Scene;
 	friend class Renderer;
 	friend class Camera;
+
+	void SetCameraVertices(const Camera& camera);
 
 	void Init();
 
@@ -143,7 +151,7 @@ private:
 	void Draw(Scene& scene);
 
 	constexpr static float min_line_width{ 1.0f };
-	Manager light_manager;
+	Manager render_manager;
 	RenderState render_state;
 	Batch batch;
 	std::size_t max_texture_slots{ 0 };

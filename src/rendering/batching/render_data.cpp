@@ -37,7 +37,8 @@
 namespace ptgn::impl {
 
 std::array<Vertex, 4> GetQuadVertices(
-	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth
+	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
+	float texture_index
 ) {
 	std::array<Vertex, 4> vertices{};
 
@@ -50,7 +51,7 @@ std::array<Vertex, 4> GetQuadVertices(
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { default_texture_coordinates[i].x,
 								  default_texture_coordinates[i].y };
-		vertices[i].tex_index = { 0.0f };
+		vertices[i].tex_index = { texture_index };
 	}
 
 	return vertices;
@@ -85,16 +86,26 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-	light_target = impl::CreateRenderTarget(
-		light_manager.CreateEntity(), impl::CreateCamera(light_manager.CreateEntity()), { 1, 1 },
-		color::Transparent
+	screen_fbo = impl::CreateRenderTarget(
+		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
+		color::Black
 	);
-	light_target.SetBlendMode(BlendMode::Add);
+	fbo1 = impl::CreateRenderTarget(
+		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
+		color::Black
+	);
+	fbo2 = impl::CreateRenderTarget(
+		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
+		color::Black
+	);
+	current_fbo = {};
 
 	// TODO: Once render target window resizing is implemented, get rid of this.
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
-			light_target.GetTexture().Resize(e.size);
+			screen_fbo.GetTexture().Resize(e.size);
+			fbo1.GetTexture().Resize(e.size);
+			fbo2.GetTexture().Resize(e.size);
 		})
 	);
 
@@ -107,7 +118,7 @@ void RenderData::Init() {
 	}
 #endif
 
-	SetState(RenderState{ {}, &game.shader.Get<ShapeShader::Quad>(), BlendMode::Blend, {} });
+	SetState(RenderState{ { &game.shader.Get<ShapeShader::Quad>() }, BlendMode::Blend, {} });
 }
 
 void RenderData::AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state) {
@@ -159,16 +170,6 @@ void RenderData::AddTexturedQuad(
 	AddQuad(vertices, state);
 }
 
-void RenderData::AddTexturedQuad(
-	std::array<Vertex, 4>& vertices, const RenderState& state, TextureId texture_id
-) {
-	float texture_index{ GetTextureIndex(texture_id) };
-	for (auto& v : vertices) {
-		v.tex_index = { texture_index };
-	}
-	AddQuad(vertices, state);
-}
-
 void RenderData::AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state) {
 	SetState(state);
 	// TODO: Get rid of magic numbers.
@@ -200,41 +201,40 @@ void RenderData::SetState(const RenderState& new_render_state) {
 	render_state = new_render_state;
 }
 
-void RenderData::Flush() {
-	if (batch.vertices.empty() || batch.indices.empty()) {
-		return;
+void RenderData::SetCameraVertices(const Camera& camera) {
+	std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
+
+	const auto& positions{ camera.GetVertices() };
+	auto tex_coords{ GetDefaultTextureCoordinates() };
+	FlipTextureCoordinates(tex_coords, Flip::Vertical);
+
+	auto c{ color::White.Normalized() };
+
+	std::array<Vertex, 4> vertices{};
+
+	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
+		vertices[i].position  = { positions[i].x, positions[i].y,
+								  static_cast<float>(camera.GetDepth()) };
+		vertices[i].color	  = { c.x, c.y, c.z, c.w };
+		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+		vertices[i].tex_index = { 1.0f };
 	}
+	triangle_vao.Bind();
 
-	FrameBuffer::Unbind();
+	triangle_vao.GetVertexBuffer().SetSubData(
+		vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false
+	);
 
-	Camera fallback_camera{ game.scene.GetCurrent().camera.primary };
+	triangle_vao.GetIndexBuffer().SetSubData(
+		indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Index), false
+	);
 
-	PTGN_ASSERT(fallback_camera);
-
-	PTGN_ASSERT(render_state.shader_ != nullptr);
-
-	auto chosen_camera{ render_state.camera_
-							? render_state.camera_
-							: fallback_camera }; // Scene camera or render target camera.
-
-	PTGN_ASSERT(chosen_camera);
-
-	const auto& camera_vp{ chosen_camera.GetViewProjection() };
-
-	render_state.shader_->Bind();
-	render_state.shader_->SetUniform("u_ViewProjection", camera_vp);
-	// render_state.shader_->SetUniform("u_Resolution", game.window.GetSize());
-
-	GLRenderer::SetBlendMode(render_state.blend_mode_);
-	GLRenderer::SetViewport(chosen_camera.GetViewportPosition(), chosen_camera.GetViewportSize());
-
-	PTGN_ASSERT(batch.textures.size() <= max_texture_slots);
-
-	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(batch.textures.size()); i++) {
-		// Save first texture slot for empty white texture.
-		std::uint32_t slot{ i + 1 };
-		Texture::Bind(batch.textures[i], slot);
-	}
+	/*batch.vertices.clear();
+	auto camera_vertices{ GetQuadVertices(camera.GetVertices(), color::White, {}, 1.0f) };
+	batch.vertices.insert(batch.vertices.begin(), camera_vertices.begin(), camera_vertices.end());
+	PTGN_ASSERT(batch.vertices.size() == 4);
+	batch.indices	   = { 0, 1, 2, 2, 3, 0 };
+	batch.index_offset = 4;
 
 	triangle_vao.Bind();
 
@@ -246,9 +246,163 @@ void RenderData::Flush() {
 	triangle_vao.GetIndexBuffer().SetSubData(
 		batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()), sizeof(Index),
 		false
-	);
+	);*/
+}
 
-	GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
+void RenderData::AddShader(
+	const RenderState& state, const std::vector<std::function<void(const Shader&)>>& uniforms,
+	BlendMode fbo_blendmode, bool ping_pong
+) {
+	PTGN_ASSERT(uniforms.size() == state.shader_.size());
+
+	auto draw_shaders = [&](const Camera& camera) {
+		GLRenderer::SetBlendMode(render_state.blend_mode_);
+		for (auto i = 0; i < state.shader_.size(); ++i) {
+			auto shader = state.shader_[i];
+			PTGN_ASSERT(shader != nullptr);
+			shader->Bind();
+			if (uniforms[i]) {
+				uniforms[i](*shader);
+			}
+			// TODO: Only update these if shader bind is dirty.
+			shader->SetUniform("u_ViewProjection", camera);
+			shader->SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+			PTGN_ASSERT(shader != &game.shader.Get<ShapeShader::Quad>());
+			shader->SetUniform("u_Texture", 1);
+			// SetCameraVertices(camera);
+
+			GLRenderer::DrawElements(triangle_vao, 6, false);
+		}
+	};
+
+	auto draw_to_rt = [&](const RenderTarget& rt) {
+		rt.Clear();
+		current_fbo	   = rt;
+		fbo_blend_mode = fbo_blendmode;
+		auto camera{ render_state.camera_ ? render_state.camera_ : rt.GetCamera() };
+		PTGN_ASSERT(camera);
+		SetCameraVertices(camera);
+		PTGN_ASSERT(screen_fbo);
+		screen_fbo.GetTexture().Bind(1);
+		draw_shaders(camera);
+		Flush();
+	};
+
+	auto get_fbo = [&]() {
+		PTGN_ASSERT(fbo1 && fbo2);
+		if (current_fbo == fbo1) {
+			return fbo2;
+		}
+		return fbo1;
+	};
+
+	if (state == render_state) {
+		if (ping_pong) {
+			RenderTarget fbo{ get_fbo() };
+			draw_to_rt(fbo);
+		} else {
+			PTGN_ASSERT(current_fbo);
+			draw_shaders(render_state.camera_ ? render_state.camera_ : current_fbo.GetCamera());
+		}
+	} else {
+		// Flush will reset current_fbo so fbo needs to be retrieved before flushing.
+		RenderTarget fbo{ get_fbo() };
+		Flush();
+		render_state = state;
+		draw_to_rt(fbo);
+	}
+}
+
+void RenderData::Flush() {
+	if (!game.scene.HasCurrent()) {
+		return;
+	}
+
+	if (current_fbo) {
+		// PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 500, 500 }));
+
+		screen_fbo.Bind();
+
+		auto camera{
+			game.scene.GetCurrent().camera.window
+		}; // Scene camera or render target camera.
+
+		PTGN_ASSERT(camera);
+
+		const auto& camera_vp{ camera.GetViewProjection() };
+
+		GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
+		/*
+		// TODO: Add postfx to current_fbo
+		if (postFX) {
+			ApplyPostFX();
+		}
+		*/
+		const auto& shader{ game.shader.Get<ShapeShader::Quad>() };
+		shader.Bind();
+		shader.SetUniform("u_ViewProjection", camera_vp);
+		/*PTGN_ASSERT(batch.vertices.size() == 0);
+		PTGN_ASSERT(batch.indices.size() == 0);*/
+		// assert that vertices is screen vertices.
+		GLRenderer::SetBlendMode(fbo_blend_mode);
+		current_fbo.GetTexture().Bind(1);
+		SetCameraVertices(camera);
+		GLRenderer::DrawElements(triangle_vao, 6, false);
+
+	} else if (!batch.vertices.empty() && !batch.indices.empty()) {
+		screen_fbo.Bind();
+
+		Camera fallback_camera{ game.scene.GetCurrent().camera.primary };
+
+		PTGN_ASSERT(fallback_camera);
+
+		PTGN_ASSERT(!render_state.shader_.empty());
+
+		auto chosen_camera{ render_state.camera_
+								? render_state.camera_
+								: fallback_camera }; // Scene camera or render target camera.
+
+		PTGN_ASSERT(chosen_camera);
+
+		const auto& camera_vp{ chosen_camera.GetViewProjection() };
+
+		GLRenderer::SetViewport(
+			chosen_camera.GetViewportPosition(), chosen_camera.GetViewportSize()
+		);
+
+		triangle_vao.Bind();
+
+		triangle_vao.GetVertexBuffer().SetSubData(
+			batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()),
+			sizeof(Vertex), false
+		);
+
+		triangle_vao.GetIndexBuffer().SetSubData(
+			batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
+			sizeof(Index), false
+		);
+
+		GLRenderer::SetBlendMode(render_state.blend_mode_);
+
+		PTGN_ASSERT(batch.textures.size() <= max_texture_slots);
+
+		for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(batch.textures.size()); i++) {
+			// Save first texture slot for empty white texture.
+			std::uint32_t slot{ i + 1 };
+			Texture::Bind(batch.textures[i], slot);
+		}
+
+		for (auto shader : render_state.shader_) {
+			shader->Bind();
+			// TODO: Only set uniform if camera changed.
+			shader->SetUniform("u_ViewProjection", camera_vp);
+			// render_state.shader_->SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+
+			GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
+		}
+
+		current_fbo = {};
+	}
 
 	batch.vertices.clear();
 	batch.indices.clear();
@@ -257,6 +411,9 @@ void RenderData::Flush() {
 }
 
 void RenderData::Draw(Scene& scene) {
+	screen_fbo.Clear();
+	fbo1.Clear();
+	fbo2.Clear();
 	// TODO: Clear all render targets.
 
 	white_texture.Bind(0);
@@ -281,7 +438,7 @@ void RenderData::Draw(Scene& scene) {
 			regular_entities.emplace_back(entity);
 		} else {
 			// TODO: Add general vertices.
-			// regular_entities.emplace_back(entity);
+			regular_entities.emplace_back(entity);
 		}
 	}
 
@@ -310,6 +467,34 @@ void RenderData::Draw(Scene& scene) {
 	}
 
 	Flush();
+
+	FrameBuffer::Unbind();
+
+	GLRenderer::SetBlendMode(BlendMode::Blend);
+
+	Camera camera{ game.scene.GetCurrent().camera.window };
+
+	const auto& camera_vp{ camera.GetViewProjection() };
+
+	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
+
+	const auto& shader{ game.shader.Get<ShapeShader::Quad>() };
+
+	shader.Bind();
+	shader.SetUniform("u_ViewProjection", camera_vp);
+
+	screen_fbo.GetTexture().Bind(1);
+
+	SetCameraVertices(camera);
+
+	GLRenderer::DrawElements(triangle_vao, 6, false);
+
+	batch.vertices.clear();
+	batch.indices.clear();
+	batch.textures.clear();
+	batch.index_offset = 0;
+	render_state	   = {};
+	current_fbo		   = {};
 }
 
 /*
@@ -332,15 +517,13 @@ line_width)
 
 void RenderData::AddLines(
 	const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool connect_last_to_first,
-	bool debug
-) {
-	std::size_t vertex_modulo{ vertices.size() };
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool
+connect_last_to_first, bool debug ) { std::size_t vertex_modulo{ vertices.size() };
 
 	if (!connect_last_to_first) {
 		PTGN_ASSERT(
-			vertices.size() >= 2, "Lines which do not connect the last vertex to the first vertex "
-								  "must have at least 2 vertices"
+			vertices.size() >= 2, "Lines which do not connect the last vertex to the first
+vertex " "must have at least 2 vertices"
 		);
 		vertex_modulo -= 1;
 	} else {
@@ -352,8 +535,8 @@ void RenderData::AddLines(
 
 	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
 		AddLine(
-			vertices[i], vertices[(i + 1) % vertex_modulo], line_width, depth, camera, blend_mode,
-			color, debug
+			vertices[i], vertices[(i + 1) % vertex_modulo], line_width, depth, camera,
+blend_mode, color, debug
 		);
 	}
 }
@@ -418,8 +601,8 @@ void RenderData::AddTexturedQuad(
 		vertices = camera_vertices;
 	} else {
 		vertices = impl::GetVertices(
-			{ camera.ZoomIfNeeded(transform.position), transform.rotation, transform.scale }, size,
-			origin
+			{ camera.ZoomIfNeeded(transform.position), transform.rotation, transform.scale },
+size, origin
 		);
 	}
 	float texture_index{ GetTextureIndex(batch, texture) };
@@ -429,12 +612,10 @@ void RenderData::AddTexturedQuad(
 
 void RenderData::AddEllipse(
 	const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation, bool debug
-) {
-	PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius");
-	V2_float diameter{ radius * 2.0f };
-	auto vertices{
-		impl::GetVertices({ camera.ZoomIfNeeded(center), rotation }, diameter, Origin::Center)
+	const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation, bool
+debug ) { PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius"); V2_float
+diameter{ radius * 2.0f }; auto vertices{ impl::GetVertices({ camera.ZoomIfNeeded(center),
+rotation }, diameter, Origin::Center)
 	};
 	if (line_width == -1.0f) {
 		AddFilledEllipse(vertices, depth, camera, blend_mode, color, debug);
@@ -479,10 +660,8 @@ void RenderData::AddPoint(
 }
 
 void RenderData::AddTriangle(
-	std::array<V2_float, 3> vertices, float line_width, const Depth& depth, const Camera& camera,
-	BlendMode blend_mode, const V4_float& color, bool debug
-) {
-	for (auto& v : vertices) {
+	std::array<V2_float, 3> vertices, float line_width, const Depth& depth, const Camera&
+camera, BlendMode blend_mode, const V4_float& color, bool debug ) { for (auto& v : vertices) {
 		v = camera.ZoomIfNeeded(v);
 	}
 	if (line_width == -1.0f) {
@@ -511,10 +690,8 @@ void RenderData::AddQuad(
 }
 
 bool RenderData::FlushLights(
-	Batch& batch, const FrameBuffer& frame_buffer, const V2_float& window_size, const Depth& depth
-) {
-	if (batch.lights.empty()) {
-		return false;
+	Batch& batch, const FrameBuffer& frame_buffer, const V2_float& window_size, const Depth&
+depth ) { if (batch.lights.empty()) { return false;
 	}
 
 	PTGN_ASSERT(batch.texture_ids.empty());

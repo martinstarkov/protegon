@@ -158,12 +158,16 @@ public:
 	}
 
 	[[nodiscard]] const Scene& GetCurrent() const {
-		PTGN_ASSERT(current_, "Cannot get current scene when one has not been set");
+		PTGN_ASSERT(HasCurrent(), "Cannot get current scene when one has not been set");
 		return *current_.Get<SceneComponent>().scene;
 	}
 
 	[[nodiscard]] Scene& GetCurrent() {
 		return const_cast<Scene&>(std::as_const(*this).GetCurrent());
+	}
+
+	[[nodiscard]] bool HasCurrent() const {
+		return current_.operator bool();
 	}
 
 private:

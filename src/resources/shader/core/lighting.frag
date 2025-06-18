@@ -61,6 +61,7 @@ void main() {
     // float attenuation = attenuate_no_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
     // float attenuation = 1.0 / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
     // float attenuation = clamp(1.0 - distance * distance / (u_LightRadius * u_LightRadius), 0.0, 1.0);
+    // float attenuation = 1.0 - smoothstep(0.0, u_LightRadius, distance);
 
     o_Color = (attenuation * u_Color + u_AmbientIntensity * vec4(u_AmbientColor.x, u_AmbientColor.y, u_AmbientColor.z, 1.0)) * v_Color;
 }
