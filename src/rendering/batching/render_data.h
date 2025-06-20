@@ -1,8 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
-#include <functional>
+#include <iterator>
 #include <vector>
 
 #include "common/assert.h"
@@ -107,28 +108,50 @@ public:
 	RenderState() = default;
 
 	RenderState(
-		const std::vector<ShaderPass>& shader_passes, BlendMode blend_mode, const Camera& camera
+		const std::vector<ShaderPass>& shader_passes, BlendMode blend_mode, const Camera& camera,
+		const std::vector<ShaderPass>& pre_fx = {}, const std::vector<ShaderPass>& post_fx = {}
 	) :
-		shader_passes{ shader_passes }, blend_mode{ blend_mode }, camera{ camera } {}
+		shader_passes{ shader_passes },
+		blend_mode{ blend_mode },
+		camera{ camera },
+		pre_fx{ pre_fx },
+		post_fx{ post_fx } {}
 
 	friend bool operator==(const RenderState& a, const RenderState& b) {
 		return a.shader_passes == b.shader_passes && a.camera == b.camera &&
-			   a.blend_mode == b.blend_mode;
+			   a.blend_mode == b.blend_mode && a.pre_fx == b.pre_fx && a.post_fx == b.post_fx;
 	}
 
 	friend bool operator!=(const RenderState& a, const RenderState& b) {
 		return !(a == b);
 	}
 
-	// TODO: Add PostFX and PreFX.
-
 	std::vector<ShaderPass> shader_passes;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
+	std::vector<ShaderPass> pre_fx;
+	std::vector<ShaderPass> post_fx;
 };
 
 class RenderData {
 public:
+	template <typename T, typename S>
+	void AddVertices(const T& point_vertices, const S& point_indices) {
+		if (vertices.size() + point_vertices.size() > vertex_capacity ||
+			indices.size() + point_indices.size() > index_capacity) {
+			Flush();
+		}
+
+		vertices.insert(vertices.end(), point_vertices.begin(), point_vertices.end());
+
+		std::transform(
+			point_indices.begin(), point_indices.end(), std::back_inserter(indices),
+			[=](auto x) { return x + index_offset; }
+		);
+
+		index_offset += static_cast<Index>(point_vertices.size());
+	}
+
 	void AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state);
 
 	void AddTexturedQuad(
@@ -164,7 +187,8 @@ private:
 
 	void Draw(Scene& scene);
 
-	constexpr static std::array<Index, 6> camera_indices{ 0, 1, 2, 2, 3, 0 };
+	constexpr static std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
+	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 	constexpr static float min_line_width{ 1.0f };
 	std::array<Vertex, 4> camera_vertices;
 	Manager render_manager;

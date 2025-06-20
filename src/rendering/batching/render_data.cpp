@@ -164,22 +164,8 @@ void RenderData::Init() {
 
 void RenderData::AddTriangle(const std::array<Vertex, 3>& points, const RenderState& state) {
 	SetState(state);
-	// TODO: Get rid of magic numbers.
-	if (vertices.size() + points.size() > vertex_capacity || indices.size() + 3 > index_capacity) {
-		Flush();
-	}
 
-	vertices.reserve(vertices.size() + points.size());
-
-	vertices.insert(vertices.end(), points.begin(), points.end());
-
-	indices.reserve(indices.size() + 3);
-
-	indices.push_back(index_offset + 0);
-	indices.push_back(index_offset + 1);
-	indices.push_back(index_offset + 2);
-
-	index_offset += static_cast<Index>(points.size());
+	AddVertices(points, triangle_indices);
 }
 
 float RenderData::GetTextureIndex(std::uint32_t texture_id) {
@@ -213,25 +199,8 @@ void RenderData::AddTexturedQuad(
 
 void RenderData::AddQuad(const std::array<Vertex, 4>& points, const RenderState& state) {
 	SetState(state);
-	// TODO: Get rid of magic numbers.
-	if (vertices.size() + points.size() > vertex_capacity || indices.size() + 6 > index_capacity) {
-		Flush();
-	}
 
-	vertices.reserve(vertices.size() + points.size());
-
-	vertices.insert(vertices.end(), points.begin(), points.end());
-
-	indices.reserve(indices.size() + 6);
-
-	indices.push_back(index_offset + 0);
-	indices.push_back(index_offset + 1);
-	indices.push_back(index_offset + 2);
-	indices.push_back(index_offset + 2);
-	indices.push_back(index_offset + 3);
-	indices.push_back(index_offset + 0);
-
-	index_offset += static_cast<Index>(points.size());
+	AddVertices(points, quad_indices);
 }
 
 void RenderData::SetState(const RenderState& new_render_state) {
@@ -269,7 +238,7 @@ void RenderData::SetCameraVertices(const Camera& camera) {
 	);
 
 	triangle_vao.GetIndexBuffer().SetSubData(
-		camera_indices.data(), 0, static_cast<std::uint32_t>(camera_indices.size()), sizeof(Index),
+		quad_indices.data(), 0, static_cast<std::uint32_t>(quad_indices.size()), sizeof(Index),
 		false
 	);
 }

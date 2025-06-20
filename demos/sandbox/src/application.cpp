@@ -1,11 +1,12 @@
 #include <array>
+#include <vector>
 
-#include "components/common.h"
 #include "components/drawable.h"
 #include "components/offsets.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "math/math.h"
+#include "math/rng.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
