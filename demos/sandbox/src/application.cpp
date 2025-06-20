@@ -89,12 +89,12 @@ struct Light : public Drawable<Light> {
 
 struct SandboxScene : public Scene {
 	static constexpr int X = 100;									// Number of random quads
-	static constexpr int Y = 100;									// Number of random lights
+	static constexpr int Y = 10;									// Number of random lights
 
 	RNG<float> pos_rngx{ 0.0f, static_cast<float>(window_size.x) }; // Position range
 	RNG<float> pos_rngy{ 0.0f, static_cast<float>(window_size.y) }; // Position
 	RNG<float> size_rng{ 10.0f, 70.0f };							// Size range
-	RNG<float> light_radius_rng{ 10.0f, 100.0f };					// Light radius range
+	RNG<float> light_radius_rng{ 10.0f, 200.0f };					// Light radius range
 	RNG<float> intensity_rng{ 0.0f, 10.0f };						// Intensity range
 
 	void Enter() override {
@@ -135,7 +135,7 @@ struct SandboxScene : public Scene {
 											{ top_left.x, top_left.y + size.y } };
 
 			auto e{ CreatePointLight(
-				*this, top_left, light_radius_rng(), color::Blue, intensity_rng(), 0.2f
+				*this, top_left, light_radius_rng(), color::Blue, intensity_rng(), 2.0f
 			) };
 			e.SetDraw<Light>();
 			e.Show();
