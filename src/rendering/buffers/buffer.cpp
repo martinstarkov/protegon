@@ -14,10 +14,11 @@ template <BufferType BT>
 Buffer<BT>::Buffer(
 	const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
 ) {
-	GenerateBuffer();
-
+	PTGN_ASSERT(usage != BufferUsage::Unset);
 	PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
+
+	GenerateBuffer();
 
 	count_ = element_count;
 	// Ensure that this buffer does not get bound to any currently bound vertex array.
@@ -62,7 +63,7 @@ Buffer<BT>& Buffer<BT>::operator=(Buffer&& other) noexcept {
 template <BufferType BT>
 void Buffer<BT>::SetSubData(
 	const void* data, std::int32_t byte_offset, std::uint32_t element_count,
-	std::uint32_t element_size, bool unbind_vertex_array
+	std::uint32_t element_size, bool unbind_vertex_array, bool buffer_orphaning
 ) {
 	PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
@@ -79,6 +80,19 @@ void Buffer<BT>::SetSubData(
 	std::uint32_t size{ element_count * element_size };
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(size <= GetBoundSize(), "Attempting to bind data outside of allocated buffer size");
+
+	if (buffer_orphaning &&
+		(usage_ == BufferUsage::DynamicDraw || usage_ == BufferUsage::StreamDraw)) {
+		std::uint32_t buffer_size{ count_ * element_size };
+		PTGN_ASSERT(
+			buffer_size <= GetBoundSize(), "Buffer element size does not appear to match the "
+										   "originally allocated buffer element size"
+		);
+		GLCall(
+			BufferData(static_cast<GLenum>(BT), buffer_size, nullptr, static_cast<GLenum>(usage_))
+		);
+	}
+
 	GLCall(BufferSubData(static_cast<GLenum>(BT), byte_offset, size, data));
 }
 

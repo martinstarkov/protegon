@@ -36,10 +36,6 @@
 
 #define HDR_ENABLED 1
 
-// TODO: Add buffer orphaning using glBufferData(GL_ARRAY_BUFFER, bufferSize, nullptr,
-// GL_DYNAMIC_DRAW) before writing sub data:
-// https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming.
-
 namespace ptgn::impl {
 
 std::array<Vertex, 4> GetQuadVertices(
@@ -217,14 +213,12 @@ void RenderData::UpdateVertexArray(
 ) {
 	triangle_vao.Bind();
 
-	// TODO: Orphan buffers.
-
 	triangle_vao.GetVertexBuffer().SetSubData(
-		data_vertices, 0, static_cast<std::uint32_t>(vertex_count), sizeof(Vertex), false
+		data_vertices, 0, static_cast<std::uint32_t>(vertex_count), sizeof(Vertex), false, true
 	);
 
 	triangle_vao.GetIndexBuffer().SetSubData(
-		data_indices, 0, static_cast<std::uint32_t>(index_count), sizeof(Index), false
+		data_indices, 0, static_cast<std::uint32_t>(index_count), sizeof(Index), false, true
 	);
 }
 

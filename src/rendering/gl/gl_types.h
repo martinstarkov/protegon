@@ -49,6 +49,7 @@ enum class PrimitiveMode : std::uint32_t {
 };
 
 enum class BufferUsage {
+	Unset		= -1,
 	StreamDraw	= 0x88E0, // GL_STREAM_DRAW
 	StreamRead	= 0x88E1, // GL_STREAM_READ
 	StreamCopy	= 0x88E2, // GL_STREAM_COPY

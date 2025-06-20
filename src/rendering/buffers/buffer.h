@@ -35,9 +35,13 @@ public:
 	// @param element_size Size of a single buffer element in bytes.
 	// @param unbind_vertex_array If true (default), unbinds the current vertex array before setting
 	// new data. This ensures that no vertex array is accidentally modified.
+	// @param buffer_orphaning If true and the BufferUsage is set as DynamicDraw or StreamDraw, this
+	// will discard the old data and allocate new storage for the buffer. This avoids a stall if the
+	// GPU is still using the buffer, which can improve performance in dynamic data updates. See
+	// more here: https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming.
 	void SetSubData(
 		const void* data, std::int32_t byte_offset, std::uint32_t element_count,
-		std::uint32_t element_size, bool unbind_vertex_array
+		std::uint32_t element_size, bool unbind_vertex_array, bool buffer_orphaning
 	);
 
 	// @return Number of elements in the buffer.
@@ -65,6 +69,8 @@ private:
 
 	// Max number of elements in the buffer.
 	std::uint32_t count_{ 0 };
+
+	BufferUsage usage_{ BufferUsage::Unset };
 };
 
 using VertexBuffer	= Buffer<BufferType::Vertex>;
