@@ -60,28 +60,30 @@ struct Circle : public Drawable<Circle> {
 struct Light : public Drawable<Light> {
 	Light() {}
 
+	static void SetUniform(const Entity& entity, const Shader& shader) {
+		PointLight light{ entity };
+
+		auto offset_transform{ GetOffset(entity) };
+		auto transform{ entity.GetAbsoluteTransform() };
+		transform = transform.RelativeTo(offset_transform);
+		float radius{ light.GetRadius() * Abs(transform.scale.x) };
+
+		shader.SetUniform("u_LightPosition", transform.position);
+		shader.SetUniform("u_LightIntensity", light.GetIntensity());
+		shader.SetUniform("u_LightRadius", radius);
+		shader.SetUniform("u_Falloff", light.GetFalloff());
+		shader.SetUniform("u_Color", light.GetColor().Normalized());
+		auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
+		shader.SetUniform("u_AmbientColor", ambient_color);
+		shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
+	}
+
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
 		render_state.blend_mode	   = BlendMode::Add;
-		render_state.shader_passes = { impl::ShaderPass{
-			game.shader.Get<OtherShader::Light>(), [entity](const Shader& shader) {
-				PointLight light{ entity };
-
-				auto offset_transform{ GetOffset(entity) };
-				auto transform{ entity.GetAbsoluteTransform() };
-				transform		   = transform.RelativeTo(offset_transform);
-				float radius{ light.GetRadius() * Abs(transform.scale.x) };
-
-				shader.SetUniform("u_LightPosition", transform.position);
-				shader.SetUniform("u_LightIntensity", light.GetIntensity());
-				shader.SetUniform("u_LightRadius", radius);
-				shader.SetUniform("u_Falloff", light.GetFalloff());
-				shader.SetUniform("u_Color", light.GetColor().Normalized());
-				auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
-				shader.SetUniform("u_AmbientColor", ambient_color);
-				shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
-			} } };
-		ctx.AddShader(render_state, BlendMode::Add, false);
+		render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<OtherShader::Light>(),
+														 &SetUniform } };
+		ctx.AddShader(entity, render_state, BlendMode::Add, false);
 	}
 };
 

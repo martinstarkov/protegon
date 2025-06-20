@@ -63,9 +63,7 @@ std::array<Vertex, 4> GetQuadVertices(
 	return vertices;
 }
 
-ShaderPass::ShaderPass(
-	const Shader& shader, const std::function<void(const Shader&)>& uniform_callback
-) :
+ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
 	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
 
 void ShaderPass::Bind() const {
@@ -78,15 +76,15 @@ const Shader& ShaderPass::GetShader() const {
 	return *shader_;
 }
 
-void ShaderPass::Invoke() const {
+void ShaderPass::Invoke(const Entity& entity) const {
 	PTGN_ASSERT(shader_ != nullptr);
 	if (uniform_callback_) {
-		std::invoke(uniform_callback_, *shader_);
+		std::invoke(uniform_callback_, entity, *shader_);
 	}
 }
 
 bool ShaderPass::operator==(const ShaderPass& other) const {
-	return shader_ == other.shader_;
+	return shader_ == other.shader_ && uniform_callback_ == other.uniform_callback_;
 }
 
 bool ShaderPass::operator!=(const ShaderPass& other) const {
@@ -276,12 +274,14 @@ void RenderData::SetCameraVertices(const Camera& camera) {
 	);
 }
 
-void RenderData::AddShader(const RenderState& state, BlendMode fbo_blendmode, bool ping_pong) {
+void RenderData::AddShader(
+	const Entity& entity, const RenderState& state, BlendMode fbo_blendmode, bool ping_pong
+) {
 	auto draw_shaders = [&](const Camera& camera) {
 		GLRenderer::SetBlendMode(render_state.blend_mode);
 		for (const auto& shader_pass : state.shader_passes) {
 			shader_pass.Bind();
-			shader_pass.Invoke();
+			shader_pass.Invoke(entity);
 			const auto& shader{ shader_pass.GetShader() };
 			// TODO: Only update these if shader bind is dirty.
 			shader.SetUniform("u_ViewProjection", camera);

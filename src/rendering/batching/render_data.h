@@ -81,17 +81,17 @@ void SortEntities(std::vector<Entity>& entities) {
 	});
 }
 
+using UniformCallback = void (*)(const Entity&, const Shader&);
+
 class ShaderPass {
 public:
-	ShaderPass(
-		const Shader& shader, const std::function<void(const Shader&)>& uniform_callback = nullptr
-	);
+	ShaderPass(const Shader& shader, UniformCallback uniform_callback = nullptr);
 
 	void Bind() const;
 
 	[[nodiscard]] const Shader& GetShader() const;
 
-	void Invoke() const;
+	void Invoke(const Entity& entity) const;
 
 	bool operator==(const ShaderPass& other) const;
 
@@ -99,7 +99,7 @@ public:
 
 private:
 	const Shader* shader_{ nullptr };
-	std::function<void(const Shader&)> uniform_callback_;
+	UniformCallback uniform_callback_{ nullptr };
 };
 
 class RenderState {
@@ -120,6 +120,8 @@ public:
 		return !(a == b);
 	}
 
+	// TODO: Add PostFX and PreFX.
+
 	std::vector<ShaderPass> shader_passes;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
@@ -135,7 +137,10 @@ public:
 
 	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state);
 
-	void AddShader(const RenderState& render_state, BlendMode fbo_blendmode, bool ping_pong);
+	void AddShader(
+		const Entity& entity, const RenderState& render_state, BlendMode fbo_blendmode,
+		bool ping_pong
+	);
 
 	RenderTarget screen_fbo;
 	RenderTarget scene_fbo;
