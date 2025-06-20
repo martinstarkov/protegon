@@ -217,7 +217,7 @@ void RenderData::SetCameraVertices(const Camera& camera) {
 	FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
 	// TODO: Move to constexpr constructor.
-	auto c{ color::White.Normalized() };
+	constexpr auto c{ color::White.Normalized() };
 
 	for (std::size_t i{ 0 }; i < camera_vertices.size(); i++) {
 		camera_vertices[i].position = { positions[i].x, positions[i].y,

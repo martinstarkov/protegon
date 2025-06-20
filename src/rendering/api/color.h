@@ -42,7 +42,10 @@ struct Color {
 	}
 
 	// @return Color values normalized to 0.0f -> 1.0f range.
-	[[nodiscard]] V4_float Normalized() const;
+	[[nodiscard]] constexpr V4_float Normalized() const {
+		return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
+				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
+	}
 
 	[[nodiscard]] static Color RandomOpaque();
 	[[nodiscard]] static Color RandomTransparent();
