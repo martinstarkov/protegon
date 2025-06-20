@@ -36,6 +36,10 @@
 
 #define HDR_ENABLED 1
 
+// TODO: Add buffer orphaning using glBufferData(GL_ARRAY_BUFFER, bufferSize, nullptr,
+// GL_DYNAMIC_DRAW) before writing sub data:
+// https://www.khronos.org/opengl/wiki/Buffer_Object_Streaming.
+
 namespace ptgn::impl {
 
 std::array<Vertex, 4> GetQuadVertices(
