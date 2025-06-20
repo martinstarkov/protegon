@@ -16,6 +16,7 @@
 #include "core/manager.h"
 #include "events/event_handler.h"
 #include "events/events.h"
+#include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
@@ -67,11 +68,6 @@ std::array<Vertex, 4> GetQuadVertices(
 
 ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
 	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
-
-void ShaderPass::Bind() const {
-	PTGN_ASSERT(shader_ != nullptr);
-	shader_->Bind();
-}
 
 const Shader& ShaderPass::GetShader() const {
 	PTGN_ASSERT(shader_ != nullptr);
@@ -213,6 +209,11 @@ void RenderData::SetState(const RenderState& new_render_state) {
 	render_state = new_render_state;
 }
 
+void RenderData::BindCamera(const Shader& shader, const Matrix4& view_projection) {
+	shader.Bind();
+	shader.SetUniform("u_ViewProjection", view_projection);
+}
+
 void RenderData::UpdateVertexArray(
 	const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
 	std::size_t index_count
@@ -268,13 +269,12 @@ void RenderData::AddShader(
 	auto draw_shaders = [&](const Camera& camera) {
 		GLRenderer::SetBlendMode(render_state.blend_mode);
 		for (const auto& shader_pass : state.shader_passes) {
-			shader_pass.Bind();
-			shader_pass.Invoke(entity);
 			const auto& shader{ shader_pass.GetShader() };
 			// TODO: Only update these if shader bind is dirty.
+			BindCamera(shader, camera);
 			shader.SetUniform("u_Texture", 1);
-			shader.SetUniform("u_ViewProjection", camera);
 			shader.SetUniform("u_Resolution", camera.GetViewportSize());
+			shader_pass.Invoke(entity);
 			PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
 
 			FlushVertexArray(quad_indices.size());
@@ -351,8 +351,7 @@ void RenderData::Flush() {
 		}
 		*/
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
-		shader.Bind();
-		shader.SetUniform("u_ViewProjection", camera_vp);
+		BindCamera(shader, camera_vp);
 		/*PTGN_ASSERT(vertices.size() == 0);
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
@@ -385,9 +384,9 @@ void RenderData::Flush() {
 		BindTextures();
 
 		for (const auto& shader_pass : render_state.shader_passes) {
-			shader_pass.Bind();
+			const auto& shader{ shader_pass.GetShader() };
 			// TODO: Only set uniform if camera changed.
-			shader_pass.GetShader().SetUniform("u_ViewProjection", camera_vp);
+			BindCamera(shader, camera_vp);
 
 			FlushVertexArray(indices.size());
 		}
@@ -483,8 +482,9 @@ void RenderData::Draw(Scene& scene) {
 		shader = &game.shader.Get<ScreenShader::Default>();
 	}
 
-	shader->Bind();
-	shader->SetUniform("u_ViewProjection", camera_vp);
+	PTGN_ASSERT(shader != nullptr);
+
+	BindCamera(*shader, camera_vp);
 
 	if constexpr (HDR_ENABLED) {
 		shader->SetUniform("u_Texture", 1);

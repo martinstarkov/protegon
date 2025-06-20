@@ -71,7 +71,7 @@ public:
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
 	void SetUniform(const std::string& name, const Vector3<float>& v) const;
 	void SetUniform(const std::string& name, const Vector4<float>& v) const;
-	void SetUniform(const std::string& name, const Matrix4& m) const;
+	void SetUniform(const std::string& name, const Matrix4& matrix) const;
 	void SetUniform(const std::string& name, float v0) const;
 	void SetUniform(const std::string& name, float v0, float v1) const;
 	void SetUniform(const std::string& name, float v0, float v1, float v2) const;

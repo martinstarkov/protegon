@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iterator>
@@ -11,7 +10,6 @@
 #include "core/entity.h"
 #include "core/manager.h"
 #include "math/vector2.h"
-#include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/batching/vertex.h"
@@ -27,6 +25,7 @@ namespace ptgn {
 
 class Shader;
 class Scene;
+struct Matrix4;
 
 struct QuadVertices {
 	QuadVertices() = default;
@@ -66,19 +65,19 @@ void SortEntities(std::vector<Entity>& entities) {
 
 		if constexpr (!have_render_targets) {
 			return depthA < depthB;
+		} else {
+			if (depthA != depthB) {
+				return depthA < depthB; // Smaller depth first
+			}
+
+			PTGN_ASSERT(a.Has<RenderTarget>());
+			PTGN_ASSERT(b.Has<RenderTarget>());
+
+			// If depths are equal, compare framebuffer IDs
+			auto idA{ a.Get<RenderTarget>().GetFrameBuffer().GetId() };
+			auto idB{ b.Get<RenderTarget>().GetFrameBuffer().GetId() };
+			return idA < idB;
 		}
-
-		if (depthA != depthB) {
-			return depthA < depthB; // Smaller depth first
-		}
-
-		PTGN_ASSERT(a.Has<RenderTarget>());
-		PTGN_ASSERT(b.Has<RenderTarget>());
-
-		// If depths are equal, compare framebuffer IDs
-		auto idA{ a.Get<RenderTarget>().GetFrameBuffer().GetId() };
-		auto idB{ b.Get<RenderTarget>().GetFrameBuffer().GetId() };
-		return idA < idB;
 	});
 }
 
@@ -87,8 +86,6 @@ using UniformCallback = void (*)(const Entity&, const Shader&);
 class ShaderPass {
 public:
 	ShaderPass(const Shader& shader, UniformCallback uniform_callback = nullptr);
-
-	void Bind() const;
 
 	[[nodiscard]] const Shader& GetShader() const;
 
@@ -188,6 +185,8 @@ private:
 	static void ReadFrom(const Texture& texture);
 	static void ReadFrom(const FrameBuffer& frame_buffer);
 	static void ReadFrom(const RenderTarget& render_target);
+
+	static void BindCamera(const Shader& shader, const Matrix4& view_projection);
 
 	void Reset();
 

@@ -223,10 +223,10 @@ void Shader::SetUniform(const std::string& name, const Vector4<float>& v) const 
 	}
 }
 
-void Shader::SetUniform(const std::string& name, const Matrix4& m) const {
+void Shader::SetUniform(const std::string& name, const Matrix4& matrix) const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
-		GLCall(UniformMatrix4fv(location, 1, GL_FALSE, m.Data()));
+		GLCall(UniformMatrix4fv(location, 1, GL_FALSE, matrix.Data()));
 	}
 }
 
