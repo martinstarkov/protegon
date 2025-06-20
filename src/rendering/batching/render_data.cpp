@@ -268,59 +268,64 @@ void RenderData::ReadFrom(const RenderTarget& render_target) {
 	ReadFrom(render_target.GetFrameBuffer());
 }
 
-void RenderData::AddShader(
-	const Entity& entity, const RenderState& state, BlendMode fbo_blendmode, bool ping_pong
+void RenderData::DrawShaders(const Entity& entity, const Camera& camera) const {
+	PTGN_ASSERT(entity);
+	PTGN_ASSERT(camera);
+
+	GLRenderer::SetBlendMode(render_state.blend_mode);
+
+	for (const auto& shader_pass : render_state.shader_passes) {
+		const auto& shader{ shader_pass.GetShader() };
+		PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
+		// TODO: Only update these if shader bind is dirty.
+		BindCamera(shader, camera);
+		shader.SetUniform("u_Texture", 1);
+		shader.SetUniform("u_Resolution", camera.GetViewportSize());
+		shader_pass.Invoke(entity);
+
+		FlushVertexArray(quad_indices.size());
+	}
+}
+
+void RenderData::DrawToRenderTarget(
+	const Entity& entity, const RenderTarget& rt, BlendMode blend_mode
 ) {
-	auto draw_shaders = [&](const Camera& camera) {
-		GLRenderer::SetBlendMode(render_state.blend_mode);
-		for (const auto& shader_pass : state.shader_passes) {
-			const auto& shader{ shader_pass.GetShader() };
-			// TODO: Only update these if shader bind is dirty.
-			BindCamera(shader, camera);
-			shader.SetUniform("u_Texture", 1);
-			shader.SetUniform("u_Resolution", camera.GetViewportSize());
-			shader_pass.Invoke(entity);
-			PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
+	rt.Clear();
+	current_fbo = rt;
+	current_fbo.SetBlendMode(blend_mode);
+	auto camera{ GetCamera(rt.GetCamera()) };
+	SetCameraVertices(camera);
+	ReadFrom(screen_fbo);
+	DrawShaders(entity, camera);
+	Flush();
+}
 
-			FlushVertexArray(quad_indices.size());
-		}
-	};
+RenderTarget RenderData::GetPingPongTarget() const {
+	PTGN_ASSERT(scene_fbo && effect_fbo);
+	if (current_fbo == scene_fbo) {
+		return effect_fbo;
+	}
+	return scene_fbo;
+}
 
-	auto draw_to_rt = [&](const RenderTarget& rt) {
-		rt.Clear();
-		current_fbo = rt;
-		current_fbo.SetBlendMode(fbo_blendmode);
-		auto camera{ render_state.camera ? render_state.camera : rt.GetCamera() };
-		PTGN_ASSERT(camera);
-		SetCameraVertices(camera);
-		ReadFrom(screen_fbo);
-		std::invoke(draw_shaders, camera);
-		Flush();
-	};
-
-	auto get_fbo = [&]() {
-		PTGN_ASSERT(scene_fbo && effect_fbo);
-		if (current_fbo == scene_fbo) {
-			return effect_fbo;
-		}
-		return scene_fbo;
-	};
-
-	if (state == render_state) {
-		if (ping_pong) {
-			RenderTarget fbo{ std::invoke(get_fbo) };
-			std::invoke(draw_to_rt, fbo);
-		} else {
-			PTGN_ASSERT(current_fbo);
-			auto camera{ render_state.camera ? render_state.camera : current_fbo.GetCamera() };
-			std::invoke(draw_shaders, camera);
-		}
-	} else {
+void RenderData::AddShader(
+	const Entity& entity, const RenderState& state, BlendMode blend_mode, bool ping_pong
+) {
+	if (state != render_state) {
 		// Flush will reset current_fbo so fbo needs to be retrieved before flushing.
-		RenderTarget fbo{ std::invoke(get_fbo) };
+		auto rt{ GetPingPongTarget() };
 		Flush();
 		render_state = state;
-		std::invoke(draw_to_rt, fbo);
+		DrawToRenderTarget(entity, rt, blend_mode);
+		return;
+	}
+
+	if (ping_pong) {
+		DrawToRenderTarget(entity, GetPingPongTarget(), blend_mode);
+	} else {
+		PTGN_ASSERT(current_fbo);
+		auto camera{ GetCamera(current_fbo.GetCamera()) };
+		DrawShaders(entity, camera);
 	}
 }
 
@@ -334,7 +339,7 @@ void RenderData::BindTextures() const {
 	}
 }
 
-void RenderData::FlushCurrentFrameBuffer() {
+void RenderData::FlushCurrentTarget() {
 	auto camera{ game.scene.GetCurrent().camera.window }; // Scene camera or render target camera.
 	PTGN_ASSERT(camera);
 
@@ -356,23 +361,23 @@ void RenderData::FlushCurrentFrameBuffer() {
 	FlushVertexArray(quad_indices.size());
 }
 
+Camera RenderData::GetCamera(const Camera& fallback) const {
+	if (render_state.camera) {
+		return render_state.camera;
+	}
+	PTGN_ASSERT(fallback);
+	return fallback;
+}
+
 void RenderData::FlushBatch() {
-	auto fallback_camera{ game.scene.GetCurrent().camera.primary };
-	PTGN_ASSERT(fallback_camera);
 	PTGN_ASSERT(!render_state.shader_passes.empty());
 
-	auto chosen_camera{ render_state.camera
-							? render_state.camera
-							: fallback_camera }; // Scene camera or render target camera.
+	auto camera{ GetCamera(game.scene.GetCurrent().camera.primary) };
 
-	PTGN_ASSERT(chosen_camera);
-
-	const auto& camera_vp{ chosen_camera.GetViewProjection() };
+	const auto& camera_vp{ camera.GetViewProjection() };
 
 	UpdateVertexArray(vertices, indices);
-
-	SetRenderParameters(chosen_camera, render_state.blend_mode);
-
+	SetRenderParameters(camera, render_state.blend_mode);
 	BindTextures();
 
 	for (const auto& shader_pass : render_state.shader_passes) {
@@ -394,7 +399,7 @@ void RenderData::Flush() {
 	DrawTo(screen_fbo);
 
 	if (current_fbo) {
-		FlushCurrentFrameBuffer();
+		FlushCurrentTarget();
 	} else if (!vertices.empty() && !indices.empty()) {
 		FlushBatch();
 	}
@@ -413,11 +418,30 @@ void RenderData::FlushVertexArray(std::size_t index_count) const {
 	GLRenderer::DrawElements(triangle_vao, index_count, false);
 }
 
+void RenderData::DrawEntities(const std::vector<Entity>& entities) {
+	for (const auto& entity : entities) {
+		PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
+
+		const auto& drawable{ entity.Get<IDrawable>() };
+
+		const auto& drawable_functions{ IDrawable::data() };
+
+		const auto it{ drawable_functions.find(drawable.hash) };
+
+		PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
+
+		const auto& draw_function{ it->second };
+
+		std::invoke(draw_function, *this, entity);
+	}
+}
+
 void RenderData::Draw(Scene& scene) {
 	screen_fbo.Clear();
 	scene_fbo.Clear();
 	effect_fbo.Clear();
-	// TODO: Clear all render targets.
+
+	// TODO: Clear all render target entities.
 
 	white_texture.Bind(0);
 
@@ -453,30 +477,15 @@ void RenderData::Draw(Scene& scene) {
 	//	// rt.Draw(e);
 	// }
 
-	for (const auto& entity : regular_entities) {
-		PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
-
-		const auto& drawable{ entity.Get<IDrawable>() };
-
-		const auto& drawable_functions{ IDrawable::data() };
-
-		const auto it{ drawable_functions.find(drawable.hash) };
-
-		PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
-
-		const auto& draw_function{ it->second };
-
-		std::invoke(draw_function, *this, entity);
-	}
+	DrawEntities(regular_entities);
 
 	Flush();
 
 	FrameBuffer::Unbind();
 
-	Camera camera{ game.scene.GetCurrent().camera.window };
-	SetCameraVertices(camera);
-	const auto& camera_vp{ camera.GetViewProjection() };
+	auto camera{ game.scene.GetCurrent().camera.window };
 
+	SetCameraVertices(camera);
 	SetRenderParameters(camera, BlendMode::None);
 
 	const Shader* shader{ nullptr };
@@ -489,7 +498,7 @@ void RenderData::Draw(Scene& scene) {
 
 	PTGN_ASSERT(shader != nullptr);
 
-	BindCamera(*shader, camera_vp);
+	BindCamera(*shader, camera);
 
 	if constexpr (HDR_ENABLED) {
 		shader->SetUniform("u_Texture", 1);
@@ -502,6 +511,7 @@ void RenderData::Draw(Scene& scene) {
 	FlushVertexArray(quad_indices.size());
 
 	Reset();
+
 	// TODO: Check if this is needed.
 	render_state = {};
 	current_fbo	 = {};

@@ -191,7 +191,17 @@ private:
 
 	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
 
-	void FlushCurrentFrameBuffer();
+	void DrawShaders(const Entity& entity, const Camera& camera) const;
+
+	void DrawToRenderTarget(const Entity& entity, const RenderTarget& rt, BlendMode blend_mode);
+
+	[[nodiscard]] Camera GetCamera(const Camera& fallback) const;
+
+	[[nodiscard]] RenderTarget GetPingPongTarget() const;
+
+	void DrawEntities(const std::vector<Entity>& entities);
+
+	void FlushCurrentTarget();
 	void FlushBatch();
 
 	void Reset();
