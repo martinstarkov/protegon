@@ -187,6 +187,9 @@ private:
 	static void ReadFrom(const RenderTarget& render_target);
 
 	static void BindCamera(const Shader& shader, const Matrix4& view_projection);
+	static void SetViewport(const Camera& camera);
+
+	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
 
 	void Reset();
 
@@ -199,7 +202,6 @@ private:
 		std::size_t index_count
 	);
 
-	static void SetViewport(const Camera& camera);
 	void SetCameraVertices(const Camera& camera);
 
 	void Init();

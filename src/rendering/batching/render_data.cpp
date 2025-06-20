@@ -229,6 +229,11 @@ void RenderData::UpdateVertexArray(
 	);
 }
 
+void RenderData::SetRenderParameters(const Camera& camera, BlendMode blend_mode) {
+	SetViewport(camera);
+	GLRenderer::SetBlendMode(blend_mode);
+}
+
 void RenderData::SetViewport(const Camera& camera) {
 	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
 }
@@ -289,7 +294,7 @@ void RenderData::AddShader(
 		PTGN_ASSERT(camera);
 		SetCameraVertices(camera);
 		ReadFrom(screen_fbo);
-		draw_shaders(camera);
+		std::invoke(draw_shaders, camera);
 		Flush();
 	};
 
@@ -303,18 +308,19 @@ void RenderData::AddShader(
 
 	if (state == render_state) {
 		if (ping_pong) {
-			RenderTarget fbo{ get_fbo() };
-			draw_to_rt(fbo);
+			RenderTarget fbo{ std::invoke(get_fbo) };
+			std::invoke(draw_to_rt, fbo);
 		} else {
 			PTGN_ASSERT(current_fbo);
-			draw_shaders(render_state.camera ? render_state.camera : current_fbo.GetCamera());
+			auto camera{ render_state.camera ? render_state.camera : current_fbo.GetCamera() };
+			std::invoke(draw_shaders, camera);
 		}
 	} else {
 		// Flush will reset current_fbo so fbo needs to be retrieved before flushing.
-		RenderTarget fbo{ get_fbo() };
+		RenderTarget fbo{ std::invoke(get_fbo) };
 		Flush();
 		render_state = state;
-		draw_to_rt(fbo);
+		std::invoke(draw_to_rt, fbo);
 	}
 }
 
@@ -355,8 +361,7 @@ void RenderData::Flush() {
 		/*PTGN_ASSERT(vertices.size() == 0);
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
-		SetViewport(camera);
-		GLRenderer::SetBlendMode(current_fbo.GetBlendMode());
+		SetRenderParameters(camera, current_fbo.GetBlendMode());
 		ReadFrom(current_fbo);
 		SetCameraVertices(camera);
 		FlushVertexArray(quad_indices.size());
@@ -378,8 +383,7 @@ void RenderData::Flush() {
 
 		UpdateVertexArray(vertices, indices);
 
-		SetViewport(chosen_camera);
-		GLRenderer::SetBlendMode(render_state.blend_mode);
+		SetRenderParameters(chosen_camera, render_state.blend_mode);
 
 		BindTextures();
 
@@ -471,8 +475,7 @@ void RenderData::Draw(Scene& scene) {
 	SetCameraVertices(camera);
 	const auto& camera_vp{ camera.GetViewProjection() };
 
-	SetViewport(camera);
-	GLRenderer::SetBlendMode(BlendMode::None);
+	SetRenderParameters(camera, BlendMode::None);
 
 	const Shader* shader{ nullptr };
 
