@@ -268,6 +268,7 @@ public:
 
 	// Top left position.
 	[[nodiscard]] V2_float GetViewportPosition() const;
+
 	[[nodiscard]] V2_float GetViewportSize() const;
 
 	// If continuously is true, camera will subscribe to window resize event.

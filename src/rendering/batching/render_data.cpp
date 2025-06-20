@@ -14,7 +14,6 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/window.h"
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "math/vector2.h"
@@ -273,10 +272,10 @@ void RenderData::AddShader(
 			shader_pass.Invoke(entity);
 			const auto& shader{ shader_pass.GetShader() };
 			// TODO: Only update these if shader bind is dirty.
-			shader.SetUniform("u_ViewProjection", camera);
-			shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
-			PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
 			shader.SetUniform("u_Texture", 1);
+			shader.SetUniform("u_ViewProjection", camera);
+			shader.SetUniform("u_Resolution", camera.GetViewportSize());
+			PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
 
 			FlushVertexArray(quad_indices.size());
 		}
@@ -316,6 +315,16 @@ void RenderData::AddShader(
 		Flush();
 		render_state = state;
 		draw_to_rt(fbo);
+	}
+}
+
+void RenderData::BindTextures() const {
+	PTGN_ASSERT(textures.size() <= max_texture_slots);
+
+	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
+		// Save first texture slot for empty white texture.
+		std::uint32_t slot{ i + 1 };
+		Texture::Bind(textures[i], slot);
 	}
 }
 
@@ -373,27 +382,22 @@ void RenderData::Flush() {
 		SetViewport(chosen_camera);
 		GLRenderer::SetBlendMode(render_state.blend_mode);
 
-		PTGN_ASSERT(textures.size() <= max_texture_slots);
-
-		for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
-			// Save first texture slot for empty white texture.
-			std::uint32_t slot{ i + 1 };
-			Texture::Bind(textures[i], slot);
-		}
+		BindTextures();
 
 		for (const auto& shader_pass : render_state.shader_passes) {
 			shader_pass.Bind();
 			// TODO: Only set uniform if camera changed.
 			shader_pass.GetShader().SetUniform("u_ViewProjection", camera_vp);
-			// render_state.shader_passes->SetUniform("u_Resolution", V2_float{
-			// game.window.GetSize() });
 
 			FlushVertexArray(indices.size());
 		}
 
 		current_fbo = {};
 	}
+	Reset();
+}
 
+void RenderData::Reset() {
 	vertices.clear();
 	indices.clear();
 	textures.clear();
@@ -465,9 +469,7 @@ void RenderData::Draw(Scene& scene) {
 	FrameBuffer::Unbind();
 
 	Camera camera{ game.scene.GetCurrent().camera.window };
-
 	SetCameraVertices(camera);
-
 	const auto& camera_vp{ camera.GetViewProjection() };
 
 	SetViewport(camera);
@@ -477,25 +479,25 @@ void RenderData::Draw(Scene& scene) {
 
 	if constexpr (HDR_ENABLED) {
 		shader = &game.shader.Get<OtherShader::ToneMapping>();
+	} else {
+		shader = &game.shader.Get<ScreenShader::Default>();
+	}
 
-		shader->Bind();
+	shader->Bind();
+	shader->SetUniform("u_ViewProjection", camera_vp);
+
+	if constexpr (HDR_ENABLED) {
 		shader->SetUniform("u_Texture", 1);
 		shader->SetUniform("u_Exposure", 1.0f);
 		shader->SetUniform("u_Gamma", 2.2f);
-	} else {
-		shader = &game.shader.Get<ScreenShader::Default>();
-		shader->Bind();
 	}
-	shader->SetUniform("u_ViewProjection", camera_vp);
 
 	ReadFrom(screen_fbo);
 
 	FlushVertexArray(quad_indices.size());
 
-	vertices.clear();
-	indices.clear();
-	textures.clear();
-	index_offset = 0;
+	Reset();
+	// TODO: Check if this is needed.
 	render_state = {};
 	current_fbo	 = {};
 }

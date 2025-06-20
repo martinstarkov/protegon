@@ -189,6 +189,10 @@ private:
 	static void ReadFrom(const FrameBuffer& frame_buffer);
 	static void ReadFrom(const RenderTarget& render_target);
 
+	void Reset();
+
+	void BindTextures() const;
+
 	void FlushVertexArray(std::size_t index_count) const;
 
 	void UpdateVertexArray(
