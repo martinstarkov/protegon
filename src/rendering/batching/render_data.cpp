@@ -219,6 +219,9 @@ void RenderData::SetCameraVertices(const Camera& camera) {
 	// TODO: Move to constexpr constructor.
 	constexpr auto c{ color::White.Normalized() };
 
+	PTGN_ASSERT(positions.size() == camera_vertices.size());
+	PTGN_ASSERT(tex_coords.size() == camera_vertices.size());
+
 	for (std::size_t i{ 0 }; i < camera_vertices.size(); i++) {
 		camera_vertices[i].position = { positions[i].x, positions[i].y,
 										static_cast<float>(camera.GetDepth()) };
