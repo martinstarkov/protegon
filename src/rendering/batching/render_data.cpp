@@ -211,6 +211,27 @@ void RenderData::SetState(const RenderState& new_render_state) {
 	render_state = new_render_state;
 }
 
+void RenderData::UpdateVertexArray(
+	const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
+	std::size_t index_count
+) {
+	triangle_vao.Bind();
+
+	// TODO: Orphan buffers.
+
+	triangle_vao.GetVertexBuffer().SetSubData(
+		data_vertices, 0, static_cast<std::uint32_t>(vertex_count), sizeof(Vertex), false
+	);
+
+	triangle_vao.GetIndexBuffer().SetSubData(
+		data_indices, 0, static_cast<std::uint32_t>(index_count), sizeof(Index), false
+	);
+}
+
+void RenderData::SetViewport(const Camera& camera) {
+	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
+}
+
 void RenderData::SetCameraVertices(const Camera& camera) {
 	const auto& positions{ camera.GetVertices() };
 	auto tex_coords{ GetDefaultTextureCoordinates() };
@@ -231,19 +252,30 @@ void RenderData::SetCameraVertices(const Camera& camera) {
 		// TODO: Move to constexpr constructor.
 		camera_vertices[i].tex_index = { 1.0f };
 	}
-	triangle_vao.Bind();
 
-	// TODO: Orphan buffers.
+	UpdateVertexArray(camera_vertices, quad_indices);
+}
 
-	triangle_vao.GetVertexBuffer().SetSubData(
-		camera_vertices.data(), 0, static_cast<std::uint32_t>(camera_vertices.size()),
-		sizeof(Vertex), false
-	);
+void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
+	PTGN_ASSERT(frame_buffer.IsValid());
+	frame_buffer.Bind();
+}
 
-	triangle_vao.GetIndexBuffer().SetSubData(
-		quad_indices.data(), 0, static_cast<std::uint32_t>(quad_indices.size()), sizeof(Index),
-		false
-	);
+void RenderData::DrawTo(const RenderTarget& render_target) {
+	DrawTo(render_target.GetFrameBuffer());
+}
+
+void RenderData::ReadFrom(const Texture& texture) {
+	PTGN_ASSERT(texture.IsValid());
+	texture.Bind(1);
+}
+
+void RenderData::ReadFrom(const FrameBuffer& frame_buffer) {
+	ReadFrom(frame_buffer.GetTexture());
+}
+
+void RenderData::ReadFrom(const RenderTarget& render_target) {
+	ReadFrom(render_target.GetFrameBuffer());
 }
 
 void RenderData::AddShader(
@@ -262,7 +294,7 @@ void RenderData::AddShader(
 			shader.SetUniform("u_Texture", 1);
 			// SetCameraVertices(camera);
 
-			GLRenderer::DrawElements(triangle_vao, 6, false);
+			GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 		}
 	};
 
@@ -273,8 +305,7 @@ void RenderData::AddShader(
 		auto camera{ render_state.camera ? render_state.camera : rt.GetCamera() };
 		PTGN_ASSERT(camera);
 		SetCameraVertices(camera);
-		PTGN_ASSERT(screen_fbo);
-		screen_fbo.GetTexture().Bind(1);
+		ReadFrom(screen_fbo);
 		draw_shaders(camera);
 		Flush();
 	};
@@ -309,11 +340,9 @@ void RenderData::Flush() {
 		return;
 	}
 
+	DrawTo(screen_fbo);
+
 	if (current_fbo) {
-		PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 0, 0 }));
-
-		screen_fbo.Bind();
-
 		auto camera{
 			game.scene.GetCurrent().camera.window
 		}; // Scene camera or render target camera.
@@ -322,7 +351,7 @@ void RenderData::Flush() {
 
 		const auto& camera_vp{ camera.GetViewProjection() };
 
-		GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
+		SetViewport(camera);
 		/*
 		// TODO: Add postfx to current_fbo
 		if (postFX) {
@@ -336,13 +365,11 @@ void RenderData::Flush() {
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
 		GLRenderer::SetBlendMode(current_fbo.GetBlendMode());
-		current_fbo.GetTexture().Bind(1);
+		ReadFrom(current_fbo);
 		SetCameraVertices(camera);
-		GLRenderer::DrawElements(triangle_vao, 6, false);
+		GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 
 	} else if (!vertices.empty() && !indices.empty()) {
-		screen_fbo.Bind();
-
 		Camera fallback_camera{ game.scene.GetCurrent().camera.primary };
 
 		PTGN_ASSERT(fallback_camera);
@@ -357,19 +384,9 @@ void RenderData::Flush() {
 
 		const auto& camera_vp{ chosen_camera.GetViewProjection() };
 
-		GLRenderer::SetViewport(
-			chosen_camera.GetViewportPosition(), chosen_camera.GetViewportSize()
-		);
+		SetViewport(chosen_camera);
 
-		triangle_vao.Bind();
-
-		triangle_vao.GetVertexBuffer().SetSubData(
-			vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false
-		);
-
-		triangle_vao.GetIndexBuffer().SetSubData(
-			indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Index), false
-		);
+		UpdateVertexArray(vertices, indices);
 
 		GLRenderer::SetBlendMode(render_state.blend_mode);
 
@@ -468,7 +485,7 @@ void RenderData::Draw(Scene& scene) {
 
 	const auto& camera_vp{ camera.GetViewProjection() };
 
-	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
+	SetViewport(camera);
 
 	const Shader* shader{ nullptr };
 
@@ -485,9 +502,9 @@ void RenderData::Draw(Scene& scene) {
 	}
 	shader->SetUniform("u_ViewProjection", camera_vp);
 
-	screen_fbo.GetTexture().Bind(1);
+	ReadFrom(screen_fbo);
 
-	GLRenderer::DrawElements(triangle_vao, 6, false);
+	GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 
 	vertices.clear();
 	indices.clear();

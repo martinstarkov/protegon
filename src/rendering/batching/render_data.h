@@ -136,6 +136,13 @@ public:
 class RenderData {
 public:
 	template <typename T, typename S>
+	void UpdateVertexArray(const T& point_vertices, const S& point_indices) {
+		UpdateVertexArray(
+			point_vertices.data(), point_vertices.size(), point_indices.data(), point_indices.size()
+		);
+	}
+
+	template <typename T, typename S>
 	void AddVertices(const T& point_vertices, const S& point_indices) {
 		if (vertices.size() + point_vertices.size() > vertex_capacity ||
 			indices.size() + point_indices.size() > index_capacity) {
@@ -175,6 +182,19 @@ private:
 	friend class Renderer;
 	friend class Camera;
 
+	static void DrawTo(const FrameBuffer& frame_buffer);
+	static void DrawTo(const RenderTarget& render_target);
+
+	static void ReadFrom(const Texture& texture);
+	static void ReadFrom(const FrameBuffer& frame_buffer);
+	static void ReadFrom(const RenderTarget& render_target);
+
+	void UpdateVertexArray(
+		const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
+		std::size_t index_count
+	);
+
+	static void SetViewport(const Camera& camera);
 	void SetCameraVertices(const Camera& camera);
 
 	void Init();
