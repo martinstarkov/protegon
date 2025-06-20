@@ -208,7 +208,7 @@ private:
 
 	void BindTextures() const;
 
-	void FlushVertexArray(std::size_t index_count) const;
+	void DrawVertexArray(std::size_t index_count) const;
 
 	void UpdateVertexArray(
 		const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
@@ -225,7 +225,13 @@ private:
 
 	void Flush();
 
+	void DrawToScreen();
+
+	void DrawScene(Scene& scene);
+
 	void Draw(Scene& scene);
+
+	void ClearRenderTargets(Scene& scene);
 
 	constexpr static std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
 	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };

@@ -283,7 +283,7 @@ void RenderData::DrawShaders(const Entity& entity, const Camera& camera) const {
 		shader.SetUniform("u_Resolution", camera.GetViewportSize());
 		shader_pass.Invoke(entity);
 
-		FlushVertexArray(quad_indices.size());
+		DrawVertexArray(quad_indices.size());
 	}
 }
 
@@ -358,7 +358,7 @@ void RenderData::FlushCurrentTarget() {
 	SetRenderParameters(camera, current_fbo.GetBlendMode());
 	ReadFrom(current_fbo);
 	SetCameraVertices(camera);
-	FlushVertexArray(quad_indices.size());
+	DrawVertexArray(quad_indices.size());
 }
 
 Camera RenderData::GetCamera(const Camera& fallback) const {
@@ -385,7 +385,7 @@ void RenderData::FlushBatch() {
 		// TODO: Only set uniform if camera changed.
 		BindCamera(shader, camera_vp);
 
-		FlushVertexArray(indices.size());
+		DrawVertexArray(indices.size());
 	}
 
 	current_fbo = {};
@@ -414,7 +414,7 @@ void RenderData::Reset() {
 	index_offset = 0;
 }
 
-void RenderData::FlushVertexArray(std::size_t index_count) const {
+void RenderData::DrawVertexArray(std::size_t index_count) const {
 	GLRenderer::DrawElements(triangle_vao, index_count, false);
 }
 
@@ -436,15 +436,7 @@ void RenderData::DrawEntities(const std::vector<Entity>& entities) {
 	}
 }
 
-void RenderData::Draw(Scene& scene) {
-	screen_fbo.Clear();
-	scene_fbo.Clear();
-	effect_fbo.Clear();
-
-	// TODO: Clear all render target entities.
-
-	white_texture.Bind(0);
-
+void RenderData::DrawScene(Scene& scene) {
 	std::vector<Entity> regular_entities;
 	regular_entities.reserve(scene.Size());
 
@@ -478,9 +470,9 @@ void RenderData::Draw(Scene& scene) {
 	// }
 
 	DrawEntities(regular_entities);
+}
 
-	Flush();
-
+void RenderData::DrawToScreen() {
 	FrameBuffer::Unbind();
 
 	auto camera{ game.scene.GetCurrent().camera.window };
@@ -508,7 +500,27 @@ void RenderData::Draw(Scene& scene) {
 
 	ReadFrom(screen_fbo);
 
-	FlushVertexArray(quad_indices.size());
+	DrawVertexArray(quad_indices.size());
+}
+
+void RenderData::ClearRenderTargets(Scene& scene) {
+	screen_fbo.Clear();
+	scene_fbo.Clear();
+	effect_fbo.Clear();
+
+	// TODO: Clear all render target entities.
+}
+
+void RenderData::Draw(Scene& scene) {
+	ClearRenderTargets(scene);
+
+	white_texture.Bind(0);
+
+	DrawScene(scene);
+
+	Flush();
+
+	DrawToScreen();
 
 	Reset();
 
