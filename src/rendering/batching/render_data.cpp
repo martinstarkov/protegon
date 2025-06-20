@@ -334,6 +334,58 @@ void RenderData::BindTextures() const {
 	}
 }
 
+void RenderData::FlushCurrentFrameBuffer() {
+	auto camera{ game.scene.GetCurrent().camera.window }; // Scene camera or render target camera.
+	PTGN_ASSERT(camera);
+
+	/*
+	// TODO: Add postfx to current_fbo
+	if (postFX) {
+		ApplyPostFX();
+	}
+	*/
+
+	const auto& shader{ game.shader.Get<ScreenShader::Default>() };
+	BindCamera(shader, camera);
+	/*PTGN_ASSERT(vertices.size() == 0);
+	PTGN_ASSERT(indices.size() == 0);*/
+	// assert that vertices is screen vertices.
+	SetRenderParameters(camera, current_fbo.GetBlendMode());
+	ReadFrom(current_fbo);
+	SetCameraVertices(camera);
+	FlushVertexArray(quad_indices.size());
+}
+
+void RenderData::FlushBatch() {
+	auto fallback_camera{ game.scene.GetCurrent().camera.primary };
+	PTGN_ASSERT(fallback_camera);
+	PTGN_ASSERT(!render_state.shader_passes.empty());
+
+	auto chosen_camera{ render_state.camera
+							? render_state.camera
+							: fallback_camera }; // Scene camera or render target camera.
+
+	PTGN_ASSERT(chosen_camera);
+
+	const auto& camera_vp{ chosen_camera.GetViewProjection() };
+
+	UpdateVertexArray(vertices, indices);
+
+	SetRenderParameters(chosen_camera, render_state.blend_mode);
+
+	BindTextures();
+
+	for (const auto& shader_pass : render_state.shader_passes) {
+		const auto& shader{ shader_pass.GetShader() };
+		// TODO: Only set uniform if camera changed.
+		BindCamera(shader, camera_vp);
+
+		FlushVertexArray(indices.size());
+	}
+
+	current_fbo = {};
+}
+
 void RenderData::Flush() {
 	if (!game.scene.HasCurrent()) {
 		return;
@@ -342,61 +394,11 @@ void RenderData::Flush() {
 	DrawTo(screen_fbo);
 
 	if (current_fbo) {
-		auto camera{
-			game.scene.GetCurrent().camera.window
-		}; // Scene camera or render target camera.
-
-		PTGN_ASSERT(camera);
-
-		const auto& camera_vp{ camera.GetViewProjection() };
-
-		/*
-		// TODO: Add postfx to current_fbo
-		if (postFX) {
-			ApplyPostFX();
-		}
-		*/
-		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
-		BindCamera(shader, camera_vp);
-		/*PTGN_ASSERT(vertices.size() == 0);
-		PTGN_ASSERT(indices.size() == 0);*/
-		// assert that vertices is screen vertices.
-		SetRenderParameters(camera, current_fbo.GetBlendMode());
-		ReadFrom(current_fbo);
-		SetCameraVertices(camera);
-		FlushVertexArray(quad_indices.size());
-
+		FlushCurrentFrameBuffer();
 	} else if (!vertices.empty() && !indices.empty()) {
-		Camera fallback_camera{ game.scene.GetCurrent().camera.primary };
-
-		PTGN_ASSERT(fallback_camera);
-
-		PTGN_ASSERT(!render_state.shader_passes.empty());
-
-		auto chosen_camera{ render_state.camera
-								? render_state.camera
-								: fallback_camera }; // Scene camera or render target camera.
-
-		PTGN_ASSERT(chosen_camera);
-
-		const auto& camera_vp{ chosen_camera.GetViewProjection() };
-
-		UpdateVertexArray(vertices, indices);
-
-		SetRenderParameters(chosen_camera, render_state.blend_mode);
-
-		BindTextures();
-
-		for (const auto& shader_pass : render_state.shader_passes) {
-			const auto& shader{ shader_pass.GetShader() };
-			// TODO: Only set uniform if camera changed.
-			BindCamera(shader, camera_vp);
-
-			FlushVertexArray(indices.size());
-		}
-
-		current_fbo = {};
+		FlushBatch();
 	}
+
 	Reset();
 }
 

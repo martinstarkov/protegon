@@ -191,6 +191,9 @@ private:
 
 	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
 
+	void FlushCurrentFrameBuffer();
+	void FlushBatch();
+
 	void Reset();
 
 	void BindTextures() const;
