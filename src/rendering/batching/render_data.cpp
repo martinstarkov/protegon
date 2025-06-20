@@ -21,6 +21,7 @@
 #include "math/vector4.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
+#include "rendering/api/flip.h"
 #include "rendering/batching/vertex.h"
 #include "rendering/buffers/buffer.h"
 #include "rendering/buffers/frame_buffer.h"
@@ -40,19 +41,25 @@ namespace ptgn::impl {
 
 std::array<Vertex, 4> GetQuadVertices(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index
+	float texture_index, bool flip_vertices
 ) {
 	std::array<Vertex, 4> vertices{};
 
-	V4_float c{ color.Normalized() };
+	auto c{ color.Normalized() };
 
-	PTGN_ASSERT(vertices.size() == default_texture_coordinates.size());
+	auto texture_coordinates{ default_texture_coordinates };
+
+	if (flip_vertices) {
+		FlipTextureCoordinates(texture_coordinates, Flip::Vertical);
+	}
+
+	PTGN_ASSERT(vertices.size() == quad_points.size());
+	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
 		vertices[i].position  = { quad_points[i].x, quad_points[i].y, static_cast<float>(depth) };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { default_texture_coordinates[i].x,
-								  default_texture_coordinates[i].y };
+		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
 		vertices[i].tex_index = { texture_index };
 	}
 
@@ -228,24 +235,8 @@ void RenderData::SetViewport(const Camera& camera) {
 
 void RenderData::SetCameraVertices(const Camera& camera) {
 	const auto& positions{ camera.GetVertices() };
-	auto tex_coords{ GetDefaultTextureCoordinates() };
-	FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
-	// TODO: Move to constexpr constructor.
-	constexpr auto c{ color::White.Normalized() };
-
-	PTGN_ASSERT(positions.size() == camera_vertices.size());
-	PTGN_ASSERT(tex_coords.size() == camera_vertices.size());
-
-	for (std::size_t i{ 0 }; i < camera_vertices.size(); i++) {
-		camera_vertices[i].position = { positions[i].x, positions[i].y,
-										static_cast<float>(camera.GetDepth()) };
-		// TODO: Move to constexpr constructor.
-		camera_vertices[i].color	 = { c.x, c.y, c.z, c.w };
-		camera_vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-		// TODO: Move to constexpr constructor.
-		camera_vertices[i].tex_index = { 1.0f };
-	}
+	camera_vertices = GetQuadVertices(positions, color::White, camera.GetDepth(), 1.0f, true);
 
 	UpdateVertexArray(camera_vertices, quad_indices);
 }
@@ -286,9 +277,8 @@ void RenderData::AddShader(
 			shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
 			PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
 			shader.SetUniform("u_Texture", 1);
-			// SetCameraVertices(camera);
 
-			GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
+			FlushVertexArray(quad_indices.size());
 		}
 	};
 
@@ -345,7 +335,6 @@ void RenderData::Flush() {
 
 		const auto& camera_vp{ camera.GetViewProjection() };
 
-		SetViewport(camera);
 		/*
 		// TODO: Add postfx to current_fbo
 		if (postFX) {
@@ -358,10 +347,11 @@ void RenderData::Flush() {
 		/*PTGN_ASSERT(vertices.size() == 0);
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
+		SetViewport(camera);
 		GLRenderer::SetBlendMode(current_fbo.GetBlendMode());
 		ReadFrom(current_fbo);
 		SetCameraVertices(camera);
-		GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
+		FlushVertexArray(quad_indices.size());
 
 	} else if (!vertices.empty() && !indices.empty()) {
 		Camera fallback_camera{ game.scene.GetCurrent().camera.primary };
@@ -378,10 +368,9 @@ void RenderData::Flush() {
 
 		const auto& camera_vp{ chosen_camera.GetViewProjection() };
 
-		SetViewport(chosen_camera);
-
 		UpdateVertexArray(vertices, indices);
 
+		SetViewport(chosen_camera);
 		GLRenderer::SetBlendMode(render_state.blend_mode);
 
 		PTGN_ASSERT(textures.size() <= max_texture_slots);
@@ -399,7 +388,7 @@ void RenderData::Flush() {
 			// render_state.shader_passes->SetUniform("u_Resolution", V2_float{
 			// game.window.GetSize() });
 
-			GLRenderer::DrawElements(triangle_vao, indices.size(), false);
+			FlushVertexArray(indices.size());
 		}
 
 		current_fbo = {};
@@ -409,6 +398,10 @@ void RenderData::Flush() {
 	indices.clear();
 	textures.clear();
 	index_offset = 0;
+}
+
+void RenderData::FlushVertexArray(std::size_t index_count) const {
+	GLRenderer::DrawElements(triangle_vao, index_count, false);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -471,8 +464,6 @@ void RenderData::Draw(Scene& scene) {
 
 	FrameBuffer::Unbind();
 
-	GLRenderer::SetBlendMode(BlendMode::None);
-
 	Camera camera{ game.scene.GetCurrent().camera.window };
 
 	SetCameraVertices(camera);
@@ -480,6 +471,7 @@ void RenderData::Draw(Scene& scene) {
 	const auto& camera_vp{ camera.GetViewProjection() };
 
 	SetViewport(camera);
+	GLRenderer::SetBlendMode(BlendMode::None);
 
 	const Shader* shader{ nullptr };
 
@@ -498,7 +490,7 @@ void RenderData::Draw(Scene& scene) {
 
 	ReadFrom(screen_fbo);
 
-	GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
+	FlushVertexArray(quad_indices.size());
 
 	vertices.clear();
 	indices.clear();

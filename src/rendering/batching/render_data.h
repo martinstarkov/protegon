@@ -55,7 +55,7 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
 [[nodiscard]] std::array<Vertex, 4> GetQuadVertices(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index = 0.0f
+	float texture_index = 0.0f, bool flip_vertices = false
 );
 
 template <bool have_render_targets = false>
@@ -188,6 +188,8 @@ private:
 	static void ReadFrom(const Texture& texture);
 	static void ReadFrom(const FrameBuffer& frame_buffer);
 	static void ReadFrom(const RenderTarget& render_target);
+
+	void FlushVertexArray(std::size_t index_count) const;
 
 	void UpdateVertexArray(
 		const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
