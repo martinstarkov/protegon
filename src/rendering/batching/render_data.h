@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 #include "common/assert.h"
@@ -80,13 +81,25 @@ void SortEntities(std::vector<Entity>& entities) {
 	});
 }
 
-class Batch {
+class ShaderPass {
 public:
-	std::vector<Vertex> vertices;
-	std::vector<Index> indices;
-	std::vector<TextureId> textures;
+	ShaderPass(
+		const Shader& shader, const std::function<void(const Shader&)>& uniform_callback = nullptr
+	);
 
-	Index index_offset{ 0 };
+	void Bind() const;
+
+	[[nodiscard]] const Shader& GetShader() const;
+
+	void Invoke() const;
+
+	bool operator==(const ShaderPass& other) const;
+
+	bool operator!=(const ShaderPass& other) const;
+
+private:
+	const Shader* shader_{ nullptr };
+	std::function<void(const Shader&)> uniform_callback_;
 };
 
 class RenderState {
@@ -94,21 +107,22 @@ public:
 	RenderState() = default;
 
 	RenderState(
-		const std::vector<const Shader*>& shader, BlendMode blend_mode, const Camera& camera
+		const std::vector<ShaderPass>& shader_passes, BlendMode blend_mode, const Camera& camera
 	) :
-		shader_{ shader }, blend_mode_{ blend_mode }, camera_{ camera } {}
+		shader_passes{ shader_passes }, blend_mode{ blend_mode }, camera{ camera } {}
 
 	friend bool operator==(const RenderState& a, const RenderState& b) {
-		return a.shader_ == b.shader_ && a.camera_ == b.camera_ && a.blend_mode_ == b.blend_mode_;
+		return a.shader_passes == b.shader_passes && a.camera == b.camera &&
+			   a.blend_mode == b.blend_mode;
 	}
 
 	friend bool operator!=(const RenderState& a, const RenderState& b) {
 		return !(a == b);
 	}
 
-	std::vector<const Shader*> shader_;
-	BlendMode blend_mode_{ BlendMode::None };
-	Camera camera_;
+	std::vector<ShaderPass> shader_passes;
+	BlendMode blend_mode{ BlendMode::None };
+	Camera camera;
 };
 
 class RenderData {
@@ -121,17 +135,12 @@ public:
 
 	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state);
 
-	void AddShader(
-		const RenderState& render_state,
-		const std::vector<std::function<void(const Shader&)>>& uniforms, BlendMode fbo_blendmode,
-		bool ping_pong
-	);
+	void AddShader(const RenderState& render_state, BlendMode fbo_blendmode, bool ping_pong);
 
 	RenderTarget screen_fbo;
-	RenderTarget fbo1;
-	RenderTarget fbo2;
+	RenderTarget scene_fbo;
+	RenderTarget effect_fbo;
 	RenderTarget current_fbo;
-	BlendMode fbo_blend_mode;
 
 private:
 	friend class ptgn::Scene;
@@ -150,10 +159,15 @@ private:
 
 	void Draw(Scene& scene);
 
+	constexpr static std::array<Index, 6> camera_indices{ 0, 1, 2, 2, 3, 0 };
 	constexpr static float min_line_width{ 1.0f };
+	std::array<Vertex, 4> camera_vertices;
 	Manager render_manager;
 	RenderState render_state;
-	Batch batch;
+	std::vector<Vertex> vertices;
+	std::vector<Index> indices;
+	std::vector<TextureId> textures;
+	Index index_offset{ 0 };
 	std::size_t max_texture_slots{ 0 };
 	Texture white_texture;
 	VertexArray triangle_vao;

@@ -40,8 +40,8 @@ struct Quad : public Drawable<Quad> {
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
-		render_state.blend_mode_ = entity.GetBlendMode();
-		render_state.shader_	 = { &game.shader.Get<ShapeShader::Quad>() };
+		render_state.blend_mode	   = entity.GetBlendMode();
+		render_state.shader_passes = { game.shader.Get<ShapeShader::Quad>() };
 		ctx.AddQuad(entity.Get<QuadVertices>().vertices, render_state);
 	}
 };
@@ -51,8 +51,8 @@ struct Circle : public Drawable<Circle> {
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
-		render_state.blend_mode_ = entity.GetBlendMode();
-		render_state.shader_	 = { &game.shader.Get<ShapeShader::Circle>() };
+		render_state.blend_mode	   = entity.GetBlendMode();
+		render_state.shader_passes = { game.shader.Get<ShapeShader::Circle>() };
 		ctx.AddQuad(entity.Get<QuadVertices>().vertices, render_state);
 	}
 };
@@ -62,15 +62,14 @@ struct Light : public Drawable<Light> {
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
-		render_state.blend_mode_ = BlendMode::Add;
-		render_state.shader_	 = { &game.shader.Get<OtherShader::Light>() };
-		ctx.AddShader(
-			render_state, { std::function([entity](const Shader& shader) {
+		render_state.blend_mode	   = BlendMode::Add;
+		render_state.shader_passes = { impl::ShaderPass{
+			game.shader.Get<OtherShader::Light>(), [entity](const Shader& shader) {
 				PointLight light{ entity };
 
 				auto offset_transform{ GetOffset(entity) };
 				auto transform{ entity.GetAbsoluteTransform() };
-				transform = transform.RelativeTo(offset_transform);
+				transform		   = transform.RelativeTo(offset_transform);
 				float radius{ light.GetRadius() * Abs(transform.scale.x) };
 
 				shader.SetUniform("u_LightPosition", transform.position);
@@ -81,9 +80,8 @@ struct Light : public Drawable<Light> {
 				auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
 				shader.SetUniform("u_AmbientColor", ambient_color);
 				shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
-			}) },
-			BlendMode::Add, false
-		);
+			} } };
+		ctx.AddShader(render_state, BlendMode::Add, false);
 	}
 };
 

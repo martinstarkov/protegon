@@ -350,7 +350,7 @@ V2_float Camera::ZoomIfNeeded(const V2_float& zoomed_coordinate) const {
 	V2_float center;
 
 	if (!*this) {
-		auto camera{ game.renderer.GetRenderData().render_state.camera_ };
+		auto camera{ game.renderer.GetRenderData().render_state.camera };
 		if (!camera) {
 			return zoomed_coordinate;
 		}

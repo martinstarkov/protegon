@@ -63,6 +63,36 @@ std::array<Vertex, 4> GetQuadVertices(
 	return vertices;
 }
 
+ShaderPass::ShaderPass(
+	const Shader& shader, const std::function<void(const Shader&)>& uniform_callback
+) :
+	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
+
+void ShaderPass::Bind() const {
+	PTGN_ASSERT(shader_ != nullptr);
+	shader_->Bind();
+}
+
+const Shader& ShaderPass::GetShader() const {
+	PTGN_ASSERT(shader_ != nullptr);
+	return *shader_;
+}
+
+void ShaderPass::Invoke() const {
+	PTGN_ASSERT(shader_ != nullptr);
+	if (uniform_callback_) {
+		std::invoke(uniform_callback_, *shader_);
+	}
+}
+
+bool ShaderPass::operator==(const ShaderPass& other) const {
+	return shader_ == other.shader_;
+}
+
+bool ShaderPass::operator!=(const ShaderPass& other) const {
+	return !(*this == other);
+}
+
 void RenderData::Init() {
 	GLRenderer::DisableGammaCorrection();
 
@@ -103,11 +133,11 @@ void RenderData::Init() {
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
 		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	fbo1 = impl::CreateRenderTarget(
+	scene_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
 		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	fbo2 = impl::CreateRenderTarget(
+	effect_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
 		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
@@ -117,8 +147,8 @@ void RenderData::Init() {
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
 			screen_fbo.GetTexture().Resize(e.size);
-			fbo1.GetTexture().Resize(e.size);
-			fbo2.GetTexture().Resize(e.size);
+			scene_fbo.GetTexture().Resize(e.size);
+			effect_fbo.GetTexture().Resize(e.size);
 		})
 	);
 
@@ -131,79 +161,79 @@ void RenderData::Init() {
 	}
 #endif
 
-	SetState(RenderState{ { &game.shader.Get<ScreenShader::Default>() }, BlendMode::None, {} });
+	SetState(RenderState{ { game.shader.Get<ScreenShader::Default>() }, BlendMode::None, {} });
 }
 
-void RenderData::AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state) {
+void RenderData::AddTriangle(const std::array<Vertex, 3>& points, const RenderState& state) {
 	SetState(state);
 	// TODO: Get rid of magic numbers.
-	if (batch.vertices.size() + 3 > vertex_capacity || batch.indices.size() + 3 > index_capacity) {
+	if (vertices.size() + points.size() > vertex_capacity || indices.size() + 3 > index_capacity) {
 		Flush();
 	}
 
-	batch.vertices.reserve(batch.vertices.size() + 3);
+	vertices.reserve(vertices.size() + points.size());
 
-	batch.vertices.insert(batch.vertices.end(), vertices.begin(), vertices.end());
+	vertices.insert(vertices.end(), points.begin(), points.end());
 
-	batch.indices.reserve(batch.indices.size() + 3);
+	indices.reserve(indices.size() + 3);
 
-	batch.indices.push_back(batch.index_offset + 0);
-	batch.indices.push_back(batch.index_offset + 1);
-	batch.indices.push_back(batch.index_offset + 2);
+	indices.push_back(index_offset + 0);
+	indices.push_back(index_offset + 1);
+	indices.push_back(index_offset + 2);
 
-	batch.index_offset += 3;
+	index_offset += static_cast<Index>(points.size());
 }
 
 float RenderData::GetTextureIndex(std::uint32_t texture_id) {
 	PTGN_ASSERT(texture_id != white_texture.GetId());
 	// Texture exists in batch, therefore do not add it again.
-	for (std::size_t i{ 0 }; i < batch.textures.size(); i++) {
-		if (batch.textures[i] == texture_id) {
+	for (std::size_t i{ 0 }; i < textures.size(); i++) {
+		if (textures[i] == texture_id) {
 			// i + 1 because first texture index is white texture.
 			return static_cast<float>(i + 1);
 		}
 	}
 	// Batch is at texture capacity.
-	if (static_cast<std::uint32_t>(batch.textures.size()) == max_texture_slots - 1) {
+	if (static_cast<std::uint32_t>(textures.size()) == max_texture_slots - 1) {
 		Flush();
 	}
 	// Texture does not exist in batch but can be added.
-	batch.textures.emplace_back(texture_id);
+	textures.emplace_back(texture_id);
 	// i + 1 is implicit here because size is taken after emplacing.
-	return static_cast<float>(batch.textures.size());
+	return static_cast<float>(textures.size());
 }
 
 void RenderData::AddTexturedQuad(
-	std::array<Vertex, 4>& vertices, const RenderState& state, TextureId texture_id
+	std::array<Vertex, 4>& points, const RenderState& state, TextureId texture_id
 ) {
 	float texture_index{ GetTextureIndex(texture_id) };
-	for (auto& v : vertices) {
+	for (auto& v : points) {
 		v.tex_index = { texture_index };
 	}
-	AddQuad(vertices, state);
+	AddQuad(points, state);
 }
 
-void RenderData::AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state) {
+void RenderData::AddQuad(const std::array<Vertex, 4>& points, const RenderState& state) {
 	SetState(state);
 	// TODO: Get rid of magic numbers.
-	if (batch.vertices.size() + 4 > vertex_capacity || batch.indices.size() + 6 > index_capacity) {
+	if (vertices.size() + points.size() > vertex_capacity || indices.size() + 6 > index_capacity) {
 		Flush();
 	}
 
-	batch.vertices.reserve(batch.vertices.size() + 4);
+	vertices.reserve(vertices.size() + points.size());
 
-	batch.vertices.insert(batch.vertices.end(), vertices.begin(), vertices.end());
+	vertices.insert(vertices.end(), points.begin(), points.end());
 
-	batch.indices.reserve(batch.indices.size() + 6);
+	indices.reserve(indices.size() + 6);
 
-	batch.indices.push_back(batch.index_offset + 0);
-	batch.indices.push_back(batch.index_offset + 1);
-	batch.indices.push_back(batch.index_offset + 2);
-	batch.indices.push_back(batch.index_offset + 2);
-	batch.indices.push_back(batch.index_offset + 3);
-	batch.indices.push_back(batch.index_offset + 0);
+	indices.push_back(index_offset + 0);
+	indices.push_back(index_offset + 1);
+	indices.push_back(index_offset + 2);
+	indices.push_back(index_offset + 2);
+	indices.push_back(index_offset + 3);
+	indices.push_back(index_offset + 0);
 
-	batch.index_offset += 4;
+	index_offset += static_cast<Index>(points.size());
 }
 
 void RenderData::SetState(const RenderState& new_render_state) {
@@ -215,73 +245,49 @@ void RenderData::SetState(const RenderState& new_render_state) {
 }
 
 void RenderData::SetCameraVertices(const Camera& camera) {
-	std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
-
 	const auto& positions{ camera.GetVertices() };
 	auto tex_coords{ GetDefaultTextureCoordinates() };
 	FlipTextureCoordinates(tex_coords, Flip::Vertical);
 
+	// TODO: Move to constexpr constructor.
 	auto c{ color::White.Normalized() };
 
-	std::array<Vertex, 4> vertices{};
-
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		vertices[i].position  = { positions[i].x, positions[i].y,
-								  static_cast<float>(camera.GetDepth()) };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-		vertices[i].tex_index = { 1.0f };
+	for (std::size_t i{ 0 }; i < camera_vertices.size(); i++) {
+		camera_vertices[i].position = { positions[i].x, positions[i].y,
+										static_cast<float>(camera.GetDepth()) };
+		// TODO: Move to constexpr constructor.
+		camera_vertices[i].color	 = { c.x, c.y, c.z, c.w };
+		camera_vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
+		// TODO: Move to constexpr constructor.
+		camera_vertices[i].tex_index = { 1.0f };
 	}
 	triangle_vao.Bind();
 
+	// TODO: Orphan buffers.
+
 	triangle_vao.GetVertexBuffer().SetSubData(
-		vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false
+		camera_vertices.data(), 0, static_cast<std::uint32_t>(camera_vertices.size()),
+		sizeof(Vertex), false
 	);
 
 	triangle_vao.GetIndexBuffer().SetSubData(
-		indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Index), false
-	);
-
-	/*batch.vertices.clear();
-	auto camera_vertices{ GetQuadVertices(camera.GetVertices(), color::White, {}, 1.0f) };
-	batch.vertices.insert(batch.vertices.begin(), camera_vertices.begin(), camera_vertices.end());
-	PTGN_ASSERT(batch.vertices.size() == 4);
-	batch.indices	   = { 0, 1, 2, 2, 3, 0 };
-	batch.index_offset = 4;
-
-	triangle_vao.Bind();
-
-	triangle_vao.GetVertexBuffer().SetSubData(
-		batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()), sizeof(Vertex),
+		camera_indices.data(), 0, static_cast<std::uint32_t>(camera_indices.size()), sizeof(Index),
 		false
 	);
-
-	triangle_vao.GetIndexBuffer().SetSubData(
-		batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()), sizeof(Index),
-		false
-	);*/
 }
 
-void RenderData::AddShader(
-	const RenderState& state, const std::vector<std::function<void(const Shader&)>>& uniforms,
-	BlendMode fbo_blendmode, bool ping_pong
-) {
-	PTGN_ASSERT(uniforms.size() == state.shader_.size());
-
+void RenderData::AddShader(const RenderState& state, BlendMode fbo_blendmode, bool ping_pong) {
 	auto draw_shaders = [&](const Camera& camera) {
-		GLRenderer::SetBlendMode(render_state.blend_mode_);
-		for (auto i = 0; i < state.shader_.size(); ++i) {
-			auto shader = state.shader_[i];
-			PTGN_ASSERT(shader != nullptr);
-			shader->Bind();
-			if (uniforms[i]) {
-				uniforms[i](*shader);
-			}
+		GLRenderer::SetBlendMode(render_state.blend_mode);
+		for (const auto& shader_pass : state.shader_passes) {
+			shader_pass.Bind();
+			shader_pass.Invoke();
+			const auto& shader{ shader_pass.GetShader() };
 			// TODO: Only update these if shader bind is dirty.
-			shader->SetUniform("u_ViewProjection", camera);
-			shader->SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
-			PTGN_ASSERT(shader != &game.shader.Get<ShapeShader::Quad>());
-			shader->SetUniform("u_Texture", 1);
+			shader.SetUniform("u_ViewProjection", camera);
+			shader.SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+			PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
+			shader.SetUniform("u_Texture", 1);
 			// SetCameraVertices(camera);
 
 			GLRenderer::DrawElements(triangle_vao, 6, false);
@@ -290,9 +296,9 @@ void RenderData::AddShader(
 
 	auto draw_to_rt = [&](const RenderTarget& rt) {
 		rt.Clear();
-		current_fbo	   = rt;
-		fbo_blend_mode = fbo_blendmode;
-		auto camera{ render_state.camera_ ? render_state.camera_ : rt.GetCamera() };
+		current_fbo = rt;
+		current_fbo.SetBlendMode(fbo_blendmode);
+		auto camera{ render_state.camera ? render_state.camera : rt.GetCamera() };
 		PTGN_ASSERT(camera);
 		SetCameraVertices(camera);
 		PTGN_ASSERT(screen_fbo);
@@ -302,11 +308,11 @@ void RenderData::AddShader(
 	};
 
 	auto get_fbo = [&]() {
-		PTGN_ASSERT(fbo1 && fbo2);
-		if (current_fbo == fbo1) {
-			return fbo2;
+		PTGN_ASSERT(scene_fbo && effect_fbo);
+		if (current_fbo == scene_fbo) {
+			return effect_fbo;
 		}
-		return fbo1;
+		return scene_fbo;
 	};
 
 	if (state == render_state) {
@@ -315,7 +321,7 @@ void RenderData::AddShader(
 			draw_to_rt(fbo);
 		} else {
 			PTGN_ASSERT(current_fbo);
-			draw_shaders(render_state.camera_ ? render_state.camera_ : current_fbo.GetCamera());
+			draw_shaders(render_state.camera ? render_state.camera : current_fbo.GetCamera());
 		}
 	} else {
 		// Flush will reset current_fbo so fbo needs to be retrieved before flushing.
@@ -354,25 +360,25 @@ void RenderData::Flush() {
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 		shader.Bind();
 		shader.SetUniform("u_ViewProjection", camera_vp);
-		/*PTGN_ASSERT(batch.vertices.size() == 0);
-		PTGN_ASSERT(batch.indices.size() == 0);*/
+		/*PTGN_ASSERT(vertices.size() == 0);
+		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
-		GLRenderer::SetBlendMode(fbo_blend_mode);
+		GLRenderer::SetBlendMode(current_fbo.GetBlendMode());
 		current_fbo.GetTexture().Bind(1);
 		SetCameraVertices(camera);
 		GLRenderer::DrawElements(triangle_vao, 6, false);
 
-	} else if (!batch.vertices.empty() && !batch.indices.empty()) {
+	} else if (!vertices.empty() && !indices.empty()) {
 		screen_fbo.Bind();
 
 		Camera fallback_camera{ game.scene.GetCurrent().camera.primary };
 
 		PTGN_ASSERT(fallback_camera);
 
-		PTGN_ASSERT(!render_state.shader_.empty());
+		PTGN_ASSERT(!render_state.shader_passes.empty());
 
-		auto chosen_camera{ render_state.camera_
-								? render_state.camera_
+		auto chosen_camera{ render_state.camera
+								? render_state.camera
 								: fallback_camera }; // Scene camera or render target camera.
 
 		PTGN_ASSERT(chosen_camera);
@@ -386,47 +392,46 @@ void RenderData::Flush() {
 		triangle_vao.Bind();
 
 		triangle_vao.GetVertexBuffer().SetSubData(
-			batch.vertices.data(), 0, static_cast<std::uint32_t>(batch.vertices.size()),
-			sizeof(Vertex), false
+			vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false
 		);
 
 		triangle_vao.GetIndexBuffer().SetSubData(
-			batch.indices.data(), 0, static_cast<std::uint32_t>(batch.indices.size()),
-			sizeof(Index), false
+			indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Index), false
 		);
 
-		GLRenderer::SetBlendMode(render_state.blend_mode_);
+		GLRenderer::SetBlendMode(render_state.blend_mode);
 
-		PTGN_ASSERT(batch.textures.size() <= max_texture_slots);
+		PTGN_ASSERT(textures.size() <= max_texture_slots);
 
-		for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(batch.textures.size()); i++) {
+		for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
 			// Save first texture slot for empty white texture.
 			std::uint32_t slot{ i + 1 };
-			Texture::Bind(batch.textures[i], slot);
+			Texture::Bind(textures[i], slot);
 		}
 
-		for (auto shader : render_state.shader_) {
-			shader->Bind();
+		for (const auto& shader_pass : render_state.shader_passes) {
+			shader_pass.Bind();
 			// TODO: Only set uniform if camera changed.
-			shader->SetUniform("u_ViewProjection", camera_vp);
-			// render_state.shader_->SetUniform("u_Resolution", V2_float{ game.window.GetSize() });
+			shader_pass.GetShader().SetUniform("u_ViewProjection", camera_vp);
+			// render_state.shader_passes->SetUniform("u_Resolution", V2_float{
+			// game.window.GetSize() });
 
-			GLRenderer::DrawElements(triangle_vao, batch.indices.size(), false);
+			GLRenderer::DrawElements(triangle_vao, indices.size(), false);
 		}
 
 		current_fbo = {};
 	}
 
-	batch.vertices.clear();
-	batch.indices.clear();
-	batch.textures.clear();
-	batch.index_offset = 0;
+	vertices.clear();
+	indices.clear();
+	textures.clear();
+	index_offset = 0;
 }
 
 void RenderData::Draw(Scene& scene) {
 	screen_fbo.Clear();
-	fbo1.Clear();
-	fbo2.Clear();
+	scene_fbo.Clear();
+	effect_fbo.Clear();
 	// TODO: Clear all render targets.
 
 	white_texture.Bind(0);
@@ -512,12 +517,12 @@ void RenderData::Draw(Scene& scene) {
 
 	GLRenderer::DrawElements(triangle_vao, 6, false);
 
-	batch.vertices.clear();
-	batch.indices.clear();
-	batch.textures.clear();
-	batch.index_offset = 0;
-	render_state	   = {};
-	current_fbo		   = {};
+	vertices.clear();
+	indices.clear();
+	textures.clear();
+	index_offset = 0;
+	render_state = {};
+	current_fbo	 = {};
 }
 
 /*
@@ -535,7 +540,7 @@ line_width)
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
-	batch.AddFilledQuad(vertices, color, depth, pixel_rounding);
+	AddFilledQuad(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddLines(
@@ -572,7 +577,7 @@ void RenderData::AddFilledTriangle(
 		Batch::triangle_vertex_count, Batch::triangle_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
-	batch.AddFilledTriangle(vertices, color, depth, pixel_rounding);
+	AddFilledTriangle(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddFilledQuad(
@@ -583,7 +588,7 @@ void RenderData::AddFilledQuad(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
 	) };
-	batch.AddFilledQuad(vertices, color, depth, pixel_rounding);
+	AddFilledQuad(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddFilledEllipse(
@@ -594,7 +599,7 @@ void RenderData::AddFilledEllipse(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Circle>(), camera, blend_mode, depth, debug
 	) };
-	batch.AddFilledEllipse(vertices, color, depth, pixel_rounding);
+	AddFilledEllipse(vertices, color, depth, pixel_rounding);
 }
 
 void RenderData::AddHollowEllipse(
@@ -606,7 +611,7 @@ void RenderData::AddHollowEllipse(
 		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
 		game.shader.Get<ShapeShader::Circle>(), camera, blend_mode, depth, debug
 	) };
-	batch.AddHollowEllipse(vertices, line_width, radius, color, depth, pixel_rounding);
+	AddHollowEllipse(vertices, line_width, radius, color, depth, pixel_rounding);
 }
 
 void RenderData::AddTexturedQuad(
@@ -630,7 +635,7 @@ size, origin
 	}
 	float texture_index{ GetTextureIndex(batch, texture) };
 	PTGN_ASSERT(texture_index > 0.0f, "Failed to find a valid texture index");
-	batch.AddTexturedQuad(vertices, tex_coords, texture_index, color, depth, pixel_rounding);
+	AddTexturedQuad(vertices, tex_coords, texture_index, color, depth, pixel_rounding);
 }
 
 void RenderData::AddEllipse(
