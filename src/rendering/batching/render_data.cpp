@@ -28,6 +28,7 @@
 #include "rendering/buffers/vertex_array.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
+#include "rendering/renderer.h"
 #include "rendering/resources/render_target.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
@@ -125,7 +126,8 @@ void RenderData::Init() {
 
 	screen_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+		game.renderer.background_color_,
+		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	scene_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
@@ -252,6 +254,7 @@ void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
 }
 
 void RenderData::DrawTo(const RenderTarget& render_target) {
+	PTGN_ASSERT(render_target);
 	DrawTo(render_target.GetFrameBuffer());
 }
 
@@ -261,10 +264,12 @@ void RenderData::ReadFrom(const Texture& texture) {
 }
 
 void RenderData::ReadFrom(const FrameBuffer& frame_buffer) {
+	PTGN_ASSERT(frame_buffer.IsValid());
 	ReadFrom(frame_buffer.GetTexture());
 }
 
 void RenderData::ReadFrom(const RenderTarget& render_target) {
+	PTGN_ASSERT(render_target);
 	ReadFrom(render_target.GetFrameBuffer());
 }
 
@@ -290,13 +295,15 @@ void RenderData::DrawShaders(const Entity& entity, const Camera& camera) const {
 void RenderData::DrawToRenderTarget(
 	const Entity& entity, const RenderTarget& rt, BlendMode blend_mode
 ) {
-	rt.Clear();
 	current_fbo = rt;
+	DrawTo(current_fbo);
+	current_fbo.Clear();
 	current_fbo.SetBlendMode(blend_mode);
 	auto camera{ GetCamera(rt.GetCamera()) };
 	SetCameraVertices(camera);
 	ReadFrom(screen_fbo);
 	DrawShaders(entity, camera);
+	PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 300, 300 }));
 	Flush();
 }
 
@@ -326,6 +333,7 @@ void RenderData::AddShader(
 	} else {
 		PTGN_ASSERT(current_fbo);
 		auto camera{ GetCamera(current_fbo.GetCamera()) };
+		SetCameraVertices(camera);
 		DrawShaders(entity, camera);
 	}
 }
