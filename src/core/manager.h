@@ -129,6 +129,8 @@ public:
 	friend void from_json(const json& j, Manager& manager);
 
 private:
+	void ClearEntities() final;
+
 	explicit Manager(ecs::Manager<JSONArchiver>&& manager) :
 		ecs::Manager<JSONArchiver>{ std::move(manager) } {}
 

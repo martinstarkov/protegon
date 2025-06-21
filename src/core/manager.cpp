@@ -58,6 +58,12 @@ std::size_t Manager::Capacity() const {
 	return ecs::Manager<JSONArchiver>::Capacity();
 }
 
+void Manager::ClearEntities() {
+	for (auto entity : Entities()) {
+		entity.Destroy();
+	}
+}
+
 void Manager::Clear() {
 	return ecs::Manager<JSONArchiver>::Clear();
 }
