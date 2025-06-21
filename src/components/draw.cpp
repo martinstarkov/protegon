@@ -7,20 +7,23 @@
 #include <list>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "common/assert.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
+#include "core/game.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
-#include "core/timer.h"
 #include "debug/log.h"
+#include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/batching/render_data.h"
+#include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -75,17 +78,31 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	auto depth{ sprite.GetDepth() };
 	auto blend_mode{ sprite.GetBlendMode() };
-	auto tint{ sprite.GetTint().Normalized() };
+	auto tint{ sprite.GetTint() };
 	auto origin{ sprite.GetOrigin() };
 
 	auto display_size{ sprite.GetDisplaySize() };
-	auto coords{ sprite.GetTextureCoordinates(false) };
+	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
 	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
-	// TODO: Fix.
-	/*ctx.AddTexturedQuad(
-		transform, display_size, origin, coords, texture, depth, camera, blend_mode, tint, false
-	);*/
+	// TODO: Make a zero display_size use cached camera vertices instead.
+	PTGN_ASSERT(!display_size.IsZero());
+
+	// TODO: Cache everything from here onward.
+
+	std::array<V2_float, 4> quad_points{ impl::GetVertices(transform, display_size, origin) };
+
+	auto quad_vertices{
+		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, texture_coordinates)
+	};
+
+	impl::RenderState render_state;
+
+	render_state.blend_mode	   = blend_mode;
+	render_state.shader_passes = { game.shader.Get<ShapeShader::Quad>() };
+	render_state.camera		   = camera;
+
+	ctx.AddTexturedQuad(quad_vertices, render_state, texture.GetId());
 }
 
 Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {
