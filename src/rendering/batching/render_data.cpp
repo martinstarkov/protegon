@@ -41,13 +41,11 @@ namespace ptgn::impl {
 
 std::array<Vertex, 4> GetQuadVertices(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index, bool flip_vertices
+	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices
 ) {
 	std::array<Vertex, 4> vertices{};
 
 	auto c{ color.Normalized() };
-
-	auto texture_coordinates{ default_texture_coordinates };
 
 	if (flip_vertices) {
 		FlipTextureCoordinates(texture_coordinates, Flip::Vertical);
@@ -241,7 +239,9 @@ void RenderData::SetViewport(const Camera& camera) {
 void RenderData::SetCameraVertices(const Camera& camera) {
 	const auto& positions{ camera.GetVertices() };
 
-	camera_vertices = GetQuadVertices(positions, color::White, camera.GetDepth(), 1.0f, true);
+	camera_vertices = GetQuadVertices(
+		positions, color::White, camera.GetDepth(), 1.0f, default_texture_coordinates, true
+	);
 
 	UpdateVertexArray(camera_vertices, quad_indices);
 }
@@ -309,19 +309,20 @@ RenderTarget RenderData::GetPingPongTarget() const {
 }
 
 void RenderData::AddShader(
-	const Entity& entity, const RenderState& state, BlendMode blend_mode, bool ping_pong
+	const Entity& entity, const RenderState& state, BlendMode target_blend_mode,
+	bool uses_scene_texture
 ) {
 	if (state != render_state) {
 		// Flush will reset current_fbo so fbo needs to be retrieved before flushing.
 		auto rt{ GetPingPongTarget() };
 		Flush();
 		render_state = state;
-		DrawToRenderTarget(entity, rt, blend_mode);
+		DrawToRenderTarget(entity, rt, target_blend_mode);
 		return;
 	}
 
-	if (ping_pong) {
-		DrawToRenderTarget(entity, GetPingPongTarget(), blend_mode);
+	if (uses_scene_texture) {
+		DrawToRenderTarget(entity, GetPingPongTarget(), target_blend_mode);
 	} else {
 		PTGN_ASSERT(current_fbo);
 		auto camera{ GetCamera(current_fbo.GetCamera()) };

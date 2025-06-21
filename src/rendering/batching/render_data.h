@@ -54,7 +54,7 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
 [[nodiscard]] std::array<Vertex, 4> GetQuadVertices(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index = 0.0f, bool flip_vertices = false
+	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices = false
 );
 
 template <bool have_render_targets = false>
@@ -165,14 +165,16 @@ public:
 	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state);
 
 	void AddShader(
-		const Entity& entity, const RenderState& render_state, BlendMode fbo_blendmode,
-		bool ping_pong
+		const Entity& entity, const RenderState& render_state, BlendMode target_blend_mode,
+		bool uses_scene_texture
 	);
 
 	RenderTarget screen_fbo;
 	RenderTarget scene_fbo;
 	RenderTarget effect_fbo;
 	RenderTarget current_fbo;
+
+	constexpr static float min_line_width{ 1.0f };
 
 private:
 	friend class ptgn::Scene;
@@ -235,7 +237,6 @@ private:
 
 	constexpr static std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
 	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };
-	constexpr static float min_line_width{ 1.0f };
 	std::array<Vertex, 4> camera_vertices;
 	Manager render_manager;
 	RenderState render_state;
