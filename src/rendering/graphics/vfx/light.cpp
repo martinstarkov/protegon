@@ -5,11 +5,15 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/offsets.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/batching/batch.h"
 #include "rendering/batching/render_data.h"
@@ -45,30 +49,30 @@ PointLight CreatePointLight(
 
 PointLight::PointLight(const Entity& entity) : Entity{ entity } {}
 
+void PointLight::SetUniform(const Entity& entity, const Shader& shader) {
+	PointLight light{ entity };
+
+	auto offset_transform{ GetOffset(entity) };
+	auto transform{ entity.GetAbsoluteTransform() };
+	transform = transform.RelativeTo(offset_transform);
+	float radius{ light.GetRadius() * Abs(transform.scale.x) };
+
+	shader.SetUniform("u_LightPosition", transform.position);
+	shader.SetUniform("u_LightIntensity", light.GetIntensity());
+	shader.SetUniform("u_LightRadius", radius);
+	shader.SetUniform("u_Falloff", light.GetFalloff());
+	shader.SetUniform("u_Color", light.GetColor().Normalized());
+	auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
+	shader.SetUniform("u_AmbientColor", ambient_color);
+	shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
+}
+
 void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
-	// TODO: Fix.
-	/*auto depth{ entity.GetDepth() };
-
-	auto [it, inserted] = ctx.batch_map.try_emplace(depth);
-
-	auto& batches{ it->second };
-
-	auto& batch_vector{ batches.vector };
-
-	impl::Batch* b{ nullptr };
-
-	const auto& shader{ game.shader.Get<OtherShader::Light>() };
-
-	if (batch_vector.empty()) {
-		b = &batch_vector.emplace_back(shader, Camera{}, ctx.light_blend_mode);
-	} else {
-		b = &batch_vector.back();
-		if (!b->Uses(shader, Camera{}, ctx.light_blend_mode)) {
-			b = &batch_vector.emplace_back(shader, Camera{}, ctx.light_blend_mode);
-		}
-	}
-	PTGN_ASSERT(b != nullptr, "Failed to find batch for light");
-	b->lights.emplace_back(entity);*/
+	impl::RenderState render_state;
+	render_state.blend_mode	   = BlendMode::Add;
+	render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<OtherShader::Light>(),
+													 &SetUniform } };
+	ctx.AddShader(entity, render_state, BlendMode::Add, false);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {

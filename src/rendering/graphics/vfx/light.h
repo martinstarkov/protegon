@@ -10,6 +10,7 @@
 namespace ptgn {
 
 class Scene;
+class Shader;
 
 namespace impl {
 
@@ -70,6 +71,9 @@ public:
 
 	// @return color normalized and without alpha value.
 	[[nodiscard]] static V3_float GetShaderColor(const Color& color);
+
+private:
+	static void SetUniform(const Entity& entity, const Shader& shader);
 };
 
 // @param position Starting point of the light.
@@ -77,7 +81,7 @@ public:
 // @param color Color of the light.
 // @param intensity Intensity of the light source. Range: [0, 1].
 // @param falloff The higher the value, the Less light reaches the outer radius.
-[[nodiscard]] PointLight CreatePointLight(
+PointLight CreatePointLight(
 	Scene& scene, const V2_float& position, float radius, const Color& color,
 	float intensity = 0.5f, float falloff = 2.0f
 );
