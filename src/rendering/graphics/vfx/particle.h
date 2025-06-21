@@ -164,6 +164,6 @@ private:
 	static void Update(Scene& scene);
 };
 
-[[nodiscard]] ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info = {});
+ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info = {});
 
 } // namespace ptgn

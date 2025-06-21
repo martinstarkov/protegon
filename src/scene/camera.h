@@ -30,8 +30,6 @@ namespace impl {
 
 [[nodiscard]] Camera CreateCamera(const Entity& entity);
 
-class RenderData;
-
 class CameraInfo {
 public:
 	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
@@ -414,12 +412,11 @@ public:
 
 	operator Matrix4() const;
 
+	[[nodiscard]] V2_float ZoomIfNeeded(const V2_float& zoomed_coordinate) const;
+
 protected:
 	friend class CameraManager;
-	friend class impl::RenderData;
 	friend Camera impl::CreateCamera(const Entity& entity);
-
-	[[nodiscard]] V2_float ZoomIfNeeded(const V2_float& zoomed_coordinate) const;
 
 	// @return (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
