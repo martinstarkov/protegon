@@ -203,9 +203,15 @@ public:
 
 	// Entity activation functions.
 
+	// If true, enables the entity to trigger interaction scripts.
+	// Note: that setting interactive to true will also enable the entity but not the other way
+	// around.
+	// @return *this.
+	Entity& SetInteractive(bool interactive = true);
+
 	// If not enabled, removes the entity from the scene update list.
 	// @return *this.
-	Entity& SetEnabled(bool enabled);
+	Entity& SetEnabled(bool enabled = true);
 
 	// Removes the entity from the scene update list.
 	// @return *this.

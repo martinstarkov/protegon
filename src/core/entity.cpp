@@ -7,6 +7,7 @@
 #include "common/type_info.h"
 #include "components/common.h"
 #include "components/drawable.h"
+#include "components/input.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "core/game.h"
@@ -219,6 +220,16 @@ Entity& Entity::SetEnabled(bool enabled) {
 	} else {
 		InvokeScript<&impl::IScript::OnDisable>();
 		Remove<Enabled>();
+	}
+	return *this;
+}
+
+Entity& Entity::SetInteractive(bool interactive) {
+	if (interactive) {
+		Add<Interactive>();
+		Enable();
+	} else {
+		Remove<Interactive>();
 	}
 	return *this;
 }
