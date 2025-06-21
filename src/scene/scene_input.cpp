@@ -1,13 +1,14 @@
 #include "scene/scene_input.h"
 
 #include <functional>
+#include <vector>
 
 #include "common/assert.h"
 #include "components/common.h"
-#include "components/draw.h"
 #include "components/input.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "core/window.h"
 #include "debug/log.h"
 #include "events/event.h"
@@ -16,17 +17,18 @@
 #include "events/input_handler.h"
 #include "events/key.h"
 #include "events/mouse.h"
-#include "math/math.h"
 #include "math/vector2.h"
 #include "physics/collision/overlap.h"
+#include "rendering/api/color.h"
 #include "rendering/api/origin.h"
+#include "rendering/graphics/circle.h"
+#include "rendering/graphics/rect.h"
 #include "rendering/renderer.h"
 #include "rendering/resources/render_target.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "ui/button.h"
 
 namespace ptgn {
 
@@ -105,13 +107,12 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 		}
 	}
 
-	// TODO: Consider readding this with circle and rect objects.
-	is_circle = entity.Has<impl::ButtonRadius>();
-	is_rect	  = entity.Has<impl::ButtonSize>();
+	is_circle = entity.Has<Circle>();
+	is_rect	  = entity.Has<Rect>();
 	if (is_circle || is_rect) {
 		bool zero_sized{ false };
 		if (is_circle) {
-			float radius{ entity.Get<impl::ButtonRadius>() };
+			float radius{ entity.Get<Circle>().radius };
 			if (radius == 0.0f) {
 				zero_sized = true;
 			} else {
@@ -128,7 +129,7 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 			}
 		}
 		if (is_rect) {
-			V2_float size{ entity.Get<impl::ButtonSize>() };
+			V2_float size{ entity.Get<Rect>().size };
 			if (size.IsZero()) {
 				zero_sized = true;
 			} else {

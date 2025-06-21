@@ -197,14 +197,6 @@ struct ButtonTextToggled : public ButtonText {
 	using ButtonText::ButtonText;
 };
 
-struct ButtonSize : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-};
-
-struct ButtonRadius : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-};
-
 } // namespace impl
 
 class Button : public Entity, public Drawable<Button> {

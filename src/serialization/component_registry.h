@@ -24,6 +24,8 @@
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/api/origin.h"
+#include "rendering/graphics/circle.h"
+#include "rendering/graphics/rect.h"
 #include "rendering/graphics/vfx/light.h"
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/resources/font.h"
@@ -163,8 +165,8 @@ PTGN_REGISTER_COMPONENT(ButtonTexture)
 PTGN_REGISTER_COMPONENT(ButtonTextureToggled)
 PTGN_REGISTER_COMPONENT(ButtonText)
 PTGN_REGISTER_COMPONENT(ButtonTextToggled)
-PTGN_REGISTER_COMPONENT(ButtonSize)
-PTGN_REGISTER_COMPONENT(ButtonRadius)
+PTGN_REGISTER_COMPONENT(Rect)
+PTGN_REGISTER_COMPONENT(Circle)
 // PTGN_REGISTER_COMPONENT(Camera)
 // PTGN_REGISTER_COMPONENT(Button)
 // PTGN_REGISTER_COMPONENT(Entity)

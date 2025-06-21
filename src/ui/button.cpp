@@ -21,6 +21,8 @@
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
+#include "rendering/graphics/circle.h"
+#include "rendering/graphics/rect.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
@@ -304,10 +306,10 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Origin origin{ entity.GetOrigin() };
 	V2_float size;
 
-	if (entity.Has<impl::ButtonSize>()) {
-		size = entity.Get<impl::ButtonSize>();
-	} else if (entity.Has<impl::ButtonRadius>()) {
-		size = V2_float{ entity.Get<impl::ButtonRadius>() * 2.0f };
+	if (entity.Has<Rect>()) {
+		size = entity.Get<Rect>().size;
+	} else if (entity.Has<Circle>()) {
+		size = V2_float{ entity.Get<Circle>().radius * 2.0f };
 	}
 
 	TextureHandle button_texture_key;
@@ -495,21 +497,21 @@ Button& Button::AddInteractableCircle(float radius, const V2_float& offset) {
 }
 
 Button& Button::SetSize(const V2_float& size) {
-	Remove<impl::ButtonRadius>();
-	if (Has<impl::ButtonSize>()) {
-		Get<impl::ButtonSize>() = size;
+	Remove<Circle>();
+	if (Has<Rect>()) {
+		Get<Rect>() = size;
 	} else {
-		Add<impl::ButtonSize>(size);
+		Add<Rect>(size);
 	}
 	return *this;
 }
 
 Button& Button::SetRadius(float radius) {
-	Remove<impl::ButtonSize>();
-	if (Has<impl::ButtonRadius>()) {
-		Get<impl::ButtonRadius>() = radius;
+	Remove<Rect>();
+	if (Has<Circle>()) {
+		Get<Circle>() = radius;
 	} else {
-		Add<impl::ButtonRadius>(radius);
+		Add<Circle>(radius);
 	}
 	return *this;
 }
