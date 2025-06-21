@@ -458,7 +458,7 @@ V2_float Camera::GetPosition(Origin origin) const {
 	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
 	auto size{ info.GetSize() };
 	auto offset{ GetOriginOffset(origin, size / zoom) };
-	return position - offset;
+	return position + offset;
 }
 
 void Camera::SetToWindow(bool continuously) {
