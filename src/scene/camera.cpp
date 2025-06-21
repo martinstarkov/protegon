@@ -334,6 +334,10 @@ Camera CreateCamera(const Entity& entity) {
 	Camera camera{ entity };
 	camera.Add<Transform>();
 	camera.Add<impl::CameraInfo>();
+	PTGN_ASSERT(
+		!game.event.window.IsSubscribed(camera),
+		"Cannot create camera from entity which is already subscribed to window events"
+	);
 	camera.SubscribeToWindowEvents();
 	return camera;
 }

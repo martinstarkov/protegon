@@ -67,6 +67,9 @@ public:
 		return entity;
 	}
 
+	// Call to simulate the scene being re-entered.
+	void ReEnter();
+
 	// Called when the scene is added to active scenes.
 	virtual void Enter() {
 		/* user implementation */
@@ -93,6 +96,8 @@ private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
+	void Init();
+
 	impl::TranslateEffectSystem translate_effects_;
 	impl::RotateEffectSystem rotate_effects_;
 	impl::ScaleEffectSystem scale_effects_;
@@ -101,7 +106,6 @@ private:
 	impl::ShakeEffectSystem shake_effects_;
 	impl::FollowEffectSystem follow_effects_;
 
-	void Init();
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
 	void PreUpdate();

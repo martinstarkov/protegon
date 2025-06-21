@@ -460,9 +460,9 @@ void SceneInput::ResetInteractives(Scene* scene) {
 }
 
 void SceneInput::Init(std::size_t scene_key) {
-	if (draw_interactives_) {
+	/*if (draw_interactives_) {
 		PTGN_WARN("Drawing interactable hitboxes");
-	}
+	}*/
 
 	scene_key_ = scene_key;
 	// Input is reset to ensure no previously pressed keys are considered held.
@@ -494,6 +494,10 @@ void SceneInput::Shutdown() {
 	game.event.mouse.Unsubscribe(this);
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	ResetInteractives(&scene);
+
+	triggered_callbacks_ = false;
+	top_only_			 = false;
+	draw_interactives_	 = true;
 }
 
 void SceneInput::SetTopOnly(bool top_only) {

@@ -57,6 +57,11 @@ void Scene::SetColliderVisibility(bool collider_visibility) {
 	collider_visibility_ = collider_visibility;
 }
 
+void Scene::ReEnter() {
+	InternalExit();
+	InternalEnter();
+}
+
 void Scene::Init() {
 	active_ = true;
 
@@ -81,6 +86,8 @@ void Scene::InternalExit() {
 	Reset();
 	input.Shutdown();
 	active_ = false;
+	camera	= {};
+	physics = {};
 	Refresh();
 }
 
@@ -155,6 +162,8 @@ void Scene::PostUpdate() {
 	physics.PostCollisionUpdate(*this);
 
 	// TODO: Use Entity::Copy() instead. It caused some weird bug when I tried.
+
+	PTGN_ASSERT(camera.primary.IsAlive(), "Scene must be reinitialized after clearing");
 
 	camera.primary_unzoomed.Get<Transform>()		= camera.primary.Get<Transform>();
 	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
