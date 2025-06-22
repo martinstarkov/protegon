@@ -17,8 +17,8 @@ enum class BlendMode {
 	AddPremultiplied,	/**< pre-multiplied additive blending: dstRGB = srcRGB + dstRGB, dstA = dstA
 						 */
 	Modulate,			/**< color modulate: dstRGB = srcRGB * dstRGB, dstA = dstA */
-	Multiply, /**< color multiply: dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA)), dstA = dstA */
-	Stencil	  /**< TOOD: Add explanation */
+	Multiply /**< color multiply: dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA)), dstA = dstA */
+	// Stencil	  /**< TODO: Fix and add explanation */
 };
 
 inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
@@ -29,7 +29,7 @@ inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 		case BlendMode::AddPremultiplied:	os << "AddPremultiplied"; break;
 		case BlendMode::Modulate:			os << "Modulate"; break;
 		case BlendMode::Multiply:			os << "Multiply"; break;
-		case BlendMode::Stencil:			os << "Stencil"; break;
+		// case BlendMode::Stencil:			os << "Stencil"; break; // TODO: Readd.
 		case BlendMode::None:				os << "None"; break;
 		default:							PTGN_ERROR("Failed to identify blend mode");
 	}
