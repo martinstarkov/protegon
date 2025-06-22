@@ -18,7 +18,7 @@ class RenderTarget;
 
 namespace impl {
 
-[[nodiscard]] RenderTarget CreateRenderTarget(
+RenderTarget CreateRenderTarget(
 	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color,
 	TextureFormat texture_format
 );
@@ -128,7 +128,7 @@ private:
 // Create a render target with a custom size.
 // @param size The size of the render target.
 // @param clear_color The background color of the render target.
-[[nodiscard]] RenderTarget CreateRenderTarget(
+RenderTarget CreateRenderTarget(
 	Scene& scene, const V2_float& size, const Color& clear_color = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );

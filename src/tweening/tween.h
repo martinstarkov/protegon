@@ -254,6 +254,6 @@ Tween& Tween::AddTweenScript(TArgs&&... args) {
 template <typename T>
 using TweenScript = impl::Script<T, impl::ITweenScript>;
 
-[[nodiscard]] Tween CreateTween(Scene& scene);
+Tween CreateTween(Scene& scene);
 
 } // namespace ptgn

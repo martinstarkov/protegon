@@ -422,13 +422,13 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	return os;
 }
 
-[[nodiscard]] Button CreateButton(Scene& scene);
+Button CreateButton(Scene& scene);
 
-[[nodiscard]] Button CreateTextButton(
+Button CreateTextButton(
 	Scene& scene, const TextContent& text_content, const TextColor& text_color = color::Black
 );
 
 // @param toggled Whether or not the button start in the toggled state.
-[[nodiscard]] ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
+ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
 
 } // namespace ptgn

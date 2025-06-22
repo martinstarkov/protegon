@@ -182,7 +182,7 @@ public:
 	// Creates a child in the same manager as the parent entity.
 	// @param name Optional name to retrieve the child handle by later. Note: If no name is
 	// provided, the returned handle will be the only way to access the child directly.
-	[[nodiscard]] Entity CreateChild(std::string_view name = {});
+	Entity CreateChild(std::string_view name = {});
 
 	void ClearChildren();
 

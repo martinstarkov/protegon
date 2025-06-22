@@ -124,6 +124,8 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
+	// TODO: Fix background color.
+
 	screen_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
 		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888

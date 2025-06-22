@@ -28,7 +28,7 @@ class Camera;
 
 namespace impl {
 
-[[nodiscard]] Camera CreateCamera(const Entity& entity);
+Camera CreateCamera(const Entity& entity);
 
 class CameraInfo {
 public:
@@ -472,7 +472,7 @@ private:
 	impl::SceneKey scene_key_{ 0 };
 };
 
-[[nodiscard]] Camera CreateCamera(Scene& scene);
+Camera CreateCamera(Scene& scene);
 
 /*
 class CameraController;
