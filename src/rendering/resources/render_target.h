@@ -79,8 +79,12 @@ public:
 
 	void Bind() const;
 
-	// Clear the render target.
+	// Clear the render target. This function will bind the render target's frame buffer.
 	void Clear() const;
+
+	// Clear the render target to a specified color without modifying its internally stored clear
+	// color. This function will bind the render target's frame buffer.
+	void ClearToColor(const Color& color) const;
 
 private:
 	friend class impl::RenderData;

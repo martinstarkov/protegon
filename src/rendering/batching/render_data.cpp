@@ -178,10 +178,8 @@ float RenderData::GetTextureIndex(std::uint32_t texture_id) {
 	if (static_cast<std::uint32_t>(textures.size()) == max_texture_slots - 1) {
 		Flush();
 	}
-	// Texture does not exist in batch but can be added.
-	textures.emplace_back(texture_id);
 	// i + 1 is implicit here because size is taken after emplacing.
-	return static_cast<float>(textures.size());
+	return static_cast<float>(textures.size() + 1);
 }
 
 void RenderData::AddTexturedQuad(
@@ -192,6 +190,9 @@ void RenderData::AddTexturedQuad(
 		v.tex_index = { texture_index };
 	}
 	AddQuad(points, state);
+	// Must be done after adding quad because AddQuad may Flush the current batch, which will clear
+	// textures.
+	textures.emplace_back(texture_id);
 }
 
 void RenderData::AddQuad(const std::array<Vertex, 4>& points, const RenderState& state) {
@@ -292,11 +293,11 @@ void RenderData::DrawShaders(const Entity& entity, const Camera& camera) const {
 }
 
 void RenderData::DrawToRenderTarget(
-	const Entity& entity, const RenderTarget& rt, BlendMode blend_mode
+	const Entity& entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
 ) {
 	current_fbo = rt;
 	DrawTo(current_fbo);
-	current_fbo.Clear();
+	current_fbo.ClearToColor(clear_color);
 	current_fbo.SetBlendMode(blend_mode);
 	auto camera{ GetCamera(rt.GetCamera()) };
 	SetCameraVertices(camera);
@@ -315,19 +316,19 @@ RenderTarget RenderData::GetPingPongTarget() const {
 
 void RenderData::AddShader(
 	const Entity& entity, const RenderState& state, BlendMode target_blend_mode,
-	bool uses_scene_texture
+	const Color& target_clear_color, bool uses_scene_texture
 ) {
 	if (state != render_state) {
 		// Flush will reset current_fbo so fbo needs to be retrieved before flushing.
 		auto rt{ GetPingPongTarget() };
 		Flush();
 		render_state = state;
-		DrawToRenderTarget(entity, rt, target_blend_mode);
+		DrawToRenderTarget(entity, rt, target_blend_mode, target_clear_color);
 		return;
 	}
 
 	if (uses_scene_texture) {
-		DrawToRenderTarget(entity, GetPingPongTarget(), target_blend_mode);
+		DrawToRenderTarget(entity, GetPingPongTarget(), target_blend_mode, target_clear_color);
 	} else {
 		PTGN_ASSERT(current_fbo);
 		auto camera{ GetCamera(current_fbo.GetCamera()) };
@@ -364,6 +365,7 @@ void RenderData::FlushCurrentTarget() {
 	// assert that vertices is screen vertices.
 	SetRenderParameters(camera, current_fbo.GetBlendMode());
 	ReadFrom(current_fbo);
+	// PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 300, 300 }));
 	SetCameraVertices(camera);
 	DrawVertexArray(quad_indices.size());
 }
@@ -407,6 +409,7 @@ void RenderData::Flush() {
 
 	if (current_fbo) {
 		FlushCurrentTarget();
+		current_fbo = {};
 	} else if (!vertices.empty() && !indices.empty()) {
 		FlushBatch();
 	}

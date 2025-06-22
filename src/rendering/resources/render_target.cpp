@@ -148,6 +148,14 @@ void RenderTarget::Clear() const {
 	impl::GLRenderer::ClearToColor(clear_color);
 }
 
+void RenderTarget::ClearToColor(const Color& color) const {
+	PTGN_ASSERT(Has<impl::FrameBuffer>(), "Cannot clear render target with no frame buffer");
+	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
+	frame_buffer.Bind();
+	PTGN_ASSERT(frame_buffer.IsBound(), "Render target frame buffer must be bound before clearing");
+	impl::GLRenderer::ClearToColor(color);
+}
+
 /*
 void RenderTarget::DrawToScreen() const {
 	FrameBuffer::Unbind();

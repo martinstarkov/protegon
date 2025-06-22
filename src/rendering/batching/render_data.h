@@ -166,7 +166,7 @@ public:
 
 	void AddShader(
 		const Entity& entity, const RenderState& render_state, BlendMode target_blend_mode,
-		bool uses_scene_texture
+		const Color& target_clear_color, bool uses_scene_texture
 	);
 
 	RenderTarget screen_fbo;
@@ -195,7 +195,9 @@ private:
 
 	void DrawShaders(const Entity& entity, const Camera& camera) const;
 
-	void DrawToRenderTarget(const Entity& entity, const RenderTarget& rt, BlendMode blend_mode);
+	void DrawToRenderTarget(
+		const Entity& entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
+	);
 
 	[[nodiscard]] Camera GetCamera(const Camera& fallback) const;
 
