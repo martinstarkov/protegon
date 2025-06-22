@@ -36,7 +36,7 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
-#define HDR_ENABLED 1
+#define HDR_ENABLED 0
 
 namespace ptgn::impl {
 
@@ -126,8 +126,7 @@ void RenderData::Init() {
 
 	screen_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		game.renderer.background_color_,
-		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	scene_fbo = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
@@ -303,7 +302,6 @@ void RenderData::DrawToRenderTarget(
 	SetCameraVertices(camera);
 	ReadFrom(screen_fbo);
 	DrawShaders(entity, camera);
-	PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 300, 300 }));
 	Flush();
 }
 
