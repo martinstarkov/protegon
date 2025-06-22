@@ -1,14 +1,17 @@
 
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "core/game.h"
 #include "events/input_handler.h"
 #include "events/key.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
+#include "rendering/batching/render_data.h"
 #include "rendering/graphics/circle.h"
 #include "rendering/graphics/rect.h"
 #include "rendering/graphics/vfx/light.h"
+#include "rendering/resources/shader.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -25,6 +28,46 @@ RNG<float> pos_rngy{ 0.0f, static_cast<float>(window_size.y) };
 RNG<float> size_rng{ 10.0f, 70.0f };
 RNG<float> light_radius_rng{ 10.0f, 200.0f };
 RNG<float> intensity_rng{ 0.0f, 10.0f };
+
+class Blur : public Drawable<Blur> {
+public:
+	Blur() {}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		impl::RenderState render_state;
+		render_state.blend_mode	   = BlendMode::None;
+		render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<ScreenShader::Blur>(),
+														 nullptr } };
+		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
+	}
+};
+
+class Grayscale : public Drawable<Grayscale> {
+public:
+	Grayscale() {}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		impl::RenderState render_state;
+		render_state.blend_mode	   = BlendMode::None;
+		render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<ScreenShader::Grayscale>(),
+														 nullptr } };
+		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
+	}
+};
+
+void CreateBlur(Scene& scene) {
+	auto blur{ scene.CreateEntity() };
+
+	blur.SetDraw<Blur>();
+	blur.Show();
+}
+
+void CreateGrayscale(Scene& scene) {
+	auto grayscale{ scene.CreateEntity() };
+
+	grayscale.SetDraw<Grayscale>();
+	grayscale.Show();
+}
 
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
@@ -51,8 +94,11 @@ void GenerateTestCases() {
 	};
 
 	auto fx = [](Scene& s) {
+		CreateGrayscale(s);
+		CreateBlur(s);
+		PTGN_LOG("Grayscale");
+		PTGN_LOG("Blur");
 		// CreateFX(s, "Bloom");
-		PTGN_LOG("Bloom");
 	};
 
 	std::vector<std::function<void(Scene&)>> primitives = { rect, circle, sprite, light, fx };

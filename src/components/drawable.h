@@ -93,6 +93,8 @@ public:
 	std::size_t hash{ 0 };
 };
 
+// Classes inheriting from Drawable must have an explicitly defined default constructor.
+// (= default is not enough).
 template <typename T>
 using Drawable = IDrawable::Registrar<T>;
 
