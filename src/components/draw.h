@@ -73,7 +73,7 @@ struct Sprite : public Entity, public Drawable<Sprite> {
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
 
-[[nodiscard]] Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key);
+Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key);
 
 struct Animation : public Sprite {
 	using Sprite::Sprite;
@@ -137,7 +137,7 @@ struct Animation : public Sprite {
 // @param play_count Number of times that the animation plays for, -1 for infinite replay.
 // @param start_pixel Pixel within the texture which indicates the top left position of the
 // animation sequence.
-[[nodiscard]] Animation CreateAnimation(
+Animation CreateAnimation(
 	Scene& scene, const TextureHandle& texture_key, milliseconds animation_duration,
 	std::size_t frame_count, const V2_int& frame_size, std::int64_t play_count = -1,
 	const V2_int& start_pixel = {}
