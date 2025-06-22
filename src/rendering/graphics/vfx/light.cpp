@@ -72,7 +72,7 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.blend_mode	   = BlendMode::Add;
 	render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<OtherShader::Light>(),
 													 &SetUniform } };
-	ctx.AddShader(entity, render_state, BlendMode::AddPremultiplied, false);
+	ctx.AddShader(entity, render_state, BlendMode::Add, color::Black, false);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {
