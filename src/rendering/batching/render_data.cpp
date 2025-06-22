@@ -305,7 +305,7 @@ void RenderData::DrawToRenderTarget(
 	SetCameraVertices(camera);
 	ReadFrom(screen_fbo);
 	DrawShaders(entity, camera);
-	Flush();
+	// Flush();
 }
 
 RenderTarget RenderData::GetPingPongTarget() const {
