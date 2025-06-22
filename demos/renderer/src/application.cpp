@@ -14,7 +14,7 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
-constexpr int start_test_index{ 0 };
+constexpr int start_test_index{ 2 };
 
 using SceneBuilder = std::function<void(Scene&)>;
 std::vector<SceneBuilder> tests;
@@ -53,17 +53,17 @@ RNG<float> intensity_rng{ 0.0f, 10.0f };
 void GenerateTestCases() {
 	auto rect = [](Scene& s) {
 		CreateRect(s, { 100, 100 }, { 50, 50 }, color::Red, -1.0f);
-		PTGN_LOG("Rect at 100, 100");
+		PTGN_LOG("Rect");
 	};
 
 	auto circle = [](Scene& s) {
 		CreateCircle(s, { 200, 200 }, 30.0f, color::Blue, -1.0f);
-		PTGN_LOG("Circle at 200, 200");
+		PTGN_LOG("Circle");
 	};
 
 	auto light = [](Scene& s) {
-		CreatePointLight(s, { 300, 300 }, 100.0f, color::Purple, 4.0f, 1.0f);
-		PTGN_LOG("Point light at 300, 300");
+		CreatePointLight(s, { 300, 300 }, 100.0f, color::Purple, 1.0f, 1.0f);
+		PTGN_LOG("Point light");
 	};
 
 	auto fx = [](Scene& s) {
