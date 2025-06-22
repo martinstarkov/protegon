@@ -18,7 +18,7 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
-constexpr int start_test_index{ 2 };
+constexpr int start_test_index{ 3 };
 
 using SceneBuilder = std::function<void(Scene&)>;
 std::vector<SceneBuilder> tests;
@@ -69,6 +69,52 @@ void CreateGrayscale(Scene& scene) {
 	grayscale.Show();
 }
 
+// Helper to generate all combinations of k elements from base
+void GenerateCombinations(
+	const std::vector<std::size_t>& base, std::size_t k, std::size_t start,
+	std::vector<std::size_t>& current, std::vector<std::vector<std::size_t>>& result
+) {
+	if (current.size() == k) {
+		result.push_back(current);
+		return;
+	}
+
+	for (std::size_t i = start; i < base.size(); ++i) {
+		current.push_back(base[i]);
+		GenerateCombinations(base, k, i + 1, current, result);
+		current.pop_back();
+	}
+}
+
+// Main function: generates all permutations of lengths 1 to N of [0, 1, ..., N-1]
+std::vector<std::vector<std::size_t>> GenerateNumberPermutations(std::size_t N) {
+	std::vector<std::vector<std::size_t>> all_permutations;
+
+	if (N == 0) {
+		return all_permutations;
+	}
+
+	std::vector<std::size_t> base(N);
+	for (std::size_t i = 0; i < N; ++i) {
+		base[i] = i;
+	}
+
+	for (std::size_t k = 1; k <= N; ++k) {
+		std::vector<std::vector<std::size_t>> combinations;
+		std::vector<std::size_t> current_comb;
+		GenerateCombinations(base, k, 0, current_comb, combinations);
+
+		for (auto& combo : combinations) {
+			std::sort(combo.begin(), combo.end());
+			do {
+				all_permutations.push_back(combo);
+			} while (std::next_permutation(combo.begin(), combo.end()));
+		}
+	}
+
+	return all_permutations;
+}
+
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
 
@@ -78,9 +124,22 @@ void GenerateTestCases() {
 		PTGN_LOG("Rect");
 	};
 
+	auto rect2 = [](Scene& s) {
+		CreateRect(s, { 100, 100 }, { 50, 50 }, color::Red, -1.0f);
+		CreateRect(s, { 100, 200 }, { 50, 50 }, color::Red, -1.0f);
+
+		PTGN_LOG("2x Rect");
+	};
+
 	auto circle = [](Scene& s) {
 		CreateCircle(s, { 200, 200 }, 30.0f, color::Blue, -1.0f);
 		PTGN_LOG("Circle");
+	};
+
+	auto circle2 = [](Scene& s) {
+		CreateCircle(s, { 200, 200 }, 30.0f, color::Blue, -1.0f);
+		CreateCircle(s, { 200, 300 }, 30.0f, color::Blue, -1.0f);
+		PTGN_LOG("2x Circle");
 	};
 
 	auto sprite = [](Scene& s) {
@@ -88,59 +147,57 @@ void GenerateTestCases() {
 		PTGN_LOG("Sprite");
 	};
 
+	auto sprite2 = [](Scene& s) {
+		CreateSprite(s, "test").SetPosition({ 500, 500 });
+		CreateSprite(s, "test").SetPosition({ 500, 700 });
+		PTGN_LOG("2x Sprite");
+	};
+
 	auto light = [](Scene& s) {
 		CreatePointLight(s, { 400, 400 }, 100.0f, color::Purple, 1.0f, 1.0f);
 		PTGN_LOG("Point light");
 	};
 
-	auto fx = [](Scene& s) {
-		CreateGrayscale(s);
-		CreateBlur(s);
-		PTGN_LOG("Grayscale");
-		PTGN_LOG("Blur");
-		// CreateFX(s, "Bloom");
+	auto light2 = [](Scene& s) {
+		CreatePointLight(s, { 400, 400 }, 100.0f, color::Purple, 1.0f, 1.0f);
+		CreatePointLight(s, { 400, 500 }, 100.0f, color::Purple, 1.0f, 1.0f);
+		PTGN_LOG("2x Point light");
 	};
 
-	std::vector<std::function<void(Scene&)>> primitives = { rect, circle, sprite, light, fx };
+	auto blur = [](Scene& s) {
+		CreateBlur(s);
+		PTGN_LOG("Blur");
+	};
 
-	// Generate all combinations of 1, 2, and 3 object creations in different orders
-	for (size_t i = 0; i < primitives.size(); ++i) {
-		tests.emplace_back([=](Scene& s) { primitives[i](s); });
+	auto blur2 = [](Scene& s) {
+		CreateBlur(s);
+		CreateBlur(s);
+		PTGN_LOG("2x Blur");
+	};
 
-		for (size_t j = 0; j < primitives.size(); ++j) {
-			if (j == i) {
-				continue;
-			}
-			tests.emplace_back([=](Scene& s) {
-				primitives[i](s);
-				primitives[j](s);
-			});
+	std::vector<std::function<void(Scene&)>> primitives = {
+		/*rect, circle, sprite, light, blur,*/ blur2, rect2, circle2, sprite2, light2
+	};
 
-			for (size_t k = 0; k < primitives.size(); ++k) {
-				if (k == i || k == j) {
-					continue;
-				}
-				tests.emplace_back([=](Scene& s) {
-					primitives[i](s);
-					primitives[j](s);
-					primitives[k](s);
-				});
+	auto permutations{ GenerateNumberPermutations(primitives.size()) };
+	for (const auto& permutation : permutations) {
+		bool skip = false;
+		for (auto i = 0; i < permutation.size(); i++) {
+			auto index{ permutation[i] };
+			if (i == 0 && index == 0) { //  Skip all permutations that start with 0.
+				skip = true;
 			}
 		}
+		if (!skip) {
+			auto generate = [=](Scene& s) {
+				for (auto index : permutation) {
+					PTGN_ASSERT(index < primitives.size());
+					std::invoke(primitives[index], s);
+				}
+			};
+			tests.emplace_back(generate);
+		}
 	}
-
-	// Add one test with all 4
-	tests.emplace_back([](Scene& s) {
-		CreateRect(s, { 100, 100 }, { 40, 40 }, color::Magenta, -1);
-		CreateCircle(s, { 200, 200 }, 35.0f, color::Cyan, -1);
-		CreateSprite(s, "test").SetPosition({ 500, 500 });
-		CreatePointLight(s, { 400, 400 }, 90.0f, color::Orange, 1.0f, 2.0f);
-		// CreateFX(s, "Grain");
-		PTGN_LOG("All 4 test case");
-	});
-
-	// Add empty scene test
-	tests.emplace_back([](Scene& s) { PTGN_LOG("Empty scene"); });
 }
 
 struct RendererScene : public Scene {
