@@ -228,7 +228,7 @@ FrameBufferId FrameBuffer::GetBoundId() {
 	return static_cast<FrameBufferId>(id);
 }
 
-Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
+Color FrameBuffer::GetPixel(const V2_int& coordinate, bool restore_bind_state) const {
 	V2_int size{ texture_.GetSize() };
 	PTGN_ASSERT(
 		coordinate.x >= 0 && coordinate.x < size.x,
@@ -238,6 +238,10 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 		coordinate.y >= 0 && coordinate.y < size.y,
 		"Cannot get pixel out of range of frame buffer texture"
 	);
+	TextureId restore_texture_id{ 0 };
+	if (restore_bind_state) {
+		restore_texture_id = Texture::GetBoundId();
+	}
 	texture_.Bind();
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
 	PTGN_ASSERT(
@@ -247,17 +251,31 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate) const {
 	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * 1 * 1));
 	int y{ size.y - 1 - coordinate.y };
 	PTGN_ASSERT(y >= 0);
+	FrameBufferId restore_frame_buffer_id{ 0 };
+	if (restore_bind_state) {
+		restore_frame_buffer_id = FrameBuffer::GetBoundId();
+	}
 	Bind();
 	GLCall(glReadPixels(
 		coordinate.x, y, 1, 1, static_cast<GLenum>(formats.input_format),
 		static_cast<GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
 	));
+	if (restore_bind_state) {
+		Texture::BindId(restore_texture_id);
+		FrameBuffer::Bind(restore_frame_buffer_id);
+	}
 	return Color{ v[0], v[1], v[2],
 				  formats.color_components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
 }
 
-void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) const {
+void FrameBuffer::ForEachPixel(
+	const std::function<void(V2_int, Color)>& func, bool restore_bind_state
+) const {
 	V2_int size{ texture_.GetSize() };
+	TextureId restore_texture_id{ 0 };
+	if (restore_bind_state) {
+		restore_texture_id = Texture::GetBoundId();
+	}
 	texture_.Bind();
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
 	PTGN_ASSERT(
@@ -267,6 +285,10 @@ void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) c
 
 	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
 	);
+	FrameBufferId restore_frame_buffer_id{ 0 };
+	if (restore_bind_state) {
+		restore_frame_buffer_id = FrameBuffer::GetBoundId();
+	}
 	Bind();
 	GLCall(glReadPixels(
 		0, 0, size.x, size.y, static_cast<GLenum>(formats.input_format),
@@ -284,6 +306,10 @@ void FrameBuffer::ForEachPixel(const std::function<void(V2_int, Color)>& func) c
 													   : static_cast<std::uint8_t>(255) };
 			std::invoke(func, V2_int{ i, j }, color);
 		}
+	}
+	if (restore_bind_state) {
+		Texture::BindId(restore_texture_id);
+		FrameBuffer::Bind(restore_frame_buffer_id);
 	}
 }
 
