@@ -117,16 +117,16 @@ std::vector<std::vector<std::size_t>> GenerateNumberPermutations(std::size_t N) 
 
 float rect_thickness{ -1.0f };
 float circle_thickness{ -1.0f };
-V2_float rect1_pos{ 150, 150 };
-V2_float rect1_size{ 200, 200 };
+V2_float rect1_pos{ 300, 300 };
+V2_float rect1_size{ 400, 400 };
 Color rect1_color{ color::Red };
-V2_float rect2_pos{ 150, 250 };
-V2_float rect2_size{ 200, 200 };
+V2_float rect2_pos{ 300, 500 };
+V2_float rect2_size{ 400, 400 };
 Color rect2_color{ color::Green };
-V2_float circle1_pos{ 300, 150 };
+V2_float circle1_pos{ 500, 300 };
 float circle1_radius{ 200 };
 Color circle1_color{ color::Blue };
-V2_float circle2_pos{ 300, 250 };
+V2_float circle2_pos{ 500, 500 };
 float circle2_radius{ 200 };
 Color circle2_color{ color::Gray };
 
