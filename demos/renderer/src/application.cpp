@@ -18,7 +18,7 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
-constexpr int start_test_index{ 3 };
+constexpr int start_test_index{ 0 };
 
 using SceneBuilder = std::function<void(Scene&)>;
 std::vector<SceneBuilder> tests;
@@ -115,9 +115,92 @@ std::vector<std::vector<std::size_t>> GenerateNumberPermutations(std::size_t N) 
 	return all_permutations;
 }
 
+float rect_thickness{ -1.0f };
+float circle_thickness{ -1.0f };
+V2_float rect1_pos{ 150, 150 };
+V2_float rect1_size{ 200, 200 };
+Color rect1_color{ color::Red };
+V2_float rect2_pos{ 150, 250 };
+V2_float rect2_size{ 200, 200 };
+Color rect2_color{ color::Green };
+V2_float circle1_pos{ 300, 150 };
+float circle1_radius{ 200 };
+Color circle1_color{ color::Blue };
+V2_float circle2_pos{ 300, 250 };
+float circle2_radius{ 200 };
+Color circle2_color{ color::Gray };
+
+void AddRect(Scene& s, V2_float pos, V2_float size, Color color) {
+	CreateRect(s, pos, size, color, rect_thickness);
+	PTGN_LOG("Rect: ", color);
+}
+
+void AddCircle(Scene& s, V2_float pos, float radius, Color color) {
+	CreateCircle(s, pos, radius, color, circle_thickness);
+	PTGN_LOG("Circle: ", color);
+}
+
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
 
+	tests.emplace_back([](Scene& s) { AddRect(s, rect1_pos, rect1_size, rect1_color); });
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+	});
+
+	tests.emplace_back([](Scene& s) { AddCircle(s, circle1_pos, circle1_radius, circle1_color); });
+	tests.emplace_back([](Scene& s) {
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	/*
 	auto rect = [](Scene& s) {
 		CreateRect(s, { 100, 100 }, { 50, 50 }, color::Red, -1.0f);
 
@@ -176,7 +259,7 @@ void GenerateTestCases() {
 	};
 
 	std::vector<std::function<void(Scene&)>> primitives = {
-		/*rect, circle, sprite, light, blur,*/ blur2, rect2, circle2, sprite2, light2
+		blur2, rect2, circle2, sprite2, light2
 	};
 
 	auto permutations{ GenerateNumberPermutations(primitives.size()) };
@@ -198,6 +281,7 @@ void GenerateTestCases() {
 			tests.emplace_back(generate);
 		}
 	}
+	*/
 }
 
 struct RendererScene : public Scene {
