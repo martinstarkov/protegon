@@ -46,7 +46,9 @@ void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	// TODO: Cache everything from here onward.
 
-	std::array<V2_float, 4> quad_points{ impl::GetVertices(transform, scaled_radius, origin) };
+	std::array<V2_float, 4> quad_points{
+		impl::GetVertices(transform, scaled_radius * 2.0f, origin)
+	};
 
 	impl::RenderState render_state;
 
