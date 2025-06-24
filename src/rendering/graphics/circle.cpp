@@ -25,7 +25,6 @@ Circle::Circle(float circle_radius) : radius{ circle_radius } {}
 void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
 	PTGN_ASSERT(entity.Has<Circle>());
 
-	auto transform{ entity.GetAbsoluteTransform() };
 	auto depth{ entity.GetDepth() };
 	auto blend_mode{ entity.GetBlendMode() };
 	auto tint{ entity.GetTint() };
@@ -34,8 +33,7 @@ void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
 	const auto& circle{ entity.Get<Circle>() };
 	auto line_width{ entity.GetOrDefault<LineWidth>() };
 
-	auto offset_transform{ GetOffset(entity) };
-	transform = transform.RelativeTo(offset_transform);
+	auto transform{ entity.GetDrawTransform() };
 
 	auto camera{ entity.GetOrDefault<Camera>() };
 

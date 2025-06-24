@@ -239,6 +239,11 @@ public:
 	// transform.
 	[[nodiscard]] Transform GetAbsoluteTransform() const;
 
+	// @return The transform of the entity used for drawing it with respect to its parent scene
+	// camera transform. This includes any shake of bounce offsets which are only used for
+	// rendering.
+	[[nodiscard]] Transform GetDrawTransform() const;
+
 	// Set the relative position of the entity with respect to its parent entity, camera, or
 	// scene camera position.
 	// @return *this.

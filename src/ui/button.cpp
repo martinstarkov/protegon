@@ -266,7 +266,7 @@ Button::Button(const Entity& entity) : Entity{ entity } {}
 void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto state{ Button{ entity }.GetState() };
 
-	const auto& transform{ entity.GetAbsoluteTransform() };
+	const auto& transform{ entity.GetDrawTransform() };
 	auto blend_mode{ entity.GetBlendMode() };
 	auto depth{ entity.GetDepth() };
 	auto tint{ entity.GetTint().Normalized() };
@@ -415,7 +415,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 
 	if (text != nullptr && *text != Text{}) {
-		auto text_transform{ text->GetAbsoluteTransform() };
+		auto text_transform{ text->GetDrawTransform() };
 
 		V2_float text_size;
 		if (entity.Has<impl::ButtonTextFixedSize>()) {

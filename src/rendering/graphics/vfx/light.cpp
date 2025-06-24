@@ -52,9 +52,7 @@ PointLight::PointLight(const Entity& entity) : Entity{ entity } {}
 void PointLight::SetUniform(const Entity& entity, const Shader& shader) {
 	PointLight light{ entity };
 
-	auto offset_transform{ GetOffset(entity) };
-	auto transform{ entity.GetAbsoluteTransform() };
-	transform = transform.RelativeTo(offset_transform);
+	auto transform{ entity.GetDrawTransform() };
 	float radius{ light.GetRadius() * Abs(transform.scale.x) };
 
 	shader.SetUniform("u_LightPosition", transform.position);

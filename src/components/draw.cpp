@@ -72,9 +72,7 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 		return;
 	}
 
-	auto transform{ sprite.GetAbsoluteTransform() };
-	auto offset_transform{ GetOffset(sprite) };
-	transform = transform.RelativeTo(offset_transform);
+	auto transform{ sprite.GetDrawTransform() };
 
 	auto depth{ sprite.GetDepth() };
 	auto blend_mode{ sprite.GetBlendMode() };

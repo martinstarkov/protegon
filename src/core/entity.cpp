@@ -8,6 +8,7 @@
 #include "components/common.h"
 #include "components/drawable.h"
 #include "components/input.h"
+#include "components/offsets.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "core/game.h"
@@ -265,6 +266,13 @@ Transform Entity::GetAbsoluteTransform() const {
 		return transform;
 	}
 	return transform.RelativeTo(HasParent() ? GetParent().GetAbsoluteTransform() : Transform{});
+}
+
+Transform Entity::GetDrawTransform() const {
+	auto offset_transform{ GetOffset(*this) };
+	auto transform{ GetAbsoluteTransform() };
+	transform = transform.RelativeTo(offset_transform);
+	return transform;
 }
 
 Entity& Entity::SetPosition(const V2_float& position) {

@@ -26,7 +26,6 @@ Rect::Rect(const V2_float& rect_size) : size{ rect_size } {}
 void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	PTGN_ASSERT(entity.Has<Rect>());
 
-	auto transform{ entity.GetAbsoluteTransform() };
 	auto depth{ entity.GetDepth() };
 	auto blend_mode{ entity.GetBlendMode() };
 	auto tint{ entity.GetTint() };
@@ -35,8 +34,7 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	const auto& rect{ entity.Get<Rect>() };
 	auto line_width{ entity.GetOrDefault<LineWidth>() };
 
-	auto offset_transform{ GetOffset(entity) };
-	transform = transform.RelativeTo(offset_transform);
+	auto transform{ entity.GetDrawTransform() };
 
 	auto camera{ entity.GetOrDefault<Camera>() };
 

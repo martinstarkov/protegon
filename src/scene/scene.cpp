@@ -94,13 +94,13 @@ void Scene::InternalExit() {
 void Scene::Draw() {
 	if (collider_visibility_) {
 		for (auto [e, b] : EntitiesWith<BoxCollider>()) {
-			const auto& transform{ e.GetAbsoluteTransform() };
+			const auto& transform{ e.GetDrawTransform() };
 			DrawDebugRect(
 				transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
 			);
 		}
 		for (auto [e, c] : EntitiesWith<CircleCollider>()) {
-			const auto& transform{ e.GetAbsoluteTransform() };
+			const auto& transform{ e.GetDrawTransform() };
 			DrawDebugCircle(transform.position, c.radius, collider_color_, 1.0f);
 		}
 	}
