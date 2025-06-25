@@ -81,7 +81,7 @@ void SortEntities(std::vector<Entity>& entities) {
 	});
 }
 
-using UniformCallback = void (*)(const Entity&, const Shader&);
+using UniformCallback = void (*)(Entity, const Shader&);
 
 class ShaderPass {
 public:
@@ -89,7 +89,7 @@ public:
 
 	[[nodiscard]] const Shader& GetShader() const;
 
-	void Invoke(const Entity& entity) const;
+	void Invoke(Entity entity) const;
 
 	bool operator==(const ShaderPass& other) const;
 
@@ -106,7 +106,7 @@ public:
 
 	RenderState(
 		const std::vector<ShaderPass>& shader_passes, BlendMode blend_mode, const Camera& camera,
-		const std::vector<ShaderPass>& pre_fx = {}, const std::vector<ShaderPass>& post_fx = {}
+		const PreFX& pre_fx = {}, const PostFX& post_fx = {}
 	) :
 		shader_passes{ shader_passes },
 		blend_mode{ blend_mode },
@@ -126,8 +126,8 @@ public:
 	std::vector<ShaderPass> shader_passes;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
-	std::vector<ShaderPass> pre_fx;
-	std::vector<ShaderPass> post_fx;
+	PreFX pre_fx;
+	PostFX post_fx;
 };
 
 class RenderData {
@@ -154,6 +154,19 @@ public:
 		);
 
 		index_offset += static_cast<Index>(point_vertices.size());
+
+		// TODO: Move this elsewhere.
+		// TODO: Fix PostFX.
+		// TODO: Ensure that PostFX does not lead to bugs when the render state is the same as the
+		// previous render state. For instance: Blur, Rect.AddPostFX(Blur()); Or alternatively.
+		// Blur.AddPostFX(Blur());
+		// TODO: For PostFX, batches need to be drawn to the current fbo.
+		if (!render_state.post_fx.post_fx_.empty()) {
+			auto post_fx{ render_state.post_fx.post_fx_ };
+			for (const auto& effect : post_fx) {
+				InvokeDrawable(effect);
+			}
+		}
 	}
 
 	void AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state);
@@ -165,7 +178,7 @@ public:
 	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state);
 
 	void AddShader(
-		const Entity& entity, const RenderState& render_state, BlendMode target_blend_mode,
+		Entity entity, const RenderState& render_state, BlendMode target_blend_mode,
 		const Color& target_clear_color, bool uses_scene_texture
 	);
 
@@ -193,10 +206,12 @@ private:
 
 	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
 
-	void DrawShaders(const Entity& entity, const Camera& camera) const;
+	void InvokeDrawable(const Entity& entity);
+
+	void DrawShaders(Entity entity, const Camera& camera) const;
 
 	void DrawToRenderTarget(
-		const Entity& entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
+		Entity entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
 	);
 
 	[[nodiscard]] Camera GetCamera(const Camera& fallback) const;
@@ -225,7 +240,8 @@ private:
 
 	float GetTextureIndex(std::uint32_t texture_id);
 
-	void SetState(const RenderState& new_render_state);
+	// @return True if the render state changed, false otherwise.
+	bool SetState(const RenderState& new_render_state);
 
 	void Flush();
 

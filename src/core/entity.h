@@ -244,6 +244,10 @@ public:
 	// rendering.
 	[[nodiscard]] Transform GetDrawTransform() const;
 
+	Entity& AddPostFX(Entity post_fx);
+
+	Entity& AddPreFX(Entity pre_fx);
+
 	// Set the relative position of the entity with respect to its parent entity, camera, or
 	// scene camera position.
 	// @return *this.
@@ -940,6 +944,38 @@ private:
 	friend class ptgn::Entity;
 
 	std::unordered_set<Entity> children_;
+};
+
+struct PostFX {
+	PostFX() = default;
+
+	std::unordered_set<Entity> post_fx_;
+
+	friend bool operator==(const PostFX& a, const PostFX& b) {
+		return a.post_fx_ == b.post_fx_;
+	}
+
+	friend bool operator!=(const PostFX& a, const PostFX& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_NAMED(PostFX, KeyValue("post_fx", post_fx_))
+};
+
+struct PreFX {
+	PreFX() = default;
+
+	std::unordered_set<Entity> pre_fx_;
+
+	friend bool operator==(const PreFX& a, const PreFX& b) {
+		return a.pre_fx_ == b.pre_fx_;
+	}
+
+	friend bool operator!=(const PreFX& a, const PreFX& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_NAMED(PreFX, KeyValue("pre_fx", pre_fx_))
 };
 
 } // namespace impl

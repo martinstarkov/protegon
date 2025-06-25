@@ -275,6 +275,18 @@ Transform Entity::GetDrawTransform() const {
 	return transform;
 }
 
+Entity& Entity::AddPostFX(Entity post_fx) {
+	post_fx.Hide();
+	GetOrAdd<impl::PostFX>().post_fx_.insert(post_fx);
+	return *this;
+}
+
+Entity& Entity::AddPreFX(Entity pre_fx) {
+	pre_fx.Hide();
+	GetOrAdd<impl::PreFX>().pre_fx_.insert(pre_fx);
+	return *this;
+}
+
 Entity& Entity::SetPosition(const V2_float& position) {
 	if (Has<Transform>()) {
 		Get<Transform>().position = position;

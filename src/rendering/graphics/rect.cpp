@@ -56,6 +56,8 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.blend_mode	   = blend_mode;
 	render_state.shader_passes = { game.shader.Get<ShapeShader::Quad>() };
 	render_state.camera		   = camera;
+	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
+	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 
 	if (line_width == -1.0f) {
 		ctx.AddQuad(quad_vertices, render_state);

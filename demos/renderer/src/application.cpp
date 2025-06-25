@@ -38,6 +38,8 @@ public:
 		render_state.blend_mode	   = BlendMode::None;
 		render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<ScreenShader::Blur>(),
 														 nullptr } };
+		render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
+		render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
 	}
 };
@@ -51,22 +53,26 @@ public:
 		render_state.blend_mode	   = BlendMode::None;
 		render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<ScreenShader::Grayscale>(),
 														 nullptr } };
+		render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
+		render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
 	}
 };
 
-void CreateBlur(Scene& scene) {
+Entity CreateBlur(Scene& scene) {
 	auto blur{ scene.CreateEntity() };
 
 	blur.SetDraw<Blur>();
 	blur.Show();
+	return blur;
 }
 
-void CreateGrayscale(Scene& scene) {
+Entity CreateGrayscale(Scene& scene) {
 	auto grayscale{ scene.CreateEntity() };
 
 	grayscale.SetDraw<Grayscale>();
 	grayscale.Show();
+	return grayscale;
 }
 
 // Helper to generate all combinations of k elements from base
@@ -128,20 +134,29 @@ float circle1_radius{ 200 };
 Color circle1_color{ color::Blue };
 V2_float circle2_pos{ 500, 500 };
 float circle2_radius{ 200 };
-Color circle2_color{ color::Gray };
+Color circle2_color{ color::Gold };
 
-void AddRect(Scene& s, V2_float pos, V2_float size, Color color) {
-	CreateRect(s, pos, size, color, rect_thickness);
+Entity AddRect(Scene& s, V2_float pos, V2_float size, Color color) {
+	auto e = CreateRect(s, pos, size, color, rect_thickness);
 	PTGN_LOG("Rect: ", color);
+	return e;
 }
 
-void AddCircle(Scene& s, V2_float pos, float radius, Color color) {
-	CreateCircle(s, pos, radius, color, circle_thickness);
+Entity AddCircle(Scene& s, V2_float pos, float radius, Color color) {
+	auto e = CreateCircle(s, pos, radius, color, circle_thickness);
 	PTGN_LOG("Circle: ", color);
+	return e;
 }
 
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color).AddPostFX(CreateGrayscale(s));
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
 
 	tests.emplace_back([](Scene& s) { AddRect(s, rect1_pos, rect1_size, rect1_color); });
 	tests.emplace_back([](Scene& s) {
@@ -200,7 +215,6 @@ void GenerateTestCases() {
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
 
-	/*
 	auto rect = [](Scene& s) {
 		CreateRect(s, { 100, 100 }, { 50, 50 }, color::Red, -1.0f);
 
@@ -258,9 +272,8 @@ void GenerateTestCases() {
 		PTGN_LOG("2x Blur");
 	};
 
-	std::vector<std::function<void(Scene&)>> primitives = {
-		blur2, rect2, circle2, sprite2, light2
-	};
+	std::vector<std::function<void(Scene&)>> primitives = { blur2, rect2, circle2, sprite2,
+															light2 };
 
 	auto permutations{ GenerateNumberPermutations(primitives.size()) };
 	for (const auto& permutation : permutations) {
@@ -281,7 +294,6 @@ void GenerateTestCases() {
 			tests.emplace_back(generate);
 		}
 	}
-	*/
 }
 
 struct RendererScene : public Scene {

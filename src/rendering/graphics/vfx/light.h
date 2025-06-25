@@ -73,7 +73,7 @@ public:
 	[[nodiscard]] static V3_float GetShaderColor(const Color& color);
 
 private:
-	static void SetUniform(const Entity& entity, const Shader& shader);
+	static void SetUniform(Entity entity, const Shader& shader);
 };
 
 // @param position Starting point of the light.

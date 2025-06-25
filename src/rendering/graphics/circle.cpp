@@ -53,6 +53,8 @@ void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.blend_mode	   = blend_mode;
 	render_state.shader_passes = { game.shader.Get<ShapeShader::Circle>() };
 	render_state.camera		   = camera;
+	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
+	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 
 	if (line_width == -1.0f) {
 		// Internally line width for a filled ellipse is 1.0f.

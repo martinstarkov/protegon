@@ -49,7 +49,7 @@ PointLight CreatePointLight(
 
 PointLight::PointLight(const Entity& entity) : Entity{ entity } {}
 
-void PointLight::SetUniform(const Entity& entity, const Shader& shader) {
+void PointLight::SetUniform(Entity entity, const Shader& shader) {
 	PointLight light{ entity };
 
 	auto transform{ entity.GetDrawTransform() };
@@ -70,6 +70,8 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.blend_mode	   = BlendMode::Add;
 	render_state.shader_passes = { impl::ShaderPass{ game.shader.Get<OtherShader::Light>(),
 													 &SetUniform } };
+	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
+	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 	ctx.AddShader(entity, render_state, BlendMode::Add, color::Black, false);
 }
 

@@ -73,7 +73,7 @@ const Shader& ShaderPass::GetShader() const {
 	return *shader_;
 }
 
-void ShaderPass::Invoke(const Entity& entity) const {
+void ShaderPass::Invoke(Entity entity) const {
 	PTGN_ASSERT(shader_ != nullptr);
 	if (uniform_callback_) {
 		std::invoke(uniform_callback_, entity, *shader_);
@@ -203,12 +203,13 @@ void RenderData::AddQuad(const std::array<Vertex, 4>& points, const RenderState&
 	AddVertices(points, quad_indices);
 }
 
-void RenderData::SetState(const RenderState& new_render_state) {
+bool RenderData::SetState(const RenderState& new_render_state) {
 	if (new_render_state == render_state) {
-		return;
+		return false;
 	}
 	Flush();
 	render_state = new_render_state;
+	return true;
 }
 
 void RenderData::BindCamera(const Shader& shader, const Matrix4& view_projection) {
@@ -275,8 +276,7 @@ void RenderData::ReadFrom(const RenderTarget& render_target) {
 	ReadFrom(render_target.GetFrameBuffer());
 }
 
-void RenderData::DrawShaders(const Entity& entity, const Camera& camera) const {
-	PTGN_ASSERT(entity);
+void RenderData::DrawShaders(Entity entity, const Camera& camera) const {
 	PTGN_ASSERT(camera);
 
 	GLRenderer::SetBlendMode(render_state.blend_mode);
@@ -292,10 +292,12 @@ void RenderData::DrawShaders(const Entity& entity, const Camera& camera) const {
 
 		DrawVertexArray(quad_indices.size());
 	}
+
+	// TODO: Add preFX.
 }
 
 void RenderData::DrawToRenderTarget(
-	const Entity& entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
+	Entity entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
 ) {
 	current_fbo = rt;
 	DrawTo(current_fbo);
@@ -305,7 +307,6 @@ void RenderData::DrawToRenderTarget(
 	SetCameraVertices(camera);
 	ReadFrom(screen_fbo);
 	DrawShaders(entity, camera);
-	// Flush();
 }
 
 RenderTarget RenderData::GetPingPongTarget() const {
@@ -317,25 +318,31 @@ RenderTarget RenderData::GetPingPongTarget() const {
 }
 
 void RenderData::AddShader(
-	const Entity& entity, const RenderState& state, BlendMode target_blend_mode,
+	Entity entity, const RenderState& state, BlendMode target_blend_mode,
 	const Color& target_clear_color, bool uses_scene_texture
 ) {
-	if (state != render_state) {
-		// Flush will reset current_fbo so fbo needs to be retrieved before flushing.
-		auto rt{ GetPingPongTarget() };
-		Flush();
-		render_state = state;
-		DrawToRenderTarget(entity, rt, target_blend_mode, target_clear_color);
+	if (bool state_changed{ SetState(state) }; state_changed || uses_scene_texture) {
+		DrawToRenderTarget(entity, GetPingPongTarget(), target_blend_mode, target_clear_color);
 		return;
 	}
 
-	if (uses_scene_texture) {
-		DrawToRenderTarget(entity, GetPingPongTarget(), target_blend_mode, target_clear_color);
-	} else {
-		PTGN_ASSERT(current_fbo);
-		auto camera{ GetCamera(current_fbo.GetCamera()) };
-		SetCameraVertices(camera);
-		DrawShaders(entity, camera);
+	PTGN_ASSERT(current_fbo);
+	auto camera{ GetCamera(current_fbo.GetCamera()) };
+	SetCameraVertices(camera);
+	DrawShaders(entity, camera);
+
+	// TODO: Check that this works as intended.
+	// TODO: Move to a separate function.
+	// TODO: Fix PostFX.
+	// TODO: Ensure that PostFX does not lead to bugs when the render state is the same as the
+	// previous render state. For instance: Blur, Rect.AddPostFX(Blur()); Or alternatively.
+	// Blur.AddPostFX(Blur());
+	// TODO: For PostFX, batches need to be drawn to the current fbo.
+	if (!render_state.post_fx.post_fx_.empty()) {
+		auto post_fx{ render_state.post_fx.post_fx_ };
+		for (const auto& effect : post_fx) {
+			InvokeDrawable(effect);
+		}
 	}
 }
 
@@ -350,15 +357,11 @@ void RenderData::BindTextures() const {
 }
 
 void RenderData::FlushCurrentTarget() {
+	PTGN_ASSERT(current_fbo);
 	auto camera{ game.scene.GetCurrent().camera.window }; // Scene camera or render target camera.
 	PTGN_ASSERT(camera);
 
-	/*
-	// TODO: Add postfx to current_fbo
-	if (postFX) {
-		ApplyPostFX();
-	}
-	*/
+	DrawTo(screen_fbo);
 
 	const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 	BindCamera(shader, camera);
@@ -370,6 +373,7 @@ void RenderData::FlushCurrentTarget() {
 	// PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 300, 300 }));
 	SetCameraVertices(camera);
 	DrawVertexArray(quad_indices.size());
+	current_fbo = {};
 }
 
 Camera RenderData::GetCamera(const Camera& fallback) const {
@@ -381,11 +385,14 @@ Camera RenderData::GetCamera(const Camera& fallback) const {
 }
 
 void RenderData::FlushBatch() {
+	// TODO: Render this to the current_fbo instead of directly to the screen.
 	PTGN_ASSERT(!render_state.shader_passes.empty());
 
 	auto camera{ GetCamera(game.scene.GetCurrent().camera.primary) };
 
 	const auto& camera_vp{ camera.GetViewProjection() };
+
+	DrawTo(screen_fbo);
 
 	UpdateVertexArray(vertices, indices);
 	SetRenderParameters(camera, render_state.blend_mode);
@@ -407,11 +414,8 @@ void RenderData::Flush() {
 		return;
 	}
 
-	DrawTo(screen_fbo);
-
 	if (current_fbo) {
 		FlushCurrentTarget();
-		current_fbo = {};
 	} else if (!vertices.empty() && !indices.empty()) {
 		FlushBatch();
 	}
@@ -430,21 +434,25 @@ void RenderData::DrawVertexArray(std::size_t index_count) const {
 	GLRenderer::DrawElements(triangle_vao, index_count, false);
 }
 
+void RenderData::InvokeDrawable(const Entity& entity) {
+	PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
+
+	const auto& drawable{ entity.Get<IDrawable>() };
+
+	const auto& drawable_functions{ IDrawable::data() };
+
+	const auto it{ drawable_functions.find(drawable.hash) };
+
+	PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
+
+	const auto& draw_function{ it->second };
+
+	std::invoke(draw_function, *this, entity);
+}
+
 void RenderData::DrawEntities(const std::vector<Entity>& entities) {
 	for (const auto& entity : entities) {
-		PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
-
-		const auto& drawable{ entity.Get<IDrawable>() };
-
-		const auto& drawable_functions{ IDrawable::data() };
-
-		const auto it{ drawable_functions.find(drawable.hash) };
-
-		PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
-
-		const auto& draw_function{ it->second };
-
-		std::invoke(draw_function, *this, entity);
+		InvokeDrawable(entity);
 	}
 }
 
@@ -531,14 +539,14 @@ void RenderData::Draw(Scene& scene) {
 	DrawScene(scene);
 
 	Flush();
+	render_state = {};
+	current_fbo	 = {};
 
 	DrawToScreen();
 
 	Reset();
 
 	// TODO: Check if this is needed.
-	render_state = {};
-	current_fbo	 = {};
 }
 
 /*
