@@ -23,6 +23,7 @@
 
 namespace ptgn {
 
+class Camera;
 class Shader;
 class Scene;
 struct Matrix4;
@@ -192,7 +193,7 @@ public:
 private:
 	friend class ptgn::Scene;
 	friend class Renderer;
-	friend class Camera;
+	friend class ptgn::Camera;
 
 	static void DrawTo(const FrameBuffer& frame_buffer);
 	static void DrawTo(const RenderTarget& render_target);
