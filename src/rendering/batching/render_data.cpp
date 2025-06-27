@@ -36,6 +36,31 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
+// TODO: Implement following behavior:
+// Batched objects with no filters render directly to the main framebuffer.
+// Objects with the same filters are rendered to an offscreen framebuffer (Render Target).
+// The filter shader is then applied to this buffer, and the result is composited back into the main
+// framebuffer.
+// Multiple filters can be chained in sequence, with each producing an intermediate buffer for the
+// next
+// If multiple objects share the same filter instance, we can batch them together within that filter
+// pipeline, assuming their textures and states are also compatible.
+
+// clang-format off
+/*
+| **Aspect**                  | **Internal Filter (Inline Pipeline)**                   | **External Filter (PostFXPipeline)**                                           |
+| --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Performance**             | 🔥 Fast — integrates with batching                      | 🐢 Slower — render-to-texture overhead per object/group                        |
+| **Batches**                 | ✅ Maintains batching                                    | ❌ Breaks batching due to framebuffer isolation                                 |
+| **Memory usage**            | Low — no framebuffers needed                            | Higher — offscreen framebuffers                                                |
+| **Effect Scope**            | Per-fragment; operates on UVs, texture, vertex data     | Full-object or full-frame; works on the composite image of the object or group |
+| **Sampling beyond UV**      | ❌ Not possible; shader sees only local texels           | ✅ Possible; can access neighbors, edges, alpha boundaries                      |
+| **Effect Examples**         | Tint, pixelate, color shift, wave distortion, scanlines | Blur, glow, outline, drop shadow, bloom, CRT, vignette                         |
+| **Group/Container effects** | ❌ Cannot apply to a group easily                        | ✅ Apply once to a container, entire scene, or camera                           |
+| **Order Sensitivity**       | Works per object; respects z-order                      | Works after object render; can process groups together                         |
+*/
+// clang-format on
+
 #define HDR_ENABLED 0
 
 namespace ptgn::impl {
