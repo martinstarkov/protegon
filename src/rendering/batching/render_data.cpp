@@ -61,6 +61,9 @@
 */
 // clang-format on
 
+// TODO: For PreFX, scissor the frame buffer.
+// TODO: For PostFX, check if post FX are different and if so, flush.
+
 #define HDR_ENABLED 0
 
 namespace ptgn::impl {
