@@ -18,8 +18,8 @@ void main()
 	o_Color = vec4(avg, avg, avg, 1.0f);
 	*/
 
-	o_Color = texture(u_Texture, v_TexCoord);
-    float average = 0.2126f * o_Color.r + 0.7152f * o_Color.g + 0.0722f * o_Color.b;
-    o_Color = vec4(average, average, average, 1.0f) * v_Color;
+	vec4 tex = texture(u_Texture, v_TexCoord);
+    float average = 0.2126f * tex.r + 0.7152f * tex.g + 0.0722f * tex.b;
+    o_Color = vec4(average, average, average, tex.a) * v_Color;
 }
 )"
