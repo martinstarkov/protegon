@@ -30,9 +30,10 @@ void main()
 	);
 
 	vec3 color = vec3(0.0f);
+	vec4 tex = texture(u_Texture, v_TexCoord);
     for (int i = 0; i < 9; i++) {
         color += vec3(texture(u_Texture, v_TexCoord.st + offsets[i])) * kernel[i];
 	}
-	o_Color = vec4(color, 1.0f) * v_Color;
+	o_Color = vec4(color, tex.a) * v_Color;
 }
 )"

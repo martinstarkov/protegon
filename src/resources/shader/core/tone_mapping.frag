@@ -13,7 +13,8 @@ uniform float u_Gamma = 2.2f;
 
 void main()
 {
-	vec3 hdr_color = texture(u_Texture, v_TexCoord).rgb;
+    vec4 tex = texture(u_Texture, v_TexCoord);
+	vec3 hdr_color = tex.rgb;
 
     // Alternative: Reinhard tone mapping
     // vec3 mapped = hdr_color / (hdr_color + vec3(1.0f));
@@ -24,6 +25,6 @@ void main()
     // Gamma correction. When this was enabled, black areas of the screen became red.
     mapped = pow(mapped, vec3(1.0f / u_Gamma));
 
-	o_Color = vec4(mapped, 1.0f);
+	o_Color = vec4(mapped, tex.a);
 }
 )"
