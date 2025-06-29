@@ -47,8 +47,14 @@ using ShaderId = std::uint32_t;
 class Shader {
 public:
 	Shader() = default;
-	Shader(const ShaderCode& vertex_shader, const ShaderCode& fragment_shader);
-	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
+	Shader(
+		const ShaderCode& vertex_shader, const ShaderCode& fragment_shader,
+		std::string_view shader_name
+	);
+	Shader(
+		const path& vertex_shader_path, const path& fragment_shader_path,
+		std::string_view shader_name
+	);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
 	Shader(Shader&& other) noexcept;
@@ -81,8 +87,9 @@ public:
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-		const;
+	void SetUniform(
+		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+	) const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
@@ -107,6 +114,8 @@ public:
 
 	[[nodiscard]] ShaderId GetId() const;
 
+	[[nodiscard]] std::string_view GetName() const;
+
 private:
 	void Create();
 	void Delete() noexcept;
@@ -120,6 +129,7 @@ private:
 	[[nodiscard]] static ShaderId Compile(std::uint32_t type, const std::string& source);
 
 	ShaderId id_{ 0 };
+	std::string_view shader_name_;
 
 	// Location cache should not prevent const calls.
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
@@ -207,7 +217,8 @@ private:
 					},
 					ShaderCode{
 #include PTGN_SHADER_PATH(circle.frag)
-					} };
+					},
+					"Circle" };
 	}
 
 	void InitScreenShaders() {
@@ -216,49 +227,56 @@ private:
 					 },
 					 ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.frag)
-					 } };
+					 },
+					 "Default" };
 
 		blur_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 				  },
 				  ShaderCode{
 #include PTGN_SHADER_PATH(screen_blur.frag)
-				  } };
+				  },
+				  "Blur" };
 
 		gaussian_blur_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 						   },
 						   ShaderCode{
 #include PTGN_SHADER_PATH(screen_gaussian_blur.frag)
-						   } };
+						   },
+						   "Gaussian Blur" };
 
 		edge_detection_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 							},
 							ShaderCode{
 #include PTGN_SHADER_PATH(screen_edge_detection.frag)
-							} };
+							},
+							"Edge Detection" };
 
 		grayscale_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					   },
 					   ShaderCode{
 #include PTGN_SHADER_PATH(screen_grayscale.frag)
-					   } };
+					   },
+					   "Grayscale" };
 
 		inverse_color_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 						   },
 						   ShaderCode{
 #include PTGN_SHADER_PATH(screen_inverse_color.frag)
-						   } };
+						   },
+						   "Inverse Color" };
 
 		sharpen_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					 },
 					 ShaderCode{
 #include PTGN_SHADER_PATH(screen_sharpen.frag)
-					 } };
+					 },
+					 "Sharpen" };
 	}
 
 	void InitOtherShaders() {
@@ -268,7 +286,8 @@ private:
 			},
 			ShaderCode{
 #include PTGN_SHADER_PATH(lighting.frag)
-			}
+			},
+			"Light"
 		);
 
 		tone_mapping_ = Shader(
@@ -277,7 +296,8 @@ private:
 			},
 			ShaderCode{
 #include PTGN_SHADER_PATH(tone_mapping.frag)
-			}
+			},
+			"Tone Mapping"
 		);
 	}
 

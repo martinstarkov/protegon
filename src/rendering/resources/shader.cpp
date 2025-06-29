@@ -33,12 +33,18 @@ std::string_view GetShaderName(std::uint32_t shader_type) {
 	}
 }
 
-Shader::Shader(const ShaderCode& vertex_shader, const ShaderCode& fragment_shader) {
+Shader::Shader(
+	const ShaderCode& vertex_shader, const ShaderCode& fragment_shader, std::string_view shader_name
+) :
+	shader_name_{ shader_name } {
 	Create();
 	Compile(vertex_shader.source_, fragment_shader.source_);
 }
 
-Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path) {
+Shader::Shader(
+	const path& vertex_shader_path, const path& fragment_shader_path, std::string_view shader_name
+) :
+	shader_name_{ shader_name } {
 	PTGN_ASSERT(
 		FileExists(vertex_shader_path),
 		"Cannot create shader from nonexistent vertex shader path: ", vertex_shader_path.string()
@@ -54,12 +60,14 @@ Shader::Shader(const path& vertex_shader_path, const path& fragment_shader_path)
 
 Shader::Shader(Shader&& other) noexcept :
 	id_{ std::exchange(other.id_, 0) },
+	shader_name_{ std::exchange(other.shader_name_, {}) },
 	location_cache_{ std::exchange(other.location_cache_, {}) } {}
 
 Shader& Shader::operator=(Shader&& other) noexcept {
 	if (this != &other) {
 		Delete();
 		id_				= std::exchange(other.id_, 0);
+		shader_name_	= std::exchange(other.shader_name_, {});
 		location_cache_ = std::exchange(other.location_cache_, {});
 	}
 	return *this;
@@ -230,8 +238,9 @@ void Shader::SetUniform(const std::string& name, const Matrix4& matrix) const {
 	}
 }
 
-void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
-	const {
+void Shader::SetUniform(
+	const std::string& name, const std::int32_t* data, std::int32_t count
+) const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
@@ -308,8 +317,9 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 	}
 }
 
-void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-	const {
+void Shader::SetUniform(
+	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+) const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
@@ -335,6 +345,10 @@ bool Shader::IsValid() const {
 
 ShaderId Shader::GetId() const {
 	return id_;
+}
+
+std::string_view Shader::GetName() const {
+	return shader_name_;
 }
 
 namespace impl {
@@ -367,7 +381,7 @@ void ShaderManager::Init() {
 	quad_ = { ShaderCode{
 #include PTGN_SHADER_PATH(quad.vert)
 			  },
-			  quad_frag };
+			  quad_frag, "Quad" };
 
 	InitShapeShaders();
 	InitScreenShaders();
