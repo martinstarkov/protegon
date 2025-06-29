@@ -61,7 +61,8 @@
 */
 // clang-format on
 
-// TODO: For PreFX, scissor the frame buffer.
+// TODO: For PreFX, scissor the frame buffer. Use a frame buffer pool which allocates new frame
+// buffers with the same size.
 // TODO: For PostFX, check if post FX are different and if so, flush.
 
 #define HDR_ENABLED 0
@@ -154,26 +155,29 @@ void RenderData::Init() {
 
 	// TODO: Fix background color.
 
-	screen_fbo = impl::CreateRenderTarget(
+	screen_target = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
 		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	scene_fbo = impl::CreateRenderTarget(
+	ping_target = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
 		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	effect_fbo = impl::CreateRenderTarget(
+	pong_target = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
 		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	current_fbo = {};
+	screen_target.SetBlendMode(BlendMode::None);
+	ping_target.SetBlendMode(BlendMode::Blend);
+	pong_target.SetBlendMode(BlendMode::Blend);
+	intermediate_target = {};
 
 	// TODO: Once render target window resizing is implemented, get rid of this.
 	game.event.window.Subscribe(
 		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
-			screen_fbo.GetTexture().Resize(e.size);
-			scene_fbo.GetTexture().Resize(e.size);
-			effect_fbo.GetTexture().Resize(e.size);
+			screen_target.GetTexture().Resize(e.size);
+			ping_target.GetTexture().Resize(e.size);
+			pong_target.GetTexture().Resize(e.size);
 		})
 	);
 
@@ -186,7 +190,7 @@ void RenderData::Init() {
 	}
 #endif
 
-	SetState(RenderState{ { game.shader.Get<ScreenShader::Default>() }, BlendMode::None, {} });
+	SetState(RenderState{ {}, BlendMode::None, {} });
 }
 
 void RenderData::AddTriangle(const std::array<Vertex, 3>& points, const RenderState& state) {
@@ -232,9 +236,10 @@ void RenderData::AddQuad(const std::array<Vertex, 4>& points, const RenderState&
 }
 
 bool RenderData::SetState(const RenderState& new_render_state) {
-	if (new_render_state == render_state) {
+	if (new_render_state == render_state && new_render_state.pre_fx.pre_fx_.empty()) {
 		return false;
 	}
+	// New render state or PreFX present.
 	Flush();
 	render_state = new_render_state;
 	return true;
@@ -304,74 +309,47 @@ void RenderData::ReadFrom(const RenderTarget& render_target) {
 	ReadFrom(render_target.GetFrameBuffer());
 }
 
-void RenderData::DrawShaders(Entity entity, const Camera& camera) const {
-	PTGN_ASSERT(camera);
-
-	GLRenderer::SetBlendMode(render_state.blend_mode);
-
-	for (const auto& shader_pass : render_state.shader_passes) {
-		const auto& shader{ shader_pass.GetShader() };
-		PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
-		// TODO: Only update these if shader bind is dirty.
-		BindCamera(shader, camera);
-		shader.SetUniform("u_Texture", 1);
-		shader.SetUniform("u_Resolution", camera.GetViewportSize());
-		shader_pass.Invoke(entity);
-
-		DrawVertexArray(quad_indices.size());
-	}
-
-	// TODO: Add preFX.
-}
-
-void RenderData::DrawToRenderTarget(
-	Entity entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
-) {
-	current_fbo = rt;
-	DrawTo(current_fbo);
-	current_fbo.ClearToColor(clear_color);
-	current_fbo.SetBlendMode(blend_mode);
-	auto camera{ GetCamera(rt.GetCamera()) };
-	SetCameraVertices(camera);
-	ReadFrom(screen_fbo);
-	DrawShaders(entity, camera);
-}
-
 RenderTarget RenderData::GetPingPongTarget() const {
-	PTGN_ASSERT(scene_fbo && effect_fbo);
-	if (current_fbo == scene_fbo) {
-		return effect_fbo;
+	PTGN_ASSERT(ping_target && pong_target);
+	if (intermediate_target == ping_target) {
+		return pong_target;
 	}
-	return scene_fbo;
+	return ping_target;
 }
 
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, BlendMode target_blend_mode,
 	const Color& target_clear_color, bool uses_scene_texture
 ) {
+	auto old_blend_mode{ intermediate_target.GetBlendMode() };
 	if (bool state_changed{ SetState(state) }; state_changed || uses_scene_texture) {
-		DrawToRenderTarget(entity, GetPingPongTarget(), target_blend_mode, target_clear_color);
-		return;
+		intermediate_target = GetPingPongTarget();
+		DrawTo(intermediate_target);
+		intermediate_target.ClearToColor(target_clear_color);
+		intermediate_target.SetBlendMode(target_blend_mode);
+		ReadFrom(screen_target);
+	} else {
+		PTGN_ASSERT(intermediate_target);
 	}
 
-	PTGN_ASSERT(current_fbo);
-	auto camera{ GetCamera(current_fbo.GetCamera()) };
+	auto camera{ GetCamera(intermediate_target.GetCamera()) };
+	PTGN_ASSERT(camera);
+
 	SetCameraVertices(camera);
-	DrawShaders(entity, camera);
 
-	// TODO: Check that this works as intended.
-	// TODO: Move to a separate function.
-	// TODO: Fix PostFX.
-	// TODO: Ensure that PostFX does not lead to bugs when the render state is the same as the
-	// previous render state. For instance: Blur, Rect.AddPostFX(Blur()); Or alternatively.
-	// Blur.AddPostFX(Blur());
-	// TODO: For PostFX, batches need to be drawn to the current fbo.
-	if (!render_state.post_fx.post_fx_.empty()) {
-		auto post_fx{ render_state.post_fx.post_fx_ };
-		for (const auto& effect : post_fx) {
-			InvokeDrawable(effect);
-		}
-	}
+	GLRenderer::SetBlendMode(render_state.blend_mode);
+
+	const auto& shader{ render_state.shader_passes.GetShader() };
+	PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
+	// TODO: Only update these if shader bind is dirty.
+	BindCamera(shader, camera);
+	shader.SetUniform("u_Texture", 1);
+	shader.SetUniform("u_Resolution", camera.GetViewportSize());
+	render_state.shader_passes.Invoke(entity);
+
+	DrawVertexArray(quad_indices.size());
+
+	intermediate_target.SetBlendMode(old_blend_mode);
 }
 
 void RenderData::BindTextures() const {
@@ -384,26 +362,6 @@ void RenderData::BindTextures() const {
 	}
 }
 
-void RenderData::FlushCurrentTarget() {
-	PTGN_ASSERT(current_fbo);
-	auto camera{ game.scene.GetCurrent().camera.window }; // Scene camera or render target camera.
-	PTGN_ASSERT(camera);
-
-	DrawTo(screen_fbo);
-
-	const auto& shader{ game.shader.Get<ScreenShader::Default>() };
-	BindCamera(shader, camera);
-	/*PTGN_ASSERT(vertices.size() == 0);
-	PTGN_ASSERT(indices.size() == 0);*/
-	// assert that vertices is screen vertices.
-	SetRenderParameters(camera, current_fbo.GetBlendMode());
-	ReadFrom(current_fbo);
-	// PTGN_LOG(current_fbo.GetFrameBuffer().GetPixel({ 300, 300 }));
-	SetCameraVertices(camera);
-	DrawVertexArray(quad_indices.size());
-	current_fbo = {};
-}
-
 Camera RenderData::GetCamera(const Camera& fallback) const {
 	if (render_state.camera) {
 		return render_state.camera;
@@ -412,41 +370,122 @@ Camera RenderData::GetCamera(const Camera& fallback) const {
 	return fallback;
 }
 
-void RenderData::FlushBatch() {
-	// TODO: Render this to the current_fbo instead of directly to the screen.
-	PTGN_ASSERT(!render_state.shader_passes.empty());
-
-	auto camera{ GetCamera(game.scene.GetCurrent().camera.primary) };
-
-	const auto& camera_vp{ camera.GetViewProjection() };
-
-	DrawTo(screen_fbo);
-
-	UpdateVertexArray(vertices, indices);
-	SetRenderParameters(camera, render_state.blend_mode);
-	BindTextures();
-
-	for (const auto& shader_pass : render_state.shader_passes) {
-		const auto& shader{ shader_pass.GetShader() };
-		// TODO: Only set uniform if camera changed.
-		BindCamera(shader, camera_vp);
-
-		DrawVertexArray(indices.size());
-	}
-
-	current_fbo = {};
-}
-
 void RenderData::Flush() {
 	if (!game.scene.HasCurrent()) {
 		return;
 	}
 
-	if (current_fbo) {
-		FlushCurrentTarget();
-	} else if (!vertices.empty() && !indices.empty()) {
-		FlushBatch();
+	const auto draw_vertices_to = [&](const auto& camera, const auto& target,
+									  const ShaderPass& shader_pass) {
+		const auto& camera_vp{ camera.GetViewProjection() };
+
+		DrawTo(target);
+		UpdateVertexArray(vertices, indices);
+		SetRenderParameters(camera, render_state.blend_mode);
+		BindTextures();
+
+		// TODO: Only set uniform if camera changed.
+		BindCamera(shader_pass.GetShader(), camera_vp);
+
+		// TODO: Call shader pass uniform.
+
+		DrawVertexArray(indices.size());
+	};
+
+	if (!render_state.pre_fx.pre_fx_.empty()) {
+		// TODO: Implement.
 	}
+
+	if (!render_state.post_fx.post_fx_.empty()) {
+		if (!vertices.empty() && !indices.empty()) {
+			PTGN_ASSERT(!intermediate_target);
+			intermediate_target = GetPingPongTarget();
+			intermediate_target.ClearToColor(color::Transparent);
+			draw_vertices_to(
+				GetCamera(game.scene.GetCurrent().camera.primary), intermediate_target,
+				render_state.shader_passes
+			);
+		}
+		PTGN_ASSERT(
+			intermediate_target, "Intermediate target must be used before rendering post fx"
+		);
+		for (const auto& fx : render_state.post_fx.post_fx_) {
+			auto camera{
+				game.scene.GetCurrent().camera.window
+			}; // Scene camera or render target camera.
+			PTGN_ASSERT(camera);
+
+			auto ping{ intermediate_target };
+			auto pong{ GetPingPongTarget() };
+
+			DrawTo(pong);
+			pong.ClearToColor(color::Transparent);
+
+			const auto& shader_pass{ fx.Get<ShaderPass>() };
+			const auto& shader{ shader_pass.GetShader() };
+
+			BindCamera(shader, camera);
+
+			/*PTGN_ASSERT(vertices.size() == 0);
+			PTGN_ASSERT(indices.size() == 0);*/
+			// assert that vertices is screen vertices.
+			SetRenderParameters(camera, fx.GetBlendMode());
+
+			ReadFrom(ping);
+
+			// TODO: Cache this somehow?
+			SetCameraVertices(camera);
+
+			shader.SetUniform("u_Texture", 1);
+			shader.SetUniform("u_Resolution", camera.GetViewportSize());
+
+			shader_pass.Invoke(fx);
+
+			DrawVertexArray(quad_indices.size());
+
+			intermediate_target = pong;
+		}
+	} else {
+		//	PTGN_LOG("No post fx");
+	}
+
+	if (intermediate_target) {
+		PTGN_ASSERT(intermediate_target);
+
+		auto camera{ game.scene.GetCurrent().camera.window };
+
+		PTGN_ASSERT(camera);
+
+		DrawTo(screen_target);
+		//	PTGN_LOG("PreDraw: ", screen_target.GetFrameBuffer().GetPixel({ 200, 200 }));
+
+		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
+
+		BindCamera(shader, camera);
+		/*PTGN_ASSERT(vertices.size() == 0);
+		PTGN_ASSERT(indices.size() == 0);*/
+		// assert that vertices is screen vertices.
+		SetRenderParameters(camera, intermediate_target.GetBlendMode());
+
+		ReadFrom(intermediate_target);
+		// PTGN_LOG("Intermediate: ", intermediate_target.GetFrameBuffer().GetPixel({ 200, 200 }));
+		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
+
+		// PTGN_LOG(intermediate_target.GetFrameBuffer().GetPixel({ 300, 300 }));
+		// TODO: Cache this somehow?
+		SetCameraVertices(camera);
+
+		DrawVertexArray(quad_indices.size());
+		//	PTGN_LOG("PostDraw: ", screen_target.GetFrameBuffer().GetPixel({ 200, 200 }));
+
+	} else if (!vertices.empty() && !indices.empty()) {
+		draw_vertices_to(
+			GetCamera(game.scene.GetCurrent().camera.primary), screen_target,
+			render_state.shader_passes
+		);
+	}
+
+	intermediate_target = {};
 
 	Reset();
 }
@@ -526,7 +565,7 @@ void RenderData::DrawToScreen() {
 	auto camera{ game.scene.GetCurrent().camera.window };
 
 	SetCameraVertices(camera);
-	SetRenderParameters(camera, BlendMode::None);
+	SetRenderParameters(camera, screen_target.GetBlendMode());
 
 	const Shader* shader{ nullptr };
 
@@ -546,15 +585,15 @@ void RenderData::DrawToScreen() {
 		shader->SetUniform("u_Gamma", 2.2f);
 	}
 
-	ReadFrom(screen_fbo);
+	ReadFrom(screen_target);
 
 	DrawVertexArray(quad_indices.size());
 }
 
 void RenderData::ClearRenderTargets(Scene& scene) {
-	screen_fbo.Clear();
-	scene_fbo.Clear();
-	effect_fbo.Clear();
+	screen_target.Clear();
+	ping_target.Clear();
+	pong_target.Clear();
 
 	// TODO: Clear all render target entities.
 }
@@ -567,8 +606,8 @@ void RenderData::Draw(Scene& scene) {
 	DrawScene(scene);
 
 	Flush();
-	render_state = {};
-	current_fbo	 = {};
+	render_state		= {};
+	intermediate_target = {};
 
 	DrawToScreen();
 
@@ -576,319 +615,5 @@ void RenderData::Draw(Scene& scene) {
 
 	// TODO: Check if this is needed.
 }
-
-/*
-
-void RenderData::AddLine(
-	const V2_float& line_start, const V2_float& line_end, float line_width, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
-) {
-	PTGN_ASSERT(line_width >= min_line_width, "-1.0f is an invalid line width for lines");
-	auto vertices{
-		GetLineQuadVertices(camera.ZoomIfNeeded(line_start), camera.ZoomIfNeeded(line_end),
-line_width)
-	};
-	auto& batch{ GetBatch(
-		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
-	) };
-	AddFilledQuad(vertices, color, depth, pixel_rounding);
-}
-
-void RenderData::AddLines(
-	const std::vector<V2_float>& vertices, float line_width, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool
-connect_last_to_first, bool debug ) { std::size_t vertex_modulo{ vertices.size() };
-
-	if (!connect_last_to_first) {
-		PTGN_ASSERT(
-			vertices.size() >= 2, "Lines which do not connect the last vertex to the first
-vertex " "must have at least 2 vertices"
-		);
-		vertex_modulo -= 1;
-	} else {
-		PTGN_ASSERT(
-			vertices.size() >= 3, "Lines which connect the last vertex to the first vertex "
-								  "must have at least 3 vertices"
-		);
-	}
-
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		AddLine(
-			vertices[i], vertices[(i + 1) % vertex_modulo], line_width, depth, camera,
-blend_mode, color, debug
-		);
-	}
-}
-
-void RenderData::AddFilledTriangle(
-	const std::array<V2_float, Batch::triangle_vertex_count>& vertices, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
-) {
-	auto& batch{ GetBatch(
-		Batch::triangle_vertex_count, Batch::triangle_index_count, white_texture,
-		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
-	) };
-	AddFilledTriangle(vertices, color, depth, pixel_rounding);
-}
-
-void RenderData::AddFilledQuad(
-	const std::array<V2_float, Batch::quad_vertex_count>& vertices, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
-) {
-	auto& batch{ GetBatch(
-		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
-	) };
-	AddFilledQuad(vertices, color, depth, pixel_rounding);
-}
-
-void RenderData::AddFilledEllipse(
-	const std::array<V2_float, Batch::quad_vertex_count>& vertices, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, bool debug
-) {
-	auto& batch{ GetBatch(
-		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Circle>(), camera, blend_mode, depth, debug
-	) };
-	AddFilledEllipse(vertices, color, depth, pixel_rounding);
-}
-
-void RenderData::AddHollowEllipse(
-	const std::array<V2_float, Batch::quad_vertex_count>& vertices, float line_width,
-	const V2_float& radius, const Depth& depth, const Camera& camera, BlendMode blend_mode,
-	const V4_float& color, bool debug
-) {
-	auto& batch{ GetBatch(
-		Batch::quad_vertex_count, Batch::quad_index_count, white_texture,
-		game.shader.Get<ShapeShader::Circle>(), camera, blend_mode, depth, debug
-	) };
-	AddHollowEllipse(vertices, line_width, radius, color, depth, pixel_rounding);
-}
-
-void RenderData::AddTexturedQuad(
-	const Transform& transform, const V2_float& size, Origin origin,
-	const std::array<V2_float, Batch::quad_vertex_count>& tex_coords, const Texture& texture,
-	const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
-	bool debug
-) {
-	auto& batch{ GetBatch(
-		Batch::quad_vertex_count, Batch::quad_index_count, texture,
-		game.shader.Get<ShapeShader::Quad>(), camera, blend_mode, depth, debug
-	) };
-	std::array<V2_float, Batch::quad_vertex_count> vertices;
-	if (size.IsZero()) {
-		vertices = camera_vertices;
-	} else {
-		vertices = impl::GetVertices(
-			{ camera.ZoomIfNeeded(transform.position), transform.rotation, transform.scale },
-size, origin
-		);
-	}
-	float texture_index{ GetTextureIndex(batch, texture) };
-	PTGN_ASSERT(texture_index > 0.0f, "Failed to find a valid texture index");
-	AddTexturedQuad(vertices, tex_coords, texture_index, color, depth, pixel_rounding);
-}
-
-void RenderData::AddEllipse(
-	const V2_float& center, const V2_float& radius, float line_width, const Depth& depth,
-	const Camera& camera, BlendMode blend_mode, const V4_float& color, float rotation, bool
-debug ) { PTGN_ASSERT(radius.x > 0.0f && radius.y > 0.0f, "Invalid ellipse radius"); V2_float
-diameter{ radius * 2.0f }; auto vertices{ impl::GetVertices({ camera.ZoomIfNeeded(center),
-rotation }, diameter, Origin::Center)
-	};
-	if (line_width == -1.0f) {
-		AddFilledEllipse(vertices, depth, camera, blend_mode, color, debug);
-	} else {
-		AddHollowEllipse(
-			vertices, line_width, V2_float{ radius }, depth, camera, blend_mode, color, debug
-		);
-	}
-}
-
-void RenderData::AddPolygon(
-	std::vector<V2_float> vertices, float line_width, const Depth& depth, const Camera& camera,
-	BlendMode blend_mode, const V4_float& color, bool debug
-) {
-	PTGN_ASSERT(vertices.size() >= 3, "Polygon must have at least 3 vertices");
-
-	for (auto& v : vertices) {
-		v = camera.ZoomIfNeeded(v);
-	}
-
-	if (line_width == -1.0f) {
-		auto triangles{ Triangulate(vertices.data(), vertices.size()) };
-		for (const auto& triangle : triangles) {
-			AddFilledTriangle(triangle, depth, camera, blend_mode, color, debug);
-		}
-	} else {
-		AddLines(vertices, line_width, depth, camera, blend_mode, color, true, debug);
-	}
-}
-
-void RenderData::AddPoint(
-	V2_float position, const Depth& depth, const Camera& camera, BlendMode blend_mode,
-	const V4_float& color, bool debug
-) {
-	constexpr V2_float half{ 0.5f };
-	position = camera.ZoomIfNeeded(position);
-	AddFilledQuad(
-		{ position - half, position + V2_float{ half.x, -half.y }, position + half,
-		  position + V2_float{ -half.x, half.y } },
-		depth, camera, blend_mode, color, debug
-	);
-}
-
-void RenderData::AddTriangle(
-	std::array<V2_float, 3> vertices, float line_width, const Depth& depth, const Camera&
-camera, BlendMode blend_mode, const V4_float& color, bool debug ) { for (auto& v : vertices) {
-		v = camera.ZoomIfNeeded(v);
-	}
-	if (line_width == -1.0f) {
-		AddFilledTriangle(vertices, depth, camera, blend_mode, color, debug);
-	} else {
-		AddLines(ToVector(vertices), line_width, depth, camera, blend_mode, color, true, debug);
-	}
-}
-
-void RenderData::AddQuad(
-	const V2_float& position, const V2_float& size, Origin origin, float line_width,
-	const Depth& depth, const Camera& camera, BlendMode blend_mode, const V4_float& color,
-	float rotation, bool debug
-) {
-	std::array<V2_float, Batch::quad_vertex_count> vertices;
-	if (size.IsZero()) {
-		vertices = camera_vertices;
-	} else {
-		vertices = impl::GetVertices({ camera.ZoomIfNeeded(position), rotation }, size, origin);
-	}
-	if (line_width == -1.0f) {
-		AddFilledQuad(vertices, depth, camera, blend_mode, color, debug);
-	} else {
-		AddLines(ToVector(vertices), line_width, depth, camera, blend_mode, color, true, debug);
-	}
-}
-
-bool RenderData::FlushLights(
-	Batch& batch, const FrameBuffer& frame_buffer, const V2_float& window_size, const Depth&
-depth ) { if (batch.lights.empty()) { return false;
-	}
-
-	PTGN_ASSERT(batch.texture_ids.empty());
-
-	bool lights_found{ false };
-
-	for (const auto& e : batch.lights) {
-		if (!e.IsVisible()) {
-			continue;
-		}
-
-		auto light_camera{ e.GetOrParentOrDefault<Camera>() };
-
-		UseCamera(light_camera);
-
-		if (!lights_found) {
-			light_target.Bind();
-			light_target.Clear();
-
-			GLRenderer::SetBlendMode(BlendMode::Blend);
-
-			batch.shader.Bind();
-			batch.shader.SetUniform("u_Texture", 1);
-			batch.shader.SetUniform("u_ViewProjection", active_camera);
-			batch.shader.SetUniform("u_Resolution", window_size);
-
-			light_target.GetTexture().Bind(1);
-
-			SetVertexArrayToWindow(color::White, depth, 1.0f);
-
-			lights_found = true;
-		}
-
-		PointLight light{ e };
-
-		auto offset_transform{ GetOffset(e) };
-		auto transform{ e.GetAbsoluteTransform() };
-		transform = transform.RelativeTo(offset_transform);
-		float radius{ light.GetRadius() * Abs(transform.scale.x) };
-
-		batch.shader.SetUniform("u_LightPosition", transform.position);
-		batch.shader.SetUniform("u_LightIntensity", light.GetIntensity());
-		batch.shader.SetUniform("u_LightRadius", radius);
-		batch.shader.SetUniform("u_Falloff", light.GetFalloff());
-		batch.shader.SetUniform("u_Color", light.GetColor().Normalized());
-		auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
-		batch.shader.SetUniform("u_AmbientColor", ambient_color);
-		batch.shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
-
-		GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
-	}
-
-	if (!lights_found) {
-		return false;
-	}
-
-	frame_buffer.Bind();
-
-	GLRenderer::SetBlendMode(batch.blend_mode);
-
-	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
-
-	quad_shader.Bind();
-
-	UseCamera(light_target.GetCamera());
-
-	quad_shader.SetUniform("u_ViewProjection", active_camera);
-
-	light_target.GetTexture().Bind(1);
-
-	GLRenderer::DrawElements(triangle_vao, Batch::quad_index_count, false);
-
-	return true;
-}
-
-*/
-
-/*
-void RenderData::SortEntitiesByY(std::vector<Entity>&) {
-	// TODO: Investigate making this faster for large numbers of static entities.
-	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
-		return a.GetLowestY() < b.GetLowestY();
-	});
-}
-
-void RenderData::SetVertexArrayToWindow(
-	const Color& color, const Depth& depth, float texture_index
-) {
-	std::array<Batch::IndexType, Batch::quad_index_count> indices{ 0, 1, 2, 2, 3, 0 };
-
-	const auto& positions{ camera_vertices };
-	auto tex_coords{ GetDefaultTextureCoordinates() };
-	GetQuadVertices
-	FlipTextureCoordinates(tex_coords, Flip::Vertical);
-
-	auto c{ color.Normalized() };
-
-	std::array<Vertex, Batch::quad_vertex_count> vertices{};
-
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		vertices[i].position  = { positions[i].x, positions[i].y, static_cast<float>(depth) };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { tex_coords[i].x, tex_coords[i].y };
-		vertices[i].tex_index = { texture_index };
-	}
-	triangle_vao.Bind();
-
-	triangle_vao.GetVertexBuffer().SetSubData(
-		vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false
-	);
-
-	triangle_vao.GetIndexBuffer().SetSubData(
-		indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Batch::IndexType),
-		false
-	);
-}
-
-*/
 
 } // namespace ptgn::impl

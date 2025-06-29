@@ -86,6 +86,8 @@ using UniformCallback = void (*)(Entity, const Shader&);
 
 class ShaderPass {
 public:
+	ShaderPass() = default;
+
 	ShaderPass(const Shader& shader, UniformCallback uniform_callback = nullptr);
 
 	[[nodiscard]] const Shader& GetShader() const;
@@ -106,7 +108,7 @@ public:
 	RenderState() = default;
 
 	RenderState(
-		const std::vector<ShaderPass>& shader_passes, BlendMode blend_mode, const Camera& camera,
+		const ShaderPass& shader_passes, BlendMode blend_mode, const Camera& camera,
 		const PreFX& pre_fx = {}, const PostFX& post_fx = {}
 	) :
 		shader_passes{ shader_passes },
@@ -124,7 +126,7 @@ public:
 		return !(a == b);
 	}
 
-	std::vector<ShaderPass> shader_passes;
+	ShaderPass shader_passes;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
 	PreFX pre_fx;
@@ -155,19 +157,6 @@ public:
 		);
 
 		index_offset += static_cast<Index>(point_vertices.size());
-
-		// TODO: Move this elsewhere.
-		// TODO: Fix PostFX.
-		// TODO: Ensure that PostFX does not lead to bugs when the render state is the same as the
-		// previous render state. For instance: Blur, Rect.AddPostFX(Blur()); Or alternatively.
-		// Blur.AddPostFX(Blur());
-		// TODO: For PostFX, batches need to be drawn to the current fbo.
-		if (!render_state.post_fx.post_fx_.empty()) {
-			auto post_fx{ render_state.post_fx.post_fx_ };
-			for (const auto& effect : post_fx) {
-				InvokeDrawable(effect);
-			}
-		}
 	}
 
 	void AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state);
@@ -183,10 +172,10 @@ public:
 		const Color& target_clear_color, bool uses_scene_texture
 	);
 
-	RenderTarget screen_fbo;
-	RenderTarget scene_fbo;
-	RenderTarget effect_fbo;
-	RenderTarget current_fbo;
+	RenderTarget screen_target;
+	RenderTarget ping_target;
+	RenderTarget pong_target;
+	RenderTarget intermediate_target;
 
 	constexpr static float min_line_width{ 1.0f };
 
