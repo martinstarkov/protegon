@@ -35,6 +35,7 @@ Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key) {
 	sprite.SetDraw<Sprite>();
 	sprite.SetTextureKey(texture_key);
 	sprite.Show();
+	sprite.Add<impl::ShaderPass>(game.shader.Get<ShapeShader::Quad>());
 	return sprite;
 }
 
@@ -97,7 +98,7 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::RenderState render_state;
 
 	render_state.blend_mode	   = blend_mode;
-	render_state.shader_passes = { game.shader.Get<ShapeShader::Quad>() };
+	render_state.shader_passes = entity.Get<impl::ShaderPass>();
 	render_state.camera		   = camera;
 	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
 	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
