@@ -16,6 +16,7 @@
 #include "core/manager.h"
 #include "events/event_handler.h"
 #include "events/events.h"
+#include "math/geometry.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -217,26 +218,130 @@ float RenderData::GetTextureIndex(std::uint32_t texture_id) {
 }
 
 void RenderData::AddTexturedQuad(
-	std::array<Vertex, 4>& points, const RenderState& state, TextureId texture_id
+	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+	const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
+	const RenderState& state, const Texture& texture
 ) {
+	PTGN_ASSERT(texture.IsValid());
+
+	auto points{ impl::GetQuadVertices(
+		impl::GetVertices(transform, size, origin), tint, depth, 0.0f, texture_coordinates
+	) };
+
+	auto texture_id{ texture.GetId() };
+	auto texture_size{ texture.GetSize() };
+
+	PTGN_ASSERT(!texture_size.IsZero(), "Texture must have a non-zero size");
+
+	if (!state.pre_fx.pre_fx_.empty()) {
+		Matrix4 camera{ Matrix4::Orthographic(
+			-texture_size.x, texture_size.x, texture_size.y, -texture_size.y,
+			-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
+		) };
+
+		std::array<V2_float, 4> camera_positions{};
+		for (std::size_t i{ 0 }; i < camera_positions.size(); i++) {
+			camera_positions[i] = impl::default_texture_coordinates[i] * texture_size;
+		}
+
+		/*
+		auto ping{ frame_buffer_pool_.Get(texture_size) };
+		auto pong{ frame_buffer_pool_.Get(texture_size) };
+
+		for (const auto& fx : render_state.pre_fx.pre_fx_) {
+			DrawTo(pong);
+			pong.ClearToColor(color::Transparent);
+
+			const auto& shader_pass{ fx.Get<ShaderPass>() };
+			const auto& shader{ shader_pass.GetShader() };
+
+			BindCamera(shader, camera);
+
+			// assert that vertices is screen vertices.
+			GLRenderer::SetViewport({ 0, 0 }, texture_size);
+			GLRenderer::SetBlendMode(fx.GetBlendMode());
+
+			ReadFrom(ping);
+
+			// TODO: Cache this somehow?
+			SetCameraVertices(camera_positions, depth);
+
+			shader.SetUniform("u_Texture", 1);
+			shader.SetUniform("u_Resolution", texture_size);
+
+			shader_pass.Invoke(fx);
+
+			DrawVertexArray(quad_indices.size());
+
+			std::swap(ping, pong);
+		}
+		*/
+	}
+
 	float texture_index{ GetTextureIndex(texture_id) };
+
 	for (auto& v : points) {
 		v.tex_index = { texture_index };
 	}
-	AddQuad(points, state);
+
+	SetState(state);
+
+	AddVertices(points, quad_indices);
 	// Must be done after adding quad because AddQuad may Flush the current batch, which will clear
 	// textures.
 	textures.emplace_back(texture_id);
 }
 
-void RenderData::AddQuad(const std::array<Vertex, 4>& points, const RenderState& state) {
+void RenderData::AddQuad(
+	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+	const Depth& depth, const RenderState& state, float texture_index
+) {
 	SetState(state);
+
+	auto points{ impl::GetQuadVertices(
+		impl::GetVertices(transform, size, origin), tint, depth, texture_index,
+		impl::default_texture_coordinates
+	) };
 
 	AddVertices(points, quad_indices);
 }
 
+void RenderData::AddThinQuad(
+	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+	const Depth& depth, float line_width, const RenderState& state
+) {
+	std::array<V2_float, 4> quad_points{ impl::GetVertices(transform, size, origin) };
+
+	auto quad_vertices{
+		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
+	};
+
+	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for Rect");
+
+	// Compose the quad out of 4 lines, each made up of line_width wide quads.
+	for (std::size_t i{ 0 }; i < quad_points.size(); i++) {
+		auto start{ state.camera.ZoomIfNeeded(quad_points[i]) };
+		auto end{ state.camera.ZoomIfNeeded(quad_points[(i + 1) % quad_points.size()]) };
+
+		auto line_points{ impl::GetLineQuadVertices(start, end, line_width) };
+
+		for (std::size_t j{ 0 }; j < line_points.size(); j++) {
+			quad_vertices[j].position[0] = line_points[j].x;
+			quad_vertices[j].position[1] = line_points[j].y;
+		}
+
+		SetState(state);
+
+		AddVertices(quad_vertices, quad_indices);
+	}
+}
+
 bool RenderData::SetState(const RenderState& new_render_state) {
-	if (new_render_state == render_state && new_render_state.pre_fx.pre_fx_.empty()) {
+	PTGN_ASSERT(
+		new_render_state.pre_fx.pre_fx_.empty(),
+		"PreFX must be applied before setting the state: Possibly an unsupported shape with PreFX"
+	);
+	if (new_render_state == render_state) {
 		return false;
 	}
 	// New render state or PreFX present.
@@ -274,14 +379,15 @@ void RenderData::SetViewport(const Camera& camera) {
 	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
 }
 
-void RenderData::SetCameraVertices(const Camera& camera) {
-	const auto& positions{ camera.GetVertices() };
-
-	camera_vertices = GetQuadVertices(
-		positions, color::White, camera.GetDepth(), 1.0f, default_texture_coordinates, true
-	);
+void RenderData::SetCameraVertices(const std::array<V2_float, 4>& positions, const Depth& depth) {
+	camera_vertices =
+		GetQuadVertices(positions, color::White, depth, 1.0f, default_texture_coordinates, true);
 
 	UpdateVertexArray(camera_vertices, quad_indices);
+}
+
+void RenderData::SetCameraVertices(const Camera& camera) {
+	SetCameraVertices(camera.GetVertices(), camera.GetDepth());
 }
 
 void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
@@ -392,9 +498,10 @@ void RenderData::Flush() {
 		DrawVertexArray(indices.size());
 	};
 
-	if (!render_state.pre_fx.pre_fx_.empty()) {
-		// TODO: Implement.
-	}
+	PTGN_ASSERT(
+		render_state.pre_fx.pre_fx_.empty(), "Pre fx must be applied internally before flushing: "
+											 "Possibly an unsupported shape with PreFX"
+	);
 
 	if (!render_state.post_fx.post_fx_.empty()) {
 		if (!vertices.empty() && !indices.empty()) {

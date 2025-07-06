@@ -87,14 +87,6 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	// TODO: Make a zero display_size use cached camera vertices instead.
 	PTGN_ASSERT(!display_size.IsZero());
 
-	// TODO: Cache everything from here onward.
-
-	std::array<V2_float, 4> quad_points{ impl::GetVertices(transform, display_size, origin) };
-
-	auto quad_vertices{
-		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, texture_coordinates)
-	};
-
 	impl::RenderState render_state;
 
 	render_state.blend_mode	   = blend_mode;
@@ -103,7 +95,9 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
 	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 
-	ctx.AddTexturedQuad(quad_vertices, render_state, texture.GetId());
+	ctx.AddTexturedQuad(
+		transform, display_size, origin, tint, depth, texture_coordinates, render_state, texture
+	);
 }
 
 Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {

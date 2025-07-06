@@ -162,10 +162,20 @@ public:
 	void AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state);
 
 	void AddTexturedQuad(
-		std::array<Vertex, 4>& vertices, const RenderState& state, TextureId texture_id
+		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+		const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
+		const RenderState& state, const Texture& texture
 	);
 
-	void AddQuad(const std::array<Vertex, 4>& vertices, const RenderState& state);
+	void AddThinQuad(
+		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+		const Depth& depth, float line_width, const RenderState& state
+	);
+
+	void AddQuad(
+		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+		const Depth& depth, const RenderState& state, float texture_index = 0.0f
+	);
 
 	void AddShader(
 		Entity entity, const RenderState& render_state, BlendMode target_blend_mode,
@@ -225,6 +235,7 @@ private:
 	);
 
 	void SetCameraVertices(const Camera& camera);
+	void SetCameraVertices(const std::array<V2_float, 4>& positions, const Depth& depth);
 
 	void Init();
 

@@ -42,11 +42,9 @@ void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
 	// TODO: Make a zero scaled_size use cached camera vertices instead.
 	PTGN_ASSERT(!scaled_radius.IsZero());
 
-	// TODO: Cache everything from here onward.
+	V2_float scaled_size{ scaled_radius * 2.0f };
 
-	std::array<V2_float, 4> quad_points{
-		impl::GetVertices(transform, scaled_radius * 2.0f, origin)
-	};
+	// TODO: Cache everything from here onward.
 
 	impl::RenderState render_state;
 
@@ -68,10 +66,7 @@ void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
 		line_width = 0.005f + line_width / std::min(scaled_radius.x, scaled_radius.y);
 	}
 
-	auto quad_vertices{ impl::GetQuadVertices(
-		quad_points, tint, depth, line_width, impl::default_texture_coordinates
-	) };
-	ctx.AddQuad(quad_vertices, render_state);
+	ctx.AddQuad(transform, scaled_size, origin, tint, depth, render_state, line_width);
 }
 
 Entity CreateCircle(

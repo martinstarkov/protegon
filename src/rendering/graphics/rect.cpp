@@ -45,12 +45,6 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	// TODO: Cache everything from here onward.
 
-	std::array<V2_float, 4> quad_points{ impl::GetVertices(transform, scaled_size, origin) };
-
-	auto quad_vertices{
-		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
-	};
-
 	impl::RenderState render_state;
 
 	render_state.blend_mode	   = blend_mode;
@@ -60,26 +54,13 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 
 	if (line_width == -1.0f) {
-		ctx.AddQuad(quad_vertices, render_state);
+		ctx.AddQuad(transform, scaled_size, origin, tint, depth, render_state);
 		return;
 	}
 
-	PTGN_ASSERT(line_width >= ctx.min_line_width, "Invalid line width for Rect");
+	// TODO: Move into renderer.
 
-	// Compose the quad out of 4 lines, each made up of line_width wide quads.
-	for (std::size_t i{ 0 }; i < quad_points.size(); i++) {
-		auto start{ camera.ZoomIfNeeded(quad_points[i]) };
-		auto end{ camera.ZoomIfNeeded(quad_points[(i + 1) % quad_points.size()]) };
-
-		auto line_points{ impl::GetLineQuadVertices(start, end, line_width) };
-
-		for (std::size_t j{ 0 }; j < line_points.size(); j++) {
-			quad_vertices[j].position[0] = line_points[j].x;
-			quad_vertices[j].position[1] = line_points[j].y;
-		}
-
-		ctx.AddQuad(quad_vertices, render_state);
-	}
+	ctx.AddThinQuad(transform, scaled_size, origin, tint, depth, line_width, render_state);
 }
 
 Entity CreateRect(
