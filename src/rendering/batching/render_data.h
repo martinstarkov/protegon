@@ -133,6 +133,60 @@ public:
 	PostFX post_fx;
 };
 
+class FrameBufferContext {
+public:
+	explicit FrameBufferContext(const V2_int& size, TextureFormat format);
+
+	// Resizes the internal framebuffer.
+	void Resize(const V2_int& new_size);
+
+	[[nodiscard]] const FrameBuffer& GetFrameBuffer() const;
+	[[nodiscard]] FrameBuffer& GetFrameBuffer();
+
+	[[nodiscard]] bool TimerCompleted(milliseconds duration) const;
+	[[nodiscard]] V2_int GetSize() const;
+
+private:
+	TextureFormat format_{ TextureFormat::RGBA8888 };
+	FrameBuffer frame_buffer_;
+	// Timer used to track age for reuse.
+	Timer timer_;
+};
+
+class FrameBufferPool {
+public:
+	FrameBufferPool(milliseconds max_age, std::size_t max_pool_size);
+
+	// Retrieve a framebuffer of the given size.
+	// Size must be positive and non-zero.
+	std::shared_ptr<FrameBufferContext> Get(V2_float size, TextureFormat format);
+
+	// Return a framebuffer to the pool.
+	void Add(std::shared_ptr<FrameBufferContext> ctx);
+
+	// Setters
+	void SetMaxAge(milliseconds max_age);
+	void SetMaxPoolSize(std::size_t max_size);
+
+	// Clear and destroy all pooled framebuffers.
+	void Clear();
+
+	// Trim the pool down to the maximum size.
+	void Prune();
+
+private:
+	std::size_t KeyForSize(const V2_float& size) const;
+
+	milliseconds max_age_{ 0 };
+	std::size_t max_pool_size_{ 0 };
+
+	// Ordered by age (oldest first)
+	std::vector<std::shared_ptr<FrameBufferContext>> age_pool_;
+
+	// Size-keyed access
+	std::unordered_map<std::size_t, std::vector<std::shared_ptr<FrameBufferContext>>> size_pool_;
+};
+
 class RenderData {
 public:
 	template <typename T, typename S>
@@ -163,8 +217,8 @@ public:
 
 	void AddTexturedQuad(
 		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-		const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-		const RenderState& state, const Texture& texture
+		const Depth& depth, const std::array<V2_float, 4>& texture_coordinates, RenderState state,
+		const Texture& texture
 	);
 
 	void AddThinQuad(
@@ -256,7 +310,11 @@ private:
 
 	constexpr static std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
 	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };
+	// If true, will flush on the next state change regardless of state being new or not.
+	bool force_flush{ false };
 	std::array<Vertex, 4> camera_vertices;
+	FrameBufferPool frame_buffer_pool{ seconds{ 1 }, 1024 };
+	std::vector<std::shared_ptr<FrameBufferContext>> used_contexts;
 	Manager render_manager;
 	RenderState render_state;
 	std::vector<Vertex> vertices;

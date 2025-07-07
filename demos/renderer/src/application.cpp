@@ -18,7 +18,7 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
-constexpr int start_test_index{ 3 };
+constexpr int start_test_index{ 0 };
 
 using SceneBuilder = std::function<void(Scene&)>;
 std::vector<SceneBuilder> tests;
@@ -150,8 +150,19 @@ Entity AddCircle(Scene& s, V2_float pos, float radius, Color color) {
 	return e;
 }
 
+Entity AddSprite(Scene& s, V2_float pos) {
+	auto e = CreateSprite(s, "test");
+	e.SetPosition(pos);
+	PTGN_LOG("Sprite: ", pos);
+	return e;
+}
+
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+	});
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color).AddPostFX(CreateGrayscale(s));
@@ -207,6 +218,34 @@ void GenerateTestCases() {
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color).AddPostFX(CreateGrayscale(s));
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
 	});
 
 	tests.emplace_back([](Scene& s) { AddRect(s, rect1_pos, rect1_size, rect1_color); });
