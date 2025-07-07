@@ -11,6 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -24,10 +28,6 @@
 #include "rendering/gl/gl_loader.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/file.h"
 
@@ -286,8 +286,9 @@ std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 	return value;
 }
 
-std::int32_t Texture::GetLevelParameterI(TextureLevelParameter parameter, std::int32_t level)
-	const {
+std::int32_t Texture::GetLevelParameterI(
+	TextureLevelParameter parameter, std::int32_t level
+) const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its level parameters");
 	std::int32_t value{ -1 };
 	GLCall(glGetTexLevelParameteriv(
