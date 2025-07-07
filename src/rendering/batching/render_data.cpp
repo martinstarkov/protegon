@@ -155,6 +155,7 @@ std::size_t FrameBufferPool::KeyForSize(const V2_float& size) const {
 }
 
 void FrameBufferPool::Add(std::shared_ptr<FrameBufferContext> ctx) {
+	// TODO: Find use for this?
 	if (std::find(age_pool_.begin(), age_pool_.end(), ctx) != age_pool_.end()) {
 		return;
 	}
@@ -165,6 +166,7 @@ void FrameBufferPool::Add(std::shared_ptr<FrameBufferContext> ctx) {
 }
 
 std::shared_ptr<FrameBufferContext> FrameBufferPool::Get(V2_float size, TextureFormat format) {
+	// TODO: Fix this function and remove used_contexts.
 	PTGN_ASSERT(size.x > 0 && size.y > 0);
 	size.x = std::min(size.x, 4096.0f);
 	size.y = std::min(size.y, 4096.0f);
@@ -226,11 +228,13 @@ void FrameBufferPool::SetMaxPoolSize(size_t max_size) {
 }
 
 void FrameBufferPool::Clear() {
+	// TODO: Find use for this?
 	age_pool_.clear();
 	size_pool_.clear();
 }
 
 void FrameBufferPool::Prune() {
+	// TODO: Find use for this?
 	if (age_pool_.size() <= max_pool_size_) {
 		return;
 	}
