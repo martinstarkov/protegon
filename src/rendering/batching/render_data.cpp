@@ -147,75 +147,16 @@ void FrameBufferContext::Resize(const V2_int& new_size) {
 	timer_.Start();
 }
 
-FrameBufferPool::FrameBufferPool(milliseconds max_age, size_t max_pool_size) :
+FrameBufferPool::FrameBufferPool(milliseconds max_age, std::size_t max_pool_size) :
 	max_age_{ max_age }, max_pool_size_{ max_pool_size } {}
-
-std::size_t FrameBufferPool::KeyForSize(const V2_float& size) const {
-	return Hash(size);
-}
-
-void FrameBufferPool::Add(std::shared_ptr<FrameBufferContext> ctx) {
-	// TODO: Find use for this?
-	if (std::find(age_pool_.begin(), age_pool_.end(), ctx) != age_pool_.end()) {
-		return;
-	}
-
-	auto key{ KeyForSize(ctx->GetSize()) };
-	size_pool_[key].push_back(ctx);
-	age_pool_.push_back(ctx);
-}
 
 std::shared_ptr<FrameBufferContext> FrameBufferPool::Get(V2_float size, TextureFormat format) {
 	// TODO: Fix this function and remove used_contexts.
 	PTGN_ASSERT(size.x > 0 && size.y > 0);
+
 	size.x = std::min(size.x, 4096.0f);
 	size.y = std::min(size.y, 4096.0f);
 
-	auto key		   = KeyForSize(size);
-	auto& pool_by_size = size_pool_[key];
-
-	// 1. Reuse same-size framebuffer
-	if (!pool_by_size.empty()) {
-		auto ctx = pool_by_size.back();
-		pool_by_size.pop_back();
-		age_pool_.erase(std::remove(age_pool_.begin(), age_pool_.end(), ctx), age_pool_.end());
-		return ctx;
-	}
-
-	// 2. Reuse framebuffer old enough (based on its internal Timer)
-	if (!age_pool_.empty()) {
-		auto ctx = age_pool_.front();
-		if (ctx->TimerCompleted(max_age_)) {
-			age_pool_.erase(age_pool_.begin());
-
-			auto old_key{ KeyForSize(ctx->GetSize()) };
-			auto& old_list = size_pool_[old_key];
-			old_list.erase(std::remove(old_list.begin(), old_list.end(), ctx), old_list.end());
-
-			ctx->Resize(size);
-			return ctx;
-		}
-	}
-
-	// 3. Allocate new framebuffer (within pool size)
-	if (age_pool_.size() < max_pool_size_) {
-		return std::make_shared<FrameBufferContext>(size, format);
-	}
-
-	// 4. Reuse oldest framebuffer (resize)
-	if (!age_pool_.empty()) {
-		auto ctx = age_pool_.front();
-		age_pool_.erase(age_pool_.begin());
-
-		auto old_key{ KeyForSize(ctx->GetSize()) };
-		auto& old_list = size_pool_[old_key];
-		old_list.erase(std::remove(old_list.begin(), old_list.end(), ctx), old_list.end());
-
-		ctx->Resize(size);
-		return ctx;
-	}
-
-	// 5. Create new framebuffer (exceeding pool size)
 	return std::make_shared<FrameBufferContext>(size, format);
 }
 
@@ -223,31 +164,8 @@ void FrameBufferPool::SetMaxAge(milliseconds max_age) {
 	max_age_ = max_age;
 }
 
-void FrameBufferPool::SetMaxPoolSize(size_t max_size) {
+void FrameBufferPool::SetMaxPoolSize(std::size_t max_size) {
 	max_pool_size_ = max_size;
-}
-
-void FrameBufferPool::Clear() {
-	// TODO: Find use for this?
-	age_pool_.clear();
-	size_pool_.clear();
-}
-
-void FrameBufferPool::Prune() {
-	// TODO: Find use for this?
-	if (age_pool_.size() <= max_pool_size_) {
-		return;
-	}
-
-	std::size_t excess{ age_pool_.size() - max_pool_size_ };
-	for (std::size_t i = 0; i < excess; ++i) {
-		auto ctx{ age_pool_[i] };
-		auto key{ KeyForSize(ctx->GetSize()) };
-		auto& pool{ size_pool_[key] };
-		pool.erase(std::remove(pool.begin(), pool.end(), ctx), pool.end());
-	}
-
-	age_pool_.erase(age_pool_.begin(), age_pool_.begin() + excess);
 }
 
 void RenderData::Init() {
@@ -352,9 +270,11 @@ float RenderData::GetTextureIndex(std::uint32_t texture_id) {
 void RenderData::AddTexturedQuad(
 	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
 	const Depth& depth, const std::array<V2_float, 4>& texture_coordinates, RenderState state,
-	const Texture& texture
+	const Texture& texture, const PreFX& pre_fx
 ) {
 	PTGN_ASSERT(texture.IsValid());
+
+	SetState(state);
 
 	auto points{ impl::GetQuadVertices(
 		impl::GetVertices(transform, size, origin), tint, depth, 0.0f, texture_coordinates
@@ -365,11 +285,11 @@ void RenderData::AddTexturedQuad(
 
 	PTGN_ASSERT(!texture_size.IsZero(), "Texture must have a non-zero size");
 
-	bool pre_fx{ !state.pre_fx.pre_fx_.empty() };
+	bool pre_fx_exist{ !pre_fx.pre_fx_.empty() };
 
 	std::shared_ptr<FrameBufferContext> context;
 
-	if (pre_fx) {
+	if (pre_fx_exist) {
 		V2_float extents{ texture_size * 0.5f };
 		Matrix4 camera{ Matrix4::Orthographic(
 			-extents.x, extents.x, extents.y, -extents.y, -std::numeric_limits<float>::infinity(),
@@ -390,7 +310,7 @@ void RenderData::AddTexturedQuad(
 		PTGN_ASSERT(ping->GetSize() == texture_size);
 		PTGN_ASSERT(pong->GetSize() == texture_size);
 
-		for (auto it = state.pre_fx.pre_fx_.begin(); it != state.pre_fx.pre_fx_.end(); ++it) {
+		for (auto it = pre_fx.pre_fx_.begin(); it != pre_fx.pre_fx_.end(); ++it) {
 			const auto& fx{ *it };
 			DrawTo(pong->GetFrameBuffer());
 			PTGN_ASSERT(pong->GetFrameBuffer().IsBound());
@@ -405,7 +325,7 @@ void RenderData::AddTexturedQuad(
 			GLRenderer::SetViewport({ 0, 0 }, texture_size);
 			GLRenderer::SetBlendMode(fx.GetBlendMode());
 
-			if (it == state.pre_fx.pre_fx_.begin()) {
+			if (it == pre_fx.pre_fx_.begin()) {
 				ReadFrom(texture);
 			} else {
 				ReadFrom(ping->GetFrameBuffer());
@@ -424,11 +344,17 @@ void RenderData::AddTexturedQuad(
 			std::swap(ping, pong);
 		}
 
-		state.pre_fx.pre_fx_.clear();
 		context	   = ping;
 		texture_id = context->GetFrameBuffer().GetTexture().GetId();
 
+		PTGN_ASSERT(context != nullptr);
+		// Must be done after because SetState may Flush the current batch, which will
+		// clear used contexts.
+		frame_buffer_pool.used_contexts.emplace_back(context);
+
 		white_texture.Bind(0);
+
+		force_flush = true;
 	}
 
 	float texture_index{ GetTextureIndex(texture_id) };
@@ -437,20 +363,10 @@ void RenderData::AddTexturedQuad(
 		v.tex_index = { texture_index };
 	}
 
-	SetState(state);
-
 	AddVertices(points, quad_indices);
 	// Must be done after because SetState may Flush the current batch, which will
 	// clear textures.
 	textures.emplace_back(texture_id);
-
-	if (pre_fx) {
-		force_flush = true;
-		PTGN_ASSERT(context != nullptr);
-		// Must be done after because SetState may Flush the current batch, which will
-		// clear used contexts.
-		used_contexts.emplace_back(context);
-	}
 }
 
 void RenderData::AddQuad(
@@ -498,17 +414,12 @@ void RenderData::AddThinQuad(
 }
 
 bool RenderData::SetState(const RenderState& new_render_state) {
-	PTGN_ASSERT(
-		new_render_state.pre_fx.pre_fx_.empty(),
-		"PreFX must be applied before setting the state: Possibly an unsupported shape with PreFX"
-	);
-	if (new_render_state == render_state && !force_flush) {
-		return false;
+	if (new_render_state != render_state || !force_flush) {
+		Flush();
+		render_state = new_render_state;
+		return true;
 	}
-	// New render state or PreFX present.
-	Flush();
-	render_state = new_render_state;
-	return true;
+	return false;
 }
 
 void RenderData::BindCamera(const Shader& shader, const Matrix4& view_projection) {
@@ -659,11 +570,6 @@ void RenderData::Flush() {
 		DrawVertexArray(indices.size());
 	};
 
-	PTGN_ASSERT(
-		render_state.pre_fx.pre_fx_.empty(), "Pre fx must be applied internally before flushing: "
-											 "Possibly an unsupported shape with PreFX"
-	);
-
 	if (!render_state.post_fx.post_fx_.empty()) {
 		if (!vertices.empty() && !indices.empty()) {
 			PTGN_ASSERT(!intermediate_target);
@@ -718,8 +624,6 @@ void RenderData::Flush() {
 	}
 
 	if (intermediate_target) {
-		PTGN_ASSERT(intermediate_target);
-
 		auto camera{ game.scene.GetCurrent().camera.window };
 
 		PTGN_ASSERT(camera);
@@ -764,7 +668,7 @@ void RenderData::Reset() {
 	textures.clear();
 	index_offset = 0;
 	force_flush	 = false;
-	used_contexts.clear();
+	frame_buffer_pool.used_contexts.clear();
 }
 
 void RenderData::DrawVertexArray(std::size_t index_count) const {
