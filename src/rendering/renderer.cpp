@@ -21,6 +21,7 @@
 #include "rendering/batching/render_data.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/gl/gl_renderer.h"
+#include "rendering/resources/shader.h"
 #include "rendering/resources/text.h"
 #include "resources/texture.h"
 #include "scene/camera.h"
@@ -74,10 +75,14 @@ void DrawDebugRect(
 	const V2_float& position, const V2_float& size, const Color& color, Origin origin,
 	float line_width, float rotation, const Camera& camera
 ) {
-	/*game.renderer.GetRenderData().AddQuad(
-		position, size, origin, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
-		rotation, true
-	);*/
+	impl::RenderState state;
+	state.blend_mode  = debug_blend_mode;
+	state.camera	  = camera;
+	state.shader_pass = { game.shader.Get<ShapeShader::Quad>() };
+
+	game.renderer.GetRenderData().AddQuad(
+		Transform{ position, rotation }, size, origin, color, max_depth, state
+	);
 }
 
 void DrawDebugEllipse(
