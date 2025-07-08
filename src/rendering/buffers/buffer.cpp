@@ -20,6 +20,7 @@ Buffer<BT>::Buffer(
 
 	GenerateBuffer();
 
+	usage_ = usage;
 	count_ = element_count;
 	// Ensure that this buffer does not get bound to any currently bound vertex array.
 	VertexArray::Unbind();
@@ -48,7 +49,9 @@ bool Buffer<BT>::operator!=(const Buffer& other) const {
 
 template <BufferType BT>
 Buffer<BT>::Buffer(Buffer&& other) noexcept :
-	id_{ std::exchange(other.id_, 0) }, count_{ std::exchange(other.count_, 0) } {}
+	id_{ std::exchange(other.id_, 0) },
+	count_{ std::exchange(other.count_, 0) },
+	usage_{ std::exchange(other.usage_, BufferUsage::Unset) } {}
 
 template <BufferType BT>
 Buffer<BT>& Buffer<BT>::operator=(Buffer&& other) noexcept {
@@ -56,6 +59,7 @@ Buffer<BT>& Buffer<BT>::operator=(Buffer&& other) noexcept {
 		DeleteBuffer();
 		id_	   = std::exchange(other.id_, 0);
 		count_ = std::exchange(other.count_, 0);
+		usage_ = std::exchange(other.usage_, BufferUsage::Unset);
 	}
 	return *this;
 }
