@@ -29,50 +29,37 @@ RNG<float> size_rng{ 10.0f, 70.0f };
 RNG<float> light_radius_rng{ 10.0f, 200.0f };
 RNG<float> intensity_rng{ 0.0f, 10.0f };
 
-class Blur : public Drawable<Blur> {
+class PostProcessingEffect : public Drawable<PostProcessingEffect> {
 public:
-	Blur() {}
+	PostProcessingEffect() {}
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
 		render_state.blend_mode	   = entity.GetBlendMode();
 		render_state.shader_passes = entity.Get<impl::ShaderPass>();
 		render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
-		render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
 	}
 };
 
-class Grayscale : public Drawable<Grayscale> {
-public:
-	Grayscale() {}
+Entity CreatePostProcessingEffect(Scene& scene) {
+	auto effect{ scene.CreateEntity() };
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		impl::RenderState render_state;
-		render_state.blend_mode	   = entity.GetBlendMode();
-		render_state.shader_passes = entity.Get<impl::ShaderPass>();
-		render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
-		render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
-		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
-	}
-};
+	effect.SetDraw<PostProcessingEffect>();
+	effect.Show();
+	effect.SetBlendMode(BlendMode::None);
+
+	return effect;
+}
 
 Entity CreateBlur(Scene& scene) {
-	auto blur{ scene.CreateEntity() };
-
-	blur.SetDraw<Blur>();
-	blur.Show();
-	blur.SetBlendMode(BlendMode::None);
+	auto blur{ CreatePostProcessingEffect(scene) };
 	blur.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Blur>(), nullptr);
 	return blur;
 }
 
 Entity CreateGrayscale(Scene& scene) {
-	auto grayscale{ scene.CreateEntity() };
-
-	grayscale.SetDraw<Grayscale>();
-	grayscale.Show();
-	grayscale.SetBlendMode(BlendMode::None);
+	auto grayscale{ CreatePostProcessingEffect(scene) };
 	grayscale.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Grayscale>(), nullptr);
 	return grayscale;
 }
@@ -161,7 +148,13 @@ void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
 
 	tests.emplace_back([](Scene& s) {
-		AddSprite(s, rect1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		AddRect(s, rect1_pos, { 320, 240 }, rect1_color);
+		AddSprite(s, rect1_pos)
+			.AddPreFX(CreateGrayscale(s))
+			.AddPreFX(CreateBlur(s))
+			.SetRotation(DegToRad(45.0f));
+		AddSprite(s, rect1_pos).AddPreFX(CreateBlur(s)).SetRotation(DegToRad(-45.0f));
+		AddSprite(s, rect1_pos).SetRotation(DegToRad(-10.0f));
 	});
 
 	tests.emplace_back([](Scene& s) {
