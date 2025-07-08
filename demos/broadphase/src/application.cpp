@@ -11,12 +11,13 @@
 #include "core/manager.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "rendering/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 1000, 1000 }; //{ 1280, 720 };
+constexpr V2_int window_size{ 800, 800 }; //{ 1280, 720 };
 
 // TODO: Move all of this into the collision system.
 
@@ -209,6 +210,13 @@ public:
 	}
 };
 
+void SpawnEnemy(Quadtree& tree, Scene& scene, const V2_float& top_left, const V2_float& size) {
+	Entity enemy = scene.CreateEntity();
+	AABB box{ top_left, top_left + size };
+	enemy.Add<AABB>(box);
+	tree.insert(enemy);
+}
+
 void SpawnEnemies(
 	Quadtree& tree, size_t count,
 	RNG<float>& positionRNGX, // e.g., RNG<float> positionRNG{ 0.0f, 800.0f };
@@ -216,21 +224,8 @@ void SpawnEnemies(
 	RNG<float>& sizeRNG,	  // e.g., RNG<float> sizeRNG{ 10.0f, 40.0f };
 	Scene& scene			  // Interface to create entities
 ) {
-	for (size_t i = 0; i < count; ++i) {
-		float width	 = sizeRNG();
-		float height = sizeRNG();
-
-		float x = positionRNGX();
-		float y = positionRNGY();
-
-		V2_float min = { x, y };
-		V2_float max = { x + width, y + height };
-
-		Entity enemy = scene.CreateEntity(); // Your ECS entity creation
-		AABB box{ min, max };
-		enemy.Add<AABB>(box);
-
-		tree.insert(enemy);
+	for (std::size_t i{ 0 }; i < count; ++i) {
+		SpawnEnemy(tree, scene, { positionRNGX(), positionRNGY() }, { sizeRNG(), sizeRNG() });
 	}
 }
 
@@ -241,7 +236,7 @@ bool Overlaps(const AABB& a, const AABB& b) {
 #define QUADTREE 1
 
 struct BroadphaseScene : public Scene {
-	Quadtree tree{ AABB{ V2_float{ 0, 0 }, V2_float{ 1000, 1000 } } };
+	Quadtree tree{ AABB{ V2_float{ 0, 0 }, V2_float{ window_size } } };
 
 	Entity player;
 	V2_float playerSize{ 20, 20 };
@@ -262,7 +257,8 @@ struct BroadphaseScene : public Scene {
 
 		tree.insert(player);
 
-		SpawnEnemies(tree, 100000, positionRNGX, positionRNGY, sizeRNG, *this);
+		SpawnEnemy(tree, *this, { 0, 0 }, { 200, 200 });
+		SpawnEnemies(tree, 2000, positionRNGX, positionRNGY, sizeRNG, *this);
 	}
 
 	void Update() override {
@@ -282,28 +278,28 @@ struct BroadphaseScene : public Scene {
 			if (e != player &&
 				std::find(candidates.begin(), candidates.end(), e) != candidates.end() &&
 				Overlaps(player.Get<AABB>(), aabb)) {
-				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
+				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
 			} else {
-				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
+				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
 			}
 #else
 			if (e == player) {
 				continue;
 			} else if (Overlaps(player.Get<AABB>(), aabb)) {
-				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
+				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
 			} else {
-				// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
+				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
 			}
 #endif
-			// DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
+			DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
 		}
 
-		// DrawDebugRect(player.GetPosition(), playerSize, color::Purple);
+		DrawDebugRect(player.GetPosition(), playerSize, color::Purple);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BroadphaseScene");
+	game.Init("BroadphaseScene", window_size);
 	game.scene.Enter<BroadphaseScene>("");
 	return 0;
 }
