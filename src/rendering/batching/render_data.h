@@ -109,17 +109,16 @@ public:
 
 	RenderState(
 		const ShaderPass& shader_passes, BlendMode blend_mode, const Camera& camera,
-		const PreFX& pre_fx = {}, const PostFX& post_fx = {}
+		const PostFX& post_fx = {}
 	) :
 		shader_passes{ shader_passes },
 		blend_mode{ blend_mode },
 		camera{ camera },
-		pre_fx{ pre_fx },
 		post_fx{ post_fx } {}
 
 	friend bool operator==(const RenderState& a, const RenderState& b) {
 		return a.shader_passes == b.shader_passes && a.camera == b.camera &&
-			   a.blend_mode == b.blend_mode && a.pre_fx == b.pre_fx && a.post_fx == b.post_fx;
+			   a.blend_mode == b.blend_mode && a.post_fx == b.post_fx;
 	}
 
 	friend bool operator!=(const RenderState& a, const RenderState& b) {
@@ -129,7 +128,6 @@ public:
 	ShaderPass shader_passes;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
-	PreFX pre_fx;
 	PostFX post_fx;
 };
 
@@ -153,6 +151,13 @@ private:
 	Timer timer_;
 };
 
+/*
+ * 1. A spare FrameBufferContext that has the same dimensions.
+ * 2. A spare FrameBufferContext that has not been used recently, resized.
+ * 3. A new FrameBufferContext, within the maximum pool size.
+ * 4. The oldest spare FrameBufferContext, resized.
+ * 5. A new FrameBufferContext, exceeding the maximum pool size.
+ */
 class FrameBufferPool {
 public:
 	FrameBufferPool(milliseconds max_age, std::size_t max_pool_size);
@@ -160,9 +165,6 @@ public:
 	// Retrieve a framebuffer of the given size.
 	// Size must be positive and non-zero.
 	std::shared_ptr<FrameBufferContext> Get(V2_float size, TextureFormat format);
-
-	// Return a framebuffer to the pool.
-	void Add(std::shared_ptr<FrameBufferContext> ctx);
 
 	// Setters
 	void SetMaxAge(milliseconds max_age);
@@ -174,17 +176,13 @@ public:
 	// Trim the pool down to the maximum size.
 	void Prune();
 
-private:
-	std::size_t KeyForSize(const V2_float& size) const;
+	std::vector<std::shared_ptr<FrameBufferContext>> used_contexts;
 
+private:
 	milliseconds max_age_{ 0 };
 	std::size_t max_pool_size_{ 0 };
 
-	// Ordered by age (oldest first)
-	std::vector<std::shared_ptr<FrameBufferContext>> age_pool_;
-
-	// Size-keyed access
-	std::unordered_map<std::size_t, std::vector<std::shared_ptr<FrameBufferContext>>> size_pool_;
+	std::unordered_map<std::size_t, std::vector<std::shared_ptr<FrameBufferContext>>> pool_;
 };
 
 class RenderData {
@@ -218,7 +216,7 @@ public:
 	void AddTexturedQuad(
 		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
 		const Depth& depth, const std::array<V2_float, 4>& texture_coordinates, RenderState state,
-		const Texture& texture
+		const Texture& texture, const PreFX& pre_fx = {}
 	);
 
 	void AddThinQuad(
@@ -314,7 +312,6 @@ private:
 	bool force_flush{ false };
 	std::array<Vertex, 4> camera_vertices;
 	FrameBufferPool frame_buffer_pool{ seconds{ 1 }, 1024 };
-	std::vector<std::shared_ptr<FrameBufferContext>> used_contexts;
 	Manager render_manager;
 	RenderState render_state;
 	std::vector<Vertex> vertices;

@@ -51,7 +51,6 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.shader_passes = entity.Get<impl::ShaderPass>();
 	render_state.camera		   = camera;
 	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
-	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 
 	if (line_width == -1.0f) {
 		ctx.AddQuad(transform, scaled_size, origin, tint, depth, render_state);

@@ -74,7 +74,6 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.blend_mode	   = entity.GetBlendMode();
 	render_state.shader_passes = entity.Get<impl::ShaderPass>();
 	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
-	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 	ctx.AddShader(entity, render_state, BlendMode::Add, color::Black, false);
 }
 

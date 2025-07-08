@@ -93,10 +93,10 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.shader_passes = entity.Get<impl::ShaderPass>();
 	render_state.camera		   = camera;
 	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
-	render_state.pre_fx		   = entity.GetOrDefault<impl::PreFX>();
 
 	ctx.AddTexturedQuad(
-		transform, display_size, origin, tint, depth, texture_coordinates, render_state, texture
+		transform, display_size, origin, tint, depth, texture_coordinates, render_state, texture,
+		entity.GetOrDefault<impl::PreFX>()
 	);
 }
 
