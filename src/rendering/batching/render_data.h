@@ -108,16 +108,16 @@ public:
 	RenderState() = default;
 
 	RenderState(
-		const ShaderPass& shader_passes, BlendMode blend_mode, const Camera& camera,
+		const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera,
 		const PostFX& post_fx = {}
 	) :
-		shader_passes{ shader_passes },
+		shader_pass{ shader_pass },
 		blend_mode{ blend_mode },
 		camera{ camera },
 		post_fx{ post_fx } {}
 
 	friend bool operator==(const RenderState& a, const RenderState& b) {
-		return a.shader_passes == b.shader_passes && a.camera == b.camera &&
+		return a.shader_pass == b.shader_pass && a.camera == b.camera &&
 			   a.blend_mode == b.blend_mode && a.post_fx == b.post_fx;
 	}
 
@@ -125,7 +125,7 @@ public:
 		return !(a == b);
 	}
 
-	ShaderPass shader_passes;
+	ShaderPass shader_pass;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
 	PostFX post_fx;

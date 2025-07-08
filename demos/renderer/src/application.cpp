@@ -35,9 +35,9 @@ public:
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState render_state;
-		render_state.blend_mode	   = entity.GetBlendMode();
-		render_state.shader_passes = entity.Get<impl::ShaderPass>();
-		render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
+		render_state.blend_mode	 = entity.GetBlendMode();
+		render_state.shader_pass = entity.Get<impl::ShaderPass>();
+		render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
 		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
 	}
 };

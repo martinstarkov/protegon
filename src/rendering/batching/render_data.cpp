@@ -414,7 +414,7 @@ void RenderData::AddThinQuad(
 }
 
 bool RenderData::SetState(const RenderState& new_render_state) {
-	if (new_render_state != render_state || !force_flush) {
+	if (new_render_state != render_state || force_flush) {
 		Flush();
 		render_state = new_render_state;
 		return true;
@@ -517,13 +517,13 @@ void RenderData::AddShader(
 
 	GLRenderer::SetBlendMode(render_state.blend_mode);
 
-	const auto& shader{ render_state.shader_passes.GetShader() };
+	const auto& shader{ render_state.shader_pass.GetShader() };
 	PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
 	// TODO: Only update these if shader bind is dirty.
 	BindCamera(shader, camera);
 	shader.SetUniform("u_Texture", 1);
 	shader.SetUniform("u_Resolution", camera.GetViewportSize());
-	render_state.shader_passes.Invoke(entity);
+	render_state.shader_pass.Invoke(entity);
 
 	DrawVertexArray(quad_indices.size());
 
@@ -577,7 +577,7 @@ void RenderData::Flush() {
 			intermediate_target.ClearToColor(color::Transparent);
 			draw_vertices_to(
 				GetCamera(game.scene.GetCurrent().camera.primary), intermediate_target,
-				render_state.shader_passes
+				render_state.shader_pass
 			);
 		}
 		PTGN_ASSERT(
@@ -653,7 +653,11 @@ void RenderData::Flush() {
 	} else if (!vertices.empty() && !indices.empty()) {
 		draw_vertices_to(
 			GetCamera(game.scene.GetCurrent().camera.primary), screen_target,
-			render_state.shader_passes
+			render_state.shader_pass
+		);
+		PTGN_LOG(
+			"After drawing vertices to screen target: ",
+			screen_target.GetFrameBuffer().GetPixel({ 0, 0 })
 		);
 	}
 

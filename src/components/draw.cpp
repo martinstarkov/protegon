@@ -89,10 +89,10 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	impl::RenderState render_state;
 
-	render_state.blend_mode	   = blend_mode;
-	render_state.shader_passes = entity.Get<impl::ShaderPass>();
-	render_state.camera		   = camera;
-	render_state.post_fx	   = entity.GetOrDefault<impl::PostFX>();
+	render_state.blend_mode	 = blend_mode;
+	render_state.shader_pass = entity.Get<impl::ShaderPass>();
+	render_state.camera		 = camera;
+	render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
 
 	ctx.AddTexturedQuad(
 		transform, display_size, origin, tint, depth, texture_coordinates, render_state, texture,
