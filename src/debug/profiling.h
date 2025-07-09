@@ -5,10 +5,10 @@
 #include <string_view>
 #include <type_traits>
 
-#include "core/resource_manager.h"
 #include "common/assert.h"
-#include "debug/log.h"
+#include "core/resource_manager.h"
 #include "core/timer.h"
+#include "debug/log.h"
 
 namespace ptgn::impl {
 
@@ -16,8 +16,7 @@ class Game;
 
 class ProfileInstance {
 public:
-	ProfileInstance() = default;
-	ProfileInstance(std::string_view function_name, std::string_view custom_name);
+	ProfileInstance(std::string_view function_name);
 	ProfileInstance(ProfileInstance&&) noexcept			   = default;
 	ProfileInstance& operator=(ProfileInstance&&) noexcept = default;
 	ProfileInstance(const ProfileInstance&)				   = default;
@@ -25,10 +24,13 @@ public:
 	~ProfileInstance();
 
 private:
-	std::string name_;
+	ProfileInstance() = default;
+
+	std::string name_{};
+	Timer timer_;
 };
 
-class Profiler : protected MapManager<Timer, std::string, std::string, false> {
+class Profiler : protected MapManager<nanoseconds, std::string, std::string, false> {
 public:
 	Profiler()								 = default;
 	~Profiler() override					 = default;
@@ -53,18 +55,18 @@ public:
 		PrintAll<>();
 	}
 
-	template <typename T = milliseconds>
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
 	void PrintAll() const {
-		for (const auto& [name, timer] : GetMap()) {
-			PrintInfo<T>(name, timer);
+		for (const auto& [name, time] : GetMap()) {
+			PrintInfo<Duration>(name, std::chrono::duration_cast<Duration>(time));
 		}
 	}
 
-	template <typename T = milliseconds>
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
 	void Print(const std::string& name) const {
 		PTGN_ASSERT(Has(name), "Cannot print profiling info for name which is not being profiled");
-		auto& timer{ Get(name) };
-		PrintInfo<T>(name, timer);
+		auto& time{ Get(name) };
+		PrintInfo<Duration>(name, std::chrono::duration_cast<Duration>(time));
 	}
 
 private:
@@ -73,29 +75,21 @@ private:
 
 	bool enabled_{ false };
 
-	template <typename T>
-	void PrintInfo(std::string_view name, const Timer& timer) const {
-		static_assert(tt::is_duration_v<T>, "Type must be duration");
-		PrintLine(
-			"PROFILING: ", impl::TrimFunctionSignature(name), ": ",
-			timer.Elapsed<duration<double, typename T::period>>()
-		);
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
+	void PrintInfo(std::string_view name, const Duration& time) const {
+		PrintLine("PROFILING: ", impl::TrimFunctionSignature(name), ": ", time);
 	}
 };
 
 } // namespace ptgn::impl
 
-#define PTGN_PROFILE_FUNCTION(...)                                                         \
-	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(                          \
-		PTGN_EXPAND(PTGN_FULL_FUNCTION_SIGNATURE), std::invoke([&]() -> std::string_view { \
-			if constexpr (PTGN_NUMBER_OF_ARGS(__VA_ARGS__) > 0) {                          \
-				return __VA_ARGS__;                                                        \
-			} else {                                                                       \
-				return "";                                                                 \
-			}                                                                              \
-		})                                                                                 \
-                                                                                           \
+#define PTGN_PROFILE_FUNCTION()                                   \
+	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__( \
+		PTGN_EXPAND(PTGN_FULL_FUNCTION_SIGNATURE)                 \
 	)
+
+#define PTGN_PROFILE_FUNCTION_NAMED(name) \
+	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__(name)
 
 // Optional: In the future profiling could be disabled for distribution builds.
 // #ifdef PTGN_DISTRIBUTION

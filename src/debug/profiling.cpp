@@ -3,22 +3,21 @@
 #include <string>
 #include <string_view>
 
-#include "core/resource_manager.h"
 #include "core/game.h"
-#include "math/hash.h"
+#include "core/resource_manager.h"
 #include "core/timer.h"
+#include "math/hash.h"
 
 namespace ptgn::impl {
 
-ProfileInstance::ProfileInstance(std::string_view function_name, std::string_view custom_name) :
-	name_{ custom_name.empty() ? function_name : custom_name } {
-	game.profiler.Load(name_).Start();
-}
+ProfileInstance::ProfileInstance(std::string_view function_name) :
+	name_{ function_name }, timer_{ true } {}
 
 ProfileInstance::~ProfileInstance() {
-	if (!name_.empty()) {
-		game.profiler.Get(name_).Stop();
-	}
+	PTGN_ASSERT(!name_.empty());
+	auto& time = game.profiler.Load(name_);
+	auto elapsed{ timer_.Elapsed<nanoseconds>() };
+	time += elapsed;
 }
 
 } // namespace ptgn::impl
