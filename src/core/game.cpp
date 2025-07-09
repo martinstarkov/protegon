@@ -255,6 +255,8 @@ void Game::MainLoop() {
 }
 
 void Game::Update() {
+	profiler.Clear();
+
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
 	// Calculate time elapsed during previous frame. Unit: seconds.
@@ -303,7 +305,7 @@ void Game::Update() {
 	game.stats.Reset();
 #endif
 
-	// profiler.PrintAll();
+	profiler.PrintAll();
 
 	end = std::chrono::system_clock::now();
 }
