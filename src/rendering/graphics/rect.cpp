@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 
+#include "../../debug/profiling.h"
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/offsets.h"
@@ -53,6 +54,8 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
 
 	if (line_width == -1.0f) {
+		// PTGN_ASSERT(entity.Has<QuadVertices>(), "Rect entity must have cached quad vertices");
+		//  ctx.AddQuadVertices(render_state, entity.Get<QuadVertices>().vertices);
 		ctx.AddQuad(transform, scaled_size, origin, tint, depth, render_state);
 		return;
 	}
@@ -62,11 +65,13 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	ctx.AddThinQuad(transform, scaled_size, origin, tint, depth, line_width, render_state);
 }
 
+namespace impl {
+
 Entity CreateRect(
-	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
 	float line_width, Origin origin
 ) {
-	auto rect{ scene.CreateEntity() };
+	auto rect{ manager.CreateEntity() };
 
 	rect.SetDraw<Rect>();
 	rect.Show();
@@ -80,6 +85,15 @@ Entity CreateRect(
 	rect.Add<LineWidth>(line_width);
 
 	return rect;
+}
+
+} // namespace impl
+
+Entity CreateRect(
+	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width, Origin origin
+) {
+	return impl::CreateRect(scene, position, size, color, line_width, origin);
 }
 
 } // namespace ptgn

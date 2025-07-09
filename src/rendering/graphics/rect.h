@@ -15,6 +15,11 @@ namespace impl {
 
 class RenderData;
 
+Entity CreateRect(
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width, Origin origin
+);
+
 } // namespace impl
 
 struct Rect : public Drawable<Rect> {
