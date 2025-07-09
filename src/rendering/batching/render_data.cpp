@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "../../debug/profiling.h"
 #include "common/assert.h"
 #include "components/common.h"
 #include "components/drawable.h"
@@ -369,6 +370,12 @@ void RenderData::AddTexturedQuad(
 	textures.emplace_back(texture_id);
 }
 
+void RenderData::AddQuadVertices(const RenderState& state, const std::array<Vertex, 4>& points) {
+	SetState(state);
+
+	AddVertices(points, quad_indices);
+}
+
 void RenderData::AddQuad(
 	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
 	const Depth& depth, const RenderState& state, float texture_index
@@ -655,10 +662,6 @@ void RenderData::Flush() {
 			GetCamera(game.scene.GetCurrent().camera.primary), screen_target,
 			render_state.shader_pass
 		);
-		PTGN_LOG(
-			"After drawing vertices to screen target: ",
-			screen_target.GetFrameBuffer().GetPixel({ 0, 0 })
-		);
 	}
 
 	intermediate_target = {};
@@ -703,6 +706,7 @@ void RenderData::DrawEntities(const std::vector<Entity>& entities) {
 
 void RenderData::DrawScene(Scene& scene) {
 	std::vector<Entity> regular_entities;
+
 	regular_entities.reserve(scene.Size());
 
 	// TODO: Fix render target entities.
@@ -717,13 +721,8 @@ void RenderData::DrawScene(Scene& scene) {
 		if (!visible || entity.Has<RenderTarget>()) {
 			continue;
 		}
-		if (entity.Has<QuadVertices>()) {
-			// TODO: Update dirty vertices here?
-			regular_entities.emplace_back(entity);
-		} else {
-			// TODO: Add general vertices.
-			regular_entities.emplace_back(entity);
-		}
+		// TODO: Update dirty vertices here?
+		regular_entities.emplace_back(entity);
 	}
 
 	// SortEntities<true>(rt_entities);
@@ -777,6 +776,8 @@ void RenderData::ClearRenderTargets(Scene& scene) {
 }
 
 void RenderData::Draw(Scene& scene) {
+	// PTGN_PROFILE_FUNCTION();
+
 	ClearRenderTargets(scene);
 
 	white_texture.Bind(0);
@@ -790,6 +791,8 @@ void RenderData::Draw(Scene& scene) {
 	DrawToScreen();
 
 	Reset();
+
+	// debug_manager.Clear();
 
 	// TODO: Check if this is needed.
 }

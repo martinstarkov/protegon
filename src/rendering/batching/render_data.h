@@ -5,6 +5,7 @@
 #include <iterator>
 #include <vector>
 
+#include "../../debug/profiling.h"
 #include "common/assert.h"
 #include "components/common.h"
 #include "core/entity.h"
@@ -203,10 +204,11 @@ public:
 
 		vertices.insert(vertices.end(), point_vertices.begin(), point_vertices.end());
 
-		std::transform(
-			point_indices.begin(), point_indices.end(), std::back_inserter(indices),
-			[=](auto x) { return x + index_offset; }
-		);
+		indices.reserve(indices.size() + point_indices.size());
+
+		for (auto index : point_indices) {
+			indices.emplace_back(index + index_offset);
+		}
 
 		index_offset += static_cast<Index>(point_vertices.size());
 	}
@@ -224,6 +226,8 @@ public:
 		const Depth& depth, float line_width, const RenderState& state
 	);
 
+	void AddQuadVertices(const RenderState& state, const std::array<Vertex, 4>& vertices);
+
 	void AddQuad(
 		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
 		const Depth& depth, const RenderState& state, float texture_index = 0.0f
@@ -240,6 +244,8 @@ public:
 	RenderTarget intermediate_target;
 
 	constexpr static float min_line_width{ 1.0f };
+
+	// Manager debug_manager;
 
 private:
 	friend class ptgn::Scene;
