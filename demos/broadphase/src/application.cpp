@@ -9,8 +9,11 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "math/geometry.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "rendering/batching/render_data.h"
+#include "rendering/graphics/rect.h"
 #include "rendering/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -44,12 +47,12 @@ struct AABB {
 // --- Quadtree Node ---
 class QuadtreeNode {
 public:
-	AABB bounds;
 	std::vector<Entity> objects;
 	QuadtreeNode* children[4] = { nullptr, nullptr, nullptr, nullptr };
 	int maxObjects			  = 4;
 	int maxLevels			  = 5;
-	int level;
+	int level{ 0 };
+	AABB bounds;
 
 	QuadtreeNode(int lvl, const AABB& bounds_) : level(lvl), bounds(bounds_) {}
 
@@ -211,9 +214,15 @@ public:
 };
 
 void SpawnEnemy(Quadtree& tree, Scene& scene, const V2_float& top_left, const V2_float& size) {
-	Entity enemy = scene.CreateEntity();
+	Entity enemy = CreateRect(scene, top_left + size * 0.5f, size, color::Green);
 	AABB box{ top_left, top_left + size };
 	enemy.Add<AABB>(box);
+
+	// auto vertices{ impl::GetQuadVertices(
+	// 	impl::GetVertices(enemy.GetTransform(), size, Origin::Center), color::Green,
+	// 	enemy.GetDepth(), 0.0f, impl::default_texture_coordinates
+	// ) };
+	// enemy.Add<QuadVertices>(vertices);
 	tree.insert(enemy);
 }
 
@@ -251,50 +260,66 @@ struct BroadphaseScene : public Scene {
 	}
 
 	void Enter() override {
-		player = CreateEntity();
-		player.Add<Transform>();
+		player = CreateRect(*this, {}, playerSize, color::Purple);
 		player.Add<AABB>(computePlayerAABBFromPosition(player));
+		player.SetDepth(1);
+		// auto vertices{ impl::GetQuadVertices(
+		// 	impl::GetVertices(player.GetTransform(), playerSize, Origin::Center), color::Purple,
+		// 	player.GetDepth(), 0.0f, impl::default_texture_coordinates
+		// ) };
+		// player.Add<QuadVertices>(vertices);
 
 		tree.insert(player);
 
 		SpawnEnemy(tree, *this, { 0, 0 }, { 200, 200 });
-		SpawnEnemies(tree, 2000, positionRNGX, positionRNGY, sizeRNG, *this);
+		SpawnEnemies(tree, 10000, positionRNGX, positionRNGY, sizeRNG, *this);
 	}
 
 	void Update() override {
+		PTGN_PROFILE_FUNCTION();
+
 		MoveWASD(player.Get<Transform>().position, V2_float{ 100.0f } * game.dt(), false);
 		// Update player's AABB component before updating the tree
 		player.Get<AABB>() = computePlayerAABBFromPosition(player);
+		// auto vertices{ impl::GetQuadVertices(
+		// 	impl::GetVertices(player.GetTransform(), playerSize, Origin::Center), color::Purple,
+		// 	player.GetDepth(), 0.0f, impl::default_texture_coordinates
+		// ) };
+		// player.Get<QuadVertices>() = vertices;
+
+		for (auto [e, tint] : EntitiesWith<Tint>()) {
+			tint = color::Green;
+		}
+
+		player.SetTint(color::Purple);
 
 #ifdef QUADTREE
 		// Update player's position in the quadtree (will re-insert if needed)
 		tree.update(player);
 
 		auto candidates = tree.retrieve(player.Get<AABB>());
-#endif
+		// PTGN_LOG("Candidates: ", candidates.size());
 
-		for (auto [e, aabb] : EntitiesWith<AABB>()) {
-#ifdef QUADTREE
-			if (e != player &&
-				std::find(candidates.begin(), candidates.end(), e) != candidates.end() &&
-				Overlaps(player.Get<AABB>(), aabb)) {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
-			} else {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
+		for (auto candidate : candidates) {
+			if (candidate == player) {
+				continue;
 			}
+			if (Overlaps(player.Get<AABB>(), candidate.Get<AABB>())) {
+				candidate.SetTint(color::Red);
+			}
+		}
 #else
+		for (auto [e, aabb] : EntitiesWith<AABB>()) {
 			if (e == player) {
 				continue;
-			} else if (Overlaps(player.Get<AABB>(), aabb)) {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Red);
-			} else {
-				DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
 			}
-#endif
-			DrawDebugRect((aabb.min + aabb.max) / 2.0f, aabb.max - aabb.min, color::Green);
+			if (Overlaps(player.Get<AABB>(), aabb)) {
+				e.SetTint(color::Red);
+			} else {
+				e.SetTint(color::Green);
+			}
 		}
-
-		DrawDebugRect(player.GetPosition(), playerSize, color::Purple);
+#endif
 	}
 };
 
