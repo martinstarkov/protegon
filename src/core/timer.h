@@ -44,12 +44,30 @@ public:
 
 	/*
 	 * @tparam Duration The unit of time. Default: milliseconds.
+	 * @param Amount of time to add to the timer.
+	 */
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
+	void AddOffset(Duration extra_time) {
+		offset_ += extra_time;
+	}
+
+	/*
+	 * @tparam Duration The unit of time. Default: milliseconds.
+	 * @param Amount of time to remove from the timer.
+	 */
+	template <typename Duration = milliseconds, tt::duration<Duration> = true>
+	void RemoveOffset(Duration time_to_remove) {
+		offset_ -= time_to_remove;
+	}
+
+	/*
+	 * @tparam Duration The unit of time. Default: milliseconds.
 	 * @return Elapsed duration of time since timer start.
 	 */
 	template <typename Duration = milliseconds, tt::duration<Duration> = true>
 	[[nodiscard]] Duration Elapsed() const {
 		auto end_time = running_ ? std::chrono::steady_clock::now() : stop_time_;
-		return std::chrono::duration_cast<Duration>(end_time - start_time_);
+		return std::chrono::duration_cast<Duration>(end_time - start_time_ + offset_);
 	}
 
 	/*
@@ -91,9 +109,10 @@ public:
 	friend void from_json(const json& j, Timer& timer);
 
 private:
-	std::chrono::time_point<std::chrono::steady_clock> start_time_;
-	std::chrono::time_point<std::chrono::steady_clock> stop_time_;
-	std::chrono::time_point<std::chrono::steady_clock> pause_time_;
+	std::chrono::time_point<std::chrono::steady_clock> start_time_{};
+	std::chrono::time_point<std::chrono::steady_clock> stop_time_{};
+	std::chrono::time_point<std::chrono::steady_clock> pause_time_{};
+	std::chrono::steady_clock::duration offset_{};
 
 	bool running_{ false };
 	bool paused_{ false };

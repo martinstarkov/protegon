@@ -16,6 +16,7 @@ Timer::Timer(bool start) {
 void Timer::Reset() {
 	start_time_ = std::chrono::steady_clock::now();
 	pause_time_ = std::chrono::steady_clock::now();
+	offset_		= std::chrono::steady_clock::duration::zero();
 	Stop();
 }
 
