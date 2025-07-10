@@ -66,9 +66,10 @@ std::array<V2_float, 4> GetLineQuadVertices(
 }
 
 std::array<V2_float, 4> GetVertices(const Transform& transform, V2_float size, Origin origin) {
-	PTGN_ASSERT(!size.IsZero(), "Cannot get vertices for a sizeless object");
 	// Leave out Abs() around scale to enable texture flipping via negative scales.
 	size *= transform.scale;
+
+	PTGN_ASSERT(!size.IsZero(), "Cannot get vertices for a sizeless object");
 
 	auto half{ size * 0.5f };
 
@@ -218,9 +219,11 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
-														 contour[static_cast<std::size_t>(b)],
-														 contour[static_cast<std::size_t>(c)] });
+			result.emplace_back(
+				std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+										 contour[static_cast<std::size_t>(b)],
+										 contour[static_cast<std::size_t>(c)] }
+			);
 
 			m++;
 
