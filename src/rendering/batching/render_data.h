@@ -10,6 +10,7 @@
 #include "components/common.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
@@ -53,6 +54,10 @@ constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::fl
 constexpr std::size_t batch_capacity{ 4000 };
 constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
+
+[[nodiscard]] std::array<Vertex, 3> GetTriangleVertices(
+	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
+);
 
 [[nodiscard]] std::array<Vertex, 4> GetQuadVertices(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
@@ -188,11 +193,117 @@ private:
 
 class RenderData {
 public:
+	void AddPoint(
+		const V2_float& position, const Color& tint, const Depth& depth, const RenderState& state
+	);
+
+	void AddLine(
+		const V2_float& start, const V2_float& end, const Color& tint, const Depth& depth,
+		float line_width, const RenderState& state
+	);
+
+	void AddLines(
+		const std::vector<V2_float>& line_points, const Color& tint, const Depth& depth,
+		float line_width, bool connect_last_to_first, const RenderState& state
+	);
+
+	void AddTriangle(
+		const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
+		float line_width, const RenderState& state
+	);
+
+	void AddQuad(
+		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+		const Depth& depth, float line_width, const RenderState& state
+	);
+
+	void AddPolygon(
+		const std::vector<V2_float>& polygon_points, const Color& tint, const Depth& depth,
+		float line_width, const RenderState& state
+	);
+
+	void AddEllipse(
+		const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
+		float line_width, const RenderState& state
+	);
+
+	void AddCircle(
+		const Transform& transform, float radius, const Color& tint, const Depth& depth,
+		float line_width, const RenderState& state
+	);
+
+	void AddTexturedQuad(
+		const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
+		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
+		RenderState state, const PreFX& pre_fx = {}
+	);
+
+	void AddShader(
+		Entity entity, const RenderState& render_state, BlendMode target_blend_mode,
+		const Color& target_clear_color, bool uses_scene_texture
+	);
+
+private:
+	friend class ptgn::Scene;
+	friend class Renderer;
+	friend class ptgn::Camera;
+
+	static void DrawTo(const FrameBuffer& frame_buffer);
+	static void DrawTo(const RenderTarget& render_target);
+
+	static void ReadFrom(const Texture& texture);
+	static void ReadFrom(const FrameBuffer& frame_buffer);
+	static void ReadFrom(const RenderTarget& render_target);
+
+	static void BindCamera(const Shader& shader, const Matrix4& view_projection);
+	static void SetViewport(const Camera& camera);
+
+	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
+
 	template <typename T, typename S>
 	void UpdateVertexArray(const T& point_vertices, const S& point_indices) {
 		UpdateVertexArray(
 			point_vertices.data(), point_vertices.size(), point_indices.data(), point_indices.size()
 		);
+	}
+
+	template <typename T, typename S, typename U>
+	void AddShape(
+		const T& shape_vertices, const S& shape_indices, const U& shape_points, float line_width,
+		const RenderState& state
+	) {
+		SetState(state);
+
+		if (line_width == -1.0f) {
+			AddVertices(shape_vertices, shape_indices);
+		} else {
+			AddLinesImpl(shape_vertices, shape_indices, shape_points, line_width, state);
+		}
+	}
+
+	template <typename T, typename S, typename U>
+	void AddLinesImpl(
+		T line_vertices, const S& line_indices, const U& points, float line_width,
+		[[maybe_unused]] const RenderState& state
+	) {
+		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for lines");
+
+		PTGN_ASSERT(points.size() == line_vertices.size());
+
+		for (std::size_t i{ 0 }; i < points.size(); i++) {
+			// TODO: Consider adding state.camera.ZoomIfNeeded(start&end);
+			auto start{ points[i] };
+			auto end{ points[(i + 1) % points.size()] };
+
+			auto line_points{ impl::GetLineQuadVertices(start, end, line_width) };
+
+			for (std::size_t j{ 0 }; j < line_points.size(); j++) {
+				line_vertices[j].position[0] = line_points[j].x;
+				line_vertices[j].position[1] = line_points[j].y;
+			}
+
+			AddVertices(line_vertices, line_indices);
+		}
 	}
 
 	template <typename T, typename S>
@@ -213,57 +324,6 @@ public:
 		index_offset += static_cast<Index>(point_vertices.size());
 	}
 
-	void AddTriangle(const std::array<Vertex, 3>& vertices, const RenderState& state);
-
-	void AddTexturedQuad(
-		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-		const Depth& depth, const std::array<V2_float, 4>& texture_coordinates, RenderState state,
-		const Texture& texture, const PreFX& pre_fx = {}
-	);
-
-	void AddThinQuad(
-		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-		const Depth& depth, float line_width, const RenderState& state
-	);
-
-	void AddQuadVertices(const RenderState& state, const std::array<Vertex, 4>& vertices);
-
-	void AddQuad(
-		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-		const Depth& depth, const RenderState& state, float texture_index = 0.0f
-	);
-
-	void AddShader(
-		Entity entity, const RenderState& render_state, BlendMode target_blend_mode,
-		const Color& target_clear_color, bool uses_scene_texture
-	);
-
-	RenderTarget screen_target;
-	RenderTarget ping_target;
-	RenderTarget pong_target;
-	RenderTarget intermediate_target;
-
-	constexpr static float min_line_width{ 1.0f };
-
-	// Manager debug_manager;
-
-private:
-	friend class ptgn::Scene;
-	friend class Renderer;
-	friend class ptgn::Camera;
-
-	static void DrawTo(const FrameBuffer& frame_buffer);
-	static void DrawTo(const RenderTarget& render_target);
-
-	static void ReadFrom(const Texture& texture);
-	static void ReadFrom(const FrameBuffer& frame_buffer);
-	static void ReadFrom(const RenderTarget& render_target);
-
-	static void BindCamera(const Shader& shader, const Matrix4& view_projection);
-	static void SetViewport(const Camera& camera);
-
-	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
-
 	void InvokeDrawable(const Entity& entity);
 
 	void DrawShaders(Entity entity, const Camera& camera) const;
@@ -276,7 +336,7 @@ private:
 
 	[[nodiscard]] RenderTarget GetPingPongTarget() const;
 
-	void DrawEntities(const std::vector<Entity>& entities);
+	void DrawEntities(const std::vector<Entity>& entities, const RenderTarget& target);
 
 	void FlushCurrentTarget();
 	void FlushBatch();
@@ -312,6 +372,13 @@ private:
 
 	void ClearRenderTargets(Scene& scene);
 
+	RenderTarget screen_target;
+	RenderTarget ping_target;
+	RenderTarget pong_target;
+	RenderTarget intermediate_target;
+	RenderTarget drawing_to;
+
+	constexpr static float min_line_width{ 1.0f };
 	constexpr static std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
 	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 	// If true, will flush on the next state change regardless of state being new or not.

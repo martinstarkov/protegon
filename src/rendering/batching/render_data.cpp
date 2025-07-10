@@ -72,6 +72,33 @@
 
 namespace ptgn::impl {
 
+std::array<Vertex, 3> GetTriangleVertices(
+	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
+) {
+	constexpr std::array<V2_float, 3> texture_coordinates{
+		V2_float{ 0.0f, 0.0f }, // lower-left corner
+		V2_float{ 1.0f, 0.0f }, // lower-right corner
+		V2_float{ 0.5f, 1.0f }, // top-center corner
+	};
+
+	std::array<Vertex, 3> vertices{};
+
+	auto c{ color.Normalized() };
+
+	PTGN_ASSERT(vertices.size() == triangle_points.size());
+	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
+
+	for (std::size_t i{ 0 }; i < triangle_points.size(); i++) {
+		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y,
+								  static_cast<float>(depth) };
+		vertices[i].color	  = { c.x, c.y, c.z, c.w };
+		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
+		vertices[i].tex_index = { 0.0f };
+	}
+
+	return vertices;
+}
+
 std::array<Vertex, 4> GetQuadVertices(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
 	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices
@@ -169,111 +196,141 @@ void FrameBufferPool::SetMaxPoolSize(std::size_t max_size) {
 	max_pool_size_ = max_size;
 }
 
-void RenderData::Init() {
-	GLRenderer::DisableGammaCorrection();
-
-	max_texture_slots = GLRenderer::GetMaxTextureSlots();
-
-	const auto& screen_shader{ game.shader.Get<ScreenShader::Default>() };
-	PTGN_ASSERT(screen_shader.IsValid());
-	screen_shader.Bind();
-	screen_shader.SetUniform("u_Texture", 1);
-
-	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
-
-	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(game.shader.Get<ShapeShader::Circle>().IsValid());
-	PTGN_ASSERT(game.shader.Get<ScreenShader::Default>().IsValid());
-	PTGN_ASSERT(game.shader.Get<OtherShader::Light>().IsValid());
-
-	std::vector<std::int32_t> samplers(max_texture_slots);
-	std::iota(samplers.begin(), samplers.end(), 0);
-
-	quad_shader.Bind();
-	quad_shader.SetUniform(
-		"u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
-	);
-
-	IndexBuffer quad_ib{ nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)),
-						 BufferUsage::DynamicDraw };
-	VertexBuffer quad_vb{ nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)),
-						  BufferUsage::DynamicDraw };
-
-	triangle_vao = VertexArray(
-		PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
-	);
-
-	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
-
-	// TODO: Fix background color.
-
-	screen_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
-	);
-	ping_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
-	);
-	pong_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
-	);
-	screen_target.SetBlendMode(BlendMode::None);
-	ping_target.SetBlendMode(BlendMode::Blend);
-	pong_target.SetBlendMode(BlendMode::Blend);
-	intermediate_target = {};
-
-	// TODO: Once render target window resizing is implemented, get rid of this.
-	game.event.window.Subscribe(
-		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
-			screen_target.GetTexture().Resize(e.size);
-			ping_target.GetTexture().Resize(e.size);
-			pong_target.GetTexture().Resize(e.size);
-		})
-	);
-
-#ifdef PTGN_PLATFORM_MACOS
-	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-	// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-	// texture because texture unloadable."
-	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-		Texture::Bind(white_texture.GetId(), slot);
-	}
-#endif
-
-	SetState(RenderState{ {}, BlendMode::None, {} });
+void RenderData::AddPoint(
+	const V2_float& position, const Color& tint, const Depth& depth, const RenderState& state
+) {
+	AddQuad(Transform{ position }, V2_float{ 1.0f }, Origin::Center, tint, depth, -1.0f, state);
 }
 
-void RenderData::AddTriangle(const std::array<Vertex, 3>& points, const RenderState& state) {
+void RenderData::AddLines(
+	const std::vector<V2_float>& line_points, const Color& tint, const Depth& depth,
+	float line_width, bool connect_last_to_first, const RenderState& state
+) {
+	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for line");
+
 	SetState(state);
 
-	AddVertices(points, triangle_indices);
+	std::size_t vertex_modulo{ line_points.size() };
+
+	if (!connect_last_to_first) {
+		PTGN_ASSERT(
+			line_points.size() >= 2,
+			"Lines which do not connect the last vertex to the first vertex "
+			"must have at least 2 vertices"
+		);
+		vertex_modulo -= 1;
+	} else {
+		PTGN_ASSERT(
+			line_points.size() >= 3, "Lines which connect the last vertex to the first vertex "
+									 "must have at least 3 vertices"
+		);
+	}
+
+	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
+		auto quad_vertices{ impl::GetQuadVertices(
+			impl::GetLineQuadVertices(
+				line_points[i], line_points[(i + 1) % vertex_modulo], line_width
+			),
+			tint, depth, 0.0f, impl::default_texture_coordinates
+		) };
+
+		AddVertices(quad_vertices, quad_indices);
+	}
 }
 
-float RenderData::GetTextureIndex(std::uint32_t texture_id) {
-	PTGN_ASSERT(texture_id != white_texture.GetId());
-	// Texture exists in batch, therefore do not add it again.
-	for (std::size_t i{ 0 }; i < textures.size(); i++) {
-		if (textures[i] == texture_id) {
-			// i + 1 because first texture index is white texture.
-			return static_cast<float>(i + 1);
+void RenderData::AddLine(
+	const V2_float& start, const V2_float& end, const Color& tint, const Depth& depth,
+	float line_width, const RenderState& state
+) {
+	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for line");
+
+	auto quad_vertices{ impl::GetQuadVertices(
+		impl::GetLineQuadVertices(start, end, line_width), tint, depth, 0.0f,
+		impl::default_texture_coordinates
+	) };
+
+	SetState(state);
+	AddVertices(quad_vertices, quad_indices);
+}
+
+void RenderData::AddTriangle(
+	const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
+	float line_width, const RenderState& state
+) {
+	auto triangle_vertices{ impl::GetTriangleVertices(triangle_points, tint, depth) };
+
+	AddShape(triangle_vertices, triangle_indices, triangle_points, line_width, state);
+}
+
+void RenderData::AddQuad(
+	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+	const Depth& depth, float line_width, const RenderState& state
+) {
+	auto quad_points{ impl::GetVertices(transform, size, origin) };
+	auto quad_vertices{
+		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
+	};
+
+	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
+}
+
+void RenderData::AddPolygon(
+	const std::vector<V2_float>& polygon_points, const Color& tint, const Depth& depth,
+	float line_width, const RenderState& state
+) {
+	PTGN_ASSERT(polygon_points.size() >= 3, "Polygon must have at least 3 points");
+
+	if (line_width == -1.0f) {
+		SetState(state);
+		auto triangles{ Triangulate(polygon_points.data(), polygon_points.size()) };
+		for (const auto& triangle : triangles) {
+			auto triangle_vertices{ impl::GetTriangleVertices(triangle, tint, depth) };
+			AddVertices(triangle_vertices, triangle_indices);
 		}
+	} else {
+		AddLines(polygon_points, tint, depth, line_width, true, state);
 	}
-	// Batch is at texture capacity.
-	if (static_cast<std::uint32_t>(textures.size()) == max_texture_slots - 1) {
-		Flush();
+}
+
+void RenderData::AddCircle(
+	const Transform& transform, float radius, const Color& tint, const Depth& depth,
+	float line_width, const RenderState& state
+) {
+	AddEllipse(transform, V2_float{ radius, radius }, tint, depth, line_width, state);
+}
+
+void RenderData::AddEllipse(
+	const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
+	float line_width, const RenderState& state
+) {
+	if (line_width == -1.0f) {
+		// Internally line width for a filled ellipse is 1.0f.
+		line_width = 1.0f;
+	} else {
+		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for circle");
+
+		// Internally line width for a completely hollow ellipse is 0.0f.
+		// TODO: Check that dividing by std::max(radii.x, radii.y) does not cause
+		// any unexpected bugs.
+		line_width = 0.005f + line_width / std::min(radii.x, radii.y);
 	}
-	// i + 1 is implicit here because size is taken after emplacing.
-	return static_cast<float>(textures.size() + 1);
+
+	auto points{ impl::GetQuadVertices(
+		impl::GetVertices(transform, radii * 2.0f, Origin::Center), tint, depth, line_width,
+		impl::default_texture_coordinates
+	) };
+
+	SetState(state);
+	AddVertices(points, quad_indices);
 }
 
 void RenderData::AddTexturedQuad(
-	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-	const Depth& depth, const std::array<V2_float, 4>& texture_coordinates, RenderState state,
-	const Texture& texture, const PreFX& pre_fx
+	const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
+	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
+	RenderState state, const PreFX& pre_fx
 ) {
-	PTGN_ASSERT(texture.IsValid());
+	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
+	PTGN_ASSERT(!size.IsZero(), "Cannot draw textured quad with zero size");
 
 	SetState(state);
 
@@ -370,54 +427,98 @@ void RenderData::AddTexturedQuad(
 	textures.emplace_back(texture_id);
 }
 
-void RenderData::AddQuadVertices(const RenderState& state, const std::array<Vertex, 4>& points) {
-	SetState(state);
+void RenderData::Init() {
+	GLRenderer::DisableGammaCorrection();
 
-	AddVertices(points, quad_indices);
-}
+	max_texture_slots = GLRenderer::GetMaxTextureSlots();
 
-void RenderData::AddQuad(
-	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-	const Depth& depth, const RenderState& state, float texture_index
-) {
-	SetState(state);
+	const auto& screen_shader{ game.shader.Get<ScreenShader::Default>() };
+	PTGN_ASSERT(screen_shader.IsValid());
+	screen_shader.Bind();
+	screen_shader.SetUniform("u_Texture", 1);
 
-	auto points{ impl::GetQuadVertices(
-		impl::GetVertices(transform, size, origin), tint, depth, texture_index,
-		impl::default_texture_coordinates
-	) };
+	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
 
-	AddVertices(points, quad_indices);
-}
+	PTGN_ASSERT(quad_shader.IsValid());
+	PTGN_ASSERT(game.shader.Get<ShapeShader::Circle>().IsValid());
+	PTGN_ASSERT(game.shader.Get<ScreenShader::Default>().IsValid());
+	PTGN_ASSERT(game.shader.Get<OtherShader::Light>().IsValid());
 
-void RenderData::AddThinQuad(
-	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-	const Depth& depth, float line_width, const RenderState& state
-) {
-	std::array<V2_float, 4> quad_points{ impl::GetVertices(transform, size, origin) };
+	std::vector<std::int32_t> samplers(max_texture_slots);
+	std::iota(samplers.begin(), samplers.end(), 0);
 
-	auto quad_vertices{
-		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
-	};
+	quad_shader.Bind();
+	quad_shader.SetUniform(
+		"u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
+	);
 
-	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for Rect");
+	IndexBuffer quad_ib{ nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)),
+						 BufferUsage::DynamicDraw };
+	VertexBuffer quad_vb{ nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)),
+						  BufferUsage::DynamicDraw };
 
-	// Compose the quad out of 4 lines, each made up of line_width wide quads.
-	for (std::size_t i{ 0 }; i < quad_points.size(); i++) {
-		auto start{ state.camera.ZoomIfNeeded(quad_points[i]) };
-		auto end{ state.camera.ZoomIfNeeded(quad_points[(i + 1) % quad_points.size()]) };
+	triangle_vao = VertexArray(
+		PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
+	);
 
-		auto line_points{ impl::GetLineQuadVertices(start, end, line_width) };
+	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-		for (std::size_t j{ 0 }; j < line_points.size(); j++) {
-			quad_vertices[j].position[0] = line_points[j].x;
-			quad_vertices[j].position[1] = line_points[j].y;
-		}
+	// TODO: Fix background color.
 
-		SetState(state);
+	screen_target = impl::CreateRenderTarget(
+		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
+		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+	);
+	drawing_to	= screen_target;
+	ping_target = impl::CreateRenderTarget(
+		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
+		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+	);
+	pong_target = impl::CreateRenderTarget(
+		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
+		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+	);
+	screen_target.SetBlendMode(BlendMode::None);
+	ping_target.SetBlendMode(BlendMode::Blend);
+	pong_target.SetBlendMode(BlendMode::Blend);
+	intermediate_target = {};
 
-		AddVertices(quad_vertices, quad_indices);
+	// TODO: Once render target window resizing is implemented, get rid of this.
+	game.event.window.Subscribe(
+		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
+			screen_target.GetTexture().Resize(e.size);
+			ping_target.GetTexture().Resize(e.size);
+			pong_target.GetTexture().Resize(e.size);
+		})
+	);
+
+#ifdef PTGN_PLATFORM_MACOS
+	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+	// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+	// texture because texture unloadable."
+	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+		Texture::Bind(white_texture.GetId(), slot);
 	}
+#endif
+
+	SetState(RenderState{ {}, BlendMode::None, {} });
+}
+
+float RenderData::GetTextureIndex(std::uint32_t texture_id) {
+	PTGN_ASSERT(texture_id != white_texture.GetId());
+	// Texture exists in batch, therefore do not add it again.
+	for (std::size_t i{ 0 }; i < textures.size(); i++) {
+		if (textures[i] == texture_id) {
+			// i + 1 because first texture index is white texture.
+			return static_cast<float>(i + 1);
+		}
+	}
+	// Batch is at texture capacity.
+	if (static_cast<std::uint32_t>(textures.size()) == max_texture_slots - 1) {
+		Flush();
+	}
+	// i + 1 is implicit here because size is taken after emplacing.
+	return static_cast<float>(textures.size() + 1);
 }
 
 bool RenderData::SetState(const RenderState& new_render_state) {
@@ -512,7 +613,8 @@ void RenderData::AddShader(
 		DrawTo(intermediate_target);
 		intermediate_target.ClearToColor(target_clear_color);
 		intermediate_target.SetBlendMode(target_blend_mode);
-		ReadFrom(screen_target);
+		PTGN_ASSERT(drawing_to);
+		ReadFrom(drawing_to);
 	} else {
 		PTGN_ASSERT(intermediate_target);
 	}
@@ -635,8 +737,9 @@ void RenderData::Flush() {
 
 		PTGN_ASSERT(camera);
 
-		DrawTo(screen_target);
-		//	PTGN_LOG("PreDraw: ", screen_target.GetFrameBuffer().GetPixel({ 200, 200 }));
+		PTGN_ASSERT(drawing_to);
+		DrawTo(drawing_to);
+		//	PTGN_LOG("PreDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 200, 200 }));
 
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 
@@ -655,12 +758,11 @@ void RenderData::Flush() {
 		SetCameraVertices(camera);
 
 		DrawVertexArray(quad_indices.size());
-		//	PTGN_LOG("PostDraw: ", screen_target.GetFrameBuffer().GetPixel({ 200, 200 }));
+		//	PTGN_LOG("PostDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 200, 200 }));
 
 	} else if (!vertices.empty() && !indices.empty()) {
 		draw_vertices_to(
-			GetCamera(game.scene.GetCurrent().camera.primary), screen_target,
-			render_state.shader_pass
+			GetCamera(game.scene.GetCurrent().camera.primary), drawing_to, render_state.shader_pass
 		);
 	}
 
@@ -698,7 +800,8 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 	std::invoke(draw_function, *this, entity);
 }
 
-void RenderData::DrawEntities(const std::vector<Entity>& entities) {
+void RenderData::DrawEntities(const std::vector<Entity>& entities, const RenderTarget& target) {
+	drawing_to = target ? target : screen_target;
 	for (const auto& entity : entities) {
 		InvokeDrawable(entity);
 	}
@@ -733,7 +836,7 @@ void RenderData::DrawScene(Scene& scene) {
 	//	// rt.Draw(e);
 	// }
 
-	DrawEntities(regular_entities);
+	DrawEntities(regular_entities, screen_target);
 }
 
 void RenderData::DrawToScreen() {
@@ -790,11 +893,8 @@ void RenderData::Draw(Scene& scene) {
 
 	DrawToScreen();
 
-	Reset();
-
-	// debug_manager.Clear();
-
 	// TODO: Check if this is needed.
+	Reset();
 }
 
 } // namespace ptgn::impl
