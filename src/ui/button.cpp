@@ -24,6 +24,7 @@
 #include "rendering/graphics/circle.h"
 #include "rendering/graphics/rect.h"
 #include "rendering/resources/font.h"
+#include "rendering/resources/shader.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
@@ -331,6 +332,12 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
+	impl::RenderState render_state;
+	render_state.blend_mode	 = blend_mode;
+	render_state.camera		 = camera;
+	render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
+	render_state.shader_pass = game.shader.Get<ShapeShader::Quad>();
+
 	if (button_texture != nullptr && *button_texture != impl::Texture{}) {
 		Color button_tint{ color::White };
 		if (entity.Has<impl::ButtonToggled>() && entity.Get<impl::ButtonToggled>() &&
@@ -341,11 +348,10 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		}
 		V4_float final_tint_n{ button_tint.Normalized() * tint };
 
-		// TODO: Fix.
-		/*ctx.AddTexturedQuad(
-			transform, size, origin, Sprite{ entity }.GetTextureCoordinates(false), *button_texture,
-			depth, camera, blend_mode, final_tint_n, false
-		);*/
+		ctx.AddTexturedQuad(
+			*button_texture, transform, size, origin, Color{ final_tint_n }, depth,
+			Sprite{ entity }.GetTextureCoordinates(false), render_state
+		);
 	} else {
 		impl::ButtonBackgroundWidth background_line_width;
 		if (entity.Has<impl::ButtonBackgroundWidth>()) {
@@ -359,7 +365,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			} else if (entity.Has<impl::ButtonColor>()) {
 				button_color = entity.Get<impl::ButtonColor>().current_;
 			}
-			V4_float background_color_n{ button_color.Normalized() };
+			auto background_color_n{ button_color.Normalized() };
 			if (background_color_n != V4_float{}) {
 				// TODO: Add rounded buttons.
 				/*if (radius_ > 0.0f) {
@@ -367,11 +373,10 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 									i.rect_.rotation };
 					r.Draw(bg, i.line_thickness_, i.render_layer_);
 				} else {*/
-				// TODO: Fix.
-				/*ctx.AddQuad(
-					transform.position, size * Abs(transform.scale), origin, background_line_width,
-					depth, camera, blend_mode, background_color_n, transform.rotation, false
-				);*/
+				ctx.AddQuad(
+					transform, size, origin, Color{ background_color_n }, depth,
+					background_line_width, render_state
+				);
 			}
 		}
 	}
@@ -406,11 +411,9 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 								i.rect_.rotation };
 				r.Draw(border_color, border_width, i.render_layer_ + 2);
 			} else {*/
-			// TODO: Fix.
-			/*ctx.AddQuad(
-				transform.position, size, origin, border_width, depth, camera, blend_mode,
-				border_color_n, transform.rotation, false
-			);*/
+			ctx.AddQuad(
+				transform, size, origin, Color{ border_color_n }, depth, border_width, render_state
+			);
 		}
 	}
 
@@ -429,7 +432,6 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		if (NearlyEqual(text_size.y, 0.0f)) {
 			text_size.y = size.y;
 		}
-		text_size *= Abs(text_transform.scale);
 
 		Sprite text_sprite{ *text };
 
@@ -465,14 +467,16 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			text_camera = &camera;
 		}
 
-		auto text_display_size{ text_sprite.GetDisplaySize() };
 		auto text_coords{ text_sprite.GetTextureCoordinates(false) };
 
-		// TODO: Fix.
-		/*ctx.AddTexturedQuad(
-			text_transform, text_display_size, text_origin, text_coords, text_texture, text_depth,
-			*text_camera, text_blend_mode, text_tint * tint, false
-		);*/
+		auto text_render_state{ render_state };
+		text_render_state.blend_mode = text_blend_mode;
+		text_render_state.camera	 = *text_camera;
+
+		ctx.AddTexturedQuad(
+			text_texture, text_transform, text_size, text_origin, Color{ text_tint * tint },
+			text_depth, text_coords, render_state
+		);
 	}
 }
 

@@ -34,9 +34,6 @@ PointLight CreatePointLight(
 	point_light.SetDraw<PointLight>();
 	point_light.Show();
 	point_light.Add<BlendMode>(BlendMode::Add);
-	point_light.Add<impl::ShaderPass>(
-		game.shader.Get<OtherShader::Light>(), &PointLight::SetUniform
-	);
 	point_light.SetPosition(position);
 
 	// Point light properties.
@@ -70,11 +67,13 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 }
 
 void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::RenderState render_state;
-	render_state.blend_mode	 = entity.GetBlendMode();
-	render_state.shader_pass = entity.Get<impl::ShaderPass>();
-	render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
-	ctx.AddShader(entity, render_state, BlendMode::Add, color::Black, false);
+	impl::RenderState state;
+	state.camera	  = entity.GetOrDefault<Camera>();
+	state.blend_mode  = entity.GetBlendMode();
+	state.shader_pass = { game.shader.Get<OtherShader::Light>(), &PointLight::SetUniform };
+	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+
+	ctx.AddShader(entity, state, BlendMode::Add, color::Black, false);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {

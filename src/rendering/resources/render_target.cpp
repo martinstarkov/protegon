@@ -69,11 +69,7 @@ RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
 void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
 	RenderTarget rt{ entity };
-
 	const auto& texture{ rt.GetTexture() };
-
-	PTGN_ASSERT(texture.IsValid(), "Cannot draw a render target with an invalid texture");
-
 	auto depth{ entity.GetDepth() };
 	auto blend_mode{ entity.GetBlendMode() };
 	auto tint{ entity.GetTint().Normalized() };

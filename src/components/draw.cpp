@@ -35,7 +35,6 @@ Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key) {
 	sprite.SetDraw<Sprite>();
 	sprite.SetTextureKey(texture_key);
 	sprite.Show();
-	sprite.Add<impl::ShaderPass>(game.shader.Get<ShapeShader::Quad>());
 	return sprite;
 }
 
@@ -68,35 +67,22 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite sprite{ entity };
 
 	const auto& texture{ sprite.GetTexture() };
-
-	if (!texture.IsValid()) {
-		return;
-	}
-
 	auto transform{ sprite.GetDrawTransform() };
-
-	auto depth{ sprite.GetDepth() };
-	auto blend_mode{ sprite.GetBlendMode() };
-	auto tint{ sprite.GetTint() };
-	auto origin{ sprite.GetOrigin() };
-
 	auto display_size{ sprite.GetDisplaySize() };
+	auto origin{ sprite.GetOrigin() };
+	auto tint{ sprite.GetTint() };
+	auto depth{ sprite.GetDepth() };
 	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
-	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
-	// TODO: Make a zero display_size use cached camera vertices instead.
-	PTGN_ASSERT(!display_size.IsZero());
-
-	impl::RenderState render_state;
-
-	render_state.blend_mode	 = blend_mode;
-	render_state.shader_pass = entity.Get<impl::ShaderPass>();
-	render_state.camera		 = camera;
-	render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
+	impl::RenderState state;
+	state.blend_mode  = sprite.GetBlendMode();
+	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
+	state.camera	  = entity.GetOrParentOrDefault<Camera>();
+	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+	auto pre_fx{ entity.GetOrDefault<impl::PreFX>() };
 
 	ctx.AddTexturedQuad(
-		transform, display_size, origin, tint, depth, texture_coordinates, render_state, texture,
-		entity.GetOrDefault<impl::PreFX>()
+		texture, transform, display_size, origin, tint, depth, texture_coordinates, state, pre_fx
 	);
 }
 

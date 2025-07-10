@@ -21,6 +21,7 @@
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
+#include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -92,48 +93,50 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 } // namespace impl
 
 void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto blend_mode{ entity.GetBlendMode() };
 	auto depth{ entity.GetDepth() };
-	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
+
+	impl::RenderState state;
+	state.camera	  = entity.GetOrParentOrDefault<Camera>();
+	state.blend_mode  = entity.GetBlendMode();
+	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
+	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+
 	if (i.info.texture_enabled && i.info.texture_key) {
-		V4_float tint{ color::White.Normalized() };
+		Color tint{ color::White };
+
 		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 			if (i.info.tint_texture) {
-				tint = p.color.Normalized();
+				tint = p.color;
 			}
 
 			// TODO: Add texture rotation.
-			Transform t{ p.position };
-			// TODO: Fix.
-			/*ctx.AddTexturedQuad(
-				t, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center,
-				impl::GetDefaultTextureCoordinates(), game.texture.Get(i.info.texture_key), depth,
-				camera, blend_mode, tint, false
-			);*/
+			ctx.AddTexturedQuad(
+				game.texture.Get(i.info.texture_key), Transform{ p.position },
+				{ 2.0f * p.radius, 2.0f * p.radius }, Origin::Center, tint, depth,
+				impl::GetDefaultTextureCoordinates(), state
+			);
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
+			state.shader_pass = game.shader.Get<ShapeShader::Circle>();
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
-				// TODO: Fix.
-				/*ctx.AddEllipse(
-					p.position, V2_float{ p.radius }, i.info.line_width, depth, camera, blend_mode,
-					p.color.Normalized(), 0.0f, false
-				);*/
+				ctx.AddCircle(
+					Transform{ p.position }, p.radius, p.color, depth, i.info.line_width, state
+				);
 			}
 			break;
 		}
 		case ParticleShape::Square: {
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				// TODO: Add rect rotation.
-				// TODO: Fix.
-				/*ctx.AddQuad(
-					p.position, { 2.0f * p.radius, 2.0f * p.radius }, Origin::Center,
-					i.info.line_width, depth, camera, blend_mode, p.color.Normalized(), 0.0f, false
-				);*/
+				ctx.AddQuad(
+					Transform{ p.position }, V2_float{ 2.0f * p.radius }, Origin::Center, p.color,
+					depth, i.info.line_width, state
+				);
 			}
 			break;
 		}
