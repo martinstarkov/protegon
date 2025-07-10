@@ -24,68 +24,68 @@ class TextureFormatScene : public Scene {
 															{ "png11", "resources/png11.png" } }
 		);
 
-		CreateSprite(manager, "jpg1").SetPosition({ 0, 0 }).SetOrigin(Origin::TopLeft);
-		CreateSprite(manager, "jpg2")
+		CreateSprite(*this, "jpg1").SetPosition({ 0, 0 }).SetOrigin(Origin::TopLeft);
+		CreateSprite(*this, "jpg2")
 			.SetPosition({ 320, 0 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.5f);
-		CreateSprite(manager, "jpg3")
+		CreateSprite(*this, "jpg3")
 			.SetPosition({ 0, 240 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.25f);
-		CreateSprite(manager, "bmp1")
+		CreateSprite(*this, "bmp1")
 			.SetPosition({ 0, 432 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.1f);
-		CreateSprite(manager, "bmp2")
+		CreateSprite(*this, "bmp2")
 			.SetPosition({ 76.2, 432 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.25f);
-		CreateSprite(manager, "bmp3")
+		CreateSprite(*this, "bmp3")
 			.SetPosition({ 204.2, 432 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.5f);
-		CreateSprite(manager, "png1")
+		CreateSprite(*this, "png1")
 			.SetPosition({ 0, 562.9 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.1f);
-		CreateSprite(manager, "png2")
+		CreateSprite(*this, "png2")
 			.SetPosition({ 76.2, 562.9 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.25f);
-		CreateSprite(manager, "png3")
+		CreateSprite(*this, "png3")
 			.SetPosition({ 204.2, 562.9 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.5f);
-		CreateSprite(manager, "png4")
+		CreateSprite(*this, "png4")
 			.SetPosition({ 304.2, 562.9 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.25f);
-		CreateSprite(manager, "png5")
+		CreateSprite(*this, "png5")
 			.SetPosition({ 0, 693.8 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.5f);
-		CreateSprite(manager, "png6")
+		CreateSprite(*this, "png6")
 			.SetPosition({ 100, 693.8 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.33f);
-		CreateSprite(manager, "png7")
+		CreateSprite(*this, "png7")
 			.SetPosition({ 200, 693.8 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.33f);
-		CreateSprite(manager, "png8")
+		CreateSprite(*this, "png8")
 			.SetPosition({ 300, 693.8 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.33f);
-		CreateSprite(manager, "png9")
+		CreateSprite(*this, "png9")
 			.SetPosition({ 400, 693.8 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.33f);
-		CreateSprite(manager, "png10")
+		CreateSprite(*this, "png10")
 			.SetPosition({ 500, 693.8 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.33f);
-		CreateSprite(manager, "png11")
+		CreateSprite(*this, "png11")
 			.SetPosition({ 600, 693.8 })
 			.SetOrigin(Origin::TopLeft)
 			.SetScale(0.33f);

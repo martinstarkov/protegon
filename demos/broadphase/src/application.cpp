@@ -22,6 +22,8 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 }; //{ 1280, 720 };
 
+/*
+
 // TODO: Move all of this into the collision system.
 
 struct AABB {
@@ -329,7 +331,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	return 0;
 }
 
-/*
+*/
 
 struct Box;
 
@@ -641,7 +643,7 @@ void removeAABB(std::vector<std::unique_ptr<AABB>>& aabbs, SweepAndPrune& sap) {
 	aabbs.pop_back();
 }
 
-class SceneTest : public Scene {
+class SweepAndPruneScene : public Scene {
 public:
 	float movingPercent = 50.0f;
 
@@ -652,6 +654,8 @@ public:
 	std::vector<std::unique_ptr<AABB>> aabbs;
 
 	SweepAndPrune sap;
+
+	std::size_t entity_count{ 1000 };
 
 	void Enter() {
 		sap.onAdd = [&](Box* boxA, Box* boxB) {
@@ -675,7 +679,7 @@ public:
 			}
 			pairs.erase((i << 16) | j);
 		};
-		for (auto i = 0; i < 128; i++) {
+		for (auto i = 0; i < entity_count; i++) {
 			addAABB(aabbs, sap, size, (float)window_size.x);
 		}
 	}
@@ -700,4 +704,8 @@ public:
 	}
 };
 
-*/
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("SweepAndPruneScene", window_size);
+	game.scene.Enter<SweepAndPruneScene>("");
+	return 0;
+}

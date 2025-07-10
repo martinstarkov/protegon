@@ -15,8 +15,8 @@ struct FadeEffectScene : public Scene {
 		LoadResource("tree", "resources/tree.jpg");
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(manager, "tree");
-		sprite2 = CreateSprite(manager, "smile");
+		sprite1 = CreateSprite(*this, "tree");
+		sprite2 = CreateSprite(*this, "smile");
 
 		sprite1.SetTint(color::Transparent);
 		sprite1.SetPosition({ 100, 100 });

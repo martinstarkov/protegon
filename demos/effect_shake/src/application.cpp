@@ -18,9 +18,9 @@ struct ShakeEffectScene : public Scene {
 	void Enter() override {
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(manager, "smile");
-		sprite2 = CreateSprite(manager, "smile");
-		sprite3 = CreateSprite(manager, "smile");
+		sprite1 = CreateSprite(*this, "smile");
+		sprite2 = CreateSprite(*this, "smile");
+		sprite3 = CreateSprite(*this, "smile");
 
 		sprite1.SetPosition({ 100, 100 });
 		sprite2.SetPosition({ 100, 600 });

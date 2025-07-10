@@ -5,11 +5,21 @@
     "active": true,
     "camera": {
         "primary": {
-            "UUID": 4354464552338897681
+            "SceneKey": 7424304434491585380,
+            "UUID": 7667614953711599693
+        },
+        "primary_unzoomed": {
+            "SceneKey": 7424304434491585380,
+            "UUID": 444595899321162373
         },
         "scene_key": 7424304434491585380,
         "window": {
-            "UUID": 15560449290339422680
+            "SceneKey": 7424304434491585380,
+            "UUID": 15856380699593914398
+        },
+        "window_unzoomed": {
+            "SceneKey": 7424304434491585380,
+            "UUID": 14388760727450790270
         }
     },
     "collider_color": {
@@ -22,24 +32,25 @@
     "input": {
         "draw_interactives": true,
         "scene_key": 7424304434491585380,
-        "top_only": false
+        "top_only": false,
+        "triggered_callbacks": false
     },
     "key": 7424304434491585380,
     "manager": {
-        "count": 3,
+        "count": 5,
         "entities": {
-            "bit_count": 4,
+            "bit_count": 8,
             "data": [
-                7
+                31
             ]
         },
         "free_entities": [],
-        "next_entity": 3,
+        "next_entity": 5,
         "pools": {
             "AnimationInfo": {
                 "components": [
                     {
-                        "current_frame": 1,
+                        "current_frame": 2,
                         "duration": 0.5,
                         "frame_count": 4,
                         "frame_size": {
@@ -47,13 +58,10 @@
                             "y": 32
                         },
                         "frame_timer": {
-                            "pause_time": 0,
                             "paused": false,
-                            "running": true,
-                            "start_time": 4068301054125,
-                            "stop_time": 0
+                            "running": true
                         },
-                        "frames_played": 13,
+                        "frames_played": 14,
                         "play_count": -1,
                         "start_pixel": {
                             "x": 0,
@@ -62,9 +70,11 @@
                     }
                 ],
                 "dense_set": [
-                    2
+                    4
                 ],
                 "sparse_set": [
+                    0,
+                    0,
                     0,
                     0,
                     0
@@ -195,24 +205,24 @@
                             }
                         },
                         "projection": [
-                            1.0,
+                            0.0024999999441206455,
                             0.0,
                             0.0,
                             0.0,
                             0.0,
-                            1.0,
+                            -0.0024999999441206455,
                             0.0,
                             0.0,
                             0.0,
                             0.0,
-                            1.0,
+                            -0.0,
                             0.0,
+                            -0.0,
                             0.0,
-                            0.0,
-                            0.0,
+                            -0.0,
                             1.0
                         ],
-                        "projection_dirty": true,
+                        "projection_dirty": false,
                         "resize_to_window": true,
                         "size": {
                             "x": 800.0,
@@ -231,13 +241,90 @@
                             0.0,
                             1.0,
                             0.0,
-                            0.0,
-                            0.0,
+                            -400.0,
+                            -400.0,
                             0.0,
                             1.0
                         ],
-                        "view_dirty": true,
+                        "view_dirty": false,
                         "view_projection": [
+                            0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -1.0,
+                            1.0,
+                            0.0,
+                            1.0
+                        ],
+                        "viewport_position": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "viewport_size": {
+                            "x": 800.0,
+                            "y": 800.0
+                        }
+                    },
+                    {
+                        "bounding_box_position": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounding_box_size": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "center_on_window": true,
+                        "flip": 0,
+                        "orientation_y": 0.0,
+                        "orientation_z": 0.0,
+                        "pixel_rounding": false,
+                        "position_z": 0.0,
+                        "previous": {
+                            "position": {
+                                "x": 400.0,
+                                "y": 400.0
+                            },
+                            "rotation": 0.0,
+                            "scale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        "projection": [
+                            0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0,
+                            0.0,
+                            -0.0,
+                            0.0,
+                            -0.0,
+                            1.0
+                        ],
+                        "projection_dirty": false,
+                        "resize_to_window": true,
+                        "size": {
+                            "x": 800.0,
+                            "y": 800.0
+                        },
+                        "view": [
                             1.0,
                             0.0,
                             0.0,
@@ -250,8 +337,123 @@
                             0.0,
                             1.0,
                             0.0,
+                            -400.0,
+                            -400.0,
+                            0.0,
+                            1.0
+                        ],
+                        "view_dirty": false,
+                        "view_projection": [
+                            0.0024999999441206455,
                             0.0,
                             0.0,
+                            0.0,
+                            0.0,
+                            -0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -1.0,
+                            1.0,
+                            0.0,
+                            1.0
+                        ],
+                        "viewport_position": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "viewport_size": {
+                            "x": 800.0,
+                            "y": 800.0
+                        }
+                    },
+                    {
+                        "bounding_box_position": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounding_box_size": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "center_on_window": true,
+                        "flip": 0,
+                        "orientation_y": 0.0,
+                        "orientation_z": 0.0,
+                        "pixel_rounding": false,
+                        "position_z": 0.0,
+                        "previous": {
+                            "position": {
+                                "x": 400.0,
+                                "y": 400.0
+                            },
+                            "rotation": 0.0,
+                            "scale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        "projection": [
+                            0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0,
+                            0.0,
+                            -0.0,
+                            0.0,
+                            -0.0,
+                            1.0
+                        ],
+                        "projection_dirty": false,
+                        "resize_to_window": true,
+                        "size": {
+                            "x": 800.0,
+                            "y": 800.0
+                        },
+                        "view": [
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            -400.0,
+                            -400.0,
+                            0.0,
+                            1.0
+                        ],
+                        "view_dirty": false,
+                        "view_projection": [
+                            0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -1.0,
+                            1.0,
                             0.0,
                             1.0
                         ],
@@ -267,11 +469,15 @@
                 ],
                 "dense_set": [
                     0,
-                    1
+                    1,
+                    2,
+                    3
                 ],
                 "sparse_set": [
                     0,
-                    1
+                    1,
+                    2,
+                    3
                 ]
             },
             "IDrawable": {
@@ -279,19 +485,44 @@
                     12046072236507568353
                 ],
                 "dense_set": [
-                    2
+                    4
                 ],
                 "sparse_set": [
                     0,
                     0,
+                    0,
+                    0,
                     0
+                ]
+            },
+            "SceneKey": {
+                "components": [
+                    7424304434491585380,
+                    7424304434491585380,
+                    7424304434491585380,
+                    7424304434491585380,
+                    7424304434491585380
+                ],
+                "dense_set": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                ],
+                "sparse_set": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
                 ]
             },
             "TextureCrop": {
                 "components": [
                     {
                         "position": {
-                            "x": 16.0,
+                            "x": 32.0,
                             "y": 0.0
                         },
                         "size": {
@@ -301,9 +532,11 @@
                     }
                 ],
                 "dense_set": [
-                    2
+                    4
                 ],
                 "sparse_set": [
+                    0,
+                    0,
                     0,
                     0,
                     0
@@ -314,9 +547,11 @@
                     6382523150
                 ],
                 "dense_set": [
-                    2
+                    4
                 ],
                 "sparse_set": [
+                    0,
+                    0,
                     0,
                     0,
                     0
@@ -324,6 +559,28 @@
             },
             "Transform": {
                 "components": [
+                    {
+                        "position": {
+                            "x": 400.0,
+                            "y": 400.0
+                        },
+                        "rotation": 0.0,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    {
+                        "position": {
+                            "x": 400.0,
+                            "y": 400.0
+                        },
+                        "rotation": 0.0,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
                     {
                         "position": {
                             "x": 400.0,
@@ -361,29 +618,39 @@
                 "dense_set": [
                     0,
                     1,
-                    2
+                    2,
+                    3,
+                    4
                 ],
                 "sparse_set": [
                     0,
                     1,
-                    2
+                    2,
+                    3,
+                    4
                 ]
             },
             "UUID": {
                 "components": [
-                    4354464552338897681,
-                    15560449290339422680,
-                    11280956518879656502
+                    7667614953711599693,
+                    15856380699593914398,
+                    444595899321162373,
+                    14388760727450790270,
+                    5069400738863683975
                 ],
                 "dense_set": [
                     0,
                     1,
-                    2
+                    2,
+                    3,
+                    4
                 ],
                 "sparse_set": [
                     0,
                     1,
-                    2
+                    2,
+                    3,
+                    4
                 ]
             },
             "Visible": {
@@ -391,9 +658,11 @@
                     true
                 ],
                 "dense_set": [
-                    2
+                    4
                 ],
                 "sparse_set": [
+                    0,
+                    0,
                     0,
                     0,
                     0
@@ -401,7 +670,7 @@
             }
         },
         "refresh": {
-            "bit_count": 4,
+            "bit_count": 8,
             "data": [
                 0
             ]
@@ -411,6 +680,10 @@
             1,
             1,
             1,
+            1,
+            1,
+            0,
+            0,
             0
         ]
     },

@@ -1840,12 +1840,12 @@ public:
 
 	void Update() override {
 		ws = game.window.GetSize();
-		if (game.input.KeyDown(Key::LEFT)) {
+		if (game.input.KeyDown(Key::Left)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
 			tests[static_cast<std::size_t>(current_test)]->Enter();
-		} else if (game.input.KeyDown(Key::RIGHT)) {
+		} else if (game.input.KeyDown(Key::Right)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));

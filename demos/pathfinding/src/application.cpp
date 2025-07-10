@@ -28,7 +28,7 @@ class PathfindingExample : public Scene {
 		Rect mouse_box{ mouse_tile * tile_size, tile_size, Origin::Center };
 
 		if (game.input.MousePressed(Mouse::Right)) {
-			if (game.input.KeyPressed(Key::LEFT_CTRL)) {
+			if (game.input.KeyPressed(Key::Left_CTRL)) {
 				end				 = mouse_tile;
 				global_waypoints = grid.FindWaypoints(start, end);
 			} else if (grid.SetObstacle(mouse_tile, false)) {
@@ -38,7 +38,7 @@ class PathfindingExample : public Scene {
 
 		if (game.input.MousePressed(Mouse::Left)) {
 			if (grid.Has(mouse_tile)) {
-				if (game.input.KeyPressed(Key::LEFT_CTRL)) {
+				if (game.input.KeyPressed(Key::Left_CTRL)) {
 					start			 = mouse_tile;
 					pos				 = start;
 					global_waypoints = grid.FindWaypoints(start, end);

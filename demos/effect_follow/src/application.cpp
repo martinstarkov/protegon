@@ -31,9 +31,9 @@ struct FollowEffectScene : public Scene {
 		mouse = manager.CreateEntity();
 		mouse.Add<Transform>();
 
-		entity1 = CreateSprite(manager, "smile1"); // Red
-		entity2 = CreateSprite(manager, "smile2"); // Green
-		entity3 = CreateSprite(manager, "smile3"); // Blue
+		entity1 = CreateSprite(*this, "smile1"); // Red
+		entity2 = CreateSprite(*this, "smile2"); // Green
+		entity3 = CreateSprite(*this, "smile3"); // Blue
 
 		entity1.SetPosition({ 150, 150 });
 		entity2.SetPosition({ 600, 600 });

@@ -17,7 +17,7 @@ public:
 	void Enter() override {
 		game.texture.Load("anim", "resources/animation.png");
 
-		/*sprite = CreateSprite(manager, "anim");
+		/*sprite = CreateSprite(*this, "anim");
 		sprite.SetPosition(camera.primary.GetPosition());
 		sprite.SetScale(3.0f);
 		auto& crop	  = sprite.Add<TextureCrop>();
@@ -25,7 +25,7 @@ public:
 		crop.position = V2_int{ 0, 0 };*/
 
 		animation =
-			CreateAnimation(manager, "anim", milliseconds{ 500 }, 4, V2_int{ 16, 32 }, -1, {});
+			CreateAnimation(*this, "anim", milliseconds{ 500 }, 4, V2_int{ 16, 32 }, -1, {});
 		animation.SetPosition(camera.primary.GetPosition());
 		animation.SetScale(3.0f);
 

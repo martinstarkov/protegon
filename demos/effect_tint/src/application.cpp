@@ -20,10 +20,10 @@ struct TintEffectScene : public Scene {
 		LoadResource("tree", "resources/tree.jpg");
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(manager, "tree");
-		sprite2 = CreateSprite(manager, "tree");
-		sprite3 = CreateSprite(manager, "tree");
-		sprite4 = CreateSprite(manager, "smile");
+		sprite1 = CreateSprite(*this, "tree");
+		sprite2 = CreateSprite(*this, "tree");
+		sprite3 = CreateSprite(*this, "tree");
+		sprite4 = CreateSprite(*this, "smile");
 
 		sprite1.SetPosition({ 100, 100 });
 		sprite2.SetPosition({ 100, 600 });

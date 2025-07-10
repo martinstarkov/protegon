@@ -24,7 +24,7 @@ public:
 	void Enter() override {
 		game.texture.Load("ui_texture2", "resources/ui2.jpg");
 
-		auto ui = CreateSprite(manager, "ui_texture2");
+		auto ui = CreateSprite(*this, "ui_texture2");
 		ui.Add<Transform>();
 		ui.Add<Origin>(Origin::TopLeft);
 
@@ -70,7 +70,7 @@ public:
 		camera.primary.SetPosition(game.window.GetCenter());
 		// camera.primary.SetBounds({}, window_size);
 
-		auto texture = CreateSprite(manager, "texture");
+		auto texture = CreateSprite(*this, "texture");
 		texture.Add<Transform>(game.window.GetCenter());
 		texture.Add<Interactive>();
 		texture.Add<callback::KeyDown>([](auto key) {
@@ -105,7 +105,7 @@ public:
 
 		game.texture.Load("ui_texture", "resources/ui.jpg");
 
-		ui = CreateSprite(manager, "ui_texture");
+		ui = CreateSprite(*this, "ui_texture");
 		ui.Add<Transform>(V2_float{ window_size.x, 0 });
 		ui.Add<Origin>(Origin::TopRight);
 		ui.Get<Visible>() = false;
@@ -223,11 +223,11 @@ public:
 	void Enter() override {
 		LoadResource("tree", "resources/test1.jpg");
 
-		mouse = manager.CreateEntity();
+		mouse = CreateEntity();
 		mouse.Add<Transform>();
 
-		CreateSprite(manager, "tree").SetPosition({ 200, 400 });
-		CreateSprite(manager, "tree").SetPosition({ 600, 400 });
+		CreateSprite(*this, "tree").SetPosition({ 200, 400 });
+		CreateSprite(*this, "tree").SetPosition({ 600, 400 });
 
 		follow_config.move_mode	  = MoveMode::Lerp;
 		follow_config.lerp_factor = { 0.5f, 0.5f };

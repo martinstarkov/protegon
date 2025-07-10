@@ -34,15 +34,16 @@ public:
 	PostProcessingEffect() {}
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		impl::RenderState render_state;
-		render_state.blend_mode	 = entity.GetBlendMode();
-		render_state.shader_pass = entity.Get<impl::ShaderPass>();
-		render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
-		ctx.AddShader(entity, render_state, BlendMode::None, color::Transparent, true);
+		impl::RenderState state;
+		state.blend_mode  = entity.GetBlendMode();
+		state.shader_pass = entity.Get<impl::ShaderPass>();
+		state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+		state.camera	  = entity.GetOrDefault<Camera>();
+		ctx.AddShader(entity, state, BlendMode::None, color::Transparent, true);
 	}
 };
 
-Entity CreatePostProcessingEffect(Scene& scene) {
+Entity CreatePostFX(Scene& scene) {
 	auto effect{ scene.CreateEntity() };
 
 	effect.SetDraw<PostProcessingEffect>();
@@ -53,13 +54,13 @@ Entity CreatePostProcessingEffect(Scene& scene) {
 }
 
 Entity CreateBlur(Scene& scene) {
-	auto blur{ CreatePostProcessingEffect(scene) };
+	auto blur{ CreatePostFX(scene) };
 	blur.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Blur>(), nullptr);
 	return blur;
 }
 
 Entity CreateGrayscale(Scene& scene) {
-	auto grayscale{ CreatePostProcessingEffect(scene) };
+	auto grayscale{ CreatePostFX(scene) };
 	grayscale.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Grayscale>(), nullptr);
 	return grayscale;
 }

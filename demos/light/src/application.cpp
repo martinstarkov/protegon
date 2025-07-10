@@ -19,7 +19,7 @@ public:
 	void Enter() override {
 		LoadResource("test", "resources/test1.jpg");
 
-		auto sprite = CreateSprite(manager, "test");
+		auto sprite = CreateSprite(*this, "test");
 		sprite.SetPosition(camera.primary.GetPosition());
 
 		auto p1 = CreatePointLight(manager, { 50, 50 }, 400.0f, color::White, 1.0f, 1.0f);
