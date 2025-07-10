@@ -25,6 +25,25 @@ struct Color {
 	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
 		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
 
+	constexpr Color(const V4_float& normalized_color) :
+		r{ static_cast<std::uint8_t>(normalized_color.x * 255.0f) },
+		g{ static_cast<std::uint8_t>(normalized_color.y * 255.0f) },
+		b{ static_cast<std::uint8_t>(normalized_color.z * 255.0f) },
+		a{ static_cast<std::uint8_t>(normalized_color.w * 255.0f) } {
+		PTGN_ASSERT(
+			normalized_color.x >= 0.0f && normalized_color.x <= 1.0f, "Color must be normalized"
+		);
+		PTGN_ASSERT(
+			normalized_color.y >= 0.0f && normalized_color.y <= 1.0f, "Color must be normalized"
+		);
+		PTGN_ASSERT(
+			normalized_color.z >= 0.0f && normalized_color.z <= 1.0f, "Color must be normalized"
+		);
+		PTGN_ASSERT(
+			normalized_color.w >= 0.0f && normalized_color.w <= 1.0f, "Color must be normalized"
+		);
+	}
+
 	// @param alpha [0.0f, 1.0f] value of transparency to set for the color.
 	// @return A copy of the color with the alpha value changed.
 	[[nodiscard]] constexpr Color WithAlpha(float alpha) const {
