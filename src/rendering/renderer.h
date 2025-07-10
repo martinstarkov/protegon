@@ -14,6 +14,12 @@
 
 namespace ptgn {
 
+namespace impl {
+
+[[nodiscard]] RenderState GetDebugRenderState(const Camera& camera);
+
+}
+
 // @param size {} results in unscaled size of text based on font.
 void DrawDebugText(
 	Text& text, const V2_float& position, const V2_float& size = {}, Origin origin = Origin::Center,
@@ -23,6 +29,11 @@ void DrawDebugText(
 void DrawDebugLine(
 	const V2_float& line_start, const V2_float& line_end, const Color& color,
 	float line_width = 1.0f, const Camera& camera = {}
+);
+
+void DrawDebugLines(
+	const std::vector<V2_float>& points, const Color& color, float line_width = 1.0f,
+	bool connect_last_to_first = false, const Camera& camera = {}
 );
 
 void DrawDebugTriangle(
@@ -37,7 +48,7 @@ void DrawDebugRect(
 );
 
 void DrawDebugEllipse(
-	const V2_float& center, const V2_float& radius, const Color& color, float line_width = 1.0f,
+	const V2_float& center, const V2_float& radii, const Color& color, float line_width = 1.0f,
 	float rotation = 0.0f, const Camera& camera = {}
 );
 

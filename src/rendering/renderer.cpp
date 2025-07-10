@@ -31,92 +31,107 @@
 
 namespace ptgn {
 
+namespace impl {
+
 const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
 const BlendMode debug_blend_mode{ BlendMode::Blend };
+
+RenderState GetDebugRenderState(const Camera& camera) {
+	impl::RenderState state;
+	state.blend_mode  = debug_blend_mode;
+	state.camera	  = camera;
+	state.shader_pass = { game.shader.Get<ShapeShader::Quad>() };
+	state.post_fx	  = {};
+	return state;
+}
+
+} // namespace impl
 
 void DrawDebugText(
 	Text& text, const V2_float& position, const V2_float& size, Origin origin, float rotation,
 	const Camera& camera
 ) {
-	const auto& texture{ text.Get<impl::Texture>() };
-
-	if (!texture.IsValid()) {
-		return;
-	}
-
-	Transform transform{ position, rotation };
-
-	/*game.renderer.GetRenderData().AddTexturedQuad(
-		transform, size, origin, Sprite{ text }.GetTextureCoordinates(false), texture, max_depth,
-		camera, debug_blend_mode, color::White.Normalized(), true
-	);*/
+	game.renderer.GetRenderData().AddTexturedQuad(
+		text.Get<impl::Texture>(), Transform{ position, rotation }, size, origin, color::White,
+		impl::max_depth, Sprite{ text }.GetTextureCoordinates(false),
+		impl::GetDebugRenderState(camera), {}
+	);
 }
 
 void DrawDebugLine(
 	const V2_float& line_start, const V2_float& line_end, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	/*game.renderer.GetRenderData().AddLine(
-		line_start, line_end, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
-		true
-	);*/
+	game.renderer.GetRenderData().AddLine(
+		line_start, line_end, color, impl::max_depth, line_width, impl::GetDebugRenderState(camera)
+	);
+}
+
+void DrawDebugLines(
+	const std::vector<V2_float>& points, const Color& color, float line_width,
+	bool connect_last_to_first, const Camera& camera
+) {
+	game.renderer.GetRenderData().AddLines(
+		points, color, impl::max_depth, line_width, connect_last_to_first,
+		impl::GetDebugRenderState(camera)
+	);
 }
 
 void DrawDebugTriangle(
 	const std::array<V2_float, 3>& vertices, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	/*game.renderer.GetRenderData().AddTriangle(
-		vertices, line_width, max_depth, camera, debug_blend_mode, color.Normalized(), true
-	);*/
+	game.renderer.GetRenderData().AddTriangle(
+		vertices, color, impl::max_depth, line_width, impl::GetDebugRenderState(camera)
+	);
 }
 
 void DrawDebugRect(
 	const V2_float& position, const V2_float& size, const Color& color, Origin origin,
 	float line_width, float rotation, const Camera& camera
 ) {
-	impl::RenderState state;
-	state.blend_mode  = debug_blend_mode;
-	state.camera	  = camera;
-	state.shader_pass = { game.shader.Get<ShapeShader::Quad>() };
-
 	game.renderer.GetRenderData().AddQuad(
-		Transform{ position, rotation }, size, origin, color, max_depth, state
+		Transform{ position, rotation }, size, origin, color, impl::max_depth, line_width,
+		impl::GetDebugRenderState(camera)
 	);
 }
 
 void DrawDebugEllipse(
-	const V2_float& center, const V2_float& radius, const Color& color, float line_width,
+	const V2_float& center, const V2_float& radii, const Color& color, float line_width,
 	float rotation, const Camera& camera
 ) {
-	/*game.renderer.GetRenderData().AddEllipse(
-		center, radius, line_width, max_depth, camera, debug_blend_mode, color.Normalized(),
-		rotation, true
-	);*/
+	auto state{ impl::GetDebugRenderState(camera) };
+	state.shader_pass = game.shader.Get<ShapeShader::Circle>();
+
+	game.renderer.GetRenderData().AddEllipse(
+		Transform{ center, rotation }, radii, color, impl::max_depth, line_width, state
+	);
 }
 
 void DrawDebugCircle(
 	const V2_float& center, float radius, const Color& color, float line_width, const Camera& camera
 ) {
-	/*game.renderer.GetRenderData().AddEllipse(
-		center, V2_float{ radius }, line_width, max_depth, camera, debug_blend_mode,
-		color.Normalized(), 0.0f, true
-	);*/
+	auto state{ impl::GetDebugRenderState(camera) };
+	state.shader_pass = game.shader.Get<ShapeShader::Circle>();
+
+	game.renderer.GetRenderData().AddCircle(
+		Transform{ center }, radius, color, impl::max_depth, line_width, state
+	);
 }
 
 void DrawDebugPolygon(
 	const std::vector<V2_float>& vertices, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	/*game.renderer.GetRenderData().AddPolygon(
-		vertices, line_width, max_depth, camera, debug_blend_mode, color.Normalized(), true
-	);*/
+	game.renderer.GetRenderData().AddPolygon(
+		vertices, color, impl::max_depth, line_width, impl::GetDebugRenderState(camera)
+	);
 }
 
 void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera) {
-	/*game.renderer.GetRenderData().AddPoint(
-		position, max_depth, camera, debug_blend_mode, color.Normalized(), true
-	);*/
+	game.renderer.GetRenderData().AddPoint(
+		position, color, impl::max_depth, impl::GetDebugRenderState(camera)
+	);
 }
 
 namespace impl {
