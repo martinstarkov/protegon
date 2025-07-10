@@ -300,7 +300,7 @@ void Game::Update() {
 	// game.stats.PrintCollisionOverlap();
 	// game.stats.PrintCollisionIntersect();
 	// game.stats.PrintCollisionRaycast();
-	game.stats.PrintRenderer();
+	// game.stats.PrintRenderer();
 	// PTGN_LOG("--------------------------------------");
 	game.stats.Reset();
 #endif
