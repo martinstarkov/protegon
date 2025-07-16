@@ -665,7 +665,11 @@ void Camera::Translate(const V2_float& position_change) {
 }
 
 void Camera::Zoom(const V2_float& zoom_change) {
-	auto new_zoom{ GetZoom() + zoom_change };
+	auto current_zoom{ GetZoom() };
+	auto new_zoom{ current_zoom + zoom_change };
+	constexpr float min_zoom{ epsilon<float> };
+	new_zoom.x = std::max(new_zoom.x, min_zoom);
+	new_zoom.y = std::max(new_zoom.y, min_zoom);
 	PTGN_ASSERT(
 		new_zoom.x > 0.0f && new_zoom.y > 0.0f, "Resulting zoom cannot be negative or zero"
 	);
