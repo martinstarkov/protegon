@@ -7,20 +7,15 @@
 #include <list>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 #include "common/assert.h"
-#include "components/offsets.h"
-#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/resource_manager.h"
 #include "core/time.h"
 #include "debug/log.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
-#include "rendering/api/color.h"
 #include "rendering/api/flip.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/shader.h"
