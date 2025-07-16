@@ -327,7 +327,7 @@ void RenderData::AddEllipse(
 void RenderData::AddTexturedQuad(
 	const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
 	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-	RenderState state, const PreFX& pre_fx
+	const RenderState& state, const PreFX& pre_fx
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
 	PTGN_ASSERT(!size.IsZero(), "Cannot draw textured quad with zero size");
@@ -428,6 +428,8 @@ void RenderData::AddTexturedQuad(
 }
 
 void RenderData::Init() {
+	// GLRenderer::EnableLineSmoothing();
+
 	GLRenderer::DisableGammaCorrection();
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();

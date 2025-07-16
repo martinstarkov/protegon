@@ -235,7 +235,7 @@ public:
 	void AddTexturedQuad(
 		const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
 		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-		RenderState state, const PreFX& pre_fx = {}
+		const RenderState& state, const PreFX& pre_fx = {}
 	);
 
 	void AddShader(

@@ -23,6 +23,7 @@
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/text.h"
+#include "resources/render_target.h"
 #include "resources/texture.h"
 #include "scene/camera.h"
 
@@ -136,24 +137,21 @@ void DrawDebugPoint(const V2_float position, const Color& color, const Camera& c
 
 namespace impl {
 
-void Renderer::Init(const Color& window_background_color) {
-	background_color_ = window_background_color;
-	ClearScreen();
-	// GLRenderer::EnableLineSmoothing();
-	// TODO: Fix.
-	/*screen_target_ = RenderTarget{ window_background_color, BlendMode::Blend };
-	current_target_ = screen_target_;*/
-
+void Renderer::Init() {
 	render_data_.Init();
+}
+
+void Renderer::SetBackgroundColor(const Color& background_color) {
+	render_data_.screen_target.SetClearColor(background_color);
+}
+
+Color Renderer::GetBackgroundColor() const {
+	return render_data_.screen_target.GetClearColor();
 }
 
 void Renderer::Reset() {
 	resolution_	  = {};
 	scaling_mode_ = ResolutionMode::Disabled;
-
-	// TODO: Fix.
-	/*current_target_ = {};
-	screen_target_	= {};*/
 
 	bound_ = {};
 
@@ -166,71 +164,6 @@ void Renderer::Shutdown() {
 
 // TODO: Fix.
 /*
-void Renderer::SetRenderTarget(const RenderTarget& target) {
-	if (current_target_ == target) {
-		return;
-	}
-	Flush();
-	current_target_ = target.IsValid() ? target : screen_target_;
-}
-
-RenderTarget Renderer::GetRenderTarget() const {
-	return current_target_;
-}
-
-void Renderer::Clear() const {
-	current_target_.Get().Clear();
-}
-
-void Renderer::Flush() {
-	current_target_.Get().Bind();
-
-	GLRenderer::SetBlendMode(current_target_.Get().GetBlendMode());
-	GLRenderer::SetViewport(
-		current_target_.Get().viewport_.Min(), current_target_.Get().viewport_.size
-	);
-
-	if (render_data_.SetViewProjection(current_target_.Get().GetCamera())) {
-		// Post mouse event when camera projection changes.
-		game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
-	}
-
-	render_data_.Flush();
-
-	PTGN_ASSERT(
-		current_target_.Get().frame_buffer_.IsBound(),
-		"Flushing the renderer must leave the current render target bound"
-	);
-}
-
-BlendMode Renderer::GetBlendMode() const {
-	return current_target_.Get().GetBlendMode();
-}
-
-void Renderer::SetBlendMode(BlendMode blend_mode) {
-	if (current_target_.Get().GetBlendMode() == blend_mode) {
-		return;
-	}
-	Flush();
-	current_target_.Get().SetBlendMode(blend_mode);
-}
-
-Color Renderer::GetClearColor() const {
-	return current_target_.Get().GetClearColor();
-}
-
-void Renderer::SetClearColor(const Color& clear_color) {
-	current_target_.Get().SetClearColor(clear_color);
-}
-
-void Renderer::SetViewport(const Rect& viewport) {
-	current_target_.Get().SetViewport(viewport);
-}
-
-Rect Renderer::GetViewport() const {
-	return current_target_.Get().GetViewport();
-}
-
 void Renderer::SetResolution(const V2_int& resolution) {
 	resolution_ = resolution;
 	// User expects setting resolution to take effect immediately so it is defaulted to stretch.
@@ -285,15 +218,6 @@ void Renderer::PresentScreen() {
 	game.window.SwapBuffers();
 
 	// TODO: Fix.
-	// Flush();
-	// screen_target_.Get().DrawToScreen();
-
-	// TODO: Fix.
-	// Screen target is cleared after drawing it to the screen.
-	// TODO: Replace these with the Clear() function once that is added.
-	/*screen_target_.Get().Bind();
-	screen_target_.Get().Clear();*/
-
 	/*
 	// TODO: Move this to happen only when setting resolution. This would allow for example only one
 	// render target to be drawn as resolution.
@@ -334,7 +258,7 @@ void Renderer::PresentScreen() {
 
 void Renderer::ClearScreen() const {
 	FrameBuffer::Unbind();
-	GLRenderer::SetClearColor(background_color_);
+	GLRenderer::SetClearColor(color::Transparent);
 	GLRenderer::Clear();
 }
 
