@@ -67,15 +67,16 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite sprite{ entity };
 
 	const auto& texture{ sprite.GetTexture() };
-	auto transform{ sprite.GetDrawTransform() };
 	auto display_size{ sprite.GetDisplaySize() };
-	auto origin{ sprite.GetOrigin() };
-	auto tint{ sprite.GetTint() };
-	auto depth{ sprite.GetDepth() };
 	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
 
+	auto transform{ entity.GetDrawTransform() };
+	auto origin{ entity.GetOrigin() };
+	auto tint{ entity.GetTint() };
+	auto depth{ entity.GetDepth() };
+
 	impl::RenderState state;
-	state.blend_mode  = sprite.GetBlendMode();
+	state.blend_mode  = entity.GetBlendMode();
 	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
 	state.camera	  = entity.GetOrParentOrDefault<Camera>();
 	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
