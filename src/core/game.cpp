@@ -153,7 +153,24 @@ Game::Game() :
 	/*light_{ std::make_unique<LightManager>() },
 	light{ *light_ },*/
 	profiler_{ std::make_unique<Profiler>() },
-	profiler{ *profiler_ } {}
+	profiler{ *profiler_ } {
+	// TODO: Move all of this init code into respective constructors.
+#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
+	impl::InitApplePath();
+#endif
+	if (!sdl_instance_->IsInitialized()) {
+		sdl_instance_->Init();
+	}
+	font.Init();
+	window.Init();
+	gl_context_->Init();
+	event.Init();
+	input.Init();
+
+	shader.Init();
+	renderer.Init();
+	// light.Init();
+}
 
 Game::~Game() {
 	gl_context_->Shutdown();
@@ -184,23 +201,7 @@ bool Game::IsRunning() const {
 void Game::Init(
 	const std::string& title, const V2_int& window_size, const Color& background_color
 ) {
-#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
-	impl::InitApplePath();
-#endif
-	if (!sdl_instance_->IsInitialized()) {
-		sdl_instance_->Init();
-	}
-	font.Init();
-	window.Init();
-	gl_context_->Init();
-	event.Init();
-	input.Init();
-
-	shader.Init();
-
-	renderer.Init(background_color);
-	// light.Init();
-
+	renderer.SetBackgroundColor(background_color);
 	game.window.SetTitle(title);
 	game.window.SetSize(window_size);
 }
