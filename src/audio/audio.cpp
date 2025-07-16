@@ -191,7 +191,7 @@ int SoundManager::GetVolume(SoundKey key) const {
 	return Mix_VolumeChunk(Get(Hash(key)), -1);
 }
 
-void SoundManager::ToggleVolume(SoundKey key, int new_volume) {
+void SoundManager::ToggleVolume(SoundKey key, int new_volume) const {
 	PTGN_ASSERT(
 		Has(Hash(key)),
 		"Cannot toggle volume of sound which has not been loaded in the music manager"

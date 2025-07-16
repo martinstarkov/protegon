@@ -123,7 +123,7 @@ public:
 	// Toggles the sound volume between 0 and new_volume.
 	// @param new_volume When toggle unmutes, it will set the new volume of the sound to this value
 	// in range [0, 128].
-	void ToggleVolume(SoundKey key, int new_volume = max_volume);
+	void ToggleVolume(SoundKey key, int new_volume = max_volume) const;
 
 	// Stops the sound playing on the specified channel, -1 stops all sound channels.
 	void Stop(int channel) const;
