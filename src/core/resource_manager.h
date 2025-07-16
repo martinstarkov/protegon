@@ -211,11 +211,10 @@ public:
 	using InternalKey = typename MapManager<ItemType>::InternalKey;
 	using MapManager<ItemType>::MapManager;
 
-	// Requires providing an initial active item.
-	ActiveMapManager()										 = delete;
+	ActiveMapManager()										 = default;
 	~ActiveMapManager() override							 = default;
-	ActiveMapManager(const ActiveMapManager&)				 = delete;
-	ActiveMapManager& operator=(const ActiveMapManager&)	 = delete;
+	ActiveMapManager(const ActiveMapManager&)				 = default;
+	ActiveMapManager& operator=(const ActiveMapManager&)	 = default;
 	ActiveMapManager(ActiveMapManager&&) noexcept			 = default;
 	ActiveMapManager& operator=(ActiveMapManager&&) noexcept = default;
 
