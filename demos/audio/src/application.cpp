@@ -286,7 +286,7 @@ public:
 
 		grid.ForEach([size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
-				b.SetPosition(coord * size + (coord + V2_int{ 1, 1 }) * offset);
+				b.SetPosition(coord * (size + offset) + offset);
 				b.SetOrigin(Origin::TopLeft);
 				b.SetSize(size);
 			}
