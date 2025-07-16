@@ -1,14 +1,21 @@
 #include "audio/audio.h"
 
 #include <chrono>
+#include <filesystem>
+#include <list>
+#include <memory>
 #include <ratio>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#include "SDL_mixer.h"
 #include "common/assert.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
+#include "core/time.h"
 #include "math/hash.h"
-
+#include "SDL_mixer.h"
+#include "utility/file.h"
 
 namespace ptgn::impl {
 
@@ -33,20 +40,20 @@ MusicManager::Music MusicManager::LoadFromFile(const path& filepath) {
 	return ptr;
 }
 
-void MusicManager::Load(std::string_view key, const path& filepath) {
+void MusicManager::Load(MusicKey key, const path& filepath) {
 	music_.try_emplace(Hash(key), LoadFromFile(filepath));
 }
 
-void MusicManager::Unload(std::string_view key) {
+void MusicManager::Unload(MusicKey key) {
 	music_.erase(Hash(key));
 }
 
-void MusicManager::Play(std::string_view key, int loops) {
+void MusicManager::Play(MusicKey key, int loops) const {
 	PTGN_ASSERT(Has(Hash(key)), "Cannot play music which has not been loaded in the music manager");
 	Mix_PlayMusic(Get(Hash(key)), loops);
 }
 
-void MusicManager::FadeIn(std::string_view key, milliseconds fade_time, int loops) {
+void MusicManager::FadeIn(MusicKey key, milliseconds fade_time, int loops) const {
 	PTGN_ASSERT(
 		Has(Hash(key)), "Cannot fade in music which has not been loaded in the music manager"
 	);
@@ -138,20 +145,20 @@ SoundManager::Sound SoundManager::LoadFromFile(const path& filepath) {
 	return ptr;
 }
 
-void SoundManager::Load(std::string_view key, const path& filepath) {
+void SoundManager::Load(SoundKey key, const path& filepath) {
 	sounds_.try_emplace(Hash(key), LoadFromFile(filepath));
 }
 
-void SoundManager::Unload(std::string_view key) {
+void SoundManager::Unload(SoundKey key) {
 	sounds_.erase(Hash(key));
 }
 
-void SoundManager::Play(std::string_view key, int channel, int loops) {
+void SoundManager::Play(SoundKey key, int channel, int loops) const {
 	PTGN_ASSERT(Has(Hash(key)), "Cannot play sound which has not been loaded in the music manager");
 	Mix_PlayChannel(channel, Get(Hash(key)), loops);
 }
 
-void SoundManager::FadeIn(std::string_view key, milliseconds fade_time, int channel, int loops) {
+void SoundManager::FadeIn(SoundKey key, milliseconds fade_time, int channel, int loops) const {
 	PTGN_ASSERT(
 		Has(Hash(key)), "Cannot fade in sound which has not been loaded in the music manager"
 	);
@@ -159,7 +166,7 @@ void SoundManager::FadeIn(std::string_view key, milliseconds fade_time, int chan
 	Mix_FadeInChannel(channel, Get(Hash(key)), loops, time_int.count());
 }
 
-void SoundManager::SetVolume(std::string_view key, int volume) {
+void SoundManager::SetVolume(SoundKey key, int volume) const {
 	PTGN_ASSERT(
 		Has(Hash(key)), "Cannot set volume of sound which has not been loaded in the music manager"
 	);
@@ -169,14 +176,22 @@ void SoundManager::SetVolume(std::string_view key, int volume) {
 	Mix_VolumeChunk(Get(Hash(key)), volume);
 }
 
-int SoundManager::GetVolume(std::string_view key) const {
+void SoundManager::SetVolume(int channel, int volume) const {
+	PTGN_ASSERT(
+		volume >= 0 && volume <= max_volume,
+		"Cannot set sound channel volume outside of valid range"
+	);
+	Mix_Volume(channel, volume);
+}
+
+int SoundManager::GetVolume(SoundKey key) const {
 	PTGN_ASSERT(
 		Has(Hash(key)), "Cannot get volume of sound which has not been loaded in the music manager"
 	);
 	return Mix_VolumeChunk(Get(Hash(key)), -1);
 }
 
-void SoundManager::ToggleVolume(std::string_view key, int new_volume) {
+void SoundManager::ToggleVolume(SoundKey key, int new_volume) {
 	PTGN_ASSERT(
 		Has(Hash(key)),
 		"Cannot toggle volume of sound which has not been loaded in the music manager"
@@ -213,14 +228,6 @@ void SoundManager::FadeOut(milliseconds fade_time, int channel) const {
 	Mix_FadeOutChannel(channel, time_int.count());
 }
 
-void SoundManager::SetVolume(int channel, int volume) {
-	PTGN_ASSERT(
-		volume >= 0 && volume <= max_volume,
-		"Cannot set sound channel volume outside of valid range"
-	);
-	Mix_Volume(channel, volume);
-}
-
 int SoundManager::GetVolume(int channel) const {
 	return Mix_Volume(channel, -1);
 }
@@ -247,7 +254,7 @@ Mix_Chunk* SoundManager::Get(std::size_t key) const {
 	return sounds_.find(key)->second.get();
 }
 
-bool SoundManager::Has(std::string_view sound_key) const {
+bool SoundManager::Has(SoundKey sound_key) const {
 	return Has(Hash(sound_key));
 }
 
