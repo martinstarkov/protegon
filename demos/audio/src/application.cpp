@@ -1,10 +1,12 @@
 #include <algorithm>
+#include <functional>
 #include <string>
 
 #include "audio/audio.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/time.h"
+#include "core/window.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
@@ -16,13 +18,11 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
-
 class AudioScript : public Script<AudioScript> {
 public:
 	AudioScript() = default;
 
-	AudioScript(const std::function<void()>& on_activate_callback) :
+	explicit AudioScript(const std::function<void()>& on_activate_callback) :
 		on_activate{ on_activate_callback } {}
 
 	void OnButtonActivate() override {
@@ -99,53 +99,53 @@ public:
 
 		grid.Set(
 			{ 1, 0 }, CreateAudioButton(
-						  "Play Music 1", [&]() { game.music.Play("music1"); }, music_color
+						  "Play Music 1", []() { game.music.Play("music1"); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 1 }, CreateAudioButton(
-						  "Play Music 2", [&]() { game.music.Play("music2"); }, music_color
+						  "Play Music 2", []() { game.music.Play("music2"); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 2 }, CreateAudioButton(
-						  "Stop Music", [&]() { game.music.Stop(); }, music_color
+						  "Stop Music", []() { game.music.Stop(); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 3 }, CreateAudioButton(
 						  "Fade In Music 1 (3s)",
-						  [&]() { game.music.FadeIn("music1", milliseconds{ 3000 }); }, music_color
+						  []() { game.music.FadeIn("music1", milliseconds{ 3000 }); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 4 }, CreateAudioButton(
 						  "Fade In Music 2 (3s)",
-						  [&]() { game.music.FadeIn("music2", milliseconds{ 3000 }); }, music_color
+						  []() { game.music.FadeIn("music2", milliseconds{ 3000 }); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 5 }, CreateAudioButton(
-						  "Fade Out Music (3s)",
-						  [&]() { game.music.FadeOut(milliseconds{ 3000 }); }, music_color
+						  "Fade Out Music (3s)", []() { game.music.FadeOut(milliseconds{ 3000 }); },
+						  music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 6 }, CreateAudioButton(
-						  "Toggle Music Pause", [&]() { game.music.TogglePause(); }, music_color
+						  "Toggle Music Pause", []() { game.music.TogglePause(); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 7 }, CreateAudioButton(
-						  "Toggle Music Mute", [&]() { game.music.ToggleVolume(starting_volume); },
-						  music_color
+						  "Toggle Music Mute",
+						  [this]() { game.music.ToggleVolume(starting_volume); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 8 },
 			CreateAudioButton(
 				"+ Music Volume",
-				[&]() { game.music.SetVolume(std::clamp(game.music.GetVolume() + 5, 0, 128)); },
+				[]() { game.music.SetVolume(std::clamp(game.music.GetVolume() + 5, 0, 128)); },
 				music_color
 			)
 		);
@@ -153,7 +153,7 @@ public:
 			{ 1, 9 },
 			CreateAudioButton(
 				"- Music Volume",
-				[&]() { game.music.SetVolume(std::clamp(game.music.GetVolume() - 5, 0, 128)); },
+				[]() { game.music.SetVolume(std::clamp(game.music.GetVolume() - 5, 0, 128)); },
 				music_color
 			)
 		);
@@ -161,45 +161,45 @@ public:
 		grid.Set(
 			{ 2, 0 },
 			CreateAudioButton(
-				"Play Channel 1", [&]() { game.sound.Play("sound1", channel1); }, sound1_color
+				"Play Channel 1", [this]() { game.sound.Play("sound1", channel1); }, sound1_color
 			)
 		);
 		grid.Set(
 			{ 2, 1 }, CreateAudioButton(
-						  "Stop Channel 1", [&]() { game.sound.Stop(channel1); }, sound1_color
+						  "Stop Channel 1", [this]() { game.sound.Stop(channel1); }, sound1_color
 					  )
 		);
 		grid.Set(
-			{ 2, 2 },
-			CreateAudioButton(
-				"Fade In Sound 1 (3s)",
-				[&]() { game.sound.FadeIn("sound1", milliseconds{ 3000 }, channel1); }, sound1_color
-			)
+			{ 2, 2 }, CreateAudioButton(
+						  "Fade In Sound 1 (3s)",
+						  [this]() { game.sound.FadeIn("sound1", milliseconds{ 3000 }, channel1); },
+						  sound1_color
+					  )
 		);
 		grid.Set(
 			{ 2, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 1 (3s)",
-				[&]() { game.sound.FadeOut(milliseconds{ 3000 }, channel1); }, sound1_color
+				[this]() { game.sound.FadeOut(milliseconds{ 3000 }, channel1); }, sound1_color
 			)
 		);
 		grid.Set(
-			{ 2, 4 },
-			CreateAudioButton(
-				"Toggle Channel 1 Pause", [&]() { game.sound.TogglePause(channel1); }, sound1_color
-			)
+			{ 2, 4 }, CreateAudioButton(
+						  "Toggle Channel 1 Pause", [this]() { game.sound.TogglePause(channel1); },
+						  sound1_color
+					  )
 		);
 		grid.Set(
 			{ 2, 5 },
 			CreateAudioButton(
 				"Toggle Sound 1 Mute",
-				[&]() { game.sound.ToggleVolume("sound1", starting_volume); }, sound1_color
+				[this]() { game.sound.ToggleVolume("sound1", starting_volume); }, sound1_color
 			)
 		);
 		grid.Set(
 			{ 2, 6 }, CreateAudioButton(
 						  "+ Channel 1 Volume",
-						  [&]() {
+						  [this]() {
 							  game.sound.SetVolume(
 								  channel1, std::clamp(game.sound.GetVolume(channel1) + 5, 0, 128)
 							  );
@@ -210,7 +210,7 @@ public:
 		grid.Set(
 			{ 2, 7 }, CreateAudioButton(
 						  "- Channel 1 Volume",
-						  [&]() {
+						  [this]() {
 							  game.sound.SetVolume(
 								  channel1, std::clamp(game.sound.GetVolume(channel1) - 5, 0, 128)
 							  );
@@ -222,45 +222,45 @@ public:
 		grid.Set(
 			{ 3, 0 },
 			CreateAudioButton(
-				"Play Channel 2", [&]() { game.sound.Play("sound2", channel2); }, sound2_color
+				"Play Channel 2", [this]() { game.sound.Play("sound2", channel2); }, sound2_color
 			)
 		);
 		grid.Set(
 			{ 3, 1 }, CreateAudioButton(
-						  "Stop Channel 2", [&]() { game.sound.Stop(channel2); }, sound2_color
+						  "Stop Channel 2", [this]() { game.sound.Stop(channel2); }, sound2_color
 					  )
 		);
 		grid.Set(
-			{ 3, 2 },
-			CreateAudioButton(
-				"Fade In Sound 2 (3s)",
-				[&]() { game.sound.FadeIn("sound2", milliseconds{ 3000 }, channel2); }, sound2_color
-			)
+			{ 3, 2 }, CreateAudioButton(
+						  "Fade In Sound 2 (3s)",
+						  [this]() { game.sound.FadeIn("sound2", milliseconds{ 3000 }, channel2); },
+						  sound2_color
+					  )
 		);
 		grid.Set(
 			{ 3, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 2 (3s)",
-				[&]() { game.sound.FadeOut(milliseconds{ 3000 }, channel2); }, sound2_color
+				[this]() { game.sound.FadeOut(milliseconds{ 3000 }, channel2); }, sound2_color
 			)
 		);
 		grid.Set(
-			{ 3, 4 },
-			CreateAudioButton(
-				"Toggle Channel 2 Pause", [&]() { game.sound.TogglePause(channel2); }, sound2_color
-			)
+			{ 3, 4 }, CreateAudioButton(
+						  "Toggle Channel 2 Pause", [this]() { game.sound.TogglePause(channel2); },
+						  sound2_color
+					  )
 		);
 		grid.Set(
 			{ 3, 5 },
 			CreateAudioButton(
 				"Toggle Sound 2 Mute",
-				[&]() { game.sound.ToggleVolume("sound2", starting_volume); }, sound2_color
+				[this]() { game.sound.ToggleVolume("sound2", starting_volume); }, sound2_color
 			)
 		);
 		grid.Set(
 			{ 3, 6 }, CreateAudioButton(
 						  "+ Channel 2 Volume",
-						  [&]() {
+						  [this]() {
 							  game.sound.SetVolume(
 								  channel2, std::clamp(game.sound.GetVolume(channel2) + 5, 0, 128)
 							  );
@@ -271,7 +271,7 @@ public:
 		grid.Set(
 			{ 3, 7 }, CreateAudioButton(
 						  "- Channel 2 Volume",
-						  [&]() {
+						  [this]() {
 							  game.sound.SetVolume(
 								  channel2, std::clamp(game.sound.GetVolume(channel2) - 5, 0, 128)
 							  );
@@ -281,9 +281,10 @@ public:
 		);
 
 		V2_int offset{ 6, 6 };
-		V2_int size{ (window_size - offset * (grid.GetSize() + V2_int{ 1, 1 })) / grid.GetSize() };
+		V2_int size{ (game.window.GetSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
+					 grid.GetSize() };
 
-		grid.ForEach([&](auto coord, Button& b) {
+		grid.ForEach([size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
 				b.SetPosition(coord * size + (coord + V2_int{ 1, 1 }) * offset);
 				b.SetOrigin(Origin::TopLeft);
@@ -336,7 +337,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("AudioScene", window_size);
+	game.Init("AudioScene", { 800, 800 });
 	game.scene.Enter<AudioScene>("");
 	return 0;
 }
