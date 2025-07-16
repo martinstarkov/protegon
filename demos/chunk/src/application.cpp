@@ -1,29 +1,34 @@
 
+#include <string_view>
+#include <vector>
+
+#include "components/common.h"
 #include "components/movement.h"
+#include "components/transform.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/window.h"
 #include "ecs/ecs.h"
-#include "event/input_handler.h"
+#include "events/input_handler.h"
+#include "events/key.h"
 #include "math/geometry.h"
 #include "math/noise.h"
-#include "renderer/color.h"
-#include "renderer/texture.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/graphics/rect.h"
+#include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "serialization/file_stream_reader.h"
-#include "serialization/file_stream_writer.h"
 #include "tile/chunk.h"
-#include "utility/file.h"
-#include "utility/log.h"
 
 using namespace ptgn;
 
 class ChunkScene : public Scene {
 public:
-	ecs::Entity CreateSheep(ecs::Manager& m, const V2_float& position) {
-		auto e = manager.CreateEntity();
+	Entity CreateSheep(const V2_float& position) {
+		auto e = CreateEntity();
 		e.Add<Transform>(position);
 		e.Add<Visible>();
 		e.Add<Depth>(1);
@@ -31,10 +36,8 @@ public:
 		return e;
 	}
 
-	ecs::Entity CreateTile(
-		ecs::Manager& m, const V2_float& position, std::string_view texture_key
-	) {
-		auto e = manager.CreateEntity();
+	Entity CreateTile(const V2_float& position, std::string_view texture_key) {
+		auto e = CreateEntity();
 		e.Add<Transform>(position);
 		e.Add<Visible>();
 		e.Add<Origin>(Origin::TopLeft);
@@ -42,20 +45,17 @@ public:
 		return e;
 	}
 
-	ecs::Entity CreateColorTile(ecs::Manager& m, const V2_float& position, const Color& color) {
-		auto e = manager.CreateEntity();
-		e.Add<Transform>(position);
-		e.Add<Visible>();
-		e.Add<Rect>(chunk_manager.tile_size, Origin::TopLeft);
-		e.Add<Tint>(color);
+	Entity CreateColorTile(const V2_float& position, const Color& color) {
+		auto e =
+			CreateRect(*this, position, chunk_manager.tile_size, color, -1.0f, Origin::TopLeft);
 		return e;
 	}
 
-	ecs::Entity sheep;
-
-	void Exit() override {}
+	Entity sheep;
 
 	V2_float vel;
+	V2_float speed{ 30, 30 };
+	static constexpr float zoom_speed{ 0.3f };
 
 	ChunkManager chunk_manager;
 
@@ -71,22 +71,18 @@ public:
 		game.texture.Load("blue", "resources/blue_tile.png");
 		game.texture.Load("green", "resources/green_tile.png");
 
-		chunk_manager.noise_layers.emplace_back(
-			fractal_noise,
-			[&](const V2_float& coordinate, float noise) {
-				return CreateColorTile(manager, coordinate, color::White.WithAlpha(noise));
-			}
-		);
+		chunk_manager.AddNoiseLayer(NoiseLayer{
+			fractal_noise, [&](const V2_float& coordinate, float noise) {
+				return CreateColorTile(coordinate, color::White.WithAlpha(noise));
+			} });
 
-		sheep = CreateSheep(manager, V2_float{ 0, 0 });
+		sheep = CreateSheep(V2_float{ 0, 0 });
 		camera.primary.StartFollow(sheep);
 	}
 
 	void Update() override {
-		MoveWASD(vel, { 3, 3 }, true);
+		MoveWASD(vel, speed, true);
 		sheep.Get<Transform>().position += vel * game.dt();
-
-		constexpr float zoom_speed{ 0.1f };
 
 		if (game.input.KeyPressed(Key::Q)) {
 			camera.primary.Zoom(-zoom_speed * game.dt());
@@ -95,12 +91,12 @@ public:
 			camera.primary.Zoom(zoom_speed * game.dt());
 		}
 
-		chunk_manager.Update(camera.primary);
+		chunk_manager.Update(*this, camera.primary);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Chunk", { 1280, 720 }, color::Transparent);
-	game.scene.Enter<ChunkScene>("chunk");
+	game.Init("ChunkScene", { 1280, 720 }, color::Transparent);
+	game.scene.Enter<ChunkScene>("");
 	return 0;
 }
