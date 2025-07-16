@@ -40,7 +40,7 @@ ShakeEffectInfo::ShakeEffectInfo(
 	PTGN_ASSERT(
 		start_intensity >= 0.0f && start_intensity <= 1.0f,
 		"Shake effect intensity must be in range [0.0, 1.0]"
-	)
+	);
 	PTGN_ASSERT(
 		target_intensity >= 0.0f && target_intensity <= 1.0f,
 		"Shake effect intensity must be in range [0.0, 1.0]"
