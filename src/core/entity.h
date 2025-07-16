@@ -322,7 +322,7 @@ public:
 	 * @brief Adds a script of type T to the entity.
 	 *
 	 * Constructs and attaches a script of the specified type using the provided constructor
-	 * arguments.
+	 * arguments. If the same script type T already exists on the entity, nothing happens.
 	 *
 	 * @tparam T The script type to be added.
 	 * @tparam TArgs The types of arguments to pass to the script constructor.

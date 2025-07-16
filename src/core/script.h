@@ -101,7 +101,7 @@ public:
 		auto script{ std::make_shared<T>(std::forward<TArgs>(args)...) };
 		constexpr auto class_name{ type_name<T>() };
 		constexpr auto hash{ Hash(class_name) };
-		scripts.emplace(hash, script);
+		scripts.try_emplace(hash, script);
 		return *script;
 	}
 
@@ -173,7 +173,7 @@ public:
 			auto instance{ ScriptRegistry<TBaseScript>::Instance().Create(class_name) };
 			if (instance) {
 				instance->Deserialize(script);
-				container.scripts.emplace(Hash(class_name), std::move(instance));
+				container.scripts.try_emplace(Hash(class_name), std::move(instance));
 			}
 		};
 		if (j.is_array()) {
