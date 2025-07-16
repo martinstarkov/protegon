@@ -1,5 +1,8 @@
 #pragma once
 
+#include <utility>
+#include <vector>
+
 #include "common/type_info.h"
 #include "serialization/json.h"
 
@@ -7,6 +10,42 @@ namespace ptgn {
 
 class JSONArchiver {
 public:
+	template <typename T>
+	void SetComponent(const T& component) {
+		if constexpr (tt::has_to_json_v<T>) {
+			constexpr auto class_name{ type_name_without_namespaces<T>() };
+			j[class_name] = component;
+		}
+	}
+
+	template <typename T>
+	[[nodiscard]] bool HasComponent() const {
+		if constexpr (tt::has_from_json_v<T>) {
+			constexpr auto class_name{ type_name_without_namespaces<T>() };
+			if (!j.contains(class_name)) {
+				return false;
+			}
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	template <typename T>
+	[[nodiscard]] T GetComponent() const {
+		if constexpr (tt::has_from_json_v<T>) {
+			constexpr auto class_name{ type_name_without_namespaces<T>() };
+			if (!j.contains(class_name)) {
+				return {};
+			}
+			T component{};
+			j.at(class_name).get_to(component);
+			return component;
+		} else {
+			return {};
+		}
+	}
+
 	template <typename T>
 	void SetComponents(const std::vector<T>& components) {
 		if constexpr (tt::has_to_json_v<T>) {
