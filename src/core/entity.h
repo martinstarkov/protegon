@@ -1,8 +1,10 @@
 #pragma once
 
+#include <memory>
 #include <string_view>
 #include <unordered_set>
 
+#include "common/assert.h"
 #include "common/move_direction.h"
 #include "common/type_info.h"
 #include "components/common.h"
@@ -417,22 +419,30 @@ public:
 
 	// Converts the specified entity components to a JSON object.
 	template <typename... Ts>
-	json Serialize() const {
-		static_assert(
-			sizeof...(Ts) > 0, "Cannot serialize entity without providing desired components"
-		);
+	[[nodiscard]] json Serialize() const {
 		PTGN_ASSERT(*this, "Cannot serialize a null entity");
+
 		json j{};
-		(SerializeImpl<Ts>(j), ...);
+
+		if constexpr (sizeof...(Ts) == 0) {
+			SerializeAllImpl(j);
+		} else {
+			(SerializeImpl<Ts>(j), ...);
+		}
+
 		return j;
 	}
 
 	// Populates the entity's components based on a JSON object. Does not impact existing
 	// components, unless they are specified as part of Ts, in which case they are replaced.
-	template <typename... Ts, tt::enable<(sizeof...(Ts) > 0)> = true>
+	template <typename... Ts>
 	void Deserialize(const json& j) {
-		PTGN_ASSERT(*this, "Cannot deserialize to a null entity");
-		(DeserializeImpl<Ts>(j), ...);
+		if constexpr (sizeof...(Ts) == 0) {
+			DeserializeAllImpl(j);
+		} else {
+			PTGN_ASSERT(*this, "Cannot deserialize to a null entity");
+			(DeserializeImpl<Ts>(j), ...);
+		}
 	}
 
 	template <typename T, typename... TArgs>
@@ -478,6 +488,8 @@ private:
 		j[component_name] = Get<T>();
 	}
 
+	void SerializeAllImpl(json& j) const;
+
 	template <typename T>
 	void DeserializeImpl(const json& j) {
 		static_assert(
@@ -487,6 +499,8 @@ private:
 		PTGN_ASSERT(j.contains(component_name), "JSON does not contain ", component_name);
 		j[component_name].get_to(GetOrAdd<T>());
 	}
+
+	void DeserializeAllImpl(const json& j);
 
 	void AddChildImpl(Entity& child, std::string_view name = {});
 

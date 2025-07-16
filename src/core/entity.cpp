@@ -1,5 +1,6 @@
 #include "core/entity.h"
 
+#include <memory>
 #include <unordered_set>
 #include <utility>
 
@@ -21,6 +22,7 @@
 #include "scene/scene.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
+#include "serialization/component_registry.h"
 #include "serialization/json.h"
 #include "serialization/json_archiver.h"
 
@@ -139,6 +141,39 @@ Entity Entity::CreateChild(std::string_view name) {
 	auto entity{ GetManager().CreateEntity() };
 	AddChild(entity, name);
 	return entity;
+}
+
+void Entity::SerializeAllImpl(json& j) const {
+	JSONArchiver archiver;
+
+	PTGN_ASSERT(manager_ != nullptr);
+
+	const auto& pools{ GetManager().pools_ };
+
+	for (const auto& pool : pools) {
+		if (!pool) {
+			continue;
+		}
+		pool->Serialize(archiver, entity_);
+	}
+
+	j = archiver.j;
+}
+
+void Entity::DeserializeAllImpl(const json& j) {
+	JSONArchiver archiver;
+	archiver.j = j;
+
+	impl::ComponentRegistry::AddTypes(GetManager());
+
+	auto& manager{ GetManager() };
+
+	for (auto& pool : manager.pools_) {
+		if (!pool) {
+			continue;
+		}
+		pool->Deserialize(archiver, entity_);
+	}
 }
 
 void Entity::AddChildImpl(Entity& child, std::string_view name) {
@@ -493,6 +528,10 @@ void Children::Remove(std::string_view name) {
 void to_json(json& j, const Entity& entity) {
 	j = json{};
 
+	if (!entity) {
+		return;
+	}
+
 	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
 
 	j[uuid_name] = entity.GetUUID();
@@ -516,7 +555,11 @@ void from_json(const json& j, Entity& entity) {
 
 	j[uuid_name].get_to(uuid);
 
-	entity = entity.GetManager().GetEntityByUUID(uuid);
+	const auto& manager{ entity.GetManager() };
+
+	auto found_entity{ manager.GetEntityByUUID(uuid) };
+
+	PTGN_ASSERT(!found_entity || (found_entity && found_entity == entity));
 
 	PTGN_ASSERT(entity, "Failed to find entity with UUID: ", uuid);
 

@@ -28,7 +28,7 @@ public:
 	Manager& operator=(const Manager&)	   = default;
 	Manager(Manager&&) noexcept			   = default;
 	Manager& operator=(Manager&&) noexcept = default;
-	virtual ~Manager()					   = default;
+	~Manager() override					   = default;
 
 	friend bool operator==(const Manager& a, const Manager& b) {
 		return &a == &b;
@@ -129,12 +129,12 @@ public:
 	friend void from_json(const json& j, Manager& manager);
 
 private:
+	friend class Entity;
+
 	void ClearEntities() final;
 
 	explicit Manager(ecs::Manager<JSONArchiver>&& manager) :
 		ecs::Manager<JSONArchiver>{ std::move(manager) } {}
-
-	friend class Entity;
 };
 
 } // namespace ptgn

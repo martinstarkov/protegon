@@ -1,12 +1,19 @@
 #include "core/manager.h"
 
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "common/assert.h"
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "ecs/ecs.h"
 #include "manager.h"
+#include "nlohmann/json.hpp"
 #include "serialization/component_registry.h"
+#include "serialization/fwd.h"
 #include "serialization/json.h"
+#include "serialization/json_archiver.h"
 
 namespace ptgn {
 
@@ -30,7 +37,8 @@ Entity Manager::GetEntityByUUID(const UUID& uuid) const {
 }
 
 Entity Manager::CreateEntity(const json& j) {
-	Entity entity{ ecs::Manager<JSONArchiver>::CreateEntity() };
+	Entity entity{ Manager::CreateEntity() };
+	PTGN_ASSERT(entity, "Failed to create entity");
 	j.get_to(entity);
 	PTGN_ASSERT(entity.Has<UUID>(), "Entity created from json must have a UUID");
 	return entity;
