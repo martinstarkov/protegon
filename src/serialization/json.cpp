@@ -6,15 +6,18 @@
 #include <nlohmann/json.hpp>
 #include <ostream>
 
-#include "serialization/fwd.h"
 #include "common/assert.h"
+#include "serialization/fwd.h"
 #include "utility/file.h"
 
 namespace ptgn {
 
-void SaveJson(const json& j, const path& filepath) {
+void SaveJson(const json& j, const path& filepath, bool indent) {
 	std::ofstream o{ filepath };
-	o << std::setw(4) << j << std::endl;
+	if (indent) {
+		o << std::setw(4);
+	}
+	o << j << std::endl;
 }
 
 json LoadJson(const path& filepath) {
