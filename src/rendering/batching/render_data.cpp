@@ -895,8 +895,6 @@ void RenderData::ClearRenderTargets(Scene& scene) {
 void RenderData::Draw(Scene& scene) {
 	// PTGN_PROFILE_FUNCTION();
 
-	ClearRenderTargets(scene);
-
 	white_texture.Bind(0);
 
 	DrawScene(scene);

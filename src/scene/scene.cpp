@@ -109,6 +109,9 @@ void Scene::Draw() {
 }
 
 void Scene::PreUpdate() {
+	auto& render_data{ game.renderer.GetRenderData() };
+	render_data.ClearRenderTargets(*this);
+
 	Refresh();
 
 	input.UpdatePrevious(this);
