@@ -53,9 +53,9 @@ void DrawDebugText(
 	const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddTexturedQuad(
-		text.Get<impl::Texture>(), Transform{ position, rotation }, size, origin, color::White,
-		impl::max_depth, Sprite{ text }.GetTextureCoordinates(false),
-		impl::GetDebugRenderState(camera), {}
+		text.Get<impl::Texture>(), Transform{ position, rotation },
+		size.IsZero() ? V2_float{ text.GetSize() } : size, origin, color::White, impl::max_depth,
+		Sprite{ text }.GetTextureCoordinates(false), impl::GetDebugRenderState(camera), {}
 	);
 }
 
