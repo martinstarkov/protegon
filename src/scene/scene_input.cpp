@@ -28,6 +28,7 @@
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 
 namespace ptgn {
@@ -278,6 +279,41 @@ void SceneInput::UpdateCurrent(Scene* scene) {
 	}
 }
 
+void SceneInput::EntityMouseMove(
+	const Scene& scene, Entity entity, const Interactive& interactive, const V2_float& mouse_pos,
+	V2_float& pos, Camera& camera
+) const {
+	GetMousePosAndCamera(entity, mouse_pos, scene.camera.primary, pos, camera);
+	entity.InvokeScript<&impl::IScript::OnMouseMove>(pos);
+	bool entered{ interactive.is_inside && !interactive.was_inside };
+	bool exited{ !interactive.is_inside && interactive.was_inside };
+	if (entered) {
+		entity.InvokeScript<&impl::IScript::OnMouseEnter>(pos);
+	}
+	if (exited) {
+		entity.InvokeScript<&impl::IScript::OnMouseLeave>(pos);
+	}
+	if (interactive.is_inside) {
+		entity.InvokeScript<&impl::IScript::OnMouseOver>(pos);
+	} else {
+		entity.InvokeScript<&impl::IScript::OnMouseOut>(pos);
+	}
+	if (entity.Has<Draggable>() && entity.Get<Draggable>().dragging) {
+		entity.InvokeScript<&impl::IScript::OnDrag>(pos);
+		if (interactive.is_inside) {
+			entity.InvokeScript<&impl::IScript::OnDragOver>(pos);
+			if (!interactive.was_inside) {
+				entity.InvokeScript<&impl::IScript::OnDragEnter>(pos);
+			}
+		} else {
+			entity.InvokeScript<&impl::IScript::OnDragOut>(pos);
+			if (interactive.was_inside) {
+				entity.InvokeScript<&impl::IScript::OnDragLeave>(pos);
+			}
+		}
+	}
+}
+
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	// TODO: Figure out a smart way to cache the scene.
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
@@ -302,35 +338,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				GetMousePosAndCamera(entity, mouse_pos, scene.camera.primary, pos, camera);
-				entity.InvokeScript<&impl::IScript::OnMouseMove>(pos);
-				bool entered{ interactive.is_inside && !interactive.was_inside };
-				bool exited{ !interactive.is_inside && interactive.was_inside };
-				if (entered) {
-					entity.InvokeScript<&impl::IScript::OnMouseEnter>(pos);
-				}
-				if (exited) {
-					entity.InvokeScript<&impl::IScript::OnMouseLeave>(pos);
-				}
-				if (interactive.is_inside) {
-					entity.InvokeScript<&impl::IScript::OnMouseOver>(pos);
-				} else {
-					entity.InvokeScript<&impl::IScript::OnMouseOut>(pos);
-				}
-				if (entity.Has<Draggable>() && entity.Get<Draggable>().dragging) {
-					entity.InvokeScript<&impl::IScript::OnDrag>(pos);
-					if (interactive.is_inside) {
-						entity.InvokeScript<&impl::IScript::OnDragOver>(pos);
-						if (!interactive.was_inside) {
-							entity.InvokeScript<&impl::IScript::OnDragEnter>(pos);
-						}
-					} else {
-						entity.InvokeScript<&impl::IScript::OnDragOut>(pos);
-						if (interactive.was_inside) {
-							entity.InvokeScript<&impl::IScript::OnDragLeave>(pos);
-						}
-					}
-				}
+				EntityMouseMove(scene, entity, interactive, mouse_pos, pos, camera);
 			}
 			break;
 		}
@@ -526,6 +534,25 @@ V2_float SceneInput::GetMousePositionPrevious() const {
 
 V2_float SceneInput::GetMouseDifference() const {
 	return TransformToCamera(game.input.GetMouseDifference());
+}
+
+void SimulateMouseMovement(Entity entity) {
+	PTGN_ASSERT(entity.Has<impl::SceneKey>());
+	const auto& scene_key{ entity.Get<impl::SceneKey>() };
+	const auto& scene{ game.scene.Get<Scene>(scene_key) };
+	PTGN_ASSERT(entity.Has<Interactive>());
+	auto& interactive{ entity.Get<Interactive>() };
+	interactive.was_inside = false;
+	auto mouse_pos{ game.input.GetMousePositionUnclamped() };
+	auto pos{ mouse_pos };
+	Camera camera; // unused
+	if (scene.camera.primary && scene.camera.primary.Has<impl::CameraInfo>()) {
+		pos = scene.camera.primary.TransformToCamera(mouse_pos);
+	} else {
+		// Scene camera has not been set yet.
+		return;
+	}
+	scene.input.EntityMouseMove(scene, entity, interactive, mouse_pos, pos, camera);
 }
 
 } // namespace ptgn

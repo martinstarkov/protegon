@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/input.h"
 #include "core/entity.h"
 #include "events/event.h"
 #include "events/events.h"
@@ -10,6 +11,8 @@ namespace ptgn {
 
 class Scene;
 class Camera;
+
+void SimulateMouseMovement(Entity entity);
 
 class SceneInput {
 public:
@@ -40,6 +43,12 @@ public:
 
 private:
 	friend class Scene;
+	friend void SimulateMouseMovement(Entity entity);
+
+	void EntityMouseMove(
+		const Scene& scene, Entity entity, const Interactive& interactive,
+		const V2_float& mouse_pos, V2_float& pos, Camera& camera
+	) const;
 
 	void UpdatePrevious(Scene* scene);
 	void UpdateCurrent(Scene* scene);
