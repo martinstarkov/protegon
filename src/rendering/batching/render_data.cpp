@@ -8,13 +8,13 @@
 #include <utility>
 #include <vector>
 
-#include "../../debug/profiling.h"
 #include "common/assert.h"
 #include "components/common.h"
 #include "components/drawable.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "debug/profiling.h"
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "math/geometry.h"
@@ -179,11 +179,14 @@ FrameBufferPool::FrameBufferPool(milliseconds max_age, std::size_t max_pool_size
 	max_age_{ max_age }, max_pool_size_{ max_pool_size } {}
 
 std::shared_ptr<FrameBufferContext> FrameBufferPool::Get(V2_float size, TextureFormat format) {
-	// TODO: Fix this function and remove used_contexts.
 	PTGN_ASSERT(size.x > 0 && size.y > 0);
 
-	size.x = std::min(size.x, 4096.0f);
-	size.y = std::min(size.y, 4096.0f);
+	constexpr V2_float max_resolution{ 4096.0f };
+
+	size.x = std::min(size.x, max_resolution.x);
+	size.y = std::min(size.y, max_resolution.y);
+
+	// TODO: Cache frame buffers.
 
 	return std::make_shared<FrameBufferContext>(size, format);
 }
@@ -803,7 +806,8 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 }
 
 void RenderData::DrawEntities(const std::vector<Entity>& entities, const RenderTarget& target) {
-	drawing_to = target ? target : screen_target;
+	PTGN_ASSERT(target, "Cannot draw entities to invalid render target");
+	drawing_to = target;
 	for (const auto& entity : entities) {
 		InvokeDrawable(entity);
 	}
