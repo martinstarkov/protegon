@@ -62,7 +62,6 @@ void Dropdown::RecalculateButtonPositions() {
 		size = i.button_size_;
 	}
 	PTGN_ASSERT(!size.IsZero(), "Invalid size for dropdown button");
-	// Start from corner of button.
 	V2_float parent_center{ GetOriginOffset(GetOrigin(), parent_size) };
 	V2_float parent_edge{ parent_center - GetOriginOffset(i.origin_, parent_size) };
 	V2_float next_to_parent{ parent_edge - GetOriginOffset(i.origin_, size) };
@@ -174,7 +173,7 @@ void Dropdown::Open() {
 	auto children{ GetChildren() };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
-			auto& child_i{ child.Get<impl::DropdownInstance>() };
+			const auto& child_i{ child.Get<impl::DropdownInstance>() };
 			if (child_i.start_open_) {
 				Dropdown{ child }.Open();
 			}
