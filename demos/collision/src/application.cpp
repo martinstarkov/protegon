@@ -4,23 +4,18 @@
 #include "components/movement.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/game_object.h"
 #include "core/manager.h"
-#include "core/transform.h"
 #include "core/window.h"
-#include "event/input_handler.h"
-#include "event/key.h"
-#include "math/collision/collider.h"
+#include "events/input_handler.h"
+#include "events/key.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
+#include "rendering/graphics/circle.h"
+#include "rendering/graphics/rect.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "utility/assert.h"
-#include "utility/log.h"
 
 using namespace ptgn;
 
@@ -34,7 +29,7 @@ struct CollisionTest {
 	Manager* manager;
 
 	CollisionTest() {
-		manager = &game.scene.Get("collision_example_scene").manager;
+		manager = &game.scene.Get("");
 	}
 
 	virtual void Enter() {}
@@ -48,12 +43,12 @@ struct CollisionTest {
 
 class CollisionCallbackTest : public CollisionTest {
 public:
-	GameObject intersect;
-	GameObject overlap;
-	GameObject sweep;
-	GameObject intersect_circle;
-	GameObject overlap_circle;
-	GameObject sweep_circle;
+	Entity intersect;
+	Entity overlap;
+	Entity sweep;
+	Entity intersect_circle;
+	Entity overlap_circle;
+	Entity sweep_circle;
 
 	// Total number.
 	const int move_entities{ 6 };
@@ -63,12 +58,12 @@ public:
 
 	void Enter() override {
 		PTGN_ASSERT(manager != nullptr);
-		intersect		 = GameObject{ *manager };
-		sweep			 = GameObject{ *manager };
-		overlap			 = GameObject{ *manager };
-		intersect_circle = GameObject{ *manager };
-		sweep_circle	 = GameObject{ *manager };
-		overlap_circle	 = GameObject{ *manager };
+		intersect		 = manager->CreateEntity();
+		sweep			 = manager->CreateEntity();
+		overlap			 = manager->CreateEntity();
+		intersect_circle = manager->CreateEntity();
+		sweep_circle	 = manager->CreateEntity();
+		overlap_circle	 = manager->CreateEntity();
 
 		intersect.SetVisible(true);
 		sweep.SetVisible(true);
@@ -81,13 +76,8 @@ public:
 		intersect_circle.SetTint(color::Purple);
 		sweep.SetTint(color::Cyan);
 		sweep_circle.SetTint(color::Cyan);
-		overlap.SetTint(color::Black);
-		overlap_circle.SetTint(color::Black);
-		sweep.SetVisible(true);
-		overlap.SetVisible(true);
-		intersect_circle.SetVisible(true);
-		sweep_circle.SetVisible(true);
-		overlap_circle.SetVisible(true);
+		overlap.SetTint(color::Orange);
+		overlap_circle.SetTint(color::Orange);
 
 		intersect.SetEnabled(true);
 		sweep.SetEnabled(true);
@@ -114,9 +104,21 @@ public:
 		intersect.Add<BoxCollider>(V2_float{ 30, 30 });
 		overlap.Add<BoxCollider>(V2_float{ 30, 30 });
 		sweep.Add<BoxCollider>(V2_float{ 30, 30 });
+		intersect.Add<Rect>(V2_float{ 30, 30 });
+		overlap.Add<Rect>(V2_float{ 30, 30 });
+		sweep.Add<Rect>(V2_float{ 30, 30 });
+		intersect.SetDraw<Rect>();
+		overlap.SetDraw<Rect>();
+		sweep.SetDraw<Rect>();
 		intersect_circle.Add<CircleCollider>(30.0f);
 		overlap_circle.Add<CircleCollider>(30.0f);
 		sweep_circle.Add<CircleCollider>(30.0f);
+		intersect_circle.Add<Circle>(30.0f);
+		overlap_circle.Add<Circle>(30.0f);
+		sweep_circle.Add<Circle>(30.0f);
+		intersect_circle.SetDraw<Circle>();
+		overlap_circle.SetDraw<Circle>();
+		sweep_circle.SetDraw<Circle>();
 
 		auto& b1{ intersect.Get<BoxCollider>() };
 		auto& b2{ overlap.Get<BoxCollider>() };
@@ -130,7 +132,7 @@ public:
 		c2.overlap_only = true;
 		c3.continuous	= true;
 
-		b1.on_collision_start = [](Collision c) {
+		/*b1.on_collision_start = [](Collision c) {
 			PTGN_LOG(
 				"#", c.entity1.GetUUID(), " started intersect collision with #",
 				c.entity2.GetUUID(), ", normal: ", c.normal
@@ -241,7 +243,7 @@ public:
 				"#", c.entity1.GetUUID(), " stopped sweep collision with #", c.entity2.GetUUID(),
 				", normal: ", c.normal
 			);
-		};
+		};*/
 
 		CreateObstacle(V2_float{ 50, 50 }, V2_float{ 10, 500 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 600, 200 }, V2_float{ 10, 500 }, Origin::TopLeft);
@@ -293,7 +295,7 @@ public:
 
 		PTGN_LOG("Pos: ", *pos);
 
-		MoveWASD(*vel, speed * game.scene.Get("collision_example_scene").physics.dt());
+		MoveWASD(*vel, speed * game.scene.Get("").physics.dt());
 	}
 
 	void Draw() override {
@@ -351,7 +353,7 @@ public:
 	void Update() override {
 		MoveWASD(
 			entity.Get<RigidBody>().velocity,
-			speed * game.scene.Get("collision_example_scene").physics.dt()
+			speed * game.scene.Get("").physics.dt()
 		);
 
 		if (game.input.KeyDown(Key::R)) {
@@ -1794,7 +1796,7 @@ struct SweepTunnelTest2 : public SweepTest {
 };
 */
 
-class CollisionExampleScene : public Scene {
+class CollisionScene : public Scene {
 public:
 	int current_test{ 0 };
 
@@ -1857,7 +1859,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CollisionExamples:  Arrow keys to flip between tests", window_size);
-	game.scene.Enter<CollisionExampleScene>("collision_example_scene");
+	game.Init("CollisionScene:  Arrow keys to flip between tests", window_size);
+	game.scene.Enter<CollisionScene>("");
 	return 0;
 }
