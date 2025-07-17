@@ -5,11 +5,11 @@
 #include <iterator>
 #include <vector>
 
-#include "../../debug/profiling.h"
 #include "common/assert.h"
 #include "components/common.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "debug/profiling.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
@@ -179,9 +179,6 @@ public:
 	// Clear and destroy all pooled framebuffers.
 	void Clear();
 
-	// Trim the pool down to the maximum size.
-	void Prune();
-
 	std::vector<std::shared_ptr<FrameBufferContext>> used_contexts;
 
 private:
@@ -337,9 +334,6 @@ private:
 	[[nodiscard]] RenderTarget GetPingPongTarget() const;
 
 	void DrawEntities(const std::vector<Entity>& entities, const RenderTarget& target);
-
-	void FlushCurrentTarget();
-	void FlushBatch();
 
 	void Reset();
 
