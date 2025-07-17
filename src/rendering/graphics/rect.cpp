@@ -3,13 +3,13 @@
 #include <array>
 #include <vector>
 
-#include "../../debug/profiling.h"
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "debug/profiling.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
