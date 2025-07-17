@@ -118,8 +118,8 @@ void TopDownMovement::Update(Entity& entity, Transform& transform, RigidBody& rb
 	V2_float desired_velocity{ dir * speed };
 
 	// Ensure diagonal movement is not faster than axis aligned movement.
-	if (desired_velocity.MagnitudeSquared() > max_speed * max_speed) {
-		desired_velocity = desired_velocity.Normalized() * max_speed;
+	if (desired_velocity.MagnitudeSquared() > speed * speed) {
+		desired_velocity = desired_velocity.Normalized() * speed;
 	}
 
 	// Calculate movement, depending on whether "Instant Movement" has been checked
@@ -289,9 +289,8 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(
-	const V2_float& desired_velocity, RigidBody& rb, float dt
-) const {
+void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
+	const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
@@ -500,9 +499,16 @@ void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded, const V2_flo
 	if (rb.velocity.y > 0) {
 		rb.velocity.y = std::clamp(rb.velocity.y, 0.0f, terminal_velocity);
 	}
-	// TODO: Incorporate rb gravity.
-	rb.gravity =
-		gravity_multiplier * 2 * jump_height / (time_to_jump_apex * time_to_jump_apex * gravity.y);
+
+	if (NearlyEqual(gravity.y, 0.0f)) {
+		rb.gravity = 0.0f;
+	} else {
+		PTGN_ASSERT(time_to_jump_apex != 0.0f);
+
+		rb.gravity = gravity_multiplier * 2 * jump_height /
+					 (time_to_jump_apex * time_to_jump_apex * gravity.y);
+	}
+	PTGN_ASSERT(!std::isinf(rb.gravity));
 }
 
 } // namespace ptgn

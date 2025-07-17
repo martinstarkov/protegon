@@ -176,9 +176,10 @@ public:
 				return;
 			}
 
-			auto intersection{ Intersects(
-				entity.GetAbsoluteTransform(), collider, entity2.GetAbsoluteTransform(), collider2
-			) };
+			auto transform1{ entity.GetAbsoluteTransform() };
+			auto transform2{ entity2.GetAbsoluteTransform() };
+
+			auto intersection{ Intersects(transform1, collider, transform2, collider2) };
 
 			if (!intersection.Occurred()) {
 				return;
