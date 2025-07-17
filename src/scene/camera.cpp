@@ -590,11 +590,12 @@ void Camera::CenterOnWindow(bool continuously) {
 	}
 }
 
-std::array<V2_float, 4> Camera::GetVertices() const {
+std::array<V2_float, 4> Camera::GetVertices(const V2_float& scale) const {
+	PTGN_ASSERT(!scale.IsZero(), "Camera scale cannot be zero");
 	auto zoom{ GetZoom() };
 	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
 	return impl::GetVertices(
-		{ GetPosition(Origin::Center), GetRotation() }, GetSize() / zoom, Origin::Center
+		{ GetPosition(Origin::Center), GetRotation(), scale }, GetSize() / zoom, Origin::Center
 	);
 }
 

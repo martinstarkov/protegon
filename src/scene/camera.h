@@ -303,7 +303,7 @@ public:
 	// @param camera_relative_coordinate The coordinate to be transformed.
 	[[nodiscard]] V2_float TransformToScreen(const V2_float& camera_relative_coordinate) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetVertices() const;
+	[[nodiscard]] std::array<V2_float, 4> GetVertices(const V2_float& scale = { 1.0f, 1.0f }) const;
 
 	[[nodiscard]] V2_float GetSize() const;
 

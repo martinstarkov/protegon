@@ -846,7 +846,15 @@ void RenderData::DrawToScreen() {
 
 	auto camera{ game.scene.GetCurrent().camera.window };
 
-	SetCameraVertices(camera);
+	// TODO: In case of stretch, replace with screen resolution scale.
+	V2_float camera_scale{ 1.0f, 1.0f };
+
+	camera_vertices = GetQuadVertices(
+		camera.GetVertices(camera_scale), color::White, camera.GetDepth(), 1.0f,
+		default_texture_coordinates, true
+	);
+	UpdateVertexArray(camera_vertices, quad_indices);
+
 	SetRenderParameters(camera, screen_target.GetBlendMode());
 
 	const Shader* shader{ nullptr };
