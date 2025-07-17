@@ -48,6 +48,17 @@ RenderState GetDebugRenderState(const Camera& camera) {
 
 } // namespace impl
 
+void DrawDebugTexture(
+	const TextureHandle& texture_key, const V2_float& position, const V2_float& size, Origin origin,
+	float rotation, const Camera& camera
+) {
+	game.renderer.GetRenderData().AddTexturedQuad(
+		texture_key.GetTexture(), Transform{ position, rotation },
+		size.IsZero() ? V2_float{ texture_key.GetSize() } : size, origin, color::White,
+		impl::max_depth, impl::default_texture_coordinates, impl::GetDebugRenderState(camera), {}
+	);
+}
+
 void DrawDebugText(
 	Text& text, const V2_float& position, const V2_float& size, Origin origin, float rotation,
 	const Camera& camera

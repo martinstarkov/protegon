@@ -10,6 +10,7 @@
 #include "rendering/api/origin.h"
 #include "rendering/batching/render_data.h"
 #include "rendering/resources/text.h"
+#include "resources/texture.h"
 #include "scene/camera.h"
 
 namespace ptgn {
@@ -19,6 +20,11 @@ namespace impl {
 [[nodiscard]] RenderState GetDebugRenderState(const Camera& camera);
 
 }
+
+void DrawDebugTexture(
+	const TextureHandle& texture_key, const V2_float& position, const V2_float& size = {},
+	Origin origin = Origin::Center, float rotation = 0.0f, const Camera& camera = {}
+);
 
 // @param size {} results in unscaled size of text based on font.
 void DrawDebugText(
