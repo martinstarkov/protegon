@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(scene_deserialization)
+project(serialization_scene)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 

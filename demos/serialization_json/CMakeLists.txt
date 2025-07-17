@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(json_serialization)
+project(serialization_json)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 

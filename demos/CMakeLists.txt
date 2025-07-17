@@ -20,8 +20,9 @@ add_subdirectory(ui_button)
 add_subdirectory(ui_button_group)
 add_subdirectory(plot)
 
-add_subdirectory(binary_serialization)
-add_subdirectory(json_serialization)
+add_subdirectory(serialization_binary)
+add_subdirectory(serialization_json)
+add_subdirectory(serialization_scene)
 
 add_subdirectory(animation)
 add_subdirectory(graphics_object)
@@ -40,7 +41,6 @@ add_subdirectory(pathfinding)
 add_subdirectory(particle)
 add_subdirectory(fluid)
 
-add_subdirectory(scene_deserialization)
 add_subdirectory(scene_transition)
 
 add_subdirectory(audio)
