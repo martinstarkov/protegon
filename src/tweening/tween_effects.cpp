@@ -701,6 +701,11 @@ void StopShake(Entity& entity, bool force) {
 	auto& offsets{ entity.Get<impl::Offsets>() };
 	offsets.shake = {};
 
+	if (entity.Has<impl::CameraInfo>()) {
+		auto& camera_info{ entity.Get<impl::CameraInfo>() };
+		camera_info.SetViewDirty();
+	}
+
 	if (force) {
 		shake.tasks.clear();
 	} else if (!shake.tasks.empty()) {

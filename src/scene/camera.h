@@ -103,6 +103,8 @@ public:
 		size
 	)
 
+	void SetViewDirty();
+
 private:
 	// Keep track of previous transform since other external ECS systems may modify the position,
 	// rotation, or scale (zoom) of the camera without setting the dirty flags to true.

@@ -330,6 +330,10 @@ V2_float CameraInfo::ClampToBounds(
 	return position;
 }
 
+void CameraInfo::SetViewDirty() {
+	view_dirty = true;
+}
+
 Camera CreateCamera(const Entity& entity) {
 	Camera camera{ entity };
 	camera.Add<Transform>();
