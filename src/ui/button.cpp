@@ -11,8 +11,8 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
 #include "debug/log.h"
+#include "events/input_handler.h"
 #include "events/mouse.h"
 #include "math/hash.h"
 #include "math/math.h"
@@ -29,6 +29,8 @@
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "scene/scene_input.h"
+#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -36,13 +38,13 @@ Button CreateButton(Scene& scene) {
 	Button button{ scene.CreateEntity() };
 
 	button.Show();
-	button.Enable();
 	button.SetDraw<Button>();
 
 	button.Add<Interactive>();
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
 	button.AddScript<impl::ButtonScript>();
+	button.Enable();
 
 	return button;
 }
@@ -64,6 +66,14 @@ ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
 	toggle_button.Add<impl::ButtonToggled>(toggled);
 
 	return toggle_button;
+}
+
+ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
+	ToggleButtonGroup toggle_button_group{ scene.CreateEntity() };
+
+	toggle_button_group.Add<impl::ToggleButtonGroupInfo>();
+
+	return toggle_button_group;
 }
 
 namespace impl {
@@ -146,7 +156,13 @@ ToggleButtonGroupScript::ToggleButtonGroupScript(const ToggleButtonGroup& group)
 	toggle_button_group{ group } {}
 
 void ToggleButtonGroupScript::OnButtonActivate() {
-	for (auto& [key, toggle_button] : toggle_button_group.buttons_) {
+	PTGN_ASSERT(toggle_button_group);
+
+	PTGN_ASSERT(toggle_button_group.Has<impl::ToggleButtonGroupInfo>());
+
+	auto& info{ toggle_button_group.Get<impl::ToggleButtonGroupInfo>() };
+
+	for (auto& [key, toggle_button] : info.buttons_) {
 		toggle_button.SetToggled(false);
 	}
 	ToggleButton{ entity }.SetToggled(true);
@@ -264,8 +280,38 @@ TextureHandle& ButtonTexture::Get(ButtonState state) {
 
 Button::Button(const Entity& entity) : Entity{ entity } {}
 
+V2_float Button::GetSize() const {
+	V2_float size;
+
+	if (Has<Rect>()) {
+		size = Get<Rect>().size;
+	} else if (Has<Circle>()) {
+		size = V2_float{ Get<Circle>().radius * 2.0f };
+	}
+
+	const impl::Texture* button_texture{ nullptr };
+
+	TextureHandle button_texture_key;
+
+	if (Has<TextureHandle>()) {
+		button_texture_key = Get<TextureHandle>();
+	}
+
+	if (game.texture.Has(button_texture_key)) {
+		button_texture = &game.texture.Get(button_texture_key);
+	}
+
+	if (button_texture != nullptr && size.IsZero()) {
+		size = button_texture->GetSize();
+	}
+
+	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
+	return size;
+}
+
 void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto state{ Button{ entity }.GetState() };
+	Button button{ entity };
+	auto state{ button.GetState() };
 
 	const auto& transform{ entity.GetDrawTransform() };
 	auto blend_mode{ entity.GetBlendMode() };
@@ -305,13 +351,6 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	// TODO: Reduce repeated code.
 
 	Origin origin{ entity.GetOrigin() };
-	V2_float size;
-
-	if (entity.Has<Rect>()) {
-		size = entity.Get<Rect>().size;
-	} else if (entity.Has<Circle>()) {
-		size = V2_float{ entity.Get<Circle>().radius * 2.0f };
-	}
 
 	TextureHandle button_texture_key;
 	if (entity.Has<TextureHandle>()) {
@@ -324,11 +363,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		button_texture = &game.texture.Get(button_texture_key);
 	}
 
-	if (button_texture != nullptr && size.IsZero()) {
-		size = button_texture->GetSize();
-	}
-
-	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
+	auto size{ button.GetSize() };
 
 	auto camera{ entity.GetOrParentOrDefault<Camera>() };
 
@@ -506,6 +541,25 @@ Button& Button::SetSize(const V2_float& size) {
 		Get<Rect>() = size;
 	} else {
 		Add<Rect>(size);
+	}
+	return *this;
+}
+
+Button& Button::Enable() {
+	return SetEnabled(true);
+}
+
+Button& Button::Disable() {
+	return SetEnabled(false);
+}
+
+Button& Button::SetEnabled(bool enabled) {
+	Entity::SetEnabled(enabled);
+	if (!enabled) {
+		auto& state{ Get<impl::InternalButtonState>() };
+		state = impl::InternalButtonState::IdleUp;
+	} else {
+		SimulateMouseMovement(*this);
 	}
 	return *this;
 }
@@ -927,7 +981,11 @@ ToggleButton& ToggleButton::SetButtonTintToggled(const Color& color, ButtonState
 }
 
 void ToggleButtonGroup::Unload(std::string_view button_key) {
-	buttons_.erase(Hash(button_key));
+	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
+
+	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
+
+	info.buttons_.erase(Hash(button_key));
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {

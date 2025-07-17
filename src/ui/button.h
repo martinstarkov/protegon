@@ -214,8 +214,14 @@ public:
 	// @param size {} results in texture sized button.
 	Button& SetSize(const V2_float& size = {});
 
+	[[nodiscard]] V2_float GetSize() const;
+
 	// @param radius 0.0f results in texture sized button.
 	Button& SetRadius(float radius = 0.0f);
+
+	Button& Enable();
+	Button& Disable();
+	Button& SetEnabled(bool enabled = true);
 
 	// Manual button script triggers.
 	void Activate();
@@ -353,16 +359,28 @@ public:
 	);
 };
 
+namespace impl {
+
+struct ToggleButtonGroupInfo {
+	std::unordered_map<std::size_t, ToggleButton> buttons_;
+};
+
+} // namespace impl
+
 class ToggleButtonGroup : public Entity {
 public:
 	template <typename... TArgs, tt::constructible<ToggleButton, TArgs...> = true>
 	ToggleButton& Load(std::string_view button_key, TArgs&&... constructor_args) {
+		PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
+
+		auto& info{ Get<impl::ToggleButtonGroupInfo>() };
+
 		static_assert(
 			std::is_constructible_v<ToggleButton, TArgs...>,
 			"Toggle button must be constructible from provided constructor arguments"
 		);
 
-		auto [it, inserted] = buttons_.try_emplace(
+		auto [it, inserted] = info.buttons_.try_emplace(
 			Hash(button_key), ToggleButton{ std::forward<TArgs>(constructor_args)... }
 		);
 
@@ -381,8 +399,6 @@ private:
 	friend class impl::ToggleButtonGroupScript;
 
 	void AddToggleScript(ToggleButton& target);
-
-	std::unordered_map<std::size_t, ToggleButton> buttons_;
 };
 
 namespace impl {
@@ -430,5 +446,7 @@ Button CreateTextButton(
 
 // @param toggled Whether or not the button start in the toggled state.
 ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
+
+ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
 
 } // namespace ptgn
