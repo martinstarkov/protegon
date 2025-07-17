@@ -44,7 +44,7 @@ struct RotateEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("RotateEffectScene");
+	game.Init("RotateEffectScene: left/right click to rotate");
 	game.scene.Enter<RotateEffectScene>("");
 	return 0;
 }

@@ -42,7 +42,7 @@ struct ScaleEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScaleEffectScene");
+	game.Init("ScaleEffectScene: left/right click to scale");
 	game.scene.Enter<ScaleEffectScene>("");
 	return 0;
 }

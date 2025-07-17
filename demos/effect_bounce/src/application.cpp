@@ -62,7 +62,7 @@ struct BounceEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BounceEffectScene");
+	game.Init("BounceEffectScene: left/right click switches bounce type");
 	game.scene.Enter<BounceEffectScene>("");
 	return 0;
 }

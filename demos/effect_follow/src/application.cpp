@@ -28,7 +28,7 @@ struct FollowEffectScene : public Scene {
 		LoadResource("smile2", "resources/smile2.png");
 		LoadResource("smile3", "resources/smile3.png");
 
-		mouse = manager.CreateEntity();
+		mouse = CreateEntity();
 		mouse.Add<Transform>();
 
 		entity1 = CreateSprite(*this, "smile1"); // Red
@@ -63,7 +63,7 @@ struct FollowEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("FollowEffectScene");
+	game.Init("FollowEffectScene: left/right click to stop/start follow");
 	game.scene.Enter<FollowEffectScene>("");
 	return 0;
 }

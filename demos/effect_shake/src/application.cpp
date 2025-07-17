@@ -45,7 +45,7 @@ struct ShakeEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ShakeEffectScene");
+	game.Init("ShakeEffectScene: left/right click to start/stop shake");
 	game.scene.Enter<ShakeEffectScene>("");
 	return 0;
 }

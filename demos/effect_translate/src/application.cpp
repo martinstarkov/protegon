@@ -42,7 +42,7 @@ struct TranslateEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TranslateEffectScene");
+	game.Init("TranslateEffectScene: left click to translate to mouse");
 	game.scene.Enter<TranslateEffectScene>("");
 	return 0;
 }

@@ -39,7 +39,7 @@ struct FadeEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("FadeEffectScene");
+	game.Init("FadeEffectScene: left/right click to fade in/out");
 	game.scene.Enter<FadeEffectScene>("");
 	return 0;
 }

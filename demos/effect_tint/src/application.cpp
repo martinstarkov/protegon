@@ -51,7 +51,7 @@ struct TintEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TintEffectScene");
+	game.Init("TintEffectScene: left/right click to tint/untint");
 	game.scene.Enter<TintEffectScene>("");
 	return 0;
 }
