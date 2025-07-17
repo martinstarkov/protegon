@@ -7,19 +7,12 @@
 #include <vector>
 
 #include "core/game.h"
-#include "renderer/color.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "serialization/file_stream_reader.h"
-#include "serialization/file_stream_writer.h"
-#include "serialization/stream_reader.h"
-#include "serialization/stream_writer.h"
-#include "utility/log.h"
-#include "utility/type_traits.h"
 
 using namespace ptgn;
 
-class SerializationExampleScene : public Scene {
+class BinarySerializationScene : public Scene {
 public:
 	struct Trivial {
 		int a{ 0 };
@@ -134,7 +127,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Serialization Example", { 1280, 720 }, color::Transparent);
-	game.scene.Enter<SerializationExampleScene>("serialization_example_scene");
+	game.Init("BinarySerializationScene", { 1280, 720 }, color::Transparent);
+	game.scene.Enter<BinarySerializationScene>("");
 	return 0;
 }
