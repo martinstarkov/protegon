@@ -1,26 +1,33 @@
-#include "protegon/protegon.h"
+#include "components/draw.h"
+#include "core/entity.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/graphics/rect.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
 struct BlendModeScene : public Scene {
-	Texture semitransparent{ "resources/semitransparent.png" };
-	Texture opaque{ "resources/opaque.png" };
+	void Enter() override {
+		LoadResource("semitransparent", "resources/semitransparent.png");
+		LoadResource("opaque", "resources/opaque.png");
 
-	void Update() override {
-		Rect{ {}, { window_size.x, 100 }, Origin::TopLeft }.Draw(Color{ 255, 0, 0, 255 });
-		Rect{ { 0, 100 }, { window_size.x, 100 }, Origin::TopLeft }.Draw(Color{ 255, 0, 0, 128 });
-		game.renderer.Flush();
-		Rect{ {}, { window_size.x / 2.0f, window_size.y }, Origin::TopLeft }.Draw(Color{ 0, 0, 255,
-																						 128 });
-		game.renderer.Flush();
-		opaque.Draw({ { 200, 200 }, { 300, 300 }, Origin::TopLeft });
-		game.renderer.Flush();
-		semitransparent.Draw({ { 100, 100 }, { 300, 300 }, Origin::TopLeft });
-		game.renderer.Flush();
-		/*PTGN_LOG(
-			"Scene1 Color at Mouse: ",
-			game.renderer.GetCurrentRenderTarget().GetPixel(game.input.GetMousePositionWindow())
-		);*/
+		V2_float ws{ game.window.GetSize() };
+
+		CreateRect(*this, {}, { ws.x, 100 }, color::Red, -1.0f, Origin::TopLeft);
+		CreateRect(
+			*this, { 0, 100 }, { ws.x, 100 }, Color{ 255, 0, 0, 128 }, -1.0f, Origin::TopLeft
+		);
+		CreateRect(
+			*this, {}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 }, -1.0f, Origin::TopLeft
+		);
+
+		CreateSprite(*this, "semitransparent").SetPosition({ 100, 100 }).SetOrigin(Origin::TopLeft);
+		CreateSprite(*this, "opaque").SetPosition({ 200, 200 }).SetOrigin(Origin::TopLeft);
 	}
 };
 
