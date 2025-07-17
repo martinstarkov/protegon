@@ -53,6 +53,10 @@ public:
 	Dropdown() = default;
 	Dropdown(const Entity& entity);
 
+	Dropdown& SetSize(const V2_float& size);
+
+	Dropdown& SetOrigin(Origin origin);
+
 	void AddButton(Button button);
 
 	// Set the size that each dropdown button will be.

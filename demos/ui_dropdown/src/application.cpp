@@ -37,8 +37,8 @@ public:
 		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		button.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 		button.AddScript<ButtonScript>(on_activate);
-		button.SetBorderColor(color::DarkGray);
-		button.SetBorderWidth(2.0f);
+		button.SetBorderColor(color::Red);
+		button.SetBorderWidth(3.0f);
 		return button;
 	}
 
@@ -49,12 +49,12 @@ public:
 		d.SetBackgroundColor(color::Gray);
 		d.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		d.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		d.SetPosition({ 400, 400 });
+		d.SetPosition({ 400, 200 });
 		d.SetSize({ 200, 100 });
 		d.SetOrigin(Origin::Center);
-		d.SetBorderColor(color::Black);
+		d.SetBorderColor(color::Gold);
 		d.SetBorderWidth(3.0f);
-		d.SetButtonSize({ 200, 50 });
+		d.SetButtonSize({ 100, 50 });
 		d.SetDropdownDirection(Origin::CenterBottom);
 		return d;
 	}
@@ -63,6 +63,7 @@ public:
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);
 		Dropdown dropdown3 = CreateDropdown(true);
+		Dropdown dropdown4 = CreateDropdown(false);
 		dropdown.AddButton(CreateButton("First", []() { PTGN_LOG("Pressed first"); }));
 		dropdown.AddButton(CreateButton("Second", []() { PTGN_LOG("Pressed second"); }));
 		dropdown.AddButton(dropdown2);
@@ -72,12 +73,23 @@ public:
 		dropdown2.AddButton(CreateButton("Fifth", []() { PTGN_LOG("Pressed fifth"); }));
 		dropdown2.AddButton(dropdown3);
 		dropdown2.SetText("Dropdown 2", color::Yellow);
+
 		dropdown2.SetDropdownOrigin(Origin::CenterRight);
 		dropdown3.AddButton(CreateButton("Sixth", []() { PTGN_LOG("Pressed sixth"); }));
-		dropdown3.AddButton(CreateButton("Seventh", []() { PTGN_LOG("Pressed seventh"); }));
+		dropdown3.AddButton(dropdown4);
 		dropdown3.SetDropdownDirection(Origin::CenterLeft);
 		dropdown3.SetDropdownOrigin(Origin::CenterLeft);
 		dropdown3.SetText("Dropdown 3", color::Yellow);
+
+		dropdown4.AddButton(CreateButton("Seventh", []() { PTGN_LOG("Pressed seventh"); }));
+		dropdown4.AddButton(CreateButton("Eight", []() { PTGN_LOG("Pressed eight"); }));
+		dropdown4.AddButton(CreateButton("Ninth", []() { PTGN_LOG("Pressed ninth"); }));
+		dropdown4.SetText("Dropdown 4", color::Yellow);
+		dropdown4.SetDropdownOrigin(Origin::CenterTop);
+		dropdown4.SetDropdownDirection(Origin::CenterTop);
+		dropdown2.SetSize({ 200, 50 });
+		dropdown3.SetSize({ 200, 50 });
+		dropdown4.SetSize({ 200, 50 });
 		// dropdown3.SetButtonOffset();
 	}
 };
