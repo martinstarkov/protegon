@@ -101,6 +101,10 @@ struct StringComponent {
 		return value_;
 	}
 
+	operator std::string() const {
+		return value_;
+	}
+
 	[[nodiscard]] const std::string& GetValue() const {
 		return value_;
 	}

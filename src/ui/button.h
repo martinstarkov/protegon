@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <list>
 #include <ostream>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
@@ -170,7 +171,7 @@ struct ButtonText {
 	);
 
 	[[nodiscard]] Color GetTextColor(ButtonState state) const;
-	[[nodiscard]] std::string_view GetTextContent(ButtonState state) const;
+	[[nodiscard]] std::string GetTextContent(ButtonState state) const;
 	[[nodiscard]] std::int32_t GetFontSize(ButtonState state) const;
 	[[nodiscard]] TextJustify GetTextJustify(ButtonState state) const;
 	[[nodiscard]] const Text& Get(ButtonState state) const;
@@ -214,6 +215,7 @@ public:
 	// @param size {} results in texture sized button.
 	Button& SetSize(const V2_float& size = {});
 
+	// @return {} if no size is specified via SetSize, SetRadius, or button texture.
 	[[nodiscard]] V2_float GetSize() const;
 
 	// @param radius 0.0f results in texture sized button.
@@ -253,7 +255,7 @@ public:
 
 	Button& SetTextColor(const TextColor& text_color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string_view GetTextContent(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextContent(const TextContent& content, ButtonState state = ButtonState::Default);
 

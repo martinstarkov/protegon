@@ -229,7 +229,7 @@ Color ButtonText::GetTextColor(ButtonState state) const {
 	return GetValid(state).GetColor();
 }
 
-std::string_view ButtonText::GetTextContent(ButtonState state) const {
+std::string ButtonText::GetTextContent(ButtonState state) const {
 	return GetValid(state).GetContent();
 }
 
@@ -305,7 +305,6 @@ V2_float Button::GetSize() const {
 		size = button_texture->GetSize();
 	}
 
-	PTGN_ASSERT(!size.IsZero(), "Invalid size for button");
 	return size;
 }
 
@@ -481,7 +480,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			return;
 		}
 
-		if (std::string_view{ text_sprite.Get<TextContent>() }.empty()) {
+		if (const std::string & content{ text_sprite.Get<TextContent>().GetValue() };
+			content.empty()) {
 			return;
 		}
 
@@ -624,7 +624,7 @@ Button& Button::SetTextColor(const TextColor& text_color, ButtonState state) {
 	return *this;
 }
 
-std::string_view Button::GetTextContent(ButtonState state) const {
+std::string Button::GetTextContent(ButtonState state) const {
 	return Get<impl::ButtonText>().GetTextContent(state);
 }
 
