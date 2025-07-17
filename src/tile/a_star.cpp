@@ -7,7 +7,6 @@
 
 #include "common/assert.h"
 #include "core/game.h"
-
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/renderer.h"
@@ -87,10 +86,10 @@ void AStarGrid::DisplayWaypoints(
 	[[maybe_unused]] const Color& color
 ) {
 	for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-		// Line path{ waypoints[i] * tile_size + tile_size / 2.0f,
-		// waypoints[i + 1] * tile_size + tile_size / 2.0f };
-		// TODO: Fix draw.
-		// path.Draw(color);
+		DrawDebugLine(
+			waypoints[i] * tile_size + tile_size / 2.0f,
+			waypoints[i + 1] * tile_size + tile_size / 2.0f, color
+		);
 	}
 }
 
