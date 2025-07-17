@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "components/generic.h"
+#include "core/entity.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
@@ -70,9 +71,9 @@ enum class TextureScaling {
 struct TextureHandle : public HashComponent {
 	using HashComponent::HashComponent;
 
-	[[nodiscard]] const impl::Texture& GetTexture(const Entity& entity) const;
-	[[nodiscard]] impl::Texture& GetTexture(Entity& entity);
-	[[nodiscard]] V2_int GetSize(const Entity& entity) const;
+	[[nodiscard]] const impl::Texture& GetTexture(Entity entity = {}) const;
+	[[nodiscard]] impl::Texture& GetTexture(Entity entity = {});
+	[[nodiscard]] V2_int GetSize(Entity entity = {}) const;
 };
 
 namespace impl {
