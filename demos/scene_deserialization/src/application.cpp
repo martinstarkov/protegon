@@ -13,7 +13,7 @@ public:
 		LoadResource("test", "resources/test1.jpg");
 		json j = LoadJson("resources/animation_scene.json");
 		j	   = LoadJson("resources/light_scene.json");
-		j.at("manager").get_to(manager);
+		j.at("manager").get_to(*this);
 		// TODO: Figure this out: j.get_to(*this);
 	}
 };

@@ -1,4 +1,20 @@
-#include "protegon/protegon.h"
+#include <cstdint>
+
+#include "algorithm"
+#include "common/assert.h"
+#include "core/game.h"
+#include "debug/log.h"
+#include "events/input_handler.h"
+#include "events/key.h"
+#include "math/math.h"
+#include "math/noise.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/renderer.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -197,7 +213,7 @@ public:
 					*/
 				}
 
-				Color color{ color::Blue };
+				Color color{ color::Yellow };
 				if (thresholding) {
 					float opacity_range = 1.0f / static_cast<float>(divisions);
 
@@ -210,7 +226,6 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				color = Color::RandomOpaque();
 				DrawDebugRect(p * pixel_size, pixel_size, color, Origin::TopLeft, -1.0f, 0.0f, {});
 			}
 		}

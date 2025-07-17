@@ -1,10 +1,22 @@
-#include "protegon/protegon.h"
+#include <functional>
+
+#include "common/assert.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "debug/log.h"
+#include "events/event.h"
+#include "events/event_handler.h"
+#include "events/events.h"
+#include "events/input_handler.h"
+#include "math/vector2.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
 
-class EventExampleScene : public Scene {
+class EventScene : public Scene {
 public:
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
@@ -54,10 +66,7 @@ public:
 					}
 					case MouseEvent::Move: {
 						const auto& es{ static_cast<const MouseMoveEvent&>(e) };
-						PTGN_LOG(
-							"Mouse move, current: ", es.GetCurrent(), ", prev: ", es.GetPrevious(),
-							", diff: ", es.GetDifference()
-						);
+						PTGN_LOG("Mouse move: ", game.input.GetMousePosition());
 						break;
 					}
 					default: break;
@@ -96,7 +105,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("EventExampleScene", window_size);
-	game.scene.Enter<EventExampleScene>("event_example");
+	game.Init("EventScene", window_size);
+	game.scene.Enter<EventScene>("");
 	return 0;
 }

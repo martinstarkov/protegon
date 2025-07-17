@@ -22,17 +22,17 @@ public:
 		auto sprite = CreateSprite(*this, "test");
 		sprite.SetPosition(camera.primary.GetPosition());
 
-		auto p1 = CreatePointLight(manager, { 50, 50 }, 400.0f, color::White, 1.0f, 1.0f);
-		auto p2 = CreatePointLight(manager, { 100, 100 }, 400.0f, color::Green, 1.0f, 1.0f);
-		auto p3 = CreatePointLight(manager, { 150, 150 }, 400.0f, color::Blue, 1.0f, 1.0f);
-		auto p4 = CreatePointLight(manager, { 200, 200 }, 400.0f, color::Magenta, 1.0f, 1.0f);
-		auto p5 = CreatePointLight(manager, { 250, 250 }, 400.0f, color::Yellow, 1.0f, 1.0f);
-		auto p6 = CreatePointLight(manager, { 300, 300 }, 400.0f, color::Cyan, 1.0f, 1.0f);
-		auto p7 = CreatePointLight(manager, { 350, 350 }, 400.0f, color::Red, 1.0f, 1.0f);
+		auto p1 = CreatePointLight(*this, { 50, 50 }, 200.0f, color::White, 0.5f, 1.0f);
+		auto p2 = CreatePointLight(*this, { 100, 100 }, 200.0f, color::Green, 0.5f, 1.0f);
+		auto p3 = CreatePointLight(*this, { 150, 150 }, 200.0f, color::Blue, 0.5f, 1.0f);
+		auto p4 = CreatePointLight(*this, { 200, 200 }, 200.0f, color::Magenta, 0.5f, 1.0f);
+		auto p5 = CreatePointLight(*this, { 250, 250 }, 200.0f, color::Yellow, 0.5f, 1.0f);
+		auto p6 = CreatePointLight(*this, { 300, 300 }, 200.0f, color::Cyan, 0.5f, 1.0f);
+		auto p7 = CreatePointLight(*this, { 350, 350 }, 200.0f, color::Red, 0.5f, 1.0f);
 
-		mouse_light = CreatePointLight(manager, {}, 300.0f, color::Cyan, 0.7f, 2.0f);
+		mouse_light = CreatePointLight(*this, {}, 300.0f, color::Cyan, 0.7f, 2.0f);
 		mouse_light.SetAmbientColor(color::Red);
-		mouse_light.SetAmbientIntensity(0.3f);
+		mouse_light.SetAmbientIntensity(0.1f);
 	}
 
 	void Update() override {

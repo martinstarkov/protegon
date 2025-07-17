@@ -1,4 +1,10 @@
-#include "protegon/protegon.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "events/input_handler.h"
+#include "events/key.h"
+#include "math/vector2.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -73,18 +79,12 @@ public:
 		foreground_cam += velocity / 2.0f;
 
 		background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } });
-		game.camera.GetPrimary().Translate(background_cam);
-		game.renderer.Flush();
-		game.camera.SetPrimary({});
+		camera.primary.Translate(background_cam);
 		stars.Draw({ stars_pos, { size.x * bg_aspect_ratio, size.y } });
-		game.camera.GetPrimary().Translate(star_cam);
-		game.renderer.Flush();
-		game.camera.SetPrimary({});
+		camera.primary.Translate(star_cam);
 		planet_b.Draw({ planet_b_pos, planet_b.GetSize() * scale });
 		planet_s.Draw({ planet_s_pos, planet_s.GetSize() * scale });
-		game.camera.GetPrimary().Translate(foreground_cam);
-		game.renderer.Flush();
-		game.camera.SetPrimary({});
+		camera.primary.Translate(foreground_cam);
 	}
 };
 

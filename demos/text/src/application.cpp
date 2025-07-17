@@ -18,7 +18,7 @@ struct TextScene : public Scene {
 	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
 		constexpr float stride{ 44.0f };
 
-		return ptgn::CreateText(manager, content, color, font_key)
+		return ptgn::CreateText(*this, content, color, font_key)
 			.SetOrigin(Origin::TopLeft)
 			.SetPosition({ 0.0f, stride * static_cast<float>(index) });
 	}
@@ -64,7 +64,7 @@ struct TextScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextScene", { 800, 800 }, color::LightPink);
+	game.Init("TextScene", { 800, 800 }, color::LightGray);
 	game.scene.Enter<TextScene>("");
 	return 0;
 }

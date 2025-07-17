@@ -1,10 +1,24 @@
-#include "protegon/protegon.h"
+#include <cassert>
+#include <deque>
+
+#include "core/game.h"
+#include "events/input_handler.h"
+#include "events/key.h"
+#include "events/mouse.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/renderer.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "tile/a_star.h"
+#include "tile/grid.h"
 
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
 
-class PathfindingExample : public Scene {
+class PathfindingScene : public Scene {
 	V2_int tile_size{ 20, 20 };
 	AStarGrid grid{ { 40, 40 } };
 	V2_int start;
@@ -25,10 +39,9 @@ class PathfindingExample : public Scene {
 	void Update() override {
 		V2_float mouse_pos	= game.input.GetMousePosition();
 		V2_float mouse_tile = mouse_pos / tile_size;
-		Rect mouse_box{ mouse_tile * tile_size, tile_size, Origin::Center };
 
 		if (game.input.MousePressed(Mouse::Right)) {
-			if (game.input.KeyPressed(Key::Left_CTRL)) {
+			if (game.input.KeyPressed(Key::LeftCtrl)) {
 				end				 = mouse_tile;
 				global_waypoints = grid.FindWaypoints(start, end);
 			} else if (grid.SetObstacle(mouse_tile, false)) {
@@ -38,12 +51,11 @@ class PathfindingExample : public Scene {
 
 		if (game.input.MousePressed(Mouse::Left)) {
 			if (grid.Has(mouse_tile)) {
-				if (game.input.KeyPressed(Key::Left_CTRL)) {
+				if (game.input.KeyPressed(Key::LeftCtrl)) {
 					start			 = mouse_tile;
 					pos				 = start;
 					global_waypoints = grid.FindWaypoints(start, end);
-				}
-				if (grid.SetObstacle(mouse_tile, true)) {
+				} else if (grid.SetObstacle(mouse_tile, true)) {
 					global_waypoints = grid.FindWaypoints(start, end);
 				}
 			}
@@ -62,11 +74,11 @@ class PathfindingExample : public Scene {
 			} else if (tile == end) {
 				c = color::Gold;
 			}
-			Rect r{ tile * tile_size, tile_size, Origin::TopLeft };
-			r.Draw(c, -1.0f);
+			DrawDebugRect(tile * tile_size, tile_size, c, Origin::TopLeft, -1.0f);
 		});
+
 		if (grid.Has(mouse_tile)) {
-			mouse_box.Draw(color::Yellow);
+			DrawDebugRect(mouse_tile * tile_size, tile_size, color::Yellow, Origin::Center);
 		}
 
 		local_waypoints = global_waypoints;
@@ -96,27 +108,23 @@ class PathfindingExample : public Scene {
 				idx++;
 			}
 		}
-		Rect enemy;
 		if (path_exists && idx + 1 < local_waypoints.size()) {
 			assert(current_waypoint <= 1.0f);
 			assert(current_waypoint >= 0.0f);
 			assert(idx >= 0);
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
-			enemy = {
+			DrawDebugRect(
 				V2_int{ Lerp(
 					V2_float{ pos * tile_size },
 					V2_float{ (pos + local_waypoints[idx + 1] - local_waypoints[idx]) * tile_size },
 					current_waypoint
 				) },
-				tile_size, Origin::TopLeft
-			};
+				tile_size, color::Purple, Origin::TopLeft, -1.0f
+			);
 		} else {
-			enemy = { pos * tile_size, tile_size, Origin::TopLeft };
+			DrawDebugRect(pos * tile_size, tile_size, color::Purple, Origin::TopLeft, -1.0f);
 		}
-		enemy.Draw(color::Purple, -1.0f);
-
-		game.renderer.Flush();
 
 		AStarGrid::DisplayWaypoints(local_waypoints, tile_size, color::Purple);
 		AStarGrid::DisplayWaypoints(global_waypoints, tile_size, color::Green);
@@ -129,6 +137,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		"(start/end), 'V' (visited) ",
 		window_size
 	);
-	game.scene.Enter<PathfindingExample>("pathfinding");
+	game.scene.Enter<PathfindingScene>("");
 	return 0;
 }

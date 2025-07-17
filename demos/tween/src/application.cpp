@@ -128,106 +128,105 @@ public:
 		tweens.clear();
 
 		Tween config00{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Black, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Black, V2_float{})
 		) };
 		Tween config0{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Red, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Red, V2_float{})
 		) };
 		Tween config1{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Blue, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Blue, V2_float{})
 		) };
 		Tween config2{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Green, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Green, V2_float{})
 		) };
 		Tween config3{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Cyan, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Cyan, V2_float{})
 		) };
 		Tween config4{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Magenta, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Magenta, V2_float{})
 		) };
 		Tween config5{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Orange, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Orange, V2_float{})
 		) };
 		Tween config6{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::LimeGreen, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::LimeGreen, V2_float{})
 		) };
 		Tween config7{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Brown, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Brown, V2_float{})
 		) };
 		Tween config8{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Gray, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Gray, V2_float{})
 		) };
 		Tween config9{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::LightGray, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::LightGray, V2_float{})
 		) };
 		Tween config10{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Yellow, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Yellow, V2_float{})
 		) };
 		Tween config11{ std::get<Tween>(
-			tweens.emplace_back(CreateTween(manager).During(duration), color::Pink, V2_float{})
+			tweens.emplace_back(CreateTween(*this).During(duration), color::Pink, V2_float{})
 		) };
-		Tween config12{ std::get<Tween>(tweens.emplace_back(
-			CreateTween(manager)
-				.During(duration)
-				.AddScript<TweenConfigCustom>("regular", &color, &pos, color::Green)
-				.During(duration)
-				.AddScript<TweenConfigCustom>("regular", &color, &pos, color::Purple)
-				.Reverse(),
-			color::Purple, V2_float{}
-		)) };
+		Tween config12{
+			std::get<Tween>(tweens.emplace_back(CreateTween(*this), color::Purple, V2_float{}))
+		};
+		config12.During(duration).AddTweenScript<TweenConfigCustom>(
+			"regular", &color, &pos, color::Green
+		);
+		config12.During(duration).AddTweenScript<TweenConfigCustom>(
+			"regular", &color, &pos, color::Purple
+		);
+		config12.Reverse();
 
-		Tween config13{ std::get<Tween>(tweens.emplace_back(
-			CreateTween(manager)
-				.During(duration)
-				.AddScript<TweenConfigCustom>("repeat", &color, &pos, color::Green)
-				.Repeat(repeats)
-				.During(duration)
-				.Repeat(repeats)
-				.Reverse()
-				.AddScript<TweenConfigCustom>("repeat", &color, &pos, color::Purple),
-			color::Teal, V2_float{}
-		)) };
+		Tween config13{
+			std::get<Tween>(tweens.emplace_back(CreateTween(*this), color::Teal, V2_float{}))
+		};
+		config13.During(duration).AddTweenScript<TweenConfigCustom>(
+			"repeat", &color, &pos, color::Green
+		);
+		config13.Repeat(repeats)
+			.During(duration)
+			.Repeat(repeats)
+			.Reverse()
+			.AddTweenScript<TweenConfigCustom>("repeat", &color, &pos, color::Purple);
 
-		Tween config14{ std::get<Tween>(tweens.emplace_back(
-			CreateTween(manager)
-				.During(duration)
-				.AddScript<TweenConfigCustom>("yoyo", &color, &pos, color::Green)
-				.Yoyo()
-				.Repeat(repeats)
-				.During(duration)
-				.AddScript<TweenConfigCustom>("yoyo", &color, &pos, color::Purple)
-				.Yoyo()
-				.Repeat(repeats)
-				.Reverse(),
-			color::DarkRed, V2_float{}
-		)) };
+		Tween config14{
+			std::get<Tween>(tweens.emplace_back(CreateTween(*this), color::DarkRed, V2_float{}))
+		};
+
+		config14.During(duration).AddTweenScript<TweenConfigCustom>(
+			"yoyo", &color, &pos, color::Green
+		);
+		config14.Yoyo().Repeat(repeats).During(duration).AddTweenScript<TweenConfigCustom>(
+			"yoyo", &color, &pos, color::Purple
+		);
+		config14.Yoyo().Repeat(repeats).Reverse();
 
 		// TODO: Add destruction upon completion.
 		// Destroyed upon completion.
-		config00.AddScript<TweenConfig00>();
+		config00.AddTweenScript<TweenConfig00>();
 
 		// Paused after starting.
-		config0.AddScript<TweenConfig0>();
-		config1.AddScript<TweenConfig1>();
+		config0.AddTweenScript<TweenConfig0>();
+		config1.AddTweenScript<TweenConfig1>();
 
 		config2.Reverse();
 
 		config3.Repeat(repeats);
-		config3.AddScript<TweenConfig3>();
+		config3.AddTweenScript<TweenConfig3>();
 
 		config4.Repeat(repeats);
 		config4.Reverse();
 
 		config5.Yoyo();
 		config5.Repeat(repeats);
-		config5.AddScript<TweenConfig5>();
+		config5.AddTweenScript<TweenConfig5>();
 
 		config6.Yoyo();
 		config6.Repeat(repeats);
 		config6.Reverse();
 
 		config7.Repeat(-1);
-		config7.AddScript<TweenConfig7>();
+		config7.AddTweenScript<TweenConfig7>();
 
 		config8.Repeat(-1);
 		config8.Reverse();

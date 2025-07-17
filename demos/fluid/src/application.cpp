@@ -236,7 +236,7 @@ private:
 	}
 };
 
-class FluidExample : public Scene {
+class FluidScene : public Scene {
 public:
 	const V2_float scale{ 6, 6 };
 	FluidContainer fluid{ window_size / scale, 0.1f, 0.0001f,
@@ -323,6 +323,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		"fluid)",
 		window_size
 	);
-	game.scene.Enter<FluidExample>("fluid");
+	game.scene.Enter<FluidScene>("");
 	return 0;
 }
