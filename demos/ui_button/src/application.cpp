@@ -31,7 +31,7 @@ public:
 	ToggleButton b2;
 
 	void Enter() override {
-		b1 = CreateButton(manager);
+		b1 = CreateButton(*this);
 		b1.AddScript<ButtonScript1>();
 		b1.SetPosition(V2_float{ 50, 50 });
 		b1.SetSize({ 200, 100 });
@@ -40,7 +40,7 @@ public:
 		b1.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b1.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
 
-		b2 = CreateToggleButton(manager, false);
+		b2 = CreateToggleButton(*this, false);
 		b2.AddScript<ToggleButtonScript1>();
 		b2.SetPosition(V2_float{ 50, 300 });
 		b2.SetSize({ 200, 100 });

@@ -10,13 +10,23 @@
 
 using namespace ptgn;
 
+struct ToggleButtonScript : public Script<ToggleButtonScript> {
+	ToggleButtonScript() {}
+
+	explicit ToggleButtonScript(int number) : number{ number } {}
+
+	void OnButtonActivate() override {
+		PTGN_LOG("Clicked ", number);
+	}
+
+	int number{ 0 };
+};
+
 class ToggleButtonGroupScene : public Scene {
 	ToggleButtonGroup group;
 
-	ToggleButton CreateToggleButtonGroupItem(
-		const V2_float& position, const ButtonCallback& on_activate
-	) {
-		ToggleButton b{ CreateToggleButton(manager, false, on_activate) };
+	ToggleButton CreateToggleButtonGroupItem(const V2_float& position, int number) {
+		ToggleButton b{ CreateToggleButton(*this, false) };
 		b.SetPosition(position);
 		b.SetSize({ 200, 130 });
 		b.SetOrigin(Origin::TopLeft);
@@ -26,14 +36,16 @@ class ToggleButtonGroupScene : public Scene {
 		b.SetBackgroundColorToggled(color::LightBlue);
 		b.SetBackgroundColorToggled(color::Blue, ButtonState::Hover);
 		b.SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed);
+		b.AddScript<ToggleButtonScript>(number);
 		return b;
 	}
 
 	void Enter() override {
-		group.Load("1", CreateToggleButtonGroupItem(V2_float{ 50, 50 }, []() { PTGN_LOG("1"); }));
-		group.Load("2", CreateToggleButtonGroupItem(V2_float{ 50, 230 }, []() { PTGN_LOG("2"); }));
-		group.Load("3", CreateToggleButtonGroupItem(V2_float{ 50, 410 }, []() { PTGN_LOG("3"); }));
-		group.Load("4", CreateToggleButtonGroupItem(V2_float{ 50, 590 }, []() { PTGN_LOG("4"); }));
+		group = CreateToggleButtonGroup(*this);
+		group.Load("1", CreateToggleButtonGroupItem(V2_float{ 50, 50 }, 1));
+		group.Load("2", CreateToggleButtonGroupItem(V2_float{ 50, 230 }, 2));
+		group.Load("3", CreateToggleButtonGroupItem(V2_float{ 50, 410 }, 3));
+		group.Load("4", CreateToggleButtonGroupItem(V2_float{ 50, 590 }, 4));
 	}
 };
 
