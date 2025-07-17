@@ -1,53 +1,89 @@
-#include "protegon/protegon.h"
+#include <functional>
+#include <string_view>
+
+#include "core/entity.h"
+#include "core/game.h"
+#include "debug/log.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "ui/button.h"
+#include "ui/dropdown.h"
 
 using namespace ptgn;
 
-class DropdownExample : public Scene {
+class ButtonScript : public Script<ButtonScript> {
 public:
-	Button dropdown;
+	ButtonScript() = default;
 
-	Button CreateButton(std::string_view content, const ButtonCallback& on_activate) {
-		Button button;
-		button.Set<ButtonProperty::BackgroundColor>(color::Gray);
-		button.Set<ButtonProperty::BackgroundColor>(color::LightGray, ButtonState::Hover);
-		button.Set<ButtonProperty::BackgroundColor>(color::DarkGray, ButtonState::Pressed);
-		button.Set<ButtonProperty::Text>(Text{ content, color::White });
-		button.Set<ButtonProperty::OnActivate>(on_activate);
-		button.Set<ButtonProperty::Bordered>(true);
-		button.Set<ButtonProperty::BorderColor>(color::DarkGray);
-		button.Set<ButtonProperty::BorderThickness>(2.0f);
+	explicit ButtonScript(const std::function<void()>& on_activate_callback) :
+		on_activate{ on_activate_callback } {}
+
+	void OnButtonActivate() override {
+		if (on_activate) {
+			std::invoke(on_activate);
+		}
+	}
+
+	std::function<void()> on_activate;
+};
+
+class DropdownScene : public Scene {
+public:
+	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
+		Button button{ CreateTextButton(*this, content, color::White) };
+		button.SetBackgroundColor(color::Gray);
+		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
+		button.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
+		button.AddScript<ButtonScript>(on_activate);
+		button.SetBorderColor(color::DarkGray);
+		button.SetBorderWidth(2.0f);
 		return button;
 	}
 
-	void Enter() override {
-		dropdown.SetRect({ { 300, 300 }, { 200, 100 }, Origin::TopLeft });
-		dropdown.Set<ButtonProperty::BackgroundColor>(color::Gray);
-		dropdown.Set<ButtonProperty::BackgroundColor>(color::LightGray, ButtonState::Hover);
-		dropdown.Set<ButtonProperty::BackgroundColor>(color::DarkGray, ButtonState::Pressed);
-		dropdown.Set<ButtonProperty::Text>(Text{ "Dropdown", color::Silver });
-		dropdown.Set<ButtonProperty::Bordered>(true);
-		dropdown.Set<ButtonProperty::BorderColor>(color::Black);
-		dropdown.Set<ButtonProperty::BorderThickness>(3.0f);
+	Dropdown CreateDropdown(bool open = false) {
 		Dropdown d;
-		d.Add(CreateButton("First", []() { PTGN_LOG("Pressed first"); }));
-		d.Add(CreateButton("Second", []() { PTGN_LOG("Pressed second"); }));
-		d.Add(CreateButton("Third", []() { PTGN_LOG("Pressed third"); }));
+		d = CreateDropdownButton(*this, open);
+		d.SetText("Dropdown", color::Yellow);
+		d.SetBackgroundColor(color::Gray);
+		d.SetBackgroundColor(color::LightGray, ButtonState::Hover);
+		d.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
+		d.SetPosition({ 400, 400 });
+		d.SetSize({ 200, 100 });
+		d.SetOrigin(Origin::Center);
+		d.SetBorderColor(color::Black);
+		d.SetBorderWidth(3.0f);
 		d.SetButtonSize({ 200, 50 });
 		d.SetDropdownDirection(Origin::CenterBottom);
-		dropdown.Set<ButtonProperty::Dropdown>(d);
-		dropdown.Set<ButtonProperty::OnActivate>([=]() mutable {
-			PTGN_LOG("Toggling dropdown");
-			d.Toggle();
-		});
+		return d;
 	}
 
-	void Update() override {
-		dropdown.Draw();
+	void Enter() override {
+		Dropdown dropdown  = CreateDropdown();
+		Dropdown dropdown2 = CreateDropdown(false);
+		Dropdown dropdown3 = CreateDropdown(true);
+		dropdown.AddButton(CreateButton("First", []() { PTGN_LOG("Pressed first"); }));
+		dropdown.AddButton(CreateButton("Second", []() { PTGN_LOG("Pressed second"); }));
+		dropdown.AddButton(dropdown2);
+		// dropdown.SetDropdownOrigin(Origin::CenterTop);
+		dropdown2.AddButton(CreateButton("Third", []() { PTGN_LOG("Pressed third"); }));
+		dropdown2.AddButton(CreateButton("Fourth", []() { PTGN_LOG("Pressed fourth"); }));
+		dropdown2.AddButton(CreateButton("Fifth", []() { PTGN_LOG("Pressed fifth"); }));
+		dropdown2.AddButton(dropdown3);
+		dropdown2.SetText("Dropdown 2", color::Yellow);
+		dropdown2.SetDropdownOrigin(Origin::CenterRight);
+		dropdown3.AddButton(CreateButton("Sixth", []() { PTGN_LOG("Pressed sixth"); }));
+		dropdown3.AddButton(CreateButton("Seventh", []() { PTGN_LOG("Pressed seventh"); }));
+		dropdown3.SetDropdownDirection(Origin::CenterLeft);
+		dropdown3.SetDropdownOrigin(Origin::CenterLeft);
+		dropdown3.SetText("Dropdown 3", color::Yellow);
+		// dropdown3.SetButtonOffset();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Dropdown Example", { 800, 800 });
-	game.scene.Enter<DropdownExample>("dropdown");
+	game.Init("DropdownScene", { 800, 800 });
+	game.scene.Enter<DropdownScene>("");
 	return 0;
 }
