@@ -148,6 +148,48 @@ void DrawDebugPoint(const V2_float position, const Color& color, const Camera& c
 
 namespace impl {
 
+void GetRenderArea(
+	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
+	V2_float& out_position, V2_float& out_size
+) {
+	switch (mode) {
+		case ResolutionMode::Disabled:
+		case ResolutionMode::Stretch:
+			out_position = {};
+			out_size	 = screen_size;
+			break;
+
+		case ResolutionMode::Letterbox: {
+			PTGN_ASSERT(!target_size.IsZero());
+			auto ratio{ screen_size / target_size };
+			float scale	 = std::min(ratio.x, ratio.y);
+			out_size	 = V2_float{ target_size } * scale;
+			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
+			break;
+		}
+
+		case ResolutionMode::Overscan: {
+			PTGN_ASSERT(!target_size.IsZero());
+			auto ratio{ screen_size / target_size };
+			float scale	 = std::max(ratio.x, ratio.y);
+			out_size	 = V2_float{ target_size } * scale;
+			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
+			break;
+		}
+
+		case ResolutionMode::IntegerScale: {
+			PTGN_ASSERT(!target_size.IsZero());
+			auto ratio{ screen_size / target_size };
+			int scale	 = static_cast<int>(std::min(ratio.x, ratio.y));
+			scale		 = std::max(1, scale); // avoid zero
+			out_size	 = V2_float{ target_size } * static_cast<float>(scale);
+			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
+			break;
+		}
+		default: PTGN_ERROR("Unsupported resolution mode");
+	}
+}
+
 void Renderer::Init() {
 	render_data_.Init();
 }
@@ -173,8 +215,6 @@ void Renderer::Shutdown() {
 	Reset();
 }
 
-// TODO: Fix.
-/*
 void Renderer::SetResolution(const V2_int& resolution) {
 	resolution_ = resolution;
 	// User expects setting resolution to take effect immediately so it is defaulted to stretch.
@@ -197,8 +237,6 @@ V2_int Renderer::GetResolution() const {
 ResolutionMode Renderer::GetResolutionMode() const {
 	return scaling_mode_;
 }
-
-*/
 
 RenderData& Renderer::GetRenderData() {
 	return render_data_;

@@ -14,6 +14,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/window.h"
 #include "debug/profiling.h"
 #include "events/event_handler.h"
 #include "events/events.h"
@@ -850,12 +851,30 @@ void RenderData::DrawToScreen() {
 
 	auto camera{ game.scene.GetCurrent().camera.window };
 
-	// TODO: In case of stretch, replace with screen resolution scale.
-	V2_float camera_scale{ 1.0f, 1.0f };
+	auto screen_size{ game.window.GetSize() };
+	V2_int target_size{ game.renderer.GetResolution() };
+
+	PTGN_ASSERT(!screen_size.IsZero());
+
+	V2_float renderer_position;
+	V2_float renderer_size;
+
+	impl::GetRenderArea(
+		screen_size, target_size, game.renderer.GetResolutionMode(), renderer_position,
+		renderer_size
+	);
+
+	PTGN_ASSERT(!renderer_size.IsZero());
+
+	// V2_float camera_scale{ 1.0f, 1.0f };
+	// auto camera_points{ camera.GetVertices(camera_scale) };
+
+	auto camera_points{
+		impl::GetVertices(Transform{ renderer_position }, renderer_size, Origin::TopLeft)
+	};
 
 	camera_vertices = GetQuadVertices(
-		camera.GetVertices(camera_scale), color::White, camera.GetDepth(), 1.0f,
-		default_texture_coordinates, true
+		camera_points, color::White, camera.GetDepth(), 1.0f, default_texture_coordinates, true
 	);
 	UpdateVertexArray(camera_vertices, quad_indices);
 

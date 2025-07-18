@@ -1,5 +1,12 @@
-#include "protegon/protegon.h"
+#include "core/game.h"
+#include "events/input_handler.h"
+#include "events/key.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
 #include "rendering/api/origin.h"
+#include "rendering/renderer.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -9,20 +16,28 @@ constexpr V2_int resolution{ 320, 240 }; // 4, 3
 class ResolutionScene : public Scene {
 	void Enter() override {
 		LoadResource("background", "resources/test1.jpg");
-		/*game.renderer.SetResolution(resolution);
-		game.renderer.SetResolutionMode(ResolutionMode::Disabled);*/
+		game.renderer.SetResolution(resolution);
+		game.renderer.SetResolutionMode(ResolutionMode::Disabled);
 	}
 
 	void Update() override {
-		/*if (game.input.KeyDown(Key::W)) {
+		camera.primary.CenterOnArea(resolution);
+
+		if (game.input.KeyDown(Key::Q)) {
 			game.renderer.SetResolutionMode(ResolutionMode::Disabled);
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (game.input.KeyDown(Key::W)) {
 			game.renderer.SetResolutionMode(ResolutionMode::Stretch);
 		}
-		if (game.input.KeyDown(Key::R)) {
+		if (game.input.KeyDown(Key::E)) {
 			game.renderer.SetResolutionMode(ResolutionMode::Letterbox);
-		}*/
+		}
+		if (game.input.KeyDown(Key::R)) {
+			game.renderer.SetResolutionMode(ResolutionMode::IntegerScale);
+		}
+		if (game.input.KeyDown(Key::T)) {
+			game.renderer.SetResolutionMode(ResolutionMode::Overscan);
+		}
 
 		DrawDebugTexture("background", { 0, 0 }, window_size, Origin::TopLeft);
 

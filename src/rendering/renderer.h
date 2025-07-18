@@ -97,6 +97,11 @@ class GLRenderer;
 class InputHandler;
 class RenderData;
 
+void GetRenderArea(
+	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
+	V2_float& out_position, V2_float& out_size
+);
+
 class Renderer {
 public:
 	Renderer()							 = default;
@@ -109,8 +114,6 @@ public:
 	void SetBackgroundColor(const Color& background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
-	// TODO: Fix.
-	/*
 	// @param resolution The resolution size to which the renderer will be displayed.
 	// Note: If no resolution mode is set, setting the resolution will default it to
 	// ResolutionMode::Stretch.
@@ -128,7 +131,6 @@ public:
 
 	// @return The resolution scaling mode.
 	[[nodiscard]] ResolutionMode GetResolutionMode() const;
-	*/
 
 	// @return The render data associated with the current render queue.
 	[[nodiscard]] RenderData& GetRenderData();
