@@ -72,6 +72,22 @@ public:
 	void OnButtonActivate() override;
 };
 
+class ButtonActivateScript : public ptgn::Script<ButtonActivateScript> {
+public:
+	ButtonActivateScript() = default;
+
+	explicit ButtonActivateScript(const std::function<void()>& on_activate_callback) :
+		on_activate{ on_activate_callback } {}
+
+	void OnButtonActivate() override {
+		if (on_activate) {
+			std::invoke(on_activate);
+		}
+	}
+
+	std::function<void()> on_activate;
+};
+
 struct ButtonToggled : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
 };
@@ -206,6 +222,9 @@ public:
 	Button(const Entity& entity);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
+
+	// Will set the script for when the button is activated.
+	Button& OnActivate(const std::function<void()>& on_activate_callback);
 
 	Button& AddInteractableRect(
 		const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}

@@ -515,6 +515,11 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 }
 
+Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
+	AddScript<impl::ButtonActivateScript>(on_activate_callback);
+	return *this;
+}
+
 Button& Button::AddInteractableRect(const V2_float& size, Origin origin, const V2_float& offset) {
 	if (Has<InteractiveRects>()) {
 		auto& interactives{ Get<InteractiveRects>() };
