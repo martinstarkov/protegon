@@ -31,6 +31,8 @@
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 
+// TODO: Clean up this mess of a file.
+
 namespace ptgn {
 
 bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
@@ -201,30 +203,28 @@ void GetMousePosAndCamera(
 	const Entity& entity, const V2_float& mouse_pos, const Camera& primary, V2_float& pos,
 	Camera& camera
 ) {
+	// TODO: Figure out if there is a better way to design this, without having to recursively
+	// search an entity family hierarchy.
+	// The issue lies in the fact that when something such as a button is rendered to a render
+	// target, its interaction coordinate system departs from its drawing coordinate system, which
+	// leads to unexpected scaling and offsets.
 	if (entity.Has<Camera>()) {
 		camera = entity.Get<Camera>();
-		if (!camera) {
-			camera = primary;
-		}
-		pos = camera.TransformToCamera(mouse_pos);
 	} else if (entity.Has<RenderTarget>()) {
-		camera = entity.Get<RenderTarget>().GetCamera();
-		if (!camera) {
-			camera = primary;
+		if (auto& rt{ entity.Get<RenderTarget>() }; rt.Has<Camera>()) {
+			camera = rt.Get<Camera>();
 		}
-		pos = camera.TransformToCamera(mouse_pos);
-		// TODO: Figure out if there is a better way to design this, without having to recursively
-		// search an entity family hierarchy.
 	} else if (auto rt{ GetParentRenderTarget(entity) }; rt != entity && rt && rt.Has<Camera>()) {
-		camera = rt.GetCamera();
-		if (!camera) {
-			camera = primary;
-		}
-		pos = camera.TransformToCamera(mouse_pos);
+		camera = rt.Get<Camera>();
 	} else {
 		camera = primary;
 		pos	   = mouse_pos;
+		return;
 	}
+	if (!camera) {
+		camera = primary;
+	}
+	pos = camera.TransformToCamera(mouse_pos);
 }
 
 void SceneInput::UpdateCurrent(Scene* scene) {

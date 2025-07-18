@@ -19,7 +19,7 @@ class RenderTarget;
 namespace impl {
 
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color,
+	const Entity& entity, const V2_float& size, const Color& clear_color,
 	TextureFormat texture_format
 );
 
@@ -63,9 +63,6 @@ public:
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
 
-	[[nodiscard]] const Camera& GetCamera() const;
-	[[nodiscard]] Camera& GetCamera();
-
 	// @param clear_color The clear color to set for the render target. This only takes effect after
 	// the render target is cleared.
 	void SetClearColor(const Color& clear_color);
@@ -90,7 +87,7 @@ private:
 	friend class impl::RenderData;
 
 	friend RenderTarget impl::CreateRenderTarget(
-		const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color,
+		const Entity& entity, const V2_float& size, const Color& clear_color,
 		TextureFormat texture_format
 	);
 

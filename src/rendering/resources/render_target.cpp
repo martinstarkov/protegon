@@ -21,15 +21,13 @@ namespace ptgn {
 namespace impl {
 
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const Camera& camera, const V2_float& size, const Color& clear_color,
-	TextureFormat format
+	const Entity& entity, const V2_float& size, const Color& clear_color, TextureFormat format
 ) {
 	RenderTarget render_target{ entity };
 	render_target.SetDraw<RenderTarget>();
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::RenderTargetEntities>();
 	render_target.Show();
-	render_target.Add<Camera>(camera);
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
 	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size, format }
@@ -45,9 +43,7 @@ RenderTarget CreateRenderTarget(
 RenderTarget CreateRenderTarget(
 	Scene& scene, const V2_float& size, const Color& clear_color, TextureFormat texture_format
 ) {
-	return impl::CreateRenderTarget(
-		scene.CreateEntity(), CreateCamera(scene), size, clear_color, texture_format
-	);
+	return impl::CreateRenderTarget(scene.CreateEntity(), size, clear_color, texture_format);
 }
 
 /*
@@ -101,16 +97,6 @@ void RenderTarget::Draw(const Entity& entity) const {
 	rd.AddToBatch(entity, false);
 
 	rd.Flush(frame_buffer);*/
-}
-
-const Camera& RenderTarget::GetCamera() const {
-	PTGN_ASSERT(Has<Camera>(), "Render target must have a camera attached to it");
-	return Get<Camera>();
-}
-
-Camera& RenderTarget::GetCamera() {
-	PTGN_ASSERT(Has<Camera>(), "Render target must have a camera attached to it");
-	return Get<Camera>();
 }
 
 void RenderTarget::Bind() const {

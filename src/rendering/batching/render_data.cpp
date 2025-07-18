@@ -472,17 +472,17 @@ void RenderData::Init() {
 	// TODO: Fix background color.
 
 	screen_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
+		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	drawing_to	= screen_target;
 	ping_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
+		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	pong_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), impl::CreateCamera(render_manager.CreateEntity()), { 1, 1 },
-		color::Transparent, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
+		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	screen_target.SetBlendMode(BlendMode::None);
 	ping_target.SetBlendMode(BlendMode::Blend);
@@ -625,7 +625,19 @@ void RenderData::AddShader(
 		PTGN_ASSERT(intermediate_target);
 	}
 
-	auto camera{ GetCamera(intermediate_target.GetCamera()) };
+	Camera fallback_camera;
+
+	// TODO: Consider if there should be a different way to do this.
+	if (entity.Has<Camera>()) {
+		fallback_camera = entity.Get<Camera>();
+	} else {
+		// TODO: Consider if this should be camera.window instead.
+		fallback_camera = game.scene.GetCurrent().camera.primary;
+	}
+
+	PTGN_ASSERT(fallback_camera, "Failed to find a valid camera for the shader entity");
+
+	auto camera{ GetCamera(fallback_camera) };
 	PTGN_ASSERT(camera);
 
 	SetCameraVertices(camera);
