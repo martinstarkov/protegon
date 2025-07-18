@@ -32,8 +32,8 @@ public:
 	virtual ~MapManager()						 = default;
 	MapManager(MapManager&&) noexcept			 = default;
 	MapManager& operator=(MapManager&&) noexcept = default;
-	MapManager(const MapManager&)				 = delete;
-	MapManager& operator=(const MapManager&)	 = delete;
+	MapManager(const MapManager&)				 = default;
+	MapManager& operator=(const MapManager&)	 = default;
 
 	/*
 	 * If key already exists, does nothing.
