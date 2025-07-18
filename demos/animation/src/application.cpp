@@ -17,8 +17,8 @@ public:
 
 	void Enter() override {
 		game.texture.Load("anim", "resources/animation.png");
-		game.texture.Load("anim2", "resources/animation2.png");
-		game.texture.Load("anim3", "resources/animation3.png");
+		game.texture.Load("anim2", "resources/animation4.png");
+		// game.texture.Load("anim3", "resources/animation3.png");
 
 		/*sprite = CreateSprite(*this, "anim");
 		sprite.SetPosition(camera.primary.GetPosition() + V2_int{ 64, 0 });
@@ -28,18 +28,18 @@ public:
 		crop.position = V2_int{ 0, 0 };
 		sprite.Hide();*/
 
-		animation2 =
-			CreateAnimation(*this, "anim3", milliseconds{ 4000 }, 16, V2_int{ 512, 512 }, -1, {});
+		// animation2 =
+		// CreateAnimation(*this, "anim3", milliseconds{ 1000 }, 16, V2_int{ 512, 512 }, -1, {});
 		animation =
-			CreateAnimation(*this, "anim2", milliseconds{ 500 }, 8, V2_int{ 128, 128 }, -1, {});
+			CreateAnimation(*this, "anim2", milliseconds{ 2000 }, 16, V2_int{ 512, 512 }, -1, {});
 		// CreateAnimation(*this, "anim", milliseconds{ 500 }, 4, V2_int{ 16, 32 }, -1, {});
-		animation.SetScale(3.0f);
-		animation2.SetScale(0.5f);
+		animation.SetScale(1.0f);
+		// animation2.SetScale(0.5f);
 		animation.SetPosition(camera.primary.GetPosition());
-		animation2.SetPosition(camera.primary.GetPosition());
+		// animation2.SetPosition(camera.primary.GetPosition());
 
 		animation.Start();
-		animation2.Start();
+		// animation2.Start();
 	}
 
 	void Exit() override {
