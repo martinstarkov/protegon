@@ -310,6 +310,11 @@ Transform Entity::GetDrawTransform() const {
 	return transform;
 }
 
+Entity& Entity::SetDrawOffset(const V2_float& offset) {
+	GetOrAdd<impl::Offsets>().custom.position = offset;
+	return *this;
+}
+
 Entity& Entity::AddPostFX(Entity post_fx) {
 	post_fx.Hide();
 	GetOrAdd<impl::PostFX>().post_fx_.insert(post_fx);

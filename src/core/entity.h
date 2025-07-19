@@ -246,6 +246,8 @@ public:
 	// rendering.
 	[[nodiscard]] Transform GetDrawTransform() const;
 
+	Entity& SetDrawOffset(const V2_float& offset = {});
+
 	Entity& AddPostFX(Entity post_fx);
 
 	Entity& AddPreFX(Entity pre_fx);

@@ -8,7 +8,7 @@ namespace ptgn {
 namespace impl {
 
 Transform Offsets::GetTotal() const {
-	return shake.RelativeTo(bounce);
+	return shake.RelativeTo(bounce).RelativeTo(custom);
 }
 
 } // namespace impl

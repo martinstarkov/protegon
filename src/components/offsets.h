@@ -30,7 +30,10 @@ struct Offsets {
 	// Temporary transform applied for bounce effect.
 	Transform bounce;
 
-	PTGN_SERIALIZER_REGISTER(Offsets, shake, bounce)
+	// User applied offset.
+	Transform custom;
+
+	PTGN_SERIALIZER_REGISTER(Offsets, shake, bounce, custom)
 };
 
 } // namespace impl
