@@ -351,7 +351,10 @@ private:
 
 	void Init();
 
-	float GetTextureIndex(std::uint32_t texture_id);
+	// @param out_texture_index The available texture index for the texture id.
+	// @return True if the texture_index currently exists in the textures vector, false if it must
+	// be emplaced.
+	[[nodiscard]] bool GetTextureIndex(std::uint32_t texture_id, float& out_texture_index);
 
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);

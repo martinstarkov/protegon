@@ -419,16 +419,23 @@ void RenderData::AddTexturedQuad(
 		force_flush = true;
 	}
 
-	float texture_index{ GetTextureIndex(texture_id) };
+	float texture_index{ 0.0f };
+
+	bool existing_texture{ GetTextureIndex(texture_id, texture_index) };
 
 	for (auto& v : points) {
 		v.tex_index = { texture_index };
 	}
 
 	AddVertices(points, quad_indices);
-	// Must be done after because SetState may Flush the current batch, which will
-	// clear textures.
-	textures.emplace_back(texture_id);
+
+	if (!existing_texture) {
+		// Must be done after AddVertices and SetState because both of them may Flush the current
+		// batch, which will clear textures.
+		textures.emplace_back(texture_id);
+	}
+
+	PTGN_ASSERT(textures.size() < max_texture_slots);
 }
 
 void RenderData::Init() {
@@ -510,21 +517,22 @@ void RenderData::Init() {
 	SetState(RenderState{ {}, BlendMode::None, {} });
 }
 
-float RenderData::GetTextureIndex(std::uint32_t texture_id) {
+bool RenderData::GetTextureIndex(std::uint32_t texture_id, float& out_texture_index) {
 	PTGN_ASSERT(texture_id != white_texture.GetId());
 	// Texture exists in batch, therefore do not add it again.
 	for (std::size_t i{ 0 }; i < textures.size(); i++) {
 		if (textures[i] == texture_id) {
 			// i + 1 because first texture index is white texture.
-			return static_cast<float>(i + 1);
+			out_texture_index = static_cast<float>(i + 1);
+			return true;
 		}
 	}
 	// Batch is at texture capacity.
 	if (static_cast<std::uint32_t>(textures.size()) == max_texture_slots - 1) {
 		Flush();
 	}
-	// i + 1 is implicit here because size is taken after emplacing.
-	return static_cast<float>(textures.size() + 1);
+	out_texture_index = static_cast<float>(textures.size() + 1);
+	return false;
 }
 
 bool RenderData::SetState(const RenderState& new_render_state) {
@@ -658,7 +666,7 @@ void RenderData::AddShader(
 }
 
 void RenderData::BindTextures() const {
-	PTGN_ASSERT(textures.size() <= max_texture_slots);
+	PTGN_ASSERT(textures.size() < max_texture_slots);
 
 	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
 		// Save first texture slot for empty white texture.
