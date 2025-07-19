@@ -101,8 +101,8 @@ public:
 		auto script{ std::make_shared<T>(std::forward<TArgs>(args)...) };
 		constexpr auto class_name{ type_name<T>() };
 		constexpr auto hash{ Hash(class_name) };
-		scripts.try_emplace(hash, script);
-		return *script;
+		auto [it, _] = scripts.try_emplace(hash, script);
+		return *std::dynamic_pointer_cast<T>(it->second);
 	}
 
 	template <typename T>
@@ -113,7 +113,7 @@ public:
 	}
 
 	template <typename T>
-	[[nodiscard]] const TBaseScript& GetScript() const {
+	[[nodiscard]] const T& GetScript() const {
 		static_assert(
 			std::is_base_of_v<TBaseScript, T>,
 			"Cannot get script which does not inherit from the base script class"
@@ -128,12 +128,12 @@ public:
 		PTGN_ASSERT(
 			it != scripts.end(), "Cannot get script which does not exist in ScriptContainer"
 		);
-		return *it->second;
+		return *std::dynamic_pointer_cast<T>(it->second);
 	}
 
 	template <typename T>
-	[[nodiscard]] TBaseScript& GetScript() {
-		return const_cast<TBaseScript&>(std::as_const(*this).template GetScript<T>());
+	[[nodiscard]] T& GetScript() {
+		return const_cast<T&>(std::as_const(*this).template GetScript<T>());
 	}
 
 	template <typename T>
