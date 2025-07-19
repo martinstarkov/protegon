@@ -148,24 +148,26 @@ void SceneManager::Update() {
 
 void SceneManager::HandleSceneEvents() {
 	for (auto [e, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		while (!sc.scene->actions_.empty()) {
-			auto action{ sc.scene->actions_.begin() };
+		while (!e.Get<SceneComponent>().scene->actions_.empty()) {
+			auto action{ e.Get<SceneComponent>().scene->actions_.begin() };
 			switch (*action) {
 				case Scene::Action::Enter:
-					if (sc.scene->active_) {
-						sc.scene->InternalExit();
+					if (e.Get<SceneComponent>().scene->active_) {
+						e.Get<SceneComponent>().scene->InternalExit();
 					}
-					sc.scene->InternalEnter();
+					// Reference may get invalidated if Exit adds a scene to the scene manager.
+					e.Get<SceneComponent>().scene->InternalEnter();
 					break;
-				case Scene::Action::Exit: sc.scene->InternalExit(); break;
+				case Scene::Action::Exit: e.Get<SceneComponent>().scene->InternalExit(); break;
 				case Scene::Action::Unload:
-					if (sc.scene->active_) {
-						sc.scene->InternalExit();
+					if (e.Get<SceneComponent>().scene->active_) {
+						e.Get<SceneComponent>().scene->InternalExit();
 					}
 					e.Destroy();
 					break;
 			}
-			sc.scene->actions_.erase(action);
+			// Reference may get invalidated if an Enter or Exit adds a scene to the scene manager.
+			e.Get<SceneComponent>().scene->actions_.erase(action);
 		}
 	}
 
