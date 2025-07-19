@@ -216,6 +216,9 @@ public:
 	// Number of frames the animation has gone through. frames_played / frame_count gives the
 	// number of repeats of the full animation sequence.
 	std::size_t frames_played{ 0 };
+
+	// If the current frame has been changed externally.
+	bool frame_dirty{ false };
 };
 
 class AnimationSystem {

@@ -327,6 +327,7 @@ std::size_t AnimationInfo::GetPlayCount() const {
 
 void AnimationInfo::SetCurrentFrame(std::size_t new_frame) {
 	current_frame = new_frame % frame_count;
+	frame_dirty	  = true;
 }
 
 void AnimationInfo::IncrementFrame() {
@@ -335,6 +336,13 @@ void AnimationInfo::IncrementFrame() {
 
 void AnimationSystem::Update(Scene& scene) {
 	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationInfo, TextureCrop>()) {
+		if (anim.frame_dirty) {
+			crop.size	  = anim.frame_size;
+			crop.position = anim.GetCurrentFramePosition();
+
+			anim.frame_dirty = false;
+		}
+
 		if (anim.frame_count == 0 || anim.duration <= milliseconds{ 0 } ||
 			!anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused()) {
 			// Timer is not active or animation has no frames / duration.
