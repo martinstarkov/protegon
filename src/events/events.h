@@ -85,7 +85,7 @@ struct WindowDragEvent : public Event {};
 struct WindowMovedEvent : public Event {};
 
 struct WindowResizedEvent : public Event {
-	explicit WindowResizedEvent(const V2_int& window_size) : size{ window_size } {}
+	explicit WindowResizedEvent(const V2_int& resized_window_size) : size{ resized_window_size } {}
 
 	V2_int size;
 };
