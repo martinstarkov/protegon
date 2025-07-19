@@ -40,7 +40,27 @@ float Physics::dt() const {
 	return game.dt();
 }
 
+void Physics::SetEnabled(bool enabled) {
+	enabled_ = enabled;
+}
+
+void Physics::Disable() {
+	SetEnabled(false);
+}
+
+void Physics::Enable() {
+	SetEnabled(true);
+}
+
+[[nodiscard]] bool Physics::AreEnabled() const {
+	return enabled_;
+}
+
 void Physics::PreCollisionUpdate(Scene& scene) const {
+	if (!enabled_) {
+		return;
+	}
+
 	float dt{ Physics::dt() };
 
 	for (auto [entity, enabled, transform, rigid_body, movement] :
@@ -78,6 +98,10 @@ void Physics::PreCollisionUpdate(Scene& scene) const {
 }
 
 void Physics::PostCollisionUpdate(Scene& scene) const {
+	if (!enabled_) {
+		return;
+	}
+
 	float dt{ Physics::dt() };
 
 	V2_float min_bounds{ bounds_top_left_ };

@@ -26,6 +26,11 @@ public:
 	// @return Physics time step in seconds.
 	[[nodiscard]] float dt() const;
 
+	void SetEnabled(bool enabled = true);
+	void Disable();
+	void Enable();
+	[[nodiscard]] bool AreEnabled() const;
+
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		Physics, KeyValue("gravity", gravity_), KeyValue("bounds_top_left", bounds_top_left_),
 		KeyValue("bounds_size", bounds_size_)
@@ -38,6 +43,7 @@ private:
 	void PreCollisionUpdate(Scene& scene) const;
 	void PostCollisionUpdate(Scene& scene) const;
 
+	bool enabled_{ true };
 	V2_float bounds_top_left_;
 	V2_float bounds_size_;
 	V2_float gravity_{ 0.0f, 0.0f };
