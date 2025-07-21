@@ -172,7 +172,7 @@ void Entity::DeserializeAllImpl(const json& j) {
 		if (!pool) {
 			continue;
 		}
-		pool->Deserialize(archiver, entity_);
+		pool->Deserialize(archiver, manager, entity_);
 	}
 }
 
