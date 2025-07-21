@@ -186,7 +186,7 @@ void AddTweenEffect(
 ) {
 	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
 
-	auto& comp{ entity.GetOrAdd<TComponent>() };
+	auto& comp{ entity.TryAdd<TComponent>() };
 
 	T start{};
 

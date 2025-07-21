@@ -182,7 +182,7 @@ void Entity::AddChildImpl(Entity& child, std::string_view name) {
 	PTGN_ASSERT(
 		GetManager() == child.GetManager(), "Cannot set cross manager parent-child relationships"
 	);
-	auto& children = GetOrAdd<impl::Children>();
+	auto& children = TryAdd<impl::Children>();
 	children.Add(child, name);
 }
 
@@ -284,15 +284,22 @@ bool Entity::IsEnabled() const {
 
 Entity& Entity::SetTransform(const Transform& transform) {
 	if (Has<Transform>()) {
-		Get<Transform>() = transform;
+		GetImpl<Transform>() = transform;
 	} else {
 		Add<Transform>(transform);
 	}
 	return *this;
 }
 
+Transform& Entity::GetTransform() {
+	return TryAdd<Transform>();
+}
+
 Transform Entity::GetTransform() const {
-	return GetOrDefault<Transform>();
+	if (auto transform{ TryGetImpl<Transform>() }; transform) {
+		return *transform;
+	}
+	return {};
 }
 
 Transform Entity::GetAbsoluteTransform() const {
@@ -311,25 +318,25 @@ Transform Entity::GetDrawTransform() const {
 }
 
 Entity& Entity::SetDrawOffset(const V2_float& offset) {
-	GetOrAdd<impl::Offsets>().custom.position = offset;
+	TryAdd<impl::Offsets>().custom.position = offset;
 	return *this;
 }
 
 Entity& Entity::AddPostFX(Entity post_fx) {
 	post_fx.Hide();
-	GetOrAdd<impl::PostFX>().post_fx_.insert(post_fx);
+	TryAdd<impl::PostFX>().post_fx_.insert(post_fx);
 	return *this;
 }
 
 Entity& Entity::AddPreFX(Entity pre_fx) {
 	pre_fx.Hide();
-	GetOrAdd<impl::PreFX>().pre_fx_.insert(pre_fx);
+	TryAdd<impl::PreFX>().pre_fx_.insert(pre_fx);
 	return *this;
 }
 
 Entity& Entity::SetPosition(const V2_float& position) {
 	if (Has<Transform>()) {
-		Get<Transform>().position = position;
+		GetImpl<Transform>().position = position;
 	} else {
 		Add<Transform>(position);
 	}
@@ -340,13 +347,17 @@ V2_float Entity::GetPosition() const {
 	return GetTransform().position;
 }
 
+V2_float& Entity::GetPosition() {
+	return GetTransform().position;
+}
+
 V2_float Entity::GetAbsolutePosition() const {
 	return GetAbsoluteTransform().position;
 }
 
 Entity& Entity::SetRotation(float rotation) {
 	if (Has<Transform>()) {
-		Get<Transform>().rotation = rotation;
+		GetImpl<Transform>().rotation = rotation;
 	} else {
 		Add<Transform>(V2_float{}, rotation);
 	}
@@ -354,6 +365,10 @@ Entity& Entity::SetRotation(float rotation) {
 }
 
 float Entity::GetRotation() const {
+	return GetTransform().rotation;
+}
+
+float& Entity::GetRotation() {
 	return GetTransform().rotation;
 }
 
@@ -367,7 +382,7 @@ Entity& Entity::SetScale(float scale) {
 
 Entity& Entity::SetScale(const V2_float& scale) {
 	if (Has<Transform>()) {
-		Get<Transform>().scale = scale;
+		GetImpl<Transform>().scale = scale;
 	} else {
 		Add<Transform>(V2_float{}, 0.0f, scale);
 	}
@@ -375,6 +390,10 @@ Entity& Entity::SetScale(const V2_float& scale) {
 }
 
 V2_float Entity::GetScale() const {
+	return GetTransform().scale;
+}
+
+V2_float& Entity::GetScale() {
 	return GetTransform().scale;
 }
 
@@ -420,7 +439,7 @@ bool Entity::IsVisible() const {
 
 Entity& Entity::SetDepth(const Depth& depth) {
 	if (Has<Depth>()) {
-		Get<Depth>() = depth;
+		GetImpl<Depth>() = depth;
 	} else {
 		Add<Depth>(depth);
 	}

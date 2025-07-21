@@ -269,7 +269,7 @@ void SceneInput::UpdateCurrent(Scene* scene) {
 		}
 	}
 	if (top_only_ && top_entity) {
-		PTGN_ASSERT(top_entity.Has<Enabled>() && top_entity.Get<Enabled>());
+		PTGN_ASSERT(top_entity.Has<Enabled>() && top_entity.IsEnabled());
 		PTGN_ASSERT(top_entity.Has<Interactive>());
 		auto& top_interactive{ top_entity.Get<Interactive>() };
 		top_interactive.is_inside = true;

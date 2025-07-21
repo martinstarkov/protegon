@@ -272,22 +272,22 @@ public:
 
 		if (move_entity == 0) {
 			vel = &intersect.Get<RigidBody>().velocity;
-			pos = &intersect.Get<Transform>().position;
+			pos = &intersect.GetPosition();
 		} else if (move_entity == 1) {
 			vel = &overlap.Get<RigidBody>().velocity;
-			pos = &overlap.Get<Transform>().position;
+			pos = &overlap.GetPosition();
 		} else if (move_entity == 2) {
 			vel = &sweep.Get<RigidBody>().velocity;
-			pos = &sweep.Get<Transform>().position;
+			pos = &sweep.GetPosition();
 		} else if (move_entity == 3) {
 			vel = &intersect_circle.Get<RigidBody>().velocity;
-			pos = &intersect_circle.Get<Transform>().position;
+			pos = &intersect_circle.GetPosition();
 		} else if (move_entity == 4) {
 			vel = &overlap_circle.Get<RigidBody>().velocity;
-			pos = &overlap_circle.Get<Transform>().position;
+			pos = &overlap_circle.GetPosition();
 		} else if (move_entity == 5) {
 			vel = &sweep_circle.Get<RigidBody>().velocity;
-			pos = &sweep_circle.Get<Transform>().position;
+			pos = &sweep_circle.GetPosition();
 		}
 
 		PTGN_ASSERT(vel != nullptr);
@@ -1358,7 +1358,7 @@ struct SweepTest : public CollisionTest {
 
 	void Enter() override {
 		PTGN_ASSERT(player.Has<Transform>());
-		auto& t	   = player.Get<Transform>();
+		auto& t	   = player.GetTransform();
 		t.position = player_start_pos;
 
 		if (player.Has<BoxCollider>()) {
@@ -1378,7 +1378,7 @@ struct SweepTest : public CollisionTest {
 
 	void Update() override {
 		auto& rb		= player.Get<RigidBody>();
-		auto& transform = player.Get<Transform>();
+		auto& transform = player.GetTransform();
 
 		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
 			Rect r{ p.position, b.size, b.origin };

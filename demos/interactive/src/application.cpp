@@ -285,7 +285,7 @@ struct ScriptR2 : public Script<ScriptR2> {
 struct ScriptR3 : public Script<ScriptR3> {
 	void OnDrag(V2_float mouse) override {
 		PTGN_LOG("r3 Drag: ", mouse);
-		entity.Get<Transform>().position = mouse + entity.Get<Draggable>().offset;
+		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
 	void OnDragEnter(V2_float mouse) override {
@@ -316,7 +316,7 @@ struct ScriptR3 : public Script<ScriptR3> {
 struct ScriptC3 : public Script<ScriptC3> {
 	void OnDrag(V2_float mouse) override {
 		PTGN_LOG("c3 Drag: ", mouse);
-		entity.Get<Transform>().position = mouse + entity.Get<Draggable>().offset;
+		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
 	// void OnMouseDown(Mouse mouse) override {

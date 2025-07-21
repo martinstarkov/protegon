@@ -198,7 +198,7 @@ public:
 				return;
 			}
 			/*if (entity.Has<Transform>()) {
-				entity.Get<Transform>().position +=
+				entity.GetPosition() +=
 					intersection.normal * (intersection.depth + slop);
 			}*/
 			auto& root_transform{ body.GetRootTransform() };

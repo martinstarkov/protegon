@@ -168,9 +168,9 @@ void Scene::PostUpdate() {
 
 	PTGN_ASSERT(camera.primary.IsAlive(), "Scene must be reinitialized after clearing");
 
-	camera.primary_unzoomed.Get<Transform>()		= camera.primary.Get<Transform>();
+	camera.primary_unzoomed.GetTransform()			= camera.primary.GetTransform();
 	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
-	camera.window_unzoomed.Get<Transform>()			= camera.window.Get<Transform>();
+	camera.window_unzoomed.GetTransform()			= camera.window.GetTransform();
 	camera.window_unzoomed.Get<impl::CameraInfo>()	= camera.window.Get<impl::CameraInfo>();
 
 	camera.primary_unzoomed.SetZoom(1.0f);

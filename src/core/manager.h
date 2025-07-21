@@ -40,7 +40,7 @@ public:
 
 	template <typename T>
 	void RegisterType() {
-		ecs::Manager<JSONArchiver>::GetOrAddPool<T>(ecs::Manager<JSONArchiver>::GetId<T>());
+		ecs::Manager<JSONArchiver>::TryAddPool<T>(ecs::Manager<JSONArchiver>::GetId<T>());
 	}
 
 	void Refresh();

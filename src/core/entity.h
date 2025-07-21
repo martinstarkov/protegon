@@ -44,6 +44,9 @@ struct IgnoreParentTransform : public ArithmeticComponent<bool> {
 	PTGN_SERIALIZER_REGISTER_NAMELESS(IgnoreParentTransform, value_)
 };
 
+template <typename T>
+inline constexpr bool is_retrievable_component_v{ !tt::is_any_of_v<T, Transform, Depth, Enabled> };
+
 } // namespace impl
 
 class Entity : private ecs::Entity<JSONArchiver> {
@@ -93,19 +96,7 @@ public:
 	// @return Reference to the added or existing component.
 	template <typename T, typename... Ts>
 	T& TryAdd(Ts&&... constructor_args) {
-		if (!Has<T>()) {
-			return Add<T>(std::forward<Ts>(constructor_args)...);
-		}
-		return Get<T>();
-	}
-
-	// Get a component of the entity, and if it does not exist add it.
-	template <typename T, typename... Ts>
-	T& GetOrAdd(Ts&&... constructor_args) {
-		if (Has<T>()) {
-			return Get<T>();
-		}
-		return Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return ecs::Entity<JSONArchiver>::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename... Ts>
@@ -123,14 +114,24 @@ public:
 		return ecs::Entity<JSONArchiver>::HasAny<Ts...>();
 	}
 
-	template <typename... Ts>
+	template <typename... Ts, tt::enable<(impl::is_retrievable_component_v<Ts> && ...)> = true>
 	[[nodiscard]] decltype(auto) Get() const {
-		return ecs::Entity<JSONArchiver>::Get<Ts...>();
+		return GetImpl<Ts...>();
 	}
 
-	template <typename... Ts>
+	template <typename... Ts, tt::enable<(impl::is_retrievable_component_v<Ts> && ...)> = true>
 	[[nodiscard]] decltype(auto) Get() {
-		return ecs::Entity<JSONArchiver>::Get<Ts...>();
+		return GetImpl<Ts...>();
+	}
+
+	template <typename T, tt::enable<impl::is_retrievable_component_v<T>> = true>
+	[[nodiscard]] const T* TryGet() const {
+		return TryGetImpl<T>();
+	}
+
+	template <typename T, tt::enable<impl::is_retrievable_component_v<T>> = true>
+	[[nodiscard]] T* TryGet() {
+		return TryGetImpl<T>();
 	}
 
 	void Clear() const;
@@ -236,6 +237,7 @@ public:
 	// @return The relative transform of the entity with respect to its parent entity, camera, or
 	// scene camera transform.
 	[[nodiscard]] Transform GetTransform() const;
+	[[nodiscard]] Transform& GetTransform();
 
 	// @return The absolute transform of the entity with respect to its parent scene camera
 	// transform.
@@ -260,6 +262,7 @@ public:
 	// @return The relative position of the entity with respect to its parent entity, camera, or
 	// scene camera position.
 	[[nodiscard]] V2_float GetPosition() const;
+	[[nodiscard]] V2_float& GetPosition();
 
 	// @return The absolute position of the entity with respect to its parent scene camera position.
 	[[nodiscard]] V2_float GetAbsolutePosition() const;
@@ -272,6 +275,7 @@ public:
 	// @return The relative rotation of the entity with respect to its parent entity, camera, or
 	// scene camera rotation. Clockwise positive. Unit: Radians.
 	[[nodiscard]] float GetRotation() const;
+	[[nodiscard]] float& GetRotation();
 
 	// @return The absolute rotation of the entity with respect to its parent scene camera rotation.
 	// Clockwise positive. Unit: Radians.
@@ -286,6 +290,7 @@ public:
 	// @return The relative scale of the entity with respect to its parent entity, camera, or
 	// scene camera scale.
 	[[nodiscard]] V2_float GetScale() const;
+	[[nodiscard]] V2_float& GetScale();
 
 	// @return The absolute scale of the entity with respect to its parent scene camera scale.
 	[[nodiscard]] V2_float GetAbsoluteScale() const;
@@ -450,7 +455,7 @@ public:
 	template <typename T, typename... TArgs>
 	[[nodiscard]] T GetOrDefault(TArgs&&... args) const {
 		if (Has<T>()) {
-			return Get<T>();
+			return GetImpl<T>();
 		}
 		return T{ std::forward<TArgs>(args)... };
 	}
@@ -458,7 +463,7 @@ public:
 	template <typename T, typename... TArgs>
 	[[nodiscard]] T GetOrParentOrDefault(TArgs&&... args) const {
 		if (Has<T>()) {
-			return Get<T>();
+			return GetImpl<T>();
 		}
 		if (HasParent()) {
 			return GetParent().GetOrParentOrDefault<T>(std::forward<TArgs>(args)...);
@@ -480,6 +485,26 @@ protected:
 private:
 	friend class Manager;
 
+	template <typename... Ts>
+	[[nodiscard]] decltype(auto) GetImpl() const {
+		return ecs::Entity<JSONArchiver>::Get<Ts...>();
+	}
+
+	template <typename... Ts>
+	[[nodiscard]] decltype(auto) GetImpl() {
+		return ecs::Entity<JSONArchiver>::Get<Ts...>();
+	}
+
+	template <typename T>
+	[[nodiscard]] const T* TryGetImpl() const {
+		return ecs::Entity<JSONArchiver>::TryGet<T>();
+	}
+
+	template <typename T>
+	[[nodiscard]] T* TryGetImpl() {
+		return ecs::Entity<JSONArchiver>::TryGet<T>();
+	}
+
 	template <typename T>
 	void SerializeImpl(json& j) const {
 		static_assert(
@@ -487,7 +512,7 @@ private:
 		);
 		PTGN_ASSERT(Has<T>(), "Entity must have component which is being serialized");
 		constexpr auto component_name{ type_name_without_namespaces<T>() };
-		j[component_name] = Get<T>();
+		j[component_name] = GetImpl<T>();
 	}
 
 	void SerializeAllImpl(json& j) const;
@@ -499,7 +524,7 @@ private:
 		);
 		constexpr auto component_name{ type_name_without_namespaces<T>() };
 		PTGN_ASSERT(j.contains(component_name), "JSON does not contain ", component_name);
-		j[component_name].get_to(GetOrAdd<T>());
+		j[component_name].get_to(TryAdd<T>());
 	}
 
 	void DeserializeAllImpl(const json& j);
@@ -759,7 +784,7 @@ void Entity::InvokeScript(TArgs&&... args) const {
 
 template <typename T, typename... TArgs>
 T& Entity::AddScript(TArgs&&... args) {
-	auto& scripts{ GetOrAdd<Scripts>() };
+	auto& scripts{ TryAdd<Scripts>() };
 
 	auto& script{ scripts.AddScript<T>(std::forward<TArgs>(args)...) };
 
@@ -777,7 +802,7 @@ T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 		execution_duration >= milliseconds{ 0 }, "Timer script must have a positive duration"
 	);
 
-	auto& timer_scripts{ GetOrAdd<impl::ScriptTimers>() };
+	auto& timer_scripts{ TryAdd<impl::ScriptTimers>() };
 
 	constexpr auto class_name{ type_name<T>() };
 	constexpr auto hash{ Hash(class_name) };
@@ -824,7 +849,7 @@ T& Entity::AddRepeatScript(
 		// More than one script execution requested.
 	}
 
-	auto& repeat_scripts{ GetOrAdd<impl::ScriptRepeats>() };
+	auto& repeat_scripts{ TryAdd<impl::ScriptRepeats>() };
 
 	constexpr auto class_name{ type_name<T>() };
 	constexpr auto hash{ Hash(class_name) };

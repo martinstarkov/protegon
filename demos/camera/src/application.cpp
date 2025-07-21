@@ -195,7 +195,7 @@ public:
 		}
 
 		if (game.input.MouseDown(Mouse::Left)) {
-			mouse.Get<Transform>().position =
+			mouse.SetPosition( =
 				camera.primary.TransformToCamera(game.input.GetMousePosition());
 			//camera.primary.PanTo(camera.primary.TransformToCamera(game.input.GetMousePosition()),
 seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (game.input.MouseDown(Mouse::Right)) {

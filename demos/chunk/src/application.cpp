@@ -82,7 +82,7 @@ public:
 
 	void Update() override {
 		MoveWASD(vel, speed, true);
-		sheep.Get<Transform>().position += vel * game.dt();
+		sheep.GetPosition() += vel * game.dt();
 
 		if (game.input.KeyPressed(Key::Q)) {
 			camera.primary.Zoom(-zoom_speed * game.dt());

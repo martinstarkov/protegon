@@ -280,7 +280,7 @@ struct BroadphaseScene : public Scene {
 	void Update() override {
 		PTGN_PROFILE_FUNCTION();
 
-		MoveWASD(player.Get<Transform>().position, V2_float{ 100.0f } * game.dt(), false);
+		MoveWASD(player.GetPosition(), V2_float{ 100.0f } * game.dt(), false);
 		// Update player's AABB component before updating the tree
 		player.Get<AABB>() = computePlayerAABBFromPosition(player);
 		// auto vertices{ impl::GetQuadVertices(

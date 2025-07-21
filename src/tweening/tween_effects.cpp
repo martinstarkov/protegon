@@ -312,8 +312,8 @@ void BounceImpl(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
 ) {
-	auto& bounce{ entity.GetOrAdd<impl::BounceEffect>() };
-	entity.GetOrAdd<impl::Offsets>();
+	auto& bounce{ entity.TryAdd<impl::BounceEffect>() };
+	entity.TryAdd<impl::Offsets>();
 
 	bool first_task{ force || bounce.tasks.empty() };
 
@@ -359,9 +359,9 @@ void FollowEffectSystem::Update(Scene& scene) const {
 				}
 				if (front.config.move_mode == MoveMode::Velocity) {
 					entity.Enable();
-					entity.GetOrAdd<RigidBody>();
-					entity.GetOrAdd<Transform>();
-					auto& movement{ entity.GetOrAdd<TopDownMovement>() };
+					entity.TryAdd<RigidBody>();
+					entity.TryAdd<Transform>();
+					auto& movement{ entity.TryAdd<TopDownMovement>() };
 					movement.max_acceleration		  = front.config.max_acceleration;
 					movement.max_deceleration		  = front.config.max_acceleration;
 					movement.max_speed				  = front.config.max_speed;
@@ -411,9 +411,9 @@ void FollowEffectSystem::Update(Scene& scene) const {
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
 							entity.Enable();
-							entity.GetOrAdd<RigidBody>();
-							entity.GetOrAdd<Transform>();
-							auto& movement{ entity.GetOrAdd<TopDownMovement>() };
+							entity.TryAdd<RigidBody>();
+							entity.TryAdd<Transform>();
+							auto& movement{ entity.TryAdd<TopDownMovement>() };
 							movement.max_acceleration		  = front.config.max_acceleration;
 							movement.max_deceleration		  = front.config.max_acceleration;
 							movement.max_speed				  = front.config.max_speed;
@@ -515,9 +515,9 @@ void FollowEffectSystem::Update(Scene& scene) const {
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
 							entity.Enable();
-							entity.GetOrAdd<RigidBody>();
-							entity.GetOrAdd<Transform>();
-							auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+							entity.TryAdd<RigidBody>();
+							entity.TryAdd<Transform>();
+							auto& movement					  = entity.TryAdd<TopDownMovement>();
 							movement.max_acceleration		  = front.config.max_acceleration;
 							movement.max_deceleration		  = front.config.max_acceleration;
 							movement.max_speed				  = front.config.max_speed;
@@ -621,8 +621,8 @@ void Shake(
 		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
 	);
 
-	auto& comp{ entity.GetOrAdd<impl::ShakeEffect>() };
-	entity.GetOrAdd<impl::Offsets>();
+	auto& comp{ entity.TryAdd<impl::ShakeEffect>() };
+	entity.TryAdd<impl::Offsets>();
 
 	float start_intensity{ 0.0f };
 
@@ -651,8 +651,8 @@ void Shake(
 }
 
 void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
-	auto& comp{ entity.GetOrAdd<impl::ShakeEffect>() };
-	entity.GetOrAdd<impl::Offsets>();
+	auto& comp{ entity.TryAdd<impl::ShakeEffect>() };
+	entity.TryAdd<impl::Offsets>();
 	PTGN_ASSERT(
 		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
 	);
@@ -720,7 +720,7 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 	PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
 	PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
 
-	auto& comp{ entity.GetOrAdd<impl::FollowEffect>() };
+	auto& comp{ entity.TryAdd<impl::FollowEffect>() };
 
 	bool first_task{ force || comp.tasks.empty() };
 
@@ -735,9 +735,9 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 	if (config.move_mode == MoveMode::Velocity) {
 		// TODO: Consider making the movement system not require enabling an entity.
 		entity.Enable();
-		entity.GetOrAdd<RigidBody>();
-		entity.GetOrAdd<Transform>();
-		auto& movement{ entity.GetOrAdd<TopDownMovement>() };
+		entity.TryAdd<RigidBody>();
+		entity.TryAdd<Transform>();
+		auto& movement{ entity.TryAdd<TopDownMovement>() };
 		movement.max_acceleration		  = config.max_acceleration;
 		movement.max_deceleration		  = config.max_acceleration;
 		movement.max_speed				  = config.max_speed;
@@ -766,9 +766,9 @@ void StopFollow(Entity entity, bool force) {
 			}
 			if (front.config.move_mode == MoveMode::Velocity) {
 				entity.Enable();
-				entity.GetOrAdd<RigidBody>();
-				entity.GetOrAdd<Transform>();
-				auto& movement					  = entity.GetOrAdd<TopDownMovement>();
+				entity.TryAdd<RigidBody>();
+				entity.TryAdd<Transform>();
+				auto& movement					  = entity.TryAdd<TopDownMovement>();
 				movement.max_acceleration		  = front.config.max_acceleration;
 				movement.max_deceleration		  = front.config.max_acceleration;
 				movement.max_speed				  = front.config.max_speed;

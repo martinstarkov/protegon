@@ -83,7 +83,7 @@ public:
 
 	void Update() override {
 		constexpr V2_float speed{ 3.0f, 3.0f };
-		MoveWASD(player.Get<Transform>().position, speed, false);
+		MoveWASD(player.GetPosition(), speed, false);
 	}
 };
 
