@@ -14,7 +14,14 @@ public:
 	void SetComponent(const T& component) {
 		if constexpr (tt::has_to_json_v<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
-			j[class_name] = component;
+			json json_component = component;
+			if (!json_component.empty()) {
+				j[class_name] = component;
+			} else {
+				// Serialize components which are empty json objects for component tracking.
+				// This may or may not be useful to have.
+				j[class_name] = json{};
+			}
 		}
 	}
 
@@ -39,7 +46,10 @@ public:
 				return {};
 			}
 			T component{};
-			j.at(class_name).get_to(component);
+			json json_component{ j.at(class_name) };
+			if (!json_component.empty()) {
+				json_component.get_to(component);
+			}
 			return component;
 		} else {
 			return {};
