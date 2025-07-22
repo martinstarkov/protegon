@@ -79,7 +79,8 @@ public:
 	ptgn::EntitiesWith<JSONArchiver, true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
+						 ecs::Manager<JSONArchiver>::GetId<Ts>()
 					 )... } };
 	}
 
@@ -87,7 +88,8 @@ public:
 	ptgn::EntitiesWith<JSONArchiver, false, Ts...> EntitiesWith() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
+						 ecs::Manager<JSONArchiver>::GetId<Ts>()
 					 )... } };
 	}
 
@@ -95,7 +97,8 @@ public:
 	ptgn::EntitiesWithout<JSONArchiver, true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
+						 ecs::Manager<JSONArchiver>::GetId<Ts>()
 					 )... } };
 	}
 
@@ -103,7 +106,8 @@ public:
 	ptgn::EntitiesWithout<JSONArchiver, false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(ecs::Manager<JSONArchiver>::GetId<Ts>()
+					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
+						 ecs::Manager<JSONArchiver>::GetId<Ts>()
 					 )... } };
 	}
 
@@ -124,6 +128,129 @@ public:
 	void Clear();
 
 	void Reset();
+
+	/**
+	 * @brief Adds a construct hook for the specified component type.
+	 *
+	 * This hook is invoked whenever a component of type `T` is constructed.
+	 * Note: Discarding the returned hook instance will make it impossible to remove the hook later.
+	 *
+	 * @tparam T The component type to attach the construct hook to.
+	 * @return Reference to the newly added hook, which can be configured or stored for later
+	 * removal.
+	 */
+	template <typename T>
+	[[nodiscard]] Hook& OnConstruct() {
+		return ecs::Manager<JSONArchiver>::OnConstruct<T>();
+	}
+
+	/**
+	 * @brief Adds a destruct hook for the specified component type.
+	 *
+	 * This hook is invoked whenever a component of type `T` is destroyed.
+	 * Note: Discarding the returned hook instance will make it impossible to remove the hook later.
+	 *
+	 * @tparam T The component type to attach the destruct hook to.
+	 * @return Reference to the newly added hook, which can be configured or stored for later
+	 * removal.
+	 */
+	template <typename T>
+	[[nodiscard]] Hook& OnDestruct() {
+		return ecs::Manager<JSONArchiver>::OnDestruct<T>();
+	}
+
+	/**
+	 * @brief Adds an update hook for the specified component type.
+	 *
+	 * This hook is invoked during update operations on a component of type `T`.
+	 * Note: Discarding the returned hook instance will make it impossible to remove the hook later.
+	 *
+	 * @tparam T The component type to attach the update hook to.
+	 * @return Reference to the newly added hook, which can be configured or stored for later
+	 * removal.
+	 */
+	template <typename T>
+	[[nodiscard]] Hook& OnUpdate() {
+		return ecs::Manager<JSONArchiver>::OnUpdate<T>();
+	}
+
+	/**
+	 * @brief Checks if a specific construct hook exists for the given component type.
+	 *
+	 * This function allows you to verify whether the provided hook is currently registered
+	 * as a construct hook for the specified component type `T`.
+	 *
+	 * @tparam T The component type to check.
+	 * @param hook The hook to search for in the construct hook list.
+	 * @return true if the hook is registered; false otherwise.
+	 */
+	template <typename T>
+	[[nodiscard]] bool HasOnConstruct(const Hook& hook) const {
+		return ecs::Manager<JSONArchiver>::HasOnConstruct<T>(hook);
+	}
+
+	/**
+	 * @brief Checks if a specific destruct hook exists for the given component type.
+	 *
+	 * This function allows you to verify whether the provided hook is currently registered
+	 * as a destruct hook for the specified component type `T`.
+	 *
+	 * @tparam T The component type to check.
+	 * @param hook The hook to search for in the destruct hook list.
+	 * @return true if the hook is registered; false otherwise.
+	 */
+	template <typename T>
+	[[nodiscard]] bool HasOnDestruct(const Hook& hook) const {
+		return ecs::Manager<JSONArchiver>::HasOnDestruct<T>(hook);
+	}
+
+	/**
+	 * @brief Checks if a specific update hook exists for the given component type.
+	 *
+	 * This function allows you to verify whether the provided hook is currently registered
+	 * as an update hook for the specified component type `T`.
+	 *
+	 * @tparam T The component type to check.
+	 * @param hook The hook to search for in the update hook list.
+	 * @return true if the hook is registered; false otherwise.
+	 */
+	template <typename T>
+	[[nodiscard]] bool HasOnUpdate(const Hook& hook) const {
+		return ecs::Manager<JSONArchiver>::HasOnUpdate<T>(hook);
+	}
+
+	/**
+	 * @brief Removes a previously added construct hook for the specified component type.
+	 *
+	 * @tparam T The component type the hook was registered to.
+	 * @param hook The hook instance to remove.
+	 */
+	template <typename T>
+	void RemoveOnConstruct(const Hook& hook) {
+		ecs::Manager<JSONArchiver>::RemoveOnConstruct<T>(hook);
+	}
+
+	/**
+	 * @brief Removes a previously added destruct hook for the specified component type.
+	 *
+	 * @tparam T The component type the hook was registered to.
+	 * @param hook The hook instance to remove.
+	 */
+	template <typename T>
+	void RemoveOnDestruct(const Hook& hook) {
+		ecs::Manager<JSONArchiver>::RemoveOnDestruct<T>(hook);
+	}
+
+	/**
+	 * @brief Removes a previously added update hook for the specified component type.
+	 *
+	 * @tparam T The component type the hook was registered to.
+	 * @param hook The hook instance to remove.
+	 */
+	template <typename T>
+	void RemoveOnUpdate(const Hook& hook) {
+		ecs::Manager<JSONArchiver>::RemoveOnUpdate<T>(hook);
+	}
 
 	friend void to_json(json& j, const Manager& manager);
 	friend void from_json(const json& j, Manager& manager);
