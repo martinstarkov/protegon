@@ -6,12 +6,15 @@
 
 #include "common/assert.h"
 #include "common/type_traits.h"
-#include "serialization/serializable.h"
+#include "math/math.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
-template <typename T, tt::arithmetic<T> = true>
+template <typename T>
 struct Vector3 {
+	static_assert(std::is_arithmetic_v<T>);
+
 	T x{ 0 };
 	T y{ 0 };
 	T z{ 0 };
@@ -27,6 +30,8 @@ struct Vector3 {
 
 	constexpr Vector3(T x_component, T y_component, T z_component) :
 		x{ x_component }, y{ y_component }, z{ z_component } {}
+
+	explicit Vector3(const json& j);
 
 	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
 	template <typename U, tt::not_narrowing<U, T> = true>
@@ -44,6 +49,14 @@ struct Vector3 {
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector3(const Vector3<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
+
+	friend bool operator==(const Vector3& lhs, const Vector3& rhs) {
+		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z);
+	}
+
+	friend bool operator!=(const Vector3& lhs, const Vector3& rhs) {
+		return !operator==(lhs, rhs);
+	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
@@ -171,24 +184,18 @@ struct Vector3 {
 	[[nodiscard]] bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 });
 	}
-
-	PTGN_SERIALIZER_REGISTER(Vector3<T>, x, y, z)
 };
+
+template <typename T>
+void to_json(json& j, const Vector3<T>& vector);
+
+template <typename T>
+void from_json(const json& j, Vector3<T>& vector);
 
 using V3_int	= Vector3<int>;
 using V3_uint	= Vector3<unsigned int>;
 using V3_float	= Vector3<float>;
 using V3_double = Vector3<double>;
-
-template <typename V>
-[[nodiscard]] inline bool operator==(const Vector3<V>& lhs, const Vector3<V>& rhs) {
-	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z);
-}
-
-template <typename V>
-[[nodiscard]] inline bool operator!=(const Vector3<V>& lhs, const Vector3<V>& rhs) {
-	return !operator==(lhs, rhs);
-}
 
 template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector3<V>& v) {

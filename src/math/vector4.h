@@ -6,12 +6,15 @@
 
 #include "common/assert.h"
 #include "common/type_traits.h"
-#include "serialization/serializable.h"
+#include "math/math.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
-template <typename T, tt::arithmetic<T> = true>
+template <typename T>
 struct Vector4 {
+	static_assert(std::is_arithmetic_v<T>);
+
 	T x{ 0 };
 	T y{ 0 };
 	T z{ 0 };
@@ -28,6 +31,8 @@ struct Vector4 {
 
 	constexpr Vector4(T x_component, T y_component, T z_component, T w_component) :
 		x{ x_component }, y{ y_component }, z{ z_component }, w{ w_component } {}
+
+	explicit Vector4(const json& j);
 
 	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
 	template <typename U, tt::not_narrowing<U, T> = true>
@@ -52,6 +57,15 @@ struct Vector4 {
 		y{ static_cast<T>(o.y) },
 		z{ static_cast<T>(o.z) },
 		w{ static_cast<T>(o.w) } {}
+
+	friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
+		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) &&
+			   NearlyEqual(lhs.z, rhs.z) && NearlyEqual(lhs.w, rhs.w);
+	}
+
+	friend bool operator!=(const Vector4& lhs, const Vector4& rhs) {
+		return !operator==(lhs, rhs);
+	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
@@ -166,25 +180,18 @@ struct Vector4 {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 }) &&
 			   NearlyEqual(w, T{ 0 });
 	}
-
-	PTGN_SERIALIZER_REGISTER(Vector4<T>, x, y, z, w)
 };
+
+template <typename T>
+void to_json(json& j, const Vector4<T>& vector);
+
+template <typename T>
+void from_json(const json& j, Vector4<T>& vector);
 
 using V4_int	= Vector4<int>;
 using V4_uint	= Vector4<unsigned int>;
 using V4_float	= Vector4<float>;
 using V4_double = Vector4<double>;
-
-template <typename V>
-[[nodiscard]] inline bool operator==(const Vector4<V>& lhs, const Vector4<V>& rhs) {
-	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z) &&
-		   NearlyEqual(lhs.w, rhs.w);
-}
-
-template <typename V>
-[[nodiscard]] inline bool operator!=(const Vector4<V>& lhs, const Vector4<V>& rhs) {
-	return !operator==(lhs, rhs);
-}
 
 template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector4<V>& v) {

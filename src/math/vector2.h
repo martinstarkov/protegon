@@ -11,7 +11,7 @@
 #include "common/type_traits.h"
 #include "math/math.h"
 #include "math/rng.h"
-#include "serialization/serializable.h"
+#include "serialization/fwd.h"
 
 // TODO: Add xyz() and xyzw() functions.
 // TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.
@@ -34,9 +34,7 @@ struct Vector2 {
 
 	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
-	explicit constexpr Vector2(const json& j) {
-		j.get_to(*this);
-	}
+	explicit Vector2(const json& j);
 
 	template <typename U, typename S>
 	constexpr Vector2(U x_component, S y_component) :
@@ -53,6 +51,14 @@ struct Vector2 {
 	template <typename U>
 	explicit constexpr Vector2(const std::array<U, 2>& o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
+
+	friend bool operator==(const Vector2& lhs, const Vector2& rhs) {
+		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
+	}
+
+	friend bool operator!=(const Vector2& lhs, const Vector2& rhs) {
+		return !operator==(lhs, rhs);
+	}
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
@@ -246,26 +252,22 @@ struct Vector2 {
 		return std::acos(cosine);
 	}
 
-	[[nodiscard]] bool IsZero() const noexcept;
-
-	PTGN_SERIALIZER_REGISTER(Vector2<T>, x, y)
+	[[nodiscard]] bool IsZero() const {
+		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
+	}
 };
+
+template <typename T>
+void to_json(json& j, const Vector2<T>& vector);
+
+template <typename T>
+void from_json(const json& j, Vector2<T>& vector);
 
 using V2_int	= Vector2<int>;
 using V2_uint	= Vector2<unsigned int>;
 using V2_size	= Vector2<std::size_t>;
 using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
-
-template <typename S>
-[[nodiscard]] inline bool operator==(const Vector2<S>& lhs, const Vector2<S>& rhs) {
-	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
-}
-
-template <typename S>
-[[nodiscard]] inline bool operator!=(const Vector2<S>& lhs, const Vector2<S>& rhs) {
-	return !operator==(lhs, rhs);
-}
 
 template <typename S, ptgn::tt::stream_writable<std::ostream, S> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<S>& v) {
