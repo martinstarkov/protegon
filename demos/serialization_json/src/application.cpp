@@ -37,7 +37,7 @@ public:
 	std::string message;
 	float value;
 
-	PTGN_SERIALIZER_REGISTER(MyData, id, message, value)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(MyData, id, message, value)
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
@@ -118,21 +118,22 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	auto e1 = m.CreateEntity();
 	e1.Add<Draggable>(V2_float{ 1, 1 }, V2_float{ 30, 40 }, true);
 	e1.Add<Transform>(V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f });
-	e1.Add<impl::AnimationInfo>(5, V2_float{ 32, 32 }, V2_float{ 0, 0 }, 0);
 	e1.Add<Enabled>(true);
 	e1.Add<Visible>(false);
 	e1.Add<Depth>(22);
-	e1.Add<Tint>(color::Blue);
+	auto tint_color{ color::Blue };
+	e1.Add<Tint>(tint_color);
 	e1.Add<LineWidth>(3.5f);
 	e1.Add<TextureHandle>("sheep1");
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	e1.Add<Interactive>();
-	e1.Add<impl::Offsets>();
+	e1.Add<impl::Offsets>(
+	); // Transforms will be serialized as nulls because they are default values.
 	e1.Add<Lifetime>(milliseconds{ 300 }).Start();
 
 	{
-		json j = e1;
+		json j = e1.Serialize();
 
 		SaveJson(j, "resources/mydata.json");
 
@@ -159,12 +160,12 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		PTGN_ASSERT(e2.Has<Transform>());
 		PTGN_ASSERT(e2.Has<UUID>());
 		PTGN_ASSERT(e2.Has<Draggable>());
-		PTGN_ASSERT(e2.Has<impl::AnimationInfo>());
 		PTGN_ASSERT(e2.Has<TextureCrop>());
 		PTGN_ASSERT(e2.Has<Enabled>());
 		PTGN_ASSERT(e2.Has<Visible>());
 		PTGN_ASSERT(e2.Has<Depth>());
 		PTGN_ASSERT(e2.Has<Tint>());
+		PTGN_ASSERT(e2.Get<Tint>() == tint_color);
 		PTGN_ASSERT(e2.Has<LineWidth>());
 		PTGN_ASSERT(e2.Has<TextureHandle>());
 		PTGN_ASSERT(e2.Has<RigidBody>());
@@ -175,7 +176,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		PTGN_LOG("Successfully deserialized all entity components");
 	}
 
-	{
+	/*{
 		JsonOutputArchive json_output("resources/mydata.json");
 		MyData data3;
 		data3.id	  = 456;
@@ -183,9 +184,9 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		data3.value	  = 2.71f;
 
 		json_output.Write("data3", data3);
-	}
+	}*/
 
-	{
+	/*{
 		JsonInputArchive json_input("resources/mydata.json");
 		MyData data4;
 
@@ -193,7 +194,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 
 		std::cout << "JSON: id=" << data4.id << ", message=\"" << data4.message
 				  << "\", value=" << data4.value << std::endl;
-	}
+	}*/
 
 	return 0;
 }
@@ -428,7 +429,7 @@ public:
 		std::cout << "TweenScript1: " << e << " updated with " << f << "\n";
 	}
 
-	PTGN_SERIALIZER_REGISTER(TweenScript1, e)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TweenScript1, e)
 
 private:
 	int e{ 0 };
@@ -444,7 +445,7 @@ public:
 		std::cout << "TweenScript2: " << e << " updated with " << f << "\n";
 	}
 
-	// PTGN_SERIALIZER_REGISTER(TweenScript2, e)
+	// PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TweenScript2, e)
 
 private:
 	int e{ 0 };

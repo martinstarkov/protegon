@@ -1,0 +1,54 @@
+{
+    "Depth": 22,
+    "Draggable": {
+        "dragging": true,
+        "offset": [
+            1.0,
+            1.0
+        ],
+        "start": [
+            30.0,
+            40.0
+        ]
+    },
+    "Enabled": null,
+    "Interactive": null,
+    "Lifetime": {
+        "duration": 0.3,
+        "timer": {
+            "paused": false,
+            "running": true
+        }
+    },
+    "LineWidth": 3.5,
+    "Offsets": null,
+    "RigidBody": null,
+    "TextureCrop": {
+        "position": [
+            1.0,
+            2.0
+        ],
+        "size": [
+            11.0,
+            12.0
+        ]
+    },
+    "TextureHandle": 6951431194143,
+    "Tint": {
+        "a": 255,
+        "b": 255
+    },
+    "Transform": {
+        "position": [
+            30.0,
+            50.0
+        ],
+        "rotation": 2.140000104904175,
+        "scale": [
+            2.0,
+            2.0
+        ]
+    },
+    "UUID": 654469690024418976,
+    "Visible": false
+}
