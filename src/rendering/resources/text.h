@@ -67,7 +67,7 @@ struct TextOutline {
 		return !(a == b);
 	}
 
-	PTGN_SERIALIZER_REGISTER(TextOutline, width, color)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextOutline, width, color)
 };
 
 struct TextShadingColor : public ColorComponent {

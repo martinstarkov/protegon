@@ -85,7 +85,7 @@ struct TopDownMovement {
 
 	V2_float facing_direction;
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		TopDownMovement, max_speed, max_acceleration, max_deceleration, max_turn_speed, friction,
 		use_acceleration, flip_vertically, keys_enabled, only_orthogonal_movement, up_key, left_key,
 		down_key, right_key, facing_direction, up_input, down_input, left_input, right_input, dir,
@@ -148,16 +148,15 @@ struct PlatformerMovement {
 	// @param dt Unit: seconds.
 	void Update(Transform& transform, RigidBody& rb, float dt) const;
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		PlatformerMovement, grounded, max_speed, max_acceleration, max_deceleration, max_turn_speed,
 		max_air_acceleration, max_air_deceleration, max_air_turn_speed, use_acceleration, friction,
 		left_key, right_key
 	)
 private:
 	// @param dt Unit: seconds.
-	void RunWithAcceleration(
-		const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt
-	) const;
+	void RunWithAcceleration(const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt)
+		const;
 };
 
 struct PlatformerJump {

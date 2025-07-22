@@ -35,7 +35,7 @@ struct LightProperties {
 	// Higher -> Less light reaches the outer radius.
 	float falloff{ 2.0f };
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		LightProperties, intensity, color, ambient_intensity, ambient_color, radius, falloff
 	)
 };

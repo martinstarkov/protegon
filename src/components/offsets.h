@@ -33,7 +33,7 @@ struct Offsets {
 	// User applied offset.
 	Transform custom;
 
-	PTGN_SERIALIZER_REGISTER(Offsets, shake, bounce, custom)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Offsets, shake, bounce, custom)
 };
 
 } // namespace impl

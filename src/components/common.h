@@ -12,7 +12,7 @@ struct Enabled : public ArithmeticComponent<bool> {
 
 	Enabled() : ArithmeticComponent{ true } {}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(Enabled, value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Enabled, value_)
 };
 
 struct Visible : public ArithmeticComponent<bool> {
@@ -20,7 +20,7 @@ struct Visible : public ArithmeticComponent<bool> {
 
 	Visible() : ArithmeticComponent{ true } {}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(Visible, value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Visible, value_)
 };
 
 struct Tint : public ColorComponent {
@@ -34,7 +34,7 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 
 	[[nodiscard]] Depth RelativeTo(Depth parent) const;
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(Depth, value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Depth, value_)
 };
 
 } // namespace ptgn

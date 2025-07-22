@@ -9,7 +9,7 @@ struct RaycastResult {
 	float t{ 1.0f }; // How far along the ray the impact occurred.
 	V2_float normal; // Normal of the impact (normalised).
 
-	PTGN_SERIALIZER_REGISTER(RaycastResult, t, normal)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RaycastResult, t, normal)
 
 	[[nodiscard]] bool Occurred() const;
 };

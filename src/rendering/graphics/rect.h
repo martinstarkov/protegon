@@ -31,7 +31,7 @@ struct Rect : public Drawable<Rect> {
 
 	V2_float size;
 
-	PTGN_SERIALIZER_REGISTER(Rect, size)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Rect, size)
 };
 
 /**

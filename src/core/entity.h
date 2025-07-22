@@ -41,7 +41,7 @@ struct IgnoreParentTransform : public ArithmeticComponent<bool> {
 
 	IgnoreParentTransform() : ArithmeticComponent{ true } {}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(IgnoreParentTransform, value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(IgnoreParentTransform, value_)
 };
 
 template <typename T>
@@ -557,7 +557,7 @@ struct Collision {
 		return !operator==(a, b);
 	}
 
-	PTGN_SERIALIZER_REGISTER(Collision, entity, normal)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Collision, entity, normal)
 };
 
 namespace impl {

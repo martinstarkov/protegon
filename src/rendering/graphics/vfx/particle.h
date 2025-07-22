@@ -35,7 +35,7 @@ struct Particle {
 	float start_radius{ 0.0f };
 	float radius{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		Particle, position, velocity, color, start_color, end_color, timer, lifetime, start_radius,
 		radius
 	)
@@ -85,7 +85,7 @@ struct ParticleInfo {
 	V2_float tangential_acceleration;
 	V2_float tangential_acceleration_variance;
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		ParticleInfo, texture_key, texture_enabled, tint_texture, total_particles, emission_delay,
 		lifetime, speed, starting_angle, line_width, particle_shape, start_color, end_color, radius,
 		radius_variance, start_scale, end_scale, lifetime_variance, speed_variance, angle_variance,
@@ -111,7 +111,7 @@ struct ParticleEmitterComponent {
 
 	void ResetParticle(const V2_float& start_position, Particle& p);
 
-	PTGN_SERIALIZER_REGISTER(ParticleEmitterComponent, info, particle_count, emission, rng, manager)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ParticleEmitterComponent, info, particle_count, emission, rng, manager)
 };
 
 } // namespace impl

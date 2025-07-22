@@ -88,7 +88,7 @@ public:
 		}
 	};
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(IDrawable, hash)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(IDrawable, hash)
 
 	std::size_t hash{ 0 };
 };

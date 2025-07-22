@@ -96,7 +96,7 @@ public:
 	// TODO: Change this to recalculate view and projection matrices based on position instead of
 	// storing it. This requires that the entity CameraInfo component is processed after Transform.
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
 		viewport_position, viewport_size, center_on_window, resize_to_window, pixel_rounding,
 		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z,

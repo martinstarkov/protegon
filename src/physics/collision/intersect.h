@@ -9,7 +9,7 @@ struct Intersection {
 	float depth{ 0.0f };
 	V2_float normal;
 
-	PTGN_SERIALIZER_REGISTER(Intersection, depth, normal)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Intersection, depth, normal)
 
 	[[nodiscard]] bool Occurred() const;
 };

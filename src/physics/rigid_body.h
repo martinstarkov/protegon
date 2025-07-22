@@ -19,7 +19,7 @@ struct RigidBody {
 	// @param dt Unit: seconds.
 	void Update(const V2_float& physics_gravity, float dt);
 
-	PTGN_SERIALIZER_REGISTER(RigidBody, max_speed, drag, gravity, immovable, velocity)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RigidBody, max_speed, drag, gravity, immovable, velocity)
 
 	// -1 means no enforcement of maximum speed.
 	float max_speed{ -1.0f };

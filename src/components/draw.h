@@ -17,6 +17,8 @@
 #include "rendering/resources/texture.h"
 #include "serialization/serializable.h"
 
+// TODO: Separate file.
+
 namespace ptgn {
 
 class Scene;
@@ -34,7 +36,7 @@ struct LineWidth : public ArithmeticComponent<float> {
 
 	LineWidth() : ArithmeticComponent{ 1.0f } {}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(LineWidth, value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(LineWidth, value_)
 };
 
 struct TextureCrop {
@@ -52,7 +54,7 @@ struct TextureCrop {
 		return !(a == b);
 	}
 
-	PTGN_SERIALIZER_REGISTER(TextureCrop, position, size)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextureCrop, position, size)
 };
 
 struct Sprite : public Entity, public Drawable<Sprite> {
@@ -189,7 +191,7 @@ public:
 	void SetCurrentFrame(std::size_t new_frame);
 	void IncrementFrame();
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		AnimationInfo, duration, frame_timer, frame_count, frame_size, play_count, start_pixel,
 		current_frame, frames_played
 	)

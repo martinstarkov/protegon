@@ -14,7 +14,7 @@ public:
 
 	operator std::uint64_t() const;
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(UUID, uuid_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(UUID, uuid_)
 
 private:
 	std::uint64_t uuid_{ 0 };

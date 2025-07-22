@@ -25,7 +25,7 @@ struct Circle : public Drawable<Circle> {
 
 	float radius{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER(Circle, radius)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius)
 };
 
 /**
