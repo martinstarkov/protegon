@@ -187,6 +187,17 @@ struct TweenPoint {
 
 	void SetReversed(bool reversed);
 
+	friend bool operator==(const TweenPoint& a, const TweenPoint& b) {
+		return a.current_repeat_ == b.current_repeat_ && a.total_repeats_ == b.total_repeats_ &&
+			   a.yoyo_ == b.yoyo_ && a.currently_reversed_ == b.currently_reversed_ &&
+			   a.start_reversed_ == b.start_reversed_ && a.duration_ == b.duration_ &&
+			   a.ease_ == b.ease_ && a.script_container_ == b.script_container_;
+	}
+
+	friend bool operator!=(const TweenPoint& a, const TweenPoint& b) {
+		return !operator==(a, b);
+	}
+
 	// current number of repetitions of the tween.
 	std::int64_t current_repeat_{ 0 };
 

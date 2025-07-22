@@ -38,7 +38,7 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(ArithmeticComponent, value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(ArithmeticComponent, value_)
 
 protected:
 	T value_{};
@@ -72,7 +72,15 @@ struct Vector2Component {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(Vector2Component, value_)
+	friend bool operator==(const Vector2Component& a, const Vector2Component& b) {
+		return a.value_ == b.value_;
+	}
+
+	friend bool operator!=(const Vector2Component& a, const Vector2Component& b) {
+		return a.value_ != b.value_;
+	}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Vector2Component, value_)
 
 protected:
 	Vector2<T> value_{ 0 };
@@ -113,7 +121,7 @@ struct StringComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(StringComponent, value_)
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(StringComponent, value_)
 
 protected:
 	std::string value_;

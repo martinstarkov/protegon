@@ -12,7 +12,7 @@ struct Interactive {
 	bool is_inside{ false };
 	bool was_inside{ false };
 
-	PTGN_SERIALIZER_REGISTER(Interactive, is_inside, was_inside)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, is_inside, was_inside)
 };
 
 struct Draggable {
@@ -24,7 +24,7 @@ struct Draggable {
 
 	bool dragging{ false };
 
-	PTGN_SERIALIZER_REGISTER(Draggable, offset, start, dragging)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Draggable, offset, start, dragging)
 };
 
 struct InteractiveCircles {
@@ -32,7 +32,15 @@ struct InteractiveCircles {
 		float radius{ 0.0f };
 		V2_float offset;
 
-		PTGN_SERIALIZER_REGISTER(InteractiveCircle, radius, offset)
+		friend bool operator==(const InteractiveCircle& a, const InteractiveCircle& b) {
+			return NearlyEqual(a.radius, b.radius) && a.offset == b.offset;
+		}
+
+		friend bool operator!=(const InteractiveCircle& a, const InteractiveCircle& b) {
+			return !(a == b);
+		}
+
+		PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveCircle, radius, offset)
 	};
 
 	InteractiveCircles() = default;
@@ -40,7 +48,7 @@ struct InteractiveCircles {
 	InteractiveCircles(float radius, const V2_float& offset = {}) :
 		circles{ InteractiveCircle{ radius, offset } } {}
 
-	PTGN_SERIALIZER_REGISTER(InteractiveCircles, circles)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveCircles, circles)
 
 	std::vector<InteractiveCircle> circles;
 };
@@ -51,7 +59,15 @@ struct InteractiveRects {
 		Origin origin{ Origin::Center };
 		V2_float offset;
 
-		PTGN_SERIALIZER_REGISTER(InteractiveRect, size, origin, offset)
+		friend bool operator==(const InteractiveRect& a, const InteractiveRect& b) {
+			return a.size == b.size && a.origin == b.origin && a.offset == b.offset;
+		}
+
+		friend bool operator!=(const InteractiveRect& a, const InteractiveRect& b) {
+			return !(a == b);
+		}
+
+		PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveRect, size, origin, offset)
 	};
 
 	InteractiveRects() = default;
@@ -61,7 +77,7 @@ struct InteractiveRects {
 	) :
 		rects{ InteractiveRect{ size, origin, offset } } {}
 
-	PTGN_SERIALIZER_REGISTER(InteractiveRects, rects)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveRects, rects)
 
 	std::vector<InteractiveRect> rects;
 };

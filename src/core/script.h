@@ -186,6 +186,14 @@ public:
 		}
 	}
 
+	friend bool operator==(const ScriptContainer& a, const ScriptContainer& b) {
+		return a.scripts == b.scripts;
+	}
+
+	friend bool operator!=(const ScriptContainer& a, const ScriptContainer& b) {
+		return !operator==(a, b);
+	}
+
 	std::unordered_map<std::size_t, std::shared_ptr<TBaseScript>> scripts;
 };
 

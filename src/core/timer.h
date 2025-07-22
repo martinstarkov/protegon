@@ -108,6 +108,16 @@ public:
 	friend void to_json(json& j, const Timer& timer);
 	friend void from_json(const json& j, Timer& timer);
 
+	friend bool operator==(const Timer& a, const Timer& b) {
+		return a.start_time_ == b.start_time_ && a.running_ == b.running_ &&
+			   a.paused_ == b.paused_ && a.stop_time_ == b.stop_time_ &&
+			   a.pause_time_ == b.pause_time_ && a.offset_ == b.offset_;
+	}
+
+	friend bool operator!=(const Timer& a, const Timer& b) {
+		return !(a == b);
+	}
+
 private:
 	std::chrono::time_point<std::chrono::steady_clock> start_time_{};
 	std::chrono::time_point<std::chrono::steady_clock> stop_time_{};

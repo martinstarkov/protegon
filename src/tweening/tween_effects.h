@@ -30,13 +30,22 @@ struct FollowEffectInfo {
 
 	std::size_t current_waypoint{ 0 };
 
-	PTGN_SERIALIZER_REGISTER(FollowEffectInfo, target, config, current_waypoint)
+	friend bool operator==(const FollowEffectInfo& a, const FollowEffectInfo& b) {
+		return a.target == b.target && a.config == b.config &&
+			   a.current_waypoint == b.current_waypoint;
+	}
+
+	friend bool operator!=(const FollowEffectInfo& a, const FollowEffectInfo& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffectInfo, target, config, current_waypoint)
 };
 
 struct FollowEffect {
 	std::deque<FollowEffectInfo> tasks;
 
-	PTGN_SERIALIZER_REGISTER(FollowEffect, tasks)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, tasks)
 };
 
 template <typename T>
@@ -57,31 +66,42 @@ struct EffectInfo {
 	Ease ease{ SymmetricalEase::Linear };
 	Timer timer;
 
-	PTGN_SERIALIZER_REGISTER(EffectInfo, start_value, target_value, duration, ease, timer)
+	friend bool operator==(const EffectInfo& a, const EffectInfo& b) {
+		return a.start_value == b.start_value && a.target_value == b.target_value &&
+			   a.duration == b.duration && a.ease == b.ease && a.timer == b.timer;
+	}
+
+	friend bool operator!=(const EffectInfo& a, const EffectInfo& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+		EffectInfo, start_value, target_value, duration, ease, timer
+	)
 };
 
 struct TranslateEffect {
 	std::deque<EffectInfo<V2_float>> tasks;
 
-	PTGN_SERIALIZER_REGISTER(TranslateEffect, tasks)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TranslateEffect, tasks)
 };
 
 struct RotateEffect {
 	std::deque<EffectInfo<float>> tasks;
 
-	PTGN_SERIALIZER_REGISTER(RotateEffect, tasks)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RotateEffect, tasks)
 };
 
 struct ScaleEffect {
 	std::deque<EffectInfo<V2_float>> tasks;
 
-	PTGN_SERIALIZER_REGISTER(ScaleEffect, tasks)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ScaleEffect, tasks)
 };
 
 struct TintEffect {
 	std::deque<EffectInfo<Color>> tasks;
 
-	PTGN_SERIALIZER_REGISTER(TintEffect, tasks)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TintEffect, tasks)
 };
 
 struct BounceEffectInfo {
@@ -102,7 +122,18 @@ struct BounceEffectInfo {
 	bool symmetrical{ false }; // If true, bounce origin is the middle point of the movement. If
 							   // false, bounce origin is the bottom (or top) point of the movement.
 
-	PTGN_SERIALIZER_REGISTER(
+	friend bool operator==(const BounceEffectInfo& a, const BounceEffectInfo& b) {
+		return a.amplitude == b.amplitude && a.duration == b.duration && a.ease == b.ease &&
+			   a.timer == b.timer && a.static_offset == b.static_offset &&
+			   a.total_periods == b.total_periods && a.periods_completed == b.periods_completed &&
+			   a.symmetrical == b.symmetrical;
+	}
+
+	friend bool operator!=(const BounceEffectInfo& a, const BounceEffectInfo& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		BounceEffectInfo, amplitude, duration, ease, timer, static_offset, total_periods,
 		periods_completed, symmetrical
 	)
@@ -111,7 +142,7 @@ struct BounceEffectInfo {
 struct BounceEffect {
 	std::deque<BounceEffectInfo> tasks;
 
-	PTGN_SERIALIZER_REGISTER(BounceEffect, tasks)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(BounceEffect, tasks)
 };
 
 struct ShakeEffectInfo : public EffectInfo<float> {
@@ -130,7 +161,15 @@ struct ShakeEffectInfo : public EffectInfo<float> {
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER(
+	friend bool operator==(const ShakeEffectInfo& a, const ShakeEffectInfo& b) {
+		return NearlyEqual(a.trauma, b.trauma) && a.config == b.config && a.seed == b.seed;
+	}
+
+	friend bool operator!=(const ShakeEffectInfo& a, const ShakeEffectInfo& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		ShakeEffectInfo, start_value, target_value, duration, ease, timer, config, seed, trauma
 	)
 };
@@ -138,7 +177,7 @@ struct ShakeEffectInfo : public EffectInfo<float> {
 struct ShakeEffect {
 	std::deque<ShakeEffectInfo> tasks;
 
-	PTGN_SERIALIZER_REGISTER(ShakeEffect, tasks)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, tasks)
 };
 
 class TranslateEffectSystem {
