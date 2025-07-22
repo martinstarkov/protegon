@@ -140,7 +140,7 @@ public:
 	 * removal.
 	 */
 	template <typename T>
-	[[nodiscard]] Hook& OnConstruct() {
+	[[nodiscard]] ecs::Hook<JSONArchiver>& OnConstruct() {
 		return ecs::Manager<JSONArchiver>::OnConstruct<T>();
 	}
 
@@ -155,7 +155,7 @@ public:
 	 * removal.
 	 */
 	template <typename T>
-	[[nodiscard]] Hook& OnDestruct() {
+	[[nodiscard]] ecs::Hook<JSONArchiver>& OnDestruct() {
 		return ecs::Manager<JSONArchiver>::OnDestruct<T>();
 	}
 
@@ -170,7 +170,7 @@ public:
 	 * removal.
 	 */
 	template <typename T>
-	[[nodiscard]] Hook& OnUpdate() {
+	[[nodiscard]] ecs::Hook<JSONArchiver>& OnUpdate() {
 		return ecs::Manager<JSONArchiver>::OnUpdate<T>();
 	}
 
@@ -185,7 +185,7 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnConstruct(const Hook& hook) const {
+	[[nodiscard]] bool HasOnConstruct(const ecs::Hook<JSONArchiver>& hook) const {
 		return ecs::Manager<JSONArchiver>::HasOnConstruct<T>(hook);
 	}
 
@@ -200,7 +200,7 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnDestruct(const Hook& hook) const {
+	[[nodiscard]] bool HasOnDestruct(const ecs::Hook<JSONArchiver>& hook) const {
 		return ecs::Manager<JSONArchiver>::HasOnDestruct<T>(hook);
 	}
 
@@ -215,7 +215,7 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnUpdate(const Hook& hook) const {
+	[[nodiscard]] bool HasOnUpdate(const ecs::Hook<JSONArchiver>& hook) const {
 		return ecs::Manager<JSONArchiver>::HasOnUpdate<T>(hook);
 	}
 
@@ -226,7 +226,7 @@ public:
 	 * @param hook The hook instance to remove.
 	 */
 	template <typename T>
-	void RemoveOnConstruct(const Hook& hook) {
+	void RemoveOnConstruct(const ecs::Hook<JSONArchiver>& hook) {
 		ecs::Manager<JSONArchiver>::RemoveOnConstruct<T>(hook);
 	}
 
@@ -237,7 +237,7 @@ public:
 	 * @param hook The hook instance to remove.
 	 */
 	template <typename T>
-	void RemoveOnDestruct(const Hook& hook) {
+	void RemoveOnDestruct(const ecs::Hook<JSONArchiver>& hook) {
 		ecs::Manager<JSONArchiver>::RemoveOnDestruct<T>(hook);
 	}
 
@@ -248,7 +248,7 @@ public:
 	 * @param hook The hook instance to remove.
 	 */
 	template <typename T>
-	void RemoveOnUpdate(const Hook& hook) {
+	void RemoveOnUpdate(const ecs::Hook<JSONArchiver>& hook) {
 		ecs::Manager<JSONArchiver>::RemoveOnUpdate<T>(hook);
 	}
 
