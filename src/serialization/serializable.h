@@ -162,7 +162,7 @@ template <typename T, typename S>
 	if (auto nlohmann_json_j_value{ nlohmann_json_j.contains(#v1) ? nlohmann_json_j.at(#v1) \
 																  : json{} };               \
 		nlohmann_json_j_value.empty()) {                                                    \
-		nlohmann_json_t.v1 = {};                                                            \
+		nlohmann_json_t.v1 = nlohmann_json_default_obj.v1;                                  \
 	} else {                                                                                \
 		nlohmann_json_t.v1 = nlohmann_json_j.value(#v1, nlohmann_json_default_obj.v1);      \
 	}
