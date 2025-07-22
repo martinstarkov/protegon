@@ -171,6 +171,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		PTGN_ASSERT(e2.Has<RigidBody>());
 		PTGN_ASSERT(e2.Has<Interactive>());
 		PTGN_ASSERT(e2.Has<impl::Offsets>());
+		PTGN_ASSERT(e2.Get<impl::Offsets>().bounce == Transform{});
 		PTGN_ASSERT(e2.Has<Lifetime>());
 
 		PTGN_LOG("Successfully deserialized all entity components");
