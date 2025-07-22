@@ -39,7 +39,7 @@ Entity Manager::GetEntityByUUID(const UUID& uuid) const {
 Entity Manager::CreateEntity(const json& j) {
 	Entity entity{ Manager::CreateEntity() };
 	PTGN_ASSERT(entity, "Failed to create entity");
-	j.get_to(entity);
+	entity.Deserialize(j);
 	PTGN_ASSERT(entity.Has<UUID>(), "Entity created from json must have a UUID");
 	return entity;
 }
