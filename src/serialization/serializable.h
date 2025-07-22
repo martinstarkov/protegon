@@ -67,17 +67,17 @@ struct JsonKeyValuePairWithDefault {
 		default_value{ default_val } {}
 };
 
-template <typename>
-struct is_json_pair : public std::false_type {};
+template <typename T>
+struct is_json_pair : std::false_type {};
 
 template <typename T>
-struct is_json_pair<JsonKeyValuePair<T>> : public std::true_type {};
+struct is_json_pair<JsonKeyValuePair<T>> : std::true_type {};
 
 template <typename T, typename S>
-struct is_json_pair<JsonKeyValuePairWithDefault<T, S>> : public std::true_type {};
+struct is_json_pair<JsonKeyValuePairWithDefault<T, S>> : std::true_type {};
 
-template <typename T, typename S = T>
-inline constexpr bool is_json_pair_v{ is_json_pair<T>::value || is_json_pair<T, S>::value };
+template <typename T>
+inline constexpr bool is_json_pair_v{ is_json_pair<T>::value };
 
 template <typename T, typename S>
 impl::JsonKeyValuePairWithDefault<T, S> MakeKeyValue(
