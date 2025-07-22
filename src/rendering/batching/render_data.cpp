@@ -813,7 +813,7 @@ void RenderData::DrawVertexArray(std::size_t index_count) const {
 void RenderData::InvokeDrawable(const Entity& entity) {
 	PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
 
-	const auto& drawable{ entity.Get<IDrawable>() };
+	const auto& drawable{ entity.GetImpl<IDrawable>() };
 
 	const auto& drawable_functions{ IDrawable::data() };
 
