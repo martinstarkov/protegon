@@ -22,8 +22,6 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 }; //{ 1280, 720 };
 
-/*
-
 // TODO: Move all of this into the collision system.
 
 struct AABB {
@@ -331,8 +329,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	return 0;
 }
 
-*/
-
+/*
 struct Box;
 
 struct EndPoint {
@@ -708,4 +705,4 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("SweepAndPruneScene", window_size);
 	game.scene.Enter<SweepAndPruneScene>("");
 	return 0;
-}
+}*/
