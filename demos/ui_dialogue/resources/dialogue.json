@@ -3,23 +3,23 @@
     "intro": {
       "lines": [
         {
-          "text": "Hello traveler!\nMy name is Martin",
+          "content": "Hello traveler!\nMy name is Martin",
           "color": [255, 0, 0, 255],
-          "scroll_duration_ms": 1000
+          "scroll_duration": 1.0
         },
         {
-          "text": "Welcome to our city!\nMy name is Martin",
+          "content": "Welcome to our city!\nMy name is Martin",
           "color": [0, 0, 255, 255],
-          "scroll_duration_ms": 300
+          "scroll_duration": 0.3
         },
         {
-          "text": "You really should get going!\nBye!"
+          "content": "You really should get going!\nBye!"
         }
       ],
       "index": 0,
-      "repeatable": true,
-      "behavior": "cycle",
+      "behavior": "sequential",
       "scroll": true,
+      "repeatable": true,
       "next": "outro"
     },
     "outro": {
@@ -28,8 +28,7 @@
         "You are the savior of our city!\nThank you!"
       ],
       "index": 0,
-      "repeatable": true,
-      "behavior": "cycle",
+      "behavior": "sequential",
       "scroll": true
     }
   }
