@@ -40,6 +40,10 @@ public:
 
 	template <typename T>
 	[[nodiscard]] T GetComponent() const {
+		static_assert(
+			std::is_default_constructible_v<T>,
+			"Components retrieved from json must be default constructible"
+		);
 		if constexpr (tt::has_from_json_v<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
@@ -78,6 +82,10 @@ public:
 
 	template <typename T>
 	[[nodiscard]] std::vector<T> GetComponents() const {
+		static_assert(
+			std::is_default_constructible_v<T>,
+			"Components retrieved from json must be default constructible"
+		);
 		if constexpr (tt::has_from_json_v<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
@@ -93,8 +101,8 @@ public:
 
 	// @return dense_set, sparse_set
 	template <typename T>
-	[[nodiscard]] std::pair<std::vector<ecs::impl::Index>, std::vector<ecs::impl::Index>> GetArrays(
-	) const {
+	[[nodiscard]] std::pair<std::vector<ecs::impl::Index>, std::vector<ecs::impl::Index>>
+	GetArrays() const {
 		if constexpr (tt::has_from_json_v<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
