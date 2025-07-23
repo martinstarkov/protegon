@@ -18,11 +18,11 @@
 namespace ptgn {
 
 void Manager::Refresh() {
-	ecs::Manager<JSONArchiver>::Refresh();
+	Parent::Refresh();
 }
 
 void Manager::Reserve(std::size_t capacity) {
-	ecs::Manager<JSONArchiver>::Reserve(capacity);
+	Parent::Reserve(capacity);
 }
 
 Entity Manager::GetEntityByUUID(const UUID& uuid) const {
@@ -45,7 +45,7 @@ Entity Manager::CreateEntity(const json& j) {
 }
 
 Entity Manager::CreateEntity(UUID uuid) {
-	Entity entity{ ecs::Manager<JSONArchiver>::CreateEntity() };
+	Entity entity{ Parent::CreateEntity() };
 	entity.Add<UUID>(uuid);
 	return entity;
 }
@@ -55,15 +55,15 @@ Entity Manager::CreateEntity() {
 }
 
 std::size_t Manager::Size() const {
-	return ecs::Manager<JSONArchiver>::Size();
+	return Parent::Size();
 }
 
 bool Manager::IsEmpty() const {
-	return ecs::Manager<JSONArchiver>::IsEmpty();
+	return Parent::IsEmpty();
 }
 
 std::size_t Manager::Capacity() const {
-	return ecs::Manager<JSONArchiver>::Capacity();
+	return Parent::Capacity();
 }
 
 void Manager::ClearEntities() {
@@ -73,11 +73,11 @@ void Manager::ClearEntities() {
 }
 
 void Manager::Clear() {
-	return ecs::Manager<JSONArchiver>::Clear();
+	return Parent::Clear();
 }
 
 void Manager::Reset() {
-	return ecs::Manager<JSONArchiver>::Reset();
+	return Parent::Reset();
 }
 
 void to_json(json& j, const Manager& manager) {

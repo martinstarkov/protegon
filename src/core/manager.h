@@ -11,17 +11,21 @@
 namespace ptgn {
 
 template <typename Archiver, bool is_const>
-using Entities = ecs::EntityContainer<Entity, Archiver, is_const, ecs::impl::LoopCriterion::None>;
+using Entities =
+	ecs::impl::EntityContainer<Entity, Archiver, is_const, ecs::impl::LoopCriterion::None>;
 
 template <typename Archiver, bool is_const, typename... TComponents>
-using EntitiesWith = ecs::EntityContainer<
+using EntitiesWith = ecs::impl::EntityContainer<
 	Entity, Archiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
 
 template <typename Archiver, bool is_const, typename... TComponents>
-using EntitiesWithout = ecs::EntityContainer<
+using EntitiesWithout = ecs::impl::EntityContainer<
 	Entity, Archiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
 
-class Manager : private ecs::Manager<JSONArchiver> {
+class Manager : private ecs::impl::Manager<JSONArchiver> {
+private:
+	using Parent = ecs::impl::Manager<JSONArchiver>;
+
 public:
 	Manager()							   = default;
 	Manager(const Manager&)				   = default;
@@ -40,7 +44,7 @@ public:
 
 	template <typename T>
 	void RegisterType() {
-		ecs::Manager<JSONArchiver>::GetOrAddPool<T>(ecs::Manager<JSONArchiver>::GetId<T>());
+		Parent::GetOrAddPool<T>(Parent::GetId<T>());
 	}
 
 	void Refresh();
@@ -63,14 +67,14 @@ public:
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
-		ecs::Manager<JSONArchiver>::CopyEntity<UUID>(from, to);
-		ecs::Manager<JSONArchiver>::CopyEntity<Ts...>(from, to);
+		Parent::CopyEntity<UUID>(from, to);
+		Parent::CopyEntity<Ts...>(from, to);
 	}
 
 	// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(const Entity& from) {
-		auto entity{ ecs::Manager<JSONArchiver>::CopyEntity<Ts...>(from) };
+		auto entity{ Parent::CopyEntity<Ts...>(from) };
 		entity.template Add<UUID>();
 		return entity;
 	}
@@ -79,36 +83,28 @@ public:
 	ptgn::EntitiesWith<JSONArchiver, true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
-						 ecs::Manager<JSONArchiver>::GetId<Ts>()
-					 )... } };
+					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::EntitiesWith<JSONArchiver, false, Ts...> EntitiesWith() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
-						 ecs::Manager<JSONArchiver>::GetId<Ts>()
-					 )... } };
+					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::EntitiesWithout<JSONArchiver, true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
-						 ecs::Manager<JSONArchiver>::GetId<Ts>()
-					 )... } };
+					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::EntitiesWithout<JSONArchiver, false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 ecs::Manager<JSONArchiver>::GetPool<Ts>(
-						 ecs::Manager<JSONArchiver>::GetId<Ts>()
-					 )... } };
+					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	ptgn::Entities<JSONArchiver, true> Entities() const {
@@ -141,7 +137,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] ecs::Hook<JSONArchiver>& OnConstruct() {
-		return ecs::Manager<JSONArchiver>::OnConstruct<T>();
+		return Parent::OnConstruct<T>();
 	}
 
 	/**
@@ -156,7 +152,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] ecs::Hook<JSONArchiver>& OnDestruct() {
-		return ecs::Manager<JSONArchiver>::OnDestruct<T>();
+		return Parent::OnDestruct<T>();
 	}
 
 	/**
@@ -171,7 +167,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] ecs::Hook<JSONArchiver>& OnUpdate() {
-		return ecs::Manager<JSONArchiver>::OnUpdate<T>();
+		return Parent::OnUpdate<T>();
 	}
 
 	/**
@@ -186,7 +182,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] bool HasOnConstruct(const ecs::Hook<JSONArchiver>& hook) const {
-		return ecs::Manager<JSONArchiver>::HasOnConstruct<T>(hook);
+		return Parent::HasOnConstruct<T>(hook);
 	}
 
 	/**
@@ -201,7 +197,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] bool HasOnDestruct(const ecs::Hook<JSONArchiver>& hook) const {
-		return ecs::Manager<JSONArchiver>::HasOnDestruct<T>(hook);
+		return Parent::HasOnDestruct<T>(hook);
 	}
 
 	/**
@@ -216,7 +212,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] bool HasOnUpdate(const ecs::Hook<JSONArchiver>& hook) const {
-		return ecs::Manager<JSONArchiver>::HasOnUpdate<T>(hook);
+		return Parent::HasOnUpdate<T>(hook);
 	}
 
 	/**
@@ -227,7 +223,7 @@ public:
 	 */
 	template <typename T>
 	void RemoveOnConstruct(const ecs::Hook<JSONArchiver>& hook) {
-		ecs::Manager<JSONArchiver>::RemoveOnConstruct<T>(hook);
+		Parent::RemoveOnConstruct<T>(hook);
 	}
 
 	/**
@@ -238,7 +234,7 @@ public:
 	 */
 	template <typename T>
 	void RemoveOnDestruct(const ecs::Hook<JSONArchiver>& hook) {
-		ecs::Manager<JSONArchiver>::RemoveOnDestruct<T>(hook);
+		Parent::RemoveOnDestruct<T>(hook);
 	}
 
 	/**
@@ -249,7 +245,7 @@ public:
 	 */
 	template <typename T>
 	void RemoveOnUpdate(const ecs::Hook<JSONArchiver>& hook) {
-		ecs::Manager<JSONArchiver>::RemoveOnUpdate<T>(hook);
+		Parent::RemoveOnUpdate<T>(hook);
 	}
 
 	friend void to_json(json& j, const Manager& manager);
@@ -260,8 +256,7 @@ private:
 
 	void ClearEntities() final;
 
-	explicit Manager(ecs::Manager<JSONArchiver>&& manager) :
-		ecs::Manager<JSONArchiver>{ std::move(manager) } {}
+	explicit Manager(Parent&& manager) : Parent{ std::move(manager) } {}
 };
 
 } // namespace ptgn

@@ -51,11 +51,14 @@ inline constexpr bool is_retrievable_component_v{
 
 } // namespace impl
 
-class Entity : private ecs::Entity<JSONArchiver> {
+class Entity : private ecs::impl::Entity<JSONArchiver> {
+private:
+	using Parent = ecs::impl::Entity<JSONArchiver>;
+
 public:
 	// Entity wrapper functionality.
 
-	using ecs::Entity<JSONArchiver>::Entity;
+	using Parent::Entity;
 
 	Entity()							 = default;
 	Entity(const Entity&)				 = default;
@@ -67,12 +70,11 @@ public:
 	explicit Entity(Scene& scene);
 
 	explicit operator bool() const {
-		return ecs::Entity<JSONArchiver>::operator bool();
+		return Parent::operator bool();
 	}
 
 	friend bool operator==(const Entity& a, const Entity& b) {
-		return static_cast<const ecs::Entity<JSONArchiver>&>(a) ==
-			   static_cast<const ecs::Entity<JSONArchiver>&>(b);
+		return static_cast<const Parent&>(a) == static_cast<const Parent&>(b);
 	}
 
 	friend bool operator!=(const Entity& a, const Entity& b) {
@@ -84,36 +86,36 @@ public:
 	// Make sure to call manager.Refresh() after this function.
 	template <typename... Ts>
 	[[nodiscard]] Entity Copy() {
-		return ecs::Entity<JSONArchiver>::Copy<Ts...>();
+		return Parent::Copy<Ts...>();
 	}
 
 	// Adds or replaces the component if the entity already has it.
 	// @return Reference to the added or replaced component.
 	template <typename T, typename... Ts>
 	T& Add(Ts&&... constructor_args) {
-		return ecs::Entity<JSONArchiver>::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return Parent::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	// Only adds the component if one does not exist on the entity.
 	// @return Reference to the added or existing component.
 	template <typename T, typename... Ts>
 	T& TryAdd(Ts&&... constructor_args) {
-		return ecs::Entity<JSONArchiver>::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return Parent::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename... Ts>
 	void Remove() {
-		ecs::Entity<JSONArchiver>::Remove<Ts...>();
+		Parent::Remove<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool Has() const {
-		return ecs::Entity<JSONArchiver>::Has<Ts...>();
+		return Parent::Has<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool HasAny() const {
-		return ecs::Entity<JSONArchiver>::HasAny<Ts...>();
+		return Parent::HasAny<Ts...>();
 	}
 
 	template <typename... Ts, tt::enable<(impl::is_retrievable_component_v<Ts> && ...)> = true>
@@ -490,22 +492,22 @@ private:
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() const {
-		return ecs::Entity<JSONArchiver>::Get<Ts...>();
+		return Parent::Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() {
-		return ecs::Entity<JSONArchiver>::Get<Ts...>();
+		return Parent::Get<Ts...>();
 	}
 
 	template <typename T>
 	[[nodiscard]] const T* TryGetImpl() const {
-		return ecs::Entity<JSONArchiver>::TryGet<T>();
+		return Parent::TryGet<T>();
 	}
 
 	template <typename T>
 	[[nodiscard]] T* TryGetImpl() {
-		return ecs::Entity<JSONArchiver>::TryGet<T>();
+		return Parent::TryGet<T>();
 	}
 
 	template <typename T>
@@ -538,7 +540,7 @@ private:
 
 	void RemoveParentImpl();
 
-	explicit Entity(const ecs::Entity<JSONArchiver>& e);
+	explicit Entity(const Parent& e);
 };
 
 // TODO: Move elsewhere once IScript is not tied to entity.
@@ -678,8 +680,7 @@ public:
 	}
 
 	// Called when the frame of the animation changes
-	virtual void OnAnimationFrameChange(
-		[[maybe_unused]] std::size_t new_frame
+	virtual void OnAnimationFrameChange([[maybe_unused]] std::size_t new_frame
 	) { /* user implementation */ }
 
 	// Called once when the animation goes through its first full cycle.
@@ -703,8 +704,7 @@ public:
 	// Called when the movement direction changes. Passed parameter is the difference in direction.
 	// If not moving, this is simply the new direction. If moving already, this is the newly added
 	// component of movement. To get the current direction instead, simply use GetDirection().
-	virtual void OnMoveDirectionChange(
-		[[maybe_unused]] MoveDirection direction_difference
+	virtual void OnMoveDirectionChange([[maybe_unused]] MoveDirection direction_difference
 	) { /* user implementation */ }
 
 	virtual void OnMoveUp() { /* user implementation */ }
