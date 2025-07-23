@@ -19,10 +19,16 @@ struct Dialogue {};
 class DialogueComponent {
 public:
 	DialogueComponent(Entity parent, const json& j) {
-		text = CreateText(parent.GetScene(), "Hello!", color::Pink);
-		text.SetParent(parent);
+		text_ = CreateText(parent.GetScene(), "Hello!", color::Pink);
+		text_.SetParent(parent);
 		PTGN_LOG(j);
 	}
+
+	void NextParagraph() {}
+
+	void UpdateDialogue() {}
+
+	void SetDialogue(std::string_view name) {}
 
 	DialogueComponent(DialogueComponent&&) noexcept			   = default;
 	DialogueComponent& operator=(DialogueComponent&&) noexcept = default;
@@ -30,11 +36,12 @@ public:
 	DialogueComponent& operator=(const DialogueComponent&)	   = delete;
 
 	~DialogueComponent() {
-		text.Destroy();
+		text_.Destroy();
 	}
 
 private:
-	Text text;
+	Text text_;
+	std::unordered_map<std::string_view, impl::Dialogue> dialogues_;
 };
 
 class Dialogue : public Entity {
