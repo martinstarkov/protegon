@@ -196,6 +196,12 @@ ButtonText::ButtonText(
 	}
 }
 
+ButtonText::~ButtonText() {
+	default_.Destroy();
+	hover_.Destroy();
+	pressed_.Destroy();
+}
+
 const Text& ButtonText::Get(ButtonState state) const {
 	switch (state) {
 		case ButtonState::Default: return default_;
@@ -480,7 +486,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			return;
 		}
 
-		if (const std::string & content{ text_sprite.Get<TextContent>().GetValue() };
+		if (const std::string& content{ text_sprite.Get<TextContent>().GetValue() };
 			content.empty()) {
 			return;
 		}
@@ -884,7 +890,7 @@ ToggleButton& ToggleButton::SetTextColorToggled(const TextColor& text_color, But
 	return *this;
 }
 
-std::string_view ToggleButton::GetTextContentToggled(ButtonState state) const {
+std::string ToggleButton::GetTextContentToggled(ButtonState state) const {
 	return Get<impl::ButtonTextToggled>().GetTextContent(state);
 }
 
@@ -985,12 +991,46 @@ ToggleButton& ToggleButton::SetButtonTintToggled(const Color& color, ButtonState
 	return *this;
 }
 
+impl::ToggleButtonGroupInfo::~ToggleButtonGroupInfo() {
+	for (auto [key, toggle_button] : buttons_) {
+		toggle_button.Destroy();
+	}
+}
+
+ToggleButton& ToggleButtonGroup::Load(std::string_view button_key, ToggleButton&& toggle_button) {
+	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
+
+	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
+
+	auto key{ Hash(button_key) };
+
+	if (auto it{ info.buttons_.find(key) }; it == info.buttons_.end()) {
+		auto [new_it, inserted] = info.buttons_.try_emplace(key, toggle_button);
+		PTGN_ASSERT(inserted, "Failed to insert toggle button");
+		AddToggleScript(new_it->second);
+		return new_it->second;
+	} else {
+		it->second.Destroy();
+		it->second = toggle_button;
+		return it->second;
+	}
+}
+
 void ToggleButtonGroup::Unload(std::string_view button_key) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
 
 	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
 
-	info.buttons_.erase(Hash(button_key));
+	auto key{ Hash(button_key) };
+
+	auto it{ info.buttons_.find(key) };
+
+	if (it == info.buttons_.end()) {
+		return;
+	}
+
+	it->second.Destroy();
+	info.buttons_.erase(it);
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {

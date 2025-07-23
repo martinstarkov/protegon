@@ -186,6 +186,8 @@ struct ButtonText {
 		const TextColor& text_color, const FontKey& font_key
 	);
 
+	~ButtonText();
+
 	[[nodiscard]] Color GetTextColor(ButtonState state) const;
 	[[nodiscard]] std::string GetTextContent(ButtonState state) const;
 	[[nodiscard]] std::int32_t GetFontSize(ButtonState state) const;
@@ -255,8 +257,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -358,8 +361,7 @@ public:
 		const TextColor& text_color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] std::string_view GetTextContentToggled(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetTextContentToggled(
 		const TextContent& content, ButtonState state = ButtonState::Default
@@ -383,6 +385,13 @@ public:
 namespace impl {
 
 struct ToggleButtonGroupInfo {
+	ToggleButtonGroupInfo()											   = default;
+	ToggleButtonGroupInfo(const ToggleButtonGroupInfo&)				   = delete;
+	ToggleButtonGroupInfo& operator=(const ToggleButtonGroupInfo&)	   = delete;
+	ToggleButtonGroupInfo(ToggleButtonGroupInfo&&) noexcept			   = default;
+	ToggleButtonGroupInfo& operator=(ToggleButtonGroupInfo&&) noexcept = default;
+	~ToggleButtonGroupInfo();
+
 	std::unordered_map<std::size_t, ToggleButton> buttons_;
 };
 
@@ -390,27 +399,7 @@ struct ToggleButtonGroupInfo {
 
 class ToggleButtonGroup : public Entity {
 public:
-	template <typename... TArgs, tt::constructible<ToggleButton, TArgs...> = true>
-	ToggleButton& Load(std::string_view button_key, TArgs&&... constructor_args) {
-		PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
-
-		auto& info{ Get<impl::ToggleButtonGroupInfo>() };
-
-		static_assert(
-			std::is_constructible_v<ToggleButton, TArgs...>,
-			"Toggle button must be constructible from provided constructor arguments"
-		);
-
-		auto [it, inserted] = info.buttons_.try_emplace(
-			Hash(button_key), ToggleButton{ std::forward<TArgs>(constructor_args)... }
-		);
-
-		if (inserted) {
-			AddToggleScript(it->second);
-		}
-
-		return it->second;
-	}
+	ToggleButton& Load(std::string_view button_key, ToggleButton&& toggle_button);
 
 	void Unload(std::string_view button_key);
 
