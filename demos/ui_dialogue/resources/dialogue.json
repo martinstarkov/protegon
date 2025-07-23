@@ -1,0 +1,26 @@
+{
+  "dialogues": {
+    "intro": {
+      "content": [
+        "Hello traveler!\nMy name is Martin",
+        "Welcome to our city!",
+        "You really should get going\nBye!"
+      ],
+      "index": 0,
+      "repeatable": true,
+      "behavior": "cycle",
+      "scroll": true,
+      "next": "outro"
+    },
+    "outro": {
+      "content": [
+        "Great job on the boss fight!\nYou have won!",
+        "You are the savior of our city!\nThank you!"
+      ],
+      "index": 0,
+      "repeatable": true,
+      "behavior": "cycle",
+      "scroll": true
+    }
+  }
+}
