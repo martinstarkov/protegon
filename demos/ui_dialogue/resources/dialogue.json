@@ -1,10 +1,20 @@
 {
   "dialogues": {
     "intro": {
-      "content": [
-        "Hello traveler!\nMy name is Martin",
-        "Welcome to our city!",
-        "You really should get going\nBye!"
+      "lines": [
+        {
+          "text": "Hello traveler!\nMy name is Martin",
+          "color": [255, 0, 0, 255],
+          "scroll_duration_ms": 1000
+        },
+        {
+          "text": "Welcome to our city!\nMy name is Martin",
+          "color": [0, 0, 255, 255],
+          "scroll_duration_ms": 300
+        },
+        {
+          "text": "You really should get going!\nBye!"
+        }
       ],
       "index": 0,
       "repeatable": true,
@@ -13,7 +23,7 @@
       "next": "outro"
     },
     "outro": {
-      "content": [
+      "lines": [
         "Great job on the boss fight!\nYou have won!",
         "You are the savior of our city!\nThank you!"
       ],
