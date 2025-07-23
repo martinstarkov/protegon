@@ -7,7 +7,7 @@
 #include "common/type_traits.h"
 #include "math/math.h"
 #include "math/vector4.h"
-#include "serialization/serializable.h"
+#include "serialization/fwd.h"
 
 struct SDL_Color;
 
@@ -24,6 +24,8 @@ struct Color {
 
 	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
 		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
+
+	explicit Color(const json& j);
 
 	constexpr Color(const V4_float& normalized_color) :
 		r{ static_cast<std::uint8_t>(normalized_color.x * 255.0f) },
@@ -77,7 +79,9 @@ struct Color {
 		return !operator==(lhs, rhs);
 	}
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Color, r, g, b, a)
+	friend void to_json(json& j, const Color& color);
+
+	friend void from_json(const json& j, Color& color);
 };
 
 template <typename U, tt::floating_point<U> = true>
