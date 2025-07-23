@@ -116,10 +116,13 @@ template <typename T, typename S>
 	)
 
 #define PTGN_KEY_VALUE(json_key, member) ptgn::impl::MakeKeyValue(json_key, member)
+#define PTGN_KEY_VALUE_SINGLE(member)	 ptgn::impl::MakeKeyValue(#member, member)
 
-#define KeyValue(...)                                                                            \
-	PTGN_EXPAND(                                                                                 \
-		PTGN_GET_MACRO(__VA_ARGS__, PTGN_KEY_VALUE_IGNORE_DEFAULTS, PTGN_KEY_VALUE)(__VA_ARGS__) \
+#define KeyValue(...)                                                                                       \
+	PTGN_EXPAND(                                                                                            \
+		PTGN_GET_MACRO(__VA_ARGS__, PTGN_KEY_VALUE_IGNORE_DEFAULTS, PTGN_KEY_VALUE, PTGN_KEY_VALUE_SINGLE)( \
+			__VA_ARGS__                                                                                     \
+		)                                                                                                   \
 	)
 
 #define PTGN_TO_JSON_COMPARE(member)                                                    \
