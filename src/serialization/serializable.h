@@ -29,66 +29,28 @@ using has_equality = is_invokable<std::equal_to<>, bool, L, R>;
 template <class L, class R = L>
 constexpr auto has_equality_v = has_equality<L, R>::value;
 
-template <typename T>
+template <typename T, typename S = T>
 struct JsonKeyValuePair {
 	std::string_view key;
 	T& value;
-
-	[[nodiscard]] bool IsDefault() const {
-		return false;
-	}
-
-	JsonKeyValuePair(std::string_view json_key, T& json_value) :
-		key{ json_key }, value{ json_value } {}
-};
-
-template <typename T, typename S = T>
-struct JsonKeyValuePairWithDefault {
-	std::string_view key;
-	T& value;
 	S default_value;
-	bool set_default{ false };
 
-	[[nodiscard]] bool IsDefault() const {
-		if constexpr (has_equality_v<T, S>) {
-			if (set_default) {
-				return value == default_value;
-			}
-		}
-		return false;
-	}
-
-	JsonKeyValuePairWithDefault(
-		std::string_view json_key, T& json_value, bool set_default, S default_val
-	) :
-		key{ json_key },
-		value{ json_value },
-		set_default{ set_default },
-		default_value{ default_val } {}
+	JsonKeyValuePair(std::string_view json_key, T& json_value, const S& default_value) :
+		key{ json_key }, value{ json_value }, default_value{ default_value } {}
 };
 
 template <typename T>
 struct is_json_pair : std::false_type {};
 
 template <typename T>
-struct is_json_pair<JsonKeyValuePair<T>> : std::true_type {};
-
-template <typename T, typename S>
-struct is_json_pair<JsonKeyValuePairWithDefault<T, S>> : std::true_type {};
+struct is_json_pair<JsonKeyValuePair<T, T>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool is_json_pair_v{ is_json_pair<T>::value };
 
 template <typename T, typename S>
-impl::JsonKeyValuePairWithDefault<T, S> MakeKeyValue(
-	std::string_view key, T& value, bool set_default, S default_value
-) {
-	return { key, value, set_default, default_value };
-}
-
-template <typename T>
-impl::JsonKeyValuePair<T> MakeKeyValue(std::string_view key, T& value) {
-	return { key, value };
+impl::JsonKeyValuePair<T, S> MakeKeyValue(std::string_view key, T& value, const S& default_value) {
+	return { key, value, default_value };
 }
 
 template <typename T, typename S>
@@ -104,71 +66,50 @@ template <typename T, typename S>
 
 } // namespace ptgn
 
-#define PTGN_GET_MACRO(_1, _2, _3, NAME, ...) NAME
+// TODO: Figure out how to reduce default constructions of T{}.member to have access to default
+// members.
 
-#define PTGN_KEY_VALUE_IGNORE_DEFAULTS(json_key, member, ignore_defaults)          \
-	ptgn::impl::MakeKeyValue(                                                      \
-		json_key, member,                                                          \
-		std::is_default_constructible_v<std::remove_reference_t<decltype(*this)>>, \
-		std::is_default_constructible_v<std::remove_reference_t<decltype(*this)>>  \
-			? std::remove_reference_t<decltype(*this)>{}.member                    \
-			: std::remove_reference_t<decltype(member)>{}                          \
-	)
+#define KeyValue(json_key, member) \
+	ptgn::impl::MakeKeyValue(json_key, member, std::remove_reference_t<decltype(*this)>{}.member)
 
-#define PTGN_KEY_VALUE(json_key, member) ptgn::impl::MakeKeyValue(json_key, member)
-#define PTGN_KEY_VALUE_SINGLE(member)	 ptgn::impl::MakeKeyValue(#member, member)
-
-#define KeyValue(...)                                                                                       \
-	PTGN_EXPAND(                                                                                            \
-		PTGN_GET_MACRO(__VA_ARGS__, PTGN_KEY_VALUE_IGNORE_DEFAULTS, PTGN_KEY_VALUE, PTGN_KEY_VALUE_SINGLE)( \
-			__VA_ARGS__                                                                                     \
-		)                                                                                                   \
-	)
-
-#define PTGN_TO_JSON_COMPARE(member)                                                    \
-	if constexpr (ptgn::impl::has_equality_v<                                           \
-					  std::remove_reference_t<decltype(nlohmann_json_t.member)>,        \
-					  std::remove_reference_t<decltype(default_value.member)>>) {       \
-		if (!ptgn::impl::CompareValues(nlohmann_json_t.member, default_value.member)) { \
-			nlohmann_json_j[#member] = nlohmann_json_t.member;                          \
-		}                                                                               \
-	} else {                                                                            \
-		nlohmann_json_j[#member] = nlohmann_json_t.member;                              \
+#define PTGN_TO_JSON_COMPARE(member)                                                          \
+	if constexpr (ptgn::impl::has_equality_v<                                                 \
+					  std::remove_reference_t<decltype(nlohmann_json_t.member)>,              \
+					  std::remove_reference_t<decltype(nlohmann_json_default_obj.member)>>) { \
+		if (!ptgn::impl::CompareValues(                                                       \
+				nlohmann_json_t.member, nlohmann_json_default_obj.member                      \
+			)) {                                                                              \
+			nlohmann_json_j[#member] = nlohmann_json_t.member;                                \
+		}                                                                                     \
+	} else {                                                                                  \
+		nlohmann_json_j[#member] = nlohmann_json_t.member;                                    \
 	}
 
 #define PTGN_KEY_VALUE_TO_JSON(kv) nlohmann_json_j[kv.key] = kv.value;
 
-#define PTGN_KEY_VALUE_TO_JSON_COMPARE(kv)  \
-	if (!kv.IsDefault()) {                  \
-		nlohmann_json_j[kv.key] = kv.value; \
-	}
+#define PTGN_KEY_VALUE_TO_JSON_COMPARE(kv) nlohmann_json_j[kv.key] = kv.value;
 
-#define PTGN_KEY_VALUE_FROM_JSON(kv)                                                              \
+#define PTGN_KEY_VALUE_FROM_JSON_WITH_DEFAULT(kv)                                                 \
 	if (auto nlohmann_json_j_value{ nlohmann_json_j.contains(kv.key) ? nlohmann_json_j.at(kv.key) \
 																	 : json{} };                  \
 		nlohmann_json_j_value.empty()) {                                                          \
-		kv.value = {};                                                                            \
+		kv.value = kv.default_value;                                                              \
 	} else {                                                                                      \
 		nlohmann_json_j_value.get_to(kv.value);                                                   \
 	}
 
-#define PTGN_TO_JSON(v1) nlohmann_json_j[#v1] = nlohmann_json_t.v1;
-#define PTGN_FROM_JSON(v1)                                                                  \
-	if (auto nlohmann_json_j_value{ nlohmann_json_j.contains(#v1) ? nlohmann_json_j.at(#v1) \
-																  : json{} };               \
-		nlohmann_json_j_value.empty()) {                                                    \
-		nlohmann_json_t.v1 = {};                                                            \
-	} else {                                                                                \
-		nlohmann_json_j_value.get_to(nlohmann_json_t.v1);                                   \
+#define PTGN_TO_JSON(member) nlohmann_json_j[#member] = nlohmann_json_t.member;
+#define PTGN_FROM_JSON_WITH_DEFAULT(member)                                                        \
+	if (auto nlohmann_json_j_value{                                                                \
+			nlohmann_json_j.contains(#member) ? nlohmann_json_j.at(#member) : json{} };            \
+		nlohmann_json_j_value.empty()) {                                                           \
+		nlohmann_json_t.member = nlohmann_json_default_obj.member;                                 \
+	} else {                                                                                       \
+		nlohmann_json_t.member = nlohmann_json_j.value(#member, nlohmann_json_default_obj.member); \
 	}
-#define PTGN_FROM_JSON_WITH_DEFAULT(v1)                                                     \
-	if (auto nlohmann_json_j_value{ nlohmann_json_j.contains(#v1) ? nlohmann_json_j.at(#v1) \
-																  : json{} };               \
-		nlohmann_json_j_value.empty()) {                                                    \
-		nlohmann_json_t.v1 = nlohmann_json_default_obj.v1;                                  \
-	} else {                                                                                \
-		nlohmann_json_t.v1 = nlohmann_json_j.value(#v1, nlohmann_json_default_obj.v1);      \
-	}
+
+#define PTGN_SERIALIZER_REGISTER_ENUM(EnumType, ...) \
+	NLOHMANN_JSON_SERIALIZE_ENUM(EnumType, __VA_ARGS__)
 
 #define PTGN_SERIALIZER_REGISTER(Type, ...)                                                 \
 	friend void to_json(nlohmann::json& nlohmann_json_j, const Type& nlohmann_json_t) {     \
@@ -176,14 +117,15 @@ template <typename T, typename S>
 	}                                                                                       \
 	friend void from_json(const nlohmann::json& nlohmann_json_j, Type& nlohmann_json_t) {   \
 		const Type nlohmann_json_default_obj{};                                             \
+		(void)nlohmann_json_default_obj;                                                    \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_FROM_JSON_WITH_DEFAULT, __VA_ARGS__)) \
 	}
 
 #define PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Type, ...)                                 \
 	friend void to_json(nlohmann::json& nlohmann_json_j, const Type& nlohmann_json_t) {     \
 		if constexpr (std::is_default_constructible_v<Type>) {                              \
-			const Type default_value{};                                                     \
-			(void)default_value;                                                            \
+			const Type nlohmann_json_default_obj{};                                         \
+			(void)nlohmann_json_default_obj;                                                \
 			NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_TO_JSON_COMPARE, __VA_ARGS__))    \
 		} else {                                                                            \
 			NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_TO_JSON, __VA_ARGS__))            \
@@ -209,7 +151,9 @@ private:                                                                        
 		nlohmann::detail::enable_if_t<                                                   \
 			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
 	void local_from_json_impl(const BasicJsonType& nlohmann_json_j) {                    \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_KEY_VALUE_FROM_JSON, __VA_ARGS__)) \
+		NLOHMANN_JSON_EXPAND(                                                            \
+			NLOHMANN_JSON_PASTE(PTGN_KEY_VALUE_FROM_JSON_WITH_DEFAULT, __VA_ARGS__)      \
+		)                                                                                \
 	}                                                                                    \
                                                                                          \
 public:                                                                                  \
@@ -246,7 +190,9 @@ private:                                                                        
 		nlohmann::detail::enable_if_t<                                                             \
 			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>                       \
 	void local_from_json_impl(const BasicJsonType& nlohmann_json_j) {                              \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_KEY_VALUE_FROM_JSON, __VA_ARGS__))           \
+		NLOHMANN_JSON_EXPAND(                                                                      \
+			NLOHMANN_JSON_PASTE(PTGN_KEY_VALUE_FROM_JSON_WITH_DEFAULT, __VA_ARGS__)                \
+		)                                                                                          \
 	}                                                                                              \
                                                                                                    \
 public:                                                                                            \
