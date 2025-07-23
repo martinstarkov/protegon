@@ -364,6 +364,12 @@ public:
 	template <typename T, typename... TArgs>
 	T& AddTimerScript(milliseconds execution_duration, TArgs&&... args);
 
+	template <typename T>
+	[[nodiscard]] const ScriptTimerInfo& GetTimerScriptInfo() const;
+
+	template <typename T>
+	[[nodiscard]] ScriptTimerInfo& GetTimerScriptInfo();
+
 	/**
 	 * @brief Adds a script that executes repeatedly with a fixed delay between executions.
 	 *
@@ -385,6 +391,12 @@ public:
 	T& AddRepeatScript(
 		milliseconds execution_delay, int execution_count, bool execute_immediately, TArgs&&... args
 	);
+
+	template <typename T>
+	[[nodiscard]] const ScriptRepeatInfo& GetRepeatScriptInfo() const;
+
+	template <typename T>
+	[[nodiscard]] ScriptRepeatInfo& GetRepeatScriptInfo();
 
 	/**
 	 * @brief Checks whether a script of the specified type is attached to the entity.
@@ -680,7 +692,8 @@ public:
 	}
 
 	// Called when the frame of the animation changes
-	virtual void OnAnimationFrameChange([[maybe_unused]] std::size_t new_frame
+	virtual void OnAnimationFrameChange(
+		[[maybe_unused]] std::size_t new_frame
 	) { /* user implementation */ }
 
 	// Called once when the animation goes through its first full cycle.
@@ -704,7 +717,8 @@ public:
 	// Called when the movement direction changes. Passed parameter is the difference in direction.
 	// If not moving, this is simply the new direction. If moving already, this is the newly added
 	// component of movement. To get the current direction instead, simply use GetDirection().
-	virtual void OnMoveDirectionChange([[maybe_unused]] MoveDirection direction_difference
+	virtual void OnMoveDirectionChange(
+		[[maybe_unused]] MoveDirection direction_difference
 	) { /* user implementation */ }
 
 	virtual void OnMoveUp() { /* user implementation */ }
@@ -799,6 +813,65 @@ T& Entity::AddScript(TArgs&&... args) {
 	return script;
 }
 
+template <typename T, typename TScriptType>
+[[nodiscard]] const auto& GetScriptInfo(const Entity& entity) {
+	PTGN_ASSERT(entity.Has<Scripts>(), "Entity has no scripts");
+
+	[[maybe_unused]] const auto& script{ entity.Get<Scripts>() };
+
+	constexpr auto class_name{ type_name<T>() };
+
+	PTGN_ASSERT(script.HasScript<T>(), "Entity does not have the specified script: ", class_name);
+
+	PTGN_ASSERT(entity.Has<TScriptType>(), "Entity does not have script info for ", class_name);
+
+	const auto& scripts{ entity.Get<TScriptType>() };
+
+	return scripts;
+}
+
+template <typename T>
+const ScriptTimerInfo& Entity::GetTimerScriptInfo() const {
+	const auto& scripts{ GetScriptInfo<T, impl::ScriptTimers>(*this) };
+
+	constexpr auto class_name{ type_name<T>() };
+	constexpr auto hash{ Hash(class_name) };
+
+	auto it{ scripts.timers.find(hash) };
+
+	PTGN_ASSERT(
+		it != scripts.timers.end(), "Entity script ", class_name, " does not have timer info"
+	);
+
+	return it->second;
+}
+
+template <typename T>
+ScriptTimerInfo& Entity::GetTimerScriptInfo() {
+	return const_cast<ScriptTimerInfo&>(std::as_const(*this).GetTimerScriptInfo<T>());
+}
+
+template <typename T>
+const ScriptRepeatInfo& Entity::GetRepeatScriptInfo() const {
+	const auto& scripts{ GetScriptInfo<T, impl::ScriptRepeats>(*this) };
+
+	constexpr auto class_name{ type_name<T>() };
+	constexpr auto hash{ Hash(class_name) };
+
+	auto it{ scripts.repeats.find(hash) };
+
+	PTGN_ASSERT(
+		it != scripts.repeats.end(), "Entity script ", class_name, " does not have repeat info"
+	);
+
+	return it->second;
+}
+
+template <typename T>
+ScriptRepeatInfo& Entity::GetRepeatScriptInfo() {
+	return const_cast<ScriptRepeatInfo&>(std::as_const(*this).GetRepeatScriptInfo<T>());
+}
+
 template <typename T, typename... TArgs>
 T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 	auto& script{ AddScript<T>(std::forward<TArgs>(args)...) };
@@ -812,7 +885,7 @@ T& Entity::AddTimerScript(milliseconds execution_duration, TArgs&&... args) {
 	constexpr auto class_name{ type_name<T>() };
 	constexpr auto hash{ Hash(class_name) };
 
-	timer_scripts.timers.emplace(hash, impl::TimerInfo{ Timer{ true }, execution_duration });
+	timer_scripts.timers.emplace(hash, ScriptTimerInfo{ Timer{ true }, execution_duration });
 
 	script.OnTimerStart();
 
@@ -861,7 +934,7 @@ T& Entity::AddRepeatScript(
 
 	repeat_scripts.repeats.emplace(
 		hash,
-		impl::RepeatInfo{ Timer{ true }, execution_delay, current_executions, execution_count }
+		ScriptRepeatInfo{ Timer{ true }, execution_delay, current_executions, execution_count }
 	);
 
 	return script;

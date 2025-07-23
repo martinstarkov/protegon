@@ -128,22 +128,13 @@ private:
 	bool paused_{ false };
 };
 
-namespace impl {
-
-struct TimerInfo {
+struct ScriptTimerInfo {
 	Timer timer;
 	// Duration of the timer.
 	milliseconds duration{ 0 };
 };
 
-class ScriptTimers {
-public:
-	static void Update(Scene& scene);
-
-	std::unordered_map<std::size_t, TimerInfo> timers;
-};
-
-struct RepeatInfo {
+struct ScriptRepeatInfo {
 	Timer timer;
 	// delay to next execution.
 	milliseconds delay{ 0 };
@@ -153,11 +144,20 @@ struct RepeatInfo {
 	int max_executions{ 0 };
 };
 
+namespace impl {
+
+class ScriptTimers {
+public:
+	static void Update(Scene& scene);
+
+	std::unordered_map<std::size_t, ScriptTimerInfo> timers;
+};
+
 class ScriptRepeats {
 public:
 	static void Update(Scene& scene);
 
-	std::unordered_map<std::size_t, RepeatInfo> repeats;
+	std::unordered_map<std::size_t, ScriptRepeatInfo> repeats;
 };
 
 } // namespace impl
