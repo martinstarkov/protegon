@@ -135,13 +135,14 @@ struct Dialogue {
 				break;
 			case DialogueBehavior::Random:
 				chosen_index = static_cast<int>(PickRandomIndex());
-				index		 = chosen_index;
+				PTGN_ASSERT(chosen_index >= 0);
+				index = static_cast<std::size_t>(chosen_index);
 				break;
 			default: PTGN_ERROR("Unrecognized dialogue behavior");
 		}
 
 		PTGN_ASSERT(chosen_index >= 0);
-		PTGN_ASSERT(chosen_index < lines.size());
+		PTGN_ASSERT(static_cast<std::size_t>(chosen_index) < lines.size());
 		PTGN_ASSERT(!VectorContains(used_line_indices, static_cast<std::size_t>(chosen_index)));
 
 		used_line_indices.emplace_back(static_cast<std::size_t>(chosen_index));
@@ -198,11 +199,13 @@ public:
 		text_.Destroy();
 	}
 
-	void Open(std::string_view dialogue_name = "") {
+	void Open(const std::string& dialogue_name = "") {
 		PTGN_ASSERT(!dialogues_.empty(), "Cannot open any dialogue when none have been loaded");
 		current_dialogue_ = dialogue_name.empty() ? current_dialogue_ : dialogue_name;
+
 		if (current_dialogue_.empty()) {
-			current_dialogue_ = dialogues_.begin()->first;
+			PTGN_LOG("No current dialogue set");
+			return;
 		}
 
 		auto dialogue{ GetCurrentDialogue() };
@@ -225,23 +228,48 @@ public:
 	void Close() {
 		text_.RemoveScript<impl::DialogueWaitScript>();
 		text_.RemoveScript<impl::DialogueScrollScript>();
-		current_line = -1;
-		current_page = -1;
+		current_line	  = -1;
+		current_page	  = -1;
+		current_dialogue_ = "";
 		text_.Hide();
 	}
 
-	void NextParagraph() {
-		// TODO: Implement
+	// Cycle the page to the next one.
+	void NextPage() {
+		IncrementPage();
+		auto page{ GetCurrentDialoguePage() };
+		text_.RemoveScript<impl::DialogueScrollScript>();
+		if (!page) {
+			text_.Hide();
+			auto e{ text_ };
+			e.RemoveScript<impl::DialogueWaitScript>();
+		} else {
+			auto duration{ page->properties.scroll_duration };
+			text_.AddTimerScript<impl::DialogueScrollScript>(duration);
+		}
 	}
 
-	void UpdateDialogue() {
-		// TODO: Implement
-		// Use next dialogue of current dialogue to move it forward if possible.
+	// Sets the dialogue to the next dialogue according to the json.
+	void SetNextDialogue() {
+		auto dialogue{ GetCurrentDialogue() };
+		if (!dialogue) {
+			return;
+		}
+		auto next_dialogue{ dialogue->next_dialogue };
+		PTGN_ASSERT(
+			(next_dialogue.empty() || MapContains(dialogues_, next_dialogue)), "Next dialogue '",
+			next_dialogue, "' not found in the dialogue map"
+		);
+		current_dialogue_ = next_dialogue;
 	}
 
-	void SetDialogue(std::string_view name) {
-		// TODO: Implement
-		// Update current dialogue
+	// Set dialogue to a specific one in the json.
+	void SetDialogue(const std::string& name = "") {
+		PTGN_ASSERT(
+			(name.empty() || MapContains(dialogues_, name)), "Dialogue '", name,
+			"' not found in the dialogue map"
+		);
+		current_dialogue_ = name;
 	}
 
 	// TODO: Move all of this to private:
@@ -272,24 +300,24 @@ public:
 		if (!dialogue) {
 			return nullptr;
 		}
-		if (current_line >= dialogue->lines.size()) {
+		if (static_cast<std::size_t>(current_line) >= dialogue->lines.size()) {
 			return nullptr;
 		}
-		return &dialogue->lines[current_line];
+		return &dialogue->lines[static_cast<std::size_t>(current_line)];
 	}
 
 	[[nodiscard]] DialoguePage* GetCurrentDialoguePage() {
 		if (current_page < 0) {
 			return nullptr;
 		}
-		auto current_line{ GetCurrentDialogueLine() };
-		if (!current_line) {
+		auto line{ GetCurrentDialogueLine() };
+		if (!line) {
 			return nullptr;
 		}
-		if (current_page >= current_line->pages.size()) {
+		if (static_cast<std::size_t>(current_page) >= line->pages.size()) {
 			return nullptr;
 		}
-		return &current_line->pages[current_page];
+		return &line->pages[static_cast<std::size_t>(current_page)];
 	}
 
 	void IncrementPage() {
@@ -314,6 +342,7 @@ private:
 
 	void LoadFromJson(const json& root);
 
+	// Use the dialogue page properties of the json or its parent object.
 	[[nodiscard]] static DialoguePageProperties InheritProperties(
 		const json& j, const DialoguePageProperties& parent_properties
 	) {
@@ -323,7 +352,8 @@ private:
 		return properties;
 	}
 
-	// Helper function to split text based on max length and adjust duration proportionally
+	// Helper function to split text based on max length and newlines as well as adjusting durations
+	// to be proportional to the fraction of the splits.
 	[[nodiscard]] static std::vector<DialoguePage> SplitTextWithDuration(
 		const std::string& full_text, const DialoguePageProperties& properties,
 		const std::string& split_end, const std::string& split_begin
@@ -350,8 +380,6 @@ private:
 			const std::size_t original_len = segment.size();
 			std::size_t sub_start		   = 0;
 			bool first_split			   = true;
-
-			std::size_t effective_total_length = original_len;
 
 			// Estimate total added split_end and split_begin sizes
 			// We'll add the actual sizes dynamically as we go
@@ -424,7 +452,7 @@ private:
 	// TODO: Consider a better way to do this.
 	int current_line{ -1 };
 	int current_page{ -1 };
-	std::string_view current_dialogue_;
+	std::string current_dialogue_;
 
 	std::unordered_map<std::string, Dialogue> dialogues_;
 };
@@ -438,11 +466,15 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 	DialogueBehavior behavior{ root.value("behavior", DialogueBehavior::Sequential) };
 	bool repeatable{ root.value("repeatable", true) };
 	bool scroll{ root.value("scroll", true) };
-	std::string next{ root.value("next", "") };
-
-	PTGN_ASSERT(root.contains("dialogues"));
 
 	const auto& dialogues_json = root.at("dialogues");
+
+	std::string next{ root.value("next", "") };
+	PTGN_ASSERT(
+		next.empty() || dialogues_json.contains(next), "Next key not found in json of dialogues"
+	);
+
+	PTGN_ASSERT(root.contains("dialogues"));
 
 	for (const auto& [dialogue_name, dialogue_json] : dialogues_json.items()) {
 		Dialogue dialogue;
@@ -453,7 +485,11 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 		dialogue.repeatable	   = dialogue_json.value("repeatable", repeatable);
 		dialogue.scroll		   = dialogue_json.value("scroll", scroll);
 		dialogue.next_dialogue = dialogue_json.value("next", next);
-		dialogue.behavior	   = dialogue_json.value("behavior", behavior);
+		PTGN_ASSERT(
+			dialogue.next_dialogue.empty() || dialogues_json.contains(dialogue.next_dialogue),
+			"Next key not found in json of dialogues"
+		);
+		dialogue.behavior = dialogue_json.value("behavior", behavior);
 
 		PTGN_ASSERT(dialogue_json.contains("lines"));
 
@@ -542,17 +578,7 @@ namespace impl {
 void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
 	if (game.input.KeyDown(Key::E)) {
 		auto& dialogue_component{ GetDialogueComponent() };
-		dialogue_component.IncrementPage();
-		auto page{ dialogue_component.GetCurrentDialoguePage() };
-		entity.RemoveScript<DialogueScrollScript>();
-		if (!page) {
-			entity.Hide();
-			auto e = entity;
-			e.RemoveScript<DialogueWaitScript>();
-		} else {
-			auto duration{ page->properties.scroll_duration };
-			entity.AddTimerScript<impl::DialogueScrollScript>(duration);
-		}
+		dialogue_component.NextPage();
 	}
 }
 
@@ -622,6 +648,9 @@ struct DialogueScene : public Scene {
 		}
 		if (game.input.KeyDown(Key::Escape)) {
 			dialogue.Close();
+		}
+		if (game.input.KeyDown(Key::S)) {
+			dialogue.NextPage();
 		}
 	}
 
