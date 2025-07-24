@@ -91,14 +91,9 @@ template <typename T>
 	return std::find(container.begin(), container.end(), value) != container.end();
 }
 
-template <typename K, typename T>
-[[nodiscard]] static bool MapContains(const std::unordered_map<K, T>& container, const T& value) {
-	for (const auto& [k, v] : container) {
-		if (v == value) {
-			return true;
-		}
-	}
-	return false;
+template <typename K, typename T, typename S>
+[[nodiscard]] static bool MapContains(const std::unordered_map<K, T>& container, const S& value) {
+	return container.find(value) != container.end();
 }
 
 template <typename Type, std::size_t... sizes>
