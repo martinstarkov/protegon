@@ -481,7 +481,8 @@ Color Entity::GetTint() const {
 
 void Scripts::Update(Scene& scene, float dt) {
 	for (auto [entity, scripts] : scene.EntitiesWith<Scripts>()) {
-		scripts.Invoke<&impl::IScript::OnUpdate>(dt);
+		auto s = scripts;
+		s.Invoke<&impl::IScript::OnUpdate>(dt);
 	}
 
 	scene.Refresh();

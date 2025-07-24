@@ -609,7 +609,10 @@ public:
 	virtual void OnTimerUpdate([[maybe_unused]] float elapsed_fraction) { /* user implementation */
 	}
 
-	virtual void OnTimerStop() { /* user implementation */ }
+	// @return True if the timer should be removed from the entity after it finishes.
+	virtual bool OnTimerStop() { /* user implementation */
+		return true;
+	}
 
 	// Repeated script triggers.
 
