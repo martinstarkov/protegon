@@ -1,20 +1,29 @@
 {
+  "color": [255, 255, 255, 255],
+  "scroll_duration": "10s",
   "dialogues": {
     "intro": {
+      "color": [255, 0, 0, 255],
+      "scroll_duration": "1s",
       "lines": [
         {
-          "content": "Hello traveler!\nMy name is Martin",
-          "color": [255, 0, 0, 255],
-          "scroll_duration": 1.0
-        },
-        {
-          "content": "Welcome to our city!\nMy name is Martin",
           "color": [0, 0, 255, 255],
-          "scroll_duration": 0.3
+          "scroll_duration": "3s",
+          "pages": [
+            {
+              "content": "Hello traveler!\nMy name is Martin",
+              "color": [0, 255, 0, 255],
+              "scroll_duration": "5s"
+            },
+            "Nice to meet you! This is an extended piece of dialogue which should be split among multiple pages!"
+          ]
         },
         {
-          "content": "You really should get going!\nBye!"
-        }
+          "pages": "Welcome to our city!\nMy name is Martin",
+          "color": [0, 255, 255, 255],
+          "scroll_duration": "0.3s"
+        },
+        "You really should get going!\nBye!"
       ],
       "index": 0,
       "behavior": "sequential",
@@ -29,7 +38,11 @@
       ],
       "index": 0,
       "behavior": "sequential",
-      "scroll": true
+      "scroll": true,
+      "next": "epilogue"
+    },
+    "epilogue": {
+      "lines": "Woo!"
     }
   }
 }
