@@ -42,6 +42,10 @@ public:
 	// @return True if the timer is currently running, false otherwise.
 	[[nodiscard]] bool IsRunning() const;
 
+	// @return True if the timer has run before (not necessarily now) without being reset, false
+	// otherwise.
+	[[nodiscard]] bool HasRun() const;
+
 	/*
 	 * @tparam Duration The unit of time. Default: milliseconds.
 	 * @param Amount of time to add to the timer.

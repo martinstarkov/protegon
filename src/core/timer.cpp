@@ -74,6 +74,10 @@ bool Timer::IsRunning() const {
 	return running_;
 }
 
+bool Timer::HasRun() const {
+	return start_time_ != stop_time_;
+}
+
 void to_json(json& j, const Timer& timer) {
 	j["running"] = timer.running_;
 	j["paused"]	 = timer.paused_;
@@ -99,12 +103,16 @@ namespace impl {
 void ScriptTimers::Update(Scene& scene) {
 	for (auto [entity, scripts, script_timer] : scene.EntitiesWith<Scripts, ScriptTimers>()) {
 		for (auto timer_it{ script_timer.timers.begin() }; timer_it != script_timer.timers.end();) {
-			const auto& [key, timer_info] = *timer_it;
+			auto& [key, timer_info] = *timer_it;
 
-			PTGN_ASSERT(
-				timer_info.timer.IsRunning(),
-				"Script timer must be started upon addition of script to entity"
-			);
+			if (!timer_info.timer.IsRunning()) {
+				PTGN_ASSERT(
+					timer_info.timer.HasRun(),
+					"Script timer must be started upon addition of script to entity"
+				);
+				timer_it++;
+				continue;
+			}
 
 			auto script_it{ scripts.scripts.find(key) };
 
@@ -125,8 +133,11 @@ void ScriptTimers::Update(Scene& scene) {
 			if (elapsed_fraction < 1.0f) {
 				timer_it++;
 			} else {
-				script.OnTimerStop();
-				timer_it = script_timer.timers.erase(timer_it);
+				bool remove{ script.OnTimerStop() };
+				timer_info.timer.Stop();
+				if (remove) {
+					timer_it = script_timer.timers.erase(timer_it);
+				}
 			}
 		}
 		if (script_timer.timers.empty()) {
