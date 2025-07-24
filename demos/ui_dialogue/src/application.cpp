@@ -609,7 +609,7 @@ struct DialogueScene : public Scene {
 		if (game.input.KeyDown(Key::Space)) {
 			dialogue.Open("intro");
 		}
-		if (game.input.KeyDown(Key::Space)) {
+		if (game.input.KeyDown(Key::Escape)) {
 			dialogue.Close();
 		}
 	}
