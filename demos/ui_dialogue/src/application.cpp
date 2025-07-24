@@ -14,17 +14,33 @@ constexpr V2_int window_size{ 800, 800 };
 
 namespace ptgn {
 
+class DialogueComponent;
+
+struct DialoguePageProperties {
+	DialoguePageProperties() = default;
+
+	friend bool operator==(const DialoguePageProperties& a, const DialoguePageProperties& b) {
+		return a.scroll_duration == b.scroll_duration && a.color == b.color &&
+			   a.max_length == b.max_length;
+	}
+
+	friend bool operator!=(const DialoguePageProperties& a, const DialoguePageProperties& b) {
+		return !operator==(a, b);
+	}
+
+	Color color{ color::White };
+	milliseconds scroll_duration{ 1000 };
+	std::size_t max_length{ 80 };
+};
+
 struct DialoguePage {
 	DialoguePage() = default;
 
-	DialoguePage(
-		const std::string& text_content, const Color& color, milliseconds scroll_duration
-	) :
-		content{ text_content }, color{ color }, scroll_duration{ scroll_duration } {}
+	DialoguePage(const std::string& text_content, const DialoguePageProperties& properties) :
+		content{ text_content }, properties{ properties } {}
 
-	std::string content{ "Placeholder" };
-	Color color{ color::Pink };
-	milliseconds scroll_duration{ 1000 };
+	std::string content;
+	DialoguePageProperties properties;
 };
 
 struct DialogueLine {
@@ -58,6 +74,85 @@ struct Dialogue {
 
 	std::string next_dialogue;
 
+	// Picks a random index in range [0, max_exclusive) that is not in `excluded_indices`.
+	// Internally creates a random number generator.
+	[[nodiscard]] std::size_t PickRandomIndex() {
+		PTGN_ASSERT(lines.size() > used_line_indices.size() && "Too many excluded indices!");
+
+		if (lines.size() == 1) {
+			return 0;
+		}
+
+		PTGN_ASSERT(lines.size() > 1);
+
+		RNG<std::size_t> index_rng(0, lines.size() - 1);
+
+		std::size_t chosen_index{ index };
+
+		do {
+			chosen_index = std::invoke(index_rng);
+		} while (VectorContains(used_line_indices, chosen_index));
+
+		return chosen_index;
+	}
+
+	[[nodiscard]] const DialogueLine* GetCurrentDialogueLine() const {
+		PTGN_ASSERT(!lines.empty());
+		PTGN_ASSERT(!used_line_indices.empty());
+
+		std::size_t current_index{ Mod(index, lines.size()) };
+
+		PTGN_ASSERT(current_index < lines.size());
+		PTGN_ASSERT(VectorContains(used_line_indices, current_index));
+
+		return &lines[current_index];
+	}
+
+	// @return Index of a new dialogue line based on the dialogue behavior and used lines. -1 if
+	// there is no available dialogue line.
+	[[nodiscard]] int GetNewDialogueLine() {
+		if (lines.empty()) {
+			return -1;
+		}
+
+		if (lines.size() == used_line_indices.size()) {
+			if (!repeatable) {
+				return -1;
+			} else {
+				used_line_indices.clear();
+				if (lines.size() > 1 && behavior == DialogueBehavior::Random) {
+					used_line_indices.emplace_back(index);
+				}
+			}
+		}
+
+		int chosen_index{ static_cast<int>(index) };
+
+		switch (behavior) {
+			case DialogueBehavior::Sequential:
+				chosen_index = Mod(chosen_index, static_cast<int>(lines.size()));
+				++index;
+				break;
+			case DialogueBehavior::Random:
+				chosen_index = static_cast<int>(PickRandomIndex());
+				index		 = chosen_index;
+				break;
+			default: PTGN_ERROR("Unrecognized dialogue behavior");
+		}
+
+		PTGN_ASSERT(chosen_index >= 0);
+		PTGN_ASSERT(chosen_index < lines.size());
+		PTGN_ASSERT(!VectorContains(used_line_indices, static_cast<std::size_t>(chosen_index)));
+
+		used_line_indices.emplace_back(static_cast<std::size_t>(chosen_index));
+
+		if (lines[static_cast<std::size_t>(chosen_index)].pages.empty()) {
+			return -1;
+		}
+
+		return chosen_index;
+	}
+
 	std::vector<DialogueLine> lines;
 	std::vector<std::size_t>
 		used_line_indices; // List of indices of dialogue lines that have already been used. Cleared
@@ -66,10 +161,21 @@ struct Dialogue {
 
 namespace impl {
 
+struct DialogueWaitScript : public ptgn::Script<DialogueWaitScript> {
+	DialogueWaitScript() {}
+
+	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+
+	void OnUpdate(float dt);
+};
+
 struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript> {
 	DialogueScrollScript() {}
 
-	void OnRepeatUpdate(int repeat);
+	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+
+	void OnTimerStart();
+	void OnTimerUpdate(float elapsed_fraction);
 };
 
 } // namespace impl
@@ -92,12 +198,36 @@ public:
 		text_.Destroy();
 	}
 
-	void Open() {
-		// TODO: Pull from JSON and possibly use default, which can also be from JSON.
-		milliseconds scroll_duration{ 1000 };
-		int characters{ 1000 };
-		milliseconds execution_delay{ scroll_duration / characters };
-		text_.AddRepeatScript<impl::DialogueScrollScript>(execution_delay, characters, false);
+	void Open(std::string_view dialogue_name = "") {
+		PTGN_ASSERT(!dialogues_.empty(), "Cannot open any dialogue when none have been loaded");
+		current_dialogue_ = dialogue_name.empty() ? current_dialogue_ : dialogue_name;
+		if (current_dialogue_.empty()) {
+			current_dialogue_ = dialogues_.begin()->first;
+		}
+
+		auto dialogue{ GetCurrentDialogue() };
+
+		if (!dialogue) {
+			PTGN_LOG("No available dialogues");
+			return;
+		}
+
+		auto dialogue_line_index{ dialogue->GetNewDialogueLine() };
+
+		if (dialogue_line_index == -1) {
+			PTGN_LOG("No available dialogue lines");
+			return;
+		}
+
+		StartDialogueLine(dialogue_line_index);
+	}
+
+	void Close() {
+		text_.RemoveScript<impl::DialogueWaitScript>();
+		text_.RemoveScript<impl::DialogueScrollScript>();
+		current_line = -1;
+		current_page = -1;
+		text_.Hide();
 	}
 
 	void NextParagraph() {}
@@ -110,21 +240,83 @@ public:
 		return dialogues_;
 	}
 
-private:
-	void LoadFromJson(const json& root);
+	[[nodiscard]] Dialogue* GetCurrentDialogue() {
+		if (current_dialogue_.empty()) {
+			return nullptr;
+		}
 
-	[[nodiscard]] static Color InheritColor(const json& j, const Color& parent) {
-		return j.value("color", parent);
+		auto it{ dialogues_.find(std::string(current_dialogue_)) };
+
+		if (it == dialogues_.end()) {
+			return nullptr;
+		}
+
+		return &it->second;
 	}
 
-	[[nodiscard]] static milliseconds InheritDuration(const json& j, const milliseconds& parent) {
-		return j.value("scroll_duration", parent);
+	[[nodiscard]] DialogueLine* GetCurrentDialogueLine() {
+		if (current_line < 0) {
+			return nullptr;
+		}
+		auto dialogue{ GetCurrentDialogue() };
+		if (!dialogue) {
+			return nullptr;
+		}
+		if (current_line >= dialogue->lines.size()) {
+			return nullptr;
+		}
+		return &dialogue->lines[current_line];
+	}
+
+	[[nodiscard]] DialoguePage* GetCurrentDialoguePage() {
+		if (current_page < 0) {
+			return nullptr;
+		}
+		auto current_line{ GetCurrentDialogueLine() };
+		if (!current_line) {
+			return nullptr;
+		}
+		if (current_page >= current_line->pages.size()) {
+			return nullptr;
+		}
+		return &current_line->pages[current_page];
+	}
+
+	void IncrementPage() {
+		current_page++;
+	}
+
+private:
+	void StartDialogueLine(int dialogue_line_index) {
+		if (text_.HasScript<impl::DialogueScrollScript>() ||
+			text_.HasScript<impl::DialogueWaitScript>()) {
+			return;
+		}
+		PTGN_ASSERT(dialogue_line_index >= 0);
+		current_line = dialogue_line_index;
+		current_page = 0;
+		auto page{ GetCurrentDialoguePage() };
+		PTGN_ASSERT(page);
+		auto duration{ page->properties.scroll_duration };
+		text_.AddTimerScript<impl::DialogueScrollScript>(duration);
+		text_.AddScript<impl::DialogueWaitScript>();
+	}
+
+	void LoadFromJson(const json& root);
+
+	[[nodiscard]] static DialoguePageProperties InheritProperties(
+		const json& j, const DialoguePageProperties& parent_properties
+	) {
+		DialoguePageProperties properties;
+		properties.color		   = j.value("color", parent_properties.color);
+		properties.scroll_duration = j.value("scroll_duration", parent_properties.scroll_duration);
+		return properties;
 	}
 
 	// Helper function to split text based on max length and adjust duration proportionally
 	[[nodiscard]] static std::vector<DialoguePage> SplitTextWithDuration(
-		const std::string& full_text, const Color& color, const milliseconds& total_duration,
-		std::size_t max_length, const std::string& split_end, const std::string& split_begin
+		const std::string& full_text, const DialoguePageProperties& properties,
+		const std::string& split_end, const std::string& split_begin
 	) {
 		std::vector<DialoguePage> pages;
 
@@ -141,7 +333,7 @@ private:
 
 		for (const auto& segment : newline_segments) {
 			if (segment.empty()) {
-				pages.emplace_back(DialoguePage{ "", color, total_duration });
+				pages.emplace_back(DialoguePage{ "", properties });
 				continue;
 			}
 
@@ -159,7 +351,7 @@ private:
 
 			while (sub_start < original_len) {
 				std::size_t remaining = original_len - sub_start;
-				std::size_t ideal_len = std::min(max_length, remaining);
+				std::size_t ideal_len = std::min(properties.max_length, remaining);
 				std::size_t sub_end	  = sub_start + ideal_len;
 
 				if (sub_end >= original_len) {
@@ -205,10 +397,12 @@ private:
 								  static_cast<double>(total_effective_length);
 				milliseconds part_duration = std::chrono::duration_cast<milliseconds>(
 					ptgn::duration<double, milliseconds::period>(
-						fraction * static_cast<double>(total_duration.count())
+						fraction * static_cast<double>(properties.scroll_duration.count())
 					)
 				);
-				pages.emplace_back(DialoguePage{ part_texts[i], color, part_duration });
+				auto new_properties{ properties };
+				new_properties.scroll_duration = part_duration;
+				pages.emplace_back(DialoguePage{ part_texts[i], new_properties });
 			}
 		}
 
@@ -217,15 +411,23 @@ private:
 
 	Text text_;
 
+	int current_line{ -1 };
+	int current_page{ -1 };
+	std::string_view current_dialogue_;
+
 	std::unordered_map<std::string, Dialogue> dialogues_;
 };
 
 inline void DialogueComponent::LoadFromJson(const json& root) {
-	const Color root_color			 = root.value("color", color::White);
-	const milliseconds root_duration = root.value("scroll_duration", milliseconds{ 1000 });
-	std::size_t character_split_count{ root.value("character_split_count", std::size_t{ 80 }) };
+	const auto root_properties{ InheritProperties(root, {}) };
 	std::string split_end{ root.value("split_end", "...") };
 	std::string split_begin{ root.value("split_begin", ",,,") };
+	int default_index{ root.value("index", 0) };
+	PTGN_ASSERT(default_index >= 0, "Index must be greater than or equal to zero");
+	DialogueBehavior behavior{ root.value("behavior", DialogueBehavior::Sequential) };
+	bool repeatable{ root.value("repeatable", true) };
+	bool scroll{ root.value("scroll", true) };
+	std::string next{ root.value("next", "") };
 
 	PTGN_ASSERT(root.contains("dialogues"));
 
@@ -234,14 +436,13 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 	for (const auto& [dialogue_name, dialogue_json] : dialogues_json.items()) {
 		Dialogue dialogue;
 
-		const Color dialogue_color			 = InheritColor(dialogue_json, root_color);
-		const milliseconds dialogue_duration = InheritDuration(dialogue_json, root_duration);
+		const auto dialogue_properties = InheritProperties(dialogue_json, root_properties);
 
-		dialogue.index		   = dialogue_json.value("index", std::size_t{ 0 });
-		dialogue.repeatable	   = dialogue_json.value("repeatable", true);
-		dialogue.scroll		   = dialogue_json.value("scroll", true);
-		dialogue.next_dialogue = dialogue_json.value("next", "");
-		dialogue.behavior	   = dialogue_json.value("behavior", DialogueBehavior::Sequential);
+		int index{ dialogue_json.value("index", default_index) };
+		dialogue.repeatable	   = dialogue_json.value("repeatable", repeatable);
+		dialogue.scroll		   = dialogue_json.value("scroll", scroll);
+		dialogue.next_dialogue = dialogue_json.value("next", next);
+		dialogue.behavior	   = dialogue_json.value("behavior", behavior);
 
 		PTGN_ASSERT(dialogue_json.contains("lines"));
 
@@ -250,8 +451,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 		if (lines_json.is_string()) {
 			DialogueLine line;
 			auto pages = SplitTextWithDuration(
-				lines_json.get<std::string>(), dialogue_color, dialogue_duration,
-				character_split_count, split_end, split_begin
+				lines_json.get<std::string>(), dialogue_properties, split_end, split_begin
 			);
 			line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 			dialogue.lines.push_back(std::move(line));
@@ -261,14 +461,11 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 
 				if (line_json.is_string()) {
 					auto pages = SplitTextWithDuration(
-						line_json.get<std::string>(), dialogue_color, dialogue_duration,
-						character_split_count, split_end, split_begin
+						line_json.get<std::string>(), dialogue_properties, split_end, split_begin
 					);
 					line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 				} else if (line_json.is_object()) {
-					const Color line_color = InheritColor(line_json, dialogue_color);
-					const milliseconds line_duration =
-						InheritDuration(line_json, dialogue_duration);
+					const auto line_properties = InheritProperties(line_json, dialogue_properties);
 
 					PTGN_ASSERT(line_json.contains("pages"));
 
@@ -276,29 +473,27 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 
 					if (pages_json.is_string()) {
 						auto pages = SplitTextWithDuration(
-							pages_json.get<std::string>(), line_color, line_duration,
-							character_split_count, split_end, split_begin
+							pages_json.get<std::string>(), line_properties, split_end, split_begin
 						);
 						line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 					} else if (pages_json.is_array()) {
 						for (const auto& page_json : pages_json) {
 							if (page_json.is_string()) {
 								auto pages = SplitTextWithDuration(
-									page_json.get<std::string>(), line_color, line_duration,
-									character_split_count, split_end, split_begin
+									page_json.get<std::string>(), line_properties, split_end,
+									split_begin
 								);
 								line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 							} else if (page_json.is_object()) {
 								PTGN_ASSERT(page_json.contains("content"));
 								const std::string content = page_json.at("content");
 
-								const Color page_color = InheritColor(page_json, line_color);
-								const milliseconds page_duration =
-									InheritDuration(page_json, line_duration);
+								const auto page_properties{
+									InheritProperties(page_json, line_properties)
+								};
 
 								auto pages = SplitTextWithDuration(
-									content, page_color, page_duration, character_split_count,
-									split_end, split_begin
+									content, page_properties, split_end, split_begin
 								);
 								line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 							}
@@ -310,24 +505,88 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 			}
 		}
 
+		PTGN_ASSERT(index >= 0, "Index must be greater than or equal to zero");
+
+		if (!dialogue.lines.empty()) {
+			if (dialogue.behavior == DialogueBehavior::Sequential &&
+				index >= static_cast<int>(dialogue.lines.size())) {
+				PTGN_WARN(
+					"Index ", index, " out of range of '", dialogue_name,
+					"' dialogue lines; clamping to ", dialogue.lines.size() - 1
+				);
+			}
+			index = std::clamp(index, 0, static_cast<int>(dialogue.lines.size() - 1));
+		} else {
+			index = 0;
+		}
+
+		dialogue.index = static_cast<std::size_t>(index);
+
 		dialogues_.emplace(dialogue_name, std::move(dialogue));
 	}
 }
 
 namespace impl {
 
-void DialogueScrollScript::OnRepeatUpdate(int repeat) {
+void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
+	if (game.input.KeyDown(Key::E)) {
+		auto& dialogue_component{ GetDialogueComponent() };
+		dialogue_component.IncrementPage();
+		auto page{ dialogue_component.GetCurrentDialoguePage() };
+		entity.RemoveScript<DialogueScrollScript>();
+		if (!page) {
+			entity.Hide();
+			auto e = entity;
+			e.RemoveScript<DialogueWaitScript>();
+		} else {
+			auto duration{ page->properties.scroll_duration };
+			entity.AddTimerScript<impl::DialogueScrollScript>(duration);
+		}
+	}
+}
+
+DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 	auto dialogue_entity = entity.GetParent();
 
 	PTGN_ASSERT(dialogue_entity);
 
 	PTGN_ASSERT(dialogue_entity.Has<DialogueComponent>());
 
-	auto& dialogue{ dialogue_entity.Get<DialogueComponent>() };
+	return dialogue_entity.Get<DialogueComponent>();
+}
 
-	const auto& repeat_info{ entity.GetRepeatScriptInfo<DialogueScrollScript>() };
+DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
+	auto dialogue_entity = entity.GetParent();
 
-	// PTGN_LOG("Scroll repeat: ", repeat);
+	PTGN_ASSERT(dialogue_entity);
+
+	PTGN_ASSERT(dialogue_entity.Has<DialogueComponent>());
+
+	return dialogue_entity.Get<DialogueComponent>();
+}
+
+void DialogueScrollScript::OnTimerStart() {
+	auto& dialogue_component{ GetDialogueComponent() };
+	auto page{ dialogue_component.GetCurrentDialoguePage() };
+	PTGN_ASSERT(page);
+	entity.Show();
+	Text{ entity }.SetColor(page->properties.color);
+}
+
+void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
+	auto& dialogue_component{ GetDialogueComponent() };
+	auto page{ dialogue_component.GetCurrentDialoguePage() };
+	PTGN_ASSERT(page);
+	const auto& text{ page->content };
+	std::size_t char_count{ static_cast<std::size_t>(std::round(elapsed_fraction * text.size())) };
+	auto revealed_text{ text.substr(0, char_count) };
+	// For debugging purposes:
+	/*
+	std::stringstream s;
+	s << entity.GetTimerScriptInfo<DialogueScrollScript>().duration << " ";
+	auto duration_str{ s.str() };
+	*/
+	Text{ entity }.SetContent(revealed_text);
 }
 
 } // namespace impl
@@ -342,8 +601,17 @@ struct DialogueScene : public Scene {
 		npc.SetPosition(window_size / 2);
 		json j		   = LoadJson("resources/dialogue.json");
 		auto& dialogue = npc.Add<DialogueComponent>(npc, j);
-		dialogue.Open();
 		TestDialogues(dialogue.GetDialogues());
+	}
+
+	void Update() override {
+		auto& dialogue{ npc.Get<DialogueComponent>() };
+		if (game.input.KeyDown(Key::Space)) {
+			dialogue.Open("intro");
+		}
+		if (game.input.KeyDown(Key::Space)) {
+			dialogue.Close();
+		}
 	}
 
 	void TestDialogues(const std::unordered_map<std::string, Dialogue>& dialogues) {
@@ -381,18 +649,18 @@ struct DialogueScene : public Scene {
 		PTGN_ASSERT((intro.lines.at(1).pages.size() == 2));
 		PTGN_ASSERT((intro.lines.at(2).pages.size() == 2));
 
-		PTGN_ASSERT((intro.lines.at(0).pages.at(0).color == Color{ 0, 255, 0, 255 }));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(0).scroll_duration == seconds{ 5 }));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(0).properties.color == Color{ 0, 255, 0, 255 }));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(0).properties.scroll_duration == seconds{ 3 }));
 		PTGN_ASSERT((intro.lines.at(0).pages.at(0).content == "Hello traveler!"));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(1).color == Color{ 0, 255, 0, 255 }));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(1).scroll_duration == seconds{ 5 }));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(1).properties.color == Color{ 0, 255, 0, 255 }));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(1).properties.scroll_duration == seconds{ 3 }));
 		PTGN_ASSERT((intro.lines.at(0).pages.at(1).content == "My name is Martin"));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(2).color == Color{ 0, 0, 255, 255 }));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(3).color == Color{ 0, 0, 255, 255 }));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(2).properties.color == Color{ 0, 0, 255, 255 }));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(3).properties.color == Color{ 0, 0, 255, 255 }));
 		const std::string intro_string_a =
 			"Nice to meet you! This is an extended piece of dialogue which should be split...";
 		const std::string intro_string_b = ",,,among multiple pages!";
-		const milliseconds total_duration{ 3000 };
+		const milliseconds total_duration{ 2000 };
 		const std::size_t total_length{ intro_string_a.size() + intro_string_b.size() };
 		const auto get_duration = [](std::size_t length, std::size_t total, milliseconds duration) {
 			return std::chrono::duration_cast<milliseconds>(
@@ -410,43 +678,57 @@ struct DialogueScene : public Scene {
 		};
 		PTGN_ASSERT((intro.lines.at(0).pages.at(2).content == intro_string_a));
 		PTGN_ASSERT((intro.lines.at(0).pages.at(3).content == intro_string_b));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(2).scroll_duration == duration_a));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(3).scroll_duration == duration_b));
-		PTGN_ASSERT((intro.lines.at(1).pages.at(0).color == Color{ 0, 255, 255, 255 }));
-		PTGN_ASSERT((intro.lines.at(1).pages.at(0).scroll_duration == milliseconds{ 300 }));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(2).properties.scroll_duration == duration_a));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(3).properties.scroll_duration == duration_b));
+		PTGN_ASSERT((intro.lines.at(1).pages.at(0).properties.color == Color{ 0, 255, 255, 255 }));
+		PTGN_ASSERT(
+			(intro.lines.at(1).pages.at(0).properties.scroll_duration == milliseconds{ 300 })
+		);
 		PTGN_ASSERT((intro.lines.at(1).pages.at(0).content == "Welcome to our city!"));
-		PTGN_ASSERT((intro.lines.at(1).pages.at(1).color == Color{ 0, 255, 255, 255 }));
-		PTGN_ASSERT((intro.lines.at(1).pages.at(1).scroll_duration == milliseconds{ 300 }));
+		PTGN_ASSERT((intro.lines.at(1).pages.at(1).properties.color == Color{ 0, 255, 255, 255 }));
+		PTGN_ASSERT(
+			(intro.lines.at(1).pages.at(1).properties.scroll_duration == milliseconds{ 300 })
+		);
 		PTGN_ASSERT((intro.lines.at(1).pages.at(1).content == "My name is Martin"));
-		PTGN_ASSERT((intro.lines.at(2).pages.at(0).color == Color{ 255, 0, 0, 255 }));
-		PTGN_ASSERT((intro.lines.at(2).pages.at(0).scroll_duration == seconds{ 1 }));
+		PTGN_ASSERT((intro.lines.at(2).pages.at(0).properties.color == Color{ 255, 0, 0, 255 }));
+		PTGN_ASSERT((intro.lines.at(2).pages.at(0).properties.scroll_duration == seconds{ 1 }));
 		PTGN_ASSERT((intro.lines.at(2).pages.at(0).content == "You really should get going!"));
-		PTGN_ASSERT((intro.lines.at(2).pages.at(1).color == Color{ 255, 0, 0, 255 }));
-		PTGN_ASSERT((intro.lines.at(2).pages.at(1).scroll_duration == seconds{ 1 }));
+		PTGN_ASSERT((intro.lines.at(2).pages.at(1).properties.color == Color{ 255, 0, 0, 255 }));
+		PTGN_ASSERT((intro.lines.at(2).pages.at(1).properties.scroll_duration == seconds{ 1 }));
 		PTGN_ASSERT((intro.lines.at(2).pages.at(1).content == "Bye!"));
 
 		PTGN_ASSERT((outro.lines.size() == 2));
 		PTGN_ASSERT((outro.lines.at(0).pages.size() == 2));
 		PTGN_ASSERT((outro.lines.at(1).pages.size() == 2));
 
-		PTGN_ASSERT((outro.lines.at(0).pages.at(0).color == Color{ 255, 255, 255, 255 }));
-		PTGN_ASSERT((outro.lines.at(0).pages.at(0).scroll_duration == seconds{ 10 }));
+		PTGN_ASSERT(
+			(outro.lines.at(0).pages.at(0).properties.color == Color{ 255, 255, 255, 255 })
+		);
+		PTGN_ASSERT((outro.lines.at(0).pages.at(0).properties.scroll_duration == seconds{ 4 }));
 		PTGN_ASSERT((outro.lines.at(0).pages.at(0).content == "Great job on the boss fight!"));
-		PTGN_ASSERT((outro.lines.at(0).pages.at(1).color == Color{ 255, 255, 255, 255 }));
-		PTGN_ASSERT((outro.lines.at(0).pages.at(1).scroll_duration == seconds{ 10 }));
+		PTGN_ASSERT(
+			(outro.lines.at(0).pages.at(1).properties.color == Color{ 255, 255, 255, 255 })
+		);
+		PTGN_ASSERT((outro.lines.at(0).pages.at(1).properties.scroll_duration == seconds{ 4 }));
 		PTGN_ASSERT((outro.lines.at(0).pages.at(1).content == "You have won!"));
-		PTGN_ASSERT((outro.lines.at(1).pages.at(0).color == Color{ 255, 255, 255, 255 }));
-		PTGN_ASSERT((outro.lines.at(1).pages.at(0).scroll_duration == seconds{ 10 }));
+		PTGN_ASSERT(
+			(outro.lines.at(1).pages.at(0).properties.color == Color{ 255, 255, 255, 255 })
+		);
+		PTGN_ASSERT((outro.lines.at(1).pages.at(0).properties.scroll_duration == seconds{ 4 }));
 		PTGN_ASSERT((outro.lines.at(1).pages.at(0).content == "You are the savior of our city!"));
-		PTGN_ASSERT((outro.lines.at(1).pages.at(1).color == Color{ 255, 255, 255, 255 }));
-		PTGN_ASSERT((outro.lines.at(1).pages.at(1).scroll_duration == seconds{ 10 }));
+		PTGN_ASSERT(
+			(outro.lines.at(1).pages.at(1).properties.color == Color{ 255, 255, 255, 255 })
+		);
+		PTGN_ASSERT((outro.lines.at(1).pages.at(1).properties.scroll_duration == seconds{ 4 }));
 		PTGN_ASSERT((outro.lines.at(1).pages.at(1).content == "Thank you!"));
 
 		PTGN_ASSERT((epilogue.lines.size() == 1));
 		PTGN_ASSERT((epilogue.lines.at(0).pages.size() == 1));
 
-		PTGN_ASSERT((epilogue.lines.at(0).pages.at(0).color == Color{ 255, 255, 255, 255 }));
-		PTGN_ASSERT((epilogue.lines.at(0).pages.at(0).scroll_duration == seconds{ 10 }));
+		PTGN_ASSERT(
+			(epilogue.lines.at(0).pages.at(0).properties.color == Color{ 255, 255, 255, 255 })
+		);
+		PTGN_ASSERT((epilogue.lines.at(0).pages.at(0).properties.scroll_duration == seconds{ 4 }));
 		PTGN_ASSERT((epilogue.lines.at(0).pages.at(0).content == "Woo!"));
 	}
 };

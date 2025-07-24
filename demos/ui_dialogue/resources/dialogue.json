@@ -1,9 +1,9 @@
 {
   "split_end": "...",
   "split_begin": ",,,",
-  "character_split_count": 80,
+  "max_length": 80,
   "color": [255, 255, 255, 255],
-  "scroll_duration": "10s",
+  "scroll_duration": "4s",
   "dialogues": {
     "intro": {
       "color": [255, 0, 0, 255],
@@ -11,12 +11,12 @@
       "lines": [
         {
           "color": [0, 0, 255, 255],
-          "scroll_duration": "3s",
+          "scroll_duration": "2s",
           "pages": [
             {
               "content": "Hello traveler!\nMy name is Martin",
               "color": [0, 255, 0, 255],
-              "scroll_duration": "5s"
+              "scroll_duration": "3s"
             },
             "Nice to meet you! This is an extended piece of dialogue which should be split among multiple pages!"
           ]
