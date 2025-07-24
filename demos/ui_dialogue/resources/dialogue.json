@@ -1,4 +1,5 @@
 {
+  "character_split_count": 80,
   "color": [255, 255, 255, 255],
   "scroll_duration": "10s",
   "dialogues": {
@@ -37,7 +38,7 @@
         "You are the savior of our city!\nThank you!"
       ],
       "index": 0,
-      "behavior": "sequential",
+      "behavior": "random",
       "scroll": true,
       "next": "epilogue"
     },
