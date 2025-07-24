@@ -124,10 +124,11 @@ private:
 	// Helper function to split text based on max length and adjust duration proportionally
 	[[nodiscard]] static std::vector<DialoguePage> SplitTextWithDuration(
 		const std::string& full_text, const Color& color, const milliseconds& total_duration,
-		std::size_t max_length
+		std::size_t max_length, const std::string& split_end, const std::string& split_begin
 	) {
 		std::vector<DialoguePage> pages;
 
+		// First, split by newline
 		std::vector<std::string> newline_segments;
 		std::size_t start		= 0;
 		std::size_t newline_pos = 0;
@@ -144,27 +145,70 @@ private:
 				continue;
 			}
 
-			const std::size_t segment_len = segment.size();
+			const std::size_t original_len = segment.size();
+			std::size_t sub_start		   = 0;
+			bool first_split			   = true;
 
-			if (segment_len <= max_length) {
-				pages.emplace_back(DialoguePage{ segment, color, total_duration });
-			} else {
-				std::size_t sub_start = 0;
-				while (sub_start < segment_len) {
-					std::size_t sub_end = std::min(sub_start + max_length, segment_len);
-					std::string part	= segment.substr(sub_start, sub_end - sub_start);
+			std::size_t effective_total_length = original_len;
 
-					double fraction =
-						static_cast<double>(part.size()) / static_cast<double>(segment_len);
-					milliseconds part_duration = std::chrono::duration_cast<milliseconds>(
-						ptgn::duration<double, milliseconds::period>(
-							fraction * static_cast<double>(total_duration.count())
-						)
-					);
+			// Estimate total added split_end and split_begin sizes
+			// We'll add the actual sizes dynamically as we go
+			std::vector<std::size_t> part_lengths;
 
-					pages.emplace_back(DialoguePage{ part, color, part_duration });
-					sub_start = sub_end;
+			std::vector<std::string> part_texts;
+
+			while (sub_start < original_len) {
+				std::size_t remaining = original_len - sub_start;
+				std::size_t ideal_len = std::min(max_length, remaining);
+				std::size_t sub_end	  = sub_start + ideal_len;
+
+				if (sub_end >= original_len) {
+					std::string part = segment.substr(sub_start);
+					if (!first_split) {
+						part = split_begin + part;
+					}
+
+					std::size_t effective_len = part.size();
+					part_texts.push_back(part);
+					part_lengths.push_back(effective_len);
+					break;
 				}
+
+				std::size_t cutoff	   = sub_end;
+				std::size_t last_space = segment.rfind(' ', cutoff);
+				if (last_space != std::string::npos && last_space > sub_start) {
+					cutoff = last_space;
+				}
+
+				std::string part = segment.substr(sub_start, cutoff - sub_start);
+				if (!first_split) {
+					part = split_begin + part;
+				}
+
+				part					  += split_end;
+				std::size_t effective_len  = part.size();
+				part_texts.push_back(part);
+				part_lengths.push_back(effective_len);
+
+				sub_start	= cutoff + 1;
+				first_split = false;
+			}
+
+			// Now compute final effective total length (including all added prefixes/suffixes)
+			std::size_t total_effective_length = 0;
+			for (const auto len : part_lengths) {
+				total_effective_length += len;
+			}
+
+			for (std::size_t i = 0; i < part_texts.size(); ++i) {
+				double fraction = static_cast<double>(part_lengths[i]) /
+								  static_cast<double>(total_effective_length);
+				milliseconds part_duration = std::chrono::duration_cast<milliseconds>(
+					ptgn::duration<double, milliseconds::period>(
+						fraction * static_cast<double>(total_duration.count())
+					)
+				);
+				pages.emplace_back(DialoguePage{ part_texts[i], color, part_duration });
 			}
 		}
 
@@ -180,6 +224,8 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 	const Color root_color			 = root.value("color", color::White);
 	const milliseconds root_duration = root.value("scroll_duration", milliseconds{ 1000 });
 	std::size_t character_split_count{ root.value("character_split_count", std::size_t{ 80 }) };
+	std::string split_end{ root.value("split_end", "...") };
+	std::string split_begin{ root.value("split_begin", ",,,") };
 
 	PTGN_ASSERT(root.contains("dialogues"));
 
@@ -205,7 +251,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 			DialogueLine line;
 			auto pages = SplitTextWithDuration(
 				lines_json.get<std::string>(), dialogue_color, dialogue_duration,
-				character_split_count
+				character_split_count, split_end, split_begin
 			);
 			line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 			dialogue.lines.push_back(std::move(line));
@@ -216,7 +262,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 				if (line_json.is_string()) {
 					auto pages = SplitTextWithDuration(
 						line_json.get<std::string>(), dialogue_color, dialogue_duration,
-						character_split_count
+						character_split_count, split_end, split_begin
 					);
 					line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 				} else if (line_json.is_object()) {
@@ -231,7 +277,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 					if (pages_json.is_string()) {
 						auto pages = SplitTextWithDuration(
 							pages_json.get<std::string>(), line_color, line_duration,
-							character_split_count
+							character_split_count, split_end, split_begin
 						);
 						line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 					} else if (pages_json.is_array()) {
@@ -239,7 +285,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 							if (page_json.is_string()) {
 								auto pages = SplitTextWithDuration(
 									page_json.get<std::string>(), line_color, line_duration,
-									character_split_count
+									character_split_count, split_end, split_begin
 								);
 								line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 							} else if (page_json.is_object()) {
@@ -251,7 +297,8 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 									InheritDuration(page_json, line_duration);
 
 								auto pages = SplitTextWithDuration(
-									content, page_color, page_duration, character_split_count
+									content, page_color, page_duration, character_split_count,
+									split_end, split_begin
 								);
 								line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 							}
@@ -341,14 +388,30 @@ struct DialogueScene : public Scene {
 		PTGN_ASSERT((intro.lines.at(0).pages.at(1).scroll_duration == seconds{ 5 }));
 		PTGN_ASSERT((intro.lines.at(0).pages.at(1).content == "My name is Martin"));
 		PTGN_ASSERT((intro.lines.at(0).pages.at(2).color == Color{ 0, 0, 255, 255 }));
-		// PTGN_ASSERT((intro.lines.at(0).pages.at(2).scroll_duration == seconds{ 3 }));
-		PTGN_ASSERT(
-			(intro.lines.at(0).pages.at(2).content ==
-			 "Nice to meet you! This is an extended piece of dialogue which should be split am")
-		);
 		PTGN_ASSERT((intro.lines.at(0).pages.at(3).color == Color{ 0, 0, 255, 255 }));
-		// PTGN_ASSERT((intro.lines.at(0).pages.at(3).scroll_duration == seconds{ 3 }));
-		PTGN_ASSERT((intro.lines.at(0).pages.at(3).content == "ong multiple pages!"));
+		const std::string intro_string_a =
+			"Nice to meet you! This is an extended piece of dialogue which should be split...";
+		const std::string intro_string_b = ",,,among multiple pages!";
+		const milliseconds total_duration{ 3000 };
+		const std::size_t total_length{ intro_string_a.size() + intro_string_b.size() };
+		const auto get_duration = [](std::size_t length, std::size_t total, milliseconds duration) {
+			return std::chrono::duration_cast<milliseconds>(
+				ptgn::duration<double, milliseconds::period>(
+					static_cast<double>(length) / static_cast<double>(total) *
+					static_cast<double>(duration.count())
+				)
+			);
+		};
+		milliseconds duration_a{
+			std::invoke(get_duration, intro_string_a.size(), total_length, total_duration)
+		};
+		milliseconds duration_b{
+			std::invoke(get_duration, intro_string_b.size(), total_length, total_duration)
+		};
+		PTGN_ASSERT((intro.lines.at(0).pages.at(2).content == intro_string_a));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(3).content == intro_string_b));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(2).scroll_duration == duration_a));
+		PTGN_ASSERT((intro.lines.at(0).pages.at(3).scroll_duration == duration_b));
 		PTGN_ASSERT((intro.lines.at(1).pages.at(0).color == Color{ 0, 255, 255, 255 }));
 		PTGN_ASSERT((intro.lines.at(1).pages.at(0).scroll_duration == milliseconds{ 300 }));
 		PTGN_ASSERT((intro.lines.at(1).pages.at(0).content == "Welcome to our city!"));
