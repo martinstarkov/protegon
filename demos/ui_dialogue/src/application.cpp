@@ -230,11 +230,21 @@ public:
 		text_.Hide();
 	}
 
-	void NextParagraph() {}
+	void NextParagraph() {
+		// TODO: Implement
+	}
 
-	void UpdateDialogue() {}
+	void UpdateDialogue() {
+		// TODO: Implement
+		// Use next dialogue of current dialogue to move it forward if possible.
+	}
 
-	void SetDialogue(std::string_view name) {}
+	void SetDialogue(std::string_view name) {
+		// TODO: Implement
+		// Update current dialogue
+	}
+
+	// TODO: Move all of this to private:
 
 	[[nodiscard]] const std::unordered_map<std::string, Dialogue>& GetDialogues() const {
 		return dialogues_;
@@ -411,6 +421,7 @@ private:
 
 	Text text_;
 
+	// TODO: Consider a better way to do this.
 	int current_line{ -1 };
 	int current_page{ -1 };
 	std::string_view current_dialogue_;
