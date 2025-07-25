@@ -415,7 +415,7 @@ public:
 	 * @throws Assert if the script is not found.
 	 */
 	template <typename T>
-	[[nodiscard]] const impl::IScript& GetScript() const;
+	[[nodiscard]] const T& GetScript() const;
 
 	/**
 	 * @brief Retrieves a mutable reference to the script of the specified type.
@@ -425,7 +425,7 @@ public:
 	 * @throws Assert if the script is not found.
 	 */
 	template <typename T>
-	[[nodiscard]] impl::IScript& GetScript();
+	[[nodiscard]] T& GetScript();
 
 	/**
 	 * @brief Removes the script of the specified type from the entity.
@@ -949,15 +949,15 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] const impl::IScript& Entity::GetScript() const {
+[[nodiscard]] const T& Entity::GetScript() const {
 	PTGN_ASSERT(Has<Scripts>());
 	auto& scripts{ Get<Scripts>() };
 	return scripts.GetScript<T>();
 }
 
 template <typename T>
-[[nodiscard]] impl::IScript& Entity::GetScript() {
-	return const_cast<impl::IScript&>(std::as_const(*this).GetScript<T>());
+[[nodiscard]] T& Entity::GetScript() {
+	return const_cast<T&>(std::as_const(*this).GetScript<T>());
 }
 
 template <typename T>
