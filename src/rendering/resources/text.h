@@ -33,12 +33,6 @@ struct TextContent : public StringComponent {
 	using StringComponent::StringComponent;
 };
 
-struct FontSize : public ArithmeticComponent<std::int32_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	FontSize() : ArithmeticComponent{ std::numeric_limits<std::int32_t>::infinity() } {}
-};
-
 struct TextLineSkip : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 
@@ -149,7 +143,9 @@ public:
 
 	// @return The unscaled size of the text texture given the current content and font.
 	[[nodiscard]] static V2_int GetSize(const Entity& text);
-	[[nodiscard]] static V2_int GetSize(const std::string& content, const FontKey& font_key);
+	[[nodiscard]] static V2_int GetSize(
+		const std::string& content, const FontKey& font_key, const FontSize& font_size = {}
+	);
 	[[nodiscard]] V2_int GetSize() const;
 
 	void RecreateTexture();

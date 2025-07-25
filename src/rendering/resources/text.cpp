@@ -140,15 +140,15 @@ const impl::Texture& Text::GetTexture() const {
 
 std::int32_t Text::GetFontSize() const {
 	FontSize font_size{ GetParameter(FontSize{}) };
-	if (font_size == std::numeric_limits<std::int32_t>::infinity()) {
-		auto font_key{ GetFontKey() };
-		PTGN_ASSERT(
-			game.font.Has(font_key),
-			"Cannot get size of text font unless it is loaded in the font manager"
-		);
-		return game.font.GetHeight(font_key);
+	if (font_size != FontSize{}) {
+		return font_size;
 	}
-	return font_size;
+	auto font_key{ GetFontKey() };
+	PTGN_ASSERT(
+		game.font.Has(font_key),
+		"Cannot get size of text font unless it is loaded in the font manager"
+	);
+	return game.font.GetHeight(font_key, {});
 }
 
 V2_int Text::GetSize() const {
@@ -156,15 +156,20 @@ V2_int Text::GetSize() const {
 }
 
 V2_int Text::GetSize(const Entity& text) {
-	return GetSize(GetParameter(text, TextContent{}), GetParameter(text, FontKey{}));
+	return GetSize(
+		GetParameter(text, TextContent{}), GetParameter(text, FontKey{}),
+		GetParameter(text, FontSize{})
+	);
 }
 
-V2_int Text::GetSize(const std::string& content, const FontKey& font_key) {
+V2_int Text::GetSize(
+	const std::string& content, const FontKey& font_key, const FontSize& font_size
+) {
 	PTGN_ASSERT(
 		game.font.Has(font_key),
 		"Cannot get size of text texture unless its font is loaded in the font manager"
 	);
-	return game.font.GetSize(font_key, content);
+	return game.font.GetSize(font_key, content, font_size);
 }
 
 impl::Texture Text::CreateTexture(
@@ -180,7 +185,8 @@ impl::Texture Text::CreateTexture(
 		"Cannot create texture for text with font key which is not loaded in the font manager"
 	);
 
-	auto font{ game.font.Get(font_key) };
+	auto shared_font{ game.font.Get(font_key) };
+	auto font{ shared_font.get() };
 
 	PTGN_ASSERT(font != nullptr, "Cannot create texture for text with nullptr font");
 

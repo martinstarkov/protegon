@@ -17,6 +17,7 @@ using TTF_Font = _TTF_Font;
 #else
 struct TTF_Font;
 #endif
+struct SDL_RWops;
 
 namespace ptgn {
 
@@ -34,6 +35,12 @@ enum class FontStyle : int {
 	Italic		  = 2, // TTF_STYLE_ITALIC
 	Underline	  = 4, // TTF_STYLE_UNDERLINE
 	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
+};
+
+struct FontSize : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	FontSize() : ArithmeticComponent{ std::numeric_limits<std::int32_t>::infinity() } {}
 };
 
 [[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {
@@ -71,6 +78,17 @@ public:
 	// Empty font key corresponds to the engine default font.
 	void SetDefault(const FontKey& key = {});
 
+	[[nodiscard]] int GetLineSkip(const FontKey& key, const FontSize& font_size = {}) const;
+
+	// @param font_size If left with default {}, will use currently set font size of the provided
+	// font key.
+	[[nodiscard]] V2_int GetSize(
+		const FontKey& key, const std::string& content, const FontSize& font_size = {}
+	) const;
+
+	// @return Total height of the font in pixels.
+	[[nodiscard]] std::int32_t GetHeight(const FontKey& key, const FontSize& font_size = {}) const;
+
 private:
 	friend class Game;
 	friend class ptgn::Text;
@@ -79,12 +97,14 @@ private:
 
 	void Init();
 
-	[[nodiscard]] V2_int GetSize(const FontKey& key, const std::string& content) const;
-
-	// @return Total height of the font in pixels.
-	[[nodiscard]] std::int32_t GetHeight(const FontKey& key) const;
-
 	[[nodiscard]] bool Has(const FontKey& key) const;
+
+	[[nodiscard]] static SDL_RWops* GetRawBuffer(const FontBinary& binary);
+
+	// @param free_buffer If true, frees raw_buffer after use.
+	[[nodiscard]] static TTF_Font* LoadFromBinary(
+		SDL_RWops* raw_buffer, std::int32_t size, std::int32_t index, bool free_buffer
+	);
 
 	[[nodiscard]] static Font LoadFromBinary(
 		const FontBinary& binary, std::int32_t size, std::int32_t index
@@ -94,11 +114,16 @@ private:
 		const path& filepath, std::int32_t size, std::int32_t index
 	);
 
-	[[nodiscard]] TTF_Font* Get(const FontKey& key) const;
+	[[nodiscard]] std::shared_ptr<TTF_Font> Get(
+		const FontKey& key, const FontSize& font_size = {}
+	) const;
 
+	std::unordered_map<std::size_t, std::string> font_paths_;
 	std::unordered_map<std::size_t, Font> fonts_;
 
 	FontKey default_key_;
+
+	SDL_RWops* raw_default_font_{ nullptr };
 };
 
 } // namespace impl
