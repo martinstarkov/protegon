@@ -237,9 +237,8 @@ public:
 	void Close() {
 		text_.RemoveScript<impl::DialogueWaitScript>();
 		text_.RemoveScript<impl::DialogueScrollScript>();
-		current_line	  = -1;
-		current_page	  = -1;
-		current_dialogue_ = "";
+		current_line = 0;
+		current_page = 0;
 		text_.Hide();
 	}
 
@@ -262,8 +261,8 @@ public:
 	void SetNextDialogue() {
 		auto dialogue{ GetCurrentDialogue() };
 		if (!dialogue) {
-			current_line = -1;
-			current_page = -1;
+			current_line = 0;
+			current_page = 0;
 			return;
 		}
 		auto next_dialogue{ dialogue->next_dialogue };
@@ -272,9 +271,6 @@ public:
 			next_dialogue, "' not found in the dialogue map"
 		);
 		if (next_dialogue.empty()) {
-			current_line = -1;
-			current_page = -1;
-		} else {
 			current_line = 0;
 			current_page = 0;
 		}
@@ -473,9 +469,8 @@ private:
 
 	Text text_;
 
-	// TODO: Consider a better way to do this.
-	int current_line{ -1 };
-	int current_page{ -1 };
+	int current_line{ 0 };
+	int current_page{ 0 };
 	std::string current_dialogue_;
 
 	std::unordered_map<std::string, Dialogue> dialogues_;
@@ -606,7 +601,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 namespace impl {
 
 void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
-	if (game.input.KeyDown(Key::E)) {
+	if (game.input.KeyDown(Key::Enter)) {
 		auto& dialogue_component{ GetDialogueComponent() };
 		dialogue_component.NextPage();
 	}
@@ -681,6 +676,15 @@ struct DialogueScene : public Scene {
 		}
 		if (game.input.KeyDown(Key::N)) {
 			dialogue.SetNextDialogue();
+		}
+		if (game.input.KeyDown(Key::I)) {
+			dialogue.SetDialogue("intro");
+		}
+		if (game.input.KeyDown(Key::O)) {
+			dialogue.SetDialogue("outro");
+		}
+		if (game.input.KeyDown(Key::E)) {
+			dialogue.SetDialogue("epilogue");
 		}
 		dialogue.DrawInfo();
 	}
