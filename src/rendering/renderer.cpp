@@ -60,14 +60,18 @@ void DrawDebugTexture(
 }
 
 void DrawDebugText(
-	Text& text, const V2_float& position, const V2_float& size, Origin origin, float rotation,
-	const Camera& camera
+	const std::string& content, const V2_float& position, const TextColor& color, Origin origin,
+	const FontSize& font_size, const FontKey& font_key, const TextProperties& properties,
+	const V2_float& size, float rotation, const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddTexturedQuad(
-		text.Get<impl::Texture>(), Transform{ position, rotation },
-		size.IsZero() ? V2_float{ text.GetSize() } : size, origin, color::White, impl::max_depth,
-		Sprite{ text }.GetTextureCoordinates(false), impl::GetDebugRenderState(camera), {}
+	auto& render_data{ game.renderer.GetRenderData() };
+	auto texture{ Text::CreateTexture(content, color, font_size, font_key, properties) };
+	render_data.AddTexturedQuad(
+		texture, Transform{ position, rotation },
+		size.IsZero() ? V2_float{ Text::GetSize(content, font_key) } : size, origin, color::White,
+		impl::max_depth, impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
 	);
+	render_data.AddTemporaryTexture(std::move(texture));
 }
 
 void DrawDebugLine(
