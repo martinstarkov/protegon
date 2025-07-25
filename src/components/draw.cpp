@@ -119,6 +119,9 @@ V2_int Sprite::GetSize() const {
 }
 
 V2_float Sprite::GetDisplaySize() const {
+	if (!Has<TextureHandle>() && !Has<TextureCrop>()) {
+		return {};
+	}
 	return GetSize() * GetScale();
 }
 
