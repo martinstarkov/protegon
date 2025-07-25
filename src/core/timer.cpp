@@ -136,6 +136,7 @@ void ScriptTimers::Update(Scene& scene) {
 				bool remove{ script.OnTimerStop() };
 				timer_info.timer.Stop();
 				if (remove) {
+					scripts.RemoveScript(key);
 					timer_it = script_timer.timers.erase(timer_it);
 				}
 			}

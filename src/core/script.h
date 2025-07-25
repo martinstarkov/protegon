@@ -143,6 +143,10 @@ public:
 		scripts.erase(hash);
 	}
 
+	void RemoveScript(std::size_t hash) {
+		scripts.erase(hash);
+	}
+
 	[[nodiscard]] bool IsEmpty() const {
 		return scripts.empty();
 	}
