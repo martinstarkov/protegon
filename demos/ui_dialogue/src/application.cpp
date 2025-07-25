@@ -1,8 +1,10 @@
 
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "events/input_handler.h"
 #include "math/vector2.h"
+#include "rendering/graphics/rect.h"
 #include "rendering/renderer.h"
 #include "rendering/resources/text.h"
 #include "scene/scene.h"
@@ -11,7 +13,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int window_size{ 1200, 1200 };
 
 namespace ptgn {
 
@@ -22,16 +24,62 @@ struct DialoguePageProperties {
 
 	friend bool operator==(const DialoguePageProperties& a, const DialoguePageProperties& b) {
 		return a.scroll_duration == b.scroll_duration && a.color == b.color &&
-			   a.max_length == b.max_length;
+			   a.font_key == b.font_key && a.box_size == b.box_size && a.font_size == b.font_size &&
+			   NearlyEqual(a.padding_bottom, b.padding_bottom) &&
+			   NearlyEqual(a.padding_left, b.padding_left) &&
+			   NearlyEqual(a.padding_right, b.padding_right) &&
+			   NearlyEqual(a.padding_top, b.padding_top);
 	}
 
 	friend bool operator!=(const DialoguePageProperties& a, const DialoguePageProperties& b) {
 		return !operator==(a, b);
 	}
 
+	// Use the dialogue page properties of the json or its parent object.
+	[[nodiscard]] DialoguePageProperties InheritProperties(const json& j) const {
+		DialoguePageProperties properties;
+		properties.color		   = j.value("color", color);
+		properties.scroll_duration = j.value("scroll_duration", scroll_duration);
+		properties.box_size		   = j.value("box_size", box_size);
+		properties.font_key		   = j.value("font_key", font_key);
+		properties.padding_top	   = j.value("padding_top", padding_top);
+		properties.padding_bottom  = j.value("padding_bottom", padding_bottom);
+		properties.padding_left	   = j.value("padding_left", padding_left);
+		properties.padding_right   = j.value("padding_right", padding_right);
+		properties.font_size	   = j.value("font_size", font_size);
+		return properties;
+	}
+
+	void SetPadding(float padding) {
+		padding_left   = padding;
+		padding_right  = padding;
+		padding_top	   = padding;
+		padding_bottom = padding;
+	}
+
+	void SetPadding(const V2_float& padding) {
+		padding_left   = padding.x;
+		padding_right  = padding.x;
+		padding_top	   = padding.y;
+		padding_bottom = padding.y;
+	}
+
+	void SetPadding(float top, float right, float bottom, float left) {
+		padding_left   = left;
+		padding_right  = right;
+		padding_top	   = top;
+		padding_bottom = bottom;
+	}
+
 	Color color{ color::White };
+	FontKey font_key;
+	FontSize font_size;
+	V2_float box_size;
+	float padding_left{ 0.0f };
+	float padding_right{ 0.0f };
+	float padding_top{ 0.0f };
+	float padding_bottom{ 0.0f };
 	milliseconds scroll_duration{ 1000 };
-	std::size_t max_length{ 80 };
 };
 
 struct DialoguePage {
@@ -176,7 +224,9 @@ struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript> {
 
 	[[nodiscard]] DialogueComponent& GetDialogueComponent();
 
-	void OnTimerStart();
+	void UpdateText(float elapsed_fraction);
+
+	bool OnTimerStop();
 	void OnTimerUpdate(float elapsed_fraction);
 };
 
@@ -190,11 +240,26 @@ public:
 	DialogueComponent(const DialogueComponent&)				   = delete;
 	DialogueComponent& operator=(const DialogueComponent&)	   = delete;
 
+	Sprite bg;
+
 	DialogueComponent(Entity parent, const json& j) {
-		text_ = CreateText(parent.GetScene(), "", color::White);
-		text_.Hide();
+		auto& scene{ parent.GetScene() };
+		path bg_path{ "resources/box.png" };
+		LoadResource(bg_path.string(), bg_path);
+		bg = CreateSprite(scene, bg_path.string());
+		// bg.SetScale();
+		bg.SetParent(parent);
+		text_ = CreateText(scene, "", color::White);
 		text_.SetParent(parent);
-		LoadFromJson(j);
+		text_.SetFontSize(50);
+		DialoguePageProperties default_properties;
+		default_properties.SetPadding(80.0f);
+		default_properties.box_size	 = bg.GetDisplaySize();
+		default_properties.font_key	 = text_.GetFontKey();
+		default_properties.font_size = text_.GetFontSize();
+		AlignToTopLeft(default_properties);
+		LoadFromJson(j, default_properties);
+		Close();
 	}
 
 	~DialogueComponent() {
@@ -245,26 +310,27 @@ public:
 		}
 
 		StartDialogueLine(dialogue_line_index);
+
+		text_.Show();
 	}
 
 	void Close() {
-		text_.RemoveScript<impl::DialogueWaitScript>();
-		text_.RemoveScript<impl::DialogueScrollScript>();
+		auto e{ text_ };
+		e.Hide();
+		e.RemoveScript<impl::DialogueWaitScript>();
+		e.RemoveScript<impl::DialogueScrollScript>();
 		current_line = 0;
 		current_page = 0;
-		text_.Hide();
 	}
 
 	// Cycle the page to the next one.
 	void NextPage() {
 		IncrementPage();
 		auto page{ GetCurrentDialoguePage() };
-		text_.RemoveScript<impl::DialogueScrollScript>();
 		if (!page) {
-			text_.Hide();
-			auto e{ text_ };
-			e.RemoveScript<impl::DialogueWaitScript>();
+			Close();
 		} else {
+			text_.RemoveScript<impl::DialogueScrollScript>();
 			auto duration{ page->properties.scroll_duration };
 			text_.AddTimerScript<impl::DialogueScrollScript>(duration);
 		}
@@ -354,16 +420,29 @@ public:
 	}
 
 	void DrawInfo() {
-		DrawDebugText("Dialogue: " + current_dialogue_, { 0, 0 }, color::White, Origin::TopLeft);
+		FontSize font_size{ 32 };
 		DrawDebugText(
-			"Line: " + std::to_string(current_line), { 0, 50 }, color::White, Origin::TopLeft
+			"Dialogue: " + current_dialogue_, { 0, 0 }, color::White, Origin::TopLeft, font_size
 		);
 		DrawDebugText(
-			"Page: " + std::to_string(current_page), { 0, 100 }, color::White, Origin::TopLeft
+			"Line: " + std::to_string(current_line), { 0, 50 }, color::White, Origin::TopLeft,
+			font_size
+		);
+		DrawDebugText(
+			"Page: " + std::to_string(current_page), { 0, 100 }, color::White, Origin::TopLeft,
+			font_size
 		);
 	}
 
 private:
+	void AlignToTopLeft(const DialoguePageProperties& default_properties) {
+		text_.SetPosition(
+			V2_float{ default_properties.padding_left, default_properties.padding_top } -
+			default_properties.box_size / 2.0f
+		);
+		text_.SetOrigin(Origin::TopLeft);
+	}
+
 	void StartDialogueLine(int dialogue_line_index) {
 		PTGN_ASSERT(dialogue_line_index >= 0);
 		current_line = dialogue_line_index;
@@ -375,27 +454,94 @@ private:
 		text_.AddScript<impl::DialogueWaitScript>();
 	}
 
-	void LoadFromJson(const json& root);
+	void LoadFromJson(const json& root, const DialoguePageProperties& default_properties);
 
-	// Use the dialogue page properties of the json or its parent object.
-	[[nodiscard]] static DialoguePageProperties InheritProperties(
-		const json& j, const DialoguePageProperties& parent_properties
-	) {
-		DialoguePageProperties properties;
-		properties.color		   = j.value("color", parent_properties.color);
-		properties.scroll_duration = j.value("scroll_duration", parent_properties.scroll_duration);
-		return properties;
-	}
-
-	// Helper function to split text based on max length and newlines as well as adjusting durations
-	// to be proportional to the fraction of the splits.
-	[[nodiscard]] static std::vector<DialoguePage> SplitTextWithDuration(
+	[[nodiscard]] std::vector<DialoguePage> SplitTextWithDuration(
 		const std::string& full_text, const DialoguePageProperties& properties,
 		const std::string& split_end, const std::string& split_begin
 	) {
 		std::vector<DialoguePage> pages;
 
-		// First, split by newline
+		const int text_area_width =
+			properties.box_size.x - properties.padding_left - properties.padding_right;
+		const int text_area_height =
+			properties.box_size.y - properties.padding_top - properties.padding_bottom;
+
+		if (text_area_width <= 0 || text_area_height <= 0) {
+			return pages;
+		}
+
+		const int line_height =
+			game.font.GetSize(properties.font_key, "Ay", properties.font_size).y;
+
+		auto WrapTextToBox = [=](const std::string& text,
+								 int max_width) -> std::vector<std::string> {
+			std::istringstream word_stream(text);
+			std::vector<std::string> lines;
+			std::string word, current_line;
+
+			while (word_stream >> word) {
+				std::string test_line = current_line.empty() ? word : current_line + " " + word;
+
+				V2_int size =
+					game.font.GetSize(properties.font_key, test_line, properties.font_size);
+
+				if (size.x > max_width) {
+					// Handle word too long for a single line
+					if (current_line.empty()) {
+						std::string chunk;
+						for (char ch : word) {
+							chunk += ch;
+							V2_int part_size =
+								game.font.GetSize(properties.font_key, chunk, properties.font_size);
+							if (part_size.x > max_width) {
+								if (chunk.size() > 1) {
+									chunk.pop_back();
+									lines.push_back(chunk);
+									chunk = ch;
+								}
+							}
+						}
+						current_line = chunk;
+					} else {
+						lines.push_back(current_line);
+						current_line = word;
+					}
+				} else {
+					current_line = test_line;
+				}
+			}
+
+			if (!current_line.empty()) {
+				V2_int size =
+					game.font.GetSize(properties.font_key, current_line, properties.font_size);
+				if (size.x <= max_width) {
+					lines.push_back(current_line);
+				} else {
+					// Final check in case of leftover overlong word
+					std::string chunk;
+					for (char ch : current_line) {
+						chunk += ch;
+						V2_int part_size =
+							game.font.GetSize(properties.font_key, chunk, properties.font_size);
+						if (part_size.x > max_width) {
+							if (chunk.size() > 1) {
+								chunk.pop_back();
+								lines.push_back(chunk);
+								chunk = ch;
+							}
+						}
+					}
+					if (!chunk.empty()) {
+						lines.push_back(chunk);
+					}
+				}
+			}
+
+			return lines;
+		};
+
+		// Split by manual newlines
 		std::vector<std::string> newline_segments;
 		std::size_t start		= 0;
 		std::size_t newline_pos = 0;
@@ -412,74 +558,80 @@ private:
 				continue;
 			}
 
-			const std::size_t original_len = segment.size();
-			std::size_t sub_start		   = 0;
-			bool first_split			   = true;
+			std::vector<std::string> wrapped_lines = WrapTextToBox(segment, text_area_width);
+			const int max_lines					   = text_area_height / line_height;
 
-			// Estimate total added split_end and split_begin sizes
-			// We'll add the actual sizes dynamically as we go
-			std::vector<std::size_t> part_lengths;
+			std::vector<std::string> page_lines;
+			bool is_first_page = true;
 
-			std::vector<std::string> part_texts;
+			for (int i = 0; i < wrapped_lines.size(); ++i) {
+				page_lines.push_back(wrapped_lines[i]);
 
-			while (sub_start < original_len) {
-				std::size_t remaining = original_len - sub_start;
-				std::size_t ideal_len = std::min(properties.max_length, remaining);
-				std::size_t sub_end	  = sub_start + ideal_len;
-
-				if (sub_end >= original_len) {
-					std::string part = segment.substr(sub_start);
-					if (!first_split) {
-						part = split_begin + part;
+				if (page_lines.size() == max_lines) {
+					std::string page_text = JoinLines(page_lines);
+					if (i < wrapped_lines.size() - 1) {
+						page_text += split_end;
+					}
+					if (!is_first_page) {
+						page_text = split_begin + page_text;
 					}
 
-					std::size_t effective_len = part.size();
-					part_texts.push_back(part);
-					part_lengths.push_back(effective_len);
-					break;
+					std::size_t total_length = 0;
+					for (const auto& line : page_lines) {
+						total_length += line.size();
+					}
+
+					auto duration = std::chrono::duration_cast<milliseconds>(
+						ptgn::duration<double, milliseconds::period>(
+							static_cast<double>(properties.scroll_duration.count())
+						)
+					);
+
+					auto page_properties			= properties;
+					page_properties.scroll_duration = duration;
+					pages.emplace_back(DialoguePage{ page_text, page_properties });
+
+					page_lines.clear();
+					page_lines.push_back(wrapped_lines[i]);
+					is_first_page = false;
 				}
-
-				std::size_t cutoff	   = sub_end;
-				std::size_t last_space = segment.rfind(' ', cutoff);
-				if (last_space != std::string::npos && last_space > sub_start) {
-					cutoff = last_space;
-				}
-
-				std::string part = segment.substr(sub_start, cutoff - sub_start);
-				if (!first_split) {
-					part = split_begin + part;
-				}
-
-				part					  += split_end;
-				std::size_t effective_len  = part.size();
-				part_texts.push_back(part);
-				part_lengths.push_back(effective_len);
-
-				sub_start	= cutoff + 1;
-				first_split = false;
 			}
 
-			// Now compute final effective total length (including all added prefixes/suffixes)
-			std::size_t total_effective_length = 0;
-			for (const auto len : part_lengths) {
-				total_effective_length += len;
-			}
+			if (!page_lines.empty()) {
+				std::string page_text = JoinLines(page_lines);
+				if (!is_first_page) {
+					page_text = split_begin + page_text;
+				}
 
-			for (std::size_t i = 0; i < part_texts.size(); ++i) {
-				double fraction = static_cast<double>(part_lengths[i]) /
-								  static_cast<double>(total_effective_length);
-				milliseconds part_duration = std::chrono::duration_cast<milliseconds>(
+				std::size_t total_length = 0;
+				for (const auto& line : page_lines) {
+					total_length += line.size();
+				}
+
+				auto duration = std::chrono::duration_cast<milliseconds>(
 					ptgn::duration<double, milliseconds::period>(
-						fraction * static_cast<double>(properties.scroll_duration.count())
+						static_cast<double>(properties.scroll_duration.count())
 					)
 				);
-				auto new_properties{ properties };
-				new_properties.scroll_duration = part_duration;
-				pages.emplace_back(DialoguePage{ part_texts[i], new_properties });
+
+				auto page_properties			= properties;
+				page_properties.scroll_duration = duration;
+				pages.emplace_back(DialoguePage{ page_text, page_properties });
 			}
 		}
 
 		return pages;
+	}
+
+	static std::string JoinLines(const std::vector<std::string>& lines) {
+		std::string result;
+		for (const auto& line : lines) {
+			if (!result.empty()) {
+				result += "\n";
+			}
+			result += line;
+		}
+		return result;
 	}
 
 	Text text_;
@@ -491,8 +643,11 @@ private:
 	std::unordered_map<std::string, Dialogue> dialogues_;
 };
 
-inline void DialogueComponent::LoadFromJson(const json& root) {
-	const auto root_properties{ InheritProperties(root, {}) };
+inline void DialogueComponent::LoadFromJson(
+	const json& root, const DialoguePageProperties& default_properties
+) {
+	const auto root_properties{ default_properties.InheritProperties(root) };
+	PTGN_ASSERT(!root_properties.box_size.IsZero());
 	std::string split_end{ root.value("split_end", "...") };
 	std::string split_begin{ root.value("split_begin", ",,,") };
 	int default_index{ root.value("index", 0) };
@@ -519,7 +674,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 	for (const auto& [dialogue_name, dialogue_json] : dialogues_json.items()) {
 		Dialogue dialogue;
 
-		const auto dialogue_properties = InheritProperties(dialogue_json, root_properties);
+		const auto dialogue_properties = root_properties.InheritProperties(dialogue_json);
 
 		int index{ dialogue_json.value("index", default_index) };
 		dialogue.repeatable	   = dialogue_json.value("repeatable", repeatable);
@@ -552,7 +707,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 					);
 					line.pages.insert(line.pages.end(), pages.begin(), pages.end());
 				} else if (line_json.is_object()) {
-					const auto line_properties = InheritProperties(line_json, dialogue_properties);
+					const auto line_properties = dialogue_properties.InheritProperties(line_json);
 
 					PTGN_ASSERT(line_json.contains("pages"));
 
@@ -576,7 +731,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 								const std::string content = page_json.at("content");
 
 								const auto page_properties{
-									InheritProperties(page_json, line_properties)
+									line_properties.InheritProperties(page_json)
 								};
 
 								auto pages = SplitTextWithDuration(
@@ -618,6 +773,14 @@ namespace impl {
 void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
 	if (game.input.KeyDown(Key::Enter)) {
 		auto& dialogue_component{ GetDialogueComponent() };
+		if (entity.HasScript<impl::DialogueScrollScript>()) {
+			auto& script_info{ entity.GetTimerScriptInfo<impl::DialogueScrollScript>() };
+			if (script_info.timer.IsRunning()) {
+				entity.GetScript<impl::DialogueScrollScript>().UpdateText(1.0f);
+				script_info.timer.Stop();
+				return;
+			}
+		}
 		dialogue_component.NextPage();
 	}
 }
@@ -640,21 +803,18 @@ DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
 
-void DialogueScrollScript::OnTimerStart() {
+void DialogueScrollScript::UpdateText(float elapsed_fraction) {
+	PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
 	auto& dialogue_component{ GetDialogueComponent() };
 	auto page{ dialogue_component.GetCurrentDialoguePage() };
-	PTGN_ASSERT(page);
-	entity.Show();
-}
-
-void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
-	auto& dialogue_component{ GetDialogueComponent() };
-	auto page{ dialogue_component.GetCurrentDialoguePage() };
-	PTGN_ASSERT(page);
+	if (!page) {
+		return;
+	}
 	const auto& text{ page->content };
 	std::size_t char_count{ static_cast<std::size_t>(std::round(elapsed_fraction * text.size())) };
 	TextContent revealed_text{ text.substr(0, char_count) };
 	TextColor text_color{ page->properties.color };
+	FontKey font_key{ page->properties.font_key };
 	// For debugging purposes:
 	/*
 	std::stringstream s;
@@ -663,8 +823,18 @@ void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
 	*/
 	Text text_entity{ entity };
 	// Do not recreate texture twice.
+	text_entity.SetParameter(font_key, false);
 	text_entity.SetParameter(text_color, false);
 	text_entity.SetParameter(revealed_text, true);
+}
+
+bool DialogueScrollScript::OnTimerStop() {
+	UpdateText(1.0f);
+	return true;
+}
+
+void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
+	UpdateText(elapsed_fraction);
 }
 
 } // namespace impl
@@ -679,7 +849,7 @@ struct DialogueScene : public Scene {
 		npc.SetPosition(window_size / 2);
 		json j		   = LoadJson("resources/dialogue.json");
 		auto& dialogue = npc.Add<DialogueComponent>(npc, j);
-		TestDialogues(dialogue.GetDialogues());
+		//	TestDialogues(dialogue.GetDialogues());
 	}
 
 	void Update() override {
