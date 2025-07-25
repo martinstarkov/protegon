@@ -76,6 +76,20 @@ struct TextShadingColor : public ColorComponent {
 	TextShadingColor() : ColorComponent{ color::White } {}
 };
 
+struct TextProperties {
+	FontStyle style;
+	TextJustify justify;
+	TextLineSkip line_skip;
+	TextWrapAfter wrap_after;
+	FontRenderMode render_mode{ FontRenderMode::Solid };
+	TextOutline outline;
+	TextShadingColor shading_color;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+		TextProperties, style, justify, line_skip, wrap_after, render_mode, outline, shading_color
+	)
+};
+
 class Text : public Entity, public Drawable<Text> {
 public:
 	Text() = default;
@@ -83,6 +97,12 @@ public:
 	Text(const Entity& entity);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
+
+	[[nodiscard]] static impl::Texture CreateTexture(
+		const std::string& content, const TextColor& color = color::White,
+		const FontSize& font_size = {}, const FontKey& font_key = "",
+		const TextProperties& properties = {}
+	);
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
@@ -129,6 +149,7 @@ public:
 
 	// @return The unscaled size of the text texture given the current content and font.
 	[[nodiscard]] static V2_int GetSize(const Entity& text);
+	[[nodiscard]] static V2_int GetSize(const std::string& content, const FontKey& font_key);
 	[[nodiscard]] V2_int GetSize() const;
 
 	void RecreateTexture();
