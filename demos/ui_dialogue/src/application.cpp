@@ -200,6 +200,14 @@ public:
 		text_.Destroy();
 	}
 
+	[[nodiscard]] const Text& GetText() const {
+		return text_;
+	}
+
+	[[nodiscard]] Text& GetText() {
+		return text_;
+	}
+
 	void Open(const std::string& dialogue_name = "") {
 		PTGN_ASSERT(!dialogues_.empty(), "Cannot open any dialogue when none have been loaded");
 		current_dialogue_ = dialogue_name.empty() ? current_dialogue_ : dialogue_name;
