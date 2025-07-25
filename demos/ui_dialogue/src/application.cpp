@@ -460,6 +460,14 @@ private:
 		const std::string& full_text, const DialoguePageProperties& properties,
 		const std::string& split_end, const std::string& split_begin
 	) {
+		// TODO: Potentially move these outside of this function.
+		const int split_begin_width{
+			game.font.GetSize(properties.font_key, split_begin, properties.font_size).x
+		};
+		const int split_end_width{
+			game.font.GetSize(properties.font_key, split_end, properties.font_size).x
+		};
+
 		std::vector<DialoguePage> pages;
 
 		const int text_area_width =
@@ -474,17 +482,30 @@ private:
 		const int line_height =
 			game.font.GetSize(properties.font_key, "Ay", properties.font_size).y;
 
-		auto WrapTextToBox = [=](const std::string& text,
-								 int max_width) -> std::vector<std::string> {
+		auto WrapTextToBox = [&](const std::string& text, int max_width, int max_lines,
+								 int split_begin_width,
+								 int split_end_width) -> std::vector<std::string> {
 			std::istringstream word_stream(text);
 			std::vector<std::string> lines;
 			std::string word, current_line;
+
+			int line_count	   = 0; // To count the number of lines wrapped
+			bool is_first_line = true;
+			bool is_last_line  = false;
 
 			while (word_stream >> word) {
 				std::string test_line = current_line.empty() ? word : current_line + " " + word;
 
 				V2_int size =
 					game.font.GetSize(properties.font_key, test_line, properties.font_size);
+
+				// if (is_first_line && !pages.empty()) {
+				// 	size.x += split_begin_width;
+				// }
+
+				// if (is_last_line) {
+				// 	size.x += split_end_width;
+				// }
 
 				if (size.x > max_width) {
 					// Handle word too long for a single line
@@ -507,9 +528,14 @@ private:
 						lines.push_back(current_line);
 						current_line = word;
 					}
+					is_first_line = false;
 				} else {
 					current_line = test_line;
 				}
+
+				// Determine if it's the last line
+				line_count++; // Count the number of lines wrapped
+				is_last_line = (line_count >= max_lines);
 			}
 
 			if (!current_line.empty()) {
@@ -558,8 +584,10 @@ private:
 				continue;
 			}
 
-			std::vector<std::string> wrapped_lines = WrapTextToBox(segment, text_area_width);
 			const int max_lines					   = text_area_height / line_height;
+			std::vector<std::string> wrapped_lines = WrapTextToBox(
+				segment, text_area_width, max_lines, split_begin_width, split_end_width
+			);
 
 			std::vector<std::string> page_lines;
 			bool is_first_page = true;
