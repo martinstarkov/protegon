@@ -4,6 +4,7 @@
   "max_length": 80,
   "color": [255, 255, 255, 255],
   "scroll_duration": "4s",
+  "start": "intro",
   "dialogues": {
     "intro": {
       "color": [255, 0, 0, 255],

@@ -3,6 +3,7 @@
 #include "core/game.h"
 #include "events/input_handler.h"
 #include "math/vector2.h"
+#include "rendering/renderer.h"
 #include "rendering/resources/text.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -204,21 +205,21 @@ public:
 		current_dialogue_ = dialogue_name.empty() ? current_dialogue_ : dialogue_name;
 
 		if (current_dialogue_.empty()) {
-			PTGN_LOG("No current dialogue set");
+			// PTGN_LOG("No current dialogue set");
 			return;
 		}
 
 		auto dialogue{ GetCurrentDialogue() };
 
 		if (!dialogue) {
-			PTGN_LOG("No available dialogues");
+			// PTGN_LOG("No available dialogues");
 			return;
 		}
 
 		auto dialogue_line_index{ dialogue->GetNewDialogueLine() };
 
 		if (dialogue_line_index == -1) {
-			PTGN_LOG("No available dialogue lines");
+			// PTGN_LOG("No available dialogue lines");
 			return;
 		}
 
@@ -253,6 +254,8 @@ public:
 	void SetNextDialogue() {
 		auto dialogue{ GetCurrentDialogue() };
 		if (!dialogue) {
+			current_line = -1;
+			current_page = -1;
 			return;
 		}
 		auto next_dialogue{ dialogue->next_dialogue };
@@ -260,6 +263,13 @@ public:
 			(next_dialogue.empty() || MapContains(dialogues_, next_dialogue)), "Next dialogue '",
 			next_dialogue, "' not found in the dialogue map"
 		);
+		if (next_dialogue.empty()) {
+			current_line = -1;
+			current_page = -1;
+		} else {
+			current_line = 0;
+			current_page = 0;
+		}
 		current_dialogue_ = next_dialogue;
 	}
 
@@ -324,12 +334,18 @@ public:
 		current_page++;
 	}
 
+	void DrawInfo() {
+		DrawDebugText("Dialogue: " + current_dialogue_, { 0, 0 }, color::White, Origin::TopLeft);
+		DrawDebugText(
+			"Line: " + std::to_string(current_line), { 0, 50 }, color::White, Origin::TopLeft
+		);
+		DrawDebugText(
+			"Page: " + std::to_string(current_page), { 0, 100 }, color::White, Origin::TopLeft
+		);
+	}
+
 private:
 	void StartDialogueLine(int dialogue_line_index) {
-		if (text_.HasScript<impl::DialogueScrollScript>() ||
-			text_.HasScript<impl::DialogueWaitScript>()) {
-			return;
-		}
 		PTGN_ASSERT(dialogue_line_index >= 0);
 		current_line = dialogue_line_index;
 		current_page = 0;
@@ -467,6 +483,7 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 	bool repeatable{ root.value("repeatable", true) };
 	bool scroll{ root.value("scroll", true) };
 
+	PTGN_ASSERT(root.contains("dialogues"));
 	const auto& dialogues_json = root.at("dialogues");
 
 	std::string next{ root.value("next", "") };
@@ -474,7 +491,12 @@ inline void DialogueComponent::LoadFromJson(const json& root) {
 		next.empty() || dialogues_json.contains(next), "Next key not found in json of dialogues"
 	);
 
-	PTGN_ASSERT(root.contains("dialogues"));
+	current_dialogue_ = root.value("start", "");
+
+	PTGN_ASSERT(
+		current_dialogue_.empty() || dialogues_json.contains(current_dialogue_),
+		"Start key not found in json of dialogues"
+	);
 
 	for (const auto& [dialogue_name, dialogue_json] : dialogues_json.items()) {
 		Dialogue dialogue;
@@ -644,14 +666,15 @@ struct DialogueScene : public Scene {
 	void Update() override {
 		auto& dialogue{ npc.Get<DialogueComponent>() };
 		if (game.input.KeyDown(Key::Space)) {
-			dialogue.Open("intro");
+			dialogue.Open();
 		}
 		if (game.input.KeyDown(Key::Escape)) {
 			dialogue.Close();
 		}
-		if (game.input.KeyDown(Key::S)) {
-			dialogue.NextPage();
+		if (game.input.KeyDown(Key::N)) {
+			dialogue.SetNextDialogue();
 		}
+		dialogue.DrawInfo();
 	}
 
 	void TestDialogues(const std::unordered_map<std::string, Dialogue>& dialogues) {
