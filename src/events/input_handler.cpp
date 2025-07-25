@@ -9,25 +9,24 @@
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
+#include "common/assert.h"
 #include "core/game.h"
+#include "core/time.h"
+#include "core/timer.h"
 #include "core/window.h"
+#include "debug/log.h"
 #include "events/event_handler.h"
 #include "events/events.h"
 #include "events/key.h"
 #include "events/mouse.h"
-#include "physics/collision/overlap.h"
 #include "math/vector2.h"
-#include "common/assert.h"
-#include "debug/log.h"
-#include "core/time.h"
-#include "core/timer.h"
+#include "physics/collision/overlap.h"
 
 namespace ptgn::impl {
 
 void InputHandler::ResetKeyStates() {
-	key_states_.reset();
-	first_time_down_.reset();
-	first_time_up_.reset();
+	pressed_keys_.reset();
+	previous_pressed_keys_.reset();
 }
 
 void InputHandler::ResetMouseStates() {
@@ -40,9 +39,9 @@ void InputHandler::ResetMouseStates() {
 }
 
 void InputHandler::ResetMousePositions() {
-	mouse_pos_		= {};
-	prev_mouse_pos_ = {};
-	mouse_scroll_	= {};
+	mouse_position_			 = {};
+	previous_mouse_position_ = {};
+	mouse_scroll_			 = {};
 }
 
 void InputHandler::Reset() {
@@ -52,7 +51,8 @@ void InputHandler::Reset() {
 }
 
 void InputHandler::Update() {
-	prev_mouse_pos_ = mouse_pos_;
+	previous_mouse_position_ = mouse_position_;
+	previous_pressed_keys_	 = pressed_keys_;
 	// Update mouse states.
 	UpdateMouseState(Mouse::Left);
 	UpdateMouseState(Mouse::Right);
@@ -60,12 +60,12 @@ void InputHandler::Update() {
 	mouse_scroll_ = {};
 	SDL_Event e;
 	SDL_PumpEvents();
-	SDL_GetMouseState(&mouse_pos_.x, &mouse_pos_.y);
+	SDL_GetMouseState(&mouse_position_.x, &mouse_position_.y);
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 			case SDL_MOUSEMOTION: {
-				mouse_pos_.x = e.motion.x;
-				mouse_pos_.y = e.motion.y;
+				mouse_position_.x = e.motion.x;
+				mouse_position_.y = e.motion.y;
 				game.event.mouse.Post(MouseEvent::Move, MouseMoveEvent{});
 				break;
 			}
@@ -91,32 +91,26 @@ void InputHandler::Update() {
 				);
 				break;
 			}
-			case SDL_MOUSEWHEEL: {
-				mouse_scroll_ = { e.wheel.x, e.wheel.y };
-				game.event.mouse.Post(MouseEvent::Scroll, MouseScrollEvent{ mouse_scroll_ });
+			case SDL_KEYDOWN: {
+				Key key{ static_cast<Key>(e.key.keysym.scancode) };
+				if (!e.key.repeat) {
+					pressed_keys_[static_cast<std::size_t>(key)] = true;
+					game.event.key.Post(KeyEvent::Down, KeyDownEvent{ key });
+				}
+				game.event.key.Post(KeyEvent::Pressed, KeyPressedEvent{ key });
 				break;
 			}
 			case SDL_KEYUP: {
-				if (key_states_[e.key.keysym.scancode]) {
-					first_time_up_[e.key.keysym.scancode] = true;
+				Key key{ static_cast<Key>(e.key.keysym.scancode) };
+				if (pressed_keys_[static_cast<std::size_t>(key)]) {
+					pressed_keys_[static_cast<std::size_t>(key)] = false;
+					game.event.key.Post(KeyEvent::Up, KeyUpEvent{ key });
 				}
-				key_states_[e.key.keysym.scancode] = false;
-				game.event.key.Post(
-					KeyEvent::Up, KeyUpEvent{ static_cast<Key>(e.key.keysym.scancode) }
-				);
 				break;
 			}
-			case SDL_KEYDOWN: {
-				if (!key_states_[e.key.keysym.scancode]) {
-					first_time_down_[e.key.keysym.scancode] = true;
-					game.event.key.Post(
-						KeyEvent::Down, KeyDownEvent{ static_cast<Key>(e.key.keysym.scancode) }
-					);
-				}
-				key_states_[e.key.keysym.scancode] = true;
-				game.event.key.Post(
-					KeyEvent::Pressed, KeyPressedEvent{ static_cast<Key>(e.key.keysym.scancode) }
-				);
+			case SDL_MOUSEWHEEL: {
+				mouse_scroll_ = { e.wheel.x, e.wheel.y };
+				game.event.mouse.Post(MouseEvent::Scroll, MouseScrollEvent{ mouse_scroll_ });
 				break;
 			}
 			case SDL_QUIT: {
@@ -197,7 +191,7 @@ V2_float InputHandler::GetMousePositionGlobal() const {
 }
 
 V2_float InputHandler::GetMousePosition() const {
-	return mouse_pos_;
+	return mouse_position_;
 }
 
 V2_float InputHandler::GetMousePositionUnclamped() const {
@@ -205,11 +199,11 @@ V2_float InputHandler::GetMousePositionUnclamped() const {
 }
 
 V2_float InputHandler::GetMousePositionPrevious() const {
-	return prev_mouse_pos_;
+	return previous_mouse_position_;
 }
 
 V2_float InputHandler::GetMouseDifference() const {
-	return mouse_pos_ - prev_mouse_pos_;
+	return mouse_position_ - previous_mouse_position_;
 }
 
 int InputHandler::GetMouseScroll() const {
@@ -293,11 +287,9 @@ bool InputHandler::MouseUp(Mouse button) const {
 }
 
 bool InputHandler::KeyPressed(Key key) const {
-	auto key_number{ static_cast<std::size_t>(key) };
-	PTGN_ASSERT(
-		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
-	);
-	return key_states_[key_number];
+	auto i{ static_cast<std::size_t>(key) };
+	PTGN_ASSERT(i < InputHandler::key_count_, "Could not find key in input handler key states");
+	return pressed_keys_[i];
 }
 
 bool InputHandler::KeyReleased(Key key) const {
@@ -305,29 +297,15 @@ bool InputHandler::KeyReleased(Key key) const {
 }
 
 bool InputHandler::KeyDown(Key key) {
-	auto key_number{ static_cast<std::size_t>(key) };
-	PTGN_ASSERT(
-		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
-	);
-	if (first_time_down_[key_number]) {
-		first_time_up_[key_number]	 = false;
-		first_time_down_[key_number] = false;
-		return true;
-	}
-	return false;
+	auto i{ static_cast<std::size_t>(key) };
+	PTGN_ASSERT(i < InputHandler::key_count_, "Could not find key in input handler key states");
+	return pressed_keys_[i] && !previous_pressed_keys_[i];
 }
 
 bool InputHandler::KeyUp(Key key) {
-	auto key_number{ static_cast<std::size_t>(key) };
-	PTGN_ASSERT(
-		key_number < InputHandler::key_count_, "Could not find key in input handler key states"
-	);
-	if (first_time_up_[key_number]) {
-		first_time_up_[key_number]	 = false;
-		first_time_down_[key_number] = false;
-		return true;
-	}
-	return false;
+	auto i{ static_cast<std::size_t>(key) };
+	PTGN_ASSERT(i < InputHandler::key_count_, "Could not find key in input handler key states");
+	return !pressed_keys_[i] && previous_pressed_keys_[i];
 }
 
 } // namespace ptgn::impl

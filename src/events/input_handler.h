@@ -3,11 +3,11 @@
 #include <bitset>
 #include <utility>
 
+#include "core/time.h"
+#include "core/timer.h"
 #include "events/key.h"
 #include "events/mouse.h"
 #include "math/vector2.h"
-#include "core/time.h"
-#include "core/timer.h"
 
 union SDL_Event;
 
@@ -52,10 +52,12 @@ public:
 	// @param Whether or not mouse relative mode should be turned on or not.
 	void SetRelativeMouseMode(bool on) const;
 
-	// @return Mouse position relative to the top left of the window, clamped to the range [0, window_size].
+	// @return Mouse position relative to the top left of the window, clamped to the range [0,
+	// window_size].
 	[[nodiscard]] V2_float GetMousePosition() const;
 
-	// @return Mouse position relative to the top left of the window, without clamping to the range [0, window_size].
+	// @return Mouse position relative to the top left of the window, without clamping to the range
+	// [0, window_size].
 	[[nodiscard]] V2_float GetMousePositionUnclamped() const;
 
 	// @return Mouse position during the previous frame relative to the top left of the window.
@@ -145,19 +147,19 @@ private:
 	static constexpr std::size_t key_count_{ 512 };
 
 	// Previous loop cycle key states for comparison with current.
-	std::bitset<key_count_> key_states_;
-	std::bitset<key_count_> first_time_down_;
-	std::bitset<key_count_> first_time_up_;
+	std::bitset<key_count_> pressed_keys_;
+	std::bitset<key_count_> previous_pressed_keys_;
 
 	// Mouse states.
 	MouseState left_mouse_{ MouseState::Released };
 	MouseState right_mouse_{ MouseState::Released };
 	MouseState middle_mouse_{ MouseState::Released };
-	V2_int mouse_pos_;
-	V2_int prev_mouse_pos_;
+
+	V2_int mouse_position_;
+	V2_int previous_mouse_position_;
 	V2_int mouse_scroll_;
 
-	// Mouse button held for timers.
+	// Timers for how long a mouse button has been held down for.
 
 	Timer left_mouse_timer_;
 	Timer right_mouse_timer_;
