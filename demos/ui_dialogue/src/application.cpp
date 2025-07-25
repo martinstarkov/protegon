@@ -191,7 +191,8 @@ public:
 	DialogueComponent& operator=(const DialogueComponent&)	   = delete;
 
 	DialogueComponent(Entity parent, const json& j) {
-		text_ = CreateText(parent.GetScene(), "Hello!", color::Pink);
+		text_ = CreateText(parent.GetScene(), "", color::White);
+		text_.Hide();
 		text_.SetParent(parent);
 		LoadFromJson(j);
 	}
@@ -208,9 +209,21 @@ public:
 		return text_;
 	}
 
+	[[nodiscard]] bool IsOpen() const {
+		return text_.IsVisible();
+	}
+
 	void Open(const std::string& dialogue_name = "") {
 		PTGN_ASSERT(!dialogues_.empty(), "Cannot open any dialogue when none have been loaded");
-		current_dialogue_ = dialogue_name.empty() ? current_dialogue_ : dialogue_name;
+
+		if (!dialogue_name.empty()) {
+			if (dialogue_name == current_dialogue_ && IsOpen()) {
+				return;
+			}
+			current_dialogue_ = dialogue_name;
+		} else if (IsOpen()) {
+			return;
+		}
 
 		if (current_dialogue_.empty()) {
 			// PTGN_LOG("No current dialogue set");
@@ -284,6 +297,8 @@ public:
 			"' not found in the dialogue map"
 		);
 		current_dialogue_ = name;
+		current_line	  = 0;
+		current_page	  = 0;
 	}
 
 	// TODO: Move all of this to private:
@@ -607,8 +622,8 @@ void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
 	}
 }
 
-DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
-	auto dialogue_entity = entity.GetParent();
+DialogueComponent& GetDialogueComponent(Entity& entity) {
+	auto dialogue_entity{ entity.GetParent() };
 
 	PTGN_ASSERT(dialogue_entity);
 
@@ -617,14 +632,12 @@ DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 	return dialogue_entity.Get<DialogueComponent>();
 }
 
+DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
+	return impl::GetDialogueComponent(entity);
+}
+
 DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
-	auto dialogue_entity = entity.GetParent();
-
-	PTGN_ASSERT(dialogue_entity);
-
-	PTGN_ASSERT(dialogue_entity.Has<DialogueComponent>());
-
-	return dialogue_entity.Get<DialogueComponent>();
+	return impl::GetDialogueComponent(entity);
 }
 
 void DialogueScrollScript::OnTimerStart() {
@@ -632,7 +645,6 @@ void DialogueScrollScript::OnTimerStart() {
 	auto page{ dialogue_component.GetCurrentDialoguePage() };
 	PTGN_ASSERT(page);
 	entity.Show();
-	Text{ entity }.SetColor(page->properties.color);
 }
 
 void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
@@ -641,14 +653,18 @@ void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
 	PTGN_ASSERT(page);
 	const auto& text{ page->content };
 	std::size_t char_count{ static_cast<std::size_t>(std::round(elapsed_fraction * text.size())) };
-	auto revealed_text{ text.substr(0, char_count) };
+	TextContent revealed_text{ text.substr(0, char_count) };
+	TextColor text_color{ page->properties.color };
 	// For debugging purposes:
 	/*
 	std::stringstream s;
 	s << entity.GetTimerScriptInfo<DialogueScrollScript>().duration << " ";
 	auto duration_str{ s.str() };
 	*/
-	Text{ entity }.SetContent(revealed_text);
+	Text text_entity{ entity };
+	// Do not recreate texture twice.
+	text_entity.SetParameter(text_color, false);
+	text_entity.SetParameter(revealed_text, true);
 }
 
 } // namespace impl
