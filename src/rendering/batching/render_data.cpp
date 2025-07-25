@@ -23,6 +23,7 @@
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "render_data.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
@@ -665,6 +666,10 @@ void RenderData::AddShader(
 	intermediate_target.SetBlendMode(old_blend_mode);
 }
 
+void RenderData::AddTemporaryTexture(Texture&& texture) {
+	temporary_textures.emplace_back(std::move(texture));
+}
+
 void RenderData::BindTextures() const {
 	PTGN_ASSERT(textures.size() < max_texture_slots);
 
@@ -941,6 +946,7 @@ void RenderData::Draw(Scene& scene) {
 	Flush();
 	render_state		= {};
 	intermediate_target = {};
+	temporary_textures	= std::vector<Texture>{};
 
 	DrawToScreen();
 

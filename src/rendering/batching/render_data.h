@@ -240,6 +240,8 @@ public:
 		const Color& target_clear_color, bool uses_scene_texture
 	);
 
+	void AddTemporaryTexture(Texture&& texture);
+
 private:
 	friend class ptgn::Scene;
 	friend class Renderer;
@@ -381,6 +383,7 @@ private:
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 	std::array<Vertex, 4> camera_vertices;
+	std::vector<Texture> temporary_textures;
 	FrameBufferPool frame_buffer_pool{ seconds{ 1 }, 1024 };
 	Manager render_manager;
 	RenderState render_state;
