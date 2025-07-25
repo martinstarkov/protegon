@@ -62,7 +62,7 @@ void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite sprite{ entity };
 
 	const auto& texture{ sprite.GetTexture() };
-	auto display_size{ sprite.GetDisplaySize() };
+	auto display_size{ sprite.GetSize() };
 	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
 
 	auto transform{ entity.GetDrawTransform() };
@@ -110,13 +110,16 @@ V2_int Sprite::GetTextureSize() const {
 	PTGN_ERROR("Texture does not have a valid size");
 }
 
-V2_int Sprite::GetDisplaySize() const {
+V2_int Sprite::GetSize() const {
 	if (Has<TextureCrop>()) {
 		const auto& crop{ Get<TextureCrop>() };
 		return crop.size;
 	}
-
 	return GetTextureSize();
+}
+
+V2_float Sprite::GetDisplaySize() const {
+	return GetSize() * GetScale();
 }
 
 std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) const {
