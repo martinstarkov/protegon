@@ -4,10 +4,10 @@
   "color": [255, 255, 255, 255],
   "scroll_duration": "4s",
   "font_size": 30,
-  "padding_left": 80.0,
-  "padding_right": 80.0,
-  "padding_bottom": 80.0,
-  "padding_top": 80.0,
+  "padding_left": 80,
+  "padding_right": 80,
+  "padding_bottom": 80,
+  "padding_top": 80,
   "start": "intro",
   "dialogues": {
     "intro": {
