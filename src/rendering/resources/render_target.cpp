@@ -30,8 +30,8 @@ RenderTarget CreateRenderTarget(
 	render_target.Show();
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
-	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size, format }
-	) };
+	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size,
+																			format }) };
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
 	render_target.Clear();
@@ -64,6 +64,9 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
 void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
+	// TODO: Add custom sizing for render targets.
+	// TODO: Fix.
+	/*
 	RenderTarget rt{ entity };
 	const auto& texture{ rt.GetTexture() };
 	auto depth{ entity.GetDepth() };
@@ -73,9 +76,7 @@ void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite sprite{ entity };
 	auto coords{ sprite.GetTextureCoordinates(true) };
 
-	// TODO: Add custom sizing for render targets.
-	// TODO: Fix.
-	/*ctx.AddTexturedQuad(
+	ctx.AddTexturedQuad(
 		{}, {}, Origin::Center, coords, texture, depth, Camera{}, blend_mode, tint, false
 	);*/
 }
