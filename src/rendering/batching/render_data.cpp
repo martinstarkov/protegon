@@ -928,7 +928,7 @@ void RenderData::DrawToScreen() {
 	DrawVertexArray(quad_indices.size());
 }
 
-void RenderData::ClearRenderTargets(Scene& scene) {
+void RenderData::ClearRenderTargets([[maybe_unused]] Scene& scene) {
 	screen_target.Clear();
 	ping_target.Clear();
 	pong_target.Clear();
