@@ -13,7 +13,7 @@
 #include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "rendering/batching/render_data.h"
+#include "rendering/render_data.h"
 #include "rendering/resources/shader.h"
 #include "scene/camera.h"
 #include "scene/scene.h"

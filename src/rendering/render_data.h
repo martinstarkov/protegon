@@ -14,7 +14,7 @@
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
-#include "rendering/batching/vertex.h"
+#include "rendering/api/vertex.h"
 #include "rendering/buffers/buffer_layout.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/buffers/vertex_array.h"

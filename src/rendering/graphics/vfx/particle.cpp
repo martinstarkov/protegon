@@ -20,7 +20,7 @@
 #include "math/vector4.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
-#include "rendering/batching/render_data.h"
+#include "rendering/render_data.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"

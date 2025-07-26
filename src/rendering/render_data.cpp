@@ -1,4 +1,4 @@
-#include "rendering/batching/render_data.h"
+#include "rendering/render_data.h"
 
 #include <array>
 #include <cstdint>
@@ -27,7 +27,7 @@
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
-#include "rendering/batching/vertex.h"
+#include "rendering/api/vertex.h"
 #include "rendering/buffers/buffer.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/buffers/vertex_array.h"

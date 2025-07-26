@@ -8,7 +8,7 @@
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
-#include "rendering/batching/render_data.h"
+#include "rendering/render_data.h"
 #include "rendering/resources/text.h"
 #include "resources/texture.h"
 #include "scene/camera.h"

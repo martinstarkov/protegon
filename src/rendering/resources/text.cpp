@@ -17,7 +17,7 @@
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "rendering/batching/render_data.h"
+#include "rendering/render_data.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
