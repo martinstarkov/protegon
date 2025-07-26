@@ -4,11 +4,6 @@
 #include <limits>
 #include <string>
 
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/draw.h"
 #include "core/entity.h"
@@ -22,6 +17,11 @@
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 
 namespace ptgn {
 
@@ -250,8 +250,7 @@ impl::Texture Text::CreateTexture(
 			);
 			break;
 		default:
-			PTGN_ERROR(
-				"Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
 			);
 	}
 
