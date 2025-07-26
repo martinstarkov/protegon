@@ -60,6 +60,8 @@ public:
 
 	using Parent::Entity;
 
+	Entity(const Parent& e);
+
 	Entity()							 = default;
 	Entity(const Entity&)				 = default;
 	Entity& operator=(const Entity&)	 = default;
@@ -551,8 +553,6 @@ private:
 	void SetParentImpl(Entity& parent);
 
 	void RemoveParentImpl();
-
-	explicit Entity(const Parent& e);
 };
 
 // TODO: Move elsewhere once IScript is not tied to entity.
