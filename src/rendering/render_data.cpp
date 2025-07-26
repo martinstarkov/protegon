@@ -848,10 +848,6 @@ void RenderData::DrawEntities(const std::vector<Entity>& entities, const RenderT
 }
 
 void RenderData::DrawScene(Scene& scene) {
-	std::vector<Entity> regular_entities;
-
-	regular_entities.reserve(scene.Size());
-
 	// TODO: Fix render target entities.
 
 	// std::vector<Entity> rt_entities;
@@ -860,23 +856,25 @@ void RenderData::DrawScene(Scene& scene) {
 		rt_entities.emplace_back(e);
 	}*/
 
-	for (auto [entity, visible, drawable] : scene.EntitiesWith<Visible, IDrawable>()) {
-		if (!visible || entity.Has<RenderTarget>()) {
-			continue;
-		}
-		// TODO: Update dirty vertices here?
-		regular_entities.emplace_back(entity);
-	}
+	auto& display_list{ scene.display_list_ };
+
+	display_list.erase(
+		std::remove_if(
+			display_list.begin(), display_list.end(),
+			[](auto& entity) { return entity.Has<RenderTarget>(); }
+		),
+		display_list.end()
+	);
 
 	// SortEntities<true>(rt_entities);
-	SortEntities<false>(regular_entities);
+	SortEntities<false>(display_list);
 
 	// for (auto e : rt_entities) {
 	//	auto& rt = e.Get<RenderTarget>();
 	//	// rt.Draw(e);
 	// }
 
-	DrawEntities(regular_entities, screen_target);
+	DrawEntities(display_list, screen_target);
 }
 
 void RenderData::DrawToScreen() {

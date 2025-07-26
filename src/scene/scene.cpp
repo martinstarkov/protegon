@@ -1,29 +1,52 @@
 #include "scene/scene.h"
 
-#include <memory>
+#include <algorithm>
+#include <vector>
 
+#include "common/assert.h"
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/lifetime.h"
-#include "components/offsets.h"
+#include "components/transform.h"
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/script.h"
+#include "core/timer.h"
+#include "ecs/ecs.h"
 #include "events/input_handler.h"
+#include "nlohmann/json.hpp"
+#include "physics/collision/collider.h"
 #include "physics/collision/collision_handler.h"
-#include "rendering/graphics/vfx/light.h"
+#include "physics/physics.h"
+#include "rendering/api/color.h"
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/render_data.h"
 #include "rendering/renderer.h"
 #include "scene/camera.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
+#include "scene_input.h"
+#include "serialization/fwd.h"
 #include "tweening/tween.h"
 #include "tweening/tween_effects.h"
 
 namespace ptgn {
+
+Scene::Scene() {
+	OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+}
+
+void Scene::AddToDisplayList(Entity entity) {
+	display_list_.emplace_back(entity);
+}
+
+void Scene::RemoveFromDisplayList(Entity entity) {
+	display_list_.erase(
+		std::remove(display_list_.begin(), display_list_.end(), entity), display_list_.end()
+	);
+}
 
 void Scene::Add(Action new_status) {
 	actions_.insert(new_status);
@@ -193,6 +216,7 @@ void to_json(json& j, const Scene& scene) {
 	j["camera"]				 = scene.camera;
 	j["collider_visibility"] = scene.collider_visibility_;
 	j["collider_color"]		 = scene.collider_color_;
+	j["display_list"]		 = scene.display_list_;
 }
 
 void from_json(const json& j, Scene& scene) {
@@ -213,6 +237,7 @@ void from_json(const json& j, Scene& scene) {
 
 	j.at("input").get_to(scene.input);
 	j.at("camera").get_to(scene.camera);
+	j.at("scene.display_list").get_to(scene.display_list_);
 }
 
 } // namespace ptgn

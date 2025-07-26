@@ -1,11 +1,13 @@
 #pragma once
 
 #include <set>
+#include <vector>
 
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "physics/physics.h"
+#include "rendering/api/color.h"
 #include "scene/camera.h"
 #include "scene/scene_input.h"
 #include "scene/scene_key.h"
@@ -20,6 +22,7 @@ class SceneTransition;
 
 namespace impl {
 
+class RenderData;
 class SceneManager;
 
 } // namespace impl
@@ -45,7 +48,7 @@ protected:
 	void SetColliderVisibility(bool collider_visibility);
 
 public:
-	Scene()			  = default;
+	Scene();
 	~Scene() override = default;
 
 	// Make sure to call Refresh() after this function.
@@ -93,6 +96,7 @@ public:
 	friend void from_json(const json& j, Scene& scene);
 
 private:
+	friend class impl::RenderData;
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
@@ -113,8 +117,13 @@ private:
 	void Draw();
 	void InternalExit();
 
+	void AddToDisplayList(Entity entity);
+
+	void RemoveFromDisplayList(Entity entity);
+
 	void Add(Action new_action);
 
+	std::vector<Entity> display_list_;
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
 };
