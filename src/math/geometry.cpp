@@ -73,20 +73,21 @@ std::array<V2_float, 4> GetVertices(const Transform& transform, V2_float size, O
 
 	auto half{ size * 0.5f };
 
+	auto center{ transform.position + impl::GetOriginOffsetHalf(origin, half) };
+
+	if (NearlyEqual(transform.rotation, 0.0f)) {
+		auto min{ center - half };
+		auto max{ center + half };
+		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
+	}
+
 	V2_float top_left{ -half };
 	V2_float top_right{ half.x, -half.y };
 	V2_float bottom_right{ half };
 	V2_float bottom_left{ -half.x, half.y };
 
-	float cos{ 1.0f };
-	float sin{ 0.0f };
-
-	if (!NearlyEqual(transform.rotation, 0.0f)) {
-		cos = std::cos(transform.rotation);
-		sin = std::sin(transform.rotation);
-	}
-
-	auto center{ transform.position + GetOriginOffset(origin, size) };
+	float cos{ std::cos(transform.rotation) };
+	float sin{ std::sin(transform.rotation) };
 
 	auto rotated = [&](const V2_float& point) {
 		return center + V2_float{ cos * point.x - sin * point.y, sin * point.x + cos * point.y };
@@ -219,11 +220,9 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(
-				std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
-										 contour[static_cast<std::size_t>(b)],
-										 contour[static_cast<std::size_t>(c)] }
-			);
+			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+														 contour[static_cast<std::size_t>(b)],
+														 contour[static_cast<std::size_t>(c)] });
 
 			m++;
 

@@ -3,8 +3,8 @@
 #include <iosfwd>
 #include <ostream>
 
-#include "math/vector2.h"
 #include "debug/log.h"
+#include "math/vector2.h"
 
 namespace ptgn {
 
@@ -19,6 +19,12 @@ enum class Origin {
 	BottomLeft,
 	CenterLeft,
 };
+
+namespace impl {
+
+[[nodiscard]] V2_float GetOriginOffsetHalf(Origin origin, const V2_float& half);
+
+} // namespace impl
 
 // @return Vector to be added to a position to get the object center given an origin and size.
 [[nodiscard]] V2_float GetOriginOffset(Origin origin, const V2_float& size);
