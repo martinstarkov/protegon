@@ -199,11 +199,11 @@ void Renderer::Init() {
 }
 
 void Renderer::SetBackgroundColor(const Color& background_color) {
-	render_data_.screen_target.SetClearColor(background_color);
+	background_color_ = background_color;
 }
 
 Color Renderer::GetBackgroundColor() const {
-	return render_data_.screen_target.GetClearColor();
+	return background_color_;
 }
 
 void Renderer::Reset() {
@@ -311,7 +311,7 @@ void Renderer::PresentScreen() {
 
 void Renderer::ClearScreen() const {
 	FrameBuffer::Unbind();
-	GLRenderer::SetClearColor(color::Transparent);
+	GLRenderer::SetClearColor(background_color_);
 	GLRenderer::Clear();
 }
 

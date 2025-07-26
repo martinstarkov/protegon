@@ -477,8 +477,6 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-	// TODO: Fix background color.
-
 	screen_target = impl::CreateRenderTarget(
 		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
@@ -492,7 +490,7 @@ void RenderData::Init() {
 		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	screen_target.SetBlendMode(BlendMode::None);
+	screen_target.SetBlendMode(BlendMode::BlendPremultiplied);
 	ping_target.SetBlendMode(BlendMode::Blend);
 	pong_target.SetBlendMode(BlendMode::Blend);
 	intermediate_target = {};
@@ -723,6 +721,7 @@ void RenderData::Flush() {
 			intermediate_target = GetPingPongTarget();
 			intermediate_target.ClearToColor(color::Transparent);
 			intermediate_target.SetBlendMode(render_state.blend_mode);
+			// Draw vertices to intermediate target before adding post fx to it.
 			draw_vertices_to(
 				GetCamera(game.scene.GetCurrent().camera.primary), intermediate_target,
 				render_state.shader_pass
