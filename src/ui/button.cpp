@@ -202,7 +202,7 @@ ButtonText::~ButtonText() {
 	pressed_.Destroy();
 }
 
-const Text& ButtonText::Get(ButtonState state) const {
+Text ButtonText::Get(ButtonState state) const {
 	switch (state) {
 		case ButtonState::Default: return default_;
 		case ButtonState::Hover:   return hover_;
@@ -212,23 +212,15 @@ const Text& ButtonText::Get(ButtonState state) const {
 	}
 }
 
-const Text& ButtonText::GetValid(ButtonState state) const {
+Text ButtonText::GetValid(ButtonState state) const {
 	if (state == ButtonState::Current) {
 		return Get(ButtonState::Default);
 	}
-	const Text& text{ Get(state) };
+	Text text{ Get(state) };
 	if (text == Text{}) {
 		return Get(ButtonState::Default);
 	}
 	return text;
-}
-
-Text& ButtonText::GetValid(ButtonState state) {
-	return const_cast<Text&>(std::as_const(*this).GetValid(state));
-}
-
-Text& ButtonText::Get(ButtonState state) {
-	return const_cast<Text&>(std::as_const(*this).Get(state));
 }
 
 Color ButtonText::GetTextColor(ButtonState state) const {
@@ -255,11 +247,27 @@ void ButtonText::Set(
 		state != ButtonState::Current,
 		"Cannot set button's current text as it is a non-owning pointer"
 	);
-	auto& text{ Get(state) };
+	Text text{ Get(state) };
 	if (text == Text{}) {
 		text = CreateText(scene, text_content, text_color, font_key);
 		text.Hide();
 		text.SetParent(parent);
+		switch (state) {
+			case ButtonState::Default:
+				PTGN_ASSERT(!default_);
+				default_ = text;
+				break;
+			case ButtonState::Hover:
+				PTGN_ASSERT(!hover_);
+				hover_ = text;
+				break;
+			case ButtonState::Pressed:
+				PTGN_ASSERT(!pressed_);
+				pressed_ = text;
+				break;
+			case ButtonState::Current: [[fallthrough]];
+			default:				   PTGN_ERROR("Invalid button state");
+		}
 	} else {
 		text.SetParameter(text_color, false);
 		text.SetParameter(text_content, false);
@@ -421,14 +429,14 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		}
 	}
 
-	const Text* text{ nullptr };
+	Text text;
 	if (entity.Has<impl::ButtonToggled>() && entity.Get<impl::ButtonToggled>() &&
 		entity.Has<impl::ButtonTextToggled>()) {
 		const auto& button_text_toggled{ entity.Get<impl::ButtonTextToggled>() };
-		text = &button_text_toggled.GetValid(state);
+		text = button_text_toggled.GetValid(state);
 	} else if (entity.Has<impl::ButtonText>()) {
 		const auto& button_text{ entity.Get<impl::ButtonText>() };
-		text = &button_text.GetValid(state);
+		text = button_text.GetValid(state);
 	}
 
 	impl::ButtonBorderWidth border_width;
@@ -457,14 +465,14 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		}
 	}
 
-	if (text != nullptr && *text != Text{}) {
-		auto text_transform{ text->GetDrawTransform() };
+	if (text != Text{}) {
+		auto text_transform{ text.GetDrawTransform() };
 
 		V2_float text_size;
 		if (entity.Has<impl::ButtonTextFixedSize>()) {
 			text_size = entity.Get<impl::ButtonTextFixedSize>();
 		} else {
-			text_size = text->GetSize();
+			text_size = text.GetSize();
 		}
 		if (NearlyEqual(text_size.x, 0.0f)) {
 			text_size.x = size.x;
@@ -473,7 +481,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			text_size.y = size.y;
 		}
 
-		Sprite text_sprite{ *text };
+		Sprite text_sprite{ text };
 
 		// Offset by button size so that text is initially centered on button center.
 		text_transform.position += GetOriginOffset(origin, size * Abs(text_transform.scale));
@@ -486,7 +494,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			return;
 		}
 
-		if (const std::string& content{ text_sprite.Get<TextContent>().GetValue() };
+		if (const std::string & content{ text_sprite.Get<TextContent>().GetValue() };
 			content.empty()) {
 			return;
 		}
@@ -497,22 +505,22 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			return;
 		}
 
-		auto text_depth{ text->GetDepth() };
-		auto text_blend_mode{ text->GetBlendMode() };
-		auto text_tint{ text->GetTint().Normalized() };
-		auto text_origin{ text->GetOrigin() };
-		Camera* text_camera{ nullptr };
-		if (text->Has<Camera>()) {
-			text_camera = &text->Get<Camera>();
+		auto text_depth{ text.GetDepth() };
+		auto text_blend_mode{ text.GetBlendMode() };
+		auto text_tint{ text.GetTint().Normalized() };
+		auto text_origin{ text.GetOrigin() };
+		Camera text_camera;
+		if (text.Has<Camera>()) {
+			text_camera = text.Get<Camera>();
 		} else {
-			text_camera = &camera;
+			text_camera = camera;
 		}
 
 		auto text_coords{ text_sprite.GetTextureCoordinates(false) };
 
 		auto text_render_state{ render_state };
 		text_render_state.blend_mode = text_blend_mode;
-		text_render_state.camera	 = *text_camera;
+		text_render_state.camera	 = text_camera;
 
 		ctx.AddTexturedQuad(
 			text_texture, text_transform, text_size, text_origin, Color{ text_tint * tint },
@@ -613,12 +621,8 @@ Button& Button::SetText(
 	return *this;
 }
 
-const Text& Button::GetText(ButtonState state) const {
+Text Button::GetText(ButtonState state) const {
 	return Get<impl::ButtonText>().GetValid(state);
-}
-
-Text& Button::GetText(ButtonState state) {
-	return const_cast<Text&>(std::as_const(*this).GetText(state));
 }
 
 Color Button::GetTextColor(ButtonState state) const {
@@ -917,12 +921,8 @@ ToggleButton& ToggleButton::SetTextToggled(
 	return *this;
 }
 
-const Text& ToggleButton::GetTextToggled(ButtonState state) const {
+Text ToggleButton::GetTextToggled(ButtonState state) const {
 	return Get<impl::ButtonTextToggled>().GetValid(state);
-}
-
-Text& ToggleButton::GetTextToggled(ButtonState state) {
-	return const_cast<Text&>(std::as_const(*this).GetTextToggled(state));
 }
 
 Color ToggleButton::GetBorderColorToggled(ButtonState state) const {

@@ -186,16 +186,19 @@ struct ButtonText {
 		const TextColor& text_color, const FontKey& font_key
 	);
 
+	ButtonText& operator=(const ButtonText&)	 = default;
+	ButtonText(const ButtonText&)				 = default;
+	ButtonText& operator=(ButtonText&&) noexcept = default;
+	ButtonText(ButtonText&&) noexcept			 = default;
+
 	~ButtonText();
 
 	[[nodiscard]] Color GetTextColor(ButtonState state) const;
 	[[nodiscard]] std::string GetTextContent(ButtonState state) const;
 	[[nodiscard]] std::int32_t GetFontSize(ButtonState state) const;
 	[[nodiscard]] TextJustify GetTextJustify(ButtonState state) const;
-	[[nodiscard]] const Text& Get(ButtonState state) const;
-	[[nodiscard]] const Text& GetValid(ButtonState state) const;
-	[[nodiscard]] Text& GetValid(ButtonState state);
-	[[nodiscard]] Text& Get(ButtonState state);
+	[[nodiscard]] Text Get(ButtonState state) const;
+	[[nodiscard]] Text GetValid(ButtonState state) const;
 
 	void Set(
 		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
@@ -257,9 +260,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -304,8 +306,7 @@ public:
 		const FontKey& font_key = {}, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] const Text& GetText(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Text& GetText(ButtonState state = ButtonState::Current);
+	[[nodiscard]] Text GetText(ButtonState state = ButtonState::Current) const;
 
 	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Current) const;
 
@@ -372,8 +373,7 @@ public:
 		const FontKey& font_key = "", ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] const Text& GetTextToggled(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Text& GetTextToggled(ButtonState state = ButtonState::Current);
+	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;
 
 	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 
