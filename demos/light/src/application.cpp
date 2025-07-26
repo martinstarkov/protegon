@@ -56,7 +56,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightScene", { 800, 800 }, color::Transparent);
+	game.Init("LightScene", { 800, 800 }, color::White);
 	game.scene.Enter<LightScene>("");
 	return 0;
 }
