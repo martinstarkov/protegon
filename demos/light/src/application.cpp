@@ -51,7 +51,7 @@ public:
 
 	void Exit() override {
 		json j = *this;
-		SaveJson(j, "resources/light_scene.json");
+		// SaveJson(j, "resources/light_scene.json");
 	}
 };
 
