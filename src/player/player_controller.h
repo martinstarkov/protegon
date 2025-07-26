@@ -36,7 +36,7 @@ struct TopDownPlayerConfig {
 	Depth depth{ 1 };
 
 	// Sound
-	int walk_sound_frequency{ 2 };
+	std::size_t walk_sound_frequency{ 2 };
 
 	std::string_view walk_sound_key{ "walk" };
 	std::string_view animation_texture_key{ "player_anim" };

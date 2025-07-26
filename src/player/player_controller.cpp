@@ -31,15 +31,14 @@ Entity CreateTopDownPlayer(
 
 	auto player{ scene.CreateEntity() };
 
-	player.Add<Transform>(position);
-
-	auto& rb{ player.Add<RigidBody>() };
+	player.SetPosition(position);
+	player.Add<RigidBody>();
 	player.Enable();
-	player.Add<Depth>(config.depth);
+	player.SetDepth(config.depth);
 
 	auto body_hitbox{ scene.CreateEntity() };
 	body_hitbox.Add<BoxCollider>(config.body_hitbox_size, config.body_hitbox_origin);
-	body_hitbox.Add<Transform>(config.body_hitbox_offset);
+	body_hitbox.SetPosition(config.body_hitbox_offset);
 	body_hitbox.Enable();
 	body_hitbox.Add<RigidBody>();
 
@@ -48,7 +47,7 @@ Entity CreateTopDownPlayer(
 		config.interaction_hitbox_size, config.interaction_hitbox_origin
 	);
 	interaction_collider.overlap_only = true;
-	interaction_hitbox.Add<Transform>();
+	interaction_hitbox.SetPosition({});
 	interaction_hitbox.Enable();
 
 	player.AddChild(body_hitbox, "body");
@@ -91,10 +90,10 @@ Entity CreateTopDownPlayer(
 	struct AnimationRepeat : public Script<AnimationRepeat> {
 		AnimationRepeat() = default;
 
-		AnimationRepeat(int walk_frequency, std::string_view walk_sound) :
+		AnimationRepeat(std::size_t walk_frequency, std::string_view walk_sound) :
 			walk_sound_frequency{ walk_frequency }, walk_sound_key{ walk_sound } {}
 
-		int walk_sound_frequency{ 0 };
+		std::size_t walk_sound_frequency{ 0 };
 		std::string_view walk_sound_key;
 
 		void OnAnimationFrameChange(std::size_t frame) override {
