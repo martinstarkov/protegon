@@ -12,6 +12,23 @@ constexpr V2_int window_size{ 800, 800 };
 struct SandboxScene : public Scene {
 	void Enter() override {}
 
+	std::vector<Entity> update_list;
+
+	void AddToUpdateList(Entity entity) {
+		update_list.emplace_back(entity);
+	}
+
+	void RemoveFromUpdateList(Entity entity) {
+		update_list.erase(
+			std::remove(update_list.begin(), update_list.end(), entity), update_list.end()
+		);
+	}
+
+	SandboxScene() {
+		OnConstruct<Enabled>().Connect<SandboxScene, &SandboxScene::AddToUpdateList>(this);
+		OnDestruct<Enabled>().Connect<SandboxScene, &SandboxScene::RemoveFromUpdateList>(this);
+	}
+
 	void Update() override {
 		if (game.input.KeyDown(Key::E)) {
 			CreateEntity().Enable();
