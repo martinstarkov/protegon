@@ -7,8 +7,8 @@ in vec4 v_Color;
 in vec2 v_TexCoord;
 
 uniform sampler2D u_Texture;
-uniform float u_Exposure = 1.0f;
-uniform float u_Gamma = 2.2f;
+uniform float u_Exposure;
+uniform float u_Gamma;
 
 void main() {
     vec4 tex = texture(u_Texture, v_TexCoord);
