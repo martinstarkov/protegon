@@ -307,7 +307,8 @@ public:
 
 	[[nodiscard]] std::array<V2_float, 4> GetVertices(const V2_float& scale = { 1.0f, 1.0f }) const;
 
-	[[nodiscard]] V2_float GetSize() const;
+	// @param account_for_zoom If true, divides the camera size by its zoom.
+	[[nodiscard]] V2_float GetSize(bool account_for_zoom = false) const;
 
 	[[nodiscard]] V2_float GetZoom() const;
 

@@ -460,12 +460,8 @@ V2_float Camera::GetBoundsSize() const {
 
 V2_float Camera::GetPosition(Origin origin) const {
 	PTGN_ASSERT(Has<impl::CameraInfo>());
-	const auto& info{ Get<impl::CameraInfo>() };
 	auto position{ Entity::GetPosition() };
-	auto zoom{ GetZoom() };
-	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
-	auto size{ info.GetSize() };
-	auto offset{ GetOriginOffset(origin, size / zoom) };
+	auto offset{ GetOriginOffset(origin, GetSize(true)) };
 	return position + offset;
 }
 
@@ -596,14 +592,18 @@ void Camera::CenterOnWindow(bool continuously) {
 
 std::array<V2_float, 4> Camera::GetVertices(const V2_float& scale) const {
 	PTGN_ASSERT(!scale.IsZero(), "Camera scale cannot be zero");
-	auto zoom{ GetZoom() };
-	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
 	return impl::GetVertices(
-		{ GetPosition(Origin::Center), GetRotation(), scale }, GetSize() / zoom, Origin::Center
+		{ GetPosition(Origin::Center), GetRotation(), scale }, GetSize(true), Origin::Center
 	);
 }
 
-V2_float Camera::GetSize() const {
+V2_float Camera::GetSize(bool account_for_zoom) const {
+	if (account_for_zoom) {
+		auto zoom{ GetZoom() };
+		PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
+		auto size{ Get<impl::CameraInfo>().GetSize() };
+		return size / zoom;
+	}
 	return Get<impl::CameraInfo>().GetSize();
 }
 
