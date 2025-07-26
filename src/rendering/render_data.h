@@ -66,7 +66,9 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
 template <bool have_render_targets = false>
 void SortEntities(std::vector<Entity>& entities) {
-	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+	// PTGN_PROFILE_FUNCTION();
+	//  stable_sort to maintain depth order of equal depth elements.
+	std::stable_sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
 		auto depthA{ a.GetDepth() };
 		auto depthB{ b.GetDepth() };
 
