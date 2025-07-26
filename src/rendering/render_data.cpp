@@ -622,7 +622,6 @@ void RenderData::AddShader(
 	Entity entity, const RenderState& state, BlendMode target_blend_mode,
 	const Color& target_clear_color, bool uses_scene_texture
 ) {
-	auto old_blend_mode{ intermediate_target.GetBlendMode() };
 	if (bool state_changed{ SetState(state) }; state_changed || uses_scene_texture) {
 		intermediate_target = GetPingPongTarget();
 		DrawTo(intermediate_target);
@@ -661,9 +660,17 @@ void RenderData::AddShader(
 	shader.SetUniform("u_Resolution", camera.GetViewportSize());
 	render_state.shader_pass.Invoke(entity);
 
+	// PTGN_LOG(
+	// 	"Before drawing shader to intermediate target:",
+	// 	intermediate_target.GetFrameBuffer().GetPixel({ 50, 50 })
+	// );
+
 	DrawVertexArray(quad_indices.size());
 
-	intermediate_target.SetBlendMode(old_blend_mode);
+	// PTGN_LOG(
+	// 	"After drawing shader to intermediate target:",
+	// 	intermediate_target.GetFrameBuffer().GetPixel({ 50, 50 })
+	// );
 }
 
 void RenderData::AddTemporaryTexture(Texture&& texture) {
@@ -715,6 +722,7 @@ void RenderData::Flush() {
 			PTGN_ASSERT(!intermediate_target);
 			intermediate_target = GetPingPongTarget();
 			intermediate_target.ClearToColor(color::Transparent);
+			intermediate_target.SetBlendMode(render_state.blend_mode);
 			draw_vertices_to(
 				GetCamera(game.scene.GetCurrent().camera.primary), intermediate_target,
 				render_state.shader_pass
@@ -778,7 +786,8 @@ void RenderData::Flush() {
 		/*PTGN_ASSERT(vertices.size() == 0);
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
-		SetRenderParameters(camera, intermediate_target.GetBlendMode());
+		auto blend_mode{ intermediate_target.GetBlendMode() };
+		SetRenderParameters(camera, blend_mode);
 
 		ReadFrom(intermediate_target);
 		// PTGN_LOG("Intermediate: ", intermediate_target.GetFrameBuffer().GetPixel({ 200, 200 }));
