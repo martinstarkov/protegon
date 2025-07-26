@@ -68,7 +68,8 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			));
 			break;
 		case BlendMode::BlendPremultiplied:
-			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+			GLCall(
+				BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 			);
 			break;
 		case BlendMode::Add:
@@ -76,6 +77,12 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			break;
 		case BlendMode::AddPremultiplied:
 			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
+			break;
+		case BlendMode::AddWithAlpha:
+			GLCall(BlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE));
+			break;
+		case BlendMode::AddPremultipliedWithAlpha:
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE));
 			break;
 		case BlendMode::Modulate:
 			GLCall(BlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE));
