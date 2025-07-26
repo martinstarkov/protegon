@@ -36,9 +36,14 @@ namespace ptgn {
 Scene::Scene() {
 	OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
 	OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+	OnConstruct<IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	OnDestruct<IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
 }
 
 void Scene::AddToDisplayList(Entity entity) {
+	if (!entity.Has<Visible>() || !entity.Has<IDrawable>()) {
+		return;
+	}
 	display_list_.emplace_back(entity);
 }
 
