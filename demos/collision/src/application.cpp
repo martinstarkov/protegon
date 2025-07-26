@@ -65,12 +65,12 @@ public:
 		sweep_circle	 = manager->CreateEntity();
 		overlap_circle	 = manager->CreateEntity();
 
-		intersect.SetVisible(true);
-		sweep.SetVisible(true);
-		overlap.SetVisible(true);
-		intersect_circle.SetVisible(true);
-		sweep_circle.SetVisible(true);
-		overlap_circle.SetVisible(true);
+		intersect.Show();
+		sweep.Show();
+		overlap.Show();
+		intersect_circle.Show();
+		sweep_circle.Show();
+		overlap_circle.Show();
 
 		intersect.SetTint(color::Purple);
 		intersect_circle.SetTint(color::Purple);
@@ -79,19 +79,19 @@ public:
 		overlap.SetTint(color::Orange);
 		overlap_circle.SetTint(color::Orange);
 
-		intersect.SetEnabled(true);
-		sweep.SetEnabled(true);
-		overlap.SetEnabled(true);
-		intersect_circle.SetEnabled(true);
-		sweep_circle.SetEnabled(true);
-		overlap_circle.SetEnabled(true);
+		intersect.Enable();
+		sweep.Enable();
+		overlap.Enable();
+		intersect_circle.Enable();
+		sweep_circle.Enable();
+		overlap_circle.Enable();
 
-		intersect.Add<Transform>(V2_float{ 100, 100 });
-		overlap.Add<Transform>(V2_float{ 200, 200 });
-		sweep.Add<Transform>(V2_float{ 300, 300 });
-		intersect_circle.Add<Transform>(V2_float{ 400, 400 });
-		overlap_circle.Add<Transform>(V2_float{ 500, 500 });
-		sweep_circle.Add<Transform>(V2_float{ 300, 600 });
+		intersect.SetPosition(V2_float{ 100, 100 });
+		overlap.SetPosition(V2_float{ 200, 200 });
+		sweep.SetPosition(V2_float{ 300, 300 });
+		intersect_circle.SetPosition(V2_float{ 400, 400 });
+		overlap_circle.SetPosition(V2_float{ 500, 500 });
+		sweep_circle.SetPosition(V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
@@ -254,7 +254,7 @@ public:
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
 		PTGN_ASSERT(manager != nullptr);
 		auto obstacle = manager->CreateEntity();
-		obstacle.Add<Transform>(pos);
+		obstacle.SetPosition(pos);
 		obstacle.Add<BoxCollider>(size, origin);
 	}
 
@@ -337,7 +337,7 @@ public:
 
 	void Enter() override {
 		entity = manager.CreateEntity();
-		entity.Add<Transform>(V2_float{ 400, 100 });
+		entity.SetPosition(V2_float{ 400, 100 });
 		entity.Add<RigidBody>();
 		entity.Add<BoxCollider>(V2_float{ 30, 30 });
 
@@ -346,7 +346,7 @@ public:
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
 		auto obstacle = manager.CreateEntity();
-		obstacle.Add<Transform>(pos);
+		obstacle.SetPosition(pos);
 		obstacle.Add<BoxCollider>(size, origin);
 	}
 
@@ -1314,7 +1314,7 @@ struct SweepTest : public CollisionTest {
 		Origin o = Origin::Center, bool is_circle = false
 	) {
 		ecs::Entity entity = manager.CreateEntity();
-		auto& t			   = entity.Add<Transform>();
+		auto& t			   = entity.SetPosition({});
 		t.position		   = p;
 
 		if (!is_circle) {
@@ -1612,7 +1612,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 		for (std::size_t i = 0; i < entity_data.size(); ++i) {
 			ecs::Entity entity = manager.CreateEntity();
 			const auto& data   = entity_data[i];
-			auto& t			   = entity.Add<Transform>();
+			auto& t			   = entity.SetPosition({});
 			t.position		   = data.position;
 
 			auto& box		 = entity.Add<BoxCollider>(entity);

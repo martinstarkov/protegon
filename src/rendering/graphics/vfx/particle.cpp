@@ -37,7 +37,7 @@ ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
 	i.manager.Reserve(i.info.total_particles);
 	emitter.Show();
 	emitter.Enable();
-	emitter.Add<Transform>();
+	emitter.SetPosition({});
 
 	return emitter;
 }

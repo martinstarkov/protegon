@@ -25,22 +25,22 @@ public:
 		game.texture.Load("ui_texture2", "resources/ui2.jpg");
 
 		auto ui = CreateSprite(*this, "ui_texture2");
-		ui.Add<Transform>();
-		ui.Add<Origin>(Origin::TopLeft);
+		ui.SetPosition({});
+		ui.SetOrigin(Origin::TopLeft);
 
 		auto camera_center = manager.CreateEntity();
 		camera_center.Add<Circle>(3.0f);
-		camera_center.Add<Transform>(game.window.GetCenter());
-		camera_center.Add<Tint>(color::Black);
-		camera_center.Add<Visible>();
+		camera_center.SetPosition(game.window.GetCenter());
+		camera_center.SetTint(color::Black);
+		camera_center.Show();
 
 		auto deadzone = manager.CreateEntity();
 		deadzone.Add<Rect>(deadzone_size, Origin::Center);
-		deadzone.Add<Transform>(game.window.GetCenter());
+		deadzone.SetPosition(game.window.GetCenter());
 		deadzone.Add<LineWidth>(2.0f);
-		deadzone.Add<Origin>();
-		deadzone.Add<Tint>(color::DarkGreen);
-		deadzone.Add<Visible>();
+		deadzone.SetOrigin;
+		deadzone.SetTint(color::DarkGreen);
+		deadzone.Show();
 
 		camera.primary.FadeFrom(color::Black, seconds{ 3 });
 		camera.primary.FadeTo(color::Red, seconds{ 3 });
@@ -71,7 +71,7 @@ public:
 		// camera.primary.SetBounds({}, window_size);
 
 		auto texture = CreateSprite(*this, "texture");
-		texture.Add<Transform>(game.window.GetCenter());
+		texture.SetPosition(game.window.GetCenter());
 		texture.Add<Interactive>();
 		texture.Add<callback::KeyDown>([](auto key) {
 			if (key == Key::W) {
@@ -96,30 +96,30 @@ public:
 
 		auto b = manager.CreateEntity();
 		b.Add<Rect>(window_size, Origin::TopLeft);
-		b.Add<Transform>(V2_float{});
+		b.SetPosition({});
 		b.Add<LineWidth>(3.0f);
-		b.Add<Tint>(color::Red);
-		b.Add<Visible>();
+		b.SetTint(color::Red);
+		b.Show();
 
 		game.scene.Enter("ui_scene");
 
 		game.texture.Load("ui_texture", "resources/ui.jpg");
 
 		ui = CreateSprite(*this, "ui_texture");
-		ui.Add<Transform>(V2_float{ window_size.x, 0 });
-		ui.Add<Origin>(Origin::TopRight);
-		ui.Get<Visible>() = false;
+		ui.SetPosition(V2_float{ window_size.x, 0 });
+		ui.SetOrigin(Origin::TopRight);
+		ui.Hide();
 
 		rt = manager.CreateEntity();
 		rt.Add<RenderTarget>(manager, window_size);
-		rt.Add<Transform>();
-		rt.Add<Visible>();
+		rt.SetPosition({});
+		rt.Show();
 
 		mouse = manager.CreateEntity();
-		mouse.Add<Transform>();
+		mouse.SetPosition({});
 		mouse.Add<Circle>(20.0f);
-		mouse.Add<Tint>(color::Red);
-		mouse.Add<Visible>();
+		mouse.SetTint(color::Red);
+		mouse.Show();
 
 		camera.primary.PanTo({ 0, 0 }, seconds{ 3 });
 		camera.primary.PanTo({ 800, 0 }, seconds{ 3 });
@@ -224,7 +224,7 @@ public:
 		LoadResource("tree", "resources/test1.jpg");
 
 		mouse = CreateEntity();
-		mouse.Add<Transform>();
+		mouse.SetPosition({});
 
 		CreateSprite(*this, "tree").SetPosition({ 200, 400 });
 		CreateSprite(*this, "tree").SetPosition({ 600, 400 });

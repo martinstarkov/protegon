@@ -29,7 +29,7 @@ struct FollowEffectScene : public Scene {
 		LoadResource("smile3", "resources/smile3.png");
 
 		mouse = CreateEntity();
-		mouse.Add<Transform>();
+		mouse.SetPosition({});
 
 		entity1 = CreateSprite(*this, "smile1"); // Red
 		entity2 = CreateSprite(*this, "smile2"); // Green

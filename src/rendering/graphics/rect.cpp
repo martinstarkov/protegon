@@ -53,7 +53,7 @@ Entity CreateRect(
 	rect.SetDraw<Rect>();
 	rect.Show();
 
-	rect.Add<Transform>(position);
+	rect.SetPosition(position);
 	rect.Add<Rect>(size);
 	rect.SetOrigin(origin);
 

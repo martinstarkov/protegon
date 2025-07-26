@@ -43,7 +43,7 @@ public:
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
-	entity.Add<Transform>(V2_float{ 30, 50 });
+	entity.SetPosition({ 30, 50 });
 
 	/*json entity_json = entity.Serialize<Transform, UUID>();
 
@@ -113,14 +113,14 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager m;
 
 	auto e0 = m.CreateEntity();
-	e0.Add<Transform>(V2_float{ -69, -69 });
+	e0.SetPosition(V2_float{ -69, -69 });
 
 	auto e1 = m.CreateEntity();
 	e1.Add<Draggable>(V2_float{ 1, 1 }, V2_float{ 30, 40 }, true);
-	e1.Add<Transform>(V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f });
-	e1.Add<Enabled>(true);
-	e1.Add<Visible>(false);
-	e1.Add<Depth>(22);
+	e1.SetTransform({ V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
+	e1.Enable();
+	e1.Hide();
+	e1.SetDepth(22);
 	auto tint_color{ color::Blue };
 	e1.Add<Tint>(tint_color);
 	e1.Add<LineWidth>(3.5f);

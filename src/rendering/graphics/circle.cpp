@@ -47,7 +47,7 @@ Entity CreateCircle(
 	circle.SetDraw<Circle>();
 	circle.Show();
 
-	circle.Add<Transform>(position);
+	circle.SetPosition(position);
 	circle.Add<Circle>(radius);
 
 	circle.SetTint(color);

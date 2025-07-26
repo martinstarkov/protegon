@@ -29,18 +29,18 @@ class ChunkScene : public Scene {
 public:
 	Entity CreateSheep(const V2_float& position) {
 		auto e = CreateEntity();
-		e.Add<Transform>(position);
-		e.Add<Visible>();
-		e.Add<Depth>(1);
+		e.SetPosition(position);
+		e.Show();
+		e.SetDepth(1);
 		e.Add<TextureHandle>("sheep");
 		return e;
 	}
 
 	Entity CreateTile(const V2_float& position, std::string_view texture_key) {
 		auto e = CreateEntity();
-		e.Add<Transform>(position);
-		e.Add<Visible>();
-		e.Add<Origin>(Origin::TopLeft);
+		e.SetPosition(position);
+		e.Show();
+		e.SetOrigin(Origin::TopLeft);
 		e.Add<TextureHandle>(texture_key);
 		return e;
 	}
