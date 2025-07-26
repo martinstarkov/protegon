@@ -41,11 +41,19 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 	GLenum buffer, GLint drawBuffer, const GLuint* value
 );
 
+typedef void(GL_APIENTRYP PFNGLGETTEXLEVELPARAMETERIVPROC)(
+	GLenum target, GLint level, GLenum pname, GLint* params
+);
+
 #ifndef GL_DEPTH_STENCIL_ATTACHMENT
 #define GL_DEPTH_STENCIL_ATTACHMENT 0x821A
 #endif
 
 #define glClearDepth glClearDepthf
+
+// #ifndef GL_FRAMEBUFFER_SRGB
+// #define GL_FRAMEBUFFER_SRGB 0x8DB9
+// #endif
 
 #else
 
@@ -111,6 +119,11 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #endif
 
 #ifndef PTGN_PLATFORM_MACOS
+
+// Adds ##PROC at the end (emscripten only).
+#define GL_LIST_4                                         \
+	GLE(glGetTexLevelParameteriv, GETTEXLEVELPARAMETERIV) \
+	/* end */
 
 // Adds ##EXTPROC at the end (emscripten only).
 #define GL_LIST_3                   \
@@ -209,6 +222,10 @@ GL_LIST_1
 #undef GLE
 
 #ifdef __EMSCRIPTEN__
+
+#define GLE(name, caps_name) extern PFNGL##caps_name##PROC name;
+GL_LIST_4
+#undef GLE
 
 #define GLE(name, caps_name) extern PFNGL##caps_name##OESPROC name;
 GL_LIST_2

@@ -68,8 +68,7 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			));
 			break;
 		case BlendMode::BlendPremultiplied:
-			GLCall(
-				BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 			);
 			break;
 		case BlendMode::Add:
@@ -107,16 +106,20 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 }
 
 void GLRenderer::EnableGammaCorrection() {
+#ifndef __EMSCRIPTEN__
 	GLCall(glEnable(GL_FRAMEBUFFER_SRGB));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Enabled gamma correction");
 #endif
+#endif
 }
 
 void GLRenderer::DisableGammaCorrection() {
+#ifndef __EMSCRIPTEN__
 	GLCall(glDisable(GL_FRAMEBUFFER_SRGB));
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Disabled gamma correction");
+#endif
 #endif
 }
 
