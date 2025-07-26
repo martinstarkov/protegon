@@ -64,7 +64,7 @@ void main() {
     // float attenuation = 1.0f - smoothstep(0.0f, u_LightRadius, distance);
     // float attenuation = pow(clamp(1.0f - distance / u_LightRadius, 0.0f, 1.0f), 2.0f) * u_LightIntensity;
 
-    vec4 total_light = vec4(u_Color.rgb * attenuation + u_AmbientColor.rgb * u_AmbientIntensity, 0.0f);
+    vec4 total_light = vec4(u_Color.rgb * attenuation + u_AmbientColor.rgb * u_AmbientIntensity, attenuation + u_AmbientIntensity);
     o_Color = total_light * v_Color;
 }
 )"
