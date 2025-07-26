@@ -9,8 +9,7 @@ in float v_TexIndex;
 
 uniform sampler2D u_Texture[32];
 
-void main()
-{
+void main() {
 	vec4 texColor = v_Color;
 
     // Why? https://stackoverflow.com/a/74729081
@@ -111,7 +110,7 @@ void main()
         texColor *= texture(u_Texture[31], v_TexCoord);
     }
     
-    if (texColor.a == 0.0) {
+    if (texColor.a == 0.0f) {
         discard;
     }
 

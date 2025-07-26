@@ -18,14 +18,12 @@ uniform vec3 u_AmbientColor;
 uniform float u_AmbientIntensity;
 //uniform vec3 u_LightAttenuation;
 
-float sqr(float x)
-{
+float sqr(float x) {
     return x * x;
 }
 
 float attenuate_no_cusp(float distance, float radius,
-    float max_intensity, float falloff)
-{
+    float max_intensity, float falloff) {
     float s = distance / radius;
 
     if (s >= 1.0f)
@@ -37,8 +35,7 @@ float attenuate_no_cusp(float distance, float radius,
 }
 
 float attenuate_cusp(float distance, float radius,
-    float max_intensity, float falloff)
-{
+    float max_intensity, float falloff) {
     float s = distance / radius;
 
     if (s >= 1.0f)

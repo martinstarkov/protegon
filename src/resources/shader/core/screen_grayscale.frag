@@ -9,8 +9,7 @@ layout (location = 1) in vec2 v_TexCoord;
 
 uniform sampler2D u_Texture;
 
-void main()
-{
+void main() {
 	/*
 	// Naive method.
 	vec4 tex = texture(u_Texture, v_TexCoord);
