@@ -10,9 +10,6 @@ GL_LIST_1
 
 #ifdef __EMSCRIPTEN__
 
-#define GLE(name, caps_name) PFNGL##caps_name##PROC name;
-GL_LIST_4
-#undef GLE
 #define GLE(name, caps_name) PFNGL##caps_name##OESPROC name;
 GL_LIST_2
 #undef GLE

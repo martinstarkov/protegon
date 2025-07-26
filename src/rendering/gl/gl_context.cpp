@@ -6,14 +6,14 @@
 #include <string_view>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_video.h"
 #include "common/assert.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"
 #include "debug/log.h"
 #include "rendering/gl/gl_loader.h"
+#include "SDL_error.h"
+#include "SDL_video.h"
 #include "utility/file.h"
 
 #define PTGN_VSYNC_MODE -1
@@ -46,16 +46,16 @@ void GLContext::LoadGLFunctions() {
 
 #ifdef __EMSCRIPTEN__
 
-#define GLE(name, caps_name)                            \
-	name = reinterpret_cast<PFNGL##caps_name##OESPROC>( \
-		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)) \
-	);
+#define GLE(name, caps_name)                                                                       \
+	name =                                                                                         \
+		reinterpret_cast<PFNGL##caps_name##OESPROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name) \
+		));
 	GL_LIST_2
 #undef GLE
-#define GLE(name, caps_name)                            \
-	name = reinterpret_cast<PFNGL##caps_name##EXTPROC>( \
-		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)) \
-	);
+#define GLE(name, caps_name)                                                                       \
+	name =                                                                                         \
+		reinterpret_cast<PFNGL##caps_name##EXTPROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name) \
+		));
 	GL_LIST_3
 #undef GLE
 
@@ -135,16 +135,15 @@ void GLContext::Shutdown() {
 
 void GLContext::ClearErrors() {
 	while (game.running_ && game.gl_context_->IsInitialized() &&
-		   game.sdl_instance_->IsInitialized() &&
-		   glGetError() !=
-			   static_cast<GLenum>(GLError::None)) { /* glGetError clears the error queue */
+		   game.sdl_instance_->IsInitialized() && glGetError() != static_cast<GLenum>(GLError::None)
+	) { /* glGetError clears the error queue */
 	}
 }
 
 std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
-	while (game.running_ && game.gl_context_->IsInitialized() &&
-		   game.sdl_instance_->IsInitialized()) {
+	while (game.running_ && game.gl_context_->IsInitialized() && game.sdl_instance_->IsInitialized()
+	) {
 		GLenum error{ glGetError() };
 		auto e{ static_cast<GLError>(error) };
 		if (e == GLError::None) {

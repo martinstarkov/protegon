@@ -215,14 +215,12 @@ public:
 	// Set a sub pixel data of the currently bound texture.
 	// @param pixel_data Specifies a pointer to the image data in memory.
 	// @param size Specifies the size of the texture subimage (relative to the offset).
-	// @param format Specifies the format of the pixel data.
 	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
 	// Level n is the nth mipmap reduction image.
 	// @param offset Specifies a texel offset within the texture array (relative to bottom left
 	// corner).
 	void SetSubData(
-		const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level,
-		const V2_int& offset
+		const void* pixel_data, const V2_int& size, int mipmap_level, const V2_int& offset
 	);
 
 	// Set the specified texture slot to active and bind the texture id to that slot.
@@ -271,10 +269,6 @@ private:
 	// bound texture.
 	[[nodiscard]] std::int32_t GetParameterI(TextureParameter parameter) const;
 
-	[[nodiscard]] std::int32_t GetLevelParameterI(
-		TextureLevelParameter parameter, std::int32_t level
-	) const;
-
 	// Set the pixel data of the currently bound texture.
 	// @param pixel_data Specifies a pointer to the image data in memory.
 	// @param size Specifies the size of the texture.
@@ -294,6 +288,7 @@ private:
 
 	TextureId id_{ 0 };
 	V2_int size_;
+	TextureFormat format_{ TextureFormat::Unknown };
 };
 
 class TextureManager {

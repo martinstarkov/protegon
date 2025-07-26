@@ -11,10 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -28,6 +24,10 @@
 #include "rendering/gl/gl_loader.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/file.h"
 
@@ -224,13 +224,16 @@ Texture::Texture(
 }
 
 Texture::Texture(Texture&& other) noexcept :
-	id_{ std::exchange(other.id_, 0) }, size_{ std::exchange(other.size_, {}) } {}
+	id_{ std::exchange(other.id_, 0) },
+	size_{ std::exchange(other.size_, {}) },
+	format_{ std::exchange(other.format_, { TextureFormat::Unknown }) } {}
 
 Texture& Texture::operator=(Texture&& other) noexcept {
 	if (this != &other) {
 		DeleteTexture();
-		id_	  = std::exchange(other.id_, 0);
-		size_ = std::exchange(other.size_, {});
+		id_		= std::exchange(other.id_, 0);
+		size_	= std::exchange(other.size_, {});
+		format_ = std::exchange(other.format_, { TextureFormat::Unknown });
 	}
 	return *this;
 }
@@ -255,13 +258,13 @@ void Texture::DeleteTexture() noexcept {
 #ifdef GL_ANNOUNCE_TEXTURE_CALLS
 	PTGN_LOG("GL: Deleted texture with id ", id_);
 #endif
-	id_ = 0;
+	id_		= 0;
+	size_	= {};
+	format_ = TextureFormat::Unknown;
 }
 
 TextureFormat Texture::GetFormat() const {
-	return GetFormatFromOpenGL(
-		static_cast<InternalGLFormat>(GetLevelParameterI(TextureLevelParameter::InternalFormat, 0))
-	);
+	return format_;
 }
 
 V2_int Texture::GetSize() const {
@@ -283,18 +286,6 @@ std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 		static_cast<GLenum>(TextureTarget::Texture2D), static_cast<GLenum>(parameter), &value
 	));
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
-	return value;
-}
-
-std::int32_t Texture::GetLevelParameterI(
-	TextureLevelParameter parameter, std::int32_t level
-) const {
-	PTGN_ASSERT(IsBound(), "Texture must be bound prior to getting its level parameters");
-	std::int32_t value{ -1 };
-	GLCall(glGetTexLevelParameteriv(
-		static_cast<GLenum>(TextureTarget::Texture2D), level, static_cast<GLenum>(parameter), &value
-	));
-	PTGN_ASSERT(value != -1, "Failed to retrieve texture level parameter");
 	return value;
 }
 
@@ -413,18 +404,18 @@ void Texture::SetData(
 		static_cast<GLenum>(formats.input_format), static_cast<GLenum>(type), pixel_data
 	));
 
-	size_ = size;
+	size_	= size;
+	format_ = format;
 }
 
 void Texture::SetSubData(
-	const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level,
-	const V2_int& offset
+	const void* pixel_data, const V2_int& size, int mipmap_level, const V2_int& offset
 ) {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to setting its subdata");
 
 	PTGN_ASSERT(pixel_data != nullptr);
 
-	auto formats{ GetGLFormats(format) };
+	auto formats{ GetGLFormats(format_) };
 
 	GLCall(glTexSubImage2D(
 		static_cast<GLenum>(TextureTarget::Texture2D), mipmap_level, offset.x, offset.y, size.x,
