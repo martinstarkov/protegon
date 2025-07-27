@@ -41,35 +41,6 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
-// TODO: Implement following behavior:
-// Batched objects with no filters render directly to the main framebuffer.
-// Objects with the same filters are rendered to an offscreen framebuffer (Render Target).
-// The filter shader is then applied to this buffer, and the result is composited back into the main
-// framebuffer.
-// Multiple filters can be chained in sequence, with each producing an intermediate buffer for the
-// next
-// If multiple objects share the same filter instance, we can batch them together within that filter
-// pipeline, assuming their textures and states are also compatible.
-
-// clang-format off
-/*
-| **Aspect**                  | **Internal Filter (Inline Pipeline)**                   | **External Filter (PostFXPipeline)**                                           |
-| --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Performance**             | 🔥 Fast — integrates with batching                      | 🐢 Slower — render-to-texture overhead per object/group                        |
-| **Batches**                 | ✅ Maintains batching                                    | ❌ Breaks batching due to framebuffer isolation                                 |
-| **Memory usage**            | Low — no framebuffers needed                            | Higher — offscreen framebuffers                                                |
-| **Effect Scope**            | Per-fragment; operates on UVs, texture, vertex data     | Full-object or full-frame; works on the composite image of the object or group |
-| **Sampling beyond UV**      | ❌ Not possible; shader sees only local texels           | ✅ Possible; can access neighbors, edges, alpha boundaries                      |
-| **Effect Examples**         | Tint, pixelate, color shift, wave distortion, scanlines | Blur, glow, outline, drop shadow, bloom, CRT, vignette                         |
-| **Group/Container effects** | ❌ Cannot apply to a group easily                        | ✅ Apply once to a container, entire scene, or camera                           |
-| **Order Sensitivity**       | Works per object; respects z-order                      | Works after object render; can process groups together                         |
-*/
-// clang-format on
-
-// TODO: For PreFX, scissor the frame buffer. Use a frame buffer pool which allocates new frame
-// buffers with the same size.
-// TODO: For PostFX, check if post FX are different and if so, flush.
-
 #define HDR_ENABLED 0
 
 namespace ptgn::impl {
@@ -359,9 +330,9 @@ void RenderData::AddTexturedQuad(
 			std::numeric_limits<float>::infinity()
 		) };
 
-		std::array<V2_float, 4> camera_positions{};
-		for (std::size_t i{ 0 }; i < camera_positions.size(); i++) {
-			camera_positions[i] = impl::default_texture_coordinates[i] * texture_size - extents;
+		std::array<V2_float, 4> texture_vertices{};
+		for (std::size_t i{ 0 }; i < texture_vertices.size(); i++) {
+			texture_vertices[i] = impl::default_texture_coordinates[i] * texture_size - extents;
 		}
 
 		auto texture_format{ TextureFormat::RGBA8888 };
@@ -395,7 +366,7 @@ void RenderData::AddTexturedQuad(
 			}
 
 			// TODO: Cache this somehow?
-			SetCameraVertices(camera_positions, depth);
+			SetCameraVertices(texture_vertices, depth);
 
 			shader.SetUniform("u_Texture", 1);
 			shader.SetUniform("u_Resolution", V2_float{ texture_size });
@@ -631,20 +602,7 @@ void RenderData::AddShader(
 		PTGN_ASSERT(intermediate_target);
 	}
 
-	Camera fallback_camera;
-
-	// TODO: Consider if there should be a different way to do this.
-	if (entity.Has<Camera>()) {
-		fallback_camera = entity.Get<Camera>();
-	} else {
-		// TODO: Consider if this should be camera.window instead.
-		fallback_camera = game.scene.GetCurrent().camera.primary;
-	}
-
-	PTGN_ASSERT(fallback_camera, "Failed to find a valid camera for the shader entity");
-
-	auto camera{ GetCamera(fallback_camera) };
-	PTGN_ASSERT(camera);
+	auto camera{ GetCamera() };
 
 	SetCameraVertices(camera);
 
@@ -685,12 +643,13 @@ void RenderData::BindTextures() const {
 	}
 }
 
-Camera RenderData::GetCamera(const Camera& fallback) const {
+Camera RenderData::GetCamera() const {
 	if (render_state.camera) {
 		return render_state.camera;
 	}
-	PTGN_ASSERT(fallback);
-	return fallback;
+	auto scene_camera{ game.scene.GetCurrent().camera.primary };
+	PTGN_ASSERT(scene_camera);
+	return scene_camera;
 }
 
 void RenderData::Flush() {
@@ -698,8 +657,9 @@ void RenderData::Flush() {
 		return;
 	}
 
-	const auto draw_vertices_to = [&](const auto& camera, const auto& target,
-									  const ShaderPass& shader_pass) {
+	const auto draw_vertices_to = [&](const auto& target) {
+		auto camera{ GetCamera() };
+
 		const auto& camera_vp{ camera.GetViewProjection() };
 
 		DrawTo(target);
@@ -708,7 +668,7 @@ void RenderData::Flush() {
 		BindTextures();
 
 		// TODO: Only set uniform if camera changed.
-		BindCamera(shader_pass.GetShader(), camera_vp);
+		BindCamera(render_state.shader_pass.GetShader(), camera_vp);
 
 		// TODO: Call shader pass uniform.
 
@@ -722,10 +682,7 @@ void RenderData::Flush() {
 			intermediate_target.ClearToColor(color::Transparent);
 			intermediate_target.SetBlendMode(render_state.blend_mode);
 			// Draw vertices to intermediate target before adding post fx to it.
-			draw_vertices_to(
-				GetCamera(game.scene.GetCurrent().camera.primary), intermediate_target,
-				render_state.shader_pass
-			);
+			std::invoke(draw_vertices_to, intermediate_target);
 		}
 		PTGN_ASSERT(
 			intermediate_target, "Intermediate target must be used before rendering post fx"
@@ -800,9 +757,7 @@ void RenderData::Flush() {
 		//	PTGN_LOG("PostDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 200, 200 }));
 
 	} else if (!vertices.empty() && !indices.empty()) {
-		draw_vertices_to(
-			GetCamera(game.scene.GetCurrent().camera.primary), drawing_to, render_state.shader_pass
-		);
+		std::invoke(draw_vertices_to, drawing_to);
 	}
 
 	intermediate_target = {};

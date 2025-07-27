@@ -51,7 +51,7 @@ constexpr std::array<V2_float, 4> default_texture_coordinates{
 constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
 	quad_vertex_layout;
 
-constexpr std::size_t batch_capacity{ 4000 };
+constexpr std::size_t batch_capacity{ 10000 };
 constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
@@ -333,7 +333,7 @@ private:
 		Entity entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
 	);
 
-	[[nodiscard]] Camera GetCamera(const Camera& fallback) const;
+	[[nodiscard]] Camera GetCamera() const;
 
 	[[nodiscard]] RenderTarget GetPingPongTarget() const;
 
