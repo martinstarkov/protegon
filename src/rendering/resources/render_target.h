@@ -18,6 +18,11 @@ class RenderTarget;
 
 namespace impl {
 
+// TODO: Implement.
+// Create a render target that is continuously sized to the window.
+// RenderTarget CreateRenderTarget(const Entity& entity, const Color& clear_color, TextureFormat
+// texture_format);
+
 RenderTarget CreateRenderTarget(
 	const Entity& entity, const V2_float& size, const Color& clear_color,
 	TextureFormat texture_format
@@ -52,10 +57,14 @@ public:
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
-	// TODO: Implement window resizing.
-	// Create a render target that is continuously sized to the window.
-	// @param clear_color The background color of the render target.
-	// explicit RenderTarget(const Color& clear_color);
+	// @return Unscaled size of the entire texture in pixels.
+	[[nodiscard]] V2_int GetTextureSize() const;
+
+	// @return Unscaled size of the cropped texture in pixels.
+	[[nodiscard]] V2_int GetSize() const;
+
+	// @return Scaled size of the cropped texture in pixels.
+	[[nodiscard]] V2_float GetDisplaySize() const;
 
 	void ClearEntities();
 	void AddEntity(Entity& entity);

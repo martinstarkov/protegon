@@ -30,8 +30,8 @@ RenderTarget CreateRenderTarget(
 	render_target.Show();
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
-	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size,
-																			format }) };
+	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size, format }
+	) };
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
 	render_target.Clear();
@@ -64,40 +64,19 @@ RenderTarget::RenderTarget(const Color& clear_color) :
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
 void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
-	// TODO: Add custom sizing for render targets.
-	// TODO: Fix.
-	/*
-	RenderTarget rt{ entity };
-	const auto& texture{ rt.GetTexture() };
-	auto depth{ entity.GetDepth() };
-	auto blend_mode{ entity.GetBlendMode() };
-	auto tint{ entity.GetTint().Normalized() };
-
-	Sprite sprite{ entity };
-	auto coords{ sprite.GetTextureCoordinates(true) };
-
-	ctx.AddTexturedQuad(
-		{}, {}, Origin::Center, coords, texture, depth, Camera{}, blend_mode, tint, false
-	);*/
+	impl::DrawTexture(ctx, entity, true);
 }
 
-void RenderTarget::Draw(const Entity& entity) const {
-	PTGN_ASSERT(entity, "Cannot draw invalid entity to render target");
+V2_int RenderTarget::GetTextureSize() const {
+	return impl::GetTextureSize(*this);
+}
 
-	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
-	frame_buffer.Bind();
-	PTGN_ASSERT(frame_buffer.IsBound(), "Cannot draw to render target unless it is first bound");
+V2_int RenderTarget::GetSize() const {
+	return impl::GetCroppedSize(*this);
+}
 
-	// TODO: Fix.
-	/*auto& rd{ game.renderer.GetRenderData() };
-
-	const auto& camera{ GetCamera() };
-	rd.fallback_camera = camera;
-	rd.UseCamera(camera);
-
-	rd.AddToBatch(entity, false);
-
-	rd.Flush(frame_buffer);*/
+V2_float RenderTarget::GetDisplaySize() const {
+	return impl::GetDisplaySize(*this);
 }
 
 void RenderTarget::Bind() const {
@@ -138,38 +117,6 @@ void RenderTarget::ClearToColor(const Color& color) const {
 	PTGN_ASSERT(frame_buffer.IsBound(), "Render target frame buffer must be bound before clearing");
 	impl::GLRenderer::ClearToColor(color);
 }
-
-/*
-void RenderTarget::DrawToScreen() const {
-	FrameBuffer::Unbind();
-	// Screen target replaces the screen frame buffer. Since the default frame buffer (id=0) is
-	// transparent, premultiplied blend leads to destRGBA = srcRGBA blending (same as none). This,
-	// however, results in less blend mode changes.
-	GLRenderer::SetBlendMode(BlendMode::BlendPremultiplied);
-	GLRenderer::SetViewport(viewport_.Min(), viewport_.size);
-	const Shader& shader{ game.shader.Get(ScreenShader::Default) };
-	shader.Bind();
-	shader.SetUniform("u_ViewProjection", ...);
-	texture_.DrawToBoundFrameBuffer(viewport_, {}, shader);
-}
-
-void RenderTarget::Draw(const TextureInfo& texture_info, Shader shader, bool clear_after_draw)
-	const {
-	GLRenderer::SetViewport(viewport_.Min(), viewport_.size);
-	if (!shader.IsValid()) {
-		shader = game.shader.Get(ScreenShader::Default);
-	}
-	shader.Bind();
-	shader.SetUniform("u_ViewProjection", camera_);
-	texture_.Draw(viewport_, texture_info, shader);
-
-	if (clear_after_draw) {
-		// Render target is cleared after drawing it to the current render target.
-		Bind();
-		Clear();
-	}
-}
-*/
 
 void RenderTarget::ClearEntities() {
 	PTGN_ASSERT(Has<impl::RenderTargetEntities>());
