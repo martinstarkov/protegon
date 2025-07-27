@@ -11,6 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -24,10 +28,6 @@
 #include "rendering/gl/gl_loader.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "serialization/json.h"
 #include "utility/file.h"
 
@@ -424,15 +424,23 @@ void Texture::SetSubData(
 	));
 }
 
-void TextureManager::Load(const path& json_filepath) {
-	auto textures{ LoadJson(json_filepath) };
+void TextureManager::LoadList(const path& json_filepath) {
+	auto textures{ ptgn::LoadJson(json_filepath) };
+	TextureManager::LoadJson(textures);
+}
+
+void TextureManager::LoadJson(const json& textures) {
 	for (const auto& [texture_key, texture_path] : textures.items()) {
 		Load(texture_key, texture_path);
 	}
 }
 
-void TextureManager::Unload(const path& json_filepath) {
-	auto textures{ LoadJson(json_filepath) };
+void TextureManager::UnloadList(const path& json_filepath) {
+	auto textures{ ptgn::LoadJson(json_filepath) };
+	TextureManager::UnloadJson(textures);
+}
+
+void TextureManager::UnloadJson(const json& textures) {
 	for (const auto& [texture_key, texture_path] : textures.items()) {
 		Unload(TextureHandle{ texture_key });
 	}
@@ -441,7 +449,9 @@ void TextureManager::Unload(const path& json_filepath) {
 void TextureManager::Load(const TextureHandle& key, const path& filepath) {
 	auto [it, inserted] = textures_.try_emplace(key);
 	if (inserted) {
-		it->second = LoadFromFile(filepath);
+		it->second.key		= key;
+		it->second.filepath = filepath;
+		it->second.texture	= LoadFromFile(filepath);
 	}
 }
 
@@ -451,7 +461,7 @@ void TextureManager::Unload(const TextureHandle& key) {
 
 V2_int TextureManager::GetSize(const TextureHandle& key) const {
 	PTGN_ASSERT(Has(key), "Cannot get size of texture which has not been loaded");
-	return textures_.find(key)->second.GetSize();
+	return textures_.find(key)->second.texture.GetSize();
 }
 
 bool TextureManager::Has(const TextureHandle& key) const {
@@ -460,7 +470,12 @@ bool TextureManager::Has(const TextureHandle& key) const {
 
 const Texture& TextureManager::Get(const TextureHandle& key) const {
 	PTGN_ASSERT(Has(key), "Cannot get texture which has not been loaded");
-	return textures_.find(key)->second;
+	return textures_.find(key)->second.texture;
+}
+
+const path& TextureManager::GetPath(const TextureHandle& key) const {
+	PTGN_ASSERT(Has(key), "Cannot get path of texture which has not been loaded");
+	return textures_.find(key)->second.filepath;
 }
 
 Texture TextureManager::LoadFromFile(const path& filepath) {
@@ -472,6 +487,24 @@ Texture TextureManager::LoadFromFile(const path& filepath) {
 	Color cbl{ s.GetPixel({ 0, s.size.y - 1 }) };
 	PTGN_LOG("File: ", filepath, " | tl: ", ctl, " | tr: ", ctr, " | br: ", cbr, " | bl: ", cbl);*/
 	return Texture{ s };
+}
+
+void to_json(json& j, const TextureManager& manager) {
+	for (const auto& pair : manager.textures_) {
+		// This due to warning: captured structured bindings are a C++20 extension.
+		const auto& texture_resource{ pair.second };
+
+		const auto& key{ texture_resource.key.GetKey() };
+		PTGN_ASSERT(
+			!key.empty(),
+			"Cannot serialize a texture without a key: ", texture_resource.filepath.string()
+		);
+		j[key] = texture_resource.filepath;
+	}
+}
+
+void from_json(const json& j, TextureManager& manager) {
+	manager.LoadJson(j);
 }
 
 Color Surface::GetPixel(const V2_int& coordinate) const {
@@ -610,7 +643,7 @@ void Texture::SetClampBorderColor(const Color& color) const {
 } // namespace impl
 
 const impl::Texture& TextureHandle::GetTexture(const Entity& entity) const {
-	if (value_) {
+	if (TextureHandle::GetHash()) {
 		PTGN_ASSERT(game.texture.Has(*this), "Texture must be loaded into the texture manager");
 		return game.texture.Get(*this);
 	}

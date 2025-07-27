@@ -292,6 +292,12 @@ private:
 	TextureFormat format_{ TextureFormat::Unknown };
 };
 
+struct TextureResource {
+	Texture texture;
+	path filepath;
+	TextureHandle key;
+};
+
 class TextureManager {
 public:
 	// Load textures from a json file. Json format must be:
@@ -299,8 +305,11 @@ public:
 	//    "texture_key": "path/to/texture/file.extension",
 	//    ...
 	// }
-	void Load(const path& json_filepath);
-	void Unload(const path& json_filepath);
+	void LoadList(const path& json_filepath);
+	void UnloadList(const path& json_filepath);
+
+	void LoadJson(const json& textures);
+	void UnloadJson(const json& textures);
 
 	// If key exists in the texture manager, does nothing.
 	void Load(const TextureHandle& key, const path& filepath);
@@ -314,16 +323,17 @@ public:
 	[[nodiscard]] bool Has(const TextureHandle& key) const;
 
 	[[nodiscard]] const Texture& Get(const TextureHandle& key) const;
+	[[nodiscard]] const path& GetPath(const TextureHandle& key) const;
 
-	friend void to_json(json& j, const Manager& manager);
-	friend void from_json(const json& j, Manager& manager);
+	friend void to_json(json& j, const TextureManager& manager);
+	friend void from_json(const json& j, TextureManager& manager);
 
 private:
 	friend class RenderData;
 
 	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
 
-	std::unordered_map<std::size_t, Texture> textures_;
+	std::unordered_map<std::size_t, TextureResource> textures_;
 };
 
 } // namespace impl
@@ -398,4 +408,4 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 
 } // namespace impl
 
-} // namespace
+} // namespace ptgn

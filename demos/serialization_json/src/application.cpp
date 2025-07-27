@@ -17,6 +17,7 @@
 #include "components/lifetime.h"
 #include "components/offsets.h"
 #include "core/entity.h"
+#include "core/game.h"
 #include "core/manager.h"
 #include "math/math.h"
 #include "math/rng.h"
@@ -120,7 +121,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	e1.Add<Draggable>(V2_float{ 1, 1 }, V2_float{ 30, 40 }, true);
 	e1.SetTransform({ V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
 	e1.Enable();
-	e1.Hide();
+	e1.Show();
 	e1.SetDepth(22);
 	auto tint_color{ color::Blue };
 	e1.Add<Tint>(tint_color);
@@ -129,8 +130,8 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	e1.Add<Interactive>();
-	e1.Add<impl::Offsets>(
-	); // Transforms will be serialized as nulls because they are default values.
+	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
+							 // values.
 	e1.Add<Lifetime>(milliseconds{ 300 }).Start();
 
 	{
@@ -176,6 +177,66 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		PTGN_ASSERT(e2.Has<Lifetime>());
 
 		PTGN_LOG("Successfully deserialized all entity components");
+	}
+
+	const auto test_manager_serialization = [](const std::string& manager_name,
+											   auto& resource_manager, const path& resource1_path,
+											   const path& resource2_path) {
+		LoadResource(manager_name + "1", resource1_path);
+		LoadResource(manager_name + "2", resource2_path);
+
+		PTGN_ASSERT(resource_manager.Has(manager_name + "1"));
+		PTGN_ASSERT(resource_manager.Has(manager_name + "2"));
+
+		json manager_json = resource_manager;
+
+		PTGN_LOG("Successfully serialized the ", manager_name, " manager");
+
+		PTGN_LOG(manager_json.dump(4));
+
+		resource_manager.Unload(manager_name + "1");
+		resource_manager.Unload(manager_name + "2");
+
+		PTGN_ASSERT(!resource_manager.Has(manager_name + "1"));
+		PTGN_ASSERT(!resource_manager.Has(manager_name + "2"));
+
+		resource_manager = manager_json;
+
+		PTGN_ASSERT(resource_manager.Has(manager_name + "1"));
+		PTGN_ASSERT(resource_manager.Has(manager_name + "2"));
+
+		PTGN_ASSERT(resource_manager.GetPath(manager_name + "1") == resource1_path);
+		PTGN_ASSERT(resource_manager.GetPath(manager_name + "2") == resource2_path);
+
+		PTGN_LOG("Successfully deserialized the ", manager_name, " manager");
+	};
+
+	{
+		std::invoke(
+			test_manager_serialization, "texture", game.texture, "resources/texture1.png",
+			"resources/texture2.png"
+		);
+		// TODO: Implement.
+		// std::invoke(
+		// 	test_manager_serialization, "font", game.font, "resources/font1.ttf",
+		// 	"resources/font2.ttf"
+		// );
+		// std::invoke(
+		// 	test_manager_serialization, "sound", game.sound, "resources/sound1.mp3",
+		// 	"resources/sound2.mp3"
+		// );
+		// std::invoke(
+		// 	test_manager_serialization, "music", game.music, "resources/music1.mp3",
+		// 	"resources/music2.mp3"
+		// );
+		// std::invoke(
+		// 	test_manager_serialization, "json", game.json, "resources/json1.json",
+		// 	"resources/json2.json"
+		// );
+		// std::invoke(
+		// 	test_manager_serialization, "shader", game.json, "resources/shader1.glsl",
+		// 	"resources/shader2.glsl"
+		// );
 	}
 
 	/*{
