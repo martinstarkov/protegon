@@ -1,5 +1,6 @@
 
 #include "core/game.h"
+#include "core/window.h"
 #include "events/input_handler.h"
 #include "math/vector2.h"
 #include "rendering/graphics/rect.h"
@@ -13,6 +14,7 @@ constexpr V2_int window_size{ 800, 800 };
 
 struct RenderTargetScene : public Scene {
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		auto rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
 		rt.SetOrigin(Origin::TopLeft);
 		rt.SetPosition({ 400, 400 });
@@ -25,6 +27,9 @@ struct RenderTargetScene : public Scene {
 			CreateRect(*this, { 0, 400 }, { 400, 400 }, color::White, -1.0f, Origin::TopLeft);
 		rect2.Hide();
 		rt.AddToDisplayList(rect2);
+		// auto rt2 = CreateRenderTarget(*this, color::Orange);
+		// rt2.SetPosition({});
+		// rt2.SetOrigin(Origin::TopLeft);
 	}
 
 	void Update() override {}
