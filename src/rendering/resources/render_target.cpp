@@ -130,6 +130,12 @@ void RenderTarget::AddToDisplayList(Entity& entity) {
 	PTGN_ASSERT(
 		entity.Has<IDrawable>(), "Entity added to render target display list must be drawable"
 	);
+	// TODO: Consider allowing render targets to be rendered to other render targets.
+	PTGN_ASSERT(
+		!entity.Has<impl::FrameBuffer>(),
+		"Cannot add a render target to the display list of another render target. This is because "
+		"render order of targets is not enforced. Perhaps in the future."
+	);
 	PTGN_ASSERT(Has<impl::DisplayList>());
 	auto& dl{ Get<impl::DisplayList>().entities };
 	dl.emplace_back(entity);
