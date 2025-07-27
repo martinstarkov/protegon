@@ -16,9 +16,9 @@ public:
 	Animation sprite;
 
 	void Enter() override {
-		game.texture.Load("anim", "resources/animation.png");
-		game.texture.Load("anim2", "resources/animation4.png");
-		// game.texture.Load("anim3", "resources/animation3.png");
+		LoadResource("anim", "resources/animation.png");
+		LoadResource("anim2", "resources/animation4.png");
+		// LoadResource("anim3", "resources/animation3.png");
 
 		/*sprite = CreateSprite(*this, "anim");
 		sprite.SetPosition(camera.primary.GetPosition() + V2_int{ 64, 0 });
