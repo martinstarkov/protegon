@@ -319,13 +319,6 @@ private:
 
 	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
 
-	// TODO: Fix.
-	// Draws the texture to the currently bound frame buffer.
-	/*void DrawToBoundFrameBuffer(
-		std::string_view key, const Rect& destination, const TextureInfo& texture_info,
-		const Shader& shader
-	) const;*/
-
 	std::unordered_map<std::size_t, Texture> textures_;
 };
 

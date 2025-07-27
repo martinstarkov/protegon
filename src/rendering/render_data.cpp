@@ -611,14 +611,14 @@ void RenderData::AddShader(
 
 	// PTGN_LOG(
 	// 	"Before drawing shader to intermediate target:",
-	// 	intermediate_target.GetFrameBuffer().GetPixel({ 50, 50 })
+	// 	intermediate_target.GetPixel({ 50, 50 })
 	// );
 
 	DrawVertexArray(quad_indices.size());
 
 	// PTGN_LOG(
 	// 	"After drawing shader to intermediate target:",
-	// 	intermediate_target.GetFrameBuffer().GetPixel({ 50, 50 })
+	// 	intermediate_target.GetPixel({ 50, 50 })
 	// );
 }
 
@@ -739,15 +739,14 @@ void RenderData::Flush() {
 		SetRenderParameters(camera, blend_mode);
 
 		ReadFrom(intermediate_target);
-		// PTGN_LOG("Intermediate: ", intermediate_target.GetFrameBuffer().GetPixel({ 200, 200 }));
+		// PTGN_LOG("Intermediate: ", intermediate_target.GetPixel({ 200, 200 }));
 		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
 
-		// PTGN_LOG(intermediate_target.GetFrameBuffer().GetPixel({ 300, 300 }));
 		// TODO: Cache this somehow?
 		SetCameraVertices(camera);
 
 		DrawVertexArray(quad_indices.size());
-		//	PTGN_LOG("PostDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 200, 200 }));
+		//	PTGN_LOG("PostDraw: ", drawing_to.GetPixel({ 200, 200 }));
 
 	} else if (!vertices.empty() && !indices.empty()) {
 		PTGN_ASSERT(drawing_to);

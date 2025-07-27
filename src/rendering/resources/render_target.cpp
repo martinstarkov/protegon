@@ -164,7 +164,7 @@ void RenderTarget::SetClearColor(const Color& clear_color) {
 }
 
 const impl::Texture& RenderTarget::GetTexture() const {
-	return Get<impl::FrameBuffer>().GetTexture();
+	return GetFrameBuffer().GetTexture();
 }
 
 impl::Texture& RenderTarget::GetTexture() {
@@ -173,6 +173,16 @@ impl::Texture& RenderTarget::GetTexture() {
 
 const impl::FrameBuffer& RenderTarget::GetFrameBuffer() const {
 	return Get<impl::FrameBuffer>();
+}
+
+Color RenderTarget::GetPixel(const V2_int& coordinate, bool restore_bind_state) const {
+	return GetFrameBuffer().GetPixel(coordinate, restore_bind_state);
+}
+
+void RenderTarget::ForEachPixel(
+	const std::function<void(V2_int, Color)>& func, bool restore_bind_state
+) const {
+	return GetFrameBuffer().ForEachPixel(func, restore_bind_state);
 }
 
 } // namespace ptgn

@@ -95,6 +95,23 @@ public:
 	// color. This function will bind the render target's frame buffer.
 	void ClearToColor(const Color& color) const;
 
+	// WARNING: This function is slow and should be
+	// primarily used for debugging render targets.
+	// @param coordinate Pixel coordinate from [0, size).
+	// @param restore_bind_state If true, rebinds the previously bound frame buffer and texture ids.
+	// @return Color value of the given pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	[[nodiscard]] Color GetPixel(const V2_int& coordinate, bool restore_bind_state = true) const;
+
+	// WARNING: This function is slow and should be
+	// primarily used for debugging render targets.
+	// @param callback Function to be called for each pixel.
+	// @param restore_bind_state If true, rebinds the previously bound frame buffer and texture ids.
+	// Note: Only RGB/RGBA format textures supported.
+	void ForEachPixel(
+		const std::function<void(V2_int, Color)>& callback, bool restore_bind_state = true
+	) const;
+
 private:
 	friend class impl::RenderData;
 	friend class Scene;
