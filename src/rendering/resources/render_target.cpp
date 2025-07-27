@@ -131,7 +131,8 @@ void RenderTarget::AddToDisplayList(Entity& entity) {
 		entity.Has<IDrawable>(), "Entity added to render target display list must be drawable"
 	);
 	PTGN_ASSERT(Has<impl::DisplayList>());
-	Get<impl::DisplayList>().entities.emplace_back(entity);
+	auto& dl{ Get<impl::DisplayList>().entities };
+	dl.emplace_back(entity);
 	entity.Add<RenderTarget>(*this);
 }
 

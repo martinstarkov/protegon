@@ -13,10 +13,16 @@ constexpr V2_int window_size{ 800, 800 };
 
 struct RenderTargetScene : public Scene {
 	void Enter() override {
-		auto rt	   = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
+		auto rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
+		rt.SetOrigin(Origin::TopLeft);
+		rt.SetPosition({ 400, 400 });
 		auto rect1 = CreateRect(*this, { 0, 0 }, { 400, 400 }, color::Red, -1.0f, Origin::TopLeft);
+		// For some reason the origin of the render target is the bottom left corner of the square
+		// (i.e. 400, 800 on the screen).
+		// So { 0, 400 }, { 400, 400 } will cover the screen coordinates with a whiterect from {400,
+		// 400} to {800,800}.
 		auto rect2 =
-			CreateRect(*this, { 400, 400 }, { 400, 400 }, color::Blue, -1.0f, Origin::TopLeft);
+			CreateRect(*this, { 0, 400 }, { 400, 400 }, color::White, -1.0f, Origin::TopLeft);
 		rect2.Hide();
 		rt.AddToDisplayList(rect2);
 	}

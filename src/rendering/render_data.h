@@ -315,9 +315,6 @@ private:
 
 	[[nodiscard]] RenderTarget GetPingPongTarget() const;
 
-	// Will sort the provided entity vector before drawing.
-	void DrawEntities(std::vector<Entity>& entities, const RenderTarget& target);
-
 	void Reset();
 
 	void BindTextures() const;

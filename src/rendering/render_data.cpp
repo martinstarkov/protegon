@@ -788,22 +788,20 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 	std::invoke(draw_function, *this, entity);
 }
 
-void RenderData::DrawEntities(std::vector<Entity>& entities, const RenderTarget& target) {}
-
 void RenderData::DrawScene(Scene& scene) {
 	// Loop through render targets and render their display lists onto their internal frame buffers.
-	for (auto [entity, visible, drawable, frame_buffer] :
-		 scene.EntitiesWith<Visible, IDrawable, impl::FrameBuffer>()) {
+	for (auto [entity, visible, drawable, frame_buffer, display_list] :
+		 scene.EntitiesWith<Visible, IDrawable, impl::FrameBuffer, impl::DisplayList>()) {
 		if (!visible) {
 			continue;
 		}
 		RenderTarget rt{ entity };
-		auto& display_list{ rt.GetDisplayList() };
-		SortEntities(display_list);
+		SortEntities(display_list.entities);
 		drawing_to = rt;
-		for (const auto& display_entity : display_list) {
+		for (const auto& display_entity : display_list.entities) {
 			InvokeDrawable(display_entity);
 		}
+		Flush();
 	}
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
@@ -816,6 +814,7 @@ void RenderData::DrawScene(Scene& scene) {
 		}
 		InvokeDrawable(entity);
 	}
+	Flush();
 }
 
 void RenderData::DrawToScreen(Scene& scene) {
@@ -887,7 +886,7 @@ void RenderData::ClearRenderTargets(Scene& scene) const {
 	for (auto [entity, frame_buffer] : scene.EntitiesWith<impl::FrameBuffer>()) {
 		RenderTarget rt{ entity };
 		rt.Clear();
-		rt.ClearDisplayList();
+		// rt.ClearDisplayList();
 	}
 }
 
@@ -898,7 +897,6 @@ void RenderData::Draw(Scene& scene) {
 
 	DrawScene(scene);
 
-	Flush();
 	render_state		= {};
 	intermediate_target = {};
 	temporary_textures	= std::vector<Texture>{};
