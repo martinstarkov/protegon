@@ -609,7 +609,7 @@ void Texture::SetClampBorderColor(const Color& color) const {
 
 } // namespace impl
 
-const impl::Texture& TextureHandle::GetTexture(Entity entity) const {
+const impl::Texture& TextureHandle::GetTexture(const Entity& entity) const {
 	if (value_) {
 		PTGN_ASSERT(game.texture.Has(*this), "Texture must be loaded into the texture manager");
 		return game.texture.Get(*this);
@@ -624,11 +624,11 @@ const impl::Texture& TextureHandle::GetTexture(Entity entity) const {
 	PTGN_ERROR("Entity does not have a valid texture handle");
 }
 
-impl::Texture& TextureHandle::GetTexture(Entity entity) {
+impl::Texture& TextureHandle::GetTexture(const Entity& entity) {
 	return const_cast<impl::Texture&>(std::as_const(*this).GetTexture(entity));
 }
 
-V2_int TextureHandle::GetSize(Entity entity) const {
+V2_int TextureHandle::GetSize(const Entity& entity) const {
 	return GetTexture(entity).GetSize();
 }
 

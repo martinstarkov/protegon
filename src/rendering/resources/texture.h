@@ -71,9 +71,9 @@ enum class TextureScaling {
 struct TextureHandle : public HashComponent {
 	using HashComponent::HashComponent;
 
-	[[nodiscard]] const impl::Texture& GetTexture(Entity entity = {}) const;
-	[[nodiscard]] impl::Texture& GetTexture(Entity entity = {});
-	[[nodiscard]] V2_int GetSize(Entity entity = {}) const;
+	[[nodiscard]] const impl::Texture& GetTexture(const Entity& entity = {}) const;
+	[[nodiscard]] impl::Texture& GetTexture(const Entity& entity = {});
+	[[nodiscard]] V2_int GetSize(const Entity& entity = {}) const;
 };
 
 namespace impl {
