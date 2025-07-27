@@ -1,5 +1,6 @@
 #include "rendering/render_data.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <functional>
@@ -39,8 +40,6 @@
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-
-#define HDR_ENABLED 0
 
 namespace ptgn::impl {
 
@@ -94,6 +93,14 @@ std::array<Vertex, 4> GetQuadVertices(
 	}
 
 	return vertices;
+}
+
+void SortEntities(std::vector<Entity>& entities) {
+	// PTGN_PROFILE_FUNCTION();
+	// Use stable_sort to maintain depth order of equal depth elements.
+	std::stable_sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+		return a.GetDepth() < b.GetDepth();
+	});
 }
 
 ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
@@ -447,32 +454,17 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-	screen_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
-		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
-	);
-	drawing_to	= screen_target;
 	ping_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
+		render_manager.CreateEntity(), color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	pong_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), { 1, 1 }, color::Transparent,
+		render_manager.CreateEntity(), color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	screen_target.SetBlendMode(BlendMode::BlendPremultiplied);
 	ping_target.SetBlendMode(BlendMode::Blend);
 	pong_target.SetBlendMode(BlendMode::Blend);
 	intermediate_target = {};
-
-	// TODO: Once render target window resizing is implemented, get rid of this.
-	game.event.window.Subscribe(
-		WindowEvent::Resized, this, std::function([&](const WindowResizedEvent& e) {
-			screen_target.GetTexture().Resize(e.size);
-			ping_target.GetTexture().Resize(e.size);
-			pong_target.GetTexture().Resize(e.size);
-		})
-	);
 
 #ifdef PTGN_PLATFORM_MACOS
 	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
@@ -484,6 +476,8 @@ void RenderData::Init() {
 #endif
 
 	SetState(RenderState{ {}, BlendMode::None, {} });
+
+	render_manager.Refresh();
 }
 
 bool RenderData::GetTextureIndex(std::uint32_t texture_id, float& out_texture_index) {
@@ -756,6 +750,7 @@ void RenderData::Flush() {
 		//	PTGN_LOG("PostDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 200, 200 }));
 
 	} else if (!vertices.empty() && !indices.empty()) {
+		PTGN_ASSERT(drawing_to);
 		std::invoke(draw_vertices_to, drawing_to);
 	}
 
@@ -793,47 +788,40 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 	std::invoke(draw_function, *this, entity);
 }
 
-void RenderData::DrawEntities(const std::vector<Entity>& entities, const RenderTarget& target) {
-	PTGN_ASSERT(target, "Cannot draw entities to invalid render target");
-	drawing_to = target;
-	for (const auto& entity : entities) {
+void RenderData::DrawEntities(std::vector<Entity>& entities, const RenderTarget& target) {}
+
+void RenderData::DrawScene(Scene& scene) {
+	// Loop through render targets and render their display lists onto their internal frame buffers.
+	for (auto [entity, visible, drawable, frame_buffer] :
+		 scene.EntitiesWith<Visible, IDrawable, impl::FrameBuffer>()) {
+		if (!visible) {
+			continue;
+		}
+		RenderTarget rt{ entity };
+		auto& display_list{ rt.GetDisplayList() };
+		SortEntities(display_list);
+		drawing_to = rt;
+		for (const auto& display_entity : display_list) {
+			InvokeDrawable(display_entity);
+		}
+	}
+
+	auto& display_list{ scene.render_target_.GetDisplayList() };
+	SortEntities(display_list);
+	drawing_to = scene.render_target_;
+	for (const auto& entity : display_list) {
+		// Skip entities which are in the display list of a custom render target.
+		if (entity.Has<RenderTarget>()) {
+			continue;
+		}
 		InvokeDrawable(entity);
 	}
 }
 
-void RenderData::DrawScene(Scene& scene) {
-	// TODO: Fix render target entities.
-
-	// std::vector<Entity> rt_entities;
-
-	/*for (auto [e, rt] : scene.EntitiesWith<Visible, IDrawable, RenderTarget>()) {
-		rt_entities.emplace_back(e);
-	}*/
-
-	auto& display_list{ scene.display_list_ };
-
-	display_list.erase(
-		std::remove_if(
-			display_list.begin(), display_list.end(),
-			[](auto& entity) { return entity.Has<RenderTarget>(); }
-		),
-		display_list.end()
-	);
-
-	// SortEntities<true>(rt_entities);
-	SortEntities<false>(display_list);
-
-	// for (auto e : rt_entities) {
-	//	auto& rt = e.Get<RenderTarget>();
-	//	// rt.Draw(e);
-	// }
-
-	DrawEntities(display_list, screen_target);
-}
-
-void RenderData::DrawToScreen() {
+void RenderData::DrawToScreen(Scene& scene) {
 	FrameBuffer::Unbind();
 
+	// Replace with resolution.
 	auto camera{ game.scene.GetCurrent().camera.window };
 
 	auto screen_size{ game.window.GetSize() };
@@ -863,6 +851,7 @@ void RenderData::DrawToScreen() {
 	);
 	UpdateVertexArray(camera_vertices, quad_indices);
 
+	// TODO: Replace with viewport info.
 	SetRenderParameters(camera, screen_target.GetBlendMode());
 
 	const Shader* shader{ nullptr };
@@ -875,6 +864,7 @@ void RenderData::DrawToScreen() {
 
 	PTGN_ASSERT(shader != nullptr);
 
+	// Replace with Matrix4::
 	BindCamera(*shader, camera);
 
 	if constexpr (HDR_ENABLED) {
@@ -883,17 +873,22 @@ void RenderData::DrawToScreen() {
 		shader->SetUniform("u_Gamma", 2.2f);
 	}
 
-	ReadFrom(screen_target);
+	ReadFrom(scene.render_target_);
 
 	DrawVertexArray(quad_indices.size());
 }
 
-void RenderData::ClearRenderTargets([[maybe_unused]] Scene& scene) {
-	screen_target.Clear();
+void RenderData::ClearRenderTargets(Scene& scene) const {
 	ping_target.Clear();
 	pong_target.Clear();
 
-	// TODO: Clear all render target entities.
+	scene.render_target_.Clear();
+
+	for (auto [entity, frame_buffer] : scene.EntitiesWith<impl::FrameBuffer>()) {
+		RenderTarget rt{ entity };
+		rt.Clear();
+		rt.ClearDisplayList();
+	}
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -908,7 +903,7 @@ void RenderData::Draw(Scene& scene) {
 	intermediate_target = {};
 	temporary_textures	= std::vector<Texture>{};
 
-	DrawToScreen();
+	DrawToScreen(scene);
 
 	// TODO: Check if this is needed.
 	Reset();

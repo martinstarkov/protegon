@@ -29,6 +29,8 @@
 #include "rendering/resources/texture.h"
 #include "scene/camera.h"
 
+#define HDR_ENABLED 0
+
 namespace ptgn {
 
 class Camera;
@@ -70,31 +72,7 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices = false
 );
 
-template <bool have_render_targets = false>
-void SortEntities(std::vector<Entity>& entities) {
-	// PTGN_PROFILE_FUNCTION();
-	//  stable_sort to maintain depth order of equal depth elements.
-	std::stable_sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
-		auto depthA{ a.GetDepth() };
-		auto depthB{ b.GetDepth() };
-
-		if constexpr (!have_render_targets) {
-			return depthA < depthB;
-		} else {
-			if (depthA != depthB) {
-				return depthA < depthB; // Smaller depth first
-			}
-
-			PTGN_ASSERT(a.Has<RenderTarget>());
-			PTGN_ASSERT(b.Has<RenderTarget>());
-
-			// If depths are equal, compare framebuffer IDs
-			auto idA{ a.Get<RenderTarget>().GetFrameBuffer().GetId() };
-			auto idB{ b.Get<RenderTarget>().GetFrameBuffer().GetId() };
-			return idA < idB;
-		}
-	});
-}
+void SortEntities(std::vector<Entity>& entities);
 
 using UniformCallback = void (*)(Entity, const Shader&);
 
@@ -337,7 +315,8 @@ private:
 
 	[[nodiscard]] RenderTarget GetPingPongTarget() const;
 
-	void DrawEntities(const std::vector<Entity>& entities, const RenderTarget& target);
+	// Will sort the provided entity vector before drawing.
+	void DrawEntities(std::vector<Entity>& entities, const RenderTarget& target);
 
 	void Reset();
 
@@ -365,13 +344,13 @@ private:
 
 	void Flush();
 
-	void DrawToScreen();
+	void DrawToScreen(Scene& scene);
 
 	void DrawScene(Scene& scene);
 
 	void Draw(Scene& scene);
 
-	void ClearRenderTargets(Scene& scene);
+	void ClearRenderTargets(Scene& scene) const;
 
 	RenderTarget screen_target;
 	RenderTarget ping_target;
