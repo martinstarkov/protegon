@@ -33,13 +33,6 @@
 
 namespace ptgn {
 
-Scene::Scene() {
-	OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
-	OnConstruct<IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	OnDestruct<IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
-}
-
 void Scene::AddToDisplayList(Entity entity) {
 	if (!entity.Has<Visible>() || !entity.Has<IDrawable>()) {
 		return;
@@ -102,6 +95,13 @@ void Scene::Init() {
 }
 
 void Scene::InternalEnter() {
+	// Here instead of scene constructor because exiting a scene resets the manager, which will
+	// clear the component pool vector which contains all the hooks.
+	OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+	OnConstruct<IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	OnDestruct<IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+
 	Init();
 	Enter();
 	Refresh();
@@ -113,9 +113,10 @@ void Scene::InternalExit() {
 	Refresh();
 	Reset();
 	input.Shutdown();
-	active_ = false;
-	camera	= {};
-	physics = {};
+	active_		  = false;
+	camera		  = {};
+	physics		  = {};
+	display_list_ = {};
 	Refresh();
 }
 

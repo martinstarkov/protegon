@@ -48,7 +48,7 @@ protected:
 	void SetColliderVisibility(bool collider_visibility);
 
 public:
-	Scene();
+	Scene()			  = default;
 	~Scene() override = default;
 
 	// Make sure to call Refresh() after this function.
