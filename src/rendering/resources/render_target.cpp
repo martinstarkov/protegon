@@ -1,19 +1,23 @@
 #include "rendering/resources/render_target.h"
 
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/drawable.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
+#include "core/window.h"
+#include "events/event_handler.h"
+#include "events/events.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
-#include "rendering/api/origin.h"
 #include "rendering/buffers/frame_buffer.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/render_data.h"
-#include "rendering/renderer.h"
 #include "rendering/resources/texture.h"
-#include "scene/camera.h"
 #include "scene/scene.h"
 
 namespace ptgn {
@@ -21,17 +25,33 @@ namespace ptgn {
 namespace impl {
 
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const V2_float& size, const Color& clear_color, TextureFormat format
+	const Entity& entity, const Color& clear_color, TextureFormat texture_format
+) {
+	V2_int size{ game.window.GetSize() };
+	RenderTarget render_target{ CreateRenderTarget(entity, size, clear_color, texture_format) };
+	game.event.window.Subscribe(
+		WindowEvent::Resized, entity, std::function([entity](const WindowResizedEvent& e) {
+			RenderTarget{ entity }.GetTexture().Resize(e.size);
+		})
+	);
+	return render_target;
+}
+
+RenderTarget CreateRenderTarget(
+	const Entity& entity, const V2_float& size, const Color& clear_color,
+	TextureFormat texture_format
 ) {
 	RenderTarget render_target{ entity };
+	render_target.SetPosition({});
 	render_target.SetDraw<RenderTarget>();
 	render_target.Add<TextureHandle>();
-	render_target.Add<impl::RenderTargetEntities>();
+	render_target.Add<impl::DisplayList>();
 	render_target.Show();
+	// TODO: Add camera which resizes with size.
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
-	auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{ nullptr, size, format }
-	) };
+	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
+		nullptr, size, texture_format }) };
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
 	render_target.Clear();
@@ -46,20 +66,11 @@ RenderTarget CreateRenderTarget(
 	return impl::CreateRenderTarget(scene.CreateEntity(), size, clear_color, texture_format);
 }
 
-/*
-RenderTarget::RenderTarget(const Color& clear_color) :
-	texture_{ Texture::WindowTexture{} },
-	frame_buffer_{ texture_,
-				   false },
-	blend_mode_{ blend_mode },
-	clear_color_{ clear_color } {
-	SubscribeToEvents();
-	PTGN_ASSERT(V2_int{ camera_.GetSize() } == texture_.GetSize());
-	PTGN_ASSERT(V2_int{ viewport_.size } == game.window.GetSize());
-	PTGN_ASSERT(frame_buffer_.IsValid(), "Failed to create valid frame buffer for render target");
-	Clear();
+RenderTarget CreateRenderTarget(
+	Scene& scene, const Color& clear_color, TextureFormat texture_format
+) {
+	return impl::CreateRenderTarget(scene.CreateEntity(), clear_color, texture_format);
 }
-*/
 
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
@@ -86,21 +97,6 @@ void RenderTarget::Bind() const {
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind render target frame buffer");
 }
 
-/*
-// TODO: Add window subscribe stuff here.
-void RenderTarget::SubscribeToEvents() {
-	auto f{ std::function([this](const WindowResizedEvent& e) {
-		viewport_ = { {}, e.size, Origin::TopLeft };
-	}) };
-	game.event.window.Subscribe(WindowEvent::Resized, this, f);
-	std::invoke(f, WindowResizedEvent{ { game.window.GetSize() } });
-}
-
-void RenderTarget::UnsubscribeFromEvents() const {
-	game.event.window.Unsubscribe(this);
-}
-*/
-
 void RenderTarget::Clear() const {
 	PTGN_ASSERT(Has<impl::FrameBuffer>(), "Cannot clear render target with no frame buffer");
 	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
@@ -118,34 +114,52 @@ void RenderTarget::ClearToColor(const Color& color) const {
 	impl::GLRenderer::ClearToColor(color);
 }
 
-void RenderTarget::ClearEntities() {
-	PTGN_ASSERT(Has<impl::RenderTargetEntities>());
-	auto& entities{ Get<impl::RenderTargetEntities>().entities };
-	for (Entity entity : entities) {
+void RenderTarget::ClearDisplayList() {
+	PTGN_ASSERT(Has<impl::DisplayList>());
+	auto& display_list{ Get<impl::DisplayList>().entities };
+	for (Entity entity : display_list) {
 		if (entity) {
 			entity.Remove<RenderTarget>();
 		}
 	}
-	entities.clear();
+	display_list.clear();
 }
 
-void RenderTarget::AddEntity(Entity& entity) {
+void RenderTarget::AddToDisplayList(Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot add invalid entity to render target");
-	PTGN_ASSERT(Has<impl::RenderTargetEntities>());
-	Get<impl::RenderTargetEntities>().entities.emplace(entity);
+	PTGN_ASSERT(
+		entity.Has<IDrawable>(), "Entity added to render target display list must be drawable"
+	);
+	PTGN_ASSERT(Has<impl::DisplayList>());
+	Get<impl::DisplayList>().entities.emplace_back(entity);
 	entity.Add<RenderTarget>(*this);
 }
 
+void RenderTarget::RemoveFromDisplayList(Entity& entity) {
+	PTGN_ASSERT(entity, "Cannot remove invalid entity from render target");
+	PTGN_ASSERT(
+		entity.Has<IDrawable>(), "Entity remove from render target display list must be drawable"
+	);
+	entity.Remove<RenderTarget>();
+	PTGN_ASSERT(Has<impl::DisplayList>());
+	auto& dl{ Get<impl::DisplayList>().entities };
+	dl.erase(std::remove(dl.begin(), dl.end(), entity), dl.end());
+}
+
+const std::vector<Entity>& RenderTarget::GetDisplayList() const {
+	return Get<impl::DisplayList>().entities;
+}
+
+std::vector<Entity>& RenderTarget::GetDisplayList() {
+	return Get<impl::DisplayList>().entities;
+}
+
 Color RenderTarget::GetClearColor() const {
-	return Has<impl::ClearColor>() ? Get<impl::ClearColor>() : impl::ClearColor{};
+	return GetOrDefault<impl::ClearColor>();
 }
 
 void RenderTarget::SetClearColor(const Color& clear_color) {
-	if (Has<impl::ClearColor>()) {
-		Get<impl::ClearColor>() = clear_color;
-	} else {
-		Add<impl::ClearColor>(clear_color);
-	}
+	Add<impl::ClearColor>(clear_color);
 }
 
 const impl::Texture& RenderTarget::GetTexture() const {

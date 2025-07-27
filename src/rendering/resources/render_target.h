@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_set>
+#include <vector>
 
 #include "components/drawable.h"
 #include "components/generic.h"
@@ -18,10 +18,10 @@ class RenderTarget;
 
 namespace impl {
 
-// TODO: Implement.
 // Create a render target that is continuously sized to the window.
-// RenderTarget CreateRenderTarget(const Entity& entity, const Color& clear_color, TextureFormat
-// texture_format);
+RenderTarget CreateRenderTarget(
+	const Entity& entity, const Color& clear_color, TextureFormat texture_format
+);
 
 RenderTarget CreateRenderTarget(
 	const Entity& entity, const V2_float& size, const Color& clear_color,
@@ -30,8 +30,8 @@ RenderTarget CreateRenderTarget(
 
 class RenderData;
 
-struct RenderTargetEntities {
-	std::unordered_set<Entity> entities;
+struct DisplayList {
+	std::vector<Entity> entities;
 };
 
 struct ClearColor : public ColorComponent {
@@ -66,8 +66,11 @@ public:
 	// @return Scaled size of the cropped texture in pixels.
 	[[nodiscard]] V2_float GetDisplaySize() const;
 
-	void ClearEntities();
-	void AddEntity(Entity& entity);
+	void ClearDisplayList();
+	void AddToDisplayList(Entity& entity);
+	void RemoveFromDisplayList(Entity& entity);
+
+	[[nodiscard]] const std::vector<Entity>& GetDisplayList() const;
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
@@ -94,41 +97,16 @@ public:
 
 private:
 	friend class impl::RenderData;
+	friend class Scene;
+
+	// Scene uses vector directly when adding to display list instead of AddToDisplayList. This
+	// avoids adding a render target to each scene entity.
+	[[nodiscard]] std::vector<Entity>& GetDisplayList();
 
 	friend RenderTarget impl::CreateRenderTarget(
 		const Entity& entity, const V2_float& size, const Color& clear_color,
 		TextureFormat texture_format
 	);
-
-	// Draw an entity to the render target.
-	// The entity must have the Transform and Visible components.
-	void Draw(const Entity& entity) const;
-
-	// @param texture_info Information relating to the source pixels, flip, tinting and rotation
-	// center of the texture associated with this render target.
-	// @param shader Specify a custom shader when drawing the render target. If {},
-	// uses the default screen shader.
-	// @param clear_after_draw If true, clears the render target after drawing it.
-	/*void Draw(
-		const TextureInfo& texture_info = {}, const Shader& shader = {},
-		bool clear_after_draw = true
-	) const;*/
-
-	// TODO: Add window subscribe stuff here.
-	// Subscribes viewport to being resized to window size.
-	// Will also set the viewport to the current window size.
-	// void SubscribeToEvents();
-
-	// TODO: Add window subscribe stuff here.
-	// Unsubscribes viewport from being resized to window size.
-	// void UnsubscribeFromEvents() const;
-
-	//// Only to be used by the renderer screen target. Draws screen target to the screen frame
-	/// buffer / (id=0) with the default screen shader.
-	// void DrawToScreen() const;
-
-	//// @param shader {} will result in default screen shader being used.
-	// void Draw(const TextureInfo& texture_info, Shader shader, bool clear_after_draw) const;
 };
 
 // Create a render target with a custom size.
@@ -136,6 +114,13 @@ private:
 // @param clear_color The background color of the render target.
 RenderTarget CreateRenderTarget(
 	Scene& scene, const V2_float& size, const Color& clear_color = color::Transparent,
+	TextureFormat texture_format = TextureFormat::RGBA8888
+);
+
+// Create a render target that is continuously sized to the window.
+// @param clear_color The background color of the render target.
+RenderTarget CreateRenderTarget(
+	Scene& scene, const Color& clear_color = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 
