@@ -44,7 +44,7 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 
 V2_int GetTextureSize(const Entity& entity) {
 	if (entity.Has<TextureHandle>()) {
-		return entity.Get<TextureHandle>().GetSize();
+		return entity.Get<TextureHandle>().GetSize(entity);
 	}
 
 	PTGN_ERROR("Texture does not have a valid size");
