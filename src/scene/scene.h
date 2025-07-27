@@ -8,6 +8,7 @@
 #include "core/manager.h"
 #include "physics/physics.h"
 #include "rendering/api/color.h"
+#include "rendering/resources/render_target.h"
 #include "scene/camera.h"
 #include "scene/scene_input.h"
 #include "scene/scene_key.h"
@@ -48,8 +49,8 @@ protected:
 	void SetColliderVisibility(bool collider_visibility);
 
 public:
-	Scene()			  = default;
-	~Scene() override = default;
+	Scene();
+	~Scene() override;
 
 	// Make sure to call Refresh() after this function.
 	Entity CreateEntity() final;
@@ -123,7 +124,7 @@ private:
 
 	void Add(Action new_action);
 
-	std::vector<Entity> display_list_;
+	RenderTarget render_target_;
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
 };

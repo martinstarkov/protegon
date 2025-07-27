@@ -1,11 +1,13 @@
 #include "scene/scene.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/animation.h"
 #include "components/common.h"
+#include "components/drawable.h"
 #include "components/lifetime.h"
 #include "components/sprite.h"
 #include "components/transform.h"
@@ -20,10 +22,13 @@
 #include "physics/collision/collider.h"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
+#include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/graphics/vfx/particle.h"
 #include "rendering/render_data.h"
 #include "rendering/renderer.h"
+#include "rendering/resources/render_target.h"
+#include "rendering/resources/texture.h"
 #include "scene/camera.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
@@ -34,17 +39,29 @@
 
 namespace ptgn {
 
+Scene::Scene() {
+	render_target_ = impl::CreateRenderTarget(
+		game.renderer.GetRenderData().render_manager.CreateEntity(), color::Transparent,
+		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+	);
+	render_target_.SetBlendMode(BlendMode::BlendPremultiplied);
+}
+
+Scene::~Scene() {
+	render_target_.Destroy();
+	game.renderer.GetRenderData().render_manager.Refresh();
+}
+
 void Scene::AddToDisplayList(Entity entity) {
 	if (!entity.Has<Visible>() || !entity.Has<IDrawable>()) {
 		return;
 	}
-	display_list_.emplace_back(entity);
+	render_target_.GetDisplayList().emplace_back(entity);
 }
 
 void Scene::RemoveFromDisplayList(Entity entity) {
-	display_list_.erase(
-		std::remove(display_list_.begin(), display_list_.end(), entity), display_list_.end()
-	);
+	auto& dl{ render_target_.GetDisplayList() };
+	dl.erase(std::remove(dl.begin(), dl.end(), entity), dl.end());
 }
 
 void Scene::Add(Action new_status) {
@@ -115,14 +132,24 @@ void Scene::InternalExit() {
 	// Clears component hooks.
 	Reset();
 	input.Shutdown();
-	active_		  = false;
-	camera		  = {};
-	physics		  = {};
-	display_list_ = {};
+	active_ = false;
+	camera	= {};
+	physics = {};
+	render_target_.ClearDisplayList();
 	Refresh();
 }
 
 void Scene::Draw() {
+	// Ensure unzoomed cameras match their zoomed counterparts.
+
+	camera.primary_unzoomed.GetTransform()			= camera.primary.GetTransform();
+	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
+	camera.window_unzoomed.GetTransform()			= camera.window.GetTransform();
+	camera.window_unzoomed.Get<impl::CameraInfo>()	= camera.window.Get<impl::CameraInfo>();
+
+	camera.primary_unzoomed.SetZoom(1.0f);
+	camera.window_unzoomed.SetZoom(1.0f);
+
 	if (collider_visibility_) {
 		for (auto [e, b] : EntitiesWith<BoxCollider>()) {
 			const auto& transform{ e.GetDrawTransform() };
@@ -199,14 +226,6 @@ void Scene::PostUpdate() {
 
 	PTGN_ASSERT(camera.primary.IsAlive(), "Scene must be reinitialized after clearing");
 
-	camera.primary_unzoomed.GetTransform()			= camera.primary.GetTransform();
-	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
-	camera.window_unzoomed.GetTransform()			= camera.window.GetTransform();
-	camera.window_unzoomed.Get<impl::CameraInfo>()	= camera.window.Get<impl::CameraInfo>();
-
-	camera.primary_unzoomed.SetZoom(1.0f);
-	camera.window_unzoomed.SetZoom(1.0f);
-
 	// TODO: Update dirty vertex caches.
 
 	Draw();
@@ -224,7 +243,7 @@ void to_json(json& j, const Scene& scene) {
 	j["camera"]				 = scene.camera;
 	j["collider_visibility"] = scene.collider_visibility_;
 	j["collider_color"]		 = scene.collider_color_;
-	j["display_list"]		 = scene.display_list_;
+	j["render_target"]		 = scene.render_target_;
 }
 
 void from_json(const json& j, Scene& scene) {
@@ -245,7 +264,7 @@ void from_json(const json& j, Scene& scene) {
 
 	j.at("input").get_to(scene.input);
 	j.at("camera").get_to(scene.camera);
-	j.at("scene.display_list").get_to(scene.display_list_);
+	j.at("render_target").get_to(scene.render_target_);
 }
 
 } // namespace ptgn
