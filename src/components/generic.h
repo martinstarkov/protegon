@@ -44,14 +44,33 @@ protected:
 	T value_{};
 };
 
-struct HashComponent : public ArithmeticComponent<std::size_t> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct HashComponent {
+	HashComponent() = default;
 
 	HashComponent(std::string_view key);
 
 	HashComponent(const char* key);
 
 	HashComponent(const std::string& key);
+
+	HashComponent(std::size_t value);
+
+	operator std::size_t() const;
+
+	[[nodiscard]] std::size_t GetHash() const;
+
+	[[nodiscard]] std::size_t& GetHash();
+
+	[[nodiscard]] const std::string& GetKey() const;
+
+	[[nodiscard]] std::string& GetKey();
+
+	friend void to_json(json& j, const HashComponent& hash_component);
+	friend void from_json(const json& j, HashComponent& hash_component);
+
+protected:
+	std::size_t hash_{ 0 };
+	std::string key_;
 };
 
 template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
