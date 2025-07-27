@@ -1,4 +1,19 @@
-#include "protegon/protegon.h"
+#include <vector>
+
+#include "core/entity.h"
+#include "core/game.h"
+#include "events/input_handler.h"
+#include "events/key.h"
+#include "events/mouse.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "rendering/renderer.h"
+#include "rendering/resources/text.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "tile/grid.h"
+#include "utility/string.h"
 
 using namespace ptgn;
 

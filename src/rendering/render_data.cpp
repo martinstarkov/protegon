@@ -23,7 +23,6 @@
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "render_data.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"

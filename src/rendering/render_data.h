@@ -3,17 +3,23 @@
 #include <array>
 #include <cstdint>
 #include <iterator>
+#include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/common.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/time.h"
+#include "core/timer.h"
 #include "debug/profiling.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
 #include "rendering/api/blend_mode.h"
 #include "rendering/api/color.h"
+#include "rendering/api/origin.h"
 #include "rendering/api/vertex.h"
 #include "rendering/buffers/buffer_layout.h"
 #include "rendering/buffers/frame_buffer.h"
@@ -326,12 +332,6 @@ private:
 	}
 
 	void InvokeDrawable(const Entity& entity);
-
-	void DrawShaders(Entity entity, const Camera& camera) const;
-
-	void DrawToRenderTarget(
-		Entity entity, const RenderTarget& rt, BlendMode blend_mode, const Color& clear_color
-	);
 
 	[[nodiscard]] Camera GetCamera() const;
 

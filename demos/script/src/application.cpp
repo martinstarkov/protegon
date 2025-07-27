@@ -36,7 +36,7 @@ public:
 		PTGN_LOG("Timed script: ", elapsed_fraction);
 	}
 
-	void OnTimerStop() override {
+	bool OnTimerStop() override {
 		PTGN_LOG("Timed script stopped");
 	}
 };

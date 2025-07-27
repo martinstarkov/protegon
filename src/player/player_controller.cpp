@@ -2,8 +2,8 @@
 
 #include "audio/audio.h"
 #include "common/move_direction.h"
+#include "components/animation.h"
 #include "components/common.h"
-#include "components/draw.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/entity.h"

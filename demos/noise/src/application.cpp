@@ -1,6 +1,6 @@
+#include <algorithm>
 #include <cstdint>
 
-#include "algorithm"
 #include "common/assert.h"
 #include "core/game.h"
 #include "debug/log.h"

@@ -22,6 +22,7 @@
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
+#include "rendering/resources/texture.h"
 #include "serialization/binary_archive.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"

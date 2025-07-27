@@ -1,4 +1,18 @@
-#include "protegon/protegon.h"
+#include <chrono>
+#include <cmath>
+
+#include "core/game.h"
+#include "core/time.h"
+#include "core/timer.h"
+#include "core/window.h"
+#include "events/input_handler.h"
+#include "events/key.h"
+#include "math/rng.h"
+#include "math/vector2.h"
+#include "rendering/api/color.h"
+#include "rendering/api/origin.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

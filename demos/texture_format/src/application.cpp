@@ -1,4 +1,13 @@
-#include "protegon/protegon.h"
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "components/sprite.h"
+#include "core/game.h"
+#include "rendering/api/origin.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "utility/file.h"
 
 using namespace ptgn;
 
