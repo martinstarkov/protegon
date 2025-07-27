@@ -12,6 +12,7 @@
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "serialization/enum.h"
 
 // TODO: Add serialization.
 
@@ -272,5 +273,11 @@ private:
 
 	NoiseType noise_type_{ NoiseType::Perlin };
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	NoiseType, { { NoiseType::Perlin, "perlin" },
+				 { NoiseType::Value, "value" },
+				 { NoiseType::Simplex, "simplex" } }
+);
 
 } // namespace ptgn

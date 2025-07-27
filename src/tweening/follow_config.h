@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "math/vector2.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -61,5 +62,13 @@ public:
 		loop_path, stop_distance, lerp_factor, deadzone, offset, max_speed, max_acceleration
 	)
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	MoveMode, { { MoveMode::Lerp, "lerp" }, { MoveMode::Velocity, "velocity" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	FollowMode, { { FollowMode::Target, "target" }, { FollowMode::Path, "path" } }
+);
 
 } // namespace ptgn

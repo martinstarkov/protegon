@@ -5,10 +5,12 @@
 
 #include "debug/log.h"
 #include "math/vector2.h"
+#include "serialization/enum.h"
 
 namespace ptgn {
 
 enum class Origin {
+	Invalid = -1,
 	Center,
 	TopLeft,
 	CenterTop,
@@ -40,10 +42,24 @@ inline std::ostream& operator<<(std::ostream& os, Origin origin) {
 		case Origin::BottomLeft:   os << "Bottom Left"; break;
 		case Origin::CenterBottom: os << "Center Bottom"; break;
 		case Origin::BottomRight:  os << "Bottom Right"; break;
+		case Origin::Invalid:	   [[fallthrough]];
 		default:				   PTGN_ERROR("Invalid origin");
 	}
 
 	return os;
 }
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	Origin, { { Origin::Invalid, nullptr },
+			  { Origin::Center, "center" },
+			  { Origin::TopLeft, "top_left" },
+			  { Origin::CenterTop, "center_top" },
+			  { Origin::TopRight, "top_right" },
+			  { Origin::CenterRight, "center_right" },
+			  { Origin::BottomRight, "bottom_right" },
+			  { Origin::CenterBottom, "center_bottom" },
+			  { Origin::BottomLeft, "bottom_left" },
+			  { Origin::CenterLeft, "center_left" } }
+);
 
 } // namespace ptgn

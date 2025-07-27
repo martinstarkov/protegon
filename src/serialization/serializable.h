@@ -6,6 +6,7 @@
 
 #include "common/macro.h"
 #include "common/type_traits.h"
+#include "serialization/enum.h"
 #include "serialization/json.h"
 
 namespace ptgn {
@@ -107,9 +108,6 @@ template <typename T, typename S>
 	} else {                                                                                       \
 		nlohmann_json_t.member = nlohmann_json_j.value(#member, nlohmann_json_default_obj.member); \
 	}
-
-#define PTGN_SERIALIZER_REGISTER_ENUM(EnumType, ...) \
-	NLOHMANN_JSON_SERIALIZE_ENUM(EnumType, __VA_ARGS__)
 
 #define PTGN_SERIALIZER_REGISTER(Type, ...)                                                 \
 	friend void to_json(nlohmann::json& nlohmann_json_j, const Type& nlohmann_json_t) {     \

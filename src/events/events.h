@@ -4,6 +4,7 @@
 #include "events/key.h"
 #include "events/mouse.h"
 #include "math/vector2.h"
+#include "serialization/enum.h"
 
 namespace ptgn {
 
@@ -38,8 +39,6 @@ enum class MouseEvent {
 	Pressed,
 	Scroll /* fires repeatedly on mouse or trackpad scroll */
 };
-
-namespace impl {} // namespace impl
 
 struct MouseMoveEvent : public Event {};
 
@@ -101,5 +100,28 @@ struct WindowMaximizedEvent : public WindowResizedEvent {
 struct WindowMinimizedEvent : public WindowResizedEvent {
 	using WindowResizedEvent::WindowResizedEvent;
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	KeyEvent,
+	{ { KeyEvent::Pressed, "pressed" }, { KeyEvent::Down, "down" }, { KeyEvent::Up, "up" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	MouseEvent, { { MouseEvent::Move, "move" },
+				  { MouseEvent::Down, "down" },
+				  { MouseEvent::Up, "up" },
+				  { MouseEvent::Pressed, "pressed" },
+				  { MouseEvent::Scroll, "scroll" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	WindowEvent, { { WindowEvent::Quit, "quit" },
+				   { WindowEvent::Resized, "resized" },
+				   { WindowEvent::Resizing, "resizing" },
+				   { WindowEvent::Drag, "drag" },
+				   { WindowEvent::Moved, "moved" },
+				   { WindowEvent::Minimized, "minimized" },
+				   { WindowEvent::Maximized, "maximized" } }
+);
 
 } // namespace ptgn

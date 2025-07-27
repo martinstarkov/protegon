@@ -3,11 +3,14 @@
 #include <ostream>
 
 #include "debug/log.h"
+#include "serialization/enum.h"
 #include "utility/platform.h"
 
 namespace ptgn {
 
 enum class Key {
+	Invalid = -1,
+
 	K_0 = 39,			// Key 0 // SDL_SCANCODE_0
 	K_1 = 30,			// Key 1 // SDL_SCANCODE_1
 	K_2 = 31,			// Key 2 // SDL_SCANCODE_2
@@ -321,10 +324,181 @@ inline std::ostream& operator<<(std::ostream& os, Key key) {
 		case Key::KP_Multiply:	os << "Keypad *"; break;
 		case Key::KP_Divide:	os << "Keypad /"; break;
 
+		case Key::Invalid:		[[fallthrough]];
 		default:				PTGN_ERROR("Invalid key enum value")
 	}
 
 	return os;
 }
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	Key, { { Key::Invalid, nullptr },
+		   { Key::K_0, "k_0" },
+		   { Key::K_1, "k_1" },
+		   { Key::K_2, "k_2" },
+		   { Key::K_3, "k_3" },
+		   { Key::K_4, "k_4" },
+		   { Key::K_5, "k_5" },
+		   { Key::K_6, "k_6" },
+		   { Key::K_7, "k_7" },
+		   { Key::K_8, "k_8" },
+		   { Key::K_9, "k_9" },
+
+		   { Key::Zero, "zero" },
+		   { Key::One, "one" },
+		   { Key::Two, "two" },
+		   { Key::Three, "three" },
+		   { Key::Four, "four" },
+		   { Key::Five, "five" },
+		   { Key::Six, "six" },
+		   { Key::Seven, "seven" },
+		   { Key::Eight, "eight" },
+		   { Key::Nine, "nine" },
+
+		   { Key::KP_0, "kp_0" },
+		   { Key::KP_1, "kp_1" },
+		   { Key::KP_2, "kp_2" },
+		   { Key::KP_3, "kp_3" },
+		   { Key::KP_4, "kp_4" },
+		   { Key::KP_5, "kp_5" },
+		   { Key::KP_6, "kp_6" },
+		   { Key::KP_7, "kp_7" },
+		   { Key::KP_8, "kp_8" },
+		   { Key::KP_9, "kp_9" },
+
+		   { Key::KP_Zero, "kp_zero" },
+		   { Key::KP_One, "kp_one" },
+		   { Key::KP_Two, "kp_two" },
+		   { Key::KP_Three, "kp_three" },
+		   { Key::KP_Four, "kp_four" },
+		   { Key::KP_Five, "kp_five" },
+		   { Key::KP_Six, "kp_six" },
+		   { Key::KP_Seven, "kp_seven" },
+		   { Key::KP_Eight, "kp_eight" },
+		   { Key::KP_Nine, "kp_nine" },
+
+		   { Key::KP_Ampersand, "kp_ampersand" },
+		   { Key::KP_Period, "kp_period" },
+		   { Key::KP_Delete, "kp_delete" },
+		   { Key::KP_Enter, "kp_enter" },
+		   { Key::KP_Plus, "kp_plus" },
+		   { Key::KP_Minus, "kp_minus" },
+		   { Key::KP_Multiply, "kp_multiply" },
+		   { Key::KP_Star, "kp_star" },
+		   { Key::KP_Asterisk, "kp_asterisk" },
+		   { Key::KP_Divide, "kp_divide" },
+		   { Key::KP_Slash, "kp_slash" },
+
+		   { Key::A, "a" },
+		   { Key::B, "b" },
+		   { Key::C, "c" },
+		   { Key::D, "d" },
+		   { Key::E, "e" },
+		   { Key::F, "f" },
+		   { Key::G, "g" },
+		   { Key::H, "h" },
+		   { Key::I, "i" },
+		   { Key::J, "j" },
+		   { Key::K, "k" },
+		   { Key::L, "l" },
+		   { Key::M, "m" },
+		   { Key::N, "n" },
+		   { Key::O, "o" },
+		   { Key::P, "p" },
+		   { Key::Q, "q" },
+		   { Key::R, "r" },
+		   { Key::S, "s" },
+		   { Key::T, "t" },
+		   { Key::U, "u" },
+		   { Key::V, "v" },
+		   { Key::W, "w" },
+		   { Key::X, "x" },
+		   { Key::Y, "y" },
+		   { Key::Z, "z" },
+
+		   { Key::F1, "f1" },
+		   { Key::F2, "f2" },
+		   { Key::F3, "f3" },
+		   { Key::F4, "f4" },
+		   { Key::F5, "f5" },
+		   { Key::F6, "f6" },
+		   { Key::F7, "f7" },
+		   { Key::F8, "f8" },
+		   { Key::F9, "f9" },
+		   { Key::F10, "f10" },
+		   { Key::F11, "f11" },
+		   { Key::F12, "f12" },
+		   { Key::F13, "f13" },
+		   { Key::F14, "f14" },
+		   { Key::F15, "f15" },
+		   { Key::F16, "f16" },
+		   { Key::F17, "f17" },
+		   { Key::F18, "f18" },
+		   { Key::F19, "f19" },
+		   { Key::F20, "f20" },
+		   { Key::F21, "f21" },
+		   { Key::F22, "f22" },
+		   { Key::F23, "f23" },
+		   { Key::F24, "f24" },
+
+		   { Key::Right, "right" },
+		   { Key::Left, "left" },
+		   { Key::Down, "down" },
+		   { Key::Up, "up" },
+
+		   { Key::LeftAlt, "left_alt" },
+		   { Key::AltGr, "altgr" },
+		   { Key::RightAlt, "right_alt" },
+		   { Key::LeftCtrl, "left_ctrl" },
+		   { Key::RightCtrl, "right_ctrl" },
+		   { Key::LeftShift, "left_shift" },
+		   { Key::RightShift, "right_shift" },
+
+		   { Key::Blank, "blank" },
+		   { Key::Space, "space" },
+
+		   { Key::Enter, "enter" },
+		   { Key::Return, "return" },
+		   { Key::Enter2, "enter2" },
+		   { Key::Return2, "return2" },
+
+		   { Key::Home, "home" },
+		   { Key::End, "end" },
+		   { Key::Insert, "insert" },
+		   { Key::Delete, "delete" },
+
+		   { Key::Apostrophe, "apostrophe" },
+		   { Key::Comma, "comma" },
+		   { Key::Period, "period" },
+		   { Key::Semicolon, "semicolon" },
+		   { Key::Equals, "equals" },
+		   { Key::Tilde, "tilde" },
+		   { Key::Grave, "grave" },
+		   { Key::Minus, "minus" },
+		   { Key::Slash, "slash" },
+		   { Key::Backslash, "backslash" },
+
+		   { Key::Escape, "escape" },
+		   { Key::Backspace, "backspace" },
+		   { Key::Capslock, "capslock" },
+		   { Key::Tab, "tab" },
+
+		   { Key::Windows, "windows" },
+		   { Key::RGUI, "rgui" },
+		   { Key::Command, "command" },
+
+		   { Key::PrintScreen, "printscreen" },
+		   { Key::Numlock, "numlock" },
+		   { Key::KP_Numlock, "kp_numlock" },
+		   { Key::PageDown, "pagedown" },
+		   { Key::PageUp, "pageup" },
+
+		   { Key::LeftBracket, "left_bracket" },
+		   { Key::RightBracket, "right_bracket" },
+		   { Key::ScrollLock, "scrolllock" },
+		   { Key::Select, "select" },
+		   { Key::Separator, "separator" },
+		   { Key::Sleep, "sleep" } }
+);
 
 } // namespace ptgn

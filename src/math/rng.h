@@ -6,6 +6,7 @@
 #include <random>
 #include <type_traits>
 
+#include "serialization/enum.h"
 #include "serialization/json.h"
 #include "serialization/serializable.h"
 
@@ -173,5 +174,9 @@ private:
 
 template <typename T>
 using Gaussian = RNG<T, Distribution::Normal>;
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
+);
 
 } // namespace ptgn

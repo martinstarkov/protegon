@@ -12,6 +12,7 @@
 #include "rendering/resources/text.h"
 #include "resources/texture.h"
 #include "scene/camera.h"
+#include "serialization/enum.h"
 
 namespace ptgn {
 
@@ -179,5 +180,13 @@ private:
 };
 
 } // namespace impl
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ResolutionMode, { { ResolutionMode::Disabled, "disabled" },
+					  { ResolutionMode::Stretch, "stretch" },
+					  { ResolutionMode::Letterbox, "letterbox" },
+					  { ResolutionMode::Overscan, "overscan" },
+					  { ResolutionMode::IntegerScale, "integer_scale" } }
+);
 
 } // namespace ptgn

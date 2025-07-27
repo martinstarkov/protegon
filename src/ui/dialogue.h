@@ -10,6 +10,7 @@
 #include "math/vector2.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/text.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -55,13 +56,6 @@ enum class DialogueBehavior {
 	Sequential,
 	Random
 };
-
-PTGN_SERIALIZER_REGISTER_ENUM(
-	DialogueBehavior, {
-						  { DialogueBehavior::Sequential, "sequential" },
-						  { DialogueBehavior::Random, "random" },
-					  }
-)
 
 struct Dialogue {
 	std::size_t index{ 0 };
@@ -149,5 +143,12 @@ private:
 	std::string current_dialogue_;
 	std::unordered_map<std::string, Dialogue> dialogues_;
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	DialogueBehavior, {
+						  { DialogueBehavior::Sequential, "sequential" },
+						  { DialogueBehavior::Random, "random" },
+					  }
+)
 
 } // namespace ptgn

@@ -9,6 +9,7 @@
 #include "components/generic.h"
 #include "math/vector2.h"
 #include "resources/fonts.h"
+#include "serialization/enum.h"
 #include "utility/file.h"
 
 #ifdef __EMSCRIPTEN__
@@ -127,5 +128,19 @@ private:
 };
 
 } // namespace impl
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	FontRenderMode, { { FontRenderMode::Solid, "solid" },
+					  { FontRenderMode::Shaded, "shaded" },
+					  { FontRenderMode::Blended, "blended" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	FontStyle, { { FontStyle::Normal, "normal" },
+				 { FontStyle::Bold, "bold" },
+				 { FontStyle::Italic, "italic" },
+				 { FontStyle::Underline, "underline" },
+				 { FontStyle::Strikethrough, "strikethrough" } }
+);
 
 } // namespace ptgn

@@ -11,6 +11,7 @@
 #include "rendering/api/color.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -195,6 +196,12 @@ public:
 Text CreateText(
 	Scene& scene, const TextContent& content, const TextColor& text_color = {},
 	const FontKey& font_key = {}
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextJustify, { { TextJustify::Left, "left" },
+				   { TextJustify::Center, "center" },
+				   { TextJustify::Right, "right" } }
 );
 
 } // namespace ptgn

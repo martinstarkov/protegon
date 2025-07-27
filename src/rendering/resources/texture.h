@@ -12,6 +12,7 @@
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 #include "utility/file.h"
 
@@ -314,6 +315,9 @@ public:
 
 	[[nodiscard]] const Texture& Get(const TextureHandle& key) const;
 
+	friend void to_json(json& j, const Manager& manager);
+	friend void from_json(const json& j, Manager& manager);
+
 private:
 	friend class RenderData;
 
@@ -324,4 +328,74 @@ private:
 
 } // namespace impl
 
-} // namespace ptgn
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureFormat, { { TextureFormat::Unknown, "unknown" },
+					 { TextureFormat::HDR_RGB, "hdr_rgb" },
+					 { TextureFormat::HDR_RGBA, "hdr_rgba" },
+					 { TextureFormat::RGB888, "rgb888" },
+					 { TextureFormat::RGBA8888, "rgba8888" },
+					 { TextureFormat::BGRA8888, "bgra8888" },
+					 { TextureFormat::BGR888, "bgr888" },
+					 { TextureFormat::ABGR8888, "abgr8888" },
+					 { TextureFormat::ARGB8888, "argb8888" },
+					 { TextureFormat::A8, "a8" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureWrapping, { { TextureWrapping::ClampEdge, "clamp_edge" },
+					   { TextureWrapping::ClampBorder, "clamp_border" },
+					   { TextureWrapping::Repeat, "repeat" },
+					   { TextureWrapping::MirroredRepeat, "mirrored_repeat" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureScaling, { { TextureScaling::Nearest, "nearest" },
+					  { TextureScaling::Linear, "linear" },
+					  { TextureScaling::NearestMipmapNearest, "nearest_mipmap_nearest" },
+					  { TextureScaling::NearestMipmapLinear, "nearest_mipmap_linear" },
+					  { TextureScaling::LinearMipmapNearest, "linear_mipmap_nearest" },
+					  { TextureScaling::LinearMipmapLinear, "linear_mipmap_linear" } }
+);
+
+namespace impl {
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InternalGLFormat, { { InternalGLFormat::RGBA8, "rgba8" },
+						{ InternalGLFormat::R8, "r8" },
+						{ InternalGLFormat::RGB8, "rgb8" },
+						{ InternalGLFormat::HDR_RGBA, "hdr_rgba" },
+						{ InternalGLFormat::HDR_RGB, "hdr_rgb" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InputGLFormat, { { InputGLFormat::RGBA, "rgba" },
+					 { InputGLFormat::SingleChannel, "single_channel" },
+					 { InputGLFormat::RGB, "rgb" },
+					 { InputGLFormat::BGR, "bgr" },
+					 { InputGLFormat::BGRA, "bgra" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InternalGLDepthFormat, { { InternalGLDepthFormat::DEPTH24_STENCIL8, "depth24_stencil8" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(TextureTarget, { { TextureTarget::Texture2D, "texture2d" } });
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureLevelParameter, { { TextureLevelParameter::InternalFormat, "internal_format" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureParameter, { { TextureParameter::BorderColor, "border_color" },
+						{ TextureParameter::Width, "width" },
+						{ TextureParameter::Height, "height" },
+						{ TextureParameter::WrapS, "wrap_s" },
+						{ TextureParameter::WrapT, "wrap_t" },
+						{ TextureParameter::WrapR, "wrap_r" },
+						{ TextureParameter::MagnifyingScaling, "magnifying_scaling" },
+						{ TextureParameter::MinifyingScaling, "minifying_scaling" } }
+);
+
+} // namespace impl
+
+} // namespace

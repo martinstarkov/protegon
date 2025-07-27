@@ -4,6 +4,7 @@
 #include <ostream>
 
 #include "debug/log.h"
+#include "serialization/enum.h"
 
 namespace ptgn {
 
@@ -68,5 +69,17 @@ inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 	}
 	return os;
 }
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	BlendMode, { { BlendMode::Blend, "blend" },
+				 { BlendMode::None, "none" },
+				 { BlendMode::BlendPremultiplied, "blend_premultiplied" },
+				 { BlendMode::Add, "add" },
+				 { BlendMode::AddWithAlpha, "add_with_alpha" },
+				 { BlendMode::AddPremultiplied, "add_premultiplied" },
+				 { BlendMode::AddPremultipliedWithAlpha, "add_premultiplied_with_alpha" },
+				 { BlendMode::Modulate, "modulate" },
+				 { BlendMode::Multiply, "multiply" } }
+);
 
 } // namespace ptgn

@@ -8,6 +8,7 @@
 #include "core/entity.h"
 #include "math/vector2.h"
 #include "rendering/api/origin.h"
+#include "serialization/enum.h"
 
 namespace ptgn {
 
@@ -152,5 +153,11 @@ struct CircleCollider : public Collider {
 // };
 
 // TODO: Add edge collider.
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	CollisionResponse, { { CollisionResponse::Slide, "slide" },
+						 { CollisionResponse::Bounce, "bounce" },
+						 { CollisionResponse::Push, "push" } }
+);
 
 } // namespace ptgn

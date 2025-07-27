@@ -13,6 +13,7 @@
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/resources/texture.h"
+#include "serialization/enum.h"
 
 namespace ptgn {
 
@@ -167,5 +168,9 @@ private:
 };
 
 ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info = {});
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ParticleShape, { { ParticleShape::Circle, "circle" }, { ParticleShape::Square, "square" } }
+);
 
 } // namespace ptgn

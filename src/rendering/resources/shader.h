@@ -12,6 +12,7 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "serialization/enum.h"
 #include "utility/file.h"
 
 // clang-format off
@@ -320,5 +321,23 @@ private:
 };
 
 } // namespace impl
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ScreenShader, { { ScreenShader::Default, "default" },
+					{ ScreenShader::Blur, "blur" },
+					{ ScreenShader::GaussianBlur, "gaussian_blur" },
+					{ ScreenShader::EdgeDetection, "edge_detection" },
+					{ ScreenShader::Grayscale, "grayscale" },
+					{ ScreenShader::InverseColor, "inverse_color" },
+					{ ScreenShader::Sharpen, "sharpen" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ShapeShader, { { ShapeShader::Quad, "quad" }, { ShapeShader::Circle, "circle" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	OtherShader, { { OtherShader::Light, "light" }, { OtherShader::ToneMapping, "tone_mapping" } }
+);
 
 } // namespace ptgn

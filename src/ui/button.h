@@ -22,6 +22,7 @@
 #include "rendering/resources/font.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -260,8 +261,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -458,5 +460,25 @@ Button CreateTextButton(
 ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ButtonState, { { ButtonState::Default, "default" },
+				   { ButtonState::Hover, "hover" },
+				   { ButtonState::Pressed, "pressed" },
+				   { ButtonState::Current, "current" } }
+);
+
+namespace impl {
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InternalButtonState, { { InternalButtonState::IdleUp, "idle_up" },
+						   { InternalButtonState::Hover, "hover" },
+						   { InternalButtonState::Pressed, "pressed" },
+						   { InternalButtonState::HeldOutside, "held_outside" },
+						   { InternalButtonState::IdleDown, "idle_down" },
+						   { InternalButtonState::HoverPressed, "hover_pressed" } }
+);
+
+} // namespace impl
 
 } // namespace ptgn
