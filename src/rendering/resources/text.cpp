@@ -5,7 +5,7 @@
 #include <string>
 
 #include "common/assert.h"
-#include "components/draw.h"
+#include "components/sprite.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"

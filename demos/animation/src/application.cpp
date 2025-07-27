@@ -1,4 +1,4 @@
-#include "components/draw.h"
+#include "components/animation.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/time.h"

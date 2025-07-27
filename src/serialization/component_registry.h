@@ -5,12 +5,14 @@
 #include <unordered_map>
 
 #include "common/type_info.h"
+#include "components/animation.h"
 #include "components/common.h"
 #include "components/draw.h"
 #include "components/input.h"
 #include "components/lifetime.h"
 #include "components/movement.h"
 #include "components/offsets.h"
+#include "components/sprite.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "core/entity.h"

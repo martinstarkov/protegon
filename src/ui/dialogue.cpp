@@ -1,6 +1,6 @@
 #include "ui/dialogue.h"
 
-#include "components/draw.h"
+#include "components/sprite.h"
 #include "core/game.h"
 #include "events/input_handler.h"
 #include "rendering/renderer.h"

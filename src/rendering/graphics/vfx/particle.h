@@ -2,8 +2,8 @@
 
 #include <string_view>
 
-#include "components/draw.h"
 #include "components/drawable.h"
+#include "components/sprite.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/time.h"
@@ -111,7 +111,9 @@ struct ParticleEmitterComponent {
 
 	void ResetParticle(const V2_float& start_position, Particle& p);
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ParticleEmitterComponent, info, particle_count, emission, rng, manager)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+		ParticleEmitterComponent, info, particle_count, emission, rng, manager
+	)
 };
 
 } // namespace impl

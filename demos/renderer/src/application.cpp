@@ -1,6 +1,6 @@
 
-#include "components/draw.h"
 #include "components/drawable.h"
+#include "components/sprite.h"
 #include "core/game.h"
 #include "events/input_handler.h"
 #include "events/key.h"

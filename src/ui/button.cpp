@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "common/assert.h"
-#include "components/draw.h"
 #include "components/input.h"
+#include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
