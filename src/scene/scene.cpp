@@ -112,6 +112,7 @@ void Scene::InternalExit() {
 	Refresh();
 	Exit();
 	Refresh();
+	// Clears component hooks.
 	Reset();
 	input.Shutdown();
 	active_		  = false;
