@@ -22,34 +22,6 @@ private:
 	Manager manager;
 };
 
-namespace impl {
-
-class Tile {
-public:
-	Tile() = default;
-
-	Tile(const Rect& rect) : rect{ rect } {}
-
-	Tile(std::size_t texture_key, const Rect& source) : source{ source } {
-		texture = game.texture.Get(texture_key);
-	}
-
-	void Draw() const {
-		if (texture.IsValid()) {
-			game.draw.Texture(
-				texture, rect.position, rect.size, { source.position, source.size, rect.origin }
-			);
-		}
-	}
-
-private:
-	Rect rect{ {}, {}, Origin::TopLeft };
-	Rect source;
-	Texture texture;
-};
-
-} // namespace impl
-
 class TileLayer : public Grid<impl::Tile> {
 public:
 	// TOOD: Change to take path.
