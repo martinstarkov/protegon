@@ -12,6 +12,7 @@
 #include "math/geometry.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "physics/physics.h"
 #include "rendering/graphics/rect.h"
 #include "rendering/render_data.h"
 #include "rendering/renderer.h"
@@ -255,6 +256,10 @@ struct AABB {
 };
 
 struct Object {
+	Object() = default;
+
+	Object(const Entity& entity, const AABB& aabb) : entity{ entity }, aabb{ aabb } {}
+
 	Entity entity;
 	AABB aabb;
 };
@@ -277,6 +282,21 @@ class KDTree {
 public:
 	KDTree(std::size_t max_objects_per_node = 1000) :
 		max_objects_per_node{ max_objects_per_node } {}
+
+	// Build tree from scratch using all objects upfront
+	void Build(const std::vector<Object>& objects) {
+		// Clear any existing tree and map
+		root.reset();
+		entity_map.clear();
+
+		// Build recursively from all objects starting at depth 0
+		root = BuildRecursive(objects, 0);
+
+		// Build entity map for fast lookup
+		for (const auto& obj : objects) {
+			entity_map[obj.entity] = obj;
+		}
+	}
 
 	void Insert(const Entity& entity, const AABB& aabb) {
 		Object obj{ entity, aabb };
@@ -479,6 +499,48 @@ private:
 			RaycastFirst(node->right.get(), origin, dir, closest_t, closest_entity);
 		}
 	}
+
+	std::unique_ptr<KDNode> BuildRecursive(const std::vector<Object>& objects, int depth) {
+		if (objects.empty()) {
+			return nullptr;
+		}
+
+		// Create node
+		auto node		 = std::make_unique<KDNode>();
+		node->split_axis = static_cast<Axis>(depth % 2);
+
+		// Stop splitting if number of objects is small enough
+		if (objects.size() <= max_objects_per_node) {
+			node->objects = objects;
+			return node;
+		}
+
+		// Find median split value
+		std::vector<float> centers(objects.size());
+		for (size_t i = 0; i < objects.size(); ++i) {
+			centers[i] = GetObjectSplitValue(objects[i], node->split_axis);
+		}
+		size_t mid = centers.size() / 2;
+		std::nth_element(centers.begin(), centers.begin() + mid, centers.end());
+		node->split_value = centers[mid];
+
+		// Partition objects into left and right sets
+		std::vector<Object> left_objs, right_objs;
+		for (const auto& obj : objects) {
+			float val = GetObjectSplitValue(obj, node->split_axis);
+			if (val < node->split_value) {
+				left_objs.push_back(obj);
+			} else {
+				right_objs.push_back(obj);
+			}
+		}
+
+		// Recursively build children
+		node->left	= BuildRecursive(left_objs, depth + 1);
+		node->right = BuildRecursive(right_objs, depth + 1);
+
+		return node;
+	}
 };
 
 AABB GetBoundingVolume(Entity entity) {
@@ -514,10 +576,12 @@ Entity AddEntity(
 	return entity;
 }
 
-#define KDTREE 1
+#define KDTREE 0
 
 struct BroadphaseScene : public Scene {
 	KDTree tree{ 1000 };
+
+	std::size_t entity_count{ 10000 };
 
 	Entity player;
 	V2_float player_size{ 20, 20 };
@@ -528,12 +592,11 @@ struct BroadphaseScene : public Scene {
 
 	void Enter() override {
 		physics.SetBounds({}, window_size, BoundaryBehavior::ReflectVelocity);
+
 		player = AddEntity(tree, *this, window_size * 0.5f, player_size, color::Purple, false);
 		player.SetDepth(1);
 
-		// TODO: Insert player to tree.
-
-		for (std::size_t i{ 0 }; i < 10000; ++i) {
+		for (std::size_t i{ 0 }; i < entity_count; ++i) {
 			AddEntity(
 				tree, *this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green, FlipCoin()
 			);
@@ -554,14 +617,27 @@ struct BroadphaseScene : public Scene {
 		auto player_volume{ GetBoundingVolume(player) };
 
 #ifdef KDTREE
-		// Check only collisions with relevant k-d tree nodes.
 
-		// TODO: Only update if player moved.
-		tree.Update(player, GetBoundingVolume(player));
+		if (KDTREE) {
+			// Check only collisions with relevant k-d tree nodes.
 
-		for (auto [e, rect, rb] : EntitiesWith<Rect, RigidBody>()) {
-			// TODO: Only update if entity moved.
-			tree.Update(e, GetBoundingVolume(e));
+			// TODO: Only update if player moved.
+			tree.Update(player, GetBoundingVolume(player));
+
+			for (auto [e, rect, rb] : EntitiesWith<Rect, RigidBody>()) {
+				// TODO: Only update if entity moved.
+				tree.Update(e, GetBoundingVolume(e));
+			}
+		} else {
+			std::vector<Object> objects;
+			objects.reserve(Size());
+
+			for (auto [e, rect, rb] : EntitiesWith<Rect, RigidBody>()) {
+				// TODO: Only update if entity moved.
+				objects.emplace_back(e, GetBoundingVolume(e));
+			}
+
+			tree.Build(objects);
 		}
 
 		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
