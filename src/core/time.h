@@ -102,21 +102,20 @@ struct adl_serializer<std::chrono::duration<Rep, Period>> {
 		}
 
 		double value{ std::stod(match[1].str()) };
-		std::string_view unit{ match[2].str() };
+		// Do not make this a string_view, otherwise it may add a \0 to the front.
+		std::string unit{ match[2].str() };
 
 		using dur = std::chrono::duration<Rep, Period>;
 
 		if (unit == "s" || unit == "S") {
-			d = std::chrono::duration_cast<dur>(
-				ptgn::duration<double, ptgn::seconds::period>(value)
+			d = std::chrono::duration_cast<dur>(ptgn::duration<double, ptgn::seconds::period>(value)
 			);
 		} else if (unit == "ms" || unit == "MS") {
 			d = std::chrono::duration_cast<dur>(
 				ptgn::duration<double, ptgn::milliseconds::period>(value)
 			);
 		} else if (unit == "min" || unit == "MIN") {
-			d = std::chrono::duration_cast<dur>(
-				ptgn::duration<double, ptgn::minutes::period>(value)
+			d = std::chrono::duration_cast<dur>(ptgn::duration<double, ptgn::minutes::period>(value)
 			);
 		} else if (unit == "h" || unit == "H") {
 			d = std::chrono::duration_cast<dur>(ptgn::duration<double, ptgn::hours::period>(value));
