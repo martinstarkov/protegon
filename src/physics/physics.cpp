@@ -19,12 +19,15 @@ V2_float Physics::GetBoundsSize() const {
 	return bounds_size_;
 }
 
-void Physics::SetBounds(const V2_float& top_left_position, const V2_float& size) {
+void Physics::SetBounds(
+	const V2_float& top_left_position, const V2_float& size, BoundaryBehavior behavior
+) {
 	PTGN_ASSERT(size.x >= 0.0f);
 	PTGN_ASSERT(size.y >= 0.0f);
 
-	bounds_top_left_ = top_left_position;
-	bounds_size_	 = size;
+	bounds_top_left_   = top_left_position;
+	bounds_size_	   = size;
+	boundary_behavior_ = behavior;
 }
 
 V2_float Physics::GetGravity() const {
@@ -121,22 +124,45 @@ void Physics::PostCollisionUpdate(Scene& scene) const {
 			continue;
 		}
 
-		// Enforce rough world bounds.
+		// Enforce world boundary behavior for the positions.
 
-		if (transform.position.x < min_bounds.x) {
-			transform.position.x -= transform.position.x - min_bounds.x;
-		} else if (transform.position.x > max_bounds.x) {
-			transform.position.x += max_bounds.x - transform.position.x;
-		}
-
-		if (transform.position.y < min_bounds.y) {
-			transform.position.y -= transform.position.y - min_bounds.y;
-		} else if (transform.position.y > max_bounds.y) {
-			transform.position.y += max_bounds.y - transform.position.y;
-		}
+		HandleBoundary(
+			transform.position.x, rigid_body.velocity.x, min_bounds.x, max_bounds.x,
+			boundary_behavior_
+		);
+		HandleBoundary(
+			transform.position.y, rigid_body.velocity.y, min_bounds.y, max_bounds.y,
+			boundary_behavior_
+		);
 	}
 
 	scene.Refresh();
+}
+
+void Physics::HandleBoundary(
+	float& position, float& velocity, float min_bound, float max_bound, BoundaryBehavior behavior
+) {
+	switch (behavior) {
+		case BoundaryBehavior::StopAtBounds:
+			if (position < min_bound) {
+				position = min_bound;
+			} else if (position > max_bound) {
+				position = max_bound;
+			}
+			break;
+
+		case BoundaryBehavior::ReflectVelocity:
+			if (position < min_bound) {
+				position  = min_bound;
+				velocity *= -1.0f;
+			} else if (position > max_bound) {
+				position  = max_bound;
+				velocity *= -1.0f;
+			}
+			break;
+
+		default: PTGN_ERROR("Unknown physics boundary behavior specified");
+	}
 }
 
 } // namespace ptgn

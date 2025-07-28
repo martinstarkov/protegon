@@ -42,6 +42,7 @@ add_subdirectory(noise)
 add_subdirectory(pathfinding)
 add_subdirectory(particle)
 add_subdirectory(fluid)
+add_subdirectory(physics_bounds)
 
 add_subdirectory(scene_transition)
 
