@@ -22,6 +22,7 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 }; //{ 1280, 720 };
 
+/*
 // TODO: Move all of this into the collision system.
 
 struct AABB {
@@ -213,79 +214,336 @@ public:
 	}
 };
 
-void SpawnEnemy(Quadtree& tree, Scene& scene, const V2_float& top_left, const V2_float& size) {
-	Entity enemy = CreateRect(scene, top_left + size * 0.5f, size, color::Green);
-	AABB box{ top_left, top_left + size };
-	enemy.Add<AABB>(box);
-
-	// auto vertices{ impl::GetQuadVertices(
-	// 	impl::GetVertices(enemy.GetTransform(), size, Origin::Center), color::Green,
-	// 	enemy.GetDepth(), 0.0f, impl::default_texture_coordinates
-	// ) };
-	// enemy.Add<QuadVertices>(vertices);
-	tree.insert(enemy);
-}
-
-void SpawnEnemies(
-	Quadtree& tree, size_t count,
-	RNG<float>& positionRNGX, // e.g., RNG<float> positionRNG{ 0.0f, 800.0f };
-	RNG<float>& positionRNGY, // e.g., RNG<float> positionRNG{ 0.0f, 800.0f };
-	RNG<float>& sizeRNG,	  // e.g., RNG<float> sizeRNG{ 10.0f, 40.0f };
-	Scene& scene			  // Interface to create entities
-) {
-	for (std::size_t i{ 0 }; i < count; ++i) {
-		SpawnEnemy(tree, scene, { positionRNGX(), positionRNGY() }, { sizeRNG(), sizeRNG() });
-	}
-}
-
 bool Overlaps(const AABB& a, const AABB& b) {
 	return (a.min.x <= b.max.x && a.max.x >= b.min.x) && (a.min.y <= b.max.y && a.max.y >= b.min.y);
 }
 
 #define QUADTREE 1
 
-struct BroadphaseScene : public Scene {
-	Quadtree tree{ AABB{ V2_float{ 0, 0 }, V2_float{ window_size } } };
+*/
 
-	Entity player;
-	V2_float playerSize{ 20, 20 };
+struct AABB {
+	V2_float min;
+	V2_float max;
 
-	RNG<float> positionRNGX{ 0.0f, (float)window_size.x };
-	RNG<float> positionRNGY{ 0.0f, (float)window_size.y };
-	RNG<float> sizeRNG{ 5.0f, 30.0f };
-
-	AABB computePlayerAABBFromPosition(Entity p) const {
-		auto pos = p.GetPosition();
-		return AABB{ pos - playerSize / 2.0f, pos + playerSize / 2.0f };
+	bool Intersects(const AABB& other) const {
+		return !(
+			max.x < other.min.x || min.x > other.max.x || max.y < other.min.y || min.y > other.max.y
+		);
 	}
 
+	bool Contains(const V2_float& point) const {
+		return point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y;
+	}
+
+	bool IntersectsRay(V2_float origin, V2_float dir, float t0 = 0.0f, float t1 = 1.0f) const {
+		for (int i = 0; i < 2; ++i) {
+			float invD = 1.0f / (i == 0 ? dir.x : dir.y);
+			float tMin = ((i == 0 ? min.x : min.y) - (i == 0 ? origin.x : origin.y)) * invD;
+			float tMax = ((i == 0 ? max.x : max.y) - (i == 0 ? origin.x : origin.y)) * invD;
+			if (invD < 0.0f) {
+				std::swap(tMin, tMax);
+			}
+			t0 = std::max(t0, tMin);
+			t1 = std::min(t1, tMax);
+			if (t1 <= t0) {
+				return false;
+			}
+		}
+		return true;
+	}
+};
+
+struct Object {
+	Entity entity;
+	AABB aabb;
+};
+
+enum class Axis {
+	X,
+	Y
+};
+
+struct KDNode {
+	Axis split_axis;
+	float split_value = 0.0f;
+
+	std::vector<Object> objects;
+	std::unique_ptr<KDNode> left;
+	std::unique_ptr<KDNode> right;
+};
+
+class KDTree {
+public:
+	KDTree(std::size_t max_objects_per_node = 1000) :
+		max_objects_per_node{ max_objects_per_node } {}
+
+	void Insert(const Entity& entity, const AABB& aabb) {
+		Object obj{ entity, aabb };
+		root			   = Insert(std::move(root), obj, 0);
+		entity_map[entity] = obj;
+	}
+
+	void Update(const Entity& entity, const AABB& new_aabb) {
+		Remove(entity);
+		Insert(entity, new_aabb);
+	}
+
+	void Remove(const Entity& entity) {
+		if (auto it = entity_map.find(entity); it != entity_map.end()) {
+			root = Remove(std::move(root), entity, 0);
+			entity_map.erase(it);
+		}
+	}
+
+	void SplitNode(std::unique_ptr<KDNode>& node, int depth) {
+		Axis axis		 = static_cast<Axis>(depth % 2);
+		node->split_axis = axis;
+
+		std::vector<float> centers;
+		for (const auto& obj : node->objects) {
+			centers.push_back(GetObjectSplitValue(obj, axis));
+		}
+
+		// Check if all centers are equal, if so don't split
+		bool all_same =
+			std::all_of(centers.begin(), centers.end(), [&](float v) { return v == centers[0]; });
+		if (all_same) {
+			// No meaningful split possible
+			return;
+		}
+
+		std::nth_element(centers.begin(), centers.begin() + centers.size() / 2, centers.end());
+		node->split_value = centers[centers.size() / 2];
+
+		// Save old objects, clear current
+		std::vector<Object> old_objects = std::move(node->objects);
+		node->objects.clear();
+
+		for (const auto& obj : old_objects) {
+			float value = GetObjectSplitValue(obj, axis);
+			if (value <= node->split_value) {
+				node->left = Insert(std::move(node->left), obj, depth + 1);
+			} else {
+				node->right = Insert(std::move(node->right), obj, depth + 1);
+			}
+		}
+	}
+
+	float GetObjectSplitValue(const Object& obj, Axis axis) {
+		const float center = (axis == Axis::X) ? (obj.aabb.min.x + obj.aabb.max.x) * 0.5f
+											   : (obj.aabb.min.y + obj.aabb.max.y) * 0.5f;
+		return center;
+	}
+
+	std::vector<Entity> Query(const AABB& region) const {
+		std::vector<Entity> result;
+		Query(root.get(), region, result);
+		return result;
+	}
+
+	std::vector<Entity> Raycast(V2_float origin, V2_float dir) const {
+		std::vector<Entity> hits;
+		Raycast(root.get(), origin, dir, hits);
+		return hits;
+	}
+
+	Entity RaycastFirst(V2_float origin, V2_float dir) const {
+		Entity closest_hit{};
+		float closest_t = 1.0f;
+		RaycastFirst(root.get(), origin, dir, closest_t, closest_hit);
+		return closest_hit;
+	}
+
+private:
+	std::unique_ptr<KDNode> root;
+	std::unordered_map<Entity, Object> entity_map;
+	std::size_t max_objects_per_node{ 0 };
+
+	std::unique_ptr<KDNode> Remove(std::unique_ptr<KDNode> node, Entity entity, int depth) {
+		if (!node) {
+			return nullptr;
+		}
+
+		// Remove from current node's objects
+		node->objects.erase(
+			std::remove_if(
+				node->objects.begin(), node->objects.end(),
+				[&](const Object& o) { return o.entity == entity; }
+			),
+			node->objects.end()
+		);
+
+		// Decide which child to recurse into based on entity's AABB center and split
+		auto it = entity_map.find(entity);
+		if (it == entity_map.end()) {
+			return node;
+		}
+
+		const Object& obj = it->second;
+		float value		  = GetObjectSplitValue(obj, node->split_axis);
+
+		if (node->left && value < node->split_value) {
+			node->left = Remove(std::move(node->left), entity, depth + 1);
+		} else if (node->right && value >= node->split_value) {
+			node->right = Remove(std::move(node->right), entity, depth + 1);
+		}
+
+		// Optional: cleanup empty nodes
+		if (node->objects.empty() && !node->left && !node->right) {
+			return nullptr;
+		}
+		return node;
+	}
+
+	// Insert improved: only add to leaf nodes or split nodes properly
+	std::unique_ptr<KDNode> Insert(std::unique_ptr<KDNode> node, const Object& obj, int depth) {
+		if (!node) {
+			auto new_node		  = std::make_unique<KDNode>();
+			new_node->split_axis  = static_cast<Axis>(depth % 2);
+			new_node->split_value = GetObjectSplitValue(obj, new_node->split_axis);
+			new_node->objects.push_back(obj);
+			return new_node;
+		}
+
+		if (!node->left && !node->right) {
+			node->objects.push_back(obj);
+			if (node->objects.size() > max_objects_per_node) {
+				SplitNode(node, depth);
+			}
+			return node;
+		}
+
+		// If node has children, insert into correct child
+		float val = GetObjectSplitValue(obj, node->split_axis);
+		if (val < node->split_value) {
+			node->left = Insert(std::move(node->left), obj, depth + 1);
+		} else {
+			node->right = Insert(std::move(node->right), obj, depth + 1);
+		}
+
+		return node;
+	}
+
+	void Query(const KDNode* node, const AABB& region, std::vector<Entity>& result) const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (obj.aabb.Intersects(region)) {
+				result.push_back(obj.entity);
+			}
+		}
+		if (node->left) {
+			Query(node->left.get(), region, result);
+		}
+		if (node->right) {
+			Query(node->right.get(), region, result);
+		}
+	}
+
+	void Raycast(const KDNode* node, V2_float origin, V2_float dir, std::vector<Entity>& result)
+		const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (obj.aabb.IntersectsRay(origin, dir)) {
+				result.push_back(obj.entity);
+			}
+		}
+		if (node->left) {
+			Raycast(node->left.get(), origin, dir, result);
+		}
+		if (node->right) {
+			Raycast(node->right.get(), origin, dir, result);
+		}
+	}
+
+	void RaycastFirst(
+		const KDNode* node, V2_float origin, V2_float dir, float& closest_t, Entity& closest_entity
+	) const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (obj.aabb.IntersectsRay(origin, dir, 0.0f, closest_t)) {
+				closest_entity = obj.entity;
+				closest_t	   = 0.0f; // not precise, but placeholder
+			}
+		}
+		if (node->left) {
+			RaycastFirst(node->left.get(), origin, dir, closest_t, closest_entity);
+		}
+		if (node->right) {
+			RaycastFirst(node->right.get(), origin, dir, closest_t, closest_entity);
+		}
+	}
+};
+
+AABB GetBoundingVolume(Entity entity) {
+	auto position{ entity.GetPosition() };
+	// TODO: Use collider size.
+	auto half{ entity.Get<Rect>().size * 0.5f };
+	auto center{ position + impl::GetOriginOffsetHalf(entity.GetOrigin(), half) };
+	return { center - half, center + half };
+}
+
+Entity AddEntity(
+	KDTree& tree, Scene& scene, const V2_float& center, const V2_float& size, const Color& color,
+	bool induce_random_velocity = true
+) {
+	Entity entity = CreateRect(scene, center, size, color);
+	entity.Enable();
+	const auto random_vel = []() {
+		V2_float dir{ V2_float::Random(-0.5f, 0.5f) };
+		float speed = 60.0f;
+
+		if (dir.x != 0 || dir.y != 0) {
+			return dir.Normalized() * speed;
+		} else {
+			return V2_float{ speed, 0.0f };
+		}
+	};
+	if (induce_random_velocity) {
+		auto& rb{ entity.Add<RigidBody>() };
+		rb.velocity = random_vel();
+	}
+	AABB bounds{ GetBoundingVolume(entity) };
+	tree.Insert(entity, bounds);
+	return entity;
+}
+
+#define KDTREE 1
+
+struct BroadphaseScene : public Scene {
+	KDTree tree{ 1000 };
+
+	Entity player;
+	V2_float player_size{ 20, 20 };
+
+	RNG<float> rngx{ 0.0f, (float)window_size.x };
+	RNG<float> rngy{ 0.0f, (float)window_size.y };
+	RNG<float> rngsize{ 5.0f, 30.0f };
+
 	void Enter() override {
-		player = CreateRect(*this, {}, playerSize, color::Purple);
-		player.Add<AABB>(computePlayerAABBFromPosition(player));
+		physics.SetBounds({}, window_size, BoundaryBehavior::ReflectVelocity);
+		player = AddEntity(tree, *this, window_size * 0.5f, player_size, color::Purple, false);
 		player.SetDepth(1);
-		// auto vertices{ impl::GetQuadVertices(
-		// 	impl::GetVertices(player.GetTransform(), playerSize, Origin::Center), color::Purple,
-		// 	player.GetDepth(), 0.0f, impl::default_texture_coordinates
-		// ) };
-		// player.Add<QuadVertices>(vertices);
 
-		tree.insert(player);
+		// TODO: Insert player to tree.
 
-		SpawnEnemy(tree, *this, { 0, 0 }, { 200, 200 });
-		SpawnEnemies(tree, 10000, positionRNGX, positionRNGY, sizeRNG, *this);
+		for (std::size_t i{ 0 }; i < 10000; ++i) {
+			AddEntity(
+				tree, *this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green, FlipCoin()
+			);
+		}
 	}
 
 	void Update() override {
 		PTGN_PROFILE_FUNCTION();
 
 		MoveWASD(player.GetPosition(), V2_float{ 100.0f } * game.dt(), false);
-		// Update player's AABB component before updating the tree
-		player.Get<AABB>() = computePlayerAABBFromPosition(player);
-		// auto vertices{ impl::GetQuadVertices(
-		// 	impl::GetVertices(player.GetTransform(), playerSize, Origin::Center), color::Purple,
-		// 	player.GetDepth(), 0.0f, impl::default_texture_coordinates
-		// ) };
-		// player.Get<QuadVertices>() = vertices;
 
 		for (auto [e, tint] : EntitiesWith<Tint>()) {
 			tint = color::Green;
@@ -293,30 +551,43 @@ struct BroadphaseScene : public Scene {
 
 		player.SetTint(color::Purple);
 
-#ifdef QUADTREE
-		// Update player's position in the quadtree (will re-insert if needed)
-		tree.update(player);
+		auto player_volume{ GetBoundingVolume(player) };
 
-		auto candidates = tree.retrieve(player.Get<AABB>());
-		// PTGN_LOG("Candidates: ", candidates.size());
+#ifdef KDTREE
+		// Check only collisions with relevant k-d tree nodes.
 
-		for (auto candidate : candidates) {
-			if (candidate == player) {
-				continue;
-			}
-			if (Overlaps(player.Get<AABB>(), candidate.Get<AABB>())) {
-				candidate.SetTint(color::Red);
+		// TODO: Only update if player moved.
+		tree.Update(player, GetBoundingVolume(player));
+
+		for (auto [e, rect, rb] : EntitiesWith<Rect, RigidBody>()) {
+			// TODO: Only update if entity moved.
+			tree.Update(e, GetBoundingVolume(e));
+		}
+
+		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
+			auto b1{ GetBoundingVolume(e1) };
+			auto candidates = tree.Query(b1);
+			for (auto& e2 : candidates) {
+				if (e1 == e2) {
+					continue;
+				}
+				if (b1.Intersects(GetBoundingVolume(e2))) {
+					e1.SetTint(color::Red);
+					e2.SetTint(color::Red);
+				}
 			}
 		}
 #else
-		for (auto [e, aabb] : EntitiesWith<AABB>()) {
-			if (e == player) {
-				continue;
-			}
-			if (Overlaps(player.Get<AABB>(), aabb)) {
-				e.SetTint(color::Red);
-			} else {
-				e.SetTint(color::Green);
+		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
+			auto b1{ GetBoundingVolume(e1) };
+			for (auto [e2, rect2] : EntitiesWith<Rect>()) {
+				if (e1 == e2) {
+					continue;
+				}
+				if (b1.Intersects(GetBoundingVolume(e2))) {
+					e1.SetTint(color::Red);
+					e2.SetTint(color::Red);
+				}
 			}
 		}
 #endif
