@@ -179,4 +179,7 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
 );
 
+// @return True for "heads", false for "tails"
+[[nodiscard]] bool FlipCoin();
+
 } // namespace ptgn
