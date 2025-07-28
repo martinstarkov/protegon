@@ -7,7 +7,7 @@
 // #include <vector>
 //
 // #include "components/generic.h"
-// #include "core/resource_manager.h"
+// #include "resources/resource_manager.h"
 // #include "core/entity.h"
 // #include "core/manager.h"
 //

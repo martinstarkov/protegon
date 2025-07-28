@@ -4,7 +4,7 @@
 #include <string_view>
 
 #include "core/game.h"
-#include "core/resource_manager.h"
+#include "resources/resource_manager.h"
 #include "core/timer.h"
 #include "math/hash.h"
 

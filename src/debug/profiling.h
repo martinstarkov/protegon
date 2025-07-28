@@ -6,9 +6,9 @@
 #include <type_traits>
 
 #include "common/assert.h"
-#include "core/resource_manager.h"
 #include "core/timer.h"
 #include "debug/log.h"
+#include "resources/resource_manager.h"
 
 namespace ptgn::impl {
 

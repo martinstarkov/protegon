@@ -4,11 +4,15 @@
 #include <filesystem>
 #include <list>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <utility>
 
 #include "common/assert.h"
 #include "core/game.h"
+#include "debug/debugging.h"
 #include "debug/log.h"
+#include "debug/stats.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
@@ -238,9 +242,8 @@ void Shader::SetUniform(const std::string& name, const Matrix4& matrix) const {
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, const std::int32_t* data, std::int32_t count
-) const {
+void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
@@ -317,9 +320,8 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-) const {
+void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));

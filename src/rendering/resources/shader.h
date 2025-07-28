@@ -6,7 +6,6 @@
 #include <type_traits>
 #include <unordered_map>
 
-#include "common/assert.h"
 #include "debug/log.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
@@ -88,9 +87,8 @@ public:
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(
-		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-	) const;
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+		const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;

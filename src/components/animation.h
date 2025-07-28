@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "components/sprite.h"
-#include "core/resource_manager.h"
+#include "resources/resource_manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"

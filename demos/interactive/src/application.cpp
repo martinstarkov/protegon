@@ -7,6 +7,7 @@
 #include "math/vector2.h"
 #include "rendering/graphics/circle.h"
 #include "rendering/graphics/rect.h"
+#include "rendering/resources/texture.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 

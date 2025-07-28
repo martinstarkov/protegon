@@ -2,25 +2,28 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <list>
+#include <memory>
 #include <numeric>
 #include <utility>
 #include <vector>
 
+#include "api/origin.h"
 #include "common/assert.h"
 #include "components/common.h"
 #include "components/drawable.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/time.h"
+#include "core/timer.h"
 #include "core/window.h"
-#include "debug/profiling.h"
-#include "events/event_handler.h"
-#include "events/events.h"
 #include "math/geometry.h"
-#include "math/hash.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
