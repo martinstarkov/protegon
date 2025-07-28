@@ -2,7 +2,7 @@
 
 namespace ptgn::impl {
 
-#include "resources/font/LiberationSans-Regular.h"
+#include "resources/fonts/LiberationSans-Regular.h"
 
 struct FontBinary {
 	FontBinary() = default;
