@@ -489,6 +489,9 @@ public:
 		return T{ std::forward<TArgs>(args)... };
 	}
 
+	// @return True if *this was created before other.
+	[[nodiscard]] bool WasCreatedBefore(const Entity& other) const;
+
 protected:
 	template <typename T, typename... TArgs>
 	Entity& AddOrRemove(bool condition, TArgs&&... args) {
@@ -695,8 +698,7 @@ public:
 	}
 
 	// Called when the frame of the animation changes
-	virtual void OnAnimationFrameChange(
-		[[maybe_unused]] std::size_t new_frame
+	virtual void OnAnimationFrameChange([[maybe_unused]] std::size_t new_frame
 	) { /* user implementation */ }
 
 	// Called once when the animation goes through its first full cycle.
@@ -720,8 +722,7 @@ public:
 	// Called when the movement direction changes. Passed parameter is the difference in direction.
 	// If not moving, this is simply the new direction. If moving already, this is the newly added
 	// component of movement. To get the current direction instead, simply use GetDirection().
-	virtual void OnMoveDirectionChange(
-		[[maybe_unused]] MoveDirection direction_difference
+	virtual void OnMoveDirectionChange([[maybe_unused]] MoveDirection direction_difference
 	) { /* user implementation */ }
 
 	virtual void OnMoveUp() { /* user implementation */ }

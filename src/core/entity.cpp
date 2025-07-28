@@ -143,6 +143,16 @@ Entity Entity::CreateChild(std::string_view name) {
 	return entity;
 }
 
+bool Entity::WasCreatedBefore(const Entity& other) const {
+	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
+	auto version{ Parent::GetVersion() };
+	auto other_version{ other.Parent::GetVersion() };
+	if (version != other_version) {
+		return version < other_version;
+	}
+	return Parent::GetId() < other.Parent::GetId();
+}
+
 void Entity::SerializeAllImpl(json& j) const {
 	JSONArchiver archiver;
 
