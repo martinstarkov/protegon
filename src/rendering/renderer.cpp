@@ -61,7 +61,7 @@ void DrawDebugTexture(
 
 void DrawDebugText(
 	const std::string& content, const V2_float& position, const TextColor& color, Origin origin,
-	const FontSize& font_size, const FontKey& font_key, const TextProperties& properties,
+	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties,
 	const V2_float& size, float rotation, const Camera& camera
 ) {
 	auto& render_data{ game.renderer.GetRenderData() };

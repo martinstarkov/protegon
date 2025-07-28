@@ -1,25 +1,20 @@
 #pragma once
 
 #include <cstdint>
-#include <list>
+#include <functional>
 #include <ostream>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <unordered_map>
-#include <utility>
 
-#include "common/type_traits.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "debug/log.h"
 #include "events/mouse.h"
-#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
-#include "rendering/resources/font.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
 #include "serialization/enum.h"
@@ -184,7 +179,7 @@ struct ButtonText {
 
 	ButtonText(
 		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
-		const TextColor& text_color, const FontKey& font_key
+		const TextColor& text_color, const ResourceHandle& font_key
 	);
 
 	ButtonText& operator=(const ButtonText&)	 = default;
@@ -203,7 +198,7 @@ struct ButtonText {
 
 	void Set(
 		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
-		const TextColor& text_color, const FontKey& font_key
+		const TextColor& text_color, const ResourceHandle& font_key
 	);
 
 	Text default_;
@@ -261,9 +256,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -305,7 +299,7 @@ public:
 
 	Button& SetText(
 		const TextContent& content, const TextColor& text_color = color::Black,
-		const FontKey& font_key = {}, ButtonState state = ButtonState::Default
+		const ResourceHandle& font_key = {}, ButtonState state = ButtonState::Default
 	);
 
 	[[nodiscard]] Text GetText(ButtonState state = ButtonState::Current) const;
@@ -372,7 +366,7 @@ public:
 
 	ToggleButton& SetTextToggled(
 		const TextContent& content, const TextColor& text_color = color::Black,
-		const FontKey& font_key = "", ButtonState state = ButtonState::Default
+		const ResourceHandle& font_key = {}, ButtonState state = ButtonState::Default
 	);
 
 	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;

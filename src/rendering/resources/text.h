@@ -95,13 +95,13 @@ public:
 
 	[[nodiscard]] static impl::Texture CreateTexture(
 		const std::string& content, const TextColor& color = color::White,
-		const FontSize& font_size = {}, const FontKey& font_key = "",
+		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 		const TextProperties& properties = {}
 	);
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
-	Text& SetFont(const FontKey& font_key = "");
+	Text& SetFont(const ResourceHandle& font_key = {});
 	Text& SetContent(const TextContent& content);
 	Text& SetColor(const TextColor& color);
 
@@ -131,7 +131,7 @@ public:
 	// Determines how text is justified.
 	Text& SetTextJustify(TextJustify text_justify);
 
-	[[nodiscard]] FontKey GetFontKey() const;
+	[[nodiscard]] ResourceHandle GetFontKey() const;
 	[[nodiscard]] TextContent GetContent() const;
 	[[nodiscard]] TextColor GetColor() const;
 	[[nodiscard]] FontStyle GetFontStyle() const;
@@ -145,7 +145,7 @@ public:
 	// @return The unscaled size of the text texture given the current content and font.
 	[[nodiscard]] static V2_int GetSize(const Entity& text);
 	[[nodiscard]] static V2_int GetSize(
-		const std::string& content, const FontKey& font_key, const FontSize& font_size = {}
+		const std::string& content, const ResourceHandle& font_key, const FontSize& font_size = {}
 	);
 	[[nodiscard]] V2_int GetSize() const;
 
@@ -154,8 +154,9 @@ public:
 	template <typename T>
 	Text& SetParameter(const T& value, bool recreate_texture = true) {
 		static_assert(tt::is_any_of_v<
-					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-					  TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>);
+					  T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode,
+					  FontSize, TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline,
+					  TextJustify>);
 		if (!Has<T>()) {
 			Add<T>(value);
 			if (recreate_texture) {
@@ -182,8 +183,9 @@ public:
 	template <typename T>
 	[[nodiscard]] static const T& GetParameter(const Entity& text, const T& default_value) {
 		static_assert(tt::is_any_of_v<
-					  T, FontKey, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-					  TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>);
+					  T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode,
+					  FontSize, TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline,
+					  TextJustify>);
 		if (!text.Has<T>()) {
 			return default_value;
 		}
@@ -195,7 +197,7 @@ public:
 // game.font.SetDefault(...) to change.
 Text CreateText(
 	Scene& scene, const TextContent& content, const TextColor& text_color = {},
-	const FontKey& font_key = {}
+	const ResourceHandle& font_key = {}
 );
 
 PTGN_SERIALIZER_REGISTER_ENUM(

@@ -105,6 +105,10 @@ protected:
 	Vector2<T> value_{ 0 };
 };
 
+struct ResourceHandle : public HashComponent {
+	using HashComponent::HashComponent;
+};
+
 struct StringComponent {
 	StringComponent() = default;
 

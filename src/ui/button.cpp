@@ -1,18 +1,22 @@
 #include "ui/button.h"
 
 #include <cstdint>
+#include <functional>
+#include <list>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "common/assert.h"
+#include "components/generic.h"
 #include "components/input.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "debug/log.h"
-#include "events/input_handler.h"
 #include "events/mouse.h"
 #include "math/hash.h"
 #include "math/math.h"
@@ -23,14 +27,13 @@
 #include "rendering/graphics/circle.h"
 #include "rendering/graphics/rect.h"
 #include "rendering/render_data.h"
-#include "rendering/resources/font.h"
 #include "rendering/resources/shader.h"
 #include "rendering/resources/text.h"
 #include "rendering/resources/texture.h"
+#include "resources/resource_manager.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_input.h"
-#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -188,7 +191,7 @@ Color& ButtonColor::Get(ButtonState state) {
 
 ButtonText::ButtonText(
 	Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
-	const TextColor& text_color, const FontKey& font_key
+	const TextColor& text_color, const ResourceHandle& font_key
 ) {
 	Set(parent, scene, ButtonState::Default, text_content, text_color, font_key);
 	if (state != ButtonState::Default) {
@@ -241,7 +244,7 @@ TextJustify ButtonText::GetTextJustify(ButtonState state) const {
 
 void ButtonText::Set(
 	Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
-	const TextColor& text_color, const FontKey& font_key
+	const TextColor& text_color, const ResourceHandle& font_key
 ) {
 	PTGN_ASSERT(
 		state != ButtonState::Current,
@@ -312,7 +315,7 @@ V2_float Button::GetSize() const {
 	}
 
 	if (game.texture.Has(button_texture_key)) {
-		button_texture = &game.texture.Get(button_texture_key);
+		button_texture = &button_texture_key.GetTexture();
 	}
 
 	if (button_texture != nullptr && size.IsZero()) {
@@ -373,7 +376,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	const impl::Texture* button_texture{ nullptr };
 
 	if (game.texture.Has(button_texture_key)) {
-		button_texture = &game.texture.Get(button_texture_key);
+		button_texture = &button_texture_key.GetTexture();
 	}
 
 	auto size{ button.GetSize() };
@@ -609,7 +612,7 @@ Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
 }
 
 Button& Button::SetText(
-	const TextContent& content, const TextColor& text_color, const FontKey& font_key,
+	const TextContent& content, const TextColor& text_color, const ResourceHandle& font_key,
 	ButtonState state
 ) {
 	if (!Has<impl::ButtonText>()) {
@@ -631,7 +634,9 @@ Color Button::GetTextColor(ButtonState state) const {
 
 Button& Button::SetTextColor(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(*this, GetScene(), state, TextContent{}, text_color, FontKey{});
+		Add<impl::ButtonText>(
+			*this, GetScene(), state, TextContent{}, text_color, ResourceHandle{}
+		);
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
 		c.Get(state).SetColor(text_color);
@@ -645,7 +650,7 @@ std::string Button::GetTextContent(ButtonState state) const {
 
 Button& Button::SetTextContent(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(*this, GetScene(), state, content, TextColor{}, FontKey{});
+		Add<impl::ButtonText>(*this, GetScene(), state, content, TextColor{}, ResourceHandle{});
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
 		c.Get(state).SetContent(content);
@@ -659,9 +664,9 @@ TextJustify Button::GetTextJustify(ButtonState state) const {
 
 Button& Button::SetTextJustify(const TextJustify& justify, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
-		auto& c{
-			Add<impl::ButtonText>(*this, GetScene(), state, TextContent{}, TextColor{}, FontKey{})
-		};
+		auto& c{ Add<impl::ButtonText>(
+			*this, GetScene(), state, TextContent{}, TextColor{}, ResourceHandle{}
+		) };
 		c.Get(state).SetTextJustify(justify);
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
@@ -695,9 +700,9 @@ std::int32_t Button::GetFontSize(ButtonState state) const {
 
 Button& Button::SetFontSize(std::int32_t font_size, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
-		auto& c{
-			Add<impl::ButtonText>(*this, GetScene(), state, TextContent{}, TextColor{}, FontKey{})
-		};
+		auto& c{ Add<impl::ButtonText>(
+			*this, GetScene(), state, TextContent{}, TextColor{}, ResourceHandle{}
+		) };
 		c.Get(state).SetFontSize(font_size);
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
@@ -885,7 +890,7 @@ Color ToggleButton::GetTextColorToggled(ButtonState state) const {
 ToggleButton& ToggleButton::SetTextColorToggled(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
-			*this, GetScene(), state, TextContent{}, text_color, FontKey{}
+			*this, GetScene(), state, TextContent{}, text_color, ResourceHandle{}
 		);
 	} else {
 		auto& c{ Get<impl::ButtonTextToggled>() };
@@ -900,7 +905,9 @@ std::string ToggleButton::GetTextContentToggled(ButtonState state) const {
 
 ToggleButton& ToggleButton::SetTextContentToggled(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
-		Add<impl::ButtonTextToggled>(*this, GetScene(), state, content, TextColor{}, FontKey{});
+		Add<impl::ButtonTextToggled>(
+			*this, GetScene(), state, content, TextColor{}, ResourceHandle{}
+		);
 	} else {
 		auto& c{ Get<impl::ButtonTextToggled>() };
 		c.Get(state).SetContent(content);
@@ -909,7 +916,7 @@ ToggleButton& ToggleButton::SetTextContentToggled(const TextContent& content, Bu
 }
 
 ToggleButton& ToggleButton::SetTextToggled(
-	const TextContent& content, const TextColor& text_color, const FontKey& font_key,
+	const TextContent& content, const TextColor& text_color, const ResourceHandle& font_key,
 	ButtonState state
 ) {
 	if (!Has<impl::ButtonTextToggled>()) {

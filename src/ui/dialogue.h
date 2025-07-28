@@ -30,7 +30,7 @@ struct DialoguePageProperties {
 	void SetPadding(int top, int right, int bottom, int left);
 
 	Color color{ color::White };
-	FontKey font_key;
+	ResourceHandle font_key;
 	FontSize font_size;
 	V2_float box_size;
 	int padding_left{ 0 };

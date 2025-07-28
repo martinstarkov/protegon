@@ -2,19 +2,22 @@
 
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <string>
+#include <string_view>
 
 #include "common/assert.h"
+#include "components/generic.h"
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/render_data.h"
 #include "rendering/resources/font.h"
 #include "rendering/resources/texture.h"
+#include "resources/resource_manager.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "SDL_blendmode.h"
@@ -26,7 +29,8 @@
 namespace ptgn {
 
 Text CreateText(
-	Scene& scene, const TextContent& content, const TextColor& text_color, const FontKey& font_key
+	Scene& scene, const TextContent& content, const TextColor& text_color,
+	const ResourceHandle& font_key
 ) {
 	Text text{ scene.CreateEntity() };
 	text.Add<TextureHandle>();
@@ -59,7 +63,7 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite::Draw(ctx, entity);
 }
 
-Text& Text::SetFont(const FontKey& font_key) {
+Text& Text::SetFont(const ResourceHandle& font_key) {
 	return SetParameter(font_key);
 }
 
@@ -105,8 +109,8 @@ Text& Text::SetTextJustify(TextJustify text_justify) {
 	return SetParameter(text_justify);
 }
 
-FontKey Text::GetFontKey() const {
-	return GetParameter(FontKey{});
+ResourceHandle Text::GetFontKey() const {
+	return GetParameter(ResourceHandle{});
 }
 
 TextContent Text::GetContent() const {
@@ -139,8 +143,7 @@ const impl::Texture& Text::GetTexture() const {
 }
 
 std::int32_t Text::GetFontSize() const {
-	FontSize font_size{ GetParameter(FontSize{}) };
-	if (font_size != FontSize{}) {
+	if (FontSize font_size{ GetParameter(FontSize{}) }; font_size != FontSize{}) {
 		return font_size;
 	}
 	auto font_key{ GetFontKey() };
@@ -157,13 +160,13 @@ V2_int Text::GetSize() const {
 
 V2_int Text::GetSize(const Entity& text) {
 	return GetSize(
-		GetParameter(text, TextContent{}), GetParameter(text, FontKey{}),
+		GetParameter(text, TextContent{}), GetParameter(text, ResourceHandle{}),
 		GetParameter(text, FontSize{})
 	);
 }
 
 V2_int Text::GetSize(
-	const std::string& content, const FontKey& font_key, const FontSize& font_size
+	const std::string& content, const ResourceHandle& font_key, const FontSize& font_size
 ) {
 	PTGN_ASSERT(
 		game.font.Has(font_key),
@@ -174,7 +177,7 @@ V2_int Text::GetSize(
 
 impl::Texture Text::CreateTexture(
 	const std::string& content, const TextColor& color, const FontSize& font_size,
-	const FontKey& font_key, const TextProperties& properties
+	const ResourceHandle& font_key, const TextProperties& properties
 ) {
 	if (content.empty()) {
 		return {};
@@ -185,7 +188,10 @@ impl::Texture Text::CreateTexture(
 		"Cannot create texture for text with font key which is not loaded in the font manager"
 	);
 
-	auto shared_font{ game.font.Get(font_key) };
+	auto shared_font{ game.font.Get(
+		font_key, {} /* Force retrieval of the font regardless of size since this function also sets
+						the font size. */
+	) };
 	auto font{ shared_font.get() };
 
 	PTGN_ASSERT(font != nullptr, "Cannot create texture for text with nullptr font");
@@ -250,8 +256,7 @@ impl::Texture Text::CreateTexture(
 			);
 			break;
 		default:
-			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
-			);
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information")
 	}
 
 	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
@@ -287,7 +292,7 @@ void Text::RecreateTexture() {
 
 	texture = CreateTexture(
 		GetParameter(TextContent{}), GetParameter(TextColor{}), GetParameter(FontSize{}),
-		GetParameter(FontKey{}), properties
+		GetParameter(ResourceHandle{}), properties
 	);
 }
 

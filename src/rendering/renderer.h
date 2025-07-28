@@ -30,7 +30,7 @@ void DrawDebugTexture(
 // @param size {} results in unscaled size of text based on font.
 void DrawDebugText(
 	const std::string& content, const V2_float& position, const TextColor& color = color::White,
-	Origin origin = Origin::Center, const FontSize& font_size = {}, const FontKey& font_key = {},
+	Origin origin = Origin::Center, const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 	const TextProperties& properties = {}, const V2_float& size = {}, float rotation = 0.0f,
 	const Camera& camera = {}
 );

@@ -39,7 +39,7 @@ void DialogueScrollScript::UpdateText(float elapsed_fraction) {
 	std::size_t char_count{ static_cast<std::size_t>(std::round(elapsed_fraction * text.size())) };
 	TextContent revealed_text{ text.substr(0, char_count) };
 	TextColor text_color{ page->properties.color };
-	FontKey font_key{ page->properties.font_key };
+	ResourceHandle font_key{ page->properties.font_key };
 	FontSize font_size{ page->properties.font_size };
 	// For debugging purposes:
 	/*
