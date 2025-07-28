@@ -100,9 +100,14 @@ std::array<Vertex, 4> GetQuadVertices(
 
 void SortEntities(std::vector<Entity>& entities) {
 	// PTGN_PROFILE_FUNCTION();
-	// Use stable_sort to maintain depth order of equal depth elements.
-	std::stable_sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
-		return a.GetDepth() < b.GetDepth();
+	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
+		auto depth_a{ a.GetDepth() };
+		auto depth_b{ b.GetDepth() };
+		if (depth_a == depth_b) {
+			// Depth order of equal depth element is maintained via creation order.
+			return a.WasCreatedBefore(b);
+		}
+		return depth_a < depth_b;
 	});
 }
 
