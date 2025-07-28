@@ -2,11 +2,94 @@
 
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 
 #include "common/assert.h"
 #include "math/hash.h"
+#include "serialization/fwd.h"
+#include "utility/file.h"
 
 namespace ptgn {
+
+namespace impl {
+
+template <typename, typename = void>
+struct has_static_load_from_file : std::false_type {};
+
+template <typename T>
+struct has_static_load_from_file<
+	T, std::void_t<decltype(T::LoadFromFile(std::declval<const path&>()))>> : std::true_type {};
+
+} // namespace impl
+
+template <typename Derived, typename HandleType, typename ItemType>
+class ResourceManager;
+
+template <typename D, typename H, typename I>
+void to_json(json&, const ResourceManager<D, H, I>&);
+
+template <typename D, typename H, typename I>
+void from_json(const json&, ResourceManager<D, H, I>&);
+
+template <typename Derived, typename HandleType, typename ItemType>
+class ResourceManager {
+public:
+	using ParentManager = ResourceManager<Derived, HandleType, ItemType>;
+
+	ResourceManager()									   = default;
+	virtual ~ResourceManager()							   = default;
+	ResourceManager(const ResourceManager&)				   = default;
+	ResourceManager& operator=(const ResourceManager&)	   = default;
+	ResourceManager(ResourceManager&&) noexcept			   = default;
+	ResourceManager& operator=(ResourceManager&&) noexcept = default;
+
+	// Load resources from a json file. Json format must be:
+	// {
+	//    "resource_key": "path/file.extension",
+	//    ...
+	// }
+	void LoadList(const path& json_filepath);
+	void UnloadList(const path& json_filepath);
+
+	void LoadJson(const json& resources);
+	void UnloadJson(const json& resources);
+
+	// @param filepath The file path to the resource.
+	virtual void Load(const HandleType& key, const path& filepath);
+
+	// Unload a resource by its key. Does nothing if the resource was not loaded.
+	void Unload(const HandleType& key);
+
+	// Clear all loaded resources.
+	void Clear();
+
+	// @return True if the resource key is loaded.
+	[[nodiscard]] bool Has(const HandleType& key) const;
+
+	// @return The path with which the resource was loaded.
+	[[nodiscard]] const path& GetPath(const HandleType& key) const;
+
+	friend void to_json<
+		Derived, HandleType,
+		ItemType>(json&, const ResourceManager<Derived, HandleType, ItemType>&);
+	friend void from_json<
+		Derived, HandleType,
+		ItemType>(const json&, ResourceManager<Derived, HandleType, ItemType>&);
+
+protected:
+	[[nodiscard]] const ItemType& Get(const HandleType& key) const;
+
+	struct ResourceInfo {
+		ItemType resource;
+		path filepath;
+		HandleType key;
+	};
+
+	std::unordered_map<std::size_t, ResourceInfo> resources_;
+
+private:
+	[[nodiscard]] const ResourceInfo& GetResourceInfo(const HandleType& key) const;
+};
 
 template <
 	typename ItemType, typename ExternalKeyType = std::string_view,
@@ -67,7 +150,7 @@ public:
 	 */
 	template <typename TKey>
 	[[nodiscard]] bool Has(const TKey& key) const {
-		return map_.find(GetInternalKey(key)) != std::end(map_);
+		return map_.find(GetInternalKey(key)) != map_.end();
 	}
 
 	/*
