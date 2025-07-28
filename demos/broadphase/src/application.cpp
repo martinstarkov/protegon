@@ -9,9 +9,11 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "events/input_handler.h"
 #include "math/geometry.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "physics/collision/raycast.h"
 #include "physics/physics.h"
 #include "rendering/graphics/rect.h"
 #include "rendering/render_data.h"
@@ -362,16 +364,16 @@ public:
 		return result;
 	}
 
-	std::vector<Entity> Raycast(V2_float origin, V2_float dir) const {
+	std::vector<Entity> Raycast(Entity entity, V2_float origin, V2_float dir) const {
 		std::vector<Entity> hits;
-		Raycast(root.get(), origin, dir, hits);
+		Raycast(entity, root.get(), origin, dir, hits);
 		return hits;
 	}
 
-	Entity RaycastFirst(V2_float origin, V2_float dir) const {
+	Entity RaycastFirst(Entity entity, V2_float origin, V2_float dir) const {
 		Entity closest_hit{};
 		float closest_t = 1.0f;
-		RaycastFirst(root.get(), origin, dir, closest_t, closest_hit);
+		RaycastFirst(entity, root.get(), origin, dir, closest_t, closest_hit);
 		return closest_hit;
 	}
 
@@ -462,41 +464,60 @@ private:
 		}
 	}
 
-	void Raycast(const KDNode* node, V2_float origin, V2_float dir, std::vector<Entity>& result)
-		const {
-		if (!node) {
-			return;
-		}
-		for (const auto& obj : node->objects) {
-			if (obj.aabb.IntersectsRay(origin, dir)) {
-				result.push_back(obj.entity);
-			}
-		}
-		if (node->left) {
-			Raycast(node->left.get(), origin, dir, result);
-		}
-		if (node->right) {
-			Raycast(node->right.get(), origin, dir, result);
-		}
-	}
-
-	void RaycastFirst(
-		const KDNode* node, V2_float origin, V2_float dir, float& closest_t, Entity& closest_entity
+	void Raycast(
+		Entity entity, const KDNode* node, V2_float origin, V2_float dir,
+		std::vector<Entity>& result
 	) const {
 		if (!node) {
 			return;
 		}
 		for (const auto& obj : node->objects) {
-			if (obj.aabb.IntersectsRay(origin, dir, 0.0f, closest_t)) {
-				closest_entity = obj.entity;
-				closest_t	   = 0.0f; // not precise, but placeholder
+			if (obj.entity == entity) {
+				continue;
+			}
+			auto raycast = ptgn::impl::RaycastLineRect(
+				origin, origin + dir, (obj.aabb.min + obj.aabb.max) / 2.0f,
+				obj.aabb.max - obj.aabb.min
+			);
+			if (raycast.Occurred()) {
+				result.push_back(obj.entity);
 			}
 		}
 		if (node->left) {
-			RaycastFirst(node->left.get(), origin, dir, closest_t, closest_entity);
+			Raycast(entity, node->left.get(), origin, dir, result);
 		}
 		if (node->right) {
-			RaycastFirst(node->right.get(), origin, dir, closest_t, closest_entity);
+			Raycast(entity, node->right.get(), origin, dir, result);
+		}
+	}
+
+	void RaycastFirst(
+		Entity entity, const KDNode* node, V2_float origin, V2_float dir, float& closest_t,
+		Entity& closest_entity
+	) const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (obj.entity == entity) {
+				continue;
+			}
+			auto raycast = ptgn::impl::RaycastLineRect(
+				origin, origin + dir, (obj.aabb.min + obj.aabb.max) / 2.0f,
+				obj.aabb.max - obj.aabb.min
+			);
+			if (raycast.Occurred()) {
+				if (raycast.t < closest_t) {
+					closest_t	   = raycast.t;
+					closest_entity = obj.entity;
+				}
+			}
+		}
+		if (node->left) {
+			RaycastFirst(entity, node->left.get(), origin, dir, closest_t, closest_entity);
+		}
+		if (node->right) {
+			RaycastFirst(entity, node->right.get(), origin, dir, closest_t, closest_entity);
 		}
 	}
 
@@ -580,9 +601,9 @@ Entity AddEntity(
 #define KDTREE 0
 
 struct BroadphaseScene : public Scene {
-	KDTree tree{ 200 };
+	KDTree tree{ 100 };
 
-	std::size_t entity_count{ 10000 };
+	std::size_t entity_count{ 1000 };
 
 	Entity player;
 	V2_float player_size{ 20, 20 };
@@ -625,7 +646,7 @@ struct BroadphaseScene : public Scene {
 			// TODO: Only update if player moved.
 			tree.Update(player, GetBoundingVolume(player));
 
-			for (auto [e, rect, rb] : EntitiesWith<Rect, RigidBody>()) {
+			for (auto [e, rect] : EntitiesWith<Rect>()) {
 				// TODO: Only update if entity moved.
 				tree.Update(e, GetBoundingVolume(e));
 			}
@@ -633,7 +654,7 @@ struct BroadphaseScene : public Scene {
 			std::vector<Object> objects;
 			objects.reserve(Size());
 
-			for (auto [e, rect, rb] : EntitiesWith<Rect, RigidBody>()) {
+			for (auto [e, rect] : EntitiesWith<Rect>()) {
 				// TODO: Only update if entity moved.
 				objects.emplace_back(e, GetBoundingVolume(e));
 			}
@@ -641,7 +662,7 @@ struct BroadphaseScene : public Scene {
 			tree.Build(objects);
 		}
 
-		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
+		/*for (auto [e1, rect1] : EntitiesWith<Rect>()) {
 			auto b1{ GetBoundingVolume(e1) };
 			auto candidates = tree.Query(b1);
 			for (auto& e2 : candidates) {
@@ -653,7 +674,25 @@ struct BroadphaseScene : public Scene {
 					e2.SetTint(color::Red);
 				}
 			}
+		}*/
+
+		auto player_pos{ player.GetPosition() };
+		auto mouse_pos{ game.input.GetMousePosition() };
+		auto dir{ mouse_pos - player_pos };
+
+		auto candidates = tree.Raycast(player, player_pos, dir);
+		for (auto& candidate : candidates) {
+			if (candidate && candidate != player) {
+				candidate.SetTint(color::Red);
+			}
 		}
+
+		/*auto candidate = tree.RaycastFirst(player, player_pos, dir);
+		if (candidate && candidate != player) {
+			candidate.SetTint(color::Red);
+		}*/
+
+		DrawDebugLine(player_pos, mouse_pos, color::Gold, 2.0f);
 #else
 		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
 			auto b1{ GetBoundingVolume(e1) };
