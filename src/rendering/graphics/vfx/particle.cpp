@@ -3,21 +3,17 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <utility>
 
 #include "components/common.h"
-#include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "math/geometry.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "math/vector4.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
 #include "rendering/render_data.h"
@@ -113,7 +109,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 			// TODO: Add texture rotation.
 			ctx.AddTexturedQuad(
-				game.texture.Get(i.info.texture_key), Transform{ p.position },
+				i.info.texture_key.GetTexture(), Transform{ p.position },
 				{ 2.0f * p.radius, 2.0f * p.radius }, Origin::Center, tint, depth,
 				impl::GetDefaultTextureCoordinates(), state
 			);
