@@ -1,15 +1,17 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 
 #include "components/generic.h"
 #include "math/vector2.h"
 #include "resources/fonts.h"
+#include "resources/resource_manager.h"
 #include "serialization/enum.h"
+#include "serialization/fwd.h"
 #include "utility/file.h"
 
 #ifdef __EMSCRIPTEN__
@@ -52,10 +54,6 @@ struct FontSize : public ArithmeticComponent<std::int32_t> {
 	return static_cast<FontStyle>(static_cast<int>(a) | static_cast<int>(b));
 }
 
-struct FontKey : public HashComponent {
-	using HashComponent::HashComponent;
-};
-
 namespace impl {
 
 class Game;
@@ -64,41 +62,54 @@ struct TTF_FontDeleter {
 	void operator()(TTF_Font* font) const;
 };
 
-class FontManager {
+using Font = std::unique_ptr<TTF_Font, TTF_FontDeleter>;
+
+using TemporaryFont = std::shared_ptr<TTF_Font>;
+
+class FontManager : public ResourceManager<FontManager, ResourceHandle, Font> {
 public:
+	void Load(const ResourceHandle& key, const path& filepath) final;
+
+	const Font& Get(const ResourceHandle& key) const = delete;
+
 	void Load(
-		const FontKey& key, const path& filepath, std::int32_t size = 20, std::int32_t index = 0
+		const ResourceHandle& key, const path& filepath, std::int32_t size,
+		std::int32_t index = default_font_index_
 	);
 
 	void Load(
-		const FontKey& key, const FontBinary& binary, std::int32_t size = 20, std::int32_t index = 0
+		const ResourceHandle& key, const FontBinary& binary, std::int32_t size = default_font_size_,
+		std::int32_t index = default_font_index_
 	);
-
-	void Unload(const FontKey& key);
 
 	// Empty font key corresponds to the engine default font.
-	void SetDefault(const FontKey& key = {});
+	void SetDefault(const ResourceHandle& key = {});
 
-	[[nodiscard]] int GetLineSkip(const FontKey& key, const FontSize& font_size = {}) const;
+	[[nodiscard]] int GetLineSkip(const ResourceHandle& key, const FontSize& font_size = {}) const;
 
 	// @param font_size If left with default {}, will use currently set font size of the provided
 	// font key.
 	[[nodiscard]] V2_int GetSize(
-		const FontKey& key, const std::string& content, const FontSize& font_size = {}
+		const ResourceHandle& key, const std::string& content, const FontSize& font_size = {}
 	) const;
 
 	// @return Total height of the font in pixels.
-	[[nodiscard]] std::int32_t GetHeight(const FontKey& key, const FontSize& font_size = {}) const;
+	[[nodiscard]] std::int32_t GetHeight(const ResourceHandle& key, const FontSize& font_size = {})
+		const;
+
+	// Note: This function will not serialize any fonts loaded from binaries.
+	friend void to_json(json& j, const FontManager& manager);
+
+	// Note: This function will not deserialize any fonts loaded from binaries.
+	friend void from_json(const json& j, FontManager& manager);
 
 private:
 	friend class Game;
 	friend class ptgn::Text;
+	friend class ParentManager;
 
-	using Font = std::unique_ptr<TTF_Font, TTF_FontDeleter>;
-
+	// Initializes the default font from a binary.
 	void Init();
-
-	[[nodiscard]] bool Has(const FontKey& key) const;
 
 	[[nodiscard]] static SDL_RWops* GetRawBuffer(const FontBinary& binary);
 
@@ -115,14 +126,15 @@ private:
 		const path& filepath, std::int32_t size, std::int32_t index
 	);
 
-	[[nodiscard]] std::shared_ptr<TTF_Font> Get(
-		const FontKey& key, const FontSize& font_size = {}
-	) const;
+	[[nodiscard]] static Font LoadFromFile(const path& filepath);
 
-	std::unordered_map<std::size_t, std::string> font_paths_;
-	std::unordered_map<std::size_t, Font> fonts_;
+	[[nodiscard]] TemporaryFont Get(const ResourceHandle& key, const FontSize& font_size = {})
+		const;
 
-	FontKey default_key_;
+	static constexpr std::int32_t default_font_index_{ 0 };
+	static constexpr std::int32_t default_font_size_{ 20 };
+
+	ResourceHandle default_key_;
 
 	SDL_RWops* raw_default_font_{ nullptr };
 };

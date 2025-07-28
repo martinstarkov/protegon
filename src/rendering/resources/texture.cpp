@@ -6,18 +6,14 @@
 #include <filesystem>
 #include <functional>
 #include <string>
-#include <string_view>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "common/assert.h"
+#include "components/generic.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "debug/debugging.h"
 #include "debug/log.h"
 #include "debug/stats.h"
 #include "math/vector2.h"
@@ -28,7 +24,11 @@
 #include "rendering/gl/gl_loader.h"
 #include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
-#include "serialization/json.h"
+#include "resources/resource_manager.h"
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "utility/file.h"
 
 namespace ptgn {
@@ -424,58 +424,8 @@ void Texture::SetSubData(
 	));
 }
 
-void TextureManager::LoadList(const path& json_filepath) {
-	auto textures{ ptgn::LoadJson(json_filepath) };
-	TextureManager::LoadJson(textures);
-}
-
-void TextureManager::LoadJson(const json& textures) {
-	for (const auto& [texture_key, texture_path] : textures.items()) {
-		Load(texture_key, texture_path);
-	}
-}
-
-void TextureManager::UnloadList(const path& json_filepath) {
-	auto textures{ ptgn::LoadJson(json_filepath) };
-	TextureManager::UnloadJson(textures);
-}
-
-void TextureManager::UnloadJson(const json& textures) {
-	for (const auto& [texture_key, texture_path] : textures.items()) {
-		Unload(TextureHandle{ texture_key });
-	}
-}
-
-void TextureManager::Load(const TextureHandle& key, const path& filepath) {
-	auto [it, inserted] = textures_.try_emplace(key);
-	if (inserted) {
-		it->second.key		= key;
-		it->second.filepath = filepath;
-		it->second.texture	= LoadFromFile(filepath);
-	}
-}
-
-void TextureManager::Unload(const TextureHandle& key) {
-	textures_.erase(key);
-}
-
 V2_int TextureManager::GetSize(const TextureHandle& key) const {
-	PTGN_ASSERT(Has(key), "Cannot get size of texture which has not been loaded");
-	return textures_.find(key)->second.texture.GetSize();
-}
-
-bool TextureManager::Has(const TextureHandle& key) const {
-	return textures_.find(key) != textures_.end();
-}
-
-const Texture& TextureManager::Get(const TextureHandle& key) const {
-	PTGN_ASSERT(Has(key), "Cannot get texture which has not been loaded");
-	return textures_.find(key)->second.texture;
-}
-
-const path& TextureManager::GetPath(const TextureHandle& key) const {
-	PTGN_ASSERT(Has(key), "Cannot get path of texture which has not been loaded");
-	return textures_.find(key)->second.filepath;
+	return Get(key).GetSize();
 }
 
 Texture TextureManager::LoadFromFile(const path& filepath) {
@@ -487,24 +437,6 @@ Texture TextureManager::LoadFromFile(const path& filepath) {
 	Color cbl{ s.GetPixel({ 0, s.size.y - 1 }) };
 	PTGN_LOG("File: ", filepath, " | tl: ", ctl, " | tr: ", ctr, " | br: ", cbr, " | bl: ", cbl);*/
 	return Texture{ s };
-}
-
-void to_json(json& j, const TextureManager& manager) {
-	for (const auto& pair : manager.textures_) {
-		// This due to warning: captured structured bindings are a C++20 extension.
-		const auto& texture_resource{ pair.second };
-
-		const auto& key{ texture_resource.key.GetKey() };
-		PTGN_ASSERT(
-			!key.empty(),
-			"Cannot serialize a texture without a key: ", texture_resource.filepath.string()
-		);
-		j[key] = texture_resource.filepath;
-	}
-}
-
-void from_json(const json& j, TextureManager& manager) {
-	manager.LoadJson(j);
 }
 
 Color Surface::GetPixel(const V2_int& coordinate) const {

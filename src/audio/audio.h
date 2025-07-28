@@ -1,10 +1,10 @@
 #pragma once
 
 #include <memory>
-#include <string_view>
-#include <unordered_map>
 
+#include "components/generic.h"
 #include "core/time.h"
+#include "resources/resource_manager.h"
 #include "utility/file.h"
 
 struct _Mix_Music;
@@ -23,21 +23,16 @@ struct Mix_ChunkDeleter {
 	void operator()(Mix_Chunk* sound) const;
 };
 
-using MusicKey = std::string_view;
+using Music = std::unique_ptr<Mix_Music, Mix_MusicDeleter>;
 
-class MusicManager {
+class MusicManager : public ResourceManager<MusicManager, ResourceHandle, Music> {
 public:
-	// @param filepath The file path to the music.
-	void Load(MusicKey key, const path& filepath);
-
-	void Unload(MusicKey key);
-
 	// @param loops The number of loops to play the music for, -1 for infinite looping.
-	void Play(MusicKey key, int loops = -1) const;
+	void Play(const ResourceHandle& key, int loops = -1) const;
 
 	// @param fade_time How long to fade the music in for.
 	// @param loops The number of loops to play the music for, -1 for infinite looping.
-	void FadeIn(MusicKey key, milliseconds fade_time, int loops = -1) const;
+	void FadeIn(const ResourceHandle& key, milliseconds fade_time, int loops = -1) const;
 
 	// Pause the currently playing music.
 	void Pause() const;
@@ -74,42 +69,30 @@ public:
 	// @return True if the currently playing music is fading in OR out, false otherwise.
 	[[nodiscard]] bool IsFading() const;
 
-	void Clear();
-
 private:
-	using Music = std::unique_ptr<Mix_Music, Mix_MusicDeleter>;
+	friend class ParentManager;
 
 	[[nodiscard]] static Music LoadFromFile(const path& filepath);
-
-	[[nodiscard]] Mix_Music* Get(std::size_t key) const;
-
-	[[nodiscard]] bool Has(std::size_t key) const;
-
-	std::unordered_map<std::size_t, Music> music_;
 };
 
-using SoundKey = std::string_view;
+using Sound = std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter>;
 
-class SoundManager {
+class SoundManager : public ResourceManager<SoundManager, ResourceHandle, Sound> {
 public:
-	// @param filepath The file path to the sound.
-	void Load(SoundKey key, const path& filepath);
-
-	void Unload(SoundKey key);
-
 	// @param channel The channel on which to play the sound on, -1 plays on the first available
 	// channel.
 	// @param loops Number of times to loop sound, -1 for infinite looping.
-	void Play(SoundKey key, int channel = -1, int loops = 0) const;
+	void Play(const ResourceHandle& key, int channel = -1, int loops = 0) const;
 
 	// @param fade_time Time over which to fade the sound in.
 	// @param channel The channel on which to play the sound on, -1 plays on the first available
 	// channel.
 	// @param loops Number of times to loop sound, -1 for infinite looping.
-	void FadeIn(SoundKey key, milliseconds fade_time, int channel = -1, int loops = 0) const;
+	void FadeIn(const ResourceHandle& key, milliseconds fade_time, int channel = -1, int loops = 0)
+		const;
 
 	// Set volume of the sound. Volume range: [0, 128].
-	void SetVolume(SoundKey key, int volume) const;
+	void SetVolume(const ResourceHandle& key, int volume) const;
 
 	// Set volume of the channel.
 	// @param channel The channel for which the volume is set, -1 sets the volume for all sound
@@ -118,12 +101,12 @@ public:
 	void SetVolume(int channel, int volume) const;
 
 	// @return Volume of the sound. Volume range: [0, 128].
-	[[nodiscard]] int GetVolume(SoundKey key) const;
+	[[nodiscard]] int GetVolume(const ResourceHandle& key) const;
 
 	// Toggles the sound volume between 0 and new_volume.
 	// @param new_volume When toggle unmutes, it will set the new volume of the sound to this value
 	// in range [0, 128].
-	void ToggleVolume(SoundKey key, int new_volume = max_volume) const;
+	void ToggleVolume(const ResourceHandle& key, int new_volume = max_volume) const;
 
 	// Stops the sound playing on the specified channel, -1 stops all sound channels.
 	void Stop(int channel) const;
@@ -156,20 +139,10 @@ public:
 	// @return True if the sound channel is fading in or out, -1 to check if any channel is playing.
 	[[nodiscard]] bool IsFading(int channel) const;
 
-	void Clear();
-
-	[[nodiscard]] bool Has(SoundKey sound_key) const;
-
 private:
-	using Sound = std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter>;
+	friend class ParentManager;
 
 	[[nodiscard]] static Sound LoadFromFile(const path& filepath);
-
-	[[nodiscard]] Mix_Chunk* Get(std::size_t key) const;
-
-	[[nodiscard]] bool Has(std::size_t key) const;
-
-	std::unordered_map<std::size_t, Sound> sounds_;
 };
 
 } // namespace ptgn::impl

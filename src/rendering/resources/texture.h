@@ -3,8 +3,6 @@
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <string_view>
-#include <unordered_map>
 #include <vector>
 
 #include "components/generic.h"
@@ -12,8 +10,8 @@
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/api/flip.h"
+#include "resources/resource_manager.h"
 #include "serialization/enum.h"
-#include "serialization/serializable.h"
 #include "utility/file.h"
 
 struct SDL_Surface;
@@ -69,17 +67,20 @@ enum class TextureScaling {
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
 };
 
-struct TextureHandle : public HashComponent {
-	using HashComponent::HashComponent;
+struct TextureHandle : public ResourceHandle {
+	using ResourceHandle::ResourceHandle;
 
+	// @param entity Optional parameter for if the texture could be attached to the entity via for
+	// example a frame buffer or a texture owning entity. If default value, these functions only
+	// rely on the texture handle hash for texture retrieval.
+	// TODO: In the future get rid of this in favor of the resource managers owning all resources
+	// and holding a nameless list of them with index handles.
 	[[nodiscard]] const impl::Texture& GetTexture(const Entity& entity = {}) const;
 	[[nodiscard]] impl::Texture& GetTexture(const Entity& entity = {});
 	[[nodiscard]] V2_int GetSize(const Entity& entity = {}) const;
 };
 
 namespace impl {
-
-class RenderData;
 
 struct Surface {
 	Surface() = default;
@@ -292,48 +293,16 @@ private:
 	TextureFormat format_{ TextureFormat::Unknown };
 };
 
-struct TextureResource {
-	Texture texture;
-	path filepath;
-	TextureHandle key;
-};
-
-class TextureManager {
+class TextureManager : public ResourceManager<TextureManager, TextureHandle, Texture> {
 public:
-	// Load textures from a json file. Json format must be:
-	// {
-	//    "texture_key": "path/to/texture/file.extension",
-	//    ...
-	// }
-	void LoadList(const path& json_filepath);
-	void UnloadList(const path& json_filepath);
-
-	void LoadJson(const json& textures);
-	void UnloadJson(const json& textures);
-
-	// If key exists in the texture manager, does nothing.
-	void Load(const TextureHandle& key, const path& filepath);
-
-	void Unload(const TextureHandle& key);
-
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize(const TextureHandle& key) const;
 
-	// @return True if the texture key is loaded.
-	[[nodiscard]] bool Has(const TextureHandle& key) const;
-
-	[[nodiscard]] const Texture& Get(const TextureHandle& key) const;
-	[[nodiscard]] const path& GetPath(const TextureHandle& key) const;
-
-	friend void to_json(json& j, const TextureManager& manager);
-	friend void from_json(const json& j, TextureManager& manager);
-
 private:
-	friend class RenderData;
+	friend class ParentManager;
+	friend struct TextureHandle;
 
 	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
-
-	std::unordered_map<std::size_t, TextureResource> textures_;
 };
 
 } // namespace impl
