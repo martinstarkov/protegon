@@ -501,6 +501,7 @@ private:
 	}
 
 	std::unique_ptr<KDNode> BuildRecursive(const std::vector<Object>& objects, int depth) {
+		// PTGN_LOG(depth);
 		if (objects.empty()) {
 			return nullptr;
 		}
@@ -579,7 +580,7 @@ Entity AddEntity(
 #define KDTREE 0
 
 struct BroadphaseScene : public Scene {
-	KDTree tree{ 1000 };
+	KDTree tree{ 200 };
 
 	std::size_t entity_count{ 10000 };
 
