@@ -10,17 +10,17 @@
 
 namespace ptgn {
 
-template <typename Archiver, bool is_const>
+template <bool is_const>
 using Entities =
-	ecs::impl::EntityContainer<Entity, Archiver, is_const, ecs::impl::LoopCriterion::None>;
+	ecs::impl::EntityContainer<Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::None>;
 
-template <typename Archiver, bool is_const, typename... TComponents>
+template <bool is_const, typename... TComponents>
 using EntitiesWith = ecs::impl::EntityContainer<
-	Entity, Archiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
+	Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
 
-template <typename Archiver, bool is_const, typename... TComponents>
+template <bool is_const, typename... TComponents>
 using EntitiesWithout = ecs::impl::EntityContainer<
-	Entity, Archiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
+	Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
 
 class Manager : private ecs::impl::Manager<JSONArchiver> {
 private:
@@ -80,38 +80,38 @@ public:
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWith<JSONArchiver, true, Ts...> EntitiesWith() const {
+	ptgn::EntitiesWith<true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
 					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWith<JSONArchiver, false, Ts...> EntitiesWith() {
+	ptgn::EntitiesWith<false, Ts...> EntitiesWith() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
 					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWithout<JSONArchiver, true, Ts...> EntitiesWithout() const {
+	ptgn::EntitiesWithout<true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
 					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWithout<JSONArchiver, false, Ts...> EntitiesWithout() {
+	ptgn::EntitiesWithout<false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
 					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
-	ptgn::Entities<JSONArchiver, true> Entities() const {
+	ptgn::Entities<true> Entities() const {
 		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, true>{} };
 	}
 
-	ptgn::Entities<JSONArchiver, false> Entities() {
+	ptgn::Entities<false> Entities() {
 		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, false>{} };
 	}
 
@@ -181,8 +181,7 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnConstruct(
-		const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
+	[[nodiscard]] bool HasOnConstruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
 	) const {
 		return Parent::HasOnConstruct<T>(hook);
 	}
@@ -198,8 +197,7 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnDestruct(
-		const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
+	[[nodiscard]] bool HasOnDestruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
 	) const {
 		return Parent::HasOnDestruct<T>(hook);
 	}
@@ -215,8 +213,7 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnUpdate(
-		const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
+	[[nodiscard]] bool HasOnUpdate(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
 	) const {
 		return Parent::HasOnUpdate<T>(hook);
 	}
