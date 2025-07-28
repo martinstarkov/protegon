@@ -9,7 +9,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 1200, 1200 };
+constexpr V2_int window_size{ 800, 800 };
 
 struct DialogueScene : public Scene {
 	Entity npc;
