@@ -1,19 +1,26 @@
 #include "core/game.h"
 
 #include <chrono>
+#include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "audio/audio.h"
-#include "core/resource_manager.h"
+#include "common/assert.h"
 #include "core/sdl_instance.h"
 #include "core/time.h"
 #include "core/window.h"
 #include "debug/debugging.h"
+#include "debug/log.h"
 #include "debug/profiling.h"
 #include "debug/stats.h"
 #include "events/event_handler.h"
 #include "events/input_handler.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/gl/gl_context.h"
@@ -23,6 +30,7 @@
 #include "rendering/resources/texture.h"
 #include "scene/scene_manager.h"
 #include "SDL_timer.h"
+#include "serialization/json.h"
 #include "serialization/json_manager.h"
 #include "utility/file.h"
 #include "utility/string.h"
@@ -47,13 +55,6 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include <unordered_set>
-#include <utility>
-#include <vector>
-
-#include "common/assert.h"
-#include "debug/log.h"
-#include "math/hash.h"
 
 namespace ptgn {
 
@@ -313,7 +314,7 @@ void Game::Update() {
 
 } // namespace impl
 
-void LoadResource(std::string_view key, const path& resource_path) {
+void LoadResource(std::string_view key, const path& resource_path, bool is_music) {
 	PTGN_ASSERT(
 		FileExists(resource_path),
 		"Cannot load non-existent resource file: ", resource_path.string()
@@ -323,13 +324,25 @@ void LoadResource(std::string_view key, const path& resource_path) {
 
 	PTGN_ASSERT(!ext.empty(), "Resource file extension is invalid: ", resource_path.string());
 
-	if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif") {
+	bool is_audio{ ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus" };
+	bool is_texture{ ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif" };
+	bool is_font{ ext == ".ttf" };
+	bool is_json{ ext == ".json" };
+
+	PTGN_ASSERT(
+		(is_music ? is_audio : true),
+		"Music resource path must end in a valid audio format extension"
+	);
+
+	if (is_texture) {
 		game.texture.Load(key, resource_path);
-	} else if (ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus") {
+	} else if (is_audio && !is_music) {
 		game.sound.Load(key, resource_path);
-	} else if (ext == ".ttf") {
+	} else if (is_audio && is_music) {
+		game.music.Load(key, resource_path);
+	} else if (is_font) {
 		game.font.Load(key, resource_path);
-	} else if (ext == ".json") {
+	} else if (is_json) {
 		game.json.Load(key, resource_path);
 	} /*
 	  // TODO: Add shader loading support.
@@ -344,21 +357,21 @@ void LoadResource(std::string_view key, const path& resource_path) {
 	}
 }
 
-void LoadResources(const std::vector<std::pair<std::string_view, path>>& resource_paths) {
-	for (const auto& [key, resource_path] : resource_paths) {
-		LoadResource(key, resource_path);
+void LoadResources(const std::vector<Resource>& resource_paths) {
+	for (const auto& [key, filepath, is_music] : resource_paths) {
+		LoadResource(key, filepath, is_music);
 	}
 }
 
-void LoadResources(const path& resource_file) {
+void LoadResources(const path& resource_file, std::string_view music_resource_suffix) {
 	auto resources{ LoadJson(resource_file) };
 
 	// Track unique resource keys.
 	std::unordered_set<std::size_t> taken_resource_keys;
 
 	for (const auto& item : resources.items()) {
-		const auto& key			  = item.key();
-		const auto& resource_path = item.value();
+		const auto& key{ item.key() };
+		const auto& resource_path{ item.value() };
 
 		auto key_hash{ Hash(key) };
 
@@ -369,7 +382,9 @@ void LoadResources(const path& resource_file) {
 
 		taken_resource_keys.insert(key_hash);
 
-		LoadResource(key, resource_path.get<std::string>());
+		bool is_music{ EndsWith(key, music_resource_suffix) };
+
+		LoadResource(key, resource_path.get<std::string>(), is_music);
 	}
 }
 

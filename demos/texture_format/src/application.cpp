@@ -13,24 +13,23 @@ using namespace ptgn;
 
 class TextureFormatScene : public Scene {
 	void Enter() override {
-		LoadResources(std::vector<std::pair<std::string_view, path>>{
-			{ "jpg1", "resources/jpg1.jpg" },
-			{ "jpg2", "resources/jpg2.jpg" },
-			{ "jpg3", "resources/jpg3.jpg" },
-			{ "bmp1", "resources/bmp1.bmp" },
-			{ "bmp2", "resources/bmp2.bmp" },
-			{ "bmp3", "resources/bmp3.bmp" },
-			{ "png1", "resources/png1.png" },
-			{ "png2", "resources/png2.png" },
-			{ "png3", "resources/png3.png" },
-			{ "png4", "resources/png4.png" },
-			{ "png5", "resources/png5.png" },
-			{ "png6", "resources/png6.png" },
-			{ "png7", "resources/png7.png" },
-			{ "png8", "resources/png8.png" },
-			{ "png9", "resources/png9.png" },
-			{ "png10", "resources/png10.png" },
-			{ "png11", "resources/png11.png" } });
+		LoadResources({ { "jpg1", "resources/jpg1.jpg" },
+						{ "jpg2", "resources/jpg2.jpg" },
+						{ "jpg3", "resources/jpg3.jpg" },
+						{ "bmp1", "resources/bmp1.bmp" },
+						{ "bmp2", "resources/bmp2.bmp" },
+						{ "bmp3", "resources/bmp3.bmp" },
+						{ "png1", "resources/png1.png" },
+						{ "png2", "resources/png2.png" },
+						{ "png3", "resources/png3.png" },
+						{ "png4", "resources/png4.png" },
+						{ "png5", "resources/png5.png" },
+						{ "png6", "resources/png6.png" },
+						{ "png7", "resources/png7.png" },
+						{ "png8", "resources/png8.png" },
+						{ "png9", "resources/png9.png" },
+						{ "png10", "resources/png10.png" },
+						{ "png11", "resources/png11.png" } });
 
 		CreateSprite(*this, "jpg1").SetPosition({ 0, 0 }).SetOrigin(Origin::TopLeft);
 		CreateSprite(*this, "jpg2")
