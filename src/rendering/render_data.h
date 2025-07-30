@@ -137,7 +137,6 @@ public:
 	[[nodiscard]] V2_int GetSize() const;
 
 private:
-	TextureFormat format_{ TextureFormat::RGBA8888 };
 	FrameBuffer frame_buffer_;
 	// Timer used to track age for reuse.
 	Timer timer_;
@@ -349,7 +348,6 @@ private:
 
 	void ClearRenderTargets(Scene& scene) const;
 
-	RenderTarget screen_target;
 	RenderTarget ping_target;
 	RenderTarget pong_target;
 	RenderTarget intermediate_target;

@@ -135,7 +135,7 @@ bool ShaderPass::operator!=(const ShaderPass& other) const {
 }
 
 FrameBufferContext::FrameBufferContext(const V2_int& size, TextureFormat format) :
-	format_{ format }, frame_buffer_{ impl::Texture{ nullptr, size, format_ } }, timer_{ true } {}
+	frame_buffer_{ impl::Texture{ nullptr, size, format } }, timer_{ true } {}
 
 bool FrameBufferContext::TimerCompleted(milliseconds duration) const {
 	return timer_.Completed(duration);
@@ -158,7 +158,8 @@ void FrameBufferContext::Resize(const V2_int& new_size) {
 		return;
 	}
 
-	frame_buffer_ = FrameBuffer{ impl::Texture{ nullptr, new_size, format_ } };
+	frame_buffer_ =
+		FrameBuffer{ impl::Texture{ nullptr, new_size, frame_buffer_.GetTexture().GetFormat() } };
 	timer_.Start();
 }
 
@@ -614,6 +615,7 @@ void RenderData::AddShader(
 	// TODO: Only update these if shader bind is dirty.
 	BindCamera(shader, camera);
 	shader.SetUniform("u_Texture", 1);
+	// TODO: Replace.
 	shader.SetUniform("u_Resolution", camera.GetViewportSize());
 	render_state.shader_pass.Invoke(entity);
 
@@ -858,7 +860,7 @@ void RenderData::DrawToScreen(Scene& scene) {
 	UpdateVertexArray(camera_vertices, quad_indices);
 
 	// TODO: Replace with viewport info.
-	SetRenderParameters(camera, screen_target.GetBlendMode());
+	SetRenderParameters(camera, scene.render_target_.GetBlendMode());
 
 	const Shader* shader{ nullptr };
 

@@ -124,6 +124,7 @@ private:
 
 	void Add(Action new_action);
 
+	// TODO: Move back to RenderData and clear between scene draws.
 	RenderTarget render_target_;
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
