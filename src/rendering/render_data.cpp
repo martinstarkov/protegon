@@ -111,6 +111,48 @@ void SortEntities(std::vector<Entity>& entities) {
 	});
 }
 
+void GetRenderArea(
+	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
+	V2_float& out_position, V2_float& out_size
+) {
+	switch (mode) {
+		case ResolutionMode::Disabled:
+		case ResolutionMode::Stretch:
+			out_position = {};
+			out_size	 = screen_size;
+			break;
+
+		case ResolutionMode::Letterbox: {
+			PTGN_ASSERT(!target_size.IsZero());
+			auto ratio{ screen_size / target_size };
+			float scale	 = std::min(ratio.x, ratio.y);
+			out_size	 = V2_float{ target_size } * scale;
+			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
+			break;
+		}
+
+		case ResolutionMode::Overscan: {
+			PTGN_ASSERT(!target_size.IsZero());
+			auto ratio{ screen_size / target_size };
+			float scale	 = std::max(ratio.x, ratio.y);
+			out_size	 = V2_float{ target_size } * scale;
+			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
+			break;
+		}
+
+		case ResolutionMode::IntegerScale: {
+			PTGN_ASSERT(!target_size.IsZero());
+			auto ratio{ screen_size / target_size };
+			int scale	 = static_cast<int>(std::min(ratio.x, ratio.y));
+			scale		 = std::max(1, scale); // avoid zero
+			out_size	 = V2_float{ target_size } * static_cast<float>(scale);
+			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
+			break;
+		}
+		default: PTGN_ERROR("Unsupported resolution mode");
+	}
+}
+
 ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
 	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
 
@@ -816,17 +858,13 @@ void RenderData::DrawToScreen(Scene& scene) {
 	auto camera{ scene.camera.window };
 
 	auto screen_size{ game.window.GetSize() };
-	V2_int target_size{ game.renderer.GetResolution() };
 
 	PTGN_ASSERT(!screen_size.IsZero());
 
 	V2_float renderer_position;
 	V2_float renderer_size;
 
-	impl::GetRenderArea(
-		screen_size, target_size, game.renderer.GetResolutionMode(), renderer_position,
-		renderer_size
-	);
+	impl::GetRenderArea(screen_size, resolution_, scaling_mode_, renderer_position, renderer_size);
 
 	PTGN_ASSERT(!renderer_size.IsZero());
 

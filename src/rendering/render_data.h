@@ -38,6 +38,18 @@ class Shader;
 class Scene;
 struct Matrix4;
 
+// How the renderer resolution is scaled to the window size.
+enum class ResolutionMode {
+	Disabled,  /**< There is no scaling in effect */
+	Stretch,   /**< The rendered content is stretched to the output resolution */
+	Letterbox, /**< The rendered content is fit to the largest dimension and the other dimension is
+				  letterboxed with black bars */
+	Overscan,  /**< The rendered content is fit to the smallest dimension and the other dimension
+				  extends beyond the output bounds */
+	IntegerScale, /**< The rendered content is scaled up by integer multiples to fit the output
+					 resolution */
+};
+
 struct QuadVertices {
 	QuadVertices() = default;
 
@@ -73,6 +85,11 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 );
 
 void SortEntities(std::vector<Entity>& entities);
+
+void GetRenderArea(
+	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
+	V2_float& out_position, V2_float& out_size
+);
 
 using UniformCallback = void (*)(Entity, const Shader&);
 
@@ -352,6 +369,13 @@ private:
 	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
+
+	// Default value results in fullscreen.
+	V2_int resolution_;
+	// Default value results in resolution_ being used.
+	V2_int logical_resolution_;
+	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
+
 	std::array<Vertex, 4> camera_vertices;
 	std::vector<Texture> temporary_textures;
 	DrawContextPool draw_context_pool{ seconds{ 1 } };
@@ -367,5 +391,13 @@ private:
 };
 
 } // namespace impl
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ResolutionMode, { { ResolutionMode::Disabled, "disabled" },
+					  { ResolutionMode::Stretch, "stretch" },
+					  { ResolutionMode::Letterbox, "letterbox" },
+					  { ResolutionMode::Overscan, "overscan" },
+					  { ResolutionMode::IntegerScale, "integer_scale" } }
+);
 
 } // namespace ptgn

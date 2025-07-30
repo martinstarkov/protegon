@@ -152,48 +152,6 @@ void DrawDebugPoint(const V2_float position, const Color& color, const Camera& c
 
 namespace impl {
 
-void GetRenderArea(
-	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
-	V2_float& out_position, V2_float& out_size
-) {
-	switch (mode) {
-		case ResolutionMode::Disabled:
-		case ResolutionMode::Stretch:
-			out_position = {};
-			out_size	 = screen_size;
-			break;
-
-		case ResolutionMode::Letterbox: {
-			PTGN_ASSERT(!target_size.IsZero());
-			auto ratio{ screen_size / target_size };
-			float scale	 = std::min(ratio.x, ratio.y);
-			out_size	 = V2_float{ target_size } * scale;
-			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
-			break;
-		}
-
-		case ResolutionMode::Overscan: {
-			PTGN_ASSERT(!target_size.IsZero());
-			auto ratio{ screen_size / target_size };
-			float scale	 = std::max(ratio.x, ratio.y);
-			out_size	 = V2_float{ target_size } * scale;
-			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
-			break;
-		}
-
-		case ResolutionMode::IntegerScale: {
-			PTGN_ASSERT(!target_size.IsZero());
-			auto ratio{ screen_size / target_size };
-			int scale	 = static_cast<int>(std::min(ratio.x, ratio.y));
-			scale		 = std::max(1, scale); // avoid zero
-			out_size	 = V2_float{ target_size } * static_cast<float>(scale);
-			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
-			break;
-		}
-		default: PTGN_ERROR("Unsupported resolution mode");
-	}
-}
-
 void Renderer::Init() {
 	render_data_.Init();
 }
@@ -207,8 +165,8 @@ Color Renderer::GetBackgroundColor() const {
 }
 
 void Renderer::Reset() {
-	resolution_	  = {};
-	scaling_mode_ = ResolutionMode::Disabled;
+	render_data_.resolution_   = {};
+	render_data_.scaling_mode_ = ResolutionMode::Disabled;
 
 	bound_ = {};
 
@@ -220,26 +178,37 @@ void Renderer::Shutdown() {
 }
 
 void Renderer::SetResolution(const V2_int& resolution) {
-	resolution_ = resolution;
+	render_data_.resolution_ = resolution;
 	// User expects setting resolution to take effect immediately so it is defaulted to stretch.
-	if (scaling_mode_ == ResolutionMode::Disabled) {
-		scaling_mode_ = ResolutionMode::Stretch;
+	if (render_data_.scaling_mode_ == ResolutionMode::Disabled) {
+		render_data_.scaling_mode_ = ResolutionMode::Stretch;
 	}
+}
+
+void Renderer::SetLogicalResolution(const V2_int& logical_resolution) {
+	render_data_.logical_resolution_ = logical_resolution;
 }
 
 void Renderer::SetResolutionMode(ResolutionMode scaling_mode) {
-	scaling_mode_ = scaling_mode;
+	render_data_.scaling_mode_ = scaling_mode;
 }
 
 V2_int Renderer::GetResolution() const {
-	if (resolution_.IsZero()) {
+	if (render_data_.resolution_.IsZero()) {
 		return game.window.GetSize();
 	}
-	return resolution_;
+	return render_data_.resolution_;
+}
+
+V2_int Renderer::GetLogicalResolution() const {
+	if (render_data_.logical_resolution_.IsZero()) {
+		return GetResolution();
+	}
+	return render_data_.logical_resolution_;
 }
 
 ResolutionMode Renderer::GetResolutionMode() const {
-	return scaling_mode_;
+	return render_data_.scaling_mode_;
 }
 
 RenderData& Renderer::GetRenderData() {
