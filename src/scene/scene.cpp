@@ -40,8 +40,9 @@
 namespace ptgn {
 
 Scene::Scene() {
+	auto& render_manager{ game.renderer.GetRenderData().render_manager };
 	render_target_ = impl::CreateRenderTarget(
-		game.renderer.GetRenderData().render_manager.CreateEntity(), color::Transparent,
+		render_manager.CreateEntity(), color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	render_target_.SetBlendMode(BlendMode::BlendPremultiplied);
