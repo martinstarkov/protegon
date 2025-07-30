@@ -601,6 +601,7 @@ void RenderData::AddShader(
 		PTGN_ASSERT(drawing_to);
 		ReadFrom(drawing_to);
 	} else {
+		PTGN_ASSERT(intermediate_target.GetFrameBuffer().IsBound());
 		PTGN_ASSERT(intermediate_target);
 	}
 
