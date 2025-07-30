@@ -2,6 +2,7 @@
 #include "components/drawable.h"
 #include "components/sprite.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "events/input_handler.h"
 #include "events/key.h"
 #include "math/rng.h"
@@ -396,6 +397,7 @@ struct RendererScene : public Scene {
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		PTGN_LOG("-------- Test ", test_index, " --------");
 		PTGN_ASSERT(test_index < tests.size());
 		if (tests[test_index]) {

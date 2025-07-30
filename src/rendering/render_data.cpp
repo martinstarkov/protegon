@@ -134,57 +134,59 @@ bool ShaderPass::operator!=(const ShaderPass& other) const {
 	return !(*this == other);
 }
 
-FrameBufferContext::FrameBufferContext(const V2_int& size, TextureFormat format) :
-	frame_buffer_{ impl::Texture{ nullptr, size, format } }, timer_{ true } {}
+DrawContext::DrawContext(const V2_int& size) :
+	frame_buffer{ impl::Texture{
+		nullptr, size, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888 } },
+	timer{ true } {}
 
-bool FrameBufferContext::TimerCompleted(milliseconds duration) const {
-	return timer_.Completed(duration);
-}
+DrawContextPool::DrawContextPool(milliseconds max_age) : max_age_{ max_age } {}
 
-V2_int FrameBufferContext::GetSize() const {
-	return frame_buffer_.GetTexture().GetSize();
-}
-
-const FrameBuffer& FrameBufferContext::GetFrameBuffer() const {
-	return frame_buffer_;
-}
-
-FrameBuffer& FrameBufferContext::GetFrameBuffer() {
-	return frame_buffer_;
-}
-
-void FrameBufferContext::Resize(const V2_int& new_size) {
-	if (GetSize() == new_size) {
-		return;
+void DrawContextPool::TrimExpired() {
+	for (auto it{ contexts_.begin() }; it != contexts_.end();) {
+		const auto& context{ *it };
+		if (!context->in_use && !context->keep_alive && context->timer.Elapsed() > max_age_ &&
+			context.use_count() <= 1) {
+			it = contexts_.erase(it);
+		} else {
+			if (!context->keep_alive) {
+				context->in_use = false;
+			}
+			++it;
+		}
 	}
-
-	frame_buffer_ =
-		FrameBuffer{ impl::Texture{ nullptr, new_size, frame_buffer_.GetTexture().GetFormat() } };
-	timer_.Start();
 }
 
-FrameBufferPool::FrameBufferPool(milliseconds max_age, std::size_t max_pool_size) :
-	max_age_{ max_age }, max_pool_size_{ max_pool_size } {}
-
-std::shared_ptr<FrameBufferContext> FrameBufferPool::Get(V2_float size, TextureFormat format) {
+std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size) {
 	PTGN_ASSERT(size.x > 0 && size.y > 0);
 
-	constexpr V2_float max_resolution{ 4096.0f };
+	constexpr V2_int max_resolution{ 4096, 2160 };
 
 	size.x = std::min(size.x, max_resolution.x);
 	size.y = std::min(size.y, max_resolution.y);
 
-	// TODO: Cache frame buffers.
+	std::shared_ptr<DrawContext> spare_context;
 
-	return std::make_shared<FrameBufferContext>(size, format);
-}
+	for (auto& context : contexts_) {
+		if (!context->in_use) {
+			spare_context = context;
+			break;
+		}
+	}
 
-void FrameBufferPool::SetMaxAge(milliseconds max_age) {
-	max_age_ = max_age;
-}
+	if (!spare_context) {
+		return contexts_.emplace_back(std::make_shared<DrawContext>(size));
+	}
 
-void FrameBufferPool::SetMaxPoolSize(std::size_t max_size) {
-	max_pool_size_ = max_size;
+	auto& texture{ spare_context->frame_buffer.GetTexture() };
+
+	if (texture.GetSize() != size) {
+		texture.Resize(size);
+	}
+
+	spare_context->in_use = true;
+	spare_context->timer.Start(true);
+
+	return spare_context;
 }
 
 void RenderData::AddPoint(
@@ -336,7 +338,7 @@ void RenderData::AddTexturedQuad(
 
 	bool pre_fx_exist{ !pre_fx.pre_fx_.empty() };
 
-	std::shared_ptr<FrameBufferContext> context;
+	std::shared_ptr<DrawContext> context;
 
 	if (pre_fx_exist) {
 		V2_float extents{ texture_size * 0.5f };
@@ -350,19 +352,17 @@ void RenderData::AddTexturedQuad(
 			texture_vertices[i] = impl::default_texture_coordinates[i] * texture_size - extents;
 		}
 
-		auto texture_format{ TextureFormat::RGBA8888 };
-
-		auto ping{ frame_buffer_pool.Get(texture_size, texture_format) };
-		auto pong{ frame_buffer_pool.Get(texture_size, texture_format) };
+		auto ping{ draw_context_pool.Get(texture_size) };
+		auto pong{ draw_context_pool.Get(texture_size) };
 
 		PTGN_ASSERT(ping != nullptr && pong != nullptr);
-		PTGN_ASSERT(ping->GetSize() == texture_size);
-		PTGN_ASSERT(pong->GetSize() == texture_size);
+		PTGN_ASSERT(ping->frame_buffer.GetTexture().GetSize() == texture_size);
+		PTGN_ASSERT(pong->frame_buffer.GetTexture().GetSize() == texture_size);
 
 		for (auto it = pre_fx.pre_fx_.begin(); it != pre_fx.pre_fx_.end(); ++it) {
 			const auto& fx{ *it };
-			DrawTo(pong->GetFrameBuffer());
-			PTGN_ASSERT(pong->GetFrameBuffer().IsBound());
+			DrawTo(pong->frame_buffer);
+			PTGN_ASSERT(pong->frame_buffer.IsBound());
 			impl::GLRenderer::ClearToColor(color::Transparent);
 
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
@@ -377,7 +377,7 @@ void RenderData::AddTexturedQuad(
 			if (it == pre_fx.pre_fx_.begin()) {
 				ReadFrom(texture);
 			} else {
-				ReadFrom(ping->GetFrameBuffer());
+				ReadFrom(ping->frame_buffer);
 			}
 
 			// TODO: Cache this somehow?
@@ -393,13 +393,9 @@ void RenderData::AddTexturedQuad(
 			std::swap(ping, pong);
 		}
 
-		context	   = ping;
-		texture_id = context->GetFrameBuffer().GetTexture().GetId();
+		pong->in_use = false;
 
-		PTGN_ASSERT(context != nullptr);
-		// Must be done after because SetState may Flush the current batch, which will
-		// clear used contexts.
-		frame_buffer_pool.used_contexts.emplace_back(context);
+		texture_id = ping->frame_buffer.GetTexture().GetId();
 
 		white_texture.Bind(0);
 
@@ -463,16 +459,6 @@ void RenderData::Init() {
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 
-	ping_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), color::Transparent,
-		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
-	);
-	pong_target = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), color::Transparent,
-		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
-	);
-	ping_target.SetBlendMode(BlendMode::Blend);
-	pong_target.SetBlendMode(BlendMode::Blend);
 	intermediate_target = {};
 
 #ifdef PTGN_PLATFORM_MACOS
@@ -581,31 +567,27 @@ void RenderData::ReadFrom(const RenderTarget& render_target) {
 	ReadFrom(render_target.GetFrameBuffer());
 }
 
-RenderTarget RenderData::GetPingPongTarget() const {
-	PTGN_ASSERT(ping_target && pong_target);
-	if (intermediate_target == ping_target) {
-		return pong_target;
-	}
-	return ping_target;
-}
-
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, BlendMode target_blend_mode,
 	const Color& target_clear_color, bool uses_scene_texture
 ) {
+	Camera camera;
 	if (bool state_changed{ SetState(state) }; state_changed || uses_scene_texture) {
-		intermediate_target = GetPingPongTarget();
-		DrawTo(intermediate_target);
-		intermediate_target.ClearToColor(target_clear_color);
-		intermediate_target.SetBlendMode(target_blend_mode);
+		camera				= GetCamera();
+		intermediate_target = draw_context_pool.Get(camera.GetSize());
+		DrawTo(intermediate_target->frame_buffer);
+		intermediate_target->viewport_position = camera.GetViewportPosition();
+		intermediate_target->viewport_size	   = camera.GetViewportSize();
+		intermediate_target->clear_color	   = target_clear_color;
+		intermediate_target->frame_buffer.ClearToColor(intermediate_target->clear_color);
+		intermediate_target->blend_mode = target_blend_mode;
 		PTGN_ASSERT(drawing_to);
 		ReadFrom(drawing_to);
 	} else {
-		PTGN_ASSERT(intermediate_target.GetFrameBuffer().IsBound());
+		camera = GetCamera();
+		PTGN_ASSERT(intermediate_target->frame_buffer.IsBound());
 		PTGN_ASSERT(intermediate_target);
 	}
-
-	auto camera{ GetCamera() };
 
 	SetCameraVertices(camera);
 
@@ -661,9 +643,7 @@ void RenderData::Flush() {
 		return;
 	}
 
-	const auto draw_vertices_to = [&](const auto& target) {
-		auto camera{ GetCamera() };
-
+	const auto draw_vertices_to = [&](auto camera, const auto& target) {
 		const auto& camera_vp{ camera.GetViewProjection() };
 
 		DrawTo(target);
@@ -680,28 +660,32 @@ void RenderData::Flush() {
 	};
 
 	if (!render_state.post_fx.post_fx_.empty()) {
+		auto camera{ GetCamera() };
 		if (!vertices.empty() && !indices.empty()) {
 			PTGN_ASSERT(!intermediate_target);
-			intermediate_target = GetPingPongTarget();
-			intermediate_target.ClearToColor(color::Transparent);
-			intermediate_target.SetBlendMode(render_state.blend_mode);
+			intermediate_target					   = draw_context_pool.Get(camera.GetSize());
+			intermediate_target->viewport_position = camera.GetViewportPosition();
+			intermediate_target->viewport_size	   = camera.GetViewportSize();
+			intermediate_target->clear_color	   = color::Transparent;
+			intermediate_target->frame_buffer.ClearToColor(intermediate_target->clear_color);
+			intermediate_target->blend_mode = render_state.blend_mode;
 			// Draw vertices to intermediate target before adding post fx to it.
-			std::invoke(draw_vertices_to, intermediate_target);
+			std::invoke(draw_vertices_to, camera, intermediate_target->frame_buffer);
 		}
 		PTGN_ASSERT(
 			intermediate_target, "Intermediate target must be used before rendering post fx"
 		);
+
+		auto ping{ intermediate_target };
+		auto pong{ draw_context_pool.Get(camera.GetSize()) };
+		pong->viewport_position = camera.GetViewportPosition();
+		pong->viewport_size		= camera.GetViewportSize();
+		pong->clear_color		= color::Transparent;
+		pong->blend_mode		= render_state.blend_mode;
+
 		for (const auto& fx : render_state.post_fx.post_fx_) {
-			auto camera{
-				game.scene.GetCurrent().camera.window
-			}; // Scene camera or render target camera.
-			PTGN_ASSERT(camera);
-
-			auto ping{ intermediate_target };
-			auto pong{ GetPingPongTarget() };
-
-			DrawTo(pong);
-			pong.ClearToColor(color::Transparent);
+			DrawTo(pong->frame_buffer);
+			pong->frame_buffer.ClearToColor(pong->clear_color);
 
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
@@ -713,7 +697,7 @@ void RenderData::Flush() {
 			// assert that vertices is screen vertices.
 			SetRenderParameters(camera, fx.GetBlendMode());
 
-			ReadFrom(ping);
+			ReadFrom(ping->frame_buffer);
 
 			// TODO: Cache this somehow?
 			SetCameraVertices(camera);
@@ -746,10 +730,10 @@ void RenderData::Flush() {
 		/*PTGN_ASSERT(vertices.size() == 0);
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
-		auto blend_mode{ intermediate_target.GetBlendMode() };
+		auto blend_mode{ intermediate_target->blend_mode };
 		SetRenderParameters(camera, blend_mode);
 
-		ReadFrom(intermediate_target);
+		ReadFrom(intermediate_target->frame_buffer);
 		// PTGN_LOG("Intermediate: ", intermediate_target.GetPixel({ 200, 200 }));
 		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
 
@@ -761,21 +745,21 @@ void RenderData::Flush() {
 
 	} else if (!vertices.empty() && !indices.empty()) {
 		PTGN_ASSERT(drawing_to);
-		std::invoke(draw_vertices_to, drawing_to);
+		auto camera{ GetCamera() };
+		std::invoke(draw_vertices_to, camera, drawing_to);
 	}
-
-	intermediate_target = {};
 
 	Reset();
 }
 
 void RenderData::Reset() {
+	intermediate_target = {};
 	vertices.clear();
 	indices.clear();
 	textures.clear();
 	index_offset = 0;
 	force_flush	 = false;
-	frame_buffer_pool.used_contexts.clear();
+	draw_context_pool.TrimExpired();
 }
 
 void RenderData::DrawVertexArray(std::size_t index_count) const {
@@ -888,9 +872,6 @@ void RenderData::DrawToScreen(Scene& scene) {
 }
 
 void RenderData::ClearRenderTargets(Scene& scene) const {
-	ping_target.Clear();
-	pong_target.Clear();
-
 	scene.render_target_.Clear();
 
 	for (auto [entity, frame_buffer] : scene.EntitiesWith<impl::FrameBuffer>()) {
@@ -901,7 +882,8 @@ void RenderData::ClearRenderTargets(Scene& scene) const {
 }
 
 void RenderData::Draw(Scene& scene) {
-	// PTGN_PROFILE_FUNCTION();
+	// PTGN_LOG(draw_context_pool.contexts_.size());
+	//  PTGN_PROFILE_FUNCTION();
 
 	white_texture.Bind(0);
 

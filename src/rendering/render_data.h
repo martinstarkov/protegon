@@ -123,54 +123,49 @@ public:
 	PostFX post_fx;
 };
 
-class FrameBufferContext {
-public:
-	explicit FrameBufferContext(const V2_int& size, TextureFormat format);
+struct DrawContext {
+	DrawContext(const V2_int& size);
 
-	// Resizes the internal framebuffer.
-	void Resize(const V2_int& new_size);
+	FrameBuffer frame_buffer;
 
-	[[nodiscard]] const FrameBuffer& GetFrameBuffer() const;
-	[[nodiscard]] FrameBuffer& GetFrameBuffer();
+	bool in_use{ true };
+	bool keep_alive{ false };
 
-	[[nodiscard]] bool TimerCompleted(milliseconds duration) const;
-	[[nodiscard]] V2_int GetSize() const;
+	BlendMode blend_mode{ BlendMode::Blend };
 
-private:
-	FrameBuffer frame_buffer_;
+	Color clear_color{ color::Transparent };
+
+	V2_int viewport_position;
+	V2_int viewport_size;
+
 	// Timer used to track age for reuse.
-	Timer timer_;
+	Timer timer;
 };
 
 /*
- * 1. A spare FrameBufferContext that has the same dimensions.
- * 2. A spare FrameBufferContext that has not been used recently, resized.
- * 3. A new FrameBufferContext, within the maximum pool size.
- * 4. The oldest spare FrameBufferContext, resized.
- * 5. A new FrameBufferContext, exceeding the maximum pool size.
+ * 1. A spare DrawContext that has the same dimensions.
+ * 2. A spare DrawContext that has not been used recently, resized.
+ * 3. A new DrawContext, within the maximum pool size.
+ * 4. The oldest spare DrawContext, resized.
+ * 5. A new DrawContext, exceeding the maximum pool size.
  */
-class FrameBufferPool {
+class DrawContextPool {
 public:
-	FrameBufferPool(milliseconds max_age, std::size_t max_pool_size);
+	DrawContextPool(milliseconds max_age);
 
 	// Retrieve a framebuffer of the given size.
 	// Size must be positive and non-zero.
-	std::shared_ptr<FrameBufferContext> Get(V2_float size, TextureFormat format);
-
-	// Setters
-	void SetMaxAge(milliseconds max_age);
-	void SetMaxPoolSize(std::size_t max_size);
+	std::shared_ptr<DrawContext> Get(V2_int size);
 
 	// Clear and destroy all pooled framebuffers.
 	void Clear();
 
-	std::vector<std::shared_ptr<FrameBufferContext>> used_contexts;
+	void TrimExpired();
+
+	std::vector<std::shared_ptr<DrawContext>> contexts_;
 
 private:
 	milliseconds max_age_{ 0 };
-	std::size_t max_pool_size_{ 0 };
-
-	std::unordered_map<std::size_t, std::vector<std::shared_ptr<FrameBufferContext>>> pool_;
 };
 
 class RenderData {
@@ -348,9 +343,7 @@ private:
 
 	void ClearRenderTargets(Scene& scene) const;
 
-	RenderTarget ping_target;
-	RenderTarget pong_target;
-	RenderTarget intermediate_target;
+	std::shared_ptr<DrawContext> intermediate_target;
 	RenderTarget drawing_to;
 
 	constexpr static float min_line_width{ 1.0f };
@@ -360,7 +353,7 @@ private:
 	bool force_flush{ false };
 	std::array<Vertex, 4> camera_vertices;
 	std::vector<Texture> temporary_textures;
-	FrameBufferPool frame_buffer_pool{ seconds{ 1 }, 1024 };
+	DrawContextPool draw_context_pool{ seconds{ 1 } };
 	Manager render_manager;
 	RenderState render_state;
 	std::vector<Vertex> vertices;
