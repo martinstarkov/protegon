@@ -15,7 +15,6 @@
 #include "math/vector2.h"
 #include "rendering/api/color.h"
 #include "rendering/buffers/frame_buffer.h"
-#include "rendering/gl/gl_renderer.h"
 #include "rendering/render_data.h"
 #include "rendering/resources/texture.h"
 #include "scene/scene.h"
@@ -27,6 +26,7 @@ namespace impl {
 RenderTarget CreateRenderTarget(
 	const Entity& entity, const Color& clear_color, TextureFormat texture_format
 ) {
+	PTGN_ASSERT(entity);
 	V2_int size{ game.window.GetSize() };
 	RenderTarget render_target{ CreateRenderTarget(entity, size, clear_color, texture_format) };
 	game.event.window.Subscribe(
@@ -98,20 +98,14 @@ void RenderTarget::Bind() const {
 }
 
 void RenderTarget::Clear() const {
-	PTGN_ASSERT(Has<impl::FrameBuffer>(), "Cannot clear render target with no frame buffer");
-	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
-	frame_buffer.Bind();
-	PTGN_ASSERT(frame_buffer.IsBound(), "Render target frame buffer must be bound before clearing");
 	auto clear_color{ GetOrDefault<impl::ClearColor>() };
-	impl::GLRenderer::ClearToColor(clear_color);
+	ClearToColor(clear_color);
 }
 
 void RenderTarget::ClearToColor(const Color& color) const {
 	PTGN_ASSERT(Has<impl::FrameBuffer>(), "Cannot clear render target with no frame buffer");
 	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
-	frame_buffer.Bind();
-	PTGN_ASSERT(frame_buffer.IsBound(), "Render target frame buffer must be bound before clearing");
-	impl::GLRenderer::ClearToColor(color);
+	frame_buffer.ClearToColor(color);
 }
 
 void RenderTarget::ClearDisplayList() {
