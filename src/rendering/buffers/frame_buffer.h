@@ -97,6 +97,8 @@ public:
 	// @return True if the current bound frame buffer id is 0, false otherwise.
 	[[nodiscard]] static bool IsUnbound();
 
+	void ClearToColor(const Color& color) const;
+
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
 

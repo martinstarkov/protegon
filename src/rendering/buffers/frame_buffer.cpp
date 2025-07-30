@@ -14,6 +14,7 @@
 #include "rendering/api/color.h"
 #include "rendering/gl/gl_helper.h"
 #include "rendering/gl/gl_loader.h"
+#include "rendering/gl/gl_renderer.h"
 #include "rendering/gl/gl_types.h"
 #include "rendering/renderer.h"
 #include "rendering/resources/texture.h"
@@ -203,6 +204,12 @@ bool FrameBuffer::IsBound() const {
 
 bool FrameBuffer::IsUnbound() {
 	return GetBoundId() == 0;
+}
+
+void FrameBuffer::ClearToColor(const Color& color) const {
+	Bind();
+	PTGN_ASSERT(IsBound(), "Frame buffer must be bound before clearing");
+	impl::GLRenderer::ClearToColor(color);
 }
 
 bool FrameBuffer::IsValid() const {
