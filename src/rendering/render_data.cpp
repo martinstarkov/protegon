@@ -571,9 +571,11 @@ void RenderData::AddShader(
 	Entity entity, const RenderState& state, BlendMode target_blend_mode,
 	const Color& target_clear_color, bool uses_scene_texture
 ) {
+	Scene& scene{ entity.GetScene() };
+	PTGN_ASSERT(&scene == &game.scene.GetCurrent());
 	Camera camera;
 	if (bool state_changed{ SetState(state) }; state_changed || uses_scene_texture) {
-		camera				= GetCamera();
+		camera				= GetCamera(scene);
 		intermediate_target = draw_context_pool.Get(camera.GetSize());
 		DrawTo(intermediate_target->frame_buffer);
 		intermediate_target->viewport_position = camera.GetViewportPosition();
@@ -584,7 +586,7 @@ void RenderData::AddShader(
 		PTGN_ASSERT(drawing_to);
 		ReadFrom(drawing_to);
 	} else {
-		camera = GetCamera();
+		camera = GetCamera(scene);
 		PTGN_ASSERT(intermediate_target->frame_buffer.IsBound());
 		PTGN_ASSERT(intermediate_target);
 	}
@@ -629,20 +631,21 @@ void RenderData::BindTextures() const {
 	}
 }
 
-Camera RenderData::GetCamera() const {
+Camera RenderData::GetCamera(Scene& scene) const {
 	if (render_state.camera) {
 		return render_state.camera;
 	}
-	auto scene_camera{ game.scene.GetCurrent().camera.primary };
+	auto scene_camera{ scene.camera.primary };
 	PTGN_ASSERT(scene_camera);
 	return scene_camera;
 }
 
 void RenderData::Flush() {
-	if (!game.scene.HasCurrent()) {
-		return;
-	}
+	PTGN_ASSERT(game.scene.HasCurrent());
+	Flush(game.scene.GetCurrent());
+}
 
+void RenderData::Flush(Scene& scene) {
 	const auto draw_vertices_to = [&](auto camera, const auto& target) {
 		const auto& camera_vp{ camera.GetViewProjection() };
 
@@ -658,9 +661,9 @@ void RenderData::Flush() {
 
 		DrawVertexArray(indices.size());
 	};
+	auto camera{ GetCamera(scene) };
 
 	if (!render_state.post_fx.post_fx_.empty()) {
-		auto camera{ GetCamera() };
 		if (!vertices.empty() && !indices.empty()) {
 			PTGN_ASSERT(!intermediate_target);
 			intermediate_target					   = draw_context_pool.Get(camera.GetSize());
@@ -716,10 +719,6 @@ void RenderData::Flush() {
 	}
 
 	if (intermediate_target) {
-		auto camera{ game.scene.GetCurrent().camera.window };
-
-		PTGN_ASSERT(camera);
-
 		PTGN_ASSERT(drawing_to);
 		DrawTo(drawing_to);
 		//	PTGN_LOG("PreDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 200, 200 }));
@@ -745,7 +744,6 @@ void RenderData::Flush() {
 
 	} else if (!vertices.empty() && !indices.empty()) {
 		PTGN_ASSERT(drawing_to);
-		auto camera{ GetCamera() };
 		std::invoke(draw_vertices_to, camera, drawing_to);
 	}
 
@@ -795,7 +793,7 @@ void RenderData::DrawScene(Scene& scene) {
 		for (const auto& display_entity : display_list.entities) {
 			InvokeDrawable(display_entity);
 		}
-		Flush();
+		Flush(scene);
 	}
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
@@ -808,14 +806,14 @@ void RenderData::DrawScene(Scene& scene) {
 		}
 		InvokeDrawable(entity);
 	}
-	Flush();
+	Flush(scene);
 }
 
 void RenderData::DrawToScreen(Scene& scene) {
 	FrameBuffer::Unbind();
 
 	// Replace with resolution.
-	auto camera{ game.scene.GetCurrent().camera.window };
+	auto camera{ scene.camera.window };
 
 	auto screen_size{ game.window.GetSize() };
 	V2_int target_size{ game.renderer.GetResolution() };

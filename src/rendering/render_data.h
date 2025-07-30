@@ -305,9 +305,7 @@ private:
 
 	void InvokeDrawable(const Entity& entity);
 
-	[[nodiscard]] Camera GetCamera() const;
-
-	[[nodiscard]] RenderTarget GetPingPongTarget() const;
+	[[nodiscard]] Camera GetCamera(Scene& scene) const;
 
 	void Reset();
 
@@ -333,7 +331,10 @@ private:
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);
 
+	// Uses current scene.
 	void Flush();
+
+	void Flush(Scene& scene);
 
 	void DrawToScreen(Scene& scene);
 
