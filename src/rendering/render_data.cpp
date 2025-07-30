@@ -500,6 +500,8 @@ void RenderData::Init() {
 	);
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
+	white_texture.Bind(0);
+	Texture::SetActiveSlot(1);
 
 	intermediate_target = {};
 
@@ -587,6 +589,7 @@ void RenderData::SetCameraVertices(const Camera& camera) {
 void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
 	PTGN_ASSERT(frame_buffer.IsValid());
 	frame_buffer.Bind();
+	impl::GLRenderer::SetViewport({}, frame_buffer.GetTexture().GetSize());
 }
 
 void RenderData::DrawTo(const RenderTarget& render_target) {
@@ -690,7 +693,6 @@ void RenderData::Flush() {
 void RenderData::Flush(Scene& scene) {
 	const auto draw_vertices_to = [&](auto camera, const auto& target) {
 		const auto& camera_vp{ camera.GetViewProjection() };
-
 		DrawTo(target);
 		UpdateVertexArray(vertices, indices);
 		SetRenderParameters(camera, render_state.blend_mode);
@@ -715,7 +717,16 @@ void RenderData::Flush(Scene& scene) {
 			intermediate_target->frame_buffer.ClearToColor(intermediate_target->clear_color);
 			intermediate_target->blend_mode = render_state.blend_mode;
 			// Draw vertices to intermediate target before adding post fx to it.
+			/*PTGN_LOG(
+				"intermediate_target center: ",
+				intermediate_target->frame_buffer.GetPixel({ 400, 400 })
+			);*/
+
 			std::invoke(draw_vertices_to, camera, intermediate_target->frame_buffer);
+			/*PTGN_LOG(
+				"intermediate_target center: ",
+				intermediate_target->frame_buffer.GetPixel({ 400, 400 })
+			);*/
 		}
 		PTGN_ASSERT(
 			intermediate_target, "Intermediate target must be used before rendering post fx"
@@ -747,8 +758,10 @@ void RenderData::Flush(Scene& scene) {
 			// TODO: Cache this somehow?
 			SetCameraVertices(camera);
 
+			V2_float viewport{ camera.GetViewportSize() };
+
 			shader.SetUniform("u_Texture", 1);
-			shader.SetUniform("u_Resolution", camera.GetViewportSize());
+			shader.SetUniform("u_Resolution", viewport);
 
 			shader_pass.Invoke(fx);
 
@@ -761,9 +774,12 @@ void RenderData::Flush(Scene& scene) {
 	}
 
 	if (intermediate_target) {
+		/*PTGN_LOG(
+			"intermediate_target center: ", intermediate_target->frame_buffer.GetPixel({ 400, 400 })
+		);*/
 		PTGN_ASSERT(drawing_to);
 		DrawTo(drawing_to);
-		//	PTGN_LOG("PreDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 200, 200 }));
+		/*PTGN_LOG("PreDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 400, 400 }));*/
 
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 
@@ -775,14 +791,14 @@ void RenderData::Flush(Scene& scene) {
 		SetRenderParameters(camera, blend_mode);
 
 		ReadFrom(intermediate_target->frame_buffer);
-		// PTGN_LOG("Intermediate: ", intermediate_target.GetPixel({ 200, 200 }));
+		/*PTGN_LOG("Intermediate: ", intermediate_target->frame_buffer.GetPixel({ 400, 400 }));*/
 		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
 
 		// TODO: Cache this somehow?
 		SetCameraVertices(camera);
 
 		DrawVertexArray(quad_indices.size());
-		//	PTGN_LOG("PostDraw: ", drawing_to.GetPixel({ 200, 200 }));
+		/*PTGN_LOG("PostDraw: ", drawing_to.GetPixel({ 400, 400 }));*/
 
 	} else if (!vertices.empty() && !indices.empty()) {
 		PTGN_ASSERT(drawing_to);

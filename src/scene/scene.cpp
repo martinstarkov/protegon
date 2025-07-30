@@ -57,7 +57,8 @@ void Scene::AddToDisplayList(Entity entity) {
 	if (!entity.Has<Visible>() || !entity.Has<IDrawable>()) {
 		return;
 	}
-	render_target_.GetDisplayList().emplace_back(entity);
+	auto& dl{ render_target_.GetDisplayList() };
+	dl.emplace_back(entity);
 }
 
 void Scene::RemoveFromDisplayList(Entity entity) {

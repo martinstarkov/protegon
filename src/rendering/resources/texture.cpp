@@ -212,6 +212,7 @@ Texture::Texture(
 	TextureScaling magnifying, bool mipmaps
 ) {
 	GenerateTexture();
+	TextureId restore_texture_id{ Texture::GetBoundId() };
 	Bind();
 	SetData(data, size, format, mipmap_level);
 	SetParameterI(TextureParameter::WrapS, static_cast<int>(wrapping_x));
@@ -221,6 +222,7 @@ Texture::Texture(
 	if (mipmaps) {
 		GenerateMipmaps();
 	}
+	Texture::BindId(restore_texture_id);
 }
 
 Texture::Texture(Texture&& other) noexcept :
@@ -306,6 +308,7 @@ void Texture::Unbind(std::uint32_t slot) {
 }
 
 void Texture::BindId(TextureId id) {
+	/*PTGN_LOG("GL: Bound texture with id ", id, " to slot: ", GetActiveSlot());*/
 	GLCall(glBindTexture(static_cast<GLenum>(TextureTarget::Texture2D), id));
 #ifdef PTGN_DEBUG
 	++game.stats.texture_binds;
@@ -362,8 +365,8 @@ TextureId Texture::GetId() const {
 std::uint32_t Texture::GetActiveSlot() {
 	std::int32_t id{ -1 };
 	GLCall(glGetIntegerv(static_cast<GLenum>(impl::GLBinding::ActiveUnit), &id));
-	PTGN_ASSERT(id >= 0, "Failed to retrieve the currently active texture slot");
-	return static_cast<std::uint32_t>(id);
+	PTGN_ASSERT(id >= GL_TEXTURE0, "Failed to retrieve the currently active texture slot");
+	return static_cast<std::uint32_t>(id - GL_TEXTURE0);
 }
 
 bool Texture::ValidMinifyingForMipmaps(TextureScaling minifying) {
@@ -374,8 +377,10 @@ bool Texture::ValidMinifyingForMipmaps(TextureScaling minifying) {
 }
 
 void Texture::Resize(const V2_int& new_size) {
+	TextureId restore_texture_id{ Texture::GetBoundId() };
 	Bind();
 	SetData(nullptr, new_size, GetFormat(), 0);
+	Texture::BindId(restore_texture_id);
 }
 
 void Texture::SetData(
