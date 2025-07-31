@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <unordered_set>
 
@@ -255,6 +256,8 @@ public:
 	[[nodiscard]] Transform GetDrawTransform() const;
 
 	Entity& SetDrawOffset(const V2_float& offset = {});
+
+	[[nodiscard]] std::optional<V2_float> GetRotationCenter() const;
 
 	Entity& AddPostFX(Entity post_fx);
 
@@ -570,7 +573,7 @@ struct Collision {
 	V2_float normal;
 
 	friend bool operator==(const Collision& a, const Collision& b) {
-		return a.entity == b.entity && a.normal == b.normal;
+		return a.entity == b.entity;
 	}
 
 	friend bool operator!=(const Collision& a, const Collision& b) {
