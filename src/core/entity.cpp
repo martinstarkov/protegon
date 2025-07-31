@@ -31,6 +31,10 @@ namespace ptgn {
 
 Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
 
+ecs::impl::Index Entity::GetId() const {
+	return Parent::GetId();
+}
+
 Entity::Entity(const Parent& entity) : Parent{ entity } {}
 
 void Entity::Clear() const {

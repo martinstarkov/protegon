@@ -72,6 +72,8 @@ public:
 
 	explicit Entity(Scene& scene);
 
+	[[nodiscard]] ecs::impl::Index GetId() const;
+
 	explicit operator bool() const {
 		return Parent::operator bool();
 	}
