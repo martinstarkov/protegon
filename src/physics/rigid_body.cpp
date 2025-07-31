@@ -8,9 +8,17 @@ void RigidBody::Update(const V2_float& physics_gravity, float dt) {
 	velocity += gravity * physics_gravity * dt;
 	velocity *= 1.0f / (1.0f + drag * dt);
 	// Or alternatively: velocity *= std::clamp(1.0f - drag * dt, 0.0f, 1.0f);
+	angular_velocity *= 1.0f / (1.0f + angular_drag * dt);
 	if (max_speed != -1.0f) {
 		PTGN_ASSERT(max_speed >= 0.0f, "Max speed must be a positive number or -1 to omit it");
 		velocity = Clamp(velocity, -max_speed, max_speed);
+	}
+	if (max_angular_speed != -1.0f) {
+		PTGN_ASSERT(
+			max_angular_speed >= 0.0f,
+			"Max angular speed must be a positive number or -1 to omit it"
+		);
+		angular_velocity = std::clamp(angular_velocity, -max_angular_speed, max_angular_speed);
 	}
 }
 
@@ -21,8 +29,16 @@ void RigidBody::AddAcceleration(const V2_float& acceleration, float dt) {
 	velocity += acceleration * dt;
 }
 
+void RigidBody::AddAngularAcceleration(float angular_acceleration, float dt) {
+	angular_velocity += angular_acceleration * dt;
+}
+
 void RigidBody::AddImpulse(const V2_float& impulse) {
 	velocity += impulse;
+}
+
+void RigidBody::AddAngularImpulse(float angular_impulse) {
+	angular_velocity += angular_impulse;
 }
 
 } // namespace ptgn

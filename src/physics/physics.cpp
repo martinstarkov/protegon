@@ -119,6 +119,8 @@ void Physics::PostCollisionUpdate(Scene& scene) const {
 		}
 
 		transform.position += rigid_body.velocity * dt;
+		transform.rotation += rigid_body.angular_velocity * dt;
+		transform.rotation	= ClampAngle2Pi(transform.rotation);
 
 		if (!enforce_bounds) {
 			continue;
