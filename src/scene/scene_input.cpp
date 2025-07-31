@@ -208,6 +208,7 @@ bool InteractivesOverlap(const Entity& a, const Entity& b, const Camera& camera)
 }
 
 bool PointOverlapsInteractives(V2_float point, const Entity& entity, const Camera& camera) {
+	PTGN_ASSERT(camera);
 	auto interactives = GetInteractives(entity, camera);
 
 	if (std::holds_alternative<std::vector<BoxInfo>>(interactives)) {
@@ -384,6 +385,41 @@ void SceneInput::EntityMouseMove(
 	}
 }
 
+std::vector<Entity> GetOverlappingDropzones(
+	Scene& scene, const Entity& entity, const V2_float& mouse_position, const Camera& camera
+) {
+	std::vector<Entity> overlapping_dropzones;
+	for (auto [dropzone_entity, dropzone_enabled, dropzone_interactive, dropzone] :
+		 scene.EntitiesWith<Enabled, Interactive, Dropzone>()) {
+		bool is_inside{ false };
+		switch (dropzone.trigger) {
+			case DropTrigger::MouseOverlaps: {
+				is_inside = PointOverlapsInteractives(mouse_position, dropzone_entity, camera);
+				break;
+			}
+			case DropTrigger::CenterOverlaps: {
+				is_inside = PointOverlapsInteractives(
+					entity.GetAbsolutePosition(), dropzone_entity, camera
+				);
+				break;
+			}
+			case DropTrigger::Overlaps: {
+				is_inside = InteractivesOverlap(entity, dropzone_entity, camera);
+				break;
+			}
+			case DropTrigger::Contains:
+				// TODO: Implement.
+				PTGN_ERROR("Unimplemented drop trigger");
+				break;
+			default: PTGN_ERROR("Unrecognized drop trigger");
+		}
+		if (is_inside) {
+			overlapping_dropzones.emplace_back(dropzone_entity);
+		}
+	}
+	return overlapping_dropzones;
+}
+
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	// TODO: Figure out a smart way to cache the scene.
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
@@ -429,6 +465,12 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 							draggable.start	   = pos;
 							draggable.offset   = entity.GetPosition() - draggable.start;
 							entity.InvokeScript<&impl::IScript::OnDragStart>(pos);
+							PTGN_ASSERT(camera);
+							auto overlapping_dropzones =
+								GetOverlappingDropzones(scene, entity, pos, camera);
+							for (const auto& dropzone : overlapping_dropzones) {
+								entity.InvokeScript<&impl::IScript::OnPickup>(dropzone);
+							}
 						}
 					}
 				} else {
@@ -454,37 +496,10 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 						draggable.dragging = false;
 						draggable.offset   = {};
 						entity.InvokeScript<&impl::IScript::OnDragStop>(pos);
-
-						for (auto
-							 [dropzone_entity, dropzone_enabled, dropzone_interactive, dropzone] :
-							 scene.EntitiesWith<Enabled, Interactive, Dropzone>()) {
-							bool is_inside{ false };
-							switch (dropzone.trigger) {
-								case DropTrigger::MouseOverlaps: {
-									is_inside =
-										PointOverlapsInteractives(pos, dropzone_entity, camera);
-									break;
-								}
-								case DropTrigger::CenterOverlaps: {
-									is_inside = PointOverlapsInteractives(
-										entity.GetAbsolutePosition(), dropzone_entity, camera
-									);
-									break;
-								}
-								case DropTrigger::Overlaps: {
-									is_inside =
-										InteractivesOverlap(entity, dropzone_entity, camera);
-									break;
-								}
-								case DropTrigger::Contains:
-									// TODO: Implement.
-									PTGN_ERROR("Unimplemented drop trigger");
-									break;
-								default: PTGN_ERROR("Unrecognized drop trigger");
-							}
-							if (is_inside) {
-								entity.InvokeScript<&impl::IScript::OnDrop>(dropzone_entity);
-							}
+						auto overlapping_dropzones =
+							GetOverlappingDropzones(scene, entity, pos, camera);
+						for (const auto& dropzone : overlapping_dropzones) {
+							entity.InvokeScript<&impl::IScript::OnDrop>(dropzone);
 						}
 					}
 				}

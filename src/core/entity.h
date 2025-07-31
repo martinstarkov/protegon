@@ -675,10 +675,14 @@ public:
 
 	// Draggable events.
 
+	// Triggered when the user start holding left click over a draggable interactive object.
 	virtual void OnDragStart([[maybe_unused]] V2_float start_position) { /* user implementation */ }
 
+	// Triggered when the user lets go of left click while dragging a draggable interactive object.
 	virtual void OnDragStop([[maybe_unused]] V2_float stop_position) { /* user implementation */ }
 
+	// Triggered every frame while the user is holding left click over a draggable interactive
+	// object.
 	virtual void OnDrag([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
 
 	virtual void OnDragEnter([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
@@ -689,7 +693,13 @@ public:
 
 	virtual void OnDragOut([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
 
+	// Triggered when the user lets go (by releasing left click) of a draggable interactive object
+	// while over top of a dropzone interactive object.
 	virtual void OnDrop([[maybe_unused]] Entity dropzone) { /* user implementation */ }
+
+	// Triggered when the user picks up (by pressing left click) a draggable interactive object
+	// while over top of a dropzone interactive object.
+	virtual void OnPickup([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
 	// TODO: Consider adding OnDrop event(s).
 
