@@ -11,6 +11,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "debug/log.h"
+#include "events/input_handler.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
@@ -106,26 +107,30 @@ V2_float CollisionHandler::GetRemainingVelocity(
 			}
 			return new_velocity;
 		}
+		case CollisionResponse::Stick: {
+			return {};
+		}
 		default: break;
 	}
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
 
 void CollisionHandler::Update(Scene& scene) {
-	auto boxes{ std::as_const(scene).EntitiesWith<Enabled, BoxCollider>() };
-	auto circles{ std::as_const(scene).EntitiesWith<Enabled, CircleCollider>() };
+	auto boxes{ scene.EntitiesWith<Enabled, BoxCollider>().GetVector() };
+	auto circles{ scene.EntitiesWith<Enabled, CircleCollider>().GetVector() };
 
-	for (auto [entity1, enabled, box1] : boxes) {
-		if (!enabled) {
-			continue;
-		}
+	for (const auto& entity1 : boxes) {
+		entity1.Get<BoxCollider>().ResetCollisions();
+	}
+	for (const auto& entity1 : circles) {
+		entity1.Get<CircleCollider>().ResetCollisions();
+	}
+
+	for (const auto& entity1 : boxes) {
 		HandleCollisions<BoxCollider>(entity1, boxes, circles);
 	}
 
-	for (auto [entity1, enabled, circle1] : circles) {
-		if (!enabled) {
-			continue;
-		}
+	for (const auto& entity1 : circles) {
 		HandleCollisions<CircleCollider>(entity1, boxes, circles);
 	}
 

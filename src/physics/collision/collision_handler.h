@@ -58,14 +58,18 @@ public:
 	}
 
 	template <typename T, typename S>
-	[[nodiscard]] static bool Overlaps(Transform a, T A, Transform b, S B) {
+	[[nodiscard]] static bool Overlaps(
+		Transform a, T A, std::optional<V2_float> rot_center_A, Transform b, S B,
+		std::optional<V2_float> rot_center_B
+	) {
 		if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, BoxCollider>) {
 			A.size	   *= Abs(a.scale);
-			a.position += GetOriginOffset(A.origin, A.size);
+			a.position += GetOriginOffset(A.origin, A.size).Rotated(a.rotation);
 			B.size	   *= Abs(b.scale);
-			b.position += GetOriginOffset(B.origin, B.size);
+			b.position += GetOriginOffset(B.origin, B.size).Rotated(b.rotation);
 			return impl::OverlapRectRect(
-				a.position, A.size, a.rotation, b.position, B.size, b.rotation
+				a.position, A.size, a.rotation, rot_center_A, b.position, B.size, b.rotation,
+				rot_center_B
 			);
 		} else if constexpr (std::is_same_v<T, CircleCollider> &&
 							 std::is_same_v<S, CircleCollider>) {
@@ -75,65 +79,85 @@ public:
 		} else if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, CircleCollider>) {
 			B.radius   *= Abs(b.scale.x);
 			A.size	   *= Abs(a.scale);
-			a.position += GetOriginOffset(A.origin, A.size);
-			return impl::OverlapCircleRect(b.position, B.radius, a.position, A.size);
+			a.position += GetOriginOffset(A.origin, A.size).Rotated(a.rotation);
+			return impl::OverlapCircleRect(
+				b.position, B.radius, a.position, A.size, a.rotation, rot_center_A
+			);
 		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, BoxCollider>) {
 			A.radius   *= Abs(a.scale.x);
 			B.size	   *= Abs(b.scale);
-			b.position += GetOriginOffset(B.origin, B.size);
-			return impl::OverlapCircleRect(a.position, A.radius, b.position, B.size);
+			b.position += GetOriginOffset(B.origin, B.size).Rotated(b.rotation);
+			return impl::OverlapCircleRect(
+				a.position, A.radius, b.position, B.size, b.rotation, rot_center_B
+			);
 		} else {
 			static_assert(false, "Unrecognized collider types");
 		}
 	}
 
+	template <typename T, typename S>
+	static void ProcessOverlap(Entity entity, Entity entity2) {
+		auto& collider{ entity.Get<T>() };
+		auto& collider2{ entity2.Get<S>() };
+
+		if (!CanCollide(entity, collider, entity2, collider2)) {
+			return;
+		}
+		// ProcessCallback may invalidate all component references.
+
+		if (!entity.Get<T>().ProcessCallback(entity, entity2) ||
+			!entity2.Get<S>().ProcessCallback(entity2, entity)) {
+			return;
+		}
+
+		auto rot_center_1{ entity.GetRotationCenter() };
+		auto rot_center_2{ entity2.GetRotationCenter() };
+
+		if (!Overlaps(
+				entity.GetAbsoluteTransform(), entity.Get<T>(), rot_center_1,
+				entity2.GetAbsoluteTransform(), entity2.Get<S>(), rot_center_2
+			)) {
+			return;
+		}
+
+		collider = entity.Get<T>();
+		collider.collisions.emplace(entity2, V2_float{});
+
+		collider2 = entity2.Get<S>();
+		collider2.collisions.emplace(entity, V2_float{});
+	}
+
 	template <typename T>
 	static void Overlap(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const std::vector<Entity>& boxes, const std::vector<Entity>& circles
 	) {
+		// Optional: Make overlaps only work one way.
 		if (!entity.Get<T>().overlap_only) {
 			return;
 		}
 
-		const auto process_overlap = [&](const auto& collider2, Entity entity2) {
-			const auto& collider{ entity.Get<T>() };
-			if (!CanCollide(entity, collider, entity2, collider2)) {
-				return;
-			}
-			if (Overlaps(
-					entity.GetAbsoluteTransform(), collider, entity2.GetAbsoluteTransform(),
-					collider2
-				)) {
-				// ProcessCallback may invalidate all component references.
-				ProcessCallback<T>(entity, entity2, {});
-			}
-		};
-
-		for (auto [entity2, enabled, box2] : boxes) {
-			if (!enabled) {
-				continue;
-			}
-			std::invoke(process_overlap, box2, entity2);
+		for (const auto& entity2 : boxes) {
+			ProcessOverlap<T, BoxCollider>(entity, entity2);
 		}
 
-		for (auto [entity2, enabled, circle2] : circles) {
-			if (!enabled) {
-				continue;
-			}
-			std::invoke(process_overlap, circle2, entity2);
+		for (const auto& entity2 : circles) {
+			ProcessOverlap<T, CircleCollider>(entity, entity2);
 		}
 	}
 
 	template <typename T, typename S>
-	[[nodiscard]] static Intersection Intersects(Transform a, T A, Transform b, S B) {
+	[[nodiscard]] static Intersection Intersects(
+		Transform a, T A, std::optional<V2_float> rot_center_A, Transform b, S B,
+		std::optional<V2_float> rot_center_B
+	) {
 		if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, BoxCollider>) {
 			A.size	   *= Abs(a.scale);
-			a.position += GetOriginOffset(A.origin, A.size);
+			a.position += GetOriginOffset(A.origin, A.size).Rotated(a.rotation);
 			B.size	   *= Abs(b.scale);
-			b.position += GetOriginOffset(B.origin, B.size);
+			b.position += GetOriginOffset(B.origin, B.size).Rotated(b.rotation);
 			return impl::IntersectRectRect(
-				a.position, A.size, a.rotation, b.position, B.size, b.rotation
+				a.position, A.size, a.rotation, rot_center_A, b.position, B.size, b.rotation,
+				rot_center_B
 			);
 		} else if constexpr (std::is_same_v<T, CircleCollider> &&
 							 std::is_same_v<S, CircleCollider>) {
@@ -143,94 +167,99 @@ public:
 		} else if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, CircleCollider>) {
 			B.radius   *= Abs(b.scale.x);
 			A.size	   *= Abs(a.scale);
-			a.position += GetOriginOffset(A.origin, A.size);
-			return impl::IntersectCircleRect(b.position, B.radius, a.position, A.size);
+			a.position += GetOriginOffset(A.origin, A.size).Rotated(a.rotation);
+			return impl::IntersectCircleRect(
+				b.position, B.radius, a.position, A.size, a.rotation, rot_center_A
+			);
 		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, BoxCollider>) {
 			A.radius   *= Abs(a.scale.x);
 			B.size	   *= Abs(b.scale);
-			b.position += GetOriginOffset(B.origin, B.size);
-			return impl::IntersectCircleRect(a.position, A.radius, b.position, B.size);
+			b.position += GetOriginOffset(B.origin, B.size).Rotated(b.rotation);
+			return impl::IntersectCircleRect(
+				a.position, A.radius, b.position, B.size, b.rotation, rot_center_B
+			);
 		} else {
 			static_assert(false, "Unrecognized collider types");
 		}
 	}
 
+	template <typename T, typename S>
+	static void ProcessIntersection(Entity entity, Entity entity2) {
+		const auto& collider{ entity.Get<T>() };
+		const auto& collider2{ entity2.Get<S>() };
+
+		if (collider2.overlap_only || !CanCollide(entity, collider, entity2, collider2)) {
+			return;
+		}
+
+		// ProcessCallback may invalidate all component references.
+		if (!entity.Get<T>().ProcessCallback(entity, entity2) ||
+			!entity2.Get<S>().ProcessCallback(entity2, entity)) {
+			return;
+		}
+
+		auto transform1{ entity.GetAbsoluteTransform() };
+		auto transform2{ entity2.GetAbsoluteTransform() };
+		auto rot_center_1{ entity.GetRotationCenter() };
+		auto rot_center_2{ entity2.GetRotationCenter() };
+
+		auto intersection{
+			Intersects(transform1, collider, rot_center_1, transform2, collider2, rot_center_2)
+		};
+
+		if (!intersection.Occurred()) {
+			return;
+		}
+
+		entity.Get<T>().collisions.emplace(entity2, intersection.normal);
+		entity2.Get<S>().collisions.emplace(entity, -intersection.normal);
+
+		if (!entity.Has<RigidBody>()) {
+			return;
+		}
+
+		auto& rigid_body{ entity.Get<RigidBody>() };
+
+		PhysicsBody body{ entity };
+
+		if (body.IsImmovable()) {
+			return;
+		}
+		/*if (entity.Has<Transform>()) {
+			entity.GetPosition() +=
+				intersection.normal * (intersection.depth + slop);
+		}*/
+		auto& root_transform{ body.GetRootTransform() };
+
+		root_transform.position += intersection.normal * (intersection.depth + slop);
+
+		rigid_body.velocity = GetRemainingVelocity(
+			rigid_body.velocity, { 0.0f, intersection.normal }, entity.Get<T>().response
+		);
+	}
+
 	template <typename T>
 	static void Intersect(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const std::vector<Entity>& boxes, const std::vector<Entity>& circles
 	) {
 		if (entity.Get<T>().overlap_only) {
 			return;
 		}
 
-		// TODO: Consider if this criterion is reasonable. Are there situations where we want an
-		// intersection collision without a rigid body?
-		if (!entity.Has<RigidBody>()) {
-			return;
+		for (const auto& entity2 : boxes) {
+			ProcessIntersection<T, BoxCollider>(entity, entity2);
 		}
 
-		const auto process_intersection = [&](const auto& collider2, Entity entity2) {
-			const auto& collider{ entity.Get<T>() };
-			if (collider2.overlap_only || !CanCollide(entity, collider, entity2, collider2)) {
-				return;
-			}
-
-			auto transform1{ entity.GetAbsoluteTransform() };
-			auto transform2{ entity2.GetAbsoluteTransform() };
-
-			auto intersection{ Intersects(transform1, collider, transform2, collider2) };
-
-			if (!intersection.Occurred()) {
-				return;
-			}
-
-			// ProcessCallback may invalidate all component references.
-			if (!ProcessCallback<T>(entity, entity2, intersection.normal)) {
-				return;
-			}
-
-			auto& rigid_body{ entity.Get<RigidBody>() };
-
-			PhysicsBody body{ entity };
-
-			if (body.IsImmovable()) {
-				return;
-			}
-			/*if (entity.Has<Transform>()) {
-				entity.GetPosition() +=
-					intersection.normal * (intersection.depth + slop);
-			}*/
-			auto& root_transform{ body.GetRootTransform() };
-
-			root_transform.position += intersection.normal * (intersection.depth + slop);
-
-			rigid_body.velocity = GetRemainingVelocity(
-				rigid_body.velocity, { 0.0f, intersection.normal }, entity.Get<T>().response
-			);
-		};
-
-		for (auto [entity2, enabled, box2] : boxes) {
-			if (!enabled) {
-				continue;
-			}
-			std::invoke(process_intersection, box2, entity2);
-		}
-
-		for (auto [entity2, enabled, circle2] : circles) {
-			if (!enabled) {
-				continue;
-			}
-			std::invoke(process_intersection, circle2, entity2);
+		for (const auto& entity2 : circles) {
+			ProcessIntersection<T, CircleCollider>(entity, entity2);
 		}
 	}
 
 	// Updates the velocity of the object to prevent it from colliding with the target objects.
 	template <typename T>
 	static void Sweep(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>&
-			circles /* TODO: Fix or get rid of: , bool debug_draw = false */
+		Entity entity, const std::vector<Entity>& boxes,
+		const std::vector<Entity>& circles /* TODO: Fix or get rid of: , bool debug_draw = false */
 	) {
 		if (const auto& collider{ entity.Get<T>() };
 			!collider.continuous || collider.overlap_only || !entity.Has<RigidBody>()) {
@@ -331,25 +360,15 @@ private:
 		float dist2{ 0.0f };
 	};
 
-	template <typename T>
-	static bool ProcessCallback(Entity entity1, Entity entity2, const V2_float& normal) {
-		// Process callback can invalidate the collider reference.
-		if (entity1.Get<T>().ProcessCallback(entity1, entity2)) {
-			entity1.Get<T>().collisions.emplace(entity2, normal);
-			return true;
-		}
-		return false;
-	}
-
 	template <typename T, typename S>
 	[[nodiscard]] static RaycastResult Raycast(
 		Transform a, T A, const V2_float& ray, Transform b, S B
 	) {
 		if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, BoxCollider>) {
 			A.size	   *= Abs(a.scale);
-			a.position += GetOriginOffset(A.origin, A.size);
+			a.position += GetOriginOffset(A.origin, A.size).Rotated(a.rotation);
 			B.size	   *= Abs(b.scale);
-			b.position += GetOriginOffset(B.origin, B.size);
+			b.position += GetOriginOffset(B.origin, B.size).Rotated(b.rotation);
 			return impl::RaycastRectRect(a.position, A.size, ray, b.position, B.size);
 		} else if constexpr (std::is_same_v<T, CircleCollider> &&
 							 std::is_same_v<S, CircleCollider>) {
@@ -358,13 +377,13 @@ private:
 			return impl::RaycastCircleCircle(a.position, A.radius, ray, b.position, B.radius);
 		} else if constexpr (std::is_same_v<T, BoxCollider> && std::is_same_v<S, CircleCollider>) {
 			A.size	   *= Abs(a.scale);
-			a.position += GetOriginOffset(A.origin, A.size);
+			a.position += GetOriginOffset(A.origin, A.size).Rotated(a.rotation);
 			B.radius   *= Abs(b.scale.x);
 			return impl::RaycastRectCircle(a.position, A.size, ray, b.position, B.radius);
 		} else if constexpr (std::is_same_v<T, CircleCollider> && std::is_same_v<S, BoxCollider>) {
 			A.radius   *= Abs(a.scale.x);
 			B.size	   *= Abs(b.scale);
-			b.position += GetOriginOffset(B.origin, B.size);
+			b.position += GetOriginOffset(B.origin, B.size).Rotated(b.rotation);
 			return impl::RaycastCircleRect(a.position, A.radius, ray, b.position, B.size);
 		} else {
 			static_assert(false, "Unrecognized collider types");
@@ -395,6 +414,12 @@ private:
 			return;
 		}
 
+		// ProcessCallback may invalidate all component references.
+		if (!entity.Get<T>().ProcessCallback(entity, entity2) ||
+			!entity2.Get<S>().ProcessCallback(entity2, entity)) {
+			return;
+		}
+
 		auto transform1{ entity.GetAbsoluteTransform() };
 		auto transform2{ entity2.GetAbsoluteTransform() };
 
@@ -402,13 +427,13 @@ private:
 		offset_transform.position += offset;
 
 		auto raycast{ Raycast(
-			offset_transform, collider, GetRelativeVelocity(vel, entity2), transform2, collider2
+			offset_transform, entity.Get<T>(), GetRelativeVelocity(vel, entity2), transform2,
+			entity2.Get<S>()
 		) };
 
-		// ProcessCallback may invalidate all component references.
-		if (raycast.Occurred() && entity.Get<T>().ProcessCallback(entity, entity2)) {
-			auto center1{ GetCenter(offset_transform, collider) };
-			auto center2{ GetCenter(transform2, collider2) };
+		if (raycast.Occurred()) {
+			auto center1{ GetCenter(offset_transform, entity.Get<T>()) };
+			auto center2{ GetCenter(transform2, entity2.Get<S>()) };
 			auto dist2{ (center1 - center2).MagnitudeSquared() };
 			collisions.emplace_back(raycast, dist2, entity2);
 		}
@@ -420,23 +445,16 @@ private:
 	// the remaining velocity.
 	template <typename T>
 	[[nodiscard]] static std::vector<SweepCollision> GetSortedCollisions(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles, const V2_float& offset,
-		const V2_float& vel
+		Entity entity, const std::vector<Entity>& boxes, const std::vector<Entity>& circles,
+		const V2_float& offset, const V2_float& vel
 	) {
 		std::vector<SweepCollision> collisions;
 
-		for (auto [entity2, enabled, box2] : boxes) {
-			if (!enabled) {
-				continue;
-			}
+		for (const auto& entity2 : boxes) {
 			ProcessRaycast<T, BoxCollider>(collisions, entity, entity2, offset, vel);
 		}
 
-		for (auto [entity2, enabled, circle2] : circles) {
-			if (!enabled) {
-				continue;
-			}
+		for (const auto& entity2 : circles) {
 			ProcessRaycast<T, CircleCollider>(collisions, entity, entity2, offset, vel);
 		}
 
@@ -447,12 +465,9 @@ private:
 
 	template <typename T>
 	static void HandleCollisions(
-		Entity entity, const EntitiesWith<true, Enabled, BoxCollider>& boxes,
-		const EntitiesWith<true, Enabled, CircleCollider>& circles
+		Entity entity, const std::vector<Entity>& boxes, const std::vector<Entity>& circles
 	) {
 		auto& collider{ entity.Get<T>() };
-
-		collider.ResetCollisions();
 
 		PTGN_ASSERT(entity.IsEnabled());
 

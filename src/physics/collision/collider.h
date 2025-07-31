@@ -49,9 +49,10 @@ using CollisionCategory		 = std::int64_t;
 using CollidesWithCategories = std::vector<CollisionCategory>;
 
 enum class CollisionResponse {
-	Slide,
-	Bounce,
-	Push
+	Slide,	// Velocity set perpendicular to collision normal at same speed.
+	Bounce, // Velocity set at 45 degrees to collision normal.
+	Push,	// Velocity set perpendicular to collision normal at partial speed.
+	Stick	// Velocity set to 0.
 };
 
 struct Collider {
@@ -157,7 +158,8 @@ struct CircleCollider : public Collider {
 PTGN_SERIALIZER_REGISTER_ENUM(
 	CollisionResponse, { { CollisionResponse::Slide, "slide" },
 						 { CollisionResponse::Bounce, "bounce" },
-						 { CollisionResponse::Push, "push" } }
+						 { CollisionResponse::Push, "push" },
+						 { CollisionResponse::Stick, "stick" } }
 );
 
 } // namespace ptgn
