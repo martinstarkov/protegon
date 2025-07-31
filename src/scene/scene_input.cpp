@@ -468,8 +468,23 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 							PTGN_ASSERT(camera);
 							auto overlapping_dropzones =
 								GetOverlappingDropzones(scene, entity, pos, camera);
+							Depth top_depth;
+							Entity top_entity;
 							for (const auto& dropzone : overlapping_dropzones) {
-								entity.InvokeScript<&impl::IScript::OnPickup>(dropzone);
+								if (!top_only_) {
+									dropzone.Get<Dropzone>().entities.erase(entity);
+									entity.InvokeScript<&impl::IScript::OnPickup>(dropzone);
+								} else {
+									auto depth{ dropzone.GetDepth() };
+									if (depth >= top_depth || !top_entity) {
+										top_depth  = depth;
+										top_entity = dropzone;
+									}
+								}
+							}
+							if (top_only_ && top_entity) {
+								top_entity.Get<Dropzone>().entities.erase(entity);
+								entity.InvokeScript<&impl::IScript::OnPickup>(top_entity);
 							}
 						}
 					}
@@ -498,8 +513,23 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 						entity.InvokeScript<&impl::IScript::OnDragStop>(pos);
 						auto overlapping_dropzones =
 							GetOverlappingDropzones(scene, entity, pos, camera);
+						Entity top_entity;
+						Depth top_depth;
 						for (const auto& dropzone : overlapping_dropzones) {
-							entity.InvokeScript<&impl::IScript::OnDrop>(dropzone);
+							if (!top_only_) {
+								entity.InvokeScript<&impl::IScript::OnDrop>(dropzone);
+								dropzone.Get<Dropzone>().entities.emplace(entity);
+							} else {
+								auto depth{ dropzone.GetDepth() };
+								if (depth >= top_depth || !top_entity) {
+									top_depth  = depth;
+									top_entity = dropzone;
+								}
+							}
+						}
+						if (top_only_ && top_entity) {
+							entity.InvokeScript<&impl::IScript::OnDrop>(top_entity);
+							top_entity.Get<Dropzone>().entities.emplace(entity);
 						}
 					}
 				}

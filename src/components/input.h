@@ -1,7 +1,9 @@
 #pragma once
 
+#include <unordered_set>
 #include <vector>
 
+#include "core/entity.h"
 #include "math/vector2.h"
 #include "rendering/api/origin.h"
 #include "serialization/enum.h"
@@ -37,8 +39,9 @@ enum class DropTrigger {
 
 struct Dropzone {
 	DropTrigger trigger{ DropTrigger::MouseOverlaps };
+	std::unordered_set<Entity> entities;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Dropzone, trigger)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Dropzone, trigger, entities)
 };
 
 struct InteractiveCircles {
