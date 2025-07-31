@@ -41,6 +41,7 @@ struct Stats {
 
 	std::int32_t intersect_circle_circle{ 0 };
 	std::int32_t intersect_circle_rect{ 0 };
+	std::int32_t intersect_circle_polygon{ 0 };
 
 	std::int32_t raycast_circle_rect{ 0 };
 

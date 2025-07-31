@@ -31,6 +31,7 @@ void Stats::ResetCollisionRelated() {
 
 	intersect_circle_circle	  = 0;
 	intersect_circle_rect	  = 0;
+	intersect_circle_polygon  = 0;
 	intersect_rect_rect		  = 0;
 	intersect_polygon_polygon = 0;
 

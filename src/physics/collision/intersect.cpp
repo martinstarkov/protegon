@@ -67,8 +67,17 @@ Intersection IntersectCircleCircle(
 
 Intersection IntersectCircleRect(
 	const V2_float& circle_center, float circle_radius, const V2_float& rect_center,
-	const V2_float& rect_size
+	const V2_float& rect_size, float rect_rotation, std::optional<V2_float> rect_rotation_center
 ) {
+	if (rect_rotation != 0.0f) {
+		auto rect_polygon{ GetVertices(
+			{ rect_center, rect_rotation }, rect_size, Origin::Center, rect_rotation_center
+		) };
+		return IntersectCirclePolygon(
+			circle_center, circle_radius, rect_polygon.data(), rect_polygon.size()
+		);
+	}
+
 #ifdef PTGN_DEBUG
 	game.stats.intersect_circle_rect++;
 #endif
@@ -116,19 +125,64 @@ Intersection IntersectCircleRect(
 	return c;
 }
 
+Intersection IntersectCirclePolygon(
+	const V2_float& circle_center, float circle_radius, const V2_float* polygon_vertices,
+	std::size_t polygon_vertex_count
+) {
+	Intersection c;
+#ifdef PTGN_DEBUG
+	game.stats.intersect_circle_polygon++;
+#endif
+
+	float min_penetration{ std::numeric_limits<float>::infinity() };
+	V2_float collision_normal;
+	bool intersection_occurred{ false };
+
+	// Check each edge of the polygon
+	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
+		const V2_float& a{ polygon_vertices[i] };
+		const V2_float& b{ polygon_vertices[(i + 1) % polygon_vertex_count] };
+		V2_float edge{ b - a };
+		V2_float edge_normal{ edge.Skewed().Normalized() }; // outward normal
+
+		// Project circle center onto edge normal
+		float distance_to_edge{ edge_normal.Dot(circle_center - a) };
+
+		if (distance_to_edge > circle_radius) {
+			// No intersection — circle is outside
+			return c; // c.Occurred() == false
+		}
+
+		// Track the deepest penetration
+		float penetration{ circle_radius - distance_to_edge };
+		if (penetration < min_penetration) {
+			min_penetration	 = penetration;
+			collision_normal = edge_normal;
+		}
+	}
+
+	// If we got here, the circle intersects or is inside the polygon
+	PTGN_ASSERT(min_penetration != std::numeric_limits<float>::infinity());
+	PTGN_ASSERT(!collision_normal.IsZero());
+	c.depth	 = min_penetration;
+	c.normal = collision_normal;
+	return c;
+}
+
 Intersection IntersectRectRect(
 	const V2_float& rectA_center, const V2_float& rectA_size, float rectA_rotation,
-	const V2_float& rectB_center, const V2_float& rectB_size, float rectB_rotation
+	std::optional<V2_float> rectA_rotation_center, const V2_float& rectB_center,
+	const V2_float& rectB_size, float rectB_rotation, std::optional<V2_float> rectB_rotation_center
 ) {
 	Intersection c;
 
 	if (rectA_rotation != 0.0f || rectB_rotation != 0.0f) {
-		auto rectA_polygon{
-			GetVertices({ rectA_center, rectA_rotation }, rectA_size, Origin::Center)
-		};
-		auto rectB_polygon{
-			GetVertices({ rectB_center, rectB_rotation }, rectB_size, Origin::Center)
-		};
+		auto rectA_polygon{ GetVertices(
+			{ rectA_center, rectA_rotation }, rectA_size, Origin::Center, rectA_rotation_center
+		) };
+		auto rectB_polygon{ GetVertices(
+			{ rectB_center, rectB_rotation }, rectB_size, Origin::Center, rectB_rotation_center
+		) };
 		return IntersectPolygonPolygon(
 			rectA_polygon.data(), rectA_polygon.size(), rectB_polygon.data(), rectB_polygon.size()
 		);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
@@ -39,12 +41,18 @@ namespace impl {
 
 [[nodiscard]] Intersection IntersectCircleRect(
 	const V2_float& circle_center, float circle_radius, const V2_float& rect_center,
-	const V2_float& rect_size
+	const V2_float& rect_size, float rect_rotation, std::optional<V2_float> rect_rotation_center
+);
+
+[[nodiscard]] Intersection IntersectCirclePolygon(
+	const V2_float& circle_center, float circle_radius, const V2_float* polygon_vertices,
+	std::size_t polygon_vertex_count
 );
 
 [[nodiscard]] Intersection IntersectRectRect(
 	const V2_float& rectA_center, const V2_float& rectA_size, float rectA_rotation,
-	const V2_float& rectB_center, const V2_float& rectB_size, float rectB_rotation
+	std::optional<V2_float> rectA_rotation_center, const V2_float& rectB_center,
+	const V2_float& rectB_size, float rectB_rotation, std::optional<V2_float> rectB_rotation_center
 );
 
 [[nodiscard]] Intersection IntersectPolygonPolygon(
