@@ -398,12 +398,12 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			button_tint = entity.Get<impl::ButtonTint>().current_;
 		}
 		V4_float final_tint_n{ button_tint.Normalized() * tint };
-
+		PTGN_ASSERT(!size.IsZero());
 		ctx.AddTexturedQuad(
 			*button_texture, transform, size, origin, Color{ final_tint_n }, depth,
 			Sprite{ entity }.GetTextureCoordinates(false), render_state
 		);
-	} else {
+	} else if (!size.IsZero()) {
 		impl::ButtonBackgroundWidth background_line_width;
 		if (entity.Has<impl::ButtonBackgroundWidth>()) {
 			background_line_width = entity.Get<impl::ButtonBackgroundWidth>();
