@@ -29,13 +29,14 @@ struct Draggable {
 };
 
 enum class DropTrigger {
+	MouseOverlaps,	// Drop event triggered if the mouse position overlaps the dropzone.
 	CenterOverlaps, // Drop event triggered if the object's center overlaps the dropzone.
 	Overlaps,		// Drop event triggered if any part of the object overlaps the dropzone.
 	Contains		// Drop event triggered if the object is entirely contained within the dropzone.
 };
 
 struct Dropzone {
-	DropTrigger trigger{ DropTrigger::CenterOverlaps };
+	DropTrigger trigger{ DropTrigger::MouseOverlaps };
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Dropzone, trigger)
 };
@@ -96,7 +97,8 @@ struct InteractiveRects {
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	DropTrigger, { { DropTrigger::CenterOverlaps, "center_overlaps" },
+	DropTrigger, { { DropTrigger::MouseOverlaps, "mouse_overlaps" },
+				   { DropTrigger::CenterOverlaps, "center_overlaps" },
 				   { DropTrigger::Overlaps, "overlaps" },
 				   { DropTrigger::Contains, "contains" } }
 );
