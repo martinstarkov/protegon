@@ -70,7 +70,7 @@ private:
 
 	bool top_only_{ false };
 
-	bool draw_interactives_{ true };
+	bool draw_interactives_{ false };
 };
 
 } // namespace ptgn

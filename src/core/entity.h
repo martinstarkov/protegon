@@ -689,6 +689,8 @@ public:
 
 	virtual void OnDragOut([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
 
+	virtual void OnDrop([[maybe_unused]] Entity dropzone) { /* user implementation */ }
+
 	// TODO: Consider adding OnDrop event(s).
 
 	// Animation events.

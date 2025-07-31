@@ -4,6 +4,7 @@
 
 #include "math/vector2.h"
 #include "rendering/api/origin.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -25,6 +26,18 @@ struct Draggable {
 	bool dragging{ false };
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Draggable, offset, start, dragging)
+};
+
+enum class DropTrigger {
+	CenterOverlaps, // Drop event triggered if the object's center overlaps the dropzone.
+	Overlaps,		// Drop event triggered if any part of the object overlaps the dropzone.
+	Contains		// Drop event triggered if the object is entirely contained within the dropzone.
+};
+
+struct Dropzone {
+	DropTrigger trigger{ DropTrigger::CenterOverlaps };
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Dropzone, trigger)
 };
 
 struct InteractiveCircles {
@@ -81,5 +94,11 @@ struct InteractiveRects {
 
 	std::vector<InteractiveRect> rects;
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	DropTrigger, { { DropTrigger::CenterOverlaps, "center_overlaps" },
+				   { DropTrigger::Overlaps, "overlaps" },
+				   { DropTrigger::Contains, "contains" } }
+);
 
 } // namespace ptgn

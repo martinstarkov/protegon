@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <optional>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
@@ -19,6 +20,7 @@
 #include "events/key.h"
 #include "events/mouse.h"
 #include "math/vector2.h"
+#include "physics/collision/collision_handler.h"
 #include "physics/collision/overlap.h"
 #include "rendering/api/color.h"
 #include "rendering/api/origin.h"
@@ -36,14 +38,21 @@
 
 namespace ptgn {
 
-bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
-	const {
-	pointer = game.input.GetMousePositionUnclamped();
-	auto window_size{ game.window.GetSize() };
-	if (!impl::OverlapPointRect(pointer, window_size / 2.0f, window_size, 0.0f, std::nullopt)) {
-		// Mouse outside of screen.
-		return false;
-	}
+struct BoxInfo {
+	V2_float center;
+	V2_float size;
+	float rotation{ 0.0f };
+	std::optional<V2_float> rotation_center{ std::nullopt };
+};
+
+struct CircleInfo {
+	V2_float center;
+	float radius{ 0.0f };
+};
+
+std::variant<std::vector<BoxInfo>, std::vector<CircleInfo>> GetInteractives(
+	const Entity& entity, const Camera& camera
+) {
 	bool is_circle{ entity.Has<InteractiveCircles>() };
 	bool is_rect{ entity.Has<InteractiveRects>() };
 	PTGN_ASSERT(
@@ -53,114 +62,72 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 	auto scale{ Abs(entity.GetScale()) };
 	auto pos{ entity.GetAbsolutePosition() };
 	auto origin{ entity.GetOrigin() };
-	bool overlapping{ false };
+
+	std::variant<std::vector<BoxInfo>, std::vector<CircleInfo>> info;
+
 	if (is_rect || is_circle) {
-		std::size_t count{ 0 };
 		if (is_rect) {
 			auto rotation{ entity.GetRotation() };
 			auto rotation_center{ entity.GetRotationCenter() };
 			const auto& interactives{ entity.Get<InteractiveRects>() };
-			count += interactives.rects.size();
+
+			info.emplace<std::vector<BoxInfo>>();
+
 			for (const auto& interactive : interactives.rects) {
 				auto size{ interactive.size * scale };
 				origin = interactive.origin;
 				auto center{ pos + interactive.offset * scale + GetOriginOffset(origin, size) };
-				if (draw_interactives_) {
-					DrawDebugRect(
-						center, size, color::Magenta, Origin::Center, 1.0f, rotation, camera
-					);
-				}
-				if (impl::OverlapPointRect(
-						pointer, camera.TransformToScreen(center), camera.ScaleToScreen(size),
-						rotation, rotation_center
-					)) {
-					if (draw_interactives_) {
-						overlapping = true;
-					} else {
-						return true;
-					}
-				}
+				std::get<std::vector<BoxInfo>>(info).emplace_back(BoxInfo{
+					camera.TransformToScreen(center), camera.ScaleToScreen(size), rotation,
+					rotation_center });
 			}
 		}
 		if (is_circle) {
 			const auto& interactives{ entity.Get<InteractiveCircles>() };
-			count += interactives.circles.size();
+			info.emplace<std::vector<CircleInfo>>();
 			for (const auto& interactive : interactives.circles) {
 				auto radius{ interactive.radius * scale.x };
 				auto center{ pos + interactive.offset * scale };
-				if (draw_interactives_) {
-					DrawDebugCircle(center, radius, color::Magenta, 1.0f, camera);
-				}
-				if (impl::OverlapPointCircle(
-						pointer, camera.TransformToScreen(center), camera.ScaleToScreen(radius)
-					)) {
-					if (draw_interactives_) {
-						overlapping = true;
-					} else {
-						return true;
-					}
-				}
+				std::get<std::vector<CircleInfo>>(info).emplace_back(CircleInfo{
+					camera.TransformToScreen(center), camera.ScaleToScreen(radius) });
 			}
 		}
-		if (count) {
-			if (draw_interactives_) {
-				if (overlapping) {
-					return true;
-				}
-			}
-			return false;
+		if (!std::get<std::vector<CircleInfo>>(info).empty()) {
+			return info;
 		}
 	}
 
 	is_circle = entity.Has<Circle>();
 	is_rect	  = entity.Has<Rect>();
 	if (is_circle || is_rect) {
-		bool zero_sized{ false };
 		if (is_circle) {
 			float radius{ entity.Get<Circle>().radius };
-			if (radius == 0.0f) {
-				zero_sized = true;
-			} else {
+			if (radius != 0.0f) {
 				auto radius_scaled{ radius * scale.x };
-				zero_sized = false;
-				if (draw_interactives_) {
-					DrawDebugCircle(pos, radius_scaled, color::Magenta, 1.0f, camera);
-				}
-				if (impl ::OverlapPointCircle(
-						pointer, camera.TransformToScreen(pos), camera.ScaleToScreen(radius_scaled)
-					)) {
-					return true;
-				}
+				info.emplace<std::vector<CircleInfo>>();
+				std::get<std::vector<CircleInfo>>(info).emplace_back(CircleInfo{
+					camera.TransformToScreen(pos), camera.ScaleToScreen(radius_scaled) });
+				return info;
 			}
 		}
 		if (is_rect) {
 			V2_float size{ entity.Get<Rect>().size };
-			if (size.IsZero()) {
-				zero_sized = true;
-			} else {
-				zero_sized = false;
+			if (!size.IsZero()) {
 				auto size_scaled{ size * scale };
 				origin = entity.GetOrigin();
 				auto center{ pos + GetOriginOffset(origin, size_scaled) };
 				auto rotation{ entity.GetRotation() };
 				auto rotation_center{ entity.GetRotationCenter() };
-				if (draw_interactives_) {
-					DrawDebugRect(
-						center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation, camera
-					);
-				}
-				if (impl::OverlapPointRect(
-						pointer, camera.TransformToScreen(center),
-						camera.ScaleToScreen(size_scaled), rotation, rotation_center
-					)) {
-					return true;
-				}
+				info.emplace<std::vector<BoxInfo>>();
+				std::get<std::vector<BoxInfo>>(info).emplace_back(BoxInfo{
+					camera.TransformToScreen(center), camera.ScaleToScreen(size_scaled), rotation,
+					rotation_center });
+				return info;
 			}
 		}
-		if (!zero_sized) {
-			return false;
-		}
 	}
+
+	info.emplace<std::vector<BoxInfo>>();
 
 	if (entity.Has<TextureHandle>()) {
 		const auto& texture_key{ entity.Get<TextureHandle>() };
@@ -168,18 +135,116 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 		auto center{ pos + GetOriginOffset(origin, size_scaled) };
 		auto rotation{ entity.GetRotation() };
 		auto rotation_center{ entity.GetRotationCenter() };
-		if (draw_interactives_) {
-			DrawDebugRect(
-				center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation, camera
-			);
+		std::get<std::vector<BoxInfo>>(info).emplace_back(BoxInfo{
+			camera.TransformToScreen(center), camera.ScaleToScreen(size_scaled), rotation,
+			rotation_center });
+	}
+
+	PTGN_ASSERT(!std::get<std::vector<BoxInfo>>(info).empty());
+
+	return info;
+}
+
+bool InteractivesOverlap(const Entity& a, const Entity& b, const Camera& camera) {
+	auto interactivesA = GetInteractives(a, camera);
+	auto interactivesB = GetInteractives(b, camera);
+
+	if (std::holds_alternative<std::vector<BoxInfo>>(interactivesA)) {
+		const auto& boxesA = std::get<std::vector<BoxInfo>>(interactivesA);
+		if (std::holds_alternative<std::vector<BoxInfo>>(interactivesB)) {
+			const auto& boxesB = std::get<std::vector<BoxInfo>>(interactivesB);
+			for (const auto& boxA : boxesA) {
+				for (const auto& boxB : boxesB) {
+					if (impl::OverlapRectRect(
+							boxA.center, boxA.size, boxA.rotation, boxA.rotation_center,
+							boxB.center, boxB.size, boxB.rotation, boxB.rotation_center
+						)) {
+						return true;
+					}
+				}
+			}
+		} else if (std::holds_alternative<std::vector<CircleInfo>>(interactivesB)) {
+			const auto& circlesB = std::get<std::vector<CircleInfo>>(interactivesB);
+			for (const auto& boxA : boxesA) {
+				for (const auto& circleB : circlesB) {
+					if (impl::OverlapCircleRect(
+							circleB.center, circleB.radius, boxA.center, boxA.size, boxA.rotation,
+							boxA.rotation_center
+						)) {
+						return true;
+					}
+				}
+			}
 		}
-		return impl::OverlapPointRect(
-			pointer, camera.TransformToScreen(center), camera.ScaleToScreen(size_scaled), rotation,
-			rotation_center
-		);
+	} else if (std::holds_alternative<std::vector<CircleInfo>>(interactivesA)) {
+		const auto& circlesA = std::get<std::vector<CircleInfo>>(interactivesA);
+		if (std::holds_alternative<std::vector<BoxInfo>>(interactivesB)) {
+			const auto& boxesB = std::get<std::vector<BoxInfo>>(interactivesB);
+			for (const auto& circleA : circlesA) {
+				for (const auto& boxB : boxesB) {
+					if (impl::OverlapCircleRect(
+							circleA.center, circleA.radius, boxB.center, boxB.size, boxB.rotation,
+							boxB.rotation_center
+						)) {
+						return true;
+					}
+				}
+			}
+		} else if (std::holds_alternative<std::vector<CircleInfo>>(interactivesB)) {
+			const auto& circlesB = std::get<std::vector<CircleInfo>>(interactivesB);
+			for (const auto& circleA : circlesA) {
+				for (const auto& circleB : circlesB) {
+					if (impl::OverlapCircleCircle(
+							circleA.center, circleA.radius, circleB.center, circleB.radius
+						)) {
+						return true;
+					}
+				}
+			}
+		}
 	}
 
 	return false;
+}
+
+bool PointOverlapsInteractives(V2_float point, const Entity& entity, const Camera& camera) {
+	auto interactives = GetInteractives(entity, camera);
+
+	if (std::holds_alternative<std::vector<BoxInfo>>(interactives)) {
+		const auto& boxes = std::get<std::vector<BoxInfo>>(interactives);
+		for (const auto& box : boxes) {
+			DrawDebugRect(
+				box.center, box.size, color::Magenta, Origin::Center, 1.0f, box.rotation, camera
+			);
+			if (impl::OverlapPointRect(
+					point, box.center, box.size, box.rotation, box.rotation_center
+				)) {
+				return true;
+			}
+		}
+	} else if (std::holds_alternative<std::vector<CircleInfo>>(interactives)) {
+		const auto& circles = std::get<std::vector<CircleInfo>>(interactives);
+		for (const auto& circle : circles) {
+			DrawDebugCircle(circle.center, circle.radius, color::Magenta, 1.0f, camera);
+			if (impl::OverlapPointCircle(point, circle.center, circle.radius)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
+	const {
+	pointer = game.input.GetMousePositionUnclamped();
+	auto window_size{ game.window.GetSize() };
+	if (!impl::OverlapPointRect(pointer, window_size / 2.0f, window_size, 0.0f, std::nullopt)) {
+		// Mouse outside of screen.
+		return false;
+	}
+
+	return PointOverlapsInteractives(pointer, entity, camera);
 }
 
 void SceneInput::UpdatePrevious(Scene* scene) {
@@ -208,11 +273,11 @@ void GetMousePosAndCamera(
 	const Entity& entity, const V2_float& mouse_pos, const Camera& primary, V2_float& pos,
 	Camera& camera
 ) {
-	// TODO: Figure out if there is a better way to design this, without having to recursively
-	// search an entity family hierarchy.
-	// The issue lies in the fact that when something such as a button is rendered to a render
-	// target, its interaction coordinate system departs from its drawing coordinate system, which
-	// leads to unexpected scaling and offsets.
+	// TODO: Figure out if there is a better way to design this, without having to
+	// recursively search an entity family hierarchy. The issue lies in the fact that when
+	// something such as a button is rendered to a render target, its interaction coordinate
+	// system departs from its drawing coordinate system, which leads to unexpected scaling
+	// and offsets.
 	if (entity.Has<Camera>()) {
 		camera = entity.Get<Camera>();
 	} else if (entity.Has<RenderTarget>()) {
@@ -389,6 +454,38 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 						draggable.dragging = false;
 						draggable.offset   = {};
 						entity.InvokeScript<&impl::IScript::OnDragStop>(pos);
+
+						for (auto
+							 [dropzone_entity, dropzone_enabled, dropzone_interactive, dropzone] :
+							 scene.EntitiesWith<Enabled, Interactive, Dropzone>()) {
+							switch (dropzone.trigger) {
+								case DropTrigger::CenterOverlaps: {
+									bool is_inside{ PointOverlapsInteractives(
+										entity.GetAbsolutePosition(), dropzone_entity, camera
+									) };
+									if (is_inside) {
+										entity.InvokeScript<&impl::IScript::OnDrop>(dropzone_entity
+										);
+									}
+									break;
+								}
+								case DropTrigger::Overlaps: {
+									bool is_inside{
+										InteractivesOverlap(entity, dropzone_entity, camera)
+									};
+									if (is_inside) {
+										entity.InvokeScript<&impl::IScript::OnDrop>(dropzone_entity
+										);
+									}
+									break;
+								}
+								case DropTrigger::Contains:
+									// TODO: Implement.
+									PTGN_ERROR("Unimplemented drop trigger");
+									break;
+								default: PTGN_ERROR("Unrecognized drop trigger");
+							}
+						}
 					}
 				}
 			}
