@@ -172,6 +172,7 @@ void Scene::PreUpdate() {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.ClearRenderTargets(*this);
+	render_data.drawing_to = render_target_;
 
 	Refresh();
 
@@ -188,6 +189,8 @@ void Scene::PostUpdate() {
 	Refresh();
 
 	game.scene.current_ = game.scene.GetActiveScene(key_);
+	auto& render_data{ game.renderer.GetRenderData() };
+	render_data.drawing_to = render_target_;
 
 	float dt{ game.dt() };
 	float time{ game.time() };
