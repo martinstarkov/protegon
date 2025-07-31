@@ -403,7 +403,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			*button_texture, transform, size, origin, Color{ final_tint_n }, depth,
 			Sprite{ entity }.GetTextureCoordinates(false), render_state
 		);
-	} else if (!size.IsZero()) {
+	} else {
+		PTGN_ASSERT(!size.IsZero(), "Buttons must have a non-zero size");
 		impl::ButtonBackgroundWidth background_line_width;
 		if (entity.Has<impl::ButtonBackgroundWidth>()) {
 			background_line_width = entity.Get<impl::ButtonBackgroundWidth>();
