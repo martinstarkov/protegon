@@ -177,7 +177,7 @@ bool OverlapPointCircle(const V2_float& point, const V2_float& circle_center, fl
 
 bool OverlapPointRect(
 	const V2_float& point, const V2_float& rect_center, const V2_float& rect_size,
-	float rect_rotation
+	float rect_rotation, std::optional<V2_float> rect_rotation_center
 ) {
 	if (rect_size.IsZero()) {
 		return false;
@@ -186,7 +186,9 @@ bool OverlapPointRect(
 	game.stats.overlap_point_rect++;
 #endif
 	if (rect_rotation != 0.0f) {
-		auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
+		auto rect_polygon{ GetVertices(
+			{ rect_center, rect_rotation }, rect_size, Origin::Center, rect_rotation_center
+		) };
 		return OverlapPointPolygon(point, rect_polygon.data(), rect_polygon.size());
 	}
 
@@ -368,15 +370,21 @@ bool OverlapLineTriangle(
 
 bool OverlapLineRect(
 	const V2_float& line_start, const V2_float& line_end, const V2_float& rect_center,
-	const V2_float& rect_size
+	const V2_float& rect_size, float rect_rotation, std::optional<V2_float> rect_rotation_center
 ) {
 	if (rect_size.IsZero()) {
 		return false;
 	}
+	if (rect_rotation != 0.0f) {
+		auto rect_polygon{ GetVertices(
+			{ rect_center, rect_rotation }, rect_size, Origin::Center, rect_rotation_center
+		) };
+		return OverlapLinePolygon(line_start, line_end, rect_polygon.data(), rect_polygon.size());
+	}
+
 #ifdef PTGN_DEBUG
 	game.stats.overlap_line_rect++;
 #endif
-	// TODO: Add rotation check.
 
 	V2_float c{ rect_center };
 	V2_float e{ rect_size * 0.5f };
@@ -489,7 +497,7 @@ bool OverlapCircleTriangle(
 
 bool OverlapCircleRect(
 	const V2_float& circle_center, float circle_radius, const V2_float& rect_center,
-	const V2_float& rect_size
+	const V2_float& rect_size, float rect_rotation, std::optional<V2_float> rect_rotation_center
 ) {
 	if (circle_radius <= 0.0f) {
 		return false;
@@ -497,13 +505,21 @@ bool OverlapCircleRect(
 	if (rect_size.IsZero()) {
 		return false;
 	}
+	if (rect_rotation != 0.0f) {
+		auto rect_polygon{ GetVertices(
+			{ rect_center, rect_rotation }, rect_size, Origin::Center, rect_rotation_center
+		) };
+		return OverlapCirclePolygon(
+			circle_center, circle_radius, rect_polygon.data(), rect_polygon.size()
+		);
+	}
 #ifdef PTGN_DEBUG
 	game.stats.overlap_circle_rect++;
 #endif
+
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 165-166.
-	// TODO: Add rotation check.
 	auto half{ rect_size * 0.5f };
 	auto rect_min{ rect_center - half };
 	auto rect_max{ rect_center + half };
@@ -573,7 +589,8 @@ bool OverlapTriangleTriangle(
 
 bool OverlapTriangleRect(
 	const V2_float& triangle_a, const V2_float& triangle_b, const V2_float& triangle_c,
-	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation
+	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
+	std::optional<V2_float> rect_rotation_center
 ) {
 	if (rect_size.IsZero()) {
 		return false;
@@ -581,7 +598,9 @@ bool OverlapTriangleRect(
 #ifdef PTGN_DEBUG
 	game.stats.overlap_triangle_rect++;
 #endif
-	auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
+	auto rect_polygon{
+		GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center, rect_rotation_center)
+	};
 	std::array<V2_float, 3> triangle{ triangle_a, triangle_b, triangle_c };
 	return OverlapPolygonPolygon(
 		triangle.data(), triangle.size(), rect_polygon.data(), rect_polygon.size()
@@ -612,15 +631,16 @@ bool OverlapTrianglePolygon(
 
 bool OverlapRectRect(
 	const V2_float& rectA_center, const V2_float& rectA_size, float rectA_rotation,
-	const V2_float& rectB_center, const V2_float& rectB_size, float rectB_rotation
+	std::optional<V2_float> rectA_rotation_center, const V2_float& rectB_center,
+	const V2_float& rectB_size, float rectB_rotation, std::optional<V2_float> rectB_rotation_center
 ) {
 	if (rectA_rotation != 0.0f || rectB_rotation != 0.0f) {
-		auto rectA_polygon{
-			GetVertices({ rectA_center, rectA_rotation }, rectA_size, Origin::Center)
-		};
-		auto rectB_polygon{
-			GetVertices({ rectB_center, rectB_rotation }, rectB_size, Origin::Center)
-		};
+		auto rectA_polygon{ GetVertices(
+			{ rectA_center, rectA_rotation }, rectA_size, Origin::Center, rectA_rotation_center
+		) };
+		auto rectB_polygon{ GetVertices(
+			{ rectB_center, rectB_rotation }, rectB_size, Origin::Center, rectB_rotation_center
+		) };
 		return OverlapPolygonPolygon(
 			rectA_polygon.data(), rectA_polygon.size(), rectB_polygon.data(), rectB_polygon.size()
 		);
@@ -658,7 +678,8 @@ bool OverlapRectRect(
 
 bool OverlapRectCapsule(
 	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
-	const V2_float& capsule_start, const V2_float& capsule_end, float capsule_radius
+	std::optional<V2_float> rect_rotation_center, const V2_float& capsule_start,
+	const V2_float& capsule_end, float capsule_radius
 ) {
 	if (capsule_radius <= 0.0f) {
 		return false;
@@ -669,16 +690,22 @@ bool OverlapRectCapsule(
 #ifdef PTGN_DEBUG
 	game.stats.overlap_rect_capsule++;
 #endif
-	if (OverlapPointRect(capsule_start, rect_center, rect_size, rect_rotation)) {
+	if (OverlapPointRect(
+			capsule_start, rect_center, rect_size, rect_rotation, rect_rotation_center
+		)) {
 		return true;
 	}
-	if (OverlapPointRect(capsule_end, rect_center, rect_size, rect_rotation)) {
+	if (OverlapPointRect(
+			capsule_end, rect_center, rect_size, rect_rotation, rect_rotation_center
+		)) {
 		return true;
 	}
 
 	// Rotated rect.
 	if (rect_rotation != 0.0f) {
-		auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
+		auto rect_polygon{ GetVertices(
+			{ rect_center, rect_rotation }, rect_size, Origin::Center, rect_rotation_center
+		) };
 		if (OverlapLineCapsule(
 				rect_polygon[0], rect_polygon[1], capsule_start, capsule_end, capsule_radius
 			)) {
@@ -730,12 +757,14 @@ bool OverlapRectCapsule(
 
 bool OverlapRectPolygon(
 	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
-	const V2_float* vertices, std::size_t vertex_count
+	std::optional<V2_float> rect_rotation_center, const V2_float* vertices, std::size_t vertex_count
 ) {
 	if (rect_size.IsZero()) {
 		return false;
 	}
-	auto rect_polygon{ GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center) };
+	auto rect_polygon{
+		GetVertices({ rect_center, rect_rotation }, rect_size, Origin::Center, rect_rotation_center)
+	};
 	return OverlapPolygonPolygon(rect_polygon.data(), rect_polygon.size(), vertices, vertex_count);
 }
 

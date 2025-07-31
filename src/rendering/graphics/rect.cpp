@@ -32,6 +32,7 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto tint{ entity.GetTint() };
 	auto depth{ entity.GetDepth() };
 	auto line_width{ entity.GetOrDefault<LineWidth>() };
+	auto rotation_center{ entity.GetRotationCenter() };
 
 	impl::RenderState state;
 	state.blend_mode  = entity.GetBlendMode();
@@ -39,7 +40,7 @@ void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
 	state.camera	  = entity.GetOrDefault<Camera>();
 	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
 
-	ctx.AddQuad(transform, rect.size, origin, tint, depth, line_width, state);
+	ctx.AddQuad(transform, rect.size, origin, tint, depth, line_width, state, rotation_center);
 }
 
 namespace impl {

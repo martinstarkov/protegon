@@ -145,9 +145,9 @@ RaycastResult RaycastLineRect(
 #endif
 	RaycastResult c;
 
-	bool start_in{ OverlapPointRect(line_start, rect_center, rect_size, 0.0f) };
+	bool start_in{ OverlapPointRect(line_start, rect_center, rect_size, 0.0f, std::nullopt) };
 
-	bool end_in{ OverlapPointRect(line_end, rect_center, rect_size, 0.0f) };
+	bool end_in{ OverlapPointRect(line_end, rect_center, rect_size, 0.0f, std::nullopt) };
 
 	if (start_in && end_in) {
 		return c;

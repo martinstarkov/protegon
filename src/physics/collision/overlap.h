@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "math/axis.h"
 #include "math/vector2.h"
 
@@ -95,7 +97,7 @@ namespace impl {
 
 [[nodiscard]] bool OverlapPointRect(
 	const V2_float& point, const V2_float& rect_center, const V2_float& rect_size,
-	float rect_rotation
+	float rect_rotation, std::optional<V2_float> rect_rotation_center
 );
 
 [[nodiscard]] bool OverlapPointCapsule(
@@ -124,7 +126,7 @@ bool OverlapLineTriangle(
 
 [[nodiscard]] bool OverlapLineRect(
 	const V2_float& line_start, const V2_float& line_end, const V2_float& rect_center,
-	const V2_float& rect_size
+	const V2_float& rect_size, float rect_rotation, std::optional<V2_float> rect_rotation_center
 );
 
 [[nodiscard]] bool OverlapLineCapsule(
@@ -149,7 +151,7 @@ bool OverlapLineTriangle(
 
 [[nodiscard]] bool OverlapCircleRect(
 	const V2_float& circle_center, float circle_radius, const V2_float& rect_center,
-	const V2_float& rect_size
+	const V2_float& rect_size, float rect_rotation, std::optional<V2_float> rect_rotation_center
 );
 
 [[nodiscard]] bool OverlapCirclePolygon(
@@ -169,7 +171,8 @@ bool OverlapLineTriangle(
 
 [[nodiscard]] bool OverlapTriangleRect(
 	const V2_float& triangle_a, const V2_float& triangle_b, const V2_float& triangle_c,
-	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation
+	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
+	std::optional<V2_float> rect_rotation_center
 );
 
 [[nodiscard]] bool OverlapTrianglePolygon(
@@ -179,17 +182,20 @@ bool OverlapLineTriangle(
 
 [[nodiscard]] bool OverlapRectRect(
 	const V2_float& rectA_center, const V2_float& rectA_size, float rectA_rotation,
-	const V2_float& rectB_center, const V2_float& rectB_size, float rectB_rotation
+	std::optional<V2_float> rectA_rotation_center, const V2_float& rectB_center,
+	const V2_float& rectB_size, float rectB_rotation, std::optional<V2_float> rectB_rotation_center
 );
 
 [[nodiscard]] bool OverlapRectCapsule(
 	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
-	const V2_float& capsule_start, const V2_float& capsule_end, float capsule_radius
+	std::optional<V2_float> rect_rotation_center, const V2_float& capsule_start,
+	const V2_float& capsule_end, float capsule_radius
 );
 
 [[nodiscard]] bool OverlapRectPolygon(
 	const V2_float& rect_center, const V2_float& rect_size, float rect_rotation,
-	const V2_float* polygon_vertices, std::size_t polygon_vertex_count
+	std::optional<V2_float> rect_rotation_center, const V2_float* polygon_vertices,
+	std::size_t polygon_vertex_count
 );
 
 [[nodiscard]] bool OverlapCapsuleCapsule(

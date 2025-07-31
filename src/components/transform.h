@@ -1,9 +1,18 @@
 #pragma once
 
+#include "components/generic.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
+
+struct RotationCenter : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+
+	RotationCenter() : Vector2Component{ V2_float{} } {}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(RotationCenter, value_)
+};
 
 struct Transform {
 	Transform() = default;
@@ -12,7 +21,9 @@ struct Transform {
 
 	Transform(const V2_float& position, float rotation, const V2_float& scale = { 1.0f, 1.0f });
 
-	[[nodiscard]] Transform RelativeTo(Transform parent) const;
+	[[nodiscard]] Transform RelativeTo(const Transform& parent) const;
+
+	[[nodiscard]] Transform InverseRelativeTo(const Transform& parent) const;
 
 	friend bool operator==(const Transform& a, const Transform& b) {
 		return a.position == b.position && a.rotation == b.rotation && a.scale == b.scale;

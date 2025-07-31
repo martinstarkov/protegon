@@ -1,6 +1,7 @@
 #include "scene/scene_input.h"
 
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "common/assert.h"
@@ -39,7 +40,7 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 	const {
 	pointer = game.input.GetMousePositionUnclamped();
 	auto window_size{ game.window.GetSize() };
-	if (!impl::OverlapPointRect(pointer, window_size / 2.0f, window_size, 0.0f)) {
+	if (!impl::OverlapPointRect(pointer, window_size / 2.0f, window_size, 0.0f, std::nullopt)) {
 		// Mouse outside of screen.
 		return false;
 	}
@@ -57,6 +58,7 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 		std::size_t count{ 0 };
 		if (is_rect) {
 			auto rotation{ entity.GetRotation() };
+			auto rotation_center{ entity.GetRotationCenter() };
 			const auto& interactives{ entity.Get<InteractiveRects>() };
 			count += interactives.rects.size();
 			for (const auto& interactive : interactives.rects) {
@@ -70,7 +72,7 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 				}
 				if (impl::OverlapPointRect(
 						pointer, camera.TransformToScreen(center), camera.ScaleToScreen(size),
-						rotation
+						rotation, rotation_center
 					)) {
 					if (draw_interactives_) {
 						overlapping = true;
@@ -141,6 +143,7 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 				origin = entity.GetOrigin();
 				auto center{ pos + GetOriginOffset(origin, size_scaled) };
 				auto rotation{ entity.GetRotation() };
+				auto rotation_center{ entity.GetRotationCenter() };
 				if (draw_interactives_) {
 					DrawDebugRect(
 						center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation, camera
@@ -148,7 +151,7 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 				}
 				if (impl::OverlapPointRect(
 						pointer, camera.TransformToScreen(center),
-						camera.ScaleToScreen(size_scaled), rotation
+						camera.ScaleToScreen(size_scaled), rotation, rotation_center
 					)) {
 					return true;
 				}
@@ -164,13 +167,15 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 		auto size_scaled{ texture_key.GetSize(entity) * scale };
 		auto center{ pos + GetOriginOffset(origin, size_scaled) };
 		auto rotation{ entity.GetRotation() };
+		auto rotation_center{ entity.GetRotationCenter() };
 		if (draw_interactives_) {
 			DrawDebugRect(
 				center, size_scaled, color::Magenta, Origin::Center, 1.0f, rotation, camera
 			);
 		}
 		return impl::OverlapPointRect(
-			pointer, camera.TransformToScreen(center), camera.ScaleToScreen(size_scaled), rotation
+			pointer, camera.TransformToScreen(center), camera.ScaleToScreen(size_scaled), rotation,
+			rotation_center
 		);
 	}
 

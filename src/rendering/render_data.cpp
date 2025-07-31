@@ -234,7 +234,10 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size) {
 void RenderData::AddPoint(
 	const V2_float& position, const Color& tint, const Depth& depth, const RenderState& state
 ) {
-	AddQuad(Transform{ position }, V2_float{ 1.0f }, Origin::Center, tint, depth, -1.0f, state);
+	AddQuad(
+		Transform{ position }, V2_float{ 1.0f }, Origin::Center, tint, depth, -1.0f, state,
+		std::nullopt
+	);
 }
 
 void RenderData::AddLines(
@@ -299,9 +302,10 @@ void RenderData::AddTriangle(
 
 void RenderData::AddQuad(
 	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-	const Depth& depth, float line_width, const RenderState& state
+	const Depth& depth, float line_width, const RenderState& state,
+	std::optional<V2_float> rotation_center
 ) {
-	auto quad_points{ impl::GetVertices(transform, size, origin) };
+	auto quad_points{ impl::GetVertices(transform, size, origin, rotation_center) };
 	auto quad_vertices{
 		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
 	};
@@ -336,7 +340,7 @@ void RenderData::AddCircle(
 
 void RenderData::AddEllipse(
 	const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
+	float line_width, const RenderState& state, std::optional<V2_float> rotation_center
 ) {
 	if (line_width == -1.0f) {
 		// Internally line width for a filled ellipse is 1.0f.
@@ -351,8 +355,8 @@ void RenderData::AddEllipse(
 	}
 
 	auto points{ impl::GetQuadVertices(
-		impl::GetVertices(transform, radii * 2.0f, Origin::Center), tint, depth, line_width,
-		impl::default_texture_coordinates
+		impl::GetVertices(transform, radii * 2.0f, Origin::Center, rotation_center), tint, depth,
+		line_width, impl::default_texture_coordinates
 	) };
 
 	SetState(state);
@@ -362,7 +366,7 @@ void RenderData::AddEllipse(
 void RenderData::AddTexturedQuad(
 	const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
 	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-	const RenderState& state, const PreFX& pre_fx
+	const RenderState& state, const PreFX& pre_fx, std::optional<V2_float> rotation_center
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
 	PTGN_ASSERT(!size.IsZero(), "Cannot draw textured quad with zero size");
@@ -370,7 +374,8 @@ void RenderData::AddTexturedQuad(
 	SetState(state);
 
 	auto points{ impl::GetQuadVertices(
-		impl::GetVertices(transform, size, origin), tint, depth, 0.0f, texture_coordinates
+		impl::GetVertices(transform, size, origin, rotation_center), tint, depth, 0.0f,
+		texture_coordinates
 	) };
 
 	auto texture_id{ texture.GetId() };

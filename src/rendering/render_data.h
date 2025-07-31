@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -208,7 +209,8 @@ public:
 
 	void AddQuad(
 		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-		const Depth& depth, float line_width, const RenderState& state
+		const Depth& depth, float line_width, const RenderState& state,
+		std::optional<V2_float> rotation_center = std::nullopt
 	);
 
 	void AddPolygon(
@@ -218,7 +220,8 @@ public:
 
 	void AddEllipse(
 		const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
+		float line_width, const RenderState& state,
+		std::optional<V2_float> rotation_center = std::nullopt
 	);
 
 	void AddCircle(
@@ -229,7 +232,8 @@ public:
 	void AddTexturedQuad(
 		const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
 		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-		const RenderState& state, const PreFX& pre_fx = {}
+		const RenderState& state, const PreFX& pre_fx = {},
+		std::optional<V2_float> rotation_center = std::nullopt
 	);
 
 	void AddShader(

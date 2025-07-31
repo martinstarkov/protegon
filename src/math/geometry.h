@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <vector>
 
 #include "components/transform.h"
@@ -28,7 +29,8 @@ namespace ptgn::impl {
 
 // @return Quad vertices for a transform with a given size and origin.
 [[nodiscard]] std::array<V2_float, 4> GetVertices(
-	const Transform& transform, V2_float size, Origin origin
+	const Transform& transform, V2_float size, Origin origin,
+	std::optional<V2_float> rotation_center = std::nullopt
 );
 
 [[nodiscard]] float TriangulateArea(const V2_float* contour, std::size_t count);

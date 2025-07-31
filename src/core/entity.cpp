@@ -1,6 +1,7 @@
 #include "core/entity.h"
 
 #include <memory>
+#include <optional>
 #include <unordered_set>
 #include <utility>
 
@@ -330,6 +331,14 @@ Transform Entity::GetDrawTransform() const {
 Entity& Entity::SetDrawOffset(const V2_float& offset) {
 	TryAdd<impl::Offsets>().custom.position = offset;
 	return *this;
+}
+
+std::optional<V2_float> Entity::GetRotationCenter() const {
+	std::optional<V2_float> rotation_center;
+	if (Has<RotationCenter>()) {
+		rotation_center = Get<RotationCenter>();
+	}
+	return rotation_center;
 }
 
 Entity& Entity::AddPostFX(Entity post_fx) {

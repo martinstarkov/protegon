@@ -2,8 +2,10 @@
 
 #include <array>
 #include <functional>
+#include <optional>
 
 #include "components/sprite.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "debug/log.h"
@@ -29,6 +31,7 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 	auto origin{ entity.GetOrigin() };
 	auto tint{ entity.GetTint() };
 	auto depth{ entity.GetDepth() };
+	auto rotation_center{ entity.GetRotationCenter() };
 
 	impl::RenderState state;
 	state.blend_mode  = entity.GetBlendMode();
@@ -38,7 +41,8 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 	auto pre_fx{ entity.GetOrDefault<impl::PreFX>() };
 
 	ctx.AddTexturedQuad(
-		texture, transform, display_size, origin, tint, depth, texture_coordinates, state, pre_fx
+		texture, transform, display_size, origin, tint, depth, texture_coordinates, state, pre_fx,
+		rotation_center
 	);
 }
 

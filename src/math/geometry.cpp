@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <optional>
 #include <vector>
 
 #include "common/assert.h"
@@ -65,7 +66,10 @@ std::array<V2_float, 4> GetLineQuadVertices(
 	return GetVertices(Transform{ center, rotation }, size, Origin::Center);
 }
 
-std::array<V2_float, 4> GetVertices(const Transform& transform, V2_float size, Origin origin) {
+std::array<V2_float, 4> GetVertices(
+	const Transform& transform, V2_float size, Origin origin,
+	std::optional<V2_float> rotation_center
+) {
 	// Leave out Abs() around scale to enable texture flipping via negative scales.
 	size *= transform.scale;
 
@@ -89,8 +93,14 @@ std::array<V2_float, 4> GetVertices(const Transform& transform, V2_float size, O
 	float cos{ std::cos(transform.rotation) };
 	float sin{ std::sin(transform.rotation) };
 
+	auto pivot = rotation_center.value_or(center);
+
 	auto rotated = [&](const V2_float& point) {
-		return center + V2_float{ cos * point.x - sin * point.y, sin * point.x + cos * point.y };
+		V2_float world	  = center + point;
+		V2_float relative = world - pivot;
+
+		return pivot +
+			   V2_float{ cos * relative.x - sin * relative.y, sin * relative.x + cos * relative.y };
 	};
 
 	return { rotated(top_left), rotated(top_right), rotated(bottom_right), rotated(bottom_left) };
