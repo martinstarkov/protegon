@@ -11,12 +11,11 @@
 #include "components/generic.h"
 #include "core/entity.h"
 #include "debug/log.h"
-#include "events/mouse.h"
+#include "input/mouse.h"
 #include "math/vector2.h"
-#include "rendering/api/color.h"
-#include "rendering/api/origin.h"
-#include "rendering/resources/text.h"
-#include "rendering/resources/texture.h"
+#include "renderer/api/color.h"
+#include "renderer/text.h"
+#include "renderer/texture.h"
 #include "serialization/enum.h"
 #include "serialization/serializable.h"
 
@@ -227,11 +226,6 @@ public:
 	// Will set the script for when the button is activated.
 	Button& OnActivate(const std::function<void()>& on_activate_callback);
 
-	Button& AddInteractableRect(
-		const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}
-	);
-	Button& AddInteractableCircle(float radius, const V2_float& offset = {});
-
 	// @param size {} results in texture sized button.
 	Button& SetSize(const V2_float& size = {});
 
@@ -283,15 +277,14 @@ public:
 
 	Button& SetTextJustify(const TextJustify& justify, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] V2_float GetTextFixedSize() const;
-
+	// TODO: Fix Fixed size functionality.
+	//[[nodiscard]] V2_float GetTextFixedSize() const;
 	// (default: unscaled text size). If either axis of the text size
 	// is zero, it is stretched to fit the entire size of the button rectangle (along that axis).
-	Button& SetTextFixedSize(const V2_float& size);
-
+	// Button& SetTextFixedSize(const V2_float& size);
 	// Make it so the button text no longer has a fixed size, this will cause the text to stretch
 	// based its the font size and wrap settings.
-	Button& ClearTextFixedSize();
+	// Button& ClearTextFixedSize();
 
 	[[nodiscard]] std::int32_t GetFontSize(ButtonState state = ButtonState::Current) const;
 

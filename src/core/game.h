@@ -8,7 +8,7 @@
 
 #include "debug/stats.h"
 #include "math/vector2.h"
-#include "rendering/api/color.h"
+#include "renderer/api/color.h"
 #include "utility/file.h"
 
 namespace ptgn {

@@ -10,24 +10,25 @@ void Stats::Reset() {
 }
 
 void Stats::ResetCollisionRelated() {
-	overlap_point_line		= 0;
-	overlap_point_circle	= 0;
-	overlap_point_rect		= 0;
-	overlap_point_capsule	= 0;
-	overlap_point_triangle	= 0;
-	overlap_point_polygon	= 0;
-	overlap_line_line		= 0;
-	overlap_line_circle		= 0;
-	overlap_line_rect		= 0;
-	overlap_line_capsule	= 0;
-	overlap_circle_circle	= 0;
-	overlap_circle_rect		= 0;
-	overlap_circle_capsule	= 0;
-	overlap_triangle_rect	= 0;
-	overlap_rect_rect		= 0;
-	overlap_rect_capsule	= 0;
-	overlap_capsule_capsule = 0;
-	overlap_polygon_polygon = 0;
+	overlap_point_line		 = 0;
+	overlap_point_circle	 = 0;
+	overlap_point_rect		 = 0;
+	overlap_point_capsule	 = 0;
+	overlap_point_triangle	 = 0;
+	overlap_point_polygon	 = 0;
+	overlap_line_line		 = 0;
+	overlap_line_circle		 = 0;
+	overlap_line_rect		 = 0;
+	overlap_line_capsule	 = 0;
+	overlap_circle_circle	 = 0;
+	overlap_circle_rect		 = 0;
+	overlap_circle_capsule	 = 0;
+	overlap_triangle_rect	 = 0;
+	overlap_triangle_capsule = 0;
+	overlap_rect_rect		 = 0;
+	overlap_rect_capsule	 = 0;
+	overlap_capsule_capsule	 = 0;
+	overlap_polygon_polygon	 = 0;
 
 	intersect_circle_circle	  = 0;
 	intersect_circle_rect	  = 0;
@@ -72,15 +73,17 @@ void Stats::PrintCollisionOverlap() const {
 	PTGN_LOG("overlap_circle_rect: ", overlap_circle_rect);
 	PTGN_LOG("overlap_circle_capsule: ", overlap_circle_capsule);
 	PTGN_LOG("overlap_triangle_rect: ", overlap_triangle_rect);
+	PTGN_LOG("overlap_triangle_capsule: ", overlap_triangle_capsule);
 	PTGN_LOG("overlap_rect_rect: ", overlap_rect_rect);
 	PTGN_LOG("overlap_rect_capsule: ", overlap_rect_capsule);
-	PTGN_LOG("overlap_rect_capsule: ", overlap_capsule_capsule);
+	PTGN_LOG("overlap_capsule_capsule: ", overlap_capsule_capsule);
 	PTGN_LOG("overlap_polygon_polygon: ", overlap_polygon_polygon);
 }
 
 void Stats::PrintCollisionIntersect() const {
 	PTGN_LOG("intersect_circle_circle: ", intersect_circle_circle);
 	PTGN_LOG("intersect_circle_rect: ", intersect_circle_rect);
+	PTGN_LOG("intersect_circle_polygon: ", intersect_circle_polygon);
 	PTGN_LOG("intersect_rect_rect: ", intersect_rect_rect);
 	PTGN_LOG("intersect_polygon_polygon: ", intersect_polygon_polygon);
 }

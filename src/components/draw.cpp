@@ -2,19 +2,24 @@
 
 #include <array>
 #include <functional>
-#include <optional>
 
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "debug/log.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/rect.h"
 #include "math/vector2.h"
-#include "rendering/api/flip.h"
-#include "rendering/render_data.h"
-#include "rendering/resources/shader.h"
-#include "rendering/resources/texture.h"
+#include "renderer/api/color.h"
+#include "renderer/api/flip.h"
+#include "renderer/api/origin.h"
+#include "renderer/render_data.h"
+#include "renderer/shader.h"
+#include "renderer/texture.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
@@ -31,7 +36,6 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 	auto origin{ entity.GetOrigin() };
 	auto tint{ entity.GetTint() };
 	auto depth{ entity.GetDepth() };
-	auto rotation_center{ entity.GetRotationCenter() };
 
 	impl::RenderState state;
 	state.blend_mode  = entity.GetBlendMode();
@@ -41,8 +45,7 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 	auto pre_fx{ entity.GetOrDefault<impl::PreFX>() };
 
 	ctx.AddTexturedQuad(
-		texture, transform, display_size, origin, tint, depth, texture_coordinates, state, pre_fx,
-		rotation_center
+		texture, transform, display_size, origin, tint, depth, texture_coordinates, state, pre_fx
 	);
 }
 
@@ -121,5 +124,54 @@ std::array<V2_float, 4> GetTextureCoordinates(const Entity& entity, bool flip_ve
 }
 
 } // namespace impl
+
+Entity CreateRect(
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width, Origin origin
+) {
+	auto rect{ manager.CreateEntity() };
+
+	rect.SetDraw<Rect>();
+	rect.Show();
+
+	rect.SetPosition(position);
+	rect.Add<Rect>(size);
+	rect.SetOrigin(origin);
+
+	rect.SetTint(color);
+	rect.Add<LineWidth>(line_width);
+
+	return rect;
+}
+
+Entity CreateRect(
+	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width, Origin origin
+) {
+	return CreateRect(static_cast<Manager&>(scene), position, size, color, line_width, origin);
+}
+
+Entity CreateCircle(
+	Manager& manager, const V2_float& position, float radius, const Color& color, float line_width
+) {
+	auto circle{ manager.CreateEntity() };
+
+	circle.SetDraw<Circle>();
+	circle.Show();
+
+	circle.SetPosition(position);
+	circle.Add<Circle>(radius);
+
+	circle.SetTint(color);
+	circle.Add<LineWidth>(line_width);
+
+	return circle;
+}
+
+Entity CreateCircle(
+	Scene& scene, const V2_float& position, float radius, const Color& color, float line_width
+) {
+	return CreateCircle(static_cast<Manager&>(scene), position, radius, color, line_width);
+}
 
 } // namespace ptgn

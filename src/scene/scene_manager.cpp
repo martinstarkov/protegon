@@ -5,7 +5,7 @@
 
 #include "core/entity.h"
 #include "core/game.h"
-#include "events/input_handler.h"
+#include "input/input_handler.h"
 #include "math/hash.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"

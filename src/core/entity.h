@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <string_view>
 #include <unordered_set>
 
@@ -16,11 +15,11 @@
 #include "core/script.h"
 #include "core/timer.h"
 #include "ecs/ecs.h"
-#include "events/key.h"
-#include "events/mouse.h"
+#include "input/key.h"
+#include "input/mouse.h"
 #include "math/vector2.h"
-#include "rendering/api/blend_mode.h"
-#include "rendering/api/origin.h"
+#include "renderer/api/blend_mode.h"
+#include "renderer/api/origin.h"
 #include "serialization/fwd.h"
 #include "serialization/json_archiver.h"
 #include "serialization/serializable.h"
@@ -31,6 +30,7 @@ namespace ptgn {
 
 class Manager;
 class Scene;
+class Camera;
 
 namespace impl {
 
@@ -153,6 +153,9 @@ public:
 
 	[[nodiscard]] Scene& GetScene();
 
+	[[nodiscard]] const Camera& GetCamera() const;
+	[[nodiscard]] Camera& GetCamera();
+
 	[[nodiscard]] const Manager& GetManager() const;
 
 	[[nodiscard]] Manager& GetManager();
@@ -258,8 +261,6 @@ public:
 	[[nodiscard]] Transform GetDrawTransform() const;
 
 	Entity& SetDrawOffset(const V2_float& offset = {});
-
-	[[nodiscard]] std::optional<V2_float> GetRotationCenter() const;
 
 	Entity& AddPostFX(Entity post_fx);
 

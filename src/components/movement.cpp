@@ -11,8 +11,8 @@
 #include "core/game.h"
 #include "core/timer.h"
 #include "debug/log.h"
-#include "events/input_handler.h"
-#include "events/key.h"
+#include "input/input_handler.h"
+#include "input/key.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
@@ -402,7 +402,7 @@ void PlatformerJump::Ground(
 		return;
 	}
 
-	PTGN_ASSERT((collision.entity.HasAny<BoxCollider, CircleCollider>()));
+	PTGN_ASSERT((collision.entity.Has<Collider>()));
 
 	bool is_ground_collision{ collision.normal == V2_float{ 0.0f, -1.0f } };
 
@@ -410,10 +410,8 @@ void PlatformerJump::Ground(
 		return;
 	}
 
-	if ((collision.entity.Has<BoxCollider>() &&
-		 collision.entity.Get<BoxCollider>().IsCategory(ground_category)) ||
-		(collision.entity.Has<CircleCollider>() &&
-		 collision.entity.Get<CircleCollider>().IsCategory(ground_category))) {
+	if (collision.entity.Has<Collider>() &&
+		collision.entity.Get<Collider>().IsCategory(ground_category)) {
 		entity.Get<PlatformerMovement>().grounded = true;
 	}
 }

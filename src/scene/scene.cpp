@@ -1,6 +1,5 @@
 #include "scene/scene.h"
 
-#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -9,7 +8,6 @@
 #include "components/common.h"
 #include "components/drawable.h"
 #include "components/lifetime.h"
-#include "components/sprite.h"
 #include "components/transform.h"
 #include "components/uuid.h"
 #include "core/entity.h"
@@ -17,25 +15,24 @@
 #include "core/manager.h"
 #include "core/timer.h"
 #include "ecs/ecs.h"
-#include "events/input_handler.h"
+#include "input/input_handler.h"
 #include "nlohmann/json.hpp"
-#include "physics/collision/collider.h"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
-#include "rendering/api/blend_mode.h"
-#include "rendering/api/color.h"
-#include "rendering/graphics/vfx/particle.h"
-#include "rendering/render_data.h"
-#include "rendering/renderer.h"
-#include "rendering/resources/render_target.h"
-#include "rendering/resources/texture.h"
+#include "renderer/api/blend_mode.h"
+#include "renderer/api/color.h"
+#include "renderer/render_data.h"
+#include "renderer/render_target.h"
+#include "renderer/renderer.h"
+#include "renderer/texture.h"
+#include "renderer/vfx/particle.h"
 #include "scene/camera.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 #include "scene_input.h"
 #include "serialization/fwd.h"
-#include "tweening/tween.h"
-#include "tweening/tween_effects.h"
+#include "tweens/tween.h"
+#include "tweens/tween_effects.h"
 
 namespace ptgn {
 
@@ -153,16 +150,13 @@ void Scene::Draw() {
 	camera.window_unzoomed.SetZoom(1.0f);
 
 	if (collider_visibility_) {
-		for (auto [e, b] : EntitiesWith<BoxCollider>()) {
-			const auto& transform{ e.GetDrawTransform() };
-			DrawDebugRect(
-				transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
-			);
-		}
-		for (auto [e, c] : EntitiesWith<CircleCollider>()) {
-			const auto& transform{ e.GetDrawTransform() };
-			DrawDebugCircle(transform.position, c.radius, collider_color_, 1.0f);
-		}
+		// TODO: Fix.
+		// for (auto [e, collider] : EntitiesWith<Collider>()) {
+		//	const auto& transform{ e.GetDrawTransform() };
+		//	/*DrawDebugRect(
+		//		transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
+		//	);*/
+		//}
 	}
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.Draw(*this);

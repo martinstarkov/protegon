@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "math/vector2.h"
-#include "rendering/api/color.h"
+#include "renderer/api/color.h"
 #include "tile/grid.h"
 
 // TODO: Add serialization.

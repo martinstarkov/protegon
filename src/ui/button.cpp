@@ -17,19 +17,19 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "debug/log.h"
-#include "events/mouse.h"
+#include "input/mouse.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/rect.h"
 #include "math/hash.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "rendering/api/color.h"
-#include "rendering/api/origin.h"
-#include "rendering/graphics/circle.h"
-#include "rendering/graphics/rect.h"
-#include "rendering/render_data.h"
-#include "rendering/resources/shader.h"
-#include "rendering/resources/text.h"
-#include "rendering/resources/texture.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/render_data.h"
+#include "renderer/shader.h"
+#include "renderer/text.h"
+#include "renderer/texture.h"
 #include "resources/resource_manager.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -301,7 +301,7 @@ V2_float Button::GetSize() const {
 	V2_float size;
 
 	if (Has<Rect>()) {
-		size = Get<Rect>().size;
+		size = Get<Rect>().GetSize();
 	} else if (Has<Circle>()) {
 		size = V2_float{ Get<Circle>().radius * 2.0f };
 	}
@@ -488,7 +488,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		Sprite text_sprite{ text };
 
 		// Offset by button size so that text is initially centered on button center.
-		text_transform.position += GetOriginOffset(origin, size * Abs(text_transform.scale));
+		text_transform.position -= GetOriginOffset(origin, size * Abs(text_transform.scale));
 
 		if (text_sprite.Has<TextColor>() && text_sprite.Get<TextColor>().a == 0) {
 			return;
@@ -538,30 +538,10 @@ Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
 	return *this;
 }
 
-Button& Button::AddInteractableRect(const V2_float& size, Origin origin, const V2_float& offset) {
-	if (Has<InteractiveRects>()) {
-		auto& interactives{ Get<InteractiveRects>() };
-		interactives.rects.push_back({ size, origin, offset });
-	} else {
-		Add<InteractiveRects>(size, origin, offset);
-	}
-	return *this;
-}
-
-Button& Button::AddInteractableCircle(float radius, const V2_float& offset) {
-	if (Has<InteractiveCircles>()) {
-		auto& interactives{ Get<InteractiveCircles>() };
-		interactives.circles.push_back({ radius, offset });
-	} else {
-		Add<InteractiveCircles>(radius, offset);
-	}
-	return *this;
-}
-
 Button& Button::SetSize(const V2_float& size) {
 	Remove<Circle>();
 	if (Has<Rect>()) {
-		Get<Rect>() = size;
+		Get<Rect>() = Rect{ size };
 	} else {
 		Add<Rect>(size);
 	}
@@ -590,7 +570,7 @@ Button& Button::SetEnabled(bool enabled) {
 Button& Button::SetRadius(float radius) {
 	Remove<Rect>();
 	if (Has<Circle>()) {
-		Get<Circle>() = radius;
+		Get<Circle>() = Circle{ radius };
 	} else {
 		Add<Circle>(radius);
 	}

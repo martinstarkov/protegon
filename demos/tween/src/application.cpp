@@ -1,11 +1,11 @@
 #include "core/game.h"
 #include "core/window.h"
-#include "events/input_handler.h"
-#include "rendering/renderer.h"
-#include "rendering/resources/texture.h"
+#include "input/input_handler.h"
+#include "renderer/renderer.h"
+#include "renderer/texture.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "tweening/tween.h"
+#include "tweens/tween.h"
 
 using namespace ptgn;
 

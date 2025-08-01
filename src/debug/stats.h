@@ -46,6 +46,7 @@ struct Stats {
 	std::int32_t raycast_circle_rect{ 0 };
 
 	std::int32_t overlap_triangle_rect{ 0 };
+	std::int32_t overlap_triangle_capsule{ 0 };
 
 	std::int32_t overlap_rect_rect{ 0 };
 	std::int32_t overlap_rect_capsule{ 0 };

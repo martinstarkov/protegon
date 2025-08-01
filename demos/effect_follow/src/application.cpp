@@ -3,12 +3,12 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "events/input_handler.h"
+#include "input/input_handler.h"
 #include "math/vector2.h"
-#include "rendering/api/color.h"
+#include "renderer/api/color.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "tweening/tween_effects.h"
+#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 

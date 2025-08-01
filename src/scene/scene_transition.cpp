@@ -1,6 +1,6 @@
 #include "scene/scene_transition.h"
 
-#include "tweening/tween.h"
+#include "tweens/tween.h"
 
 namespace ptgn {
 

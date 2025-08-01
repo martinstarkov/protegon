@@ -6,7 +6,6 @@
 #include "core/entity.h"
 #include "core/time.h"
 #include "math/vector2.h"
-#include "rendering/api/origin.h"
 
 namespace ptgn {
 
@@ -23,10 +22,8 @@ struct TopDownPlayerConfig {
 	// Hitboxes
 	V2_float body_hitbox_size{ 10, 6 };
 	V2_float body_hitbox_offset{ 0, 8 };
-	Origin body_hitbox_origin{ Origin::CenterBottom };
 	V2_float interaction_hitbox_size{ 28, 28 };
 	V2_float interaction_hitbox_offset{ 0, 0 };
-	Origin interaction_hitbox_origin{ Origin::Center };
 
 	// Animation
 	V2_uint animation_frame_count{ 4, 3 };

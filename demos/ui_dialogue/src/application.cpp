@@ -1,7 +1,7 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "events/input_handler.h"
+#include "input/input_handler.h"
 #include "math/vector2.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"

@@ -46,8 +46,7 @@ private:
 	friend void SimulateMouseMovement(Entity entity);
 
 	void EntityMouseMove(
-		const Scene& scene, Entity entity, const Interactive& interactive,
-		const V2_float& mouse_pos, V2_float& pos, Camera& camera
+		Entity entity, const Interactive& interactive, const V2_float& screen_pointer
 	) const;
 
 	void Update(Scene& scene);
@@ -59,8 +58,9 @@ private:
 	void OnMouseEvent(MouseEvent type, const Event& event);
 	void OnKeyEvent(KeyEvent type, const Event& event);
 
-	[[nodiscard]] bool PointerIsInside(V2_float pointer, const Camera& camera, const Entity& entity)
-		const;
+	[[nodiscard]] bool PointerIsInside(
+		const V2_float& screen_pointer, const V2_float& world_pointer, const Entity& entity
+	) const;
 
 	void Init(std::size_t scene_key);
 	void Shutdown();

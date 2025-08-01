@@ -1,8 +1,8 @@
 #pragma once
 
 #include "events/event.h"
-#include "events/key.h"
-#include "events/mouse.h"
+#include "input/key.h"
+#include "input/mouse.h"
 #include "math/vector2.h"
 #include "serialization/enum.h"
 

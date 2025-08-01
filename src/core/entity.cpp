@@ -1,7 +1,6 @@
 #include "core/entity.h"
 
 #include <memory>
-#include <optional>
 #include <unordered_set>
 #include <utility>
 
@@ -19,7 +18,8 @@
 #include "events/event_handler.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
-#include "rendering/api/origin.h"
+#include "renderer/api/origin.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
@@ -68,6 +68,45 @@ const Scene& Entity::GetScene() const {
 
 Scene& Entity::GetScene() {
 	return const_cast<Scene&>(std::as_const(*this).GetScene());
+}
+
+RenderTarget GetParentRenderTarget(const Entity& entity) {
+	if (entity.Has<RenderTarget>()) {
+		return entity.Get<RenderTarget>();
+	}
+	if (entity.HasParent()) {
+		return GetParentRenderTarget(entity.GetParent());
+	}
+	return entity;
+}
+
+const Camera& Entity::GetCamera() const {
+	Camera* camera{ nullptr };
+	if (Has<Camera>()) {
+		camera = &Get<Camera>();
+	}
+	if (camera && *camera) {
+		return *camera;
+	}
+	if (Has<RenderTarget>()) {
+		if (auto& rt{ Get<RenderTarget>() }; rt.Has<Camera>()) {
+			camera = &rt.Get<Camera>();
+		}
+	}
+	if (camera && *camera) {
+		return *camera;
+	}
+	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this && rt && rt.Has<Camera>()) {
+		camera = &rt.Get<Camera>();
+	}
+	if (camera && *camera) {
+		return *camera;
+	}
+	return GetScene().camera.primary;
+}
+
+Camera& Entity::GetCamera() {
+	return const_cast<Camera&>(std::as_const(*this).GetCamera());
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
@@ -335,14 +374,6 @@ Transform Entity::GetDrawTransform() const {
 Entity& Entity::SetDrawOffset(const V2_float& offset) {
 	TryAdd<impl::Offsets>().custom.position = offset;
 	return *this;
-}
-
-std::optional<V2_float> Entity::GetRotationCenter() const {
-	std::optional<V2_float> rotation_center;
-	if (Has<RotationCenter>()) {
-		rotation_center = Get<RotationCenter>();
-	}
-	return rotation_center;
 }
 
 Entity& Entity::AddPostFX(Entity post_fx) {

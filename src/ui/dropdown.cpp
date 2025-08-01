@@ -7,7 +7,7 @@
 #include "components/drawable.h"
 #include "core/entity.h"
 #include "math/vector2.h"
-#include "rendering/api/origin.h"
+#include "renderer/api/origin.h"
 #include "scene/scene.h"
 #include "ui/button.h"
 
@@ -87,14 +87,14 @@ void Dropdown::RecalculateButtonPositions() {
 		return parent_size;
 	};
 
-	V2_float parent_center{ GetOriginOffset(GetOrigin(), parent_size) };
-	V2_float parent_edge{ parent_center - GetOriginOffset(info.origin_, parent_size) };
+	V2_float parent_center{ -GetOriginOffset(GetOrigin(), parent_size) };
+	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, parent_size) };
 
 	PTGN_ASSERT(info.buttons_.size() >= 1);
 	const auto& first_button{ info.buttons_.front() };
 	auto size{ std::invoke(get_size, first_button) };
 
-	V2_float offset{ parent_edge - GetOriginOffset(info.origin_, size) };
+	V2_float offset{ parent_edge + GetOriginOffset(info.origin_, size) };
 
 	for (std::size_t i{ 0 }; i < info.buttons_.size(); ++i) {
 		auto& button{ info.buttons_[i] };
@@ -102,13 +102,13 @@ void Dropdown::RecalculateButtonPositions() {
 		// First button offset goes in the direction of the dropdown origin, the rest go in the
 		// direction of dropdown.
 		if (i != 0) {
-			offset -= GetOriginOffset(info.direction_, size);
+			offset += GetOriginOffset(info.direction_, size);
 		}
 		button.SetPosition(offset);
 		button.SetSize(size);
 		button.SetOrigin(Origin::Center);
 		// Offset is added separately while moving through dropdown buttons.
-		offset -= GetOriginOffset(info.direction_, size);
+		offset += GetOriginOffset(info.direction_, size);
 	}
 }
 

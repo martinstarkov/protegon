@@ -218,6 +218,13 @@ struct Vector2 {
 		return { x * c - y * s, x * s + y * c };
 	}
 
+	// Provide cached std::cos(angle_radians) and std::sin(angle_radians) values.
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	[[nodiscard]] Vector2<S> Rotated(S cos_angle_radians, S sin_angle_radians) const {
+		return { x * cos_angle_radians - y * sin_angle_radians,
+				 x * sin_angle_radians + y * cos_angle_radians };
+	}
+
 	/*
 	 * @return Angle in radians between vector x and y components in radians.
 	 * Relative to the horizontal x-axis (1, 0).

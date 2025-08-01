@@ -3,7 +3,7 @@
 #include <functional>
 
 #include "core/time.h"
-#include "rendering/api/color.h"
+#include "renderer/api/color.h"
 #include "scene/scene.h"
 #include "serialization/enum.h"
 

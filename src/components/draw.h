@@ -5,9 +5,14 @@
 #include "components/generic.h"
 #include "core/entity.h"
 #include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
+
+class Manager;
+class Scene;
 
 namespace impl {
 
@@ -55,5 +60,48 @@ struct TextureCrop {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextureCrop, position, size)
 };
+
+Entity CreateRect(
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width = -1.0f, Origin origin = Origin::Center
+);
+
+/**
+ * @brief Creates a rectangle entity in the scene.
+ *
+ * @param scene       Reference to the scene where the rectangle will be created.
+ * @param position    The position of the rectangle relative to its parent camera.
+ * @param size        The width and height of the rectangle.
+ * @param color       The tint color of the rectangle.
+ * @param line_width  Optional outline width. If -1.0f, the rectangle is filled. If positive, an
+ * outlined rectangle is created.
+ * @param origin      The origin of the rectangle position (e.g., center, top-left).
+ * @return Entity     A handle to the newly created rectangle entity.
+ */
+Entity CreateRect(
+	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width = -1.0f, Origin origin = Origin::Center
+);
+
+Entity CreateCircle(
+	Manager& manager, const V2_float& position, float radius, const Color& color,
+	float line_width = -1.0f
+);
+
+/**
+ * @brief Creates a circle entity in the scene.
+ *
+ * @param scene       Reference to the scene where the circle will be created.
+ * @param position    The position of the circle relative to its parent camera.
+ * @param radius        The radius of the circle.
+ * @param color       The tint color of the circle.
+ * @param line_width  Optional outline width. If -1.0f, the circle is filled. If positive, an
+ * outlined circle is created.
+ * @return Entity     A handle to the newly created circle entity.
+ */
+Entity CreateCircle(
+	Scene& scene, const V2_float& position, float radius, const Color& color,
+	float line_width = -1.0f
+);
 
 } // namespace ptgn

@@ -2,11 +2,11 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/time.h"
-#include "events/input_handler.h"
+#include "input/input_handler.h"
 #include "math/easing.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "tweening/tween_effects.h"
+#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 

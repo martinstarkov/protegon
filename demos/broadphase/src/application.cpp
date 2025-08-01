@@ -4,20 +4,21 @@
 #include <unordered_map>
 #include <vector>
 
+#include "components/draw.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "events/input_handler.h"
+#include "input/input_handler.h"
 #include "math/geometry.h"
+#include "math/geometry/rect.h"
+#include "math/raycast.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "physics/collision/raycast.h"
 #include "physics/physics.h"
-#include "rendering/graphics/rect.h"
-#include "rendering/render_data.h"
-#include "rendering/renderer.h"
+#include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -569,7 +570,7 @@ AABB GetBoundingVolume(Entity entity) {
 	auto position{ entity.GetPosition() };
 	// TODO: Use collider size.
 	auto half{ entity.Get<Rect>().size * 0.5f };
-	auto center{ position + impl::GetOriginOffsetHalf(entity.GetOrigin(), half) };
+	auto center{ position - impl::GetOriginOffsetHalf(entity.GetOrigin(), half) };
 	return { center - half, center + half };
 }
 

@@ -7,7 +7,7 @@
 #include "events/event.h"
 #include "events/event_handler.h"
 #include "events/events.h"
-#include "events/input_handler.h"
+#include "input/input_handler.h"
 #include "math/vector2.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"

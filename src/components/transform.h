@@ -6,14 +6,6 @@
 
 namespace ptgn {
 
-struct RotationCenter : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
-
-	RotationCenter() : Vector2Component{ V2_float{} } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(RotationCenter, value_)
-};
-
 struct Transform {
 	Transform() = default;
 
@@ -24,6 +16,8 @@ struct Transform {
 	[[nodiscard]] Transform RelativeTo(const Transform& parent) const;
 
 	[[nodiscard]] Transform InverseRelativeTo(const Transform& parent) const;
+
+	[[nodiscard]] float GetAverageScale() const;
 
 	friend bool operator==(const Transform& a, const Transform& b) {
 		return a.position == b.position && a.rotation == b.rotation && a.scale == b.scale;

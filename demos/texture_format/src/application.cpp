@@ -4,7 +4,7 @@
 
 #include "components/sprite.h"
 #include "core/game.h"
-#include "rendering/api/origin.h"
+#include "renderer/api/origin.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "utility/file.h"

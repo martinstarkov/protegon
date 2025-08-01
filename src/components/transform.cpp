@@ -41,4 +41,8 @@ Transform Transform::InverseRelativeTo(const Transform& parent) const {
 	return local;
 }
 
+float Transform::GetAverageScale() const {
+	return (scale.x + scale.y) * 0.5f;
+}
+
 } // namespace ptgn

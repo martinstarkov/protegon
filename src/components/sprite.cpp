@@ -7,9 +7,9 @@
 #include "core/entity.h"
 #include "debug/log.h"
 #include "math/vector2.h"
-#include "rendering/buffers/frame_buffer.h"
-#include "rendering/render_data.h"
-#include "rendering/resources/texture.h"
+#include "renderer/buffers/frame_buffer.h"
+#include "renderer/render_data.h"
+#include "renderer/texture.h"
 #include "scene/scene.h"
 
 namespace ptgn {

@@ -9,10 +9,11 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
-#include "rendering/api/origin.h"
+#include "renderer/api/origin.h"
 #include "scene/scene.h"
 
 namespace ptgn {
@@ -37,15 +38,14 @@ Entity CreateTopDownPlayer(
 	player.SetDepth(config.depth);
 
 	auto body_hitbox{ scene.CreateEntity() };
-	body_hitbox.Add<BoxCollider>(config.body_hitbox_size, config.body_hitbox_origin);
+	body_hitbox.Add<Collider>(Rect{ config.body_hitbox_size });
 	body_hitbox.SetPosition(config.body_hitbox_offset);
 	body_hitbox.Enable();
 	body_hitbox.Add<RigidBody>();
 
 	auto interaction_hitbox{ scene.CreateEntity() };
-	auto& interaction_collider = interaction_hitbox.Add<BoxCollider>(
-		config.interaction_hitbox_size, config.interaction_hitbox_origin
-	);
+	auto& interaction_collider =
+		interaction_hitbox.Add<Collider>(Rect{ config.interaction_hitbox_size });
 	interaction_collider.overlap_only = true;
 	interaction_hitbox.SetPosition({});
 	interaction_hitbox.Enable();

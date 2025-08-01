@@ -19,29 +19,33 @@
 #include "core/manager.h"
 #include "core/timer.h"
 #include "debug/log.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/triangle.h"
 #include "math/hash.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
-#include "rendering/api/blend_mode.h"
-#include "rendering/api/color.h"
-#include "rendering/api/flip.h"
-#include "rendering/api/origin.h"
-#include "rendering/graphics/circle.h"
-#include "rendering/graphics/rect.h"
-#include "rendering/graphics/vfx/light.h"
-#include "rendering/graphics/vfx/particle.h"
-#include "rendering/resources/font.h"
-#include "rendering/resources/render_target.h"
-#include "rendering/resources/text.h"
-#include "rendering/resources/texture.h"
+#include "renderer/api/blend_mode.h"
+#include "renderer/api/color.h"
+#include "renderer/api/flip.h"
+#include "renderer/api/origin.h"
+#include "renderer/font.h"
+#include "renderer/render_target.h"
+#include "renderer/text.h"
+#include "renderer/texture.h"
+#include "renderer/vfx/light.h"
+#include "renderer/vfx/particle.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "scene/scene_transition.h"
-#include "tweening/follow_config.h"
-#include "tweening/shake_config.h"
-#include "tweening/tween.h"
-#include "tweening/tween_effects.h"
+#include "tweens/follow_config.h"
+#include "tweens/shake_config.h"
+#include "tweens/tween.h"
+#include "tweens/tween_effects.h"
 #include "ui/button.h"
 
 namespace ptgn::impl {
@@ -96,8 +100,6 @@ PTGN_REGISTER_COMPONENT(AnimationInfo)
 PTGN_REGISTER_COMPONENT(IDrawable)
 PTGN_REGISTER_COMPONENT(Interactive)
 PTGN_REGISTER_COMPONENT(Draggable)
-PTGN_REGISTER_COMPONENT(InteractiveCircles)
-PTGN_REGISTER_COMPONENT(InteractiveRects)
 PTGN_REGISTER_COMPONENT(Lifetime)
 PTGN_REGISTER_COMPONENT(TopDownMovement)
 PTGN_REGISTER_COMPONENT(PlatformerMovement)
@@ -110,8 +112,7 @@ PTGN_REGISTER_COMPONENT(SceneKey)
 PTGN_REGISTER_COMPONENT(Parent)
 PTGN_REGISTER_COMPONENT(Children)
 PTGN_REGISTER_COMPONENT(Timer)
-PTGN_REGISTER_COMPONENT(BoxCollider)
-PTGN_REGISTER_COMPONENT(CircleCollider)
+PTGN_REGISTER_COMPONENT(Collider)
 PTGN_REGISTER_COMPONENT(RigidBody)
 PTGN_REGISTER_COMPONENT(BlendMode)
 PTGN_REGISTER_COMPONENT(Color)
@@ -170,6 +171,10 @@ PTGN_REGISTER_COMPONENT(ButtonText)
 PTGN_REGISTER_COMPONENT(ButtonTextToggled)
 PTGN_REGISTER_COMPONENT(Rect)
 PTGN_REGISTER_COMPONENT(Circle)
+PTGN_REGISTER_COMPONENT(Line)
+PTGN_REGISTER_COMPONENT(Polygon)
+PTGN_REGISTER_COMPONENT(Capsule)
+PTGN_REGISTER_COMPONENT(Triangle)
 // PTGN_REGISTER_COMPONENT(Camera)
 // PTGN_REGISTER_COMPONENT(Button)
 // PTGN_REGISTER_COMPONENT(Entity)

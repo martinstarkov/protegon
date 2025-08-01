@@ -1,13 +1,14 @@
 
+#include "components/draw.h"
 #include "components/input.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/window.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/rect.h"
 #include "math/vector2.h"
-#include "rendering/graphics/circle.h"
-#include "rendering/graphics/rect.h"
-#include "rendering/resources/texture.h"
+#include "renderer/texture.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -373,8 +374,9 @@ struct InteractiveScene : public Scene {
 		c0.SetInteractive();
 		c0.AddScript<ScriptC0>();
 
-		auto c1 = CreateCircle(*this, center + V2_float{ 200, 200 }, 45.0f, color::LightGreen);
-		c1.Add<InteractiveCircles>(90.0f);
+		auto c1 = CreateCircle(*this, center + V2_float{ 200, 200 }, 90.0f, color::LightGreen);
+		// TODO: Add ability to have differing size interactable.
+		// c1.Add<Circle>(90.0f);
 		c1.SetInteractive();
 		c1.AddScript<ScriptC1>();
 
@@ -385,8 +387,9 @@ struct InteractiveScene : public Scene {
 
 		V2_float r1size{ 100, 50 };
 		auto r1 = CreateRect(*this, center + V2_float{ -200, 200 }, r1size, color::LightBlue);
+		// TODO: Add ability to have differing size interactable.
+		// r1.Add<InteractiveRects>(r1size * 2.0f);
 		r1.SetInteractive();
-		r1.Add<InteractiveRects>(r1size * 2.0f);
 		r1.AddScript<ScriptR1>();
 
 		game.texture.Load("box", "resources/box.png");
@@ -407,7 +410,8 @@ struct InteractiveScene : public Scene {
 
 		auto c3 = CreateSprite(*this, "drag_circle");
 		c3.SetPosition(center + V2_float{ 0, 0 });
-		c3.Add<InteractiveCircles>(game.texture.GetSize("drag_circle").x * 0.5f);
+		// TODO: Add ability to have differing size interactable.
+		// c3.Add<InteractiveCircles>(game.texture.GetSize("drag_circle").x * 0.5f);
 		c3.SetInteractive();
 		c3.Add<Draggable>();
 		c3.AddScript<ScriptC3>();

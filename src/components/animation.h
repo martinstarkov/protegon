@@ -7,7 +7,7 @@
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"
-#include "rendering/resources/texture.h"
+#include "renderer/texture.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {

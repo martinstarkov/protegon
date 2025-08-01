@@ -1,19 +1,20 @@
 #include <functional>
 #include <string_view>
 
+#include "components/draw.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "math/geometry/rect.h"
 #include "math/vector2.h"
-#include "rendering/api/color.h"
-#include "rendering/api/origin.h"
-#include "rendering/graphics/rect.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "tile/grid.h"
-#include "tweening/tween_effects.h"
+#include "tweens/tween_effects.h"
 #include "ui/button.h"
 
 using namespace ptgn;

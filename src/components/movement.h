@@ -1,13 +1,10 @@
 #pragma once
 
-#include <functional>
-
 #include "common/move_direction.h"
 #include "components/transform.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "debug/log.h"
-#include "events/key.h"
+#include "input/key.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"

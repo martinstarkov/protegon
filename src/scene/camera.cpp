@@ -23,16 +23,16 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
-#include "rendering/api/flip.h"
-#include "rendering/api/origin.h"
-#include "rendering/render_data.h"
-#include "rendering/renderer.h"
+#include "renderer/api/flip.h"
+#include "renderer/api/origin.h"
+#include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
-#include "tweening/follow_config.h"
-#include "tweening/shake_config.h"
-#include "tweening/tween_effects.h"
+#include "tweens/follow_config.h"
+#include "tweens/shake_config.h"
+#include "tweens/tween_effects.h"
 
 namespace ptgn {
 
@@ -462,7 +462,7 @@ V2_float Camera::GetPosition(Origin origin) const {
 	PTGN_ASSERT(Has<impl::CameraInfo>());
 	auto position{ Entity::GetPosition() };
 	auto offset{ GetOriginOffset(origin, GetSize(true)) };
-	return position + offset;
+	return position - offset;
 }
 
 void Camera::SetToWindow(bool continuously) {
@@ -592,9 +592,11 @@ void Camera::CenterOnWindow(bool continuously) {
 
 std::array<V2_float, 4> Camera::GetVertices(const V2_float& scale) const {
 	PTGN_ASSERT(!scale.IsZero(), "Camera scale cannot be zero");
-	return impl::GetVertices(
-		{ GetPosition(Origin::Center), GetRotation(), scale }, GetSize(true), Origin::Center
-	);
+	auto size{ GetSize(true) };
+	Rect rect{ size };
+	Transform transform{ GetPosition(Origin::Center), GetRotation(), scale };
+	auto world_vertices{ rect.GetWorldVertices(transform) };
+	return world_vertices;
 }
 
 V2_float Camera::GetSize(bool account_for_zoom) const {

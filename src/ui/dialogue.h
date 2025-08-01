@@ -6,10 +6,10 @@
 
 #include "core/entity.h"
 #include "core/time.h"
-#include "events/key.h"
+#include "input/key.h"
 #include "math/vector2.h"
-#include "rendering/resources/font.h"
-#include "rendering/resources/text.h"
+#include "renderer/font.h"
+#include "renderer/text.h"
 #include "serialization/enum.h"
 #include "serialization/serializable.h"
 

@@ -18,7 +18,7 @@
 #include "common/assert.h"
 #include "core/time.h"
 #include "debug/log.h"
-#include "rendering/gl/gl_renderer.h"
+#include "renderer/gl/gl_renderer.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
 	os << static_cast<int>(v.major) << "." << static_cast<int>(v.minor) << "."

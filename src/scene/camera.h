@@ -12,13 +12,13 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
-#include "rendering/api/flip.h"
-#include "rendering/api/origin.h"
+#include "renderer/api/flip.h"
+#include "renderer/api/origin.h"
 #include "scene/scene_key.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
-#include "tweening/follow_config.h"
-#include "tweening/shake_config.h"
+#include "tweens/follow_config.h"
+#include "tweens/shake_config.h"
 
 namespace ptgn {
 

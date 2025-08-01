@@ -1,0 +1,38 @@
+#pragma once
+
+#include "components/drawable.h"
+#include "math/vector2.h"
+#include "serialization/serializable.h"
+
+namespace ptgn {
+
+class Entity;
+struct Transform;
+
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
+
+struct Circle : public Drawable<Circle> {
+	Circle() = default;
+
+	explicit Circle(float radius);
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
+
+	// @return Center relative to the world.
+	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
+
+	[[nodiscard]] float GetRadius() const;
+
+	// @return Radius scaled relative to the transform.
+	[[nodiscard]] float GetRadius(const Transform& transform) const;
+
+	float radius{ 0.0f };
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius)
+};
+
+} // namespace ptgn

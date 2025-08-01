@@ -7,14 +7,14 @@
 #include "core/entity.h"
 #include "core/manager.h"
 #include "physics/physics.h"
-#include "rendering/api/color.h"
-#include "rendering/resources/render_target.h"
+#include "renderer/api/color.h"
+#include "renderer/render_target.h"
 #include "scene/camera.h"
 #include "scene/scene_input.h"
 #include "scene/scene_key.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
-#include "tweening/tween_effects.h"
+#include "tweens/tween_effects.h"
 
 namespace ptgn {
 

@@ -2,8 +2,8 @@
 
 #include "components/sprite.h"
 #include "core/game.h"
-#include "events/input_handler.h"
-#include "rendering/renderer.h"
+#include "input/input_handler.h"
+#include "renderer/renderer.h"
 #include "utility/span.h"
 
 namespace ptgn {

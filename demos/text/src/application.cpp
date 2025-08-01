@@ -3,9 +3,9 @@
 
 #include "core/entity.h"
 #include "core/game.h"
-#include "rendering/api/color.h"
-#include "rendering/resources/font.h"
-#include "rendering/resources/text.h"
+#include "renderer/api/color.h"
+#include "renderer/font.h"
+#include "renderer/text.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 

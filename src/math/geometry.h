@@ -1,18 +1,60 @@
 #pragma once
 
 #include <array>
-#include <optional>
+#include <variant>
 #include <vector>
 
 #include "components/transform.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/triangle.h"
 #include "math/vector2.h"
-#include "rendering/api/origin.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
-[[nodiscard]] V2_float GetCenter(const V2_float* vertices, std::size_t vertex_count);
-[[nodiscard]] V2_float GetCenter(const Transform& transform, V2_float size, Origin origin);
+class Entity;
 
+using Point = V2_float;
+
+using Shape = std::variant<Point, Rect, Circle, Polygon, Line, Triangle, Capsule>;
+
+[[nodiscard]] Shape ApplyOffset(const Shape& shape, const Entity& entity);
+
+[[nodiscard]] V2_float ToWorldPoint(
+	const V2_float& local_point, const V2_float& position, const V2_float& scale, float cos_angle,
+	float sin_angle
+);
+
+[[nodiscard]] V2_float ToWorldPoint(
+	const V2_float& local_point, const V2_float& position, const V2_float& scale
+);
+
+[[nodiscard]] V2_float ToWorldPoint(const V2_float& local_point, const Transform& transform);
+
+void ToWorldPoint(
+	const V2_float* local_points, std::size_t count, V2_float* out_world_points,
+	const Transform& transform
+);
+
+std::vector<V2_float> ToWorldPoint(
+	const std::vector<V2_float>& local_points, const Transform& transform
+);
+
+template <std::size_t N>
+std::array<V2_float, N> ToWorldPoint(
+	const std::array<V2_float, N>& local_points, const Transform& transform
+) {
+	std::array<V2_float, N> world_points;
+	ToWorldPoint(local_points.data(), N, world_points.data(), transform);
+	return world_points;
+}
+
+namespace impl {
+
+// TODO: Move into Arc class.
 // @param clockwise Whether the vertices are in clockwise direction (true), or counter-clockwise
 // (false).
 // @param start_angle Must be in range: [0, 2pi).
@@ -20,17 +62,6 @@ namespace ptgn::impl {
 // @return The vertices which make up the arc.
 [[nodiscard]] std::vector<V2_float> GetVertices(
 	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise
-);
-
-// @return Quad vertices that for a line with a given thickness.
-[[nodiscard]] std::array<V2_float, 4> GetLineQuadVertices(
-	const V2_float& start, const V2_float& end, float line_width
-);
-
-// @return Quad vertices for a transform with a given size and origin.
-[[nodiscard]] std::array<V2_float, 4> GetVertices(
-	const Transform& transform, V2_float size, Origin origin,
-	std::optional<V2_float> rotation_center = std::nullopt
 );
 
 [[nodiscard]] float TriangulateArea(const V2_float* contour, std::size_t count);
@@ -49,4 +80,6 @@ namespace ptgn::impl {
 	const V2_float* vertices, std::size_t vertex_count
 );
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

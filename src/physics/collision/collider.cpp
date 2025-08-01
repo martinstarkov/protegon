@@ -1,11 +1,15 @@
 #include "physics/collision/collider.h"
 
 #include <functional>
-#include <type_traits>
+#include <memory>
 #include <unordered_set>
 #include <vector>
 
+#include "common/assert.h"
+#include "components/transform.h"
 #include "core/entity.h"
+#include "core/script.h"
+#include "math/geometry.h"
 #include "physics/rigid_body.h"
 
 namespace ptgn {
@@ -26,6 +30,8 @@ bool PhysicsBody::IsImmovable() const {
 	PTGN_ASSERT(root_entity.Has<Transform>(), "Root entity must have a transform component");
 	return root_entity.GetTransform();
 }
+
+Collider::Collider(const Shape& shape) : shape{ shape } {}
 
 Collider& Collider::SetOverlapOnly() {
 	overlap_only = true;
@@ -48,7 +54,7 @@ void Collider::ResetCollidesWith() {
 	mask_ = {};
 }
 
-bool Collider::ProcessCallback(Entity e1, Entity e2) {
+bool Collider::ProcessCallback(Entity e1, Entity e2) const {
 	if (!e1.Has<Scripts>()) {
 		return true;
 	}
@@ -90,7 +96,7 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	}
 }
 
-void Collider::InvokeCollisionCallbacks(Entity& entity) {
+void Collider::InvokeCollisionCallbacks(Entity& entity) const {
 	for (const auto& prev : prev_collisions) {
 		if (collisions.count(prev) == 0) {
 			entity.InvokeScript<&impl::IScript::OnCollisionStop>(prev);

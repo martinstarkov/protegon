@@ -4,16 +4,16 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/time.h"
-#include "events/input_handler.h"
-#include "events/key.h"
-#include "events/mouse.h"
+#include "input/input_handler.h"
+#include "input/key.h"
+#include "input/mouse.h"
 #include "math/easing.h"
 #include "math/math.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "tweening/follow_config.h"
-#include "tweening/tween_effects.h"
+#include "tweens/follow_config.h"
+#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 

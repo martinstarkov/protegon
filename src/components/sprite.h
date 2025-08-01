@@ -5,7 +5,7 @@
 #include "components/drawable.h"
 #include "core/entity.h"
 #include "math/vector2.h"
-#include "rendering/resources/texture.h"
+#include "renderer/texture.h"
 
 namespace ptgn {
 

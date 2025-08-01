@@ -1,11 +1,9 @@
 #pragma once
 
 #include <unordered_set>
-#include <vector>
 
 #include "core/entity.h"
 #include "math/vector2.h"
-#include "rendering/api/origin.h"
 #include "serialization/enum.h"
 #include "serialization/serializable.h"
 
@@ -42,61 +40,6 @@ struct Dropzone {
 	std::unordered_set<Entity> entities;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Dropzone, trigger, entities)
-};
-
-struct InteractiveCircles {
-	struct InteractiveCircle {
-		float radius{ 0.0f };
-		V2_float offset;
-
-		friend bool operator==(const InteractiveCircle& a, const InteractiveCircle& b) {
-			return NearlyEqual(a.radius, b.radius) && a.offset == b.offset;
-		}
-
-		friend bool operator!=(const InteractiveCircle& a, const InteractiveCircle& b) {
-			return !(a == b);
-		}
-
-		PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveCircle, radius, offset)
-	};
-
-	InteractiveCircles() = default;
-
-	InteractiveCircles(float radius, const V2_float& offset = {}) :
-		circles{ InteractiveCircle{ radius, offset } } {}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveCircles, circles)
-
-	std::vector<InteractiveCircle> circles;
-};
-
-struct InteractiveRects {
-	struct InteractiveRect {
-		V2_float size;
-		Origin origin{ Origin::Center };
-		V2_float offset;
-
-		friend bool operator==(const InteractiveRect& a, const InteractiveRect& b) {
-			return a.size == b.size && a.origin == b.origin && a.offset == b.offset;
-		}
-
-		friend bool operator!=(const InteractiveRect& a, const InteractiveRect& b) {
-			return !(a == b);
-		}
-
-		PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveRect, size, origin, offset)
-	};
-
-	InteractiveRects() = default;
-
-	InteractiveRects(
-		const V2_float& size, Origin origin = Origin::Center, const V2_float& offset = {}
-	) :
-		rects{ InteractiveRect{ size, origin, offset } } {}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(InteractiveRects, rects)
-
-	std::vector<InteractiveRect> rects;
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(

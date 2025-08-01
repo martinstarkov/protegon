@@ -1,16 +1,17 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 #include <unordered_set>
 #include <vector>
 
 #include "core/entity.h"
+#include "math/geometry.h"
 #include "math/vector2.h"
-#include "rendering/api/origin.h"
 #include "serialization/enum.h"
 
 namespace ptgn {
+
+struct Transform;
 
 namespace impl {
 
@@ -59,6 +60,12 @@ struct Collider {
 	// TODO: Implement local physics world bounds.
 	// Rect bounds;
 
+	Collider() = default;
+
+	Collider(const Shape& shape);
+
+	Shape shape;
+
 	// Collisions from the current frame (updated after calling game.collision.Update()).
 	std::unordered_set<Collision> collisions;
 
@@ -87,7 +94,7 @@ struct Collider {
 	void ResetCollidesWith();
 
 	// May invalidate all existing component references.
-	[[nodiscard]] bool ProcessCallback(Entity e1, Entity e2);
+	[[nodiscard]] bool ProcessCallback(Entity e1, Entity e2) const;
 
 	[[nodiscard]] bool CanCollideWith(const CollisionCategory& category) const;
 
@@ -99,12 +106,13 @@ struct Collider {
 
 	void SetCollidesWith(const CollidesWithCategories& categories);
 
-	void InvokeCollisionCallbacks(Entity& entity);
+	void InvokeCollisionCallbacks(Entity& entity) const;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
-		Collider, KeyValue("collisions", collisions), KeyValue("prev_collisions", prev_collisions),
-		KeyValue("overlap_only", overlap_only), KeyValue("continuous", continuous),
-		KeyValue("response", response), KeyValue("mask", mask_), KeyValue("category", category_)
+		Collider, KeyValue("shape", shape), KeyValue("collisions", collisions),
+		KeyValue("prev_collisions", prev_collisions), KeyValue("overlap_only", overlap_only),
+		KeyValue("continuous", continuous), KeyValue("response", response), KeyValue("mask", mask_),
+		KeyValue("category", category_)
 	)
 protected:
 	friend class impl::CollisionHandler;
@@ -116,44 +124,6 @@ protected:
 	// Which category this collider is a part of.
 	CollisionCategory category_{ 0 };
 };
-
-struct BoxCollider : public Collider {
-	BoxCollider() = default;
-
-	explicit BoxCollider(const V2_float& collider_size, Origin collider_origin = Origin::Center) :
-		size{ collider_size }, origin{ collider_origin } {}
-
-	V2_float size;
-	Origin origin{ Origin::Center };
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		BoxCollider, KeyValue("collisions", collisions),
-		KeyValue("prev_collisions", prev_collisions), KeyValue("overlap_only", overlap_only),
-		KeyValue("continuous", continuous), KeyValue("response", response), KeyValue("mask", mask_),
-		KeyValue("category", category_), KeyValue("size", size), KeyValue("origin", origin)
-	)
-};
-
-struct CircleCollider : public Collider {
-	CircleCollider() = default;
-
-	explicit CircleCollider(float collider_radius) : radius{ collider_radius } {}
-
-	float radius{ 0.0f };
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		CircleCollider, KeyValue("collisions", collisions),
-		KeyValue("prev_collisions", prev_collisions), KeyValue("overlap_only", overlap_only),
-		KeyValue("continuous", continuous), KeyValue("response", response), KeyValue("mask", mask_),
-		KeyValue("category", category_), KeyValue("radius", radius)
-	)
-};
-
-// struct PolygonCollider : public Collider {
-//	std::vector<V2_float> vertices;
-// };
-
-// TODO: Add edge collider.
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	CollisionResponse, { { CollisionResponse::Slide, "slide" },

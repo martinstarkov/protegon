@@ -1,18 +1,90 @@
 #include "math/geometry.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
-#include <optional>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/transform.h"
-#include "math/math.h"
-#include "math/utility.h"
+#include "core/entity.h"
+#include "geometry/rect.h"
 #include "math/vector2.h"
-#include "rendering/api/origin.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+Shape ApplyOffset(const Shape& shape, const Entity& entity) {
+	if (!std::holds_alternative<Rect>(shape)) {
+		return shape;
+	}
+	const Rect& rect{ std::get<Rect>(shape) };
+	auto origin{ entity.GetOrigin() };
+	auto offset_rect{ rect.Offset(origin) };
+	return offset_rect;
+}
+
+V2_float ToWorldPoint(
+	const V2_float& local_point, const V2_float& position, const V2_float& scale, float cos_angle,
+	float sin_angle
+) {
+	PTGN_ASSERT(!scale.IsZero(), "Cannot get world point for an object with zero scale");
+	return position + scale * local_point.Rotated(cos_angle, sin_angle);
+}
+
+V2_float ToWorldPoint(
+	const V2_float& local_point, const V2_float& position, const V2_float& scale
+) {
+	PTGN_ASSERT(!scale.IsZero(), "Cannot get world point for an object with zero scale");
+	return position + scale * local_point;
+}
+
+V2_float ToWorldPoint(const V2_float& local_point, const Transform& transform) {
+	if (transform.rotation == 0.0f) {
+		return ToWorldPoint(local_point, transform.position, transform.scale);
+	}
+	return ToWorldPoint(
+		local_point, transform.position, transform.scale, std::cos(transform.rotation),
+		std::sin(transform.rotation)
+	);
+}
+
+void ToWorldPoint(
+	const V2_float* local_points, std::size_t count, V2_float* out_world_points,
+	const Transform& transform
+) {
+	const bool no_rotation = (transform.rotation == 0.0f);
+
+	if (no_rotation) {
+		if (transform == Transform{}) {
+			for (std::size_t i{ 0 }; i < count; ++i) {
+				out_world_points[i] = local_points[i];
+			}
+		}
+		for (std::size_t i{ 0 }; i < count; ++i) {
+			out_world_points[i] =
+				ToWorldPoint(local_points[i], transform.position, transform.scale);
+		}
+	} else {
+		const float cosA = std::cos(transform.rotation);
+		const float sinA = std::sin(transform.rotation);
+
+		for (std::size_t i{ 0 }; i < count; ++i) {
+			out_world_points[i] =
+				ToWorldPoint(local_points[i], transform.position, transform.scale, cosA, sinA);
+		}
+	}
+}
+
+std::vector<V2_float> ToWorldPoint(
+	const std::vector<V2_float>& local_points, const Transform& transform
+) {
+	std::vector<V2_float> world_points(local_points.size());
+	ToWorldPoint(local_points.data(), local_points.size(), world_points.data(), transform);
+	return world_points;
+}
+
+namespace impl {
 
 std::vector<V2_float> GetVertices(
 	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise
@@ -53,57 +125,6 @@ std::vector<V2_float> GetVertices(
 	}
 
 	return vertices;
-}
-
-std::array<V2_float, 4> GetLineQuadVertices(
-	const V2_float& start, const V2_float& end, float line_width
-) {
-	auto dir{ end - start };
-	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
-	auto center{ start + dir * 0.5f };
-	float rotation{ dir.Angle() };
-	V2_float size{ dir.Magnitude(), line_width };
-	return GetVertices(Transform{ center, rotation }, size, Origin::Center);
-}
-
-std::array<V2_float, 4> GetVertices(
-	const Transform& transform, V2_float size, Origin origin,
-	std::optional<V2_float> rotation_center
-) {
-	// Leave out Abs() around scale to enable texture flipping via negative scales.
-	size *= transform.scale;
-
-	PTGN_ASSERT(!size.IsZero(), "Cannot get vertices for a sizeless object");
-
-	auto half{ size * 0.5f };
-
-	auto center{ transform.position + impl::GetOriginOffsetHalf(origin, half) };
-
-	if (NearlyEqual(transform.rotation, 0.0f)) {
-		auto min{ center - half };
-		auto max{ center + half };
-		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
-	}
-
-	V2_float top_left{ -half };
-	V2_float top_right{ half.x, -half.y };
-	V2_float bottom_right{ half };
-	V2_float bottom_left{ -half.x, half.y };
-
-	float cos{ std::cos(transform.rotation) };
-	float sin{ std::sin(transform.rotation) };
-
-	auto pivot = rotation_center.value_or(center);
-
-	auto rotated = [&](const V2_float& point) {
-		V2_float world	  = center + point;
-		V2_float relative = world - pivot;
-
-		return pivot +
-			   V2_float{ cos * relative.x - sin * relative.y, sin * relative.x + cos * relative.y };
-	};
-
-	return { rotated(top_left), rotated(top_right), rotated(bottom_right), rotated(bottom_left) };
 }
 
 float TriangulateArea(const V2_float* contour, std::size_t count) {
@@ -251,42 +272,6 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 	}
 
 	return result;
-}
-
-V2_float GetCenter(const Transform& transform, V2_float size, Origin origin) {
-	size *= Abs(transform.scale);
-	return transform.position + GetOriginOffset(origin, size);
-}
-
-V2_float GetCenter(const V2_float* vertices, std::size_t vertex_count) {
-	PTGN_ASSERT(vertex_count >= 3);
-	// Source: https://stackoverflow.com/a/63901131
-	V2_float centroid;
-	float signed_area{ 0.0f };
-	V2_float v0{ 0.0f }; // Current verte
-	V2_float v1{ 0.0f }; // Next vertex
-	float a{ 0.0f };	 // Partial signed area
-
-	std::size_t lastdex	 = vertex_count - 1;
-	const V2_float* prev = &(vertices[lastdex]);
-	const V2_float* next{ nullptr };
-
-	// For all vertices in a loop
-	for (std::size_t i{ 0 }; i < vertex_count; i++) {
-		const auto& vertex{ vertices[i] };
-		next		 = &vertex;
-		v0			 = *prev;
-		v1			 = *next;
-		a			 = v0.Cross(v1);
-		signed_area += a;
-		centroid	+= (v0 + v1) * a;
-		prev		 = next;
-	}
-
-	signed_area *= 0.5f;
-	centroid	/= 6.0f * signed_area;
-
-	return centroid;
 }
 
 /*
@@ -512,5 +497,6 @@ void RoundedRect::Draw(
 	}
 }
 */
+} // namespace impl
 
-} // namespace ptgn::impl
+} // namespace ptgn

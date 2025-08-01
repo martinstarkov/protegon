@@ -16,9 +16,9 @@
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
-#include "rendering/api/color.h"
-#include "rendering/api/origin.h"
-#include "rendering/renderer.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "serialization/fwd.h"
 
