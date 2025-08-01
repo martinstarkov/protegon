@@ -176,11 +176,7 @@ void Scene::PreUpdate() {
 
 	Refresh();
 
-	input.UpdatePrevious(this);
-
-	Refresh();
-
-	input.UpdateCurrent(this);
+	input.Update(*this);
 
 	Refresh();
 }

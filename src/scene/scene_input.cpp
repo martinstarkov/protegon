@@ -248,10 +248,14 @@ bool SceneInput::PointerIsInside(V2_float pointer, const Camera& camera, const E
 	return PointOverlapsInteractives(pointer, entity, camera);
 }
 
-void SceneInput::UpdatePrevious(Scene* scene) {
+void SceneInput::Update(Scene& scene) {
+	UpdatePrevious(scene);
+	UpdateCurrent(scene);
+}
+
+void SceneInput::UpdatePrevious(Scene& scene) {
 	triggered_callbacks_ = false;
-	PTGN_ASSERT(scene != nullptr);
-	for (auto [entity, enabled, interactive] : scene->EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			continue;
 		}
@@ -298,15 +302,14 @@ void GetMousePosAndCamera(
 	pos = camera.TransformToCamera(mouse_pos);
 }
 
-void SceneInput::UpdateCurrent(Scene* scene) {
-	PTGN_ASSERT(scene != nullptr);
+void SceneInput::UpdateCurrent(Scene& scene) {
 	// auto mouse_pos{ game.input.GetMousePosition() };
 	auto mouse_pos{ game.input.GetMousePositionUnclamped() };
 	auto pos{ mouse_pos };
 	Camera camera;
-	if (scene->camera.primary && scene->camera.primary.Has<impl::CameraInfo>()) {
-		pos	   = scene->camera.primary.TransformToCamera(mouse_pos);
-		camera = scene->camera.primary;
+	if (scene.camera.primary && scene.camera.primary.Has<impl::CameraInfo>()) {
+		pos	   = scene.camera.primary.TransformToCamera(mouse_pos);
+		camera = scene.camera.primary;
 	} else {
 		// Scene camera has not been set yet.
 		return;
@@ -314,12 +317,12 @@ void SceneInput::UpdateCurrent(Scene* scene) {
 	Depth top_depth;
 	Entity top_entity;
 	bool send_mouse_event{ false };
-	for (auto [entity, enabled, interactive] : scene->EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
 		if (!enabled) {
 			interactive.is_inside  = false;
 			interactive.was_inside = false;
 		} else {
-			GetMousePosAndCamera(entity, mouse_pos, scene->camera.primary, pos, camera);
+			GetMousePosAndCamera(entity, mouse_pos, scene.camera.primary, pos, camera);
 			bool is_inside{ PointerIsInside(pos, camera, entity) };
 			if ((!interactive.was_inside && is_inside) || (interactive.was_inside && !is_inside)) {
 				send_mouse_event = true;
@@ -606,9 +609,8 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 	}
 }
 
-void SceneInput::ResetInteractives(Scene* scene) {
-	PTGN_ASSERT(scene != nullptr);
-	for (auto [entity, enabled, interactive] : scene->EntitiesWith<Enabled, Interactive>()) {
+void SceneInput::ResetInteractives(Scene& scene) {
+	for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}
@@ -627,8 +629,8 @@ void SceneInput::Init(std::size_t scene_key) {
 
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 
-	ResetInteractives(&scene);
-	UpdateCurrent(&scene);
+	ResetInteractives(scene);
+	UpdateCurrent(scene);
 	OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
 
 	// TODO: Cache interactive entity list every frame to avoid repeated calls for each
@@ -648,7 +650,7 @@ void SceneInput::Shutdown() {
 	game.event.key.Unsubscribe(this);
 	game.event.mouse.Unsubscribe(this);
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
-	ResetInteractives(&scene);
+	ResetInteractives(scene);
 
 	triggered_callbacks_ = false;
 	top_only_			 = false;

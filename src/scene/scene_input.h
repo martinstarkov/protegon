@@ -50,10 +50,11 @@ private:
 		const V2_float& mouse_pos, V2_float& pos, Camera& camera
 	) const;
 
-	void UpdatePrevious(Scene* scene);
-	void UpdateCurrent(Scene* scene);
+	void Update(Scene& scene);
+	void UpdatePrevious(Scene& scene);
+	void UpdateCurrent(Scene& scene);
 
-	void ResetInteractives(Scene* scene);
+	void ResetInteractives(Scene& scene);
 
 	void OnMouseEvent(MouseEvent type, const Event& event);
 	void OnKeyEvent(KeyEvent type, const Event& event);
