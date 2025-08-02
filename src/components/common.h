@@ -7,6 +7,8 @@
 
 namespace ptgn {
 
+class Entity;
+
 struct Enabled : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
 
@@ -35,6 +37,10 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 	[[nodiscard]] Depth RelativeTo(Depth parent) const;
 
 	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Depth, value_)
+};
+
+struct EntityDepthCompare {
+	bool operator()(const Entity& a, const Entity& b) const;
 };
 
 } // namespace ptgn

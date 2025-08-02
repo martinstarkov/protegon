@@ -100,15 +100,7 @@ std::array<Vertex, 4> GetQuadVertices(
 
 void SortEntities(std::vector<Entity>& entities) {
 	// PTGN_PROFILE_FUNCTION();
-	std::sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
-		auto depth_a{ a.GetDepth() };
-		auto depth_b{ b.GetDepth() };
-		if (depth_a == depth_b) {
-			// Depth order of equal depth element is maintained via creation order.
-			return a.WasCreatedBefore(b);
-		}
-		return depth_a < depth_b;
-	});
+	std::sort(entities.begin(), entities.end(), EntityDepthCompare{});
 }
 
 void GetRenderArea(
