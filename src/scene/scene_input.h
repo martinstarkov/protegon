@@ -11,8 +11,7 @@ namespace ptgn {
 
 class Scene;
 class Camera;
-
-void SimulateMouseMovement(Entity entity);
+class Button;
 
 class SceneInput {
 public:
@@ -43,10 +42,12 @@ public:
 
 private:
 	friend class Scene;
-	friend void SimulateMouseMovement(Entity entity);
+	friend class Button;
+
+	static void SimulateMouseMovement(Entity entity);
 
 	void EntityMouseMove(
-		Entity entity, const Interactive& interactive, const V2_float& screen_pointer
+		Entity entity, bool is_inside, bool was_inside, const V2_float& screen_pointer
 	) const;
 
 	void Update(Scene& scene);

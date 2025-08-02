@@ -1,6 +1,7 @@
 #include "scene/scene_input.h"
 
 #include <functional>
+#include <utility>
 #include <vector>
 
 #include "common/assert.h"
@@ -18,43 +19,54 @@
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "input/mouse.h"
+#include "math/geometry.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
-#include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
+#include "utility/span.h"
 
 // TODO: Clean up this mess of a file.
 
 namespace ptgn {
 
-std::vector<std::pair<Shape, Entity>> GetShapes(const Entity& entity) {
-	if (entity.Has<Rect>()) {
-		const auto& rect{ entity.Get<Rect>() };
-		auto offset_rect{ ApplyOffset(rect, entity) };
-		return { { offset_rect, entity } };
-	} else if (entity.Has<Circle>()) {
-		return { { entity.Get<Circle>(), entity } };
-	} else if (entity.Has<TextureHandle>()) {
-		Rect texture_rect{ entity.Get<TextureHandle>().GetSize() };
-		auto offset_rect{ ApplyOffset(texture_rect, entity) };
-		return { { offset_rect, entity } };
+void GetShapes(
+	const Entity& entity, const Entity& root_entity, std::vector<std::pair<Shape, Entity>>& vector
+) {
+	bool is_parent{ entity == root_entity };
+	if (!is_parent) {
+		if (entity.Has<Rect>()) {
+			const auto& rect{ entity.Get<Rect>() };
+			// TODO: Instead of using the root entity, pass the origin offset along the recursive
+			// chain to accumulate it.
+			auto offset_rect{ ApplyOffset(rect, root_entity) };
+			vector.emplace_back(offset_rect, entity);
+		}
+		if (entity.Has<Circle>()) {
+			const auto& circle{ entity.Get<Rect>() };
+			vector.emplace_back(circle, entity);
+		}
 	}
-	std::vector<std::pair<Shape, Entity>> vector;
-	auto children{ entity.GetChildren() };
-	for (const auto& child : children) {
-		auto shapes{ GetShapes(child) };
-		vector.insert(vector.end(), shapes.begin(), shapes.end());
+	if (entity.IsInteractive()) {
+		auto interactables{ entity.GetInteractables() };
+		for (const auto& interactable : interactables) {
+			GetShapes(interactable, root_entity, vector);
+		}
 	}
-	return {};
+	if (is_parent) {
+		PTGN_ASSERT(
+			!vector.empty(), "Failed to find a valid interactable for the entity: ", entity.GetId()
+		);
+	}
 }
 
 bool Overlap(const V2_float& point, const Entity& entity) {
-	auto shapes{ GetShapes(entity) };
+	std::vector<std::pair<Shape, Entity>> shapes;
+	GetShapes(entity, entity, shapes);
 	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
 	for (const auto& [shape, e] : shapes) {
 		auto transform{ e.GetAbsoluteTransform() };
@@ -66,8 +78,10 @@ bool Overlap(const V2_float& point, const Entity& entity) {
 }
 
 bool Overlap(const Entity& entityA, const Entity& entityB) {
-	auto shapesA{ GetShapes(entityA) };
-	auto shapesB{ GetShapes(entityB) };
+	std::vector<std::pair<Shape, Entity>> shapesA;
+	GetShapes(entityA, entityA, shapesA);
+	std::vector<std::pair<Shape, Entity>> shapesB;
+	GetShapes(entityB, entityB, shapesB);
 	PTGN_ASSERT(
 		!shapesA.empty() && !shapesB.empty(),
 		"Cannot check for overlap with an interactive that has no shape"
@@ -156,9 +170,7 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 	}
 	if (top_only_ && top_entity) {
 		PTGN_ASSERT(top_entity.Has<Enabled>() && top_entity.IsEnabled());
-		PTGN_ASSERT(top_entity.Has<Interactive>());
-		auto& top_interactive{ top_entity.Get<Interactive>() };
-		top_interactive.is_inside = true;
+		top_entity.SetInteractiveIsInside(true);
 	}
 	if (send_mouse_event) {
 		OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
@@ -166,34 +178,34 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 }
 
 void SceneInput::EntityMouseMove(
-	Entity entity, const Interactive& interactive, const V2_float& screen_pointer
+	Entity entity, bool is_inside, bool was_inside, const V2_float& screen_pointer
 ) const {
 	auto world_pointer{ entity.GetCamera().TransformToCamera(screen_pointer) };
 
 	entity.InvokeScript<&impl::IScript::OnMouseMove>(world_pointer);
-	bool entered{ interactive.is_inside && !interactive.was_inside };
-	bool exited{ !interactive.is_inside && interactive.was_inside };
+	bool entered{ is_inside && !was_inside };
+	bool exited{ !is_inside && was_inside };
 	if (entered) {
 		entity.InvokeScript<&impl::IScript::OnMouseEnter>(world_pointer);
 	}
 	if (exited) {
 		entity.InvokeScript<&impl::IScript::OnMouseLeave>(world_pointer);
 	}
-	if (interactive.is_inside) {
+	if (is_inside) {
 		entity.InvokeScript<&impl::IScript::OnMouseOver>(world_pointer);
 	} else {
 		entity.InvokeScript<&impl::IScript::OnMouseOut>(world_pointer);
 	}
 	if (entity.Has<Draggable>() && entity.Get<Draggable>().dragging) {
 		entity.InvokeScript<&impl::IScript::OnDrag>(world_pointer);
-		if (interactive.is_inside) {
+		if (is_inside) {
 			entity.InvokeScript<&impl::IScript::OnDragOver>(world_pointer);
-			if (!interactive.was_inside) {
+			if (!was_inside) {
 				entity.InvokeScript<&impl::IScript::OnDragEnter>(world_pointer);
 			}
 		} else {
 			entity.InvokeScript<&impl::IScript::OnDragOut>(world_pointer);
-			if (interactive.was_inside) {
+			if (was_inside) {
 				entity.InvokeScript<&impl::IScript::OnDragLeave>(world_pointer);
 			}
 		}
@@ -257,7 +269,9 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 				if (!enabled) {
 					continue;
 				}
-				EntityMouseMove(entity, interactive, screen_pointer);
+				EntityMouseMove(
+					entity, interactive.is_inside, interactive.was_inside, screen_pointer
+				);
 			}
 			break;
 		}
@@ -283,7 +297,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 							Entity top_entity;
 							for (const auto& dropzone : overlapping_dropzones) {
 								if (!top_only_) {
-									dropzone.Get<Dropzone>().entities.erase(entity);
+									VectorErase(dropzone.Get<Dropzone>().entities, entity);
 									entity.InvokeScript<&impl::IScript::OnPickup>(dropzone);
 								} else {
 									auto depth{ dropzone.GetDepth() };
@@ -294,7 +308,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 								}
 							}
 							if (top_only_ && top_entity) {
-								top_entity.Get<Dropzone>().entities.erase(entity);
+								VectorErase(top_entity.Get<Dropzone>().entities, entity);
 								entity.InvokeScript<&impl::IScript::OnPickup>(top_entity);
 							}
 						}
@@ -329,7 +343,10 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 						for (const auto& dropzone : overlapping_dropzones) {
 							if (!top_only_) {
 								entity.InvokeScript<&impl::IScript::OnDrop>(dropzone);
-								dropzone.Get<Dropzone>().entities.emplace(entity);
+								auto& dropzone_entities{ dropzone.Get<Dropzone>().entities };
+								if (!VectorContains(dropzone_entities, entity)) {
+									dropzone_entities.emplace_back(entity);
+								}
 							} else {
 								auto depth{ dropzone.GetDepth() };
 								if (depth >= top_depth || !top_entity) {
@@ -340,7 +357,10 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 						}
 						if (top_only_ && top_entity) {
 							entity.InvokeScript<&impl::IScript::OnDrop>(top_entity);
-							top_entity.Get<Dropzone>().entities.emplace(entity);
+							auto& dropzone_entities{ top_entity.Get<Dropzone>().entities };
+							if (!VectorContains(dropzone_entities, entity)) {
+								dropzone_entities.emplace_back(entity);
+							}
 						}
 					}
 				}
@@ -493,15 +513,15 @@ V2_float SceneInput::GetMouseDifference() const {
 	return TransformToCamera(game.input.GetMouseDifference());
 }
 
-void SimulateMouseMovement(Entity entity) {
+void SceneInput::SimulateMouseMovement(Entity entity) {
 	PTGN_ASSERT(entity.Has<impl::SceneKey>());
 	const auto& scene_key{ entity.Get<impl::SceneKey>() };
 	const auto& scene{ game.scene.Get<Scene>(scene_key) };
-	PTGN_ASSERT(entity.Has<Interactive>());
-	auto& interactive{ entity.Get<Interactive>() };
-	interactive.was_inside = false;
+	entity.SetInteractiveWasInside(false);
 	auto screen_pointer{ game.input.GetMousePositionUnclamped() };
-	scene.input.EntityMouseMove(entity, interactive, screen_pointer);
+	scene.input.EntityMouseMove(
+		entity, entity.InteractiveIsInside(), entity.InteractiveWasInside(), screen_pointer
+	);
 }
 
 } // namespace ptgn
