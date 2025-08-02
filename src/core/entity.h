@@ -234,10 +234,16 @@ public:
 	// Note: adding an interactive will implicitly call SetInteractive(true) and Enable() on *this.
 	// @param set_parent If true, will set the parent of shape to *this.
 	// The entity interactive will take ownership of these entities.
-	void AddInteractable(Entity shape, bool set_parent = true);
+	// @return *this.
+	Entity& AddInteractable(Entity shape, bool set_parent = true);
+
+	// Same as AddInteractable but will clear previous interactables first.
+	// @return *this.
+	Entity& SetInteractable(Entity shape, bool set_parent = true);
 
 	// Remove an interactable shape from the entity.
-	void RemoveInteractable(Entity shape);
+	// @return *this.
+	Entity& RemoveInteractable(Entity shape);
 
 	// @return True if the entity has the given interactable.
 	[[nodiscard]] bool HasInteractable(Entity shape) const;

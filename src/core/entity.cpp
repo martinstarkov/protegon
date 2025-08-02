@@ -371,7 +371,13 @@ bool Entity::IsInteractive() const {
 	return Has<Interactive>();
 }
 
-void Entity::AddInteractable(Entity shape, bool set_parent) {
+Entity& Entity::SetInteractable(Entity shape, bool set_parent) {
+	ClearInteractables();
+	AddInteractable(shape, set_parent);
+	return *this;
+}
+
+Entity& Entity::AddInteractable(Entity shape, bool set_parent) {
 	if (set_parent) {
 		shape.SetParent(*this);
 	}
@@ -382,14 +388,16 @@ void Entity::AddInteractable(Entity shape, bool set_parent) {
 		"Cannot add the same interactable to an entity more than once"
 	);
 	shapes.emplace_back(shape);
+	return *this;
 }
 
-void Entity::RemoveInteractable(Entity shape) {
+Entity& Entity::RemoveInteractable(Entity shape) {
 	if (!IsInteractive()) {
-		return;
+		return *this;
 	}
 	auto& shapes{ GetImpl<Interactive>().shapes };
 	VectorErase(shapes, shape);
+	return *this;
 }
 
 bool Entity::HasInteractable(Entity shape) const {
