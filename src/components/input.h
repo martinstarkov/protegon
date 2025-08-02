@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_set>
+#include <vector>
 
 #include "core/entity.h"
 #include "math/vector2.h"
@@ -13,7 +13,12 @@ struct Interactive {
 	bool is_inside{ false };
 	bool was_inside{ false };
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, is_inside, was_inside)
+	void Clear();
+
+	// List of entities that can be interacted with. They require a valid Rect / Circle component.
+	std::vector<Entity> shapes;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, is_inside, was_inside, shapes)
 };
 
 struct Draggable {
@@ -37,7 +42,7 @@ enum class DropTrigger {
 
 struct Dropzone {
 	DropTrigger trigger{ DropTrigger::MouseOverlaps };
-	std::unordered_set<Entity> entities;
+	std::vector<Entity> entities;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Dropzone, trigger, entities)
 };

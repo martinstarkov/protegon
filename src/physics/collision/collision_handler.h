@@ -1,6 +1,5 @@
 #pragma once
 
-#include <unordered_set>
 #include <vector>
 
 #include "core/entity.h"
@@ -72,8 +71,7 @@ private:
 	// Adds all collisions which occurred at the earliest time to box.collisions. This ensures all
 	// callbacks are called.
 	static void AddEarliestCollisions(
-		Entity entity, const std::vector<SweepCollision>& sweep_collisions,
-		std::unordered_set<Collision>& entities
+		Entity entity, const std::vector<SweepCollision>& sweep_collisions, Collider& collider
 	);
 
 	static void SortCollisions(std::vector<SweepCollision>& collisions);

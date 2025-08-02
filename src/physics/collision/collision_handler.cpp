@@ -1,7 +1,6 @@
 #include "physics/collision/collision_handler.h"
 
 #include <algorithm>
-#include <unordered_set>
 #include <vector>
 
 #include "common/assert.h"
@@ -68,11 +67,11 @@ void CollisionHandler::Overlap(Entity entity, const std::vector<Entity>& entitie
 			continue;
 		}
 
-		auto& collider = entity.Get<Collider>();
-		collider.collisions.emplace(entity2, V2_float{});
+		auto& collider{ entity.Get<Collider>() };
+		collider.AddCollision(Collision{ entity2, V2_float{} });
 
-		auto& collider2 = entity2.Get<Collider>();
-		collider2.collisions.emplace(entity, V2_float{});
+		auto& collider2{ entity2.Get<Collider>() };
+		collider2.AddCollision(Collision{ entity, V2_float{} });
 	}
 }
 
@@ -104,8 +103,11 @@ void CollisionHandler::Intersect(Entity entity, const std::vector<Entity>& entit
 			continue;
 		}
 
-		entity.Get<Collider>().collisions.emplace(entity2, intersection.normal);
-		entity2.Get<Collider>().collisions.emplace(entity, -intersection.normal);
+		auto& collider{ entity.Get<Collider>() };
+		collider.AddCollision(Collision{ entity2, intersection.normal });
+
+		auto& collider2{ entity2.Get<Collider>() };
+		collider2.AddCollision(Collision{ entity, -intersection.normal });
 
 		if (!entity.Has<RigidBody>()) {
 			continue;
@@ -173,7 +175,7 @@ void CollisionHandler::Sweep(
 		}
 	}*/
 
-	AddEarliestCollisions(entity, collisions, entity.Get<Collider>().collisions);
+	AddEarliestCollisions(entity, collisions, entity.Get<Collider>());
 
 	entity.Get<RigidBody>().velocity *= earliest.t;
 
@@ -208,7 +210,7 @@ void CollisionHandler::Sweep(
 		);
 	}*/
 
-	AddEarliestCollisions(entity, collisions2, entity.Get<Collider>().collisions);
+	AddEarliestCollisions(entity, collisions2, entity.Get<Collider>());
 
 	entity.Get<RigidBody>().AddImpulse(new_velocity / game.dt() * earliest2.t);
 }
@@ -223,8 +225,7 @@ V2_float CollisionHandler::GetRelativeVelocity(const V2_float& velocity, Entity 
 }
 
 void CollisionHandler::AddEarliestCollisions(
-	Entity entity, const std::vector<SweepCollision>& sweep_collisions,
-	std::unordered_set<Collision>& entities
+	Entity entity, const std::vector<SweepCollision>& sweep_collisions, Collider& collider
 ) {
 	PTGN_ASSERT(!sweep_collisions.empty());
 
@@ -232,14 +233,14 @@ void CollisionHandler::AddEarliestCollisions(
 
 	PTGN_ASSERT(entity != first_sweep.entity, "Self collision not possible");
 
-	entities.emplace(first_sweep.entity, first_sweep.collision.normal);
+	collider.AddCollision(Collision{ first_sweep.entity, first_sweep.collision.normal });
 
 	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
 		const auto& sweep{ sweep_collisions[i] };
 
 		if (sweep.collision.t == first_sweep.collision.t) {
 			PTGN_ASSERT(entity != sweep.entity, "Self collision not possible");
-			entities.emplace(sweep.entity, sweep.collision.normal);
+			collider.AddCollision(Collision{ sweep.entity, sweep.collision.normal });
 		}
 	}
 };
@@ -374,10 +375,10 @@ void CollisionHandler::HandleCollisions(Entity entity, const std::vector<Entity>
 
 	collider = entity.Get<Collider>();
 
-	for (const auto& prev : collider.prev_collisions) {
-		PTGN_ASSERT(entity != prev.entity);
+	for (const auto& prev : collider.prev_collisions_) {
+		PTGN_ASSERT(entity != prev.entity)
 	}
-	for (const auto& current : collider.collisions) {
+	for (const auto& current : collider.collisions_) {
 		PTGN_ASSERT(entity != current.entity);
 	}
 

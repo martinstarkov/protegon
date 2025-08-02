@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_set>
 #include <vector>
 
 #include "core/entity.h"
@@ -66,12 +65,6 @@ struct Collider {
 
 	Shape shape;
 
-	// Collisions from the current frame (updated after calling game.collision.Update()).
-	std::unordered_set<Collision> collisions;
-
-	// Collisions from the previous frame.
-	std::unordered_set<Collision> prev_collisions;
-
 	// Overwrites continuous/regular collision in favor of overlap checks.
 	bool overlap_only{ false };
 
@@ -109,20 +102,29 @@ struct Collider {
 	void InvokeCollisionCallbacks(Entity& entity) const;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
-		Collider, KeyValue("shape", shape), KeyValue("collisions", collisions),
-		KeyValue("prev_collisions", prev_collisions), KeyValue("overlap_only", overlap_only),
+		Collider, KeyValue("shape", shape), KeyValue("collisions", collisions_),
+		KeyValue("prev_collisions", prev_collisions_), KeyValue("overlap_only", overlap_only),
 		KeyValue("continuous", continuous), KeyValue("response", response), KeyValue("mask", mask_),
 		KeyValue("category", category_)
 	)
-protected:
+
+private:
 	friend class impl::CollisionHandler;
 
 	void ResetCollisions();
 
+	void AddCollision(const Collision& collision);
+
 	// Which categories this collider collides with.
-	std::unordered_set<CollisionCategory> mask_;
+	std::vector<CollisionCategory> mask_;
 	// Which category this collider is a part of.
 	CollisionCategory category_{ 0 };
+
+	// Collisions from the current frame (updated after calling game.collision.Update()).
+	std::vector<Collision> collisions_;
+
+	// Collisions from the previous frame.
+	std::vector<Collision> prev_collisions_;
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(

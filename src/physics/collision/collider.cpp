@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <memory>
-#include <unordered_set>
 #include <vector>
 
 #include "common/assert.h"
@@ -11,6 +10,7 @@
 #include "core/script.h"
 #include "math/geometry.h"
 #include "physics/rigid_body.h"
+#include "utility/span.h"
 
 namespace ptgn {
 
@@ -74,7 +74,7 @@ bool Collider::ProcessCallback(Entity e1, Entity e2) const {
 }
 
 bool Collider::CanCollideWith(const CollisionCategory& category) const {
-	return mask_.empty() || mask_.count(category) > 0;
+	return mask_.empty() || VectorContains(mask_, category);
 }
 
 bool Collider::IsCategory(const CollisionCategory& category) const {
@@ -82,11 +82,15 @@ bool Collider::IsCategory(const CollisionCategory& category) const {
 }
 
 void Collider::AddCollidesWith(const CollisionCategory& category) {
-	mask_.insert(category);
+	PTGN_ASSERT(
+		!VectorContains(mask_, category),
+		"Cannot add the same collision category to a collider more than once"
+	);
+	mask_.emplace_back(category);
 }
 
 void Collider::RemoveCollidesWith(const CollisionCategory& category) {
-	mask_.erase(category);
+	VectorErase(mask_, category);
 }
 
 void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
@@ -97,23 +101,30 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 }
 
 void Collider::InvokeCollisionCallbacks(Entity& entity) const {
-	for (const auto& prev : prev_collisions) {
-		if (collisions.count(prev) == 0) {
+	for (const auto& prev : prev_collisions_) {
+		if (!VectorContains(collisions_, prev)) {
 			entity.InvokeScript<&impl::IScript::OnCollisionStop>(prev);
 		} else {
 			entity.InvokeScript<&impl::IScript::OnCollision>(prev);
 		}
 	}
-	for (const auto& current : collisions) {
-		if (prev_collisions.count(current) == 0) {
+	for (const auto& current : collisions_) {
+		if (!VectorContains(prev_collisions_, current)) {
 			entity.InvokeScript<&impl::IScript::OnCollisionStart>(current);
 		}
 	}
 }
 
 void Collider::ResetCollisions() {
-	prev_collisions = collisions;
-	collisions.clear();
+	prev_collisions_ = collisions_;
+	collisions_.clear();
+}
+
+void Collider::AddCollision(const Collision& collision) {
+	if (VectorContains(collisions_, collision)) {
+		return;
+	}
+	collisions_.emplace_back(collision);
 }
 
 } // namespace ptgn
