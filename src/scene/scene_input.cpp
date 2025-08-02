@@ -88,7 +88,9 @@ bool SceneInput::PointerIsInside(
 	const V2_float& screen_pointer, const V2_float& world_pointer, const Entity& entity
 ) const {
 	auto window_size{ game.window.GetSize() };
-	if (!impl::OverlapPointRect(Transform{}, screen_pointer, Transform{}, Rect{ window_size })) {
+	if (!impl::OverlapPointRect(
+			Transform{}, screen_pointer, Transform{ window_size / 2.0f }, Rect{ window_size }
+		)) {
 		// Mouse outside of screen.
 		return false;
 	}
