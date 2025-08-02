@@ -66,12 +66,15 @@ private:
 		const V2_float& screen_pointer, const V2_float& world_pointer, const Entity& entity
 	) const;
 
+	void ProcessDragOverDropzones(Scene& scene, const V2_float& screen_pointer) const;
+
 	void Init(std::size_t scene_key);
 	void Shutdown();
 
 	std::vector<Entity> mouse_entered;
 	std::vector<Entity> mouse_exited;
 	std::vector<Entity> mouse_over;
+	std::vector<Entity> dropzones;
 
 	std::size_t scene_key_{ 0 };
 
@@ -89,7 +92,7 @@ public:
 		KeyValue("draw_interactives", draw_interactives_),
 		KeyValue("triggered_callbacks", triggered_callbacks_),
 		KeyValue("mouse_entered", mouse_entered), KeyValue("mouse_exited", mouse_exited),
-		KeyValue("mouse_over", mouse_over)
+		KeyValue("mouse_over", mouse_over), KeyValue("dropzones", dropzones)
 	)
 };
 

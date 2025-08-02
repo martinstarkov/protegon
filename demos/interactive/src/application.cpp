@@ -5,6 +5,7 @@
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/window.h"
+#include "input/input_handler.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
@@ -287,10 +288,11 @@ struct ScriptR2 : public Script<ScriptR2> {
 
 struct ScriptR3 : public Script<ScriptR3> {
 	void OnDrag(V2_float mouse) override {
-		PTGN_LOG("r3 Drag: ", mouse);
+		// PTGN_LOG("r3 Drag: ", mouse);
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
+	/*
 	void OnDragEnter(Entity dropzone) override {
 		PTGN_LOG("r3 Drag enter: ", dropzone.GetId());
 	}
@@ -313,12 +315,20 @@ struct ScriptR3 : public Script<ScriptR3> {
 
 	void OnDragStop(V2_float mouse) override {
 		PTGN_LOG("r3 Drag stop: ", mouse);
+	}*/
+
+	/*void OnDrop(Entity dropzone) override {
+		PTGN_LOG("r3 dropped onto: ", dropzone.GetId());
 	}
+
+	void OnPickup(Entity dropzone) override {
+		PTGN_LOG("r3 picked up from: ", dropzone.GetId());
+	}*/
 };
 
 struct ScriptC3 : public Script<ScriptC3> {
 	void OnDrag(V2_float mouse) override {
-		PTGN_LOG("c3 Drag: ", mouse);
+		// PTGN_LOG("c3 Drag: ", mouse);
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
@@ -357,12 +367,20 @@ struct ScriptC3 : public Script<ScriptC3> {
 		PTGN_LOG("c3 Drag over: ", dropzone.GetId());
 	}
 
-	void OnDragStart(V2_float mouse) override {
+	/*void OnDragStart(V2_float mouse) override {
 		PTGN_LOG("c3 Drag start: ", mouse);
 	}
 
 	void OnDragStop(V2_float mouse) override {
 		PTGN_LOG("c3 Drag stop: ", mouse);
+	}*/
+
+	void OnDrop(Entity dropzone) override {
+		PTGN_LOG("c3 dropped onto: ", dropzone.GetId());
+	}
+
+	void OnPickup(Entity dropzone) override {
+		PTGN_LOG("c3 picked up from: ", dropzone.GetId());
 	}
 };
 
@@ -374,7 +392,7 @@ struct InteractiveScene : public Scene {
 		V2_float offset{ 250, 250 };
 		V2_float rsize{ 100, 50 };
 
-		auto c0 = CreateCircle(
+		/*auto c0 = CreateCircle(
 			*this, center + V2_float{ offset.x, -offset.y }, 90.0f, color::Green, 1.0f
 		);
 		auto c0_child = CreateCircle(*this, {}, 90.0f, color::Magenta, 1.0f);
@@ -408,7 +426,7 @@ struct InteractiveScene : public Scene {
 		r2.SetPosition(center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateRect(*this, {}, r2.GetDisplaySize(), color::Magenta, 1.0f);
 		r2.AddInteractable(r2_child);
-		r2.AddScript<ScriptR2>();
+		r2.AddScript<ScriptR2>();*/
 
 		game.texture.Load("drag", "resources/drag.png");
 		game.texture.Load("drag_circle", "resources/drag_circle.png");
@@ -420,6 +438,8 @@ struct InteractiveScene : public Scene {
 		r4.AddInteractable(r4_child);
 		r4.Add<Dropzone>().trigger = DropTrigger::MouseOverlaps;
 
+		PTGN_LOG("Dropzone id: ", r4.GetId());
+
 		auto r3 = CreateSprite(*this, "drag");
 		r3.SetPosition(center + V2_float{ offset.x, 0.0f });
 		auto r3_child = CreateRect(*this, {}, r3.GetDisplaySize(), color::Magenta, 1.0f);
@@ -427,12 +447,24 @@ struct InteractiveScene : public Scene {
 		r3.Add<Draggable>();
 		r3.AddScript<ScriptR3>();
 
+		PTGN_LOG("Rect drag id: ", r3.GetId());
+
 		auto c3 = CreateSprite(*this, "drag_circle");
 		c3.SetPosition(center + V2_float{ 0, 0 });
 		auto c3_child = CreateCircle(*this, {}, c3.GetDisplaySize().x * 0.5f, color::Magenta, 1.0f);
 		c3.AddInteractable(c3_child);
 		c3.Add<Draggable>();
 		c3.AddScript<ScriptC3>();
+
+		PTGN_LOG("Circle drag id: ", c3.GetId());
+	}
+
+	void Update() override {
+		if (game.input.KeyDown(Key::Q)) {
+			input.SetTopOnly(false);
+		} else if (game.input.KeyDown(Key::E)) {
+			input.SetTopOnly(true);
+		}
 	}
 };
 

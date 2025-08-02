@@ -42,9 +42,14 @@ enum class DropTrigger {
 
 struct Dropzone {
 	DropTrigger trigger{ DropTrigger::MouseOverlaps };
-	std::vector<Entity> entities;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Dropzone, trigger, entities)
+	std::vector<Entity> dropped_entities;
+
+	std::vector<Entity> overlapping_draggables;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+		Dropzone, trigger, dropped_entities, overlapping_draggables
+	)
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(
