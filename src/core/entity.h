@@ -715,13 +715,13 @@ public:
 	// object.
 	virtual void OnDrag([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
 
-	virtual void OnDragEnter([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnDragEnter([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	virtual void OnDragLeave([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnDragLeave([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	virtual void OnDragOver([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnDragOver([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	virtual void OnDragOut([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnDragOut([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
 	// Triggered when the user lets go (by releasing left click) of a draggable interactive object
 	// while over top of a dropzone interactive object.
