@@ -461,8 +461,10 @@ struct InteractiveScene : public Scene {
 	void Update() override {
 		if (game.input.KeyDown(Key::Q)) {
 			input.SetTopOnly(false);
+			PTGN_LOG("Setting top input only: false");
 		} else if (game.input.KeyDown(Key::E)) {
 			input.SetTopOnly(true);
+			PTGN_LOG("Setting top input only: true");
 		}
 	}
 };
