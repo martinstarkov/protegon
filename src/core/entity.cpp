@@ -1,8 +1,8 @@
 #include "core/entity.h"
 
 #include <memory>
-#include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "common/assert.h"
 #include "common/type_info.h"
@@ -26,6 +26,7 @@
 #include "serialization/component_registry.h"
 #include "serialization/json.h"
 #include "serialization/json_archiver.h"
+#include "utility/span.h"
 
 namespace ptgn {
 
@@ -45,8 +46,16 @@ bool Entity::IsAlive() const {
 	return Parent::IsAlive();
 }
 
-Entity& Entity::Destroy() {
+Entity& Entity::Destroy(bool orphan_children) {
 	game.event.UnsubscribeAll(*this);
+
+	if (!orphan_children) {
+		auto children{ GetChildren() };
+		for (Entity child : children) {
+			child.Destroy();
+		}
+	}
+
 	Parent::Destroy();
 	return *this;
 }
@@ -295,12 +304,12 @@ Entity Entity::GetChild(std::string_view name) const {
 	return children.Get(name);
 }
 
-std::unordered_set<Entity> Entity::GetChildren() const {
+std::vector<Entity> Entity::GetChildren() const {
 	if (!Has<impl::Children>()) {
 		return {};
 	}
-	const auto& children{ Get<impl::Children>() };
-	return children.children_;
+	const auto& children{ Get<impl::Children>().children_ };
+	return children;
 }
 
 Entity& Entity::SetEnabled(bool enabled) {
@@ -314,14 +323,89 @@ Entity& Entity::SetEnabled(bool enabled) {
 	return *this;
 }
 
+void Entity::ClearInteractables() {
+	if (!Has<Interactive>()) {
+		return;
+	}
+	auto& interactive{ GetImpl<Interactive>() };
+	// Clear owned entities.
+	interactive.Clear();
+}
+
+void Entity::SetInteractiveWasInside(bool value) {
+	PTGN_ASSERT(IsInteractive());
+	auto& interactive{ GetImpl<Interactive>() };
+	interactive.was_inside = value;
+}
+
+void Entity::SetInteractiveIsInside(bool value) {
+	PTGN_ASSERT(IsInteractive());
+	auto& interactive{ GetImpl<Interactive>() };
+	interactive.is_inside = value;
+}
+
+bool Entity::InteractiveWasInside() const {
+	PTGN_ASSERT(IsInteractive());
+	const auto& interactive{ GetImpl<Interactive>() };
+	return interactive.was_inside;
+}
+
+bool Entity::InteractiveIsInside() const {
+	PTGN_ASSERT(IsInteractive());
+	const auto& interactive{ GetImpl<Interactive>() };
+	return interactive.is_inside;
+}
+
 Entity& Entity::SetInteractive(bool interactive) {
 	if (interactive) {
 		Add<Interactive>();
 		Enable();
 	} else {
+		ClearInteractables();
 		Remove<Interactive>();
 	}
 	return *this;
+}
+
+bool Entity::IsInteractive() const {
+	return Has<Interactive>();
+}
+
+void Entity::AddInteractable(Entity shape, bool set_parent) {
+	if (set_parent) {
+		shape.SetParent(*this);
+	}
+	SetInteractive();
+	auto& shapes{ GetImpl<Interactive>().shapes };
+	PTGN_ASSERT(
+		!VectorContains(shapes, shape),
+		"Cannot add the same interactable to an entity more than once"
+	);
+	shapes.emplace_back(shape);
+}
+
+void Entity::RemoveInteractable(Entity shape) {
+	if (!IsInteractive()) {
+		return;
+	}
+	auto& shapes{ GetImpl<Interactive>().shapes };
+	VectorErase(shapes, shape);
+}
+
+bool Entity::HasInteractable(Entity shape) const {
+	if (!IsInteractive()) {
+		return false;
+	}
+	const auto& shapes{ GetImpl<Interactive>().shapes };
+	return VectorContains(shapes, shape);
+}
+
+std::vector<Entity> Entity::GetInteractables() const {
+	if (!IsInteractive()) {
+		return {};
+	}
+	const auto& shapes{ GetImpl<Interactive>().shapes };
+	return shapes;
 }
 
 Entity& Entity::Disable() {
@@ -378,13 +462,23 @@ Entity& Entity::SetDrawOffset(const V2_float& offset) {
 
 Entity& Entity::AddPostFX(Entity post_fx) {
 	post_fx.Hide();
-	TryAdd<impl::PostFX>().post_fx_.insert(post_fx);
+	auto& post_fx_list{ TryAdd<impl::PostFX>().post_fx_ };
+	PTGN_ASSERT(
+		!VectorContains(post_fx_list, post_fx),
+		"Cannot add the same post fx entity to an entity more than once"
+	);
+	post_fx_list.emplace_back(post_fx);
 	return *this;
 }
 
 Entity& Entity::AddPreFX(Entity pre_fx) {
 	pre_fx.Hide();
-	TryAdd<impl::PreFX>().pre_fx_.insert(pre_fx);
+	auto& pre_fx_list{ TryAdd<impl::PreFX>().pre_fx_ };
+	PTGN_ASSERT(
+		!VectorContains(pre_fx_list, pre_fx),
+		"Cannot add the same pre fx entity to an entity more than once"
+	);
+	pre_fx_list.emplace_back(pre_fx);
 	return *this;
 }
 
@@ -558,11 +652,14 @@ void Children::Add(Entity& child, std::string_view name) {
 	if (!name.empty()) {
 		child.Add<ChildKey>(name);
 	}
-	children_.emplace(child);
+	if (VectorContains(children_, child)) {
+		return;
+	}
+	children_.emplace_back(child);
 }
 
 void Children::Remove(const Entity& child) {
-	children_.erase(child);
+	VectorErase(children_, child);
 	// TODO: Consider adding a use count to ChildKey so it can be removed once an entity is no
 	// longer a child of any other entity.
 }
@@ -593,7 +690,7 @@ void Children::Remove(std::string_view name) {
 }
 
 [[nodiscard]] bool Children::Has(const Entity& child) const {
-	return children_.count(child) > 0;
+	return VectorContains(children_, child);
 }
 
 [[nodiscard]] bool Children::Has(std::string_view name) const {

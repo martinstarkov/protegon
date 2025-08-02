@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <string_view>
-#include <unordered_set>
 
 #include "common/assert.h"
 #include "common/move_direction.h"
@@ -31,6 +30,8 @@ namespace ptgn {
 class Manager;
 class Scene;
 class Camera;
+struct Interactive;
+class SceneInput;
 
 namespace impl {
 
@@ -47,7 +48,7 @@ struct IgnoreParentTransform : public ArithmeticComponent<bool> {
 
 template <typename T>
 inline constexpr bool is_retrievable_component_v{
-	!tt::is_any_of_v<T, Transform, Depth, Enabled, Visible, IDrawable>
+	!tt::is_any_of_v<T, Transform, Depth, Enabled, Visible, Interactive, IDrawable>
 };
 
 } // namespace impl
@@ -147,7 +148,10 @@ public:
 
 	[[nodiscard]] bool IsAlive() const;
 
-	Entity& Destroy();
+	// Destroy the given entity and potentially its children.
+	// @param orphan_children If false, destroys all the children (and their children). If true,
+	// sets the parent of all the entity's children to null, orphaning them.
+	Entity& Destroy(bool orphan_children = false);
 
 	[[nodiscard]] const Scene& GetScene() const;
 
@@ -214,15 +218,31 @@ public:
 	[[nodiscard]] Entity GetChild(std::string_view name) const;
 
 	// @return All childs entities tied to the object
-	[[nodiscard]] std::unordered_set<Entity> GetChildren() const;
+	[[nodiscard]] std::vector<Entity> GetChildren() const;
 
 	// Entity activation functions.
 
+	// TODO: Potentially move these interactable functions to another wrapper class.
+
 	// If true, enables the entity to trigger interaction scripts.
-	// Note: that setting interactive to true will also enable the entity but not the other way
-	// around.
+	// Note: Setting interactive to true will implicitly call Enable() on *this.
 	// @return *this.
 	Entity& SetInteractive(bool interactive = true);
+	[[nodiscard]] bool IsInteractive() const;
+
+	// Add an interactable shape to the entity.
+	// Note: adding an interactive will implicitly call SetInteractive(true) and Enable() on *this.
+	// @param set_parent If true, will set the parent of shape to *this.
+	// The entity interactive will take ownership of these entities.
+	void AddInteractable(Entity shape, bool set_parent = true);
+
+	// Remove an interactable shape from the entity.
+	void RemoveInteractable(Entity shape);
+
+	// @return True if the entity has the given interactable.
+	[[nodiscard]] bool HasInteractable(Entity shape) const;
+
+	[[nodiscard]] std::vector<Entity> GetInteractables() const;
 
 	// If not enabled, removes the entity from the scene update list.
 	// @return *this.
@@ -508,6 +528,15 @@ protected:
 		}
 		return *this;
 	}
+
+	void ClearInteractables();
+
+	void SetInteractiveWasInside(bool value);
+	void SetInteractiveIsInside(bool value);
+	[[nodiscard]] bool InteractiveWasInside() const;
+	[[nodiscard]] bool InteractiveIsInside() const;
+
+	friend class SceneInput;
 
 private:
 	friend class Manager;
@@ -1084,13 +1113,13 @@ struct Children {
 private:
 	friend class ptgn::Entity;
 
-	std::unordered_set<Entity> children_;
+	std::vector<Entity> children_;
 };
 
 struct PostFX {
 	PostFX() = default;
 
-	std::unordered_set<Entity> post_fx_;
+	std::vector<Entity> post_fx_;
 
 	friend bool operator==(const PostFX& a, const PostFX& b) {
 		return a.post_fx_ == b.post_fx_;
@@ -1106,7 +1135,7 @@ struct PostFX {
 struct PreFX {
 	PreFX() = default;
 
-	std::unordered_set<Entity> pre_fx_;
+	std::vector<Entity> pre_fx_;
 
 	friend bool operator==(const PreFX& a, const PreFX& b) {
 		return a.pre_fx_ == b.pre_fx_;
