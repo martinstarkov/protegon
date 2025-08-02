@@ -43,7 +43,7 @@ Button CreateButton(Scene& scene) {
 	button.Show();
 	button.SetDraw<Button>();
 
-	button.Add<Interactive>();
+	button.SetInteractive();
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
 	button.AddScript<impl::ButtonScript>();
@@ -297,34 +297,6 @@ TextureHandle& ButtonTexture::Get(ButtonState state) {
 
 Button::Button(const Entity& entity) : Entity{ entity } {}
 
-V2_float Button::GetSize() const {
-	V2_float size;
-
-	if (Has<Rect>()) {
-		size = Get<Rect>().GetSize();
-	} else if (Has<Circle>()) {
-		size = V2_float{ Get<Circle>().radius * 2.0f };
-	}
-
-	const impl::Texture* button_texture{ nullptr };
-
-	TextureHandle button_texture_key;
-
-	if (Has<TextureHandle>()) {
-		button_texture_key = Get<TextureHandle>();
-	}
-
-	if (game.texture.Has(button_texture_key)) {
-		button_texture = &button_texture_key.GetTexture();
-	}
-
-	if (button_texture != nullptr && size.IsZero()) {
-		size = button_texture->GetSize();
-	}
-
-	return size;
-}
-
 void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Button button{ entity };
 	auto state{ button.GetState() };
@@ -538,22 +510,12 @@ Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
 	return *this;
 }
 
-Button& Button::SetSize(const V2_float& size) {
-	Remove<Circle>();
-	if (Has<Rect>()) {
-		Get<Rect>() = Rect{ size };
-	} else {
-		Add<Rect>(size);
-	}
-	return *this;
-}
-
 Button& Button::Enable() {
-	return SetEnabled(true);
+	return Button::SetEnabled(true);
 }
 
 Button& Button::Disable() {
-	return SetEnabled(false);
+	return Button::SetEnabled(false);
 }
 
 Button& Button::SetEnabled(bool enabled) {
@@ -562,7 +524,51 @@ Button& Button::SetEnabled(bool enabled) {
 		auto& state{ Get<impl::InternalButtonState>() };
 		state = impl::InternalButtonState::IdleUp;
 	} else {
-		SimulateMouseMovement(*this);
+		SceneInput::SimulateMouseMovement(*this);
+	}
+	return *this;
+}
+
+V2_float Button::GetSize() const {
+	V2_float size;
+
+	if (Has<Rect>()) {
+		size = Get<Rect>().GetSize();
+	} else if (Has<Circle>()) {
+		size = V2_float{ Get<Circle>().radius * 2.0f };
+	}
+
+	const impl::Texture* button_texture{ nullptr };
+
+	TextureHandle button_texture_key;
+
+	if (Has<TextureHandle>()) {
+		button_texture_key = Get<TextureHandle>();
+	}
+
+	if (game.texture.Has(button_texture_key)) {
+		button_texture = &button_texture_key.GetTexture();
+	}
+
+	if (button_texture != nullptr && size.IsZero()) {
+		size = button_texture->GetSize();
+	}
+
+	return size;
+}
+
+Button& Button::SetSize(const V2_float& size) {
+	Remove<Circle>();
+	if (Has<Rect>()) {
+		Get<Rect>() = Rect{ size };
+	} else {
+		Add<Rect>(size);
+	}
+	if (IsInteractive()) {
+		ClearInteractables();
+		auto shape{ CreateChild() };
+		shape.Add<Rect>(size);
+		AddInteractable(shape);
 	}
 	return *this;
 }
@@ -573,6 +579,12 @@ Button& Button::SetRadius(float radius) {
 		Get<Circle>() = Circle{ radius };
 	} else {
 		Add<Circle>(radius);
+	}
+	if (IsInteractive()) {
+		ClearInteractables();
+		auto shape{ CreateChild() };
+		shape.Add<Circle>(radius);
+		AddInteractable(shape);
 	}
 	return *this;
 }
@@ -708,6 +720,12 @@ const TextureHandle& Button::GetTextureKey(ButtonState state) const {
 }
 
 Button& Button::SetTextureKey(const TextureHandle& texture_key, ButtonState state) {
+	if (IsInteractive() && GetInteractables().empty()) {
+		auto shape{ CreateChild() };
+		auto size{ texture_key.GetSize() };
+		shape.Add<Rect>(size);
+		AddInteractable(shape);
+	}
 	if (!Has<TextureHandle>()) {
 		Add<TextureHandle>(texture_key);
 	} else if (state == ButtonState::Current) {

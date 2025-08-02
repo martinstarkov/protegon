@@ -229,7 +229,8 @@ public:
 	// @param size {} results in texture sized button.
 	Button& SetSize(const V2_float& size = {});
 
-	// @return {} if no size is specified via SetSize, SetRadius, or button texture.
+	// @return {} if no size is specified via SetSize, SetRadius, or button texture. If radius,
+	// returns 2.0f * V2_float{ radius, radius }
 	[[nodiscard]] V2_float GetSize() const;
 
 	// @param radius 0.0f results in texture sized button.
