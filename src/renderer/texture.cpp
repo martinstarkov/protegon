@@ -581,7 +581,9 @@ void Texture::SetClampBorderColor(const Color& color) const {
 
 const impl::Texture& TextureHandle::GetTexture(const Entity& entity) const {
 	if (TextureHandle::GetHash()) {
-		PTGN_ASSERT(game.texture.Has(*this), "Texture must be loaded into the texture manager");
+		PTGN_ASSERT(
+			game.texture.Has(*this), "Texture must be loaded into the texture manager: ", key_
+		);
 		return game.texture.Get(*this);
 	}
 	PTGN_ASSERT(entity, "Texture must be owned by a valid entity");
