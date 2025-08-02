@@ -8,6 +8,7 @@
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
+#include "renderer/api/color.h"
 #include "renderer/texture.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -370,33 +371,36 @@ struct InteractiveScene : public Scene {
 		V2_float ws{ game.window.GetSize() };
 		V2_float center{ game.window.GetCenter() };
 
-		auto c0 = CreateCircle(*this, center + V2_float{ 200, -200 }, 90.0f, color::Green);
-		c0.SetInteractive();
+		auto c0 = CreateCircle(*this, center + V2_float{ 200, -200 }, 90.0f, color::Green, 1.0f);
+		auto c0_child = CreateCircle(*this, {}, 90.0f, color::Magenta, 1.0f);
+		c0.AddInteractable(c0_child);
 		c0.AddScript<ScriptC0>();
 
-		auto c1 = CreateCircle(*this, center + V2_float{ 200, 200 }, 90.0f, color::LightGreen);
-		// TODO: Add ability to have differing size interactable.
-		// c1.Add<Circle>(90.0f);
-		c1.SetInteractive();
+		auto c1 =
+			CreateCircle(*this, center + V2_float{ 200, 200 }, 90.0f, color::LightGreen, 1.0f);
+		auto c1_child = CreateCircle(*this, {}, 45.0f, color::Magenta, 1.0f);
+		c1.AddInteractable(c1_child);
 		c1.AddScript<ScriptC1>();
 
-		auto r0 =
-			CreateRect(*this, center + V2_float{ -200, -200 }, V2_float{ 200, 100 }, color::Blue);
-		r0.SetInteractive();
+		auto r0 = CreateRect(
+			*this, center + V2_float{ -200, -200 }, V2_float{ 200, 100 }, color::Blue, 1.0f
+		);
+		auto r0_child = CreateRect(*this, {}, V2_float{ 200, 100 }, color::Magenta, 1.0f);
+		r0.AddInteractable(r0_child);
 		r0.AddScript<ScriptR0>();
 
 		V2_float r1size{ 100, 50 };
-		auto r1 = CreateRect(*this, center + V2_float{ -200, 200 }, r1size, color::LightBlue);
-		// TODO: Add ability to have differing size interactable.
-		// r1.Add<InteractiveRects>(r1size * 2.0f);
-		r1.SetInteractive();
+		auto r1 = CreateRect(*this, center + V2_float{ -200, 200 }, r1size, color::LightBlue, 1.0f);
+		auto r1_child = CreateRect(*this, {}, r1size * 2, color::Magenta, 1.0f);
+		r1.AddInteractable(r1_child);
 		r1.AddScript<ScriptR1>();
 
 		game.texture.Load("box", "resources/box.png");
 
 		auto r2 = CreateSprite(*this, "box");
 		r2.SetPosition(center + V2_float{ -200, 0 });
-		r2.SetInteractive();
+		auto r2_child = CreateRect(*this, {}, r2.GetDisplaySize(), color::Magenta, 1.0f);
+		r2.AddInteractable(r2_child);
 		r2.AddScript<ScriptR2>();
 
 		game.texture.Load("drag", "resources/drag.png");
@@ -404,15 +408,15 @@ struct InteractiveScene : public Scene {
 
 		auto r3 = CreateSprite(*this, "drag");
 		r3.SetPosition(center + V2_float{ 200, 0 });
-		r3.SetInteractive();
+		auto r3_child = CreateRect(*this, {}, r3.GetDisplaySize(), color::Magenta, 1.0f);
+		r3.AddInteractable(r3_child);
 		r3.Add<Draggable>();
 		r3.AddScript<ScriptR3>();
 
 		auto c3 = CreateSprite(*this, "drag_circle");
 		c3.SetPosition(center + V2_float{ 0, 0 });
-		// TODO: Add ability to have differing size interactable.
-		// c3.Add<InteractiveCircles>(game.texture.GetSize("drag_circle").x * 0.5f);
-		c3.SetInteractive();
+		auto c3_child = CreateCircle(*this, {}, c3.GetDisplaySize().x * 0.5f, color::Magenta, 1.0f);
+		c3.AddInteractable(c3_child);
 		c3.Add<Draggable>();
 		c3.AddScript<ScriptC3>();
 	}
