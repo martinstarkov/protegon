@@ -117,6 +117,12 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 	// auto mouse_pos{ game.input.GetMousePosition() };
 	auto screen_pointer{ game.input.GetMousePositionUnclamped() };
 
+	// TODO: Instead of doing this, simply populate vectors of:
+	// exited
+	// entered
+	// dropzones?
+	// And then operate upon those.
+
 	Depth top_depth;
 	Entity top_entity;
 
