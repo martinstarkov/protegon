@@ -27,7 +27,7 @@ struct TopDownPlayerConfig {
 
 	// Animation
 	V2_uint animation_frame_count{ 4, 3 };
-	V2_int animation_frame_size{ 16, 17 };
+	V2_int animation_frame_size{ 0, 0 };
 	milliseconds animation_duration{ 1000 };
 
 	Depth depth{ 1 };

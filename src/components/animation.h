@@ -3,11 +3,11 @@
 #include <cstdint>
 
 #include "components/sprite.h"
-#include "resources/resource_manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"
 #include "renderer/texture.h"
+#include "resources/resource_manager.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -70,16 +70,17 @@ struct Animation : public Sprite {
 
 // @param scene Which scene the entity is added to.
 // @param texture_key Key of the texture loaded into the texture manager.
-// @param animation_duration Duration of the full animation sequence.
 // @param frame_count Number of frames in the animation sequence.
+// @param animation_duration Duration of the full animation sequence.
 // @param frame_size Pixel size of an individual animation frame within the texture.
+// If {}, frame_size = { texture_size.x / frame_count, texture_size.y }.
 // @param play_count Number of times that the animation plays for, -1 for infinite replay.
 // @param start_pixel Pixel within the texture which indicates the top left position of the
 // animation sequence.
 Animation CreateAnimation(
-	Scene& scene, const TextureHandle& texture_key, milliseconds animation_duration,
-	std::size_t frame_count, const V2_int& frame_size, std::int64_t play_count = -1,
-	const V2_int& start_pixel = {}
+	Scene& scene, const TextureHandle& texture_key, std::size_t frame_count,
+	milliseconds animation_duration = milliseconds{ 0 }, V2_int frame_size = {},
+	std::int64_t play_count = -1, const V2_int& start_pixel = {}
 );
 
 struct AnimationMap : public ActiveMapManager<Animation> {

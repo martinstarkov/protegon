@@ -11,18 +11,18 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/manager.h"
-#include "resources/resource_manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"
 #include "renderer/texture.h"
+#include "resources/resource_manager.h"
 #include "scene/scene.h"
 
 namespace ptgn {
 
 Animation CreateAnimation(
-	Scene& scene, const TextureHandle& texture_key, milliseconds animation_duration,
-	std::size_t frame_count, const V2_int& frame_size, std::int64_t play_count,
+	Scene& scene, const TextureHandle& texture_key, std::size_t frame_count,
+	milliseconds animation_duration, V2_int frame_size, std::int64_t play_count,
 	const V2_int& start_pixel
 ) {
 	PTGN_ASSERT(
@@ -30,7 +30,15 @@ Animation CreateAnimation(
 		"Play count must be -1 (infinite) or otherwise non-negative"
 	);
 
+	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
+
 	Animation animation{ CreateSprite(scene, texture_key) };
+
+	auto texture_size{ texture_key.GetSize() };
+
+	if (frame_size.IsZero()) {
+		frame_size = { texture_size.x / frame_count, texture_size.y };
+	}
 
 	const auto& anim = animation.Add<impl::AnimationInfo>(
 		animation_duration, frame_count, frame_size, play_count, start_pixel

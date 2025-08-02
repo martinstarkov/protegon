@@ -29,10 +29,10 @@ public:
 		sprite.Hide();*/
 
 		// animation2 =
-		// CreateAnimation(*this, "anim3", milliseconds{ 1000 }, 16, V2_int{ 512, 512 }, -1, {});
+		// CreateAnimation(*this, "anim3", 16, milliseconds{ 1000 }, V2_int{ 512, 512 }, -1, {});
 		animation =
-			CreateAnimation(*this, "anim2", milliseconds{ 2000 }, 16, V2_int{ 512, 512 }, -1, {});
-		// CreateAnimation(*this, "anim", milliseconds{ 500 }, 4, V2_int{ 16, 32 }, -1, {});
+			CreateAnimation(*this, "anim2", 16, milliseconds{ 2000 }, V2_int{ 512, 512 }, -1, {});
+		// CreateAnimation(*this, "anim", 4, milliseconds{ 500 },V2_int{ 16, 32 }, -1, {});
 		animation.SetScale(1.0f);
 		// animation2.SetScale(0.5f);
 		animation.SetPosition(camera.primary.GetPosition());
