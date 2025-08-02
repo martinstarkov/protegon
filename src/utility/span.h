@@ -138,4 +138,9 @@ static void SwapVectorElements(std::vector<T>& v, const T& e1, const T& e2) {
 	std::swap(*it1, *it2);
 }
 
+template <typename T>
+static void VectorErase(std::vector<T>& v, const T& element) {
+	v.erase(std::remove(v.begin(), v.end(), element), v.end());
+}
+
 } // namespace ptgn
