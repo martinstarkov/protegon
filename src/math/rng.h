@@ -1,11 +1,16 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <nlohmann/detail/meta/type_traits.hpp>
+#include <optional>
 #include <random>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
+#include "common/assert.h"
 #include "serialization/enum.h"
 #include "serialization/json.h"
 #include "serialization/serializable.h"
@@ -91,6 +96,13 @@ public:
 		generator_.seed(seed_);
 	}
 
+	// Change the range of the random number generator.
+	void SetRange(T min, T max) {
+		min_ = min;
+		max_ = max;
+		SetupDistribution();
+	}
+
 	[[nodiscard]] std::uint32_t GetSeed() const {
 		return seed_;
 	}
@@ -136,6 +148,7 @@ public:
 
 private:
 	void SetupDistribution() {
+		PTGN_ASSERT(min_ <= max_);
 		T a = min_;
 		T b = AdjustedMax(max_);
 		if constexpr (D == Distribution::Normal) {
@@ -181,5 +194,47 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 
 // @return True for "heads", false for "tails"
 [[nodiscard]] bool FlipCoin();
+
+template <typename T>
+class RandomPicker {
+public:
+	// Accepts any number of arguments to initialize the item list
+	template <typename... Args>
+	explicit RandomPicker(Args&&... args) :
+		items_{ std::forward<Args>(args)... }, rng_(0, Size() - 1) {}
+
+	// @return The next random element removed from the RandomPicker, or std::nullopt if none are
+	// available.
+	std::optional<T> Next() {
+		if (IsEmpty()) {
+			return std::nullopt;
+		}
+
+		std::size_t idx{ std::invoke(rng_) };
+		T value{ std::move(items_[idx]) };
+		items_.erase(items_.begin() + idx);
+
+		// Update RNG range if items remain
+		if (!IsEmpty()) {
+			rng_.SetRange(0, Size() - 1);
+		}
+
+		return value;
+	}
+
+	// @return True if the RandomPicker no longer has any items, false otherwise.
+	[[nodiscard]] bool IsEmpty() const {
+		return items_.empty();
+	}
+
+	// @return How many items remain in the RandomPicker.
+	[[nodiscard]] std::size_t Size() const {
+		return items_.size();
+	}
+
+private:
+	std::vector<T> items_;
+	RNG<std::size_t> rng_;
+};
 
 } // namespace ptgn
