@@ -120,6 +120,7 @@ private:
 	friend struct Mix_ChunkDeleter;
 	friend struct SDL_SurfaceDeleter;
 	friend struct TTF_FontDeleter;
+	friend class FontManager;
 	friend class GLContext;
 	friend class SceneManager;
 #ifdef __EMSCRIPTEN__
