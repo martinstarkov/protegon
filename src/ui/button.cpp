@@ -375,7 +375,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			button_tint = entity.Get<impl::ButtonTint>().current_;
 		}
 		V4_float final_tint_n{ button_tint.Normalized() * tint };
-		PTGN_ASSERT(!size.IsZero());
+		PTGN_ASSERT(!size.IsZero(), "Unable to deduce size of textured button");
 		ctx.AddTexturedQuad(
 			*button_texture, transform, size, origin, Color{ final_tint_n }, depth,
 			Sprite{ entity }.GetTextureCoordinates(false), render_state
@@ -537,12 +537,6 @@ Button& Button::SetEnabled(bool enabled) {
 V2_float Button::GetSize() const {
 	V2_float size;
 
-	if (Has<Rect>()) {
-		size = Get<Rect>().GetSize();
-	} else if (Has<Circle>()) {
-		size = V2_float{ Get<Circle>().radius * 2.0f };
-	}
-
 	const impl::Texture* button_texture{ nullptr };
 
 	TextureHandle button_texture_key;
@@ -557,6 +551,16 @@ V2_float Button::GetSize() const {
 
 	if (button_texture != nullptr && size.IsZero()) {
 		size = button_texture->GetSize();
+	}
+
+	if (!size.IsZero()) {
+		return size;
+	}
+
+	if (Has<Rect>()) {
+		size = Get<Rect>().GetSize();
+	} else if (Has<Circle>()) {
+		size = V2_float{ Get<Circle>().radius * 2.0f };
 	}
 
 	return size;
