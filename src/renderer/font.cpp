@@ -28,6 +28,24 @@ void TTF_FontDeleter::operator()(TTF_Font* font) const {
 	}
 }
 
+FontManager::FontManager(FontManager&& other) noexcept : ResourceManager{ std::move(other) } {
+	raw_default_font_ = std::exchange(other.raw_default_font_, nullptr);
+}
+
+FontManager& FontManager::operator=(FontManager&& other) noexcept {
+	if (this != &other) {
+		ResourceManager::operator=(std::move(other));
+		raw_default_font_ = std::exchange(other.raw_default_font_, nullptr);
+	}
+	return *this;
+}
+
+FontManager::~FontManager() {
+	if (game.sdl_instance_->SDLIsInitialized()) {
+		SDL_RWclose(raw_default_font_);
+	}
+}
+
 void FontManager::Load(const ResourceHandle& key, const path& filepath) {
 	Load(key, filepath, default_font_size_);
 }
@@ -36,7 +54,7 @@ void FontManager::Load(
 	const ResourceHandle& key, const path& filepath, std::int32_t size, std::int32_t index
 ) {
 	auto [it, inserted] = resources_.try_emplace(key);
-	if (inserted) {
+	if (inserted || key == ResourceHandle{} /* Replacing default font */) {
 		it->second.key		= key;
 		it->second.filepath = filepath;
 		it->second.resource = LoadFromFile(filepath, size, index);
@@ -121,7 +139,7 @@ void FontManager::SetDefault(const ResourceHandle& key) {
 	default_key_ = key;
 }
 
-std::int32_t FontManager::GetHeight(const ResourceHandle& key, const FontSize& font_size) const {
+FontSize FontManager::GetHeight(const ResourceHandle& key, const FontSize& font_size) const {
 	return TTF_FontHeight(Get(key, font_size).get());
 }
 

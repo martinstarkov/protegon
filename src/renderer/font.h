@@ -27,9 +27,9 @@ namespace ptgn {
 class Text;
 
 enum class FontRenderMode : int {
-	Solid	= 0,
-	Shaded	= 1,
-	Blended = 2
+	Blended = 0,
+	Solid	= 1,
+	Shaded	= 2
 };
 
 enum class FontStyle : int {
@@ -68,6 +68,13 @@ using TemporaryFont = std::shared_ptr<TTF_Font>;
 
 class FontManager : public ResourceManager<FontManager, ResourceHandle, Font> {
 public:
+	FontManager()							   = default;
+	FontManager(const FontManager&)			   = delete;
+	FontManager& operator=(const FontManager&) = delete;
+	FontManager(FontManager&& other) noexcept;
+	FontManager& operator=(FontManager&& other) noexcept;
+	~FontManager() final;
+
 	void Load(const ResourceHandle& key, const path& filepath) final;
 
 	const Font& Get(const ResourceHandle& key) const = delete;
@@ -94,7 +101,7 @@ public:
 	) const;
 
 	// @return Total height of the font in pixels.
-	[[nodiscard]] std::int32_t GetHeight(const ResourceHandle& key, const FontSize& font_size = {})
+	[[nodiscard]] FontSize GetHeight(const ResourceHandle& key, const FontSize& font_size = {})
 		const;
 
 	// Note: This function will not serialize any fonts loaded from binaries.
@@ -132,7 +139,7 @@ private:
 		const;
 
 	static constexpr std::int32_t default_font_index_{ 0 };
-	static constexpr std::int32_t default_font_size_{ 20 };
+	static constexpr std::int32_t default_font_size_{ 18 };
 
 	ResourceHandle default_key_;
 

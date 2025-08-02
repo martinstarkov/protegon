@@ -14,8 +14,8 @@
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/render_data.h"
 #include "renderer/font.h"
+#include "renderer/render_data.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
 #include "scene/camera.h"
@@ -30,7 +30,7 @@ namespace ptgn {
 
 Text CreateText(
 	Scene& scene, const TextContent& content, const TextColor& text_color,
-	const ResourceHandle& font_key
+	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties
 ) {
 	Text text{ scene.CreateEntity() };
 	text.Add<TextureHandle>();
@@ -40,6 +40,8 @@ Text CreateText(
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);
 	text.SetParameter(font_key, false);
+	text.SetParameter(font_size, false);
+	text.SetProperties(properties, false);
 	text.RecreateTexture();
 
 	return text;
@@ -64,49 +66,60 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 }
 
 Text& Text::SetFont(const ResourceHandle& font_key) {
-	return SetParameter(font_key);
+	SetParameter(font_key);
+	return *this;
 }
 
 Text& Text::SetContent(const TextContent& content) {
-	return SetParameter(content);
+	SetParameter(content);
+	return *this;
 }
 
 Text& Text::SetColor(const TextColor& color) {
-	return SetParameter(color);
+	SetParameter(color);
+	return *this;
 }
 
 Text& Text::SetFontStyle(FontStyle font_style) {
-	return SetParameter(font_style);
+	SetParameter(font_style);
+	return *this;
 }
 
-Text& Text::SetFontSize(std::int32_t pixels) {
-	return SetParameter(FontSize{ pixels });
+Text& Text::SetFontSize(const FontSize& pixels) {
+	SetParameter(pixels);
+	return *this;
 }
 
-Text& Text::SetOutline(std::int32_t width, const Color& color) {
+Text& Text::SetOutline(const TextOutline& outline) {
 	SetParameter(FontRenderMode::Blended, false);
-	return SetParameter(TextOutline{ width, color });
+	SetParameter(outline, true);
+	return *this;
 }
 
 Text& Text::SetFontRenderMode(FontRenderMode render_mode) {
-	return SetParameter(render_mode);
+	SetParameter(render_mode);
+	return *this;
 }
 
 Text& Text::SetShadingColor(const Color& shading_color) {
 	SetParameter(FontRenderMode::Shaded, false);
-	return SetParameter(TextShadingColor{ shading_color });
+	SetParameter(TextShadingColor{ shading_color }, true);
+	return *this;
 }
 
-Text& Text::SetWrapAfter(std::uint32_t pixels) {
-	return SetParameter(TextWrapAfter{ pixels });
+Text& Text::SetWrapAfter(const TextWrapAfter& pixels) {
+	SetParameter(pixels);
+	return *this;
 }
 
-Text& Text::SetLineSkip(std::int32_t pixels) {
-	return SetParameter(TextLineSkip{ pixels });
+Text& Text::SetLineSkip(const TextLineSkip& pixels) {
+	SetParameter(pixels);
+	return *this;
 }
 
 Text& Text::SetTextJustify(TextJustify text_justify) {
-	return SetParameter(text_justify);
+	SetParameter(text_justify);
+	return *this;
 }
 
 ResourceHandle Text::GetFontKey() const {
@@ -142,7 +155,7 @@ const impl::Texture& Text::GetTexture() const {
 	return Get<impl::Texture>();
 }
 
-std::int32_t Text::GetFontSize() const {
+FontSize Text::GetFontSize() const {
 	if (FontSize font_size{ GetParameter(FontSize{}) }; font_size != FontSize{}) {
 		return font_size;
 	}
@@ -200,11 +213,9 @@ impl::Texture Text::CreateTexture(
 
 	TTF_SetFontWrappedAlign(font, static_cast<int>(properties.justify));
 
-#ifndef __EMSCRIPTEN__ // TODO: Re-enable this for Emscripten once it is supported (SDL_ttf 2.24.0).
 	if (properties.line_skip != std::numeric_limits<std::int32_t>::infinity()) {
 		TTF_SetFontLineSkip(font, properties.line_skip);
 	}
-#endif
 	if (font_size != std::numeric_limits<std::int32_t>::infinity()) {
 		TTF_SetFontSize(font, font_size);
 	}
@@ -280,8 +291,17 @@ void Text::RecreateTexture() {
 	// TODO: Move texture location to TextureManager.
 	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
 
-	TextProperties properties;
+	TextProperties properties{ GetProperties() };
+	TextContent content{ GetParameter(TextContent{}) };
+	TextColor color{ GetParameter(TextColor{}) };
+	FontSize font_size{ GetParameter(FontSize{}) };
+	ResourceHandle font_key{ GetParameter(ResourceHandle{}) };
 
+	texture = CreateTexture(content, color, font_size, font_key, properties);
+}
+
+TextProperties Text::GetProperties() const {
+	TextProperties properties;
 	properties.justify		 = GetParameter(TextJustify{});
 	properties.line_skip	 = GetParameter(TextLineSkip{});
 	properties.outline		 = GetParameter(TextOutline{});
@@ -289,11 +309,22 @@ void Text::RecreateTexture() {
 	properties.shading_color = GetParameter(TextShadingColor{});
 	properties.style		 = GetParameter(FontStyle{});
 	properties.wrap_after	 = GetParameter(TextWrapAfter{});
+	return properties;
+}
 
-	texture = CreateTexture(
-		GetParameter(TextContent{}), GetParameter(TextColor{}), GetParameter(FontSize{}),
-		GetParameter(ResourceHandle{}), properties
-	);
+void Text::SetProperties(const TextProperties& properties, bool recreate_texture) {
+	bool changed  = false;
+	changed		 |= SetParameter(properties.justify, false);
+	changed		 |= SetParameter(properties.line_skip, false);
+	changed		 |= SetParameter(properties.outline, false);
+	changed		 |= SetParameter(properties.render_mode, false);
+	changed		 |= SetParameter(properties.shading_color, false);
+	changed		 |= SetParameter(properties.style, false);
+	changed		 |= SetParameter(properties.wrap_after, false);
+
+	if (changed && recreate_texture) {
+		RecreateTexture();
+	}
 }
 
 } // namespace ptgn

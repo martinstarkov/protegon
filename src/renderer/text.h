@@ -72,13 +72,13 @@ struct TextShadingColor : public ColorComponent {
 };
 
 struct TextProperties {
-	FontStyle style;
-	TextJustify justify;
-	TextLineSkip line_skip;
-	TextWrapAfter wrap_after;
-	FontRenderMode render_mode{ FontRenderMode::Solid };
-	TextOutline outline;
-	TextShadingColor shading_color;
+	FontStyle style{};
+	TextJustify justify{};
+	TextLineSkip line_skip{};
+	TextWrapAfter wrap_after{};
+	FontRenderMode render_mode{};
+	TextOutline outline{};
+	TextShadingColor shading_color{};
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		TextProperties, style, justify, line_skip, wrap_after, render_mode, outline, shading_color
@@ -109,11 +109,11 @@ public:
 	// FontStyle::Italic && FontStyle::Bold
 	Text& SetFontStyle(FontStyle font_style);
 	// Set the point size of text. Infinity will use the current point size of the font.
-	Text& SetFontSize(std::int32_t pixels);
+	Text& SetFontSize(const FontSize& pixels);
 
 	// Note: This function will implicitly set font render mode to Blended as it is required.
-	// @param width Setting width to 0 will remove the text outline.
-	Text& SetOutline(std::int32_t width, const Color& color);
+	// @param outline Setting outline.width to 0 will remove the text outline.
+	Text& SetOutline(const TextOutline& outline);
 
 	Text& SetFontRenderMode(FontRenderMode render_mode);
 
@@ -123,10 +123,10 @@ public:
 
 	// text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
 	// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
-	Text& SetWrapAfter(std::uint32_t pixels);
+	Text& SetWrapAfter(const TextWrapAfter& pixels);
 
 	// Set the spacing between lines of text. Infinity will use the current font line skip.
-	Text& SetLineSkip(std::int32_t pixels);
+	Text& SetLineSkip(const TextLineSkip& pixels);
 
 	// Determines how text is justified.
 	Text& SetTextJustify(TextJustify text_justify);
@@ -140,7 +140,7 @@ public:
 	[[nodiscard]] TextJustify GetTextJustify() const;
 	[[nodiscard]] const impl::Texture& GetTexture() const;
 
-	[[nodiscard]] std::int32_t GetFontSize() const;
+	[[nodiscard]] FontSize GetFontSize() const;
 
 	// @return The unscaled size of the text texture given the current content and font.
 	[[nodiscard]] static V2_int GetSize(const Entity& text);
@@ -151,28 +151,33 @@ public:
 
 	void RecreateTexture();
 
-	template <typename T>
-	Text& SetParameter(const T& value, bool recreate_texture = true) {
-		static_assert(tt::is_any_of_v<
-					  T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode,
-					  FontSize, TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline,
-					  TextJustify>);
+	[[nodiscard]] TextProperties GetProperties() const;
+
+	void SetProperties(const TextProperties& properties, bool recreate_texture = true);
+
+	// @return True if the parameter was changed.
+	template <
+		typename T,
+		tt::enable<tt::is_any_of_v<
+			T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
+			TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>> = true>
+	bool SetParameter(const T& value, bool recreate_texture = true) {
 		if (!Has<T>()) {
 			Add<T>(value);
 			if (recreate_texture) {
 				RecreateTexture();
 			}
-			return *this;
+			return true;
 		}
 		T& t{ Get<T>() };
 		if (t == value) {
-			return *this;
+			return false;
 		}
 		t = value;
 		if (recreate_texture) {
 			RecreateTexture();
 		}
-		return *this;
+		return true;
 	}
 
 	template <typename T>
@@ -197,7 +202,8 @@ public:
 // game.font.SetDefault(...) to change.
 Text CreateText(
 	Scene& scene, const TextContent& content, const TextColor& text_color = {},
-	const ResourceHandle& font_key = {}
+	const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+	const TextProperties& properties = {}
 );
 
 PTGN_SERIALIZER_REGISTER_ENUM(

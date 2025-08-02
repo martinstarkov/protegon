@@ -178,7 +178,8 @@ struct ButtonText {
 
 	ButtonText(
 		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
-		const TextColor& text_color, const ResourceHandle& font_key
+		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+		const TextProperties& text_properties
 	);
 
 	ButtonText& operator=(const ButtonText&)	 = default;
@@ -188,16 +189,17 @@ struct ButtonText {
 
 	~ButtonText();
 
-	[[nodiscard]] Color GetTextColor(ButtonState state) const;
-	[[nodiscard]] std::string GetTextContent(ButtonState state) const;
-	[[nodiscard]] std::int32_t GetFontSize(ButtonState state) const;
+	[[nodiscard]] TextColor GetTextColor(ButtonState state) const;
+	[[nodiscard]] TextContent GetTextContent(ButtonState state) const;
+	[[nodiscard]] FontSize GetFontSize(ButtonState state) const;
 	[[nodiscard]] TextJustify GetTextJustify(ButtonState state) const;
 	[[nodiscard]] Text Get(ButtonState state) const;
 	[[nodiscard]] Text GetValid(ButtonState state) const;
 
 	void Set(
 		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
-		const TextColor& text_color, const ResourceHandle& font_key
+		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+		const TextProperties& text_properties
 	);
 
 	Text default_;
@@ -266,11 +268,11 @@ public:
 
 	Button& SetButtonTint(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextColor GetTextColor(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextColor(const TextColor& text_color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextContent GetTextContent(ButtonState state = ButtonState::Current) const;
 
 	Button& SetTextContent(const TextContent& content, ButtonState state = ButtonState::Default);
 
@@ -287,13 +289,14 @@ public:
 	// based its the font size and wrap settings.
 	// Button& ClearTextFixedSize();
 
-	[[nodiscard]] std::int32_t GetFontSize(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] FontSize GetFontSize(ButtonState state = ButtonState::Current) const;
 
-	Button& SetFontSize(std::int32_t font_size, ButtonState state = ButtonState::Default);
+	Button& SetFontSize(const FontSize& font_size, ButtonState state = ButtonState::Default);
 
 	Button& SetText(
 		const TextContent& content, const TextColor& text_color = color::Black,
-		const ResourceHandle& font_key = {}, ButtonState state = ButtonState::Default
+		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
 	);
 
 	[[nodiscard]] Text GetText(ButtonState state = ButtonState::Current) const;
@@ -346,13 +349,13 @@ public:
 		const Color& color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextColor GetTextColorToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetTextColorToggled(
 		const TextColor& text_color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextContent GetTextContentToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetTextContentToggled(
 		const TextContent& content, ButtonState state = ButtonState::Default
@@ -360,7 +363,8 @@ public:
 
 	ToggleButton& SetTextToggled(
 		const TextContent& content, const TextColor& text_color = color::Black,
-		const ResourceHandle& font_key = {}, ButtonState state = ButtonState::Default
+		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
 	);
 
 	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;
