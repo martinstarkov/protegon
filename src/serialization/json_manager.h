@@ -8,6 +8,9 @@
 namespace ptgn::impl {
 
 class JsonManager : public ResourceManager<JsonManager, ResourceHandle, json> {
+public:
+	[[nodiscard]] const json& Get(const ResourceHandle& key) const;
+
 private:
 	friend class ParentManager;
 
