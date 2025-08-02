@@ -296,29 +296,16 @@ void SceneInput::EntityMouseDown(
 
 	entity.InvokeScript<&impl::IScript::OnDragStart>(world_pointer);
 
-	auto overlapping_dropzones{ GetOverlappingDropzones(scene, entity, world_pointer) };
-
-	if (top_only_) {
-		SetTopEntity(overlapping_dropzones);
-	}
-
-	for (const auto& dropzone : overlapping_dropzones) {
-		auto& dropped_entities{ dropzone.Get<Dropzone>().dropped_entities };
-		bool erased{ VectorErase(dropped_entities, entity) };
-		if (erased) {
-			entity.InvokeScript<&impl::IScript::OnPickup>(dropzone);
-		}
-	}
-
 	for (Entity dropzone_entity : dropzones) {
 		if (!dropzone_entity.IsAlive() || !dropzone_entity.Has<Dropzone, Interactive, Enabled>()) {
 			continue;
 		}
-		if (VectorContains(overlapping_dropzones, dropzone_entity)) {
-			continue;
-		}
 		auto& dropzone{ dropzone_entity.Get<Dropzone>() };
-		VectorErase(dropzone.overlapping_draggables, entity);
+		bool erased{ VectorErase(dropzone.dropped_entities, entity) };
+		if (erased) {
+			entity.InvokeScript<&impl::IScript::OnPickup>(dropzone_entity);
+		}
+		// VectorErase(dropzone.overlapping_draggables, entity);
 	}
 }
 
@@ -368,14 +355,6 @@ void SceneInput::EntityMouseUp(
 		if (!VectorContains(dropzone_entities, entity)) {
 			dropzone_entities.emplace_back(entity);
 		}
-	}
-
-	for (Entity dropzone_entity : dropzones) {
-		if (!dropzone_entity.IsAlive() || !dropzone_entity.Has<Dropzone, Interactive, Enabled>()) {
-			continue;
-		}
-		auto& dropzone{ dropzone_entity.Get<Dropzone>() };
-		VectorErase(dropzone.overlapping_draggables, entity);
 	}
 }
 

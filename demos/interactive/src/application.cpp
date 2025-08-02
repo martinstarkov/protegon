@@ -292,7 +292,6 @@ struct ScriptR3 : public Script<ScriptR3> {
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
-	/*
 	void OnDragEnter(Entity dropzone) override {
 		PTGN_LOG("r3 Drag enter: ", dropzone.GetId());
 	}
@@ -309,7 +308,7 @@ struct ScriptR3 : public Script<ScriptR3> {
 		PTGN_LOG("r3 Drag over: ", dropzone.GetId());
 	}
 
-	void OnDragStart(V2_float mouse) override {
+	/*void OnDragStart(V2_float mouse) override {
 		PTGN_LOG("r3 Drag start: ", mouse);
 	}
 
@@ -317,13 +316,13 @@ struct ScriptR3 : public Script<ScriptR3> {
 		PTGN_LOG("r3 Drag stop: ", mouse);
 	}*/
 
-	/*void OnDrop(Entity dropzone) override {
+	void OnDrop(Entity dropzone) override {
 		PTGN_LOG("r3 dropped onto: ", dropzone.GetId());
 	}
 
 	void OnPickup(Entity dropzone) override {
 		PTGN_LOG("r3 picked up from: ", dropzone.GetId());
-	}*/
+	}
 };
 
 struct ScriptC3 : public Script<ScriptC3> {
