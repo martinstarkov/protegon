@@ -291,20 +291,20 @@ struct ScriptR3 : public Script<ScriptR3> {
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
-	void OnDragEnter(V2_float mouse) override {
-		PTGN_LOG("r3 Drag enter: ", mouse);
+	void OnDragEnter(Entity dropzone) override {
+		PTGN_LOG("r3 Drag enter: ", dropzone.GetId());
 	}
 
-	void OnDragLeave(V2_float mouse) override {
-		PTGN_LOG("r3 Drag leave: ", mouse);
+	void OnDragLeave(Entity dropzone) override {
+		PTGN_LOG("r3 Drag leave: ", dropzone.GetId());
 	}
 
-	void OnDragOut(V2_float mouse) override {
-		PTGN_LOG("r3 Drag out: ", mouse);
+	void OnDragOut(Entity dropzone) override {
+		PTGN_LOG("r3 Drag out: ", dropzone.GetId());
 	}
 
-	void OnDragOver(V2_float mouse) override {
-		PTGN_LOG("r3 Drag over: ", mouse);
+	void OnDragOver(Entity dropzone) override {
+		PTGN_LOG("r3 Drag over: ", dropzone.GetId());
 	}
 
 	void OnDragStart(V2_float mouse) override {
@@ -341,20 +341,20 @@ struct ScriptC3 : public Script<ScriptC3> {
 	//	PTGN_LOG("c3 Mouse up outside: ", mouse);
 	// }
 
-	void OnDragEnter(V2_float mouse) override {
-		PTGN_LOG("c3 Drag enter: ", mouse);
+	void OnDragEnter(Entity dropzone) override {
+		PTGN_LOG("c3 Drag enter: ", dropzone.GetId());
 	}
 
-	void OnDragLeave(V2_float mouse) override {
-		PTGN_LOG("c3 Drag leave: ", mouse);
+	void OnDragLeave(Entity dropzone) override {
+		PTGN_LOG("c3 Drag leave: ", dropzone.GetId());
 	}
 
-	void OnDragOut(V2_float mouse) override {
-		PTGN_LOG("c3 Drag out: ", mouse);
+	void OnDragOut(Entity dropzone) override {
+		PTGN_LOG("c3 Drag out: ", dropzone.GetId());
 	}
 
-	void OnDragOver(V2_float mouse) override {
-		PTGN_LOG("c3 Drag over: ", mouse);
+	void OnDragOver(Entity dropzone) override {
+		PTGN_LOG("c3 Drag over: ", dropzone.GetId());
 	}
 
 	void OnDragStart(V2_float mouse) override {
@@ -371,43 +371,57 @@ struct InteractiveScene : public Scene {
 		V2_float ws{ game.window.GetSize() };
 		V2_float center{ game.window.GetCenter() };
 
-		auto c0 = CreateCircle(*this, center + V2_float{ 200, -200 }, 90.0f, color::Green, 1.0f);
+		V2_float offset{ 250, 250 };
+		V2_float rsize{ 100, 50 };
+
+		auto c0 = CreateCircle(
+			*this, center + V2_float{ offset.x, -offset.y }, 90.0f, color::Green, 1.0f
+		);
 		auto c0_child = CreateCircle(*this, {}, 90.0f, color::Magenta, 1.0f);
 		c0.AddInteractable(c0_child);
 		c0.AddScript<ScriptC0>();
 
-		auto c1 =
-			CreateCircle(*this, center + V2_float{ 200, 200 }, 90.0f, color::LightGreen, 1.0f);
+		auto c1 = CreateCircle(
+			*this, center + V2_float{ offset.x, offset.y }, 90.0f, color::LightGreen, 1.0f
+		);
 		auto c1_child = CreateCircle(*this, {}, 45.0f, color::Magenta, 1.0f);
 		c1.AddInteractable(c1_child);
 		c1.AddScript<ScriptC1>();
 
 		auto r0 = CreateRect(
-			*this, center + V2_float{ -200, -200 }, V2_float{ 200, 100 }, color::Blue, 1.0f
+			*this, center + V2_float{ -offset.x, -offset.y }, rsize * 2, color::Blue, 1.0f
 		);
-		auto r0_child = CreateRect(*this, {}, V2_float{ 200, 100 }, color::Magenta, 1.0f);
+		auto r0_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);
 		r0.AddInteractable(r0_child);
 		r0.AddScript<ScriptR0>();
 
-		V2_float r1size{ 100, 50 };
-		auto r1 = CreateRect(*this, center + V2_float{ -200, 200 }, r1size, color::LightBlue, 1.0f);
-		auto r1_child = CreateRect(*this, {}, r1size * 2, color::Magenta, 1.0f);
+		auto r1 = CreateRect(
+			*this, center + V2_float{ -offset.x, offset.y }, rsize, color::LightBlue, 1.0f
+		);
+		auto r1_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);
 		r1.AddInteractable(r1_child);
 		r1.AddScript<ScriptR1>();
 
 		game.texture.Load("box", "resources/box.png");
 
 		auto r2 = CreateSprite(*this, "box");
-		r2.SetPosition(center + V2_float{ -200, 0 });
+		r2.SetPosition(center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateRect(*this, {}, r2.GetDisplaySize(), color::Magenta, 1.0f);
 		r2.AddInteractable(r2_child);
 		r2.AddScript<ScriptR2>();
 
 		game.texture.Load("drag", "resources/drag.png");
 		game.texture.Load("drag_circle", "resources/drag_circle.png");
+		game.texture.Load("dropzone", "resources/dropzone.png");
+
+		auto r4 = CreateSprite(*this, "dropzone");
+		r4.SetPosition(center + V2_float{ 0.0f, -offset.y });
+		auto r4_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);
+		r4.AddInteractable(r4_child);
+		r4.Add<Dropzone>().trigger = DropTrigger::MouseOverlaps;
 
 		auto r3 = CreateSprite(*this, "drag");
-		r3.SetPosition(center + V2_float{ 200, 0 });
+		r3.SetPosition(center + V2_float{ offset.x, 0.0f });
 		auto r3_child = CreateRect(*this, {}, r3.GetDisplaySize(), color::Magenta, 1.0f);
 		r3.AddInteractable(r3_child);
 		r3.Add<Draggable>();
