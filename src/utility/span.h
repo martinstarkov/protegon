@@ -138,9 +138,12 @@ static void SwapVectorElements(std::vector<T>& v, const T& e1, const T& e2) {
 	std::swap(*it1, *it2);
 }
 
+// @return True if the element was erased from the vector, false otherwise.
 template <typename T>
-static void VectorErase(std::vector<T>& v, const T& element) {
+static bool VectorErase(std::vector<T>& v, const T& element) {
+	auto before{ v.size() };
 	v.erase(std::remove(v.begin(), v.end(), element), v.end());
+	return v.size() != before;
 }
 
 } // namespace ptgn
