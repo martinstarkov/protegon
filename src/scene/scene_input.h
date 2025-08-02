@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "components/input.h"
 #include "core/entity.h"
 #include "events/event.h"
@@ -34,12 +36,6 @@ public:
 
 	void SetDrawInteractives(bool draw_interactives);
 
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		SceneInput, KeyValue("scene_key", scene_key_), KeyValue("top_only", top_only_),
-		KeyValue("draw_interactives", draw_interactives_),
-		KeyValue("triggered_callbacks", triggered_callbacks_)
-	)
-
 private:
 	friend class Scene;
 	friend class Button;
@@ -47,7 +43,14 @@ private:
 	static void SimulateMouseMovement(Entity entity);
 
 	void EntityMouseMove(
-		Entity entity, bool is_inside, bool was_inside, const V2_float& screen_pointer
+		Scene& scene, Entity entity, bool is_inside, bool was_inside, const V2_float& screen_pointer
+	) const;
+
+	void EntityMouseDown(Scene& scene, Entity entity, Mouse mouse, const V2_float& screen_pointer)
+		const;
+
+	void EntityMouseUp(
+		Scene& scene, Entity entity, bool is_inside, Mouse mouse, const V2_float& screen_pointer
 	) const;
 
 	void Update(Scene& scene);
@@ -66,6 +69,10 @@ private:
 	void Init(std::size_t scene_key);
 	void Shutdown();
 
+	std::vector<Entity> mouse_entered;
+	std::vector<Entity> mouse_exited;
+	std::vector<Entity> mouse_over;
+
 	std::size_t scene_key_{ 0 };
 
 	bool triggered_callbacks_{ false };
@@ -73,6 +80,17 @@ private:
 	bool top_only_{ false };
 
 	bool draw_interactives_{ false };
+
+public:
+	// TODO: Potentially move away from serializing the entity vectors.
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		SceneInput, KeyValue("scene_key", scene_key_), KeyValue("top_only", top_only_),
+		KeyValue("draw_interactives", draw_interactives_),
+		KeyValue("triggered_callbacks", triggered_callbacks_),
+		KeyValue("mouse_entered", mouse_entered), KeyValue("mouse_exited", mouse_exited),
+		KeyValue("mouse_over", mouse_over)
+	)
 };
 
 } // namespace ptgn
