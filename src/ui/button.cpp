@@ -202,9 +202,17 @@ ButtonText::ButtonText(
 }
 
 ButtonText::~ButtonText() {
-	default_.Destroy();
-	hover_.Destroy();
-	pressed_.Destroy();
+	// TODO: Fix. These are an issue when a scene is deleted which destroys pools which destroys
+	// these.
+	// if (default_) {
+	//	default_.Destroy();
+	//}
+	// if (hover_) {
+	//	hover_.Destroy();
+	//}
+	// if (pressed_) {
+	//	pressed_.Destroy();
+	//}
 }
 
 Text ButtonText::Get(ButtonState state) const {

@@ -15,6 +15,7 @@
 #include "core/manager.h"
 #include "core/timer.h"
 #include "ecs/ecs.h"
+#include "events/event_handler.h"
 #include "input/input_handler.h"
 #include "nlohmann/json.hpp"
 #include "physics/collision/collision_handler.h"
@@ -46,11 +47,18 @@ Scene::Scene() {
 }
 
 Scene::~Scene() {
+	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
 	game.renderer.GetRenderData().render_manager.Refresh();
+	for (auto e : Entities()) {
+		game.event.UnsubscribeAll(e);
+	}
 }
 
 void Scene::AddToDisplayList(Entity entity) {
+	if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
+		return;
+	}
 	if (!entity.Has<Visible>() || !entity.Has<IDrawable>()) {
 		return;
 	}
@@ -59,6 +67,9 @@ void Scene::AddToDisplayList(Entity entity) {
 }
 
 void Scene::RemoveFromDisplayList(Entity entity) {
+	if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
+		return;
+	}
 	auto& dl{ render_target_.GetDisplayList() };
 	dl.erase(std::remove(dl.begin(), dl.end(), entity), dl.end());
 }

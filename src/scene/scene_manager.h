@@ -66,6 +66,33 @@ public:
 		return *static_cast<TScene*>(sc->scene.get());
 	}
 
+	// TODO: Find a better name for this. Perhaps switch to TryLoad and Load.
+	template <typename TScene, typename... TArgs>
+	TScene& ForceLoad(std::string_view scene_key, TArgs&&... constructor_args) {
+		static_assert(
+			std::is_constructible_v<TScene, TArgs...>,
+			"Loaded scene type must be constructible from provided constructor arguments"
+		);
+
+		static_assert(
+			std::is_convertible_v<TScene*, Scene*>,
+			"Loaded scene type must inherit from ptgn::Scene"
+		);
+		auto key{ GetInternalKey(scene_key) };
+		auto scene{ GetScene(key) };
+		SceneComponent* sc{ nullptr };
+		if (!scene) { // New scene.
+			scene = scenes_.CreateEntity();
+		}
+
+		sc = &scene.Add<SceneComponent>(
+			std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
+		);
+		sc->scene->key_ = key;
+		scenes_.Refresh();
+		return *static_cast<TScene*>(sc->scene.get());
+	}
+
 	// Makes a scene active.
 	// The scene must first be loaded into the scene manager using Load().
 	// If the provided scene is already active, it is restarted.
@@ -120,7 +147,7 @@ public:
 		std::string_view from_scene_key, std::string_view to_scene_key,
 		const SceneTransition& transition, TArgs&&... constructor_args
 	) {
-		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
+		auto& scene{ ForceLoad<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
 		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
 		return scene;
 	}
@@ -170,6 +197,13 @@ public:
 		return current_.operator bool();
 	}
 
+	[[nodiscard]] bool Has(std::string_view scene_key) const {
+		return HasScene(GetInternalKey(scene_key));
+	}
+
+	[[nodiscard]] bool HasScene(std::size_t scene_key) const;
+	[[nodiscard]] bool HasActiveScene(std::size_t scene_key) const;
+
 private:
 	friend class ptgn::SceneTransition;
 	friend class Game;
@@ -207,9 +241,6 @@ private:
 	void HandleSceneEvents();
 
 	[[nodiscard]] std::size_t GetActiveSceneCount() const;
-
-	[[nodiscard]] bool HasScene(std::size_t scene_key) const;
-	[[nodiscard]] bool HasActiveScene(std::size_t scene_key) const;
 
 	[[nodiscard]] Entity GetScene(std::size_t scene_key) const;
 	[[nodiscard]] Entity GetActiveScene(std::size_t scene_key) const;

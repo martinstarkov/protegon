@@ -439,6 +439,9 @@ void SceneInput::ProcessDragOverDropzones(Scene& scene, const V2_float& screen_p
 
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	// TODO: Figure out a smart way to cache the scene.
+	if (!game.scene.HasScene(scene_key_)) {
+		return;
+	}
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	auto screen_pointer{ game.input.GetMousePosition() };
 	switch (type) {
@@ -522,6 +525,9 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 }
 
 void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
+	if (!game.scene.HasScene(scene_key_)) {
+		return;
+	}
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	switch (type) {
 		case KeyEvent::Down: {
@@ -557,6 +563,40 @@ void SceneInput::ResetInteractives(Scene& scene) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}
+}
+
+SceneInput::SceneInput(SceneInput&& other) noexcept :
+	mouse_entered(std::exchange(other.mouse_entered, {})),
+	mouse_exited(std::exchange(other.mouse_exited, {})),
+	mouse_over(std::exchange(other.mouse_over, {})),
+	dropzones(std::exchange(other.dropzones, {})),
+	scene_key_(std::exchange(other.scene_key_, 0)),
+	triggered_callbacks_(std::exchange(other.triggered_callbacks_, false)),
+	top_only_(std::exchange(other.top_only_, false)),
+	draw_interactives_(std::exchange(other.draw_interactives_, false)) {
+	game.event.UnsubscribeAll(&other);
+}
+
+SceneInput& SceneInput::operator=(SceneInput&& other) noexcept {
+	if (this != &other) {
+		game.event.UnsubscribeAll(this);
+
+		mouse_entered		 = std::exchange(other.mouse_entered, {});
+		mouse_exited		 = std::exchange(other.mouse_exited, {});
+		mouse_over			 = std::exchange(other.mouse_over, {});
+		dropzones			 = std::exchange(other.dropzones, {});
+		scene_key_			 = std::exchange(other.scene_key_, 0);
+		triggered_callbacks_ = std::exchange(other.triggered_callbacks_, false);
+		top_only_			 = std::exchange(other.top_only_, false);
+		draw_interactives_	 = std::exchange(other.draw_interactives_, false);
+
+		game.event.UnsubscribeAll(&other);
+	}
+	return *this;
+}
+
+SceneInput::~SceneInput() {
+	game.event.UnsubscribeAll(this);
 }
 
 void SceneInput::Init(std::size_t scene_key) {
@@ -634,6 +674,9 @@ void SceneInput::SimulateMouseMovement(Entity entity) {
 	}
 	PTGN_ASSERT(entity.Has<impl::SceneKey>());
 	const auto& scene_key{ entity.Get<impl::SceneKey>() };
+	if (!game.scene.HasScene(scene_key)) {
+		return;
+	}
 	auto& scene{ game.scene.Get<Scene>(scene_key) };
 	entity.SetInteractiveWasInside(false);
 	auto screen_pointer{ game.input.GetMousePosition() };

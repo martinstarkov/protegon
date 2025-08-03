@@ -47,6 +47,10 @@ bool Entity::IsAlive() const {
 }
 
 Entity& Entity::Destroy(bool orphan_children) {
+	if (*this == Entity{}) {
+		return *this;
+	}
+
 	game.event.UnsubscribeAll(*this);
 
 	if (!orphan_children) {
