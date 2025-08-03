@@ -23,9 +23,9 @@
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
+#include "renderer/font.h"
 #include "renderer/gl/gl_context.h"
 #include "renderer/renderer.h"
-#include "renderer/font.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
@@ -55,6 +55,8 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include "nlohmann/detail/iterators/iter_impl.hpp"
+#include "nlohmann/json.hpp"
 
 namespace ptgn {
 
@@ -364,14 +366,26 @@ void LoadResources(const std::vector<Resource>& resource_paths) {
 }
 
 void LoadResources(const path& resource_file, std::string_view music_resource_suffix) {
-	auto resources{ LoadJson(resource_file) };
+	json resources{ LoadJson(resource_file) };
+
+#ifdef __EMSCRIPTEN__
+	if (resources.is_array()) {
+		resources = resources.at(0);
+	}
+#endif
+
+	if (!resources.is_object()) {
+		PTGN_ERROR(
+			"Expected json object, but got something else for resources: ", resources.dump(4)
+		);
+	}
 
 	// Track unique resource keys.
 	std::unordered_set<std::size_t> taken_resource_keys;
 
-	for (const auto& item : resources.items()) {
-		const auto& key{ item.key() };
-		const auto& resource_path{ item.value() };
+	for (auto it = resources.begin(); it != resources.end(); ++it) {
+		const std::string& key	  = it.key();
+		const auto& resource_path = it.value();
 
 		auto key_hash{ Hash(key) };
 
@@ -384,7 +398,15 @@ void LoadResources(const path& resource_file, std::string_view music_resource_su
 
 		bool is_music{ EndsWith(key, music_resource_suffix) };
 
-		LoadResource(key, resource_path.get<std::string>(), is_music);
+		if (!resource_path.is_string()) {
+			PTGN_ERROR(
+				"Expected string, but got something else for resource path: ", resource_path.dump(4)
+			);
+		}
+
+		path filepath{ resource_path.get<std::string>() };
+
+		LoadResource(key, filepath, is_music);
 	}
 }
 

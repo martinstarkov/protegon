@@ -12,7 +12,13 @@ const json& JsonManager::Get(const ResourceHandle& key) const {
 }
 
 json JsonManager::LoadFromFile(const path& filepath) {
-	return ptgn::LoadJson(filepath);
+	json j{ ptgn::LoadJson(filepath) };
+#ifdef __EMSCRIPTEN__
+	if (j.is_array()) {
+		j = j.at(0);
+	}
+#endif
+	return j;
 }
 
 } // namespace ptgn::impl

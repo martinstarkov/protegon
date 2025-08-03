@@ -118,12 +118,13 @@ bool SceneInput::PointerIsInside(
 	const V2_float& screen_pointer, const V2_float& world_pointer, const Entity& entity
 ) const {
 	// TODO: Replace with resolution.
-	if (auto window_size{ game.window.GetSize() }; !impl::OverlapPointRect(
-			Transform{}, screen_pointer, Transform{ window_size / 2.0f }, Rect{ window_size }
-		)) {
-		// Mouse outside of screen.
-		return false;
-	}
+	// if (auto window_size{ game.window.GetSize() }; !impl::OverlapPointRect(
+	//		Transform{}, game.input.GetMousePositionUnclamped(), Transform{ window_size / 2.0f },
+	//		Rect{ window_size }
+	//	)) {
+	//	// Mouse outside of screen.
+	//	return false;
+	//}
 	return Overlap(world_pointer, entity);
 }
 
@@ -216,8 +217,7 @@ std::vector<Entity> GetOverlappingDropzones(
 }
 
 void SceneInput::UpdateCurrent(Scene& scene) {
-	// auto mouse_pos{ game.input.GetMousePosition() };
-	auto screen_pointer{ game.input.GetMousePositionUnclamped() };
+	auto screen_pointer{ game.input.GetMousePosition() };
 
 	mouse_entered.clear();
 	mouse_exited.clear();
@@ -440,7 +440,7 @@ void SceneInput::ProcessDragOverDropzones(Scene& scene, const V2_float& screen_p
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	// TODO: Figure out a smart way to cache the scene.
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
-	auto screen_pointer{ game.input.GetMousePositionUnclamped() };
+	auto screen_pointer{ game.input.GetMousePosition() };
 	switch (type) {
 		case MouseEvent::Move: {
 			// Prevent mouse move event from triggering twice per frame.
@@ -636,7 +636,7 @@ void SceneInput::SimulateMouseMovement(Entity entity) {
 	const auto& scene_key{ entity.Get<impl::SceneKey>() };
 	auto& scene{ game.scene.Get<Scene>(scene_key) };
 	entity.SetInteractiveWasInside(false);
-	auto screen_pointer{ game.input.GetMousePositionUnclamped() };
+	auto screen_pointer{ game.input.GetMousePosition() };
 	scene.input.EntityMouseMove(
 		scene, entity, entity.InteractiveIsInside(), entity.InteractiveWasInside(), screen_pointer
 	);

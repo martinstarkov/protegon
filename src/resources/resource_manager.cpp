@@ -25,14 +25,36 @@ void ResourceManager<Derived, HandleType, ItemType>::UnloadList(const path& json
 
 template <typename Derived, typename HandleType, typename ItemType>
 void ResourceManager<Derived, HandleType, ItemType>::LoadJson(const json& resources) {
-	for (const auto& [resource_key, resource_path] : resources.items()) {
+	json items{ resources };
+#ifdef __EMSCRIPTEN__
+	if (items.is_array()) {
+		items = items.at(0);
+	}
+#endif
+	for (auto it = items.begin(); it != items.end(); ++it) {
+		const std::string& resource_key = it.key();
+		const auto& resource_path		= it.value();
+		if (!resource_path.is_string()) {
+			PTGN_ERROR("Failed to load resource: ", resource_path.dump(4));
+		}
 		Load(resource_key, resource_path);
 	}
 }
 
 template <typename Derived, typename HandleType, typename ItemType>
 void ResourceManager<Derived, HandleType, ItemType>::UnloadJson(const json& resources) {
-	for (const auto& [resource_key, resource_path] : resources.items()) {
+	json items{ resources };
+#ifdef __EMSCRIPTEN__
+	if (items.is_array()) {
+		items = items.at(0);
+	}
+#endif
+	for (auto it = items.begin(); it != items.end(); ++it) {
+		const std::string& resource_key = it.key();
+		const auto& resource_path		= it.value();
+		if (!resource_path.is_string()) {
+			PTGN_ERROR("Failed to load resource: ", resource_path.dump(4));
+		}
 		Unload(resource_key);
 	}
 }

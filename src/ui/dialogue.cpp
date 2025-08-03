@@ -190,6 +190,11 @@ DialogueComponent& DialogueComponent::operator=(DialogueComponent&&) noexcept = 
 
 DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entity&& background) {
 	json j{ LoadJson(json_path) };
+#ifdef __EMSCRIPTEN__
+	if (j.is_array()) {
+		j = j.at(0);
+	}
+#endif
 	auto& scene{ parent.GetScene() };
 	background_ = background;
 	if (background_) {
@@ -411,7 +416,10 @@ void DialogueComponent::LoadFromJson(
 		"Start key not found in json of dialogues"
 	);
 
-	for (const auto& [dialogue_name, dialogue_json] : dialogues_json.items()) {
+	for (auto it = dialogues_json.begin(); it != dialogues_json.end(); ++it) {
+		const std::string& dialogue_name = it.key();
+		const auto& dialogue_json		 = it.value();
+
 		Dialogue dialogue;
 
 		const auto dialogue_properties = root_properties.InheritProperties(dialogue_json);

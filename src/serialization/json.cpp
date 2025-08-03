@@ -7,6 +7,7 @@
 #include <ostream>
 
 #include "common/assert.h"
+#include "debug/log.h"
 #include "serialization/fwd.h"
 #include "utility/file.h"
 
@@ -26,7 +27,18 @@ json LoadJson(const path& filepath) {
 		"Cannot load json file from a nonexistent file path: ", filepath.string()
 	);
 	std::ifstream json_file(filepath);
-	return json::parse(json_file);
+	json j{ json::parse(json_file) };
+#ifdef __EMSCRIPTEN__
+	if (j.is_array()) {
+		j = j.at(0);
+	}
+#endif
+	if (!j.is_object()) {
+		PTGN_ERROR(
+			"Failed to load json from file: ", filepath.string(), ", json contains: ", j.dump(4)
+		);
+	}
+	return j;
 }
 
 } // namespace ptgn
