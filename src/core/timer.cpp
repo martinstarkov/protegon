@@ -102,22 +102,21 @@ namespace impl {
 
 void ScriptTimers::Update(Scene& scene) {
 	for (auto [entity, scripts, script_timer] : scene.EntitiesWith<Scripts, ScriptTimers>()) {
-		for (auto timer_it{ script_timer.timers.begin() }; timer_it != script_timer.timers.end();) {
-			auto& [key, timer_info] = *timer_it;
-
+		std::vector<std::size_t> remove_timers;
+		auto timers{ script_timer.timers };
+		for (auto [key, timer_info] : timers) {
 			if (!timer_info.timer.IsRunning()) {
 				PTGN_ASSERT(
 					timer_info.timer.HasRun(),
 					"Script timer must be started upon addition of script to entity"
 				);
-				timer_it++;
 				continue;
 			}
 
-			auto script_it{ scripts.scripts.find(key) };
+			auto script_it{ entity.Get<Scripts>().scripts.find(key) };
 
 			PTGN_ASSERT(
-				script_it != scripts.scripts.end(),
+				script_it != entity.Get<Scripts>().scripts.end(),
 				"Each script timer must have an associated script"
 			);
 
@@ -130,29 +129,25 @@ void ScriptTimers::Update(Scene& scene) {
 
 			script.OnTimerUpdate(elapsed_fraction);
 
-			if (elapsed_fraction < 1.0f) {
-				timer_it++;
-			} else {
+			if (elapsed_fraction >= 1.0f) {
+				timer_info.timer.Stop();
 				bool remove{ script.OnTimerStop() };
-				if (!entity.Has<ScriptTimers>()) {
-					break;
-				}
-				auto& new_timers  = entity.Get<ScriptTimers>();
-				auto new_timer_it = new_timers.timers.find(key);
-				if (new_timer_it == new_timers.timers.end()) {
-					// TODO: Check if this should be continue.
-					break;
-				}
-				new_timer_it->second.timer.Stop();
-				if (remove && entity.Has<Scripts>()) {
-					entity.Get<Scripts>().RemoveScript(key);
-					// TODO: Check if this is correct.
-					timer_it = new_timers.timers.erase(new_timer_it);
+				if (remove) {
+					remove_timers.emplace_back(key);
 				}
 			}
 		}
-		if (script_timer.timers.empty()) {
-			entity.Remove<ScriptTimers>();
+		if (entity.Has<ScriptTimers>()) {
+			entity.Get<ScriptTimers>().timers = timers;
+			for (auto key : remove_timers) {
+				entity.Get<ScriptTimers>().timers.erase(key);
+				if (entity.Has<Scripts>()) {
+					entity.Get<Scripts>().RemoveScript(key);
+				}
+			}
+			if (entity.Get<ScriptTimers>().timers.empty()) {
+				entity.Remove<ScriptTimers>();
+			}
 		}
 	}
 
