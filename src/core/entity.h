@@ -837,7 +837,8 @@ public:
 
 	template <auto TCallback, typename... TArgs>
 	void Invoke(TArgs&&... args) const {
-		for (const auto& [key, script] : scripts) {
+		auto scripts_copy{ scripts };
+		for (const auto& [key, script] : scripts_copy) {
 			PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
 			std::invoke(TCallback, script, std::forward<TArgs>(args)...);
 		}

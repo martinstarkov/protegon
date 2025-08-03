@@ -590,7 +590,7 @@ Entity& Entity::Hide() {
 }
 
 bool Entity::IsVisible() const {
-	return GetOrParentOrDefault<Visible>(false);
+	return GetOrDefault<Visible>(false);
 }
 
 Entity& Entity::SetDepth(const Depth& depth) {

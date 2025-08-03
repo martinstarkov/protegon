@@ -134,10 +134,20 @@ void ScriptTimers::Update(Scene& scene) {
 				timer_it++;
 			} else {
 				bool remove{ script.OnTimerStop() };
-				timer_info.timer.Stop();
-				if (remove) {
-					scripts.RemoveScript(key);
-					timer_it = script_timer.timers.erase(timer_it);
+				if (!entity.Has<ScriptTimers>()) {
+					break;
+				}
+				auto& new_timers  = entity.Get<ScriptTimers>();
+				auto new_timer_it = new_timers.timers.find(key);
+				if (new_timer_it == new_timers.timers.end()) {
+					// TODO: Check if this should be continue.
+					break;
+				}
+				new_timer_it->second.timer.Stop();
+				if (remove && entity.Has<Scripts>()) {
+					entity.Get<Scripts>().RemoveScript(key);
+					// TODO: Check if this is correct.
+					timer_it = new_timers.timers.erase(new_timer_it);
 				}
 			}
 		}
