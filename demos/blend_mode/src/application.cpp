@@ -1,33 +1,39 @@
-#include "protegon/protegon.h"
+#include "components/draw.h"
+#include "components/sprite.h"
+#include "core/entity.h"
+#include "core/game.h"
+#include "core/window.h"
+#include "math/geometry/rect.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+struct BlendModeScene : public Scene {
+	void Enter() override {
+		LoadResource("semitransparent", "resources/semitransparent.png");
+		LoadResource("opaque", "resources/opaque.png");
 
-struct BlendModeExampleScene : public Scene {
-	Texture semitransparent{ "resources/semitransparent.png" };
-	Texture opaque{ "resources/opaque.png" };
+		V2_float ws{ game.window.GetSize() };
 
-	void Update() override {
-		Rect{ {}, { window_size.x, 100 }, Origin::TopLeft }.Draw(Color{ 255, 0, 0, 255 });
-		Rect{ { 0, 100 }, { window_size.x, 100 }, Origin::TopLeft }.Draw(Color{ 255, 0, 0, 128 });
-		game.renderer.Flush();
-		Rect{ {}, { window_size.x / 2.0f, window_size.y }, Origin::TopLeft }.Draw(Color{ 0, 0, 255,
-																						 128 });
-		game.renderer.Flush();
-		opaque.Draw({ { 200, 200 }, { 300, 300 }, Origin::TopLeft });
-		game.renderer.Flush();
-		semitransparent.Draw({ { 100, 100 }, { 300, 300 }, Origin::TopLeft });
-		game.renderer.Flush();
-		/*PTGN_LOG(
-			"Scene1 Color at Mouse: ",
-			game.renderer.GetCurrentRenderTarget().GetPixel(game.input.GetMousePositionWindow())
-		);*/
+		CreateRect(*this, {}, { ws.x, 100 }, color::Red, -1.0f, Origin::TopLeft);
+		CreateRect(
+			*this, { 0, 100 }, { ws.x, 100 }, Color{ 255, 0, 0, 128 }, -1.0f, Origin::TopLeft
+		);
+		CreateRect(
+			*this, {}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 }, -1.0f, Origin::TopLeft
+		);
+
+		CreateSprite(*this, "semitransparent").SetPosition({ 100, 100 }).SetOrigin(Origin::TopLeft);
+		CreateSprite(*this, "opaque").SetPosition({ 200, 200 }).SetOrigin(Origin::TopLeft);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BlendModeExample", window_size, color::Transparent);
-	game.scene.Enter<BlendModeExampleScene>("blend_mode_example");
+	game.Init("BlendModeScene");
+	game.scene.Enter<BlendModeScene>("");
 	return 0;
 }

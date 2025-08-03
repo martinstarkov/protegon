@@ -1,11 +1,20 @@
 #pragma once
 
 #include <set>
+#include <vector>
 
-#include "ecs/ecs.h"
+#include "components/uuid.h"
+#include "core/entity.h"
+#include "core/manager.h"
 #include "physics/physics.h"
+#include "renderer/api/color.h"
 #include "renderer/render_target.h"
 #include "scene/camera.h"
+#include "scene/scene_input.h"
+#include "scene/scene_key.h"
+#include "serialization/fwd.h"
+#include "serialization/serializable.h"
+#include "tweens/tween_effects.h"
 
 namespace ptgn {
 
@@ -14,15 +23,14 @@ class SceneTransition;
 
 namespace impl {
 
+class RenderData;
 class SceneManager;
 
 } // namespace impl
 
-class Scene {
+class Scene : public Manager {
 private:
-	// RenderTarget target_;
-
-	std::size_t key_{ 0 };
+	impl::SceneKey key_;
 
 	bool active_{ false };
 
@@ -36,9 +44,35 @@ private:
 
 	std::set<Action> actions_;
 
+protected:
+	void SetColliderColor(const Color& collider_color);
+	void SetColliderVisibility(bool collider_visibility);
+
 public:
-	Scene()			 = default;
-	virtual ~Scene() = default;
+	Scene();
+	~Scene() override;
+
+	// Make sure to call Refresh() after this function.
+	Entity CreateEntity() final;
+
+	// Make sure to call Refresh() after this function.
+	// Creates an entity with a specific uuid.
+	Entity CreateEntity(UUID uuid) final;
+
+	// Make sure to call Refresh() after this function.
+	// Creates an entity from a json object.
+	Entity CreateEntity(const json& j) final;
+
+	// Make sure to call Refresh() after this function.
+	template <typename... Ts>
+	Entity CopyEntity(const Entity& from) {
+		auto entity{ Manager::CopyEntity<Ts...>(from) };
+		entity.template Add<impl::SceneKey>(key_);
+		return entity;
+	}
+
+	// Call to simulate the scene being re-entered.
+	void ReEnter();
 
 	// Called when the scene is added to active scenes.
 	virtual void Enter() {
@@ -55,23 +89,45 @@ public:
 		/* user implementation */
 	}
 
-	ecs::Manager manager;
-	// SceneInput input;
-	impl::Physics physics;
-	impl::CameraManager camera;
+	SceneInput input;
+	Physics physics;
+	CameraManager camera;
+
+	friend void to_json(json& j, const Scene& scene);
+	friend void from_json(const json& j, Scene& scene);
 
 private:
+	friend class impl::RenderData;
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	// void ClearTarget();
-	void InternalLoad();
-	void InternalUnload();
+	void Init();
+
+	impl::TranslateEffectSystem translate_effects_;
+	impl::RotateEffectSystem rotate_effects_;
+	impl::ScaleEffectSystem scale_effects_;
+	impl::TintEffectSystem tint_effects_;
+	impl::BounceEffectSystem bounce_effects_;
+	impl::ShakeEffectSystem shake_effects_;
+	impl::FollowEffectSystem follow_effects_;
+
+	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void InternalUpdate();
+	void PreUpdate();
+	void PostUpdate();
+	void Draw();
 	void InternalExit();
 
+	void AddToDisplayList(Entity entity);
+
+	void RemoveFromDisplayList(Entity entity);
+
 	void Add(Action new_action);
+
+	// TODO: Move back to RenderData and clear between scene draws.
+	RenderTarget render_target_;
+	bool collider_visibility_{ false };
+	Color collider_color_{ color::Blue };
 };
 
 } // namespace ptgn

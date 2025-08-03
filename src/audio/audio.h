@@ -1,11 +1,11 @@
 #pragma once
 
 #include <memory>
-#include <string_view>
-#include <unordered_map>
 
+#include "components/generic.h"
+#include "core/time.h"
+#include "resources/resource_manager.h"
 #include "utility/file.h"
-#include "utility/time.h"
 
 struct _Mix_Music;
 using Mix_Music = _Mix_Music;
@@ -23,19 +23,16 @@ struct Mix_ChunkDeleter {
 	void operator()(Mix_Chunk* sound) const;
 };
 
-class MusicManager {
+using Music = std::unique_ptr<Mix_Music, Mix_MusicDeleter>;
+
+class MusicManager : public ResourceManager<MusicManager, ResourceHandle, Music> {
 public:
-	// @param filepath The file path to the music.
-	void Load(std::string_view key, const path& filepath);
-
-	void Unload(std::string_view key);
-
 	// @param loops The number of loops to play the music for, -1 for infinite looping.
-	void Play(std::string_view key, int loops = -1);
+	void Play(const ResourceHandle& key, int loops = -1) const;
 
 	// @param fade_time How long to fade the music in for.
 	// @param loops The number of loops to play the music for, -1 for infinite looping.
-	void FadeIn(std::string_view key, milliseconds fade_time, int loops = -1);
+	void FadeIn(const ResourceHandle& key, milliseconds fade_time, int loops = -1) const;
 
 	// Pause the currently playing music.
 	void Pause() const;
@@ -73,45 +70,43 @@ public:
 	[[nodiscard]] bool IsFading() const;
 
 private:
-	using Music = std::unique_ptr<Mix_Music, Mix_MusicDeleter>;
+	friend ParentManager;
 
 	[[nodiscard]] static Music LoadFromFile(const path& filepath);
-
-	[[nodiscard]] Mix_Music* Get(std::size_t key) const;
-
-	[[nodiscard]] bool Has(std::size_t key) const;
-
-	std::unordered_map<std::size_t, Music> music_;
 };
 
-class SoundManager {
+using Sound = std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter>;
+
+class SoundManager : public ResourceManager<SoundManager, ResourceHandle, Sound> {
 public:
-	// @param filepath The file path to the sound.
-	void Load(std::string_view key, const path& filepath);
-
-	void Unload(std::string_view key);
-
 	// @param channel The channel on which to play the sound on, -1 plays on the first available
 	// channel.
 	// @param loops Number of times to loop sound, -1 for infinite looping.
-	void Play(std::string_view key, int channel = -1, int loops = 0);
+	void Play(const ResourceHandle& key, int channel = -1, int loops = 0) const;
 
 	// @param fade_time Time over which to fade the sound in.
 	// @param channel The channel on which to play the sound on, -1 plays on the first available
 	// channel.
 	// @param loops Number of times to loop sound, -1 for infinite looping.
-	void FadeIn(std::string_view key, milliseconds fade_time, int channel = -1, int loops = 0);
+	void FadeIn(const ResourceHandle& key, milliseconds fade_time, int channel = -1, int loops = 0)
+		const;
 
 	// Set volume of the sound. Volume range: [0, 128].
-	void SetVolume(std::string_view key, int volume);
+	void SetVolume(const ResourceHandle& key, int volume) const;
+
+	// Set volume of the channel.
+	// @param channel The channel for which the volume is set, -1 sets the volume for all sound
+	// channels.
+	// @param volume Volume of the sound channel. Volume range: [0, 128].
+	void SetVolume(int channel, int volume) const;
 
 	// @return Volume of the sound. Volume range: [0, 128].
-	[[nodiscard]] int GetVolume(std::string_view key) const;
+	[[nodiscard]] int GetVolume(const ResourceHandle& key) const;
 
 	// Toggles the sound volume between 0 and new_volume.
 	// @param new_volume When toggle unmutes, it will set the new volume of the sound to this value
 	// in range [0, 128].
-	void ToggleVolume(std::string_view key, int new_volume = max_volume);
+	void ToggleVolume(const ResourceHandle& key, int new_volume = max_volume) const;
 
 	// Stops the sound playing on the specified channel, -1 stops all sound channels.
 	void Stop(int channel) const;
@@ -130,12 +125,6 @@ public:
 	// channel.
 	void FadeOut(milliseconds fade_time, int channel) const;
 
-	// Set volume of the channel.
-	// @param channel The channel for which the volume is set, -1 sets the volume for all sound
-	// channels.
-	// @param volume Volume of the sound channel. Volume range: [0, 128].
-	void SetVolume(int channel, int volume);
-
 	// @param channel The channel for which to query the volume, -1 gets the average of all sound
 	// channels.
 	// @return Volume of the sound. Volume range: [0, 128].
@@ -151,15 +140,9 @@ public:
 	[[nodiscard]] bool IsFading(int channel) const;
 
 private:
-	using Sound = std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter>;
+	friend ParentManager;
 
 	[[nodiscard]] static Sound LoadFromFile(const path& filepath);
-
-	[[nodiscard]] Mix_Chunk* Get(std::size_t key) const;
-
-	[[nodiscard]] bool Has(std::size_t key) const;
-
-	std::unordered_map<std::size_t, Sound> sounds_;
 };
 
 } // namespace ptgn::impl

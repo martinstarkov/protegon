@@ -7,11 +7,11 @@
 #include <ostream>
 #include <type_traits>
 
+#include "common/assert.h"
+#include "common/type_traits.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "serialization/fwd.h"
-#include "utility/assert.h"
-#include "utility/type_traits.h"
 
 // TODO: Add xyz() and xyzw() functions.
 // TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.
@@ -34,8 +34,11 @@ struct Vector2 {
 
 	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
 
+	explicit Vector2(const json& j);
+
 	template <typename U, typename S>
-	constexpr Vector2(U x, S y) : x{ static_cast<T>(x) }, y{ static_cast<T>(y) } {}
+	constexpr Vector2(U x_component, S y_component) :
+		x{ static_cast<T>(x_component) }, y{ static_cast<T>(y_component) } {}
 
 	template <typename U, tt::not_narrowing<U, T> = true>
 	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
@@ -49,9 +52,16 @@ struct Vector2 {
 	explicit constexpr Vector2(const std::array<U, 2>& o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
+	friend bool operator==(const Vector2& lhs, const Vector2& rhs) {
+		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
+	}
+
+	friend bool operator!=(const Vector2& lhs, const Vector2& rhs) {
+		return !operator==(lhs, rhs);
+	}
+
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
-		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
 		}
@@ -60,7 +70,6 @@ struct Vector2 {
 
 	// Access vector elements by index, 0 for x, 1 for y.
 	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
-		PTGN_ASSERT(idx >= 0 && idx < 2, "Vector2 subscript out of range");
 		if (idx == 1) {
 			return y;
 		}
@@ -209,6 +218,13 @@ struct Vector2 {
 		return { x * c - y * s, x * s + y * c };
 	}
 
+	// Provide cached std::cos(angle_radians) and std::sin(angle_radians) values.
+	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	[[nodiscard]] Vector2<S> Rotated(S cos_angle_radians, S sin_angle_radians) const {
+		return { x * cos_angle_radians - y * sin_angle_radians,
+				 x * sin_angle_radians + y * cos_angle_radians };
+	}
+
 	/*
 	 * @return Angle in radians between vector x and y components in radians.
 	 * Relative to the horizontal x-axis (1, 0).
@@ -243,24 +259,22 @@ struct Vector2 {
 		return std::acos(cosine);
 	}
 
-	[[nodiscard]] bool IsZero() const noexcept;
+	[[nodiscard]] bool IsZero() const {
+		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
+	}
 };
+
+template <typename T>
+void to_json(json& j, const Vector2<T>& vector);
+
+template <typename T>
+void from_json(const json& j, Vector2<T>& vector);
 
 using V2_int	= Vector2<int>;
 using V2_uint	= Vector2<unsigned int>;
 using V2_size	= Vector2<std::size_t>;
 using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
-
-template <typename S>
-[[nodiscard]] inline bool operator==(const Vector2<S>& lhs, const Vector2<S>& rhs) {
-	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
-}
-
-template <typename S>
-[[nodiscard]] inline bool operator!=(const Vector2<S>& lhs, const Vector2<S>& rhs) {
-	return !operator==(lhs, rhs);
-}
 
 template <typename S, ptgn::tt::stream_writable<std::ostream, S> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<S>& v) {
@@ -270,50 +284,58 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<S>& v) {
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator+(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x + rhs.x, lhs.y + rhs.y };
+	return { static_cast<S>(lhs.x) + static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) + static_cast<S>(rhs.y) };
 }
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator-(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x - rhs.x, lhs.y - rhs.y };
+	return { static_cast<S>(lhs.x) - static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) - static_cast<S>(rhs.y) };
 }
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x * rhs.x, lhs.y * rhs.y };
+	return { static_cast<S>(lhs.x) * static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) * static_cast<S>(rhs.y) };
 }
 
 template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, const Vector2<U>& rhs) {
-	return { lhs.x / rhs.x, lhs.y / rhs.y };
+	return { static_cast<S>(lhs.x) / static_cast<S>(rhs.x),
+			 static_cast<S>(lhs.y) / static_cast<S>(rhs.y) };
 }
 
 template <
 	typename V, typename U, tt::arithmetic<V> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(V lhs, const Vector2<U>& rhs) {
-	return { lhs * rhs.x, lhs * rhs.y };
+	return { static_cast<S>(lhs) * static_cast<S>(rhs.x),
+			 static_cast<S>(lhs) * static_cast<S>(rhs.y) };
 }
 
 template <
 	typename V, typename U, tt::arithmetic<U> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, U rhs) {
-	return { lhs.x * rhs, lhs.y * rhs };
+	return { static_cast<S>(lhs.x) * static_cast<S>(rhs),
+			 static_cast<S>(lhs.y) * static_cast<S>(rhs) };
 }
 
 template <
 	typename V, typename U, tt::arithmetic<V> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator/(V lhs, const Vector2<U>& rhs) {
-	return { lhs / rhs.x, lhs / rhs.y };
+	return { static_cast<S>(lhs) / static_cast<S>(rhs.x),
+			 static_cast<S>(lhs) / static_cast<S>(rhs.y) };
 }
 
 template <
 	typename V, typename U, tt::arithmetic<U> = true,
 	typename S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, U rhs) {
-	return { lhs.x / rhs, lhs.y / rhs };
+	return { static_cast<S>(lhs.x) / static_cast<S>(rhs),
+			 static_cast<S>(lhs.y) / static_cast<S>(rhs) };
 }
 
 // Clamp both components of a vector between min and max (component specific).
@@ -338,28 +360,28 @@ template <typename T>
 	return Clamp(vector, min_v, max_v);
 }
 
-// Round both components of a vector.
-template <typename T>
-[[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
-	return { std::round(vector.x), std::round(vector.y) };
-}
-
 // Ceil both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
-	return { FastCeil(vector.x), FastCeil(vector.y) };
+	return { Ceil(vector.x), Ceil(vector.y) };
 }
 
 // Floor both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
-	return { FastFloor(vector.x), FastFloor(vector.y) };
+	return { Floor(vector.x), Floor(vector.y) };
+}
+
+// Round both components of a vector.
+template <typename T>
+[[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
+	return { Round(vector.x), Round(vector.y) };
 }
 
 // Absolute value for both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Abs(const Vector2<T>& vector) {
-	return { FastAbs(vector.x), FastAbs(vector.y) };
+	return { Abs(vector.x), Abs(vector.y) };
 }
 
 // Swap both components of vectors a and b.
@@ -389,11 +411,17 @@ template <typename T>
 	return Vector2<T>{ (a + b) / 2.0f };
 }
 
+// @return The larger component of a vector.
 template <typename T>
-void to_json(json& j, const Vector2<T>& v);
+[[nodiscard]] inline T Max(const Vector2<T>& vector) {
+	return std::max(vector.x, vector.y);
+}
 
+// @return The smaller component of a vector.
 template <typename T>
-void from_json(const json& j, Vector2<T>& v);
+[[nodiscard]] inline T Min(const Vector2<T>& vector) {
+	return std::min(vector.x, vector.y);
+}
 
 } // namespace ptgn
 
@@ -404,9 +432,9 @@ struct std::hash<ptgn::Vector2<T>> {
 	std::size_t operator()(const ptgn::Vector2<T>& v) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
-		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<T>()(v.x);
-		hash = hash * 31 + std::hash<T>()(v.y);
-		return hash;
+		std::size_t value{ 17 };
+		value = value * 31 + std::hash<T>()(v.x);
+		value = value * 31 + std::hash<T>()(v.y);
+		return value;
 	}
 };

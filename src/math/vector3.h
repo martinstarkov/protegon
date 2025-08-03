@@ -4,13 +4,17 @@
 #include <ostream>
 #include <type_traits>
 
-#include "utility/assert.h"
-#include "utility/type_traits.h"
+#include "common/assert.h"
+#include "common/type_traits.h"
+#include "math/math.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
-template <typename T, tt::arithmetic<T> = true>
+template <typename T>
 struct Vector3 {
+	static_assert(std::is_arithmetic_v<T>);
+
 	T x{ 0 };
 	T y{ 0 };
 	T z{ 0 };
@@ -24,7 +28,10 @@ struct Vector3 {
 
 	explicit constexpr Vector3(T all) : x{ all }, y{ all }, z{ all } {}
 
-	constexpr Vector3(T x, T y, T z) : x{ x }, y{ y }, z{ z } {}
+	constexpr Vector3(T x_component, T y_component, T z_component) :
+		x{ x_component }, y{ y_component }, z{ z_component } {}
+
+	explicit Vector3(const json& j);
 
 	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
 	template <typename U, tt::not_narrowing<U, T> = true>
@@ -34,33 +41,41 @@ struct Vector3 {
 	// Note: use of explicit keyword for narrowing constructors.
 
 	template <typename U, tt::narrowing<U, T> = true>
-	explicit constexpr Vector3(U x, U y, U z) :
-		x{ static_cast<T>(x) }, y{ static_cast<T>(y) }, z{ static_cast<T>(z) } {}
+	explicit constexpr Vector3(U x_component, U y_component, U z_component) :
+		x{ static_cast<T>(x_component) },
+		y{ static_cast<T>(y_component) },
+		z{ static_cast<T>(z_component) } {}
 
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector3(const Vector3<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
 
+	friend bool operator==(const Vector3& lhs, const Vector3& rhs) {
+		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z);
+	}
+
+	friend bool operator!=(const Vector3& lhs, const Vector3& rhs) {
+		return !operator==(lhs, rhs);
+	}
+
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
-		PTGN_ASSERT(idx >= 0 && idx < 3, "Vector3 subscript out of range");
-		if (idx == 0) {
-			return x;
-		} else if (idx == 1) {
+		if (idx == 1) {
 			return y;
+		} else if (idx == 2) {
+			return z;
 		}
-		return z; // idx == 2
+		return x; // 0
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
-		PTGN_ASSERT(idx >= 0 && idx < 3, "Vector3 subscript out of range");
-		if (idx == 0) {
-			return x;
-		} else if (idx == 1) {
+		if (idx == 1) {
 			return y;
+		} else if (idx == 2) {
+			return z;
 		}
-		return z; // idx == 2
+		return x; // 0
 	}
 
 	[[nodiscard]] constexpr Vector3 operator-() const {
@@ -171,20 +186,16 @@ struct Vector3 {
 	}
 };
 
+template <typename T>
+void to_json(json& j, const Vector3<T>& vector);
+
+template <typename T>
+void from_json(const json& j, Vector3<T>& vector);
+
 using V3_int	= Vector3<int>;
 using V3_uint	= Vector3<unsigned int>;
 using V3_float	= Vector3<float>;
 using V3_double = Vector3<double>;
-
-template <typename V>
-[[nodiscard]] inline bool operator==(const Vector3<V>& lhs, const Vector3<V>& rhs) {
-	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z);
-}
-
-template <typename V>
-[[nodiscard]] inline bool operator!=(const Vector3<V>& lhs, const Vector3<V>& rhs) {
-	return !operator==(lhs, rhs);
-}
 
 template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector3<V>& v) {
@@ -249,10 +260,10 @@ struct std::hash<ptgn::Vector3<T>> {
 	std::size_t operator()(const ptgn::Vector3<T>& v) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
-		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<T>()(v.x);
-		hash = hash * 31 + std::hash<T>()(v.y);
-		hash = hash * 31 + std::hash<T>()(v.z);
-		return hash;
+		std::size_t value{ 17 };
+		value = value * 31 + std::hash<T>()(v.x);
+		value = value * 31 + std::hash<T>()(v.y);
+		value = value * 31 + std::hash<T>()(v.z);
+		return value;
 	}
 };

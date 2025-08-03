@@ -8,7 +8,8 @@
 #include <sstream>
 #include <string>
 
-#include "utility/assert.h"
+#include "common/assert.h"
+#include "serialization/json.h"
 
 namespace ptgn {
 
@@ -44,6 +45,14 @@ path GetAbsolutePath(const path& relative_file_path) {
 
 path GetRelativePath(const path& absolute_file_path) {
 	return absolute_file_path.relative_path();
+}
+
+void to_json(json& j, const path& p) {
+	j = p.string();
+}
+
+void from_json(const json& j, path& p) {
+	p = j.template get<std::string>();
 }
 
 } // namespace ptgn

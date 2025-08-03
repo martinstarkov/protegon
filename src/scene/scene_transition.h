@@ -2,9 +2,10 @@
 
 #include <functional>
 
-#include "renderer/color.h"
+#include "core/time.h"
+#include "renderer/api/color.h"
 #include "scene/scene.h"
-#include "utility/time.h"
+#include "serialization/enum.h"
 
 // TODO: Add polymorphic classes which inherit from scene transition and in their constructors add
 // properties to the parent entity. Then use that parent entity to retrieve based on a type that is
@@ -18,6 +19,7 @@ namespace impl {
 class SceneManager;
 
 } // namespace impl
+
 enum class TransitionType {
 	None,
 	Custom,
@@ -53,17 +55,7 @@ public:
 	// when using TransitionType::FadeThroughColor. Does not apply to other transitions.
 	SceneTransition& SetColorFadeFraction(float color_fade_fraction);
 
-	// Custom transition callbacks.
-
-	// float is fraction from 0 to 1 of the duration.
-	std::function<void(float)> update_in;
-	std::function<void()> start_in;
-	std::function<void()> stop_in;
-
-	// float is fraction from 0 to 1 of the duration.
-	std::function<void(float)> update_out;
-	std::function<void()> start_out;
-	std::function<void()> stop_out;
+	// TODO: Add custom transition callbacks.
 
 private:
 	friend class impl::SceneManager;
@@ -81,5 +73,24 @@ private:
 	TransitionType type_{ TransitionType::None };
 	milliseconds duration_{ 1000 };
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TransitionType, { { TransitionType::None, "none" },
+					  { TransitionType::Custom, "custom" },
+					  { TransitionType::Fade, "fade" },
+					  { TransitionType::FadeThroughColor, "fade_through_color" },
+					  { TransitionType::PushLeft, "push_left" },
+					  { TransitionType::PushRight, "push_right" },
+					  { TransitionType::PushUp, "push_up" },
+					  { TransitionType::PushDown, "push_down" },
+					  { TransitionType::UncoverLeft, "uncover_left" },
+					  { TransitionType::UncoverRight, "uncover_right" },
+					  { TransitionType::UncoverUp, "uncover_up" },
+					  { TransitionType::UncoverDown, "uncover_down" },
+					  { TransitionType::CoverLeft, "cover_left" },
+					  { TransitionType::CoverRight, "cover_right" },
+					  { TransitionType::CoverUp, "cover_up" },
+					  { TransitionType::CoverDown, "cover_down" } }
+);
 
 } // namespace ptgn

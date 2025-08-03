@@ -4,8 +4,9 @@
 #include <iosfwd>
 #include <sstream>
 #include <string>
+#include <string_view>
 
-#include "utility/type_traits.h"
+#include "common/type_traits.h"
 
 namespace ptgn {
 
@@ -30,6 +31,21 @@ std::string ToString(const T& object, int precision) {
 	} else {
 		return ss.str();
 	}
+}
+
+std::string ToLower(const std::string& str);
+
+std::string ToUpper(const std::string& str);
+
+// @return True if str begins with the specified prefix.
+constexpr bool BeginsWith(std::string_view str, std::string_view prefix) {
+	return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
+}
+
+// @return True if str ends with the specified suffix.
+constexpr bool EndsWith(std::string_view str, std::string_view suffix) {
+	return str.size() >= suffix.size() &&
+		   str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 } // namespace ptgn

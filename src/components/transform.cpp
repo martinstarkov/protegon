@@ -1,31 +1,48 @@
 #include "components/transform.h"
 
-#include "math/math.h"
 #include "math/vector2.h"
-#include "serialization/json.h"
 
 namespace ptgn {
 
-void to_json(json& j, const Transform& t) {
-	j = json{ { "position", t.position }, { "rotation", t.rotation }, { "scale", t.scale } };
+Transform::Transform(const V2_float& transform_position) : position{ transform_position } {}
+
+Transform::Transform(
+	const V2_float& transform_position, float transform_rotation, const V2_float& transform_scale
+) :
+	position{ transform_position }, rotation{ transform_rotation }, scale{ transform_scale } {}
+
+Transform Transform::RelativeTo(const Transform& parent) const {
+	Transform result;
+	result.scale	= parent.scale * scale;
+	result.rotation = parent.rotation + rotation;
+	result.position = parent.position + (parent.scale * position).Rotated(parent.rotation);
+	return result;
 }
 
-void from_json(const json& j, Transform& t) {
-	if (j.contains("position")) {
-		j.at("position").get_to(t.position);
-	} else {
-		t.position = {};
-	}
-	if (j.contains("rotation")) {
-		t.rotation = DegToRad(j.at("rotation").template get<float>());
-	} else {
-		t.rotation = 0.0f;
-	}
-	if (j.contains("scale")) {
-		j.at("scale").get_to(t.scale);
-	} else {
-		t.scale = { 1.0f, 1.0f };
-	}
+Transform Transform::InverseRelativeTo(const Transform& parent) const {
+	Transform local;
+
+	// Inverse scale and rotation
+	float inv_rotation = -parent.rotation;
+	V2_float inv_scale = { parent.scale.x != 0 ? 1.0f / parent.scale.x : 0.0f,
+						   parent.scale.y != 0 ? 1.0f / parent.scale.y : 0.0f };
+
+	// Compute delta position
+	V2_float delta = position - parent.position;
+
+	// Unrotate and unscale the position
+	local.position	= delta.Rotated(inv_rotation);
+	local.position *= inv_scale;
+
+	// Rotation and scale
+	local.rotation = rotation - parent.rotation;
+	local.scale	   = scale * inv_scale;
+
+	return local;
+}
+
+float Transform::GetAverageScale() const {
+	return (scale.x + scale.y) * 0.5f;
 }
 
 } // namespace ptgn

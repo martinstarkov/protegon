@@ -6,11 +6,12 @@
 #include <iosfwd>
 #include <ostream>
 
+#include "common/assert.h"
+#include "common/type_traits.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "utility/assert.h"
-#include "utility/type_traits.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -20,6 +21,8 @@ struct Matrix4 {
 public:
 	constexpr static V2_size size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Matrix4, m_)
 
 private:
 	friend class Quaternion;

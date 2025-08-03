@@ -11,8 +11,8 @@
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/vector2.h"
-#include "utility/assert.h"
-#include "utility/log.h"
+#include "common/assert.h"
+#include "debug/log.h"
 
 #ifdef __EMSCRIPTEN__
 

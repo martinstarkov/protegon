@@ -2,90 +2,135 @@
 
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <string>
 #include <string_view>
 
+#include "common/assert.h"
+#include "components/generic.h"
+#include "components/sprite.h"
+#include "core/entity.h"
+#include "core/game.h"
+#include "debug/log.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/font.h"
+#include "renderer/render_data.h"
+#include "renderer/texture.h"
+#include "resources/resource_manager.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "SDL_blendmode.h"
 #include "SDL_pixels.h"
+#include "SDL_rect.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
-#include "core/game.h"
-#include "ecs/ecs.h"
-#include "math/hash.h"
-#include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/font.h"
-#include "renderer/texture.h"
-#include "utility/assert.h"
-#include "utility/log.h"
 
 namespace ptgn {
 
-Text::Text(
-	ecs::Manager& manager, std::string_view content, const Color& text_color,
-	std::string_view font_key
-) :
-	Text{ manager } {
-	Add<TextContent>(content);
-	if (text_color != TextColor{}) {
-		Add<TextColor>(text_color);
+Text CreateText(
+	Scene& scene, const TextContent& content, const TextColor& text_color,
+	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties
+) {
+	Text text{ scene.CreateEntity() };
+	text.Add<TextureHandle>();
+	text.SetDraw<Text>();
+	text.Add<Camera>(scene.camera.window_unzoomed);
+	text.Show();
+	text.SetParameter(content, false);
+	text.SetParameter(text_color, false);
+	text.SetParameter(font_key, false);
+	text.SetParameter(font_size, false);
+	text.SetProperties(properties, false);
+	text.RecreateTexture();
+
+	return text;
+}
+
+Text::Text(const Entity& entity) : Entity{ entity } {}
+
+void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
+	if (entity.Has<TextColor>() && entity.Get<TextColor>().a == 0) {
+		return;
 	}
-	auto hashed_key{ Hash(font_key) };
-	if (hashed_key != FontKey{}) {
-		Add<FontKey>(hashed_key);
+
+	if (!entity.Has<TextContent>()) {
+		return;
 	}
-	RecreateTexture();
+
+	if (std::string_view{ entity.Get<TextContent>() }.empty()) {
+		return;
+	}
+
+	Sprite::Draw(ctx, entity);
 }
 
-Text& Text::SetFont(std::string_view font_key) {
-	return SetParameter(FontKey{ Hash(font_key) });
+Text& Text::SetFont(const ResourceHandle& font_key) {
+	SetParameter(font_key);
+	return *this;
 }
 
-Text& Text::SetContent(std::string_view content) {
-	return SetParameter(TextContent{ content });
+Text& Text::SetContent(const TextContent& content) {
+	SetParameter(content);
+	return *this;
 }
 
-Text& Text::SetColor(const Color& color) {
-	return SetParameter(TextColor{ color });
+Text& Text::SetColor(const TextColor& color) {
+	SetParameter(color);
+	return *this;
 }
 
 Text& Text::SetFontStyle(FontStyle font_style) {
-	return SetParameter(font_style);
+	SetParameter(font_style);
+	return *this;
 }
 
-Text& Text::SetFontSize(std::int32_t pixels) {
-	return SetParameter(FontSize{ pixels });
+Text& Text::SetFontSize(const FontSize& pixels) {
+	SetParameter(pixels);
+	return *this;
+}
+
+Text& Text::SetOutline(const TextOutline& outline) {
+	SetParameter(FontRenderMode::Blended, false);
+	SetParameter(outline, true);
+	return *this;
 }
 
 Text& Text::SetFontRenderMode(FontRenderMode render_mode) {
-	return SetParameter(render_mode);
+	SetParameter(render_mode);
+	return *this;
 }
 
 Text& Text::SetShadingColor(const Color& shading_color) {
-	SetParameter(FontRenderMode::Shaded);
-	return SetParameter(TextShadingColor{ shading_color });
+	SetParameter(FontRenderMode::Shaded, false);
+	SetParameter(TextShadingColor{ shading_color }, true);
+	return *this;
 }
 
-Text& Text::SetWrapAfter(std::uint32_t pixels) {
-	return SetParameter(TextWrapAfter{ pixels });
+Text& Text::SetWrapAfter(const TextWrapAfter& pixels) {
+	SetParameter(pixels);
+	return *this;
 }
 
-Text& Text::SetLineSkip(std::int32_t pixels) {
-	return SetParameter(TextLineSkip{ pixels });
+Text& Text::SetLineSkip(const TextLineSkip& pixels) {
+	SetParameter(pixels);
+	return *this;
 }
 
-Text& Text::SetWrapAlignment(TextJustify wrap_alignment) {
-	return SetParameter(wrap_alignment);
+Text& Text::SetTextJustify(TextJustify text_justify) {
+	SetParameter(text_justify);
+	return *this;
 }
 
-std::size_t Text::GetFontKey() const {
-	return GetParameter(FontKey{});
+ResourceHandle Text::GetFontKey() const {
+	return GetParameter(ResourceHandle{});
 }
 
-std::string_view Text::GetContent() const {
+TextContent Text::GetContent() const {
 	return GetParameter(TextContent{});
 }
 
-Color Text::GetColor() const {
+TextColor Text::GetColor() const {
 	return GetParameter(TextColor{});
 }
 
@@ -101,101 +146,187 @@ Color Text::GetShadingColor() const {
 	return GetParameter(TextShadingColor{});
 }
 
+TextJustify Text::GetTextJustify() const {
+	return GetParameter(TextJustify{});
+}
+
 const impl::Texture& Text::GetTexture() const {
 	PTGN_ASSERT(Has<impl::Texture>(), "Cannot retrieve text texture before it has been set");
 	return Get<impl::Texture>();
 }
 
-std::int32_t Text::GetFontSize() const {
-	FontSize font_size{ GetParameter(FontSize{}) };
-	if (font_size == std::numeric_limits<std::int32_t>::infinity()) {
-		auto font_key{ GetFontKey() };
-		PTGN_ASSERT(
-			game.font.Has(font_key),
-			"Cannot get size of text font unless it is loaded in the font manager"
-		);
-		return game.font.GetHeight(font_key);
+FontSize Text::GetFontSize() const {
+	if (FontSize font_size{ GetParameter(FontSize{}) }; font_size != FontSize{}) {
+		return font_size;
 	}
-	return font_size;
+	auto font_key{ GetFontKey() };
+	PTGN_ASSERT(
+		game.font.Has(font_key),
+		"Cannot get size of text font unless it is loaded in the font manager"
+	);
+	return game.font.GetHeight(font_key, {});
 }
 
 V2_int Text::GetSize() const {
-	auto font_key{ GetFontKey() };
+	return GetSize(*this);
+}
+
+V2_int Text::GetSize(const Entity& text) {
+	return GetSize(
+		GetParameter(text, TextContent{}), GetParameter(text, ResourceHandle{}),
+		GetParameter(text, FontSize{})
+	);
+}
+
+V2_int Text::GetSize(
+	const std::string& content, const ResourceHandle& font_key, const FontSize& font_size
+) {
 	PTGN_ASSERT(
 		game.font.Has(font_key),
 		"Cannot get size of text texture unless its font is loaded in the font manager"
 	);
-	return game.font.GetSize(font_key, std::string(GetContent()));
+	return game.font.GetSize(font_key, content, font_size);
 }
 
-void Text::RecreateTexture() {
-	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
-
-	std::string content{ GetParameter(TextContent{}) };
-
+impl::Texture Text::CreateTexture(
+	const std::string& content, const TextColor& color, const FontSize& font_size,
+	const ResourceHandle& font_key, const TextProperties& properties
+) {
 	if (content.empty()) {
-		// Skip creating texture for empty text.
-		texture = {};
-		return;
+		return {};
 	}
-
-	FontKey font_key{ GetParameter(FontKey{}) };
 
 	PTGN_ASSERT(
 		game.font.Has(font_key),
 		"Cannot create texture for text with font key which is not loaded in the font manager"
 	);
 
-	auto font{ game.font.Get(font_key) };
+	auto shared_font{ game.font.Get(
+		font_key, {} /* Force retrieval of the font regardless of size since this function also sets
+						the font size. */
+	) };
+	auto font{ shared_font.get() };
 
 	PTGN_ASSERT(font != nullptr, "Cannot create texture for text with nullptr font");
 
-	TTF_SetFontStyle(font, static_cast<int>(GetParameter(FontStyle{})));
+	TTF_SetFontStyle(font, static_cast<int>(properties.style));
 
-	TTF_SetFontWrappedAlign(font, static_cast<int>(GetParameter(TextJustify{})));
+	TTF_SetFontWrappedAlign(font, static_cast<int>(properties.justify));
 
 #ifndef __EMSCRIPTEN__ // TODO: Re-enable this for Emscripten once it is supported (SDL_ttf 2.24.0).
-	if (TextLineSkip line_skip{ GetParameter(TextLineSkip{}) };
-		line_skip != std::numeric_limits<std::int32_t>::infinity()) {
-		TTF_SetFontLineSkip(font, line_skip);
+	if (properties.line_skip != std::numeric_limits<std::int32_t>::infinity()) {
+		TTF_SetFontLineSkip(font, properties.line_skip);
 	}
 #endif
-	if (FontSize font_size{ GetParameter(FontSize{}) };
-		font_size != std::numeric_limits<std::int32_t>::infinity()) {
+	if (font_size != std::numeric_limits<std::int32_t>::infinity()) {
 		TTF_SetFontSize(font, font_size);
 	}
 
-	Color tc{ GetParameter(TextColor{}) };
-	SDL_Color text_color{ tc.r, tc.g, tc.b, tc.a };
+	SDL_Color text_color{ color.r, color.g, color.b, color.a };
 
-	FontRenderMode mode{ GetParameter(FontRenderMode{}) };
-	TextWrapAfter wrap_after{ GetParameter(TextWrapAfter{}) };
+	PTGN_ASSERT(properties.outline.width >= 0, "Cannot have negative font outline width");
+
+	SDL_Surface* outline_surface{ nullptr };
+
+	if (properties.outline.width != 0 && properties.outline.color != color::Transparent) {
+		PTGN_ASSERT(
+			properties.render_mode == FontRenderMode::Blended,
+			"Font render mode must be set to blended when drawing text with outline"
+		);
+		TTF_SetFontOutline(font, properties.outline.width);
+
+		SDL_Color outline_color{ properties.outline.color.r, properties.outline.color.g,
+								 properties.outline.color.b, properties.outline.color.a };
+
+		outline_surface = TTF_RenderUTF8_Blended_Wrapped(
+			font, content.c_str(), outline_color, properties.wrap_after
+		);
+
+		PTGN_ASSERT(outline_surface != nullptr, "Failed to create text outline");
+
+		TTF_SetFontOutline(font, 0);
+	}
 
 	SDL_Surface* surface{ nullptr };
 
-	switch (mode) {
+	switch (properties.render_mode) {
 		case FontRenderMode::Solid:
-			surface = TTF_RenderUTF8_Solid_Wrapped(font, content.c_str(), text_color, wrap_after);
+			surface = TTF_RenderUTF8_Solid_Wrapped(
+				font, content.c_str(), text_color, properties.wrap_after
+			);
 			break;
 		case FontRenderMode::Shaded: {
-			Color sc{ GetParameter(TextShadingColor{}) };
-			SDL_Color shading_color{ sc.r, sc.g, sc.b, sc.a };
+			SDL_Color shading_color{ properties.shading_color.r, properties.shading_color.g,
+									 properties.shading_color.b, properties.shading_color.a };
 			surface = TTF_RenderUTF8_Shaded_Wrapped(
-				font, content.c_str(), text_color, shading_color, wrap_after
+				font, content.c_str(), text_color, shading_color, properties.wrap_after
 			);
 			break;
 		}
 		case FontRenderMode::Blended:
-			surface = TTF_RenderUTF8_Blended_Wrapped(font, content.c_str(), text_color, wrap_after);
+			surface = TTF_RenderUTF8_Blended_Wrapped(
+				font, content.c_str(), text_color, properties.wrap_after
+			);
 			break;
 		default:
-			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
-			);
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information")
 	}
 
 	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
 
-	texture = impl::Texture(impl::Surface{ surface });
+	if (outline_surface) {
+		SDL_Rect rect{ properties.outline.width, properties.outline.width, surface->w, surface->h };
+
+		SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
+		SDL_BlitSurface(surface, NULL, outline_surface, &rect);
+		SDL_FreeSurface(surface);
+
+		surface = outline_surface;
+	}
+
+	PTGN_ASSERT(surface != nullptr, "Failed to blit text surface to text outline surface");
+
+	return impl::Texture(impl::Surface{ surface });
+}
+
+void Text::RecreateTexture() {
+	// TODO: Move texture location to TextureManager.
+	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
+
+	TextProperties properties{ GetProperties() };
+	TextContent content{ GetParameter(TextContent{}) };
+	TextColor color{ GetParameter(TextColor{}) };
+	FontSize font_size{ GetParameter(FontSize{}) };
+	ResourceHandle font_key{ GetParameter(ResourceHandle{}) };
+
+	texture = CreateTexture(content, color, font_size, font_key, properties);
+}
+
+TextProperties Text::GetProperties() const {
+	TextProperties properties;
+	properties.justify		 = GetParameter(TextJustify{});
+	properties.line_skip	 = GetParameter(TextLineSkip{});
+	properties.outline		 = GetParameter(TextOutline{});
+	properties.render_mode	 = GetParameter(FontRenderMode{});
+	properties.shading_color = GetParameter(TextShadingColor{});
+	properties.style		 = GetParameter(FontStyle{});
+	properties.wrap_after	 = GetParameter(TextWrapAfter{});
+	return properties;
+}
+
+void Text::SetProperties(const TextProperties& properties, bool recreate_texture) {
+	bool changed  = false;
+	changed		 |= SetParameter(properties.justify, false);
+	changed		 |= SetParameter(properties.line_skip, false);
+	changed		 |= SetParameter(properties.outline, false);
+	changed		 |= SetParameter(properties.render_mode, false);
+	changed		 |= SetParameter(properties.shading_color, false);
+	changed		 |= SetParameter(properties.style, false);
+	changed		 |= SetParameter(properties.wrap_after, false);
+
+	if (changed && recreate_texture) {
+		RecreateTexture();
+	}
 }
 
 } // namespace ptgn

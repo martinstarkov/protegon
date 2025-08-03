@@ -3,9 +3,9 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "utility/log.h"
 #include "math/math.h"
 #include "utility/debug.h"
+#include "utility/log.h"
 
 void TestMath() {
 	PTGN_INFO("Starting math tests...");
@@ -59,41 +59,41 @@ void TestMath() {
 	double c9  = -66.9;
 	double c10 = 64.6;
 
-	// FastFloor / FastCeil / FastAbs tests.
+	// Floor / Ceil / Abs tests.
 	// TODO: Add test cases for Inf/-Inf and Nan?
 
-	PTGN_ASSERT(FastFloor(c1) == std::floor(c1));
-	PTGN_ASSERT(FastFloor(c2) == std::floor(c2));
-	PTGN_ASSERT(FastFloor(c3) == std::floor(c3));
-	PTGN_ASSERT(FastFloor(c4) == std::floor(c4));
-	PTGN_ASSERT(FastFloor(c5) == std::floor(c5));
-	PTGN_ASSERT(FastFloor(c6) == std::floor(c6));
-	PTGN_ASSERT(FastFloor(c7) == std::floor(c7));
-	PTGN_ASSERT(FastFloor(c8) == std::floor(c8));
-	PTGN_ASSERT(FastFloor(c9) == std::floor(c9));
-	PTGN_ASSERT(FastFloor(c10) == std::floor(c10));
+	PTGN_ASSERT(Floor(c1) == std::floor(c1));
+	PTGN_ASSERT(Floor(c2) == std::floor(c2));
+	PTGN_ASSERT(Floor(c3) == std::floor(c3));
+	PTGN_ASSERT(Floor(c4) == std::floor(c4));
+	PTGN_ASSERT(Floor(c5) == std::floor(c5));
+	PTGN_ASSERT(Floor(c6) == std::floor(c6));
+	PTGN_ASSERT(Floor(c7) == std::floor(c7));
+	PTGN_ASSERT(Floor(c8) == std::floor(c8));
+	PTGN_ASSERT(Floor(c9) == std::floor(c9));
+	PTGN_ASSERT(Floor(c10) == std::floor(c10));
 
-	PTGN_ASSERT(FastCeil(c1) == std::ceil(c1));
-	PTGN_ASSERT(FastCeil(c2) == std::ceil(c2));
-	PTGN_ASSERT(FastCeil(c3) == std::ceil(c3));
-	PTGN_ASSERT(FastCeil(c4) == std::ceil(c4));
-	PTGN_ASSERT(FastCeil(c5) == std::ceil(c5));
-	PTGN_ASSERT(FastCeil(c6) == std::ceil(c6));
-	PTGN_ASSERT(FastCeil(c7) == std::ceil(c7));
-	PTGN_ASSERT(FastCeil(c8) == std::ceil(c8));
-	PTGN_ASSERT(FastCeil(c9) == std::ceil(c9));
-	PTGN_ASSERT(FastCeil(c10) == std::ceil(c10));
+	PTGN_ASSERT(Ceil(c1) == std::ceil(c1));
+	PTGN_ASSERT(Ceil(c2) == std::ceil(c2));
+	PTGN_ASSERT(Ceil(c3) == std::ceil(c3));
+	PTGN_ASSERT(Ceil(c4) == std::ceil(c4));
+	PTGN_ASSERT(Ceil(c5) == std::ceil(c5));
+	PTGN_ASSERT(Ceil(c6) == std::ceil(c6));
+	PTGN_ASSERT(Ceil(c7) == std::ceil(c7));
+	PTGN_ASSERT(Ceil(c8) == std::ceil(c8));
+	PTGN_ASSERT(Ceil(c9) == std::ceil(c9));
+	PTGN_ASSERT(Ceil(c10) == std::ceil(c10));
 
-	PTGN_ASSERT(FastAbs(c1) == std::abs(c1));
-	PTGN_ASSERT(FastAbs(c2) == std::abs(c2));
-	PTGN_ASSERT(FastAbs(c3) == std::abs(c3));
-	PTGN_ASSERT(FastAbs(c4) == std::abs(c4));
-	PTGN_ASSERT(FastAbs(c5) == std::abs(c5));
-	PTGN_ASSERT(FastAbs(c6) == std::abs(c6));
-	PTGN_ASSERT(FastAbs(c7) == std::abs(c7));
-	PTGN_ASSERT(FastAbs(c8) == std::abs(c8));
-	PTGN_ASSERT(FastAbs(c9) == std::abs(c9));
-	PTGN_ASSERT(FastAbs(c10) == std::abs(c10));
+	PTGN_ASSERT(Abs(c1) == std::abs(c1));
+	PTGN_ASSERT(Abs(c2) == std::abs(c2));
+	PTGN_ASSERT(Abs(c3) == std::abs(c3));
+	PTGN_ASSERT(Abs(c4) == std::abs(c4));
+	PTGN_ASSERT(Abs(c5) == std::abs(c5));
+	PTGN_ASSERT(Abs(c6) == std::abs(c6));
+	PTGN_ASSERT(Abs(c7) == std::abs(c7));
+	PTGN_ASSERT(Abs(c8) == std::abs(c8));
+	PTGN_ASSERT(Abs(c9) == std::abs(c9));
+	PTGN_ASSERT(Abs(c10) == std::abs(c10));
 
 	// NearlyEqual tests.
 

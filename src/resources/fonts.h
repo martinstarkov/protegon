@@ -2,12 +2,13 @@
 
 namespace ptgn::impl {
 
-#include "resources/font/LiberationSans-Regular.h"
+#include "resources/fonts/LiberationSans-Regular.h"
 
 struct FontBinary {
 	FontBinary() = default;
 
-	FontBinary(unsigned char* buffer, unsigned int length) : buffer{ buffer }, length{ length } {}
+	FontBinary(unsigned char* font_buffer, unsigned int buffer_length) :
+		buffer{ font_buffer }, length{ buffer_length } {}
 
 	unsigned char* buffer{ nullptr };
 	unsigned int length{ 0 };

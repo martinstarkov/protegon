@@ -1,54 +1,26 @@
 #pragma once
 
+// TODO: Come back to this.
+/*
 #include "core/game.h"
-#include "ecs/ecs.h"
-#include "math/geometry/polygon.h"
+#include "core/manager.h"
+#include "math/geometry.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/texture.h"
 #include "tile/grid.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 #include "utility/file.h"
 
 namespace ptgn {
 
-// TODO: Come back to this.
-/*
 class EntityLayer {
 public:
 	EntityLayer() = default;
 
 private:
-	ecs::Manager manager;
+	Manager manager;
 };
-
-namespace impl {
-
-class Tile {
-public:
-	Tile() = default;
-
-	Tile(const Rect& rect) : rect{ rect } {}
-
-	Tile(std::size_t texture_key, const Rect& source) : source{ source } {
-		texture = game.texture.Get(texture_key);
-	}
-
-	void Draw() const {
-		if (texture.IsValid()) {
-			game.draw.Texture(
-				texture, rect.position, rect.size, { source.position, source.size, rect.origin }
-			);
-		}
-	}
-
-private:
-	Rect rect{ {}, {}, Origin::TopLeft };
-	Rect source;
-	Texture texture;
-};
-
-} // namespace impl
 
 class TileLayer : public Grid<impl::Tile> {
 public:
@@ -89,6 +61,7 @@ class GridLayer : public Grid<T> {
 public:
 private:
 };
-*/
 
 } // namespace ptgn
+
+*/

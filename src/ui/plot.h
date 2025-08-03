@@ -7,21 +7,22 @@
 // #include <vector>
 //
 // #include "components/generic.h"
+// #include "resources/resource_manager.h"
+// #include "core/entity.h"
 // #include "core/manager.h"
-// #include "ecs/ecs.h"
-// #include "math/geometry/line.h"
-// #include "math/geometry/polygon.h"
+//
+// #include "math/geometry.h"
 // #include "math/vector2.h"
-// #include "renderer/color.h"
+// #include "renderer/api/color.h"
 // #include "renderer/font.h"
-// #include "renderer/origin.h"
+// #include "renderer/api/origin.h"
 // #include "renderer/render_target.h"
 // #include "renderer/text.h"
 // #include "renderer/texture.h"
 // #include "resources/fonts.h"
 // #include "ui/button.h"
-// #include "utility/assert.h"
-// #include "utility/type_traits.h"
+// #include "common/assert.h"
+// #include "common/type_traits.h"
 //
 // namespace ptgn {
 //
@@ -89,13 +90,13 @@
 //
 //	template <typename T>
 //	T& GetProperty() {
-//		PTGN_ASSERT(entity_ != ecs::null, "Failed to find valid entity for data series");
+//		PTGN_ASSERT(entity_, "Failed to find valid entity for data series");
 //		return entity_.Get<T>();
 //	}
 //
 //	template <typename T>
 //	void AddProperty(const T& property) {
-//		PTGN_ASSERT(entity_ != ecs::null, "Failed to find valid entity for data series");
+//		PTGN_ASSERT(entity_, "Failed to find valid entity for data series");
 //		static_assert(
 //			tt::is_any_of_v<T, DataPointRadius, DataPointColor, LineColor, LineWidth>,
 //			"Invalid type for plot property"
@@ -115,8 +116,8 @@
 //
 // private:
 //	friend class Plot;
-//	ecs::Entity entity_;
-//	ecs::Manager manager_;
+//	Entity entity_;
+//	Manager manager_;
 //	Button button_;
 //};
 //
@@ -249,7 +250,7 @@
 //	template <typename T>
 //	void AddProperty(const T& property) {
 //		PTGN_ASSERT(
-//			entity_ != ecs::null, "Cannot add plot property before plot has been initialized"
+//			entity_, "Cannot add plot property before plot has been initialized"
 //		);
 //		static_assert(
 //			tt::is_any_of_v<
@@ -321,7 +322,7 @@
 //		V2_float division_length{ division_dir * axis.division_length };
 //
 //		// By how many pixels each division is separated.
-//		float division_offset{ FastAbs(edge_length[component_index]) / axis.divisions };
+//		float division_offset{ Abs(edge_length[component_index]) / axis.divisions };
 //
 //		V2_float axis_length{ current_axis_.GetLength() };
 //
@@ -379,8 +380,8 @@
 //	// Allows for resetting plot back to initial axis.
 //	impl::AxisExtents set_axis_;
 //
-//	ecs::Entity entity_;
-//	ecs::Manager manager_;
+//	Entity entity_;
+//	Manager manager_;
 // };
 //
 // } // namespace ptgn

@@ -6,55 +6,68 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "debug/log.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "utility/assert.h"
+#include "serialization/enum.h"
 #include "utility/file.h"
-#include "utility/log.h"
 
 // clang-format off
-#define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY_MACRO(x)
+#define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY(x)
 
 // These allow for shaders to differ for Emscripten as it uses OpenGL ES 3.0.
 #ifdef __EMSCRIPTEN__
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/es/)PTGN_EXPAND_MACRO(file))
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND(resources/shader/es/)PTGN_EXPAND(file))
 #else
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND_MACRO(resources/shader/core/)PTGN_EXPAND_MACRO(file))
+#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND(resources/shader/core/)PTGN_EXPAND(file))
 #endif
 // clang-format on
 
-namespace ptgn::impl {
+namespace ptgn {
 
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
-struct ShaderSource {
-	ShaderSource() = default;
+struct ShaderCode {
+	ShaderCode() = default;
 
 	// Explicit construction prevents conflict with Shader path construction.
-	explicit ShaderSource(const std::string& source) : source_{ source } {}
+	explicit ShaderCode(const std::string& source) : source_{ source } {}
 
-	~ShaderSource() = default;
+	~ShaderCode() = default;
 
 	std::string source_;
 };
 
 [[nodiscard]] std::string_view GetShaderName(std::uint32_t shader_type);
 
+using ShaderId = std::uint32_t;
+
 class Shader {
 public:
 	Shader() = default;
-	Shader(const ShaderSource& vertex_shader, const ShaderSource& fragment_shader);
-	Shader(const path& vertex_shader_path, const path& fragment_shader_path);
+	Shader(
+		const ShaderCode& vertex_shader, const ShaderCode& fragment_shader,
+		std::string_view shader_name
+	);
+	Shader(
+		const path& vertex_shader_path, const path& fragment_shader_path,
+		std::string_view shader_name
+	);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
 	Shader(Shader&& other) noexcept;
 	Shader& operator=(Shader&& other) noexcept;
 	~Shader();
 
-	bool operator==(const Shader& other) const;
-	bool operator!=(const Shader& other) const;
+	friend bool operator==(const Shader& a, const Shader& b) {
+		return a.id_ == b.id_;
+	}
+
+	friend bool operator!=(const Shader& a, const Shader& b) {
+		return !(a == b);
+	}
 
 	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
 	// shader, nothing happens.
@@ -64,7 +77,7 @@ public:
 	void SetUniform(const std::string& name, const Vector2<float>& v) const;
 	void SetUniform(const std::string& name, const Vector3<float>& v) const;
 	void SetUniform(const std::string& name, const Vector4<float>& v) const;
-	void SetUniform(const std::string& name, const Matrix4& m) const;
+	void SetUniform(const std::string& name, const Matrix4& matrix) const;
 	void SetUniform(const std::string& name, float v0) const;
 	void SetUniform(const std::string& name, float v0, float v1) const;
 	void SetUniform(const std::string& name, float v0, float v1, float v2) const;
@@ -87,28 +100,35 @@ public:
 	void Bind() const;
 
 	// Bind a shader id as the current shader.
-	static void Bind(std::uint32_t id);
+	static void Bind(ShaderId id);
 
 	// @return True if the shader is currently bound.
 	[[nodiscard]] bool IsBound() const;
 
 	// @return The id of the currently bound shader.
-	[[nodiscard]] static std::uint32_t GetBoundId();
+	[[nodiscard]] static ShaderId GetBoundId();
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
 
+	[[nodiscard]] ShaderId GetId() const;
+
+	[[nodiscard]] std::string_view GetName() const;
+
 private:
-	void CreateProgram();
-	void DeleteProgram() noexcept;
+	void Create();
+	void Delete() noexcept;
 
-	[[nodiscard]] std::int32_t GetUniformLocation(const std::string& name) const;
+	[[nodiscard]] std::int32_t GetUniform(const std::string& name) const;
 
-	void CompileProgram(const std::string& vertex_shader, const std::string& fragment_shader);
+	// Compile program
+	void Compile(const std::string& vertex_shader, const std::string& fragment_shader);
 
-	[[nodiscard]] static std::uint32_t CompileShader(std::uint32_t type, const std::string& source);
+	// Compile shader
+	[[nodiscard]] static ShaderId Compile(std::uint32_t type, const std::string& source);
 
-	std::uint32_t id_{ 0 };
+	ShaderId id_{ 0 };
+	std::string_view shader_name_;
 
 	// Location cache should not prevent const calls.
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
@@ -131,8 +151,11 @@ enum class ShapeShader {
 };
 
 enum class OtherShader {
-	Light
+	Light,
+	ToneMapping
 };
+
+namespace impl {
 
 class ShaderManager {
 public:
@@ -150,6 +173,8 @@ public:
 		} else if constexpr (std::is_same_v<ShaderType, OtherShader>) {
 			if constexpr (S == OtherShader::Light) {
 				return light_;
+			} else if constexpr (S == OtherShader::ToneMapping) {
+				return tone_mapping_;
 			} else {
 				PTGN_ERROR("Cannot retrieve unrecognized other shader");
 			}
@@ -186,73 +211,92 @@ private:
 	void InitShapeShaders() {
 		// Quad is initialized in cpp because it depends on texture slots.
 
-		circle_ = { ShaderSource{
+		circle_ = { ShaderCode{
 #include PTGN_SHADER_PATH(quad.vert)
 					},
-					ShaderSource{
+					ShaderCode{
 #include PTGN_SHADER_PATH(circle.frag)
-					} };
+					},
+					"Circle" };
 	}
 
 	void InitScreenShaders() {
-		default_ = { ShaderSource{
+		default_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					 },
-					 ShaderSource{
+					 ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.frag)
-					 } };
+					 },
+					 "Default" };
 
-		blur_ = { ShaderSource{
+		blur_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 				  },
-				  ShaderSource{
+				  ShaderCode{
 #include PTGN_SHADER_PATH(screen_blur.frag)
-				  } };
+				  },
+				  "Blur" };
 
-		gaussian_blur_ = { ShaderSource{
+		gaussian_blur_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 						   },
-						   ShaderSource{
+						   ShaderCode{
 #include PTGN_SHADER_PATH(screen_gaussian_blur.frag)
-						   } };
+						   },
+						   "Gaussian Blur" };
 
-		edge_detection_ = { ShaderSource{
+		edge_detection_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 							},
-							ShaderSource{
+							ShaderCode{
 #include PTGN_SHADER_PATH(screen_edge_detection.frag)
-							} };
+							},
+							"Edge Detection" };
 
-		grayscale_ = { ShaderSource{
+		grayscale_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					   },
-					   ShaderSource{
+					   ShaderCode{
 #include PTGN_SHADER_PATH(screen_grayscale.frag)
-					   } };
+					   },
+					   "Grayscale" };
 
-		inverse_color_ = { ShaderSource{
+		inverse_color_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 						   },
-						   ShaderSource{
+						   ShaderCode{
 #include PTGN_SHADER_PATH(screen_inverse_color.frag)
-						   } };
+						   },
+						   "Inverse Color" };
 
-		sharpen_ = { ShaderSource{
+		sharpen_ = { ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 					 },
-					 ShaderSource{
+					 ShaderCode{
 #include PTGN_SHADER_PATH(screen_sharpen.frag)
-					 } };
+					 },
+					 "Sharpen" };
 	}
 
 	void InitOtherShaders() {
 		light_ = Shader(
-			ShaderSource{
+			ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 			},
-			ShaderSource{
+			ShaderCode{
 #include PTGN_SHADER_PATH(lighting.frag)
-			}
+			},
+			"Light"
+		);
+
+		tone_mapping_ = Shader(
+			ShaderCode{
+#include PTGN_SHADER_PATH(screen_default.vert)
+			},
+			ShaderCode{
+#include PTGN_SHADER_PATH(tone_mapping.frag)
+			},
+			"Tone Mapping"
 		);
 	}
 
@@ -271,6 +315,27 @@ private:
 
 	// Other shaders.
 	Shader light_;
+	Shader tone_mapping_;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ScreenShader, { { ScreenShader::Default, "default" },
+					{ ScreenShader::Blur, "blur" },
+					{ ScreenShader::GaussianBlur, "gaussian_blur" },
+					{ ScreenShader::EdgeDetection, "edge_detection" },
+					{ ScreenShader::Grayscale, "grayscale" },
+					{ ScreenShader::InverseColor, "inverse_color" },
+					{ ScreenShader::Sharpen, "sharpen" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ShapeShader, { { ShapeShader::Quad, "quad" }, { ShapeShader::Circle, "circle" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	OtherShader, { { OtherShader::Light, "light" }, { OtherShader::ToneMapping, "tone_mapping" } }
+);
+
+} // namespace ptgn

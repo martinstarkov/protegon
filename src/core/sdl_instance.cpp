@@ -15,10 +15,10 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "renderer/gl_renderer.h"
-#include "utility/assert.h"
-#include "utility/log.h"
-#include "utility/time.h"
+#include "common/assert.h"
+#include "core/time.h"
+#include "debug/log.h"
+#include "renderer/gl/gl_renderer.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
 	os << static_cast<int>(v.major) << "." << static_cast<int>(v.minor) << "."
@@ -141,8 +141,12 @@ void SDLInstance::InitSDLTTF() {
 }
 
 void SDLInstance::InitSDLMixer() {
+#ifdef PTGN_PLATFORM_MACOS
+	int mixer_flags{ MIX_INIT_MP3 | MIX_INIT_OGG };
+#else
 	int mixer_flags{ MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_OPUS |
 					 MIX_INIT_WAVPACK /* | MIX_INIT_FLAC | MIX_INIT_MOD | MIX_INIT_MID*/ };
+#endif
 
 #ifdef __EMSCRIPTEN__
 	mixer_flags = { MIX_INIT_OGG };

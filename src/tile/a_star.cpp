@@ -5,13 +5,12 @@
 #include <list>
 #include <utility>
 
+#include "common/assert.h"
 #include "core/game.h"
-#include "math/geometry/line.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
+#include "renderer/api/color.h"
 #include "renderer/renderer.h"
 #include "tile/grid.h"
-#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -83,13 +82,14 @@ int AStarGrid::FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_i
 };
 
 void AStarGrid::DisplayWaypoints(
-	const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color
+	const std::deque<V2_int>& waypoints, [[maybe_unused]] const V2_int& tile_size,
+	[[maybe_unused]] const Color& color
 ) {
 	for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-		// Line path{ waypoints[i] * tile_size + tile_size / 2.0f,
-		// waypoints[i + 1] * tile_size + tile_size / 2.0f };
-		// TODO: Fix draw.
-		// path.Draw(color);
+		DrawDebugLine(
+			waypoints[i] * tile_size + tile_size / 2.0f,
+			waypoints[i + 1] * tile_size + tile_size / 2.0f, color
+		);
 	}
 }
 

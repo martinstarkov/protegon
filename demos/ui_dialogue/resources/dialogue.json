@@ -1,0 +1,56 @@
+{
+  "split_end": "",
+  "split_begin": "",
+  "color": [255, 255, 255, 255],
+  "scroll_duration": "4s",
+  "font_size": 30,
+  "padding_left": 80,
+  "padding_right": 80,
+  "padding_bottom": 80,
+  "padding_top": 80,
+  "start": "intro",
+  "dialogues": {
+    "intro": {
+      "color": [255, 0, 0, 255],
+      "scroll_duration": "1s",
+      "lines": [
+        {
+          "color": [0, 0, 255, 255],
+          "scroll_duration": "2s",
+          "pages": [
+            {
+              "content": "But I must explain to you how all this mistaken idea of denouncing pleasure and praising pain was born and I will give you a complete account of the system, and expound the actual teachings of the great explorer of the truth, the master-builder of human happiness. No one rejects, dislikes, or avoids pleasure itself, because it is pleasure, but because those who do not know how to pursue pleasure rationally encounter consequences that are extremely painful. Nor again is there anyone who loves or pursues or desires to obtain pain of itself, because it is pain, but because occasionally circumstances occur in which toil and pain can procure him some great pleasure. To take a trivial example, which of us ever undertakes laborious physical exercise, except to obtain some advantage from it? But who has any right to find fault with a man who chooses to enjoy a pleasure that has no annoying consequences, or one who avoids a pain that produces no resultant pleasure?",
+              "color": [0, 255, 0, 255],
+              "scroll_duration": "3s"
+            },
+            "Nice to meet you! This is an extended piece of dialogue which should be split among multiple pages!"
+          ]
+        },
+        {
+          "pages": "Welcome to our city!\nMy name is Martin",
+          "color": [0, 255, 255, 255],
+          "scroll_duration": "0.3s"
+        },
+        "You really should get going!\nBye!"
+      ],
+      "index": 0,
+      "behavior": "sequential",
+      "scroll": true,
+      "repeatable": true,
+      "next": "outro"
+    },
+    "outro": {
+      "lines": [
+        "Great job on the boss fight!\nYou have won!",
+        "You are the savior of our city!\nThank you!"
+      ],
+      "index": 0,
+      "behavior": "random",
+      "scroll": true,
+      "next": "epilogue"
+    },
+    "epilogue": {
+      "lines": "Woo!"
+    }
+  }
+}

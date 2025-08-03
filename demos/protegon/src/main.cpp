@@ -73,7 +73,7 @@ public:
 	}
 };
 
-int main() {
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init();
 	game.scene.LoadActive<Tests>("test_scene");
 	// TestFrameBuffer();

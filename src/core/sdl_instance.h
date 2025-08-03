@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility/time.h"
+#include "core/time.h"
 
 namespace ptgn::impl {
 

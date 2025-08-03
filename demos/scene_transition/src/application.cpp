@@ -4,6 +4,7 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
 
+/*
 static void EnterScene(std::string_view key, milliseconds duration = milliseconds{ 250 }) {
 	if (game.input.KeyDown(Key::W)) {
 		game.scene.Enter(key, { TransitionType::CoverDown, duration });
@@ -21,13 +22,13 @@ static void EnterScene(std::string_view key, milliseconds duration = millisecond
 		game.scene.Enter(key, { TransitionType::UncoverLeft, duration });
 	} else if (game.input.KeyDown(Key::H)) {
 		game.scene.Enter(key, { TransitionType::UncoverRight, duration });
-	} else if (game.input.KeyDown(Key::DOWN)) {
+	} else if (game.input.KeyDown(Key::Down)) {
 		game.scene.Enter(key, { TransitionType::PushDown, duration });
-	} else if (game.input.KeyDown(Key::UP)) {
+	} else if (game.input.KeyDown(Key::Up)) {
 		game.scene.Enter(key, { TransitionType::PushUp, duration });
-	} else if (game.input.KeyDown(Key::LEFT)) {
+	} else if (game.input.KeyDown(Key::Left)) {
 		game.scene.Enter(key, { TransitionType::PushLeft, duration });
-	} else if (game.input.KeyDown(Key::RIGHT)) {
+	} else if (game.input.KeyDown(Key::Right)) {
 		game.scene.Enter(key, { TransitionType::PushRight, duration });
 	} else if (game.input.KeyDown(Key::Q)) {
 		game.scene.Enter(key, { TransitionType::Fade, milliseconds{ 4000 } });
@@ -107,11 +108,12 @@ public:
 	void Update() override {}
 };
 
+*/
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample: Press E to fade through black", window_size);
-	game.scene.Enter<SceneTransitionExample>(
-		"scene_transition_example",
-		SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 5000 } }
-	);
+	// game.Init("SceneTransitionExample: Press E to fade through black", window_size);
+	// game.scene.Enter<SceneTransitionExample>(
+	//	"scene_transition_example",
+	//	SceneTransition{ TransitionType::FadeThroughColor, milliseconds{ 5000 } }
+	//);
 	return 0;
 }

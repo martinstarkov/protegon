@@ -3,18 +3,28 @@
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <string_view>
-#include <unordered_map>
 #include <vector>
 
+#include "components/generic.h"
+#include "core/entity.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/flip.h"
+#include "renderer/api/color.h"
+#include "renderer/api/flip.h"
+#include "resources/resource_manager.h"
+#include "serialization/enum.h"
 #include "utility/file.h"
 
 struct SDL_Surface;
 
 namespace ptgn {
+
+class Entity;
+
+namespace impl {
+
+class Texture;
+
+} // namespace impl
 
 // @param coordinate Pixel coordinate from [0, size).
 // @return Color value of the given pixel.
@@ -29,7 +39,9 @@ V2_int ForEachPixel(
 // Format of pixels for a texture or surface.
 // e.g. RGBA8888 means 8 bits per color channel (32 bits total).
 enum class TextureFormat : std::uint32_t {
-	Unknown	 = 0,		  // SDL_PIXELFORMAT_UNKNOWN
+	Unknown	 = 0, // SDL_PIXELFORMAT_UNKNOWN
+	HDR_RGB	 = 999999998,
+	HDR_RGBA = 999999999,
 	RGB888	 = 370546692, // SDL_PIXELFORMAT_RGB888
 	RGBA8888 = 373694468, // SDL_PIXELFORMAT_RGBA8888
 	BGRA8888 = 377888772, // SDL_PIXELFORMAT_BGRA8888
@@ -55,9 +67,20 @@ enum class TextureScaling {
 	LinearMipmapLinear	 = 0x2703, // GL_LINEAR_MIPMAP_LINEAR
 };
 
-namespace impl {
+struct TextureHandle : public ResourceHandle {
+	using ResourceHandle::ResourceHandle;
 
-class RenderData;
+	// @param entity Optional parameter for if the texture could be attached to the entity via for
+	// example a frame buffer or a texture owning entity. If default value, these functions only
+	// rely on the texture handle hash for texture retrieval.
+	// TODO: In the future get rid of this in favor of the resource managers owning all resources
+	// and holding a nameless list of them with index handles.
+	[[nodiscard]] const impl::Texture& GetTexture(const Entity& entity = {}) const;
+	[[nodiscard]] impl::Texture& GetTexture(const Entity& entity = {});
+	[[nodiscard]] V2_int GetSize(const Entity& entity = {}) const;
+};
+
+namespace impl {
 
 struct Surface {
 	Surface() = default;
@@ -90,9 +113,11 @@ private:
 };
 
 enum class InternalGLFormat : std::int32_t {
-	R8	  = 0x8229, // GL_R8
-	RGB8  = 0x8051, // GL_RGB8
-	RGBA8 = 0x8058, // GL_RGBA8
+	R8		 = 0x8229, // GL_R8
+	RGB8	 = 0x8051, // GL_RGB8
+	RGBA8	 = 0x8058, // GL_RGBA8
+	HDR_RGBA = 0x881A, // GL_RGBA16F
+	HDR_RGB	 = 0x881B  // GL_RGB16F
 };
 
 enum class InputGLFormat {
@@ -157,6 +182,8 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
 [[nodiscard]] GLFormats GetGLFormats(TextureFormat format);
 
+using TextureId = std::uint32_t;
+
 class Texture {
 public:
 	Texture() = default;
@@ -176,8 +203,13 @@ public:
 	Texture& operator=(Texture&& other) noexcept;
 	~Texture();
 
-	bool operator==(const Texture& other) const;
-	bool operator!=(const Texture& other) const;
+	friend bool operator==(const Texture& a, const Texture& b) {
+		return a.id_ == b.id_;
+	}
+
+	friend bool operator!=(const Texture& a, const Texture& b) {
+		return !(a == b);
+	}
 
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize() const;
@@ -185,20 +217,18 @@ public:
 	// Set a sub pixel data of the currently bound texture.
 	// @param pixel_data Specifies a pointer to the image data in memory.
 	// @param size Specifies the size of the texture subimage (relative to the offset).
-	// @param format Specifies the format of the pixel data.
 	// @param mimap_level Specifies the level-of-detail number. Level 0 is the base image level.
 	// Level n is the nth mipmap reduction image.
 	// @param offset Specifies a texel offset within the texture array (relative to bottom left
 	// corner).
 	void SetSubData(
-		const void* pixel_data, const V2_int& size, TextureFormat format, int mipmap_level,
-		const V2_int& offset
+		const void* pixel_data, const V2_int& size, int mipmap_level, const V2_int& offset
 	);
 
 	// Set the specified texture slot to active and bind the texture id to that slot.
-	static void Bind(std::uint32_t id, std::uint32_t slot);
+	static void Bind(TextureId id, std::uint32_t slot);
 
-	static void BindId(std::uint32_t id);
+	static void BindId(TextureId id);
 
 	// Set the specified texture slot to active and bind the texture to that slot.
 	void Bind(std::uint32_t slot) const;
@@ -210,7 +240,7 @@ public:
 	static void Unbind(std::uint32_t slot);
 
 	// @return Id of the texture bound to the currently active texture slot.
-	[[nodiscard]] static std::uint32_t GetBoundId();
+	[[nodiscard]] static TextureId GetBoundId();
 
 	// @return True if the texture is currently bound, false otherwise.
 	[[nodiscard]] bool IsBound() const;
@@ -222,7 +252,7 @@ public:
 	[[nodiscard]] static std::uint32_t GetActiveSlot();
 
 	// @return Id of the texture object.
-	[[nodiscard]] std::uint32_t GetId() const;
+	[[nodiscard]] TextureId GetId() const;
 
 	// @return True if id != 0.
 	[[nodiscard]] bool IsValid() const;
@@ -241,10 +271,6 @@ private:
 	// bound texture.
 	[[nodiscard]] std::int32_t GetParameterI(TextureParameter parameter) const;
 
-	[[nodiscard]] std::int32_t GetLevelParameterI(
-		TextureLevelParameter parameter, std::int32_t level
-	) const;
-
 	// Set the pixel data of the currently bound texture.
 	// @param pixel_data Specifies a pointer to the image data in memory.
 	// @param size Specifies the size of the texture.
@@ -262,49 +288,94 @@ private:
 	// Automatically generate mipmaps for the currently bound texture.
 	void GenerateMipmaps() const;
 
-	std::uint32_t id_{ 0 };
+	TextureId id_{ 0 };
 	V2_int size_;
+	TextureFormat format_{ TextureFormat::Unknown };
 };
 
-class TextureManager {
+class TextureManager : public ResourceManager<TextureManager, TextureHandle, Texture> {
 public:
-	// Load textures from a json file. Json format must be:
-	// {
-	//    "texture_key": "path/to/texture/file.extension",
-	//    ...
-	// }
-	void Load(const path& json_filepath);
-
-	// If key exists in the texture manager, does nothing.
-	void Load(std::string_view key, const path& filepath);
-
-	void Unload(std::string_view key);
-
 	// @return Size of the texture.
-	[[nodiscard]] V2_int GetSize(std::string_view key) const;
-	[[nodiscard]] V2_int GetSize(std::size_t key) const;
-
-	// @return True if the texture key is loaded.
-	[[nodiscard]] bool Has(std::string_view key) const;
+	[[nodiscard]] V2_int GetSize(const TextureHandle& key) const;
 
 private:
-	friend class RenderData;
+	[[nodiscard]] const Texture& Get(const TextureHandle& key) const;
 
-	[[nodiscard]] const Texture& Get(std::size_t key) const;
-
-	[[nodiscard]] bool Has(std::size_t key) const;
+	friend ParentManager;
+	friend struct ptgn::TextureHandle;
 
 	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
-
-	// TODO: Fix.
-	// Draws the texture to the currently bound frame buffer.
-	/*void DrawToBoundFrameBuffer(
-		std::string_view key, const Rect& destination, const TextureInfo& texture_info,
-		const Shader& shader
-	) const;*/
-
-	std::unordered_map<std::size_t, Texture> textures_;
 };
+
+} // namespace impl
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureFormat, { { TextureFormat::Unknown, "unknown" },
+					 { TextureFormat::HDR_RGB, "hdr_rgb" },
+					 { TextureFormat::HDR_RGBA, "hdr_rgba" },
+					 { TextureFormat::RGB888, "rgb888" },
+					 { TextureFormat::RGBA8888, "rgba8888" },
+					 { TextureFormat::BGRA8888, "bgra8888" },
+					 { TextureFormat::BGR888, "bgr888" },
+					 { TextureFormat::ABGR8888, "abgr8888" },
+					 { TextureFormat::ARGB8888, "argb8888" },
+					 { TextureFormat::A8, "a8" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureWrapping, { { TextureWrapping::ClampEdge, "clamp_edge" },
+					   { TextureWrapping::ClampBorder, "clamp_border" },
+					   { TextureWrapping::Repeat, "repeat" },
+					   { TextureWrapping::MirroredRepeat, "mirrored_repeat" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureScaling, { { TextureScaling::Nearest, "nearest" },
+					  { TextureScaling::Linear, "linear" },
+					  { TextureScaling::NearestMipmapNearest, "nearest_mipmap_nearest" },
+					  { TextureScaling::NearestMipmapLinear, "nearest_mipmap_linear" },
+					  { TextureScaling::LinearMipmapNearest, "linear_mipmap_nearest" },
+					  { TextureScaling::LinearMipmapLinear, "linear_mipmap_linear" } }
+);
+
+namespace impl {
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InternalGLFormat, { { InternalGLFormat::RGBA8, "rgba8" },
+						{ InternalGLFormat::R8, "r8" },
+						{ InternalGLFormat::RGB8, "rgb8" },
+						{ InternalGLFormat::HDR_RGBA, "hdr_rgba" },
+						{ InternalGLFormat::HDR_RGB, "hdr_rgb" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InputGLFormat, { { InputGLFormat::RGBA, "rgba" },
+					 { InputGLFormat::SingleChannel, "single_channel" },
+					 { InputGLFormat::RGB, "rgb" },
+					 { InputGLFormat::BGR, "bgr" },
+					 { InputGLFormat::BGRA, "bgra" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InternalGLDepthFormat, { { InternalGLDepthFormat::DEPTH24_STENCIL8, "depth24_stencil8" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(TextureTarget, { { TextureTarget::Texture2D, "texture2d" } });
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureLevelParameter, { { TextureLevelParameter::InternalFormat, "internal_format" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TextureParameter, { { TextureParameter::BorderColor, "border_color" },
+						{ TextureParameter::Width, "width" },
+						{ TextureParameter::Height, "height" },
+						{ TextureParameter::WrapS, "wrap_s" },
+						{ TextureParameter::WrapT, "wrap_t" },
+						{ TextureParameter::WrapR, "wrap_r" },
+						{ TextureParameter::MagnifyingScaling, "magnifying_scaling" },
+						{ TextureParameter::MinifyingScaling, "minifying_scaling" } }
+);
 
 } // namespace impl
 

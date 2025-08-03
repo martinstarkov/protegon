@@ -1,112 +1,95 @@
-#include "protegon/protegon.h"
+#include <functional>
+#include <string_view>
+
+#include "components/draw.h"
+#include "components/movement.h"
+#include "components/transform.h"
+#include "core/entity.h"
+#include "core/game.h"
+#include "math/geometry/rect.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "tile/grid.h"
+#include "tweens/tween_effects.h"
+#include "ui/button.h"
 
 using namespace ptgn;
 
-class CameraShakeExample : public Scene {
+class ButtonScript : public Script<ButtonScript> {
 public:
-	ecs::Manager manager;
-	ecs::Entity player;
+	ButtonScript() = default;
+
+	explicit ButtonScript(const std::function<void()>& on_activate_callback) :
+		on_activate{ on_activate_callback } {}
+
+	void OnButtonActivate() override {
+		if (on_activate) {
+			std::invoke(on_activate);
+		}
+	}
+
+	std::function<void()> on_activate;
+};
+
+class CameraShakeScene : public Scene {
+public:
+	Entity player;
 
 	Grid<Button> grid{ { 1, 5 } };
 
-	float speed{ 50.0f };
-
-	Button CreateButton(std::string_view content, const ButtonCallback& on_activate) {
-		Button b;
-		b.Set<ButtonProperty::BackgroundColor>(color::Gold);
-		b.Set<ButtonProperty::BackgroundColor>(color::Gray, ButtonState::Hover);
-		b.Set<ButtonProperty::BackgroundColor>(color::DarkGray, ButtonState::Pressed);
-		b.Set<ButtonProperty::Bordered>(true);
-		b.Set<ButtonProperty::BorderColor>(color::LightGray);
-		b.Set<ButtonProperty::BorderThickness>(3.0f);
-		Text text{ content, color::Black };
-		b.Set<ButtonProperty::Text>(text);
-		b.Set<ButtonProperty::OnActivate>(on_activate);
+	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
+		Button b{ CreateTextButton(*this, content, color::Black) };
+		b.SetBackgroundColor(color::Gold);
+		b.SetBackgroundColor(color::Gray, ButtonState::Hover);
+		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
+		b.SetBorderColor(color::LightGray);
+		b.SetBorderWidth(3.0f);
+		b.AddScript<ButtonScript>(on_activate);
 		return b;
 	}
 
 	void Enter() override {
-		manager.Reset();
+		CreateRect(*this, V2_float{ 300.0f, 300.0f }, { 150.0f, 50.0f }, color::Green);
+		player = CreateRect(*this, V2_float{ 400.0f, 150.0f }, { 50.0f, 50.0f }, color::Red);
+		camera.primary.StartFollow(player);
 
-		player = manager.CreateEntity();
-
-		player.Add<Transform>(V2_float{ 60.0f, 60.0f });
-		player.Add<CameraShake>();
-
-		manager.Refresh();
-
-		grid.Set({ 0, 0 }, CreateButton("Reset Shake", [&]() { GetShake().Reset(); }));
-		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { GetShake().Induce(0.1f); }));
-		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() { GetShake().Induce(0.25f); }));
-		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { GetShake().Induce(0.5f); }));
-		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { GetShake().Induce(1.0f); }));
+		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera.primary); }));
+		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() {
+					 Shake(camera.primary, 0.1f, {}, false);
+				 }));
+		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() {
+					 Shake(camera.primary, 0.25f, {}, false);
+				 }));
+		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() {
+					 Shake(camera.primary, 0.5f, {}, false);
+				 }));
+		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() {
+					 Shake(camera.primary, 1.0f, {}, false);
+				 }));
 
 		V2_float screen_offset{ 10, 30 };
 		V2_float offset{ 6, 6 };
 		V2_float size{ 200, 50 };
 
 		grid.ForEach([&](auto coord, Button& b) {
-			b.SetRect({ screen_offset + (offset + size) * coord, size, Origin::TopLeft });
+			b.SetPosition(screen_offset + (offset + size) * coord);
+			b.SetSize(size);
+			b.SetOrigin(Origin::TopLeft);
 		});
 	}
 
 	void Update() override {
-		auto& cam_shake = player.Get<CameraShake>();
-
-		cam_shake.Update();
-
-		float dt = game.dt();
-
-		auto& p = player.Get<Transform>().position;
-		if (game.input.KeyPressed(Key::W)) {
-			p.y -= speed * dt;
-		}
-		if (game.input.KeyPressed(Key::S)) {
-			p.y += speed * dt;
-		}
-		if (game.input.KeyPressed(Key::A)) {
-			p.x -= speed * dt;
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			p.x += speed * dt;
-		}
-
-		auto& cam = game.camera.primary;
-		cam.SetPosition(p + cam_shake.local_position);
-		cam.SetRotation(cam_shake.local_rotation);
-		game.camera.primary = cam;
-
-		Draw();
-	}
-
-	void Draw() {
-		Rect{ { 200, 200 }, { 300, 300 }, Origin::TopLeft }.Draw(color::Gray);
-		DrawRect(
-			player, { player.Get<Transform>().position, V2_float{ 30.0f, 30.0f }, Origin::Center }
-		);
-		Rect{ { 0, 0 }, { 50.0f, 50.0f }, Origin::TopLeft }.Draw(color::Orange);
-
-		RenderTarget ui{ color::Transparent };
-
-		game.renderer.SetRenderTarget(ui);
-
-		Text{ "WASD to move", color::Black }.Draw({ { 0, 0 }, {}, Origin::TopLeft });
-
-		grid.ForEachElement([](Button& b) { b.Draw(); });
-
-		game.renderer.SetRenderTarget({});
-
-		ui.Draw();
-	}
-
-	CameraShake& GetShake() {
-		PTGN_ASSERT(player.Has<CameraShake>());
-		return player.Get<CameraShake>();
+		constexpr V2_float speed{ 3.0f, 3.0f };
+		MoveWASD(player.GetPosition(), speed, false);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CameraShake");
-	game.scene.Enter<CameraShakeExample>("camera_shake");
+	game.Init("CameraShakeScene");
+	game.scene.Enter<CameraShakeScene>("");
 	return 0;
 }

@@ -8,10 +8,13 @@
 #include <utility>
 #include <vector>
 
+#include "common/assert.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "utility/assert.h"
+#include "serialization/enum.h"
+
+// TODO: Add serialization.
 
 namespace ptgn {
 
@@ -47,7 +50,10 @@ protected:
 		hash			  ^= hash >> 15;
 		hash			  &= 127 << 1;
 
-		PTGN_ASSERT(hash < static_cast<std::int32_t>(gradients.size()) && (hash | 1) < static_cast<std::int32_t>(gradients.size()));
+		PTGN_ASSERT(
+			hash < static_cast<std::int32_t>(gradients.size()) &&
+			(hash | 1) < static_cast<std::int32_t>(gradients.size())
+		);
 
 		float xg = gradients[static_cast<std::size_t>(hash)];
 		float yg = gradients[static_cast<std::size_t>(hash) | 1];
@@ -139,6 +145,7 @@ private:
 	}
 
 	std::int32_t seed_{ 0 };
+
 	// Sampling rate of the first layer of noise as a % of the provided noise array.
 	// Lower value means the initial noise layer has a higher noise frequency.
 	float frequency_{ 0.01f };
@@ -202,15 +209,25 @@ public:
 	void SetNoiseType(NoiseType type);
 	[[nodiscard]] NoiseType GetNoiseType() const;
 
+	// Number of layers of noise added on top of each other. Lower value means less higher frequency
+	// noise layers.
 	void SetOctaves(std::size_t octaves);
 	[[nodiscard]] std::size_t GetOctaves() const;
 
+	// Amount by which the amplitude of each successive layer of noise is multiplied. Lower value
+	// means less high frequency noise. Also sometimes called fractal gain.
+	// Increasing the value of persistence increases the influence of small features on the overall
+	// noise map.
 	void SetPersistence(float persistence);
 	[[nodiscard]] float GetPersistence() const;
 
+	// Higher values mean higher octaves have less impact if lower octaves have a large impact.
 	void SetWeightedStrength(float weighted_strength);
 	[[nodiscard]] float GetWeightedStrength() const;
 
+	// Amount by which the sampling rate (frequency) of each successive layer of noise is
+	// multiplied. Lower value means the noise frequency of each noise layer increases slower.
+	// Increasing the value of lacunarity increases the number of small features.
 	void SetLacunarity(float lacunarity);
 	[[nodiscard]] float GetLacunarity() const;
 
@@ -243,12 +260,12 @@ private:
 	// noise layers.
 	std::size_t octaves_{ 3 };
 
-	// Amount by which the sampling rate of each successive layer of noise is multiplied.Lower value
-	// means the noise frequency of each noise layer increases slower.
+	// Amount by which the sampling rate (frequency) of each successive layer of noise is
+	// multiplied. Lower value means the noise frequency of each noise layer increases slower.
 	float lacunarity_{ 2.0f };
 
 	// Amount by which the amplitude of each successive layer of noise is multiplied. Lower value
-	// means less high frequency noise.Also sometimes called fractal gain.
+	// means less high frequency noise. Also sometimes called fractal gain.
 	float persistence_{ 0.5f };
 
 	// Higher values mean higher octaves have less impact if lower octaves have a large impact.
@@ -256,5 +273,11 @@ private:
 
 	NoiseType noise_type_{ NoiseType::Perlin };
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	NoiseType, { { NoiseType::Perlin, "perlin" },
+				 { NoiseType::Value, "value" },
+				 { NoiseType::Simplex, "simplex" } }
+);
 
 } // namespace ptgn

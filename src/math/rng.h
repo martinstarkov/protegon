@@ -1,9 +1,19 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <limits>
+#include <nlohmann/detail/meta/type_traits.hpp>
+#include <optional>
 #include <random>
 #include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "common/assert.h"
+#include "serialization/enum.h"
+#include "serialization/json.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -58,7 +68,8 @@ public:
 
 	// Custom range seeded distribution.
 	// Range: [min, max] (inclusive).
-	RNG(std::uint32_t seed, T min, T max) : min_{ min }, max_{ max }, generator_{ seed } {
+	RNG(std::uint32_t seed, T min, T max) :
+		seed_{ seed }, min_{ min }, max_{ max }, generator_{ seed_ } {
 		SetupDistribution();
 	}
 
@@ -81,11 +92,63 @@ public:
 
 	// Change seed of random number generator.
 	void SetSeed(std::uint32_t new_seed) {
-		generator_.seed(new_seed);
+		seed_ = new_seed;
+		generator_.seed(seed_);
+	}
+
+	// Change the range of the random number generator.
+	void SetRange(T min, T max) {
+		min_ = min;
+		max_ = max;
+		SetupDistribution();
+	}
+
+	[[nodiscard]] std::uint32_t GetSeed() const {
+		return seed_;
+	}
+
+	[[nodiscard]] T GetMin() const {
+		return min_;
+	}
+
+	[[nodiscard]] T GetMax() const {
+		return max_;
+	}
+
+	// TODO: Add binary de/serialization.
+
+	template <
+		typename BasicJsonType, nlohmann::detail::enable_if_t<
+									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
+	friend void to_json(BasicJsonType& nlohmann_json_j, const RNG& nlohmann_json_t) {
+		nlohmann_json_j["seed"] = nlohmann_json_t.seed_;
+		nlohmann_json_j["min"]	= nlohmann_json_t.min_;
+		nlohmann_json_j["max"]	= nlohmann_json_t.max_;
+	}
+
+	template <
+		typename BasicJsonType, nlohmann::detail::enable_if_t<
+									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
+	friend void from_json(const BasicJsonType& nlohmann_json_j, RNG& nlohmann_json_t) {
+		nlohmann_json_t.min_ = nlohmann_json_j["min"];
+		nlohmann_json_t.max_ = nlohmann_json_j["max"];
+		nlohmann_json_t.SetSeed(nlohmann_json_j["seed"]);
+		nlohmann_json_t.SetupDistribution();
+	}
+
+	friend void to_json(json& j, const RNG& rng) {
+		j["seed"] = rng.GetSeed();
+		j["min"]  = rng.GetMin();
+		j["max"]  = rng.GetMax();
+	}
+
+	friend void from_json(const json& j, RNG& rng) {
+		rng = RNG{ j.at("seed"), j.at("min"), j.at("max") };
 	}
 
 private:
 	void SetupDistribution() {
+		PTGN_ASSERT(min_ <= max_);
 		T a = min_;
 		T b = AdjustedMax(max_);
 		if constexpr (D == Distribution::Normal) {
@@ -109,18 +172,76 @@ private:
 		}
 	}
 
-	T min_{};
-	T max_{};
+	std::uint32_t seed_{ std::invoke(std::random_device{}) };
+
+	T min_{ 0 };
+	T max_{ 1 };
 
 	// Internal random number generator.
-	E generator_{ std::invoke(std::random_device{}) };
+	E generator_{ seed_ };
 
 	// Defined internal distribution.
 	// Range: [0, 1] (inclusive).
-	distribution distribution_{ 0, 1 };
+	distribution distribution_{ min_, max_ };
 };
 
 template <typename T>
 using Gaussian = RNG<T, Distribution::Normal>;
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
+);
+
+// @return True for "heads", false for "tails"
+[[nodiscard]] bool FlipCoin();
+
+template <typename T>
+class RandomPicker {
+public:
+	// Accepts any number of arguments to initialize the item list
+	template <typename... Args>
+	explicit RandomPicker(Args&&... args) :
+		items_{ std::forward<Args>(args)... }, rng_(0, Size() - 1) {}
+
+	// @return The next random element removed from the RandomPicker, or std::nullopt if none are
+	// available.
+	std::optional<T> Next() {
+		if (IsEmpty()) {
+			return std::nullopt;
+		}
+
+		std::size_t idx{ std::invoke(rng_) };
+		T value{ std::move(items_[idx]) };
+		items_.erase(items_.begin() + idx);
+
+		// Update RNG range if items remain
+		if (!IsEmpty()) {
+			rng_.SetRange(0, Size() - 1);
+		}
+
+		return value;
+	}
+
+	// @return True if the RandomPicker no longer has any items, false otherwise.
+	[[nodiscard]] bool IsEmpty() const {
+		return items_.empty();
+	}
+
+	// @return How many items remain in the RandomPicker.
+	[[nodiscard]] std::size_t Size() const {
+		return items_.size();
+	}
+
+	template <typename Func>
+	void ForEach(Func func) {
+		for (auto i = 0; i < Size(); i++) {
+			std::invoke(func, items_[i]);
+		}
+	}
+
+private:
+	std::vector<T> items_;
+	RNG<std::size_t> rng_;
+};
 
 } // namespace ptgn

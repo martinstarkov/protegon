@@ -2,15 +2,46 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
+#include "debug/stats.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "utility/stats.h"
+#include "renderer/api/color.h"
+#include "utility/file.h"
 
 namespace ptgn {
 
-class LightManager;
-class RenderTarget;
+// TODO: Add shader loading support (.VERT + .FRAG)
+//
+// Load various different resource types from a json file. Json format must be:
+// {
+//    "resource_key": "path/to/resource/file.extension",
+//    ...
+// }
+// Supported extensions:
+// Texture: .PNG, .JPG, .BMP, .GIF
+// Audio: .OGG (only one supported by Emscripten), MP3, WAV, OPUS
+// Font: .TTF JSON: .JSON
+// @param music_resource_suffix Resources which have a key that ends with this suffix will be loaded
+// as music instead of sounds, provided their extension is a valid audio extension.
+void LoadResources(const path& resource_file, std::string_view music_resource_suffix = "_music");
+
+// @param is_music If true and is a supported audio format, loads the resource as music instead of
+// sound.
+// Resource path must end in a supported extension (see LoadResources comment).
+void LoadResource(std::string_view key, const path& resource_path, bool is_music = false);
+
+struct Resource {
+	std::string_view key;
+	path filepath;
+	// @param is_music If true and is a supported audio format, loads the resource as music instead
+	// of sound.
+	bool is_music{ false };
+};
+
+void LoadResources(const std::vector<Resource>& resource_paths);
 
 namespace impl {
 
@@ -71,7 +102,7 @@ public:
 	// game.renderer.SetClearColor(color::Black);
 	void Init(
 		const std::string& title = "Default Title", const V2_int& window_size = { 800, 800 },
-		const Color& background_color = color::White
+		const Color& background_color = color::Transparent
 	);
 
 	// Stops the game from running.
@@ -89,9 +120,9 @@ private:
 	friend struct Mix_ChunkDeleter;
 	friend struct SDL_SurfaceDeleter;
 	friend struct TTF_FontDeleter;
+	friend class FontManager;
 	friend class GLContext;
 	friend class SceneManager;
-	friend class RenderTarget;
 #ifdef __EMSCRIPTEN__
 	friend void EmscriptenLoop();
 #endif
@@ -134,7 +165,6 @@ public:
 	SceneManager& scene;
 
 private:
-private:
 	std::unique_ptr<MusicManager> music_;
 
 public:
@@ -169,12 +199,6 @@ private:
 
 public:
 	ShaderManager& shader;
-
-private:
-	// std::unique_ptr<LightManager> light_;
-
-public:
-	// LightManager& light;
 
 private:
 	std::unique_ptr<Profiler> profiler_;

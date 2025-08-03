@@ -122,23 +122,14 @@ ninja --version  # or gcc --version
 | `./zip-for-itch.sh` | Creates `.zip` for Itch.io uploads |
 | `./build-itch.sh` | Builds and zips for Itch.io |
 
----
-
 ## ❗ Troubleshooting
 
 ### Windows: Symlink Error
 
 If you see:
+- If you get the error `A required privilege is not held by the client` when creating a symlink using `create_resource_symlink` on Windows, [turn on Developer mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).
 
-```
-A required privilege is not held by the client  
-```
-
-when running `create_resource_symlink`, enable [Developer Mode in Windows](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).
-
----
 
 ## 📚 License
 
 [MIT License](LICENSE)
-

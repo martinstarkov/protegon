@@ -1,4 +1,19 @@
-#include "protegon/protegon.h"
+#include <vector>
+
+#include "core/entity.h"
+#include "core/game.h"
+#include "input/input_handler.h"
+#include "input/key.h"
+#include "input/mouse.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/renderer.h"
+#include "renderer/text.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "tile/grid.h"
+#include "utility/string.h"
 
 using namespace ptgn;
 
@@ -9,8 +24,12 @@ public:
 	Grid<int> grid{ { 36, 36 } };
 	V2_int tile_size{ 20, 20 };
 
+	Text text;
+
 	void Enter() override {
 		outer_grid.Fill(0);
+		text = CreateText(*this, "", color::Orange);
+		text.SetDepth(1);
 	}
 
 	bool toggle = true;
@@ -37,7 +56,6 @@ public:
 		V2_int mouse_pos = game.input.GetMousePosition();
 
 		V2_int mouse_tile = mouse_pos / tile_size;
-		Rect mouse_box{ mouse_tile * tile_size, tile_size, Origin::TopLeft };
 
 		if (grid.Has(mouse_tile)) {
 			if (game.input.MousePressed(Mouse::Left)) {
@@ -50,25 +68,26 @@ public:
 
 		grid.ForEachCoordinate([&](const V2_int& p) {
 			Color c = color::Red;
-			Rect r{ V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, Origin::TopLeft };
 			if (grid.Has(p)) {
 				switch (grid.Get(p)) {
 					case 0: c = color::Gray; break;
 					case 1: c = color::Green; break;
 				}
 			}
-			r.Draw(c, -1.0f);
+			DrawDebugRect(
+				V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, c, Origin::TopLeft, -1.0f
+			);
 		});
 		if (grid.Has(mouse_tile)) {
-			mouse_box.Draw(color::Yellow);
+			DrawDebugRect(mouse_tile * tile_size, tile_size, color::Yellow, Origin::TopLeft);
 		}
-		Text{ ToString(mouse_tile), color::Red }.Draw(Rect{ mouse_box.Center(), {}, Origin::Center }
-		);
+		text.SetContent(ToString(mouse_tile));
+		text.SetPosition(mouse_tile * tile_size + tile_size / 2.0f);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("paint: left click to draw; right click to erase; B to flip color", { 720, 720 });
-	game.scene.Enter<Paint>("paint");
+	game.scene.Enter<Paint>("");
 	return 0;
 }

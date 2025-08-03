@@ -1,4 +1,17 @@
-#include "protegon/protegon.h"
+#include <algorithm>
+#include <cstdint>
+#include <vector>
+
+#include "core/game.h"
+#include "input/input_handler.h"
+#include "input/key.h"
+#include "input/mouse.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/renderer.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -7,6 +20,7 @@ constexpr V2_int window_size{ 1280, 720 };
 class FluidContainer {
 public:
 	V2_int size;
+	int length{ 0 };
 
 	float dt;
 	float diff;
@@ -20,14 +34,13 @@ public:
 	std::vector<float> density;
 
 	FluidContainer(const V2_int& size, float dt, float diff, float visc) :
-		size{ size }, dt{ dt }, diff{ diff }, visc{ visc } {
-		auto s{ size.x * size.y };
-		px.resize(s, 0);
-		py.resize(s, 0);
-		x.resize(s, 0);
-		y.resize(s, 0);
-		previous_density.resize(s, 0);
-		density.resize(s, 0);
+		size{ size }, length{ size.x * size.y }, dt{ dt }, diff{ diff }, visc{ visc } {
+		px.resize(length, 0);
+		py.resize(length, 0);
+		x.resize(length, 0);
+		y.resize(length, 0);
+		previous_density.resize(length, 0);
+		density.resize(length, 0);
 	}
 
 	~FluidContainer() = default;
@@ -49,35 +62,36 @@ public:
 		}
 	}
 
-	// Get clamped index based off of coordinates.
-	static std::size_t IX(int xcoord, int ycoord, const V2_int& size) {
-		// Clamp coordinates.
-		xcoord = std::clamp(xcoord, 0, size.x - 1);
-		ycoord = std::clamp(ycoord, 0, size.y - 1);
-
-		return ycoord * size.x + xcoord;
-	}
-
 	// Add density to the density field.
 	void AddDensity(int xcoord, int ycoord, float amount, int radius = 0) {
+		if (xcoord < 0 || xcoord > size.x - 1 || ycoord < 0 || ycoord > size.y - 1) {
+			return;
+		}
+
 		if (radius > 0) {
-			for (int i{ -radius }; i <= radius; ++i) {
-				for (int j{ -radius }; j <= radius; ++j) {
+			auto ycoordsize{ ycoord * size.x };
+			for (int j{ -radius }; j <= radius; ++j) {
+				auto row{ ycoordsize + j * size.x };
+				for (int i{ -radius }; i <= radius; ++i) {
 					if (i * i + j * j <= radius * radius) {
-						auto index{ IX(xcoord + i, ycoord + j, size) };
+						auto index{ xcoord + i + row };
 						this->density[index] += amount;
 					}
 				}
 			}
 		} else {
-			auto index{ IX(xcoord, ycoord, size) };
+			auto index{ xcoord + ycoord * size.x };
 			this->density[index] += amount;
 		}
 	}
 
 	// Add velocity to the velocity field.
 	void AddVelocity(int xcoord, int ycoord, float pxs, float pys) {
-		auto index{ IX(xcoord, ycoord, size) };
+		if (xcoord < 0 || xcoord > size.x - 1 || ycoord < 0 || ycoord > size.y - 1) {
+			return;
+		}
+
+		auto index{ xcoord + ycoord * size.x };
 		this->x[index] += pxs;
 		this->y[index] += pys;
 	}
@@ -85,132 +99,133 @@ public:
 	// Fluid specific operations
 
 	// Set boundaries to opposite of adjacent layer.
-	void SetBnd(int b, std::vector<float>& xs, const V2_int& N) {
-		for (int i{ 1 }; i < N.x - 1; ++i) {
-			auto top{ IX(i, 1, N) };
-			auto bottom{ IX(i, N.y - 2, N) };
-			xs[IX(i, 0, N)]		  = b == 2 ? -xs[top] : xs[top];
-			xs[IX(i, N.y - 1, N)] = b == 2 ? -xs[bottom] : xs[bottom];
+	void SetBoundaries(int b, std::vector<float>& xs) const {
+		for (int i{ 1 }; i < size.x - 1; ++i) {
+			int top					= size.x + i;
+			int bottom				= length - 2 * size.x + i;
+			xs[i]					= (b == 2 ? -xs[top] : xs[top]);
+			xs[length - size.x + i] = (b == 2 ? -xs[bottom] : xs[bottom]);
 		}
 
-		for (int j{ 1 }; j < N.y - 1; ++j) {
-			auto left{ IX(1, j, N) };
-			auto right{ IX(N.x - 2, j, N) };
-			xs[IX(0, j, N)]		  = b == 1 ? -xs[left] : xs[left];
-			xs[IX(N.x - 1, j, N)] = b == 1 ? -xs[right] : xs[right];
+		for (int j{ 1 }; j < size.y - 1; ++j) {
+			int row				 = j * size.x;
+			xs[row]				 = (b == 1 ? -xs[row + 1] : xs[row + 1]);
+			xs[row + size.x - 1] = (b == 1 ? -xs[row + size.x - 2] : xs[row + size.x - 2]);
 		}
 
 		// Set corner boundaries
-		xs[IX(0, 0, N)] = 0.33f * (xs[IX(1, 0, N)] + xs[IX(0, 1, N)] + xs[IX(0, 0, N)]);
-		xs[IX(0, N.y - 1, N)] =
-			0.33f * (xs[IX(1, N.y - 1, N)] + xs[IX(0, N.y - 2, N)] + xs[IX(0, N.y - 1, N)]);
-		xs[IX(N.x - 1, 0, N)] =
-			0.33f * (xs[IX(N.x - 2, 0, N)] + xs[IX(N.x - 1, 1, N)] + xs[IX(N.x - 1, 0, N)]);
-		xs[IX(N.x - 1, N.y - 1, N)] =
-			0.33f * (xs[IX(N.x - 2, N.y - 1, N)] + xs[IX(N.x - 1, N.y - 2, N)] +
-					 xs[IX(N.x - 1, N.y - 1, N)]);
+		xs[0] = 0.33f * (xs[1] + xs[size.x] + xs[0]);
+		xs[length - size.x] =
+			0.33f * (xs[length - size.x + 1] + xs[length - 2 * size.x] + xs[length - size.x]);
+		xs[size.x - 1] = 0.33f * (xs[size.x - 2] + xs[2 * size.x - 1] + xs[size.x - 1]);
+		xs[length - 1] = 0.33f * (xs[length - 2] + xs[length - size.x - 1] + xs[length - 1]);
 	}
 
 	// Solve linear differential equation of density / velocity.
 	void LinSolve(
 		int b, std::vector<float>& xs, std::vector<float>& x0, float a, float c,
-		std::size_t iterations, const V2_int& N
-	) {
+		std::size_t iterations
+	) const {
 		float c_reciprocal{ 1.0f / c };
 		for (std::size_t iteration{ 0 }; iteration < iterations; ++iteration) {
-			for (int j{ 1 }; j < N.y - 1; ++j) {
-				for (int i{ 1 }; i < N.x - 1; ++i) {
-					auto index{ IX(i, j, N) };
-					xs[index] = (x0[index] + a * (xs[IX(i + 1, j, N)] + xs[IX(i - 1, j, N)] +
-												  xs[IX(i, j + 1, N)] + xs[IX(i, j - 1, N)] +
-												  xs[index] + xs[index])) *
-								c_reciprocal;
+			for (int j{ 1 }; j < size.y - 1; ++j) {
+				auto row{ j * size.x };
+				for (int i{ 1 }; i < size.x - 1; ++i) {
+					auto index{ row + i };
+
+					xs[index] =
+						(x0[index] + a * (xs[index + 1] + xs[index] + xs[index - 1] +
+										  xs[index + size.x] + xs[index] + xs[index - size.x])) *
+						c_reciprocal;
 				}
 			}
-			SetBnd(b, xs, N);
+			SetBoundaries(b, xs);
 		}
 	}
 
 	// Diffuse density / velocity outward at each step.
 	void Diffuse(
 		int b, std::vector<float>& xs, std::vector<float>& x0, float diffusion, float delta_time,
-		std::size_t iterations, const V2_int& N
+		std::size_t iterations
 	) {
-		float a{ delta_time * diffusion * (N.x - 2) * (N.y - 2) };
-		LinSolve(b, xs, x0, a, 1 + 6 * a, iterations, N);
+		float a{ delta_time * diffusion * (size.x - 2) * (size.y - 2) };
+		LinSolve(b, xs, x0, a, 1 + 6 * a, iterations);
 	}
 
 	// Converse 'mass' of density / velocity fields.
 	void Project(
 		std::vector<float>& vx, std::vector<float>& vy, std::vector<float>& p,
-		std::vector<float>& div, std::size_t iterations, const V2_int& N
+		std::vector<float>& div, std::size_t iterations
 	) {
-		for (int j{ 1 }; j < N.y - 1; ++j) {
-			for (int i{ 1 }; i < N.x - 1; ++i) {
-				auto index{ IX(i, j, N) };
-				div[index] = -0.5f * ((vx[IX(i + 1, j, N)] - vx[IX(i - 1, j, N)]) / N.x +
-									  (vy[IX(i, j + 1, N)] - vy[IX(i, j - 1, N)]) / N.y);
+		for (int j{ 1 }; j < size.y - 1; ++j) {
+			auto row{ j * size.x };
+			for (int i{ 1 }; i < size.x - 1; ++i) {
+				auto index{ row + i };
+				div[index] = -0.5f * ((vx[index + 1] - vx[index - 1]) / size.x +
+									  (vy[index + size.x] - vy[index - size.x]) / size.y);
 				p[index]   = 0;
 			}
 		}
 
-		SetBnd(0, div, N);
-		SetBnd(0, p, N);
+		SetBoundaries(0, div);
+		SetBoundaries(0, p);
 
-		LinSolve(0, p, div, 1, 6, iterations, N);
+		LinSolve(0, p, div, 1, 6, iterations);
 
-		for (int j{ 1 }; j < N.y - 1; ++j) {
-			for (int i{ 1 }; i < N.x - 1; ++i) {
-				auto index{ IX(i, j, N) };
-				vx[index] -= 0.5f * (p[IX(i + 1, j, N)] - p[IX(i - 1, j, N)]) * N.x;
-				vy[index] -= 0.5f * (p[IX(i, j + 1, N)] - p[IX(i, j - 1, N)]) * N.y;
+		for (int j{ 1 }; j < size.y - 1; ++j) {
+			auto row{ j * size.x };
+			for (int i{ 1 }; i < size.x - 1; ++i) {
+				auto index{ row + i };
+				vx[index] -= 0.5f * (p[index + 1] - p[index - 1]) * size.x;
+				vy[index] -= 0.5f * (p[index + size.x] - p[index - size.x]) * size.y;
 			}
 		}
 
-		SetBnd(1, vx, N);
-		SetBnd(2, vy, N);
+		SetBoundaries(1, vx);
+		SetBoundaries(2, vy);
 	}
 
 	// Move density / velocity within the field to the next step.
 	void Advect(
 		int b, std::vector<float>& d, std::vector<float>& d0, std::vector<float>& u,
-		std::vector<float>& v, float delta_time, const V2_int& N
+		std::vector<float>& v, float delta_time
 	) {
-		float dt0x{ delta_time * N.x };
-		float dt0y{ delta_time * N.y };
-		for (int i{ 1 }; i < N.x - 1; ++i) {
-			for (int j{ 1 }; j < N.y - 1; ++j) {
-				auto index{ IX(i, j, N) };
+		float dt0x{ delta_time * size.x };
+		float dt0y{ delta_time * size.y };
+		for (int j{ 1 }; j < size.y - 1; ++j) {
+			auto row{ j * size.x };
+			for (int i{ 1 }; i < size.x - 1; ++i) {
+				auto index{ row + i };
 
 				float xs{ i - dt0x * u[index] };
 				float ys{ j - dt0y * v[index] };
-				xs		= std::clamp(xs, 0.5f, N.x + 0.5f);
+				xs		= std::clamp(xs, 0.5f, size.x + 0.5f);
 				auto i0 = (int)xs;
 				auto i1 = i0 + 1;
-				ys		= std::clamp(ys, 0.5f, N.y + 0.5f);
+				ys		= std::clamp(ys, 0.5f, size.y + 0.5f);
 				auto j0 = (int)ys;
 				auto j1 = j0 + 1;
 				float s1{ xs - i0 };
 				float s0{ 1 - s1 };
 				float t1{ ys - j0 };
 				float t0{ 1 - t1 };
-				d[index] = s0 * (t0 * d0[IX(i0, j0, N)] + t1 * d0[IX(i0, j1, N)]) +
-						   s1 * (t0 * d0[IX(i1, j0, N)] + t1 * d0[IX(i1, j1, N)]);
+				d[index] = s0 * (t0 * d0[i0 + j0 * size.x] + t1 * d0[i0 + j1 * size.x]) +
+						   s1 * (t0 * d0[i1 + j0 * size.x] + t1 * d0[i1 + j1 * size.x]);
 			}
 		}
-		SetBnd(b, d, N);
+		SetBoundaries(b, d);
 	}
 
 	// Update the fluid.
 	void Update() {
-		Diffuse(1, px, x, visc, dt, 4, size);
-		Diffuse(2, py, y, visc, dt, 4, size);
-		Project(px, py, x, y, 4, size);
-		Advect(1, x, px, px, py, dt, size);
-		Advect(2, y, py, px, py, dt, size);
-		Project(x, y, px, py, 4, size);
-		Diffuse(0, previous_density, density, diff, dt, 4, size);
-		Advect(0, density, previous_density, x, y, dt, size);
+		Diffuse(1, px, x, visc, dt, 4);
+		Diffuse(2, py, y, visc, dt, 4);
+		Project(px, py, x, y, 4);
+		Advect(1, x, px, px, py, dt);
+		Advect(2, y, py, px, py, dt);
+		Project(x, y, px, py, 4);
+		Diffuse(0, previous_density, density, diff, dt, 4);
+		Advect(0, density, previous_density, x, y, dt);
 	}
 
 private:
@@ -221,7 +236,7 @@ private:
 	}
 };
 
-class FluidExample : public Scene {
+class FluidScene : public Scene {
 public:
 	const V2_float scale{ 6, 6 };
 	FluidContainer fluid{ window_size / scale, 0.1f, 0.0001f,
@@ -233,7 +248,7 @@ public:
 
 	void Update() override {
 		// Reset the screen.
-		if (game.input.KeyDown(Key::SPACE)) {
+		if (game.input.KeyDown(Key::Space)) {
 			fluid.Reset();
 		}
 
@@ -242,13 +257,13 @@ public:
 			gravity = {};
 		}
 		// Increment gravity.
-		if (game.input.KeyDown(Key::DOWN)) {
+		if (game.input.KeyDown(Key::Down)) {
 			gravity.y += gravity_increment;
-		} else if (game.input.KeyDown(Key::UP)) {
+		} else if (game.input.KeyDown(Key::Up)) {
 			gravity.y -= gravity_increment;
-		} else if (game.input.KeyDown(Key::LEFT)) {
+		} else if (game.input.KeyDown(Key::Left)) {
 			gravity.x -= gravity_increment;
-		} else if (game.input.KeyDown(Key::RIGHT)) {
+		} else if (game.input.KeyDown(Key::Right)) {
 			gravity.x += gravity_increment;
 		}
 		// Add fluid.
@@ -277,12 +292,13 @@ public:
 			density_graph = !density_graph;
 		}
 
-		for (int i{ 0 }; i < fluid.size.x; ++i) {
-			for (int j{ 0 }; j < fluid.size.y; ++j) {
+		for (int j{ 0 }; j < fluid.size.y; ++j) {
+			auto row{ fluid.size.x * j };
+			for (int i{ 0 }; i < fluid.size.x; ++i) {
 				V2_int position{ i, j };
 				Color color{ 0, 0, 0, 255 };
 
-				auto index = fluid.IX(i, j, fluid.size);
+				auto index{ i + row };
 
 				auto density{ fluid.density[index] };
 
@@ -295,8 +311,7 @@ public:
 					}
 				}
 
-				Rect rect{ position * scale, scale, Origin::TopLeft };
-				rect.Draw(color, -1.0f);
+				DrawDebugRect(position * scale, scale, color, Origin::TopLeft, -1.0f);
 			}
 		}
 	}
@@ -308,6 +323,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		"fluid)",
 		window_size
 	);
-	game.scene.Enter<FluidExample>("fluid");
+	game.scene.Enter<FluidScene>("");
 	return 0;
 }

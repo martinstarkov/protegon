@@ -1,17 +1,24 @@
 #pragma once
 
-#include "components/generic.h"
-#include "ecs/ecs.h"
-#include "event/key.h"
-#include "event/mouse.h"
+#include <vector>
+
+#include "core/entity.h"
 #include "math/vector2.h"
+#include "serialization/enum.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
 struct Interactive {
-	bool enabled{ true };
 	bool is_inside{ false };
 	bool was_inside{ false };
+
+	void Clear();
+
+	// List of entities that can be interacted with. They require a valid Rect / Circle component.
+	std::vector<Entity> shapes;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, is_inside, was_inside, shapes)
 };
 
 struct Draggable {
@@ -20,118 +27,36 @@ struct Draggable {
 	V2_float offset;
 	// Mouse position where the drag started.
 	V2_float start;
-	// Drag target.
-	ecs::Entity target;
+
 	bool dragging{ false };
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Draggable, offset, start, dragging)
 };
 
-struct InteractiveRadius : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
+enum class DropTrigger {
+	MouseOverlaps,	// Drop event triggered if the mouse position overlaps the dropzone.
+	CenterOverlaps, // Drop event triggered if the object's center overlaps the dropzone.
+	Overlaps,		// Drop event triggered if any part of the object overlaps the dropzone.
+	Contains		// Drop event triggered if the object is entirely contained within the dropzone.
 };
 
-struct InteractiveSize : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
+struct Dropzone {
+	DropTrigger trigger{ DropTrigger::MouseOverlaps };
+
+	std::vector<Entity> dropped_entities;
+
+	std::vector<Entity> overlapping_draggables;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+		Dropzone, trigger, dropped_entities, overlapping_draggables
+	)
 };
 
-namespace callback {
-
-// Key events
-
-struct KeyDown : public CallbackComponent<void, Key> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct KeyPressed : public CallbackComponent<void, Key> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct KeyUp : public CallbackComponent<void, Key> {
-	using CallbackComponent::CallbackComponent;
-};
-
-// Mouse events.
-
-struct MouseDown : public CallbackComponent<void, Mouse> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseDownOutside : public CallbackComponent<void, Mouse> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseMove : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseEnter : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseLeave : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseOut : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseOver : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseUp : public CallbackComponent<void, Mouse> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MouseUpOutside : public CallbackComponent<void, Mouse> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct MousePressed : public CallbackComponent<void, Mouse> {
-	using CallbackComponent::CallbackComponent;
-};
-
-// Scroll amount in each direction.
-struct MouseScroll : public CallbackComponent<void, V2_int> {
-	using CallbackComponent::CallbackComponent;
-};
-
-// Draggable events.
-
-struct DragStart : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct DragStop : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct Drag : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct DragEnter : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct DragLeave : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct DragOver : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct DragOut : public CallbackComponent<void, V2_float> {
-	using CallbackComponent::CallbackComponent;
-};
-
-// Dropzone events.
-
-// struct Drop : public CallbackComponent<void, V2_float> {
-//	using CallbackComponent::CallbackComponent;
-// };
-
-} // namespace callback
+PTGN_SERIALIZER_REGISTER_ENUM(
+	DropTrigger, { { DropTrigger::MouseOverlaps, "mouse_overlaps" },
+				   { DropTrigger::CenterOverlaps, "center_overlaps" },
+				   { DropTrigger::Overlaps, "overlaps" },
+				   { DropTrigger::Contains, "contains" } }
+);
 
 } // namespace ptgn

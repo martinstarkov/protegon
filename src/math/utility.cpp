@@ -5,11 +5,10 @@
 #include <utility>
 #include <vector>
 
-#include "geometry/axis.h"
-#include "math/geometry/line.h"
+#include "common/assert.h"
+#include "math/geometry/axis.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "utility/assert.h"
 
 namespace ptgn {
 
@@ -221,8 +220,8 @@ float GetIntervalOverlap(
 		float internal_dist{ std::min(max1, max2) - std::max(min1, min2) };
 
 		// Get the overlap plus the distance from the minimum end points.
-		float min_endpoint{ FastAbs(min_dist) };
-		float max_endpoint{ FastAbs(max_dist) };
+		float min_endpoint{ Abs(min_dist) };
+		float max_endpoint{ Abs(max_dist) };
 
 		if (max_endpoint > min_endpoint) {
 			// Flip projection normal direction.
@@ -232,13 +231,13 @@ float GetIntervalOverlap(
 		return internal_dist + max_endpoint;
 	}
 
-	float right_dist{ FastAbs(min1 - max2) };
+	float right_dist{ Abs(min1 - max2) };
 
 	if (max_dist > 0.0f) { // Overlapping the interval from the right.
 		return right_dist;
 	}
 
-	float left_dist{ FastAbs(max1 - min2) };
+	float left_dist{ Abs(max1 - min2) };
 
 	if (min_dist < 0.0f) { // Overlapping the interval from the left.
 		return left_dist;
@@ -279,6 +278,10 @@ bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count) {
 
 	// Convex.
 	return true;
+}
+
+bool IsConcavePolygon(const V2_float* vertices, std::size_t vertex_count) {
+	return !IsConvexPolygon(vertices, vertex_count);
 }
 
 } // namespace impl

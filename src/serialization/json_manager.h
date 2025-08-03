@@ -1,26 +1,20 @@
 #pragma once
 
-#include <fstream>
-#include <string_view>
-#include <unordered_map>
-
+#include "components/generic.h"
+#include "resources/resource_manager.h"
 #include "serialization/json.h"
 #include "utility/file.h"
 
 namespace ptgn::impl {
 
-class JsonManager {
+class JsonManager : public ResourceManager<JsonManager, ResourceHandle, json> {
 public:
-	void Load(std::string_view key, const path& filepath);
-
-	void Unload(std::string_view key);
-
-	[[nodiscard]] const json& Get(std::string_view key) const;
+	[[nodiscard]] const json& Get(const ResourceHandle& key) const;
 
 private:
-	[[nodiscard]] bool Has(std::size_t key) const;
+	friend ParentManager;
 
-	std::unordered_map<std::size_t, json> jsons_;
+	[[nodiscard]] static json LoadFromFile(const path& filepath);
 };
 
 } // namespace ptgn::impl

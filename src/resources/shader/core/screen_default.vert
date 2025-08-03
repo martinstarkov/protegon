@@ -11,10 +11,9 @@ uniform mat4 u_ViewProjection;
 layout (location = 0) out vec4 v_Color;
 layout (location = 1) out vec2 v_TexCoord;
 
-void main()
-{
+void main() {
 	v_Color = a_Color;
 	v_TexCoord = a_TexCoord;
-	gl_Position = u_ViewProjection * vec4(a_Position, 1.0);
+	gl_Position = u_ViewProjection * vec4(a_Position, 1.0f);
 }
 )"

@@ -6,7 +6,7 @@
 #include "math/math.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "utility/assert.h"
+#include "common/assert.h"
 
 namespace ptgn {
 

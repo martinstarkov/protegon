@@ -56,7 +56,11 @@ float ClosestPointLineLine(
 	V2_float& out_axis_direction
 );
 
+// @return True if all the interior angles are less than 180 degrees.
 [[nodiscard]] bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count);
+
+// @return True if any of the interior angles are above 180 degrees.
+[[nodiscard]] bool IsConcavePolygon(const V2_float* vertices, std::size_t vertex_count);
 
 } // namespace impl
 

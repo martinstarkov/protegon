@@ -4,12 +4,15 @@
 #include <string_view>
 #include <type_traits>
 
-#include "ecs/ecs.h"
+#include "common/assert.h"
+#include "core/entity.h"
+#include "core/manager.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
 
 namespace ptgn {
 
+class Entity;
 class SceneTransition;
 
 namespace impl {
@@ -50,17 +53,43 @@ public:
 		auto key{ GetInternalKey(scene_key) };
 		auto scene{ GetScene(key) };
 		SceneComponent* sc{ nullptr };
-		if (scene == ecs::null) { // New scene.
+		if (!scene) { // New scene.
 			scene = scenes_.CreateEntity();
 			sc	  = &scene.Add<SceneComponent>(
 				   std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
 			   );
 			sc->scene->key_ = key;
-			sc->scene->InternalLoad();
 			scenes_.Refresh();
 		} else { // Existing scene.
 			sc = &scene.Get<SceneComponent>();
 		}
+		return *static_cast<TScene*>(sc->scene.get());
+	}
+
+	// TODO: Find a better name for this. Perhaps switch to TryLoad and Load.
+	template <typename TScene, typename... TArgs>
+	TScene& ForceLoad(std::string_view scene_key, TArgs&&... constructor_args) {
+		static_assert(
+			std::is_constructible_v<TScene, TArgs...>,
+			"Loaded scene type must be constructible from provided constructor arguments"
+		);
+
+		static_assert(
+			std::is_convertible_v<TScene*, Scene*>,
+			"Loaded scene type must inherit from ptgn::Scene"
+		);
+		auto key{ GetInternalKey(scene_key) };
+		auto scene{ GetScene(key) };
+		SceneComponent* sc{ nullptr };
+		if (!scene) { // New scene.
+			scene = scenes_.CreateEntity();
+		}
+
+		sc = &scene.Add<SceneComponent>(
+			std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
+		);
+		sc->scene->key_ = key;
+		scenes_.Refresh();
 		return *static_cast<TScene*>(sc->scene.get());
 	}
 
@@ -113,6 +142,16 @@ public:
 		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
 	}
 
+	template <typename TScene, typename... TArgs>
+	TScene& Transition(
+		std::string_view from_scene_key, std::string_view to_scene_key,
+		const SceneTransition& transition, TArgs&&... constructor_args
+	) {
+		auto& scene{ ForceLoad<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
+		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
+		return scene;
+	}
+
 	// Retrieve a scene from the scene manager. If the scene does not exist in the scene manager an
 	// assertion is called.
 	// @param scene_key The unique identifier for the retrieved scene.
@@ -121,14 +160,7 @@ public:
 	// @return A shared pointer to the desired scene.
 	template <typename TScene = Scene>
 	[[nodiscard]] TScene& Get(std::string_view scene_key) {
-		static_assert(
-			std::is_base_of_v<Scene, TScene> || std::is_same_v<TScene, Scene>,
-			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
-		);
-		auto scene{ GetScene(GetInternalKey(scene_key)) };
-		PTGN_ASSERT(scene != ecs::null, "Scene key does not exist in the scene manager");
-		PTGN_ASSERT(scene.Has<SceneComponent>());
-		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
+		return Get<TScene>(GetInternalKey(scene_key));
 	}
 
 	// Exits all active scenes. This does not unload the scenes from the
@@ -140,10 +172,44 @@ public:
 	// If a scene was active, it is exited first.
 	void UnloadAllScenes();
 
+	template <typename TScene = Scene>
+	[[nodiscard]] TScene& Get(std::size_t scene_key) {
+		static_assert(
+			std::is_base_of_v<Scene, TScene> || std::is_same_v<TScene, Scene>,
+			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
+		);
+		auto scene{ GetScene(scene_key) };
+		PTGN_ASSERT(scene, "Scene key does not exist in the scene manager");
+		PTGN_ASSERT(scene.Has<SceneComponent>());
+		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
+	}
+
+	[[nodiscard]] const Scene& GetCurrent() const {
+		PTGN_ASSERT(HasCurrent(), "Cannot get current scene when one has not been set");
+		return *current_.Get<SceneComponent>().scene;
+	}
+
+	[[nodiscard]] Scene& GetCurrent() {
+		return const_cast<Scene&>(std::as_const(*this).GetCurrent());
+	}
+
+	[[nodiscard]] bool HasCurrent() const {
+		return current_.operator bool();
+	}
+
+	[[nodiscard]] bool Has(std::string_view scene_key) const {
+		return HasScene(GetInternalKey(scene_key));
+	}
+
+	[[nodiscard]] bool HasScene(std::size_t scene_key) const;
+	[[nodiscard]] bool HasActiveScene(std::size_t scene_key) const;
+
 private:
 	friend class ptgn::SceneTransition;
 	friend class Game;
+	friend class ptgn::Scene;
 	friend class Renderer;
+	friend class ptgn::Entity;
 
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 
@@ -176,13 +242,11 @@ private:
 
 	[[nodiscard]] std::size_t GetActiveSceneCount() const;
 
-	[[nodiscard]] bool HasScene(std::size_t scene_key) const;
-	[[nodiscard]] bool HasActiveScene(std::size_t scene_key) const;
+	[[nodiscard]] Entity GetScene(std::size_t scene_key) const;
+	[[nodiscard]] Entity GetActiveScene(std::size_t scene_key) const;
 
-	[[nodiscard]] ecs::Entity GetScene(std::size_t scene_key) const;
-	[[nodiscard]] ecs::Entity GetActiveScene(std::size_t scene_key) const;
-
-	ecs::Manager scenes_;
+	Manager scenes_;
+	Entity current_;
 };
 
 } // namespace impl

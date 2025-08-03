@@ -4,8 +4,9 @@
 #include <string>
 #include <string_view>
 
+#include "common/handle.h"
 #include "math/vector2.h"
-#include "utility/handle.h"
+#include "serialization/enum.h"
 
 struct SDL_Window;
 
@@ -16,6 +17,7 @@ struct Screen {
 };
 
 enum class WindowSetting {
+	None,
 	Windowed,
 	Fullscreen, /* borderless fullscreen window (desktop fullscreen) */
 	Borderless,
@@ -110,5 +112,19 @@ private:
 };
 
 } // namespace impl
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	WindowSetting, { { WindowSetting::None, "none" },
+					 { WindowSetting::Windowed, "windowed" },
+					 { WindowSetting::Fullscreen, "fullscreen" },
+					 { WindowSetting::Borderless, "borderless" },
+					 { WindowSetting::Bordered, "bordered" },
+					 { WindowSetting::Resizable, "resizable" },
+					 { WindowSetting::FixedSize, "fixed_size" },
+					 { WindowSetting::Maximized, "maximized" },
+					 { WindowSetting::Minimized, "minimized" },
+					 { WindowSetting::Shown, "shown" },
+					 { WindowSetting::Hidden, "hidden" } }
+);
 
 } // namespace ptgn

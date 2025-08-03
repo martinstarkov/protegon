@@ -1,10 +1,30 @@
-#include "protegon/protegon.h"
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "core/game.h"
+#include "core/time.h"
+#include "core/timer.h"
+#include "core/window.h"
+#include "input/input_handler.h"
+#include "input/key.h"
+#include "math/vector2.h"
+#include "math/overlap.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/renderer.h"
+#include "renderer/render_target.h"
+#include "renderer/text.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
+#include "utility/string.h"
 
 using namespace ptgn;
 
 const V2_float window_size{ 800, 450 };
 
-class FullscreenExample : public Scene {
+class FullscreenScene : public Scene {
 	std::vector<Text> texts;
 
 	Text window_position_text;
@@ -49,7 +69,7 @@ class FullscreenExample : public Scene {
 	}
 
 	void Update() final {
-		auto& p = game.camera.GetPrimary();
+		auto& p = camera.primary;
 		if (game.input.KeyDown(Key::Z)) {
 			p.CenterOnArea(window_size);
 		}
@@ -114,20 +134,20 @@ class FullscreenExample : public Scene {
 	};
 
 	void Draw() {
-		Rect{ {}, game.window.GetSize(), Origin::TopLeft }.Draw({ 0, 0, 255, 10 });
-		Rect{ {}, window_size, Origin::TopLeft }.Draw({ 255, 0, 0, 40 });
-		Rect{ {}, window_size, Origin::TopLeft }.Draw({ 0, 255, 0, 40 }, 10.0f);
+		DrawDebugRect({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
+		DrawDebugRect({}, window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
+		DrawDebugRect({}, window_size, { 0, 255, 0, 40 }, Origin::TopLeft, 10.0f);
 
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
 
+		if (impl::OverlapPointRect(game.input.GetMousePosition(), rect_0)) {
+			color_0 = color::Red;
+		}
+
 		Rect rect_0{ V2_float{ window_size.x, 0.0f }, V2_float{ 30.0f, 30.0f }, Origin::TopRight };
 		Rect rect_1{ V2_int{ 0, game.window.GetSize().y }, V2_float{ 30.0f, 30.0f },
 					 Origin::BottomLeft };
-
-		if (rect_0.Overlaps(game.input.GetMousePosition())) {
-			color_0 = color::Red;
-		}
 
 		camera_pos_text.SetContent(
 			"Camera Position: " + ToString(game.camera.GetPrimary().GetPosition())
@@ -187,7 +207,7 @@ class FullscreenExample : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("FullscreenExample", window_size);
-	game.scene.Enter<FullscreenExample>("fullscreen");
+	game.Init("FullscreenScene", window_size);
+	game.scene.Enter<FullscreenScene>("");
 	return 0;
 }

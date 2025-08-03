@@ -1,4 +1,20 @@
-#include "protegon/protegon.h"
+#include <algorithm>
+#include <cstdint>
+
+#include "common/assert.h"
+#include "core/game.h"
+#include "debug/log.h"
+#include "input/input_handler.h"
+#include "input/key.h"
+#include "math/math.h"
+#include "math/noise.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/renderer.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -13,27 +29,22 @@ public:
 
 	std::size_t divisions{ 10 };
 
-	V2_int pixel_size;
+	V2_int pixel_size{ 8, 8 };
 
 	bool thresholding{ false };
 
 	int type{ 0 };
 	int types{ 4 };
 
-	V2_int ws;
-
 	void Enter() override {
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
-
-		ws		   = game.window.GetSize();
-		pixel_size = { 8, 8 };
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::LEFT)) {
+		if (game.input.KeyDown(Key::Left)) {
 			type--;
 			type = Mod(type, types);
-		} else if (game.input.KeyDown(Key::RIGHT)) {
+		} else if (game.input.KeyDown(Key::Right)) {
 			type++;
 			type = Mod(type, types);
 		}
@@ -104,23 +115,21 @@ public:
 			thresholding = !thresholding;
 		}
 
-		auto& camera{ game.camera.GetPrimary() };
-
 		const float pan_speed{ 200.0f };
 
 		float dt{ game.dt() };
 
 		if (game.input.KeyPressed(Key::W)) {
-			camera.Translate({ 0, -pan_speed * dt });
+			camera.primary.Translate({ 0, -pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::S)) {
-			camera.Translate({ 0, pan_speed * dt });
+			camera.primary.Translate({ 0, pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::A)) {
-			camera.Translate({ -pan_speed * dt, 0 });
+			camera.primary.Translate({ -pan_speed * dt, 0 });
 		}
 		if (game.input.KeyPressed(Key::D)) {
-			camera.Translate({ pan_speed * dt, 0 });
+			camera.primary.Translate({ pan_speed * dt, 0 });
 		}
 
 		// Clamp fractal noise parameters.
@@ -158,18 +167,18 @@ public:
 	}
 
 	void Draw() {
-		const auto& cam = game.camera.GetPrimary();
+		V2_int min{ camera.primary.GetPosition(Origin::BottomRight) / pixel_size - V2_int{ 1 } };
+		V2_int max{ camera.primary.GetPosition(Origin::TopLeft) / pixel_size + V2_int{ 1 } };
 
-		auto rect = cam.GetRect();
+		PTGN_LOG("Min: ", min, ", Max: ", max);
 
-		V2_int min{ rect.Min() / pixel_size - V2_int{ 1 } };
-		V2_int max{ rect.Max() / pixel_size + V2_int{ 1 } };
+		PTGN_ASSERT(min.x < max.x && min.y < max.y);
 
 		for (int i{ min.x }; i < max.x; i++) {
 			for (int j{ min.y }; j < max.y; j++) {
 				V2_int p{ i, j };
 
-				float noise_value = 0.0f;
+				float noise_value{ 0.0f };
 
 				if (type == 0) {
 					noise_value = fractal_noise.Get((float)i, (float)j);
@@ -204,8 +213,7 @@ public:
 					*/
 				}
 
-				Color color = color::Black;
-				Rect r{ p * pixel_size, pixel_size, Origin::TopLeft };
+				Color color{ color::Yellow };
 				if (thresholding) {
 					float opacity_range = 1.0f / static_cast<float>(divisions);
 
@@ -218,16 +226,16 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				r.Draw(color, -1.0f);
+				DrawDebugRect(p * pixel_size, pixel_size, color, Origin::TopLeft, -1.0f, 0.0f, {});
 			}
 		}
 
-		Rect{ {}, { 30.0f, 30.0f }, Origin::TopLeft }.Draw(color::Red);
+		DrawDebugRect({}, { 30.0f, 30.0f }, color::Red, Origin::TopLeft, -1.0f);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("NoiseExample: Arrow keys to swap noise type", window_size);
-	game.scene.Enter<NoiseExampleScene>("noise_example");
+	game.scene.Enter<NoiseExampleScene>("");
 	return 0;
 }

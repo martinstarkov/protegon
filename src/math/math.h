@@ -5,7 +5,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "utility/type_traits.h"
+#include "common/assert.h"
+#include "common/type_traits.h"
 
 namespace ptgn {
 
@@ -169,7 +170,7 @@ template <typename T>
 // Source: https://stackoverflow.com/a/30308919.
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastFloor(T value) {
+[[nodiscard]] T Floor(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return static_cast<T>(
 			static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value))
@@ -181,7 +182,17 @@ template <typename T>
 
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastCeil(T value) {
+[[nodiscard]] T Round(T value) {
+	if constexpr (std::is_floating_point_v<T>) {
+		return Floor(value + 0.5f);
+	} else {
+		return value;
+	}
+}
+
+// No NaN/inf checking.
+template <typename T>
+[[nodiscard]] T Ceil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return static_cast<T>(
 			static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value))
@@ -193,17 +204,17 @@ template <typename T>
 
 // No NaN/inf checking.
 template <typename T>
-[[nodiscard]] T FastAbs(T value) noexcept {
+[[nodiscard]] T Abs(T value) noexcept {
 	return value >= 0 ? value : -value;
 }
 
 template <typename T>
-[[nodiscard]] T FastMin(T a, T b) {
+[[nodiscard]] T Min(T a, T b) {
 	return a < b ? a : b;
 }
 
 template <typename T>
-[[nodiscard]] T FastMax(T a, T b) {
+[[nodiscard]] T Max(T a, T b) {
 	return a > b ? a : b;
 }
 
@@ -224,8 +235,7 @@ NearlyEqual(T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * ep
 			}
 			return false;
 		}
-		return a == b ||
-			   FastAbs(a - b) <= std::max(abs_tol, rel_tol * std::max(FastAbs(a), FastAbs(b)));
+		return a == b || Abs(a - b) <= std::max(abs_tol, rel_tol * std::max(Abs(a), Abs(b)));
 	} else {
 		return a == b;
 	}
@@ -248,6 +258,19 @@ template <typename T, tt::floating_point<T> = true>
 	const T q = (b > 0.0f) ? -0.5f * (b + std::sqrt(disc)) : -0.5f * (b - std::sqrt(disc));
 	// This may look weird but the algebra checks out here (I checked).
 	return { true, q / a, c / q };
+}
+
+// Triangle wave mimicking the typical sine wave. y values in range [-1, 1], x values in domain [0,
+// 1]. Starts from y=0 going toward y=1.
+template <typename T, tt::floating_point<T> = true>
+[[nodiscard]] T TriangleWave(
+	T t, T period = static_cast<T>(1.0), T phase_shift = static_cast<T>(0.0)
+) {
+	PTGN_ASSERT(period != static_cast<T>(0.0), "Triangle wave period can not be 0");
+	t += phase_shift + static_cast<T>(0.25);
+	t /= period;
+	return static_cast<T>(2.0) * Abs(static_cast<T>(2.0) * (t - Floor(t + static_cast<T>(0.5)))) -
+		   static_cast<T>(1.0);
 }
 
 template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>

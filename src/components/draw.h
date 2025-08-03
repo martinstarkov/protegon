@@ -1,177 +1,113 @@
 #pragma once
 
-#include <string_view>
+#include <array>
 
 #include "components/generic.h"
-#include "ecs/ecs.h"
-#include "math/hash.h"
+#include "core/entity.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "utility/time.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
-// @param manager Which manager the entity is added to.
-// @param texture_key Key of the texture loaded into the texture manager.
-ecs::Entity CreateSprite(ecs::Manager& manager, std::string_view texture_key);
+class Manager;
+class Scene;
 
-// @param manager Which manager the entity is added to.
-// @param texture_key Key of the texture loaded into the texture manager.
-// @param frame_count Number of frames in the animation sequence.
-// @param frame_size Pixel size of an individual animation frame within the texture.
-// @param animation_duration Duration of the full animation sequence.
-// @param start_pixel Pixel within the texture which indicates the top left position of the
-// animation sequence. 2param start_frame Frame on which the animation starts / restarts to.
-ecs::Entity CreateAnimation(
-	ecs::Manager& manager, std::string_view texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel = {},
-	std::size_t start_frame = 0
+namespace impl {
+
+class RenderData;
+
+void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture);
+
+// @return Unscaled size of the entire texture in pixels.
+[[nodiscard]] V2_int GetTextureSize(const Entity& entity);
+
+// @return Unscaled size of the cropped texture in pixels.
+[[nodiscard]] V2_int GetCroppedSize(const Entity& entity);
+
+// @return Scaled size of the cropped texture in pixels.
+[[nodiscard]] V2_float GetDisplaySize(const Entity& entity);
+
+[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
+	const Entity& entity, bool flip_vertically
 );
 
-struct Visible : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
+} // namespace impl
 
-	Visible() : ArithmeticComponent{ true } {}
-};
-
-struct Enabled : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	Enabled() : ArithmeticComponent{ true } {}
-};
-
-struct DisplaySize : public Vector2Component<float> {
+struct TextureSize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
-};
 
-struct Tint : public ColorComponent {
-	using ColorComponent::ColorComponent;
-
-	Tint() : ColorComponent{ color::White } {}
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(TextureSize, value_)
 };
 
 struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	LineWidth() : ArithmeticComponent{ 1.0f } {}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(LineWidth, value_)
 };
-
-struct TextureKey : public ArithmeticComponent<std::size_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	TextureKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
-
-	TextureKey(const char* key) : ArithmeticComponent{ Hash(key) } {}
-};
-
-namespace callback {
-
-struct AnimationRepeat : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct AnimationStart : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-} // namespace callback
 
 struct TextureCrop {
-	void SetPosition(const V2_float& position);
-	void SetSize(const V2_float& size);
-
-	[[nodiscard]] V2_float GetPosition() const;
-	[[nodiscard]] V2_float GetSize() const;
-
-	bool operator==(const TextureCrop& other) const;
-	bool operator!=(const TextureCrop& other) const;
-
-private:
 	// Top left position (in pixels) within the texture from which the crop starts.
-	V2_float position_;
+	V2_float position;
 
 	// Size of the crop in pixels. Zero size will use full size of texture.
-	V2_float size_;
-};
+	V2_float size;
 
-namespace impl {
-
-struct AnimationInfo {
-	AnimationInfo(
-		std::size_t frame_count, const V2_float& frame_size, const V2_float& start_pixel,
-		std::size_t start_frame
-	);
-
-	// @return The number of repeats of the full animation sequence so far.
-	[[nodiscard]] std::size_t GetSequenceRepeats() const;
-
-	// @return The total number of repeats of individual animation frames so far.
-	[[nodiscard]] std::size_t GetFrameRepeats() const;
-
-	[[nodiscard]] std::size_t GetFrameCount() const;
-
-	// new_frame is wrapped around frame_count using Mod().
-	void SetCurrentFrame(std::size_t new_frame);
-
-	void IncrementFrame();
-
-	void ResetToStartFrame();
-
-	[[nodiscard]] std::size_t GetCurrentFrame() const;
-
-	[[nodiscard]] V2_float GetCurrentFramePosition() const;
-
-	[[nodiscard]] V2_float GetFrameSize() const;
-
-	[[nodiscard]] std::size_t GetStartFrame() const;
-
-private:
-	// Number of frames in the animation.
-	std::size_t frame_count_{ 0 };
-
-	// Size of an individual animation frame.
-	V2_float frame_size_;
-
-	// Pixel within the texture which indicates the top left position of the animation sequence.
-	V2_float start_pixel_;
-
-	// Starting frame of the animation.
-	std::size_t start_frame_{ 0 };
-
-	// Current frame of the animation.
-	std::size_t current_frame_{ 0 };
-
-	// Number of frames the animation has gone through. frame_repeats_ / frame_count_ gives the
-	// number of repeats of the full animation sequence.
-	std::size_t frame_repeats_{ 0 };
-};
-
-} // namespace impl
-
-/*
-// TODO: Fix.
-struct AnimationMap : public ActiveMapManager<Animation> {
-public:
-	using ActiveMapManager::ActiveMapManager;
-	AnimationMap()									 = delete;
-	~AnimationMap() override						 = default;
-	AnimationMap(AnimationMap&&) noexcept			 = default;
-	AnimationMap& operator=(AnimationMap&&) noexcept = default;
-	AnimationMap(const AnimationMap&)				 = delete;
-	AnimationMap& operator=(const AnimationMap&)	 = delete;
-
-	// If the provided key is a not currently active, this function pauses the previously active
-	// animation. If the key is already active, does nothing.
-	// @return True if active value changed, false otherwise.
-	bool SetActive(const ActiveMapManager::Key& key) {
-		if (auto internal_key{ GetInternalKey(key) }; internal_key == active_key_) {
-			return false;
-		}
-		GetActive().Pause();
-		ActiveMapManager::SetActive(key);
-		return true;
+	friend bool operator==(const TextureCrop& a, const TextureCrop& b) {
+		return a.position == b.position && a.size == b.size;
 	}
+
+	friend bool operator!=(const TextureCrop& a, const TextureCrop& b) {
+		return !(a == b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextureCrop, position, size)
 };
-*/
+
+Entity CreateRect(
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width = -1.0f, Origin origin = Origin::Center
+);
+
+/**
+ * @brief Creates a rectangle entity in the scene.
+ *
+ * @param scene       Reference to the scene where the rectangle will be created.
+ * @param position    The position of the rectangle relative to its parent camera.
+ * @param size        The width and height of the rectangle.
+ * @param color       The tint color of the rectangle.
+ * @param line_width  Optional outline width. If -1.0f, the rectangle is filled. If positive, an
+ * outlined rectangle is created.
+ * @param origin      The origin of the rectangle position (e.g., center, top-left).
+ * @return Entity     A handle to the newly created rectangle entity.
+ */
+Entity CreateRect(
+	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width = -1.0f, Origin origin = Origin::Center
+);
+
+Entity CreateCircle(
+	Manager& manager, const V2_float& position, float radius, const Color& color,
+	float line_width = -1.0f
+);
+
+/**
+ * @brief Creates a circle entity in the scene.
+ *
+ * @param scene       Reference to the scene where the circle will be created.
+ * @param position    The position of the circle relative to its parent camera.
+ * @param radius        The radius of the circle.
+ * @param color       The tint color of the circle.
+ * @param line_width  Optional outline width. If -1.0f, the circle is filled. If positive, an
+ * outlined circle is created.
+ * @return Entity     A handle to the newly created circle entity.
+ */
+Entity CreateCircle(
+	Scene& scene, const V2_float& position, float radius, const Color& color,
+	float line_width = -1.0f
+);
 
 } // namespace ptgn

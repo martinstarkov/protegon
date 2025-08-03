@@ -2,20 +2,29 @@
 
 #include <cstdint>
 #include <functional>
-#include <iosfwd>
+#include <ostream>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
-#include "components/draw.h"
+#include "components/drawable.h"
 #include "components/generic.h"
-#include "core/game_object.h"
-#include "ecs/ecs.h"
+#include "core/entity.h"
+#include "debug/log.h"
+#include "input/mouse.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
+#include "renderer/api/color.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
+#include "serialization/enum.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
+
+class Scene;
+class Button;
+class ToggleButton;
+class ToggleButtonGroup;
 
 enum class ButtonState : std::uint8_t {
 	Default,
@@ -26,23 +35,10 @@ enum class ButtonState : std::uint8_t {
 
 namespace impl {
 
-struct ButtonToggle : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
+class RenderData;
+class ToggleButtonGroupScript;
 
-struct ButtonHoverStart : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct ButtonHoverStop : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-struct ButtonActivate : public CallbackComponent<void> {
-	using CallbackComponent::CallbackComponent;
-};
-
-enum class InternalButtonState : std::size_t {
+enum class InternalButtonState {
 	IdleUp		 = 0,
 	Hover		 = 1,
 	Pressed		 = 2,
@@ -51,12 +47,64 @@ enum class InternalButtonState : std::size_t {
 	HoverPressed = 5
 };
 
-struct TextAlignment : public OriginComponent {
-	using OriginComponent::OriginComponent;
+class ButtonScript : public ptgn::Script<ButtonScript> {
+public:
+	void OnMouseEnter(V2_float mouse) override;
+
+	void OnMouseLeave(V2_float mouse) override;
+
+	void OnMouseDown(Mouse mouse) override;
+
+	void OnMouseDownOutside(Mouse mouse) override;
+
+	void OnMouseUp(Mouse mouse) override;
+
+	void OnMouseUpOutside(Mouse mouse) override;
+};
+
+class ToggleButtonScript : public ptgn::Script<ToggleButtonScript> {
+public:
+	void OnButtonActivate() override;
+};
+
+class ButtonActivateScript : public ptgn::Script<ButtonActivateScript> {
+public:
+	ButtonActivateScript() = default;
+
+	explicit ButtonActivateScript(const std::function<void()>& on_activate_callback) :
+		on_activate{ on_activate_callback } {}
+
+	void OnButtonActivate() override {
+		if (on_activate) {
+			std::invoke(on_activate);
+		}
+	}
+
+	std::function<void()> on_activate;
 };
 
 struct ButtonToggled : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
+};
+
+struct ButtonDisabledTextureKey : public TextureHandle {
+	using TextureHandle::TextureHandle;
+};
+
+struct ButtonTextFixedSize : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
+struct ButtonBorderWidth : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	ButtonBorderWidth() : ArithmeticComponent{ 1.0f } {}
+};
+
+struct ButtonBackgroundWidth : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	ButtonBackgroundWidth() : ArithmeticComponent{ -1.0f } {}
 };
 
 struct ButtonColor {
@@ -67,27 +115,137 @@ struct ButtonColor {
 
 	void SetToState(ButtonState state);
 
+	[[nodiscard]] const Color& Get(ButtonState state) const;
+	[[nodiscard]] Color& Get(ButtonState state);
+
 	Color current_;
 	Color default_;
 	Color hover_;
 	Color pressed_;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		ButtonColor, KeyValue("current", current_), KeyValue("default", default_),
+		KeyValue("hover", hover_), KeyValue("pressed", pressed_)
+	)
 };
 
-struct ButtonColorToggled : public ButtonColor {};
+struct ButtonColorToggled : public ButtonColor {
+	using ButtonColor::ButtonColor;
+};
+
+struct ButtonTint : public ButtonColor {
+	using ButtonColor::ButtonColor;
+
+	ButtonTint() : ButtonColor{ color::White } {}
+};
+
+struct ButtonTintToggled : public ButtonTint {
+	using ButtonTint::ButtonTint;
+};
+
+struct ButtonBorderColor : public ButtonColor {
+	using ButtonColor::ButtonColor;
+};
+
+struct ButtonBorderColorToggled : public ButtonBorderColor {
+	using ButtonBorderColor::ButtonBorderColor;
+};
+
+struct ButtonTexture {
+	ButtonTexture() = default;
+
+	ButtonTexture(const TextureHandle& key) : default_{ key }, hover_{ key }, pressed_{ key } {}
+
+	[[nodiscard]] const TextureHandle& Get(ButtonState state) const;
+	[[nodiscard]] TextureHandle& Get(ButtonState state);
+
+	TextureHandle default_;
+	TextureHandle hover_;
+	TextureHandle pressed_;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		ButtonTexture, KeyValue("default", default_), KeyValue("hover", hover_),
+		KeyValue("pressed", pressed_)
+	)
+};
+
+struct ButtonTextureToggled : public ButtonTexture {
+	using ButtonTexture::ButtonTexture;
+};
+
+struct ButtonText {
+	ButtonText() = default;
+
+	ButtonText(
+		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+		const TextProperties& text_properties
+	);
+
+	ButtonText& operator=(const ButtonText&)	 = default;
+	ButtonText(const ButtonText&)				 = default;
+	ButtonText& operator=(ButtonText&&) noexcept = default;
+	ButtonText(ButtonText&&) noexcept			 = default;
+
+	~ButtonText();
+
+	[[nodiscard]] TextColor GetTextColor(ButtonState state) const;
+	[[nodiscard]] TextContent GetTextContent(ButtonState state) const;
+	[[nodiscard]] FontSize GetFontSize(ButtonState state) const;
+	[[nodiscard]] TextJustify GetTextJustify(ButtonState state) const;
+	[[nodiscard]] Text Get(ButtonState state) const;
+	[[nodiscard]] Text GetValid(ButtonState state) const;
+
+	void Set(
+		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+		const TextProperties& text_properties
+	);
+
+	Text default_;
+	Text hover_;
+	Text pressed_;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		ButtonText, KeyValue("default", default_), KeyValue("hover", hover_),
+		KeyValue("pressed", pressed_)
+	)
+};
+
+struct ButtonTextToggled : public ButtonText {
+	using ButtonText::ButtonText;
+};
 
 } // namespace impl
 
-using ButtonCallback = std::function<void()>;
-
-struct Button : public GameObject {
+class Button : public Entity, public Drawable<Button> {
+public:
 	Button() = default;
-	Button(ecs::Manager& manager);
-	virtual ~Button() = default;
+	Button(const Entity& entity);
 
-	// These allow for manually triggering button callback events.
-	virtual void Activate();
-	virtual void StartHover();
-	virtual void StopHover();
+	static void Draw(impl::RenderData& ctx, const Entity& entity);
+
+	// Will set the script for when the button is activated.
+	Button& OnActivate(const std::function<void()>& on_activate_callback);
+
+	// @param size {} results in texture sized button.
+	Button& SetSize(const V2_float& size = {});
+
+	// @return {} if no size is specified via SetSize, SetRadius, or button texture. If radius,
+	// returns 2.0f * V2_float{ radius, radius }
+	[[nodiscard]] V2_float GetSize() const;
+
+	// @param radius 0.0f results in texture sized button.
+	Button& SetRadius(float radius = 0.0f);
+
+	Button& Enable();
+	Button& Disable();
+	Button& SetEnabled(bool enabled = true);
+
+	// Manual button script triggers.
+	void Activate();
+	void StartHover();
+	void StopHover();
 
 	[[nodiscard]] ButtonState GetState() const;
 
@@ -95,45 +253,57 @@ struct Button : public GameObject {
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
-	Button& SetTextColor(const Color& color, ButtonState state = ButtonState::Default);
+	Button& SetTextureKey(
+		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
+	);
 
-	[[nodiscard]] ecs::Entity GetTexture(ButtonState state = ButtonState::Current) const;
+	Button& SetDisabledTextureKey(const TextureHandle& texture_key);
 
-	Button& SetTexture(std::string_view texture_key, ButtonState state = ButtonState::Default);
+	[[nodiscard]] const TextureHandle& GetDisabledTextureKey() const;
 
-	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetButtonTint(ButtonState state = ButtonState::Current) const;
 
-	Button& SetTint(const Color& color, ButtonState state = ButtonState::Default);
+	Button& SetButtonTint(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextColor GetTextColor(ButtonState state = ButtonState::Current) const;
 
-	Button& SetTextContent(const std::string& content, ButtonState state = ButtonState::Default);
+	Button& SetTextColor(const TextColor& text_color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] ecs::Entity GetText(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextContent GetTextContent(ButtonState state = ButtonState::Current) const;
 
-	[[nodiscard]] bool IsBordered() const;
+	Button& SetTextContent(const TextContent& content, ButtonState state = ButtonState::Default);
 
-	Button& SetBordered(bool bordered);
+	[[nodiscard]] TextJustify GetTextJustify(ButtonState state = ButtonState::Current) const;
+
+	Button& SetTextJustify(const TextJustify& justify, ButtonState state = ButtonState::Default);
+
+	// TODO: Fix Fixed size functionality.
+	//[[nodiscard]] V2_float GetTextFixedSize() const;
+	// (default: unscaled text size). If either axis of the text size
+	// is zero, it is stretched to fit the entire size of the button rectangle (along that axis).
+	// Button& SetTextFixedSize(const V2_float& size);
+	// Make it so the button text no longer has a fixed size, this will cause the text to stretch
+	// based its the font size and wrap settings.
+	// Button& ClearTextFixedSize();
+
+	[[nodiscard]] FontSize GetFontSize(ButtonState state = ButtonState::Current) const;
+
+	Button& SetFontSize(const FontSize& font_size, ButtonState state = ButtonState::Default);
+
+	Button& SetText(
+		const TextContent& content, const TextColor& text_color = color::Black,
+		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
+	);
+
+	[[nodiscard]] Text GetText(ButtonState state = ButtonState::Current) const;
 
 	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Current) const;
 
 	Button& SetBorderColor(const Color& color, ButtonState state = ButtonState::Default);
-
-	[[nodiscard]] TextJustify GetTextJustify() const;
-
-	Button& SetTextJustify(const TextJustify& justify);
-
-	[[nodiscard]] V2_float GetTextSize() const;
-
-	// (default: unscaled text size). If either axis of the text size
-	// is zero, it is stretched to fit the entire size of the button rectangle (along that axis).
-	Button& SetTextSize(const V2_float& size);
-
-	[[nodiscard]] std::int32_t GetFontSize() const;
-
-	Button& SetFontSize(std::int32_t font_size);
 
 	[[nodiscard]] float GetBackgroundLineWidth() const;
 
@@ -145,92 +315,116 @@ struct Button : public GameObject {
 
 	Button& SetBorderWidth(float line_width);
 
-	// TODO: Add SetRadius() to turn button into rounded rectangle.
-
-	Button& OnHoverStart(const ButtonCallback& callback);
-	Button& OnHoverStop(const ButtonCallback& callback);
-	Button& OnActivate(const ButtonCallback& callback);
-
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
-
-private:
-	void StateChange(impl::InternalButtonState new_state);
 };
 
-struct ToggleButton : public Button {
+class ToggleButton : public Button {
+public:
 	ToggleButton() = default;
-	ToggleButton(ecs::Manager& manager, bool toggled = false);
-
-	void Activate() final;
+	using Button::Button;
 
 	[[nodiscard]] bool IsToggled() const;
 
+	ToggleButton& SetToggled(bool toggled);
+
 	ToggleButton& Toggle();
 
-	[[nodiscard]] Color GetColorToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetBackgroundColorToggled(ButtonState state = ButtonState::Current) const;
 
-	ToggleButton& SetColorToggled(const Color& color, ButtonState state = ButtonState::Default);
-
-	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
-
-	ToggleButton& SetTextColorToggled(const Color& color, ButtonState state = ButtonState::Default);
-
-	[[nodiscard]] const impl::Texture& GetTextureToggled(ButtonState state = ButtonState::Default)
-		const;
-
-	ToggleButton& SetTextureToggled(
-		std::string_view texture_key, ButtonState state = ButtonState::Default
+	ToggleButton& SetBackgroundColorToggled(
+		const Color& color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] const TextureHandle& GetTextureKeyToggled(
+		ButtonState state = ButtonState::Default
+	) const;
 
-	ToggleButton& SetTintToggled(const Color& color, ButtonState state = ButtonState::Default);
+	ToggleButton& SetTextureKeyToggled(
+		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
+	);
 
-	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetButtonTintToggled(ButtonState state = ButtonState::Current) const;
+
+	ToggleButton& SetButtonTintToggled(
+		const Color& color, ButtonState state = ButtonState::Default
+	);
+
+	[[nodiscard]] TextColor GetTextColorToggled(ButtonState state = ButtonState::Current) const;
+
+	ToggleButton& SetTextColorToggled(
+		const TextColor& text_color, ButtonState state = ButtonState::Default
+	);
+
+	[[nodiscard]] TextContent GetTextContentToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetTextContentToggled(
-		const std::string& content, ButtonState state = ButtonState::Default
+		const TextContent& content, ButtonState state = ButtonState::Default
 	);
+
+	ToggleButton& SetTextToggled(
+		const TextContent& content, const TextColor& text_color = color::Black,
+		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
+	);
+
+	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;
 
 	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& SetBorderColorToggled(
 		const Color& color, ButtonState state = ButtonState::Default
 	);
-
-	ToggleButton& OnToggle(const ButtonCallback& callback);
 };
 
-/*
-class ToggleButtonGroup : public MapManager<Button, std::string_view, std::string, false> {
+namespace impl {
+
+struct ToggleButtonGroupInfo {
+	ToggleButtonGroupInfo()											   = default;
+	ToggleButtonGroupInfo(const ToggleButtonGroupInfo&)				   = delete;
+	ToggleButtonGroupInfo& operator=(const ToggleButtonGroupInfo&)	   = delete;
+	ToggleButtonGroupInfo(ToggleButtonGroupInfo&&) noexcept			   = default;
+	ToggleButtonGroupInfo& operator=(ToggleButtonGroupInfo&&) noexcept = default;
+	~ToggleButtonGroupInfo();
+
+	std::unordered_map<std::size_t, ToggleButton> buttons_;
+};
+
+} // namespace impl
+
+class ToggleButtonGroup : public Entity {
 public:
-	ToggleButtonGroup()										   = default;
-	virtual ~ToggleButtonGroup() override					   = default;
-	ToggleButtonGroup(ToggleButtonGroup&&) noexcept			   = default;
-	ToggleButtonGroup& operator=(ToggleButtonGroup&&) noexcept = default;
-	ToggleButtonGroup(const ToggleButtonGroup&)				   = delete;
-	ToggleButtonGroup& operator=(const ToggleButtonGroup&)	   = delete;
+	ToggleButton& Load(std::string_view button_key, ToggleButton&& toggle_button);
 
-	template <typename TKey, typename... TArgs, tt::constructible<Button, TArgs...> = true>
-	Button& Load(const TKey& key, TArgs&&... constructor_args) {
-		auto k{ GetInternalKey(key) };
-		Button& button{ MapManager::Load(key, Button{ std::forward<TArgs>(constructor_args)... }) };
-		// Toggle all other buttons when one is pressed.
-		button.SetInternalOnActivate([this, &button]() {
-			ForEachValue([](Button& b) { b.Set<ButtonProperty::Toggled>(false); });
-			button.Set<ButtonProperty::Toggled>(true);
-		});
-		return button;
-	}
+	void Unload(std::string_view button_key);
+
+	// TODO: Add more utility functions.
+
+private:
+	friend class impl::ToggleButtonGroupScript;
+
+	void AddToggleScript(ToggleButton& target);
 };
-*/
+
+namespace impl {
+
+class ToggleButtonGroupScript : public ptgn::Script<ToggleButtonGroupScript> {
+public:
+	ToggleButtonGroupScript() = default;
+	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
+
+	void OnButtonActivate() override;
+
+	ToggleButtonGroup toggle_button_group;
+};
+
+} // namespace impl
 
 inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 	switch (state) {
 		case ButtonState::Default: os << "Default"; break;
 		case ButtonState::Hover:   os << "Hover"; break;
 		case ButtonState::Pressed: os << "Pressed"; break;
-		default:				   PTGN_ERROR("Invalid button state");
+		default:				   PTGN_ERROR("Invalid button state")
 	}
 	return os;
 }
@@ -243,9 +437,40 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 		case impl::InternalButtonState::HoverPressed: os << "Hover Pressed"; break;
 		case impl::InternalButtonState::Pressed:	  os << "Pressed"; break;
 		case impl::InternalButtonState::HeldOutside:  os << "Held Outside"; break;
-		default:									  PTGN_ERROR("Invalid internal button state");
+		default:									  PTGN_ERROR("Invalid internal button state")
 	}
 	return os;
 }
+
+Button CreateButton(Scene& scene);
+
+Button CreateTextButton(
+	Scene& scene, const TextContent& text_content, const TextColor& text_color = color::Black
+);
+
+// @param toggled Whether or not the button start in the toggled state.
+ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
+
+ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	ButtonState, { { ButtonState::Default, "default" },
+				   { ButtonState::Hover, "hover" },
+				   { ButtonState::Pressed, "pressed" },
+				   { ButtonState::Current, "current" } }
+);
+
+namespace impl {
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	InternalButtonState, { { InternalButtonState::IdleUp, "idle_up" },
+						   { InternalButtonState::Hover, "hover" },
+						   { InternalButtonState::Pressed, "pressed" },
+						   { InternalButtonState::HeldOutside, "held_outside" },
+						   { InternalButtonState::IdleDown, "idle_down" },
+						   { InternalButtonState::HoverPressed, "hover_pressed" } }
+);
+
+} // namespace impl
 
 } // namespace ptgn

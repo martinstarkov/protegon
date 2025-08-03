@@ -1,164 +1,185 @@
 #include "components/draw.h"
 
-#include <string_view>
-#include <type_traits>
+#include <array>
+#include <functional>
 
+#include "components/sprite.h"
+#include "components/transform.h"
+#include "core/entity.h"
 #include "core/game.h"
-#include "ecs/ecs.h"
-#include "math/hash.h"
-#include "math/math.h"
+#include "core/manager.h"
+#include "debug/log.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/rect.h"
 #include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/flip.h"
+#include "renderer/api/origin.h"
+#include "renderer/render_data.h"
+#include "renderer/shader.h"
 #include "renderer/texture.h"
-#include "utility/assert.h"
-#include "utility/time.h"
-#include "utility/tween.h"
-#include "utility/utility.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
-ecs::Entity CreateSprite(ecs::Manager& manager, std::string_view texture_key) {
-	PTGN_ASSERT(
-		game.texture.Has(texture_key), "Sprite texture key must be loaded in the texture manager"
-	);
-
-	auto entity{ manager.CreateEntity() };
-
-	entity.Add<TextureKey>(Hash(texture_key));
-	entity.Add<Visible>();
-
-	return entity;
-}
-
-ecs::Entity CreateAnimation(
-	ecs::Manager& manager, std::string_view texture_key, std::size_t frame_count,
-	const V2_float& frame_size, milliseconds animation_duration, const V2_float& start_pixel,
-	std::size_t start_frame
-) {
-	PTGN_ASSERT(start_frame < frame_count, "Start frame must be within animation frame count");
-
-	PTGN_ASSERT(
-		game.texture.Has(texture_key), "Animation texture key must be loaded in the texture manager"
-	);
-
-	auto entity{ manager.CreateEntity() };
-
-	entity.Add<TextureKey>(Hash(texture_key));
-	entity.Add<Visible>();
-	entity.Add<TextureCrop>();
-	entity.Add<impl::AnimationInfo>(frame_count, frame_size, start_pixel, start_frame);
-
-	milliseconds frame_duration{ animation_duration / frame_count };
-
-	auto update_crop = [](TextureCrop& crop, const impl::AnimationInfo& anim) {
-		crop.SetPosition(anim.GetCurrentFramePosition());
-		crop.SetSize(anim.GetFrameSize());
-	};
-
-	// TODO: Consider breaking this up into individual tween points using a for loop.
-	entity.Add<Tween>()
-		.During(frame_duration)
-		.Repeat(-1)
-		.OnStart([=]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.ResetToStartFrame();
-			std::invoke(update_crop, crop, anim);
-			if (entity.Has<callback::AnimationStart>()) {
-				Invoke(entity.Get<callback::AnimationStart>());
-			}
-		})
-		.OnRepeat([=]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.IncrementFrame();
-			std::invoke(update_crop, crop, anim);
-			if (entity.Has<callback::AnimationRepeat>() &&
-				anim.GetFrameRepeats() % anim.GetFrameCount() == 0) {
-				Invoke(entity.Get<callback::AnimationRepeat>());
-			}
-		})
-		.OnReset([=]() mutable {
-			auto [anim, crop] = entity.Get<impl::AnimationInfo, TextureCrop>();
-			anim.ResetToStartFrame();
-			std::invoke(update_crop, crop, anim);
-		});
-
-	return entity;
-}
-
-void TextureCrop::SetSize(const V2_float& size) {
-	size_ = size;
-}
-
-V2_float TextureCrop::GetSize() const {
-	return size_;
-}
-
-void TextureCrop::SetPosition(const V2_float& position) {
-	position_ = position;
-}
-
-V2_float TextureCrop::GetPosition() const {
-	return position_;
-}
-
-bool TextureCrop::operator==(const TextureCrop& other) const {
-	return position_ == other.position_ && size_ == other.size_;
-}
-
-bool TextureCrop::operator!=(const TextureCrop& other) const {
-	return !(*this == other);
-}
-
 namespace impl {
 
-AnimationInfo::AnimationInfo(
-	std::size_t frame_count, const V2_float& frame_size, const V2_float& start_pixel,
-	std::size_t start_frame
-) :
-	frame_count_{ frame_count },
-	frame_size_{ frame_size },
-	start_pixel_{ start_pixel },
-	start_frame_{ start_frame } {}
+void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture) {
+	Sprite sprite{ entity };
 
-std::size_t AnimationInfo::GetSequenceRepeats() const {
-	return frame_repeats_ / frame_count_;
+	const auto& texture{ sprite.GetTexture() };
+	auto display_size{ sprite.GetSize() };
+	auto texture_coordinates{ sprite.GetTextureCoordinates(flip_texture) };
+
+	auto transform{ entity.GetDrawTransform() };
+	auto origin{ entity.GetOrigin() };
+	auto tint{ entity.GetTint() };
+	auto depth{ entity.GetDepth() };
+
+	impl::RenderState state;
+	state.blend_mode  = entity.GetBlendMode();
+	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
+	state.camera	  = entity.GetOrParentOrDefault<Camera>();
+	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+	auto pre_fx{ entity.GetOrDefault<impl::PreFX>() };
+
+	ctx.AddTexturedQuad(
+		texture, transform, display_size, origin, tint, depth, texture_coordinates, state, pre_fx
+	);
 }
 
-std::size_t AnimationInfo::GetFrameRepeats() const {
-	return frame_repeats_;
+V2_int GetTextureSize(const Entity& entity) {
+	V2_int size;
+	if (entity.Has<TextureSize>()) {
+		size = V2_int{ entity.Get<TextureSize>() };
+		if (!size.IsZero()) {
+			return size;
+		}
+	}
+	if (entity.Has<TextureHandle>()) {
+		size = entity.Get<TextureHandle>().GetSize(entity);
+	}
+
+	PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
+	return size;
 }
 
-std::size_t AnimationInfo::GetFrameCount() const {
-	return frame_count_;
+V2_int GetCroppedSize(const Entity& entity) {
+	if (entity.Has<TextureCrop>()) {
+		const auto& crop{ entity.Get<TextureCrop>() };
+		return crop.size;
+	}
+	return GetTextureSize(entity);
 }
 
-void AnimationInfo::SetCurrentFrame(std::size_t new_frame) {
-	current_frame_ = Mod(new_frame, frame_count_);
+V2_float GetDisplaySize(const Entity& entity) {
+	if (!entity.Has<TextureHandle>() && !entity.Has<TextureCrop>()) {
+		return {};
+	}
+	return GetCroppedSize(entity) * entity.GetScale();
 }
 
-void AnimationInfo::IncrementFrame() {
-	SetCurrentFrame(++current_frame_);
-}
+std::array<V2_float, 4> GetTextureCoordinates(const Entity& entity, bool flip_vertically) {
+	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
 
-void AnimationInfo::ResetToStartFrame() {
-	current_frame_ = start_frame_;
-}
+	auto check_vertical_flip = [flip_vertically, &tex_coords]() {
+		if (flip_vertically) {
+			impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+		}
+	};
 
-std::size_t AnimationInfo::GetCurrentFrame() const {
-	return current_frame_;
-}
+	if (!entity) {
+		std::invoke(check_vertical_flip);
+		return tex_coords;
+	}
 
-V2_float AnimationInfo::GetCurrentFramePosition() const {
-	return { start_pixel_.x + frame_size_.x * current_frame_, start_pixel_.y };
-}
+	V2_int texture_size{ GetTextureSize(entity) };
 
-V2_float AnimationInfo::GetFrameSize() const {
-	return frame_size_;
-}
+	if (texture_size.IsZero()) {
+		std::invoke(check_vertical_flip);
+		return tex_coords;
+	}
 
-std::size_t AnimationInfo::GetStartFrame() const {
-	return start_frame_;
+	if (entity.Has<TextureCrop>()) {
+		const auto& crop{ entity.Get<TextureCrop>() };
+		if (crop != TextureCrop{}) {
+			tex_coords = impl::GetTextureCoordinates(crop.position, crop.size, texture_size);
+		}
+	}
+
+	auto scale{ entity.GetScale() };
+
+	bool flip_x{ scale.x < 0.0f };
+	bool flip_y{ scale.y < 0.0f };
+
+	if (flip_x && flip_y) {
+		impl::FlipTextureCoordinates(tex_coords, Flip::Both);
+	} else if (flip_x) {
+		impl::FlipTextureCoordinates(tex_coords, Flip::Horizontal);
+	} else if (flip_y) {
+		impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+	}
+
+	// TODO: Consider if this is necessary given entity scale already flips a texture.
+	if (entity.Has<Flip>()) {
+		impl::FlipTextureCoordinates(tex_coords, entity.Get<Flip>());
+	}
+
+	std::invoke(check_vertical_flip);
+
+	return tex_coords;
 }
 
 } // namespace impl
+
+Entity CreateRect(
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width, Origin origin
+) {
+	auto rect{ manager.CreateEntity() };
+
+	rect.SetDraw<Rect>();
+	rect.Show();
+
+	rect.SetPosition(position);
+	rect.Add<Rect>(size);
+	rect.SetOrigin(origin);
+
+	rect.SetTint(color);
+	rect.Add<LineWidth>(line_width);
+
+	return rect;
+}
+
+Entity CreateRect(
+	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width, Origin origin
+) {
+	return CreateRect(static_cast<Manager&>(scene), position, size, color, line_width, origin);
+}
+
+Entity CreateCircle(
+	Manager& manager, const V2_float& position, float radius, const Color& color, float line_width
+) {
+	auto circle{ manager.CreateEntity() };
+
+	circle.SetDraw<Circle>();
+	circle.Show();
+
+	circle.SetPosition(position);
+	circle.Add<Circle>(radius);
+
+	circle.SetTint(color);
+	circle.Add<LineWidth>(line_width);
+
+	return circle;
+}
+
+Entity CreateCircle(
+	Scene& scene, const V2_float& position, float radius, const Color& color, float line_width
+) {
+	return CreateCircle(static_cast<Manager&>(scene), position, radius, color, line_width);
+}
 
 } // namespace ptgn

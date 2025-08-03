@@ -1,32 +1,36 @@
 #pragma once
 
-#include "ecs/ecs.h"
-#include "utility/time.h"
-#include "utility/timer.h"
+#include "core/time.h"
+#include "core/timer.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
+class Manager;
+class Entity;
+class Scene;
+
 struct Lifetime {
-	Lifetime(milliseconds duration, bool start = false) : duration{ duration } {
-		if (start) {
-			timer_.Start();
-		}
-	}
+	Lifetime() = default;
+
+	Lifetime(milliseconds lifetime, bool start = false);
 
 	// Will restart if lifetime is already running.
-	void Start() {
-		timer_.Start();
-	}
+	void Start();
 
-	void Update(ecs::Entity e) const {
-		if (timer_.Completed(duration)) {
-			e.Destroy();
-		}
-	}
+	void Update(Entity& entity) const;
 
 	milliseconds duration{ 0 };
 
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Lifetime, KeyValue("duration", duration), KeyValue("timer", timer_)
+	)
+
 private:
+	friend class Scene;
+
+	static void Update(Scene& scene);
+
 	Timer timer_;
 };
 

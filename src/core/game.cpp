@@ -1,28 +1,39 @@
 #include "core/game.h"
 
 #include <chrono>
+#include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "audio/audio.h"
-#include "core/gl_context.h"
-#include "core/manager.h"
+#include "common/assert.h"
 #include "core/sdl_instance.h"
+#include "core/time.h"
 #include "core/window.h"
-#include "event/event_handler.h"
-#include "event/input_handler.h"
+#include "debug/debugging.h"
+#include "debug/log.h"
+#include "debug/profiling.h"
+#include "debug/stats.h"
+#include "events/event_handler.h"
+#include "input/input_handler.h"
+#include "math/hash.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
+#include "renderer/api/color.h"
 #include "renderer/font.h"
+#include "renderer/gl/gl_context.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
 #include "SDL_timer.h"
+#include "serialization/json.h"
 #include "serialization/json_manager.h"
-#include "utility/debug.h"
-#include "utility/profiling.h"
-#include "utility/time.h"
+#include "utility/file.h"
+#include "utility/string.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -44,8 +55,8 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include "utility/log.h"
-#include "utility/stats.h"
+#include "nlohmann/detail/iterators/iter_impl.hpp"
+#include "nlohmann/json.hpp"
 
 namespace ptgn {
 
@@ -145,7 +156,24 @@ Game::Game() :
 	/*light_{ std::make_unique<LightManager>() },
 	light{ *light_ },*/
 	profiler_{ std::make_unique<Profiler>() },
-	profiler{ *profiler_ } {}
+	profiler{ *profiler_ } {
+	// TODO: Move all of this init code into respective constructors.
+#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
+	impl::InitApplePath();
+#endif
+	if (!sdl_instance_->IsInitialized()) {
+		sdl_instance_->Init();
+	}
+	font.Init();
+	window.Init();
+	gl_context_->Init();
+	event.Init();
+	input.Init();
+
+	shader.Init();
+	renderer.Init();
+	// light.Init();
+}
 
 Game::~Game() {
 	gl_context_->Shutdown();
@@ -176,23 +204,7 @@ bool Game::IsRunning() const {
 void Game::Init(
 	const std::string& title, const V2_int& window_size, const Color& background_color
 ) {
-#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
-	impl::InitApplePath();
-#endif
-	if (!sdl_instance_->IsInitialized()) {
-		sdl_instance_->Init();
-	}
-	font.Init();
-	window.Init();
-	gl_context_->Init();
-	event.Init();
-	input.Init();
-
-	shader.Init();
-
-	renderer.Init(background_color);
-	// light.Init();
-
+	renderer.SetBackgroundColor(background_color);
 	game.window.SetTitle(title);
 	game.window.SetSize(window_size);
 }
@@ -247,6 +259,8 @@ void Game::MainLoop() {
 }
 
 void Game::Update() {
+	profiler.Clear();
+
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
 	// Calculate time elapsed during previous frame. Unit: seconds.
@@ -275,7 +289,6 @@ void Game::Update() {
 
 		// scene.ClearSceneTargets();
 
-		input.Update();
 		scene.Update();
 
 		renderer.PresentScreen();
@@ -296,11 +309,105 @@ void Game::Update() {
 	game.stats.Reset();
 #endif
 
-	//profiler.PrintAll();
+	profiler.PrintAll();
 
 	end = std::chrono::system_clock::now();
 }
 
 } // namespace impl
+
+void LoadResource(std::string_view key, const path& resource_path, bool is_music) {
+	PTGN_ASSERT(
+		FileExists(resource_path),
+		"Cannot load non-existent resource file: ", resource_path.string()
+	);
+
+	std::string ext{ ToLower(resource_path.extension().string()) };
+
+	PTGN_ASSERT(!ext.empty(), "Resource file extension is invalid: ", resource_path.string());
+
+	bool is_audio{ ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus" };
+	bool is_texture{ ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif" };
+	bool is_font{ ext == ".ttf" };
+	bool is_json{ ext == ".json" };
+
+	PTGN_ASSERT(
+		(is_music ? is_audio : true),
+		"Music resource path must end in a valid audio format extension"
+	);
+
+	if (is_texture) {
+		game.texture.Load(key, resource_path);
+	} else if (is_audio && !is_music) {
+		game.sound.Load(key, resource_path);
+	} else if (is_audio && is_music) {
+		game.music.Load(key, resource_path);
+	} else if (is_font) {
+		game.font.Load(key, resource_path);
+	} else if (is_json) {
+		game.json.Load(key, resource_path);
+	} /*
+	  // TODO: Add shader loading support.
+	  else if (ext == ".vert" || ext == ".frag") {
+		game.shader.Load(key, p);
+	} */
+	else {
+		PTGN_ERROR(
+			"Attempting to load unsupported file extension from resource file: ",
+			resource_path.string()
+		);
+	}
+}
+
+void LoadResources(const std::vector<Resource>& resource_paths) {
+	for (const auto& [key, filepath, is_music] : resource_paths) {
+		LoadResource(key, filepath, is_music);
+	}
+}
+
+void LoadResources(const path& resource_file, std::string_view music_resource_suffix) {
+	json resources{ LoadJson(resource_file) };
+
+#ifdef __EMSCRIPTEN__
+	if (resources.is_array()) {
+		resources = resources.at(0);
+	}
+#endif
+
+	if (!resources.is_object()) {
+		PTGN_ERROR(
+			"Expected json object, but got something else for resources: ", resources.dump(4)
+		);
+	}
+
+	// Track unique resource keys.
+	std::unordered_set<std::size_t> taken_resource_keys;
+
+	for (auto it = resources.begin(); it != resources.end(); ++it) {
+		const std::string& key	  = it.key();
+		const auto& resource_path = it.value();
+
+		auto key_hash{ Hash(key) };
+
+		PTGN_ASSERT(
+			taken_resource_keys.count(key_hash) == 0,
+			"Resource key should not be repeated more than once: ", key
+		);
+
+		taken_resource_keys.insert(key_hash);
+
+		bool is_music{ EndsWith(key, music_resource_suffix) };
+
+		if (!resource_path.is_string()) {
+			PTGN_ERROR(
+				"Expected string, but got something else for resource path: ", resource_path.dump(4)
+			);
+		}
+
+		path filepath{ resource_path.get<std::string>() };
+
+		LoadResource(key, filepath, is_music);
+	}
+}
 
 } // namespace ptgn

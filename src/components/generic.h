@@ -1,14 +1,15 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <string_view>
 #include <type_traits>
 
+#include "common/type_traits.h"
 #include "math/vector2.h"
-#include "renderer/color.h"
-#include "renderer/origin.h"
-#include "utility/type_traits.h"
-#include "utility/utility.h"
+#include "renderer/api/color.h"
+#include "serialization/serializable.h"
+#include "utility/file.h"
 
 namespace ptgn {
 
@@ -29,8 +30,47 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
+	[[nodiscard]] T GetValue() const {
+		return value_;
+	}
+
+	[[nodiscard]] T& GetValue() {
+		return value_;
+	}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(ArithmeticComponent, value_)
+
 protected:
 	T value_{};
+};
+
+struct HashComponent {
+	HashComponent() = default;
+
+	HashComponent(std::string_view key);
+
+	HashComponent(const char* key);
+
+	HashComponent(const std::string& key);
+
+	HashComponent(std::size_t value);
+
+	operator std::size_t() const;
+
+	[[nodiscard]] std::size_t GetHash() const;
+
+	[[nodiscard]] std::size_t& GetHash();
+
+	[[nodiscard]] const std::string& GetKey() const;
+
+	[[nodiscard]] std::string& GetKey();
+
+	friend void to_json(json& j, const HashComponent& hash_component);
+	friend void from_json(const json& j, HashComponent& hash_component);
+
+protected:
+	std::size_t hash_{ 0 };
+	std::string key_;
 };
 
 template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
@@ -43,68 +83,71 @@ struct Vector2Component {
 		return value_;
 	}
 
-private:
+	[[nodiscard]] Vector2<T> GetValue() const {
+		return value_;
+	}
+
+	[[nodiscard]] Vector2<T>& GetValue() {
+		return value_;
+	}
+
+	friend bool operator==(const Vector2Component& a, const Vector2Component& b) {
+		return a.value_ == b.value_;
+	}
+
+	friend bool operator!=(const Vector2Component& a, const Vector2Component& b) {
+		return a.value_ != b.value_;
+	}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Vector2Component, value_)
+
+protected:
 	Vector2<T> value_{ 0 };
 };
 
-struct StringViewComponent {
-	StringViewComponent() = default;
+struct ResourceHandle : public HashComponent {
+	using HashComponent::HashComponent;
+};
 
-	StringViewComponent(std::string_view value) : value_{ value } {}
+struct StringComponent {
+	StringComponent() = default;
 
-	bool operator==(const StringViewComponent& other) const {
-		return value_ == other.value_;
+	StringComponent(const path& p) = delete;
+
+	StringComponent(const std::string& value) : value_{ value } {}
+
+	StringComponent(std::string_view value) : value_{ value } {}
+
+	StringComponent(const char* value) : value_{ value } {}
+
+	friend bool operator==(const StringComponent& a, const StringComponent& b) {
+		return a.value_ == b.value_;
 	}
 
-	bool operator!=(const StringViewComponent& other) const {
-		return !(*this == other);
+	friend bool operator!=(const StringComponent& a, const StringComponent& b) {
+		return !(a == b);
 	}
 
 	operator std::string_view() const {
 		return value_;
 	}
 
-private:
-	std::string_view value_{};
-};
-
-template <typename TReturn, typename... TArgs>
-struct CallbackComponent {
-	CallbackComponent() = default;
-
-	CallbackComponent(const std::function<TReturn(TArgs...)>& callback) : callback_{ callback } {}
-
-	TReturn operator()(TArgs&&... args) const {
-		return Invoke(callback_, std::forward<TArgs>(args)...);
+	operator std::string() const {
+		return value_;
 	}
 
-	bool operator==(std::nullptr_t) const {
-		return callback_ == nullptr;
+	[[nodiscard]] const std::string& GetValue() const {
+		return value_;
 	}
 
-	bool operator!=(std::nullptr_t) const {
-		return callback_ != nullptr;
+	[[nodiscard]] std::string& GetValue() {
+		return value_;
 	}
 
-	operator std::function<TReturn(TArgs...)>() const {
-		return callback_;
-	}
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(StringComponent, value_)
 
 protected:
-	std::function<TReturn(TArgs...)> callback_{};
-};
-
-struct OriginComponent {
-	OriginComponent() = default;
-
-	OriginComponent(Origin origin) : origin_{ origin } {}
-
-	operator Origin() const {
-		return origin_;
-	}
-
-protected:
-	Origin origin_{ Origin::Center };
+	std::string value_;
 };
 
 } // namespace ptgn

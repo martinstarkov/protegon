@@ -3,8 +3,9 @@
 #include <memory>
 #include <string_view>
 
+#include "core/entity.h"
 #include "core/game.h"
-#include "ecs/ecs.h"
+#include "input/input_handler.h"
 #include "math/hash.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
@@ -13,14 +14,14 @@ namespace ptgn::impl {
 
 void SceneManager::UnloadImpl(std::size_t scene_key) {
 	auto scene{ GetScene(scene_key) };
-	if (scene != ecs::null) {
+	if (scene) {
 		scene.Get<SceneComponent>().scene->Add(Scene::Action::Unload);
 	}
 }
 
 void SceneManager::EnterScene(std::size_t scene_key) {
 	auto scene{ GetScene(scene_key) };
-	PTGN_ASSERT(scene != ecs::null, "Cannot initialize a scene unless it has been loaded first");
+	PTGN_ASSERT(scene, "Cannot initialize a scene unless it has been loaded first");
 	scene.Get<SceneComponent>().scene->Add(Scene::Action::Enter);
 }
 
@@ -29,7 +30,7 @@ void SceneManager::EnterImpl(std::size_t scene_key) {
 		return;
 	}
 	auto scene{ GetScene(scene_key) };
-	PTGN_ASSERT(scene != ecs::null, "Cannot enter scene unless it has been loaded first");
+	PTGN_ASSERT(scene, "Cannot enter scene unless it has been loaded first");
 
 	bool first_scene{ GetActiveSceneCount() == 0 };
 
@@ -59,7 +60,7 @@ void SceneManager::UnloadAllScenes() {
 
 void SceneManager::ExitImpl(std::size_t scene_key) {
 	auto scene{ GetScene(scene_key) };
-	if (scene == ecs::null) {
+	if (!scene) {
 		return;
 	}
 	auto& sc{ scene.Get<SceneComponent>() };
@@ -129,35 +130,44 @@ void SceneManager::ClearSceneTargets() {
 
 void SceneManager::Update() {
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		if (sc.scene->active_ && sc.scene->actions_.empty()) {
-			sc.scene->InternalUpdate();
+		PTGN_ASSERT(sc.scene != nullptr);
+		if (sc.scene->active_) {
+			sc.scene->PreUpdate();
+		}
+	}
+
+	game.input.Update();
+
+	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
+		PTGN_ASSERT(sc.scene != nullptr);
+		if (sc.scene->active_) {
+			sc.scene->PostUpdate();
 		}
 	}
 }
 
 void SceneManager::HandleSceneEvents() {
 	for (auto [e, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		auto& scene{ *sc.scene };
-
-		while (!scene.actions_.empty()) {
-			auto action{ scene.actions_.begin() };
+		while (!e.Get<SceneComponent>().scene->actions_.empty()) {
+			auto action{ e.Get<SceneComponent>().scene->actions_.begin() };
 			switch (*action) {
 				case Scene::Action::Enter:
-					if (scene.active_) {
-						scene.InternalExit();
+					if (e.Get<SceneComponent>().scene->active_) {
+						e.Get<SceneComponent>().scene->InternalExit();
 					}
-					scene.InternalEnter();
+					// Reference may get invalidated if Exit adds a scene to the scene manager.
+					e.Get<SceneComponent>().scene->InternalEnter();
 					break;
-				case Scene::Action::Exit: scene.InternalExit(); break;
+				case Scene::Action::Exit: e.Get<SceneComponent>().scene->InternalExit(); break;
 				case Scene::Action::Unload:
-					if (scene.active_) {
-						scene.InternalExit();
+					if (e.Get<SceneComponent>().scene->active_) {
+						e.Get<SceneComponent>().scene->InternalExit();
 					}
-					scene.InternalUnload();
 					e.Destroy();
 					break;
 			}
-			scene.actions_.erase(action);
+			// Reference may get invalidated if an Enter or Exit adds a scene to the scene manager.
+			e.Get<SceneComponent>().scene->actions_.erase(action);
 		}
 	}
 
@@ -176,31 +186,31 @@ std::size_t SceneManager::GetActiveSceneCount() const {
 }
 
 bool SceneManager::HasActiveScene(std::size_t scene_key) const {
-	return GetActiveScene(scene_key) != ecs::null;
+	return GetActiveScene(scene_key).operator bool();
 }
 
 bool SceneManager::HasScene(std::size_t scene_key) const {
-	return GetScene(scene_key) != ecs::null;
+	return GetScene(scene_key).operator bool();
 }
 
-ecs::Entity SceneManager::GetActiveScene(std::size_t scene_key) const {
+Entity SceneManager::GetActiveScene(std::size_t scene_key) const {
 	for (auto e : scenes_.Entities()) {
 		const auto& sc{ e.Get<SceneComponent>() };
 		if (sc.scene->active_ && sc.scene->key_ == scene_key) {
 			return e;
 		}
 	}
-	return ecs::null;
+	return {};
 }
 
-ecs::Entity SceneManager::GetScene(std::size_t scene_key) const {
+Entity SceneManager::GetScene(std::size_t scene_key) const {
 	for (auto e : scenes_.Entities()) {
 		const auto& sc{ e.Get<SceneComponent>() };
 		if (sc.scene->key_ == scene_key) {
 			return e;
 		}
 	}
-	return ecs::null;
+	return {};
 }
 
 } // namespace ptgn::impl

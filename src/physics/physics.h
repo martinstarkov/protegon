@@ -1,7 +1,8 @@
 #pragma once
 
-#include "ecs/ecs.h"
 #include "math/vector2.h"
+#include "serialization/enum.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -11,23 +12,63 @@ namespace impl {
 
 class Game;
 
+} // namespace impl
+
+enum class BoundaryBehavior {
+	StopAtBounds,	// Prevent movement beyond world bounds (clamp/stop position)
+	ReflectVelocity // Bounce off bounds by flipping velocity
+};
+
 class Physics {
 public:
+	[[nodiscard]] V2_float GetBoundsTopLeft() const;
+	[[nodiscard]] V2_float GetBoundsSize() const;
+	// Default values of {} result in no boundary enforcement.
+	void SetBounds(
+		const V2_float& top_left_position = {}, const V2_float& size = {},
+		BoundaryBehavior behavior = BoundaryBehavior::StopAtBounds
+	);
+
 	[[nodiscard]] V2_float GetGravity() const;
 	void SetGravity(const V2_float& gravity);
 
 	// @return Physics time step in seconds.
 	[[nodiscard]] float dt() const;
 
+	void SetEnabled(bool enabled = true);
+	void Disable();
+	void Enable();
+	[[nodiscard]] bool AreEnabled() const;
+
+	PTGN_SERIALIZER_REGISTER_NAMED(
+		Physics, KeyValue("gravity", gravity_), KeyValue("bounds_top_left", bounds_top_left_),
+		KeyValue("bounds_size", bounds_size_), KeyValue("boundary_behavior", boundary_behavior_),
+		KeyValue("enabled", enabled_)
+	)
+
 private:
-	friend class Game;
+	friend class impl::Game;
 	friend class ptgn::Scene;
 
-	void PreCollisionUpdate(ecs::Manager& manager) const;
-	void PostCollisionUpdate(ecs::Manager& manager) const;
+	void PreCollisionUpdate(Scene& scene) const;
+	void PostCollisionUpdate(Scene& scene) const;
 
+	static void HandleBoundary(
+		float& position, float& velocity, float min_bound, float max_bound,
+		BoundaryBehavior behavior
+	);
+
+	bool enabled_{ true };
+	V2_float bounds_top_left_;
+	V2_float bounds_size_;
+	BoundaryBehavior boundary_behavior_{ BoundaryBehavior::StopAtBounds };
 	V2_float gravity_{ 0.0f, 0.0f };
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	BoundaryBehavior, { { BoundaryBehavior::StopAtBounds, "stop_at_bounds" },
+						{ BoundaryBehavior::ReflectVelocity, "reflect_velocity" } }
+);
 
 /**
  * Calculates a Body's per-axis velocity.
@@ -138,7 +179,5 @@ computeVelocity : function(body, delta) {
 // if (velocity.MagnitudeSquared() > max_velocity * max_velocity) {
 //     velocity = velocity.Normalized() * max_velocity;
 // }
-
-} // namespace impl
 
 } // namespace ptgn

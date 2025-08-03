@@ -4,13 +4,17 @@
 #include <ostream>
 #include <type_traits>
 
-#include "utility/assert.h"
-#include "utility/type_traits.h"
+#include "common/assert.h"
+#include "common/type_traits.h"
+#include "math/math.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
-template <typename T, tt::arithmetic<T> = true>
+template <typename T>
 struct Vector4 {
+	static_assert(std::is_arithmetic_v<T>);
+
 	T x{ 0 };
 	T y{ 0 };
 	T z{ 0 };
@@ -25,7 +29,10 @@ struct Vector4 {
 
 	explicit constexpr Vector4(T all) : x{ all }, y{ all }, z{ all }, w{ all } {}
 
-	constexpr Vector4(T x, T y, T z, T w) : x{ x }, y{ y }, z{ z }, w{ w } {}
+	constexpr Vector4(T x_component, T y_component, T z_component, T w_component) :
+		x{ x_component }, y{ y_component }, z{ z_component }, w{ w_component } {}
+
+	explicit Vector4(const json& j);
 
 	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
 	template <typename U, tt::not_narrowing<U, T> = true>
@@ -38,11 +45,11 @@ struct Vector4 {
 	// Note: use of explicit keyword for narrowing constructors.
 
 	template <typename U, tt::narrowing<U, T> = true>
-	explicit constexpr Vector4(U x, U y, U z, U w) :
-		x{ static_cast<T>(x) },
-		y{ static_cast<T>(y) },
-		z{ static_cast<T>(z) },
-		w{ static_cast<T>(w) } {}
+	explicit constexpr Vector4(U x_component, U y_component, U z_component, U w_component) :
+		x{ static_cast<T>(x_component) },
+		y{ static_cast<T>(y_component) },
+		z{ static_cast<T>(z_component) },
+		w{ static_cast<T>(w_component) } {}
 
 	template <typename U, tt::narrowing<U, T> = true>
 	explicit constexpr Vector4(const Vector4<U>& o) :
@@ -51,30 +58,37 @@ struct Vector4 {
 		z{ static_cast<T>(o.z) },
 		w{ static_cast<T>(o.w) } {}
 
+	friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
+		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) &&
+			   NearlyEqual(lhs.z, rhs.z) && NearlyEqual(lhs.w, rhs.w);
+	}
+
+	friend bool operator!=(const Vector4& lhs, const Vector4& rhs) {
+		return !operator==(lhs, rhs);
+	}
+
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
-		PTGN_ASSERT(idx >= 0 && idx < 4, "Vector4 subscript out of range");
-		if (idx == 0) {
-			return x;
-		} else if (idx == 1) {
+		if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
+		} else if (idx == 3) {
+			return w;
 		}
-		return w; // idx == 3
+		return x; // 0
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
-		PTGN_ASSERT(idx >= 0 && idx < 4, "Vector4 subscript out of range");
-		if (idx == 0) {
-			return x;
-		} else if (idx == 1) {
+		if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
+		} else if (idx == 3) {
+			return w;
 		}
-		return w; // idx == 3
+		return x; // 0
 	}
 
 	[[nodiscard]] constexpr Vector4 operator-() const {
@@ -168,21 +182,16 @@ struct Vector4 {
 	}
 };
 
+template <typename T>
+void to_json(json& j, const Vector4<T>& vector);
+
+template <typename T>
+void from_json(const json& j, Vector4<T>& vector);
+
 using V4_int	= Vector4<int>;
 using V4_uint	= Vector4<unsigned int>;
 using V4_float	= Vector4<float>;
 using V4_double = Vector4<double>;
-
-template <typename V>
-[[nodiscard]] inline bool operator==(const Vector4<V>& lhs, const Vector4<V>& rhs) {
-	return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z) &&
-		   NearlyEqual(lhs.w, rhs.w);
-}
-
-template <typename V>
-[[nodiscard]] inline bool operator!=(const Vector4<V>& lhs, const Vector4<V>& rhs) {
-	return !operator==(lhs, rhs);
-}
 
 template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector4<V>& v) {
@@ -256,11 +265,11 @@ struct std::hash<ptgn::Vector4<T>> {
 	std::size_t operator()(const ptgn::Vector4<T>& v) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
-		std::size_t hash{ 17 };
-		hash = hash * 31 + std::hash<T>()(v.x);
-		hash = hash * 31 + std::hash<T>()(v.y);
-		hash = hash * 31 + std::hash<T>()(v.z);
-		hash = hash * 31 + std::hash<T>()(v.w);
-		return hash;
+		std::size_t value{ 17 };
+		value = value * 31 + std::hash<T>()(v.x);
+		value = value * 31 + std::hash<T>()(v.y);
+		value = value * 31 + std::hash<T>()(v.z);
+		value = value * 31 + std::hash<T>()(v.w);
+		return value;
 	}
 };
