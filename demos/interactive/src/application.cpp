@@ -308,13 +308,13 @@ struct ScriptR3 : public Script<ScriptR3> {
 		PTGN_LOG("r3 Drag over: ", dropzone.GetId());
 	}
 
-	/*void OnDragStart(V2_float mouse) override {
+	void OnDragStart(V2_float mouse) override {
 		PTGN_LOG("r3 Drag start: ", mouse);
 	}
 
 	void OnDragStop(V2_float mouse) override {
 		PTGN_LOG("r3 Drag stop: ", mouse);
-	}*/
+	}
 
 	void OnDrop(Entity dropzone) override {
 		PTGN_LOG("r3 dropped onto: ", dropzone.GetId());
@@ -331,24 +331,29 @@ struct ScriptC3 : public Script<ScriptC3> {
 		entity.GetPosition() = mouse + entity.Get<Draggable>().offset;
 	}
 
-	// void OnMouseDown(Mouse mouse) override {
-	//	PTGN_LOG("c3 Mouse down: ", mouse);
-	// }
-	// void OnMouseDownOutside(Mouse mouse) override {
-	//	PTGN_LOG("c3 Mouse down outside: ", mouse);
-	// }
-	// void OnMousePressed(Mouse mouse) override {
-	//	PTGN_LOG("c3 Mouse pressed: ", mouse);
-	// }
-	// void OnMouseScroll(V2_int mouse) override {
-	//	PTGN_LOG("c3 Mouse scroll: ", mouse);
-	// }
-	// void OnMouseUp(Mouse mouse) override {
-	//	PTGN_LOG("c3 Mouse up: ", mouse);
-	// }
-	// void OnMouseUpOutside(Mouse mouse) override {
-	//	PTGN_LOG("c3 Mouse up outside: ", mouse);
-	// }
+	void OnMouseDown(Mouse mouse) override {
+		PTGN_LOG("c3 Mouse down: ", mouse);
+	}
+
+	void OnMouseDownOutside(Mouse mouse) override {
+		PTGN_LOG("c3 Mouse down outside: ", mouse);
+	}
+
+	void OnMousePressed(Mouse mouse) override {
+		PTGN_LOG("c3 Mouse pressed: ", mouse);
+	}
+
+	void OnMouseScroll(V2_int mouse) override {
+		PTGN_LOG("c3 Mouse scroll: ", mouse);
+	}
+
+	void OnMouseUp(Mouse mouse) override {
+		PTGN_LOG("c3 Mouse up: ", mouse);
+	}
+
+	void OnMouseUpOutside(Mouse mouse) override {
+		PTGN_LOG("c3 Mouse up outside: ", mouse);
+	}
 
 	void OnDragEnter(Entity dropzone) override {
 		PTGN_LOG("c3 Drag enter: ", dropzone.GetId());
@@ -366,13 +371,13 @@ struct ScriptC3 : public Script<ScriptC3> {
 		PTGN_LOG("c3 Drag over: ", dropzone.GetId());
 	}
 
-	/*void OnDragStart(V2_float mouse) override {
+	void OnDragStart(V2_float mouse) override {
 		PTGN_LOG("c3 Drag start: ", mouse);
 	}
 
 	void OnDragStop(V2_float mouse) override {
 		PTGN_LOG("c3 Drag stop: ", mouse);
-	}*/
+	}
 
 	void OnDrop(Entity dropzone) override {
 		PTGN_LOG("c3 dropped onto: ", dropzone.GetId());
@@ -391,7 +396,7 @@ struct InteractiveScene : public Scene {
 		V2_float offset{ 250, 250 };
 		V2_float rsize{ 100, 50 };
 
-		/*auto c0 = CreateCircle(
+		auto c0 = CreateCircle(
 			*this, center + V2_float{ offset.x, -offset.y }, 90.0f, color::Green, 1.0f
 		);
 		auto c0_child = CreateCircle(*this, {}, 90.0f, color::Magenta, 1.0f);
@@ -425,7 +430,7 @@ struct InteractiveScene : public Scene {
 		r2.SetPosition(center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateRect(*this, {}, r2.GetDisplaySize(), color::Magenta, 1.0f);
 		r2.AddInteractable(r2_child);
-		r2.AddScript<ScriptR2>();*/
+		r2.AddScript<ScriptR2>();
 
 		game.texture.Load("drag", "resources/drag.png");
 		game.texture.Load("drag_circle", "resources/drag_circle.png");
