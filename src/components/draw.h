@@ -35,6 +35,12 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 
 } // namespace impl
 
+struct TextureSize : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(TextureSize, value_)
+};
+
 struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 

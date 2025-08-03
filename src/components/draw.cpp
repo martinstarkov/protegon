@@ -50,11 +50,19 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 }
 
 V2_int GetTextureSize(const Entity& entity) {
+	V2_int size;
+	if (entity.Has<TextureSize>()) {
+		size = V2_int{ entity.Get<TextureSize>() };
+		if (!size.IsZero()) {
+			return size;
+		}
+	}
 	if (entity.Has<TextureHandle>()) {
-		return entity.Get<TextureHandle>().GetSize(entity);
+		size = entity.Get<TextureHandle>().GetSize(entity);
 	}
 
-	PTGN_ERROR("Texture does not have a valid size");
+	PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
+	return size;
 }
 
 V2_int GetCroppedSize(const Entity& entity) {

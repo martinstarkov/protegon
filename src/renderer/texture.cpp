@@ -293,12 +293,14 @@ std::int32_t Texture::GetParameterI(TextureParameter parameter) const {
 
 void Texture::GenerateMipmaps() const {
 	PTGN_ASSERT(IsBound(), "Texture must be bound prior to generating mipmaps for it");
+#ifndef __EMSCRIPTEN__
 	PTGN_ASSERT(
 		ValidMinifyingForMipmaps(
 			static_cast<TextureScaling>(GetParameterI(TextureParameter::MinifyingScaling))
 		),
 		"Set texture minifying scaling to mipmap type before generating mipmaps"
 	);
+#endif
 	GLCall(GenerateMipmap(static_cast<GLenum>(TextureTarget::Texture2D)));
 }
 

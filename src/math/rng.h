@@ -232,6 +232,13 @@ public:
 		return items_.size();
 	}
 
+	template <typename Func>
+	void ForEach(Func func) {
+		for (auto i = 0; i < Size(); i++) {
+			std::invoke(func, items_[i]);
+		}
+	}
+
 private:
 	std::vector<T> items_;
 	RNG<std::size_t> rng_;
