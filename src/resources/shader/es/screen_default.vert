@@ -1,9 +1,10 @@
 R"(#version 300 es
 precision highp float;
 
-in vec3 a_Position;
-in vec4 a_Color;
-in vec2 a_TexCoord;
+// DO NOT REMOVE THESE LAYOUTS. BREAKS TEXTURES ON MACOS FIREFOX EMSCRIPTEN.
+layout (location = 0) in vec3 a_Position;
+layout (location = 1) in vec4 a_Color;
+layout (location = 2) in vec2 a_TexCoord;
 
 uniform mat4 u_ViewProjection;
 
