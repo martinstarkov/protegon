@@ -607,14 +607,17 @@ Entity& Entity::SetDepth(const Depth& depth) {
 }
 
 Depth Entity::GetDepth() const {
-	Depth parent_depth{};
+	// TODO: This was causing a bug with the mitosis disk background (rock texture) thing in GMTK
+	// 2025. Figure out how to fix relative depths.
+	/*Depth parent_depth{};
 	if (HasParent()) {
 		auto parent{ GetParent() };
 		if (parent != *this && parent.Has<Depth>()) {
 			parent_depth = parent.GetDepth();
 		}
 	}
-	return parent_depth + GetOrDefault<Depth>();
+	return parent_depth +*/
+	return GetOrDefault<Depth>();
 }
 
 Entity& Entity::SetBlendMode(BlendMode blend_mode) {
