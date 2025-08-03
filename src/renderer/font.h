@@ -73,7 +73,7 @@ public:
 	FontManager& operator=(const FontManager&) = delete;
 	FontManager(FontManager&& other) noexcept;
 	FontManager& operator=(FontManager&& other) noexcept;
-	~FontManager() final;
+	~FontManager() override;
 
 	void Load(const ResourceHandle& key, const path& filepath) final;
 
@@ -113,7 +113,7 @@ public:
 private:
 	friend class Game;
 	friend class ptgn::Text;
-	friend class ParentManager;
+	friend ParentManager;
 
 	// Initializes the default font from a binary.
 	void Init();

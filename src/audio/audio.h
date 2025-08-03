@@ -70,7 +70,7 @@ public:
 	[[nodiscard]] bool IsFading() const;
 
 private:
-	friend class ParentManager;
+	friend ParentManager;
 
 	[[nodiscard]] static Music LoadFromFile(const path& filepath);
 };
@@ -140,7 +140,7 @@ public:
 	[[nodiscard]] bool IsFading(int channel) const;
 
 private:
-	friend class ParentManager;
+	friend ParentManager;
 
 	[[nodiscard]] static Sound LoadFromFile(const path& filepath);
 };

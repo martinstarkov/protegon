@@ -213,9 +213,11 @@ impl::Texture Text::CreateTexture(
 
 	TTF_SetFontWrappedAlign(font, static_cast<int>(properties.justify));
 
+#ifndef __EMSCRIPTEN__ // TODO: Re-enable this for Emscripten once it is supported (SDL_ttf 2.24.0).
 	if (properties.line_skip != std::numeric_limits<std::int32_t>::infinity()) {
 		TTF_SetFontLineSkip(font, properties.line_skip);
 	}
+#endif
 	if (font_size != std::numeric_limits<std::int32_t>::infinity()) {
 		TTF_SetFontSize(font, font_size);
 	}

@@ -12,7 +12,7 @@ public:
 	[[nodiscard]] const json& Get(const ResourceHandle& key) const;
 
 private:
-	friend class ParentManager;
+	friend ParentManager;
 
 	[[nodiscard]] static json LoadFromFile(const path& filepath);
 };

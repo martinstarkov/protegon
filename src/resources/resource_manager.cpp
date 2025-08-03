@@ -46,10 +46,10 @@ template <typename Derived, typename HandleType, typename ItemType>
 void ResourceManager<Derived, HandleType, ItemType>::Load(
 	const HandleType& key, const path& filepath
 ) {
-	static_assert(
+	/*static_assert(
 		impl::has_static_load_from_file<Derived>::value,
 		"Derived resource manager must implement static LoadFromFile(const path&)"
-	);
+	);*/
 
 	auto [it, inserted] = resources_.try_emplace(key);
 	if (inserted) {

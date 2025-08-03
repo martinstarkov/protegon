@@ -299,8 +299,10 @@ public:
 	[[nodiscard]] V2_int GetSize(const TextureHandle& key) const;
 
 private:
-	friend class ParentManager;
-	friend struct TextureHandle;
+	[[nodiscard]] const Texture& Get(const TextureHandle& key) const;
+
+	friend ParentManager;
+	friend struct ptgn::TextureHandle;
 
 	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
 };

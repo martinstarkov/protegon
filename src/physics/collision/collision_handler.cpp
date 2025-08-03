@@ -376,7 +376,7 @@ void CollisionHandler::HandleCollisions(Entity entity, const std::vector<Entity>
 	collider = entity.Get<Collider>();
 
 	for (const auto& prev : collider.prev_collisions_) {
-		PTGN_ASSERT(entity != prev.entity)
+		PTGN_ASSERT(entity != prev.entity);
 	}
 	for (const auto& current : collider.collisions_) {
 		PTGN_ASSERT(entity != current.entity);

@@ -433,6 +433,10 @@ V2_int TextureManager::GetSize(const TextureHandle& key) const {
 	return Get(key).GetSize();
 }
 
+const Texture& TextureManager::Get(const TextureHandle& key) const {
+	return ParentManager::Get(key);
+}
+
 Texture TextureManager::LoadFromFile(const path& filepath) {
 	Surface s{ filepath };
 	// For debugging: Print corners of the texture.
