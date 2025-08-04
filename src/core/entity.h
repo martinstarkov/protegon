@@ -802,6 +802,8 @@ public:
 
 	virtual void OnMoveRightStop() { /* user implementation */ }
 
+	// TODO: Fix these.
+
 	// Must return true for collision to be checked.
 	// Defaults to true.
 	virtual bool PreCollisionCondition([[maybe_unused]] Entity other) {
@@ -814,6 +816,8 @@ public:
 	virtual void OnCollision([[maybe_unused]] Collision collision) { /* user implementation */ }
 
 	virtual void OnCollisionStop([[maybe_unused]] Collision collision) { /* user implementation */ }
+
+	virtual void OnRaycastHit([[maybe_unused]] Collision collision) { /* user implementation */ }
 
 	// Button events.
 
