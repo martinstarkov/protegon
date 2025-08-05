@@ -4,15 +4,15 @@
 #include <string>
 #include <string_view>
 
+#include "common/assert.h"
+#include "core/game.h"
+#include "core/sdl_instance.h"
+#include "debug/log.h"
+#include "math/vector2.h"
 #include "SDL_error.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
-#include "core/game.h"
-#include "core/sdl_instance.h"
-#include "math/vector2.h"
-#include "common/assert.h"
-#include "debug/log.h"
 
 #ifdef __EMSCRIPTEN__
 
