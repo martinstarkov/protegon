@@ -11,6 +11,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/window.h"
+#include "debug/profiling.h"
 #include "input/input_handler.h"
 #include "math/geometry.h"
 #include "math/geometry/rect.h"
@@ -27,207 +28,205 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 }; //{ 1280, 720 };
 
-/*
-// TODO: Move all of this into the collision system.
-
-struct AABB {
-	V2_float min;
-	V2_float max;
-
-	bool intersects(const AABB& other) const {
-		return !(
-			max.x < other.min.x || min.x > other.max.x || max.y < other.min.y || min.y > other.max.y
-		);
-	}
-
-	bool contains(const V2_float& point) const {
-		return point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y;
-	}
-
-	bool contains(const AABB& other) const {
-		return min.x <= other.min.x && max.x >= other.max.x && min.y <= other.min.y &&
-			   max.y >= other.max.y;
-	}
-};
-
-// --- Quadtree Node ---
-class QuadtreeNode {
-public:
-	std::vector<Entity> objects;
-	QuadtreeNode* children[4] = { nullptr, nullptr, nullptr, nullptr };
-	int maxObjects			  = 4;
-	int maxLevels			  = 5;
-	int level{ 0 };
-	AABB bounds;
-
-	QuadtreeNode(int lvl, const AABB& bounds_) : level(lvl), bounds(bounds_) {}
-
-	~QuadtreeNode() {
-		for (auto& c : children) {
-			if (c) {
-				delete c;
-			}
-		}
-	}
-
-	bool isLeaf() const {
-		return children[0] == nullptr;
-	}
-
-	void subdivide() {
-		float halfWidth	 = (bounds.max.x - bounds.min.x) / 2.0f;
-		float halfHeight = (bounds.max.y - bounds.min.y) / 2.0f;
-		V2_float mid	 = bounds.min + V2_float(halfWidth, halfHeight);
-
-		children[0] = new QuadtreeNode(level + 1, AABB{ bounds.min, mid });
-		children[1] = new QuadtreeNode(
-			level + 1, AABB{ V2_float(mid.x, bounds.min.y), V2_float(bounds.max.x, mid.y) }
-		);
-		children[2] = new QuadtreeNode(
-			level + 1, AABB{ V2_float(bounds.min.x, mid.y), V2_float(mid.x, bounds.max.y) }
-		);
-		children[3] = new QuadtreeNode(level + 1, AABB{ mid, bounds.max });
-	}
-
-	int getChildIndex(const AABB& box) const {
-		for (int i = 0; i < 4; i++) {
-			if (children[i] && children[i]->bounds.contains(box)) {
-				return i;
-			}
-		}
-		return -1;
-	}
-
-	void insert(const Entity& e, std::unordered_map<Entity, QuadtreeNode*>& entityNodeMap) {
-		AABB box = e.Get<AABB>();
-
-		if (!isLeaf()) {
-			int idx = getChildIndex(box);
-			if (idx != -1) {
-				children[idx]->insert(e, entityNodeMap);
-				return;
-			}
-		}
-
-		objects.push_back(e);
-		entityNodeMap[e] = this;
-
-		if (isLeaf() && objects.size() > maxObjects && level < maxLevels) {
-			subdivide();
-
-			for (auto it = objects.begin(); it != objects.end();) {
-				int idx = getChildIndex(it->Get<AABB>());
-				if (idx != -1) {
-					children[idx]->insert(*it, entityNodeMap);
-					entityNodeMap.erase(*it);
-					it = objects.erase(it);
-				} else {
-					++it;
-				}
-			}
-		}
-	}
-
-	bool remove(const Entity& e, std::unordered_map<Entity, QuadtreeNode*>& entityNodeMap) {
-		for (auto it = objects.begin(); it != objects.end(); ++it) {
-			if (*it == e) {
-				objects.erase(it);
-				entityNodeMap.erase(e);
-				return true;
-			}
-		}
-
-		if (!isLeaf()) {
-			for (auto c : children) {
-				if (c->remove(e, entityNodeMap)) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	void update(const Entity& e, std::unordered_map<Entity, QuadtreeNode*>& entityNodeMap) {
-		AABB box				  = e.Get<AABB>();
-		QuadtreeNode* currentNode = entityNodeMap[e];
-
-		if (currentNode && currentNode->bounds.contains(box)) {
-			// Just update the object in place (no stored AABB so nothing needed)
-			// No action needed here since we pull AABB fresh on queries.
-		} else {
-			// Remove and re-insert to correct node
-			if (currentNode) {
-				currentNode->remove(e, entityNodeMap);
-			}
-			insert(e, entityNodeMap);
-		}
-	}
-
-	void retrieve(const AABB& box, std::vector<Entity>& candidates) const {
-		for (const auto& e : objects) {
-			if (e.Get<AABB>().intersects(box)) {
-				candidates.push_back(e);
-			}
-		}
-
-		if (!isLeaf()) {
-			for (auto c : children) {
-				if (c->bounds.intersects(box)) {
-					c->retrieve(box, candidates);
-				}
-			}
-		}
-	}
-};
-
-class Quadtree {
-	QuadtreeNode* root;
-	std::unordered_map<Entity, QuadtreeNode*> entityNodeMap;
-
-public:
-	Quadtree(const AABB& bounds) {
-		root = new QuadtreeNode(0, bounds);
-	}
-
-	~Quadtree() {
-		delete root;
-	}
-
-	void insert(const Entity& e) {
-		root->insert(e, entityNodeMap);
-	}
-
-	void remove(const Entity& e) {
-		if (entityNodeMap.find(e) != entityNodeMap.end()) {
-			QuadtreeNode* node = entityNodeMap[e];
-			node->remove(e, entityNodeMap);
-		}
-	}
-
-	void update(const Entity& e) {
-		if (entityNodeMap.find(e) != entityNodeMap.end()) {
-			entityNodeMap[e]->update(e, entityNodeMap);
-		} else {
-			insert(e);
-		}
-	}
-
-	std::vector<Entity> retrieve(const AABB& box) const {
-		std::vector<Entity> candidates;
-		root->retrieve(box, candidates);
-		return candidates;
-	}
-};
-
-bool Overlaps(const AABB& a, const AABB& b) {
-	return (a.min.x <= b.max.x && a.max.x >= b.min.x) && (a.min.y <= b.max.y && a.max.y >= b.min.y);
-}
-
-#define QUADTREE 1
-
-*/
-
-/*
+										  /*
+										  // TODO: Move all of this into the collision system.
+										  
+										  struct AABB {
+											  V2_float min;
+											  V2_float max;
+										  
+											  bool intersects(const AABB& other) const {
+												  return !(
+													  max.x < other.min.x || min.x > other.max.x || max.y < other.min.y || min.y > other.max.y
+												  );
+											  }
+										  
+											  bool contains(const V2_float& point) const {
+												  return point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y;
+											  }
+										  
+											  bool contains(const AABB& other) const {
+												  return min.x <= other.min.x && max.x >= other.max.x && min.y <= other.min.y &&
+														 max.y >= other.max.y;
+											  }
+										  };
+										  
+										  // --- Quadtree Node ---
+										  class QuadtreeNode {
+										  public:
+											  std::vector<Entity> objects;
+											  QuadtreeNode* children[4] = { nullptr, nullptr, nullptr, nullptr };
+											  int maxObjects			  = 4;
+											  int maxLevels			  = 5;
+											  int level{ 0 };
+											  AABB bounds;
+										  
+											  QuadtreeNode(int lvl, const AABB& bounds_) : level(lvl), bounds(bounds_) {}
+										  
+											  ~QuadtreeNode() {
+												  for (auto& c : children) {
+													  if (c) {
+														  delete c;
+													  }
+												  }
+											  }
+										  
+											  bool isLeaf() const {
+												  return children[0] == nullptr;
+											  }
+										  
+											  void subdivide() {
+												  float halfWidth	 = (bounds.max.x - bounds.min.x) / 2.0f;
+												  float halfHeight = (bounds.max.y - bounds.min.y) / 2.0f;
+												  V2_float mid	 = bounds.min + V2_float(halfWidth, halfHeight);
+										  
+												  children[0] = new QuadtreeNode(level + 1, AABB{ bounds.min, mid });
+												  children[1] = new QuadtreeNode(
+													  level + 1, AABB{ V2_float(mid.x, bounds.min.y), V2_float(bounds.max.x, mid.y) }
+												  );
+												  children[2] = new QuadtreeNode(
+													  level + 1, AABB{ V2_float(bounds.min.x, mid.y), V2_float(mid.x, bounds.max.y) }
+												  );
+												  children[3] = new QuadtreeNode(level + 1, AABB{ mid, bounds.max });
+											  }
+										  
+											  int getChildIndex(const AABB& box) const {
+												  for (int i = 0; i < 4; i++) {
+													  if (children[i] && children[i]->bounds.contains(box)) {
+														  return i;
+													  }
+												  }
+												  return -1;
+											  }
+										  
+											  void insert(const Entity& e, std::unordered_map<Entity, QuadtreeNode*>& entityNodeMap) {
+												  AABB box = e.Get<AABB>();
+										  
+												  if (!isLeaf()) {
+													  int idx = getChildIndex(box);
+													  if (idx != -1) {
+														  children[idx]->insert(e, entityNodeMap);
+														  return;
+													  }
+												  }
+										  
+												  objects.push_back(e);
+												  entityNodeMap[e] = this;
+										  
+												  if (isLeaf() && objects.size() > maxObjects && level < maxLevels) {
+													  subdivide();
+										  
+													  for (auto it = objects.begin(); it != objects.end();) {
+														  int idx = getChildIndex(it->Get<AABB>());
+														  if (idx != -1) {
+															  children[idx]->insert(*it, entityNodeMap);
+															  entityNodeMap.erase(*it);
+															  it = objects.erase(it);
+														  } else {
+															  ++it;
+														  }
+													  }
+												  }
+											  }
+										  
+											  bool remove(const Entity& e, std::unordered_map<Entity, QuadtreeNode*>& entityNodeMap) {
+												  for (auto it = objects.begin(); it != objects.end(); ++it) {
+													  if (*it == e) {
+														  objects.erase(it);
+														  entityNodeMap.erase(e);
+														  return true;
+													  }
+												  }
+										  
+												  if (!isLeaf()) {
+													  for (auto c : children) {
+														  if (c->remove(e, entityNodeMap)) {
+															  return true;
+														  }
+													  }
+												  }
+												  return false;
+											  }
+										  
+											  void update(const Entity& e, std::unordered_map<Entity, QuadtreeNode*>& entityNodeMap) {
+												  AABB box				  = e.Get<AABB>();
+												  QuadtreeNode* currentNode = entityNodeMap[e];
+										  
+												  if (currentNode && currentNode->bounds.contains(box)) {
+													  // Just update the object in place (no stored AABB so nothing needed)
+													  // No action needed here since we pull AABB fresh on queries.
+												  } else {
+													  // Remove and re-insert to correct node
+													  if (currentNode) {
+														  currentNode->remove(e, entityNodeMap);
+													  }
+													  insert(e, entityNodeMap);
+												  }
+											  }
+										  
+											  void retrieve(const AABB& box, std::vector<Entity>& candidates) const {
+												  for (const auto& e : objects) {
+													  if (e.Get<AABB>().intersects(box)) {
+														  candidates.push_back(e);
+													  }
+												  }
+										  
+												  if (!isLeaf()) {
+													  for (auto c : children) {
+														  if (c->bounds.intersects(box)) {
+															  c->retrieve(box, candidates);
+														  }
+													  }
+												  }
+											  }
+										  };
+										  
+										  class Quadtree {
+											  QuadtreeNode* root;
+											  std::unordered_map<Entity, QuadtreeNode*> entityNodeMap;
+										  
+										  public:
+											  Quadtree(const AABB& bounds) {
+												  root = new QuadtreeNode(0, bounds);
+											  }
+										  
+											  ~Quadtree() {
+												  delete root;
+											  }
+										  
+											  void insert(const Entity& e) {
+												  root->insert(e, entityNodeMap);
+											  }
+										  
+											  void remove(const Entity& e) {
+												  if (entityNodeMap.find(e) != entityNodeMap.end()) {
+													  QuadtreeNode* node = entityNodeMap[e];
+													  node->remove(e, entityNodeMap);
+												  }
+											  }
+										  
+											  void update(const Entity& e) {
+												  if (entityNodeMap.find(e) != entityNodeMap.end()) {
+													  entityNodeMap[e]->update(e, entityNodeMap);
+												  } else {
+													  insert(e);
+												  }
+											  }
+										  
+											  std::vector<Entity> retrieve(const AABB& box) const {
+												  std::vector<Entity> candidates;
+												  root->retrieve(box, candidates);
+												  return candidates;
+											  }
+										  };
+										  
+										  bool Overlaps(const AABB& a, const AABB& b) {
+											  return (a.min.x <= b.max.x && a.max.x >= b.min.x) && (a.min.y <= b.max.y && a.max.y >= b.min.y);
+										  }
+										  
+										  #define QUADTREE 1
+										  
+										  */
 
 struct AABB {
 	V2_float min;
@@ -479,9 +478,8 @@ private:
 			if (obj.entity == entity) {
 				continue;
 			}
-			auto raycast = ptgn::impl::RaycastLineRect(
-				origin, origin + dir, (obj.aabb.min + obj.aabb.max) / 2.0f,
-				obj.aabb.max - obj.aabb.min
+			auto raycast = ptgn::impl::RaycastRect(
+				origin, origin + dir, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
 			);
 			if (raycast.Occurred()) {
 				result.push_back(obj.entity);
@@ -506,9 +504,8 @@ private:
 			if (obj.entity == entity) {
 				continue;
 			}
-			auto raycast = ptgn::impl::RaycastLineRect(
-				origin, origin + dir, (obj.aabb.min + obj.aabb.max) / 2.0f,
-				obj.aabb.max - obj.aabb.min
+			auto raycast = ptgn::impl::RaycastRect(
+				origin, origin + dir, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
 			);
 			if (raycast.Occurred()) {
 				if (raycast.t < closest_t) {
@@ -572,7 +569,7 @@ private:
 AABB GetBoundingVolume(Entity entity) {
 	auto position{ entity.GetPosition() };
 	// TODO: Use collider size.
-	auto half{ entity.Get<Rect>().size * 0.5f };
+	auto half{ entity.Get<Rect>().GetSize() * 0.5f };
 	auto center{ position - impl::GetOriginOffsetHalf(entity.GetOrigin(), half) };
 	return { center - half, center + half };
 }
@@ -668,9 +665,11 @@ struct BroadphaseScene : public Scene {
 
 		// For overlap / trigger tests:
 
+		// PTGN_LOG("---------------------");
 		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
 			auto b1{ GetBoundingVolume(e1) };
 			auto candidates = tree.Query(b1);
+			// PTGN_LOG(candidates.size());
 			for (auto& e2 : candidates) {
 				if (e1 == e2) {
 					continue;
@@ -719,7 +718,14 @@ struct BroadphaseScene : public Scene {
 #endif
 	}
 };
-*/
+
+int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+	game.Init("BroadphaseScene", window_size);
+	game.scene.Enter<BroadphaseScene>("");
+	return 0;
+}
+
+/*
 
 #include <unordered_set>
 
@@ -1114,7 +1120,11 @@ namespace std {
 template <>
 struct hash<HashGridKey> {
 	std::size_t operator()(const HashGridKey& key) const {
-		return (std::hash<int>()(key.x) << 1) ^ std::hash<int>()(key.y);
+		// Boost hash combine trick.
+		std::size_t seed{ 0 };
+		seed ^= std::hash<int>()(key.x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		seed ^= std::hash<int>()(key.y) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		return seed;
 	}
 };
 } // namespace std
@@ -1392,12 +1402,12 @@ struct EntityPair {
 	}
 };
 
-#define KDTREE 1
+// #define KDTREE 1
 
 class CollisionSystem {
 public:
 #ifndef KDTREE
-	SpatialHash broadphase{ 400 };
+	SpatialHash broadphase{ 64 };
 #else
 
 	KDTree broadphase{ 1000 };
@@ -1710,10 +1720,50 @@ struct E1Script : public Script<E1Script> {
 	}
 };
 
+Rect GetBoundingVolume(Entity entity) {
+	auto position{ entity.GetPosition() };
+	// TODO: Use collider size.
+	auto half{ entity.Get<MyCollider>().rect.GetSize() * 0.5f };
+	auto center{ position - impl::GetOriginOffsetHalf(entity.GetOrigin(), half) };
+	return Rect{ center - half, center + half };
+}
+
+Entity AddEntity(
+	Scene& scene, const V2_float& center, const V2_float& size, const Color& color,
+	bool induce_random_velocity = true
+) {
+	Entity entity  = CreateRect(scene, center, size, color);
+	auto& collider = entity.Add<MyCollider>();
+	collider.rect  = Rect{ size };
+	collider.type  = CollisionType::Overlap;
+	entity.Enable();
+	const auto random_vel = []() {
+		V2_float dir{ V2_float::Random(-0.5f, 0.5f) };
+		float speed = 60.0f;
+
+		if (dir.x != 0 || dir.y != 0) {
+			return dir.Normalized() * speed;
+		} else {
+			return V2_float{ speed, 0.0f };
+		}
+	};
+	if (induce_random_velocity) {
+		auto& rb{ entity.Add<RigidBody>() };
+		rb.velocity = random_vel();
+	}
+	return entity;
+}
+
 class BroadphaseScene : public Scene {
 public:
-	Entity a;
-	Entity b;
+	std::size_t entity_count{ 1000 };
+
+	Entity player;
+	V2_float player_size{ 20, 20 };
+
+	RNG<float> rngx{ 0.0f, (float)window_size.x };
+	RNG<float> rngy{ 0.0f, (float)window_size.y };
+	RNG<float> rngsize{ 5.0f, 30.0f };
 
 	void Enter() override {
 #ifndef KDTREE
@@ -1722,41 +1772,37 @@ public:
 		game.window.SetTitle("BroadphaseScene: KDTree");
 #endif
 
-		a = CreateEntity();
-		a.Add<Transform>(V2_float{ 100, 100 });
-		a.Add<MyCollider>(Rect{});
-		a.Add<RigidBody>();
-		a.Enable();
-		b = CreateEntity();
-		b.Add<MyCollider>(Rect{});
+		physics.SetBounds({}, window_size, BoundaryBehavior::ReflectVelocity);
 
-		a.Add<Scripts>().AddScript<E1Script>().entity = a;
-		b.Add<Scripts>().AddScript<E1Script>().entity = b;
+		player = AddEntity(*this, window_size * 0.5f, player_size, color::Purple, false);
+		player.SetDepth(1);
+
+		player.Add<Scripts>().AddScript<E1Script>().entity = player;
+
+		for (std::size_t i{ 0 }; i < entity_count; ++i) {
+			AddEntity(
+				*this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green, FlipCoin()
+			);
+		}
 	}
 
 	CollisionSystem collision;
 
 	void Update() override {
 		V2_float sizea{ 50, 50 };
-		MoveWASD(a.Get<RigidBody>().velocity, V2_float{ 100 } * game.dt());
-		// game.input.GetMousePosition()
-		V2_float pos{ a.GetPosition() };
-		Rect recta{ pos - sizea / 2, pos + sizea / 2 };
-		Rect rectb{ { 300, 300 }, { 500, 500 } };
 
-		auto& cola = a.Get<MyCollider>();
-		auto& colb = b.Get<MyCollider>();
+		MoveWASD(player.GetPosition(), V2_float{ 100.0f } * game.dt(), false);
 
-		cola.rect = recta;
-		colb.rect = rectb;
+		for (auto [e, tint] : EntitiesWith<Tint>()) {
+			tint = color::Green;
+		}
 
-		DrawDebugRect(
-			cola.rect.GetCenter(Transform{}), cola.rect.GetSize(), color::Blue, Origin::Center, 1.0f
-		);
-		DrawDebugRect(
-			colb.rect.GetCenter(Transform{}), colb.rect.GetSize(), color::Green, Origin::Center,
-			1.0f
-		);
+		player.SetTint(color::Purple);
+
+		for (auto [e, transform, collider] : EntitiesWith<Transform, MyCollider>()) {
+			auto size{ collider.rect.GetSize() };
+			collider.rect = Rect{ transform.position - size, transform.position + size };
+		}
 
 		collision.Update(*this, game.dt());
 	}
@@ -1767,6 +1813,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.scene.Enter<BroadphaseScene>("");
 	return 0;
 }
+*/
 
 /*
 struct Box;

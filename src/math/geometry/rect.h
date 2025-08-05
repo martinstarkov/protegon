@@ -24,7 +24,7 @@ class RenderData;
 struct Rect : public Drawable<Rect> {
 	Rect() = default;
 
-	explicit Rect(const V2_float& min, const V2_float& max);
+	Rect(const V2_float& min, const V2_float& max);
 	explicit Rect(const V2_float& size);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
