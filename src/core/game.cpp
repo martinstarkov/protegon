@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "common/assert.h"
 #include "core/sdl_instance.h"
@@ -18,7 +19,6 @@
 #include "debug/log.h"
 #include "debug/profiling.h"
 #include "debug/stats.h"
-#include "events/event_handler.h"
 #include "input/input_handler.h"
 #include "math/hash.h"
 #include "math/vector2.h"
@@ -29,7 +29,6 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
-#include "SDL_timer.h"
 #include "serialization/json.h"
 #include "serialization/json_manager.h"
 #include "utility/file.h"
@@ -133,8 +132,6 @@ Game::Game() :
 	window_{ std::make_unique<Window>() },
 	window{ *window_ },
 	gl_context_{ std::make_unique<GLContext>() },
-	event_{ std::make_unique<EventHandler>() },
-	event{ *event_ },
 	input_{ std::make_unique<InputHandler>() },
 	input{ *input_ },
 	renderer_{ std::make_unique<Renderer>() },
@@ -167,7 +164,6 @@ Game::Game() :
 	font.Init();
 	window.Init();
 	gl_context_->Init();
-	event.Init();
 	input.Init();
 
 	shader.Init();
@@ -219,7 +215,6 @@ void Game::Shutdown() {
 
 	renderer.Shutdown();
 	input.Shutdown();
-	event.Shutdown();
 	window.Shutdown();
 
 	// Keep SDL2 instance and OpenGL context alive to ensure SDL2 objects such as TTF_Font are

@@ -48,7 +48,6 @@ namespace impl {
 class SDLInstance;
 class GLContext;
 class Window;
-class EventHandler;
 class InputHandler;
 class Renderer;
 class SceneManager;
@@ -141,12 +140,6 @@ public:
 
 private:
 	std::unique_ptr<GLContext> gl_context_;
-	std::unique_ptr<EventHandler> event_;
-
-public:
-	EventHandler& event;
-
-private:
 	std::unique_ptr<InputHandler> input_;
 
 public:

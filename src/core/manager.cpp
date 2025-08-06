@@ -9,7 +9,6 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "ecs/ecs.h"
-#include "events/event_handler.h"
 #include "nlohmann/json.hpp"
 #include "serialization/component_registry.h"
 #include "serialization/fwd.h"
@@ -74,16 +73,10 @@ void Manager::ClearEntities() {
 }
 
 void Manager::Clear() {
-	for (auto e : Entities()) {
-		game.event.UnsubscribeAll(e);
-	}
 	return Parent::Clear();
 }
 
 void Manager::Reset() {
-	for (auto e : Entities()) {
-		game.event.UnsubscribeAll(e);
-	}
 	return Parent::Reset();
 }
 

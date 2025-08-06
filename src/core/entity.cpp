@@ -15,7 +15,6 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
-#include "events/event_handler.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
 #include "renderer/api/origin.h"
@@ -50,8 +49,6 @@ Entity& Entity::Destroy(bool orphan_children) {
 	if (*this == Entity{}) {
 		return *this;
 	}
-
-	game.event.UnsubscribeAll(*this);
 
 	if (!orphan_children) {
 		auto children{ GetChildren() };

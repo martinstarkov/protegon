@@ -15,7 +15,6 @@
 #include "core/manager.h"
 #include "core/timer.h"
 #include "ecs/ecs.h"
-#include "events/event_handler.h"
 #include "input/input_handler.h"
 #include "nlohmann/json.hpp"
 #include "physics/collision/collision_handler.h"
@@ -50,9 +49,6 @@ Scene::~Scene() {
 	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
 	game.renderer.GetRenderData().render_manager.Refresh();
-	for (auto e : Entities()) {
-		game.event.UnsubscribeAll(e);
-	}
 }
 
 void Scene::AddToDisplayList(Entity entity) {

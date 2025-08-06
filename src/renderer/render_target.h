@@ -46,13 +46,7 @@ struct ClearColor : public ColorComponent {
 class RenderTarget : public Entity, public Drawable<RenderTarget> {
 public:
 	// A default render target will result in the screen being used as the render target.
-	RenderTarget()									 = default;
-	RenderTarget(const RenderTarget&)				 = default;
-	RenderTarget& operator=(const RenderTarget&)	 = default;
-	RenderTarget(RenderTarget&&) noexcept			 = default;
-	RenderTarget& operator=(RenderTarget&&) noexcept = default;
-	~RenderTarget()									 = default;
-
+	RenderTarget() = default;
 	RenderTarget(const Entity& entity);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
