@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <ostream>
 
 #include "debug/log.h"
@@ -8,8 +9,19 @@
 
 namespace ptgn {
 
+namespace impl {
+
+enum class KeyState : std::uint8_t {
+	Up		 = 1,
+	Down	 = 2,
+	Released = 3,
+	Pressed	 = 4
+};
+
+} // namespace impl
+
 enum class Key {
-	Invalid = -1,
+	Invalid = 0,		// SDL_SCANCODE_UNKNOWN
 
 	K_0 = 39,			// Key 0 // SDL_SCANCODE_0
 	K_1 = 30,			// Key 1 // SDL_SCANCODE_1

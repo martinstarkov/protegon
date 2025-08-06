@@ -1,10 +1,14 @@
 #pragma once
 
+#include <array>
 #include <bitset>
+#include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "core/time.h"
 #include "core/timer.h"
+#include "events.h"
 #include "input/key.h"
 #include "input/mouse.h"
 #include "math/vector2.h"
@@ -23,25 +27,35 @@ class SceneManager;
 
 class InputHandler {
 public:
-	InputHandler()								 = default;
-	~InputHandler()								 = default;
-	InputHandler(const InputHandler&)			 = delete;
-	InputHandler(InputHandler&&)				 = default;
-	InputHandler& operator=(const InputHandler&) = delete;
-	InputHandler& operator=(InputHandler&&)		 = default;
+	InputHandler()									 = default;
+	~InputHandler() noexcept						 = default;
+	InputHandler(const InputHandler&)				 = delete;
+	InputHandler& operator=(const InputHandler&)	 = delete;
+	InputHandler(InputHandler&&) noexcept			 = default;
+	InputHandler& operator=(InputHandler&&) noexcept = default;
 
-	// TODO: Add KeyHeld().
+	// @param mouse_button The mouse button to check.
+	// @return The amount of time that the mouse button has been held down, 0 if it is not currently
+	// pressed.
+	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse mouse_button) const;
 
-	// @param button The mouse button to check.
-	// @return The amount of time that the mouse button has been held down.
-	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button);
+	// @param key The key to check.
+	// @return The amount of time that the key has been held down, 0 if it is not currently pressed.
+	[[nodiscard]] milliseconds GetKeyHeldTime(Key key) const;
 
 	/*
-	 * @param button The mouse button to check.
+	 * @param mouse_button The mouse button to check.
 	 * @param time The duration of time for which the mouse should be held.
 	 * @return True if the mouse button has been held for the given amount of time.
 	 */
-	[[nodiscard]] bool MouseHeld(Mouse button, milliseconds time = milliseconds{ 50 });
+	[[nodiscard]] bool MouseHeld(Mouse mouse_button, milliseconds time = milliseconds{ 50 }) const;
+
+	/*
+	 * @param key The key to check.
+	 * @param time The duration of time for which the key should be held.
+	 * @return True if the key has been held for the given amount of time.
+	 */
+	[[nodiscard]] bool KeyHeld(Key key, milliseconds time = milliseconds{ 50 }) const;
 
 	// @return True if mouse position is within window bounds, false otherwise.
 	[[nodiscard]] bool MouseWithinWindow() const;
@@ -75,36 +89,36 @@ public:
 	// positive upward, negative downward. Zero if no scroll occurred.
 	[[nodiscard]] int GetMouseScroll() const;
 
-	// @param button The mouse button to check.
+	// @param mouse_button The mouse button to check.
 	// @return True if the mouse button is pressed (true every frame that the button is down).
-	[[nodiscard]] bool MousePressed(Mouse button) const;
+	[[nodiscard]] bool MousePressed(Mouse mouse_button) const;
 
-	// @param button The mouse button to check.
+	// @param mouse_button The mouse button to check.
 	// @return True if the mouse button is released (true every frame that the button is up).
-	[[nodiscard]] bool MouseReleased(Mouse button) const;
+	[[nodiscard]] bool MouseReleased(Mouse mouse_button) const;
 
-	// @param button The mouse button to check.
+	// @param mouse_button The mouse button to check.
 	// @return True the first frame that the mouse button is pressed (false every frame after that).
-	[[nodiscard]] bool MouseDown(Mouse button) const;
+	[[nodiscard]] bool MouseDown(Mouse mouse_button) const;
 
-	// @param button The mouse button to check.
+	// @param mouse_button The mouse button to check.
 	// @return True the first frame that the mouse button is released (false every frame after
 	// that).
-	[[nodiscard]] bool MouseUp(Mouse button) const;
+	[[nodiscard]] bool MouseUp(Mouse mouse_button) const;
 
-	// @param button The key to check.
+	// @param mouse_button The key to check.
 	// @return True if the key is pressed (true every frame that the key is down).
 	[[nodiscard]] bool KeyPressed(Key key) const;
 
-	// @param button The key to check.
+	// @param mouse_button The key to check.
 	// @return True if the key is released (true every frame that the key is up).
 	[[nodiscard]] bool KeyReleased(Key key) const;
 
-	// @param button The key to check.
+	// @param mouse_button The key to check.
 	// @return True the first frame that the key is pressed (false every frame after that).
 	[[nodiscard]] bool KeyDown(Key key);
 
-	// @param button The key to check.
+	// @param mouse_button The key to check.
 	// @return True the first frame that the key is released (false every frame after that).
 	[[nodiscard]] bool KeyUp(Key key);
 
@@ -114,25 +128,23 @@ private:
 	friend class Game;
 	friend class ptgn::SceneInput;
 
+	using Timestamp = std::uint32_t;
+
 	// Updates the user inputs and posts any triggered input events. Run internally when using game
 	// scenes.
 	void Update();
 
-	// Updates previous mouse states for mouse up and down check.
-	void UpdateMouseState(Mouse button);
+	[[nodiscard]] MouseState GetMouseState(Mouse mouse_button) const;
+	[[nodiscard]] Timestamp GetMouseTimestamp(Mouse mouse_button) const;
 
-	/*
-	 * @param button Mouse enum corresponding to the desired button.
-	 * @return Pair of pointers to the mouse state and timer for a given button,
-	 * pair of nullptrs if no such button exists.
-	 */
-	[[nodiscard]] std::pair<MouseState&, Timer&> GetMouseStateAndTimer(Mouse button);
+	[[nodiscard]] KeyState GetKeyState(Key key) const;
+	[[nodiscard]] Timestamp GetKeyTimestamp(Key key) const;
 
-	/*
-	 * @param button Mouse enum corresponding to the desired button.
-	 * @return Current state of the given mouse button.
-	 */
-	[[nodiscard]] MouseState GetMouseState(Mouse button) const;
+	[[nodiscard]] std::size_t GetKeyIndex(Key key) const;
+	[[nodiscard]] std::size_t GetMouseIndex(Mouse mouse_button) const;
+	[[nodiscard]] Mouse GetMouse(std::size_t mouse_index) const;
+
+	[[nodiscard]] std::optional<InputEvent> GetInputEvent(const SDL_Event& e);
 
 	void Init();
 	void Shutdown();
@@ -142,28 +154,29 @@ private:
 	void ResetMouseStates();
 	void ResetMousePositions();
 
-	// Number of keys stored in the SDL key states array. For creating previous
-	// key states array.
+	[[nodiscard]] static milliseconds GetTimeSince(Timestamp timestamp);
+
+	// Number of keys stored in the SDL key states array.
 	static constexpr std::size_t key_count_{ 512 };
 
-	// Previous loop cycle key states for comparison with current.
-	std::bitset<key_count_> pressed_keys_;
-	std::bitset<key_count_> previous_pressed_keys_;
+	static constexpr std::size_t mouse_count_{ 3 };
 
-	// Mouse states.
-	MouseState left_mouse_{ MouseState::Released };
-	MouseState right_mouse_{ MouseState::Released };
-	MouseState middle_mouse_{ MouseState::Released };
+	std::array<KeyState, key_count_> key_states_;
+	std::array<Timestamp, key_count_> key_timestamps_;
+	std::array<MouseState, mouse_count_> mouse_states_;
+	std::array<Timestamp, mouse_count_> mouse_timestamps_;
 
 	V2_int mouse_position_;
 	V2_int previous_mouse_position_;
+
+	Timestamp mouse_scroll_timestamp_{ 0 };
 	V2_int mouse_scroll_;
 
-	// Timers for how long a mouse button has been held down for.
+	void Prepare();
+	void ProcessInputEvents();
+	void DispatchInputEvents();
 
-	Timer left_mouse_timer_;
-	Timer right_mouse_timer_;
-	Timer middle_mouse_timer_;
+	InputQueue queue_;
 };
 
 } // namespace impl
