@@ -27,14 +27,14 @@
 #define PTGN_HANDLE_OVERLAP_SOLO_PAIR(TypeA, TypeB, PREFIX)                 \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
 		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                  \
-	}
+	} else
 
 #define PTGN_HANDLE_OVERLAP_PAIR(TypeA, TypeB, PREFIX)                             \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {        \
 		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                         \
 	} else if constexpr (std::is_same_v<S1, TypeB> && std::is_same_v<S2, TypeA>) { \
 		return impl::PREFIX##TypeA##TypeB(t2, s2, t1, s1);                         \
-	}
+	} else
 
 #define PTGN_OVERLAP_SHAPE_PAIR_TABLE                          \
 	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Point, Point, Overlap)       \
@@ -764,8 +764,6 @@ bool OverlapTriangleCapsule(
 		Transform{}, Polygon{ triangle_polygon }, Transform{},
 		Capsule{ capsule_start, capsule_end, capsule_radius }
 	);
-
-	return false;
 }
 
 bool OverlapRectRect(const Transform& t1, const Rect& A, const Transform& t2, const Rect& B) {
@@ -966,8 +964,7 @@ bool Overlap(const Transform& t1, const Shape& shape1, const Transform& t2, cons
 				[&](const auto& s2) -> bool {
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
-					PTGN_OVERLAP_SHAPE_PAIR_TABLE
-					else {
+					PTGN_OVERLAP_SHAPE_PAIR_TABLE {
 						PTGN_ERROR("Cannot find overlap function for the given shapes");
 					}
 				},

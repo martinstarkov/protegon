@@ -25,14 +25,14 @@
 #define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
 		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                  \
-	}
+	} else
 
 #define PTGN_HANDLE_INTERSECT_PAIR(TypeA, TypeB, PREFIX)                           \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {        \
 		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                         \
 	} else if constexpr (std::is_same_v<S1, TypeB> && std::is_same_v<S2, TypeA>) { \
 		return impl::PREFIX##TypeA##TypeB(t2, s2, t1, s1);                         \
-	}
+	} else
 
 #define PTGN_INTERSECT_SHAPE_PAIR_TABLE                        \
 	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Circle, Circle, Intersect) \
@@ -341,8 +341,7 @@ Intersection Intersect(
 				[&](const auto& s2) -> Intersection {
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
-					PTGN_INTERSECT_SHAPE_PAIR_TABLE
-					else {
+					PTGN_INTERSECT_SHAPE_PAIR_TABLE {
 						PTGN_ERROR("Cannot find intersect function for the given shapes");
 					}
 				},

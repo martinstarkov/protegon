@@ -28,12 +28,12 @@
 #define PTGN_HANDLE_RAYCAST_LINE(TypeA, TypeB, PREFIX)                                    \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {               \
 		return impl::PREFIX##TypeB(V2_float{ s1 }, V2_float{ s1 } + ray, transform2, s2); \
-	}
+	} else
 
 #define PTGN_HANDLE_RAYCAST_SOLO_PAIR(TypeA, TypeB, PREFIX)                     \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {     \
 		return impl::PREFIX##TypeA##TypeB(ray, transform1, s1, transform2, s2); \
-	}
+	} else
 
 #define PTGN_RAYCAST_SHAPE_PAIR_TABLE                       \
 	PTGN_HANDLE_RAYCAST_LINE(Point, Line, Raycast)          \
@@ -706,8 +706,7 @@ RaycastResult Raycast(
 				[&](const auto& s2) -> RaycastResult {
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
-					PTGN_RAYCAST_SHAPE_PAIR_TABLE
-					else {
+					PTGN_RAYCAST_SHAPE_PAIR_TABLE {
 						PTGN_ERROR("Cannot find raycast function for the given shapes");
 					}
 				},
