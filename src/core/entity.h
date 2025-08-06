@@ -835,7 +835,8 @@ public:
 
 	template <auto TCallback, typename... TArgs>
 	static void Invoke(Scene& scene, TArgs&&... args) {
-		for (auto [entity, scripts] : scene.EntitiesWith<Scripts>()) {
+		auto entities{ GetEntities(scene) };
+		for (const auto& entity : entities) {
 			Invoke<TCallback>(entity, std::forward<TArgs>(args)...);
 		}
 	}
@@ -852,6 +853,9 @@ public:
 			std::invoke(TCallback, script, std::forward<TArgs>(args)...);
 		}
 	}
+
+private:
+	[[nodiscard]] static std::vector<Entity> GetEntities(Scene& scene);
 };
 
 template <typename T>

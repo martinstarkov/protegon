@@ -645,6 +645,10 @@ void Scripts::Update(Scene& scene, float dt) {
 	scene.Refresh();
 }
 
+std::vector<Entity> Scripts::GetEntities(Scene& scene) {
+	return scene.EntitiesWith<Scripts>().GetVector();
+}
+
 namespace impl {
 
 Parent::Parent(const Entity& entity) : Entity{ entity } {}
