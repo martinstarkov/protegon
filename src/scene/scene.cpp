@@ -16,7 +16,6 @@
 #include "core/timer.h"
 #include "ecs/ecs.h"
 #include "input/input_handler.h"
-#include "nlohmann/json.hpp"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/blend_mode.h"
@@ -110,10 +109,6 @@ void Scene::ReEnter() {
 void Scene::Init() {
 	active_ = true;
 
-	// Input is reset to ensure no previously pressed keys are considered held.
-	game.input.ResetKeyStates();
-	game.input.ResetMouseStates();
-
 	camera.Init(key_);
 	input.Init(key_);
 }
@@ -145,7 +140,7 @@ void Scene::InternalExit() {
 	Refresh();
 }
 
-void Scene::Draw() {
+void Scene::InternalDraw() {
 	// Ensure unzoomed cameras match their zoomed counterparts.
 
 	camera.primary_unzoomed.GetTransform()			= camera.primary.GetTransform();
@@ -169,7 +164,7 @@ void Scene::Draw() {
 	render_data.Draw(*this);
 }
 
-void Scene::PreUpdate() {
+void Scene::InternalUpdate() {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.ClearRenderTargets(*this);
@@ -177,17 +172,13 @@ void Scene::PreUpdate() {
 
 	Refresh();
 
+	game.input.DispatchInputEvents(*this);
+
+	Refresh();
+
 	input.Update(*this);
 
 	Refresh();
-}
-
-void Scene::PostUpdate() {
-	Refresh();
-
-	game.scene.current_ = game.scene.GetActiveScene(key_);
-	auto& render_data{ game.renderer.GetRenderData() };
-	render_data.drawing_to = render_target_;
 
 	float dt{ game.dt() };
 	float time{ game.time() };
@@ -231,7 +222,7 @@ void Scene::PostUpdate() {
 
 	// TODO: Update dirty vertex caches.
 
-	Draw();
+	InternalDraw();
 
 	game.scene.current_ = {};
 }

@@ -8,7 +8,7 @@
 
 #include "core/time.h"
 #include "core/timer.h"
-#include "events.h"
+#include "input/events.h"
 #include "input/key.h"
 #include "input/mouse.h"
 #include "math/vector2.h"
@@ -149,11 +149,6 @@ private:
 	void Init();
 	void Shutdown();
 
-	void Reset();
-	void ResetKeyStates();
-	void ResetMouseStates();
-	void ResetMousePositions();
-
 	[[nodiscard]] static milliseconds GetTimeSince(Timestamp timestamp);
 
 	// Number of keys stored in the SDL key states array.
@@ -174,7 +169,7 @@ private:
 
 	void Prepare();
 	void ProcessInputEvents();
-	void DispatchInputEvents();
+	void DispatchInputEvents(Scene& scene);
 
 	InputQueue queue_;
 };

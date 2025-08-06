@@ -113,9 +113,8 @@ private:
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void PreUpdate();
-	void PostUpdate();
-	void Draw();
+	void InternalUpdate();
+	void InternalDraw();
 	void InternalExit();
 
 	void AddToDisplayList(Entity entity);

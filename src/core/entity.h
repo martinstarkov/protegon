@@ -62,14 +62,8 @@ public:
 
 	using Parent::Entity;
 
+	Entity() = default;
 	Entity(const Parent& e);
-
-	Entity()							 = default;
-	Entity(const Entity&)				 = default;
-	Entity& operator=(const Entity&)	 = default;
-	Entity(Entity&&) noexcept			 = default;
-	Entity& operator=(Entity&&) noexcept = default;
-	~Entity()							 = default;
 
 	explicit Entity(Scene& scene);
 
@@ -840,9 +834,20 @@ public:
 	static void Update(Scene& scene, float dt);
 
 	template <auto TCallback, typename... TArgs>
-	void Invoke(TArgs&&... args) const {
-		auto scripts_copy{ scripts };
-		for (const auto& [key, script] : scripts_copy) {
+	static void Invoke(Scene& scene, TArgs&&... args) {
+		for (auto [entity, scripts] : scene.EntitiesWith<Scripts>()) {
+			Invoke<TCallback>(entity, std::forward<TArgs>(args)...);
+		}
+	}
+
+	template <auto TCallback, typename... TArgs>
+	static void Invoke(Entity entity, TArgs&&... args) {
+		if (!entity.IsAlive() || !entity.Has<Scripts>()) {
+			return;
+		}
+		// Copy on purpose to prevent iterator invalidation.
+		auto scripts{ entity.Get<Scripts>().scripts };
+		for (const auto& [key, script] : scripts) {
 			PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
 			std::invoke(TCallback, script, std::forward<TArgs>(args)...);
 		}
@@ -854,13 +859,7 @@ using Script = impl::Script<T, impl::IScript>;
 
 template <auto TCallback, typename... TArgs>
 void Entity::InvokeScript(TArgs&&... args) const {
-	if (!Has<Scripts>()) {
-		return;
-	}
-
-	const auto& scripts{ Get<Scripts>() };
-
-	scripts.Invoke<TCallback>(std::forward<TArgs>(args)...);
+	Scripts::Invoke<TCallback>(*this, std::forward<TArgs>(args)...);
 }
 
 template <typename T, typename... TArgs>

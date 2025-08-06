@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "common/type_info.h"
+#include "ecs/ecs.h"
 #include "math/hash.h"
 #include "serialization/json.h"
 

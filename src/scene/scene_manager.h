@@ -21,6 +21,9 @@ class Game;
 class Renderer;
 
 struct SceneComponent {
+	// Important that this is a unique ptr so that adding new scenes does not invalidate scene
+	// references. This may happen if the user transitions scenes inside a callback (which
+	// internally loops through scene entities).
 	std::unique_ptr<Scene> scene;
 };
 

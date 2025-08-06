@@ -640,14 +640,7 @@ Color Entity::GetTint() const {
 }
 
 void Scripts::Update(Scene& scene, float dt) {
-	for (auto [entity, scripts] : scene.EntitiesWith<Scripts>()) {
-		// Making a copy so if the script invocation delete the scripts the call does not fail.
-		// This is okay since scripts are shared pointers, however perhaps there is a better way to
-		// do this.
-		// TODO: Consider if there is a better way to do this.
-		auto scripts_copy{ scripts };
-		scripts_copy.Invoke<&impl::IScript::OnUpdate>(dt);
-	}
+	Invoke<&impl::IScript::OnUpdate>(scene, dt);
 
 	scene.Refresh();
 }

@@ -13,6 +13,7 @@
 #include "SDL_video.h"
 #include "common/assert.h"
 #include "components/transform.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/time.h"
 #include "core/window.h"
@@ -23,38 +24,9 @@
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
+#include "scene/scene.h"
 
 namespace ptgn::impl {
-
-void InputHandler::ResetKeyStates() {
-	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
-		if (key_states_[i] == KeyState::Up) {
-			key_timestamps_[i] = SDL_GetTicks();
-			key_states_[i]	   = KeyState::Released;
-		}
-	}
-}
-
-void InputHandler::ResetMouseStates() {
-	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
-		if (mouse_states_[i] == MouseState::Up) {
-			mouse_timestamps_[i] = SDL_GetTicks();
-			mouse_states_[i]	 = MouseState::Released;
-		}
-	}
-}
-
-void InputHandler::ResetMousePositions() {
-	mouse_position_			 = {};
-	previous_mouse_position_ = {};
-	mouse_scroll_			 = {};
-}
-
-void InputHandler::Reset() {
-	ResetKeyStates();
-	ResetMouseStates();
-	ResetMousePositions();
-}
 
 std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
 	switch (e.type) {
@@ -176,8 +148,18 @@ void InputHandler::ProcessInputEvents() {
 }
 
 void InputHandler::Prepare() {
-	ResetMouseStates();
-	ResetKeyStates();
+	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
+		if (key_states_[i] == KeyState::Up) {
+			key_timestamps_[i] = SDL_GetTicks();
+			key_states_[i]	   = KeyState::Released;
+		}
+	}
+	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
+		if (mouse_states_[i] == MouseState::Up) {
+			mouse_timestamps_[i] = SDL_GetTicks();
+			mouse_states_[i]	 = MouseState::Released;
+		}
+	}
 
 	previous_mouse_position_ = mouse_position_;
 	mouse_scroll_			 = {};
@@ -190,7 +172,7 @@ void InputHandler::Prepare() {
 	}
 }
 
-void InputHandler::DispatchInputEvents() {
+void InputHandler::DispatchInputEvents(Scene& scene) {
 	for (const auto& event : queue_) {
 		std::visit(
 			[&](auto&& ev) {
@@ -198,11 +180,15 @@ void InputHandler::DispatchInputEvents() {
 
 				// --- Keyboard Events ---
 				if constexpr (std::is_same_v<T, impl::KeyDown>) {
+					Scripts::Invoke<&impl::IScript::OnKeyDown>(scene, ev.key);
+					Scripts::Invoke<&impl::IScript::OnKeyPressed>(scene, ev.key);
 					// PTGN_LOG("KeyDown: ", ev.key);
 					// PTGN_LOG("KeyPressed: ", ev.key);
 				} else if constexpr (std::is_same_v<T, impl::KeyPressed>) {
+					Scripts::Invoke<&impl::IScript::OnKeyPressed>(scene, ev.key);
 					// PTGN_LOG("KeyPressed: ", ev.key);
 				} else if constexpr (std::is_same_v<T, impl::KeyUp>) {
+					Scripts::Invoke<&impl::IScript::OnKeyUp>(scene, ev.key);
 					// PTGN_LOG("KeyUp: ", ev.key);
 				}
 
@@ -234,6 +220,7 @@ void InputHandler::DispatchInputEvents() {
 					// PTGN_LOG("WindowFocusGained");
 				} else if constexpr (std::is_same_v<T, impl::WindowQuit>) {
 					// PTGN_LOG("WindowQuit");
+					game.Stop();
 				}
 			},
 			event
@@ -244,7 +231,6 @@ void InputHandler::DispatchInputEvents() {
 void InputHandler::Update() {
 	Prepare();
 	ProcessInputEvents();
-	DispatchInputEvents();
 }
 
 bool InputHandler::MouseWithinWindow() const {
@@ -332,7 +318,6 @@ void InputHandler::Init() {
 
 void InputHandler::Shutdown() {
 	// SDL_DelEventWatch(WindowEventWatcher, nullptr);
-	Reset();
 }
 
 KeyState InputHandler::GetKeyState(Key key) const {
