@@ -173,9 +173,13 @@ enum class Key {
 	Capslock  = 57,		// SDL_SCANCODE_CAPSLOCK
 	Tab		  = 43,		// SDL_SCANCODE_TAB
 
-	Windows = 231,		// SDL_SCANCODE_RGUI
-	RGUI	= 231,		// SDL_SCANCODE_RGUI
-	Command = 231,		// SDL_SCANCODE_RGUI
+	LeftWindows = 227,	// SDL_SCANCODE_LGUI
+	LGUI		= 227,	// SDL_SCANCODE_LGUI
+	LeftCommand = 227,	// SDL_SCANCODE_LGUI
+
+	RightWindows = 231, // SDL_SCANCODE_RGUI
+	RGUI		 = 231, // SDL_SCANCODE_RGUI
+	RightCommand = 231, // SDL_SCANCODE_RGUI
 
 	PrintScreen = 70,	// SDL_SCANCODE_PRINTSCREEN
 	Numlock		= 83,	// SDL_SCANCODE_NUMLOCKCLEAR
@@ -298,10 +302,13 @@ inline std::ostream& operator<<(std::ostream& os, Key key) {
 		case Key::Capslock:	  os << "Capslock"; break;
 
 #if defined(PTGN_PLATFORM_WINDOWS)
-		case Key::Windows: os << "Windows"; break;
+		case Key::LeftWindows:	os << "Left Windows"; break;
+		case Key::RightWindows: os << "Right Windows"; break;
 #elif defined(PTGN_PLATFORM_MACOS) || defined(PTGN_PLATFORM_LINUX)
-		case Key::Command: os << "Command"; break;
+		case Key::LeftCommand:	os << "Left Command"; break;
+		case Key::RightCommand: os << "Right Command"; break;
 #else
+		case Key::LGUI: os << "LGUI"; break;
 		case Key::RGUI: os << "RGUI"; break;
 #endif
 
@@ -495,9 +502,13 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 		   { Key::Capslock, "capslock" },
 		   { Key::Tab, "tab" },
 
-		   { Key::Windows, "windows" },
+		   { Key::RightWindows, "right_windows" },
 		   { Key::RGUI, "rgui" },
-		   { Key::Command, "command" },
+		   { Key::RightCommand, "right_command" },
+
+		   { Key::LeftWindows, "left_windows" },
+		   { Key::LGUI, "lgui" },
+		   { Key::LeftCommand, "left_command" },
 
 		   { Key::PrintScreen, "printscreen" },
 		   { Key::Numlock, "numlock" },

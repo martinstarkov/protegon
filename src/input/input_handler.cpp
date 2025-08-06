@@ -190,9 +190,6 @@ void InputHandler::Prepare() {
 	}
 }
 
-template <typename>
-inline constexpr bool always_false = false;
-
 void InputHandler::DispatchInputEvents() {
 	for (const auto& event : queue_) {
 		std::visit(
@@ -202,6 +199,7 @@ void InputHandler::DispatchInputEvents() {
 				// --- Keyboard Events ---
 				if constexpr (std::is_same_v<T, impl::KeyDown>) {
 					// PTGN_LOG("KeyDown: ", ev.key);
+					// PTGN_LOG("KeyPressed: ", ev.key);
 				} else if constexpr (std::is_same_v<T, impl::KeyPressed>) {
 					// PTGN_LOG("KeyPressed: ", ev.key);
 				} else if constexpr (std::is_same_v<T, impl::KeyUp>) {
