@@ -1,19 +1,13 @@
 #include "components/sprite.h"
-#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
-#include "core/time.h"
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "input/mouse.h"
-#include "math/easing.h"
-#include "math/math.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "tweens/follow_config.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -224,10 +218,10 @@ public:
 		LoadResource("tree", "resources/test1.jpg");
 
 		mouse = CreateEntity();
-		mouse.SetPosition({});
+		SetPosition(mouse, {});
 
-		CreateSprite(*this, "tree").SetPosition({ 200, 400 });
-		CreateSprite(*this, "tree").SetPosition({ 600, 400 });
+		CreateSprite(*this, "tree", { 200, 400 });
+		CreateSprite(*this, "tree", { 600, 400 });
 
 		follow_config.move_mode	  = MoveMode::Lerp;
 		follow_config.lerp_factor = { 0.5f, 0.5f };
@@ -244,7 +238,7 @@ public:
 	void Update() override {
 		float dt{ game.dt() };
 
-		mouse.SetPosition(input.GetMousePosition());
+		SetPosition(mouse, input.GetMousePosition());
 
 		if (game.input.KeyPressed(Key::W)) {
 			camera.primary.Translate({ 0, -pan_speed * dt });

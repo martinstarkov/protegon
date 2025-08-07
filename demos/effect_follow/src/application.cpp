@@ -29,19 +29,15 @@ struct FollowEffectScene : public Scene {
 		LoadResource("smile3", "resources/smile3.png");
 
 		mouse = CreateEntity();
-		mouse.SetPosition({});
+		SetPosition(mouse, {});
 
-		entity1 = CreateSprite(*this, "smile1"); // Red
-		entity2 = CreateSprite(*this, "smile2"); // Green
-		entity3 = CreateSprite(*this, "smile3"); // Blue
+		entity1 = CreateSprite(*this, "smile1", { 150, 150 }); // Red
+		entity2 = CreateSprite(*this, "smile2", { 600, 600 }); // Green
+		entity3 = CreateSprite(*this, "smile3", { 150, 600 }); // Blue
 
-		entity1.SetPosition({ 150, 150 });
-		entity2.SetPosition({ 600, 600 });
-		entity3.SetPosition({ 150, 600 });
-
-		config1.lerp_factor = { 1.0f, 1.0f };	  // Red
-		config2.lerp_factor = { 0.5f, 0.5f };	  // Green.
-		config3.move_mode	= MoveMode::Velocity; // Blue
+		config1.lerp_factor = { 1.0f, 1.0f };				   // Red
+		config2.lerp_factor = { 0.5f, 0.5f };				   // Green.
+		config3.move_mode	= MoveMode::Velocity;			   // Blue
 
 		StartFollow(entity1, mouse, config1);
 		StartFollow(entity2, mouse, config2);
@@ -49,7 +45,7 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void Update() override {
-		mouse.SetPosition(input.GetMousePosition());
+		SetPosition(mouse, input.GetMousePosition());
 		if (game.input.MouseDown(Mouse::Left)) {
 			StopFollow(entity1);
 			StopFollow(entity2);

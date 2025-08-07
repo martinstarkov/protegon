@@ -3,6 +3,7 @@
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "math/vector2.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -17,11 +18,6 @@ public:
 	V2_float planet_s_pos;
 	V2_float stars_pos;
 
-	Texture background{ "resources/background.png" };
-	Texture planet_b{ "resources/planet_b.png" };
-	Texture planet_s{ "resources/planet_s.png" };
-	Texture stars{ "resources/stars.png" };
-
 	// Window size
 	V2_float size;
 
@@ -34,13 +30,18 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void Enter() override {
+		LoadResources({ { "background", "resources/background.png" },
+						{ "planet_b", "resources/planet_b.png" },
+						{ "planet_s", "resources/planet_s.png" },
+						{ "stars", "resources/stars.png" } });
+
 		bg_pos		 = game.window.GetCenter();
 		planet_b_pos = game.window.GetCenter() - V2_float{ 200, 200 };
 		planet_s_pos = game.window.GetCenter() + V2_float{ 200, 200 };
 		stars_pos	 = game.window.GetCenter();
 
 		size			= game.window.GetSize() * scale;
-		background_size = background.GetSize();
+		background_size = game.texture.GetSize("background");
 		bg_aspect_ratio = background_size.x / background_size.y;
 
 		ResetPositions();
@@ -78,18 +79,19 @@ public:
 		star_cam	   += velocity / 6.0f;
 		foreground_cam += velocity / 2.0f;
 
-		background.Draw({ bg_pos, { size.x * bg_aspect_ratio, size.y } });
+		// TODO: Fix.
+		DrawDebugTexture("background", bg_pos, { size.x * bg_aspect_ratio, size.y });
 		camera.primary.Translate(background_cam);
-		stars.Draw({ stars_pos, { size.x * bg_aspect_ratio, size.y } });
+		DrawDebugTexture("stars", stars_pos, { size.x * bg_aspect_ratio, size.y });
 		camera.primary.Translate(star_cam);
-		planet_b.Draw({ planet_b_pos, planet_b.GetSize() * scale });
-		planet_s.Draw({ planet_s_pos, planet_s.GetSize() * scale });
+		DrawDebugTexture("planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale);
+		DrawDebugTexture("planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale);
 		camera.primary.Translate(foreground_cam);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("ParallaxExampleScene", window_size);
-	game.scene.Enter<ParallaxExampleScene>("parallax_example");
+	game.scene.Enter<ParallaxExampleScene>("");
 	return 0;
 }

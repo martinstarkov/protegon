@@ -76,15 +76,15 @@ public:
 		V2_float size{ 200, 50 };
 
 		grid.ForEach([&](auto coord, Button& b) {
-			b.SetPosition(screen_offset + (offset + size) * coord);
+			SetPosition(b, screen_offset + (offset + size) * coord);
 			b.SetSize(size);
-			b.SetOrigin(Origin::TopLeft);
+			SetDrawOrigin(b, Origin::TopLeft);
 		});
 	}
 
 	void Update() override {
 		constexpr V2_float speed{ 3.0f, 3.0f };
-		MoveWASD(player.GetPosition(), speed, false);
+		MoveWASD(GetPosition(player), speed, false);
 	}
 };
 

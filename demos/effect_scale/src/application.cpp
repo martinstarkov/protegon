@@ -15,13 +15,9 @@ struct ScaleEffectScene : public Scene {
 	void Enter() override {
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(*this, "smile");
-		sprite2 = CreateSprite(*this, "smile");
-		sprite3 = CreateSprite(*this, "smile");
-
-		sprite1.SetPosition({ 100, 100 });
-		sprite2.SetPosition({ 100, 600 });
-		sprite3.SetPosition({ 600, 100 });
+		sprite1 = CreateSprite(*this, "smile", { 100, 100 });
+		sprite2 = CreateSprite(*this, "smile", { 100, 600 });
+		sprite3 = CreateSprite(*this, "smile", { 600, 100 });
 
 		ScaleTo(sprite1, { 3.0f, 3.0f }, milliseconds{ 4000 }, SymmetricalEase::Linear);
 		ScaleTo(sprite1, { 1.0f, 1.0f }, milliseconds{ 1000 }, SymmetricalEase::Linear, false);

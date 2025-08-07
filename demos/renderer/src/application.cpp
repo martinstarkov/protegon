@@ -37,7 +37,7 @@ public:
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::RenderState state;
-		state.blend_mode  = entity.GetBlendMode();
+		state.blend_mode  = GetBlendMode(entity);
 		state.shader_pass = entity.Get<impl::ShaderPass>();
 		state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
 		state.camera	  = entity.GetOrDefault<Camera>();
@@ -48,9 +48,9 @@ public:
 Entity CreatePostFX(Scene& scene) {
 	auto effect{ scene.CreateEntity() };
 
-	effect.SetDraw<PostProcessingEffect>();
-	effect.Show();
-	effect.SetBlendMode(BlendMode::None);
+	SetDraw<PostProcessingEffect>(effect);
+	Show(effect);
+	SetBlendMode(effect, BlendMode::None);
 
 	return effect;
 }
@@ -141,8 +141,7 @@ Entity AddCircle(Scene& s, V2_float pos, float radius, Color color) {
 }
 
 Entity AddSprite(Scene& s, V2_float pos) {
-	auto e = CreateSprite(s, "test");
-	e.SetPosition(pos);
+	auto e = CreateSprite(s, "test", pos);
 	PTGN_LOG("Sprite: ", pos);
 	return e;
 }
@@ -152,36 +151,45 @@ void GenerateTestCases() {
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, { 320, 240 }, rect1_color);
-		AddSprite(s, rect1_pos)
-			.AddPreFX(CreateGrayscale(s))
-			.AddPreFX(CreateBlur(s))
-			.SetRotation(DegToRad(45.0f));
-		AddSprite(s, rect1_pos).AddPreFX(CreateBlur(s)).SetRotation(DegToRad(-45.0f));
-		AddSprite(s, rect1_pos).SetRotation(DegToRad(-10.0f));
+		auto sprite{ AddSprite(s, rect1_pos) };
+		AddPreFX(sprite, CreateGrayscale(s));
+		AddPreFX(sprite, CreateBlur(s));
+		SetRotation(sprite, DegToRad(45.0f));
+		auto sprite2 = AddSprite(s, rect1_pos);
+		AddPreFX(sprite2, CreateBlur(s));
+		SetRotation(sprite2, DegToRad(-45.0f));
+		auto sprite3 = AddSprite(s, rect1_pos);
+		SetRotation(sprite3, DegToRad(-10.0f));
 	});
 
 	tests.emplace_back([](Scene& s) {
-		AddRect(s, rect1_pos, rect1_size, rect1_color).AddPostFX(CreateGrayscale(s));
+		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddPostFX(r1, CreateGrayscale(s));
 	});
 
 	tests.emplace_back([](Scene& s) {
-		AddRect(s, rect1_pos, rect1_size, rect1_color).AddPostFX(CreateGrayscale(s));
+		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddPostFX(r1, CreateGrayscale(s));
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 	});
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddRect(s, rect2_pos, rect2_size, rect2_color).AddPostFX(CreateGrayscale(s));
+		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddPostFX(r2, CreateGrayscale(s));
 	});
 
 	tests.emplace_back([](Scene& s) {
 		auto effect{ CreateGrayscale(s) };
-		AddRect(s, rect1_pos, rect1_size, rect1_color).AddPostFX(effect);
-		AddRect(s, rect2_pos, rect2_size, rect2_color).AddPostFX(effect);
+		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddPostFX(r1, effect);
+		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddPostFX(r2, effect);
 	});
 
 	tests.emplace_back([](Scene& s) {
-		AddRect(s, rect1_pos, rect1_size, rect1_color).AddPostFX(CreateGrayscale(s));
+		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddPostFX(r1, CreateGrayscale(s));
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
@@ -189,15 +197,18 @@ void GenerateTestCases() {
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddRect(s, rect2_pos, rect2_size, rect2_color).AddPostFX(CreateGrayscale(s));
+		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddPostFX(r2, CreateGrayscale(s));
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
 
 	tests.emplace_back([](Scene& s) {
 		auto effect{ CreateGrayscale(s) };
-		AddRect(s, rect1_pos, rect1_size, rect1_color).AddPostFX(effect);
-		AddRect(s, rect2_pos, rect2_size, rect2_color).AddPostFX(effect);
+		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
+		AddPostFX(r1, effect);
+		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
+		AddPostFX(r2, effect);
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
@@ -205,7 +216,8 @@ void GenerateTestCases() {
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
-		AddCircle(s, circle1_pos, circle1_radius, circle1_color).AddPostFX(CreateGrayscale(s));
+		auto c1 = AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddPostFX(c1, CreateGrayscale(s));
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
 
@@ -213,11 +225,14 @@ void GenerateTestCases() {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
-		AddCircle(s, circle2_pos, circle2_radius, circle2_color).AddPostFX(CreateGrayscale(s));
+		auto c2 = AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+		AddPostFX(c2, CreateGrayscale(s));
 	});
 
 	tests.emplace_back([](Scene& s) {
-		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		auto sprite1 = AddSprite(s, circle1_pos);
+		AddPreFX(sprite1, CreateGrayscale(s));
+		AddPreFX(sprite1, CreateBlur(s));
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
@@ -225,7 +240,9 @@ void GenerateTestCases() {
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		auto sprite1 = AddSprite(s, circle1_pos);
+		AddPreFX(sprite1, CreateGrayscale(s));
+		AddPreFX(sprite1, CreateBlur(s));
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
@@ -233,7 +250,9 @@ void GenerateTestCases() {
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
-		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		auto sprite1 = AddSprite(s, circle1_pos);
+		AddPreFX(sprite1, CreateGrayscale(s));
+		AddPreFX(sprite1, CreateBlur(s));
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
 
@@ -241,7 +260,9 @@ void GenerateTestCases() {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
-		AddSprite(s, circle1_pos).AddPreFX(CreateGrayscale(s)).AddPreFX(CreateBlur(s));
+		auto sprite1 = AddSprite(s, circle1_pos);
+		AddPreFX(sprite1, CreateGrayscale(s));
+		AddPreFX(sprite1, CreateBlur(s));
 	});
 
 	tests.emplace_back([](Scene& s) { AddRect(s, rect1_pos, rect1_size, rect1_color); });
@@ -326,13 +347,13 @@ void GenerateTestCases() {
 	};
 
 	auto sprite = [](Scene& s) {
-		CreateSprite(s, "test").SetPosition({ 500, 500 });
+		CreateSprite(s, "test", { 500, 500 });
 		PTGN_LOG("Sprite");
 	};
 
 	auto sprite2 = [](Scene& s) {
-		CreateSprite(s, "test").SetPosition({ 500, 500 });
-		CreateSprite(s, "test").SetPosition({ 500, 700 });
+		CreateSprite(s, "test", { 500, 500 });
+		CreateSprite(s, "test", { 500, 700 });
 		PTGN_LOG("2x Sprite");
 	};
 

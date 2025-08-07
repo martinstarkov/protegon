@@ -19,13 +19,9 @@ struct BounceEffectScene : public Scene {
 	void Enter() override {
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(*this, "smile");
-		sprite2 = CreateSprite(*this, "smile");
-		sprite3 = CreateSprite(*this, "smile");
-
-		sprite1.SetPosition({ 150, 400 });
-		sprite2.SetPosition({ 400, 400 });
-		sprite3.SetPosition({ 650, 400 });
+		sprite1 = CreateSprite(*this, "smile", { 150, 400 });
+		sprite2 = CreateSprite(*this, "smile", { 400, 400 });
+		sprite3 = CreateSprite(*this, "smile", { 650, 400 });
 
 		Bounce(sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, AsymmetricalEase::InSine, {}, true);
 		Bounce(sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, AsymmetricalEase::OutSine, {}, true);

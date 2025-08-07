@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <list>
-#include <new>
 #include <unordered_map>
 #include <vector>
 
@@ -10,16 +9,13 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/window.h"
 #include "debug/profiling.h"
 #include "input/input_handler.h"
-#include "math/geometry.h"
 #include "math/geometry/rect.h"
 #include "math/raycast.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
-#include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -570,7 +566,7 @@ AABB GetBoundingVolume(Entity entity) {
 	auto position{ GetPosition(entity) };
 	// TODO: Use collider size.
 	auto half{ entity.Get<Rect>().GetSize() * 0.5f };
-	auto center{ position - impl::GetOriginOffsetHalf(entity.GetOrigin(), half) };
+	auto center{ position - impl::GetOriginOffsetHalf(GetDrawOrigin(entity), half) };
 	return { center - half, center + half };
 }
 
@@ -578,8 +574,7 @@ Entity AddEntity(
 	Scene& scene, const V2_float& center, const V2_float& size, const Color& color,
 	bool induce_random_velocity = true
 ) {
-	Entity entity = CreateRect(scene, center, size, color);
-	entity.Enable();
+	Entity entity		  = CreateRect(scene, center, size, color);
 	const auto random_vel = []() {
 		V2_float dir{ V2_float::Random(-0.5f, 0.5f) };
 		float speed = 60.0f;
@@ -616,7 +611,7 @@ struct BroadphaseScene : public Scene {
 		physics.SetBounds({}, window_size, BoundaryBehavior::ReflectVelocity);
 
 		player = AddEntity(*this, window_size * 0.5f, player_size, color::Purple, false);
-		player.SetDepth(1);
+		SetDepth(player, 1);
 
 		for (std::size_t i{ 0 }; i < entity_count; ++i) {
 			AddEntity(
@@ -634,7 +629,7 @@ struct BroadphaseScene : public Scene {
 			tint = color::Green;
 		}
 
-		player.SetTint(color::Purple);
+		SetTint(player, color::Purple);
 
 		auto player_volume{ GetBoundingVolume(player) };
 
@@ -674,8 +669,8 @@ struct BroadphaseScene : public Scene {
 					continue;
 				}
 				if (b1.Intersects(GetBoundingVolume(e2))) {
-					e1.SetTint(color::Red);
-					e2.SetTint(color::Red);
+					SetTint(e1, color::Red);
+					SetTint(e2, color::Red);
 				}
 			}
 		}
@@ -689,7 +684,7 @@ struct BroadphaseScene : public Scene {
 		auto candidates = tree.Raycast(player, player_pos, dir);
 		for (auto& candidate : candidates) {
 			if (candidate && candidate != player) {
-				candidate.SetTint(color::Red);
+				SetTint(candidate, color::Orange);
 			}
 		}
 
@@ -697,7 +692,7 @@ struct BroadphaseScene : public Scene {
 
 		auto candidate = tree.RaycastFirst(player, player_pos, dir);
 		if (candidate && candidate != player) {
-			candidate.SetTint(color::Red);
+			SetTint(candidate, color::Red);
 		}
 
 		DrawDebugLine(player_pos, mouse_pos, color::Gold, 2.0f);

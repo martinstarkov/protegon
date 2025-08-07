@@ -1,12 +1,10 @@
 #include "components/sprite.h"
-#include "core/entity.h"
 #include "core/game.h"
 #include "input/input_handler.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/vfx/light.h"
 #include "renderer/renderer.h"
-#include "scene/camera.h"
+#include "renderer/vfx/light.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -19,9 +17,8 @@ public:
 	void Enter() override {
 		LoadResource("test", "resources/test1.jpg");
 
-		auto sprite = CreateSprite(*this, "test");
-		sprite.SetOrigin(Origin::TopLeft);
-		sprite.SetPosition({ 50, 50 });
+		auto sprite = CreateSprite(*this, "test", { 50, 50 });
+		SetDrawOrigin(sprite, Origin::TopLeft);
 
 		float intensity{ 0.3f };
 		float radius{ 200.0f };
@@ -44,7 +41,7 @@ public:
 	}
 
 	void Update() override {
-		mouse_light.SetPosition(game.input.GetMousePosition());
+		SetPosition(mouse_light, game.input.GetMousePosition());
 
 		DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
 	}

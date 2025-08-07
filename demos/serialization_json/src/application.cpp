@@ -1,7 +1,6 @@
 #include <string>
 
 #include "audio/audio.h"
-#include "components/common.h"
 #include "components/draw.h"
 #include "components/interactive.h"
 #include "components/lifetime.h"
@@ -35,19 +34,18 @@ public:
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
-	entity.SetPosition({ 30, 50 });
+	SetPosition(entity, { 30, 50 });
 
 	Manager m;
 
 	auto e0 = m.CreateEntity();
-	e0.SetPosition(V2_float{ -69, -69 });
+	SetPosition(e0, V2_float{ -69, -69 });
 
 	auto e1 = m.CreateEntity();
 	e1.Add<Draggable>(V2_float{ 1, 1 }, V2_float{ 30, 40 }, true);
-	e1.SetTransform({ V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
-	e1.Enable();
-	e1.Show();
-	e1.SetDepth(22);
+	SetTransform(e1, { V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
+	Show(e1);
+	SetDepth(e1, 22);
 	auto tint_color{ color::Blue };
 	e1.Add<Tint>(tint_color);
 	e1.Add<LineWidth>(3.5f);
@@ -88,7 +86,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		PTGN_ASSERT(e2.Has<UUID>());
 		PTGN_ASSERT(e2.Has<Draggable>());
 		PTGN_ASSERT(e2.Has<TextureCrop>());
-		PTGN_ASSERT(e2.Has<Enabled>());
 		PTGN_ASSERT(e2.Has<Visible>());
 		PTGN_ASSERT(e2.Has<Depth>());
 		PTGN_ASSERT(e2.Has<Tint>());

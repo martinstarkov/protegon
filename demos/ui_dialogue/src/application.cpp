@@ -18,10 +18,10 @@ struct DialogueScene : public Scene {
 		LoadResource("dialogue_box", "resources/box.png");
 
 		npc = CreateEntity();
-		npc.SetPosition(window_size / 2);
+		SetPosition(npc, window_size / 2);
 
 		npc.Add<DialogueComponent>(
-			npc, "resources/dialogue.json", CreateSprite(*this, "dialogue_box")
+			npc, "resources/dialogue.json", CreateSprite(*this, "dialogue_box", {})
 		);
 	}
 

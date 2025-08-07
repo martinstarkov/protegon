@@ -1,3 +1,4 @@
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "debug/log.h"
@@ -27,9 +28,9 @@ class ToggleButtonGroupScene : public Scene {
 
 	ToggleButton CreateToggleButtonGroupItem(const V2_float& position, int number) {
 		ToggleButton b{ CreateToggleButton(*this, false) };
-		b.SetPosition(position);
+		SetPosition(b, position);
 		b.SetSize({ 200, 130 });
-		b.SetOrigin(Origin::TopLeft);
+		SetDrawOrigin(b, Origin::TopLeft);
 		b.SetBackgroundColor(color::LightRed);
 		b.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);

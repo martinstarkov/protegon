@@ -1,19 +1,13 @@
 
 #include <string_view>
-#include <vector>
 
-#include "components/common.h"
 #include "components/draw.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/window.h"
-#include "ecs/ecs.h"
 #include "input/input_handler.h"
 #include "input/key.h"
-#include "math/geometry.h"
-#include "math/geometry/rect.h"
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -30,18 +24,18 @@ class ChunkScene : public Scene {
 public:
 	Entity CreateSheep(const V2_float& position) {
 		auto e = CreateEntity();
-		e.SetPosition(position);
-		e.Show();
-		e.SetDepth(1);
+		SetPosition(e, position);
+		Show(e);
+		SetDepth(e, 1);
 		e.Add<TextureHandle>("sheep");
 		return e;
 	}
 
 	Entity CreateTile(const V2_float& position, std::string_view texture_key) {
 		auto e = CreateEntity();
-		e.SetPosition(position);
-		e.Show();
-		e.SetOrigin(Origin::TopLeft);
+		SetPosition(e, position);
+		Show(e);
+		SetDrawOrigin(e, Origin::TopLeft);
 		e.Add<TextureHandle>(texture_key);
 		return e;
 	}
@@ -83,7 +77,7 @@ public:
 
 	void Update() override {
 		MoveWASD(vel, speed, true);
-		sheep.GetPosition() += vel * game.dt();
+		GetPosition(sheep) += vel * game.dt();
 
 		if (game.input.KeyPressed(Key::Q)) {
 			camera.primary.Zoom(-zoom_speed * game.dt());

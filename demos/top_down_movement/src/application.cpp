@@ -19,8 +19,8 @@ constexpr CollisionCategory ground_category{ 1 };
 class TopDownMovementScene : public Scene {
 	Entity CreateWall(const V2_float& position, const V2_float& size, Origin origin) {
 		Entity entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
-		auto& box	  = entity.Add<BoxCollider>(size, origin);
-		entity.Enable();
+		auto& box	  = entity.Add<Collider>(Rect{ size });
+		SetDrawOrigin(entity, origin);
 		box.SetCollisionCategory(ground_category);
 		return entity;
 	}
@@ -32,9 +32,8 @@ class TopDownMovementScene : public Scene {
 		);
 		auto& rb	 = entity.Add<RigidBody>();
 		auto& m		 = entity.Add<TopDownMovement>();
-		auto& b		 = entity.Add<BoxCollider>(V2_float{ 20, 40 }, Origin::Center);
+		auto& b		 = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
 		b.continuous = true;
-		entity.Enable();
 		return entity;
 	}
 

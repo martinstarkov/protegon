@@ -3,6 +3,7 @@
 #include <string>
 
 #include "audio/audio.h"
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/time.h"
@@ -286,8 +287,8 @@ public:
 
 		grid.ForEach([size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
-				b.SetPosition(coord * (size + offset) + offset);
-				b.SetOrigin(Origin::TopLeft);
+				SetPosition(b, coord * (size + offset) + offset);
+				SetDrawOrigin(b, Origin::TopLeft);
 				b.SetSize(size);
 			}
 		});

@@ -1,6 +1,7 @@
 #include <string>
 #include <string_view>
 
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "renderer/api/color.h"
@@ -18,9 +19,10 @@ struct TextScene : public Scene {
 	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
 		constexpr float stride{ 44.0f };
 
-		return ptgn::CreateText(*this, content, color, font_key)
-			.SetOrigin(Origin::TopLeft)
-			.SetPosition({ 0.0f, stride * static_cast<float>(index) });
+		auto text = ptgn::CreateText(*this, content, color, {}, font_key);
+		SetDrawOrigin(text, Origin::TopLeft);
+		SetPosition(text, { 0.0f, stride * static_cast<float>(index) });
+		return text;
 	}
 
 	void Enter() override {

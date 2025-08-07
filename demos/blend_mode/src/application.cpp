@@ -1,9 +1,7 @@
 #include "components/draw.h"
 #include "components/sprite.h"
-#include "core/entity.h"
 #include "core/game.h"
 #include "core/window.h"
-#include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -27,8 +25,10 @@ struct BlendModeScene : public Scene {
 			*this, {}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 }, -1.0f, Origin::TopLeft
 		);
 
-		CreateSprite(*this, "semitransparent").SetPosition({ 100, 100 }).SetOrigin(Origin::TopLeft);
-		CreateSprite(*this, "opaque").SetPosition({ 200, 200 }).SetOrigin(Origin::TopLeft);
+		auto s1 = CreateSprite(*this, "semitransparent", { 100, 100 });
+		SetDrawOrigin(s1, Origin::TopLeft);
+		auto s2 = CreateSprite(*this, "opaque", { 200, 200 });
+		SetDrawOrigin(s2, Origin::TopLeft);
 	}
 };
 

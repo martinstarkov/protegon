@@ -8,12 +8,12 @@
 #include "core/window.h"
 #include "input/input_handler.h"
 #include "input/key.h"
-#include "math/vector2.h"
 #include "math/overlap.h"
+#include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/renderer.h"
 #include "renderer/render_target.h"
+#include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -48,16 +48,16 @@ class FullscreenScene : public Scene {
 	void Enter() override {
 		texts.clear();
 
-		camera_size_text	 = texts.emplace_back("", color::Black);
-		camera_pos_text		 = texts.emplace_back("", color::Black);
-		window_position_text = texts.emplace_back("", color::Black);
-		window_size_text	 = texts.emplace_back("", color::Black);
-		window_mode			 = texts.emplace_back("", color::Black);
-		border_mode			 = texts.emplace_back("", color::Black);
-		resize_mode			 = texts.emplace_back("", color::Black);
-		maximized			 = texts.emplace_back("", color::Black);
-		minimized			 = texts.emplace_back("", color::Black);
-		window_visible		 = texts.emplace_back("", color::Black);
+		camera_size_text	 = texts.emplace_back(CreateText(*this, "", color::Black));
+		camera_pos_text		 = texts.emplace_back(CreateText(*this, "", color::Black));
+		window_position_text = texts.emplace_back(CreateText(*this, "", color::Black));
+		window_size_text	 = texts.emplace_back(CreateText(*this, "", color::Black));
+		window_mode			 = texts.emplace_back(CreateText(*this, "", color::Black));
+		border_mode			 = texts.emplace_back(CreateText(*this, "", color::Black));
+		resize_mode			 = texts.emplace_back(CreateText(*this, "", color::Black));
+		maximized			 = texts.emplace_back(CreateText(*this, "", color::Black));
+		minimized			 = texts.emplace_back(CreateText(*this, "", color::Black));
+		window_visible		 = texts.emplace_back(CreateText(*this, "", color::Black));
 	}
 
 	void Exit() override {
@@ -134,6 +134,8 @@ class FullscreenScene : public Scene {
 	};
 
 	void Draw() {
+		// TODO: Fix.
+		/*
 		DrawDebugRect({}, game.window.GetSize(), { 0, 0, 255, 10 }, Origin::TopLeft);
 		DrawDebugRect({}, window_size, { 255, 0, 0, 40 }, Origin::TopLeft);
 		DrawDebugRect({}, window_size, { 0, 255, 0, 40 }, Origin::TopLeft, 10.0f);
@@ -150,7 +152,7 @@ class FullscreenScene : public Scene {
 					 Origin::BottomLeft };
 
 		camera_pos_text.SetContent(
-			"Camera Position: " + ToString(game.camera.GetPrimary().GetPosition())
+			"Camera Position: " + ToString(GetPosition(game.camera.GetPrimary()))
 		);
 		camera_size_text.SetContent("Camera Size: " + ToString(game.camera.GetPrimary().GetSize()));
 		window_position_text.SetContent("Window Position: " + ToString(game.window.GetPosition()));
@@ -202,7 +204,7 @@ class FullscreenScene : public Scene {
 
 		game.renderer.SetRenderTarget({});
 
-		rt.Draw();
+		rt.Draw();*/
 	}
 };
 

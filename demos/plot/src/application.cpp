@@ -46,6 +46,8 @@ private:
 };
 
 class PlotScene : public Scene {
+	// TODO: Fix.
+	/*
 	Plot plot;
 
 	Sensor temperature{ milliseconds{ 50 } };
@@ -114,7 +116,7 @@ class PlotScene : public Scene {
 		}
 
 		plot.Draw({ game.window.GetCenter(), { 500, 500 }, Origin::Center });
-	}
+	}*/
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {

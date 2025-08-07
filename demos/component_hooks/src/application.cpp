@@ -2,7 +2,6 @@
 #include <memory>
 #include <vector>
 
-#include "components/common.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
@@ -18,40 +17,39 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
 
+struct Test {};
+
 struct ComponentHookScene : public Scene {
-	std::vector<Entity> update_list;
+	std::vector<Entity> list;
 
 	void AddToUpdateList(Entity entity) {
-		update_list.emplace_back(entity);
+		list.emplace_back(entity);
 	}
 
 	void RemoveFromUpdateList(Entity entity) {
-		update_list.erase(
-			std::remove(update_list.begin(), update_list.end(), entity), update_list.end()
-		);
+		list.erase(std::remove(list.begin(), list.end(), entity), list.end());
 	}
 
 	void Enter() override {
-		OnConstruct<Enabled>().Connect<ComponentHookScene, &ComponentHookScene::AddToUpdateList>(
+		OnConstruct<Test>().Connect<ComponentHookScene, &ComponentHookScene::AddToUpdateList>(this);
+		OnDestruct<Test>().Connect<ComponentHookScene, &ComponentHookScene::RemoveFromUpdateList>(
 			this
 		);
-		OnDestruct<Enabled>()
-			.Connect<ComponentHookScene, &ComponentHookScene::RemoveFromUpdateList>(this);
 	}
 
 	void Update() override {
 		if (game.input.KeyDown(Key::E)) {
-			CreateEntity().Enable();
+			CreateEntity().Add<Test>();
 		}
 
 		if (game.input.KeyDown(Key::R)) {
-			for (Entity e : update_list) {
+			for (Entity e : list) {
 				e.Destroy();
 			}
-			update_list.clear();
+			list.clear();
 		}
 
-		PTGN_LOG("Update list: ", update_list.size());
+		PTGN_LOG("List: ", list.size());
 	}
 };
 

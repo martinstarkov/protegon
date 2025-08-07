@@ -20,15 +20,10 @@ struct TintEffectScene : public Scene {
 		LoadResource("tree", "resources/tree.jpg");
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(*this, "tree");
-		sprite2 = CreateSprite(*this, "tree");
-		sprite3 = CreateSprite(*this, "tree");
-		sprite4 = CreateSprite(*this, "smile");
-
-		sprite1.SetPosition({ 100, 100 });
-		sprite2.SetPosition({ 100, 600 });
-		sprite3.SetPosition({ 600, 100 });
-		sprite4.SetPosition({ 600, 600 });
+		sprite1 = CreateSprite(*this, "tree", { 100, 100 });
+		sprite2 = CreateSprite(*this, "tree", { 100, 600 });
+		sprite3 = CreateSprite(*this, "tree", { 600, 100 });
+		sprite4 = CreateSprite(*this, "smile", { 600, 600 });
 
 		TintTo(sprite1, color::Red, milliseconds{ 4000 }, SymmetricalEase::Linear);
 		TintTo(sprite1, color::White, milliseconds{ 1000 }, SymmetricalEase::Linear, false);

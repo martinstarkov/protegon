@@ -1,6 +1,7 @@
 #include <memory>
 #include <vector>
 
+#include "components/draw.h"
 #include "components/movement.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -8,12 +9,12 @@
 #include "core/window.h"
 #include "input/input_handler.h"
 #include "input/key.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/rect.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/rect.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -65,33 +66,26 @@ public:
 		sweep_circle	 = manager->CreateEntity();
 		overlap_circle	 = manager->CreateEntity();
 
-		intersect.Show();
-		sweep.Show();
-		overlap.Show();
-		intersect_circle.Show();
-		sweep_circle.Show();
-		overlap_circle.Show();
+		Show(intersect);
+		Show(sweep);
+		Show(overlap);
+		Show(intersect_circle);
+		Show(sweep_circle);
+		Show(overlap_circle);
 
-		intersect.SetTint(color::Purple);
-		intersect_circle.SetTint(color::Purple);
-		sweep.SetTint(color::Cyan);
-		sweep_circle.SetTint(color::Cyan);
-		overlap.SetTint(color::Orange);
-		overlap_circle.SetTint(color::Orange);
+		SetTint(intersect, color::Purple);
+		SetTint(intersect_circle, color::Purple);
+		SetTint(sweep, color::Cyan);
+		SetTint(sweep_circle, color::Cyan);
+		SetTint(overlap, color::Orange);
+		SetTint(overlap_circle, color::Orange);
 
-		intersect.Enable();
-		sweep.Enable();
-		overlap.Enable();
-		intersect_circle.Enable();
-		sweep_circle.Enable();
-		overlap_circle.Enable();
-
-		intersect.SetPosition(V2_float{ 100, 100 });
-		overlap.SetPosition(V2_float{ 200, 200 });
-		sweep.SetPosition(V2_float{ 300, 300 });
-		intersect_circle.SetPosition(V2_float{ 400, 400 });
-		overlap_circle.SetPosition(V2_float{ 500, 500 });
-		sweep_circle.SetPosition(V2_float{ 300, 600 });
+		SetPosition(intersect, V2_float{ 100, 100 });
+		SetPosition(overlap, V2_float{ 200, 200 });
+		SetPosition(sweep, V2_float{ 300, 300 });
+		SetPosition(intersect_circle, V2_float{ 400, 400 });
+		SetPosition(overlap_circle, V2_float{ 500, 500 });
+		SetPosition(sweep_circle, V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
@@ -101,31 +95,31 @@ public:
 		sweep_circle.Add<RigidBody>();
 
 		// TODO: Fix memory leak?
-		intersect.Add<BoxCollider>(V2_float{ 30, 30 });
-		overlap.Add<BoxCollider>(V2_float{ 30, 30 });
-		sweep.Add<BoxCollider>(V2_float{ 30, 30 });
+		intersect.Add<Collider>(Rect{ V2_float{ 30, 30 } });
+		overlap.Add<Collider>(Rect{ V2_float{ 30, 30 } });
+		sweep.Add<Collider>(Rect{ V2_float{ 30, 30 } });
 		intersect.Add<Rect>(V2_float{ 30, 30 });
 		overlap.Add<Rect>(V2_float{ 30, 30 });
 		sweep.Add<Rect>(V2_float{ 30, 30 });
-		intersect.SetDraw<Rect>();
-		overlap.SetDraw<Rect>();
-		sweep.SetDraw<Rect>();
-		intersect_circle.Add<CircleCollider>(30.0f);
-		overlap_circle.Add<CircleCollider>(30.0f);
-		sweep_circle.Add<CircleCollider>(30.0f);
+		SetDraw<Rect>(intersect);
+		SetDraw<Rect>(overlap);
+		SetDraw<Rect>(sweep);
+		intersect_circle.Add<Collider>(Circle{ 30.0f });
+		overlap_circle.Add<Collider>(Circle{ 30.0f });
+		sweep_circle.Add<Collider>(Circle{ 30.0f });
 		intersect_circle.Add<Circle>(30.0f);
 		overlap_circle.Add<Circle>(30.0f);
 		sweep_circle.Add<Circle>(30.0f);
-		intersect_circle.SetDraw<Circle>();
-		overlap_circle.SetDraw<Circle>();
-		sweep_circle.SetDraw<Circle>();
+		SetDraw<Circle>(intersect_circle);
+		SetDraw<Circle>(overlap_circle);
+		SetDraw<Circle>(sweep_circle);
 
-		auto& b1{ intersect.Get<BoxCollider>() };
-		auto& b2{ overlap.Get<BoxCollider>() };
-		auto& b3{ sweep.Get<BoxCollider>() };
-		auto& c1{ intersect_circle.Get<CircleCollider>() };
-		auto& c2{ overlap_circle.Get<CircleCollider>() };
-		auto& c3{ sweep_circle.Get<CircleCollider>() };
+		auto& b1{ intersect.Get<Collider>() };
+		auto& b2{ overlap.Get<Collider>() };
+		auto& b3{ sweep.Get<Collider>() };
+		auto& c1{ intersect_circle.Get<Collider>() };
+		auto& c2{ overlap_circle.Get<Collider>() };
+		auto& c3{ sweep_circle.Get<Collider>() };
 
 		b2.overlap_only = true;
 		b3.continuous	= true;
@@ -254,8 +248,9 @@ public:
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
 		PTGN_ASSERT(manager != nullptr);
 		auto obstacle = manager->CreateEntity();
-		obstacle.SetPosition(pos);
-		obstacle.Add<BoxCollider>(size, origin);
+		SetPosition(obstacle, pos);
+		obstacle.Add<Collider>(Rect{ size });
+		SetDrawOrigin(obstacle, origin);
 	}
 
 	void Update() override {
@@ -272,22 +267,22 @@ public:
 
 		if (move_entity == 0) {
 			vel = &intersect.Get<RigidBody>().velocity;
-			pos = &intersect.GetPosition();
+			pos = &GetPosition(intersect);
 		} else if (move_entity == 1) {
 			vel = &overlap.Get<RigidBody>().velocity;
-			pos = &overlap.GetPosition();
+			pos = &GetPosition(overlap);
 		} else if (move_entity == 2) {
 			vel = &sweep.Get<RigidBody>().velocity;
-			pos = &sweep.GetPosition();
+			pos = &GetPosition(sweep);
 		} else if (move_entity == 3) {
 			vel = &intersect_circle.Get<RigidBody>().velocity;
-			pos = &intersect_circle.GetPosition();
+			pos = &GetPosition(intersect_circle);
 		} else if (move_entity == 4) {
 			vel = &overlap_circle.Get<RigidBody>().velocity;
-			pos = &overlap_circle.GetPosition();
+			pos = &GetPosition(overlap_circle);
 		} else if (move_entity == 5) {
 			vel = &sweep_circle.Get<RigidBody>().velocity;
-			pos = &sweep_circle.GetPosition();
+			pos = &GetPosition(sweep_circle);
 		}
 
 		PTGN_ASSERT(vel != nullptr);

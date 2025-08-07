@@ -14,7 +14,7 @@ using namespace ptgn;
 class PlayerController : public Script<PlayerController> {
 public:
 	void OnUpdate(float dt) override {
-		auto posx{ entity.GetPosition().x };
+		auto posx{ GetPosition(entity).x };
 		if (posx < 100.0f) {
 			MoveForward(dt);
 			PTGN_LOG("Moving entity ", entity.GetUUID(), " to the right: ", posx);
@@ -22,7 +22,7 @@ public:
 	}
 
 	void MoveForward(float dt) {
-		entity.SetPosition({ entity.GetPosition().x + dt * 5.0f, 0.0f });
+		SetPosition(entity, { GetPosition(entity).x + dt * 5.0f, 0.0f });
 	}
 };
 
@@ -38,6 +38,7 @@ public:
 
 	bool OnTimerStop() override {
 		PTGN_LOG("Timed script stopped");
+		return true;
 	}
 };
 

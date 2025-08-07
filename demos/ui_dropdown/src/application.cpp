@@ -49,9 +49,9 @@ public:
 		d.SetBackgroundColor(color::Gray);
 		d.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		d.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		d.SetPosition({ 400, 200 });
+		SetPosition(d, { 400, 200 });
 		d.SetSize({ 200, 100 });
-		d.SetOrigin(Origin::Center);
+		// SetDrawOrigin(d, Origin::Center);
 		d.SetBorderColor(color::Gold);
 		d.SetBorderWidth(3.0f);
 		d.SetButtonSize({ 100, 50 });

@@ -1,5 +1,6 @@
 #include <string_view>
 
+#include "components/draw.h"
 #include "core/game.h"
 #include "core/time.h"
 #include "input/input_handler.h"
@@ -60,7 +61,7 @@ public:
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
 		b.SetText(content, color::Black);
-		b.SetParent(p, true);
+		SetParent(b, p, true);
 		b.AddScript<TScript>();
 		return b;
 	}
@@ -84,9 +85,9 @@ public:
 		V2_int size{ 200, 90 };
 
 		grid.ForEach([&](auto coord, Button& b) {
-			b.SetPosition(coord * size + (coord + V2_int{ 1, 1 }) * offset);
+			SetPosition(b, coord * size + (coord + V2_int{ 1, 1 }) * offset);
 			b.SetSize(size);
-			b.SetOrigin(Origin::TopLeft);
+			SetDrawOrigin(b, Origin::TopLeft);
 		});
 	}
 
@@ -95,7 +96,7 @@ public:
 	}
 
 	void Update() override {
-		p.SetPosition(game.input.GetMousePosition());
+		SetPosition(p, game.input.GetMousePosition());
 	}
 };
 

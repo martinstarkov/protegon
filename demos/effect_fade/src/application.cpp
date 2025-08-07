@@ -1,3 +1,4 @@
+#include "components/draw.h"
 #include "components/sprite.h"
 #include "core/game.h"
 #include "input/input_handler.h"
@@ -15,12 +16,10 @@ struct FadeEffectScene : public Scene {
 		LoadResource("tree", "resources/tree.jpg");
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(*this, "tree");
-		sprite2 = CreateSprite(*this, "smile");
+		sprite1 = CreateSprite(*this, "tree", { 100, 100 });
+		sprite2 = CreateSprite(*this, "smile", { 600, 600 });
 
-		sprite1.SetTint(color::Transparent);
-		sprite1.SetPosition({ 100, 100 });
-		sprite2.SetPosition({ 600, 600 });
+		SetTint(sprite1, color::Transparent);
 
 		FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear);
 		FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, false);

@@ -15,13 +15,9 @@ struct TranslateEffectScene : public Scene {
 	void Enter() override {
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(*this, "smile");
-		sprite2 = CreateSprite(*this, "smile");
-		sprite3 = CreateSprite(*this, "smile");
-
-		sprite1.SetPosition({ 100, 100 });
-		sprite2.SetPosition({ 100, 600 });
-		sprite3.SetPosition({ 600, 100 });
+		sprite1 = CreateSprite(*this, "smile", { 100, 100 });
+		sprite2 = CreateSprite(*this, "smile", { 100, 600 });
+		sprite3 = CreateSprite(*this, "smile", { 600, 100 });
 
 		TranslateTo(sprite1, { 600, 600 }, milliseconds{ 4000 }, SymmetricalEase::Linear);
 		TranslateTo(sprite1, { 100, 100 }, milliseconds{ 1000 }, SymmetricalEase::Linear, false);

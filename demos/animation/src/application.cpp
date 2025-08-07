@@ -1,9 +1,7 @@
 #include "components/animation.h"
-#include "core/entity.h"
 #include "core/game.h"
 #include "core/time.h"
 #include "math/vector2.h"
-#include "renderer/texture.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -20,23 +18,22 @@ public:
 		LoadResource("anim2", "resources/animation4.png");
 		// LoadResource("anim3", "resources/animation3.png");
 
-		/*sprite = CreateSprite(*this, "anim");
-		sprite.SetPosition(camera.primary.GetPosition() + V2_int{ 64, 0 });
-		sprite.SetScale(3.0f);
+		/*sprite = CreateSprite(*this, "anim", camera.primary.GetPosition() + V2_int{ 64, 0 });
+		SetScale(sprite, 3.0f);
 		auto& crop	  = sprite.Add<TextureCrop>();
 		crop.size	  = V2_int{ 16, 32 };
 		crop.position = V2_int{ 0, 0 };
-		sprite.Hide();*/
+		Hide(sprite);*/
 
 		// animation2 =
-		// CreateAnimation(*this, "anim3", 16, milliseconds{ 1000 }, V2_int{ 512, 512 }, -1, {});
-		animation =
-			CreateAnimation(*this, "anim2", 16, milliseconds{ 2000 }, V2_int{ 512, 512 }, -1, {});
-		// CreateAnimation(*this, "anim", 4, milliseconds{ 500 },V2_int{ 16, 32 }, -1, {});
-		animation.SetScale(1.0f);
-		// animation2.SetScale(0.5f);
-		animation.SetPosition(camera.primary.GetPosition());
-		// animation2.SetPosition(camera.primary.GetPosition());
+		// CreateAnimation(*this, "anim3", camera.primary.GetPosition(), 16, milliseconds{ 1000 },
+		// V2_int{ 512, 512 }, -1, {});
+		animation = CreateAnimation(
+			*this, "anim2", camera.primary.GetPosition(), 16, milliseconds{ 2000 },
+			V2_int{ 512, 512 }, -1, {}
+		);
+		// CreateAnimation(*this, "anim", camera.primary.GetPosition(), 4, milliseconds{ 500
+		// },V2_int{ 16, 32 }, -1, {}); SetScale(animation2, 0.5f);
 
 		animation.Start();
 		// animation2.Start();

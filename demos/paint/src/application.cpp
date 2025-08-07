@@ -29,7 +29,7 @@ public:
 	void Enter() override {
 		outer_grid.Fill(0);
 		text = CreateText(*this, "", color::Orange);
-		text.SetDepth(1);
+		SetDepth(text, 1);
 	}
 
 	bool toggle = true;
@@ -82,7 +82,7 @@ public:
 			DrawDebugRect(mouse_tile * tile_size, tile_size, color::Yellow, Origin::TopLeft);
 		}
 		text.SetContent(ToString(mouse_tile));
-		text.SetPosition(mouse_tile * tile_size + tile_size / 2.0f);
+		SetPosition(text, mouse_tile * tile_size + tile_size / 2.0f);
 	}
 };
 

@@ -41,8 +41,7 @@ public:
 class PlatformingScene : public Scene {
 	Entity CreatePlatform(const V2_float& position, const V2_float& size, Origin origin) {
 		auto entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
-		entity.Enable();
-		auto& box = entity.Add<BoxCollider>(size, origin);
+		auto& box	= entity.Add<Collider>(Rect{ size });
 		box.SetCollisionCategory(ground_category);
 		return entity;
 	}
@@ -52,12 +51,11 @@ class PlatformingScene : public Scene {
 			*this, window_size / 2.0f + V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen,
 			-1.0f, Origin::Center
 		);
-		entity.Enable();
 		auto& rb	 = entity.Add<RigidBody>();
 		rb.gravity	 = 1.0f;
 		auto& m		 = entity.Add<PlatformerMovement>();
 		auto& j		 = entity.Add<PlatformerJump>();
-		auto& b		 = entity.Add<BoxCollider>(V2_float{ 20, 40 }, Origin::Center);
+		auto& b		 = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
 		b.continuous = true;
 		entity.AddScript<GroundScript>();
 		return entity;
