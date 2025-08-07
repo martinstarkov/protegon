@@ -8,7 +8,6 @@
 #include "common/type_traits.h"
 #include "components/common.h"
 #include "components/drawable.h"
-#include "components/transform.h"
 #include "components/uuid.h"
 #include "core/entity_hierarchy.h"
 #include "core/script.h"
@@ -27,9 +26,11 @@
 
 namespace ptgn {
 
+class Entity;
 class Manager;
 class Scene;
 class Camera;
+struct Transform;
 struct Interactive;
 class SceneInput;
 
@@ -37,6 +38,7 @@ namespace impl {
 
 class RenderData;
 class IScript;
+const ptgn::Interactive& GetInteractive(const Entity& entity);
 
 template <typename T>
 inline constexpr bool is_retrievable_component_v{
@@ -157,36 +159,6 @@ public:
 	[[nodiscard]] UUID GetUUID() const;
 
 	[[nodiscard]] std::size_t GetHash() const;
-
-	// Entity activation functions.
-
-	// TODO: Potentially move these interactable functions to another wrapper class.
-
-	// If true, enables the entity to trigger interaction scripts.
-	// Note: Setting interactive to true will implicitly call Enable() on *this.
-	// @return *this.
-	Entity& SetInteractive(bool interactive = true);
-	[[nodiscard]] bool IsInteractive() const;
-
-	// Add an interactable shape to the entity.
-	// Note: adding an interactive will implicitly call SetInteractive(true) and Enable() on *this.
-	// @param set_parent If true, will set the parent of shape to *this.
-	// The entity interactive will take ownership of these entities.
-	// @return *this.
-	Entity& AddInteractable(Entity shape, bool set_parent = true);
-
-	// Same as AddInteractable but will clear previous interactables first.
-	// @return *this.
-	Entity& SetInteractable(Entity shape, bool set_parent = true);
-
-	// Remove an interactable shape from the entity.
-	// @return *this.
-	Entity& RemoveInteractable(Entity shape);
-
-	// @return True if the entity has the given interactable.
-	[[nodiscard]] bool HasInteractable(Entity shape) const;
-
-	[[nodiscard]] std::vector<Entity> GetInteractables() const;
 
 	// If not enabled, removes the entity from the scene update list.
 	// @return *this.
@@ -410,18 +382,9 @@ public:
 	// @return True if *this was created before other.
 	[[nodiscard]] bool WasCreatedBefore(const Entity& other) const;
 
-protected:
-	void ClearInteractables();
-
-	void SetInteractiveWasInside(bool value);
-	void SetInteractiveIsInside(bool value);
-	[[nodiscard]] bool InteractiveWasInside() const;
-	[[nodiscard]] bool InteractiveIsInside() const;
-
-	friend class SceneInput;
-
 private:
 	friend Entity& SetTransform(Entity& entity, const Transform& transform);
+	friend const Interactive& impl::GetInteractive(const Entity& entity);
 	friend class Manager;
 	friend class impl::RenderData;
 

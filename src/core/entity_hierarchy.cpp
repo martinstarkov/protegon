@@ -118,9 +118,11 @@ void RemoveChild(Entity& entity, std::string_view name) {
 	if (!entity.Has<impl::Children>()) {
 		return;
 	}
-	const auto& children{ entity.Get<impl::Children>() };
-	auto child{ children.Get(name) };
-	RemoveParent(child);
+	auto& children{ entity.Get<impl::Children>() };
+	if (children.Has(name)) {
+		auto& child{ children.Get(name) };
+		RemoveParent(child);
+	}
 }
 
 bool HasChild(const Entity& entity, std::string_view name) {
@@ -139,18 +141,18 @@ bool HasChild(const Entity& entity, const Entity& child) {
 	return children.Has(child);
 }
 
-Entity GetChild(const Entity& entity, std::string_view name) {
-	if (!entity.Has<impl::Children>()) {
-		return {};
-	}
+const Entity& GetChild(const Entity& entity, std::string_view name) {
+	PTGN_ASSERT(HasChildren(entity));
 	const auto& children{ entity.Get<impl::Children>() };
 	return children.Get(name);
 }
 
+bool HasChildren(const Entity& entity) {
+	return entity.Has<impl::Children>();
+}
+
 const std::vector<Entity>& GetChildren(const Entity& entity) {
-	if (!entity.Has<impl::Children>()) {
-		return {};
-	}
+	PTGN_ASSERT(HasChildren(entity));
 	const auto& children{ entity.Get<impl::Children>().children_ };
 	return children;
 }

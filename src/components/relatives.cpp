@@ -40,14 +40,18 @@ void Children::Remove(std::string_view name) {
 	}
 }
 
-[[nodiscard]] Entity Children::Get(std::string_view name) const {
+[[nodiscard]] const Entity& Children::Get(std::string_view name) const {
 	ChildKey k{ name };
 	for (const auto& entity : children_) {
 		if (entity.Has<ChildKey>() && entity.Get<ChildKey>() == k) {
 			return entity;
 		}
 	}
-	return {};
+	PTGN_ERROR("Failed to find child with the given name");
+}
+
+Entity& Children::Get(std::string_view name) {
+	return const_cast<Entity&>(std::as_const(*this).Get(name));
 }
 
 [[nodiscard]] bool Children::IsEmpty() const {

@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "components/input.h"
+#include "components/interactive.h"
 #include "core/entity.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"

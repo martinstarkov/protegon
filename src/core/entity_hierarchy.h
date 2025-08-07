@@ -36,8 +36,10 @@ void RemoveChild(Entity& entity, std::string_view name);
 [[nodiscard]] bool HasChild(const Entity& entity, const Entity& child);
 [[nodiscard]] bool HasChild(const Entity& entity, std::string_view name);
 
-// @return Child entity with the given name, or null entity is no such child exists.
-[[nodiscard]] Entity GetChild(const Entity& entity, std::string_view name);
+// @return Child entity with the given name. Assertion called if entity does not exist
+[[nodiscard]] const Entity& GetChild(const Entity& entity, std::string_view name);
+
+[[nodiscard]] bool HasChildren(const Entity& entity);
 
 // @return All childs entities tied to the object
 [[nodiscard]] const std::vector<Entity>& GetChildren(const Entity& entity);

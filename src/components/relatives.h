@@ -29,8 +29,9 @@ struct Children {
 	void Remove(const Entity& child);
 	void Remove(std::string_view name);
 
-	// @return Entity with given name, or null entity is no such entity exists.
-	[[nodiscard]] Entity Get(std::string_view name) const;
+	// @return Entity with given name. Assertion called if no such entity exists.
+	[[nodiscard]] const Entity& Get(std::string_view name) const;
+	[[nodiscard]] Entity& Get(std::string_view name);
 
 	[[nodiscard]] bool IsEmpty() const;
 

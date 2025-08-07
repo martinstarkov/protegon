@@ -207,6 +207,9 @@ void Dropdown::Open() {
 		b.Enable();
 		b.Show();
 	}
+	if (!HasChildren(*this)) {
+		return;
+	}
 	auto children{ GetChildren(*this) };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
@@ -231,6 +234,9 @@ void Dropdown::Close(bool close_parents) {
 		if (parent.Has<impl::DropdownInstance>()) {
 			Dropdown{ parent }.Close();
 		}
+	}
+	if (!HasChildren(*this)) {
+		return;
 	}
 	auto children{ GetChildren(*this) };
 	for (const auto& child : children) {

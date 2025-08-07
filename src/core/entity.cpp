@@ -8,7 +8,7 @@
 #include "common/type_info.h"
 #include "components/common.h"
 #include "components/drawable.h"
-#include "components/input.h"
+#include "components/interactive.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "components/uuid.h"
@@ -51,7 +51,7 @@ Entity& Entity::Destroy(bool orphan_children) {
 		return *this;
 	}
 
-	if (!orphan_children) {
+	if (!orphan_children && HasChildren(*this)) {
 		auto children{ GetChildren(*this) };
 		for (Entity child : children) {
 			child.Destroy();
@@ -194,99 +194,6 @@ Entity& Entity::SetEnabled(bool enabled) {
 		Remove<Enabled>();
 	}
 	return *this;
-}
-
-void Entity::ClearInteractables() {
-	if (!Has<Interactive>()) {
-		return;
-	}
-	auto& interactive{ GetImpl<Interactive>() };
-	// Clear owned entities.
-	interactive.Clear();
-}
-
-void Entity::SetInteractiveWasInside(bool value) {
-	PTGN_ASSERT(IsInteractive());
-	auto& interactive{ GetImpl<Interactive>() };
-	interactive.was_inside = value;
-}
-
-void Entity::SetInteractiveIsInside(bool value) {
-	PTGN_ASSERT(IsInteractive());
-	auto& interactive{ GetImpl<Interactive>() };
-	interactive.is_inside = value;
-}
-
-bool Entity::InteractiveWasInside() const {
-	PTGN_ASSERT(IsInteractive());
-	const auto& interactive{ GetImpl<Interactive>() };
-	return interactive.was_inside;
-}
-
-bool Entity::InteractiveIsInside() const {
-	PTGN_ASSERT(IsInteractive());
-	const auto& interactive{ GetImpl<Interactive>() };
-	return interactive.is_inside;
-}
-
-Entity& Entity::SetInteractive(bool interactive) {
-	if (interactive) {
-		Add<Interactive>();
-		Enable();
-	} else {
-		ClearInteractables();
-		Remove<Interactive>();
-	}
-	return *this;
-}
-
-bool Entity::IsInteractive() const {
-	return Has<Interactive>();
-}
-
-Entity& Entity::SetInteractable(Entity shape, bool set_parent) {
-	ClearInteractables();
-	AddInteractable(shape, set_parent);
-	return *this;
-}
-
-Entity& Entity::AddInteractable(Entity shape, bool set_parent) {
-	if (set_parent) {
-		SetParent(shape, *this);
-	}
-	SetInteractive();
-	auto& shapes{ GetImpl<Interactive>().shapes };
-	PTGN_ASSERT(
-		!VectorContains(shapes, shape),
-		"Cannot add the same interactable to an entity more than once"
-	);
-	shapes.emplace_back(shape);
-	return *this;
-}
-
-Entity& Entity::RemoveInteractable(Entity shape) {
-	if (!IsInteractive()) {
-		return *this;
-	}
-	auto& shapes{ GetImpl<Interactive>().shapes };
-	VectorErase(shapes, shape);
-	return *this;
-}
-
-bool Entity::HasInteractable(Entity shape) const {
-	if (!IsInteractive()) {
-		return false;
-	}
-	const auto& shapes{ GetImpl<Interactive>().shapes };
-	return VectorContains(shapes, shape);
-}
-
-std::vector<Entity> Entity::GetInteractables() const {
-	if (!IsInteractive()) {
-		return {};
-	}
-	const auto& shapes{ GetImpl<Interactive>().shapes };
-	return shapes;
 }
 
 Entity& Entity::Disable() {

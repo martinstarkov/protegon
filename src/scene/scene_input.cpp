@@ -1,20 +1,17 @@
 #include "scene/scene_input.h"
 
-#include <functional>
 #include <utility>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/common.h"
-#include "components/input.h"
+#include "components/interactive.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/window.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
-#include "input/key.h"
 #include "input/mouse.h"
 #include "math/geometry.h"
 #include "math/geometry/circle.h"
@@ -54,8 +51,8 @@ void GetShapes(
 	}
 
 	// Get sub interactables of the entity recursively.
-	if (entity.IsInteractive()) {
-		auto interactables{ entity.GetInteractables() };
+	if (IsInteractive(entity)) {
+		auto interactables{ GetInteractables(entity) };
 		for (const auto& interactable : interactables) {
 			GetShapes(interactable, root_entity, vector);
 		}
@@ -636,7 +633,7 @@ V2_float SceneInput::GetMouseDifference() const {
 }
 
 void SceneInput::SimulateMouseMovement(Entity entity) {
-	if (!entity.IsInteractive()) {
+	if (!IsInteractive(entity)) {
 		return;
 	}
 	PTGN_ASSERT(entity.Has<impl::SceneKey>());
@@ -645,10 +642,11 @@ void SceneInput::SimulateMouseMovement(Entity entity) {
 		return;
 	}
 	auto& scene{ game.scene.Get<Scene>(scene_key) };
-	entity.SetInteractiveWasInside(false);
+	impl::SetInteractiveWasInside(entity, false);
 	auto screen_pointer{ game.input.GetMousePosition() };
 	scene.input.EntityMouseMove(
-		scene, entity, entity.InteractiveIsInside(), entity.InteractiveWasInside(), screen_pointer
+		scene, entity, impl::InteractiveIsInside(entity), impl::InteractiveWasInside(entity),
+		screen_pointer
 	);
 }
 

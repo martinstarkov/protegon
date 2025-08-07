@@ -9,6 +9,44 @@
 
 namespace ptgn {
 
+// If true, enables the entity to trigger interaction scripts.
+// Note: Setting interactive to true will implicitly call Enable() on *this.
+// @return entity.
+Entity& SetInteractive(Entity& entity, bool interactive = true);
+[[nodiscard]] bool IsInteractive(const Entity& entity);
+
+// Add an interactable shape to the entity.
+// Note: adding an interactive will implicitly call SetInteractive(true) and Enable() on *this.
+// @param set_parent If true, will set the parent of shape to *this.
+// The entity interactive will take ownership of these entities.
+// @return entity.
+Entity& AddInteractable(Entity& entity, Entity& shape, bool set_parent = true);
+
+// Same as AddInteractable but will clear previous interactables first.
+// @return entity.
+Entity& SetInteractable(Entity& entity, Entity& shape, bool set_parent = true);
+
+// Remove an interactable shape from the entity.
+// @return entity.
+Entity& RemoveInteractable(Entity& entity, const Entity& shape);
+
+// @return True if the entity has the given interactable.
+[[nodiscard]] bool HasInteractable(const Entity& entity, const Entity& shape);
+
+[[nodiscard]] const std::vector<Entity>& GetInteractables(const Entity& entity);
+
+namespace impl {
+
+void ClearInteractables(Entity& entity);
+[[nodiscard]] const Interactive& GetInteractive(const Entity& entity);
+[[nodiscard]] Interactive& GetInteractive(Entity& entity);
+void SetInteractiveWasInside(Entity& entity, bool value);
+void SetInteractiveIsInside(Entity& entity, bool value);
+[[nodiscard]] bool InteractiveWasInside(const Entity& entity);
+[[nodiscard]] bool InteractiveIsInside(const Entity& entity);
+
+} // namespace impl
+
 struct Interactive {
 	bool is_inside{ false };
 	bool was_inside{ false };

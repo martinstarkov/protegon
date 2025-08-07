@@ -11,7 +11,7 @@
 
 #include "common/assert.h"
 #include "components/generic.h"
-#include "components/input.h"
+#include "components/interactive.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -43,7 +43,7 @@ Button CreateButton(Scene& scene) {
 	button.Show();
 	button.SetDraw<Button>();
 
-	button.SetInteractive();
+	SetInteractive(button);
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
 	button.AddScript<impl::ButtonScript>();
@@ -581,12 +581,12 @@ Button& Button::SetSize(const V2_float& size) {
 	} else {
 		Add<Rect>(size);
 	}
-	if (IsInteractive()) {
-		ClearInteractables();
+	if (IsInteractive(*this)) {
+		impl::ClearInteractables(*this);
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Rect>(size);
-		AddInteractable(shape);
+		AddInteractable(*this, shape);
 	}
 	return *this;
 }
@@ -598,12 +598,12 @@ Button& Button::SetRadius(float radius) {
 	} else {
 		Add<Circle>(radius);
 	}
-	if (IsInteractive()) {
-		ClearInteractables();
+	if (IsInteractive(*this)) {
+		impl::ClearInteractables(*this);
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Circle>(radius);
-		AddInteractable(shape);
+		AddInteractable(*this, shape);
 	}
 	return *this;
 }
@@ -746,12 +746,12 @@ const TextureHandle& Button::GetTextureKey(ButtonState state) const {
 }
 
 Button& Button::SetTextureKey(const TextureHandle& texture_key, ButtonState state) {
-	if (IsInteractive() && GetInteractables().empty()) {
+	if (IsInteractive(*this) && GetInteractables(*this).empty()) {
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		auto size{ texture_key.GetSize() };
 		shape.Add<Rect>(size);
-		AddInteractable(shape);
+		AddInteractable(*this, shape);
 	}
 	if (!Has<TextureHandle>()) {
 		Add<TextureHandle>(texture_key);

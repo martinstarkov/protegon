@@ -8,7 +8,7 @@
 #include "components/animation.h"
 #include "components/common.h"
 #include "components/draw.h"
-#include "components/input.h"
+#include "components/interactive.h"
 #include "components/lifetime.h"
 #include "components/movement.h"
 #include "components/offsets.h"

@@ -3,7 +3,7 @@
 #include "audio/audio.h"
 #include "components/common.h"
 #include "components/draw.h"
-#include "components/input.h"
+#include "components/interactive.h"
 #include "components/lifetime.h"
 #include "components/offsets.h"
 #include "core/entity.h"
