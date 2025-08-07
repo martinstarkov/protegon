@@ -14,6 +14,9 @@
 #include "physics/collision/collider.h"
 #include "serialization/fwd.h"
 
+// TODO: Separate scripts into multiple and use event system to dispatch, instead of virtual
+// functions.
+
 namespace ptgn {
 
 class Scene;
