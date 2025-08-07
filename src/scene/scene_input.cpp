@@ -267,7 +267,8 @@ void SceneInput::EntityMouseDown(
 		return;
 	}
 
-	InvokeScript<&impl::IScript::OnMouseDown>(entity, mouse);
+	// TODO: Fix.
+	// InvokeScript<&impl::IScript::OnMouseDown>(entity, screen_pointer, mouse);
 
 	if (!entity.Has<Draggable>()) {
 		return;
@@ -308,7 +309,8 @@ void SceneInput::EntityMouseUp(
 	}
 
 	if (is_inside) {
-		InvokeScript<&impl::IScript::OnMouseUp>(entity, mouse);
+		// TODO: Fix.
+		// InvokeScript<&impl::IScript::OnMouseUp>(entity, screen_pointer, mouse);
 	} else {
 		InvokeScript<&impl::IScript::OnMouseUpOutside>(entity, mouse);
 	}
@@ -471,7 +473,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 					!entity.Has<Interactive>()) {
 					continue;
 				}
-				entity.InvokeScript<&impl::IScript::OnMouseDownOutside>(mouse);
+				InvokeScript<&impl::IScript::OnMouseDownOutside>(entity, world_pointer, mouse);
 			}
 			break;
 		}
@@ -488,13 +490,13 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
-				entity.InvokeScript<&impl::IScript::OnMousePressed>(mouse);
+				InvokeScript<&impl::IScript::OnMousePressed>(entity, world_pointer, mouse);
 			}
 			for (Entity entity : mouse_over) {
 				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
-				entity.InvokeScript<&impl::IScript::OnMousePressed>(mouse);
+				InvokeScript<&impl::IScript::OnMousePressed>(entity, world_pointer, mouse);
 			}
 			break;
 		}
@@ -504,13 +506,13 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
-				entity.InvokeScript<&impl::IScript::OnMouseScroll>(scroll);
+				InvokeScript<&impl::IScript::OnMouseScroll>(entity, scroll, world_pointer);
 			}
 			for (Entity entity : mouse_over) {
 				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
-				entity.InvokeScript<&impl::IScript::OnMouseScroll>(scroll);
+				InvokeScript<&impl::IScript::OnMouseScroll>(entity, scroll, world_pointer);
 			}
 			break;
 		}
@@ -528,7 +530,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 			Key key{ static_cast<const KeyDownEvent&>(event).key };
 			for (auto [entity, interactive, scripts] :
 				 scene.InternalEntitiesWith<Interactive, Scripts>()) {
-				entity.InvokeScript<&impl::IScript::OnKeyDown>(key);
+				InvokeScript<&impl::IScript::OnKeyDown>(entity, key);
 			}
 			break;
 		}
@@ -536,7 +538,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 			Key key{ static_cast<const KeyUpEvent&>(event).key };
 			for (auto [entity, interactive, scripts] :
 				 scene.InternalEntitiesWith<Interactive, Scripts>()) {
-				entity.InvokeScript<&impl::IScript::OnKeyUp>(key);
+				InvokeScript<&impl::IScript::OnKeyUp>(entity, key);
 			}
 			break;
 		}
@@ -544,7 +546,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 			Key key{ static_cast<const KeyPressedEvent&>(event).key };
 			for (auto [entity, interactive, scripts] :
 				 scene.InternalEntitiesWith<Interactive, Scripts>()) {
-				entity.InvokeScript<&impl::IScript::OnKeyPressed>(key);
+				InvokeScript<&impl::IScript::OnKeyPressed>(entity, key);
 			}
 			break;
 		}

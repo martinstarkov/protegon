@@ -65,6 +65,20 @@ public:
 	// virtual void OnFixedUpdate([[maybe_unused]] float fixed_dt) {} // Called at fixed intervals
 	// (physics).
 
+	// Window events.
+
+	virtual void OnWindowResized([[maybe_unused]] V2_int size) { /* user implementation */ }
+
+	virtual void OnWindowMoved([[maybe_unused]] V2_int position) { /* user implementation */ }
+
+	virtual void OnWindowMaximized() { /* user implementation */ }
+
+	virtual void OnWindowMinimized() { /* user implementation */ }
+
+	virtual void OnWindowFocusLost() { /* user implementation */ }
+
+	virtual void OnWindowFocusGained() { /* user implementation */ }
+
 	// Keyboard events.
 
 	virtual void OnKeyDown([[maybe_unused]] Key key) { /* user implementation */ }
@@ -75,42 +89,48 @@ public:
 
 	// Mouse events.
 
-	virtual void OnMouseDown([[maybe_unused]] Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseDown(
+		[[maybe_unused]] V2_int mouse_position, [[maybe_unused]] Mouse mouse
+	) { /* user implementation */ }
 
 	virtual void OnMouseDownOutside([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseMove([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnMouseMove([[maybe_unused]] V2_int mouse_position) { /* user implementation */ }
 
-	virtual void OnMouseEnter([[maybe_unused]] V2_float mouse_position) { /* user implementation */
-	}
+	virtual void OnMouseEnter([[maybe_unused]] V2_int mouse_position) { /* user implementation */ }
 
-	virtual void OnMouseLeave([[maybe_unused]] V2_float mouse_position) { /* user implementation */
-	}
+	virtual void OnMouseLeave([[maybe_unused]] V2_int mouse_position) { /* user implementation */ }
 
-	virtual void OnMouseOut([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnMouseOut([[maybe_unused]] V2_int mouse_position) { /* user implementation */ }
 
-	virtual void OnMouseOver([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnMouseOver([[maybe_unused]] V2_int mouse_position) { /* user implementation */ }
 
-	virtual void OnMouseUp([[maybe_unused]] Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseUp(
+		[[maybe_unused]] V2_int mouse_position, [[maybe_unused]] Mouse mouse
+	) { /* user implementation */ }
 
 	virtual void OnMouseUpOutside([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMousePressed([[maybe_unused]] Mouse mouse) { /* user implementation */ }
+	virtual void OnMousePressed(
+		[[maybe_unused]] V2_int mouse_position, [[maybe_unused]] Mouse mouse
+	) { /* user implementation */ }
 
 	// Scroll amount in each direction.
-	virtual void OnMouseScroll([[maybe_unused]] V2_int scroll_amount) { /* user implementation */ }
+	virtual void OnMouseScroll(
+		[[maybe_unused]] V2_int scroll_amount, [[maybe_unused]] V2_int mouse_position
+	) { /* user implementation */ }
 
 	// Draggable events.
 
 	// Triggered when the user start holding left click over a draggable interactive object.
-	virtual void OnDragStart([[maybe_unused]] V2_float start_position) { /* user implementation */ }
+	virtual void OnDragStart([[maybe_unused]] V2_int start_position) { /* user implementation */ }
 
 	// Triggered when the user lets go of left click while dragging a draggable interactive object.
-	virtual void OnDragStop([[maybe_unused]] V2_float stop_position) { /* user implementation */ }
+	virtual void OnDragStop([[maybe_unused]] V2_int stop_position) { /* user implementation */ }
 
 	// Triggered every frame while the user is holding left click over a draggable interactive
 	// object.
-	virtual void OnDrag([[maybe_unused]] V2_float mouse_position) { /* user implementation */ }
+	virtual void OnDrag([[maybe_unused]] V2_int mouse_position) { /* user implementation */ }
 
 	virtual void OnDragEnter([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 

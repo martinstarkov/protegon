@@ -183,44 +183,39 @@ void InputHandler::DispatchInputEvents(Scene& scene) {
 				if constexpr (std::is_same_v<T, impl::KeyDown>) {
 					Scripts::Invoke<&impl::IScript::OnKeyDown>(scene, ev.key);
 					Scripts::Invoke<&impl::IScript::OnKeyPressed>(scene, ev.key);
-					// PTGN_LOG("KeyDown: ", ev.key);
-					// PTGN_LOG("KeyPressed: ", ev.key);
 				} else if constexpr (std::is_same_v<T, impl::KeyPressed>) {
 					Scripts::Invoke<&impl::IScript::OnKeyPressed>(scene, ev.key);
-					// PTGN_LOG("KeyPressed: ", ev.key);
 				} else if constexpr (std::is_same_v<T, impl::KeyUp>) {
 					Scripts::Invoke<&impl::IScript::OnKeyUp>(scene, ev.key);
-					// PTGN_LOG("KeyUp: ", ev.key);
 				}
 
 				// --- Mouse Events ---
 				else if constexpr (std::is_same_v<T, impl::MouseMove>) {
-					// PTGN_LOG("MouseMove: ", ev.position);
+					Scripts::Invoke<&impl::IScript::OnMouseMove>(scene, ev.position);
 				} else if constexpr (std::is_same_v<T, impl::MouseDown>) {
-					// PTGN_LOG("MouseDown: ", ev.button, ", pos: ", ev.position);
+					Scripts::Invoke<&impl::IScript::OnMouseDown>(scene, ev.position, ev.button);
 				} else if constexpr (std::is_same_v<T, impl::MousePressed>) {
-					// PTGN_LOG("MousePressed: ", ev.button, ", pos: ", ev.position);
+					Scripts::Invoke<&impl::IScript::OnMousePressed>(scene, ev.position, ev.button);
 				} else if constexpr (std::is_same_v<T, impl::MouseUp>) {
-					// PTGN_LOG("MouseUp: ", ev.button, ", pos: ", ev.position);
+					Scripts::Invoke<&impl::IScript::OnMouseUp>(scene, ev.position, ev.button);
 				} else if constexpr (std::is_same_v<T, impl::MouseScroll>) {
-					// PTGN_LOG("MouseScroll: ", ev.scroll, ", pos: ", ev.position);
+					Scripts::Invoke<&impl::IScript::OnMouseScroll>(scene, ev.scroll, ev.position);
 				}
 
 				// --- Window Events ---
 				else if constexpr (std::is_same_v<T, impl::WindowResized>) {
-					// PTGN_LOG("WindowResized: (", ev.size.x, ", ", ev.size.y, ")");
+					Scripts::Invoke<&impl::IScript::OnWindowResized>(scene, ev.size);
 				} else if constexpr (std::is_same_v<T, impl::WindowMoved>) {
-					// PTGN_LOG("WindowMoved: (", ev.position.x, ", ", ev.position.y, ")");
+					Scripts::Invoke<&impl::IScript::OnWindowMoved>(scene, ev.position);
 				} else if constexpr (std::is_same_v<T, impl::WindowMaximized>) {
-					// PTGN_LOG("WindowMaximized");
+					Scripts::Invoke<&impl::IScript::OnWindowMaximized>(scene);
 				} else if constexpr (std::is_same_v<T, impl::WindowMinimized>) {
-					// PTGN_LOG("WindowMinimized");
+					Scripts::Invoke<&impl::IScript::OnWindowMinimized>(scene);
 				} else if constexpr (std::is_same_v<T, impl::WindowFocusLost>) {
-					// PTGN_LOG("WindowFocusLost");
+					Scripts::Invoke<&impl::IScript::OnWindowFocusLost>(scene);
 				} else if constexpr (std::is_same_v<T, impl::WindowFocusGained>) {
-					// PTGN_LOG("WindowFocusGained");
+					Scripts::Invoke<&impl::IScript::OnWindowFocusGained>(scene);
 				} else if constexpr (std::is_same_v<T, impl::WindowQuit>) {
-					// PTGN_LOG("WindowQuit");
 					game.Stop();
 				}
 			},

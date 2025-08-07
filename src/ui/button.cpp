@@ -82,7 +82,7 @@ ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 
 namespace impl {
 
-void ButtonScript::OnMouseEnter([[maybe_unused]] V2_float mouse) {
+void ButtonScript::OnMouseEnter([[maybe_unused]] V2_int mouse_position) {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (state == InternalButtonState::IdleUp) {
@@ -96,7 +96,7 @@ void ButtonScript::OnMouseEnter([[maybe_unused]] V2_float mouse) {
 	}
 }
 
-void ButtonScript::OnMouseLeave([[maybe_unused]] V2_float mouse) {
+void ButtonScript::OnMouseLeave([[maybe_unused]] V2_int mouse_position) {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (state == InternalButtonState::Hover) {
@@ -111,7 +111,7 @@ void ButtonScript::OnMouseLeave([[maybe_unused]] V2_float mouse) {
 	}
 }
 
-void ButtonScript::OnMouseDown(Mouse mouse) {
+void ButtonScript::OnMouseDown(V2_int mouse_position, Mouse mouse) {
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::Hover) {
@@ -129,7 +129,7 @@ void ButtonScript::OnMouseDownOutside(Mouse mouse) {
 	}
 }
 
-void ButtonScript::OnMouseUp(Mouse mouse) {
+void ButtonScript::OnMouseUp(V2_int mouse_position, Mouse mouse) {
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::Pressed) {

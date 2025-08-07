@@ -53,6 +53,12 @@ struct TestScript2 : public Script<TestScript2> {
 	}
 };
 
+struct TestScript3 : public Script<TestScript3> {
+	void OnWindowResized(V2_int size) {
+		PTGN_LOG("Entity: ", entity.GetId(), ", window resized: ", size);
+	}
+};
+
 class EventScene : public Scene {
 public:
 	Entity e1;
@@ -65,6 +71,7 @@ public:
 		e2 = CreateEntity();
 		AddScript<TestScript>(e1);
 		AddScript<TestScript2>(e1);
+		AddScript<TestScript3>(e1);
 		AddScript<TestScript>(e2);
 		AddScript<TestScript2>(e2);
 	}

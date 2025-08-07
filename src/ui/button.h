@@ -50,15 +50,15 @@ enum class InternalButtonState {
 
 class ButtonScript : public ptgn::Script<ButtonScript> {
 public:
-	void OnMouseEnter(V2_float mouse) override;
+	void OnMouseEnter(V2_int mouse_position) override;
 
-	void OnMouseLeave(V2_float mouse) override;
+	void OnMouseLeave(V2_int mouse_position) override;
 
-	void OnMouseDown(Mouse mouse) override;
+	void OnMouseDown(V2_int mouse_position, Mouse mouse) override;
 
 	void OnMouseDownOutside(Mouse mouse) override;
 
-	void OnMouseUp(Mouse mouse) override;
+	void OnMouseUp(V2_int mouse_position, Mouse mouse) override;
 
 	void OnMouseUpOutside(Mouse mouse) override;
 };
