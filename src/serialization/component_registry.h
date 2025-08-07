@@ -6,7 +6,6 @@
 
 #include "common/type_info.h"
 #include "components/animation.h"
-#include "components/common.h"
 #include "components/draw.h"
 #include "components/interactive.h"
 #include "components/lifetime.h"
@@ -91,7 +90,6 @@ public:
 	static TComponent##Registration global_##TComponent##Registration; \
 	}
 
-PTGN_REGISTER_COMPONENT(Enabled)
 PTGN_REGISTER_COMPONENT(Visible)
 PTGN_REGISTER_COMPONENT(Tint)
 PTGN_REGISTER_COMPONENT(Depth)

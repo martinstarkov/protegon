@@ -5,7 +5,7 @@
 
 #include "common/assert.h"
 #include "components/animation.h"
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/drawable.h"
 #include "components/lifetime.h"
 #include "components/transform.h"
@@ -41,7 +41,7 @@ Scene::Scene() {
 		render_manager.CreateEntity(), color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	render_target_.SetBlendMode(BlendMode::BlendPremultiplied);
+	SetBlendMode(render_target_, BlendMode::BlendPremultiplied);
 }
 
 Scene::~Scene() {

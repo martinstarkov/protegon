@@ -43,9 +43,9 @@ struct Rect : public Drawable<Rect> {
 	[[nodiscard]] std::array<V2_float, 4> GetLocalVertices() const;
 
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(
-		const Transform& transform, Origin origin
+		const Transform& transform, Origin draw_origin
 	) const;
-	[[nodiscard]] std::array<V2_float, 4> GetLocalVertices(Origin origin) const;
+	[[nodiscard]] std::array<V2_float, 4> GetLocalVertices(Origin draw_origin) const;
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;

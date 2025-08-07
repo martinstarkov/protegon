@@ -6,7 +6,6 @@
 #include "common/assert.h"
 #include "common/move_direction.h"
 #include "common/type_traits.h"
-#include "components/common.h"
 #include "components/drawable.h"
 #include "components/uuid.h"
 #include "core/entity_hierarchy.h"
@@ -16,9 +15,6 @@
 #include "input/key.h"
 #include "input/mouse.h"
 #include "math/vector2.h"
-#include "renderer/api/blend_mode.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
 #include "serialization/json_archiver.h"
@@ -33,6 +29,10 @@ class Camera;
 struct Transform;
 struct Interactive;
 class SceneInput;
+struct Depth;
+struct Visible;
+
+Entity& SetDepth(Entity& entity, const Depth& depth);
 
 namespace impl {
 
@@ -42,7 +42,7 @@ const ptgn::Interactive& GetInteractive(const Entity& entity);
 
 template <typename T>
 inline constexpr bool is_retrievable_component_v{
-	!tt::is_any_of_v<T, Transform, Depth, Enabled, Visible, Interactive, IDrawable>
+	!tt::is_any_of_v<T, Transform, Depth, Visible, Interactive, IDrawable>
 };
 
 } // namespace impl
@@ -159,67 +159,6 @@ public:
 	[[nodiscard]] UUID GetUUID() const;
 
 	[[nodiscard]] std::size_t GetHash() const;
-
-	// If not enabled, removes the entity from the scene update list.
-	// @return *this.
-	Entity& SetEnabled(bool enabled = true);
-
-	// Removes the entity from the scene update list.
-	// @return *this.
-	Entity& Disable();
-
-	// Add the entity to the scene update list (if not already there).
-	// @return *this.
-	Entity& Enable();
-
-	// @return True if the entity is in the scene update list.
-	[[nodiscard]] bool IsEnabled() const;
-
-	Entity& SetOrigin(Origin origin);
-
-	[[nodiscard]] Origin GetOrigin() const;
-
-	// Draw functions.
-
-	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
-	Entity& SetDraw() {
-		Add<IDrawable>(type_name<T>());
-		return *this;
-	}
-
-	[[nodiscard]] bool HasDraw() const;
-
-	Entity& RemoveDraw();
-
-	Entity& SetDrawOffset(const V2_float& offset = {});
-
-	Entity& AddPostFX(Entity post_fx);
-
-	Entity& AddPreFX(Entity pre_fx);
-
-	// @return *this.
-	Entity& SetVisible(bool visible);
-
-	// @return *this.
-	Entity& Show();
-
-	// @return *this.
-	Entity& Hide();
-
-	[[nodiscard]] bool IsVisible() const;
-
-	Entity& SetDepth(const Depth& depth);
-
-	[[nodiscard]] Depth GetDepth() const;
-
-	Entity& SetBlendMode(BlendMode blend_mode);
-
-	[[nodiscard]] BlendMode GetBlendMode() const;
-
-	// color::White will clear tint.
-	Entity& SetTint(const Color& color = color::White);
-
-	[[nodiscard]] Color GetTint() const;
 
 	// Scripting.
 
@@ -385,6 +324,7 @@ public:
 private:
 	friend Entity& SetTransform(Entity& entity, const Transform& transform);
 	friend const Interactive& impl::GetInteractive(const Entity& entity);
+	friend Entity& SetDepth(Entity& entity, const Depth& depth);
 	friend class Manager;
 	friend class impl::RenderData;
 
@@ -471,10 +411,6 @@ public:
 	} // Called when script is first instantiated.
 
 	virtual void OnDestroy() { /* user implementation */ } // Called before script is destroyed.
-
-	virtual void OnEnable() { /* user implementation */ }  // Called when entity is enabled.
-
-	virtual void OnDisable() { /* user implementation */ } // Called when entity is disabled.
 
 	virtual void OnShow() { /* user implementation */ }	   // Called when entity is shown.
 
@@ -916,42 +852,6 @@ void Entity::RemoveScript() {
 		Remove<Scripts>();
 	}
 }
-
-namespace impl {
-
-struct PostFX {
-	PostFX() = default;
-
-	std::vector<Entity> post_fx_;
-
-	friend bool operator==(const PostFX& a, const PostFX& b) {
-		return a.post_fx_ == b.post_fx_;
-	}
-
-	friend bool operator!=(const PostFX& a, const PostFX& b) {
-		return !(a == b);
-	}
-
-	PTGN_SERIALIZER_REGISTER_NAMED(PostFX, KeyValue("post_fx", post_fx_))
-};
-
-struct PreFX {
-	PreFX() = default;
-
-	std::vector<Entity> pre_fx_;
-
-	friend bool operator==(const PreFX& a, const PreFX& b) {
-		return a.pre_fx_ == b.pre_fx_;
-	}
-
-	friend bool operator!=(const PreFX& a, const PreFX& b) {
-		return !(a == b);
-	}
-
-	PTGN_SERIALIZER_REGISTER_NAMED(PreFX, KeyValue("pre_fx", pre_fx_))
-};
-
-} // namespace impl
 
 } // namespace ptgn
 

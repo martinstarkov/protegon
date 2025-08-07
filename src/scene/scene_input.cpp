@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "common/assert.h"
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/interactive.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -130,13 +130,8 @@ void SceneInput::Update(Scene& scene) {
 void SceneInput::UpdatePrevious(Scene& scene) {
 	triggered_callbacks_ = false;
 	for (auto [entity, interactive] : scene.EntitiesWith<Interactive>()) {
-		if (entity.IsEnabled()) {
-			interactive.was_inside = interactive.is_inside;
-			interactive.is_inside  = false;
-		} else {
-			interactive.was_inside = false;
-			interactive.is_inside  = false;
-		}
+		interactive.was_inside = interactive.is_inside;
+		interactive.is_inside  = false;
 	}
 }
 
@@ -200,8 +195,8 @@ std::vector<Entity> GetOverlappingDropzones(
 ) {
 	std::vector<Entity> overlapping_dropzones;
 
-	for (auto [dropzone_entity, dropzone_enabled, dropzone_interactive, dropzone] :
-		 scene.EntitiesWith<Enabled, Interactive, Dropzone>()) {
+	for (auto [dropzone_entity, dropzone_interactive, dropzone] :
+		 scene.EntitiesWith<Interactive, Dropzone>()) {
 		if (IsOverlappingDropzone(entity, world_pointer, dropzone_entity, dropzone)) {
 			overlapping_dropzones.emplace_back(dropzone_entity);
 		}
@@ -220,7 +215,7 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 
 	bool send_mouse_event{ false };
 
-	for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, interactive] : scene.EntitiesWith<Interactive>()) {
 		auto world_pointer{ entity.GetCamera().TransformToCamera(screen_pointer) };
 
 		if (entity.Has<Dropzone>()) {
@@ -267,7 +262,7 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 void SceneInput::EntityMouseDown(
 	Scene& scene, Entity entity, Mouse mouse, const V2_float& screen_pointer
 ) const {
-	if (!entity.IsAlive() || !entity.Has<Interactive, Enabled>()) {
+	if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 		return;
 	}
 
@@ -292,7 +287,7 @@ void SceneInput::EntityMouseDown(
 	entity.InvokeScript<&impl::IScript::OnDragStart>(world_pointer);
 
 	for (Entity dropzone_entity : dropzones) {
-		if (!dropzone_entity.IsAlive() || !dropzone_entity.Has<Dropzone, Interactive, Enabled>()) {
+		if (!dropzone_entity.IsAlive() || !dropzone_entity.Has<Dropzone, Interactive>()) {
 			continue;
 		}
 		auto& dropzone{ dropzone_entity.Get<Dropzone>() };
@@ -307,7 +302,7 @@ void SceneInput::EntityMouseDown(
 void SceneInput::EntityMouseUp(
 	Scene& scene, Entity entity, bool is_inside, Mouse mouse, const V2_float& screen_pointer
 ) const {
-	if (!entity.IsAlive() || !entity.Has<Interactive, Enabled>()) {
+	if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 		return;
 	}
 
@@ -341,7 +336,7 @@ void SceneInput::EntityMouseUp(
 	}
 
 	for (const auto& dropzone : overlapping_dropzones) {
-		if (!dropzone.IsAlive() || !dropzone.Has<Dropzone, Interactive, Enabled>()) {
+		if (!dropzone.IsAlive() || !dropzone.Has<Dropzone, Interactive>()) {
 			continue;
 		}
 		entity.InvokeScript<&impl::IScript::OnDrop>(dropzone);
@@ -356,7 +351,7 @@ void SceneInput::EntityMouseUp(
 void SceneInput::EntityMouseMove(
 	Scene& scene, Entity entity, bool is_inside, bool was_inside, const V2_float& screen_pointer
 ) const {
-	if (!entity.IsAlive() || !entity.Has<Interactive, Enabled>()) {
+	if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 		return;
 	}
 
@@ -388,8 +383,8 @@ void SceneInput::EntityMouseMove(
 }
 
 void SceneInput::ProcessDragOverDropzones(Scene& scene, const V2_float& screen_pointer) const {
-	for (const auto& [draggable_entity, enabled1, interactive1, draggable] :
-		 scene.EntitiesWith<Enabled, Interactive, Draggable>()) {
+	for (const auto& [draggable_entity, interactive1, draggable] :
+		 scene.EntitiesWith<Interactive, Draggable>()) {
 		// Not dragging currently.
 		if (!draggable.dragging) {
 			continue;
@@ -402,8 +397,7 @@ void SceneInput::ProcessDragOverDropzones(Scene& scene, const V2_float& screen_p
 
 		auto world_pointer{ draggable_entity.GetCamera().TransformToCamera(screen_pointer) };
 		for (Entity dropzone_entity : dropzones) {
-			if (!dropzone_entity.IsAlive() ||
-				!dropzone_entity.Has<Dropzone, Interactive, Enabled>()) {
+			if (!dropzone_entity.IsAlive() || !dropzone_entity.Has<Dropzone, Interactive>()) {
 				continue;
 			}
 			auto& dropzone{ dropzone_entity.Get<Dropzone>() };
@@ -556,7 +550,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 }*/
 
 void SceneInput::ResetInteractives(Scene& scene) {
-	for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
+	for (auto [entity, interactive] : scene.EntitiesWith<Interactive>()) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}

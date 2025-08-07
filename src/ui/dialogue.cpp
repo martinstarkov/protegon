@@ -232,7 +232,7 @@ Text& DialogueComponent::GetText() {
 }
 
 bool DialogueComponent::IsOpen() const {
-	return text_.IsVisible();
+	return IsVisible(text_);
 }
 
 void DialogueComponent::Open(const std::string& dialogue_name) {
@@ -257,16 +257,16 @@ void DialogueComponent::Open(const std::string& dialogue_name) {
 		return;
 	}
 	StartDialogueLine(dialogue_line_index);
-	text_.Show();
+	Show(text_);
 	if (background_) {
-		background_.Show();
+		Show(background_);
 	}
 }
 
 void DialogueComponent::Close() {
-	text_.Hide();
+	Hide(text_);
 	if (background_) {
-		background_.Hide();
+		Hide(background_);
 	}
 	text_.RemoveScript<impl::DialogueWaitScript>();
 	text_.RemoveScript<impl::DialogueScrollScript>();
@@ -370,7 +370,7 @@ void DialogueComponent::AlignToTopLeft(const DialoguePageProperties& default_pro
 		text_, V2_int{ default_properties.padding_left, default_properties.padding_top } -
 				   default_properties.box_size / 2.0f
 	);
-	text_.SetOrigin(Origin::TopLeft);
+	SetDrawOrigin(text_, Origin::TopLeft);
 }
 
 void DialogueComponent::StartDialogueLine(int dialogue_line_index) {

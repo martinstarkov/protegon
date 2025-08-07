@@ -10,7 +10,6 @@ namespace ptgn {
 Entity& SetInteractive(Entity& entity, bool interactive) {
 	if (interactive) {
 		entity.Add<Interactive>();
-		entity.Enable();
 	} else {
 		impl::ClearInteractables(entity);
 		entity.Remove<Interactive>();

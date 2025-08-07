@@ -12,9 +12,8 @@
 #include <utility>
 #include <vector>
 
-#include "api/origin.h"
 #include "common/assert.h"
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/drawable.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -31,6 +30,7 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
+#include "renderer/api/origin.h"
 #include "renderer/api/vertex.h"
 #include "renderer/buffers/buffer.h"
 #include "renderer/buffers/frame_buffer.h"
@@ -291,10 +291,10 @@ void RenderData::AddTriangle(
 }
 
 void RenderData::AddQuad(
-	const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+	const Transform& transform, const V2_float& size, Origin draw_origin, const Color& tint,
 	const Depth& depth, float line_width, const RenderState& state
 ) {
-	auto quad_points{ Rect{ size }.GetWorldVertices(transform, origin) };
+	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	auto quad_vertices{
 		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
 	};
@@ -409,7 +409,7 @@ void RenderData::AddTexturedQuad(
 
 			// assert that vertices is screen vertices.
 			GLRenderer::SetViewport({ 0, 0 }, texture_size);
-			GLRenderer::SetBlendMode(fx.GetBlendMode());
+			GLRenderer::SetBlendMode(GetBlendMode(fx));
 
 			if (it == pre_fx.pre_fx_.begin()) {
 				ReadFrom(texture);
@@ -578,7 +578,7 @@ void RenderData::SetCameraVertices(const std::array<V2_float, 4>& positions, con
 }
 
 void RenderData::SetCameraVertices(const Camera& camera) {
-	SetCameraVertices(camera.GetVertices(), camera.GetDepth());
+	SetCameraVertices(camera.GetVertices(), GetDepth(camera));
 }
 
 void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
@@ -746,7 +746,7 @@ void RenderData::Flush(Scene& scene) {
 			/*PTGN_ASSERT(vertices.size() == 0);
 			PTGN_ASSERT(indices.size() == 0);*/
 			// assert that vertices is screen vertices.
-			SetRenderParameters(camera, fx.GetBlendMode());
+			SetRenderParameters(camera, GetBlendMode(fx));
 
 			ReadFrom(ping->frame_buffer);
 
@@ -886,12 +886,12 @@ void RenderData::DrawToScreen(Scene& scene) {
 	auto camera_points{ r.GetWorldVertices(Transform{ renderer_position }, Origin::TopLeft) };
 
 	camera_vertices = GetQuadVertices(
-		camera_points, color::White, camera.GetDepth(), 1.0f, default_texture_coordinates, true
+		camera_points, color::White, GetDepth(camera), 1.0f, default_texture_coordinates, true
 	);
 	UpdateVertexArray(camera_vertices, quad_indices);
 
 	// TODO: Replace with viewport info.
-	SetRenderParameters(camera, scene.render_target_.GetBlendMode());
+	SetRenderParameters(camera, GetBlendMode(scene.render_target_));
 
 	const Shader* shader{ nullptr };
 

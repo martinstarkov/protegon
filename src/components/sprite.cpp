@@ -14,11 +14,12 @@
 
 namespace ptgn {
 
-Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key) {
+Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key, const V2_float& position) {
 	Sprite sprite{ scene.CreateEntity() };
-	sprite.SetDraw<Sprite>();
+	SetDraw<Sprite>(sprite);
 	sprite.SetTextureKey(texture_key);
-	sprite.Show();
+	Show(sprite);
+	SetPosition(sprite, position);
 	return sprite;
 }
 

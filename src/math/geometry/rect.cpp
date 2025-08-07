@@ -6,13 +6,10 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "core/game.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "renderer/render_data.h"
-#include "renderer/shader.h"
-#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -21,21 +18,7 @@ Rect::Rect(const V2_float& min, const V2_float& max) : min{ min }, max{ max } {}
 Rect::Rect(const V2_float& size) : min{ -size * 0.5f }, max{ size * 0.5f } {}
 
 void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ GetDrawTransform(entity) };
-	PTGN_ASSERT(entity.Has<Rect>());
-	const auto& rect{ entity.Get<Rect>() };
-	auto origin{ entity.GetOrigin() };
-	auto tint{ entity.GetTint() };
-	auto depth{ entity.GetDepth() };
-	auto line_width{ entity.GetOrDefault<LineWidth>() };
-
-	impl::RenderState state;
-	state.blend_mode  = entity.GetBlendMode();
-	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
-	state.camera	  = entity.GetOrDefault<Camera>();
-	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
-
-	ctx.AddQuad(transform, rect.GetSize(), origin, tint, depth, line_width, state);
+	impl::DrawRect(ctx, entity);
 }
 
 V2_float Rect::GetSize() const {
@@ -62,13 +45,14 @@ std::array<V2_float, 4> Rect::GetLocalVertices() const {
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }
 
-std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform, Origin origin) const {
-	auto local_vertices{ GetLocalVertices(origin) };
+std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform, Origin draw_origin)
+	const {
+	auto local_vertices{ GetLocalVertices(draw_origin) };
 	return ToWorldPoint(local_vertices, transform);
 }
 
-std::array<V2_float, 4> Rect::GetLocalVertices(Origin origin) const {
-	auto rect{ Offset(origin) };
+std::array<V2_float, 4> Rect::GetLocalVertices(Origin draw_origin) const {
+	auto rect{ Offset(draw_origin) };
 	return rect.GetLocalVertices();
 }
 

@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-#include "components/common.h"
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/time.h"
 #include "math/vector2.h"

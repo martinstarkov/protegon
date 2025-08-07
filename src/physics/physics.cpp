@@ -1,6 +1,5 @@
 #include "physics/physics.h"
 
-#include "components/common.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/game.h"
@@ -66,34 +65,22 @@ void Physics::PreCollisionUpdate(Scene& scene) const {
 
 	float dt{ Physics::dt() };
 
-	for (auto [entity, enabled, transform, rigid_body, movement] :
-		 scene.EntitiesWith<Enabled, Transform, RigidBody, TopDownMovement>()) {
-		if (!enabled) {
-			continue;
-		}
+	for (auto [entity, transform, rigid_body, movement] :
+		 scene.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
 		movement.Update(entity, transform, rigid_body, dt);
 	}
 
-	for (auto [e, enabled, transform, rigid_body, movement, jump] :
-		 scene.EntitiesWith<Enabled, Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
-		if (!enabled) {
-			continue;
-		}
+	for (auto [e, transform, rigid_body, movement, jump] :
+		 scene.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 		movement.Update(transform, rigid_body, dt);
 		jump.Update(rigid_body, movement.grounded, gravity_);
 	}
 
-	for (auto [e, enabled, rigid_body] : scene.EntitiesWith<Enabled, RigidBody>()) {
-		if (!enabled) {
-			continue;
-		}
+	for (auto [e, rigid_body] : scene.EntitiesWith<RigidBody>()) {
 		rigid_body.Update(gravity_, dt);
 	}
 
-	for (auto [e, enabled, movement] : scene.EntitiesWith<Enabled, PlatformerMovement>()) {
-		if (!enabled) {
-			continue;
-		}
+	for (auto [e, movement] : scene.EntitiesWith<PlatformerMovement>()) {
 		movement.grounded = false;
 	}
 
@@ -112,12 +99,7 @@ void Physics::PostCollisionUpdate(Scene& scene) const {
 
 	bool enforce_bounds{ !bounds_size_.IsZero() };
 
-	for (auto [entity, enabled, transform, rigid_body] :
-		 scene.EntitiesWith<Enabled, Transform, RigidBody>()) {
-		if (!enabled) {
-			continue;
-		}
-
+	for (auto [entity, transform, rigid_body] : scene.EntitiesWith<Transform, RigidBody>()) {
 		transform.position += rigid_body.velocity * dt;
 		transform.rotation += rigid_body.angular_velocity * dt;
 		transform.rotation	= ClampAngle2Pi(transform.rotation);

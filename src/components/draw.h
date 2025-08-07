@@ -1,24 +1,101 @@
 #pragma once
 
-#include <array>
+#include <string_view>
 
+#include "common/type_traits.h"
+#include "components/drawable.h"
 #include "components/generic.h"
-#include "core/entity.h"
-#include "math/vector2.h"
+#include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
 
-class Manager;
-class Scene;
+class Entity;
+
+struct Visible : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	Visible() : ArithmeticComponent{ true } {}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Visible, value_)
+};
+
+struct Tint : public ColorComponent {
+	using ColorComponent::ColorComponent;
+
+	Tint() : ColorComponent{ color::White } {}
+};
+
+struct Depth : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	[[nodiscard]] Depth RelativeTo(Depth parent) const;
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Depth, value_)
+};
+
+struct EntityDepthCompare {
+	bool operator()(const Entity& a, const Entity& b) const;
+};
 
 namespace impl {
 
-class RenderData;
+Entity& SetDrawImpl(Entity& entity, std::string_view drawable_name);
 
-void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture);
+} // namespace impl
+
+class Manager;
+class Scene;
+
+// @return entity.
+Entity& SetDrawOrigin(Entity& entity, Origin origin);
+
+[[nodiscard]] Origin GetDrawOrigin(const Entity& entity);
+
+// @return entity.
+template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
+Entity& SetDraw(Entity& entity) {
+	return impl::SetDrawImpl(entity, type_name<T>());
+}
+
+[[nodiscard]] bool HasDraw(const Entity& entity);
+
+// @return entity.
+Entity& RemoveDraw(Entity& entity);
+
+// @return entity.
+Entity& SetDrawOffset(Entity& entity, const V2_float& offset = {});
+
+// @return entity.
+Entity& SetVisible(Entity& entity, bool visible);
+
+// @return entity.
+Entity& Show(Entity& entity);
+
+// @return entity.
+Entity& Hide(Entity& entity);
+
+[[nodiscard]] bool IsVisible(const Entity& entity);
+
+// @return entity.
+Entity& SetDepth(Entity& entity, const Depth& depth);
+
+[[nodiscard]] Depth GetDepth(const Entity& entity);
+
+// @return entity.
+Entity& SetBlendMode(Entity& entity, BlendMode blend_mode);
+
+[[nodiscard]] BlendMode GetBlendMode(const Entity& entity);
+
+// color::White will clear tint.
+// @return entity.
+Entity& SetTint(Entity& entity, const Color& color = color::White);
+
+[[nodiscard]] Color GetTint(const Entity& entity);
+
+namespace impl {
 
 // @return Unscaled size of the entire texture in pixels.
 [[nodiscard]] V2_int GetTextureSize(const Entity& entity);
@@ -109,5 +186,19 @@ Entity CreateCircle(
 	Scene& scene, const V2_float& position, float radius, const Color& color,
 	float line_width = -1.0f
 );
+
+namespace impl {
+
+class RenderData;
+
+void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture);
+void DrawCapsule(RenderData& ctx, const Entity& entity);
+void DrawCircle(RenderData& ctx, const Entity& entity);
+void DrawPolygon(RenderData& ctx, const Entity& entity);
+void DrawRect(RenderData& ctx, const Entity& entity);
+void DrawTriangle(RenderData& ctx, const Entity& entity);
+void DrawLine(RenderData& ctx, const Entity& entity);
+
+} // namespace impl
 
 } // namespace ptgn

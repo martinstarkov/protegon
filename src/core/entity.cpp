@@ -6,27 +6,19 @@
 
 #include "common/assert.h"
 #include "common/type_info.h"
-#include "components/common.h"
-#include "components/drawable.h"
-#include "components/interactive.h"
-#include "components/offsets.h"
-#include "components/transform.h"
 #include "components/uuid.h"
 #include "core/entity_hierarchy.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "ecs/ecs.h"
-#include "math/vector2.h"
-#include "nlohmann/json.hpp"
-#include "renderer/api/origin.h"
+#include "renderer/render_target.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 #include "serialization/component_registry.h"
-#include "serialization/json.h"
+#include "serialization/fwd.h"
 #include "serialization/json_archiver.h"
-#include "utility/span.h"
 
 namespace ptgn {
 
@@ -133,15 +125,6 @@ std::size_t Entity::GetHash() const {
 	return std::hash<Parent>()(*this);
 }
 
-bool Entity::HasDraw() const {
-	return Has<IDrawable>();
-}
-
-Entity& Entity::RemoveDraw() {
-	Remove<IDrawable>();
-	return *this;
-}
-
 bool Entity::WasCreatedBefore(const Entity& other) const {
 	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
 	auto version{ Parent::GetVersion() };
@@ -183,141 +166,6 @@ void Entity::DeserializeAllImpl(const json& j) {
 		}
 		pool->Deserialize(archiver, manager, entity_);
 	}
-}
-
-Entity& Entity::SetEnabled(bool enabled) {
-	if (enabled) {
-		Add<Enabled>(enabled);
-		InvokeScript<&impl::IScript::OnEnable>();
-	} else {
-		InvokeScript<&impl::IScript::OnDisable>();
-		Remove<Enabled>();
-	}
-	return *this;
-}
-
-Entity& Entity::Disable() {
-	return SetEnabled(false);
-}
-
-Entity& Entity::Enable() {
-	return SetEnabled(true);
-}
-
-bool Entity::IsEnabled() const {
-	return GetOrParentOrDefault<Enabled>(false);
-}
-
-Entity& Entity::SetDrawOffset(const V2_float& offset) {
-	TryAdd<impl::Offsets>().custom.position = offset;
-	return *this;
-}
-
-Entity& Entity::AddPostFX(Entity post_fx) {
-	post_fx.Hide();
-	auto& post_fx_list{ TryAdd<impl::PostFX>().post_fx_ };
-	PTGN_ASSERT(
-		!VectorContains(post_fx_list, post_fx),
-		"Cannot add the same post fx entity to an entity more than once"
-	);
-	post_fx_list.emplace_back(post_fx);
-	return *this;
-}
-
-Entity& Entity::AddPreFX(Entity pre_fx) {
-	pre_fx.Hide();
-	auto& pre_fx_list{ TryAdd<impl::PreFX>().pre_fx_ };
-	PTGN_ASSERT(
-		!VectorContains(pre_fx_list, pre_fx),
-		"Cannot add the same pre fx entity to an entity more than once"
-	);
-	pre_fx_list.emplace_back(pre_fx);
-	return *this;
-}
-
-Entity& Entity::SetOrigin(Origin origin) {
-	if (Has<Origin>()) {
-		Get<Origin>() = origin;
-	} else {
-		Add<Origin>(origin);
-	}
-	return *this;
-}
-
-Origin Entity::GetOrigin() const {
-	return GetOrDefault<Origin>(Origin::Center);
-}
-
-Entity& Entity::SetVisible(bool visible) {
-	if (visible) {
-		Add<Visible>(visible);
-		InvokeScript<&impl::IScript::OnShow>();
-	} else {
-		InvokeScript<&impl::IScript::OnHide>();
-		Remove<Visible>();
-	}
-	return *this;
-}
-
-Entity& Entity::Show() {
-	return SetVisible(true);
-}
-
-Entity& Entity::Hide() {
-	return SetVisible(false);
-}
-
-bool Entity::IsVisible() const {
-	return GetOrDefault<Visible>(false);
-}
-
-Entity& Entity::SetDepth(const Depth& depth) {
-	if (Has<Depth>()) {
-		GetImpl<Depth>() = depth;
-	} else {
-		Add<Depth>(depth);
-	}
-	return *this;
-}
-
-Depth Entity::GetDepth() const {
-	// TODO: This was causing a bug with the mitosis disk background (rock texture) thing in GMTK
-	// 2025. Figure out how to fix relative depths.
-	/*Depth parent_depth{};
-	if (HasParent()) {
-		auto parent{ GetParent() };
-		if (parent != *this && parent.Has<Depth>()) {
-			parent_depth = parent.GetDepth();
-		}
-	}
-	return parent_depth +*/
-	return GetOrDefault<Depth>();
-}
-
-Entity& Entity::SetBlendMode(BlendMode blend_mode) {
-	if (Has<BlendMode>()) {
-		Get<BlendMode>() = blend_mode;
-	} else {
-		Add<BlendMode>(blend_mode);
-	}
-	return *this;
-}
-
-BlendMode Entity::GetBlendMode() const {
-	return GetOrDefault<BlendMode>(BlendMode::Blend);
-}
-
-Entity& Entity::SetTint(const Color& color) {
-	if (color != Tint{}) {
-		Add<Tint>(color);
-	} else {
-		Remove<Tint>();
-	}
-	return *this;
-}
-
-Color Entity::GetTint() const {
-	return GetOrDefault<Tint>();
 }
 
 void Scripts::Update(Scene& scene, float dt) {

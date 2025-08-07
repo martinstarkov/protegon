@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "common/assert.h"
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"

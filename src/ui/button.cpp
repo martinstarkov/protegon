@@ -40,8 +40,8 @@ namespace ptgn {
 Button CreateButton(Scene& scene) {
 	Button button{ scene.CreateEntity() };
 
-	button.Show();
-	button.SetDraw<Button>();
+	Show(button);
+	SetDraw<Button>(button);
 
 	SetInteractive(button);
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
@@ -264,7 +264,7 @@ void ButtonText::Set(
 	Text text{ Get(state) };
 	if (text == Text{}) {
 		text = CreateText(scene, text_content, text_color, font_size, font_key, text_properties);
-		text.Hide();
+		Hide(text);
 		SetParent(text, parent);
 		switch (state) {
 			case ButtonState::Default:
@@ -315,9 +315,9 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto state{ button.GetState() };
 
 	const auto& transform{ GetDrawTransform(entity) };
-	auto blend_mode{ entity.GetBlendMode() };
-	auto depth{ entity.GetDepth() };
-	auto tint{ entity.GetTint().Normalized() };
+	auto blend_mode{ GetBlendMode(entity) };
+	auto depth{ GetDepth(entity) };
+	auto tint{ GetTint(entity).Normalized() };
 
 	if (entity.Has<impl::ButtonColor>()) {
 		entity.Get<impl::ButtonColor>().SetToState(state);
@@ -339,7 +339,9 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 	if (entity.Has<TextureHandle>()) {
 		auto& key{ entity.Get<TextureHandle>() };
-		if (!entity.IsEnabled() && entity.Has<impl::ButtonDisabledTextureKey>()) {
+		bool disabled_button{ !entity.Has<impl::ButtonEnabled>() ||
+							  !entity.Get<impl::ButtonEnabled>() };
+		if (disabled_button && entity.Has<impl::ButtonDisabledTextureKey>()) {
 			key = entity.Get<impl::ButtonDisabledTextureKey>();
 		} else if (entity.Has<impl::ButtonToggled>() && entity.Has<impl::ButtonTextureToggled>()) {
 			key = entity.Get<impl::ButtonTextureToggled>().Get(state);
@@ -351,7 +353,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	// TODO: Move this all to a separate functions.
 	// TODO: Reduce repeated code.
 
-	Origin origin{ entity.GetOrigin() };
+	Origin origin{ GetDrawOrigin(entity) };
 
 	TextureHandle button_texture_key;
 	if (entity.Has<TextureHandle>()) {
@@ -494,10 +496,10 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			return;
 		}
 
-		auto text_depth{ text.GetDepth() };
-		auto text_blend_mode{ text.GetBlendMode() };
-		auto text_tint{ text.GetTint().Normalized() };
-		auto text_origin{ text.GetOrigin() };
+		auto text_depth{ GetDepth(text) };
+		auto text_blend_mode{ GetBlendMode(text) };
+		auto text_tint{ GetTint(text).Normalized() };
+		auto text_origin{ GetDrawOrigin(text) };
 		Camera text_camera;
 		if (text.Has<Camera>()) {
 			text_camera = text.Get<Camera>();
@@ -532,7 +534,7 @@ Button& Button::Disable() {
 }
 
 Button& Button::SetEnabled(bool enabled) {
-	Entity::SetEnabled(enabled);
+	Add<impl::ButtonEnabled>(enabled);
 	if (!enabled) {
 		auto& state{ Get<impl::InternalButtonState>() };
 		state = impl::InternalButtonState::IdleUp;

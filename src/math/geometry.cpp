@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "geometry/rect.h"
@@ -19,8 +20,8 @@ Shape ApplyOffset(const Shape& shape, const Entity& entity) {
 		return shape;
 	}
 	const Rect& rect{ std::get<Rect>(shape) };
-	auto origin{ entity.GetOrigin() };
-	auto offset_rect{ rect.Offset(origin) };
+	auto draw_origin{ GetDrawOrigin(entity) };
+	auto offset_rect{ rect.Offset(draw_origin) };
 	return offset_rect;
 }
 

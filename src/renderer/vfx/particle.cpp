@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -27,12 +27,11 @@ namespace ptgn {
 ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
 	ParticleEmitter emitter{ scene.CreateEntity() };
 
-	emitter.SetDraw<ParticleEmitter>();
+	SetDraw<ParticleEmitter>(emitter);
 	auto& i{ emitter.Add<impl::ParticleEmitterComponent>() };
 	i.info = info;
 	i.manager.Reserve(i.info.total_particles);
-	emitter.Show();
-	emitter.Enable();
+	Show(emitter);
 	SetPosition(emitter, {});
 
 	return emitter;
@@ -89,13 +88,13 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 } // namespace impl
 
 void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto depth{ entity.GetDepth() };
+	auto depth{ GetDepth(entity) };
 
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 
 	impl::RenderState state;
 	state.camera	  = entity.GetOrParentOrDefault<Camera>();
-	state.blend_mode  = entity.GetBlendMode();
+	state.blend_mode  = GetBlendMode(entity);
 	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
 	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
 
@@ -228,8 +227,7 @@ milliseconds ParticleEmitter::GetEmissionDelay() const {
 }
 
 void ParticleEmitter::Update(Scene& scene) {
-	for (auto [entity, enabled, particle_manager] :
-		 scene.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
+	for (auto [entity, particle_manager] : scene.EntitiesWith<impl::ParticleEmitterComponent>()) {
 		particle_manager.Update(GetPosition(entity));
 	}
 

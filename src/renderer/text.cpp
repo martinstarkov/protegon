@@ -6,7 +6,13 @@
 #include <string>
 #include <string_view>
 
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "common/assert.h"
+#include "components/draw.h"
 #include "components/generic.h"
 #include "components/sprite.h"
 #include "core/entity.h"
@@ -20,11 +26,6 @@
 #include "resources/resource_manager.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 
 namespace ptgn {
 
@@ -34,9 +35,9 @@ Text CreateText(
 ) {
 	Text text{ scene.CreateEntity() };
 	text.Add<TextureHandle>();
-	text.SetDraw<Text>();
+	SetDraw<Text>(text);
 	text.Add<Camera>(scene.camera.window_unzoomed);
-	text.Show();
+	Show(text);
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);
 	text.SetParameter(font_key, false);

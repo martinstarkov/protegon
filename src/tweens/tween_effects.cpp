@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/draw.h"
 #include "components/movement.h"
 #include "components/offsets.h"
 #include "components/transform.h"
@@ -135,7 +136,7 @@ void TintEffectSystem::Update(Scene& scene) const {
 
 		auto& task{ effect.tasks.front() };
 
-		entity.SetTint(GetTaskValue(task));
+		SetTint(entity, GetTaskValue(task));
 
 		UpdateTask(effect, task);
 	}
@@ -358,7 +359,6 @@ void FollowEffectSystem::Update(Scene& scene) const {
 					SetPosition(entity, GetPosition(front.target));
 				}
 				if (front.config.move_mode == MoveMode::Velocity) {
-					entity.Enable();
 					entity.TryAdd<RigidBody>();
 					entity.TryAdd<Transform>();
 					auto& movement{ entity.TryAdd<TopDownMovement>() };
@@ -410,7 +410,6 @@ void FollowEffectSystem::Update(Scene& scene) const {
 							SetPosition(entity, GetPosition(front.target));
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
-							entity.Enable();
 							entity.TryAdd<RigidBody>();
 							entity.TryAdd<Transform>();
 							auto& movement{ entity.TryAdd<TopDownMovement>() };
@@ -514,7 +513,6 @@ void FollowEffectSystem::Update(Scene& scene) const {
 							SetPosition(entity, GetPosition(front.target));
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
-							entity.Enable();
 							entity.TryAdd<RigidBody>();
 							entity.TryAdd<Transform>();
 							auto& movement					  = entity.TryAdd<TopDownMovement>();
@@ -568,7 +566,7 @@ void TintTo(
 	Entity& entity, const Color& target_tint, milliseconds duration, const Ease& ease, bool force
 ) {
 	impl::AddTweenEffect<impl::TintEffect>(
-		entity, target_tint, duration, ease, force, entity.GetTint()
+		entity, target_tint, duration, ease, force, GetTint(entity)
 	);
 }
 
@@ -734,7 +732,6 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 
 	if (config.move_mode == MoveMode::Velocity) {
 		// TODO: Consider making the movement system not require enabling an entity.
-		entity.Enable();
 		entity.TryAdd<RigidBody>();
 		entity.TryAdd<Transform>();
 		auto& movement{ entity.TryAdd<TopDownMovement>() };
@@ -765,7 +762,6 @@ void StopFollow(Entity entity, bool force) {
 				SetPosition(entity, GetPosition(front.target));
 			}
 			if (front.config.move_mode == MoveMode::Velocity) {
-				entity.Enable();
 				entity.TryAdd<RigidBody>();
 				entity.TryAdd<Transform>();
 				auto& movement					  = entity.TryAdd<TopDownMovement>();

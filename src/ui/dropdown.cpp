@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/draw.h"
 #include "components/drawable.h"
 #include "core/entity.h"
 #include "math/vector2.h"
@@ -59,7 +60,7 @@ Dropdown& Dropdown::SetSize(const V2_float& size) {
 }
 
 Dropdown& Dropdown::SetOrigin(Origin origin) {
-	Button::SetOrigin(origin);
+	SetDrawOrigin(*this, origin);
 	RecalculateButtonPositions();
 	return *this;
 }
@@ -87,7 +88,7 @@ void Dropdown::RecalculateButtonPositions() {
 		return parent_size;
 	};
 
-	V2_float parent_center{ -GetOriginOffset(GetOrigin(), parent_size) };
+	V2_float parent_center{ -GetOriginOffset(GetDrawOrigin(*this), parent_size) };
 	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, parent_size) };
 
 	PTGN_ASSERT(info.buttons_.size() >= 1);
@@ -106,7 +107,7 @@ void Dropdown::RecalculateButtonPositions() {
 		}
 		SetPosition(button, offset);
 		button.SetSize(size);
-		button.SetOrigin(Origin::Center);
+		SetDrawOrigin(button, Origin::Center);
 		// Offset is added separately while moving through dropdown buttons.
 		offset += GetOriginOffset(info.direction_, size);
 	}
@@ -130,10 +131,10 @@ void Dropdown::AddButton(Button button) {
 	SetParent(button, *this);
 
 	if (WillStartOpen()) {
-		button.Show();
+		Show(button);
 		button.Enable();
 	} else {
-		button.Hide();
+		Hide(button);
 		button.Disable();
 	}
 
@@ -205,7 +206,7 @@ void Dropdown::Open() {
 	i.open_ = true;
 	for (auto& b : i.buttons_) {
 		b.Enable();
-		b.Show();
+		Show(b);
 	}
 	if (!HasChildren(*this)) {
 		return;
@@ -227,7 +228,7 @@ void Dropdown::Close(bool close_parents) {
 	i.open_ = false;
 	for (auto& b : i.buttons_) {
 		b.Disable();
-		b.Hide();
+		Hide(b);
 	}
 	if (close_parents && HasParent(*this)) {
 		auto parent{ GetParent(*this) };

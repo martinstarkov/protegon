@@ -10,13 +10,11 @@
 namespace ptgn {
 
 // If true, enables the entity to trigger interaction scripts.
-// Note: Setting interactive to true will implicitly call Enable() on *this.
 // @return entity.
 Entity& SetInteractive(Entity& entity, bool interactive = true);
 [[nodiscard]] bool IsInteractive(const Entity& entity);
 
 // Add an interactable shape to the entity.
-// Note: adding an interactive will implicitly call SetInteractive(true) and Enable() on *this.
 // @param set_parent If true, will set the parent of shape to *this.
 // The entity interactive will take ownership of these entities.
 // @return entity.

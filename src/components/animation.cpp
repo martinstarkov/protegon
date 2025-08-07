@@ -21,9 +21,9 @@
 namespace ptgn {
 
 Animation CreateAnimation(
-	Scene& scene, const TextureHandle& texture_key, std::size_t frame_count,
-	milliseconds animation_duration, V2_int frame_size, std::int64_t play_count,
-	const V2_int& start_pixel
+	Scene& scene, const TextureHandle& texture_key, const V2_float& position,
+	std::size_t frame_count, milliseconds animation_duration, V2_int frame_size,
+	std::int64_t play_count, const V2_int& start_pixel
 ) {
 	PTGN_ASSERT(
 		play_count == -1 || play_count >= 0,
@@ -32,7 +32,7 @@ Animation CreateAnimation(
 
 	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
 
-	Animation animation{ CreateSprite(scene, texture_key) };
+	Animation animation{ CreateSprite(scene, texture_key, position) };
 
 	auto texture_size{ texture_key.GetSize() };
 
@@ -277,7 +277,7 @@ void AnimationSystem::Update(Scene& scene) {
 Animation& AnimationMap::Load(const ActiveMapManager::Key& key, Animation&& entity, bool hide) {
 	auto [it, inserted] = GetMap().try_emplace(GetInternalKey(key), std::move(entity));
 	if (hide) {
-		it->second.Hide();
+		Hide(it->second);
 	}
 	return it->second;
 }
@@ -287,11 +287,11 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 		return false;
 	}
 	auto& active{ GetActive() };
-	active.Hide();
+	Hide(active);
 	active.Pause();
 	ActiveMapManager::SetActive(key);
 	auto& new_active{ GetActive() };
-	new_active.Show();
+	Show(new_active);
 	return true;
 }
 

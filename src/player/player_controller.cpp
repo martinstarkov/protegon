@@ -3,17 +3,15 @@
 #include "audio/audio.h"
 #include "common/move_direction.h"
 #include "components/animation.h"
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
-#include "renderer/api/origin.h"
 #include "scene/scene.h"
 
 namespace ptgn {
@@ -34,13 +32,11 @@ Entity CreateTopDownPlayer(
 
 	SetPosition(player, position);
 	player.Add<RigidBody>();
-	player.Enable();
-	player.SetDepth(config.depth);
+	SetDepth(player, config.depth);
 
 	auto body_hitbox{ scene.CreateEntity() };
 	body_hitbox.Add<Collider>(Rect{ config.body_hitbox_size });
 	SetPosition(body_hitbox, config.body_hitbox_offset);
-	body_hitbox.Enable();
 	body_hitbox.Add<RigidBody>();
 
 	auto interaction_hitbox{ scene.CreateEntity() };
@@ -48,7 +44,6 @@ Entity CreateTopDownPlayer(
 		interaction_hitbox.Add<Collider>(Rect{ config.interaction_hitbox_size });
 	interaction_collider.overlap_only = true;
 	SetPosition(interaction_hitbox, {});
-	interaction_hitbox.Enable();
 
 	AddChild(player, body_hitbox, "body");
 	AddChild(player, interaction_hitbox, "interaction");
@@ -62,7 +57,7 @@ Entity CreateTopDownPlayer(
 
 	auto& anim_map = player.Add<AnimationMap>(
 		"down", CreateAnimation(
-					scene, config.animation_texture_key, config.animation_frame_count.x,
+					scene, config.animation_texture_key, {}, config.animation_frame_count.x,
 					config.animation_duration, config.animation_frame_size
 				)
 	);
@@ -70,14 +65,14 @@ Entity CreateTopDownPlayer(
 	auto& a0 = anim_map.GetActive();
 	auto& a1 = anim_map.Load(
 		"right", CreateAnimation(
-					 scene, config.animation_texture_key, config.animation_frame_count.x,
+					 scene, config.animation_texture_key, {}, config.animation_frame_count.x,
 					 config.animation_duration, config.animation_frame_size, -1,
 					 V2_float{ 0, config.animation_frame_size.y }
 				 )
 	);
 	auto& a2 = anim_map.Load(
 		"up", CreateAnimation(
-				  scene, config.animation_texture_key, config.animation_frame_count.x,
+				  scene, config.animation_texture_key, {}, config.animation_frame_count.x,
 				  config.animation_duration, config.animation_frame_size, -1,
 				  V2_float{ 0, 2.0f * config.animation_frame_size.y }
 			  )

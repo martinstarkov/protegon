@@ -6,32 +6,14 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "core/game.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/render_data.h"
-#include "renderer/shader.h"
-#include "scene/camera.h"
 
 namespace ptgn {
 
 void Polygon::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ GetDrawTransform(entity) };
-	PTGN_ASSERT(entity.Has<Polygon>());
-	const auto& polygon{ entity.Get<Polygon>() };
-	auto tint{ entity.GetTint() };
-	auto depth{ entity.GetDepth() };
-	auto line_width{ entity.GetOrDefault<LineWidth>() };
-
-	impl::RenderState state;
-	state.blend_mode  = entity.GetBlendMode();
-	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
-	state.camera	  = entity.GetOrDefault<Camera>();
-	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
-
-	auto points{ polygon.GetWorldVertices(transform) };
-
-	ctx.AddPolygon(points, tint, depth, line_width, state);
+	impl::DrawPolygon(ctx, entity);
 }
 
 V2_float Polygon::GetCenter() const {

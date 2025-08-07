@@ -216,6 +216,12 @@ struct ButtonTextToggled : public ButtonText {
 	using ButtonText::ButtonText;
 };
 
+struct ButtonEnabled : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	ButtonEnabled() : ArithmeticComponent{ true } {}
+};
+
 } // namespace impl
 
 class Button : public Entity, public Drawable<Button> {

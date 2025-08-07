@@ -42,10 +42,10 @@ RenderTarget CreateRenderTarget(
 ) {
 	RenderTarget render_target{ entity };
 	SetPosition(render_target, {});
-	render_target.SetDraw<RenderTarget>();
+	SetDraw<RenderTarget>(render_target);
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();
-	render_target.Show();
+	Show(render_target);
 	// TODO: Add camera which resizes with size.
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.

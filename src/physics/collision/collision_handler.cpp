@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "common/assert.h"
-#include "components/common.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -24,7 +23,6 @@
 namespace ptgn::impl {
 
 bool CollisionHandler::CanCollide(const Entity& entity1, const Entity& entity2) {
-	PTGN_ASSERT(entity1.IsEnabled() && entity2.IsEnabled());
 	if (GetRootEntity(entity1) == GetRootEntity(entity2)) {
 		return false;
 	}
@@ -309,7 +307,7 @@ V2_float CollisionHandler::GetRemainingVelocity(
 }
 
 void CollisionHandler::Update(Scene& scene) {
-	auto entities{ scene.EntitiesWith<Enabled, Collider>().GetVector() };
+	auto entities{ scene.EntitiesWith<Collider>().GetVector() };
 
 	for (const auto& entity1 : entities) {
 		entity1.Get<Collider>().ResetCollisions();
@@ -366,8 +364,6 @@ std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisi
 
 void CollisionHandler::HandleCollisions(Entity entity, const std::vector<Entity>& entities) {
 	auto& collider{ entity.Get<Collider>() };
-
-	PTGN_ASSERT(entity.IsEnabled());
 
 	Intersect(entity, entities);
 	Sweep(entity, entities);
