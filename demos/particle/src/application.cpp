@@ -62,7 +62,7 @@ public:
 		b.SetBorderWidth(3.0f);
 		b.SetText(content, color::Black);
 		SetParent(b, p, true);
-		b.AddScript<TScript>();
+		AddScript<TScript>(b);
 		return b;
 	}
 

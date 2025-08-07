@@ -37,7 +37,7 @@ class ToggleButtonGroupScene : public Scene {
 		b.SetBackgroundColorToggled(color::LightBlue);
 		b.SetBackgroundColorToggled(color::Blue, ButtonState::Hover);
 		b.SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed);
-		b.AddScript<ToggleButtonScript>(number);
+		AddScript<ToggleButtonScript>(b, number);
 		return b;
 	}
 

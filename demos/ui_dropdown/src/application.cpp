@@ -36,7 +36,7 @@ public:
 		button.SetBackgroundColor(color::Gray);
 		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		button.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		button.AddScript<ButtonScript>(on_activate);
+		AddScript<ButtonScript>(button, on_activate);
 		button.SetBorderColor(color::Red);
 		button.SetBorderWidth(3.0f);
 		return button;

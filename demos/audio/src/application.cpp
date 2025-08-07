@@ -71,7 +71,7 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		b.AddScript<AudioScript>(on_activate);
+		AddScript<AudioScript>(b, on_activate);
 		return b;
 	}
 

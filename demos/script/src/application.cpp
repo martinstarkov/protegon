@@ -1,6 +1,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/script.h"
+#include "core/script_registry.h"
 #include "core/time.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
@@ -66,30 +67,30 @@ struct ScriptScene : public Scene {
 		// entity.AddScript<PlayerController>();
 
 		// TODO: Make on stop get 1.0 completion and on start get 0.0.
-		entity.AddTimerScript<TimedScript>(seconds{ 3 });
-		// entity.AddTimerScript<TimedScript>(seconds{ 0 });
+		AddTimerScript<TimedScript>(entity, seconds{ 3 });
+		// AddTimerScript<TimedScript>(entity, seconds{ 0 });
 
 		// Errors:
-		// entity.AddTimerScript<TimedScript>(seconds{ -3 });
+		// AddTimerScript<TimedScript>(entity, seconds{ -3 });
 
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, -1, false);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, -1, true);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 3, true);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 3, false);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 1, true);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 1, false);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 0 }, 1, false);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 0 }, 3, true);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, -1, false);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, -1, true);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, 3, true);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, 3, false);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, 1, true);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, 1, false);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 0 }, 1, false);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 0 }, 3, true);
 
 		// Errors:
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, 0, false);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ 2 }, -2, false);
-		// entity.AddRepeatScript<RepeatedScript>(seconds{ -1 }, 1, false);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, 0, false);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ 2 }, -2, false);
+		// AddRepeatScript<RepeatedScript>(entity, seconds{ -1 }, 1, false);
 	}
 
 	void Update() override {
 		if (game.input.KeyDown(Key::E)) {
-			entity.RemoveScript<RepeatedScript>();
+			RemoveScript<RepeatedScript>(entity);
 		}
 	}
 };

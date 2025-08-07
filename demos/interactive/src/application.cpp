@@ -4,6 +4,7 @@
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/window.h"
 #include "input/input_handler.h"
 #include "math/vector2.h"
@@ -399,35 +400,35 @@ struct InteractiveScene : public Scene {
 		);
 		auto c0_child = CreateCircle(*this, {}, 90.0f, color::Magenta, 1.0f);
 		AddInteractable(c0, c0_child);
-		c0.AddScript<ScriptC0>();
+		AddScript<ScriptC0>(c0);
 
 		auto c1 = CreateCircle(
 			*this, center + V2_float{ offset.x, offset.y }, 90.0f, color::LightGreen, 1.0f
 		);
 		auto c1_child = CreateCircle(*this, {}, 45.0f, color::Magenta, 1.0f);
 		AddInteractable(c1, c1_child);
-		c1.AddScript<ScriptC1>();
+		AddScript<ScriptC1>(c1);
 
 		auto r0 = CreateRect(
 			*this, center + V2_float{ -offset.x, -offset.y }, rsize * 2, color::Blue, 1.0f
 		);
 		auto r0_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);
 		AddInteractable(r0, r0_child);
-		r0.AddScript<ScriptR0>();
+		AddScript<ScriptR0>(r0);
 
 		auto r1 = CreateRect(
 			*this, center + V2_float{ -offset.x, offset.y }, rsize, color::LightBlue, 1.0f
 		);
 		auto r1_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);
 		AddInteractable(r1, r1_child);
-		r1.AddScript<ScriptR1>();
+		AddScript<ScriptR1>(r1);
 
 		game.texture.Load("box", "resources/box.png");
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateRect(*this, {}, r2.GetDisplaySize(), color::Magenta, 1.0f);
 		AddInteractable(r2, r2_child);
-		r2.AddScript<ScriptR2>();
+		AddScript<ScriptR2>(r2);
 
 		LoadResources({ { "drag", "resources/drag.png" },
 						{ "drag_circle", "resources/drag_circle.png" },
@@ -444,7 +445,7 @@ struct InteractiveScene : public Scene {
 		auto r3_child = CreateRect(*this, {}, r3.GetDisplaySize(), color::Magenta, 1.0f);
 		AddInteractable(r3, r3_child);
 		r3.Add<Draggable>();
-		r3.AddScript<ScriptR3>();
+		AddScript<ScriptR3>(r3);
 
 		PTGN_LOG("Rect drag id: ", r3.GetId());
 
@@ -452,7 +453,7 @@ struct InteractiveScene : public Scene {
 		auto c3_child = CreateCircle(*this, {}, c3.GetDisplaySize().x * 0.5f, color::Magenta, 1.0f);
 		AddInteractable(c3, c3_child);
 		c3.Add<Draggable>();
-		c3.AddScript<ScriptC3>();
+		AddScript<ScriptC3>(c3);
 
 		PTGN_LOG("Circle drag id: ", c3.GetId());
 	}

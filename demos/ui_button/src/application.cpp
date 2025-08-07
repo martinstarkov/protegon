@@ -33,7 +33,7 @@ public:
 
 	void Enter() override {
 		b1 = CreateButton(*this);
-		b1.AddScript<ButtonScript1>();
+		AddScript<ButtonScript1>(b1);
 		SetPosition(b1, V2_float{ 50, 50 });
 		b1.SetSize({ 200, 100 });
 		SetDrawOrigin(b1, Origin::TopLeft);
@@ -42,7 +42,7 @@ public:
 		b1.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
 
 		b2 = CreateToggleButton(*this, false);
-		b2.AddScript<ToggleButtonScript1>();
+		AddScript<ToggleButtonScript1>(b2);
 		SetPosition(b2, V2_float{ 50, 300 });
 		b2.SetSize({ 200, 100 });
 		SetDrawOrigin(b2, Origin::TopLeft);

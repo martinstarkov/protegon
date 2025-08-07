@@ -3,6 +3,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
@@ -57,7 +58,7 @@ class PlatformingScene : public Scene {
 		auto& j		 = entity.Add<PlatformerJump>();
 		auto& b		 = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
 		b.continuous = true;
-		entity.AddScript<GroundScript>();
+		AddScript<GroundScript>(entity);
 		return entity;
 	}
 

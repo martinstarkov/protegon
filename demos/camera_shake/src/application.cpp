@@ -48,7 +48,7 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		b.AddScript<ButtonScript>(on_activate);
+		AddScript<ButtonScript>(b, on_activate);
 		return b;
 	}
 

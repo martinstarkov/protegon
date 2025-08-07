@@ -2,6 +2,7 @@
 
 #include "common/assert.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/window.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
@@ -62,10 +63,10 @@ public:
 
 		e1 = CreateEntity();
 		e2 = CreateEntity();
-		e1.AddScript<TestScript>();
-		e1.AddScript<TestScript2>();
-		e2.AddScript<TestScript>();
-		e2.AddScript<TestScript2>();
+		AddScript<TestScript>(e1);
+		AddScript<TestScript2>(e1);
+		AddScript<TestScript>(e2);
+		AddScript<TestScript2>(e2);
 	}
 
 	void Update() override {}
