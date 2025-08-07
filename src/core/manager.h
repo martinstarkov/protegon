@@ -89,9 +89,6 @@ public:
 		return entity;
 	}
 
-	// TODO: Find a way to restrict retrieval from these if Ts... contains a non-retrievable
-	// component.
-
 	template <typename... Ts>
 	ptgn::EntitiesWith<true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
