@@ -19,7 +19,7 @@ Transform GetRelativeOffset(const Entity& entity) {
 
 Transform GetOffset(const Entity& entity) {
 	return GetRelativeOffset(entity).RelativeTo(
-		entity.HasParent() ? GetRelativeOffset(entity.GetParent()) : Transform{}
+		HasParent(entity) ? GetRelativeOffset(GetParent(entity)) : Transform{}
 	);
 }
 

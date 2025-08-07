@@ -567,7 +567,7 @@ private:
 };
 
 AABB GetBoundingVolume(Entity entity) {
-	auto position{ entity.GetPosition() };
+	auto position{ GetPosition(entity) };
 	// TODO: Use collider size.
 	auto half{ entity.Get<Rect>().GetSize() * 0.5f };
 	auto center{ position - impl::GetOriginOffsetHalf(entity.GetOrigin(), half) };
@@ -628,7 +628,7 @@ struct BroadphaseScene : public Scene {
 	void Update() override {
 		PTGN_PROFILE_FUNCTION();
 
-		MoveWASD(player.GetPosition(), V2_float{ 100.0f } * game.dt(), false);
+		MoveWASD(GetPosition(player), V2_float{ 100.0f } * game.dt(), false);
 
 		for (auto [e, tint] : EntitiesWith<Tint>()) {
 			tint = color::Green;
@@ -682,7 +682,7 @@ struct BroadphaseScene : public Scene {
 
 		// For full raycasts:
 
-		auto player_pos{ player.GetPosition() };
+		auto player_pos{ GetPosition(player) };
 		auto mouse_pos{ game.input.GetMousePosition() };
 		auto dir{ mouse_pos - player_pos };
 

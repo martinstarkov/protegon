@@ -19,7 +19,7 @@ struct ButtonScript1 : public Script<ButtonScript1> {
 	const int number_of_shapes{ 2 };
 
 	void OnButtonActivate() override {
-		ParticleEmitter p{ entity.GetParent() };
+		ParticleEmitter p{ GetParent(entity) };
 		int shape{ static_cast<int>(p.GetShape()) };
 		shape++;
 		shape = Mod(shape, number_of_shapes);
@@ -29,14 +29,14 @@ struct ButtonScript1 : public Script<ButtonScript1> {
 
 struct ButtonScript2 : public Script<ButtonScript2> {
 	void OnButtonActivate() override {
-		ParticleEmitter p{ entity.GetParent() };
+		ParticleEmitter p{ GetParent(entity) };
 		p.Toggle();
 	}
 };
 
 struct ButtonScript3 : public Script<ButtonScript3> {
 	void OnButtonActivate() override {
-		ParticleEmitter p{ entity.GetParent() };
+		ParticleEmitter p{ GetParent(entity) };
 		if (p.GetGravity().IsZero()) {
 			p.SetGravity({ 0, 300.0f });
 		} else {

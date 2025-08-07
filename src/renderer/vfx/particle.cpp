@@ -33,7 +33,7 @@ ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
 	i.manager.Reserve(i.info.total_particles);
 	emitter.Show();
 	emitter.Enable();
-	emitter.SetPosition({});
+	SetPosition(emitter, {});
 
 	return emitter;
 }
@@ -155,7 +155,7 @@ ParticleEmitter& ParticleEmitter::Toggle() {
 }
 
 ParticleEmitter& ParticleEmitter::EmitParticle() {
-	Get<impl::ParticleEmitterComponent>().EmitParticle(GetPosition());
+	Get<impl::ParticleEmitterComponent>().EmitParticle(GetPosition(*this));
 	return *this;
 }
 
@@ -230,7 +230,7 @@ milliseconds ParticleEmitter::GetEmissionDelay() const {
 void ParticleEmitter::Update(Scene& scene) {
 	for (auto [entity, enabled, particle_manager] :
 		 scene.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
-		particle_manager.Update(entity.GetPosition());
+		particle_manager.Update(GetPosition(entity));
 	}
 
 	scene.Refresh();

@@ -143,9 +143,9 @@ void Scene::InternalExit() {
 void Scene::InternalDraw() {
 	// Ensure unzoomed cameras match their zoomed counterparts.
 
-	camera.primary_unzoomed.GetTransform()			= camera.primary.GetTransform();
+	GetTransform(camera.primary_unzoomed)			= GetTransform(camera.primary);
 	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
-	camera.window_unzoomed.GetTransform()			= camera.window.GetTransform();
+	GetTransform(camera.window_unzoomed)			= GetTransform(camera.window);
 	camera.window_unzoomed.Get<impl::CameraInfo>()	= camera.window.Get<impl::CameraInfo>();
 
 	camera.primary_unzoomed.SetZoom(1.0f);

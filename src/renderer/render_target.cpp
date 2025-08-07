@@ -10,8 +10,6 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/window.h"
-#include "events/event_handler.h"
-#include "events/events.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
@@ -29,11 +27,12 @@ RenderTarget CreateRenderTarget(
 	PTGN_ASSERT(entity);
 	V2_int size{ game.window.GetSize() };
 	RenderTarget render_target{ CreateRenderTarget(entity, size, clear_color, texture_format) };
-	game.event.window.Subscribe(
+	// TODO: Fix.
+	/*game.event.window.Subscribe(
 		WindowEvent::Resized, entity, std::function([entity](const WindowResizedEvent& e) {
 			RenderTarget{ entity }.GetTexture().Resize(e.size);
 		})
-	);
+	);*/
 	return render_target;
 }
 
@@ -42,7 +41,7 @@ RenderTarget CreateRenderTarget(
 	TextureFormat texture_format
 ) {
 	RenderTarget render_target{ entity };
-	render_target.SetPosition({});
+	SetPosition(render_target, {});
 	render_target.SetDraw<RenderTarget>();
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();

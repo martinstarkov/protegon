@@ -16,7 +16,7 @@
 namespace ptgn {
 
 void Polygon::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	PTGN_ASSERT(entity.Has<Polygon>());
 	const auto& polygon{ entity.Get<Polygon>() };
 	auto tint{ entity.GetTint() };

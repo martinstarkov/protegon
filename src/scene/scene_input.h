@@ -4,8 +4,6 @@
 
 #include "components/input.h"
 #include "core/entity.h"
-#include "events/event.h"
-#include "events/events.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
@@ -17,13 +15,6 @@ class Button;
 
 class SceneInput {
 public:
-	SceneInput()							 = default;
-	SceneInput(const SceneInput&)			 = delete;
-	SceneInput& operator=(const SceneInput&) = delete;
-	SceneInput(SceneInput&&) noexcept;
-	SceneInput& operator=(SceneInput&&) noexcept;
-	~SceneInput();
-
 	// If set to true, only the interactables in the scene will be triggered, i.e. if there are two
 	// button on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only);
@@ -65,9 +56,6 @@ private:
 	void UpdateCurrent(Scene& scene);
 
 	void ResetInteractives(Scene& scene);
-
-	void OnMouseEvent(MouseEvent type, const Event& event);
-	void OnKeyEvent(KeyEvent type, const Event& event);
 
 	[[nodiscard]] bool PointerIsInside(
 		const V2_float& screen_pointer, const V2_float& world_pointer, const Entity& entity

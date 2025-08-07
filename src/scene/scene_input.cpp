@@ -13,9 +13,6 @@
 #include "core/manager.h"
 #include "core/window.h"
 #include "debug/log.h"
-#include "events/event.h"
-#include "events/event_handler.h"
-#include "events/events.h"
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "input/mouse.h"
@@ -80,7 +77,7 @@ bool Overlap(const V2_float& point, const Entity& entity) {
 	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
 
 	for (const auto& [shape, e] : shapes) {
-		auto transform{ e.GetAbsoluteTransform() };
+		auto transform{ GetAbsoluteTransform(e) };
 		if (Overlap(point, transform, shape)) {
 			return true;
 		}
@@ -102,9 +99,9 @@ bool Overlap(const Entity& entityA, const Entity& entityB) {
 	);
 
 	for (const auto& [shapeA, eA] : shapesA) {
-		auto transformA{ eA.GetAbsoluteTransform() };
+		auto transformA{ GetAbsoluteTransform(eA) };
 		for (const auto& [shapeB, eB] : shapesB) {
-			auto transformB{ eB.GetAbsoluteTransform() };
+			auto transformB{ GetAbsoluteTransform(eB) };
 			if (Overlap(transformA, shapeA, transformB, shapeB)) {
 				return true;
 			}
@@ -181,7 +178,7 @@ bool IsOverlappingDropzone(
 				entity.GetCamera() == dropzone_entity.GetCamera(),
 				"Dropzone entity and drag entity must share the same camera"
 			);
-			is_overlapping = Overlap(entity.GetAbsolutePosition(), dropzone_entity);
+			is_overlapping = Overlap(GetAbsolutePosition(entity), dropzone_entity);
 			break;
 		}
 		case DropTrigger::Overlaps: {
@@ -264,9 +261,10 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 		SetTopEntity(dropzones);
 	}
 
-	if (send_mouse_event) {
+	// TODO: Fix.
+	/*if (send_mouse_event) {
 		OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
-	}
+	}*/
 }
 
 void SceneInput::EntityMouseDown(
@@ -292,7 +290,7 @@ void SceneInput::EntityMouseDown(
 
 	draggable.dragging = true;
 	draggable.start	   = world_pointer;
-	draggable.offset   = entity.GetAbsolutePosition() - draggable.start;
+	draggable.offset   = GetAbsolutePosition(entity) - draggable.start;
 
 	entity.InvokeScript<&impl::IScript::OnDragStart>(world_pointer);
 
@@ -437,6 +435,8 @@ void SceneInput::ProcessDragOverDropzones(Scene& scene, const V2_float& screen_p
 	}
 }
 
+// TODO: Fix.
+/*
 void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 	// TODO: Figure out a smart way to cache the scene.
 	if (!game.scene.HasScene(scene_key_)) {
@@ -556,47 +556,13 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 		}
 		default: PTGN_ERROR("Unimplemented key event type");
 	}
-}
+}*/
 
 void SceneInput::ResetInteractives(Scene& scene) {
 	for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}
-}
-
-SceneInput::SceneInput(SceneInput&& other) noexcept :
-	mouse_entered(std::exchange(other.mouse_entered, {})),
-	mouse_exited(std::exchange(other.mouse_exited, {})),
-	mouse_over(std::exchange(other.mouse_over, {})),
-	dropzones(std::exchange(other.dropzones, {})),
-	scene_key_(std::exchange(other.scene_key_, 0)),
-	triggered_callbacks_(std::exchange(other.triggered_callbacks_, false)),
-	top_only_(std::exchange(other.top_only_, false)),
-	draw_interactives_(std::exchange(other.draw_interactives_, false)) {
-	game.event.UnsubscribeAll(&other);
-}
-
-SceneInput& SceneInput::operator=(SceneInput&& other) noexcept {
-	if (this != &other) {
-		game.event.UnsubscribeAll(this);
-
-		mouse_entered		 = std::exchange(other.mouse_entered, {});
-		mouse_exited		 = std::exchange(other.mouse_exited, {});
-		mouse_over			 = std::exchange(other.mouse_over, {});
-		dropzones			 = std::exchange(other.dropzones, {});
-		scene_key_			 = std::exchange(other.scene_key_, 0);
-		triggered_callbacks_ = std::exchange(other.triggered_callbacks_, false);
-		top_only_			 = std::exchange(other.top_only_, false);
-		draw_interactives_	 = std::exchange(other.draw_interactives_, false);
-
-		game.event.UnsubscribeAll(&other);
-	}
-	return *this;
-}
-
-SceneInput::~SceneInput() {
-	game.event.UnsubscribeAll(this);
 }
 
 void SceneInput::Init(std::size_t scene_key) {
@@ -606,32 +572,33 @@ void SceneInput::Init(std::size_t scene_key) {
 
 	scene_key_ = scene_key;
 	// Input is reset to ensure no previously pressed keys are considered held.
-	game.input.ResetKeyStates();
-	game.input.ResetMouseStates();
+	// TODO: Check if this is necessary or not.
+	// game.input.ResetKeyStates();
+	// game.input.ResetMouseStates();
 	game.input.Update();
 
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 
 	ResetInteractives(scene);
 	UpdateCurrent(scene);
-	OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
+	// TODO: Fix.
+	// OnMouseEvent(MouseEvent::Move, MouseMoveEvent{});
 
 	// TODO: Cache interactive entity list every frame to avoid repeated calls for each
 	// mouse and keyboard event type.
 
-	game.event.key.Subscribe(
+	// TODO: Fix.
+	/*game.event.key.Subscribe(
 		this, std::bind(&SceneInput::OnKeyEvent, this, std::placeholders::_1, std::placeholders::_2)
 	);
 
 	game.event.mouse.Subscribe(
 		this,
 		std::bind(&SceneInput::OnMouseEvent, this, std::placeholders::_1, std::placeholders::_2)
-	);
+	);*/
 }
 
 void SceneInput::Shutdown() {
-	game.event.key.Unsubscribe(this);
-	game.event.mouse.Unsubscribe(this);
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
 	ResetInteractives(scene);
 

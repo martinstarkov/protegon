@@ -19,7 +19,7 @@ namespace ptgn {
 Line::Line(const V2_float& start, const V2_float& end) : start{ start }, end{ end } {}
 
 void Line::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	PTGN_ASSERT(entity.Has<Line>());
 	const auto& line{ entity.Get<Line>() };
 	auto tint{ entity.GetTint() };

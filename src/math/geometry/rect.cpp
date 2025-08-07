@@ -21,7 +21,7 @@ Rect::Rect(const V2_float& min, const V2_float& max) : min{ min }, max{ max } {}
 Rect::Rect(const V2_float& size) : min{ -size * 0.5f }, max{ size * 0.5f } {}
 
 void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	PTGN_ASSERT(entity.Has<Rect>());
 	const auto& rect{ entity.Get<Rect>() };
 	auto origin{ entity.GetOrigin() };

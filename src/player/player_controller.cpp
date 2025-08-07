@@ -32,14 +32,14 @@ Entity CreateTopDownPlayer(
 
 	auto player{ scene.CreateEntity() };
 
-	player.SetPosition(position);
+	SetPosition(player, position);
 	player.Add<RigidBody>();
 	player.Enable();
 	player.SetDepth(config.depth);
 
 	auto body_hitbox{ scene.CreateEntity() };
 	body_hitbox.Add<Collider>(Rect{ config.body_hitbox_size });
-	body_hitbox.SetPosition(config.body_hitbox_offset);
+	SetPosition(body_hitbox, config.body_hitbox_offset);
 	body_hitbox.Enable();
 	body_hitbox.Add<RigidBody>();
 
@@ -47,11 +47,11 @@ Entity CreateTopDownPlayer(
 	auto& interaction_collider =
 		interaction_hitbox.Add<Collider>(Rect{ config.interaction_hitbox_size });
 	interaction_collider.overlap_only = true;
-	interaction_hitbox.SetPosition({});
+	SetPosition(interaction_hitbox, {});
 	interaction_hitbox.Enable();
 
-	player.AddChild(body_hitbox, "body");
-	player.AddChild(interaction_hitbox, "interaction");
+	AddChild(player, body_hitbox, "body");
+	AddChild(player, interaction_hitbox, "interaction");
 
 	auto& movement{ player.Add<TopDownMovement>() };
 	movement.max_speed		  = config.max_speed;
@@ -83,9 +83,9 @@ Entity CreateTopDownPlayer(
 			  )
 	);
 
-	a0.SetParent(player);
-	a1.SetParent(player);
-	a2.SetParent(player);
+	SetParent(a0, player);
+	SetParent(a1, player);
+	SetParent(a2, player);
 
 	struct AnimationRepeat : public Script<AnimationRepeat> {
 		AnimationRepeat() = default;

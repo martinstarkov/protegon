@@ -11,7 +11,7 @@ namespace ptgn {
 namespace impl {
 
 DialogueComponent& GetDialogueComponent(Entity& entity) {
-	auto dialogue_entity{ entity.GetParent() };
+	auto dialogue_entity{ GetParent(entity) };
 
 	PTGN_ASSERT(dialogue_entity);
 
@@ -198,10 +198,10 @@ DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entit
 	auto& scene{ parent.GetScene() };
 	background_ = background;
 	if (background_) {
-		background_.SetParent(parent);
+		SetParent(background_, parent);
 	}
 	text_ = CreateText(scene, "", color::White);
-	text_.SetParent(parent);
+	SetParent(text_, parent);
 	DialoguePageProperties default_properties;
 	default_properties.box_size	 = Sprite{ background_ }.GetDisplaySize();
 	default_properties.font_key	 = text_.GetFontKey();
@@ -366,9 +366,9 @@ void DialogueComponent::DrawInfo() {
 }
 
 void DialogueComponent::AlignToTopLeft(const DialoguePageProperties& default_properties) {
-	text_.SetPosition(
-		V2_int{ default_properties.padding_left, default_properties.padding_top } -
-		default_properties.box_size / 2.0f
+	SetPosition(
+		text_, V2_int{ default_properties.padding_left, default_properties.padding_top } -
+				   default_properties.box_size / 2.0f
 	);
 	text_.SetOrigin(Origin::TopLeft);
 }

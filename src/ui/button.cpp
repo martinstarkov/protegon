@@ -265,7 +265,7 @@ void ButtonText::Set(
 	if (text == Text{}) {
 		text = CreateText(scene, text_content, text_color, font_size, font_key, text_properties);
 		text.Hide();
-		text.SetParent(parent);
+		SetParent(text, parent);
 		switch (state) {
 			case ButtonState::Default:
 				PTGN_ASSERT(!default_);
@@ -314,7 +314,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Button button{ entity };
 	auto state{ button.GetState() };
 
-	const auto& transform{ entity.GetDrawTransform() };
+	const auto& transform{ GetDrawTransform(entity) };
 	auto blend_mode{ entity.GetBlendMode() };
 	auto depth{ entity.GetDepth() };
 	auto tint{ entity.GetTint().Normalized() };
@@ -455,7 +455,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 
 	if (text != Text{}) {
-		auto text_transform{ text.GetDrawTransform() };
+		auto text_transform{ GetDrawTransform(text) };
 
 		V2_float text_size;
 		if (entity.Has<impl::ButtonTextFixedSize>()) {
@@ -583,7 +583,8 @@ Button& Button::SetSize(const V2_float& size) {
 	}
 	if (IsInteractive()) {
 		ClearInteractables();
-		auto shape{ CreateChild() };
+		auto shape{ GetManager().CreateEntity() };
+		AddChild(*this, shape);
 		shape.Add<Rect>(size);
 		AddInteractable(shape);
 	}
@@ -599,7 +600,8 @@ Button& Button::SetRadius(float radius) {
 	}
 	if (IsInteractive()) {
 		ClearInteractables();
-		auto shape{ CreateChild() };
+		auto shape{ GetManager().CreateEntity() };
+		AddChild(*this, shape);
 		shape.Add<Circle>(radius);
 		AddInteractable(shape);
 	}
@@ -745,7 +747,8 @@ const TextureHandle& Button::GetTextureKey(ButtonState state) const {
 
 Button& Button::SetTextureKey(const TextureHandle& texture_key, ButtonState state) {
 	if (IsInteractive() && GetInteractables().empty()) {
-		auto shape{ CreateChild() };
+		auto shape{ GetManager().CreateEntity() };
+		AddChild(*this, shape);
 		auto size{ texture_key.GetSize() };
 		shape.Add<Rect>(size);
 		AddInteractable(shape);

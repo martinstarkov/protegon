@@ -1,16 +1,16 @@
 #pragma once
 
-#include <memory>
-#include <string_view>
+#include <ctime>
+#include <vector>
 
 #include "common/assert.h"
 #include "common/move_direction.h"
-#include "common/type_info.h"
+#include "common/type_traits.h"
 #include "components/common.h"
 #include "components/drawable.h"
-#include "components/generic.h"
 #include "components/transform.h"
 #include "components/uuid.h"
+#include "core/entity_hierarchy.h"
 #include "core/script.h"
 #include "core/timer.h"
 #include "ecs/ecs.h"
@@ -18,12 +18,12 @@
 #include "input/mouse.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
+#include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "serialization/fwd.h"
+#include "serialization/json.h"
 #include "serialization/json_archiver.h"
 #include "serialization/serializable.h"
-
-// TODO: Add tests for entity hierarchy functions.
 
 namespace ptgn {
 
@@ -37,14 +37,6 @@ namespace impl {
 
 class RenderData;
 class IScript;
-
-struct IgnoreParentTransform : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	IgnoreParentTransform() : ArithmeticComponent{ true } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(IgnoreParentTransform, value_)
-};
 
 template <typename T>
 inline constexpr bool is_retrievable_component_v{
@@ -118,7 +110,7 @@ public:
 		return Parent::HasAny<Ts...>();
 	}
 
-	template <typename... Ts, tt::enable<(impl::is_retrievable_component_v<Ts> && ...)> = true>
+	template <typename... Ts> //, tt::enable<(impl::is_retrievable_component_v<Ts> && ...)> = true>
 	[[nodiscard]] decltype(auto) Get() const {
 		return GetImpl<Ts...>();
 	}
@@ -128,7 +120,7 @@ public:
 		return GetImpl<Ts...>();
 	}
 
-	template <typename T, tt::enable<impl::is_retrievable_component_v<T>> = true>
+	template <typename T> //, tt::enable<impl::is_retrievable_component_v<T>> = true>
 	[[nodiscard]] const T* TryGet() const {
 		return TryGetImpl<T>();
 	}
@@ -165,54 +157,6 @@ public:
 	[[nodiscard]] UUID GetUUID() const;
 
 	[[nodiscard]] std::size_t GetHash() const;
-
-	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
-	Entity& SetDraw() {
-		Add<IDrawable>(type_name<T>());
-		return *this;
-	}
-
-	[[nodiscard]] bool HasDraw() const;
-
-	Entity& RemoveDraw();
-
-	// Entity hierarchy functions.
-
-	// @return The parent most entity, or *this if no parent exists.
-	[[nodiscard]] Entity GetRootEntity() const;
-
-	// @return Parent entity of the object. If object has no parent, returns *this.
-	[[nodiscard]] Entity GetParent() const;
-
-	[[nodiscard]] bool HasParent() const;
-
-	void IgnoreParentTransform(bool ignore_parent_transform);
-
-	void SetParent(Entity& parent, bool ignore_parent_transform = false);
-
-	void RemoveParent();
-
-	// Creates a child in the same manager as the parent entity.
-	// @param name Optional name to retrieve the child handle by later. Note: If no name is
-	// provided, the returned handle will be the only way to access the child directly.
-	Entity CreateChild(std::string_view name = {});
-
-	void ClearChildren();
-
-	void AddChild(Entity& child, std::string_view name = {});
-
-	void RemoveChild(Entity& child);
-	void RemoveChild(std::string_view name);
-
-	// @return True if the entity has the given child, false otherwise.
-	[[nodiscard]] bool HasChild(const Entity& child) const;
-	[[nodiscard]] bool HasChild(std::string_view name) const;
-
-	// @return Child entity with the given name, or null entity is no such child exists.
-	[[nodiscard]] Entity GetChild(std::string_view name) const;
-
-	// @return All childs entities tied to the object
-	[[nodiscard]] std::vector<Entity> GetChildren() const;
 
 	// Entity activation functions.
 
@@ -259,79 +203,27 @@ public:
 	// @return True if the entity is in the scene update list.
 	[[nodiscard]] bool IsEnabled() const;
 
-	// Entity transform functions.
+	Entity& SetOrigin(Origin origin);
 
-	// Set the relative transform of the entity with respect to its parent entity, camera, or
-	// scene camera transform.
-	// @return *this.
-	Entity& SetTransform(const Transform& transform);
+	[[nodiscard]] Origin GetOrigin() const;
 
-	// @return The relative transform of the entity with respect to its parent entity, camera, or
-	// scene camera transform.
-	[[nodiscard]] Transform GetTransform() const;
-	[[nodiscard]] Transform& GetTransform();
+	// Draw functions.
 
-	// @return The absolute transform of the entity with respect to its parent scene camera
-	// transform.
-	[[nodiscard]] Transform GetAbsoluteTransform() const;
+	template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
+	Entity& SetDraw() {
+		Add<IDrawable>(type_name<T>());
+		return *this;
+	}
 
-	// @return The transform of the entity used for drawing it with respect to its parent scene
-	// camera transform. This includes any shake of bounce offsets which are only used for
-	// rendering.
-	[[nodiscard]] Transform GetDrawTransform() const;
+	[[nodiscard]] bool HasDraw() const;
+
+	Entity& RemoveDraw();
 
 	Entity& SetDrawOffset(const V2_float& offset = {});
 
 	Entity& AddPostFX(Entity post_fx);
 
 	Entity& AddPreFX(Entity pre_fx);
-
-	// Set the relative position of the entity with respect to its parent entity, camera, or
-	// scene camera position.
-	// @return *this.
-	Entity& SetPosition(const V2_float& position);
-
-	// @return The relative position of the entity with respect to its parent entity, camera, or
-	// scene camera position.
-	[[nodiscard]] V2_float GetPosition() const;
-	[[nodiscard]] V2_float& GetPosition();
-
-	// @return The absolute position of the entity with respect to its parent scene camera position.
-	[[nodiscard]] V2_float GetAbsolutePosition() const;
-
-	// Set the relative rotation of the entity with respect to its parent entity, camera, or
-	// scene camera rotation. Clockwise positive. Unit: Radians.
-	// @return *this.
-	Entity& SetRotation(float rotation);
-
-	// @return The relative rotation of the entity with respect to its parent entity, camera, or
-	// scene camera rotation. Clockwise positive. Unit: Radians.
-	[[nodiscard]] float GetRotation() const;
-	[[nodiscard]] float& GetRotation();
-
-	// @return The absolute rotation of the entity with respect to its parent scene camera rotation.
-	// Clockwise positive. Unit: Radians.
-	[[nodiscard]] float GetAbsoluteRotation() const;
-
-	// Set the relative scale of the entity with respect to its parent entity, camera, or
-	// scene camera scale.
-	// @return *this.
-	Entity& SetScale(const V2_float& scale);
-	Entity& SetScale(float scale);
-
-	// @return The relative scale of the entity with respect to its parent entity, camera, or
-	// scene camera scale.
-	[[nodiscard]] V2_float GetScale() const;
-	[[nodiscard]] V2_float& GetScale();
-
-	// @return The absolute scale of the entity with respect to its parent scene camera scale.
-	[[nodiscard]] V2_float GetAbsoluteScale() const;
-
-	Entity& SetOrigin(Origin origin);
-
-	[[nodiscard]] Origin GetOrigin() const;
-
-	// Draw functions.
 
 	// @return *this.
 	Entity& SetVisible(bool visible);
@@ -509,8 +401,8 @@ public:
 		if (Has<T>()) {
 			return GetImpl<T>();
 		}
-		if (HasParent()) {
-			return GetParent().GetOrParentOrDefault<T>(std::forward<TArgs>(args)...);
+		if (HasParent(*this)) {
+			return GetParent(*this).GetOrParentOrDefault<T>(std::forward<TArgs>(args)...);
 		}
 		return T{ std::forward<TArgs>(args)... };
 	}
@@ -519,16 +411,6 @@ public:
 	[[nodiscard]] bool WasCreatedBefore(const Entity& other) const;
 
 protected:
-	template <typename T, typename... TArgs>
-	Entity& AddOrRemove(bool condition, TArgs&&... args) {
-		if (condition) {
-			Add<T>(std::forward<TArgs>(args)...);
-		} else {
-			Remove<T>();
-		}
-		return *this;
-	}
-
 	void ClearInteractables();
 
 	void SetInteractiveWasInside(bool value);
@@ -539,6 +421,7 @@ protected:
 	friend class SceneInput;
 
 private:
+	friend Entity& SetTransform(Entity& entity, const Transform& transform);
 	friend class Manager;
 	friend class impl::RenderData;
 
@@ -585,12 +468,6 @@ private:
 	}
 
 	void DeserializeAllImpl(const json& j);
-
-	void AddChildImpl(Entity& child, std::string_view name = {});
-
-	void SetParentImpl(Entity& parent);
-
-	void RemoveParentImpl();
 };
 
 // TODO: Move elsewhere once IScript is not tied to entity.
@@ -1077,58 +954,7 @@ void Entity::RemoveScript() {
 	}
 }
 
-} // namespace ptgn
-
-namespace std {
-
-template <>
-struct hash<ptgn::Entity> {
-	std::size_t operator()(const ptgn::Entity& entity) const {
-		return entity.GetHash();
-	}
-};
-
-} // namespace std
-
-namespace ptgn {
-
 namespace impl {
-
-struct ChildKey : public HashComponent {
-	using HashComponent::HashComponent;
-};
-
-struct Parent : public Entity {
-	using Entity::Entity;
-
-	Parent(const Entity& entity);
-};
-
-struct Children {
-	Children() = default;
-
-	void Clear();
-
-	void Add(Entity& child, std::string_view name = {});
-
-	void Remove(const Entity& child);
-	void Remove(std::string_view name);
-
-	// @return Entity with given name, or null entity is no such entity exists.
-	[[nodiscard]] Entity Get(std::string_view name) const;
-
-	[[nodiscard]] bool IsEmpty() const;
-
-	[[nodiscard]] bool Has(const Entity& child) const;
-	[[nodiscard]] bool Has(std::string_view name) const;
-
-	PTGN_SERIALIZER_REGISTER_NAMED(Children, KeyValue("children", children_))
-
-private:
-	friend class ptgn::Entity;
-
-	std::vector<Entity> children_;
-};
 
 struct PostFX {
 	PostFX() = default;
@@ -1165,3 +991,14 @@ struct PreFX {
 } // namespace impl
 
 } // namespace ptgn
+
+namespace std {
+
+template <>
+struct hash<ptgn::Entity> {
+	std::size_t operator()(const ptgn::Entity& entity) const {
+		return entity.GetHash();
+	}
+};
+
+} // namespace std

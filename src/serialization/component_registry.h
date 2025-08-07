@@ -12,6 +12,7 @@
 #include "components/lifetime.h"
 #include "components/movement.h"
 #include "components/offsets.h"
+#include "components/relatives.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "components/uuid.h"

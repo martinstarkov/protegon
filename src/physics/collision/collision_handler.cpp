@@ -25,13 +25,13 @@ namespace ptgn::impl {
 
 bool CollisionHandler::CanCollide(const Entity& entity1, const Entity& entity2) {
 	PTGN_ASSERT(entity1.IsEnabled() && entity2.IsEnabled());
-	if (entity1.GetRootEntity() == entity2.GetRootEntity()) {
+	if (GetRootEntity(entity1) == GetRootEntity(entity2)) {
 		return false;
 	}
-	if (!entity1.GetRootEntity().IsAlive()) {
+	if (!GetRootEntity(entity1).IsAlive()) {
 		return false;
 	}
-	if (!entity2.GetRootEntity().IsAlive()) {
+	if (!GetRootEntity(entity2).IsAlive()) {
 		return false;
 	}
 	if (!entity1.Get<Collider>().CanCollideWith(entity2.Get<Collider>().GetCollisionCategory())) {
@@ -57,8 +57,8 @@ void CollisionHandler::Overlap(Entity entity, const std::vector<Entity>& entitie
 			continue;
 		}
 
-		auto transform1{ entity.GetAbsoluteTransform() };
-		auto transform2{ entity2.GetAbsoluteTransform() };
+		auto transform1{ GetAbsoluteTransform(entity) };
+		auto transform2{ GetAbsoluteTransform(entity2) };
 
 		auto shape1{ ApplyOffset(entity.Get<Collider>().shape, entity) };
 		auto shape2{ ApplyOffset(entity2.Get<Collider>().shape, entity2) };
@@ -91,8 +91,8 @@ void CollisionHandler::Intersect(Entity entity, const std::vector<Entity>& entit
 			continue;
 		}
 
-		auto transform1{ entity.GetAbsoluteTransform() };
-		auto transform2{ entity2.GetAbsoluteTransform() };
+		auto transform1{ GetAbsoluteTransform(entity) };
+		auto transform2{ GetAbsoluteTransform(entity2) };
 
 		auto shape1{ ApplyOffset(entity.Get<Collider>().shape, entity) };
 		auto shape2{ ApplyOffset(entity2.Get<Collider>().shape, entity2) };
@@ -338,8 +338,8 @@ std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisi
 			continue;
 		}
 
-		auto transform1{ entity.GetAbsoluteTransform() };
-		auto transform2{ entity2.GetAbsoluteTransform() };
+		auto transform1{ GetAbsoluteTransform(entity) };
+		auto transform2{ GetAbsoluteTransform(entity2) };
 
 		auto offset_transform{ transform1 };
 		offset_transform.position += offset;

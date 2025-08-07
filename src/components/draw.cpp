@@ -32,7 +32,7 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 	auto display_size{ sprite.GetSize() };
 	auto texture_coordinates{ sprite.GetTextureCoordinates(flip_texture) };
 
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	auto origin{ entity.GetOrigin() };
 	auto tint{ entity.GetTint() };
 	auto depth{ entity.GetDepth() };
@@ -77,7 +77,7 @@ V2_float GetDisplaySize(const Entity& entity) {
 	if (!entity.Has<TextureHandle>() && !entity.Has<TextureCrop>()) {
 		return {};
 	}
-	return GetCroppedSize(entity) * entity.GetScale();
+	return GetCroppedSize(entity) * GetScale(entity);
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(const Entity& entity, bool flip_vertically) {
@@ -108,7 +108,7 @@ std::array<V2_float, 4> GetTextureCoordinates(const Entity& entity, bool flip_ve
 		}
 	}
 
-	auto scale{ entity.GetScale() };
+	auto scale{ GetScale(entity) };
 
 	bool flip_x{ scale.x < 0.0f };
 	bool flip_y{ scale.y < 0.0f };
@@ -142,7 +142,7 @@ Entity CreateRect(
 	rect.SetDraw<Rect>();
 	rect.Show();
 
-	rect.SetPosition(position);
+	SetPosition(rect, position);
 	rect.Add<Rect>(size);
 	rect.SetOrigin(origin);
 
@@ -167,7 +167,7 @@ Entity CreateCircle(
 	circle.SetDraw<Circle>();
 	circle.Show();
 
-	circle.SetPosition(position);
+	SetPosition(circle, position);
 	circle.Add<Circle>(radius);
 
 	circle.SetTint(color);

@@ -37,8 +37,8 @@ void DropdownScript::OnButtonActivate() {
 
 void DropdownItemScript::OnButtonActivate() {
 	if (!entity.Has<impl::DropdownInstance>()) {
-		PTGN_ASSERT(entity.HasParent());
-		Dropdown{ entity.GetParent() }.Close();
+		PTGN_ASSERT(HasParent(entity));
+		Dropdown{ GetParent(entity) }.Close();
 	}
 }
 
@@ -48,8 +48,8 @@ Dropdown::Dropdown(const Entity& entity) : Button{ entity } {}
 
 Dropdown& Dropdown::SetSize(const V2_float& size) {
 	Button::SetSize(size);
-	if (HasParent()) {
-		auto parent{ GetParent() };
+	if (HasParent(*this)) {
+		auto parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			Dropdown{ parent }.RecalculateButtonPositions();
 		}
@@ -104,7 +104,7 @@ void Dropdown::RecalculateButtonPositions() {
 		if (i != 0) {
 			offset += GetOriginOffset(info.direction_, size);
 		}
-		button.SetPosition(offset);
+		SetPosition(button, offset);
 		button.SetSize(size);
 		button.SetOrigin(Origin::Center);
 		// Offset is added separately while moving through dropdown buttons.
@@ -114,8 +114,8 @@ void Dropdown::RecalculateButtonPositions() {
 
 bool Dropdown::WillStartOpen() const {
 	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
-	if (HasParent()) {
-		auto parent{ GetParent() };
+	if (HasParent(*this)) {
+		auto parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			return Get<impl::DropdownInstance>().start_open_ && Dropdown{ parent }.WillStartOpen();
 		}
@@ -127,7 +127,7 @@ void Dropdown::AddButton(Button button) {
 	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
 	auto& i{ Get<impl::DropdownInstance>() };
 
-	button.SetParent(*this);
+	SetParent(button, *this);
 
 	if (WillStartOpen()) {
 		button.Show();
@@ -207,7 +207,7 @@ void Dropdown::Open() {
 		b.Enable();
 		b.Show();
 	}
-	auto children{ GetChildren() };
+	auto children{ GetChildren(*this) };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
 			const auto& child_i{ child.Get<impl::DropdownInstance>() };
@@ -226,13 +226,13 @@ void Dropdown::Close(bool close_parents) {
 		b.Disable();
 		b.Hide();
 	}
-	if (close_parents && HasParent()) {
-		auto parent{ GetParent() };
+	if (close_parents && HasParent(*this)) {
+		auto parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			Dropdown{ parent }.Close();
 		}
 	}
-	auto children{ GetChildren() };
+	auto children{ GetChildren(*this) };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
 			Dropdown{ child }.Close(false);

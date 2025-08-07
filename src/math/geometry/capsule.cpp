@@ -19,7 +19,7 @@ Capsule::Capsule(const V2_float& start, const V2_float& end, float radius) :
 	start{ start }, end{ end }, radius{ radius } {}
 
 void Capsule::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	PTGN_ASSERT(entity.Has<Capsule>());
 	const auto& capsule{ entity.Get<Capsule>() };
 	auto tint{ entity.GetTint() };

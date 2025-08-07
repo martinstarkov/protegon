@@ -15,7 +15,7 @@ namespace ptgn {
 Circle::Circle(float circle_radius) : radius{ circle_radius } {}
 
 void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	PTGN_ASSERT(entity.Has<Circle>());
 	const auto& circle{ entity.Get<Circle>() };
 	auto tint{ entity.GetTint() };

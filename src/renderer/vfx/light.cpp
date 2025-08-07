@@ -32,7 +32,7 @@ PointLight CreatePointLight(
 
 	point_light.SetDraw<PointLight>();
 	point_light.Show();
-	point_light.SetPosition(position);
+	SetPosition(point_light, position);
 	point_light.SetBlendMode(BlendMode::AddPremultipliedWithAlpha);
 
 	// Point light properties.
@@ -52,7 +52,7 @@ PointLight::PointLight(const Entity& entity) : Entity{ entity } {}
 void PointLight::SetUniform(Entity entity, const Shader& shader) {
 	PointLight light{ entity };
 
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	float radius{ light.GetRadius() * Abs(transform.scale.x) };
 
 	shader.SetUniform("u_LightPosition", transform.position);

@@ -23,7 +23,7 @@ Triangle::Triangle(const std::array<V2_float, 3>& vertices) :
 	a{ vertices[0] }, b{ vertices[1] }, c{ vertices[2] } {}
 
 void Triangle::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto transform{ entity.GetDrawTransform() };
+	auto transform{ GetDrawTransform(entity) };
 	PTGN_ASSERT(entity.Has<Triangle>());
 	const auto& triangle{ entity.Get<Triangle>() };
 	auto tint{ entity.GetTint() };

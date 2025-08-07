@@ -18,17 +18,17 @@ bool PhysicsBody::IsImmovable() const {
 	if (Has<RigidBody>() && Get<RigidBody>().immovable) {
 		return true;
 	}
-	if (HasParent()) {
-		return PhysicsBody{ GetParent() }.IsImmovable();
+	if (HasParent(*this)) {
+		return PhysicsBody{ GetParent(*this) }.IsImmovable();
 	}
 	return false;
 }
 
 [[nodiscard]] Transform& PhysicsBody::GetRootTransform() {
-	auto root_entity{ Entity::GetRootEntity() };
+	auto root_entity{ GetRootEntity(*this) };
 	PTGN_ASSERT(root_entity, "Physics body must have a valid root entity (or itself)");
 	PTGN_ASSERT(root_entity.Has<Transform>(), "Root entity must have a transform component");
-	return root_entity.GetTransform();
+	return GetTransform(root_entity);
 }
 
 Collider::Collider(const Shape& shape) : shape{ shape } {}

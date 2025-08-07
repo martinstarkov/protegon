@@ -90,7 +90,7 @@ void TranslateEffectSystem::Update(Scene& scene) const {
 
 		auto& task{ effect.tasks.front() };
 
-		entity.SetPosition(GetTaskValue(task));
+		SetPosition(entity, GetTaskValue(task));
 
 		UpdateTask(effect, task);
 	}
@@ -105,7 +105,7 @@ void RotateEffectSystem::Update(Scene& scene) const {
 
 		auto& task{ effect.tasks.front() };
 
-		entity.SetRotation(GetTaskValue(task));
+		SetRotation(entity, GetTaskValue(task));
 
 		UpdateTask(effect, task);
 	}
@@ -120,7 +120,7 @@ void ScaleEffectSystem::Update(Scene& scene) const {
 
 		auto& task{ effect.tasks.front() };
 
-		entity.SetScale(GetTaskValue(task));
+		SetScale(entity, GetTaskValue(task));
 
 		UpdateTask(effect, task);
 	}
@@ -355,7 +355,7 @@ void FollowEffectSystem::Update(Scene& scene) const {
 			if (!effect.tasks.empty()) {
 				auto front{ effect.tasks.front() };
 				if (front.config.teleport_on_start) {
-					entity.SetPosition(front.target.GetPosition());
+					SetPosition(entity, GetPosition(front.target));
 				}
 				if (front.config.move_mode == MoveMode::Velocity) {
 					entity.Enable();
@@ -375,12 +375,12 @@ void FollowEffectSystem::Update(Scene& scene) const {
 			continue;
 		}
 
-		auto pos{ entity.GetAbsolutePosition() };
+		auto pos{ GetAbsolutePosition(entity) };
 
 		V2_float target_pos;
 
 		if (task.config.follow_mode == FollowMode::Target) {
-			target_pos = task.target.GetAbsolutePosition() + task.config.offset;
+			target_pos = GetAbsolutePosition(task.target) + task.config.offset;
 		} else if (task.config.follow_mode == FollowMode::Path) {
 			PTGN_ASSERT(
 				!task.config.waypoints.empty(),
@@ -407,7 +407,7 @@ void FollowEffectSystem::Update(Scene& scene) const {
 					if (!effect.tasks.empty()) {
 						auto front{ effect.tasks.front() };
 						if (front.config.teleport_on_start) {
-							entity.SetPosition(front.target.GetPosition());
+							SetPosition(entity, GetPosition(front.target));
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
 							entity.Enable();
@@ -445,7 +445,7 @@ void FollowEffectSystem::Update(Scene& scene) const {
 				if (!effect.tasks.empty()) {
 					auto front{ effect.tasks.front() };
 					if (front.config.teleport_on_start) {
-						entity.SetPosition(front.target.GetPosition());
+						SetPosition(entity, GetPosition(front.target));
 					}
 					if (front.config.move_mode != MoveMode::Velocity) {
 						entity.template Remove<TopDownMovement>();
@@ -501,7 +501,7 @@ void FollowEffectSystem::Update(Scene& scene) const {
 				new_pos.y = pos.y;
 			}
 
-			entity.SetPosition(new_pos);
+			SetPosition(entity, new_pos);
 
 			if (task.config.stop_distance >= epsilon<float>) {
 				auto dir{ target_pos - new_pos };
@@ -511,7 +511,7 @@ void FollowEffectSystem::Update(Scene& scene) const {
 					if (!effect.tasks.empty()) {
 						auto front{ effect.tasks.front() };
 						if (front.config.teleport_on_start) {
-							entity.SetPosition(front.target.GetPosition());
+							SetPosition(entity, GetPosition(front.target));
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
 							entity.Enable();
@@ -543,7 +543,7 @@ void TranslateTo(
 	bool force
 ) {
 	impl::AddTweenEffect<impl::TranslateEffect>(
-		entity, target_position, duration, ease, force, entity.GetPosition()
+		entity, target_position, duration, ease, force, GetPosition(entity)
 	);
 }
 
@@ -551,7 +551,7 @@ void RotateTo(
 	Entity& entity, float target_angle, milliseconds duration, const Ease& ease, bool force
 ) {
 	impl::AddTweenEffect<impl::RotateEffect>(
-		entity, target_angle, duration, ease, force, entity.GetRotation()
+		entity, target_angle, duration, ease, force, GetRotation(entity)
 	);
 }
 
@@ -560,7 +560,7 @@ void ScaleTo(
 	bool force
 ) {
 	impl::AddTweenEffect<impl::ScaleEffect>(
-		entity, target_scale, duration, ease, force, entity.GetScale()
+		entity, target_scale, duration, ease, force, GetScale(entity)
 	);
 }
 
@@ -729,7 +729,7 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 	}
 
 	if (config.teleport_on_start) {
-		entity.SetPosition(target.GetPosition());
+		SetPosition(entity, GetPosition(target));
 	}
 
 	if (config.move_mode == MoveMode::Velocity) {
@@ -762,7 +762,7 @@ void StopFollow(Entity entity, bool force) {
 		if (!follow.tasks.empty()) {
 			auto front{ follow.tasks.front() };
 			if (front.config.teleport_on_start) {
-				entity.SetPosition(front.target.GetPosition());
+				SetPosition(entity, GetPosition(front.target));
 			}
 			if (front.config.move_mode == MoveMode::Velocity) {
 				entity.Enable();

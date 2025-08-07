@@ -14,8 +14,6 @@
 #include "core/time.h"
 #include "core/window.h"
 #include "debug/log.h"
-#include "events/event_handler.h"
-#include "events/events.h"
 #include "math/easing.h"
 #include "math/geometry.h"
 #include "math/math.h"
@@ -336,12 +334,13 @@ void CameraInfo::SetViewDirty() {
 
 Camera CreateCamera(const Entity& entity) {
 	Camera camera{ entity };
-	camera.SetPosition({});
+	SetPosition(camera, {});
 	camera.Add<impl::CameraInfo>();
-	PTGN_ASSERT(
+	// TODO: Fix.
+	/*PTGN_ASSERT(
 		!game.event.window.IsSubscribed(camera),
 		"Cannot create camera from entity which is already subscribed to window events"
-	);
+	);*/
 	camera.SubscribeToWindowEvents();
 	return camera;
 }
@@ -383,19 +382,21 @@ V2_float Camera::ZoomIfNeeded(const V2_float& zoomed_coordinate) const {
 }
 
 void Camera::SubscribeToWindowEvents() {
-	if (game.event.window.IsSubscribed(*this)) {
+	// TODO: Fix.
+	/*if (game.event.window.IsSubscribed(*this)) {
 		return;
 	}
 	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
 													   ) mutable {
 		OnWindowResize(e.size);
 	};
-	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
+	game.event.window.Subscribe(WindowEvent::Resized, *this, f);*/
 	OnWindowResize(game.window.GetSize());
 }
 
 void Camera::UnsubscribeFromWindowEvents() {
-	game.event.window.Unsubscribe(*this);
+	// TODO: Fix.
+	// game.event.window.Unsubscribe(*this);
 }
 
 void Camera::OnWindowResize(V2_float size) {
@@ -410,7 +411,7 @@ void Camera::OnWindowResize(V2_float size) {
 	}
 	if (center) {
 		auto pos{ size * 0.5f };
-		SetPosition(pos);
+		ptgn::SetPosition(*this, pos);
 		info.UpdatePosition(pos);
 	}
 	if (resize || center) {
@@ -421,10 +422,10 @@ void Camera::OnWindowResize(V2_float size) {
 void Camera::RefreshBounds() {
 	auto& info{ Get<impl::CameraInfo>() };
 	auto clamped{ impl::CameraInfo::ClampToBounds(
-		Entity::GetPosition(), info.GetBoundingBoxPosition(), info.GetBoundingBoxSize(),
+		ptgn::GetPosition(*this), info.GetBoundingBoxPosition(), info.GetBoundingBoxSize(),
 		info.GetSize(), GetZoom()
 	) };
-	SetPosition(clamped);
+	ptgn::SetPosition(*this, clamped);
 	info.UpdatePosition(clamped);
 }
 
@@ -460,7 +461,7 @@ V2_float Camera::GetBoundsSize() const {
 
 V2_float Camera::GetPosition(Origin origin) const {
 	PTGN_ASSERT(Has<impl::CameraInfo>());
-	auto position{ Entity::GetPosition() };
+	auto position{ ptgn::GetPosition(*this) };
 	auto offset{ GetOriginOffset(origin, GetSize(true)) };
 	return position - offset;
 }
@@ -479,7 +480,7 @@ void Camera::CenterOnArea(const V2_float& new_size) {
 	SetSize(new_size);
 	auto pos{ new_size / 2.0f };
 	auto& info{ Get<impl::CameraInfo>() };
-	SetPosition(pos);
+	ptgn::SetPosition(*this, pos);
 	info.UpdatePosition(pos);
 }
 
@@ -585,7 +586,7 @@ void Camera::CenterOnWindow(bool continuously) {
 		SubscribeToWindowEvents();
 	} else {
 		auto center{ game.window.GetCenter() };
-		SetPosition(center);
+		ptgn::SetPosition(*this, center);
 		info.UpdatePosition(center);
 	}
 }
@@ -594,7 +595,7 @@ std::array<V2_float, 4> Camera::GetVertices(const V2_float& scale) const {
 	PTGN_ASSERT(!scale.IsZero(), "Camera scale cannot be zero");
 	auto size{ GetSize(true) };
 	Rect rect{ size };
-	Transform transform{ GetPosition(Origin::Center), GetRotation(), scale };
+	Transform transform{ GetPosition(Origin::Center), ptgn::GetRotation(*this), scale };
 	auto world_vertices{ rect.GetWorldVertices(transform) };
 	return world_vertices;
 }
@@ -610,12 +611,12 @@ V2_float Camera::GetSize(bool account_for_zoom) const {
 }
 
 V2_float Camera::GetZoom() const {
-	return Abs(GetScale());
+	return Abs(ptgn::GetScale(*this));
 }
 
 V3_float Camera::GetOrientation() const {
 	const auto& info{ Get<impl::CameraInfo>() };
-	return { Entity::GetRotation(), info.GetRotationY(), info.GetRotationZ() };
+	return { ptgn::GetRotation(*this), info.GetRotationY(), info.GetRotationZ() };
 }
 
 Quaternion Camera::GetQuaternion() const {
@@ -648,9 +649,9 @@ void Camera::SetZoom(V2_float new_zoom) {
 	PTGN_ASSERT(new_zoom.x > 0.0f && new_zoom.y > 0.0f, "New zoom cannot be negative or zero");
 	new_zoom.x = std::clamp(new_zoom.x, epsilon<float>, std::numeric_limits<float>::max());
 	new_zoom.y = std::clamp(new_zoom.y, epsilon<float>, std::numeric_limits<float>::max());
-	auto zoom{ Entity::GetScale() };
+	auto zoom{ ptgn::GetScale(*this) };
 	new_zoom *= V2_float{ Sign(zoom.x), Sign(zoom.y) };
-	Entity::SetScale(new_zoom);
+	ptgn::SetScale(*this, new_zoom);
 	auto& info{ Get<impl::CameraInfo>() };
 	info.UpdateScale(new_zoom);
 }
@@ -663,10 +664,10 @@ void Camera::Translate(const V2_float& position_change) {
 	// TODO: This might boil down to not needing quaternions (since z position change is zero) but I
 	// am not sure due to the sine and cosines.
 	auto change{ V3_float{ position_change.x, position_change.y, 0.0f } * GetQuaternion() };
-	auto old_pos{ Entity::GetPosition() };
+	auto old_pos{ ptgn::GetPosition(*this) };
 	auto& info{ Get<impl::CameraInfo>() };
 	auto new_pos{ old_pos + V2_float{ change.x, change.y } };
-	SetPosition(new_pos);
+	ptgn::SetPosition(*this, new_pos);
 	info.UpdatePosition(new_pos);
 	info.SetPositionZ(info.GetPositionZ() + change.z);
 }
@@ -688,8 +689,8 @@ void Camera::Zoom(float zoom_change) {
 }
 
 void Camera::Rotate(float angle_change_radians) {
-	auto rotation{ GetRotation() + angle_change_radians };
-	SetRotation(rotation);
+	auto rotation{ ptgn::GetRotation(*this) + angle_change_radians };
+	ptgn::SetRotation(*this, rotation);
 	auto& info{ Get<impl::CameraInfo>() };
 	info.UpdateRotation(rotation);
 }
@@ -734,7 +735,7 @@ void Camera::SetSizeToWindow(bool continuously) {
 }
 
 void Camera::Reset() {
-	Entity::SetTransform(Transform{});
+	ptgn::SetTransform(*this, Transform{});
 	auto& info{ Get<impl::CameraInfo>() };
 	info = {};
 	SubscribeToWindowEvents();
@@ -786,6 +787,10 @@ Camera& Camera::StopShake(bool force) {
 	return *this;
 }
 
+const Matrix4& Camera::GetViewProjection() const {
+	return Get<impl::CameraInfo>().GetViewProjection(ptgn::GetTransform(*this), *this);
+}
+
 void Camera::PrintInfo() const {
 	auto bounds_position{ GetBoundsPosition() };
 	auto bounds_size{ GetBoundsSize() };
@@ -800,10 +805,6 @@ void Camera::PrintInfo() const {
 	} else {
 		PrintLine(bounds_position, "->", bounds_position + bounds_size);
 	}
-}
-
-const Matrix4& Camera::GetViewProjection() const {
-	return Get<impl::CameraInfo>().GetViewProjection(Entity::GetTransform(), *this);
 }
 
 void CameraManager::Init(impl::SceneKey scene_key) {

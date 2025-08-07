@@ -266,7 +266,7 @@ void Renderer::PresentScreen() {
 			V2_float size{ resolution_.IsZero() ? game.window.GetSize() : resolution_ };
 			std::invoke(center_on_resolution);
 			// camera.SetSize(size + letterbox_size);
-			//  camera.SetPosition(size / 2.0f);
+			//  SetPosition(camera, size / 2.0f);
 			GLRenderer::SetViewport(letterbox_size, game.window.GetSize() - 2.0f * letterbox_size);
 			break;
 		}

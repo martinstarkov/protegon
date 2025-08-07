@@ -18,7 +18,7 @@
 #define PTGN_CALL_TWEEN_SCRIPTS(FUNC_NAME)                                         \
 	auto& FUNC_NAME##_scripts{ GetCurrentTweenPoint().script_container_.scripts }; \
 	for (auto& [key, script] : FUNC_NAME##_scripts) {                              \
-		script->FUNC_NAME({ *this, GetProgress(), Entity::GetParent() });          \
+		script->FUNC_NAME({ *this, GetProgress(), GetParent(*this) });             \
 	}
 
 namespace ptgn {
@@ -340,7 +340,7 @@ Tween& Tween::Reset() {
 		for (auto& tween_point : tween.points_) {
 			auto& scripts{ tween_point.script_container_.scripts };
 			for (auto& [key, script] : scripts) {
-				script->OnReset({ *this, GetProgress(), Entity::GetParent() });
+				script->OnReset({ *this, GetProgress(), GetParent(*this) });
 			}
 		}
 	}
