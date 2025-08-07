@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/entity.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "input/key.h"
 #include "math/vector2.h"
@@ -145,10 +146,11 @@ private:
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	DialogueBehavior, {
-						  { DialogueBehavior::Sequential, "sequential" },
-						  { DialogueBehavior::Random, "random" },
-					  }
+	DialogueBehavior,
+	{
+		{ DialogueBehavior::Sequential, "sequential" },
+		{ DialogueBehavior::Random, "random" },
+	}
 )
 
 } // namespace ptgn

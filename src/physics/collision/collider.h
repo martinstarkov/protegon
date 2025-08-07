@@ -12,6 +12,28 @@ namespace ptgn {
 
 struct Transform;
 
+// TODO: Move elsewhere once IScript is not tied to entity.
+struct Collision {
+	Collision() = default;
+
+	Collision(const Entity& other, const V2_float& collision_normal) :
+		entity{ other }, normal{ collision_normal } {}
+
+	Entity entity;
+	// Normal set to {} for overlap only collisions.
+	V2_float normal;
+
+	friend bool operator==(const Collision& a, const Collision& b) {
+		return a.entity == b.entity;
+	}
+
+	friend bool operator!=(const Collision& a, const Collision& b) {
+		return !operator==(a, b);
+	}
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Collision, entity, normal)
+};
+
 namespace impl {
 
 class CollisionHandler;

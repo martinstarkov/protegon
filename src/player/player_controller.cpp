@@ -8,6 +8,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
@@ -98,9 +99,9 @@ Entity CreateTopDownPlayer(
 		}
 	};
 
-	a0.AddScript<AnimationRepeat>(config.walk_sound_frequency, config.walk_sound_key);
-	a1.AddScript<AnimationRepeat>(config.walk_sound_frequency, config.walk_sound_key);
-	a2.AddScript<AnimationRepeat>(config.walk_sound_frequency, config.walk_sound_key);
+	AddScript<AnimationRepeat>(a0, config.walk_sound_frequency, config.walk_sound_key);
+	AddScript<AnimationRepeat>(a1, config.walk_sound_frequency, config.walk_sound_key);
+	AddScript<AnimationRepeat>(a2, config.walk_sound_frequency, config.walk_sound_key);
 
 	struct MovementScript : public Script<MovementScript> {
 		void OnMoveStart() override {
@@ -136,7 +137,7 @@ Entity CreateTopDownPlayer(
 		}
 	};
 
-	player.AddScript<MovementScript>();
+	AddScript<MovementScript>(player);
 
 	return player;
 }

@@ -19,7 +19,7 @@ Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
 
 	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
 	i.start_open_ = start_open;
-	dropdown_button.AddScript<impl::DropdownScript>();
+	AddScript<impl::DropdownScript>(dropdown_button);
 
 	if (start_open) {
 		Dropdown{ dropdown_button }.Open();
@@ -138,7 +138,7 @@ void Dropdown::AddButton(Button button) {
 		button.Disable();
 	}
 
-	button.AddScript<impl::DropdownItemScript>();
+	AddScript<impl::DropdownItemScript>(button);
 
 	i.buttons_.emplace_back(button);
 

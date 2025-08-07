@@ -13,6 +13,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "core/timer.h"
 #include "ecs/ecs.h"
 #include "input/input_handler.h"

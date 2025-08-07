@@ -11,6 +11,7 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"
@@ -62,7 +63,7 @@ void Animation::Start(bool force) {
 	crop.size		   = anim.frame_size;
 	bool started{ anim.frame_timer.Start(force) };
 	if (started) {
-		InvokeScript<&impl::IScript::OnAnimationStart>();
+		InvokeScript<&impl::IScript::OnAnimationStart>(*this);
 	}
 }
 
@@ -75,14 +76,14 @@ void Animation::Reset() {
 	auto& crop		   = Get<TextureCrop>();
 	crop.position	   = anim.GetCurrentFramePosition();
 	crop.size		   = anim.frame_size;
-	InvokeScript<&impl::IScript::OnAnimationStop>();
+	InvokeScript<&impl::IScript::OnAnimationStop>(*this);
 	anim.frame_timer.Reset();
 }
 
 void Animation::Stop() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	InvokeScript<&impl::IScript::OnAnimationStop>();
+	InvokeScript<&impl::IScript::OnAnimationStop>(*this);
 	anim.frame_timer.Stop();
 }
 
@@ -97,14 +98,14 @@ void Animation::Toggle() {
 void Animation::Pause() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	InvokeScript<&impl::IScript::OnAnimationPause>();
+	InvokeScript<&impl::IScript::OnAnimationPause>(*this);
 	anim.frame_timer.Pause();
 }
 
 void Animation::Resume() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	InvokeScript<&impl::IScript::OnAnimationResume>();
+	InvokeScript<&impl::IScript::OnAnimationResume>(*this);
 	anim.frame_timer.Resume();
 }
 
@@ -233,18 +234,18 @@ void AnimationSystem::Update(Scene& scene) {
 		if (bool infinite_playback{ anim.play_count == -1 };
 			!infinite_playback &&
 			anim.frames_played >= static_cast<std::size_t>(anim.play_count) * anim.frame_count) {
-			entity.InvokeScript<&impl::IScript::OnAnimationComplete>();
+			InvokeScript<&impl::IScript::OnAnimationComplete>(entity);
 			// Reset animation to start frame after it finishes.
 			anim.SetCurrentFrame(0);
-			entity.InvokeScript<&impl::IScript::OnAnimationFrameChange>(anim.current_frame);
+			InvokeScript<&impl::IScript::OnAnimationFrameChange>(entity, anim.current_frame);
 			crop.size	  = anim.frame_size;
 			crop.position = anim.GetCurrentFramePosition();
 			anim.frame_timer.Stop();
-			entity.InvokeScript<&impl::IScript::OnAnimationStop>();
+			InvokeScript<&impl::IScript::OnAnimationStop>(entity);
 			continue;
 		}
 
-		entity.InvokeScript<&impl::IScript::OnAnimationUpdate>();
+		InvokeScript<&impl::IScript::OnAnimationUpdate>(entity);
 
 		if (auto frame_duration{ anim.GetFrameDuration() };
 			!anim.frame_timer.Completed(frame_duration)) {
@@ -257,13 +258,13 @@ void AnimationSystem::Update(Scene& scene) {
 
 		anim.IncrementFrame();
 
-		entity.InvokeScript<&impl::IScript::OnAnimationFrameChange>(anim.current_frame);
+		InvokeScript<&impl::IScript::OnAnimationFrameChange>(entity, anim.current_frame);
 
 		crop.size	  = anim.frame_size;
 		crop.position = anim.GetCurrentFramePosition();
 
 		if (anim.frames_played % anim.frame_count == 0) {
-			entity.InvokeScript<&impl::IScript::OnAnimationRepeat>(anim.GetPlayCount());
+			InvokeScript<&impl::IScript::OnAnimationRepeat>(entity, anim.GetPlayCount());
 		}
 
 		anim.frame_timer.Start(true);

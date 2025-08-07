@@ -10,7 +10,7 @@
 
 #include "common/assert.h"
 #include "core/entity.h"
-#include "core/script.h"
+#include "core/script_registry.h"
 #include "core/time.h"
 #include "math/easing.h"
 #include "scene/scene.h"

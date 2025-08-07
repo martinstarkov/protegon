@@ -13,6 +13,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -71,9 +72,9 @@ Origin GetDrawOrigin(const Entity& entity) {
 Entity& SetVisible(Entity& entity, bool visible) {
 	if (visible) {
 		entity.Add<Visible>(visible);
-		entity.InvokeScript<&impl::IScript::OnShow>();
+		InvokeScript<&impl::IScript::OnShow>(entity);
 	} else {
-		entity.InvokeScript<&impl::IScript::OnHide>();
+		InvokeScript<&impl::IScript::OnHide>(entity);
 		entity.Remove<Visible>();
 	}
 	return entity;

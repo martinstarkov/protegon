@@ -79,7 +79,7 @@ const Interactive& GetInteractive(const Entity& entity) {
 }
 
 Interactive& GetInteractive(Entity& entity) {
-	return const_cast<Interactive&>(GetInteractive(const_cast<const Entity&>(entity)));
+	return const_cast<Interactive&>(GetInteractive(std::as_const(entity)));
 }
 
 void SetInteractiveWasInside(Entity& entity, bool value) {

@@ -9,6 +9,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/timer.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
@@ -165,23 +166,25 @@ MoveDirection TopDownMovement::GetDirectionState(const V2_float& d) {
 template <auto StartFunc, auto ContinueFunc, auto StopFunc>
 void InvokeMoveCallbacks(const Entity& entity, bool was_moving, bool is_moving) {
 	if (!was_moving && is_moving) {
-		entity.InvokeScript<StartFunc>();
+		InvokeScript<StartFunc>(entity);
 	}
 	if (is_moving) {
-		entity.InvokeScript<ContinueFunc>();
+		InvokeScript<ContinueFunc>(entity);
 	}
 	if (was_moving && !is_moving) {
-		entity.InvokeScript<StopFunc>();
+		InvokeScript<StopFunc>(entity);
 	}
 }
 
 void TopDownMovement::InvokeCallbacks(Entity& entity) {
+	// TODO: Fix callbacks potentially removing TopDownMovement, invalidating future callbacks.
+
 	if (dir != prev_dir) {
 		// Clamp because turning from left to right can cause a difference in direction of 2.0f,
 		// which we see as the same as 1.0f.
 		V2_float diff{ Clamp(dir - prev_dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
 		auto dir_state{ GetDirectionState(diff) };
-		entity.InvokeScript<&impl::IScript::OnMoveDirectionChange>(dir_state);
+		InvokeScript<&impl::IScript::OnMoveDirectionChange>(entity, dir_state);
 	}
 
 	// TODO: Consider instead of using WasMoving, IsMoving, switch to providing an index and

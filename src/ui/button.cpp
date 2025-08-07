@@ -16,6 +16,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
 #include "math/geometry/circle.h"
@@ -46,7 +47,7 @@ Button CreateButton(Scene& scene) {
 	SetInteractive(button);
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
-	button.AddScript<impl::ButtonScript>();
+	AddScript<impl::ButtonScript>(button);
 	button.Enable();
 
 	return button;
@@ -65,7 +66,7 @@ Button CreateTextButton(
 ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
 	ToggleButton toggle_button{ CreateButton(scene) };
 
-	toggle_button.AddScript<impl::ToggleButtonScript>();
+	AddScript<impl::ToggleButtonScript>(toggle_button);
 	toggle_button.Add<impl::ButtonToggled>(toggled);
 
 	return toggle_button;
@@ -521,7 +522,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 }
 
 Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
-	AddScript<impl::ButtonActivateScript>(on_activate_callback);
+	AddScript<impl::ButtonActivateScript>(*this, on_activate_callback);
 	return *this;
 }
 
@@ -868,15 +869,15 @@ ButtonState Button::GetState() const {
 }
 
 void Button::Activate() {
-	InvokeScript<&impl::IScript::OnButtonActivate>();
+	InvokeScript<&impl::IScript::OnButtonActivate>(*this);
 }
 
 void Button::StartHover() {
-	InvokeScript<&impl::IScript::OnButtonHoverStart>();
+	InvokeScript<&impl::IScript::OnButtonHoverStart>(*this);
 }
 
 void Button::StopHover() {
-	InvokeScript<&impl::IScript::OnButtonHoverStop>();
+	InvokeScript<&impl::IScript::OnButtonHoverStop>(*this);
 }
 
 bool ToggleButton::IsToggled() const {
@@ -1073,7 +1074,7 @@ void ToggleButtonGroup::Unload(std::string_view button_key) {
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {
-	target.AddScript<impl::ToggleButtonGroupScript>(*this);
+	AddScript<impl::ToggleButtonGroupScript>(target, *this);
 }
 
 } // namespace ptgn

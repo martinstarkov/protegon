@@ -4,6 +4,7 @@
 
 #include "components/interactive.h"
 #include "core/entity.h"
+#include "input/mouse.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 

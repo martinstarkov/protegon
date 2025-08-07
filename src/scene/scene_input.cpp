@@ -10,6 +10,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/mouse.h"
@@ -266,7 +267,7 @@ void SceneInput::EntityMouseDown(
 		return;
 	}
 
-	entity.InvokeScript<&impl::IScript::OnMouseDown>(mouse);
+	InvokeScript<&impl::IScript::OnMouseDown>(entity, mouse);
 
 	if (!entity.Has<Draggable>()) {
 		return;
@@ -284,7 +285,7 @@ void SceneInput::EntityMouseDown(
 	draggable.start	   = world_pointer;
 	draggable.offset   = GetAbsolutePosition(entity) - draggable.start;
 
-	entity.InvokeScript<&impl::IScript::OnDragStart>(world_pointer);
+	InvokeScript<&impl::IScript::OnDragStart>(entity, world_pointer);
 
 	for (Entity dropzone_entity : dropzones) {
 		if (!dropzone_entity.IsAlive() || !dropzone_entity.Has<Dropzone, Interactive>()) {
@@ -293,7 +294,7 @@ void SceneInput::EntityMouseDown(
 		auto& dropzone{ dropzone_entity.Get<Dropzone>() };
 		bool erased{ VectorErase(dropzone.dropped_entities, entity) };
 		if (erased) {
-			entity.InvokeScript<&impl::IScript::OnPickup>(dropzone_entity);
+			InvokeScript<&impl::IScript::OnPickup>(entity, dropzone_entity);
 		}
 		// VectorErase(dropzone.overlapping_draggables, entity);
 	}
@@ -307,9 +308,9 @@ void SceneInput::EntityMouseUp(
 	}
 
 	if (is_inside) {
-		entity.InvokeScript<&impl::IScript::OnMouseUp>(mouse);
+		InvokeScript<&impl::IScript::OnMouseUp>(entity, mouse);
 	} else {
-		entity.InvokeScript<&impl::IScript::OnMouseUpOutside>(mouse);
+		InvokeScript<&impl::IScript::OnMouseUpOutside>(entity, mouse);
 	}
 
 	if (!entity.Has<Draggable>()) {
@@ -327,7 +328,7 @@ void SceneInput::EntityMouseUp(
 	draggable.dragging = false;
 	draggable.offset   = {};
 
-	entity.InvokeScript<&impl::IScript::OnDragStop>(world_pointer);
+	InvokeScript<&impl::IScript::OnDragStop>(entity, world_pointer);
 
 	auto overlapping_dropzones{ GetOverlappingDropzones(scene, entity, world_pointer) };
 
@@ -339,7 +340,7 @@ void SceneInput::EntityMouseUp(
 		if (!dropzone.IsAlive() || !dropzone.Has<Dropzone, Interactive>()) {
 			continue;
 		}
-		entity.InvokeScript<&impl::IScript::OnDrop>(dropzone);
+		InvokeScript<&impl::IScript::OnDrop>(entity, dropzone);
 		// TODO: OnDrop may delete the dropzone, which would invalidate this:
 		auto& dropzone_entities{ dropzone.Get<Dropzone>().dropped_entities };
 		if (!VectorContains(dropzone_entities, entity)) {
@@ -348,6 +349,7 @@ void SceneInput::EntityMouseUp(
 	}
 }
 
+// TODO: Move callback processing to a second step.
 void SceneInput::EntityMouseMove(
 	Scene& scene, Entity entity, bool is_inside, bool was_inside, const V2_float& screen_pointer
 ) const {
@@ -357,28 +359,29 @@ void SceneInput::EntityMouseMove(
 
 	auto world_pointer{ entity.GetCamera().TransformToCamera(screen_pointer) };
 
-	entity.InvokeScript<&impl::IScript::OnMouseMove>(world_pointer);
+	InvokeScript<&impl::IScript::OnMouseMove>(entity, world_pointer);
 
 	bool entered{ is_inside && !was_inside };
 	bool exited{ !is_inside && was_inside };
 
 	if (entered) {
-		entity.InvokeScript<&impl::IScript::OnMouseEnter>(world_pointer);
+		InvokeScript<&impl::IScript::OnMouseEnter>(entity, world_pointer);
 	}
 	if (exited) {
-		entity.InvokeScript<&impl::IScript::OnMouseLeave>(world_pointer);
+		InvokeScript<&impl::IScript::OnMouseLeave>(entity, world_pointer);
 	}
 
 	if (is_inside) {
-		entity.InvokeScript<&impl::IScript::OnMouseOver>(world_pointer);
+		InvokeScript<&impl::IScript::OnMouseOver>(entity, world_pointer);
 	} else {
-		entity.InvokeScript<&impl::IScript::OnMouseOut>(world_pointer);
+		InvokeScript<&impl::IScript::OnMouseOut>(entity, world_pointer);
 	}
 
 	if (entity.Has<Draggable>() && entity.Get<Draggable>().dragging) {
 		// Dragging.
+		// TODO: Move this to a dragging system.
 		PTGN_ASSERT(!entity.Has<Dropzone>(), "Draggable entity cannot also be a dropzone");
-		entity.InvokeScript<&impl::IScript::OnDrag>(world_pointer);
+		InvokeScript<&impl::IScript::OnDrag>(entity, world_pointer);
 	}
 }
 
@@ -409,17 +412,17 @@ void SceneInput::ProcessDragOverDropzones(Scene& scene, const V2_float& screen_p
 			};
 			if (is_overlapping) {
 				if (!was_overlapping) {
-					draggable_entity.InvokeScript<&impl::IScript::OnDragEnter>(dropzone_entity);
+					InvokeScript<&impl::IScript::OnDragEnter>(draggable_entity, dropzone_entity);
 					dropzone.overlapping_draggables.emplace_back(draggable_entity);
 				} else {
-					draggable_entity.InvokeScript<&impl::IScript::OnDragOver>(dropzone_entity);
+					InvokeScript<&impl::IScript::OnDragOver>(draggable_entity, dropzone_entity);
 				}
 			} else {
 				VectorErase(dropzone.overlapping_draggables, draggable_entity);
 				if (!was_overlapping) {
-					draggable_entity.InvokeScript<&impl::IScript::OnDragOut>(dropzone_entity);
+					InvokeScript<&impl::IScript::OnDragOut>(draggable_entity, dropzone_entity);
 				} else {
-					draggable_entity.InvokeScript<&impl::IScript::OnDragLeave>(dropzone_entity);
+					InvokeScript<&impl::IScript::OnDragLeave>(draggable_entity, dropzone_entity);
 				}
 			}
 		}

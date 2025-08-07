@@ -50,7 +50,7 @@ const Entity& GetRootEntity(const Entity& entity) {
 }
 
 Entity& GetRootEntity(Entity& entity) {
-	return const_cast<Entity&>(GetRootEntity(const_cast<const Entity&>(entity)));
+	return const_cast<Entity&>(GetRootEntity(std::as_const(entity)));
 }
 
 const Entity& GetParent(const Entity& entity) {
@@ -58,7 +58,7 @@ const Entity& GetParent(const Entity& entity) {
 }
 
 Entity& GetParent(Entity& entity) {
-	return const_cast<Entity&>(GetParent(const_cast<const Entity&>(entity)));
+	return const_cast<Entity&>(GetParent(std::as_const(entity)));
 }
 
 bool HasParent(const Entity& entity) {

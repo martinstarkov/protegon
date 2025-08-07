@@ -2,6 +2,7 @@
 
 #include <chrono>
 
+#include "core/script.h"
 #include "scene/scene.h"
 #include "serialization/json.h"
 

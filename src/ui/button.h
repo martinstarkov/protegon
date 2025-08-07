@@ -10,6 +10,7 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
+#include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
 #include "math/vector2.h"

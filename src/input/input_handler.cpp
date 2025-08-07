@@ -15,6 +15,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "core/window.h"
 #include "debug/log.h"

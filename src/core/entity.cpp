@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <utility>
-#include <vector>
 
 #include "common/assert.h"
 #include "common/type_info.h"
@@ -166,16 +165,6 @@ void Entity::DeserializeAllImpl(const json& j) {
 		}
 		pool->Deserialize(archiver, manager, entity_);
 	}
-}
-
-void Scripts::Update(Scene& scene, float dt) {
-	Invoke<&impl::IScript::OnUpdate>(scene, dt);
-
-	scene.Refresh();
-}
-
-std::vector<Entity> Scripts::GetEntities(Scene& scene) {
-	return scene.EntitiesWith<Scripts>().GetVector();
 }
 
 void to_json(json& j, const Entity& entity) {

@@ -69,10 +69,10 @@ void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
 	if (!game.input.KeyDown(dialogue_component.GetContinueKey())) {
 		return;
 	}
-	if (entity.HasScript<impl::DialogueScrollScript>()) {
-		if (auto& script_info{ entity.GetTimerScriptInfo<impl::DialogueScrollScript>() };
+	if (HasScript<impl::DialogueScrollScript>(entity)) {
+		if (auto& script_info{ GetTimerScriptInfo<impl::DialogueScrollScript>(entity) };
 			script_info.timer.IsRunning()) {
-			entity.GetScript<impl::DialogueScrollScript>().UpdateText(1.0f);
+			GetScript<impl::DialogueScrollScript>(entity).UpdateText(1.0f);
 			script_info.timer.Stop();
 			return;
 		}
@@ -268,8 +268,8 @@ void DialogueComponent::Close() {
 	if (background_) {
 		Hide(background_);
 	}
-	text_.RemoveScript<impl::DialogueWaitScript>();
-	text_.RemoveScript<impl::DialogueScrollScript>();
+	RemoveScript<impl::DialogueWaitScript>(text_);
+	RemoveScript<impl::DialogueScrollScript>(text_);
 	current_line_ = 0;
 	current_page_ = 0;
 }
@@ -285,9 +285,9 @@ void DialogueComponent::NextPage() {
 		Close();
 		return;
 	}
-	text_.RemoveScript<impl::DialogueScrollScript>();
+	RemoveScript<impl::DialogueScrollScript>(text_);
 	auto duration = page->properties.scroll_duration;
-	text_.AddTimerScript<impl::DialogueScrollScript>(duration);
+	AddTimerScript<impl::DialogueScrollScript>(text_, duration);
 }
 
 void DialogueComponent::SetNextDialogue() {
@@ -380,8 +380,8 @@ void DialogueComponent::StartDialogueLine(int dialogue_line_index) {
 	auto page	  = GetCurrentDialoguePage();
 	PTGN_ASSERT(page);
 	auto duration = page->properties.scroll_duration;
-	text_.AddTimerScript<impl::DialogueScrollScript>(duration);
-	text_.AddScript<impl::DialogueWaitScript>();
+	AddTimerScript<impl::DialogueScrollScript>(text_, duration);
+	AddScript<impl::DialogueWaitScript>(text_);
 }
 
 void DialogueComponent::LoadFromJson(

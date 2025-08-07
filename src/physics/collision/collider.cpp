@@ -8,6 +8,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/script.h"
+#include "core/script_registry.h"
 #include "math/geometry.h"
 #include "physics/rigid_body.h"
 #include "utility/span.h"
@@ -103,14 +104,14 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 void Collider::InvokeCollisionCallbacks(Entity& entity) const {
 	for (const auto& prev : prev_collisions_) {
 		if (!VectorContains(collisions_, prev)) {
-			entity.InvokeScript<&impl::IScript::OnCollisionStop>(prev);
+			InvokeScript<&impl::IScript::OnCollisionStop>(entity, prev);
 		} else {
-			entity.InvokeScript<&impl::IScript::OnCollision>(prev);
+			InvokeScript<&impl::IScript::OnCollision>(entity, prev);
 		}
 	}
 	for (const auto& current : collisions_) {
 		if (!VectorContains(prev_collisions_, current)) {
-			entity.InvokeScript<&impl::IScript::OnCollisionStart>(current);
+			InvokeScript<&impl::IScript::OnCollisionStart>(entity, current);
 		}
 	}
 }
