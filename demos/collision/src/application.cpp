@@ -1375,16 +1375,16 @@ struct SweepTest : public CollisionTest {
 		auto& rb		= player.Get<RigidBody>();
 		auto& transform = player.GetTransform();
 
-		for (auto [e, p, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
-			Rect r{ p.position, b.size, b.origin };
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+			Rect r{ GetPosition(e), b.size, b.origin };
 			if (e == player) {
 				r.Draw(color::Green);
 			} else {
 				r.Draw(color::Blue);
 			}
 		}
-		for (auto [e, p, c] : manager.EntitiesWith<Transform, CircleCollider>()) {
-			Circle circle{ p.position, c.radius };
+		for (auto [e, c] : manager.EntitiesWith<CircleCollider>()) {
+			Circle circle{ GetPosition(e), c.radius };
 			if (e == player) {
 				circle.Draw(color::Green);
 			} else {
@@ -1637,22 +1637,24 @@ struct DynamicRectCollisionTest : public CollisionTest {
 		auto boxes	 = manager.EntitiesWith<BoxCollider>();
 		auto circles = manager.EntitiesWith<CircleCollider>();
 
-		for (auto [e, t, b, rb, id, nv] :
-			 manager.EntitiesWith<Transform, BoxCollider, RigidBody, Id, NextVel>()) {
+		for (auto [e, b, rb, id, nv] :
+			 manager.EntitiesWith<BoxCollider, RigidBody, Id, NextVel>()) {
 			game.collision.Sweep(e, b, boxes, circles, true);
 			game.collision.Intersect(e, b, boxes, circles);
 		}
 
-		for (auto [e, t, b, rb, id, nv] :
-			 manager.EntitiesWith<Transform, BoxCollider, RigidBody, Id, NextVel>()) {
+		for (auto [e, b, rb, id, nv] :
+			 manager.EntitiesWith<BoxCollider, RigidBody, Id, NextVel>()) {
+			 auto& t{ GetTransform(e) };
 			if (space_down) {
 				t.position += rb.velocity * game.dt();
 			}
-			for (auto [e2, t2, b2, rb2] :
-				 manager.EntitiesWith<Transform, BoxCollider, RigidBody>()) {
+			for (auto [e2, b2, rb2] :
+				 manager.EntitiesWith<BoxCollider, RigidBody>()) {
 				if (e2 == e) {
 					continue;
 				}
+				auto& t2{ GetTransform(e2) };
 				Rect r1{ t.position + b.offset, b.size, b.origin };
 				Rect r2{ t2.position + b2.offset, b2.size, b2.origin };
 				Intersection c{ r1.Intersects(r2) };
@@ -1667,8 +1669,8 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	}
 
 	void Draw() override {
-		for (auto [e, t, b] : manager.EntitiesWith<Transform, BoxCollider>()) {
-			Rect{ t.position + b.offset, b.size, b.origin }.Draw(color::Green);
+		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
+			Rect{ GetPosition(e) + b.offset, b.size, b.origin }.Draw(color::Green);
 		}
 	}
 };

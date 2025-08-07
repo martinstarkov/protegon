@@ -2,6 +2,7 @@
 
 #include "common/assert.h"
 #include "common/type_traits.h"
+#include "components/utility.h"
 #include "components/uuid.h"
 #include "core/entity_hierarchy.h"
 #include "ecs/ecs.h"
@@ -15,25 +16,21 @@ class Entity;
 class Manager;
 class Scene;
 class Camera;
-struct Transform;
-struct Interactive;
 class SceneInput;
-struct Depth;
-struct Visible;
-class IDrawable;
 
+struct Transform;
+struct Depth;
+struct Interactive;
+
+Entity& SetTransform(Entity& entity, const Transform& transform);
 Entity& SetDepth(Entity& entity, const Depth& depth);
 
 namespace impl {
 
 class RenderData;
 class IScript;
-const ptgn::Interactive& GetInteractive(const Entity& entity);
 
-template <typename T>
-inline constexpr bool is_retrievable_component_v{
-	!tt::is_any_of_v<T, Transform, Depth, Visible, Interactive, IDrawable>
-};
+const ptgn::Interactive& GetInteractive(const ptgn::Entity& entity);
 
 } // namespace impl
 
@@ -204,9 +201,9 @@ public:
 	[[nodiscard]] bool WasCreatedBefore(const Entity& other) const;
 
 private:
-	friend Entity& SetTransform(Entity& entity, const Transform& transform);
-	friend const Interactive& impl::GetInteractive(const Entity& entity);
-	friend Entity& SetDepth(Entity& entity, const Depth& depth);
+	friend Entity& SetTransform(Entity&, const Transform&);
+	friend const Interactive& impl::GetInteractive(const Entity&);
+	friend Entity& SetDepth(Entity&, const Depth&);
 	friend class Manager;
 	friend class impl::RenderData;
 

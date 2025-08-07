@@ -836,7 +836,7 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 void RenderData::DrawScene(Scene& scene) {
 	// Loop through render targets and render their display lists onto their internal frame buffers.
 	for (auto [entity, visible, drawable, frame_buffer, display_list] :
-		 scene.EntitiesWith<Visible, IDrawable, impl::FrameBuffer, impl::DisplayList>()) {
+		 scene.InternalEntitiesWith<Visible, IDrawable, impl::FrameBuffer, impl::DisplayList>()) {
 		if (!visible) {
 			continue;
 		}

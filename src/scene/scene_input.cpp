@@ -25,7 +25,7 @@
 #include "scene/scene_manager.h"
 #include "utility/span.h"
 
-// TODO: Ensure that entities are alive and interactable, enabled, etc, after each script hook is
+// TODO: Ensure that entities are alive and interactable, etc, after each script hook is
 // called in case the hook deletes or removes components from itself.
 // Also check for this issue for other script hooks, e.g. buttons.
 
@@ -130,7 +130,7 @@ void SceneInput::Update(Scene& scene) {
 
 void SceneInput::UpdatePrevious(Scene& scene) {
 	triggered_callbacks_ = false;
-	for (auto [entity, interactive] : scene.EntitiesWith<Interactive>()) {
+	for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
 		interactive.was_inside = interactive.is_inside;
 		interactive.is_inside  = false;
 	}
@@ -191,13 +191,13 @@ bool IsOverlappingDropzone(
 	return is_overlapping;
 }
 
-std::vector<Entity> GetOverlappingDropzones(
+std::vector<Entity> SceneInput::GetOverlappingDropzones(
 	Scene& scene, const Entity& entity, const V2_float& world_pointer
 ) {
 	std::vector<Entity> overlapping_dropzones;
 
 	for (auto [dropzone_entity, dropzone_interactive, dropzone] :
-		 scene.EntitiesWith<Interactive, Dropzone>()) {
+		 scene.InternalEntitiesWith<Interactive, Dropzone>()) {
 		if (IsOverlappingDropzone(entity, world_pointer, dropzone_entity, dropzone)) {
 			overlapping_dropzones.emplace_back(dropzone_entity);
 		}
@@ -216,7 +216,7 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 
 	bool send_mouse_event{ false };
 
-	for (auto [entity, interactive] : scene.EntitiesWith<Interactive>()) {
+	for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
 		auto world_pointer{ entity.GetCamera().TransformToCamera(screen_pointer) };
 
 		if (entity.Has<Dropzone>()) {
@@ -387,7 +387,7 @@ void SceneInput::EntityMouseMove(
 
 void SceneInput::ProcessDragOverDropzones(Scene& scene, const V2_float& screen_pointer) const {
 	for (const auto& [draggable_entity, interactive1, draggable] :
-		 scene.EntitiesWith<Interactive, Draggable>()) {
+		 scene.InternalEntitiesWith<Interactive, Draggable>()) {
 		// Not dragging currently.
 		if (!draggable.dragging) {
 			continue;
@@ -466,9 +466,9 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 			for (Entity entity : mouse_over) {
 				EntityMouseDown(scene, entity, mouse, screen_pointer);
 			}
-			for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
+			for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
 				if (interactive.is_inside || !entity.IsAlive() ||
-					!entity.Has<Enabled, Interactive>()) {
+					!entity.Has<Interactive>()) {
 					continue;
 				}
 				entity.InvokeScript<&impl::IScript::OnMouseDownOutside>(mouse);
@@ -477,7 +477,7 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		}
 		case MouseEvent::Up: {
 			Mouse mouse{ static_cast<const MouseUpEvent&>(event).mouse };
-			for (auto [entity, enabled, interactive] : scene.EntitiesWith<Enabled, Interactive>()) {
+			for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
 				EntityMouseUp(scene, entity, interactive.is_inside, mouse, screen_pointer);
 			}
 			break;
@@ -485,13 +485,13 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Pressed: {
 			Mouse mouse{ static_cast<const MousePressedEvent&>(event).mouse };
 			for (Entity entity : mouse_entered) {
-				if (!entity.IsAlive() || !entity.Has<Enabled, Interactive>()) {
+				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
 				entity.InvokeScript<&impl::IScript::OnMousePressed>(mouse);
 			}
 			for (Entity entity : mouse_over) {
-				if (!entity.IsAlive() || !entity.Has<Enabled, Interactive>()) {
+				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
 				entity.InvokeScript<&impl::IScript::OnMousePressed>(mouse);
@@ -501,13 +501,13 @@ void SceneInput::OnMouseEvent(MouseEvent type, const Event& event) {
 		case MouseEvent::Scroll: {
 			V2_int scroll{ static_cast<const MouseScrollEvent&>(event).scroll };
 			for (Entity entity : mouse_entered) {
-				if (!entity.IsAlive() || !entity.Has<Enabled, Interactive>()) {
+				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
 				entity.InvokeScript<&impl::IScript::OnMouseScroll>(scroll);
 			}
 			for (Entity entity : mouse_over) {
-				if (!entity.IsAlive() || !entity.Has<Enabled, Interactive>()) {
+				if (!entity.IsAlive() || !entity.Has<Interactive>()) {
 					continue;
 				}
 				entity.InvokeScript<&impl::IScript::OnMouseScroll>(scroll);
@@ -526,24 +526,24 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 	switch (type) {
 		case KeyEvent::Down: {
 			Key key{ static_cast<const KeyDownEvent&>(event).key };
-			for (auto [entity, enabled, interactive, scripts] :
-				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
+			for (auto [entity, interactive, scripts] :
+				 scene.InternalEntitiesWith<Interactive, Scripts>()) {
 				entity.InvokeScript<&impl::IScript::OnKeyDown>(key);
 			}
 			break;
 		}
 		case KeyEvent::Up: {
 			Key key{ static_cast<const KeyUpEvent&>(event).key };
-			for (auto [entity, enabled, interactive, scripts] :
-				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
+			for (auto [entity, interactive, scripts] :
+				 scene.InternalEntitiesWith<Interactive, Scripts>()) {
 				entity.InvokeScript<&impl::IScript::OnKeyUp>(key);
 			}
 			break;
 		}
 		case KeyEvent::Pressed: {
 			Key key{ static_cast<const KeyPressedEvent&>(event).key };
-			for (auto [entity, enabled, interactive, scripts] :
-				 scene.EntitiesWith<Enabled, Interactive, Scripts>()) {
+			for (auto [entity, interactive, scripts] :
+				 scene.InternalEntitiesWith<Interactive, Scripts>()) {
 				entity.InvokeScript<&impl::IScript::OnKeyPressed>(key);
 			}
 			break;
@@ -553,7 +553,7 @@ void SceneInput::OnKeyEvent(KeyEvent type, const Event& event) {
 }*/
 
 void SceneInput::ResetInteractives(Scene& scene) {
-	for (auto [entity, interactive] : scene.EntitiesWith<Interactive>()) {
+	for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
 		interactive.was_inside = false;
 		interactive.is_inside  = false;
 	}

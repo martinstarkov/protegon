@@ -62,6 +62,10 @@ private:
 		const V2_float& screen_pointer, const V2_float& world_pointer, const Entity& entity
 	) const;
 
+	[[nodiscard]] static std::vector<Entity> GetOverlappingDropzones(
+		Scene& scene, const Entity& entity, const V2_float& world_pointer
+	);
+
 	void ProcessDragOverDropzones(Scene& scene, const V2_float& screen_pointer) const;
 
 	void Init(std::size_t scene_key);

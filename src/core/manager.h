@@ -2,6 +2,7 @@
 
 #include <type_traits>
 
+#include "components/utility.h"
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "ecs/ecs.h"
@@ -9,6 +10,15 @@
 #include "serialization/json_archiver.h"
 
 namespace ptgn {
+
+class SceneInput;
+class Physics;
+
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
 
 template <bool is_const>
 using Entities =
@@ -91,6 +101,10 @@ public:
 
 	template <typename... Ts>
 	ptgn::EntitiesWith<false, Ts...> EntitiesWith() {
+		static_assert(
+			(impl::is_retrievable_component_v<Ts> && ...),
+			"Cannot retrieve entities with a component that cannot be retrieved manually"
+		);
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
 					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
@@ -259,6 +273,18 @@ public:
 
 private:
 	friend class Entity;
+	friend class SceneInput;
+	friend class impl::RenderData;
+	friend class Physics;
+
+	// Same as EntitiesWith except allows non-retrievable components to be retrieved. Used for
+	// internal engine systems.
+	template <typename... Ts>
+	ptgn::EntitiesWith<false, Ts...> InternalEntitiesWith() {
+		return { this, next_entity_,
+				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
+					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+	}
 
 	void ClearEntities() final;
 

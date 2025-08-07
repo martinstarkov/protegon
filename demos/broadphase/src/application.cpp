@@ -1793,9 +1793,10 @@ public:
 
 		player.SetTint(color::Purple);
 
-		for (auto [e, transform, collider] : EntitiesWith<Transform, MyCollider>()) {
+		for (auto [e, collider] : EntitiesWith<MyCollider>()) {
+			auto position{ GetPosition(e) };
 			auto size{ collider.rect.GetSize() };
-			collider.rect = Rect{ transform.position - size, transform.position + size };
+			collider.rect = Rect{ position - size, position + size };
 		}
 
 		collision.Update(*this, game.dt());
