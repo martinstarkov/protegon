@@ -219,151 +219,87 @@ int main() {
 }
 
 */
-
-#include <functional>
 #include <iostream>
-#include <optional>
-#include <utility>
-#include <variant>
+#include <string>
+#include <tuple>
 
-namespace ptgn {
+struct json {
+	void add(const std::string& key, const std::string& value) const {
+		std::cout << key << ": " << value << "\n";
+	}
+};
 
-namespace tt {
+template <typename Derived, typename... Bases>
+class A;
 
-// Trait to detect if T is a specialization of std::variant
-template <typename T>
-struct is_variant : std::false_type {};
+class C {
+public:
+	int key{ 63 };
 
-template <typename... Ts>
-struct is_variant<std::variant<Ts...>> : std::true_type {};
+	void OnKey() {
+		std::cout << "Key" << std::endl;
+	}
 
-template <typename T>
-constexpr bool is_variant_v = is_variant<std::remove_cv_t<std::remove_reference_t<T>>>::value;
+private:
+	template <typename Derived, typename... Bases>
+	friend class A;
 
-} // namespace tt
+	void SerializeImpl(json& j) const {
+		j.add("C", "from C");
+	}
+};
 
-namespace impl {
+class D {
+public:
+	int mouse{ 69 };
 
-template <typename Func, typename... Args>
-static void DispatchHelper(Func& fn, Args&&... args) {
-	if constexpr (tt::is_variant_v<Func>) {
-		// For variant: visit all alternatives, call if invocable
-		std::visit(
-			[&](auto&& f) {
-				using F = decltype(f);
-				if constexpr (std::is_invocable_v<F, Args...>) {
-					f(std::forward<Args>(args)...);
-				}
-			},
-			fn
-		);
-	} else {
-		// Plain std::function or callable
-		if constexpr (std::is_invocable_v<Func, Args...>) {
-			fn(std::forward<Args>(args)...);
+	void OnMouse() {
+		std::cout << "Mouse" << std::endl;
+	}
+
+private:
+	template <typename Derived, typename... Bases>
+	friend class A;
+
+	void SerializeImpl(json& j) const {
+		j.add("D", "from D");
+	}
+};
+
+class Base {
+public:
+	virtual ~Base()						  = default;
+	virtual void Serialize(json& j) const = 0;
+};
+
+template <typename Derived, typename... Bases>
+class A : public Base, public Bases... {
+public:
+	void Serialize(json& j) const final {
+		using Tuple = std::tuple<Bases...>;
+		SerializeBases<Tuple>(static_cast<const Derived*>(this), j);
+		j.add(typeid(Derived).name(), " from A");
+	}
+
+private:
+	template <typename Tuple, std::size_t I = 0>
+	static void SerializeBases(const void* self, json& j) {
+		if constexpr (I < std::tuple_size_v<Tuple>) {
+			using Base = std::tuple_element_t<I, Tuple>;
+			static_cast<const Base*>(self)->Base::SerializeImpl(j); // safe static_cast
+			SerializeBases<Tuple, I + 1>(self, j);
 		}
 	}
-}
-
-} // namespace impl
-
-#define PTGN_VARIANT(...) __VA_ARGS__
-
-#define PTGN_DEFINE_EVENT_MEMBER(EnumType, name, type) std::optional<type> EnumType##name;
-
-// === Dispatcher Generator ===
-#define PTGN_DEFINE_EVENT_DISPATCH(EnumType, name, type)                            \
-	if constexpr (std::is_same_v<decltype(event), EnumType>) {                      \
-		if constexpr (event == EnumType::name) {                                    \
-			if (EnumType##name)                                                     \
-				impl::DispatchHelper(*EnumType##name, std::forward<Args>(args)...); \
-		}                                                                           \
-	}
-
-#define PTGN_DEFINE_EVENT_REGISTER(EnumType, name, type)                            \
-	if constexpr (std::is_same_v<decltype(event), EnumType> &&                      \
-				  std::is_convertible_v<decltype(std::function(Function)), type>) { \
-		if constexpr (event == EnumType::name) {                                    \
-			EnumType##name = std::function(Function);                               \
-		}                                                                           \
-	}
-
-#define PTGN_DEFINE_EVENT_DISPATCHER(LIST)  \
-	LIST(PTGN_DEFINE_EVENT_MEMBER)          \
-	template <auto event, typename... Args> \
-	void Dispatch(Args&&... args) {         \
-		LIST(PTGN_DEFINE_EVENT_DISPATCH)    \
-	}                                       \
-	template <auto event, auto Function>    \
-	void Register() {                       \
-		LIST(PTGN_DEFINE_EVENT_REGISTER)    \
-	}
-
-// === Event Enums ===
-enum class MouseEvent {
-	Down,
-	Move
-};
-enum class KeyEvent {
-	Down,
-	Up
 };
 
-// === Event Macros ===
-#define PTGN_EVENT_LIST(X)                                                         \
-	X(MouseEvent, Down,                                                            \
-	  PTGN_VARIANT(std::variant<std::function<void()>, std::function<void(int)>>)) \
-	X(MouseEvent, Move, std::function<void(int, int)>)                             \
-	X(KeyEvent, Down, std::function<void(int)>)                                    \
-	X(KeyEvent, Up, std::function<void()>)
-
-struct EventDispatcher {
-	PTGN_DEFINE_EVENT_DISPATCHER(PTGN_EVENT_LIST)
+class B : public A<B, C, D> {
+public:
 };
 
-} // namespace ptgn
-
-struct TestClass {
-	static void mouseDown() {
-		std::cout << "Mouse down (0 args)\n";
-	}
-
-	static void mouseDownArg(int arg) {
-		std::cout << "Mouse down (1 arg) " << arg << "\n";
-	}
-
-	static void mouseMove(int x, int y) {
-		std::cout << "Mouse move to " << x << "," << y << "\n";
-	}
-
-	static void keyDownArg(int k) {
-		std::cout << "Key down (1 arg) " << k << "\n";
-	}
-
-	static void keyUp() {
-		std::cout << "Key up (0 arg)\n";
-	}
-};
-
-// === Example ===
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	ptgn::EventDispatcher r;
-
-	r.Register<ptgn::MouseEvent::Down, &TestClass::mouseDown>();
-	r.Register<ptgn::MouseEvent::Down, &TestClass::mouseDownArg>();
-	r.Register<ptgn::MouseEvent::Move, &TestClass::mouseMove>();
-	r.Register<ptgn::KeyEvent::Down, &TestClass::keyDownArg>();
-	r.Register<ptgn::KeyEvent::Up, &TestClass::keyUp>();
-	r.Register<ptgn::KeyEvent::Up, []() {
-		std::cout << "Wasup " << std::endl;
-	}>();
-
-	// Dispatch some events
-	r.Dispatch<ptgn::MouseEvent::Down>();
-	r.Dispatch<ptgn::MouseEvent::Down>(69);
-	r.Dispatch<ptgn::MouseEvent::Move>(200, 400);
-	r.Dispatch<ptgn::KeyEvent::Down>(65);
-	r.Dispatch<ptgn::KeyEvent::Up>();
-
-	return 0;
+int main() {
+	B b;
+	json j;
+	b.Serialize(j);
+	b.OnKey();
+	b.OnMouse();
 }

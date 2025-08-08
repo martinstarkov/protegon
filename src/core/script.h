@@ -23,6 +23,49 @@ class Scene;
 
 namespace impl {
 
+// class IScript {
+// public:
+//	Entity entity;
+//
+//	virtual ~IScript() = default;
+//
+//	virtual void OnUpdate() {}
+//
+//	// Serialization (do not override these, as this is handled automatically by the
+//	// ScriptRegistry).
+//	virtual json Serialize() const			= 0;
+//	virtual void Deserialize(const json& j) = 0;
+// };
+//
+// struct DrawScript {
+//	// Called when entity is shown.
+//	virtual void OnShow() { /* user implementation */ }
+//
+//	// Called when entity is hidden.
+//	virtual void OnHide() { /* user implementation */ }
+// };
+//
+// struct TimerScript {
+//	Timer timer;
+//	milliseconds duration{ 0 };
+//
+//	virtual void OnTimerStart() { /* user implementation */ }
+//
+//	virtual void OnTimerUpdate() { /* user implementation */ }
+//
+//	// @return True if the timer should be removed from the entity after it finishes.
+//	virtual void OnTimerStop() { /* user implementation */ }
+// };
+//
+// struct RepeatScript {
+//	virtual void OnRepeatStart() { /* user implementation */ }
+//
+//	// @param repeat starts from 0.
+//	virtual void OnRepeatUpdate(int repeat) { /* user implementation */ }
+//
+//	virtual void OnRepeatStop() { /* user implementation */ }
+// };
+
 class IScript {
 public:
 	Entity entity;
@@ -248,6 +291,14 @@ public:
 };
 
 } // namespace impl
+
+// TODO: Fix and move into scripts as static function.
+// template <typename TInterface, typename... Args>
+// void TryInvoke(IScript* script, void (TInterface::*func)(Args...), Args&&... args) {
+//	if (auto* handler = dynamic_cast<TInterface*>(script)) {
+//		(handler->*func)(std::forward<Args>(args)...);
+//	}
+//}
 
 class Scripts : public impl::ScriptContainer<impl::IScript> {
 public:
