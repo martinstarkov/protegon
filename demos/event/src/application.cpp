@@ -354,6 +354,9 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	r.Register<ptgn::MouseEvent::Move, &TestClass::mouseMove>();
 	r.Register<ptgn::KeyEvent::Down, &TestClass::keyDownArg>();
 	r.Register<ptgn::KeyEvent::Up, &TestClass::keyUp>();
+	r.Register<ptgn::KeyEvent::Up, []() {
+		std::cout << "Wasup " << std::endl;
+	}>();
 
 	// Dispatch some events
 	r.Dispatch<ptgn::MouseEvent::Down>();
