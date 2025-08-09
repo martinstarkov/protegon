@@ -251,6 +251,9 @@ int main() {
 	// This changes every dynamic cast to simply a found in map check or not. And then we can static
 	// cast as well.
 
+	// TODO: Consider using script_types as a hash type thing instead of having a map with separate
+	// function pointers.
+
 	Scripts test;
 
 	test.AddScript<TestScript>();
