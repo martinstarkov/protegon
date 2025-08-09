@@ -7,6 +7,8 @@
 
 namespace ptgn {
 
+// TODO: Get rid of this or move elsewhere.
+/*
 void Scripts::Update(Scene& scene, float dt) {
 	Invoke<&impl::IScript::OnUpdate>(scene, dt);
 
@@ -16,6 +18,7 @@ void Scripts::Update(Scene& scene, float dt) {
 std::vector<Entity> Scripts::GetEntities(Scene& scene) {
 	return scene.EntitiesWith<Scripts>().GetVector();
 }
+*/
 
 namespace impl {} // namespace impl
 

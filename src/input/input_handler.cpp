@@ -5,12 +5,6 @@
 #include <type_traits>
 #include <variant>
 
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_timer.h"
-#include "SDL_video.h"
 #include "common/assert.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -26,6 +20,12 @@
 #include "math/overlap.h"
 #include "math/vector2.h"
 #include "scene/scene.h"
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_timer.h"
+#include "SDL_video.h"
 
 namespace ptgn::impl {
 
@@ -179,6 +179,8 @@ void InputHandler::DispatchInputEvents(Scene& scene) {
 			[&](auto&& ev) {
 				using T = std::decay_t<decltype(ev)>;
 
+				// TODO: Fix script invocations.
+				/*
 				// --- Keyboard Events ---
 				if constexpr (std::is_same_v<T, impl::KeyDown>) {
 					Scripts::Invoke<&impl::IScript::OnKeyDown>(scene, ev.key);
@@ -218,6 +220,7 @@ void InputHandler::DispatchInputEvents(Scene& scene) {
 				} else if constexpr (std::is_same_v<T, impl::WindowQuit>) {
 					game.Stop();
 				}
+				*/
 			},
 			event
 		);

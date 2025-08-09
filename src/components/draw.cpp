@@ -70,11 +70,14 @@ Origin GetDrawOrigin(const Entity& entity) {
 }
 
 Entity& SetVisible(Entity& entity, bool visible) {
+	// TODO: Check that script invocations do not lead to memory corruption if entity is deleted, or
+	// component is removed. Perhaps move script invocations to a queue that is executed by itself
+	// at the end of the update.
 	if (visible) {
 		entity.Add<Visible>(visible);
-		InvokeScript<&impl::IScript::OnShow>(entity);
+		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnShow>(entity);
 	} else {
-		InvokeScript<&impl::IScript::OnHide>(entity);
+		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnHide>(entity);
 		entity.Remove<Visible>();
 	}
 	return entity;

@@ -184,10 +184,11 @@ void Scene::InternalUpdate() {
 	float dt{ game.dt() };
 	float time{ game.time() };
 
-	Scripts::Update(*this, dt);
-
-	impl::ScriptTimers::Update(*this);
-	impl::ScriptRepeats::Update(*this);
+	// TODO: Fix script invocations for update script.
+	// Scripts::Update(*this, dt)
+	// TODO: Figure out timed / repeated scripts. Using tween system?
+	// impl::ScriptTimers::Update(*this);
+	// impl::ScriptRepeats::Update(*this);
 
 	Update();
 

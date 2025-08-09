@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "core/entity.h"
-#include "core/script_registry.h"
 #include "core/time.h"
 #include "math/easing.h"
 #include "math/math.h"
@@ -154,31 +153,32 @@ struct TweenInfo {
 
 namespace impl {
 
-class ITweenScript {
-public:
-	virtual ~ITweenScript() = default;
-
-	virtual void OnComplete([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnRepeat([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnYoyo([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnStart([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnStop([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnUpdate([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnPause([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnResume([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual void OnReset([[maybe_unused]] TweenInfo info) { /* user implementation */ }
-
-	virtual json Serialize() const			= 0;
-	virtual void Deserialize(const json& j) = 0;
-};
+// TODO: Fix tween scripts.
+// class ITweenScript {
+// public:
+//	virtual ~ITweenScript() = default;
+//
+//	virtual void OnComplete([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnRepeat([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnYoyo([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnStart([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnStop([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnUpdate([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnPause([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnResume([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual void OnReset([[maybe_unused]] TweenInfo info) { /* user implementation */ }
+//
+//	virtual json Serialize() const			= 0;
+//	virtual void Deserialize(const json& j) = 0;
+// };
 
 struct TweenPoint {
 	TweenPoint() = default;
@@ -191,7 +191,7 @@ struct TweenPoint {
 		return a.current_repeat_ == b.current_repeat_ && a.total_repeats_ == b.total_repeats_ &&
 			   a.yoyo_ == b.yoyo_ && a.currently_reversed_ == b.currently_reversed_ &&
 			   a.start_reversed_ == b.start_reversed_ && a.duration_ == b.duration_ &&
-			   a.ease_ == b.ease_ && a.script_container_ == b.script_container_;
+			   a.ease_ == b.ease_; // TODO: Fix. // && a.script_container_ == b.script_container_;
 	}
 
 	friend bool operator!=(const TweenPoint& a, const TweenPoint& b) {
@@ -217,14 +217,17 @@ struct TweenPoint {
 	// easing function between tween start and end value.
 	Ease ease_{ SymmetricalEase::Linear };
 
-	ScriptContainer<ITweenScript> script_container_;
+	// TODO: Fix.
+	// TODO: Put back in equality operator.
+	// TODO: Put back in serialization.
+	// ScriptContainer<ITweenScript> script_container_;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		TweenPoint, KeyValue("current_repeat", current_repeat_),
 		KeyValue("total_repeats", total_repeats_), KeyValue("yoyo", yoyo_),
 		KeyValue("currently_reversed", currently_reversed_),
 		KeyValue("start_reversed", start_reversed_), KeyValue("duration", duration_),
-		KeyValue("ease", ease_), KeyValue("script_container", script_container_)
+		KeyValue("ease", ease_) // TODO: Fix, KeyValue("script_container", script_container_)
 	)
 };
 
@@ -258,12 +261,13 @@ struct TweenInstance {
 
 template <typename T, typename... TArgs>
 Tween& Tween::AddTweenScript(TArgs&&... args) {
-	GetLastTweenPoint().script_container_.AddScript<T>(std::forward<TArgs>(args)...);
+	// TODO: Fix script invocation.
+	// GetLastTweenPoint().script_container_.AddScript<T>(std::forward<TArgs>(args)...);
 	return *this;
 }
 
-template <typename T>
-using TweenScript = impl::Script<T, impl::ITweenScript>;
+// template <typename T>
+// using TweenScript = impl::Script<T, impl::ITweenScript>;
 
 Tween CreateTween(Scene& scene);
 

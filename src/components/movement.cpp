@@ -19,6 +19,10 @@
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
 
+// TODO: Check that script invocations do not lead to memory corruption if entity is deleted, or
+// component is removed. Perhaps move script invocations to a queue that is executed by itself
+// at the end of the update.
+
 namespace ptgn {
 
 namespace impl {
@@ -166,13 +170,13 @@ MoveDirection TopDownMovement::GetDirectionState(const V2_float& d) {
 template <auto StartFunc, auto ContinueFunc, auto StopFunc>
 void InvokeMoveCallbacks(const Entity& entity, bool was_moving, bool is_moving) {
 	if (!was_moving && is_moving) {
-		InvokeScript<StartFunc>(entity);
+		// TODO: Fix script invocation.InvokeScript<StartFunc>(entity);
 	}
 	if (is_moving) {
-		InvokeScript<ContinueFunc>(entity);
+		// TODO: Fix script invocation.InvokeScript<ContinueFunc>(entity);
 	}
 	if (was_moving && !is_moving) {
-		InvokeScript<StopFunc>(entity);
+		// TODO: Fix script invocation.InvokeScript<StopFunc>(entity);
 	}
 }
 
@@ -184,13 +188,15 @@ void TopDownMovement::InvokeCallbacks(Entity& entity) {
 		// which we see as the same as 1.0f.
 		V2_float diff{ Clamp(dir - prev_dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
 		auto dir_state{ GetDirectionState(diff) };
-		InvokeScript<&impl::IScript::OnMoveDirectionChange>(entity, dir_state);
+		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnMoveDirectionChange>(entity,
+		// dir_state);
 	}
 
 	// TODO: Consider instead of using WasMoving, IsMoving, switch to providing an index and
 	// comparison with -1 or 1 or 0.
 
-	InvokeMoveCallbacks<
+	// TODO: Fix script invocations.
+	/*InvokeMoveCallbacks<
 		&impl::IScript::OnMoveStart, &impl::IScript::OnMove, &impl::IScript::OnMoveStop>(
 		entity, !WasMoving(MoveDirection::None), !IsMoving(MoveDirection::None)
 	);
@@ -212,7 +218,7 @@ void TopDownMovement::InvokeCallbacks(Entity& entity) {
 		&impl::IScript::OnMoveRightStart, &impl::IScript::OnMoveRight,
 		&impl::IScript::OnMoveRightStop>(
 		entity, WasMoving(MoveDirection::Right), IsMoving(MoveDirection::Right)
-	);
+	);*/
 }
 
 bool TopDownMovement::GetMovingState(const V2_float& d, MoveDirection direction) {

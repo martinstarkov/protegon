@@ -20,6 +20,8 @@ DialogueComponent& GetDialogueComponent(Entity& entity) {
 	return dialogue_entity.Get<DialogueComponent>();
 }
 
+// TODO: Fix script invocation.
+/*
 DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
@@ -42,11 +44,9 @@ void DialogueScrollScript::UpdateText(float elapsed_fraction) {
 	ResourceHandle font_key{ page->properties.font_key };
 	FontSize font_size{ page->properties.font_size };
 	// For debugging purposes:
-	/*
-	std::stringstream s;
-	s << entity.GetTimerScriptInfo<DialogueScrollScript>().duration << " ";
-	auto duration_str{ s.str() };
-	*/
+	//std::stringstream s;
+	//s << entity.GetTimerScriptInfo<DialogueScrollScript>().duration << " ";
+	//auto duration_str{ s.str() };
 	Text text_entity{ entity };
 	// Do not recreate texture twice.
 	text_entity.SetParameter(font_size, false);
@@ -78,7 +78,7 @@ void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
 		}
 	}
 	dialogue_component.NextPage();
-}
+}*/
 
 } // namespace impl
 
@@ -268,8 +268,9 @@ void DialogueComponent::Close() {
 	if (background_) {
 		Hide(background_);
 	}
-	RemoveScript<impl::DialogueWaitScript>(text_);
-	RemoveScript<impl::DialogueScrollScript>(text_);
+	// TODO: Fix script invocation.
+	// RemoveScript<impl::DialogueWaitScript>(text_);
+	// RemoveScript<impl::DialogueScrollScript>(text_);
 	current_line_ = 0;
 	current_page_ = 0;
 }
@@ -285,9 +286,10 @@ void DialogueComponent::NextPage() {
 		Close();
 		return;
 	}
-	RemoveScript<impl::DialogueScrollScript>(text_);
-	auto duration = page->properties.scroll_duration;
-	AddTimerScript<impl::DialogueScrollScript>(text_, duration);
+	// TODO: Fix script invocation.
+	// RemoveScript<impl::DialogueScrollScript>(text_);
+	// auto duration = page->properties.scroll_duration;
+	// AddTimerScript<impl::DialogueScrollScript>(text_, duration);
 }
 
 void DialogueComponent::SetNextDialogue() {
@@ -380,8 +382,10 @@ void DialogueComponent::StartDialogueLine(int dialogue_line_index) {
 	auto page	  = GetCurrentDialoguePage();
 	PTGN_ASSERT(page);
 	auto duration = page->properties.scroll_duration;
-	AddTimerScript<impl::DialogueScrollScript>(text_, duration);
-	AddScript<impl::DialogueWaitScript>(text_);
+
+	// TODO: Fix script invocation.
+	// AddTimerScript<impl::DialogueScrollScript>(text_, duration);
+	// AddScript<impl::DialogueWaitScript>(text_);
 }
 
 void DialogueComponent::LoadFromJson(

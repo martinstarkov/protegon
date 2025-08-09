@@ -75,6 +75,8 @@ struct Dialogue {
 
 namespace impl {
 
+// TODO: Fix script invocation.
+/*
 struct DialogueWaitScript : public ptgn::Script<DialogueWaitScript> {
 	DialogueWaitScript() {}
 
@@ -89,7 +91,7 @@ struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript> {
 	void UpdateText(float elapsed_fraction);
 	bool OnTimerStop() final;
 	void OnTimerUpdate(float elapsed_fraction) final;
-};
+};*/
 
 } // namespace impl
 

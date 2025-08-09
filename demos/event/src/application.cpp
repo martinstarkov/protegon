@@ -219,87 +219,59 @@ int main() {
 }
 
 */
+#include <array>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-struct json {
-	void add(const std::string& key, const std::string& value) const {
-		std::cout << key << ": " << value << "\n";
-	}
-};
+#include "core/script.h"
 
-template <typename Derived, typename... Bases>
-class A;
+using namespace ptgn;
 
-class C {
-public:
-	int key{ 63 };
-
-	void OnKey() {
-		std::cout << "Key" << std::endl;
+struct TestScript : public Script<TestScript, GlobalMouseScript, KeyScript> {
+	void OnMouseMove() {
+		PTGN_LOG("Mouse moved");
 	}
 
-private:
-	template <typename Derived, typename... Bases>
-	friend class A;
-
-	void SerializeImpl(json& j) const {
-		j.add("C", "from C");
+	void OnKeyDown(Key k) {
+		PTGN_LOG("Key down: ", k);
 	}
-};
-
-class D {
-public:
-	int mouse{ 69 };
-
-	void OnMouse() {
-		std::cout << "Mouse" << std::endl;
-	}
-
-private:
-	template <typename Derived, typename... Bases>
-	friend class A;
-
-	void SerializeImpl(json& j) const {
-		j.add("D", "from D");
-	}
-};
-
-class Base {
-public:
-	virtual ~Base()						  = default;
-	virtual void Serialize(json& j) const = 0;
-};
-
-template <typename Derived, typename... Bases>
-class A : public Base, public Bases... {
-public:
-	void Serialize(json& j) const final {
-		using Tuple = std::tuple<Bases...>;
-		SerializeBases<Tuple>(static_cast<const Derived*>(this), j);
-		j.add(typeid(Derived).name(), " from A");
-	}
-
-private:
-	template <typename Tuple, std::size_t I = 0>
-	static void SerializeBases(const void* self, json& j) {
-		if constexpr (I < std::tuple_size_v<Tuple>) {
-			using Base = std::tuple_element_t<I, Tuple>;
-			static_cast<const Base*>(self)->Base::SerializeImpl(j); // safe static_cast
-			SerializeBases<Tuple, I + 1>(self, j);
-		}
-	}
-};
-
-class B : public A<B, C, D> {
-public:
 };
 
 int main() {
-	B b;
-	json j;
-	b.Serialize(j);
-	b.OnKey();
-	b.OnMouse();
+	// Instead of storing scripts in one container, store them in a unordered map of vectors of
+	// scripts. When a script is registered, it uses a similar method to Serialize() to retrieve a
+	// list of Enums of what maps that scripts should be inserted into.
+	// Then, when cycling we simply cycle through that enum type of the unordered map.
+	// When removing a script, we again retrieve all the enum types and remove from all those maps.
+	// This changes every dynamic cast to simply a found in map check or not. And then we can static
+	// cast as well.
+
+	Scripts test;
+
+	test.AddScript<TestScript>();
+
+	test.Invoke(&GlobalMouseScript::OnMouseMove);
+	test.Invoke(&KeyScript::OnKeyDown, Key::W);
+
+	std::weak_ptr<CollisionScript> weak = entity.GetComponent<CollisionScript>();
+
+	std::unordered_map<ScriptType, std::vector<std::function<void()>>> queues;
+
+	queues[ScriptType::Collision].emplace_back([weak]() {
+		if (auto script = weak.lock()) {
+			script->OnCollisionStart(...);
+		}
+	});
+
+	for (auto& [type, queue] : queues) {
+		for (auto& cb : queue) {
+			cb();
+		}
+		queue.clear();
+	}
 }

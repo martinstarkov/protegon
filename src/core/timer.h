@@ -9,8 +9,6 @@
 
 namespace ptgn {
 
-class Scene;
-
 // Monotonic clock to prevent time variations if system time is changed.
 class Timer {
 public:
@@ -131,39 +129,5 @@ private:
 	bool running_{ false };
 	bool paused_{ false };
 };
-
-struct ScriptTimerInfo {
-	Timer timer;
-	// Duration of the timer.
-	milliseconds duration{ 0 };
-};
-
-struct ScriptRepeatInfo {
-	Timer timer;
-	// delay to next execution.
-	milliseconds delay{ 0 };
-	// current number of executions (first value passed to OnRepeatUpdate is 0).
-	int current_executions{ 0 };
-	// -1 for infinite executions.
-	int max_executions{ 0 };
-};
-
-namespace impl {
-
-class ScriptTimers {
-public:
-	static void Update(Scene& scene);
-
-	std::unordered_map<std::size_t, ScriptTimerInfo> timers;
-};
-
-class ScriptRepeats {
-public:
-	static void Update(Scene& scene);
-
-	std::unordered_map<std::size_t, ScriptRepeatInfo> repeats;
-};
-
-} // namespace impl
 
 } // namespace ptgn

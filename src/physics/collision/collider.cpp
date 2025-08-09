@@ -8,7 +8,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/script.h"
-#include "core/script_registry.h"
 #include "math/geometry.h"
 #include "physics/rigid_body.h"
 #include "utility/span.h"
@@ -56,20 +55,19 @@ void Collider::ResetCollidesWith() {
 }
 
 bool Collider::ProcessCallback(Entity e1, Entity e2) const {
-	if (!e1.Has<Scripts>()) {
-		return true;
-	}
-
-	const auto& scripts{ e1.Get<Scripts>() };
-
-	// Check that each entity script allows for the pre-collision condition to pass.
-	for (const auto& [key, script] : scripts.scripts) {
-		PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
-		bool condition_met{ std::invoke(&impl::IScript::PreCollisionCondition, script, e2) };
-		if (!condition_met) {
-			return false;
-		}
-	}
+	// TODO: Fix script invocation.
+	// if (!e1.Has<Scripts>()) {
+	//	return true;
+	//}
+	// const auto& scripts{ e1.Get<Scripts>() };
+	//// Check that each entity script allows for the pre-collision condition to pass.
+	// for (const auto& [key, script] : scripts.scripts) {
+	//	PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
+	//	bool condition_met{ std::invoke(&impl::IScript::PreCollisionCondition, script, e2) };
+	//	if (!condition_met) {
+	//		return false;
+	//	}
+	// }
 
 	return true;
 }
@@ -102,7 +100,9 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 }
 
 void Collider::InvokeCollisionCallbacks(Entity& entity) const {
-	for (const auto& prev : prev_collisions_) {
+	// TODO: Make sure these are called without being able to be invalidated.
+	// TODO: Fix script invocations.
+	/*for (const auto& prev : prev_collisions_) {
 		if (!VectorContains(collisions_, prev)) {
 			InvokeScript<&impl::IScript::OnCollisionStop>(entity, prev);
 		} else {
@@ -113,7 +113,7 @@ void Collider::InvokeCollisionCallbacks(Entity& entity) const {
 		if (!VectorContains(prev_collisions_, current)) {
 			InvokeScript<&impl::IScript::OnCollisionStart>(entity, current);
 		}
-	}
+	}*/
 }
 
 void Collider::ResetCollisions() {

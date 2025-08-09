@@ -47,7 +47,8 @@ Button CreateButton(Scene& scene) {
 	SetInteractive(button);
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
-	AddScript<impl::ButtonScript>(button);
+	// TODO: Fix script invocation.
+	// AddScript<impl::ButtonScript>(button);
 	button.Enable();
 
 	return button;
@@ -66,7 +67,8 @@ Button CreateTextButton(
 ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
 	ToggleButton toggle_button{ CreateButton(scene) };
 
-	AddScript<impl::ToggleButtonScript>(toggle_button);
+	// TODO: Fix script invocation.
+	// AddScript<impl::ToggleButtonScript>(toggle_button);
 	toggle_button.Add<impl::ButtonToggled>(toggled);
 
 	return toggle_button;
@@ -82,6 +84,8 @@ ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 
 namespace impl {
 
+// TODO: Fix script invocation.
+/*
 void ButtonScript::OnMouseEnter([[maybe_unused]] V2_int mouse_position) {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
@@ -171,7 +175,7 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 	}
 	ToggleButton{ entity }.SetToggled(true);
 }
-
+*/
 void ButtonColor::SetToState(ButtonState state) {
 	current_ = Get(state);
 }
@@ -522,7 +526,8 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 }
 
 Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
-	AddScript<impl::ButtonActivateScript>(*this, on_activate_callback);
+	// TODO: Fix script invocation.
+	// AddScript<impl::ButtonActivateScript>(*this, on_activate_callback);
 	return *this;
 }
 
@@ -869,15 +874,18 @@ ButtonState Button::GetState() const {
 }
 
 void Button::Activate() {
-	InvokeScript<&impl::IScript::OnButtonActivate>(*this);
+	// TODO: Fix script invocation.
+	// InvokeScript<&impl::IScript::OnButtonActivate>(*this);
 }
 
 void Button::StartHover() {
-	InvokeScript<&impl::IScript::OnButtonHoverStart>(*this);
+	// TODO: Fix script invocation.
+	// InvokeScript<&impl::IScript::OnButtonHoverStart>(*this);
 }
 
 void Button::StopHover() {
-	InvokeScript<&impl::IScript::OnButtonHoverStop>(*this);
+	// TODO: Fix script invocation.
+	// InvokeScript<&impl::IScript::OnButtonHoverStop>(*this);
 }
 
 bool ToggleButton::IsToggled() const {
@@ -1074,7 +1082,8 @@ void ToggleButtonGroup::Unload(std::string_view button_key) {
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {
-	AddScript<impl::ToggleButtonGroupScript>(target, *this);
+	// TODO: Fix script invocation.
+	// AddScript<impl::ToggleButtonGroupScript>(target, *this);
 }
 
 } // namespace ptgn

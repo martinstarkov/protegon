@@ -10,16 +10,18 @@
 
 #include "common/assert.h"
 #include "core/entity.h"
-#include "core/script_registry.h"
 #include "core/time.h"
 #include "math/easing.h"
 #include "scene/scene.h"
 
-#define PTGN_CALL_TWEEN_SCRIPTS(FUNC_NAME)                                         \
-	auto& FUNC_NAME##_scripts{ GetCurrentTweenPoint().script_container_.scripts }; \
-	for (auto& [key, script] : FUNC_NAME##_scripts) {                              \
-		script->FUNC_NAME({ *this, GetProgress(), GetParent(*this) });             \
-	}
+// TODO: Fix tween script invocations. Place them in a separate loop.
+
+#define PTGN_CALL_TWEEN_SCRIPTS(FUNC_NAME)                                     \
+	(void)(0) /*                                                               \
+auto& FUNC_NAME##_scripts{ GetCurrentTweenPoint().script_container_.scripts }; \
+for (auto& [key, script] : FUNC_NAME##_scripts) {                              \
+script->FUNC_NAME({ *this, GetProgress(), GetParent(*this) });                 \
+}*/
 
 namespace ptgn {
 
@@ -337,12 +339,13 @@ Tween& Tween::Reset() {
 	auto& tween{ Get<impl::TweenInstance>() };
 	if (tween.started_ || IsCompleted()) {
 		// Reset all tween points, not just the current one.
-		for (auto& tween_point : tween.points_) {
+		// TODO: Fix scripts invocations.
+		/*for (auto& tween_point : tween.points_) {
 			auto& scripts{ tween_point.script_container_.scripts };
 			for (auto& [key, script] : scripts) {
 				script->OnReset({ *this, GetProgress(), GetParent(*this) });
 			}
-		}
+		}*/
 	}
 	tween			= Get<impl::TweenInstance>();
 	tween.index_	= 0;

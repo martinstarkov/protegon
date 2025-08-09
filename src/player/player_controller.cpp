@@ -83,7 +83,8 @@ Entity CreateTopDownPlayer(
 	SetParent(a1, player);
 	SetParent(a2, player);
 
-	struct AnimationRepeat : public Script<AnimationRepeat> {
+	// TODO: Fix script invocations.
+	/*struct AnimationRepeat : public Script<AnimationRepeat> {
 		AnimationRepeat() = default;
 
 		AnimationRepeat(std::size_t walk_frequency, std::string_view walk_sound) :
@@ -137,7 +138,7 @@ Entity CreateTopDownPlayer(
 		}
 	};
 
-	AddScript<MovementScript>(player);
+	AddScript<MovementScript>(player);*/
 
 	return player;
 }
