@@ -16,6 +16,7 @@
 #include "physics/collision/collider.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
+#include "serialization/serializable.h"
 
 // TODO: Separate scripts into multiple and use event system to dispatch, instead of virtual
 // functions.
@@ -90,14 +91,6 @@ public:
 	constexpr static ScriptType GetScriptType() {
 		return type;
 	}
-
-protected:
-	json SerializeImpl() const {
-		return {};
-	}
-
-	// Not const on purpose.
-	void DeserializeImpl([[maybe_unused]] const json& j) { /**/ }
 };
 
 template <typename T, template <typename...> typename Template>
@@ -158,6 +151,8 @@ struct KeyScript : public impl::BaseScript<ScriptType::Key> {
 };
 
 struct GlobalMouseScript : public impl::BaseScript<ScriptType::GlobalMouse> {
+	float mouse_index{ 0.0f };
+
 	virtual ~GlobalMouseScript() = default;
 
 	virtual void OnMouseMove() { /* user implementation */ }
@@ -169,6 +164,9 @@ struct GlobalMouseScript : public impl::BaseScript<ScriptType::GlobalMouse> {
 	virtual void OnMouseUp([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
 	virtual void OnMouseScroll([[maybe_unused]] V2_int scroll_amount) { /* user implementation */ }
+
+private:
+	PTGN_SERIALIZER_REGISTER(GlobalMouseScript, mouse_index);
 
 	template <typename TDerived, typename... TScripts>
 	friend class Script;
@@ -361,6 +359,7 @@ struct ButtonScript : public impl::BaseScript<ScriptType::Button> {
 struct TweenScript : public impl::BaseScript<ScriptType::Tween> {
 	// TODO: Add or allow access somehow.
 	// Tween tween;
+	float test{ 0.0f };
 
 	virtual ~TweenScript() = default;
 
@@ -382,6 +381,9 @@ struct TweenScript : public impl::BaseScript<ScriptType::Tween> {
 
 	virtual void OnReset() { /* user implementation */ }
 
+private:
+	PTGN_SERIALIZER_REGISTER(TweenScript, test);
+
 	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
@@ -402,23 +404,26 @@ public:
 
 		j["type"] = name;
 		if constexpr (tt::has_to_json_v<TDerived>) {
-			j["data"][name] = *static_cast<const TDerived*>(this);
-		} // else script does not have a defined serialization.
-
-		using Tuple = std::tuple<TScripts...>;
-		SerializeScripts<Tuple>(static_cast<const TDerived*>(this), j);
+			to_json(j["data"], *static_cast<const TDerived*>(this));
+		} else {
+			using Tuple = std::tuple<TScripts...>;
+			SerializeScripts<Tuple>(static_cast<const TDerived*>(this), j);
+		}
 
 		return j;
 	}
 
 	void Deserialize(const json& j) final {
-		// TODO: Add base type deserialization.
 		if constexpr (tt::has_from_json_v<TDerived>) {
-			PTGN_ASSERT(
-				j.contains("data"), "Failed to deserialize data for type ", type_name<TDerived>()
-			);
-			*static_cast<TDerived*>(this) = j.at("data").get<TDerived>();
-		} // else script does not have a defined deserialization.
+			constexpr auto name{ type_name<TDerived>() };
+			PTGN_ASSERT(j.contains("data"), "Failed to deserialize data for type ", name);
+			// PTGN_ASSERT(j.at("data").contains(name), "Failed to deserialize data for type ",
+			// name);
+			from_json(j.at("data"), *static_cast<TDerived*>(this));
+		} else {
+			using Tuple = std::tuple<TScripts...>;
+			DeserializeScripts<Tuple>(static_cast<TDerived*>(this), j);
+		}
 	}
 
 private:
@@ -439,13 +444,33 @@ private:
 	static constexpr std::array<ScriptType, sizeof...(TScripts)> script_types_{ Extract() };
 
 	template <typename Tuple, std::size_t I = 0>
-	static void SerializeScripts(const void* self, json& j) {
+	static void SerializeScripts(const TDerived* self, json& j) {
 		if constexpr (I < std::tuple_size_v<Tuple>) {
 			using Base = std::tuple_element_t<I, Tuple>;
-			constexpr auto base_name{ type_name<Base>() };
-			j["data"][base_name] =
-				static_cast<const Base*>(self)->Base::SerializeImpl(); // safe static_cast
-			SerializeScripts<Tuple, I + 1>(self, j);
+			if constexpr (tt::has_to_json_v<Base>) {
+				constexpr auto base_name{ type_name<Base>() };
+				const Base& base{ *static_cast<const Base*>(self) };
+				to_json(j["data"][base_name], base);
+				SerializeScripts<Tuple, I + 1>(self, j);
+			}
+		}
+	}
+
+	template <typename Tuple, std::size_t I = 0>
+	static void DeserializeScripts(TDerived* self, const json& j) {
+		if constexpr (I < std::tuple_size_v<Tuple>) {
+			using Base = std::tuple_element_t<I, Tuple>;
+			if constexpr (tt::has_from_json_v<Base>) {
+				constexpr auto base_name{ type_name<Base>() };
+				PTGN_ASSERT(j.contains("data"), "Failed to deserialize data for type ", base_name);
+				PTGN_ASSERT(
+					j.at("data").contains(base_name), "Failed to deserialize data for type ",
+					base_name
+				);
+				Base& base{ *static_cast<Base*>(self) };
+				from_json(j.at("data").at(base_name), base);
+				DeserializeScripts<Tuple, I + 1>(self, j);
+			}
 		}
 	}
 

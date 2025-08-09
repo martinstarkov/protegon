@@ -248,6 +248,10 @@ struct TestScript2 : public Script<TestScript2, GlobalMouseScript> {
 	}
 };
 
+struct TestScript3 : public Script<TestScript3, TweenScript> {};
+
+struct TestScript4 : public Script<TestScript4, GlobalMouseScript, TweenScript> {};
+
 int main() {
 	// Instead of storing scripts in one container, store them in a unordered map of vectors of
 	// scripts. When a script is registered, it uses a similar method to Serialize() to retrieve a
@@ -263,19 +267,59 @@ int main() {
 	Scripts test;
 
 	test.AddScript<TestScript>();
-	test.AddScript<TestScript>();
-	test.AddScript<TestScript2>();
+	auto& script4 = test.AddScript<TestScript4>();
+	auto& script1 = test.AddScript<TestScript>();
+	auto& script2 = test.AddScript<TestScript2>();
+	auto& script3 = test.AddScript<TestScript3>();
 
-	PTGN_LOG("Adding actions...");
+	script3.test		= 69.0f;
+	script4.test		= 79.0f;
+	script4.mouse_index = 33.0f;
 
 	test.AddAction(&GlobalMouseScript::OnMouseMove);
 	test.AddAction(&KeyScript::OnKeyDown, Key::W);
 	test.AddAction(&GlobalMouseScript::OnMouseMove);
 
-	PTGN_LOG("Waiting...");
-
 	test.InvokeActions();
 
+	json j1 = script1.Serialize();
+	PTGN_LOG("script1: ", j1.dump(4));
+
+	json j2 = script2.Serialize();
+	PTGN_LOG("script2: ", j2.dump(4));
+
+	json j3 = script3.Serialize();
+	PTGN_LOG("script3: ", j3.dump(4));
+
+	json j4 = script4.Serialize();
+	PTGN_LOG("script4: ", j4.dump(4));
+
+	const auto create_script_from_json = [](const json& j) {
+		std::string class_name{ j.at("type") };
+		auto instance{ impl::ScriptRegistry<impl::IScript>::Instance().Create(class_name) };
+		if (instance) {
+			instance->Deserialize(j);
+		}
+		return instance;
+	};
+
+	auto script1_remade = std::dynamic_pointer_cast<TestScript>(create_script_from_json(j1));
+	auto script2_remade = std::dynamic_pointer_cast<TestScript2>(create_script_from_json(j2));
+	auto script3_remade = std::dynamic_pointer_cast<TestScript3>(create_script_from_json(j3));
+	auto script4_remade = std::dynamic_pointer_cast<TestScript4>(create_script_from_json(j4));
+
+	PTGN_ASSERT(script1_remade);
+	PTGN_ASSERT(script2_remade);
+	PTGN_ASSERT(script3_remade);
+	PTGN_ASSERT(script4_remade);
+
+	PTGN_ASSERT(script1_remade->mouse_index == 0.0f);
+	PTGN_ASSERT(script2_remade->mouse_index == 0.0f);
+	PTGN_ASSERT(script3_remade->test == 69.0f);
+	PTGN_ASSERT(script4_remade->test == 79.0f);
+	PTGN_ASSERT(script4_remade->mouse_index == 33.0f);
+
+	PTGN_LOG("Scripts deserialized correctly");
 	/*
 	std::weak_ptr<CollisionScript> weak = entity.GetComponent<CollisionScript>();
 
