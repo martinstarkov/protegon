@@ -19,7 +19,8 @@ Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
 
 	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
 	i.start_open_ = start_open;
-	AddScript<impl::DropdownScript>(dropdown_button);
+	// TODO: Fix script invocations.
+	// AddScript<impl::DropdownScript>(dropdown_button);
 
 	if (start_open) {
 		Dropdown{ dropdown_button }.Open();
@@ -32,16 +33,16 @@ Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
 
 namespace impl {
 
-void DropdownScript::OnButtonActivate() {
-	Dropdown{ entity }.Toggle();
-}
-
-void DropdownItemScript::OnButtonActivate() {
-	if (!entity.Has<impl::DropdownInstance>()) {
-		PTGN_ASSERT(HasParent(entity));
-		Dropdown{ GetParent(entity) }.Close();
-	}
-}
+// TODO: Fix script invocations.
+// void DropdownScript::OnButtonActivate() {
+// 	Dropdown{ entity }.Toggle();
+// }
+// void DropdownItemScript::OnButtonActivate() {
+// 	if (!entity.Has<impl::DropdownInstance>()) {
+// 		PTGN_ASSERT(HasParent(entity));
+// 		Dropdown{ GetParent(entity) }.Close();
+// 	}
+// }
 
 } // namespace impl
 
@@ -138,7 +139,8 @@ void Dropdown::AddButton(Button button) {
 		button.Disable();
 	}
 
-	AddScript<impl::DropdownItemScript>(button);
+	// TODO: Fix script invocations.
+	// AddScript<impl::DropdownItemScript>(button);
 
 	i.buttons_.emplace_back(button);
 

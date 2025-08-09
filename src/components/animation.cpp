@@ -11,7 +11,6 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/manager.h"
-#include "core/script.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"

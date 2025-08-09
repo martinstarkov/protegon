@@ -5,11 +5,16 @@
 #include <type_traits>
 #include <variant>
 
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_timer.h"
+#include "SDL_video.h"
 #include "common/assert.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/script.h"
 #include "core/time.h"
 #include "core/window.h"
 #include "debug/log.h"
@@ -20,12 +25,6 @@
 #include "math/overlap.h"
 #include "math/vector2.h"
 #include "scene/scene.h"
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_timer.h"
-#include "SDL_video.h"
 
 namespace ptgn::impl {
 

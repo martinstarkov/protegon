@@ -1,6 +1,5 @@
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/script.h"
 #include "core/script_registry.h"
 #include "core/time.h"
 #include "debug/log.h"

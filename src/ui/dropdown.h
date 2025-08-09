@@ -32,6 +32,8 @@ struct DropdownInstance {
 	Origin origin_{ Origin::CenterBottom };
 };
 
+// TODO: Fix script invocations.
+/*
 class DropdownScript : public ptgn::Script<DropdownScript> {
 public:
 	DropdownScript() = default;
@@ -45,7 +47,7 @@ public:
 
 	void OnButtonActivate() override;
 };
-
+*/
 } // namespace impl
 
 class Dropdown : public Button {

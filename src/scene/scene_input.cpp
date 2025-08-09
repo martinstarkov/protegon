@@ -10,7 +10,6 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/script.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/mouse.h"

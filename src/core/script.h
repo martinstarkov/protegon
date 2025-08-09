@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ranges>
 #include <unordered_map>
 #include <vector>
 
@@ -22,6 +23,7 @@
 namespace ptgn {
 
 class Scene;
+class Scripts;
 
 enum class ScriptType {
 	Draw,
@@ -57,10 +59,7 @@ public:
 	virtual json Serialize() const			= 0;
 	virtual void Deserialize(const json& j) = 0;
 
-	virtual void AddScriptTypes(
-		std::shared_ptr<IScript> ptr,
-		std::unordered_map<ScriptType, std::vector<std::shared_ptr<IScript>>>& container
-	) const = 0;
+	virtual bool HasScriptType(ScriptType type) const = 0;
 };
 
 // Script Registry to hold and create scripts
@@ -101,9 +100,16 @@ protected:
 	void DeserializeImpl([[maybe_unused]] const json& j) { /**/ }
 };
 
+template <typename T, template <typename...> typename Template>
+concept DerivedFromTemplate = requires(T* ptr) {
+	// Works if T is derived from Template<Args...> for some Args...
+	[]<typename... Args>(Template<Args...>*) {
+	}(ptr);
+};
+
 } // namespace impl
 
-template <typename Derived, typename... Scripts>
+template <typename TDerived, typename... TScripts>
 class Script;
 
 struct DrawScript : public impl::BaseScript<ScriptType::Draw> {
@@ -115,7 +121,7 @@ struct DrawScript : public impl::BaseScript<ScriptType::Draw> {
 	// Called when entity is hidden.
 	virtual void OnHide() { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -134,20 +140,20 @@ struct WindowScript : public impl::BaseScript<ScriptType::Window> {
 
 	virtual void OnWindowFocusGained() { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
 struct KeyScript : public impl::BaseScript<ScriptType::Key> {
 	virtual ~KeyScript() = default;
 
-	virtual void OnKeyDown(Key key) { /* user implementation */ }
+	virtual void OnKeyDown([[maybe_unused]] Key key) { /* user implementation */ }
 
-	virtual void OnKeyPressed(Key key) { /* user implementation */ }
+	virtual void OnKeyPressed([[maybe_unused]] Key key) { /* user implementation */ }
 
-	virtual void OnKeyUp(Key key) { /* user implementation */ }
+	virtual void OnKeyUp([[maybe_unused]] Key key) { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -156,15 +162,15 @@ struct GlobalMouseScript : public impl::BaseScript<ScriptType::GlobalMouse> {
 
 	virtual void OnMouseMove() { /* user implementation */ }
 
-	virtual void OnMouseDown(Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseDown([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMousePressed(Mouse mouse) { /* user implementation */ }
+	virtual void OnMousePressed([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseUp(Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseUp([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseScroll(V2_int scroll_amount) { /* user implementation */ }
+	virtual void OnMouseScroll([[maybe_unused]] V2_int scroll_amount) { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -179,23 +185,26 @@ struct MouseScript : public impl::BaseScript<ScriptType::Mouse> {
 
 	virtual void OnMouseMoveOver() { /* user implementation */ }
 
-	virtual void OnMouseDownOver(Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseDownOver([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseDownOut(Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseDownOut([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMousePressedOver(Mouse mouse) { /* user implementation */ }
+	virtual void OnMousePressedOver([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMousePressedOut(Mouse mouse) { /* user implementation */ }
+	virtual void OnMousePressedOut([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseUpOver(Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseUpOver([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseUpOut(Mouse mouse) { /* user implementation */ }
+	virtual void OnMouseUpOut([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseScrollOver(V2_int scroll_amount) { /* user implementation */ }
+	virtual void OnMouseScrollOver(
+		[[maybe_unused]] V2_int scroll_amount
+	) { /* user implementation */ }
 
-	virtual void OnMouseScrollOut(V2_int scroll_amount) { /* user implementation */ }
+	virtual void OnMouseScrollOut([[maybe_unused]] V2_int scroll_amount) { /* user implementation */
+	}
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -203,39 +212,39 @@ struct DragScript : public impl::BaseScript<ScriptType::Drag> {
 	virtual ~DragScript() = default;
 
 	// Triggered when the user start holding left click over a draggable interactive object.
-	virtual void OnDragStart(V2_int start_position) { /* user implementation */ }
+	virtual void OnDragStart([[maybe_unused]] V2_int start_position) { /* user implementation */ }
 
 	// Triggered when the user lets go of left click while dragging a draggable interactive object.
-	virtual void OnDragStop(V2_int stop_position) { /* user implementation */ }
+	virtual void OnDragStop([[maybe_unused]] V2_int stop_position) { /* user implementation */ }
 
 	// Triggered every frame while the user is holding left click over a draggable interactive
 	// object.
 	virtual void OnDrag() { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
 struct DropzoneScript : public impl::BaseScript<ScriptType::Dropzone> {
 	virtual ~DropzoneScript() = default;
 
-	virtual void OnDragEnter(Entity dropzone) { /* user implementation */ }
+	virtual void OnDragEnter([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	virtual void OnDragLeave(Entity dropzone) { /* user implementation */ }
+	virtual void OnDragLeave([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	virtual void OnDragOver(Entity dropzone) { /* user implementation */ }
+	virtual void OnDragOver([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	virtual void OnDragOut(Entity dropzone) { /* user implementation */ }
+	virtual void OnDragOut([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
 	// Triggered when the user lets go (by releasing left click) of a draggable interactive object
 	// while over top of a dropzone interactive object.
-	virtual void OnDrop(Entity dropzone) { /* user implementation */ }
+	virtual void OnDrop([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
 	// Triggered when the user picks up (by pressing left click) a draggable interactive object
 	// while over top of a dropzone interactive object.
-	virtual void OnPickup(Entity dropzone) { /* user implementation */ }
+	virtual void OnPickup([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -263,7 +272,7 @@ struct AnimationScript : public impl::BaseScript<ScriptType::Animation> {
 
 	virtual void OnAnimationStop() { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -282,7 +291,9 @@ struct PlayerMoveScript : public impl::BaseScript<ScriptType::PlayerMove> {
 	// Called when the movement direction changes. Passed parameter is the difference in direction.
 	// If not moving, this is simply the new direction. If moving already, this is the newly added
 	// component of movement. To get the current direction instead, simply use GetDirection().
-	virtual void OnDirectionChange(MoveDirection direction_difference) { /* user implementation */ }
+	virtual void OnDirectionChange(
+		[[maybe_unused]] MoveDirection direction_difference
+	) { /* user implementation */ }
 
 	virtual void OnMoveUpStart() { /* user implementation */ }
 
@@ -308,7 +319,7 @@ struct PlayerMoveScript : public impl::BaseScript<ScriptType::PlayerMove> {
 
 	virtual void OnMoveRightStop() { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -317,19 +328,20 @@ struct CollisionScript : public impl::BaseScript<ScriptType::Collision> {
 
 	// Must return true for collision to be checked.
 	// Defaults to true.
-	virtual bool PreCollisionCheck(Entity other) {
+	virtual bool PreCollisionCheck([[maybe_unused]] Entity other) {
 		return true;
 	}
 
-	virtual void OnCollisionStart(Collision collision) { /* user implementation */ }
+	virtual void OnCollisionStart([[maybe_unused]] Collision collision) { /* user implementation */
+	}
 
-	virtual void OnCollision(Collision collision) { /* user implementation */ }
+	virtual void OnCollision([[maybe_unused]] Collision collision) { /* user implementation */ }
 
-	virtual void OnCollisionStop(Collision collision) { /* user implementation */ }
+	virtual void OnCollisionStop([[maybe_unused]] Collision collision) { /* user implementation */ }
 
-	virtual void OnRaycastHit(Collision collision) { /* user implementation */ }
+	virtual void OnRaycastHit([[maybe_unused]] Collision collision) { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -342,7 +354,7 @@ struct ButtonScript : public impl::BaseScript<ScriptType::Button> {
 
 	virtual void OnButtonActivate() { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
@@ -362,7 +374,7 @@ struct TweenScript : public impl::BaseScript<ScriptType::Tween> {
 
 	virtual void OnStop() { /* user implementation */ }
 
-	virtual void OnProgress(float progress) { /* user implementation */ }
+	virtual void OnProgress([[maybe_unused]] float progress) { /* user implementation */ }
 
 	virtual void OnPause() { /* user implementation */ }
 
@@ -370,12 +382,12 @@ struct TweenScript : public impl::BaseScript<ScriptType::Tween> {
 
 	virtual void OnReset() { /* user implementation */ }
 
-	template <typename Derived, typename... Scripts>
+	template <typename TDerived, typename... TScripts>
 	friend class Script;
 };
 
-template <typename Derived, typename... Scripts>
-class Script : public impl::IScript, public Scripts... {
+template <typename TDerived, typename... TScripts>
+class Script : public impl::IScript, public TScripts... {
 public:
 	// Constructor ensures that the static variable 'is_registered_' is initialized
 	Script() {
@@ -386,44 +398,45 @@ public:
 	json Serialize() const final {
 		json j;
 
-		constexpr auto name{ type_name<Derived>() };
+		constexpr auto name{ type_name<TDerived>() };
 
 		j["type"] = name;
-		if constexpr (tt::has_to_json_v<Derived>) {
-			j["data"][name] = *static_cast<const Derived*>(this);
+		if constexpr (tt::has_to_json_v<TDerived>) {
+			j["data"][name] = *static_cast<const TDerived*>(this);
 		} // else script does not have a defined serialization.
 
-		using Tuple = std::tuple<Scripts...>;
-		SerializeScripts<Tuple>(static_cast<const Derived*>(this), j);
+		using Tuple = std::tuple<TScripts...>;
+		SerializeScripts<Tuple>(static_cast<const TDerived*>(this), j);
 
 		return j;
 	}
 
 	void Deserialize(const json& j) final {
 		// TODO: Add base type deserialization.
-		if constexpr (tt::has_from_json_v<Derived>) {
+		if constexpr (tt::has_from_json_v<TDerived>) {
 			PTGN_ASSERT(
-				j.contains("data"), "Failed to deserialize data for type ", type_name<Derived>()
+				j.contains("data"), "Failed to deserialize data for type ", type_name<TDerived>()
 			);
-			*static_cast<Derived*>(this) = j.at("data").get<Derived>();
+			*static_cast<TDerived*>(this) = j.at("data").get<TDerived>();
 		} // else script does not have a defined deserialization.
 	}
 
-	void AddScriptTypes(
-		std::shared_ptr<impl::IScript> ptr,
-		std::unordered_map<ScriptType, std::vector<std::shared_ptr<impl::IScript>>>& container
-	) const final {
-		for (auto script_type : script_types_) {
-			container[script_type].emplace_back(ptr);
-		}
-	}
-
 private:
-	static constexpr std::array<ScriptType, sizeof...(Scripts)> Extract() {
-		return { Scripts::GetScriptType()... };
+	friend class Scripts;
+
+	virtual bool HasScriptType(ScriptType type) const final {
+		return HasScriptTypeImpl(type);
 	}
 
-	static constexpr std::array<ScriptType, sizeof...(Scripts)> script_types_{ Extract() };
+	static constexpr bool HasScriptTypeImpl(ScriptType type) {
+		return std::ranges::find(script_types_, type) != script_types_.end();
+	}
+
+	static constexpr std::array<ScriptType, sizeof...(TScripts)> Extract() {
+		return { TScripts::GetScriptType()... };
+	}
+
+	static constexpr std::array<ScriptType, sizeof...(TScripts)> script_types_{ Extract() };
 
 	template <typename Tuple, std::size_t I = 0>
 	static void SerializeScripts(const void* self, json& j) {
@@ -436,62 +449,64 @@ private:
 		}
 	}
 
-	// TODO: Add deserialize scripts function to iterate parameter pack.
+	// TODO: Add deserialize tscripts function to iterate parameter pack.
 
 	// Static variable for ensuring class is registered once and for all
 	static bool is_registered_;
 
 	// The static Register function handles the actual registration of the class
 	static bool Register() {
-		constexpr auto name{ type_name<Derived>() };
+		constexpr auto name{ type_name<TDerived>() };
 		impl::ScriptRegistry<impl::IScript>::Instance().Register(
-			name, []() -> std::shared_ptr<impl::IScript> { return std::make_shared<Derived>(); }
+			name, []() -> std::shared_ptr<impl::IScript> { return std::make_shared<TDerived>(); }
 		);
 		return true;
 	}
 };
 
 // Initialize static variable, which will trigger the Register function
-template <typename Derived, typename... Scripts>
-bool Script<Derived, Scripts...>::is_registered_ = Script<Derived, Scripts...>::Register();
+template <typename TDerived, typename... TScripts>
+bool Script<TDerived, TScripts...>::is_registered_ = Script<TDerived, TScripts...>::Register();
 
-struct Scripts {
+class Scripts {
+public:
+	void InvokeActions() {
+		for (auto& action : actions_) {
+			std::invoke(action, *this);
+		}
+	}
+
+	template <typename TInterface, typename... Args>
+	void AddAction(void (TInterface::*func)(Args...), Args&&... args) {
+		auto action{ MakeAction(func, std::forward<Args>(args)...) };
+		actions_.emplace_back(action);
+	}
+
 	// Example usage:
 	// scripts.Invoke(&KeyScript::OnKeyDown, Key::W);
 	template <typename TInterface, typename... Args>
 	void Invoke(void (TInterface::*func)(Args...), Args&&... args) {
 		constexpr ScriptType type{ TInterface::GetScriptType() };
 
-		auto it{ scripts_.find(type) };
-
-		if (it == scripts_.end()) {
-			return;
-		}
-
-		// Copy to avoid invalidation during loop.
-		auto scripts{ it->second };
-
-		for (auto& script : scripts) {
+		for (auto& script : scripts_) {
+			if (!script->HasScriptType(type)) {
+				continue;
+			}
 			TryInvoke(script.get(), func, std::forward<Args>(args)...);
 		}
 	}
 
-	// TODO: Set script somewhere.
+	// TODO: Set script entity somewhere.
 	template <typename TScript, typename... TArgs>
+		requires // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script> &&
+		std::constructible_from<TScript, TArgs...>
 	TScript& AddScript(TArgs&&... args) {
-		// TODO: Readd with some template workaround.
-		/*static_assert(
-			std::is_base_of_v<Script, TScript>,
-			"Cannot add script which does not inherit from the base script class"
-		);*/
-		static_assert(
-			std::is_constructible_v<TScript, TArgs...>,
-			"Script must be constructible from the given arguments"
-		);
-		std::shared_ptr<impl::IScript> script{ std::make_shared<TScript>(std::forward<TArgs>(args
-		)...) };
-		script->AddScriptTypes(script, scripts_);
-		return *std::dynamic_pointer_cast<TScript>(script);
+		auto& script{
+			scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...))
+		};
+		// Explicit for debugging purposes.
+		TScript& s{ *std::dynamic_pointer_cast<TScript>(script) };
+		return s;
 	}
 
 	// TODO: Implement.
@@ -584,16 +599,32 @@ struct Scripts {
 		return !operator==(a, b);
 	}
 	*/
-
 private:
+	std::vector<std::shared_ptr<impl::IScript>> scripts_;
+
+	std::vector<std::function<void(Scripts&)>> actions_;
+
 	template <typename TInterface, typename... Args>
-	void TryInvoke(impl::IScript* script, void (TInterface::*func)(Args...), Args&&... args) {
+	auto MakeAction(void (TInterface::*func)(Args...), Args&&... args) {
+		return
+			[func, tup = std::make_tuple(std::forward<Args>(args)...)](Scripts& scripts) mutable {
+				std::apply(
+					[&scripts, func](auto&&... unpackedArgs) {
+						scripts.Invoke(func, std::forward<decltype(unpackedArgs)>(unpackedArgs)...);
+					},
+					std::move(tup)
+				);
+			};
+	}
+
+	template <typename TInterface, typename... Args>
+	static void TryInvoke(
+		impl::IScript* script, void (TInterface::*func)(Args...), Args&&... args
+	) {
 		if (auto* handler = dynamic_cast<TInterface*>(script)) {
 			(handler->*func)(std::forward<Args>(args)...);
 		}
 	}
-
-	std::unordered_map<ScriptType, std::vector<std::shared_ptr<impl::IScript>>> scripts_;
 };
 
 // class Scripts : public impl::ScriptContainer<impl::IScript> {

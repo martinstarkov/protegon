@@ -4,7 +4,6 @@
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/game.h"
-#include "core/script.h"
 #include "core/window.h"
 #include "input/input_handler.h"
 #include "math/vector2.h"
@@ -430,9 +429,11 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r2, r2_child);
 		AddScript<ScriptR2>(r2);
 
-		LoadResources({ { "drag", "resources/drag.png" },
-						{ "drag_circle", "resources/drag_circle.png" },
-						{ "dropzone", "resources/dropzone.png" } });
+		LoadResources(
+			{ { "drag", "resources/drag.png" },
+			  { "drag_circle", "resources/drag_circle.png" },
+			  { "dropzone", "resources/dropzone.png" } }
+		);
 
 		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);

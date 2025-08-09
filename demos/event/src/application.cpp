@@ -2,7 +2,7 @@
 //
 // #include "common/assert.h"
 // #include "core/game.h"
-// #include "core/script.h"
+//
 // #include "core/window.h"
 // #include "debug/log.h"
 // #include "input/input_handler.h"
@@ -234,11 +234,17 @@ using namespace ptgn;
 
 struct TestScript : public Script<TestScript, GlobalMouseScript, KeyScript> {
 	void OnMouseMove() {
-		PTGN_LOG("Mouse moved");
+		PTGN_LOG("Mouse moved 1");
 	}
 
 	void OnKeyDown(Key k) {
-		PTGN_LOG("Key down: ", k);
+		PTGN_LOG("Key down 1: ", k);
+	}
+};
+
+struct TestScript2 : public Script<TestScript2, GlobalMouseScript> {
+	void OnMouseMove() {
+		PTGN_LOG("Mouse moved 2");
 	}
 };
 
@@ -257,10 +263,20 @@ int main() {
 	Scripts test;
 
 	test.AddScript<TestScript>();
+	test.AddScript<TestScript>();
+	test.AddScript<TestScript2>();
 
-	test.Invoke(&GlobalMouseScript::OnMouseMove);
-	test.Invoke(&KeyScript::OnKeyDown, Key::W);
+	PTGN_LOG("Adding actions...");
 
+	test.AddAction(&GlobalMouseScript::OnMouseMove);
+	test.AddAction(&KeyScript::OnKeyDown, Key::W);
+	test.AddAction(&GlobalMouseScript::OnMouseMove);
+
+	PTGN_LOG("Waiting...");
+
+	test.InvokeActions();
+
+	/*
 	std::weak_ptr<CollisionScript> weak = entity.GetComponent<CollisionScript>();
 
 	std::unordered_map<ScriptType, std::vector<std::function<void()>>> queues;
@@ -276,5 +292,5 @@ int main() {
 			cb();
 		}
 		queue.clear();
-	}
+	}*/
 }

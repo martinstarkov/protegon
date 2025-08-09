@@ -7,7 +7,6 @@
 #include "common/assert.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "core/script.h"
 #include "math/geometry.h"
 #include "physics/rigid_body.h"
 #include "utility/span.h"

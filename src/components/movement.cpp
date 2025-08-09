@@ -9,7 +9,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/script.h"
 #include "core/timer.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
@@ -293,8 +292,9 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
-	const {
+void TopDownMovement::RunWithAcceleration(
+	const V2_float& desired_velocity, RigidBody& rb, float dt
+) const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };

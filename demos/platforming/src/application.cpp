@@ -3,7 +3,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/script.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"

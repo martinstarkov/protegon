@@ -10,7 +10,6 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
 #include "math/vector2.h"
@@ -262,8 +261,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default

@@ -16,7 +16,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
 #include "math/geometry/circle.h"
@@ -490,7 +489,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			return;
 		}
 
-		if (const std::string & content{ text_sprite.Get<TextContent>().GetValue() };
+		if (const std::string& content{ text_sprite.Get<TextContent>().GetValue() };
 			content.empty()) {
 			return;
 		}
