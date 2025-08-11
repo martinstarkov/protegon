@@ -93,7 +93,7 @@ public:
 	ptgn::EntitiesWith<true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 Parent::GetOrAddPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
@@ -104,21 +104,21 @@ public:
 		);
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 Parent::GetOrAddPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::EntitiesWithout<true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 Parent::GetOrAddPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::EntitiesWithout<false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 Parent::GetOrAddPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	ptgn::Entities<true> Entities() const {
@@ -280,7 +280,7 @@ private:
 	ptgn::EntitiesWith<false, Ts...> InternalEntitiesWith() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 Parent::GetOrAddPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
 	void ClearEntities() final;
