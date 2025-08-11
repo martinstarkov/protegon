@@ -151,8 +151,6 @@ struct KeyScript : public impl::BaseScript<ScriptType::Key> {
 };
 
 struct GlobalMouseScript : public impl::BaseScript<ScriptType::GlobalMouse> {
-	float mouse_index{ 0.0f };
-
 	virtual ~GlobalMouseScript() = default;
 
 	virtual void OnMouseMove() { /* user implementation */ }
@@ -164,9 +162,6 @@ struct GlobalMouseScript : public impl::BaseScript<ScriptType::GlobalMouse> {
 	virtual void OnMouseUp([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
 	virtual void OnMouseScroll([[maybe_unused]] V2_int scroll_amount) { /* user implementation */ }
-
-private:
-	PTGN_SERIALIZER_REGISTER(GlobalMouseScript, mouse_index);
 
 	template <typename TDerived, typename... TScripts>
 	friend class Script;
@@ -195,7 +190,8 @@ struct MouseScript : public impl::BaseScript<ScriptType::Mouse> {
 
 	virtual void OnMouseUpOut([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseScrollOver([[maybe_unused]] V2_int scroll_amount
+	virtual void OnMouseScrollOver(
+		[[maybe_unused]] V2_int scroll_amount
 	) { /* user implementation */ }
 
 	virtual void OnMouseScrollOut([[maybe_unused]] V2_int scroll_amount) { /* user implementation */
@@ -288,7 +284,8 @@ struct PlayerMoveScript : public impl::BaseScript<ScriptType::PlayerMove> {
 	// Called when the movement direction changes. Passed parameter is the difference in direction.
 	// If not moving, this is simply the new direction. If moving already, this is the newly added
 	// component of movement. To get the current direction instead, simply use GetDirection().
-	virtual void OnDirectionChange([[maybe_unused]] MoveDirection direction_difference
+	virtual void OnDirectionChange(
+		[[maybe_unused]] MoveDirection direction_difference
 	) { /* user implementation */ }
 
 	virtual void OnMoveUpStart() { /* user implementation */ }
@@ -357,7 +354,6 @@ struct ButtonScript : public impl::BaseScript<ScriptType::Button> {
 struct TweenScript : public impl::BaseScript<ScriptType::Tween> {
 	// TODO: Add or allow access somehow.
 	// Tween tween;
-	float test{ 0.0f };
 
 	virtual ~TweenScript() = default;
 
@@ -378,9 +374,6 @@ struct TweenScript : public impl::BaseScript<ScriptType::Tween> {
 	virtual void OnResume() { /* user implementation */ }
 
 	virtual void OnReset() { /* user implementation */ }
-
-private:
-	PTGN_SERIALIZER_REGISTER(TweenScript, test);
 
 	template <typename TDerived, typename... TScripts>
 	friend class Script;
@@ -524,8 +517,9 @@ public:
 		requires // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script> &&
 		std::constructible_from<TScript, TArgs...>
 	TScript& AddScript(TArgs&&... args) {
-		auto& script{ scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...)
-		) };
+		auto& script{
+			scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...))
+		};
 		// Explicit for debugging purposes.
 		TScript& s{ *std::dynamic_pointer_cast<TScript>(script) };
 		return s;

@@ -224,6 +224,7 @@ bool Overlaps(const AABB& a, const AABB& b) {
 
 */
 
+/*
 struct AABB {
 	V2_float min;
 	V2_float max;
@@ -561,6 +562,489 @@ private:
 		return node;
 	}
 };
+*/
+
+// batched_kdtree.cpp
+// A KDTree implementation with batched updates:
+// - Maintain static + moved lists
+// - Collect moves during a frame, then at EndFrame() decide to FullRebuild or PartialUpdate
+// - PartialUpdate inserts moved objects in bulk into leaf nodes and then splits affected nodes
+
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+struct AABB {
+	V2_float min, max;
+
+	bool Intersects(const AABB& o) const {
+		return !(max.x < o.min.x || min.x > o.max.x || max.y < o.min.y || min.y > o.max.y);
+	}
+};
+
+// --- KDTree ---
+
+enum class Axis {
+	X = 0,
+	Y = 1
+};
+
+struct Object {
+	Entity entity;
+	AABB aabb;
+	// "deleted" flag for lazy removals used inside partial updates
+	bool deleted{ false };
+};
+
+struct KDNode {
+	Axis split_axis{ Axis::X };
+	float split_value{ 0.0f };
+
+	std::vector<Object> objects; // only populated on leaves
+	std::unique_ptr<KDNode> left;
+	std::unique_ptr<KDNode> right;
+};
+
+class BatchedKDTree {
+public:
+	BatchedKDTree(std::size_t max_objects_per_node = 64, float rebuild_threshold = 0.25f) :
+		max_objects_per_node{ max_objects_per_node }, rebuild_threshold{ rebuild_threshold } {}
+
+	// Build from scratch (clears moved list)
+	void Build(const std::vector<Object>& objects) {
+		entity_map.clear();
+		std::vector<Object> objs = objects; // copy
+		for (const auto& o : objs) {
+			entity_map[o.entity] = o;
+		}
+		root = BuildRecursive(objs, 0);
+		moved_entities.clear();
+	}
+
+	// Mark an entity as moved during the frame. Doesn't touch the tree immediately.
+	void UpdateAABB(const Entity& e, const AABB& aabb) {
+		auto it = entity_map.find(e);
+		if (it != entity_map.end()) {
+			it->second.aabb = aabb; // update map (source of truth)
+			moved_entities.insert(e);
+		} else {
+			// new entity; treat as inserted
+			Object o{ e, aabb, false };
+			entity_map[e] = o;
+			moved_entities.insert(e);
+		}
+	}
+
+	// Insert new entity immediately (optional). Also mark as moved to ensure it's processed.
+	void InsertImmediate(const Entity& e, const AABB& aabb) {
+		Object o{ e, aabb, false };
+		entity_map[e] = o;
+		moved_entities.insert(e);
+	}
+
+	// Remove entity immediately (mark for deletion), processed at EndFrame.
+	void RemoveImmediate(const Entity& e) {
+		entity_map.erase(e);
+		// mark so partial update will remove it if applicable
+		moved_entities.insert(e);
+	}
+
+	// Should be called once per frame after all UpdateAABB()/InsertImmediate()/RemoveImmediate()
+	void EndFrameUpdate() {
+		size_t moved = moved_entities.size();
+		size_t total = entity_map.size();
+
+		if (moved == 0) {
+			return;
+		}
+
+		if (total == 0) {
+			// nothing to do
+			root.reset();
+			moved_entities.clear();
+			return;
+		}
+
+		// If too many changed, rebuild fully from entity_map (fast, cache-friendly)
+		if (moved >= std::max<size_t>(1, static_cast<size_t>(rebuild_threshold * total))) {
+			std::vector<Object> all;
+			all.reserve(entity_map.size());
+			for (const auto& kv : entity_map) {
+				all.push_back(kv.second);
+			}
+			root = BuildRecursive(all, 0);
+			moved_entities.clear();
+			return;
+		}
+
+		// Otherwise, do a partial update (bulk remove + bulk insert)
+		PartialUpdate();
+		moved_entities.clear();
+	}
+
+	std::vector<Entity> Query(const AABB& region) const {
+		std::vector<Entity> result;
+		Query(root.get(), region, result);
+		return result;
+	}
+
+	std::vector<Entity> Raycast(Entity entity, V2_float origin, V2_float dir) const {
+		std::vector<Entity> hits;
+		Raycast(entity, root.get(), origin, dir, hits);
+		return hits;
+	}
+
+	Entity RaycastFirst(Entity entity, V2_float origin, V2_float dir) const {
+		Entity closest_hit{};
+		float closest_t = 1.0f;
+		RaycastFirst(entity, root.get(), origin, dir, closest_t, closest_hit);
+		return closest_hit;
+	}
+
+private:
+	std::unique_ptr<KDNode> root;
+	std::unordered_map<Entity, Object> entity_map;
+	std::unordered_set<Entity> moved_entities;
+
+	std::size_t max_objects_per_node{ 64 };
+	float rebuild_threshold{ 0.25f };
+
+	void Raycast(
+		Entity entity, const KDNode* node, V2_float origin, V2_float dir,
+		std::vector<Entity>& result
+	) const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (obj.entity == entity) {
+				continue;
+			}
+			auto raycast = ptgn::impl::RaycastRect(
+				origin, origin + dir, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
+			);
+			if (raycast.Occurred()) {
+				result.push_back(obj.entity);
+			}
+		}
+		if (node->left) {
+			Raycast(entity, node->left.get(), origin, dir, result);
+		}
+		if (node->right) {
+			Raycast(entity, node->right.get(), origin, dir, result);
+		}
+	}
+
+	void RaycastFirst(
+		Entity entity, const KDNode* node, V2_float origin, V2_float dir, float& closest_t,
+		Entity& closest_entity
+	) const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (obj.entity == entity) {
+				continue;
+			}
+			auto raycast = ptgn::impl::RaycastRect(
+				origin, origin + dir, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
+			);
+			if (raycast.Occurred()) {
+				if (raycast.t < closest_t) {
+					closest_t	   = raycast.t;
+					closest_entity = obj.entity;
+				}
+			}
+		}
+		if (node->left) {
+			RaycastFirst(entity, node->left.get(), origin, dir, closest_t, closest_entity);
+		}
+		if (node->right) {
+			RaycastFirst(entity, node->right.get(), origin, dir, closest_t, closest_entity);
+		}
+	}
+
+	// --- Helpers ---
+
+	std::unique_ptr<KDNode> BuildRecursive(const std::vector<Object>& objects, int depth) {
+		if (objects.empty()) {
+			return nullptr;
+		}
+		auto node		 = std::make_unique<KDNode>();
+		node->split_axis = static_cast<Axis>(depth % 2);
+
+		if (objects.size() <= max_objects_per_node) {
+			node->objects = objects;
+			return node;
+		}
+
+		std::vector<float> centers(objects.size());
+		for (size_t i = 0; i < objects.size(); ++i) {
+			centers[i] = GetObjectSplitValue(objects[i], node->split_axis);
+		}
+
+		size_t mid = centers.size() / 2;
+		std::nth_element(centers.begin(), centers.begin() + mid, centers.end());
+		node->split_value = centers[mid];
+
+		std::vector<Object> left_objs, right_objs;
+		left_objs.reserve(objects.size() / 2);
+		right_objs.reserve(objects.size() / 2);
+
+		for (const auto& obj : objects) {
+			float v = GetObjectSplitValue(obj, node->split_axis);
+			if (v < node->split_value) {
+				left_objs.push_back(obj);
+			} else {
+				right_objs.push_back(obj);
+			}
+		}
+
+		node->left	= BuildRecursive(left_objs, depth + 1);
+		node->right = BuildRecursive(right_objs, depth + 1);
+
+		return node;
+	}
+
+	float GetObjectSplitValue(const Object& obj, Axis axis) const {
+		float center = (axis == Axis::X) ? ((obj.aabb.min.x + obj.aabb.max.x) * 0.5f)
+										 : ((obj.aabb.min.y + obj.aabb.max.y) * 0.5f);
+		return center;
+	}
+
+	void Query(const KDNode* node, const AABB& region, std::vector<Entity>& result) const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (!obj.deleted && obj.aabb.Intersects(region)) {
+				result.push_back(obj.entity);
+			}
+		}
+		if (node->left) {
+			Query(node->left.get(), region, result);
+		}
+		if (node->right) {
+			Query(node->right.get(), region, result);
+		}
+	}
+
+	// --- Partial update implementation ---
+	// Strategy:
+	// 1) For each moved entity that exists in the tree, find the leaf it currently resides in
+	// (using the
+	//    *old* aabb stored in entity_map before the move). We use the entity_map's aabb because
+	//    when the user called UpdateAABB we already wrote the new aabb there. To find the old tree
+	//    leaf we need the "previous" aabb; to keep it simple here, we assume UpdateAABB replaced
+	//    aabb in entity_map but we have also kept a copy of the previous aabb in the node's objects
+	//    (we will match by entity id). So we traverse the tree like in Remove() to find the leaf
+	//    and mark that object as deleted (swap-remove) so the node keeps compact storage.
+	// 2) Collect the moved objects from entity_map (current aabb) and insert them into leaf nodes
+	// in bulk. 3) For any leaf nodes that exceed capacity, call SplitNode once per such node
+	// (recursive splitting)
+
+	void PartialUpdate() {
+		if (!root) {
+			// No existing tree; build from scratch from entity_map
+			std::vector<Object> all;
+			all.reserve(entity_map.size());
+			for (const auto& kv : entity_map) {
+				all.push_back(kv.second);
+			}
+			root = BuildRecursive(all, 0);
+			return;
+		}
+
+		// 1) Mark/removal step: for each moved entity, try to find it in the tree and remove by
+		// swap-pop. We'll also record which leaves were touched so we can later split them if
+		// needed.
+		std::vector<KDNode*> touched_leaves;
+		touched_leaves.reserve(moved_entities.size());
+
+		for (Entity e : moved_entities) {
+			// if entity isn't present in the tree (inserted this frame), skip removal
+			// We'll insert it below from entity_map
+			bool found_and_removed = RemoveFromTree(root.get(), e, 0, touched_leaves);
+			(void)found_and_removed; // fine if not found
+		}
+
+		// 2) Bulk-insert: gather moved objects from entity_map and insert into leaves without
+		// splitting yet We insert directly into leaves to avoid repeated traversals doing node
+		// splitting mid-flight.
+		for (Entity e : moved_entities) {
+			auto it = entity_map.find(e);
+			if (it == entity_map.end()) {
+				continue; // removed completely by user
+			}
+			InsertIntoLeaf(root.get(), it->second, 0);
+		}
+
+		// 3) Split all touched leaves (and recursively if children need splitting)
+		// We deduplicate touched leaves
+		std::sort(touched_leaves.begin(), touched_leaves.end());
+		touched_leaves.erase(
+			std::unique(touched_leaves.begin(), touched_leaves.end()), touched_leaves.end()
+		);
+
+		for (KDNode* leaf : touched_leaves) {
+			// if leaf still exists and is over capacity, split it
+			if (leaf && leaf->objects.size() > max_objects_per_node) {
+				// We need to call SplitNode with a depth. We don't store depths in nodes, so we
+				// compute it by walking from root.
+				int depth = ComputeDepth(root.get(), leaf, 0);
+				if (depth >= 0) {
+					SplitNodeExternal(leaf, depth);
+				}
+			}
+		}
+	}
+
+	// Find and remove the object with entity id from the tree by traversing to leaves using the
+	// object's position inside the node (we search node->objects for the entity). When found, we
+	// swap-pop to remove it quickly and record the leaf pointer.
+	bool RemoveFromTree(KDNode* node, Entity e, int depth, std::vector<KDNode*>& touched_leaves) {
+		if (!node) {
+			return false;
+		}
+
+		// If leaf, search its vector and swap-pop if found
+		if (!node->left && !node->right) {
+			auto& vec = node->objects;
+			for (size_t i = 0; i < vec.size(); ++i) {
+				if (vec[i].entity == e) {
+					// swap-pop removal (fast)
+					vec[i] = vec.back();
+					vec.pop_back();
+					touched_leaves.push_back(node);
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// otherwise decide branch to search using object's *current* aabb from entity_map (may
+		// differ from stored aabb)
+		auto it = entity_map.find(e);
+		if (it == entity_map.end()) {
+			// entity doesn't exist anymore
+			return false;
+		}
+		float val = GetObjectSplitValue(it->second, node->split_axis);
+		if (val < node->split_value) {
+			return RemoveFromTree(node->left.get(), e, depth + 1, touched_leaves);
+		} else {
+			return RemoveFromTree(node->right.get(), e, depth + 1, touched_leaves);
+		}
+	}
+
+	// Insert object into a leaf (descend using object's aabb). We do NOT split here.
+	void InsertIntoLeaf(KDNode* node, const Object& obj, int depth) {
+		if (!node) {
+			// This shouldn't normally happen as tree exists; if it does, create a small node on the
+			// heap.
+			return;
+		}
+		if (!node->left && !node->right) {
+			node->objects.push_back(obj);
+			return;
+		}
+		float val = GetObjectSplitValue(obj, node->split_axis);
+		if (val < node->split_value) {
+			InsertIntoLeaf(node->left.get(), obj, depth + 1);
+		} else {
+			InsertIntoLeaf(node->right.get(), obj, depth + 1);
+		}
+	}
+
+	// Compute depth of a target leaf by walking tree; returns -1 if not found.
+	int ComputeDepth(KDNode* current, KDNode* target, int depth) {
+		if (!current) {
+			return -1;
+		}
+		if (current == target) {
+			return depth;
+		}
+		int d = ComputeDepth(current->left.get(), target, depth + 1);
+		if (d >= 0) {
+			return d;
+		}
+		return ComputeDepth(current->right.get(), target, depth + 1);
+	}
+
+	// External SplitNode: we'll emulate the same logic as your original SplitNode but accept a
+	// pointer to an existing leaf.
+	void SplitNodeExternal(KDNode* node, int depth) {
+		if (!node) {
+			return;
+		}
+		// If node already has children, do nothing
+		if (node->left || node->right) {
+			return;
+		}
+
+		node->split_axis = static_cast<Axis>(depth % 2);
+		std::vector<float> centers;
+		centers.reserve(node->objects.size());
+		for (const auto& o : node->objects) {
+			centers.push_back(GetObjectSplitValue(o, node->split_axis));
+		}
+
+		if (centers.empty()) {
+			return;
+		}
+		bool all_same =
+			std::all_of(centers.begin(), centers.end(), [&](float v) { return v == centers[0]; });
+		if (all_same) {
+			return;
+		}
+
+		size_t mid = centers.size() / 2;
+		std::nth_element(centers.begin(), centers.begin() + mid, centers.end());
+		node->split_value = centers[mid];
+
+		// Move objects into left/right
+		std::vector<Object> old = std::move(node->objects);
+		node->objects.clear();
+		for (const auto& o : old) {
+			float v = GetObjectSplitValue(o, node->split_axis);
+			if (v < node->split_value) {
+				if (!node->left) {
+					node->left = std::make_unique<KDNode>();
+				}
+				node->left->objects.push_back(o);
+			} else {
+				if (!node->right) {
+					node->right = std::make_unique<KDNode>();
+				}
+				node->right->objects.push_back(o);
+			}
+		}
+
+		// Recursively split children if they are still oversized
+		if (node->left && node->left->objects.size() > max_objects_per_node) {
+			SplitNodeExternal(node->left.get(), depth + 1);
+		}
+		if (node->right && node->right->objects.size() > max_objects_per_node) {
+			SplitNodeExternal(node->right.get(), depth + 1);
+		}
+	}
+};
+
+// --- End of file ---
+
+// Notes:
+// - This implementation strikes a pragmatic balance: many moves => full rebuild; few moves =>
+// partial update
+// - Partial update avoids expensive vector erase-by-value by swap-pop from leaf vectors and
+// postpones splitting
+// - You can further optimize by storing a pointer from each entity to its leaf node to remove the
+// need to traverse
+//   the tree on removal. That requires bookkeeping when splitting/moving objects between nodes.
+// - Use a KDNode memory pool (arena) to avoid frequent heap allocations.
 
 AABB GetBoundingVolume(Entity entity) {
 	auto position{ GetPosition(entity) };
@@ -596,9 +1080,10 @@ Entity AddEntity(
 #define KDTREE 0
 
 struct BroadphaseScene : public Scene {
-	KDTree tree{ 100 };
+	// KDTree tree{ 100 };
+	BatchedKDTree tree{ 100 };
 
-	std::size_t entity_count{ 1000 };
+	std::size_t entity_count{ 100000 };
 
 	Entity player;
 	V2_float player_size{ 20, 20 };
@@ -615,14 +1100,19 @@ struct BroadphaseScene : public Scene {
 
 		for (std::size_t i{ 0 }; i < entity_count; ++i) {
 			AddEntity(
-				*this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green, FlipCoin()
+				*this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green,
+				false // FlipCoin()
 			);
 		}
+		Refresh();
+		for (auto [e, rect] : EntitiesWith<Rect>()) {
+			// TODO: Only update if entity moved.
+			tree.UpdateAABB(e, GetBoundingVolume(e));
+		}
+		tree.EndFrameUpdate();
 	}
 
 	void Update() override {
-		PTGN_PROFILE_FUNCTION();
-
 		MoveWASD(GetPosition(player), V2_float{ 100.0f } * game.dt(), false);
 
 		for (auto [e, tint] : EntitiesWith<Tint>()) {
@@ -636,16 +1126,19 @@ struct BroadphaseScene : public Scene {
 #ifdef KDTREE
 
 		if (KDTREE) {
+			PTGN_PROFILE_FUNCTION();
 			// Check only collisions with relevant k-d tree nodes.
 
 			// TODO: Only update if player moved.
-			tree.Update(player, GetBoundingVolume(player));
+			tree.UpdateAABB(player, GetBoundingVolume(player));
 
 			for (auto [e, rect] : EntitiesWith<Rect>()) {
 				// TODO: Only update if entity moved.
-				tree.Update(e, GetBoundingVolume(e));
+				tree.UpdateAABB(e, GetBoundingVolume(e));
 			}
+			tree.EndFrameUpdate();
 		} else {
+			PTGN_PROFILE_FUNCTION();
 			std::vector<Object> objects;
 			objects.reserve(Size());
 
@@ -659,6 +1152,7 @@ struct BroadphaseScene : public Scene {
 
 		// For overlap / trigger tests:
 
+		/*
 		// PTGN_LOG("---------------------");
 		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
 			auto b1{ GetBoundingVolume(e1) };
@@ -696,6 +1190,8 @@ struct BroadphaseScene : public Scene {
 		}
 
 		DrawDebugLine(player_pos, mouse_pos, color::Gold, 2.0f);
+
+		*/
 #else
 		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
 			auto b1{ GetBoundingVolume(e1) };

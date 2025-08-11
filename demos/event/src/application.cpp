@@ -272,9 +272,9 @@ int main() {
 	auto& script2 = test.AddScript<TestScript2>();
 	auto& script3 = test.AddScript<TestScript3>();
 
-	script3.test		= 69.0f;
-	script4.test		= 79.0f;
-	script4.mouse_index = 33.0f;
+	// script3.test		= 69.0f;
+	// script4.test		= 79.0f;
+	// script4.mouse_index = 33.0f;
 
 	test.AddAction(&GlobalMouseScript::OnMouseMove);
 	test.AddAction(&KeyScript::OnKeyDown, Key::W);
@@ -313,11 +313,11 @@ int main() {
 	PTGN_ASSERT(script3_remade);
 	PTGN_ASSERT(script4_remade);
 
-	PTGN_ASSERT(script1_remade->mouse_index == 0.0f);
-	PTGN_ASSERT(script2_remade->mouse_index == 0.0f);
-	PTGN_ASSERT(script3_remade->test == 69.0f);
-	PTGN_ASSERT(script4_remade->test == 79.0f);
-	PTGN_ASSERT(script4_remade->mouse_index == 33.0f);
+	// PTGN_ASSERT(script1_remade->mouse_index == 0.0f);
+	// PTGN_ASSERT(script2_remade->mouse_index == 0.0f);
+	// PTGN_ASSERT(script3_remade->test == 69.0f);
+	// PTGN_ASSERT(script4_remade->test == 79.0f);
+	// PTGN_ASSERT(script4_remade->mouse_index == 33.0f);
 
 	PTGN_LOG("Scripts deserialized correctly");
 	/*
