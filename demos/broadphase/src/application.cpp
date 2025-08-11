@@ -32,11 +32,6 @@ constexpr V2_int window_size{ 800, 800 };
 
 // TODO: Move all of this into the collision system.
 
-enum class KDAxis {
-	X = 0,
-	Y = 1
-};
-
 struct BoundingAABB {
 	V2_float min;
 	V2_float max;
@@ -48,31 +43,36 @@ struct BoundingAABB {
 	}
 };
 
-struct Object {
+struct KDObject {
 	Entity entity;
 	BoundingAABB aabb;
 	// "deleted" flag for lazy removals used inside partial updates
 	bool deleted{ false };
 };
 
+enum class KDAxis {
+	X = 0,
+	Y = 1
+};
+
 struct KDNode {
 	KDAxis split_axis{ KDAxis::X };
 	float split_value{ 0.0f };
 
-	std::vector<Object> objects; // only populated on leaves
+	std::vector<KDObject> objects; // only populated on leaves
 	std::unique_ptr<KDNode> left;
 	std::unique_ptr<KDNode> right;
 };
 
-class BatchedKDTree {
+class KDTree {
 public:
-	BatchedKDTree(std::size_t max_objects_per_node = 64, float rebuild_threshold = 0.25f) :
+	KDTree(std::size_t max_objects_per_node = 64, float rebuild_threshold = 0.25f) :
 		max_objects_per_node{ max_objects_per_node }, rebuild_threshold{ rebuild_threshold } {}
 
-	// Build from scratch (clears moved list)
-	void Build(const std::vector<Object>& objects) {
+	// (Re)Build KD-tree from scratch (clears moved list).
+	void Build(const std::vector<KDObject>& objects) {
 		entity_map.clear();
-		std::vector<Object> objs = objects; // copy
+		std::vector<KDObject> objs = objects; // copy
 		for (const auto& o : objs) {
 			entity_map[o.entity] = o;
 		}
@@ -80,6 +80,18 @@ public:
 		moved_entities.clear();
 	}
 
+	// TODO: In the future consider moving to a cached KD-tree where the following events will
+	// trigger an entity to be updated within the KD-tree.
+	/*
+	 * Entity moved (own transform changed)	-> Mark as dirty.
+	 * Entity’s parent moved -> Mark entity and descendants as dirty.
+	 * Transform added/removed -> Mark entity as dirty.
+	 * Parent changed (reparenting)	-> Mark entity and descendants as dirty.
+	 * Shape changed -> Mark entity as dirty.
+	 * Shape added -> Insert into KD-tree.
+	 * Shape removed -> Remove from KD-tree.
+	 * Entity destroyed -> Remove from KD-tree (use a Spatial tag component with hooks).
+	 */
 	// Mark an entity as moved during the frame. Doesn't touch the tree immediately.
 	void UpdateBoundingAABB(const Entity& e, const BoundingAABB& aabb) {
 		auto it = entity_map.find(e);
@@ -88,28 +100,28 @@ public:
 			moved_entities.insert(e);
 		} else {
 			// new entity; treat as inserted
-			Object o{ e, aabb, false };
+			KDObject o{ e, aabb, false };
 			entity_map[e] = o;
 			moved_entities.insert(e);
 		}
 	}
 
 	// Insert new entity immediately (optional). Also mark as moved to ensure it's processed.
-	void InsertImmediate(const Entity& e, const BoundingAABB& aabb) {
-		Object o{ e, aabb, false };
+	void Insert(const Entity& e, const BoundingAABB& aabb) {
+		KDObject o{ e, aabb, false };
 		entity_map[e] = o;
 		moved_entities.insert(e);
 	}
 
 	// Remove entity immediately (mark for deletion), processed at EndFrame.
-	void RemoveImmediate(const Entity& e) {
+	void Remove(const Entity& e) {
 		entity_map.erase(e);
 		// mark so partial update will remove it if applicable
 		moved_entities.insert(e);
 	}
 
 	// Should be called once per frame after all
-	// UpdateBoundingAABB()/InsertImmediate()/RemoveImmediate()
+	// UpdateBoundingAABB()/Insert()/Remove()
 	void EndFrameUpdate() {
 		std::size_t moved = moved_entities.size();
 		std::size_t total = entity_map.size();
@@ -128,7 +140,7 @@ public:
 		// If too many changed, rebuild fully from entity_map (fast, cache-friendly)
 		if (moved >=
 			std::max<std::size_t>(1, static_cast<std::size_t>(rebuild_threshold * total))) {
-			std::vector<Object> all;
+			std::vector<KDObject> all;
 			all.reserve(entity_map.size());
 			for (const auto& kv : entity_map) {
 				all.push_back(kv.second);
@@ -170,11 +182,30 @@ public:
 
 private:
 	std::unique_ptr<KDNode> root;
-	std::unordered_map<Entity, Object> entity_map;
+	std::unordered_map<Entity, KDObject> entity_map;
 	std::unordered_set<Entity> moved_entities;
 
 	std::size_t max_objects_per_node{ 64 };
 	float rebuild_threshold{ 0.25f };
+
+	void Query(const KDNode* node, const BoundingAABB& region, std::vector<Entity>& result) const {
+		if (!node) {
+			return;
+		}
+		for (const auto& obj : node->objects) {
+			if (!obj.deleted) {
+				if (obj.aabb.Overlaps(region)) {
+					result.push_back(obj.entity);
+				}
+			}
+		}
+		if (node->left) {
+			Query(node->left.get(), region, result);
+		}
+		if (node->right) {
+			Query(node->right.get(), region, result);
+		}
+	}
 
 	void Raycast(
 		const Entity& entity, const KDNode* node, const V2_float& dir, const Rect& rect,
@@ -240,7 +271,7 @@ private:
 
 	// --- Helpers ---
 
-	std::unique_ptr<KDNode> BuildRecursive(const std::vector<Object>& objects, int depth) {
+	std::unique_ptr<KDNode> BuildRecursive(const std::vector<KDObject>& objects, int depth) {
 		if (objects.empty()) {
 			return nullptr;
 		}
@@ -261,7 +292,7 @@ private:
 		std::nth_element(centers.begin(), centers.begin() + mid, centers.end());
 		node->split_value = centers[mid];
 
-		std::vector<Object> left_objs, right_objs;
+		std::vector<KDObject> left_objs, right_objs;
 		left_objs.reserve(objects.size() / 2);
 		right_objs.reserve(objects.size() / 2);
 
@@ -280,29 +311,10 @@ private:
 		return node;
 	}
 
-	float GetObjectSplitValue(const Object& obj, KDAxis axis) const {
+	float GetObjectSplitValue(const KDObject& obj, KDAxis axis) const {
 		float center = (axis == KDAxis::X) ? ((obj.aabb.min.x + obj.aabb.max.x) * 0.5f)
 										   : ((obj.aabb.min.y + obj.aabb.max.y) * 0.5f);
 		return center;
-	}
-
-	void Query(const KDNode* node, const BoundingAABB& region, std::vector<Entity>& result) const {
-		if (!node) {
-			return;
-		}
-		for (const auto& obj : node->objects) {
-			if (!obj.deleted) {
-				if (obj.aabb.Overlaps(region)) {
-					result.push_back(obj.entity);
-				}
-			}
-		}
-		if (node->left) {
-			Query(node->left.get(), region, result);
-		}
-		if (node->right) {
-			Query(node->right.get(), region, result);
-		}
 	}
 
 	// --- Partial update implementation ---
@@ -322,7 +334,7 @@ private:
 	void PartialUpdate() {
 		if (!root) {
 			// No existing tree; build from scratch from entity_map
-			std::vector<Object> all;
+			std::vector<KDObject> all;
 			all.reserve(entity_map.size());
 			for (const auto& kv : entity_map) {
 				all.push_back(kv.second);
@@ -416,7 +428,7 @@ private:
 		if (!node->left && !node->right) {
 			auto& vec = node->objects;
 			vec.erase(
-				std::remove_if(vec.begin(), vec.end(), [](const Object& o) { return o.deleted; }),
+				std::remove_if(vec.begin(), vec.end(), [](const KDObject& o) { return o.deleted; }),
 				vec.end()
 			);
 		} else {
@@ -426,7 +438,7 @@ private:
 	}
 
 	// Insert object into a leaf (descend using object's rect). We do NOT split here.
-	void InsertIntoLeaf(KDNode* node, const Object& obj, int depth) {
+	void InsertIntoLeaf(KDNode* node, const KDObject& obj, int depth) {
 		if (!node) {
 			// This shouldn't normally happen as tree exists; if it does, create a small node on the
 			// heap.
@@ -491,7 +503,7 @@ private:
 		node->split_value = centers[mid];
 
 		// Move objects into left/right
-		std::vector<Object> old = std::move(node->objects);
+		std::vector<KDObject> old = std::move(node->objects);
 		node->objects.clear();
 		for (const auto& o : old) {
 			float v = GetObjectSplitValue(o, node->split_axis);
@@ -525,10 +537,8 @@ private:
 
 			std::vector<V2_float> vertices;
 			if constexpr (std::is_same_v<T, Circle>) {
-				V2_float c = s.GetCenter(transform);
-				float r	   = s.GetRadius(transform);
-				vertices.emplace_back(c - V2_float{ r, r });
-				vertices.emplace_back(c + V2_float{ r, r });
+				auto v = s.GetExtents(transform);
+				vertices.assign(v.begin(), v.end());
 			} else if constexpr (std::is_same_v<T, Rect>) {
 				auto v = s.GetWorldVertices(transform);
 				vertices.assign(v.begin(), v.end());
@@ -538,13 +548,13 @@ private:
 				auto v = s.GetWorldVertices(transform);
 				vertices.assign(v.begin(), v.end());
 			} else if constexpr (std::is_same_v<T, Capsule>) {
-				auto v	= s.GetWorldVertices(transform);
-				float r = s.GetRadius(transform);
+				auto v = s.GetWorldVertices(transform);
+				V2_float r{ s.GetRadius(transform) };
 				// Treat capsule as two circles and a rectangle between them
-				vertices.emplace_back(v[0] - V2_float{ r, r });
-				vertices.emplace_back(v[0] + V2_float{ r, r });
-				vertices.emplace_back(v[1] - V2_float{ r, r });
-				vertices.emplace_back(v[1] + V2_float{ r, r });
+				vertices.emplace_back(v[0] - r);
+				vertices.emplace_back(v[0] + r);
+				vertices.emplace_back(v[1] - r);
+				vertices.emplace_back(v[1] + r);
 			} else if constexpr (std::is_same_v<T, Line>) {
 				auto v = s.GetWorldVertices(transform);
 				vertices.assign(v.begin(), v.end());
@@ -591,10 +601,9 @@ Entity AddEntity(
 #define KDTREE 0
 
 struct BroadphaseScene : public Scene {
-	// KDTree tree{ 100 };
-	BatchedKDTree tree{ 100 };
+	KDTree tree{ 100 };
 
-	std::size_t entity_count{ 100000 };
+	std::size_t entity_count{ 10000 };
 
 	Entity player;
 	V2_float player_size{ 20, 20 };
@@ -650,7 +659,7 @@ struct BroadphaseScene : public Scene {
 			tree.EndFrameUpdate();
 		} else {
 			PTGN_PROFILE_FUNCTION();
-			std::vector<Object> objects;
+			std::vector<KDObject> objects;
 			objects.reserve(Size());
 
 			for (auto [e, rect] : EntitiesWith<Rect>()) {
@@ -663,26 +672,24 @@ struct BroadphaseScene : public Scene {
 
 		// For overlap / trigger tests:
 
-		/*
 		// PTGN_LOG("---------------------");
-		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
-			auto b1{ GetBoundingAABB(e1) };
-			Rect rectb1{ b1.min, b1.max };
-			auto candidates = tree.Query(b1);
-			// PTGN_LOG(candidates.size());
-			for (auto& e2 : candidates) {
-				if (e1 == e2) {
-					continue;
-				}
-				auto bounding{ GetBoundingAABB(e2) };
-				Rect rectb2{ bounding.min, bounding.max };
-				if (Overlap(Transform{}, rectb1, Transform{}, rectb2)) {
-					SetTint(e1, color::Red);
-					SetTint(e2, color::Red);
-				}
-			}
-		}
-		*/
+		// for (auto [e1, rect1] : EntitiesWith<Rect>()) {
+		//	auto b1{ GetBoundingAABB(e1) };
+		//	Rect rectb1{ b1.min, b1.max };
+		//	auto candidates = tree.Query(b1);
+		//	// PTGN_LOG(candidates.size());
+		//	for (auto& e2 : candidates) {
+		//		if (e1 == e2) {
+		//			continue;
+		//		}
+		//		auto bounding{ GetBoundingAABB(e2) };
+		//		Rect rectb2{ bounding.min, bounding.max };
+		//		if (Overlap(Transform{}, rectb1, Transform{}, rectb2)) {
+		//			SetTint(e1, color::Red);
+		//			SetTint(e2, color::Red);
+		//		}
+		//	}
+		//}
 
 		// For full raycasts:
 
