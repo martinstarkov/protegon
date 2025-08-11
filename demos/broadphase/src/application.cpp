@@ -641,11 +641,11 @@ struct BroadphaseScene : public Scene {
 			// Check only collisions with relevant k-d tree nodes.
 
 			// TODO: Only update if player moved.
-			tree.UpdateRect(player, GetBoundingAABB(player));
+			tree.UpdateBoundingAABB(player, GetBoundingAABB(player));
 
 			// for (auto [e, rect] : EntitiesWith<Rect>()) {
 			//	// TODO: Only update if entity moved.
-			//	tree.UpdateRect(e, GetBoundingAABB(e));
+			//	tree.UpdateBoundingAABB(e, GetBoundingAABB(e));
 			// }
 			tree.EndFrameUpdate();
 		} else {
@@ -667,13 +667,16 @@ struct BroadphaseScene : public Scene {
 		// PTGN_LOG("---------------------");
 		for (auto [e1, rect1] : EntitiesWith<Rect>()) {
 			auto b1{ GetBoundingAABB(e1) };
+			Rect rectb1{ b1.min, b1.max };
 			auto candidates = tree.Query(b1);
 			// PTGN_LOG(candidates.size());
 			for (auto& e2 : candidates) {
 				if (e1 == e2) {
 					continue;
 				}
-				if (Overlap(Transform{}, b1, Transform{}, GetBoundingAABB(e2))) {
+				auto bounding{ GetBoundingAABB(e2) };
+				Rect rectb2{ bounding.min, bounding.max };
+				if (Overlap(Transform{}, rectb1, Transform{}, rectb2)) {
 					SetTint(e1, color::Red);
 					SetTint(e2, color::Red);
 				}
