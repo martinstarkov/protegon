@@ -26,4 +26,10 @@ float Circle::GetRadius(const Transform& transform) const {
 	return GetRadius() * transform.GetAverageScale();
 }
 
+std::array<V2_float, 2> Circle::GetExtents(const Transform& transform) const {
+	V2_float c{ GetCenter(transform) };
+	V2_float r{ GetRadius(transform) };
+	return { c - r, c + r };
+}
+
 } // namespace ptgn
