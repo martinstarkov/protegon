@@ -149,6 +149,15 @@ struct Vector2 {
 		return { rng(), rng() };
 	}
 
+	[[nodiscard]] static Vector2 RandomNormalized(T min, T max) {
+		auto dir{ Vector2::Random(min, max) };
+		if (dir.IsZero()) {
+			return Vector2{};
+		} else {
+			return dir.Normalized();
+		}
+	}
+
 	[[nodiscard]] static Vector2 Random(const Vector2& min, const Vector2& max) {
 		RNG<T> rng_x{ min.x, max.x };
 		RNG<T> rng_y{ min.y, max.y };
