@@ -13,6 +13,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "core/timer.h"
 #include "ecs/ecs.h"
 #include "input/input_handler.h"
@@ -154,7 +155,7 @@ void Scene::InternalDraw() {
 	if (collider_visibility_) {
 		// TODO: Fix.
 		// for (auto [e, collider] : EntitiesWith<Collider>()) {
-		//	const auto& transform{ e.GetDrawTransform() };
+		//	auto transform{ GetAbsoluteTransform(e) };
 		//	/*DrawDebugRect(
 		//		transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
 		//	);*/
@@ -164,7 +165,7 @@ void Scene::InternalDraw() {
 	render_data.Draw(*this);
 }
 
-void Scene::InternalUpdate(const MouseInfo& mouse_state) {
+void Scene::InternalUpdate() {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.ClearRenderTargets(*this);
@@ -172,13 +173,9 @@ void Scene::InternalUpdate(const MouseInfo& mouse_state) {
 
 	Refresh();
 
-	game.input.DispatchInputEvents(*this);
+	game.input.InvokeInputEvents(*this);
 
-	Refresh();
-
-	input.Update(*this, mouse_state);
-
-	Refresh();
+	input.Update(*this);
 
 	float dt{ game.dt() };
 	float time{ game.time() };
