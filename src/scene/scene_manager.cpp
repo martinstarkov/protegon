@@ -132,12 +132,10 @@ void SceneManager::ClearSceneTargets() {
 void SceneManager::Update() {
 	game.input.Update();
 
-	MouseInfo mouse_state;
-
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
 		if (sc.scene->active_) {
-			sc.scene->InternalUpdate(mouse_state);
+			sc.scene->InternalUpdate();
 		}
 	}
 }
