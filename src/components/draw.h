@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <vector>
 
 #include "common/type_traits.h"
 #include "components/drawable.h"
@@ -37,8 +38,15 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 };
 
 struct EntityDepthCompare {
+	EntityDepthCompare() = default;
+	EntityDepthCompare(bool ascending);
+
 	bool operator()(const Entity& a, const Entity& b) const;
+
+	bool ascending{ true };
 };
+
+void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 
 namespace impl {
 

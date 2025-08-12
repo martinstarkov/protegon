@@ -74,8 +74,6 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices = false
 );
 
-void SortEntities(std::vector<Entity>& entities);
-
 void GetRenderArea(
 	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
 	V2_float& out_position, V2_float& out_size

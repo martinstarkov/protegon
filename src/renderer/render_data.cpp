@@ -98,11 +98,6 @@ std::array<Vertex, 4> GetQuadVertices(
 	return vertices;
 }
 
-void SortEntities(std::vector<Entity>& entities) {
-	// PTGN_PROFILE_FUNCTION();
-	std::sort(entities.begin(), entities.end(), EntityDepthCompare{});
-}
-
 void GetRenderArea(
 	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
 	V2_float& out_position, V2_float& out_size
@@ -841,7 +836,7 @@ void RenderData::DrawScene(Scene& scene) {
 			continue;
 		}
 		RenderTarget rt{ entity };
-		SortEntities(display_list.entities);
+		SortByDepth(display_list.entities);
 		drawing_to = rt;
 		for (const auto& display_entity : display_list.entities) {
 			InvokeDrawable(display_entity);
@@ -850,7 +845,7 @@ void RenderData::DrawScene(Scene& scene) {
 	}
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
-	SortEntities(display_list);
+	SortByDepth(display_list);
 	drawing_to = scene.render_target_;
 	for (const auto& entity : display_list) {
 		// Skip entities which are in the display list of a custom render target.

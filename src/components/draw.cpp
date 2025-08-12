@@ -1,8 +1,10 @@
 #include "components/draw.h"
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <string_view>
+#include <vector>
 
 #include "common/assert.h"
 #include "components/drawable.h"
@@ -53,6 +55,10 @@ Entity& RemoveDraw(Entity& entity) {
 Entity& SetDrawOffset(Entity& entity, const V2_float& offset) {
 	entity.TryAdd<impl::Offsets>().custom.position = offset;
 	return entity;
+}
+
+void SortByDepth(std::vector<Entity>& entities, bool ascending) {
+	std::ranges::sort(entities, EntityDepthCompare{ ascending });
 }
 
 Entity& SetDrawOrigin(Entity& entity, Origin origin) {
@@ -283,13 +289,15 @@ Depth Depth::RelativeTo(Depth parent) const {
 	return parent;
 }
 
+EntityDepthCompare::EntityDepthCompare(bool ascending) : ascending{ ascending } {}
+
 bool EntityDepthCompare::operator()(const Entity& a, const Entity& b) const {
 	auto depth_a{ GetDepth(a) };
 	auto depth_b{ GetDepth(b) };
 	if (depth_a == depth_b) {
-		return a.WasCreatedBefore(b);
+		return ascending ? a.WasCreatedBefore(b) : !a.WasCreatedBefore(b);
 	}
-	return depth_a < depth_b;
+	return ascending ? (depth_a < depth_b) : (depth_a > depth_b);
 }
 
 namespace impl {
