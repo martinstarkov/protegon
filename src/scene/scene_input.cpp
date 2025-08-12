@@ -1,5 +1,6 @@
 #include "scene/scene_input.h"
 
+#include <algorithm>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -131,7 +132,8 @@ bool SceneInput::IsAnyDragging() const {
 	return !dragging_entities_.empty();
 }
 
-std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state) {
+std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state)
+	const {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
 	for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
@@ -145,6 +147,19 @@ std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseI
 	tree.Build(objects);
 	// 2. Get entities under mouse using KD-tree
 	auto under_mouse = tree.Query(mouse_state.position);
+
+	if (top_only_ && !under_mouse.empty()) {
+		// Find the draggable with the highest depth.
+		auto draggable_it = std::ranges::max_element(under_mouse, EntityDepthCompare{ true });
+
+		// If no draggable is found, find the interactive entity with the highest depth.
+		if (!draggable_it->Has<Draggable>()) {
+			draggable_it = std::ranges::max_element(under_mouse, EntityDepthCompare{ true });
+		}
+
+		PTGN_ASSERT(draggable_it != under_mouse.end());
+		return { *draggable_it };
+	}
 	return under_mouse;
 }
 

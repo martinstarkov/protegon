@@ -128,14 +128,10 @@ private:
 
 	void Update(Scene& scene, const MouseInfo& mouse_state);
 
-	[[nodiscard]] static std::vector<Entity> GetOverlappingDropzones(
-		Scene& scene, const Entity& entity, const V2_float& world_pointer
-	);
-
 	void Init(std::size_t scene_key);
 	void Shutdown();
 
-	static std::vector<Entity> GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state);
+	std::vector<Entity> GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state) const;
 	static std::vector<Entity> GetDropzones(Scene& scene);
 	void DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse);
 	void UpdateMouseOverStates(const std::vector<Entity>& current);
