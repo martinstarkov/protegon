@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "components/transform.h"
+#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
@@ -66,12 +68,22 @@ void DrawDebugCircle(
 	const Camera& camera = {}
 );
 
+void DrawDebugCapsule(
+	const V2_float& start, const V2_float& end, float radius, const Color& color,
+	float line_width = 1.0f, const Camera& camera = {}
+);
+
 void DrawDebugPolygon(
 	const std::vector<V2_float>& vertices, const Color& color, float line_width = 1.0f,
 	const Camera& camera = {}
 );
 
 void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera = {});
+
+void DrawDebugShape(
+	const Transform& transform, const Shape& shape, const Color& color, float line_width = 1.0f,
+	const Camera& camera = {}
+);
 
 class Shader;
 class RenderTarget;

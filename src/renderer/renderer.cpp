@@ -3,31 +3,39 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/draw.h"
-#include "components/draw.h"
+#include "components/effects.h"
+#include "components/generic.h"
 #include "components/transform.h"
-#include "core/entity.h"
 #include "core/game.h"
 #include "core/window.h"
+#include "debug/log.h"
 #include "math/geometry.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/triangle.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/buffers/frame_buffer.h"
+#include "renderer/font.h"
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/render_data.h"
-#include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
-
-// TODO: Fix all the debug functions.
 
 namespace ptgn {
 
@@ -134,6 +142,21 @@ void DrawDebugCircle(
 	);
 }
 
+void DrawDebugCapsule(
+	const V2_float& start, const V2_float& end, float radius, const Color& color, float line_width,
+	const Camera& camera
+) {
+	auto state{ impl::GetDebugRenderState(camera) };
+
+	auto& render_data{ game.renderer.GetRenderData() };
+
+	// TODO: Fix and replace with game.renderer.GetRenderData().AddCapsule when capsule shader is
+	// implemented.
+	render_data.AddCircle(Transform{ start }, radius, color, impl::max_depth, line_width, state);
+	render_data.AddCircle(Transform{ end }, radius, color, impl::max_depth, line_width, state);
+	render_data.AddLine(start, end, color, impl::max_depth, line_width, state);
+}
+
 void DrawDebugPolygon(
 	const std::vector<V2_float>& vertices, const Color& color, float line_width,
 	const Camera& camera
@@ -146,6 +169,44 @@ void DrawDebugPolygon(
 void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera) {
 	game.renderer.GetRenderData().AddPoint(
 		position, color, impl::max_depth, impl::GetDebugRenderState(camera)
+	);
+}
+
+void DrawDebugShape(
+	const Transform& transform, const Shape& shape, const Color& color, float line_width,
+	const Camera& camera
+) {
+	std::visit(
+		[&](const auto& s1) {
+			using S1 = std::decay_t<decltype(s1)>;
+			if constexpr (std::is_same_v<S1, Point>) {
+				DrawDebugPoint(s1, color, camera);
+			} else if constexpr (std::is_same_v<S1, Rect>) {
+				DrawDebugRect(
+					transform.position, s1.GetSize(transform), color, Origin::Center, line_width,
+					transform.rotation, camera
+				);
+			} else if constexpr (std::is_same_v<S1, Circle>) {
+				DrawDebugCircle(
+					transform.position, s1.GetRadius(transform), color, line_width, camera
+				);
+			} else if constexpr (std::is_same_v<S1, Line>) {
+				auto [start, end] = s1.GetWorldVertices(transform);
+				DrawDebugLine(start, end, color, line_width, camera);
+			} else if constexpr (std::is_same_v<S1, Triangle>) {
+				auto v = s1.GetWorldVertices(transform);
+				DrawDebugTriangle(v, color, line_width, camera);
+			} else if constexpr (std::is_same_v<S1, Polygon>) {
+				auto v = s1.GetWorldVertices(transform);
+				DrawDebugPolygon(v, color, line_width, camera);
+			} else if constexpr (std::is_same_v<S1, Capsule>) {
+				auto [start, end] = s1.GetWorldVertices(transform);
+				DrawDebugCapsule(start, end, s1.GetRadius(transform), color, line_width, camera);
+			} else {
+				PTGN_ERROR("Cannot draw unknown shape type");
+			}
+		},
+		shape
 	);
 }
 

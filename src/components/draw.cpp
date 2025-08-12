@@ -351,7 +351,8 @@ void DrawCapsule(RenderData& ctx, const Entity& entity) {
 	const auto& capsule{ entity.Get<Capsule>() };
 	auto [start, end] = capsule.GetWorldVertices(info.transform);
 
-	// TODO: Replace with arcs.
+	// TODO: Replace with a capsule shader.
+
 	ctx.AddCircle(
 		Transform{ start }, capsule.radius, info.tint, info.depth, info.line_width, info.state
 	);
@@ -359,8 +360,10 @@ void DrawCapsule(RenderData& ctx, const Entity& entity) {
 		Transform{ end }, capsule.radius, info.tint, info.depth, info.line_width, info.state
 	);
 
-	// TODO: Replace with two lines connecting arcs.
 	ctx.AddLine(start, end, info.tint, info.depth, info.line_width, info.state);
+
+	// ctx.AddCapsule(start, end, capsule.radius, info.tint, info.depth, info.line_width,
+	// info.state);
 }
 
 void DrawCircle(RenderData& ctx, const Entity& entity) {
