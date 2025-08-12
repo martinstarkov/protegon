@@ -213,13 +213,6 @@ struct DragScript : public impl::BaseScript<ScriptType::Drag> {
 	// object.
 	virtual void OnDrag() { /* user implementation */ }
 
-	template <typename TDerived, typename... TScripts>
-	friend class Script;
-};
-
-struct DropzoneScript : public impl::BaseScript<ScriptType::Dropzone> {
-	virtual ~DropzoneScript() = default;
-
 	virtual void OnDragEnter([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
 	virtual void OnDragLeave([[maybe_unused]] Entity dropzone) { /* user implementation */ }
@@ -228,13 +221,32 @@ struct DropzoneScript : public impl::BaseScript<ScriptType::Dropzone> {
 
 	virtual void OnDragOut([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
-	// Triggered when the user lets go (by releasing left click) of a draggable interactive object
-	// while over top of a dropzone interactive object.
+	// Triggered when the user lets go of (by releasing left click) a draggable interactive object
+	// while it overlaps with a dropzone interactive object.
 	virtual void OnDrop([[maybe_unused]] Entity dropzone) { /* user implementation */ }
 
 	// Triggered when the user picks up (by pressing left click) a draggable interactive object
-	// while over top of a dropzone interactive object.
+	// while it overlaps with a dropzone interactive object.
 	virtual void OnPickup([[maybe_unused]] Entity dropzone) { /* user implementation */ }
+
+	template <typename TDerived, typename... TScripts>
+	friend class Script;
+};
+
+struct DropzoneScript : public impl::BaseScript<ScriptType::Dropzone> {
+	virtual ~DropzoneScript() = default;
+
+	virtual void OnDraggableEnter([[maybe_unused]] Entity draggable) { /* user implementation */ }
+
+	virtual void OnDraggableLeave([[maybe_unused]] Entity draggable) { /* user implementation */ }
+
+	virtual void OnDraggableOver([[maybe_unused]] Entity draggable) { /* user implementation */ }
+
+	virtual void OnDraggableOut([[maybe_unused]] Entity draggable) { /* user implementation */ }
+
+	virtual void OnDraggableDrop([[maybe_unused]] Entity draggable) { /* user implementation */ }
+
+	virtual void OnDraggablePickup([[maybe_unused]] Entity draggable) { /* user implementation */ }
 
 	template <typename TDerived, typename... TScripts>
 	friend class Script;
@@ -484,10 +496,15 @@ bool Script<TDerived, TScripts...>::is_registered_ = Script<TDerived, TScripts..
 
 class Scripts {
 public:
+	// Will ClearActions after.
 	void InvokeActions() {
 		for (auto& action : actions_) {
 			std::invoke(action, *this);
 		}
+		ClearActions();
+	}
+
+	void ClearActions() {
 		actions_.clear();
 	}
 

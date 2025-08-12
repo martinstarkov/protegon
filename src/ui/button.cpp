@@ -1,6 +1,5 @@
 #include "ui/button.h"
 
-#include <cstdint>
 #include <functional>
 #include <list>
 #include <string>
@@ -17,7 +16,6 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "debug/log.h"
-#include "input/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/hash.h"
@@ -33,7 +31,6 @@
 #include "resources/resource_manager.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/scene_input.h"
 
 namespace ptgn {
 
@@ -489,7 +486,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 			return;
 		}
 
-		if (const std::string& content{ text_sprite.Get<TextContent>().GetValue() };
+		if (const std::string & content{ text_sprite.Get<TextContent>().GetValue() };
 			content.empty()) {
 			return;
 		}
@@ -543,8 +540,6 @@ Button& Button::SetEnabled(bool enabled) {
 	if (!enabled) {
 		auto& state{ Get<impl::InternalButtonState>() };
 		state = impl::InternalButtonState::IdleUp;
-	} else {
-		SceneInput::SimulateMouseMovement(*this);
 	}
 	return *this;
 }

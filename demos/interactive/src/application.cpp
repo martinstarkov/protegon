@@ -287,7 +287,7 @@ struct ScriptR2 : public Script<ScriptR2, KeyScript, MouseScript> {
 	*/
 };
 
-struct ScriptR3 : public Script<ScriptR3, KeyScript, MouseScript, DragScript, DropzoneScript> {
+struct ScriptR3 : public Script<ScriptR3, KeyScript, MouseScript, DragScript> {
 	/*
 	void OnDrag() override {
 		// PTGN_LOG("r3 Drag: ", mouse);
@@ -329,10 +329,10 @@ struct ScriptR3 : public Script<ScriptR3, KeyScript, MouseScript, DragScript, Dr
 	*/
 };
 
-struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript, DropzoneScript> {
+struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript> {
 	void OnDrag() override {
-		// PTGN_LOG("c3 Drag: ", mouse);
 		V2_float mouse{ game.input.GetMousePosition() };
+		// PTGN_LOG("c3 Drag: mouse: ", mouse, ", offset: ", entity.Get<Draggable>().offset);
 		GetPosition(entity) = mouse + entity.Get<Draggable>().offset;
 	}
 
