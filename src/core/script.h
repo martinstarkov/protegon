@@ -61,6 +61,8 @@ public:
 	virtual void Deserialize(const json& j) = 0;
 
 	constexpr virtual bool HasScriptType(ScriptType type) const = 0;
+
+	constexpr virtual std::size_t GetHash() const = 0;
 };
 
 // Script Registry to hold and create scripts
@@ -427,6 +429,11 @@ public:
 		}
 	}
 
+	constexpr std::size_t GetHash() const final {
+		constexpr auto name{ type_name<TDerived>() };
+		return Hash(name);
+	}
+
 private:
 	friend class Scripts;
 
@@ -508,8 +515,21 @@ public:
 		actions_.clear();
 	}
 
+	// Only add an action if the scripts container already has a script which listens to that type
+	// of action.
 	template <typename TInterface, typename... Args>
 	void AddAction(void (TInterface::*func)(Args...), Args... args) {
+		constexpr ScriptType type{ TInterface::GetScriptType() };
+		bool has_script{ false };
+		for (auto& script : scripts_) {
+			if (script->HasScriptType(type)) {
+				has_script = true;
+				break;
+			}
+		}
+		if (!has_script) {
+			return;
+		}
 		auto action{ MakeAction(func, std::forward<Args>(args)...) };
 		actions_.emplace_back(action);
 	}
@@ -540,9 +560,27 @@ public:
 		return s;
 	}
 
+	template <typename TScript>
+	[[nodiscard]] bool HasScript() const {
+		constexpr auto name{ type_name<TScript>() };
+		constexpr auto hash{ Hash(name) };
+		return std::ranges::any_of(scripts_, [](const auto& script) {
+			return script->GetHash() == hash;
+		});
+	}
+
+	template <typename TScript>
+	void RemoveScripts() {
+		constexpr auto name{ type_name<TScript>() };
+		constexpr auto hash{ Hash(name) };
+		auto it{ std::remove_if(scripts_.begin(), scripts_.end(), [](const auto& script) {
+			return script->GetHash() == hash;
+		}) };
+		scripts_.erase(it, scripts_.end());
+	}
+
 	// TODO: Implement.
-	/*template <typename TScript>
-	[[nodiscard]] bool HasScript() const { return false; }*/
+	/**/
 
 	// TODO: Implement.
 	/*template <typename T>
@@ -566,11 +604,6 @@ public:
 	template <typename T>
 	[[nodiscard]] T& GetScript() {
 		return const_cast<T&>(std::as_const(*this).template GetScript<T>());
-	}
-	template <typename T>
-	void RemoveScript() {
-		// TODO: When removing a script, we again retrieve all the enum types and remove from all
-	those maps.
 	}
 	friend void to_json(json& j, const ScriptContainer& container) {
 		if (container.scripts.empty()) {
@@ -731,6 +764,51 @@ T& AddScript(Entity& entity, TArgs&&... args) {
 	return script;
 }
 
+// Same as AddScript but no-op if script type exists on the entity.
+template <typename T, typename... TArgs>
+void TryAddScript(Entity& entity, TArgs&&... args) {
+	auto& scripts{ entity.TryAdd<Scripts>() };
+
+	if (scripts.HasScript<T>()) {
+		return;
+	}
+
+	auto& script{ scripts.AddScript<T>(std::forward<TArgs>(args)...) };
+
+	script.entity = entity;
+}
+
+/**
+ * @brief Checks whether a script of the specified type is attached to the entity.
+ *
+ * @tparam T The script type to check.
+ * @return True if the script exists, false otherwise.
+ */
+template <typename T>
+[[nodiscard]] bool HasScript(const Entity& entity) {
+	return entity.Has<Scripts>() && entity.Get<Scripts>().HasScript<T>();
+}
+
+/**
+ * @brief Removes the scripts of the specified type from the entity.
+ *
+ * @tparam T The script type to remove.
+ */
+template <typename T>
+void RemoveScripts(Entity& entity) {
+	if (!entity.Has<Scripts>()) {
+		return;
+	}
+
+	auto& scripts{ entity.Get<Scripts>() };
+
+	if (!scripts.HasScript<T>()) {
+		return;
+	}
+
+	scripts.RemoveScripts<T>();
+}
+
 //
 // template <auto TCallback, typename... TArgs>
 // void InvokeScript(const Entity& entity, TArgs&&... args) {
@@ -882,16 +960,6 @@ T& AddScript(Entity& entity, TArgs&&... args) {
 //	return const_cast<ScriptRepeatInfo&>(GetRepeatScriptInfo<T>(std::as_const(entity)));
 //}
 //
-///**
-// * @brief Checks whether a script of the specified type is attached to the entity.
-// *
-// * @tparam T The script type to check.
-// * @return True if the script exists, false otherwise.
-// */
-// template <typename T>
-//[[nodiscard]] bool HasScript(const Entity& entity) {
-//	return entity.Has<Scripts>() && entity.Get<Scripts>().HasScript<T>();
-//}
 //
 ///**
 // * @brief Retrieves a const reference to the script of the specified type.
@@ -919,64 +987,5 @@ T& AddScript(Entity& entity, TArgs&&... args) {
 //	return const_cast<T&>(GetScript<T>(std::as_const(entity)));
 //}
 //
-///**
-// * @brief Removes the script of the specified type from the entity.
-// *
-// * @tparam T The script type to remove.
-// */
-// template <typename T>
-// void RemoveScript(Entity& entity) {
-//	if (!entity.Has<Scripts>()) {
-//		return;
-//	}
-//
-//	auto& scripts{ entity.Get<Scripts>() };
-//
-//	if (!scripts.HasScript<T>()) {
-//		return;
-//	}
-//
-//	auto& script{ scripts.GetScript<T>() };
-//
-//	if (entity.Has<impl::ScriptTimers>()) {
-//		// TODO: Consider replacing with a different callback / hook for early timer stop?
-//		script.OnTimerStop();
-//
-//		auto& timers{ entity.Get<impl::ScriptTimers>().timers };
-//
-//		constexpr auto class_name{ type_name<T>() };
-//		constexpr auto hash{ Hash(class_name) };
-//
-//		timers.erase(hash);
-//
-//		if (timers.empty()) {
-//			entity.Remove<impl::ScriptTimers>();
-//		}
-//	}
-//
-//	if (entity.Has<impl::ScriptRepeats>()) {
-//		// TODO: Consider replacing with a different callback / hook for early repeat stop?
-//		script.OnRepeatStop();
-//
-//		auto& repeats{ entity.Get<impl::ScriptRepeats>().repeats };
-//
-//		constexpr auto class_name{ type_name<T>() };
-//		constexpr auto hash{ Hash(class_name) };
-//
-//		repeats.erase(hash);
-//
-//		if (repeats.empty()) {
-//			entity.Remove<impl::ScriptRepeats>();
-//		}
-//	}
-//
-//	script.OnDestroy();
-//
-//	scripts.RemoveScript<T>();
-//
-//	if (scripts.IsEmpty()) {
-//		entity.Remove<Scripts>();
-//	}
-//}
 
 } // namespace ptgn
