@@ -34,7 +34,7 @@
 // }
 //
 // void DataPoints::SortAscendingByX() {
-//	std::sort(points.begin(), points.end(), [](const V2_float& a, const V2_float& b) {
+//	std::ranges::sort(points, [](const V2_float& a, const V2_float& b) {
 //		return a.x < b.x;
 //	});
 // }

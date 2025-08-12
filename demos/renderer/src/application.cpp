@@ -103,7 +103,7 @@ std::vector<std::vector<std::size_t>> GenerateNumberPermutations(std::size_t N) 
 		GenerateCombinations(base, k, 0, current_comb, combinations);
 
 		for (auto& combo : combinations) {
-			std::sort(combo.begin(), combo.end());
+			std::ranges::sort(combo);
 			do {
 				all_permutations.push_back(combo);
 			} while (std::next_permutation(combo.begin(), combo.end()));

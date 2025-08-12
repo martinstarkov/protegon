@@ -254,24 +254,19 @@ void CollisionHandler::SortCollisions(std::vector<SweepCollision>& collisions) {
 	 *   x   x
 	 * (player would stay still instead of moving down if this distance sort did not exist).
 	 */
-	std::sort(
-		collisions.begin(), collisions.end(),
-		[](const SweepCollision& a, const SweepCollision& b) { return a.dist2 < b.dist2; }
-	);
+	std::ranges::sort(collisions, [](const SweepCollision& a, const SweepCollision& b) {
+		return a.dist2 < b.dist2;
+	});
 	// Sort based on collision times, and if they are equal, by collision normal magnitudes.
-	std::sort(
-		collisions.begin(), collisions.end(),
-		[](const SweepCollision& a, const SweepCollision& b) {
-			// If time of collision are equal, prioritize walls to corners, i.e. normals
-			// (1,0) come before (1,1).
-			if (a.collision.t == b.collision.t) {
-				return a.collision.normal.MagnitudeSquared() <
-					   b.collision.normal.MagnitudeSquared();
-			}
-			// If collision times are not equal, sort by collision time.
-			return a.collision.t < b.collision.t;
+	std::ranges::sort(collisions, [](const SweepCollision& a, const SweepCollision& b) {
+		// If time of collision are equal, prioritize walls to corners, i.e. normals
+		// (1,0) come before (1,1).
+		if (a.collision.t == b.collision.t) {
+			return a.collision.normal.MagnitudeSquared() < b.collision.normal.MagnitudeSquared();
 		}
-	);
+		// If collision times are not equal, sort by collision time.
+		return a.collision.t < b.collision.t;
+	});
 }
 
 V2_float CollisionHandler::GetRemainingVelocity(

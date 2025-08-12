@@ -239,7 +239,7 @@ void KDTree::PartialUpdate() {
 
 	// 3) Split all touched leaves (and recursively if children need splitting)
 	// We deduplicate touched leaves
-	std::sort(touched_leaves.begin(), touched_leaves.end());
+	std::ranges::sort(touched_leaves);
 	touched_leaves.erase(
 		std::unique(touched_leaves.begin(), touched_leaves.end()), touched_leaves.end()
 	);
