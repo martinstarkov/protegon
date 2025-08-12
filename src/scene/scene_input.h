@@ -1,13 +1,12 @@
 #pragma once
 
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "components/interactive.h"
 #include "core/entity.h"
-#include "input/mouse.h"
 #include "math/vector2.h"
+#include "renderer/api/color.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -17,7 +16,8 @@ class Camera;
 class Button;
 
 struct MouseInfo {
-	MouseInfo();
+	MouseInfo() = default;
+	explicit MouseInfo(bool);
 
 	V2_int position;
 	V2_int scroll_delta;
@@ -40,19 +40,6 @@ public:
 	// If set to true, only the interactables in the scene will be triggered, i.e. if there are two
 	// button on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only);
-
-	// @return Mouse position relative to the top left of the scene camera.
-	[[nodiscard]] V2_float GetMousePosition() const;
-
-	// @return Mouse position during the previous frame relative to the top left of the scene
-	// camera.
-	[[nodiscard]] V2_float GetMousePositionPrevious() const;
-
-	// @return Mouse position difference between the current and previous frames relative to the top
-	// left of the scene camera.
-	[[nodiscard]] V2_float GetMouseDifference() const;
-
-	[[nodiscard]] V2_float TransformToCamera(const V2_float& screen_position) const;
 
 	void SetDrawInteractives(bool draw_interactives);
 
@@ -126,23 +113,20 @@ private:
 		CallbackTrigger trigger
 	);
 
-	void Update(Scene& scene, const MouseInfo& mouse_state);
+	void Update(Scene& scene);
 
 	void Init(std::size_t scene_key);
 	void Shutdown();
 
 	std::vector<Entity> GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state) const;
 	static std::vector<Entity> GetDropzones(Scene& scene);
-	void DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse);
-	void UpdateMouseOverStates(const std::vector<Entity>& current);
+	void DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse) const;
+	void UpdateMouseOverStates(const std::vector<Entity>& current) const;
 	void HandleDragging(
 		const std::vector<Entity>& over, const std::vector<Entity>& dropzones,
 		const MouseInfo& mouse
 	);
-	void HandleDropzones(
-		const std::vector<Entity>& mouse_over, const std::vector<Entity>& dropzones,
-		const MouseInfo& mouse
-	);
+	void HandleDropzones(const std::vector<Entity>& dropzones, const MouseInfo& mouse);
 
 	// TODO: Add to serialization.
 
@@ -155,6 +139,9 @@ private:
 	bool top_only_{ false };
 
 	bool draw_interactives_{ false };
+
+	constexpr static Color draw_interactive_color_{ color::Magenta };
+	constexpr static float draw_interactive_line_width_{ 1.0f };
 
 public:
 	// TODO: Potentially move away from serializing the entity vectors.

@@ -1,6 +1,8 @@
 #include "scene/scene_input.h"
 
 #include <algorithm>
+#include <functional>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -22,24 +24,17 @@
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
+#include "physics/collision/bounding_aabb.h"
 #include "physics/collision/broadphase.h"
+#include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 #include "utility/span.h"
 
-// TODO: Ensure that entities are alive and interactable, etc, after each script hook is
-// called in case the hook deletes or removes components from itself.
-// Also check for this issue for other script hooks, e.g. buttons.
-
-// TODO: Fix dropzone triggers.
-
-// TODO: Fix top only mode.
-
 namespace ptgn {
 
-MouseInfo::MouseInfo() :
+MouseInfo::MouseInfo(bool) :
 	position{ game.input.GetMousePosition() },
 	scroll_delta{ game.input.GetMouseScroll() },
 	left_pressed{ game.input.MousePressed(Mouse::Left) },
@@ -136,21 +131,55 @@ std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseI
 	const {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
+
+	struct EntityInfo {
+		Transform absolute_transform;
+		std::vector<std::pair<Shape, Entity>> shapes;
+	};
+
+	std::unordered_map<Entity, EntityInfo> entity_shapes;
+
 	for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
 		auto transform{ GetAbsoluteTransform(entity) };
 		std::vector<std::pair<Shape, Entity>> shapes;
 		GetShapes(entity, entity, shapes);
-		for (auto [shape, _] : shapes) {
+		entity_shapes.try_emplace(entity, transform, shapes);
+		for (const auto& [shape, _] : shapes) {
+			if (draw_interactives_) {
+				DrawDebugShape(
+					transform, shape, draw_interactive_color_, draw_interactive_line_width_
+				);
+			}
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
 		}
 	}
 	tree.Build(objects);
-	// 2. Get entities under mouse using KD-tree
-	auto under_mouse = tree.Query(mouse_state.position);
+
+	// Broadphase check.
+	auto candidates{ tree.Query(mouse_state.position) };
+
+	// PTGN_LOG("Mouse: ", mouse_state.position);
+
+	std::vector<Entity> under_mouse;
+	under_mouse.reserve(candidates.size());
+
+	for (const auto& entity : candidates) {
+		auto it{ entity_shapes.find(entity) };
+		PTGN_ASSERT(
+			it != entity_shapes.end(), "Entity cannot be candidate in broadphase without a shape"
+		);
+		const auto& transform{ it->second.absolute_transform };
+		const auto& shapes{ it->second.shapes };
+		for (const auto& [shape, _] : shapes) {
+			if (Overlap(mouse_state.position, transform, shape)) {
+				under_mouse.emplace_back(entity);
+			}
+		}
+	}
 
 	if (top_only_ && !under_mouse.empty()) {
 		// Find the draggable with the highest depth.
-		auto draggable_it = std::ranges::max_element(under_mouse, EntityDepthCompare{ true });
+		auto draggable_it{ std::ranges::max_element(under_mouse, EntityDepthCompare{ true }) };
 
 		// If no draggable is found, find the interactive entity with the highest depth.
 		if (!draggable_it->Has<Draggable>()) {
@@ -169,7 +198,7 @@ std::vector<Entity> SceneInput::GetDropzones(Scene& scene) {
 }
 
 // Called every frame
-void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) {
+void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const {
 	for (Entity e : current) {
 		if (!e.Has<Scripts>()) {
 			continue;
@@ -189,7 +218,8 @@ void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) {
 	}
 }
 
-void SceneInput::DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse) {
+void SceneInput::DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse)
+	const {
 	for (Entity e : over) {
 		if (!e.Has<Scripts>()) {
 			continue;
@@ -397,10 +427,7 @@ void SceneInput::CleanupDropzones(const std::vector<Entity>& dropzones) {
 	}
 }
 
-void SceneInput::HandleDropzones(
-	const std::vector<Entity>& mouse_over, const std::vector<Entity>& dropzones,
-	const MouseInfo& mouse
-) {
+void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const MouseInfo& mouse) {
 	// 1. Compute which dropzones each dragged entity is currently over
 	for (Entity dragging : dragging_entities_) {
 		if (!dragging.Has<Draggable>()) {
@@ -489,23 +516,31 @@ void SceneInput::HandleDropzones(
 	}
 }
 
-void SceneInput::Update(Scene& scene, const MouseInfo& mouse_state) {
+void SceneInput::Update(Scene& scene) {
+	MouseInfo mouse_state{ true };
+	const Transform camera_transform{ scene.camera.primary.GetTransform() };
+
+	mouse_state.position = ToWorldPoint(mouse_state.position, camera_transform);
+
+	if (draw_interactives_) {
+		DrawDebugPoint(mouse_state.position, draw_interactive_color_);
+	}
+
 	auto under_mouse{ GetEntitiesUnderMouse(scene, mouse_state) };
 	auto dropzones{ GetDropzones(scene) };
 	// PTGN_LOG(under_mouse.size());
 
-	// Run mouse enter/leave logic
 	UpdateMouseOverStates(under_mouse);
 
-	// Run input event dispatch
 	DispatchMouseEvents(under_mouse, mouse_state);
 
-	// Handle drag + drop
 	HandleDragging(under_mouse, dropzones, mouse_state);
 
 	if (IsAnyDragging()) {
-		HandleDropzones(under_mouse, dropzones, mouse_state);
+		HandleDropzones(dropzones, mouse_state);
 	}
+
+	// TODO: Move action invocations to separate functions:
 
 	const auto invoke_actions = [](auto& entity) {
 		if (!entity.Has<Scripts>() || !entity.IsAlive()) {
@@ -549,26 +584,8 @@ void SceneInput::Update(Scene& scene, const MouseInfo& mouse_state) {
 	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
 
 	CleanupDropzones(dropzones);
-}
 
-// @return Null entity if entities is empty.
-Entity GetTopEntity(const std::vector<Entity>& entities) {
-	if (entities.empty()) {
-		return {};
-	}
-
-	auto max_it{ std::max_element(entities.begin(), entities.end(), EntityDepthCompare{}) };
-
-	return *max_it;
-}
-
-// Sets a vector to only contain its top entity.
-void SetTopEntity(std::vector<Entity>& entities) {
-	auto top{ GetTopEntity(entities) };
-	entities.clear();
-	if (top) {
-		entities.emplace_back(top);
-	}
+	scene.Refresh();
 }
 
 void SceneInput::Init(std::size_t scene_key) {
@@ -581,38 +598,16 @@ void SceneInput::Init(std::size_t scene_key) {
 }
 
 void SceneInput::Shutdown() {
-	auto& scene{ game.scene.Get<Scene>(scene_key_) };
-
 	top_only_		   = false;
-	draw_interactives_ = true;
+	draw_interactives_ = false;
 }
 
 void SceneInput::SetTopOnly(bool top_only) {
 	top_only_ = top_only;
 }
 
-V2_float SceneInput::TransformToCamera(const V2_float& screen_position) const {
-	auto& scene{ game.scene.Get<Scene>(scene_key_) };
-	if (scene.camera.primary && scene.camera.primary.Has<impl::CameraInfo>()) {
-		return scene.camera.primary.TransformToCamera(screen_position);
-	}
-	return screen_position;
-}
-
 void SceneInput::SetDrawInteractives(bool draw_interactives) {
 	draw_interactives_ = draw_interactives;
-}
-
-V2_float SceneInput::GetMousePosition() const {
-	return TransformToCamera(game.input.GetMousePosition());
-}
-
-V2_float SceneInput::GetMousePositionPrevious() const {
-	return TransformToCamera(game.input.GetMousePositionPrevious());
-}
-
-V2_float SceneInput::GetMouseDifference() const {
-	return TransformToCamera(game.input.GetMouseDifference());
 }
 
 } // namespace ptgn
