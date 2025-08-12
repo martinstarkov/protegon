@@ -6,6 +6,7 @@
 
 #include "components/transform.h"
 #include "core/entity.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "math/easing.h"
 #include "math/matrix4.h"
@@ -143,10 +144,16 @@ private:
 	V2_float size;
 };
 
+struct CameraResizeScript : public Script<CameraResizeScript, WindowScript> {
+	void OnWindowResized() override;
+};
+
 } // namespace impl
 
 class Camera : public Entity {
 public:
+	[[nodiscard]] Transform GetTransform() const;
+
 	/**
 	 * @brief Translates the camera to a target position over a specified duration.
 	 *
@@ -287,25 +294,7 @@ public:
 	// size and position of the camera.
 	void CenterOnArea(const V2_float& size);
 
-	// Transforms a window relative pixel size to being relative to the camera.
-	// @param screen_relative_size The size to be scaled.
-	[[nodiscard]] V2_float ScaleToCamera(const V2_float& screen_relative_size) const;
-	[[nodiscard]] float ScaleToCamera(float screen_relative_size) const;
-
-	// Transforms a camera relative world size to being relative to the screen (pixels).
-	// @param camera_relative_size The size to be scaled.
-	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
-	[[nodiscard]] float ScaleToScreen(float camera_relative_size) const;
-
-	// Transforms a window relative pixel coordinate to being relative to the camera.
-	// @param screen_relative_coordinate The coordinate to be transformed.
-	[[nodiscard]] V2_float TransformToCamera(const V2_float& screen_relative_coordinate) const;
-
-	// Transforms a camera relative pixel coordinate to being relative to the screen.
-	// @param camera_relative_coordinate The coordinate to be transformed.
-	[[nodiscard]] V2_float TransformToScreen(const V2_float& camera_relative_coordinate) const;
-
-	[[nodiscard]] std::array<V2_float, 4> GetVertices(const V2_float& scale = { 1.0f, 1.0f }) const;
+	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
 	// @param account_for_zoom If true, divides the camera size by its zoom.
 	[[nodiscard]] V2_float GetSize(bool account_for_zoom = false) const;
@@ -418,6 +407,7 @@ public:
 	[[nodiscard]] V2_float ZoomIfNeeded(const V2_float& zoomed_coordinate) const;
 
 protected:
+	friend struct impl::CameraResizeScript;
 	friend class CameraManager;
 	friend Camera impl::CreateCamera(const Entity& entity);
 
@@ -443,7 +433,7 @@ protected:
 
 	void RefreshBounds();
 
-	void OnWindowResize(V2_float size);
+	static void OnWindowResize(Camera camera, V2_float size);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {

@@ -573,7 +573,7 @@ void RenderData::SetCameraVertices(const std::array<V2_float, 4>& positions, con
 }
 
 void RenderData::SetCameraVertices(const Camera& camera) {
-	SetCameraVertices(camera.GetVertices(), GetDepth(camera));
+	SetCameraVertices(camera.GetWorldVertices(), GetDepth(camera));
 }
 
 void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
