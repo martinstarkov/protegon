@@ -173,7 +173,7 @@ private:
 
 	void Prepare();
 	void ProcessInputEvents();
-	void DispatchInputEvents(Scene& scene);
+	void InvokeInputEvents(Scene& scene);
 
 	InputQueue queue_;
 };
