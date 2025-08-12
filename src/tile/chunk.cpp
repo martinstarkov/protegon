@@ -116,7 +116,7 @@ ChunkManager::~ChunkManager() {
 void ChunkManager::GetBounds(
 	V2_int& out_min, V2_int& out_max, const Camera& camera, const V2_int& chunk_padding
 ) const {
-	auto cam_rect{ camera.GetVertices() };
+	auto cam_rect{ camera.GetWorldVertices() };
 
 	auto chunk_pixel_size{ tile_size * chunk_size };
 
