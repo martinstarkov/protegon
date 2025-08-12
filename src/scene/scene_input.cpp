@@ -123,6 +123,14 @@ bool Overlap(const Entity& entityA, const Entity& entityB) {
 	return false;
 }
 
+bool SceneInput::IsDragging(const Entity& e) const {
+	return dragging_entities_.contains(e);
+}
+
+bool SceneInput::IsAnyDragging() const {
+	return !dragging_entities_.empty();
+}
+
 std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state) {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
@@ -211,17 +219,58 @@ void SceneInput::DispatchMouseEvents(const std::vector<Entity>& over, const Mous
 	}
 }
 
+bool SceneInput::IsOverlappingDropzone(
+	const V2_float& mouse_position, const Entity& draggable, const Entity& dropzone,
+	CallbackTrigger trigger
+) {
+	bool is_overlapping{ false };
+	switch (trigger) {
+		case CallbackTrigger::MouseOverlaps: {
+			is_overlapping = Overlap(mouse_position, dropzone);
+			break;
+		}
+		case CallbackTrigger::CenterOverlaps: {
+			PTGN_ASSERT(
+				draggable.GetCamera() == dropzone.GetCamera(),
+				"Dropzone entity and drag entity must share the same camera"
+			);
+			auto center{ GetAbsolutePosition(draggable) };
+			is_overlapping = Overlap(center, dropzone);
+			break;
+		}
+		case CallbackTrigger::Overlaps: {
+			PTGN_ASSERT(
+				draggable.GetCamera() == dropzone.GetCamera(),
+				"Dropzone entity and drag entity must share the same camera"
+			);
+			is_overlapping = Overlap(draggable, dropzone);
+			break;
+		}
+		case CallbackTrigger::Contains:
+			// TODO: Implement.
+			PTGN_ERROR("Unimplemented drop trigger");
+			break;
+		case CallbackTrigger::None: break;
+		default:					PTGN_ERROR("Unrecognized drop trigger");
+	}
+	return is_overlapping;
+}
+
 void SceneInput::HandleDragging(
 	const std::vector<Entity>& over, const std::vector<Entity>& dropzones, const MouseInfo& mouse
 ) {
 	// Start dragging
 	if (mouse.left_down) {
 		for (Entity dragging : over) {
-			if (dragging_entities.contains(dragging)) {
+			if (!dragging.Has<Draggable>()) {
+				continue;
+			}
+
+			if (dragging_entities_.contains(dragging)) {
 				continue; // Already dragging this
 			}
 
-			dragging_entities[dragging].drag_start_position = mouse.position;
+			dragging_entities_.emplace(dragging);
 
 			auto scripts{ dragging.TryGet<Scripts>() };
 
@@ -229,27 +278,28 @@ void SceneInput::HandleDragging(
 				scripts->AddAction(&DragScript::OnDragStart, mouse.position);
 			}
 
-			// Pickup event for any dropzones that the dragging object overlaps.
 			for (Entity dropzone : dropzones) {
+				PTGN_ASSERT((dropzone.Has<Dropzone, Interactive>()));
 				if (dropzone == dragging) {
 					continue;
 				}
-				if (!dropzone.Has<Dropzone, Interactive>()) {
-					continue;
-				}
-				if (!Overlap(dragging, dropzone)) {
-					continue;
-				}
-				if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggablePickup, dragging);
-				}
-				if (scripts) {
-					scripts->AddAction(&DragScript::OnPickup, dropzone);
-				}
-			}
 
-			if (!dragging.Has<Draggable>()) {
-				continue;
+				AddDropzoneActions<DropzoneAction::Pickup>(
+					dragging, dropzone, mouse.position,
+					[&]() {
+						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
+							dropzone_scripts->AddAction(
+								&DropzoneScript::OnDraggablePickup, dragging
+							);
+						}
+					},
+					[&]() {
+						if (scripts) {
+							scripts->AddAction(&DragScript::OnPickup, dropzone);
+						}
+					},
+					[]() {}
+				);
 			}
 
 			auto& draggable{ dragging.Get<Draggable>() };
@@ -262,8 +312,10 @@ void SceneInput::HandleDragging(
 
 	// Continue dragging
 	if (mouse.left_pressed || mouse.left_down) {
-		for (auto& pair : dragging_entities) {
-			auto dragging{ pair.first };
+		for (Entity dragging : dragging_entities_) {
+			if (!dragging.Has<Draggable>()) {
+				continue;
+			}
 			auto scripts{ dragging.TryGet<Scripts>() };
 
 			if (scripts) {
@@ -274,8 +326,11 @@ void SceneInput::HandleDragging(
 
 	// Stop dragging
 	if (mouse.left_up) {
-		for (auto& pair : dragging_entities) {
-			auto dragging{ pair.first };
+		for (Entity dragging : dragging_entities_) {
+			if (!dragging.Has<Draggable>()) {
+				continue;
+			}
+
 			auto scripts{ dragging.TryGet<Scripts>() };
 
 			if (scripts) {
@@ -283,26 +338,25 @@ void SceneInput::HandleDragging(
 			}
 
 			for (Entity dropzone : dropzones) {
+				PTGN_ASSERT((dropzone.Has<Dropzone, Interactive>()));
 				if (dropzone == dragging) {
 					continue;
 				}
-				if (!dropzone.Has<Dropzone, Interactive>()) {
-					continue;
-				}
-				// TODO: Add DropzoneTrigger nuance here.
-				if (!Overlap(dragging, dropzone)) {
-					continue;
-				}
-				if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableDrop, dragging);
-				}
-				if (scripts) {
-					scripts->AddAction(&DragScript::OnDrop, dropzone);
-				}
-			}
 
-			if (!dragging.Has<Draggable>()) {
-				continue;
+				AddDropzoneActions<DropzoneAction::Drop>(
+					dragging, dropzone, mouse.position,
+					[&]() {
+						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
+							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableDrop, dragging);
+						}
+					},
+					[&]() {
+						if (scripts) {
+							scripts->AddAction(&DragScript::OnDrop, dropzone);
+						}
+					},
+					[]() {}
+				);
 			}
 
 			auto& draggable{ dragging.Get<Draggable>() };
@@ -310,7 +364,7 @@ void SceneInput::HandleDragging(
 			draggable.start	   = {};
 			draggable.offset   = {};
 		}
-		dragging_entities.clear(); // End all drags
+		dragging_entities_.clear(); // End all drags
 	}
 }
 
@@ -318,63 +372,66 @@ void SceneInput::HandleDropzones(
 	const std::vector<Entity>& mouse_over, const std::vector<Entity>& dropzones,
 	const MouseInfo& mouse
 ) {
-	// TODO: Fix dropzones.
-
-	std::unordered_map<Entity, std::unordered_set<Entity>> current_dragged_dropzones;
-
 	// 1. Compute which dropzones each dragged entity is currently over
-	for (auto& pair : dragging_entities) {
-		auto dragging{ pair.first };
-		std::unordered_set<Entity> over_now;
+	for (Entity dragging : dragging_entities_) {
+		if (!dragging.Has<Draggable>()) {
+			continue;
+		}
 		auto scripts{ dragging.TryGet<Scripts>() };
 
+		auto& draggable{ dragging.Get<Draggable>() };
+		draggable.dropzones = {};
+
 		for (Entity dropzone : dropzones) {
-			if (!dropzone.Has<Dropzone, Interactive>()) {
-				continue;
-			}
+			PTGN_ASSERT((dropzone.Has<Dropzone, Interactive>()));
 			if (dragging == dropzone) {
 				continue;
 			}
-			// TODO: Add DropzoneTrigger nuance here.
-			if (!Overlap(dragging, dropzone)) {
-				continue;
-			}
-			over_now.insert(dropzone);
 
-			// Wasn't over this last frame -> Enter
-			if (!last_dragged_dropzones[dragging].contains(dropzone)) {
-				if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableEnter, dragging);
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOver, dragging);
-				}
-				if (scripts) {
-					scripts->AddAction(&DragScript::OnDragEnter, dropzone);
-					scripts->AddAction(&DragScript::OnDragOver, dropzone);
-				}
-			} else {
-				if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOver, dragging);
-				}
-				if (scripts) {
-					scripts->AddAction(&DragScript::OnDragOver, dropzone);
-				}
-			}
+			bool entered{ !draggable.last_dropzones_.contains(dropzone) };
+
+			AddDropzoneActions<DropzoneAction::Move>(
+				dragging, dropzone, mouse.position,
+				[&]() {
+					if (entered) {
+						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
+							dropzone_scripts->AddAction(
+								&DropzoneScript::OnDraggableEnter, dragging
+							);
+							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOver, dragging);
+						}
+					} else {
+						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
+							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOver, dragging);
+						}
+					}
+				},
+				[&]() {
+					if (entered) {
+						if (scripts) {
+							scripts->AddAction(&DragScript::OnDragEnter, dropzone);
+							scripts->AddAction(&DragScript::OnDragOver, dropzone);
+						}
+					} else {
+						if (scripts) {
+							scripts->AddAction(&DragScript::OnDragOver, dropzone);
+						}
+					}
+				},
+				[&]() { draggable.dropzones.emplace(dropzone); }
+			);
 		}
 
 		// 2. Handle leaving dropzones
-		for (Entity last_dropzone : last_dragged_dropzones[dragging]) {
-			// Rare edge case where a dropzone has its Dropzone component removed before it is
-			// left. Consider what behavior makes sense here. Should OnDragLeave be dispatched
-			// regardless of if the entity is still a dropzone?
-			// if (!last.Has<Dropzone, Interactive>()) {
-			//	continue;
-			// }
+		for (Entity last_dropzone : draggable.last_dropzones_) {
 			if (dragging == last_dropzone) {
 				continue;
 			}
-			if (!over_now.contains(last_dropzone)) {
-				if (auto dropzone_scripts{ last_dropzone.TryGet<Scripts>() }) {
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableLeave, dragging);
+			if (!draggable.dropzones.contains(last_dropzone)) {
+				if (last_dropzone.Has<Dropzone, Interactive>()) {
+					if (auto dropzone_scripts{ last_dropzone.TryGet<Scripts>() }) {
+						dropzone_scripts->AddAction(&DropzoneScript::OnDraggableLeave, dragging);
+					}
 				}
 				if (scripts) {
 					scripts->AddAction(&DragScript::OnDragLeave, last_dropzone);
@@ -384,14 +441,11 @@ void SceneInput::HandleDropzones(
 
 		// 3. Always call DragOut if not currently over a dropzone
 		for (Entity dropzone : dropzones) {
-			if (!dropzone.Has<Dropzone, Interactive>()) {
-				continue;
-			}
-
+			PTGN_ASSERT((dropzone.Has<Dropzone, Interactive>()));
 			if (dragging == dropzone) {
 				continue;
 			}
-			if (!over_now.contains(dropzone)) {
+			if (!draggable.dropzones.contains(dropzone)) {
 				if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
 					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOut, dragging);
 				}
@@ -401,12 +455,9 @@ void SceneInput::HandleDropzones(
 			}
 		}
 
-		// Store current for next frame
-		current_dragged_dropzones[dragging] = std::move(over_now);
+		// Store current for next frame.
+		draggable.last_dropzones_ = draggable.dropzones;
 	}
-
-	// Update the last set
-	last_dragged_dropzones = std::move(current_dragged_dropzones);
 }
 
 void SceneInput::Update(Scene& scene, const MouseInfo& mouse_state) {
@@ -441,33 +492,32 @@ void SceneInput::Update(Scene& scene, const MouseInfo& mouse_state) {
 		}
 	};
 
-	auto last{ last_mouse_over_ };
-	auto dragging{ dragging_entities };
-
-	// Save for next frame
-	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
-
-	for (Entity entity : last) {
+	for (Entity entity : last_mouse_over_) {
 		std::invoke(invoke_actions, entity);
 	}
 
 	for (Entity entity : dropzones) {
-		if (entity.Has<Dropzone>()) {
+		if (!entity.Has<Dropzone>()) {
 			continue;
 		}
 		std::invoke(invoke_actions, entity);
 	}
 
-	for (auto& [entity, _] : dragging) {
-		if (entity.Has<Draggable>()) {
+	for (Entity dragging : dragging_entities_) {
+		if (!dragging.Has<Draggable>()) {
 			continue;
 		}
-		std::invoke(invoke_actions, entity);
+		std::invoke(invoke_actions, dragging);
 	}
 
 	for (Entity entity : under_mouse) {
 		std::invoke(invoke_actions, entity);
 	}
+
+	std::erase_if(dragging_entities_, [](const auto& entity) { return !entity.Has<Draggable>(); });
+
+	// Save for next frame.
+	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
 }
 
 // @return Null entity if entities is empty.
@@ -488,56 +538,6 @@ void SetTopEntity(std::vector<Entity>& entities) {
 	if (top) {
 		entities.emplace_back(top);
 	}
-}
-
-bool IsOverlappingDropzone(
-	const Entity& entity, const V2_float& world_pointer, const Entity& dropzone_entity,
-	const Dropzone& dropzone
-) {
-	bool is_overlapping{ false };
-	switch (dropzone.trigger) {
-		case DropTrigger::MouseOverlaps: {
-			is_overlapping = Overlap(world_pointer, dropzone_entity);
-			break;
-		}
-		case DropTrigger::CenterOverlaps: {
-			PTGN_ASSERT(
-				entity.GetCamera() == dropzone_entity.GetCamera(),
-				"Dropzone entity and drag entity must share the same camera"
-			);
-			is_overlapping = Overlap(GetAbsolutePosition(entity), dropzone_entity);
-			break;
-		}
-		case DropTrigger::Overlaps: {
-			PTGN_ASSERT(
-				entity.GetCamera() == dropzone_entity.GetCamera(),
-				"Dropzone entity and drag entity must share the same camera"
-			);
-			is_overlapping = Overlap(entity, dropzone_entity);
-			break;
-		}
-		case DropTrigger::Contains:
-			// TODO: Implement.
-			PTGN_ERROR("Unimplemented drop trigger");
-			break;
-		default: PTGN_ERROR("Unrecognized drop trigger");
-	}
-	return is_overlapping;
-}
-
-std::vector<Entity> SceneInput::GetOverlappingDropzones(
-	Scene& scene, const Entity& entity, const V2_float& world_pointer
-) {
-	std::vector<Entity> overlapping_dropzones;
-
-	for (auto [dropzone_entity, dropzone_interactive, dropzone] :
-		 scene.InternalEntitiesWith<Interactive, Dropzone>()) {
-		if (IsOverlappingDropzone(entity, world_pointer, dropzone_entity, dropzone)) {
-			overlapping_dropzones.emplace_back(dropzone_entity);
-		}
-	}
-
-	return overlapping_dropzones;
 }
 
 void SceneInput::Init(std::size_t scene_key) {

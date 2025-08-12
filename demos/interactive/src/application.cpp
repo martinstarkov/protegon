@@ -369,11 +369,11 @@ struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript> {
 	}
 
 	void OnDragOut(Entity dropzone) override {
-		PTGN_LOG("c3 Drag out: ", dropzone.GetId());
+		// PTGN_LOG("c3 Drag out: ", dropzone.GetId());
 	}
 
 	void OnDragOver(Entity dropzone) override {
-		PTGN_LOG("c3 Drag over: ", dropzone.GetId());
+		// PTGN_LOG("c3 Drag over: ", dropzone.GetId());
 	}
 
 	void OnDragStart(V2_int start_position) override {
@@ -443,7 +443,7 @@ struct InteractiveScene : public Scene {
 		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);
 		AddInteractable(r4, r4_child);
-		r4.Add<Dropzone>().trigger = DropTrigger::MouseOverlaps;
+		r4.Add<Dropzone>();
 
 		PTGN_LOG("Dropzone id: ", r4.GetId());
 
@@ -458,7 +458,7 @@ struct InteractiveScene : public Scene {
 		auto c3		  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
 		auto c3_child = CreateCircle(*this, {}, c3.GetDisplaySize().x * 0.5f, color::Magenta, 1.0f);
 		AddInteractable(c3, c3_child);
-		c3.Add<Draggable>();
+		c3.Add<Draggable>(); //.SetTrigger(CallbackTrigger::MouseOverlaps);
 		AddScript<ScriptC3>(c3);
 
 		PTGN_LOG("Circle drag id: ", c3.GetId());
