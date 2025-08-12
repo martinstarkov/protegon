@@ -41,6 +41,15 @@ struct BoundingAABB {
 			max.x < other.min.x || min.x > other.max.x || max.y < other.min.y || min.y > other.max.y
 		);
 	}
+
+	[[nodiscard]] bool Overlaps(const V2_float& point) const {
+		return !(max.x < point.x || min.x > point.x || max.y < point.y || min.y > point.y);
+	}
+};
+
+enum class KDAxis {
+	X = 0,
+	Y = 1
 };
 
 struct KDObject {
@@ -48,11 +57,12 @@ struct KDObject {
 	BoundingAABB aabb;
 	// "deleted" flag for lazy removals used inside partial updates
 	bool deleted{ false };
-};
 
-enum class KDAxis {
-	X = 0,
-	Y = 1
+	[[nodiscard]] float GetCenter(KDAxis axis) const {
+		float center = (axis == KDAxis::X) ? ((aabb.min.x + aabb.max.x) * 0.5f)
+										   : ((aabb.min.y + aabb.max.y) * 0.5f);
+		return center;
+	}
 };
 
 struct KDNode {
@@ -160,7 +170,21 @@ public:
 
 	std::vector<Entity> Query(const BoundingAABB& region) const {
 		std::vector<Entity> result;
-		Query(root.get(), region, result);
+		Traverse(root.get(), [&](const KDObject& obj) {
+			if (obj.aabb.Overlaps(region)) {
+				result.emplace_back(obj.entity);
+			}
+		});
+		return result;
+	}
+
+	std::vector<Entity> Query(const V2_float& point) const {
+		std::vector<Entity> result;
+		Traverse(root.get(), [&](const KDObject& obj) {
+			if (obj.aabb.Overlaps(point)) {
+				result.emplace_back(obj.entity);
+			}
+		});
 		return result;
 	}
 
@@ -168,15 +192,36 @@ public:
 		const {
 		std::vector<Entity> hits;
 		Rect rect{ aabb.min, aabb.max };
-		Raycast(entity, root.get(), dir, rect, hits);
+		Traverse(root.get(), [&](const KDObject& obj) {
+			if (obj.entity == entity) {
+				return;
+			}
+			auto raycast{ ptgn::impl::RaycastRectRect(
+				dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
+			) };
+			if (raycast.Occurred()) {
+				hits.emplace_back(obj.entity);
+			}
+		});
 		return hits;
 	}
 
 	Entity RaycastFirst(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb) const {
-		Entity closest_hit{};
-		float closest_t = 1.0f;
+		Entity closest_hit;
+		float closest_t{ 1.0f };
 		Rect rect{ aabb.min, aabb.max };
-		RaycastFirst(entity, root.get(), dir, rect, closest_t, closest_hit);
+		Traverse(root.get(), [&](const KDObject& obj) {
+			if (obj.entity == entity) {
+				return;
+			}
+			auto raycast{ ptgn::impl::RaycastRectRect(
+				dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
+			) };
+			if (raycast.Occurred() && raycast.t < closest_t) {
+				closest_t	= raycast.t;
+				closest_hit = obj.entity;
+			}
+		});
 		return closest_hit;
 	}
 
@@ -188,107 +233,47 @@ private:
 	std::size_t max_objects_per_node{ 64 };
 	float rebuild_threshold{ 0.25f };
 
-	void Query(const KDNode* node, const BoundingAABB& region, std::vector<Entity>& result) const {
+	template <typename Func>
+	void Traverse(const KDNode* node, Func&& visit) const {
 		if (!node) {
 			return;
 		}
 		for (const auto& obj : node->objects) {
 			if (!obj.deleted) {
-				if (obj.aabb.Overlaps(region)) {
-					result.push_back(obj.entity);
-				}
+				std::invoke(visit, obj);
 			}
 		}
 		if (node->left) {
-			Query(node->left.get(), region, result);
+			Traverse(node->left.get(), visit);
 		}
 		if (node->right) {
-			Query(node->right.get(), region, result);
+			Traverse(node->right.get(), visit);
 		}
 	}
-
-	void Raycast(
-		const Entity& entity, const KDNode* node, const V2_float& dir, const Rect& rect,
-		std::vector<Entity>& result
-	) const {
-		if (!node) {
-			return;
-		}
-		for (const auto& obj : node->objects) {
-			if (obj.deleted) {
-				continue;
-			}
-			if (obj.entity == entity) {
-				continue;
-			}
-			auto raycast{ ptgn::impl::RaycastRectRect(
-				dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
-			) };
-			if (raycast.Occurred()) {
-				result.push_back(obj.entity);
-			}
-		}
-		if (node->left) {
-			Raycast(entity, node->left.get(), dir, rect, result);
-		}
-		if (node->right) {
-			Raycast(entity, node->right.get(), dir, rect, result);
-		}
-	}
-
-	void RaycastFirst(
-		const Entity& entity, const KDNode* node, const V2_float& dir, const Rect& rect,
-		float& closest_t, Entity& closest_entity
-	) const {
-		if (!node) {
-			return;
-		}
-		for (const auto& obj : node->objects) {
-			if (obj.deleted) {
-				continue;
-			}
-			if (obj.entity == entity) {
-				continue;
-			}
-			auto raycast{ ptgn::impl::RaycastRectRect(
-				dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
-			) };
-			if (!raycast.Occurred()) {
-				continue;
-			}
-			if (raycast.t < closest_t) {
-				closest_t	   = raycast.t;
-				closest_entity = obj.entity;
-			}
-		}
-		if (node->left) {
-			RaycastFirst(entity, node->left.get(), dir, rect, closest_t, closest_entity);
-		}
-		if (node->right) {
-			RaycastFirst(entity, node->right.get(), dir, rect, closest_t, closest_entity);
-		}
-	}
-
-	// --- Helpers ---
 
 	std::unique_ptr<KDNode> BuildRecursive(const std::vector<KDObject>& objects, int depth) {
 		if (objects.empty()) {
 			return nullptr;
 		}
-		auto node		 = std::make_unique<KDNode>();
+		auto node{ std::make_unique<KDNode>() };
+		// Alternate split axis each time the KD-tree splits.
 		node->split_axis = static_cast<KDAxis>(depth % 2);
 
+		// Stop splitting if the KDNode can hold the remaining objects.
 		if (objects.size() <= max_objects_per_node) {
 			node->objects = objects;
 			return node;
 		}
 
+		// Get the centers of all the KDObjects.
 		std::vector<float> centers(objects.size());
-		for (std::size_t i = 0; i < objects.size(); ++i) {
-			centers[i] = GetObjectSplitValue(objects[i], node->split_axis);
+		for (std::size_t i{ 0 }; i < objects.size(); ++i) {
+			centers[i] = objects[i].GetCenter(node->split_axis);
 		}
 
-		std::size_t mid = centers.size() / 2;
+		std::size_t mid{ centers.size() / 2 };
+		// Every center below mid index is smaller than mid center, everything above is larger, but
+		// not completely sorting the centers (faster).
 		std::nth_element(centers.begin(), centers.begin() + mid, centers.end());
 		node->split_value = centers[mid];
 
@@ -296,9 +281,11 @@ private:
 		left_objs.reserve(objects.size() / 2);
 		right_objs.reserve(objects.size() / 2);
 
+		// Split objects array into two based on median center. This is "repeated" after nth_element
+		// because that only does it for the centers vector, not the objects themselves.
 		for (const auto& obj : objects) {
-			float v = GetObjectSplitValue(obj, node->split_axis);
-			if (v < node->split_value) {
+			float center{ obj.GetCenter(node->split_axis) };
+			if (center < node->split_value) {
 				left_objs.push_back(obj);
 			} else {
 				right_objs.push_back(obj);
@@ -309,12 +296,6 @@ private:
 		node->right = BuildRecursive(right_objs, depth + 1);
 
 		return node;
-	}
-
-	float GetObjectSplitValue(const KDObject& obj, KDAxis axis) const {
-		float center = (axis == KDAxis::X) ? ((obj.aabb.min.x + obj.aabb.max.x) * 0.5f)
-										   : ((obj.aabb.min.y + obj.aabb.max.y) * 0.5f);
-		return center;
 	}
 
 	// --- Partial update implementation ---
@@ -413,7 +394,7 @@ private:
 		if (it == entity_map.end()) {
 			return false;
 		}
-		float val = GetObjectSplitValue(it->second, node->split_axis);
+		float val = it->second.GetCenter(node->split_axis);
 		if (val < node->split_value) {
 			return RemoveFromTree(node->left.get(), e, depth + 1, touched_leaves);
 		} else {
@@ -448,7 +429,7 @@ private:
 			node->objects.push_back({ obj.entity, obj.aabb, false });
 			return;
 		}
-		float val = GetObjectSplitValue(obj, node->split_axis);
+		float val{ obj.GetCenter(node->split_axis) };
 		if (val < node->split_value) {
 			InsertIntoLeaf(node->left.get(), obj, depth + 1);
 		} else {
@@ -486,14 +467,17 @@ private:
 		std::vector<float> centers;
 		centers.reserve(node->objects.size());
 		for (const auto& o : node->objects) {
-			centers.push_back(GetObjectSplitValue(o, node->split_axis));
+			centers.push_back(o.GetCenter(node->split_axis));
 		}
 
 		if (centers.empty()) {
 			return;
 		}
-		bool all_same =
-			std::all_of(centers.begin(), centers.end(), [&](float v) { return v == centers[0]; });
+
+		bool all_same{ std::all_of(centers.begin(), centers.end(), [&](float v) {
+			return v == centers[0];
+		}) };
+
 		if (all_same) {
 			return;
 		}
@@ -506,7 +490,7 @@ private:
 		std::vector<KDObject> old = std::move(node->objects);
 		node->objects.clear();
 		for (const auto& o : old) {
-			float v = GetObjectSplitValue(o, node->split_axis);
+			float v = o.GetCenter(node->split_axis);
 			if (v < node->split_value) {
 				if (!node->left) {
 					node->left = std::make_unique<KDNode>();
@@ -601,7 +585,7 @@ Entity AddEntity(
 #define KDTREE 0
 
 struct BroadphaseScene : public Scene {
-	KDTree tree{ 100 };
+	KDTree tree{ 64 };
 
 	std::size_t entity_count{ 10000 };
 
@@ -621,7 +605,7 @@ struct BroadphaseScene : public Scene {
 		for (std::size_t i{ 0 }; i < entity_count; ++i) {
 			AddEntity(
 				*this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green,
-				false // FlipCoin() // false
+				FlipCoin() // false
 			);
 		}
 		Refresh();
