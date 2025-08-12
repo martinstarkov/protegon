@@ -48,7 +48,9 @@ Entity& SetTransform(Entity& entity, const Transform& transform);
 
 // @return The absolute transform of the entity with respect to its parent scene camera
 // transform.
-[[nodiscard]] Transform GetAbsoluteTransform(const Entity& entity);
+[[nodiscard]] Transform GetAbsoluteTransform(
+	const Entity& entity, bool relative_to_entity_camera = true
+);
 
 // @return The transform of the entity used for drawing it with respect to its parent scene
 // camera transform. This includes any shake of bounce offsets which are only used for

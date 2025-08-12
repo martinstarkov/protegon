@@ -2,7 +2,9 @@
 
 #include "components/offsets.h"
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
 #include "math/vector2.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -67,7 +69,7 @@ Transform GetTransform(const Entity& entity) {
 	return {};
 }
 
-Transform GetAbsoluteTransform(const Entity& entity) {
+Transform GetAbsoluteTransform(const Entity& entity, bool relative_to_entity_camera) {
 	auto transform{ GetTransform(entity) };
 	if (entity.Has<impl::IgnoreParentTransform>() && entity.Get<impl::IgnoreParentTransform>()) {
 		return transform;
@@ -77,12 +79,17 @@ Transform GetAbsoluteTransform(const Entity& entity) {
 		auto parent{ GetParent(entity) };
 		relative_to = GetAbsoluteTransform(parent);
 	}
-	return transform.RelativeTo(relative_to);
+	auto absolute_transform{ transform.RelativeTo(relative_to) };
+	if (!relative_to_entity_camera) {
+		return absolute_transform;
+	}
+	Transform camera_transform{ entity.GetCamera().GetTransform() };
+	return absolute_transform.RelativeTo(camera_transform);
 }
 
 Transform GetDrawTransform(const Entity& entity) {
 	auto offset_transform{ GetOffset(entity) };
-	auto transform{ GetAbsoluteTransform(entity) };
+	auto transform{ GetAbsoluteTransform(entity, false) };
 	transform = transform.RelativeTo(offset_transform);
 	return transform;
 }
