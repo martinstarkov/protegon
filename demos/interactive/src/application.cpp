@@ -288,13 +288,13 @@ struct ScriptR2 : public Script<ScriptR2, KeyScript, MouseScript> {
 };
 
 struct ScriptR3 : public Script<ScriptR3, KeyScript, MouseScript, DragScript> {
-	/*
 	void OnDrag() override {
 		// PTGN_LOG("r3 Drag: ", mouse);
 		V2_float mouse{ game.input.GetMousePosition() };
 		GetPosition(entity) = mouse + entity.Get<Draggable>().offset;
 	}
 
+	/*
 	void OnDragEnter(Entity dropzone) override {
 		PTGN_LOG("r3 Drag enter: ", dropzone.GetId());
 	}
@@ -394,6 +394,8 @@ struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript> {
 };
 
 struct InteractiveScene : public Scene {
+	Sprite r4;
+
 	void Enter() override {
 		V2_float ws{ game.window.GetSize() };
 		V2_float center{ game.window.GetCenter() };
@@ -440,7 +442,7 @@ struct InteractiveScene : public Scene {
 						{ "drag_circle", "resources/drag_circle.png" },
 						{ "dropzone", "resources/dropzone.png" } });
 
-		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
+		r4			  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);
 		AddInteractable(r4, r4_child);
 		r4.Add<Dropzone>();
@@ -472,6 +474,12 @@ struct InteractiveScene : public Scene {
 			input.SetTopOnly(true);
 			PTGN_LOG("Setting top input only: true");
 		}
+		/*const auto& dropped{ r4.Get<Dropzone>().dropped_entities };
+		Print("Dropped: ");
+		for (auto d : dropped) {
+			Print(d.GetId(), ", ");
+		}
+		PrintLine();*/
 	}
 };
 

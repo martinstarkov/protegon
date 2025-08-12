@@ -119,6 +119,8 @@ private:
 		}
 	}
 
+	static void CleanupDropzones(const std::vector<Entity>& dropzones);
+
 	static bool IsOverlappingDropzone(
 		const V2_float& mouse_position, const Entity& draggable, const Entity& dropzone,
 		CallbackTrigger trigger

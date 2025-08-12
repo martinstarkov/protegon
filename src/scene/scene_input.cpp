@@ -287,6 +287,7 @@ void SceneInput::HandleDragging(
 				AddDropzoneActions<DropzoneAction::Pickup>(
 					dragging, dropzone, mouse.position,
 					[&]() {
+						dropzone.Get<Dropzone>().dropped_entities.erase(dragging);
 						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
 							dropzone_scripts->AddAction(
 								&DropzoneScript::OnDraggablePickup, dragging
@@ -346,6 +347,7 @@ void SceneInput::HandleDragging(
 				AddDropzoneActions<DropzoneAction::Drop>(
 					dragging, dropzone, mouse.position,
 					[&]() {
+						dropzone.Get<Dropzone>().dropped_entities.emplace(dragging);
 						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
 							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableDrop, dragging);
 						}
@@ -365,6 +367,18 @@ void SceneInput::HandleDragging(
 			draggable.offset   = {};
 		}
 		dragging_entities_.clear(); // End all drags
+	}
+}
+
+void SceneInput::CleanupDropzones(const std::vector<Entity>& dropzones) {
+	for (Entity dropzone : dropzones) {
+		if (!dropzone.Has<Dropzone>()) {
+			continue;
+		}
+
+		auto& dropped{ dropzone.Get<Dropzone>().dropped_entities };
+
+		std::erase_if(dropped, [](const Entity& e) { return !e.IsAlive() || !e.Has<Draggable>(); });
 	}
 }
 
@@ -518,6 +532,8 @@ void SceneInput::Update(Scene& scene, const MouseInfo& mouse_state) {
 
 	// Save for next frame.
 	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
+
+	CleanupDropzones(dropzones);
 }
 
 // @return Null entity if entities is empty.

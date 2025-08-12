@@ -133,6 +133,8 @@ struct Dropzone {
 		pickup_trigger_ = trigger;
 	}
 
+	std::unordered_set<Entity> dropped_entities;
+
 private:
 	friend class SceneInput;
 
@@ -141,7 +143,8 @@ private:
 	CallbackTrigger pickup_trigger_{ CallbackTrigger::Overlaps };
 
 	PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(
-		Dropzone, KeyValue("move_trigger", move_trigger_), KeyValue("drop_trigger", drop_trigger_),
+		Dropzone, KeyValue("dropped_entities", dropped_entities),
+		KeyValue("move_trigger", move_trigger_), KeyValue("drop_trigger", drop_trigger_),
 		KeyValue("pickup_trigger", pickup_trigger_)
 	)
 };
