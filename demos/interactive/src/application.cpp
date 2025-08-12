@@ -4,6 +4,7 @@
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/window.h"
 #include "input/input_handler.h"
 #include "math/vector2.h"
@@ -14,7 +15,8 @@
 
 using namespace ptgn;
 
-struct ScriptC0 : public Script<ScriptC0> {
+struct ScriptC0 : public Script<ScriptC0, KeyScript, MouseScript> {
+	/*
 	void OnKeyDown(Key key) override {
 		PTGN_LOG("c0 Key down");
 	}
@@ -27,48 +29,48 @@ struct ScriptC0 : public Script<ScriptC0> {
 		PTGN_LOG("c0 Key up");
 	}
 
-	void OnMouseDown(Mouse mouse) override {
+	void OnMouseDownOver(Mouse mouse) override {
 		PTGN_LOG("c0 Mouse down: ", mouse);
 	}
 
-	void OnMouseDownOutside(Mouse mouse) override {
+	void OnMouseDownOut(Mouse mouse) override {
 		PTGN_LOG("c0 Mouse down outside: ", mouse);
 	}
 
-	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("c0 Mouse move: ", mouse);*/ }
-
-	void OnMouseLeave(V2_float mouse) override {
-		PTGN_LOG("c0 Mouse leave: ", mouse);
+	void OnMouseLeave() override {
+		PTGN_LOG("c0 Mouse leave");
 	}
 
-	void OnMouseEnter(V2_float mouse) override {
-		PTGN_LOG("c0 Mouse enter: ", mouse);
+	void OnMouseEnter() override {
+		PTGN_LOG("c0 Mouse enter");
 	}
 
-	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("c0 Mouse out: ", mouse);*/ }
+	void OnMouseMoveOut() override { }
 
-	void OnMouseOver(V2_float mouse) override {
-		PTGN_LOG("c0 Mouse over: ", mouse);
+	void OnMouseMoveOver() override {
+		PTGN_LOG("c0 Mouse over");
 	}
 
-	void OnMousePressed(Mouse mouse) override {
+	void OnMousePressedOver(Mouse mouse) override {
 		PTGN_LOG("c0 Mouse pressed: ", mouse);
 	}
 
-	void OnMouseScroll(V2_int mouse) override {
+	void OnMouseScrollOver(V2_int mouse) override {
 		PTGN_LOG("c0 Mouse scroll: ", mouse);
 	}
 
-	void OnMouseUp(Mouse mouse) override {
+	void OnMouseUpOver(Mouse mouse) override {
 		PTGN_LOG("c0 Mouse up: ", mouse);
 	}
 
-	void OnMouseUpOutside(Mouse mouse) override {
+	void OnMouseUpOut(Mouse mouse) override {
 		PTGN_LOG("c0 Mouse up outside: ", mouse);
 	}
+	*/
 };
 
-struct ScriptC1 : public Script<ScriptC1> {
+struct ScriptC1 : public Script<ScriptC1, KeyScript, MouseScript> {
+	/*
 	void OnKeyDown(Key key) override {
 		PTGN_LOG("c1 Key down");
 	}
@@ -81,48 +83,48 @@ struct ScriptC1 : public Script<ScriptC1> {
 		PTGN_LOG("c1 Key up");
 	}
 
-	void OnMouseDown(Mouse mouse) override {
+	void OnMouseDownOver(Mouse mouse) override {
 		PTGN_LOG("c1 Mouse down: ", mouse);
 	}
 
-	void OnMouseDownOutside(Mouse mouse) override {
+	void OnMouseDownOut(Mouse mouse) override {
 		PTGN_LOG("c1 Mouse down outside: ", mouse);
 	}
 
-	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("c1 Mouse move: ", mouse);*/ }
-
-	void OnMouseLeave(V2_float mouse) override {
-		PTGN_LOG("c1 Mouse leave: ", mouse);
+	void OnMouseLeave() override {
+		PTGN_LOG("c1 Mouse leave");
 	}
 
-	void OnMouseEnter(V2_float mouse) override {
-		PTGN_LOG("c1 Mouse enter: ", mouse);
+	void OnMouseEnter() override {
+		PTGN_LOG("c1 Mouse enter");
 	}
 
-	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("c1 Mouse out: ", mouse);*/ }
+	void OnMouseMoveOut() override { }
 
-	void OnMouseOver(V2_float mouse) override {
-		PTGN_LOG("c1 Mouse over: ", mouse);
+	void OnMouseMoveOver() override {
+		PTGN_LOG("c1 Mouse over");
 	}
 
-	void OnMousePressed(Mouse mouse) override {
+	void OnMousePressedOver(Mouse mouse) override {
 		PTGN_LOG("c1 Mouse pressed: ", mouse);
 	}
 
-	void OnMouseScroll(V2_int mouse) override {
+	void OnMouseScrollOver(V2_int mouse) override {
 		PTGN_LOG("c1 Mouse scroll: ", mouse);
 	}
 
-	void OnMouseUp(Mouse mouse) override {
+	void OnMouseUpOver(Mouse mouse) override {
 		PTGN_LOG("c1 Mouse up: ", mouse);
 	}
 
-	void OnMouseUpOutside(Mouse mouse) override {
+	void OnMouseUpOut(Mouse mouse) override {
 		PTGN_LOG("c1 Mouse up outside: ", mouse);
 	}
+	*/
 };
 
-struct ScriptR0 : public Script<ScriptR0> {
+struct ScriptR0 : public Script<ScriptR0, KeyScript, MouseScript> {
+	/*
 	void OnKeyDown(Key key) override {
 		PTGN_LOG("r0 Key down");
 	}
@@ -135,48 +137,48 @@ struct ScriptR0 : public Script<ScriptR0> {
 		PTGN_LOG("r0 Key up");
 	}
 
-	void OnMouseDown(Mouse mouse) override {
+	void OnMouseDownOver(Mouse mouse) override {
 		PTGN_LOG("r0 Mouse down: ", mouse);
 	}
 
-	void OnMouseDownOutside(Mouse mouse) override {
+	void OnMouseDownOut(Mouse mouse) override {
 		PTGN_LOG("r0 Mouse down outside: ", mouse);
 	}
 
-	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("r0 Mouse move: ", mouse);*/ }
-
-	void OnMouseLeave(V2_float mouse) override {
-		PTGN_LOG("r0 Mouse leave: ", mouse);
+	void OnMouseLeave() override {
+		PTGN_LOG("r0 Mouse leave");
 	}
 
-	void OnMouseEnter(V2_float mouse) override {
-		PTGN_LOG("r0 Mouse enter: ", mouse);
+	void OnMouseEnter() override {
+		PTGN_LOG("r0 Mouse enter");
 	}
 
-	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("r0 Mouse out: ", mouse);*/ }
+	void OnMouseMoveOut() override {  }
 
-	void OnMouseOver(V2_float mouse) override {
-		PTGN_LOG("r0 Mouse over: ", mouse);
+	void OnMouseMoveOver() override {
+		PTGN_LOG("r0 Mouse over");
 	}
 
-	void OnMousePressed(Mouse mouse) override {
+	void OnMousePressedOver(Mouse mouse) override {
 		PTGN_LOG("r0 Mouse pressed: ", mouse);
 	}
 
-	void OnMouseScroll(V2_int mouse) override {
+	void OnMouseScrollOver(V2_int mouse) override {
 		PTGN_LOG("r0 Mouse scroll: ", mouse);
 	}
 
-	void OnMouseUp(Mouse mouse) override {
+	void OnMouseUpOver(Mouse mouse) override {
 		PTGN_LOG("r0 Mouse up: ", mouse);
 	}
 
-	void OnMouseUpOutside(Mouse mouse) override {
+	void OnMouseUpOut(Mouse mouse) override {
 		PTGN_LOG("r0 Mouse up outside: ", mouse);
 	}
+	*/
 };
 
-struct ScriptR1 : public Script<ScriptR1> {
+struct ScriptR1 : public Script<ScriptR1, KeyScript, MouseScript> {
+	/*
 	void OnKeyDown(Key key) override {
 		PTGN_LOG("r1 Key down");
 	}
@@ -189,48 +191,49 @@ struct ScriptR1 : public Script<ScriptR1> {
 		PTGN_LOG("r1 Key up");
 	}
 
-	void OnMouseDown(Mouse mouse) override {
+	void OnMouseDownOver(Mouse mouse) override {
 		PTGN_LOG("r1 Mouse down: ", mouse);
 	}
 
-	void OnMouseDownOutside(Mouse mouse) override {
+	void OnMouseDownOut(Mouse mouse) override {
 		PTGN_LOG("r1 Mouse down outside: ", mouse);
 	}
 
-	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("r1 Mouse move: ", mouse);*/ }
-
-	void OnMouseLeave(V2_float mouse) override {
-		PTGN_LOG("r1 Mouse leave: ", mouse);
+	void OnMouseLeave() override {
+		PTGN_LOG("r1 Mouse leave");
 	}
 
-	void OnMouseEnter(V2_float mouse) override {
-		PTGN_LOG("r1 Mouse enter: ", mouse);
+	void OnMouseEnter() override {
+		PTGN_LOG("r1 Mouse enter");
 	}
 
-	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("r1 Mouse out: ", mouse);*/ }
+	void OnMouseMoveOut() override { }
 
-	void OnMouseOver(V2_float mouse) override {
-		PTGN_LOG("r1 Mouse over: ", mouse);
+	void OnMouseMoveOver() override {
+		PTGN_LOG("r1 Mouse over");
 	}
 
-	void OnMousePressed(Mouse mouse) override {
+	void OnMousePressedOver(Mouse mouse) override {
 		PTGN_LOG("r1 Mouse pressed: ", mouse);
 	}
 
-	void OnMouseScroll(V2_int mouse) override {
+	void OnMouseScrollOver(V2_int mouse) override {
 		PTGN_LOG("r1 Mouse scroll: ", mouse);
 	}
 
-	void OnMouseUp(Mouse mouse) override {
+	void OnMouseUpOver(Mouse mouse) override {
 		PTGN_LOG("r1 Mouse up: ", mouse);
 	}
 
-	void OnMouseUpOutside(Mouse mouse) override {
+	void OnMouseUpOut(Mouse mouse) override {
 		PTGN_LOG("r1 Mouse up outside: ", mouse);
 	}
+
+	*/
 };
 
-struct ScriptR2 : public Script<ScriptR2> {
+struct ScriptR2 : public Script<ScriptR2, KeyScript, MouseScript> {
+	/*
 	void OnKeyDown(Key key) override {
 		PTGN_LOG("r2 Key down");
 	}
@@ -243,50 +246,52 @@ struct ScriptR2 : public Script<ScriptR2> {
 		PTGN_LOG("r2 Key up");
 	}
 
-	void OnMouseDown(Mouse mouse) override {
+	void OnMouseDownOver(Mouse mouse) override {
 		PTGN_LOG("r2 Mouse down: ", mouse);
 	}
 
-	void OnMouseDownOutside(Mouse mouse) override {
+	void OnMouseDownOut(Mouse mouse) override {
 		PTGN_LOG("r2 Mouse down outside: ", mouse);
 	}
 
-	void OnMouseMove(V2_float mouse) override { /*PTGN_LOG("r2 Mouse move: ", mouse);*/ }
-
-	void OnMouseLeave(V2_float mouse) override {
-		PTGN_LOG("r2 Mouse leave: ", mouse);
+	void OnMouseLeave() override {
+		PTGN_LOG("r2 Mouse leave");
 	}
 
-	void OnMouseEnter(V2_float mouse) override {
-		PTGN_LOG("r2 Mouse enter: ", mouse);
+	void OnMouseEnter() override {
+		PTGN_LOG("r2 Mouse enter");
 	}
 
-	void OnMouseOut(V2_float mouse) override { /*PTGN_LOG("r2 Mouse out: ", mouse);*/ }
+	void OnMouseMoveOut() override { }
 
-	void OnMouseOver(V2_float mouse) override {
-		PTGN_LOG("r2 Mouse over: ", mouse);
+	void OnMouseMoveOver() override {
+		PTGN_LOG("r2 Mouse over");
 	}
 
-	void OnMousePressed(Mouse mouse) override {
+	void OnMousePressedOver(Mouse mouse) override {
 		PTGN_LOG("r2 Mouse pressed: ", mouse);
 	}
 
-	void OnMouseScroll(V2_int mouse) override {
+	void OnMouseScrollOver(V2_int mouse) override {
 		PTGN_LOG("r2 Mouse scroll: ", mouse);
 	}
 
-	void OnMouseUp(Mouse mouse) override {
+	void OnMouseUpOver(Mouse mouse) override {
 		PTGN_LOG("r2 Mouse up: ", mouse);
 	}
 
-	void OnMouseUpOutside(Mouse mouse) override {
+	void OnMouseUpOut(Mouse mouse) override {
 		PTGN_LOG("r2 Mouse up outside: ", mouse);
 	}
+
+	*/
 };
 
-struct ScriptR3 : public Script<ScriptR3> {
-	void OnDrag(V2_float mouse) override {
+struct ScriptR3 : public Script<ScriptR3, KeyScript, MouseScript, DragScript, DropzoneScript> {
+	/*
+	void OnDrag() override {
 		// PTGN_LOG("r3 Drag: ", mouse);
+		V2_float mouse{ game.input.GetMousePosition() };
 		GetPosition(entity) = mouse + entity.Get<Draggable>().offset;
 	}
 
@@ -306,12 +311,12 @@ struct ScriptR3 : public Script<ScriptR3> {
 		PTGN_LOG("r3 Drag over: ", dropzone.GetId());
 	}
 
-	void OnDragStart(V2_float mouse) override {
-		PTGN_LOG("r3 Drag start: ", mouse);
+	void OnDragStart(V2_int start_position) override {
+		PTGN_LOG("r3 Drag start: ", start_position);
 	}
 
-	void OnDragStop(V2_float mouse) override {
-		PTGN_LOG("r3 Drag stop: ", mouse);
+	void OnDragStop(V2_int stop_position) override {
+		PTGN_LOG("r3 Drag stop: ", stop_position);
 	}
 
 	void OnDrop(Entity dropzone) override {
@@ -321,35 +326,37 @@ struct ScriptR3 : public Script<ScriptR3> {
 	void OnPickup(Entity dropzone) override {
 		PTGN_LOG("r3 picked up from: ", dropzone.GetId());
 	}
+	*/
 };
 
-struct ScriptC3 : public Script<ScriptC3> {
-	void OnDrag(V2_float mouse) override {
+struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript, DropzoneScript> {
+	void OnDrag() override {
 		// PTGN_LOG("c3 Drag: ", mouse);
+		V2_float mouse{ game.input.GetMousePosition() };
 		GetPosition(entity) = mouse + entity.Get<Draggable>().offset;
 	}
 
-	void OnMouseDown(Mouse mouse) override {
+	void OnMouseDownOver(Mouse mouse) override {
 		PTGN_LOG("c3 Mouse down: ", mouse);
 	}
 
-	void OnMouseDownOutside(Mouse mouse) override {
+	void OnMouseDownOut(Mouse mouse) override {
 		PTGN_LOG("c3 Mouse down outside: ", mouse);
 	}
 
-	void OnMousePressed(Mouse mouse) override {
-		PTGN_LOG("c3 Mouse pressed: ", mouse);
+	void OnMousePressedOver(Mouse mouse) override {
+		// PTGN_LOG("c3 Mouse pressed: ", mouse);
 	}
 
-	void OnMouseScroll(V2_int mouse) override {
+	void OnMouseScrollOver(V2_int mouse) override {
 		PTGN_LOG("c3 Mouse scroll: ", mouse);
 	}
 
-	void OnMouseUp(Mouse mouse) override {
+	void OnMouseUpOver(Mouse mouse) override {
 		PTGN_LOG("c3 Mouse up: ", mouse);
 	}
 
-	void OnMouseUpOutside(Mouse mouse) override {
+	void OnMouseUpOut(Mouse mouse) override {
 		PTGN_LOG("c3 Mouse up outside: ", mouse);
 	}
 
@@ -369,12 +376,12 @@ struct ScriptC3 : public Script<ScriptC3> {
 		PTGN_LOG("c3 Drag over: ", dropzone.GetId());
 	}
 
-	void OnDragStart(V2_float mouse) override {
-		PTGN_LOG("c3 Drag start: ", mouse);
+	void OnDragStart(V2_int start_position) override {
+		PTGN_LOG("c3 Drag start: ", start_position);
 	}
 
-	void OnDragStop(V2_float mouse) override {
-		PTGN_LOG("c3 Drag stop: ", mouse);
+	void OnDragStop(V2_int stop_position) override {
+		PTGN_LOG("c3 Drag stop: ", stop_position);
 	}
 
 	void OnDrop(Entity dropzone) override {
@@ -429,11 +436,9 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r2, r2_child);
 		AddScript<ScriptR2>(r2);
 
-		LoadResources(
-			{ { "drag", "resources/drag.png" },
-			  { "drag_circle", "resources/drag_circle.png" },
-			  { "dropzone", "resources/dropzone.png" } }
-		);
+		LoadResources({ { "drag", "resources/drag.png" },
+						{ "drag_circle", "resources/drag_circle.png" },
+						{ "dropzone", "resources/dropzone.png" } });
 
 		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateRect(*this, {}, rsize * 2, color::Magenta, 1.0f);

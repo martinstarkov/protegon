@@ -77,9 +77,10 @@ std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
 		}
 		case SDL_MOUSEWHEEL: {
 			V2_int new_mouse_position{ e.wheel.mouseX, e.wheel.mouseY };
-			mouse_position_			= new_mouse_position;
-			mouse_scroll_timestamp_ = e.wheel.timestamp;
-			mouse_scroll_			= { e.wheel.x, e.wheel.y };
+			mouse_position_			 = new_mouse_position;
+			mouse_scroll_timestamp_	 = e.wheel.timestamp;
+			mouse_scroll_			 = { e.wheel.x, e.wheel.y };
+			mouse_scroll_delta_		+= mouse_scroll_;
 			return MouseScroll{ mouse_scroll_, mouse_position_ };
 		}
 		case SDL_QUIT: {
@@ -163,6 +164,7 @@ void InputHandler::Prepare() {
 
 	previous_mouse_position_ = mouse_position_;
 	mouse_scroll_			 = {};
+	mouse_scroll_delta_		 = {};
 	queue_.clear();
 
 	for (auto& mouse_state : mouse_states_) {
@@ -266,7 +268,7 @@ V2_float InputHandler::GetMouseDifference() const {
 }
 
 int InputHandler::GetMouseScroll() const {
-	return mouse_scroll_.y;
+	return mouse_scroll_delta_.y;
 }
 
 milliseconds InputHandler::GetTimeSince(Timestamp timestamp) {

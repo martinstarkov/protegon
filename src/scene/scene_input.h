@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_set>
 #include <vector>
 
 #include "components/interactive.h"
@@ -14,8 +15,31 @@ class Scene;
 class Camera;
 class Button;
 
+struct MouseInfo {
+	MouseInfo();
+
+	V2_int position;
+	V2_int scroll_delta;
+
+	bool left_pressed{ false };
+	bool left_down{ false };
+	bool left_up{ false };
+};
+
+struct DragState {
+	V2_int drag_start_position;
+};
+
 class SceneInput {
 public:
+	bool IsDragging(Entity e) const {
+		return dragging_entities.contains(e);
+	}
+
+	bool IsAnyDragging() const {
+		return !dragging_entities.empty();
+	}
+
 	// If set to true, only the interactables in the scene will be triggered, i.e. if there are two
 	// button on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only);
@@ -52,7 +76,7 @@ private:
 		Scene& scene, Entity entity, bool is_inside, Mouse mouse, const V2_float& screen_pointer
 	) const;
 
-	void Update(Scene& scene);
+	void Update(Scene& scene, const MouseInfo& mouse_state);
 	void UpdatePrevious(Scene& scene);
 	void UpdateCurrent(Scene& scene);
 
@@ -71,10 +95,18 @@ private:
 	void Init(std::size_t scene_key);
 	void Shutdown();
 
-	std::vector<Entity> mouse_entered;
-	std::vector<Entity> mouse_exited;
-	std::vector<Entity> mouse_over;
-	std::vector<Entity> dropzones;
+	static std::vector<Entity> GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state);
+	void HandleDragging(const std::vector<Entity>& over, const MouseInfo& mouse);
+	void DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse);
+	void UpdateMouseOverStates(const std::vector<Entity>& current);
+	void HandleDropzones(const std::vector<Entity>& mouse_over, const MouseInfo& mouse);
+
+	// TODO: Add to serialization.
+
+	std::unordered_map<Entity, DragState> dragging_entities;
+	std::unordered_map<Entity, std::unordered_set<Entity>> last_dragged_dropzones;
+	std::unordered_set<Entity> last_mouse_over_;
+	std::unordered_set<Entity> last_dropzones_;
 
 	std::size_t scene_key_{ 0 };
 
@@ -90,9 +122,7 @@ public:
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		SceneInput, KeyValue("scene_key", scene_key_), KeyValue("top_only", top_only_),
 		KeyValue("draw_interactives", draw_interactives_),
-		KeyValue("triggered_callbacks", triggered_callbacks_),
-		KeyValue("mouse_entered", mouse_entered), KeyValue("mouse_exited", mouse_exited),
-		KeyValue("mouse_over", mouse_over), KeyValue("dropzones", dropzones)
+		KeyValue("triggered_callbacks", triggered_callbacks_)
 	)
 };
 

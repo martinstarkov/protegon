@@ -8,6 +8,7 @@
 #include "input/input_handler.h"
 #include "math/hash.h"
 #include "scene/scene.h"
+#include "scene/scene_input.h"
 #include "scene/scene_transition.h"
 
 namespace ptgn::impl {
@@ -131,10 +132,12 @@ void SceneManager::ClearSceneTargets() {
 void SceneManager::Update() {
 	game.input.Update();
 
+	MouseInfo mouse_state;
+
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
 		if (sc.scene->active_) {
-			sc.scene->InternalUpdate();
+			sc.scene->InternalUpdate(mouse_state);
 		}
 	}
 }

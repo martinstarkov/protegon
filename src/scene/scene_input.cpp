@@ -1,5 +1,6 @@
 #include "scene/scene_input.h"
 
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -10,6 +11,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/mouse.h"
@@ -18,6 +20,7 @@
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
+#include "physics/collision/broadphase.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
@@ -28,7 +31,16 @@
 // called in case the hook deletes or removes components from itself.
 // Also check for this issue for other script hooks, e.g. buttons.
 
+// TODO: Fix dropzone triggers.
+
 namespace ptgn {
+
+MouseInfo::MouseInfo() :
+	position{ game.input.GetMousePosition() },
+	scroll_delta{ game.input.GetMouseScroll() },
+	left_pressed{ game.input.MousePressed(Mouse::Left) },
+	left_down{ game.input.MouseDown(Mouse::Left) },
+	left_up{ game.input.MouseUp(Mouse::Left) } {}
 
 void GetShapes(
 	const Entity& entity, const Entity& root_entity, std::vector<std::pair<Shape, Entity>>& vector
@@ -122,9 +134,223 @@ bool SceneInput::PointerIsInside(
 	return Overlap(world_pointer, entity);
 }
 
-void SceneInput::Update(Scene& scene) {
-	UpdatePrevious(scene);
-	UpdateCurrent(scene);
+std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state) {
+	impl::KDTree tree{ 20 };
+	std::vector<impl::KDObject> objects;
+	for (auto [entity, interactive, scripts] : scene.InternalEntitiesWith<Interactive, Scripts>()) {
+		auto transform{ GetAbsoluteTransform(entity) };
+		std::vector<std::pair<Shape, Entity>> shapes;
+		GetShapes(entity, entity, shapes);
+		for (auto [shape, _] : shapes) {
+			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
+		}
+	}
+	tree.Build(objects);
+	// 2. Get entities under mouse using KD-tree
+	auto under_mouse = tree.Query(mouse_state.position);
+	return under_mouse;
+}
+
+// Called every frame
+void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) {
+	for (Entity e : current) {
+		if (!last_mouse_over_.contains(e)) {
+			e.Get<Scripts>().AddAction(&MouseScript::OnMouseEnter);
+		}
+	}
+
+	for (Entity e : last_mouse_over_) {
+		if (!VectorContains(current, e)) {
+			e.Get<Scripts>().AddAction(&MouseScript::OnMouseLeave);
+		}
+	}
+}
+
+void SceneInput::DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse) {
+	for (Entity e : over) {
+		auto& scripts{ e.Get<Scripts>() };
+		scripts.AddAction(&MouseScript::OnMouseMoveOver);
+		if (mouse.left_down) {
+			scripts.AddAction(&MouseScript::OnMouseDownOver, Mouse::Left);
+		}
+		if (mouse.left_pressed || mouse.left_down) {
+			scripts.AddAction(&MouseScript::OnMousePressedOver, Mouse::Left);
+		}
+		if (mouse.left_up) {
+			scripts.AddAction(&MouseScript::OnMouseUpOver, Mouse::Left);
+		}
+		if (!mouse.scroll_delta.IsZero()) {
+			scripts.AddAction(&MouseScript::OnMouseScrollOver, mouse.scroll_delta);
+		}
+	}
+
+	for (Entity e : last_mouse_over_) {
+		if (VectorContains(over, e)) {
+			continue;
+		}
+		auto& scripts{ e.Get<Scripts>() };
+		scripts.AddAction(&MouseScript::OnMouseMoveOut);
+		if (mouse.left_down) {
+			scripts.AddAction(&MouseScript::OnMouseDownOut, Mouse::Left);
+		}
+		if (mouse.left_pressed || mouse.left_down) {
+			scripts.AddAction(&MouseScript::OnMousePressedOut, Mouse::Left);
+		}
+		if (mouse.left_up) {
+			scripts.AddAction(&MouseScript::OnMouseUpOut, Mouse::Left);
+		}
+		if (!mouse.scroll_delta.IsZero()) {
+			scripts.AddAction(&MouseScript::OnMouseScrollOut, mouse.scroll_delta);
+		}
+	}
+}
+
+void SceneInput::HandleDragging(const std::vector<Entity>& over, const MouseInfo& mouse) {
+	// Start dragging
+	if (mouse.left_down) {
+		for (Entity e : over) {
+			if (!e.Has<Draggable>()) {
+				continue;
+			}
+			if (dragging_entities.contains(e)) {
+				continue; // Already dragging this
+			}
+
+			auto& scripts{ e.Get<Scripts>() };
+
+			scripts.AddAction(&DragScript::OnDragStart, mouse.position);
+			dragging_entities[e].drag_start_position = mouse.position;
+			auto& draggable{ e.Get<Draggable>() };
+			draggable.dragging = true;
+			draggable.start	   = mouse.position;
+			draggable.offset   = GetAbsolutePosition(e) - draggable.start;
+
+			// Also notify any dropzone we're over
+			for (Entity z : over) {
+				if (z == e) {
+					continue;
+				}
+				scripts.AddAction(&DropzoneScript::OnPickup, z);
+			}
+		}
+	}
+
+	// Continue dragging
+	if (mouse.left_pressed || mouse.left_down) {
+		for (auto& [entity, start_pos] : dragging_entities) {
+			entity.Get<Scripts>().AddAction(&DragScript::OnDrag);
+		}
+	}
+
+	// Stop dragging
+	if (mouse.left_up) {
+		for (auto& [entity, start_pos] : dragging_entities) {
+			entity.Get<Scripts>().AddAction(&DragScript::OnDragStop, mouse.position);
+		}
+		for (auto& [entity, start_pos] : dragging_entities) {
+			if (!entity.Has<Draggable>()) {
+				continue;
+			}
+			auto& draggable{ entity.Get<Draggable>() };
+			draggable.dragging = false;
+			draggable.start	   = {};
+			draggable.offset   = {};
+		}
+		dragging_entities.clear(); // End all drags
+	}
+}
+
+void SceneInput::HandleDropzones(const std::vector<Entity>& mouse_over, const MouseInfo& mouse) {
+	// TODO: Fix dropzones.
+
+	std::unordered_map<Entity, std::unordered_set<Entity>> current_dragged_dropzones;
+
+	// 1. Compute which dropzones each dragged entity is currently over
+	for (const auto& [dragging, _] : dragging_entities) {
+		std::unordered_set<Entity> over_now;
+		auto& scripts{ dragging.Get<Scripts>() };
+
+		for (Entity dropzone : mouse_over) {
+			if (!dropzone.Has<Dropzone>()) {
+				continue;
+			}
+			if (dragging == dropzone) {
+				continue;
+			}
+
+			// Check if the dropzone overlaps the dragged entity
+			if (Overlap(dragging, dropzone)) {
+				over_now.insert(dropzone);
+
+				// Wasn't over this last frame -> Enter
+				if (!last_dragged_dropzones[dragging].contains(dropzone)) {
+					scripts.AddAction(&DropzoneScript::OnDragEnter, dropzone);
+					scripts.AddAction(&DropzoneScript::OnDragOver, dropzone);
+				} else {
+					scripts.AddAction(&DropzoneScript::OnDragOver, dropzone);
+				}
+			}
+		}
+
+		// 2. Handle leaving dropzones
+		for (Entity last : last_dragged_dropzones[dragging]) {
+			if (dragging == last) {
+				continue;
+			}
+			if (!over_now.contains(last)) {
+				scripts.AddAction(&DropzoneScript::OnDragLeave, last);
+			}
+		}
+
+		// 3. Always call DragOut if not currently over a dropzone
+		for (Entity dropzone : mouse_over) {
+			if (!dropzone.Has<Dropzone>()) {
+				continue;
+			}
+
+			if (dragging == dropzone) {
+				continue;
+			}
+
+			if (!over_now.contains(dropzone)) {
+				scripts.AddAction(&DropzoneScript::OnDragOut, dropzone);
+			}
+		}
+
+		// Store current for next frame
+		current_dragged_dropzones[dragging] = std::move(over_now);
+	}
+
+	// Update the last set
+	last_dragged_dropzones = std::move(current_dragged_dropzones);
+}
+
+void SceneInput::Update(Scene& scene, const MouseInfo& mouse_state) {
+	auto under_mouse{ GetEntitiesUnderMouse(scene, mouse_state) };
+	// PTGN_LOG(under_mouse.size());
+
+	// Run mouse enter/leave logic
+	UpdateMouseOverStates(under_mouse);
+
+	// Run input event dispatch
+	DispatchMouseEvents(under_mouse, mouse_state);
+
+	// Handle drag + drop
+	HandleDragging(under_mouse, mouse_state);
+
+	if (IsAnyDragging()) {
+		HandleDropzones(under_mouse, mouse_state);
+	}
+
+	for (Entity entity : under_mouse) {
+		if (!entity.Has<Scripts, Interactive>()) {
+			continue;
+		}
+		entity.Get<Scripts>().InvokeActions();
+	}
+
+	// Save for next frame
+	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
 }
 
 void SceneInput::UpdatePrevious(Scene& scene) {
@@ -206,6 +432,7 @@ std::vector<Entity> SceneInput::GetOverlappingDropzones(
 }
 
 void SceneInput::UpdateCurrent(Scene& scene) {
+	/*
 	auto screen_pointer{ game.input.GetMousePosition() };
 
 	mouse_entered.clear();
@@ -251,7 +478,7 @@ void SceneInput::UpdateCurrent(Scene& scene) {
 		SetTopEntity(mouse_entered);
 		SetTopEntity(mouse_over);
 		SetTopEntity(dropzones);
-	}
+	}*/
 
 	// TODO: Fix.
 	/*if (send_mouse_event) {

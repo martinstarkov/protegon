@@ -164,7 +164,7 @@ void Scene::InternalDraw() {
 	render_data.Draw(*this);
 }
 
-void Scene::InternalUpdate() {
+void Scene::InternalUpdate(const MouseInfo& mouse_state) {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.ClearRenderTargets(*this);
@@ -176,7 +176,7 @@ void Scene::InternalUpdate() {
 
 	Refresh();
 
-	input.Update(*this);
+	input.Update(*this, mouse_state);
 
 	Refresh();
 

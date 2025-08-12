@@ -164,8 +164,12 @@ private:
 	V2_int mouse_position_;
 	V2_int previous_mouse_position_;
 
-	Timestamp mouse_scroll_timestamp_{ 0 };
+	// Total scroll amount in the current frame (cumulative).
+	V2_int mouse_scroll_delta_;
+	// Scroll amount in the most recent scroll event.
 	V2_int mouse_scroll_;
+	// Timestamp of the most recent scroll event.
+	Timestamp mouse_scroll_timestamp_{ 0 };
 
 	void Prepare();
 	void ProcessInputEvents();

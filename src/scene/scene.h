@@ -113,7 +113,7 @@ private:
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void InternalUpdate();
+	void InternalUpdate(const MouseInfo& mouse_state);
 	void InternalDraw();
 	void InternalExit();
 
