@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <map>
 #include <type_traits>
@@ -144,6 +145,19 @@ static bool VectorErase(std::vector<T>& v, const T& element) {
 	auto before{ v.size() };
 	v.erase(std::remove(v.begin(), v.end(), element), v.end());
 	return v.size() != before;
+}
+
+// Subtract elements of b from a.
+template <typename T>
+static void VectorSubtract(std::vector<T>& a, const std::vector<T>& b) {
+	// Create a hash set of elements in b for fast lookup
+	std::unordered_set<T> b_set(b.begin(), b.end());
+
+	// Erase all elements from a that are in b_set
+	a.erase(
+		std::remove_if(a.begin(), a.end(), [&b_set](const T& val) { return b_set.count(val) > 0; }),
+		a.end()
+	);
 }
 
 } // namespace ptgn
