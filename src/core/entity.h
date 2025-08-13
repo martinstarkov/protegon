@@ -54,6 +54,13 @@ public:
 		return Parent::operator bool();
 	}
 
+	friend bool operator<(const Entity& lhs, const Entity& rhs) {
+		if (lhs == rhs) {
+			return false;
+		}
+		return lhs.WasCreatedBefore(rhs);
+	}
+
 	friend bool operator==(const Entity& a, const Entity& b) {
 		return static_cast<const Parent&>(a) == static_cast<const Parent&>(b);
 	}
