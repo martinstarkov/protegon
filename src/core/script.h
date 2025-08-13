@@ -27,6 +27,7 @@ class Scene;
 class Scripts;
 
 enum class ScriptType {
+	Base,
 	Draw,
 	Window,
 	Key,
@@ -63,6 +64,10 @@ public:
 	constexpr virtual bool HasScriptType(ScriptType type) const = 0;
 
 	constexpr virtual std::size_t GetHash() const = 0;
+
+	constexpr static ScriptType GetScriptType() {
+		return ScriptType::Base;
+	}
 };
 
 // Script Registry to hold and create scripts
@@ -445,11 +450,11 @@ private:
 		return std::ranges::find(script_types_, type) != script_types_.end();
 	}
 
-	static constexpr std::array<ScriptType, sizeof...(TScripts)> Extract() {
-		return { TScripts::GetScriptType()... };
+	static constexpr std::array<ScriptType, sizeof...(TScripts) + 1> Extract() {
+		return { impl::IScript::GetScriptType(), TScripts::GetScriptType()... };
 	}
 
-	static constexpr std::array<ScriptType, sizeof...(TScripts)> script_types_{ Extract() };
+	static constexpr std::array<ScriptType, sizeof...(TScripts) + 1> script_types_{ Extract() };
 
 	template <typename Tuple, std::size_t I = 0>
 	static void SerializeScripts(const TDerived* self, json& j) {

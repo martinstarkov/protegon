@@ -103,8 +103,7 @@ void Scene::SetColliderVisibility(bool collider_visibility) {
 }
 
 void Scene::ReEnter() {
-	InternalExit();
-	InternalEnter();
+	game.scene.ReEnter(key_);
 }
 
 void Scene::Init() {
@@ -189,8 +188,13 @@ void Scene::InternalUpdate() {
 	float dt{ game.dt() };
 	float time{ game.time() };
 
-	// TODO: Fix script invocations for update script.
-	// Scripts::Update(*this, dt)
+	for (auto [e, scripts] : EntitiesWith<Scripts>()) {
+		scripts.AddAction(&impl::IScript::OnUpdate);
+	}
+
+	std::invoke(invoke_scripts);
+
+	// TODO: Fix script invocations for timer script.
 	// TODO: Figure out timed / repeated scripts. Using tween system?
 	// impl::ScriptTimers::Update(*this);
 	// impl::ScriptRepeats::Update(*this);
