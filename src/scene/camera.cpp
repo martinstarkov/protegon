@@ -495,7 +495,7 @@ void Camera::CenterOnWindow(bool continuously) {
 std::array<V2_float, 4> Camera::GetWorldVertices() const {
 	auto size{ GetSize(true) };
 	Rect rect{ size };
-	Transform transform{ GetTransform() };
+	Transform transform{ GetPosition(Origin::Center), ptgn::GetRotation(*this) };
 	auto world_vertices{ rect.GetWorldVertices(transform) };
 	return world_vertices;
 }
