@@ -15,6 +15,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -75,14 +76,15 @@ Origin GetDrawOrigin(const Entity& entity) {
 }
 
 Entity& SetVisible(Entity& entity, bool visible) {
-	// TODO: Check that script invocations do not lead to memory corruption if entity is deleted, or
-	// component is removed. Perhaps move script invocations to a queue that is executed by itself
-	// at the end of the update.
 	if (visible) {
 		entity.Add<Visible>(visible);
-		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnShow>(entity);
+		if (entity.Has<Scripts>()) {
+			entity.Get<Scripts>().AddAction(&DrawScript::OnShow);
+		}
 	} else {
-		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnHide>(entity);
+		if (entity.Has<Scripts>()) {
+			entity.Get<Scripts>().AddAction(&DrawScript::OnHide);
+		}
 		entity.Remove<Visible>();
 	}
 	return entity;
