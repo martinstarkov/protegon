@@ -55,6 +55,10 @@ public:
 		const path& vertex_shader_path, const path& fragment_shader_path,
 		std::string_view shader_name
 	);
+	Shader(
+		const ShaderCode& vertex_shader, const path& fragment_shader_path,
+		std::string_view shader_name
+	);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
 	Shader(Shader&& other) noexcept;
@@ -159,6 +163,8 @@ namespace impl {
 
 class ShaderManager {
 public:
+	std::unordered_map<std::string, Shader> shaders;
+
 	template <auto S>
 	[[nodiscard]] const Shader& Get() const {
 		using ShaderType = decltype(S);
