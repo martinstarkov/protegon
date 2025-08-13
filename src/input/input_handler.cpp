@@ -178,6 +178,11 @@ void InputHandler::Prepare() {
 			mouse_state = MouseState::Pressed;
 		}
 	}
+	for (auto& key_state : key_states_) {
+		if (key_state == KeyState::Down) {
+			key_state = KeyState::Pressed;
+		}
+	}
 }
 
 void InputHandler::InvokeInputEvents(Manager& manager) {
