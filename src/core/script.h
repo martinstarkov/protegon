@@ -505,10 +505,14 @@ class Scripts {
 public:
 	// Will ClearActions after.
 	void InvokeActions() {
-		for (auto& action : actions_) {
-			std::invoke(action, *this);
+		while (!actions_.empty()) {
+			auto current_actions{ std::move(actions_) };
+			ClearActions();
+
+			for (auto& action : current_actions) {
+				std::invoke(action, *this);
+			}
 		}
-		ClearActions();
 	}
 
 	void ClearActions() {
