@@ -384,18 +384,27 @@ void RenderData::AddTexturedQuad(
 			verts[i] = impl::default_texture_coordinates[i] * texture_size - extents;
 		}
 
-		auto ping{ draw_context_pool.Get(texture_size) };
-		auto pong{ draw_context_pool.Get(texture_size) };
+		auto read{ draw_context_pool.Get(texture_size) };
+		auto write{ draw_context_pool.Get(texture_size) };
 
-		PTGN_ASSERT(ping != nullptr && pong != nullptr);
-		PTGN_ASSERT(ping->frame_buffer.GetTexture().GetSize() == texture_size);
-		PTGN_ASSERT(pong->frame_buffer.GetTexture().GetSize() == texture_size);
+		PTGN_ASSERT(read != nullptr && write != nullptr);
+		PTGN_ASSERT(read->frame_buffer.GetTexture().GetSize() == texture_size);
+		PTGN_ASSERT(write->frame_buffer.GetTexture().GetSize() == texture_size);
+
+		bool use_previous_texture{ true };
 
 		for (auto it = pre_fx.pre_fx_.begin(); it != pre_fx.pre_fx_.end(); ++it) {
+			if (it != pre_fx.pre_fx_.begin() && use_previous_texture) {
+				std::swap(read, write);
+			}
+
 			const auto& fx{ *it };
-			DrawTo(pong->frame_buffer);
-			PTGN_ASSERT(pong->frame_buffer.IsBound());
-			impl::GLRenderer::ClearToColor(color::Transparent);
+			DrawTo(write->frame_buffer);
+			PTGN_ASSERT(write->frame_buffer.IsBound());
+
+			if (use_previous_texture) {
+				impl::GLRenderer::ClearToColor(color::Transparent);
+			}
 
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
@@ -406,16 +415,16 @@ void RenderData::AddTexturedQuad(
 			GLRenderer::SetViewport({ 0, 0 }, texture_size);
 			GLRenderer::SetBlendMode(GetBlendMode(fx));
 
-			if (it == pre_fx.pre_fx_.begin()) {
+			if (it == pre_fx.pre_fx_.begin() || !use_previous_texture) {
 				ReadFrom(texture);
 			} else {
-				ReadFrom(ping->frame_buffer);
+				ReadFrom(read->frame_buffer);
 			}
 
 			auto pre_fx_tint{ GetTint(fx) };
 
 			// TODO: Cache this somehow?
-			SetCameraVertices(verts, depth, false, pre_fx_tint);
+			SetCameraVertices(verts, depth, true, pre_fx_tint);
 
 			shader.SetUniform("u_Texture", 1);
 			shader.SetUniform("u_Resolution", V2_float{ texture_size });
@@ -424,12 +433,16 @@ void RenderData::AddTexturedQuad(
 
 			DrawVertexArray(quad_indices.size());
 
-			std::swap(ping, pong);
+			use_previous_texture = fx.GetOrDefault<UsePreviousTexture>();
 		}
 
-		pong->in_use = false;
+		if (use_previous_texture) {
+			std::swap(read, write);
+		}
 
-		texture_id = ping->frame_buffer.GetTexture().GetId();
+		read->in_use = false;
+
+		texture_id = write->frame_buffer.GetTexture().GetId();
 
 		white_texture.Bind(0);
 
@@ -755,8 +768,10 @@ void RenderData::Flush(Scene& scene) {
 
 			ReadFrom(ping->frame_buffer);
 
+			auto post_fx_tint{ GetTint(fx) };
+
 			// TODO: Cache this somehow?
-			SetCameraVertices(camera, false);
+			SetCameraVertices(camera, false, post_fx_tint);
 
 			V2_float viewport{ camera.GetViewportSize() };
 

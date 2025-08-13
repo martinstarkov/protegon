@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/generic.h"
 #include "core/entity.h"
 #include "serialization/serializable.h"
 
@@ -14,6 +15,12 @@ Entity& AddPostFX(Entity& entity, Entity post_fx);
 Entity& AddPreFX(Entity& entity, Entity pre_fx);
 
 namespace impl {
+
+struct UsePreviousTexture : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	UsePreviousTexture() : ArithmeticComponent{ true } {}
+};
 
 struct PostFX {
 	PostFX() = default;
