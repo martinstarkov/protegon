@@ -50,8 +50,6 @@ struct PhysicsBody : public Entity {
 
 	// @return True if the current entity or any of its parent entities is immovable.
 	[[nodiscard]] bool IsImmovable() const;
-
-	[[nodiscard]] Transform& GetRootTransform();
 };
 
 } // namespace ptgn
@@ -125,7 +123,9 @@ struct Collider {
 
 	// @return Empty collision if the entities have not collided during this frame, or the
 	// collision.
-	[[nodiscard]] Collision CollidedWith(const Entity& other) const;
+	[[nodiscard]] Collision IntersectedWith(const Entity& other) const;
+	[[nodiscard]] Collision SweptWith(const Entity& other) const;
+	[[nodiscard]] bool OverlappedWith(const Entity& other) const;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		Collider, KeyValue("shape", shape), KeyValue("mode", mode), KeyValue("response", response),
@@ -135,9 +135,15 @@ struct Collider {
 private:
 	friend class impl::CollisionHandler;
 
-	void ResetCollisions();
+	void ResetContainers();
 
-	void AddCollision(const Collision& collision);
+	void ResetOverlaps();
+	void ResetIntersects();
+	void ResetSweeps();
+
+	void AddOverlap(const Entity& other);
+	void AddIntersect(const Collision& collision);
+	void AddSweep(const Collision& collision);
 
 	// Which categories this collider collides with.
 	std::vector<CollisionCategory> mask_;
@@ -146,10 +152,14 @@ private:
 	CollisionCategory category_{ 0 };
 
 	// Collisions from the current frame.
-	std::vector<Collision> collisions_;
+	std::vector<Entity> overlaps_;
+	std::vector<Collision> intersects_;
+	std::vector<Collision> sweeps_;
 
 	// Collisions from the previous frame.
-	std::vector<Collision> prev_collisions_;
+	std::vector<Entity> previous_overlaps_;
+	std::vector<Collision> previous_intersects_;
+	std::vector<Collision> previous_sweeps_;
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(

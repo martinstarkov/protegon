@@ -76,18 +76,12 @@ std::vector<Entity> GetDiscreteCollideables(Entity& entity1, const impl::KDTree&
 			continue;
 		}
 
+		const auto& collider1{ entity1.Get<Collider>() };
 		const auto& collider2{ entity2.Get<Collider>() };
 
-		if (EarlyExit(collider2)) {
+		if (EarlyExit(entity1, collider1, entity2, collider2)) {
 			continue;
 		}
-
-		const auto& collider1{ entity1.Get<Collider>() };
-
-		// TODO: Consider if this should always be the case.
-		/*if (collider1.CollidedWith(entity2)) {
-			continue;
-		}*/
 
 		if (!CollisionHandler::CanCollide(entity1, collider1, entity2, collider2)) {
 			continue;
@@ -106,13 +100,28 @@ std::vector<Entity> GetDiscreteCollideables(Entity& entity1, const impl::KDTree&
 	return collideables;
 }
 
+void CollisionHandler::UpdateKDTree(const Entity& entity, float dt) {
+	auto transform{ GetAbsoluteTransform(entity) };
+	const auto new_bounding_aabb{ GetBoundingAABB(entity.Get<Collider>().shape, transform) };
+	static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
+	static_tree_.EndFrameUpdate();
+	if (entity.Has<RigidBody>()) {
+		const auto& rb{ entity.Get<RigidBody>() };
+		auto v{ entity.Get<RigidBody>().velocity * dt };
+		auto new_expanded_aabb{ new_bounding_aabb.ExpandByVelocity(v) };
+		dynamic_tree_.UpdateBoundingAABB(entity, new_expanded_aabb);
+		dynamic_tree_.EndFrameUpdate();
+	}
+}
+
 void CollisionHandler::Overlap(Entity& entity1) const {
 	PTGN_ASSERT(entity1.Has<Collider>());
 	PTGN_ASSERT(entity1.Get<Collider>().mode == CollisionMode::Overlap);
 
 	auto collideables{ GetDiscreteCollideables<
-		&OverlapScript::PreOverlapCheck, [](const Collider& collider2) {
-			return collider2.mode == CollisionMode::None;
+		&OverlapScript::PreOverlapCheck, []([[maybe_unused]] const Entity& e1, const Collider& c1,
+											const Entity& e2, const Collider& c2) {
+			return c2.mode == CollisionMode::None || c1.OverlappedWith(e2);
 		}>(entity1, static_tree_) };
 
 	for (const auto& entity2 : collideables) {
@@ -131,19 +140,23 @@ void CollisionHandler::Overlap(Entity& entity1) const {
 			continue;
 		}
 
-		collider1.AddCollision({ entity2, V2_float{} });
-		collider2.AddCollision({ entity1, V2_float{} });
+		collider1.AddOverlap(entity2);
+		collider2.AddOverlap(entity1);
 	}
 }
 
-void CollisionHandler::Intersect(Entity& entity1) const {
+void CollisionHandler::Intersect(Entity& entity1, float dt) {
 	PTGN_ASSERT(entity1.Has<Collider>());
 
 	auto collideables{ GetDiscreteCollideables<
-		&CollisionScript::PreCollisionCheck, [](const Collider& collider2) {
-			return collider2.mode == CollisionMode::Overlap ||
-				   collider2.mode == CollisionMode::None;
+		&CollisionScript::PreCollisionCheck,
+		[]([[maybe_unused]] const Entity& e1, const Collider& c1, const Entity& e2,
+		   const Collider& c2) {
+			return c2.mode == CollisionMode::Overlap ||
+				   c2.mode == CollisionMode::None; //|| c1.IntersectedWith(e2);
 		}>(entity1, static_tree_) };
+
+	std::vector<Entity> moved_entities;
 
 	for (auto& entity2 : collideables) {
 		auto transform1{ GetAbsoluteTransform(entity1) };
@@ -172,34 +185,34 @@ void CollisionHandler::Intersect(Entity& entity1) const {
 			);
 		}
 
-		collider1.AddCollision(Collision{ entity2, intersection.normal });
-		collider2.AddCollision(Collision{ entity1, -intersection.normal });
+		collider1.AddIntersect(Collision{ entity2, intersection.normal });
+		collider2.AddIntersect(Collision{ entity1, -intersection.normal });
 
 		if (!entity1.Has<RigidBody>()) {
 			continue;
 		}
 
-		auto& rigid_body{ entity1.Get<RigidBody>() };
-
-		PhysicsBody body{ entity1 };
-
-		if (body.IsImmovable()) {
+		if (IsImmovable(entity1)) {
 			continue;
 		}
 
-		// if (entity.Has<Transform>()) {
-		// GetPosition(entity) += intersection.normal * (intersection.depth + slop_);
-		// }
+		Entity root_entity{ GetRootEntity(entity1) };
 
-		auto& root_transform{ body.GetRootTransform() };
+		auto& root_transform{ GetTransform(root_entity) };
 
 		root_transform.position += intersection.normal * (intersection.depth + slop_);
 
-		// TODO: Consider updating both dynamic and static tree here.
+		moved_entities.emplace_back(root_entity);
 
-		rigid_body.velocity = GetRemainingVelocity(
-			rigid_body.velocity, { 0.0f, intersection.normal }, collider1.response
-		);
+		if (auto rigid_body{ root_entity.TryGet<RigidBody>() }) {
+			rigid_body->velocity = GetRemainingVelocity(
+				rigid_body->velocity, { 0.0f, intersection.normal }, collider1.response
+			);
+		}
+	}
+
+	for (const auto& entity : moved_entities) {
+		UpdateKDTree(entity, dt);
 	}
 }
 
@@ -236,10 +249,9 @@ std::vector<Entity> CollisionHandler::GetSweepCandidates(
 
 		const auto& collider1{ entity1.Get<Collider>() };
 
-		// TODO: Consider if this should always be the case.
-		// if (collider1.CollidedWith(entity2)) {
-		//	continue;
-		//}
+		/*if (collider1.SweptWith(entity2)) {
+			continue;
+		}*/
 
 		if (!CanCollide(entity1, collider1, entity2, collider2)) {
 			continue;
@@ -267,6 +279,8 @@ std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisi
 	auto dynamic_collideables{ GetSweepCandidates(entity1, velocity1, dynamic_tree_) };
 
 	auto collideables{ ConcatenateVectors(static_collideables, dynamic_collideables) };
+
+	VectorRemoveDuplicates(collideables);
 
 	std::vector<SweepCollision> collisions;
 
@@ -318,6 +332,8 @@ void CollisionHandler::Sweep(Entity& entity, float dt) {
 
 	V2_float offset;
 
+	bool raycast_hit{ false };
+
 	do {
 		auto velocity{ entity.Get<RigidBody>().velocity * dt };
 
@@ -330,6 +346,8 @@ void CollisionHandler::Sweep(Entity& entity, float dt) {
 		if (collisions.empty()) {
 			break;
 		}
+
+		raycast_hit = true;
 
 		// no collisions occured.
 		// TODO: Fix or get rid of.
@@ -358,15 +376,6 @@ void CollisionHandler::Sweep(Entity& entity, float dt) {
 		auto new_velocity{
 			GetRemainingVelocity(velocity, earliest, entity.Get<Collider>().response)
 		};
-
-		// TODO: Check if this is even needed.
-		auto transform{ GetAbsoluteTransform(entity) };
-		auto new_bounding_aabb{ GetBoundingAABB(entity.Get<Collider>().shape, transform) };
-		const auto& rb{ entity.Get<RigidBody>() };
-		auto v{ new_velocity };
-		auto new_expanded_aabb{ new_bounding_aabb.ExpandByVelocity(v) };
-		dynamic_tree_.UpdateBoundingAABB(entity, new_expanded_aabb);
-		dynamic_tree_.EndFrameUpdate();
 
 		if (new_velocity.IsZero()) {
 			break;
@@ -404,10 +413,12 @@ void CollisionHandler::Sweep(Entity& entity, float dt) {
 		entity.Get<RigidBody>().AddImpulse(new_velocity / dt * earliest2.t);
 
 		iterations++;
-	} while (iterations < max_sweep_iterations_);
+	} while (false /*iterations < max_sweep_iterations_*/);
 
-	// TODO: Consider adding.
-	// Intersect(entity);
+	if (raycast_hit) {
+		// TODO: Check if this is even needed.
+		UpdateKDTree(entity, dt);
+	}
 }
 
 V2_float CollisionHandler::GetRelativeVelocity(
@@ -439,7 +450,7 @@ void CollisionHandler::AddEarliestCollisions(
 	if (scripts) {
 		scripts->AddAction(&CollisionScript::OnCollision, first);
 	}
-	collider.AddCollision(first);
+	collider.AddSweep(first);
 
 	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
 		const auto& sweep{ sweep_collisions[i] };
@@ -450,7 +461,7 @@ void CollisionHandler::AddEarliestCollisions(
 			if (scripts) {
 				scripts->AddAction(&CollisionScript::OnCollision, matching);
 			}
-			collider.AddCollision(matching);
+			collider.AddSweep(matching);
 		}
 	}
 };
@@ -520,7 +531,7 @@ void CollisionHandler::Update(Scene& scene) {
 	float dt{ game.dt() };
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
-		collider.ResetCollisions();
+		collider.ResetContainers();
 		auto transform{ GetAbsoluteTransform(entity) };
 		auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 		objects.emplace_back(entity, bounding_aabb);
@@ -539,7 +550,7 @@ void CollisionHandler::Update(Scene& scene) {
 		const auto& collider{ object.entity.Get<Collider>() };
 		switch (collider.mode) {
 			case CollisionMode::Intersect: {
-				Intersect(object.entity);
+				Intersect(object.entity, dt);
 				break;
 			}
 			case CollisionMode::Overlap: {
@@ -550,6 +561,8 @@ void CollisionHandler::Update(Scene& scene) {
 				if (!object.entity.Has<RigidBody>()) {
 					break;
 				}
+				// Ensure the collider does not start within an object (at least most of the time).
+				Intersect(object.entity, dt);
 				Sweep(object.entity, dt);
 				break;
 			}
@@ -564,18 +577,18 @@ void CollisionHandler::Update(Scene& scene) {
 		if (collider.mode != CollisionMode::Overlap) {
 			continue;
 		}
-		for (const auto& current : collider.collisions_) {
-			PTGN_ASSERT(current.entity != entity);
-			if (!VectorContains(collider.prev_collisions_, current)) {
-				scripts.AddAction(&OverlapScript::OnOverlapStart, current.entity);
+		for (const auto& current : collider.overlaps_) {
+			PTGN_ASSERT(current != entity);
+			if (!VectorContains(collider.previous_overlaps_, current)) {
+				scripts.AddAction(&OverlapScript::OnOverlapStart, current);
 			}
 		}
-		for (const auto& previous : collider.prev_collisions_) {
-			PTGN_ASSERT(previous.entity != entity);
-			if (!VectorContains(collider.collisions_, previous)) {
-				scripts.AddAction(&OverlapScript::OnOverlapStop, previous.entity);
+		for (const auto& previous : collider.previous_overlaps_) {
+			PTGN_ASSERT(previous != entity);
+			if (!VectorContains(collider.overlaps_, previous)) {
+				scripts.AddAction(&OverlapScript::OnOverlapStop, previous);
 			} else {
-				scripts.AddAction(&OverlapScript::OnOverlap, previous.entity);
+				scripts.AddAction(&OverlapScript::OnOverlap, previous);
 			}
 		}
 	}

@@ -38,7 +38,7 @@ private:
 
 	void Overlap(Entity& entity) const;
 
-	void Intersect(Entity& entity) const;
+	void Intersect(Entity& entity, float dt);
 
 	[[nodiscard]] static std::vector<Entity> GetSweepCandidates(
 		Entity& entity1, const V2_float& velocity, const KDTree& tree
@@ -81,6 +81,8 @@ private:
 	[[nodiscard]] static V2_float GetRelativeVelocity(
 		const V2_float& velocity1, const Entity& entity2, float dt
 	);
+
+	void UpdateKDTree(const Entity& entity, float dt);
 
 	// Updates the velocity of the object to prevent it from colliding with the target objects.
 	void Sweep(Entity& entity, float dt);

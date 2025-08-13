@@ -15,23 +15,6 @@
 
 namespace ptgn {
 
-bool PhysicsBody::IsImmovable() const {
-	if (Has<RigidBody>() && Get<RigidBody>().immovable) {
-		return true;
-	}
-	if (HasParent(*this)) {
-		return PhysicsBody{ GetParent(*this) }.IsImmovable();
-	}
-	return false;
-}
-
-[[nodiscard]] Transform& PhysicsBody::GetRootTransform() {
-	Entity root_entity{ GetRootEntity(*this) };
-	PTGN_ASSERT(root_entity, "Physics body must have a valid root entity (or itself)");
-	PTGN_ASSERT(root_entity.Has<Transform>(), "Root entity must have a transform component");
-	return GetTransform(root_entity);
-}
-
 Collider::Collider(const Shape& shape) : shape{ shape } {}
 
 Collider& Collider::SetOverlapMode() {
@@ -87,23 +70,65 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	}
 }
 
-Collision Collider::CollidedWith(const Entity& other) const {
-	auto it{ std::ranges::find_if(collisions_, [&other](auto& collision) {
+[[nodiscard]] Collision GetIfExists(const std::vector<Collision>& collisions, const Entity& other) {
+	auto it{ std::ranges::find_if(collisions, [&other](auto& collision) {
 		return collision.entity == other;
 	}) };
-	return it != collisions_.end() ? *it : Collision{};
+	return it != collisions.end() ? *it : Collision{};
 }
 
-void Collider::ResetCollisions() {
-	prev_collisions_ = collisions_;
-	collisions_.clear();
+Collision Collider::IntersectedWith(const Entity& other) const {
+	return GetIfExists(intersects_, other);
 }
 
-void Collider::AddCollision(const Collision& collision) {
-	if (VectorContains(collisions_, collision)) {
+Collision Collider::SweptWith(const Entity& other) const {
+	return GetIfExists(sweeps_, other);
+}
+
+bool Collider::OverlappedWith(const Entity& other) const {
+	return VectorContains(overlaps_, other);
+}
+
+void Collider::ResetContainers() {
+	ResetOverlaps();
+	ResetIntersects();
+	ResetSweeps();
+}
+
+void Collider::ResetOverlaps() {
+	previous_overlaps_ = overlaps_;
+	overlaps_.clear();
+}
+
+void Collider::ResetIntersects() {
+	previous_intersects_ = intersects_;
+	intersects_.clear();
+}
+
+void Collider::ResetSweeps() {
+	previous_sweeps_ = sweeps_;
+	sweeps_.clear();
+}
+
+void Collider::AddOverlap(const Entity& other) {
+	if (OverlappedWith(other)) {
 		return;
 	}
-	collisions_.emplace_back(collision);
+	overlaps_.emplace_back(other);
+}
+
+void Collider::AddIntersect(const Collision& collision) {
+	if (VectorContains(intersects_, collision)) {
+		return;
+	}
+	intersects_.emplace_back(collision);
+}
+
+void Collider::AddSweep(const Collision& collision) {
+	if (VectorContains(sweeps_, collision)) {
+		return;
+	}
+	sweeps_.emplace_back(collision);
 }
 
 } // namespace ptgn
