@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <map>
+#include <ranges>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -128,9 +130,16 @@ template <typename T>
 	return result;
 }
 
+template <typename T>
+void VectorRemoveDuplicates(std::vector<T>& v) {
+	std::sort(v.begin(), v.end());
+	auto last{ std::ranges::unique(v) };
+	v.erase(last.begin(), last.end());
+}
+
 // Swaps vector elements if they both exist in the vector.
 template <typename T>
-static void SwapVectorElements(std::vector<T>& v, const T& e1, const T& e2) {
+static void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 	auto it1{ std::find(v.begin(), v.end(), e1) };
 	auto it2{ std::find(v.begin(), v.end(), e2) };
 	if (it1 == v.end() || it2 == v.end()) {
