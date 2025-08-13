@@ -42,7 +42,7 @@ Entity CreateTopDownPlayer(
 	auto interaction_hitbox{ scene.CreateEntity() };
 	auto& interaction_collider =
 		interaction_hitbox.Add<Collider>(Rect{ config.interaction_hitbox_size });
-	interaction_collider.overlap_only = true;
+	interaction_collider.SetCollisionMode(CollisionMode::Overlap);
 	SetPosition(interaction_hitbox, {});
 
 	AddChild(player, body_hitbox, "body");
