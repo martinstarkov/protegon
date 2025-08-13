@@ -43,15 +43,6 @@ class CollisionHandler;
 
 } // namespace impl
 
-struct PhysicsBody : public Entity {
-	using Entity::Entity;
-
-	PhysicsBody(const Entity& entity) : Entity{ entity } {}
-
-	// @return True if the current entity or any of its parent entities is immovable.
-	[[nodiscard]] bool IsImmovable() const;
-};
-
 } // namespace ptgn
 
 template <>

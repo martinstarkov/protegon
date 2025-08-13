@@ -1,16 +1,11 @@
 #include "physics/collision/collider.h"
 
 #include <algorithm>
-#include <functional>
-#include <memory>
 #include <vector>
 
 #include "common/assert.h"
-#include "components/transform.h"
 #include "core/entity.h"
-#include "core/entity_hierarchy.h"
 #include "math/geometry.h"
-#include "physics/rigid_body.h"
 #include "utility/span.h"
 
 namespace ptgn {
