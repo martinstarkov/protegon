@@ -14,6 +14,8 @@ struct BoundingAABB {
 	[[nodiscard]] bool Overlaps(const BoundingAABB& other) const;
 
 	[[nodiscard]] bool Overlaps(const V2_float& point) const;
+
+	[[nodiscard]] BoundingAABB ExpandByVelocity(const V2_float& velocity) const;
 };
 
 // @return Axis aligned bounding box which contains the given shape (fully surrounding it).

@@ -27,6 +27,28 @@ bool BoundingAABB::Overlaps(const V2_float& point) const {
 	return !(max.x < point.x || min.x > point.x || max.y < point.y || min.y > point.y);
 }
 
+BoundingAABB BoundingAABB::ExpandByVelocity(const V2_float& velocity) const {
+	if (velocity.IsZero()) {
+		return *this;
+	}
+
+	BoundingAABB expanded{ *this };
+
+	if (velocity.x > 0) {
+		expanded.max.x += velocity.x;
+	} else {
+		expanded.min.x += velocity.x;
+	}
+
+	if (velocity.y > 0) {
+		expanded.max.y += velocity.y;
+	} else {
+		expanded.min.y += velocity.y;
+	}
+
+	return expanded;
+}
+
 BoundingAABB GetBoundingAABB(const Shape& shape, const Transform& transform) {
 	return std::visit(
 		[&](const auto& s) -> BoundingAABB {
