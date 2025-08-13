@@ -177,6 +177,15 @@ void Scene::InternalUpdate() {
 
 	input.Update(*this);
 
+	const auto invoke_scripts = [&]() {
+		for (auto [e, scripts] : EntitiesWith<Scripts>()) {
+			scripts.InvokeActions();
+		}
+		Refresh();
+	};
+
+	std::invoke(invoke_scripts);
+
 	float dt{ game.dt() };
 	float time{ game.time() };
 
@@ -190,11 +199,15 @@ void Scene::InternalUpdate() {
 
 	Refresh();
 
+	std::invoke(invoke_scripts);
+
 	ParticleEmitter::Update(*this);
 
 	for (auto [entity, tween] : EntitiesWith<impl::TweenInstance>()) {
 		Tween{ entity }.Step(dt);
 	}
+
+	std::invoke(invoke_scripts);
 
 	translate_effects_.Update(*this);
 	rotate_effects_.Update(*this);
@@ -219,6 +232,8 @@ void Scene::InternalUpdate() {
 	PTGN_ASSERT(camera.primary.IsAlive(), "Scene must be reinitialized after clearing");
 
 	// TODO: Update dirty vertex caches.
+
+	std::invoke(invoke_scripts);
 
 	InternalDraw();
 
