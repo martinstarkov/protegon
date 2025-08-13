@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <functional>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -343,11 +344,10 @@ RaycastResult RaycastCapsule(
 	RaycastResult c;
 
 	// TODO: Add early exit if overlap test fails.
-
-	V2_float cv{ ray_end - ray_start };
-	float mag2{ cv.Dot(cv) };
-
 	auto world_points{ B.GetWorldVertices(transform2) };
+
+	V2_float cv{ world_points[1] - world_points[0] };
+	float mag2{ cv.Dot(cv) };
 
 	float capsule_radius{ B.GetRadius(transform2) };
 
@@ -366,10 +366,12 @@ RaycastResult RaycastCapsule(
 	RaycastResult col_min{ c };
 
 	auto c1{ RaycastLine(
-		ray_start, ray_end, Transform{}, Line{ ray_start + ncu_dist, ray_end + ncu_dist }
+		ray_start, ray_end, Transform{},
+		Line{ world_points[0] + ncu_dist, world_points[1] + ncu_dist }
 	) };
 	auto c2{ RaycastLine(
-		ray_start, ray_end, Transform{}, Line{ ray_start - ncu_dist, ray_end - ncu_dist }
+		ray_start, ray_end, Transform{},
+		Line{ world_points[0] - ncu_dist, world_points[1] - ncu_dist }
 	) };
 	auto c3{
 		RaycastCircle(ray_start, ray_end, Transform{ world_points[0] }, Circle{ capsule_radius })
@@ -529,46 +531,25 @@ RaycastResult RaycastCircleRect(
 
 	RaycastResult col_min{ c };
 
-	auto half{ rect_size * 0.5f };
-	auto rect_min{ rect_center - half };
-	auto rect_max{ rect_center + half };
+	V2_float half{ rect_size * 0.5f };
+	V2_float top_left{ rect_center - half };
+	V2_float bottom_right{ rect_center + half };
+	V2_float top_right{ bottom_right.x, top_left.y };
+	V2_float bottom_left{ top_left.x, bottom_right.y };
 
-	// Top segment.
-	auto c1{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ rect_min, V2_float{ rect_max.x, rect_min.y }, circle_radius }
-	) };
+	const auto raycast_capsule_segment = [&](const V2_float& start, const V2_float& end) {
+		auto collision{ RaycastCapsule(
+			circle_center, ray_end, Transform{}, Capsule{ start, end, circle_radius }
+		) };
+		if (collision.Occurred() && collision.t < col_min.t) {
+			col_min = collision;
+		}
+	};
 
-	// Right segment.
-	auto c2{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ V2_float{ rect_max.x, rect_min.y }, rect_max, circle_radius }
-	) };
-
-	// Bottom segment.
-	auto c3{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ rect_max, V2_float{ rect_min.x, rect_max.y }, circle_radius }
-	) };
-
-	// Left segment.
-	auto c4{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ V2_float{ rect_min.x, rect_max.y }, rect_min, circle_radius }
-	) };
-
-	if (c1.Occurred() && c1.t < col_min.t) {
-		col_min = c1;
-	}
-	if (c2.Occurred() && c2.t < col_min.t) {
-		col_min = c2;
-	}
-	if (c3.Occurred() && c3.t < col_min.t) {
-		col_min = c3;
-	}
-	if (c4.Occurred() && c4.t < col_min.t) {
-		col_min = c4;
-	}
+	std::invoke(raycast_capsule_segment, top_left, top_right);		 // Top segment.
+	std::invoke(raycast_capsule_segment, top_right, bottom_right);	 // Right segment.
+	std::invoke(raycast_capsule_segment, bottom_right, bottom_left); // Bottom segment.
+	std::invoke(raycast_capsule_segment, bottom_left, top_left);	 // Left segment.
 
 	if (col_min.t < 0.0f || col_min.t >= 1.0f) {
 		return c;
