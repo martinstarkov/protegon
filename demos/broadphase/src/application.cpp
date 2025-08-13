@@ -181,17 +181,3 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.scene.Enter<BroadphaseScene>("");
 	return 0;
 }
-
-// Rect GetSweptAABB(const Transform& transform, const V2_float& velocity, float dt) {
-//	// TODO: Include rotation and scale.
-//	Rect aabb	   = GetBoundingAABB(transform);
-//	V2_float delta = velocity * dt;
-//
-//	V2_float newMin = { std::min(aabb.min.x, aabb.min.x + delta.x),
-//						std::min(aabb.min.y, aabb.min.y + delta.y) };
-//
-//	V2_float newMax = { std::max(aabb.max.x, aabb.max.x + delta.x),
-//						std::max(aabb.max.y, aabb.max.y + delta.y) };
-//
-//	return Rect{ newMin, newMax };
-// }
