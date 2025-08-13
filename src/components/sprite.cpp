@@ -63,6 +63,10 @@ V2_float Sprite::GetDisplaySize() const {
 	return impl::GetDisplaySize(*this);
 }
 
+void Sprite::SetDisplaySize(const V2_float& display_size) {
+	impl::SetDisplaySize(*this, display_size);
+}
+
 std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) const {
 	return impl::GetTextureCoordinates(*this, flip_vertically);
 }

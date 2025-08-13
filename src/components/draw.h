@@ -111,6 +111,8 @@ namespace impl {
 // @return Unscaled size of the cropped texture in pixels.
 [[nodiscard]] V2_int GetCroppedSize(const Entity& entity);
 
+void SetDisplaySize(Entity& entity, const V2_float& display_size);
+
 // @return Scaled size of the cropped texture in pixels.
 [[nodiscard]] V2_float GetDisplaySize(const Entity& entity);
 
@@ -135,6 +137,9 @@ struct LineWidth : public ArithmeticComponent<float> {
 };
 
 struct TextureCrop {
+	// Position and size are V2_float instead of V2_int to allow for smooth increase in display size
+	// (for example).
+
 	// Top left position (in pixels) within the texture from which the crop starts.
 	V2_float position;
 

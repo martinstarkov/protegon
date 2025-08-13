@@ -177,6 +177,11 @@ V2_int GetCroppedSize(const Entity& entity) {
 	return GetTextureSize(entity);
 }
 
+void SetDisplaySize(Entity& entity, const V2_float& display_size) {
+	auto& texture_size{ entity.TryAdd<TextureSize>() };
+	texture_size = display_size;
+}
+
 V2_float GetDisplaySize(const Entity& entity) {
 	if (!entity.Has<TextureHandle>() && !entity.Has<TextureCrop>()) {
 		return {};

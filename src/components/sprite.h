@@ -38,6 +38,8 @@ struct Sprite : public Entity, public Drawable<Sprite> {
 	// @return Scaled size of the cropped texture in pixels.
 	[[nodiscard]] V2_float GetDisplaySize() const;
 
+	void SetDisplaySize(const V2_float& display_size);
+
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
 
