@@ -127,8 +127,9 @@ bool SceneInput::IsAnyDragging() const {
 	return !dragging_entities_.empty();
 }
 
-std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state)
-	const {
+SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
+	Scene& scene, const MouseInfo& mouse_state
+) const {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
 
@@ -139,7 +140,9 @@ std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseI
 
 	std::unordered_map<Entity, EntityInfo> entity_shapes;
 
-	for (auto [entity, interactive] : scene.InternalEntitiesWith<Interactive>()) {
+	auto all_entities{ scene.InternalEntitiesWith<Interactive>().GetVector() };
+
+	for (Entity entity : all_entities) {
 		auto transform{ GetAbsoluteTransform(entity) };
 		std::vector<std::pair<Shape, Entity>> shapes;
 		GetShapes(entity, entity, shapes);
@@ -160,8 +163,8 @@ std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseI
 
 	// PTGN_LOG("Mouse: ", mouse_state.position);
 
-	std::vector<Entity> under_mouse;
-	under_mouse.reserve(candidates.size());
+	InteractiveEntities entities;
+	entities.under_mouse.reserve(candidates.size());
 
 	for (const auto& entity : candidates) {
 		auto it{ entity_shapes.find(entity) };
@@ -172,24 +175,29 @@ std::vector<Entity> SceneInput::GetEntitiesUnderMouse(Scene& scene, const MouseI
 		const auto& shapes{ it->second.shapes };
 		for (const auto& [shape, _] : shapes) {
 			if (Overlap(mouse_state.position, transform, shape)) {
-				under_mouse.emplace_back(entity);
+				entities.under_mouse.emplace_back(entity);
 			}
 		}
 	}
 
-	if (top_only_ && !under_mouse.empty()) {
+	if (top_only_ && !entities.under_mouse.empty()) {
 		// Find the draggable with the highest depth.
-		auto draggable_it{ std::ranges::max_element(under_mouse, EntityDepthCompare{ true }) };
+		auto draggable_it{
+			std::ranges::max_element(entities.under_mouse, EntityDepthCompare{ true })
+		};
 
 		// If no draggable is found, find the interactive entity with the highest depth.
 		if (!draggable_it->Has<Draggable>()) {
-			draggable_it = std::ranges::max_element(under_mouse, EntityDepthCompare{ true });
+			draggable_it =
+				std::ranges::max_element(entities.under_mouse, EntityDepthCompare{ true });
 		}
 
-		PTGN_ASSERT(draggable_it != under_mouse.end());
-		return { *draggable_it };
+		PTGN_ASSERT(draggable_it != entities.under_mouse.end());
+		entities.under_mouse = { *draggable_it };
 	}
-	return under_mouse;
+	VectorSubtract(all_entities, entities.under_mouse);
+	entities.not_under_mouse = all_entities;
+	return entities;
 }
 
 std::vector<Entity> SceneInput::GetDropzones(Scene& scene) {
@@ -218,8 +226,9 @@ void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const
 	}
 }
 
-void SceneInput::DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse)
-	const {
+void SceneInput::DispatchMouseEvents(
+	const std::vector<Entity>& over, const std::vector<Entity>& out, const MouseInfo& mouse
+) const {
 	for (Entity e : over) {
 		if (!e.Has<Scripts>()) {
 			continue;
@@ -240,7 +249,7 @@ void SceneInput::DispatchMouseEvents(const std::vector<Entity>& over, const Mous
 		}
 	}
 
-	for (Entity e : last_mouse_over_) {
+	for (Entity e : out) {
 		if (!e.Has<Scripts>()) {
 			continue;
 		}
@@ -526,15 +535,15 @@ void SceneInput::Update(Scene& scene) {
 		DrawDebugPoint(mouse_state.position, draw_interactive_color_);
 	}
 
-	auto under_mouse{ GetEntitiesUnderMouse(scene, mouse_state) };
+	auto entities = GetInteractiveEntities(scene, mouse_state);
 	auto dropzones{ GetDropzones(scene) };
 	// PTGN_LOG(under_mouse.size());
 
-	UpdateMouseOverStates(under_mouse);
+	UpdateMouseOverStates(entities.under_mouse);
 
-	DispatchMouseEvents(under_mouse, mouse_state);
+	DispatchMouseEvents(entities.under_mouse, entities.not_under_mouse, mouse_state);
 
-	HandleDragging(under_mouse, dropzones, mouse_state);
+	HandleDragging(entities.under_mouse, dropzones, mouse_state);
 
 	if (IsAnyDragging()) {
 		HandleDropzones(dropzones, mouse_state);
@@ -574,14 +583,14 @@ void SceneInput::Update(Scene& scene) {
 		std::invoke(invoke_actions, dragging);
 	}
 
-	for (Entity entity : under_mouse) {
+	for (Entity entity : entities.under_mouse) {
 		std::invoke(invoke_actions, entity);
 	}
 
 	std::erase_if(dragging_entities_, [](const auto& entity) { return !entity.Has<Draggable>(); });
 
 	// Save for next frame.
-	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
+	last_mouse_over_ = std::unordered_set(entities.under_mouse.begin(), entities.under_mouse.end());
 
 	CleanupDropzones(dropzones);
 

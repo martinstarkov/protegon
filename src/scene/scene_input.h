@@ -118,9 +118,16 @@ private:
 	void Init(std::size_t scene_key);
 	void Shutdown();
 
-	std::vector<Entity> GetEntitiesUnderMouse(Scene& scene, const MouseInfo& mouse_state) const;
+	struct InteractiveEntities {
+		std::vector<Entity> under_mouse;
+		std::vector<Entity> not_under_mouse;
+	};
+
+	InteractiveEntities GetInteractiveEntities(Scene& scene, const MouseInfo& mouse_state) const;
 	static std::vector<Entity> GetDropzones(Scene& scene);
-	void DispatchMouseEvents(const std::vector<Entity>& over, const MouseInfo& mouse) const;
+	void DispatchMouseEvents(
+		const std::vector<Entity>& over, const std::vector<Entity>& out, const MouseInfo& mouse
+	) const;
 	void UpdateMouseOverStates(const std::vector<Entity>& current) const;
 	void HandleDragging(
 		const std::vector<Entity>& over, const std::vector<Entity>& dropzones,
