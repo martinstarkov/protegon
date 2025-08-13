@@ -26,6 +26,22 @@ DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
 
+void DialogueWaitScript::OnUpdate() {
+	auto& dialogue_component{ GetDialogueComponent() };
+	if (!game.input.KeyDown(dialogue_component.GetContinueKey())) {
+		return;
+	}
+	if (HasScript<impl::DialogueScrollScript>(entity)) {
+		if (auto& script_info{ GetTimerScriptInfo<impl::DialogueScrollScript>(entity) };
+			script_info.timer.IsRunning()) {
+			GetScript<impl::DialogueScrollScript>(entity).UpdateText(1.0f);
+			script_info.timer.Stop();
+			return;
+		}
+	}
+	dialogue_component.NextPage();
+}
+
 DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
@@ -63,22 +79,7 @@ bool DialogueScrollScript::OnTimerStop() {
 void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
 	UpdateText(elapsed_fraction);
 }
-
-void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
-	auto& dialogue_component{ GetDialogueComponent() };
-	if (!game.input.KeyDown(dialogue_component.GetContinueKey())) {
-		return;
-	}
-	if (HasScript<impl::DialogueScrollScript>(entity)) {
-		if (auto& script_info{ GetTimerScriptInfo<impl::DialogueScrollScript>(entity) };
-			script_info.timer.IsRunning()) {
-			GetScript<impl::DialogueScrollScript>(entity).UpdateText(1.0f);
-			script_info.timer.Stop();
-			return;
-		}
-	}
-	dialogue_component.NextPage();
-}*/
+*/
 
 } // namespace impl
 

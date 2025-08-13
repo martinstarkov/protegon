@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/entity.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "input/key.h"
 #include "math/vector2.h"
@@ -74,23 +75,21 @@ struct Dialogue {
 
 namespace impl {
 
-// TODO: Fix script invocation.
-/*
-struct DialogueWaitScript : public ptgn::Script<DialogueWaitScript> {
-	DialogueWaitScript() {}
-
-	[[nodiscard]] DialogueComponent& GetDialogueComponent();
-	void OnUpdate(float dt) final;
-};
-
-struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript> {
-	DialogueScrollScript() {}
-
-	[[nodiscard]] DialogueComponent& GetDialogueComponent();
-	void UpdateText(float elapsed_fraction);
-	bool OnTimerStop() final;
-	void OnTimerUpdate(float elapsed_fraction) final;
-};*/
+// TODO: Fix script invocations.
+// struct DialogueWaitScript : public Script<DialogueWaitScript> {
+//	DialogueWaitScript() {}
+//
+//	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+//	void OnUpdate() final;
+//};
+// struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript> {
+//	DialogueScrollScript() {}
+//
+//	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+//	void UpdateText(float elapsed_fraction);
+//	bool OnTimerStop() final;
+//	void OnTimerUpdate(float elapsed_fraction) final;
+//};
 
 } // namespace impl
 
@@ -147,10 +146,11 @@ private:
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	DialogueBehavior, {
-						  { DialogueBehavior::Sequential, "sequential" },
-						  { DialogueBehavior::Random, "random" },
-					  }
+	DialogueBehavior,
+	{
+		{ DialogueBehavior::Sequential, "sequential" },
+		{ DialogueBehavior::Random, "random" },
+	}
 )
 
 } // namespace ptgn
