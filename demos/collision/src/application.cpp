@@ -1,20 +1,30 @@
 #include <memory>
+#include <new>
+#include <string>
 #include <vector>
 
+#include "common/assert.h"
 #include "components/draw.h"
 #include "components/movement.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "core/window.h"
+#include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/math.h"
 #include "math/vector2.h"
+#include "physics/collision/collider.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -40,6 +50,50 @@ struct CollisionTest {
 	virtual void Update() {}
 
 	virtual void Draw() {}
+};
+
+struct TestOverlapScript : public Script<TestOverlapScript, OverlapScript> {
+	TestOverlapScript() = default;
+
+	explicit TestOverlapScript(const std::string& name) : name{ name } {}
+
+	void OnOverlapStart(Entity other) override {
+		PTGN_LOG(name, " started overlap with ", other.GetId());
+	}
+
+	void OnOverlap(Entity other) override {
+		PTGN_LOG(name, " continued overlap with ", other.GetId());
+	}
+
+	void OnOverlapStop(Entity other) override {
+		PTGN_LOG(name, " stopped overlap with ", other.GetId());
+	}
+
+	std::string name;
+};
+
+struct TestIntersectScript : public Script<TestIntersectScript, CollisionScript> {
+	TestIntersectScript() = default;
+
+	explicit TestIntersectScript(const std::string& name) : name{ name } {}
+
+	void OnCollision(Collision c) override {
+		PTGN_LOG(name, " intersected with ", c.entity.GetId(), ", normal: ", c.normal);
+	}
+
+	std::string name;
+};
+
+struct TestRaycastScript : public Script<TestRaycastScript, CollisionScript> {
+	TestRaycastScript() = default;
+
+	explicit TestRaycastScript(const std::string& name) : name{ name } {}
+
+	void OnCollision(Collision c) override {
+		PTGN_LOG(name, " ray collided with ", c.entity.GetId(), ", normal: ", c.normal);
+	}
+
+	std::string name;
 };
 
 class CollisionCallbackTest : public CollisionTest {
@@ -94,22 +148,24 @@ public:
 		overlap_circle.Add<RigidBody>();
 		sweep_circle.Add<RigidBody>();
 
-		// TODO: Fix memory leak?
-		intersect.Add<Collider>(Rect{ V2_float{ 30, 30 } });
-		overlap.Add<Collider>(Rect{ V2_float{ 30, 30 } });
-		sweep.Add<Collider>(Rect{ V2_float{ 30, 30 } });
-		intersect.Add<Rect>(V2_float{ 30, 30 });
-		overlap.Add<Rect>(V2_float{ 30, 30 });
-		sweep.Add<Rect>(V2_float{ 30, 30 });
+		V2_float rect_size{ 30, 30 };
+		float circle_radius{ 30.0f };
+
+		intersect.Add<Collider>(Rect{ rect_size });
+		overlap.Add<Collider>(Rect{ rect_size });
+		sweep.Add<Collider>(Rect{ rect_size });
+		intersect.Add<Rect>(rect_size);
+		overlap.Add<Rect>(rect_size);
+		sweep.Add<Rect>(rect_size);
 		SetDraw<Rect>(intersect);
 		SetDraw<Rect>(overlap);
 		SetDraw<Rect>(sweep);
-		intersect_circle.Add<Collider>(Circle{ 30.0f });
-		overlap_circle.Add<Collider>(Circle{ 30.0f });
-		sweep_circle.Add<Collider>(Circle{ 30.0f });
-		intersect_circle.Add<Circle>(30.0f);
-		overlap_circle.Add<Circle>(30.0f);
-		sweep_circle.Add<Circle>(30.0f);
+		intersect_circle.Add<Collider>(Circle{ circle_radius });
+		overlap_circle.Add<Collider>(Circle{ circle_radius });
+		sweep_circle.Add<Collider>(Circle{ circle_radius });
+		intersect_circle.Add<Circle>(circle_radius);
+		overlap_circle.Add<Circle>(circle_radius);
+		sweep_circle.Add<Circle>(circle_radius);
 		SetDraw<Circle>(intersect_circle);
 		SetDraw<Circle>(overlap_circle);
 		SetDraw<Circle>(sweep_circle);
@@ -121,128 +177,24 @@ public:
 		auto& c2{ overlap_circle.Get<Collider>() };
 		auto& c3{ sweep_circle.Get<Collider>() };
 
-		b2.overlap_only = true;
-		b3.continuous	= true;
-		c2.overlap_only = true;
-		c3.continuous	= true;
+		b1.SetCollisionMode(CollisionMode::Intersect);
+		c1.SetCollisionMode(CollisionMode::Intersect);
+		b2.SetCollisionMode(CollisionMode::Overlap);
+		c2.SetCollisionMode(CollisionMode::Overlap);
+		b3.SetCollisionMode(CollisionMode::Sweep);
+		c3.SetCollisionMode(CollisionMode::Sweep);
 
-		/*b1.on_collision_start = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " started intersect collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
-		b1.on_collision = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " continued intersect collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
-		b1.on_collision_stop = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " stopped intersect collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
+		AddScript<TestIntersectScript>(intersect, "Intersection Rectangle");
+		AddScript<TestIntersectScript>(intersect_circle, "Intersection Circle");
+		AddScript<TestOverlapScript>(overlap, "Overlap Rectangle");
+		AddScript<TestOverlapScript>(overlap_circle, "Overlap Circle");
+		AddScript<TestRaycastScript>(sweep, "Raycast Rectangle");
+		AddScript<TestRaycastScript>(sweep_circle, "Raycast Circle");
 
-		b2.on_collision_start = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " started overlap collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-		b2.on_collision = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " continued overlap collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
-		b2.on_collision_stop = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " stopped overlap collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-
-		b3.on_collision_start = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " started sweep collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-		b3.on_collision = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " continued sweep collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-		b3.on_collision_stop = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " stopped sweep collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-		c1.on_collision_start = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " started intersect collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
-		c1.on_collision = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " continued intersect collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
-		c1.on_collision_stop = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " stopped intersect collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
-
-		c2.on_collision_start = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " started overlap collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-		c2.on_collision = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " continued overlap collision with #",
-				c.entity2.GetUUID(), ", normal: ", c.normal
-			);
-		};
-		c2.on_collision_stop = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " stopped overlap collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-
-		c3.on_collision_start = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " started sweep collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-		c3.on_collision = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " continued sweep collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};
-		c3.on_collision_stop = [](Collision c) {
-			PTGN_LOG(
-				"#", c.entity1.GetUUID(), " stopped sweep collision with #", c.entity2.GetUUID(),
-				", normal: ", c.normal
-			);
-		};*/
-
-		CreateObstacle(V2_float{ 50, 50 }, V2_float{ 10, 500 }, Origin::TopLeft);
+		/*CreateObstacle(V2_float{ 50, 50 }, V2_float{ 10, 500 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 600, 200 }, V2_float{ 10, 500 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 50, 650 }, V2_float{ 500, 10 }, Origin::TopLeft);
-		CreateObstacle(V2_float{ 100, 70 }, V2_float{ 500, 10 }, Origin::TopLeft);
+		CreateObstacle(V2_float{ 100, 70 }, V2_float{ 500, 10 }, Origin::TopLeft);*/
 	}
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
@@ -257,7 +209,7 @@ public:
 		if (game.input.KeyDown(Key::E)) {
 			move_entity++;
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (game.input.KeyDown(Key::Q)) {
 			move_entity--;
 		}
 		move_entity = Mod(move_entity, move_entities);
@@ -288,38 +240,25 @@ public:
 		PTGN_ASSERT(vel != nullptr);
 		PTGN_ASSERT(pos != nullptr);
 
-		PTGN_LOG("Pos: ", *pos);
+		// PTGN_LOG("Pos: ", *pos);
 
 		MoveWASD(*vel, speed * game.scene.Get("").physics.dt());
 	}
 
 	void Draw() override {
-		// TODO: Fix debug drawing.
-		/*
-		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
-			Rect r{ b.GetAbsoluteRect() };
-			DrawRect(e, r);
-			if (e == intersect) {
-				Text{ "Intersect", color::Black }.Draw(Rect{ r.Center() });
-			} else if (e == overlap) {
-				Text{ "Overlap", color::Black }.Draw(Rect{ r.Center() });
-			} else if (e == sweep) {
-				Text{ "Sweep", color::Black }.Draw(Rect{ r.Center() });
+		constexpr Color text_color{ color::Blue };
+		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
+			auto transform{ GetAbsoluteTransform(e) };
+			if (collider.mode == CollisionMode::Intersect) {
+				DrawDebugText("Intersect", transform.position, text_color);
+			} else if (collider.mode == CollisionMode::Overlap) {
+				DrawDebugText("Overlap", transform.position, text_color);
+			} else if (collider.mode == CollisionMode::Sweep) {
+				DrawDebugText("Sweep", transform.position, text_color);
+			} else if (collider.mode == CollisionMode::None) {
+				DrawDebugText("None", transform.position, text_color);
 			}
 		}
-		for (auto [e, c] : manager.EntitiesWith<CircleCollider>()) {
-			Circle circ{ c.GetAbsoluteCircle() };
-			DrawCircle(e, circ);
-
-			if (e == intersect_circle) {
-				Text{ "Intersect", color::Black }.Draw(Rect{ circ.Center() });
-			} else if (e == overlap_circle) {
-				Text{ "Overlap", color::Black }.Draw(Rect{ circ.Center() });
-			} else if (e == sweep_circle) {
-				Text{ "Sweep", color::Black }.Draw(Rect{ circ.Center() });
-			}
-		}
-		*/
 	}
 };
 
