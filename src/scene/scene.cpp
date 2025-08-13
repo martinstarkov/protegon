@@ -227,7 +227,7 @@ void Scene::InternalUpdate() {
 
 	physics.PreCollisionUpdate(*this);
 
-	impl::CollisionHandler::Update(*this);
+	collision_.Update(*this);
 
 	physics.PostCollisionUpdate(*this);
 

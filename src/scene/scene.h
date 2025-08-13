@@ -6,6 +6,7 @@
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/color.h"
 #include "renderer/render_target.h"
@@ -100,6 +101,8 @@ private:
 	friend class impl::RenderData;
 	friend class impl::SceneManager;
 	friend class SceneTransition;
+
+	impl::CollisionHandler collision_;
 
 	void Init();
 
