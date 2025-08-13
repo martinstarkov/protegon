@@ -412,8 +412,10 @@ void RenderData::AddTexturedQuad(
 				ReadFrom(ping->frame_buffer);
 			}
 
+			auto pre_fx_tint{ GetTint(fx) };
+
 			// TODO: Cache this somehow?
-			SetCameraVertices(verts, depth, false);
+			SetCameraVertices(verts, depth, false, pre_fx_tint);
 
 			shader.SetUniform("u_Texture", 1);
 			shader.SetUniform("u_Resolution", V2_float{ texture_size });
