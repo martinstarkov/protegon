@@ -413,7 +413,7 @@ void RenderData::AddTexturedQuad(
 			}
 
 			// TODO: Cache this somehow?
-			SetCameraVertices(verts, depth);
+			SetCameraVertices(verts, depth, false);
 
 			shader.SetUniform("u_Texture", 1);
 			shader.SetUniform("u_Resolution", V2_float{ texture_size });
@@ -565,15 +565,18 @@ void RenderData::SetViewport(const Camera& camera) {
 	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
 }
 
-void RenderData::SetCameraVertices(const std::array<V2_float, 4>& positions, const Depth& depth) {
+void RenderData::SetCameraVertices(
+	const std::array<V2_float, 4>& positions, const Depth& depth, bool flip_vertices,
+	const Color& tint
+) {
 	camera_vertices =
-		GetQuadVertices(positions, color::White, depth, 1.0f, default_texture_coordinates, true);
+		GetQuadVertices(positions, tint, depth, 1.0f, default_texture_coordinates, flip_vertices);
 
 	UpdateVertexArray(camera_vertices, quad_indices);
 }
 
-void RenderData::SetCameraVertices(const Camera& camera) {
-	SetCameraVertices(camera.GetWorldVertices(), GetDepth(camera));
+void RenderData::SetCameraVertices(const Camera& camera, bool flip_vertices, const Color& tint) {
+	SetCameraVertices(camera.GetWorldVertices(), GetDepth(camera), flip_vertices, tint);
 }
 
 void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
@@ -604,7 +607,8 @@ void RenderData::ReadFrom(const RenderTarget& render_target) {
 
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, BlendMode target_blend_mode,
-	const Color& target_clear_color, bool uses_scene_texture
+	const Color& target_clear_color, bool uses_scene_texture, const Texture& texture,
+	const Color& tint
 ) {
 	Scene& scene{ entity.GetScene() };
 	PTGN_ASSERT(&scene == &game.scene.GetCurrent());
@@ -618,15 +622,19 @@ void RenderData::AddShader(
 		intermediate_target->clear_color	   = target_clear_color;
 		intermediate_target->frame_buffer.ClearToColor(intermediate_target->clear_color);
 		intermediate_target->blend_mode = target_blend_mode;
-		PTGN_ASSERT(drawing_to);
-		ReadFrom(drawing_to);
+		if (uses_scene_texture) {
+			PTGN_ASSERT(drawing_to);
+			ReadFrom(drawing_to);
+		} else if (texture.IsValid()) {
+			ReadFrom(texture);
+		}
 	} else {
 		camera = GetCamera(scene);
 		PTGN_ASSERT(intermediate_target->frame_buffer.IsBound());
 		PTGN_ASSERT(intermediate_target);
 	}
 
-	SetCameraVertices(camera);
+	SetCameraVertices(camera, false, tint);
 
 	GLRenderer::SetBlendMode(render_state.blend_mode);
 
@@ -746,7 +754,7 @@ void RenderData::Flush(Scene& scene) {
 			ReadFrom(ping->frame_buffer);
 
 			// TODO: Cache this somehow?
-			SetCameraVertices(camera);
+			SetCameraVertices(camera, false);
 
 			V2_float viewport{ camera.GetViewportSize() };
 
@@ -785,7 +793,7 @@ void RenderData::Flush(Scene& scene) {
 		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
 
 		// TODO: Cache this somehow?
-		SetCameraVertices(camera);
+		SetCameraVertices(camera, false);
 
 		DrawVertexArray(quad_indices.size());
 		/*PTGN_LOG("PostDraw: ", drawing_to.GetPixel({ 400, 400 }));*/

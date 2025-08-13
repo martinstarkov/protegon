@@ -221,9 +221,11 @@ public:
 		const RenderState& state, const PreFX& pre_fx = {}
 	);
 
+	// @param texture Only used if uses_scene_texture is false and texture is valid.
 	void AddShader(
 		Entity entity, const RenderState& render_state, BlendMode target_blend_mode,
-		const Color& target_clear_color, bool uses_scene_texture
+		const Color& target_clear_color, bool uses_scene_texture, const Texture& texture = {},
+		const Color& tint = color::White
 	);
 
 	void AddTemporaryTexture(Texture&& texture);
@@ -327,8 +329,13 @@ private:
 		std::size_t index_count
 	);
 
-	void SetCameraVertices(const Camera& camera);
-	void SetCameraVertices(const std::array<V2_float, 4>& positions, const Depth& depth);
+	void SetCameraVertices(
+		const Camera& camera, bool flip_vertices = true, const Color& tint = color::White
+	);
+	void SetCameraVertices(
+		const std::array<V2_float, 4>& positions, const Depth& depth, bool flip_vertices,
+		const Color& tint = color::White
+	);
 
 	void Init();
 
