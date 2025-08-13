@@ -3,6 +3,7 @@
 #include "components/drawable.h"
 #include "components/sprite.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/window.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -45,23 +46,6 @@ public:
 	}
 };
 
-class TextureEffect : public Drawable<TextureEffect> {
-public:
-	TextureEffect() {}
-
-	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		impl::RenderState state;
-		Sprite s{ entity };
-		auto tint{ GetTint(entity) };
-		const auto& texture{ s.GetTexture() };
-		state.blend_mode  = GetBlendMode(entity);
-		state.shader_pass = entity.Get<impl::ShaderPass>();
-		state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
-		state.camera	  = entity.GetOrDefault<Camera>();
-		ctx.AddShader(entity, state, BlendMode::None, color::Transparent, false, texture, tint);
-	}
-};
-
 Entity CreatePostFX(Scene& scene) {
 	auto effect{ scene.CreateEntity() };
 
@@ -92,14 +76,14 @@ void SetWhirlpoolUniform(Entity entity, const Shader& shader) {
 }
 
 Entity CreateWhirlpoolEffect(
-	Scene& scene, const TextureHandle& texture_key, const V2_float& position,
-	const WhirlpoolInfo& info = {}
+	Scene& scene, const WhirlpoolInfo& info = {}, const Color& tint = color::DarkGray
 ) {
-	auto effect{ CreateSprite(scene, texture_key, position) };
-	SetDraw<TextureEffect>(effect);
+	auto effect{ scene.CreateEntity() };
+
+	SetBlendMode(effect, BlendMode::Blend);
+	SetTint(effect, tint);
+	effect.Add<impl::UsePreviousTexture>(false);
 	effect.Add<WhirlpoolInfo>(info);
-	SetBlendMode(effect, BlendMode::None);
-	SetTint(effect, color::DarkGray);
 	Shader whirlpool_shader{ ShaderCode{
 #include PTGN_SHADER_PATH(screen_default.vert)
 							 },
@@ -203,6 +187,17 @@ Entity AddSprite(Scene& s, V2_float pos) {
 	return e;
 }
 
+struct FollowMouseScript : public Script<FollowMouseScript> {
+	void OnUpdate() override {
+		SetPosition(entity, game.input.GetMousePosition());
+		float timescale{ 1000 };
+		V2_float size{ V2_float{ Abs(std::sin(game.time() / timescale) * 256),
+								 Abs(std::sin(game.time() / timescale) * 256) } +
+					   V2_float{ 256, 256 } };
+		Sprite{ entity }.SetDisplaySize(size);
+	}
+};
+
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
 	LoadResource("noise", "resources/noise.png");
@@ -210,9 +205,13 @@ void GenerateTestCases() {
 	tests.emplace_back([](Scene& s) {
 		// AddRect(s, rect1_pos, rect1_size, rect1_color);
 
-		CreateWhirlpoolEffect(s, "noise", rect2_pos, { 0.25f, 0.5f, 0.8f });
-		CreateWhirlpoolEffect(s, "noise", rect2_pos, { 0.5f, 0.25f, 0.7f });
-		CreateWhirlpoolEffect(s, "noise", rect2_pos, { 1.0f, 0.1f, 0.5f });
+		auto sprite = CreateSprite(s, "noise", rect2_pos);
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.25f, 0.5f, 0.8f }));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.5f, 0.25f, 0.7f }, color::White));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 1.0f, 0.5f, 0.7f }, color::White));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 3.0f, 0.2f, 1.0f }));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 5.0f, 0.1f, 1.0f }));
+		AddScript<FollowMouseScript>(sprite);
 	});
 
 	tests.emplace_back([](Scene& s) {
