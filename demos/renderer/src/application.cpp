@@ -45,12 +45,69 @@ public:
 	}
 };
 
+class TextureEffect : public Drawable<TextureEffect> {
+public:
+	TextureEffect() {}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		impl::RenderState state;
+		Sprite s{ entity };
+		auto tint{ GetTint(entity) };
+		const auto& texture{ s.GetTexture() };
+		state.blend_mode  = GetBlendMode(entity);
+		state.shader_pass = entity.Get<impl::ShaderPass>();
+		state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+		state.camera	  = entity.GetOrDefault<Camera>();
+		ctx.AddShader(entity, state, BlendMode::None, color::Transparent, false, texture, tint);
+	}
+};
+
 Entity CreatePostFX(Scene& scene) {
 	auto effect{ scene.CreateEntity() };
 
 	SetDraw<PostProcessingEffect>(effect);
 	Show(effect);
 	SetBlendMode(effect, BlendMode::None);
+
+	return effect;
+}
+
+struct WhirlpoolInfo {
+	float timescale{ 1.0f };
+	float scale{ 0.5f };
+	float opacity{ 0.5f };
+};
+
+void SetWhirlpoolUniform(Entity entity, const Shader& shader) {
+	/*auto transform{ GetDrawTransform(entity) };
+	float radius{ radius * Abs(transform.scale.x) };*/
+
+	float time{ game.time() };
+
+	const auto& info = entity.Get<WhirlpoolInfo>();
+
+	shader.SetUniform("u_Time", time / 1000.0f * info.timescale);
+	shader.SetUniform("u_Scale", info.scale);
+	shader.SetUniform("u_Opacity", info.opacity);
+}
+
+Entity CreateWhirlpoolEffect(
+	Scene& scene, const TextureHandle& texture_key, const V2_float& position,
+	const WhirlpoolInfo& info = {}
+) {
+	auto effect{ CreateSprite(scene, texture_key, position) };
+	SetDraw<TextureEffect>(effect);
+	effect.Add<WhirlpoolInfo>(info);
+	SetBlendMode(effect, BlendMode::None);
+	SetTint(effect, color::DarkGray);
+	Shader whirlpool_shader{ ShaderCode{
+#include PTGN_SHADER_PATH(screen_default.vert)
+							 },
+							 "resources/whirlpool.frag", "Whirlpool" };
+	game.shader.shaders.emplace("whirlpool", std::move(whirlpool_shader));
+	effect.Add<impl::ShaderPass>(
+		game.shader.shaders.find("whirlpool")->second, &SetWhirlpoolUniform
+	);
 
 	return effect;
 }
@@ -148,6 +205,15 @@ Entity AddSprite(Scene& s, V2_float pos) {
 
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
+	LoadResource("noise", "resources/noise.png");
+
+	tests.emplace_back([](Scene& s) {
+		// AddRect(s, rect1_pos, rect1_size, rect1_color);
+
+		CreateWhirlpoolEffect(s, "noise", rect2_pos, { 0.25f, 0.5f, 0.8f });
+		CreateWhirlpoolEffect(s, "noise", rect2_pos, { 0.5f, 0.25f, 0.7f });
+		CreateWhirlpoolEffect(s, "noise", rect2_pos, { 1.0f, 0.1f, 0.5f });
+	});
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, { 320, 240 }, rect1_color);
@@ -434,7 +500,7 @@ struct RendererScene : public Scene {
 };
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-	game.Init("RendererScene", window_size, color::White);
+	game.Init("RendererScene", window_size, color::LightBlue);
 	game.scene.Enter<RendererScene>("");
 	return 0;
 }
