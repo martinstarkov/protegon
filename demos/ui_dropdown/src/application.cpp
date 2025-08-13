@@ -13,22 +13,6 @@
 
 using namespace ptgn;
 
-class ButtonScript : public Script<ButtonScript> {
-public:
-	ButtonScript() = default;
-
-	explicit ButtonScript(const std::function<void()>& on_activate_callback) :
-		on_activate{ on_activate_callback } {}
-
-	void OnButtonActivate() override {
-		if (on_activate) {
-			std::invoke(on_activate);
-		}
-	}
-
-	std::function<void()> on_activate;
-};
-
 class DropdownScene : public Scene {
 public:
 	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
@@ -36,7 +20,7 @@ public:
 		button.SetBackgroundColor(color::Gray);
 		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		button.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		AddScript<ButtonScript>(button, on_activate);
+		button.OnActivate(on_activate);
 		button.SetBorderColor(color::Red);
 		button.SetBorderWidth(3.0f);
 		return button;

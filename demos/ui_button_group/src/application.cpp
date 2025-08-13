@@ -11,7 +11,7 @@
 
 using namespace ptgn;
 
-struct ToggleButtonScript : public Script<ToggleButtonScript> {
+struct ToggleButtonScript : public Script<ToggleButtonScript, ButtonScript> {
 	ToggleButtonScript() {}
 
 	explicit ToggleButtonScript(int number) : number{ number } {}

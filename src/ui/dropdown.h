@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "components/drawable.h"
 #include "core/entity.h"
+#include "core/script.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "ui/button.h"
@@ -32,22 +32,20 @@ struct DropdownInstance {
 	Origin origin_{ Origin::CenterBottom };
 };
 
-// TODO: Fix script invocations.
-/*
-class DropdownScript : public ptgn::Script<DropdownScript> {
+class DropdownScript : public Script<DropdownScript, ButtonScript> {
 public:
 	DropdownScript() = default;
 
 	void OnButtonActivate() override;
 };
 
-class DropdownItemScript : public ptgn::Script<DropdownItemScript> {
+class DropdownItemScript : public Script<DropdownItemScript, ButtonScript> {
 public:
 	DropdownItemScript() = default;
 
 	void OnButtonActivate() override;
 };
-*/
+
 } // namespace impl
 
 class Dropdown : public Button {

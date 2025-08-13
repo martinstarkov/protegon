@@ -2,8 +2,9 @@
 #include <ostream>
 
 #include "components/draw.h"
-#include "core/entity.h"
+#include "components/transform.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -14,13 +15,13 @@
 
 using namespace ptgn;
 
-struct ButtonScript1 : public Script<ButtonScript1> {
+struct ButtonScript1 : public Script<ButtonScript1, ButtonScript> {
 	void OnButtonActivate() override {
 		PTGN_LOG("Clicked regular button");
 	}
 };
 
-struct ToggleButtonScript1 : public Script<ToggleButtonScript1> {
+struct ToggleButtonScript1 : public Script<ToggleButtonScript1, ButtonScript> {
 	void OnButtonActivate() override {
 		PTGN_LOG("Toggled button");
 	}

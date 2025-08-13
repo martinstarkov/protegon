@@ -15,7 +15,9 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "debug/log.h"
+#include "input/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/hash.h"
@@ -43,8 +45,7 @@ Button CreateButton(Scene& scene) {
 	SetInteractive(button);
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
-	// TODO: Fix script invocation.
-	// AddScript<impl::ButtonScript>(button);
+	AddScript<impl::InternalButtonScript>(button);
 	button.Enable();
 
 	return button;
@@ -63,8 +64,7 @@ Button CreateTextButton(
 ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
 	ToggleButton toggle_button{ CreateButton(scene) };
 
-	// TODO: Fix script invocation.
-	// AddScript<impl::ToggleButtonScript>(toggle_button);
+	AddScript<impl::ToggleButtonScript>(toggle_button);
 	toggle_button.Add<impl::ButtonToggled>(toggled);
 
 	return toggle_button;
@@ -80,9 +80,7 @@ ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 
 namespace impl {
 
-// TODO: Fix script invocation.
-/*
-void ButtonScript::OnMouseEnter([[maybe_unused]] V2_int mouse_position) {
+void InternalButtonScript::OnMouseEnter() {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (state == InternalButtonState::IdleUp) {
@@ -96,7 +94,7 @@ void ButtonScript::OnMouseEnter([[maybe_unused]] V2_int mouse_position) {
 	}
 }
 
-void ButtonScript::OnMouseLeave([[maybe_unused]] V2_int mouse_position) {
+void InternalButtonScript::OnMouseLeave() {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (state == InternalButtonState::Hover) {
@@ -111,7 +109,7 @@ void ButtonScript::OnMouseLeave([[maybe_unused]] V2_int mouse_position) {
 	}
 }
 
-void ButtonScript::OnMouseDown(V2_int mouse_position, Mouse mouse) {
+void InternalButtonScript::OnMouseDownOver(Mouse mouse) {
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::Hover) {
@@ -120,7 +118,7 @@ void ButtonScript::OnMouseDown(V2_int mouse_position, Mouse mouse) {
 	}
 }
 
-void ButtonScript::OnMouseDownOutside(Mouse mouse) {
+void InternalButtonScript::OnMouseDownOut(Mouse mouse) {
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::IdleUp) {
@@ -129,7 +127,7 @@ void ButtonScript::OnMouseDownOutside(Mouse mouse) {
 	}
 }
 
-void ButtonScript::OnMouseUp(V2_int mouse_position, Mouse mouse) {
+void InternalButtonScript::OnMouseUpOver(Mouse mouse) {
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::Pressed) {
@@ -141,7 +139,7 @@ void ButtonScript::OnMouseUp(V2_int mouse_position, Mouse mouse) {
 	}
 }
 
-void ButtonScript::OnMouseUpOutside(Mouse mouse) {
+void InternalButtonScript::OnMouseUpOut(Mouse mouse) {
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::IdleDown) {
@@ -171,7 +169,7 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 	}
 	ToggleButton{ entity }.SetToggled(true);
 }
-*/
+
 void ButtonColor::SetToState(ButtonState state) {
 	current_ = Get(state);
 }
@@ -522,8 +520,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 }
 
 Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
-	// TODO: Fix script invocation.
-	// AddScript<impl::ButtonActivateScript>(*this, on_activate_callback);
+	AddScript<impl::ButtonActivateScript>(*this, on_activate_callback);
 	return *this;
 }
 
@@ -868,18 +865,21 @@ ButtonState Button::GetState() const {
 }
 
 void Button::Activate() {
-	// TODO: Fix script invocation.
-	// InvokeScript<&impl::IScript::OnButtonActivate>(*this);
+	if (Has<Scripts>()) {
+		Get<Scripts>().AddAction(&ButtonScript::OnButtonActivate);
+	}
 }
 
 void Button::StartHover() {
-	// TODO: Fix script invocation.
-	// InvokeScript<&impl::IScript::OnButtonHoverStart>(*this);
+	if (Has<Scripts>()) {
+		Get<Scripts>().AddAction(&ButtonScript::OnButtonHoverStart);
+	}
 }
 
 void Button::StopHover() {
-	// TODO: Fix script invocation.
-	// InvokeScript<&impl::IScript::OnButtonHoverStop>(*this);
+	if (Has<Scripts>()) {
+		Get<Scripts>().AddAction(&ButtonScript::OnButtonHoverStop);
+	}
 }
 
 bool ToggleButton::IsToggled() const {
@@ -1076,8 +1076,7 @@ void ToggleButtonGroup::Unload(std::string_view button_key) {
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {
-	// TODO: Fix script invocation.
-	// AddScript<impl::ToggleButtonGroupScript>(target, *this);
+	AddScript<impl::ToggleButtonGroupScript>(target, *this);
 }
 
 } // namespace ptgn

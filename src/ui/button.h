@@ -3,13 +3,13 @@
 #include <cstdint>
 #include <functional>
 #include <ostream>
-#include <string>
 #include <string_view>
 #include <unordered_map>
 
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
+#include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
 #include "math/vector2.h"
@@ -47,43 +47,41 @@ enum class InternalButtonState {
 	HoverPressed = 5
 };
 
-// TODO: Fix script invocation.
-// class ButtonScript : public ptgn::Script<ButtonScript> {
-// public:
-//	void OnMouseEnter(V2_int mouse_position) override;
-//
-//	void OnMouseLeave(V2_int mouse_position) override;
-//
-//	void OnMouseDown(V2_int mouse_position, Mouse mouse) override;
-//
-//	void OnMouseDownOutside(Mouse mouse) override;
-//
-//	void OnMouseUp(V2_int mouse_position, Mouse mouse) override;
-//
-//	void OnMouseUpOutside(Mouse mouse) override;
-// };
+class InternalButtonScript : public Script<InternalButtonScript, MouseScript> {
+public:
+	void OnMouseEnter() override;
 
-// TODO: Fix script invocation.
-// class ToggleButtonScript : public ptgn::Script<ToggleButtonScript> {
-// public:
-//	void OnButtonActivate() override;
-// };
-//
-// class ButtonActivateScript : public ptgn::Script<ButtonActivateScript> {
-// public:
-//	ButtonActivateScript() = default;
-//
-//	explicit ButtonActivateScript(const std::function<void()>& on_activate_callback) :
-//		on_activate{ on_activate_callback } {}
-//
-//	void OnButtonActivate() override {
-//		if (on_activate) {
-//			std::invoke(on_activate);
-//		}
-//	}
-//
-//	std::function<void()> on_activate;
-// };
+	void OnMouseLeave() override;
+
+	void OnMouseDownOver(Mouse mouse) override;
+
+	void OnMouseDownOut(Mouse mouse) override;
+
+	void OnMouseUpOver(Mouse mouse) override;
+
+	void OnMouseUpOut(Mouse mouse) override;
+};
+
+class ToggleButtonScript : public Script<ToggleButtonScript, ButtonScript> {
+public:
+	void OnButtonActivate() override;
+};
+
+class ButtonActivateScript : public Script<ButtonActivateScript, ButtonScript> {
+public:
+	ButtonActivateScript() = default;
+
+	explicit ButtonActivateScript(const std::function<void()>& on_activate_callback) :
+		on_activate{ on_activate_callback } {}
+
+	void OnButtonActivate() override {
+		if (on_activate) {
+			std::invoke(on_activate);
+		}
+	}
+
+	std::function<void()> on_activate;
+};
 
 struct ButtonToggled : public ArithmeticComponent<bool> {
 	using ArithmeticComponent::ArithmeticComponent;
@@ -261,9 +259,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
@@ -416,16 +413,15 @@ private:
 
 namespace impl {
 
-// TODO: Fix script invocation.
-// class ToggleButtonGroupScript : public ptgn::Script<ToggleButtonGroupScript> {
-// public:
-//	ToggleButtonGroupScript() = default;
-//	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
-//
-//	void OnButtonActivate() override;
-//
-//	ToggleButtonGroup toggle_button_group;
-// };
+class ToggleButtonGroupScript : public Script<ToggleButtonGroupScript, ButtonScript> {
+public:
+	ToggleButtonGroupScript() = default;
+	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
+
+	void OnButtonActivate() override;
+
+	ToggleButtonGroup toggle_button_group;
+};
 
 } // namespace impl
 

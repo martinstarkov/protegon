@@ -5,8 +5,10 @@
 
 #include "common/assert.h"
 #include "components/draw.h"
-#include "components/drawable.h"
+#include "components/transform.h"
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
+#include "core/script.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "scene/scene.h"
@@ -19,8 +21,7 @@ Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
 
 	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
 	i.start_open_ = start_open;
-	// TODO: Fix script invocations.
-	// AddScript<impl::DropdownScript>(dropdown_button);
+	AddScript<impl::DropdownScript>(dropdown_button);
 
 	if (start_open) {
 		Dropdown{ dropdown_button }.Open();
@@ -33,16 +34,16 @@ Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
 
 namespace impl {
 
-// TODO: Fix script invocations.
-// void DropdownScript::OnButtonActivate() {
-// 	Dropdown{ entity }.Toggle();
-// }
-// void DropdownItemScript::OnButtonActivate() {
-// 	if (!entity.Has<impl::DropdownInstance>()) {
-// 		PTGN_ASSERT(HasParent(entity));
-// 		Dropdown{ GetParent(entity) }.Close();
-// 	}
-// }
+void DropdownScript::OnButtonActivate() {
+	Dropdown{ entity }.Toggle();
+}
+
+void DropdownItemScript::OnButtonActivate() {
+	if (!entity.Has<impl::DropdownInstance>()) {
+		PTGN_ASSERT(HasParent(entity));
+		Dropdown{ GetParent(entity) }.Close();
+	}
+}
 
 } // namespace impl
 
@@ -51,7 +52,7 @@ Dropdown::Dropdown(const Entity& entity) : Button{ entity } {}
 Dropdown& Dropdown::SetSize(const V2_float& size) {
 	Button::SetSize(size);
 	if (HasParent(*this)) {
-		auto parent{ GetParent(*this) };
+		Entity parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			Dropdown{ parent }.RecalculateButtonPositions();
 		}
@@ -117,7 +118,7 @@ void Dropdown::RecalculateButtonPositions() {
 bool Dropdown::WillStartOpen() const {
 	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
 	if (HasParent(*this)) {
-		auto parent{ GetParent(*this) };
+		Entity parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			return Get<impl::DropdownInstance>().start_open_ && Dropdown{ parent }.WillStartOpen();
 		}
@@ -139,8 +140,7 @@ void Dropdown::AddButton(Button button) {
 		button.Disable();
 	}
 
-	// TODO: Fix script invocations.
-	// AddScript<impl::DropdownItemScript>(button);
+	AddScript<impl::DropdownItemScript>(button);
 
 	i.buttons_.emplace_back(button);
 
@@ -213,7 +213,7 @@ void Dropdown::Open() {
 	if (!HasChildren(*this)) {
 		return;
 	}
-	auto children{ GetChildren(*this) };
+	const auto& children{ GetChildren(*this) };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
 			const auto& child_i{ child.Get<impl::DropdownInstance>() };
@@ -233,7 +233,7 @@ void Dropdown::Close(bool close_parents) {
 		Hide(b);
 	}
 	if (close_parents && HasParent(*this)) {
-		auto parent{ GetParent(*this) };
+		Entity parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			Dropdown{ parent }.Close();
 		}
@@ -241,7 +241,7 @@ void Dropdown::Close(bool close_parents) {
 	if (!HasChildren(*this)) {
 		return;
 	}
-	auto children{ GetChildren(*this) };
+	const auto& children{ GetChildren(*this) };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
 			Dropdown{ child }.Close(false);
