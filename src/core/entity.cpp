@@ -42,10 +42,16 @@ Entity& Entity::Destroy(bool orphan_children) {
 		return *this;
 	}
 
-	if (!orphan_children && HasChildren(*this)) {
+	if (HasChildren(*this)) {
 		auto children{ GetChildren(*this) };
-		for (Entity child : children) {
-			child.Destroy();
+		if (orphan_children) {
+			for (Entity child : children) {
+				impl::RemoveParentImpl(child);
+			}
+		} else {
+			for (Entity child : children) {
+				child.Destroy();
+			}
 		}
 	}
 

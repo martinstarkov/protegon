@@ -125,7 +125,7 @@ public:
 
 	// Destroy the given entity and potentially its children.
 	// @param orphan_children If false, destroys all the children (and their children). If true,
-	// sets the parent of all the entity's children to null, orphaning them.
+	// removes the parents of all the entity's children, orphaning them.
 	Entity& Destroy(bool orphan_children = false);
 
 	[[nodiscard]] const Scene& GetScene() const;
