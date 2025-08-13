@@ -8,12 +8,13 @@
 #include "core/window.h"
 #include "input/input_handler.h"
 #include "input/key.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/rect.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/rect.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -101,18 +102,18 @@ public:
 		sweep_circle.Add<RigidBody>();
 
 		// TODO: Fix memory leak?
-		intersect.Add<BoxCollider>(V2_float{ 30, 30 });
-		overlap.Add<BoxCollider>(V2_float{ 30, 30 });
-		sweep.Add<BoxCollider>(V2_float{ 30, 30 });
+		intersect.Add<Collider>(Rect{ V2_float{ 30, 30 } });
+		overlap.Add<Collider>(Rect{ V2_float{ 30, 30 } });
+		sweep.Add<Collider>(Rect{ V2_float{ 30, 30 } });
 		intersect.Add<Rect>(V2_float{ 30, 30 });
 		overlap.Add<Rect>(V2_float{ 30, 30 });
 		sweep.Add<Rect>(V2_float{ 30, 30 });
 		intersect.SetDraw<Rect>();
 		overlap.SetDraw<Rect>();
 		sweep.SetDraw<Rect>();
-		intersect_circle.Add<CircleCollider>(30.0f);
-		overlap_circle.Add<CircleCollider>(30.0f);
-		sweep_circle.Add<CircleCollider>(30.0f);
+		intersect_circle.Add<Collider>(Circle{ 30.0f });
+		overlap_circle.Add<Collider>(Circle{ 30.0f });
+		sweep_circle.Add<Collider>(Circle{ 30.0f });
 		intersect_circle.Add<Circle>(30.0f);
 		overlap_circle.Add<Circle>(30.0f);
 		sweep_circle.Add<Circle>(30.0f);
@@ -120,12 +121,12 @@ public:
 		overlap_circle.SetDraw<Circle>();
 		sweep_circle.SetDraw<Circle>();
 
-		auto& b1{ intersect.Get<BoxCollider>() };
-		auto& b2{ overlap.Get<BoxCollider>() };
-		auto& b3{ sweep.Get<BoxCollider>() };
-		auto& c1{ intersect_circle.Get<CircleCollider>() };
-		auto& c2{ overlap_circle.Get<CircleCollider>() };
-		auto& c3{ sweep_circle.Get<CircleCollider>() };
+		auto& b1{ intersect.Get<Collider>() };
+		auto& b2{ overlap.Get<Collider>() };
+		auto& b3{ sweep.Get<Collider>() };
+		auto& c1{ intersect_circle.Get<Collider>() };
+		auto& c2{ overlap_circle.Get<Collider>() };
+		auto& c3{ sweep_circle.Get<Collider>() };
 
 		b2.overlap_only = true;
 		b3.continuous	= true;
@@ -245,24 +246,25 @@ public:
 			);
 		};*/
 
-		CreateObstacle(V2_float{ 50, 50 }, V2_float{ 10, 500 }, Origin::TopLeft);
+		/*CreateObstacle(V2_float{ 50, 50 }, V2_float{ 10, 500 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 600, 200 }, V2_float{ 10, 500 }, Origin::TopLeft);
 		CreateObstacle(V2_float{ 50, 650 }, V2_float{ 500, 10 }, Origin::TopLeft);
-		CreateObstacle(V2_float{ 100, 70 }, V2_float{ 500, 10 }, Origin::TopLeft);
+		CreateObstacle(V2_float{ 100, 70 }, V2_float{ 500, 10 }, Origin::TopLeft);*/
 	}
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
 		PTGN_ASSERT(manager != nullptr);
 		auto obstacle = manager->CreateEntity();
 		obstacle.SetPosition(pos);
-		obstacle.Add<BoxCollider>(size, origin);
+		obstacle.Add<Collider>(Rect{ size });
+		obstacle.SetOrigin(origin);
 	}
 
 	void Update() override {
 		if (game.input.KeyDown(Key::E)) {
 			move_entity++;
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (game.input.KeyDown(Key::Q)) {
 			move_entity--;
 		}
 		move_entity = Mod(move_entity, move_entities);
@@ -300,31 +302,29 @@ public:
 
 	void Draw() override {
 		// TODO: Fix debug drawing.
-		/*
-		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
-			Rect r{ b.GetAbsoluteRect() };
-			DrawRect(e, r);
-			if (e == intersect) {
-				Text{ "Intersect", color::Black }.Draw(Rect{ r.Center() });
-			} else if (e == overlap) {
-				Text{ "Overlap", color::Black }.Draw(Rect{ r.Center() });
-			} else if (e == sweep) {
-				Text{ "Sweep", color::Black }.Draw(Rect{ r.Center() });
+		for (auto [e, b] : game.scene.Get("").EntitiesWith<Collider>()) {
+			auto transform{ e.GetAbsoluteTransform() };
+			Color color{ color::Blue };
+			std::string content{ "Sweep" };
+			if (b.overlap_only) {
+				color	= color::Yellow;
+				content = "Overlap";
+			} else if (!b.continuous) {
+				color	= color::Red;
+				content = "Intersect";
 			}
-		}
-		for (auto [e, c] : manager.EntitiesWith<CircleCollider>()) {
-			Circle circ{ c.GetAbsoluteCircle() };
-			DrawCircle(e, circ);
-
-			if (e == intersect_circle) {
-				Text{ "Intersect", color::Black }.Draw(Rect{ circ.Center() });
-			} else if (e == overlap_circle) {
-				Text{ "Overlap", color::Black }.Draw(Rect{ circ.Center() });
-			} else if (e == sweep_circle) {
-				Text{ "Sweep", color::Black }.Draw(Rect{ circ.Center() });
+			if (std::holds_alternative<Circle>(b.shape)) {
+				Circle& circle = std::get<Circle>(b.shape);
+				DrawDebugCircle(transform.position, circle.GetRadius(transform), color, 1.0f);
+			} else if (std::holds_alternative<Rect>(b.shape)) {
+				Rect& rect = std::get<Rect>(b.shape);
+				DrawDebugRect(
+					transform.position, rect.GetSize(transform), color, Origin::Center, 1.0f,
+					transform.rotation
+				);
 			}
+			DrawDebugText(content, transform.position, color);
 		}
-		*/
 	}
 };
 
