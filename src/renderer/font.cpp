@@ -75,7 +75,7 @@ void FontManager::Load(
 void FontManager::Init() {
 	ResourceHandle key{};
 	if (!raw_default_font_) {
-		raw_default_font_ = GetRawBuffer(LiberationSansRegular);
+		raw_default_font_ = GetRawBuffer(GetLiberationSansRegular());
 		auto default_font{
 			LoadFromBinary(raw_default_font_, default_font_size_, default_font_index_, false)
 		};

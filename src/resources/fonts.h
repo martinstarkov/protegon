@@ -2,8 +2,6 @@
 
 namespace ptgn::impl {
 
-#include "resources/fonts/LiberationSans-Regular.h"
-
 struct FontBinary {
 	FontBinary() = default;
 
@@ -14,7 +12,6 @@ struct FontBinary {
 	unsigned int length{ 0 };
 };
 
-const inline impl::FontBinary LiberationSansRegular{ LiberationSans_Regular_ttf,
-													 LiberationSans_Regular_ttf_len };
+[[nodiscard]] FontBinary GetLiberationSansRegular();
 
 } // namespace ptgn::impl
