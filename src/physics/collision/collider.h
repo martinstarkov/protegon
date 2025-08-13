@@ -12,12 +12,15 @@ namespace ptgn {
 
 struct Transform;
 
-// TODO: Move elsewhere once IScript is not tied to entity.
 struct Collision {
 	Collision() = default;
 
 	Collision(const Entity& other, const V2_float& collision_normal) :
 		entity{ other }, normal{ collision_normal } {}
+
+	operator bool() const {
+		return entity != Entity{};
+	}
 
 	Entity entity;
 	// Normal set to {} for overlap only collisions.
@@ -77,27 +80,29 @@ enum class CollisionResponse {
 	Stick	// Velocity set to 0.
 };
 
-struct Collider {
-	// TODO: Implement local physics world bounds.
-	// Rect bounds;
+enum class CollisionMode {
+	None,	   // No collision checks.
+	Overlap,   // Overlap checks.
+	Intersect, // Discrete collision detection.
+	Sweep,	   // Continuous collision detection for high velocity colliders.
+};
 
+struct Collider {
 	Collider() = default;
 
 	Collider(const Shape& shape);
 
 	Shape shape;
 
-	// Overwrites continuous/regular collision in favor of overlap checks.
-	bool overlap_only{ false };
-
-	// Continuous collision detection for high velocity colliders.
-	bool continuous{ false };
-
-	Collider& SetOverlapOnly();
+	CollisionMode mode{ CollisionMode::Intersect };
 
 	// How the velocity of the sweep should respond to obstacles.
-	// Not applicable if continuous is set to false.
+	// Only applicable if mode != CollisionMode::Overlap.
 	CollisionResponse response{ CollisionResponse::Slide };
+
+	Collider& SetOverlapMode();
+
+	Collider& SetCollisionMode(CollisionMode new_mode = CollisionMode::Intersect);
 
 	[[nodiscard]] CollisionCategory GetCollisionCategory() const;
 
@@ -107,9 +112,6 @@ struct Collider {
 
 	// Allow collider to collide with anything.
 	void ResetCollidesWith();
-
-	// May invalidate all existing component references.
-	[[nodiscard]] bool ProcessCallback(Entity e1, Entity e2) const;
 
 	[[nodiscard]] bool CanCollideWith(const CollisionCategory& category) const;
 
@@ -121,13 +123,13 @@ struct Collider {
 
 	void SetCollidesWith(const CollidesWithCategories& categories);
 
-	void InvokeCollisionCallbacks(Entity& entity) const;
+	// @return Empty collision if the entities have not collided during this frame, or the
+	// collision.
+	[[nodiscard]] Collision CollidedWith(const Entity& other) const;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
-		Collider, KeyValue("shape", shape), KeyValue("collisions", collisions_),
-		KeyValue("prev_collisions", prev_collisions_), KeyValue("overlap_only", overlap_only),
-		KeyValue("continuous", continuous), KeyValue("response", response), KeyValue("mask", mask_),
-		KeyValue("category", category_)
+		Collider, KeyValue("shape", shape), KeyValue("mode", mode), KeyValue("response", response),
+		KeyValue("mask", mask_), KeyValue("category", category_)
 	)
 
 private:
@@ -139,10 +141,11 @@ private:
 
 	// Which categories this collider collides with.
 	std::vector<CollisionCategory> mask_;
+
 	// Which category this collider is a part of.
 	CollisionCategory category_{ 0 };
 
-	// Collisions from the current frame (updated after calling game.collision.Update()).
+	// Collisions from the current frame.
 	std::vector<Collision> collisions_;
 
 	// Collisions from the previous frame.
@@ -154,6 +157,13 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 						 { CollisionResponse::Bounce, "bounce" },
 						 { CollisionResponse::Push, "push" },
 						 { CollisionResponse::Stick, "stick" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	CollisionMode, { { CollisionMode::None, nullptr },
+					 { CollisionMode::Overlap, "overlap" },
+					 { CollisionMode::Intersect, "intersect" },
+					 { CollisionMode::Sweep, "sweep" } }
 );
 
 } // namespace ptgn

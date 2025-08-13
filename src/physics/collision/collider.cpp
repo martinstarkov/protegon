@@ -1,5 +1,6 @@
 #include "physics/collision/collider.h"
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -7,6 +8,7 @@
 #include "common/assert.h"
 #include "components/transform.h"
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
 #include "math/geometry.h"
 #include "physics/rigid_body.h"
 #include "utility/span.h"
@@ -24,7 +26,7 @@ bool PhysicsBody::IsImmovable() const {
 }
 
 [[nodiscard]] Transform& PhysicsBody::GetRootTransform() {
-	auto root_entity{ GetRootEntity(*this) };
+	Entity root_entity{ GetRootEntity(*this) };
 	PTGN_ASSERT(root_entity, "Physics body must have a valid root entity (or itself)");
 	PTGN_ASSERT(root_entity.Has<Transform>(), "Root entity must have a transform component");
 	return GetTransform(root_entity);
@@ -32,8 +34,13 @@ bool PhysicsBody::IsImmovable() const {
 
 Collider::Collider(const Shape& shape) : shape{ shape } {}
 
-Collider& Collider::SetOverlapOnly() {
-	overlap_only = true;
+Collider& Collider::SetOverlapMode() {
+	mode = CollisionMode::Overlap;
+	return *this;
+}
+
+Collider& Collider::SetCollisionMode(CollisionMode new_mode) {
+	mode = new_mode;
 	return *this;
 }
 
@@ -51,24 +58,6 @@ void Collider::ResetCollisionCategory() {
 
 void Collider::ResetCollidesWith() {
 	mask_ = {};
-}
-
-bool Collider::ProcessCallback(Entity e1, Entity e2) const {
-	// TODO: Fix script invocation.
-	// if (!e1.Has<Scripts>()) {
-	//	return true;
-	//}
-	// const auto& scripts{ e1.Get<Scripts>() };
-	//// Check that each entity script allows for the pre-collision condition to pass.
-	// for (const auto& [key, script] : scripts.scripts) {
-	//	PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
-	//	bool condition_met{ std::invoke(&impl::IScript::PreCollisionCondition, script, e2) };
-	//	if (!condition_met) {
-	//		return false;
-	//	}
-	// }
-
-	return true;
 }
 
 bool Collider::CanCollideWith(const CollisionCategory& category) const {
@@ -98,21 +87,11 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	}
 }
 
-void Collider::InvokeCollisionCallbacks(Entity& entity) const {
-	// TODO: Make sure these are called without being able to be invalidated.
-	// TODO: Fix script invocations.
-	/*for (const auto& prev : prev_collisions_) {
-		if (!VectorContains(collisions_, prev)) {
-			InvokeScript<&impl::IScript::OnCollisionStop>(entity, prev);
-		} else {
-			InvokeScript<&impl::IScript::OnCollision>(entity, prev);
-		}
-	}
-	for (const auto& current : collisions_) {
-		if (!VectorContains(prev_collisions_, current)) {
-			InvokeScript<&impl::IScript::OnCollisionStart>(entity, current);
-		}
-	}*/
+Collision Collider::CollidedWith(const Entity& other) const {
+	auto it{ std::ranges::find_if(collisions_, [&other](auto& collision) {
+		return collision.entity == other;
+	}) };
+	return it != collisions_.end() ? *it : Collision{};
 }
 
 void Collider::ResetCollisions() {
