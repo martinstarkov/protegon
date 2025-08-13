@@ -5,6 +5,8 @@
 
 namespace ptgn {
 
+class Entity;
+
 struct RigidBody {
 	RigidBody() = default;
 	RigidBody(float max_speed, float drag, float gravity, bool immovable);
@@ -42,5 +44,7 @@ struct RigidBody {
 	V2_float velocity;
 	float angular_velocity{ 0.0f };
 };
+
+[[nodiscard]] bool IsImmovable(const Entity& entity, bool check_parents = true);
 
 } // namespace ptgn

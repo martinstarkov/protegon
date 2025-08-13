@@ -1,5 +1,7 @@
 #include "physics/rigid_body.h"
 
+#include "core/entity.h"
+#include "core/entity_hierarchy.h"
 #include "math/vector2.h"
 
 namespace ptgn {
@@ -39,6 +41,17 @@ void RigidBody::AddImpulse(const V2_float& impulse) {
 
 void RigidBody::AddAngularImpulse(float angular_impulse) {
 	angular_velocity += angular_impulse;
+}
+
+bool IsImmovable(const Entity& entity, bool check_parents) {
+	if (entity.Has<RigidBody>() && entity.Get<RigidBody>().immovable) {
+		return true;
+	}
+	if (check_parents && HasParent(entity)) {
+		Entity parent{ GetParent(entity) };
+		return IsImmovable(parent, check_parents);
+	}
+	return false;
 }
 
 } // namespace ptgn
