@@ -117,6 +117,14 @@ void SceneManager::Shutdown() {
 	Reset();
 }
 
+void SceneManager::ReEnter(std::size_t scene_key) {
+	auto scene{ GetScene(scene_key) };
+	PTGN_ASSERT(scene, "Cannot re-enter a scene that is not loaded in the scene manager");
+	auto& sc{ scene.Get<SceneComponent>() };
+	PTGN_ASSERT(sc.scene->active_, "Cannot re-enter a scene that is not active");
+	sc.scene->Add(Scene::Action::Enter);
+}
+
 std::size_t SceneManager::GetInternalKey(std::string_view key) {
 	return Hash(key);
 }

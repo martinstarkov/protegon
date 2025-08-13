@@ -214,6 +214,8 @@ private:
 	friend class Renderer;
 	friend class ptgn::Entity;
 
+	void ReEnter(std::size_t scene_key);
+
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 
 	// Updates all the active scenes.
