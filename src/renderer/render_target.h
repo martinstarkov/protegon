@@ -5,6 +5,7 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
+#include "core/script.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
@@ -38,6 +39,10 @@ struct ClearColor : public ColorComponent {
 	using ColorComponent::ColorComponent;
 
 	ClearColor() : ColorComponent{ color::Transparent } {}
+};
+
+struct RenderTargetResizeScript : public Script<RenderTargetResizeScript, WindowScript> {
+	void OnWindowResized() override;
 };
 
 } // namespace impl

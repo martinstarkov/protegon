@@ -18,6 +18,7 @@ union SDL_Event;
 namespace ptgn {
 
 class Scene;
+class Manager;
 class SceneInput;
 
 namespace impl {
@@ -173,7 +174,7 @@ private:
 
 	void Prepare();
 	void ProcessInputEvents();
-	void InvokeInputEvents(Scene& scene);
+	void InvokeInputEvents(Manager& manager);
 
 	InputQueue queue_;
 };

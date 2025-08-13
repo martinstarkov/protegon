@@ -139,6 +139,11 @@ void InputHandler::ProcessInputEvents() {
 	}
 
 	V2_int new_mouse_position;
+	// TODO: Consider using global mouse position here in the future.
+	// I can foresee a bug where mouse position difference is zero if the user alt+tabs to
+	// lose window focus and then regains it via alt+tab while the mouse is technically in the same
+	// location. This would result in no MouseMove event being queued, which may make certain
+	// scripts function incorrectly. But I'm not sure to be honest, so I won't change it.
 	SDL_GetMouseState(&new_mouse_position.x, &new_mouse_position.y);
 
 	V2_int difference{ new_mouse_position - mouse_position_ };
@@ -175,7 +180,7 @@ void InputHandler::Prepare() {
 	}
 }
 
-void InputHandler::InvokeInputEvents(Scene& scene) {
+void InputHandler::InvokeInputEvents(Manager& manager) {
 	for (const auto& event : queue_) {
 		std::visit(
 			[&](auto&& ev) {
@@ -183,66 +188,66 @@ void InputHandler::InvokeInputEvents(Scene& scene) {
 
 				// Mouse events.
 				if constexpr (std::is_same_v<T, impl::MouseMove>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&GlobalMouseScript::OnMouseMove);
 					}
 				} else if constexpr (std::is_same_v<T, impl::MouseDown>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&GlobalMouseScript::OnMouseDown, ev.button);
 					}
 				} else if constexpr (std::is_same_v<T, impl::MousePressed>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&GlobalMouseScript::OnMousePressed, ev.button);
 					}
 				} else if constexpr (std::is_same_v<T, impl::MouseUp>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&GlobalMouseScript::OnMouseUp, ev.button);
 					}
 				} else if constexpr (std::is_same_v<T, impl::MouseScroll>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&GlobalMouseScript::OnMouseScroll, ev.scroll);
 					}
 				}
 
 				// Keyboard events.
 				if constexpr (std::is_same_v<T, impl::KeyDown>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&KeyScript::OnKeyDown, ev.key);
 						scripts.AddAction(&KeyScript::OnKeyPressed, ev.key);
 					}
 				} else if constexpr (std::is_same_v<T, impl::KeyPressed>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&KeyScript::OnKeyPressed, ev.key);
 					}
 				} else if constexpr (std::is_same_v<T, impl::KeyUp>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&KeyScript::OnKeyUp, ev.key);
 					}
 				}
 
 				// Window events.
 				else if constexpr (std::is_same_v<T, impl::WindowResized>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&WindowScript::OnWindowResized);
 					}
 				} else if constexpr (std::is_same_v<T, impl::WindowMoved>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&WindowScript::OnWindowMoved);
 					}
 				} else if constexpr (std::is_same_v<T, impl::WindowMaximized>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&WindowScript::OnWindowMaximized);
 					}
 				} else if constexpr (std::is_same_v<T, impl::WindowMinimized>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&WindowScript::OnWindowMinimized);
 					}
 				} else if constexpr (std::is_same_v<T, impl::WindowFocusLost>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&WindowScript::OnWindowFocusLost);
 					}
 				} else if constexpr (std::is_same_v<T, impl::WindowFocusGained>) {
-					for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 						scripts.AddAction(&WindowScript::OnWindowFocusGained);
 					}
 				} else if constexpr (std::is_same_v<T, impl::WindowQuit>) {
@@ -253,11 +258,11 @@ void InputHandler::InvokeInputEvents(Scene& scene) {
 		);
 	}
 
-	for (auto [e, scripts] : scene.EntitiesWith<Scripts>()) {
+	for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 		scripts.InvokeActions();
 	}
 
-	scene.Refresh();
+	manager.Refresh();
 }
 
 void InputHandler::Update() {

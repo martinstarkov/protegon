@@ -51,6 +51,7 @@ enum class ResolutionMode {
 namespace impl {
 
 class Renderer;
+class SceneManager;
 
 using Index = std::uint32_t;
 
@@ -228,6 +229,7 @@ public:
 	void AddTemporaryTexture(Texture&& texture);
 
 private:
+	friend class SceneManager;
 	friend class ptgn::Scene;
 	friend class Renderer;
 	friend class ptgn::Camera;

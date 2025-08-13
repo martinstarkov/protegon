@@ -9,6 +9,7 @@
 #include "components/drawable.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -27,12 +28,7 @@ RenderTarget CreateRenderTarget(
 	PTGN_ASSERT(entity);
 	V2_int size{ game.window.GetSize() };
 	RenderTarget render_target{ CreateRenderTarget(entity, size, clear_color, texture_format) };
-	// TODO: Fix.
-	/*game.event.window.Subscribe(
-		WindowEvent::Resized, entity, std::function([entity](const WindowResizedEvent& e) {
-			RenderTarget{ entity }.GetTexture().Resize(e.size);
-		})
-	);*/
+	AddScript<RenderTargetResizeScript>(render_target);
 	return render_target;
 }
 
@@ -55,6 +51,10 @@ RenderTarget CreateRenderTarget(
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
 	render_target.Clear();
 	return render_target;
+}
+
+void RenderTargetResizeScript::OnWindowResized() {
+	RenderTarget{ entity }.GetTexture().Resize(game.window.GetSize());
 }
 
 } // namespace impl

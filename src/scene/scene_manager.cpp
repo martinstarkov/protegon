@@ -7,6 +7,8 @@
 #include "core/game.h"
 #include "input/input_handler.h"
 #include "math/hash.h"
+#include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_input.h"
 #include "scene/scene_transition.h"
@@ -131,6 +133,8 @@ void SceneManager::ClearSceneTargets() {
 
 void SceneManager::Update() {
 	game.input.Update();
+
+	game.input.InvokeInputEvents(game.renderer.GetRenderData().render_manager);
 
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
