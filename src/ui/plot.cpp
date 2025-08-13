@@ -283,7 +283,7 @@
 //
 //	ForEachKeyValue([&](auto& name, DataSeries& series) {
 //		Text text{ name, legend.text_color,
-//				   Font{ font::LiberationSansRegular, legend.text_point_size } };
+//				   Font{ GetLiberationSansRegular(), legend.text_point_size } };
 //		Button& button{ series.GetButton() };
 //		if (legend.toggleable_data) {
 //			button.Enable();
