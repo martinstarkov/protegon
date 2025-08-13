@@ -18,9 +18,6 @@
 #include "serialization/json.h"
 #include "serialization/serializable.h"
 
-// TODO: Separate scripts into multiple and use event system to dispatch, instead of virtual
-// functions.
-
 namespace ptgn {
 
 class Scene;
@@ -37,6 +34,7 @@ enum class ScriptType {
 	Dropzone,
 	Animation,
 	PlayerMove,
+	Overlap,
 	Collision,
 	Button,
 	Tween
@@ -333,23 +331,37 @@ struct PlayerMoveScript : public impl::BaseScript<ScriptType::PlayerMove> {
 	friend class Script;
 };
 
-struct CollisionScript : public impl::BaseScript<ScriptType::Collision> {
-	virtual ~CollisionScript() = default;
+struct OverlapScript : public impl::BaseScript<ScriptType::Overlap> {
+	virtual ~OverlapScript() = default;
 
-	// Must return true for collision to be checked.
+	// Must return true for overlap to be checked.
 	// Defaults to true.
-	virtual bool PreCollisionCheck([[maybe_unused]] Entity other) {
+	// Note: Modifying the state of either entity in this function may lead to undefined behavior.
+	virtual bool PreOverlapCheck([[maybe_unused]] const Entity& other) const {
 		return true;
 	}
 
-	virtual void OnCollisionStart([[maybe_unused]] Collision collision) { /* user implementation */
-	}
+	virtual void OnOverlapStart([[maybe_unused]] Entity other) { /* user implementation */ }
+
+	virtual void OnOverlap([[maybe_unused]] Entity other) { /* user implementation */ }
+
+	virtual void OnOverlapStop([[maybe_unused]] Entity other) { /* user implementation */ }
+
+	template <typename TDerived, typename... TScripts>
+	friend class Script;
+};
+
+struct CollisionScript : public impl::BaseScript<ScriptType::Collision> {
+	virtual ~CollisionScript() = default;
 
 	virtual void OnCollision([[maybe_unused]] Collision collision) { /* user implementation */ }
 
-	virtual void OnCollisionStop([[maybe_unused]] Collision collision) { /* user implementation */ }
-
-	virtual void OnRaycastHit([[maybe_unused]] Collision collision) { /* user implementation */ }
+	// Must return true for collision to be checked.
+	// Defaults to true.
+	// Note: Modifying the state of either entity in this function may lead to undefined behavior.
+	virtual bool PreCollisionCheck([[maybe_unused]] const Entity& other) const {
+		return true;
+	}
 
 	template <typename TDerived, typename... TScripts>
 	friend class Script;
@@ -672,6 +684,26 @@ public:
 		return !operator==(a, b);
 	}
 	*/
+
+	template <typename TInterface, typename... Args>
+	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(Args...) const, Args&&... args)
+		const {
+		constexpr ScriptType type{ TInterface::GetScriptType() };
+
+		for (const auto& script : scripts_) {
+			if (!script->HasScriptType(type)) {
+				continue;
+			}
+			if (const auto* handler = dynamic_cast<const TInterface*>(script.get())) {
+				bool result{ (handler->*func)(std::forward<Args>(args)...) };
+				if (!result) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 private:
 	std::vector<std::shared_ptr<impl::IScript>> scripts_;
 
