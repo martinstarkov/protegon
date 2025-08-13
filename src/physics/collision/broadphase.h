@@ -68,13 +68,17 @@ public:
 	// UpdateBoundingAABB()/Insert()/Remove()
 	void EndFrameUpdate();
 
+	// Note: If region is a bounding volume inside of the KD-tree, Query will return that region
+	// entity as well (in other words, you must check for self collisions).
 	std::vector<Entity> Query(const BoundingAABB& region) const;
 
 	std::vector<Entity> Query(const V2_float& point) const;
 
+	// @param entity passed to avoid raycasting against itself.
 	std::vector<Entity> Raycast(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb)
 		const;
 
+	// @param entity passed to avoid raycasting against itself.
 	Entity RaycastFirst(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb) const;
 
 private:
