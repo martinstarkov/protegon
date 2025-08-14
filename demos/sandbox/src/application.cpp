@@ -2710,6 +2710,177 @@ void DrawableLineSegment::fill(Painter& painter) {
 	throw std::runtime_error("Line cannot be filled!");
 }
 
+class CriticalPointPair {
+public:
+	virtual ~CriticalPointPair() = default;
+
+	virtual Point2D getPointOnCircle() const = 0;
+
+	virtual Point2D getPointOnEdge() const = 0;
+
+	// Default implementation returns 0, override if needed
+	virtual double getDistance() const {
+		return 0.0;
+	}
+};
+
+class TangentialCriticalPoint : public CriticalPointPair {
+private:
+	Point2D point;
+
+public:
+	explicit TangentialCriticalPoint(const Point2D& p) : point(p) {}
+
+	Point2D getPointOnCircle() const override {
+		return point;
+	}
+
+	Point2D getPointOnEdge() const override {
+		return point;
+	}
+};
+
+class SeparateCriticalPointPair : public CriticalPointPair {
+private:
+	Point2D pointOnCircle;
+	Point2D pointOnEdge;
+
+public:
+	SeparateCriticalPointPair(const Point2D& circlePoint, const Point2D& edgePoint) :
+		pointOnCircle(circlePoint), pointOnEdge(edgePoint) {}
+
+	Point2D getPointOnCircle() const override {
+		return pointOnCircle;
+	}
+
+	Point2D getPointOnEdge() const override {
+		return pointOnEdge;
+	}
+
+	double getDistance() const override {
+		return Point2D::distanceBetween(pointOnEdge, pointOnCircle);
+	}
+};
+
+class CuttingCriticalPointPair : public CriticalPointPair {
+private:
+	std::vector<Point2D> points;
+
+public:
+	explicit CuttingCriticalPointPair(const std::vector<Point2D>& pts) : points(pts) {}
+
+	Point2D getPointOnCircle() const override {
+		return points.at(0);
+	}
+
+	Point2D getPointOnEdge() const override {
+		return points.at(0);
+	}
+
+	// You can add other methods to access points if needed
+	const std::vector<Point2D>& getPoints() const {
+		return points;
+	}
+};
+
+class CriticalPointFinder {
+public:
+	// Using smart pointers for polymorphic CriticalPointPair
+	static std::optional<std::shared_ptr<CriticalPointPair>> findCriticalPointsAlongGivenDirection(
+		const Circle& circle, const ColliderEdge& edge, const Vector2D& direction
+	) {
+		std::shared_ptr<CriticalPointPair> result = nullptr;
+		Line2D line								  = edge.getLine();
+		std::vector<Point2D> intersections		  = circle.findIntersection(line);
+
+		if (intersections.empty()) {
+			// Case 1: line does not intersect the circle
+			if (direction.l2normValue() != 0) {
+				Point2D pointOnCircleClosestToLine = circle.findPointOnCircleClosestToLine(line);
+				Ray2D rayFromCircleToLine(pointOnCircleClosestToLine, direction);
+
+				auto pointOnLineOpt = rayFromCircleToLine.findIntersection(line);
+				if (pointOnLineOpt) {
+					Point2D pointOnLine = *pointOnLineOpt;
+					if (edge.isPointOnLineSegment(pointOnLine)) {
+						result = std::make_shared<SeparateCriticalPointPair>(
+							pointOnCircleClosestToLine, pointOnLine
+						);
+					} else {
+						Point2D closestVertex = edge.getClosestVertexToPoint(pointOnLine);
+						Ray2D rayFromVertexToCircle(closestVertex, direction.reversed());
+						auto pointOnCircleOpt =
+							circle.findIntersectionClosestToRayOrigin(rayFromVertexToCircle);
+						if (pointOnCircleOpt) {
+							result = std::make_shared<SeparateCriticalPointPair>(
+								*pointOnCircleOpt, closestVertex
+							);
+						}
+					}
+				}
+			}
+		} else {
+			// Case 2: line intersects the circle
+			std::vector<Point2D> pointsOnLineSegment;
+			for (const auto& intersection : intersections) {
+				if (edge.isPointOnLineSegment(intersection)) {
+					pointsOnLineSegment.push_back(intersection);
+				}
+			}
+
+			if (pointsOnLineSegment.size() == 1) {
+				result = std::make_shared<TangentialCriticalPoint>(pointsOnLineSegment[0]);
+			} else if (pointsOnLineSegment.size() == 2) {
+				result = std::make_shared<CuttingCriticalPointPair>(pointsOnLineSegment);
+			}
+
+			if (!result) {
+				// line segment does not intersect circle
+				if (direction.l2normValue() != 0) {
+					Point2D center		  = circle.getCenter();
+					Point2D closestVertex = edge.getClosestVertexToPoint(center);
+					Ray2D rayFromLineSegmentToCircle(closestVertex, direction.reversed());
+					auto pointOnCircleOpt =
+						circle.findIntersectionClosestToRayOrigin(rayFromLineSegmentToCircle);
+					if (pointOnCircleOpt) {
+						result = std::make_shared<SeparateCriticalPointPair>(
+							*pointOnCircleOpt, closestVertex
+						);
+					}
+				}
+			}
+		}
+
+		return (result != nullptr) ? std::optional<std::shared_ptr<CriticalPointPair>>(result)
+								   : std::nullopt;
+	}
+
+	static std::optional<std::shared_ptr<CriticalPointPair>> findConflictingCriticalPoints(
+		const Circle& circle, const ColliderEdge& edge
+	) {
+		std::shared_ptr<CriticalPointPair> result = nullptr;
+
+		Line2D line						   = edge.getLine();
+		std::vector<Point2D> intersections = circle.findIntersection(line);
+
+		std::vector<Point2D> pointsOnLineSegment;
+		for (const auto& intersection : intersections) {
+			if (edge.isPointOnLineSegment(intersection)) {
+				pointsOnLineSegment.push_back(intersection);
+			}
+		}
+
+		if (pointsOnLineSegment.size() == 1) {
+			result = std::make_shared<TangentialCriticalPoint>(pointsOnLineSegment[0]);
+		} else if (pointsOnLineSegment.size() == 2) {
+			result = std::make_shared<CuttingCriticalPointPair>(pointsOnLineSegment);
+		}
+
+		return (result != nullptr) ? std::optional<std::shared_ptr<CriticalPointPair>>(result)
+								   : std::nullopt;
+	}
+};
+
 class Ball : public DrawableCircle, public Draggable, public GameObject {
 public:
 	Vector2D velocity;
