@@ -1562,8 +1562,9 @@ public:
 	}
 
 protected:
-	virtual T createEdge(const Point2D& P, const Point2D& Q, const std::string& identifier)
-		const = 0;
+	virtual T createEdge(const Point2D& P, const Point2D& Q, const std::string& identifier) const {
+		return T{ P, Q, identifier };
+	}
 
 private:
 	void construct(double x_, double y_, double width_, double height_) {
@@ -2859,6 +2860,10 @@ public:
 	Brick(double x, double y, double width, double height, const ptgn::Color& color) :
 		RectangularNode(x, y, width, height, color) {}
 
+	std::vector<ColliderEdge> getEdges() const override {
+		return RectangularNode::getEdges();
+	}
+
 	// Collider
 	bool isActiveCollider() const override {
 		return !hit;
@@ -2906,6 +2911,18 @@ public:
 			color
 		) {}
 
+	virtual bool contains(const Point2D& query) const {
+		return PolygonalNode::contains(query);
+	}
+
+	virtual void translate(const Point2D& delta) {
+		PolygonalNode::translate(delta);
+	}
+
+	std::vector<ColliderEdge> getEdges() const override {
+		return PolygonalNode::getEdges();
+	}
+
 	// Collider interface
 	double getFrictionCoefficient() const override {
 		return Constants::Obstacle::FRICTION_COEFFICIENT;
@@ -2913,6 +2930,326 @@ public:
 
 	Vector2D getNormalOf(const LineSegment2D& edge) const override {
 		return edge.getNormal(LineSegment2D::NormalOrientation::OUTWARDS);
+	}
+};
+
+class Paddle : public RectangularNode, public Draggable, public Collider {
+private:
+	bool isActiveCollider  = true;
+	bool isActiveDraggable = true;
+
+public:
+	Paddle(double x, double y, double width, double height, const ptgn::Color& color) :
+		RectangularNode(x, y, width, height, color) {}
+
+	std::vector<ColliderEdge> getEdges() const override {
+		return RectangularNode::getEdges();
+	}
+
+	virtual bool contains(const Point2D& query) const {
+		return RectangularNode::contains(query);
+	}
+
+	virtual void translate(const Point2D& delta) {
+		RectangularNode::translate(delta);
+	}
+
+	// Accessors and mutators for isActiveCollider
+	bool getIsActiveCollider() const {
+		return isActiveCollider;
+	}
+
+	void setIsActiveCollider(bool active) {
+		isActiveCollider = active;
+	}
+
+	// Accessors and mutators for isActiveDraggable
+	bool getIsActiveDraggable() const {
+		return isActiveDraggable;
+	}
+
+	void setIsActiveDraggable(bool active) {
+		isActiveDraggable = active;
+	}
+
+	// Collider interface implementation
+	double getFrictionCoefficient() const override {
+		return Constants::Paddle::FRICTION_COEFFICIENT;
+	}
+
+	Vector2D getNormalOf(const LineSegment2D& edge) const override {
+		return edge.getNormal(LineSegment2D::NormalOrientation::OUTWARDS);
+	}
+};
+
+class World : public RectangularNode, public Collider {
+public:
+	World(double x, double y, double width, double height, const ptgn::Color& color) :
+		RectangularNode(x, y, width, height, color) {}
+
+	std::vector<ColliderEdge> getEdges() const override {
+		return RectangularNode::getEdges();
+	}
+
+	double getFrictionCoefficient() const override {
+		return Constants::World::FRICTION_COEFFICIENT;
+	}
+
+	Vector2D getNormalOf(const LineSegment2D& edge) const override {
+		return edge.getNormal(LineSegment2D::NormalOrientation::INWARDS);
+	}
+};
+
+class CanvasNode {
+public:
+	virtual ~CanvasNode()			 = default;
+	virtual double getWidth() const	 = 0;
+	virtual double getHeight() const = 0;
+};
+
+class TransformationHelper {
+public:
+	static void initialize(const World& world, const CanvasNode& node) {
+		impl = std::make_unique<TransformationHelperInner>(world, node);
+	}
+
+	static Point2D fromWorldToCanvas(double x, double y) {
+		return impl->fromWorldToCanvas(x, y);
+	}
+
+	static Point2D fromWorldToCanvas(const Point2D& p) {
+		return impl->fromWorldToCanvas(p);
+	}
+
+	static Point2D fromCanvasToWorld(double x, double y) {
+		return impl->fromCanvasToWorld(x, y);
+	}
+
+	static Point2D fromCanvasToWorld(const Point2D& p) {
+		return impl->fromCanvasToWorld(p);
+	}
+
+	static Point2D getCanvasCenter() {
+		return impl->getCanvasCenter();
+	}
+
+	static Point2D getWorldCenter() {
+		return impl->getWorldCenter();
+	}
+
+private:
+	class TransformationHelperInner {
+	public:
+		TransformationHelperInner(const World& world_, const CanvasNode& node_) :
+			world(world_), node(node_) {}
+
+		Point2D fromWorldToCanvas(double x, double y) const {
+			double ww = world.getWidth();
+			double wh = world.getHeight();
+			double gw = node.getWidth();
+			double gh = node.getHeight();
+
+			double nx = x / ww; // [0, 1]
+			double ny = y / wh; // [0, 1]
+
+			return Point2D(nx * gw, ny * gh);
+		}
+
+		Point2D fromWorldToCanvas(const Point2D& p) const {
+			return fromWorldToCanvas(p.getX(), p.getY());
+		}
+
+		Point2D fromCanvasToWorld(double x, double y) const {
+			double ww = world.getWidth();
+			double wh = world.getHeight();
+			double gw = node.getWidth();
+			double gh = node.getHeight();
+
+			double nx = x / gw; // [0, 1]
+			double ny = y / gh; // [0, 1]
+
+			return Point2D(nx * ww, ny * wh);
+		}
+
+		Point2D fromCanvasToWorld(const Point2D& p) const {
+			return fromCanvasToWorld(p.getX(), p.getY());
+		}
+
+		Point2D getWorldCenter() const {
+			return Point2D(0.5 * world.getWidth(), 0.5 * world.getHeight());
+		}
+
+		Point2D getCanvasCenter() const {
+			return Point2D(0.5 * node.getWidth(), 0.5 * node.getHeight());
+		}
+
+	private:
+		const World& world;
+		const CanvasNode& node;
+	};
+
+	static std::unique_ptr<TransformationHelperInner> impl;
+};
+
+std::unique_ptr<TransformationHelper::TransformationHelperInner> TransformationHelper::impl =
+	nullptr;
+
+class GameObjects {
+private:
+	std::shared_ptr<World> world;
+	std::unordered_set<std::shared_ptr<Brick>> bricks;
+	std::unordered_set<std::shared_ptr<Obstacle>> obstacles;
+	std::shared_ptr<Ball> ball;
+	std::shared_ptr<Paddle> paddle;
+
+	// Polymorphic interface collections use shared_ptr to base classes
+	std::unordered_set<std::shared_ptr<Collider>> colliders;
+	std::unordered_set<std::shared_ptr<Draggable>> draggables;
+
+public:
+	GameObjects(
+		std::shared_ptr<World> w, std::unordered_set<std::shared_ptr<Brick>> b,
+		std::unordered_set<std::shared_ptr<Obstacle>> o, std::shared_ptr<Ball> ba,
+		std::shared_ptr<Paddle> p
+	) :
+		world(std::move(w)),
+		bricks(std::move(b)),
+		obstacles(std::move(o)),
+		ball(std::move(ba)),
+		paddle(std::move(p)) {
+		colliders.insert(world);
+
+		for (auto& brick : bricks) {
+			colliders.insert(brick);
+		}
+		for (auto& obstacle : obstacles) {
+			colliders.insert(obstacle);
+		}
+		colliders.insert(paddle);
+
+		for (auto& obstacle : obstacles) {
+			draggables.insert(obstacle);
+		}
+		draggables.insert(paddle);
+	}
+
+	// Getters
+	std::shared_ptr<World> getWorld() const {
+		return world;
+	}
+
+	const std::unordered_set<std::shared_ptr<Brick>>& getBricks() const {
+		return bricks;
+	}
+
+	const std::unordered_set<std::shared_ptr<Obstacle>>& getObstacles() const {
+		return obstacles;
+	}
+
+	std::shared_ptr<Ball> getBall() const {
+		return ball;
+	}
+
+	std::shared_ptr<Paddle> getPaddle() const {
+		return paddle;
+	}
+
+	const std::unordered_set<std::shared_ptr<Collider>>& getColliders() const {
+		return colliders;
+	}
+
+	const std::unordered_set<std::shared_ptr<Draggable>>& getDraggables() const {
+		return draggables;
+	}
+};
+
+class GameObjectConstructor {
+public:
+	static GameObjects construct(bool isDebugMode) {
+		auto world = std::make_shared<World>(
+			0, 0, Constants::World::WIDTH, Constants::World::HEIGHT,
+			Constants::World::BACKGROUND_COLOR
+		);
+
+		auto ball	= std::make_shared<Ball>(constructBall());
+		auto paddle = std::make_shared<Paddle>(constructPaddle());
+
+		std::unordered_set<std::shared_ptr<Brick>> bricks;
+		std::unordered_set<std::shared_ptr<Obstacle>> obstacles;
+
+		if (isDebugMode) {
+			bricks = {}; // empty
+			paddle->setIsActiveDrawable(false);
+			paddle->setIsActiveCollider(false);
+			paddle->setIsActiveDraggable(false);
+			obstacles = constructObstacles();
+		} else {
+			bricks	  = constructBricks(8, 12);
+			obstacles = {}; // empty
+		}
+
+		return GameObjects(world, bricks, obstacles, ball, paddle);
+	}
+
+private:
+	static Paddle constructPaddle() {
+		return Paddle(
+			Constants::Paddle::INITIAL_X, Constants::Paddle::INITIAL_Y, Constants::Paddle::WIDTH,
+			Constants::Paddle::HEIGHT, Constants::Paddle::COLOR
+		);
+	}
+
+	static Ball constructBall() {
+		Point2D center(Constants::Ball::INITIAL_X, Constants::Ball::INITIAL_Y);
+		double speed =
+			RandomGenerator::nextDouble(Constants::Ball::MIN_SPEED, Constants::Ball::MAX_SPEED);
+		Vector2D velocity = RandomGenerator::generateRandomVelocity(speed);
+		return Ball(center, Constants::Ball::RADIUS, velocity, Constants::Ball::COLOR);
+	}
+
+	static std::unordered_set<std::shared_ptr<Brick>> constructBricks(int rows, int columns) {
+		std::unordered_set<std::shared_ptr<Brick>> bricks;
+		double totalWidth =
+			columns * (Constants::Brick::WIDTH + Constants::Brick::HORIZONTAL_SPACING) -
+			Constants::Brick::HORIZONTAL_SPACING;
+		double left = 0.5 * (Constants::World::WIDTH - totalWidth);
+
+		for (int i = 0; i < rows; ++i) {
+			for (int j = 0; j < columns; ++j) {
+				double x =
+					j * (Constants::Brick::WIDTH + Constants::Brick::HORIZONTAL_SPACING) + left;
+				double y = i * (Constants::Brick::HEIGHT + Constants::Brick::VERTICAL_SPACING) +
+						   Constants::World::TOP_PADDING;
+				ptgn::Color color = Constants::Brick::COLORS_PER_ROW.count(i) > 0
+									  ? Constants::Brick::COLORS_PER_ROW.at(i)
+									  : ptgn::color::White;
+
+				bricks.insert(std::make_shared<Brick>(
+					x, y, Constants::Brick::WIDTH, Constants::Brick::HEIGHT, color
+				));
+			}
+		}
+
+		return bricks;
+	}
+
+	static std::unordered_set<std::shared_ptr<Obstacle>> constructObstacles() {
+		std::unordered_set<std::shared_ptr<Obstacle>> obstacles;
+
+		obstacles.insert(std::make_shared<Obstacle>(
+			std::vector<Point2D>{ Point2D(0, 720), Point2D(640, 720), Point2D(0, 500) },
+			ptgn::color::White
+		));
+
+		obstacles.insert(std::make_shared<Obstacle>(
+			std::vector<Point2D>{ Point2D(640, 720), Point2D(1280, 720), Point2D(1280, 500) },
+			ptgn::color::White
+		));
+
+		obstacles.insert(std::make_shared<Obstacle>(200, 250, 100, 100, ptgn::color::White));
+		obstacles.insert(std::make_shared<Obstacle>(980, 250, 100, 100, ptgn::color::White));
+
+		return obstacles;
 	}
 };
 
