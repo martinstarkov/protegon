@@ -2898,6 +2898,10 @@ struct Collision {
 		return contact;
 	}
 
+	Vector2D getNormal() const {
+		return collider->getNormalOf(edge);
+	}
+
 	virtual std::string toString() const {
 		return "Collision";
 	}
@@ -3012,8 +3016,44 @@ private:
 	Point2D center_;
 };
 
+struct Conflict : public Collision {
+	// This class represents two cases below.
+	//
+	//         x   x
+	//       x        x
+	//      x   Ball   x
+	//      x          x
+	//       x        x
+	//         x   x
+	//    ----------------  Collider Edge
+	//
+	// or
+	//
+	//         x   x
+	//       x        x
+	//      x   Ball   x
+	//      x          x
+	//  ---------------------- Collider Edge
+	//         x   x
+	//
+	//
+	// PresentCollision is special case of a Conflict where the dot product of velocity and collider
+	// normal is negative, in other words, Conflict is velocity ignorant while PresentCollision
+	// concerns the direction of velocity and the normal of the collider.
+
+	Conflict(
+		const std::shared_ptr<Collider>& collider_, const ColliderEdge& edge_,
+		const std::shared_ptr<CriticalPointPair>& contact_
+	) :
+		Collision(collider_, edge_, contact_) {}
+};
+
 class Ball : public DrawableCircle, public Draggable, public GameObject {
 public:
+	const Vector2D& getVelocity() const {
+		return velocity;
+	}
+
 	Vector2D velocity;
 	Vector2D netForce = Vector2D::ZERO;
 	bool freeze		  = false;
@@ -3552,6 +3592,148 @@ private:
 		obstacles.insert(std::make_shared<Obstacle>(980, 250, 100, 100, ptgn::color::White));
 
 		return obstacles;
+	}
+};
+
+class CollisionEngine {
+private:
+	std::vector<std::shared_ptr<Collider>> colliders_;
+	std::shared_ptr<Ball> ball_;
+
+public:
+	CollisionEngine(
+		const std::vector<std::shared_ptr<Collider>>& colliders, std::shared_ptr<Ball> ball
+	) :
+		colliders_(colliders), ball_(ball) {}
+
+	static std::vector<std::shared_ptr<Conflict>> findConflicts(
+		const std::vector<std::shared_ptr<Collider>>& colliders, const Circle& circle
+	) {
+		std::vector<std::shared_ptr<Conflict>> conflicts;
+
+		for (const auto& collider : colliders) {
+			if (!collider->isActiveCollider()) {
+				continue;
+			}
+
+			const auto& edges = collider->getEdges();
+
+			for (const auto& edge : edges) {
+				auto criticalOpt = CriticalPointFinder::findConflictingCriticalPoints(circle, edge);
+				if (criticalOpt) {
+					conflicts.push_back(std::make_shared<Conflict>(collider, edge, *criticalOpt));
+				}
+			}
+		}
+
+		return conflicts;
+	}
+
+	static std::vector<std::shared_ptr<Collision>> findCollisions(
+		const std::vector<std::shared_ptr<Collider>>& colliders, const Circle& circle,
+		const Vector2D& velocity, double deltaTime
+	) {
+		CollisionConstructor ctor(circle, velocity, deltaTime);
+		std::vector<std::shared_ptr<Collision>> collisions;
+
+		for (const auto& collider : colliders) {
+			if (!collider->isActiveCollider()) {
+				continue;
+			}
+
+			const auto& edges = collider->getEdges();
+
+			for (const auto& edge : edges) {
+				auto criticalOpt = CriticalPointFinder::findCriticalPointsAlongGivenDirection(
+					circle, edge, velocity
+				);
+				if (criticalOpt) {
+					auto collisionOpt = ctor.constructIfPossible(collider, edge, *criticalOpt);
+					if (collisionOpt) {
+						collisions.push_back(*collisionOpt);
+					}
+				}
+			}
+		}
+
+		return collisions;
+	}
+
+	static std::vector<std::shared_ptr<CriticalPointPair>> findCriticalPointsAlongGivenDirection(
+		const Circle& circle, const std::shared_ptr<Collider>& collider, const Vector2D& direction
+	) {
+		std::vector<std::shared_ptr<CriticalPointPair>> result;
+		const auto& edges	  = collider->getEdges();
+		const Point2D& center = circle.getCenter();
+
+		for (const auto& edge : edges) {
+			auto criticalOpt =
+				CriticalPointFinder::findCriticalPointsAlongGivenDirection(circle, edge, direction);
+			if (criticalOpt) {
+				if (CollisionConstructor::isPointWithinCollisionTrajectory(
+						center, (*criticalOpt)->getPointOnEdge(), direction
+					)) {
+					result.push_back(*criticalOpt);
+				}
+			}
+		}
+
+		return result;
+	}
+
+	// Finds the closest CriticalPointPair along a direction
+	static std::optional<std::shared_ptr<CriticalPointPair>>
+	findMostCriticalPointAlongGivenDirection(
+		const Circle& circle, const std::shared_ptr<Collider>& collider, const Vector2D& direction
+	) {
+		auto criticalPoints = findCriticalPointsAlongGivenDirection(circle, collider, direction);
+
+		std::sort(
+			criticalPoints.begin(), criticalPoints.end(),
+			[](const std::shared_ptr<CriticalPointPair>& p0,
+			   const std::shared_ptr<CriticalPointPair>& p1) {
+				return p0->getDistance() < p1->getDistance();
+			}
+		);
+
+		if (criticalPoints.empty()) {
+			return std::nullopt;
+		}
+		return criticalPoints.front();
+	}
+
+	template <typename T>
+	static void sortEarliestToLatest(std::vector<std::shared_ptr<T>>& collisions) {
+		std::sort(
+			collisions.begin(), collisions.end(),
+			[](const std::shared_ptr<T>& c0, const std::shared_ptr<T>& c1) {
+				return c0->getTimeToCollision() < c1->getTimeToCollision();
+			}
+		);
+	}
+
+	static Vector2D calculateCollectiveCollisionNormal(
+		const std::vector<std::shared_ptr<ProspectiveCollision>>& collisions,
+		const Vector2D& velocity
+	) {
+		if (velocity.l2normValue() == 0.0) {
+			throw std::invalid_argument("velocity must be non-zero vector!");
+		}
+
+		Vector2D result(0, 0);
+
+		for (const auto& collision : collisions) {
+			Vector2D normal = collision->getNormal();
+			if (normal.dot(velocity) < -Util::EPSILON) {
+				result = result.add(normal);
+			}
+		}
+
+		return result.normalized();
+	}
+
+	std::vector<std::shared_ptr<Collision>> findCollisions(double deltaTime) const {
+		return findCollisions(colliders_, *ball_, ball_->getVelocity(), deltaTime);
 	}
 };
 
