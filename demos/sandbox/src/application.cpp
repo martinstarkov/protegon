@@ -2950,6 +2950,10 @@ struct PotentialCollision : public ProspectiveCollision {
 struct InevitableCollision : public ProspectiveCollision {
 	double timeToCollision;
 
+	double getTimeToCollision() const {
+		return timeToCollision;
+	}
+
 	InevitableCollision(
 		std::shared_ptr<Collider> c, const ColliderEdge& e,
 		std::shared_ptr<SeparateCriticalPointPair> contact_, double ttc
@@ -3046,6 +3050,200 @@ struct Conflict : public Collision {
 		const std::shared_ptr<CriticalPointPair>& contact_
 	) :
 		Collision(collider_, edge_, contact_) {}
+};
+
+template <typename T>
+class Tick {
+	static_assert(std::is_base_of<Collision, T>::value, "T must be a subclass of Collision");
+
+protected:
+	std::vector<std::shared_ptr<T>> collisions_;
+	double timeSpent_;
+	double minimumTimeToCollision_;
+	double minimumDistanceToCollision_;
+	int numberOfSeparateCriticalPointPairs_;
+	int numberOfTangentialCriticalPoints_;
+	int numberOfCuttingCriticalPointPairs_;
+
+	double simulationTime_ = 0.0;
+
+public:
+	Tick(std::vector<std::shared_ptr<T>> collisions, double timeSpent) :
+		collisions_(std::move(collisions)), timeSpent_(timeSpent) {
+		minimumTimeToCollision_		= computeMinimumTimeToCollision();
+		minimumDistanceToCollision_ = computeMinimumDistanceToCollision();
+
+		numberOfSeparateCriticalPointPairs_ = 0;
+		numberOfTangentialCriticalPoints_	= 0;
+		numberOfCuttingCriticalPointPairs_	= 0;
+
+		for (const auto& collision : collisions_) {
+			auto pair = collision->getContact();
+
+			if (dynamic_cast<SeparateCriticalPointPair*>(pair.get()) != nullptr) {
+				++numberOfSeparateCriticalPointPairs_;
+			}
+			if (dynamic_cast<CuttingCriticalPointPair*>(pair.get()) != nullptr) {
+				++numberOfTangentialCriticalPoints_;
+			}
+			if (dynamic_cast<TangentialCriticalPoint*>(pair.get()) != nullptr) {
+				++numberOfCuttingCriticalPointPairs_;
+			}
+		}
+	}
+
+	virtual ~Tick() = default;
+
+	// Accessors
+	const std::vector<std::shared_ptr<T>>& getCollisions() const {
+		return collisions_;
+	}
+
+	double getTimeSpent() const {
+		return timeSpent_;
+	}
+
+	double getMinimumTimeToCollision() const {
+		return minimumTimeToCollision_;
+	}
+
+	double getMinimumDistanceToCollision() const {
+		return minimumDistanceToCollision_;
+	}
+
+	int getNumberOfSeparateCriticalPointPairs() const {
+		return numberOfSeparateCriticalPointPairs_;
+	}
+
+	int getNumberOfTangentialCriticalPoints() const {
+		return numberOfTangentialCriticalPoints_;
+	}
+
+	int getNumberOfCuttingCriticalPointPairs() const {
+		return numberOfCuttingCriticalPointPairs_;
+	}
+
+	double getSimulationTime() const {
+		return simulationTime_;
+	}
+
+	void setSimulationTime(double val) {
+		simulationTime_ = val;
+	}
+
+	virtual std::string getChildName() const = 0;
+
+	std::string toString() const {
+		std::ostringstream oss;
+		oss << getChildName() << "\n"
+			<< "    # of Collisions             : " << collisions_.size() << "\n"
+			<< "    Remaining Time to Collision : ";
+		if (minimumTimeToCollision_ == std::numeric_limits<double>::max()) {
+			oss << "N/A\n";
+		} else {
+			oss.precision(6);
+			oss << std::fixed << (minimumTimeToCollision_ - timeSpent_) << "\n";
+		}
+		oss << "    Time Spent                  : " << std::fixed << std::setprecision(6)
+			<< timeSpent_ << "\n"
+			<< "    Simulation Time             : " << std::fixed << std::setprecision(6)
+			<< simulationTime_ << "\n"
+			<< "    # of Separate CPs           : " << numberOfSeparateCriticalPointPairs_ << "\n"
+			<< "    # of Tangential CPs         : " << numberOfTangentialCriticalPoints_ << "\n"
+			<< "    # of Cutting CPs            : " << numberOfCuttingCriticalPointPairs_;
+		return oss.str();
+	}
+
+private:
+	double computeMinimumTimeToCollision() const {
+		// Filter InevitableCollision and find the minimum timeToCollision
+		std::vector<std::shared_ptr<InevitableCollision>> inevs;
+
+		for (const auto& collision : collisions_) {
+			auto inev = std::dynamic_pointer_cast<InevitableCollision>(collision);
+			if (inev) {
+				inevs.push_back(inev);
+			}
+		}
+
+		if (inevs.empty()) {
+			return std::numeric_limits<double>::max();
+		}
+
+		auto minIter = std::min_element(
+			inevs.begin(), inevs.end(),
+			[](const std::shared_ptr<InevitableCollision>& a,
+			   const std::shared_ptr<InevitableCollision>& b) {
+				return a->getTimeToCollision() < b->getTimeToCollision();
+			}
+		);
+
+		return (*minIter)->getTimeToCollision();
+	}
+
+	double computeMinimumDistanceToCollision() const {
+		if (collisions_.empty()) {
+			return std::numeric_limits<double>::max();
+		}
+
+		auto minIter = std::min_element(
+			collisions_.begin(), collisions_.end(),
+			[](const std::shared_ptr<T>& a, const std::shared_ptr<T>& b) {
+				return a->getContact()->getDistance() < b->getContact()->getDistance();
+			}
+		);
+
+		return (*minIter)->getContact()->getDistance();
+	}
+};
+
+template <typename T>
+class StationaryTick : public Tick<T> {
+public:
+	StationaryTick(std::vector<std::shared_ptr<T>> collisions, double timeSpent) :
+		Tick<T>(std::move(collisions), timeSpent) {}
+
+	std::string getChildName() const override {
+		return "Stationary Tick";
+	}
+};
+
+class PausedTick : public Tick<Collision> {
+public:
+	PausedTick() : Tick<Collision>(std::vector<std::shared_ptr<Collision>>(), 0.0) {}
+
+	std::string getChildName() const override {
+		return "Paused Tick";
+	}
+};
+
+template <typename T>
+class FreeTick : public Tick<T> {
+public:
+	FreeTick(std::vector<std::shared_ptr<T>> collisions, double timeSpent) :
+		Tick<T>(std::move(collisions), timeSpent) {}
+
+	std::string getChildName() const override {
+		return "Free Tick";
+	}
+};
+
+template <typename T>
+class CrashTick : public Tick<T> {
+private:
+	Vector2D normal_;
+
+public:
+	CrashTick(std::vector<std::shared_ptr<T>> collisions, Vector2D normal, double timeSpent) :
+		Tick<T>(std::move(collisions), timeSpent), normal_(normal) {}
+
+	const Vector2D& getNormal() const {
+		return normal_;
+	}
+
+	std::string getChildName() const override {
+		return "Crash Tick";
+	}
 };
 
 class Ball : public DrawableCircle, public Draggable, public GameObject {
