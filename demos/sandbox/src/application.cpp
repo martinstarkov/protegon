@@ -296,9 +296,11 @@ private:
 	Point2D origin;
 	Vector2D direction;
 
-	double A, B, C; // line equation coefficients: Ax + By + C = 0
+	double A{ 0.0 }, B{ 0.0 }, C{ 0.0 }; // line equation coefficients: Ax + By + C = 0
 
 public:
+	Ray2D() = default;
+
 	Ray2D(const Point2D& origin_, const Vector2D& direction_);
 
 	const Point2D& getOrigin() const;
@@ -1767,41 +1769,6 @@ public:
 	}
 };
 
-class BreakoutSimpleFloatProperty {
-	float data[1];
-	std::function<void(float)> listener;
-
-public:
-	explicit BreakoutSimpleFloatProperty(float initialValue) {
-		data[0] = initialValue;
-	}
-
-	float get() const {
-		return data[0];
-	}
-
-	void set(float value) {
-		if (data[0] != value) {
-			data[0] = value;
-			if (listener) {
-				listener(value);
-			}
-		}
-	}
-
-	float* getAsArray() {
-		return data;
-	}
-
-	void update() {
-		set(data[0]);
-	}
-
-	void addListener(std::function<void(float)> func) {
-		listener = func;
-	}
-};
-
 class Constants {
 public:
 	struct World {
@@ -1850,8 +1817,8 @@ public:
 	};
 
 	struct Physics {
-		static constexpr float SIMULATION_RATIO = { 0.0125f };
-		static BreakoutSimpleFloatProperty GRAVITY;
+		static constexpr float SIMULATION_RATIO				  = { 0.0125f };
+		static constexpr float GRAVITY						  = { 500.0f };
 		static constexpr float NET_FORCE_CALCULATOR_TOLERANCE = { 0.001f };
 	};
 };
@@ -1876,8 +1843,6 @@ const ptgn::Color Constants::Brick::INTERPOLATION_END_COLOR	  = ptgn::Color(96, 
 float Constants::Brick::FRICTION_COEFFICIENT				  = { 0.0f };
 
 float Constants::Obstacle::FRICTION_COEFFICIENT = { 0.05f };
-
-BreakoutSimpleFloatProperty Constants::Physics::GRAVITY(500.0f);
 
 class GameObject {
 public:
@@ -2902,6 +2867,14 @@ struct Collision {
 		return collider->getNormalOf(edge);
 	}
 
+	const std::shared_ptr<Collider>& getCollider() const {
+		return collider;
+	}
+
+	ColliderEdge getEdge() const {
+		return edge;
+	}
+
 	virtual std::string toString() const {
 		return "Collision";
 	}
@@ -3250,6 +3223,18 @@ class Ball : public DrawableCircle, public Draggable, public GameObject {
 public:
 	const Vector2D& getVelocity() const {
 		return velocity;
+	}
+
+	const Vector2D& getNetForce() const {
+		return netForce;
+	}
+
+	void setNetForce(const Vector2D& net_force) {
+		netForce = net_force;
+	}
+
+	void setVelocity(const Vector2D& velocity_) {
+		velocity = velocity_;
 	}
 
 	Vector2D velocity;
@@ -3910,9 +3895,9 @@ public:
 		);
 	}
 
+	template <typename T>
 	static Vector2D calculateCollectiveCollisionNormal(
-		const std::vector<std::shared_ptr<ProspectiveCollision>>& collisions,
-		const Vector2D& velocity
+		const std::vector<std::shared_ptr<T>>& collisions, const Vector2D& velocity
 	) {
 		if (velocity.l2normValue() == 0.0) {
 			throw std::invalid_argument("velocity must be non-zero vector!");
@@ -3932,6 +3917,410 @@ public:
 
 	std::vector<std::shared_ptr<Collision>> findCollisions(double deltaTime) const {
 		return findCollisions(colliders_, *ball_, ball_->getVelocity(), deltaTime);
+	}
+};
+
+// Enum for result types
+enum class ResultType {
+	APPLY_NET_FORCE,
+	BALL_IS_SLIDING,
+	BALL_IS_AT_EQUILIBRIUM,
+	BALL_IS_AT_CORNER
+};
+
+// Result class to hold the result type and net force vector
+struct Result {
+	ResultType type;
+	Vector2D netForce;
+
+	Result(ResultType t, const Vector2D& force) : type(t), netForce(force) {}
+};
+
+// The main NetForceCalculator class
+class NetForceCalculator {
+private:
+	const std::vector<std::shared_ptr<Collider>>& colliders_;
+	Vector2D gravity_;
+	double tolerance_;
+	Ray2D rayFromCenterToGround_;
+
+public:
+	explicit NetForceCalculator(const std::vector<std::shared_ptr<Collider>>& colliders) :
+		colliders_(colliders),
+		gravity_(Vector2D(0.0, Constants::Physics::GRAVITY)),
+		tolerance_(Constants::Physics::NET_FORCE_CALCULATOR_TOLERANCE) {}
+
+	Result process(std::shared_ptr<Ball> ball, double deltaTime);
+
+private:
+	Result calculate(std::shared_ptr<Ball> ball);
+
+	Result resolveSingleGravitySubject(
+		const std::shared_ptr<Conflict>& conflict, std::shared_ptr<Ball> ball
+	);
+
+	Result resolveMultipleGravitySubjects(
+		const std::vector<std::shared_ptr<Conflict>>& conflicts, std::shared_ptr<Ball> ball
+	);
+
+	Result createSlidingResult(
+		const std::shared_ptr<Conflict>& conflict, std::shared_ptr<Ball> ball
+	);
+
+	Result createBallAtCornerResult(
+		const std::shared_ptr<Conflict>& conflict, std::shared_ptr<Ball> ball
+	);
+
+	bool isAtEquilibrium(
+		const std::vector<std::shared_ptr<Conflict>>& conflicts, std::shared_ptr<Ball> ball
+	);
+
+	bool isBallAtCorner(const std::shared_ptr<Conflict>& conflict);
+};
+
+// Implementations
+
+Result NetForceCalculator::process(std::shared_ptr<Ball> ball, double deltaTime) {
+	Result result	  = calculate(ball);
+	Vector2D netForce = result.netForce;
+
+	switch (result.type) {
+		case ResultType::APPLY_NET_FORCE: ball->move(netForce, deltaTime); break;
+		case ResultType::BALL_IS_SLIDING: ball->slide(netForce, deltaTime); break;
+		case ResultType::BALL_IS_AT_EQUILIBRIUM:
+			ball->move(deltaTime); // move with current velocity
+			break;
+		case ResultType::BALL_IS_AT_CORNER: ball->move(netForce, deltaTime); break;
+	}
+
+	ball->setNetForce(netForce);
+	return result;
+}
+
+Result NetForceCalculator::calculate(std::shared_ptr<Ball> ball) {
+	tolerance_			   = Constants::Physics::NET_FORCE_CALCULATOR_TOLERANCE;
+	rayFromCenterToGround_ = Ray2D(ball->getCenter(), gravity_);
+
+	// enlarge ball by tolerance for collision checking
+	auto conflicts = CollisionEngine::findConflicts(colliders_, ball->enlarge(tolerance_));
+
+	std::vector<std::shared_ptr<Conflict>> gravitySubjects;
+	for (const auto& conflict : conflicts) {
+		if (gravity_.dot(conflict->getNormal()) <= 0.0) {
+			gravitySubjects.push_back(conflict);
+		}
+	}
+
+	if (gravitySubjects.empty()) {
+		return Result(ResultType::APPLY_NET_FORCE, gravity_);
+	} else if (gravitySubjects.size() == 1) {
+		return resolveSingleGravitySubject(gravitySubjects[0], ball);
+	} else {
+		return resolveMultipleGravitySubjects(gravitySubjects, ball);
+	}
+}
+
+Result NetForceCalculator::resolveSingleGravitySubject(
+	const std::shared_ptr<Conflict>& conflict, std::shared_ptr<Ball> ball
+) {
+	Vector2D velocity = ball->getVelocity();
+	Vector2D normal	  = conflict->getNormal();
+
+	bool sliding = Util::isFuzzyZero(velocity.dot(normal));
+
+	if (sliding) {
+		return createSlidingResult(conflict, ball);
+	} else {
+		if (ball->isStationary()) {
+			if (isBallAtCorner(conflict)) {
+				return createBallAtCornerResult(conflict, ball);
+			} else {
+				return Result(ResultType::BALL_IS_AT_EQUILIBRIUM, Vector2D::ZERO);
+			}
+		}
+		Vector2D netForce = gravity_.rejectionOf(normal);
+		return Result(ResultType::APPLY_NET_FORCE, netForce);
+	}
+}
+
+Result NetForceCalculator::resolveMultipleGravitySubjects(
+	const std::vector<std::shared_ptr<Conflict>>& conflicts, std::shared_ptr<Ball> ball
+) {
+	if (isAtEquilibrium(conflicts, ball)) {
+		return Result(ResultType::BALL_IS_AT_EQUILIBRIUM, Vector2D::ZERO);
+	}
+
+	std::vector<std::shared_ptr<Conflict>> cornerSubjects;
+	for (const auto& conflict : conflicts) {
+		if (isBallAtCorner(conflict)) {
+			cornerSubjects.push_back(conflict);
+		}
+	}
+
+	if (cornerSubjects.empty()) {
+		return Result(ResultType::BALL_IS_AT_EQUILIBRIUM, Vector2D::ZERO);
+	} else if (cornerSubjects.size() == 1) {
+		return createBallAtCornerResult(cornerSubjects[0], ball);
+	} else {
+		if (isAtEquilibrium(cornerSubjects, ball)) {
+			return Result(ResultType::BALL_IS_AT_EQUILIBRIUM, Vector2D::ZERO);
+		} else {
+			// Sort cornerSubjects by projected distance along gravity vector
+			Point2D center	= ball->getCenter();
+			Vector2D ground = gravity_.normal();
+
+			auto sorted = cornerSubjects;
+			std::sort(
+				sorted.begin(), sorted.end(),
+				[&](const std::shared_ptr<Conflict>& c0, const std::shared_ptr<Conflict>& c1) {
+					Vector2D centerToContact0 = c0->getContact()->getPointOnEdge().subtract(center);
+					Vector2D centerToContact1 = c1->getContact()->getPointOnEdge().subtract(center);
+
+					Vector2D p0 = centerToContact0.projectOnto(ground);
+					Vector2D p1 = centerToContact1.projectOnto(ground);
+
+					return p0.length() < p1.length();
+				}
+			);
+
+			return createBallAtCornerResult(sorted[0], ball);
+		}
+	}
+}
+
+Result NetForceCalculator::createSlidingResult(
+	const std::shared_ptr<Conflict>& conflict, std::shared_ptr<Ball> ball
+) {
+	Vector2D velocity						  = ball->getVelocity();
+	const std::shared_ptr<Collider>& collider = conflict->getCollider();
+	Vector2D normal							  = conflict->getNormal();
+
+	double frictionCoefficient = collider->getFrictionCoefficient();
+	double resistanceMagnitude = gravity_.projectOnto(normal).length() * frictionCoefficient;
+
+	Vector2D resistance = velocity.normalized().reversed().multiply(resistanceMagnitude);
+	Vector2D rejection	= gravity_.rejectionOf(normal);
+	Vector2D netForce	= rejection.add(resistance);
+
+	return Result(ResultType::BALL_IS_SLIDING, netForce);
+}
+
+Result NetForceCalculator::createBallAtCornerResult(
+	const std::shared_ptr<Conflict>& conflict, std::shared_ptr<Ball> ball
+) {
+	Point2D pointOnEdge	  = conflict->getContact()->getPointOnEdge();
+	Vector2D circleToEdge = pointOnEdge.subtract(ball->getCenter());
+	Vector2D projection	  = gravity_.projectOnto(circleToEdge);
+	Vector2D netForce	  = gravity_.rejectionOf(circleToEdge).add(projection.reversed());
+
+	return Result(ResultType::BALL_IS_AT_CORNER, netForce);
+}
+
+bool NetForceCalculator::isAtEquilibrium(
+	const std::vector<std::shared_ptr<Conflict>>& conflicts, std::shared_ptr<Ball> ball
+) {
+	Point2D center	= ball->getCenter();
+	Vector2D ground = gravity_.normal();
+
+	for (const auto& conflict : conflicts) {
+		bool ballIsOnCollider =
+			rayFromCenterToGround_.findIntersection(conflict->getEdge()).has_value();
+		if (ballIsOnCollider) {
+			Vector2D rejection = gravity_.rejectionOf(conflict->getNormal());
+			if (Util::isFuzzyZero(rejection.l2normValue())) {
+				return true;
+			}
+		}
+	}
+
+	for (size_t i = 0; i < conflicts.size(); ++i) {
+		for (size_t j = i + 1; j < conflicts.size(); ++j) {
+			auto contact0 = conflicts[i]->getContact();
+			auto contact1 = conflicts[j]->getContact();
+
+			Vector2D centerToContact0 = contact0->getPointOnEdge().subtract(center);
+			Vector2D centerToContact1 = contact1->getPointOnEdge().subtract(center);
+
+			Vector2D p0 = centerToContact0.projectOnto(ground);
+			Vector2D p1 = centerToContact1.projectOnto(ground);
+
+			if (p0.dot(p1) < 0) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool NetForceCalculator::isBallAtCorner(const std::shared_ptr<Conflict>& conflict) {
+	return !rayFromCenterToGround_.findIntersection(conflict->getEdge()).has_value();
+}
+
+template <typename T>
+class CollisionResolver {
+protected:
+	const std::vector<std::shared_ptr<Collider>>& colliders_;
+	std::shared_ptr<Ball> ball_;
+	bool isDebugMode_;
+
+	std::vector<std::shared_ptr<PresentCollision>> presents_;
+	std::vector<std::shared_ptr<InevitableCollision>> inevitables_;
+	std::vector<std::shared_ptr<PotentialCollision>> potentials_;
+
+	NetForceCalculator netForceCalculator_;
+
+public:
+	CollisionResolver(
+		const std::vector<std::shared_ptr<Collider>>& colliders, std::shared_ptr<Ball> ball,
+		bool isDebugMode
+	) :
+		colliders_(colliders),
+		ball_(std::move(ball)),
+		isDebugMode_(isDebugMode),
+		netForceCalculator_(colliders) {}
+
+	virtual ~CollisionResolver() = default;
+
+	void load(const std::vector<std::shared_ptr<Collision>>& collisions) {
+		presents_.clear();
+		inevitables_.clear();
+		potentials_.clear();
+
+		for (const auto& collision : collisions) {
+			if (auto present = std::dynamic_pointer_cast<PresentCollision>(collision)) {
+				presents_.push_back(present);
+			} else if (auto inevitable =
+						   std::dynamic_pointer_cast<InevitableCollision>(collision)) {
+				inevitables_.push_back(inevitable);
+			} else if (auto potential = std::dynamic_pointer_cast<PotentialCollision>(collision)) {
+				potentials_.push_back(potential);
+			} else {
+				throw std::runtime_error("Implement this branch!");
+			}
+		}
+	}
+
+	// Pure virtual methods to be implemented by subclasses
+	virtual bool isApplicable() const = 0;
+
+	// Use covariant return type if needed; otherwise, return Tick<T>
+	virtual std::shared_ptr<Tick<T>> resolve(double deltaTime) = 0;
+};
+
+class PresentCollisionResolver : public CollisionResolver<PresentCollision> {
+public:
+	PresentCollisionResolver(
+		const std::vector<std::shared_ptr<Collider>>& colliders, std::shared_ptr<Ball> ball,
+		bool isDebugMode
+	) :
+		CollisionResolver(colliders, ball, isDebugMode) {}
+
+	bool isApplicable() const override {
+		return !presents_.empty() || ball_->isStationary();
+	}
+
+	std::shared_ptr<Tick<PresentCollision>> resolve(double deltaTime) override {
+		if (ball_->isStationary()) {
+			auto result = netForceCalculator_.process(ball_, deltaTime);
+			return std::make_shared<StationaryTick<PresentCollision>>(presents_, deltaTime);
+		}
+
+		auto target		= presents_.front();
+		Vector2D normal = target->getNormal();
+
+		if (isDebugMode_) {
+			ball_->collide(
+				normal, Constants::Ball::RESTITUTION_FACTOR,
+				target->getCollider()->getFrictionCoefficient()
+			);
+		} else {
+			ball_->collide(normal);
+		}
+
+		return std::make_shared<CrashTick<PresentCollision>>(presents_, normal, 0.0);
+	}
+};
+
+class PotentialCollisionResolver : public CollisionResolver<PotentialCollision> {
+public:
+	PotentialCollisionResolver(
+		const std::vector<std::shared_ptr<Collider>>& colliders, std::shared_ptr<Ball> ball,
+		bool isDebugMode
+	) :
+		CollisionResolver(colliders, ball, isDebugMode) {}
+
+	bool isApplicable() const override {
+		return true;
+	}
+
+	std::shared_ptr<Tick<PotentialCollision>> resolve(double deltaTime) override {
+		if (isDebugMode_) {
+			auto result = netForceCalculator_.process(ball_, deltaTime);
+		} else {
+			ball_->move(deltaTime);
+		}
+
+		return std::make_shared<FreeTick<PotentialCollision>>(potentials_, deltaTime);
+	}
+};
+
+class InevitableCollisionResolver : public CollisionResolver<InevitableCollision> {
+public:
+	InevitableCollisionResolver(
+		const std::vector<std::shared_ptr<Collider>>& colliders, std::shared_ptr<Ball> ball,
+		bool isDebugMode
+	) :
+		CollisionResolver(colliders, ball, isDebugMode) {}
+
+	bool isApplicable() const override {
+		return !inevitables_.empty();
+	}
+
+	std::shared_ptr<Tick<InevitableCollision>> resolve(double deltaTime) override {
+		if (inevitables_.empty()) {
+			throw std::runtime_error("Inevitable collisions empty on resolve call");
+		}
+
+		// Sort by time to collision ascending
+		std::vector<std::shared_ptr<InevitableCollision>> sorted = inevitables_;
+		std::sort(
+			sorted.begin(), sorted.end(),
+			[](const std::shared_ptr<InevitableCollision>& a,
+			   const std::shared_ptr<InevitableCollision>& b) {
+				return a->getTimeToCollision() < b->getTimeToCollision();
+			}
+		);
+
+		auto earliest = sorted.front();
+		auto collider = earliest->getCollider();
+
+		// Filter collisions with same collider
+		std::vector<std::shared_ptr<InevitableCollision>> filtered;
+		std::copy_if(
+			sorted.begin(), sorted.end(), std::back_inserter(filtered),
+			[&](const std::shared_ptr<InevitableCollision>& collision) {
+				return collision->getCollider() == collider;
+			}
+		);
+
+		double ttc		  = earliest->getTimeToCollision();
+		Vector2D velocity = ball_->getVelocity();
+		Vector2D normal	  = CollisionEngine::calculateCollectiveCollisionNormal(filtered, velocity);
+
+		if (isDebugMode_) {
+			auto result = netForceCalculator_.process(ball_, ttc);
+
+			if (normal.l2normValue() != 0) {
+				ball_->collide(
+					normal, Constants::Ball::RESTITUTION_FACTOR, collider->getFrictionCoefficient()
+				);
+			}
+		} else {
+			ball_->move(deltaTime);
+			ball_->collide(normal);
+		}
+
+		return std::make_shared<CrashTick<InevitableCollision>>(filtered, normal, ttc);
 	}
 };
 
