@@ -4324,6 +4324,43 @@ public:
 	}
 };
 
+class TickProcessor {
+public:
+	TickProcessor(
+		const std::vector<std::shared_ptr<Collider>>& colliders, std::shared_ptr<Ball> ball,
+		bool isDebugMode
+	) :
+		collisionEngine_(colliders, ball),
+		inevitableCollisionResolver_(colliders, ball, isDebugMode),
+		presentCollisionResolver_(colliders, ball, isDebugMode),
+		potentialCollisionResolver_(colliders, ball, isDebugMode) {}
+
+	template <typename T>
+	std::shared_ptr<Tick<T>> process(double deltaTime) {
+		auto collisions = collisionEngine_.findCollisions(deltaTime);
+
+		presentCollisionResolver_.load(collisions);
+		inevitableCollisionResolver_.load(collisions);
+		potentialCollisionResolver_.load(collisions);
+
+		if (presentCollisionResolver_.isApplicable()) {
+			return presentCollisionResolver_.resolve(deltaTime);
+		}
+
+		if (inevitableCollisionResolver_.isApplicable()) {
+			return inevitableCollisionResolver_.resolve(deltaTime);
+		}
+
+		return potentialCollisionResolver_.resolve(deltaTime);
+	}
+
+private:
+	CollisionEngine collisionEngine_;
+	InevitableCollisionResolver inevitableCollisionResolver_;
+	PresentCollisionResolver presentCollisionResolver_;
+	PotentialCollisionResolver potentialCollisionResolver_;
+};
+
 struct SandboxScene : public ptgn::Scene {
 	void Enter() override {}
 
