@@ -2881,6 +2881,137 @@ public:
 	}
 };
 
+struct Collision {
+	std::shared_ptr<Collider> collider;
+	ColliderEdge edge; // held by value because it's concrete
+	std::shared_ptr<CriticalPointPair> contact;
+
+	Collision(
+		std::shared_ptr<Collider> c, const ColliderEdge& e,
+		std::shared_ptr<CriticalPointPair> contact_
+	) :
+		collider(std::move(c)), edge(e), contact(std::move(contact_)) {}
+
+	virtual ~Collision() = default;
+
+	virtual std::shared_ptr<CriticalPointPair> getContact() const {
+		return contact;
+	}
+
+	virtual std::string toString() const {
+		return "Collision";
+	}
+};
+
+struct ProspectiveCollision : public Collision {
+	std::shared_ptr<SeparateCriticalPointPair> getSeparateContact() const {
+		return std::dynamic_pointer_cast<SeparateCriticalPointPair>(contact);
+	}
+
+	ProspectiveCollision(
+		std::shared_ptr<Collider> c, const ColliderEdge& e,
+		std::shared_ptr<SeparateCriticalPointPair> contact_
+	) :
+		Collision(std::move(c), e, std::move(contact_)) {}
+
+	std::string toString() const override {
+		return "ProspectiveCollision";
+	}
+};
+
+struct PresentCollision : public Collision {
+	PresentCollision(
+		std::shared_ptr<Collider> c, const ColliderEdge& e,
+		std::shared_ptr<CriticalPointPair> contact_
+	) :
+		Collision(std::move(c), e, std::move(contact_)) {}
+
+	std::string toString() const override {
+		return "PresentCollision";
+	}
+};
+
+struct PotentialCollision : public ProspectiveCollision {
+	PotentialCollision(
+		std::shared_ptr<Collider> c, const ColliderEdge& e,
+		std::shared_ptr<SeparateCriticalPointPair> contact_
+	) :
+		ProspectiveCollision(std::move(c), e, std::move(contact_)) {}
+
+	std::string toString() const override {
+		return "PotentialCollision";
+	}
+};
+
+struct InevitableCollision : public ProspectiveCollision {
+	double timeToCollision;
+
+	InevitableCollision(
+		std::shared_ptr<Collider> c, const ColliderEdge& e,
+		std::shared_ptr<SeparateCriticalPointPair> contact_, double ttc
+	) :
+		ProspectiveCollision(std::move(c), e, std::move(contact_)), timeToCollision(ttc) {}
+
+	std::string toString() const override {
+		return "InevitableCollision with timeToCollision = " + std::to_string(timeToCollision);
+	}
+};
+
+class CollisionConstructor {
+public:
+	CollisionConstructor(const Circle& circle, const Vector2D& velocity, double deltaTime) :
+		velocity_(velocity),
+		deltaTime_(deltaTime),
+		speed_(velocity.length()),
+		center_(circle.getCenter()) {}
+
+	static bool isPointWithinCollisionTrajectory(
+		const Point2D& pointOnCircle, const Point2D& test, const Vector2D& velocity
+	) {
+		Vector2D circleToTestPoint = test.subtract(pointOnCircle);
+		double dot				   = Vector2D::dot(circleToTestPoint, velocity);
+		return dot > 0;
+	}
+
+	std::optional<std::shared_ptr<Collision>> constructIfPossible(
+		std::shared_ptr<Collider> collider, const ColliderEdge& edge,
+		std::shared_ptr<CriticalPointPair> pair
+	) {
+		if (auto separate = std::dynamic_pointer_cast<SeparateCriticalPointPair>(pair)) {
+			Point2D pointOnEdge = separate->getPointOnEdge();
+
+			if (isPointWithinCollisionTrajectory(center_, pointOnEdge, velocity_)) {
+				double distance			   = separate->getDistance();
+				double timeToCollision	   = distance / speed_;
+				bool isInevitableCollision = timeToCollision <= deltaTime_;
+
+				if (isInevitableCollision) {
+					return std::make_shared<InevitableCollision>(
+						collider, edge, separate, timeToCollision
+					);
+				} else {
+					return std::make_shared<PotentialCollision>(collider, edge, separate);
+				}
+			}
+		} else {
+			Vector2D normal = collider->getNormalOf(edge);
+			bool colliding	= normal.dot(velocity_) < -Util::EPSILON;
+
+			if (colliding) {
+				return std::make_shared<PresentCollision>(collider, edge, pair);
+			}
+		}
+
+		return std::nullopt;
+	}
+
+private:
+	Vector2D velocity_;
+	double deltaTime_;
+	double speed_;
+	Point2D center_;
+};
+
 class Ball : public DrawableCircle, public Draggable, public GameObject {
 public:
 	Vector2D velocity;
