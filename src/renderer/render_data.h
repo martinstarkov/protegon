@@ -287,7 +287,7 @@ private:
 
 			auto line_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 
-			for (std::size_t j{ 0 }; j < line_points.size(); j++) {
+			for (std::size_t j{ 0 }; j < line_vertices.size(); j++) {
 				line_vertices[j].position[0] = line_points[j].x;
 				line_vertices[j].position[1] = line_points[j].y;
 			}
