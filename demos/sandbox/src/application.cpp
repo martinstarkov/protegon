@@ -12,6 +12,7 @@
 #include <random>
 #include <set>
 #include <sstream>
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -19,8 +20,10 @@
 #include <vector>
 
 #include "core/game.h"
+#include "core/window.h"
 #include "input/input_handler.h"
 #include "math/vector2.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -488,9 +491,9 @@ LineSegment2D::LineSegment2D(const Point2D& P, const Point2D& Q, std::string ide
 	P_(P), Q_(Q), identifier_(std::move(identifier)) {
 	length_			  = P_.distanceTo(Q_);
 	auto coefficients = Line2D::calculateEquationCoefficients(P_, Q_);
-	A_				  = coefficients[0];
-	B_				  = coefficients[1];
-	C_				  = coefficients[2];
+	A_				  = coefficients.at(0);
+	B_				  = coefficients.at(1);
+	C_				  = coefficients.at(2);
 
 	direction_ = Q_.subtract(P_).normalized();
 	constructNormals();
@@ -627,15 +630,15 @@ std::vector<double> Circle::findParametersForGivenSlope(double slope) const {
 
 std::vector<Point2D> Circle::findPointsForGivenSlope(double slope) const {
 	std::vector<double> parameters = findParametersForGivenSlope(slope);
-	Point2D p0					   = calculatePointAt(parameters[0]);
-	Point2D p1					   = calculatePointAt(parameters[1]);
+	Point2D p0					   = calculatePointAt(parameters.at(0));
+	Point2D p1					   = calculatePointAt(parameters.at(1));
 	return { p0, p1 };
 }
 
 bool Circle::doesIntersect(const Line2D& line) const {
 	bool intersects				= false;
 	std::vector<Point2D> points = findPointsForGivenSlope(line.getSlope());
-	Line2D perpendicularLine(points[0], points[1]);
+	Line2D perpendicularLine(points.at(0), points.at(1));
 	std::optional<Point2D> intersection = perpendicularLine.findIntersection(line);
 	if (intersection.has_value()) {
 		intersects = isPointInsideCircle(intersection.value());
@@ -646,8 +649,8 @@ bool Circle::doesIntersect(const Line2D& line) const {
 Point2D Circle::findPointOnCircleClosestToLine(const Line2D& line) const {
 	double slope				= line.getSlope();
 	std::vector<Point2D> points = findPointsForGivenSlope(slope);
-	Point2D p0					= points[0];
-	Point2D p1					= points[1];
+	Point2D p0					= points.at(0);
+	Point2D p1					= points.at(1);
 	double dist0				= line.calculateDistanceToPoint(p0);
 	double dist1				= line.calculateDistanceToPoint(p1);
 	return dist0 < dist1 ? p0 : p1;
@@ -734,9 +737,9 @@ double Circle::getRadius() const {
 
 Line2D::Line2D(const Point2D& P_, const Point2D& Q_) : P(P_), Q(Q_) {
 	auto coeffs = calculateEquationCoefficients(P, Q);
-	A			= coeffs[0];
-	B			= coeffs[1];
-	C			= coeffs[2];
+	A			= coeffs.at(0);
+	B			= coeffs.at(1);
+	C			= coeffs.at(2);
 
 	slope	  = calculateSlope(P, Q);
 	direction = Q.subtract(P).normalized();
@@ -1189,9 +1192,9 @@ Ray2D::Ray2D(const Point2D& origin_, const Vector2D& direction_) :
 	Point2D Q = origin.add(direction.multiply(1.0));
 
 	auto coefficients = Line2D::calculateEquationCoefficients(P, Q);
-	A				  = coefficients[0];
-	B				  = coefficients[1];
-	C				  = coefficients[2];
+	A				  = coefficients.at(0);
+	B				  = coefficients.at(1);
+	C				  = coefficients.at(2);
 }
 
 const Point2D& Ray2D::getOrigin() const {
@@ -1381,9 +1384,9 @@ public:
 		vertices = vertices_;
 		edges.reserve(numberOfVertices);
 		for (int i = 0; i < numberOfVertices; ++i) {
-			const std::string& identifier = identifiers[i];
-			const Point2D& P			  = vertices[i];
-			const Point2D& Q			  = vertices[(i + 1) % numberOfVertices];
+			const std::string& identifier = identifiers.at(i);
+			const Point2D& P			  = vertices.at(i);
+			const Point2D& Q			  = vertices.at((i + 1) % numberOfVertices);
 			edges.push_back(createEdge(P, Q, identifier));
 		}
 		numberOfEdges = static_cast<int>(edges.size());
@@ -1445,10 +1448,10 @@ public:
 		double testY  = test.getY();
 		int j		  = numberOfVertices - 1;
 		for (int i = 0; i < numberOfVertices; ++i) {
-			double yi = vertices[i].getY();
-			double xi = vertices[i].getX();
-			double yj = vertices[j].getY();
-			double xj = vertices[j].getX();
+			double yi = vertices.at(i).getY();
+			double xi = vertices.at(i).getX();
+			double yj = vertices.at(j).getY();
+			double xj = vertices.at(j).getX();
 			if (((yi > testY) != (yj > testY)) &&
 				(testX < (xj - xi) * (testY - yi) / (yj - yi) + xi)) {
 				contains = !contains;
@@ -1467,9 +1470,9 @@ public:
 			newVertices.push_back(vertex.add(delta));
 		}
 		for (int i = 0; i < numberOfVertices; ++i) {
-			const std::string& identifier = identifiers[i];
-			const Point2D& P			  = newVertices[i];
-			const Point2D& Q			  = newVertices[(i + 1) % numberOfVertices];
+			const std::string& identifier = identifiers.at(i);
+			const Point2D& P			  = newVertices.at(i);
+			const Point2D& Q			  = newVertices.at((i + 1) % numberOfVertices);
 			newEdges.push_back(createEdge(P, Q, identifier));
 		}
 		vertices = std::move(newVertices);
@@ -1684,71 +1687,6 @@ protected:
 	}
 };
 
-class Event {
-public:
-	virtual ~Event() = default;
-};
-
-class MouseEvent : public Event {
-public:
-	bool isConsumed() const {
-		return consumed;
-	}
-
-	void consume() {
-		consumed = true;
-	}
-
-private:
-	bool consumed = false;
-};
-
-class EventListener {
-public:
-	virtual ~EventListener() = default;
-
-	virtual void listen(const Event& event) {}
-
-	virtual void listen(const MouseEvent& event) = 0;
-};
-
-class EventDispatcher {
-public:
-	void receiveEvent(const Event& event) {
-		// Check if event is MouseEvent using dynamic_cast
-		if (auto mouseEvent = dynamic_cast<const MouseEvent*>(&event)) {
-			dispatch(*mouseEvent);
-		} else {
-			dispatch(event);
-		}
-	}
-
-	void addEventListener(EventListener* listener) {
-		listeners.push_back(listener);
-	}
-
-	void removeEventListener(EventListener* listener) {
-		listeners.erase(std::remove(listeners.begin(), listeners.end(), listener), listeners.end());
-	}
-
-private:
-	std::vector<EventListener*> listeners;
-
-	void dispatch(const Event& event) {
-		for (auto* listener : listeners) {
-			listener->listen(event);
-		}
-	}
-
-	void dispatch(const MouseEvent& event) {
-		for (auto* listener : listeners) {
-			if (!event.isConsumed()) {
-				listener->listen(event);
-			}
-		}
-	}
-};
-
 class Manager {
 protected:
 	bool paused = false;
@@ -1772,8 +1710,6 @@ public:
 class Constants {
 public:
 	struct World {
-		static constexpr double WIDTH		= 1280.0;
-		static constexpr double HEIGHT		= 720.0;
 		static constexpr double TOP_PADDING = 64.0;
 		static const ptgn::Color BACKGROUND_COLOR;
 		static constexpr float FRICTION_COEFFICIENT = { 0.05f };
@@ -1783,8 +1719,8 @@ public:
 		static constexpr double RADIUS	  = 12.0;
 		static constexpr double MIN_SPEED = 500.0;
 		static constexpr double MAX_SPEED = 700.0;
-		static constexpr double INITIAL_X = 0.5 * World::WIDTH;
-		static constexpr double INITIAL_Y = 0.5 * World::HEIGHT;
+		static constexpr double INITIAL_X = 0.5 * window_size.x;
+		static constexpr double INITIAL_Y = 0.5 * window_size.y;
 		static const ptgn::Color COLOR;
 		static float RESTITUTION_FACTOR;
 		static float DO_NOT_BOUNCE_SPEED_THRESHOLD;
@@ -1793,8 +1729,8 @@ public:
 	struct Paddle {
 		static constexpr double WIDTH	  = 192.0;
 		static constexpr double HEIGHT	  = 28.0;
-		static constexpr double INITIAL_X = 0.5 * (World::WIDTH - WIDTH);
-		static constexpr double INITIAL_Y = World::HEIGHT - 100.0;
+		static constexpr double INITIAL_X = 0.5 * (window_size.x - WIDTH);
+		static constexpr double INITIAL_Y = window_size.y - 100.0;
 		static const ptgn::Color COLOR;
 		static constexpr double ARC_RADIUS = 0.0;
 		static float FRICTION_COEFFICIENT;
@@ -1922,7 +1858,7 @@ public:
 
 class Painter {
 public:
-	Painter(GraphicsContext& context, double width, double height);
+	Painter(std::shared_ptr<GraphicsContext> context, double width, double height);
 
 	void scale(double scale);
 	void clear();
@@ -1987,7 +1923,7 @@ public:
 	void processCommands(const PaintCommandHandler& handler);
 
 private:
-	GraphicsContext& gc;
+	std::shared_ptr<GraphicsContext> gc;
 	double width;
 	double height;
 };
@@ -2285,38 +2221,38 @@ ptgn::Color RectangularNode::getColor() const {
 	return color;
 }
 
-Painter::Painter(GraphicsContext& context, double width, double height) :
+Painter::Painter(std::shared_ptr<GraphicsContext> context, double width, double height) :
 	gc(context), width(width), height(height) {}
 
 void Painter::scale(double scale) {
-	gc.scale(scale, scale);
+	gc->scale(scale, scale);
 }
 
 void Painter::clear() {
-	gc.clearRect(0, 0, width, height);
+	gc->clearRect(0, 0, width, height);
 }
 
 void Painter::fillBackground(const ptgn::Color& color) {
-	gc.save();
-	gc.setFill(color);
-	gc.fillRect(0, 0, width, height);
-	gc.restore();
+	gc->save();
+	gc->setFill(color);
+	gc->fillRect(0, 0, width, height);
+	gc->restore();
 }
 
 void Painter::save() {
-	gc.save();
+	gc->save();
 }
 
 void Painter::restore() {
-	gc.restore();
+	gc->restore();
 }
 
 void Painter::drawLine(
 	const Point2D& p0, const Point2D& p1, const ptgn::Color& color, double thickness
 ) {
-	gc.setStroke(color);
-	gc.setLineWidth(thickness);
-	gc.strokeLine(p0.getX(), p0.getY(), p1.getX(), p1.getY());
+	gc->setStroke(color);
+	gc->setLineWidth(thickness);
+	gc->strokeLine(p0.getX(), p0.getY(), p1.getX(), p1.getY());
 }
 
 void Painter::drawLine(const LineSegment2D& ls, const ptgn::Color& color, double thickness) {
@@ -2340,10 +2276,10 @@ void Painter::stroke(const DrawableLineSegment& ls) {
 }
 
 void Painter::fillCircle(const Point2D& center, double radius, const ptgn::Color& color) {
-	gc.setFill(color);
+	gc->setFill(color);
 	double left = center.getX() - radius;
 	double top	= center.getY() - radius;
-	gc.fillOval(left, top, 2 * radius, 2 * radius);
+	gc->fillOval(left, top, 2 * radius, 2 * radius);
 }
 
 void Painter::fillCircle(const Circle& circle, const ptgn::Color& color) {
@@ -2361,11 +2297,11 @@ void Painter::fill(const DrawableCircle& circle) {
 void Painter::strokeCircle(
 	const Point2D& center, double radius, const ptgn::Color& color, double width_
 ) {
-	gc.setStroke(color);
-	gc.setLineWidth(width_);
+	gc->setStroke(color);
+	gc->setLineWidth(width_);
 	double left = center.getX() - radius;
 	double top	= center.getY() - radius;
-	gc.strokeOval(left, top, 2 * radius, 2 * radius);
+	gc->strokeOval(left, top, 2 * radius, 2 * radius);
 }
 
 void Painter::strokeCircle(const Circle& circle, const ptgn::Color& color, double width_) {
@@ -2385,16 +2321,16 @@ void Painter::stroke(const DrawableCircle& circle) {
 }
 
 void Painter::fillRectangle(double x, double y, double w, double h, const ptgn::Color& color) {
-	gc.setFill(color);
-	gc.fillRect(x, y, w, h);
+	gc->setFill(color);
+	gc->fillRect(x, y, w, h);
 }
 
 void Painter::fillRoundRectangle(
 	double x, double y, double width_, double height_, double arcWidth, double arcHeight,
 	const ptgn::Color& color
 ) {
-	gc.setFill(color);
-	gc.fillRoundRect(x, y, width_, height_, arcWidth, arcHeight);
+	gc->setFill(color);
+	gc->fillRoundRect(x, y, width_, height_, arcWidth, arcHeight);
 }
 
 void Painter::fillRoundRectangle(const RectangularNode& rect, double arcWidth, double arcHeight) {
@@ -2407,25 +2343,25 @@ void Painter::fillRoundRectangle(const RectangularNode& rect, double arcWidth, d
 void Painter::strokeRectangle(
 	double x, double y, double w, double h, const ptgn::Color& color, double width_
 ) {
-	gc.setStroke(color);
-	gc.setLineWidth(width_);
-	gc.strokeRect(x, y, w, h);
+	gc->setStroke(color);
+	gc->setLineWidth(width_);
+	gc->strokeRect(x, y, w, h);
 }
 
 void Painter::fillPolygon(const std::vector<Point2D>& vertices, const ptgn::Color& color) {
-	gc.setFill(color);
-	gc.beginPath();
+	gc->setFill(color);
+	gc->beginPath();
 	if (vertices.empty()) {
 		return;
 	}
-	gc.moveTo(vertices[0].getX(), vertices[0].getY());
+	gc->moveTo(vertices.at(0).getX(), vertices.at(0).getY());
 
 	for (size_t i = 1; i < vertices.size(); ++i) {
-		gc.lineTo(vertices[i].getX(), vertices[i].getY());
+		gc->lineTo(vertices.at(i).getX(), vertices.at(i).getY());
 	}
 
-	gc.closePath();
-	gc.fill();
+	gc->closePath();
+	gc->fill();
 }
 
 void Painter::fill(const PolygonalNode& polygon, const ptgn::Color& color) {
@@ -2450,21 +2386,21 @@ void Painter::strokePath(
 	if (vertices.empty()) {
 		return;
 	}
-	gc.setStroke(color);
-	gc.setLineWidth(width_);
+	gc->setStroke(color);
+	gc->setLineWidth(width_);
 
-	gc.beginPath();
-	gc.moveTo(vertices[0].getX(), vertices[0].getY());
+	gc->beginPath();
+	gc->moveTo(vertices.at(0).getX(), vertices.at(0).getY());
 
 	for (size_t i = 1; i < vertices.size(); ++i) {
-		gc.lineTo(vertices[i].getX(), vertices[i].getY());
+		gc->lineTo(vertices.at(i).getX(), vertices.at(i).getY());
 	}
 
 	if (closePath) {
-		gc.closePath();
+		gc->closePath();
 	}
 
-	gc.stroke();
+	gc->stroke();
 }
 
 void Painter::stroke(const PolygonalNode& polygon, const ptgn::Color& color, double width_) {
@@ -2794,7 +2730,7 @@ public:
 			}
 
 			if (pointsOnLineSegment.size() == 1) {
-				result = std::make_shared<TangentialCriticalPoint>(pointsOnLineSegment[0]);
+				result = std::make_shared<TangentialCriticalPoint>(pointsOnLineSegment.at(0));
 			} else if (pointsOnLineSegment.size() == 2) {
 				result = std::make_shared<CuttingCriticalPointPair>(pointsOnLineSegment);
 			}
@@ -2836,7 +2772,7 @@ public:
 		}
 
 		if (pointsOnLineSegment.size() == 1) {
-			result = std::make_shared<TangentialCriticalPoint>(pointsOnLineSegment[0]);
+			result = std::make_shared<TangentialCriticalPoint>(pointsOnLineSegment.at(0));
 		} else if (pointsOnLineSegment.size() == 2) {
 			result = std::make_shared<CuttingCriticalPointPair>(pointsOnLineSegment);
 		}
@@ -2861,6 +2797,10 @@ struct Collision {
 
 	virtual std::shared_ptr<CriticalPointPair> getContact() const {
 		return contact;
+	}
+
+	virtual double getTimeToCollision() const {
+		return 0.0;
 	}
 
 	Vector2D getNormal() const {
@@ -2923,7 +2863,7 @@ struct PotentialCollision : public ProspectiveCollision {
 struct InevitableCollision : public ProspectiveCollision {
 	double timeToCollision;
 
-	double getTimeToCollision() const {
+	double getTimeToCollision() const override {
 		return timeToCollision;
 	}
 
@@ -3025,12 +2965,36 @@ struct Conflict : public Collision {
 		Collision(collider_, edge_, contact_) {}
 };
 
-template <typename T>
-class Tick {
-	static_assert(std::is_base_of<Collision, T>::value, "T must be a subclass of Collision");
+class TickBase {
+public:
+	virtual ~TickBase()															 = default;
+	virtual double getTimeSpent() const											 = 0;
+	virtual void setSimulationTime(double time)									 = 0;
+	virtual double getMinimumDistanceToCollision() const						 = 0;
+	virtual const std::vector<std::shared_ptr<Collision>>& getCollisions() const = 0;
 
+	virtual bool isStationary() const {
+		return false;
+	}
+
+	virtual bool isFree() const {
+		return false;
+	}
+
+	virtual bool isPaused() const {
+		return false;
+	}
+
+	virtual bool isCrash() const {
+		return false;
+	}
+
+	// Other common virtual functions if needed
+};
+
+class Tick : public TickBase {
 protected:
-	std::vector<std::shared_ptr<T>> collisions_;
+	std::vector<std::shared_ptr<Collision>> collisions_;
 	double timeSpent_;
 	double minimumTimeToCollision_;
 	double minimumDistanceToCollision_;
@@ -3041,7 +3005,7 @@ protected:
 	double simulationTime_ = 0.0;
 
 public:
-	Tick(std::vector<std::shared_ptr<T>> collisions, double timeSpent) :
+	Tick(std::vector<std::shared_ptr<Collision>> collisions, double timeSpent) :
 		collisions_(std::move(collisions)), timeSpent_(timeSpent) {
 		minimumTimeToCollision_		= computeMinimumTimeToCollision();
 		minimumDistanceToCollision_ = computeMinimumDistanceToCollision();
@@ -3068,7 +3032,7 @@ public:
 	virtual ~Tick() = default;
 
 	// Accessors
-	const std::vector<std::shared_ptr<T>>& getCollisions() const {
+	const std::vector<std::shared_ptr<Collision>>& getCollisions() const override {
 		return collisions_;
 	}
 
@@ -3080,7 +3044,7 @@ public:
 		return minimumTimeToCollision_;
 	}
 
-	double getMinimumDistanceToCollision() const {
+	double getMinimumDistanceToCollision() const override {
 		return minimumDistanceToCollision_;
 	}
 
@@ -3130,10 +3094,10 @@ public:
 private:
 	double computeMinimumTimeToCollision() const {
 		// Filter InevitableCollision and find the minimum timeToCollision
-		std::vector<std::shared_ptr<InevitableCollision>> inevs;
+		std::vector<std::shared_ptr<Collision>> inevs;
 
 		for (const auto& collision : collisions_) {
-			auto inev = std::dynamic_pointer_cast<InevitableCollision>(collision);
+			auto inev = std::dynamic_pointer_cast<Collision>(collision);
 			if (inev) {
 				inevs.push_back(inev);
 			}
@@ -3145,8 +3109,7 @@ private:
 
 		auto minIter = std::min_element(
 			inevs.begin(), inevs.end(),
-			[](const std::shared_ptr<InevitableCollision>& a,
-			   const std::shared_ptr<InevitableCollision>& b) {
+			[](const std::shared_ptr<Collision>& a, const std::shared_ptr<Collision>& b) {
 				return a->getTimeToCollision() < b->getTimeToCollision();
 			}
 		);
@@ -3161,7 +3124,7 @@ private:
 
 		auto minIter = std::min_element(
 			collisions_.begin(), collisions_.end(),
-			[](const std::shared_ptr<T>& a, const std::shared_ptr<T>& b) {
+			[](const std::shared_ptr<Collision>& a, const std::shared_ptr<Collision>& b) {
 				return a->getContact()->getDistance() < b->getContact()->getDistance();
 			}
 		);
@@ -3170,45 +3133,60 @@ private:
 	}
 };
 
-template <typename T>
-class StationaryTick : public Tick<T> {
+class StationaryTick : public Tick {
 public:
-	StationaryTick(std::vector<std::shared_ptr<T>> collisions, double timeSpent) :
-		Tick<T>(std::move(collisions), timeSpent) {}
+	StationaryTick(std::vector<std::shared_ptr<Collision>> collisions, double timeSpent) :
+		Tick(std::move(collisions), timeSpent) {}
+
+	virtual bool isStationary() const override {
+		return true;
+	}
 
 	std::string getChildName() const override {
 		return "Stationary Tick";
 	}
 };
 
-class PausedTick : public Tick<Collision> {
+class PausedTick : public Tick {
 public:
-	PausedTick() : Tick<Collision>(std::vector<std::shared_ptr<Collision>>(), 0.0) {}
+	PausedTick() : Tick(std::vector<std::shared_ptr<Collision>>(), 0.0) {}
+
+	virtual bool isPaused() const override {
+		return true;
+	}
 
 	std::string getChildName() const override {
 		return "Paused Tick";
 	}
 };
 
-template <typename T>
-class FreeTick : public Tick<T> {
+class FreeTick : public Tick {
 public:
-	FreeTick(std::vector<std::shared_ptr<T>> collisions, double timeSpent) :
-		Tick<T>(std::move(collisions), timeSpent) {}
+	FreeTick(std::vector<std::shared_ptr<Collision>> collisions, double timeSpent) :
+		Tick(std::move(collisions), timeSpent) {}
+
+	virtual bool isFree() const override {
+		return true;
+	}
 
 	std::string getChildName() const override {
 		return "Free Tick";
 	}
 };
 
-template <typename T>
-class CrashTick : public Tick<T> {
+class CrashTick : public Tick {
 private:
 	Vector2D normal_;
 
 public:
-	CrashTick(std::vector<std::shared_ptr<T>> collisions, Vector2D normal, double timeSpent) :
-		Tick<T>(std::move(collisions), timeSpent), normal_(normal) {}
+	virtual bool isCrash() const override {
+		return true;
+	}
+
+	CrashTick(
+		std::vector<std::shared_ptr<Collision>> collisions, Vector2D normal, double timeSpent
+	) :
+		Tick(std::move(collisions), timeSpent), normal_(normal) {}
 
 	const Vector2D& getNormal() const {
 		return normal_;
@@ -3235,6 +3213,14 @@ public:
 
 	void setVelocity(const Vector2D& velocity_) {
 		velocity = velocity_;
+	}
+
+	bool isFreeze() const {
+		return freeze;
+	}
+
+	void setFreeze(bool new_freeze) {
+		freeze = new_freeze;
 	}
 
 	Vector2D velocity;
@@ -3357,13 +3343,8 @@ public:
 	}
 
 	// Clone the ball
-	Ball copy() const {
-		return Ball(center, radius, velocity, getColor());
-	}
-
-	// Enlarge circle (delegate)
-	Circle enlarge(double factor) const override {
-		return DrawableCircle::enlarge(factor);
+	std::shared_ptr<Ball> copy() const {
+		return std::make_shared<Ball>(center, radius, velocity, getColor());
 	}
 
 	// Get speed magnitude
@@ -3525,16 +3506,16 @@ public:
 	}
 };
 
-class CanvasNode {
+class Canvas {
 public:
-	virtual ~CanvasNode()			 = default;
+	virtual ~Canvas()				 = default;
 	virtual double getWidth() const	 = 0;
 	virtual double getHeight() const = 0;
 };
 
 class TransformationHelper {
 public:
-	static void initialize(const World& world, const CanvasNode& node) {
+	static void initialize(std::shared_ptr<World> world, std::shared_ptr<Canvas> node) {
 		impl = std::make_unique<TransformationHelperInner>(world, node);
 	}
 
@@ -3565,17 +3546,18 @@ public:
 private:
 	class TransformationHelperInner {
 	public:
-		TransformationHelperInner(const World& world_, const CanvasNode& node_) :
+		TransformationHelperInner(std::shared_ptr<World> world_, std::shared_ptr<Canvas> node_) :
 			world(world_), node(node_) {}
 
 		Point2D fromWorldToCanvas(double x, double y) const {
-			double ww = world.getWidth();
-			double wh = world.getHeight();
-			double gw = node.getWidth();
-			double gh = node.getHeight();
+			double ww = world->getWidth();
+			double wh = world->getHeight();
+			double gw = node->getWidth();
+			double gh = node->getHeight();
 
-			double nx = x / ww; // [0, 1]
-			double ny = y / wh; // [0, 1]
+			// 0 to 1
+			double nx = x / ww;
+			double ny = y / wh;
 
 			return Point2D(nx * gw, ny * gh);
 		}
@@ -3585,13 +3567,14 @@ private:
 		}
 
 		Point2D fromCanvasToWorld(double x, double y) const {
-			double ww = world.getWidth();
-			double wh = world.getHeight();
-			double gw = node.getWidth();
-			double gh = node.getHeight();
+			double ww = world->getWidth();
+			double wh = world->getHeight();
+			double gw = node->getWidth();
+			double gh = node->getHeight();
 
-			double nx = x / gw; // [0, 1]
-			double ny = y / gh; // [0, 1]
+			// 0 to 1
+			double nx = x / gw;
+			double ny = y / gh;
 
 			return Point2D(nx * ww, ny * wh);
 		}
@@ -3601,16 +3584,16 @@ private:
 		}
 
 		Point2D getWorldCenter() const {
-			return Point2D(0.5 * world.getWidth(), 0.5 * world.getHeight());
+			return Point2D(0.5 * world->getWidth(), 0.5 * world->getHeight());
 		}
 
 		Point2D getCanvasCenter() const {
-			return Point2D(0.5 * node.getWidth(), 0.5 * node.getHeight());
+			return Point2D(0.5 * node->getWidth(), 0.5 * node->getHeight());
 		}
 
 	private:
-		const World& world;
-		const CanvasNode& node;
+		std::shared_ptr<World> world;
+		std::shared_ptr<Canvas> node;
 	};
 
 	static std::unique_ptr<TransformationHelperInner> impl;
@@ -3622,19 +3605,19 @@ std::unique_ptr<TransformationHelper::TransformationHelperInner> TransformationH
 class GameObjects {
 private:
 	std::shared_ptr<World> world;
-	std::unordered_set<std::shared_ptr<Brick>> bricks;
-	std::unordered_set<std::shared_ptr<Obstacle>> obstacles;
+	std::vector<std::shared_ptr<Brick>> bricks;
+	std::vector<std::shared_ptr<Obstacle>> obstacles;
 	std::shared_ptr<Ball> ball;
 	std::shared_ptr<Paddle> paddle;
 
 	// Polymorphic interface collections use shared_ptr to base classes
-	std::unordered_set<std::shared_ptr<Collider>> colliders;
-	std::unordered_set<std::shared_ptr<Draggable>> draggables;
+	std::vector<std::shared_ptr<Collider>> colliders;
+	std::vector<std::shared_ptr<Draggable>> draggables;
 
 public:
 	GameObjects(
-		std::shared_ptr<World> w, std::unordered_set<std::shared_ptr<Brick>> b,
-		std::unordered_set<std::shared_ptr<Obstacle>> o, std::shared_ptr<Ball> ba,
+		std::shared_ptr<World> w, std::vector<std::shared_ptr<Brick>> b,
+		std::vector<std::shared_ptr<Obstacle>> o, std::shared_ptr<Ball> ba,
 		std::shared_ptr<Paddle> p
 	) :
 		world(std::move(w)),
@@ -3642,20 +3625,20 @@ public:
 		obstacles(std::move(o)),
 		ball(std::move(ba)),
 		paddle(std::move(p)) {
-		colliders.insert(world);
+		colliders.emplace_back(world);
 
 		for (auto& brick : bricks) {
-			colliders.insert(brick);
+			colliders.emplace_back(brick);
 		}
 		for (auto& obstacle : obstacles) {
-			colliders.insert(obstacle);
+			colliders.emplace_back(obstacle);
 		}
-		colliders.insert(paddle);
+		colliders.emplace_back(paddle);
 
 		for (auto& obstacle : obstacles) {
-			draggables.insert(obstacle);
+			draggables.emplace_back(obstacle);
 		}
-		draggables.insert(paddle);
+		draggables.emplace_back(paddle);
 	}
 
 	// Getters
@@ -3663,11 +3646,11 @@ public:
 		return world;
 	}
 
-	const std::unordered_set<std::shared_ptr<Brick>>& getBricks() const {
+	const std::vector<std::shared_ptr<Brick>>& getBricks() const {
 		return bricks;
 	}
 
-	const std::unordered_set<std::shared_ptr<Obstacle>>& getObstacles() const {
+	const std::vector<std::shared_ptr<Obstacle>>& getObstacles() const {
 		return obstacles;
 	}
 
@@ -3679,11 +3662,11 @@ public:
 		return paddle;
 	}
 
-	const std::unordered_set<std::shared_ptr<Collider>>& getColliders() const {
+	const std::vector<std::shared_ptr<Collider>>& getColliders() const {
 		return colliders;
 	}
 
-	const std::unordered_set<std::shared_ptr<Draggable>>& getDraggables() const {
+	const std::vector<std::shared_ptr<Draggable>>& getDraggables() const {
 		return draggables;
 	}
 };
@@ -3692,15 +3675,14 @@ class GameObjectConstructor {
 public:
 	static GameObjects construct(bool isDebugMode) {
 		auto world = std::make_shared<World>(
-			0, 0, Constants::World::WIDTH, Constants::World::HEIGHT,
-			Constants::World::BACKGROUND_COLOR
+			0, 0, window_size.x, window_size.y, Constants::World::BACKGROUND_COLOR
 		);
 
 		auto ball	= std::make_shared<Ball>(constructBall());
 		auto paddle = std::make_shared<Paddle>(constructPaddle());
 
-		std::unordered_set<std::shared_ptr<Brick>> bricks;
-		std::unordered_set<std::shared_ptr<Obstacle>> obstacles;
+		std::vector<std::shared_ptr<Brick>> bricks;
+		std::vector<std::shared_ptr<Obstacle>> obstacles;
 
 		if (isDebugMode) {
 			bricks = {}; // empty
@@ -3732,12 +3714,12 @@ private:
 		return Ball(center, Constants::Ball::RADIUS, velocity, Constants::Ball::COLOR);
 	}
 
-	static std::unordered_set<std::shared_ptr<Brick>> constructBricks(int rows, int columns) {
-		std::unordered_set<std::shared_ptr<Brick>> bricks;
+	static std::vector<std::shared_ptr<Brick>> constructBricks(int rows, int columns) {
+		std::vector<std::shared_ptr<Brick>> bricks;
 		double totalWidth =
 			columns * (Constants::Brick::WIDTH + Constants::Brick::HORIZONTAL_SPACING) -
 			Constants::Brick::HORIZONTAL_SPACING;
-		double left = 0.5 * (Constants::World::WIDTH - totalWidth);
+		double left = 0.5 * (window_size.x - totalWidth);
 
 		for (int i = 0; i < rows; ++i) {
 			for (int j = 0; j < columns; ++j) {
@@ -3749,7 +3731,7 @@ private:
 									  ? Constants::Brick::COLORS_PER_ROW.at(i)
 									  : ptgn::color::White;
 
-				bricks.insert(std::make_shared<Brick>(
+				bricks.emplace_back(std::make_shared<Brick>(
 					x, y, Constants::Brick::WIDTH, Constants::Brick::HEIGHT, color
 				));
 			}
@@ -3758,21 +3740,21 @@ private:
 		return bricks;
 	}
 
-	static std::unordered_set<std::shared_ptr<Obstacle>> constructObstacles() {
-		std::unordered_set<std::shared_ptr<Obstacle>> obstacles;
+	static std::vector<std::shared_ptr<Obstacle>> constructObstacles() {
+		std::vector<std::shared_ptr<Obstacle>> obstacles;
 
-		obstacles.insert(std::make_shared<Obstacle>(
+		obstacles.emplace_back(std::make_shared<Obstacle>(
 			std::vector<Point2D>{ Point2D(0, 720), Point2D(640, 720), Point2D(0, 500) },
 			ptgn::color::White
 		));
 
-		obstacles.insert(std::make_shared<Obstacle>(
+		obstacles.emplace_back(std::make_shared<Obstacle>(
 			std::vector<Point2D>{ Point2D(640, 720), Point2D(1280, 720), Point2D(1280, 500) },
 			ptgn::color::White
 		));
 
-		obstacles.insert(std::make_shared<Obstacle>(200, 250, 100, 100, ptgn::color::White));
-		obstacles.insert(std::make_shared<Obstacle>(980, 250, 100, 100, ptgn::color::White));
+		obstacles.emplace_back(std::make_shared<Obstacle>(200, 250, 100, 100, ptgn::color::White));
+		obstacles.emplace_back(std::make_shared<Obstacle>(980, 250, 100, 100, ptgn::color::White));
 
 		return obstacles;
 	}
@@ -4014,7 +3996,7 @@ Result NetForceCalculator::calculate(std::shared_ptr<Ball> ball) {
 	if (gravitySubjects.empty()) {
 		return Result(ResultType::APPLY_NET_FORCE, gravity_);
 	} else if (gravitySubjects.size() == 1) {
-		return resolveSingleGravitySubject(gravitySubjects[0], ball);
+		return resolveSingleGravitySubject(gravitySubjects.at(0), ball);
 	} else {
 		return resolveMultipleGravitySubjects(gravitySubjects, ball);
 	}
@@ -4060,7 +4042,7 @@ Result NetForceCalculator::resolveMultipleGravitySubjects(
 	if (cornerSubjects.empty()) {
 		return Result(ResultType::BALL_IS_AT_EQUILIBRIUM, Vector2D::ZERO);
 	} else if (cornerSubjects.size() == 1) {
-		return createBallAtCornerResult(cornerSubjects[0], ball);
+		return createBallAtCornerResult(cornerSubjects.at(0), ball);
 	} else {
 		if (isAtEquilibrium(cornerSubjects, ball)) {
 			return Result(ResultType::BALL_IS_AT_EQUILIBRIUM, Vector2D::ZERO);
@@ -4083,7 +4065,7 @@ Result NetForceCalculator::resolveMultipleGravitySubjects(
 				}
 			);
 
-			return createBallAtCornerResult(sorted[0], ball);
+			return createBallAtCornerResult(sorted.at(0), ball);
 		}
 	}
 }
@@ -4135,8 +4117,8 @@ bool NetForceCalculator::isAtEquilibrium(
 
 	for (size_t i = 0; i < conflicts.size(); ++i) {
 		for (size_t j = i + 1; j < conflicts.size(); ++j) {
-			auto contact0 = conflicts[i]->getContact();
-			auto contact1 = conflicts[j]->getContact();
+			auto contact0 = conflicts.at(i)->getContact();
+			auto contact1 = conflicts.at(j)->getContact();
 
 			Vector2D centerToContact0 = contact0->getPointOnEdge().subtract(center);
 			Vector2D centerToContact1 = contact1->getPointOnEdge().subtract(center);
@@ -4163,9 +4145,9 @@ protected:
 	std::shared_ptr<Ball> ball_;
 	bool isDebugMode_;
 
-	std::vector<std::shared_ptr<PresentCollision>> presents_;
-	std::vector<std::shared_ptr<InevitableCollision>> inevitables_;
-	std::vector<std::shared_ptr<PotentialCollision>> potentials_;
+	std::vector<std::shared_ptr<Collision>> presents_;
+	std::vector<std::shared_ptr<Collision>> inevitables_;
+	std::vector<std::shared_ptr<Collision>> potentials_;
 
 	NetForceCalculator netForceCalculator_;
 
@@ -4204,7 +4186,7 @@ public:
 	virtual bool isApplicable() const = 0;
 
 	// Use covariant return type if needed; otherwise, return Tick<T>
-	virtual std::shared_ptr<Tick<T>> resolve(double deltaTime) = 0;
+	virtual std::shared_ptr<Tick> resolve(double deltaTime) = 0;
 };
 
 class PresentCollisionResolver : public CollisionResolver<PresentCollision> {
@@ -4219,10 +4201,10 @@ public:
 		return !presents_.empty() || ball_->isStationary();
 	}
 
-	std::shared_ptr<Tick<PresentCollision>> resolve(double deltaTime) override {
+	std::shared_ptr<Tick> resolve(double deltaTime) override {
 		if (ball_->isStationary()) {
 			auto result = netForceCalculator_.process(ball_, deltaTime);
-			return std::make_shared<StationaryTick<PresentCollision>>(presents_, deltaTime);
+			return std::make_shared<StationaryTick>(presents_, deltaTime);
 		}
 
 		auto target		= presents_.front();
@@ -4237,7 +4219,7 @@ public:
 			ball_->collide(normal);
 		}
 
-		return std::make_shared<CrashTick<PresentCollision>>(presents_, normal, 0.0);
+		return std::make_shared<CrashTick>(presents_, normal, 0.0);
 	}
 };
 
@@ -4253,14 +4235,14 @@ public:
 		return true;
 	}
 
-	std::shared_ptr<Tick<PotentialCollision>> resolve(double deltaTime) override {
+	std::shared_ptr<Tick> resolve(double deltaTime) override {
 		if (isDebugMode_) {
 			auto result = netForceCalculator_.process(ball_, deltaTime);
 		} else {
 			ball_->move(deltaTime);
 		}
 
-		return std::make_shared<FreeTick<PotentialCollision>>(potentials_, deltaTime);
+		return std::make_shared<FreeTick>(potentials_, deltaTime);
 	}
 };
 
@@ -4276,17 +4258,16 @@ public:
 		return !inevitables_.empty();
 	}
 
-	std::shared_ptr<Tick<InevitableCollision>> resolve(double deltaTime) override {
+	std::shared_ptr<Tick> resolve(double deltaTime) override {
 		if (inevitables_.empty()) {
 			throw std::runtime_error("Inevitable collisions empty on resolve call");
 		}
 
 		// Sort by time to collision ascending
-		std::vector<std::shared_ptr<InevitableCollision>> sorted = inevitables_;
+		std::vector<std::shared_ptr<Collision>> sorted = inevitables_;
 		std::sort(
 			sorted.begin(), sorted.end(),
-			[](const std::shared_ptr<InevitableCollision>& a,
-			   const std::shared_ptr<InevitableCollision>& b) {
+			[](const std::shared_ptr<Collision>& a, const std::shared_ptr<Collision>& b) {
 				return a->getTimeToCollision() < b->getTimeToCollision();
 			}
 		);
@@ -4295,10 +4276,10 @@ public:
 		auto collider = earliest->getCollider();
 
 		// Filter collisions with same collider
-		std::vector<std::shared_ptr<InevitableCollision>> filtered;
+		std::vector<std::shared_ptr<Collision>> filtered;
 		std::copy_if(
 			sorted.begin(), sorted.end(), std::back_inserter(filtered),
-			[&](const std::shared_ptr<InevitableCollision>& collision) {
+			[&](const std::shared_ptr<Collision>& collision) {
 				return collision->getCollider() == collider;
 			}
 		);
@@ -4320,7 +4301,7 @@ public:
 			ball_->collide(normal);
 		}
 
-		return std::make_shared<CrashTick<InevitableCollision>>(filtered, normal, ttc);
+		return std::make_shared<CrashTick>(filtered, normal, ttc);
 	}
 };
 
@@ -4335,8 +4316,7 @@ public:
 		presentCollisionResolver_(colliders, ball, isDebugMode),
 		potentialCollisionResolver_(colliders, ball, isDebugMode) {}
 
-	template <typename T>
-	std::shared_ptr<Tick<T>> process(double deltaTime) {
+	std::shared_ptr<TickBase> process(double deltaTime) {
 		auto collisions = collisionEngine_.findCollisions(deltaTime);
 
 		presentCollisionResolver_.load(collisions);
@@ -4354,17 +4334,1176 @@ public:
 		return potentialCollisionResolver_.resolve(deltaTime);
 	}
 
-private:
 	CollisionEngine collisionEngine_;
 	InevitableCollisionResolver inevitableCollisionResolver_;
 	PresentCollisionResolver presentCollisionResolver_;
 	PotentialCollisionResolver potentialCollisionResolver_;
 };
 
-struct SandboxScene : public ptgn::Scene {
-	void Enter() override {}
+class Simulator {
+public:
+	Simulator(
+		const std::vector<std::shared_ptr<Collider>>& colliders, std::shared_ptr<Ball> ball,
+		bool isDebugMode
+	) :
+		processor_(colliders, ball, isDebugMode), isDebugMode_(isDebugMode), simulationTime_(0.0) {}
 
-	void Update() override {}
+	std::shared_ptr<TickBase> process(double deltaTime) {
+		auto result		 = processor_.process(deltaTime);
+		simulationTime_ += result->getTimeSpent();
+		result->setSimulationTime(simulationTime_);
+		return result;
+	}
+
+	bool isDebugMode() const {
+		return isDebugMode_;
+	}
+
+	double getSimulationTime() const {
+		return simulationTime_;
+	}
+
+	const TickProcessor& getProcessor() const {
+		return processor_;
+	}
+
+private:
+	TickProcessor processor_;
+	bool isDebugMode_;
+	double simulationTime_;
+};
+
+class ProtegonCanvas : public Canvas {
+public:
+	virtual double getWidth() const {
+		return window_size.x;
+	}
+
+	virtual double getHeight() const {
+		return window_size.y;
+	}
+};
+
+class VisualDebugger {
+public:
+	static inline bool ENABLED							= true;
+	static constexpr double INDICATE_COLLISION_DISTANCE = 100.0;
+
+	VisualDebugger(std::shared_ptr<Ball> ball, std::shared_ptr<PaintCommandHandler> handler) :
+		ball_(std::move(ball)), handler_(std::move(handler)) {}
+
+	void clear() {
+		handler_->clear();
+	}
+
+	void paint(const std::shared_ptr<TickBase>& result) {
+		if (!ENABLED) {
+			return;
+		}
+
+		// Check if it's a StationaryTick via dynamic_cast
+		if (result->isStationary()) {
+			handler_->fill(ball_, ptgn::color::Green);
+		}
+
+		double minimumDistance = result->getMinimumDistanceToCollision();
+
+		if (minimumDistance < INDICATE_COLLISION_DISTANCE) {
+			double normalized = minimumDistance / INDICATE_COLLISION_DISTANCE;
+			double alpha	  = 1.0 - normalized;
+			handler_->fill(ball_, ptgn::Color(255, 0, 0, std::uint8_t(255.0 * alpha)));
+		}
+	}
+
+	void paint() {
+		if (!ENABLED) {
+			return;
+		}
+
+		Point2D center = ball_->getCenter();
+
+		// Velocity indicator
+		if (ball_->getSpeed() != 0) {
+			Vector2D velocity = ball_->getVelocity();
+			Point2D p0		  = center.add(velocity.multiply(0.1));
+			handler_->drawLine(center, p0, ptgn::color::Cyan, 2);
+		}
+
+		// Net force indicator
+		Vector2D netForce = ball_->getNetForce();
+		if (netForce.length() != 0) {
+			Point2D q0 = center.add(netForce);
+			handler_->drawLine(center, q0, ptgn::color::Magenta, 2);
+		}
+	}
+
+private:
+	std::shared_ptr<Ball> ball_;
+	std::shared_ptr<PaintCommandHandler> handler_;
+};
+
+class ProtegonGraphicsContext : public GraphicsContext {
+public:
+	ProtegonGraphicsContext() {}
+
+	void save() override {
+		matrixStack.push(currentTransform);
+	}
+
+	void restore() override {
+		currentTransform = matrixStack.top();
+		matrixStack.pop();
+	}
+
+	void scale(double sx, double sy) override {
+		ptgn::SetScale(currentTransform, ptgn::V2_float{ sx, sy });
+	}
+
+	void setStroke(const ptgn::Color& color) override {
+		strokeColor = color;
+	}
+
+	void setFill(const ptgn::Color& color) override {
+		fillColor = color;
+	}
+
+	void setLineWidth(double width) override {
+		line_width = (float)width;
+	}
+
+	void clearRect(double x, double y, double w, double h) override {
+		setFill(bgColor);
+		fillRect(x, y, w, h);
+	}
+
+	void strokeLine(double x1, double y1, double x2, double y2) override {
+		drawLine(x1, y1, x2, y2);
+	}
+
+	void fillRect(double x, double y, double w, double h) override {
+		drawRect(x, y, w, h, true);
+	}
+
+	void fillRoundRect(double x, double y, double w, double h, double arcW, double arcH) override {
+		drawFilledRoundedRect({ x, y }, (float)w, (float)h, (float)arcW, (float)arcH, fillColor);
+	}
+
+	void strokeRect(double x, double y, double w, double h) override {
+		drawRect(x, y, w, h, false);
+	}
+
+	void fillOval(double x, double y, double w, double h) override {
+		drawOval(x, y, w, h, true);
+	}
+
+	void strokeOval(double x, double y, double w, double h) override {
+		drawOval(x, y, w, h, false);
+	}
+
+	void beginPath() override {
+		pathVertices.clear();
+	}
+
+	void moveTo(double x, double y) override {
+		pathVertices.push_back({ (float)x, (float)y });
+	}
+
+	void lineTo(double x, double y) override {
+		pathVertices.push_back({ (float)x, (float)y });
+	}
+
+	void closePath() override {
+		if (!pathVertices.empty()) {
+			pathVertices.push_back(pathVertices.front());
+		}
+	}
+
+	void fill() override {
+		drawPath(true);
+	}
+
+	void stroke() override {
+		drawPath(false);
+	}
+
+private:
+	float line_width{ 1.0f };
+	ptgn::Camera currentTransform;
+	std::stack<ptgn::Camera> matrixStack;
+	ptgn::Color fillColor, strokeColor, bgColor;
+
+	std::vector<ptgn::V2_float> pathVertices;
+
+	void drawFilledRoundedRect(
+		const ptgn::V2_float& position, float width, float height, float arcWidth, float arcHeight,
+		const ptgn::Color& color, int segments = 8
+	) {
+		std::vector<ptgn::Triangle> triangles;
+
+		const float x = position.x;
+		const float y = position.y;
+
+		const float r  = arcWidth;
+		const float ry = arcHeight;
+
+		const float right  = x + width;
+		const float bottom = y + height;
+
+		const ptgn::V2_float topLeft	 = { x + r, y + ry };
+		const ptgn::V2_float topRight	 = { right - r, y + ry };
+		const ptgn::V2_float bottomLeft	 = { x + r, bottom - ry };
+		const ptgn::V2_float bottomRight = { right - r, bottom - ry };
+
+		// Draw the center and side rectangles
+		auto addRect = [&](float x0, float y0, float x1, float y1) {
+			triangles.emplace_back(
+				ptgn::V2_float{ x0, y0 }, ptgn::V2_float{ x1, y0 }, ptgn::V2_float{ x1, y1 }
+			);
+			triangles.emplace_back(
+				ptgn::V2_float{ x0, y0 }, ptgn::V2_float{ x1, y1 }, ptgn::V2_float{ x0, y1 }
+			);
+		};
+
+		// Center
+		addRect(x + r, y + ry, right - r, bottom - ry);
+
+		// Top and Bottom
+		addRect(x + r, y, right - r, y + ry);			// Top
+		addRect(x + r, bottom - ry, right - r, bottom); // Bottom
+
+		// Left and Right
+		addRect(x, y + ry, x + r, bottom - ry);			// Left
+		addRect(right - r, y + ry, right, bottom - ry); // Right
+
+		// Quarter circle approximation
+		auto addCorner = [&](float cx, float cy, float startAngleDeg) {
+			float angleStep = ptgn::pi<float> / 2.0f / segments;
+
+			for (int i = 0; i < segments; ++i) {
+				float angle0 = ptgn::DegToRad(startAngleDeg) + angleStep * i;
+				float angle1 = ptgn::DegToRad(startAngleDeg) + angleStep * (i + 1);
+
+				ptgn::V2_float p0 = { cx, cy };
+				ptgn::V2_float p1 = { cx + std::cos(angle0) * r, cy + std::sin(angle0) * ry };
+				ptgn::V2_float p2 = { cx + std::cos(angle1) * r, cy + std::sin(angle1) * ry };
+
+				triangles.emplace_back(p0, p1, p2);
+			}
+		};
+
+		// Top-left
+		addCorner(x + r, y + ry, 180.0f);
+
+		// Top-right
+		addCorner(right - r, y + ry, 270.0f);
+
+		// Bottom-right
+		addCorner(right - r, bottom - ry, 0.0f);
+
+		// Bottom-left
+		addCorner(x + r, bottom - ry, 90.0f);
+
+		for (auto& triangle : triangles) {
+			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, -1.0f, currentTransform);
+		}
+	}
+
+	void drawRect(double x, double y, double w, double h, bool filled) {
+		ptgn::DrawDebugRect(
+			ptgn::V2_float{ x, y }, ptgn::V2_float{ w, h }, filled ? fillColor : strokeColor,
+			ptgn::Origin::TopLeft, filled ? -1.0f : line_width, 0.0f, currentTransform
+		);
+	}
+
+	void drawOval(double x, double y, double w, double h, bool filled) {
+		float cx = float(x + w / 2), cy = float(y + h / 2), rx = float(w / 2), ry = float(h / 2);
+		ptgn::DrawDebugEllipse(
+			{ cx, cy }, { rx, ry }, filled ? fillColor : strokeColor, filled ? -1.0f : line_width,
+			0.0f, currentTransform
+		);
+	}
+
+	void drawLine(double x1, double y1, double x2, double y2) {
+		ptgn::DrawDebugLine({ x1, y1 }, { x2, y2 }, strokeColor, line_width, currentTransform);
+	}
+
+	void drawFilledPath(const std::vector<ptgn::V2_float>& vertices, const ptgn::Color& color) {
+		if (vertices.size() < 3) {
+			return;
+		}
+
+		std::vector<ptgn::Triangle> triangles;
+
+		const auto& center = vertices.at(0);
+		for (size_t i = 1; i + 1 < vertices.size(); ++i) {
+			triangles.emplace_back(center, vertices.at(i), vertices.at(i + 1));
+		}
+		for (auto& triangle : triangles) {
+			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, -1.0f, currentTransform);
+		}
+	}
+
+	void drawStrokedPath(
+		const std::vector<ptgn::V2_float>& vertices, const ptgn::Color& color, float width
+	) {
+		if (vertices.size() < 2) {
+			return;
+		}
+
+		std::vector<ptgn::Triangle> strokeTriangles;
+
+		for (size_t i = 0; i < vertices.size(); ++i) {
+			const ptgn::V2_float& p0 = vertices.at(i);
+			const ptgn::V2_float& p1 = vertices.at((i + 1) % vertices.size());
+
+			// Direction and perpendicular
+			ptgn::V2_float dir	  = (p1 - p0).Normalized();
+			ptgn::V2_float normal = ptgn::V2_float(-dir.y, dir.x) * (width * 0.5f);
+
+			// Create quad (2 triangles)
+			ptgn::V2_float a = p0 + normal;
+			ptgn::V2_float b = p1 + normal;
+			ptgn::V2_float c = p1 - normal;
+			ptgn::V2_float d = p0 - normal;
+
+			// Triangle 1: a, b, c
+			strokeTriangles.emplace_back(a, b, c);
+			// Triangle 2: a, c, d
+			strokeTriangles.emplace_back(a, c, d);
+		}
+		for (auto& triangle : strokeTriangles) {
+			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, width, currentTransform);
+		}
+	}
+
+	void drawPath(bool filled) {
+		if (pathVertices.empty()) {
+			return;
+		}
+
+		if (filled) {
+			drawFilledPath(pathVertices, fillColor);
+		} else {
+			drawStrokedPath(pathVertices, strokeColor, line_width);
+		}
+	}
+};
+
+class GraphicsEngine /*: public Manager*/ {
+public:
+	GraphicsEngine(std::shared_ptr<GameObjects> objects, bool isDebugMode) :
+		objects_(std::move(objects)),
+		ball_(objects_->getBall()),
+		width_(objects_->getWorld()->getWidth()),
+		height_(objects_->getWorld()->getHeight()),
+		isDebugMode_(isDebugMode),
+		canvas_(std::make_shared<ProtegonCanvas>()),
+		context{ std::make_shared<ProtegonGraphicsContext>() },
+		painter_(nullptr),		 // init later
+		visualDebugger_(nullptr) // init later
+	{
+		// Assume Painter takes a canvas or graphics context
+
+		painter_ = std::make_shared<Painter>(context, width_, height_);
+
+		// visualDebugger requires a painter handler - createHandler() returns shared_ptr
+		visualDebugger_ = std::make_shared<VisualDebugger>(ball_, createHandler());
+	}
+
+	static std::shared_ptr<PaintCommandHandler> createHandler() {
+		auto handler = std::make_shared<PaintCommandHandler>();
+		handlers_.push_back(handler);
+		return handler;
+	}
+
+	void update(std::shared_ptr<TickBase> result) {
+		if (isPaused()) {
+			return;
+		}
+
+		if (isDebugMode_) {
+			visualDebugger_->clear();
+			visualDebugger_->paint(result);
+			visualDebugger_->paint();
+		}
+
+		painter_->save();
+		painter_->clear();
+
+		// Background
+		painter_->fillBackground(objects_->getWorld()->getColor());
+
+		// Ball
+		painter_->fill(*ball_);
+
+		// Paddle
+		auto paddle = objects_->getPaddle();
+		if (paddle->isActiveDrawable()) {
+			painter_->fillRoundRectangle(
+				*paddle, Constants::Paddle::ARC_RADIUS, Constants::Paddle::ARC_RADIUS
+			);
+		}
+
+		// Bricks
+		auto bricks = objects_->getBricks();
+		for (const auto& brick : bricks) {
+			if (brick->isActiveDrawable()) {
+				painter_->fillRoundRectangle(
+					*brick, Constants::Brick::ARC_RADIUS, Constants::Brick::ARC_RADIUS
+				);
+			}
+		}
+
+		// Obstacles
+		auto obstacles = objects_->getObstacles();
+		for (const auto& obstacle : obstacles) {
+			if (obstacle->isActiveDrawable()) {
+				painter_->fill(*obstacle);
+			}
+		}
+
+		// Process commands
+		for (auto& handler : handlers_) {
+			painter_->processCommands(*handler);
+		}
+
+		painter_->restore();
+	}
+
+	const std::shared_ptr<Canvas>& getCanvas() const {
+		return canvas_;
+	}
+
+	void pause() {
+		paused = true;
+	}
+
+	void resume() {
+		paused = false;
+	}
+
+private:
+	bool isPaused() const {
+		// Implement your pause logic here
+		return paused;
+	}
+
+	bool paused{ false };
+
+	static std::vector<std::shared_ptr<PaintCommandHandler>> handlers_;
+
+	std::shared_ptr<GameObjects> objects_;
+	std::shared_ptr<Ball> ball_;
+	double width_;
+	double height_;
+	bool isDebugMode_;
+
+	std::shared_ptr<GraphicsContext> context;
+	std::shared_ptr<Canvas> canvas_;
+
+	std::shared_ptr<Painter> painter_;
+	std::shared_ptr<VisualDebugger> visualDebugger_;
+};
+
+// Static member initialization
+std::vector<std::shared_ptr<PaintCommandHandler>> GraphicsEngine::handlers_;
+
+class TrajectoryPlotter {
+public:
+	// Plot trajectory
+	static void plot(
+		void* caller, const std::vector<std::shared_ptr<Collider>>& colliders,
+		const Point2D& center, double radius, const Vector2D& velocity
+	) {
+		auto& impl = getInstance(caller);
+		impl.plot(colliders, center, radius, velocity);
+	}
+
+	static void clear(void* caller) {
+		auto& impl = getInstance(caller);
+		impl.clear();
+	}
+
+	static void show(void* caller) {
+		auto& impl = getInstance(caller);
+		impl.show();
+	}
+
+	static void hide(void* caller) {
+		auto& impl = getInstance(caller);
+		impl.hide();
+	}
+
+private:
+	class TrajectoryPlotterInner {
+	public:
+		explicit TrajectoryPlotterInner(std::shared_ptr<PaintCommandHandler> painter) :
+			painter_(std::move(painter)) {}
+
+		void plot(
+			const std::vector<std::shared_ptr<Collider>>& colliders, const Point2D& center,
+			double radius, const Vector2D& velocity
+		) {
+			std::shared_ptr<Ball> ball =
+				std::make_shared<Ball>(center, radius, velocity, ptgn::color::White);
+
+			Simulator simulator(colliders, ball, true);
+
+			std::vector<Point2D> vertices;
+			vertices.reserve(500);
+
+			painter_->clear();
+			painter_->stroke(ball, ptgn::color::Green, 2);
+
+			int numberOfCollisions = 0;
+			int numberOfIterations = 0;
+
+			while (numberOfIterations < 500) {
+				vertices.push_back(ball->getCenter());
+				const double deltaTime = Constants::Physics::SIMULATION_RATIO;
+
+				auto result = simulator.process(deltaTime);
+
+				// Dynamic cast to check if result is CrashTick
+				if (result->isCrash()) {
+					++numberOfCollisions;
+					painter_->stroke(ball, ptgn::color::Green, 2);
+
+					if (numberOfCollisions >= 10) {
+						break;
+					}
+				}
+				++numberOfIterations;
+			}
+			std::shared_ptr<Path> path = std::make_shared<Path>(vertices, ptgn::color::Red);
+			painter_->stroke(path, 2);
+
+			lastCommands_ = painter_->copyCommands();
+		}
+
+		void show() {
+			painter_->setCommands(lastCommands_);
+		}
+
+		void hide() {
+			painter_->clear();
+		}
+
+		void clear() {
+			painter_->clear();
+		}
+
+	private:
+		std::shared_ptr<PaintCommandHandler> painter_;
+		std::vector<std::shared_ptr<PaintCommandHandler::PaintCommand>> lastCommands_;
+	};
+
+	static TrajectoryPlotterInner& getInstance(void* caller) {
+		static std::unordered_map<void*, std::unique_ptr<TrajectoryPlotterInner>> instances;
+
+		auto it = instances.find(caller);
+		if (it != instances.end()) {
+			return *it->second;
+		}
+
+		// Assume GraphicsEngine::createHandler() returns std::unique_ptr<PaintCommandHandler>
+		auto painter				= GraphicsEngine::createHandler();
+		auto impl					= std::make_unique<TrajectoryPlotterInner>(painter);
+		TrajectoryPlotterInner& ref = *impl;
+		instances.emplace(caller, std::move(impl));
+		return ref;
+	}
+};
+
+class ThrowEventHandler {
+public:
+	static bool PLOT_TRAJECTORY_ENABLED;
+
+	explicit ThrowEventHandler(const std::shared_ptr<GameObjects>& objects) :
+		painter(GraphicsEngine::createHandler()),
+		ball(objects->getBall()),
+		colliders(objects->getColliders()),
+		isEnabled(true) {
+		if (PLOT_TRAJECTORY_ENABLED) {
+			TrajectoryPlotter::show(this);
+		}
+	}
+
+	void update() {
+		if (ball->isFreeze()) {
+			painter->clear();
+			painter->drawLine(ball->getCenter(), cursorPosition, ptgn::color::Yellow, 2);
+			auto velocity = calculateVelocity(cursorPosition);
+			plotTrajectory(velocity);
+		}
+
+		if (!PLOT_TRAJECTORY_ENABLED) {
+			TrajectoryPlotter::hide(this);
+		}
+
+		if (!isEnabled) {
+			return;
+		}
+
+		updateCursorPositionIfApplicable();
+
+		if (ptgn::game.input.MouseDown(ptgn::Mouse::Left)) {
+			freezeBallIfApplicable();
+		} else if (ptgn::game.input.MouseUp(ptgn::Mouse::Left)) {
+			throwBallIfApplicable();
+			painter->clear();
+		}
+	}
+
+	void setEnabled(bool value) {
+		isEnabled = value;
+	}
+
+	bool getEnabled() const {
+		return isEnabled;
+	}
+
+	void plotTrajectory(const Vector2D& velocity) {
+		TrajectoryPlotter::plot(this, colliders, ball->getCenter(), ball->getRadius(), velocity);
+	}
+
+private:
+	std::shared_ptr<PaintCommandHandler> painter;
+	std::shared_ptr<Ball> ball;
+	std::vector<std::shared_ptr<Collider>> colliders;
+	Point2D cursorPosition = { 0, 0 };
+	bool isEnabled;
+
+	void updateCursorPositionIfApplicable() {
+		auto event{ ptgn::game.input.GetMousePosition() };
+		if (ball->isFreeze()) {
+			cursorPosition = TransformationHelper::fromCanvasToWorld(event.x, event.y);
+			// Event consumption if applicable
+		}
+	}
+
+	void freezeBallIfApplicable() {
+		auto event{ ptgn::game.input.GetMousePosition() };
+		auto worldPos = TransformationHelper::fromCanvasToWorld(event.x, event.y);
+		if (ball->contains(worldPos, 4)) {
+			cursorPosition = worldPos;
+			ball->setFreeze(true);
+		}
+	}
+
+	void throwBallIfApplicable() {
+		if (ball->isFreeze()) {
+			auto velocity = calculateVelocity(cursorPosition);
+			ball->setFreeze(false);
+			ball->setVelocity(velocity);
+			plotTrajectory(velocity);
+		}
+	}
+
+	Vector2D calculateVelocity(const Point2D& cursorpos) const {
+		return cursorpos.subtract(ball->getCenter()).multiply(5.0f);
+	}
+};
+
+// Static initialization
+bool ThrowEventHandler::PLOT_TRAJECTORY_ENABLED = true;
+
+class DragEventHandler {
+public:
+	explicit DragEventHandler(const std::shared_ptr<GameObjects>& objects) : objects_(objects) {}
+
+	virtual ~DragEventHandler() = default;
+
+	// To be called each frame or tick
+	virtual void update() {
+		// TODO: Fix.
+	}
+
+protected:
+	void dragLater(const std::shared_ptr<Draggable>& target, const Point2D& delta) {
+		translate(target, delta);
+	}
+
+	void translate(const std::shared_ptr<Draggable>& node, const Point2D& delta);
+
+protected:
+	Point2D calculateAllowedTranslation(
+		const Point2D& contactPointOnEdge, const Point2D& contactPointOnBall, const Point2D& delta
+	) const;
+
+	std::shared_ptr<GameObjects> objects_;
+};
+
+void DragEventHandler::translate(const std::shared_ptr<Draggable>& node, const Point2D& delta) {
+	auto ball												  = objects_->getBall();
+	std::optional<std::shared_ptr<CriticalPointPair>> closest = std::nullopt;
+
+	// If the node is also a Collider, check for possible collisions
+	auto collider = std::dynamic_pointer_cast<Collider>(node);
+	if (collider) {
+		Vector2D velocity = delta.multiply(-1);
+		auto result		  = CollisionEngine::findMostCriticalPointAlongGivenDirection(
+			  *ball.get(), collider, velocity
+		  );
+		if (result.has_value()) {
+			closest = result.value();
+		}
+	}
+
+	Point2D allowedTranslation;
+	if (!closest) {
+		allowedTranslation = delta;
+	} else {
+		const Point2D& contactPointOnEdge = closest.value()->getPointOnEdge();
+		const Point2D& contactPointOnBall = closest.value()->getPointOnCircle();
+		allowedTranslation =
+			calculateAllowedTranslation(contactPointOnEdge, contactPointOnBall, delta);
+	}
+
+	// Clamp paddle movement only along x-axis
+	auto paddle = std::dynamic_pointer_cast<Paddle>(node);
+	if (paddle) {
+		double paddleLeftCurrent		= paddle->getX();
+		double paddleLeftRequestedDelta = allowedTranslation.getX();
+		double paddleLeftMin			= 0.0;
+		double paddleLeftMax			= objects_->getWorld()->getWidth() - paddle->getWidth();
+		double paddleLeftRequested		= paddleLeftCurrent + paddleLeftRequestedDelta;
+		double paddleLeftClamped = Util::clamp(paddleLeftMin, paddleLeftRequested, paddleLeftMax);
+		double paddleLeftClampedDelta = paddleLeftClamped - paddleLeftCurrent;
+
+		paddle->translate({ paddleLeftClampedDelta, 0.0 });
+	} else {
+		node->translate(allowedTranslation);
+	}
+}
+
+Point2D DragEventHandler::calculateAllowedTranslation(
+	const Point2D& contactPointOnEdge, const Point2D& contactPointOnBall, const Point2D& delta
+) const {
+	Vector2D maxAllowed = contactPointOnBall.subtract(contactPointOnEdge);
+	Vector2D requested	= delta.toVector2D();
+	Vector2D projection = maxAllowed.projectOnto(requested);
+
+	double maxDist = projection.length();
+	double reqDist = requested.length();
+
+	double allowedDist = Util::clamp(0.0, reqDist, maxDist - 1.0);
+	Vector2D direction = requested.normalized();
+	return direction.multiply(allowedDist).toPoint2D();
+}
+
+class DebuggerDragEventHandler : public DragEventHandler {
+public:
+	explicit DebuggerDragEventHandler(std::shared_ptr<GameObjects> objects);
+
+	// Implement the event listener interface
+	void update() override;
+
+private:
+	std::vector<std::shared_ptr<Draggable>> draggables_;
+	std::shared_ptr<PaintCommandHandler> painter_;
+
+	std::shared_ptr<Draggable> target_ = nullptr;
+	Point2D delta_;
+
+	void acceptIfDrawable(const std::shared_ptr<Draggable>& target, bool accept);
+	void paintIfDrawable(const std::shared_ptr<Draggable>& target);
+	std::shared_ptr<Draggable> locateDraggable(const Point2D& query);
+};
+
+DebuggerDragEventHandler::DebuggerDragEventHandler(std::shared_ptr<GameObjects> objects) :
+	DragEventHandler(std::move(objects)),
+	draggables_(this->objects_->getDraggables()),
+	painter_(GraphicsEngine::createHandler()) {}
+
+void DebuggerDragEventHandler::update() {
+	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition() };
+	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious() };
+	if (ptgn::game.input.MousePressed(ptgn::Mouse::Left)) {
+		Point2D worldPos = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
+		auto located	 = locateDraggable(worldPos);
+		if (located) {
+			target_ = located;
+			acceptIfDrawable(target_, true);
+			paintIfDrawable(target_);
+
+			delta_ = Point2D(0, 0);
+		}
+	} else if (ptgn::game.input.MouseReleased(ptgn::Mouse::Left)) {
+		if (target_) {
+			acceptIfDrawable(target_, false);
+		}
+		target_ = nullptr;
+	}
+	if (cur != prev && ptgn::game.input.MousePressed(ptgn::Mouse::Left)) {
+		if (target_) {
+			Point2D current	 = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
+			Point2D previous = TransformationHelper::fromCanvasToWorld(prev.x, prev.y);
+			Point2D added	 = delta_.add(current.subtract(previous));
+
+			translate(target_, added);
+			paintIfDrawable(target_);
+
+			delta_ = Point2D(0, 0);
+		}
+	}
+}
+
+void DebuggerDragEventHandler::acceptIfDrawable(
+	const std::shared_ptr<Draggable>& target, bool accept
+) {
+	auto drawable = std::dynamic_pointer_cast<Drawable>(target);
+	if (drawable) {
+		drawable->setIsActiveDrawable(!accept);
+		painter_->clear();
+	}
+}
+
+void DebuggerDragEventHandler::paintIfDrawable(const std::shared_ptr<Draggable>& target) {
+	auto drawable = std::dynamic_pointer_cast<Drawable>(target);
+	if (drawable) {
+		painter_->clear();
+		// Assuming Color class has static factory method fromRGBA
+		painter_->fill(drawable, ptgn::Color(255, 255, 255, std::uint8_t(255.0 * 0.6)));
+	}
+}
+
+std::shared_ptr<Draggable> DebuggerDragEventHandler::locateDraggable(const Point2D& query) {
+	for (const auto& draggable : draggables_) {
+		if (!draggable->isActiveDraggable()) {
+			continue;
+		}
+		if (draggable->contains(query)) {
+			return draggable;
+		}
+	}
+	return nullptr;
+}
+
+class BreakoutDragEventHandler : public DragEventHandler {
+public:
+	explicit BreakoutDragEventHandler(std::shared_ptr<GameObjects> objects);
+
+	void update() override;
+
+private:
+	std::shared_ptr<Paddle> paddle_;
+	bool focused_		  = false;
+	bool ignoreMouseMove_ = false;
+	Point2D delta_;
+
+	void updateCursor();
+	void moveMouse();
+};
+
+BreakoutDragEventHandler::BreakoutDragEventHandler(std::shared_ptr<GameObjects> objects) :
+	DragEventHandler(std::move(objects)),
+	paddle_(this->objects_->getPaddle()),
+	focused_(false),
+	ignoreMouseMove_(false),
+	delta_(0, 0) {}
+
+void BreakoutDragEventHandler::update() {
+	if (ignoreMouseMove_) {
+		ignoreMouseMove_ = false;
+		return;
+	}
+
+	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition() };
+	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious() };
+	if (ptgn::game.input.MouseDown(ptgn::Mouse::Left)) {
+		focused_ = !focused_;
+
+		if (focused_) {
+			delta_ = Point2D(0, 0);
+		}
+
+		updateCursor();
+	}
+	if (cur != prev) {
+		if (focused_) {
+			Point2D current	 = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
+			Point2D previous = TransformationHelper::fromCanvasToWorld(prev.x, prev.y);
+			Point2D added	 = delta_.add(current.subtract(previous));
+
+			ignoreMouseMove_ = true;
+			moveMouse();
+			delta_ = Point2D(0, 0);
+
+			translate(paddle_, added);
+		}
+	}
+}
+
+void BreakoutDragEventHandler::updateCursor() {
+	// Hypothetical API to set cursor visibility for your window or widget
+	/*if (focused_) {
+		CursorManager::setCursorVisible(false);
+	} else {
+		CursorManager::setCursorVisible(true);
+	}*/
+}
+
+void BreakoutDragEventHandler::moveMouse() {
+	// Assuming you have a way to get screen coords for the center of your canvas/window
+	/*auto sceneCenter	 = TransformationHelper::getCanvasCenter();
+	auto screenCoordsOpt = sceneCenter;
+
+	if (screenCoordsOpt.has_value()) {
+		CursorManager::moveMouse(screenCoordsOpt->x, screenCoordsOpt->y);
+	} else {
+		CursorManager::moveMouse(event.getScreenX(), event.getScreenY());
+	}*/
+}
+
+class PhysicsManager : public Manager {
+public:
+	PhysicsManager(std::shared_ptr<GameObjects> objects, bool isDebugMode);
+	std::shared_ptr<TickBase> update();
+	void next();
+
+private:
+	std::shared_ptr<TickBase> updatePrivate();
+	void updateBricks(std::shared_ptr<TickBase> result);
+
+	std::unique_ptr<Simulator> simulator;
+	std::atomic<bool> nextFlag = false;
+	std::shared_ptr<TickBase> result;
+
+	bool isPaused() const; // Implement as needed or inherit from Manager
+};
+
+PhysicsManager::PhysicsManager(std::shared_ptr<GameObjects> objects, bool isDebugMode) {
+	const std::vector<std::shared_ptr<Collider>>& colliders = objects->getColliders();
+	std::shared_ptr<Ball> ball								= objects->getBall();
+
+	simulator = std::make_unique<Simulator>(colliders, ball, isDebugMode);
+	result	  = std::make_shared<PausedTick>();
+}
+
+std::shared_ptr<TickBase> PhysicsManager::update() {
+	if (nextFlag.load()) {
+		nextFlag.store(false);
+		return updatePrivate();
+	}
+
+	if (isPaused()) {
+		return result;
+	}
+
+	return updatePrivate();
+}
+
+std::shared_ptr<TickBase> PhysicsManager::updatePrivate() {
+	const double deltaTime = Constants::Physics::SIMULATION_RATIO;
+	result				   = simulator->process(deltaTime);
+
+	updateBricks(result);
+
+	return result;
+}
+
+void PhysicsManager::updateBricks(std::shared_ptr<TickBase> res) {
+	// Assuming CrashTick inherits from TickBase
+	if (!res->isCrash()) {
+		return;
+	}
+
+	auto crashTick = std::dynamic_pointer_cast<CrashTick>(res);
+
+	const auto& collisions = crashTick->getCollisions();
+	for (const auto& collision : collisions) {
+		std::shared_ptr<Collider> collider = collision->getCollider();
+
+		auto brick = std::dynamic_pointer_cast<Brick>(collider);
+		if (brick) {
+			brick->setHit(true);
+		}
+	}
+}
+
+void PhysicsManager::next() {
+	nextFlag.store(true);
+}
+
+bool PhysicsManager::isPaused() const {
+	// Implement your paused logic here or override from Manager
+	return false;
+}
+
+class EventProcessor {
+public:
+	EventProcessor(std::shared_ptr<GameObjects> objects, bool isDebugMode) {
+		throwEventHandler = std::make_shared<ThrowEventHandler>(objects);
+		throwEventHandler->setEnabled(isDebugMode);
+
+		if (isDebugMode) {
+			dragEventHandler = std::make_shared<DebuggerDragEventHandler>(objects);
+		} else {
+			dragEventHandler = std::make_shared<BreakoutDragEventHandler>(objects);
+		}
+	}
+
+	void update() {
+		throwEventHandler->update();
+		dragEventHandler->update();
+	}
+
+private:
+	std::shared_ptr<DragEventHandler> dragEventHandler;
+	std::shared_ptr<ThrowEventHandler> throwEventHandler;
+};
+
+class Controller {
+public:
+	explicit Controller(bool isDebugMode);
+	~Controller();
+
+	void start();
+	void pause();
+	void resume();
+	void stop();
+
+	void handleEvent();
+	void update();
+
+private:
+	void setupResizing();
+	void onWindowMinimized(bool minimized);
+
+private:
+	bool isDebugMode;
+
+	std::shared_ptr<GameObjects> objects;
+	std::shared_ptr<GraphicsEngine> graphics;
+	std::shared_ptr<PhysicsManager> engine;
+	std::shared_ptr<EventProcessor> eventProcessor;
+	std::shared_ptr<Canvas> canvas; // raw pointer if managed by root or graphics
+
+	bool running = false;
+
+	// Simple timer using std::chrono, could be replaced by framework-specific timer
+	std::function<void()> timerCallback;
+	std::chrono::steady_clock::time_point lastUpdateTime;
+};
+
+Controller::Controller(bool debugMode) : isDebugMode(debugMode) {
+	// Initialize game objects and components
+	// GameObjectConstructor::construct equivalent assumed
+	objects =
+		std::make_shared<GameObjects>(std::move(GameObjectConstructor::construct(isDebugMode)));
+
+	graphics = std::make_shared<GraphicsEngine>(objects, isDebugMode);
+
+	canvas = graphics->getCanvas();
+
+	TransformationHelper::initialize(objects->getWorld(), canvas);
+
+	engine = std::make_shared<PhysicsManager>(objects, isDebugMode);
+
+	eventProcessor = std::make_shared<EventProcessor>(objects, isDebugMode);
+
+	// Setup event listening -- depends on framework
+	// Example: canvas->setEventHandler([this](const Event& e){ this->handleEvent(e); });
+
+	setupResizing();
+
+	running		   = true;
+	lastUpdateTime = std::chrono::steady_clock::now();
+
+	// Setup timer callback (simulate AnimationTimer)
+	timerCallback = [this]() {
+		auto now = std::chrono::steady_clock::now();
+		// Could add frame rate limiting here if needed
+		update();
+		lastUpdateTime = now;
+	};
+}
+
+Controller::~Controller() {
+	stop();
+}
+
+void Controller::start() {
+	// If you have a window, setup minimize/maximize callbacks
+	// e.g. onWindowMinimized callback setup to call pause()/resume()
+
+	if (isDebugMode) {
+		// gui->show(); // Blocks until ready (if applicable)
+	}
+
+	// Setup window title, size, center on screen, show window, etc.
+	// All depend on your UI framework, pseudo:
+
+	running = true;
+
+	// Start timer loop - depends on framework;
+	// e.g. call timerCallback repeatedly on each frame/event loop tick
+}
+
+void Controller::pause() {
+	engine->pause();
+	graphics->pause();
+}
+
+void Controller::resume() {
+	engine->resume();
+	graphics->resume();
+}
+
+void Controller::stop() {
+	running = false;
+	// gui->close();
+}
+
+void Controller::handleEvent() {
+	// dispatcher->receiveEvent(event);
+}
+
+void Controller::update() {
+	auto result = engine->update();
+	eventProcessor->update();
+	graphics->update(result);
+	// gui->update(result);
+}
+
+void Controller::setupResizing() {
+	// Similar logic to JavaFX resize listener:
+
+	// Pseudo-code since C++ UI frameworks differ:
+
+	// root->onResize([this]() {
+	//     auto bounds = canvas->getLayoutBounds();
+	//     double scale = std::min(root->getWidth() / bounds.width, root->getHeight() /
+	//     bounds.height); canvas->setScale(scale);
+	// });
+
+	// You must implement this with your chosen framework's resize callbacks
+}
+
+void Controller::onWindowMinimized(bool minimized) {
+	if (minimized) {
+		pause();
+	} else {
+		resume();
+	}
+}
+
+struct SandboxScene : public ptgn::Scene {
+	Controller controller{ true };
+
+	void Enter() override {
+		// Initialize and start your app (replace with actual UI initialization)
+		controller.start();
+	}
+
+	void Update() override {
+		controller.update();
+	}
+
+	void Exit() override {
+		controller.stop();
+	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
