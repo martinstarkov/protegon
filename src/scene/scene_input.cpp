@@ -34,14 +34,14 @@
 
 namespace ptgn {
 
-MouseInfo::MouseInfo(bool) :
-	position{ game.input.GetMousePosition() },
+MouseInfo::MouseInfo(Scene& scene) :
+	position{ scene.input.GetMousePosition() },
 	scroll_delta{ game.input.GetMouseScroll() },
 	left_pressed{ game.input.MousePressed(Mouse::Left) },
 	left_down{ game.input.MouseDown(Mouse::Left) },
 	left_up{ game.input.MouseUp(Mouse::Left) } {}
 
-void GetShapes(
+static void GetShapes(
 	const Entity& entity, const Entity& root_entity, std::vector<std::pair<Shape, Entity>>& vector
 ) {
 	bool is_parent{ entity == root_entity };
@@ -78,7 +78,7 @@ void GetShapes(
 	}
 }
 
-bool Overlap(const V2_float& point, const Entity& entity) {
+static bool Overlap(const V2_float& point, const Entity& entity) {
 	std::vector<std::pair<Shape, Entity>> shapes;
 	GetShapes(entity, entity, shapes);
 
@@ -94,7 +94,7 @@ bool Overlap(const V2_float& point, const Entity& entity) {
 	return false;
 }
 
-bool Overlap(const Entity& entityA, const Entity& entityB) {
+static bool Overlap(const Entity& entityA, const Entity& entityB) {
 	std::vector<std::pair<Shape, Entity>> shapesA;
 	GetShapes(entityA, entityA, shapesA);
 
@@ -341,7 +341,7 @@ void SceneInput::HandleDragging(
 				AddDropzoneActions<DropzoneAction::Pickup>(
 					dragging, dropzone, mouse.position,
 					[&]() {
-						dropzone.Get<Dropzone>().dropped_entities.erase(dragging);
+						dropzone.Get<Dropzone>().dropped_entities_.erase(dragging);
 						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
 							dropzone_scripts->AddAction(
 								&DropzoneScript::OnDraggablePickup, dragging
@@ -359,9 +359,9 @@ void SceneInput::HandleDragging(
 
 			auto& draggable{ dragging.Get<Draggable>() };
 
-			draggable.dragging = true;
-			draggable.start	   = mouse.position;
-			draggable.offset   = GetAbsolutePosition(dragging) - draggable.start;
+			draggable.dragging_ = true;
+			draggable.start_	= mouse.position;
+			draggable.offset_	= GetAbsolutePosition(dragging) - draggable.start_;
 		}
 	}
 
@@ -401,7 +401,7 @@ void SceneInput::HandleDragging(
 				AddDropzoneActions<DropzoneAction::Drop>(
 					dragging, dropzone, mouse.position,
 					[&]() {
-						dropzone.Get<Dropzone>().dropped_entities.emplace(dragging);
+						dropzone.Get<Dropzone>().dropped_entities_.emplace(dragging);
 						if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
 							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableDrop, dragging);
 						}
@@ -416,9 +416,9 @@ void SceneInput::HandleDragging(
 			}
 
 			auto& draggable{ dragging.Get<Draggable>() };
-			draggable.dragging = false;
-			draggable.start	   = {};
-			draggable.offset   = {};
+			draggable.dragging_ = false;
+			draggable.start_	= {};
+			draggable.offset_	= {};
 		}
 		dragging_entities_.clear(); // End all drags
 	}
@@ -430,7 +430,7 @@ void SceneInput::CleanupDropzones(const std::vector<Entity>& dropzones) {
 			continue;
 		}
 
-		auto& dropped{ dropzone.Get<Dropzone>().dropped_entities };
+		auto& dropped{ dropzone.Get<Dropzone>().dropped_entities_ };
 
 		std::erase_if(dropped, [](const Entity& e) { return !e.IsAlive() || !e.Has<Draggable>(); });
 	}
@@ -445,7 +445,7 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 		auto scripts{ dragging.TryGet<Scripts>() };
 
 		auto& draggable{ dragging.Get<Draggable>() };
-		draggable.dropzones = {};
+		draggable.dropzones_ = {};
 
 		for (Entity dropzone : dropzones) {
 			PTGN_ASSERT((dropzone.Has<Dropzone, Interactive>()));
@@ -483,7 +483,7 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 						}
 					}
 				},
-				[&]() { draggable.dropzones.emplace(dropzone); }
+				[&]() { draggable.dropzones_.emplace(dropzone); }
 			);
 		}
 
@@ -492,7 +492,7 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 			if (dragging == last_dropzone) {
 				continue;
 			}
-			if (!draggable.dropzones.contains(last_dropzone)) {
+			if (!draggable.dropzones_.contains(last_dropzone)) {
 				if (last_dropzone.Has<Dropzone, Interactive>()) {
 					if (auto dropzone_scripts{ last_dropzone.TryGet<Scripts>() }) {
 						dropzone_scripts->AddAction(&DropzoneScript::OnDraggableLeave, dragging);
@@ -510,7 +510,7 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 			if (dragging == dropzone) {
 				continue;
 			}
-			if (!draggable.dropzones.contains(dropzone)) {
+			if (!draggable.dropzones_.contains(dropzone)) {
 				if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
 					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOut, dragging);
 				}
@@ -521,15 +521,48 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 		}
 
 		// Store current for next frame.
-		draggable.last_dropzones_ = draggable.dropzones;
+		draggable.last_dropzones_ = draggable.dropzones_;
 	}
 }
 
-void SceneInput::Update(Scene& scene) {
-	MouseInfo mouse_state{ true };
-	const Transform camera_transform{ scene.camera.primary.GetTransform() };
+V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
+	const auto& scene{ game.scene.Get(scene_key_) };
 
-	mouse_state.position = ToWorldPoint(mouse_state.position, camera_transform);
+	Transform camera_transform{ GetTransform(scene.camera.primary) };
+	auto viewport_size{ scene.camera.primary.GetViewportSize() };
+
+	// TODO: CHECK IF CAMERA ROTATION IS CORRECT AND NOT NEGATIVE.
+	// camera_transform.SetRotation(-camera_transform.GetRotation());
+
+	return ToWorldPoint(screen_point - viewport_size * 0.5f, camera_transform);
+}
+
+V2_float SceneInput::GetMousePosition() const {
+	auto screen_point{ game.input.GetMousePosition() };
+	auto world_point{ ScreenToWorld(screen_point) };
+	return world_point;
+}
+
+V2_float SceneInput::GetMousePositionUnclamped() const {
+	auto screen_point{ game.input.GetMousePositionUnclamped() };
+	auto world_point{ ScreenToWorld(screen_point) };
+	return world_point;
+}
+
+V2_float SceneInput::GetMousePositionPrevious() const {
+	auto screen_point{ game.input.GetMousePositionPrevious() };
+	auto world_point{ ScreenToWorld(screen_point) };
+	return world_point;
+}
+
+V2_float SceneInput::GetMouseDifference() const {
+	auto screen_point{ game.input.GetMouseDifference() };
+	auto world_point{ ScreenToWorld(screen_point) };
+	return world_point;
+}
+
+void SceneInput::Update(Scene& scene) {
+	MouseInfo mouse_state{ scene };
 
 	if (draw_interactives_) {
 		DrawDebugPoint(mouse_state.position, draw_interactive_color_);

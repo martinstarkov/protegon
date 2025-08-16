@@ -38,26 +38,25 @@ Entity& RemoveInteractable(Entity& entity, const Entity& shape);
 
 namespace impl {
 
-void ClearInteractables(Entity& entity);
 [[nodiscard]] const Interactive& GetInteractive(const Entity& entity);
+
 [[nodiscard]] Interactive& GetInteractive(Entity& entity);
-void SetInteractiveWasInside(Entity& entity, bool value);
-void SetInteractiveIsInside(Entity& entity, bool value);
-[[nodiscard]] bool InteractiveWasInside(const Entity& entity);
-[[nodiscard]] bool InteractiveIsInside(const Entity& entity);
+
+void ClearInteractables(Entity& entity);
 
 } // namespace impl
 
 struct Interactive {
-	bool is_inside{ false };
-	bool was_inside{ false };
+	// Destroys all the shape entities and clears the shapes vector.
+	void ClearShapes();
 
-	void Clear();
+	// TODO: Add destructor and move constructors which manage shapes.
 
+	// Interactive owns that shapes.
 	// List of entities that can be interacted with. They require a valid Rect / Circle component.
 	std::vector<Entity> shapes;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, is_inside, was_inside, shapes)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, shapes)
 };
 
 enum class CallbackTrigger {
@@ -69,15 +68,18 @@ enum class CallbackTrigger {
 };
 
 struct Draggable {
-	// Offset from the drag target center. Adding this value to the target position will maintain
-	// the relative position between the mouse and drag target.
-	V2_float offset;
-	// Mouse position where the drag started.
-	V2_float start;
+	// @return Offset from the drag target center. Adding this value to the target position will
+	// maintain the relative position between the mouse and drag target.
+	[[nodiscard]] V2_float GetOffset() const;
 
-	bool dragging{ false };
+	// @return Mouse position where the drag started.
+	[[nodiscard]] V2_float GetStart() const;
 
-	std::unordered_set<Entity> dropzones;
+	// @return Dropzones that the draggable is currently dropped on.
+	[[nodiscard]] const std::unordered_set<Entity>& GetDropzones() const;
+
+	// @return True if the mouse is currently dragging the draggable, false otherwise.
+	[[nodiscard]] bool IsBeingDragged() const;
 
 	void SetTrigger(CallbackTrigger trigger) {
 		move_trigger_	= trigger;
@@ -99,6 +101,14 @@ struct Draggable {
 
 private:
 	friend class SceneInput;
+
+	V2_float offset_;
+
+	V2_float start_;
+
+	bool dragging_{ false };
+
+	std::unordered_set<Entity> dropzones_;
 
 	std::unordered_set<Entity> last_dropzones_;
 
@@ -107,43 +117,36 @@ private:
 	CallbackTrigger pickup_trigger_{ CallbackTrigger::Overlaps };
 
 	PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(
-		Draggable, KeyValue("dropzones", dropzones), KeyValue("last_dropzones", last_dropzones_),
-		KeyValue("offset", offset), KeyValue("start", start), KeyValue("dragging", dragging),
+		Draggable, KeyValue("dropzones", dropzones_), KeyValue("last_dropzones", last_dropzones_),
+		KeyValue("offset", offset_), KeyValue("start", start_), KeyValue("dragging", dragging_),
 		KeyValue("move_trigger", move_trigger_), KeyValue("drop_trigger", drop_trigger_),
 		KeyValue("pickup_trigger", pickup_trigger_)
 	)
 };
 
 struct Dropzone {
-	void SetTrigger(CallbackTrigger trigger) {
-		move_trigger_	= trigger;
-		drop_trigger_	= trigger;
-		pickup_trigger_ = trigger;
-	}
+	void SetTrigger(CallbackTrigger trigger);
 
-	void SetMoveTrigger(CallbackTrigger trigger) {
-		move_trigger_ = trigger;
-	}
+	void SetMoveTrigger(CallbackTrigger trigger);
 
-	void SetDropTrigger(CallbackTrigger trigger) {
-		drop_trigger_ = trigger;
-	}
+	void SetDropTrigger(CallbackTrigger trigger);
 
-	void SetPickupTrigger(CallbackTrigger trigger) {
-		pickup_trigger_ = trigger;
-	}
+	void SetPickupTrigger(CallbackTrigger trigger);
 
-	std::unordered_set<Entity> dropped_entities;
+	// @return Entities which are currently dropped on the dropzone
+	[[nodiscard]] const std::unordered_set<Entity>& GetDroppedEntities() const;
 
 private:
 	friend class SceneInput;
+
+	std::unordered_set<Entity> dropped_entities_;
 
 	CallbackTrigger move_trigger_{ CallbackTrigger::MouseOverlaps };
 	CallbackTrigger drop_trigger_{ CallbackTrigger::MouseOverlaps };
 	CallbackTrigger pickup_trigger_{ CallbackTrigger::Overlaps };
 
 	PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(
-		Dropzone, KeyValue("dropped_entities", dropped_entities),
+		Dropzone, KeyValue("dropped_entities", dropped_entities_),
 		KeyValue("move_trigger", move_trigger_), KeyValue("drop_trigger", drop_trigger_),
 		KeyValue("pickup_trigger", pickup_trigger_)
 	)

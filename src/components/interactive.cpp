@@ -1,11 +1,52 @@
 #include "components/interactive.h"
 
+#include <unordered_set>
 #include <vector>
 
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
+#include "math/vector2.h"
 #include "utility/span.h"
 
 namespace ptgn {
+
+V2_float Draggable::GetOffset() const {
+	return offset_;
+}
+
+V2_float Draggable::GetStart() const {
+	return start_;
+}
+
+const std::unordered_set<Entity>& Draggable::GetDropzones() const {
+	return dropzones_;
+}
+
+bool Draggable::IsBeingDragged() const {
+	return dragging_;
+}
+
+void Dropzone::SetTrigger(CallbackTrigger trigger) {
+	move_trigger_	= trigger;
+	drop_trigger_	= trigger;
+	pickup_trigger_ = trigger;
+}
+
+void Dropzone::SetMoveTrigger(CallbackTrigger trigger) {
+	move_trigger_ = trigger;
+}
+
+void Dropzone::SetDropTrigger(CallbackTrigger trigger) {
+	drop_trigger_ = trigger;
+}
+
+void Dropzone::SetPickupTrigger(CallbackTrigger trigger) {
+	pickup_trigger_ = trigger;
+}
+
+[[nodiscard]] const std::unordered_set<Entity>& Dropzone::GetDroppedEntities() const {
+	return dropped_entities_;
+}
 
 Entity& SetInteractive(Entity& entity, bool interactive) {
 	if (interactive) {
@@ -64,7 +105,8 @@ const std::vector<Entity>& GetInteractables(const Entity& entity) {
 	return shapes;
 }
 
-void Interactive::Clear() {
+void Interactive::ClearShapes() {
+	// TODO: Move to using GameObjects.
 	for (Entity shape : shapes) {
 		shape.Destroy();
 	}
@@ -82,33 +124,13 @@ Interactive& GetInteractive(Entity& entity) {
 	return const_cast<Interactive&>(GetInteractive(std::as_const(entity)));
 }
 
-void SetInteractiveWasInside(Entity& entity, bool value) {
-	auto& interactive{ GetInteractive(entity) };
-	interactive.was_inside = value;
-}
-
-void SetInteractiveIsInside(Entity& entity, bool value) {
-	auto& interactive{ GetInteractive(entity) };
-	interactive.is_inside = value;
-}
-
-bool InteractiveWasInside(const Entity& entity) {
-	const auto& interactive{ GetInteractive(entity) };
-	return interactive.was_inside;
-}
-
-bool InteractiveIsInside(const Entity& entity) {
-	const auto& interactive{ GetInteractive(entity) };
-	return interactive.is_inside;
-}
-
 void ClearInteractables(Entity& entity) {
 	if (!entity.Has<Interactive>()) {
 		return;
 	}
 	auto& interactive{ GetInteractive(entity) };
 	// Clear owned entities.
-	interactive.Clear();
+	interactive.ClearShapes();
 }
 
 } // namespace impl
