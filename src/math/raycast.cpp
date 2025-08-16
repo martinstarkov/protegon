@@ -202,7 +202,7 @@ RaycastResult RaycastRect(
 		return c;
 	}
 
-	if (transform2.rotation != 0.0f) {
+	if (transform2.GetRotation() != 0.0f) {
 		return RaycastPolygon(ray_start, ray_end, transform2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -477,7 +477,7 @@ RaycastResult RaycastCircleCircle(
 	auto circleA_center{ A.GetCenter(transform1) };
 	auto circleB_center{ B.GetCenter(transform2) };
 	return RaycastCircle(
-		circleA_center, circleA_center + ray, Transform{ circleB_center, transform2.rotation },
+		circleA_center, circleA_center + ray, Transform{ circleB_center, transform2.GetRotation() },
 		Circle{ A.GetRadius(transform1) + B.GetRadius(transform2) }
 	);
 }
@@ -489,7 +489,7 @@ RaycastResult RaycastCircleRect(
 #ifdef PTGN_DEBUG
 	game.stats.raycast_circle_rect++;
 #endif
-	if (transform2.rotation != 0.0f) {
+	if (transform2.GetRotation() != 0.0f) {
 		return RaycastCirclePolygon(
 			ray, transform1, A, transform2, Polygon{ B.GetLocalVertices() }
 		);
@@ -569,9 +569,9 @@ RaycastResult RaycastCircleCapsule(
 	const Capsule& B
 ) {
 	auto circle_center{ A.GetCenter(transform1) };
-	auto capsule_center{ transform2.position };
+	auto capsule_center{ transform2.GetPosition() };
 	return RaycastCapsule(
-		circle_center, circle_center + ray, Transform{ capsule_center, transform2.rotation },
+		circle_center, circle_center + ray, Transform{ capsule_center, transform2.GetRotation() },
 		Capsule{ B.start, B.end, A.GetRadius(transform1) + B.GetRadius(transform2) }
 	);
 }
@@ -590,14 +590,14 @@ RaycastResult RaycastRectRect(
 #ifdef PTGN_DEBUG
 	game.stats.raycast_rect_rect++;
 #endif
-	bool rotated1{ transform1.rotation != 0.0f };
-	bool rotated2{ transform2.rotation != 0.0f };
+	bool rotated1{ transform1.GetRotation() != 0.0f };
+	bool rotated2{ transform2.GetRotation() != 0.0f };
 
 	if (!rotated1 && !rotated2 || !rotated1 && rotated2) {
 		auto rectA_center{ A.GetCenter(transform1) };
 		auto rectB_center{ B.GetCenter(transform2) };
 		return RaycastRect(
-			rectA_center, rectA_center + ray, Transform{ rectB_center, transform2.rotation },
+			rectA_center, rectA_center + ray, Transform{ rectB_center, transform2.GetRotation() },
 			Rect{ A.GetSize(transform1) + B.GetSize(transform2) }
 		);
 	} else if (rotated1 && !rotated2) {

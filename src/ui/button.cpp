@@ -474,7 +474,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 		Sprite text_sprite{ text };
 
 		// Offset by button size so that text is initially centered on button center.
-		text_transform.position -= GetOriginOffset(origin, size * Abs(text_transform.scale));
+		text_transform.Translate(-GetOriginOffset(origin, size * Abs(text_transform.GetScale())));
 
 		if (text_sprite.Has<TextColor>() && text_sprite.Get<TextColor>().a == 0) {
 			return;

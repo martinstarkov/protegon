@@ -1,9 +1,11 @@
 #include "physics/physics.h"
 
+#include "common/assert.h"
 #include "components/movement.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "debug/log.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "scene/scene.h"
@@ -101,9 +103,9 @@ void Physics::PostCollisionUpdate(Scene& scene) const {
 
 	for (auto [entity, transform, rigid_body] :
 		 scene.InternalEntitiesWith<Transform, RigidBody>()) {
-		transform.position += rigid_body.velocity * dt;
-		transform.rotation += rigid_body.angular_velocity * dt;
-		transform.rotation	= ClampAngle2Pi(transform.rotation);
+		transform.Translate(rigid_body.velocity * dt);
+		transform.Rotate(rigid_body.angular_velocity * dt);
+		transform.ClampRotation();
 
 		if (!enforce_bounds) {
 			continue;
@@ -111,42 +113,35 @@ void Physics::PostCollisionUpdate(Scene& scene) const {
 
 		// Enforce world boundary behavior for the positions.
 
-		HandleBoundary(
-			transform.position.x, rigid_body.velocity.x, min_bounds.x, max_bounds.x,
-			boundary_behavior_
-		);
-		HandleBoundary(
-			transform.position.y, rigid_body.velocity.y, min_bounds.y, max_bounds.y,
-			boundary_behavior_
-		);
+		HandleBoundary(transform, rigid_body.velocity, min_bounds, max_bounds, boundary_behavior_);
 	}
 
 	scene.Refresh();
 }
 
 void Physics::HandleBoundary(
-	float& position, float& velocity, float min_bound, float max_bound, BoundaryBehavior behavior
+	Transform& transform, V2_float& velocity, const V2_float& min_bound, const V2_float& max_bound,
+	BoundaryBehavior behavior
 ) {
+	const V2_float position{ transform.GetPosition() };
 	switch (behavior) {
-		case BoundaryBehavior::StopAtBounds:
-			if (position < min_bound) {
-				position = min_bound;
-			} else if (position > max_bound) {
-				position = max_bound;
-			}
+		case BoundaryBehavior::StopAtBounds: {
+			V2_float clamped_position{ Clamp(position, min_bound, max_bound) };
+			transform.SetPosition(clamped_position);
 			break;
-
-		case BoundaryBehavior::ReflectVelocity:
-			if (position < min_bound) {
-				position  = min_bound;
-				velocity *= -1.0f;
-			} else if (position > max_bound) {
-				position  = max_bound;
-				velocity *= -1.0f;
+		}
+		case BoundaryBehavior::ReflectVelocity: {
+			V2_float clamped_position{ Clamp(position, min_bound, max_bound) };
+			if (clamped_position.x != position.x) {
+				velocity.x *= -1.0f;
 			}
+			if (clamped_position.y != position.y) {
+				velocity.y *= -1.0f;
+			}
+			transform.SetPosition(clamped_position);
 			break;
-
-		default: PTGN_ERROR("Unknown physics boundary behavior specified");
+		}
+		default: PTGN_ERROR("Unknown physics boundary behavior specified")
 	}
 }
 

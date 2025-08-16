@@ -26,7 +26,7 @@ V2_float Rect::GetSize() const {
 }
 
 V2_float Rect::GetSize(const Transform& transform) const {
-	return GetSize() * transform.scale;
+	return GetSize() * transform.GetScale();
 }
 
 Rect Rect::Offset(Origin origin) const {
@@ -57,7 +57,7 @@ std::array<V2_float, 4> Rect::GetLocalVertices(Origin draw_origin) const {
 }
 
 V2_float Rect::GetCenter(const Transform& transform) const {
-	return transform.position + (max + min) * 0.5f;
+	return transform.GetPosition() + (max + min) * 0.5f;
 }
 
 } // namespace ptgn

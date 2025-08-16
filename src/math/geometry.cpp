@@ -41,12 +41,12 @@ V2_float ToWorldPoint(
 }
 
 V2_float ToWorldPoint(const V2_float& local_point, const Transform& transform) {
-	if (transform.rotation == 0.0f) {
-		return ToWorldPoint(local_point, transform.position, transform.scale);
+	if (transform.GetRotation() == 0.0f) {
+		return ToWorldPoint(local_point, transform.GetPosition(), transform.GetScale());
 	}
 	return ToWorldPoint(
-		local_point, transform.position, transform.scale, std::cos(transform.rotation),
-		std::sin(transform.rotation)
+		local_point, transform.GetPosition(), transform.GetScale(),
+		std::cos(transform.GetRotation()), std::sin(transform.GetRotation())
 	);
 }
 
@@ -54,9 +54,7 @@ void ToWorldPoint(
 	const V2_float* local_points, std::size_t count, V2_float* out_world_points,
 	const Transform& transform
 ) {
-	const bool no_rotation = (transform.rotation == 0.0f);
-
-	if (no_rotation) {
+	if (transform.GetRotation() == 0.0f) {
 		if (transform == Transform{}) {
 			for (std::size_t i{ 0 }; i < count; ++i) {
 				out_world_points[i] = local_points[i];
@@ -64,15 +62,16 @@ void ToWorldPoint(
 		}
 		for (std::size_t i{ 0 }; i < count; ++i) {
 			out_world_points[i] =
-				ToWorldPoint(local_points[i], transform.position, transform.scale);
+				ToWorldPoint(local_points[i], transform.GetPosition(), transform.GetScale());
 		}
 	} else {
-		const float cosA = std::cos(transform.rotation);
-		const float sinA = std::sin(transform.rotation);
+		const float cosA = std::cos(transform.GetRotation());
+		const float sinA = std::sin(transform.GetRotation());
 
 		for (std::size_t i{ 0 }; i < count; ++i) {
-			out_world_points[i] =
-				ToWorldPoint(local_points[i], transform.position, transform.scale, cosA, sinA);
+			out_world_points[i] = ToWorldPoint(
+				local_points[i], transform.GetPosition(), transform.GetScale(), cosA, sinA
+			);
 		}
 	}
 }
@@ -276,6 +275,7 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 }
 
 /*
+// TODO: Remove these once shaders for these shapes have been implemented.
 void Arc::Draw(bool clockwise, const Color& color, float line_width, std::int32_t render_layer)
 	const {
 	PTGN_ASSERT(radius >= 0.0f, "Cannot draw filled arc with negative radius");

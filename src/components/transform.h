@@ -1,17 +1,45 @@
 #pragma once
 
+#include <cstdint>
+
 #include "components/generic.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
+#include "utility/flags.h"
 
 namespace ptgn {
 
 class Entity;
+class Scene;
+
+namespace impl {
+
+enum class TransformDirty : std::uint8_t {
+	None	 = 0,
+	Position = 1 << 0,
+	Rotation = 1 << 1,
+	Scale	 = 1 << 2,
+};
+
+PTGN_FLAGS_OPERATORS(TransformDirty)
+
+struct IgnoreParentTransform : public BoolComponent {
+	using BoolComponent::BoolComponent;
+
+	IgnoreParentTransform() : BoolComponent{ true } {}
+};
+
+} // namespace impl
 
 struct Transform {
-	Transform() = default;
+	Transform()			  = default;
+	~Transform() noexcept = default;
+	Transform(Transform&&) noexcept;
+	Transform& operator=(Transform&&) noexcept;
+	Transform(const Transform& other);
+	Transform& operator=(const Transform& other);
 
-	explicit Transform(const V2_float& position);
+	Transform(const V2_float& position);
 
 	Transform(const V2_float& position, float rotation, const V2_float& scale = { 1.0f, 1.0f });
 
@@ -21,19 +49,65 @@ struct Transform {
 
 	[[nodiscard]] float GetAverageScale() const;
 
+	// Dirty flags should not be compared.
 	friend bool operator==(const Transform& a, const Transform& b) {
-		return a.position == b.position && a.rotation == b.rotation && a.scale == b.scale;
+		return a.position_ == b.position_ && NearlyEqual(a.rotation_, b.rotation_) &&
+			   a.scale_ == b.scale_;
 	}
 
 	friend bool operator!=(const Transform& a, const Transform& b) {
-		return !(a == b);
+		return !operator==(a, b);
 	}
 
-	V2_float position;
-	float rotation{ 0.0f };
-	V2_float scale{ 1.0f, 1.0f };
+	[[nodiscard]] V2_float GetPosition() const;
+	[[nodiscard]] float GetRotation() const;
+	[[nodiscard]] V2_float GetScale() const;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Transform, position, rotation, scale)
+	Transform& SetPosition(const V2_float& position);
+	Transform& SetPositionX(float x);
+	Transform& SetPositionY(float y);
+	Transform& SetRotation(float rotation);
+	Transform& SetScale(const V2_float& scale);
+	Transform& SetScaleX(float x);
+	Transform& SetScaleY(float y);
+
+	// position += position_difference
+	Transform& Translate(const V2_float& position_difference);
+	Transform& TranslateX(float position_x_difference);
+	Transform& TranslateY(float position_y_difference);
+
+	// rotation += angle_difference
+	Transform& Rotate(float angle_difference);
+
+	// scale *= scale_multiplier
+	Transform& Scale(const V2_float& scale_multiplier);
+	Transform& ScaleX(float scale_x_multiplier);
+	Transform& ScaleY(float scale_y_multiplier);
+
+	// Clamps rotation between [0, 2 pi).
+	Transform& ClampRotation();
+
+	[[nodiscard]] bool IsPositionDirty() const;
+	[[nodiscard]] bool IsRotationDirty() const;
+	[[nodiscard]] bool IsScaleDirty() const;
+	[[nodiscard]] bool IsDirty() const;
+
+private:
+	friend class Scene;
+
+	V2_float position_;
+	float rotation_{ 0.0f };
+	V2_float scale_{ 1.0f, 1.0f };
+
+	// By default all flags are dirty.
+	Flags<impl::TransformDirty> dirty_flags_{ impl::TransformDirty::Position |
+											  impl::TransformDirty::Rotation |
+											  impl::TransformDirty::Scale };
+
+	PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(
+		Transform, KeyValue("position", position_), KeyValue("rotation", rotation_),
+		KeyValue("scale", scale_), KeyValue("dirty_flags", dirty_flags_)
+	)
 };
 
 // Set the relative transform of the entity with respect to its parent entity, camera, or
@@ -49,7 +123,7 @@ Entity& SetTransform(Entity& entity, const Transform& transform);
 // @return The absolute transform of the entity with respect to its parent scene camera
 // transform.
 [[nodiscard]] Transform GetAbsoluteTransform(
-	const Entity& entity, bool relative_to_entity_camera = true
+	const Entity& entity, bool relative_to_scene_primary_camera = true
 );
 
 // @return The transform of the entity used for drawing it with respect to its parent scene
@@ -65,7 +139,6 @@ Entity& SetPosition(Entity& entity, const V2_float& position);
 // @return The relative position of the entity with respect to its parent entity, camera, or
 // scene camera position.
 [[nodiscard]] V2_float GetPosition(const Entity& entity);
-[[nodiscard]] V2_float& GetPosition(Entity& entity);
 
 // @return The absolute position of the entity with respect to its parent scene camera position.
 [[nodiscard]] V2_float GetAbsolutePosition(const Entity& entity);
@@ -78,7 +151,6 @@ Entity& SetRotation(Entity& entity, float rotation);
 // @return The relative rotation of the entity with respect to its parent entity, camera, or
 // scene camera rotation. Clockwise positive. Unit: Radians.
 [[nodiscard]] float GetRotation(const Entity& entity);
-[[nodiscard]] float& GetRotation(Entity& entity);
 
 // @return The absolute rotation of the entity with respect to its parent scene camera rotation.
 // Clockwise positive. Unit: Radians.
@@ -93,21 +165,8 @@ Entity& SetScale(Entity& entity, float scale);
 // @return The relative scale of the entity with respect to its parent entity, camera, or
 // scene camera scale.
 [[nodiscard]] V2_float GetScale(const Entity& entity);
-[[nodiscard]] V2_float& GetScale(Entity& entity);
 
 // @return The absolute scale of the entity with respect to its parent scene camera scale.
 [[nodiscard]] V2_float GetAbsoluteScale(const Entity& entity);
-
-namespace impl {
-
-struct IgnoreParentTransform : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	IgnoreParentTransform() : ArithmeticComponent{ true } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(IgnoreParentTransform, value_)
-};
-
-} // namespace impl
 
 } // namespace ptgn

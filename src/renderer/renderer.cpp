@@ -183,12 +183,12 @@ void DrawDebugShape(
 				DrawDebugPoint(s1, color, camera);
 			} else if constexpr (std::is_same_v<S1, Rect>) {
 				DrawDebugRect(
-					transform.position, s1.GetSize(transform), color, Origin::Center, line_width,
-					transform.rotation, camera
+					transform.GetPosition(), s1.GetSize(transform), color, Origin::Center,
+					line_width, transform.GetRotation(), camera
 				);
 			} else if constexpr (std::is_same_v<S1, Circle>) {
 				DrawDebugCircle(
-					transform.position, s1.GetRadius(transform), color, line_width, camera
+					transform.GetPosition(), s1.GetRadius(transform), color, line_width, camera
 				);
 			} else if constexpr (std::is_same_v<S1, Line>) {
 				auto [start, end] = s1.GetWorldVertices(transform);

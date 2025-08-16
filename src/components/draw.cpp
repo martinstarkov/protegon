@@ -54,7 +54,7 @@ Entity& RemoveDraw(Entity& entity) {
 }
 
 Entity& SetDrawOffset(Entity& entity, const V2_float& offset) {
-	entity.TryAdd<impl::Offsets>().custom.position = offset;
+	entity.TryAdd<impl::Offsets>().custom.SetPosition(offset);
 	return entity;
 }
 

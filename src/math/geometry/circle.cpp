@@ -1,5 +1,7 @@
 #include "math/geometry/circle.h"
 
+#include <array>
+
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -15,7 +17,7 @@ void Circle::Draw(impl::RenderData& ctx, const Entity& entity) {
 }
 
 V2_float Circle::GetCenter(const Transform& transform) const {
-	return transform.position;
+	return transform.GetPosition();
 }
 
 float Circle::GetRadius() const {

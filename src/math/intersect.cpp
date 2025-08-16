@@ -99,7 +99,7 @@ Intersection IntersectCircleCircle(
 Intersection IntersectCircleRect(
 	const Transform& t1, const Circle& A, const Transform& t2, const Rect& B
 ) {
-	if (t2.rotation != 0.0f) {
+	if (t2.GetRotation() != 0.0f) {
 		return IntersectCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -209,7 +209,7 @@ Intersection IntersectRectRect(
 ) {
 	Intersection c;
 
-	if (t1.rotation != 0.0f || t2.rotation != 0.0f) {
+	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
 		return IntersectPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);

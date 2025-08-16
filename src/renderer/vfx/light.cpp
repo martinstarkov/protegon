@@ -53,9 +53,9 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 	PointLight light{ entity };
 
 	auto transform{ GetDrawTransform(entity) };
-	float radius{ light.GetRadius() * Abs(transform.scale.x) };
+	float radius{ light.GetRadius() * Abs(transform.GetAverageScale()) };
 
-	shader.SetUniform("u_LightPosition", transform.position);
+	shader.SetUniform("u_LightPosition", transform.GetPosition());
 	shader.SetUniform("u_LightIntensity", light.GetIntensity());
 	shader.SetUniform("u_LightRadius", radius);
 	shader.SetUniform("u_Falloff", light.GetFalloff());

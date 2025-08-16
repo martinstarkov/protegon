@@ -11,7 +11,6 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "debug/log.h"
-#include "ecs/ecs.h"
 #include "math/geometry.h"
 #include "math/intersect.h"
 #include "math/math.h"
@@ -105,9 +104,8 @@ void CollisionHandler::UpdateKDTree(const Entity& entity, float dt) {
 	const auto new_bounding_aabb{ GetBoundingAABB(entity.Get<Collider>().shape, transform) };
 	static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
 	static_tree_.EndFrameUpdate();
-	if (entity.Has<RigidBody>()) {
-		const auto& rb{ entity.Get<RigidBody>() };
-		auto v{ entity.Get<RigidBody>().velocity * dt };
+	if (const auto rb{ entity.TryGet<RigidBody>() }) {
+		auto v{ rb->velocity * dt };
 		auto new_expanded_aabb{ new_bounding_aabb.ExpandByVelocity(v) };
 		dynamic_tree_.UpdateBoundingAABB(entity, new_expanded_aabb);
 		dynamic_tree_.EndFrameUpdate();
@@ -134,9 +132,7 @@ void CollisionHandler::Overlap(Entity& entity1) const {
 		auto shape1{ ApplyOffset(collider1.shape, entity1) };
 		auto shape2{ ApplyOffset(collider2.shape, entity2) };
 
-		bool overlap{ ptgn::Overlap(transform1, shape1, transform2, shape2) };
-
-		if (!overlap) {
+		if (!ptgn::Overlap(transform1, shape1, transform2, shape2)) {
 			continue;
 		}
 
@@ -150,8 +146,8 @@ void CollisionHandler::Intersect(Entity& entity1, float dt) {
 
 	auto collideables{ GetDiscreteCollideables<
 		&CollisionScript::PreCollisionCheck,
-		[]([[maybe_unused]] const Entity& e1, const Collider& c1, const Entity& e2,
-		   const Collider& c2) {
+		[]([[maybe_unused]] const Entity& e1, [[maybe_unused]] const Collider& c1,
+		   [[maybe_unused]] const Entity& e2, const Collider& c2) {
 			return c2.mode == CollisionMode::Overlap ||
 				   c2.mode == CollisionMode::None; //|| c1.IntersectedWith(e2);
 		}>(entity1, static_tree_) };
@@ -200,7 +196,7 @@ void CollisionHandler::Intersect(Entity& entity1, float dt) {
 
 		auto& root_transform{ GetTransform(root_entity) };
 
-		root_transform.position += intersection.normal * (intersection.depth + slop_);
+		root_transform.Translate(intersection.normal * (intersection.depth + slop_));
 
 		moved_entities.emplace_back(root_entity);
 
@@ -292,8 +288,8 @@ std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisi
 		auto transform1{ GetAbsoluteTransform(entity1) };
 		auto transform2{ GetAbsoluteTransform(entity2) };
 
-		auto offset_transform{ transform1 };
-		offset_transform.position += offset;
+		Transform offset_transform{ transform1 };
+		offset_transform.Translate(offset);
 
 		const auto& collider1{ entity1.Get<Collider>() };
 		const auto& collider2{ entity2.Get<Collider>() };
@@ -311,8 +307,8 @@ std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisi
 			continue;
 		}
 
-		auto center1{ offset_transform.position };
-		auto center2{ transform2.position };
+		auto center1{ offset_transform.GetPosition() };
+		auto center2{ transform2.GetPosition() };
 		V2_float center_dist{ center1 - center2 };
 		float dist2{ center_dist.MagnitudeSquared() };
 		collisions.emplace_back(raycast, dist2, entity2);
@@ -325,7 +321,7 @@ std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisi
 
 void CollisionHandler::Sweep(Entity& entity, float dt) {
 	PTGN_ASSERT(entity.Has<Collider>());
-	PTGN_ASSERT(entity.Get<Collider>().mode == CollisionMode::Sweep);
+	PTGN_ASSERT(entity.Get<Collider>().mode == CollisionMode::Continuous);
 	PTGN_ASSERT(entity.Has<RigidBody>());
 
 	std::size_t iterations{ 0 };
@@ -413,7 +409,7 @@ void CollisionHandler::Sweep(Entity& entity, float dt) {
 		entity.Get<RigidBody>().AddImpulse(new_velocity / dt * earliest2.t);
 
 		iterations++;
-	} while (false /*iterations < max_sweep_iterations_*/);
+	} while (false /*TODO: Consider readding: iterations < max_sweep_iterations_*/);
 
 	if (raycast_hit) {
 		// TODO: Check if this is even needed.
@@ -549,7 +545,7 @@ void CollisionHandler::Update(Scene& scene) {
 	for (auto& object : objects) {
 		const auto& collider{ object.entity.Get<Collider>() };
 		switch (collider.mode) {
-			case CollisionMode::Intersect: {
+			case CollisionMode::Discrete: {
 				Intersect(object.entity, dt);
 				break;
 			}
@@ -557,7 +553,7 @@ void CollisionHandler::Update(Scene& scene) {
 				Overlap(object.entity);
 				break;
 			}
-			case CollisionMode::Sweep: {
+			case CollisionMode::Continuous: {
 				if (!object.entity.Has<RigidBody>()) {
 					break;
 				}
@@ -569,7 +565,7 @@ void CollisionHandler::Update(Scene& scene) {
 			case CollisionMode::None: {
 				break;
 			}
-			default: PTGN_ERROR("Unknown collision mode");
+			default: PTGN_ERROR("Unknown collision mode")
 		}
 	}
 

@@ -25,7 +25,7 @@ V2_float Polygon::GetCenter() const {
 	V2_float v1{ 0.0f }; // Next vertex
 	float a{ 0.0f };	 // Partial signed area
 
-	std::size_t lastdex	 = vertices.size() - 1;
+	std::size_t lastdex{ vertices.size() - 1 };
 	const V2_float* prev = &(vertices[lastdex]);
 	const V2_float* next{ nullptr };
 

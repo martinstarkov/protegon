@@ -79,7 +79,7 @@ BoundingAABB GetBoundingAABB(const Shape& shape, const Transform& transform) {
 				vertices.assign(v.begin(), v.end());
 			} else if constexpr (std::is_same_v<T, Point>) {
 				// Assume Point is a single position with no size
-				V2_float p = transform.position;
+				V2_float p{ transform.GetPosition() };
 				vertices.emplace_back(p);
 			}
 

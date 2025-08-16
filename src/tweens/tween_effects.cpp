@@ -26,6 +26,7 @@
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "tweens/follow_config.h"
 
@@ -174,7 +175,7 @@ void BounceEffectSystem::Update(Scene& scene) const {
 
 		float eased_t{ ApplyEase(t, task.symmetrical, task.ease) };
 
-		offsets.bounce.position = task.static_offset + task.amplitude * eased_t;
+		offsets.bounce.SetPosition(task.static_offset + task.amplitude * eased_t);
 
 		if (!task.timer.Completed(task.duration)) {
 			continue;
@@ -275,8 +276,8 @@ void ShakeEffectSystem::Update(Scene& scene, float time, float dt) const {
 
 		float rotation_noise{ PerlinNoise::GetValue(x, 0.0f, task.seed + 3) * 2.0f - 1.0f };
 
-		offsets.shake.position = shake * task.config.maximum_translation * position_noise;
-		offsets.shake.rotation = shake * task.config.maximum_rotation * rotation_noise;
+		offsets.shake.SetPosition(shake * task.config.maximum_translation * position_noise);
+		offsets.shake.SetRotation(shake * task.config.maximum_rotation * rotation_noise);
 
 		if (!completed) {
 			// Shake effect has not finished yet.

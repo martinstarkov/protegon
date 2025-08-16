@@ -265,7 +265,7 @@ bool OverlapPointRect(const Transform& t1, const Point& A, const Transform& t2, 
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_rect++;
 #endif
-	if (t2.rotation != 0.0f) {
+	if (t2.GetRotation() != 0.0f) {
 		return OverlapPointPolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -467,7 +467,7 @@ bool OverlapLineRect(const Transform& t1, const Line& A, const Transform& t2, co
 		return false;
 	}
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
-	if (t2.rotation != 0.0f) {
+	if (t2.GetRotation() != 0.0f) {
 		return OverlapLinePolygon(
 			Transform{}, Line{ line_start, line_end }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -601,7 +601,7 @@ bool OverlapCircleRect(const Transform& t1, const Circle& A, const Transform& t2
 	if (rect_size.IsZero()) {
 		return false;
 	}
-	if (t2.rotation != 0.0f) {
+	if (t2.GetRotation() != 0.0f) {
 		return OverlapCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 #ifdef PTGN_DEBUG
@@ -767,7 +767,7 @@ bool OverlapTriangleCapsule(
 }
 
 bool OverlapRectRect(const Transform& t1, const Rect& A, const Transform& t2, const Rect& B) {
-	if (t1.rotation != 0.0f || t2.rotation != 0.0f) {
+	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
 		return OverlapPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -833,7 +833,7 @@ bool OverlapRectCapsule(const Transform& t1, const Rect& A, const Transform& t2,
 	}
 
 	// Rotated rect.
-	if (t1.rotation != 0.0f) {
+	if (t1.GetRotation() != 0.0f) {
 		return OverlapPolygonCapsule(
 			t1, Polygon{ A.GetLocalVertices() }, Transform{},
 			Capsule{ capsule_start, capsule_end, capsule_radius }
