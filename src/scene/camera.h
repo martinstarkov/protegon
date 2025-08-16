@@ -33,7 +33,8 @@ Camera CreateCamera(const Entity& entity);
 
 class CameraInfo {
 public:
-	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
+	void SetViewportPosition(const V2_float& new_viewport_position);
+	void SetViewportSize(const V2_float& new_viewport_size);
 	// @param position Top left.
 	void SetBoundingBox(const V2_float& new_bounding_position, const V2_float& new_bounding_size);
 
@@ -41,8 +42,6 @@ public:
 	void SetCenterOnWindow(bool center);
 
 	void SetFlip(Flip flip);
-
-	void SetSize(const V2_float& size);
 
 	void SetPositionZ(float z);
 	void SetRotationY(float rotation_y);
@@ -63,18 +62,11 @@ public:
 
 	[[nodiscard]] Flip GetFlip() const;
 
-	[[nodiscard]] V2_float GetSize() const;
-
 	[[nodiscard]] float GetPositionZ() const;
 	[[nodiscard]] float GetRotationY() const;
 	[[nodiscard]] float GetRotationZ() const;
 
 	[[nodiscard]] bool GetPixelRounding() const;
-
-	// Update the internal transform vector.
-	void UpdatePosition(const V2_float& position);
-	void UpdateRotation(float rotation);
-	void UpdateScale(const V2_float& scale);
 
 	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
 		const;
@@ -91,28 +83,29 @@ public:
 
 	[[nodiscard]] static V2_float ClampToBounds(
 		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
-		const V2_float& camera_size, const V2_float& camera_zoom
+		const V2_float& viewport_size, const V2_float& camera_zoom
 	);
 
 	// TODO: Change this to recalculate view and projection matrices based on position instead of
 	// storing it. This requires that the entity CameraInfo component is processed after Transform.
+	// Later point might not be relevant after introducing Transform dirty flags.
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
 		viewport_position, viewport_size, center_on_window, resize_to_window, pixel_rounding,
-		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z,
-		size
+		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z
 	)
 
 	void SetViewDirty();
 
 private:
-	// Keep track of previous transform since other external ECS systems may modify the position,
-	// rotation, or scale (zoom) of the camera without setting the dirty flags to true.
+	// Keep track of previous transform since the Transform dirty flags are only reset at the end of
+	// the frame and the camera view or projection matrices may be requested multiple times in one
+	// frame.
 	mutable Transform previous;
 
-	mutable bool view_dirty{ false };
-	mutable bool projection_dirty{ false };
+	mutable bool view_dirty{ true };
+	mutable bool projection_dirty{ true };
 
 	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
 	// multiplications.
@@ -140,8 +133,6 @@ private:
 	float position_z{ 0.0f };
 	float orientation_y{ 0.0f };
 	float orientation_z{ 0.0f };
-
-	V2_float size;
 };
 
 struct CameraResizeScript : public Script<CameraResizeScript, WindowScript> {
@@ -152,8 +143,8 @@ struct CameraResizeScript : public Script<CameraResizeScript, WindowScript> {
 
 class Camera : public Entity {
 public:
-	[[nodiscard]] Transform GetTransform() const;
-
+	// Get camera top left point.
+	[[nodiscard]] V2_float GetTopLeft() const;
 	/**
 	 * @brief Translates the camera to a target position over a specified duration.
 	 *
@@ -273,11 +264,6 @@ public:
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;
 
-	// Top left position.
-	[[nodiscard]] V2_float GetViewportPosition() const;
-
-	[[nodiscard]] V2_float GetViewportSize() const;
-
 	// If continuously is true, camera will subscribe to window resize event.
 	// Set the camera to be the size of the window and centered on the window.
 	void SetToWindow(bool continuously = true);
@@ -288,25 +274,17 @@ public:
 
 	// If continuously is true, camera will subscribe to window resize event.
 	// Set the camera to be the size of the window.
-	void SetSizeToWindow(bool continuously = false);
-
-	// Set the camera to be centered on area of the given size. Effectively the same as changing the
-	// size and position of the camera.
-	void CenterOnArea(const V2_float& size);
+	void SetViewportToWindow(bool continuously = false);
 
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
-	// @param account_for_zoom If true, divides the camera size by its zoom.
-	[[nodiscard]] V2_float GetSize(bool account_for_zoom = false) const;
+	[[nodiscard]] V2_float GetViewportPosition() const;
+	[[nodiscard]] V2_float GetViewportSize() const;
 
 	[[nodiscard]] V2_float GetZoom() const;
 
 	[[nodiscard]] V2_float GetBoundsPosition() const;
 	[[nodiscard]] V2_float GetBoundsSize() const;
-
-	// @param origin What point on the camera the position represents.
-	// @return The position of the camera.
-	[[nodiscard]] V2_float GetPosition(Origin origin = Origin::Center) const;
 
 	[[nodiscard]] Flip GetFlip() const;
 
@@ -317,7 +295,8 @@ public:
 	// @param position Top left position of the bounds.
 	void SetBounds(const V2_float& position, const V2_float& size);
 
-	void SetSize(const V2_float& size);
+	void SetViewportPosition(const V2_float& viewport_position);
+	void SetViewportSize(const V2_float& viewport_size);
 
 	void Translate(const V2_float& position_change);
 
@@ -404,8 +383,6 @@ public:
 
 	operator Matrix4() const;
 
-	[[nodiscard]] V2_float ZoomIfNeeded(const V2_float& zoomed_coordinate) const;
-
 protected:
 	friend struct impl::CameraResizeScript;
 	friend class CameraManager;
@@ -437,7 +414,9 @@ protected:
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
-	os << "[center position: " << c.GetPosition() << ", size: " << c.GetSize() << "]";
+	os << "[center position: " << GetPosition(c)
+	   << ", viewport position: " << c.GetViewportPosition()
+	   << ", viewport size: " << c.GetViewportSize() << "]";
 	return os;
 }
 
