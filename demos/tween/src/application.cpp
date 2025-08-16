@@ -1,6 +1,22 @@
+#include <cstdint>
+#include <string_view>
+#include <tuple>
+#include <vector>
+
+#include "algorithm"
+#include "common/assert.h"
 #include "core/game.h"
+#include "core/script.h"
+#include "core/time.h"
 #include "core/window.h"
+#include "debug/log.h"
 #include "input/input_handler.h"
+#include "input/key.h"
+#include "math/easing.h"
+#include "math/hash.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "scene/scene.h"
@@ -9,76 +25,75 @@
 
 using namespace ptgn;
 
-class TweenConfig00 : public TweenScript<TweenConfig00> {
+class TweenConfig00 : public Script<TweenConfig00, TweenScript> {
 public:
-	void OnComplete([[maybe_unused]] TweenInfo info) override {
+	void OnComplete() override {
 		PTGN_LOG("Completed tween 00");
 	}
 };
 
-class TweenConfig0 : public TweenScript<TweenConfig0> {
+class TweenConfig0 : public Script<TweenConfig0, TweenScript> {
 public:
-	void OnPause([[maybe_unused]] TweenInfo info) override {
+	void OnPause() override {
 		PTGN_LOG("Paused tween 0");
 	}
 
-	void OnResume([[maybe_unused]] TweenInfo info) override {
+	void OnResume() override {
 		PTGN_ERROR("Tween 0 should remain paused");
 	}
 };
 
-class TweenConfig1 : public TweenScript<TweenConfig1> {
+class TweenConfig1 : public Script<TweenConfig1, TweenScript> {
 public:
-	void OnStart([[maybe_unused]] TweenInfo info) override {
+	void OnStart() override {
 		PTGN_LOG("Starting tween1 with value ", info.progress);
 	}
 
-	void OnUpdate([[maybe_unused]] TweenInfo info
-	) override { /*PTGN_LOG("Updated Value: ", info.progress);*/ }
+	void OnProgress(float f) override { /*PTGN_LOG("Updated Value: ", info.progress);*/ }
 
-	void OnComplete([[maybe_unused]] TweenInfo info) override {
+	void OnComplete() override {
 		PTGN_LOG("Completed tween1 with value ", info.progress);
 	}
 
-	void OnStop([[maybe_unused]] TweenInfo info) override {
+	void OnStop() override {
 		PTGN_LOG("Stopped tween1 with value ", info.progress);
 	}
 
-	void OnPause([[maybe_unused]] TweenInfo info) override {
+	void OnPause() override {
 		PTGN_LOG("Paused tween1 with value ", info.progress);
 	}
 
-	void OnResume([[maybe_unused]] TweenInfo info) override {
+	void OnResume() override {
 		PTGN_LOG("Resumed tween1 with value ", info.progress);
 	}
 
-	void OnRepeat([[maybe_unused]] TweenInfo info) override {
+	void OnRepeat() override {
 		PTGN_ERROR("This repeat should never be triggered");
 	}
 };
 
-class TweenConfig3 : public TweenScript<TweenConfig3> {
+class TweenConfig3 : public Script<TweenConfig3, TweenScript> {
 public:
-	void OnRepeat([[maybe_unused]] TweenInfo info) override {
+	void OnRepeat() override {
 		PTGN_LOG("Repeating tween3 (repeat #", info.tween.GetRepeats(), ")");
 	}
 };
 
-class TweenConfig5 : public TweenScript<TweenConfig5> {
+class TweenConfig5 : public Script<TweenConfig5, TweenScript> {
 public:
-	void OnYoyo([[maybe_unused]] TweenInfo info) override {
+	void OnYoyo() override {
 		PTGN_LOG("Yoyoing tween5 (repeat #", info.tween.GetRepeats(), ")");
 	}
 };
 
-class TweenConfig7 : public TweenScript<TweenConfig7> {
+class TweenConfig7 : public Script<TweenConfig7, TweenScript> {
 public:
-	void OnRepeat([[maybe_unused]] TweenInfo info) override {
+	void OnRepeat() override {
 		PTGN_LOG("Infinitely repeating tween7 (repeat #", info.tween.GetRepeats(), ")");
 	}
 };
 
-class TweenConfigCustom : public TweenScript<TweenConfigCustom> {
+class TweenConfigCustom : public Script<TweenConfigCustom, TweenScript> {
 public:
 	TweenConfigCustom() {}
 
@@ -92,19 +107,19 @@ public:
 	V2_float* pos{ nullptr };
 	Color color_change{ color::Green };
 
-	void OnStart([[maybe_unused]] TweenInfo info) override {
+	void OnStart() override {
 		PTGN_LOG("Starting ", name, " tween point: ", info.tween.GetCurrentIndex());
 	}
 
-	void OnComplete([[maybe_unused]] TweenInfo info) override {
+	void OnComplete() override {
 		PTGN_LOG("Completed ", name, " tween point: ", info.tween.GetCurrentIndex());
 		PTGN_ASSERT(color != nullptr);
 		*color = color_change;
 	}
 
-	void OnUpdate([[maybe_unused]] TweenInfo info) override {
+	void OnProgress(float f) override {
 		PTGN_ASSERT(pos != nullptr);
-		*pos = { info.progress * 800.0f, 0.0f };
+		*pos = { f * 800.0f, 0.0f };
 	}
 };
 

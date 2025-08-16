@@ -19,22 +19,6 @@
 
 using namespace ptgn;
 
-class ButtonScript : public Script<ButtonScript> {
-public:
-	ButtonScript() = default;
-
-	explicit ButtonScript(const std::function<void()>& on_activate_callback) :
-		on_activate{ on_activate_callback } {}
-
-	void OnButtonActivate() override {
-		if (on_activate) {
-			std::invoke(on_activate);
-		}
-	}
-
-	std::function<void()> on_activate;
-};
-
 class CameraShakeScene : public Scene {
 public:
 	Entity player;
@@ -48,14 +32,22 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		AddScript<ButtonScript>(b, on_activate);
+		b.OnActivate(on_activate);
 		return b;
 	}
 
 	void Enter() override {
 		CreateRect(*this, V2_float{ 300.0f, 300.0f }, { 150.0f, 50.0f }, color::Green);
 		player = CreateRect(*this, V2_float{ 400.0f, 150.0f }, { 50.0f, 50.0f }, color::Red);
+		auto transform1{ GetTransform(player) };
+		auto abs_transform1{ GetAbsoluteTransform(player) };
+		auto transform2{ GetTransform(camera.primary) };
+		auto abs_transform2{ GetAbsoluteTransform(camera.primary) };
 		camera.primary.StartFollow(player);
+		auto transform3{ GetTransform(player) };
+		auto abs_transform3{ GetAbsoluteTransform(player) };
+		auto transform4{ GetTransform(camera.primary) };
+		auto abs_transform4{ GetAbsoluteTransform(camera.primary) };
 
 		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera.primary); }));
 		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() {
@@ -84,7 +76,9 @@ public:
 
 	void Update() override {
 		constexpr V2_float speed{ 3.0f, 3.0f };
-		MoveWASD(GetPosition(player), speed, false);
+		V2_float pos{ GetPosition(player) };
+		MoveWASD(pos, speed, false);
+		SetPosition(player, pos);
 	}
 };
 

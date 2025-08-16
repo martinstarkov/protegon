@@ -238,6 +238,11 @@ public:
 	void Update() override {
 		float dt{ game.dt() };
 
+		PTGN_LOG(
+			"Mouse screen pos: ", game.input.GetMousePosition(),
+			", Mouse world pos: ", input.GetMousePosition()
+		);
+
 		SetPosition(mouse, input.GetMousePosition());
 
 		if (game.input.KeyPressed(Key::W)) {

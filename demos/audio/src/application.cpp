@@ -19,22 +19,6 @@
 
 using namespace ptgn;
 
-class AudioScript : public Script<AudioScript> {
-public:
-	AudioScript() = default;
-
-	explicit AudioScript(const std::function<void()>& on_activate_callback) :
-		on_activate{ on_activate_callback } {}
-
-	void OnButtonActivate() override {
-		if (on_activate) {
-			std::invoke(on_activate);
-		}
-	}
-
-	std::function<void()> on_activate;
-};
-
 class AudioScene : public Scene {
 public:
 	int channel1{ 1 };
@@ -71,7 +55,7 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		AddScript<AudioScript>(b, on_activate);
+		b.OnActivate(on_activate);
 		return b;
 	}
 

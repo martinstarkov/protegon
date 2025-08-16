@@ -70,9 +70,6 @@ class FullscreenScene : public Scene {
 
 	void Update() final {
 		auto& p = camera.primary;
-		if (game.input.KeyDown(Key::Z)) {
-			p.CenterOnArea(window_size);
-		}
 		if (game.input.KeyDown(Key::X)) {
 			p.SetToWindow();
 		}

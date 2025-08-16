@@ -30,10 +30,10 @@ class TopDownMovementScene : public Scene {
 			*this, window_size / 2.0f + V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen,
 			-1.0f, Origin::Center
 		);
-		auto& rb	 = entity.Add<RigidBody>();
-		auto& m		 = entity.Add<TopDownMovement>();
-		auto& b		 = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
-		b.continuous = true;
+		auto& rb = entity.Add<RigidBody>();
+		auto& m	 = entity.Add<TopDownMovement>();
+		auto& b	 = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
+		b.SetCollisionMode(CollisionMode::Continuous);
 		return entity;
 	}
 

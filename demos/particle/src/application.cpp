@@ -16,7 +16,7 @@
 
 using namespace ptgn;
 
-struct ButtonScript1 : public Script<ButtonScript1> {
+struct ButtonScript1 : public Script<ButtonScript1, ButtonScript> {
 	const int number_of_shapes{ 2 };
 
 	void OnButtonActivate() override {
@@ -28,14 +28,14 @@ struct ButtonScript1 : public Script<ButtonScript1> {
 	}
 };
 
-struct ButtonScript2 : public Script<ButtonScript2> {
+struct ButtonScript2 : public Script<ButtonScript2, ButtonScript> {
 	void OnButtonActivate() override {
 		ParticleEmitter p{ GetParent(entity) };
 		p.Toggle();
 	}
 };
 
-struct ButtonScript3 : public Script<ButtonScript3> {
+struct ButtonScript3 : public Script<ButtonScript3, ButtonScript> {
 	void OnButtonActivate() override {
 		ParticleEmitter p{ GetParent(entity) };
 		if (p.GetGravity().IsZero()) {

@@ -10,6 +10,8 @@
 
 using namespace ptgn;
 
+// TODO: Fix this demo.
+
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int resolution{ 320, 240 }; // 4, 3
 
@@ -21,8 +23,6 @@ class ResolutionScene : public Scene {
 	}
 
 	void Update() override {
-		camera.primary.CenterOnArea(resolution);
-
 		if (game.input.KeyDown(Key::Q)) {
 			game.renderer.SetResolutionMode(ResolutionMode::Disabled);
 		}

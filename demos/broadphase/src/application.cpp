@@ -78,7 +78,9 @@ struct BroadphaseScene : public Scene {
 	}
 
 	void Update() override {
-		MoveWASD(GetPosition(player), V2_float{ 100.0f } * game.dt(), false);
+		V2_float pos{ GetPosition(player) };
+		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
+		SetPosition(player, pos);
 
 		for (auto [e, tint] : EntitiesWith<Tint>()) {
 			tint = color::Green;

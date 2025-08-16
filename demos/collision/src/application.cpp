@@ -177,12 +177,12 @@ public:
 		auto& c2{ overlap_circle.Get<Collider>() };
 		auto& c3{ sweep_circle.Get<Collider>() };
 
-		b1.SetCollisionMode(CollisionMode::Intersect);
-		c1.SetCollisionMode(CollisionMode::Intersect);
+		b1.SetCollisionMode(CollisionMode::Discrete);
+		c1.SetCollisionMode(CollisionMode::Discrete);
 		b2.SetCollisionMode(CollisionMode::Overlap);
 		c2.SetCollisionMode(CollisionMode::Overlap);
-		b3.SetCollisionMode(CollisionMode::Sweep);
-		c3.SetCollisionMode(CollisionMode::Sweep);
+		b3.SetCollisionMode(CollisionMode::Continuous);
+		c3.SetCollisionMode(CollisionMode::Continuous);
 
 		AddScript<TestIntersectScript>(intersect, "Intersection Rectangle");
 		AddScript<TestIntersectScript>(intersect_circle, "Intersection Circle");
@@ -215,32 +215,22 @@ public:
 		move_entity = Mod(move_entity, move_entities);
 
 		V2_float* vel{ nullptr };
-		V2_float* pos{ nullptr };
 
 		if (move_entity == 0) {
 			vel = &intersect.Get<RigidBody>().velocity;
-			pos = &GetPosition(intersect);
 		} else if (move_entity == 1) {
 			vel = &overlap.Get<RigidBody>().velocity;
-			pos = &GetPosition(overlap);
 		} else if (move_entity == 2) {
 			vel = &sweep.Get<RigidBody>().velocity;
-			pos = &GetPosition(sweep);
 		} else if (move_entity == 3) {
 			vel = &intersect_circle.Get<RigidBody>().velocity;
-			pos = &GetPosition(intersect_circle);
 		} else if (move_entity == 4) {
 			vel = &overlap_circle.Get<RigidBody>().velocity;
-			pos = &GetPosition(overlap_circle);
 		} else if (move_entity == 5) {
 			vel = &sweep_circle.Get<RigidBody>().velocity;
-			pos = &GetPosition(sweep_circle);
 		}
 
 		PTGN_ASSERT(vel != nullptr);
-		PTGN_ASSERT(pos != nullptr);
-
-		// PTGN_LOG("Pos: ", *pos);
 
 		MoveWASD(*vel, speed * game.scene.Get("").physics.dt());
 	}
@@ -249,14 +239,14 @@ public:
 		constexpr Color text_color{ color::Blue };
 		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
 			auto transform{ GetAbsoluteTransform(e) };
-			if (collider.mode == CollisionMode::Intersect) {
-				DrawDebugText("Intersect", transform.position, text_color);
+			if (collider.mode == CollisionMode::Discrete) {
+				DrawDebugText("Intersect", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Overlap) {
-				DrawDebugText("Overlap", transform.position, text_color);
-			} else if (collider.mode == CollisionMode::Sweep) {
-				DrawDebugText("Sweep", transform.position, text_color);
+				DrawDebugText("Overlap", transform.GetPosition(), text_color);
+			} else if (collider.mode == CollisionMode::Continuous) {
+				DrawDebugText("Sweep", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::None) {
-				DrawDebugText("None", transform.position, text_color);
+				DrawDebugText("None", transform.GetPosition(), text_color);
 			}
 		}
 	}

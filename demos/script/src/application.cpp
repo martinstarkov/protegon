@@ -1,5 +1,6 @@
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/script_registry.h"
 #include "core/time.h"
 #include "debug/log.h"
@@ -13,10 +14,10 @@ using namespace ptgn;
 
 class PlayerController : public Script<PlayerController> {
 public:
-	void OnUpdate(float dt) override {
+	void OnUpdate() override {
 		auto posx{ GetPosition(entity).x };
 		if (posx < 100.0f) {
-			MoveForward(dt);
+			MoveForward(game.dt());
 			PTGN_LOG("Moving entity ", entity.GetUUID(), " to the right: ", posx);
 		}
 	}

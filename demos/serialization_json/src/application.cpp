@@ -42,7 +42,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	SetPosition(e0, V2_float{ -69, -69 });
 
 	auto e1 = m.CreateEntity();
-	e1.Add<Draggable>(V2_float{ 1, 1 }, V2_float{ 30, 40 }, true);
+	e1.Add<Draggable>();
 	SetTransform(e1, { V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
 	Show(e1);
 	SetDepth(e1, 22);

@@ -19,7 +19,7 @@ constexpr V2_int window_size{ 960, 540 };
 
 constexpr CollisionCategory ground_category{ 1 };
 
-class GroundScript : public Script<GroundScript> {
+class GroundScript : public Script<GroundScript, CollisionScript> {
 public:
 	GroundScript() {}
 
@@ -27,10 +27,6 @@ public:
 		if (c.normal == V2_float{ 0.0f, -1.0f }) {
 			PlatformerJump::Ground(entity, c, ground_category);
 		}
-	}
-
-	void OnCollisionStart(Collision c) override {
-		Ground(c);
 	}
 
 	void OnCollision(Collision c) override {
@@ -51,12 +47,12 @@ class PlatformingScene : public Scene {
 			*this, window_size / 2.0f + V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen,
 			-1.0f, Origin::Center
 		);
-		auto& rb	 = entity.Add<RigidBody>();
-		rb.gravity	 = 1.0f;
-		auto& m		 = entity.Add<PlatformerMovement>();
-		auto& j		 = entity.Add<PlatformerJump>();
-		auto& b		 = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
-		b.continuous = true;
+		auto& rb   = entity.Add<RigidBody>();
+		rb.gravity = 1.0f;
+		auto& m	   = entity.Add<PlatformerMovement>();
+		auto& j	   = entity.Add<PlatformerJump>();
+		auto& b	   = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
+		b.SetCollisionMode(CollisionMode::Continuous);
 		AddScript<GroundScript>(entity);
 		return entity;
 	}
