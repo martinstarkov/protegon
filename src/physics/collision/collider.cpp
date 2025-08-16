@@ -65,7 +65,9 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	}
 }
 
-[[nodiscard]] Collision GetIfExists(const std::vector<Collision>& collisions, const Entity& other) {
+[[nodiscard]] static Collision GetIfExists(
+	const std::vector<Collision>& collisions, const Entity& other
+) {
 	auto it{ std::ranges::find_if(collisions, [&other](auto& collision) {
 		return collision.entity == other;
 	}) };

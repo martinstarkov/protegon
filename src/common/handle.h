@@ -19,13 +19,7 @@ public:
 		return instance_ != nullptr;
 	}
 
-	friend bool operator==(const Handle& a, const Handle& b) {
-		return a.instance_ == b.instance_;
-	}
-
-	friend bool operator!=(const Handle& a, const Handle& b) {
-		return !(a == b);
-	}
+	friend bool operator==(const Handle&, const Handle&) = default;
 
 protected:
 	void Set(const std::shared_ptr<T>& other) {

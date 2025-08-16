@@ -11,6 +11,7 @@
 
 namespace ptgn {
 
+class Scene;
 class SceneInput;
 class Physics;
 
@@ -270,6 +271,7 @@ public:
 
 private:
 	friend class Entity;
+	friend class Scene;
 	friend class SceneInput;
 	friend class impl::RenderData;
 	friend class Physics;
