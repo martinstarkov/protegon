@@ -222,6 +222,9 @@ struct Vector2 {
 	// Angle in radians. Positive angle rotates clockwise.
 	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
 	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
+		if (NearlyEqual(angle_radians, 0.0f)) {
+			return { x, y };
+		}
 		auto c{ std::cos(angle_radians) };
 		auto s{ std::sin(angle_radians) };
 		return { x * c - y * s, x * s + y * c };
@@ -268,8 +271,18 @@ struct Vector2 {
 		return std::acos(cosine);
 	}
 
+	// @return True if both components are zero.
 	[[nodiscard]] bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
+	}
+
+	// @return True if either component is zero.
+	[[nodiscard]] bool HasZero() const {
+		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 });
+	}
+
+	[[nodiscard]] bool BothAboveZero() const {
+		return x > 0 && y > 0;
 	}
 };
 
