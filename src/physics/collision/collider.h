@@ -70,10 +70,10 @@ enum class CollisionResponse {
 };
 
 enum class CollisionMode {
-	None,	   // No collision checks.
-	Overlap,   // Overlap checks.
-	Intersect, // Discrete collision detection.
-	Sweep,	   // Continuous collision detection for high velocity colliders.
+	None,		// No collision checks.
+	Overlap,	// Overlap checks.
+	Discrete,	// Discrete collision detection.
+	Continuous, // Continuous collision detection for high velocity colliders.
 };
 
 struct Collider {
@@ -83,7 +83,7 @@ struct Collider {
 
 	Shape shape;
 
-	CollisionMode mode{ CollisionMode::Intersect };
+	CollisionMode mode{ CollisionMode::Discrete };
 
 	// How the velocity of the sweep should respond to obstacles.
 	// Only applicable if mode != CollisionMode::Overlap.
@@ -91,7 +91,7 @@ struct Collider {
 
 	Collider& SetOverlapMode();
 
-	Collider& SetCollisionMode(CollisionMode new_mode = CollisionMode::Intersect);
+	Collider& SetCollisionMode(CollisionMode new_mode = CollisionMode::Discrete);
 
 	[[nodiscard]] CollisionCategory GetCollisionCategory() const;
 
@@ -163,8 +163,8 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 PTGN_SERIALIZER_REGISTER_ENUM(
 	CollisionMode, { { CollisionMode::None, nullptr },
 					 { CollisionMode::Overlap, "overlap" },
-					 { CollisionMode::Intersect, "intersect" },
-					 { CollisionMode::Sweep, "sweep" } }
+					 { CollisionMode::Discrete, "discrete" },
+					 { CollisionMode::Continuous, "continuous" } }
 );
 
 } // namespace ptgn
