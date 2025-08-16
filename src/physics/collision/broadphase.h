@@ -47,7 +47,7 @@ public:
 	// trigger an entity to be updated within the KD-tree.
 	/*
 	 * Entity moved (own transform changed)	-> Mark as dirty.
-	 * Entity’s parent moved -> Mark entity and descendants as dirty.
+	 * Entity's parent moved -> Mark entity and descendants as dirty.
 	 * Transform added/removed -> Mark entity as dirty.
 	 * Parent changed (reparenting)	-> Mark entity and descendants as dirty.
 	 * Shape changed -> Mark entity as dirty.
@@ -75,8 +75,9 @@ public:
 	std::vector<Entity> Query(const V2_float& point) const;
 
 	// @param entity passed to avoid raycasting against itself.
-	std::vector<Entity> Raycast(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb)
-		const;
+	std::vector<Entity> Raycast(
+		const Entity& entity, const V2_float& dir, const BoundingAABB& aabb
+	) const;
 
 	// @param entity passed to avoid raycasting against itself.
 	Entity RaycastFirst(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb) const;

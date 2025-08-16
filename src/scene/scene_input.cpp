@@ -585,13 +585,13 @@ void SceneInput::Update(Scene& scene) {
 	// TODO: Move action invocations to separate functions:
 
 	const auto invoke_actions = [](auto& entity) {
-		if (!entity.Has<Scripts>() || !entity.IsAlive()) {
+		if (!entity.template Has<Scripts>() || !entity.IsAlive()) {
 			return;
 		}
 
-		auto& scripts{ entity.Get<Scripts>() };
+		auto& scripts{ entity.template Get<Scripts>() };
 
-		if (entity.Has<Interactive>()) {
+		if (entity.template Has<Interactive>()) {
 			scripts.InvokeActions();
 		} else {
 			scripts.ClearActions();
@@ -620,7 +620,9 @@ void SceneInput::Update(Scene& scene) {
 		std::invoke(invoke_actions, entity);
 	}
 
-	std::erase_if(dragging_entities_, [](const auto& entity) { return !entity.Has<Draggable>(); });
+	std::erase_if(dragging_entities_, [](const auto& entity) {
+		return !entity.template Has<Draggable>();
+	});
 
 	// Save for next frame.
 	last_mouse_over_ = std::unordered_set(entities.under_mouse.begin(), entities.under_mouse.end());
