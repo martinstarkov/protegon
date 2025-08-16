@@ -46,7 +46,7 @@ void main() {
 	animUV = vec2(fract(animR), fract(animG));
 
 	// Use the modified polar coordinates to sample a noise texture
-	vec4 animSwirl = texture2D(u_Texture, animUV);
+	vec4 animSwirl = texture(u_Texture, animUV);
 
 	// Use the step function to get only the white shape of the whirling "foam"
 	float animStep = step(u_Scale, animSwirl.r);
