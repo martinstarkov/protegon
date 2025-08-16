@@ -133,7 +133,7 @@
 //
 //	canvas_.SetRect(dest);
 //
-//	V2_float mouse_pos{ game.input.GetMousePosition() };
+//	V2_float mouse_pos{ input.GetMousePosition() };
 //	Rect canvas_rect{ canvas_.GetRect() };
 //	bool mouse_on_plot{ canvas_rect.Overlaps(mouse_pos) };
 //

@@ -89,28 +89,60 @@ RenderTarget GetParentRenderTarget(const Entity& entity) {
 }
 
 const Camera& Entity::GetCamera() const {
-	Camera* camera{ nullptr };
-	if (Has<Camera>()) {
-		camera = &Get<Camera>();
+	const auto& primary{ GetScene().camera.primary };
+	const auto get_camera = [&](const Entity& entity) -> const Camera* {
+		if (entity) {
+			if (const auto camera{ entity.TryGet<Camera>() }) {
+				if (*camera) {
+					return camera;
+				}
+				return &primary;
+			}
+		}
+		return nullptr;
+	};
+
+	if (auto c{ std::invoke(get_camera, *this) }) {
+		return *c;
 	}
-	if (camera && *camera) {
-		return *camera;
-	}
-	if (Has<RenderTarget>()) {
-		if (auto& rt{ Get<RenderTarget>() }; rt.Has<Camera>()) {
-			camera = &rt.Get<Camera>();
+	if (const auto rt{ TryGet<RenderTarget>() }) {
+		if (auto c{ std::invoke(get_camera, *rt) }) {
+			return *c;
 		}
 	}
-	if (camera && *camera) {
-		return *camera;
+	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this) {
+		if (auto c{ std::invoke(get_camera, rt) }) {
+			return *c;
+		}
 	}
-	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this && rt && rt.Has<Camera>()) {
-		camera = &rt.Get<Camera>();
+	return primary;
+}
+
+const Camera* Entity::GetNonPrimaryCamera() const {
+	const auto get_camera = [&](const Entity& entity) -> const Camera* {
+		if (entity) {
+			if (const auto camera{ entity.TryGet<Camera>() }) {
+				if (*camera) {
+					return camera;
+				}
+			}
+		}
+		return nullptr;
+	};
+	if (auto c{ std::invoke(get_camera, *this) }) {
+		return c;
 	}
-	if (camera && *camera) {
-		return *camera;
+	if (const auto rt{ TryGet<RenderTarget>() }) {
+		if (auto c{ std::invoke(get_camera, *rt) }) {
+			return c;
+		}
 	}
-	return GetScene().camera.primary;
+	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this) {
+		if (auto c{ std::invoke(get_camera, rt) }) {
+			return c;
+		}
+	}
+	return nullptr;
 }
 
 Camera& Entity::GetCamera() {

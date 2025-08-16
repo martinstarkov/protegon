@@ -203,18 +203,6 @@ void GenerateTestCases() {
 	LoadResource("noise", "resources/noise.png");
 
 	tests.emplace_back([](Scene& s) {
-		// AddRect(s, rect1_pos, rect1_size, rect1_color);
-
-		auto sprite = CreateSprite(s, "noise", rect2_pos);
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.25f, 0.5f, 0.8f }));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.5f, 0.25f, 0.7f }, color::White));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 1.0f, 0.5f, 0.7f }, color::White));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 3.0f, 0.2f, 1.0f }));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 5.0f, 0.1f, 1.0f }));
-		AddScript<FollowMouseScript>(sprite);
-	});
-
-	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, { 320, 240 }, rect1_color);
 		auto sprite{ AddSprite(s, rect1_pos) };
 		AddPreFX(sprite, CreateGrayscale(s));
@@ -225,6 +213,18 @@ void GenerateTestCases() {
 		SetRotation(sprite2, DegToRad(-45.0f));
 		auto sprite3 = AddSprite(s, rect1_pos);
 		SetRotation(sprite3, DegToRad(-10.0f));
+	});
+
+	tests.emplace_back([](Scene& s) {
+		// AddRect(s, rect1_pos, rect1_size, rect1_color);
+
+		auto sprite = CreateSprite(s, "noise", rect2_pos);
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.25f, 0.5f, 0.8f }));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.5f, 0.25f, 0.7f }, color::White));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 1.0f, 0.5f, 0.7f }, color::White));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 3.0f, 0.2f, 1.0f }));
+		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 5.0f, 0.1f, 1.0f }));
+		AddScript<FollowMouseScript>(sprite);
 	});
 
 	tests.emplace_back([](Scene& s) {

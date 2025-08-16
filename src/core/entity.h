@@ -141,6 +141,10 @@ public:
 	[[nodiscard]] const Camera& GetCamera() const;
 	[[nodiscard]] Camera& GetCamera();
 
+	// @return If the entity has a non primary camera attached to it, return its address, otherwise
+	// return nullptr.
+	[[nodiscard]] const Camera* GetNonPrimaryCamera() const;
+
 	[[nodiscard]] const Manager& GetManager() const;
 	[[nodiscard]] Manager& GetManager();
 

@@ -16,8 +16,7 @@ class Camera;
 class Button;
 
 struct MouseInfo {
-	MouseInfo() = default;
-	explicit MouseInfo(bool);
+	explicit MouseInfo(Scene& scene);
 
 	V2_int position;
 	V2_int scroll_delta;
@@ -42,6 +41,24 @@ public:
 	void SetTopOnly(bool top_only);
 
 	void SetDrawInteractives(bool draw_interactives);
+
+	// Convert a point from screen space to scene primary camera (world) space.
+	[[nodiscard]] V2_float ScreenToWorld(const V2_float& screen_point) const;
+
+	// @return Mouse position relative to the scene primary camera, clamped to the range [0,
+	// window_size].
+	[[nodiscard]] V2_float GetMousePosition() const;
+
+	// @return Mouse position relative to the scene primary camera, without clamping to the range
+	// [0, window_size].
+	[[nodiscard]] V2_float GetMousePositionUnclamped() const;
+
+	// @return Mouse position during the previous frame relative to the scene primary camera.
+	[[nodiscard]] V2_float GetMousePositionPrevious() const;
+
+	// @return Mouse position difference between the current and previous frames relative to the
+	// scene primary camera.
+	[[nodiscard]] V2_float GetMouseDifference() const;
 
 private:
 	friend class Scene;
