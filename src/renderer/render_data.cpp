@@ -629,8 +629,9 @@ void RenderData::AddShader(
 	PTGN_ASSERT(&scene == &game.scene.GetCurrent());
 	Camera camera;
 	if (bool state_changed{ SetState(state) }; state_changed || uses_scene_texture) {
-		camera				= GetCamera(scene);
-		intermediate_target = draw_context_pool.Get(camera.GetSize());
+		camera = GetCamera(scene);
+		// TODO: Change to using shader size instead of camera viewport.
+		intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
 		DrawTo(intermediate_target->frame_buffer);
 		intermediate_target->viewport_position = camera.GetViewportPosition();
 		intermediate_target->viewport_size	   = camera.GetViewportSize();
@@ -723,7 +724,7 @@ void RenderData::Flush(Scene& scene) {
 	if (!render_state.post_fx.post_fx_.empty()) {
 		if (!vertices.empty() && !indices.empty()) {
 			PTGN_ASSERT(!intermediate_target);
-			intermediate_target					   = draw_context_pool.Get(camera.GetSize());
+			intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
 			intermediate_target->viewport_position = camera.GetViewportPosition();
 			intermediate_target->viewport_size	   = camera.GetViewportSize();
 			intermediate_target->clear_color	   = color::Transparent;
@@ -746,7 +747,8 @@ void RenderData::Flush(Scene& scene) {
 		);
 
 		auto ping{ intermediate_target };
-		auto pong{ draw_context_pool.Get(camera.GetSize()) };
+		auto pong{ draw_context_pool.Get(camera.GetViewportSize()) };
+		// TODO: Remove? Or perhaps cache somehow in a value instead.
 		pong->viewport_position = camera.GetViewportPosition();
 		pong->viewport_size		= camera.GetViewportSize();
 		pong->clear_color		= color::Transparent;
