@@ -1,5 +1,6 @@
 #include "scene/scene.h"
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -33,6 +34,7 @@
 #include "serialization/fwd.h"
 #include "tweens/tween.h"
 #include "tweens/tween_effects.h"
+#include "utility/flags.h"
 
 namespace ptgn {
 
@@ -177,6 +179,7 @@ void Scene::InternalUpdate() {
 	input.Update(*this);
 
 	const auto invoke_scripts = [&]() {
+		// TODO: Consider moving this into the Scripts class.
 		for (auto [e, scripts] : EntitiesWith<Scripts>()) {
 			scripts.InvokeActions();
 		}
@@ -231,15 +234,15 @@ void Scene::InternalUpdate() {
 
 	physics.PostCollisionUpdate(*this);
 
-	// TODO: Use Entity::Copy() instead. It caused some weird bug when I tried.
-
-	PTGN_ASSERT(camera.primary.IsAlive(), "Scene must be reinitialized after clearing");
+	std::invoke(invoke_scripts);
 
 	// TODO: Update dirty vertex caches.
 
-	std::invoke(invoke_scripts);
-
 	InternalDraw();
+
+	for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
+		transform.dirty_flags_.ClearAll();
+	}
 
 	game.scene.current_ = {};
 }
