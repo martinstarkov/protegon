@@ -15,12 +15,10 @@ namespace ptgn {
 
 class Entity;
 
-struct Visible : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct Visible : public BoolComponent {
+	using BoolComponent::BoolComponent;
 
-	Visible() : ArithmeticComponent{ true } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Visible, value_)
+	Visible() : BoolComponent{ true } {}
 };
 
 struct Tint : public ColorComponent {
@@ -33,8 +31,6 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	[[nodiscard]] Depth RelativeTo(Depth parent) const;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Depth, value_)
 };
 
 struct EntityDepthCompare {
@@ -124,16 +120,12 @@ void SetDisplaySize(Entity& entity, const V2_float& display_size);
 
 struct TextureSize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(TextureSize, value_)
 };
 
 struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	LineWidth() : ArithmeticComponent{ 1.0f } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(LineWidth, value_)
 };
 
 struct TextureCrop {

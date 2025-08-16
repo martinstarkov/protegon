@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "components/generic.h"
 #include "core/entity.h"
 #include "serialization/serializable.h"
@@ -16,10 +18,10 @@ Entity& AddPreFX(Entity& entity, Entity pre_fx);
 
 namespace impl {
 
-struct UsePreviousTexture : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct UsePreviousTexture : public BoolComponent {
+	using BoolComponent::BoolComponent;
 
-	UsePreviousTexture() : ArithmeticComponent{ true } {}
+	UsePreviousTexture() : BoolComponent{ true } {}
 };
 
 struct PostFX {
@@ -27,13 +29,7 @@ struct PostFX {
 
 	std::vector<Entity> post_fx_;
 
-	friend bool operator==(const PostFX& a, const PostFX& b) {
-		return a.post_fx_ == b.post_fx_;
-	}
-
-	friend bool operator!=(const PostFX& a, const PostFX& b) {
-		return !(a == b);
-	}
+	friend bool operator==(const PostFX&, const PostFX&) = default;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(PostFX, KeyValue("post_fx", post_fx_))
 };
@@ -43,13 +39,7 @@ struct PreFX {
 
 	std::vector<Entity> pre_fx_;
 
-	friend bool operator==(const PreFX& a, const PreFX& b) {
-		return a.pre_fx_ == b.pre_fx_;
-	}
-
-	friend bool operator!=(const PreFX& a, const PreFX& b) {
-		return !(a == b);
-	}
+	friend bool operator==(const PreFX&, const PreFX&) = default;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(PreFX, KeyValue("pre_fx", pre_fx_))
 };

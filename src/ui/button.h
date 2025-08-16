@@ -83,8 +83,8 @@ public:
 	std::function<void()> on_activate;
 };
 
-struct ButtonToggled : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct ButtonToggled : public BoolComponent {
+	using BoolComponent::BoolComponent;
 };
 
 struct ButtonDisabledTextureKey : public TextureHandle {
@@ -216,10 +216,10 @@ struct ButtonTextToggled : public ButtonText {
 	using ButtonText::ButtonText;
 };
 
-struct ButtonEnabled : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct ButtonEnabled : public BoolComponent {
+	using BoolComponent::BoolComponent;
 
-	ButtonEnabled() : ArithmeticComponent{ true } {}
+	ButtonEnabled() : BoolComponent{ true } {}
 };
 
 } // namespace impl

@@ -44,6 +44,10 @@ protected:
 	T value_{};
 };
 
+struct BoolComponent : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
+};
+
 struct HashComponent {
 	HashComponent() = default;
 
