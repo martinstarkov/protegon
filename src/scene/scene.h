@@ -130,6 +130,7 @@ private:
 	RenderTarget render_target_;
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
+	float collider_line_width_{ 1.0f };
 };
 
 } // namespace ptgn

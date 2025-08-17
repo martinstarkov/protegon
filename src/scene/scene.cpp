@@ -143,24 +143,14 @@ void Scene::InternalExit() {
 }
 
 void Scene::InternalDraw() {
-	// Ensure unzoomed cameras match their zoomed counterparts.
-
-	GetTransform(camera.primary_unzoomed)			= GetTransform(camera.primary);
-	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
-	GetTransform(camera.window_unzoomed)			= GetTransform(camera.window);
-	camera.window_unzoomed.Get<impl::CameraInfo>()	= camera.window.Get<impl::CameraInfo>();
-
-	camera.primary_unzoomed.SetZoom(1.0f);
-	camera.window_unzoomed.SetZoom(1.0f);
-
 	if (collider_visibility_) {
-		// TODO: Fix.
-		// for (auto [e, collider] : EntitiesWith<Collider>()) {
-		//	auto transform{ GetAbsoluteTransform(e) };
-		//	/*DrawDebugRect(
-		//		transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
-		//	);*/
-		//}
+		for (auto [entity, collider] : EntitiesWith<Collider>()) {
+			auto transform{ GetAbsoluteTransform(entity) };
+			transform = ApplyOffset(collider.shape, transform, entity);
+			DrawDebugShape(
+				transform, collider.shape, collider_color_, collider_line_width_, entity.GetCamera()
+			);
+		}
 	}
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.Draw(*this);
@@ -186,7 +176,7 @@ void Scene::InternalUpdate() {
 		Refresh();
 	};
 
-	std::invoke(invoke_scripts);
+	invoke_scripts();
 
 	float dt{ game.dt() };
 	float time{ game.time() };
@@ -195,7 +185,7 @@ void Scene::InternalUpdate() {
 		scripts.AddAction(&impl::IScript::OnUpdate);
 	}
 
-	std::invoke(invoke_scripts);
+	invoke_scripts();
 
 	// TODO: Fix script invocations for timer script.
 	// TODO: Figure out timed / repeated scripts. Using tween system?
@@ -206,7 +196,7 @@ void Scene::InternalUpdate() {
 
 	Refresh();
 
-	std::invoke(invoke_scripts);
+	invoke_scripts();
 
 	ParticleEmitter::Update(*this);
 
@@ -214,7 +204,7 @@ void Scene::InternalUpdate() {
 		Tween{ entity }.Step(dt);
 	}
 
-	std::invoke(invoke_scripts);
+	invoke_scripts();
 
 	translate_effects_.Update(*this);
 	rotate_effects_.Update(*this);
@@ -234,7 +224,7 @@ void Scene::InternalUpdate() {
 
 	physics.PostCollisionUpdate(*this);
 
-	std::invoke(invoke_scripts);
+	invoke_scripts();
 
 	// TODO: Update dirty vertex caches.
 
