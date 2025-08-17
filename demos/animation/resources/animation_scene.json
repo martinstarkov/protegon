@@ -6,7 +6,7 @@
     "camera": {
         "primary": {
             "SceneKey": null,
-            "UUID": 966988280592370044
+            "UUID": 16758140619854099216
         },
         "scene_key": null
     },
@@ -37,8 +37,8 @@
             "AnimationInfo": {
                 "components": [
                     {
-                        "current_frame": 12,
-                        "duration": "2000ms",
+                        "current_frame": 6,
+                        "duration": "4000ms",
                         "frame_count": 16,
                         "frame_size": [
                             512,
@@ -48,7 +48,7 @@
                             "paused": false,
                             "running": true
                         },
-                        "frames_played": 28,
+                        "frames_played": 22,
                         "play_count": -1
                     }
                 ],
@@ -244,7 +244,7 @@
                 "components": [
                     {
                         "position": [
-                            6144.0,
+                            3072.0,
                             0.0
                         ],
                         "size": [
@@ -331,8 +331,8 @@
             },
             "UUID": {
                 "components": [
-                    966988280592370044,
-                    6717454337314801556
+                    16758140619854099216,
+                    9995860407891653781
                 ],
                 "dense_set": [
                     0,
@@ -385,6 +385,6 @@
         ]
     },
     "render_target": {
-        "UUID": 15028801356133056064
+        "UUID": 12268400110015968090
     }
 }

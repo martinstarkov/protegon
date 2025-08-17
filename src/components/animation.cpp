@@ -18,10 +18,6 @@
 #include "resources/resource_manager.h"
 #include "scene/scene.h"
 
-// TODO: Check that script invocations do not lead to memory corruption if entity is deleted, or
-// component is removed. Perhaps move script invocations to a queue that is executed by itself
-// at the end of the update.
-
 namespace ptgn {
 
 Animation CreateAnimation(
@@ -66,7 +62,9 @@ void Animation::Start(bool force) {
 	crop.size		   = anim.frame_size;
 	bool started{ anim.frame_timer.Start(force) };
 	if (started) {
-		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationStart>(*this);
+		if (auto scripts{ TryGet<Scripts>() }) {
+			scripts->AddAction(&AnimationScript::OnAnimationStart);
+		}
 	}
 }
 
@@ -79,14 +77,18 @@ void Animation::Reset() {
 	auto& crop		   = Get<TextureCrop>();
 	crop.position	   = anim.GetCurrentFramePosition();
 	crop.size		   = anim.frame_size;
-	// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationStop>(*this);
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationStop);
+	}
 	anim.frame_timer.Reset();
 }
 
 void Animation::Stop() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationStop>(*this);
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationStop);
+	}
 	anim.frame_timer.Stop();
 }
 
@@ -101,14 +103,18 @@ void Animation::Toggle() {
 void Animation::Pause() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationPause>(*this);
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationPause);
+	}
 	anim.frame_timer.Pause();
 }
 
 void Animation::Resume() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationResume>(*this);
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationResume);
+	}
 	anim.frame_timer.Resume();
 }
 
@@ -237,21 +243,26 @@ void AnimationSystem::Update(Scene& scene) {
 		if (bool infinite_playback{ anim.play_count == -1 };
 			!infinite_playback &&
 			anim.frames_played >= static_cast<std::size_t>(anim.play_count) * anim.frame_count) {
-			// TODO: Fix script
-			// invocation.InvokeScript<&impl::IScript::OnAnimationComplete>(entity); Reset animation
-			// to start frame after it finishes.
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationComplete);
+			}
+			// Reset animation to start frame after it finishes.
 			anim.SetCurrentFrame(0);
-			// TODO: Fix script
-			// invocation.InvokeScript<&impl::IScript::OnAnimationFrameChange>(entity,
-			// anim.current_frame);
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationFrameChange);
+			}
 			crop.size	  = anim.frame_size;
 			crop.position = anim.GetCurrentFramePosition();
 			anim.frame_timer.Stop();
-			// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationStop>(entity);
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationStop);
+			}
 			continue;
 		}
 
-		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationUpdate>(entity);
+		if (auto scripts{ entity.TryGet<Scripts>() }) {
+			scripts->AddAction(&AnimationScript::OnAnimationUpdate);
+		}
 
 		if (auto frame_duration{ anim.GetFrameDuration() };
 			!anim.frame_timer.Completed(frame_duration)) {
@@ -264,18 +275,24 @@ void AnimationSystem::Update(Scene& scene) {
 
 		anim.IncrementFrame();
 
-		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationFrameChange>(entity,
-		// anim.current_frame);
+		if (auto scripts{ entity.TryGet<Scripts>() }) {
+			scripts->AddAction(&AnimationScript::OnAnimationFrameChange);
+		}
 
 		crop.size	  = anim.frame_size;
 		crop.position = anim.GetCurrentFramePosition();
 
 		if (anim.frames_played % anim.frame_count == 0) {
-			// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnAnimationRepeat>(entity,
-			// anim.GetPlayCount());
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationRepeat);
+			}
 		}
 
 		anim.frame_timer.Start(true);
+	}
+
+	for (auto [e, anim, scripts] : scene.EntitiesWith<AnimationInfo, Scripts>()) {
+		scripts.InvokeActions();
 	}
 
 	scene.Refresh();

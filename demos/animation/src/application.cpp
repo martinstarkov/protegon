@@ -1,11 +1,47 @@
 #include "components/animation.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/time.h"
+#include "input/input_handler.h"
 #include "math/vector2.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
+
+struct MyAnimationScript1 : public Script<MyAnimationScript1, AnimationScript> {
+	void OnAnimationStart() {
+		PTGN_LOG("OnAnimationStart");
+	}
+
+	void OnAnimationUpdate() {
+		// PTGN_LOG("OnAnimationUpdate");
+	}
+
+	void OnAnimationRepeat() {
+		PTGN_LOG("OnAnimationRepeat");
+	}
+
+	void OnAnimationFrameChange() {
+		PTGN_LOG("OnAnimationFrameChange");
+	}
+
+	void OnAnimationComplete() {
+		PTGN_LOG("OnAnimationComplete");
+	}
+
+	void OnAnimationPause() {
+		PTGN_LOG("OnAnimationPause");
+	}
+
+	void OnAnimationResume() {
+		PTGN_LOG("OnAnimationResume");
+	}
+
+	void OnAnimationStop() {
+		PTGN_LOG("OnAnimationStop");
+	}
+};
 
 class AnimationScene : public Scene {
 public:
@@ -29,14 +65,26 @@ public:
 		// CreateAnimation(*this, "anim3", GetPosition(camera.primary), 16, milliseconds{ 1000 },
 		// V2_int{ 512, 512 }, -1, {});
 		animation = CreateAnimation(
-			*this, "anim2", GetPosition(camera.primary), 16, milliseconds{ 2000 },
+			*this, "anim2", GetPosition(camera.primary), 16, milliseconds{ 4000 },
 			V2_int{ 512, 512 }, -1, {}
 		);
+		AddScript<MyAnimationScript1>(animation);
 		// CreateAnimation(*this, "anim", GetPosition(camera.primary), 4, milliseconds{ 500
 		// },V2_int{ 16, 32 }, -1, {}); SetScale(animation2, 0.5f);
 
 		animation.Start();
 		// animation2.Start();
+	}
+
+	void Update() override {
+		if (game.input.KeyDown(Key::R)) {
+			animation.Resume();
+		} else if (game.input.KeyDown(Key::P)) {
+			animation.Pause();
+		}
+		if (game.input.KeyDown(Key::T)) {
+			animation.Toggle();
+		}
 	}
 
 	void Exit() override {

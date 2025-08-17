@@ -275,8 +275,6 @@ struct DropzoneScript : public impl::BaseScript<ScriptType::Dropzone> {
 struct AnimationScript : public impl::BaseScript<ScriptType::Animation> {
 	virtual ~AnimationScript() = default;
 
-	// TODO: Add animation info or reference to it here.
-
 	virtual void OnAnimationStart() { /* user implementation */ }
 
 	virtual void OnAnimationUpdate() { /* user implementation */ }
