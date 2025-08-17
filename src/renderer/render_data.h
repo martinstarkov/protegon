@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include "common/assert.h"
@@ -98,9 +99,7 @@ public:
 
 	void Invoke(Entity entity) const;
 
-	bool operator==(const ShaderPass& other) const;
-
-	bool operator!=(const ShaderPass& other) const;
+	bool operator==(const ShaderPass&) const = default;
 
 private:
 	const Shader* shader_{ nullptr };
@@ -236,9 +235,9 @@ private:
 	friend struct ViewportResizeScript;
 
 	void DrawCall(
-		const Shader& shader, const std::vector<Vertex>& vertices,
-		const std::vector<Index>& indices, const std::vector<TextureId>& textures,
-		const impl::FrameBuffer& frame_buffer, BlendMode blend_mode,
+		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
+		const std::vector<TextureId>& textures, const impl::FrameBuffer& frame_buffer,
+		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
 		const V2_int& viewport_position, const V2_int& viewport_size, const Matrix4& view_projection
 	);
 
@@ -349,9 +348,9 @@ private:
 	std::shared_ptr<DrawContext> intermediate_target;
 	RenderTarget drawing_to;
 
-	constexpr static float min_line_width{ 1.0f };
-	constexpr static std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
-	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };
+	static constexpr float min_line_width{ 1.0f };
+	static constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
+	static constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 

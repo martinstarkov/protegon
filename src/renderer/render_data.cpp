@@ -119,16 +119,9 @@ const Shader& ShaderPass::GetShader() const {
 void ShaderPass::Invoke(Entity entity) const {
 	PTGN_ASSERT(shader_ != nullptr);
 	if (uniform_callback_) {
+		shader_->Bind();
 		uniform_callback_(entity, *shader_);
 	}
-}
-
-bool ShaderPass::operator==(const ShaderPass& other) const {
-	return shader_ == other.shader_ && uniform_callback_ == other.uniform_callback_;
-}
-
-bool ShaderPass::operator!=(const ShaderPass& other) const {
-	return !(*this == other);
 }
 
 DrawContext::DrawContext(const V2_int& size) :
@@ -328,7 +321,7 @@ void RenderData::AddTexturedQuad(
 	auto texture_points{ Rect{ size }.GetWorldVertices(transform, origin) };
 
 	auto texture_vertices{
-		impl::GetQuadVertices(texture_points, tint, depth, 0.0f, texture_coordinates)
+		impl::GetQuadVertices(texture_points, tint, depth, 0.0f, texture_coordinates, false)
 	};
 
 	auto texture_id{ texture.GetId() };
@@ -336,11 +329,7 @@ void RenderData::AddTexturedQuad(
 
 	PTGN_ASSERT(!texture_size.IsZero(), "Texture must have a non-zero size");
 
-	bool pre_fx_exist{ !pre_fx.pre_fx_.empty() };
-
-	std::shared_ptr<DrawContext> context;
-
-	if (pre_fx_exist) {
+	if (!pre_fx.pre_fx_.empty()) {
 		std::array<V2_float, 4> points{ V2_float{}, V2_float{ texture_size.x, 0.0f }, texture_size,
 										V2_float{ 0.0f, texture_size.y } };
 		Matrix4 projection{ Matrix4::Orthographic(
@@ -357,64 +346,49 @@ void RenderData::AddTexturedQuad(
 
 		bool use_previous_texture{ true };
 
-		for (auto it = pre_fx.pre_fx_.begin(); it != pre_fx.pre_fx_.end(); ++it) {
-			if (it != pre_fx.pre_fx_.begin() && use_previous_texture) {
+		for (const auto& fx : pre_fx.pre_fx_) {
+			bool first_effect{ fx == pre_fx.pre_fx_.front() };
+
+			if (!first_effect && use_previous_texture) {
 				std::swap(read, write);
 			}
 
-			const auto& fx{ *it };
-			write->frame_buffer.Bind();
-			PTGN_ASSERT(write->frame_buffer.IsBound());
+			TextureId read_from_texture{ 0 };
 
-			if (use_previous_texture) {
-				GLRenderer::ClearToColor(color::Transparent);
+			if (first_effect || !use_previous_texture) {
+				read_from_texture = texture.GetId();
+			} else {
+				read_from_texture = read->frame_buffer.GetTexture().GetId();
 			}
 
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
 
 			shader.Bind();
-			shader.SetUniform("u_ViewProjection", projection);
-
-			auto blend_mode{ GetBlendMode(fx) };
-
-			// assert that vertices is screen vertices.
-			GLRenderer::SetViewport({}, texture_size);
-			GLRenderer::SetBlendMode(blend_mode);
-
-			if (it == pre_fx.pre_fx_.begin() || !use_previous_texture) {
-				PTGN_ASSERT(texture.IsValid());
-				texture.Bind(1);
-			} else {
-				PTGN_ASSERT(read->frame_buffer.GetTexture().IsValid());
-				read->frame_buffer.GetTexture().Bind(1);
-			}
-
-			auto pre_fx_tint{ GetTint(fx) };
-
-			// TODO: Cache this somehow?
-			auto camera_vertices{
-				GetQuadVertices(points, pre_fx_tint, depth, 1.0f, default_texture_coordinates, true)
-			};
-			UpdateVertexArray(camera_vertices, quad_indices);
-
 			shader.SetUniform("u_Texture", 1);
 			shader.SetUniform("u_Resolution", V2_float{ texture_size });
-
 			shader_pass.Invoke(fx);
 
-			GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
+			DrawCall(
+				shader,
+				GetQuadVertices(
+					points, GetTint(fx), depth, 1.0f, default_texture_coordinates, true
+				),
+				quad_indices, { read_from_texture }, write->frame_buffer, use_previous_texture,
+				color::Transparent, GetBlendMode(fx), {}, texture_size, projection
+			);
 
 			use_previous_texture = fx.GetOrDefault<UsePreviousTexture>();
 		}
 
-		PTGN_LOG("Read pre fx (0, 0): ", read->frame_buffer.GetPixel({ 0, 0 }));
+		// PTGN_LOG("Read pre fx (0, 0): ", read->frame_buffer.GetPixel({ 0, 0 }));
 
+		// TODO: Use reference count + pool update to do this automatically instead.
 		read->in_use = false;
 
 		texture_id = write->frame_buffer.GetTexture().GetId();
 
-		PTGN_LOG("Write pre fx (0, 0): ", write->frame_buffer.GetPixel({ 0, 0 }));
+		// PTGN_LOG("Write pre fx (0, 0): ", write->frame_buffer.GetPixel({ 0, 0 }));
 
 		white_texture.Bind(0);
 
@@ -547,58 +521,43 @@ void RenderData::AddShader(
 	Entity entity, const RenderState& state, const Color& target_clear_color,
 	bool uses_scene_texture, const Texture& texture, const Color& tint
 ) {
-	Scene& scene{ entity.GetScene() };
-	PTGN_ASSERT(&scene == &game.scene.GetCurrent());
-	Camera camera;
-	if (bool state_changed{ SetState(state) }; state_changed || uses_scene_texture) {
-		camera = GetCamera(scene);
+	auto& scene{ entity.GetScene() };
+
+	bool state_changed{ SetState(state) };
+	bool clear{ state_changed || uses_scene_texture };
+
+	Camera camera{ GetCamera(scene) };
+
+	if (clear) {
 		// TODO: Change to using shader size instead of camera viewport.
+		// TODO: Dont do this as it never sets in_use to false.
 		intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
-		intermediate_target->frame_buffer.Bind();
-		GLRenderer::SetViewport({}, intermediate_target->frame_buffer.GetTexture().GetSize());
-		intermediate_target->frame_buffer.ClearToColor(target_clear_color);
-		if (uses_scene_texture) {
-			PTGN_ASSERT(drawing_to);
-			PTGN_ASSERT(drawing_to.GetTexture().IsValid());
-			drawing_to.GetTexture().Bind(1);
-		} else if (texture.IsValid()) {
-			PTGN_ASSERT(texture.IsValid());
-			texture.Bind(1);
-		}
-	} else {
-		camera = GetCamera(scene);
-		PTGN_ASSERT(intermediate_target->frame_buffer.IsBound());
-		PTGN_ASSERT(intermediate_target);
 	}
 
-	auto camera_vertices{ GetQuadVertices(
-		camera.GetWorldVertices(), tint, GetDepth(camera), 1.0f, default_texture_coordinates, false
-	) };
-	UpdateVertexArray(camera_vertices, quad_indices);
+	std::vector<TextureId> texture_id;
 
-	GLRenderer::SetBlendMode(render_state.blend_mode);
+	if (uses_scene_texture) {
+		texture_id.emplace_back(drawing_to.GetTexture().GetId());
+	} else if (texture.IsValid()) {
+		texture_id.emplace_back(texture.GetId());
+	}
 
 	const auto& shader{ render_state.shader_pass.GetShader() };
 	PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
-	// TODO: Only update these if shader bind is dirty.
 	shader.Bind();
-	shader.SetUniform("u_ViewProjection", camera);
 	shader.SetUniform("u_Texture", 1);
-	// TODO: Replace.
-	shader.SetUniform("u_Resolution", camera.GetViewportSize());
+	shader.SetUniform("u_Resolution", V2_float{ camera.GetViewportSize() });
 	render_state.shader_pass.Invoke(entity);
 
-	// PTGN_LOG(
-	// 	"Before drawing shader to intermediate target:",
-	// 	intermediate_target.GetPixel({ 50, 50 })
-	// );
-
-	GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
-
-	// PTGN_LOG(
-	// 	"After drawing shader to intermediate target:",
-	// 	intermediate_target.GetPixel({ 50, 50 })
-	// );
+	DrawCall(
+		shader,
+		GetQuadVertices(
+			camera.GetWorldVertices(), tint, GetDepth(camera), 1.0f, default_texture_coordinates,
+			false
+		),
+		quad_indices, texture_id, intermediate_target->frame_buffer, clear, target_clear_color,
+		render_state.blend_mode, camera.GetViewportPosition(), camera.GetViewportSize(), camera
+	);
 }
 
 void RenderData::AddTemporaryTexture(Texture&& texture) {
@@ -629,13 +588,21 @@ void RenderData::Flush() {
 	Flush(game.scene.GetCurrent());
 }
 
-void DrawCall(
-	const Shader& shader, const std::vector<Vertex>& vertices, const std::vector<Index>& indices,
+void RenderData::DrawCall(
+	const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
 	const std::vector<TextureId>& textures, const impl::FrameBuffer& frame_buffer,
-	BlendMode blend_mode, const V2_int& viewport_position, const V2_int& viewport_size,
-	VertexArray& triangle_vao, const Matrix4& view_projection, std::size_t max_texture_slots
+	bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
+	const V2_int& viewport_position, const V2_int& viewport_size, const Matrix4& view_projection
 ) {
+	if (vertices.empty() || indices.empty()) {
+		return;
+	}
+
 	frame_buffer.Bind();
+
+	if (clear_frame_buffer) {
+		GLRenderer::ClearToColor(clear_color);
+	}
 
 	GLRenderer::SetViewport(viewport_position, viewport_size);
 	GLRenderer::SetBlendMode(blend_mode);
@@ -656,6 +623,7 @@ void DrawCall(
 	PTGN_ASSERT(textures.size() < max_texture_slots);
 
 	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
+		PTGN_ASSERT(textures[i], "Cannot bind invalid texture");
 		// Save first texture slot for empty white texture.
 		std::uint32_t slot{ i + 1 };
 		Texture::Bind(textures[i], slot);
@@ -665,136 +633,69 @@ void DrawCall(
 }
 
 void RenderData::Flush(Scene& scene) {
-	const auto draw_vertices_to = [&](auto camera, const auto& target) {
-		target.Bind();
-		UpdateVertexArray(vertices_, indices_);
-		auto viewport_position{ camera.GetViewportPosition() };
-		auto viewport_size{ camera.GetViewportSize() };
-		GLRenderer::SetViewport(viewport_position, viewport_size);
-		GLRenderer::SetBlendMode(render_state.blend_mode);
-		BindTextures();
-
-		// TODO: Only set uniform if camera changed.
-		const auto& shader{ render_state.shader_pass.GetShader() };
-
-		// TODO: Call shader pass uniform?
-
-		shader.Bind();
-		shader.SetUniform("u_ViewProjection", camera);
-
-		GLRenderer::DrawElements(triangle_vao, indices_.size(), false);
-	};
 	auto camera{ GetCamera(scene) };
 
 	if (!render_state.post_fx.post_fx_.empty()) {
-		if (!vertices_.empty() && !indices_.empty()) {
-			PTGN_ASSERT(!intermediate_target);
-			intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
-			intermediate_target->frame_buffer.ClearToColor(color::Transparent);
-			// Draw vertices to intermediate target before adding post fx to it.
-			/*PTGN_LOG(
-				"intermediate_target center: ",
-				intermediate_target->frame_buffer.GetPixel({ 400, 400 })
-			);*/
-
-			draw_vertices_to(camera, intermediate_target->frame_buffer);
-			/*PTGN_LOG(
-				"intermediate_target center: ",
-				intermediate_target->frame_buffer.GetPixel({ 400, 400 })
-			);*/
-		}
-		PTGN_ASSERT(
-			intermediate_target, "Intermediate target must be used before rendering post fx"
+		// Draw vertices to intermediate target before adding post fx to it.
+		PTGN_ASSERT(!intermediate_target);
+		intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
+		DrawCall(
+			render_state.shader_pass.GetShader(), vertices_, indices_, textures_,
+			intermediate_target->frame_buffer, true, color::Transparent, render_state.blend_mode,
+			camera.GetViewportPosition(), camera.GetViewportSize(), camera
 		);
 
-		auto ping{ intermediate_target };
-		auto pong{ draw_context_pool.Get(camera.GetViewportSize()) };
+		// TODO: Fix ping ponging.
+
+		auto read{ intermediate_target };
+		auto write{ draw_context_pool.Get(camera.GetViewportSize()) };
 
 		for (const auto& fx : render_state.post_fx.post_fx_) {
-			pong->frame_buffer.Bind();
-			pong->frame_buffer.ClearToColor(color::Transparent);
-
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
 
 			shader.Bind();
-			shader.SetUniform("u_ViewProjection", camera);
-
-			/*PTGN_ASSERT(vertices_.size() == 0);
-			PTGN_ASSERT(indices_.size() == 0);*/
-			// assert that vertices is screen vertices.
-			auto viewport_position{ camera.GetViewportPosition() };
-			auto viewport_size{ camera.GetViewportSize() };
-			GLRenderer::SetViewport(viewport_position, viewport_size);
-			auto blend_mode{ GetBlendMode(fx) };
-			GLRenderer::SetBlendMode(blend_mode);
-
-			PTGN_ASSERT(ping->frame_buffer.GetTexture().IsValid());
-			ping->frame_buffer.GetTexture().Bind(1);
-
-			auto post_fx_tint{ GetTint(fx) };
-
-			// TODO: Cache this somehow?
-			auto camera_vertices{ GetQuadVertices(
-				camera.GetWorldVertices(), post_fx_tint, GetDepth(camera), 1.0f,
-				default_texture_coordinates, false
-			) };
-			UpdateVertexArray(camera_vertices, quad_indices);
-
-			V2_float viewport{ camera.GetViewportSize() };
-
 			shader.SetUniform("u_Texture", 1);
-			shader.SetUniform("u_Resolution", viewport);
-
+			shader.SetUniform("u_Resolution", V2_float{ camera.GetViewportSize() });
 			shader_pass.Invoke(fx);
 
-			GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
+			DrawCall(
+				shader,
+				GetQuadVertices(
+					camera.GetWorldVertices(), GetTint(fx), GetDepth(camera), 1.0f,
+					default_texture_coordinates, false
+				),
+				quad_indices, { read->frame_buffer.GetTexture().GetId() }, write->frame_buffer,
+				true, color::Transparent, GetBlendMode(fx), camera.GetViewportPosition(),
+				camera.GetViewportSize(), camera
+			);
 
-			intermediate_target = pong;
+			intermediate_target = write;
 		}
-	} else {
-		//	PTGN_LOG("No post fx");
 	}
 
 	if (intermediate_target) {
-		/*PTGN_LOG(
-			"intermediate_target center: ", intermediate_target->frame_buffer.GetPixel({ 400, 400 })
-		);*/
-		PTGN_ASSERT(drawing_to);
-		drawing_to.Bind();
-		/*PTGN_LOG("PreDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 400, 400 }));*/
-
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 
-		shader.Bind();
-		shader.SetUniform("u_ViewProjection", camera);
-		/*PTGN_ASSERT(vertices.size() == 0);
-		PTGN_ASSERT(indices.size() == 0);*/
-		// assert that vertices is screen vertices.
-		auto blend_mode{ render_state.blend_mode };
-		auto viewport_position{ camera.GetViewportPosition() };
-		auto viewport_size{ camera.GetViewportSize() };
-		GLRenderer::SetViewport(viewport_position, viewport_size);
-		GLRenderer::SetBlendMode(blend_mode);
+		DrawCall(
+			shader,
+			GetQuadVertices(
+				camera.GetWorldVertices(), color::White, GetDepth(camera), 1.0f,
+				default_texture_coordinates, false
+			),
+			quad_indices, { intermediate_target->frame_buffer.GetTexture().GetId() },
+			drawing_to.GetFrameBuffer(), false, color::Transparent, render_state.blend_mode,
+			camera.GetViewportPosition(), camera.GetViewportSize(), camera
+		);
 
-		PTGN_ASSERT(intermediate_target->frame_buffer.GetTexture().IsValid());
-		intermediate_target->frame_buffer.GetTexture().Bind(1);
-		/*PTGN_LOG("Intermediate: ", intermediate_target->frame_buffer.GetPixel({ 400, 400 }));*/
-		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
+	} else if (render_state.shader_pass != ShaderPass{}) {
+		const auto& shader{ render_state.shader_pass.GetShader() };
 
-		// TODO: Cache this somehow?
-		auto camera_vertices{ GetQuadVertices(
-			camera.GetWorldVertices(), color::White, GetDepth(camera), 1.0f,
-			default_texture_coordinates, false
-		) };
-		UpdateVertexArray(camera_vertices, quad_indices);
-
-		GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
-		/*PTGN_LOG("PostDraw: ", drawing_to.GetPixel({ 400, 400 }));*/
-
-	} else if (!vertices_.empty() && !indices_.empty()) {
-		PTGN_ASSERT(drawing_to);
-		draw_vertices_to(camera, drawing_to);
+		DrawCall(
+			shader, vertices_, indices_, textures_, drawing_to.GetFrameBuffer(), false,
+			color::Transparent, render_state.blend_mode, camera.GetViewportPosition(),
+			camera.GetViewportSize(), camera
+		);
 	}
 
 	Reset();
@@ -931,30 +832,19 @@ void RenderData::UpdateResolutions(
 }
 
 void RenderData::DrawToScreen(Scene& scene) {
-	FrameBuffer::Unbind();
-
-	std::array<V2_float, 4> points{ V2_float{}, V2_float{ logical_resolution_.x, 0.0f },
-									logical_resolution_, V2_float{ 0.0f, logical_resolution_.y } };
-
-	auto camera_vertices{
-		GetQuadVertices(points, color::White, 0, 1.0f, default_texture_coordinates, true)
-	};
-	UpdateVertexArray(camera_vertices, quad_indices);
-
-	GLRenderer::SetViewport(physical_viewport_.position, physical_viewport_.size);
-	auto blend_mode{ GetBlendMode(scene.render_target_) };
-	GLRenderer::SetBlendMode(blend_mode);
-
 	const Shader* shader{ nullptr };
 
 	if constexpr (HDR_ENABLED) {
 		shader = &game.shader.Get<OtherShader::ToneMapping>();
+		PTGN_ASSERT(shader != nullptr);
+		shader->Bind();
+		shader->SetUniform("u_Texture", 1);
+		shader->SetUniform("u_Exposure", 1.0f);
+		shader->SetUniform("u_Gamma", 2.2f);
 	} else {
 		shader = &game.shader.Get<ScreenShader::Default>();
+		PTGN_ASSERT(shader != nullptr);
 	}
-
-	PTGN_ASSERT(shader != nullptr);
-	shader->Bind();
 
 	PTGN_ASSERT(
 		physical_viewport_.size.BothAboveZero(),
@@ -966,18 +856,17 @@ void RenderData::DrawToScreen(Scene& scene) {
 		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	) };
 
-	shader->SetUniform("u_ViewProjection", projection);
-
-	if constexpr (HDR_ENABLED) {
-		shader->SetUniform("u_Texture", 1);
-		shader->SetUniform("u_Exposure", 1.0f);
-		shader->SetUniform("u_Gamma", 2.2f);
-	}
-
-	PTGN_ASSERT(scene.render_target_.GetTexture().IsValid());
-	scene.render_target_.GetTexture().Bind(1);
-
-	GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
+	DrawCall(
+		*shader,
+		GetQuadVertices(
+			{ V2_float{}, V2_float{ logical_resolution_.x, 0.0f }, logical_resolution_,
+			  V2_float{ 0.0f, logical_resolution_.y } },
+			color::White, 0, 1.0f, default_texture_coordinates, true
+		),
+		quad_indices, { scene.render_target_.GetTexture().GetId() }, impl::FrameBuffer{}, false,
+		color::Transparent, GetBlendMode(scene.render_target_), physical_viewport_.position,
+		physical_viewport_.size, projection
+	);
 }
 
 void RenderData::ClearRenderTargets(Scene& scene) const {
