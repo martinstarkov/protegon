@@ -1,9 +1,9 @@
+#include <algorithm>
 #include <cstdint>
 #include <string_view>
 #include <tuple>
 #include <vector>
 
-#include "algorithm"
 #include "common/assert.h"
 #include "core/game.h"
 #include "core/script.h"
@@ -45,25 +45,27 @@ public:
 class TweenConfig1 : public Script<TweenConfig1, TweenScript> {
 public:
 	void OnStart() override {
-		PTGN_LOG("Starting tween1 with value ", info.progress);
+		PTGN_LOG("Starting tween1 with value ", Tween{ entity }.GetProgress());
 	}
 
-	void OnProgress(float f) override { /*PTGN_LOG("Updated Value: ", info.progress);*/ }
+	void OnProgress(
+		[[maybe_unused]] float f
+	) override { /*PTGN_LOG("Updated Value: ", Tween{ entity }.GetProgress());*/ }
 
 	void OnComplete() override {
-		PTGN_LOG("Completed tween1 with value ", info.progress);
+		PTGN_LOG("Completed tween1 with value ", Tween{ entity }.GetProgress());
 	}
 
 	void OnStop() override {
-		PTGN_LOG("Stopped tween1 with value ", info.progress);
+		PTGN_LOG("Stopped tween1 with value ", Tween{ entity }.GetProgress());
 	}
 
 	void OnPause() override {
-		PTGN_LOG("Paused tween1 with value ", info.progress);
+		PTGN_LOG("Paused tween1 with value ", Tween{ entity }.GetProgress());
 	}
 
 	void OnResume() override {
-		PTGN_LOG("Resumed tween1 with value ", info.progress);
+		PTGN_LOG("Resumed tween1 with value ", Tween{ entity }.GetProgress());
 	}
 
 	void OnRepeat() override {
@@ -74,21 +76,21 @@ public:
 class TweenConfig3 : public Script<TweenConfig3, TweenScript> {
 public:
 	void OnRepeat() override {
-		PTGN_LOG("Repeating tween3 (repeat #", info.tween.GetRepeats(), ")");
+		PTGN_LOG("Repeating tween3 (repeat #", Tween{ entity }.GetRepeats(), ")");
 	}
 };
 
 class TweenConfig5 : public Script<TweenConfig5, TweenScript> {
 public:
 	void OnYoyo() override {
-		PTGN_LOG("Yoyoing tween5 (repeat #", info.tween.GetRepeats(), ")");
+		PTGN_LOG("Yoyoing tween5 (repeat #", Tween{ entity }.GetRepeats(), ")");
 	}
 };
 
 class TweenConfig7 : public Script<TweenConfig7, TweenScript> {
 public:
 	void OnRepeat() override {
-		PTGN_LOG("Infinitely repeating tween7 (repeat #", info.tween.GetRepeats(), ")");
+		PTGN_LOG("Infinitely repeating tween7 (repeat #", Tween{ entity }.GetRepeats(), ")");
 	}
 };
 
@@ -107,11 +109,11 @@ public:
 	Color color_change{ color::Green };
 
 	void OnStart() override {
-		PTGN_LOG("Starting ", name, " tween point: ", info.tween.GetCurrentIndex());
+		PTGN_LOG("Starting ", name, " tween point: ", Tween{ entity }.GetCurrentIndex());
 	}
 
 	void OnComplete() override {
-		PTGN_LOG("Completed ", name, " tween point: ", info.tween.GetCurrentIndex());
+		PTGN_LOG("Completed ", name, " tween point: ", Tween{ entity }.GetCurrentIndex());
 		PTGN_ASSERT(color != nullptr);
 		*color = color_change;
 	}
@@ -183,10 +185,10 @@ public:
 		Tween config12{
 			std::get<Tween>(tweens.emplace_back(CreateTween(*this), color::Purple, V2_float{}))
 		};
-		config12.During(duration).AddTweenScript<TweenConfigCustom>(
+		config12.During(duration).AddScript<TweenConfigCustom>(
 			"regular", &color, &pos, color::Green
 		);
-		config12.During(duration).AddTweenScript<TweenConfigCustom>(
+		config12.During(duration).AddScript<TweenConfigCustom>(
 			"regular", &color, &pos, color::Purple
 		);
 		config12.Reverse();
@@ -194,53 +196,51 @@ public:
 		Tween config13{
 			std::get<Tween>(tweens.emplace_back(CreateTween(*this), color::Teal, V2_float{}))
 		};
-		config13.During(duration).AddTweenScript<TweenConfigCustom>(
+		config13.During(duration).AddScript<TweenConfigCustom>(
 			"repeat", &color, &pos, color::Green
 		);
 		config13.Repeat(repeats)
 			.During(duration)
 			.Repeat(repeats)
 			.Reverse()
-			.AddTweenScript<TweenConfigCustom>("repeat", &color, &pos, color::Purple);
+			.AddScript<TweenConfigCustom>("repeat", &color, &pos, color::Purple);
 
 		Tween config14{
 			std::get<Tween>(tweens.emplace_back(CreateTween(*this), color::DarkRed, V2_float{}))
 		};
 
-		config14.During(duration).AddTweenScript<TweenConfigCustom>(
-			"yoyo", &color, &pos, color::Green
-		);
-		config14.Yoyo().Repeat(repeats).During(duration).AddTweenScript<TweenConfigCustom>(
+		config14.During(duration).AddScript<TweenConfigCustom>("yoyo", &color, &pos, color::Green);
+		config14.Yoyo().Repeat(repeats).During(duration).AddScript<TweenConfigCustom>(
 			"yoyo", &color, &pos, color::Purple
 		);
 		config14.Yoyo().Repeat(repeats).Reverse();
 
 		// TODO: Add destruction upon completion.
 		// Destroyed upon completion.
-		config00.AddTweenScript<TweenConfig00>();
+		config00.AddScript<TweenConfig00>();
 
 		// Paused after starting.
-		config0.AddTweenScript<TweenConfig0>();
-		config1.AddTweenScript<TweenConfig1>();
+		config0.AddScript<TweenConfig0>();
+		config1.AddScript<TweenConfig1>();
 
 		config2.Reverse();
 
 		config3.Repeat(repeats);
-		config3.AddTweenScript<TweenConfig3>();
+		config3.AddScript<TweenConfig3>();
 
 		config4.Repeat(repeats);
 		config4.Reverse();
 
 		config5.Yoyo();
 		config5.Repeat(repeats);
-		config5.AddTweenScript<TweenConfig5>();
+		config5.AddScript<TweenConfig5>();
 
 		config6.Yoyo();
 		config6.Repeat(repeats);
 		config6.Reverse();
 
 		config7.Repeat(-1);
-		config7.AddTweenScript<TweenConfig7>();
+		config7.AddScript<TweenConfig7>();
 
 		config8.Repeat(-1);
 		config8.Reverse();
@@ -256,6 +256,9 @@ public:
 		config11.Yoyo();
 		config11.Repeat(-1);
 		config11.Reverse();
+		config11.OnRepeat([](auto entity) {
+			PTGN_LOG("Lambda repeat: ", Tween{ entity }.GetRepeats());
+		});
 
 		size   = { 0, game.renderer.GetLogicalResolution().y / static_cast<float>(tweens.size()) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);

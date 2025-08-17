@@ -14,14 +14,11 @@
 #include "math/easing.h"
 #include "scene/scene.h"
 
-// TODO: Fix tween script invocations. Place them in a separate loop.
+#define PTGN_ADD_TWEEN_ACTION(FUNC_NAME) \
+	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::FUNC_NAME)
 
-#define PTGN_CALL_TWEEN_SCRIPTS(FUNC_NAME)                                     \
-	(void)(0) /*                                                               \
-auto& FUNC_NAME##_scripts{ GetCurrentTweenPoint().script_container_.scripts }; \
-for (auto& [key, script] : FUNC_NAME##_scripts) {                              \
-script->FUNC_NAME({ *this, GetProgress(), GetParent(*this) });                 \
-}*/
+#define PTGN_ADD_TWEEN_PROGRESS_ACTION(FUNC_NAME) \
+	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::OnProgress, GetProgress())
 
 namespace ptgn {
 
@@ -72,6 +69,51 @@ TweenInstance::~TweenInstance() {
 } // namespace impl
 
 Tween::Tween(const Entity& entity) : Entity{ entity } {}
+
+Tween& Tween::OnProgress(const std::function<void(Entity, float)>& func) {
+	AddScript<impl::TweenProgressScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnComplete(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenCompleteScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnReset(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenResetScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnStart(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenStartScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnStop(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenStopScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnPause(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenPauseScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnResume(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenResumeScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnYoyo(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenYoyoScript>(func);
+	return *this;
+}
+
+Tween& Tween::OnRepeat(const std::function<void(Entity)>& func) {
+	AddScript<impl::TweenRepeatScript>(func);
+	return *this;
+}
 
 bool Tween::IsCompleted() const {
 	const auto& tween{ Get<impl::TweenInstance>() };
@@ -238,14 +280,14 @@ void Tween::PointCompleted() {
 	if (tween.points_.empty()) {
 		return;
 	}
-	PTGN_CALL_TWEEN_SCRIPTS(OnComplete);
+	PTGN_ADD_TWEEN_ACTION(OnComplete);
 	tween = Get<impl::TweenInstance>();
 	if (!tween.points_.empty() && tween.index_ < tween.points_.size() - 1) {
 		tween.index_++;
 		tween.progress_							   = 0.0f;
 		GetCurrentTweenPoint().currently_reversed_ = GetCurrentTweenPoint().start_reversed_;
 		if (tween.started_) {
-			PTGN_CALL_TWEEN_SCRIPTS(OnStart);
+			PTGN_ADD_TWEEN_ACTION(OnStart);
 		}
 	} else {
 		tween.progress_ = 1.0f;
@@ -259,7 +301,7 @@ void Tween::HandleCallbacks(bool suppress_update) {
 	}
 
 	if (!suppress_update) {
-		PTGN_CALL_TWEEN_SCRIPTS(OnUpdate);
+		PTGN_ADD_TWEEN_PROGRESS_ACTION();
 	}
 
 	auto& tween{ Get<impl::TweenInstance>() };
@@ -274,7 +316,7 @@ void Tween::HandleCallbacks(bool suppress_update) {
 	// Completed tween.
 	if (current.current_repeat_ == current.total_repeats_) {
 		if (suppress_update) {
-			PTGN_CALL_TWEEN_SCRIPTS(OnUpdate);
+			PTGN_ADD_TWEEN_PROGRESS_ACTION();
 		}
 		PointCompleted();
 		return;
@@ -283,13 +325,13 @@ void Tween::HandleCallbacks(bool suppress_update) {
 	// Reverse yoyoing tweens.
 	if (current.yoyo_) {
 		current.currently_reversed_ = !current.currently_reversed_;
-		PTGN_CALL_TWEEN_SCRIPTS(OnYoyo);
+		PTGN_ADD_TWEEN_ACTION(OnYoyo);
 	}
 
 	tween = Get<impl::TweenInstance>();
 	// Repeat the tween.
 	tween.progress_ = 0.0f;
-	PTGN_CALL_TWEEN_SCRIPTS(OnRepeat);
+	PTGN_ADD_TWEEN_ACTION(OnRepeat);
 }
 
 float Tween::UpdateImpl(bool suppress_update) {
@@ -318,7 +360,7 @@ Tween& Tween::Pause() {
 	if (!tween.paused_) {
 		tween.paused_ = true;
 		if (!tween.points_.empty()) {
-			PTGN_CALL_TWEEN_SCRIPTS(OnPause);
+			PTGN_ADD_TWEEN_ACTION(OnPause);
 		}
 	}
 	return *this;
@@ -329,7 +371,7 @@ Tween& Tween::Resume() {
 	if (tween.paused_) {
 		tween.paused_ = false;
 		if (!tween.points_.empty()) {
-			PTGN_CALL_TWEEN_SCRIPTS(OnResume);
+			PTGN_ADD_TWEEN_ACTION(OnResume);
 		}
 	}
 	return *this;
@@ -339,13 +381,9 @@ Tween& Tween::Reset() {
 	auto& tween{ Get<impl::TweenInstance>() };
 	if (tween.started_ || IsCompleted()) {
 		// Reset all tween points, not just the current one.
-		// TODO: Fix scripts invocations.
-		/*for (auto& tween_point : tween.points_) {
-			auto& scripts{ tween_point.script_container_.scripts };
-			for (auto& [key, script] : scripts) {
-				script->OnReset({ *this, GetProgress(), GetParent(*this) });
-			}
-		}*/
+		for (auto& tween_point : tween.points_) {
+			tween_point.script_container_.AddAction(&TweenScript::OnReset);
+		}
 	}
 	tween			= Get<impl::TweenInstance>();
 	tween.index_	= 0;
@@ -367,7 +405,7 @@ Tween& Tween::Start(bool force) {
 	auto& tween{ Get<impl::TweenInstance>() };
 	tween.started_ = true;
 	if (!tween.points_.empty()) {
-		PTGN_CALL_TWEEN_SCRIPTS(OnStart);
+		PTGN_ADD_TWEEN_ACTION(OnStart);
 	}
 	return *this;
 }
@@ -402,7 +440,7 @@ Tween& Tween::Stop() {
 	auto& tween{ Get<impl::TweenInstance>() };
 	if (tween.started_) {
 		if (!tween.points_.empty()) {
-			PTGN_CALL_TWEEN_SCRIPTS(OnStop);
+			PTGN_ADD_TWEEN_ACTION(OnStop);
 		}
 		tween		   = Get<impl::TweenInstance>();
 		tween.started_ = false;

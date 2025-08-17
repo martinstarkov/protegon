@@ -204,7 +204,13 @@ void Scene::InternalUpdate() {
 		Tween{ entity }.Step(dt);
 	}
 
-	invoke_scripts();
+	for (auto [entity, tween] : EntitiesWith<impl::TweenInstance>()) {
+		for (auto& point : tween.points_) {
+			point.script_container_.InvokeActions();
+		}
+	}
+
+	Refresh();
 
 	translate_effects_.Update(*this);
 	rotate_effects_.Update(*this);
