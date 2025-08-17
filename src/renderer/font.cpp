@@ -6,6 +6,9 @@
 #include <unordered_map>
 #include <utility>
 
+#include "SDL_error.h"
+#include "SDL_rwops.h"
+#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/generic.h"
 #include "core/game.h"
@@ -13,9 +16,6 @@
 #include "math/vector2.h"
 #include "resources/fonts.h"
 #include "resources/resource_manager.h"
-#include "SDL_error.h"
-#include "SDL_rwops.h"
-#include "SDL_ttf.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
 #include "utility/file.h"
@@ -41,7 +41,7 @@ FontManager& FontManager::operator=(FontManager&& other) noexcept {
 }
 
 FontManager::~FontManager() {
-	if (game.sdl_instance_->SDLIsInitialized()) {
+	if (game.sdl_instance_->SDLIsInitialized() && raw_default_font_) {
 		SDL_RWclose(raw_default_font_);
 	}
 }
