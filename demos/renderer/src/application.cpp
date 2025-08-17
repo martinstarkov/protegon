@@ -187,6 +187,26 @@ Entity AddSprite(Scene& s, V2_float pos) {
 	return e;
 }
 
+void TestAddPreFX(Entity e, Entity fx, std::string_view fx_name, std::string_view entity_name) {
+	PTGN_LOG("Adding PRE ", fx_name, " to ", entity_name);
+	AddPreFX(e, fx);
+}
+
+void TestAddPostFX(Entity e, Entity fx, std::string_view fx_name, std::string_view entity_name) {
+	PTGN_LOG("Adding POST ", fx_name, " to ", entity_name);
+	AddPostFX(e, fx);
+}
+
+Entity TestAddGrayscale(Scene& s) {
+	PTGN_LOG("Grayscale");
+	return CreateGrayscale(s);
+}
+
+Entity TestAddBlur(Scene& s) {
+	PTGN_LOG("Blur");
+	return CreateBlur(s);
+}
+
 struct FollowMouseScript : public Script<FollowMouseScript> {
 	void OnUpdate() override {
 		SetPosition(entity, game.input.GetMousePosition());
@@ -205,19 +225,142 @@ void GenerateTestCases() {
 	tests.emplace_back([](Scene& s) {
 		auto sprite{ AddSprite(s, rect1_pos) };
 
-		// TODO: Fix multiple post fx not working.
-		AddPostFX(sprite, CreateGrayscale(s));
-		AddPostFX(sprite, CreateBlur(s));
+		TestAddPreFX(sprite, CreateBlur(s), "blur", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPreFX(sprite, CreateGrayscale(s), "grayscale", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPreFX(sprite, CreateGrayscale(s), "grayscale", "sprite");
+		TestAddPreFX(sprite, CreateBlur(s), "blur", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPreFX(sprite, CreateGrayscale(s), "grayscale", "sprite");
+		TestAddPreFX(sprite, CreateBlur(s), "blur", "sprite");
+		TestAddPreFX(sprite, CreateBlur(s), "blur", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPostFX(sprite, CreateBlur(s), "blur", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPostFX(sprite, CreateGrayscale(s), "grayscale", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPostFX(sprite, CreateGrayscale(s), "grayscale", "sprite");
+		TestAddPostFX(sprite, CreateBlur(s), "blur", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPostFX(sprite, CreateGrayscale(s), "grayscale", "sprite");
+		TestAddPostFX(sprite, CreateBlur(s), "blur", "sprite");
+		TestAddPostFX(sprite, CreateBlur(s), "blur", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		TestAddPostFX(sprite, CreateGrayscale(s), "grayscale", "sprite");
+		TestAddPostFX(sprite, CreateBlur(s), "blur", "sprite");
+		TestAddPostFX(sprite, CreateBlur(s), "blur", "sprite");
+		TestAddPostFX(sprite, CreateBlur(s), "blur", "sprite");
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+
+		TestAddGrayscale(s);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+		AddSprite(s, rect2_pos);
+
+		TestAddGrayscale(s);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+		AddSprite(s, rect2_pos);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+
+		TestAddGrayscale(s);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+		AddSprite(s, rect2_pos);
+		TestAddGrayscale(s);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+		AddSprite(s, rect2_pos);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+
+		TestAddGrayscale(s);
+		TestAddBlur(s);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+		AddSprite(s, rect2_pos);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+
+		TestAddBlur(s);
+		TestAddGrayscale(s);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+		AddSprite(s, rect2_pos);
+		TestAddGrayscale(s);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+		TestAddBlur(s);
+	});
+
+	tests.emplace_back([](Scene& s) {
+		AddSprite(s, rect1_pos);
+		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
+		TestAddBlur(s);
+		AddSprite(s, rect2_pos);
+		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
+		TestAddGrayscale(s);
 	});
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, { 320, 240 }, rect1_color);
 		auto sprite{ AddSprite(s, rect1_pos) };
-		AddPreFX(sprite, CreateGrayscale(s));
-		AddPreFX(sprite, CreateBlur(s));
+		TestAddPreFX(sprite, CreateGrayscale(s), "grayscale", "sprite1");
+		TestAddPreFX(sprite, CreateBlur(s), "blur", "sprite1");
 		SetRotation(sprite, DegToRad(45.0f));
 		auto sprite2 = AddSprite(s, rect1_pos);
-		AddPreFX(sprite2, CreateBlur(s));
+		TestAddPreFX(sprite2, CreateBlur(s), "blur", "sprite2");
 		SetRotation(sprite2, DegToRad(-45.0f));
 		auto sprite3 = AddSprite(s, rect1_pos);
 		SetRotation(sprite3, DegToRad(-10.0f));
@@ -227,42 +370,50 @@ void GenerateTestCases() {
 		// AddRect(s, rect1_pos, rect1_size, rect1_color);
 
 		auto sprite = CreateSprite(s, "noise", rect2_pos);
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.25f, 0.5f, 0.8f }));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 0.5f, 0.25f, 0.7f }, color::White));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 1.0f, 0.5f, 0.7f }, color::White));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 3.0f, 0.2f, 1.0f }));
-		AddPreFX(sprite, CreateWhirlpoolEffect(s, { 5.0f, 0.1f, 1.0f }));
+		TestAddPreFX(
+			sprite, CreateWhirlpoolEffect(s, { 0.25f, 0.5f, 0.8f }), "whirlpool", "sprite"
+		);
+		TestAddPreFX(
+			sprite, CreateWhirlpoolEffect(s, { 0.5f, 0.25f, 0.7f }, color::White), "whirlpool",
+			"sprite"
+		);
+		TestAddPreFX(
+			sprite, CreateWhirlpoolEffect(s, { 1.0f, 0.5f, 0.7f }, color::White), "whirlpool",
+			"sprite"
+		);
+		TestAddPreFX(sprite, CreateWhirlpoolEffect(s, { 3.0f, 0.2f, 1.0f }), "whirlpool", "sprite");
+		TestAddPreFX(sprite, CreateWhirlpoolEffect(s, { 5.0f, 0.1f, 1.0f }), "whirlpool", "sprite");
 		AddScript<FollowMouseScript>(sprite);
 	});
 
 	tests.emplace_back([](Scene& s) {
 		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddPostFX(r1, CreateGrayscale(s));
+		TestAddPostFX(r1, CreateGrayscale(s), "grayscale", "rect1");
 	});
 
 	tests.emplace_back([](Scene& s) {
 		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddPostFX(r1, CreateGrayscale(s));
+		TestAddPostFX(r1, CreateGrayscale(s), "grayscale", "rect1");
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 	});
 
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
-		AddPostFX(r2, CreateGrayscale(s));
+		TestAddPostFX(r2, CreateGrayscale(s), "grayscale", "rect2");
 	});
 
 	tests.emplace_back([](Scene& s) {
 		auto effect{ CreateGrayscale(s) };
 		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddPostFX(r1, effect);
+		TestAddPostFX(r1, effect, "grayscale", "rect1");
 		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
-		AddPostFX(r2, effect);
+		TestAddPostFX(r2, effect, "grayscale", "rect2");
 	});
 
 	tests.emplace_back([](Scene& s) {
 		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddPostFX(r1, CreateGrayscale(s));
+		TestAddPostFX(r1, CreateGrayscale(s), "grayscale", "rect1");
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
@@ -271,7 +422,7 @@ void GenerateTestCases() {
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
-		AddPostFX(r2, CreateGrayscale(s));
+		TestAddPostFX(r2, CreateGrayscale(s), "grayscale", "rect2");
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
@@ -279,9 +430,9 @@ void GenerateTestCases() {
 	tests.emplace_back([](Scene& s) {
 		auto effect{ CreateGrayscale(s) };
 		auto r1 = AddRect(s, rect1_pos, rect1_size, rect1_color);
-		AddPostFX(r1, effect);
+		TestAddPostFX(r1, effect, "grayscale", "rect1");
 		auto r2 = AddRect(s, rect2_pos, rect2_size, rect2_color);
-		AddPostFX(r2, effect);
+		TestAddPostFX(r2, effect, "grayscale", "rect2");
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
@@ -290,7 +441,7 @@ void GenerateTestCases() {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		auto c1 = AddCircle(s, circle1_pos, circle1_radius, circle1_color);
-		AddPostFX(c1, CreateGrayscale(s));
+		TestAddPostFX(c1, CreateGrayscale(s), "grayscale", "circle1");
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
 
@@ -299,13 +450,13 @@ void GenerateTestCases() {
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle1_pos, circle1_radius, circle1_color);
 		auto c2 = AddCircle(s, circle2_pos, circle2_radius, circle2_color);
-		AddPostFX(c2, CreateGrayscale(s));
+		TestAddPostFX(c2, CreateGrayscale(s), "grayscale", "circle2");
 	});
 
 	tests.emplace_back([](Scene& s) {
 		auto sprite1 = AddSprite(s, circle1_pos);
-		AddPreFX(sprite1, CreateGrayscale(s));
-		AddPreFX(sprite1, CreateBlur(s));
+		TestAddPreFX(sprite1, CreateGrayscale(s), "grayscale", "sprite1");
+		TestAddPreFX(sprite1, CreateBlur(s), "blur", "sprite1");
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
@@ -314,8 +465,8 @@ void GenerateTestCases() {
 	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		auto sprite1 = AddSprite(s, circle1_pos);
-		AddPreFX(sprite1, CreateGrayscale(s));
-		AddPreFX(sprite1, CreateBlur(s));
+		TestAddPreFX(sprite1, CreateGrayscale(s), "grayscale", "sprite1");
+		TestAddPreFX(sprite1, CreateBlur(s), "blur", "sprite1");
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
@@ -324,8 +475,8 @@ void GenerateTestCases() {
 		AddRect(s, rect1_pos, rect1_size, rect1_color);
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		auto sprite1 = AddSprite(s, circle1_pos);
-		AddPreFX(sprite1, CreateGrayscale(s));
-		AddPreFX(sprite1, CreateBlur(s));
+		TestAddPreFX(sprite1, CreateGrayscale(s), "grayscale", "sprite1");
+		TestAddPreFX(sprite1, CreateBlur(s), "blur", "sprite1");
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
 
@@ -334,8 +485,8 @@ void GenerateTestCases() {
 		AddRect(s, rect2_pos, rect2_size, rect2_color);
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 		auto sprite1 = AddSprite(s, circle1_pos);
-		AddPreFX(sprite1, CreateGrayscale(s));
-		AddPreFX(sprite1, CreateBlur(s));
+		TestAddPreFX(sprite1, CreateGrayscale(s), "grayscale", "sprite1");
+		TestAddPreFX(sprite1, CreateBlur(s), "blur", "sprite1");
 	});
 
 	tests.emplace_back([](Scene& s) { AddRect(s, rect1_pos, rect1_size, rect1_color); });
