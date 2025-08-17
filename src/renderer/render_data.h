@@ -143,13 +143,6 @@ struct DrawContext {
 	bool in_use{ true };
 	bool keep_alive{ false };
 
-	BlendMode blend_mode{ BlendMode::Blend };
-
-	Color clear_color{ color::Transparent };
-
-	V2_int viewport_position;
-	V2_int viewport_size;
-
 	// Timer used to track age for reuse.
 	Timer timer;
 };
@@ -229,9 +222,8 @@ public:
 
 	// @param texture Only used if uses_scene_texture is false and texture is valid.
 	void AddShader(
-		Entity entity, const RenderState& render_state, BlendMode target_blend_mode,
-		const Color& target_clear_color, bool uses_scene_texture, const Texture& texture = {},
-		const Color& tint = color::White
+		Entity entity, const RenderState& render_state, const Color& target_clear_color,
+		bool uses_scene_texture, const Texture& texture = {}, const Color& tint = color::White
 	);
 
 	void AddTemporaryTexture(Texture&& texture);
@@ -369,7 +361,6 @@ private:
 
 	Entity viewport_tracker;
 
-	std::array<Vertex, 4> camera_vertices;
 	std::vector<Texture> temporary_textures;
 	DrawContextPool draw_context_pool{ seconds{ 1 } };
 	Manager render_manager;

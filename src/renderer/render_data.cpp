@@ -393,9 +393,9 @@ void RenderData::AddTexturedQuad(
 			auto pre_fx_tint{ GetTint(fx) };
 
 			// TODO: Cache this somehow?
-			camera_vertices = GetQuadVertices(
-				points, pre_fx_tint, depth, 1.0f, default_texture_coordinates, true
-			);
+			auto camera_vertices{
+				GetQuadVertices(points, pre_fx_tint, depth, 1.0f, default_texture_coordinates, true)
+			};
 			UpdateVertexArray(camera_vertices, quad_indices);
 
 			shader.SetUniform("u_Texture", 1);
@@ -544,9 +544,8 @@ void RenderData::UpdateVertexArray(
 }
 
 void RenderData::AddShader(
-	Entity entity, const RenderState& state, BlendMode target_blend_mode,
-	const Color& target_clear_color, bool uses_scene_texture, const Texture& texture,
-	const Color& tint
+	Entity entity, const RenderState& state, const Color& target_clear_color,
+	bool uses_scene_texture, const Texture& texture, const Color& tint
 ) {
 	Scene& scene{ entity.GetScene() };
 	PTGN_ASSERT(&scene == &game.scene.GetCurrent());
@@ -557,11 +556,7 @@ void RenderData::AddShader(
 		intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
 		intermediate_target->frame_buffer.Bind();
 		GLRenderer::SetViewport({}, intermediate_target->frame_buffer.GetTexture().GetSize());
-		intermediate_target->viewport_position = camera.GetViewportPosition();
-		intermediate_target->viewport_size	   = camera.GetViewportSize();
-		intermediate_target->clear_color	   = target_clear_color;
-		intermediate_target->frame_buffer.ClearToColor(intermediate_target->clear_color);
-		intermediate_target->blend_mode = target_blend_mode;
+		intermediate_target->frame_buffer.ClearToColor(target_clear_color);
 		if (uses_scene_texture) {
 			PTGN_ASSERT(drawing_to);
 			PTGN_ASSERT(drawing_to.GetTexture().IsValid());
@@ -576,9 +571,9 @@ void RenderData::AddShader(
 		PTGN_ASSERT(intermediate_target);
 	}
 
-	camera_vertices = GetQuadVertices(
+	auto camera_vertices{ GetQuadVertices(
 		camera.GetWorldVertices(), tint, GetDepth(camera), 1.0f, default_texture_coordinates, false
-	);
+	) };
 	UpdateVertexArray(camera_vertices, quad_indices);
 
 	GLRenderer::SetBlendMode(render_state.blend_mode);
@@ -695,11 +690,7 @@ void RenderData::Flush(Scene& scene) {
 		if (!vertices.empty() && !indices.empty()) {
 			PTGN_ASSERT(!intermediate_target);
 			intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
-			intermediate_target->viewport_position = camera.GetViewportPosition();
-			intermediate_target->viewport_size	   = camera.GetViewportSize();
-			intermediate_target->clear_color	   = color::Transparent;
-			intermediate_target->frame_buffer.ClearToColor(intermediate_target->clear_color);
-			intermediate_target->blend_mode = render_state.blend_mode;
+			intermediate_target->frame_buffer.ClearToColor(color::Transparent);
 			// Draw vertices to intermediate target before adding post fx to it.
 			/*PTGN_LOG(
 				"intermediate_target center: ",
@@ -718,15 +709,10 @@ void RenderData::Flush(Scene& scene) {
 
 		auto ping{ intermediate_target };
 		auto pong{ draw_context_pool.Get(camera.GetViewportSize()) };
-		// TODO: Remove? Or perhaps cache somehow in a value instead.
-		pong->viewport_position = camera.GetViewportPosition();
-		pong->viewport_size		= camera.GetViewportSize();
-		pong->clear_color		= color::Transparent;
-		pong->blend_mode		= render_state.blend_mode;
 
 		for (const auto& fx : render_state.post_fx.post_fx_) {
 			pong->frame_buffer.Bind();
-			pong->frame_buffer.ClearToColor(pong->clear_color);
+			pong->frame_buffer.ClearToColor(color::Transparent);
 
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
@@ -749,10 +735,10 @@ void RenderData::Flush(Scene& scene) {
 			auto post_fx_tint{ GetTint(fx) };
 
 			// TODO: Cache this somehow?
-			camera_vertices = GetQuadVertices(
+			auto camera_vertices{ GetQuadVertices(
 				camera.GetWorldVertices(), post_fx_tint, GetDepth(camera), 1.0f,
 				default_texture_coordinates, false
-			);
+			) };
 			UpdateVertexArray(camera_vertices, quad_indices);
 
 			V2_float viewport{ camera.GetViewportSize() };
@@ -785,7 +771,7 @@ void RenderData::Flush(Scene& scene) {
 		/*PTGN_ASSERT(vertices.size() == 0);
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
-		auto blend_mode{ intermediate_target->blend_mode };
+		auto blend_mode{ render_state.blend_mode };
 		auto viewport_position{ camera.GetViewportPosition() };
 		auto viewport_size{ camera.GetViewportSize() };
 		GLRenderer::SetViewport(viewport_position, viewport_size);
@@ -797,10 +783,10 @@ void RenderData::Flush(Scene& scene) {
 		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
 
 		// TODO: Cache this somehow?
-		camera_vertices = GetQuadVertices(
+		auto camera_vertices{ GetQuadVertices(
 			camera.GetWorldVertices(), color::White, GetDepth(camera), 1.0f,
 			default_texture_coordinates, false
-		);
+		) };
 		UpdateVertexArray(camera_vertices, quad_indices);
 
 		GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
@@ -950,8 +936,9 @@ void RenderData::DrawToScreen(Scene& scene) {
 	std::array<V2_float, 4> points{ V2_float{}, V2_float{ logical_resolution_.x, 0.0f },
 									logical_resolution_, V2_float{ 0.0f, logical_resolution_.y } };
 
-	camera_vertices =
-		GetQuadVertices(points, color::White, 0, 1.0f, default_texture_coordinates, true);
+	auto camera_vertices{
+		GetQuadVertices(points, color::White, 0, 1.0f, default_texture_coordinates, true)
+	};
 	UpdateVertexArray(camera_vertices, quad_indices);
 
 	GLRenderer::SetViewport(physical_viewport_.position, physical_viewport_.size);
