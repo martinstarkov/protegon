@@ -9,6 +9,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/script.h"
 #include "core/timer.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
@@ -17,10 +18,6 @@
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
-
-// TODO: Check that script invocations do not lead to memory corruption if entity is deleted, or
-// component is removed. Perhaps move script invocations to a queue that is executed by itself
-// at the end of the update.
 
 namespace ptgn {
 
@@ -167,57 +164,60 @@ MoveDirection TopDownMovement::GetDirectionState(const V2_float& d) {
 }
 
 template <auto StartFunc, auto ContinueFunc, auto StopFunc>
-void InvokeMoveCallbacks(const Entity& entity, bool was_moving, bool is_moving) {
+static void InvokeMoveCallbacks(Scripts& scripts, bool was_moving, bool is_moving) {
 	if (!was_moving && is_moving) {
-		// TODO: Fix script invocation.InvokeScript<StartFunc>(entity);
+		scripts.AddAction(StartFunc);
 	}
 	if (is_moving) {
-		// TODO: Fix script invocation.InvokeScript<ContinueFunc>(entity);
+		scripts.AddAction(ContinueFunc);
 	}
 	if (was_moving && !is_moving) {
-		// TODO: Fix script invocation.InvokeScript<StopFunc>(entity);
+		scripts.AddAction(StopFunc);
 	}
 }
 
 void TopDownMovement::InvokeCallbacks(Entity& entity) {
-	// TODO: Fix callbacks potentially removing TopDownMovement, invalidating future callbacks.
+	if (!entity.Has<Scripts>()) {
+		return;
+	}
+
+	auto& scripts{ entity.Get<Scripts>() };
 
 	if (dir != prev_dir) {
 		// Clamp because turning from left to right can cause a difference in direction of 2.0f,
 		// which we see as the same as 1.0f.
-		V2_float diff{ Clamp(dir - prev_dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
+		V2_float diff{ Clamp(prev_dir - dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
 		auto dir_state{ GetDirectionState(diff) };
-		// TODO: Fix script invocation.InvokeScript<&impl::IScript::OnMoveDirectionChange>(entity,
-		// dir_state);
+		scripts.AddAction(&PlayerMoveScript::OnDirectionChange, dir_state);
 	}
 
 	// TODO: Consider instead of using WasMoving, IsMoving, switch to providing an index and
 	// comparison with -1 or 1 or 0.
 
-	// TODO: Fix script invocations.
-	/*InvokeMoveCallbacks<
-		&impl::IScript::OnMoveStart, &impl::IScript::OnMove, &impl::IScript::OnMoveStop>(
-		entity, !WasMoving(MoveDirection::None), !IsMoving(MoveDirection::None)
+	InvokeMoveCallbacks<
+		&PlayerMoveScript::OnMoveStart, &PlayerMoveScript::OnMove, &PlayerMoveScript::OnMoveStop>(
+		scripts, !WasMoving(MoveDirection::None), !IsMoving(MoveDirection::None)
 	);
 	InvokeMoveCallbacks<
-		&impl::IScript::OnMoveUpStart, &impl::IScript::OnMoveUp, &impl::IScript::OnMoveUpStop>(
-		entity, WasMoving(MoveDirection::Up), IsMoving(MoveDirection::Up)
+		&PlayerMoveScript::OnMoveUpStart, &PlayerMoveScript::OnMoveUp,
+		&PlayerMoveScript::OnMoveUpStop>(
+		scripts, WasMoving(MoveDirection::Up), IsMoving(MoveDirection::Up)
 	);
 	InvokeMoveCallbacks<
-		&impl::IScript::OnMoveDownStart, &impl::IScript::OnMoveDown,
-		&impl::IScript::OnMoveDownStop>(
-		entity, WasMoving(MoveDirection::Down), IsMoving(MoveDirection::Down)
+		&PlayerMoveScript::OnMoveDownStart, &PlayerMoveScript::OnMoveDown,
+		&PlayerMoveScript::OnMoveDownStop>(
+		scripts, WasMoving(MoveDirection::Down), IsMoving(MoveDirection::Down)
 	);
 	InvokeMoveCallbacks<
-		&impl::IScript::OnMoveLeftStart, &impl::IScript::OnMoveLeft,
-		&impl::IScript::OnMoveLeftStop>(
-		entity, WasMoving(MoveDirection::Left), IsMoving(MoveDirection::Left)
+		&PlayerMoveScript::OnMoveLeftStart, &PlayerMoveScript::OnMoveLeft,
+		&PlayerMoveScript::OnMoveLeftStop>(
+		scripts, WasMoving(MoveDirection::Left), IsMoving(MoveDirection::Left)
 	);
 	InvokeMoveCallbacks<
-		&impl::IScript::OnMoveRightStart, &impl::IScript::OnMoveRight,
-		&impl::IScript::OnMoveRightStop>(
-		entity, WasMoving(MoveDirection::Right), IsMoving(MoveDirection::Right)
-	);*/
+		&PlayerMoveScript::OnMoveRightStart, &PlayerMoveScript::OnMoveRight,
+		&PlayerMoveScript::OnMoveRightStop>(
+		scripts, WasMoving(MoveDirection::Right), IsMoving(MoveDirection::Right)
+	);
 }
 
 bool TopDownMovement::GetMovingState(const V2_float& d, MoveDirection direction) {

@@ -72,6 +72,13 @@ void Physics::PreCollisionUpdate(Scene& scene) const {
 		movement.Update(entity, transform, rigid_body, dt);
 	}
 
+	for (auto [entity, movement, scripts] :
+		 scene.InternalEntitiesWith<TopDownMovement, Scripts>()) {
+		scripts.InvokeActions();
+	}
+
+	scene.Refresh();
+
 	for (auto [e, transform, rigid_body, movement, jump] :
 		 scene.InternalEntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 		movement.Update(transform, rigid_body, dt);
