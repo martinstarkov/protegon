@@ -38,8 +38,8 @@ public:
 	// @param position Top left.
 	void SetBoundingBox(const V2_float& new_bounding_position, const V2_float& new_bounding_size);
 
-	void SetResizeToWindow(bool resize);
-	void SetCenterOnWindow(bool center);
+	void SetResizeToLogicalResolution(bool resize);
+	void SetCenterOnLogicalResolution(bool center);
 
 	void SetFlip(Flip flip);
 
@@ -57,8 +57,8 @@ public:
 	// @return Size of the bounding box.
 	[[nodiscard]] V2_float GetBoundingBoxSize() const;
 
-	[[nodiscard]] bool GetResizeToWindow() const;
-	[[nodiscard]] bool GetCenterOnWindow() const;
+	[[nodiscard]] bool GetResizeToLogicalResolution() const;
+	[[nodiscard]] bool GetCenterOnLogicalResolution() const;
 
 	[[nodiscard]] Flip GetFlip() const;
 
@@ -68,8 +68,9 @@ public:
 
 	[[nodiscard]] bool GetPixelRounding() const;
 
-	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
-		const;
+	[[nodiscard]] const Matrix4& GetViewProjection(
+		const Transform& current, const Entity& entity
+	) const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -92,8 +93,9 @@ public:
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
-		viewport_position, viewport_size, center_on_window, resize_to_window, pixel_rounding,
-		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z
+		viewport_position, viewport_size, center_on_logical_resolution,
+		resize_to_logical_resolution, pixel_rounding, bounding_box_position, bounding_box_size,
+		flip, position_z, orientation_y, orientation_z
 	)
 
 	void SetViewDirty();
@@ -116,8 +118,8 @@ private:
 	V2_float viewport_position;
 	V2_float viewport_size;
 
-	bool center_on_window{ true };
-	bool resize_to_window{ true };
+	bool center_on_logical_resolution{ true };
+	bool resize_to_logical_resolution{ true };
 
 	// If true, rounds camera position to pixel precision.
 	// TODO: Check that this works.
@@ -135,8 +137,8 @@ private:
 	float orientation_z{ 0.0f };
 };
 
-struct CameraResizeScript : public Script<CameraResizeScript, WindowScript> {
-	void OnWindowResized() override;
+struct CameraResizeScript : public Script<CameraResizeScript, LogicalResolutionScript> {
+	void OnLogicalResolutionChanged() override;
 };
 
 } // namespace impl
@@ -264,17 +266,15 @@ public:
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;
 
-	// If continuously is true, camera will subscribe to window resize event.
-	// Set the camera to be the size of the window and centered on the window.
-	void SetToWindow(bool continuously = true);
+	// Set the camera to be centered on the logical resolution.
+	// Set the camera viewport to be equal to the logical resolution.
+	void SetToLogicalResolution(bool continuously = true);
 
-	// If continuously is true, camera will subscribe to window resize event.
-	// Set the camera to be centered on the window.
-	void CenterOnWindow(bool continuously = false);
+	// Set the camera to be centered on the logical resolution.
+	void CenterOnLogicalResolution(bool continuously = false);
 
-	// If continuously is true, camera will subscribe to window resize event.
-	// Set the camera to be the size of the window.
-	void SetViewportToWindow(bool continuously = false);
+	// Set the camera viewport to be equal to the logical resolution.
+	void SetViewportToLogicalResolution(bool continuously = false);
 
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
@@ -394,8 +394,8 @@ protected:
 	// Orientation as a quaternion.
 	[[nodiscard]] Quaternion GetQuaternion() const;
 
-	void SubscribeToWindowEvents();
-	void UnsubscribeFromWindowEvents();
+	void SubscribeToLogicalResolutionEvents();
+	void UnsubscribeFromLogicalResolutionEvents();
 
 	// @param start_color Starting color.
 	// @param end_color Ending color.
@@ -410,7 +410,7 @@ protected:
 
 	void RefreshBounds();
 
-	static void OnWindowResize(Camera camera, V2_float size);
+	static void OnLogicalResolutionChanged(Camera camera, V2_float size);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
@@ -422,18 +422,12 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 
 class CameraManager {
 public:
-	// Reset primary camera back to window and reset window camera in case it has been
-	// modified.
 	void Reset();
 
 	Camera primary;
-	Camera window;
 
 	friend void to_json(json& j, const CameraManager& camera_manager);
 	friend void from_json(const json& j, CameraManager& camera_manager);
-
-	Camera primary_unzoomed;
-	Camera window_unzoomed;
 
 private:
 	friend class Scene;
@@ -543,7 +537,7 @@ public:
 
 	// processes input received from any keyboard-like input system. Accepts input parameter in
 the
-	// form of camera defined ENUM (to abstract it from windowing systems)
+	// form of camera defined ENUM (to abstract it from other systems)
 	void Move(CameraDirection direction, float dt) {
 		float velocity = speed * dt;
 		switch (direction) {

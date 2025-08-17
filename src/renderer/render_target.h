@@ -41,8 +41,14 @@ struct ClearColor : public ColorComponent {
 	ClearColor() : ColorComponent{ color::Transparent } {}
 };
 
-struct RenderTargetResizeScript : public Script<RenderTargetResizeScript, WindowScript> {
-	void OnWindowResized() override;
+struct LogicalRenderTargetResizeScript :
+	public Script<LogicalRenderTargetResizeScript, LogicalResolutionScript> {
+	void OnLogicalResolutionChanged() override;
+};
+
+struct PhysicalRenderTargetResizeScript :
+	public Script<PhysicalRenderTargetResizeScript, PhysicalResolutionScript> {
+	void OnPhysicalResolutionChanged() override;
 };
 
 } // namespace impl
@@ -133,7 +139,8 @@ RenderTarget CreateRenderTarget(
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 
-// Create a render target that is continuously sized to the window.
+// Create a render target that is continuously sized to the logical resolution. TODO: Allow for
+// physical resolution as well.
 // @param clear_color The background color of the render target.
 RenderTarget CreateRenderTarget(
 	Scene& scene, const Color& clear_color = color::Transparent,

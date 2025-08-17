@@ -95,12 +95,13 @@ public:
 	// game.scene.Enter<MyScene>("scene_name");
 	// @param title The title of the window. Can be changed later using
 	// game.window.SetTitle("title");
-	// @param window_size Starting size of the window. Can be changed later using
-	// game.window.SetSize({ 1920, 1080 });
+	// @param logical_resolution Logical resolution of the game. Can be changed later using
+	// game.renderer.SetLogicalResolution({ 1920, 1080 }); Note: By default this will also be set as
+	// the window size, however, the window may be resized later.
 	// @param background_color Starting background color of the window. Can be changed later using
 	// game.renderer.SetClearColor(color::Black);
 	void Init(
-		const std::string& title = "Default Title", const V2_int& window_size = { 800, 800 },
+		const std::string& title = "Default Title", const V2_int& logical_resolution = { 800, 800 },
 		const Color& background_color = color::Transparent
 	);
 

@@ -12,7 +12,6 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/time.h"
-#include "core/window.h"
 #include "debug/log.h"
 #include "math/easing.h"
 #include "math/geometry.h"
@@ -64,20 +63,20 @@ void CameraInfo::SetBoundingBox(
 	view_dirty			  = true;
 }
 
-void CameraInfo::SetResizeToWindow(bool resize) {
-	if (resize_to_window == resize) {
+void CameraInfo::SetResizeToLogicalResolution(bool resize) {
+	if (resize_to_logical_resolution == resize) {
 		return;
 	}
-	resize_to_window = resize;
-	projection_dirty = true;
+	resize_to_logical_resolution = resize;
+	projection_dirty			 = true;
 }
 
-void CameraInfo::SetCenterOnWindow(bool center) {
-	if (center_on_window == center) {
+void CameraInfo::SetCenterOnLogicalResolution(bool center) {
+	if (center_on_logical_resolution == center) {
 		return;
 	}
-	center_on_window = center;
-	view_dirty		 = true;
+	center_on_logical_resolution = center;
+	view_dirty					 = true;
 }
 
 void CameraInfo::SetFlip(Flip new_flip) {
@@ -137,12 +136,12 @@ V2_float CameraInfo::GetBoundingBoxSize() const {
 	return bounding_box_size;
 }
 
-bool CameraInfo::GetResizeToWindow() const {
-	return resize_to_window;
+bool CameraInfo::GetResizeToLogicalResolution() const {
+	return resize_to_logical_resolution;
 }
 
-bool CameraInfo::GetCenterOnWindow() const {
-	return center_on_window;
+bool CameraInfo::GetCenterOnLogicalResolution() const {
+	return center_on_logical_resolution;
 }
 
 Flip CameraInfo::GetFlip() const {
@@ -212,8 +211,9 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
-	const {
+void CameraInfo::RecalculateView(
+	const Transform& current, const Transform& offset_transform
+) const {
 	V3_float position{ current.GetPosition().x, current.GetPosition().y, position_z };
 	V3_float orientation{ current.GetRotation(), orientation_y, orientation_z };
 
@@ -314,17 +314,13 @@ Camera CreateCamera(const Entity& entity) {
 	Camera camera{ entity };
 	SetPosition(camera, {});
 	camera.Add<impl::CameraInfo>();
-	// TODO: Fix.
-	/*PTGN_ASSERT(
-		!game.event.window.IsSubscribed(camera),
-		"Cannot create camera from entity which is already subscribed to window events"
-	);*/
-	camera.SubscribeToWindowEvents();
+	camera.SubscribeToLogicalResolutionEvents();
 	return camera;
 }
 
-void CameraResizeScript::OnWindowResized() {
-	Camera::OnWindowResize(entity, game.window.GetSize());
+void CameraResizeScript::OnLogicalResolutionChanged() {
+	auto logical_resolution{ game.renderer.GetLogicalResolution() };
+	Camera::OnLogicalResolutionChanged(entity, logical_resolution);
 }
 
 } // namespace impl
@@ -333,21 +329,22 @@ Camera CreateCamera(Scene& scene) {
 	return impl::CreateCamera(scene.CreateEntity());
 }
 
-void Camera::SubscribeToWindowEvents() {
+void Camera::SubscribeToLogicalResolutionEvents() {
 	TryAddScript<impl::CameraResizeScript>(*this);
-	OnWindowResize(*this, game.window.GetSize());
+	auto logical_resolution{ game.renderer.GetLogicalResolution() };
+	OnLogicalResolutionChanged(*this, logical_resolution);
 }
 
-void Camera::UnsubscribeFromWindowEvents() {
+void Camera::UnsubscribeFromLogicalResolutionEvents() {
 	RemoveScripts<impl::CameraResizeScript>(*this);
 }
 
-void Camera::OnWindowResize(Camera camera, V2_float size) {
+void Camera::OnLogicalResolutionChanged(Camera camera, V2_float size) {
 	auto& info{ camera.Get<impl::CameraInfo>() };
 	size *= camera.GetZoom();
 	// TODO: Potentially allow this to be modified in the future.
-	bool resize{ info.GetResizeToWindow() };
-	bool center{ info.GetCenterOnWindow() };
+	bool resize{ info.GetResizeToLogicalResolution() };
+	bool center{ info.GetCenterOnLogicalResolution() };
 	if (resize) {
 		info.SetViewportSize(size);
 	}
@@ -399,31 +396,35 @@ V2_float Camera::GetBoundsSize() const {
 	return Get<impl::CameraInfo>().GetBoundingBoxSize();
 }
 
-void Camera::SetToWindow(bool continuously) {
+void Camera::SetToLogicalResolution(bool continuously) {
 	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
-		UnsubscribeFromWindowEvents();
+		UnsubscribeFromLogicalResolutionEvents();
 	}
 	info = {};
-	CenterOnWindow(continuously);
-	SetViewportToWindow(continuously);
+	CenterOnLogicalResolution(continuously);
+	SetViewportToLogicalResolution(continuously);
 }
 
-void Camera::CenterOnWindow(bool continuously) {
+void Camera::CenterOnLogicalResolution(bool continuously) {
 	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
-		info.SetCenterOnWindow(true);
-		SubscribeToWindowEvents();
+		info.SetCenterOnLogicalResolution(true);
+		SubscribeToLogicalResolutionEvents();
 	} else {
-		auto center{ game.window.GetCenter() };
+		auto logical_resolution{ game.renderer.GetLogicalResolution() };
+
+		auto center{ logical_resolution / 2.0f };
 		ptgn::SetPosition(*this, center);
 	}
 }
 
 std::array<V2_float, 4> Camera::GetWorldVertices() const {
 	const auto& info{ Get<impl::CameraInfo>() };
-	Rect rect{ info.GetViewportSize() };
 	Transform transform{ GetTransform(*this) };
+	auto zoom{ transform.GetScale() };
+	transform.SetScale(V2_float{ 1.0f, 1.0f });
+	Rect rect{ info.GetViewportSize() / zoom };
 	PTGN_ASSERT(
 		transform.GetScale().BothAboveZero(),
 		"Cannot get world vertices for camera with negative or zero zoom"
@@ -462,13 +463,13 @@ void Camera::SetBounds(const V2_float& position, const V2_float& size) {
 
 void Camera::SetViewportPosition(const V2_float& new_position) {
 	auto& info{ Get<impl::CameraInfo>() };
-	info.SetResizeToWindow(false);
+	info.SetResizeToLogicalResolution(false);
 	info.SetViewportPosition(new_position);
 }
 
 void Camera::SetViewportSize(const V2_float& new_size) {
 	auto& info{ Get<impl::CameraInfo>() };
-	info.SetResizeToWindow(false);
+	info.SetResizeToLogicalResolution(false);
 	info.SetViewportSize(new_size);
 	RefreshBounds();
 }
@@ -530,14 +531,15 @@ void Camera::Roll(float angle_change) {
 }
 */
 
-void Camera::SetViewportToWindow(bool continuously) {
+void Camera::SetViewportToLogicalResolution(bool continuously) {
 	auto& info{ Get<impl::CameraInfo>() };
 	SetZoom(1.0f);
 	if (continuously) {
-		info.SetResizeToWindow(true);
-		SubscribeToWindowEvents();
+		info.SetResizeToLogicalResolution(true);
+		SubscribeToLogicalResolutionEvents();
 	} else {
-		SetViewportSize(game.window.GetSize());
+		auto logical_resolution{ game.renderer.GetLogicalResolution() };
+		SetViewportSize(logical_resolution);
 	}
 }
 
@@ -545,7 +547,7 @@ void Camera::Reset() {
 	ptgn::SetTransform(*this, Transform{});
 	auto& info{ Get<impl::CameraInfo>() };
 	info = {};
-	SubscribeToWindowEvents();
+	SubscribeToLogicalResolutionEvents();
 }
 
 Camera& Camera::StartFollow(Entity target, const FollowConfig& config, bool force) {
@@ -627,35 +629,23 @@ void Camera::PrintInfo() const {
 void CameraManager::Init(impl::SceneKey scene_key) {
 	scene_key_ = scene_key;
 	auto& scene{ game.scene.Get<Scene>(scene_key_) };
-	PTGN_ASSERT(!window && !primary);
-	primary			 = CreateCamera(scene);
-	window			 = CreateCamera(scene);
-	primary_unzoomed = CreateCamera(scene);
-	window_unzoomed	 = CreateCamera(scene);
+	PTGN_ASSERT(!primary);
+	primary = CreateCamera(scene);
 }
 
 void CameraManager::Reset() {
 	primary.Reset();
-	window.Reset();
-	primary_unzoomed.Reset();
-	window_unzoomed.Reset();
 }
 
 void to_json(json& j, const CameraManager& camera_manager) {
-	j["scene_key"]		  = camera_manager.scene_key_;
-	j["primary"]		  = camera_manager.primary;
-	j["window"]			  = camera_manager.window;
-	j["primary_unzoomed"] = camera_manager.primary_unzoomed;
-	j["window_unzoomed"]  = camera_manager.window_unzoomed;
+	j["scene_key"] = camera_manager.scene_key_;
+	j["primary"]   = camera_manager.primary;
 }
 
 void from_json(const json& j, CameraManager& camera_manager) {
 	j.at("scene_key").get_to(camera_manager.scene_key_);
 	const auto& scene{ game.scene.Get<Scene>(camera_manager.scene_key_) };
-	camera_manager.primary			= scene.GetEntityByUUID(j.at("primary").at("UUID"));
-	camera_manager.window			= scene.GetEntityByUUID(j.at("window").at("UUID"));
-	camera_manager.primary_unzoomed = scene.GetEntityByUUID(j.at("primary_unzoomed").at("UUID"));
-	camera_manager.window_unzoomed	= scene.GetEntityByUUID(j.at("window_unzoomed").at("UUID"));
+	camera_manager.primary = scene.GetEntityByUUID(j.at("primary").at("UUID"));
 }
 
 /*
@@ -669,7 +659,7 @@ void CameraController::OnMouseMoveEvent([[maybe_unused]] const MouseMoveEvent& e
 		if (!first_mouse) {
 			V2_float offset = mouse.GetDifference();
 
-			V2_float info.size = game.window.GetSize();
+			info.size = logical_resolution;
 
 			V2_float scaled_offset = offset / info.size;
 

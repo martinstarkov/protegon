@@ -112,29 +112,24 @@ public:
 	void SetBackgroundColor(const Color& background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
-	// @param resolution The resolution size to which the renderer will be displayed.
-	// Note: If no resolution mode is set, setting the resolution will default it to
-	// ResolutionMode::Stretch.
-	// Note: Setting this will override a set viewport.
-	void SetResolution(const V2_int& resolution);
+	// @param logical_resolution Setting to {} will use window size.
+	void SetLogicalResolution(
+		const V2_int& logical_resolution			  = {},
+		LogicalResolutionMode logical_resolution_mode = LogicalResolutionMode::Letterbox
+	);
 
-	void SetLogicalResolution(const V2_int& logical_resolution);
+	void SetLogicalResolutionMode(
+		LogicalResolutionMode logical_resolution_mode = LogicalResolutionMode::Letterbox
+	);
 
-	// @param mode The mode in which to fit the resolution to the window. If
-	// ResolutionMode::Disabled, the resolution is ignored.
-	// Note: Setting this will override a set viewport.
-	void SetResolutionMode(ResolutionMode mode);
+	// @return The physical resolution of the renderer.
+	[[nodiscard]] V2_int GetPhysicalResolution() const;
 
-	// @return The resolution of the renderer. If a resolution has not been set, returns window
-	// size.
-	[[nodiscard]] V2_int GetResolution() const;
-
-	// @return The logical resolution of the renderer. If a logical resolution has not been set,
-	// returns the regular resolution.
+	// @return The logical resolution of the renderer.
 	[[nodiscard]] V2_int GetLogicalResolution() const;
 
-	// @return The resolution scaling mode.
-	[[nodiscard]] ResolutionMode GetResolutionMode() const;
+	// @return The logical resolution scaling mode.
+	[[nodiscard]] LogicalResolutionMode GetLogicalResolutionMode() const;
 
 	// @return The render data associated with the current render queue.
 	[[nodiscard]] RenderData& GetRenderData();

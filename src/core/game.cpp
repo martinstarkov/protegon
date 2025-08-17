@@ -198,11 +198,13 @@ bool Game::IsRunning() const {
 }
 
 void Game::Init(
-	const std::string& title, const V2_int& window_size, const Color& background_color
+	const std::string& title, const V2_int& logical_resolution, const Color& background_color
 ) {
+	window.SetTitle(title);
+	// Order matters here.
+	window.SetSize(logical_resolution);
+	renderer.SetLogicalResolution(logical_resolution);
 	renderer.SetBackgroundColor(background_color);
-	game.window.SetTitle(title);
-	game.window.SetSize(window_size);
 }
 
 void Game::Shutdown() {

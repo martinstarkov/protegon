@@ -47,7 +47,6 @@ float attenuate_cusp(float distance, float radius,
 
 void main() {
 	vec2 pixel = gl_FragCoord.xy;
-	pixel.y = u_Resolution.y - pixel.y;
 	vec2 diff = u_LightPosition - pixel;
 	float distance = length(diff);
 

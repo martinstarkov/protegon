@@ -140,16 +140,46 @@ void SceneManager::ClearSceneTargets() {
 */
 
 void SceneManager::Update() {
+	auto& render_data{ game.renderer.GetRenderData() };
+
 	game.input.Update();
 
-	game.input.InvokeInputEvents(game.renderer.GetRenderData().render_manager);
+	// TODO: Figure out a better way to do non-scene events / scripts.
+
+	bool invoke_actions{ render_data.logical_resolution_changed_ ||
+						 render_data.physical_resolution_changed_ };
+
+	const auto invoke_resolution_events = [&](Manager& manager) {
+		if (render_data.logical_resolution_changed_) {
+			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+				scripts.AddAction(&LogicalResolutionScript::OnLogicalResolutionChanged);
+			}
+		}
+		if (render_data.physical_resolution_changed_) {
+			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+				scripts.AddAction(&PhysicalResolutionScript::OnPhysicalResolutionChanged);
+			}
+		}
+		if (invoke_actions) {
+			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+				scripts.InvokeActions();
+			}
+		}
+	};
+
+	game.input.InvokeInputEvents(render_data.render_manager);
+	invoke_resolution_events(render_data.render_manager);
 
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
+		invoke_resolution_events(*sc.scene);
 		if (sc.scene->active_) {
 			sc.scene->InternalUpdate();
 		}
 	}
+
+	render_data.logical_resolution_changed_	 = false;
+	render_data.physical_resolution_changed_ = false;
 }
 
 void SceneManager::HandleSceneEvents() {

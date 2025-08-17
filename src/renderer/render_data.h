@@ -37,7 +37,7 @@ class Scene;
 struct Matrix4;
 
 // How the renderer resolution is scaled to the window size.
-enum class ResolutionMode {
+enum class LogicalResolutionMode {
 	Disabled,  /**< There is no scaling in effect */
 	Stretch,   /**< The rendered content is stretched to the output resolution */
 	Letterbox, /**< The rendered content is fit to the largest dimension and the other dimension is
@@ -48,7 +48,18 @@ enum class ResolutionMode {
 					 resolution */
 };
 
+struct Viewport {
+	V2_int position;
+	V2_int size;
+
+	bool operator==(const Viewport&) const = default;
+};
+
 namespace impl {
+
+struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
+	void OnWindowResized() override;
+};
 
 class Renderer;
 class SceneManager;
@@ -73,11 +84,6 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 [[nodiscard]] std::array<Vertex, 4> GetQuadVertices(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
 	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices = false
-);
-
-void GetRenderArea(
-	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
-	V2_float& out_position, V2_float& out_size
 );
 
 using UniformCallback = void (*)(Entity, const Shader&);
@@ -235,6 +241,7 @@ private:
 	friend class ptgn::Scene;
 	friend class Renderer;
 	friend class ptgn::Camera;
+	friend struct ViewportResizeScript;
 
 	static void DrawTo(const FrameBuffer& frame_buffer);
 	static void DrawTo(const RenderTarget& render_target);
@@ -242,11 +249,6 @@ private:
 	static void ReadFrom(const Texture& texture);
 	static void ReadFrom(const FrameBuffer& frame_buffer);
 	static void ReadFrom(const RenderTarget& render_target);
-
-	static void BindCamera(const Shader& shader, const Matrix4& view_projection);
-	static void SetViewport(const Camera& camera);
-
-	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
 
 	template <typename T, typename S>
 	void UpdateVertexArray(const T& point_vertices, const S& point_indices) {
@@ -347,6 +349,8 @@ private:
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);
 
+	void RecomputeViewport(const V2_int& window_size);
+
 	// Uses current scene.
 	void Flush();
 
@@ -369,11 +373,18 @@ private:
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 
-	// Default value results in fullscreen.
-	V2_int resolution_;
-	// Default value results in resolution_ being used.
+	void UpdateResolutions(
+		const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
+	);
+
+	bool logical_resolution_set_{ false };
+	LogicalResolutionMode resolution_mode_{ LogicalResolutionMode::Letterbox };
 	V2_int logical_resolution_;
-	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
+	Viewport physical_viewport_;
+	bool logical_resolution_changed_{ false };
+	bool physical_resolution_changed_{ false };
+
+	Entity viewport_tracker;
 
 	std::array<Vertex, 4> camera_vertices;
 	std::vector<Texture> temporary_textures;
@@ -392,11 +403,11 @@ private:
 } // namespace impl
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	ResolutionMode, { { ResolutionMode::Disabled, "disabled" },
-					  { ResolutionMode::Stretch, "stretch" },
-					  { ResolutionMode::Letterbox, "letterbox" },
-					  { ResolutionMode::Overscan, "overscan" },
-					  { ResolutionMode::IntegerScale, "integer_scale" } }
+	LogicalResolutionMode, { { LogicalResolutionMode::Disabled, "disabled" },
+							 { LogicalResolutionMode::Stretch, "stretch" },
+							 { LogicalResolutionMode::Letterbox, "letterbox" },
+							 { LogicalResolutionMode::Overscan, "overscan" },
+							 { LogicalResolutionMode::IntegerScale, "integer_scale" } }
 );
 
 } // namespace ptgn

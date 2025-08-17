@@ -36,7 +36,8 @@ Text CreateText(
 	Text text{ scene.CreateEntity() };
 	text.Add<TextureHandle>();
 	SetDraw<Text>(text);
-	text.Add<Camera>(scene.camera.window_unzoomed);
+	// TODO: Changed to HD camera.
+	text.Add<Camera>(scene.camera.primary);
 	Show(text);
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);

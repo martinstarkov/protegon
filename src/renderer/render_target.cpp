@@ -10,11 +10,11 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/script.h"
-#include "core/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "scene/scene.h"
 
@@ -26,9 +26,12 @@ RenderTarget CreateRenderTarget(
 	const Entity& entity, const Color& clear_color, TextureFormat texture_format
 ) {
 	PTGN_ASSERT(entity);
-	V2_int size{ game.window.GetSize() };
-	RenderTarget render_target{ CreateRenderTarget(entity, size, clear_color, texture_format) };
-	AddScript<RenderTargetResizeScript>(render_target);
+	// TODO: Add option to create physical resolution render target.
+	V2_int logical_resolution{ game.renderer.GetLogicalResolution() };
+	RenderTarget render_target{
+		CreateRenderTarget(entity, logical_resolution, clear_color, texture_format)
+	};
+	AddScript<LogicalRenderTargetResizeScript>(render_target);
 	return render_target;
 }
 
@@ -53,8 +56,14 @@ RenderTarget CreateRenderTarget(
 	return render_target;
 }
 
-void RenderTargetResizeScript::OnWindowResized() {
-	RenderTarget{ entity }.GetTexture().Resize(game.window.GetSize());
+void LogicalRenderTargetResizeScript::OnLogicalResolutionChanged() {
+	auto logical_resolution{ game.renderer.GetLogicalResolution() };
+	RenderTarget{ entity }.GetTexture().Resize(logical_resolution);
+}
+
+void PhysicalRenderTargetResizeScript::OnPhysicalResolutionChanged() {
+	auto physical_resolution{ game.renderer.GetPhysicalResolution() };
+	RenderTarget{ entity }.GetTexture().Resize(physical_resolution);
 }
 
 } // namespace impl

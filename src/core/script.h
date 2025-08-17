@@ -27,6 +27,8 @@ enum class ScriptType {
 	Base,
 	Draw,
 	Window,
+	LogicalResolution,
+	PhysicalResolution,
 	Key,
 	GlobalMouse,
 	Mouse,
@@ -123,6 +125,18 @@ struct DrawScript : public impl::BaseScript<ScriptType::Draw> {
 	friend class Script;
 };
 
+struct LogicalResolutionScript : public impl::BaseScript<ScriptType::LogicalResolution> {
+	virtual ~LogicalResolutionScript() = default;
+
+	virtual void OnLogicalResolutionChanged() { /* user implementation */ }
+};
+
+struct PhysicalResolutionScript : public impl::BaseScript<ScriptType::PhysicalResolution> {
+	virtual ~PhysicalResolutionScript() = default;
+
+	virtual void OnPhysicalResolutionChanged() { /* user implementation */ }
+};
+
 struct WindowScript : public impl::BaseScript<ScriptType::Window> {
 	virtual ~WindowScript() = default;
 
@@ -195,7 +209,8 @@ struct MouseScript : public impl::BaseScript<ScriptType::Mouse> {
 
 	virtual void OnMouseUpOut([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseScrollOver([[maybe_unused]] V2_int scroll_amount
+	virtual void OnMouseScrollOver(
+		[[maybe_unused]] V2_int scroll_amount
 	) { /* user implementation */ }
 
 	virtual void OnMouseScrollOut([[maybe_unused]] V2_int scroll_amount) { /* user implementation */
@@ -300,7 +315,8 @@ struct PlayerMoveScript : public impl::BaseScript<ScriptType::PlayerMove> {
 	// Called when the movement direction changes. Passed parameter is the difference in direction.
 	// If not moving, this is simply the new direction. If moving already, this is the newly added
 	// component of movement. To get the current direction instead, simply use GetDirection().
-	virtual void OnDirectionChange([[maybe_unused]] MoveDirection direction_difference
+	virtual void OnDirectionChange(
+		[[maybe_unused]] MoveDirection direction_difference
 	) { /* user implementation */ }
 
 	virtual void OnMoveUpStart() { /* user implementation */ }
@@ -527,7 +543,7 @@ public:
 			ClearActions();
 
 			for (auto& action : current_actions) {
-				std::invoke(action, *this);
+				action(*this);
 			}
 		}
 	}
@@ -574,8 +590,9 @@ public:
 		requires // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script> &&
 		std::constructible_from<TScript, TArgs...>
 	TScript& AddScript(TArgs&&... args) {
-		auto& script{ scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...)
-		) };
+		auto& script{
+			scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...))
+		};
 		// Explicit for debugging purposes.
 		TScript& s{ *std::dynamic_pointer_cast<TScript>(script) };
 		return s;
@@ -668,11 +685,11 @@ public:
 		};
 		if (j.is_array()) {
 			for (const auto& json_script : j) {
-				std::invoke(deserialize_script, json_script);
+				deserialize_script(json_script);
 			}
 		} else {
 			PTGN_ASSERT(j.contains("type"));
-			std::invoke(deserialize_script, j);
+			deserialize_script(j);
 		}
 	}
 
@@ -686,8 +703,9 @@ public:
 	*/
 
 	template <typename TInterface, typename... Args>
-	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(Args...) const, Args&&... args)
-		const {
+	[[nodiscard]] bool ConditionCheck(
+		bool (TInterface::*func)(Args...) const, Args&&... args
+	) const {
 		constexpr ScriptType type{ TInterface::GetScriptType() };
 
 		for (const auto& script : scripts_) {
@@ -753,7 +771,7 @@ private:
 //		auto scripts{ entity.Get<Scripts>().scripts };
 //		for (const auto& [key, script] : scripts) {
 //			PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
-//			std::invoke(TCallback, script, std::forward<TArgs>(args)...);
+//			TCallback(script, std::forward<TArgs>(args)...);
 //		}
 //	}
 //

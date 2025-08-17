@@ -225,50 +225,43 @@ Color Renderer::GetBackgroundColor() const {
 }
 
 void Renderer::Reset() {
-	render_data_.resolution_   = {};
-	render_data_.scaling_mode_ = ResolutionMode::Disabled;
-
 	bound_ = {};
 
 	FrameBuffer::Unbind(); // Will set bound_frame_buffer_id_ to 0.
+
+	render_data_ = {};
+	render_data_.Init();
 }
 
 void Renderer::Shutdown() {
 	Reset();
 }
 
-void Renderer::SetResolution(const V2_int& resolution) {
-	render_data_.resolution_ = resolution;
-	// User expects setting resolution to take effect immediately so it is defaulted to stretch.
-	if (render_data_.scaling_mode_ == ResolutionMode::Disabled) {
-		render_data_.scaling_mode_ = ResolutionMode::Stretch;
-	}
+void Renderer::SetLogicalResolutionMode(LogicalResolutionMode logical_resolution_mode) {
+	V2_int resolution{ render_data_.logical_resolution_set_ ? render_data_.logical_resolution_
+															: game.window.GetSize() };
+	render_data_.UpdateResolutions(resolution, logical_resolution_mode);
 }
 
-void Renderer::SetLogicalResolution(const V2_int& logical_resolution) {
-	render_data_.logical_resolution_ = logical_resolution;
+void Renderer::SetLogicalResolution(
+	const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
+) {
+	render_data_.logical_resolution_set_ = !logical_resolution.IsZero();
+	V2_int resolution{ render_data_.logical_resolution_set_ ? logical_resolution
+															: game.window.GetSize() };
+	render_data_.UpdateResolutions(resolution, logical_resolution_mode);
 }
 
-void Renderer::SetResolutionMode(ResolutionMode scaling_mode) {
-	render_data_.scaling_mode_ = scaling_mode;
-}
-
-V2_int Renderer::GetResolution() const {
-	if (render_data_.resolution_.IsZero()) {
-		return game.window.GetSize();
-	}
-	return render_data_.resolution_;
+V2_int Renderer::GetPhysicalResolution() const {
+	return render_data_.physical_viewport_.size;
 }
 
 V2_int Renderer::GetLogicalResolution() const {
-	if (render_data_.logical_resolution_.IsZero()) {
-		return GetResolution();
-	}
 	return render_data_.logical_resolution_;
 }
 
-ResolutionMode Renderer::GetResolutionMode() const {
-	return render_data_.scaling_mode_;
+LogicalResolutionMode Renderer::GetLogicalResolutionMode() const {
+	return render_data_.resolution_mode_;
 }
 
 RenderData& Renderer::GetRenderData() {
@@ -298,44 +291,6 @@ void Renderer::PresentScreen() {
 	);
 
 	game.window.SwapBuffers();
-
-	// TODO: Fix.
-	/*
-	// TODO: Move this to happen only when setting resolution. This would allow for example only one
-	// render target to be drawn as resolution.
-	auto camera{ screen_target_.GetCamera().GetPrimary() };
-	Rect dest{ Rect::Fullscreen() };
-	auto center_on_resolution = [&]() {
-		camera.CenterOnArea(resolution_.IsZero() ? game.window.GetSize() : resolution_);
-	};
-	std::function<void()> post_flush;
-	switch (scaling_mode_) {
-		case ResolutionMode::Disabled:
-			camera.SetToWindow();
-			// Uses fullscreen.
-			// resolution_ = {};
-			break;
-		case ResolutionMode::Stretch:
-			std::invoke(center_on_resolution);
-			//   resolution_ = {};
-			//   resolution_.origin = Origin::TopLeft;
-			//   resolution_.size = resolution;
-			break;
-		case ResolutionMode::Letterbox: {
-			// Size of the blackbars on one side.
-			V2_float letterbox_size{ 160, 0 };
-			V2_float size{ resolution_.IsZero() ? game.window.GetSize() : resolution_ };
-			std::invoke(center_on_resolution);
-			// camera.SetSize(size + letterbox_size);
-			//  SetPosition(camera, size / 2.0f);
-			GLRenderer::SetViewport(letterbox_size, game.window.GetSize() - 2.0f * letterbox_size);
-			break;
-		}
-		case ResolutionMode::Overscan:	   break;
-		case ResolutionMode::IntegerScale: break;
-		default:						   PTGN_ERROR("Unrecognized resolution mode");
-	}
-	*/
 }
 
 void Renderer::ClearScreen() const {

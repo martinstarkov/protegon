@@ -38,6 +38,7 @@
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
 #include "renderer/render_target.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
@@ -45,6 +46,15 @@
 #include "scene/scene_manager.h"
 
 namespace ptgn::impl {
+
+void ViewportResizeScript::OnWindowResized() {
+	auto& render_data{ game.renderer.GetRenderData() };
+	auto window_size{ game.window.GetSize() };
+	if (!render_data.logical_resolution_set_) {
+		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
+	}
+	render_data.RecomputeViewport(window_size);
+}
 
 std::array<Vertex, 3> GetTriangleVertices(
 	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
@@ -98,48 +108,6 @@ std::array<Vertex, 4> GetQuadVertices(
 	return vertices;
 }
 
-void GetRenderArea(
-	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
-	V2_float& out_position, V2_float& out_size
-) {
-	switch (mode) {
-		case ResolutionMode::Disabled:
-		case ResolutionMode::Stretch:
-			out_position = {};
-			out_size	 = screen_size;
-			break;
-
-		case ResolutionMode::Letterbox: {
-			PTGN_ASSERT(!target_size.IsZero());
-			auto ratio{ screen_size / target_size };
-			float scale	 = std::min(ratio.x, ratio.y);
-			out_size	 = V2_float{ target_size } * scale;
-			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
-			break;
-		}
-
-		case ResolutionMode::Overscan: {
-			PTGN_ASSERT(!target_size.IsZero());
-			auto ratio{ screen_size / target_size };
-			float scale	 = std::max(ratio.x, ratio.y);
-			out_size	 = V2_float{ target_size } * scale;
-			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
-			break;
-		}
-
-		case ResolutionMode::IntegerScale: {
-			PTGN_ASSERT(!target_size.IsZero());
-			auto ratio{ screen_size / target_size };
-			int scale	 = static_cast<int>(std::min(ratio.x, ratio.y));
-			scale		 = std::max(1, scale); // avoid zero
-			out_size	 = V2_float{ target_size } * static_cast<float>(scale);
-			out_position = (V2_float{ screen_size } - out_size) / 2.0f;
-			break;
-		}
-		default: PTGN_ERROR("Unsupported resolution mode");
-	}
-}
-
 ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
 	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
 
@@ -151,7 +119,7 @@ const Shader& ShaderPass::GetShader() const {
 void ShaderPass::Invoke(Entity entity) const {
 	PTGN_ASSERT(shader_ != nullptr);
 	if (uniform_callback_) {
-		std::invoke(uniform_callback_, entity, *shader_);
+		uniform_callback_(entity, *shader_);
 	}
 }
 
@@ -409,7 +377,8 @@ void RenderData::AddTexturedQuad(
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
 
-			BindCamera(shader, camera);
+			shader.Bind();
+			shader.SetUniform("u_ViewProjection", camera);
 
 			// assert that vertices is screen vertices.
 			GLRenderer::SetViewport({ 0, 0 }, texture_size);
@@ -521,6 +490,11 @@ void RenderData::Init() {
 
 	SetState(RenderState{ {}, BlendMode::None, {} });
 
+	viewport_tracker = render_manager.CreateEntity();
+	AddScript<impl::ViewportResizeScript>(viewport_tracker);
+	auto window_size{ game.window.GetSize() };
+	RecomputeViewport(window_size);
+
 	render_manager.Refresh();
 }
 
@@ -551,11 +525,6 @@ bool RenderData::SetState(const RenderState& new_render_state) {
 	return false;
 }
 
-void RenderData::BindCamera(const Shader& shader, const Matrix4& view_projection) {
-	shader.Bind();
-	shader.SetUniform("u_ViewProjection", view_projection);
-}
-
 void RenderData::UpdateVertexArray(
 	const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
 	std::size_t index_count
@@ -569,15 +538,6 @@ void RenderData::UpdateVertexArray(
 	triangle_vao.GetIndexBuffer().SetSubData(
 		data_indices, 0, static_cast<std::uint32_t>(index_count), sizeof(Index), false, true
 	);
-}
-
-void RenderData::SetRenderParameters(const Camera& camera, BlendMode blend_mode) {
-	SetViewport(camera);
-	GLRenderer::SetBlendMode(blend_mode);
-}
-
-void RenderData::SetViewport(const Camera& camera) {
-	GLRenderer::SetViewport(camera.GetViewportPosition(), camera.GetViewportSize());
 }
 
 void RenderData::SetCameraVertices(
@@ -657,7 +617,8 @@ void RenderData::AddShader(
 	const auto& shader{ render_state.shader_pass.GetShader() };
 	PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
 	// TODO: Only update these if shader bind is dirty.
-	BindCamera(shader, camera);
+	shader.Bind();
+	shader.SetUniform("u_ViewProjection", camera);
 	shader.SetUniform("u_Texture", 1);
 	// TODO: Replace.
 	shader.SetUniform("u_Resolution", camera.GetViewportSize());
@@ -704,18 +665,58 @@ void RenderData::Flush() {
 	Flush(game.scene.GetCurrent());
 }
 
+void DrawCall(
+	const Shader& shader, const std::vector<Vertex>& vertices, const std::vector<Index>& indices,
+	const std::vector<TextureId>& textures, const impl::FrameBuffer& frame_buffer,
+	BlendMode blend_mode, const V2_int& viewport_position, const V2_int& viewport_size,
+	VertexArray& triangle_vao, const Matrix4& view_projection, std::size_t max_texture_slots
+) {
+	frame_buffer.Bind();
+
+	GLRenderer::SetViewport(viewport_position, viewport_size);
+	GLRenderer::SetBlendMode(blend_mode);
+
+	triangle_vao.Bind();
+
+	triangle_vao.GetVertexBuffer().SetSubData(
+		vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false, true
+	);
+
+	triangle_vao.GetIndexBuffer().SetSubData(
+		indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Index), false, true
+	);
+
+	shader.Bind();
+	shader.SetUniform("u_ViewProjection", view_projection);
+
+	PTGN_ASSERT(textures.size() < max_texture_slots);
+
+	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
+		// Save first texture slot for empty white texture.
+		std::uint32_t slot{ i + 1 };
+		Texture::Bind(textures[i], slot);
+	}
+
+	GLRenderer::DrawElements(triangle_vao, indices.size(), false);
+}
+
 void RenderData::Flush(Scene& scene) {
 	const auto draw_vertices_to = [&](auto camera, const auto& target) {
-		const auto& camera_vp{ camera.GetViewProjection() };
 		DrawTo(target);
 		UpdateVertexArray(vertices, indices);
-		SetRenderParameters(camera, render_state.blend_mode);
+		auto viewport_position{ camera.GetViewportPosition() };
+		auto viewport_size{ camera.GetViewportSize() };
+		GLRenderer::SetViewport(viewport_position, viewport_size);
+		GLRenderer::SetBlendMode(render_state.blend_mode);
 		BindTextures();
 
 		// TODO: Only set uniform if camera changed.
-		BindCamera(render_state.shader_pass.GetShader(), camera_vp);
+		const auto& shader{ render_state.shader_pass.GetShader() };
 
-		// TODO: Call shader pass uniform.
+		// TODO: Call shader pass uniform?
+
+		shader.Bind();
+		shader.SetUniform("u_ViewProjection", camera);
 
 		DrawVertexArray(indices.size());
 	};
@@ -736,7 +737,7 @@ void RenderData::Flush(Scene& scene) {
 				intermediate_target->frame_buffer.GetPixel({ 400, 400 })
 			);*/
 
-			std::invoke(draw_vertices_to, camera, intermediate_target->frame_buffer);
+			draw_vertices_to(camera, intermediate_target->frame_buffer);
 			/*PTGN_LOG(
 				"intermediate_target center: ",
 				intermediate_target->frame_buffer.GetPixel({ 400, 400 })
@@ -761,12 +762,17 @@ void RenderData::Flush(Scene& scene) {
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
 
-			BindCamera(shader, camera);
+			shader.Bind();
+			shader.SetUniform("u_ViewProjection", camera);
 
 			/*PTGN_ASSERT(vertices.size() == 0);
 			PTGN_ASSERT(indices.size() == 0);*/
 			// assert that vertices is screen vertices.
-			SetRenderParameters(camera, GetBlendMode(fx));
+			auto viewport_position{ camera.GetViewportPosition() };
+			auto viewport_size{ camera.GetViewportSize() };
+			GLRenderer::SetViewport(viewport_position, viewport_size);
+			auto blend_mode{ GetBlendMode(fx) };
+			GLRenderer::SetBlendMode(blend_mode);
 
 			ReadFrom(ping->frame_buffer);
 
@@ -800,12 +806,16 @@ void RenderData::Flush(Scene& scene) {
 
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 
-		BindCamera(shader, camera);
+		shader.Bind();
+		shader.SetUniform("u_ViewProjection", camera);
 		/*PTGN_ASSERT(vertices.size() == 0);
 		PTGN_ASSERT(indices.size() == 0);*/
 		// assert that vertices is screen vertices.
 		auto blend_mode{ intermediate_target->blend_mode };
-		SetRenderParameters(camera, blend_mode);
+		auto viewport_position{ camera.GetViewportPosition() };
+		auto viewport_size{ camera.GetViewportSize() };
+		GLRenderer::SetViewport(viewport_position, viewport_size);
+		GLRenderer::SetBlendMode(blend_mode);
 
 		ReadFrom(intermediate_target->frame_buffer);
 		/*PTGN_LOG("Intermediate: ", intermediate_target->frame_buffer.GetPixel({ 400, 400 }));*/
@@ -819,7 +829,7 @@ void RenderData::Flush(Scene& scene) {
 
 	} else if (!vertices.empty() && !indices.empty()) {
 		PTGN_ASSERT(drawing_to);
-		std::invoke(draw_vertices_to, camera, drawing_to);
+		draw_vertices_to(camera, drawing_to);
 	}
 
 	Reset();
@@ -852,7 +862,7 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 
 	const auto& draw_function{ it->second };
 
-	std::invoke(draw_function, *this, entity);
+	draw_function(*this, entity);
 }
 
 void RenderData::DrawScene(Scene& scene) {
@@ -884,36 +894,94 @@ void RenderData::DrawScene(Scene& scene) {
 	Flush(scene);
 }
 
+void RenderData::RecomputeViewport(const V2_int& window_size) {
+	if (!logical_resolution_.BothAboveZero()) {
+		UpdateResolutions(window_size, resolution_mode_);
+	}
+
+	Viewport vp;
+	vp.position = { 0, 0 };
+	vp.size		= window_size;
+
+	auto compute_aspect_fit = [&](bool letterbox_mode) {
+		float window_aspect	 = float(window_size.x) / window_size.y;
+		float logical_aspect = float(logical_resolution_.x) / logical_resolution_.y;
+
+		if ((window_aspect > logical_aspect) == letterbox_mode) {
+			// Fit height
+			vp.size.y	  = window_size.y;
+			vp.size.x	  = int(window_size.y * logical_aspect + 0.5f);
+			vp.position.x = (window_size.x - vp.size.x) / 2;
+			vp.position.y = 0;
+		} else {
+			// Fit width
+			vp.size.x	  = window_size.x;
+			vp.size.y	  = int(window_size.x / logical_aspect + 0.5f);
+			vp.position.x = 0;
+			vp.position.y = (window_size.y - vp.size.y) / 2;
+		}
+	};
+
+	switch (resolution_mode_) {
+		case LogicalResolutionMode::Letterbox:	  compute_aspect_fit(true); break;
+
+		case LogicalResolutionMode::IntegerScale: {
+			int scale = std::max(
+				1, std::min(
+					   window_size.x / logical_resolution_.x, window_size.y / logical_resolution_.y
+				   )
+			);
+			vp.size		= logical_resolution_ * scale;
+			vp.position = (window_size - vp.size) / 2;
+			break;
+		}
+
+		case LogicalResolutionMode::Stretch:
+			// Full window
+			break;
+
+		case LogicalResolutionMode::Disabled:
+			vp.size		= logical_resolution_;
+			vp.position = (window_size - vp.size) / 2;
+			break;
+
+		case LogicalResolutionMode::Overscan: compute_aspect_fit(false); break;
+
+		default:							  PTGN_ERROR("Unsupported resolution mode");
+	}
+
+	if (vp != physical_viewport_) {
+		physical_viewport_			 = vp;
+		physical_resolution_changed_ = true;
+	}
+}
+
+void RenderData::UpdateResolutions(
+	const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
+) {
+	if (logical_resolution_ == logical_resolution && resolution_mode_ == logical_resolution_mode) {
+		return;
+	}
+	auto window_size{ game.window.GetSize() };
+	logical_resolution_			= logical_resolution;
+	resolution_mode_			= logical_resolution_mode;
+	logical_resolution_changed_ = true;
+	RecomputeViewport(window_size);
+}
+
 void RenderData::DrawToScreen(Scene& scene) {
 	FrameBuffer::Unbind();
 
-	// Replace with resolution.
-	auto camera{ scene.camera.window };
+	std::array<V2_float, 4> points{ V2_float{}, V2_float{ logical_resolution_.x, 0.0f },
+									logical_resolution_, V2_float{ 0.0f, logical_resolution_.y } };
 
-	auto screen_size{ game.window.GetSize() };
-
-	PTGN_ASSERT(!screen_size.IsZero());
-
-	V2_float renderer_position;
-	V2_float renderer_size;
-
-	impl::GetRenderArea(screen_size, resolution_, scaling_mode_, renderer_position, renderer_size);
-
-	PTGN_ASSERT(!renderer_size.IsZero());
-
-	// V2_float camera_scale{ 1.0f, 1.0f };
-	// auto camera_points{ camera.GetVertices(camera_scale) };
-
-	Rect r{ renderer_size };
-	auto camera_points{ r.GetWorldVertices(Transform{ renderer_position }, Origin::TopLeft) };
-
-	camera_vertices = GetQuadVertices(
-		camera_points, color::White, GetDepth(camera), 1.0f, default_texture_coordinates, true
-	);
+	camera_vertices =
+		GetQuadVertices(points, color::White, 0, 1.0f, default_texture_coordinates, true);
 	UpdateVertexArray(camera_vertices, quad_indices);
 
-	// TODO: Replace with viewport info.
-	SetRenderParameters(camera, GetBlendMode(scene.render_target_));
+	GLRenderer::SetViewport(physical_viewport_.position, physical_viewport_.size);
+	auto blend_mode{ GetBlendMode(scene.render_target_) };
+	GLRenderer::SetBlendMode(blend_mode);
 
 	const Shader* shader{ nullptr };
 
@@ -924,9 +992,25 @@ void RenderData::DrawToScreen(Scene& scene) {
 	}
 
 	PTGN_ASSERT(shader != nullptr);
+	shader->Bind();
 
-	// Replace with Matrix4::
-	BindCamera(*shader, camera);
+	PTGN_ASSERT(
+		physical_viewport_.size.BothAboveZero(),
+		"Physical viewport must have a non-zero size when drawing to the screen"
+	);
+
+	Matrix4 view_projection{ Matrix4::Orthographic(
+		0.0f, logical_resolution_.x, logical_resolution_.y, 0.0f,
+		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
+	) };
+
+	// Matrix4 view_projection{ Matrix4::Orthographic(
+	// 	physical_viewport_.position.x, physical_viewport_.size.x, physical_viewport_.size.y,
+	// 	physical_viewport_.position.y, -std::numeric_limits<float>::infinity(),
+	// 	std::numeric_limits<float>::infinity()
+	// ) };
+
+	shader->SetUniform("u_ViewProjection", view_projection);
 
 	if constexpr (HDR_ENABLED) {
 		shader->SetUniform("u_Texture", 1);
