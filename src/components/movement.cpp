@@ -292,8 +292,9 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
-	const {
+void TopDownMovement::RunWithAcceleration(
+	const V2_float& desired_velocity, RigidBody& rb, float dt
+) const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
@@ -322,8 +323,8 @@ void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, Rigi
 		rb.velocity[i] = impl::MoveTowards(rb.velocity[i], desired_velocity[i], max_speed_change);
 	};
 
-	std::invoke(set_velocity, 0);
-	std::invoke(set_velocity, 1);
+	set_velocity(0);
+	set_velocity(1);
 }
 
 void PlatformerMovement::Update(Transform& transform, RigidBody& rb, float dt) const {

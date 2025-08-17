@@ -199,14 +199,14 @@ std::array<V2_float, 4> GetTextureCoordinates(const Entity& entity, bool flip_ve
 	};
 
 	if (!entity) {
-		std::invoke(check_vertical_flip);
+		check_vertical_flip();
 		return tex_coords;
 	}
 
 	V2_int texture_size{ GetTextureSize(entity) };
 
 	if (texture_size.IsZero()) {
-		std::invoke(check_vertical_flip);
+		check_vertical_flip();
 		return tex_coords;
 	}
 
@@ -235,7 +235,7 @@ std::array<V2_float, 4> GetTextureCoordinates(const Entity& entity, bool flip_ve
 		FlipTextureCoordinates(tex_coords, entity.Get<Flip>());
 	}
 
-	std::invoke(check_vertical_flip);
+	check_vertical_flip();
 
 	return tex_coords;
 }

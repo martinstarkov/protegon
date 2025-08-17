@@ -118,11 +118,11 @@ public:
 		};
 		if (j.is_array()) {
 			for (const auto& json_script : j) {
-				std::invoke(deserialize_script, json_script);
+				deserialize_script(json_script);
 			}
 		} else {
 			PTGN_ASSERT(j.contains("type"));
-			std::invoke(deserialize_script, j);
+			deserialize_script(j);
 		}
 	}
 

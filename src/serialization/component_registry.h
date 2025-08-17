@@ -73,7 +73,7 @@ public:
 	static void AddTypes(Manager& manager) {
 		const auto& registry{ GetData() };
 		for (const auto& [type_name, component_func] : registry) {
-			std::invoke(component_func, manager);
+			component_func(manager);
 		}
 	}
 };

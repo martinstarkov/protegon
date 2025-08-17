@@ -97,7 +97,7 @@ private:
 		}
 		for (const auto& obj : node->objects) {
 			if (!obj.deleted) {
-				std::invoke(visit, obj);
+				visit(obj);
 			}
 		}
 		if (node->left) {

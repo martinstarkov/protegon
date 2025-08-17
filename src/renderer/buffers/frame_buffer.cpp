@@ -290,7 +290,8 @@ void FrameBuffer::ForEachPixel(
 		"Textures with less than 3 pixel components cannot currently be queried"
 	);
 
-	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
+	std::vector<std::uint8_t> v(
+		static_cast<std::size_t>(formats.color_components * size.x * size.y)
 	);
 	FrameBufferId restore_frame_buffer_id{ 0 };
 	if (restore_bind_state) {
@@ -311,7 +312,7 @@ void FrameBuffer::ForEachPixel(
 						 v[static_cast<std::size_t>(idx + 2)],
 						 formats.color_components == 4 ? v[static_cast<std::size_t>(idx + 3)]
 													   : static_cast<std::uint8_t>(255) };
-			std::invoke(func, V2_int{ i, j }, color);
+			func(V2_int{ i, j }, color);
 		}
 	}
 	if (restore_bind_state) {

@@ -95,13 +95,13 @@ void Dropdown::RecalculateButtonPositions() {
 
 	PTGN_ASSERT(info.buttons_.size() >= 1);
 	const auto& first_button{ info.buttons_.front() };
-	auto size{ std::invoke(get_size, first_button) };
+	auto size{ get_size(first_button) };
 
 	V2_float offset{ parent_edge + GetOriginOffset(info.origin_, size) };
 
 	for (std::size_t i{ 0 }; i < info.buttons_.size(); ++i) {
 		auto& button{ info.buttons_[i] };
-		size = std::invoke(get_size, button);
+		size = get_size(button);
 		// First button offset goes in the direction of the dropdown origin, the rest go in the
 		// direction of dropdown.
 		if (i != 0) {

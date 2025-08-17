@@ -76,7 +76,7 @@ public:
 
 	void OnButtonActivate() override {
 		if (on_activate) {
-			std::invoke(on_activate);
+			on_activate();
 		}
 	}
 
@@ -259,8 +259,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default

@@ -137,7 +137,7 @@ std::size_t Dialogue::PickRandomIndex() {
 	RNG<std::size_t> index_rng(0, lines.size() - 1);
 	std::size_t chosen_index = index;
 	do {
-		chosen_index = std::invoke(index_rng);
+		chosen_index = index_rng();
 	} while (VectorContains(used_line_indices, chosen_index));
 	return chosen_index;
 }

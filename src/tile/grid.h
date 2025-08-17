@@ -21,7 +21,9 @@ public:
 	Grid() = default;
 
 	explicit Grid(const Vector2<int>& grid_dimensions, const std::vector<T>& grid_cells) :
-		size{ grid_dimensions }, length{ grid_dimensions.x * grid_dimensions.y }, cells{ grid_cells } {
+		size{ grid_dimensions },
+		length{ grid_dimensions.x * grid_dimensions.y },
+		cells{ grid_cells } {
 		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
@@ -35,7 +37,7 @@ public:
 	void ForEachCoordinate(const std::function<void(V2_int)>& function) const {
 		for (int i{ 0 }; i < size.x; i++) {
 			for (int j{ 0 }; j < size.y; j++) {
-				std::invoke(function, V2_int{ i, j });
+				function(V2_int{ i, j });
 			}
 		}
 	}
@@ -44,7 +46,7 @@ public:
 		for (int i{ 0 }; i < size.x; i++) {
 			for (int j{ 0 }; j < size.y; j++) {
 				V2_int coordinate{ i, j };
-				std::invoke(function, coordinate, Get(coordinate));
+				function(coordinate, Get(coordinate));
 			}
 		}
 	}
@@ -53,26 +55,26 @@ public:
 		for (int i{ 0 }; i < size.x; i++) {
 			for (int j{ 0 }; j < size.y; j++) {
 				V2_int coordinate{ i, j };
-				std::invoke(function, coordinate, Get(coordinate));
+				function(coordinate, Get(coordinate));
 			}
 		}
 	}
 
 	void ForEachIndex(const std::function<void(int)>& function) const {
 		for (int i{ 0 }; i < length; i++) {
-			std::invoke(function, i);
+			function(i);
 		}
 	}
 
 	void ForEachElement(const std::function<void(T&)>& function) {
 		for (auto& cell : cells) {
-			std::invoke(function, cell);
+			function(cell);
 		}
 	}
 
 	void ForEachElement(const std::function<void(const T&)>& function) const {
 		for (auto& cell : cells) {
-			std::invoke(function, cell);
+			function(cell);
 		}
 	}
 

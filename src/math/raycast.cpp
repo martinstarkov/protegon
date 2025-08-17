@@ -546,10 +546,10 @@ RaycastResult RaycastCircleRect(
 		}
 	};
 
-	std::invoke(raycast_capsule_segment, top_left, top_right);		 // Top segment.
-	std::invoke(raycast_capsule_segment, top_right, bottom_right);	 // Right segment.
-	std::invoke(raycast_capsule_segment, bottom_right, bottom_left); // Bottom segment.
-	std::invoke(raycast_capsule_segment, bottom_left, top_left);	 // Left segment.
+	raycast_capsule_segment(top_left, top_right);		// Top segment.
+	raycast_capsule_segment(top_right, bottom_right);	// Right segment.
+	raycast_capsule_segment(bottom_right, bottom_left); // Bottom segment.
+	raycast_capsule_segment(bottom_left, top_left);		// Left segment.
 
 	if (col_min.t < 0.0f || col_min.t >= 1.0f) {
 		return c;

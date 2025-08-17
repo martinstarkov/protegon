@@ -230,7 +230,7 @@ void SceneTransition::Start(
 			);
 		}
 		if (start != nullptr) {
-			std::invoke(start);
+			start();
 		}
 	});
 	if (!transition_in) {
@@ -238,13 +238,13 @@ void SceneTransition::Start(
 	}
 	tween.OnUpdate([=](float f) {
 		if (update != nullptr) {
-			std::invoke(update, f);
+			update(f);
 		}
 	});
 	tween.OnDestroy([=]() mutable {
 		camera.SetPosition(og_c);
 		if (stop != nullptr) {
-			std::invoke(stop);
+			stop();
 		}
 	});
 	game.tween.Add(tween).Start();

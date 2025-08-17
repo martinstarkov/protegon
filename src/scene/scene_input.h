@@ -102,23 +102,23 @@ private:
 
 		if (draggable_trigger == dropzone_trigger) {
 			if (IsOverlappingDropzone(mouse_position, dragging, dropzone, draggable_trigger)) {
-				std::invoke(overlap_func);
-				std::invoke(dropzone_func);
-				std::invoke(draggable_func);
+				overlap_func();
+				dropzone_func();
+				draggable_func();
 			}
 		} else {
 			// Only trigger overlap func once.
 			bool overlap{ false };
 			if (IsOverlappingDropzone(mouse_position, dragging, dropzone, dropzone_trigger)) {
-				std::invoke(overlap_func);
+				overlap_func();
 				overlap = true;
-				std::invoke(dropzone_func);
+				dropzone_func();
 			}
 			if (IsOverlappingDropzone(mouse_position, dragging, dropzone, draggable_trigger)) {
 				if (!overlap) {
-					std::invoke(overlap_func);
+					overlap_func();
 				}
-				std::invoke(draggable_func);
+				draggable_func();
 			}
 		}
 	}

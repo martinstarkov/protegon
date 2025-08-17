@@ -69,12 +69,12 @@ public:
 	// @return The path with which the resource was loaded.
 	[[nodiscard]] const path& GetPath(const HandleType& key) const;
 
-	friend void to_json<
-		Derived, HandleType,
-		ItemType>(json&, const ResourceManager<Derived, HandleType, ItemType>&);
-	friend void from_json<
-		Derived, HandleType,
-		ItemType>(const json&, ResourceManager<Derived, HandleType, ItemType>&);
+	friend void to_json<Derived, HandleType, ItemType>(
+		json&, const ResourceManager<Derived, HandleType, ItemType>&
+	);
+	friend void from_json<Derived, HandleType, ItemType>(
+		const json&, ResourceManager<Derived, HandleType, ItemType>&
+	);
 
 protected:
 	[[nodiscard]] const ItemType& Get(const HandleType& key) const;
@@ -207,7 +207,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) {
 		for (auto& [key, value] : map_) {
-			std::invoke(func, value);
+			func(value);
 		}
 	}
 
@@ -215,7 +215,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
-			std::invoke(func, value);
+			func(value);
 		}
 	}
 
@@ -223,7 +223,7 @@ public:
 	template <typename TFunc>
 	void ForEachKey(const TFunc& func) {
 		for (auto& [key, value] : map_) {
-			std::invoke(func, key);
+			func(key);
 		}
 	}
 
@@ -231,7 +231,7 @@ public:
 	template <typename TFunc>
 	void ForEachKey(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
-			std::invoke(func, key);
+			func(key);
 		}
 	}
 
@@ -239,7 +239,7 @@ public:
 	template <typename TFunc>
 	void ForEachKeyValue(const TFunc& func) {
 		for (auto& [key, value] : map_) {
-			std::invoke(func, key, value);
+			func(key, value);
 		}
 	}
 
@@ -247,7 +247,7 @@ public:
 	template <typename TFunc>
 	void ForEachKeyValue(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
-			std::invoke(func, key, value);
+			func(key, value);
 		}
 	}
 
@@ -396,7 +396,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) {
 		for (auto& value : nameless_) {
-			std::invoke(func, value);
+			func(value);
 		}
 		MapManager<ItemType>::ForEachValue(func);
 	}
@@ -405,7 +405,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) const {
 		for (const auto& value : nameless_) {
-			std::invoke(func, value);
+			func(value);
 		}
 		MapManager<ItemType>::ForEachValue(func);
 	}

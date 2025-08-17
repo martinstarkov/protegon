@@ -75,7 +75,7 @@ public:
 
 	// Custom range seedless distribution.
 	// Range: [min, max] (inclusive).
-	RNG(T min, T max) : RNG{ std::invoke(std::random_device{}), min, max } {}
+	RNG(T min, T max) : RNG{ std::random_device{}(), min, max } {}
 
 	// Generate a new random number in the specified range.
 	[[nodiscard]] T operator()() {
@@ -172,7 +172,7 @@ private:
 		}
 	}
 
-	std::uint32_t seed_{ std::invoke(std::random_device{}) };
+	std::uint32_t seed_{ std::random_device{}() };
 
 	T min_{ 0 };
 	T max_{ 1 };
@@ -210,7 +210,7 @@ public:
 			return std::nullopt;
 		}
 
-		std::size_t idx{ std::invoke(rng_) };
+		std::size_t idx{ rng_() };
 		T value{ std::move(items_[idx]) };
 		items_.erase(items_.begin() + idx);
 
@@ -235,7 +235,7 @@ public:
 	template <typename Func>
 	void ForEach(Func func) {
 		for (auto i = 0; i < Size(); i++) {
-			std::invoke(func, items_[i]);
+			func(items_[i]);
 		}
 	}
 

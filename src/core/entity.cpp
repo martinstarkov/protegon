@@ -102,16 +102,16 @@ const Camera& Entity::GetCamera() const {
 		return nullptr;
 	};
 
-	if (auto c{ std::invoke(get_camera, *this) }) {
+	if (auto c{ get_camera(*this) }) {
 		return *c;
 	}
 	if (const auto rt{ TryGet<RenderTarget>() }) {
-		if (auto c{ std::invoke(get_camera, *rt) }) {
+		if (auto c{ get_camera(*rt) }) {
 			return *c;
 		}
 	}
 	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this) {
-		if (auto c{ std::invoke(get_camera, rt) }) {
+		if (auto c{ get_camera(rt) }) {
 			return *c;
 		}
 	}
@@ -129,16 +129,16 @@ const Camera* Entity::GetNonPrimaryCamera() const {
 		}
 		return nullptr;
 	};
-	if (auto c{ std::invoke(get_camera, *this) }) {
+	if (auto c{ get_camera(*this) }) {
 		return c;
 	}
 	if (const auto rt{ TryGet<RenderTarget>() }) {
-		if (auto c{ std::invoke(get_camera, *rt) }) {
+		if (auto c{ get_camera(*rt) }) {
 			return c;
 		}
 	}
 	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this) {
-		if (auto c{ std::invoke(get_camera, rt) }) {
+		if (auto c{ get_camera(rt) }) {
 			return c;
 		}
 	}
