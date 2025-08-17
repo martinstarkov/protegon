@@ -54,6 +54,7 @@ std::vector<Entity> GetDiscreteCollideables(Entity& entity1, const impl::KDTree&
 	const auto& collider{ entity1.Get<Collider>() };
 
 	Transform transform{ GetAbsoluteTransform(entity1) };
+	transform = ApplyOffset(collider.shape, transform, entity1);
 
 	auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 
@@ -100,8 +101,10 @@ std::vector<Entity> GetDiscreteCollideables(Entity& entity1, const impl::KDTree&
 }
 
 void CollisionHandler::UpdateKDTree(const Entity& entity, float dt) {
+	const auto& collider{ entity.Get<Collider>() };
 	auto transform{ GetAbsoluteTransform(entity) };
-	const auto new_bounding_aabb{ GetBoundingAABB(entity.Get<Collider>().shape, transform) };
+	transform = ApplyOffset(collider.shape, transform, entity);
+	const auto new_bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 	static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
 	static_tree_.EndFrameUpdate();
 	if (const auto rb{ entity.TryGet<RigidBody>() }) {
@@ -123,16 +126,16 @@ void CollisionHandler::Overlap(Entity& entity1) const {
 		}>(entity1, static_tree_) };
 
 	for (const auto& entity2 : collideables) {
-		auto transform1{ GetAbsoluteTransform(entity1) };
-		auto transform2{ GetAbsoluteTransform(entity2) };
-
 		auto& collider1{ entity1.Get<Collider>() };
 		auto& collider2{ entity2.Get<Collider>() };
 
-		auto shape1{ ApplyOffset(collider1.shape, entity1) };
-		auto shape2{ ApplyOffset(collider2.shape, entity2) };
+		auto t1{ GetAbsoluteTransform(entity1) };
+		auto t2{ GetAbsoluteTransform(entity2) };
 
-		if (!ptgn::Overlap(transform1, shape1, transform2, shape2)) {
+		auto transform1{ ApplyOffset(collider1.shape, t1, entity1) };
+		auto transform2{ ApplyOffset(collider2.shape, t2, entity2) };
+
+		if (!ptgn::Overlap(transform1, collider1.shape, transform2, collider2.shape)) {
 			continue;
 		}
 
@@ -155,16 +158,18 @@ void CollisionHandler::Intersect(Entity& entity1, float dt) {
 	std::vector<Entity> moved_entities;
 
 	for (auto& entity2 : collideables) {
-		auto transform1{ GetAbsoluteTransform(entity1) };
-		auto transform2{ GetAbsoluteTransform(entity2) };
-
 		auto& collider1{ entity1.Get<Collider>() };
 		auto& collider2{ entity2.Get<Collider>() };
 
-		auto shape1{ ApplyOffset(collider1.shape, entity1) };
-		auto shape2{ ApplyOffset(collider2.shape, entity2) };
+		auto t1{ GetAbsoluteTransform(entity1) };
+		auto t2{ GetAbsoluteTransform(entity2) };
 
-		auto intersection{ ptgn::Intersect(transform1, shape1, transform2, shape2) };
+		auto transform1{ ApplyOffset(collider1.shape, t1, entity1) };
+		auto transform2{ ApplyOffset(collider2.shape, t2, entity2) };
+
+		auto intersection{
+			ptgn::Intersect(transform1, collider1.shape, transform2, collider2.shape)
+		};
 
 		if (!intersection.Occurred()) {
 			continue;
@@ -218,6 +223,7 @@ std::vector<Entity> CollisionHandler::GetSweepCandidates(
 	const auto& collider{ entity1.Get<Collider>() };
 
 	Transform transform{ GetAbsoluteTransform(entity1) };
+	transform = ApplyOffset(collider.shape, transform, entity1);
 
 	auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 
@@ -285,29 +291,29 @@ std::vector<CollisionHandler::SweepCollision> CollisionHandler::GetSortedCollisi
 			continue;
 		}
 
-		auto transform1{ GetAbsoluteTransform(entity1) };
-		auto transform2{ GetAbsoluteTransform(entity2) };
+		auto t1{ GetAbsoluteTransform(entity1) };
+		auto t2{ GetAbsoluteTransform(entity2) };
 
-		Transform offset_transform{ transform1 };
+		Transform offset_transform{ t1 };
 		offset_transform.Translate(offset);
 
 		const auto& collider1{ entity1.Get<Collider>() };
 		const auto& collider2{ entity2.Get<Collider>() };
 
-		auto shape1{ ApplyOffset(collider1.shape, entity1) };
-		auto shape2{ ApplyOffset(collider2.shape, entity2) };
+		auto transform1{ ApplyOffset(collider1.shape, offset_transform, entity1) };
+		auto transform2{ ApplyOffset(collider2.shape, t2, entity2) };
 
 		auto relative_velocity{ GetRelativeVelocity(velocity1, entity2, dt) };
 
-		auto raycast{
-			ptgn::Raycast(relative_velocity, offset_transform, shape1, transform2, shape2)
-		};
+		auto raycast{ ptgn::Raycast(
+			relative_velocity, transform1, collider1.shape, transform2, collider2.shape
+		) };
 
 		if (!raycast.Occurred()) {
 			continue;
 		}
 
-		auto center1{ offset_transform.GetPosition() };
+		auto center1{ transform1.GetPosition() };
 		auto center2{ transform2.GetPosition() };
 		V2_float center_dist{ center1 - center2 };
 		float dist2{ center_dist.MagnitudeSquared() };
@@ -529,6 +535,7 @@ void CollisionHandler::Update(Scene& scene) {
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();
 		auto transform{ GetAbsoluteTransform(entity) };
+		transform = ApplyOffset(collider.shape, transform, entity);
 		auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 		objects.emplace_back(entity, bounding_aabb);
 		if (entity.Has<RigidBody>()) {

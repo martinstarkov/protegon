@@ -34,8 +34,8 @@ struct Rect : public Drawable<Rect> {
 	// @return Size scaled relative to the transform.
 	[[nodiscard]] V2_float GetSize(const Transform& transform) const;
 
-	// @return New rect offset by the origin.
-	[[nodiscard]] Rect Offset(Origin origin) const;
+	// @return New transform offset by the draw_origin.
+	[[nodiscard]] Transform Offset(const Transform& transform, Origin draw_origin) const;
 
 	// @return Quad vertices relative to the transform where transform.position is taken as the
 	// rectangle center.
@@ -45,7 +45,6 @@ struct Rect : public Drawable<Rect> {
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(
 		const Transform& transform, Origin draw_origin
 	) const;
-	[[nodiscard]] std::array<V2_float, 4> GetLocalVertices(Origin draw_origin) const;
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;

@@ -21,7 +21,9 @@ using Point = V2_float;
 
 using Shape = std::variant<Point, Rect, Circle, Polygon, Line, Triangle, Capsule>;
 
-[[nodiscard]] Shape ApplyOffset(const Shape& shape, const Entity& entity);
+[[nodiscard]] Transform ApplyOffset(
+	const Shape& shape, const Transform& transform, const Entity& entity
+);
 
 [[nodiscard]] V2_float ToWorldPoint(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale, float cos_angle,

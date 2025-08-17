@@ -50,10 +50,7 @@ static void GetShapes(
 	if (!is_parent) {
 		if (entity.Has<Rect>()) {
 			const auto& rect{ entity.Get<Rect>() };
-			// TODO: Instead of using the root entity, pass the origin offset along the recursive
-			// chain to accumulate it.
-			auto offset_rect{ ApplyOffset(rect, root_entity) };
-			vector.emplace_back(offset_rect, entity);
+			vector.emplace_back(rect, entity);
 		}
 		if (entity.Has<Circle>()) {
 			const auto& circle{ entity.Get<Circle>() };
@@ -86,6 +83,7 @@ static bool Overlap(const V2_float& point, const Entity& entity) {
 
 	for (const auto& [shape, e] : shapes) {
 		auto transform{ GetAbsoluteTransform(e) };
+		transform = ApplyOffset(shape, transform, e);
 		if (Overlap(point, transform, shape)) {
 			return true;
 		}
@@ -108,8 +106,10 @@ static bool Overlap(const Entity& entityA, const Entity& entityB) {
 
 	for (const auto& [shapeA, eA] : shapesA) {
 		auto transformA{ GetAbsoluteTransform(eA) };
+		transformA = ApplyOffset(shapeA, transformA, eA);
 		for (const auto& [shapeB, eB] : shapesB) {
 			auto transformB{ GetAbsoluteTransform(eB) };
+			transformB = ApplyOffset(shapeB, transformB, eB);
 			if (Overlap(transformA, shapeA, transformB, shapeB)) {
 				return true;
 			}
@@ -143,14 +143,19 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	auto all_entities{ scene.InternalEntitiesWith<Interactive>().GetVector() };
 
 	for (Entity entity : all_entities) {
-		auto transform{ GetAbsoluteTransform(entity) };
+		auto base_transform{ GetAbsoluteTransform(entity) };
 		std::vector<std::pair<Shape, Entity>> shapes;
 		GetShapes(entity, entity, shapes);
-		entity_shapes.try_emplace(entity, transform, shapes);
-		for (const auto& [shape, _] : shapes) {
+		entity_shapes.try_emplace(entity, base_transform, shapes);
+		for (const auto& [shape, shape_entity] : shapes) {
+			// First apply base entity origin.
+			Transform transform{ ApplyOffset(shape, base_transform, entity) };
+			// Then apply shape entity origin.
+			transform = ApplyOffset(shape, transform, shape_entity);
 			if (draw_interactives_) {
 				DrawDebugShape(
-					transform, shape, draw_interactive_color_, draw_interactive_line_width_
+					transform, shape, draw_interactive_color_, draw_interactive_line_width_,
+					entity.GetCamera()
 				);
 			}
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
@@ -171,9 +176,12 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		PTGN_ASSERT(
 			it != entity_shapes.end(), "Entity cannot be candidate in broadphase without a shape"
 		);
-		const auto& transform{ it->second.absolute_transform };
+		const auto& base_entity{ it->first };
+		const auto& base_transform{ it->second.absolute_transform };
 		const auto& shapes{ it->second.shapes };
-		for (const auto& [shape, _] : shapes) {
+		for (const auto& [shape, shape_entity] : shapes) {
+			Transform transform{ ApplyOffset(shape, base_transform, base_entity) };
+			transform = ApplyOffset(shape, transform, shape_entity);
 			if (Overlap(mouse_state.position, transform, shape)) {
 				entities.under_mouse.emplace_back(entity);
 			}
@@ -531,9 +539,6 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	Transform camera_transform{ GetTransform(scene.camera.primary) };
 	auto viewport_size{ scene.camera.primary.GetViewportSize() };
 
-	// TODO: CHECK IF CAMERA ROTATION IS CORRECT AND NOT NEGATIVE.
-	// camera_transform.SetRotation(-camera_transform.GetRotation());
-
 	return ToWorldPoint(screen_point - viewport_size * 0.5f, camera_transform);
 }
 
@@ -599,25 +604,25 @@ void SceneInput::Update(Scene& scene) {
 	};
 
 	for (Entity entity : last_mouse_over_) {
-		std::invoke(invoke_actions, entity);
+		invoke_actions(entity);
 	}
 
 	for (Entity entity : dropzones) {
 		if (!entity.Has<Dropzone>()) {
 			continue;
 		}
-		std::invoke(invoke_actions, entity);
+		invoke_actions(entity);
 	}
 
 	for (Entity dragging : dragging_entities_) {
 		if (!dragging.Has<Draggable>()) {
 			continue;
 		}
-		std::invoke(invoke_actions, dragging);
+		invoke_actions(dragging);
 	}
 
 	for (Entity entity : entities.under_mouse) {
-		std::invoke(invoke_actions, entity);
+		invoke_actions(entity);
 	}
 
 	std::erase_if(dragging_entities_, [](const auto& entity) {
@@ -638,7 +643,6 @@ void SceneInput::Init(std::size_t scene_key) {
 	}*/
 
 	scene_key_ = scene_key;
-	game.input.Update();
 }
 
 void SceneInput::Shutdown() {

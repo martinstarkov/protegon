@@ -15,14 +15,13 @@
 
 namespace ptgn {
 
-Shape ApplyOffset(const Shape& shape, const Entity& entity) {
+Transform ApplyOffset(const Shape& shape, const Transform& transform, const Entity& entity) {
 	if (!std::holds_alternative<Rect>(shape)) {
-		return shape;
+		return transform;
 	}
 	const Rect& rect{ std::get<Rect>(shape) };
 	auto draw_origin{ GetDrawOrigin(entity) };
-	auto offset_rect{ rect.Offset(draw_origin) };
-	return offset_rect;
+	return rect.Offset(transform, draw_origin);
 }
 
 V2_float ToWorldPoint(
@@ -251,9 +250,11 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
-														 contour[static_cast<std::size_t>(b)],
-														 contour[static_cast<std::size_t>(c)] });
+			result.emplace_back(
+				std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+										 contour[static_cast<std::size_t>(b)],
+										 contour[static_cast<std::size_t>(c)] }
+			);
 
 			m++;
 
