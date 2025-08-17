@@ -243,13 +243,6 @@ private:
 	friend class ptgn::Camera;
 	friend struct ViewportResizeScript;
 
-	static void DrawTo(const FrameBuffer& frame_buffer);
-	static void DrawTo(const RenderTarget& render_target);
-
-	static void ReadFrom(const Texture& texture);
-	static void ReadFrom(const FrameBuffer& frame_buffer);
-	static void ReadFrom(const RenderTarget& render_target);
-
 	template <typename T, typename S>
 	void UpdateVertexArray(const T& point_vertices, const S& point_indices) {
 		UpdateVertexArray(
@@ -324,19 +317,9 @@ private:
 
 	void BindTextures() const;
 
-	void DrawVertexArray(std::size_t index_count) const;
-
 	void UpdateVertexArray(
 		const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
 		std::size_t index_count
-	);
-
-	void SetCameraVertices(
-		const Camera& camera, bool flip_vertices = true, const Color& tint = color::White
-	);
-	void SetCameraVertices(
-		const std::array<V2_float, 4>& positions, const Depth& depth, bool flip_vertices,
-		const Color& tint = color::White
 	);
 
 	void Init();

@@ -1,9 +1,13 @@
+#include "components/draw.h"
+#include "components/effects.h"
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "input/mouse.h"
+#include "renderer/render_data.h"
+#include "renderer/shader.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -205,6 +209,42 @@ seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (game.input.MouseDown
 };
 */
 
+class PostProcessingEffect : public Drawable<PostProcessingEffect> {
+public:
+	PostProcessingEffect() {}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		impl::RenderState state;
+		state.blend_mode  = GetBlendMode(entity);
+		state.shader_pass = entity.Get<impl::ShaderPass>();
+		state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+		state.camera	  = entity.GetOrDefault<Camera>();
+		ctx.AddShader(entity, state, BlendMode::None, color::Transparent, true);
+	}
+};
+
+Entity CreatePostFX(Scene& scene) {
+	auto effect{ scene.CreateEntity() };
+
+	SetDraw<PostProcessingEffect>(effect);
+	Show(effect);
+	SetBlendMode(effect, BlendMode::None);
+
+	return effect;
+}
+
+Entity CreateBlur(Scene& scene) {
+	auto blur{ CreatePostFX(scene) };
+	blur.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Blur>(), nullptr);
+	return blur;
+}
+
+Entity CreateGrayscale(Scene& scene) {
+	auto grayscale{ CreatePostFX(scene) };
+	grayscale.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Grayscale>(), nullptr);
+	return grayscale;
+}
+
 class CameraScene : public Scene {
 public:
 	const float pan_speed{ 200.0f };
@@ -220,8 +260,12 @@ public:
 		mouse = CreateEntity();
 		SetPosition(mouse, {});
 
-		CreateSprite(*this, "tree", { 200, 400 });
-		CreateSprite(*this, "tree", { 600, 400 });
+		auto blur{ CreateBlur(*this) };
+		auto grayscale{ CreateGrayscale(*this) };
+		auto s1{ CreateSprite(*this, "tree", { 200, 400 }) };
+		AddPreFX(s1, blur);
+		auto s2{ CreateSprite(*this, "tree", { 600, 400 }) };
+		AddPostFX(s2, grayscale);
 
 		follow_config.move_mode	  = MoveMode::Lerp;
 		follow_config.lerp_factor = { 0.5f, 0.5f };
@@ -232,7 +276,7 @@ public:
 		//  camera.primary.Shake(1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
 		//  camera.primary.Shake(0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
 		// camera.primary.FadeTo(color::Black, seconds{ 5 });
-		camera.primary.StartFollow(mouse, follow_config);
+		// camera.primary.StartFollow(mouse, follow_config);
 	}
 
 	void Update() override {

@@ -341,16 +341,12 @@ void RenderData::AddTexturedQuad(
 	std::shared_ptr<DrawContext> context;
 
 	if (pre_fx_exist) {
-		V2_float extents{ texture_size * 0.5f };
-		Matrix4 camera{ Matrix4::Orthographic(
-			-extents.x, extents.x, extents.y, -extents.y, -std::numeric_limits<float>::infinity(),
+		std::array<V2_float, 4> points{ V2_float{}, V2_float{ texture_size.x, 0.0f }, texture_size,
+										V2_float{ 0.0f, texture_size.y } };
+		Matrix4 projection{ Matrix4::Orthographic(
+			0.0f, texture_size.x, texture_size.y, 0.0f, -std::numeric_limits<float>::infinity(),
 			std::numeric_limits<float>::infinity()
 		) };
-
-		std::array<V2_float, 4> verts{};
-		for (std::size_t i{ 0 }; i < verts.size(); i++) {
-			verts[i] = impl::default_texture_coordinates[i] * texture_size - extents;
-		}
 
 		auto read{ draw_context_pool.Get(texture_size) };
 		auto write{ draw_context_pool.Get(texture_size) };
@@ -367,51 +363,58 @@ void RenderData::AddTexturedQuad(
 			}
 
 			const auto& fx{ *it };
-			DrawTo(write->frame_buffer);
+			write->frame_buffer.Bind();
 			PTGN_ASSERT(write->frame_buffer.IsBound());
 
 			if (use_previous_texture) {
-				impl::GLRenderer::ClearToColor(color::Transparent);
+				GLRenderer::ClearToColor(color::Transparent);
 			}
 
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
 			const auto& shader{ shader_pass.GetShader() };
 
 			shader.Bind();
-			shader.SetUniform("u_ViewProjection", camera);
+			shader.SetUniform("u_ViewProjection", projection);
+
+			auto blend_mode{ GetBlendMode(fx) };
 
 			// assert that vertices is screen vertices.
-			GLRenderer::SetViewport({ 0, 0 }, texture_size);
-			GLRenderer::SetBlendMode(GetBlendMode(fx));
+			GLRenderer::SetViewport({}, texture_size);
+			GLRenderer::SetBlendMode(blend_mode);
 
 			if (it == pre_fx.pre_fx_.begin() || !use_previous_texture) {
-				ReadFrom(texture);
+				PTGN_ASSERT(texture.IsValid());
+				texture.Bind(1);
 			} else {
-				ReadFrom(read->frame_buffer);
+				PTGN_ASSERT(read->frame_buffer.GetTexture().IsValid());
+				read->frame_buffer.GetTexture().Bind(1);
 			}
 
 			auto pre_fx_tint{ GetTint(fx) };
 
 			// TODO: Cache this somehow?
-			SetCameraVertices(verts, depth, true, pre_fx_tint);
+			camera_vertices = GetQuadVertices(
+				points, pre_fx_tint, depth, 1.0f, default_texture_coordinates, true
+			);
+			UpdateVertexArray(camera_vertices, quad_indices);
 
 			shader.SetUniform("u_Texture", 1);
 			shader.SetUniform("u_Resolution", V2_float{ texture_size });
 
 			shader_pass.Invoke(fx);
 
-			DrawVertexArray(quad_indices.size());
+			GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 
 			use_previous_texture = fx.GetOrDefault<UsePreviousTexture>();
 		}
 
-		if (use_previous_texture) {
-			std::swap(read, write);
-		}
+		PTGN_LOG("Read pre fx (0, 0): ", read->frame_buffer.GetPixel({ 0, 0 }));
 
 		read->in_use = false;
 
 		texture_id = write->frame_buffer.GetTexture().GetId();
+
+		PTGN_LOG("Write pre fx (0, 0): ", write->frame_buffer.GetPixel({ 0, 0 }));
 
 		white_texture.Bind(0);
 
@@ -540,46 +543,6 @@ void RenderData::UpdateVertexArray(
 	);
 }
 
-void RenderData::SetCameraVertices(
-	const std::array<V2_float, 4>& positions, const Depth& depth, bool flip_vertices,
-	const Color& tint
-) {
-	camera_vertices =
-		GetQuadVertices(positions, tint, depth, 1.0f, default_texture_coordinates, flip_vertices);
-
-	UpdateVertexArray(camera_vertices, quad_indices);
-}
-
-void RenderData::SetCameraVertices(const Camera& camera, bool flip_vertices, const Color& tint) {
-	SetCameraVertices(camera.GetWorldVertices(), GetDepth(camera), flip_vertices, tint);
-}
-
-void RenderData::DrawTo(const FrameBuffer& frame_buffer) {
-	PTGN_ASSERT(frame_buffer.IsValid());
-	frame_buffer.Bind();
-	impl::GLRenderer::SetViewport({}, frame_buffer.GetTexture().GetSize());
-}
-
-void RenderData::DrawTo(const RenderTarget& render_target) {
-	PTGN_ASSERT(render_target);
-	DrawTo(render_target.GetFrameBuffer());
-}
-
-void RenderData::ReadFrom(const Texture& texture) {
-	PTGN_ASSERT(texture.IsValid());
-	texture.Bind(1);
-}
-
-void RenderData::ReadFrom(const FrameBuffer& frame_buffer) {
-	PTGN_ASSERT(frame_buffer.IsValid());
-	ReadFrom(frame_buffer.GetTexture());
-}
-
-void RenderData::ReadFrom(const RenderTarget& render_target) {
-	PTGN_ASSERT(render_target);
-	ReadFrom(render_target.GetFrameBuffer());
-}
-
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, BlendMode target_blend_mode,
 	const Color& target_clear_color, bool uses_scene_texture, const Texture& texture,
@@ -592,7 +555,8 @@ void RenderData::AddShader(
 		camera = GetCamera(scene);
 		// TODO: Change to using shader size instead of camera viewport.
 		intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
-		DrawTo(intermediate_target->frame_buffer);
+		intermediate_target->frame_buffer.Bind();
+		GLRenderer::SetViewport({}, intermediate_target->frame_buffer.GetTexture().GetSize());
 		intermediate_target->viewport_position = camera.GetViewportPosition();
 		intermediate_target->viewport_size	   = camera.GetViewportSize();
 		intermediate_target->clear_color	   = target_clear_color;
@@ -600,9 +564,11 @@ void RenderData::AddShader(
 		intermediate_target->blend_mode = target_blend_mode;
 		if (uses_scene_texture) {
 			PTGN_ASSERT(drawing_to);
-			ReadFrom(drawing_to);
+			PTGN_ASSERT(drawing_to.GetTexture().IsValid());
+			drawing_to.GetTexture().Bind(1);
 		} else if (texture.IsValid()) {
-			ReadFrom(texture);
+			PTGN_ASSERT(texture.IsValid());
+			texture.Bind(1);
 		}
 	} else {
 		camera = GetCamera(scene);
@@ -610,7 +576,10 @@ void RenderData::AddShader(
 		PTGN_ASSERT(intermediate_target);
 	}
 
-	SetCameraVertices(camera, false, tint);
+	camera_vertices = GetQuadVertices(
+		camera.GetWorldVertices(), tint, GetDepth(camera), 1.0f, default_texture_coordinates, false
+	);
+	UpdateVertexArray(camera_vertices, quad_indices);
 
 	GLRenderer::SetBlendMode(render_state.blend_mode);
 
@@ -629,7 +598,7 @@ void RenderData::AddShader(
 	// 	intermediate_target.GetPixel({ 50, 50 })
 	// );
 
-	DrawVertexArray(quad_indices.size());
+	GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 
 	// PTGN_LOG(
 	// 	"After drawing shader to intermediate target:",
@@ -702,7 +671,7 @@ void DrawCall(
 
 void RenderData::Flush(Scene& scene) {
 	const auto draw_vertices_to = [&](auto camera, const auto& target) {
-		DrawTo(target);
+		target.Bind();
 		UpdateVertexArray(vertices, indices);
 		auto viewport_position{ camera.GetViewportPosition() };
 		auto viewport_size{ camera.GetViewportSize() };
@@ -718,7 +687,7 @@ void RenderData::Flush(Scene& scene) {
 		shader.Bind();
 		shader.SetUniform("u_ViewProjection", camera);
 
-		DrawVertexArray(indices.size());
+		GLRenderer::DrawElements(triangle_vao, indices.size(), false);
 	};
 	auto camera{ GetCamera(scene) };
 
@@ -756,7 +725,7 @@ void RenderData::Flush(Scene& scene) {
 		pong->blend_mode		= render_state.blend_mode;
 
 		for (const auto& fx : render_state.post_fx.post_fx_) {
-			DrawTo(pong->frame_buffer);
+			pong->frame_buffer.Bind();
 			pong->frame_buffer.ClearToColor(pong->clear_color);
 
 			const auto& shader_pass{ fx.Get<ShaderPass>() };
@@ -774,12 +743,17 @@ void RenderData::Flush(Scene& scene) {
 			auto blend_mode{ GetBlendMode(fx) };
 			GLRenderer::SetBlendMode(blend_mode);
 
-			ReadFrom(ping->frame_buffer);
+			PTGN_ASSERT(ping->frame_buffer.GetTexture().IsValid());
+			ping->frame_buffer.GetTexture().Bind(1);
 
 			auto post_fx_tint{ GetTint(fx) };
 
 			// TODO: Cache this somehow?
-			SetCameraVertices(camera, false, post_fx_tint);
+			camera_vertices = GetQuadVertices(
+				camera.GetWorldVertices(), post_fx_tint, GetDepth(camera), 1.0f,
+				default_texture_coordinates, false
+			);
+			UpdateVertexArray(camera_vertices, quad_indices);
 
 			V2_float viewport{ camera.GetViewportSize() };
 
@@ -788,7 +762,7 @@ void RenderData::Flush(Scene& scene) {
 
 			shader_pass.Invoke(fx);
 
-			DrawVertexArray(quad_indices.size());
+			GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 
 			intermediate_target = pong;
 		}
@@ -801,7 +775,7 @@ void RenderData::Flush(Scene& scene) {
 			"intermediate_target center: ", intermediate_target->frame_buffer.GetPixel({ 400, 400 })
 		);*/
 		PTGN_ASSERT(drawing_to);
-		DrawTo(drawing_to);
+		drawing_to.Bind();
 		/*PTGN_LOG("PreDraw: ", drawing_to.GetFrameBuffer().GetPixel({ 400, 400 }));*/
 
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
@@ -817,14 +791,19 @@ void RenderData::Flush(Scene& scene) {
 		GLRenderer::SetViewport(viewport_position, viewport_size);
 		GLRenderer::SetBlendMode(blend_mode);
 
-		ReadFrom(intermediate_target->frame_buffer);
+		PTGN_ASSERT(intermediate_target->frame_buffer.GetTexture().IsValid());
+		intermediate_target->frame_buffer.GetTexture().Bind(1);
 		/*PTGN_LOG("Intermediate: ", intermediate_target->frame_buffer.GetPixel({ 400, 400 }));*/
 		//	PTGN_LOG("Blend mode: ", intermediate_target.GetBlendMode());
 
 		// TODO: Cache this somehow?
-		SetCameraVertices(camera, false);
+		camera_vertices = GetQuadVertices(
+			camera.GetWorldVertices(), color::White, GetDepth(camera), 1.0f,
+			default_texture_coordinates, false
+		);
+		UpdateVertexArray(camera_vertices, quad_indices);
 
-		DrawVertexArray(quad_indices.size());
+		GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 		/*PTGN_LOG("PostDraw: ", drawing_to.GetPixel({ 400, 400 }));*/
 
 	} else if (!vertices.empty() && !indices.empty()) {
@@ -843,10 +822,6 @@ void RenderData::Reset() {
 	index_offset = 0;
 	force_flush	 = false;
 	draw_context_pool.TrimExpired();
-}
-
-void RenderData::DrawVertexArray(std::size_t index_count) const {
-	GLRenderer::DrawElements(triangle_vao, index_count, false);
 }
 
 void RenderData::InvokeDrawable(const Entity& entity) {
@@ -999,18 +974,12 @@ void RenderData::DrawToScreen(Scene& scene) {
 		"Physical viewport must have a non-zero size when drawing to the screen"
 	);
 
-	Matrix4 view_projection{ Matrix4::Orthographic(
+	Matrix4 projection{ Matrix4::Orthographic(
 		0.0f, logical_resolution_.x, logical_resolution_.y, 0.0f,
 		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	) };
 
-	// Matrix4 view_projection{ Matrix4::Orthographic(
-	// 	physical_viewport_.position.x, physical_viewport_.size.x, physical_viewport_.size.y,
-	// 	physical_viewport_.position.y, -std::numeric_limits<float>::infinity(),
-	// 	std::numeric_limits<float>::infinity()
-	// ) };
-
-	shader->SetUniform("u_ViewProjection", view_projection);
+	shader->SetUniform("u_ViewProjection", projection);
 
 	if constexpr (HDR_ENABLED) {
 		shader->SetUniform("u_Texture", 1);
@@ -1018,9 +987,10 @@ void RenderData::DrawToScreen(Scene& scene) {
 		shader->SetUniform("u_Gamma", 2.2f);
 	}
 
-	ReadFrom(scene.render_target_);
+	PTGN_ASSERT(scene.render_target_.GetTexture().IsValid());
+	scene.render_target_.GetTexture().Bind(1);
 
-	DrawVertexArray(quad_indices.size());
+	GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 }
 
 void RenderData::ClearRenderTargets(Scene& scene) const {
