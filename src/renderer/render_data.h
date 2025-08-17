@@ -234,20 +234,6 @@ private:
 	friend class ptgn::Camera;
 	friend struct ViewportResizeScript;
 
-	void DrawCall(
-		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
-		const std::vector<TextureId>& textures, const impl::FrameBuffer& frame_buffer,
-		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
-		const V2_int& viewport_position, const V2_int& viewport_size, const Matrix4& view_projection
-	);
-
-	template <typename T, typename S>
-	void UpdateVertexArray(const T& point_vertices, const S& point_indices) {
-		UpdateVertexArray(
-			point_vertices.data(), point_vertices.size(), point_indices.data(), point_indices.size()
-		);
-	}
-
 	template <typename T, typename S, typename U>
 	void AddShape(
 		const T& shape_vertices, const S& shape_indices, const U& shape_points, float line_width,
@@ -309,16 +295,21 @@ private:
 
 	void InvokeDrawable(const Entity& entity);
 
-	[[nodiscard]] Camera GetCamera(Scene& scene) const;
+	[[nodiscard]] TextureId PingPong(
+		const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
+		const std::array<V2_float, 4>& points, const Depth& depth, const Texture& texture,
+		const V2_int& viewport_position, const V2_int& viewport_size,
+		const Matrix4& view_projection, bool flip_vertices
+	);
+
+	void DrawCall(
+		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
+		const std::vector<TextureId>& textures, const impl::FrameBuffer& frame_buffer,
+		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
+		const V2_int& viewport_position, const V2_int& viewport_size, const Matrix4& view_projection
+	);
 
 	void Reset();
-
-	void BindTextures() const;
-
-	void UpdateVertexArray(
-		const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
-		std::size_t index_count
-	);
 
 	void Init();
 
@@ -344,6 +335,8 @@ private:
 	void Draw(Scene& scene);
 
 	void ClearRenderTargets(Scene& scene) const;
+
+	// TODO: Clean this up.
 
 	std::shared_ptr<DrawContext> intermediate_target;
 	RenderTarget drawing_to;
