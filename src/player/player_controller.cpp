@@ -82,8 +82,7 @@ Entity CreateTopDownPlayer(
 	SetParent(a1, player);
 	SetParent(a2, player);
 
-	// TODO: Fix script invocations.
-	/*struct AnimationRepeat : public Script<AnimationRepeat> {
+	struct AnimationRepeat : public Script<AnimationRepeat, AnimationScript> {
 		AnimationRepeat() = default;
 
 		AnimationRepeat(std::size_t walk_frequency, std::string_view walk_sound) :
@@ -92,7 +91,8 @@ Entity CreateTopDownPlayer(
 		std::size_t walk_sound_frequency{ 0 };
 		std::string_view walk_sound_key;
 
-		void OnAnimationFrameChange(std::size_t frame) override {
+		void OnAnimationFrameChange() override {
+			auto frame{ Animation{ entity }.GetCurrentFrame() };
 			if (frame % walk_sound_frequency == 0) {
 				game.sound.Play(walk_sound_key);
 			}
@@ -103,7 +103,7 @@ Entity CreateTopDownPlayer(
 	AddScript<AnimationRepeat>(a1, config.walk_sound_frequency, config.walk_sound_key);
 	AddScript<AnimationRepeat>(a2, config.walk_sound_frequency, config.walk_sound_key);
 
-	struct MovementScript : public Script<MovementScript> {
+	struct MovementScript : public Script<MovementScript, PlayerMoveScript> {
 		void OnMoveStart() override {
 			entity.Get<AnimationMap>().GetActive().Start(false);
 		}
@@ -112,7 +112,7 @@ Entity CreateTopDownPlayer(
 			entity.Get<AnimationMap>().GetActive().Reset();
 		}
 
-		void OnMoveDirectionChange(MoveDirection) override {
+		void OnDirectionChange(MoveDirection) override {
 			auto& a{ entity.Get<AnimationMap>() };
 			auto dir{ entity.Get<TopDownMovement>().GetDirection() };
 			auto& prev_active{ a.GetActive() };
@@ -137,7 +137,7 @@ Entity CreateTopDownPlayer(
 		}
 	};
 
-	AddScript<MovementScript>(player);*/
+	AddScript<MovementScript>(player);
 
 	return player;
 }
