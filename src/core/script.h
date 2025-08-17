@@ -437,6 +437,7 @@ public:
 		constexpr auto name{ type_name<TDerived>() };
 
 		j["type"] = name;
+		to_json(j["entity"], entity);
 		if constexpr (tt::has_to_json_v<TDerived>) {
 			to_json(j["data"], *static_cast<const TDerived*>(this));
 		} else {
@@ -448,8 +449,8 @@ public:
 	}
 
 	void Deserialize(const json& j) final {
+		constexpr auto name{ type_name<TDerived>() };
 		if constexpr (tt::has_from_json_v<TDerived>) {
-			constexpr auto name{ type_name<TDerived>() };
 			PTGN_ASSERT(j.contains("data"), "Failed to deserialize data for type ", name);
 			// PTGN_ASSERT(j.at("data").contains(name), "Failed to deserialize data for type ",
 			// name);
@@ -458,6 +459,8 @@ public:
 			using Tuple = std::tuple<TScripts...>;
 			DeserializeScripts<Tuple>(static_cast<TDerived*>(this), j);
 		}
+		PTGN_ASSERT(j.contains("entity"), "Failed to deserialize entity for type ", name);
+		from_json(j.at("entity"), entity);
 	}
 
 	constexpr std::size_t GetHash() const final {
@@ -616,9 +619,6 @@ public:
 	}
 
 	// TODO: Implement.
-	/**/
-
-	// TODO: Implement.
 	/*template <typename T>
 	[[nodiscard]] const T& GetScript() const {
 		static_assert(
@@ -641,44 +641,48 @@ public:
 	[[nodiscard]] T& GetScript() {
 		return const_cast<T&>(std::as_const(*this).template GetScript<T>());
 	}
-	friend void to_json(json& j, const ScriptContainer& container) {
-		if (container.scripts.empty()) {
+	*/
+
+	friend void to_json(json& j, const Scripts& container) {
+		if (container.scripts_.empty()) {
 			return;
 		}
-		if (container.scripts.size() == 1) {
-			auto it{ container.scripts.begin() };
-			j = it->second->Serialize();
+		if (container.scripts_.size() == 1) {
+			j = json{};
+			const auto& script{ container.scripts_.front() };
+			j = script->Serialize();
+			// j["entity"] = script->entity;
 		} else {
 			j = json::array();
-			for (const auto& [key, script] : container.scripts) {
+			for (const auto& script : container.scripts_) {
+				// json object;
+				//  object["type"]	 = script->Serialize();
+				//  object["entity"] = script->Serialize();
 				j.push_back(script->Serialize());
-			}
-		}
-
-		// TODO: Do not serialize repeated ptrs.
-		std::unordered_set<Base*> serialized;
-
-		std::cout << "Serializing" << std::endl;
-
-		for (const auto& [type, scripts] : container) {
-			for (auto& script : scripts) {
-				if (serialized.count(script.get())) {
-					continue;
-				}
-				script->Serialize(j);
-				serialized.emplace(script.get());
 			}
 		}
 	}
 
-	friend void from_json(const json& j, ScriptContainer& container) {
-		container					  = {};
+	friend void from_json(const json& j, Scripts& container) {
+		container = {};
+
 		const auto deserialize_script = [&container](const json& script) {
+			PTGN_ASSERT(script.contains("type"));
+
 			std::string class_name{ script.at("type") };
-			auto instance{ ScriptRegistry<TBaseScript>::Instance().Create(class_name) };
+
+			auto instance{ impl::ScriptRegistry<impl::IScript>::Instance().Create(class_name) };
+
 			if (instance) {
+				PTGN_ASSERT(script.contains("data"));
+				PTGN_ASSERT(script.contains("entity"));
+
+				Entity entity;
+				script.at("entity").get_to(entity);
 				instance->Deserialize(script);
-				container.scripts.try_emplace(Hash(class_name), std::move(instance));
+				PTGN_ASSERT(entity, "Failed to deserialize entity for type: ", class_name);
+				instance->entity = entity;
+				container.scripts_.emplace_back(instance);
 			}
 		};
 		if (j.is_array()) {
@@ -686,19 +690,17 @@ public:
 				deserialize_script(json_script);
 			}
 		} else {
-			PTGN_ASSERT(j.contains("type"));
 			deserialize_script(j);
 		}
 	}
 
-	friend bool operator==(const ScriptContainer& a, const ScriptContainer& b) {
-		return a.scripts == b.scripts;
+	friend bool operator==(const Scripts& a, const Scripts& b) {
+		return a.scripts_ == b.scripts_;
 	}
 
-	friend bool operator!=(const ScriptContainer& a, const ScriptContainer& b) {
+	friend bool operator!=(const Scripts& a, const Scripts& b) {
 		return !operator==(a, b);
 	}
-	*/
 
 	template <typename TInterface, typename... Args>
 	[[nodiscard]] bool ConditionCheck(
