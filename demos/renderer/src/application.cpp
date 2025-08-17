@@ -203,6 +203,14 @@ void GenerateTestCases() {
 	LoadResource("noise", "resources/noise.png");
 
 	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+
+		// TODO: Fix multiple post fx not working.
+		AddPostFX(sprite, CreateGrayscale(s));
+		AddPostFX(sprite, CreateBlur(s));
+	});
+
+	tests.emplace_back([](Scene& s) {
 		AddRect(s, rect1_pos, { 320, 240 }, rect1_color);
 		auto sprite{ AddSprite(s, rect1_pos) };
 		AddPreFX(sprite, CreateGrayscale(s));

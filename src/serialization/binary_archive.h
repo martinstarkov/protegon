@@ -90,6 +90,7 @@ public:
 		}
 	}
 
+	// TODO: Replace with std::span.
 	template <typename T>
 	void ReadBuffer(T* buffer, std::size_t size) {
 		ReadData(reinterpret_cast<char*>(buffer), size);
@@ -189,6 +190,7 @@ public:
 		}
 	}
 
+	// TODO: Replace with std::span.
 	template <typename T>
 	void WriteBuffer(const T* buffer, std::size_t size) {
 		WriteData(reinterpret_cast<const char*>(buffer), size);
