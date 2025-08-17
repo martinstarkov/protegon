@@ -146,8 +146,8 @@ public:
 	[[nodiscard]] Matrix4 Inverse() const;
 
 	// Field of view angle fov_x in radians.
-	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f),
-	// (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
+	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
+	// 100.0f);
 	[[nodiscard]] static Matrix4 Perspective(
 		float fov_x_radians, float aspect_ratio, float front, float back
 	);
