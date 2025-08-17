@@ -235,6 +235,13 @@ private:
 	friend class ptgn::Camera;
 	friend struct ViewportResizeScript;
 
+	void DrawCall(
+		const Shader& shader, const std::vector<Vertex>& vertices,
+		const std::vector<Index>& indices, const std::vector<TextureId>& textures,
+		const impl::FrameBuffer& frame_buffer, BlendMode blend_mode,
+		const V2_int& viewport_position, const V2_int& viewport_size, const Matrix4& view_projection
+	);
+
 	template <typename T, typename S>
 	void UpdateVertexArray(const T& point_vertices, const S& point_indices) {
 		UpdateVertexArray(
@@ -285,20 +292,20 @@ private:
 
 	template <typename T, typename S>
 	void AddVertices(const T& point_vertices, const S& point_indices) {
-		if (vertices.size() + point_vertices.size() > vertex_capacity ||
-			indices.size() + point_indices.size() > index_capacity) {
+		if (vertices_.size() + point_vertices.size() > vertex_capacity ||
+			indices_.size() + point_indices.size() > index_capacity) {
 			Flush();
 		}
 
-		vertices.insert(vertices.end(), point_vertices.begin(), point_vertices.end());
+		vertices_.insert(vertices_.end(), point_vertices.begin(), point_vertices.end());
 
-		indices.reserve(indices.size() + point_indices.size());
+		indices_.reserve(indices_.size() + point_indices.size());
 
 		for (auto index : point_indices) {
-			indices.emplace_back(index + index_offset);
+			indices_.emplace_back(index + index_offset_);
 		}
 
-		index_offset += static_cast<Index>(point_vertices.size());
+		index_offset_ += static_cast<Index>(point_vertices.size());
 	}
 
 	void InvokeDrawable(const Entity& entity);
@@ -365,10 +372,10 @@ private:
 	DrawContextPool draw_context_pool{ seconds{ 1 } };
 	Manager render_manager;
 	RenderState render_state;
-	std::vector<Vertex> vertices;
-	std::vector<Index> indices;
-	std::vector<TextureId> textures;
-	Index index_offset{ 0 };
+	std::vector<Vertex> vertices_;
+	std::vector<Index> indices_;
+	std::vector<TextureId> textures_;
+	Index index_offset_{ 0 };
 	std::size_t max_texture_slots{ 0 };
 	Texture white_texture;
 	VertexArray triangle_vao;

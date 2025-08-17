@@ -434,10 +434,10 @@ void RenderData::AddTexturedQuad(
 	if (!existing_texture) {
 		// Must be done after AddVertices and SetState because both of them may Flush the current
 		// batch, which will clear textures.
-		textures.emplace_back(texture_id);
+		textures_.emplace_back(texture_id);
 	}
 
-	PTGN_ASSERT(textures.size() < max_texture_slots);
+	PTGN_ASSERT(textures_.size() < max_texture_slots);
 }
 
 void RenderData::Init() {
@@ -504,18 +504,18 @@ void RenderData::Init() {
 bool RenderData::GetTextureIndex(std::uint32_t texture_id, float& out_texture_index) {
 	PTGN_ASSERT(texture_id != white_texture.GetId());
 	// Texture exists in batch, therefore do not add it again.
-	for (std::size_t i{ 0 }; i < textures.size(); i++) {
-		if (textures[i] == texture_id) {
+	for (std::size_t i{ 0 }; i < textures_.size(); i++) {
+		if (textures_[i] == texture_id) {
 			// i + 1 because first texture index is white texture.
 			out_texture_index = static_cast<float>(i + 1);
 			return true;
 		}
 	}
 	// Batch is at texture capacity.
-	if (static_cast<std::uint32_t>(textures.size()) == max_texture_slots - 1) {
+	if (static_cast<std::uint32_t>(textures_.size()) == max_texture_slots - 1) {
 		Flush();
 	}
-	out_texture_index = static_cast<float>(textures.size() + 1);
+	out_texture_index = static_cast<float>(textures_.size() + 1);
 	return false;
 }
 
@@ -606,12 +606,12 @@ void RenderData::AddTemporaryTexture(Texture&& texture) {
 }
 
 void RenderData::BindTextures() const {
-	PTGN_ASSERT(textures.size() < max_texture_slots);
+	PTGN_ASSERT(textures_.size() < max_texture_slots);
 
-	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
+	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures_.size()); i++) {
 		// Save first texture slot for empty white texture.
 		std::uint32_t slot{ i + 1 };
-		Texture::Bind(textures[i], slot);
+		Texture::Bind(textures_[i], slot);
 	}
 }
 
@@ -667,7 +667,7 @@ void DrawCall(
 void RenderData::Flush(Scene& scene) {
 	const auto draw_vertices_to = [&](auto camera, const auto& target) {
 		target.Bind();
-		UpdateVertexArray(vertices, indices);
+		UpdateVertexArray(vertices_, indices_);
 		auto viewport_position{ camera.GetViewportPosition() };
 		auto viewport_size{ camera.GetViewportSize() };
 		GLRenderer::SetViewport(viewport_position, viewport_size);
@@ -682,12 +682,12 @@ void RenderData::Flush(Scene& scene) {
 		shader.Bind();
 		shader.SetUniform("u_ViewProjection", camera);
 
-		GLRenderer::DrawElements(triangle_vao, indices.size(), false);
+		GLRenderer::DrawElements(triangle_vao, indices_.size(), false);
 	};
 	auto camera{ GetCamera(scene) };
 
 	if (!render_state.post_fx.post_fx_.empty()) {
-		if (!vertices.empty() && !indices.empty()) {
+		if (!vertices_.empty() && !indices_.empty()) {
 			PTGN_ASSERT(!intermediate_target);
 			intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
 			intermediate_target->frame_buffer.ClearToColor(color::Transparent);
@@ -720,8 +720,8 @@ void RenderData::Flush(Scene& scene) {
 			shader.Bind();
 			shader.SetUniform("u_ViewProjection", camera);
 
-			/*PTGN_ASSERT(vertices.size() == 0);
-			PTGN_ASSERT(indices.size() == 0);*/
+			/*PTGN_ASSERT(vertices_.size() == 0);
+			PTGN_ASSERT(indices_.size() == 0);*/
 			// assert that vertices is screen vertices.
 			auto viewport_position{ camera.GetViewportPosition() };
 			auto viewport_size{ camera.GetViewportSize() };
@@ -792,7 +792,7 @@ void RenderData::Flush(Scene& scene) {
 		GLRenderer::DrawElements(triangle_vao, quad_indices.size(), false);
 		/*PTGN_LOG("PostDraw: ", drawing_to.GetPixel({ 400, 400 }));*/
 
-	} else if (!vertices.empty() && !indices.empty()) {
+	} else if (!vertices_.empty() && !indices_.empty()) {
 		PTGN_ASSERT(drawing_to);
 		draw_vertices_to(camera, drawing_to);
 	}
@@ -802,11 +802,11 @@ void RenderData::Flush(Scene& scene) {
 
 void RenderData::Reset() {
 	intermediate_target = {};
-	vertices.clear();
-	indices.clear();
-	textures.clear();
-	index_offset = 0;
-	force_flush	 = false;
+	vertices_.clear();
+	indices_.clear();
+	textures_.clear();
+	index_offset_ = 0;
+	force_flush	  = false;
 	draw_context_pool.TrimExpired();
 }
 
