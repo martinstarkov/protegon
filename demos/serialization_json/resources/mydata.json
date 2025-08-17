@@ -1,17 +1,21 @@
 {
     "Depth": 22,
     "Draggable": {
-        "dragging": true,
+        "dragging": false,
+        "drop_trigger": "mouse_overlaps",
+        "dropzones": [],
+        "last_dropzones": [],
+        "move_trigger": "mouse_overlaps",
         "offset": [
-            1.0,
-            1.0
+            0.0,
+            0.0
         ],
+        "pickup_trigger": "overlaps",
         "start": [
-            30.0,
-            40.0
+            0.0,
+            0.0
         ]
     },
-    "Enabled": null,
     "Interactive": null,
     "Lifetime": {
         "duration": "300ms",
@@ -41,6 +45,7 @@
         255
     ],
     "Transform": {
+        "dirty_flags": 7,
         "position": [
             30.0,
             50.0
@@ -51,6 +56,6 @@
             2.0
         ]
     },
-    "UUID": 8807782404680736620,
-    "Visible": null
+    "UUID": 14376576814324455736,
+    "Visible": true
 }

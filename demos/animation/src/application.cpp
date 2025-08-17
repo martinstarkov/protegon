@@ -18,7 +18,7 @@ public:
 		LoadResource("anim2", "resources/animation4.png");
 		// LoadResource("anim3", "resources/animation3.png");
 
-		/*sprite = CreateSprite(*this, "anim", camera.primary.GetPosition() + V2_int{ 64, 0 });
+		/*sprite = CreateSprite(*this, "anim", GetPosition(camera.primary) + V2_int{ 64, 0 });
 		SetScale(sprite, 3.0f);
 		auto& crop	  = sprite.Add<TextureCrop>();
 		crop.size	  = V2_int{ 16, 32 };
@@ -26,13 +26,13 @@ public:
 		Hide(sprite);*/
 
 		// animation2 =
-		// CreateAnimation(*this, "anim3", camera.primary.GetPosition(), 16, milliseconds{ 1000 },
+		// CreateAnimation(*this, "anim3", GetPosition(camera.primary), 16, milliseconds{ 1000 },
 		// V2_int{ 512, 512 }, -1, {});
 		animation = CreateAnimation(
-			*this, "anim2", camera.primary.GetPosition(), 16, milliseconds{ 2000 },
+			*this, "anim2", GetPosition(camera.primary), 16, milliseconds{ 2000 },
 			V2_int{ 512, 512 }, -1, {}
 		);
-		// CreateAnimation(*this, "anim", camera.primary.GetPosition(), 4, milliseconds{ 500
+		// CreateAnimation(*this, "anim", GetPosition(camera.primary), 4, milliseconds{ 500
 		// },V2_int{ 16, 32 }, -1, {}); SetScale(animation2, 0.5f);
 
 		animation.Start();

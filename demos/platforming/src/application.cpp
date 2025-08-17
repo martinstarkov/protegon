@@ -13,6 +13,8 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
+// TODO: Fix this demo.
+
 using namespace ptgn;
 
 constexpr V2_int window_size{ 960, 540 };
@@ -58,6 +60,7 @@ class PlatformingScene : public Scene {
 	}
 
 	void Enter() override {
+		SetColliderVisibility(true);
 		V2_float ws{ window_size };
 		physics.SetGravity({ 0.0f, 1.0f });
 

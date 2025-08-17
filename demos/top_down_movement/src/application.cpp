@@ -38,6 +38,8 @@ class TopDownMovementScene : public Scene {
 	}
 
 	void Enter() override {
+		SetColliderVisibility(true);
+
 		V2_float ws{ window_size };
 
 		CreatePlayer();

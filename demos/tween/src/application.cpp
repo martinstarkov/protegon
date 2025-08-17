@@ -8,7 +8,6 @@
 #include "core/game.h"
 #include "core/script.h"
 #include "core/time.h"
-#include "core/window.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -258,11 +257,12 @@ public:
 		config11.Repeat(-1);
 		config11.Reverse();
 
-		size   = { 0, game.window.GetSize().y / static_cast<float>(tweens.size()) };
+		size   = { 0, game.renderer.GetLogicalResolution().y / static_cast<float>(tweens.size()) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
 
 		auto get_pos = [&](std::size_t i) {
-			return V2_float{ game.window.GetCenter().x, size.y * static_cast<float>(i) };
+			return V2_float{ game.renderer.GetLogicalResolution().x / 2.0f,
+							 size.y * static_cast<float>(i) };
 		};
 
 		for (std::size_t i = 0; i < tweens.size(); ++i) {
@@ -302,7 +302,7 @@ public:
 
 	void Draw() {
 		for (auto& [t, c, p] : tweens) {
-			p.x = game.window.GetSize().x * t.GetProgress();
+			p.x = game.renderer.GetLogicalResolution().x * t.GetProgress();
 			DrawDebugRect(p, size, c, Origin::CenterTop, -1.0f);
 		}
 	}

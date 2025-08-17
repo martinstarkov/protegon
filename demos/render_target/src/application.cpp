@@ -2,16 +2,17 @@
 #include "components/draw.h"
 #include "components/sprite.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "math/vector2.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
-constexpr V2_int resolution{ window_size };
+constexpr V2_int resolution{ 400, 400 };
 
 float rect_thickness{ -1.0f };
 float circle_thickness{ -1.0f };
@@ -69,6 +70,9 @@ Entity AddSprite(Scene& s, V2_float pos) {
 
 struct RenderTargetScene : public Scene {
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+		game.renderer.SetLogicalResolution(resolution);
+
 		LoadResource("test", "resources/test1.jpg");
 		// Helper for reuse
 		auto grayscale = CreateGrayscale(*this);
@@ -77,8 +81,9 @@ struct RenderTargetScene : public Scene {
 		// === Dimensions for objects ===
 		V2_float rect_size{ 80, 80 };
 		float circle_radius{ 40.0f };
-		V2_float sprite_size{ game.texture.GetSize("test"
-		) };							// Approximate, since sprite has no size defined
+		V2_float sprite_size{
+			game.texture.GetSize("test")
+		}; // Approximate, since sprite has no size defined
 		V2_float sprite_offset{ 0, 0 }; // used as safe offset from edge
 
 		// Center
@@ -158,7 +163,7 @@ struct RenderTargetScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("RenderTargetScene", window_size);
+	game.Init("RenderTargetScene", resolution, color::LightGray);
 	game.scene.Enter<RenderTargetScene>("");
 	return 0;
 }

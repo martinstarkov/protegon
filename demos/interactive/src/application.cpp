@@ -290,8 +290,9 @@ struct ScriptR2 : public Script<ScriptR2, KeyScript, MouseScript> {
 struct ScriptR3 : public Script<ScriptR3, KeyScript, MouseScript, DragScript> {
 	void OnDrag() override {
 		// PTGN_LOG("r3 Drag: ", mouse);
-		V2_float mouse{ game.input.GetMousePosition() };
-		GetPosition(entity) = mouse + entity.Get<Draggable>().GetOffset();
+		SetPosition(
+			entity, entity.GetScene().input.GetMousePosition() + entity.Get<Draggable>().GetOffset()
+		);
 	}
 
 	/*
@@ -331,9 +332,10 @@ struct ScriptR3 : public Script<ScriptR3, KeyScript, MouseScript, DragScript> {
 
 struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript> {
 	void OnDrag() override {
-		V2_float mouse{ game.input.GetMousePosition() };
 		// PTGN_LOG("c3 Drag: mouse: ", mouse, ", offset: ", entity.Get<Draggable>().offset);
-		GetPosition(entity) = mouse + entity.Get<Draggable>().GetOffset();
+		SetPosition(
+			entity, entity.GetScene().input.GetMousePosition() + entity.Get<Draggable>().GetOffset()
+		);
 	}
 
 	void OnMouseDownOver(Mouse mouse) override {
@@ -453,9 +455,11 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r2, r2_child);
 		AddScript<ScriptR2>(r2);
 
-		LoadResources({ { "drag", "resources/drag.png" },
-						{ "drag_circle", "resources/drag_circle.png" },
-						{ "dropzone", "resources/dropzone.png" } });
+		LoadResources(
+			{ { "drag", "resources/drag.png" },
+			  { "drag_circle", "resources/drag_circle.png" },
+			  { "dropzone", "resources/dropzone.png" } }
+		);
 
 		r4			  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateInteractiveRect(rsize * 2);

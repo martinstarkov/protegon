@@ -167,8 +167,9 @@ public:
 	}
 
 	void Draw() {
-		V2_int min{ camera.primary.GetPosition(Origin::BottomRight) / pixel_size - V2_int{ 1 } };
-		V2_int max{ camera.primary.GetPosition(Origin::TopLeft) / pixel_size + V2_int{ 1 } };
+		auto vertices{ camera.primary.GetWorldVertices() };
+		V2_int min{ vertices[0] / pixel_size - V2_int{ 1 } };
+		V2_int max{ vertices[2] / pixel_size + V2_int{ 1 } };
 
 		PTGN_LOG("Min: ", min, ", Max: ", max);
 
@@ -213,7 +214,7 @@ public:
 					*/
 				}
 
-				Color color{ color::Yellow };
+				Color color{ color::White };
 				if (thresholding) {
 					float opacity_range = 1.0f / static_cast<float>(divisions);
 

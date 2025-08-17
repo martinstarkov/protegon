@@ -7,6 +7,8 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
+// TODO: Fix this demo.
+
 using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
@@ -30,10 +32,12 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void Enter() override {
-		LoadResources({ { "background", "resources/background.png" },
-						{ "planet_b", "resources/planet_b.png" },
-						{ "planet_s", "resources/planet_s.png" },
-						{ "stars", "resources/stars.png" } });
+		LoadResources(
+			{ { "background", "resources/background.png" },
+			  { "planet_b", "resources/planet_b.png" },
+			  { "planet_s", "resources/planet_s.png" },
+			  { "stars", "resources/stars.png" } }
+		);
 
 		bg_pos		 = game.window.GetCenter();
 		planet_b_pos = game.window.GetCenter() - V2_float{ 200, 200 };
@@ -54,7 +58,7 @@ public:
 	}
 
 	void Update() override {
-		float speed = 200.5f * game.dt();
+		float speed = 100.0f * game.dt();
 
 		V2_float velocity;
 
