@@ -107,13 +107,22 @@ void Scene::ReEnter() {
 	game.scene.ReEnter(key_);
 }
 
-V2_float Scene::GetScale() const {
-	V2_float camera_size{ camera.primary.GetViewportSize() };
+V2_float Scene::GetScale(const Camera& relative_to_camera) const {
+	auto cam{ relative_to_camera ? relative_to_camera : camera.primary };
+	// auto camera_zoom{ cam.GetZoom() };
+	// PTGN_ASSERT(camera_zoom.BothAboveZero());
+	V2_float camera_size{ cam.GetViewportSize() };
+	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
+	// camera_size /= camera_zoom;
 	V2_float draw_size{ render_target_.GetTextureSize() };
 	PTGN_ASSERT(camera_size.BothAboveZero());
 	V2_float scale{ draw_size / camera_size };
 	PTGN_ASSERT(scale.BothAboveZero());
 	return scale;
+}
+
+V2_float Scene::GetScale() const {
+	return GetScale(camera.primary);
 }
 
 const RenderTarget& Scene::GetRenderTarget() const {

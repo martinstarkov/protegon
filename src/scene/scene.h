@@ -96,6 +96,8 @@ public:
 	// @return Size of scene render target divided by size of scene primary camera viewport.
 	[[nodiscard]] V2_float GetScale() const;
 
+	[[nodiscard]] V2_float GetScale(const Camera& relative_to_camera) const;
+
 	SceneInput input;
 	Physics physics;
 	CameraManager camera;

@@ -13,6 +13,7 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -21,6 +22,8 @@
 #include "tweens/follow_config.h"
 
 using namespace ptgn;
+
+constexpr V2_int resolution{ 800, 800 };
 
 /*
 class CameraUIScene : public Scene {
@@ -261,6 +264,11 @@ public:
 	Entity mouse;
 	FollowConfig follow_config;
 
+	std::string content{ "The quick brown fox jumps over the lazy dog" };
+	Color color{ color::White };
+	FontSize font_size{ 20 };
+	V2_int center{ resolution / 2 };
+
 	void Enter() override {
 		LoadResource("tree", "resources/test1.jpg");
 
@@ -269,9 +277,9 @@ public:
 
 		auto blur{ CreateBlur(*this) };
 		auto grayscale{ CreateGrayscale(*this) };
-		auto s1{ CreateSprite(*this, "tree", { 200, 400 }) };
+		auto s1{ CreateSprite(*this, "tree", { 100, 400 }) };
 		AddPreFX(s1, blur);
-		auto s2{ CreateSprite(*this, "tree", { 600, 400 }) };
+		auto s2{ CreateSprite(*this, "tree", { 700, 400 }) };
 		AddPostFX(s2, grayscale);
 
 		follow_config.move_mode	  = MoveMode::Lerp;
@@ -331,11 +339,20 @@ public:
 		} else if (game.input.MouseDown(Mouse::Right)) {
 			camera.primary.StartFollow(mouse, follow_config);
 		}
+
+		DrawDebugText(
+			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
+			false
+		);
+		DrawDebugText(
+			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
+			true
+		);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Camera: WASD move, Q/E zoom");
+	game.Init("Camera: WASD move, Q/E zoom", resolution);
 	game.scene.Enter<CameraScene>("");
 	return 0;
 }
