@@ -1,4 +1,5 @@
 #include "core/game.h"
+#include "core/window.h"
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "math/vector2.h"
@@ -15,6 +16,7 @@ constexpr V2_int resolution{ 320, 240 }; // 4, 3
 
 class ResolutionScene : public Scene {
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("background", "resources/test1.jpg");
 		game.renderer.SetLogicalResolution(resolution, LogicalResolutionMode::Disabled);
 	}

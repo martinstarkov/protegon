@@ -5,6 +5,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -270,6 +271,8 @@ public:
 	V2_int center{ resolution / 2 };
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+		camera.primary.SetPixelRounding(true);
 		LoadResource("tree", "resources/test1.jpg");
 
 		mouse = CreateEntity();
