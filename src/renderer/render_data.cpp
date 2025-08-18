@@ -314,6 +314,8 @@ TextureId RenderData::PingPong(
 	const V2_int& viewport_position, const V2_int& viewport_size, const Matrix4& view_projection,
 	bool flip_vertices
 ) {
+	PTGN_ASSERT(!container.empty(), "Cannot ping pong on an empty container");
+
 	auto read{ read_context };
 	auto write{ draw_context_pool.Get(viewport_size) };
 
@@ -383,7 +385,7 @@ void RenderData::AddTexturedQuad(
 
 	PTGN_ASSERT(!texture_size.IsZero(), "Texture must have a non-zero size");
 
-	if (!pre_fx.pre_fx_.empty()) {
+	if (bool has_pre_fx{ !pre_fx.pre_fx_.empty() }) {
 		std::array<V2_float, 4> points{ V2_float{}, V2_float{ texture_size.x, 0.0f }, texture_size,
 										V2_float{ 0.0f, texture_size.y } };
 		Matrix4 projection{ Matrix4::Orthographic(
@@ -553,6 +555,16 @@ void RenderData::AddTemporaryTexture(Texture&& texture) {
 	temporary_textures.emplace_back(std::move(texture));
 }
 
+V2_float RenderData::RelativeToViewport(const V2_float& window_relative_point) const {
+	V2_float scale{
+		V2_float{ logical_resolution_ } / physical_viewport_.size,
+	};
+
+	V2_float local{ (window_relative_point - physical_viewport_.position) * scale };
+
+	return local;
+}
+
 void RenderData::Flush() {
 	PTGN_ASSERT(game.scene.HasCurrent());
 	Flush(game.scene.GetCurrent());
@@ -603,54 +615,79 @@ void RenderData::DrawCall(
 }
 
 void RenderData::Flush(Scene& scene) {
-	auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
+	const auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
+
+	auto viewport_position{ camera.GetViewportPosition() };
+	auto viewport_size{ camera.GetViewportSize() };
 
 	std::vector<TextureId> texture_id;
 
-	if (!render_state.post_fx.post_fx_.empty()) {
-		// Draw vertices to intermediate target before adding post fx to it.
+	bool has_post_fx{ !render_state.post_fx.post_fx_.empty() };
+
+	std::array<V2_float, 4> camera_vertices{ intermediate_target || has_post_fx
+												 ? camera.GetWorldVertices()
+												 : std::array<V2_float, 4>{} };
+	auto camera_depth{ GetDepth(camera) };
+	auto camera_tint{ GetTint(camera) };
+
+	if (has_post_fx) {
 		PTGN_ASSERT(!intermediate_target);
-		intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
+
+		intermediate_target = draw_context_pool.Get(viewport_size);
+
+		// Draw unflushed vertices to intermediate target before adding post fx to it.
 		DrawCall(
 			render_state.shader_pass.GetShader(), vertices_, indices_, textures_,
 			intermediate_target->frame_buffer, true, color::Transparent, render_state.blend_mode,
-			camera.GetViewportPosition(), camera.GetViewportSize(), camera
+			viewport_position, viewport_size, camera
 		);
+
+		// Add post fx to the intermediate target.
+
+		// Flip only every odd ping pong to keep the flushed target upright.
 		bool flip{ render_state.post_fx.post_fx_.size() % 2 == 1 };
 		auto id{ PingPong(
-			render_state.post_fx.post_fx_, intermediate_target, camera.GetWorldVertices(),
-			GetDepth(camera), {}, camera.GetViewportPosition(), camera.GetViewportSize(), camera,
-			flip
+			render_state.post_fx.post_fx_, intermediate_target, camera_vertices, camera_depth, {},
+			viewport_position, viewport_size, camera, flip
 		) };
 		texture_id.emplace_back(id);
 	}
 
-	bool flip{ true };
 	if (intermediate_target) {
-		if (texture_id.empty()) {
-			flip = false;
+		// This branch is for when an intermediate target needs to be flushed onto the drawing_to
+		// frame buffer. It is used in cases where postfx are applied, or when a shader that uses
+		// the intermediate target is being flushed (for instance a set of lights rendered onto an
+		// intermediate target and then flushed onto the drawing_to frame buffer).
+
+		if (!has_post_fx) {
+			// The light case discussed above.
 			texture_id.emplace_back(intermediate_target->frame_buffer.GetTexture().GetId());
 		}
 
 		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
 
+		// Flush intermediate target onto drawing_to frame buffer.
+
 		DrawCall(
 			shader,
 			GetQuadVertices(
-				camera.GetWorldVertices(), color::White, GetDepth(camera), 1.0f,
-				default_texture_coordinates, flip
+				camera_vertices, camera_tint, camera_depth, 1.0f, default_texture_coordinates,
+				has_post_fx /* Only flip if postfx have been applied. */
 			),
 			quad_indices, texture_id, drawing_to.GetFrameBuffer(), false, color::Transparent,
-			render_state.blend_mode, camera.GetViewportPosition(), camera.GetViewportSize(), camera
+			render_state.blend_mode, viewport_position, viewport_size, camera
 		);
 
 	} else if (render_state.shader_pass != ShaderPass{}) {
+		// No post fx, and no intermediate target.
+
 		const auto& shader{ render_state.shader_pass.GetShader() };
+
+		// Draw unflushed vertices directly to drawing_to frame buffer.
 
 		DrawCall(
 			shader, vertices_, indices_, textures_, drawing_to.GetFrameBuffer(), false,
-			color::Transparent, render_state.blend_mode, camera.GetViewportPosition(),
-			camera.GetViewportSize(), camera
+			color::Transparent, render_state.blend_mode, viewport_position, viewport_size, camera
 		);
 	}
 
@@ -690,25 +727,34 @@ void RenderData::DrawScene(Scene& scene) {
 		if (!visible) {
 			continue;
 		}
+
 		RenderTarget rt{ entity };
+
 		SortByDepth(display_list.entities);
+
 		drawing_to = rt;
+
 		for (const auto& display_entity : display_list.entities) {
 			InvokeDrawable(display_entity);
 		}
+
 		Flush(scene);
 	}
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
 	SortByDepth(display_list);
+
 	drawing_to = scene.render_target_;
+
 	for (const auto& entity : display_list) {
 		// Skip entities which are in the display list of a custom render target.
+		// TODO: Perhaps rethink how this is done after HD render targets are introduced.
 		if (entity.Has<RenderTarget>()) {
 			continue;
 		}
 		InvokeDrawable(entity);
 	}
+
 	Flush(scene);
 }
 
@@ -722,21 +768,26 @@ void RenderData::RecomputeViewport(const V2_int& window_size) {
 	vp.size		= window_size;
 
 	auto compute_aspect_fit = [&](bool letterbox_mode) {
-		float window_aspect	 = float(window_size.x) / window_size.y;
-		float logical_aspect = float(logical_resolution_.x) / logical_resolution_.y;
+		float window_aspect{ static_cast<float>(window_size.x) /
+							 static_cast<float>(window_size.y) };
+		float logical_aspect{ static_cast<float>(logical_resolution_.x) /
+							  static_cast<float>(logical_resolution_.y) };
 
-		if ((window_aspect > logical_aspect) == letterbox_mode) {
-			// Fit height
-			vp.size.y	  = window_size.y;
-			vp.size.x	  = int(window_size.y * logical_aspect + 0.5f);
-			vp.position.x = (window_size.x - vp.size.x) / 2;
+		// In letterbox mode we need require window_aspect > logical_aspect to fit height, and in
+		// overscan we require window_aspect > logical_aspect to fit height.
+		bool fit_height{ (window_aspect > logical_aspect) == letterbox_mode };
+
+		if (fit_height) {
+			vp.size.y = window_size.y;
+			vp.size.x = static_cast<int>(static_cast<float>(window_size.y) * logical_aspect + 0.5f);
+			vp.position.x = (window_size.x - vp.size.x) / 2; // left edge.
 			vp.position.y = 0;
 		} else {
-			// Fit width
-			vp.size.x	  = window_size.x;
-			vp.size.y	  = int(window_size.x / logical_aspect + 0.5f);
+			// Fit width.
+			vp.size.x = window_size.x;
+			vp.size.y = static_cast<int>(static_cast<float>(window_size.x) / logical_aspect + 0.5f);
 			vp.position.x = 0;
-			vp.position.y = (window_size.y - vp.size.y) / 2;
+			vp.position.y = (window_size.y - vp.size.y) / 2; // top edge.
 		}
 	};
 
@@ -744,31 +795,31 @@ void RenderData::RecomputeViewport(const V2_int& window_size) {
 		case LogicalResolutionMode::Letterbox:	  compute_aspect_fit(true); break;
 
 		case LogicalResolutionMode::IntegerScale: {
-			int scale = std::max(
-				1, std::min(
-					   window_size.x / logical_resolution_.x, window_size.y / logical_resolution_.y
-				   )
-			);
-			vp.size		= logical_resolution_ * scale;
-			vp.position = (window_size - vp.size) / 2;
+			V2_int ratio{ window_size / logical_resolution_ };
+			// Find which dimension limits the scaling factor.
+			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
+			vp.size		= logical_resolution_ * scale; // scale up.
+			vp.position = (window_size - vp.size) / 2; // center of window.
 			break;
 		}
 
 		case LogicalResolutionMode::Stretch:
-			// Full window
+			// Viewport is full window (default).
 			break;
 
 		case LogicalResolutionMode::Disabled:
-			vp.size		= logical_resolution_;
-			vp.position = (window_size - vp.size) / 2;
+			vp.size		= logical_resolution_;		   // no change.
+			vp.position = (window_size - vp.size) / 2; // center of window.
 			break;
 
 		case LogicalResolutionMode::Overscan: compute_aspect_fit(false); break;
 
-		default:							  PTGN_ERROR("Unsupported resolution mode");
+		default:							  PTGN_ERROR("Unsupported resolution mode")
 	}
 
 	if (vp != physical_viewport_) {
+		// Only update viewport if it changed. This reduces PhysicalResolutionChanged event
+		// dispatch.
 		physical_viewport_			 = vp;
 		physical_resolution_changed_ = true;
 	}
@@ -812,12 +863,14 @@ void RenderData::DrawToScreen(Scene& scene) {
 		0.0f, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	) };
 
+	auto tint{ GetTint(scene.camera.primary) };
+
 	DrawCall(
 		*shader,
 		GetQuadVertices(
 			{ V2_float{}, V2_float{ logical_resolution_.x, 0.0f }, logical_resolution_,
 			  V2_float{ 0.0f, logical_resolution_.y } },
-			color::White, 0, 1.0f, default_texture_coordinates, true
+			tint, 0, 1.0f, default_texture_coordinates, true
 		),
 		quad_indices, { scene.render_target_.GetTexture().GetId() }, impl::FrameBuffer{}, false,
 		color::Transparent, GetBlendMode(scene.render_target_), physical_viewport_.position,

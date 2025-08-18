@@ -58,12 +58,13 @@ struct Viewport {
 
 namespace impl {
 
+class InputHandler;
+class Renderer;
+class SceneManager;
+
 struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
 	void OnWindowResized() override;
 };
-
-class Renderer;
-class SceneManager;
 
 using Index = std::uint32_t;
 
@@ -233,6 +234,9 @@ private:
 	friend class Renderer;
 	friend class ptgn::Camera;
 	friend struct ViewportResizeScript;
+	friend class InputHandler;
+
+	[[nodiscard]] V2_float RelativeToViewport(const V2_float& window_relative_point) const;
 
 	template <typename T, typename S, typename U>
 	void AddShape(
