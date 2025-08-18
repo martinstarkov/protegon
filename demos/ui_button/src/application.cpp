@@ -6,6 +6,8 @@
 #include "core/game.h"
 #include "core/script.h"
 #include "debug/log.h"
+#include "input/input_handler.h"
+#include "input/key.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -61,11 +63,21 @@ public:
 			state = s;
 			std::cout << "Button 1 internal state: " << state << std::endl;
 		}
+		if (game.input.KeyDown(Key::Q)) {
+			b1.Disable();
+			b2.Disable();
+			PTGN_LOG("Disabled both buttons");
+		}
+		if (game.input.KeyDown(Key::E)) {
+			b1.Enable();
+			b2.Enable();
+			PTGN_LOG("Enabled both buttons");
+		}
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ButtonScene");
+	game.Init("ButtonScene: Q/E to disable/enable buttons");
 	game.scene.Enter<ButtonScene>("");
 	return 0;
 }

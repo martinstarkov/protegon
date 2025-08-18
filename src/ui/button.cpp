@@ -80,9 +80,12 @@ ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 
 namespace impl {
 
-void InternalButtonScript::OnMouseEnter() {
+void InternalButtonScript::OnMouseMoveOver() {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
+	if (!button.IsEnabled(true)) {
+		return;
+	}
 	if (state == InternalButtonState::IdleUp) {
 		state = InternalButtonState::Hover;
 		button.StartHover();
@@ -94,9 +97,12 @@ void InternalButtonScript::OnMouseEnter() {
 	}
 }
 
-void InternalButtonScript::OnMouseLeave() {
+void InternalButtonScript::OnMouseMoveOut() {
 	auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
+	if (!button.IsEnabled(true)) {
+		return;
+	}
 	if (state == InternalButtonState::Hover) {
 		state = InternalButtonState::IdleUp;
 		button.StopHover();
@@ -110,6 +116,10 @@ void InternalButtonScript::OnMouseLeave() {
 }
 
 void InternalButtonScript::OnMouseDownOver(Mouse mouse) {
+	Button button{ entity };
+	if (!button.IsEnabled(false)) {
+		return;
+	}
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::Hover) {
@@ -119,6 +129,10 @@ void InternalButtonScript::OnMouseDownOver(Mouse mouse) {
 }
 
 void InternalButtonScript::OnMouseDownOut(Mouse mouse) {
+	Button button{ entity };
+	if (!button.IsEnabled(false)) {
+		return;
+	}
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::IdleUp) {
@@ -128,6 +142,10 @@ void InternalButtonScript::OnMouseDownOut(Mouse mouse) {
 }
 
 void InternalButtonScript::OnMouseUpOver(Mouse mouse) {
+	Button button{ entity };
+	if (!button.IsEnabled(false)) {
+		return;
+	}
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::Pressed) {
@@ -140,6 +158,10 @@ void InternalButtonScript::OnMouseUpOver(Mouse mouse) {
 }
 
 void InternalButtonScript::OnMouseUpOut(Mouse mouse) {
+	Button button{ entity };
+	if (!button.IsEnabled(false)) {
+		return;
+	}
 	if (mouse == Mouse::Left) {
 		auto& state{ entity.Get<InternalButtonState>() };
 		if (state == InternalButtonState::IdleDown) {
@@ -151,13 +173,22 @@ void InternalButtonScript::OnMouseUpOut(Mouse mouse) {
 }
 
 void ToggleButtonScript::OnButtonActivate() {
-	ToggleButton{ entity }.Toggle();
+	ToggleButton self{ entity };
+	if (!self.IsEnabled(false)) {
+		return;
+	}
+	self.Toggle();
 }
 
 ToggleButtonGroupScript::ToggleButtonGroupScript(const ToggleButtonGroup& group) :
 	toggle_button_group{ group } {}
 
 void ToggleButtonGroupScript::OnButtonActivate() {
+	ToggleButton self{ entity };
+	if (!self.IsEnabled(false)) {
+		return;
+	}
+
 	PTGN_ASSERT(toggle_button_group);
 
 	PTGN_ASSERT(toggle_button_group.Has<impl::ToggleButtonGroupInfo>());
@@ -167,7 +198,7 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 	for (auto& [key, toggle_button] : info.buttons_) {
 		toggle_button.SetToggled(false);
 	}
-	ToggleButton{ entity }.SetToggled(true);
+	self.SetToggled(true);
 }
 
 void ButtonColor::SetToState(ButtonState state) {
@@ -338,9 +369,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 	if (entity.Has<TextureHandle>()) {
 		auto& key{ entity.Get<TextureHandle>() };
-		bool disabled_button{ !entity.Has<impl::ButtonEnabled>() ||
-							  !entity.Get<impl::ButtonEnabled>() };
-		if (disabled_button && entity.Has<impl::ButtonDisabledTextureKey>()) {
+		if (!button.IsEnabled(false) && entity.Has<impl::ButtonDisabledTextureKey>()) {
 			key = entity.Get<impl::ButtonDisabledTextureKey>();
 		} else if (entity.Has<impl::ButtonToggled>() && entity.Has<impl::ButtonTextureToggled>()) {
 			key = entity.Get<impl::ButtonTextureToggled>().Get(state);
@@ -524,21 +553,32 @@ Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
 	return *this;
 }
 
-Button& Button::Enable() {
-	return Button::SetEnabled(true);
+Button& Button::Enable(bool enable_hover, bool reset_state) {
+	return Button::SetEnabled(true, enable_hover, reset_state);
 }
 
-Button& Button::Disable() {
-	return Button::SetEnabled(false);
+Button& Button::Disable(bool disable_hover, bool reset_state) {
+	return Button::SetEnabled(false, !disable_hover, reset_state);
 }
 
-Button& Button::SetEnabled(bool enabled) {
-	Add<impl::ButtonEnabled>(enabled);
-	if (!enabled) {
+Button& Button::SetEnabled(bool enable_activation, bool enable_hover, bool reset_state) {
+	Add<impl::ButtonEnabled>(enable_activation, enable_hover);
+	if (reset_state) {
 		auto& state{ Get<impl::InternalButtonState>() };
 		state = impl::InternalButtonState::IdleUp;
 	}
 	return *this;
+}
+
+bool Button::IsEnabled(bool check_for_hover_enabled) const {
+	if (!Has<impl::ButtonEnabled>()) {
+		return false;
+	}
+	const auto& enabled{ Get<impl::ButtonEnabled>() };
+	if (check_for_hover_enabled) {
+		return enabled.hover;
+	}
+	return enabled.activate;
 }
 
 V2_float Button::GetSize() const {
@@ -865,21 +905,24 @@ ButtonState Button::GetState() const {
 }
 
 void Button::Activate() {
-	if (Has<Scripts>()) {
-		Get<Scripts>().AddAction(&ButtonScript::OnButtonActivate);
+	if (!IsEnabled(false) || !Has<Scripts>()) {
+		return;
 	}
+	Get<Scripts>().AddAction(&ButtonScript::OnButtonActivate);
 }
 
 void Button::StartHover() {
-	if (Has<Scripts>()) {
-		Get<Scripts>().AddAction(&ButtonScript::OnButtonHoverStart);
+	if (!IsEnabled(true) || !Has<Scripts>()) {
+		return;
 	}
+	Get<Scripts>().AddAction(&ButtonScript::OnButtonHoverStart);
 }
 
 void Button::StopHover() {
-	if (Has<Scripts>()) {
-		Get<Scripts>().AddAction(&ButtonScript::OnButtonHoverStop);
+	if (!IsEnabled(true) || !Has<Scripts>()) {
+		return;
 	}
+	Get<Scripts>().AddAction(&ButtonScript::OnButtonHoverStop);
 }
 
 bool ToggleButton::IsToggled() const {

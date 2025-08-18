@@ -49,9 +49,9 @@ enum class InternalButtonState {
 
 class InternalButtonScript : public Script<InternalButtonScript, MouseScript> {
 public:
-	void OnMouseEnter() override;
+	void OnMouseMoveOver() override;
 
-	void OnMouseLeave() override;
+	void OnMouseMoveOut() override;
 
 	void OnMouseDownOver(Mouse mouse) override;
 
@@ -216,10 +216,11 @@ struct ButtonTextToggled : public ButtonText {
 	using ButtonText::ButtonText;
 };
 
-struct ButtonEnabled : public BoolComponent {
-	using BoolComponent::BoolComponent;
+struct ButtonEnabled {
+	bool activate{ true };
+	bool hover{ true };
 
-	ButtonEnabled() : BoolComponent{ true } {}
+	PTGN_SERIALIZER_REGISTER(ButtonEnabled, activate, hover);
 };
 
 } // namespace impl
@@ -244,9 +245,15 @@ public:
 	// @param radius 0.0f results in texture sized button.
 	Button& SetRadius(float radius = 0.0f);
 
-	Button& Enable();
-	Button& Disable();
-	Button& SetEnabled(bool enabled = true);
+	Button& Enable(bool enable_hover = true, bool reset_state = true);
+	Button& Disable(bool disable_hover = true, bool reset_state = true);
+	Button& SetEnabled(
+		bool enable_activation = true, bool enable_hover = true, bool reset_state = true
+	);
+
+	// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
+	// @return True if the button activation is enabled, false otherwise.
+	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
 
 	// Manual button script triggers.
 	void Activate();
@@ -259,9 +266,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
