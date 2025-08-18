@@ -6,9 +6,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "SDL_error.h"
-#include "SDL_rwops.h"
-#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/generic.h"
 #include "core/game.h"
@@ -16,6 +13,9 @@
 #include "math/vector2.h"
 #include "resources/fonts.h"
 #include "resources/resource_manager.h"
+#include "SDL_error.h"
+#include "SDL_rwops.h"
+#include "SDL_ttf.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
 #include "utility/file.h"
@@ -58,6 +58,10 @@ void FontManager::Load(
 		it->second.key		= key;
 		it->second.filepath = filepath;
 		it->second.resource = LoadFromFile(filepath, size, index);
+		PTGN_ASSERT(
+			TTF_FontHeight(it->second.resource.get()) == size,
+			"Font size does not match generated font height"
+		);
 	}
 }
 
