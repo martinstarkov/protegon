@@ -382,6 +382,14 @@ template <typename T>
 	return Clamp(vector, min_v, max_v);
 }
 
+// @return True if both the components of a and b are within margin of each other.
+template <typename T>
+[[nodiscard]] inline bool WithinMargin(
+	const Vector2<T>& a, const Vector2<T>& b, const Vector2<T>& margin
+) {
+	return std::abs(a.x - b.x) <= margin.x && std::abs(a.y - b.y) <= margin.y;
+}
+
 // Ceil both components of a vector.
 template <typename T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
