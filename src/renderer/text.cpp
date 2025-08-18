@@ -6,15 +6,12 @@
 #include <string>
 #include <string_view>
 
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/effects.h"
 #include "components/generic.h"
 #include "components/sprite.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "debug/log.h"
@@ -24,8 +21,12 @@
 #include "renderer/render_data.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
-#include "scene/camera.h"
 #include "scene/scene.h"
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 
 namespace ptgn {
 
@@ -36,16 +37,14 @@ Text CreateText(
 	Text text{ scene.CreateEntity() };
 	text.Add<TextureHandle>();
 	SetDraw<Text>(text);
-	// TODO: Changed to HD camera.
-	text.Add<Camera>(scene.camera.primary);
 	Show(text);
+	text.Add<impl::HDText>(true);
 	text.SetParameter(content, false);
 	text.SetParameter(text_color, false);
 	text.SetParameter(font_key, false);
 	text.SetParameter(font_size, false);
 	text.SetProperties(properties, false);
 	text.RecreateTexture();
-
 	return text;
 }
 
@@ -64,7 +63,32 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 		return;
 	}
 
-	Sprite::Draw(ctx, entity);
+	impl::ShapeDrawInfo info{ entity };
+	Text text{ entity };
+
+	if (text.IsHD()) {
+		auto scene_scale{ text.GetScene().GetScale() };
+
+		info.transform.Scale(1.0f / scene_scale);
+
+		if (text.GetHDFontSize() != text.Get<impl::CachedFontSize>()) {
+			text.RecreateTexture();
+		}
+	}
+
+	Sprite sprite{ entity };
+
+	const auto& texture{ text.GetTexture() };
+	auto size{ text.GetSize() };
+	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
+
+	auto origin{ GetDrawOrigin(entity) };
+	auto pre_fx{ entity.GetOrDefault<impl::PreFX>() };
+
+	ctx.AddTexturedQuad(
+		texture, info.transform, size, origin, info.tint, info.depth, texture_coordinates,
+		info.state, pre_fx
+	);
 }
 
 Text& Text::SetFont(const ResourceHandle& font_key) {
@@ -176,7 +200,7 @@ V2_int Text::GetSize() const {
 V2_int Text::GetSize(const Entity& text) {
 	return GetSize(
 		GetParameter(text, TextContent{}), GetParameter(text, ResourceHandle{}),
-		GetParameter(text, FontSize{})
+		Text{ text }.GetHDFontSize()
 	);
 }
 
@@ -188,6 +212,47 @@ V2_int Text::GetSize(
 		"Cannot get size of text texture unless its font is loaded in the font manager"
 	);
 	return game.font.GetSize(font_key, content, font_size);
+}
+
+impl::Texture Text::CreateTexture(const FontSize& font_size) const {
+	TextContent content{ GetContent() };
+	TextColor color{ GetColor() };
+	ResourceHandle font_key{ GetFontKey() };
+	TextProperties properties{ GetProperties() };
+
+	return CreateTexture(content, color, font_size, font_key, properties);
+}
+
+FontSize Text::GetHDFontSize(const FontSize& font_size) const {
+	if (!IsHD()) {
+		return font_size;
+	}
+
+	FontSize final_font_size{ font_size };
+
+	if (final_font_size == std::numeric_limits<std::int32_t>::infinity()) {
+		auto font_key{ GetFontKey() };
+
+		PTGN_ASSERT(
+			game.font.Has(font_key),
+			"Cannot get hd font size for text with font key which is not loaded in the font manager"
+		);
+
+		final_font_size = game.font.GetHeight(font_key);
+	}
+
+	const auto& scene{ GetScene() };
+
+	auto scene_scale{ scene.GetScale() };
+
+	final_font_size =
+		static_cast<std::int32_t>(static_cast<float>(final_font_size) * scene_scale.y);
+
+	return final_font_size;
+}
+
+FontSize Text::GetHDFontSize() const {
+	return GetHDFontSize(GetFontSize());
 }
 
 impl::Texture Text::CreateTexture(
@@ -220,6 +285,7 @@ impl::Texture Text::CreateTexture(
 		TTF_SetFontLineSkip(font, properties.line_skip);
 	}
 #endif
+
 	if (font_size != std::numeric_limits<std::int32_t>::infinity()) {
 		TTF_SetFontSize(font, font_size);
 	}
@@ -291,15 +357,36 @@ impl::Texture Text::CreateTexture(
 	return impl::Texture(impl::Surface{ surface });
 }
 
-void Text::RecreateTexture() {
-	// TODO: Move texture location to TextureManager.
-	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
+Text& Text::SetHD(bool hd) {
+	if (hd == IsHD()) {
+		return *this;
+	}
+	Add<impl::HDText>(hd);
+	RecreateTexture();
+	return *this;
+}
 
+bool Text::IsHD() const {
+	return Has<impl::HDText>() && Get<impl::HDText>();
+}
+
+void Text::RecreateTexture() {
+	TextContent content{ GetContent() };
+	TextColor color{ GetColor() };
+	FontSize font_size{ GetHDFontSize() };
+	ResourceHandle font_key{ GetFontKey() };
 	TextProperties properties{ GetProperties() };
-	TextContent content{ GetParameter(TextContent{}) };
-	TextColor color{ GetParameter(TextColor{}) };
-	FontSize font_size{ GetParameter(FontSize{}) };
-	ResourceHandle font_key{ GetParameter(ResourceHandle{}) };
+
+	Add<impl::CachedFontSize>(font_size);
+	RecreateTexture(content, color, font_size, font_key, properties);
+}
+
+void Text::RecreateTexture(
+	const std::string& content, const TextColor& color, const FontSize& font_size,
+	const ResourceHandle& font_key, const TextProperties& properties
+) {
+	// TODO: Move texture location to TextureManager.
+	impl::Texture& texture{ TryAdd<impl::Texture>() };
 
 	texture = CreateTexture(content, color, font_size, font_key, properties);
 }
@@ -314,6 +401,10 @@ TextProperties Text::GetProperties() const {
 	properties.style		 = GetParameter(FontStyle{});
 	properties.wrap_after	 = GetParameter(TextWrapAfter{});
 	return properties;
+}
+
+void Text::SetProperties(const TextProperties& properties) {
+	SetProperties(properties, true);
 }
 
 void Text::SetProperties(const TextProperties& properties, bool recreate_texture) {

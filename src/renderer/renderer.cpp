@@ -36,6 +36,8 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -68,15 +70,29 @@ void DrawDebugTexture(
 
 void DrawDebugText(
 	const std::string& content, const V2_float& position, const TextColor& color, Origin origin,
-	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties,
-	const V2_float& size, float rotation, const Camera& camera
+	const FontSize& font_size, bool hd_text, const ResourceHandle& font_key,
+	const TextProperties& properties, const V2_float& size, float rotation, const Camera& camera
 ) {
 	auto& render_data{ game.renderer.GetRenderData() };
-	auto texture{ Text::CreateTexture(content, color, font_size, font_key, properties) };
+	FontSize final_font_size{ font_size };
+	Transform transform{ position, rotation };
+	if (hd_text) {
+		const auto& scene{ game.scene.GetCurrent() };
+		auto cam{ camera ? camera : scene.camera.primary };
+		V2_float camera_size{ cam.GetViewportSize() };
+		V2_float draw_size{ scene.GetRenderTarget().GetTextureSize() };
+		PTGN_ASSERT(camera_size.BothAboveZero());
+		V2_float scene_scale{ draw_size / camera_size };
+		PTGN_ASSERT(scene_scale.BothAboveZero());
+		transform.Scale(1.0f / scene_scale);
+		final_font_size = static_cast<std::int32_t>(static_cast<float>(font_size) * scene_scale.y);
+	}
+	auto texture{ Text::CreateTexture(content, color, final_font_size, font_key, properties) };
 	render_data.AddTexturedQuad(
-		texture, Transform{ position, rotation },
-		size.IsZero() ? V2_float{ Text::GetSize(content, font_key) } : size, origin, color::White,
-		impl::max_depth, impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
+		texture, transform,
+		size.IsZero() ? V2_float{ Text::GetSize(content, font_key, final_font_size) } : size,
+		origin, color::White, impl::max_depth, impl::GetDefaultTextureCoordinates(),
+		impl::GetDebugRenderState(camera), {}
 	);
 	render_data.AddTemporaryTexture(std::move(texture));
 }
