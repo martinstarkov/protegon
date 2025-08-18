@@ -33,37 +33,13 @@ Tween CreateTween(Scene& scene) {
 
 namespace impl {
 
-TweenPoint::TweenPoint(milliseconds duration) : duration_{ duration } {}
+TweenPoint::TweenPoint(milliseconds duration) : duration_{ duration } {
+	PTGN_ASSERT(duration.count() >= 0, "TweenPoint duration must be non-negative");
+}
 
 void TweenPoint::SetReversed(bool reversed) {
 	start_reversed_		= reversed;
 	currently_reversed_ = start_reversed_;
-}
-
-TweenInstance::TweenInstance(TweenInstance&& other) noexcept :
-	progress_{ std::exchange(other.progress_, 0.0f) },
-	index_{ std::exchange(other.index_, 0) },
-	points_{ std::exchange(other.points_, {}) },
-	paused_{ std::exchange(other.paused_, false) },
-	started_{ std::exchange(other.started_, false) } {}
-
-TweenInstance& TweenInstance::operator=(TweenInstance&& other) noexcept {
-	if (this != &other) {
-		progress_ = std::exchange(other.progress_, 0.0f);
-		index_	  = std::exchange(other.index_, 0);
-		points_	  = std::exchange(other.points_, {});
-		paused_	  = std::exchange(other.paused_, false);
-		started_  = std::exchange(other.started_, false);
-	}
-	return *this;
-}
-
-TweenInstance::~TweenInstance() {
-	progress_ = 0.0f;
-	index_	  = 0;
-	std::vector<TweenPoint>().swap(points_);
-	paused_	 = false;
-	started_ = false;
 }
 
 } // namespace impl
@@ -75,42 +51,42 @@ Tween& Tween::OnProgress(const std::function<void(Entity, float)>& func) {
 	return *this;
 }
 
-Tween& Tween::OnComplete(const std::function<void(Entity)>& func) {
+Tween& Tween::OnComplete(const TweenCallback& func) {
 	AddScript<impl::TweenCompleteScript>(func);
 	return *this;
 }
 
-Tween& Tween::OnReset(const std::function<void(Entity)>& func) {
+Tween& Tween::OnReset(const TweenCallback& func) {
 	AddScript<impl::TweenResetScript>(func);
 	return *this;
 }
 
-Tween& Tween::OnStart(const std::function<void(Entity)>& func) {
+Tween& Tween::OnStart(const TweenCallback& func) {
 	AddScript<impl::TweenStartScript>(func);
 	return *this;
 }
 
-Tween& Tween::OnStop(const std::function<void(Entity)>& func) {
+Tween& Tween::OnStop(const TweenCallback& func) {
 	AddScript<impl::TweenStopScript>(func);
 	return *this;
 }
 
-Tween& Tween::OnPause(const std::function<void(Entity)>& func) {
+Tween& Tween::OnPause(const TweenCallback& func) {
 	AddScript<impl::TweenPauseScript>(func);
 	return *this;
 }
 
-Tween& Tween::OnResume(const std::function<void(Entity)>& func) {
+Tween& Tween::OnResume(const TweenCallback& func) {
 	AddScript<impl::TweenResumeScript>(func);
 	return *this;
 }
 
-Tween& Tween::OnYoyo(const std::function<void(Entity)>& func) {
+Tween& Tween::OnYoyo(const TweenCallback& func) {
 	AddScript<impl::TweenYoyoScript>(func);
 	return *this;
 }
 
-Tween& Tween::OnRepeat(const std::function<void(Entity)>& func) {
+Tween& Tween::OnRepeat(const TweenCallback& func) {
 	AddScript<impl::TweenRepeatScript>(func);
 	return *this;
 }
@@ -408,7 +384,7 @@ Tween& Tween::Start(bool force) {
 	return *this;
 }
 
-Tween& Tween::IncrementTweenPoint() {
+Tween& Tween::IncrementPoint() {
 	if (IsCompleted()) {
 		return *this;
 	}

@@ -27,6 +27,8 @@ struct TweenPoint;
 
 } // namespace impl
 
+using TweenCallback = std::function<void(Entity)>;
+
 class Tween : public Entity {
 public:
 	Tween() = default;
@@ -49,14 +51,14 @@ public:
 	// TODO: Add variant functions with no entity argument.
 
 	Tween& OnProgress(const std::function<void(Entity, float)>& func);
-	Tween& OnComplete(const std::function<void(Entity)>& func);
-	Tween& OnReset(const std::function<void(Entity)>& func);
-	Tween& OnStart(const std::function<void(Entity)>& func);
-	Tween& OnStop(const std::function<void(Entity)>& func);
-	Tween& OnPause(const std::function<void(Entity)>& func);
-	Tween& OnResume(const std::function<void(Entity)>& func);
-	Tween& OnYoyo(const std::function<void(Entity)>& func);
-	Tween& OnRepeat(const std::function<void(Entity)>& func);
+	Tween& OnComplete(const TweenCallback& func);
+	Tween& OnReset(const TweenCallback& func);
+	Tween& OnStart(const TweenCallback& func);
+	Tween& OnStop(const TweenCallback& func);
+	Tween& OnPause(const TweenCallback& func);
+	Tween& OnResume(const TweenCallback& func);
+	Tween& OnYoyo(const TweenCallback& func);
+	Tween& OnRepeat(const TweenCallback& func);
 
 	// @return Current progress of the tween [0.0f, 1.0f].
 	[[nodiscard]] float GetProgress() const;
@@ -99,7 +101,7 @@ public:
 
 	// If there are future tween points, will simulate a tween point completion. If the tween has
 	// completed or is in the middle of the final tween point, this function does nothing.
-	Tween& IncrementTweenPoint();
+	Tween& IncrementPoint();
 
 	// @return Index of the current tween point.
 	[[nodiscard]] std::size_t GetCurrentIndex() const;
@@ -162,16 +164,7 @@ struct TweenPoint {
 
 	void SetReversed(bool reversed);
 
-	friend bool operator==(const TweenPoint& a, const TweenPoint& b) {
-		return a.current_repeat_ == b.current_repeat_ && a.total_repeats_ == b.total_repeats_ &&
-			   a.yoyo_ == b.yoyo_ && a.currently_reversed_ == b.currently_reversed_ &&
-			   a.start_reversed_ == b.start_reversed_ && a.duration_ == b.duration_ &&
-			   a.ease_ == b.ease_ && a.script_container_ == b.script_container_;
-	}
-
-	friend bool operator!=(const TweenPoint& a, const TweenPoint& b) {
-		return !operator==(a, b);
-	}
+	bool operator==(const TweenPoint&) const = default;
 
 	// current number of repetitions of the tween.
 	std::int64_t current_repeat_{ 0 };
@@ -204,13 +197,6 @@ struct TweenPoint {
 };
 
 struct TweenInstance {
-	TweenInstance()								   = default;
-	TweenInstance(const TweenInstance&)			   = default;
-	TweenInstance& operator=(const TweenInstance&) = default;
-	TweenInstance(TweenInstance&&) noexcept;
-	TweenInstance& operator=(TweenInstance&&) noexcept;
-	~TweenInstance();
-
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
 	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
 	// or yoyoing.
@@ -247,85 +233,38 @@ protected:
 	std::function<void(Entity, Ts...)> callback_;
 };
 
-struct TweenProgressScript : public GenericTweenScript<TweenProgressScript, float> {
-	using GenericTweenScript::GenericTweenScript;
+#define PTGN_DEFINE_TWEEN_SCRIPT(NAME, METHOD)              \
+	struct NAME : public GenericTweenScript<NAME> {         \
+		using GenericTweenScript<NAME>::GenericTweenScript; \
+		void METHOD() override {                            \
+			TryInvoke(entity);                              \
+		}                                                   \
+	};
 
-	void OnProgress(float progress) override {
-		TryInvoke(entity, progress);
-	}
-};
+#define PTGN_DEFINE_TWEEN_SCRIPT_WITH_ARGS(NAME, METHOD, ...)            \
+	struct NAME : public GenericTweenScript<NAME, __VA_ARGS__> {         \
+		using GenericTweenScript<NAME, __VA_ARGS__>::GenericTweenScript; \
+		void METHOD(__VA_ARGS__ args) override {                         \
+			TryInvoke(entity, args);                                     \
+		}                                                                \
+	};
 
-struct TweenCompleteScript : public GenericTweenScript<TweenCompleteScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnComplete() override {
-		TryInvoke(entity);
-	}
-};
-
-struct TweenResetScript : public GenericTweenScript<TweenResetScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnReset() override {
-		TryInvoke(entity);
-	}
-};
-
-struct TweenStartScript : public GenericTweenScript<TweenStartScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnStart() override {
-		TryInvoke(entity);
-	}
-};
-
-struct TweenStopScript : public GenericTweenScript<TweenStopScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnStop() override {
-		TryInvoke(entity);
-	}
-};
-
-struct TweenPauseScript : public GenericTweenScript<TweenPauseScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnPause() override {
-		TryInvoke(entity);
-	}
-};
-
-struct TweenResumeScript : public GenericTweenScript<TweenResumeScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnResume() override {
-		TryInvoke(entity);
-	}
-};
-
-struct TweenYoyoScript : public GenericTweenScript<TweenYoyoScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnYoyo() override {
-		TryInvoke(entity);
-	}
-};
-
-struct TweenRepeatScript : public GenericTweenScript<TweenRepeatScript> {
-	using GenericTweenScript::GenericTweenScript;
-
-	void OnRepeat() override {
-		TryInvoke(entity);
-	}
-};
+PTGN_DEFINE_TWEEN_SCRIPT_WITH_ARGS(TweenProgressScript, OnProgress, float)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenCompleteScript, OnComplete)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenResetScript, OnReset)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenStartScript, OnStart)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenStopScript, OnStop)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenPauseScript, OnPause)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenResumeScript, OnResume)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenYoyoScript, OnYoyo)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenRepeatScript, OnRepeat)
 
 } // namespace impl
 
 template <typename T, typename... TArgs>
 Tween& Tween::AddScript(TArgs&&... args) {
-	auto& script{
-		GetLastTweenPoint().script_container_.AddScript<T>(std::forward<TArgs>(args)...)
-	};
+	auto& script{ GetLastTweenPoint().script_container_.AddScript<T>(std::forward<TArgs>(args)...
+	) };
 	script.entity = *this;
 	return *this;
 }
