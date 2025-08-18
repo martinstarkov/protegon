@@ -1,11 +1,14 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <string_view>
 #include <vector>
 
 #include "common/type_traits.h"
 #include "components/drawable.h"
 #include "components/generic.h"
+#include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"

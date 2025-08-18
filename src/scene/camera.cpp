@@ -5,7 +5,6 @@
 #include <limits>
 
 #include "common/assert.h"
-#include "components/draw.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -22,10 +21,7 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
-#include "renderer/api/color.h"
 #include "renderer/api/flip.h"
-#include "renderer/api/origin.h"
-#include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"

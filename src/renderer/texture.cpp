@@ -9,10 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "common/assert.h"
 #include "components/generic.h"
 #include "core/entity.h"
@@ -29,6 +25,10 @@
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
 #include "resources/resource_manager.h"
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "utility/file.h"
 
 namespace ptgn {
