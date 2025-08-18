@@ -1,15 +1,16 @@
 #include "renderer/render_target.h"
 
 #include <functional>
-#include <memory>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/drawable.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/script.h"
+#include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
@@ -23,21 +24,29 @@ namespace ptgn {
 namespace impl {
 
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const Color& clear_color, TextureFormat texture_format
+	const Entity& entity, ResizeToResolution resize_to_resolution, const Color& clear_color,
+	TextureFormat texture_format
 ) {
 	PTGN_ASSERT(entity);
-	// TODO: Add option to create physical resolution render target.
-	V2_int logical_resolution{ game.renderer.GetLogicalResolution() };
-	RenderTarget render_target{
-		CreateRenderTarget(entity, logical_resolution, clear_color, texture_format)
-	};
-	AddScript<LogicalRenderTargetResizeScript>(render_target);
+	RenderTarget render_target;
+	if (resize_to_resolution == ResizeToResolution::Physical) {
+		V2_int physical_resolution{ game.renderer.GetPhysicalResolution() };
+		render_target =
+			CreateRenderTarget(entity, physical_resolution, clear_color, texture_format);
+		AddScript<PhysicalRenderTargetResizeScript>(render_target);
+	} else if (resize_to_resolution == ResizeToResolution::Logical) {
+		V2_int logical_resolution{ game.renderer.GetLogicalResolution() };
+		render_target = CreateRenderTarget(entity, logical_resolution, clear_color, texture_format);
+		AddScript<LogicalRenderTargetResizeScript>(render_target);
+	} else {
+		PTGN_ERROR("Unknown resize to resolution value");
+	}
+	PTGN_ASSERT(render_target);
 	return render_target;
 }
 
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const V2_float& size, const Color& clear_color,
-	TextureFormat texture_format
+	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ entity };
 	SetPosition(render_target, {});
@@ -45,7 +54,6 @@ RenderTarget CreateRenderTarget(
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();
 	Show(render_target);
-	// TODO: Add camera which resizes with size.
 	render_target.Add<impl::ClearColor>(clear_color);
 	// TODO: Move frame buffer object to a FrameBufferManager.
 	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
@@ -69,15 +77,18 @@ void PhysicalRenderTargetResizeScript::OnPhysicalResolutionChanged() {
 } // namespace impl
 
 RenderTarget CreateRenderTarget(
-	Scene& scene, const V2_float& size, const Color& clear_color, TextureFormat texture_format
+	Scene& scene, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
 	return impl::CreateRenderTarget(scene.CreateEntity(), size, clear_color, texture_format);
 }
 
 RenderTarget CreateRenderTarget(
-	Scene& scene, const Color& clear_color, TextureFormat texture_format
+	Scene& scene, ResizeToResolution resize_to_resolution, const Color& clear_color,
+	TextureFormat texture_format
 ) {
-	return impl::CreateRenderTarget(scene.CreateEntity(), clear_color, texture_format);
+	return impl::CreateRenderTarget(
+		scene.CreateEntity(), resize_to_resolution, clear_color, texture_format
+	);
 }
 
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
@@ -152,7 +163,7 @@ void RenderTarget::RemoveFromDisplayList(Entity& entity) {
 	entity.Remove<RenderTarget>();
 	PTGN_ASSERT(Has<impl::DisplayList>());
 	auto& dl{ Get<impl::DisplayList>().entities };
-	dl.erase(std::remove(dl.begin(), dl.end(), entity), dl.end());
+	std::erase(dl, entity);
 }
 
 const std::vector<Entity>& RenderTarget::GetDisplayList() const {

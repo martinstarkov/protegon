@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "components/drawable.h"
@@ -17,16 +18,21 @@ class Scene;
 class Camera;
 class RenderTarget;
 
+enum class ResizeToResolution {
+	Logical,
+	Physical
+};
+
 namespace impl {
 
-// Create a render target that is continuously sized to the window.
+// Create a render target that is continuously sized to specified resolution.
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const Color& clear_color, TextureFormat texture_format
+	const Entity& entity, ResizeToResolution resize_to_resolution, const Color& clear_color,
+	TextureFormat texture_format
 );
 
 RenderTarget CreateRenderTarget(
-	const Entity& entity, const V2_float& size, const Color& clear_color,
-	TextureFormat texture_format
+	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 );
 
 class RenderData;
@@ -126,7 +132,7 @@ private:
 	[[nodiscard]] std::vector<Entity>& GetDisplayList();
 
 	friend RenderTarget impl::CreateRenderTarget(
-		const Entity& entity, const V2_float& size, const Color& clear_color,
+		const Entity& entity, const V2_int& size, const Color& clear_color,
 		TextureFormat texture_format
 	);
 };
@@ -135,15 +141,15 @@ private:
 // @param size The size of the render target.
 // @param clear_color The background color of the render target.
 RenderTarget CreateRenderTarget(
-	Scene& scene, const V2_float& size, const Color& clear_color = color::Transparent,
+	Scene& scene, const V2_int& size, const Color& clear_color = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 
-// Create a render target that is continuously sized to the logical resolution. TODO: Allow for
-// physical resolution as well.
+// Create a render target that is continuously sized to the specified resolution.
 // @param clear_color The background color of the render target.
 RenderTarget CreateRenderTarget(
-	Scene& scene, const Color& clear_color = color::Transparent,
+	Scene& scene, ResizeToResolution resize_to_resolution = ResizeToResolution::Physical,
+	const Color& clear_color	 = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 
