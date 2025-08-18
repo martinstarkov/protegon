@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
@@ -66,7 +67,8 @@ struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> 
 	void OnWindowResized() override;
 };
 
-using Index = std::uint32_t;
+using Index			= std::uint32_t;
+using TextureOrSize = std::variant<std::reference_wrapper<const impl::Texture>, V2_int>;
 
 constexpr std::array<V2_float, 4> default_texture_coordinates{
 	V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
@@ -114,25 +116,24 @@ public:
 	RenderState(
 		const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera,
 		const PostFX& post_fx = {}
-	) :
-		shader_pass{ shader_pass },
-		blend_mode{ blend_mode },
-		camera{ camera },
-		post_fx{ post_fx } {}
+	);
 
-	friend bool operator==(const RenderState& a, const RenderState& b) {
-		return a.shader_pass == b.shader_pass && a.camera == b.camera &&
-			   a.blend_mode == b.blend_mode && a.post_fx == b.post_fx;
-	}
-
-	friend bool operator!=(const RenderState& a, const RenderState& b) {
-		return !(a == b);
-	}
+	bool operator==(const RenderState&) const = default;
 
 	ShaderPass shader_pass;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
 	PostFX post_fx;
+};
+
+struct ShapeDrawInfo {
+	explicit ShapeDrawInfo(const Entity& entity);
+
+	Transform transform;
+	Color tint;
+	Depth depth;
+	LineWidth line_width;
+	RenderState state;
 };
 
 struct DrawContext {
@@ -215,15 +216,21 @@ public:
 	);
 
 	void AddTexturedQuad(
-		const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
+		const Texture& texture, Transform transform, const V2_float& size, Origin origin,
 		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
 		const RenderState& state, const PreFX& pre_fx = {}
 	);
 
-	// @param texture Only used if uses_scene_texture is false and texture is valid.
+	// @param texture_or_size If texture, uses texture size, otherwise uses the V2_int size or the
+	// scene render target size (physical resolution).
+	// @param clear_between_consecutive_calls Will clear the intermediate render target between
+	// consecutive calls. This prevents stacking of shader calls onto the same target. An example of
+	// where this is not desired is when rendering many lights back to back. Does not apply if a
+	// texture is used.
 	void AddShader(
 		Entity entity, const RenderState& render_state, const Color& target_clear_color,
-		bool uses_scene_texture, const Texture& texture = {}, const Color& tint = color::White
+		const TextureOrSize& texture_or_size = V2_int{}, const Color& tint = color::White,
+		bool clear_between_consecutive_calls = true
 	);
 
 	void AddTemporaryTexture(Texture&& texture);
@@ -237,6 +244,8 @@ private:
 	friend class InputHandler;
 
 	[[nodiscard]] V2_float RelativeToViewport(const V2_float& window_relative_point) const;
+
+	// TODO: Replace with std::span.
 
 	template <typename T, typename S, typename U>
 	void AddShape(

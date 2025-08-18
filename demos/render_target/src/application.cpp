@@ -27,7 +27,7 @@ public:
 		state.shader_pass = entity.Get<impl::ShaderPass>();
 		state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
 		state.camera	  = entity.GetOrDefault<Camera>();
-		ctx.AddShader(entity, state, color::Transparent, true);
+		ctx.AddShader(entity, state, color::Transparent);
 	}
 };
 
@@ -81,9 +81,8 @@ struct RenderTargetScene : public Scene {
 		// === Dimensions for objects ===
 		V2_float rect_size{ 80, 80 };
 		float circle_radius{ 40.0f };
-		V2_float sprite_size{
-			game.texture.GetSize("test")
-		}; // Approximate, since sprite has no size defined
+		V2_float sprite_size{ game.texture.GetSize("test"
+		) }; // Approximate, since sprite has no size defined
 		V2_float sprite_offset{ 0, 0 }; // used as safe offset from edge
 
 		// Center

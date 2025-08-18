@@ -9,20 +9,27 @@
 #include <list>
 #include <memory>
 #include <numeric>
+#include <span>
+#include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/drawable.h"
+#include "components/effects.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "core/window.h"
+#include "debug/log.h"
 #include "math/geometry.h"
+#include "math/geometry/line.h"
 #include "math/geometry/rect.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
@@ -46,15 +53,6 @@
 #include "scene/scene_manager.h"
 
 namespace ptgn::impl {
-
-void ViewportResizeScript::OnWindowResized() {
-	auto& render_data{ game.renderer.GetRenderData() };
-	auto window_size{ game.window.GetSize() };
-	if (!render_data.logical_resolution_set_) {
-		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
-	}
-	render_data.RecomputeViewport(window_size);
-}
 
 std::array<Vertex, 3> GetTriangleVertices(
 	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
@@ -106,6 +104,28 @@ std::array<Vertex, 4> GetQuadVertices(
 	}
 
 	return vertices;
+}
+
+RenderState::RenderState(
+	const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
+) :
+	shader_pass{ shader_pass }, blend_mode{ blend_mode }, camera{ camera }, post_fx{ post_fx } {}
+
+ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
+	transform{ GetDrawTransform(entity) },
+	tint{ GetTint(entity) },
+	depth{ GetDepth(entity) },
+	line_width{ entity.GetOrDefault<LineWidth>() },
+	state{ game.shader.Get<ShapeShader::Quad>(), GetBlendMode(entity),
+		   entity.GetOrDefault<Camera>(), entity.GetOrDefault<PostFX>() } {}
+
+void ViewportResizeScript::OnWindowResized() {
+	auto& render_data{ game.renderer.GetRenderData() };
+	auto window_size{ game.window.GetSize() };
+	if (!render_data.logical_resolution_set_) {
+		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
+	}
+	render_data.RecomputeViewport(window_size);
 }
 
 ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
@@ -365,7 +385,7 @@ TextureId RenderData::PingPong(
 }
 
 void RenderData::AddTexturedQuad(
-	const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
+	const Texture& texture, Transform transform, const V2_float& size, Origin origin,
 	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
 	const RenderState& state, const PreFX& pre_fx
 ) {
@@ -381,21 +401,28 @@ void RenderData::AddTexturedQuad(
 	};
 
 	auto texture_id{ texture.GetId() };
-	auto texture_size{ texture.GetSize() };
-
-	PTGN_ASSERT(!texture_size.IsZero(), "Texture must have a non-zero size");
 
 	if (bool has_pre_fx{ !pre_fx.pre_fx_.empty() }) {
-		std::array<V2_float, 4> points{ V2_float{}, V2_float{ texture_size.x, 0.0f }, texture_size,
-										V2_float{ 0.0f, texture_size.y } };
+		auto texture_size{ texture.GetSize() };
+
+		PTGN_ASSERT(
+			!texture_size.IsZero(), "Texture must have a non-zero size for it to have post fx"
+		);
+
+		V2_int viewport_position{ 0, 0 };
+		V2_int viewport_size{ texture_size };
+
+		std::array<V2_float, 4> points{ V2_float{}, V2_float{ viewport_size.x, 0.0f },
+										viewport_size, V2_float{ 0.0f, viewport_size.y } };
+
 		Matrix4 projection{ Matrix4::Orthographic(
-			0.0f, static_cast<float>(texture_size.x), static_cast<float>(texture_size.y), 0.0f,
+			0.0f, static_cast<float>(viewport_size.x), static_cast<float>(viewport_size.y), 0.0f,
 			-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 		) };
 
 		texture_id = PingPong(
-			pre_fx.pre_fx_, draw_context_pool.Get(texture_size), points, depth, texture, {},
-			texture_size, projection, true
+			pre_fx.pre_fx_, draw_context_pool.Get(viewport_size), points, depth, texture,
+			viewport_position, viewport_size, projection, true
 		);
 
 		white_texture.Bind(0);
@@ -512,32 +539,59 @@ bool RenderData::SetState(const RenderState& new_render_state) {
 
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, const Color& target_clear_color,
-	bool uses_scene_texture, const Texture& texture, const Color& tint
+	const TextureOrSize& texture_or_size, const Color& tint, bool clear_between_consecutive_calls
 ) {
-	auto& scene{ entity.GetScene() };
+	const auto& scene{ entity.GetScene() };
 
 	bool state_changed{ SetState(state) };
-	bool clear{ state_changed || uses_scene_texture };
 
-	auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
+	bool uses_size{ std::holds_alternative<V2_int>(texture_or_size) };
 
-	if (clear) {
-		intermediate_target = draw_context_pool.Get(camera.GetViewportSize());
-	}
+	// Clear the intermediate frame buffer if the shader is new (changes renderer state), or if the
+	// shader uses size (no texture) and the user desires it (most often true). In the case of
+	// back-to-back light rendering this is not desired.
+	bool clear{ state_changed || (uses_size && clear_between_consecutive_calls) };
 
 	std::vector<TextureId> texture_id;
 
-	if (uses_scene_texture) {
+	auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
+
+	V2_int viewport_position;
+	V2_int viewport_size;
+
+	if (uses_size) {
+		viewport_size = std::get<V2_int>(texture_or_size);
+
+		if (viewport_size.IsZero()) {
+			viewport_size = drawing_to.GetTextureSize();
+		}
+
 		texture_id.emplace_back(drawing_to.GetTexture().GetId());
-	} else if (texture.IsValid()) {
+	} else if (std::holds_alternative<std::reference_wrapper<const Texture>>(texture_or_size)) {
+		const Texture& texture =
+			std::get<std::reference_wrapper<const Texture>>(texture_or_size).get();
+
+		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
+
+		viewport_size = texture.GetSize();
+
 		texture_id.emplace_back(texture.GetId());
+	} else {
+		PTGN_ERROR("Unknown variant value");
+	}
+
+	if (clear) {
+		intermediate_target = draw_context_pool.Get(viewport_size);
 	}
 
 	const auto& shader{ render_state.shader_pass.GetShader() };
+
 	PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
+
 	shader.Bind();
 	shader.SetUniform("u_Texture", 1);
-	shader.SetUniform("u_Resolution", V2_float{ camera.GetViewportSize() });
+	shader.SetUniform("u_Resolution", V2_float{ viewport_size });
+
 	render_state.shader_pass.Invoke(entity);
 
 	DrawCall(
@@ -547,7 +601,7 @@ void RenderData::AddShader(
 			false
 		),
 		quad_indices, texture_id, intermediate_target->frame_buffer, clear, target_clear_color,
-		render_state.blend_mode, camera.GetViewportPosition(), camera.GetViewportSize(), camera
+		render_state.blend_mode, viewport_position, viewport_size, camera
 	);
 }
 
@@ -617,8 +671,8 @@ void RenderData::DrawCall(
 void RenderData::Flush(Scene& scene) {
 	const auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
 
-	auto viewport_position{ camera.GetViewportPosition() };
-	auto viewport_size{ camera.GetViewportSize() };
+	V2_int viewport_position{ 0, 0 };
+	V2_int viewport_size{ drawing_to.GetTextureSize() };
 
 	std::vector<TextureId> texture_id;
 
