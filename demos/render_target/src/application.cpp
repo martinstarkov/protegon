@@ -12,7 +12,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 400, 400 };
+constexpr V2_int resolution{ 800, 800 };
 
 float rect_thickness{ -1.0f };
 float circle_thickness{ -1.0f };
@@ -82,7 +82,7 @@ struct RenderTargetScene : public Scene {
 		V2_float rect_size{ 80, 80 };
 		float circle_radius{ 40.0f };
 		V2_float sprite_size{ game.texture.GetSize("test"
-		) }; // Approximate, since sprite has no size defined
+		) };							// Approximate, since sprite has no size defined
 		V2_float sprite_offset{ 0, 0 }; // used as safe offset from edge
 
 		// Center
