@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <iosfwd>
 #include <ostream>
 
 #include "components/transform.h"
@@ -14,7 +13,6 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
-#include "renderer/api/origin.h"
 #include "scene/scene_key.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
@@ -26,6 +24,7 @@ namespace ptgn {
 class Scene;
 class CameraManager;
 class Camera;
+struct Color;
 
 namespace impl {
 
@@ -68,9 +67,8 @@ public:
 
 	[[nodiscard]] bool GetPixelRounding() const;
 
-	[[nodiscard]] const Matrix4& GetViewProjection(
-		const Transform& current, const Entity& entity
-	) const;
+	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
+		const;
 
 	[[nodiscard]] const Matrix4& GetView(const Transform& current, const Entity& entity) const;
 	[[nodiscard]] const Matrix4& GetProjection(const Transform& current) const;
@@ -237,11 +235,11 @@ public:
 	 * @param ease The easing function to apply for the fade animation.
 	 * @param force If true, forcibly overrides any ongoing fading.
 	 */
-	// TODO: Implement.
+	// TODO: Fix.
 	// Camera& FadeTo(
-	// 	const Color& target_color, milliseconds duration,
-	// 	const Ease& ease = SymmetricalEase::Linear, bool force = true
-	// );
+	//	const Color& target_color, milliseconds duration,
+	//	const Ease& ease = SymmetricalEase::Linear, bool force = true
+	//);
 
 	/**
 	 * @brief Fades the camera from the specified color to transparent over a specified duration.
@@ -251,14 +249,11 @@ public:
 	 * @param ease The easing function to apply for the fade animation.
 	 * @param force If true, forcibly overrides any ongoing fading.
 	 */
-	// TODO: Implement.
+	// TODO: Fix.
 	// Camera& FadeFrom(
-	// 	const Color& start_color, milliseconds duration,
-	// 	const Ease& ease = SymmetricalEase::Linear, bool force = true
-	// );
-
-	// TODO: Implement.
-	// Camera& SetColor(const Color& color, bool force = false);
+	//	const Color& start_color, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
+	//	bool force = true
+	//);
 
 	Camera() = default;
 	Camera(const Entity& entity);

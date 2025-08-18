@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "common/assert.h"
+#include "components/draw.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -21,6 +22,7 @@
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
+#include "renderer/api/color.h"
 #include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
 #include "renderer/render_data.h"
@@ -211,9 +213,8 @@ void CameraInfo::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInfo::RecalculateView(
-	const Transform& current, const Transform& offset_transform
-) const {
+void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
+	const {
 	V3_float position{ current.GetPosition().x, current.GetPosition().y, position_z };
 	V3_float orientation{ current.GetRotation(), orientation_y, orientation_z };
 
@@ -559,6 +560,22 @@ Camera& Camera::StopFollow(bool force) {
 	ptgn::StopFollow(*this, force);
 	return *this;
 }
+
+// TODO: Fix these. They need to use a rectangle because transparent pixels dont tint.
+// Camera& Camera::FadeTo(
+//	const Color& target_color, milliseconds duration, const Ease& ease, bool force
+//) {
+//	ptgn::TintTo(*this, target_color, duration, ease, force);
+//	return *this;
+//}
+
+// Camera& Camera::FadeFrom(
+//	const Color& start_color, milliseconds duration, const Ease& ease, bool force
+//) {
+//	SetTint(*this, start_color);
+//	ptgn::FadeIn(*this, duration, ease, force);
+//	return *this;
+// }
 
 V2_float Camera::GetTopLeft() const {
 	const auto& info{ Get<impl::CameraInfo>() };
