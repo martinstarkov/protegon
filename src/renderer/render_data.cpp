@@ -552,6 +552,10 @@ void RenderData::AddShader(
 	// back-to-back light rendering this is not desired.
 	bool clear{ state_changed || (uses_size && clear_between_consecutive_calls) };
 
+	if (clear_between_consecutive_calls) {
+		force_flush = true;
+	}
+
 	std::vector<TextureId> texture_id;
 
 	auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
