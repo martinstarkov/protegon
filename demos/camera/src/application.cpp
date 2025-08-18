@@ -280,10 +280,12 @@ public:
 
 		// camera.primary.Shake(0.5f, seconds{ 5 });
 		// camera.primary.RotateTo(DegToRad(360.0f), seconds{ 5 });
-		//  camera.primary.Shake(1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
-		//  camera.primary.Shake(0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
-		// camera.primary.FadeTo(color::Black, seconds{ 5 });
-		// camera.primary.StartFollow(mouse, follow_config);
+		// camera.primary.Shake(1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// camera.primary.Shake(0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// TODO: Fix these.
+		// camera.primary.FadeTo(color::Red, seconds{ 5 });
+		// camera.primary.FadeFrom(color::Red, seconds{ 3 }, SymmetricalEase::InOutBack, false);
+		camera.primary.StartFollow(mouse, follow_config);
 	}
 
 	void Update() override {

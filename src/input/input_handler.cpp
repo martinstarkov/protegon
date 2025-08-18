@@ -18,6 +18,8 @@
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
+#include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
@@ -293,20 +295,30 @@ V2_float InputHandler::GetMousePositionGlobal() const {
 	return position;
 }
 
-V2_float InputHandler::GetMousePosition() const {
-	return mouse_position_;
+V2_float InputHandler::GetMousePosition(bool relative_to_viewport) const {
+	if (!relative_to_viewport) {
+		return mouse_position_;
+	}
+
+	const auto& rd{ game.renderer.GetRenderData() };
+	return rd.RelativeToViewport(mouse_position_);
 }
 
 V2_float InputHandler::GetMousePositionUnclamped() const {
 	return GetMousePositionGlobal() - game.window.GetPosition();
 }
 
-V2_float InputHandler::GetMousePositionPrevious() const {
-	return previous_mouse_position_;
+V2_float InputHandler::GetMousePositionPrevious(bool relative_to_viewport) const {
+	if (!relative_to_viewport) {
+		return mouse_position_;
+	}
+
+	const auto& rd{ game.renderer.GetRenderData() };
+	return rd.RelativeToViewport(previous_mouse_position_);
 }
 
-V2_float InputHandler::GetMouseDifference() const {
-	return mouse_position_ - previous_mouse_position_;
+V2_float InputHandler::GetMouseDifference(bool relative_to_viewport) const {
+	return GetMousePosition(relative_to_viewport) - GetMousePositionPrevious(relative_to_viewport);
 }
 
 int InputHandler::GetMouseScroll() const {
