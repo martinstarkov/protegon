@@ -9,6 +9,7 @@
 #include "input/input_handler.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
+#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -412,6 +413,7 @@ struct InteractiveScene : public Scene {
 
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
+		game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
 		input.SetDrawInteractives(true);
 
 		V2_float ws{ game.window.GetSize() };
@@ -455,11 +457,9 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r2, r2_child);
 		AddScript<ScriptR2>(r2);
 
-		LoadResources(
-			{ { "drag", "resources/drag.png" },
-			  { "drag_circle", "resources/drag_circle.png" },
-			  { "dropzone", "resources/dropzone.png" } }
-		);
+		LoadResources({ { "drag", "resources/drag.png" },
+						{ "drag_circle", "resources/drag_circle.png" },
+						{ "dropzone", "resources/dropzone.png" } });
 
 		r4			  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateInteractiveRect(rsize * 2);
