@@ -36,7 +36,7 @@ class ResolutionScene : public Scene {
 			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Overscan);
 		}
 
-		DrawDebugTexture("background", { 0, 0 }, window_size, Origin::TopLeft);
+		DrawDebugTexture("background", { 0, 0 }, resolution, Origin::TopLeft);
 
 		DrawDebugRect({ 0, 0 }, { resolution.x, 30 }, color::Red, Origin::TopLeft, -1.0f);
 		DrawDebugRect(

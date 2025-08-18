@@ -49,6 +49,7 @@ add_subdirectory(scene_transition)
 add_subdirectory(audio)
 add_subdirectory(fullscreen)
 add_subdirectory(resolution)
+add_subdirectory(resolution_text)
 add_subdirectory(script)
 add_subdirectory(tween)
 
