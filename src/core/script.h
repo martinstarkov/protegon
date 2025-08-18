@@ -1,22 +1,28 @@
 #pragma once
 
-#include <ranges>
+#include <algorithm>
+#include <array>
+#include <concepts>
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "common/assert.h"
 #include "common/move_direction.h"
 #include "core/entity.h"
-#include "core/time.h"
-#include "core/timer.h"
 #include "input/key.h"
 #include "input/mouse.h"
 #include "math/hash.h"
 #include "math/vector2.h"
+#include "nlohmann/json.hpp"
 #include "physics/collision/collider.h"
 #include "serialization/fwd.h"
 #include "serialization/json.h"
-#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -209,8 +215,7 @@ struct MouseScript : public impl::BaseScript<ScriptType::Mouse> {
 
 	virtual void OnMouseUpOut([[maybe_unused]] Mouse mouse) { /* user implementation */ }
 
-	virtual void OnMouseScrollOver(
-		[[maybe_unused]] V2_int scroll_amount
+	virtual void OnMouseScrollOver([[maybe_unused]] V2_int scroll_amount
 	) { /* user implementation */ }
 
 	virtual void OnMouseScrollOut([[maybe_unused]] V2_int scroll_amount) { /* user implementation */
@@ -313,8 +318,7 @@ struct PlayerMoveScript : public impl::BaseScript<ScriptType::PlayerMove> {
 	// Called when the movement direction changes. Passed parameter is the difference in direction.
 	// If not moving, this is simply the new direction. If moving already, this is the newly added
 	// component of movement. To get the current direction instead, simply use GetDirection().
-	virtual void OnDirectionChange(
-		[[maybe_unused]] MoveDirection direction_difference
+	virtual void OnDirectionChange([[maybe_unused]] MoveDirection direction_difference
 	) { /* user implementation */ }
 
 	virtual void OnMoveUpStart() { /* user implementation */ }
@@ -591,9 +595,8 @@ public:
 		requires // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script> &&
 		std::constructible_from<TScript, TArgs...>
 	TScript& AddScript(TArgs&&... args) {
-		auto& script{
-			scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...))
-		};
+		auto& script{ scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...)
+		) };
 		// Explicit for debugging purposes.
 		TScript& s{ *std::dynamic_pointer_cast<TScript>(script) };
 		return s;
@@ -703,9 +706,8 @@ public:
 	}
 
 	template <typename TInterface, typename... Args>
-	[[nodiscard]] bool ConditionCheck(
-		bool (TInterface::*func)(Args...) const, Args&&... args
-	) const {
+	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(Args...) const, Args&&... args)
+		const {
 		constexpr ScriptType type{ TInterface::GetScriptType() };
 
 		for (const auto& script : scripts_) {

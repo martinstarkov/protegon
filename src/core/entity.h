@@ -106,22 +106,22 @@ public:
 		return Parent::HasAny<Ts...>();
 	}
 
-	template <typename... Ts> //, tt::enable<(impl::is_retrievable_component_v<Ts> && ...)> = true>
+	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() const {
 		return GetImpl<Ts...>();
 	}
 
-	template <typename... Ts, tt::enable<(impl::is_retrievable_component_v<Ts> && ...)> = true>
+	template <impl::RetrievableComponent... Ts>
 	[[nodiscard]] decltype(auto) Get() {
 		return GetImpl<Ts...>();
 	}
 
-	template <typename T> //, tt::enable<impl::is_retrievable_component_v<T>> = true>
+	template <typename T>
 	[[nodiscard]] const T* TryGet() const {
 		return TryGetImpl<T>();
 	}
 
-	template <typename T, tt::enable<impl::is_retrievable_component_v<T>> = true>
+	template <impl::RetrievableComponent T>
 	[[nodiscard]] T* TryGet() {
 		return TryGetImpl<T>();
 	}

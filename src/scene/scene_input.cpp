@@ -1,7 +1,6 @@
 #include "scene/scene_input.h"
 
 #include <algorithm>
-#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>

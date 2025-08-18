@@ -1,7 +1,5 @@
 #pragma once
 
-#include <type_traits>
-
 #include "components/utility.h"
 #include "components/uuid.h"
 #include "core/entity.h"
@@ -97,12 +95,8 @@ public:
 					 Parent::GetOrAddPool<Ts>(Parent::GetId<Ts>())... } };
 	}
 
-	template <typename... Ts>
+	template <impl::RetrievableComponent... Ts>
 	ptgn::EntitiesWith<false, Ts...> EntitiesWith() {
-		static_assert(
-			(impl::is_retrievable_component_v<Ts> && ...),
-			"Cannot retrieve entities with a component that cannot be retrieved manually"
-		);
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
 					 Parent::GetOrAddPool<Ts>(Parent::GetId<Ts>())... } };
@@ -287,7 +281,7 @@ private:
 
 	void ClearEntities() final;
 
-	explicit Manager(Parent&& manager) : Parent{ std::move(manager) } {}
+	explicit Manager(Parent&& manager);
 };
 
 } // namespace ptgn

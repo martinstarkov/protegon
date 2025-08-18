@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "common/assert.h"
@@ -79,6 +80,8 @@ void Manager::Clear() {
 void Manager::Reset() {
 	return Parent::Reset();
 }
+
+Manager::Manager(Parent&& manager) : Parent{ std::move(manager) } {}
 
 void to_json(json& j, const Manager& manager) {
 	j["next_entity"]	  = manager.next_entity_;

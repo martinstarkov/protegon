@@ -3,13 +3,14 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <memory>
+#include <functional>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "common/assert.h"
 #include "core/entity.h"
+#include "core/script.h"
 #include "core/time.h"
 #include "math/easing.h"
 #include "scene/scene.h"
@@ -60,8 +61,7 @@ TweenInstance& TweenInstance::operator=(TweenInstance&& other) noexcept {
 TweenInstance::~TweenInstance() {
 	progress_ = 0.0f;
 	index_	  = 0;
-	points_.clear();
-	points_.shrink_to_fit();
+	std::vector<TweenPoint>().swap(points_);
 	paused_	 = false;
 	started_ = false;
 }
@@ -180,16 +180,16 @@ float Tween::Step(float dt) {
 }
 
 float Tween::Seek(float new_progress) {
-	auto& tween{ Get<impl::TweenInstance>() };
-	if (!tween.started_ || tween.paused_ || tween.points_.empty()) {
+	if (const auto& tween{ Get<impl::TweenInstance>() };
+		!tween.started_ || tween.paused_ || tween.points_.empty()) {
 		return GetProgress();
 	}
 	return SeekImpl(AccumulateProgress(new_progress));
 }
 
 float Tween::Seek(milliseconds time) {
-	auto& tween{ Get<impl::TweenInstance>() };
-	if (!tween.started_ || tween.paused_ || tween.points_.empty()) {
+	if (const auto& tween{ Get<impl::TweenInstance>() };
+		!tween.started_ || tween.paused_ || tween.points_.empty()) {
 		return GetProgress();
 	}
 	return SeekImpl(AccumulateProgress(GetNewProgress(time)));
@@ -356,8 +356,7 @@ float Tween::UpdateImpl(bool suppress_update) {
 }
 
 Tween& Tween::Pause() {
-	auto& tween{ Get<impl::TweenInstance>() };
-	if (!tween.paused_) {
+	if (auto& tween{ Get<impl::TweenInstance>() }; !tween.paused_) {
 		tween.paused_ = true;
 		if (!tween.points_.empty()) {
 			PTGN_ADD_TWEEN_ACTION(OnPause);
@@ -367,8 +366,7 @@ Tween& Tween::Pause() {
 }
 
 Tween& Tween::Resume() {
-	auto& tween{ Get<impl::TweenInstance>() };
-	if (tween.paused_) {
+	if (auto& tween{ Get<impl::TweenInstance>() }; tween.paused_) {
 		tween.paused_ = false;
 		if (!tween.points_.empty()) {
 			PTGN_ADD_TWEEN_ACTION(OnResume);
@@ -415,7 +413,7 @@ Tween& Tween::IncrementTweenPoint() {
 		return *this;
 	}
 	// Cannot increment tween point any further.
-	if (auto& tween{ Get<impl::TweenInstance>() }; tween.index_ >= tween.points_.size()) {
+	if (const auto& tween{ Get<impl::TweenInstance>() }; tween.index_ >= tween.points_.size()) {
 		return *this;
 	}
 	PointCompleted();
@@ -437,8 +435,7 @@ Tween& Tween::Toggle() {
 }
 
 Tween& Tween::Stop() {
-	auto& tween{ Get<impl::TweenInstance>() };
-	if (tween.started_) {
+	if (auto& tween{ Get<impl::TweenInstance>() }; tween.started_) {
 		if (!tween.points_.empty()) {
 			PTGN_ADD_TWEEN_ACTION(OnStop);
 		}
@@ -449,8 +446,8 @@ Tween& Tween::Stop() {
 }
 
 float Tween::StepImpl(float dt, bool accumulate_progress) {
-	auto& tween{ Get<impl::TweenInstance>() };
-	if (!tween.started_ || tween.paused_ || tween.points_.empty() || IsCompleted()) {
+	if (const auto& tween{ Get<impl::TweenInstance>() };
+		!tween.started_ || tween.paused_ || tween.points_.empty() || IsCompleted()) {
 		return GetProgress();
 	}
 	float new_progress{ GetNewProgress(duration<float>(dt)) };

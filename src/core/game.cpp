@@ -6,10 +6,8 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "common/assert.h"
 #include "core/sdl_instance.h"
@@ -29,6 +27,7 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "serialization/json.h"
 #include "serialization/json_manager.h"
 #include "utility/file.h"
@@ -150,8 +149,6 @@ Game::Game() :
 	texture{ *texture_ },
 	shader_{ std::make_unique<ShaderManager>() },
 	shader{ *shader_ },
-	/*light_{ std::make_unique<LightManager>() },
-	light{ *light_ },*/
 	profiler_{ std::make_unique<Profiler>() },
 	profiler{ *profiler_ } {
 	// TODO: Move all of this init code into respective constructors.
@@ -168,7 +165,6 @@ Game::Game() :
 
 	shader.Init();
 	renderer.Init();
-	// light.Init();
 }
 
 Game::~Game() {
@@ -294,10 +290,10 @@ void Game::Update() {
 #ifdef PTGN_DEBUG
 	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the
 	// screen.
-	/*PTGN_LOG(
-		"Screen Color at Mouse: ",
-		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
-	);*/
+	// PTGN_LOG(
+	//	"Screen Color at Mouse: ",
+	//	renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
+	//);
 	// game.stats.PrintCollisionOverlap();
 	// game.stats.PrintCollisionIntersect();
 	// game.stats.PrintCollisionRaycast();

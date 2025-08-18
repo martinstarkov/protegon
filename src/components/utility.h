@@ -18,6 +18,12 @@ inline constexpr bool is_retrievable_component_v{
 	!tt::is_any_of_v<T, Transform, Depth, Visible, Interactive, IDrawable>
 };
 
+template <typename T>
+concept RetrievableComponent = is_retrievable_component_v<T>;
+
+template <typename... Ts>
+concept AllRetrievableComponents = (RetrievableComponent<Ts> && ...);
+
 } // namespace impl
 
 } // namespace ptgn
