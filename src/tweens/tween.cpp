@@ -17,7 +17,7 @@
 #define PTGN_ADD_TWEEN_ACTION(FUNC_NAME) \
 	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::FUNC_NAME)
 
-#define PTGN_ADD_TWEEN_PROGRESS_ACTION(FUNC_NAME) \
+#define PTGN_ADD_TWEEN_PROGRESS_ACTION() \
 	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::OnProgress, GetProgress())
 
 namespace ptgn {

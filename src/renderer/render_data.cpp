@@ -387,8 +387,8 @@ void RenderData::AddTexturedQuad(
 		std::array<V2_float, 4> points{ V2_float{}, V2_float{ texture_size.x, 0.0f }, texture_size,
 										V2_float{ 0.0f, texture_size.y } };
 		Matrix4 projection{ Matrix4::Orthographic(
-			0.0f, texture_size.x, texture_size.y, 0.0f, -std::numeric_limits<float>::infinity(),
-			std::numeric_limits<float>::infinity()
+			0.0f, static_cast<float>(texture_size.x), static_cast<float>(texture_size.y), 0.0f,
+			-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 		) };
 
 		texture_id = PingPong(
@@ -808,8 +808,8 @@ void RenderData::DrawToScreen(Scene& scene) {
 	);
 
 	Matrix4 projection{ Matrix4::Orthographic(
-		0.0f, logical_resolution_.x, logical_resolution_.y, 0.0f,
-		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
+		0.0f, static_cast<float>(logical_resolution_.x), static_cast<float>(logical_resolution_.y),
+		0.0f, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	) };
 
 	DrawCall(
