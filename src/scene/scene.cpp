@@ -1,6 +1,5 @@
 #include "scene/scene.h"
 
-#include <functional>
 #include <memory>
 #include <vector>
 
@@ -15,9 +14,9 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/script.h"
-#include "core/timer.h"
 #include "ecs/ecs.h"
 #include "input/input_handler.h"
+#include "math/vector2.h"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/blend_mode.h"
@@ -41,7 +40,7 @@ namespace ptgn {
 Scene::Scene() {
 	auto& render_manager{ game.renderer.GetRenderData().render_manager };
 	render_target_ = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), color::Transparent,
+		render_manager.CreateEntity(), ResizeToResolution::Physical, color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	SetBlendMode(render_target_, BlendMode::BlendPremultiplied);
@@ -106,6 +105,19 @@ void Scene::SetColliderVisibility(bool collider_visibility) {
 
 void Scene::ReEnter() {
 	game.scene.ReEnter(key_);
+}
+
+V2_float Scene::GetScale() const {
+	V2_float camera_size{ camera.primary.GetViewportSize() };
+	V2_float draw_size{ render_target_.GetTextureSize() };
+	PTGN_ASSERT(camera_size.BothAboveZero());
+	V2_float scale{ draw_size / camera_size };
+	PTGN_ASSERT(scale.BothAboveZero());
+	return scale;
+}
+
+const RenderTarget& Scene::GetRenderTarget() const {
+	return render_target_;
 }
 
 void Scene::Init() {

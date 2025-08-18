@@ -6,6 +6,7 @@
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "math/vector2.h"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/color.h"
@@ -89,6 +90,11 @@ public:
 	virtual void Exit() {
 		/* user implementation */
 	}
+
+	[[nodiscard]] const RenderTarget& GetRenderTarget() const;
+
+	// @return Size of scene render target divided by size of scene primary camera viewport.
+	[[nodiscard]] V2_float GetScale() const;
 
 	SceneInput input;
 	Physics physics;
