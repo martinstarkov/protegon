@@ -4,6 +4,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -29,6 +30,7 @@ class ResolutionTextScene : public Scene {
 	V2_int center{ resolution / 2 };
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("background", "resources/bg.png");
 		game.renderer.SetLogicalResolution(resolution);
 

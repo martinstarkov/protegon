@@ -182,15 +182,7 @@ const impl::Texture& Text::GetTexture() const {
 }
 
 FontSize Text::GetFontSize() const {
-	if (FontSize font_size{ GetParameter(FontSize{}) }; font_size != FontSize{}) {
-		return font_size;
-	}
-	auto font_key{ GetFontKey() };
-	PTGN_ASSERT(
-		game.font.Has(font_key),
-		"Cannot get size of text font unless it is loaded in the font manager"
-	);
-	return game.font.GetHeight(font_key, {});
+	return GetParameter(FontSize{});
 }
 
 V2_int Text::GetSize() const {
@@ -229,17 +221,6 @@ FontSize Text::GetHDFontSize(const FontSize& font_size) const {
 	}
 
 	FontSize final_font_size{ font_size };
-
-	if (final_font_size == std::numeric_limits<std::int32_t>::infinity()) {
-		auto font_key{ GetFontKey() };
-
-		PTGN_ASSERT(
-			game.font.Has(font_key),
-			"Cannot get hd font size for text with font key which is not loaded in the font manager"
-		);
-
-		final_font_size = game.font.GetHeight(font_key);
-	}
 
 	const auto& scene{ GetScene() };
 
@@ -286,9 +267,9 @@ impl::Texture Text::CreateTexture(
 	}
 #endif
 
-	if (font_size != std::numeric_limits<std::int32_t>::infinity()) {
-		TTF_SetFontSize(font, font_size);
-	}
+	PTGN_ASSERT(font_size > 0);
+
+	TTF_SetFontSize(font, font_size);
 
 	SDL_Color text_color{ color.r, color.g, color.b, color.a };
 

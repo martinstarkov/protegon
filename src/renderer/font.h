@@ -1,10 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 #include "components/generic.h"
 #include "math/vector2.h"
@@ -26,6 +24,9 @@ namespace ptgn {
 
 class Text;
 
+static constexpr std::int32_t default_font_size{ 18 };
+static constexpr std::int32_t default_font_index{ 0 };
+
 enum class FontRenderMode : int {
 	Blended = 0,
 	Solid	= 1,
@@ -43,7 +44,7 @@ enum class FontStyle : int {
 struct FontSize : public ArithmeticComponent<std::int32_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 
-	FontSize() : ArithmeticComponent{ std::numeric_limits<std::int32_t>::infinity() } {}
+	FontSize() : ArithmeticComponent{ default_font_size } {}
 };
 
 [[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {
@@ -81,12 +82,12 @@ public:
 
 	void Load(
 		const ResourceHandle& key, const path& filepath, std::int32_t size,
-		std::int32_t index = default_font_index_
+		std::int32_t index = default_font_index
 	);
 
 	void Load(
-		const ResourceHandle& key, const FontBinary& binary, std::int32_t size = default_font_size_,
-		std::int32_t index = default_font_index_
+		const ResourceHandle& key, const FontBinary& binary, std::int32_t size = default_font_size,
+		std::int32_t index = default_font_index
 	);
 
 	// Empty font key corresponds to the engine default font.
@@ -137,9 +138,6 @@ private:
 
 	[[nodiscard]] TemporaryFont Get(const ResourceHandle& key, const FontSize& font_size = {})
 		const;
-
-	static constexpr std::int32_t default_font_index_{ 0 };
-	static constexpr std::int32_t default_font_size_{ 18 };
 
 	ResourceHandle default_key_;
 

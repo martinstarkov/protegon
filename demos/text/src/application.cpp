@@ -4,6 +4,7 @@
 #include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "renderer/api/color.h"
 #include "renderer/font.h"
 #include "renderer/text.h"
@@ -12,20 +13,25 @@
 
 using namespace ptgn;
 
+constexpr V2_int resolution{ 800, 800 };
+
 struct TextScene : public Scene {
 	static constexpr std::string_view font{ "arial" };
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 
 	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
 		constexpr float stride{ 44.0f };
+		FontSize font_size{ 30 };
 
-		auto text = ptgn::CreateText(*this, content, color, {}, font_key);
-		SetDrawOrigin(text, Origin::TopLeft);
-		SetPosition(text, { 0.0f, stride * static_cast<float>(index) });
+		auto text = ptgn::CreateText(*this, content, color, font_size, font_key);
+		SetDrawOrigin(text, Origin::CenterTop);
+		SetPosition(text, { resolution.x / 2.0f, stride * static_cast<float>(index) });
 		return text;
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+
 		LoadResource(font, "resources/Arial.ttf");
 
 		// Default font.
@@ -66,7 +72,7 @@ struct TextScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextScene", { 800, 800 }, color::LightGray);
+	game.Init("TextScene", resolution, color::LightGray);
 	game.scene.Enter<TextScene>("");
 	return 0;
 }

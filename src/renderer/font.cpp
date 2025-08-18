@@ -47,7 +47,7 @@ FontManager::~FontManager() {
 }
 
 void FontManager::Load(const ResourceHandle& key, const path& filepath) {
-	Load(key, filepath, default_font_size_);
+	Load(key, filepath, default_font_size);
 }
 
 void FontManager::Load(
@@ -58,10 +58,6 @@ void FontManager::Load(
 		it->second.key		= key;
 		it->second.filepath = filepath;
 		it->second.resource = LoadFromFile(filepath, size, index);
-		PTGN_ASSERT(
-			TTF_FontHeight(it->second.resource.get()) == size,
-			"Font size does not match generated font height"
-		);
 	}
 }
 
@@ -81,7 +77,7 @@ void FontManager::Init() {
 	if (!raw_default_font_) {
 		raw_default_font_ = GetRawBuffer(GetLiberationSansRegular());
 		auto default_font{
-			LoadFromBinary(raw_default_font_, default_font_size_, default_font_index_, false)
+			LoadFromBinary(raw_default_font_, default_font_size, default_font_index, false)
 		};
 		auto [it, inserted] = resources_.try_emplace(key);
 		if (inserted) {
@@ -117,7 +113,7 @@ TemporaryFont FontManager::Get(const ResourceHandle& key, const FontSize& font_s
 	PTGN_ASSERT(
 		key == ResourceHandle{}, "Font key must have a valid path unless it is the default font"
 	);
-	return TemporaryFont{ LoadFromBinary(raw_default_font_, font_size, default_font_index_, false),
+	return TemporaryFont{ LoadFromBinary(raw_default_font_, font_size, default_font_index, false),
 						  TTF_FontDeleter{} };
 }
 
@@ -157,7 +153,7 @@ Font FontManager::LoadFromFile(const path& filepath, std::int32_t size, std::int
 }
 
 Font FontManager::LoadFromFile(const path& filepath) {
-	return LoadFromFile(filepath, default_font_size_, default_font_index_);
+	return LoadFromFile(filepath, default_font_size, default_font_index);
 }
 
 TTF_Font* FontManager::LoadFromBinary(
