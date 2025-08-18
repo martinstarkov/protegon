@@ -10,33 +10,30 @@
 
 using namespace ptgn;
 
-// TODO: Fix this demo.
-
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int resolution{ 320, 240 }; // 4, 3
 
 class ResolutionScene : public Scene {
 	void Enter() override {
 		LoadResource("background", "resources/test1.jpg");
-		game.renderer.SetResolution(resolution);
-		game.renderer.SetResolutionMode(ResolutionMode::Disabled);
+		game.renderer.SetLogicalResolution(resolution, LogicalResolutionMode::Disabled);
 	}
 
 	void Update() override {
 		if (game.input.KeyDown(Key::Q)) {
-			game.renderer.SetResolutionMode(ResolutionMode::Disabled);
+			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Disabled);
 		}
 		if (game.input.KeyDown(Key::W)) {
-			game.renderer.SetResolutionMode(ResolutionMode::Stretch);
+			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
 		}
 		if (game.input.KeyDown(Key::E)) {
-			game.renderer.SetResolutionMode(ResolutionMode::Letterbox);
+			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
 		}
 		if (game.input.KeyDown(Key::R)) {
-			game.renderer.SetResolutionMode(ResolutionMode::IntegerScale);
+			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::IntegerScale);
 		}
 		if (game.input.KeyDown(Key::T)) {
-			game.renderer.SetResolutionMode(ResolutionMode::Overscan);
+			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Overscan);
 		}
 
 		DrawDebugTexture("background", { 0, 0 }, window_size, Origin::TopLeft);

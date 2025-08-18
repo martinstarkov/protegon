@@ -71,7 +71,7 @@ class FullscreenScene : public Scene {
 	void Update() final {
 		auto& p = camera.primary;
 		if (game.input.KeyDown(Key::X)) {
-			p.SetToWindow();
+			p.SetToLogicalResolution();
 		}
 		if (game.input.KeyDown(Key::V)) {
 			game.window.SetPosition({ 0, 0 });
