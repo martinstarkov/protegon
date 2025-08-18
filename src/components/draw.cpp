@@ -2,13 +2,13 @@
 
 #include <algorithm>
 #include <array>
-#include <functional>
 #include <string_view>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/drawable.h"
 #include "components/effects.h"
+#include "components/generic.h"
 #include "components/offsets.h"
 #include "components/sprite.h"
 #include "components/transform.h"
@@ -30,7 +30,6 @@
 #include "renderer/render_data.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
 #include "scene/scene.h"
 
 namespace ptgn {
@@ -309,35 +308,19 @@ bool EntityDepthCompare::operator()(const Entity& a, const Entity& b) const {
 
 namespace impl {
 
-struct ShapeDrawInfo {
-	ShapeDrawInfo(const Entity& entity) :
-		transform{ GetDrawTransform(entity) },
-		tint{ GetTint(entity) },
-		depth{ GetDepth(entity) },
-		line_width{ entity.GetOrDefault<LineWidth>() },
-		state{ game.shader.Get<ShapeShader::Quad>(), GetBlendMode(entity),
-			   entity.GetOrDefault<Camera>(), entity.GetOrDefault<PostFX>() } {}
-
-	Transform transform;
-	Color tint;
-	Depth depth;
-	LineWidth line_width;
-	RenderState state;
-};
-
 void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture) {
 	ShapeDrawInfo info{ entity };
 
 	Sprite sprite{ entity };
 	const auto& texture{ sprite.GetTexture() };
-	auto display_size{ sprite.GetSize() };
+	auto size{ sprite.GetSize() };
 	auto texture_coordinates{ sprite.GetTextureCoordinates(flip_texture) };
 
 	auto origin{ GetDrawOrigin(entity) };
 	auto pre_fx{ entity.GetOrDefault<PreFX>() };
 
 	ctx.AddTexturedQuad(
-		texture, info.transform, display_size, origin, info.tint, info.depth, texture_coordinates,
+		texture, info.transform, size, origin, info.tint, info.depth, texture_coordinates,
 		info.state, pre_fx
 	);
 }
