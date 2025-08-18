@@ -121,10 +121,6 @@ V2_float Scene::GetScale(const Camera& relative_to_camera) const {
 	return scale;
 }
 
-V2_float Scene::GetScale() const {
-	return GetScale(camera.primary);
-}
-
 const RenderTarget& Scene::GetRenderTarget() const {
 	return render_target_;
 }

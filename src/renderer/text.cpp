@@ -67,7 +67,7 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Text text{ entity };
 
 	if (text.IsHD()) {
-		auto scene_scale{ text.GetScene().GetScale() };
+		auto scene_scale{ text.GetScene().GetScale(text.GetCamera()) };
 
 		info.transform.Scale(1.0f / scene_scale);
 
@@ -224,7 +224,7 @@ FontSize Text::GetHDFontSize(const FontSize& font_size) const {
 
 	const auto& scene{ GetScene() };
 
-	auto scene_scale{ scene.GetScale() };
+	auto scene_scale{ scene.GetScale(GetCamera()) };
 
 	final_font_size =
 		static_cast<std::int32_t>(static_cast<float>(final_font_size) * scene_scale.y);
