@@ -8,6 +8,12 @@
 
 using namespace ptgn;
 
+struct ScriptSequence2 : public Script<ScriptSequence2, TweenScript> {
+	void OnProgress(float progress) {
+		PTGN_LOG("2: 200 ms");
+	}
+};
+
 class ScriptSequenceScene : public Scene {
 public:
 	ScriptSequence s1;
@@ -25,7 +31,7 @@ public:
 
 		auto s2 = CreateScriptSequence(*this);
 		s2.Then([](Entity e) { PTGN_LOG("2: Start"); });
-		s2.During(200ms, [](Entity e) { PTGN_LOG("2: 200 ms"); });
+		s2.During<ScriptSequence2>(200ms);
 		s2.Then([](Entity e) { PTGN_LOG("2: Before waiting..."); });
 		s2.Wait(3000ms);
 		s2.Then([](Entity e) { PTGN_LOG("2: Completed!"); });
