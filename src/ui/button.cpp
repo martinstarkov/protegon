@@ -401,7 +401,7 @@ void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::RenderState render_state;
 	render_state.blend_mode	 = blend_mode;
 	render_state.camera		 = camera;
-	render_state.post_fx	 = entity.GetOrDefault<impl::PostFX>();
+	render_state.post_fx	 = entity.GetOrDefault<PostFX>();
 	render_state.shader_pass = game.shader.Get<ShapeShader::Quad>();
 
 	if (button_texture != nullptr && *button_texture != impl::Texture{}) {

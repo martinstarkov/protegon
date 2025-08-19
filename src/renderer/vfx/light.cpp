@@ -69,7 +69,7 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::RenderState state;
 	state.blend_mode  = GetBlendMode(entity);
 	state.shader_pass = { game.shader.Get<OtherShader::Light>(), &PointLight::SetUniform };
-	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+	state.post_fx	  = entity.GetOrDefault<PostFX>();
 	state.camera	  = entity.GetOrDefault<Camera>();
 
 	ctx.AddShader(entity, state, color::Transparent, V2_int{}, color::White, false);

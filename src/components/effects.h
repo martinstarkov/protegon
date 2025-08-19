@@ -24,6 +24,8 @@ struct UsePreviousTexture : public BoolComponent {
 	UsePreviousTexture() : BoolComponent{ true } {}
 };
 
+} // namespace impl
+
 struct PostFX {
 	PostFX() = default;
 
@@ -43,7 +45,5 @@ struct PreFX {
 
 	PTGN_SERIALIZER_REGISTER_NAMED(PreFX, KeyValue("pre_fx", pre_fx_))
 };
-
-} // namespace impl
 
 } // namespace ptgn

@@ -83,7 +83,7 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
 
 	auto origin{ GetDrawOrigin(entity) };
-	auto pre_fx{ entity.GetOrDefault<impl::PreFX>() };
+	auto pre_fx{ entity.GetOrDefault<PreFX>() };
 
 	ctx.AddTexturedQuad(
 		texture, info.transform, size, origin, info.tint, info.depth, texture_coordinates,

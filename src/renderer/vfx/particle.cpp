@@ -96,7 +96,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	state.camera	  = entity.GetOrParentOrDefault<Camera>();
 	state.blend_mode  = GetBlendMode(entity);
 	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
-	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+	state.post_fx	  = entity.GetOrDefault<PostFX>();
 
 	if (i.info.texture_enabled && i.info.texture_key) {
 		Color tint{ color::White };
