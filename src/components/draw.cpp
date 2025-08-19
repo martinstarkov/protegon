@@ -37,7 +37,7 @@ namespace ptgn {
 namespace impl {
 
 Entity& SetDrawImpl(Entity& entity, std::string_view drawable_name) {
-	entity.Add<IDrawable>(drawable_name);
+	EntityAccess::Add<IDrawable>(entity, drawable_name);
 	return entity;
 }
 
@@ -48,7 +48,7 @@ bool HasDraw(const Entity& entity) {
 }
 
 Entity& RemoveDraw(Entity& entity) {
-	entity.Remove<IDrawable>();
+	impl::EntityAccess::Remove<IDrawable>(entity);
 	return entity;
 }
 
@@ -76,7 +76,7 @@ Origin GetDrawOrigin(const Entity& entity) {
 
 Entity& SetVisible(Entity& entity, bool visible) {
 	if (visible) {
-		entity.Add<Visible>(visible);
+		impl::EntityAccess::Add<Visible>(entity, visible);
 		if (entity.Has<Scripts>()) {
 			entity.Get<Scripts>().AddAction(&DrawScript::OnShow);
 		}
@@ -84,7 +84,7 @@ Entity& SetVisible(Entity& entity, bool visible) {
 		if (entity.Has<Scripts>()) {
 			entity.Get<Scripts>().AddAction(&DrawScript::OnHide);
 		}
-		entity.Remove<Visible>();
+		impl::EntityAccess::Remove<Visible>(entity);
 	}
 	return entity;
 }
@@ -103,9 +103,9 @@ bool IsVisible(const Entity& entity) {
 
 Entity& SetDepth(Entity& entity, const Depth& depth) {
 	if (entity.Has<Depth>()) {
-		entity.GetImpl<Depth>() = depth;
+		impl::EntityAccess::Get<Depth>(entity) = depth;
 	} else {
-		entity.Add<Depth>(depth);
+		impl::EntityAccess::Add<Depth>(entity, depth);
 	}
 	return entity;
 }
@@ -139,9 +139,9 @@ BlendMode GetBlendMode(const Entity& entity) {
 
 Entity& SetTint(Entity& entity, const Color& color) {
 	if (color != Tint{}) {
-		entity.Add<Tint>(color);
+		impl::EntityAccess::Add<Tint>(entity, color);
 	} else {
-		entity.Remove<Tint>();
+		impl::EntityAccess::Remove<Tint>(entity);
 	}
 	return entity;
 }

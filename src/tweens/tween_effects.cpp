@@ -361,7 +361,9 @@ void FollowEffectSystem::Update(Scene& scene) const {
 				}
 				if (front.config.move_mode == MoveMode::Velocity) {
 					entity.TryAdd<RigidBody>();
-					entity.TryAdd<Transform>();
+					if (!entity.Has<Transform>()) {
+						SetPosition(entity, {});
+					}
 					auto& movement{ entity.TryAdd<TopDownMovement>() };
 					movement.max_acceleration		  = front.config.max_acceleration;
 					movement.max_deceleration		  = front.config.max_acceleration;
@@ -412,7 +414,9 @@ void FollowEffectSystem::Update(Scene& scene) const {
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
 							entity.TryAdd<RigidBody>();
-							entity.TryAdd<Transform>();
+							if (!entity.Has<Transform>()) {
+								SetPosition(entity, {});
+							}
 							auto& movement{ entity.TryAdd<TopDownMovement>() };
 							movement.max_acceleration		  = front.config.max_acceleration;
 							movement.max_deceleration		  = front.config.max_acceleration;
@@ -515,7 +519,9 @@ void FollowEffectSystem::Update(Scene& scene) const {
 						}
 						if (front.config.move_mode == MoveMode::Velocity) {
 							entity.TryAdd<RigidBody>();
-							entity.TryAdd<Transform>();
+							if (!entity.Has<Transform>()) {
+								SetPosition(entity, {});
+							}
 							auto& movement					  = entity.TryAdd<TopDownMovement>();
 							movement.max_acceleration		  = front.config.max_acceleration;
 							movement.max_deceleration		  = front.config.max_acceleration;
@@ -734,7 +740,9 @@ void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) 
 	if (config.move_mode == MoveMode::Velocity) {
 		// TODO: Consider making the movement system not require enabling an entity.
 		entity.TryAdd<RigidBody>();
-		entity.TryAdd<Transform>();
+		if (!entity.Has<Transform>()) {
+			SetPosition(entity, {});
+		}
 		auto& movement{ entity.TryAdd<TopDownMovement>() };
 		movement.max_acceleration		  = config.max_acceleration;
 		movement.max_deceleration		  = config.max_acceleration;
@@ -764,7 +772,9 @@ void StopFollow(Entity entity, bool force) {
 			}
 			if (front.config.move_mode == MoveMode::Velocity) {
 				entity.TryAdd<RigidBody>();
-				entity.TryAdd<Transform>();
+				if (!entity.Has<Transform>()) {
+					SetPosition(entity, {});
+				}
 				auto& movement					  = entity.TryAdd<TopDownMovement>();
 				movement.max_acceleration		  = front.config.max_acceleration;
 				movement.max_deceleration		  = front.config.max_acceleration;

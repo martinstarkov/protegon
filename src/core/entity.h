@@ -22,36 +22,32 @@ struct Transform;
 struct Depth;
 struct Interactive;
 
-Entity& SetTransform(Entity& entity, const Transform& transform);
-Entity& SetDepth(Entity& entity, const Depth& depth);
-
 namespace impl {
 
 class RenderData;
 class IScript;
-
-const ptgn::Interactive& GetInteractive(const ptgn::Entity& entity);
+class EntityAccess;
 
 } // namespace impl
 
 class Entity : private ecs::impl::Entity<JSONArchiver> {
 private:
-	using Parent = ecs::impl::Entity<JSONArchiver>;
+	using EntityBase = ecs::impl::Entity<JSONArchiver>;
 
 public:
 	// Entity wrapper functionality.
 
-	using Parent::Entity;
+	using EntityBase::Entity;
 
 	Entity() = default;
-	Entity(const Parent& e);
+	Entity(const EntityBase& e);
 
 	explicit Entity(Scene& scene);
 
 	[[nodiscard]] ecs::impl::Index GetId() const;
 
 	explicit operator bool() const {
-		return Parent::operator bool();
+		return EntityBase::operator bool();
 	}
 
 	friend bool operator<(const Entity& lhs, const Entity& rhs) {
@@ -62,7 +58,7 @@ public:
 	}
 
 	friend bool operator==(const Entity& a, const Entity& b) {
-		return static_cast<const Parent&>(a) == static_cast<const Parent&>(b);
+		return static_cast<const EntityBase&>(a) == static_cast<const EntityBase&>(b);
 	}
 
 	friend bool operator!=(const Entity& a, const Entity& b) {
@@ -72,38 +68,38 @@ public:
 	// Copying a destroyed entity will return a null entity.
 	// Copying an entity with no components simply returns a new entity.
 	// Make sure to call manager.Refresh() after this function.
-	template <typename... Ts>
+	template <impl::ModifiableComponent... Ts>
 	[[nodiscard]] Entity Copy() {
-		return Parent::Copy<Ts...>();
+		return EntityBase::Copy<Ts...>();
 	}
 
 	// Adds or replaces the component if the entity already has it.
 	// @return Reference to the added or replaced component.
-	template <typename T, typename... Ts>
+	template <impl::ModifiableComponent T, typename... Ts>
 	T& Add(Ts&&... constructor_args) {
-		return Parent::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return AddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	// Only adds the component if one does not exist on the entity.
 	// @return Reference to the added or existing component.
-	template <typename T, typename... Ts>
+	template <impl::ModifiableComponent T, typename... Ts>
 	T& TryAdd(Ts&&... constructor_args) {
-		return Parent::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return TryAddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
-	template <typename... Ts>
+	template <impl::ModifiableComponent... Ts>
 	void Remove() {
-		Parent::Remove<Ts...>();
+		RemoveImpl<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool Has() const {
-		return Parent::Has<Ts...>();
+		return EntityBase::Has<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool HasAny() const {
-		return Parent::HasAny<Ts...>();
+		return EntityBase::HasAny<Ts...>();
 	}
 
 	template <typename... Ts>
@@ -212,30 +208,43 @@ public:
 	[[nodiscard]] bool WasCreatedBefore(const Entity& other) const;
 
 private:
-	friend Entity& SetTransform(Entity&, const Transform&);
-	friend const Interactive& impl::GetInteractive(const Entity&);
-	friend Entity& SetDepth(Entity&, const Depth&);
+	friend class impl::EntityAccess;
 	friend class Manager;
 	friend class impl::RenderData;
 
 	template <typename... Ts>
+	void RemoveImpl() {
+		EntityBase::Remove<Ts...>();
+	}
+
+	template <typename T, typename... Ts>
+	T& AddImpl(Ts&&... constructor_args) {
+		return EntityBase::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	}
+
+	template <typename T, typename... Ts>
+	T& TryAddImpl(Ts&&... constructor_args) {
+		return EntityBase::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	}
+
+	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() const {
-		return Parent::Get<Ts...>();
+		return EntityBase::Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() {
-		return Parent::Get<Ts...>();
+		return EntityBase::Get<Ts...>();
 	}
 
 	template <typename T>
 	[[nodiscard]] const T* TryGetImpl() const {
-		return Parent::TryGet<T>();
+		return EntityBase::TryGet<T>();
 	}
 
 	template <typename T>
 	[[nodiscard]] T* TryGetImpl() {
-		return Parent::TryGet<T>();
+		return EntityBase::TryGet<T>();
 	}
 
 	template <typename T>
@@ -262,6 +271,48 @@ private:
 
 	void DeserializeAllImpl(const json& j);
 };
+
+namespace impl {
+
+class EntityAccess {
+public:
+	template <typename... Ts>
+	static void Remove(Entity& e) {
+		e.RemoveImpl<Ts...>();
+	}
+
+	template <typename T, typename... Ts>
+	static T& Add(Entity& e, Ts&&... constructor_args) {
+		return e.AddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	}
+
+	template <typename T, typename... Ts>
+	static T& TryAdd(Entity& e, Ts&&... constructor_args) {
+		return e.TryAddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	}
+
+	template <typename... Ts>
+	[[nodiscard]] static decltype(auto) Get(const Entity& e) {
+		return e.GetImpl<Ts...>();
+	}
+
+	template <typename... Ts>
+	[[nodiscard]] static decltype(auto) Get(Entity& e) {
+		return e.GetImpl<Ts...>();
+	}
+
+	template <typename T>
+	[[nodiscard]] static const T* TryGet(const Entity& e) {
+		return e.TryGetImpl<T>();
+	}
+
+	template <typename T>
+	[[nodiscard]] static T* TryGet(Entity& e) {
+		return e.TryGetImpl<T>();
+	}
+};
+
+} // namespace impl
 
 } // namespace ptgn
 

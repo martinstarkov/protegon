@@ -7,11 +7,17 @@
 #include "core/entity.h"
 #include "serialization/serializable.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+class Manager;
+
+namespace impl {
 
 struct ChildKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
+
+} // namespace impl
 
 struct Parent : public Entity {
 	using Entity::Entity;
@@ -22,6 +28,8 @@ struct Parent : public Entity {
 struct Children {
 	Children() = default;
 
+	PTGN_SERIALIZER_REGISTER_NAMED(Children, KeyValue("children", children_))
+private:
 	void Clear();
 
 	void Add(Entity& child, std::string_view name = {});
@@ -38,13 +46,19 @@ struct Children {
 	[[nodiscard]] bool Has(const Entity& child) const;
 	[[nodiscard]] bool Has(std::string_view name) const;
 
-	PTGN_SERIALIZER_REGISTER_NAMED(Children, KeyValue("children", children_))
-
 private:
+	friend class Manager;
+	friend class Entity;
 	friend void ptgn::ClearChildren(Entity& entity);
 	friend const std::vector<Entity>& ptgn::GetChildren(const Entity& entity);
+	friend const Entity& ptgn::GetChild(const Entity& entity, std::string_view name);
+	friend bool ptgn::HasChild(const Entity& entity, const Entity& child);
+	friend bool ptgn::HasChild(const Entity& entity, std::string_view name);
+	friend void ptgn::RemoveChild(Entity& entity, std::string_view name);
+	friend void ptgn::RemoveParent(Entity& entity);
+	friend void ptgn::impl::AddChildImpl(Entity& entity, Entity& child, std::string_view name);
 
 	std::vector<Entity> children_;
 };
 
-} // namespace ptgn::impl
+} // namespace ptgn

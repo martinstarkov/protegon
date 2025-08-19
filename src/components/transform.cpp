@@ -191,15 +191,15 @@ bool Transform::IsDirty() const {
 
 Entity& SetTransform(Entity& entity, const Transform& transform) {
 	if (entity.Has<Transform>()) {
-		entity.GetImpl<Transform>() = transform;
+		impl::EntityAccess::Get<Transform>(entity) = transform;
 	} else {
-		entity.Add<Transform>(transform);
+		impl::EntityAccess::Add<Transform>(entity, transform);
 	}
 	return entity;
 }
 
 Transform& GetTransform(Entity& entity) {
-	return entity.TryAdd<Transform>();
+	return impl::EntityAccess::TryAdd<Transform>(entity);
 }
 
 Transform GetTransform(const Entity& entity) {

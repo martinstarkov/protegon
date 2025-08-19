@@ -50,10 +50,10 @@ void Dropzone::SetPickupTrigger(CallbackTrigger trigger) {
 
 Entity& SetInteractive(Entity& entity, bool interactive) {
 	if (interactive) {
-		entity.Add<Interactive>();
+		impl::EntityAccess::Add<Interactive>(entity);
 	} else {
 		impl::ClearInteractables(entity);
-		entity.Remove<Interactive>();
+		impl::EntityAccess::Remove<Interactive>(entity);
 	}
 	return entity;
 }
@@ -117,7 +117,7 @@ namespace impl {
 
 const Interactive& GetInteractive(const Entity& entity) {
 	PTGN_ASSERT(IsInteractive(entity));
-	return entity.GetImpl<Interactive>();
+	return impl::EntityAccess::Get<Interactive>(entity);
 }
 
 Interactive& GetInteractive(Entity& entity) {
