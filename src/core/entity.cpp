@@ -172,6 +172,10 @@ bool Entity::WasCreatedBefore(const Entity& other) const {
 	return EntityBase::GetId() < other.EntityBase::GetId();
 }
 
+void Entity::Invalidate() {
+	*this = {};
+}
+
 void Entity::SerializeAllImpl(json& j) const {
 	JSONArchiver archiver;
 

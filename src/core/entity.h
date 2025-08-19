@@ -207,6 +207,9 @@ public:
 	// @return True if *this was created before other.
 	[[nodiscard]] bool WasCreatedBefore(const Entity& other) const;
 
+	// Equivalent of setting the entity handle to {}
+	void Invalidate();
+
 private:
 	friend class impl::EntityAccess;
 	friend class Manager;
