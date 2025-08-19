@@ -270,6 +270,7 @@ void RenderData::AddQuad(
 	const Transform& transform, const V2_float& size, Origin draw_origin, const Color& tint,
 	const Depth& depth, float line_width, const RenderState& state
 ) {
+	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw quad with invalid size");
 	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	auto quad_vertices{
 		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
@@ -390,7 +391,7 @@ void RenderData::AddTexturedQuad(
 	const RenderState& state, const PreFX& pre_fx
 ) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
-	PTGN_ASSERT(!size.IsZero(), "Cannot draw textured quad with zero size");
+	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw textured quad with zero or negative size");
 
 	SetState(state);
 
@@ -406,7 +407,7 @@ void RenderData::AddTexturedQuad(
 		auto texture_size{ texture.GetSize() };
 
 		PTGN_ASSERT(
-			!texture_size.IsZero(), "Texture must have a non-zero size for it to have post fx"
+			texture_size.BothAboveZero(), "Texture must have a valid size for it to have post fx"
 		);
 
 		V2_int viewport_position{ 0, 0 };
