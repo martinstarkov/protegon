@@ -257,7 +257,7 @@ void Game::Update() {
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
 	// Calculate time elapsed during previous frame. Unit: seconds.
-	duration<float, seconds::period> elapsed_time{ end - start };
+	secondsf elapsed_time{ end - start };
 
 	float elapsed{ elapsed_time.count() };
 
@@ -268,7 +268,7 @@ void Game::Update() {
 	dt_ = 1.0f / fps;*/
 
 	/*if (elapsed < dt_) {
-		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
+		impl::SDLInstance::Delay(to_duration<milliseconds>(secondsf{
 			dt_ - elapsed }));
 	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
 	// PTGN_LOG("Dt: ", dt_);

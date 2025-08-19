@@ -133,11 +133,10 @@ void SceneTransition::Start(
 	};
 	const auto fade_through_color = [&]() {
 		float transition_duration{
-			std::chrono::duration_cast<duration<float, milliseconds::period>>(duration_).count()
+			to_duration_value<millisecondsf>(duration_)
 		};
 		float color_duration{
-			std::chrono::duration_cast<duration<float, milliseconds::period>>(color_duration_)
-				.count()
+			to_duration_value<millisecondsf>(color_duration_)
 		};
 		float total_duration{ transition_duration + color_duration };
 		float fade_duration{ transition_duration / 2.0f };

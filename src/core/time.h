@@ -1,12 +1,12 @@
 #pragma once
 
 #include <chrono>
-#include <iosfwd>
+#include <format>
+#include <ostream>
 #include <ratio>
 #include <regex>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <type_traits>
 
 #include "serialization/json.h"
@@ -14,36 +14,77 @@
 namespace ptgn {
 
 template <typename Rep, typename Period = std::ratio<1>>
-using duration	   = std::chrono::duration<Rep, Period>;
-using hours		   = std::chrono::hours;
-using minutes	   = std::chrono::minutes;
-using seconds	   = std::chrono::seconds;
-using milliseconds = std::chrono::milliseconds;
-using microseconds = std::chrono::microseconds;
-using nanoseconds  = std::chrono::nanoseconds;
-
-namespace tt {
+using duration = std::chrono::duration<Rep, Period>;
 
 namespace impl {
 
-template <typename T>
-struct is_duration : std::false_type {};
+template <class _Tp>
+struct is_chrono_duration : std::false_type {};
 
-template <typename Rep, typename Period>
-struct is_duration<ptgn::duration<Rep, Period>> : std::true_type {};
+template <class _Rep, class _Period>
+struct is_chrono_duration<std::chrono::duration<_Rep, _Period>> : std::true_type {};
 
 } // namespace impl
 
 template <typename T>
-inline constexpr bool is_duration_v{ impl::is_duration<T>::value };
+concept Duration = impl::is_chrono_duration<T>::value;
 
-template <typename T>
-using duration = std::enable_if_t<is_duration_v<T>, bool>;
+using hours			= std::chrono::hours;
+using hoursf		= duration<float, hours::period>;
+using minutes		= std::chrono::minutes;
+using minutesf		= duration<float, minutes::period>;
+using seconds		= std::chrono::seconds;
+using secondsf		= duration<float, seconds::period>;
+using milliseconds	= std::chrono::milliseconds;
+using millisecondsf = duration<float, milliseconds::period>;
+using microseconds	= std::chrono::microseconds;
+using microsecondsf = duration<float, microseconds::period>;
+using nanoseconds	= std::chrono::nanoseconds;
+using nanosecondsf	= duration<float, nanoseconds::period>;
 
-} // namespace tt
+template <Duration To, Duration From>
+constexpr To to_duration(const From& duration) {
+	return std::chrono::duration_cast<To>(duration);
+}
+
+// Generic helper: casts to target duration and returns its count.
+template <Duration To, Duration From>
+constexpr typename To::rep to_duration_value(const From& duration) {
+	return to_duration<To>(duration).count();
+}
+
+template <Duration From>
+constexpr typename From::rep to_seconds(const From& duration) {
+	return to_duration_value<std::chrono::duration<typename From::rep>>(duration);
+}
+
+template <Duration From>
+constexpr typename From::rep to_milliseconds(const From& duration) {
+	return to_duration_value<std::chrono::duration<typename From::rep, std::milli>>(duration);
+}
+
+template <Duration From>
+constexpr typename From::rep to_microseconds(const From& duration) {
+	return to_duration_value<std::chrono::duration<typename From::rep, std::micro>>(duration);
+}
+
+template <Duration From>
+constexpr typename From::rep to_nanoseconds(const From& duration) {
+	return to_duration_value<std::chrono::duration<typename From::rep, std::nano>>(duration);
+}
+
+template <Duration From>
+constexpr typename From::rep to_minutes(const From& duration) {
+	return to_duration_value<std::chrono::duration<typename From::rep, std::ratio<60>>>(duration);
+}
+
+template <Duration From>
+constexpr typename From::rep to_hours(const From& duration) {
+	return to_duration_value<std::chrono::duration<typename From::rep, std::ratio<3600>>>(duration);
+}
 
 template <typename Rep, typename Period>
-std::ostream& operator<<(std::ostream& os, const std::chrono::duration<Rep, Period>& d) {
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Period>& d) {
 	os << d.count();
 
 	if constexpr (std::is_same_v<Period, std::milli>) {
@@ -70,63 +111,57 @@ std::ostream& operator<<(std::ostream& os, const std::chrono::duration<Rep, Peri
 NLOHMANN_JSON_NAMESPACE_BEGIN
 
 template <typename Rep, typename Period>
-struct adl_serializer<std::chrono::duration<Rep, Period>> {
-	static void to_json(json& j, const std::chrono::duration<Rep, Period>& d) {
+struct adl_serializer<ptgn::duration<Rep, Period>> {
+	static void to_json(json& j, const ptgn::duration<Rep, Period>& d) {
+		using namespace ptgn;
 		// Convert duration to milliseconds (common base unit for serialization)
-		auto ms{ std::chrono::duration_cast<ptgn::milliseconds>(d) };
+		auto ms{ to_duration<milliseconds>(d) };
 
 		if (ms == d) {
 			j = std::to_string(ms.count()) + "ms";
 		} else {
 			// For non-integral durations (e.g., seconds, minutes)
-			double value = std::chrono::duration_cast<ptgn::duration<double>>(d).count();
+			float value{ to_duration_value<secondsf>(d) };
 			if (std::is_integral_v<Rep>) {
 				j = std::to_string(ms.count()) + "ms";
 			} else {
-				j = std::to_string(value) + "s"; // Default fallback
+				j = std::format("{}s", value);
 			}
 		}
 	}
 
-	static void from_json(const json& j, std::chrono::duration<Rep, Period>& d) {
+	static void from_json(const json& j, ptgn::duration<Rep, Period>& d) {
+		using namespace ptgn;
 		if (!j.is_string()) {
 			throw std::runtime_error("Expected duration as string");
 		}
 
 		std::string s{ j.get<std::string>() };
 		std::smatch match;
-		std::regex pattern(R"(^\s*([\d.]+)\s*(ms|s|min|h)\s*$)", std::regex::icase);
 
-		if (!std::regex_match(s, match, pattern)) {
+		if (std::regex pattern{ R"(^\s*([\d.]+)\s*(ms|s|min|h)\s*$)", std::regex::icase };
+			!std::regex_match(s, match, pattern)) {
 			throw std::runtime_error("Invalid duration format: " + s);
 		}
 
-		double value{ std::stod(match[1].str()) };
+		float value{ std::stof(match[1].str()) };
 		// Do not make this a string_view, otherwise it may add a \0 to the front.
 		std::string unit{ match[2].str() };
 
-		using dur = std::chrono::duration<Rep, Period>;
+		using dur = ptgn::duration<Rep, Period>;
 
 		if (unit == "s" || unit == "S") {
-			d = std::chrono::duration_cast<dur>(ptgn::duration<double, ptgn::seconds::period>(value)
-			);
+			d = to_duration<dur>(secondsf{ value });
 		} else if (unit == "ms" || unit == "MS") {
-			d = std::chrono::duration_cast<dur>(
-				ptgn::duration<double, ptgn::milliseconds::period>(value)
-			);
+			d = to_duration<dur>(millisecondsf{ value });
 		} else if (unit == "min" || unit == "MIN") {
-			d = std::chrono::duration_cast<dur>(ptgn::duration<double, ptgn::minutes::period>(value)
-			);
+			d = to_duration<dur>(minutesf{ value });
 		} else if (unit == "h" || unit == "H") {
-			d = std::chrono::duration_cast<dur>(ptgn::duration<double, ptgn::hours::period>(value));
+			d = to_duration<dur>(hoursf{ value });
 		} else if (unit == "ns" || unit == "NS") {
-			d = std::chrono::duration_cast<dur>(
-				ptgn::duration<double, ptgn::nanoseconds::period>(value)
-			);
+			d = to_duration<dur>(nanosecondsf{ value });
 		} else if (unit == "us" || unit == "US") {
-			d = std::chrono::duration_cast<dur>(
-				ptgn::duration<double, ptgn::microseconds::period>(value)
-			);
+			d = to_duration<dur>(microsecondsf{ value });
 		} else {
 			throw std::runtime_error("Unsupported time unit: " + std::string(unit));
 		}
@@ -140,7 +175,7 @@ struct adl_serializer<std::chrono::time_point<Clock, Duration>> {
 	}
 
 	static void from_json(const json& j, std::chrono::time_point<Clock, Duration>& tp) {
-		tp = typename Clock::time_point(std::chrono::nanoseconds(j.get<typename Duration::rep>()));
+		tp = typename Clock::time_point(ptgn::nanoseconds(j.get<typename Duration::rep>()));
 	}
 };
 

@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "common/assert.h"
+#include "core/time.h"
 #include "core/timer.h"
 #include "debug/log.h"
 #include "resources/resource_manager.h"
@@ -55,18 +56,18 @@ public:
 		PrintAll<>();
 	}
 
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
+	template <Duration D = milliseconds>
 	void PrintAll() const {
 		for (const auto& [name, time] : GetMap()) {
-			PrintInfo<Duration>(name, std::chrono::duration_cast<Duration>(time));
+			PrintInfo<D>(name, to_duration<D>(time));
 		}
 	}
 
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
+	template <Duration D = milliseconds>
 	void Print(const std::string& name) const {
 		PTGN_ASSERT(Has(name), "Cannot print profiling info for name which is not being profiled");
 		auto& time{ Get(name) };
-		PrintInfo<Duration>(name, std::chrono::duration_cast<Duration>(time));
+		PrintInfo<D>(name, to_duration<D>(time));
 	}
 
 private:
@@ -75,8 +76,8 @@ private:
 
 	bool enabled_{ false };
 
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
-	void PrintInfo(std::string_view name, const Duration& time) const {
+	template <Duration D = milliseconds>
+	void PrintInfo(std::string_view name, const D& time) const {
 		PrintLine("PROFILING: ", impl::TrimFunctionSignature(name), ": ", time);
 	}
 };

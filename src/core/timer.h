@@ -48,8 +48,8 @@ public:
 	 * @tparam Duration The unit of time. Default: milliseconds.
 	 * @param Amount of time to add to the timer.
 	 */
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
-	void AddOffset(Duration extra_time) {
+	template <Duration D = milliseconds>
+	void AddOffset(D extra_time) {
 		offset_ += extra_time;
 	}
 
@@ -57,8 +57,8 @@ public:
 	 * @tparam Duration The unit of time. Default: milliseconds.
 	 * @param Amount of time to remove from the timer.
 	 */
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
-	void RemoveOffset(Duration time_to_remove) {
+	template <Duration D = milliseconds>
+	void RemoveOffset(D time_to_remove) {
 		offset_ -= time_to_remove;
 	}
 
@@ -66,10 +66,10 @@ public:
 	 * @tparam Duration The unit of time. Default: milliseconds.
 	 * @return Elapsed duration of time since timer start.
 	 */
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
-	[[nodiscard]] Duration Elapsed() const {
+	template <Duration D = milliseconds>
+	[[nodiscard]] D Elapsed() const {
 		auto end_time = running_ ? std::chrono::steady_clock::now() : stop_time_;
-		return std::chrono::duration_cast<Duration>(end_time - start_time_ + offset_);
+		return to_duration<D>(end_time - start_time_ + offset_);
 	}
 
 	/*
@@ -77,8 +77,8 @@ public:
 	 * @param compared_to The time to check that the timer has completed.
 	 * @return True the timer has elapsed compared_to time and false if not.
 	 */
-	template <typename Duration = milliseconds, tt::duration<Duration> = true>
-	[[nodiscard]] bool Completed(Duration compared_to) const {
+	template <Duration D = milliseconds>
+	[[nodiscard]] bool Completed(D compared_to) const {
 		return ElapsedPercentage(compared_to) >= 1.0f;
 	}
 
@@ -88,16 +88,13 @@ public:
 	 * @return Elapsed percentage of compared_to time duration clamped between 0.0 and 1.0. Returns
 	 * 1 if compared_to is 0.
 	 */
-	template <
-		typename Duration = milliseconds, typename T = float, tt::duration<Duration> = true,
-		std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
-	[[nodiscard]] T ElapsedPercentage(Duration compared_to) const {
-		if (compared_to == Duration{ 0 }) {
+	template <Duration D = milliseconds, std::floating_point T = float>
+	[[nodiscard]] T ElapsedPercentage(D compared_to) const {
+		if (compared_to == D{ 0 }) {
 			return 1.0f;
 		}
-		duration<T, typename Duration::period> elapsed_time{
-			Elapsed<duration<T, typename Duration::period>>() / compared_to
-		};
+		duration<T, typename D::period> elapsed_time{ Elapsed<duration<T, typename D::period>>() /
+													  compared_to };
 		T percentage{ std::clamp(elapsed_time.count(), T{ 0 }, T{ 1 }) };
 		PTGN_ASSERT(
 			percentage >= T{ 0 } && percentage <= T{ 1 },
@@ -110,15 +107,7 @@ public:
 	friend void to_json(json& j, const Timer& timer);
 	friend void from_json(const json& j, Timer& timer);
 
-	friend bool operator==(const Timer& a, const Timer& b) {
-		return a.start_time_ == b.start_time_ && a.running_ == b.running_ &&
-			   a.paused_ == b.paused_ && a.stop_time_ == b.stop_time_ &&
-			   a.pause_time_ == b.pause_time_ && a.offset_ == b.offset_;
-	}
-
-	friend bool operator!=(const Timer& a, const Timer& b) {
-		return !(a == b);
-	}
+	bool operator==(const Timer&) const = default;
 
 private:
 	std::chrono::time_point<std::chrono::steady_clock> start_time_{};
