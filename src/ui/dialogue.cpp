@@ -643,8 +643,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 
 	// Split by manual newlines
 	std::vector<std::string> newline_segments;
-	std::size_t start		= 0;
-	std::size_t newline_pos = 0;
+	std::size_t start{ 0 };
+	std::size_t newline_pos{ 0 };
 
 	while ((newline_pos = full_text.find('\n', start)) != std::string::npos) {
 		newline_segments.push_back(full_text.substr(start, newline_pos - start));
@@ -669,7 +669,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 			page_lines.push_back(wrapped_lines[i]);
 
 			if (page_lines.size() == static_cast<std::size_t>(max_lines)) {
-				std::string page_text = JoinLines(page_lines);
+				std::string page_text{ JoinLines(page_lines) };
 				if (i < wrapped_lines.size() - 1) {
 					page_text += split_end;
 				}
@@ -677,15 +677,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 					page_text = split_begin + page_text;
 				}
 
-				auto duration = std::chrono::duration_cast<milliseconds>(
-					ptgn::duration<double, milliseconds::period>(
-						static_cast<double>(properties.scroll_duration.count())
-					)
-				);
-
-				auto page_properties			= properties;
-				page_properties.scroll_duration = duration;
-				pages.emplace_back(DialoguePage{ page_text, page_properties });
+				auto page_properties{ properties };
+				pages.emplace_back(page_text, page_properties);
 
 				// Clear page_lines to start a new page for the next chunk of text
 				page_lines.clear();
@@ -700,15 +693,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 				page_text = split_begin + page_text;
 			}
 
-			auto duration = std::chrono::duration_cast<milliseconds>(
-				ptgn::duration<double, milliseconds::period>(
-					static_cast<double>(properties.scroll_duration.count())
-				)
-			);
-
-			auto page_properties			= properties;
-			page_properties.scroll_duration = duration;
-			pages.emplace_back(DialoguePage{ page_text, page_properties });
+			auto page_properties{ properties };
+			pages.emplace_back(page_text, page_properties);
 		}
 	}
 
