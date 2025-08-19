@@ -23,29 +23,29 @@ struct ScriptSequenceInstance {
 class ScriptSequence : public Entity {
 public:
 	// TODO: Readd once you add a wrapper script class that gives GetParent(entity) to the script.
-	// Add a script that runs for duration
+	// Add a script that runs for the given duration.
 	// template <typename TScript, typename... Args>
 	// ScriptSequence& During(milliseconds duration, Args&&... args) {
 	//	tween_.During(duration).AddScript<TScript>(std::forward<Args>(args)...);
 	//	return *this;
 	//}
 
-	// Add a function that runs continuously during the tween point (progress float ignored).
+	// Add a function that runs continuously during the specified duration.
 	ScriptSequence& During(milliseconds duration, std::function<void(Entity)> func);
 
-	// Instantaneous step triggered on progress
+	// Instantaneous function trigger.
 	ScriptSequence& Then(std::function<void(Entity)> func);
 
-	// Wait for a duration without running any script
+	// Wait for a duration without running any functions.
 	ScriptSequence& Wait(milliseconds duration);
 
-	// Repeat the last added tween point count times, -1 for infinite repeats.
-	ScriptSequence& Repeat(std::int64_t count);
+	// Repeat the last added function repeats times, -1 for infinite repeats.
+	ScriptSequence& Repeat(std::int64_t repeats);
 
 	// Move onto the next sequence element, skipping the current one.
 	ScriptSequence& MoveOn();
 
-	// Start the sequence
+	// Start the sequence.
 	void Start(bool force = true);
 };
 

@@ -199,7 +199,9 @@ Tween& Tween::Repeat(std::int64_t repeats) {
 	if (repeats == 0) {
 		return *this;
 	}
-	PTGN_ASSERT(repeats == -1 || repeats > 0);
+	PTGN_ASSERT(
+		repeats == -1 || repeats > 0, "Repeats cannot be negative unless it is -1 (infinite)"
+	);
 	auto& total_repeats{ GetLastTweenPoint().total_repeats_ };
 	total_repeats = repeats;
 	if (total_repeats != -1) {
