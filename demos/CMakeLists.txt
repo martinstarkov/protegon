@@ -51,6 +51,7 @@ add_subdirectory(fullscreen)
 add_subdirectory(resolution)
 add_subdirectory(resolution_text)
 add_subdirectory(script)
+add_subdirectory(script_sequence)
 add_subdirectory(tween)
 
 add_subdirectory(parallax)
