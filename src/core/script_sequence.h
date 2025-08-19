@@ -1,11 +1,14 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
 #include <ctime>
 #include <functional>
 
 #include "core/entity.h"
 #include "core/game_object.h"
+#include "core/script.h"
+#include "tweens/tween.h"
 
 namespace ptgn {
 
@@ -14,7 +17,7 @@ class Scene;
 namespace impl {
 
 struct ScriptSequenceInstance {
-	ScriptSequenceInstance(const Entity& entity);
+	explicit ScriptSequenceInstance(const Entity& entity);
 	GameObject tween;
 };
 
@@ -22,13 +25,18 @@ struct ScriptSequenceInstance {
 
 class ScriptSequence : public Entity {
 public:
-	// TODO: Readd once you add a wrapper script class that gives GetParent(entity) to the script.
 	// Add a script that runs for the given duration.
-	// template <typename TScript, typename... Args>
-	// ScriptSequence& During(milliseconds duration, Args&&... args) {
-	//	tween_.During(duration).AddScript<TScript>(std::forward<Args>(args)...);
-	//	return *this;
-	//}
+	template <std::derived_from<TweenScript> TScript, typename... TArgs>
+		requires std::constructible_from<TScript, TArgs...>
+	ScriptSequence& During(milliseconds duration, TArgs&&... args) {
+		const auto& instance{ Get<impl::ScriptSequenceInstance>() };
+		auto& sequence{ Tween{ instance.tween }.During(duration) };
+		auto& script{ sequence.GetLastTweenPoint().script_container_.AddScript<TScript>(
+			std::forward<TArgs>(args)...
+		) };
+		script.entity = *this;
+		return *this;
+	}
 
 	// Add a function that runs continuously during the specified duration.
 	ScriptSequence& During(milliseconds duration, std::function<void(Entity)> func);
