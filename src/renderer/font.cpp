@@ -8,11 +8,13 @@
 
 #include "common/assert.h"
 #include "components/generic.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/vector2.h"
 #include "resources/fonts.h"
 #include "resources/resource_manager.h"
+#include "scene/scene.h"
 #include "SDL_error.h"
 #include "SDL_rwops.h"
 #include "SDL_ttf.h"
@@ -20,7 +22,23 @@
 #include "serialization/json.h"
 #include "utility/file.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+FontSize FontSize::GetHD(const Entity& entity) const {
+	FontSize final_font_size{ *this };
+
+	const auto& scene{ entity.GetScene() };
+	const auto& camera{ entity.GetCamera() };
+
+	auto scene_scale{ scene.GetScale(camera) };
+
+	final_font_size =
+		static_cast<std::int32_t>(static_cast<float>(final_font_size) * scene_scale.y);
+
+	return final_font_size;
+}
+
+namespace impl {
 
 void TTF_FontDeleter::operator()(TTF_Font* font) const {
 	if (game.sdl_instance_->SDLTTFIsInitialized()) {
@@ -129,7 +147,8 @@ V2_int FontManager::GetSize(
 		size.y = GetHeight(key, font_size);
 		return size;
 	}
-
+	PTGN_ASSERT(content.find("\n") == std::string::npos, "Cannot get size of text with newlines");
+	// TODO: Use TTF_GetStringSizeWrapped in SDL3.
 	TTF_SizeUTF8(font.get(), content.c_str(), &size.x, &size.y);
 	return size;
 }
@@ -186,4 +205,6 @@ void from_json(const json& j, FontManager& manager) {
 	manager.Init();
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
