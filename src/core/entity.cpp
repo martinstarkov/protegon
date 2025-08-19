@@ -24,17 +24,17 @@ namespace ptgn {
 Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
 
 ecs::impl::Index Entity::GetId() const {
-	return Parent::GetId();
+	return EntityBase::GetId();
 }
 
-Entity::Entity(const Parent& entity) : Parent{ entity } {}
+Entity::Entity(const EntityBase& entity) : EntityBase{ entity } {}
 
 void Entity::Clear() const {
-	Parent::Clear();
+	EntityBase::Clear();
 }
 
 bool Entity::IsAlive() const {
-	return Parent::IsAlive();
+	return EntityBase::IsAlive();
 }
 
 Entity& Entity::Destroy(bool orphan_children) {
@@ -55,16 +55,16 @@ Entity& Entity::Destroy(bool orphan_children) {
 		}
 	}
 
-	Parent::Destroy();
+	EntityBase::Destroy();
 	return *this;
 }
 
 Manager& Entity::GetManager() {
-	return static_cast<Manager&>(Parent::GetManager());
+	return static_cast<Manager&>(EntityBase::GetManager());
 }
 
 const Manager& Entity::GetManager() const {
-	return static_cast<const Manager&>(Parent::GetManager());
+	return static_cast<const Manager&>(EntityBase::GetManager());
 }
 
 const Scene& Entity::GetScene() const {
@@ -150,7 +150,7 @@ Camera& Entity::GetCamera() {
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
-	return Parent::IsIdenticalTo(e);
+	return EntityBase::IsIdenticalTo(e);
 }
 
 UUID Entity::GetUUID() const {
@@ -159,17 +159,17 @@ UUID Entity::GetUUID() const {
 }
 
 std::size_t Entity::GetHash() const {
-	return std::hash<Parent>()(*this);
+	return std::hash<EntityBase>()(*this);
 }
 
 bool Entity::WasCreatedBefore(const Entity& other) const {
 	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
-	auto version{ Parent::GetVersion() };
-	auto other_version{ other.Parent::GetVersion() };
+	auto version{ EntityBase::GetVersion() };
+	auto other_version{ other.EntityBase::GetVersion() };
 	if (version != other_version) {
 		return version < other_version;
 	}
-	return Parent::GetId() < other.Parent::GetId();
+	return EntityBase::GetId() < other.EntityBase::GetId();
 }
 
 void Entity::SerializeAllImpl(json& j) const {
