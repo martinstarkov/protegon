@@ -47,16 +47,24 @@ Tween& Tween::OnProgress(const std::function<void(Entity, float)>& func) {
 	return AddScript<impl::TweenProgressScript>(func);
 }
 
+Tween& Tween::OnStart(const TweenCallback& func) {
+	return AddScript<impl::TweenStartScript>(func);
+}
+
 Tween& Tween::OnComplete(const TweenCallback& func) {
 	return AddScript<impl::TweenCompleteScript>(func);
 }
 
-Tween& Tween::OnReset(const TweenCallback& func) {
-	return AddScript<impl::TweenResetScript>(func);
+Tween& Tween::OnPointStart(const TweenCallback& func) {
+	return AddScript<impl::TweenPointStartScript>(func);
 }
 
-Tween& Tween::OnStart(const TweenCallback& func) {
-	return AddScript<impl::TweenStartScript>(func);
+Tween& Tween::OnPointComplete(const TweenCallback& func) {
+	return AddScript<impl::TweenPointCompleteScript>(func);
+}
+
+Tween& Tween::OnReset(const TweenCallback& func) {
+	return AddScript<impl::TweenResetScript>(func);
 }
 
 Tween& Tween::OnStop(const TweenCallback& func) {
@@ -107,6 +115,7 @@ Tween& Tween::Start(bool force) {
 	auto& tween{ Get<impl::TweenInstance>() };
 	tween.state_ = impl::TweenState::Started;
 	PTGN_ADD_TWEEN_ACTION(OnStart);
+	PTGN_ADD_TWEEN_ACTION(OnPointStart);
 	return *this;
 }
 
@@ -315,6 +324,7 @@ Tween& Tween::IncrementPoint() {
 	// Move to next tween point
 	if (tween.index_ + 1 < tween.points_.size()) {
 		PTGN_ADD_TWEEN_ACTION(OnPointComplete);
+		PTGN_ADD_TWEEN_ACTION(OnPointStart);
 		tween.index_++;
 		tween.progress_ = 0.0f;
 

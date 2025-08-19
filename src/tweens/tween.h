@@ -39,9 +39,11 @@ public:
 	// TODO: Add variant functions with no entity argument.
 
 	Tween& OnProgress(const std::function<void(Entity, float)>& func);
-	Tween& OnComplete(const TweenCallback& func);
-	Tween& OnReset(const TweenCallback& func);
 	Tween& OnStart(const TweenCallback& func);
+	Tween& OnComplete(const TweenCallback& func);
+	Tween& OnPointStart(const TweenCallback& func);
+	Tween& OnPointComplete(const TweenCallback& func);
+	Tween& OnReset(const TweenCallback& func);
 	Tween& OnStop(const TweenCallback& func);
 	Tween& OnPause(const TweenCallback& func);
 	Tween& OnResume(const TweenCallback& func);
@@ -234,7 +236,9 @@ protected:
 
 PTGN_DEFINE_TWEEN_SCRIPT_WITH_ARGS(TweenProgressScript, OnProgress, float)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenCompleteScript, OnComplete)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenPointCompleteScript, OnPointComplete)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenResetScript, OnReset)
+PTGN_DEFINE_TWEEN_SCRIPT(TweenPointStartScript, OnPointStart)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenStartScript, OnStart)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenStopScript, OnStop)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenPauseScript, OnPause)
