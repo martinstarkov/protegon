@@ -38,6 +38,7 @@ void RemoveChild(Entity& entity, std::string_view name);
 
 // @return Child entity with the given name. Assertion called if entity does not exist
 [[nodiscard]] const Entity& GetChild(const Entity& entity, std::string_view name);
+[[nodiscard]] Entity& GetChild(Entity& entity, std::string_view name);
 
 [[nodiscard]] bool HasChildren(const Entity& entity);
 
