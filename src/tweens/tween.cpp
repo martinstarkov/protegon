@@ -21,6 +21,12 @@
 #define PTGN_ADD_TWEEN_ACTION(FUNC_NAME) \
 	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::FUNC_NAME)
 
+#define PTGN_ADD_TWEEN_GLOBAL_ACTION(FUNC_NAME)                     \
+	auto& FUNC_NAME##_tween{ Get<impl::TweenInstance>() };          \
+	for (auto& point : tween.points_) {                             \
+		point.script_container_.AddAction(&TweenScript::FUNC_NAME); \
+	}
+
 #define PTGN_ADD_TWEEN_PROGRESS_ACTION() \
 	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::OnProgress, GetProgress())
 
@@ -114,7 +120,7 @@ Tween& Tween::Start(bool force) {
 	Reset();
 	auto& tween{ Get<impl::TweenInstance>() };
 	tween.state_ = impl::TweenState::Started;
-	PTGN_ADD_TWEEN_ACTION(OnStart);
+	PTGN_ADD_TWEEN_GLOBAL_ACTION(OnStart);
 	PTGN_ADD_TWEEN_ACTION(OnPointStart);
 	return *this;
 }
@@ -123,7 +129,7 @@ Tween& Tween::Stop() {
 	if (IsStarted() || IsPaused()) {
 		auto& tween{ Get<impl::TweenInstance>() };
 		tween.state_ = impl::TweenState::Stopped;
-		PTGN_ADD_TWEEN_ACTION(OnStop);
+		PTGN_ADD_TWEEN_GLOBAL_ACTION(OnStop);
 	}
 	return *this;
 }
@@ -134,7 +140,7 @@ Tween& Tween::Pause() {
 	}
 	auto& tween{ Get<impl::TweenInstance>() };
 	tween.state_ = impl::TweenState::Paused;
-	PTGN_ADD_TWEEN_ACTION(OnPause);
+	PTGN_ADD_TWEEN_GLOBAL_ACTION(OnPause);
 	return *this;
 }
 
@@ -144,7 +150,7 @@ Tween& Tween::Resume() {
 	}
 	auto& tween{ Get<impl::TweenInstance>() };
 	tween.state_ = impl::TweenState::Started;
-	PTGN_ADD_TWEEN_ACTION(OnResume);
+	PTGN_ADD_TWEEN_GLOBAL_ACTION(OnResume);
 	return *this;
 }
 
@@ -266,7 +272,7 @@ void Tween::Step(float dt) {
 
 	if (tween.points_.empty()) {
 		tween.state_ = impl::TweenState::Completed;
-		PTGN_ADD_TWEEN_ACTION(OnComplete);
+		PTGN_ADD_TWEEN_GLOBAL_ACTION(OnComplete);
 		return;
 	}
 
@@ -324,8 +330,8 @@ Tween& Tween::IncrementPoint() {
 	// Move to next tween point
 	if (tween.index_ + 1 < tween.points_.size()) {
 		PTGN_ADD_TWEEN_ACTION(OnPointComplete);
-		PTGN_ADD_TWEEN_ACTION(OnPointStart);
 		tween.index_++;
+		PTGN_ADD_TWEEN_ACTION(OnPointStart);
 		tween.progress_ = 0.0f;
 
 		// Reset repeat count and reversal
@@ -339,7 +345,7 @@ Tween& Tween::IncrementPoint() {
 		// No more points: complete
 		tween.state_	= impl::TweenState::Completed;
 		tween.progress_ = 1.0f;
-		PTGN_ADD_TWEEN_ACTION(OnComplete);
+		PTGN_ADD_TWEEN_GLOBAL_ACTION(OnComplete);
 	}
 	return *this;
 }
