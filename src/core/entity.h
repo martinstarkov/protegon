@@ -31,7 +31,7 @@ class EntityAccess;
 } // namespace impl
 
 class Entity : private ecs::impl::Entity<JSONArchiver> {
-private:
+protected:
 	using EntityBase = ecs::impl::Entity<JSONArchiver>;
 
 public:
