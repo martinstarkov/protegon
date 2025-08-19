@@ -55,7 +55,7 @@ class PlotScene : public Scene {
 
 	Timer clock;
 
-	using x_axis_unit = duration<float, seconds::period>;
+	using x_axis_unit = secondsf;
 	x_axis_unit x_axis_length{ 10.0f };
 
 	void Enter() override {

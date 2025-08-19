@@ -83,7 +83,7 @@ struct BroadphaseScene : public Scene {
 		SetPosition(player, pos);
 
 		for (auto [e, tint] : EntitiesWith<Tint>()) {
-			tint = color::Green;
+			SetTint(e, color::Green);
 		}
 
 		SetTint(player, color::Purple);

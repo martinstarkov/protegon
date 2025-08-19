@@ -47,12 +47,12 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Show(e1);
 	SetDepth(e1, 22);
 	auto tint_color{ color::Blue };
-	e1.Add<Tint>(tint_color);
+	SetTint(e1, tint_color);
 	e1.Add<LineWidth>(3.5f);
 	e1.Add<TextureHandle>("sheep1");
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
-	e1.Add<Interactive>();
+	SetInteractive(e1);
 	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
 							 // values.
 	e1.Add<Lifetime>(milliseconds{ 300 }).Start();
