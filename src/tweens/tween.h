@@ -14,6 +14,7 @@ namespace ptgn {
 
 class Manager;
 class Scene;
+class ScriptSequence;
 
 namespace impl {
 
@@ -131,6 +132,7 @@ public:
 
 private:
 	friend class Scene;
+	friend class ScriptSequence;
 
 	[[nodiscard]] milliseconds GetTotalDuration() const;
 
