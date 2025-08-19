@@ -71,7 +71,7 @@ void Scene::RemoveFromDisplayList(Entity entity) {
 		return;
 	}
 	auto& dl{ render_target_.GetDisplayList() };
-	dl.erase(std::remove(dl.begin(), dl.end(), entity), dl.end());
+	std::erase(dl, entity);
 }
 
 void Scene::Add(Action new_status) {
