@@ -329,7 +329,10 @@ void Tween::Step(float dt) {
 
 Tween& Tween::IncrementPoint() {
 	auto& tween{ Get<impl::TweenInstance>() };
-	// Move to next tween point
+	if (tween.points_.empty()) {
+		return *this;
+	}
+	// Move to next tween point.
 	if (tween.index_ + 1 < tween.points_.size()) {
 		PTGN_ADD_TWEEN_ACTION(OnPointComplete);
 		tween.index_++;
