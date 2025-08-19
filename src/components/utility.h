@@ -9,20 +9,32 @@ struct Depth;
 struct Visible;
 struct Interactive;
 class IDrawable;
+struct Children;
+struct Parent;
+struct Tint;
+struct PreFX;
+struct PostFX;
+class UUID;
 
 namespace impl {
 
-// Components which	cannot be retrieved by the user through Get<>
+struct ChildKey;
+struct IgnoreParentTransform;
+
+// Components which	cannot be modified or retrieved by the user through the entity class.
 template <typename T>
-inline constexpr bool is_retrievable_component_v{
-	!tt::is_any_of_v<T, Transform, Depth, Visible, Interactive, IDrawable>
-};
+inline constexpr bool access_disabled_v{ tt::is_any_of_v<
+	T, Transform, Depth, Visible, Interactive, IDrawable, Tint, Children, Parent, impl::ChildKey,
+	impl::IgnoreParentTransform, PreFX, PostFX, UUID> };
 
 template <typename T>
-concept RetrievableComponent = is_retrievable_component_v<T>;
+concept RetrievableComponent = !access_disabled_v<T>;
 
 template <typename... Ts>
 concept AllRetrievableComponents = (RetrievableComponent<Ts> && ...);
+
+template <typename T>
+concept ModifiableComponent = !access_disabled_v<T>;
 
 } // namespace impl
 
