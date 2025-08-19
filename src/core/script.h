@@ -404,7 +404,11 @@ struct TweenScript : public impl::BaseScript<ScriptType::Tween> {
 
 	virtual ~TweenScript() = default;
 
+	// Entire tween has completed.
 	virtual void OnComplete() { /* user implementation */ }
+
+	// Tween point has completed.
+	virtual void OnPointComplete() { /* user implementation */ }
 
 	virtual void OnRepeat() { /* user implementation */ }
 

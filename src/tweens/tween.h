@@ -1,19 +1,13 @@
 #pragma once
 
-#include <cmath>
 #include <cstdint>
 #include <functional>
-#include <list>
-#include <unordered_map>
-#include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/entity.h"
 #include "core/script.h"
 #include "core/time.h"
 #include "math/easing.h"
-#include "math/math.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -38,12 +32,6 @@ public:
 	// tweens. Yoyo tweens take twice the duration to complete a full
 	// yoyo cycle.
 	Tween& During(milliseconds duration);
-	Tween& Ease(const ptgn::Ease& ease);
-
-	// -1 for infinite repeats.
-	Tween& Repeat(std::int64_t repeats);
-	Tween& Reverse(bool reversed = true);
-	Tween& Yoyo(bool yoyo = true);
 
 	template <typename T, typename... TArgs>
 	Tween& AddScript(TArgs&&... args);
@@ -60,23 +48,67 @@ public:
 	Tween& OnYoyo(const TweenCallback& func);
 	Tween& OnRepeat(const TweenCallback& func);
 
-	// @return Current progress of the tween [0.0f, 1.0f].
-	[[nodiscard]] float GetProgress() const;
-
-	// @return Current number of repeats of the current tween point.
-	[[nodiscard]] std::int64_t GetRepeats() const;
+	// @return True if the tween has completed all of its tween points.
+	[[nodiscard]] bool IsCompleted() const;
 
 	// @return True if the tween is started and not paused.
 	[[nodiscard]] bool IsRunning() const;
-
-	// @return True if the tween has completed all of its tween points.
-	[[nodiscard]] bool IsCompleted() const;
 
 	// @return True if the tween has been started or is currently paused.
 	[[nodiscard]] bool IsStarted() const;
 
 	// @return True if the tween is currently paused.
 	[[nodiscard]] bool IsPaused() const;
+
+	// Resets and starts the tween. Will restart paused tweens.
+	// @param force If true, ignores the current state of the tween. If false, will only start if
+	// the tween is paused or not currently started.
+	Tween& Start(bool force = true);
+
+	// Stops the tween.
+	Tween& Stop();
+
+	// Pause the tween.
+	Tween& Pause();
+
+	// Resume the tween.
+	Tween& Resume();
+
+	// Toggles the tween between paused and resumed, or if starts the tween if it is stopped.
+	Tween& Toggle();
+
+	// Will trigger OnReset callback for each tween point if the tween was started or completed.
+	Tween& Reset();
+
+	// Clears previously assigned tween points and resets the tween. Will skip invoking callbacks.
+	Tween& Clear();
+
+	Tween& Ease(const ptgn::Ease& ease);
+
+	// -1 for infinite repeats.
+	Tween& Repeat(std::int64_t repeats);
+
+	Tween& Reverse(bool reversed = true);
+
+	Tween& Yoyo(bool yoyo = true);
+
+	// Note: This value is impacted by the Ease value set for the current tween point.
+	// @return Current progress of the tween [0.0f, 1.0f].
+	[[nodiscard]] float GetProgress() const;
+
+	// @return Current number of repeats of the current tween point.
+	[[nodiscard]] std::int64_t GetRepeats() const;
+
+	// @return Index of the current tween point.
+	[[nodiscard]] std::size_t GetCurrentIndex() const;
+
+	// @param duration Duration to set for the tween.
+	// @param tween_point_index Which tween point to set the duration of.
+	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index);
+
+	// @param tween_point_index Which tween point to query to duration of.
+	// @return The duration of the specified tween point.
+	[[nodiscard]] milliseconds GetDuration(std::size_t tween_point_index = 0) const;
 
 	// TODO: Implement and test.
 	// dt in seconds.
@@ -85,85 +117,31 @@ public:
 	//}
 
 	// dt in seconds.
-	// @return New progress of the tween after stepping.
-	float Step(float dt);
-
-	// @return New progress of the tween after seeking.
-	float Seek(float new_progress);
-
-	// @return New progress of the tween after seeking.
-	float Seek(milliseconds time);
-
-	// Resets and starts the tween. Will restart paused tweens.
-	// @param force If true, ignores the current state of the tween. If false, will only start if
-	// the tween is paused or not currently started.
-	Tween& Start(bool force = true);
+	void Step(float dt);
 
 	// If there are future tween points, will simulate a tween point completion. If the tween has
 	// completed or is in the middle of the final tween point, this function does nothing.
 	Tween& IncrementPoint();
 
-	// @return Index of the current tween point.
-	[[nodiscard]] std::size_t GetCurrentIndex() const;
+	void Seek(float new_progress);
 
-	// Toggles the tween between started and stopped.
-	Tween& Toggle();
-
-	// Pause the tween.
-	Tween& Pause();
-
-	// Resume the tween.
-	Tween& Resume();
-
-	// Will trigger OnStop callback if tween was started or completed.
-	Tween& Reset();
-
-	// Stops the tween.
-	Tween& Stop();
-
-	// Clears previously assigned tween points and resets the tween.
-	Tween& Clear();
-
-	// @param tween_point_index Which tween point to query to duration of.
-	// @return The duration of the specified tween point.
-	[[nodiscard]] milliseconds GetDuration(std::size_t tween_point_index = 0) const;
-
-	// @param duration Duration to set for the tween.
-	// @param tween_point_index Which tween point to set the duration of.
-	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index = 0);
+	void Seek(milliseconds time);
 
 private:
-	// @return New progress of the tween after seeking.
-	[[nodiscard]] float SeekImpl(float new_progress);
+	friend class Scene;
 
-	// @return New progress of the tween after stepping.
-	[[nodiscard]] float StepImpl(float dt, bool accumulate_progress);
+	[[nodiscard]] milliseconds GetTotalDuration() const;
 
-	// @return New progress of the tween after accumulating.
-	[[nodiscard]] float AccumulateProgress(float new_progress);
-
-	void PointCompleted();
-	void HandleCallbacks(bool suppress_update);
-
-	// @return New progress of the tween after updating.
-	float UpdateImpl(bool suppress_update = false);
-
-	[[nodiscard]] float GetNewProgress(duration<float> time) const;
-
-	[[nodiscard]] impl::TweenPoint& GetCurrentTweenPoint();
 	[[nodiscard]] const impl::TweenPoint& GetCurrentTweenPoint() const;
+	[[nodiscard]] impl::TweenPoint& GetCurrentTweenPoint();
 	[[nodiscard]] impl::TweenPoint& GetLastTweenPoint();
+
+	static void Update(Scene& scene, float dt);
 };
 
 namespace impl {
 
 struct TweenPoint {
-	TweenPoint() = default;
-
-	explicit TweenPoint(milliseconds duration);
-
-	void SetReversed(bool reversed);
-
 	bool operator==(const TweenPoint&) const = default;
 
 	// current number of repetitions of the tween.
@@ -196,6 +174,13 @@ struct TweenPoint {
 	)
 };
 
+enum class TweenState {
+	Stopped,
+	Started,
+	Paused,
+	Completed
+};
+
 struct TweenInstance {
 	// Value between [0.0f, 1.0f] indicating how much of the total duration the tween has passed in
 	// the current repetition. Note: This value remains 0.0f to 1.0f even when the tween is reversed
@@ -205,13 +190,11 @@ struct TweenInstance {
 	std::size_t index_{ 0 };
 	std::vector<TweenPoint> points_;
 
-	bool paused_{ false };
-	bool started_{ false };
+	TweenState state_{ TweenState::Stopped };
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		TweenInstance, KeyValue("progress", progress_), KeyValue("index", index_),
-		KeyValue("tween_points", points_), KeyValue("paused", paused_),
-		KeyValue("started", started_)
+		KeyValue("points", points_), KeyValue("state", state_)
 	)
 };
 
@@ -225,7 +208,7 @@ public:
 
 	void TryInvoke(Entity entity, Ts... args) {
 		if (callback_) {
-			callback_(entity, std::forward<Ts>(args)...);
+			callback_(entity, args...);
 		}
 	}
 
@@ -258,6 +241,13 @@ PTGN_DEFINE_TWEEN_SCRIPT(TweenPauseScript, OnPause)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenResumeScript, OnResume)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenYoyoScript, OnYoyo)
 PTGN_DEFINE_TWEEN_SCRIPT(TweenRepeatScript, OnRepeat)
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	TweenState, { { TweenState::Stopped, "stopped" },
+				  { TweenState::Started, "started" },
+				  { TweenState::Paused, "paused" },
+				  { TweenState::Completed, "completed" } }
+);
 
 } // namespace impl
 
