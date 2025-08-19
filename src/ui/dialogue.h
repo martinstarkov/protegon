@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/entity.h"
+#include "core/game_object.h"
 #include "core/script.h"
 #include "core/time.h"
 #include "input/key.h"
@@ -21,8 +22,7 @@ class DialogueComponent;
 struct DialoguePageProperties {
 	DialoguePageProperties() = default;
 
-	friend bool operator==(const DialoguePageProperties& a, const DialoguePageProperties& b);
-	friend bool operator!=(const DialoguePageProperties& a, const DialoguePageProperties& b);
+	bool operator==(const DialoguePageProperties&) const = default;
 
 	[[nodiscard]] DialoguePageProperties InheritProperties(const json& j) const;
 
@@ -75,40 +75,33 @@ struct Dialogue {
 
 namespace impl {
 
-// TODO: Fix script invocations.
-// struct DialogueWaitScript : public Script<DialogueWaitScript> {
-//	DialogueWaitScript() {}
-//
-//	[[nodiscard]] DialogueComponent& GetDialogueComponent();
-//	void OnUpdate() final;
-//};
-// struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript> {
-//	DialogueScrollScript() {}
-//
-//	[[nodiscard]] DialogueComponent& GetDialogueComponent();
-//	void UpdateText(float elapsed_fraction);
-//	bool OnTimerStop() final;
-//	void OnTimerUpdate(float elapsed_fraction) final;
-//};
+struct DialogueWaitScript : public Script<DialogueWaitScript> {
+	DialogueWaitScript() {}
+
+	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+	void OnUpdate() final;
+};
+
+struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript, TweenScript> {
+	DialogueScrollScript() {}
+
+	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+	static void UpdateText(Entity& text_entity, float elapsed_fraction);
+	void OnPointComplete() final;
+	void OnProgress(float elapsed_fraction) final;
+};
 
 } // namespace impl
 
 class DialogueComponent {
 public:
-	DialogueComponent();
-	DialogueComponent(DialogueComponent&&) noexcept;
-	DialogueComponent& operator=(DialogueComponent&&) noexcept;
-	DialogueComponent(const DialogueComponent&)			   = delete;
-	DialogueComponent& operator=(const DialogueComponent&) = delete;
-
+	DialogueComponent() = default;
 	DialogueComponent(Entity parent, const path& json_path, Entity&& background = {});
-	~DialogueComponent();
 
 	[[nodiscard]] Key GetContinueKey() const;
 	void SetContinueKey(Key continue_key);
 
-	[[nodiscard]] const Text& GetText() const;
-	[[nodiscard]] Text& GetText();
+	[[nodiscard]] Text GetText() const;
 	[[nodiscard]] bool IsOpen() const;
 
 	void Open(const std::string& dialogue_name = "");
@@ -124,6 +117,8 @@ public:
 	void IncrementPage();
 	void DrawInfo();
 
+	GameObject tween;
+
 private:
 	void AlignToTopLeft(const DialoguePageProperties& default_properties);
 	void StartDialogueLine(int dialogue_line_index);
@@ -136,8 +131,8 @@ private:
 
 	[[nodiscard]] static std::string JoinLines(const std::vector<std::string>& lines);
 
-	Text text_;
-	Entity background_;
+	GameObject text_;
+	GameObject background_;
 	Key continue_key_{ Key::Enter };
 	int current_line_{ 0 };
 	int current_page_{ 0 };

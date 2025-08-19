@@ -1,7 +1,10 @@
 #include "components/sprite.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "input/input_handler.h"
+#include "input/key.h"
 #include "math/vector2.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -15,6 +18,7 @@ struct DialogueScene : public Scene {
 	Entity npc;
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("dialogue_box", "resources/box.png");
 
 		npc = CreateEntity();
