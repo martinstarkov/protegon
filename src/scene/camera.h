@@ -5,6 +5,7 @@
 
 #include "components/transform.h"
 #include "core/entity.h"
+#include "core/manager.h"
 #include "core/script.h"
 #include "core/time.h"
 #include "math/easing.h"
@@ -428,11 +429,12 @@ private:
 	friend class Scene;
 	friend class impl::RenderData;
 
-	void Init(impl::SceneKey scene_key);
+	Manager cameras_;
 
-	impl::SceneKey scene_key_{ 0 };
+	void Init();
 };
 
+Camera CreateCamera(Manager& manager);
 Camera CreateCamera(Scene& scene);
 
 /*

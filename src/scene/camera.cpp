@@ -326,6 +326,10 @@ Camera CreateCamera(Scene& scene) {
 	return impl::CreateCamera(scene.CreateEntity());
 }
 
+Camera CreateCamera(Manager& manager) {
+	return impl::CreateCamera(manager.CreateEntity());
+}
+
 void Camera::SubscribeToLogicalResolutionEvents() {
 	TryAddScript<impl::CameraResizeScript>(*this);
 	auto logical_resolution{ game.renderer.GetLogicalResolution() };
@@ -639,11 +643,10 @@ void Camera::PrintInfo() const {
 	}
 }
 
-void CameraManager::Init(impl::SceneKey scene_key) {
-	scene_key_ = scene_key;
-	auto& scene{ game.scene.Get<Scene>(scene_key_) };
+void CameraManager::Init() {
+	cameras_.Reset();
 	PTGN_ASSERT(!primary);
-	primary = CreateCamera(scene);
+	primary = CreateCamera(cameras_);
 }
 
 void CameraManager::Reset() {
@@ -651,14 +654,13 @@ void CameraManager::Reset() {
 }
 
 void to_json(json& j, const CameraManager& camera_manager) {
-	j["scene_key"] = camera_manager.scene_key_;
-	j["primary"]   = camera_manager.primary;
+	j["cameras"] = camera_manager.cameras_;
+	j["primary"] = camera_manager.primary;
 }
 
 void from_json(const json& j, CameraManager& camera_manager) {
-	j.at("scene_key").get_to(camera_manager.scene_key_);
-	const auto& scene{ game.scene.Get<Scene>(camera_manager.scene_key_) };
-	camera_manager.primary = scene.GetEntityByUUID(j.at("primary").at("UUID"));
+	j.at("cameras").get_to(camera_manager.cameras_);
+	camera_manager.primary = camera_manager.cameras_.GetEntityByUUID(j.at("primary").at("UUID"));
 }
 
 /*

@@ -128,7 +128,7 @@ const RenderTarget& Scene::GetRenderTarget() const {
 void Scene::Init() {
 	active_ = true;
 
-	camera.Init(key_);
+	camera.Init();
 	input.Init(key_);
 }
 
@@ -217,17 +217,7 @@ void Scene::InternalUpdate() {
 
 	ParticleEmitter::Update(*this);
 
-	for (auto [entity, tween] : EntitiesWith<impl::TweenInstance>()) {
-		Tween{ entity }.Step(dt);
-	}
-
-	for (auto [entity, tween] : EntitiesWith<impl::TweenInstance>()) {
-		for (auto& point : tween.points_) {
-			point.script_container_.InvokeActions();
-		}
-	}
-
-	Refresh();
+	Tween::Update(*this, dt);
 
 	translate_effects_.Update(*this);
 	rotate_effects_.Update(*this);
