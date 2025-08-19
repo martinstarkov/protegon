@@ -6,6 +6,10 @@
 #include <ostream>
 #include <thread>
 
+#include "common/assert.h"
+#include "core/time.h"
+#include "debug/log.h"
+#include "renderer/gl/gl_renderer.h"
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_hints.h"
@@ -15,10 +19,6 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "common/assert.h"
-#include "core/time.h"
-#include "debug/log.h"
-#include "renderer/gl/gl_renderer.h"
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
 	os << static_cast<int>(v.major) << "." << static_cast<int>(v.minor) << "."
@@ -82,9 +82,7 @@ void SDLInstance::Shutdown() {
 
 void SDLInstance::Delay(milliseconds time) {
 	std::this_thread::sleep_for(time);
-	/*SDL_Delay(std::chrono::duration_cast<duration<std::uint32_t,
-	milliseconds::period>>(time).count(
-	));*/
+	/*SDL_Delay(to_duration_value<duration<std::uint32_t, milliseconds::period>>(time));*/
 }
 
 void SDLInstance::InitSDL() {
