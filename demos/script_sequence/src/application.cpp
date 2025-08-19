@@ -16,12 +16,20 @@ public:
 		using namespace std::literals::chrono_literals;
 
 		s1 = CreateScriptSequence(*this);
-		s1.Then([](Entity e) { PTGN_LOG("Start 1"); });
-		s1.During(500ms, [](Entity e) { PTGN_LOG("500 ms"); });
-		s1.Then([](Entity e) { PTGN_LOG("Before waiting..."); });
+		s1.Then([](Entity e) { PTGN_LOG("1: Start"); });
+		s1.During(200ms, [](Entity e) { PTGN_LOG("1: 200 ms"); });
+		s1.Then([](Entity e) { PTGN_LOG("1: Before waiting..."); });
 		s1.Wait(3000ms);
-		s1.Then([](Entity e) { PTGN_LOG("Completed!"); });
+		s1.Then([](Entity e) { PTGN_LOG("1: Completed!"); });
 		s1.Start();
+
+		auto s2 = CreateScriptSequence(*this);
+		s2.Then([](Entity e) { PTGN_LOG("2: Start"); });
+		s2.During(200ms, [](Entity e) { PTGN_LOG("2: 200 ms"); });
+		s2.Then([](Entity e) { PTGN_LOG("2: Before waiting..."); });
+		s2.Wait(3000ms);
+		s2.Then([](Entity e) { PTGN_LOG("2: Completed!"); });
+		s2.Start();
 	}
 
 	void Update() override {
