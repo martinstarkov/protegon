@@ -8,6 +8,10 @@ namespace ptgn {
 
 GameObject::GameObject(const Entity& entity) : Entity{ entity } {}
 
+GameObject::GameObject(Entity&& entity) : Entity{ std::move(entity) } {}
+
+GameObject::GameObject(const Entity::EntityBase& entity) : Entity{ entity } {}
+
 GameObject::~GameObject() {
 	Destroy();
 }

@@ -8,7 +8,9 @@ namespace ptgn {
 class GameObject : public Entity {
 public:
 	GameObject() = default;
-	explicit GameObject(const Entity& entity);
+	GameObject(const Entity& entity);
+	GameObject(Entity&& entity);
+	GameObject(const Entity::EntityBase& entity);
 	~GameObject();
 	GameObject(GameObject&& other) noexcept;
 	GameObject& operator=(GameObject&& other) noexcept;
