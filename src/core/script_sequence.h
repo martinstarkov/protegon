@@ -29,8 +29,7 @@ public:
 	template <std::derived_from<TweenScript> TScript, typename... TArgs>
 		requires std::constructible_from<TScript, TArgs...>
 	ScriptSequence& During(milliseconds duration, TArgs&&... args) {
-		const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-		auto& sequence{ Tween{ instance.tween }.During(duration) };
+		auto& sequence{ GetTween().During(duration) };
 		auto& script{ sequence.GetLastTweenPoint().script_container_.AddScript<TScript>(
 			std::forward<TArgs>(args)...
 		) };
@@ -55,6 +54,8 @@ public:
 
 	// Start the sequence.
 	void Start(bool force = true);
+
+	[[nodiscard]] Tween GetTween() const;
 };
 
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete = true);

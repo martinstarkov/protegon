@@ -19,8 +19,7 @@ ScriptSequence& ScriptSequence::During(milliseconds duration, std::function<void
 	auto wrapped = [f = std::move(func)](Entity e, float) {
 		f(GetParent(e));
 	};
-	const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-	Tween{ instance.tween }.During(duration).OnProgress(std::move(wrapped));
+	GetTween().During(duration).OnProgress(std::move(wrapped));
 	return *this;
 }
 
@@ -28,32 +27,32 @@ ScriptSequence& ScriptSequence::Then(std::function<void(Entity)> func) {
 	auto wrapped = [f = std::move(func)](Entity e) {
 		f(GetParent(e));
 	};
-	const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-	Tween{ instance.tween }.During(milliseconds{ 0 }).OnPointComplete(std::move(wrapped));
+	GetTween().During(milliseconds{ 0 }).OnPointComplete(std::move(wrapped));
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Wait(milliseconds duration) {
-	const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-	Tween{ instance.tween }.During(duration);
+	GetTween().During(duration);
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Repeat(std::int64_t repeats) {
-	const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-	Tween{ instance.tween }.Repeat(repeats);
+	GetTween().Repeat(repeats);
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::MoveOn() {
-	const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-	Tween{ instance.tween }.IncrementPoint();
+	GetTween().IncrementPoint();
 	return *this;
 }
 
 void ScriptSequence::Start(bool force) {
+	GetTween().Start(force);
+}
+
+Tween ScriptSequence::GetTween() const {
 	const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-	Tween{ instance.tween }.Start(force);
+	return Tween{ instance.tween };
 }
 
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
