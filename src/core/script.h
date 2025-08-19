@@ -600,8 +600,8 @@ public:
 
 	// TODO: Set script entity somewhere.
 	template <typename TScript, typename... TArgs>
-		requires // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script> &&
-		std::constructible_from<TScript, TArgs...>
+		requires std::constructible_from<
+			TScript, TArgs...> // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script>
 	TScript& AddScript(TArgs&&... args) {
 		auto& script{ scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...)
 		) };
