@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <limits>
-#include <string>
 
 #include "common/type_traits.h"
 #include "components/drawable.h"
@@ -66,13 +65,7 @@ struct TextOutline {
 	std::int32_t width{ 0 };
 	Color color;
 
-	friend bool operator==(const TextOutline& a, const TextOutline& b) {
-		return a.width == b.width && a.color == b.color;
-	}
-
-	friend bool operator!=(const TextOutline& a, const TextOutline& b) {
-		return !(a == b);
-	}
+	bool operator==(const TextOutline&) const = default;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextOutline, width, color)
 };
@@ -108,7 +101,7 @@ public:
 	[[nodiscard]] impl::Texture CreateTexture(const FontSize& font_size) const;
 
 	static [[nodiscard]] impl::Texture CreateTexture(
-		const std::string& content, const TextColor& color = color::White,
+		const TextContent& content, const TextColor& color = color::White,
 		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 		const TextProperties& properties = {}
 	);
@@ -157,42 +150,24 @@ public:
 	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
 	[[nodiscard]] Color GetShadingColor() const;
 	[[nodiscard]] TextJustify GetTextJustify() const;
-	[[nodiscard]] FontSize GetFontSize() const;
-
-	// If SetHD(true), returns font_size scaled to high definition.
-	[[nodiscard]] FontSize GetHDFontSize(const FontSize& font_size) const;
-
-	// If SetHD(true), returns the text's font size scaled to high definition.
-	[[nodiscard]] FontSize GetHDFontSize() const;
+	// @param hd If true, returns font size scaled to high definition.
+	[[nodiscard]] FontSize GetFontSize(bool hd = false) const;
 
 	// @return The unscaled size of the text texture given the current content and font.
 	[[nodiscard]] V2_int GetSize() const;
 
+	// @return The unscaled size of the text texture given the specified content.
+	[[nodiscard]] V2_int GetSize(const TextContent& content) const;
+
 	[[nodiscard]] static V2_int GetSize(const Entity& text);
 
 	[[nodiscard]] static V2_int GetSize(
-		const std::string& content, const ResourceHandle& font_key, const FontSize& font_size = {}
+		const TextContent& content, const ResourceHandle& font_key, const FontSize& font_size = {}
 	);
 
 	[[nodiscard]] TextProperties GetProperties() const;
 
 	void SetProperties(const TextProperties& properties);
-
-private:
-	friend Text
-	CreateText(Scene&, const TextContent&, const TextColor&, const FontSize&, const ResourceHandle&, const TextProperties&);
-	friend struct impl::ButtonText;
-
-	void SetProperties(const TextProperties& properties, bool recreate_texture);
-
-	// Using own properties.
-	void RecreateTexture();
-
-	// Using custom properties.
-	void RecreateTexture(
-		const std::string& content, const TextColor& color, const FontSize& font_size,
-		const ResourceHandle& font_key, const TextProperties& properties
-	);
 
 	// @return True if the parameter was changed.
 	template <
@@ -218,6 +193,22 @@ private:
 		}
 		return true;
 	}
+
+private:
+	friend Text
+	CreateText(Scene&, const TextContent&, const TextColor&, const FontSize&, const ResourceHandle&, const TextProperties&);
+	friend struct impl::ButtonText;
+
+	void SetProperties(const TextProperties& properties, bool recreate_texture);
+
+	// Using own properties.
+	void RecreateTexture();
+
+	// Using custom properties.
+	void RecreateTexture(
+		const TextContent& content, const TextColor& color, const FontSize& font_size,
+		const ResourceHandle& font_key, const TextProperties& properties
+	);
 
 	template <typename T>
 	[[nodiscard]] const T& GetParameter(const T& default_value) const {
@@ -247,16 +238,6 @@ Text CreateText(
 	const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 	const TextProperties& properties = {}
 );
-
-// TODO: Implement.
-// Create standard definition text.
-// @param font_key Default: {} corresponds to the default engine font (use
-// game.font.SetDefault(...) to change.
-// Text CreateSDText(
-//	Scene& scene, const TextContent& content, const TextColor& text_color = {},
-//	const FontSize& font_size = {}, const ResourceHandle& font_key = {},
-//	const TextProperties& properties = {}
-//);
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	TextJustify, { { TextJustify::Left, "left" },

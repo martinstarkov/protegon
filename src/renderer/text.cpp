@@ -4,7 +4,6 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include <string_view>
 
 #include "common/assert.h"
 #include "components/draw.h"
@@ -59,19 +58,19 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 		return;
 	}
 
-	if (std::string_view{ entity.Get<TextContent>() }.empty()) {
+	if (entity.Get<TextContent>().GetValue().empty()) {
 		return;
 	}
 
 	impl::ShapeDrawInfo info{ entity };
 	Text text{ entity };
 
-	if (text.IsHD()) {
+	if (bool is_hd{ text.IsHD() }) {
 		auto scene_scale{ text.GetScene().GetScale(text.GetCamera()) };
 
 		info.transform.Scale(1.0f / scene_scale);
 
-		if (text.GetHDFontSize() != text.Get<impl::CachedFontSize>()) {
+		if (text.GetFontSize(is_hd) != text.Get<impl::CachedFontSize>()) {
 			text.RecreateTexture();
 		}
 	}
@@ -79,7 +78,7 @@ void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
 	Sprite sprite{ entity };
 
 	const auto& texture{ text.GetTexture() };
-	auto size{ text.GetSize() };
+	auto size{ texture.GetSize() };
 	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
 
 	auto origin{ GetDrawOrigin(entity) };
@@ -181,23 +180,32 @@ const impl::Texture& Text::GetTexture() const {
 	return Get<impl::Texture>();
 }
 
-FontSize Text::GetFontSize() const {
-	return GetParameter(FontSize{});
+FontSize Text::GetFontSize(bool hd) const {
+	FontSize font_size{ GetParameter(FontSize{}) };
+	if (hd) {
+		return font_size.GetHD(*this);
+	}
+	return font_size;
 }
 
 V2_int Text::GetSize() const {
 	return GetSize(*this);
 }
 
+V2_int Text::GetSize(const TextContent& content) const {
+	return GetSize(content, GetFontKey(), GetFontSize(IsHD()));
+}
+
 V2_int Text::GetSize(const Entity& text) {
+	Text t{ text };
 	return GetSize(
 		GetParameter(text, TextContent{}), GetParameter(text, ResourceHandle{}),
-		Text{ text }.GetHDFontSize()
+		t.GetFontSize(t.IsHD())
 	);
 }
 
 V2_int Text::GetSize(
-	const std::string& content, const ResourceHandle& font_key, const FontSize& font_size
+	const TextContent& content, const ResourceHandle& font_key, const FontSize& font_size
 ) {
 	PTGN_ASSERT(
 		game.font.Has(font_key),
@@ -215,32 +223,13 @@ impl::Texture Text::CreateTexture(const FontSize& font_size) const {
 	return CreateTexture(content, color, font_size, font_key, properties);
 }
 
-FontSize Text::GetHDFontSize(const FontSize& font_size) const {
-	if (!IsHD()) {
-		return font_size;
-	}
-
-	FontSize final_font_size{ font_size };
-
-	const auto& scene{ GetScene() };
-
-	auto scene_scale{ scene.GetScale(GetCamera()) };
-
-	final_font_size =
-		static_cast<std::int32_t>(static_cast<float>(final_font_size) * scene_scale.y);
-
-	return final_font_size;
-}
-
-FontSize Text::GetHDFontSize() const {
-	return GetHDFontSize(GetFontSize());
-}
-
 impl::Texture Text::CreateTexture(
-	const std::string& content, const TextColor& color, const FontSize& font_size,
+	const TextContent& content, const TextColor& color, const FontSize& font_size,
 	const ResourceHandle& font_key, const TextProperties& properties
 ) {
-	if (content.empty()) {
+	const auto& text_content{ content.GetValue() };
+
+	if (text_content.empty()) {
 		return {};
 	}
 
@@ -267,7 +256,10 @@ impl::Texture Text::CreateTexture(
 	}
 #endif
 
-	PTGN_ASSERT(font_size > 0);
+	PTGN_ASSERT(font_size > 0, "Font size must be greater than zero");
+	PTGN_ASSERT(
+		font_size < 10000, "Font size exceeds maximum allowable font size or grew recursively"
+	);
 
 	TTF_SetFontSize(font, font_size);
 
@@ -288,7 +280,7 @@ impl::Texture Text::CreateTexture(
 								 properties.outline.color.b, properties.outline.color.a };
 
 		outline_surface = TTF_RenderUTF8_Blended_Wrapped(
-			font, content.c_str(), outline_color, properties.wrap_after
+			font, text_content.c_str(), outline_color, properties.wrap_after
 		);
 
 		PTGN_ASSERT(outline_surface != nullptr, "Failed to create text outline");
@@ -301,20 +293,20 @@ impl::Texture Text::CreateTexture(
 	switch (properties.render_mode) {
 		case FontRenderMode::Solid:
 			surface = TTF_RenderUTF8_Solid_Wrapped(
-				font, content.c_str(), text_color, properties.wrap_after
+				font, text_content.c_str(), text_color, properties.wrap_after
 			);
 			break;
 		case FontRenderMode::Shaded: {
 			SDL_Color shading_color{ properties.shading_color.r, properties.shading_color.g,
 									 properties.shading_color.b, properties.shading_color.a };
 			surface = TTF_RenderUTF8_Shaded_Wrapped(
-				font, content.c_str(), text_color, shading_color, properties.wrap_after
+				font, text_content.c_str(), text_color, shading_color, properties.wrap_after
 			);
 			break;
 		}
 		case FontRenderMode::Blended:
 			surface = TTF_RenderUTF8_Blended_Wrapped(
-				font, content.c_str(), text_color, properties.wrap_after
+				font, text_content.c_str(), text_color, properties.wrap_after
 			);
 			break;
 		default:
@@ -354,18 +346,18 @@ bool Text::IsHD() const {
 void Text::RecreateTexture() {
 	TextContent content{ GetContent() };
 	TextColor color{ GetColor() };
-	FontSize font_size{ GetHDFontSize() };
+	FontSize font_size{ GetFontSize(IsHD()) };
 	ResourceHandle font_key{ GetFontKey() };
 	TextProperties properties{ GetProperties() };
 
-	Add<impl::CachedFontSize>(font_size);
 	RecreateTexture(content, color, font_size, font_key, properties);
 }
 
 void Text::RecreateTexture(
-	const std::string& content, const TextColor& color, const FontSize& font_size,
+	const TextContent& content, const TextColor& color, const FontSize& font_size,
 	const ResourceHandle& font_key, const TextProperties& properties
 ) {
+	Add<impl::CachedFontSize>(font_size);
 	// TODO: Move texture location to TextureManager.
 	impl::Texture& texture{ TryAdd<impl::Texture>() };
 
