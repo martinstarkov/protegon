@@ -14,9 +14,12 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "ecs/ecs.h"
 #include "input/input_handler.h"
+#include "math/geometry.h"
 #include "math/vector2.h"
+#include "physics/collision/collider.h"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/blend_mode.h"
@@ -203,11 +206,6 @@ void Scene::InternalUpdate() {
 	}
 
 	invoke_scripts();
-
-	// TODO: Fix script invocations for timer script.
-	// TODO: Figure out timed / repeated scripts. Using tween system?
-	// impl::ScriptTimers::Update(*this);
-	// impl::ScriptRepeats::Update(*this);
 
 	Update();
 
