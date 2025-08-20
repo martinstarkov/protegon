@@ -50,8 +50,8 @@ private:
 
 template <typename T, template <typename...> typename Template>
 concept DerivedFromTemplate = requires(T* ptr) {
-	// Works if T is derived from Template<Args...> for some Args...
-	[]<typename... Args>(Template<Args...>*) {
+	// Works if T is derived from Template<TArgs...> for some TArgs...
+	[]<typename... TArgs>(Template<TArgs...>*) {
 	}(ptr);
 };
 
@@ -178,7 +178,7 @@ public:
 			auto current_actions{ std::move(actions_) };
 			ClearActions();
 
-			for (auto& action : current_actions) {
+			for (const auto& action : current_actions) {
 				action(*this);
 			}
 		}
@@ -190,11 +190,11 @@ public:
 
 	// Only add an action if the scripts container already has a script which listens to that type
 	// of action.
-	template <typename TInterface, typename... Args>
-	void AddAction(void (TInterface::*func)(Args...), Args... args) {
+	template <typename TInterface, typename... TArgs>
+	void AddAction(void (TInterface::*func)(TArgs...), TArgs... args) {
 		constexpr ScriptType type{ TInterface::GetScriptType() };
 		bool has_script{ false };
-		for (auto& script : scripts_) {
+		for (const auto& script : scripts_) {
 			if (script->HasScriptType(type)) {
 				has_script = true;
 				break;
@@ -203,21 +203,24 @@ public:
 		if (!has_script) {
 			return;
 		}
-		auto action{ MakeAction(func, std::forward<Args>(args)...) };
+		auto action{ MakeAction(func, std::forward<TArgs>(args)...) };
 		actions_.emplace_back(action);
 	}
 
 	// Example usage:
 	// scripts.Invoke(&KeyScript::OnKeyDown, Key::W);
-	template <typename TInterface, typename... Args>
-	void Invoke(void (TInterface::*func)(Args...), Args&&... args) {
+	template <typename TInterface, typename... TArgs>
+	void Invoke(void (TInterface::*func)(TArgs...), TArgs&&... args) {
 		constexpr ScriptType type{ TInterface::GetScriptType() };
 
-		for (auto& script : scripts_) {
+		// In case the action function removes scripts, this prevents iterator
+		// invalidation.
+		auto scripts{ scripts_ };
+		for (std::shared_ptr<impl::IScript> script : scripts) {
 			if (!script->HasScriptType(type)) {
 				continue;
 			}
-			TryInvoke(script.get(), func, std::forward<Args>(args)...);
+			TryInvoke(script.get(), func, std::forward<TArgs>(args)...);
 		}
 	}
 
@@ -310,17 +313,20 @@ public:
 		return !operator==(a, b);
 	}
 
-	template <typename TInterface, typename... Args>
-	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(Args...) const, Args&&... args)
+	template <typename TInterface, typename... TArgs>
+	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(TArgs...) const, TArgs&&... args)
 		const {
 		constexpr ScriptType type{ TInterface::GetScriptType() };
 
-		for (const auto& script : scripts_) {
+		// In case the condition check function removes scripts, this prevents iterator
+		// invalidation.
+		auto scripts{ scripts_ };
+		for (const auto& script : scripts) {
 			if (!script->HasScriptType(type)) {
 				continue;
 			}
 			if (const auto* handler = dynamic_cast<const TInterface*>(script.get())) {
-				bool result{ (handler->*func)(std::forward<Args>(args)...) };
+				bool result{ (handler->*func)(std::forward<TArgs>(args)...) };
 				if (!result) {
 					return false;
 				}
@@ -334,25 +340,29 @@ private:
 
 	std::vector<std::function<void(Scripts&)>> actions_;
 
-	template <typename TInterface, typename... Args>
-	auto MakeAction(void (TInterface::*func)(Args...), Args&&... args) {
+	template <typename TInterface, typename... TArgs>
+	auto MakeAction(void (TInterface::*func)(TArgs...), TArgs&&... args) {
 		return
-			[func, tup = std::make_tuple(std::forward<Args>(args)...)](Scripts& scripts) mutable {
+			[func, tup = std::make_tuple(std::forward<TArgs>(args)...)](Scripts& scripts) mutable {
 				std::apply(
-					[&scripts, func](auto&&... unpackedArgs) {
-						scripts.Invoke(func, std::forward<decltype(unpackedArgs)>(unpackedArgs)...);
+					[&scripts, func](auto&&... unpacked) mutable {
+						// If there is ever a crash here, it is most likely because the scripts
+						// reference is no longer valid. In this case, just change this lambda to
+						// take a copy of scripts into a variable to keep it valid throughout the
+						// invokation.
+						scripts.Invoke(func, std::forward<decltype(unpacked)>(unpacked)...);
 					},
 					std::move(tup)
 				);
 			};
 	}
 
-	template <typename TInterface, typename... Args>
+	template <typename TInterface, typename... TArgs>
 	static void TryInvoke(
-		impl::IScript* script, void (TInterface::*func)(Args...), Args&&... args
+		impl::IScript* script, void (TInterface::*func)(TArgs...), TArgs&&... args
 	) {
 		if (auto* handler = dynamic_cast<TInterface*>(script)) {
-			(handler->*func)(std::forward<Args>(args)...);
+			(handler->*func)(std::forward<TArgs>(args)...);
 		}
 	}
 };
