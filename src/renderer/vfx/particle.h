@@ -164,10 +164,10 @@ public:
 private:
 	friend class Scene;
 
-	static void Update(Scene& scene);
+	static void Update(Manager& manager);
 };
 
-ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info = {});
+ParticleEmitter CreateParticleEmitter(Manager& manager, const ParticleInfo& info = {});
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	ParticleShape, { { ParticleShape::Circle, "circle" }, { ParticleShape::Square, "square" } }

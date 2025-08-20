@@ -4,24 +4,16 @@
 #include <utility>
 
 #include "components/draw.h"
+#include "components/transform.h"
 #include "core/entity.h"
+#include "core/manager.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/render_data.h"
 #include "renderer/texture.h"
-#include "scene/scene.h"
 
 namespace ptgn {
-
-Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key, const V2_float& position) {
-	Sprite sprite{ scene.CreateEntity() };
-	SetDraw<Sprite>(sprite);
-	sprite.SetTextureKey(texture_key);
-	Show(sprite);
-	SetPosition(sprite, position);
-	return sprite;
-}
 
 Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
 
@@ -69,6 +61,15 @@ void Sprite::SetDisplaySize(const V2_float& display_size) {
 
 std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) const {
 	return impl::GetTextureCoordinates(*this, flip_vertically);
+}
+
+Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key, const V2_float& position) {
+	Sprite sprite{ manager.CreateEntity() };
+	SetDraw<Sprite>(sprite);
+	sprite.SetTextureKey(texture_key);
+	Show(sprite);
+	SetPosition(sprite, position);
+	return sprite;
 }
 
 } // namespace ptgn

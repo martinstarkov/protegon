@@ -33,7 +33,7 @@
 
 namespace ptgn {
 
-MouseInfo::MouseInfo(Scene& scene) :
+MouseInfo::MouseInfo(const Scene& scene) :
 	position{ scene.input.GetMousePosition() },
 	scroll_delta{ game.input.GetMouseScroll() },
 	left_pressed{ game.input.MousePressed(Mouse::Left) },

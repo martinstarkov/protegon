@@ -11,45 +11,15 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
-#include "scene/scene.h"
 
 namespace ptgn {
-
-Animation CreateAnimation(
-	Scene& scene, const TextureHandle& texture_key, const V2_float& position,
-	std::size_t frame_count, milliseconds animation_duration, V2_int frame_size,
-	std::int64_t play_count, const V2_int& start_pixel
-) {
-	PTGN_ASSERT(
-		play_count == -1 || play_count >= 0,
-		"Play count must be -1 (infinite) or otherwise non-negative"
-	);
-
-	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
-
-	Animation animation{ CreateSprite(scene, texture_key, position) };
-
-	auto texture_size{ texture_key.GetSize() };
-
-	if (frame_size.IsZero()) {
-		frame_size = { texture_size.x / frame_count, texture_size.y };
-	}
-
-	const auto& anim = animation.Add<impl::AnimationInfo>(
-		animation_duration, frame_count, frame_size, play_count, start_pixel
-	);
-	auto& crop = animation.Add<TextureCrop>();
-
-	crop.position = anim.GetCurrentFramePosition();
-	crop.size	  = anim.frame_size;
-
-	return animation;
-}
 
 void Animation::Start(bool force) {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
@@ -225,8 +195,8 @@ void AnimationInfo::IncrementFrame() {
 	SetCurrentFrame(current_frame + 1);
 }
 
-void AnimationSystem::Update(Scene& scene) {
-	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationInfo, TextureCrop>()) {
+void AnimationSystem::Update(Manager& manager) {
+	for (auto [entity, anim, crop] : manager.EntitiesWith<AnimationInfo, TextureCrop>()) {
 		if (anim.frame_dirty) {
 			crop.size	  = anim.frame_size;
 			crop.position = anim.GetCurrentFramePosition();
@@ -291,11 +261,11 @@ void AnimationSystem::Update(Scene& scene) {
 		anim.frame_timer.Start(true);
 	}
 
-	for (auto [e, anim, scripts] : scene.EntitiesWith<AnimationInfo, Scripts>()) {
+	for (auto [e, anim, scripts] : manager.EntitiesWith<AnimationInfo, Scripts>()) {
 		scripts.InvokeActions();
 	}
 
-	scene.Refresh();
+	manager.Refresh();
 }
 
 } // namespace impl
@@ -319,6 +289,37 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 	auto& new_active{ GetActive() };
 	Show(new_active);
 	return true;
+}
+
+Animation CreateAnimation(
+	Manager& manager, const TextureHandle& texture_key, const V2_float& position,
+	std::size_t frame_count, milliseconds animation_duration, V2_int frame_size,
+	std::int64_t play_count, const V2_int& start_pixel
+) {
+	PTGN_ASSERT(
+		play_count == -1 || play_count >= 0,
+		"Play count must be -1 (infinite) or otherwise non-negative"
+	);
+
+	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
+
+	Animation animation{ CreateSprite(manager, texture_key, position) };
+
+	auto texture_size{ texture_key.GetSize() };
+
+	if (frame_size.IsZero()) {
+		frame_size = { texture_size.x / frame_count, texture_size.y };
+	}
+
+	const auto& anim = animation.Add<impl::AnimationInfo>(
+		animation_duration, frame_count, frame_size, play_count, start_pixel
+	);
+	auto& crop = animation.Add<TextureCrop>();
+
+	crop.position = anim.GetCurrentFramePosition();
+	crop.size	  = anim.frame_size;
+
+	return animation;
 }
 
 } // namespace ptgn

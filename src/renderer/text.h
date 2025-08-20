@@ -16,7 +16,7 @@
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 
 namespace impl {
 
@@ -194,13 +194,9 @@ public:
 		return true;
 	}
 
-private:
-	friend Text
-	CreateText(Scene&, const TextContent&, const TextColor&, const FontSize&, const ResourceHandle&, const TextProperties&);
-	friend struct impl::ButtonText;
-
 	void SetProperties(const TextProperties& properties, bool recreate_texture);
 
+private:
 	// Using own properties.
 	void RecreateTexture();
 
@@ -234,7 +230,7 @@ private:
 // @param font_key Default: {} corresponds to the default engine font (use
 // game.font.SetDefault(...) to change.
 Text CreateText(
-	Scene& scene, const TextContent& content, const TextColor& text_color = {},
+	Manager& manager, const TextContent& content, const TextColor& text_color = {},
 	const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 	const TextProperties& properties = {}
 );

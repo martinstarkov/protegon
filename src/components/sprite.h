@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 
 namespace impl {
 
@@ -43,6 +43,6 @@ struct Sprite : public Entity, public Drawable<Sprite> {
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
 
-Sprite CreateSprite(Scene& scene, const TextureHandle& texture_key, const V2_float& position);
+Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key, const V2_float& position);
 
 } // namespace ptgn

@@ -30,7 +30,6 @@
 #include "renderer/render_data.h"
 #include "renderer/shader.h"
 #include "renderer/texture.h"
-#include "scene/scene.h"
 
 namespace ptgn {
 
@@ -241,55 +240,6 @@ std::array<V2_float, 4> GetTextureCoordinates(const Entity& entity, bool flip_ve
 
 } // namespace impl
 
-Entity CreateRect(
-	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
-	float line_width, Origin origin
-) {
-	auto rect{ manager.CreateEntity() };
-
-	SetDraw<Rect>(rect);
-	Show(rect);
-
-	SetPosition(rect, position);
-	rect.Add<Rect>(size);
-	SetDrawOrigin(rect, origin);
-
-	SetTint(rect, color);
-	rect.Add<LineWidth>(line_width);
-
-	return rect;
-}
-
-Entity CreateRect(
-	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
-	float line_width, Origin origin
-) {
-	return CreateRect(static_cast<Manager&>(scene), position, size, color, line_width, origin);
-}
-
-Entity CreateCircle(
-	Manager& manager, const V2_float& position, float radius, const Color& color, float line_width
-) {
-	auto circle{ manager.CreateEntity() };
-
-	SetDraw<Circle>(circle);
-	Show(circle);
-
-	SetPosition(circle, position);
-	circle.Add<Circle>(radius);
-
-	SetTint(circle, color);
-	circle.Add<LineWidth>(line_width);
-
-	return circle;
-}
-
-Entity CreateCircle(
-	Scene& scene, const V2_float& position, float radius, const Color& color, float line_width
-) {
-	return CreateCircle(static_cast<Manager&>(scene), position, radius, color, line_width);
-}
-
 Depth Depth::RelativeTo(Depth parent) const {
 	parent.value_ += *this;
 	return parent;
@@ -397,5 +347,41 @@ void DrawTriangle(RenderData& ctx, const Entity& entity) {
 }
 
 } // namespace impl
+
+Entity CreateRect(
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width, Origin origin
+) {
+	auto rect{ manager.CreateEntity() };
+
+	SetDraw<Rect>(rect);
+	Show(rect);
+
+	SetPosition(rect, position);
+	rect.Add<Rect>(size);
+	SetDrawOrigin(rect, origin);
+
+	SetTint(rect, color);
+	rect.Add<LineWidth>(line_width);
+
+	return rect;
+}
+
+Entity CreateCircle(
+	Manager& manager, const V2_float& position, float radius, const Color& color, float line_width
+) {
+	auto circle{ manager.CreateEntity() };
+
+	SetDraw<Circle>(circle);
+	Show(circle);
+
+	SetPosition(circle, position);
+	circle.Add<Circle>(radius);
+
+	SetTint(circle, color);
+	circle.Add<LineWidth>(line_width);
+
+	return circle;
+}
 
 } // namespace ptgn

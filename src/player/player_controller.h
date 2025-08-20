@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 
 struct TopDownPlayerConfig {
 	// Movement
@@ -40,7 +40,7 @@ struct TopDownPlayerConfig {
 };
 
 Entity CreateTopDownPlayer(
-	Scene& scene, const V2_float& position, const TopDownPlayerConfig& config = {}
+	Manager& manager, const V2_float& position, const TopDownPlayerConfig& config = {}
 );
 
 } // namespace ptgn

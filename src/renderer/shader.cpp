@@ -46,12 +46,12 @@ Shader::Shader(
 }
 
 // Extract just the content inside R"( ... )"
-void TrimRawStringLiteral(std::string& content) {
-	const std::string raw_start = "R\"(";
-	const std::string raw_end	= ")\"";
+static void TrimRawStringLiteral(std::string& content) {
+	const std::string raw_start{ "R\"(" };
+	const std::string raw_end{ ")\"" };
 
-	size_t start = content.find(raw_start);
-	size_t end	 = content.rfind(raw_end);
+	std::size_t start{ content.find(raw_start) };
+	std::size_t end{ content.rfind(raw_end) };
 
 	if (start != std::string::npos && end != std::string::npos &&
 		end > start + raw_start.length()) {

@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "components/draw.h"
+#include "components/effects.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -20,22 +21,8 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
-#include "scene/scene.h"
 
 namespace ptgn {
-
-ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
-	ParticleEmitter emitter{ scene.CreateEntity() };
-
-	SetDraw<ParticleEmitter>(emitter);
-	auto& i{ emitter.Add<impl::ParticleEmitterComponent>() };
-	i.info = info;
-	i.manager.Reserve(i.info.total_particles);
-	Show(emitter);
-	SetPosition(emitter, {});
-
-	return emitter;
-}
 
 namespace impl {
 
@@ -226,12 +213,26 @@ milliseconds ParticleEmitter::GetEmissionDelay() const {
 	return Get<impl::ParticleEmitterComponent>().info.emission_delay;
 }
 
-void ParticleEmitter::Update(Scene& scene) {
-	for (auto [entity, particle_manager] : scene.EntitiesWith<impl::ParticleEmitterComponent>()) {
-		particle_manager.Update(GetPosition(entity));
+void ParticleEmitter::Update(Manager& manager) {
+	for (auto [entity, particle_manager] : manager.EntitiesWith<impl::ParticleEmitterComponent>()) {
+		auto position{ GetPosition(entity) };
+		particle_manager.Update(position);
 	}
 
-	scene.Refresh();
+	manager.Refresh();
+}
+
+ParticleEmitter CreateParticleEmitter(Manager& manager, const ParticleInfo& info) {
+	ParticleEmitter emitter{ manager.CreateEntity() };
+
+	SetDraw<ParticleEmitter>(emitter);
+	auto& i{ emitter.Add<impl::ParticleEmitterComponent>() };
+	i.info = info;
+	i.manager.Reserve(i.info.total_particles);
+	Show(emitter);
+	SetPosition(emitter, {});
+
+	return emitter;
 }
 
 } // namespace ptgn

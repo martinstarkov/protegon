@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <span>
 #include <variant>
@@ -339,7 +340,7 @@ private:
 	// Uses current scene.
 	void Flush();
 
-	void Flush(Scene& scene);
+	void Flush(const Scene& scene);
 
 	void DrawToScreen(Scene& scene);
 

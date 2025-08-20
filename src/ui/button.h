@@ -21,8 +21,8 @@
 
 namespace ptgn {
 
-class Scene;
 class Button;
+class Manager;
 class ToggleButton;
 class ToggleButtonGroup;
 
@@ -177,7 +177,7 @@ struct ButtonText {
 	ButtonText() = default;
 
 	ButtonText(
-		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 		const TextProperties& text_properties
 	);
@@ -197,7 +197,7 @@ struct ButtonText {
 	[[nodiscard]] Text GetValid(ButtonState state) const;
 
 	void Set(
-		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 		const TextProperties& text_properties
 	);
@@ -455,16 +455,16 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	return os;
 }
 
-Button CreateButton(Scene& scene);
+Button CreateButton(Manager& manager);
 
 Button CreateTextButton(
-	Scene& scene, const TextContent& text_content, const TextColor& text_color = color::Black
+	Manager& manager, const TextContent& text_content, const TextColor& text_color = color::Black
 );
 
 // @param toggled Whether or not the button start in the toggled state.
-ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
+ToggleButton CreateToggleButton(Manager& manager, bool toggled = false);
 
-ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
+ToggleButtonGroup CreateToggleButtonGroup(Manager& manager);
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	ButtonState, { { ButtonState::Default, "default" },

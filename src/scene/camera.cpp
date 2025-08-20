@@ -11,6 +11,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "core/time.h"
 #include "debug/log.h"
 #include "math/easing.h"
@@ -23,9 +24,6 @@
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
 #include "renderer/renderer.h"
-#include "scene/scene.h"
-#include "scene/scene_key.h"
-#include "scene/scene_manager.h"
 #include "tweens/follow_config.h"
 #include "tweens/shake_config.h"
 #include "tweens/tween_effects.h"
@@ -307,28 +305,12 @@ void CameraInfo::SetViewDirty() {
 	view_dirty = true;
 }
 
-Camera CreateCamera(const Entity& entity) {
-	Camera camera{ entity };
-	SetPosition(camera, {});
-	camera.Add<impl::CameraInfo>();
-	camera.SubscribeToLogicalResolutionEvents();
-	return camera;
-}
-
 void CameraResizeScript::OnLogicalResolutionChanged() {
 	auto logical_resolution{ game.renderer.GetLogicalResolution() };
 	Camera::OnLogicalResolutionChanged(entity, logical_resolution);
 }
 
 } // namespace impl
-
-Camera CreateCamera(Scene& scene) {
-	return impl::CreateCamera(scene.CreateEntity());
-}
-
-Camera CreateCamera(Manager& manager) {
-	return impl::CreateCamera(manager.CreateEntity());
-}
 
 void Camera::SubscribeToLogicalResolutionEvents() {
 	TryAddScript<impl::CameraResizeScript>(*this);
@@ -661,6 +643,14 @@ void to_json(json& j, const CameraManager& camera_manager) {
 void from_json(const json& j, CameraManager& camera_manager) {
 	j.at("cameras").get_to(camera_manager.cameras_);
 	camera_manager.primary = camera_manager.cameras_.GetEntityByUUID(j.at("primary").at("UUID"));
+}
+
+Camera CreateCamera(Manager& manager) {
+	Camera camera{ manager.CreateEntity() };
+	SetPosition(camera, {});
+	camera.Add<impl::CameraInfo>();
+	camera.SubscribeToLogicalResolutionEvents();
+	return camera;
 }
 
 /*

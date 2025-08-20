@@ -3,14 +3,18 @@
 #include <memory>
 #include <string_view>
 
+#include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "input/input_handler.h"
 #include "math/hash.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/scene_input.h"
 #include "scene/scene_transition.h"
 
 namespace ptgn::impl {
@@ -150,6 +154,8 @@ void SceneManager::Update() {
 						 render_data.physical_resolution_changed_ };
 
 	const auto invoke_resolution_events = [&](Manager& manager) {
+		manager.Refresh();
+
 		if (render_data.logical_resolution_changed_) {
 			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 				scripts.AddAction(&LogicalResolutionScript::OnLogicalResolutionChanged);
@@ -165,6 +171,8 @@ void SceneManager::Update() {
 				scripts.InvokeActions();
 			}
 		}
+
+		manager.Refresh();
 	};
 
 	game.input.InvokeInputEvents(render_data.render_manager);
@@ -172,6 +180,7 @@ void SceneManager::Update() {
 
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
+		invoke_resolution_events((*sc.scene).camera.cameras_);
 		invoke_resolution_events(*sc.scene);
 		if (sc.scene->active_) {
 			sc.scene->InternalUpdate();

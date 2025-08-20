@@ -13,6 +13,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -28,24 +29,6 @@
 #include "SDL_ttf.h"
 
 namespace ptgn {
-
-Text CreateText(
-	Scene& scene, const TextContent& content, const TextColor& text_color,
-	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties
-) {
-	Text text{ scene.CreateEntity() };
-	text.Add<TextureHandle>();
-	SetDraw<Text>(text);
-	Show(text);
-	text.Add<impl::HDText>(true);
-	text.SetParameter(content, false);
-	text.SetParameter(text_color, false);
-	text.SetParameter(font_key, false);
-	text.SetParameter(font_size, false);
-	text.SetProperties(properties, false);
-	text.RecreateTexture();
-	return text;
-}
 
 Text::Text(const Entity& entity) : Entity{ entity } {}
 
@@ -357,7 +340,10 @@ void Text::RecreateTexture(
 	const TextContent& content, const TextColor& color, const FontSize& font_size,
 	const ResourceHandle& font_key, const TextProperties& properties
 ) {
+	// Cache the font size of the texture so that if HD resolution changes, the text is updated
+	// before drawing.
 	Add<impl::CachedFontSize>(font_size);
+
 	// TODO: Move texture location to TextureManager.
 	impl::Texture& texture{ TryAdd<impl::Texture>() };
 
@@ -393,6 +379,23 @@ void Text::SetProperties(const TextProperties& properties, bool recreate_texture
 	if (changed && recreate_texture) {
 		RecreateTexture();
 	}
+}
+
+Text CreateText(
+	Manager& manager, const TextContent& content, const TextColor& text_color,
+	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties
+) {
+	Text text{ manager.CreateEntity() };
+	text.Add<TextureHandle>();
+	SetDraw<Text>(text);
+	Show(text);
+	text.Add<impl::HDText>(true);
+	text.SetParameter(content, false);
+	text.SetParameter(text_color, false);
+	text.SetParameter(font_key, false);
+	text.SetParameter(font_size, false);
+	text.SetProperties(properties, true);
+	return text;
 }
 
 } // namespace ptgn

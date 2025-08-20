@@ -16,7 +16,6 @@
 #include "core/time.h"
 #include "math/easing.h"
 #include "math/math.h"
-#include "scene/scene.h"
 
 #define PTGN_ADD_TWEEN_ACTION(FUNC_NAME) \
 	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::FUNC_NAME)
@@ -32,8 +31,8 @@
 
 namespace ptgn {
 
-Tween CreateTween(Scene& scene) {
-	Tween tween{ scene.CreateEntity() };
+Tween CreateTween(Manager& manager) {
+	Tween tween{ manager.CreateEntity() };
 
 	tween.Add<impl::TweenInstance>();
 
@@ -435,20 +434,20 @@ impl::TweenPoint& Tween::GetLastTweenPoint() {
 	return tween.points_.back();
 }
 
-void Tween::Update(Scene& scene, float dt) {
+void Tween::Update(Manager& manager, float dt) {
 	const auto invoke_tween_scripts = [&]() {
-		for (auto [entity, tween] : scene.EntitiesWith<impl::TweenInstance>()) {
+		for (auto [entity, tween] : manager.EntitiesWith<impl::TweenInstance>()) {
 			for (auto& point : tween.points_) {
 				point.script_container_.InvokeActions();
 			}
 		}
 
-		scene.Refresh();
+		manager.Refresh();
 	};
 
 	invoke_tween_scripts();
 
-	for (auto [entity, tween] : scene.EntitiesWith<impl::TweenInstance>()) {
+	for (auto [entity, tween] : manager.EntitiesWith<impl::TweenInstance>()) {
 		Tween{ entity }.Step(dt);
 	}
 

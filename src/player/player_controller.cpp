@@ -8,16 +8,18 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collision/collider.h"
 #include "physics/rigid_body.h"
-#include "scene/scene.h"
 
 namespace ptgn {
 
 Entity CreateTopDownPlayer(
-	Scene& scene, const V2_float& position, const TopDownPlayerConfig& config
+	Manager& manager, const V2_float& position, const TopDownPlayerConfig& config
 ) {
 	PTGN_ASSERT(
 		game.texture.Has(config.animation_texture_key),
@@ -28,18 +30,18 @@ Entity CreateTopDownPlayer(
 		"Cannot create player with walk sound key which has not been loaded"
 	);
 
-	auto player{ scene.CreateEntity() };
+	auto player{ manager.CreateEntity() };
 
 	SetPosition(player, position);
 	player.Add<RigidBody>();
 	SetDepth(player, config.depth);
 
-	auto body_hitbox{ scene.CreateEntity() };
+	auto body_hitbox{ manager.CreateEntity() };
 	body_hitbox.Add<Collider>(Rect{ config.body_hitbox_size });
 	SetPosition(body_hitbox, config.body_hitbox_offset);
 	body_hitbox.Add<RigidBody>();
 
-	auto interaction_hitbox{ scene.CreateEntity() };
+	auto interaction_hitbox{ manager.CreateEntity() };
 	auto& interaction_collider =
 		interaction_hitbox.Add<Collider>(Rect{ config.interaction_hitbox_size });
 	interaction_collider.SetCollisionMode(CollisionMode::Overlap);
@@ -57,7 +59,7 @@ Entity CreateTopDownPlayer(
 
 	auto& anim_map = player.Add<AnimationMap>(
 		"down", CreateAnimation(
-					scene, config.animation_texture_key, {}, config.animation_frame_count.x,
+					manager, config.animation_texture_key, {}, config.animation_frame_count.x,
 					config.animation_duration, config.animation_frame_size
 				)
 	);
@@ -65,14 +67,14 @@ Entity CreateTopDownPlayer(
 	auto& a0 = anim_map.GetActive();
 	auto& a1 = anim_map.Load(
 		"right", CreateAnimation(
-					 scene, config.animation_texture_key, {}, config.animation_frame_count.x,
+					 manager, config.animation_texture_key, {}, config.animation_frame_count.x,
 					 config.animation_duration, config.animation_frame_size, -1,
 					 V2_float{ 0, config.animation_frame_size.y }
 				 )
 	);
 	auto& a2 = anim_map.Load(
 		"up", CreateAnimation(
-				  scene, config.animation_texture_key, {}, config.animation_frame_count.x,
+				  manager, config.animation_texture_key, {}, config.animation_frame_count.x,
 				  config.animation_duration, config.animation_frame_size, -1,
 				  V2_float{ 0, 2.0f * config.animation_frame_size.y }
 			  )

@@ -140,7 +140,7 @@ private:
 	[[nodiscard]] impl::TweenPoint& GetCurrentTweenPoint();
 	[[nodiscard]] impl::TweenPoint& GetLastTweenPoint();
 
-	static void Update(Scene& scene, float dt);
+	static void Update(Manager& manager, float dt);
 };
 
 namespace impl {
@@ -265,6 +265,6 @@ Tween& Tween::AddScript(TArgs&&... args) {
 	return *this;
 }
 
-Tween CreateTween(Scene& scene);
+Tween CreateTween(Manager& manager);
 
 } // namespace ptgn

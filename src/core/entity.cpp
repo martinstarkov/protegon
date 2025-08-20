@@ -78,7 +78,7 @@ Scene& Entity::GetScene() {
 	return const_cast<Scene&>(std::as_const(*this).GetScene());
 }
 
-RenderTarget GetParentRenderTarget(const Entity& entity) {
+static RenderTarget GetParentRenderTarget(const Entity& entity) {
 	if (entity.Has<RenderTarget>()) {
 		return entity.Get<RenderTarget>();
 	}

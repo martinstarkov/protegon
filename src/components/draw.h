@@ -17,6 +17,7 @@
 namespace ptgn {
 
 class Entity;
+class Manager;
 
 struct Visible : public BoolComponent {
 	using BoolComponent::BoolComponent;
@@ -38,7 +39,7 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 
 struct EntityDepthCompare {
 	EntityDepthCompare() = default;
-	EntityDepthCompare(bool ascending);
+	explicit EntityDepthCompare(bool ascending);
 
 	bool operator()(const Entity& a, const Entity& b) const;
 
@@ -141,59 +142,10 @@ struct TextureCrop {
 	// Size of the crop in pixels. Zero size will use full size of texture.
 	V2_float size;
 
-	friend bool operator==(const TextureCrop& a, const TextureCrop& b) {
-		return a.position == b.position && a.size == b.size;
-	}
-
-	friend bool operator!=(const TextureCrop& a, const TextureCrop& b) {
-		return !(a == b);
-	}
+	bool operator==(const TextureCrop&) const = default;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextureCrop, position, size)
 };
-
-Entity CreateRect(
-	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
-	float line_width = -1.0f, Origin origin = Origin::Center
-);
-
-/**
- * @brief Creates a rectangle entity in the scene.
- *
- * @param scene       Reference to the scene where the rectangle will be created.
- * @param position    The position of the rectangle relative to its parent camera.
- * @param size        The width and height of the rectangle.
- * @param color       The tint color of the rectangle.
- * @param line_width  Optional outline width. If -1.0f, the rectangle is filled. If positive, an
- * outlined rectangle is created.
- * @param origin      The origin of the rectangle position (e.g., center, top-left).
- * @return Entity     A handle to the newly created rectangle entity.
- */
-Entity CreateRect(
-	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
-	float line_width = -1.0f, Origin origin = Origin::Center
-);
-
-Entity CreateCircle(
-	Manager& manager, const V2_float& position, float radius, const Color& color,
-	float line_width = -1.0f
-);
-
-/**
- * @brief Creates a circle entity in the scene.
- *
- * @param scene       Reference to the scene where the circle will be created.
- * @param position    The position of the circle relative to its parent camera.
- * @param radius        The radius of the circle.
- * @param color       The tint color of the circle.
- * @param line_width  Optional outline width. If -1.0f, the circle is filled. If positive, an
- * outlined circle is created.
- * @return Entity     A handle to the newly created circle entity.
- */
-Entity CreateCircle(
-	Scene& scene, const V2_float& position, float radius, const Color& color,
-	float line_width = -1.0f
-);
 
 namespace impl {
 
@@ -208,5 +160,38 @@ void DrawTriangle(RenderData& ctx, const Entity& entity);
 void DrawLine(RenderData& ctx, const Entity& entity);
 
 } // namespace impl
+
+/**
+ * @brief Creates a rectangle entity in the manager.
+ *
+ * @param manager       Reference to the manager where the rectangle will be created.
+ * @param position    The position of the rectangle relative to its parent camera.
+ * @param size        The width and height of the rectangle.
+ * @param color       The tint color of the rectangle.
+ * @param line_width  Optional outline width. If -1.0f, the rectangle is filled. If positive, an
+ * outlined rectangle is created.
+ * @param origin      The origin of the rectangle position (e.g., center, top-left).
+ * @return Entity     A handle to the newly created rectangle entity.
+ */
+Entity CreateRect(
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
+	float line_width = -1.0f, Origin origin = Origin::Center
+);
+
+/**
+ * @brief Creates a circle entity in the manager.
+ *
+ * @param manager       Reference to the manager where the circle will be created.
+ * @param position    The position of the circle relative to its parent camera.
+ * @param radius        The radius of the circle.
+ * @param color       The tint color of the circle.
+ * @param line_width  Optional outline width. If -1.0f, the circle is filled. If positive, an
+ * outlined circle is created.
+ * @return Entity     A handle to the newly created circle entity.
+ */
+Entity CreateCircle(
+	Manager& manager, const V2_float& position, float radius, const Color& color,
+	float line_width = -1.0f
+);
 
 } // namespace ptgn

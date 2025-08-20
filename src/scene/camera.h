@@ -14,7 +14,6 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
-#include "scene/scene_key.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
 #include "tweens/follow_config.h"
@@ -29,7 +28,7 @@ struct Color;
 
 namespace impl {
 
-Camera CreateCamera(const Entity& entity);
+class SceneManager;
 
 class CameraInfo {
 public:
@@ -382,7 +381,7 @@ public:
 protected:
 	friend struct impl::CameraResizeScript;
 	friend class CameraManager;
-	friend Camera impl::CreateCamera(const Entity& entity);
+	friend Camera CreateCamera(Manager& manager);
 
 	// @return (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
@@ -426,6 +425,7 @@ public:
 	friend void from_json(const json& j, CameraManager& camera_manager);
 
 private:
+	friend class impl::SceneManager;
 	friend class Scene;
 	friend class impl::RenderData;
 
@@ -435,7 +435,6 @@ private:
 };
 
 Camera CreateCamera(Manager& manager);
-Camera CreateCamera(Scene& scene);
 
 /*
 class CameraController;

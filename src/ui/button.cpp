@@ -15,6 +15,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
@@ -32,51 +33,8 @@
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
 #include "scene/camera.h"
-#include "scene/scene.h"
 
 namespace ptgn {
-
-Button CreateButton(Scene& scene) {
-	Button button{ scene.CreateEntity() };
-
-	Show(button);
-	SetDraw<Button>(button);
-
-	SetInteractive(button);
-	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
-
-	AddScript<impl::InternalButtonScript>(button);
-	button.Enable();
-
-	return button;
-}
-
-Button CreateTextButton(
-	Scene& scene, const TextContent& text_content, const TextColor& text_color
-) {
-	Button text_button{ CreateButton(scene) };
-
-	text_button.SetText(text_content, text_color);
-
-	return text_button;
-}
-
-ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
-	ToggleButton toggle_button{ CreateButton(scene) };
-
-	AddScript<impl::ToggleButtonScript>(toggle_button);
-	toggle_button.Add<impl::ButtonToggled>(toggled);
-
-	return toggle_button;
-}
-
-ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
-	ToggleButtonGroup toggle_button_group{ scene.CreateEntity() };
-
-	toggle_button_group.Add<impl::ToggleButtonGroupInfo>();
-
-	return toggle_button_group;
-}
 
 namespace impl {
 
@@ -220,14 +178,14 @@ Color& ButtonColor::Get(ButtonState state) {
 }
 
 ButtonText::ButtonText(
-	Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 	const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 	const TextProperties& text_properties
 ) {
-	Set(parent, scene, ButtonState::Default, text_content, text_color, font_size, font_key,
+	Set(parent, manager, ButtonState::Default, text_content, text_color, font_size, font_key,
 		text_properties);
 	if (state != ButtonState::Default) {
-		Set(parent, scene, state, text_content, text_color, font_size, font_key, text_properties);
+		Set(parent, manager, state, text_content, text_color, font_size, font_key, text_properties);
 	}
 }
 
@@ -283,7 +241,7 @@ TextJustify ButtonText::GetTextJustify(ButtonState state) const {
 }
 
 void ButtonText::Set(
-	Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 	const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 	const TextProperties& text_properties
 ) {
@@ -293,7 +251,7 @@ void ButtonText::Set(
 	);
 	Text text{ Get(state) };
 	if (text == Text{}) {
-		text = CreateText(scene, text_content, text_color, font_size, font_key, text_properties);
+		text = CreateText(manager, text_content, text_color, font_size, font_key, text_properties);
 		Hide(text);
 		SetParent(text, parent);
 		switch (state) {
@@ -317,8 +275,7 @@ void ButtonText::Set(
 		text.SetParameter(text_content, false);
 		text.SetParameter(font_key, false);
 		text.SetParameter(font_size, false);
-		text.SetProperties(text_properties, false);
-		text.RecreateTexture();
+		text.SetProperties(text_properties, true);
 	}
 }
 
@@ -668,11 +625,13 @@ Button& Button::SetText(
 ) {
 	if (!Has<impl::ButtonText>()) {
 		Add<impl::ButtonText>(
-			*this, GetScene(), state, content, text_color, font_size, font_key, text_properties
+			*this, GetManager(), state, content, text_color, font_size, font_key, text_properties
 		);
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
-		c.Set(*this, GetScene(), state, content, text_color, font_size, font_key, text_properties);
+		c.Set(
+			*this, GetManager(), state, content, text_color, font_size, font_key, text_properties
+		);
 	}
 	return *this;
 }
@@ -688,7 +647,7 @@ TextColor Button::GetTextColor(ButtonState state) const {
 Button& Button::SetTextColor(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		Add<impl::ButtonText>(
-			*this, GetScene(), state, TextContent{}, text_color, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, TextContent{}, text_color, FontSize{}, ResourceHandle{},
 			TextProperties{}
 		);
 	} else {
@@ -705,7 +664,7 @@ TextContent Button::GetTextContent(ButtonState state) const {
 Button& Button::SetTextContent(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		Add<impl::ButtonText>(
-			*this, GetScene(), state, content, TextColor{}, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, content, TextColor{}, FontSize{}, ResourceHandle{},
 			TextProperties{}
 		);
 	} else {
@@ -724,7 +683,7 @@ Button& Button::SetTextJustify(const TextJustify& justify, ButtonState state) {
 		TextProperties p{};
 		p.justify = justify;
 		auto& c{ Add<impl::ButtonText>(
-			*this, GetScene(), state, TextContent{}, TextColor{}, FontSize{}, ResourceHandle{}, p
+			*this, GetManager(), state, TextContent{}, TextColor{}, FontSize{}, ResourceHandle{}, p
 		) };
 	} else {
 		auto& c{ Get<impl::ButtonText>() };
@@ -759,7 +718,7 @@ FontSize Button::GetFontSize(ButtonState state) const {
 Button& Button::SetFontSize(const FontSize& font_size, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		auto& c{ Add<impl::ButtonText>(
-			*this, GetScene(), state, TextContent{}, TextColor{}, font_size, ResourceHandle{},
+			*this, GetManager(), state, TextContent{}, TextColor{}, font_size, ResourceHandle{},
 			TextProperties{}
 		) };
 	} else {
@@ -964,7 +923,7 @@ TextColor ToggleButton::GetTextColorToggled(ButtonState state) const {
 ToggleButton& ToggleButton::SetTextColorToggled(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
-			*this, GetScene(), state, TextContent{}, text_color, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, TextContent{}, text_color, FontSize{}, ResourceHandle{},
 			TextProperties{}
 		);
 	} else {
@@ -981,7 +940,7 @@ TextContent ToggleButton::GetTextContentToggled(ButtonState state) const {
 ToggleButton& ToggleButton::SetTextContentToggled(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
-			*this, GetScene(), state, content, TextColor{}, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, content, TextColor{}, FontSize{}, ResourceHandle{},
 			TextProperties{}
 		);
 	} else {
@@ -997,11 +956,13 @@ ToggleButton& ToggleButton::SetTextToggled(
 ) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
-			*this, GetScene(), state, content, text_color, font_size, font_key, text_properties
+			*this, GetManager(), state, content, text_color, font_size, font_key, text_properties
 		);
 	} else {
 		auto& c{ Get<impl::ButtonTextToggled>() };
-		c.Set(*this, GetScene(), state, content, text_color, font_size, font_key, text_properties);
+		c.Set(
+			*this, GetManager(), state, content, text_color, font_size, font_key, text_properties
+		);
 	}
 	return *this;
 }
@@ -1120,6 +1081,48 @@ void ToggleButtonGroup::Unload(std::string_view button_key) {
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {
 	AddScript<impl::ToggleButtonGroupScript>(target, *this);
+}
+
+Button CreateButton(Manager& manager) {
+	Button button{ manager.CreateEntity() };
+
+	Show(button);
+	SetDraw<Button>(button);
+
+	SetInteractive(button);
+	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
+
+	AddScript<impl::InternalButtonScript>(button);
+	button.Enable();
+
+	return button;
+}
+
+Button CreateTextButton(
+	Manager& manager, const TextContent& text_content, const TextColor& text_color
+) {
+	Button text_button{ CreateButton(manager) };
+
+	text_button.SetText(text_content, text_color);
+
+	return text_button;
+}
+
+ToggleButton CreateToggleButton(Manager& manager, bool toggled) {
+	ToggleButton toggle_button{ CreateButton(manager) };
+
+	AddScript<impl::ToggleButtonScript>(toggle_button);
+	toggle_button.Add<impl::ButtonToggled>(toggled);
+
+	return toggle_button;
+}
+
+ToggleButtonGroup CreateToggleButtonGroup(Manager& manager) {
+	ToggleButtonGroup toggle_button_group{ manager.CreateEntity() };
+
+	toggle_button_group.Add<impl::ToggleButtonGroupInfo>();
+
+	return toggle_button_group;
 }
 
 } // namespace ptgn

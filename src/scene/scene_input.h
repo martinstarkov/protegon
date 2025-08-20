@@ -16,7 +16,7 @@ class Camera;
 class Button;
 
 struct MouseInfo {
-	explicit MouseInfo(Scene& scene);
+	explicit MouseInfo(const Scene& scene);
 
 	V2_int position;
 	V2_int scroll_delta;
@@ -168,8 +168,6 @@ private:
 	constexpr static float draw_interactive_line_width_{ 1.0f };
 
 public:
-	// TODO: Potentially move away from serializing the entity vectors.
-
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		SceneInput, KeyValue("scene_key", scene_key_), KeyValue("top_only", top_only_),
 		KeyValue("draw_interactives", draw_interactives_)

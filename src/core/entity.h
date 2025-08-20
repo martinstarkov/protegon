@@ -21,6 +21,8 @@ class SceneInput;
 struct Transform;
 struct Depth;
 struct Interactive;
+struct PostFX;
+struct PreFX;
 
 namespace impl {
 

@@ -1,6 +1,5 @@
 #include "scene/scene.h"
 
-#include <memory>
 #include <vector>
 
 #include "common/assert.h"
@@ -42,8 +41,8 @@ namespace ptgn {
 
 Scene::Scene() {
 	auto& render_manager{ game.renderer.GetRenderData().render_manager };
-	render_target_ = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), ResizeToResolution::Physical, color::Transparent,
+	render_target_ = CreateRenderTarget(
+		render_manager, ResizeToResolution::Physical, color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
 	SetBlendMode(render_target_, BlendMode::BlendPremultiplied);
@@ -183,47 +182,62 @@ void Scene::InternalUpdate() {
 	render_data.drawing_to = render_target_;
 
 	Refresh();
+	camera.cameras_.Refresh();
 
+	game.input.InvokeInputEvents(camera.cameras_);
 	game.input.InvokeInputEvents(*this);
 
 	input.Update(*this);
 
-	const auto invoke_scripts = [&]() {
+	const auto invoke_scripts = [&](Manager& manager) {
 		// TODO: Consider moving this into the Scripts class.
-		for (auto [e, scripts] : EntitiesWith<Scripts>()) {
+		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 			scripts.InvokeActions();
 		}
-		Refresh();
+		manager.Refresh();
 	};
 
-	invoke_scripts();
+	invoke_scripts(camera.cameras_);
+	invoke_scripts(*this);
 
 	float dt{ game.dt() };
 	float time{ game.time() };
 
-	for (auto [e, scripts] : EntitiesWith<Scripts>()) {
-		scripts.AddAction(&impl::IScript::OnUpdate);
-	}
+	const auto update_scripts = [&](Manager& manager) {
+		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+			scripts.AddAction(&impl::IScript::OnUpdate);
+		}
 
-	invoke_scripts();
+		invoke_scripts(manager);
+	};
+
+	invoke_scripts(camera.cameras_);
+	update_scripts(*this);
 
 	Update();
 
+	camera.cameras_.Refresh();
 	Refresh();
 
-	invoke_scripts();
+	invoke_scripts(camera.cameras_);
+	invoke_scripts(*this);
 
 	ParticleEmitter::Update(*this);
 
-	Tween::Update(*this, dt);
+	const auto update_tweens = [&](Manager& manager) {
+		Tween::Update(manager, dt);
 
-	translate_effects_.Update(*this);
-	rotate_effects_.Update(*this);
-	scale_effects_.Update(*this);
-	tint_effects_.Update(*this);
-	bounce_effects_.Update(*this);
-	shake_effects_.Update(*this, time, dt);
-	follow_effects_.Update(*this);
+		translate_effects_.Update(manager);
+		rotate_effects_.Update(manager);
+		scale_effects_.Update(manager);
+		tint_effects_.Update(manager);
+		bounce_effects_.Update(manager);
+		shake_effects_.Update(manager, time, dt);
+		follow_effects_.Update(manager);
+	};
+
+	update_tweens(camera.cameras_);
+	update_tweens(*this);
 
 	impl::AnimationSystem::Update(*this);
 
@@ -235,15 +249,20 @@ void Scene::InternalUpdate() {
 
 	physics.PostCollisionUpdate(*this);
 
-	invoke_scripts();
+	invoke_scripts(*this);
 
 	// TODO: Update dirty vertex caches.
 
 	InternalDraw();
 
-	for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
-		transform.dirty_flags_.ClearAll();
-	}
+	const auto update_transforms = [&](Manager& manager) {
+		for (auto [entity, transform] : manager.InternalEntitiesWith<Transform>()) {
+			transform.dirty_flags_.ClearAll();
+		}
+	};
+
+	update_transforms(camera.cameras_);
+	update_transforms(*this);
 
 	game.scene.current_ = {};
 }

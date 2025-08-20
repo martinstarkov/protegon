@@ -14,7 +14,6 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
-#include "serialization/enum.h"
 
 namespace ptgn {
 

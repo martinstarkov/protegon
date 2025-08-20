@@ -4,6 +4,7 @@
 
 #include "core/entity.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "ui/button.h"
@@ -11,7 +12,7 @@
 namespace ptgn {
 
 class Button;
-class Scene;
+class Manager;
 
 namespace impl {
 
@@ -83,6 +84,6 @@ private:
 };
 
 // @param open If true, dropdown starts in an open state.
-Dropdown CreateDropdownButton(Scene& scene, bool start_open = false);
+Dropdown CreateDropdownButton(Manager& manager, bool start_open = false);
 
 } // namespace ptgn

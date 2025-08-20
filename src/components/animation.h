@@ -12,7 +12,7 @@
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 
 struct Animation : public Sprite {
 	using Sprite::Sprite;
@@ -67,22 +67,6 @@ struct Animation : public Sprite {
 
 	[[nodiscard]] V2_int GetFrameSize() const;
 };
-
-// @param scene Which scene the entity is added to.
-// @param texture_key Key of the texture loaded into the texture manager.
-// @param position Where on the screen to place the animation object.
-// @param frame_count Number of frames in the animation sequence.
-// @param animation_duration Duration of the full animation sequence.
-// @param frame_size Pixel size of an individual animation frame within the texture.
-// If {}, frame_size = { texture_size.x / frame_count, texture_size.y }.
-// @param play_count Number of times that the animation plays for, -1 for infinite replay.
-// @param start_pixel Pixel within the texture which indicates the top left position of the
-// animation sequence.
-Animation CreateAnimation(
-	Scene& scene, const TextureHandle& texture_key, const V2_float& position,
-	std::size_t frame_count, milliseconds animation_duration = milliseconds{ 0 },
-	V2_int frame_size = {}, std::int64_t play_count = -1, const V2_int& start_pixel = {}
-);
 
 struct AnimationMap : public ActiveMapManager<Animation> {
 public:
@@ -164,9 +148,25 @@ public:
 
 class AnimationSystem {
 public:
-	static void Update(Scene& scene);
+	static void Update(Manager& manager);
 };
 
 } // namespace impl
+
+// @param manager Which manager the entity is added to.
+// @param texture_key Key of the texture loaded into the texture manager.
+// @param position Where on the screen to place the animation object.
+// @param frame_count Number of frames in the animation sequence.
+// @param animation_duration Duration of the full animation sequence.
+// @param frame_size Pixel size of an individual animation frame within the texture.
+// If {}, frame_size = { texture_size.x / frame_count, texture_size.y }.
+// @param play_count Number of times that the animation plays for, -1 for infinite replay.
+// @param start_pixel Pixel within the texture which indicates the top left position of the
+// animation sequence.
+Animation CreateAnimation(
+	Manager& manager, const TextureHandle& texture_key, const V2_float& position,
+	std::size_t frame_count, milliseconds animation_duration = milliseconds{ 0 },
+	V2_int frame_size = {}, std::int64_t play_count = -1, const V2_int& start_pixel = {}
+);
 
 } // namespace ptgn

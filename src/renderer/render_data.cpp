@@ -673,7 +673,7 @@ void RenderData::DrawCall(
 	GLRenderer::DrawElements(triangle_vao, indices.size(), false);
 }
 
-void RenderData::Flush(Scene& scene) {
+void RenderData::Flush(const Scene& scene) {
 	const auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
 
 	V2_int viewport_position{ 0, 0 };

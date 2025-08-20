@@ -1,6 +1,5 @@
 #include "ui/dropdown.h"
 
-#include <functional>
 #include <vector>
 
 #include "common/assert.h"
@@ -8,29 +7,14 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/entity_hierarchy.h"
+#include "core/manager.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
-#include "scene/scene.h"
 #include "ui/button.h"
 
 namespace ptgn {
-
-Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
-	Button dropdown_button{ CreateButton(scene) };
-
-	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
-	i.start_open_ = start_open;
-	AddScript<impl::DropdownScript>(dropdown_button);
-
-	if (start_open) {
-		Dropdown{ dropdown_button }.Open();
-	} else {
-		Dropdown{ dropdown_button }.Close();
-	}
-
-	return dropdown_button;
-}
 
 namespace impl {
 
@@ -247,6 +231,22 @@ void Dropdown::Close(bool close_parents) {
 			Dropdown{ child }.Close(false);
 		}
 	}
+}
+
+Dropdown CreateDropdownButton(Manager& manager, bool start_open) {
+	Button dropdown_button{ CreateButton(manager) };
+
+	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
+	i.start_open_ = start_open;
+	AddScript<impl::DropdownScript>(dropdown_button);
+
+	if (start_open) {
+		Dropdown{ dropdown_button }.Open();
+	} else {
+		Dropdown{ dropdown_button }.Close();
+	}
+
+	return dropdown_button;
 }
 
 } // namespace ptgn

@@ -9,7 +9,9 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -17,50 +19,35 @@
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
-#include "scene/scene.h"
 
 namespace ptgn {
 
 namespace impl {
 
-RenderTarget CreateRenderTarget(
-	const Entity& entity, ResizeToResolution resize_to_resolution, const Color& clear_color,
-	TextureFormat texture_format
-) {
-	PTGN_ASSERT(entity);
-	RenderTarget render_target;
-	if (resize_to_resolution == ResizeToResolution::Physical) {
-		V2_int physical_resolution{ game.renderer.GetPhysicalResolution() };
-		render_target =
-			CreateRenderTarget(entity, physical_resolution, clear_color, texture_format);
-		AddScript<PhysicalRenderTargetResizeScript>(render_target);
-	} else if (resize_to_resolution == ResizeToResolution::Logical) {
-		V2_int logical_resolution{ game.renderer.GetLogicalResolution() };
-		render_target = CreateRenderTarget(entity, logical_resolution, clear_color, texture_format);
-		AddScript<LogicalRenderTargetResizeScript>(render_target);
-	} else {
-		PTGN_ERROR("Unknown resize to resolution value");
-	}
-	PTGN_ASSERT(render_target);
-	return render_target;
-}
-
-RenderTarget CreateRenderTarget(
+RenderTarget AddRenderTargetComponents(
 	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
+	PTGN_ASSERT(entity);
+
 	RenderTarget render_target{ entity };
+
 	SetPosition(render_target, {});
-	SetDraw<RenderTarget>(render_target);
+
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();
-	Show(render_target);
 	render_target.Add<impl::ClearColor>(clear_color);
+	SetDraw<RenderTarget>(render_target);
+	Show(render_target);
+
 	// TODO: Move frame buffer object to a FrameBufferManager.
 	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
 		nullptr, size, texture_format }) };
+
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
+
 	render_target.Clear();
+
 	return render_target;
 }
 
@@ -75,21 +62,6 @@ void PhysicalRenderTargetResizeScript::OnPhysicalResolutionChanged() {
 }
 
 } // namespace impl
-
-RenderTarget CreateRenderTarget(
-	Scene& scene, const V2_int& size, const Color& clear_color, TextureFormat texture_format
-) {
-	return impl::CreateRenderTarget(scene.CreateEntity(), size, clear_color, texture_format);
-}
-
-RenderTarget CreateRenderTarget(
-	Scene& scene, ResizeToResolution resize_to_resolution, const Color& clear_color,
-	TextureFormat texture_format
-) {
-	return impl::CreateRenderTarget(
-		scene.CreateEntity(), resize_to_resolution, clear_color, texture_format
-	);
-}
 
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
@@ -202,6 +174,40 @@ void RenderTarget::ForEachPixel(
 	const std::function<void(V2_int, Color)>& func, bool restore_bind_state
 ) const {
 	return GetFrameBuffer().ForEachPixel(func, restore_bind_state);
+}
+
+RenderTarget CreateRenderTarget(
+	Manager& manager, ResizeToResolution resize_to_resolution, const Color& clear_color,
+	TextureFormat texture_format
+) {
+	RenderTarget render_target{ manager.CreateEntity() };
+
+	V2_int resolution;
+
+	if (resize_to_resolution == ResizeToResolution::Physical) {
+		resolution = game.renderer.GetPhysicalResolution();
+		AddScript<impl::PhysicalRenderTargetResizeScript>(render_target);
+	} else if (resize_to_resolution == ResizeToResolution::Logical) {
+		resolution = game.renderer.GetLogicalResolution();
+		AddScript<impl::LogicalRenderTargetResizeScript>(render_target);
+	} else {
+		PTGN_ERROR("Unknown resize to resolution value");
+	}
+
+	render_target =
+		impl::AddRenderTargetComponents(render_target, resolution, clear_color, texture_format);
+
+	PTGN_ASSERT(render_target);
+
+	return render_target;
+}
+
+RenderTarget CreateRenderTarget(
+	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format
+) {
+	return impl::AddRenderTargetComponents(
+		manager.CreateEntity(), size, clear_color, texture_format
+	);
 }
 
 } // namespace ptgn
