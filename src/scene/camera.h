@@ -19,6 +19,9 @@
 #include "tweens/follow_config.h"
 #include "tweens/shake_config.h"
 
+// TODO: Add 2D camera and rename Camera to Camera3D.
+// TODO: Add physical resolution camera functions.
+
 namespace ptgn {
 
 class Scene;

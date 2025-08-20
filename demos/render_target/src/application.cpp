@@ -74,6 +74,7 @@ struct RenderTargetScene : public Scene {
 		game.renderer.SetLogicalResolution(resolution);
 
 		LoadResource("test", "resources/test1.jpg");
+
 		// Helper for reuse
 		auto grayscale = CreateGrayscale(*this);
 		auto blur	   = CreateBlur(*this);
@@ -143,19 +144,21 @@ struct RenderTargetScene : public Scene {
 		);
 		AddPreFX(circle4, grayscale);
 
-		// game.window.SetSetting(WindowSetting::Resizable);
-		// auto rect1 = CreateRect(*this, { 0, 0 }, { 400, 400 }, color::Red, -1.0f,
-		// Origin::TopLeft);
-		//// For some reason the origin of the render target is the bottom left corner of the square
-		//// (i.e. 400, 800 on the screen).
-		//// So { 0, 400 }, { 400, 400 } will cover the screen coordinates with a whiterect from
-		///{400, / 400} to {800,800}.
-		// auto rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
-		// rt.SetDrawOrigin(Origin::TopLeft);
-		// rt.SetPosition({ 400, 400 });
-		// auto rect2 =
-		//	CreateRect(*this, { 0, 400 }, { 200, 200 }, color::White, -1.0f, Origin::TopLeft);
-		// rt.AddToDisplayList(rect2);
+		/*
+		auto rect1 = CreateRect(*this, { 0, 0 }, { 400, 400 }, color::Red, -1.0f, Origin::TopLeft);
+		// For some reason the origin of the render target is the bottom left corner of the square
+		// (i.e. 400, 800 on the screen).
+		// So { 0, 400 }, { 400, 400 } will cover the screen coordinates with a whiterect from {400,
+		// / 400} to {800,800}.
+		auto rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
+		SetDrawOrigin(rt, Origin::TopLeft);
+		SetPosition(rt, { 400, 400 });
+		// The reason this appears half the size is because the size and position and in the primary
+		// camera coordinate system.
+		auto rect2 =
+			CreateRect(*this, { 200, 200 }, { 400, 400 }, color::White, -1.0f, Origin::TopLeft);
+		rt.AddToDisplayList(rect2);
+		*/
 	}
 
 	void Update() override {}

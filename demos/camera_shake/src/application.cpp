@@ -6,7 +6,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
