@@ -32,7 +32,6 @@ class SceneManager;
 
 class CameraInfo {
 public:
-	void SetViewportPosition(const V2_float& new_viewport_position);
 	void SetViewportSize(const V2_float& new_viewport_size);
 	// @param position Top left.
 	void SetBoundingBox(const V2_float& new_bounding_position, const V2_float& new_bounding_size);
@@ -48,7 +47,6 @@ public:
 
 	void SetPixelRounding(bool enabled);
 
-	[[nodiscard]] V2_float GetViewportPosition() const;
 	[[nodiscard]] V2_float GetViewportSize() const;
 
 	// @return Top left position.
@@ -91,9 +89,8 @@ public:
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
-		viewport_position, viewport_size, center_on_logical_resolution,
-		resize_to_logical_resolution, pixel_rounding, bounding_box_position, bounding_box_size,
-		flip, position_z, orientation_y, orientation_z
+		viewport_size, center_on_logical_resolution, resize_to_logical_resolution, pixel_rounding,
+		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z
 	)
 
 	void SetViewDirty();
@@ -113,7 +110,6 @@ private:
 	mutable Matrix4 projection{ 1.0f };
 	mutable Matrix4 view_projection{ 1.0f };
 
-	V2_float viewport_position;
 	V2_float viewport_size;
 
 	bool center_on_logical_resolution{ true };
@@ -273,7 +269,6 @@ public:
 
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
-	[[nodiscard]] V2_float GetViewportPosition() const;
 	[[nodiscard]] V2_float GetViewportSize() const;
 
 	[[nodiscard]] V2_float GetZoom() const;
@@ -290,7 +285,6 @@ public:
 	// @param position Top left position of the bounds.
 	void SetBounds(const V2_float& position, const V2_float& size);
 
-	void SetViewportPosition(const V2_float& viewport_position);
 	void SetViewportSize(const V2_float& viewport_size);
 
 	void Translate(const V2_float& position_change);
@@ -409,9 +403,8 @@ protected:
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
-	os << "[center position: " << GetPosition(c)
-	   << ", viewport position: " << c.GetViewportPosition()
-	   << ", viewport size: " << c.GetViewportSize() << "]";
+	os << "[center position: " << GetPosition(c) << ", viewport size: " << c.GetViewportSize()
+	   << "]";
 	return os;
 }
 

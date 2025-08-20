@@ -32,14 +32,6 @@ namespace ptgn {
 
 namespace impl {
 
-void CameraInfo::SetViewportPosition(const V2_float& new_viewport_position) {
-	if (viewport_position == new_viewport_position) {
-		return;
-	}
-	viewport_position = new_viewport_position;
-	projection_dirty  = true;
-}
-
 void CameraInfo::SetViewportSize(const V2_float& new_viewport_size) {
 	if (viewport_size == new_viewport_size) {
 		return;
@@ -114,10 +106,6 @@ void CameraInfo::SetPixelRounding(bool enabled) {
 	pixel_rounding	 = enabled;
 	view_dirty		 = true;
 	projection_dirty = true;
-}
-
-V2_float CameraInfo::GetViewportPosition() const {
-	return viewport_position;
 }
 
 V2_float CameraInfo::GetViewportSize() const {
@@ -359,10 +347,6 @@ bool Camera::IsPixelRoundingEnabled() const {
 	return Get<impl::CameraInfo>().GetPixelRounding();
 }
 
-V2_float Camera::GetViewportPosition() const {
-	return Get<impl::CameraInfo>().GetViewportPosition();
-}
-
 V2_float Camera::GetViewportSize() const {
 	return Get<impl::CameraInfo>().GetViewportSize();
 }
@@ -442,12 +426,6 @@ void Camera::SetBounds(const V2_float& position, const V2_float& size) {
 	info.SetBoundingBox(position, size);
 	// Reset position to ensure it is within the new bounds.
 	RefreshBounds();
-}
-
-void Camera::SetViewportPosition(const V2_float& new_position) {
-	auto& info{ Get<impl::CameraInfo>() };
-	info.SetResizeToLogicalResolution(false);
-	info.SetViewportPosition(new_position);
 }
 
 void Camera::SetViewportSize(const V2_float& new_size) {
@@ -613,10 +591,9 @@ void Camera::PrintInfo() const {
 	auto bounds_size{ GetBoundsSize() };
 	auto orient{ GetOrientation() };
 	Print(
-		"center position: ", GetPosition(*this), ", viewport position: ", GetViewportPosition(),
-		", viewport size: ", GetViewportSize(), ", zoom: ", GetZoom(),
-		", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ", RadToDeg(orient.y),
-		", ", RadToDeg(orient.z), "), Bounds: "
+		"center position: ", GetPosition(*this), ", viewport size: ", GetViewportSize(),
+		", zoom: ", GetZoom(), ", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ",
+		RadToDeg(orient.y), ", ", RadToDeg(orient.z), "), Bounds: "
 	);
 	if (bounds_size.IsZero()) {
 		PrintLine("none");
