@@ -293,14 +293,15 @@ public:
 
 	Button& SetTextJustify(const TextJustify& justify, ButtonState state = ButtonState::Default);
 
-	// TODO: Fix Fixed size functionality.
-	//[[nodiscard]] V2_float GetTextFixedSize() const;
+	[[nodiscard]] V2_float GetTextFixedSize() const;
+
 	// (default: unscaled text size). If either axis of the text size
 	// is zero, it is stretched to fit the entire size of the button rectangle (along that axis).
-	// Button& SetTextFixedSize(const V2_float& size);
-	// Make it so the button text no longer has a fixed size, this will cause the text to stretch
-	// based its the font size and wrap settings.
-	// Button& ClearTextFixedSize();
+	Button& SetTextFixedSize(const V2_float& size = {});
+
+	// Make it so the button text no longer has a fixed size,
+	// this will cause the text to stretch based its the font size and wrap settings.
+	Button& ClearTextFixedSize();
 
 	[[nodiscard]] FontSize GetFontSize(ButtonState state = ButtonState::Current) const;
 
