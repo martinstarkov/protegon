@@ -9,6 +9,7 @@
 #include "core/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
+#include "renderer/api/origin.h"
 #include "renderer/font.h"
 #include "renderer/texture.h"
 #include "serialization/enum.h"
@@ -17,11 +18,19 @@
 namespace ptgn {
 
 class Manager;
+class Entity;
+class Camera;
+class Text;
 
 namespace impl {
 
 class RenderData;
 struct ButtonText;
+
+void DrawText(
+	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
+	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+);
 
 struct HDText : public BoolComponent {
 	using BoolComponent::BoolComponent;
@@ -197,6 +206,11 @@ public:
 	void SetProperties(const TextProperties& properties, bool recreate_texture);
 
 private:
+	friend void impl::DrawText(
+		impl::RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
+		const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+	);
+
 	// Using own properties.
 	void RecreateTexture();
 

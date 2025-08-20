@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -16,6 +17,7 @@
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -23,13 +25,17 @@
 #include "math/geometry/rect.h"
 #include "math/geometry/triangle.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
 #include "renderer/render_data.h"
 #include "renderer/shader.h"
+#include "renderer/text.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
@@ -273,6 +279,83 @@ void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture) {
 		texture, info.transform, size, origin, info.tint, info.depth, texture_coordinates,
 		info.state, pre_fx
 	);
+}
+
+void DrawText(
+	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
+	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+) {
+	if (!text.Has<TextContent>()) {
+		return;
+	}
+
+	if (text.Get<TextContent>().GetValue().empty()) {
+		return;
+	}
+
+	if (text.Has<TextColor>() && text.Get<TextColor>().a == 0) {
+		return;
+	}
+
+	impl::ShapeDrawInfo info{ text };
+
+	if (info.tint.a == 0 || additional_tint.a == 0) {
+		return;
+	}
+
+	if (camera) {
+		info.state.camera = camera;
+	}
+
+	// Offset text so it is centered on the offset origin and size.
+	auto offset{ -GetOriginOffset(offset_origin, offset_size * Abs(info.transform.GetScale())) };
+	info.transform.Translate(offset);
+
+	if (bool is_hd{ text.IsHD() }) {
+		auto scene_scale{ text.GetScene().GetScale(text.GetCamera()) };
+
+		info.transform.Scale(1.0f / scene_scale);
+
+		if (text.GetFontSize(is_hd) != text.Get<impl::CachedFontSize>()) {
+			text.RecreateTexture();
+		}
+	}
+
+	auto origin{ GetDrawOrigin(text) };
+
+	auto texture_coordinates{ Sprite{ text }.GetTextureCoordinates(false) };
+
+	auto pre_fx{ text.GetOrDefault<PreFX>() };
+
+	Color text_tint{ additional_tint.Normalized() * info.tint.Normalized() };
+
+	const auto& text_texture{ text.GetTexture() };
+
+	if (!text_texture.IsValid()) {
+		return;
+	}
+
+	V2_int size{ text_size };
+
+	// If the text texture size for any text_size dimension that is zero.
+	if (size.HasZero()) {
+		V2_int texture_size{ text_texture.GetSize() };
+		if (!size.x) {
+			size.x = texture_size.x;
+		}
+		if (!size.y) {
+			size.y = texture_size.y;
+		}
+	}
+
+	ctx.AddTexturedQuad(
+		text_texture, info.transform, size, origin, text_tint, info.depth, texture_coordinates,
+		info.state, pre_fx
+	);
+}
+
+void DrawText(RenderData& ctx, const Entity& entity) {
+	impl::DrawText(ctx, entity, V2_float{}, Camera{}, color::White, Origin::Center, V2_float{});
 }
 
 void DrawRect(RenderData& ctx, const Entity& entity) {

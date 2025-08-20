@@ -33,44 +33,7 @@ namespace ptgn {
 Text::Text(const Entity& entity) : Entity{ entity } {}
 
 void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
-	if (entity.Has<TextColor>() && entity.Get<TextColor>().a == 0) {
-		return;
-	}
-
-	if (!entity.Has<TextContent>()) {
-		return;
-	}
-
-	if (entity.Get<TextContent>().GetValue().empty()) {
-		return;
-	}
-
-	impl::ShapeDrawInfo info{ entity };
-	Text text{ entity };
-
-	if (bool is_hd{ text.IsHD() }) {
-		auto scene_scale{ text.GetScene().GetScale(text.GetCamera()) };
-
-		info.transform.Scale(1.0f / scene_scale);
-
-		if (text.GetFontSize(is_hd) != text.Get<impl::CachedFontSize>()) {
-			text.RecreateTexture();
-		}
-	}
-
-	Sprite sprite{ entity };
-
-	const auto& texture{ text.GetTexture() };
-	auto size{ texture.GetSize() };
-	auto texture_coordinates{ sprite.GetTextureCoordinates(false) };
-
-	auto origin{ GetDrawOrigin(entity) };
-	auto pre_fx{ entity.GetOrDefault<PreFX>() };
-
-	ctx.AddTexturedQuad(
-		texture, info.transform, size, origin, info.tint, info.depth, texture_coordinates,
-		info.state, pre_fx
-	);
+	impl::DrawText(ctx, entity);
 }
 
 Text& Text::SetFont(const ResourceHandle& font_key) {

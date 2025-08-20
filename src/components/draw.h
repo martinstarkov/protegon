@@ -12,12 +12,14 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/text.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
 
 class Entity;
 class Manager;
+class Camera;
 
 struct Visible : public BoolComponent {
 	using BoolComponent::BoolComponent;
@@ -152,6 +154,11 @@ namespace impl {
 class RenderData;
 
 void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture);
+void DrawText(
+	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
+	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+);
+void DrawText(RenderData& ctx, const Entity& entity);
 void DrawCapsule(RenderData& ctx, const Entity& entity);
 void DrawCircle(RenderData& ctx, const Entity& entity);
 void DrawPolygon(RenderData& ctx, const Entity& entity);
