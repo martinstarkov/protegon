@@ -1,5 +1,6 @@
 #include "components/sprite.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "input/input_handler.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -15,6 +16,7 @@ public:
 	PointLight mouse_light;
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("test", "resources/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { 50, 50 });

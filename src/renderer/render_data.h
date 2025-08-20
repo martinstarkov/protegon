@@ -244,6 +244,8 @@ private:
 	friend struct ViewportResizeScript;
 	friend class InputHandler;
 
+	[[nodiscard]] static V2_float GetResolutionScale(const V2_float& viewport_size);
+
 	[[nodiscard]] V2_float RelativeToViewport(const V2_float& window_relative_point) const;
 
 	// TODO: Replace with std::span.

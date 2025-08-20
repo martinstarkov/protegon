@@ -366,7 +366,7 @@ TextureId RenderData::PingPong(
 
 		shader.Bind();
 		shader.SetUniform("u_Texture", 1);
-		shader.SetUniform("u_Resolution", V2_float{ viewport_size });
+		shader.SetUniform("u_Resolution", GetResolutionScale(viewport_size));
 		shader_pass.Invoke(fx);
 
 		DrawCall(
@@ -538,6 +538,14 @@ bool RenderData::SetState(const RenderState& new_render_state) {
 	return false;
 }
 
+V2_float RenderData::GetResolutionScale(const V2_float& viewport_size) {
+	auto logical_resolution{ game.renderer.GetLogicalResolution() };
+	PTGN_ASSERT(logical_resolution.BothAboveZero());
+	V2_float resolution_scale{ V2_float{ viewport_size } / logical_resolution };
+	PTGN_ASSERT(resolution_scale.BothAboveZero());
+	return resolution_scale;
+}
+
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, const Color& target_clear_color,
 	const TextureOrSize& texture_or_size, const Color& tint, bool clear_between_consecutive_calls
@@ -595,7 +603,7 @@ void RenderData::AddShader(
 
 	shader.Bind();
 	shader.SetUniform("u_Texture", 1);
-	shader.SetUniform("u_Resolution", V2_float{ viewport_size });
+	shader.SetUniform("u_Resolution", GetResolutionScale(viewport_size));
 
 	render_state.shader_pass.Invoke(entity);
 
