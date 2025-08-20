@@ -16,6 +16,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "debug/log.h"
@@ -27,12 +28,43 @@
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
 #include "scene/camera.h"
-#include "scene/scene.h"
 #include "tweens/follow_config.h"
 
 namespace ptgn {
 
 namespace impl {
+
+template <typename T>
+static auto GetTaskValue(T& task) {
+	PTGN_ASSERT(task.timer.IsRunning());
+
+	float t{ 1.0f };
+
+	if (task.duration >= milliseconds{ 0 }) {
+		t = task.timer.template ElapsedPercentage<milliseconds, float>(task.duration);
+	}
+
+	float eased_t{ ApplyEase(t, task.ease) };
+
+	return Lerp(task.start_value, task.target_value, eased_t);
+}
+
+template <typename T, typename F>
+static void UpdateTask(T& effect, F& task) {
+	if (!task.timer.Completed(task.duration)) {
+		return;
+	}
+
+	// Task completed.
+	effect.tasks.pop_front();
+
+	if (effect.tasks.empty()) {
+		return;
+	}
+
+	// Start next task.
+	effect.tasks.front().timer.Start(true);
+}
 
 ShakeEffectInfo::ShakeEffectInfo(
 	float start_intensity, float target_intensity, milliseconds shake_duration,
@@ -51,40 +83,8 @@ ShakeEffectInfo::ShakeEffectInfo(
 	seed   = shake_seed;
 }
 
-template <typename T>
-auto GetTaskValue(T& task) {
-	PTGN_ASSERT(task.timer.IsRunning());
-
-	float t{ 1.0f };
-
-	if (task.duration >= milliseconds{ 0 }) {
-		t = task.timer.template ElapsedPercentage<milliseconds, float>(task.duration);
-	}
-
-	float eased_t{ ApplyEase(t, task.ease) };
-
-	return Lerp(task.start_value, task.target_value, eased_t);
-}
-
-template <typename T, typename F>
-void UpdateTask(T& effect, F& task) {
-	if (!task.timer.Completed(task.duration)) {
-		return;
-	}
-
-	// Task completed.
-	effect.tasks.pop_front();
-
-	if (effect.tasks.empty()) {
-		return;
-	}
-
-	// Start next task.
-	effect.tasks.front().timer.Start(true);
-}
-
-void TranslateEffectSystem::Update(Scene& scene) const {
-	for (auto [entity, effect] : scene.EntitiesWith<TranslateEffect>()) {
+void TranslateEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<TranslateEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<TranslateEffect>();
 			return;
@@ -98,8 +98,8 @@ void TranslateEffectSystem::Update(Scene& scene) const {
 	}
 }
 
-void RotateEffectSystem::Update(Scene& scene) const {
-	for (auto [entity, effect] : scene.EntitiesWith<RotateEffect>()) {
+void RotateEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<RotateEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<RotateEffect>();
 			return;
@@ -113,8 +113,8 @@ void RotateEffectSystem::Update(Scene& scene) const {
 	}
 }
 
-void ScaleEffectSystem::Update(Scene& scene) const {
-	for (auto [entity, effect] : scene.EntitiesWith<ScaleEffect>()) {
+void ScaleEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<ScaleEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<ScaleEffect>();
 			return;
@@ -128,8 +128,8 @@ void ScaleEffectSystem::Update(Scene& scene) const {
 	}
 }
 
-void TintEffectSystem::Update(Scene& scene) const {
-	for (auto [entity, effect] : scene.EntitiesWith<TintEffect>()) {
+void TintEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<TintEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<TintEffect>();
 			return;
@@ -159,8 +159,8 @@ BounceEffectInfo::BounceEffectInfo(
 	);
 }
 
-void BounceEffectSystem::Update(Scene& scene) const {
-	for (auto [entity, effect, offsets] : scene.EntitiesWith<BounceEffect, Offsets>()) {
+void BounceEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect, offsets] : manager.EntitiesWith<BounceEffect, Offsets>()) {
 		if (effect.tasks.empty()) {
 			offsets.bounce = {};
 			entity.template Remove<BounceEffect>();
@@ -238,8 +238,8 @@ float BounceEffectSystem::ApplyEase(float t, bool symmetrical, const Ease& ease)
 	return 2.0f * eased_t - 1.0f;
 }
 
-void ShakeEffectSystem::Update(Scene& scene, float time, float dt) const {
-	for (auto [entity, effect, offsets] : scene.EntitiesWith<ShakeEffect, Offsets>()) {
+void ShakeEffectSystem::Update(Manager& manager, float time, float dt) const {
+	for (auto [entity, effect, offsets] : manager.EntitiesWith<ShakeEffect, Offsets>()) {
 		if (effect.tasks.empty()) {
 			offsets.shake = {};
 			entity.template Remove<ShakeEffect>();
@@ -335,8 +335,8 @@ void BounceImpl(
 FollowEffectInfo::FollowEffectInfo(Entity follow_target, const FollowConfig& follow_config) :
 	target{ follow_target }, config{ follow_config } {}
 
-void FollowEffectSystem::Update(Scene& scene) const {
-	for (auto [entity, effect] : scene.EntitiesWith<FollowEffect>()) {
+void FollowEffectSystem::Update(Manager& manager) const {
+	for (auto [entity, effect] : manager.EntitiesWith<FollowEffect>()) {
 		if (effect.tasks.empty()) {
 			entity.template Remove<FollowEffect>();
 			entity.template Remove<TopDownMovement>();
@@ -354,27 +354,28 @@ void FollowEffectSystem::Update(Scene& scene) const {
 
 		if (!task.target || !task.target.IsAlive()) {
 			effect.tasks.pop_front();
-			if (!effect.tasks.empty()) {
-				auto front{ effect.tasks.front() };
-				if (front.config.teleport_on_start) {
-					SetPosition(entity, GetPosition(front.target));
-				}
-				if (front.config.move_mode == MoveMode::Velocity) {
-					entity.TryAdd<RigidBody>();
-					if (!entity.Has<Transform>()) {
-						SetPosition(entity, {});
-					}
-					auto& movement{ entity.TryAdd<TopDownMovement>() };
-					movement.max_acceleration		  = front.config.max_acceleration;
-					movement.max_deceleration		  = front.config.max_acceleration;
-					movement.max_speed				  = front.config.max_speed;
-					movement.keys_enabled			  = false;
-					movement.only_orthogonal_movement = false;
-				} else {
-					entity.template Remove<TopDownMovement>();
-					entity.template Remove<RigidBody>();
-				}
+			if (effect.tasks.empty()) {
+				continue;
 			}
+			auto front{ effect.tasks.front() };
+			if (front.config.teleport_on_start) {
+				SetPosition(entity, GetPosition(front.target));
+			}
+			if (front.config.move_mode != MoveMode::Velocity) {
+				entity.template Remove<TopDownMovement>();
+				entity.template Remove<RigidBody>();
+				continue;
+			}
+			entity.TryAdd<RigidBody>();
+			if (!entity.Has<Transform>()) {
+				SetPosition(entity, {});
+			}
+			auto& movement{ entity.TryAdd<TopDownMovement>() };
+			movement.max_acceleration		  = front.config.max_acceleration;
+			movement.max_deceleration		  = front.config.max_acceleration;
+			movement.max_speed				  = front.config.max_speed;
+			movement.keys_enabled			  = false;
+			movement.only_orthogonal_movement = false;
 			continue;
 		}
 
@@ -507,34 +508,37 @@ void FollowEffectSystem::Update(Scene& scene) const {
 
 			SetPosition(entity, new_pos);
 
-			if (task.config.stop_distance >= epsilon<float>) {
-				auto dir{ target_pos - new_pos };
-				if (auto dist2{ dir.MagnitudeSquared() };
-					dist2 < task.config.stop_distance * task.config.stop_distance) {
-					effect.tasks.pop_front();
-					if (!effect.tasks.empty()) {
-						auto front{ effect.tasks.front() };
-						if (front.config.teleport_on_start) {
-							SetPosition(entity, GetPosition(front.target));
-						}
-						if (front.config.move_mode == MoveMode::Velocity) {
-							entity.TryAdd<RigidBody>();
-							if (!entity.Has<Transform>()) {
-								SetPosition(entity, {});
-							}
-							auto& movement					  = entity.TryAdd<TopDownMovement>();
-							movement.max_acceleration		  = front.config.max_acceleration;
-							movement.max_deceleration		  = front.config.max_acceleration;
-							movement.max_speed				  = front.config.max_speed;
-							movement.keys_enabled			  = false;
-							movement.only_orthogonal_movement = false;
-						} else {
-							entity.template Remove<TopDownMovement>();
-							entity.template Remove<RigidBody>();
-						}
-					}
-				}
+			if (task.config.stop_distance < epsilon<float>) {
+				continue;
 			}
+			auto dir{ target_pos - new_pos };
+			if (auto dist2{ dir.MagnitudeSquared() };
+				dist2 >= task.config.stop_distance * task.config.stop_distance) {
+				continue;
+			}
+			effect.tasks.pop_front();
+			if (effect.tasks.empty()) {
+				continue;
+			}
+			auto front{ effect.tasks.front() };
+			if (front.config.teleport_on_start) {
+				SetPosition(entity, GetPosition(front.target));
+			}
+			if (front.config.move_mode != MoveMode::Velocity) {
+				entity.template Remove<TopDownMovement>();
+				entity.template Remove<RigidBody>();
+				continue;
+			}
+			entity.TryAdd<RigidBody>();
+			if (!entity.Has<Transform>()) {
+				SetPosition(entity, {});
+			}
+			auto& movement					  = entity.TryAdd<TopDownMovement>();
+			movement.max_acceleration		  = front.config.max_acceleration;
+			movement.max_deceleration		  = front.config.max_acceleration;
+			movement.max_speed				  = front.config.max_speed;
+			movement.keys_enabled			  = false;
+			movement.only_orthogonal_movement = false;
 		} else {
 			PTGN_ERROR("Unrecognized move mode")
 		}

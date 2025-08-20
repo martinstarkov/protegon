@@ -16,7 +16,7 @@
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 
 namespace impl {
 
@@ -182,27 +182,27 @@ struct ShakeEffect {
 
 class TranslateEffectSystem {
 public:
-	void Update(Scene& scene) const;
+	void Update(Manager& manager) const;
 };
 
 class RotateEffectSystem {
 public:
-	void Update(Scene& scene) const;
+	void Update(Manager& manager) const;
 };
 
 class ScaleEffectSystem {
 public:
-	void Update(Scene& scene) const;
+	void Update(Manager& manager) const;
 };
 
 class TintEffectSystem {
 public:
-	void Update(Scene& scene) const;
+	void Update(Manager& manager) const;
 };
 
 class BounceEffectSystem {
 public:
-	void Update(Scene& scene) const;
+	void Update(Manager& manager) const;
 
 private:
 	[[nodiscard]] static float ApplyEase(float t, bool symmetrical, const Ease& ease);
@@ -210,12 +210,12 @@ private:
 
 class ShakeEffectSystem {
 public:
-	void Update(Scene& scene, float time, float dt) const;
+	void Update(Manager& manager, float time, float dt) const;
 };
 
 class FollowEffectSystem {
 public:
-	void Update(Scene& scene) const;
+	void Update(Manager& manager) const;
 };
 
 template <typename TComponent, typename T>
