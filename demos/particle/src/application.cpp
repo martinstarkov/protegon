@@ -3,6 +3,7 @@
 #include "components/draw.h"
 #include "core/game.h"
 #include "core/time.h"
+#include "core/window.h"
 #include "input/input_handler.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -67,6 +68,7 @@ public:
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		p = CreateParticleEmitter(*this);
 
 		p.SetMaxParticles(1000);

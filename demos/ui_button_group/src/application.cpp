@@ -1,6 +1,9 @@
 #include "components/draw.h"
-#include "core/entity.h"
+#include "components/transform.h"
 #include "core/game.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
+#include "core/window.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -42,6 +45,7 @@ class ToggleButtonGroupScene : public Scene {
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		group = CreateToggleButtonGroup(*this);
 		group.Load("1", CreateToggleButtonGroupItem(V2_float{ 50, 50 }, 1));
 		group.Load("2", CreateToggleButtonGroupItem(V2_float{ 50, 230 }, 2));

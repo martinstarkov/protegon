@@ -5,6 +5,8 @@
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
+#include "core/window.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -35,6 +37,7 @@ public:
 	ToggleButton b2;
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		b1 = CreateButton(*this);
 		AddScript<ButtonScript1>(b1);
 		SetPosition(b1, V2_float{ 50, 50 });

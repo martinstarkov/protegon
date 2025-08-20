@@ -83,7 +83,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CameraShakeScene");
+	game.Init("CameraShakeScene: WASD: Move");
 	game.scene.Enter<CameraShakeScene>("");
 	return 0;
 }

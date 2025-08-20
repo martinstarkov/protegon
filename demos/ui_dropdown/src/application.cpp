@@ -1,8 +1,8 @@
 #include <functional>
 #include <string_view>
 
-#include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "debug/log.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -44,10 +44,13 @@ public:
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);
 		Dropdown dropdown3 = CreateDropdown(true);
 		Dropdown dropdown4 = CreateDropdown(false);
+
 		dropdown.AddButton(CreateButton("First", []() { PTGN_LOG("Pressed first"); }));
 		dropdown.AddButton(CreateButton("Second", []() { PTGN_LOG("Pressed second"); }));
 		dropdown.AddButton(dropdown2);
