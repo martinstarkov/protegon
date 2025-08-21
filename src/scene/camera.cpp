@@ -12,9 +12,7 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
-#include "core/time.h"
 #include "debug/log.h"
-#include "math/easing.h"
 #include "math/geometry.h"
 #include "math/geometry/rect.h"
 #include "math/math.h"
@@ -24,9 +22,6 @@
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
 #include "renderer/renderer.h"
-#include "tweens/follow_config.h"
-#include "tweens/shake_config.h"
-#include "tweens/tween_effects.h"
 
 namespace ptgn {
 
@@ -446,10 +441,6 @@ void Camera::SetZoom(float new_zoom) {
 	SetZoom(V2_float{ new_zoom });
 }
 
-void Camera::Translate(const V2_float& position_change) {
-	ptgn::GetTransform(*this).Translate(position_change);
-}
-
 void Camera::Zoom(const V2_float& zoom_change) {
 	auto zoom{ GetZoom() + zoom_change };
 	SetZoom(zoom);
@@ -459,9 +450,60 @@ void Camera::Zoom(float zoom_change) {
 	Zoom(V2_float{ zoom_change });
 }
 
-void Camera::Rotate(float angle_change_radians) {
-	auto rotation{ GetRotation(*this) + angle_change_radians };
-	ptgn::SetRotation(*this, rotation);
+void Camera::SetViewportToLogicalResolution(bool continuously) {
+	auto& info{ Get<impl::CameraInfo>() };
+	SetZoom(1.0f);
+	if (continuously) {
+		info.SetResizeToLogicalResolution(true);
+		SubscribeToLogicalResolutionEvents();
+	} else {
+		auto logical_resolution{ game.renderer.GetLogicalResolution() };
+		SetViewportSize(logical_resolution);
+	}
+}
+
+void Camera::Reset() {
+	ptgn::SetTransform(*this, Transform{});
+	auto& info{ Get<impl::CameraInfo>() };
+	info = {};
+	SubscribeToLogicalResolutionEvents();
+}
+
+V2_float Camera::GetTopLeft() const {
+	const auto& info{ Get<impl::CameraInfo>() };
+	auto viewport_size{ info.GetViewportSize() };
+	auto half_viewport_size{ viewport_size * 0.5f };
+	return ToWorldPoint(
+		V2_float{ -half_viewport_size.x, -half_viewport_size.y }, GetTransform(*this)
+	);
+}
+
+const Matrix4& Camera::GetViewProjection() const {
+	return Get<impl::CameraInfo>().GetViewProjection(ptgn::GetTransform(*this), *this);
+}
+
+void Camera::PrintInfo() const {
+	auto bounds_position{ GetBoundsPosition() };
+	auto bounds_size{ GetBoundsSize() };
+	auto orient{ GetOrientation() };
+	Print(
+		"center position: ", GetPosition(*this), ", viewport size: ", GetViewportSize(),
+		", zoom: ", GetZoom(), ", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ",
+		RadToDeg(orient.y), ", ", RadToDeg(orient.z), "), Bounds: "
+	);
+	if (bounds_size.IsZero()) {
+		PrintLine("none");
+	} else {
+		PrintLine(bounds_position, "->", bounds_position + bounds_size);
+	}
+}
+
+Camera CreateCamera(Manager& manager) {
+	Camera camera{ manager.CreateEntity() };
+	SetPosition(camera, {});
+	camera.Add<impl::CameraInfo>();
+	camera.SubscribeToLogicalResolutionEvents();
+	return camera;
 }
 
 /*
@@ -491,144 +533,6 @@ void Camera::Roll(float angle_change) {
 	Rotate({ 0.0f, 0.0f, angle_change });
 }
 */
-
-void Camera::SetViewportToLogicalResolution(bool continuously) {
-	auto& info{ Get<impl::CameraInfo>() };
-	SetZoom(1.0f);
-	if (continuously) {
-		info.SetResizeToLogicalResolution(true);
-		SubscribeToLogicalResolutionEvents();
-	} else {
-		auto logical_resolution{ game.renderer.GetLogicalResolution() };
-		SetViewportSize(logical_resolution);
-	}
-}
-
-void Camera::Reset() {
-	ptgn::SetTransform(*this, Transform{});
-	auto& info{ Get<impl::CameraInfo>() };
-	info = {};
-	SubscribeToLogicalResolutionEvents();
-}
-
-Camera& Camera::StartFollow(Entity target, const FollowConfig& config, bool force) {
-	ptgn::StartFollow(*this, target, config, force);
-	return *this;
-}
-
-Camera& Camera::StopFollow(bool force) {
-	ptgn::StopFollow(*this, force);
-	return *this;
-}
-
-// TODO: Fix these. They need to use a rectangle because transparent pixels dont tint.
-// Camera& Camera::FadeTo(
-//	const Color& target_color, milliseconds duration, const Ease& ease, bool force
-//) {
-//	ptgn::TintTo(*this, target_color, duration, ease, force);
-//	return *this;
-//}
-
-// Camera& Camera::FadeFrom(
-//	const Color& start_color, milliseconds duration, const Ease& ease, bool force
-//) {
-//	SetTint(*this, start_color);
-//	ptgn::FadeIn(*this, duration, ease, force);
-//	return *this;
-// }
-
-V2_float Camera::GetTopLeft() const {
-	const auto& info{ Get<impl::CameraInfo>() };
-	auto viewport_size{ info.GetViewportSize() };
-	auto half_viewport_size{ viewport_size * 0.5f };
-	return ToWorldPoint(
-		V2_float{ -half_viewport_size.x, -half_viewport_size.y }, GetTransform(*this)
-	);
-}
-
-Camera& Camera::TranslateTo(
-	const V2_float& target_position, milliseconds duration, const Ease& ease, bool force
-) {
-	ptgn::TranslateTo(*this, target_position, duration, ease, force);
-	return *this;
-}
-
-Camera& Camera::RotateTo(float target_angle, milliseconds duration, const Ease& ease, bool force) {
-	ptgn::RotateTo(*this, target_angle, duration, ease, force);
-	return *this;
-}
-
-Camera& Camera::ZoomTo(
-	const V2_float& target_zoom, milliseconds duration, const Ease& ease, bool force
-) {
-	ptgn::ScaleTo(*this, target_zoom, duration, ease, force);
-	return *this;
-}
-
-Camera& Camera::Shake(
-	float intensity, milliseconds duration, const ShakeConfig& config, const Ease& ease, bool force
-) {
-	ptgn::Shake(*this, intensity, duration, config, ease, force);
-	return *this;
-}
-
-Camera& Camera::Shake(float intensity, const ShakeConfig& config, bool force) {
-	ptgn::Shake(*this, intensity, config, force);
-	return *this;
-}
-
-Camera& Camera::StopShake(bool force) {
-	ptgn::StopShake(*this, force);
-	return *this;
-}
-
-const Matrix4& Camera::GetViewProjection() const {
-	return Get<impl::CameraInfo>().GetViewProjection(ptgn::GetTransform(*this), *this);
-}
-
-void Camera::PrintInfo() const {
-	auto bounds_position{ GetBoundsPosition() };
-	auto bounds_size{ GetBoundsSize() };
-	auto orient{ GetOrientation() };
-	Print(
-		"center position: ", GetPosition(*this), ", viewport size: ", GetViewportSize(),
-		", zoom: ", GetZoom(), ", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ",
-		RadToDeg(orient.y), ", ", RadToDeg(orient.z), "), Bounds: "
-	);
-	if (bounds_size.IsZero()) {
-		PrintLine("none");
-	} else {
-		PrintLine(bounds_position, "->", bounds_position + bounds_size);
-	}
-}
-
-void CameraManager::Init() {
-	cameras_.Reset();
-	PTGN_ASSERT(!primary);
-	primary = CreateCamera(cameras_);
-}
-
-void CameraManager::Reset() {
-	primary.Reset();
-}
-
-void to_json(json& j, const CameraManager& camera_manager) {
-	j["cameras"] = camera_manager.cameras_;
-	j["primary"] = camera_manager.primary;
-}
-
-void from_json(const json& j, CameraManager& camera_manager) {
-	j.at("cameras").get_to(camera_manager.cameras_);
-	camera_manager.primary = camera_manager.cameras_.GetEntityByUUID(j.at("primary").at("UUID"));
-}
-
-Camera CreateCamera(Manager& manager) {
-	Camera camera{ manager.CreateEntity() };
-	SetPosition(camera, {});
-	camera.Add<impl::CameraInfo>();
-	camera.SubscribeToLogicalResolutionEvents();
-	return camera;
-}
 
 /*
 // To move camera according to mouse drag (in 3D):

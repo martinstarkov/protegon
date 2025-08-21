@@ -23,7 +23,7 @@ public:
 
 	void OnUpdate() override {
 		MoveWASD(vel, V2_float{ 10.0f } * game.dt(), true);
-		GetTransform(entity).Translate(vel);
+		Translate(entity, vel);
 	}
 };
 

@@ -40,26 +40,26 @@ public:
 		player = CreateRect(*this, V2_float{ 400.0f, 150.0f }, { 50.0f, 50.0f }, color::Red);
 		auto transform1{ GetTransform(player) };
 		auto abs_transform1{ GetAbsoluteTransform(player) };
-		auto transform2{ GetTransform(camera.primary) };
-		auto abs_transform2{ GetAbsoluteTransform(camera.primary) };
-		camera.primary.StartFollow(player);
+		auto transform2{ GetTransform(camera) };
+		auto abs_transform2{ GetAbsoluteTransform(camera) };
+		StartFollow(camera, player);
 		auto transform3{ GetTransform(player) };
 		auto abs_transform3{ GetAbsoluteTransform(player) };
-		auto transform4{ GetTransform(camera.primary) };
-		auto abs_transform4{ GetAbsoluteTransform(camera.primary) };
+		auto transform4{ GetTransform(camera) };
+		auto abs_transform4{ GetAbsoluteTransform(camera) };
 
-		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera.primary); }));
+		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera); }));
 		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() {
-					 Shake(camera.primary, 0.1f, {}, false);
+					 Shake(camera, 0.1f, {}, false);
 				 }));
 		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() {
-					 Shake(camera.primary, 0.25f, {}, false);
+					 Shake(camera, 0.25f, {}, false);
 				 }));
 		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() {
-					 Shake(camera.primary, 0.5f, {}, false);
+					 Shake(camera, 0.5f, {}, false);
 				 }));
 		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() {
-					 Shake(camera.primary, 1.0f, {}, false);
+					 Shake(camera, 1.0f, {}, false);
 				 }));
 
 		V2_float screen_offset{ 10, 30 };

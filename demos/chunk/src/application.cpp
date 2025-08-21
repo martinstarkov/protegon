@@ -66,28 +66,27 @@ public:
 		game.texture.Load("blue", "resources/blue_tile.png");
 		game.texture.Load("green", "resources/green_tile.png");
 
-		chunk_manager.AddNoiseLayer(
-			NoiseLayer{ fractal_noise, [&](const V2_float& coordinate, float noise) {
-						   return CreateColorTile(coordinate, color::White.WithAlpha(noise));
-					   } }
-		);
+		chunk_manager.AddNoiseLayer(NoiseLayer{
+			fractal_noise, [&](const V2_float& coordinate, float noise) {
+				return CreateColorTile(coordinate, color::White.WithAlpha(noise));
+			} });
 
 		sheep = CreateSheep(V2_float{ 0, 0 });
-		camera.primary.StartFollow(sheep);
+		StartFollow(camera, sheep);
 	}
 
 	void Update() override {
 		MoveWASD(vel, speed, true);
-		GetTransform(sheep).Translate(vel * game.dt());
+		Translate(sheep, vel * game.dt());
 
 		if (game.input.KeyPressed(Key::Q)) {
-			camera.primary.Zoom(-zoom_speed * game.dt());
+			camera.Zoom(-zoom_speed * game.dt());
 		}
 		if (game.input.KeyPressed(Key::E)) {
-			camera.primary.Zoom(zoom_speed * game.dt());
+			camera.Zoom(zoom_speed * game.dt());
 		}
 
-		chunk_manager.Update(*this, camera.primary);
+		chunk_manager.Update(*this, camera);
 	}
 };
 

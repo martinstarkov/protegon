@@ -116,8 +116,7 @@ void SetProgress(const V2_float& size, const Entity& e, float progress) {
 	if (HasParent(e)) {
 		target = GetParent(e);
 	}
-	auto& t = GetTransform(target);
-	t.SetPositionX(size.x / 2.0f + width * progress);
+	SetPositionX(target, size.x / 2.0f + width * progress);
 }
 
 class TweenScene : public Scene {

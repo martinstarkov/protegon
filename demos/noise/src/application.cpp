@@ -120,16 +120,16 @@ public:
 		float dt{ game.dt() };
 
 		if (game.input.KeyPressed(Key::W)) {
-			camera.primary.Translate({ 0, -pan_speed * dt });
+			Translate(camera,{ 0, -pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::S)) {
-			camera.primary.Translate({ 0, pan_speed * dt });
+			Translate(camera,{ 0, pan_speed * dt });
 		}
 		if (game.input.KeyPressed(Key::A)) {
-			camera.primary.Translate({ -pan_speed * dt, 0 });
+			Translate(camera,{ -pan_speed * dt, 0 });
 		}
 		if (game.input.KeyPressed(Key::D)) {
-			camera.primary.Translate({ pan_speed * dt, 0 });
+			Translate(camera,{ pan_speed * dt, 0 });
 		}
 
 		// Clamp fractal noise parameters.
@@ -167,7 +167,7 @@ public:
 	}
 
 	void Draw() {
-		auto vertices{ camera.primary.GetWorldVertices() };
+		auto vertices{ camera.GetWorldVertices() };
 		V2_int min{ vertices[0] / pixel_size - V2_int{ 1 } };
 		V2_int max{ vertices[2] / pixel_size + V2_int{ 1 } };
 

@@ -85,12 +85,12 @@ public:
 
 		// TODO: Fix.
 		DrawDebugTexture("background", bg_pos, { size.x * bg_aspect_ratio, size.y });
-		camera.primary.Translate(background_cam);
+		Translate(camera,background_cam);
 		DrawDebugTexture("stars", stars_pos, { size.x * bg_aspect_ratio, size.y });
-		camera.primary.Translate(star_cam);
+		Translate(camera,star_cam);
 		DrawDebugTexture("planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale);
 		DrawDebugTexture("planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale);
-		camera.primary.Translate(foreground_cam);
+		Translate(camera,foreground_cam);
 	}
 };
 

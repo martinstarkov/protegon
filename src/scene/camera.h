@@ -7,17 +7,12 @@
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/script.h"
-#include "core/time.h"
-#include "math/easing.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
-#include "serialization/fwd.h"
 #include "serialization/serializable.h"
-#include "tweens/follow_config.h"
-#include "tweens/shake_config.h"
 
 // TODO: Add 2D camera and rename Camera to Camera3D.
 // TODO: Add physical resolution camera functions.
@@ -142,120 +137,11 @@ struct CameraResizeScript : public Script<CameraResizeScript, LogicalResolutionS
 
 class Camera : public Entity {
 public:
-	// Get camera top left point.
-	[[nodiscard]] V2_float GetTopLeft() const;
-	/**
-	 * @brief Translates the camera to a target position over a specified duration.
-	 *
-	 * @param target_position The position to move the camera's center to.
-	 * @param duration The duration over which the translation should occur.
-	 * @param ease The easing function to apply for the translation animation.
-	 * @param force If true, forcibly overrides any ongoing translation.
-	 */
-	Camera& TranslateTo(
-		const V2_float& target_position, milliseconds duration,
-		const Ease& ease = SymmetricalEase::Linear, bool force = true
-	);
-
-	/**
-	 * @brief Rotates the camera to a target angle over a specified duration.
-	 *
-	 * @param target_angle The angle (in radians) to rotate the camera to. Positive clockwise,
-	 * negative counter-clockwise.
-	 * @param duration The duration over which the rotation should occur.
-	 * @param ease The easing function to apply for the rotation animation.
-	 * @param force If true, forcibly overrides any ongoing rotation.
-	 *            -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *             1.5708
-	 */
-	Camera& RotateTo(
-		float target_angle, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
-		bool force = true
-	);
-
-	/**
-	 * @brief Zooms the camera to a target zoom over a specified duration.
-	 *
-	 * @param target_zoom The target zoom (x, y) to apply to the camera.
-	 * @param duration The duration over which the zooming should occur.
-	 * @param ease The easing function to apply for the zoom animation.
-	 * @param force If true, forcibly overrides any ongoing zooming.
-	 */
-	Camera& ZoomTo(
-		const V2_float& target_zoom, milliseconds duration,
-		const Ease& ease = SymmetricalEase::Linear, bool force = true
-	);
-
-	/**
-	 * @brief Applies a continuous shake effect to the camera.
-	 *
-	 * @param intensity The intensity of the shake, in the range [0, 1].
-	 * @param duration The total duration of the shake effect. If -1, the shake continues until
-	 * StopShake is called.
-	 * @param config Configuration parameters for the shake behavior.
-	 * @param ease The easing function to use for the shake. If SymmetricalEase::None, shake remains
-	 * at full intensity for the entire time.
-	 * @param force If true, overrides any existing shake effect.
-	 */
-	Camera& Shake(
-		float intensity, milliseconds duration, const ShakeConfig& config = {},
-		const Ease& ease = SymmetricalEase::None, bool force = true
-	);
-
-	/**
-	 * @brief Applies an instantenous shake effect to the camera.
-	 *
-	 * @param entity The entity to apply the shake effect to.
-	 * @param intensity The intensity of the shake, in the range [0, 1].
-	 * @param config Configuration parameters for the shake behavior.
-	 * @param force If true, overrides any existing shake effect.
-	 */
-	Camera& Shake(float intensity, const ShakeConfig& config = {}, bool force = true);
-
-	/**
-	 * @brief Stops any ongoing camera shake.
-	 *
-	 * @param force If true, clears all queued or active shake effects.
-	 */
-	Camera& StopShake(bool force = true);
-
-	Camera& StartFollow(Entity target, const FollowConfig& config = {}, bool force = true);
-
-	Camera& StopFollow(bool force = false);
-
-	/**
-	 * @brief Fades the camera from its current tint to a color over a specified duration.
-	 *
-	 * @param target_color The target color to fade the camera to.
-	 * @param duration The duration over which the fade should occur.
-	 * @param ease The easing function to apply for the fade animation.
-	 * @param force If true, forcibly overrides any ongoing fading.
-	 */
-	// TODO: Fix.
-	// Camera& FadeTo(
-	//	const Color& target_color, milliseconds duration,
-	//	const Ease& ease = SymmetricalEase::Linear, bool force = true
-	//);
-
-	/**
-	 * @brief Fades the camera from the specified color to transparent over a specified duration.
-	 *
-	 * @param start_color The color that the camera fades from.
-	 * @param duration The duration over which the fade should occur.
-	 * @param ease The easing function to apply for the fade animation.
-	 * @param force If true, forcibly overrides any ongoing fading.
-	 */
-	// TODO: Fix.
-	// Camera& FadeFrom(
-	//	const Color& start_color, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
-	//	bool force = true
-	//);
-
 	Camera() = default;
 	Camera(const Entity& entity);
+
+	// Get camera top left point.
+	[[nodiscard]] V2_float GetTopLeft() const;
 
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;
@@ -290,8 +176,6 @@ public:
 
 	void SetViewportSize(const V2_float& viewport_size);
 
-	void Translate(const V2_float& position_change);
-
 	void SetZoom(float new_zoom);
 	void SetZoom(V2_float new_zoom);
 
@@ -304,68 +188,18 @@ public:
 	// (yaw, pitch, roll) in radians.
 	// void Rotate(const V3_float& angle_change_radians);
 
-	// Set 2D rotation angle in radians.
-	/* Range: (-3.14159, 3.14159].
-	 * (clockwise positive).
-	 *            -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *             1.5708
-	 */
-	// void SetRotation(float angle_radians);
-
-	// Rotate camera in 2D (radians).
-	/* Range: (-3.14159, 3.14159].
-	 * (clockwise positive).
-	 *            -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *             1.5708
-	 */
-	void Rotate(float angle_change_radians);
-
-	// Angle in radians.
+	//// Angle in radians.
 	// void SetYaw(float angle_radians);
-
 	//// Angle in radians.
 	// void Yaw(float angle_change_radians);
-
 	//// Angle in radians.
 	// void SetPitch(float angle_radians);
-
 	//// Angle in radians.
 	// void Pitch(float angle_change_radians);
-
 	//// Angle in radians.
 	// void SetRoll(float angle_radians);
-
 	//// Angle in radians.
 	// void Roll(float angle_change_radians);
-
-	/*
-	// Only applies when camera is following a target.
-	// Range: [0, 1]. Determines how smoothly the camera tracks to the target's position. 1 for
-	// instant tracking, 0 to disable tracking.
-	void SetLerp(const V2_float& lerp = V2_float{ 1.0f });
-
-	[[nodiscard]] V2_float GetLerp() const;
-
-	// Only applies when camera is following a target.
-	// Deadzone is a rectangle centered on the target inside of which the camera does not track the
-	// target. If {}, deadzone is removed.
-	void SetDeadzone(const V2_float& size = {});
-
-	[[nodiscard]] V2_float GetDeadzone() const;
-
-	// Only applies when camera is following a target.
-	// Sets an offset such that the camera follows target.transform + offset.
-	// If {}, offset is removed.
-	void SetFollowOffset(const V2_float& offset = {});
-
-	[[nodiscard]] V2_float GetFollowOffset() const;
-	*/
 
 	void Reset();
 
@@ -388,17 +222,6 @@ protected:
 
 	void SubscribeToLogicalResolutionEvents();
 	void UnsubscribeFromLogicalResolutionEvents();
-
-	// @param start_color Starting color.
-	// @param end_color Ending color.
-	// @param duration Duration of fade.
-	// @param ease Easing function for the fade.
-	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
-	// immediately, clearing any previously queued fades.
-	/*Tween& FadeFromTo(
-		const Color& start_color, const Color& end_color, milliseconds duration, const Ease& ease,
-		bool force
-	);*/
 
 	void RefreshBounds();
 
