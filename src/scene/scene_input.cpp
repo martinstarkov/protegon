@@ -143,6 +143,10 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 	for (Entity entity : all_entities) {
 		auto base_transform{ GetAbsoluteTransform(entity) };
+		Transform base_draw_transform;
+		if (draw_interactives_) {
+			base_draw_transform = GetDrawTransform(entity);
+		}
 		std::vector<std::pair<Shape, Entity>> shapes;
 		GetShapes(entity, entity, shapes);
 		entity_shapes.try_emplace(entity, base_transform, shapes);
@@ -152,9 +156,11 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 			// Then apply shape entity origin.
 			transform = ApplyOffset(shape, transform, shape_entity);
 			if (draw_interactives_) {
+				base_draw_transform = ApplyOffset(shape, base_draw_transform, entity);
+				base_draw_transform = ApplyOffset(shape, base_draw_transform, shape_entity);
 				DrawDebugShape(
-					transform, shape, draw_interactive_color_, draw_interactive_line_width_,
-					entity.GetCamera()
+					base_draw_transform, shape, draw_interactive_color_,
+					draw_interactive_line_width_, entity.GetCamera()
 				);
 			}
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
@@ -535,10 +541,7 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	const auto& scene{ game.scene.Get(scene_key_) };
 
-	Transform camera_transform{ GetTransform(scene.camera) };
-	auto viewport_size{ scene.camera.GetViewportSize() };
-
-	return ToWorldPoint(screen_point - viewport_size * 0.5f, camera_transform);
+	return ToWorldPoint(screen_point, scene.camera);
 }
 
 V2_float SceneInput::GetMousePosition() const {

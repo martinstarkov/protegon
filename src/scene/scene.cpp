@@ -166,7 +166,7 @@ void Scene::InternalExit() {
 void Scene::InternalDraw() {
 	if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {
-			auto transform{ GetAbsoluteTransform(entity) };
+			auto transform{ GetDrawTransform(entity) };
 			transform = ApplyOffset(collider.shape, transform, entity);
 			DrawDebugShape(
 				transform, collider.shape, collider_color_, collider_line_width_, entity.GetCamera()
