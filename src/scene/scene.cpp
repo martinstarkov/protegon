@@ -110,7 +110,7 @@ void Scene::ReEnter() {
 }
 
 V2_float Scene::GetScale(const Camera& relative_to_camera) const {
-	auto cam{ relative_to_camera ? relative_to_camera : camera.primary };
+	auto cam{ relative_to_camera ? relative_to_camera : camera };
 	// auto camera_zoom{ cam.GetZoom() };
 	// PTGN_ASSERT(camera_zoom.BothAboveZero());
 	V2_float camera_size{ cam.GetViewportSize() };
@@ -130,7 +130,9 @@ const RenderTarget& Scene::GetRenderTarget() const {
 void Scene::Init() {
 	active_ = true;
 
-	camera.Init();
+	cameras_.Reset();
+	PTGN_ASSERT(!camera);
+	camera = CreateCamera(cameras_);
 	input.Init(key_);
 }
 
@@ -182,9 +184,9 @@ void Scene::InternalUpdate() {
 	render_data.drawing_to = render_target_;
 
 	Refresh();
-	camera.cameras_.Refresh();
+	cameras_.Refresh();
 
-	game.input.InvokeInputEvents(camera.cameras_);
+	game.input.InvokeInputEvents(cameras_);
 	game.input.InvokeInputEvents(*this);
 
 	input.Update(*this);
@@ -197,7 +199,7 @@ void Scene::InternalUpdate() {
 		manager.Refresh();
 	};
 
-	invoke_scripts(camera.cameras_);
+	invoke_scripts(cameras_);
 	invoke_scripts(*this);
 
 	float dt{ game.dt() };
@@ -211,15 +213,15 @@ void Scene::InternalUpdate() {
 		invoke_scripts(manager);
 	};
 
-	invoke_scripts(camera.cameras_);
+	invoke_scripts(cameras_);
 	update_scripts(*this);
 
 	Update();
 
-	camera.cameras_.Refresh();
+	cameras_.Refresh();
 	Refresh();
 
-	invoke_scripts(camera.cameras_);
+	invoke_scripts(cameras_);
 	invoke_scripts(*this);
 
 	ParticleEmitter::Update(*this);
@@ -236,7 +238,7 @@ void Scene::InternalUpdate() {
 		follow_effects_.Update(manager);
 	};
 
-	update_tweens(camera.cameras_);
+	update_tweens(cameras_);
 	update_tweens(*this);
 
 	impl::AnimationSystem::Update(*this);
@@ -261,7 +263,7 @@ void Scene::InternalUpdate() {
 		}
 	};
 
-	update_transforms(camera.cameras_);
+	update_transforms(cameras_);
 	update_transforms(*this);
 
 	game.scene.current_ = {};
@@ -269,12 +271,13 @@ void Scene::InternalUpdate() {
 
 void to_json(json& j, const Scene& scene) {
 	to_json(j["manager"], static_cast<const Manager&>(scene));
+	j["cameras"]			 = scene.cameras_;
+	j["camera"]				 = scene.camera;
 	j["key"]				 = scene.key_;
 	j["active"]				 = scene.active_;
 	j["actions"]			 = scene.actions_;
 	j["physics"]			 = scene.physics;
 	j["input"]				 = scene.input;
-	j["camera"]				 = scene.camera;
 	j["collider_visibility"] = scene.collider_visibility_;
 	j["collider_color"]		 = scene.collider_color_;
 	j["render_target"]		 = scene.render_target_;
@@ -297,8 +300,10 @@ void from_json(const json& j, Scene& scene) {
 	j.at("collider_color").get_to(scene.collider_color_);
 
 	j.at("input").get_to(scene.input);
-	j.at("camera").get_to(scene.camera);
 	j.at("render_target").get_to(scene.render_target_);
+
+	j.at("cameras").get_to(scene.cameras_);
+	scene.camera = scene.cameras_.GetEntityByUUID(j.at("camera").at("UUID"));
 }
 
 } // namespace ptgn

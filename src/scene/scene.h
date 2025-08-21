@@ -98,7 +98,7 @@ public:
 
 	SceneInput input;
 	Physics physics;
-	CameraManager camera;
+	Camera camera;
 
 	friend void to_json(json& j, const Scene& scene);
 	friend void from_json(const json& j, Scene& scene);
@@ -107,6 +107,8 @@ private:
 	friend class impl::RenderData;
 	friend class impl::SceneManager;
 	friend class SceneTransition;
+
+	Manager cameras_;
 
 	impl::CollisionHandler collision_;
 
@@ -132,7 +134,6 @@ private:
 
 	void Add(Action new_action);
 
-	// TODO: Move back to RenderData and clear between scene draws.
 	RenderTarget render_target_;
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };

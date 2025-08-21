@@ -567,7 +567,7 @@ void RenderData::AddShader(
 
 	std::vector<TextureId> texture_id;
 
-	auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
+	auto camera{ render_state.camera ? render_state.camera : scene.camera };
 
 	V2_int viewport_position;
 	V2_int viewport_size;
@@ -682,7 +682,7 @@ void RenderData::DrawCall(
 }
 
 void RenderData::Flush(const Scene& scene) {
-	const auto camera{ render_state.camera ? render_state.camera : scene.camera.primary };
+	const auto camera{ render_state.camera ? render_state.camera : scene.camera };
 
 	V2_int viewport_position{ 0, 0 };
 	V2_int viewport_size{ drawing_to.GetTextureSize() };
@@ -930,7 +930,7 @@ void RenderData::DrawToScreen(Scene& scene) {
 		0.0f, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	) };
 
-	auto tint{ GetTint(scene.camera.primary) };
+	auto tint{ GetTint(scene.camera) };
 
 	DrawCall(
 		*shader,

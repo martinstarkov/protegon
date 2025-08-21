@@ -535,8 +535,8 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	const auto& scene{ game.scene.Get(scene_key_) };
 
-	Transform camera_transform{ GetTransform(scene.camera.primary) };
-	auto viewport_size{ scene.camera.primary.GetViewportSize() };
+	Transform camera_transform{ GetTransform(scene.camera) };
+	auto viewport_size{ scene.camera.GetViewportSize() };
 
 	return ToWorldPoint(screen_point - viewport_size * 0.5f, camera_transform);
 }

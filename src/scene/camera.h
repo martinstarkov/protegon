@@ -411,25 +411,6 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 	return os;
 }
 
-class CameraManager {
-public:
-	void Reset();
-
-	Camera primary;
-
-	friend void to_json(json& j, const CameraManager& camera_manager);
-	friend void from_json(const json& j, CameraManager& camera_manager);
-
-private:
-	friend class impl::SceneManager;
-	friend class Scene;
-	friend class impl::RenderData;
-
-	Manager cameras_;
-
-	void Init();
-};
-
 Camera CreateCamera(Manager& manager);
 
 /*

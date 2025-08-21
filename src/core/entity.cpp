@@ -89,7 +89,7 @@ static RenderTarget GetParentRenderTarget(const Entity& entity) {
 }
 
 const Camera& Entity::GetCamera() const {
-	const auto& primary{ GetScene().camera.primary };
+	const auto& primary{ GetScene().camera };
 	const auto get_camera = [&](const Entity& entity) -> const Camera* {
 		if (entity) {
 			if (const auto camera{ entity.TryGet<Camera>() }) {
