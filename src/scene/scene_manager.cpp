@@ -180,7 +180,7 @@ void SceneManager::Update() {
 
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
-		invoke_resolution_events((*sc.scene).camera.cameras_);
+		invoke_resolution_events((*sc.scene).cameras_);
 		invoke_resolution_events(*sc.scene);
 		if (sc.scene->active_) {
 			sc.scene->InternalUpdate();
