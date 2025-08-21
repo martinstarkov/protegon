@@ -67,6 +67,7 @@ struct Transform {
 	Transform& SetPositionX(float x);
 	Transform& SetPositionY(float y);
 	Transform& SetRotation(float rotation);
+	Transform& SetScale(float scale);
 	Transform& SetScale(const V2_float& scale);
 	Transform& SetScaleX(float x);
 	Transform& SetScaleY(float y);
@@ -135,6 +136,13 @@ Entity& SetTransform(Entity& entity, const Transform& transform);
 // scene camera position.
 // @return *this.
 Entity& SetPosition(Entity& entity, const V2_float& position);
+Entity& SetPositionX(Entity& entity, float position_x);
+Entity& SetPositionY(Entity& entity, float position_y);
+
+// position += position_difference
+Entity& Translate(Entity& entity, const V2_float& position_difference);
+Entity& TranslateX(Entity& entity, float position_x_difference);
+Entity& TranslateY(Entity& entity, float position_y_difference);
 
 // @return The relative position of the entity with respect to its parent entity, camera, or
 // scene camera position.
@@ -143,10 +151,22 @@ Entity& SetPosition(Entity& entity, const V2_float& position);
 // @return The absolute position of the entity with respect to its parent scene camera position.
 [[nodiscard]] V2_float GetAbsolutePosition(const Entity& entity);
 
+// Set 2D rotation angle in radians.
+/* Range: (-3.14159, 3.14159].
+ * (clockwise positive).
+ *            -1.5708
+ *               |
+ *    3.14159 ---o--- 0
+ *               |
+ *             1.5708
+ */
 // Set the relative rotation of the entity with respect to its parent entity, camera, or
 // scene camera rotation. Clockwise positive. Unit: Radians.
 // @return *this.
 Entity& SetRotation(Entity& entity, float rotation);
+
+// rotation += angle_difference
+Entity& Rotate(Entity& entity, float angle_difference);
 
 // @return The relative rotation of the entity with respect to its parent entity, camera, or
 // scene camera rotation. Clockwise positive. Unit: Radians.
@@ -161,6 +181,13 @@ Entity& SetRotation(Entity& entity, float rotation);
 // @return *this.
 Entity& SetScale(Entity& entity, const V2_float& scale);
 Entity& SetScale(Entity& entity, float scale);
+Entity& SetScaleX(Entity& entity, float scale_x);
+Entity& SetScaleY(Entity& entity, float scale_y);
+
+// scale *= scale_multiplier
+Entity& Scale(Entity& entity, const V2_float& scale_multiplier);
+Entity& ScaleX(Entity& entity, float scale_x_multiplier);
+Entity& ScaleY(Entity& entity, float scale_y_multiplier);
 
 // @return The relative scale of the entity with respect to its parent entity, camera, or
 // scene camera scale.

@@ -201,7 +201,9 @@ void CollisionHandler::Intersect(Entity& entity1, float dt) {
 
 		auto& root_transform{ GetTransform(root_entity) };
 
-		root_transform.Translate(intersection.normal * (intersection.depth + slop_));
+		auto minimum_translation_vector{ intersection.normal * (intersection.depth + slop_) };
+
+		Translate(root_entity, minimum_translation_vector);
 
 		moved_entities.emplace_back(root_entity);
 

@@ -127,6 +127,10 @@ Transform& Transform::ClampRotation() {
 	return SetRotation(ClampAngle2Pi(rotation_));
 }
 
+Transform& Transform::SetScale(float scale) {
+	return SetScale(V2_float{ scale });
+}
+
 Transform& Transform::SetScale(const V2_float& scale) {
 	PTGN_ASSERT(!scale.HasZero(), "Cannot set transform scale with a zero component");
 	if (scale_ == scale) {
@@ -242,6 +246,31 @@ Entity& SetPosition(Entity& entity, const V2_float& position) {
 	return entity;
 }
 
+Entity& SetPositionX(Entity& entity, float position_x) {
+	GetTransform(entity).SetPositionX(position_x);
+	return entity;
+}
+
+Entity& SetPositionY(Entity& entity, float position_y) {
+	GetTransform(entity).SetPositionY(position_y);
+	return entity;
+}
+
+Entity& Translate(Entity& entity, const V2_float& position_difference) {
+	GetTransform(entity).Translate(position_difference);
+	return entity;
+}
+
+Entity& TranslateX(Entity& entity, float position_x_difference) {
+	GetTransform(entity).TranslateX(position_x_difference);
+	return entity;
+}
+
+Entity& TranslateY(Entity& entity, float position_y_difference) {
+	GetTransform(entity).TranslateY(position_y_difference);
+	return entity;
+}
+
 V2_float GetPosition(const Entity& entity) {
 	return GetTransform(entity).GetPosition();
 }
@@ -252,6 +281,11 @@ V2_float GetAbsolutePosition(const Entity& entity) {
 
 Entity& SetRotation(Entity& entity, float rotation) {
 	GetTransform(entity).SetRotation(rotation);
+	return entity;
+}
+
+Entity& Rotate(Entity& entity, float angle_difference) {
+	GetTransform(entity).Rotate(angle_difference);
 	return entity;
 }
 
@@ -269,6 +303,31 @@ Entity& SetScale(Entity& entity, float scale) {
 
 Entity& SetScale(Entity& entity, const V2_float& scale) {
 	GetTransform(entity).SetScale(scale);
+	return entity;
+}
+
+Entity& SetScaleX(Entity& entity, float scale_x) {
+	GetTransform(entity).SetScaleX(scale_x);
+	return entity;
+}
+
+Entity& SetScaleY(Entity& entity, float scale_y) {
+	GetTransform(entity).SetScaleY(scale_y);
+	return entity;
+}
+
+Entity& Scale(Entity& entity, const V2_float& scale_multiplier) {
+	GetTransform(entity).Scale(scale_multiplier);
+	return entity;
+}
+
+Entity& ScaleX(Entity& entity, float scale_x_multiplier) {
+	GetTransform(entity).ScaleX(scale_x_multiplier);
+	return entity;
+}
+
+Entity& ScaleY(Entity& entity, float scale_y_multiplier) {
+	GetTransform(entity).ScaleY(scale_y_multiplier);
 	return entity;
 }
 
