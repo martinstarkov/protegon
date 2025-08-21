@@ -12,6 +12,7 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 // TODO: Add 2D camera and rename Camera to Camera3D.
@@ -23,6 +24,20 @@ class Scene;
 class CameraManager;
 class Camera;
 struct Color;
+
+// Determines what viewport size the camera resizes to.
+enum class CameraResizeMode {
+	PhysicalResolution,
+	LogicalResolution,
+	Custom
+};
+
+// Determines what viewport position the camera centers on.
+enum class CameraCenterMode {
+	PhysicalResolution,
+	LogicalResolution,
+	Custom
+};
 
 namespace impl {
 
@@ -235,6 +250,18 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 }
 
 Camera CreateCamera(Manager& manager);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	CameraCenterMode, { { CameraCenterMode::LogicalResolution, "logical_resolution" },
+						{ CameraCenterMode::PhysicalResolution, "physical_resolution" },
+						{ CameraCenterMode::Custom, "custom" } }
+);
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	CameraResizeMode, { { CameraResizeMode::LogicalResolution, "logical_resolution" },
+						{ CameraResizeMode::PhysicalResolution, "physical_resolution" },
+						{ CameraResizeMode::Custom, "custom" } }
+);
 
 /*
 class CameraController;
