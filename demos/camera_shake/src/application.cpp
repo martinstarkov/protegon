@@ -37,6 +37,7 @@ public:
 
 	void Enter() override {
 		input.SetDrawInteractives(true);
+		input.SetDrawInteractivesLineWidth(10.0f);
 
 		CreateRect(*this, V2_float{ 300.0f, 300.0f }, { 150.0f, 50.0f }, color::Green);
 		player = CreateRect(*this, V2_float{ 400.0f, 150.0f }, { 50.0f, 50.0f }, color::Red);

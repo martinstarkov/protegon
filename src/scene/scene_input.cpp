@@ -660,4 +660,12 @@ void SceneInput::SetDrawInteractives(bool draw_interactives) {
 	draw_interactives_ = draw_interactives;
 }
 
+void SceneInput::SetDrawInteractivesColor(const Color& color) {
+	draw_interactive_color_ = color;
+}
+
+void SceneInput::SetDrawInteractivesLineWidth(float line_width) {
+	draw_interactive_line_width_ = line_width;
+}
+
 } // namespace ptgn

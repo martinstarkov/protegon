@@ -41,6 +41,8 @@ public:
 	void SetTopOnly(bool top_only);
 
 	void SetDrawInteractives(bool draw_interactives);
+	void SetDrawInteractivesColor(const Color& color);
+	void SetDrawInteractivesLineWidth(float line_width);
 
 	// Convert a point from screen space to scene primary camera (world) space.
 	[[nodiscard]] V2_float ScreenToWorld(const V2_float& screen_point) const;
@@ -164,8 +166,8 @@ private:
 
 	bool draw_interactives_{ false };
 
-	constexpr static Color draw_interactive_color_{ color::Magenta };
-	constexpr static float draw_interactive_line_width_{ 1.0f };
+	Color draw_interactive_color_{ color::Magenta };
+	float draw_interactive_line_width_{ 1.0f };
 
 public:
 	PTGN_SERIALIZER_REGISTER_NAMED(
