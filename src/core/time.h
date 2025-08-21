@@ -84,7 +84,7 @@ constexpr typename From::rep to_hours(const From& duration) {
 }
 
 template <typename Rep, typename Period>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Period>& d) {
+inline std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Period>& d) {
 	os << d.count();
 
 	if constexpr (std::is_same_v<Period, std::milli>) {
