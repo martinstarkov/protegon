@@ -80,6 +80,7 @@ public:
 	}
 
 	void Update() override {
+		PTGN_LOG(input.GetMousePosition());
 		constexpr V2_float speed{ 3.0f, 3.0f };
 		V2_float pos{ GetPosition(player) };
 		MoveWASD(pos, speed, false);
