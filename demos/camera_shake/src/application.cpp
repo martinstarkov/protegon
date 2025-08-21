@@ -36,6 +36,8 @@ public:
 	}
 
 	void Enter() override {
+		input.SetDrawInteractives(true);
+
 		CreateRect(*this, V2_float{ 300.0f, 300.0f }, { 150.0f, 50.0f }, color::Green);
 		player = CreateRect(*this, V2_float{ 400.0f, 150.0f }, { 50.0f, 50.0f }, color::Red);
 		auto transform1{ GetTransform(player) };
@@ -66,10 +68,13 @@ public:
 		V2_float offset{ 6, 6 };
 		V2_float size{ 200, 50 };
 
+		auto cam1 = CreateCamera(*this);
+
 		grid.ForEach([&](auto coord, Button& b) {
 			SetPosition(b, screen_offset + (offset + size) * coord);
 			b.SetSize(size);
 			SetDrawOrigin(b, Origin::TopLeft);
+			b.Add<Camera>(cam1);
 		});
 	}
 
