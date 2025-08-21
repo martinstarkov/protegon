@@ -221,7 +221,7 @@ Transform GetAbsoluteTransform(const Entity& entity, bool relative_to_scene_prim
 	Transform relative_to;
 	if (HasParent(entity)) {
 		Entity parent{ GetParent(entity) };
-		relative_to = GetAbsoluteTransform(parent);
+		relative_to = GetAbsoluteTransform(parent, relative_to_scene_primary_camera);
 	}
 	auto absolute_transform{ transform.RelativeTo(relative_to) };
 	if (!relative_to_scene_primary_camera || entity.Has<impl::CameraInfo>()) {
