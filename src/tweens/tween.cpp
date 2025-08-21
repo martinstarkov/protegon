@@ -31,14 +31,6 @@
 
 namespace ptgn {
 
-Tween CreateTween(Manager& manager) {
-	Tween tween{ manager.CreateEntity() };
-
-	tween.Add<impl::TweenInstance>();
-
-	return tween;
-}
-
 Tween::Tween(const Entity& entity) : Entity{ entity } {}
 
 Tween& Tween::During(milliseconds duration) {
@@ -452,6 +444,14 @@ void Tween::Update(Manager& manager, float dt) {
 	}
 
 	invoke_tween_scripts();
+}
+
+Tween CreateTween(Manager& manager) {
+	Tween tween{ manager.CreateEntity() };
+
+	tween.Add<impl::TweenInstance>();
+
+	return tween;
 }
 
 } // namespace ptgn
