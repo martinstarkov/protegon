@@ -46,20 +46,20 @@ void CameraInfo::SetBoundingBox(
 	view_dirty			  = true;
 }
 
-void CameraInfo::SetResizeToLogicalResolution(bool resize) {
-	if (resize_to_logical_resolution == resize) {
+void CameraInfo::SetResizeMode(CameraResizeMode resize) {
+	if (resize_mode == resize) {
 		return;
 	}
-	resize_to_logical_resolution = resize;
-	projection_dirty			 = true;
+	resize_mode		 = resize;
+	projection_dirty = true;
 }
 
-void CameraInfo::SetCenterOnLogicalResolution(bool center) {
-	if (center_on_logical_resolution == center) {
+void CameraInfo::SetCenterMode(CameraCenterMode center) {
+	if (center_mode == center) {
 		return;
 	}
-	center_on_logical_resolution = center;
-	view_dirty					 = true;
+	center_mode = center;
+	view_dirty	= true;
 }
 
 void CameraInfo::SetFlip(Flip new_flip) {
@@ -115,12 +115,12 @@ V2_float CameraInfo::GetBoundingBoxSize() const {
 	return bounding_box_size;
 }
 
-bool CameraInfo::GetResizeToLogicalResolution() const {
-	return resize_to_logical_resolution;
+CameraResizeMode CameraInfo::GetResizeMode() const {
+	return resize_mode;
 }
 
-bool CameraInfo::GetCenterOnLogicalResolution() const {
-	return center_on_logical_resolution;
+CameraCenterMode CameraInfo::GetCenterMode() const {
+	return center_mode;
 }
 
 Flip CameraInfo::GetFlip() const {
@@ -160,11 +160,16 @@ const Matrix4& CameraInfo::GetProjection(const Transform& current) const {
 const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Entity& entity) const {
 	auto offset_transform{ GetOffset(entity) };
 
+	bool position_changed{ current.GetPosition() != previous.GetPosition() };
+
+	if (position_changed) {
+		center_mode = CameraCenterMode::Custom;
+	}
+
 	// Either view is dirty, the camera has been offset (due to shake or other effects), or the
 	// current position of the camera differs from its previous position (for instance, as a result
 	// of a system changing the position of the camera entity externally).
-	bool update_view{ view_dirty || current.GetPosition() != previous.GetPosition() ||
-					  offset_transform != Transform{} ||
+	bool update_view{ view_dirty || position_changed || offset_transform != Transform{} ||
 					  !NearlyEqual(current.GetRotation(), previous.GetRotation()) };
 
 	bool update_projection{ projection_dirty || current.GetScale() != previous.GetScale() };
@@ -230,6 +235,7 @@ void CameraInfo::RecalculateProjection(const Transform& current) const {
 	auto zoom{ Abs(current.GetScale()) };
 	PTGN_ASSERT(zoom.x > 0.0f && zoom.y > 0.0f);
 	V2_float extents{ (viewport_size * 0.5f) / zoom };
+	PTGN_LOG("Recalculating projections with viewport_size: ", viewport_size, " and zoom: ", zoom);
 	if (pixel_rounding) {
 		extents = Round(extents);
 	}
@@ -288,35 +294,63 @@ void CameraInfo::SetViewDirty() {
 	view_dirty = true;
 }
 
-void CameraResizeScript::OnLogicalResolutionChanged() {
+void CameraLogicalResolutionResizeScript::OnLogicalResolutionChanged() {
 	auto logical_resolution{ game.renderer.GetLogicalResolution() };
-	Camera::OnLogicalResolutionChanged(entity, logical_resolution);
+	Camera::OnResolutionChanged(
+		entity, logical_resolution, CameraResizeMode::LogicalResolution,
+		CameraCenterMode::LogicalResolution
+	);
+}
+
+void CameraPhysicalResolutionResizeScript::OnPhysicalResolutionChanged() {
+	auto physical_resolution{ game.renderer.GetPhysicalResolution() };
+	Camera::OnResolutionChanged(
+		entity, physical_resolution, CameraResizeMode::PhysicalResolution,
+		CameraCenterMode::PhysicalResolution
+	);
 }
 
 } // namespace impl
 
-void Camera::SubscribeToLogicalResolutionEvents() {
-	TryAddScript<impl::CameraResizeScript>(*this);
-	auto logical_resolution{ game.renderer.GetLogicalResolution() };
-	OnLogicalResolutionChanged(*this, logical_resolution);
+void Camera::SubscribeToResolutionEvents(
+	CameraResizeMode resize_mode, CameraCenterMode center_mode
+) {
+	if (resize_mode == CameraResizeMode::Custom) {
+		return;
+	}
+	TryAddScript<impl::CameraLogicalResolutionResizeScript>(*this);
+	TryAddScript<impl::CameraPhysicalResolutionResizeScript>(*this);
+	V2_int resolution;
+	if (resize_mode == CameraResizeMode::LogicalResolution) {
+		resolution = game.renderer.GetLogicalResolution();
+	} else if (resize_mode == CameraResizeMode::PhysicalResolution) {
+		resolution = game.renderer.GetPhysicalResolution();
+	}
+	OnResolutionChanged(*this, resolution, resize_mode, center_mode);
 }
 
-void Camera::UnsubscribeFromLogicalResolutionEvents() {
-	RemoveScripts<impl::CameraResizeScript>(*this);
+void Camera::UnsubscribeFromResolutionEvents() {
+	RemoveScripts<impl::CameraLogicalResolutionResizeScript>(*this);
+	RemoveScripts<impl::CameraPhysicalResolutionResizeScript>(*this);
 }
 
-void Camera::OnLogicalResolutionChanged(Camera camera, V2_float size) {
+void Camera::OnResolutionChanged(
+	Camera camera, V2_float size, CameraResizeMode resize_mode, CameraCenterMode center_mode
+) {
 	auto& info{ camera.Get<impl::CameraInfo>() };
 	size *= camera.GetZoom();
-	// TODO: Potentially allow this to be modified in the future.
-	bool resize{ info.GetResizeToLogicalResolution() };
-	bool center{ info.GetCenterOnLogicalResolution() };
+	bool resize{ info.GetResizeMode() == resize_mode };
+	bool center{ info.GetCenterMode() == center_mode };
 	if (resize) {
 		info.SetViewportSize(size);
 	}
 	if (center) {
 		auto pos{ size * 0.5f };
 		ptgn::SetPosition(camera, pos);
+		info.view_dirty = true;
+		// This prevents the mode from center_mode being switched to CameraCenterMode::Custom when
+		// re-calculating the view projection matrix.
+		info.previous.SetPosition(pos);
 	}
 	if (resize || center) {
 		camera.RefreshBounds();
@@ -361,23 +395,61 @@ V2_float Camera::GetBoundsSize() const {
 void Camera::SetToLogicalResolution(bool continuously) {
 	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
-		UnsubscribeFromLogicalResolutionEvents();
+		UnsubscribeFromResolutionEvents();
 	}
 	info = {};
-	CenterOnLogicalResolution(continuously);
-	SetViewportToLogicalResolution(continuously);
+	SetCenterMode(CameraCenterMode::LogicalResolution, continuously);
+	SetResizeMode(CameraResizeMode::LogicalResolution, continuously);
 }
 
-void Camera::CenterOnLogicalResolution(bool continuously) {
+void Camera::SetToPhysicalResolution(bool continuously) {
 	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
-		info.SetCenterOnLogicalResolution(true);
-		SubscribeToLogicalResolutionEvents();
-	} else {
-		auto logical_resolution{ game.renderer.GetLogicalResolution() };
+		UnsubscribeFromResolutionEvents();
+	}
+	info = {};
+	SetCenterMode(CameraCenterMode::PhysicalResolution, continuously);
+	SetResizeMode(CameraResizeMode::PhysicalResolution, continuously);
+}
 
-		auto center{ logical_resolution / 2.0f };
+void Camera::SetCenterMode(CameraCenterMode center_mode, bool continuously) {
+	auto& info{ Get<impl::CameraInfo>() };
+	if (continuously) {
+		info.SetCenterMode(center_mode);
+		if (center_mode != CameraCenterMode::Custom) {
+			SubscribeToResolutionEvents(info.GetResizeMode(), center_mode);
+		}
+	} else if (center_mode != CameraCenterMode::Custom) {
+		V2_float resolution;
+		if (center_mode == CameraCenterMode::LogicalResolution) {
+			resolution = game.renderer.GetLogicalResolution();
+		} else if (center_mode == CameraCenterMode::PhysicalResolution) {
+			resolution = game.renderer.GetPhysicalResolution();
+		}
+		auto center{ resolution / 2.0f };
 		ptgn::SetPosition(*this, center);
+	}
+}
+
+void Camera::SetResizeMode(CameraResizeMode resize_mode, bool continuously) {
+	auto& info{ Get<impl::CameraInfo>() };
+	SetZoom(1.0f);
+	if (continuously) {
+		info.SetResizeMode(resize_mode);
+		if (resize_mode != CameraResizeMode::Custom) {
+			SubscribeToResolutionEvents(resize_mode, info.GetCenterMode());
+		}
+	} else if (resize_mode != CameraResizeMode::Custom) {
+		V2_float resolution;
+		if (resize_mode == CameraResizeMode::LogicalResolution) {
+			resolution = game.renderer.GetLogicalResolution();
+		} else if (resize_mode == CameraResizeMode::PhysicalResolution) {
+			resolution = game.renderer.GetPhysicalResolution();
+		}
+		PTGN_ASSERT(
+			!resolution.IsZero(), "Failed to find a valid resolution for the resizing camera"
+		);
+		SetViewportSize(resolution);
 	}
 }
 
@@ -425,7 +497,7 @@ void Camera::SetBounds(const V2_float& position, const V2_float& size) {
 
 void Camera::SetViewportSize(const V2_float& new_size) {
 	auto& info{ Get<impl::CameraInfo>() };
-	info.SetResizeToLogicalResolution(false);
+	info.SetResizeMode(CameraResizeMode::Custom);
 	info.SetViewportSize(new_size);
 	RefreshBounds();
 }
@@ -450,23 +522,13 @@ void Camera::Zoom(float zoom_change) {
 	Zoom(V2_float{ zoom_change });
 }
 
-void Camera::SetViewportToLogicalResolution(bool continuously) {
-	auto& info{ Get<impl::CameraInfo>() };
-	SetZoom(1.0f);
-	if (continuously) {
-		info.SetResizeToLogicalResolution(true);
-		SubscribeToLogicalResolutionEvents();
-	} else {
-		auto logical_resolution{ game.renderer.GetLogicalResolution() };
-		SetViewportSize(logical_resolution);
-	}
-}
-
 void Camera::Reset() {
 	ptgn::SetTransform(*this, Transform{});
 	auto& info{ Get<impl::CameraInfo>() };
 	info = {};
-	SubscribeToLogicalResolutionEvents();
+	SubscribeToResolutionEvents(
+		CameraResizeMode::LogicalResolution, CameraCenterMode::LogicalResolution
+	);
 }
 
 V2_float Camera::GetTopLeft() const {
@@ -498,11 +560,20 @@ void Camera::PrintInfo() const {
 	}
 }
 
+V2_float ToWorldPoint(const V2_float& screen_point, const Camera& camera) {
+	Transform camera_transform{ GetTransform(camera) };
+	auto zoom{ camera_transform.GetScale() };
+	PTGN_ASSERT(zoom.BothAboveZero());
+	V2_float unzoomed		= (screen_point - camera.GetViewportSize() / 2.0f) / zoom;
+	V2_float rotated		= unzoomed.Rotated(camera_transform.GetRotation());
+	V2_float world_position = rotated + camera_transform.GetPosition();
+	return world_position;
+}
+
 Camera CreateCamera(Manager& manager) {
 	Camera camera{ manager.CreateEntity() };
-	SetPosition(camera, {});
 	camera.Add<impl::CameraInfo>();
-	camera.SubscribeToLogicalResolutionEvents();
+	camera.Reset();
 	return camera;
 }
 

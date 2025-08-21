@@ -7,6 +7,7 @@
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
@@ -16,7 +17,6 @@
 #include "serialization/serializable.h"
 
 // TODO: Add 2D camera and rename Camera to Camera3D.
-// TODO: Add physical resolution camera functions.
 
 namespace ptgn {
 
@@ -49,8 +49,8 @@ public:
 	// @param position Top left.
 	void SetBoundingBox(const V2_float& new_bounding_position, const V2_float& new_bounding_size);
 
-	void SetResizeToLogicalResolution(bool resize);
-	void SetCenterOnLogicalResolution(bool center);
+	void SetResizeMode(CameraResizeMode resize);
+	void SetCenterMode(CameraCenterMode center);
 
 	void SetFlip(Flip flip);
 
@@ -67,8 +67,8 @@ public:
 	// @return Size of the bounding box.
 	[[nodiscard]] V2_float GetBoundingBoxSize() const;
 
-	[[nodiscard]] bool GetResizeToLogicalResolution() const;
-	[[nodiscard]] bool GetCenterOnLogicalResolution() const;
+	[[nodiscard]] CameraResizeMode GetResizeMode() const;
+	[[nodiscard]] CameraCenterMode GetCenterMode() const;
 
 	[[nodiscard]] Flip GetFlip() const;
 
@@ -102,13 +102,14 @@ public:
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
-		viewport_size, center_on_logical_resolution, resize_to_logical_resolution, pixel_rounding,
-		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z
+		viewport_size, center_mode, resize_mode, pixel_rounding, bounding_box_position,
+		bounding_box_size, flip, position_z, orientation_y, orientation_z
 	)
 
 	void SetViewDirty();
 
 private:
+	friend class ptgn::Camera;
 	// Keep track of previous transform since the Transform dirty flags are only reset at the end of
 	// the frame and the camera view or projection matrices may be requested multiple times in one
 	// frame.
@@ -125,8 +126,8 @@ private:
 
 	V2_float viewport_size;
 
-	bool center_on_logical_resolution{ true };
-	bool resize_to_logical_resolution{ true };
+	mutable CameraCenterMode center_mode{ CameraCenterMode::LogicalResolution };
+	CameraResizeMode resize_mode{ CameraResizeMode::LogicalResolution };
 
 	// If true, rounds camera position to pixel precision.
 	// TODO: Check that this works.
@@ -144,8 +145,14 @@ private:
 	float orientation_z{ 0.0f };
 };
 
-struct CameraResizeScript : public Script<CameraResizeScript, LogicalResolutionScript> {
+struct CameraLogicalResolutionResizeScript :
+	public Script<CameraLogicalResolutionResizeScript, LogicalResolutionScript> {
 	void OnLogicalResolutionChanged() override;
+};
+
+struct CameraPhysicalResolutionResizeScript :
+	public Script<CameraPhysicalResolutionResizeScript, PhysicalResolutionScript> {
+	void OnPhysicalResolutionChanged() override;
 };
 
 } // namespace impl
@@ -165,11 +172,15 @@ public:
 	// Set the camera viewport to be equal to the logical resolution.
 	void SetToLogicalResolution(bool continuously = true);
 
-	// Set the camera to be centered on the logical resolution.
-	void CenterOnLogicalResolution(bool continuously = false);
+	// Set the camera to be centered on the physical resolution.
+	// Set the camera viewport to be equal to the physical resolution.
+	void SetToPhysicalResolution(bool continuously = true);
 
-	// Set the camera viewport to be equal to the logical resolution.
-	void SetViewportToLogicalResolution(bool continuously = false);
+	// Set the camera to be centered on the specified center mode.
+	void SetCenterMode(CameraCenterMode center_mode, bool continuously = false);
+
+	// Set the camera viewport to be equal to the specified resize mode resolution.
+	void SetResizeMode(CameraResizeMode resize_mode, bool continuously = false);
 
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
@@ -225,7 +236,8 @@ public:
 	operator Matrix4() const;
 
 protected:
-	friend struct impl::CameraResizeScript;
+	friend struct impl::CameraPhysicalResolutionResizeScript;
+	friend struct impl::CameraLogicalResolutionResizeScript;
 	friend class CameraManager;
 	friend Camera CreateCamera(Manager& manager);
 
@@ -235,12 +247,14 @@ protected:
 	// Orientation as a quaternion.
 	[[nodiscard]] Quaternion GetQuaternion() const;
 
-	void SubscribeToLogicalResolutionEvents();
-	void UnsubscribeFromLogicalResolutionEvents();
+	void SubscribeToResolutionEvents(CameraResizeMode resize_mode, CameraCenterMode center_mode);
+	void UnsubscribeFromResolutionEvents();
 
 	void RefreshBounds();
 
-	static void OnLogicalResolutionChanged(Camera camera, V2_float size);
+	static void OnResolutionChanged(
+		Camera camera, V2_float size, CameraResizeMode resize_mode, CameraCenterMode center_mode
+	);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
@@ -248,6 +262,8 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 	   << "]";
 	return os;
 }
+
+[[nodiscard]] V2_float ToWorldPoint(const V2_float& screen_point, const Camera& camera);
 
 Camera CreateCamera(Manager& manager);
 
