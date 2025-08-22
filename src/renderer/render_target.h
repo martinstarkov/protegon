@@ -88,7 +88,6 @@ public:
 
 	// @return Texture attached to the render target.
 	[[nodiscard]] const impl::Texture& GetTexture() const;
-	[[nodiscard]] impl::Texture& GetTexture();
 
 	// @return Frame buffer of the render target.
 	[[nodiscard]] const impl::FrameBuffer& GetFrameBuffer() const;
@@ -118,6 +117,8 @@ public:
 	void ForEachPixel(
 		const std::function<void(V2_int, Color)>& callback, bool restore_bind_state = true
 	) const;
+
+	void Resize(const V2_int& size);
 
 private:
 	friend class impl::RenderData;

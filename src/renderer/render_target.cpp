@@ -9,6 +9,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
@@ -19,6 +20,7 @@
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -53,12 +55,12 @@ RenderTarget AddRenderTargetComponents(
 
 void LogicalRenderTargetResizeScript::OnLogicalResolutionChanged() {
 	auto logical_resolution{ game.renderer.GetLogicalResolution() };
-	RenderTarget{ entity }.GetTexture().Resize(logical_resolution);
+	RenderTarget{ entity }.Resize(logical_resolution);
 }
 
 void PhysicalRenderTargetResizeScript::OnPhysicalResolutionChanged() {
 	auto physical_resolution{ game.renderer.GetPhysicalResolution() };
-	RenderTarget{ entity }.GetTexture().Resize(physical_resolution);
+	RenderTarget{ entity }.Resize(physical_resolution);
 }
 
 } // namespace impl
@@ -158,10 +160,6 @@ const impl::Texture& RenderTarget::GetTexture() const {
 	return GetFrameBuffer().GetTexture();
 }
 
-impl::Texture& RenderTarget::GetTexture() {
-	return Get<impl::FrameBuffer>().GetTexture();
-}
-
 const impl::FrameBuffer& RenderTarget::GetFrameBuffer() const {
 	return Get<impl::FrameBuffer>();
 }
@@ -174,6 +172,10 @@ void RenderTarget::ForEachPixel(
 	const std::function<void(V2_int, Color)>& func, bool restore_bind_state
 ) const {
 	return GetFrameBuffer().ForEachPixel(func, restore_bind_state);
+}
+
+void RenderTarget::Resize(const V2_int& size) {
+	Get<impl::FrameBuffer>().GetTexture().Resize(size);
 }
 
 RenderTarget CreateRenderTarget(
@@ -205,9 +207,10 @@ RenderTarget CreateRenderTarget(
 RenderTarget CreateRenderTarget(
 	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
-	return impl::AddRenderTargetComponents(
-		manager.CreateEntity(), size, clear_color, texture_format
-	);
+	auto render_target{
+		impl::AddRenderTargetComponents(manager.CreateEntity(), size, clear_color, texture_format)
+	};
+	return render_target;
 }
 
 } // namespace ptgn
