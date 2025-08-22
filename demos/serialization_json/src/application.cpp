@@ -53,9 +53,9 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	SetInteractive(e1);
-	auto child = m.CreateEntity();
-	child.Add<Circle>(30.0f);
-	AddInteractable(e1, std::move(child));
+	// auto child = m.CreateEntity();
+	// child.Add<Circle>(30.0f);
+	// AddInteractable(e1, std::move(child));
 	e1.Add<Draggable>();
 	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
 							 // values.
