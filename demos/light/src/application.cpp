@@ -22,7 +22,7 @@ public:
 		auto sprite = CreateSprite(*this, "test", { 50, 50 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
 
-		float intensity{ 0.3f };
+		float intensity{ 0.5f };
 		float radius{ 200.0f };
 		float falloff{ 1.0f };
 
@@ -37,7 +37,7 @@ public:
 		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
 		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
 
-		mouse_light = CreatePointLight(*this, {}, 300.0f, color::Cyan, 0.7f, 2.0f);
+		mouse_light = CreatePointLight(*this, {}, 300.0f, color::Red, 0.8f, 2.0f);
 		// mouse_light.SetAmbientColor(color::Red);
 		// mouse_light.SetAmbientIntensity(0.1f);
 	}

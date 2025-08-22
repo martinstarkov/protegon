@@ -181,7 +181,7 @@ void Scene::InternalUpdate() {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.ClearRenderTargets(*this);
-	render_data.drawing_to = render_target_;
+	render_data.drawing_to_ = impl::RenderData::GetDrawTarget(*this);
 
 	Refresh();
 	cameras_.Refresh();

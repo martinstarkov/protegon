@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "renderer/render_target.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
+#include "serialization/serializable.h"
 
 #define HDR_ENABLED 0
 
@@ -52,10 +54,15 @@ enum class LogicalResolutionMode {
 };
 
 struct Viewport {
+	Viewport() = default;
+	Viewport(const V2_int& position, const V2_int& size);
+
 	V2_int position;
 	V2_int size;
 
 	bool operator==(const Viewport&) const = default;
+
+	PTGN_SERIALIZER_REGISTER(Viewport, position, size);
 };
 
 namespace impl {
@@ -230,8 +237,7 @@ public:
 	// texture is used.
 	void AddShader(
 		Entity entity, const RenderState& render_state, const Color& target_clear_color,
-		const TextureOrSize& texture_or_size = V2_int{}, const Color& tint = color::White,
-		bool clear_between_consecutive_calls = true
+		const TextureOrSize& texture_or_size = V2_int{}, bool clear_between_consecutive_calls = true
 	);
 
 	void AddTemporaryTexture(Texture&& texture);
@@ -243,6 +249,27 @@ private:
 	friend class ptgn::Camera;
 	friend struct ViewportResizeScript;
 	friend class InputHandler;
+
+	struct DrawTarget {
+		Viewport viewport;
+		V2_int texture_size;
+		TextureId texture_id{ 0 };
+		const FrameBuffer* frame_buffer{ nullptr };
+		std::array<V2_float, 4> points{};
+		Depth depth;
+		Tint tint;
+		Matrix4 view_projection{ 1.0f };
+		BlendMode blend_mode{};
+	};
+
+	static void SetPointsAndProjection(DrawTarget& target);
+
+	[[nodiscard]] static DrawTarget GetDrawTarget(const Scene& scene);
+
+	[[nodiscard]] static DrawTarget GetDrawTarget(
+		const RenderTarget& render_target, const Matrix4& view_projection,
+		const std::array<V2_float, 4>& points, bool use_viewport
+	);
 
 	[[nodiscard]] static V2_float GetResolutionScale(const V2_float& viewport_size);
 
@@ -313,16 +340,23 @@ private:
 
 	[[nodiscard]] TextureId PingPong(
 		const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
-		const std::array<V2_float, 4>& points, const Depth& depth, const Texture& texture,
-		const V2_int& viewport_position, const V2_int& viewport_size,
-		const Matrix4& view_projection, bool flip_vertices
+		const Texture& texture, DrawTarget target, bool flip_vertices
+	);
+
+	void DrawVertices(
+		const Shader& shader, const RenderData::DrawTarget& target, bool clear_frame_buffer
+	);
+
+	void DrawFullscreenQuad(
+		const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
+		bool clear_frame_buffer, const Color& target_clear_color
 	);
 
 	void DrawCall(
 		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
-		const std::vector<TextureId>& textures, const impl::FrameBuffer& frame_buffer,
+		const std::vector<TextureId>& textures, const impl::FrameBuffer* frame_buffer,
 		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
-		const V2_int& viewport_position, const V2_int& viewport_size, const Matrix4& view_projection
+		const Viewport& viewport, const Matrix4& view_projection
 	);
 
 	void Reset();
@@ -339,12 +373,9 @@ private:
 
 	void RecomputeViewport(const V2_int& window_size);
 
-	// Uses current scene.
 	void Flush();
 
-	void Flush(const Scene& scene);
-
-	void DrawToScreen(Scene& scene);
+	void DrawToScreen(const Scene& scene);
 
 	void DrawScene(Scene& scene);
 
@@ -352,10 +383,11 @@ private:
 
 	void ClearRenderTargets(Scene& scene) const;
 
-	// TODO: Clean this up.
-
 	std::shared_ptr<DrawContext> intermediate_target;
-	RenderTarget drawing_to;
+
+	DrawTarget drawing_to_;
+
+	// TODO: Clean this up.
 
 	static constexpr float min_line_width{ 1.0f };
 	static constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
