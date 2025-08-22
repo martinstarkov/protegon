@@ -1,12 +1,14 @@
 #include "components/interactive.h"
 
+#include <algorithm>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "core/entity.h"
 #include "core/entity_hierarchy.h"
+#include "core/game_object.h"
 #include "math/vector2.h"
-#include "utility/span.h"
 
 namespace ptgn {
 
@@ -49,67 +51,87 @@ void Dropzone::SetPickupTrigger(CallbackTrigger trigger) {
 }
 
 Entity& SetInteractive(Entity& entity, bool interactive) {
-	if (interactive) {
-		impl::EntityAccess::Add<Interactive>(entity);
-	} else {
-		impl::ClearInteractables(entity);
-		impl::EntityAccess::Remove<Interactive>(entity);
-	}
+	impl::EntityAccess::TryAdd<Interactive>(entity).enabled = interactive;
+	return entity;
+}
+
+Entity& RemoveInteractive(Entity& entity) {
+	impl::EntityAccess::Remove<Interactive>(entity);
 	return entity;
 }
 
 bool IsInteractive(const Entity& entity) {
-	return entity.Has<Interactive>();
+	return entity.Has<Interactive>() && entity.Get<Interactive>().enabled;
 }
 
-Entity& SetInteractable(Entity& entity, Entity& shape, bool set_parent) {
+Entity& SetInteractable(
+	Entity& entity, Entity&& shape, std::string_view name, bool ignore_parent_transform
+) {
 	impl::ClearInteractables(entity);
-	AddInteractable(entity, shape, set_parent);
+	AddInteractable(entity, std::move(shape), name, ignore_parent_transform);
 	return entity;
 }
 
-Entity& AddInteractable(Entity& entity, Entity& shape, bool set_parent) {
-	if (set_parent) {
-		SetParent(shape, entity);
-	}
+Entity& AddInteractable(
+	Entity& entity, Entity&& shape, std::string_view name, bool ignore_parent_transform
+) {
+	IgnoreParentTransform(shape, ignore_parent_transform);
 	SetInteractive(entity);
+	if (!name.empty()) {
+		PTGN_ASSERT(
+			!HasChild(entity, name),
+			"Cannot add the same named interactable to an entity more than once"
+		);
+	}
+	AddChild(entity, shape, name);
 	auto& shapes{ impl::GetInteractive(entity).shapes };
-	PTGN_ASSERT(
-		!VectorContains(shapes, shape),
-		"Cannot add the same interactable to an entity more than once"
-	);
-	shapes.emplace_back(shape);
+	shapes.emplace_back(std::move(GameObject{ std::move(shape) }));
 	return entity;
 }
 
-Entity& RemoveInteractable(Entity& entity, const Entity& shape) {
+Entity& RemoveInteractable(Entity& entity, std::string_view name) {
 	if (!IsInteractive(entity)) {
 		return entity;
 	}
+	if (!HasChild(entity, name)) {
+		return entity;
+	}
+	Entity child{ GetChild(entity, name) };
 	auto& shapes{ impl::GetInteractive(entity).shapes };
-	VectorErase(shapes, shape);
+	std::erase(shapes, child);
 	return entity;
 }
 
-bool HasInteractable(const Entity& entity, const Entity& shape) {
+bool HasInteractable(const Entity& entity, std::string_view name) {
 	if (!IsInteractive(entity)) {
 		return false;
 	}
+	if (!HasChild(entity, name)) {
+		return false;
+	}
+	Entity child{ GetChild(entity, name) };
 	const auto& shapes{ impl::GetInteractive(entity).shapes };
-	return VectorContains(shapes, shape);
+
+	for (const auto& shape : shapes) {
+		if (shape == child) {
+			return true;
+		}
+	}
+	return false;
 }
 
-const std::vector<Entity>& GetInteractables(const Entity& entity) {
+std::vector<Entity> GetInteractables(const Entity& entity) {
 	PTGN_ASSERT(IsInteractive(entity));
 	const auto& shapes{ impl::GetInteractive(entity).shapes };
-	return shapes;
+	std::vector<Entity> interactables;
+	interactables.reserve(shapes.size());
+	for (const auto& shape : shapes) {
+		interactables.emplace_back(shape);
+	}
+	return interactables;
 }
 
 void Interactive::ClearShapes() {
-	// TODO: Move to using GameObjects.
-	for (Entity shape : shapes) {
-		shape.Destroy();
-	}
 	shapes.clear();
 }
 

@@ -8,6 +8,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "math/geometry/circle.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
@@ -42,7 +43,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	SetPosition(e0, V2_float{ -69, -69 });
 
 	auto e1 = m.CreateEntity();
-	e1.Add<Draggable>();
 	SetTransform(e1, { V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
 	Show(e1);
 	SetDepth(e1, 22);
@@ -53,6 +53,10 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	SetInteractive(e1);
+	auto child = m.CreateEntity();
+	child.Add<Circle>(30.0f);
+	AddInteractable(e1, std::move(child));
+	e1.Add<Draggable>();
 	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
 							 // values.
 	e1.Add<Lifetime>(milliseconds{ 300 }).Start();

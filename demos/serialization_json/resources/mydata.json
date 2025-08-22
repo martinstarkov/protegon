@@ -1,4 +1,11 @@
 {
+    "Children": {
+        "children": [
+            {
+                "UUID": 10752302287564951549
+            }
+        ]
+    },
     "Depth": 22,
     "Draggable": {
         "dragging": false,
@@ -16,7 +23,13 @@
             0.0
         ]
     },
-    "Interactive": null,
+    "Interactive": {
+        "shapes": [
+            {
+                "UUID": 10752302287564951549
+            }
+        ]
+    },
     "Lifetime": {
         "duration": "300ms",
         "timer": {
@@ -56,6 +69,6 @@
             2.0
         ]
     },
-    "UUID": 4995051875055077420,
+    "UUID": 9845191041642161787,
     "Visible": true
 }

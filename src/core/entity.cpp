@@ -227,6 +227,7 @@ void to_json(json& j, const Entity& entity) {
 }
 
 void from_json(const json& j, Entity& entity) {
+	// TODO: Consider being able to fetch a manager using either a JSON key or the current scene.
 	PTGN_ASSERT(entity, "Cannot read JSON into null entity");
 
 	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };

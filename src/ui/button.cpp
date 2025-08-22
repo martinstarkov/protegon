@@ -575,7 +575,7 @@ Button& Button::SetSize(const V2_float& size) {
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Rect>(size);
-		AddInteractable(*this, shape);
+		AddInteractable(*this, std::move(shape));
 	}
 	return *this;
 }
@@ -592,7 +592,7 @@ Button& Button::SetRadius(float radius) {
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Circle>(radius);
-		AddInteractable(*this, shape);
+		AddInteractable(*this, std::move(shape));
 	}
 	return *this;
 }
@@ -737,7 +737,7 @@ Button& Button::SetTextureKey(const TextureHandle& texture_key, ButtonState stat
 		AddChild(*this, shape);
 		auto size{ texture_key.GetSize() };
 		shape.Add<Rect>(size);
-		AddInteractable(*this, shape);
+		AddInteractable(*this, std::move(shape));
 	}
 	if (!Has<TextureHandle>()) {
 		Add<TextureHandle>(texture_key);

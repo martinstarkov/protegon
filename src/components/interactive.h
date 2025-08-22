@@ -1,9 +1,11 @@
 #pragma once
 
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
 #include "core/entity.h"
+#include "core/game_object.h"
 #include "math/vector2.h"
 #include "serialization/enum.h"
 #include "serialization/serializable.h"
@@ -15,26 +17,34 @@ class SceneInput;
 // If true, enables the entity to trigger interaction scripts.
 // @return entity.
 Entity& SetInteractive(Entity& entity, bool interactive = true);
+
+// Removes an entity's interactive component entirely.
+Entity& RemoveInteractive(Entity& entity);
+
 [[nodiscard]] bool IsInteractive(const Entity& entity);
 
 // Add an interactable shape to the entity.
 // @param set_parent If true, will set the parent of shape to *this.
 // The entity interactive will take ownership of these entities.
 // @return entity.
-Entity& AddInteractable(Entity& entity, Entity& shape, bool set_parent = true);
+Entity& AddInteractable(
+	Entity& entity, Entity&& shape, std::string_view name = {}, bool ignore_parent_transform = false
+);
 
 // Same as AddInteractable but will clear previous interactables first.
 // @return entity.
-Entity& SetInteractable(Entity& entity, Entity& shape, bool set_parent = true);
+Entity& SetInteractable(
+	Entity& entity, Entity&& shape, std::string_view name = {}, bool ignore_parent_transform = false
+);
 
 // Remove an interactable shape from the entity.
 // @return entity.
-Entity& RemoveInteractable(Entity& entity, const Entity& shape);
+Entity& RemoveInteractable(Entity& entity, std::string_view name);
 
 // @return True if the entity has the given interactable.
-[[nodiscard]] bool HasInteractable(const Entity& entity, const Entity& shape);
+[[nodiscard]] bool HasInteractable(const Entity& entity, std::string_view name);
 
-[[nodiscard]] const std::vector<Entity>& GetInteractables(const Entity& entity);
+[[nodiscard]] std::vector<Entity> GetInteractables(const Entity& entity);
 
 namespace impl {
 
@@ -47,16 +57,60 @@ void ClearInteractables(Entity& entity);
 } // namespace impl
 
 struct Interactive {
+	Interactive()								   = default;
+	~Interactive()								   = default;
+	Interactive(Interactive&&) noexcept			   = default;
+	Interactive& operator=(Interactive&&) noexcept = default;
+	Interactive(const Interactive&)				   = delete;
+	Interactive& operator=(const Interactive&)	   = delete;
+
 	// Destroys all the shape entities and clears the shapes vector.
 	void ClearShapes();
 
-	// TODO: Add destructor and move constructors which manage shapes.
-
 	// Interactive owns that shapes.
 	// List of entities that can be interacted with. They require a valid Rect / Circle component.
-	std::vector<Entity> shapes;
+	std::vector<GameObject<>> shapes;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, shapes)
+	bool enabled{ true };
+
+	// friend void to_json(nlohmann::json& nlohmann_json_j, const Interactive& nlohmann_json_t) {
+	//	if constexpr (std::is_default_constructible_v<Interactive>) {
+	//		const Interactive nlohmann_json_default_obj{};
+	//		(void)nlohmann_json_default_obj;
+	//		if constexpr (ptgn::impl::has_equality_v<
+	//						  std::remove_reference_t<decltype(nlohmann_json_t.shapes)>,
+	//						  std::remove_reference_t<decltype(nlohmann_json_default_obj.shapes
+	//						  )>>) {
+	//			if (!ptgn::impl::CompareValues(
+	//					nlohmann_json_t.shapes, nlohmann_json_default_obj.shapes
+	//				)) {
+	//				nlohmann_json_j["shapes"] = nlohmann_json_t.shapes;
+	//			}
+	//		} else {
+	//			nlohmann_json_j["shapes"] = nlohmann_json_t.shapes;
+	//		}
+	//	} else {
+	//		nlohmann_json_j["shapes"] = nlohmann_json_t.shapes;
+	//	}
+	// }
+
+	// friend void from_json(const nlohmann::json& nlohmann_json_j, Interactive& nlohmann_json_t) {
+	//	Interactive nlohmann_json_default_obj{};
+	//	if (auto nlohmann_json_j_value{
+	//			nlohmann_json_j.contains("shapes") ? nlohmann_json_j.at("shapes") : json{} };
+	//		nlohmann_json_j_value.empty()) {
+	//		nlohmann_json_t.shapes = std::move(nlohmann_json_default_obj.shapes);
+	//	} else {
+	//		nlohmann_json_t.shapes =
+	//			nlohmann_json_j.value("shapes", std::move(nlohmann_json_default_obj.shapes));
+	//	}
+	// }
+
+	// friend std::ostream& operator<<(std::ostream& os, const Interactive& p) {
+	//	json j = p;
+	//	os << j.dump(4);
+	//	return os;
+	// }
 };
 
 enum class CallbackTrigger {

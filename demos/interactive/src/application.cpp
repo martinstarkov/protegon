@@ -399,6 +399,7 @@ struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript> {
 
 struct InteractiveScene : public Scene {
 	Sprite r4;
+	Sprite c3;
 
 	Entity CreateInteractiveCircle(float radius) {
 		auto entity = CreateEntity(*this);
@@ -427,35 +428,35 @@ struct InteractiveScene : public Scene {
 			*this, center + V2_float{ offset.x, -offset.y }, 90.0f, color::Green, 1.0f
 		);
 		auto c0_child = CreateInteractiveCircle(90.0f);
-		AddInteractable(c0, c0_child);
+		AddInteractable(c0, std::move(c0_child));
 		AddScript<ScriptC0>(c0);
 
 		auto c1 = CreateCircle(
 			*this, center + V2_float{ offset.x, offset.y }, 90.0f, color::LightGreen, 1.0f
 		);
 		auto c1_child = CreateInteractiveCircle(45.0f);
-		AddInteractable(c1, c1_child);
+		AddInteractable(c1, std::move(c1_child));
 		AddScript<ScriptC1>(c1);
 
 		auto r0 = CreateRect(
 			*this, center + V2_float{ -offset.x, -offset.y }, rsize * 2, color::Blue, 1.0f
 		);
 		auto r0_child = CreateInteractiveRect(rsize * 2);
-		AddInteractable(r0, r0_child);
+		AddInteractable(r0, std::move(r0_child));
 		AddScript<ScriptR0>(r0);
 
 		auto r1 = CreateRect(
 			*this, center + V2_float{ -offset.x, offset.y }, rsize, color::LightBlue, 1.0f
 		);
 		auto r1_child = CreateInteractiveRect(rsize * 2);
-		AddInteractable(r1, r1_child);
+		AddInteractable(r1, std::move(r1_child));
 		AddScript<ScriptR1>(r1);
 
 		game.texture.Load("box", "resources/box.png");
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateInteractiveRect(r2.GetDisplaySize());
-		AddInteractable(r2, r2_child);
+		AddInteractable(r2, std::move(r2_child));
 		AddScript<ScriptR2>(r2);
 
 		LoadResources({ { "drag", "resources/drag.png" },
@@ -464,26 +465,29 @@ struct InteractiveScene : public Scene {
 
 		r4			  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateInteractiveRect(rsize * 2);
-		AddInteractable(r4, r4_child);
+		AddInteractable(r4, std::move(r4_child));
 		r4.Add<Dropzone>();
 
 		PTGN_LOG("Dropzone id: ", r4.GetId());
 
 		auto r3		  = CreateSprite(*this, "drag", center + V2_float{ offset.x, 0.0f });
 		auto r3_child = CreateInteractiveRect(r3.GetDisplaySize());
-		AddInteractable(r3, r3_child);
+		AddInteractable(r3, std::move(r3_child));
 		r3.Add<Draggable>();
 		AddScript<ScriptR3>(r3);
 
 		PTGN_LOG("Rect drag id: ", r3.GetId());
 
-		auto c3		  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
+		c3			  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
 		auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
-		AddInteractable(c3, c3_child);
+		AddInteractable(c3, std::move(c3_child));
 		c3.Add<Draggable>(); //.SetTrigger(CallbackTrigger::MouseOverlaps);
 		AddScript<ScriptC3>(c3);
 
 		PTGN_LOG("Circle drag id: ", c3.GetId());
+
+		// Refresh();
+		// PTGN_LOG("Entity count: ", Size());
 	}
 
 	void Update() override {
@@ -493,6 +497,16 @@ struct InteractiveScene : public Scene {
 		} else if (game.input.KeyDown(Key::Q)) {
 			input.SetTopOnly(true);
 			PTGN_LOG("Setting top input only: true");
+		}
+		if (game.input.KeyDown(Key::Z)) {
+			// RemoveInteractive(c3);
+			// PTGN_LOG("Entity count: ", Size());
+			SetInteractive(c3, false);
+		}
+		if (game.input.KeyDown(Key::C)) {
+			// auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
+			// AddInteractable(c3, std::move(c3_child));
+			SetInteractive(c3, true);
 		}
 
 		constexpr V2_float speed{ 3.0f, 3.0f };
@@ -509,7 +523,8 @@ struct InteractiveScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("InteractiveScene: Q/E: Toggle TopOnly, WASD: Move Camera");
+	game.Init("InteractiveScene: Q/E: Toggle TopOnly, Z/C Toggle Drag Circle Interactive, WASD: "
+			  "Move Camera");
 	game.scene.Enter<InteractiveScene>("");
 	return 0;
 }
