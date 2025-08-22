@@ -6,6 +6,8 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "input/input_handler.h"
+#include "input/key.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -39,8 +41,38 @@ public:
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(10.0f);
 
-		CreateRect(*this, V2_float{ 300.0f, 300.0f }, { 150.0f, 50.0f }, color::Green);
-		player = CreateRect(*this, V2_float{ 400.0f, 150.0f }, { 50.0f, 50.0f }, color::Red);
+		// Button b0;
+		// Button b1;
+		// V2_float size{ 50.0f, 50.0f };
+		//// CreateRect(*this, V2_float{ 0, 0 }, size, color::Green);
+		// SetPosition(camera, { 0, 0 });
+		// PTGN_LOG("Camera: ", GetTransform(camera));
+		// b0 = CreateButton("Test0", []() { PTGN_LOG("Test0"); });
+		// SetPosition(b0, { 0, 0 });
+		// b0.SetSize(size);
+		// SetDrawOrigin(b0, Origin::Center);
+		// PTGN_LOG("b0: ", GetAbsoluteTransform(b0));
+		// b1 = CreateButton("Test1", []() { PTGN_LOG("Test1"); });
+		// SetPosition(b1, { 0, 0 });
+		// b1.SetSize(size);
+		// SetDrawOrigin(b1, Origin::Center);
+		// auto cam1 = CreateCamera(*this);
+		// b1.Add<Camera>(cam1);
+		// PTGN_LOG("b1: ", GetAbsoluteTransform(b1));
+		//  In update:
+		// if (game.input.KeyDown(Key::R)) {
+		//	PTGN_LOG("Mouse: ", input.GetMousePosition());
+		//	PTGN_LOG("Camera: ", GetTransform(camera));
+		//	PTGN_LOG("b0: ", GetAbsoluteTransform(b0));
+		//	PTGN_LOG("b1: ", GetAbsoluteTransform(b1));
+		// }
+		// constexpr V2_float speed{ 3.0f, 3.0f };
+		// V2_float pos{ GetPosition(camera) };
+		// MoveWASD(pos, speed, false);
+		// SetPosition(camera, pos);
+
+		CreateRect(*this, V2_float{ 500, 250 }, { 200, 50 }, color::Green);
+		player = CreateRect(*this, V2_float{ 400, 150 }, { 50, 50 }, color::Red);
 		auto transform1{ GetTransform(player) };
 		auto abs_transform1{ GetAbsoluteTransform(player) };
 		auto transform2{ GetTransform(camera) };
@@ -65,13 +97,16 @@ public:
 					 Shake(camera, 1.0f, {}, false);
 				 }));
 
-		V2_float screen_offset{ 10, 30 };
+		V2_float screen_offset{ 30, 30 };
 		V2_float offset{ 6, 6 };
 		V2_float size{ 200, 50 };
 
 		auto cam1 = CreateCamera(*this);
 
 		grid.ForEach([&](auto coord, Button& b) {
+			if (!b) {
+				return;
+			}
 			SetPosition(b, screen_offset + (offset + size) * coord);
 			b.SetSize(size);
 			SetDrawOrigin(b, Origin::TopLeft);
@@ -80,7 +115,6 @@ public:
 	}
 
 	void Update() override {
-		PTGN_LOG(input.GetMousePosition());
 		constexpr V2_float speed{ 3.0f, 3.0f };
 		V2_float pos{ GetPosition(player) };
 		MoveWASD(pos, speed, false);
