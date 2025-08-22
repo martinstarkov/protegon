@@ -562,10 +562,11 @@ void RenderData::AddShader(
 	if (render_state.camera) {
 		target.view_projection = render_state.camera;
 		target.points		   = render_state.camera.GetWorldVertices();
-		target.depth		   = GetDepth(render_state.camera);
-		target.tint		  = target.tint.Normalized() * GetTint(render_state.camera).Normalized();
-		target.blend_mode = GetBlendMode(render_state.camera);
 	}
+
+	target.depth	  = GetDepth(entity);
+	target.tint		  = target.tint.Normalized() * GetTint(entity).Normalized();
+	target.blend_mode = GetBlendMode(entity);
 
 	if (uses_size) {
 		if (!std::get<V2_int>(texture_or_size).IsZero()) {
