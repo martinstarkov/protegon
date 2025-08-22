@@ -96,7 +96,7 @@ template <typename T>
 
 template <typename K, typename T, typename S>
 [[nodiscard]] static bool MapContains(const std::unordered_map<K, T>& container, const S& value) {
-	return container.find(value) != container.end();
+	return container.contains(value);
 }
 
 template <typename Type, std::size_t... sizes>
@@ -152,7 +152,7 @@ static void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 template <typename T>
 static bool VectorErase(std::vector<T>& v, const T& element) {
 	auto before{ v.size() };
-	v.erase(std::remove(v.begin(), v.end(), element), v.end());
+	std::erase(v, element);
 	return v.size() != before;
 }
 
@@ -163,10 +163,7 @@ static void VectorSubtract(std::vector<T>& a, const std::vector<T>& b) {
 	std::unordered_set<T> b_set(b.begin(), b.end());
 
 	// Erase all elements from a that are in b_set
-	a.erase(
-		std::remove_if(a.begin(), a.end(), [&b_set](const T& val) { return b_set.count(val) > 0; }),
-		a.end()
-	);
+	std::erase_if(a, [&b_set](const T& val) { return b_set.count(val) > 0; });
 }
 
 } // namespace ptgn
