@@ -3,12 +3,34 @@
 #include <cmath>
 #include <type_traits>
 
+#include "common/assert.h"
 #include "math/math.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "common/assert.h"
+#include "serialization/json.h"
 
 namespace ptgn {
+
+void to_json(json& nlohmann_json_j, const Matrix4& nlohmann_json_t) {
+	if constexpr (ptgn::impl::has_equality_v<
+					  std::remove_reference_t<decltype(nlohmann_json_t.m_)>,
+					  std::remove_reference_t<decltype(Matrix4{}.m_)>> &&
+				  std::is_default_constructible_v<Matrix4>) {
+		if (!(nlohmann_json_t.m_ == Matrix4{}.m_)) {
+			nlohmann_json_j = nlohmann_json_t.m_;
+		}
+	} else {
+		nlohmann_json_j = nlohmann_json_t.m_;
+	}
+}
+
+void from_json(const json& nlohmann_json_j, Matrix4& nlohmann_json_t) {
+	if (nlohmann_json_j.empty()) {
+		nlohmann_json_t = {};
+	} else {
+		nlohmann_json_j.get_to(nlohmann_json_t.m_);
+	}
+}
 
 Matrix4 Matrix4::LookAt(
 	const Vector3<float>& position, const Vector3<float>& target, const Vector3<float>& up

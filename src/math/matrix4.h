@@ -11,7 +11,6 @@
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -22,7 +21,9 @@ public:
 	constexpr static V2_size size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Matrix4, m_)
+	friend void to_json(json& nlohmann_json_j, const Matrix4& nlohmann_json_t);
+
+	friend void from_json(const json& nlohmann_json_j, Matrix4& nlohmann_json_t);
 
 private:
 	friend class Quaternion;
