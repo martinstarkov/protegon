@@ -89,58 +89,15 @@ static RenderTarget GetParentRenderTarget(const Entity& entity) {
 }
 
 const Camera& Entity::GetCamera() const {
-	const auto& primary{ GetScene().camera };
-	const auto get_camera = [&](const Entity& entity) -> const Camera* {
-		if (entity) {
-			if (const auto camera{ entity.TryGet<Camera>() }) {
-				if (*camera) {
-					return camera;
-				}
-				return &primary;
-			}
-		}
-		return nullptr;
-	};
-
-	if (auto c{ get_camera(*this) }) {
-		return *c;
+	if (const auto camera{ GetNonPrimaryCamera() }) {
+		return *camera;
 	}
-	if (const auto rt{ TryGet<RenderTarget>() }) {
-		if (auto c{ get_camera(*rt) }) {
-			return *c;
-		}
-	}
-	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this) {
-		if (auto c{ get_camera(rt) }) {
-			return *c;
-		}
-	}
-	return primary;
+	return GetScene().camera;
 }
 
 const Camera* Entity::GetNonPrimaryCamera() const {
-	const auto get_camera = [&](const Entity& entity) -> const Camera* {
-		if (entity) {
-			if (const auto camera{ entity.TryGet<Camera>() }) {
-				if (*camera) {
-					return camera;
-				}
-			}
-		}
-		return nullptr;
-	};
-	if (auto c{ get_camera(*this) }) {
-		return c;
-	}
-	if (const auto rt{ TryGet<RenderTarget>() }) {
-		if (auto c{ get_camera(*rt) }) {
-			return c;
-		}
-	}
-	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this) {
-		if (auto c{ get_camera(rt) }) {
-			return c;
-		}
+	if (const auto camera{ TryGet<Camera>() }; camera && *camera) {
+		return camera;
 	}
 	return nullptr;
 }
