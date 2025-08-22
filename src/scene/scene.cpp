@@ -127,6 +127,12 @@ const RenderTarget& Scene::GetRenderTarget() const {
 	return render_target_;
 }
 
+Transform Scene::GetRenderTargetTransform() const {
+	auto transform{ GetTransform(render_target_) };
+	transform.Translate(camera.GetViewportSize() * 0.5f);
+	return transform;
+}
+
 void Scene::Init() {
 	active_ = true;
 

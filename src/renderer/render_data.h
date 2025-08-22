@@ -262,6 +262,15 @@ private:
 		BlendMode blend_mode{};
 	};
 
+	static void SetPoints(DrawTarget& target);
+
+	// Must be called after points are set.
+	static void SetProjection(DrawTarget& target);
+
+	static void SetProjection(DrawTarget& target, const V2_float& min, const V2_float& max);
+
+	[[nodiscard]] static Matrix4 GetProjection(const V2_float& min, const V2_float& max);
+
 	static void SetPointsAndProjection(DrawTarget& target);
 
 	[[nodiscard]] static DrawTarget GetDrawTarget(const Scene& scene);
@@ -375,7 +384,7 @@ private:
 
 	void Flush();
 
-	void DrawToScreen(const Scene& scene);
+	void DrawToScreen(const Scene& scene, Transform transform, const Matrix4& projection);
 
 	void DrawScene(Scene& scene);
 

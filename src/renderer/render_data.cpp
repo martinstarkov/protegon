@@ -790,21 +790,35 @@ RenderData::DrawTarget RenderData::GetDrawTarget(const Scene& scene) {
 	);
 }
 
-void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {
+void RenderData::SetPoints(RenderData::DrawTarget& target) {
 	PTGN_ASSERT(target.viewport.size.BothAboveZero());
 
 	target.points = { target.viewport.position,
 					  target.viewport.position + V2_float{ target.viewport.size.x, 0.0f },
 					  target.viewport.position + target.viewport.size,
 					  target.viewport.position + V2_float{ 0.0f, target.viewport.size.y } };
+}
 
-	target.view_projection = Matrix4::Orthographic(
-		static_cast<float>(target.viewport.position.x),
-		static_cast<float>(target.viewport.position.x + target.viewport.size.x),
-		static_cast<float>(target.viewport.position.y + target.viewport.size.y),
-		static_cast<float>(target.viewport.position.y), -std::numeric_limits<float>::infinity(),
+void RenderData::SetProjection(RenderData::DrawTarget& target) {
+	SetProjection(target, target.points[0], target.points[2]);
+}
+
+void RenderData::SetProjection(
+	RenderData::DrawTarget& target, const V2_float& min, const V2_float& max
+) {
+	target.view_projection = GetProjection(min, max);
+}
+
+Matrix4 RenderData::GetProjection(const V2_float& min, const V2_float& max) {
+	return Matrix4::Orthographic(
+		min.x, max.x, max.y, min.y, -std::numeric_limits<float>::infinity(),
 		std::numeric_limits<float>::infinity()
 	);
+}
+
+void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {
+	SetPoints(target);
+	SetProjection(target);
 }
 
 RenderData::DrawTarget RenderData::GetDrawTarget(
@@ -958,7 +972,7 @@ void RenderData::UpdateResolutions(
 	RecomputeViewport(window_size);
 }
 
-void RenderData::DrawToScreen(const Scene& scene) {
+void RenderData::DrawToScreen(const Scene& scene, Transform transform, const Matrix4& projection) {
 	const Shader* shader{ nullptr };
 
 	if constexpr (HDR_ENABLED) {
@@ -974,10 +988,10 @@ void RenderData::DrawToScreen(const Scene& scene) {
 	}
 
 	auto target{ GetDrawTarget(scene.render_target_, {}, {}, false) };
-	target.viewport = Viewport{ {}, logical_resolution_ };
-	SetPointsAndProjection(target);
-	target.viewport		= physical_viewport_;
-	target.frame_buffer = nullptr;
+	target.view_projection = projection;
+	target.points		   = Rect{ logical_resolution_ }.GetWorldVertices(transform);
+	target.viewport		   = physical_viewport_;
+	target.frame_buffer	   = nullptr;
 
 	DrawFullscreenQuad(*shader, target, true, false, color::Transparent);
 }
@@ -1004,7 +1018,9 @@ void RenderData::Draw(Scene& scene) {
 	intermediate_target = {};
 	temporary_textures	= std::vector<Texture>{};
 
-	DrawToScreen(scene);
+	auto projection{ GetProjection({}, logical_resolution_) };
+
+	DrawToScreen(scene, scene.GetRenderTargetTransform(), projection);
 
 	Reset();
 }

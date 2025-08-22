@@ -263,7 +263,9 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 	return os;
 }
 
-[[nodiscard]] V2_float ToWorldPoint(const V2_float& screen_point, const Camera& camera);
+[[nodiscard]] V2_float ToWorldPoint(
+	const V2_float& screen_point, const V2_float& viewport_size, const Transform& transform
+);
 
 Camera CreateCamera(Manager& manager);
 

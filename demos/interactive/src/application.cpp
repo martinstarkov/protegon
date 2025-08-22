@@ -415,8 +415,13 @@ struct InteractiveScene : public Scene {
 
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
-		game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
+		// game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
 		input.SetDrawInteractives(true);
+		input.SetDrawInteractivesLineWidth(10.0f);
+
+		LoadResources({ { "drag", "resources/drag.png" },
+						{ "drag_circle", "resources/drag_circle.png" },
+						{ "dropzone", "resources/dropzone.png" } });
 
 		V2_float ws{ game.window.GetSize() };
 		V2_float center{ game.window.GetCenter() };
@@ -459,10 +464,6 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r2, std::move(r2_child));
 		AddScript<ScriptR2>(r2);
 
-		LoadResources({ { "drag", "resources/drag.png" },
-						{ "drag_circle", "resources/drag_circle.png" },
-						{ "dropzone", "resources/dropzone.png" } });
-
 		r4			  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateInteractiveRect(rsize * 2);
 		AddInteractable(r4, std::move(r4_child));
@@ -478,7 +479,9 @@ struct InteractiveScene : public Scene {
 
 		PTGN_LOG("Rect drag id: ", r3.GetId());
 
-		c3			  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
+		c3 = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
+		// TODO: Figure out why having a sprite hides the interactive.
+		Hide(c3);
 		auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
 		AddInteractable(c3, std::move(c3_child));
 		c3.Add<Draggable>(); //.SetTrigger(CallbackTrigger::MouseOverlaps);
@@ -507,6 +510,10 @@ struct InteractiveScene : public Scene {
 			// auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
 			// AddInteractable(c3, std::move(c3_child));
 			SetInteractive(c3, true);
+		}
+
+		if (game.input.KeyDown(Key::I)) {
+			PTGN_LOG("c3: ", GetAbsoluteTransform(c3));
 		}
 
 		constexpr V2_float speed{ 3.0f, 3.0f };

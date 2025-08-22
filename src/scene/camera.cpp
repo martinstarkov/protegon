@@ -586,13 +586,14 @@ void Camera::PrintInfo() const {
 	}
 }
 
-V2_float ToWorldPoint(const V2_float& screen_point, const Camera& camera) {
-	Transform camera_transform{ GetTransform(camera) };
-	auto zoom{ camera_transform.GetScale() };
-	PTGN_ASSERT(zoom.BothAboveZero());
-	V2_float unzoomed		= (screen_point - camera.GetViewportSize() / 2.0f) / zoom;
-	V2_float rotated		= unzoomed.Rotated(camera_transform.GetRotation());
-	V2_float world_position = rotated + camera_transform.GetPosition();
+V2_float ToWorldPoint(
+	const V2_float& screen_point, const V2_float& viewport_size, const Transform& transform
+) {
+	PTGN_ASSERT(transform.GetScale().BothAboveZero());
+	V2_float unzoomed		= (screen_point - viewport_size / 2.0f) / transform.GetScale();
+	V2_float rotated		= unzoomed.Rotated(transform.GetRotation());
+	V2_float world_position = rotated + transform.GetPosition();
+
 	return world_position;
 }
 

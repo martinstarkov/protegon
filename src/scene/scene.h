@@ -3,6 +3,7 @@
 #include <set>
 #include <vector>
 
+#include "components/transform.h"
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "core/manager.h"
@@ -92,6 +93,7 @@ public:
 	}
 
 	[[nodiscard]] const RenderTarget& GetRenderTarget() const;
+	[[nodiscard]] Transform GetRenderTargetTransform() const;
 
 	// @return Size of scene render target divided by size of the camera viewport.
 	[[nodiscard]] V2_float GetScale(const Camera& relative_to_camera) const;
