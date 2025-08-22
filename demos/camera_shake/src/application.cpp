@@ -6,6 +6,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "math/vector2.h"
@@ -38,6 +39,8 @@ public:
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+
 		// Button b0;
 		// Button b1;
 		// V2_float size{ 50.0f, 50.0f };

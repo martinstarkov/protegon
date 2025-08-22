@@ -46,7 +46,7 @@
 #include "tile/layer.h"
 #include "tweens/tween.h"
 #include "ui/button.h"
+#include "ui/dialogue.h"
 #include "ui/dropdown.h"
-#include "ui/plot.h"
 #include "utility/file.h"
 #include "utility/span.h"

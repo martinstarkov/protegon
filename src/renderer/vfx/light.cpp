@@ -44,7 +44,7 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	state.post_fx	  = entity.GetOrDefault<PostFX>();
 	state.camera	  = entity.GetOrDefault<Camera>();
 
-	ctx.AddShader(entity, state, color::Transparent, V2_int{}, color::White, false);
+	ctx.AddShader(entity, state, color::Transparent, V2_int{}, false);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {
