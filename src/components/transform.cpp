@@ -229,7 +229,9 @@ Transform GetAbsoluteTransform(const Entity& entity, bool relative_to_scene_prim
 	}
 	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
 		auto camera_transform{ GetTransform(*camera) };
-		return absolute_transform.RelativeTo(camera_transform);
+		absolute_transform = absolute_transform.InverseRelativeTo(camera_transform);
+		auto primary_transform{ GetTransform(entity.GetScene().camera) };
+		absolute_transform = absolute_transform.RelativeTo(primary_transform);
 	}
 	return absolute_transform;
 }
