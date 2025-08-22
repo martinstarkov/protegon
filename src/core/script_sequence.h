@@ -18,7 +18,7 @@ namespace impl {
 
 struct ScriptSequenceInstance {
 	explicit ScriptSequenceInstance(const Entity& entity);
-	GameObject tween;
+	GameObject<Tween> tween;
 };
 
 } // namespace impl
@@ -29,7 +29,8 @@ public:
 	template <std::derived_from<TweenScript> TScript, typename... TArgs>
 		requires std::constructible_from<TScript, TArgs...>
 	ScriptSequence& During(milliseconds duration, TArgs&&... args) {
-		auto& sequence{ GetTween().During(duration) };
+		auto& instance{ Get<impl::ScriptSequenceInstance>() };
+		auto& sequence{ instance.tween.During(duration) };
 		auto& script{ sequence.GetLastTweenPoint().script_container_.AddScript<TScript>(
 			std::forward<TArgs>(args)...
 		) };
@@ -54,8 +55,6 @@ public:
 
 	// Start the sequence.
 	void Start(bool force = true);
-
-	[[nodiscard]] Tween GetTween() const;
 };
 
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete = true);

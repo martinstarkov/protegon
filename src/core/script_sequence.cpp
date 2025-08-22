@@ -19,7 +19,8 @@ ScriptSequence& ScriptSequence::During(milliseconds duration, std::function<void
 	auto wrapped = [f = std::move(func)](Entity e, float) {
 		f(GetParent(e));
 	};
-	GetTween().During(duration).OnProgress(std::move(wrapped));
+	auto& instance{ Get<impl::ScriptSequenceInstance>() };
+	instance.tween.During(duration).OnProgress(std::move(wrapped));
 	return *this;
 }
 
@@ -27,32 +28,32 @@ ScriptSequence& ScriptSequence::Then(std::function<void(Entity)> func) {
 	auto wrapped = [f = std::move(func)](Entity e) {
 		f(GetParent(e));
 	};
-	GetTween().During(milliseconds{ 0 }).OnPointComplete(std::move(wrapped));
+	auto& instance{ Get<impl::ScriptSequenceInstance>() };
+	instance.tween.During(milliseconds{ 0 }).OnPointComplete(std::move(wrapped));
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Wait(milliseconds duration) {
-	GetTween().During(duration);
+	auto& instance{ Get<impl::ScriptSequenceInstance>() };
+	instance.tween.During(duration);
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Repeat(std::int64_t repeats) {
-	GetTween().Repeat(repeats);
+	auto& instance{ Get<impl::ScriptSequenceInstance>() };
+	instance.tween.Repeat(repeats);
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::MoveOn() {
-	GetTween().IncrementPoint();
+	auto& instance{ Get<impl::ScriptSequenceInstance>() };
+	instance.tween.IncrementPoint();
 	return *this;
 }
 
 void ScriptSequence::Start(bool force) {
-	GetTween().Start(force);
-}
-
-Tween ScriptSequence::GetTween() const {
-	const auto& instance{ Get<impl::ScriptSequenceInstance>() };
-	return Tween{ instance.tween };
+	auto& instance{ Get<impl::ScriptSequenceInstance>() };
+	instance.tween.Start(force);
 }
 
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
@@ -61,10 +62,10 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	auto tween{ CreateTween(scene) };
 	SetParent(tween, sequence);
 
-	const auto& instance{ sequence.Add<impl::ScriptSequenceInstance>(tween) };
+	auto& instance{ sequence.Add<impl::ScriptSequenceInstance>(tween) };
 
 	if (destroy_on_complete) {
-		Tween{ instance.tween }.OnComplete([](Entity e) { GetParent(e).Destroy(); });
+		instance.tween.OnComplete([](Entity e) { GetParent(e).Destroy(); });
 	}
 
 	return sequence;

@@ -4,20 +4,47 @@
 #include <unordered_map>
 #include <vector>
 
+#include "components/generic.h"
+#include "components/sprite.h"
 #include "core/entity.h"
 #include "core/game_object.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "core/time.h"
 #include "input/key.h"
 #include "math/vector2.h"
+#include "renderer/api/color.h"
 #include "renderer/font.h"
 #include "renderer/text.h"
 #include "serialization/enum.h"
+#include "serialization/fwd.h"
 #include "serialization/serializable.h"
+#include "tweens/tween.h"
+#include "utility/file.h"
 
 namespace ptgn {
 
 class DialogueComponent;
+
+namespace impl {
+
+struct DialogueWaitScript : public Script<DialogueWaitScript> {
+	DialogueWaitScript() {}
+
+	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+	void OnUpdate() final;
+};
+
+struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript, TweenScript> {
+	DialogueScrollScript() {}
+
+	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+	static void UpdateText(Entity& text_entity, float elapsed_fraction);
+	void OnPointComplete() final;
+	void OnProgress(float elapsed_fraction) final;
+};
+
+} // namespace impl
 
 struct DialoguePageProperties {
 	DialoguePageProperties() = default;
@@ -65,33 +92,13 @@ struct Dialogue {
 	bool scroll{ true };
 	std::string next_dialogue;
 
-	[[nodiscard]] std::size_t PickRandomIndex();
+	[[nodiscard]] std::size_t PickRandomIndex() const;
 	[[nodiscard]] const DialogueLine* GetCurrentDialogueLine() const;
 	[[nodiscard]] int GetNewDialogueLine();
 
 	std::vector<DialogueLine> lines;
 	std::vector<std::size_t> used_line_indices;
 };
-
-namespace impl {
-
-struct DialogueWaitScript : public Script<DialogueWaitScript> {
-	DialogueWaitScript() {}
-
-	[[nodiscard]] DialogueComponent& GetDialogueComponent();
-	void OnUpdate() final;
-};
-
-struct DialogueScrollScript : public ptgn::Script<DialogueScrollScript, TweenScript> {
-	DialogueScrollScript() {}
-
-	[[nodiscard]] DialogueComponent& GetDialogueComponent();
-	static void UpdateText(Entity& text_entity, float elapsed_fraction);
-	void OnPointComplete() final;
-	void OnProgress(float elapsed_fraction) final;
-};
-
-} // namespace impl
 
 class DialogueComponent {
 public:
@@ -101,7 +108,6 @@ public:
 	[[nodiscard]] Key GetContinueKey() const;
 	void SetContinueKey(Key continue_key);
 
-	[[nodiscard]] Text GetText() const;
 	[[nodiscard]] bool IsOpen() const;
 
 	void Open(const std::string& dialogue_name = "");
@@ -117,9 +123,9 @@ public:
 	void IncrementPage();
 	void DrawInfo();
 
-	GameObject tween;
-
 private:
+	friend struct impl::DialogueWaitScript;
+
 	void AlignToTopLeft(const DialoguePageProperties& default_properties);
 	void StartDialogueLine(int dialogue_line_index);
 	void LoadFromJson(const json& root, const DialoguePageProperties& default_properties);
@@ -131,12 +137,16 @@ private:
 
 	[[nodiscard]] static std::string JoinLines(const std::vector<std::string>& lines);
 
-	GameObject text_;
-	GameObject background_;
+	GameObject<Tween> tween_;
+	GameObject<Text> text_;
+	GameObject<Sprite> background_;
+
 	Key continue_key_{ Key::Enter };
+
 	int current_line_{ 0 };
 	int current_page_{ 0 };
 	std::string current_dialogue_;
+
 	std::unordered_map<std::string, Dialogue> dialogues_;
 };
 

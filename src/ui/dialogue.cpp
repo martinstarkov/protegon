@@ -63,12 +63,10 @@ void DialogueWaitScript::OnUpdate() {
 	if (!game.input.KeyDown(continue_key)) {
 		return;
 	}
-	PTGN_ASSERT(dialogue_component.tween);
-	Tween tween{ dialogue_component.tween };
-	if (tween.IsRunning()) {
-		auto text{ dialogue_component.GetText() };
-		impl::DialogueScrollScript::UpdateText(text, 1.0f);
-		tween.Clear();
+	PTGN_ASSERT(dialogue_component.tween_);
+	if (dialogue_component.tween_.IsRunning()) {
+		impl::DialogueScrollScript::UpdateText(dialogue_component.text_, 1.0f);
+		dialogue_component.tween_.Clear();
 		return;
 	}
 	dialogue_component.NextPage();
@@ -148,13 +146,13 @@ DialoguePage::DialoguePage(
 ) :
 	content(text_content), properties(properties) {}
 
-std::size_t Dialogue::PickRandomIndex() {
+std::size_t Dialogue::PickRandomIndex() const {
 	PTGN_ASSERT(lines.size() > used_line_indices.size());
 	if (lines.size() == 1) {
 		return 0;
 	}
 	RNG<std::size_t> index_rng(0, lines.size() - 1);
-	std::size_t chosen_index = index;
+	std::size_t chosen_index{ index };
 	do {
 		chosen_index = index_rng();
 	} while (VectorContains(used_line_indices, chosen_index));
@@ -216,14 +214,14 @@ DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entit
 	if (background_) {
 		SetParent(background_, parent);
 	}
-	text_ = CreateText(scene, "", color::White);
-	tween = CreateTween(scene);
-	AddChild(parent, tween, "tween");
+	text_  = CreateText(scene, "", color::White);
+	tween_ = CreateTween(scene);
+	AddChild(parent, tween_, "tween");
 	AddChild(parent, text_, "text");
 	DialoguePageProperties default_properties;
-	default_properties.box_size	 = Sprite{ background_ }.GetDisplaySize();
-	default_properties.font_key	 = Text{ text_ }.GetFontKey();
-	default_properties.font_size = Text{ text_ }.GetFontSize(false);
+	default_properties.box_size	 = background_.GetDisplaySize();
+	default_properties.font_key	 = text_.GetFontKey();
+	default_properties.font_size = text_.GetFontSize(false);
 	LoadFromJson(j, default_properties);
 	Close();
 }
@@ -234,10 +232,6 @@ Key DialogueComponent::GetContinueKey() const {
 
 void DialogueComponent::SetContinueKey(Key continue_key) {
 	continue_key_ = continue_key;
-}
-
-Text DialogueComponent::GetText() const {
-	return Text{ text_ };
 }
 
 bool DialogueComponent::IsOpen() const {
@@ -277,7 +271,7 @@ void DialogueComponent::Close() {
 	if (background_) {
 		Hide(background_);
 	}
-	Tween{ tween }.Clear();
+	tween_.Clear();
 	RemoveScripts<impl::DialogueWaitScript>(text_);
 	current_line_ = 0;
 	current_page_ = 0;
@@ -296,8 +290,8 @@ void DialogueComponent::NextPage() {
 	}
 	auto duration{ page->properties.scroll_duration };
 
-	Tween{ tween }.Clear();
-	Tween{ tween }.During(duration).AddScript<impl::DialogueScrollScript>().Start();
+	tween_.Clear();
+	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
 }
 
 void DialogueComponent::SetNextDialogue() {
@@ -390,8 +384,8 @@ void DialogueComponent::StartDialogueLine(int dialogue_line_index) {
 	auto page	  = GetCurrentDialoguePage();
 	PTGN_ASSERT(page);
 	auto duration = page->properties.scroll_duration;
-	Tween{ tween }.Clear();
-	Tween{ tween }.During(duration).AddScript<impl::DialogueScrollScript>().Start();
+	tween_.Clear();
+	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
 	AddScript<impl::DialogueWaitScript>(text_);
 }
 
