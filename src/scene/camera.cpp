@@ -54,7 +54,7 @@ void CameraInfo::SetResizeMode(CameraResizeMode resize) {
 	projection_dirty = true;
 }
 
-void CameraInfo::SetCenterMode(CameraCenterMode center) {
+void CameraInfo::SetCenterMode(CameraCenterMode center) const {
 	if (center_mode == center) {
 		return;
 	}
@@ -163,7 +163,7 @@ const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Ent
 	bool position_changed{ current.GetPosition() != previous.GetPosition() };
 
 	if (position_changed) {
-		center_mode = CameraCenterMode::Custom;
+		SetCenterMode(CameraCenterMode::Custom);
 	}
 
 	// Either view is dirty, the camera has been offset (due to shake or other effects), or the
@@ -339,6 +339,13 @@ void Camera::OnResolutionChanged(
 ) {
 	auto& info{ camera.Get<impl::CameraInfo>() };
 	size *= camera.GetZoom();
+
+	bool position_changed{ GetPosition(camera) != info.previous.GetPosition() };
+
+	if (position_changed) {
+		info.SetCenterMode(CameraCenterMode::Custom);
+	}
+
 	bool resize{ info.GetResizeMode() == resize_mode };
 	bool center{ info.GetCenterMode() == center_mode };
 	if (resize) {
@@ -417,6 +424,19 @@ void Camera::SetCenterMode(CameraCenterMode center_mode, bool continuously) {
 	if (continuously) {
 		info.SetCenterMode(center_mode);
 		if (center_mode != CameraCenterMode::Custom) {
+			V2_float resolution;
+			if (center_mode == CameraCenterMode::LogicalResolution) {
+				resolution = game.renderer.GetLogicalResolution();
+			} else if (center_mode == CameraCenterMode::PhysicalResolution) {
+				resolution = game.renderer.GetPhysicalResolution();
+			}
+
+			auto pos{ GetZoom() * resolution * 0.5f };
+			ptgn::SetPosition(*this, pos);
+			// This prevents the mode from center_mode being switched to CameraCenterMode::Custom
+			// when re-calculating the view projection matrix.
+			info.previous.SetPosition(pos);
+
 			SubscribeToResolutionEvents(info.GetResizeMode(), center_mode);
 		}
 	} else if (center_mode != CameraCenterMode::Custom) {

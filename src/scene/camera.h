@@ -50,7 +50,7 @@ public:
 	void SetBoundingBox(const V2_float& new_bounding_position, const V2_float& new_bounding_size);
 
 	void SetResizeMode(CameraResizeMode resize);
-	void SetCenterMode(CameraCenterMode center);
+	void SetCenterMode(CameraCenterMode center) const;
 
 	void SetFlip(Flip flip);
 
