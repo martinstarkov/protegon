@@ -1,6 +1,7 @@
 
 #include "components/draw.h"
 #include "components/interactive.h"
+#include "components/movement.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/game.h"
@@ -486,13 +487,18 @@ struct InteractiveScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::Q)) {
+		if (game.input.KeyDown(Key::E)) {
 			input.SetTopOnly(false);
 			PTGN_LOG("Setting top input only: false");
-		} else if (game.input.KeyDown(Key::E)) {
+		} else if (game.input.KeyDown(Key::Q)) {
 			input.SetTopOnly(true);
 			PTGN_LOG("Setting top input only: true");
 		}
+
+		constexpr V2_float speed{ 3.0f, 3.0f };
+		V2_float pos{ GetPosition(camera) };
+		MoveWASD(pos, speed, false);
+		SetPosition(camera, pos);
 		/*const auto& dropped{ r4.Get<Dropzone>().dropped_entities };
 		Print("Dropped: ");
 		for (auto d : dropped) {
@@ -503,7 +509,7 @@ struct InteractiveScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("InteractiveScene");
+	game.Init("InteractiveScene: Q/E: Toggle TopOnly, WASD: Move Camera");
 	game.scene.Enter<InteractiveScene>("");
 	return 0;
 }

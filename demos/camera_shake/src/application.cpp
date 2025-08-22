@@ -38,9 +38,6 @@ public:
 	}
 
 	void Enter() override {
-		input.SetDrawInteractives(true);
-		input.SetDrawInteractivesLineWidth(10.0f);
-
 		// Button b0;
 		// Button b1;
 		// V2_float size{ 50.0f, 50.0f };
