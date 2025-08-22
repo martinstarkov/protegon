@@ -233,13 +233,17 @@ void CameraInfo::RecalculateView(const Transform& current, const Transform& offs
 
 void CameraInfo::RecalculateProjection(const Transform& current) const {
 	auto zoom{ Abs(current.GetScale()) };
-	PTGN_ASSERT(zoom.x > 0.0f && zoom.y > 0.0f);
+
+	PTGN_ASSERT(zoom.BothAboveZero());
+
 	V2_float extents{ (viewport_size * 0.5f) / zoom };
-	PTGN_LOG("Recalculating projections with viewport_size: ", viewport_size, " and zoom: ", zoom);
+
 	if (pixel_rounding) {
 		extents = Round(extents);
 	}
+
 	V2_float flip_dir{ 1.0f, 1.0f };
+
 	switch (flip) {
 		case Flip::None:	   break;
 		case Flip::Vertical:   flip_dir.y = -1.0f; break;
@@ -250,11 +254,13 @@ void CameraInfo::RecalculateProjection(const Transform& current) const {
 			break;
 		default: PTGN_ERROR("Unrecognized flip state");
 	}
+
 	projection = Matrix4::Orthographic(
 		flip_dir.x * -extents.x, flip_dir.x * extents.x, flip_dir.y * extents.y,
 		flip_dir.y * -extents.y, -std::numeric_limits<float>::infinity(),
 		std::numeric_limits<float>::infinity()
 	);
+
 	projection_dirty = false;
 }
 
