@@ -1,18 +1,21 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
-#include <deque>
+#include <functional>
 
 #include "common/assert.h"
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
+#include "core/game_object.h"
 #include "core/time.h"
-#include "core/timer.h"
 #include "math/easing.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "serialization/serializable.h"
 #include "tweens/follow_config.h"
 #include "tweens/shake_config.h"
+#include "tweens/tween.h"
 
 namespace ptgn {
 
@@ -20,137 +23,69 @@ class Manager;
 
 namespace impl {
 
-struct FollowEffectInfo {
-	FollowEffectInfo() = default;
+template <typename T>
+struct Effect {
+	Effect() = default;
 
-	FollowEffectInfo(Entity follow_target, const FollowConfig& follow_config);
+	Effect(const T& start) : start{ start } {}
+
+	T start{};
+
+	bool operator==(const Effect&) const = default;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Effect, start)
+};
+
+struct TranslateEffect : public Effect<V2_float> {};
+
+struct RotateEffect : public Effect<float> {};
+
+struct ScaleEffect : public Effect<V2_float> {};
+
+struct TintEffect : public Effect<Color> {};
+
+/*
+
+struct FollowEffect {
+	FollowEffect() = default;
+
+	FollowEffect(Manager& manager, Entity follow_target, const FollowConfig& follow_config);
 
 	Entity target;
 	FollowConfig config;
+	GameObject<Tween> tween;
 
 	std::size_t current_waypoint{ 0 };
 
-	friend bool operator==(const FollowEffectInfo& a, const FollowEffectInfo& b) {
-		return a.target == b.target && a.config == b.config &&
-			   a.current_waypoint == b.current_waypoint;
-	}
+	bool operator==(const FollowEffect&) const = default;
 
-	friend bool operator!=(const FollowEffectInfo& a, const FollowEffectInfo& b) {
-		return !(a == b);
-	}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffectInfo, target, config, current_waypoint)
-};
-
-struct FollowEffect {
-	std::deque<FollowEffectInfo> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, tasks)
-};
-
-template <typename T>
-struct EffectInfo {
-	EffectInfo() = default;
-
-	EffectInfo(
-		const T& start, const T& target, milliseconds tween_duration, const Ease& tween_ease
-	) :
-		start_value{ start },
-		target_value{ target },
-		duration{ tween_duration },
-		ease{ tween_ease } {}
-
-	T start_value{};
-	T target_value{};
-	milliseconds duration{ 0 };
-	Ease ease{ SymmetricalEase::Linear };
-	Timer timer;
-
-	friend bool operator==(const EffectInfo& a, const EffectInfo& b) {
-		return a.start_value == b.start_value && a.target_value == b.target_value &&
-			   a.duration == b.duration && a.ease == b.ease && a.timer == b.timer;
-	}
-
-	friend bool operator!=(const EffectInfo& a, const EffectInfo& b) {
-		return !(a == b);
-	}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		EffectInfo, start_value, target_value, duration, ease, timer
-	)
-};
-
-struct TranslateEffect {
-	std::deque<EffectInfo<V2_float>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TranslateEffect, tasks)
-};
-
-struct RotateEffect {
-	std::deque<EffectInfo<float>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RotateEffect, tasks)
-};
-
-struct ScaleEffect {
-	std::deque<EffectInfo<V2_float>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ScaleEffect, tasks)
-};
-
-struct TintEffect {
-	std::deque<EffectInfo<Color>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TintEffect, tasks)
-};
-
-struct BounceEffectInfo {
-	BounceEffectInfo() = default;
-
-	BounceEffectInfo(
-		const V2_float& amplitude, milliseconds duration, const Ease& ease,
-		const V2_float& static_offset, std::int64_t total_periods, bool symmetrical
-	);
-
-	V2_float amplitude;
-	milliseconds duration{ 0 };
-	Ease ease{ SymmetricalEase::Linear };
-	Timer timer;
-	V2_float static_offset;
-	std::int64_t total_periods{ -1 };	 // -1 means infinite
-	std::int64_t periods_completed{ 0 }; // How many times the bounce has repeated so far.
-	bool symmetrical{ false }; // If true, bounce origin is the middle point of the movement. If
-							   // false, bounce origin is the bottom (or top) point of the movement.
-
-	friend bool operator==(const BounceEffectInfo& a, const BounceEffectInfo& b) {
-		return a.amplitude == b.amplitude && a.duration == b.duration && a.ease == b.ease &&
-			   a.timer == b.timer && a.static_offset == b.static_offset &&
-			   a.total_periods == b.total_periods && a.periods_completed == b.periods_completed &&
-			   a.symmetrical == b.symmetrical;
-	}
-
-	friend bool operator!=(const BounceEffectInfo& a, const BounceEffectInfo& b) {
-		return !(a == b);
-	}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		BounceEffectInfo, amplitude, duration, ease, timer, static_offset, total_periods,
-		periods_completed, symmetrical
-	)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, target, config, current_waypoint)
 };
 
 struct BounceEffect {
-	std::deque<BounceEffectInfo> tasks;
+	BounceEffect() = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(BounceEffect, tasks)
+	BounceEffect(
+		Manager& manager, const V2_float& amplitude, const V2_float& static_offset, bool symmetrical
+	);
+
+	V2_float amplitude;
+	V2_float static_offset;
+	bool symmetrical{ false }; // If true, bounce origin is the middle point of the movement. If
+							   // false, bounce origin is the bottom (or top) point of the movement.
+	GameObject<Tween> tween;
+
+	bool operator==(const BounceEffect&) const = default;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(BounceEffect, amplitude, static_offset, symmetrical)
 };
 
-struct ShakeEffectInfo : public EffectInfo<float> {
-	ShakeEffectInfo() = default;
+struct ShakeEffect : public Effect<float> {
+	ShakeEffect() = default;
 
-	ShakeEffectInfo(
-		float start_intensity, float target_intensity, milliseconds duration, const Ease& ease,
-		const ShakeConfig& config, std::int32_t seed
+	ShakeEffect(
+		Manager& manager, float start_intensity, float end_intensity, const ShakeConfig& config,
+		std::int32_t seed
 	);
 
 	ShakeConfig config;
@@ -161,95 +96,63 @@ struct ShakeEffectInfo : public EffectInfo<float> {
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
 
-	friend bool operator==(const ShakeEffectInfo& a, const ShakeEffectInfo& b) {
-		return NearlyEqual(a.trauma, b.trauma) && a.config == b.config && a.seed == b.seed;
-	}
+	GameObject<Tween> tween;
 
-	friend bool operator!=(const ShakeEffectInfo& a, const ShakeEffectInfo& b) {
-		return !(a == b);
-	}
+	bool operator==(const ShakeEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		ShakeEffectInfo, start_value, target_value, duration, ease, timer, config, seed, trauma
-	)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, start, end, config, seed, trauma)
 };
-
-struct ShakeEffect {
-	std::deque<ShakeEffectInfo> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, tasks)
-};
-
-class TranslateEffectSystem {
-public:
-	void Update(Manager& manager) const;
-};
-
-class RotateEffectSystem {
-public:
-	void Update(Manager& manager) const;
-};
-
-class ScaleEffectSystem {
-public:
-	void Update(Manager& manager) const;
-};
-
-class TintEffectSystem {
-public:
-	void Update(Manager& manager) const;
-};
-
-class BounceEffectSystem {
-public:
-	void Update(Manager& manager) const;
-
-private:
-	[[nodiscard]] static float ApplyEase(float t, bool symmetrical, const Ease& ease);
-};
-
-class ShakeEffectSystem {
-public:
-	void Update(Manager& manager, float time, float dt) const;
-};
-
-class FollowEffectSystem {
-public:
-	void Update(Manager& manager) const;
-};
+*/
 
 template <typename TComponent, typename T>
 void AddTweenEffect(
 	Entity& entity, const T& target, milliseconds duration, const Ease& ease, bool force,
-	const T& current_value
+	const std::function<T(Entity)>& get_current_value,
+	const std::function<void(Entity, T)>& set_current_value
 ) {
 	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
 
-	auto& comp{ entity.TryAdd<TComponent>() };
+	GameObject<Tween>* tween{ nullptr };
 
-	T start{};
-
-	bool first_task{ force || comp.tasks.empty() };
-
-	if (first_task) {
-		comp.tasks.clear();
-		start = current_value;
+	if (!entity.Has<GameObject<Tween>>()) {
+		tween = &entity.Add<GameObject<Tween>>(CreateTween(entity.GetManager()));
+		SetParent(*tween, entity);
 	} else {
-		// Use previous task's target value as new starting point.
-		start = comp.tasks.back().target_value;
+		tween = &entity.Get<GameObject<Tween>>();
 	}
 
-	auto& task{ comp.tasks.emplace_back(start, target, duration, ease) };
+	tween->TryAdd<TComponent>();
 
-	if (first_task) {
-		task.timer.Start(true);
+	if (force || tween->IsCompleted()) {
+		tween->Clear();
 	}
+
+	auto update_start = [get_current_value](auto e) mutable {
+		auto& value{ e.Get<TComponent>() };
+		Entity parent{ GetParent(e) };
+		value.start = get_current_value(parent);
+	};
+
+	tween->During(duration)
+		.Ease(ease)
+		.OnStart(update_start)
+		.OnProgress([target, set_current_value](Entity e, float progress) mutable {
+			auto& value{ e.Get<TComponent>() };
+			auto result{ Lerp(value.start, target, progress) };
+			Entity parent{ GetParent(e) };
+			set_current_value(parent, result);
+		})
+		.OnPointComplete(update_start)
+		.OnComplete(update_start)
+		.OnStop(update_start)
+		.OnReset(update_start);
+	tween->Start(force);
 }
 
-void BounceImpl(
-	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
-	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
-);
+// void BounceImpl(
+//	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
+//	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
+//);
 
 } // namespace impl
 

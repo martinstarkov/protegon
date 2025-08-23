@@ -16,6 +16,7 @@
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
+#include "tweens/tween.h"
 
 namespace ptgn::impl {
 
@@ -177,6 +178,8 @@ void SceneManager::Update() {
 
 	game.input.InvokeInputEvents(render_data.render_manager);
 	invoke_resolution_events(render_data.render_manager);
+
+	Tween::Update(render_data.render_manager, game.dt());
 
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);

@@ -17,7 +17,6 @@
 #include "scene/scene_key.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
-#include "tweens/tween_effects.h"
 
 namespace ptgn {
 
@@ -96,6 +95,7 @@ public:
 	[[nodiscard]] Color GetBackgroundColor() const;
 
 	[[nodiscard]] const RenderTarget& GetRenderTarget() const;
+	[[nodiscard]] RenderTarget& GetRenderTarget();
 
 	// @return Size of scene render target divided by size of the camera viewport.
 	[[nodiscard]] V2_float GetScaleRelativeTo(const Camera& relative_to_camera) const;
@@ -117,14 +117,6 @@ private:
 	impl::CollisionHandler collision_;
 
 	void Init();
-
-	impl::TranslateEffectSystem translate_effects_;
-	impl::RotateEffectSystem rotate_effects_;
-	impl::ScaleEffectSystem scale_effects_;
-	impl::TintEffectSystem tint_effects_;
-	impl::BounceEffectSystem bounce_effects_;
-	impl::ShakeEffectSystem shake_effects_;
-	impl::FollowEffectSystem follow_effects_;
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();

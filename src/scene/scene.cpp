@@ -34,7 +34,6 @@
 #include "scene_input.h"
 #include "serialization/fwd.h"
 #include "tweens/tween.h"
-#include "tweens/tween_effects.h"
 #include "utility/flags.h"
 
 namespace ptgn {
@@ -132,6 +131,10 @@ Color Scene::GetBackgroundColor() const {
 }
 
 const RenderTarget& Scene::GetRenderTarget() const {
+	return render_target_;
+}
+
+RenderTarget& Scene::GetRenderTarget() {
 	return render_target_;
 }
 
@@ -234,20 +237,8 @@ void Scene::InternalUpdate() {
 
 	ParticleEmitter::Update(*this);
 
-	const auto update_tweens = [&](Manager& manager) {
-		Tween::Update(manager, dt);
-
-		translate_effects_.Update(manager);
-		rotate_effects_.Update(manager);
-		scale_effects_.Update(manager);
-		tint_effects_.Update(manager);
-		bounce_effects_.Update(manager);
-		shake_effects_.Update(manager, time, dt);
-		follow_effects_.Update(manager);
-	};
-
-	update_tweens(cameras_);
-	update_tweens(*this);
+	Tween::Update(cameras_, dt);
+	Tween::Update(*this, dt);
 
 	impl::AnimationSystem::Update(*this);
 
