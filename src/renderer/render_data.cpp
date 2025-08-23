@@ -351,6 +351,8 @@ TextureId RenderData::PingPong(
 	bool use_previous_texture{ true };
 
 	for (const auto& fx : container) {
+		PTGN_ASSERT(fx.Has<ShaderPass>());
+
 		bool first_effect{ fx == container.front() };
 
 		if (!first_effect && use_previous_texture) {

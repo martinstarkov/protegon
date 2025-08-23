@@ -347,20 +347,82 @@ private:
 
 	void InvokeDrawable(const Entity& entity);
 
+	/*
+	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between
+	 * two framebuffers. The final result is written into a texture, whose ID is returned.
+	 *
+	 * This is typically used in screen-space effects like blur, bloom, color grading, etc.
+	 *
+	 * @param container       A list of entities, each containing a ShaderPass component that
+	 * defines a rendering effect to apply.
+	 * @param read_context    The initial draw context used for reading. This context contains the
+	 *                        framebuffer with the source texture or result of previous passes.
+	 * @param texture         The initial texture to apply effects to (e.g., scene render target).
+	 *                        Must be valid for the first pass.
+	 * @param target          A DrawTarget containing viewport info and configuration for rendering
+	 *                        each shader pass.
+	 * @param flip_vertices   If true, flips the output texture quad vertically (useful for
+	 * screen-space coordinate correction).
+	 *
+	 * @return The texture ID containing the final rendered result after all shader passes.
+	 *
+	 * @note The function uses a ping-pong approach by alternating between two framebuffers:
+	 *       one for reading, one for writing. This avoids unnecessary GPU memory allocations.
+	 *
+	 * @warning The input container must not be empty. An assertion will fail if it is.
+	 */
 	[[nodiscard]] TextureId PingPong(
 		const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
 		const Texture& texture, DrawTarget target, bool flip_vertices
 	);
 
+	/**
+	 * Draws a set of previously prepared vertices using the specified shader and render target.
+	 *
+	 * @param shader              The shader to use for rendering.
+	 * @param target              The rendering target that contains the destination framebuffer,
+	 *                            blend mode, viewport, etc.
+	 * @param clear_frame_buffer  If true, the target's framebuffer will be cleared before drawing.
+	 */
 	void DrawVertices(
 		const Shader& shader, const RenderData::DrawTarget& target, bool clear_frame_buffer
 	);
 
+	/**
+	 * Draws a fullscreen quad using the provided shader, commonly used for post-processing effects.
+	 *
+	 * @param shader              The shader to apply to the fullscreen quad.
+	 * @param target              The rendering target that contains the destination framebuffer,
+	 *                            blend mode, viewport, etc.
+	 * @param flip_texture        If true, vertically flips the texture coordinates (useful when
+	 * rendering to screen-space or handling texture origin discrepancies).
+	 * @param clear_frame_buffer  If true, clears the framebuffer to the specified clear color
+	 * before drawing.
+	 * @param target_clear_color  The color used to clear the framebuffer, if clearing is enabled.
+	 */
 	void DrawFullscreenQuad(
 		const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
 		bool clear_frame_buffer, const Color& target_clear_color
 	);
 
+	/**
+	 * Issues a low-level draw call with the given vertex and index data, rendering to the specified
+	 * framebuffer.
+	 *
+	 * @param shader              The shader to bind and use during the draw call.
+	 * @param vertices            The list of vertices to draw.
+	 * @param indices             The list of indices that define how the vertices are connected.
+	 * @param textures            The textures to bind and make available to the shader.
+	 * @param frame_buffer        The destination framebuffer to draw into. If null, draws to the
+	 * default framebuffer.
+	 * @param clear_frame_buffer  If true, clears the framebuffer to the specified clear color
+	 * before drawing.
+	 * @param clear_color         The color to clear the framebuffer with, if clearing is enabled.
+	 * @param blend_mode          The blend mode to use during rendering (e.g., alpha blending,
+	 * additive, etc.).
+	 * @param viewport            The portion of the framebuffer to draw to.
+	 * @param view_projection     The matrix used to transform vertex positions into screen space.
+	 */
 	void DrawCall(
 		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
 		const std::vector<TextureId>& textures, const impl::FrameBuffer* frame_buffer,
@@ -388,14 +450,36 @@ private:
 
 	void Draw(Scene& scene);
 
+	/**
+	 * Draws a textured quad using the contents of a source render target onto a destination
+	 * framebuffer.
+	 *
+	 * This is typically used for compositing, where one render target  is drawn onto another buffer
+	 * or the screen target.
+	 *
+	 * @param source_target       The render target whose texture will be drawn.
+	 * @param points              The four corner points (in destination space) of the quad onto
+	 * which the source target will be mapped. These should be in the order: top-left, top-right,
+	 * bottom-right, bottom-left.
+	 * @param projection          The projection matrix that transforms the quad's points into clip
+	 * space. Defines the coordinate system used during drawing.
+	 * @param viewport            The portion of the destination framebuffer that will be rendered
+	 * to.
+	 * @param destination_buffer  The framebuffer that the source target will be drawn into.
+	 *                            If null, draws to the default framebuffer (usually the screen).
+	 */
 	void DrawFromTo(
 		const RenderTarget& source_target, const std::array<V2_float, 4>& points,
 		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
 	);
 
+	// Draws the screen target to the default frame buffer.
 	void DrawScreenTarget();
 
 	void ClearScreenTarget() const;
+
+	// Clear the scene's internal render target, and all of the render target objects that exist in
+	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
 
 	std::shared_ptr<DrawContext> intermediate_target;
