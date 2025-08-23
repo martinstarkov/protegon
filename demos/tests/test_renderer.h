@@ -256,10 +256,10 @@ struct TestRectangle : public DrawTest {
 	}
 
 	void Update() override {
-		if (game.input.KeyPressed(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}
-		if (game.input.KeyPressed(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			rotation -= 5.0f * dt;
 		}
 	}
@@ -616,10 +616,10 @@ struct TestTexture : public DrawTest {
 	}
 
 	void Update() override {
-		if (game.input.KeyPressed(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			rotation += 5.0f * dt;
 		}
-		if (game.input.KeyPressed(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			rotation -= 5.0f * dt;
 		}
 	}
@@ -1067,7 +1067,7 @@ void TestFrameBuffers() {
 	// TODO: Fix.
 	V2_int size{ 800, 800 };
 	game.window.SetSize(size);
-	// game.input.Update();
+	// input.Update();
 	game.renderer.Flush();
 	RenderTarget rt{ size };
 	/*rt.Bind();
@@ -1348,7 +1348,7 @@ void TestShaderComplex() {
 	Shader shader2 =
 		Shader("resources/shader/main_vert.glsl", "resources/shader/fire_ball_frag.glsl");
 
-	V2_float mouse		 = game.input.GetMousePosition();
+	V2_float mouse		 = input.GetMousePosition();
 
 	clock_t start_time = clock();
 	clock_t curr_time;

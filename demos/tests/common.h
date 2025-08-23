@@ -113,16 +113,16 @@ void CheckForTestSwitch(const std::vector<std::shared_ptr<Test>>& tests, int& cu
 		game.event.window.Unsubscribe(tests[current_test].get());
 	};
 
-	if (game.input.KeyDown(test_switch_keys[0])) {
+	if (input.KeyDown(test_switch_keys[0])) {
 		shutdown();
 		current_test--;
 		current_test = Mod(current_test, test_count);
-	} else if (game.input.KeyDown(test_switch_keys[1])) {
+	} else if (input.KeyDown(test_switch_keys[1])) {
 		shutdown();
 		current_test++;
 		current_test = Mod(current_test, test_count);
 	}
-	if (game.input.KeyDown(test_category_switch_key)) {
+	if (input.KeyDown(test_category_switch_key)) {
 		shutdown();
 	}
 }

@@ -140,15 +140,15 @@
 //	V2_float canvas_mouse{ canvas_.GetMousePosition() };
 //	bool mouse_on_legend{ legend_rect_ != Rect{} && legend_rect_.Overlaps(canvas_mouse) };
 //
-//	if (game.input.MouseDown(Mouse::Left) && mouse_on_plot && !mouse_on_legend) {
+//	if (input.MouseDown(Mouse::Left) && mouse_on_plot && !mouse_on_legend) {
 //		offset_		 = mouse_pos;
 //		move_axis_	 = current_axis_;
 //		moving_plot_ = true;
-//	} else if (game.input.MouseUp(Mouse::Left)) {
+//	} else if (input.MouseUp(Mouse::Left)) {
 //		offset_ = V2_float::Infinity();
 //	}
 //
-//	auto scroll{ game.input.GetMouseScroll() };
+//	auto scroll{ input.GetMouseScroll() };
 //
 //	if (scroll != 0 && mouse_on_plot) {
 //		// To zoom into where mouse is located, we scale zoom amount for each axis

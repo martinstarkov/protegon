@@ -638,7 +638,7 @@ void CameraController::OnMouseMoveEvent([[maybe_unused]] const MouseMoveEvent& e
 
 	static bool first_mouse = true;
 
-	if (game.input.MousePressed(Mouse::Left)) {
+	if (input.MousePressed(Mouse::Left)) {
 		const MouseMoveEvent& mouse = static_cast<const MouseMoveEvent&>(e);
 		if (!first_mouse) {
 			V2_float offset = mouse.GetDifference();

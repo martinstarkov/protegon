@@ -36,10 +36,10 @@ struct TintEffectScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			TintTo(sprite1, color::Purple, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
-		if (game.input.MouseDown(Mouse::Right)) {
+		if (input.MouseDown(Mouse::Right)) {
 			TintTo(sprite1, color::White, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}

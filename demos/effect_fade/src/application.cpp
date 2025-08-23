@@ -28,10 +28,10 @@ struct FadeEffectScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
-		if (game.input.MouseDown(Mouse::Right)) {
+		if (input.MouseDown(Mouse::Right)) {
 			FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}

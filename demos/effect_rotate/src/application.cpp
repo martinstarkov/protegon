@@ -28,12 +28,12 @@ struct RotateEffectScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			RotateTo(
 				sprite1, DegToRad(360.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true
 			);
 		}
-		if (game.input.MouseDown(Mouse::Right)) {
+		if (input.MouseDown(Mouse::Right)) {
 			RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}

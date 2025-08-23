@@ -38,33 +38,33 @@ struct DialogueScene : public Scene {
 
 	void Update() override {
 		if (auto dialogue{ npc.TryGet<DialogueComponent>() }) {
-			if (game.input.KeyDown(Key::Space)) {
+			if (input.KeyDown(Key::Space)) {
 				dialogue->Open();
 			}
-			if (game.input.KeyDown(Key::Escape)) {
+			if (input.KeyDown(Key::Escape)) {
 				dialogue->Close();
 			}
-			if (game.input.KeyDown(Key::N)) {
+			if (input.KeyDown(Key::N)) {
 				dialogue->SetNextDialogue();
 			}
-			if (game.input.KeyDown(Key::I)) {
+			if (input.KeyDown(Key::I)) {
 				dialogue->SetDialogue("intro");
 			}
-			if (game.input.KeyDown(Key::O)) {
+			if (input.KeyDown(Key::O)) {
 				dialogue->SetDialogue("outro");
 			}
-			if (game.input.KeyDown(Key::E)) {
+			if (input.KeyDown(Key::E)) {
 				dialogue->SetDialogue("epilogue");
 			}
 			dialogue->DrawInfo();
 		}
-		if (game.input.KeyDown(Key::A)) {
+		if (input.KeyDown(Key::A)) {
 			npc.Add<DialogueComponent>(
 				npc, "resources/dialogue.json", CreateSprite(*this, "dialogue_box", {})
 			);
 			PTGN_LOG("Entity count: ", Size());
 		}
-		if (game.input.KeyDown(Key::D)) {
+		if (input.KeyDown(Key::D)) {
 			npc.Remove<DialogueComponent>();
 			PTGN_LOG("Entity count: ", Size());
 		}

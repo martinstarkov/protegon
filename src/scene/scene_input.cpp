@@ -585,25 +585,25 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 }
 
 V2_float SceneInput::GetMousePosition() const {
-	auto screen_point{ game.input.GetMouseWindowPosition() };
+	auto screen_point{ GetMouseWindowPosition() };
 	auto world_point{ ScreenToWorld(screen_point) };
 	return world_point;
 }
 
 V2_float SceneInput::GetMousePositionUnclamped() const {
-	auto screen_point{ game.input.GetMouseWindowPositionUnclamped() };
+	auto screen_point{ GetMouseWindowPositionUnclamped() };
 	auto world_point{ ScreenToWorld(screen_point) };
 	return world_point;
 }
 
 V2_float SceneInput::GetMousePositionPrevious() const {
-	auto screen_point{ game.input.GetMouseWindowPositionPrevious() };
+	auto screen_point{ GetMouseWindowPositionPrevious() };
 	auto world_point{ ScreenToWorld(screen_point) };
 	return world_point;
 }
 
 V2_float SceneInput::GetMousePositionDifference() const {
-	auto screen_point{ game.input.GetMouseWindowPositionDifference() };
+	auto screen_point{ GetMouseWindowPositionDifference() };
 	auto world_point{ ScreenToWorld(screen_point) };
 	return world_point;
 }

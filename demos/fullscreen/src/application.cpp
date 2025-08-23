@@ -70,43 +70,43 @@ class FullscreenScene : public Scene {
 
 	void Update() final {
 		auto& p = camera;
-		if (game.input.KeyDown(Key::X)) {
+		if (input.KeyDown(Key::X)) {
 			p.SetToLogicalResolution();
 		}
-		if (game.input.KeyDown(Key::V)) {
+		if (input.KeyDown(Key::V)) {
 			game.window.SetPosition({ 0, 0 });
 		}
-		if (game.input.KeyDown(Key::C)) {
+		if (input.KeyDown(Key::C)) {
 			game.window.Center();
 		}
-		if (game.input.KeyDown(Key::Q)) {
+		if (input.KeyDown(Key::Q)) {
 			game.window.SetSetting(WindowSetting::Windowed);
 		}
-		if (game.input.KeyDown(Key::W)) {
+		if (input.KeyDown(Key::W)) {
 			game.window.SetSetting(WindowSetting::Fullscreen);
 		}
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			game.window.SetSetting(WindowSetting::Borderless);
 		}
-		if (game.input.KeyDown(Key::T)) {
+		if (input.KeyDown(Key::T)) {
 			game.window.SetSetting(WindowSetting::Bordered);
 		}
-		if (game.input.KeyDown(Key::Y)) {
+		if (input.KeyDown(Key::Y)) {
 			game.window.SetSetting(WindowSetting::Resizable);
 		}
-		if (game.input.KeyDown(Key::U)) {
+		if (input.KeyDown(Key::U)) {
 			game.window.SetSetting(WindowSetting::FixedSize);
 		}
-		if (game.input.KeyDown(Key::I)) {
+		if (input.KeyDown(Key::I)) {
 			game.window.SetSetting(WindowSetting::Maximized);
 		}
-		if (game.input.KeyDown(Key::O)) {
+		if (input.KeyDown(Key::O)) {
 			game.window.SetSetting(WindowSetting::Minimized);
 		}
-		if (game.input.KeyDown(Key::P)) {
+		if (input.KeyDown(Key::P)) {
 			game.window.SetSetting(WindowSetting::Shown);
 		}
-		if (game.input.KeyDown(Key::L)) {
+		if (input.KeyDown(Key::L)) {
 			game.window.SetSetting(WindowSetting::Hidden);
 			show_timer.Start();
 		}

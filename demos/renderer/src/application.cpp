@@ -652,8 +652,8 @@ struct RendererScene : public Scene {
 	}
 
 	void Update() override {
-		CycleTest(game.input.KeyDown(Key::Q), -1);
-		CycleTest(game.input.KeyDown(Key::E), 1);
+		CycleTest(input.KeyDown(Key::Q), -1);
+		CycleTest(input.KeyDown(Key::E), 1);
 	}
 };
 

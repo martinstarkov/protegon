@@ -216,10 +216,10 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::E)) {
 			move_entity++;
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::E)) {
 			move_entity--;
 		}
 		move_entity = Mod(move_entity, move_entities);
@@ -304,7 +304,7 @@ public:
 
 		game.physics.Update(manager);
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			Init();
 		}
 	}
@@ -361,11 +361,11 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.MousePressed(Mouse::Left)) {
-			p1 = V2_int{ game.input.GetMousePosition() };
+		if (input.MousePressed(Mouse::Left)) {
+			p1 = V2_int{ input.GetMousePosition() };
 		}
-		if (game.input.MousePressed(Mouse::Right)) {
-			p0 = V2_int{ game.input.GetMousePosition() };
+		if (input.MousePressed(Mouse::Right)) {
+			p0 = V2_int{ input.GetMousePosition() };
 		}
 	}
 
@@ -384,7 +384,7 @@ class PointOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
 		DrawGrid();
-		p1 = V2_int{ game.input.GetMousePosition() };
+		p1 = V2_int{ input.GetMousePosition() };
 
 		V2_float c0{ p1 };
 		c0.Draw(color::Green, 1.0f);
@@ -464,7 +464,7 @@ class CircleOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
 		DrawGrid();
-		p1 = V2_int{ game.input.GetMousePosition() };
+		p1 = V2_int{ input.GetMousePosition() };
 
 		Circle c0{ p1, circle_radius };
 		c0.Draw(color::Green, -1.0f);
@@ -504,7 +504,7 @@ class RectOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
 		DrawGrid();
-		p1 = V2_int{ game.input.GetMousePosition() };
+		p1 = V2_int{ input.GetMousePosition() };
 
 		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
 		c0.Draw(color::Green, -1.0f);
@@ -646,32 +646,32 @@ public:
 	}
 
 	void Update() override {
-		auto mouse = game.input.GetMousePosition();
+		auto mouse = input.GetMousePosition();
 
-		if (game.input.KeyDown(Key::T)) {
+		if (input.KeyDown(Key::T)) {
 			option++;
 			option = option++ % options;
 		}
 
-		if (game.input.KeyDown(Key::G)) {
+		if (input.KeyDown(Key::G)) {
 			type++;
 			type = type++ % types;
 		}
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			position4 = mouse;
 		}
 
-		if (game.input.KeyPressed(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			rot_1 -= rot_speed * dt;
 		}
-		if (game.input.KeyPressed(Key::E)) {
+		if (input.KeyPressed(Key::E)) {
 			rot_1 += rot_speed * dt;
 		}
-		if (game.input.KeyPressed(Key::Z)) {
+		if (input.KeyPressed(Key::Z)) {
 			rot_2 -= rot_speed * dt;
 		}
-		if (game.input.KeyPressed(Key::C)) {
+		if (input.KeyPressed(Key::C)) {
 			rot_2 += rot_speed * dt;
 		}
 
@@ -1354,24 +1354,24 @@ struct SweepTest : public Test {
 			);
 		}
 
-		if (!fixed_velocity.IsZero() && !game.input.KeyPressed(Key::A) &&
-			!game.input.KeyPressed(Key::D) && !game.input.KeyPressed(Key::S) &&
-			!game.input.KeyPressed(Key::W)) {
+		if (!fixed_velocity.IsZero() && !input.KeyPressed(Key::A) &&
+			!input.KeyPressed(Key::D) && !input.KeyPressed(Key::S) &&
+			!input.KeyPressed(Key::W)) {
 			rb.velocity = fixed_velocity;
 		} else {
 			rb.velocity = {};
 		}
 
-		if (game.input.KeyPressed(Key::A)) {
+		if (input.KeyPressed(Key::A)) {
 			rb.velocity.x = -player_velocity.x;
 		}
-		if (game.input.KeyPressed(Key::D)) {
+		if (input.KeyPressed(Key::D)) {
 			rb.velocity.x = player_velocity.x;
 		}
-		if (game.input.KeyPressed(Key::W)) {
+		if (input.KeyPressed(Key::W)) {
 			rb.velocity.y = -player_velocity.y;
 		}
-		if (game.input.KeyPressed(Key::S)) {
+		if (input.KeyPressed(Key::S)) {
 			rb.velocity.y = player_velocity.y;
 		}
 
@@ -1388,7 +1388,7 @@ struct SweepTest : public Test {
 			game.collision.Intersect(player, collider, boxes, circles);
 		}
 
-		if (game.input.KeyDown(Key::SPACE)) {
+		if (input.KeyDown(Key::SPACE)) {
 			transform.position += rb.velocity * dt;
 		}
 
@@ -1407,7 +1407,7 @@ struct SweepTest : public Test {
 			return true;
 		};
 
-		if (game.input.KeyPressed(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			transform.position = {};
 			rb.velocity		   = {};
 		}
@@ -1599,7 +1599,7 @@ struct DynamicRectCollisionTest : public Test {
 	}
 
 	void Update() override {
-		bool space_down = game.input.KeyDown(Key::SPACE);
+		bool space_down = input.KeyDown(Key::SPACE);
 		for (auto [e, rb, id] : manager.EntitiesWith<RigidBody, Id>()) {
 			PTGN_ASSERT(id < entity_data.size());
 			rb.velocity = entity_data[id].velocity;

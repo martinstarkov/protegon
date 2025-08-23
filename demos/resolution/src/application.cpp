@@ -22,19 +22,19 @@ class ResolutionScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::Q)) {
+		if (input.KeyDown(Key::Q)) {
 			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Disabled);
 		}
-		if (game.input.KeyDown(Key::W)) {
+		if (input.KeyDown(Key::W)) {
 			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::E)) {
 			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
 		}
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::IntegerScale);
 		}
-		if (game.input.KeyDown(Key::T)) {
+		if (input.KeyDown(Key::T)) {
 			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Overscan);
 		}
 

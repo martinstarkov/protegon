@@ -60,7 +60,7 @@ public:
 		// b1.Add<Camera>(cam1);
 		// PTGN_LOG("b1: ", GetAbsoluteTransform(b1));
 		//  In update:
-		// if (game.input.KeyDown(Key::R)) {
+		// if (input.KeyDown(Key::R)) {
 		//	PTGN_LOG("Mouse: ", input.GetMousePosition());
 		//	PTGN_LOG("Camera: ", GetTransform(camera));
 		//	PTGN_LOG("b0: ", GetAbsoluteTransform(b0));

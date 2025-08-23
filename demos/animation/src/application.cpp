@@ -77,12 +77,12 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			animation.Resume();
-		} else if (game.input.KeyDown(Key::P)) {
+		} else if (input.KeyDown(Key::P)) {
 			animation.Pause();
 		}
-		if (game.input.KeyDown(Key::T)) {
+		if (input.KeyDown(Key::T)) {
 			animation.Toggle();
 		}
 	}

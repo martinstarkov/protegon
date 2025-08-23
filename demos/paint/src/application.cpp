@@ -44,7 +44,7 @@ public:
 			}
 		});
 		inner_grid = Grid<int>{ outer_grid.GetSize(), cells_without };
-		if (game.input.KeyDown(Key::B)) {
+		if (input.KeyDown(Key::B)) {
 			toggle = !toggle;
 		}
 		if (toggle) {
@@ -58,10 +58,10 @@ public:
 		V2_int mouse_tile = mouse_pos / tile_size;
 
 		if (grid.Has(mouse_tile)) {
-			if (game.input.MousePressed(Mouse::Left)) {
+			if (input.MousePressed(Mouse::Left)) {
 				outer_grid.Set(mouse_tile, 1);
 			}
-			if (game.input.MousePressed(Mouse::Right)) {
+			if (input.MousePressed(Mouse::Right)) {
 				outer_grid.Set(mouse_tile, 0);
 			}
 		}

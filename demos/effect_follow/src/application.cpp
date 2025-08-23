@@ -46,11 +46,11 @@ struct FollowEffectScene : public Scene {
 
 	void Update() override {
 		SetPosition(mouse, input.GetMousePosition());
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			StopFollow(entity1);
 			StopFollow(entity2);
 			StopFollow(entity3);
-		} else if (game.input.MouseDown(Mouse::Right)) {
+		} else if (input.MouseDown(Mouse::Right)) {
 			StartFollow(entity1, mouse, config1);
 			StartFollow(entity2, mouse, config2);
 			StartFollow(entity3, mouse, config3);

@@ -28,10 +28,10 @@ struct ScaleEffectScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			ScaleTo(sprite1, { 5.0f, 5.0f }, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
-		if (game.input.MouseDown(Mouse::Right)) {
+		if (input.MouseDown(Mouse::Right)) {
 			ScaleTo(sprite1, { 0.25f, 0.25f }, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}

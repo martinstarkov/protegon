@@ -41,15 +41,15 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::Left)) {
+		if (input.KeyDown(Key::Left)) {
 			type--;
 			type = Mod(type, types);
-		} else if (game.input.KeyDown(Key::Right)) {
+		} else if (input.KeyDown(Key::Right)) {
 			type++;
 			type = Mod(type, types);
 		}
 
-		if (game.input.KeyDown(Key::T)) {
+		if (input.KeyDown(Key::T)) {
 			if (type == 0) {
 				fractal_noise.SetFrequency(fractal_noise.GetFrequency() + 0.01f);
 			} else if (type == 1) {
@@ -60,7 +60,7 @@ public:
 				value_noise.SetFrequency(value_noise.GetFrequency() + 0.01f);
 			}
 		}
-		if (game.input.KeyDown(Key::G)) {
+		if (input.KeyDown(Key::G)) {
 			if (type == 0) {
 				fractal_noise.SetFrequency(fractal_noise.GetFrequency() - 0.01f);
 			} else if (type == 1) {
@@ -73,25 +73,25 @@ public:
 		}
 
 		if (type == 0) {
-			if (game.input.KeyDown(Key::R)) {
+			if (input.KeyDown(Key::R)) {
 				fractal_noise.SetOctaves(fractal_noise.GetOctaves() + 1);
 			}
-			if (game.input.KeyDown(Key::F)) {
+			if (input.KeyDown(Key::F)) {
 				fractal_noise.SetOctaves(std::clamp((int)fractal_noise.GetOctaves() - 1, 1, 1000));
 			}
-			if (game.input.KeyDown(Key::Y)) {
+			if (input.KeyDown(Key::Y)) {
 				fractal_noise.SetLacunarity(fractal_noise.GetLacunarity() + 0.1f);
 			}
-			if (game.input.KeyDown(Key::H)) {
+			if (input.KeyDown(Key::H)) {
 				fractal_noise.SetLacunarity(
 					std::clamp(fractal_noise.GetLacunarity() - 0.1f, 0.001f, 1000.0f)
 				);
 			}
 
-			if (game.input.KeyDown(Key::U)) {
+			if (input.KeyDown(Key::U)) {
 				fractal_noise.SetPersistence(fractal_noise.GetPersistence() + 0.05f);
 			}
-			if (game.input.KeyDown(Key::J)) {
+			if (input.KeyDown(Key::J)) {
 				fractal_noise.SetPersistence(
 					std::clamp(fractal_noise.GetPersistence() - 0.05f, 0.001f, 1000.f)
 				);
@@ -102,16 +102,16 @@ public:
 			divisions = std::clamp((int)divisions, 1, 32);
 		};
 
-		if (game.input.KeyDown(Key::Q)) {
+		if (input.KeyDown(Key::Q)) {
 			divisions--;
 			cap_divisions();
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::E)) {
 			divisions++;
 			cap_divisions();
 		}
 
-		if (game.input.KeyDown(Key::Z)) {
+		if (input.KeyDown(Key::Z)) {
 			thresholding = !thresholding;
 		}
 
@@ -119,16 +119,16 @@ public:
 
 		float dt{ game.dt() };
 
-		if (game.input.KeyPressed(Key::W)) {
+		if (input.KeyPressed(Key::W)) {
 			Translate(camera,{ 0, -pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::S)) {
+		if (input.KeyPressed(Key::S)) {
 			Translate(camera,{ 0, pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::A)) {
+		if (input.KeyPressed(Key::A)) {
 			Translate(camera,{ -pan_speed * dt, 0 });
 		}
-		if (game.input.KeyPressed(Key::D)) {
+		if (input.KeyPressed(Key::D)) {
 			Translate(camera,{ pan_speed * dt, 0 });
 		}
 
@@ -147,7 +147,7 @@ public:
 			value_noise.SetFrequency(std::clamp(value_noise.GetFrequency(), 0.005f, 1.0f));
 		}
 
-		if (game.input.KeyDown(Key::P)) {
+		if (input.KeyDown(Key::P)) {
 			PTGN_LOG("--------------------------------");
 			if (type == 0) {
 				PTGN_LOG("octaves: ", fractal_noise.GetOctaves());

@@ -280,7 +280,7 @@ public:
 			speed * game.scene.Get("").physics.dt()
 		);
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			Enter();
 		}
 	}
@@ -341,10 +341,10 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.MousePressed(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			p1 = V2_int{ input.GetMousePosition() };
 		}
-		if (game.input.MousePressed(Mouse::Right)) {
+		if (input.MousePressed(Mouse::Right)) {
 			p0 = V2_int{ input.GetMousePosition() };
 		}
 	}
@@ -444,7 +444,7 @@ class CircleOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
 		DrawGrid();
-		p1 = V2_int{ game.input.GetMousePosition() };
+		p1 = V2_int{ input.GetMousePosition() };
 
 		Circle c0{ p1, circle_radius };
 		c0.Draw(color::Green, -1.0f);
@@ -484,7 +484,7 @@ class RectOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
 		DrawGrid();
-		p1 = V2_int{ game.input.GetMousePosition() };
+		p1 = V2_int{ input.GetMousePosition() };
 
 		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
 		c0.Draw(color::Green, -1.0f);
@@ -624,32 +624,32 @@ public:
 	void Enter() override {}
 
 	void Update() override {
-		auto mouse = game.input.GetMousePosition();
+		auto mouse = input.GetMousePosition();
 
-		if (game.input.KeyDown(Key::T)) {
+		if (input.KeyDown(Key::T)) {
 			option++;
 			option = option++ % options;
 		}
 
-		if (game.input.KeyDown(Key::G)) {
+		if (input.KeyDown(Key::G)) {
 			type++;
 			type = type++ % types;
 		}
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			position4 = mouse;
 		}
 
-		if (game.input.KeyPressed(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			rot_1 -= rot_speed * game.dt();
 		}
-		if (game.input.KeyPressed(Key::E)) {
+		if (input.KeyPressed(Key::E)) {
 			rot_1 += rot_speed * game.dt();
 		}
-		if (game.input.KeyPressed(Key::Z)) {
+		if (input.KeyPressed(Key::Z)) {
 			rot_2 -= rot_speed * game.dt();
 		}
-		if (game.input.KeyPressed(Key::C)) {
+		if (input.KeyPressed(Key::C)) {
 			rot_2 += rot_speed * game.dt();
 		}
 
@@ -1333,24 +1333,24 @@ struct SweepTest : public CollisionTest {
 			);
 		}
 
-		if (!fixed_velocity.IsZero() && !game.input.KeyPressed(Key::A) &&
-			!game.input.KeyPressed(Key::D) && !game.input.KeyPressed(Key::S) &&
-			!game.input.KeyPressed(Key::W)) {
+		if (!fixed_velocity.IsZero() && !input.KeyPressed(Key::A) &&
+			!input.KeyPressed(Key::D) && !input.KeyPressed(Key::S) &&
+			!input.KeyPressed(Key::W)) {
 			rb.velocity = fixed_velocity;
 		} else {
 			rb.velocity = {};
 		}
 
-		if (game.input.KeyPressed(Key::A)) {
+		if (input.KeyPressed(Key::A)) {
 			rb.velocity.x = -player_velocity.x;
 		}
-		if (game.input.KeyPressed(Key::D)) {
+		if (input.KeyPressed(Key::D)) {
 			rb.velocity.x = player_velocity.x;
 		}
-		if (game.input.KeyPressed(Key::W)) {
+		if (input.KeyPressed(Key::W)) {
 			rb.velocity.y = -player_velocity.y;
 		}
-		if (game.input.KeyPressed(Key::S)) {
+		if (input.KeyPressed(Key::S)) {
 			rb.velocity.y = player_velocity.y;
 		}
 
@@ -1367,7 +1367,7 @@ struct SweepTest : public CollisionTest {
 			game.collision.Intersect(player, collider, boxes, circles);
 		}
 
-		if (game.input.KeyDown(Key::Space)) {
+		if (input.KeyDown(Key::Space)) {
 			transform.position += rb.velocity * game.dt();
 		}
 
@@ -1386,7 +1386,7 @@ struct SweepTest : public CollisionTest {
 			return true;
 		};
 
-		if (game.input.KeyPressed(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			transform.position = {};
 			rb.velocity		   = {};
 		}
@@ -1557,7 +1557,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	}
 
 	void Update() override {
-		bool space_down = game.input.KeyDown(Key::Space);
+		bool space_down = input.KeyDown(Key::Space);
 		for (auto [e, rb, id] : manager.EntitiesWith<RigidBody, Id>()) {
 			PTGN_ASSERT(id < entity_data.size());
 			rb.velocity = entity_data[id].velocity;
@@ -1768,12 +1768,12 @@ public:
 
 	void Update() override {
 		ws = game.window.GetSize();
-		if (game.input.KeyDown(Key::Left)) {
+		if (input.KeyDown(Key::Left)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
 			tests[static_cast<std::size_t>(current_test)]->Enter();
-		} else if (game.input.KeyDown(Key::Right)) {
+		} else if (input.KeyDown(Key::Right)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));

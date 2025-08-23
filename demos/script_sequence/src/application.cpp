@@ -39,7 +39,7 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.KeyPressed(Key::I)) {
+		if (input.KeyPressed(Key::I)) {
 			PTGN_LOG("Entity Count: ", Size());
 		}
 	}

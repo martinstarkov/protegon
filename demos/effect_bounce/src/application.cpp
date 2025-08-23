@@ -31,7 +31,7 @@ struct BounceEffectScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			SymmetricalBounce(
 				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, SymmetricalEase::Linear, {}, true
 			);
@@ -43,7 +43,7 @@ struct BounceEffectScene : public Scene {
 				true
 			);
 		}
-		if (game.input.MouseDown(Mouse::Right)) {
+		if (input.MouseDown(Mouse::Right)) {
 			Bounce(
 				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, AsymmetricalEase::InSine, {}, true
 			);

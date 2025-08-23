@@ -38,11 +38,11 @@ struct ComponentHookScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::E)) {
 			CreateEntity().Add<Test>();
 		}
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			for (Entity e : list) {
 				e.Destroy();
 			}

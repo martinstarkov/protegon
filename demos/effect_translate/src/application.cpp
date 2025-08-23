@@ -28,7 +28,7 @@ struct TranslateEffectScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			TranslateTo(
 				sprite1, input.GetMousePosition(), milliseconds{ 1000 }, SymmetricalEase::Linear,
 				true

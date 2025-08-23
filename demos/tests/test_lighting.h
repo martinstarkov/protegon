@@ -31,11 +31,11 @@ struct TestMouseLight : public Test {
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::B)) {
+		if (input.KeyDown(Key::B)) {
 			game.light.SetBlur(!game.light.GetBlur());
 		}
 
-		game.light.Get(0).SetPosition(game.input.GetMousePosition());
+		game.light.Get(0).SetPosition(input.GetMousePosition());
 	}
 
 	void Draw() override {
@@ -80,7 +80,7 @@ struct TestRotatingLights : public Test {
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::B)) {
+		if (input.KeyDown(Key::B)) {
 			game.light.SetBlur(!game.light.GetBlur());
 		}
 

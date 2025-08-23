@@ -1018,6 +1018,11 @@ void RenderData::Draw(Scene& scene) {
 	intermediate_target = {};
 	temporary_textures	= std::vector<Texture>{};
 
+	// TODO: Remove.
+	GetTransform(scene.render_target_).SetRotation(DegToRad(45.0f)); // game.time() / 4000.0f);
+	GetTransform(scene.render_target_).SetPosition({ 400, 0 });
+	GetTransform(scene.render_target_).SetScale(2.0f);
+
 	auto projection{ GetProjection({}, logical_resolution_) };
 
 	DrawToScreen(scene, scene.GetRenderTargetTransform(), projection);

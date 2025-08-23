@@ -234,7 +234,7 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::T)) {
+		if (input.KeyDown(Key::T)) {
 			for (auto e : EntitiesWithout<Parent>()) {
 				PTGN_ASSERT(e.Has<Rect>());
 				Tween tween{ GetChild(e, "tween") };
@@ -246,7 +246,7 @@ public:
 			}
 		}
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			for (auto e : EntitiesWithout<Parent>()) {
 				PTGN_ASSERT(e.Has<Rect>());
 				Tween tween{ GetChild(e, "tween") };
@@ -254,7 +254,7 @@ public:
 			}
 		}
 
-		if (game.input.KeyDown(Key::S)) {
+		if (input.KeyDown(Key::S)) {
 			for (auto e : EntitiesWithout<Parent>()) {
 				PTGN_ASSERT(e.Has<Rect>());
 				Tween tween{ GetChild(e, "tween") };

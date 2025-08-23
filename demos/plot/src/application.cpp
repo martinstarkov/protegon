@@ -111,7 +111,7 @@ class PlotScene : public Scene {
 				);
 		}
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			plot.Reset();
 		}
 

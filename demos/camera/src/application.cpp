@@ -154,60 +154,60 @@ public:
 		V2_float center{ game.window.GetCenter() };
 		float dt{ game.dt() };
 
-		if (game.input.KeyPressed(Key::W)) {
+		if (input.KeyPressed(Key::W)) {
 			Translate(camera,{ 0, -pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::S)) {
+		if (input.KeyPressed(Key::S)) {
 			Translate(camera,{ 0, pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::A)) {
+		if (input.KeyPressed(Key::A)) {
 			Translate(camera,{ -pan_speed * dt, 0 });
 		}
-		if (game.input.KeyPressed(Key::D)) {
+		if (input.KeyPressed(Key::D)) {
 			Translate(camera,{ pan_speed * dt, 0 });
 		}
 
-		if (game.input.KeyPressed(Key::Z)) {
+		if (input.KeyPressed(Key::Z)) {
 			camera.Yaw(rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::X)) {
+		if (input.KeyPressed(Key::X)) {
 			camera.Yaw(-rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::C)) {
+		if (input.KeyPressed(Key::C)) {
 			camera.Pitch(rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::V)) {
+		if (input.KeyPressed(Key::V)) {
 			camera.Pitch(-rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::B)) {
+		if (input.KeyPressed(Key::B)) {
 			camera.Roll(rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::N)) {
+		if (input.KeyPressed(Key::N)) {
 			camera.Roll(-rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::E)) {
+		if (input.KeyPressed(Key::E)) {
 			camera.Zoom(zoom_speed * dt);
 		}
-		if (game.input.KeyPressed(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			camera.SetPosition(center);
 			camera.SetZoom(1.0f);
 		}
 
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			mouse.SetPosition( =
 				camera.TransformToCamera(input.GetMousePosition());
 			//camera.PanTo(camera.TransformToCamera(input.GetMousePosition()),
-seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (game.input.MouseDown(Mouse::Right)) {
+seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (input.MouseDown(Mouse::Right)) {
 			StopFollow(camera);
 		}
 
@@ -303,43 +303,43 @@ public:
 		float dt{ game.dt() };
 
 		/*	PTGN_LOG(
-				"Mouse screen pos: ", game.input.GetMouseWindowPosition(),
+				"Mouse screen pos: ", input.GetMouseWindowPosition(),
 				", Mouse world pos: ", input.GetMousePosition()
 			);*/
 
 		SetPosition(mouse, input.GetMousePosition());
 
-		if (game.input.KeyPressed(Key::W)) {
+		if (input.KeyPressed(Key::W)) {
 			Translate(camera, { 0, -pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::S)) {
+		if (input.KeyPressed(Key::S)) {
 			Translate(camera, { 0, pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::A)) {
+		if (input.KeyPressed(Key::A)) {
 			Translate(camera, { -pan_speed * dt, 0 });
 		}
-		if (game.input.KeyPressed(Key::D)) {
+		if (input.KeyPressed(Key::D)) {
 			Translate(camera, { pan_speed * dt, 0 });
 		}
 
-		if (game.input.KeyPressed(Key::Z)) {
+		if (input.KeyPressed(Key::Z)) {
 			Rotate(camera, rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::X)) {
+		if (input.KeyPressed(Key::X)) {
 			Rotate(camera, -rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::E)) {
+		if (input.KeyPressed(Key::E)) {
 			camera.Zoom(zoom_speed * dt);
 		}
-		if (game.input.KeyPressed(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
 
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			StopFollow(camera);
-		} else if (game.input.MouseDown(Mouse::Right)) {
+		} else if (input.MouseDown(Mouse::Right)) {
 			StartFollow(camera, mouse, follow_config);
 		}
 

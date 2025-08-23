@@ -79,10 +79,10 @@ public:
 		MoveWASD(vel, speed, true);
 		Translate(sheep, vel * game.dt());
 
-		if (game.input.KeyPressed(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			camera.Zoom(-zoom_speed * game.dt());
 		}
-		if (game.input.KeyPressed(Key::E)) {
+		if (input.KeyPressed(Key::E)) {
 			camera.Zoom(zoom_speed * game.dt());
 		}
 

@@ -40,8 +40,8 @@ class PathfindingScene : public Scene {
 		V2_float mouse_pos	= input.GetMousePosition();
 		V2_float mouse_tile = mouse_pos / tile_size;
 
-		if (game.input.MousePressed(Mouse::Right)) {
-			if (game.input.KeyPressed(Key::LeftCtrl)) {
+		if (input.MousePressed(Mouse::Right)) {
+			if (input.KeyPressed(Key::LeftCtrl)) {
 				end				 = mouse_tile;
 				global_waypoints = grid.FindWaypoints(start, end);
 			} else if (grid.SetObstacle(mouse_tile, false)) {
@@ -49,9 +49,9 @@ class PathfindingScene : public Scene {
 			}
 		}
 
-		if (game.input.MousePressed(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			if (grid.Has(mouse_tile)) {
-				if (game.input.KeyPressed(Key::LeftCtrl)) {
+				if (input.KeyPressed(Key::LeftCtrl)) {
 					start			 = mouse_tile;
 					pos				 = start;
 					global_waypoints = grid.FindWaypoints(start, end);
@@ -63,7 +63,7 @@ class PathfindingScene : public Scene {
 
 		grid.ForEachCoordinate([&](const V2_int& tile) {
 			Color c = color::Gray;
-			if (game.input.KeyPressed(Key::V) && grid.IsVisited(tile)) {
+			if (input.KeyPressed(Key::V) && grid.IsVisited(tile)) {
 				c = color::Cyan;
 			}
 			if (grid.IsObstacle(tile)) {

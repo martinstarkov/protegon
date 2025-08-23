@@ -496,25 +496,25 @@ struct InteractiveScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::E)) {
 			input.SetTopOnly(false);
 			PTGN_LOG("Setting top input only: false");
-		} else if (game.input.KeyDown(Key::Q)) {
+		} else if (input.KeyDown(Key::Q)) {
 			input.SetTopOnly(true);
 			PTGN_LOG("Setting top input only: true");
 		}
-		// if (game.input.KeyDown(Key::Z)) {
+		// if (input.KeyDown(Key::Z)) {
 		//	// RemoveInteractive(c3);
 		//	// PTGN_LOG("Entity count: ", Size());
 		//	SetInteractive(c3, false);
 		// }
-		// if (game.input.KeyDown(Key::C)) {
+		// if (input.KeyDown(Key::C)) {
 		//	// auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
 		//	// AddInteractable(c3, std::move(c3_child));
 		//	SetInteractive(c3, true);
 		// }
 
-		if (game.input.KeyDown(Key::I)) {
+		if (input.KeyDown(Key::I)) {
 			PTGN_LOG("c3: ", GetAbsoluteTransform(c3));
 		}
 
@@ -525,18 +525,18 @@ struct InteractiveScene : public Scene {
 
 		auto dt{ game.dt() };
 
-		if (game.input.KeyPressed(Key::Z)) {
+		if (input.KeyPressed(Key::Z)) {
 			Rotate(camera, rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::X)) {
+		if (input.KeyPressed(Key::X)) {
 			Rotate(camera, -rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::E)) {
+		if (input.KeyPressed(Key::E)) {
 			camera.Zoom(zoom_speed * dt);
 		}
-		if (game.input.KeyPressed(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
 		/*const auto& dropped{ r4.Get<Dropzone>().dropped_entities };

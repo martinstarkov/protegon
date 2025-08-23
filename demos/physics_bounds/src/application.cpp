@@ -67,10 +67,10 @@ struct PhysicsBoundaryScene : public Scene {
 		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
 		SetPosition(player, pos);
 
-		if (game.input.KeyDown(Key::Q)) {
+		if (input.KeyDown(Key::Q)) {
 			behavior = BoundaryBehavior::StopAtBounds;
 			ReEnter();
-		} else if (game.input.KeyDown(Key::E)) {
+		} else if (input.KeyDown(Key::E)) {
 			behavior = BoundaryBehavior::ReflectVelocity;
 			ReEnter();
 		}

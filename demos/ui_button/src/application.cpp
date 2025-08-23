@@ -66,12 +66,12 @@ public:
 			state = s;
 			std::cout << "Button 1 internal state: " << state << std::endl;
 		}
-		if (game.input.KeyDown(Key::Q)) {
+		if (input.KeyDown(Key::Q)) {
 			b1.Disable();
 			b2.Disable();
 			PTGN_LOG("Disabled both buttons");
 		}
-		if (game.input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::E)) {
 			b1.Enable();
 			b2.Enable();
 			PTGN_LOG("Enabled both buttons");

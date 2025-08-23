@@ -30,10 +30,10 @@ struct ShakeEffectScene : public Scene {
 	}
 
 	void Update() override {
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.MouseDown(Mouse::Left)) {
 			Shake(sprite2, 0.25f, {}, false);
 		}
-		if (game.input.MouseDown(Mouse::Right)) {
+		if (input.MouseDown(Mouse::Right)) {
 			StopShake(sprite2, true);
 		}
 	}

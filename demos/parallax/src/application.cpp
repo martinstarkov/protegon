@@ -62,20 +62,20 @@ public:
 
 		V2_float velocity;
 
-		if (game.input.KeyPressed(Key::W)) {
+		if (input.KeyPressed(Key::W)) {
 			velocity.y = -speed;
 		}
-		if (game.input.KeyPressed(Key::S)) {
+		if (input.KeyPressed(Key::S)) {
 			velocity.y = +speed;
 		}
-		if (game.input.KeyPressed(Key::A)) {
+		if (input.KeyPressed(Key::A)) {
 			velocity.x = -speed;
 		}
-		if (game.input.KeyPressed(Key::D)) {
+		if (input.KeyPressed(Key::D)) {
 			velocity.x = +speed;
 		}
 
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			ResetPositions();
 		}
 

@@ -279,7 +279,7 @@ void InputHandler::Update() {
 }
 
 bool InputHandler::MouseWithinWindow() const {
-	auto screen_pointer{ game.input.GetMouseScreenPosition() };
+	auto screen_pointer{ GetMouseScreenPosition() };
 	Transform window_transform{ game.window.GetPosition() };
 	Rect window_rect{ game.window.GetSize() };
 	return Overlap(screen_pointer, window_transform, window_rect);

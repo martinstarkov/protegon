@@ -248,26 +248,26 @@ public:
 
 	void Update() override {
 		// Reset the screen.
-		if (game.input.KeyDown(Key::Space)) {
+		if (input.KeyDown(Key::Space)) {
 			fluid.Reset();
 		}
 
 		// Reset gravity.
-		if (game.input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::R)) {
 			gravity = {};
 		}
 		// Increment gravity.
-		if (game.input.KeyDown(Key::Down)) {
+		if (input.KeyDown(Key::Down)) {
 			gravity.y += gravity_increment;
-		} else if (game.input.KeyDown(Key::Up)) {
+		} else if (input.KeyDown(Key::Up)) {
 			gravity.y -= gravity_increment;
-		} else if (game.input.KeyDown(Key::Left)) {
+		} else if (input.KeyDown(Key::Left)) {
 			gravity.x -= gravity_increment;
-		} else if (game.input.KeyDown(Key::Right)) {
+		} else if (input.KeyDown(Key::Right)) {
 			gravity.x += gravity_increment;
 		}
 		// Add fluid.
-		if (game.input.MousePressed(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			// Add dye.
 			auto mouse_position{ input.GetMousePosition() };
 			V2_int pos{ mouse_position / scale };
@@ -288,7 +288,7 @@ public:
 	void Draw() {
 		static bool density_graph{ false };
 
-		if (game.input.KeyDown(Key::D)) {
+		if (input.KeyDown(Key::D)) {
 			density_graph = !density_graph;
 		}
 
