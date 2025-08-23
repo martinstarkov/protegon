@@ -110,6 +110,9 @@ public:
 	// @return Index of the current tween point.
 	[[nodiscard]] std::size_t GetCurrentIndex() const;
 
+	// @return The easing mode of the current tween point.
+	[[nodiscard]] ptgn::Ease GetEase() const;
+
 	// @param duration Duration to set for the tween.
 	// @param tween_point_index Which tween point to set the duration of.
 	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index);

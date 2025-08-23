@@ -227,6 +227,11 @@ float Tween::GetProgress() const {
 	return ApplyEase(GetLinearProgress(), point.ease_);
 }
 
+ptgn::Ease Tween::GetEase() const {
+	const auto& point{ GetCurrentTweenPoint() };
+	return point.ease_;
+}
+
 std::int64_t Tween::GetRepeats() const {
 	if (const auto& tween{ Get<impl::TweenInstance>() }; tween.index_ < tween.points_.size()) {
 		return tween.points_[tween.index_].current_repeat_;
