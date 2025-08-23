@@ -529,8 +529,10 @@ void Camera::SetViewportSize(const V2_float& new_size) {
 }
 
 void Camera::SetZoom(V2_float zoom) {
+	zoom = Clamp(
+		zoom, V2_float{ 1000.0f * epsilon<float> }, V2_float{ std::numeric_limits<float>::max() }
+	);
 	PTGN_ASSERT(zoom.BothAboveZero(), "New zoom cannot be negative or zero");
-	zoom  = Clamp(zoom, V2_float{ epsilon<float> }, V2_float{ std::numeric_limits<float>::max() });
 	zoom *= V2_float{ Sign(zoom.x), Sign(zoom.y) };
 	ptgn::SetScale(*this, zoom);
 }
