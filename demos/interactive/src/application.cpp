@@ -400,6 +400,8 @@ struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript> {
 struct InteractiveScene : public Scene {
 	Sprite r4;
 	Sprite c3;
+	const float rotation_speed{ 1.0f };
+	const float zoom_speed{ 0.4f };
 
 	Entity CreateInteractiveCircle(float radius) {
 		auto entity = CreateEntity(*this);
@@ -501,16 +503,16 @@ struct InteractiveScene : public Scene {
 			input.SetTopOnly(true);
 			PTGN_LOG("Setting top input only: true");
 		}
-		if (game.input.KeyDown(Key::Z)) {
-			// RemoveInteractive(c3);
-			// PTGN_LOG("Entity count: ", Size());
-			SetInteractive(c3, false);
-		}
-		if (game.input.KeyDown(Key::C)) {
-			// auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
-			// AddInteractable(c3, std::move(c3_child));
-			SetInteractive(c3, true);
-		}
+		// if (game.input.KeyDown(Key::Z)) {
+		//	// RemoveInteractive(c3);
+		//	// PTGN_LOG("Entity count: ", Size());
+		//	SetInteractive(c3, false);
+		// }
+		// if (game.input.KeyDown(Key::C)) {
+		//	// auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
+		//	// AddInteractable(c3, std::move(c3_child));
+		//	SetInteractive(c3, true);
+		// }
 
 		if (game.input.KeyDown(Key::I)) {
 			PTGN_LOG("c3: ", GetAbsoluteTransform(c3));
@@ -520,6 +522,23 @@ struct InteractiveScene : public Scene {
 		V2_float pos{ GetPosition(camera) };
 		MoveWASD(pos, speed, false);
 		SetPosition(camera, pos);
+
+		auto dt{ game.dt() };
+
+		if (game.input.KeyPressed(Key::Z)) {
+			Rotate(camera, rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::X)) {
+			Rotate(camera, -rotation_speed * dt);
+		}
+
+		if (game.input.KeyPressed(Key::E)) {
+			camera.Zoom(zoom_speed * dt);
+		}
+		if (game.input.KeyPressed(Key::Q)) {
+			camera.Zoom(-zoom_speed * dt);
+		}
 		/*const auto& dropped{ r4.Get<Dropzone>().dropped_entities };
 		Print("Dropped: ");
 		for (auto d : dropped) {
@@ -530,8 +549,8 @@ struct InteractiveScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("InteractiveScene: Q/E: Toggle TopOnly, Z/C Toggle Drag Circle Interactive, WASD: "
-			  "Move Camera");
+	game.Init("InteractiveScene: Q/E: Toggle TopOnly, WASD/ZC: "
+			  "Move/Rotate Camera");
 	game.scene.Enter<InteractiveScene>("");
 	return 0;
 }
