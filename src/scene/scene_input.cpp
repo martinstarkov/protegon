@@ -572,6 +572,8 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 
 	auto scene_center{ scene.camera.GetViewportSize() * 0.5f };
 
+	// TODO: Consider if scene center is ever different from logical resolution.
+
 	auto top_left{ ApplyTransform(-scene_center, rt_transform) + scene_center };
 
 	auto new_top_left{ screen_point - top_left };
