@@ -423,7 +423,7 @@ struct InteractiveScene : public Scene {
 		SetScale(rt, 0.5f);
 		SetPosition(rt, V2_float{ 600, 0 });
 		SetBackgroundColor(color::LightGray);
-		camera.SetViewportSize({ 800, 800 });
+		camera.SetViewportSize({ 400, 800 });
 		SetPosition(camera, { 400, 400 });
 		// game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
 		input.SetDrawInteractives(true);
