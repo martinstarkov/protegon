@@ -576,7 +576,8 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 
 	auto top_left_rt_in_world{ ApplyTransform(top_left_rt_in_rt, rt_transform) };
 
-	auto new_top_left{ screen_point + top_left_rt_in_rt - top_left_rt_in_world };
+	auto new_top_left{ screen_point - game.renderer.GetLogicalResolution() * 0.5f -
+					   top_left_rt_in_world };
 
 	auto scene_point{ ApplyTransform(
 		new_top_left,
