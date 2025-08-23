@@ -214,13 +214,17 @@ Tween& Tween::Yoyo(bool yoyo) {
 	return *this;
 }
 
-float Tween::GetProgress() const {
+float Tween::GetLinearProgress() const {
 	const auto& tween{ Get<impl::TweenInstance>() };
-	const auto& point{ GetCurrentTweenPoint() };
-	if (point.currently_reversed_) {
-		return ApplyEase(1.0f - tween.progress_, point.ease_);
+	if (const auto& point{ GetCurrentTweenPoint() }; point.currently_reversed_) {
+		return 1.0f - tween.progress_;
 	}
-	return ApplyEase(tween.progress_, point.ease_);
+	return tween.progress_;
+}
+
+float Tween::GetProgress() const {
+	const auto& point{ GetCurrentTweenPoint() };
+	return ApplyEase(GetLinearProgress(), point.ease_);
 }
 
 std::int64_t Tween::GetRepeats() const {

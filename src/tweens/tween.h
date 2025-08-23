@@ -18,6 +18,7 @@ class ScriptSequence;
 
 namespace impl {
 
+class SceneManager;
 struct TweenPoint;
 
 } // namespace impl
@@ -96,8 +97,12 @@ public:
 	Tween& Yoyo(bool yoyo = true);
 
 	// Note: This value is impacted by the Ease value set for the current tween point.
-	// @return Current progress of the tween [0.0f, 1.0f].
+	// @return Current eased progress of the tween [0.0f, 1.0f].
 	[[nodiscard]] float GetProgress() const;
+
+	// Note: This value is NOT impacted by the Ease value set for the current tween point.
+	// @return Current uneased progress of the tween [0.0f, 1.0f].
+	[[nodiscard]] float GetLinearProgress() const;
 
 	// @return Current number of repeats of the current tween point.
 	[[nodiscard]] std::int64_t GetRepeats() const;
@@ -133,6 +138,7 @@ public:
 private:
 	friend class Scene;
 	friend class ScriptSequence;
+	friend class impl::SceneManager;
 
 	[[nodiscard]] milliseconds GetTotalDuration() const;
 
