@@ -123,7 +123,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BinarySerializationScene", { 1280, 720 }, color::Transparent);
+	game.Init("BinarySerializationScene", { 1280, 720 });
 	game.scene.Enter<BinarySerializationScene>("");
 	return 0;
 }

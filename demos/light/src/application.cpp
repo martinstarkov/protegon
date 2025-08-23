@@ -16,6 +16,8 @@ public:
 	PointLight mouse_light;
 
 	void Enter() override {
+		SetBackgroundColor(color::White);
+
 		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("test", "resources/test1.jpg");
 
@@ -55,7 +57,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightScene", { 800, 800 }, color::White);
+	game.Init("LightScene", { 800, 800 });
 	game.scene.Enter<LightScene>("");
 	return 0;
 }

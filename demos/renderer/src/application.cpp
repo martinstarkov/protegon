@@ -643,6 +643,7 @@ struct RendererScene : public Scene {
 	}
 
 	void Enter() override {
+		SetBackgroundColor(color::LightBlue);
 		game.window.SetSetting(WindowSetting::Resizable);
 		PTGN_LOG("-------- Test ", test_index, " --------");
 		PTGN_ASSERT(test_index < tests.size());
@@ -658,7 +659,7 @@ struct RendererScene : public Scene {
 };
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-	game.Init("RendererScene", window_size, color::LightBlue);
+	game.Init("RendererScene", window_size);
 	game.scene.Enter<RendererScene>("");
 	return 0;
 }

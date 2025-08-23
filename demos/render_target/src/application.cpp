@@ -70,6 +70,7 @@ Entity AddSprite(Scene& s, V2_float pos) {
 
 struct RenderTargetScene : public Scene {
 	void Enter() override {
+		SetBackgroundColor(color::LightGray);
 		game.window.SetSetting(WindowSetting::Resizable);
 		game.renderer.SetLogicalResolution(resolution);
 
@@ -160,7 +161,7 @@ struct RenderTargetScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("RenderTargetScene", resolution, color::LightGray);
+	game.Init("RenderTargetScene", resolution);
 	game.scene.Enter<RenderTargetScene>("");
 	return 0;
 }

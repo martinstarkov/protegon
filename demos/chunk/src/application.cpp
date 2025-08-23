@@ -91,7 +91,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ChunkScene", { 1280, 720 }, color::Transparent);
+	game.Init("ChunkScene", { 1280, 720 });
 	game.scene.Enter<ChunkScene>("");
 	return 0;
 }

@@ -416,6 +416,7 @@ struct InteractiveScene : public Scene {
 	}
 
 	void Enter() override {
+		SetBackgroundColor(color::LightBlue);
 		game.window.SetSetting(WindowSetting::Resizable);
 		game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
 		RenderTarget rt{ GetRenderTarget() };
@@ -579,7 +580,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init(
 		"InteractiveScene: Q/E: Toggle TopOnly, WASD/ZC: "
 		"Move/Rotate Camera",
-		{ 1200, 800 }, color::LightBlue
+		{ 1200, 800 }
 	);
 	game.scene.Enter<InteractiveScene>("");
 	return 0;
