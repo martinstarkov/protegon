@@ -389,8 +389,8 @@ private:
 	void Draw(Scene& scene);
 
 	void DrawFromTo(
-		const RenderTarget& source_target, Transform transform, const Matrix4& projection,
-		const Viewport& viewport, const FrameBuffer* destination_buffer
+		const RenderTarget& source_target, const std::array<V2_float, 4>& points,
+		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
 	);
 
 	void DrawScreenTarget();

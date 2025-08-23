@@ -567,25 +567,72 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	const auto& scene{ game.scene.Get(scene_key_) };
 
 	auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
+
+	auto rt_position{ rt_transform.GetPosition() };
+	auto rt_scale{ rt_transform.GetScale() };
+	auto rt_rotation{ rt_transform.GetRotation() };
 	auto camera_transform{ GetTransform(scene.camera) };
 	camera_transform.SetScale(1.0f / camera_transform.GetScale());
 
-	auto top_left_rt_in_rt{ -scene.camera.GetViewportSize() * 0.5f };
+	auto screen_point_relative_to_center{
+		screen_point - game.renderer.GetLogicalResolution() * 0.5f - rt_position
+	};
 
-	// TODO: Consider if scene center is ever different from logical resolution.
+	auto screen_point_point_relative_to_rt_center{
+		(screen_point_relative_to_center / rt_scale).Rotated(-rt_rotation)
+	};
 
-	auto top_left_rt_in_world{ ApplyTransform(top_left_rt_in_rt, rt_transform) };
+	auto camera_point{ ApplyTransform(screen_point_point_relative_to_rt_center, camera_transform) };
 
-	auto new_top_left{ screen_point - game.renderer.GetLogicalResolution() * 0.5f -
-					   top_left_rt_in_world };
+	auto final_point{ camera_point };
 
-	auto scene_point{ ApplyTransform(
-		new_top_left,
-		{ top_left_rt_in_rt, -rt_transform.GetRotation(), 1.0f / rt_transform.GetScale() }
-	) };
+	PTGN_LOG("final_point: ", final_point);
+	/*PTGN_LOG(
+		"screen_point_point_relative_to_rt_center: ", screen_point_point_relative_to_rt_center
+	);*/
 
-	auto camera_point{ ApplyTransform(scene_point, camera_transform) };
-	return camera_point;
+	// auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
+	// auto camera_transform{ GetTransform(scene.camera) };
+	// camera_transform.SetScale(1.0f / camera_transform.GetScale());
+
+	// auto top_left_rt_in_rt{ -scene.camera.GetViewportSize() * 0.5f };
+
+	// auto camera_transform{ GetTransform(scene.camera) };
+
+	// auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
+
+	// auto viewport_size{ scene.camera.GetViewportSize() };
+
+	// float angle{ camera_transform.GetRotation() + rt_transform.GetRotation() };
+
+	// auto scale{ camera_transform.GetScale() * rt_transform.GetScale() };
+
+	// auto half_size{ -viewport_size * 0.5f };
+
+	// auto top_left{ half_size * scale };
+
+	// auto rotated{ top_left.Rotated(angle) };
+
+	// auto translated{ rotated + rt_transform.GetPosition() /*+ camera_transform.GetPosition()*/ };
+
+	// V2_float mouse_point{ screen_point };
+
+	// auto rotated2{ mouse_point.Rotated(-angle) };
+
+	// auto translated2{ rotated2 - translated.Rotated(-angle) };
+
+	// auto translated3{ translated2 + top_left };
+
+	// auto scaled{ translated3 / scale };
+
+	// auto translated4{ scaled - half_size };
+
+	//// PTGN_LOG(translated4);
+
+	// return translated4;
+
+	// auto camera_point{ ApplyTransform(scene_point, camera_transform) };
+	return final_point;
 }
 
 V2_float SceneInput::GetMousePosition() const {

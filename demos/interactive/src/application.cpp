@@ -417,8 +417,14 @@ struct InteractiveScene : public Scene {
 
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
+		game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
+		RenderTarget rt{ GetRenderTarget() };
+		SetRotation(rt, DegToRad(45.0f));
+		SetScale(rt, 0.5f);
+		SetPosition(rt, V2_float{ 600, 0 });
 		SetBackgroundColor(color::LightGray);
 		camera.SetViewportSize({ 800, 800 });
+		SetPosition(camera, { 400, 400 });
 		// game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(10.0f);
@@ -428,7 +434,7 @@ struct InteractiveScene : public Scene {
 						{ "dropzone", "resources/dropzone.png" } });
 
 		V2_float ws{ game.window.GetSize() };
-		V2_float center{ game.window.GetCenter() };
+		V2_float center{ GetTransform(camera).GetPosition() };
 
 		V2_float offset{ 250, 250 };
 		V2_float rsize{ 100, 50 };
@@ -518,6 +524,7 @@ struct InteractiveScene : public Scene {
 
 		if (input.KeyDown(Key::I)) {
 			PTGN_LOG("c3: ", GetAbsoluteTransform(c3));
+			PTGN_LOG("scene camera viewport size: ", camera.GetViewportSize());
 		}
 
 		constexpr V2_float speed{ 3.0f, 3.0f };

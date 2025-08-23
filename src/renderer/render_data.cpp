@@ -28,6 +28,7 @@
 #include "core/timer.h"
 #include "core/window.h"
 #include "debug/log.h"
+#include "input/input_handler.h"
 #include "math/geometry.h"
 #include "math/geometry/line.h"
 #include "math/geometry/rect.h"
@@ -993,8 +994,8 @@ void RenderData::ClearRenderTargets(Scene& scene) const {
 }
 
 void RenderData::DrawFromTo(
-	const RenderTarget& source_target, Transform transform, const Matrix4& projection,
-	const Viewport& viewport, const FrameBuffer* destination_buffer
+	const RenderTarget& source_target, const std::array<V2_float, 4>& points,
+	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
 ) {
 	const Shader* shader{ nullptr };
 
@@ -1012,18 +1013,25 @@ void RenderData::DrawFromTo(
 
 	auto target{ GetDrawTarget(source_target, {}, {}, false) };
 	target.view_projection = projection;
-	target.points =
-		Rect{ logical_resolution_ }.GetWorldVertices(transform.Translate(logical_resolution_ / 2.0f)
-		);
-	target.viewport		= viewport;
-	target.frame_buffer = destination_buffer;
+	target.points		   = points;
+	target.viewport		   = viewport;
+	target.frame_buffer	   = destination_buffer;
 
 	DrawFullscreenQuad(*shader, target, true, false, color::Transparent);
 }
 
 void RenderData::DrawScreenTarget() {
-	auto projection{ GetProjection({}, logical_resolution_) };
-	DrawFromTo(screen_target_, {}, projection, physical_viewport_, nullptr);
+	auto projection{
+		GetProjection(-physical_viewport_.size / 2.0f, physical_viewport_.size / 2.0f)
+	};
+	std::array<V2_float, 4> points{
+		-physical_viewport_.size / 2.0f,
+		V2_float{ physical_viewport_.size.x / 2.0f, -physical_viewport_.size.y / 2.0f },
+		physical_viewport_.size / 2.0f,
+		V2_float{ -physical_viewport_.size.x / 2.0f, physical_viewport_.size.y / 2.0f }
+	};
+	//	PTGN_LOG("Mouse position in window: ", game.input.GetMouseWindowPosition());
+	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -1034,11 +1042,18 @@ void RenderData::Draw(Scene& scene) {
 
 	DrawScene(scene);
 
-	auto projection{ GetProjection({}, logical_resolution_) };
+	auto projection{ GetProjection(-logical_resolution_ / 2.0f, logical_resolution_ / 2.0f) };
+
+	Transform scene_transform{ GetTransform(scene.render_target_) };
+
+	auto points{ Rect{ scene.camera.GetViewportSize() }.GetWorldVertices(scene_transform) };
+
+	Viewport viewport;
+	viewport.position = {};
+	viewport.size	  = physical_viewport_.size;
 
 	DrawFromTo(
-		scene.render_target_, GetTransform(scene.render_target_), projection,
-		{ {}, screen_target_.GetTextureSize() }, &screen_target_.GetFrameBuffer()
+		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer()
 	);
 
 	Reset();
