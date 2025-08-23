@@ -139,7 +139,7 @@ struct BroadphaseScene : public Scene {
 		// For full raycasts:
 
 		auto player_pos{ GetPosition(player) };
-		auto mouse_pos{ game.input.GetMousePosition() };
+		auto mouse_pos{ input.GetMousePosition() };
 		auto dir{ mouse_pos - player_pos };
 
 		auto player_rect{ GetBoundingAABB(player) };

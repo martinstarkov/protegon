@@ -37,7 +37,7 @@ class PathfindingScene : public Scene {
 	}
 
 	void Update() override {
-		V2_float mouse_pos	= game.input.GetMousePosition();
+		V2_float mouse_pos	= input.GetMousePosition();
 		V2_float mouse_tile = mouse_pos / tile_size;
 
 		if (game.input.MousePressed(Mouse::Right)) {

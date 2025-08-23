@@ -140,7 +140,7 @@ class FullscreenScene : public Scene {
 		Color color_0 = color::Green;
 		Color color_1 = color::Blue;
 
-		if (impl::OverlapPointRect(game.input.GetMousePosition(), rect_0)) {
+		if (impl::OverlapPointRect(input.GetMousePosition(), rect_0)) {
 			color_0 = color::Red;
 		}
 
@@ -184,19 +184,19 @@ class FullscreenScene : public Scene {
 
 		rect_0.Draw(color_0, -1.0f);
 
-		V2_float mouse_pos{ game.input.GetMousePosition() };
+		V2_float mouse_pos{ input.GetMousePosition() };
 		// PTGN_LOG("Mouse Pos: ", mouse_pos);
 
 		mouse_pos.Draw(color::Red, 6.0f);
 
 		game.renderer.SetRenderTarget(rt);
 
-		if (rect_1.Overlaps(game.input.GetMousePosition())) {
+		if (rect_1.Overlaps(input.GetMousePosition())) {
 			color_1 = color::Red;
 		}
 
 		// Mouse position relative to the camera of this render target.
-		game.input.GetMousePosition().Draw(color::Blue, 3.0f);
+		input.GetMousePosition().Draw(color::Blue, 3.0f);
 		rect_1.Draw(color_1, -1.0f);
 
 		game.renderer.SetRenderTarget({});

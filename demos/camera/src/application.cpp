@@ -205,8 +205,8 @@ public:
 
 		if (game.input.MouseDown(Mouse::Left)) {
 			mouse.SetPosition( =
-				camera.TransformToCamera(game.input.GetMousePosition());
-			//camera.PanTo(camera.TransformToCamera(game.input.GetMousePosition()),
+				camera.TransformToCamera(input.GetMousePosition());
+			//camera.PanTo(camera.TransformToCamera(input.GetMousePosition()),
 seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (game.input.MouseDown(Mouse::Right)) {
 			StopFollow(camera);
 		}
@@ -303,7 +303,7 @@ public:
 		float dt{ game.dt() };
 
 		/*	PTGN_LOG(
-				"Mouse screen pos: ", game.input.GetMousePosition(),
+				"Mouse screen pos: ", game.input.GetMouseWindowPosition(),
 				", Mouse world pos: ", input.GetMousePosition()
 			);*/
 

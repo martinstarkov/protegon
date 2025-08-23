@@ -1611,9 +1611,8 @@ public:
 	PolygonalNode(const std::vector<Point2D>& vertices, const ptgn::Color& c);
 
 protected:
-	ColliderEdge createEdge(
-		const Point2D& P, const Point2D& Q, const std::string& identifier
-	) const override;
+	ColliderEdge createEdge(const Point2D& P, const Point2D& Q, const std::string& identifier)
+		const override;
 
 public:
 	// Drawable interface
@@ -1640,9 +1639,8 @@ public:
 
 	// Overrides from AbstractRectangle2D
 protected:
-	ColliderEdge createEdge(
-		const Point2D& P, const Point2D& Q, const std::string& identifier
-	) const override;
+	ColliderEdge createEdge(const Point2D& P, const Point2D& Q, const std::string& identifier)
+		const override;
 
 public:
 	// Drawable interface
@@ -1671,9 +1669,8 @@ public:
 	explicit Polygon2D(const std::vector<Point2D>& v) : AbstractPolygon2D<LineSegment2D>(v) {}
 
 protected:
-	LineSegment2D createEdge(
-		const Point2D& P, const Point2D& Q, const std::string& i
-	) const override {
+	LineSegment2D createEdge(const Point2D& P, const Point2D& Q, const std::string& i)
+		const override {
 		return LineSegment2D(P, Q, i);
 	}
 };
@@ -1684,9 +1681,8 @@ public:
 		AbstractRectangle2D<LineSegment2D>(x_, y_, w, h) {}
 
 protected:
-	LineSegment2D createEdge(
-		const Point2D& P, const Point2D& Q, const std::string& identifier
-	) const override {
+	LineSegment2D createEdge(const Point2D& P, const Point2D& Q, const std::string& identifier)
+		const override {
 		return LineSegment2D(P, Q, identifier);
 	}
 };
@@ -2556,8 +2552,8 @@ void PaintCommandHandler::fill(std::shared_ptr<Drawable> drawable) {
 	fill(std::move(drawable), drawable->getColor());
 }
 
-std::vector<std::shared_ptr<PaintCommandHandler::PaintCommand>>
-PaintCommandHandler::copyCommands() const {
+std::vector<std::shared_ptr<PaintCommandHandler::PaintCommand>> PaintCommandHandler::copyCommands(
+) const {
 	std::lock_guard<std::mutex> lock(mutex_);
 	return std::vector<std::shared_ptr<PaintCommand>>(commands_.begin(), commands_.end());
 }
@@ -3735,11 +3731,9 @@ private:
 									  ? Constants::Brick::COLORS_PER_ROW.at(i)
 									  : ptgn::color::White;
 
-				bricks.emplace_back(
-					std::make_shared<Brick>(
-						x, y, Constants::Brick::WIDTH, Constants::Brick::HEIGHT, color
-					)
-				);
+				bricks.emplace_back(std::make_shared<Brick>(
+					x, y, Constants::Brick::WIDTH, Constants::Brick::HEIGHT, color
+				));
 			}
 		}
 
@@ -3749,19 +3743,15 @@ private:
 	static std::vector<std::shared_ptr<Obstacle>> constructObstacles() {
 		std::vector<std::shared_ptr<Obstacle>> obstacles;
 
-		obstacles.emplace_back(
-			std::make_shared<Obstacle>(
-				std::vector<Point2D>{ Point2D(0, 720), Point2D(640, 720), Point2D(0, 500) },
-				ptgn::color::White
-			)
-		);
+		obstacles.emplace_back(std::make_shared<Obstacle>(
+			std::vector<Point2D>{ Point2D(0, 720), Point2D(640, 720), Point2D(0, 500) },
+			ptgn::color::White
+		));
 
-		obstacles.emplace_back(
-			std::make_shared<Obstacle>(
-				std::vector<Point2D>{ Point2D(640, 720), Point2D(1280, 720), Point2D(1280, 500) },
-				ptgn::color::White
-			)
-		);
+		obstacles.emplace_back(std::make_shared<Obstacle>(
+			std::vector<Point2D>{ Point2D(640, 720), Point2D(1280, 720), Point2D(1280, 500) },
+			ptgn::color::White
+		));
 
 		obstacles.emplace_back(std::make_shared<Obstacle>(200, 250, 100, 100, ptgn::color::White));
 		obstacles.emplace_back(std::make_shared<Obstacle>(980, 250, 100, 100, ptgn::color::White));
@@ -4985,7 +4975,7 @@ private:
 	bool isEnabled;
 
 	void updateCursorPositionIfApplicable() {
-		auto event{ ptgn::game.input.GetMousePosition() };
+		auto event{ ptgn::game.input.GetMouseWindowPosition() };
 		if (ball->isFreeze()) {
 			cursorPosition = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 			// Event consumption if applicable
@@ -4993,7 +4983,7 @@ private:
 	}
 
 	void freezeBallIfApplicable() {
-		auto event{ ptgn::game.input.GetMousePosition() };
+		auto event{ ptgn::game.input.GetMouseWindowPosition() };
 		auto worldPos = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 		if (ball->contains(worldPos, 4)) {
 			cursorPosition = worldPos;
@@ -5127,8 +5117,8 @@ DebuggerDragEventHandler::DebuggerDragEventHandler(std::shared_ptr<GameObjects> 
 	painter_(GraphicsEngine::createHandler()) {}
 
 void DebuggerDragEventHandler::update() {
-	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition() };
-	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious() };
+	ptgn::V2_float cur{ ptgn::game.input.GetMouseWindowPosition() };
+	ptgn::V2_float prev{ ptgn::game.input.GetMouseWindowPositionPrevious() };
 	if (ptgn::game.input.MousePressed(ptgn::Mouse::Left)) {
 		Point2D worldPos = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
 		auto located	 = locateDraggable(worldPos);
@@ -5219,8 +5209,8 @@ void BreakoutDragEventHandler::update() {
 		return;
 	}
 
-	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition() };
-	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious() };
+	ptgn::V2_float cur{ ptgn::game.input.GetMouseWindowPosition() };
+	ptgn::V2_float prev{ ptgn::game.input.GetMouseWindowPositionPrevious() };
 	if (ptgn::game.input.MouseDown(ptgn::Mouse::Left)) {
 		focused_ = !focused_;
 

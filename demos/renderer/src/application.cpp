@@ -209,7 +209,7 @@ Entity TestAddBlur(Scene& s) {
 
 struct FollowMouseScript : public Script<FollowMouseScript> {
 	void OnUpdate() override {
-		SetPosition(entity, game.input.GetMousePosition());
+		SetPosition(entity, entity.GetScene().input.GetMousePosition());
 		float timescale{ 1000 };
 		V2_float size{ V2_float{ Abs(std::sin(game.time() / timescale) * 256),
 								 Abs(std::sin(game.time() / timescale) * 256) } +

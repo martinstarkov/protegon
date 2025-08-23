@@ -53,7 +53,7 @@ public:
 			grid = inner_grid;
 		}
 
-		V2_int mouse_pos = game.input.GetMousePosition();
+		V2_int mouse_pos = input.GetMousePosition();
 
 		V2_int mouse_tile = mouse_pos / tile_size;
 

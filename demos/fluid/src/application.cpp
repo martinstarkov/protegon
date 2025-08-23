@@ -269,7 +269,7 @@ public:
 		// Add fluid.
 		if (game.input.MousePressed(Mouse::Left)) {
 			// Add dye.
-			auto mouse_position{ game.input.GetMousePosition() };
+			auto mouse_position{ input.GetMousePosition() };
 			V2_int pos{ mouse_position / scale };
 			fluid.AddDensity(pos.x, pos.y, 1000, static_cast<int>(10.0f / scale.x));
 			// Add gravity vector.

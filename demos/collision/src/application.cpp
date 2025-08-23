@@ -342,10 +342,10 @@ public:
 
 	void Update() override {
 		if (game.input.MousePressed(Mouse::Left)) {
-			p1 = V2_int{ game.input.GetMousePosition() };
+			p1 = V2_int{ input.GetMousePosition() };
 		}
 		if (game.input.MousePressed(Mouse::Right)) {
-			p0 = V2_int{ game.input.GetMousePosition() };
+			p0 = V2_int{ input.GetMousePosition() };
 		}
 	}
 
@@ -364,7 +364,7 @@ class PointOverlapTest : public ShapeCollisionTest {
 public:
 	void Update() override {
 		DrawGrid();
-		p1 = V2_int{ game.input.GetMousePosition() };
+		p1 = V2_int{ input.GetMousePosition() };
 
 		V2_float c0{ p1 };
 		c0.Draw(color::Green, 1.0f);

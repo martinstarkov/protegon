@@ -98,7 +98,7 @@ public:
 	}
 
 	void Update() override {
-		SetPosition(p, game.input.GetMousePosition());
+		SetPosition(p, input.GetMousePosition());
 	}
 };
 
