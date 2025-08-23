@@ -5,6 +5,9 @@
 
 #include "components/interactive.h"
 #include "core/entity.h"
+#include "core/time.h"
+#include "input/key.h"
+#include "input/mouse.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "serialization/serializable.h"
@@ -61,6 +64,100 @@ public:
 	// @return Mouse position difference between the current and previous frames relative to the
 	// scene primary camera.
 	[[nodiscard]] V2_float GetMousePositionDifference() const;
+
+	// @param mouse_button The mouse button to check.
+	// @return The amount of time that the mouse button has been held down, 0 if it is not currently
+	// pressed.
+	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse mouse_button) const;
+
+	// @param key The key to check.
+	// @return The amount of time that the key has been held down, 0 if it is not currently pressed.
+	[[nodiscard]] milliseconds GetKeyHeldTime(Key key) const;
+
+	/*
+	 * @param mouse_button The mouse button to check.
+	 * @param time The duration of time for which the mouse should be held.
+	 * @return True if the mouse button has been held for the given amount of time.
+	 */
+	[[nodiscard]] bool MouseHeld(Mouse mouse_button, milliseconds time = milliseconds{ 50 }) const;
+
+	/*
+	 * @param key The key to check.
+	 * @param time The duration of time for which the key should be held.
+	 * @return True if the key has been held for the given amount of time.
+	 */
+	[[nodiscard]] bool KeyHeld(Key key, milliseconds time = milliseconds{ 50 }) const;
+
+	// @return True if mouse position is within window bounds, false otherwise.
+	[[nodiscard]] bool MouseWithinWindow() const;
+
+	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
+	// to the window, and there will be continuous relative mouse motion events triggered even if
+	// the mouse is at the edge of the window.
+	// @param Whether or not mouse relative mode should be turned on or not.
+	void SetRelativeMouseMode(bool on) const;
+
+	// @param relative_to_viewport If true, returns the position translated and scaled such that
+	// (0,0) is in the top left of the viewport, instead of the window.
+	// @return Mouse position relative to the top left of the window, clamped to the range [0,
+	// window_size].
+	[[nodiscard]] V2_float GetMouseWindowPosition(bool relative_to_viewport = true) const;
+
+	// @return Mouse position relative to the top left of the window, without clamping to the range
+	// [0, window_size].
+	[[nodiscard]] V2_float GetMouseWindowPositionUnclamped() const;
+
+	// @param relative_to_viewport If true, returns the position translated and scaled such that
+	// (0,0) is in the top left of the viewport, instead of the window.
+	// @return Mouse position during the previous frame relative to the top left of the window.
+	[[nodiscard]] V2_float GetMouseWindowPositionPrevious(bool relative_to_viewport = true) const;
+
+	// @param relative_to_viewport If true, returns the position translated and scaled such that
+	// (0,0) is in the top left of the viewport, instead of the window.
+	// @return Mouse position difference between the current and previous frames relative to the top
+	// left of the window.
+	[[nodiscard]] V2_float GetMouseWindowPositionDifference(bool relative_to_viewport = true) const;
+
+	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
+	// GetMousePosition().
+	[[nodiscard]] V2_float GetMouseScreenPosition() const;
+
+	// @return The amount scrolled by the mouse vertically in the current frame,
+	// positive upward, negative downward. Zero if no scroll occurred.
+	[[nodiscard]] int GetMouseScroll() const;
+
+	// @param mouse_button The mouse button to check.
+	// @return True if the mouse button is pressed (true every frame that the button is down).
+	[[nodiscard]] bool MousePressed(Mouse mouse_button) const;
+
+	// @param mouse_button The mouse button to check.
+	// @return True if the mouse button is released (true every frame that the button is up).
+	[[nodiscard]] bool MouseReleased(Mouse mouse_button) const;
+
+	// @param mouse_button The mouse button to check.
+	// @return True the first frame that the mouse button is pressed (false every frame after that).
+	[[nodiscard]] bool MouseDown(Mouse mouse_button) const;
+
+	// @param mouse_button The mouse button to check.
+	// @return True the first frame that the mouse button is released (false every frame after
+	// that).
+	[[nodiscard]] bool MouseUp(Mouse mouse_button) const;
+
+	// @param key The key to check.
+	// @return True if the key is pressed (true every frame that the key is down).
+	[[nodiscard]] bool KeyPressed(Key key) const;
+
+	// @param key The key to check.
+	// @return True if the key is released (true every frame that the key is up).
+	[[nodiscard]] bool KeyReleased(Key key) const;
+
+	// @param key The key to check.
+	// @return True the first frame that the key is pressed (false every frame after that).
+	[[nodiscard]] bool KeyDown(Key key) const;
+
+	// @param key The key to check.
+	// @return True the first frame that the key is released (false every frame after that).
+	[[nodiscard]] bool KeyUp(Key key) const;
 
 private:
 	friend class Scene;

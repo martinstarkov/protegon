@@ -113,21 +113,21 @@ public:
 	// that).
 	[[nodiscard]] bool MouseUp(Mouse mouse_button) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True if the key is pressed (true every frame that the key is down).
 	[[nodiscard]] bool KeyPressed(Key key) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True if the key is released (true every frame that the key is up).
 	[[nodiscard]] bool KeyReleased(Key key) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True the first frame that the key is pressed (false every frame after that).
-	[[nodiscard]] bool KeyDown(Key key);
+	[[nodiscard]] bool KeyDown(Key key) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True the first frame that the key is released (false every frame after that).
-	[[nodiscard]] bool KeyUp(Key key);
+	[[nodiscard]] bool KeyUp(Key key) const;
 
 private:
 	friend class ptgn::Scene;

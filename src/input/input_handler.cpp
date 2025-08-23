@@ -4,6 +4,7 @@
 #include <optional>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
 #include "common/assert.h"
 #include "components/transform.h"
@@ -458,11 +459,11 @@ bool InputHandler::KeyReleased(Key key) const {
 	return state == KeyState::Released || state == KeyState::Up;
 }
 
-bool InputHandler::KeyDown(Key key) {
+bool InputHandler::KeyDown(Key key) const {
 	return GetKeyState(key) == KeyState::Down;
 }
 
-bool InputHandler::KeyUp(Key key) {
+bool InputHandler::KeyUp(Key key) const {
 	return GetKeyState(key) == KeyState::Up;
 }
 

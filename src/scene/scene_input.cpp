@@ -35,10 +35,10 @@ namespace ptgn {
 
 MouseInfo::MouseInfo(const Scene& scene) :
 	position{ scene.input.GetMousePosition() },
-	scroll_delta{ game.input.GetMouseScroll() },
-	left_pressed{ game.input.MousePressed(Mouse::Left) },
-	left_down{ game.input.MouseDown(Mouse::Left) },
-	left_up{ game.input.MouseUp(Mouse::Left) } {}
+	scroll_delta{ scene.input.GetMouseScroll() },
+	left_pressed{ scene.input.MousePressed(Mouse::Left) },
+	left_down{ scene.input.MouseDown(Mouse::Left) },
+	left_up{ scene.input.MouseUp(Mouse::Left) } {}
 
 static void GetShapes(
 	const Entity& entity, const Entity& root_entity, std::vector<std::pair<Shape, Entity>>& vector
@@ -706,6 +706,86 @@ void SceneInput::SetDrawInteractivesColor(const Color& color) {
 
 void SceneInput::SetDrawInteractivesLineWidth(float line_width) {
 	draw_interactive_line_width_ = line_width;
+}
+
+milliseconds SceneInput::GetMouseHeldTime(Mouse mouse_button) const {
+	return game.input.GetMouseHeldTime(mouse_button);
+}
+
+milliseconds SceneInput::GetKeyHeldTime(Key key) const {
+	return game.input.GetKeyHeldTime(key);
+}
+
+bool SceneInput::MouseHeld(Mouse mouse_button, milliseconds time) const {
+	return game.input.MouseHeld(mouse_button, time);
+}
+
+bool SceneInput::KeyHeld(Key key, milliseconds time) const {
+	return game.input.KeyHeld(key, time);
+}
+
+bool SceneInput::MouseWithinWindow() const {
+	return game.input.MouseWithinWindow();
+}
+
+void SceneInput::SetRelativeMouseMode(bool on) const {
+	game.input.SetRelativeMouseMode(on);
+}
+
+V2_float SceneInput::GetMouseWindowPosition(bool relative_to_viewport) const {
+	return game.input.GetMouseWindowPosition(relative_to_viewport);
+}
+
+V2_float SceneInput::GetMouseWindowPositionUnclamped() const {
+	return game.input.GetMouseWindowPositionUnclamped();
+}
+
+V2_float SceneInput::GetMouseWindowPositionPrevious(bool relative_to_viewport) const {
+	return game.input.GetMouseWindowPositionPrevious(relative_to_viewport);
+}
+
+V2_float SceneInput::GetMouseWindowPositionDifference(bool relative_to_viewport) const {
+	return game.input.GetMouseWindowPositionDifference(relative_to_viewport);
+}
+
+V2_float SceneInput::GetMouseScreenPosition() const {
+	return game.input.GetMouseScreenPosition();
+}
+
+int SceneInput::GetMouseScroll() const {
+	return game.input.GetMouseScroll();
+}
+
+bool SceneInput::MousePressed(Mouse mouse_button) const {
+	return game.input.MousePressed(mouse_button);
+}
+
+bool SceneInput::MouseReleased(Mouse mouse_button) const {
+	return game.input.MouseReleased(mouse_button);
+}
+
+bool SceneInput::MouseDown(Mouse mouse_button) const {
+	return game.input.MouseDown(mouse_button);
+}
+
+bool SceneInput::MouseUp(Mouse mouse_button) const {
+	return game.input.MouseUp(mouse_button);
+}
+
+bool SceneInput::KeyPressed(Key key) const {
+	return game.input.KeyPressed(key);
+}
+
+bool SceneInput::KeyReleased(Key key) const {
+	return game.input.KeyReleased(key);
+}
+
+bool SceneInput::KeyDown(Key key) const {
+	return game.input.KeyDown(key);
+}
+
+bool SceneInput::KeyUp(Key key) const {
+	return game.input.KeyUp(key);
 }
 
 } // namespace ptgn
