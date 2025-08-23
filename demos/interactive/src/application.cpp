@@ -417,6 +417,7 @@ struct InteractiveScene : public Scene {
 
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
+		SetBackgroundColor(color::LightGray);
 		// game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(10.0f);

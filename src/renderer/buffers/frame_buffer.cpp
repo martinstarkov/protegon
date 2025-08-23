@@ -147,6 +147,9 @@ void FrameBuffer::DeleteFrameBuffer() noexcept {
 void FrameBuffer::AttachTexture(Texture&& texture) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
+	PTGN_ASSERT(
+		texture.GetSize().BothAboveZero(), "Cannot attach texture with no size to a frame buffer"
+	);
 	texture_ = std::move(texture);
 	GLCall(FramebufferTexture2D(
 		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_.GetId(), 0
@@ -290,8 +293,7 @@ void FrameBuffer::ForEachPixel(
 		"Textures with less than 3 pixel components cannot currently be queried"
 	);
 
-	std::vector<std::uint8_t> v(
-		static_cast<std::size_t>(formats.color_components * size.x * size.y)
+	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
 	);
 	FrameBufferId restore_frame_buffer_id{ 0 };
 	if (restore_bind_state) {

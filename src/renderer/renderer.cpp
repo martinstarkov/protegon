@@ -32,6 +32,7 @@
 #include "renderer/font.h"
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/render_data.h"
+#include "renderer/render_target.h"
 #include "renderer/shader.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
@@ -228,11 +229,11 @@ void Renderer::Init() {
 }
 
 void Renderer::SetBackgroundColor(const Color& background_color) {
-	background_color_ = background_color;
+	render_data_.screen_target_.SetClearColor(background_color);
 }
 
 Color Renderer::GetBackgroundColor() const {
-	return background_color_;
+	return render_data_.screen_target_.GetClearColor();
 }
 
 void Renderer::Reset() {
@@ -306,8 +307,9 @@ void Renderer::PresentScreen() {
 
 void Renderer::ClearScreen() const {
 	FrameBuffer::Unbind();
-	GLRenderer::SetClearColor(background_color_);
+	GLRenderer::SetClearColor(color::Transparent);
 	GLRenderer::Clear();
+	render_data_.ClearScreenTarget();
 }
 
 } // namespace impl

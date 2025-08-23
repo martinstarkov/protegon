@@ -166,8 +166,6 @@ private:
 	BoundStates bound_;
 
 	RenderData render_data_;
-
-	Color background_color_{ color::Transparent };
 };
 
 } // namespace impl

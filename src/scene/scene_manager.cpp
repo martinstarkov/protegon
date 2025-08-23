@@ -187,6 +187,8 @@ void SceneManager::Update() {
 		}
 	}
 
+	render_data.DrawScreenTarget();
+
 	render_data.logical_resolution_changed_	 = false;
 	render_data.physical_resolution_changed_ = false;
 }

@@ -196,6 +196,10 @@ RenderTarget CreateRenderTarget(
 		PTGN_ERROR("Unknown resize to resolution value");
 	}
 
+	PTGN_ASSERT(
+		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
+	);
+
 	render_target =
 		impl::AddRenderTargetComponents(render_target, resolution, clear_color, texture_format);
 

@@ -384,12 +384,18 @@ private:
 
 	void Flush();
 
-	void DrawToScreen(const Scene& scene, Transform transform, const Matrix4& projection);
-
 	void DrawScene(Scene& scene);
 
 	void Draw(Scene& scene);
 
+	void DrawFromTo(
+		const RenderTarget& source_target, Transform transform, const Matrix4& projection,
+		const Viewport& viewport, const FrameBuffer* destination_buffer
+	);
+
+	void DrawScreenTarget();
+
+	void ClearScreenTarget() const;
 	void ClearRenderTargets(Scene& scene) const;
 
 	std::shared_ptr<DrawContext> intermediate_target;
@@ -410,11 +416,15 @@ private:
 
 	bool logical_resolution_set_{ false };
 	LogicalResolutionMode resolution_mode_{ LogicalResolutionMode::Letterbox };
-	V2_int logical_resolution_;
-	Viewport physical_viewport_;
+
+	// Allow for creation of targets before window has been initialized.
+	V2_int logical_resolution_{ 1, 1 };
+	Viewport physical_viewport_{ {}, { 1, 1 } };
+
 	bool logical_resolution_changed_{ false };
 	bool physical_resolution_changed_{ false };
 
+	RenderTarget screen_target_;
 	Entity viewport_tracker;
 
 	std::vector<Texture> temporary_textures;

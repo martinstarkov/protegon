@@ -280,8 +280,6 @@ void Game::Update() {
 	if (game.scene.GetActiveSceneCount() != 0) {
 		renderer.ClearScreen();
 
-		// scene.ClearSceneTargets();
-
 		scene.Update();
 
 		renderer.PresentScreen();

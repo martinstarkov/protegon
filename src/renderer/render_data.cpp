@@ -486,6 +486,12 @@ void RenderData::Init() {
 
 	intermediate_target = {};
 
+	screen_target_ = CreateRenderTarget(
+		render_manager, ResizeToResolution::Physical, color::Transparent,
+		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+	);
+	SetBlendMode(screen_target_, BlendMode::None);
+
 #ifdef PTGN_PLATFORM_MACOS
 	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
 	// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
@@ -972,7 +978,24 @@ void RenderData::UpdateResolutions(
 	RecomputeViewport(window_size);
 }
 
-void RenderData::DrawToScreen(const Scene& scene, Transform transform, const Matrix4& projection) {
+void RenderData::ClearScreenTarget() const {
+	screen_target_.Clear();
+}
+
+void RenderData::ClearRenderTargets(Scene& scene) const {
+	scene.render_target_.Clear();
+
+	for (auto [entity, frame_buffer] : scene.EntitiesWith<impl::FrameBuffer>()) {
+		RenderTarget rt{ entity };
+		rt.Clear();
+		// rt.ClearDisplayList();
+	}
+}
+
+void RenderData::DrawFromTo(
+	const RenderTarget& source_target, Transform transform, const Matrix4& projection,
+	const Viewport& viewport, const FrameBuffer* destination_buffer
+) {
 	const Shader* shader{ nullptr };
 
 	if constexpr (HDR_ENABLED) {
@@ -987,23 +1010,20 @@ void RenderData::DrawToScreen(const Scene& scene, Transform transform, const Mat
 		PTGN_ASSERT(shader != nullptr);
 	}
 
-	auto target{ GetDrawTarget(scene.render_target_, {}, {}, false) };
+	auto target{ GetDrawTarget(source_target, {}, {}, false) };
 	target.view_projection = projection;
-	target.points		   = Rect{ logical_resolution_ }.GetWorldVertices(transform);
-	target.viewport		   = physical_viewport_;
-	target.frame_buffer	   = nullptr;
+	target.points =
+		Rect{ logical_resolution_ }.GetWorldVertices(transform.Translate(logical_resolution_ / 2.0f)
+		);
+	target.viewport		= viewport;
+	target.frame_buffer = destination_buffer;
 
 	DrawFullscreenQuad(*shader, target, true, false, color::Transparent);
 }
 
-void RenderData::ClearRenderTargets(Scene& scene) const {
-	scene.render_target_.Clear();
-
-	for (auto [entity, frame_buffer] : scene.EntitiesWith<impl::FrameBuffer>()) {
-		RenderTarget rt{ entity };
-		rt.Clear();
-		// rt.ClearDisplayList();
-	}
+void RenderData::DrawScreenTarget() {
+	auto projection{ GetProjection({}, logical_resolution_) };
+	DrawFromTo(screen_target_, {}, projection, physical_viewport_, nullptr);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -1014,20 +1034,17 @@ void RenderData::Draw(Scene& scene) {
 
 	DrawScene(scene);
 
-	render_state		= {};
-	intermediate_target = {};
-	temporary_textures	= std::vector<Texture>{};
-
-	// TODO: Remove.
-	GetTransform(scene.render_target_).SetRotation(DegToRad(45.0f)); // game.time() / 4000.0f);
-	GetTransform(scene.render_target_).SetPosition({ 400, 0 });
-	GetTransform(scene.render_target_).SetScale(2.0f);
-
 	auto projection{ GetProjection({}, logical_resolution_) };
 
-	DrawToScreen(scene, scene.GetRenderTargetTransform(), projection);
+	DrawFromTo(
+		scene.render_target_, GetTransform(scene.render_target_), projection,
+		{ {}, screen_target_.GetTextureSize() }, &screen_target_.GetFrameBuffer()
+	);
 
 	Reset();
+
+	temporary_textures = std::vector<Texture>{};
+	render_state	   = {};
 }
 
 } // namespace impl
