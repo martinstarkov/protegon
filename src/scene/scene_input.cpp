@@ -566,13 +566,13 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	const auto& scene{ game.scene.Get(scene_key_) };
 
-	auto rt_transform{ scene.GetRenderTargetTransform() };
+	auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
 	auto camera_transform{ GetTransform(scene.camera) };
 	camera_transform.SetScale(1.0f / camera_transform.GetScale());
 
 	auto scene_center{ scene.camera.GetViewportSize() * 0.5f };
 
-	auto top_left{ ApplyTransform(-scene_center, rt_transform) };
+	auto top_left{ ApplyTransform(-scene_center, rt_transform) + scene_center };
 
 	auto new_top_left{ screen_point - top_left };
 
