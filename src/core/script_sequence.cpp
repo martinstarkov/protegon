@@ -71,4 +71,17 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	return sequence;
 }
 
+void After(Scene& scene, milliseconds duration, const std::function<void(Entity)>& func) {
+	auto script_sequence{ CreateScriptSequence(scene) };
+	script_sequence.Wait(duration);
+	script_sequence.Then(func);
+	script_sequence.Start();
+}
+
+void During(Scene& scene, milliseconds duration, const std::function<void(Entity)>& func) {
+	auto script_sequence{ CreateScriptSequence(scene) };
+	script_sequence.During(duration, func);
+	script_sequence.Start();
+}
+
 } // namespace ptgn

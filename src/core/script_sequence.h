@@ -8,6 +8,7 @@
 #include "core/entity.h"
 #include "core/game_object.h"
 #include "core/script.h"
+#include "core/script_interfaces.h"
 #include "tweens/tween.h"
 
 namespace ptgn {
@@ -58,5 +59,9 @@ public:
 };
 
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete = true);
+
+void After(Scene& scene, milliseconds duration, const std::function<void(Entity)>& func);
+
+void During(Scene& scene, milliseconds duration, const std::function<void(Entity)>& func);
 
 } // namespace ptgn
