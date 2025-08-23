@@ -539,6 +539,12 @@ struct InteractiveScene : public Scene {
 		if (input.KeyPressed(Key::Q)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
+
+		constexpr V2_float speed2{ 3.0f, 3.0f };
+		V2_float pos2{ GetPosition(GetRenderTarget()) };
+		MoveArrowKeys(pos2, speed2, false);
+		RenderTarget testing{ GetRenderTarget() };
+		SetPosition(testing, pos2);
 		/*const auto& dropped{ r4.Get<Dropzone>().dropped_entities };
 		Print("Dropped: ");
 		for (auto d : dropped) {
@@ -549,8 +555,11 @@ struct InteractiveScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("InteractiveScene: Q/E: Toggle TopOnly, WASD/ZC: "
-			  "Move/Rotate Camera");
+	game.Init(
+		"InteractiveScene: Q/E: Toggle TopOnly, WASD/ZC: "
+		"Move/Rotate Camera",
+		{ 800, 800 }, color::LightBlue
+	);
 	game.scene.Enter<InteractiveScene>("");
 	return 0;
 }
