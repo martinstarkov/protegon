@@ -25,7 +25,7 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(const Transform& transform, f
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	auto local_center{ start + dir * 0.5f };
 
-	V2_float center{ ToWorldPoint(local_center, transform) };
+	V2_float center{ ApplyTransform(local_center, transform) };
 
 	float rotation{ dir.Angle() };
 	V2_float size{ dir.Magnitude(), line_width };
@@ -35,7 +35,7 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(const Transform& transform, f
 
 std::array<V2_float, 2> Line::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ToWorldPoint(local_vertices, transform);
+	return ApplyTransform(local_vertices, transform);
 }
 
 std::array<V2_float, 2> Line::GetLocalVertices() const {

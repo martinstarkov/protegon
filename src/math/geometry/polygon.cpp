@@ -48,7 +48,7 @@ V2_float Polygon::GetCenter() const {
 }
 
 std::vector<V2_float> Polygon::GetWorldVertices(const Transform& transform) const {
-	return ToWorldPoint(vertices, transform);
+	return ApplyTransform(vertices, transform);
 }
 
 std::vector<V2_float> Polygon::GetLocalVertices() const {

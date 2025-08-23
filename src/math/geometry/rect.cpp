@@ -42,7 +42,7 @@ Transform Rect::Offset(const Transform& transform, Origin draw_origin) const {
 
 std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ToWorldPoint(local_vertices, transform);
+	return ApplyTransform(local_vertices, transform);
 }
 
 std::array<V2_float, 4> Rect::GetLocalVertices() const {
@@ -55,7 +55,7 @@ std::array<V2_float, 4> Rect::GetWorldVertices(
 ) const {
 	auto offset{ Offset(transform, draw_origin) };
 	auto local_vertices{ GetLocalVertices() };
-	return ToWorldPoint(local_vertices, offset);
+	return ApplyTransform(local_vertices, offset);
 }
 
 V2_float Rect::GetCenter(const Transform& transform) const {

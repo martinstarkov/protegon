@@ -186,14 +186,14 @@ bool PolygonContainsTriangle(
 }
 
 bool OverlapPointPoint(const Transform& t1, const Point& A, const Transform& t2, const Point& B) {
-	return ToWorldPoint(A, t1) == ToWorldPoint(B, t2);
+	return ApplyTransform(A, t1) == ApplyTransform(B, t2);
 }
 
 bool OverlapPointLine(const Transform& t1, const Point& A, const Transform& t2, const Line& B) {
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_line++;
 #endif
-	auto point					= ToWorldPoint(A, t1);
+	auto point					= ApplyTransform(A, t1);
 	auto [line_start, line_end] = B.GetWorldVertices(t2);
 
 	// Source:
@@ -225,7 +225,7 @@ bool OverlapPointTriangle(
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_triangle++;
 #endif
-	auto point								  = ToWorldPoint(A, t1);
+	auto point								  = ApplyTransform(A, t1);
 	auto [triangle_a, triangle_b, triangle_c] = B.GetWorldVertices(t2);
 
 	// Using barycentric coordinates method.
@@ -250,7 +250,7 @@ bool OverlapPointCircle(const Transform& t1, const Point& A, const Transform& t2
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_circle++;
 #endif
-	auto point = ToWorldPoint(A, t1);
+	auto point = ApplyTransform(A, t1);
 	auto circle_center{ B.GetCenter(t2) };
 
 	V2_float dist{ circle_center - point };
@@ -269,7 +269,7 @@ bool OverlapPointRect(const Transform& t1, const Point& A, const Transform& t2, 
 		return OverlapPointPolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
-	auto point = ToWorldPoint(A, t1);
+	auto point = ApplyTransform(A, t1);
 	auto rect_center{ B.GetCenter(t2) };
 
 	auto half{ rect_size * 0.5f };
@@ -306,7 +306,7 @@ bool OverlapPointCapsule(
 	game.stats.overlap_point_capsule++;
 #endif
 
-	auto point						  = ToWorldPoint(A, t1);
+	auto point						  = ApplyTransform(A, t1);
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
 
 	// Source:
@@ -323,9 +323,9 @@ bool OverlapPointPolygon(
 #ifdef PTGN_DEBUG
 	game.stats.overlap_point_polygon++;
 #endif
-	auto point = ToWorldPoint(A, t1);
+	auto point = ApplyTransform(A, t1);
 
-	auto world_points{ ToWorldPoint(B.vertices, t2) };
+	auto world_points{ ApplyTransform(B.vertices, t2) };
 	std::size_t count{ world_points.size() };
 	const auto& v{ world_points };
 

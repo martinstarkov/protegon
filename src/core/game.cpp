@@ -292,7 +292,7 @@ void Game::Update() {
 	// screen.
 	// PTGN_LOG(
 	//	"Screen Color at Mouse: ",
-	//	renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
+	//	renderer.screen_target_.GetPixel(input.GetMousePositionWindow())
 	//);
 	// game.stats.PrintCollisionOverlap();
 	// game.stats.PrintCollisionIntersect();

@@ -20,7 +20,7 @@ void Capsule::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 std::array<V2_float, 2> Capsule::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ToWorldPoint(local_vertices, transform);
+	return ApplyTransform(local_vertices, transform);
 }
 
 std::array<V2_float, 2> Capsule::GetLocalVertices() const {

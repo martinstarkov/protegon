@@ -561,7 +561,7 @@ V2_float Camera::GetTopLeft() const {
 	const auto& info{ Get<impl::CameraInfo>() };
 	auto viewport_size{ info.GetViewportSize() };
 	auto half_viewport_size{ viewport_size * 0.5f };
-	return ToWorldPoint(
+	return ApplyTransform(
 		V2_float{ -half_viewport_size.x, -half_viewport_size.y }, GetTransform(*this)
 	);
 }
@@ -586,7 +586,7 @@ void Camera::PrintInfo() const {
 	}
 }
 
-V2_float ToWorldPoint(
+V2_float ApplyTransform(
 	const V2_float& screen_point, const V2_float& viewport_size, const Transform& transform
 ) {
 	PTGN_ASSERT(transform.GetScale().BothAboveZero());

@@ -24,7 +24,7 @@ void Triangle::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 std::array<V2_float, 3> Triangle::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ToWorldPoint(local_vertices, transform);
+	return ApplyTransform(local_vertices, transform);
 }
 
 std::array<V2_float, 3> Triangle::GetLocalVertices() const {

@@ -24,32 +24,32 @@ Transform ApplyOffset(const Shape& shape, const Transform& transform, const Enti
 	return rect.Offset(transform, draw_origin);
 }
 
-V2_float ToWorldPoint(
+V2_float ApplyTransform(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale, float cos_angle,
 	float sin_angle
 ) {
 	PTGN_ASSERT(!scale.IsZero(), "Cannot get world point for an object with zero scale");
-	return position + scale * local_point.Rotated(cos_angle, sin_angle);
+	return position + (scale * local_point).Rotated(cos_angle, sin_angle);
 }
 
-V2_float ToWorldPoint(
+V2_float ApplyTransform(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale
 ) {
 	PTGN_ASSERT(!scale.IsZero(), "Cannot get world point for an object with zero scale");
 	return position + scale * local_point;
 }
 
-V2_float ToWorldPoint(const V2_float& local_point, const Transform& transform) {
+V2_float ApplyTransform(const V2_float& local_point, const Transform& transform) {
 	if (transform.GetRotation() == 0.0f) {
-		return ToWorldPoint(local_point, transform.GetPosition(), transform.GetScale());
+		return ApplyTransform(local_point, transform.GetPosition(), transform.GetScale());
 	}
-	return ToWorldPoint(
+	return ApplyTransform(
 		local_point, transform.GetPosition(), transform.GetScale(),
 		std::cos(transform.GetRotation()), std::sin(transform.GetRotation())
 	);
 }
 
-void ToWorldPoint(
+void ApplyTransform(
 	const V2_float* local_points, std::size_t count, V2_float* out_world_points,
 	const Transform& transform
 ) {
@@ -61,25 +61,25 @@ void ToWorldPoint(
 		}
 		for (std::size_t i{ 0 }; i < count; ++i) {
 			out_world_points[i] =
-				ToWorldPoint(local_points[i], transform.GetPosition(), transform.GetScale());
+				ApplyTransform(local_points[i], transform.GetPosition(), transform.GetScale());
 		}
 	} else {
 		const float cosA = std::cos(transform.GetRotation());
 		const float sinA = std::sin(transform.GetRotation());
 
 		for (std::size_t i{ 0 }; i < count; ++i) {
-			out_world_points[i] = ToWorldPoint(
+			out_world_points[i] = ApplyTransform(
 				local_points[i], transform.GetPosition(), transform.GetScale(), cosA, sinA
 			);
 		}
 	}
 }
 
-std::vector<V2_float> ToWorldPoint(
+std::vector<V2_float> ApplyTransform(
 	const std::vector<V2_float>& local_points, const Transform& transform
 ) {
 	std::vector<V2_float> world_points(local_points.size());
-	ToWorldPoint(local_points.data(), local_points.size(), world_points.data(), transform);
+	ApplyTransform(local_points.data(), local_points.size(), world_points.data(), transform);
 	return world_points;
 }
 
@@ -250,11 +250,9 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 			int b = V[static_cast<std::size_t>(v)];
 			int c = V[static_cast<std::size_t>(w)];
 
-			result.emplace_back(
-				std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
-										 contour[static_cast<std::size_t>(b)],
-										 contour[static_cast<std::size_t>(c)] }
-			);
+			result.emplace_back(std::array<V2_float, 3>{ contour[static_cast<std::size_t>(a)],
+														 contour[static_cast<std::size_t>(b)],
+														 contour[static_cast<std::size_t>(c)] });
 
 			m++;
 

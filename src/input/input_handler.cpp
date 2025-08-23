@@ -278,7 +278,7 @@ void InputHandler::Update() {
 }
 
 bool InputHandler::MouseWithinWindow() const {
-	auto screen_pointer{ game.input.GetMousePositionGlobal() };
+	auto screen_pointer{ game.input.GetMouseScreenPosition() };
 	Transform window_transform{ game.window.GetPosition() };
 	Rect window_rect{ game.window.GetSize() };
 	return Overlap(screen_pointer, window_transform, window_rect);
@@ -288,14 +288,14 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-V2_float InputHandler::GetMousePositionGlobal() const {
+V2_float InputHandler::GetMouseScreenPosition() const {
 	V2_int position;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&position.x, &position.y);
 	return position;
 }
 
-V2_float InputHandler::GetMousePosition(bool relative_to_viewport) const {
+V2_float InputHandler::GetMouseWindowPosition(bool relative_to_viewport) const {
 	if (!relative_to_viewport) {
 		return mouse_position_;
 	}
@@ -304,11 +304,11 @@ V2_float InputHandler::GetMousePosition(bool relative_to_viewport) const {
 	return rd.RelativeToViewport(mouse_position_);
 }
 
-V2_float InputHandler::GetMousePositionUnclamped() const {
-	return GetMousePositionGlobal() - game.window.GetPosition();
+V2_float InputHandler::GetMouseWindowPositionUnclamped() const {
+	return GetMouseScreenPosition() - game.window.GetPosition();
 }
 
-V2_float InputHandler::GetMousePositionPrevious(bool relative_to_viewport) const {
+V2_float InputHandler::GetMouseWindowPositionPrevious(bool relative_to_viewport) const {
 	if (!relative_to_viewport) {
 		return mouse_position_;
 	}
@@ -317,8 +317,9 @@ V2_float InputHandler::GetMousePositionPrevious(bool relative_to_viewport) const
 	return rd.RelativeToViewport(previous_mouse_position_);
 }
 
-V2_float InputHandler::GetMouseDifference(bool relative_to_viewport) const {
-	return GetMousePosition(relative_to_viewport) - GetMousePositionPrevious(relative_to_viewport);
+V2_float InputHandler::GetMouseWindowPositionDifference(bool relative_to_viewport) const {
+	return GetMouseWindowPosition(relative_to_viewport) -
+		   GetMouseWindowPositionPrevious(relative_to_viewport);
 }
 
 int InputHandler::GetMouseScroll() const {

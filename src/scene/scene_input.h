@@ -60,7 +60,7 @@ public:
 
 	// @return Mouse position difference between the current and previous frames relative to the
 	// scene primary camera.
-	[[nodiscard]] V2_float GetMouseDifference() const;
+	[[nodiscard]] V2_float GetMousePositionDifference() const;
 
 private:
 	friend class Scene;

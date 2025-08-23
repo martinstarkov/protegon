@@ -71,26 +71,26 @@ public:
 	// (0,0) is in the top left of the viewport, instead of the window.
 	// @return Mouse position relative to the top left of the window, clamped to the range [0,
 	// window_size].
-	[[nodiscard]] V2_float GetMousePosition(bool relative_to_viewport = true) const;
+	[[nodiscard]] V2_float GetMouseWindowPosition(bool relative_to_viewport = true) const;
 
 	// @return Mouse position relative to the top left of the window, without clamping to the range
 	// [0, window_size].
-	[[nodiscard]] V2_float GetMousePositionUnclamped() const;
+	[[nodiscard]] V2_float GetMouseWindowPositionUnclamped() const;
 
 	// @param relative_to_viewport If true, returns the position translated and scaled such that
 	// (0,0) is in the top left of the viewport, instead of the window.
 	// @return Mouse position during the previous frame relative to the top left of the window.
-	[[nodiscard]] V2_float GetMousePositionPrevious(bool relative_to_viewport = true) const;
+	[[nodiscard]] V2_float GetMouseWindowPositionPrevious(bool relative_to_viewport = true) const;
 
 	// @param relative_to_viewport If true, returns the position translated and scaled such that
 	// (0,0) is in the top left of the viewport, instead of the window.
 	// @return Mouse position difference between the current and previous frames relative to the top
 	// left of the window.
-	[[nodiscard]] V2_float GetMouseDifference(bool relative_to_viewport = true) const;
+	[[nodiscard]] V2_float GetMouseWindowPositionDifference(bool relative_to_viewport = true) const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
-	[[nodiscard]] V2_float GetMousePositionGlobal() const;
+	[[nodiscard]] V2_float GetMouseScreenPosition() const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
 	// positive upward, negative downward. Zero if no scroll occurred.
