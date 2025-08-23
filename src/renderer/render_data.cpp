@@ -626,6 +626,63 @@ V2_float RenderData::RelativeToViewport(const V2_float& window_relative_point) c
 	return local;
 }
 
+void RenderData::AddShape(
+	std::span<const Vertex> shape_vertices, std::span<const Index> shape_indices,
+	std::span<const V2_float> shape_points, float line_width, const RenderState& state
+) {
+	SetState(state);
+
+	if (line_width == -1.0f) {
+		AddVertices(shape_vertices, shape_indices);
+	} else {
+		// We need a mutable copy of the vertices when drawing lines
+		std::vector<Vertex> mutable_vertices{ shape_vertices.begin(), shape_vertices.end() };
+		AddLinesImpl(mutable_vertices, shape_indices, shape_points, line_width, state);
+	}
+}
+
+void RenderData::AddLinesImpl(
+	std::span<Vertex> line_vertices, std::span<const Index> line_indices,
+	std::span<const V2_float> points, float line_width, [[maybe_unused]] const RenderState& state
+) {
+	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for lines");
+	PTGN_ASSERT(points.size() == line_vertices.size());
+
+	for (std::size_t i = 0; i < points.size(); ++i) {
+		auto start = points[i];
+		auto end   = points[(i + 1) % points.size()];
+
+		Line l{ start, end };
+		auto line_points = l.GetWorldQuadVertices(Transform{}, line_width);
+
+		for (std::size_t j = 0; j < line_vertices.size(); ++j) {
+			line_vertices[j].position[0] = line_points[j].x;
+			line_vertices[j].position[1] = line_points[j].y;
+		}
+
+		AddVertices(line_vertices, line_indices);
+	}
+}
+
+void RenderData::AddVertices(
+	std::span<const Vertex> point_vertices, std::span<const Index> point_indices
+) {
+	if (vertices_.size() + point_vertices.size() > vertex_capacity ||
+		indices_.size() + point_indices.size() > index_capacity) {
+		Flush();
+	}
+
+	vertices_.insert(vertices_.end(), point_vertices.begin(), point_vertices.end());
+
+	indices_.reserve(indices_.size() + point_indices.size());
+
+	for (auto index : point_indices) {
+		indices_.emplace_back(index + index_offset_);
+	}
+
+	index_offset_ += static_cast<Index>(point_vertices.size());
+}
+
 void RenderData::DrawFullscreenQuad(
 	const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
 	bool clear_frame_buffer, const Color& target_clear_color
