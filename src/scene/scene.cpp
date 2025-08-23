@@ -109,7 +109,7 @@ void Scene::ReEnter() {
 	game.scene.ReEnter(key_);
 }
 
-V2_float Scene::GetScale(const Camera& relative_to_camera) const {
+V2_float Scene::GetScaleRelativeTo(const Camera& relative_to_camera) const {
 	auto cam{ relative_to_camera ? relative_to_camera : camera };
 	// auto camera_zoom{ cam.GetZoom() };
 	// PTGN_ASSERT(camera_zoom.BothAboveZero());

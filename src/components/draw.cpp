@@ -312,7 +312,7 @@ void DrawText(
 	info.transform.Translate(offset);
 
 	if (bool is_hd{ text.IsHD() }) {
-		auto scene_scale{ text.GetScene().GetScale(text.GetCamera()) };
+		auto scene_scale{ text.GetScene().GetScaleRelativeTo(text.GetCamera()) };
 
 		info.transform.Scale(1.0f / scene_scale);
 

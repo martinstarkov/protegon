@@ -529,11 +529,9 @@ struct InteractiveScene : public Scene {
 		if (input.KeyPressed(Key::Z)) {
 			Rotate(camera, rotation_speed * dt);
 		}
-
 		if (input.KeyPressed(Key::X)) {
 			Rotate(camera, -rotation_speed * dt);
 		}
-
 		if (input.KeyPressed(Key::E)) {
 			camera.Zoom(zoom_speed * dt);
 		}
@@ -546,6 +544,20 @@ struct InteractiveScene : public Scene {
 		MoveArrowKeys(pos2, speed2, false);
 		RenderTarget testing{ GetRenderTarget() };
 		SetPosition(testing, pos2);
+
+		if (input.KeyPressed(Key::R)) {
+			Rotate(testing, rotation_speed * dt);
+		}
+		if (input.KeyPressed(Key::T)) {
+			Rotate(testing, -rotation_speed * dt);
+		}
+		if (input.KeyPressed(Key::F)) {
+			SetScale(testing, GetScale(testing) + V2_float{ zoom_speed * dt });
+		}
+		if (input.KeyPressed(Key::G)) {
+			SetScale(testing, GetScale(testing) + V2_float{ -zoom_speed * dt });
+		}
+
 		/*const auto& dropped{ r4.Get<Dropzone>().dropped_entities };
 		Print("Dropped: ");
 		for (auto d : dropped) {

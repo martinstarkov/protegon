@@ -570,16 +570,17 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	auto camera_transform{ GetTransform(scene.camera) };
 	camera_transform.SetScale(1.0f / camera_transform.GetScale());
 
-	auto scene_center{ scene.camera.GetViewportSize() * 0.5f };
+	auto top_left_rt_in_rt{ -scene.camera.GetViewportSize() * 0.5f };
 
 	// TODO: Consider if scene center is ever different from logical resolution.
 
-	auto top_left{ ApplyTransform(-scene_center, rt_transform) + scene_center };
+	auto top_left_rt_in_world{ ApplyTransform(top_left_rt_in_rt, rt_transform) };
 
-	auto new_top_left{ screen_point - top_left };
+	auto new_top_left{ screen_point + top_left_rt_in_rt - top_left_rt_in_world };
 
 	auto scene_point{ ApplyTransform(
-		new_top_left, { -scene_center, -rt_transform.GetRotation(), 1.0f / rt_transform.GetScale() }
+		new_top_left,
+		{ top_left_rt_in_rt, -rt_transform.GetRotation(), 1.0f / rt_transform.GetScale() }
 	) };
 
 	auto camera_point{ ApplyTransform(scene_point, camera_transform) };

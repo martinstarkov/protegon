@@ -30,7 +30,7 @@ FontSize FontSize::GetHD(const Entity& entity) const {
 	const auto& scene{ entity.GetScene() };
 	const auto& camera{ entity.GetCamera() };
 
-	auto scene_scale{ scene.GetScale(camera) };
+	auto scene_scale{ scene.GetScaleRelativeTo(camera) };
 
 	final_font_size =
 		static_cast<std::int32_t>(static_cast<float>(final_font_size) * scene_scale.y);
