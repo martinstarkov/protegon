@@ -1,62 +1,38 @@
 #include "tweens/tween_effects.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <variant>
 
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/time.h"
 #include "debug/log.h"
+#include "follow_config.h"
 #include "math/easing.h"
+#include "math/math.h"
+#include "math/rng.h"
 #include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "tweens/shake_config.h"
+#include "tweens/tween.h"
 
 namespace ptgn {
 
 namespace impl {
 
-// void TranslateScript::OnProgress(float progress) {
-//	Entity parent{ GetParent(entity) };
-//	const auto& effect{ parent.Get<TranslateEffect>() };
-//	SetPosition(parent, Lerp(effect.start, effect.end, progress));
-// }
-
-// TODO: Add RotationScript with SetRotation(parent, Lerp(effect.start, effect.end, progress));
-// TODO: Add ScaleScript with SetScale(parent, Lerp(effect.start, effect.end, progress));
-// TODO: Add TintScript with SetTint(parent, Lerp(effect.start, effect.end, progress));
 // TODO: Add BounceScript with:
 // t = ApplyEase(Tween{ entity }.GetLinearProgress(), task.symmetrical, Tween{ entity }.GetEase());
 // offsets.bounce.SetPosition(task.static_offset + task.amplitude * t);
-
-/*
-ShakeEffect::ShakeEffect(
-	Manager& manager, float start_intensity, float end_intensity, const ShakeConfig& shake_config,
-	std::int32_t shake_seed
-) :
-	Effect<float>{ manager, start_intensity, end_intensity } {
-	PTGN_ASSERT(
-		start_intensity >= 0.0f && start_intensity <= 1.0f,
-		"Shake effect intensity must be in range [0.0, 1.0]"
-	);
-	PTGN_ASSERT(
-		end_intensity >= 0.0f && end_intensity <= 1.0f,
-		"Shake effect intensity must be in range [0.0, 1.0]"
-	);
-	config = shake_config;
-	seed   = shake_seed;
-}
-
-BounceEffect::BounceEffect(
-	Manager& manager, const V2_float& shake_amplitude, const V2_float& shake_static_offset,
-	bool shake_symmetrical
-) :
-	amplitude{ shake_amplitude },
-	static_offset{ shake_static_offset },
-	symmetrical{ shake_symmetrical },
-	tween{ CreateTween(manager) } {}
 
 static float ApplyBounceEase(float t, bool symmetrical, const Ease& ease) {
 	if (!symmetrical) {
@@ -91,324 +67,334 @@ static float ApplyBounceEase(float t, bool symmetrical, const Ease& ease) {
 	// Transform to -1 to 1 range for symmetrical amplitudes.
 	return 2.0f * eased_t - 1.0f;
 }
-*/
 
-/*
-void ShakeEffectSystem::Update(Manager& manager, float time, float dt) const {
-	for (auto [entity, effect, offsets] : manager.EntitiesWith<ShakeEffect, Offsets>()) {
-		if (effect.tasks.empty()) {
-			offsets.shake = {};
-			entity.template Remove<ShakeEffect>();
-			continue;
-		}
-
-		auto& task{ effect.tasks.front() };
-
-		bool completed{ task.timer.Completed(task.duration) };
-
-		if (completed) {
-			// Shake effect has finished but trauma needs to be decayed (organically).
-			task.trauma = std::clamp(task.trauma - task.config.recovery_speed * dt, 0.0f, 1.0f);
-		} else {
-			// Shake effect is ongoing, update trauma value with intensity.
-
-			float intensity{ GetTaskValue(task) };
-
-			PTGN_ASSERT(intensity >= 0.0f && intensity <= 1.0f);
-
-			task.trauma = intensity;
-		}
-
-		// Shake algorithm based on: https://roystan.net/articles/camera-shake/
-
-		// Taking trauma to an exponent allows the ability to smoothen
-		// out the transition from shaking to being static.
-		float shake{ std::pow(task.trauma, task.config.trauma_exponent) };
-
-		float x{ time * task.config.frequency };
-
-		V2_float position_noise{ PerlinNoise::GetValue(x, 0.0f, task.seed + 0) * 2.0f - 1.0f,
-								 PerlinNoise::GetValue(x, 0.0f, task.seed + 1) * 2.0f - 1.0f };
-
-		float rotation_noise{ PerlinNoise::GetValue(x, 0.0f, task.seed + 3) * 2.0f - 1.0f };
-
-		offsets.shake.SetPosition(shake * task.config.maximum_translation * position_noise);
-		offsets.shake.SetRotation(shake * task.config.maximum_rotation * rotation_noise);
-
-		if (!completed) {
-			// Shake effect has not finished yet.
-			continue;
-		}
-
-		if (task.duration == milliseconds{ -1 }) {
-			// Shake effect is infinite, restart the timer.
-			task.timer.Start(true);
-			continue;
-		}
-
-		if (task.trauma >= 0.0f && effect.tasks.size() == 1) {
-			// Shake effect has finished and is the only queued effect, but there is some trauma
-			// left to decay.
-			continue;
-		}
-
-		// Shake effect has finished and all trauma has been decayed (or another queued shake
-		// starts).
-		effect.tasks.pop_front();
-
-		if (effect.tasks.empty()) {
-			// No more shake effects.
-			continue;
-		}
-
-		// Start next shake effect.
-		effect.tasks.front().timer.Start(true);
-	}
-}
-*/
-
-/*
 void BounceImpl(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
 ) {
-	auto& bounce{ entity.TryAdd<impl::BounceEffect>(
-		entity.GetManager(), amplitude, static_offset, symmetrical
-	) };
+	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
+
+	EffectObject<impl::BounceEffect>& tween{ GetTween<impl::BounceEffect>(entity) };
+
 	entity.TryAdd<impl::Offsets>();
 
-	bool first_task{ force || bounce.tasks.empty() };
-
-	if (first_task) {
-		bounce.tasks.clear();
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
 	}
 
-	auto& task{ bounce.tasks.emplace_back(
-		amplitude, duration, ease, static_offset, total_periods, symmetrical
-	) };
+	auto reset_bounce = [](auto e) mutable {
+		Entity parent{ GetParent(e) };
+		auto& offsets{ parent.Get<impl::Offsets>() };
+		offsets.bounce = {};
+	};
 
-	if (first_task) {
-		task.timer.Start(true);
-	}
+	tween.During(duration)
+		.Ease(ease)
+		.OnStart(reset_bounce)
+		.Repeat(total_periods)
+		.OnProgress([amplitude, static_offset, symmetrical](Entity e, float) mutable {
+			Tween tween{ e };
+			float linear_progress{ tween.GetLinearProgress() };
+			auto ease{ tween.GetEase() };
+			float t{ ApplyBounceEase(linear_progress, symmetrical, ease) };
+			Entity parent{ GetParent(e) };
+			auto& offsets{ parent.Get<impl::Offsets>() };
+			offsets.bounce.SetPosition(static_offset + amplitude * t);
+		})
+		.OnPointComplete(reset_bounce)
+		.OnComplete(reset_bounce)
+		.OnStop(reset_bounce)
+		.OnReset(reset_bounce);
+	tween.Start(force);
 }
-*/
 
-// FollowEffect::FollowEffect(
-//	Manager& manager, Entity follow_target, const FollowConfig& follow_config
-//) :
-//	target{ follow_target }, config{ follow_config }, tween{ CreateTween(manager) } {}
+ShakeEffect::ShakeEffect(const ShakeConfig& shake_config, std::int32_t shake_seed) :
+	config{ shake_config }, seed{ shake_seed } {}
 
-/*
-void FollowEffectSystem::Update(Manager& manager) const {
-	for (auto [entity, effect] : manager.EntitiesWith<FollowEffect>()) {
-		if (effect.tasks.empty()) {
-			entity.template Remove<FollowEffect>();
-			entity.template Remove<TopDownMovement>();
-			entity.template Remove<RigidBody>();
-			continue;
-		}
+// void ShakeEffectSystem::Update(Manager& manager, float time, float dt) const {
+//	for (auto [entity, effect, offsets] : manager.EntitiesWith<ShakeEffect, Offsets>()) {
+//		if (effect.tasks.empty()) {
+//			offsets.shake = {};
+//			entity.template Remove<ShakeEffect>();
+//			continue;
+//		}
+//
+//		auto& task{ effect.tasks.front() };
+//
+//		bool completed{ task.timer.Completed(task.duration) };
+//
+//		if (completed) {
+//			// Shake effect has finished but trauma needs to be decayed (organically).
+//			task.trauma = std::clamp(task.trauma - task.config.recovery_speed * dt, 0.0f, 1.0f);
+//		} else {
+//			// Shake effect is ongoing, update trauma value with intensity.
+//
+//			float intensity{ GetTaskValue(task) };
+//
+//			PTGN_ASSERT(intensity >= 0.0f && intensity <= 1.0f);
+//
+//			task.trauma = intensity;
+//		}
+//
+//		// Shake algorithm based on: https://roystan.net/articles/camera-shake/
+//
+//		// Taking trauma to an exponent allows the ability to smoothen
+//		// out the transition from shaking to being static.
+//		float shake{ std::pow(task.trauma, task.config.trauma_exponent) };
+//
+//		float x{ time * task.config.frequency };
+//
+//		V2_float position_noise{ PerlinNoise::GetValue(x, 0.0f, task.seed + 0) * 2.0f - 1.0f,
+//								 PerlinNoise::GetValue(x, 0.0f, task.seed + 1) * 2.0f - 1.0f };
+//
+//		float rotation_noise{ PerlinNoise::GetValue(x, 0.0f, task.seed + 3) * 2.0f - 1.0f };
+//
+//		offsets.shake.SetPosition(shake * task.config.maximum_translation * position_noise);
+//		offsets.shake.SetRotation(shake * task.config.maximum_rotation * rotation_noise);
+//
+//		if (!completed) {
+//			// Shake effect has not finished yet.
+//			continue;
+//		}
+//
+//		if (task.duration == milliseconds{ -1 }) {
+//			// Shake effect is infinite, restart the timer.
+//			task.timer.Start(true);
+//			continue;
+//		}
+//
+//		if (task.trauma >= 0.0f && effect.tasks.size() == 1) {
+//			// Shake effect has finished and is the only queued effect, but there is some trauma
+//			// left to decay.
+//			continue;
+//		}
+//
+//		// Shake effect has finished and all trauma has been decayed (or another queued shake
+//		// starts).
+//		effect.tasks.pop_front();
+//
+//		if (effect.tasks.empty()) {
+//			// No more shake effects.
+//			continue;
+//		}
+//
+//		// Start next shake effect.
+//		effect.tasks.front().timer.Start(true);
+//	}
+// }
 
-		auto& task{ effect.tasks.front() };
+FollowEffect::FollowEffect(Entity follow_target, const FollowConfig& follow_config) :
+	target{ follow_target }, config{ follow_config } {}
 
-		if (!task.config.follow_x && !task.config.follow_y) {
-			continue;
-		}
-
-		// TODO: Clean up repeated code.
-
-		if (!task.target || !task.target.IsAlive()) {
-			effect.tasks.pop_front();
-			if (effect.tasks.empty()) {
-				continue;
-			}
-			auto front{ effect.tasks.front() };
-			if (front.config.teleport_on_start) {
-				SetPosition(entity, GetPosition(front.target));
-			}
-			if (front.config.move_mode != MoveMode::Velocity) {
-				entity.template Remove<TopDownMovement>();
-				entity.template Remove<RigidBody>();
-				continue;
-			}
-			entity.TryAdd<RigidBody>();
-			if (!entity.Has<Transform>()) {
-				SetPosition(entity, {});
-			}
-			auto& movement{ entity.TryAdd<TopDownMovement>() };
-			movement.max_acceleration		  = front.config.max_acceleration;
-			movement.max_deceleration		  = front.config.max_acceleration;
-			movement.max_speed				  = front.config.max_speed;
-			movement.keys_enabled			  = false;
-			movement.only_orthogonal_movement = false;
-			continue;
-		}
-
-		auto pos{ GetAbsolutePosition(entity) };
-
-		V2_float target_pos;
-
-		if (task.config.follow_mode == FollowMode::Target) {
-			target_pos = GetAbsolutePosition(task.target) + task.config.offset;
-		} else if (task.config.follow_mode == FollowMode::Path) {
-			PTGN_ASSERT(
-				!task.config.waypoints.empty(),
-				"Cannot set FollowMode::Path without providing at least one waypoint"
-			);
-			PTGN_ASSERT(
-				task.config.stop_distance >= epsilon<float>,
-				"Stopping distance cannot be negative or 0 when following waypoints"
-			);
-
-			PTGN_ASSERT(task.current_waypoint < task.config.waypoints.size());
-
-			target_pos = task.config.waypoints[task.current_waypoint] + task.config.offset;
-
-			auto dir{ target_pos - pos };
-
-			if (dir.MagnitudeSquared() < task.config.stop_distance * task.config.stop_distance) {
-				if (task.current_waypoint + 1 < task.config.waypoints.size()) {
-					task.current_waypoint++;
-				} else if (task.config.loop_path) {
-					task.current_waypoint = 0;
-				} else {
-					effect.tasks.pop_front();
-					if (!effect.tasks.empty()) {
-						auto front{ effect.tasks.front() };
-						if (front.config.teleport_on_start) {
-							SetPosition(entity, GetPosition(front.target));
-						}
-						if (front.config.move_mode == MoveMode::Velocity) {
-							entity.TryAdd<RigidBody>();
-							if (!entity.Has<Transform>()) {
-								SetPosition(entity, {});
-							}
-							auto& movement{ entity.TryAdd<TopDownMovement>() };
-							movement.max_acceleration		  = front.config.max_acceleration;
-							movement.max_deceleration		  = front.config.max_acceleration;
-							movement.max_speed				  = front.config.max_speed;
-							movement.keys_enabled			  = false;
-							movement.only_orthogonal_movement = false;
-						} else {
-							entity.template Remove<TopDownMovement>();
-							entity.template Remove<RigidBody>();
-						}
-					}
-					continue;
-				}
-			}
-		}
-
-		if (task.config.move_mode == MoveMode::Velocity) {
-			PTGN_ASSERT(
-				entity.Has<TopDownMovement>(),
-				"Entity with MoveMode::Velocity must have a TopDownMovement component"
-			);
-			auto& movement{ entity.Get<TopDownMovement>() };
-			auto dir{ target_pos - pos };
-
-			auto dist2{ dir.MagnitudeSquared() };
-
-			if (task.config.stop_distance >= epsilon<float> &&
-				dist2 < task.config.stop_distance * task.config.stop_distance) {
-				effect.tasks.pop_front();
-				if (!effect.tasks.empty()) {
-					auto front{ effect.tasks.front() };
-					if (front.config.teleport_on_start) {
-						SetPosition(entity, GetPosition(front.target));
-					}
-					if (front.config.move_mode != MoveMode::Velocity) {
-						entity.template Remove<TopDownMovement>();
-						entity.template Remove<RigidBody>();
-					}
-				}
-			} else {
-				if (!NearlyEqual(dist2, 0.0f)) {
-					auto norm_dir{ dir / std::sqrt(dist2) };
-					if (!task.config.follow_x) {
-						norm_dir = { 0.0f, Sign(norm_dir.y) };
-					}
-					if (!task.config.follow_y) {
-						norm_dir = { Sign(norm_dir.x), 0.0f };
-					}
-					movement.Move(norm_dir);
-				}
-			}
-		} else if (task.config.move_mode == MoveMode::Lerp) {
-			PTGN_ASSERT(task.config.lerp_factor.x >= 0.0f && task.config.lerp_factor.x <= 1.0f);
-			PTGN_ASSERT(task.config.lerp_factor.y >= 0.0f && task.config.lerp_factor.y <= 1.0f);
-
-			V2_float lerp_dt{ 1.0f - std::pow(1.0f - task.config.lerp_factor.x, game.dt()),
-							  1.0f - std::pow(1.0f - task.config.lerp_factor.y, game.dt()) };
-
-			V2_float new_pos{ pos };
-
-			if (task.config.deadzone.IsZero()) {
-				new_pos = Lerp(pos, target_pos, lerp_dt);
-			} else {
-				// TODO: Consider adding a custom deadzone origin in the future.
-				V2_float deadzone_half{ task.config.deadzone * 0.5f };
-
-				V2_float min{ target_pos - deadzone_half };
-				V2_float max{ target_pos + deadzone_half };
-
-				if (pos.x < min.x) {
-					new_pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
-				} else if (pos.x > max.x) {
-					new_pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
-				}
-				if (pos.y < min.y) {
-					new_pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
-				} else if (pos.y > max.y) {
-					new_pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
-				}
-			}
-
-			if (!task.config.follow_x) {
-				new_pos.x = pos.x;
-			}
-			if (!task.config.follow_y) {
-				new_pos.y = pos.y;
-			}
-
-			SetPosition(entity, new_pos);
-
-			if (task.config.stop_distance < epsilon<float>) {
-				continue;
-			}
-			auto dir{ target_pos - new_pos };
-			if (auto dist2{ dir.MagnitudeSquared() };
-				dist2 >= task.config.stop_distance * task.config.stop_distance) {
-				continue;
-			}
-			effect.tasks.pop_front();
-			if (effect.tasks.empty()) {
-				continue;
-			}
-			auto front{ effect.tasks.front() };
-			if (front.config.teleport_on_start) {
-				SetPosition(entity, GetPosition(front.target));
-			}
-			if (front.config.move_mode != MoveMode::Velocity) {
-				entity.template Remove<TopDownMovement>();
-				entity.template Remove<RigidBody>();
-				continue;
-			}
-			entity.TryAdd<RigidBody>();
-			if (!entity.Has<Transform>()) {
-				SetPosition(entity, {});
-			}
-			auto& movement					  = entity.TryAdd<TopDownMovement>();
-			movement.max_acceleration		  = front.config.max_acceleration;
-			movement.max_deceleration		  = front.config.max_acceleration;
-			movement.max_speed				  = front.config.max_speed;
-			movement.keys_enabled			  = false;
-			movement.only_orthogonal_movement = false;
-		} else {
-			PTGN_ERROR("Unrecognized move mode")
-		}
-	}
-}
-*/
+// void FollowEffectSystem::Update(Manager& manager) const {
+//	for (auto [entity, effect] : manager.EntitiesWith<FollowEffect>()) {
+//		if (effect.tasks.empty()) {
+//			entity.template Remove<FollowEffect>();
+//			entity.template Remove<TopDownMovement>();
+//			entity.template Remove<RigidBody>();
+//			continue;
+//		}
+//
+//		auto& task{ effect.tasks.front() };
+//
+//		if (!task.config.follow_x && !task.config.follow_y) {
+//			continue;
+//		}
+//
+//		// TODO: Clean up repeated code.
+//
+//		if (!task.target || !task.target.IsAlive()) {
+//			effect.tasks.pop_front();
+//			if (effect.tasks.empty()) {
+//				continue;
+//			}
+//			auto front{ effect.tasks.front() };
+//			if (front.config.teleport_on_start) {
+//				SetPosition(entity, GetPosition(front.target));
+//			}
+//			if (front.config.move_mode != MoveMode::Velocity) {
+//				entity.template Remove<TopDownMovement>();
+//				entity.template Remove<RigidBody>();
+//				continue;
+//			}
+//			entity.TryAdd<RigidBody>();
+//			if (!entity.Has<Transform>()) {
+//				SetPosition(entity, {});
+//			}
+//			auto& movement{ entity.TryAdd<TopDownMovement>() };
+//			movement.max_acceleration		  = front.config.max_acceleration;
+//			movement.max_deceleration		  = front.config.max_acceleration;
+//			movement.max_speed				  = front.config.max_speed;
+//			movement.keys_enabled			  = false;
+//			movement.only_orthogonal_movement = false;
+//			continue;
+//		}
+//
+//		auto pos{ GetAbsolutePosition(entity) };
+//
+//		V2_float target_pos;
+//
+//		if (task.config.follow_mode == FollowMode::Target) {
+//			target_pos = GetAbsolutePosition(task.target) + task.config.offset;
+//		} else if (task.config.follow_mode == FollowMode::Path) {
+//			PTGN_ASSERT(
+//				!task.config.waypoints.empty(),
+//				"Cannot set FollowMode::Path without providing at least one waypoint"
+//			);
+//			PTGN_ASSERT(
+//				task.config.stop_distance >= epsilon<float>,
+//				"Stopping distance cannot be negative or 0 when following waypoints"
+//			);
+//
+//			PTGN_ASSERT(task.current_waypoint < task.config.waypoints.size());
+//
+//			target_pos = task.config.waypoints[task.current_waypoint] + task.config.offset;
+//
+//			auto dir{ target_pos - pos };
+//
+//			if (dir.MagnitudeSquared() < task.config.stop_distance * task.config.stop_distance) {
+//				if (task.current_waypoint + 1 < task.config.waypoints.size()) {
+//					task.current_waypoint++;
+//				} else if (task.config.loop_path) {
+//					task.current_waypoint = 0;
+//				} else {
+//					effect.tasks.pop_front();
+//					if (!effect.tasks.empty()) {
+//						auto front{ effect.tasks.front() };
+//						if (front.config.teleport_on_start) {
+//							SetPosition(entity, GetPosition(front.target));
+//						}
+//						if (front.config.move_mode == MoveMode::Velocity) {
+//							entity.TryAdd<RigidBody>();
+//							if (!entity.Has<Transform>()) {
+//								SetPosition(entity, {});
+//							}
+//							auto& movement{ entity.TryAdd<TopDownMovement>() };
+//							movement.max_acceleration		  = front.config.max_acceleration;
+//							movement.max_deceleration		  = front.config.max_acceleration;
+//							movement.max_speed				  = front.config.max_speed;
+//							movement.keys_enabled			  = false;
+//							movement.only_orthogonal_movement = false;
+//						} else {
+//							entity.template Remove<TopDownMovement>();
+//							entity.template Remove<RigidBody>();
+//						}
+//					}
+//					continue;
+//				}
+//			}
+//		}
+//
+//		if (task.config.move_mode == MoveMode::Velocity) {
+//			PTGN_ASSERT(
+//				entity.Has<TopDownMovement>(),
+//				"Entity with MoveMode::Velocity must have a TopDownMovement component"
+//			);
+//			auto& movement{ entity.Get<TopDownMovement>() };
+//			auto dir{ target_pos - pos };
+//
+//			auto dist2{ dir.MagnitudeSquared() };
+//
+//			if (task.config.stop_distance >= epsilon<float> &&
+//				dist2 < task.config.stop_distance * task.config.stop_distance) {
+//				effect.tasks.pop_front();
+//				if (!effect.tasks.empty()) {
+//					auto front{ effect.tasks.front() };
+//					if (front.config.teleport_on_start) {
+//						SetPosition(entity, GetPosition(front.target));
+//					}
+//					if (front.config.move_mode != MoveMode::Velocity) {
+//						entity.template Remove<TopDownMovement>();
+//						entity.template Remove<RigidBody>();
+//					}
+//				}
+//			} else {
+//				if (!NearlyEqual(dist2, 0.0f)) {
+//					auto norm_dir{ dir / std::sqrt(dist2) };
+//					if (!task.config.follow_x) {
+//						norm_dir = { 0.0f, Sign(norm_dir.y) };
+//					}
+//					if (!task.config.follow_y) {
+//						norm_dir = { Sign(norm_dir.x), 0.0f };
+//					}
+//					movement.Move(norm_dir);
+//				}
+//			}
+//		} else if (task.config.move_mode == MoveMode::Lerp) {
+//			PTGN_ASSERT(task.config.lerp_factor.x >= 0.0f && task.config.lerp_factor.x <= 1.0f);
+//			PTGN_ASSERT(task.config.lerp_factor.y >= 0.0f && task.config.lerp_factor.y <= 1.0f);
+//
+//			V2_float lerp_dt{ 1.0f - std::pow(1.0f - task.config.lerp_factor.x, game.dt()),
+//							  1.0f - std::pow(1.0f - task.config.lerp_factor.y, game.dt()) };
+//
+//			V2_float new_pos{ pos };
+//
+//			if (task.config.deadzone.IsZero()) {
+//				new_pos = Lerp(pos, target_pos, lerp_dt);
+//			} else {
+//				// TODO: Consider adding a custom deadzone origin in the future.
+//				V2_float deadzone_half{ task.config.deadzone * 0.5f };
+//
+//				V2_float min{ target_pos - deadzone_half };
+//				V2_float max{ target_pos + deadzone_half };
+//
+//				if (pos.x < min.x) {
+//					new_pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
+//				} else if (pos.x > max.x) {
+//					new_pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
+//				}
+//				if (pos.y < min.y) {
+//					new_pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
+//				} else if (pos.y > max.y) {
+//					new_pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
+//				}
+//			}
+//
+//			if (!task.config.follow_x) {
+//				new_pos.x = pos.x;
+//			}
+//			if (!task.config.follow_y) {
+//				new_pos.y = pos.y;
+//			}
+//
+//			SetPosition(entity, new_pos);
+//
+//			if (task.config.stop_distance < epsilon<float>) {
+//				continue;
+//			}
+//			auto dir{ target_pos - new_pos };
+//			if (auto dist2{ dir.MagnitudeSquared() };
+//				dist2 >= task.config.stop_distance * task.config.stop_distance) {
+//				continue;
+//			}
+//			effect.tasks.pop_front();
+//			if (effect.tasks.empty()) {
+//				continue;
+//			}
+//			auto front{ effect.tasks.front() };
+//			if (front.config.teleport_on_start) {
+//				SetPosition(entity, GetPosition(front.target));
+//			}
+//			if (front.config.move_mode != MoveMode::Velocity) {
+//				entity.template Remove<TopDownMovement>();
+//				entity.template Remove<RigidBody>();
+//				continue;
+//			}
+//			entity.TryAdd<RigidBody>();
+//			if (!entity.Has<Transform>()) {
+//				SetPosition(entity, {});
+//			}
+//			auto& movement					  = entity.TryAdd<TopDownMovement>();
+//			movement.max_acceleration		  = front.config.max_acceleration;
+//			movement.max_deceleration		  = front.config.max_acceleration;
+//			movement.max_speed				  = front.config.max_speed;
+//			movement.keys_enabled			  = false;
+//			movement.only_orthogonal_movement = false;
+//		} else {
+//			PTGN_ERROR("Unrecognized move mode")
+//		}
+//	}
+// }
 
 } // namespace impl
 
@@ -462,206 +448,203 @@ void Bounce(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force
 ) {
-	// impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force,
-	// false);
+	impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force, false);
 }
 
 void SymmetricalBounce(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	SymmetricalEase ease, const V2_float& static_offset, bool force
 ) {
-	// impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force,
-	// true);
+	impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force, true);
 }
 
-// void StopBounce(Entity& entity, bool force) {
-//	if (!entity.Has<impl::BounceEffect>()) {
-//		return;
-//	}
-//
-//	auto& bounce{ entity.Get<impl::BounceEffect>() };
-//	auto& offsets{ entity.Get<impl::Offsets>() };
-//	offsets.bounce = {}; // or reset to bounce.static_offset
-//
-//	if (force) {
-//		bounce.tasks.clear();
-//	} else if (!bounce.tasks.empty()) {
-//		bounce.tasks.pop_front();
-//		if (!bounce.tasks.empty()) {
-//			bounce.tasks.front().timer.Start(true);
-//		}
-//	}
-// }
+void StopBounce(Entity& entity, bool force) {
+	if (!entity.Has<impl::EffectObject<impl::BounceEffect>>()) {
+		return;
+	}
+	auto& tween{ entity.Get<impl::EffectObject<impl::BounceEffect>>() };
 
-// void Shake(
-//	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
-//	const Ease& ease, bool force
-//) {
-//	PTGN_ASSERT(
-//		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
-//	);
-//
-//	auto& comp{ entity.TryAdd<impl::ShakeEffect>() };
-//	entity.TryAdd<impl::Offsets>();
-//
-//	float start_intensity{ 0.0f };
-//
-//	bool first_task{ force || comp.tasks.empty() };
-//
-//	if (first_task) {
-//		comp.tasks.clear();
-//	} else {
-//		start_intensity = comp.tasks.back().target_value;
-//	}
-//
-//	RNG<std::int32_t> rng{ std::numeric_limits<std::int32_t>::min(),
-//						   std::numeric_limits<std::int32_t>::max() };
-//	std::int32_t seed{ rng() };
-//
-//	auto& task = comp.tasks.emplace_back(
-//		start_intensity, std::clamp(start_intensity + intensity, 0.0f, 1.0f), duration, ease,
-//		config, seed
-//	);
-//
-//	task.trauma = start_intensity;
-//
-//	if (first_task) {
-//		task.timer.Start(true);
-//	}
-// }
+	auto& offsets{ entity.Get<impl::Offsets>() };
+	offsets.bounce = {}; // or reset to bounce.static_offset
 
-// void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
-//	auto& comp{ entity.TryAdd<impl::ShakeEffect>() };
-//	entity.TryAdd<impl::Offsets>();
-//	PTGN_ASSERT(
-//		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
-//	);
-//
-//	float start_intensity{ 0.0f };
-//
-//	bool first_task{ force || comp.tasks.empty() };
-//
-//	if (first_task) {
-//		comp.tasks.clear();
-//	} else {
-//		start_intensity = comp.tasks.back().target_value;
-//	}
-//
-//	// If a previous instantenous shake exists with 0 duration, add to its trauma instead of
-//	// queueing a new shake effect.
-//	if (!comp.tasks.empty()) {
-//		if (auto& back_task{ comp.tasks.back() }; back_task.duration == milliseconds{ 0 }) {
-//			back_task.trauma = std::clamp(back_task.trauma + intensity, 0.0f, 1.0f);
-//			return;
-//		}
-//	}
-//
-//	RNG<std::int32_t> rng{ std::numeric_limits<std::int32_t>::min(),
-//						   std::numeric_limits<std::int32_t>::max() };
-//	std::int32_t seed{ rng() };
-//
-//	auto& task = comp.tasks.emplace_back(
-//		start_intensity, std::clamp(start_intensity + intensity, 0.0f, 1.0f), milliseconds{ 0 },
-//		SymmetricalEase::None, config, seed
-//	);
-//
-//	task.trauma = intensity;
-//
-//	if (first_task) {
-//		task.timer.Start(true);
-//	}
-// }
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	} else {
+		tween.IncrementPoint();
+	}
+}
 
-// void StopShake(Entity& entity, bool force) {
-//	if (!entity.Has<impl::ShakeEffect>()) {
-//		return;
-//	}
-//
-//	auto& shake{ entity.Get<impl::ShakeEffect>() };
-//	auto& offsets{ entity.Get<impl::Offsets>() };
-//	offsets.shake = {};
-//
-//	if (entity.Has<impl::CameraInfo>()) {
-//		auto& camera_info{ entity.Get<impl::CameraInfo>() };
-//		camera_info.SetViewDirty();
-//	}
-//
-//	if (force) {
-//		shake.tasks.clear();
-//	} else if (!shake.tasks.empty()) {
-//		shake.tasks.pop_front();
-//		if (!shake.tasks.empty()) {
-//			shake.tasks.front().timer.Start(true);
-//		}
-//	}
-// }
+/*
+void Shake(
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
+	const Ease& ease, bool force
+) {
+	PTGN_ASSERT(
+		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
+	);
 
-// void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) {
-//	PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
-//	PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
-//
-//	auto& comp{ entity.TryAdd<impl::FollowEffect>() };
-//
-//	bool first_task{ force || comp.tasks.empty() };
-//
-//	if (first_task) {
-//		comp.tasks.clear();
-//	}
-//
-//	if (config.teleport_on_start) {
-//		SetPosition(entity, GetPosition(target));
-//	}
-//
-//	if (config.move_mode == MoveMode::Velocity) {
-//		// TODO: Consider making the movement system not require enabling an entity.
-//		entity.TryAdd<RigidBody>();
-//		if (!entity.Has<Transform>()) {
-//			SetPosition(entity, {});
-//		}
-//		auto& movement{ entity.TryAdd<TopDownMovement>() };
-//		movement.max_acceleration		  = config.max_acceleration;
-//		movement.max_deceleration		  = config.max_acceleration;
-//		movement.max_speed				  = config.max_speed;
-//		movement.keys_enabled			  = false;
-//		movement.only_orthogonal_movement = false;
-//	}
-//
-//	comp.tasks.emplace_back(target, config);
-// }
+	auto& comp{ entity.TryAdd<impl::ShakeEffect>() };
+	entity.TryAdd<impl::Offsets>();
 
-// void StopFollow(Entity entity, bool force) {
-//	if (!entity.Has<impl::FollowEffect>()) {
-//		return;
-//	}
-//
-//	auto& follow{ entity.Get<impl::FollowEffect>() };
-//
-//	if (force) {
-//		follow.tasks.clear();
-//	} else if (!follow.tasks.empty()) {
-//		follow.tasks.pop_front();
-//		if (!follow.tasks.empty()) {
-//			auto front{ follow.tasks.front() };
-//			if (front.config.teleport_on_start) {
-//				SetPosition(entity, GetPosition(front.target));
-//			}
-//			if (front.config.move_mode == MoveMode::Velocity) {
-//				entity.TryAdd<RigidBody>();
-//				if (!entity.Has<Transform>()) {
-//					SetPosition(entity, {});
-//				}
-//				auto& movement					  = entity.TryAdd<TopDownMovement>();
-//				movement.max_acceleration		  = front.config.max_acceleration;
-//				movement.max_deceleration		  = front.config.max_acceleration;
-//				movement.max_speed				  = front.config.max_speed;
-//				movement.keys_enabled			  = false;
-//				movement.only_orthogonal_movement = false;
-//			} else {
-//				entity.template Remove<TopDownMovement>();
-//				entity.template Remove<RigidBody>();
-//			}
-//		}
-//	}
-// }
+	float start_intensity{ 0.0f };
+
+	bool first_task{ force || comp.tasks.empty() };
+
+	if (first_task) {
+		comp.tasks.clear();
+	} else {
+		start_intensity = comp.tasks.back().target_value;
+	}
+
+	RNG<std::int32_t> rng{ std::numeric_limits<std::int32_t>::min(),
+						   std::numeric_limits<std::int32_t>::max() };
+	std::int32_t seed{ rng() };
+
+	auto& task = comp.tasks.emplace_back(
+		start_intensity, std::clamp(start_intensity + intensity, 0.0f, 1.0f), duration, ease,
+		config, seed
+	);
+
+	task.trauma = start_intensity;
+
+	if (first_task) {
+		task.timer.Start(true);
+	}
+}
+
+void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
+	auto& comp{ entity.TryAdd<impl::ShakeEffect>() };
+	entity.TryAdd<impl::Offsets>();
+	PTGN_ASSERT(
+		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
+	);
+
+	float start_intensity{ 0.0f };
+
+	bool first_task{ force || comp.tasks.empty() };
+
+	if (first_task) {
+		comp.tasks.clear();
+	} else {
+		start_intensity = comp.tasks.back().target_value;
+	}
+
+	// If a previous instantenous shake exists with 0 duration, add to its trauma instead of
+	// queueing a new shake effect.
+	if (!comp.tasks.empty()) {
+		if (auto& back_task{ comp.tasks.back() }; back_task.duration == milliseconds{ 0 }) {
+			back_task.trauma = std::clamp(back_task.trauma + intensity, 0.0f, 1.0f);
+			return;
+		}
+	}
+
+	RNG<std::int32_t> rng{ std::numeric_limits<std::int32_t>::min(),
+						   std::numeric_limits<std::int32_t>::max() };
+	std::int32_t seed{ rng() };
+
+	auto& task = comp.tasks.emplace_back(
+		start_intensity, std::clamp(start_intensity + intensity, 0.0f, 1.0f), milliseconds{ 0 },
+		SymmetricalEase::None, config, seed
+	);
+
+	task.trauma = intensity;
+
+	if (first_task) {
+		task.timer.Start(true);
+	}
+}
+
+void StopShake(Entity& entity, bool force) {
+	if (!entity.Has<impl::ShakeEffect>()) {
+		return;
+	}
+
+	auto& shake{ entity.Get<impl::ShakeEffect>() };
+	auto& offsets{ entity.Get<impl::Offsets>() };
+	offsets.shake = {};
+
+	if (entity.Has<impl::CameraInfo>()) {
+		auto& camera_info{ entity.Get<impl::CameraInfo>() };
+		camera_info.SetViewDirty();
+	}
+
+	if (force) {
+		shake.tasks.clear();
+	} else if (!shake.tasks.empty()) {
+		shake.tasks.pop_front();
+		if (!shake.tasks.empty()) {
+			shake.tasks.front().timer.Start(true);
+		}
+	}
+}
+
+void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) {
+	PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
+	PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
+
+	auto& comp{ entity.TryAdd<impl::FollowEffect>() };
+
+	bool first_task{ force || comp.tasks.empty() };
+
+	if (first_task) {
+		comp.tasks.clear();
+	}
+
+	if (config.teleport_on_start) {
+		SetPosition(entity, GetPosition(target));
+	}
+
+	if (config.move_mode == MoveMode::Velocity) {
+		// TODO: Consider making the movement system not require enabling an entity.
+		entity.TryAdd<RigidBody>();
+		if (!entity.Has<Transform>()) {
+			SetPosition(entity, {});
+		}
+		auto& movement{ entity.TryAdd<TopDownMovement>() };
+		movement.max_acceleration		  = config.max_acceleration;
+		movement.max_deceleration		  = config.max_acceleration;
+		movement.max_speed				  = config.max_speed;
+		movement.keys_enabled			  = false;
+		movement.only_orthogonal_movement = false;
+	}
+
+	comp.tasks.emplace_back(target, config);
+}
+
+void StopFollow(Entity entity, bool force) {
+	if (!entity.Has<impl::FollowEffect>()) {
+		return;
+	}
+
+	auto& follow{ entity.Get<impl::FollowEffect>() };
+
+	if (force) {
+		follow.tasks.clear();
+	} else if (!follow.tasks.empty()) {
+		follow.tasks.pop_front();
+		if (!follow.tasks.empty()) {
+			auto front{ follow.tasks.front() };
+			if (front.config.teleport_on_start) {
+				SetPosition(entity, GetPosition(front.target));
+			}
+			if (front.config.move_mode == MoveMode::Velocity) {
+				entity.TryAdd<RigidBody>();
+				if (!entity.Has<Transform>()) {
+					SetPosition(entity, {});
+				}
+				auto& movement					  = entity.TryAdd<TopDownMovement>();
+				movement.max_acceleration		  = front.config.max_acceleration;
+				movement.max_deceleration		  = front.config.max_acceleration;
+				movement.max_speed				  = front.config.max_speed;
+				movement.keys_enabled			  = false;
+				movement.only_orthogonal_movement = false;
+			} else {
+				entity.template Remove<TopDownMovement>();
+				entity.template Remove<RigidBody>();
+			}
+		}
+	}
+}
+*/
 
 } // namespace ptgn

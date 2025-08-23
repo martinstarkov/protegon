@@ -44,16 +44,13 @@ struct ScaleEffect : public Effect<V2_float> {};
 
 struct TintEffect : public Effect<Color> {};
 
-/*
-
 struct FollowEffect {
 	FollowEffect() = default;
 
-	FollowEffect(Manager& manager, Entity follow_target, const FollowConfig& follow_config);
+	FollowEffect(Entity follow_target, const FollowConfig& follow_config);
 
 	Entity target;
 	FollowConfig config;
-	GameObject<Tween> tween;
 
 	std::size_t current_waypoint{ 0 };
 
@@ -64,29 +61,12 @@ struct FollowEffect {
 
 struct BounceEffect {
 	BounceEffect() = default;
-
-	BounceEffect(
-		Manager& manager, const V2_float& amplitude, const V2_float& static_offset, bool symmetrical
-	);
-
-	V2_float amplitude;
-	V2_float static_offset;
-	bool symmetrical{ false }; // If true, bounce origin is the middle point of the movement. If
-							   // false, bounce origin is the bottom (or top) point of the movement.
-	GameObject<Tween> tween;
-
-	bool operator==(const BounceEffect&) const = default;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(BounceEffect, amplitude, static_offset, symmetrical)
 };
 
 struct ShakeEffect : public Effect<float> {
 	ShakeEffect() = default;
 
-	ShakeEffect(
-		Manager& manager, float start_intensity, float end_intensity, const ShakeConfig& config,
-		std::int32_t seed
-	);
+	ShakeEffect(const ShakeConfig& config, std::int32_t seed);
 
 	ShakeConfig config;
 
@@ -96,13 +76,31 @@ struct ShakeEffect : public Effect<float> {
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
 
-	GameObject<Tween> tween;
-
 	bool operator==(const ShakeEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, start, end, config, seed, trauma)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, config, seed, trauma)
 };
-*/
+
+template <typename TComponent>
+struct EffectObject : public GameObject<Tween> {
+	using GameObject::GameObject;
+};
+
+template <typename TComponent>
+EffectObject<TComponent>& GetTween(Entity& entity) {
+	EffectObject<TComponent>* tween{ nullptr };
+
+	if (!entity.Has<EffectObject<TComponent>>()) {
+		tween = &entity.Add<EffectObject<TComponent>>(CreateTween(entity.GetManager()));
+		SetParent(*tween, entity);
+	} else {
+		tween = &entity.Get<EffectObject<TComponent>>();
+	}
+
+	PTGN_ASSERT(tween);
+
+	return *tween;
+}
 
 template <typename TComponent, typename T>
 void AddTweenEffect(
@@ -112,19 +110,12 @@ void AddTweenEffect(
 ) {
 	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
 
-	GameObject<Tween>* tween{ nullptr };
+	EffectObject<TComponent>& tween{ GetTween<TComponent>(entity) };
 
-	if (!entity.Has<GameObject<Tween>>()) {
-		tween = &entity.Add<GameObject<Tween>>(CreateTween(entity.GetManager()));
-		SetParent(*tween, entity);
-	} else {
-		tween = &entity.Get<GameObject<Tween>>();
-	}
+	tween.TryAdd<TComponent>();
 
-	tween->TryAdd<TComponent>();
-
-	if (force || tween->IsCompleted()) {
-		tween->Clear();
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
 	}
 
 	auto update_start = [get_current_value](auto e) mutable {
@@ -133,7 +124,7 @@ void AddTweenEffect(
 		value.start = get_current_value(parent);
 	};
 
-	tween->During(duration)
+	tween.During(duration)
 		.Ease(ease)
 		.OnStart(update_start)
 		.OnProgress([target, set_current_value](Entity e, float progress) mutable {
@@ -146,13 +137,13 @@ void AddTweenEffect(
 		.OnComplete(update_start)
 		.OnStop(update_start)
 		.OnReset(update_start);
-	tween->Start(force);
+	tween.Start(force);
 }
 
-// void BounceImpl(
-//	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
-//	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
-//);
+void BounceImpl(
+	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
+	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
+);
 
 } // namespace impl
 
