@@ -92,8 +92,10 @@ public:
 		/* user implementation */
 	}
 
+	void SetBackgroundColor(const Color& background_color);
+	[[nodiscard]] Color GetBackgroundColor() const;
+
 	[[nodiscard]] const RenderTarget& GetRenderTarget() const;
-	[[nodiscard]] Transform GetRenderTargetTransform() const;
 
 	// @return Size of scene render target divided by size of the camera viewport.
 	[[nodiscard]] V2_float GetScale(const Camera& relative_to_camera) const;

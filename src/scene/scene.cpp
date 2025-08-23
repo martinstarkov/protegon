@@ -123,14 +123,16 @@ V2_float Scene::GetScale(const Camera& relative_to_camera) const {
 	return scale;
 }
 
-const RenderTarget& Scene::GetRenderTarget() const {
-	return render_target_;
+void Scene::SetBackgroundColor(const Color& background_color) {
+	render_target_.SetClearColor(background_color);
 }
 
-Transform Scene::GetRenderTargetTransform() const {
-	auto transform{ GetTransform(render_target_) };
-	transform.Translate(camera.GetViewportSize() * 0.5f);
-	return transform;
+Color Scene::GetBackgroundColor() const {
+	return render_target_.GetClearColor();
+}
+
+const RenderTarget& Scene::GetRenderTarget() const {
+	return render_target_;
 }
 
 void Scene::Init() {
