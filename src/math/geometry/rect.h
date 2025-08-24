@@ -21,7 +21,7 @@ class RenderData;
 // Rect has no rotation center because this can be achieved via using a parent Entity and
 // positioning it where the origin should be.
 
-struct Rect : public Drawable<Rect> {
+struct Rect {
 	Rect() = default;
 
 	Rect(const V2_float& min, const V2_float& max);
@@ -54,5 +54,7 @@ struct Rect : public Drawable<Rect> {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Rect, min, max)
 };
+
+PTGN_DRAWABLE_REGISTER(Rect);
 
 } // namespace ptgn

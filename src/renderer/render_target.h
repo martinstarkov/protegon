@@ -56,7 +56,7 @@ struct PhysicalRenderTargetResizeScript :
 } // namespace impl
 
 // Each render target is initialized with a window camera.
-class RenderTarget : public Entity, public Drawable<RenderTarget> {
+class RenderTarget : public Entity {
 public:
 	// A default render target will result in the screen being used as the render target.
 	RenderTarget() = default;
@@ -132,6 +132,8 @@ private:
 	// avoids adding a render target to each scene entity.
 	[[nodiscard]] std::vector<Entity>& GetDisplayList();
 };
+
+PTGN_DRAWABLE_REGISTER(RenderTarget);
 
 // Create a render target with a custom size.
 // @param size The size of the render target.

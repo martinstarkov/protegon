@@ -49,11 +49,11 @@ Entity& SetDrawImpl(Entity& entity, std::string_view drawable_name) {
 } // namespace impl
 
 bool HasDraw(const Entity& entity) {
-	return entity.Has<IDrawable>();
+	return entity.Has<impl::IDrawable>();
 }
 
 Entity& RemoveDraw(Entity& entity) {
-	impl::EntityAccess::Remove<IDrawable>(entity);
+	impl::EntityAccess::Remove<impl::IDrawable>(entity);
 	return entity;
 }
 

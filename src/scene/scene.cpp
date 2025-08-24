@@ -57,7 +57,7 @@ void Scene::AddToDisplayList(Entity entity) {
 	if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
 		return;
 	}
-	if (!entity.Has<Visible>() || !entity.Has<IDrawable>()) {
+	if (!IsVisible(entity) || !HasDraw(entity)) {
 		return;
 	}
 	auto& dl{ render_target_.GetDisplayList() };
@@ -152,8 +152,8 @@ void Scene::InternalEnter() {
 	// clear the component pool vector which contains all the hooks.
 	OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
 	OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
-	OnConstruct<IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	OnDestruct<IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+	OnConstruct<impl::IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	OnDestruct<impl::IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
 
 	Init();
 	Enter();

@@ -17,7 +17,7 @@ class RenderData;
 
 } // namespace impl
 
-struct Sprite : public Entity, public Drawable<Sprite> {
+struct Sprite : public Entity {
 	Sprite() = default;
 	Sprite(const Entity& entity);
 
@@ -42,6 +42,8 @@ struct Sprite : public Entity, public Drawable<Sprite> {
 
 	[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 };
+
+PTGN_DRAWABLE_REGISTER(Sprite);
 
 Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key, const V2_float& position);
 

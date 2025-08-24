@@ -15,7 +15,7 @@ class RenderData;
 
 } // namespace impl
 
-struct Circle : public Drawable<Circle> {
+struct Circle {
 	Circle() = default;
 
 	explicit Circle(float radius);
@@ -37,5 +37,7 @@ struct Circle : public Drawable<Circle> {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius)
 };
+
+PTGN_DRAWABLE_REGISTER(Circle);
 
 } // namespace ptgn

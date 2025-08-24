@@ -43,7 +43,7 @@ struct LightProperties {
 } // namespace impl
 
 // Lights must be added to the LightManager to be drawn to the screen.
-class PointLight : public Entity, public Drawable<PointLight> {
+class PointLight : public Entity {
 public:
 	PointLight() = default;
 
@@ -75,6 +75,8 @@ public:
 private:
 	static void SetUniform(Entity entity, const Shader& shader);
 };
+
+PTGN_DRAWABLE_REGISTER(PointLight);
 
 // @param position Starting point of the light.
 // @param radius The higher the radius, the further light reaches out from the center.

@@ -225,7 +225,7 @@ struct ButtonEnabled {
 
 } // namespace impl
 
-class Button : public Entity, public Drawable<Button> {
+class Button : public Entity {
 public:
 	Button() = default;
 	Button(const Entity& entity);
@@ -331,6 +331,8 @@ public:
 
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 };
+
+PTGN_DRAWABLE_REGISTER(Button);
 
 class ToggleButton : public Button {
 public:

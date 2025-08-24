@@ -17,7 +17,7 @@ class RenderData;
 
 } // namespace impl
 
-struct Triangle : public Drawable<Triangle> {
+struct Triangle {
 	Triangle() = default;
 
 	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
@@ -35,5 +35,7 @@ struct Triangle : public Drawable<Triangle> {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Triangle, a, b, c)
 };
+
+PTGN_DRAWABLE_REGISTER(Triangle);
 
 } // namespace ptgn

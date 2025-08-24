@@ -114,9 +114,7 @@ void RenderTarget::ClearDisplayList() {
 
 void RenderTarget::AddToDisplayList(Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot add invalid entity to render target");
-	PTGN_ASSERT(
-		entity.Has<IDrawable>(), "Entity added to render target display list must be drawable"
-	);
+	PTGN_ASSERT(HasDraw(entity), "Entity added to render target display list must be drawable");
 	// TODO: Consider allowing render targets to be rendered to other render targets.
 	PTGN_ASSERT(
 		!entity.Has<impl::FrameBuffer>(),
@@ -131,9 +129,7 @@ void RenderTarget::AddToDisplayList(Entity& entity) {
 
 void RenderTarget::RemoveFromDisplayList(Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot remove invalid entity from render target");
-	PTGN_ASSERT(
-		entity.Has<IDrawable>(), "Entity remove from render target display list must be drawable"
-	);
+	PTGN_ASSERT(HasDraw(entity), "Entity remove from render target display list must be drawable");
 	entity.Remove<RenderTarget>();
 	PTGN_ASSERT(Has<impl::DisplayList>());
 	auto& dl{ Get<impl::DisplayList>().entities };
