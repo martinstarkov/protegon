@@ -8,17 +8,20 @@
 
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/movement.h"
 #include "components/offsets.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/entity_hierarchy.h"
 #include "core/game.h"
 #include "core/time.h"
+#include "debug/log.h"
 #include "math/easing.h"
 #include "math/math.h"
 #include "math/noise.h"
 #include "math/rng.h"
 #include "math/vector2.h"
+#include "physics/rigid_body.h"
 #include "renderer/api/color.h"
 #include "tweens/shake_config.h"
 #include "tweens/tween.h"
@@ -358,285 +361,336 @@ void StopShake(Entity& entity, bool force) {
 	}
 }
 
-// void FollowEffectSystem::Update(Manager& manager) const {
-//	for (auto [entity, effect] : manager.EntitiesWith<FollowEffect>()) {
-//		if (effect.tasks.empty()) {
-//			entity.template Remove<FollowEffect>();
-//			entity.template Remove<TopDownMovement>();
-//			entity.template Remove<RigidBody>();
-//			continue;
-//		}
-//
-//		auto& task{ effect.tasks.front() };
-//
-//		if (!task.config.follow_x && !task.config.follow_y) {
-//			continue;
-//		}
-//
-//		// TODO: Clean up repeated code.
-//
-//		if (!task.target || !task.target.IsAlive()) {
-//			effect.tasks.pop_front();
-//			if (effect.tasks.empty()) {
-//				continue;
-//			}
-//			auto front{ effect.tasks.front() };
-//			if (front.config.teleport_on_start) {
-//				SetPosition(entity, GetPosition(front.target));
-//			}
-//			if (front.config.move_mode != MoveMode::Velocity) {
-//				entity.template Remove<TopDownMovement>();
-//				entity.template Remove<RigidBody>();
-//				continue;
-//			}
-//			entity.TryAdd<RigidBody>();
-//			if (!entity.Has<Transform>()) {
-//				SetPosition(entity, {});
-//			}
-//			auto& movement{ entity.TryAdd<TopDownMovement>() };
-//			movement.max_acceleration		  = front.config.max_acceleration;
-//			movement.max_deceleration		  = front.config.max_acceleration;
-//			movement.max_speed				  = front.config.max_speed;
-//			movement.keys_enabled			  = false;
-//			movement.only_orthogonal_movement = false;
-//			continue;
-//		}
-//
-//		auto pos{ GetAbsolutePosition(entity) };
-//
-//		V2_float target_pos;
-//
-//		if (task.config.follow_mode == FollowMode::Target) {
-//			target_pos = GetAbsolutePosition(task.target) + task.config.offset;
-//		} else if (task.config.follow_mode == FollowMode::Path) {
-//			PTGN_ASSERT(
-//				!task.config.waypoints.empty(),
-//				"Cannot set FollowMode::Path without providing at least one waypoint"
-//			);
-//			PTGN_ASSERT(
-//				task.config.stop_distance >= epsilon<float>,
-//				"Stopping distance cannot be negative or 0 when following waypoints"
-//			);
-//
-//			PTGN_ASSERT(task.current_waypoint < task.config.waypoints.size());
-//
-//			target_pos = task.config.waypoints[task.current_waypoint] + task.config.offset;
-//
-//			auto dir{ target_pos - pos };
-//
-//			if (dir.MagnitudeSquared() < task.config.stop_distance * task.config.stop_distance) {
-//				if (task.current_waypoint + 1 < task.config.waypoints.size()) {
-//					task.current_waypoint++;
-//				} else if (task.config.loop_path) {
-//					task.current_waypoint = 0;
-//				} else {
-//					effect.tasks.pop_front();
-//					if (!effect.tasks.empty()) {
-//						auto front{ effect.tasks.front() };
-//						if (front.config.teleport_on_start) {
-//							SetPosition(entity, GetPosition(front.target));
-//						}
-//						if (front.config.move_mode == MoveMode::Velocity) {
-//							entity.TryAdd<RigidBody>();
-//							if (!entity.Has<Transform>()) {
-//								SetPosition(entity, {});
-//							}
-//							auto& movement{ entity.TryAdd<TopDownMovement>() };
-//							movement.max_acceleration		  = front.config.max_acceleration;
-//							movement.max_deceleration		  = front.config.max_acceleration;
-//							movement.max_speed				  = front.config.max_speed;
-//							movement.keys_enabled			  = false;
-//							movement.only_orthogonal_movement = false;
-//						} else {
-//							entity.template Remove<TopDownMovement>();
-//							entity.template Remove<RigidBody>();
-//						}
-//					}
-//					continue;
-//				}
-//			}
-//		}
-//
-//		if (task.config.move_mode == MoveMode::Velocity) {
-//			PTGN_ASSERT(
-//				entity.Has<TopDownMovement>(),
-//				"Entity with MoveMode::Velocity must have a TopDownMovement component"
-//			);
-//			auto& movement{ entity.Get<TopDownMovement>() };
-//			auto dir{ target_pos - pos };
-//
-//			auto dist2{ dir.MagnitudeSquared() };
-//
-//			if (task.config.stop_distance >= epsilon<float> &&
-//				dist2 < task.config.stop_distance * task.config.stop_distance) {
-//				effect.tasks.pop_front();
-//				if (!effect.tasks.empty()) {
-//					auto front{ effect.tasks.front() };
-//					if (front.config.teleport_on_start) {
-//						SetPosition(entity, GetPosition(front.target));
-//					}
-//					if (front.config.move_mode != MoveMode::Velocity) {
-//						entity.template Remove<TopDownMovement>();
-//						entity.template Remove<RigidBody>();
-//					}
-//				}
-//			} else {
-//				if (!NearlyEqual(dist2, 0.0f)) {
-//					auto norm_dir{ dir / std::sqrt(dist2) };
-//					if (!task.config.follow_x) {
-//						norm_dir = { 0.0f, Sign(norm_dir.y) };
-//					}
-//					if (!task.config.follow_y) {
-//						norm_dir = { Sign(norm_dir.x), 0.0f };
-//					}
-//					movement.Move(norm_dir);
-//				}
-//			}
-//		} else if (task.config.move_mode == MoveMode::Lerp) {
-//			PTGN_ASSERT(task.config.lerp_factor.x >= 0.0f && task.config.lerp_factor.x <= 1.0f);
-//			PTGN_ASSERT(task.config.lerp_factor.y >= 0.0f && task.config.lerp_factor.y <= 1.0f);
-//
-//			V2_float lerp_dt{ 1.0f - std::pow(1.0f - task.config.lerp_factor.x, game.dt()),
-//							  1.0f - std::pow(1.0f - task.config.lerp_factor.y, game.dt()) };
-//
-//			V2_float new_pos{ pos };
-//
-//			if (task.config.deadzone.IsZero()) {
-//				new_pos = Lerp(pos, target_pos, lerp_dt);
-//			} else {
-//				// TODO: Consider adding a custom deadzone origin in the future.
-//				V2_float deadzone_half{ task.config.deadzone * 0.5f };
-//
-//				V2_float min{ target_pos - deadzone_half };
-//				V2_float max{ target_pos + deadzone_half };
-//
-//				if (pos.x < min.x) {
-//					new_pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
-//				} else if (pos.x > max.x) {
-//					new_pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
-//				}
-//				if (pos.y < min.y) {
-//					new_pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
-//				} else if (pos.y > max.y) {
-//					new_pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
-//				}
-//			}
-//
-//			if (!task.config.follow_x) {
-//				new_pos.x = pos.x;
-//			}
-//			if (!task.config.follow_y) {
-//				new_pos.y = pos.y;
-//			}
-//
-//			SetPosition(entity, new_pos);
-//
-//			if (task.config.stop_distance < epsilon<float>) {
-//				continue;
-//			}
-//			auto dir{ target_pos - new_pos };
-//			if (auto dist2{ dir.MagnitudeSquared() };
-//				dist2 >= task.config.stop_distance * task.config.stop_distance) {
-//				continue;
-//			}
-//			effect.tasks.pop_front();
-//			if (effect.tasks.empty()) {
-//				continue;
-//			}
-//			auto front{ effect.tasks.front() };
-//			if (front.config.teleport_on_start) {
-//				SetPosition(entity, GetPosition(front.target));
-//			}
-//			if (front.config.move_mode != MoveMode::Velocity) {
-//				entity.template Remove<TopDownMovement>();
-//				entity.template Remove<RigidBody>();
-//				continue;
-//			}
-//			entity.TryAdd<RigidBody>();
-//			if (!entity.Has<Transform>()) {
-//				SetPosition(entity, {});
-//			}
-//			auto& movement					  = entity.TryAdd<TopDownMovement>();
-//			movement.max_acceleration		  = front.config.max_acceleration;
-//			movement.max_deceleration		  = front.config.max_acceleration;
-//			movement.max_speed				  = front.config.max_speed;
-//			movement.keys_enabled			  = false;
-//			movement.only_orthogonal_movement = false;
-//		} else {
-//			PTGN_ERROR("Unrecognized move mode")
-//		}
-//	}
-// }
-
-/*
-void StartFollow(Entity entity, Entity target, FollowConfig config, bool force) {
+void StartFollow(Entity entity, Entity target, TargetFollowConfig config, bool force) {
 	PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
 	PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
 
-	auto& comp{ entity.TryAdd<impl::FollowEffect>() };
+	impl::EffectObject<impl::FollowEffect>& tween{ impl::GetTween<impl::FollowEffect>(entity) };
 
-	bool first_task{ force || comp.tasks.empty() };
+	tween.TryAdd<impl::FollowEffect>();
 
-	if (first_task) {
-		comp.tasks.clear();
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
 	}
 
-	if (config.teleport_on_start) {
-		SetPosition(entity, GetPosition(target));
-	}
-
-	if (config.move_mode == MoveMode::Velocity) {
-		// TODO: Consider making the movement system not require enabling an entity.
-		entity.TryAdd<RigidBody>();
-		if (!entity.Has<Transform>()) {
-			SetPosition(entity, {});
+	auto update_func = [config, target](Entity e, float progress) {
+		if (!config.follow_x && !config.follow_y) {
+			return;
 		}
-		auto& movement{ entity.TryAdd<TopDownMovement>() };
+
+		Tween tween_entity{ e };
+		Entity parent{ GetParent(e) };
+
+		auto pos{ GetAbsolutePosition(parent) };
+
+		V2_float target_pos;
+
+		if (!target || !target.IsAlive()) {
+			tween_entity.IncrementPoint();
+			return;
+		}
+		target_pos = GetAbsolutePosition(target) + config.offset;
+
+		if (config.move_mode == MoveMode::Velocity) {
+			PTGN_ASSERT(
+				parent.Has<TopDownMovement>(),
+				"Entity with MoveMode::Velocity must have a TopDownMovement component"
+			);
+			auto& movement{ parent.Get<TopDownMovement>() };
+			auto dir{ target_pos - pos };
+
+			auto dist2{ dir.MagnitudeSquared() };
+
+			if (config.stop_distance >= epsilon<float> &&
+				dist2 < config.stop_distance * config.stop_distance) {
+				tween_entity.IncrementPoint();
+				return;
+			} else if (!NearlyEqual(dist2, 0.0f)) {
+				auto norm_dir{ dir / std::sqrt(dist2) };
+				if (!config.follow_x) {
+					norm_dir = { 0.0f, Sign(norm_dir.y) };
+				}
+				if (!config.follow_y) {
+					norm_dir = { Sign(norm_dir.x), 0.0f };
+				}
+				movement.Move(norm_dir);
+			}
+		} else if (config.move_mode == MoveMode::Lerp) {
+			PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
+			PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
+
+			V2_float lerp_dt{ 1.0f - std::pow(1.0f - config.lerp_factor.x, game.dt()),
+							  1.0f - std::pow(1.0f - config.lerp_factor.y, game.dt()) };
+
+			V2_float new_pos{ pos };
+
+			if (config.deadzone.IsZero()) {
+				new_pos = Lerp(pos, target_pos, lerp_dt);
+			} else {
+				// TODO: Consider adding a custom deadzone origin in the future.
+				V2_float deadzone_half{ config.deadzone * 0.5f };
+
+				V2_float min{ target_pos - deadzone_half };
+				V2_float max{ target_pos + deadzone_half };
+
+				if (pos.x < min.x) {
+					new_pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
+				} else if (pos.x > max.x) {
+					new_pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
+				}
+				if (pos.y < min.y) {
+					new_pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
+				} else if (pos.y > max.y) {
+					new_pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
+				}
+			}
+
+			if (!config.follow_x) {
+				new_pos.x = pos.x;
+			}
+			if (!config.follow_y) {
+				new_pos.y = pos.y;
+			}
+
+			SetPosition(parent, new_pos);
+
+			if (config.stop_distance < epsilon<float>) {
+				return;
+			}
+			auto dir{ target_pos - new_pos };
+			if (auto dist2{ dir.MagnitudeSquared() };
+				dist2 >= config.stop_distance * config.stop_distance) {
+				return;
+			}
+			tween_entity.IncrementPoint();
+		} else {
+			PTGN_ERROR("Unrecognized move mode")
+		}
+	};
+
+	auto update_start = [config, target](auto e) {
+		auto& value{ e.Get<impl::FollowEffect>() };
+		value.current_waypoint = 0;
+		Entity parent{ GetParent(e) };
+		if (config.teleport_on_start) {
+			SetPosition(parent, GetPosition(target));
+		}
+		if (config.move_mode != MoveMode::Velocity) {
+			parent.template Remove<TopDownMovement>();
+			parent.template Remove<RigidBody>();
+			return;
+		}
+		parent.TryAdd<RigidBody>();
+		if (!parent.Has<Transform>()) {
+			SetPosition(parent, {});
+		}
+		auto& movement{ parent.TryAdd<TopDownMovement>() };
 		movement.max_acceleration		  = config.max_acceleration;
 		movement.max_deceleration		  = config.max_acceleration;
 		movement.max_speed				  = config.max_speed;
 		movement.keys_enabled			  = false;
 		movement.only_orthogonal_movement = false;
+	};
+
+	auto update_stop = [](auto e) {
+		Entity parent{ GetParent(e) };
+		auto& value{ e.Get<impl::FollowEffect>() };
+		value.current_waypoint = 0;
+		parent.template Remove<TopDownMovement>();
+		parent.template Remove<RigidBody>();
+	};
+
+	tween.During(milliseconds{ 0 })
+		.Repeat(-1)
+		.OnStart(update_start)
+		.OnProgress(update_func)
+		.OnPointComplete(update_stop)
+		.OnComplete(update_stop)
+		.OnStop(update_stop)
+		.OnReset(update_stop);
+	tween.Start(force);
+}
+
+void StartFollow(
+	Entity entity, const std::vector<V2_float>& waypoints, PathFollowConfig config, bool force
+) {
+	PTGN_ASSERT(!waypoints.empty(), "Cannot follow an empty set of waypoints");
+
+	PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
+	PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
+
+	impl::EffectObject<impl::FollowEffect>& tween{ impl::GetTween<impl::FollowEffect>(entity) };
+
+	tween.TryAdd<impl::FollowEffect>();
+
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
 	}
 
-	comp.tasks.emplace_back(target, config);
+	auto update_func = [config, waypoints](Entity e, float progress) {
+		if (!config.follow_x && !config.follow_y) {
+			return;
+		}
+
+		Tween tween_entity{ e };
+		Entity parent{ GetParent(e) };
+
+		auto pos{ GetAbsolutePosition(parent) };
+
+		V2_float target_pos;
+
+		auto& follow{ e.Get<impl::FollowEffect>() };
+		PTGN_ASSERT(
+			!waypoints.empty(),
+			"Cannot set FollowMode::Path without providing at least one waypoint"
+		);
+		PTGN_ASSERT(
+			config.stop_distance >= epsilon<float>,
+			"Stopping distance cannot be negative or 0 when following waypoints"
+		);
+
+		PTGN_ASSERT(follow.current_waypoint < waypoints.size());
+
+		target_pos = waypoints[follow.current_waypoint] + config.offset;
+
+		auto dir{ target_pos - pos };
+
+		if (dir.MagnitudeSquared() < config.stop_distance * config.stop_distance) {
+			if (follow.current_waypoint + 1 < waypoints.size()) {
+				follow.current_waypoint++;
+			} else if (config.loop_path) {
+				follow.current_waypoint = 0;
+			} else {
+				tween_entity.IncrementPoint();
+				return;
+			}
+		}
+
+		if (config.move_mode == MoveMode::Velocity) {
+			PTGN_ASSERT(
+				parent.Has<TopDownMovement>(),
+				"Entity with MoveMode::Velocity must have a TopDownMovement component"
+			);
+			auto& movement{ parent.Get<TopDownMovement>() };
+			auto dir{ target_pos - pos };
+
+			auto dist2{ dir.MagnitudeSquared() };
+
+			if (config.stop_distance >= epsilon<float> &&
+				dist2 < config.stop_distance * config.stop_distance) {
+				tween_entity.IncrementPoint();
+				return;
+			} else if (!NearlyEqual(dist2, 0.0f)) {
+				auto norm_dir{ dir / std::sqrt(dist2) };
+				if (!config.follow_x) {
+					norm_dir = { 0.0f, Sign(norm_dir.y) };
+				}
+				if (!config.follow_y) {
+					norm_dir = { Sign(norm_dir.x), 0.0f };
+				}
+				movement.Move(norm_dir);
+			}
+		} else if (config.move_mode == MoveMode::Lerp) {
+			PTGN_ASSERT(config.lerp_factor.x >= 0.0f && config.lerp_factor.x <= 1.0f);
+			PTGN_ASSERT(config.lerp_factor.y >= 0.0f && config.lerp_factor.y <= 1.0f);
+
+			V2_float lerp_dt{ 1.0f - std::pow(1.0f - config.lerp_factor.x, game.dt()),
+							  1.0f - std::pow(1.0f - config.lerp_factor.y, game.dt()) };
+
+			V2_float new_pos{ pos };
+
+			if (config.deadzone.IsZero()) {
+				new_pos = Lerp(pos, target_pos, lerp_dt);
+			} else {
+				// TODO: Consider adding a custom deadzone origin in the future.
+				V2_float deadzone_half{ config.deadzone * 0.5f };
+
+				V2_float min{ target_pos - deadzone_half };
+				V2_float max{ target_pos + deadzone_half };
+
+				if (pos.x < min.x) {
+					new_pos.x = Lerp(pos.x, pos.x - (min.x - target_pos.x), lerp_dt.x);
+				} else if (pos.x > max.x) {
+					new_pos.x = Lerp(pos.x, pos.x + (target_pos.x - max.x), lerp_dt.x);
+				}
+				if (pos.y < min.y) {
+					new_pos.y = Lerp(pos.y, pos.y - (min.y - target_pos.y), lerp_dt.y);
+				} else if (pos.y > max.y) {
+					new_pos.y = Lerp(pos.y, pos.y + (target_pos.y - max.y), lerp_dt.y);
+				}
+			}
+
+			if (!config.follow_x) {
+				new_pos.x = pos.x;
+			}
+			if (!config.follow_y) {
+				new_pos.y = pos.y;
+			}
+
+			SetPosition(parent, new_pos);
+		} else {
+			PTGN_ERROR("Unrecognized move mode")
+		}
+	};
+
+	auto update_start = [config, waypoints](auto e) {
+		auto& value{ e.Get<impl::FollowEffect>() };
+		value.current_waypoint = 0;
+		Entity parent{ GetParent(e) };
+		if (config.teleport_on_start && !waypoints.empty()) {
+			V2_float target{ waypoints.back() };
+			SetPosition(parent, target);
+		}
+		if (config.move_mode != MoveMode::Velocity) {
+			parent.template Remove<TopDownMovement>();
+			parent.template Remove<RigidBody>();
+			return;
+		}
+		parent.TryAdd<RigidBody>();
+		if (!parent.Has<Transform>()) {
+			SetPosition(parent, {});
+		}
+		auto& movement{ parent.TryAdd<TopDownMovement>() };
+		movement.max_acceleration		  = config.max_acceleration;
+		movement.max_deceleration		  = config.max_acceleration;
+		movement.max_speed				  = config.max_speed;
+		movement.keys_enabled			  = false;
+		movement.only_orthogonal_movement = false;
+	};
+
+	auto update_stop = [](auto e) {
+		Entity parent{ GetParent(e) };
+		auto& value{ e.Get<impl::FollowEffect>() };
+		value.current_waypoint = 0;
+		parent.template Remove<TopDownMovement>();
+		parent.template Remove<RigidBody>();
+	};
+
+	tween.During(milliseconds{ 0 })
+		.Repeat(-1)
+		.OnStart(update_start)
+		.OnProgress(update_func)
+		.OnPointComplete(update_stop)
+		.OnComplete(update_stop)
+		.OnStop(update_stop)
+		.OnReset(update_stop);
+	tween.Start(force);
 }
 
 void StopFollow(Entity entity, bool force) {
-	if (!entity.Has<impl::FollowEffect>()) {
+	if (!entity.Has<impl::EffectObject<impl::FollowEffect>>()) {
 		return;
 	}
+	auto& tween{ entity.Get<impl::EffectObject<impl::FollowEffect>>() };
 
-	auto& follow{ entity.Get<impl::FollowEffect>() };
-
-	if (force) {
-		follow.tasks.clear();
-	} else if (!follow.tasks.empty()) {
-		follow.tasks.pop_front();
-		if (!follow.tasks.empty()) {
-			auto front{ follow.tasks.front() };
-			if (front.config.teleport_on_start) {
-				SetPosition(entity, GetPosition(front.target));
-			}
-			if (front.config.move_mode == MoveMode::Velocity) {
-				entity.TryAdd<RigidBody>();
-				if (!entity.Has<Transform>()) {
-					SetPosition(entity, {});
-				}
-				auto& movement					  = entity.TryAdd<TopDownMovement>();
-				movement.max_acceleration		  = front.config.max_acceleration;
-				movement.max_deceleration		  = front.config.max_acceleration;
-				movement.max_speed				  = front.config.max_speed;
-				movement.keys_enabled			  = false;
-				movement.only_orthogonal_movement = false;
-			} else {
-				entity.template Remove<TopDownMovement>();
-				entity.template Remove<RigidBody>();
-			}
-		}
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+		entity.Remove<impl::EffectObject<impl::FollowEffect>>();
+		entity.template Remove<TopDownMovement>();
+		entity.template Remove<RigidBody>();
+	} else {
+		tween.IncrementPoint();
 	}
 }
-
-*/
 
 } // namespace ptgn

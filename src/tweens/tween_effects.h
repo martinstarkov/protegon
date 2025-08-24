@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <vector>
 
 #include "common/assert.h"
 #include "core/entity.h"
@@ -342,7 +343,21 @@ void StopShake(Entity& entity, bool force = true);
  * @param config The configuration parameters that define how the follow behavior should operate.
  * @param force If true, forces the replacement of any existing follow behavior on the entity.
  */
-void StartFollow(Entity entity, Entity target, FollowConfig config = {}, bool force = true);
+void StartFollow(Entity entity, Entity target, TargetFollowConfig config = {}, bool force = true);
+
+/**
+ * @brief Starts a follow behavior where the entity follows a path of waypoints based on the
+ * specified configuration.
+ *
+ * @param entity The entity that will follow the target.
+ * @param waypoints The set of waypoints the entity will visit during the follow.
+ * @param config The configuration parameters that define how the follow behavior should operate.
+ * @param force If true, forces the replacement of any existing follow behavior on the entity.
+ */
+void StartFollow(
+	Entity entity, const std::vector<V2_float>& waypoints, PathFollowConfig config = {},
+	bool force = true
+);
 
 /**
  * @brief Stops any active follow behavior on the specified entity.
