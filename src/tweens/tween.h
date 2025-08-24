@@ -134,6 +134,8 @@ public:
 	// completed or is in the middle of the final tween point, this function does nothing.
 	Tween& IncrementPoint();
 
+	Tween& RemoveLastTweenPoint();
+
 	void Seek(float new_progress);
 
 	void Seek(milliseconds time);

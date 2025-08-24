@@ -284,6 +284,7 @@ void Tween::Step(float dt) {
 		if (float duration_sec{ to_duration_value<secondsf>(point.duration_) };
 			duration_sec <= 0.0f) {
 			tween.progress_ = 1.0f;
+			dt				= 0.0f;
 		} else {
 			float progress_inc{ dt / duration_sec };
 			float new_progress{ tween.progress_ + progress_inc };
@@ -351,6 +352,21 @@ Tween& Tween::IncrementPoint() {
 		tween.state_	= impl::TweenState::Completed;
 		tween.progress_ = 1.0f;
 		PTGN_ADD_TWEEN_GLOBAL_ACTION(OnComplete);
+	}
+	return *this;
+}
+
+Tween& Tween::RemoveLastTweenPoint() {
+	auto& tween{ Get<impl::TweenInstance>() };
+	if (tween.points_.empty()) {
+		return *this;
+	}
+
+	auto last_index{ tween.points_.size() - 1 };
+	tween.points_.pop_back();
+
+	if (tween.index_ != 0 && tween.index_ >= last_index) {
+		tween.index_ -= 1;
 	}
 	return *this;
 }
@@ -432,16 +448,7 @@ milliseconds Tween::GetTotalDuration() const {
 
 const impl::TweenPoint& Tween::GetCurrentTweenPoint() const {
 	const auto& tween{ Get<impl::TweenInstance>() };
-	PTGN_ASSERT(
-		!tween.points_.empty(), "Cannot retrieve current tween point when none have been added"
-	);
-	PTGN_ASSERT(
-		tween.index_ <= tween.points_.size(), "Current tween index out of range of tween points"
-	);
-	if (tween.index_ == tween.points_.size()) {
-		return tween.points_.back();
-	}
-	return tween.points_[tween.index_];
+	return GetTweenPoint(tween.index_);
 }
 
 impl::TweenPoint& Tween::GetCurrentTweenPoint() {
