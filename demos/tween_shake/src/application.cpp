@@ -21,20 +21,18 @@ struct ShakeEffectScene : public Scene {
 		sprite2 = CreateSprite(*this, "smile", { 100, 600 });
 		sprite3 = CreateSprite(*this, "smile", { 600, 100 });
 
-		// TODO: Implement shake effects.
-
-		Shake(sprite1, 1.0f, milliseconds{ 8000 }, {}, SymmetricalEase::Linear, false);
-		Shake(sprite1, -1.0f, milliseconds{ 8000 }, {}, SymmetricalEase::Linear, false);
-		Shake(sprite2, 1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::None, false);
+		Shake(sprite1, 1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::Linear, false, true);
+		Shake(sprite1, -1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::Linear, false);
+		Shake(sprite2, 1.0f, milliseconds{ 4000 }, {}, false, true);
 		Shake(sprite3, 0.5f, milliseconds{ -1 }, {}, SymmetricalEase::Linear, false);
 	}
 
 	void Update() override {
 		if (input.MouseDown(Mouse::Left)) {
-			Shake(sprite2, 0.25f, {}, false);
+			Shake(sprite3, 1.0f, {}, true);
 		}
 		if (input.MouseDown(Mouse::Right)) {
-			StopShake(sprite2, true);
+			StopShake(sprite3, true);
 		}
 	}
 };

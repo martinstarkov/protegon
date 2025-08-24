@@ -58,15 +58,17 @@ struct BounceEffect {
 	BounceEffect() = default;
 };
 
-struct ShakeEffect : public Effect<float> {
+struct ShakeEffect {
 	ShakeEffect() = default;
 
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
 
+	float previous_target{ 0.0f };
+
 	bool operator==(const ShakeEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, start, trauma)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, trauma, previous_target)
 };
 
 template <typename TComponent>
@@ -278,24 +280,46 @@ void StopBounce(Entity& entity, bool force = true);
  * @brief Applies a continuous shake effect to the specified entity.
  *
  * @param entity The entity to apply the shake effect to.
- * @param intensity The intensity of the shake, in the range [0, 1].
+ * @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
+ * existing shake trauma).
  * @param duration The total duration of the shake effect. If -1, the shake continues until
  * StopShake is called.
  * @param config Configuration parameters for the shake behavior.
  * @param ease The easing function to use for the shake. If SymmetricalEase::None, shake remains at
  * full intensity for the entire time.
  * @param force If true, overrides any existing shake effect.
+ * @param reset_trauma If true, resets the trauma immediately upon completing the final queued shake
+ * effect.
  */
 void Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
-	const Ease& ease = SymmetricalEase::None, bool force = true
+	const Ease& ease = SymmetricalEase::None, bool force = true, bool reset_trauma = false
+);
+
+/**
+ * @brief Applies a continuous constant shake of a given intensity to the specified entity.
+ *
+ * @param entity The entity to apply the shake effect to.
+ * @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
+ * existing shake trauma).
+ * @param duration The total duration of the shake effect. If -1, the shake continues until
+ * StopShake is called.
+ * @param config Configuration parameters for the shake behavior.
+ * @param force If true, overrides any existing shake effect.
+ * @param reset_trauma If true, resets the trauma immediately upon completing the final queued shake
+ * effect.
+ */
+void Shake(
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
+	bool force = true, bool reset_trauma = false
 );
 
 /**
  * @brief Applies an instantenous shake effect to the specified entity.
  *
  * @param entity The entity to apply the shake effect to.
- * @param intensity The intensity of the shake, in the range [0, 1].
+ * @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
+ * existing shake trauma).
  * @param config Configuration parameters for the shake behavior.
  * @param force If true, overrides any existing shake effect.
  */

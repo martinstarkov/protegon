@@ -174,14 +174,35 @@ void StopBounce(Entity& entity, bool force) {
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
+		entity.Remove<impl::EffectObject<impl::BounceEffect>>();
 	} else {
 		tween.IncrementPoint();
 	}
 }
 
+static void ApplyShake(
+	impl::Offsets& offsets, float trauma, const ShakeConfig& config, std::int32_t seed
+) {
+	// Shake algorithm based on: https://roystan.net/articles/camera-shake/
+
+	// Taking trauma to an exponent allows the ability to smoothen
+	// out the transition from shaking to being static.
+	float shake_value{ std::pow(trauma, config.trauma_exponent) };
+
+	float x{ game.time() * config.frequency };
+
+	V2_float position_noise{ PerlinNoise::GetValue(x, 0.0f, seed + 0) * 2.0f - 1.0f,
+							 PerlinNoise::GetValue(x, 0.0f, seed + 1) * 2.0f - 1.0f };
+
+	float rotation_noise{ PerlinNoise::GetValue(x, 0.0f, seed + 3) * 2.0f - 1.0f };
+
+	offsets.shake.SetPosition(shake_value * config.maximum_translation * position_noise);
+	offsets.shake.SetRotation(shake_value * config.maximum_rotation * rotation_noise);
+}
+
 void Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
-	const Ease& ease, bool force
+	const Ease& ease, bool force, bool reset_trauma
 ) {
 	PTGN_ASSERT(
 		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
@@ -190,69 +211,76 @@ void Shake(
 	bool infinite_shake{ duration == milliseconds{ -1 } };
 
 	PTGN_ASSERT(
-		duration > milliseconds{ 0 } || infinite_shake,
+		duration >= milliseconds{ 0 } || infinite_shake,
 		"Shake effect must have a positive duration or be -1 (infinite shake)"
 	);
 
 	auto& tween{ impl::GetTween<impl::ShakeEffect>(entity) };
+	auto& shake_effect{ tween.TryAdd<impl::ShakeEffect>() };
 
-	auto update_start = [](auto e) mutable {
-		auto& value{ e.Get<impl::ShakeEffect>() };
+	float previous_target{ shake_effect.previous_target };
+
+	float target_intensity{ std::clamp(previous_target + intensity, 0.0f, 1.0f) };
+	shake_effect.previous_target = target_intensity;
+
+	auto update_start = [previous_target](auto e) {
+		auto& shake{ e.Get<impl::ShakeEffect>() };
+		shake.trauma = previous_target;
+	};
+
+	auto update_stop = [](auto e) {
 		Entity parent{ GetParent(e) };
 		auto& offsets{ parent.Get<impl::Offsets>() };
 		offsets.shake = {};
-		value.start	  = value.trauma;
 	};
 
-	auto& shake_effect{ tween.TryAdd<impl::ShakeEffect>() };
 	entity.TryAdd<impl::Offsets>();
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
 
-	// If a previous instantenous shake exists with 0 duration, add to its trauma instead of
-	// queueing a new shake effect.
+	if (force && tween.GetTweenPointCount()) {
+		const auto& last_point{ tween.GetLastTweenPoint() };
+
+		bool instant_tween{ last_point.duration_ == milliseconds{ 0 } };
+		bool infinite_tween{ last_point.total_repeats_ == -1 };
+
+		if (instant_tween && infinite_tween) {
+			// Skips the previous infinite tween point that reduces trauma.
+			tween.RemoveLastTweenPoint();
+		}
+	}
+
 	if (tween.GetTweenPointCount()) {
-		if (auto& last_point{ tween.GetLastTweenPoint() };
-			last_point.duration_ == milliseconds{ 0 }) {
+		const auto& last_point{ tween.GetLastTweenPoint() };
+
+		bool instant_tween{ last_point.duration_ == milliseconds{ 0 } };
+		bool infinite_tween{ last_point.total_repeats_ == -1 };
+
+		if (instant_tween && !infinite_tween) {
+			// If a previous instantenous shake exists with 0 duration, add to its trauma instead of
+			// queueing a new shake effect.
 			shake_effect.trauma = std::clamp(shake_effect.trauma + intensity, 0.0f, 1.0f);
 			return;
 		}
 	}
 
 	auto seed{ RandomNumber<std::int32_t>() };
-	auto target_intensity{ std::clamp(shake_effect.trauma + intensity, 0.0f, 1.0f) };
 
-	// Skips the previous infinite tween point that reduces trauma.
-	tween.IncrementPoint();
-
-	const auto shake_func = [seed, config, target_intensity](Entity e, float progress) mutable {
+	const auto shake_func = [seed, config, previous_target,
+							 target_intensity](Entity e, float progress) mutable {
 		auto& shake{ e.Get<impl::ShakeEffect>() };
 
-		float current_intensity{ Lerp(shake.start, target_intensity, progress) };
+		float current_intensity{ Lerp(previous_target, target_intensity, progress) };
 		PTGN_ASSERT(current_intensity >= 0.0f && current_intensity <= 1.0f);
 
 		shake.trauma = current_intensity;
 
-		// Shake algorithm based on: https://roystan.net/articles/camera-shake/
-
-		// Taking trauma to an exponent allows the ability to smoothen
-		// out the transition from shaking to being static.
-		float shake_value{ std::pow(shake.trauma, config.trauma_exponent) };
-
-		float x{ game.time() * config.frequency };
-
-		V2_float position_noise{ PerlinNoise::GetValue(x, 0.0f, seed + 0) * 2.0f - 1.0f,
-								 PerlinNoise::GetValue(x, 0.0f, seed + 1) * 2.0f - 1.0f };
-
-		float rotation_noise{ PerlinNoise::GetValue(x, 0.0f, seed + 3) * 2.0f - 1.0f };
-
 		Entity parent{ GetParent(e) };
 		auto& offsets{ parent.Get<impl::Offsets>() };
 
-		offsets.shake.SetPosition(shake_value * config.maximum_translation * position_noise);
-		offsets.shake.SetRotation(shake_value * config.maximum_rotation * rotation_noise);
+		ApplyShake(offsets, shake.trauma, config, seed);
 	};
 
 	if (!infinite_shake) {
@@ -260,55 +288,71 @@ void Shake(
 			.Ease(ease)
 			.OnStart(update_start)
 			.OnProgress(shake_func)
-			.OnPointComplete(update_start)
-			.OnComplete(update_start)
-			.OnStop(update_start)
-			.OnReset(update_start);
+			.OnPointComplete(update_stop)
+			.OnComplete(update_stop)
+			.OnStop(update_stop)
+			.OnReset(update_stop);
 	} else {
 		tween.During(milliseconds{ 0 })
 			.Ease(ease)
 			.Repeat(-1)
 			.OnStart(update_start)
 			.OnProgress(shake_func)
-			.OnPointComplete(update_start)
-			.OnComplete(update_start)
-			.OnStop(update_start)
-			.OnReset(update_start);
+			.OnPointComplete(update_stop)
+			.OnComplete(update_stop)
+			.OnStop(update_stop)
+			.OnReset(update_stop);
 	}
 
-	// Add a infinite tween point that reduces trauma organically.
-	tween.During(milliseconds{ 0 }).Repeat(-1).OnProgress([config](Entity e, float) {
-		if (!e.Has<impl::ShakeEffect>()) {
-			Tween{ e }.IncrementPoint();
-			return;
-		}
-		auto& shake{ e.Get<impl::ShakeEffect>() };
-		if (shake.trauma < 0.0f) {
-			shake.trauma = 0.0f;
-			Tween{ e }.IncrementPoint();
-			return;
-		}
-		shake.trauma = std::clamp(shake.trauma - config.recovery_speed * game.dt(), 0.0f, 1.0f);
-	});
+	if (!reset_trauma) {
+		// Add a infinite tween point that reduces trauma organically.
+		tween.During(milliseconds{ 0 }).Repeat(-1).OnProgress([config, seed](Entity e, float) {
+			if (!e.Has<impl::ShakeEffect>()) {
+				Tween{ e }.IncrementPoint();
+				return;
+			}
+			auto& shake{ e.Get<impl::ShakeEffect>() };
+			Entity parent{ GetParent(e) };
+			auto& offsets{ parent.Get<impl::Offsets>() };
+
+			shake.trauma = std::clamp(shake.trauma - config.recovery_speed * game.dt(), 0.0f, 1.0f);
+			ApplyShake(offsets, shake.trauma, config, seed);
+
+			if (shake.trauma <= 0.0f) {
+				Tween{ e }.IncrementPoint();
+			}
+		});
+	}
 
 	tween.Start(force);
 }
 
+void Shake(
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force,
+	bool reset_trauma
+) {
+	Shake(entity, intensity, duration, config, SymmetricalEase::None, force, reset_trauma);
+}
+
 void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
-	Shake(entity, intensity, milliseconds{ 0 }, config, SymmetricalEase::None, force);
+	Shake(entity, intensity, milliseconds{ 0 }, config, SymmetricalEase::None, force, false);
 }
 
 void StopShake(Entity& entity, bool force) {
 	if (!entity.Has<impl::EffectObject<impl::ShakeEffect>>()) {
 		return;
 	}
+
 	auto& tween{ entity.Get<impl::EffectObject<impl::ShakeEffect>>() };
 
+	auto& shake{ tween.Get<impl::ShakeEffect>() };
+	shake.trauma = 0.0f;
 	auto& offsets{ entity.Get<impl::Offsets>() };
 	offsets.shake = {};
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
+		entity.Remove<impl::EffectObject<impl::ShakeEffect>>();
 	} else {
 		tween.IncrementPoint();
 	}
