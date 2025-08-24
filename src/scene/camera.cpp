@@ -158,7 +158,7 @@ const Matrix4& CameraInfo::GetProjection(const Transform& current) const {
 }
 
 const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Entity& entity) const {
-	auto offset_transform{ GetOffset(entity) };
+	auto offset{ GetOffset(entity) };
 
 	bool position_changed{ current.GetPosition() != previous.GetPosition() };
 
@@ -169,13 +169,13 @@ const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Ent
 	// Either view is dirty, the camera has been offset (due to shake or other effects), or the
 	// current position of the camera differs from its previous position (for instance, as a result
 	// of a system changing the position of the camera entity externally).
-	bool update_view{ view_dirty || position_changed || offset_transform != Transform{} ||
+	bool update_view{ view_dirty || position_changed || offset != previous_offset ||
 					  !NearlyEqual(current.GetRotation(), previous.GetRotation()) };
 
 	bool update_projection{ projection_dirty || current.GetScale() != previous.GetScale() };
 
 	if (update_view) {
-		RecalculateView(current, offset_transform);
+		RecalculateView(current, offset);
 	}
 
 	if (update_projection) {
@@ -186,7 +186,8 @@ const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Ent
 		RecalculateViewProjection();
 	}
 
-	previous = current;
+	previous		= current;
+	previous_offset = offset;
 
 	return view_projection;
 }
@@ -519,6 +520,11 @@ void Camera::SetBounds(const V2_float& position, const V2_float& size) {
 	info.SetBoundingBox(position, size);
 	// Reset position to ensure it is within the new bounds.
 	RefreshBounds();
+}
+
+void Camera::CenterOnViewport(const V2_float& new_viewport_size) {
+	SetViewportSize(new_viewport_size);
+	SetPosition(*this, new_viewport_size / 2.0f);
 }
 
 void Camera::SetViewportSize(const V2_float& new_size) {

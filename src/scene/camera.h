@@ -96,13 +96,11 @@ public:
 		const V2_float& viewport_size, const V2_float& camera_zoom
 	);
 
-	// TODO: Change this to recalculate view and projection matrices based on position instead of
-	// storing it. This requires that the entity CameraInfo component is processed after Transform.
-	// Later point might not be relevant after introducing Transform dirty flags.
+	// TODO: This serialization requires that the entity CameraInfo component is processed after
+	// Transform. Might not be relevant after introducing Transform dirty flags.
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
-		viewport_size, center_mode, resize_mode, pixel_rounding, bounding_box_position,
+		CameraInfo, viewport_size, center_mode, resize_mode, pixel_rounding, bounding_box_position,
 		bounding_box_size, flip, position_z, orientation_y, orientation_z
 	)
 
@@ -114,6 +112,7 @@ private:
 	// the frame and the camera view or projection matrices may be requested multiple times in one
 	// frame.
 	mutable Transform previous;
+	mutable Transform previous_offset;
 
 	mutable bool view_dirty{ true };
 	mutable bool projection_dirty{ true };
@@ -199,6 +198,9 @@ public:
 	// the bounding box.
 	// @param position Top left position of the bounds.
 	void SetBounds(const V2_float& position, const V2_float& size);
+
+	// Equivalent of performing SetViewportSize(size) and SetPosition(size / 2).
+	void CenterOnViewport(const V2_float& viewport_size);
 
 	void SetViewportSize(const V2_float& viewport_size);
 
