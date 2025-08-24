@@ -80,7 +80,7 @@ Intersection IntersectCircleCircle(
 	game.stats.intersect_circle_circle++;
 #endif
 
-	if (dist2 > epsilon2<float>) {
+	if (dist2 > epsilon<float> * epsilon<float>) {
 		float dist{ std::sqrt(dist2) };
 		PTGN_ASSERT(!NearlyEqual(dist, 0.0f));
 		c.normal = -d / dist;
