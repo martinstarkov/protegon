@@ -138,6 +138,14 @@ public:
 
 	void Seek(milliseconds time);
 
+	[[nodiscard]] std::size_t GetTweenPointCount() const;
+
+	[[nodiscard]] const impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index) const;
+	[[nodiscard]] impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index);
+
+	[[nodiscard]] impl::TweenPoint& GetLastTweenPoint();
+	[[nodiscard]] const impl::TweenPoint& GetLastTweenPoint() const;
+
 private:
 	friend class Scene;
 	friend class ScriptSequence;
@@ -147,7 +155,6 @@ private:
 
 	[[nodiscard]] const impl::TweenPoint& GetCurrentTweenPoint() const;
 	[[nodiscard]] impl::TweenPoint& GetCurrentTweenPoint();
-	[[nodiscard]] impl::TweenPoint& GetLastTweenPoint();
 
 	static void Update(Manager& manager, float dt);
 };

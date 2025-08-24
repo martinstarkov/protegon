@@ -400,6 +400,27 @@ void Tween::Seek(milliseconds time) {
 	// }
 }
 
+std::size_t Tween::GetTweenPointCount() const {
+	const auto& tween{ Get<impl::TweenInstance>() };
+	return tween.points_.size();
+}
+
+const impl::TweenPoint& Tween::GetTweenPoint(std::size_t tween_point_index) const {
+	const auto& tween{ Get<impl::TweenInstance>() };
+	PTGN_ASSERT(!tween.points_.empty(), "Cannot retrieve tween point when none have been added");
+	PTGN_ASSERT(
+		tween_point_index <= tween.points_.size(), "Tween point index out of range of tween points"
+	);
+	if (tween_point_index == tween.points_.size()) {
+		return tween.points_.back();
+	}
+	return tween.points_[tween_point_index];
+}
+
+impl::TweenPoint& Tween::GetTweenPoint(std::size_t tween_point_index) {
+	return const_cast<impl::TweenPoint&>(std::as_const(*this).GetTweenPoint(tween_point_index));
+}
+
 milliseconds Tween::GetTotalDuration() const {
 	const auto& tween{ Get<impl::TweenInstance>() };
 	milliseconds total{ 0 };
@@ -429,9 +450,13 @@ impl::TweenPoint& Tween::GetCurrentTweenPoint() {
 
 impl::TweenPoint& Tween::GetLastTweenPoint() {
 	auto& tween{ Get<impl::TweenInstance>() };
-	if (tween.points_.empty()) {
-		tween.points_.emplace_back();
-	}
+	PTGN_ASSERT(!tween.points_.empty(), "Cannot get tween point when none have been added");
+	return tween.points_.back();
+}
+
+const impl::TweenPoint& Tween::GetLastTweenPoint() const {
+	const auto& tween{ Get<impl::TweenInstance>() };
+	PTGN_ASSERT(!tween.points_.empty(), "Cannot get tween point when none have been added");
 	return tween.points_.back();
 }
 
