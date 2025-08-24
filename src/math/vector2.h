@@ -35,7 +35,7 @@ struct Vector2 {
 	template <Arithmetic U>
 	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
-	template <Arithmetic U, Arithmetic S>
+	template <ConvertibleToArithmetic U, ConvertibleToArithmetic S>
 	constexpr Vector2(U x_component, S y_component) :
 		x{ static_cast<T>(x_component) }, y{ static_cast<T>(y_component) } {}
 

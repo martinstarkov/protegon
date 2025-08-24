@@ -34,7 +34,7 @@ struct Vector3 {
 	constexpr Vector3(const Vector3<U>& o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
 
-	template <Arithmetic U, Arithmetic S, Arithmetic V>
+	template <ConvertibleToArithmetic U, ConvertibleToArithmetic S, ConvertibleToArithmetic V>
 	constexpr Vector3(U x_component, S y_component, V z_component) :
 		x{ static_cast<T>(x_component) },
 		y{ static_cast<T>(y_component) },

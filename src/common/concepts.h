@@ -38,6 +38,9 @@ template <typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
 
 template <typename T>
+concept ConvertibleToArithmetic = requires { static_cast<double>(std::declval<T>()); };
+
+template <typename T>
 concept StreamWritable = requires(std::ostream& os, T value) {
 	{ os << value } -> std::same_as<std::ostream&>;
 };

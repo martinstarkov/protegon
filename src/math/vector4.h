@@ -40,7 +40,9 @@ struct Vector4 {
 		z{ static_cast<T>(o.z) },
 		w{ static_cast<T>(w.z) } {}
 
-	template <Arithmetic U, Arithmetic S, Arithmetic V, Arithmetic W>
+	template <
+		ConvertibleToArithmetic U, ConvertibleToArithmetic S, ConvertibleToArithmetic V,
+		ConvertibleToArithmetic W>
 	constexpr Vector4(U x_component, S y_component, V z_component, W w_component) :
 		x{ static_cast<T>(x_component) },
 		y{ static_cast<T>(y_component) },
