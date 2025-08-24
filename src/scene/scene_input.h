@@ -39,6 +39,9 @@ public:
 
 	[[nodiscard]] bool IsAnyDragging() const;
 
+	// @param True if input is in top only mode, false otherwise.
+	[[nodiscard]] bool IsTopOnly() const;
+
 	// If set to true, only the interactables in the scene will be triggered, i.e. if there are two
 	// button on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only);

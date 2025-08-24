@@ -696,6 +696,10 @@ void SceneInput::Shutdown() {
 	draw_interactives_ = false;
 }
 
+bool SceneInput::IsTopOnly() const {
+	return top_only_;
+}
+
 void SceneInput::SetTopOnly(bool top_only) {
 	top_only_ = top_only;
 }
