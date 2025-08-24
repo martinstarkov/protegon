@@ -38,10 +38,14 @@ struct FadeEffectScene : public Scene {
 			FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 		if (input.KeyDown(Key::T)) {
-			FadeOut(GetRenderTarget(), milliseconds{ 3000 });
+			FadeOut(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([](Entity) {
+				PTGN_LOG("Finished fading out scene");
+			});
 		}
 		if (input.KeyDown(Key::R)) {
-			FadeIn(GetRenderTarget(), milliseconds{ 3000 });
+			FadeIn(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([](Entity) {
+				PTGN_LOG("Finished fading in scene");
+			});
 		}
 	}
 };

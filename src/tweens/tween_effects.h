@@ -99,7 +99,7 @@ EffectObject<TComponent>& GetTween(Entity& entity) {
 }
 
 template <typename TComponent, typename T>
-void AddTweenEffect(
+EffectObject<TComponent>& AddTweenEffect(
 	Entity& entity, const T& target, milliseconds duration, const Ease& ease, bool force,
 	const std::function<T(Entity)>& get_current_value,
 	const std::function<void(Entity, T)>& set_current_value
@@ -134,9 +134,11 @@ void AddTweenEffect(
 		.OnStop(update_start)
 		.OnReset(update_start);
 	tween.Start(force);
+
+	return tween;
 }
 
-void BounceImpl(
+EffectObject<BounceEffect>& BounceImpl(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
 );
@@ -165,7 +167,7 @@ void EntityFollowStopImpl(Entity tween);
  * @param ease The easing function to apply for the translation animation.
  * @param force If true, forcibly overrides any ongoing translation.
  */
-void TranslateTo(
+impl::EffectObject<impl::TranslateEffect>& TranslateTo(
 	Entity& entity, const V2_float& target_position, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -180,7 +182,7 @@ void TranslateTo(
  * @param ease The easing function to apply for the rotation animation.
  * @param force If true, forcibly overrides any ongoing rotation.
  */
-void RotateTo(
+impl::EffectObject<impl::RotateEffect>& RotateTo(
 	Entity& entity, float target_angle, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -194,7 +196,7 @@ void RotateTo(
  * @param ease The easing function to apply for the scale animation.
  * @param force If true, forcibly overrides any ongoing scaling.
  */
-void ScaleTo(
+impl::EffectObject<impl::ScaleEffect>& ScaleTo(
 	Entity& entity, const V2_float& target_scale, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -208,7 +210,7 @@ void ScaleTo(
  * @param ease The easing function to apply for the tint animation.
  * @param force If true, forcibly overrides any ongoing tinting.
  */
-void TintTo(
+impl::EffectObject<impl::TintEffect>& TintTo(
 	Entity& entity, const Color& target_tint, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -221,7 +223,7 @@ void TintTo(
  * @param ease The easing function used to interpolate the fade.
  * @param force If true, the fade-in will override any ongoing fade effect.
  */
-void FadeIn(
+impl::EffectObject<impl::TintEffect>& FadeIn(
 	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 	bool force = true
 );
@@ -234,7 +236,7 @@ void FadeIn(
  * @param ease The easing function used to interpolate the fade.
  * @param force If true, the fade-out will override any ongoing fade effect.
  */
-void FadeOut(
+impl::EffectObject<impl::TintEffect>& FadeOut(
 	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 	bool force = true
 );
@@ -255,7 +257,7 @@ void FadeOut(
  * @param static_offset A constant offset added to the entity's position throughout the bounce.
  * @param force If true, overrides any existing bounce effect on the entity.
  */
-void Bounce(
+impl::EffectObject<impl::BounceEffect>& Bounce(
 	Entity& entity, const V2_float& bounce_amplitude, milliseconds duration,
 	std::int64_t total_periods = -1, const Ease& ease = SymmetricalEase::Linear,
 	const V2_float& static_offset = {}, bool force = true
@@ -280,7 +282,7 @@ void Bounce(
  * @param static_offset A constant offset added to the entity's position throughout the bounce.
  * @param force If true, overrides any existing bounce effect on the entity.
  */
-void SymmetricalBounce(
+impl::EffectObject<impl::BounceEffect>& SymmetricalBounce(
 	Entity& entity, const V2_float& bounce_amplitude, milliseconds duration,
 	std::int64_t total_periods = -1, SymmetricalEase ease = SymmetricalEase::Linear,
 	const V2_float& static_offset = {}, bool force = true
@@ -309,7 +311,7 @@ void StopBounce(Entity& entity, bool force = true);
  * @param reset_trauma If true, resets the trauma immediately upon completing the final queued shake
  * effect.
  */
-void Shake(
+impl::EffectObject<impl::ShakeEffect>& Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
 	const Ease& ease = SymmetricalEase::None, bool force = true, bool reset_trauma = false
 );
@@ -327,7 +329,7 @@ void Shake(
  * @param reset_trauma If true, resets the trauma immediately upon completing the final queued shake
  * effect.
  */
-void Shake(
+impl::EffectObject<impl::ShakeEffect>& Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
 	bool force = true, bool reset_trauma = false
 );
@@ -341,7 +343,9 @@ void Shake(
  * @param config Configuration parameters for the shake behavior.
  * @param force If true, overrides any existing shake effect.
  */
-void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool force = true);
+impl::EffectObject<impl::ShakeEffect>& Shake(
+	Entity& entity, float intensity, const ShakeConfig& config = {}, bool force = true
+);
 
 /**
  * @brief Stops any ongoing shake effect on the specified entity.
@@ -360,7 +364,7 @@ void StopShake(Entity& entity, bool force = true);
  * @param config The configuration parameters that define how the follow behavior should operate.
  * @param force If true, forces the replacement of any existing follow behavior on the entity.
  */
-void StartFollow(
+impl::EffectObject<impl::FollowEffect>& StartFollow(
 	Entity entity, Entity target, const TargetFollowConfig& config = {}, bool force = true
 );
 
@@ -376,7 +380,7 @@ void StartFollow(
  * started as long as waypoints have not changed or the end has not been reached (if
  * config.loop_path is false).
  */
-void StartFollow(
+impl::EffectObject<impl::FollowEffect>& StartFollow(
 	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config = {},
 	bool force = true, bool reset_waypoint_index = false
 );

@@ -66,7 +66,7 @@ static float ApplyBounceEase(float t, bool symmetrical, const Ease& ease) {
 	return 2.0f * eased_t - 1.0f;
 }
 
-void BounceImpl(
+EffectObject<BounceEffect>& BounceImpl(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
 ) {
@@ -109,6 +109,7 @@ void BounceImpl(
 		.OnStop(reset_bounce)
 		.OnReset(reset_bounce);
 	tween.Start(force);
+	return tween;
 }
 
 void ApplyShake(
@@ -227,64 +228,72 @@ void EntityFollowStopImpl(Entity e) {
 
 } // namespace impl
 
-void TranslateTo(
+impl::EffectObject<impl::TranslateEffect>& TranslateTo(
 	Entity& entity, const V2_float& target_position, milliseconds duration, const Ease& ease,
 	bool force
 ) {
-	impl::AddTweenEffect<impl::TranslateEffect, V2_float>(
+	return impl::AddTweenEffect<impl::TranslateEffect, V2_float>(
 		entity, target_position, duration, ease, force, [](Entity e) { return GetPosition(e); },
 		[](Entity e, V2_float v) { SetPosition(e, v); }
 	);
 }
 
-void RotateTo(
+impl::EffectObject<impl::RotateEffect>& RotateTo(
 	Entity& entity, float target_angle, milliseconds duration, const Ease& ease, bool force
 ) {
-	impl::AddTweenEffect<impl::RotateEffect, float>(
+	return impl::AddTweenEffect<impl::RotateEffect, float>(
 		entity, target_angle, duration, ease, force, [](Entity e) { return GetRotation(e); },
 		[](Entity e, float v) { SetRotation(e, v); }
 	);
 }
 
-void ScaleTo(
+impl::EffectObject<impl::ScaleEffect>& ScaleTo(
 	Entity& entity, const V2_float& target_scale, milliseconds duration, const Ease& ease,
 	bool force
 ) {
-	impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+	return impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
 		entity, target_scale, duration, ease, force, [](Entity e) { return GetScale(e); },
 		[](Entity e, V2_float v) { SetScale(e, v); }
 	);
 }
 
-void TintTo(
+impl::EffectObject<impl::TintEffect>& TintTo(
 	Entity& entity, const Color& target_tint, milliseconds duration, const Ease& ease, bool force
 ) {
-	impl::AddTweenEffect<impl::TintEffect, Color>(
+	return impl::AddTweenEffect<impl::TintEffect, Color>(
 		entity, target_tint, duration, ease, force, [](Entity e) { return GetTint(e); },
 		[](Entity e, Color v) { SetTint(e, v); }
 	);
 }
 
-void FadeIn(Entity& entity, milliseconds duration, const Ease& ease, bool force) {
+impl::EffectObject<impl::TintEffect>& FadeIn(
+	Entity& entity, milliseconds duration, const Ease& ease, bool force
+) {
 	return TintTo(entity, color::White, duration, ease, force);
 }
 
-void FadeOut(Entity& entity, milliseconds duration, const Ease& ease, bool force) {
+impl::EffectObject<impl::TintEffect>& FadeOut(
+	Entity& entity, milliseconds duration, const Ease& ease, bool force
+) {
 	return TintTo(entity, color::Transparent, duration, ease, force);
 }
 
-void Bounce(
+impl::EffectObject<impl::BounceEffect>& Bounce(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force
 ) {
-	impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force, false);
+	return impl::BounceImpl(
+		entity, amplitude, duration, total_periods, ease, static_offset, force, false
+	);
 }
 
-void SymmetricalBounce(
+impl::EffectObject<impl::BounceEffect>& SymmetricalBounce(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	SymmetricalEase ease, const V2_float& static_offset, bool force
 ) {
-	impl::BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force, true);
+	return impl::BounceImpl(
+		entity, amplitude, duration, total_periods, ease, static_offset, force, true
+	);
 }
 
 void StopBounce(Entity& entity, bool force) {
@@ -304,7 +313,7 @@ void StopBounce(Entity& entity, bool force) {
 	}
 }
 
-void Shake(
+impl::EffectObject<impl::ShakeEffect>& Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config,
 	const Ease& ease, bool force, bool reset_trauma
 ) {
@@ -366,7 +375,7 @@ void Shake(
 			// If a previous instantenous shake exists with 0 duration, add to its trauma instead of
 			// queueing a new shake effect.
 			shake_effect.trauma = std::clamp(shake_effect.trauma + intensity, 0.0f, 1.0f);
-			return;
+			return tween;
 		}
 	}
 
@@ -429,17 +438,20 @@ void Shake(
 	}
 
 	tween.Start(force);
+	return tween;
 }
 
-void Shake(
+impl::EffectObject<impl::ShakeEffect>& Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force,
 	bool reset_trauma
 ) {
-	Shake(entity, intensity, duration, config, SymmetricalEase::None, force, reset_trauma);
+	return Shake(entity, intensity, duration, config, SymmetricalEase::None, force, reset_trauma);
 }
 
-void Shake(Entity& entity, float intensity, const ShakeConfig& config, bool force) {
-	Shake(entity, intensity, milliseconds{ 0 }, config, SymmetricalEase::None, force, false);
+impl::EffectObject<impl::ShakeEffect>& Shake(
+	Entity& entity, float intensity, const ShakeConfig& config, bool force
+) {
+	return Shake(entity, intensity, milliseconds{ 0 }, config, SymmetricalEase::None, force, false);
 }
 
 void StopShake(Entity& entity, bool force) {
@@ -464,7 +476,7 @@ void StopShake(Entity& entity, bool force) {
 
 namespace impl {
 
-static void StartFollowImpl(
+static impl::EffectObject<impl::FollowEffect>& StartFollowImpl(
 	const FollowConfig& config, Entity& entity, bool force, auto start_func, auto update_func
 ) {
 	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
@@ -487,6 +499,7 @@ static void StartFollowImpl(
 		.OnStop(&impl::EntityFollowStopImpl)
 		.OnReset(&impl::EntityFollowStopImpl);
 	tween.Start(force);
+	return tween;
 }
 
 static void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Entity tween_entity) {
@@ -567,8 +580,10 @@ static void PathFollowImpl(
 
 } // namespace impl
 
-void StartFollow(Entity entity, Entity target, const TargetFollowConfig& config, bool force) {
-	impl::StartFollowImpl(
+impl::EffectObject<impl::FollowEffect>& StartFollow(
+	Entity entity, Entity target, const TargetFollowConfig& config, bool force
+) {
+	return impl::StartFollowImpl(
 		config, entity, force,
 		[config, target](auto e) {
 			Entity parent{ GetParent(e) };
@@ -581,7 +596,7 @@ void StartFollow(Entity entity, Entity target, const TargetFollowConfig& config,
 	);
 }
 
-void StartFollow(
+impl::EffectObject<impl::FollowEffect>& StartFollow(
 	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config,
 	bool force, bool reset_waypoint_index
 ) {
@@ -638,6 +653,7 @@ void StartFollow(
 		.OnStop(&impl::EntityFollowStopImpl)
 		.OnReset(&impl::EntityFollowStopImpl);
 	tween.Start(force);
+	return tween;
 }
 
 void StopFollow(Entity entity, bool force, bool reset_previous_waypoints) {
