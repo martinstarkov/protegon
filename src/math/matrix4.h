@@ -163,9 +163,14 @@ public:
 
 	[[nodiscard]] bool ExactlyEquals(const Matrix4& o) const;
 
-	[[nodiscard]] bool operator==(const Matrix4& o) const;
-
-	[[nodiscard]] bool operator!=(const Matrix4& o) const;
+	friend bool operator==(const Matrix4& a, const Matrix4& b) {
+		for (std::size_t i{ 0 }; i < length; i++) {
+			if (!NearlyEqual(a.m_[i], b.m_[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
 
 	[[nodiscard]] Matrix4 operator+(const Matrix4& rhs);
 

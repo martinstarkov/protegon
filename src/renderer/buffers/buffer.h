@@ -25,8 +25,9 @@ public:
 	Buffer& operator=(const Buffer&) = delete;
 	~Buffer();
 
-	bool operator==(const Buffer& other) const;
-	bool operator!=(const Buffer& other) const;
+	friend bool operator==(const Buffer& a, const Buffer& b) {
+		return a.id_ == b.id_;
+	}
 
 	// @param data Pointer to the new buffer data.
 	// @param byte_offset Specifies the offset into the buffer object's data store where data

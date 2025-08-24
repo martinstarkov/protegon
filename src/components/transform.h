@@ -55,10 +55,6 @@ struct Transform {
 			   a.scale_ == b.scale_;
 	}
 
-	friend bool operator!=(const Transform& a, const Transform& b) {
-		return !operator==(a, b);
-	}
-
 	[[nodiscard]] V2_float GetPosition() const;
 	[[nodiscard]] float GetRotation() const;
 	[[nodiscard]] V2_float GetScale() const;

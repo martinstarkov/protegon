@@ -19,7 +19,7 @@ public:
 		return instance_ != nullptr;
 	}
 
-	friend bool operator==(const Handle&, const Handle&) = default;
+	bool operator==(const Handle&) const = default;
 
 protected:
 	void Set(const std::shared_ptr<T>& other) {

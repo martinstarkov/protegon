@@ -30,10 +30,6 @@ struct Collision {
 		return a.entity == b.entity;
 	}
 
-	friend bool operator!=(const Collision& a, const Collision& b) {
-		return !operator==(a, b);
-	}
-
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Collision, entity, normal)
 };
 

@@ -38,16 +38,6 @@ Buffer<BT>::~Buffer() {
 }
 
 template <BufferType BT>
-bool Buffer<BT>::operator==(const Buffer& other) const {
-	return id_ == other.id_;
-}
-
-template <BufferType BT>
-bool Buffer<BT>::operator!=(const Buffer& other) const {
-	return !(*this == other);
-}
-
-template <BufferType BT>
 Buffer<BT>::Buffer(Buffer&& other) noexcept :
 	id_{ std::exchange(other.id_, 0) },
 	count_{ std::exchange(other.count_, 0) },

@@ -47,10 +47,6 @@ public:
 		return &a == &b;
 	}
 
-	friend bool operator!=(const Manager& a, const Manager& b) {
-		return !(a == b);
-	}
-
 	template <typename T>
 	void RegisterType() {
 		ManagerBase::GetOrAddPool<T>(ManagerBase::GetId<T>());

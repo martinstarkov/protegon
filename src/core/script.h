@@ -309,10 +309,6 @@ public:
 		return a.scripts_ == b.scripts_;
 	}
 
-	friend bool operator!=(const Scripts& a, const Scripts& b) {
-		return !operator==(a, b);
-	}
-
 	template <typename TInterface, typename... TArgs>
 	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(TArgs...) const, TArgs&&... args)
 		const {

@@ -249,19 +249,6 @@ bool Matrix4::ExactlyEquals(const Matrix4& o) const {
 	return true;
 }
 
-bool Matrix4::operator==(const Matrix4& o) const {
-	for (std::size_t i{ 0 }; i < length; i++) {
-		if (!NearlyEqual(m_[i], o.m_[i])) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool Matrix4::operator!=(const Matrix4& o) const {
-	return !operator==(o);
-}
-
 Matrix4 Matrix4::operator+(const Matrix4& rhs) {
 	Matrix4 result;
 	for (std::size_t i{ 0 }; i < result.length; i++) {

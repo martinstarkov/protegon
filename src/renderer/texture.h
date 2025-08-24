@@ -207,10 +207,6 @@ public:
 		return a.id_ == b.id_;
 	}
 
-	friend bool operator!=(const Texture& a, const Texture& b) {
-		return !(a == b);
-	}
-
 	// @return Size of the texture.
 	[[nodiscard]] V2_int GetSize() const;
 

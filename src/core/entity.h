@@ -62,10 +62,6 @@ public:
 		return static_cast<const EntityBase&>(a) == static_cast<const EntityBase&>(b);
 	}
 
-	friend bool operator!=(const Entity& a, const Entity& b) {
-		return !(a == b);
-	}
-
 	// Copying a destroyed entity will return a null entity.
 	// Copying an entity with no components simply returns a new entity.
 	// Make sure to call manager.Refresh() after this function.

@@ -7,14 +7,6 @@ namespace ptgn {
 SceneTransition::SceneTransition(TransitionType type, milliseconds duration) :
 	type_{ type }, duration_{ duration } {}
 
-bool SceneTransition::operator==(const SceneTransition& o) const {
-	return type_ == o.type_ && duration_ == o.duration_;
-}
-
-bool SceneTransition::operator!=(const SceneTransition& o) const {
-	return !(*this == o);
-}
-
 SceneTransition& SceneTransition::SetDuration(milliseconds duration) {
 	PTGN_ASSERT(duration > milliseconds{ 0 }, "Cannot set scene transition duration <= 0");
 	duration_ = duration;

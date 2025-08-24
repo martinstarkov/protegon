@@ -33,8 +33,9 @@ public:
 	VertexArray& operator=(VertexArray&& other) noexcept;
 	~VertexArray();
 
-	bool operator==(const VertexArray& other) const;
-	bool operator!=(const VertexArray& other) const;
+	friend bool operator==(const VertexArray& a, const VertexArray& b) {
+		return a.id_ == b.id_;
+	}
 
 	void SetPrimitiveMode(PrimitiveMode mode);
 	void SetVertexBuffer(VertexBuffer&& new_vertex_buffer);
