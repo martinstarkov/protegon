@@ -337,13 +337,13 @@ impl::EffectObject<impl::ShakeEffect>& Shake(
 	shake_effect.previous_target = target_intensity;
 
 	auto update_start = [previous_target](auto e) {
-		auto& shake{ e.Get<impl::ShakeEffect>() };
+		auto& shake{ e.template Get<impl::ShakeEffect>() };
 		shake.trauma = previous_target;
 	};
 
 	auto update_stop = [](auto e) {
 		Entity parent{ GetParent(e) };
-		auto& offsets{ parent.Get<impl::Offsets>() };
+		auto& offsets{ parent.template Get<impl::Offsets>() };
 		offsets.shake = {};
 	};
 
@@ -631,7 +631,7 @@ impl::EffectObject<impl::FollowEffect>& StartFollow(
 		// 1. User requested it
 		// 2. Current waypoint is beyond the waypoints array size.
 		// 3. Waypoints have changed.
-		if (auto& follow{ e.Get<impl::FollowEffect>() };
+		if (auto& follow{ e.template Get<impl::FollowEffect>() };
 			reset_waypoint_index || follow.current_waypoint >= waypoints.size() ||
 			waypoints != prev_waypoints) {
 			follow.current_waypoint = 0;

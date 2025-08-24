@@ -108,14 +108,14 @@ EffectObject<TComponent>& AddTweenEffect(
 
 	EffectObject<TComponent>& tween{ GetTween<TComponent>(entity) };
 
-	tween.TryAdd<TComponent>();
+	tween.template TryAdd<TComponent>();
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
 
 	auto update_start = [get_current_value](auto e) mutable {
-		auto& value{ e.Get<TComponent>() };
+		auto& value{ e.template Get<TComponent>() };
 		Entity parent{ GetParent(e) };
 		value.start = get_current_value(parent);
 	};
@@ -124,7 +124,7 @@ EffectObject<TComponent>& AddTweenEffect(
 		.Ease(ease)
 		.OnStart(update_start)
 		.OnProgress([target, set_current_value](Entity e, float progress) mutable {
-			auto& value{ e.Get<TComponent>() };
+			auto& value{ e.template Get<TComponent>() };
 			auto result{ Lerp(value.start, target, progress) };
 			Entity parent{ GetParent(e) };
 			set_current_value(parent, result);

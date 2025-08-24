@@ -114,7 +114,7 @@ public:
 
 	[[nodiscard]] impl::Texture CreateTexture(const FontSize& font_size) const;
 
-	static [[nodiscard]] impl::Texture CreateTexture(
+	[[nodiscard]] static impl::Texture CreateTexture(
 		const TextContent& content, const TextColor& color = color::White,
 		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 		const TextProperties& properties = {}

@@ -642,7 +642,7 @@ void SceneInput::Update(Scene& scene) {
 
 		auto& scripts{ entity.template Get<Scripts>() };
 
-		if (entity.template Has<Interactive>() && entity.Get<Interactive>().enabled) {
+		if (entity.template Has<Interactive>() && entity.template Get<Interactive>().enabled) {
 			scripts.InvokeActions();
 		} else {
 			scripts.ClearActions();
