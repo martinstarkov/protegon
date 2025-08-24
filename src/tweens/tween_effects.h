@@ -47,16 +47,11 @@ struct TintEffect : public Effect<Color> {};
 struct FollowEffect {
 	FollowEffect() = default;
 
-	FollowEffect(Entity follow_target, const FollowConfig& follow_config);
-
-	Entity target;
-	FollowConfig config;
-
 	std::size_t current_waypoint{ 0 };
 
 	bool operator==(const FollowEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, target, config, current_waypoint)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, current_waypoint)
 };
 
 struct BounceEffect {
@@ -66,19 +61,12 @@ struct BounceEffect {
 struct ShakeEffect : public Effect<float> {
 	ShakeEffect() = default;
 
-	ShakeEffect(const ShakeConfig& config, std::int32_t seed);
-
-	ShakeConfig config;
-
-	// Perlin noise seed.
-	std::int32_t seed{ 0 };
-
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
 
 	bool operator==(const ShakeEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, config, seed, trauma)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, start, trauma)
 };
 
 template <typename TComponent>
@@ -108,7 +96,7 @@ void AddTweenEffect(
 	const std::function<T(Entity)>& get_current_value,
 	const std::function<void(Entity, T)>& set_current_value
 ) {
-	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
+	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween effect must have a positive duration");
 
 	EffectObject<TComponent>& tween{ GetTween<TComponent>(entity) };
 
