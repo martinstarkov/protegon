@@ -73,7 +73,7 @@ public:
 
 		j["type"] = name;
 		to_json(j["entity"], entity);
-		if constexpr (tt::has_to_json_v<TDerived>) {
+		if constexpr (JsonSerializable<TDerived>) {
 			to_json(j["data"], *static_cast<const TDerived*>(this));
 		} else {
 			using Tuple = std::tuple<TScripts...>;
@@ -85,7 +85,7 @@ public:
 
 	void Deserialize(const json& j) final {
 		constexpr auto name{ type_name<TDerived>() };
-		if constexpr (tt::has_from_json_v<TDerived>) {
+		if constexpr (JsonDeserializable<TDerived>) {
 			PTGN_ASSERT(j.contains("data"), "Failed to deserialize data for type ", name);
 			// PTGN_ASSERT(j.at("data").contains(name), "Failed to deserialize data for type ",
 			// name);
@@ -124,7 +124,7 @@ private:
 	static void SerializeScripts(const TDerived* self, json& j) {
 		if constexpr (I < std::tuple_size_v<Tuple>) {
 			using Base = std::tuple_element_t<I, Tuple>;
-			if constexpr (tt::has_to_json_v<Base>) {
+			if constexpr (JsonSerializable<Base>) {
 				constexpr auto base_name{ type_name<Base>() };
 				const Base& base{ *static_cast<const Base*>(self) };
 				to_json(j["data"][base_name], base);
@@ -137,7 +137,7 @@ private:
 	static void DeserializeScripts(TDerived* self, const json& j) {
 		if constexpr (I < std::tuple_size_v<Tuple>) {
 			using Base = std::tuple_element_t<I, Tuple>;
-			if constexpr (tt::has_from_json_v<Base>) {
+			if constexpr (JsonDeserializable<Base>) {
 				constexpr auto base_name{ type_name<Base>() };
 				PTGN_ASSERT(j.contains("data"), "Failed to deserialize data for type ", base_name);
 				PTGN_ASSERT(

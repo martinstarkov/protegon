@@ -2,15 +2,17 @@
 
 #include <array>
 #include <cmath>
+#include <functional>
 #include <iosfwd>
 #include <limits>
 #include <ostream>
 #include <type_traits>
 
 #include "common/assert.h"
-#include "common/type_traits.h"
+#include "common/concepts.h"
 #include "math/math.h"
 #include "math/rng.h"
+#include "math/tolerance.h"
 #include "serialization/fwd.h"
 
 // TODO: Add xyz() and xyzw() functions.
@@ -18,46 +20,31 @@
 
 namespace ptgn {
 
-template <typename T>
+template <Arithmetic T>
 struct Vector2 {
-	static_assert(std::is_arithmetic_v<T>);
-
 	T x{ 0 };
 	T y{ 0 };
 
-	constexpr Vector2()					   = default;
-	~Vector2()							   = default;
-	Vector2(const Vector2&)				   = default;
-	Vector2(Vector2&&) noexcept			   = default;
-	Vector2& operator=(const Vector2&)	   = default;
-	Vector2& operator=(Vector2&&) noexcept = default;
+	constexpr Vector2() = default;
 
-	explicit constexpr Vector2(T all) : x{ all }, y{ all } {}
+	template <Arithmetic U>
+	explicit constexpr Vector2(U all) : x{ static_cast<T>(all) }, y{ static_cast<T>(all) } {}
 
 	explicit Vector2(const json& j);
 
-	template <typename U, typename S>
+	template <Arithmetic U>
+	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
+
+	template <Arithmetic U, Arithmetic S>
 	constexpr Vector2(U x_component, S y_component) :
 		x{ static_cast<T>(x_component) }, y{ static_cast<T>(y_component) } {}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
-	constexpr Vector2(const Vector2<U>& o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
-
-	// Narrowing constructors are explicit.
-	template <typename U, tt::narrowing<U, T> = true>
-	explicit constexpr Vector2(const Vector2<U>& o) :
-		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
-
-	template <typename U>
-	explicit constexpr Vector2(const std::array<U, 2>& o) :
+	template <Arithmetic U>
+	constexpr Vector2(const std::array<U, 2>& o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
 	friend bool operator==(const Vector2& lhs, const Vector2& rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
-	}
-
-	friend bool operator!=(const Vector2& lhs, const Vector2& rhs) {
-		return !operator==(lhs, rhs);
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y.
@@ -80,42 +67,48 @@ struct Vector2 {
 		return { -x, -y };
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector2& operator+=(const Vector2<U>& rhs) {
 		x += rhs.x;
 		y += rhs.y;
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector2& operator-=(const Vector2<U>& rhs) {
 		x -= rhs.x;
 		y -= rhs.y;
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector2& operator*=(const Vector2<U>& rhs) {
 		x *= rhs.x;
 		y *= rhs.y;
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector2& operator/=(const Vector2<U>& rhs) {
 		x /= rhs.x;
 		y /= rhs.y;
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector2& operator*=(U rhs) {
 		x *= rhs;
 		y *= rhs;
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector2& operator/=(U rhs) {
 		x /= rhs;
 		y /= rhs;
@@ -154,7 +147,7 @@ struct Vector2 {
 		if (dir.IsZero()) {
 			return Vector2{};
 		} else {
-			return dir.Normalized();
+			return Vector2{ dir.Normalized() };
 		}
 	}
 
@@ -184,13 +177,13 @@ struct Vector2 {
 		return { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
 	}
 
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] constexpr S Magnitude() const {
 		return std::sqrt(static_cast<S>(MagnitudeSquared()));
 	}
 
 	// @return Random unit vector in a heading within the given range of angles (radians).
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] static Vector2 RandomHeading(
 		S min_angle_radians = S{ 0 }, S max_angle_radians = S{ two_pi<S> }
 	) {
@@ -201,7 +194,7 @@ struct Vector2 {
 
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] Vector2<S> Normalized() const {
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
@@ -211,7 +204,7 @@ struct Vector2 {
 	}
 
 	// Returns a normalized (unit) direction vector toward a target position.
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] Vector2<S> DirectionTowards(const Vector2& target) const {
 		Vector2<S> dir{ target - *this };
 		return dir.Normalized();
@@ -220,7 +213,7 @@ struct Vector2 {
 	// @return New vector rotated by the given angle.
 	// See https://en.wikipedia.org/wiki/Rotation_matrix for details.
 	// Angle in radians. Positive angle rotates clockwise.
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
 		if (NearlyEqual(angle_radians, 0.0f)) {
 			return { x, y };
@@ -231,7 +224,7 @@ struct Vector2 {
 	}
 
 	// Provide cached std::cos(angle_radians) and std::sin(angle_radians) values.
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] Vector2<S> Rotated(S cos_angle_radians, S sin_angle_radians) const {
 		return { x * cos_angle_radians - y * sin_angle_radians,
 				 x * sin_angle_radians + y * cos_angle_radians };
@@ -248,12 +241,12 @@ struct Vector2 {
 	 *               |
 	 *            1.5708
 	 */
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] S Angle() const {
 		return std::atan2(static_cast<S>(y), static_cast<S>(x));
 	}
 
-	template <typename S = typename std::common_type_t<T, float>, tt::floating_point<S> = true>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] S Angle(const Vector2& target) const {
 		S mag1{ MagnitudeSquared() };
 		S mag2{ target.MagnitudeSquared() };
@@ -286,10 +279,10 @@ struct Vector2 {
 	}
 };
 
-template <typename T>
+template <Arithmetic T>
 void to_json(json& j, const Vector2<T>& vector);
 
-template <typename T>
+template <Arithmetic T>
 void from_json(const json& j, Vector2<T>& vector);
 
 using V2_int	= Vector2<int>;
@@ -298,70 +291,65 @@ using V2_size	= Vector2<std::size_t>;
 using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
 
-template <typename S, ptgn::tt::stream_writable<std::ostream, S> = true>
+template <StreamWritable S> /* Some types such as std::uint8_t are not stream writable */
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector2<S>& v) {
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator+(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { static_cast<S>(lhs.x) + static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) + static_cast<S>(rhs.y) };
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator-(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { static_cast<S>(lhs.x) - static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) - static_cast<S>(rhs.y) };
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { static_cast<S>(lhs.x) * static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) * static_cast<S>(rhs.y) };
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, const Vector2<U>& rhs) {
 	return { static_cast<S>(lhs.x) / static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) / static_cast<S>(rhs.y) };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<V> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
+
 [[nodiscard]] constexpr Vector2<S> operator*(V lhs, const Vector2<U>& rhs) {
 	return { static_cast<S>(lhs) * static_cast<S>(rhs.x),
 			 static_cast<S>(lhs) * static_cast<S>(rhs.y) };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector2<S> operator*(const Vector2<V>& lhs, U rhs) {
 	return { static_cast<S>(lhs.x) * static_cast<S>(rhs),
 			 static_cast<S>(lhs.y) * static_cast<S>(rhs) };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<V> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
+
 [[nodiscard]] constexpr Vector2<S> operator/(V lhs, const Vector2<U>& rhs) {
 	return { static_cast<S>(lhs) / static_cast<S>(rhs.x),
 			 static_cast<S>(lhs) / static_cast<S>(rhs.y) };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
+
 [[nodiscard]] constexpr Vector2<S> operator/(const Vector2<V>& lhs, U rhs) {
 	return { static_cast<S>(lhs.x) / static_cast<S>(rhs),
 			 static_cast<S>(lhs.y) / static_cast<S>(rhs) };
 }
 
 // Clamp both components of a vector between min and max (component specific).
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Clamp(
 	const Vector2<T>& vector, const Vector2<T>& min, const Vector2<T>& max
 ) {
@@ -370,7 +358,7 @@ template <typename T>
 
 // Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector clamped
 // between -1 and 1 will be (0.7, 0.7)
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Clamp(const Vector2<T>& vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
 	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
@@ -383,7 +371,7 @@ template <typename T>
 }
 
 // @return True if both the components of a and b are within margin of each other.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline bool WithinMargin(
 	const Vector2<T>& a, const Vector2<T>& b, const Vector2<T>& margin
 ) {
@@ -391,44 +379,44 @@ template <typename T>
 }
 
 // Ceil both components of a vector.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Ceil(const Vector2<T>& vector) {
 	return { Ceil(vector.x), Ceil(vector.y) };
 }
 
 // Floor both components of a vector.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Floor(const Vector2<T>& vector) {
 	return { Floor(vector.x), Floor(vector.y) };
 }
 
 // Round both components of a vector.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Round(const Vector2<T>& vector) {
 	return { Round(vector.x), Round(vector.y) };
 }
 
 // Absolute value for both components of a vector.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Abs(const Vector2<T>& vector) {
 	return { Abs(vector.x), Abs(vector.y) };
 }
 
 // Swap both components of vectors a and b.
-template <typename T>
+template <Arithmetic T>
 inline void Swap(Vector2<T>& a, Vector2<T>& b) {
 	std::swap(a.x, b.x);
 	std::swap(a.y, b.y);
 }
 
 // Linearly interpolate both components of a vector.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Lerp(const Vector2<T>& lhs, const Vector2<T>& rhs, T t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
 // Linearly interpolate both components of a vector by their respective t values.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Lerp(
 	const Vector2<T>& lhs, const Vector2<T>& rhs, const Vector2<T>& t
 ) {
@@ -436,19 +424,19 @@ template <typename T>
 }
 
 // @return The midpoint between vectors a and b.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Midpoint(const Vector2<T>& a, const Vector2<T>& b) {
 	return Vector2<T>{ (a + b) / 2.0f };
 }
 
 // @return The larger component of a vector.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline T Max(const Vector2<T>& vector) {
 	return std::max(vector.x, vector.y);
 }
 
 // @return The smaller component of a vector.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline T Min(const Vector2<T>& vector) {
 	return std::min(vector.x, vector.y);
 }
@@ -457,7 +445,7 @@ template <typename T>
 
 // Custom hashing function for Vector2 class.
 // This allows for use of unordered maps and sets with Vector2s as keys.
-template <typename T>
+template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector2<T>> {
 	std::size_t operator()(const ptgn::Vector2<T>& v) const noexcept {
 		// Hashing combination algorithm from:

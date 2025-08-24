@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "common/type_traits.h"
+#include "common/concepts.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
@@ -99,7 +99,12 @@ struct TextProperties {
 	)
 };
 
-class Text : public Entity, public Drawable<Text> {
+template <typename T>
+concept TextParameter = IsAnyOf<
+	T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode, FontSize, TextLineSkip,
+	TextShadingColor, TextWrapAfter, TextOutline, TextJustify>;
+
+class Text : public Entity {
 public:
 	Text() = default;
 
@@ -179,11 +184,7 @@ public:
 	void SetProperties(const TextProperties& properties);
 
 	// @return True if the parameter was changed.
-	template <
-		typename T,
-		tt::enable<tt::is_any_of_v<
-			T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-			TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>> = true>
+	template <TextParameter T>
 	bool SetParameter(const T& value, bool recreate_texture = true) {
 		if (!Has<T>()) {
 			Add<T>(value);
@@ -225,12 +226,8 @@ private:
 		return GetParameter<T>(*this, default_value);
 	}
 
-	template <typename T>
+	template <TextParameter T>
 	[[nodiscard]] static const T& GetParameter(const Entity& text, const T& default_value) {
-		static_assert(tt::is_any_of_v<
-					  T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode,
-					  FontSize, TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline,
-					  TextJustify>);
 		if (!text.Has<T>()) {
 			return default_value;
 		}
@@ -240,6 +237,8 @@ private:
 private:
 	[[nodiscard]] const impl::Texture& GetTexture() const;
 };
+
+PTGN_DRAWABLE_REGISTER(Text);
 
 // @param font_key Default: {} corresponds to the default engine font (use
 // game.font.SetDefault(...) to change.

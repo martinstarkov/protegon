@@ -5,7 +5,7 @@
 #include <string_view>
 
 #include "common/macro.h"
-#include "common/type_traits.h"
+
 #include "serialization/enum.h"
 #include "serialization/json.h"
 

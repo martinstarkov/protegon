@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common/assert.h"
-#include "common/type_traits.h"
 #include "components/utility.h"
 #include "components/uuid.h"
 #include "core/entity_hierarchy.h"
@@ -160,7 +159,7 @@ public:
 	friend void from_json(const json& j, Entity& entity);
 
 	// Converts the specified entity components to a JSON object.
-	template <typename... Ts>
+	template <JsonSerializable... Ts>
 	[[nodiscard]] json Serialize() const {
 		PTGN_ASSERT(*this, "Cannot serialize a null entity");
 
@@ -177,7 +176,7 @@ public:
 
 	// Populates the entity's components based on a JSON object. Does not impact existing
 	// components, unless they are specified as part of Ts, in which case they are replaced.
-	template <typename... Ts>
+	template <JsonDeserializable... Ts>
 	void Deserialize(const json& j) {
 		if constexpr (sizeof...(Ts) == 0) {
 			DeserializeAllImpl(j);
@@ -252,11 +251,8 @@ private:
 		return EntityBase::TryGet<T>();
 	}
 
-	template <typename T>
+	template <JsonSerializable T>
 	void SerializeImpl(json& j) const {
-		static_assert(
-			tt::has_to_json_v<T>, "Component has not been registered with the serializer"
-		);
 		PTGN_ASSERT(Has<T>(), "Entity must have component which is being serialized");
 		constexpr auto component_name{ type_name_without_namespaces<T>() };
 		j[component_name] = GetImpl<T>();
@@ -264,11 +260,8 @@ private:
 
 	void SerializeAllImpl(json& j) const;
 
-	template <typename T>
+	template <JsonDeserializable T>
 	void DeserializeImpl(const json& j) {
-		static_assert(
-			tt::has_from_json_v<T>, "Component has not been registered with the serializer"
-		);
 		constexpr auto component_name{ type_name_without_namespaces<T>() };
 		PTGN_ASSERT(j.contains(component_name), "JSON does not contain ", component_name);
 		j[component_name].get_to(TryAdd<T>());

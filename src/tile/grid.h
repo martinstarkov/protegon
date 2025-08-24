@@ -1,11 +1,11 @@
 #pragma once
 
+#include <concepts>
 #include <functional>
 #include <type_traits>
 #include <vector>
 
 #include "common/assert.h"
-#include "common/type_traits.h"
 #include "math/vector2.h"
 
 // TODO: Add serialization.
@@ -13,10 +13,8 @@
 namespace ptgn {
 
 template <typename T>
+	requires std::is_default_constructible_v<T> && std::is_move_constructible_v<T>
 class Grid {
-	static_assert(std::is_default_constructible_v<T>);
-	static_assert(std::is_move_constructible_v<T>);
-
 public:
 	Grid() = default;
 

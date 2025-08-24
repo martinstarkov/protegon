@@ -2,8 +2,9 @@
 
 #include <array>
 #include <cstdint>
+#include <type_traits>
 
-#include "common/type_traits.h"
+#include "common/concepts.h"
 
 namespace ptgn::impl {
 
@@ -97,10 +98,10 @@ constexpr GLBinding GetGLBinding() {
 }
 
 template <typename T>
-inline constexpr bool is_vertex_data_type{ tt::is_any_of_v<
+concept VertexDataType = IsAnyOf<
 	T, glsl::float_, glsl::vec2, glsl::vec3, glsl::vec4, glsl::double_, glsl::dvec2, glsl::dvec3,
 	glsl::dvec4, glsl::bool_, glsl::bvec2, glsl::bvec3, glsl::bvec4, glsl::int_, glsl::ivec2,
-	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4> };
+	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4>;
 
 enum class GLType : std::uint32_t {
 	None		  = 0,
@@ -115,14 +116,12 @@ enum class GLType : std::uint32_t {
 };
 
 template <typename T>
-[[nodiscard]] constexpr GLType GetType() {
-	static_assert(
-		tt::is_any_of_v<
-			T, float, double, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t,
-			std::uint8_t, bool>,
-		"Cannot retrieve type which is not supported by OpenGL"
-	);
+concept SupportedGLType = IsAnyOf<
+	T, float, double, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t,
+	std::uint8_t, bool>;
 
+template <SupportedGLType T>
+[[nodiscard]] constexpr GLType GetType() {
 	if constexpr (std::is_same_v<T, float>) {
 		return GLType::Float;
 	} else if constexpr (std::is_same_v<T, double>) {

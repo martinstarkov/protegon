@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -69,12 +70,12 @@ public:
 	// @return The path with which the resource was loaded.
 	[[nodiscard]] const path& GetPath(const HandleType& key) const;
 
-	friend void to_json<Derived, HandleType, ItemType>(
-		json&, const ResourceManager<Derived, HandleType, ItemType>&
-	);
-	friend void from_json<Derived, HandleType, ItemType>(
-		const json&, ResourceManager<Derived, HandleType, ItemType>&
-	);
+	friend void to_json<
+		Derived, HandleType,
+		ItemType>(json&, const ResourceManager<Derived, HandleType, ItemType>&);
+	friend void from_json<
+		Derived, HandleType,
+		ItemType>(const json&, ResourceManager<Derived, HandleType, ItemType>&);
 
 protected:
 	[[nodiscard]] const ItemType& Get(const HandleType& key) const;
@@ -109,7 +110,7 @@ public:
 	);
 
 	// TODO: Add check that provided keys are hashable.
-	// static_assert(use_hash ? tt::is_hashable<Key, InternalKey> : true);
+	// static_assert(use_hash ? is_hashable<Key, InternalKey> : true);
 
 	MapManager()								 = default;
 	virtual ~MapManager()						 = default;
@@ -124,11 +125,8 @@ public:
 	 * @return Reference to the loaded item.
 	 */
 	template <typename TKey, typename... TArgs>
+		requires std::constructible_from<Item, TArgs...>
 	Item& Load(const TKey& key, TArgs&&... constructor_args) {
-		static_assert(
-			std::is_constructible_v<Item, TArgs...>,
-			"Manager item must be constructible from provided constructor arguments"
-		);
 		auto [it, inserted] =
 			map_.try_emplace(GetInternalKey(key), std::forward<TArgs>(constructor_args)...);
 		return it->second;
@@ -359,7 +357,8 @@ public:
 	 * on equals comparison), nothing happens.
 	 * @return Reference to the loaded nameless item.
 	 */
-	template <typename... TArgs, tt::constructible<Item, TArgs...> = true>
+	template <typename... TArgs>
+		requires std::constructible_from<Item, TArgs...>
 	[[nodiscard]] Item& Load(TArgs&&... constructor_args) {
 		return nameless_.emplace_back(std::forward<TArgs>(constructor_args)...);
 	}

@@ -3,10 +3,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "common/assert.h"
 #include "renderer/buffers/buffer.h"
 #include "renderer/buffers/buffer_layout.h"
 #include "renderer/gl/gl_types.h"
-#include "common/assert.h"
 
 namespace ptgn::impl {
 
@@ -40,14 +40,9 @@ public:
 	void SetVertexBuffer(VertexBuffer&& new_vertex_buffer);
 	void SetIndexBuffer(IndexBuffer&& new_index_buffer);
 
-	template <typename... Ts>
+	template <VertexDataType... Ts>
+		requires NonEmptyPack<Ts...>
 	void SetVertexBufferLayout(const BufferLayout<Ts...>& layout) {
-		static_assert(
-			(is_vertex_data_type<Ts> && ...),
-			"Provided vertex type should only contain ptgn::glsl:: types"
-		);
-		static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
-
 		PTGN_ASSERT(
 			!layout.IsEmpty(),
 			"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"

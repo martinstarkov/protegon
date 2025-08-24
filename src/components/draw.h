@@ -5,7 +5,6 @@
 #include <string_view>
 #include <vector>
 
-#include "common/type_traits.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "math/vector2.h"
@@ -65,7 +64,7 @@ Entity& SetDrawOrigin(Entity& entity, Origin origin);
 [[nodiscard]] Origin GetDrawOrigin(const Entity& entity);
 
 // @return entity.
-template <typename T, tt::enable<tt::has_static_draw_v<T>> = true>
+template <DrawableType T>
 Entity& SetDraw(Entity& entity) {
 	return impl::SetDrawImpl(entity, type_name<T>());
 }

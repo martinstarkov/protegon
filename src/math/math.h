@@ -1,27 +1,28 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
-#include <limits>
+#include <tuple>
 #include <type_traits>
-#include <utility>
 
 #include "common/assert.h"
-#include "common/type_traits.h"
+#include "common/concepts.h"
+#include "math/tolerance.h"
 
 namespace ptgn {
 
 namespace impl {
 
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 class Pi {};
 
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 class TwoPi {};
 
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 class HalfPi {};
 
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 class SqrtTwo {};
 
 template <>
@@ -90,40 +91,39 @@ public:
 
 } // namespace impl
 
-template <typename T = float, tt::floating_point<T> = true>
+template <std::floating_point T = float>
 inline constexpr T pi{ impl::Pi<T>::value() };
-template <typename T = float, tt::floating_point<T> = true>
+
+template <std::floating_point T = float>
 inline constexpr T two_pi{ impl::TwoPi<T>::value() };
-template <typename T = float, tt::floating_point<T> = true>
+
+template <std::floating_point T = float>
 inline constexpr T half_pi{ impl::HalfPi<T>::value() };
-template <typename T = float, tt::floating_point<T> = true>
+
+template <std::floating_point T = float>
 inline constexpr T sqrt_two{ impl::SqrtTwo<T>::value() };
-template <typename T = float>
-inline constexpr T epsilon{ std::numeric_limits<T>::epsilon() };
-template <typename T = float>
-inline constexpr T epsilon2{ epsilon<T> * epsilon<T> };
 
 // Convert degrees to radians.
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 [[nodiscard]] constexpr T DegToRad(T angle_degrees) {
 	return angle_degrees * pi<T> / T{ 180 };
 }
 
 // Convert radians to degrees.
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 [[nodiscard]] constexpr T RadToDeg(T angle_radians) {
 	return angle_radians / pi<T> * T{ 180 };
 }
 
 // Modulo operator which supports wrapping negative numbers.
 // e.g. Mod(-1, 2) returns 1.
-template <typename T, tt::integral<T> = true>
+template <std::integral T>
 [[nodiscard]] T Mod(T a, T b) {
 	return (a % b + b) % b;
 }
 
 // Angle in degrees from [0, 360).
-template <typename T, tt::arithmetic<T> = true>
+template <Arithmetic T>
 [[nodiscard]] T ClampAngle360(T angle_degrees) {
 	T clamped{ 0 };
 
@@ -141,7 +141,7 @@ template <typename T, tt::arithmetic<T> = true>
 }
 
 // @return Angle in radians in range [0, 2 pi).
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 [[nodiscard]] T ClampAngle2Pi(T angle_radians) {
 	T clamped{ std::fmod(angle_radians, two_pi<T>) };
 
@@ -218,32 +218,9 @@ template <typename T>
 	return a > b ? a : b;
 }
 
-// Source: https://stackoverflow.com/a/65015333
-// Compare two floating point numbers using relative tolerance and absolute
-// tolerances. The absolute tolerance test fails when x and y become large. The
-// relative tolerance test fails when x and y become small.
-template <typename T>
-[[nodiscard]] bool
-NearlyEqual(T a, T b, T abs_tol = T{ 10 } * epsilon<T>, T rel_tol = T{ 10 } * epsilon<T>) noexcept {
-	if constexpr (std::is_floating_point_v<T>) {
-		// TODO: Fix this.
-		bool a_inf{ std::isinf(a) };
-		bool b_inf{ std::isinf(b) };
-		if (a_inf || b_inf) {
-			if (a_inf && b_inf) {
-				return true;
-			}
-			return false;
-		}
-		return a == b || Abs(a - b) <= std::max(abs_tol, rel_tol * std::max(Abs(a), Abs(b)));
-	} else {
-		return a == b;
-	}
-}
-
 // Returns true if there is a real solution followed by both roots
 // (equal if repeated), false and roots of 0 if imaginary.
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 [[nodiscard]] std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
 	const T disc{ b * b - 4.0f * a * c };
 	if (disc < 0.0f) {
@@ -262,29 +239,31 @@ template <typename T, tt::floating_point<T> = true>
 
 // Triangle wave mimicking the typical sine wave. y values in range [-1, 1], x values in domain [0,
 // 1]. Starts from y=0 going toward y=1.
-template <typename T, tt::floating_point<T> = true>
+template <std::floating_point T>
 [[nodiscard]] T TriangleWave(
 	T t, T period = static_cast<T>(1.0), T phase_shift = static_cast<T>(0.0)
 ) {
 	PTGN_ASSERT(period != static_cast<T>(0.0), "Triangle wave period can not be 0");
+
 	t += phase_shift + static_cast<T>(0.25);
 	t /= period;
+
 	return static_cast<T>(2.0) * Abs(static_cast<T>(2.0) * (t - Floor(t + static_cast<T>(0.5)))) -
 		   static_cast<T>(1.0);
 }
 
-template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>
+template <Arithmetic T, std::floating_point U>
 [[nodiscard]] U Lerp(T a, T b, U t) {
 	return a + t * (b - a);
 }
 
-template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>
+template <Arithmetic T, std::floating_point U>
 [[nodiscard]] U CosineInterpolate(T a, T b, U t) {
 	return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)));
 }
 
 // From https://paulbourke.net/miscellaneous/interpolation/
-template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U> = true>
+template <Arithmetic T, std::floating_point U>
 [[nodiscard]] U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
 	U mu2 = t * t;
 	U a0  = y3 - y2 - y0 + y1;
@@ -294,23 +273,23 @@ template <typename T, typename U, tt::arithmetic<T> = true, tt::floating_point<U
 	return (a0 * t * mu2 + a1 * mu2 + a2 * t + a3);
 }
 
-template <typename U, tt::floating_point<U> = true>
+template <std::floating_point U>
 [[nodiscard]] U Quintic(U t) {
 	return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 }
 
-template <typename U, tt::floating_point<U> = true>
+template <std::floating_point U>
 [[nodiscard]] U QuinticInterpolate(U a, U b, U t) {
 	return Lerp(a, b, Quintic(t));
 }
 
-template <typename U, tt::floating_point<U> = true>
+template <std::floating_point U>
 [[nodiscard]] U Smoothstep(U t) {
 	return t * t * (3.0f - 2.0f * t);
 }
 
 // From: https://en.wikipedia.org/wiki/Smoothstep
-template <typename U, tt::floating_point<U> = true>
+template <std::floating_point U>
 [[nodiscard]] U SmoothstepInterpolate(U a, U b, U t) {
 	return Lerp(a, b, Smoothstep(t));
 }
