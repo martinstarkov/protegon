@@ -1,10 +1,9 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
-#include <iosfwd>
 #include <ostream>
 
-#include "common/type_traits.h"
 #include "math/math.h"
 #include "math/vector4.h"
 #include "serialization/fwd.h"
@@ -46,23 +45,24 @@ struct Color {
 		);
 	}
 
-	// @param alpha [0.0f, 1.0f] value of transparency to set for the color.
+	// @param alpha Value of transparency to set for the color.
 	// @return A copy of the color with the alpha value changed.
-	[[nodiscard]] constexpr Color WithAlpha(float alpha) const {
-		Color c{ *this };
-		c.a = static_cast<std::uint8_t>(255.0f * alpha);
-		return c;
+	template <Arithmetic T>
+	[[nodiscard]] constexpr Color WithAlpha(T alpha) const {
+		if constexpr (std::is_floating_point_v<T>) {
+			PTGN_ASSERT(alpha >= 0.0 && alpha <= 1.0, "Alpha out of range");
+			Color c{ *this };
+			c.a = static_cast<std::uint8_t>(255.0f * alpha);
+			return c;
+		} else {
+			PTGN_ASSERT(alpha >= 0 && alpha <= 255, "Alpha out of range");
+			Color c{ *this };
+			c.a = static_cast<std::uint8_t>(alpha);
+			return c;
+		}
 	}
 
-	// @param alpha [0, 255] value of transparency to set for the color.
-	// @return A copy of the color with the alpha value changed.
-	[[nodiscard]] constexpr Color WithAlpha(std::uint8_t alpha) const {
-		Color c{ *this };
-		c.a = alpha;
-		return c;
-	}
-
-	// @return Color values normalized to 0.0f -> 1.0f range.
+	// @return Color values normalized to [0, 1] range.
 	[[nodiscard]] constexpr V4_float Normalized() const {
 		return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
 				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
@@ -71,20 +71,14 @@ struct Color {
 	[[nodiscard]] static Color RandomOpaque();
 	[[nodiscard]] static Color RandomTransparent();
 
-	[[nodiscard]] friend bool operator==(const Color& lhs, const Color& rhs) {
-		return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a;
-	}
-
-	[[nodiscard]] friend bool operator!=(const Color& lhs, const Color& rhs) {
-		return !operator==(lhs, rhs);
-	}
+	bool operator==(const Color&) const = default;
 
 	friend void to_json(json& j, const Color& color);
 
 	friend void from_json(const json& j, Color& color);
 };
 
-template <typename U, tt::floating_point<U> = true>
+template <std::floating_point U>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
 				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
@@ -92,7 +86,7 @@ template <typename U, tt::floating_point<U> = true>
 				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
 }
 
-template <typename U, tt::floating_point<U> = true>
+template <std::floating_point U>
 [[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),
 				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t_g)),
