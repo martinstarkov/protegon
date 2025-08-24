@@ -346,12 +346,12 @@ public:
 		}
 
 		DrawDebugText(
-			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
-			false
+			content, center - 0 * V2_float{ 0.0f, font_size.GetValue() }, color, Origin::Center,
+			font_size, false
 		);
 		DrawDebugText(
-			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
-			true
+			content, center + 1 * V2_float{ 0.0f, font_size.GetValue() }, color, Origin::Center,
+			font_size, true
 		);
 	}
 };
