@@ -38,11 +38,11 @@ struct ComponentHookScene : public Scene {
 	}
 
 	void Update() override {
-		if (input.KeyDown(Key::E)) {
+		if (input.KeyDown(Key::A)) {
 			CreateEntity().Add<Test>();
 		}
 
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyDown(Key::C)) {
 			for (Entity e : list) {
 				e.Destroy();
 			}
@@ -54,7 +54,7 @@ struct ComponentHookScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ComponentHookScene", window_size);
+	game.Init("ComponentHookScene: A: Add Entity, C: Clear Entities", window_size);
 	game.scene.Enter<ComponentHookScene>("");
 	return 0;
 }

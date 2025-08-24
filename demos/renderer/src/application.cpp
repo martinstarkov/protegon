@@ -32,7 +32,7 @@ RNG<float> size_rng{ 10.0f, 70.0f };
 RNG<float> light_radius_rng{ 10.0f, 200.0f };
 RNG<float> intensity_rng{ 0.0f, 10.0f };
 
-class PostProcessingEffect : public Drawable<PostProcessingEffect> {
+class PostProcessingEffect {
 public:
 	PostProcessingEffect() {}
 
@@ -45,6 +45,8 @@ public:
 		ctx.AddShader(entity, state, color::Transparent);
 	}
 };
+
+PTGN_DRAWABLE_REGISTER(PostProcessingEffect);
 
 Entity CreatePostFX(Scene& scene) {
 	auto effect{ scene.CreateEntity() };

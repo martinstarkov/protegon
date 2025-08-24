@@ -7,11 +7,9 @@
 #include "core/game.h"
 #include "core/script.h"
 #include "core/window.h"
-#include "input/input_handler.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
-#include "renderer/texture.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -398,11 +396,6 @@ struct ScriptC3 : public Script<ScriptC3, KeyScript, MouseScript, DragScript> {
 };
 
 struct InteractiveScene : public Scene {
-	Sprite r4;
-	Sprite c3;
-	const float rotation_speed{ 1.0f };
-	const float zoom_speed{ 0.4f };
-
 	Entity CreateInteractiveCircle(float radius) {
 		auto entity = CreateEntity(*this);
 		entity.Add<Circle>(radius);
@@ -416,17 +409,8 @@ struct InteractiveScene : public Scene {
 	}
 
 	void Enter() override {
-		SetBackgroundColor(color::LightBlue);
 		game.window.SetSetting(WindowSetting::Resizable);
-		game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
-		RenderTarget rt{ GetRenderTarget() };
-		SetRotation(rt, DegToRad(45.0f));
-		SetScale(rt, 0.5f);
-		SetPosition(rt, V2_float{ 600, 0 });
-		SetBackgroundColor(color::LightGray);
-		camera.SetViewportSize({ 400, 800 });
-		SetPosition(camera, { 400, 400 });
-		// game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
+
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(10.0f);
 
@@ -434,7 +418,6 @@ struct InteractiveScene : public Scene {
 						{ "drag_circle", "resources/drag_circle.png" },
 						{ "dropzone", "resources/dropzone.png" } });
 
-		V2_float ws{ game.window.GetSize() };
 		V2_float center{ GetTransform(camera).GetPosition() };
 
 		V2_float offset{ 250, 250 };
@@ -475,7 +458,7 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r2, std::move(r2_child));
 		AddScript<ScriptR2>(r2);
 
-		r4			  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
+		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateInteractiveRect(rsize * 2);
 		AddInteractable(r4, std::move(r4_child));
 		r4.Add<Dropzone>();
@@ -490,7 +473,7 @@ struct InteractiveScene : public Scene {
 
 		PTGN_LOG("Rect drag id: ", r3.GetId());
 
-		c3 = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
+		auto c3 = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
 		// TODO: Figure out why having a sprite hides the interactive.
 		Hide(c3);
 		auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
@@ -499,88 +482,42 @@ struct InteractiveScene : public Scene {
 		AddScript<ScriptC3>(c3);
 
 		PTGN_LOG("Circle drag id: ", c3.GetId());
-
-		// Refresh();
-		// PTGN_LOG("Entity count: ", Size());
 	}
 
+	const float rotation_speed{ 1.0f };
+	const float zoom_speed{ 0.4f };
+
 	void Update() override {
-		if (input.KeyDown(Key::E)) {
-			input.SetTopOnly(false);
-			PTGN_LOG("Setting top input only: false");
-		} else if (input.KeyDown(Key::Q)) {
-			input.SetTopOnly(true);
-			PTGN_LOG("Setting top input only: true");
-		}
-		// if (input.KeyDown(Key::Z)) {
-		//	// RemoveInteractive(c3);
-		//	// PTGN_LOG("Entity count: ", Size());
-		//	SetInteractive(c3, false);
-		// }
-		// if (input.KeyDown(Key::C)) {
-		//	// auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
-		//	// AddInteractable(c3, std::move(c3_child));
-		//	SetInteractive(c3, true);
-		// }
-
-		if (input.KeyDown(Key::I)) {
-			PTGN_LOG("c3: ", GetAbsoluteTransform(c3));
-			PTGN_LOG("scene camera viewport size: ", camera.GetViewportSize());
+		if (input.KeyDown(Key::T)) {
+			bool desired{ !input.IsTopOnly() };
+			input.SetTopOnly(desired);
+			PTGN_LOG("Top only input: ", desired);
 		}
 
-		constexpr V2_float speed{ 3.0f, 3.0f };
-		V2_float pos{ GetPosition(camera) };
-		MoveWASD(pos, speed, false);
-		SetPosition(camera, pos);
+		MoveWASD(camera, { 3.0f, 3.0f });
 
 		auto dt{ game.dt() };
 
-		if (input.KeyPressed(Key::Z)) {
+		if (input.KeyPressed(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
 		}
-		if (input.KeyPressed(Key::X)) {
+		if (input.KeyPressed(Key::E)) {
 			Rotate(camera, -rotation_speed * dt);
 		}
-		if (input.KeyPressed(Key::E)) {
+		if (input.KeyPressed(Key::Z)) {
 			camera.Zoom(zoom_speed * dt);
 		}
-		if (input.KeyPressed(Key::Q)) {
+		if (input.KeyPressed(Key::C)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
-
-		constexpr V2_float speed2{ 3.0f, 3.0f };
-		V2_float pos2{ GetPosition(GetRenderTarget()) };
-		MoveArrowKeys(pos2, speed2, false);
-		RenderTarget testing{ GetRenderTarget() };
-		SetPosition(testing, pos2);
-
-		if (input.KeyPressed(Key::R)) {
-			Rotate(testing, rotation_speed * dt);
-		}
-		if (input.KeyPressed(Key::T)) {
-			Rotate(testing, -rotation_speed * dt);
-		}
-		if (input.KeyPressed(Key::F)) {
-			SetScale(testing, GetScale(testing) + V2_float{ zoom_speed * dt });
-		}
-		if (input.KeyPressed(Key::G)) {
-			SetScale(testing, GetScale(testing) + V2_float{ -zoom_speed * dt });
-		}
-
-		/*const auto& dropped{ r4.Get<Dropzone>().dropped_entities };
-		Print("Dropped: ");
-		for (auto d : dropped) {
-			Print(d.GetId(), ", ");
-		}
-		PrintLine();*/
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init(
-		"InteractiveScene: Q/E: Toggle TopOnly, WASD/ZC: "
-		"Move/Rotate Camera",
-		{ 1200, 800 }
+		"InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
+		"Move/Rotate/Zoom Camera",
+		{ 800, 800 }
 	);
 	game.scene.Enter<InteractiveScene>("");
 	return 0;

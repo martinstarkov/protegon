@@ -220,7 +220,7 @@ seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (input.MouseDown(Mous
 };
 */
 
-class PostProcessingEffect : public Drawable<PostProcessingEffect> {
+class PostProcessingEffect {
 public:
 	PostProcessingEffect() {}
 
@@ -233,6 +233,8 @@ public:
 		ctx.AddShader(entity, state, color::Transparent);
 	}
 };
+
+PTGN_DRAWABLE_REGISTER(PostProcessingEffect);
 
 Entity CreatePostFX(Scene& scene) {
 	auto effect{ scene.CreateEntity() };
