@@ -24,6 +24,8 @@ class Manager;
 
 namespace impl {
 
+struct Offsets;
+
 template <typename T>
 struct Effect {
 	Effect() = default;
@@ -50,9 +52,12 @@ struct FollowEffect {
 
 	std::size_t current_waypoint{ 0 };
 
+	// Cache for comparing when a waypoint path changes.
+	std::vector<V2_float> waypoints;
+
 	bool operator==(const FollowEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, current_waypoint)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, current_waypoint, waypoints)
 };
 
 struct BounceEffect {
@@ -135,6 +140,19 @@ void BounceImpl(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
 );
+
+void ApplyShake(impl::Offsets& offsets, float trauma, const ShakeConfig& config, std::int32_t seed);
+
+V2_float GetFollowPosition(
+	const impl::FollowConfig& config, const V2_float& position, const V2_float& target_position,
+	const Ease& ease
+);
+
+void VelocityModeMoveImpl(const impl::FollowConfig& config, Entity& parent, const V2_float& dir);
+
+void EntityFollowStartImpl(Entity& tween, Entity& parent, const impl::FollowConfig& config);
+
+void EntityFollowStopImpl(Entity tween);
 
 } // namespace impl
 
@@ -353,10 +371,13 @@ void StartFollow(Entity entity, Entity target, TargetFollowConfig config = {}, b
  * @param waypoints The set of waypoints the entity will visit during the follow.
  * @param config The configuration parameters that define how the follow behavior should operate.
  * @param force If true, forces the replacement of any existing follow behavior on the entity.
+ * @param reset_waypoint_index If true, resets the waypoint index to 0. If false, continues where it
+ * started as long as waypoints have not changed or the end has not been reached (if
+ * config.loop_path is false).
  */
 void StartFollow(
 	Entity entity, const std::vector<V2_float>& waypoints, PathFollowConfig config = {},
-	bool force = true
+	bool force = true, bool reset_waypoint_index = false
 );
 
 /**
@@ -364,7 +385,10 @@ void StartFollow(
  *
  * @param entity The entity whose follow behavior should be stopped.
  * @param force If true, clears all queued follows effects.
+ * @param reset_previous_waypoints If true, resets the previously set waypoints. If false, a new
+ * follow will continue where it started as long as waypoints have not changed or the end has not
+ * been reached (if config.loop_path is false).
  */
-void StopFollow(Entity entity, bool force = true);
+void StopFollow(Entity entity, bool force = true, bool reset_previous_waypoints = false);
 
 } // namespace ptgn
