@@ -151,8 +151,8 @@ void ShaderPass::Invoke(Entity entity) const {
 }
 
 DrawContext::DrawContext(const V2_int& size) :
-	frame_buffer{ impl::Texture{
-		nullptr, size, HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888 } },
+	frame_buffer{ Texture{ nullptr, size,
+						   HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888 } },
 	timer{ true } {}
 
 DrawContextPool::DrawContextPool(milliseconds max_age) : max_age_{ max_age } {}
@@ -239,7 +239,7 @@ void RenderData::AddLines(
 		Line l{ line_points[i], line_points[(i + 1) % vertex_modulo] };
 		auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 		auto quad_vertices{
-			impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
+			GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
 		};
 
 		AddVertices(quad_vertices, quad_indices);
@@ -256,7 +256,7 @@ void RenderData::AddLine(
 	auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 
 	auto quad_vertices{
-		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
+		GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
 	};
 
 	SetState(state);
@@ -267,7 +267,7 @@ void RenderData::AddTriangle(
 	const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	auto triangle_vertices{ impl::GetTriangleVertices(triangle_points, tint, depth) };
+	auto triangle_vertices{ GetTriangleVertices(triangle_points, tint, depth) };
 
 	AddShape(triangle_vertices, triangle_indices, triangle_points, line_width, state);
 }
@@ -279,7 +279,7 @@ void RenderData::AddQuad(
 	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw quad with invalid size");
 	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	auto quad_vertices{
-		impl::GetQuadVertices(quad_points, tint, depth, 0.0f, impl::default_texture_coordinates)
+		GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
 	};
 
 	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
@@ -295,7 +295,7 @@ void RenderData::AddPolygon(
 		SetState(state);
 		auto triangles{ Triangulate(polygon_points.data(), polygon_points.size()) };
 		for (const auto& triangle : triangles) {
-			auto triangle_vertices{ impl::GetTriangleVertices(triangle, tint, depth) };
+			auto triangle_vertices{ GetTriangleVertices(triangle, tint, depth) };
 			AddVertices(triangle_vertices, triangle_indices);
 		}
 	} else {
@@ -327,9 +327,9 @@ void RenderData::AddEllipse(
 	}
 
 	auto quad_points{ Rect{ radii * 2.0f }.GetWorldVertices(transform) };
-	auto points{ impl::GetQuadVertices(
-		quad_points, tint, depth, line_width, impl::default_texture_coordinates
-	) };
+	auto points{
+		GetQuadVertices(quad_points, tint, depth, line_width, default_texture_coordinates)
+	};
 
 	SetState(state);
 	AddVertices(points, quad_indices);
@@ -402,7 +402,7 @@ void RenderData::AddTexturedQuad(
 	auto texture_points{ Rect{ size }.GetWorldVertices(transform, origin) };
 
 	auto texture_vertices{
-		impl::GetQuadVertices(texture_points, tint, depth, 0.0f, texture_coordinates, false)
+		GetQuadVertices(texture_points, tint, depth, 0.0f, texture_coordinates, false)
 	};
 
 	auto texture_id{ texture.GetId() };
@@ -507,7 +507,7 @@ void RenderData::Init() {
 	SetState(RenderState{ {}, BlendMode::None, {} });
 
 	viewport_tracker = render_manager.CreateEntity();
-	AddScript<impl::ViewportResizeScript>(viewport_tracker);
+	AddScript<ViewportResizeScript>(viewport_tracker);
 	auto window_size{ game.window.GetSize() };
 	RecomputeViewport(window_size);
 
@@ -700,7 +700,7 @@ void RenderData::DrawFullscreenQuad(
 
 void RenderData::DrawCall(
 	const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
-	const std::vector<TextureId>& textures, const impl::FrameBuffer* frame_buffer,
+	const std::vector<TextureId>& textures, const FrameBuffer* frame_buffer,
 	bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
 	const Viewport& viewport, const Matrix4& view_projection
 ) {
@@ -923,7 +923,7 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 void RenderData::DrawScene(Scene& scene) {
 	// Loop through render targets and render their display lists onto their internal frame buffers.
 	for (auto [entity, visible, drawable, frame_buffer, display_list] :
-		 scene.InternalEntitiesWith<Visible, IDrawable, impl::FrameBuffer, impl::DisplayList>()) {
+		 scene.InternalEntitiesWith<Visible, IDrawable, FrameBuffer, DisplayList>()) {
 		if (!visible) {
 			continue;
 		}
@@ -1045,7 +1045,7 @@ void RenderData::ClearScreenTarget() const {
 void RenderData::ClearRenderTargets(Scene& scene) const {
 	scene.render_target_.Clear();
 
-	for (auto [entity, frame_buffer] : scene.EntitiesWith<impl::FrameBuffer>()) {
+	for (auto [entity, frame_buffer] : scene.EntitiesWith<FrameBuffer>()) {
 		RenderTarget rt{ entity };
 		rt.Clear();
 		// rt.ClearDisplayList();

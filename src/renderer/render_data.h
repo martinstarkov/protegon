@@ -76,7 +76,7 @@ struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> 
 };
 
 using Index			= std::uint32_t;
-using TextureOrSize = std::variant<std::reference_wrapper<const impl::Texture>, V2_int>;
+using TextureOrSize = std::variant<std::reference_wrapper<const Texture>, V2_int>;
 
 constexpr std::array<V2_float, 4> default_texture_coordinates{
 	V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
@@ -376,7 +376,7 @@ private:
 	 */
 	void DrawCall(
 		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
-		const std::vector<TextureId>& textures, const impl::FrameBuffer* frame_buffer,
+		const std::vector<TextureId>& textures, const FrameBuffer* frame_buffer,
 		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
 		const Viewport& viewport, const Matrix4& view_projection
 	);
