@@ -12,6 +12,8 @@
 
 namespace ptgn {
 
+class Entity;
+
 namespace impl {
 
 void MoveImpl(
@@ -22,6 +24,10 @@ void MoveImpl(
 [[nodiscard]] float MoveTowards(float current, float target, float max_delta);
 
 } // namespace impl
+
+void MoveWASD(Entity& entity, const V2_float& speed);
+
+void MoveArrowKeys(Entity& entity, const V2_float& speed);
 
 void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
 

@@ -57,6 +57,18 @@ float MoveTowards(float current, float target, float maxDelta) {
 
 } // namespace impl
 
+void MoveWASD(Entity& entity, const V2_float& speed) {
+	V2_float position{ GetPosition(entity) };
+	MoveWASD(position, speed, false);
+	SetPosition(entity, position);
+}
+
+void MoveArrowKeys(Entity& entity, const V2_float& speed) {
+	V2_float position{ GetPosition(entity) };
+	MoveArrowKeys(position, speed, false);
+	SetPosition(entity, position);
+}
+
 void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed) {
 	impl::MoveImpl(vel, amount, Key::A, Key::D, Key::W, Key::S, cancel_velocity_if_unpressed);
 }
@@ -292,9 +304,8 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(
-	const V2_float& desired_velocity, RigidBody& rb, float dt
-) const {
+void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
+	const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };
