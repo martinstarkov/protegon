@@ -49,7 +49,7 @@ struct ParticleInfo {
 	bool texture_enabled{ false };
 	bool tint_texture{ true };
 
-	std::size_t total_particles{ 200 };
+	std::size_t max_particles{ 200 };
 
 	milliseconds emission_delay{ 60 };
 	milliseconds lifetime{ 2000 };
@@ -78,6 +78,10 @@ struct ParticleInfo {
 	V2_float position_variance{ 5.0f };
 	V2_float gravity;
 
+	float min_speed{ 0.0f };
+	float max_speed{ 10.0f };
+	bool use_random_velocities{ true };
+
 	// TODO: Implement functionality.
 	Color start_color_variance{ color::Red };
 	Color end_color_variance{ color::Orange };
@@ -87,7 +91,7 @@ struct ParticleInfo {
 	V2_float tangential_acceleration_variance;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		ParticleInfo, texture_key, texture_enabled, tint_texture, total_particles, emission_delay,
+		ParticleInfo, texture_key, texture_enabled, tint_texture, max_particles, emission_delay,
 		lifetime, speed, starting_angle, line_width, particle_shape, start_color, end_color, radius,
 		radius_variance, start_scale, end_scale, lifetime_variance, speed_variance, angle_variance,
 		position_variance, gravity, start_color_variance, end_color_variance, radial_acceleration,
@@ -119,7 +123,7 @@ struct ParticleEmitterComponent {
 
 } // namespace impl
 
-class ParticleEmitter : public Sprite, public Drawable<ParticleEmitter> {
+class ParticleEmitter : public Sprite {
 public:
 	ParticleEmitter() = default;
 
@@ -142,6 +146,11 @@ public:
 
 	ParticleEmitter& SetGravity(const V2_float& particle_gravity);
 	[[nodiscard]] V2_float GetGravity() const;
+
+	// Will make the emitter use random velocities instead of gravity.
+	ParticleEmitter& UseRandomVelocities(
+		float min_speed, float max_speed, bool use_random_velocities = true
+	);
 
 	ParticleEmitter& SetMaxParticles(std::size_t max_particles);
 	[[nodiscard]] std::size_t GetMaxParticles() const;
@@ -166,6 +175,8 @@ private:
 
 	static void Update(Manager& manager);
 };
+
+PTGN_DRAWABLE_REGISTER(ParticleEmitter);
 
 ParticleEmitter CreateParticleEmitter(Manager& manager, const ParticleInfo& info = {});
 
