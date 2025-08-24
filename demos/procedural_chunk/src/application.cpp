@@ -17,6 +17,7 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "tile/chunk.h"
+#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 

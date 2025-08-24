@@ -38,21 +38,21 @@ class ResolutionTextScene : public Scene {
 		// CreateSprite(*this, "background", resolution / 2.0f);
 
 		text = CreateText(*this, content, color, font_size);
-		SetPosition(text, center - 2 * V2_float{ 0.0f, text.GetFontSize().GetValue() });
+		SetPosition(text, center - 2 * V2_float{ 0.0f, text.GetFontSize() });
 		text.SetHD(false);
 
 		text_hd = CreateText(*this, content, color, font_size);
-		SetPosition(text_hd, center - 1 * V2_float{ 0.0f, text.GetFontSize().GetValue() });
+		SetPosition(text_hd, center - 1 * V2_float{ 0.0f, text.GetFontSize() });
 	}
 
 	void Update() override {
 		DrawDebugText(
-			content, center - 0 * V2_float{ 0.0f, text.GetFontSize().GetValue() }, color,
-			Origin::Center, font_size, false
+			content, center - 0 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center,
+			font_size, false
 		);
 		DrawDebugText(
-			content, center + 1 * V2_float{ 0.0f, text.GetFontSize().GetValue() }, color,
-			Origin::Center, font_size, true
+			content, center + 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center,
+			font_size, true
 		);
 	}
 };

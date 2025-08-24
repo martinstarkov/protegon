@@ -21,6 +21,7 @@
 #include "scene/scene_input.h"
 #include "scene/scene_manager.h"
 #include "tweens/follow_config.h"
+#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -265,7 +266,7 @@ public:
 	const float zoom_speed{ 0.4f };
 
 	Entity mouse;
-	FollowConfig follow_config;
+	TargetFollowConfig follow_config;
 
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 	Color color{ color::White };
@@ -287,15 +288,14 @@ public:
 		auto s2{ CreateSprite(*this, "tree", { 700, 400 }) };
 		AddPostFX(s2, grayscale);
 
-		follow_config.move_mode	  = MoveMode::Lerp;
-		follow_config.lerp_factor = { 0.5f, 0.5f };
-		follow_config.deadzone	  = { 300, 300 };
+		follow_config.move_mode = MoveMode::Lerp;
+		follow_config.lerp		= { 0.5f, 0.5f };
+		follow_config.deadzone	= { 300, 300 };
 
 		// Shake(camera, 0.5f, seconds{ 5 });
 		// RotateTo(camera, DegToRad(360.0f), seconds{ 5 });
 		// Shake(camera, 1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
 		// Shake(camera, 0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
-		// TODO: Fix these.
 		// FadeTo(camera, color::Red, seconds{ 5 });
 		// FadeFrom(camera, color::Red, seconds{ 3 }, SymmetricalEase::InOutBack, false);
 		// StartFollow(camera, mouse, follow_config);
@@ -346,12 +346,12 @@ public:
 		}
 
 		DrawDebugText(
-			content, center - 0 * V2_float{ 0.0f, font_size.GetValue() }, color, Origin::Center,
-			font_size, false
+			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
+			false
 		);
 		DrawDebugText(
-			content, center + 1 * V2_float{ 0.0f, font_size.GetValue() }, color, Origin::Center,
-			font_size, true
+			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
+			true
 		);
 	}
 };
