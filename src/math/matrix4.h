@@ -3,14 +3,16 @@
 #include <array>
 #include <iomanip>
 #include <ios>
-#include <iosfwd>
+#include <iterator>
 #include <ostream>
+#include <type_traits>
 
 #include "common/assert.h"
-#include "common/type_traits.h"
+#include "common/concepts.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
@@ -21,9 +23,9 @@ public:
 	constexpr static V2_size size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
 
-	friend void to_json(json& nlohmann_json_j, const Matrix4& nlohmann_json_t);
+	friend void to_json(json& j, const Matrix4& m);
 
-	friend void from_json(const json& nlohmann_json_j, Matrix4& nlohmann_json_t);
+	friend void from_json(const json& j, Matrix4& m);
 
 private:
 	friend class Quaternion;
@@ -37,12 +39,7 @@ private:
 	std::array<float, length> m_{};
 
 public:
-	constexpr Matrix4()							 = default;
-	constexpr Matrix4(const Matrix4&)			 = default;
-	constexpr Matrix4& operator=(const Matrix4&) = default;
-	constexpr Matrix4(Matrix4&&)				 = default;
-	constexpr Matrix4& operator=(Matrix4&&)		 = default;
-	~Matrix4()									 = default;
+	constexpr Matrix4() = default;
 
 	constexpr Matrix4(float x, float y, float z, float w) {
 		m_[0]  = x;
@@ -53,7 +50,7 @@ public:
 
 	explicit constexpr Matrix4(const std::array<float, length>& m) : m_{ m } {}
 
-	template <typename... Ts>
+	template <Arithmetic... Ts>
 	explicit constexpr Matrix4(Ts... args) : m_{ args... } {}
 
 	constexpr Matrix4(
@@ -176,7 +173,7 @@ public:
 
 	[[nodiscard]] Matrix4 operator*(const Matrix4& rhs);
 
-	template <typename U, tt::arithmetic<U> = true>
+	template <Arithmetic U>
 	[[nodiscard]] inline Vector4<float> operator*(const Vector4<U>& rhs) {
 		Vector4<float> res;
 
@@ -188,7 +185,7 @@ public:
 		return res;
 	}
 
-	template <typename U, tt::arithmetic<U> = true>
+	template <Arithmetic U>
 	[[nodiscard]] inline Matrix4 operator*(U rhs) {
 		Matrix4 res;
 
@@ -198,7 +195,7 @@ public:
 		return res;
 	}
 
-	template <typename U, tt::arithmetic<U> = true>
+	template <Arithmetic U>
 	[[nodiscard]] inline Matrix4 operator/(U rhs) {
 		Matrix4 res;
 
@@ -235,7 +232,7 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4& m) {
 	return os;
 }
 
-template <typename U, tt::arithmetic<U> = true>
+template <Arithmetic U>
 [[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) {
 	return B * A;
 }
