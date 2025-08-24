@@ -6,6 +6,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "input/input_handler.h"
 #include "input/mouse.h"
 #include "math/vector2.h"
@@ -43,7 +44,8 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void Enter() override {
-		SetBackgroundColor(color::Black);
+		game.window.SetSetting(WindowSetting::Resizable);
+		SetBackgroundColor(color::DarkGray);
 
 		LoadResource("smile", "resources/smile.png");
 
