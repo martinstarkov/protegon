@@ -10,8 +10,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "common/type_traits.h"
-
 namespace ptgn {
 
 namespace impl {
@@ -92,11 +90,6 @@ template <typename Key, typename Value, typename Compare, typename Alloc>
 template <typename T>
 [[nodiscard]] static bool VectorContains(const std::vector<T>& container, const T& value) {
 	return std::find(container.begin(), container.end(), value) != container.end();
-}
-
-template <typename K, typename T, typename S>
-[[nodiscard]] static bool MapContains(const std::unordered_map<K, T>& container, const S& value) {
-	return container.contains(value);
 }
 
 template <typename Type, std::size_t... sizes>

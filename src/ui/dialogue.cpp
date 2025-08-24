@@ -302,7 +302,7 @@ void DialogueComponent::SetNextDialogue() {
 		return;
 	}
 	const auto& next_dialogue{ dialogue->next_dialogue };
-	PTGN_ASSERT(next_dialogue.empty() || MapContains(dialogues_, next_dialogue));
+	PTGN_ASSERT(next_dialogue.empty() || dialogues_.contains(next_dialogue));
 	if (next_dialogue.empty()) {
 		current_line_ = 0;
 		current_page_ = 0;
@@ -311,7 +311,7 @@ void DialogueComponent::SetNextDialogue() {
 }
 
 void DialogueComponent::SetDialogue(const std::string& name) {
-	PTGN_ASSERT(name.empty() || MapContains(dialogues_, name));
+	PTGN_ASSERT(name.empty() || dialogues_.contains(name));
 	current_dialogue_ = name;
 	current_line_	  = 0;
 	current_page_	  = 0;
