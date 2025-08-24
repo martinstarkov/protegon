@@ -185,9 +185,12 @@ void Window::SetSetting(WindowSetting setting) const {
 		case WindowSetting::Bordered:	SDL_SetWindowBordered(win, SDL_TRUE); break;
 		case WindowSetting::Resizable:	SDL_SetWindowResizable(win, SDL_TRUE); break;
 		case WindowSetting::FixedSize:	SDL_SetWindowResizable(win, SDL_FALSE); break;
-		case WindowSetting::Maximized:	SDL_MaximizeWindow(win); break;
-		case WindowSetting::Minimized:	SDL_MinimizeWindow(win); break;
-		default:						PTGN_ERROR("Cannot set unrecognized window setting");
+		case WindowSetting::Maximized:
+			SDL_SetWindowResizable(win, SDL_TRUE);
+			SDL_MaximizeWindow(win);
+			break;
+		case WindowSetting::Minimized: SDL_MinimizeWindow(win); break;
+		default:					   PTGN_ERROR("Cannot set unrecognized window setting");
 	}
 }
 
