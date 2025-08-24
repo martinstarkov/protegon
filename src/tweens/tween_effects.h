@@ -144,13 +144,12 @@ void BounceImpl(
 void ApplyShake(impl::Offsets& offsets, float trauma, const ShakeConfig& config, std::int32_t seed);
 
 V2_float GetFollowPosition(
-	const impl::FollowConfig& config, const V2_float& position, const V2_float& target_position,
-	const Ease& ease
+	const impl::FollowConfig& config, const V2_float& position, const V2_float& target_position
 );
 
 void VelocityModeMoveImpl(const impl::FollowConfig& config, Entity& parent, const V2_float& dir);
 
-void EntityFollowStartImpl(Entity& tween, Entity& parent, const impl::FollowConfig& config);
+void EntityFollowStartImpl(Entity& parent, const impl::FollowConfig& config);
 
 void EntityFollowStopImpl(Entity tween);
 
@@ -361,7 +360,9 @@ void StopShake(Entity& entity, bool force = true);
  * @param config The configuration parameters that define how the follow behavior should operate.
  * @param force If true, forces the replacement of any existing follow behavior on the entity.
  */
-void StartFollow(Entity entity, Entity target, TargetFollowConfig config = {}, bool force = true);
+void StartFollow(
+	Entity entity, Entity target, const TargetFollowConfig& config = {}, bool force = true
+);
 
 /**
  * @brief Starts a follow behavior where the entity follows a path of waypoints based on the
@@ -376,7 +377,7 @@ void StartFollow(Entity entity, Entity target, TargetFollowConfig config = {}, b
  * config.loop_path is false).
  */
 void StartFollow(
-	Entity entity, const std::vector<V2_float>& waypoints, PathFollowConfig config = {},
+	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config = {},
 	bool force = true, bool reset_waypoint_index = false
 );
 

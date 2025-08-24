@@ -16,8 +16,6 @@
 #include "core/entity_hierarchy.h"
 #include "core/game.h"
 #include "core/time.h"
-#include "debug/log.h"
-#include "follow_config.h"
 #include "math/easing.h"
 #include "math/math.h"
 #include "math/noise.h"
@@ -26,6 +24,7 @@
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
+#include "tweens/follow_config.h"
 #include "tweens/shake_config.h"
 #include "tweens/tween.h"
 
@@ -92,12 +91,17 @@ void BounceImpl(
 		.OnStart(reset_bounce)
 		.Repeat(total_periods)
 		.OnProgress([amplitude, static_offset, symmetrical](Entity e, float) mutable {
-			Tween tween{ e };
-			float linear_progress{ tween.GetLinearProgress() };
-			auto ease{ tween.GetEase() };
-			float t{ ApplyBounceEase(linear_progress, symmetrical, ease) };
+			Tween tween_entity{ e };
+
+			float linear_progress{ tween_entity.GetLinearProgress() };
+			auto current_ease{ tween_entity.GetEase() };
+
+			float t{ ApplyBounceEase(linear_progress, symmetrical, current_ease) };
+
 			Entity parent{ GetParent(e) };
+
 			auto& offsets{ parent.Get<impl::Offsets>() };
+
 			offsets.bounce.SetPosition(static_offset + amplitude * t);
 		})
 		.OnPointComplete(reset_bounce)
@@ -128,22 +132,18 @@ void ApplyShake(
 }
 
 V2_float GetFollowPosition(
-	const impl::FollowConfig& config, const V2_float& position, const V2_float& target_position,
-	const Ease& ease
+	const impl::FollowConfig& config, const V2_float& position, const V2_float& target_position
 ) {
-	PTGN_ASSERT(config.smooth_lerp_factor.x >= 0.0f && config.smooth_lerp_factor.x <= 1.0f);
-	PTGN_ASSERT(config.smooth_lerp_factor.y >= 0.0f && config.smooth_lerp_factor.y <= 1.0f);
+	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
+	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
 
-	V2_float lerp_dt{ 1.0f - std::pow(1.0f - config.smooth_lerp_factor.x, game.dt()),
-					  1.0f - std::pow(1.0f - config.smooth_lerp_factor.y, game.dt()) };
+	V2_float lerp{ 1.0f - std::pow(1.0f - config.lerp.x, game.dt()),
+				   1.0f - std::pow(1.0f - config.lerp.y, game.dt()) };
 
 	V2_float new_pos{ position };
 
 	if (config.deadzone.IsZero()) {
-		new_pos = Lerp(
-			position, target_position,
-			V2_float{ ApplyEase(lerp_dt.x, ease), ApplyEase(lerp_dt.y, ease) }
-		);
+		new_pos = Lerp(position, target_position, lerp);
 	} else {
 		// TODO: Consider adding a custom deadzone origin in the future.
 		V2_float deadzone_half{ config.deadzone * 0.5f };
@@ -152,14 +152,14 @@ V2_float GetFollowPosition(
 		V2_float max{ target_position + deadzone_half };
 
 		if (position.x < min.x) {
-			new_pos.x = Lerp(position.x, position.x - (min.x - target_position.x), lerp_dt.x);
+			new_pos.x = Lerp(position.x, position.x - (min.x - target_position.x), lerp.x);
 		} else if (position.x > max.x) {
-			new_pos.x = Lerp(position.x, position.x + (target_position.x - max.x), lerp_dt.x);
+			new_pos.x = Lerp(position.x, position.x + (target_position.x - max.x), lerp.x);
 		}
 		if (position.y < min.y) {
-			new_pos.y = Lerp(position.y, position.y - (min.y - target_position.y), lerp_dt.y);
+			new_pos.y = Lerp(position.y, position.y - (min.y - target_position.y), lerp.y);
 		} else if (position.y > max.y) {
-			new_pos.y = Lerp(position.y, position.y + (target_position.y - max.y), lerp_dt.y);
+			new_pos.y = Lerp(position.y, position.y + (target_position.y - max.y), lerp.y);
 		}
 	}
 
@@ -185,19 +185,23 @@ void VelocityModeMoveImpl(const impl::FollowConfig& config, Entity& parent, cons
 	if (config.stop_distance >= epsilon<float> &&
 		dist2 < config.stop_distance * config.stop_distance) {
 		return;
-	} else if (!NearlyEqual(dist2, 0.0f)) {
-		auto norm_dir{ dir / std::sqrt(dist2) };
-		if (!config.follow_x) {
-			norm_dir = { 0.0f, Sign(norm_dir.y) };
-		}
-		if (!config.follow_y) {
-			norm_dir = { Sign(norm_dir.x), 0.0f };
-		}
-		movement.Move(norm_dir);
 	}
+
+	if (NearlyEqual(dist2, 0.0f)) {
+		return;
+	}
+
+	auto norm_dir{ dir / std::sqrt(dist2) };
+	if (!config.follow_x) {
+		norm_dir = { 0.0f, Sign(norm_dir.y) };
+	}
+	if (!config.follow_y) {
+		norm_dir = { Sign(norm_dir.x), 0.0f };
+	}
+	movement.Move(norm_dir);
 }
 
-void EntityFollowStartImpl(Entity& e, Entity& parent, const impl::FollowConfig& config) {
+void EntityFollowStartImpl(Entity& parent, const impl::FollowConfig& config) {
 	if (config.move_mode != MoveMode::Velocity) {
 		parent.template Remove<TopDownMovement>();
 		parent.template Remove<RigidBody>();
@@ -463,8 +467,8 @@ namespace impl {
 static void StartFollowImpl(
 	const FollowConfig& config, Entity& entity, bool force, auto start_func, auto update_func
 ) {
-	PTGN_ASSERT(config.smooth_lerp_factor.x >= 0.0f && config.smooth_lerp_factor.x <= 1.0f);
-	PTGN_ASSERT(config.smooth_lerp_factor.y >= 0.0f && config.smooth_lerp_factor.y <= 1.0f);
+	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
+	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
 
 	impl::EffectObject<impl::FollowEffect>& tween{ impl::GetTween<impl::FollowEffect>(entity) };
 
@@ -501,22 +505,19 @@ static void TargetFollowImpl(Entity target, const TargetFollowConfig& config, En
 	auto current_position{ GetAbsolutePosition(parent) };
 	V2_float target_pos{ GetAbsolutePosition(target) + config.offset };
 
+	auto dir{ target_pos - current_position };
+
 	if (config.move_mode == MoveMode::Velocity) {
-		auto dir{ target_pos - current_position };
 		impl::VelocityModeMoveImpl(config, parent, dir);
+	} else {
+		auto new_pos{ GetFollowPosition(config, current_position, target_pos) };
+		dir = target_pos - new_pos;
+
+		SetPosition(parent, new_pos);
 	}
-
-	bool ease_mode{ config.move_mode == MoveMode::Ease };
-	Ease ease{ ease_mode ? config.ease : SymmetricalEase::Linear };
-
-	auto new_pos{ GetFollowPosition(config, current_position, target_pos, ease) };
-
-	SetPosition(parent, new_pos);
-
 	if (config.stop_distance < epsilon<float>) {
 		return;
 	}
-	auto dir{ target_pos - new_pos };
 	if (auto dist2{ dir.MagnitudeSquared() };
 		dist2 >= config.stop_distance * config.stop_distance) {
 		return;
@@ -560,15 +561,13 @@ static void PathFollowImpl(
 		return;
 	}
 
-	bool ease_mode{ config.move_mode == MoveMode::Ease };
-	Ease ease{ ease_mode ? config.ease : SymmetricalEase::Linear };
-	auto new_pos{ GetFollowPosition(config, current_pos, target_pos, ease) };
+	auto new_pos{ GetFollowPosition(config, current_pos, target_pos) };
 	SetPosition(parent, new_pos);
 }
 
 } // namespace impl
 
-void StartFollow(Entity entity, Entity target, TargetFollowConfig config, bool force) {
+void StartFollow(Entity entity, Entity target, const TargetFollowConfig& config, bool force) {
 	impl::StartFollowImpl(
 		config, entity, force,
 		[config, target](auto e) {
@@ -576,15 +575,15 @@ void StartFollow(Entity entity, Entity target, TargetFollowConfig config, bool f
 			if (config.teleport_on_start) {
 				SetPosition(parent, GetPosition(target));
 			}
-			impl::EntityFollowStartImpl(e, parent, config);
+			impl::EntityFollowStartImpl(parent, config);
 		},
 		[config, target](Entity e, float) { impl::TargetFollowImpl(target, config, e); }
 	);
 }
 
 void StartFollow(
-	Entity entity, const std::vector<V2_float>& waypoints, PathFollowConfig config, bool force,
-	bool reset_waypoint_index
+	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config,
+	bool force, bool reset_waypoint_index
 ) {
 	PTGN_ASSERT(!waypoints.empty(), "Cannot follow an empty set of waypoints");
 	PTGN_ASSERT(
@@ -592,8 +591,8 @@ void StartFollow(
 		"Stopping distance cannot be negative or 0 when following waypoints"
 	);
 
-	PTGN_ASSERT(config.smooth_lerp_factor.x >= 0.0f && config.smooth_lerp_factor.x <= 1.0f);
-	PTGN_ASSERT(config.smooth_lerp_factor.y >= 0.0f && config.smooth_lerp_factor.y <= 1.0f);
+	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
+	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
 
 	impl::EffectObject<impl::FollowEffect>& tween{ impl::GetTween<impl::FollowEffect>(entity) };
 
@@ -613,18 +612,17 @@ void StartFollow(
 			SetPosition(parent, target_position);
 		}
 
-		auto& follow{ e.Get<impl::FollowEffect>() };
-
 		// Reasons to reset waypoint index:
 		// 1. User requested it
 		// 2. Current waypoint is beyond the waypoints array size.
 		// 3. Waypoints have changed.
-		if (reset_waypoint_index || follow.current_waypoint >= waypoints.size() ||
+		if (auto& follow{ e.Get<impl::FollowEffect>() };
+			reset_waypoint_index || follow.current_waypoint >= waypoints.size() ||
 			waypoints != prev_waypoints) {
 			follow.current_waypoint = 0;
 		}
 
-		impl::EntityFollowStartImpl(e, parent, config);
+		impl::EntityFollowStartImpl(parent, config);
 	};
 
 	const auto update_func = [config, waypoints](Entity e, float) {

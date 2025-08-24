@@ -1,11 +1,20 @@
+#include <variant>
+#include <vector>
+
+#include "components/draw.h"
 #include "components/sprite.h"
 #include "components/transform.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "input/input_handler.h"
+#include "input/mouse.h"
 #include "math/vector2.h"
+#include "renderer/api/color.h"
 #include "renderer/renderer.h"
 #include "scene/scene.h"
+#include "scene/scene_input.h"
 #include "scene/scene_manager.h"
+#include "tweens/follow_config.h"
 #include "tweens/tween_effects.h"
 
 using namespace ptgn;
@@ -34,6 +43,8 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void Enter() override {
+		SetBackgroundColor(color::Black);
+
 		LoadResource("smile", "resources/smile.png");
 
 		mouse = CreateEntity();
@@ -45,51 +56,62 @@ struct FollowEffectScene : public Scene {
 		entity4 = CreateFollower(color::Yellow, { 400, 400 });
 		entity5 = CreateFollower(color::Magenta, { 500, 500 });
 
-		// Instant follow.
-		config1.smooth_lerp_factor = { 1.0f, 1.0f };
+		// Target follow (snap).
+		config1.lerp = { 1.0f, 1.0f };
 
-		// Delayed lerp follow.
-		config2.smooth_lerp_factor = { 0.5f, 0.5f };
+		// Target follow (lerp).
+		config2.lerp = { 0.6f, 0.6f };
 
-		// Velocity follow.
+		// Target follow (velocity).
 		config3.move_mode = MoveMode::Velocity;
 
 		// Path follow (lerp).
-		config4.smooth_lerp_factor = { 0.5f, 0.5f };
-		config4.loop_path		   = true;
-		config4.stop_distance	   = 40.0f;
+		config4.move_mode	  = MoveMode::Lerp;
+		config4.lerp		  = { 0.6f, 0.6f };
+		config4.loop_path	  = true;
+		config4.stop_distance = 40.0f;
 
 		// Path follow (velocity).
-		config5.move_mode	  = MoveMode::Velocity;
 		config5.loop_path	  = true;
 		config5.stop_distance = 40.0f;
+		config5.move_mode	  = MoveMode::Velocity;
 
 		auto e{ game.renderer.GetLogicalResolution() };
 		auto c{ e / 2.0f };
 
 		waypoints = { V2_float{}, c, V2_float{ e.x, 0 }, c, e, c, V2_float{ 0, e.y }, c };
 
-		/*	StartFollow(entity1, mouse, config1);
-			StartFollow(entity2, mouse, config2);
-			StartFollow(entity3, mouse, config3);*/
+		Start();
+	}
+
+	void Start() {
+		// config1.teleport_on_start = true;
+		// config2.teleport_on_start = true;
+		// config3.teleport_on_start = true;
+		// config4.teleport_on_start = true;
+		// config5.teleport_on_start = true;
+
+		StartFollow(entity1, mouse, config1);
+		StartFollow(entity2, mouse, config2);
+		StartFollow(entity3, mouse, config3);
 		StartFollow(entity4, waypoints, config4);
 		StartFollow(entity5, waypoints, config5);
+	}
+
+	void Stop() const {
+		StopFollow(entity1);
+		StopFollow(entity2);
+		StopFollow(entity3);
+		StopFollow(entity4);
+		StopFollow(entity5);
 	}
 
 	void Update() override {
 		SetPosition(mouse, input.GetMousePosition());
 		if (input.MouseDown(Mouse::Left)) {
-			/*StopFollow(entity1);
-			StopFollow(entity2);
-			StopFollow(entity3);*/
-			StopFollow(entity4);
-			StopFollow(entity5);
+			Stop();
 		} else if (input.MouseDown(Mouse::Right)) {
-			/*	StartFollow(entity1, mouse, config1);
-				StartFollow(entity2, mouse, config2);
-				StartFollow(entity3, mouse, config3);*/
-			StartFollow(entity4, waypoints, config4);
-			StartFollow(entity5, waypoints, config5);
+			Start();
 		}
 	}
 };
