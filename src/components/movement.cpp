@@ -118,10 +118,10 @@ void TopDownMovement::Update(Entity& entity, Transform& transform, RigidBody& rb
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
 	if (dir.x != 0.0f) {
-		transform.SetScaleX(Abs(transform.GetScale().x * Sign(dir.x)));
+		transform.SetScaleX(Abs(transform.GetScale().x) * Sign(dir.x));
 	}
 	if (flip_vertically && dir.y != 0.0f) {
-		transform.SetScaleY(Abs(transform.GetScale().y * Sign(dir.y)));
+		transform.SetScaleY(Abs(transform.GetScale().y) * Sign(dir.y));
 	}
 
 	// Calculate's the character's desired velocity - which is the direction you are facing,
@@ -355,7 +355,7 @@ void PlatformerMovement::Update(Transform& transform, RigidBody& rb, float dt) c
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
 	if (dir_x != 0.0f) {
-		transform.SetScaleX(Abs(transform.GetScale().x * Sign(dir_x)));
+		transform.SetScaleX(Abs(transform.GetScale().x) * Sign(dir_x));
 	}
 
 	// Calculate's the character's desired velocity - which is the direction you are facing,
