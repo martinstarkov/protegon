@@ -25,10 +25,8 @@ Entity CreateTopDownPlayer(
 		game.texture.Has(config.animation_texture_key),
 		"Cannot create player with animation key which has not been loaded"
 	);
-	PTGN_ASSERT(
-		game.sound.Has(config.walk_sound_key),
-		"Cannot create player with walk sound key which has not been loaded"
-	);
+
+	bool has_sound_key{ game.sound.Has(config.walk_sound_key) };
 
 	auto player{ manager.CreateEntity() };
 
@@ -101,9 +99,11 @@ Entity CreateTopDownPlayer(
 		}
 	};
 
-	AddScript<AnimationRepeat>(a0, config.walk_sound_frequency, config.walk_sound_key);
-	AddScript<AnimationRepeat>(a1, config.walk_sound_frequency, config.walk_sound_key);
-	AddScript<AnimationRepeat>(a2, config.walk_sound_frequency, config.walk_sound_key);
+	if (has_sound_key) {
+		AddScript<AnimationRepeat>(a0, config.walk_sound_frequency, config.walk_sound_key);
+		AddScript<AnimationRepeat>(a1, config.walk_sound_frequency, config.walk_sound_key);
+		AddScript<AnimationRepeat>(a2, config.walk_sound_frequency, config.walk_sound_key);
+	}
 
 	struct MovementScript : public Script<MovementScript, PlayerMoveScript> {
 		void OnMoveStart() override {
