@@ -38,8 +38,9 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
-EM_JS(int, get_screen_width, (), { return screen.width; });
-EM_JS(int, get_screen_height, (), { return screen.height; });
+EM_JS(int, get_screen_width, (), { return window.screen.width; });
+EM_JS(int, get_screen_height, (), { return window.screen.height; });
+EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
 
 #endif
 
@@ -53,8 +54,6 @@ EM_JS(int, get_screen_height, (), { return screen.height; });
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include "nlohmann/detail/iterators/iter_impl.hpp"
-#include "nlohmann/json.hpp"
 
 namespace ptgn {
 
@@ -70,10 +69,11 @@ static EM_BOOL EmscriptenResize(
 	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
 	// TODO: Figure out how to deal with itch.io fullscreen button not changing SDL status to
 	// fullscreen.
-	/*V2_int screen_size{ get_screen_width(), get_screen_height() };
+	V2_int screen_size{ get_screen_width(), get_screen_height() };
 	if (window_size == screen_size) {
-		// Update fullscreen status? This seems to screw up the camera somehow. Investigate further.
-	}*/
+		auto device_pixel_ratio{ get_device_pixel_ratio() };
+		window_size = window_size * device_pixel_ratio;
+	}
 	game.window.SetSize(window_size);
 	return 0;
 }
