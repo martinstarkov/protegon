@@ -146,12 +146,12 @@ EffectObject<BounceEffect>& BounceImpl(
 void ApplyShake(impl::Offsets& offsets, float trauma, const ShakeConfig& config, std::int32_t seed);
 
 V2_float GetFollowPosition(
-	const impl::FollowConfig& config, const V2_float& position, const V2_float& target_position
+	const FollowConfig& config, const V2_float& position, const V2_float& target_position
 );
 
-void VelocityModeMoveImpl(const impl::FollowConfig& config, Entity& parent, const V2_float& dir);
+void VelocityModeMoveImpl(const FollowConfig& config, Entity& parent, const V2_float& dir);
 
-void EntityFollowStartImpl(Entity& parent, const impl::FollowConfig& config);
+void EntityFollowStartImpl(Entity& parent, const FollowConfig& config);
 
 void EntityFollowStopImpl(Entity tween);
 

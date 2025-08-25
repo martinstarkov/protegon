@@ -133,7 +133,7 @@ void ApplyShake(
 }
 
 V2_float GetFollowPosition(
-	const impl::FollowConfig& config, const V2_float& position, const V2_float& target_position
+	const FollowConfig& config, const V2_float& position, const V2_float& target_position
 ) {
 	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
 	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
@@ -174,7 +174,7 @@ V2_float GetFollowPosition(
 	return new_pos;
 }
 
-void VelocityModeMoveImpl(const impl::FollowConfig& config, Entity& parent, const V2_float& dir) {
+void VelocityModeMoveImpl(const FollowConfig& config, Entity& parent, const V2_float& dir) {
 	PTGN_ASSERT(
 		parent.Has<TopDownMovement>(),
 		"Entity with MoveMode::Velocity must have a TopDownMovement component"
@@ -202,7 +202,7 @@ void VelocityModeMoveImpl(const impl::FollowConfig& config, Entity& parent, cons
 	movement.Move(norm_dir);
 }
 
-void EntityFollowStartImpl(Entity& parent, const impl::FollowConfig& config) {
+void EntityFollowStartImpl(Entity& parent, const FollowConfig& config) {
 	if (config.move_mode != MoveMode::Velocity) {
 		parent.template Remove<TopDownMovement>();
 		parent.template Remove<RigidBody>();
@@ -628,7 +628,7 @@ impl::EffectObject<impl::FollowEffect>& StartFollow(
 		}
 
 		// Reasons to reset waypoint index:
-		// 1. User requested it
+		// 1. User requested it.
 		// 2. Current waypoint is beyond the waypoints array size.
 		// 3. Waypoints have changed.
 		if (auto& follow{ e.template Get<impl::FollowEffect>() };

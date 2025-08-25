@@ -13,8 +13,6 @@ enum class MoveMode {
 	Velocity
 };
 
-namespace impl {
-
 struct FollowConfig {
 	MoveMode move_mode{ MoveMode::Lerp };
 
@@ -52,27 +50,28 @@ struct FollowConfig {
 	)
 };
 
-} // namespace impl
+struct TargetFollowConfig : public FollowConfig {
+	TargetFollowConfig(const FollowConfig& config) : FollowConfig{ config } {}
 
-struct TargetFollowConfig : public impl::FollowConfig {
+	using FollowConfig::FollowConfig;
+
 	bool operator==(const TargetFollowConfig&) const = default;
 };
 
-struct PathFollowConfig : public impl::FollowConfig {
+struct PathFollowConfig : public FollowConfig {
 	bool loop_path{ true };
 
-	PathFollowConfig() :
-		impl::FollowConfig{ .move_mode = MoveMode::Velocity, .stop_distance = 10.0f } {}
+	PathFollowConfig() : FollowConfig{ .move_mode = MoveMode::Velocity, .stop_distance = 10.0f } {}
 
 	bool operator==(const PathFollowConfig&) const = default;
 
 	friend void to_json(json& j, const PathFollowConfig& config) {
-		to_json(j, static_cast<const impl::FollowConfig&>(config));
+		to_json(j, static_cast<const FollowConfig&>(config));
 		j["loop_path"] = config.loop_path;
 	}
 
 	friend void from_json(const json& j, PathFollowConfig& config) {
-		from_json(j, static_cast<impl::FollowConfig&>(config));
+		from_json(j, static_cast<FollowConfig&>(config));
 		j.at("loop_path").get_to(config.loop_path);
 	}
 };
