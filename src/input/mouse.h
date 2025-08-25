@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iosfwd>
+#include <cstdint>
 #include <ostream>
 
 #include "debug/log.h"
@@ -8,19 +8,23 @@
 
 namespace ptgn {
 
-enum class Mouse {
-	Invalid = -1,
-	Left	= 1, // SDL_BUTTON_LEFT
-	Middle	= 2, // SDL_BUTTON_MIDDLE
-	Right	= 3	 // SDL_BUTTON_RIGHT
-};
+namespace impl {
 
 // Enum for storing states of mouse keys.
-enum class MouseState {
+enum class MouseState : std::uint8_t {
 	Up		 = 1,
 	Down	 = 2,
 	Released = 3,
 	Pressed	 = 4
+};
+
+} // namespace impl
+
+enum class Mouse {
+	Invalid = 0,
+	Left	= 1, // SDL_BUTTON_LEFT
+	Middle	= 2, // SDL_BUTTON_MIDDLE
+	Right	= 3	 // SDL_BUTTON_RIGHT
 };
 
 inline std::ostream& operator<<(std::ostream& os, Mouse mouse) {
@@ -42,11 +46,15 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 			 { Mouse::Right, "right" } }
 );
 
+namespace impl {
+
 PTGN_SERIALIZER_REGISTER_ENUM(
 	MouseState, { { MouseState::Up, "up" },
 				  { MouseState::Down, "down" },
 				  { MouseState::Released, "released" },
 				  { MouseState::Pressed, "pressed" } }
 );
+
+} // namespace impl
 
 } // namespace ptgn

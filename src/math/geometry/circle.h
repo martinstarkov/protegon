@@ -15,7 +15,7 @@ class RenderData;
 
 } // namespace impl
 
-struct Circle : public Drawable<Circle> {
+struct Circle {
 	Circle() = default;
 
 	explicit Circle(float radius);
@@ -30,9 +30,14 @@ struct Circle : public Drawable<Circle> {
 	// @return Radius scaled relative to the transform.
 	[[nodiscard]] float GetRadius(const Transform& transform) const;
 
+	// @return min, max coordinates that contain the circle.
+	[[nodiscard]] std::array<V2_float, 2> GetExtents(const Transform& transform) const;
+
 	float radius{ 0.0f };
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius)
 };
+
+PTGN_DRAWABLE_REGISTER(Circle);
 
 } // namespace ptgn

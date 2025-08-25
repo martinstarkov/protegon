@@ -1,11 +1,13 @@
 #include "math/hash.h"
 
+#include <functional>
+
 #include "core/entity.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
-template <typename T>
+template <Arithmetic T>
 std::size_t Hash(const Vector2<T>& vector) {
 	return std::hash<Vector2<T>>()(vector);
 }

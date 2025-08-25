@@ -3,12 +3,20 @@
 #include <memory>
 #include <string_view>
 
+#include "common/assert.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "input/input_handler.h"
 #include "math/hash.h"
+#include "renderer/render_data.h"
+#include "renderer/renderer.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_transition.h"
+#include "tweens/tween.h"
 
 namespace ptgn::impl {
 
@@ -114,6 +122,14 @@ void SceneManager::Shutdown() {
 	Reset();
 }
 
+void SceneManager::ReEnter(std::size_t scene_key) {
+	auto scene{ GetScene(scene_key) };
+	PTGN_ASSERT(scene, "Cannot re-enter a scene that is not loaded in the scene manager");
+	auto& sc{ scene.Get<SceneComponent>() };
+	PTGN_ASSERT(sc.scene->active_, "Cannot re-enter a scene that is not active");
+	sc.scene->Add(Scene::Action::Enter);
+}
+
 std::size_t SceneManager::GetInternalKey(std::string_view key) {
 	return Hash(key);
 }
@@ -129,21 +145,55 @@ void SceneManager::ClearSceneTargets() {
 */
 
 void SceneManager::Update() {
-	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		PTGN_ASSERT(sc.scene != nullptr);
-		if (sc.scene->active_) {
-			sc.scene->PreUpdate();
-		}
-	}
+	auto& render_data{ game.renderer.GetRenderData() };
 
 	game.input.Update();
 
+	// TODO: Figure out a better way to do non-scene events / scripts.
+
+	bool invoke_actions{ render_data.logical_resolution_changed_ ||
+						 render_data.physical_resolution_changed_ };
+
+	const auto invoke_resolution_events = [&](Manager& manager) {
+		manager.Refresh();
+
+		if (render_data.logical_resolution_changed_) {
+			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+				scripts.AddAction(&LogicalResolutionScript::OnLogicalResolutionChanged);
+			}
+		}
+		if (render_data.physical_resolution_changed_) {
+			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+				scripts.AddAction(&PhysicalResolutionScript::OnPhysicalResolutionChanged);
+			}
+		}
+		if (invoke_actions) {
+			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+				scripts.InvokeActions();
+			}
+		}
+
+		manager.Refresh();
+	};
+
+	game.input.InvokeInputEvents(render_data.render_manager);
+	invoke_resolution_events(render_data.render_manager);
+
+	Tween::Update(render_data.render_manager, game.dt());
+
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
+		invoke_resolution_events((*sc.scene).cameras_);
+		invoke_resolution_events(*sc.scene);
 		if (sc.scene->active_) {
-			sc.scene->PostUpdate();
+			sc.scene->InternalUpdate();
 		}
 	}
+
+	render_data.DrawScreenTarget();
+
+	render_data.logical_resolution_changed_	 = false;
+	render_data.physical_resolution_changed_ = false;
 }
 
 void SceneManager::HandleSceneEvents() {

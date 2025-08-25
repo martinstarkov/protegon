@@ -1,33 +1,20 @@
 #include "ui/dropdown.h"
 
-#include <functional>
 #include <vector>
 
 #include "common/assert.h"
-#include "components/drawable.h"
+#include "components/draw.h"
+#include "components/transform.h"
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
-#include "scene/scene.h"
 #include "ui/button.h"
 
 namespace ptgn {
-
-Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
-	Button dropdown_button{ CreateButton(scene) };
-
-	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
-	i.start_open_ = start_open;
-	dropdown_button.AddScript<impl::DropdownScript>();
-
-	if (start_open) {
-		Dropdown{ dropdown_button }.Open();
-	} else {
-		Dropdown{ dropdown_button }.Close();
-	}
-
-	return dropdown_button;
-}
 
 namespace impl {
 
@@ -37,8 +24,8 @@ void DropdownScript::OnButtonActivate() {
 
 void DropdownItemScript::OnButtonActivate() {
 	if (!entity.Has<impl::DropdownInstance>()) {
-		PTGN_ASSERT(entity.HasParent());
-		Dropdown{ entity.GetParent() }.Close();
+		PTGN_ASSERT(HasParent(entity));
+		Dropdown{ GetParent(entity) }.Close();
 	}
 }
 
@@ -48,8 +35,8 @@ Dropdown::Dropdown(const Entity& entity) : Button{ entity } {}
 
 Dropdown& Dropdown::SetSize(const V2_float& size) {
 	Button::SetSize(size);
-	if (HasParent()) {
-		auto parent{ GetParent() };
+	if (HasParent(*this)) {
+		Entity parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			Dropdown{ parent }.RecalculateButtonPositions();
 		}
@@ -59,7 +46,7 @@ Dropdown& Dropdown::SetSize(const V2_float& size) {
 }
 
 Dropdown& Dropdown::SetOrigin(Origin origin) {
-	Button::SetOrigin(origin);
+	SetDrawOrigin(*this, origin);
 	RecalculateButtonPositions();
 	return *this;
 }
@@ -87,26 +74,26 @@ void Dropdown::RecalculateButtonPositions() {
 		return parent_size;
 	};
 
-	V2_float parent_center{ -GetOriginOffset(GetOrigin(), parent_size) };
+	V2_float parent_center{ -GetOriginOffset(GetDrawOrigin(*this), parent_size) };
 	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, parent_size) };
 
 	PTGN_ASSERT(info.buttons_.size() >= 1);
 	const auto& first_button{ info.buttons_.front() };
-	auto size{ std::invoke(get_size, first_button) };
+	auto size{ get_size(first_button) };
 
 	V2_float offset{ parent_edge + GetOriginOffset(info.origin_, size) };
 
 	for (std::size_t i{ 0 }; i < info.buttons_.size(); ++i) {
 		auto& button{ info.buttons_[i] };
-		size = std::invoke(get_size, button);
+		size = get_size(button);
 		// First button offset goes in the direction of the dropdown origin, the rest go in the
 		// direction of dropdown.
 		if (i != 0) {
 			offset += GetOriginOffset(info.direction_, size);
 		}
-		button.SetPosition(offset);
+		SetPosition(button, offset);
 		button.SetSize(size);
-		button.SetOrigin(Origin::Center);
+		SetDrawOrigin(button, Origin::Center);
 		// Offset is added separately while moving through dropdown buttons.
 		offset += GetOriginOffset(info.direction_, size);
 	}
@@ -114,8 +101,8 @@ void Dropdown::RecalculateButtonPositions() {
 
 bool Dropdown::WillStartOpen() const {
 	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
-	if (HasParent()) {
-		auto parent{ GetParent() };
+	if (HasParent(*this)) {
+		Entity parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			return Get<impl::DropdownInstance>().start_open_ && Dropdown{ parent }.WillStartOpen();
 		}
@@ -127,17 +114,17 @@ void Dropdown::AddButton(Button button) {
 	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
 	auto& i{ Get<impl::DropdownInstance>() };
 
-	button.SetParent(*this);
+	SetParent(button, *this);
 
 	if (WillStartOpen()) {
-		button.Show();
+		Show(button);
 		button.Enable();
 	} else {
-		button.Hide();
+		Hide(button);
 		button.Disable();
 	}
 
-	button.AddScript<impl::DropdownItemScript>();
+	AddScript<impl::DropdownItemScript>(button);
 
 	i.buttons_.emplace_back(button);
 
@@ -205,9 +192,12 @@ void Dropdown::Open() {
 	i.open_ = true;
 	for (auto& b : i.buttons_) {
 		b.Enable();
-		b.Show();
+		Show(b);
 	}
-	auto children{ GetChildren() };
+	if (!HasChildren(*this)) {
+		return;
+	}
+	const auto& children{ GetChildren(*this) };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
 			const auto& child_i{ child.Get<impl::DropdownInstance>() };
@@ -224,20 +214,39 @@ void Dropdown::Close(bool close_parents) {
 	i.open_ = false;
 	for (auto& b : i.buttons_) {
 		b.Disable();
-		b.Hide();
+		Hide(b);
 	}
-	if (close_parents && HasParent()) {
-		auto parent{ GetParent() };
+	if (close_parents && HasParent(*this)) {
+		Entity parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
 			Dropdown{ parent }.Close();
 		}
 	}
-	auto children{ GetChildren() };
+	if (!HasChildren(*this)) {
+		return;
+	}
+	const auto& children{ GetChildren(*this) };
 	for (const auto& child : children) {
 		if (child.Has<impl::DropdownInstance>()) {
 			Dropdown{ child }.Close(false);
 		}
 	}
+}
+
+Dropdown CreateDropdownButton(Manager& manager, bool start_open) {
+	Button dropdown_button{ CreateButton(manager) };
+
+	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
+	i.start_open_ = start_open;
+	AddScript<impl::DropdownScript>(dropdown_button);
+
+	if (start_open) {
+		Dropdown{ dropdown_button }.Open();
+	} else {
+		Dropdown{ dropdown_button }.Close();
+	}
+
+	return dropdown_button;
 }
 
 } // namespace ptgn

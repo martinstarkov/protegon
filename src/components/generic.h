@@ -1,11 +1,9 @@
 #pragma once
 
-#include <functional>
 #include <string>
 #include <string_view>
-#include <type_traits>
 
-#include "common/type_traits.h"
+#include "common/concepts.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "serialization/serializable.h"
@@ -20,7 +18,7 @@ struct ColorComponent : public Color {
 	ColorComponent(const Color& c) : Color{ c } {}
 };
 
-template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
+template <Arithmetic T>
 struct ArithmeticComponent {
 	ArithmeticComponent() = default;
 
@@ -42,6 +40,10 @@ struct ArithmeticComponent {
 
 protected:
 	T value_{};
+};
+
+struct BoolComponent : public ArithmeticComponent<bool> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
 struct HashComponent {
@@ -73,7 +75,7 @@ protected:
 	std::string key_;
 };
 
-template <typename T, tt::enable<std::is_arithmetic_v<T>> = true>
+template <Arithmetic T>
 struct Vector2Component {
 	Vector2Component() = default;
 
@@ -89,14 +91,6 @@ struct Vector2Component {
 
 	[[nodiscard]] Vector2<T>& GetValue() {
 		return value_;
-	}
-
-	friend bool operator==(const Vector2Component& a, const Vector2Component& b) {
-		return a.value_ == b.value_;
-	}
-
-	friend bool operator!=(const Vector2Component& a, const Vector2Component& b) {
-		return a.value_ != b.value_;
 	}
 
 	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Vector2Component, value_)
@@ -120,13 +114,7 @@ struct StringComponent {
 
 	StringComponent(const char* value) : value_{ value } {}
 
-	friend bool operator==(const StringComponent& a, const StringComponent& b) {
-		return a.value_ == b.value_;
-	}
-
-	friend bool operator!=(const StringComponent& a, const StringComponent& b) {
-		return !(a == b);
-	}
+	bool operator==(const StringComponent&) const = default;
 
 	operator std::string_view() const {
 		return value_;

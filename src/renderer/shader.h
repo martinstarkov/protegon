@@ -55,6 +55,10 @@ public:
 		const path& vertex_shader_path, const path& fragment_shader_path,
 		std::string_view shader_name
 	);
+	Shader(
+		const ShaderCode& vertex_shader, const path& fragment_shader_path,
+		std::string_view shader_name
+	);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
 	Shader(Shader&& other) noexcept;
@@ -63,10 +67,6 @@ public:
 
 	friend bool operator==(const Shader& a, const Shader& b) {
 		return a.id_ == b.id_;
-	}
-
-	friend bool operator!=(const Shader& a, const Shader& b) {
-		return !(a == b);
 	}
 
 	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
@@ -159,6 +159,8 @@ namespace impl {
 
 class ShaderManager {
 public:
+	std::unordered_map<std::string, Shader> shaders;
+
 	template <auto S>
 	[[nodiscard]] const Shader& Get() const {
 		using ShaderType = decltype(S);

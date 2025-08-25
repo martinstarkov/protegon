@@ -3,12 +3,13 @@
 #include <cstdint>
 #include <limits>
 
-#include "common/type_traits.h"
+#include "common/concepts.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
+#include "renderer/api/origin.h"
 #include "renderer/font.h"
 #include "renderer/texture.h"
 #include "serialization/enum.h"
@@ -16,11 +17,30 @@
 
 namespace ptgn {
 
-class Scene;
+class Manager;
+class Entity;
+class Camera;
+class Text;
 
 namespace impl {
 
 class RenderData;
+struct ButtonText;
+
+void DrawText(
+	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
+	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+);
+
+struct HDText : public BoolComponent {
+	using BoolComponent::BoolComponent;
+
+	HDText() : BoolComponent{ true } {}
+};
+
+struct CachedFontSize : public FontSize {
+	using FontSize::FontSize;
+};
 
 } // namespace impl
 
@@ -54,13 +74,7 @@ struct TextOutline {
 	std::int32_t width{ 0 };
 	Color color;
 
-	friend bool operator==(const TextOutline& a, const TextOutline& b) {
-		return a.width == b.width && a.color == b.color;
-	}
-
-	friend bool operator!=(const TextOutline& a, const TextOutline& b) {
-		return !(a == b);
-	}
+	bool operator==(const TextOutline&) const = default;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextOutline, width, color)
 };
@@ -85,7 +99,12 @@ struct TextProperties {
 	)
 };
 
-class Text : public Entity, public Drawable<Text> {
+template <typename T>
+concept TextParameter = IsAnyOf<
+	T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode, FontSize, TextLineSkip,
+	TextShadingColor, TextWrapAfter, TextOutline, TextJustify>;
+
+class Text : public Entity {
 public:
 	Text() = default;
 
@@ -93,11 +112,17 @@ public:
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
+	[[nodiscard]] impl::Texture CreateTexture(const FontSize& font_size) const;
+
 	[[nodiscard]] static impl::Texture CreateTexture(
-		const std::string& content, const TextColor& color = color::White,
+		const TextContent& content, const TextColor& color = color::White,
 		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 		const TextProperties& properties = {}
 	);
+
+	// Set text to be in high definition instead of natively scaling to its camera.
+	Text& SetHD(bool hd = true);
+	[[nodiscard]] bool IsHD() const;
 
 	// @param font_key Default: "" corresponds to the default engine font (use
 	// game.font.SetDefault(...) to change.
@@ -108,6 +133,7 @@ public:
 	// To create text with multiple FontStyles, simply use &&, e.g.
 	// FontStyle::Italic && FontStyle::Bold
 	Text& SetFontStyle(FontStyle font_style);
+
 	// Set the point size of text. Infinity will use the current point size of the font.
 	Text& SetFontSize(const FontSize& pixels);
 
@@ -138,29 +164,27 @@ public:
 	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
 	[[nodiscard]] Color GetShadingColor() const;
 	[[nodiscard]] TextJustify GetTextJustify() const;
-	[[nodiscard]] const impl::Texture& GetTexture() const;
-
-	[[nodiscard]] FontSize GetFontSize() const;
+	// @param hd If true, returns font size scaled to high definition.
+	[[nodiscard]] FontSize GetFontSize(bool hd = false) const;
 
 	// @return The unscaled size of the text texture given the current content and font.
-	[[nodiscard]] static V2_int GetSize(const Entity& text);
-	[[nodiscard]] static V2_int GetSize(
-		const std::string& content, const ResourceHandle& font_key, const FontSize& font_size = {}
-	);
 	[[nodiscard]] V2_int GetSize() const;
 
-	void RecreateTexture();
+	// @return The unscaled size of the text texture given the specified content.
+	[[nodiscard]] V2_int GetSize(const TextContent& content) const;
+
+	[[nodiscard]] static V2_int GetSize(const Entity& text);
+
+	[[nodiscard]] static V2_int GetSize(
+		const TextContent& content, const ResourceHandle& font_key, const FontSize& font_size = {}
+	);
 
 	[[nodiscard]] TextProperties GetProperties() const;
 
-	void SetProperties(const TextProperties& properties, bool recreate_texture = true);
+	void SetProperties(const TextProperties& properties);
 
 	// @return True if the parameter was changed.
-	template <
-		typename T,
-		tt::enable<tt::is_any_of_v<
-			T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode, FontSize,
-			TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline, TextJustify>> = true>
+	template <TextParameter T>
 	bool SetParameter(const T& value, bool recreate_texture = true) {
 		if (!Has<T>()) {
 			Add<T>(value);
@@ -180,28 +204,46 @@ public:
 		return true;
 	}
 
+	void SetProperties(const TextProperties& properties, bool recreate_texture);
+
+private:
+	friend void impl::DrawText(
+		impl::RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
+		const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+	);
+
+	// Using own properties.
+	void RecreateTexture();
+
+	// Using custom properties.
+	void RecreateTexture(
+		const TextContent& content, const TextColor& color, const FontSize& font_size,
+		const ResourceHandle& font_key, const TextProperties& properties
+	);
+
 	template <typename T>
 	[[nodiscard]] const T& GetParameter(const T& default_value) const {
 		return GetParameter<T>(*this, default_value);
 	}
 
-	template <typename T>
+	template <TextParameter T>
 	[[nodiscard]] static const T& GetParameter(const Entity& text, const T& default_value) {
-		static_assert(tt::is_any_of_v<
-					  T, ResourceHandle, TextContent, TextColor, FontStyle, FontRenderMode,
-					  FontSize, TextLineSkip, TextShadingColor, TextWrapAfter, TextOutline,
-					  TextJustify>);
 		if (!text.Has<T>()) {
 			return default_value;
 		}
 		return text.Get<T>();
 	}
+
+private:
+	[[nodiscard]] const impl::Texture& GetTexture() const;
 };
+
+PTGN_DRAWABLE_REGISTER(Text);
 
 // @param font_key Default: {} corresponds to the default engine font (use
 // game.font.SetDefault(...) to change.
 Text CreateText(
-	Scene& scene, const TextContent& content, const TextColor& text_color = {},
+	Manager& manager, const TextContent& content, const TextColor& text_color = {},
 	const FontSize& font_size = {}, const ResourceHandle& font_key = {},
 	const TextProperties& properties = {}
 );

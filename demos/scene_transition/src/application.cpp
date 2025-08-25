@@ -4,35 +4,36 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 800, 800 };
 
+// TODO: Fix.
 /*
 static void EnterScene(std::string_view key, milliseconds duration = milliseconds{ 250 }) {
-	if (game.input.KeyDown(Key::W)) {
+	if (input.KeyDown(Key::W)) {
 		game.scene.Enter(key, { TransitionType::CoverDown, duration });
-	} else if (game.input.KeyDown(Key::S)) {
+	} else if (input.KeyDown(Key::S)) {
 		game.scene.Enter(key, { TransitionType::CoverUp, duration });
-	} else if (game.input.KeyDown(Key::D)) {
+	} else if (input.KeyDown(Key::D)) {
 		game.scene.Enter(key, { TransitionType::CoverLeft, duration });
-	} else if (game.input.KeyDown(Key::A)) {
+	} else if (input.KeyDown(Key::A)) {
 		game.scene.Enter(key, { TransitionType::CoverRight, duration });
-	} else if (game.input.KeyDown(Key::T)) {
+	} else if (input.KeyDown(Key::T)) {
 		game.scene.Enter(key, { TransitionType::UncoverDown, duration });
-	} else if (game.input.KeyDown(Key::G)) {
+	} else if (input.KeyDown(Key::G)) {
 		game.scene.Enter(key, { TransitionType::UncoverUp, duration });
-	} else if (game.input.KeyDown(Key::F)) {
+	} else if (input.KeyDown(Key::F)) {
 		game.scene.Enter(key, { TransitionType::UncoverLeft, duration });
-	} else if (game.input.KeyDown(Key::H)) {
+	} else if (input.KeyDown(Key::H)) {
 		game.scene.Enter(key, { TransitionType::UncoverRight, duration });
-	} else if (game.input.KeyDown(Key::Down)) {
+	} else if (input.KeyDown(Key::Down)) {
 		game.scene.Enter(key, { TransitionType::PushDown, duration });
-	} else if (game.input.KeyDown(Key::Up)) {
+	} else if (input.KeyDown(Key::Up)) {
 		game.scene.Enter(key, { TransitionType::PushUp, duration });
-	} else if (game.input.KeyDown(Key::Left)) {
+	} else if (input.KeyDown(Key::Left)) {
 		game.scene.Enter(key, { TransitionType::PushLeft, duration });
-	} else if (game.input.KeyDown(Key::Right)) {
+	} else if (input.KeyDown(Key::Right)) {
 		game.scene.Enter(key, { TransitionType::PushRight, duration });
-	} else if (game.input.KeyDown(Key::Q)) {
+	} else if (input.KeyDown(Key::Q)) {
 		game.scene.Enter(key, { TransitionType::Fade, milliseconds{ 4000 } });
-	} else if (game.input.KeyDown(Key::E)) {
+	} else if (input.KeyDown(Key::E)) {
 		SceneTransition t{ TransitionType::FadeThroughColor, milliseconds{ 1000 } };
 		t.SetFadeColor(color::Black);
 		t.SetFadeColorDuration(milliseconds{ 1000 });

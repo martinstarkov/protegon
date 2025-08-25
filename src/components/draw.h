@@ -1,30 +1,118 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
+#include <string_view>
+#include <vector>
 
+#include "components/drawable.h"
 #include "components/generic.h"
-#include "core/entity.h"
 #include "math/vector2.h"
+#include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/text.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
 
+class Entity;
 class Manager;
-class Scene;
+class Camera;
+
+struct Visible : public BoolComponent {
+	using BoolComponent::BoolComponent;
+
+	Visible() : BoolComponent{ true } {}
+};
+
+struct Tint : public ColorComponent {
+	using ColorComponent::ColorComponent;
+
+	Tint() : ColorComponent{ color::White } {}
+};
+
+struct Depth : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	[[nodiscard]] Depth RelativeTo(Depth parent) const;
+};
+
+struct EntityDepthCompare {
+	EntityDepthCompare() = default;
+	explicit EntityDepthCompare(bool ascending);
+
+	bool operator()(const Entity& a, const Entity& b) const;
+
+	bool ascending{ true };
+};
+
+void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 
 namespace impl {
 
-class RenderData;
+Entity& SetDrawImpl(Entity& entity, std::string_view drawable_name);
 
-void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture);
+} // namespace impl
+
+class Manager;
+class Scene;
+
+// @return entity.
+Entity& SetDrawOrigin(Entity& entity, Origin origin);
+
+[[nodiscard]] Origin GetDrawOrigin(const Entity& entity);
+
+// @return entity.
+template <DrawableType T>
+Entity& SetDraw(Entity& entity) {
+	return impl::SetDrawImpl(entity, type_name<T>());
+}
+
+[[nodiscard]] bool HasDraw(const Entity& entity);
+
+// @return entity.
+Entity& RemoveDraw(Entity& entity);
+
+// @return entity.
+Entity& SetDrawOffset(Entity& entity, const V2_float& offset = {});
+
+// @return entity.
+Entity& SetVisible(Entity& entity, bool visible);
+
+// @return entity.
+Entity& Show(Entity& entity);
+
+// @return entity.
+Entity& Hide(Entity& entity);
+
+[[nodiscard]] bool IsVisible(const Entity& entity);
+
+// @return entity.
+Entity& SetDepth(Entity& entity, const Depth& depth);
+
+[[nodiscard]] Depth GetDepth(const Entity& entity);
+
+// @return entity.
+Entity& SetBlendMode(Entity& entity, BlendMode blend_mode);
+
+[[nodiscard]] BlendMode GetBlendMode(const Entity& entity);
+
+// color::White will clear tint.
+// @return entity.
+Entity& SetTint(Entity& entity, const Color& color = color::White);
+
+[[nodiscard]] Color GetTint(const Entity& entity);
+
+namespace impl {
 
 // @return Unscaled size of the entire texture in pixels.
 [[nodiscard]] V2_int GetTextureSize(const Entity& entity);
 
 // @return Unscaled size of the cropped texture in pixels.
 [[nodiscard]] V2_int GetCroppedSize(const Entity& entity);
+
+void SetDisplaySize(Entity& entity, const V2_float& display_size);
 
 // @return Scaled size of the cropped texture in pixels.
 [[nodiscard]] V2_float GetDisplaySize(const Entity& entity);
@@ -37,45 +125,52 @@ void DrawTexture(impl::RenderData& ctx, const Entity& entity, bool flip_texture)
 
 struct TextureSize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(TextureSize, value_)
 };
 
 struct LineWidth : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
 
 	LineWidth() : ArithmeticComponent{ 1.0f } {}
-
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(LineWidth, value_)
 };
 
 struct TextureCrop {
+	// Position and size are V2_float instead of V2_int to allow for smooth increase in display size
+	// (for example).
+
 	// Top left position (in pixels) within the texture from which the crop starts.
 	V2_float position;
 
 	// Size of the crop in pixels. Zero size will use full size of texture.
 	V2_float size;
 
-	friend bool operator==(const TextureCrop& a, const TextureCrop& b) {
-		return a.position == b.position && a.size == b.size;
-	}
-
-	friend bool operator!=(const TextureCrop& a, const TextureCrop& b) {
-		return !(a == b);
-	}
+	bool operator==(const TextureCrop&) const = default;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextureCrop, position, size)
 };
 
-Entity CreateRect(
-	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
-	float line_width = -1.0f, Origin origin = Origin::Center
+namespace impl {
+
+class RenderData;
+
+void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture);
+void DrawText(
+	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
+	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
 );
+void DrawText(RenderData& ctx, const Entity& entity);
+void DrawCapsule(RenderData& ctx, const Entity& entity);
+void DrawCircle(RenderData& ctx, const Entity& entity);
+void DrawPolygon(RenderData& ctx, const Entity& entity);
+void DrawRect(RenderData& ctx, const Entity& entity);
+void DrawTriangle(RenderData& ctx, const Entity& entity);
+void DrawLine(RenderData& ctx, const Entity& entity);
+
+} // namespace impl
 
 /**
- * @brief Creates a rectangle entity in the scene.
+ * @brief Creates a rectangle entity in the manager.
  *
- * @param scene       Reference to the scene where the rectangle will be created.
+ * @param manager       Reference to the manager where the rectangle will be created.
  * @param position    The position of the rectangle relative to its parent camera.
  * @param size        The width and height of the rectangle.
  * @param color       The tint color of the rectangle.
@@ -85,19 +180,14 @@ Entity CreateRect(
  * @return Entity     A handle to the newly created rectangle entity.
  */
 Entity CreateRect(
-	Scene& scene, const V2_float& position, const V2_float& size, const Color& color,
+	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
 	float line_width = -1.0f, Origin origin = Origin::Center
 );
 
-Entity CreateCircle(
-	Manager& manager, const V2_float& position, float radius, const Color& color,
-	float line_width = -1.0f
-);
-
 /**
- * @brief Creates a circle entity in the scene.
+ * @brief Creates a circle entity in the manager.
  *
- * @param scene       Reference to the scene where the circle will be created.
+ * @param manager       Reference to the manager where the circle will be created.
  * @param position    The position of the circle relative to its parent camera.
  * @param radius        The radius of the circle.
  * @param color       The tint color of the circle.
@@ -106,7 +196,7 @@ Entity CreateCircle(
  * @return Entity     A handle to the newly created circle entity.
  */
 Entity CreateCircle(
-	Scene& scene, const V2_float& position, float radius, const Color& color,
+	Manager& manager, const V2_float& position, float radius, const Color& color,
 	float line_width = -1.0f
 );
 

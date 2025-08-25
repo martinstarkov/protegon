@@ -2,14 +2,14 @@
 
 #include <string_view>
 
-#include "components/common.h"
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/time.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 
 struct TopDownPlayerConfig {
 	// Movement
@@ -40,7 +40,7 @@ struct TopDownPlayerConfig {
 };
 
 Entity CreateTopDownPlayer(
-	Scene& scene, const V2_float& position, const TopDownPlayerConfig& config = {}
+	Manager& manager, const V2_float& position, const TopDownPlayerConfig& config = {}
 );
 
 } // namespace ptgn

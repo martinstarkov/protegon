@@ -43,7 +43,7 @@ void MusicManager::Play(const ResourceHandle& key, int loops) const {
 }
 
 void MusicManager::FadeIn(const ResourceHandle& key, milliseconds fade_time, int loops) const {
-	auto time_int{ std::chrono::duration_cast<duration<int, milliseconds::period>>(fade_time) };
+	auto time_int{ to_duration<duration<int, milliseconds::period>>(fade_time) };
 	Mix_FadeInMusic(Get(key).get(), loops, time_int.count());
 }
 
@@ -52,7 +52,7 @@ void MusicManager::Stop() const {
 }
 
 void MusicManager::FadeOut(milliseconds time) const {
-	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(time) };
+	auto time_int{ to_duration<duration<int, std::milli>>(time) };
 	Mix_FadeOutMusic(time_int.count());
 }
 
@@ -126,7 +126,7 @@ void SoundManager::Play(const ResourceHandle& key, int channel, int loops) const
 void SoundManager::FadeIn(const ResourceHandle& key, milliseconds fade_time, int channel, int loops)
 	const {
 	PTGN_ASSERT(Has(key), "Cannot fade in sound which has not been loaded in the music manager");
-	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(fade_time) };
+	auto time_int{ to_duration<duration<int, std::milli>>(fade_time) };
 	Mix_FadeInChannel(channel, Get(key).get(), loops, time_int.count());
 }
 
@@ -187,7 +187,7 @@ void SoundManager::TogglePause(int channel) const {
 }
 
 void SoundManager::FadeOut(milliseconds fade_time, int channel) const {
-	auto time_int{ std::chrono::duration_cast<duration<int, std::milli>>(fade_time) };
+	auto time_int{ to_duration<duration<int, std::milli>>(fade_time) };
 	Mix_FadeOutChannel(channel, time_int.count());
 }
 

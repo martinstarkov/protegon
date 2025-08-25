@@ -4,13 +4,16 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include <string_view>
 
 #include "common/assert.h"
+#include "components/draw.h"
+#include "components/effects.h"
 #include "components/generic.h"
 #include "components/sprite.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/manager.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -18,7 +21,6 @@
 #include "renderer/render_data.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
-#include "scene/camera.h"
 #include "scene/scene.h"
 #include "SDL_blendmode.h"
 #include "SDL_pixels.h"
@@ -28,41 +30,10 @@
 
 namespace ptgn {
 
-Text CreateText(
-	Scene& scene, const TextContent& content, const TextColor& text_color,
-	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties
-) {
-	Text text{ scene.CreateEntity() };
-	text.Add<TextureHandle>();
-	text.SetDraw<Text>();
-	text.Add<Camera>(scene.camera.window_unzoomed);
-	text.Show();
-	text.SetParameter(content, false);
-	text.SetParameter(text_color, false);
-	text.SetParameter(font_key, false);
-	text.SetParameter(font_size, false);
-	text.SetProperties(properties, false);
-	text.RecreateTexture();
-
-	return text;
-}
-
 Text::Text(const Entity& entity) : Entity{ entity } {}
 
 void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
-	if (entity.Has<TextColor>() && entity.Get<TextColor>().a == 0) {
-		return;
-	}
-
-	if (!entity.Has<TextContent>()) {
-		return;
-	}
-
-	if (std::string_view{ entity.Get<TextContent>() }.empty()) {
-		return;
-	}
-
-	Sprite::Draw(ctx, entity);
+	impl::DrawText(ctx, entity);
 }
 
 Text& Text::SetFont(const ResourceHandle& font_key) {
@@ -155,31 +126,32 @@ const impl::Texture& Text::GetTexture() const {
 	return Get<impl::Texture>();
 }
 
-FontSize Text::GetFontSize() const {
-	if (FontSize font_size{ GetParameter(FontSize{}) }; font_size != FontSize{}) {
-		return font_size;
+FontSize Text::GetFontSize(bool hd) const {
+	FontSize font_size{ GetParameter(FontSize{}) };
+	if (hd) {
+		return font_size.GetHD(*this);
 	}
-	auto font_key{ GetFontKey() };
-	PTGN_ASSERT(
-		game.font.Has(font_key),
-		"Cannot get size of text font unless it is loaded in the font manager"
-	);
-	return game.font.GetHeight(font_key, {});
+	return font_size;
 }
 
 V2_int Text::GetSize() const {
 	return GetSize(*this);
 }
 
+V2_int Text::GetSize(const TextContent& content) const {
+	return GetSize(content, GetFontKey(), GetFontSize(IsHD()));
+}
+
 V2_int Text::GetSize(const Entity& text) {
+	Text t{ text };
 	return GetSize(
 		GetParameter(text, TextContent{}), GetParameter(text, ResourceHandle{}),
-		GetParameter(text, FontSize{})
+		t.GetFontSize(t.IsHD())
 	);
 }
 
 V2_int Text::GetSize(
-	const std::string& content, const ResourceHandle& font_key, const FontSize& font_size
+	const TextContent& content, const ResourceHandle& font_key, const FontSize& font_size
 ) {
 	PTGN_ASSERT(
 		game.font.Has(font_key),
@@ -188,11 +160,22 @@ V2_int Text::GetSize(
 	return game.font.GetSize(font_key, content, font_size);
 }
 
+impl::Texture Text::CreateTexture(const FontSize& font_size) const {
+	TextContent content{ GetContent() };
+	TextColor color{ GetColor() };
+	ResourceHandle font_key{ GetFontKey() };
+	TextProperties properties{ GetProperties() };
+
+	return CreateTexture(content, color, font_size, font_key, properties);
+}
+
 impl::Texture Text::CreateTexture(
-	const std::string& content, const TextColor& color, const FontSize& font_size,
+	const TextContent& content, const TextColor& color, const FontSize& font_size,
 	const ResourceHandle& font_key, const TextProperties& properties
 ) {
-	if (content.empty()) {
+	const auto& text_content{ content.GetValue() };
+
+	if (text_content.empty()) {
 		return {};
 	}
 
@@ -218,9 +201,13 @@ impl::Texture Text::CreateTexture(
 		TTF_SetFontLineSkip(font, properties.line_skip);
 	}
 #endif
-	if (font_size != std::numeric_limits<std::int32_t>::infinity()) {
-		TTF_SetFontSize(font, font_size);
-	}
+
+	PTGN_ASSERT(font_size > 0, "Font size must be greater than zero");
+	PTGN_ASSERT(
+		font_size < 10000, "Font size exceeds maximum allowable font size or grew recursively"
+	);
+
+	TTF_SetFontSize(font, font_size);
 
 	SDL_Color text_color{ color.r, color.g, color.b, color.a };
 
@@ -239,7 +226,7 @@ impl::Texture Text::CreateTexture(
 								 properties.outline.color.b, properties.outline.color.a };
 
 		outline_surface = TTF_RenderUTF8_Blended_Wrapped(
-			font, content.c_str(), outline_color, properties.wrap_after
+			font, text_content.c_str(), outline_color, properties.wrap_after
 		);
 
 		PTGN_ASSERT(outline_surface != nullptr, "Failed to create text outline");
@@ -252,20 +239,20 @@ impl::Texture Text::CreateTexture(
 	switch (properties.render_mode) {
 		case FontRenderMode::Solid:
 			surface = TTF_RenderUTF8_Solid_Wrapped(
-				font, content.c_str(), text_color, properties.wrap_after
+				font, text_content.c_str(), text_color, properties.wrap_after
 			);
 			break;
 		case FontRenderMode::Shaded: {
 			SDL_Color shading_color{ properties.shading_color.r, properties.shading_color.g,
 									 properties.shading_color.b, properties.shading_color.a };
 			surface = TTF_RenderUTF8_Shaded_Wrapped(
-				font, content.c_str(), text_color, shading_color, properties.wrap_after
+				font, text_content.c_str(), text_color, shading_color, properties.wrap_after
 			);
 			break;
 		}
 		case FontRenderMode::Blended:
 			surface = TTF_RenderUTF8_Blended_Wrapped(
-				font, content.c_str(), text_color, properties.wrap_after
+				font, text_content.c_str(), text_color, properties.wrap_after
 			);
 			break;
 		default:
@@ -289,15 +276,39 @@ impl::Texture Text::CreateTexture(
 	return impl::Texture(impl::Surface{ surface });
 }
 
-void Text::RecreateTexture() {
-	// TODO: Move texture location to TextureManager.
-	impl::Texture& texture{ Has<impl::Texture>() ? Get<impl::Texture>() : Add<impl::Texture>() };
+Text& Text::SetHD(bool hd) {
+	if (hd == IsHD()) {
+		return *this;
+	}
+	Add<impl::HDText>(hd);
+	RecreateTexture();
+	return *this;
+}
 
+bool Text::IsHD() const {
+	return Has<impl::HDText>() && Get<impl::HDText>();
+}
+
+void Text::RecreateTexture() {
+	TextContent content{ GetContent() };
+	TextColor color{ GetColor() };
+	FontSize font_size{ GetFontSize(IsHD()) };
+	ResourceHandle font_key{ GetFontKey() };
 	TextProperties properties{ GetProperties() };
-	TextContent content{ GetParameter(TextContent{}) };
-	TextColor color{ GetParameter(TextColor{}) };
-	FontSize font_size{ GetParameter(FontSize{}) };
-	ResourceHandle font_key{ GetParameter(ResourceHandle{}) };
+
+	RecreateTexture(content, color, font_size, font_key, properties);
+}
+
+void Text::RecreateTexture(
+	const TextContent& content, const TextColor& color, const FontSize& font_size,
+	const ResourceHandle& font_key, const TextProperties& properties
+) {
+	// Cache the font size of the texture so that if HD resolution changes, the text is updated
+	// before drawing.
+	Add<impl::CachedFontSize>(font_size);
+
+	// TODO: Move texture location to TextureManager.
+	impl::Texture& texture{ TryAdd<impl::Texture>() };
 
 	texture = CreateTexture(content, color, font_size, font_key, properties);
 }
@@ -314,6 +325,10 @@ TextProperties Text::GetProperties() const {
 	return properties;
 }
 
+void Text::SetProperties(const TextProperties& properties) {
+	SetProperties(properties, true);
+}
+
 void Text::SetProperties(const TextProperties& properties, bool recreate_texture) {
 	bool changed  = false;
 	changed		 |= SetParameter(properties.justify, false);
@@ -327,6 +342,23 @@ void Text::SetProperties(const TextProperties& properties, bool recreate_texture
 	if (changed && recreate_texture) {
 		RecreateTexture();
 	}
+}
+
+Text CreateText(
+	Manager& manager, const TextContent& content, const TextColor& text_color,
+	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties
+) {
+	Text text{ manager.CreateEntity() };
+	text.Add<TextureHandle>();
+	SetDraw<Text>(text);
+	Show(text);
+	text.Add<impl::HDText>(true);
+	text.SetParameter(content, false);
+	text.SetParameter(text_color, false);
+	text.SetParameter(font_key, false);
+	text.SetParameter(font_size, false);
+	text.SetProperties(properties, true);
+	return text;
 }
 
 } // namespace ptgn

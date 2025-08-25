@@ -2,8 +2,9 @@
 
 #include <vector>
 
-#include "components/drawable.h"
 #include "core/entity.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "ui/button.h"
@@ -11,7 +12,7 @@
 namespace ptgn {
 
 class Button;
-class Scene;
+class Manager;
 
 namespace impl {
 
@@ -32,14 +33,14 @@ struct DropdownInstance {
 	Origin origin_{ Origin::CenterBottom };
 };
 
-class DropdownScript : public ptgn::Script<DropdownScript> {
+class DropdownScript : public Script<DropdownScript, ButtonScript> {
 public:
 	DropdownScript() = default;
 
 	void OnButtonActivate() override;
 };
 
-class DropdownItemScript : public ptgn::Script<DropdownItemScript> {
+class DropdownItemScript : public Script<DropdownItemScript, ButtonScript> {
 public:
 	DropdownItemScript() = default;
 
@@ -83,6 +84,6 @@ private:
 };
 
 // @param open If true, dropdown starts in an open state.
-Dropdown CreateDropdownButton(Scene& scene, bool start_open = false);
+Dropdown CreateDropdownButton(Manager& manager, bool start_open = false);
 
 } // namespace ptgn

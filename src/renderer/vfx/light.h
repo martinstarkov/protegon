@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 class Shader;
 
 namespace impl {
@@ -43,7 +43,7 @@ struct LightProperties {
 } // namespace impl
 
 // Lights must be added to the LightManager to be drawn to the screen.
-class PointLight : public Entity, public Drawable<PointLight> {
+class PointLight : public Entity {
 public:
 	PointLight() = default;
 
@@ -73,13 +73,10 @@ public:
 	[[nodiscard]] static V3_float GetShaderColor(const Color& color);
 
 private:
-	friend PointLight CreatePointLight(
-		Scene& scene, const V2_float& position, float radius, const Color& color, float intensity,
-		float falloff
-	);
-
 	static void SetUniform(Entity entity, const Shader& shader);
 };
+
+PTGN_DRAWABLE_REGISTER(PointLight);
 
 // @param position Starting point of the light.
 // @param radius The higher the radius, the further light reaches out from the center.
@@ -87,7 +84,7 @@ private:
 // @param intensity Intensity of the light source. Range: [0, 1].
 // @param falloff The higher the value, the Less light reaches the outer radius.
 PointLight CreatePointLight(
-	Scene& scene, const V2_float& position, float radius, const Color& color,
+	Manager& manager, const V2_float& position, float radius, const Color& color,
 	float intensity = 0.5f, float falloff = 2.0f
 );
 

@@ -1,10 +1,12 @@
 #pragma once
 
+#include <concepts>
 #include <memory>
 #include <string_view>
 #include <type_traits>
 
 #include "common/assert.h"
+#include "common/concepts.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "scene/scene.h"
@@ -21,8 +23,14 @@ class Game;
 class Renderer;
 
 struct SceneComponent {
+	// Important that this is a unique ptr so that adding new scenes does not invalidate scene
+	// references. This may happen if the user transitions scenes inside a callback (which
+	// internally loops through scene entities).
 	std::unique_ptr<Scene> scene;
 };
+
+template <typename T>
+concept SceneType = IsOrDerivedFrom<T, Scene>;
 
 class SceneManager {
 public:
@@ -39,17 +47,9 @@ public:
 	// @tparam TScene The type of scene to be loaded.
 	// @param scene_key A unique identifier for the loaded scene.
 	// @param constructor_args Optional: Arguments passed to TScene's constructor.
-	template <typename TScene, typename... TArgs>
+	template <SceneType TScene, typename... TArgs>
+		requires std::constructible_from<TScene, TArgs...>
 	TScene& Load(std::string_view scene_key, TArgs&&... constructor_args) {
-		static_assert(
-			std::is_constructible_v<TScene, TArgs...>,
-			"Loaded scene type must be constructible from provided constructor arguments"
-		);
-
-		static_assert(
-			std::is_convertible_v<TScene*, Scene*>,
-			"Loaded scene type must inherit from ptgn::Scene"
-		);
 		auto key{ GetInternalKey(scene_key) };
 		auto scene{ GetScene(key) };
 		SceneComponent* sc{ nullptr };
@@ -67,17 +67,9 @@ public:
 	}
 
 	// TODO: Find a better name for this. Perhaps switch to TryLoad and Load.
-	template <typename TScene, typename... TArgs>
+	template <SceneType TScene, typename... TArgs>
+		requires std::constructible_from<TScene, TArgs...>
 	TScene& ForceLoad(std::string_view scene_key, TArgs&&... constructor_args) {
-		static_assert(
-			std::is_constructible_v<TScene, TArgs...>,
-			"Loaded scene type must be constructible from provided constructor arguments"
-		);
-
-		static_assert(
-			std::is_convertible_v<TScene*, Scene*>,
-			"Loaded scene type must inherit from ptgn::Scene"
-		);
 		auto key{ GetInternalKey(scene_key) };
 		auto scene{ GetScene(key) };
 		SceneComponent* sc{ nullptr };
@@ -108,7 +100,7 @@ public:
 	// @tparam TScene The type of scene to be loaded and set as active.
 	// @param scene_key A unique identifier for the loaded scene.
 	// @param constructor_args Optional: Arguments passed to TScene's constructor.
-	template <typename TScene, typename... TArgs>
+	template <SceneType TScene, typename... TArgs>
 	TScene& Enter(std::string_view scene_key, TArgs&&... constructor_args) {
 		auto& scene{ Load<TScene>(scene_key, std::forward<TArgs>(constructor_args)...) };
 		Enter(scene_key);
@@ -142,7 +134,7 @@ public:
 		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
 	}
 
-	template <typename TScene, typename... TArgs>
+	template <SceneType TScene, typename... TArgs>
 	TScene& Transition(
 		std::string_view from_scene_key, std::string_view to_scene_key,
 		const SceneTransition& transition, TArgs&&... constructor_args
@@ -158,7 +150,7 @@ public:
 	// @tparam TScene An optional type to cast the retrieved scene pointer to (i.e. return will be
 	// shared_ptr<TScene>).
 	// @return A shared pointer to the desired scene.
-	template <typename TScene = Scene>
+	template <SceneType TScene = Scene>
 	[[nodiscard]] TScene& Get(std::string_view scene_key) {
 		return Get<TScene>(GetInternalKey(scene_key));
 	}
@@ -172,12 +164,8 @@ public:
 	// If a scene was active, it is exited first.
 	void UnloadAllScenes();
 
-	template <typename TScene = Scene>
+	template <SceneType TScene = Scene>
 	[[nodiscard]] TScene& Get(std::size_t scene_key) {
-		static_assert(
-			std::is_base_of_v<Scene, TScene> || std::is_same_v<TScene, Scene>,
-			"Cannot cast retrieved scene to type which does not inherit from the Scene class"
-		);
 		auto scene{ GetScene(scene_key) };
 		PTGN_ASSERT(scene, "Scene key does not exist in the scene manager");
 		PTGN_ASSERT(scene.Has<SceneComponent>());
@@ -210,6 +198,8 @@ private:
 	friend class ptgn::Scene;
 	friend class Renderer;
 	friend class ptgn::Entity;
+
+	void ReEnter(std::size_t scene_key);
 
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 

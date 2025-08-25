@@ -17,7 +17,7 @@ class RenderData;
 
 } // namespace impl
 
-struct Polygon : public Drawable<Polygon> {
+struct Polygon {
 	Polygon() = default;
 
 	template <typename Container>
@@ -38,5 +38,7 @@ struct Polygon : public Drawable<Polygon> {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Polygon, vertices)
 };
+
+PTGN_DRAWABLE_REGISTER(Polygon);
 
 } // namespace ptgn

@@ -19,7 +19,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("DeserializedScene", { 800, 800 }, color::Transparent);
+	game.Init("DeserializedScene", { 800, 800 });
 	game.scene.Enter<DeserializedScene>("");
 	return 0;
 }

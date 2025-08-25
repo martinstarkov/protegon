@@ -3,13 +3,13 @@
 #include <cstdint>
 #include <functional>
 #include <ostream>
-#include <string>
 #include <string_view>
 #include <unordered_map>
 
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
+#include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
 #include "math/vector2.h"
@@ -21,8 +21,8 @@
 
 namespace ptgn {
 
-class Scene;
 class Button;
+class Manager;
 class ToggleButton;
 class ToggleButtonGroup;
 
@@ -47,27 +47,27 @@ enum class InternalButtonState {
 	HoverPressed = 5
 };
 
-class ButtonScript : public ptgn::Script<ButtonScript> {
+class InternalButtonScript : public Script<InternalButtonScript, MouseScript> {
 public:
-	void OnMouseEnter(V2_float mouse) override;
+	void OnMouseMoveOver() override;
 
-	void OnMouseLeave(V2_float mouse) override;
+	void OnMouseMoveOut() override;
 
-	void OnMouseDown(Mouse mouse) override;
+	void OnMouseDownOver(Mouse mouse) override;
 
-	void OnMouseDownOutside(Mouse mouse) override;
+	void OnMouseDownOut(Mouse mouse) override;
 
-	void OnMouseUp(Mouse mouse) override;
+	void OnMouseUpOver(Mouse mouse) override;
 
-	void OnMouseUpOutside(Mouse mouse) override;
+	void OnMouseUpOut(Mouse mouse) override;
 };
 
-class ToggleButtonScript : public ptgn::Script<ToggleButtonScript> {
+class ToggleButtonScript : public Script<ToggleButtonScript, ButtonScript> {
 public:
 	void OnButtonActivate() override;
 };
 
-class ButtonActivateScript : public ptgn::Script<ButtonActivateScript> {
+class ButtonActivateScript : public Script<ButtonActivateScript, ButtonScript> {
 public:
 	ButtonActivateScript() = default;
 
@@ -76,15 +76,15 @@ public:
 
 	void OnButtonActivate() override {
 		if (on_activate) {
-			std::invoke(on_activate);
+			on_activate();
 		}
 	}
 
 	std::function<void()> on_activate;
 };
 
-struct ButtonToggled : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct ButtonToggled : public BoolComponent {
+	using BoolComponent::BoolComponent;
 };
 
 struct ButtonDisabledTextureKey : public TextureHandle {
@@ -177,7 +177,7 @@ struct ButtonText {
 	ButtonText() = default;
 
 	ButtonText(
-		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 		const TextProperties& text_properties
 	);
@@ -197,7 +197,7 @@ struct ButtonText {
 	[[nodiscard]] Text GetValid(ButtonState state) const;
 
 	void Set(
-		Entity parent, Scene& scene, ButtonState state, const TextContent& text_content,
+		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 		const TextProperties& text_properties
 	);
@@ -216,9 +216,16 @@ struct ButtonTextToggled : public ButtonText {
 	using ButtonText::ButtonText;
 };
 
+struct ButtonEnabled {
+	bool activate{ true };
+	bool hover{ true };
+
+	PTGN_SERIALIZER_REGISTER(ButtonEnabled, activate, hover);
+};
+
 } // namespace impl
 
-class Button : public Entity, public Drawable<Button> {
+class Button : public Entity {
 public:
 	Button() = default;
 	Button(const Entity& entity);
@@ -238,9 +245,15 @@ public:
 	// @param radius 0.0f results in texture sized button.
 	Button& SetRadius(float radius = 0.0f);
 
-	Button& Enable();
-	Button& Disable();
-	Button& SetEnabled(bool enabled = true);
+	Button& Enable(bool enable_hover = true, bool reset_state = true);
+	Button& Disable(bool disable_hover = true, bool reset_state = true);
+	Button& SetEnabled(
+		bool enable_activation = true, bool enable_hover = true, bool reset_state = true
+	);
+
+	// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
+	// @return True if the button activation is enabled, false otherwise.
+	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
 
 	// Manual button script triggers.
 	void Activate();
@@ -280,14 +293,15 @@ public:
 
 	Button& SetTextJustify(const TextJustify& justify, ButtonState state = ButtonState::Default);
 
-	// TODO: Fix Fixed size functionality.
-	//[[nodiscard]] V2_float GetTextFixedSize() const;
+	[[nodiscard]] V2_float GetTextFixedSize() const;
+
 	// (default: unscaled text size). If either axis of the text size
 	// is zero, it is stretched to fit the entire size of the button rectangle (along that axis).
-	// Button& SetTextFixedSize(const V2_float& size);
-	// Make it so the button text no longer has a fixed size, this will cause the text to stretch
-	// based its the font size and wrap settings.
-	// Button& ClearTextFixedSize();
+	Button& SetTextFixedSize(const V2_float& size = {});
+
+	// Make it so the button text no longer has a fixed size,
+	// this will cause the text to stretch based its the font size and wrap settings.
+	Button& ClearTextFixedSize();
 
 	[[nodiscard]] FontSize GetFontSize(ButtonState state = ButtonState::Current) const;
 
@@ -317,6 +331,8 @@ public:
 
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 };
+
+PTGN_DRAWABLE_REGISTER(Button);
 
 class ToggleButton : public Button {
 public:
@@ -407,7 +423,7 @@ private:
 
 namespace impl {
 
-class ToggleButtonGroupScript : public ptgn::Script<ToggleButtonGroupScript> {
+class ToggleButtonGroupScript : public Script<ToggleButtonGroupScript, ButtonScript> {
 public:
 	ToggleButtonGroupScript() = default;
 	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
@@ -442,16 +458,16 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	return os;
 }
 
-Button CreateButton(Scene& scene);
+Button CreateButton(Manager& manager);
 
 Button CreateTextButton(
-	Scene& scene, const TextContent& text_content, const TextColor& text_color = color::Black
+	Manager& manager, const TextContent& text_content, const TextColor& text_color = color::Black
 );
 
 // @param toggled Whether or not the button start in the toggled state.
-ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
+ToggleButton CreateToggleButton(Manager& manager, bool toggled = false);
 
-ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
+ToggleButtonGroup CreateToggleButtonGroup(Manager& manager);
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	ButtonState, { { ButtonState::Default, "default" },

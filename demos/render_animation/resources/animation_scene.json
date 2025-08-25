@@ -1,0 +1,390 @@
+{
+    "actions": [
+        2
+    ],
+    "active": true,
+    "camera": {
+        "primary": {
+            "SceneKey": null,
+            "UUID": 16758140619854099216
+        },
+        "scene_key": null
+    },
+    "collider_color": [
+        0,
+        0,
+        255,
+        255
+    ],
+    "collider_visibility": false,
+    "input": {
+        "draw_interactives": false,
+        "scene_key": 0,
+        "top_only": false
+    },
+    "key": null,
+    "manager": {
+        "count": 2,
+        "entities": {
+            "bit_count": 2,
+            "data": [
+                3
+            ]
+        },
+        "free_entities": [],
+        "next_entity": 2,
+        "pools": {
+            "AnimationInfo": {
+                "components": [
+                    {
+                        "current_frame": 6,
+                        "duration": "4000ms",
+                        "frame_count": 16,
+                        "frame_size": [
+                            512,
+                            512
+                        ],
+                        "frame_timer": {
+                            "paused": false,
+                            "running": true
+                        },
+                        "frames_played": 22,
+                        "play_count": -1
+                    }
+                ],
+                "dense_set": [
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    0
+                ]
+            },
+            "BounceEffect": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "CameraInfo": {
+                "components": [
+                    {
+                        "previous": {
+                            "dirty_flags": 7,
+                            "position": [
+                                400.0,
+                                400.0
+                            ],
+                            "rotation": 0.0,
+                            "scale": [
+                                1.0,
+                                1.0
+                            ]
+                        },
+                        "projection": [
+                            0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0,
+                            0.0,
+                            -0.0,
+                            0.0,
+                            -0.0,
+                            1.0
+                        ],
+                        "projection_dirty": false,
+                        "view": [
+                            1.0,
+                            -0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            -0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                            0.0,
+                            -400.0,
+                            -400.0,
+                            0.0,
+                            1.0
+                        ],
+                        "view_dirty": false,
+                        "view_projection": [
+                            0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.0024999999441206455,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            -1.0,
+                            1.0,
+                            0.0,
+                            1.0
+                        ],
+                        "viewport_size": [
+                            800.0,
+                            800.0
+                        ]
+                    }
+                ],
+                "dense_set": [
+                    0
+                ],
+                "sparse_set": [
+                    0
+                ]
+            },
+            "Collider": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "Dropzone": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "FollowEffect": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "IDrawable": {
+                "components": [
+                    12046072236507568353
+                ],
+                "dense_set": [
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    0
+                ]
+            },
+            "Interactive": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "Lifetime": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "Offsets": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "ParticleEmitterComponent": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "PlatformerJump": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "PlatformerMovement": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "RigidBody": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "RotateEffect": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "ScaleEffect": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "SceneKey": {
+                "components": [
+                    null,
+                    null
+                ],
+                "dense_set": [
+                    0,
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    1
+                ]
+            },
+            "ShakeEffect": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "TextureCrop": {
+                "components": [
+                    {
+                        "position": [
+                            3072.0,
+                            0.0
+                        ],
+                        "size": [
+                            512.0,
+                            512.0
+                        ]
+                    }
+                ],
+                "dense_set": [
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    0
+                ]
+            },
+            "TextureHandle": {
+                "components": [
+                    "anim2"
+                ],
+                "dense_set": [
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    0
+                ]
+            },
+            "TintEffect": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "TopDownMovement": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "Transform": {
+                "components": [
+                    {
+                        "dirty_flags": 0,
+                        "position": [
+                            400.0,
+                            400.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    {
+                        "dirty_flags": 0,
+                        "position": [
+                            400.0,
+                            400.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                ],
+                "dense_set": [
+                    0,
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    1
+                ]
+            },
+            "TranslateEffect": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "TweenInstance": {
+                "components": [],
+                "dense_set": [],
+                "sparse_set": []
+            },
+            "UUID": {
+                "components": [
+                    16758140619854099216,
+                    9995860407891653781
+                ],
+                "dense_set": [
+                    0,
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    1
+                ]
+            },
+            "Visible": {
+                "components": [
+                    true
+                ],
+                "dense_set": [
+                    1
+                ],
+                "sparse_set": [
+                    0,
+                    0
+                ]
+            }
+        },
+        "refresh": {
+            "bit_count": 2,
+            "data": [
+                0
+            ]
+        },
+        "refresh_required": false,
+        "versions": [
+            1,
+            1
+        ]
+    },
+    "physics": {
+        "boundary_behavior": "stop_at_bounds",
+        "bounds_size": [
+            0.0,
+            0.0
+        ],
+        "bounds_top_left": [
+            0.0,
+            0.0
+        ],
+        "enabled": true,
+        "gravity": [
+            0.0,
+            0.0
+        ]
+    },
+    "render_target": {
+        "UUID": 12268400110015968090
+    }
+}

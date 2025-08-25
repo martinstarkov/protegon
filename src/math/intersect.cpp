@@ -25,14 +25,14 @@
 #define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
 		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                  \
-	}
+	} else
 
 #define PTGN_HANDLE_INTERSECT_PAIR(TypeA, TypeB, PREFIX)                           \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {        \
 		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                         \
 	} else if constexpr (std::is_same_v<S1, TypeB> && std::is_same_v<S2, TypeA>) { \
 		return impl::PREFIX##TypeA##TypeB(t2, s2, t1, s1);                         \
-	}
+	} else
 
 #define PTGN_INTERSECT_SHAPE_PAIR_TABLE                        \
 	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Circle, Circle, Intersect) \
@@ -80,7 +80,7 @@ Intersection IntersectCircleCircle(
 	game.stats.intersect_circle_circle++;
 #endif
 
-	if (dist2 > epsilon2<float>) {
+	if (dist2 > epsilon<float> * epsilon<float>) {
 		float dist{ std::sqrt(dist2) };
 		PTGN_ASSERT(!NearlyEqual(dist, 0.0f));
 		c.normal = -d / dist;
@@ -99,7 +99,7 @@ Intersection IntersectCircleCircle(
 Intersection IntersectCircleRect(
 	const Transform& t1, const Circle& A, const Transform& t2, const Rect& B
 ) {
-	if (t2.rotation != 0.0f) {
+	if (t2.GetRotation() != 0.0f) {
 		return IntersectCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -209,7 +209,7 @@ Intersection IntersectRectRect(
 ) {
 	Intersection c;
 
-	if (t1.rotation != 0.0f || t2.rotation != 0.0f) {
+	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
 		return IntersectPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -341,8 +341,7 @@ Intersection Intersect(
 				[&](const auto& s2) -> Intersection {
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
-					PTGN_INTERSECT_SHAPE_PAIR_TABLE
-					else {
+					PTGN_INTERSECT_SHAPE_PAIR_TABLE {
 						PTGN_ERROR("Cannot find intersect function for the given shapes");
 					}
 				},

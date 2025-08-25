@@ -1,10 +1,13 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
@@ -14,21 +17,21 @@ namespace ptgn {
 
 class Scene;
 class Camera;
+class Manager;
 class RenderTarget;
+
+enum class ResizeToResolution {
+	Logical,
+	Physical
+};
 
 namespace impl {
 
-// Create a render target that is continuously sized to the window.
-RenderTarget CreateRenderTarget(
-	const Entity& entity, const Color& clear_color, TextureFormat texture_format
-);
-
-RenderTarget CreateRenderTarget(
-	const Entity& entity, const V2_float& size, const Color& clear_color,
-	TextureFormat texture_format
-);
-
 class RenderData;
+
+RenderTarget AddRenderTargetComponents(
+	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
+);
 
 struct DisplayList {
 	std::vector<Entity> entities;
@@ -40,19 +43,23 @@ struct ClearColor : public ColorComponent {
 	ClearColor() : ColorComponent{ color::Transparent } {}
 };
 
+struct LogicalRenderTargetResizeScript :
+	public Script<LogicalRenderTargetResizeScript, LogicalResolutionScript> {
+	void OnLogicalResolutionChanged() override;
+};
+
+struct PhysicalRenderTargetResizeScript :
+	public Script<PhysicalRenderTargetResizeScript, PhysicalResolutionScript> {
+	void OnPhysicalResolutionChanged() override;
+};
+
 } // namespace impl
 
 // Each render target is initialized with a window camera.
-class RenderTarget : public Entity, public Drawable<RenderTarget> {
+class RenderTarget : public Entity {
 public:
 	// A default render target will result in the screen being used as the render target.
-	RenderTarget()									 = default;
-	RenderTarget(const RenderTarget&)				 = default;
-	RenderTarget& operator=(const RenderTarget&)	 = default;
-	RenderTarget(RenderTarget&&) noexcept			 = default;
-	RenderTarget& operator=(RenderTarget&&) noexcept = default;
-	~RenderTarget()									 = default;
-
+	RenderTarget() = default;
 	RenderTarget(const Entity& entity);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
@@ -81,7 +88,6 @@ public:
 
 	// @return Texture attached to the render target.
 	[[nodiscard]] const impl::Texture& GetTexture() const;
-	[[nodiscard]] impl::Texture& GetTexture();
 
 	// @return Frame buffer of the render target.
 	[[nodiscard]] const impl::FrameBuffer& GetFrameBuffer() const;
@@ -112,32 +118,36 @@ public:
 		const std::function<void(V2_int, Color)>& callback, bool restore_bind_state = true
 	) const;
 
+	void Resize(const V2_int& size);
+
 private:
 	friend class impl::RenderData;
 	friend class Scene;
+	friend RenderTarget impl::AddRenderTargetComponents(
+		const Entity& entity, const V2_int& size, const Color& clear_color,
+		TextureFormat texture_format
+	);
 
 	// Scene uses vector directly when adding to display list instead of AddToDisplayList. This
 	// avoids adding a render target to each scene entity.
 	[[nodiscard]] std::vector<Entity>& GetDisplayList();
-
-	friend RenderTarget impl::CreateRenderTarget(
-		const Entity& entity, const V2_float& size, const Color& clear_color,
-		TextureFormat texture_format
-	);
 };
+
+PTGN_DRAWABLE_REGISTER(RenderTarget);
 
 // Create a render target with a custom size.
 // @param size The size of the render target.
 // @param clear_color The background color of the render target.
 RenderTarget CreateRenderTarget(
-	Scene& scene, const V2_float& size, const Color& clear_color = color::Transparent,
+	Manager& manager, const V2_int& size, const Color& clear_color = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 
-// Create a render target that is continuously sized to the window.
+// Create a render target that is continuously sized to the specified resolution.
 // @param clear_color The background color of the render target.
 RenderTarget CreateRenderTarget(
-	Scene& scene, const Color& clear_color = color::Transparent,
+	Manager& manager, ResizeToResolution resize_to_resolution = ResizeToResolution::Physical,
+	const Color& clear_color	 = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 

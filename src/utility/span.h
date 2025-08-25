@@ -1,13 +1,14 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <concepts>
 #include <map>
+#include <ranges>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include "common/type_traits.h"
 
 namespace ptgn {
 
@@ -91,11 +92,6 @@ template <typename T>
 	return std::find(container.begin(), container.end(), value) != container.end();
 }
 
-template <typename K, typename T, typename S>
-[[nodiscard]] static bool MapContains(const std::unordered_map<K, T>& container, const S& value) {
-	return container.find(value) != container.end();
-}
-
 template <typename Type, std::size_t... sizes>
 [[nodiscard]] static auto ConcatenateArrays(const std::array<Type, sizes>&... arrays) {
 	std::array<Type, (sizes + ...)> result;
@@ -127,9 +123,16 @@ template <typename T>
 	return result;
 }
 
+template <typename T>
+void VectorRemoveDuplicates(std::vector<T>& v) {
+	std::sort(v.begin(), v.end());
+	auto last{ std::ranges::unique(v) };
+	v.erase(last.begin(), last.end());
+}
+
 // Swaps vector elements if they both exist in the vector.
 template <typename T>
-static void SwapVectorElements(std::vector<T>& v, const T& e1, const T& e2) {
+static void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 	auto it1{ std::find(v.begin(), v.end(), e1) };
 	auto it2{ std::find(v.begin(), v.end(), e2) };
 	if (it1 == v.end() || it2 == v.end()) {
@@ -142,8 +145,18 @@ static void SwapVectorElements(std::vector<T>& v, const T& e1, const T& e2) {
 template <typename T>
 static bool VectorErase(std::vector<T>& v, const T& element) {
 	auto before{ v.size() };
-	v.erase(std::remove(v.begin(), v.end(), element), v.end());
+	std::erase(v, element);
 	return v.size() != before;
+}
+
+// Subtract elements of b from a.
+template <typename T>
+static void VectorSubtract(std::vector<T>& a, const std::vector<T>& b) {
+	// Create a hash set of elements in b for fast lookup
+	std::unordered_set<T> b_set(b.begin(), b.end());
+
+	// Erase all elements from a that are in b_set
+	std::erase_if(a, [&b_set](const T& val) { return b_set.count(val) > 0; });
 }
 
 } // namespace ptgn

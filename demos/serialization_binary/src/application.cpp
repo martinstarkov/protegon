@@ -1,10 +1,3 @@
-#include <array>
-#include <cstdint>
-#include <map>
-#include <string>
-#include <type_traits>
-#include <unordered_map>
-#include <vector>
 
 #include "core/game.h"
 #include "scene/scene.h"
@@ -14,6 +7,8 @@ using namespace ptgn;
 
 class BinarySerializationScene : public Scene {
 public:
+	// TODO: Fix.
+	/*
 	struct Trivial {
 		int a{ 0 };
 		int b{ 0 };
@@ -124,10 +119,11 @@ public:
 
 		game.Stop();
 	}
+*/
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BinarySerializationScene", { 1280, 720 }, color::Transparent);
+	game.Init("BinarySerializationScene", { 1280, 720 });
 	game.scene.Enter<BinarySerializationScene>("");
 	return 0;
 }

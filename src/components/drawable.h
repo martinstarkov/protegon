@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <cstddef>
 #include <iostream>
 #include <string_view>
@@ -27,29 +28,12 @@ class RenderData;
 
 class Entity;
 
-namespace tt {
+template <typename T>
+concept DrawableType = requires(impl::RenderData& ctx, const Entity& entity) {
+	{ T::Draw(ctx, entity) } -> std::same_as<void>;
+};
 
 namespace impl {
-
-template <typename, typename = std::void_t<>>
-struct has_static_draw : std::false_type {};
-
-template <typename T>
-struct has_static_draw<
-	T, std::void_t<decltype(T::Draw(
-		   std::declval<ptgn::impl::RenderData&>(), std::declval<const Entity&>()
-	   ))>> :
-	std::is_same<
-		decltype(T::Draw(std::declval<ptgn::impl::RenderData&>(), std::declval<const Entity&>())),
-		void> {};
-
-} // namespace impl
-
-// Trait to detect static void Draw(impl::RenderData&, const Entity&)
-template <typename T>
-inline constexpr bool has_static_draw_v = impl::has_static_draw<T>::value;
-
-} // namespace tt
 
 class IDrawable {
 public:
@@ -64,58 +48,35 @@ public:
 		return s;
 	}
 
-	template <typename T>
-	class Registrar {
-		friend Entity;
-
-		friend T;
-
-		static bool RegisterDrawFunction() {
-			static_assert(
-				tt::has_static_draw_v<T>,
-				"Cannot register draw interface class without static void "
-				"Draw(impl::RenderData&, const Entity&) function"
-			);
-			constexpr auto name{ type_name<T>() };
-			IDrawable::data()[Hash(name)] = &T::Draw;
-			return true;
-		}
-
-		static bool registered_draw;
-
-		Registrar() {
-			(void)registered_draw;
-		}
-	};
-
 	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(IDrawable, hash)
 
 	std::size_t hash{ 0 };
 };
 
-// Classes inheriting from Drawable must have an explicitly defined default constructor.
-// (= default is not enough).
-template <typename T>
-using Drawable = IDrawable::Registrar<T>;
+template <DrawableType T>
+class DrawableRegistrar {
+	friend Entity;
 
-template <typename T>
-bool IDrawable::Registrar<T>::registered_draw = IDrawable::Registrar<T>::RegisterDrawFunction();
+	friend T;
 
-namespace tt {
+	static bool RegisterDrawFunction() {
+		constexpr auto name{ type_name<T>() };
+		IDrawable::data()[Hash(name)] = &T::Draw;
+		return true;
+	}
 
-namespace impl {
+	static bool registered_draw;
 
-template <typename T>
-struct is_drawable : std::false_type {};
+	DrawableRegistrar() {
+		(void)registered_draw;
+	}
+};
 
-template <typename T>
-struct is_drawable<IDrawable::Registrar<T>> : std::true_type {};
+template <DrawableType T>
+bool DrawableRegistrar<T>::registered_draw = DrawableRegistrar<T>::RegisterDrawFunction();
 
 } // namespace impl
 
-template <typename T>
-inline constexpr bool is_drawable_v = impl::is_drawable<T>::value;
-
-} // namespace tt
+#define PTGN_DRAWABLE_REGISTER(Type) template class impl::DrawableRegistrar<Type>
 
 } // namespace ptgn

@@ -2,7 +2,6 @@
 
 #include <chrono>
 
-#include "scene/scene.h"
 #include "serialization/json.h"
 
 namespace ptgn {
@@ -97,118 +96,5 @@ void from_json(const json& j, Timer& timer) {
 		timer.Resume();
 	}
 }
-
-namespace impl {
-
-void ScriptTimers::Update(Scene& scene) {
-	for (auto [entity, scripts, script_timer] : scene.EntitiesWith<Scripts, ScriptTimers>()) {
-		std::vector<std::size_t> remove_timers;
-		auto timers{ script_timer.timers };
-		for (auto [key, timer_info] : timers) {
-			if (!timer_info.timer.IsRunning()) {
-				PTGN_ASSERT(
-					timer_info.timer.HasRun(),
-					"Script timer must be started upon addition of script to entity"
-				);
-				continue;
-			}
-
-			auto script_it{ entity.Get<Scripts>().scripts.find(key) };
-
-			PTGN_ASSERT(
-				script_it != entity.Get<Scripts>().scripts.end(),
-				"Each script timer must have an associated script"
-			);
-
-			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
-
-			auto& script{ *script_it->second };
-
-			auto elapsed_fraction{ timer_info.timer.ElapsedPercentage(timer_info.duration) };
-			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-
-			script.OnTimerUpdate(elapsed_fraction);
-
-			if (elapsed_fraction >= 1.0f) {
-				timer_info.timer.Stop();
-				bool remove{ script.OnTimerStop() };
-				if (remove) {
-					remove_timers.emplace_back(key);
-				}
-			}
-		}
-		if (entity.Has<ScriptTimers>()) {
-			entity.Get<ScriptTimers>().timers = timers;
-			for (auto key : remove_timers) {
-				entity.Get<ScriptTimers>().timers.erase(key);
-				if (entity.Has<Scripts>()) {
-					entity.Get<Scripts>().RemoveScript(key);
-				}
-			}
-			if (entity.Get<ScriptTimers>().timers.empty()) {
-				entity.Remove<ScriptTimers>();
-			}
-		}
-	}
-
-	scene.Refresh();
-}
-
-void ScriptRepeats::Update(Scene& scene) {
-	for (auto [entity, scripts, script_repeat] : scene.EntitiesWith<Scripts, ScriptRepeats>()) {
-		for (auto repeat_it{ script_repeat.repeats.begin() };
-			 repeat_it != script_repeat.repeats.end();) {
-			auto& [key, repeat_info] = *repeat_it;
-
-			PTGN_ASSERT(
-				repeat_info.timer.IsRunning(),
-				"Script repeat delay timer must be started upon addition of script to entity"
-			);
-
-			auto script_it{ scripts.scripts.find(key) };
-
-			PTGN_ASSERT(
-				script_it != scripts.scripts.end(),
-				"Each repeating script info must have an associated script"
-			);
-
-			PTGN_ASSERT(script_it->second != nullptr, "Cannot invoke nullptr script");
-
-			auto& script{ *script_it->second };
-
-			auto elapsed_fraction{ repeat_info.timer.ElapsedPercentage(repeat_info.delay) };
-
-			PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-
-			if (elapsed_fraction < 1.0f) {
-				// Delay has not passed yet, do nothing.
-				repeat_it++;
-				continue;
-			}
-
-			// Repeat delay has fully elapsed.
-
-			script.OnRepeatUpdate(repeat_info.current_executions);
-			repeat_info.current_executions++;
-
-			bool infinite_execution{ repeat_info.max_executions == -1 };
-
-			if (!infinite_execution &&
-				repeat_info.current_executions >= repeat_info.max_executions) {
-				script.OnRepeatStop();
-				repeat_it = script_repeat.repeats.erase(repeat_it);
-			} else {
-				repeat_info.timer.Start(true);
-			}
-		}
-		if (script_repeat.repeats.empty()) {
-			entity.Remove<ScriptRepeats>();
-		}
-	}
-
-	scene.Refresh();
-}
-
-} // namespace impl
 
 } // namespace ptgn

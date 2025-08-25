@@ -84,7 +84,7 @@ Entity NoiseLayer::GetEntity(const V2_int& tile_coordinate, const V2_int& tile_s
 		noise.Get(static_cast<float>(tile_coordinate.x), static_cast<float>(tile_coordinate.y))
 	};
 	auto coordinate{ tile_coordinate * tile_size };
-	return std::invoke(callback, coordinate, noise_value);
+	return callback(coordinate, noise_value);
 }
 
 ChunkManager::ChunkManager(ChunkManager&& other) noexcept :
@@ -116,7 +116,7 @@ ChunkManager::~ChunkManager() {
 void ChunkManager::GetBounds(
 	V2_int& out_min, V2_int& out_max, const Camera& camera, const V2_int& chunk_padding
 ) const {
-	auto cam_rect{ camera.GetVertices() };
+	auto cam_rect{ camera.GetWorldVertices() };
 
 	auto chunk_pixel_size{ tile_size * chunk_size };
 
@@ -214,7 +214,8 @@ void ChunkManager::DrawDebugChunkBorders() const {
 	}
 }
 
-[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(const V2_int& chunk_coordinate
+[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(
+	const V2_int& chunk_coordinate
 ) const {
 	std::vector<Entity> entities;
 	for (const auto& layer : noise_layers_) {

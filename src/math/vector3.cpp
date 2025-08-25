@@ -4,17 +4,17 @@
 
 namespace ptgn {
 
-template <typename T>
+template <Arithmetic T>
 Vector3<T>::Vector3(const json& j) {
 	j.get_to(*this);
 }
 
-template <typename T>
+template <Arithmetic T>
 void to_json(json& j, const Vector3<T>& vector) {
 	j = json::array({ vector.x, vector.y, vector.z });
 }
 
-template <typename T>
+template <Arithmetic T>
 void from_json(const json& j, Vector3<T>& vector) {
 	PTGN_ASSERT(j.is_array(), "Deserializing a Vector3 from json requires an array");
 	PTGN_ASSERT(

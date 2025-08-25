@@ -1,70 +1,64 @@
 #pragma once
 
+#include <array>
 #include <iosfwd>
 #include <ostream>
 #include <type_traits>
 
 #include "common/assert.h"
-#include "common/type_traits.h"
-#include "math/math.h"
+#include "common/concepts.h"
+#include "math/tolerance.h"
 #include "serialization/fwd.h"
 
 namespace ptgn {
 
-template <typename T>
+template <Arithmetic T>
 struct Vector4 {
-	static_assert(std::is_arithmetic_v<T>);
-
 	T x{ 0 };
 	T y{ 0 };
 	T z{ 0 };
 	T w{ 0 };
 
-	constexpr Vector4()					   = default;
-	~Vector4()							   = default;
-	Vector4(const Vector4&)				   = default;
-	Vector4(Vector4&&) noexcept			   = default;
-	Vector4& operator=(const Vector4&)	   = default;
-	Vector4& operator=(Vector4&&) noexcept = default;
+	constexpr Vector4() = default;
 
-	explicit constexpr Vector4(T all) : x{ all }, y{ all }, z{ all }, w{ all } {}
+	template <Arithmetic U>
+	explicit constexpr Vector4(U all) :
+		x{ static_cast<T>(all) },
+		y{ static_cast<T>(all) },
+		z{ static_cast<T>(all) },
+		w{ static_cast<T>(all) } {}
 
 	constexpr Vector4(T x_component, T y_component, T z_component, T w_component) :
 		x{ x_component }, y{ y_component }, z{ z_component }, w{ w_component } {}
 
 	explicit Vector4(const json& j);
 
-	// TODO: Check that not_narrowing actually works as intended and static cast is not narrowing.
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
 	constexpr Vector4(const Vector4<U>& o) :
 		x{ static_cast<T>(o.x) },
 		y{ static_cast<T>(o.y) },
 		z{ static_cast<T>(o.z) },
-		w{ static_cast<T>(o.w) } {}
+		w{ static_cast<T>(w.z) } {}
 
-	// Note: use of explicit keyword for narrowing constructors.
-
-	template <typename U, tt::narrowing<U, T> = true>
-	explicit constexpr Vector4(U x_component, U y_component, U z_component, U w_component) :
+	template <
+		ConvertibleToArithmetic U, ConvertibleToArithmetic S, ConvertibleToArithmetic V,
+		ConvertibleToArithmetic W>
+	constexpr Vector4(U x_component, S y_component, V z_component, W w_component) :
 		x{ static_cast<T>(x_component) },
 		y{ static_cast<T>(y_component) },
 		z{ static_cast<T>(z_component) },
 		w{ static_cast<T>(w_component) } {}
 
-	template <typename U, tt::narrowing<U, T> = true>
-	explicit constexpr Vector4(const Vector4<U>& o) :
-		x{ static_cast<T>(o.x) },
-		y{ static_cast<T>(o.y) },
-		z{ static_cast<T>(o.z) },
-		w{ static_cast<T>(o.w) } {}
+	template <Arithmetic U>
+	constexpr Vector4(const std::array<U, 4>& o) :
+		x{ static_cast<T>(o[0]) },
+		y{ static_cast<T>(o[1]) },
+		z{ static_cast<T>(o[2]) },
+		w{ static_cast<T>(o[3]) } {}
 
 	friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) &&
 			   NearlyEqual(lhs.z, rhs.z) && NearlyEqual(lhs.w, rhs.w);
-	}
-
-	friend bool operator!=(const Vector4& lhs, const Vector4& rhs) {
-		return !operator==(lhs, rhs);
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
@@ -95,7 +89,8 @@ struct Vector4 {
 		return { -x, -y, -z, -w };
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector4& operator+=(const Vector4<U>& rhs) {
 		x += rhs.x;
 		y += rhs.y;
@@ -104,7 +99,8 @@ struct Vector4 {
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector4& operator-=(const Vector4<U>& rhs) {
 		x -= rhs.x;
 		y -= rhs.y;
@@ -113,7 +109,8 @@ struct Vector4 {
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector4& operator*=(const Vector4<U>& rhs) {
 		x *= rhs.x;
 		y *= rhs.y;
@@ -122,7 +119,8 @@ struct Vector4 {
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector4& operator/=(const Vector4<U>& rhs) {
 		x /= rhs.x;
 		y /= rhs.y;
@@ -131,7 +129,8 @@ struct Vector4 {
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector4& operator*=(U rhs) {
 		x *= rhs;
 		y *= rhs;
@@ -140,7 +139,8 @@ struct Vector4 {
 		return *this;
 	}
 
-	template <typename U, tt::not_narrowing<U, T> = true>
+	template <Arithmetic U>
+		requires NotNarrowingArithmetic<U, T>
 	constexpr Vector4& operator/=(U rhs) {
 		x /= rhs;
 		y /= rhs;
@@ -154,9 +154,8 @@ struct Vector4 {
 		return x * o.x + y * o.y + z * o.z + w * o.w;
 	}
 
-	template <typename S = typename std::common_type_t<T, float>>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] constexpr S Magnitude() const {
-		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		return std::sqrt(static_cast<S>(MagnitudeSquared()));
 	}
 
@@ -166,9 +165,8 @@ struct Vector4 {
 
 	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
 	// = 0).
-	template <typename S = typename std::common_type_t<T, float>>
+	template <std::floating_point S = typename std::common_type_t<T, float>>
 	[[nodiscard]] Vector4<S> Normalized() const {
-		static_assert(std::is_floating_point_v<S>, "Function requires floating point type");
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
@@ -182,10 +180,10 @@ struct Vector4 {
 	}
 };
 
-template <typename T>
+template <Arithmetic T>
 void to_json(json& j, const Vector4<T>& vector);
 
-template <typename T>
+template <Arithmetic T>
 void from_json(const json& j, Vector4<T>& vector);
 
 using V4_int	= Vector4<int>;
@@ -193,62 +191,54 @@ using V4_uint	= Vector4<unsigned int>;
 using V4_float	= Vector4<float>;
 using V4_double = Vector4<double>;
 
-template <typename V, ptgn::tt::stream_writable<std::ostream, V> = true>
+template <StreamWritable V>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector4<V>& v) {
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
 	return os;
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator+(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w };
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator-(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w };
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator*(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w };
 }
 
-template <typename V, typename U, typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator/(const Vector4<V>& lhs, const Vector4<U>& rhs) {
 	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<V> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator*(V lhs, const Vector4<U>& rhs) {
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator*(const Vector4<V>& lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<V> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator/(V lhs, const Vector4<U>& rhs) {
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w };
 }
 
-template <
-	typename V, typename U, tt::arithmetic<U> = true,
-	typename S = typename std::common_type_t<V, U>>
+template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 [[nodiscard]] constexpr Vector4<S> operator/(const Vector4<V>& lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
 }
 
 // Clamp all components of the vector between min and max (component specific).
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] inline Vector4<T> Clamp(
 	const Vector4<T>& vector, const Vector4<T>& min, const Vector4<T>& max
 ) {
@@ -260,7 +250,7 @@ template <typename T>
 
 // Custom hashing function for Vector4 class.
 // This allows for use of unordered maps and sets with Vector2s as keys.
-template <typename T>
+template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector4<T>> {
 	std::size_t operator()(const ptgn::Vector4<T>& v) const noexcept {
 		// Hashing combination algorithm from:

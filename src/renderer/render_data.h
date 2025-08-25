@@ -2,11 +2,16 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <span>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
-#include "components/common.h"
+#include "components/draw.h"
+#include "components/effects.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
@@ -25,6 +30,7 @@
 #include "renderer/render_target.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
+#include "serialization/serializable.h"
 
 #define HDR_ENABLED 0
 
@@ -36,7 +42,7 @@ class Scene;
 struct Matrix4;
 
 // How the renderer resolution is scaled to the window size.
-enum class ResolutionMode {
+enum class LogicalResolutionMode {
 	Disabled,  /**< There is no scaling in effect */
 	Stretch,   /**< The rendered content is stretched to the output resolution */
 	Letterbox, /**< The rendered content is fit to the largest dimension and the other dimension is
@@ -47,11 +53,30 @@ enum class ResolutionMode {
 					 resolution */
 };
 
+struct Viewport {
+	Viewport() = default;
+	Viewport(const V2_int& position, const V2_int& size);
+
+	V2_int position;
+	V2_int size;
+
+	bool operator==(const Viewport&) const = default;
+
+	PTGN_SERIALIZER_REGISTER(Viewport, position, size);
+};
+
 namespace impl {
 
+class InputHandler;
 class Renderer;
+class SceneManager;
 
-using Index = std::uint32_t;
+struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
+	void OnWindowResized() override;
+};
+
+using Index			= std::uint32_t;
+using TextureOrSize = std::variant<std::reference_wrapper<const Texture>, V2_int>;
 
 constexpr std::array<V2_float, 4> default_texture_coordinates{
 	V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
@@ -73,13 +98,6 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices = false
 );
 
-void SortEntities(std::vector<Entity>& entities);
-
-void GetRenderArea(
-	const V2_float& screen_size, const V2_float& target_size, ResolutionMode mode,
-	V2_float& out_position, V2_float& out_size
-);
-
 using UniformCallback = void (*)(Entity, const Shader&);
 
 class ShaderPass {
@@ -92,9 +110,7 @@ public:
 
 	void Invoke(Entity entity) const;
 
-	bool operator==(const ShaderPass& other) const;
-
-	bool operator!=(const ShaderPass& other) const;
+	bool operator==(const ShaderPass&) const = default;
 
 private:
 	const Shader* shader_{ nullptr };
@@ -108,25 +124,24 @@ public:
 	RenderState(
 		const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera,
 		const PostFX& post_fx = {}
-	) :
-		shader_pass{ shader_pass },
-		blend_mode{ blend_mode },
-		camera{ camera },
-		post_fx{ post_fx } {}
+	);
 
-	friend bool operator==(const RenderState& a, const RenderState& b) {
-		return a.shader_pass == b.shader_pass && a.camera == b.camera &&
-			   a.blend_mode == b.blend_mode && a.post_fx == b.post_fx;
-	}
-
-	friend bool operator!=(const RenderState& a, const RenderState& b) {
-		return !(a == b);
-	}
+	bool operator==(const RenderState&) const = default;
 
 	ShaderPass shader_pass;
 	BlendMode blend_mode{ BlendMode::None };
 	Camera camera;
 	PostFX post_fx;
+};
+
+struct ShapeDrawInfo {
+	explicit ShapeDrawInfo(const Entity& entity);
+
+	Transform transform;
+	Color tint;
+	Depth depth;
+	LineWidth line_width;
+	RenderState state;
 };
 
 struct DrawContext {
@@ -136,13 +151,6 @@ struct DrawContext {
 
 	bool in_use{ true };
 	bool keep_alive{ false };
-
-	BlendMode blend_mode{ BlendMode::Blend };
-
-	Color clear_color{ color::Transparent };
-
-	V2_int viewport_position;
-	V2_int viewport_size;
 
 	// Timer used to track age for reuse.
 	Timer timer;
@@ -216,118 +224,164 @@ public:
 	);
 
 	void AddTexturedQuad(
-		const Texture& texture, const Transform& transform, const V2_float& size, Origin origin,
+		const Texture& texture, Transform transform, const V2_float& size, Origin origin,
 		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
 		const RenderState& state, const PreFX& pre_fx = {}
 	);
 
+	// @param texture_or_size If texture, uses texture size, otherwise uses the V2_int size or the
+	// scene render target size (physical resolution).
+	// @param clear_between_consecutive_calls Will clear the intermediate render target between
+	// consecutive calls. This prevents stacking of shader calls onto the same target. An example of
+	// where this is not desired is when rendering many lights back to back. Does not apply if a
+	// texture is used.
 	void AddShader(
-		Entity entity, const RenderState& render_state, BlendMode target_blend_mode,
-		const Color& target_clear_color, bool uses_scene_texture
+		Entity entity, const RenderState& render_state, const Color& target_clear_color,
+		const TextureOrSize& texture_or_size = V2_int{}, bool clear_between_consecutive_calls = true
 	);
 
 	void AddTemporaryTexture(Texture&& texture);
 
 private:
+	friend class SceneManager;
 	friend class ptgn::Scene;
 	friend class Renderer;
 	friend class ptgn::Camera;
+	friend struct ViewportResizeScript;
+	friend class InputHandler;
 
-	static void DrawTo(const FrameBuffer& frame_buffer);
-	static void DrawTo(const RenderTarget& render_target);
+	struct DrawTarget {
+		Viewport viewport;
+		V2_int texture_size;
+		TextureId texture_id{ 0 };
+		const FrameBuffer* frame_buffer{ nullptr };
+		std::array<V2_float, 4> points{};
+		Depth depth;
+		Tint tint;
+		Matrix4 view_projection{ 1.0f };
+		BlendMode blend_mode{};
+	};
 
-	static void ReadFrom(const Texture& texture);
-	static void ReadFrom(const FrameBuffer& frame_buffer);
-	static void ReadFrom(const RenderTarget& render_target);
+	static void SetPoints(DrawTarget& target);
 
-	static void BindCamera(const Shader& shader, const Matrix4& view_projection);
-	static void SetViewport(const Camera& camera);
+	// Must be called after points are set.
+	static void SetProjection(DrawTarget& target);
 
-	static void SetRenderParameters(const Camera& camera, BlendMode blend_mode);
+	static void SetProjection(DrawTarget& target, const V2_float& min, const V2_float& max);
 
-	template <typename T, typename S>
-	void UpdateVertexArray(const T& point_vertices, const S& point_indices) {
-		UpdateVertexArray(
-			point_vertices.data(), point_vertices.size(), point_indices.data(), point_indices.size()
-		);
-	}
+	[[nodiscard]] static Matrix4 GetProjection(const V2_float& min, const V2_float& max);
 
-	template <typename T, typename S, typename U>
+	static void SetPointsAndProjection(DrawTarget& target);
+
+	[[nodiscard]] static DrawTarget GetDrawTarget(const Scene& scene);
+
+	[[nodiscard]] static DrawTarget GetDrawTarget(
+		const RenderTarget& render_target, const Matrix4& view_projection,
+		const std::array<V2_float, 4>& points, bool use_viewport
+	);
+
+	[[nodiscard]] static V2_float GetResolutionScale(const V2_float& viewport_size);
+
+	[[nodiscard]] V2_float RelativeToViewport(const V2_float& window_relative_point) const;
+
 	void AddShape(
-		const T& shape_vertices, const S& shape_indices, const U& shape_points, float line_width,
-		const RenderState& state
-	) {
-		SetState(state);
+		std::span<const Vertex> shape_vertices, std::span<const Index> shape_indices,
+		std::span<const V2_float> shape_points, float line_width, const RenderState& state
+	);
 
-		if (line_width == -1.0f) {
-			AddVertices(shape_vertices, shape_indices);
-		} else {
-			AddLinesImpl(shape_vertices, shape_indices, shape_points, line_width, state);
-		}
-	}
-
-	template <typename T, typename S, typename U>
 	void AddLinesImpl(
-		T line_vertices, const S& line_indices, const U& points, float line_width,
-		[[maybe_unused]] const RenderState& state
-	) {
-		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for lines");
+		std::span<Vertex> line_vertices, std::span<const Index> line_indices,
+		std::span<const V2_float> points, float line_width, const RenderState& state
+	);
 
-		PTGN_ASSERT(points.size() == line_vertices.size());
-
-		for (std::size_t i{ 0 }; i < points.size(); i++) {
-			// TODO: Consider adding state.camera.ZoomIfNeeded(start&end);
-			auto start{ points[i] };
-			auto end{ points[(i + 1) % points.size()] };
-
-			Line l{ start, end };
-
-			auto line_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
-
-			for (std::size_t j{ 0 }; j < line_points.size(); j++) {
-				line_vertices[j].position[0] = line_points[j].x;
-				line_vertices[j].position[1] = line_points[j].y;
-			}
-
-			AddVertices(line_vertices, line_indices);
-		}
-	}
-
-	template <typename T, typename S>
-	void AddVertices(const T& point_vertices, const S& point_indices) {
-		if (vertices.size() + point_vertices.size() > vertex_capacity ||
-			indices.size() + point_indices.size() > index_capacity) {
-			Flush();
-		}
-
-		vertices.insert(vertices.end(), point_vertices.begin(), point_vertices.end());
-
-		indices.reserve(indices.size() + point_indices.size());
-
-		for (auto index : point_indices) {
-			indices.emplace_back(index + index_offset);
-		}
-
-		index_offset += static_cast<Index>(point_vertices.size());
-	}
+	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
 
 	void InvokeDrawable(const Entity& entity);
 
-	[[nodiscard]] Camera GetCamera(Scene& scene) const;
-
-	void Reset();
-
-	void BindTextures() const;
-
-	void DrawVertexArray(std::size_t index_count) const;
-
-	void UpdateVertexArray(
-		const Vertex* data_vertices, std::size_t vertex_count, const Index* data_indices,
-		std::size_t index_count
+	/*
+	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between
+	 * two framebuffers. The final result is written into a texture, whose ID is returned.
+	 *
+	 * This is typically used in screen-space effects like blur, bloom, color grading, etc.
+	 *
+	 * @param container       A list of entities, each containing a ShaderPass component that
+	 * defines a rendering effect to apply.
+	 * @param read_context    The initial draw context used for reading. This context contains the
+	 *                        framebuffer with the source texture or result of previous passes.
+	 * @param texture         The initial texture to apply effects to (e.g., scene render target).
+	 *                        Must be valid for the first pass.
+	 * @param target          A DrawTarget containing viewport info and configuration for rendering
+	 *                        each shader pass.
+	 * @param flip_vertices   If true, flips the output texture quad vertically (useful for
+	 * screen-space coordinate correction).
+	 *
+	 * @return The texture ID containing the final rendered result after all shader passes.
+	 *
+	 * @note The function uses a ping-pong approach by alternating between two framebuffers:
+	 *       one for reading, one for writing. This avoids unnecessary GPU memory allocations.
+	 *
+	 * @warning The input container must not be empty. An assertion will fail if it is.
+	 */
+	[[nodiscard]] TextureId PingPong(
+		const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
+		const Texture& texture, DrawTarget target, bool flip_vertices
 	);
 
-	void SetCameraVertices(const Camera& camera);
-	void SetCameraVertices(const std::array<V2_float, 4>& positions, const Depth& depth);
+	/**
+	 * Draws a set of previously prepared vertices using the specified shader and render target.
+	 *
+	 * @param shader              The shader to use for rendering.
+	 * @param target              The rendering target that contains the destination framebuffer,
+	 *                            blend mode, viewport, etc.
+	 * @param clear_frame_buffer  If true, the target's framebuffer will be cleared before drawing.
+	 */
+	void DrawVertices(
+		const Shader& shader, const RenderData::DrawTarget& target, bool clear_frame_buffer
+	);
+
+	/**
+	 * Draws a fullscreen quad using the provided shader, commonly used for post-processing effects.
+	 *
+	 * @param shader              The shader to apply to the fullscreen quad.
+	 * @param target              The rendering target that contains the destination framebuffer,
+	 *                            blend mode, viewport, etc.
+	 * @param flip_texture        If true, vertically flips the texture coordinates (useful when
+	 * rendering to screen-space or handling texture origin discrepancies).
+	 * @param clear_frame_buffer  If true, clears the framebuffer to the specified clear color
+	 * before drawing.
+	 * @param target_clear_color  The color used to clear the framebuffer, if clearing is enabled.
+	 */
+	void DrawFullscreenQuad(
+		const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
+		bool clear_frame_buffer, const Color& target_clear_color
+	);
+
+	/**
+	 * Issues a low-level draw call with the given vertex and index data, rendering to the specified
+	 * framebuffer.
+	 *
+	 * @param shader              The shader to bind and use during the draw call.
+	 * @param vertices            The list of vertices to draw.
+	 * @param indices             The list of indices that define how the vertices are connected.
+	 * @param textures            The textures to bind and make available to the shader.
+	 * @param frame_buffer        The destination framebuffer to draw into. If null, draws to the
+	 * default framebuffer.
+	 * @param clear_frame_buffer  If true, clears the framebuffer to the specified clear color
+	 * before drawing.
+	 * @param clear_color         The color to clear the framebuffer with, if clearing is enabled.
+	 * @param blend_mode          The blend mode to use during rendering (e.g., alpha blending,
+	 * additive, etc.).
+	 * @param viewport            The portion of the framebuffer to draw to.
+	 * @param view_projection     The matrix used to transform vertex positions into screen space.
+	 */
+	void DrawCall(
+		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
+		const std::vector<TextureId>& textures, const FrameBuffer* frame_buffer,
+		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
+		const Viewport& viewport, const Matrix4& view_projection
+	);
+
+	void Reset();
 
 	void Init();
 
@@ -339,43 +393,83 @@ private:
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);
 
-	// Uses current scene.
+	void RecomputeViewport(const V2_int& window_size);
+
 	void Flush();
-
-	void Flush(Scene& scene);
-
-	void DrawToScreen(Scene& scene);
 
 	void DrawScene(Scene& scene);
 
 	void Draw(Scene& scene);
 
+	/**
+	 * Draws a textured quad using the contents of a source render target onto a destination
+	 * framebuffer.
+	 *
+	 * This is typically used for compositing, where one render target  is drawn onto another buffer
+	 * or the screen target.
+	 *
+	 * @param source_target       The render target whose texture will be drawn.
+	 * @param points              The four corner points (in destination space) of the quad onto
+	 * which the source target will be mapped. These should be in the order: top-left, top-right,
+	 * bottom-right, bottom-left.
+	 * @param projection          The projection matrix that transforms the quad's points into clip
+	 * space. Defines the coordinate system used during drawing.
+	 * @param viewport            The portion of the destination framebuffer that will be rendered
+	 * to.
+	 * @param destination_buffer  The framebuffer that the source target will be drawn into.
+	 *                            If null, draws to the default framebuffer (usually the screen).
+	 */
+	void DrawFromTo(
+		const RenderTarget& source_target, const std::array<V2_float, 4>& points,
+		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
+	);
+
+	// Draws the screen target to the default frame buffer.
+	void DrawScreenTarget();
+
+	void ClearScreenTarget() const;
+
+	// Clear the scene's internal render target, and all of the render target objects that exist in
+	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
 
 	std::shared_ptr<DrawContext> intermediate_target;
-	RenderTarget drawing_to;
 
-	constexpr static float min_line_width{ 1.0f };
-	constexpr static std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
-	constexpr static std::array<Index, 3> triangle_indices{ 0, 1, 2 };
+	DrawTarget drawing_to_;
+
+	// TODO: Clean this up.
+
+	static constexpr float min_line_width{ 1.0f };
+	static constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
+	static constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 
-	// Default value results in fullscreen.
-	V2_int resolution_;
-	// Default value results in resolution_ being used.
-	V2_int logical_resolution_;
-	ResolutionMode scaling_mode_{ ResolutionMode::Disabled };
+	void UpdateResolutions(
+		const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
+	);
 
-	std::array<Vertex, 4> camera_vertices;
+	bool logical_resolution_set_{ false };
+	LogicalResolutionMode resolution_mode_{ LogicalResolutionMode::Letterbox };
+
+	// Allow for creation of targets before window has been initialized.
+	V2_int logical_resolution_{ 1, 1 };
+	Viewport physical_viewport_{ {}, { 1, 1 } };
+
+	bool logical_resolution_changed_{ false };
+	bool physical_resolution_changed_{ false };
+
+	RenderTarget screen_target_;
+	Entity viewport_tracker;
+
 	std::vector<Texture> temporary_textures;
 	DrawContextPool draw_context_pool{ seconds{ 1 } };
 	Manager render_manager;
 	RenderState render_state;
-	std::vector<Vertex> vertices;
-	std::vector<Index> indices;
-	std::vector<TextureId> textures;
-	Index index_offset{ 0 };
+	std::vector<Vertex> vertices_;
+	std::vector<Index> indices_;
+	std::vector<TextureId> textures_;
+	Index index_offset_{ 0 };
 	std::size_t max_texture_slots{ 0 };
 	Texture white_texture;
 	VertexArray triangle_vao;
@@ -384,11 +478,11 @@ private:
 } // namespace impl
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	ResolutionMode, { { ResolutionMode::Disabled, "disabled" },
-					  { ResolutionMode::Stretch, "stretch" },
-					  { ResolutionMode::Letterbox, "letterbox" },
-					  { ResolutionMode::Overscan, "overscan" },
-					  { ResolutionMode::IntegerScale, "integer_scale" } }
+	LogicalResolutionMode, { { LogicalResolutionMode::Disabled, "disabled" },
+							 { LogicalResolutionMode::Stretch, "stretch" },
+							 { LogicalResolutionMode::Letterbox, "letterbox" },
+							 { LogicalResolutionMode::Overscan, "overscan" },
+							 { LogicalResolutionMode::IntegerScale, "integer_scale" } }
 );
 
 } // namespace ptgn

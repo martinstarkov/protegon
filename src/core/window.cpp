@@ -4,15 +4,15 @@
 #include <string>
 #include <string_view>
 
+#include "common/assert.h"
+#include "core/game.h"
+#include "core/sdl_instance.h"
+#include "debug/log.h"
+#include "math/vector2.h"
 #include "SDL_error.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
-#include "core/game.h"
-#include "core/sdl_instance.h"
-#include "math/vector2.h"
-#include "common/assert.h"
-#include "debug/log.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -185,14 +185,17 @@ void Window::SetSetting(WindowSetting setting) const {
 		case WindowSetting::Bordered:	SDL_SetWindowBordered(win, SDL_TRUE); break;
 		case WindowSetting::Resizable:	SDL_SetWindowResizable(win, SDL_TRUE); break;
 		case WindowSetting::FixedSize:	SDL_SetWindowResizable(win, SDL_FALSE); break;
-		case WindowSetting::Maximized:	SDL_MaximizeWindow(win); break;
-		case WindowSetting::Minimized:	SDL_MinimizeWindow(win); break;
-		default:						PTGN_ERROR("Cannot set unrecognized window setting");
+		case WindowSetting::Maximized:
+			SDL_SetWindowResizable(win, SDL_TRUE);
+			SDL_MaximizeWindow(win);
+			break;
+		case WindowSetting::Minimized: SDL_MinimizeWindow(win); break;
+		default:					   PTGN_ERROR("Cannot set unrecognized window setting");
 	}
 }
 
 bool Window::GetSetting(WindowSetting setting) const {
-	std::uint32_t flags = SDL_GetWindowFlags(Get());
+	std::uint32_t flags{ SDL_GetWindowFlags(Get()) };
 	switch (setting) {
 		case WindowSetting::Shown:	return flags & SDL_WINDOW_SHOWN;
 		case WindowSetting::Hidden: return !(flags & SDL_WINDOW_SHOWN);

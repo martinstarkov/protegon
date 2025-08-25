@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -109,7 +110,7 @@ public:
 	);
 
 	// TODO: Add check that provided keys are hashable.
-	// static_assert(use_hash ? tt::is_hashable<Key, InternalKey> : true);
+	// static_assert(use_hash ? is_hashable<Key, InternalKey> : true);
 
 	MapManager()								 = default;
 	virtual ~MapManager()						 = default;
@@ -124,11 +125,8 @@ public:
 	 * @return Reference to the loaded item.
 	 */
 	template <typename TKey, typename... TArgs>
+		requires std::constructible_from<Item, TArgs...>
 	Item& Load(const TKey& key, TArgs&&... constructor_args) {
-		static_assert(
-			std::is_constructible_v<Item, TArgs...>,
-			"Manager item must be constructible from provided constructor arguments"
-		);
 		auto [it, inserted] =
 			map_.try_emplace(GetInternalKey(key), std::forward<TArgs>(constructor_args)...);
 		return it->second;
@@ -207,7 +205,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) {
 		for (auto& [key, value] : map_) {
-			std::invoke(func, value);
+			func(value);
 		}
 	}
 
@@ -215,7 +213,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
-			std::invoke(func, value);
+			func(value);
 		}
 	}
 
@@ -223,7 +221,7 @@ public:
 	template <typename TFunc>
 	void ForEachKey(const TFunc& func) {
 		for (auto& [key, value] : map_) {
-			std::invoke(func, key);
+			func(key);
 		}
 	}
 
@@ -231,7 +229,7 @@ public:
 	template <typename TFunc>
 	void ForEachKey(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
-			std::invoke(func, key);
+			func(key);
 		}
 	}
 
@@ -239,7 +237,7 @@ public:
 	template <typename TFunc>
 	void ForEachKeyValue(const TFunc& func) {
 		for (auto& [key, value] : map_) {
-			std::invoke(func, key, value);
+			func(key, value);
 		}
 	}
 
@@ -247,7 +245,7 @@ public:
 	template <typename TFunc>
 	void ForEachKeyValue(const TFunc& func) const {
 		for (const auto& [key, value] : map_) {
-			std::invoke(func, key, value);
+			func(key, value);
 		}
 	}
 
@@ -359,7 +357,8 @@ public:
 	 * on equals comparison), nothing happens.
 	 * @return Reference to the loaded nameless item.
 	 */
-	template <typename... TArgs, tt::constructible<Item, TArgs...> = true>
+	template <typename... TArgs>
+		requires std::constructible_from<Item, TArgs...>
 	[[nodiscard]] Item& Load(TArgs&&... constructor_args) {
 		return nameless_.emplace_back(std::forward<TArgs>(constructor_args)...);
 	}
@@ -396,7 +395,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) {
 		for (auto& value : nameless_) {
-			std::invoke(func, value);
+			func(value);
 		}
 		MapManager<ItemType>::ForEachValue(func);
 	}
@@ -405,7 +404,7 @@ public:
 	template <typename TFunc>
 	void ForEachValue(const TFunc& func) const {
 		for (const auto& value : nameless_) {
-			std::invoke(func, value);
+			func(value);
 		}
 		MapManager<ItemType>::ForEachValue(func);
 	}

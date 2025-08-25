@@ -17,7 +17,7 @@ class RenderData;
 
 } // namespace impl
 
-struct Line : public Drawable<Line> {
+struct Line {
 	Line() = default;
 
 	Line(const V2_float& start, const V2_float& end);
@@ -39,5 +39,7 @@ struct Line : public Drawable<Line> {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Line, start, end)
 };
+
+PTGN_DRAWABLE_REGISTER(Line);
 
 } // namespace ptgn

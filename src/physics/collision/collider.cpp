@@ -1,40 +1,24 @@
 #include "physics/collision/collider.h"
 
-#include <functional>
-#include <memory>
+#include <algorithm>
 #include <vector>
 
 #include "common/assert.h"
-#include "components/transform.h"
 #include "core/entity.h"
-#include "core/script.h"
 #include "math/geometry.h"
-#include "physics/rigid_body.h"
 #include "utility/span.h"
 
 namespace ptgn {
 
-bool PhysicsBody::IsImmovable() const {
-	if (Has<RigidBody>() && Get<RigidBody>().immovable) {
-		return true;
-	}
-	if (HasParent()) {
-		return PhysicsBody{ GetParent() }.IsImmovable();
-	}
-	return false;
-}
-
-[[nodiscard]] Transform& PhysicsBody::GetRootTransform() {
-	auto root_entity{ Entity::GetRootEntity() };
-	PTGN_ASSERT(root_entity, "Physics body must have a valid root entity (or itself)");
-	PTGN_ASSERT(root_entity.Has<Transform>(), "Root entity must have a transform component");
-	return root_entity.GetTransform();
-}
-
 Collider::Collider(const Shape& shape) : shape{ shape } {}
 
-Collider& Collider::SetOverlapOnly() {
-	overlap_only = true;
+Collider& Collider::SetOverlapMode() {
+	mode = CollisionMode::Overlap;
+	return *this;
+}
+
+Collider& Collider::SetCollisionMode(CollisionMode new_mode) {
+	mode = new_mode;
 	return *this;
 }
 
@@ -52,25 +36,6 @@ void Collider::ResetCollisionCategory() {
 
 void Collider::ResetCollidesWith() {
 	mask_ = {};
-}
-
-bool Collider::ProcessCallback(Entity e1, Entity e2) const {
-	if (!e1.Has<Scripts>()) {
-		return true;
-	}
-
-	const auto& scripts{ e1.Get<Scripts>() };
-
-	// Check that each entity script allows for the pre-collision condition to pass.
-	for (const auto& [key, script] : scripts.scripts) {
-		PTGN_ASSERT(script != nullptr, "Cannot invoke nullptr script");
-		bool condition_met{ std::invoke(&impl::IScript::PreCollisionCondition, script, e2) };
-		if (!condition_met) {
-			return false;
-		}
-	}
-
-	return true;
 }
 
 bool Collider::CanCollideWith(const CollisionCategory& category) const {
@@ -100,31 +65,67 @@ void Collider::SetCollidesWith(const CollidesWithCategories& categories) {
 	}
 }
 
-void Collider::InvokeCollisionCallbacks(Entity& entity) const {
-	for (const auto& prev : prev_collisions_) {
-		if (!VectorContains(collisions_, prev)) {
-			entity.InvokeScript<&impl::IScript::OnCollisionStop>(prev);
-		} else {
-			entity.InvokeScript<&impl::IScript::OnCollision>(prev);
-		}
-	}
-	for (const auto& current : collisions_) {
-		if (!VectorContains(prev_collisions_, current)) {
-			entity.InvokeScript<&impl::IScript::OnCollisionStart>(current);
-		}
-	}
+[[nodiscard]] static Collision GetIfExists(
+	const std::vector<Collision>& collisions, const Entity& other
+) {
+	auto it{ std::ranges::find_if(collisions, [&other](auto& collision) {
+		return collision.entity == other;
+	}) };
+	return it != collisions.end() ? *it : Collision{};
 }
 
-void Collider::ResetCollisions() {
-	prev_collisions_ = collisions_;
-	collisions_.clear();
+Collision Collider::IntersectedWith(const Entity& other) const {
+	return GetIfExists(intersects_, other);
 }
 
-void Collider::AddCollision(const Collision& collision) {
-	if (VectorContains(collisions_, collision)) {
+Collision Collider::SweptWith(const Entity& other) const {
+	return GetIfExists(sweeps_, other);
+}
+
+bool Collider::OverlappedWith(const Entity& other) const {
+	return VectorContains(overlaps_, other);
+}
+
+void Collider::ResetContainers() {
+	ResetOverlaps();
+	ResetIntersects();
+	ResetSweeps();
+}
+
+void Collider::ResetOverlaps() {
+	previous_overlaps_ = overlaps_;
+	overlaps_.clear();
+}
+
+void Collider::ResetIntersects() {
+	previous_intersects_ = intersects_;
+	intersects_.clear();
+}
+
+void Collider::ResetSweeps() {
+	previous_sweeps_ = sweeps_;
+	sweeps_.clear();
+}
+
+void Collider::AddOverlap(const Entity& other) {
+	if (OverlappedWith(other)) {
 		return;
 	}
-	collisions_.emplace_back(collision);
+	overlaps_.emplace_back(other);
+}
+
+void Collider::AddIntersect(const Collision& collision) {
+	if (VectorContains(intersects_, collision)) {
+		return;
+	}
+	intersects_.emplace_back(collision);
+}
+
+void Collider::AddSweep(const Collision& collision) {
+	if (VectorContains(sweeps_, collision)) {
+		return;
+	}
+	sweeps_.emplace_back(collision);
 }
 
 } // namespace ptgn

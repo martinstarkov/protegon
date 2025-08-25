@@ -1,17 +1,50 @@
 #include "ui/dialogue.h"
 
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <list>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "common/assert.h"
+#include "components/draw.h"
+#include "components/generic.h"
 #include "components/sprite.h"
+#include "components/transform.h"
+#include "core/entity.h"
+#include "core/entity_hierarchy.h"
 #include "core/game.h"
+#include "core/game_object.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "debug/log.h"
 #include "input/input_handler.h"
+#include "input/key.h"
+#include "math/math.h"
+#include "math/rng.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/api/origin.h"
+#include "renderer/font.h"
 #include "renderer/renderer.h"
+#include "renderer/text.h"
+#include "scene/scene.h"
+#include "serialization/fwd.h"
+#include "serialization/json.h"
+#include "tweens/tween.h"
+#include "utility/file.h"
 #include "utility/span.h"
 
 namespace ptgn {
 
 namespace impl {
 
-DialogueComponent& GetDialogueComponent(Entity& entity) {
-	auto dialogue_entity{ entity.GetParent() };
+static DialogueComponent& GetDialogueComponent(Entity& entity) {
+	Entity dialogue_entity{ GetParent(entity) };
 
 	PTGN_ASSERT(dialogue_entity);
 
@@ -24,13 +57,28 @@ DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
 
+void DialogueWaitScript::OnUpdate() {
+	auto& dialogue_component{ GetDialogueComponent() };
+	auto continue_key{ dialogue_component.GetContinueKey() };
+	if (!game.input.KeyDown(continue_key)) {
+		return;
+	}
+	PTGN_ASSERT(dialogue_component.tween_);
+	if (dialogue_component.tween_.IsRunning()) {
+		impl::DialogueScrollScript::UpdateText(dialogue_component.text_, 1.0f);
+		dialogue_component.tween_.Clear();
+		return;
+	}
+	dialogue_component.NextPage();
+}
+
 DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
 
-void DialogueScrollScript::UpdateText(float elapsed_fraction) {
+void DialogueScrollScript::UpdateText(Entity& text_entity, float elapsed_fraction) {
 	PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-	auto& dialogue_component{ GetDialogueComponent() };
+	auto& dialogue_component{ impl::GetDialogueComponent(text_entity) };
 	auto page{ dialogue_component.GetCurrentDialoguePage() };
 	if (!page) {
 		return;
@@ -41,57 +89,27 @@ void DialogueScrollScript::UpdateText(float elapsed_fraction) {
 	TextColor text_color{ page->properties.color };
 	ResourceHandle font_key{ page->properties.font_key };
 	FontSize font_size{ page->properties.font_size };
-	// For debugging purposes:
-	/*
-	std::stringstream s;
-	s << entity.GetTimerScriptInfo<DialogueScrollScript>().duration << " ";
-	auto duration_str{ s.str() };
-	*/
-	Text text_entity{ entity };
+	Text t{ text_entity };
 	// Do not recreate texture twice.
-	text_entity.SetParameter(font_size, false);
-	text_entity.SetParameter(font_key, false);
-	text_entity.SetParameter(text_color, false);
-	text_entity.SetParameter(revealed_text, true);
+	t.SetParameter(font_size, false);
+	t.SetParameter(font_key, false);
+	t.SetParameter(text_color, false);
+	t.SetParameter(revealed_text, true);
 }
 
-bool DialogueScrollScript::OnTimerStop() {
-	UpdateText(1.0f);
-	return true;
+void DialogueScrollScript::OnPointComplete() {
+	Entity dialogue{ GetParent(entity) };
+	Entity text{ GetChild(dialogue, "text") };
+	UpdateText(text, 1.0f);
 }
 
-void DialogueScrollScript::OnTimerUpdate(float elapsed_fraction) {
-	UpdateText(elapsed_fraction);
-}
-
-void DialogueWaitScript::OnUpdate([[maybe_unused]] float dt) {
-	auto& dialogue_component{ GetDialogueComponent() };
-	if (!game.input.KeyDown(dialogue_component.GetContinueKey())) {
-		return;
-	}
-	if (entity.HasScript<impl::DialogueScrollScript>()) {
-		if (auto& script_info{ entity.GetTimerScriptInfo<impl::DialogueScrollScript>() };
-			script_info.timer.IsRunning()) {
-			entity.GetScript<impl::DialogueScrollScript>().UpdateText(1.0f);
-			script_info.timer.Stop();
-			return;
-		}
-	}
-	dialogue_component.NextPage();
+void DialogueScrollScript::OnProgress(float elapsed_fraction) {
+	Entity dialogue{ GetParent(entity) };
+	Entity text{ GetChild(dialogue, "text") };
+	UpdateText(text, elapsed_fraction);
 }
 
 } // namespace impl
-
-bool operator==(const DialoguePageProperties& a, const DialoguePageProperties& b) {
-	return a.scroll_duration == b.scroll_duration && a.color == b.color &&
-		   a.font_key == b.font_key && a.box_size == b.box_size && a.font_size == b.font_size &&
-		   a.padding_bottom == b.padding_bottom && a.padding_left == b.padding_left &&
-		   a.padding_right == b.padding_right && a.padding_top == b.padding_top;
-}
-
-bool operator!=(const DialoguePageProperties& a, const DialoguePageProperties& b) {
-	return !(a == b);
-}
 
 DialoguePageProperties DialoguePageProperties::InheritProperties(const json& j) const {
 	DialoguePageProperties properties;
@@ -128,15 +146,15 @@ DialoguePage::DialoguePage(
 ) :
 	content(text_content), properties(properties) {}
 
-std::size_t Dialogue::PickRandomIndex() {
+std::size_t Dialogue::PickRandomIndex() const {
 	PTGN_ASSERT(lines.size() > used_line_indices.size());
 	if (lines.size() == 1) {
 		return 0;
 	}
 	RNG<std::size_t> index_rng(0, lines.size() - 1);
-	std::size_t chosen_index = index;
+	std::size_t chosen_index{ index };
 	do {
-		chosen_index = std::invoke(index_rng);
+		chosen_index = index_rng();
 	} while (VectorContains(used_line_indices, chosen_index));
 	return chosen_index;
 }
@@ -163,7 +181,7 @@ int Dialogue::GetNewDialogueLine() {
 			used_line_indices.emplace_back(index);
 		}
 	}
-	int chosen_index = static_cast<int>(index);
+	int chosen_index{ static_cast<int>(index) };
 	switch (behavior) {
 		case DialogueBehavior::Sequential:
 			chosen_index = Mod(chosen_index, static_cast<int>(lines.size()));
@@ -184,10 +202,6 @@ int Dialogue::GetNewDialogueLine() {
 	return chosen_index;
 }
 
-DialogueComponent::DialogueComponent()										  = default;
-DialogueComponent::DialogueComponent(DialogueComponent&&) noexcept			  = default;
-DialogueComponent& DialogueComponent::operator=(DialogueComponent&&) noexcept = default;
-
 DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entity&& background) {
 	json j{ LoadJson(json_path) };
 #ifdef __EMSCRIPTEN__
@@ -198,21 +212,18 @@ DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entit
 	auto& scene{ parent.GetScene() };
 	background_ = background;
 	if (background_) {
-		background_.SetParent(parent);
+		SetParent(background_, parent);
 	}
-	text_ = CreateText(scene, "", color::White);
-	text_.SetParent(parent);
+	text_  = CreateText(scene, "", color::White);
+	tween_ = CreateTween(scene);
+	AddChild(parent, tween_, "tween");
+	AddChild(parent, text_, "text");
 	DialoguePageProperties default_properties;
-	default_properties.box_size	 = Sprite{ background_ }.GetDisplaySize();
+	default_properties.box_size	 = background_.GetDisplaySize();
 	default_properties.font_key	 = text_.GetFontKey();
-	default_properties.font_size = text_.GetFontSize();
+	default_properties.font_size = text_.GetFontSize(false);
 	LoadFromJson(j, default_properties);
 	Close();
-}
-
-DialogueComponent::~DialogueComponent() {
-	text_.Destroy();
-	background_.Destroy();
 }
 
 Key DialogueComponent::GetContinueKey() const {
@@ -223,16 +234,8 @@ void DialogueComponent::SetContinueKey(Key continue_key) {
 	continue_key_ = continue_key;
 }
 
-const Text& DialogueComponent::GetText() const {
-	return text_;
-}
-
-Text& DialogueComponent::GetText() {
-	return text_;
-}
-
 bool DialogueComponent::IsOpen() const {
-	return text_.IsVisible();
+	return IsVisible(text_);
 }
 
 void DialogueComponent::Open(const std::string& dialogue_name) {
@@ -257,19 +260,19 @@ void DialogueComponent::Open(const std::string& dialogue_name) {
 		return;
 	}
 	StartDialogueLine(dialogue_line_index);
-	text_.Show();
+	Show(text_);
 	if (background_) {
-		background_.Show();
+		Show(background_);
 	}
 }
 
 void DialogueComponent::Close() {
-	text_.Hide();
+	Hide(text_);
 	if (background_) {
-		background_.Hide();
+		Hide(background_);
 	}
-	text_.RemoveScript<impl::DialogueWaitScript>();
-	text_.RemoveScript<impl::DialogueScrollScript>();
+	tween_.Clear();
+	RemoveScripts<impl::DialogueWaitScript>(text_);
 	current_line_ = 0;
 	current_page_ = 0;
 }
@@ -280,14 +283,15 @@ void DialogueComponent::IncrementPage() {
 
 void DialogueComponent::NextPage() {
 	IncrementPage();
-	auto page = GetCurrentDialoguePage();
+	auto page{ GetCurrentDialoguePage() };
 	if (!page) {
 		Close();
 		return;
 	}
-	text_.RemoveScript<impl::DialogueScrollScript>();
-	auto duration = page->properties.scroll_duration;
-	text_.AddTimerScript<impl::DialogueScrollScript>(duration);
+	auto duration{ page->properties.scroll_duration };
+
+	tween_.Clear();
+	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
 }
 
 void DialogueComponent::SetNextDialogue() {
@@ -297,8 +301,8 @@ void DialogueComponent::SetNextDialogue() {
 		current_page_ = 0;
 		return;
 	}
-	auto next_dialogue = dialogue->next_dialogue;
-	PTGN_ASSERT(next_dialogue.empty() || MapContains(dialogues_, next_dialogue));
+	const auto& next_dialogue{ dialogue->next_dialogue };
+	PTGN_ASSERT(next_dialogue.empty() || dialogues_.contains(next_dialogue));
 	if (next_dialogue.empty()) {
 		current_line_ = 0;
 		current_page_ = 0;
@@ -307,7 +311,7 @@ void DialogueComponent::SetNextDialogue() {
 }
 
 void DialogueComponent::SetDialogue(const std::string& name) {
-	PTGN_ASSERT(name.empty() || MapContains(dialogues_, name));
+	PTGN_ASSERT(name.empty() || dialogues_.contains(name));
 	current_dialogue_ = name;
 	current_line_	  = 0;
 	current_page_	  = 0;
@@ -321,7 +325,7 @@ Dialogue* DialogueComponent::GetCurrentDialogue() {
 	if (current_dialogue_.empty()) {
 		return nullptr;
 	}
-	auto it = dialogues_.find(current_dialogue_);
+	auto it{ dialogues_.find(current_dialogue_) };
 	if (it == dialogues_.end()) {
 		return nullptr;
 	}
@@ -366,11 +370,11 @@ void DialogueComponent::DrawInfo() {
 }
 
 void DialogueComponent::AlignToTopLeft(const DialoguePageProperties& default_properties) {
-	text_.SetPosition(
-		V2_int{ default_properties.padding_left, default_properties.padding_top } -
-		default_properties.box_size / 2.0f
+	SetPosition(
+		text_, V2_int{ default_properties.padding_left, default_properties.padding_top } -
+				   default_properties.box_size / 2.0f
 	);
-	text_.SetOrigin(Origin::TopLeft);
+	SetDrawOrigin(text_, Origin::TopLeft);
 }
 
 void DialogueComponent::StartDialogueLine(int dialogue_line_index) {
@@ -380,8 +384,9 @@ void DialogueComponent::StartDialogueLine(int dialogue_line_index) {
 	auto page	  = GetCurrentDialoguePage();
 	PTGN_ASSERT(page);
 	auto duration = page->properties.scroll_duration;
-	text_.AddTimerScript<impl::DialogueScrollScript>(duration);
-	text_.AddScript<impl::DialogueWaitScript>();
+	tween_.Clear();
+	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
+	AddScript<impl::DialogueWaitScript>(text_);
 }
 
 void DialogueComponent::LoadFromJson(
@@ -566,7 +571,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		while (word_stream >> word) {
 			std::string test_line = current_line.empty() ? word : current_line + " " + word;
 
-			V2_int size = game.font.GetSize(properties.font_key, test_line, properties.font_size);
+			V2_int size{ game.font.GetSize(properties.font_key, test_line, properties.font_size) };
 
 			if (is_first_line) {
 				size.x += split_begin_width; // Add split_begin width on the first line
@@ -638,8 +643,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 
 	// Split by manual newlines
 	std::vector<std::string> newline_segments;
-	std::size_t start		= 0;
-	std::size_t newline_pos = 0;
+	std::size_t start{ 0 };
+	std::size_t newline_pos{ 0 };
 
 	while ((newline_pos = full_text.find('\n', start)) != std::string::npos) {
 		newline_segments.push_back(full_text.substr(start, newline_pos - start));
@@ -664,7 +669,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 			page_lines.push_back(wrapped_lines[i]);
 
 			if (page_lines.size() == static_cast<std::size_t>(max_lines)) {
-				std::string page_text = JoinLines(page_lines);
+				std::string page_text{ JoinLines(page_lines) };
 				if (i < wrapped_lines.size() - 1) {
 					page_text += split_end;
 				}
@@ -672,15 +677,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 					page_text = split_begin + page_text;
 				}
 
-				auto duration = std::chrono::duration_cast<milliseconds>(
-					ptgn::duration<double, milliseconds::period>(
-						static_cast<double>(properties.scroll_duration.count())
-					)
-				);
-
-				auto page_properties			= properties;
-				page_properties.scroll_duration = duration;
-				pages.emplace_back(DialoguePage{ page_text, page_properties });
+				auto page_properties{ properties };
+				pages.emplace_back(page_text, page_properties);
 
 				// Clear page_lines to start a new page for the next chunk of text
 				page_lines.clear();
@@ -695,15 +693,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 				page_text = split_begin + page_text;
 			}
 
-			auto duration = std::chrono::duration_cast<milliseconds>(
-				ptgn::duration<double, milliseconds::period>(
-					static_cast<double>(properties.scroll_duration.count())
-				)
-			);
-
-			auto page_properties			= properties;
-			page_properties.scroll_duration = duration;
-			pages.emplace_back(DialoguePage{ page_text, page_properties });
+			auto page_properties{ properties };
+			pages.emplace_back(page_text, page_properties);
 		}
 	}
 

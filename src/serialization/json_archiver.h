@@ -12,7 +12,7 @@ class JSONArchiver {
 public:
 	template <typename T>
 	void SetComponent(const T& component) {
-		if constexpr (tt::has_to_json_v<T>) {
+		if constexpr (JsonSerializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			json json_component = component;
 			if (!json_component.empty()) {
@@ -27,7 +27,7 @@ public:
 
 	template <typename T>
 	[[nodiscard]] bool HasComponent() const {
-		if constexpr (tt::has_from_json_v<T>) {
+		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
 				return false;
@@ -44,7 +44,7 @@ public:
 			std::is_default_constructible_v<T>,
 			"Components retrieved from json must be default constructible"
 		);
-		if constexpr (tt::has_from_json_v<T>) {
+		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
 				return {};
@@ -62,7 +62,7 @@ public:
 
 	template <typename T>
 	void SetComponents(const std::vector<T>& components) {
-		if constexpr (tt::has_to_json_v<T>) {
+		if constexpr (JsonSerializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			j[class_name]["components"] = components;
 		}
@@ -73,7 +73,7 @@ public:
 		const std::vector<ecs::impl::Index>& dense_set,
 		const std::vector<ecs::impl::Index>& sparse_set
 	) {
-		if constexpr (tt::has_to_json_v<T>) {
+		if constexpr (JsonSerializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			j[class_name]["dense_set"]	= dense_set;
 			j[class_name]["sparse_set"] = sparse_set;
@@ -86,7 +86,7 @@ public:
 			std::is_default_constructible_v<T>,
 			"Components retrieved from json must be default constructible"
 		);
-		if constexpr (tt::has_from_json_v<T>) {
+		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
 				return {};
@@ -101,9 +101,9 @@ public:
 
 	// @return dense_set, sparse_set
 	template <typename T>
-	[[nodiscard]] std::pair<std::vector<ecs::impl::Index>, std::vector<ecs::impl::Index>>
-	GetArrays() const {
-		if constexpr (tt::has_from_json_v<T>) {
+	[[nodiscard]] std::pair<std::vector<ecs::impl::Index>, std::vector<ecs::impl::Index>> GetArrays(
+	) const {
+		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
 				return {};

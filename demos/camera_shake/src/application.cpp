@@ -6,7 +6,9 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "math/geometry/rect.h"
+#include "core/window.h"
+#include "input/input_handler.h"
+#include "input/key.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -18,22 +20,6 @@
 #include "ui/button.h"
 
 using namespace ptgn;
-
-class ButtonScript : public Script<ButtonScript> {
-public:
-	ButtonScript() = default;
-
-	explicit ButtonScript(const std::function<void()>& on_activate_callback) :
-		on_activate{ on_activate_callback } {}
-
-	void OnButtonActivate() override {
-		if (on_activate) {
-			std::invoke(on_activate);
-		}
-	}
-
-	std::function<void()> on_activate;
-};
 
 class CameraShakeScene : public Scene {
 public:
@@ -48,48 +34,51 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		b.AddScript<ButtonScript>(on_activate);
+		b.OnActivate(on_activate);
 		return b;
 	}
 
 	void Enter() override {
-		CreateRect(*this, V2_float{ 300.0f, 300.0f }, { 150.0f, 50.0f }, color::Green);
-		player = CreateRect(*this, V2_float{ 400.0f, 150.0f }, { 50.0f, 50.0f }, color::Red);
-		camera.primary.StartFollow(player);
+		game.window.SetSetting(WindowSetting::Resizable);
 
-		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera.primary); }));
-		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() {
-					 Shake(camera.primary, 0.1f, {}, false);
-				 }));
-		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() {
-					 Shake(camera.primary, 0.25f, {}, false);
-				 }));
-		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() {
-					 Shake(camera.primary, 0.5f, {}, false);
-				 }));
-		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() {
-					 Shake(camera.primary, 1.0f, {}, false);
-				 }));
+		CreateRect(*this, V2_float{ 500, 250 }, { 200, 50 }, color::Green);
+		player = CreateRect(*this, V2_float{ 400, 150 }, { 50, 50 }, color::Red);
 
-		V2_float screen_offset{ 10, 30 };
+		StartFollow(camera, player);
+
+		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera); }));
+		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { Shake(camera, 0.1f); }));
+		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() { Shake(camera, 0.25f); }));
+		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { Shake(camera, 0.5f); }));
+		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { Shake(camera, 1.0f); }));
+
+		V2_float screen_offset{ 30, 30 };
 		V2_float offset{ 6, 6 };
 		V2_float size{ 200, 50 };
 
+		auto cam1 = CreateCamera(*this);
+
 		grid.ForEach([&](auto coord, Button& b) {
-			b.SetPosition(screen_offset + (offset + size) * coord);
+			if (!b) {
+				return;
+			}
+			SetPosition(b, screen_offset + (offset + size) * coord);
 			b.SetSize(size);
-			b.SetOrigin(Origin::TopLeft);
+			SetDrawOrigin(b, Origin::TopLeft);
+			b.Add<Camera>(cam1);
 		});
 	}
 
 	void Update() override {
 		constexpr V2_float speed{ 3.0f, 3.0f };
-		MoveWASD(player.GetPosition(), speed, false);
+		V2_float pos{ GetPosition(player) };
+		MoveWASD(pos, speed, false);
+		SetPosition(player, pos);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CameraShakeScene");
+	game.Init("CameraShakeScene: WASD: Move");
 	game.scene.Enter<CameraShakeScene>("");
 	return 0;
 }

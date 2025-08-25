@@ -1,11 +1,10 @@
 #include "scene/scene.h"
 
-#include <memory>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/animation.h"
-#include "components/common.h"
+#include "components/draw.h"
 #include "components/drawable.h"
 #include "components/lifetime.h"
 #include "components/transform.h"
@@ -13,11 +12,13 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/timer.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "ecs/ecs.h"
-#include "events/event_handler.h"
 #include "input/input_handler.h"
-#include "nlohmann/json.hpp"
+#include "math/geometry.h"
+#include "math/vector2.h"
+#include "physics/collision/collider.h"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/blend_mode.h"
@@ -33,33 +34,30 @@
 #include "scene_input.h"
 #include "serialization/fwd.h"
 #include "tweens/tween.h"
-#include "tweens/tween_effects.h"
+#include "utility/flags.h"
 
 namespace ptgn {
 
 Scene::Scene() {
 	auto& render_manager{ game.renderer.GetRenderData().render_manager };
-	render_target_ = impl::CreateRenderTarget(
-		render_manager.CreateEntity(), color::Transparent,
+	render_target_ = CreateRenderTarget(
+		render_manager, ResizeToResolution::Physical, color::Transparent,
 		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
 	);
-	render_target_.SetBlendMode(BlendMode::BlendPremultiplied);
+	SetBlendMode(render_target_, BlendMode::BlendPremultiplied);
 }
 
 Scene::~Scene() {
 	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
 	game.renderer.GetRenderData().render_manager.Refresh();
-	for (auto e : Entities()) {
-		game.event.UnsubscribeAll(e);
-	}
 }
 
 void Scene::AddToDisplayList(Entity entity) {
 	if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
 		return;
 	}
-	if (!entity.Has<Visible>() || !entity.Has<IDrawable>()) {
+	if (!IsVisible(entity) || !HasDraw(entity)) {
 		return;
 	}
 	auto& dl{ render_target_.GetDisplayList() };
@@ -71,7 +69,7 @@ void Scene::RemoveFromDisplayList(Entity entity) {
 		return;
 	}
 	auto& dl{ render_target_.GetDisplayList() };
-	dl.erase(std::remove(dl.begin(), dl.end(), entity), dl.end());
+	std::erase(dl, entity);
 }
 
 void Scene::Add(Action new_status) {
@@ -107,18 +105,45 @@ void Scene::SetColliderVisibility(bool collider_visibility) {
 }
 
 void Scene::ReEnter() {
-	InternalExit();
-	InternalEnter();
+	game.scene.ReEnter(key_);
+}
+
+V2_float Scene::GetScaleRelativeTo(const Camera& relative_to_camera) const {
+	auto cam{ relative_to_camera ? relative_to_camera : camera };
+	// auto camera_zoom{ cam.GetZoom() };
+	// PTGN_ASSERT(camera_zoom.BothAboveZero());
+	V2_float camera_size{ cam.GetViewportSize() };
+	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
+	// camera_size /= camera_zoom;
+	V2_float draw_size{ render_target_.GetTextureSize() };
+	PTGN_ASSERT(camera_size.BothAboveZero());
+	V2_float scale{ draw_size / camera_size };
+	PTGN_ASSERT(scale.BothAboveZero());
+	return scale;
+}
+
+void Scene::SetBackgroundColor(const Color& background_color) {
+	render_target_.SetClearColor(background_color);
+}
+
+Color Scene::GetBackgroundColor() const {
+	return render_target_.GetClearColor();
+}
+
+const RenderTarget& Scene::GetRenderTarget() const {
+	return render_target_;
+}
+
+RenderTarget& Scene::GetRenderTarget() {
+	return render_target_;
 }
 
 void Scene::Init() {
 	active_ = true;
 
-	// Input is reset to ensure no previously pressed keys are considered held.
-	game.input.ResetKeyStates();
-	game.input.ResetMouseStates();
-
-	camera.Init(key_);
+	cameras_.Reset();
+	PTGN_ASSERT(!camera);
+	camera = CreateCamera(cameras_);
 	input.Init(key_);
 }
 
@@ -127,8 +152,8 @@ void Scene::InternalEnter() {
 	// clear the component pool vector which contains all the hooks.
 	OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
 	OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
-	OnConstruct<IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	OnDestruct<IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+	OnConstruct<impl::IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	OnDestruct<impl::IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
 
 	Init();
 	Enter();
@@ -149,75 +174,71 @@ void Scene::InternalExit() {
 	Refresh();
 }
 
-void Scene::Draw() {
-	// Ensure unzoomed cameras match their zoomed counterparts.
-
-	camera.primary_unzoomed.GetTransform()			= camera.primary.GetTransform();
-	camera.primary_unzoomed.Get<impl::CameraInfo>() = camera.primary.Get<impl::CameraInfo>();
-	camera.window_unzoomed.GetTransform()			= camera.window.GetTransform();
-	camera.window_unzoomed.Get<impl::CameraInfo>()	= camera.window.Get<impl::CameraInfo>();
-
-	camera.primary_unzoomed.SetZoom(1.0f);
-	camera.window_unzoomed.SetZoom(1.0f);
-
+void Scene::InternalDraw() {
 	if (collider_visibility_) {
-		// TODO: Fix.
-		// for (auto [e, collider] : EntitiesWith<Collider>()) {
-		//	const auto& transform{ e.GetDrawTransform() };
-		//	/*DrawDebugRect(
-		//		transform.position, b.size, collider_color_, b.origin, 1.0f, transform.rotation
-		//	);*/
-		//}
+		for (auto [entity, collider] : EntitiesWith<Collider>()) {
+			auto transform{ GetDrawTransform(entity) };
+			transform = ApplyOffset(collider.shape, transform, entity);
+			DrawDebugShape(
+				transform, collider.shape, collider_color_, collider_line_width_, entity.GetCamera()
+			);
+		}
 	}
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.Draw(*this);
 }
 
-void Scene::PreUpdate() {
+void Scene::InternalUpdate() {
 	game.scene.current_ = game.scene.GetActiveScene(key_);
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.ClearRenderTargets(*this);
-	render_data.drawing_to = render_target_;
+	render_data.drawing_to_ = impl::RenderData::GetDrawTarget(*this);
 
 	Refresh();
+	cameras_.Refresh();
+
+	game.input.InvokeInputEvents(cameras_);
+	game.input.InvokeInputEvents(*this);
 
 	input.Update(*this);
 
-	Refresh();
-}
+	const auto invoke_scripts = [&](Manager& manager) {
+		// TODO: Consider moving this into the Scripts class.
+		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+			scripts.InvokeActions();
+		}
+		manager.Refresh();
+	};
 
-void Scene::PostUpdate() {
-	Refresh();
-
-	game.scene.current_ = game.scene.GetActiveScene(key_);
-	auto& render_data{ game.renderer.GetRenderData() };
-	render_data.drawing_to = render_target_;
+	invoke_scripts(cameras_);
+	invoke_scripts(*this);
 
 	float dt{ game.dt() };
 	float time{ game.time() };
 
-	Scripts::Update(*this, dt);
+	const auto update_scripts = [&](Manager& manager) {
+		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+			scripts.AddAction(&impl::IScript::OnUpdate);
+		}
 
-	impl::ScriptTimers::Update(*this);
-	impl::ScriptRepeats::Update(*this);
+		invoke_scripts(manager);
+	};
+
+	invoke_scripts(cameras_);
+	update_scripts(*this);
 
 	Update();
 
+	cameras_.Refresh();
 	Refresh();
+
+	invoke_scripts(cameras_);
+	invoke_scripts(*this);
 
 	ParticleEmitter::Update(*this);
 
-	for (auto [entity, tween] : EntitiesWith<impl::TweenInstance>()) {
-		Tween{ entity }.Step(dt);
-	}
-
-	translate_effects_.Update(*this);
-	rotate_effects_.Update(*this);
-	scale_effects_.Update(*this);
-	tint_effects_.Update(*this);
-	bounce_effects_.Update(*this);
-	shake_effects_.Update(*this, time, dt);
-	follow_effects_.Update(*this);
+	Tween::Update(cameras_, dt);
+	Tween::Update(*this, dt);
 
 	impl::AnimationSystem::Update(*this);
 
@@ -225,29 +246,37 @@ void Scene::PostUpdate() {
 
 	physics.PreCollisionUpdate(*this);
 
-	impl::CollisionHandler::Update(*this);
+	collision_.Update(*this);
 
 	physics.PostCollisionUpdate(*this);
 
-	// TODO: Use Entity::Copy() instead. It caused some weird bug when I tried.
-
-	PTGN_ASSERT(camera.primary.IsAlive(), "Scene must be reinitialized after clearing");
+	invoke_scripts(*this);
 
 	// TODO: Update dirty vertex caches.
 
-	Draw();
+	InternalDraw();
+
+	const auto update_transforms = [&](Manager& manager) {
+		for (auto [entity, transform] : manager.InternalEntitiesWith<Transform>()) {
+			transform.dirty_flags_.ClearAll();
+		}
+	};
+
+	update_transforms(cameras_);
+	update_transforms(*this);
 
 	game.scene.current_ = {};
 }
 
 void to_json(json& j, const Scene& scene) {
 	to_json(j["manager"], static_cast<const Manager&>(scene));
+	j["cameras"]			 = scene.cameras_;
+	j["camera"]				 = scene.camera;
 	j["key"]				 = scene.key_;
 	j["active"]				 = scene.active_;
 	j["actions"]			 = scene.actions_;
 	j["physics"]			 = scene.physics;
 	j["input"]				 = scene.input;
-	j["camera"]				 = scene.camera;
 	j["collider_visibility"] = scene.collider_visibility_;
 	j["collider_color"]		 = scene.collider_color_;
 	j["render_target"]		 = scene.render_target_;
@@ -270,8 +299,10 @@ void from_json(const json& j, Scene& scene) {
 	j.at("collider_color").get_to(scene.collider_color_);
 
 	j.at("input").get_to(scene.input);
-	j.at("camera").get_to(scene.camera);
 	j.at("render_target").get_to(scene.render_target_);
+
+	j.at("cameras").get_to(scene.cameras_);
+	scene.camera = scene.cameras_.GetEntityByUUID(j.at("camera").at("UUID"));
 }
 
 } // namespace ptgn

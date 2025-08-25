@@ -44,8 +44,9 @@ public:
 	SceneTransition() = default;
 	SceneTransition(TransitionType type, milliseconds duration);
 
-	bool operator==(const SceneTransition& o) const;
-	bool operator!=(const SceneTransition& o) const;
+	friend bool operator==(const SceneTransition& a, const SceneTransition& b) {
+		return a.type_ == b.type_ && a.duration_ == b.duration_;
+	}
 
 	SceneTransition& SetType(TransitionType type);
 	SceneTransition& SetDuration(milliseconds duration);
