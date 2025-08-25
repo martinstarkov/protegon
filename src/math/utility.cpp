@@ -14,19 +14,12 @@ namespace ptgn {
 
 namespace impl {
 
-bool WithinPerimeter(float radius, float dist2) {
-	float rad2{ radius * radius };
-
-	if (dist2 < rad2 && !NearlyEqual(dist2, rad2)) {
+bool WithinPerimeter(float radius, float dist2, bool include_edge) {
+	float radius2 = radius * radius;
+	if (dist2 < radius2) {
 		return true;
 	}
-
-	// Optional: Include perimeter:
-	/*if (NearlyEqual(dist2, rad2)) {
-		return true;
-	}*/
-
-	return false;
+	return include_edge && NearlyEqual(dist2, radius2);
 }
 
 float ClosestPointLineLine(

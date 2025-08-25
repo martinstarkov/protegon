@@ -4,7 +4,8 @@
 #include <cmath>
 #include <cstdint>
 
-#include "components/common.h"
+#include "components/draw.h"
+#include "components/effects.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -20,28 +21,13 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
-#include "scene/scene.h"
 
 namespace ptgn {
-
-ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
-	ParticleEmitter emitter{ scene.CreateEntity() };
-
-	emitter.SetDraw<ParticleEmitter>();
-	auto& i{ emitter.Add<impl::ParticleEmitterComponent>() };
-	i.info = info;
-	i.manager.Reserve(i.info.total_particles);
-	emitter.Show();
-	emitter.Enable();
-	emitter.SetPosition({});
-
-	return emitter;
-}
 
 namespace impl {
 
 void ParticleEmitterComponent::Update(const V2_float& start_position) {
-	if (particle_count < info.total_particles && emission.IsRunning() &&
+	if (particle_count < info.max_particles && emission.IsRunning() &&
 		emission.Completed(info.emission_delay)) {
 		EmitParticle(start_position);
 		emission.Start();
@@ -54,10 +40,15 @@ void ParticleEmitterComponent::Update(const V2_float& start_position) {
 			particle_count--;
 			continue;
 		}
-		p.color		= Lerp(p.start_color, p.end_color, elapsed);
-		p.color.a	= static_cast<std::uint8_t>(Lerp(255.0f, 0.0f, elapsed));
-		p.radius	= p.start_radius * Lerp(info.start_scale, info.end_scale, elapsed);
-		p.velocity += info.gravity * game.dt();
+		p.color	  = Lerp(p.start_color, p.end_color, elapsed);
+		p.color.a = static_cast<std::uint8_t>(Lerp(255.0f, 0.0f, elapsed));
+		p.radius  = p.start_radius * Lerp(info.start_scale, info.end_scale, elapsed);
+
+		if (!info.use_random_velocities) {
+			// Apply gravity.
+			p.velocity += info.gravity * game.dt();
+		}
+
 		p.position += p.velocity * game.dt();
 	}
 	manager.Refresh();
@@ -73,11 +64,22 @@ void ParticleEmitterComponent::EmitParticle(const V2_float& start_position) {
 }
 
 void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Particle& p) {
-	p.position	   = start_position + info.position_variance * V2_float{ rng(), rng() };
-	p.velocity	   = { info.speed + info.speed_variance * rng() *
+	p.position = start_position + info.position_variance * V2_float{ rng(), rng() };
+
+	if (info.use_random_velocities) {
+		RNG<float> speed_rng{ info.min_speed, info.max_speed };
+		static RNG<float> heading_rng{ 0.0f, two_pi<float> };
+		float angle{ heading_rng() };
+		V2_float heading{ std::cos(angle), std::sin(angle) };
+		p.velocity = heading * speed_rng();
+	} else {
+		p.velocity = { info.speed + info.speed_variance * rng() *
 										std::cos(info.starting_angle + info.angle_variance * rng()),
-					   info.speed + info.speed_variance * rng() *
-										std::sin(info.starting_angle + info.angle_variance * rng()) };
+					   info.speed +
+						   info.speed_variance * rng() *
+							   std::sin(info.starting_angle + info.angle_variance * rng()) };
+	}
+
 	p.start_radius = std::max(info.radius + info.radius_variance * rng(), 0.0f);
 	// TODO: Fix multiplications.
 	// TODO: Add clamping of values.
@@ -89,15 +91,15 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 } // namespace impl
 
 void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
-	auto depth{ entity.GetDepth() };
+	auto depth{ GetDepth(entity) };
 
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 
 	impl::RenderState state;
 	state.camera	  = entity.GetOrParentOrDefault<Camera>();
-	state.blend_mode  = entity.GetBlendMode();
+	state.blend_mode  = GetBlendMode(entity);
 	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
-	state.post_fx	  = entity.GetOrDefault<impl::PostFX>();
+	state.post_fx	  = entity.GetOrDefault<PostFX>();
 
 	if (i.info.texture_enabled && i.info.texture_key) {
 		Color tint{ color::White };
@@ -155,7 +157,7 @@ ParticleEmitter& ParticleEmitter::Toggle() {
 }
 
 ParticleEmitter& ParticleEmitter::EmitParticle() {
-	Get<impl::ParticleEmitterComponent>().EmitParticle(GetPosition());
+	Get<impl::ParticleEmitterComponent>().EmitParticle(GetPosition(*this));
 	return *this;
 }
 
@@ -165,7 +167,21 @@ ParticleEmitter& ParticleEmitter::Reset() {
 }
 
 ParticleEmitter& ParticleEmitter::SetGravity(const V2_float& particle_gravity) {
-	Get<impl::ParticleEmitterComponent>().info.gravity = particle_gravity;
+	auto& info{ Get<impl::ParticleEmitterComponent>().info };
+	if (!particle_gravity.IsZero()) {
+		info.use_random_velocities = false;
+	}
+	info.gravity = particle_gravity;
+	return *this;
+}
+
+ParticleEmitter& ParticleEmitter::UseRandomVelocities(
+	float min_speed, float max_speed, bool use_random_velocities
+) {
+	auto& emitter{ Get<impl::ParticleEmitterComponent>().info };
+	emitter.min_speed			  = min_speed;
+	emitter.max_speed			  = max_speed;
+	emitter.use_random_velocities = use_random_velocities;
 	return *this;
 }
 
@@ -174,12 +190,12 @@ V2_float ParticleEmitter::GetGravity() const {
 }
 
 ParticleEmitter& ParticleEmitter::SetMaxParticles(std::size_t max_particles) {
-	Get<impl::ParticleEmitterComponent>().info.total_particles = max_particles;
+	Get<impl::ParticleEmitterComponent>().info.max_particles = max_particles;
 	return *this;
 }
 
 std::size_t ParticleEmitter::GetMaxParticles() const {
-	return Get<impl::ParticleEmitterComponent>().info.total_particles;
+	return Get<impl::ParticleEmitterComponent>().info.max_particles;
 }
 
 ParticleEmitter& ParticleEmitter::SetShape(ParticleShape shape) {
@@ -227,13 +243,26 @@ milliseconds ParticleEmitter::GetEmissionDelay() const {
 	return Get<impl::ParticleEmitterComponent>().info.emission_delay;
 }
 
-void ParticleEmitter::Update(Scene& scene) {
-	for (auto [entity, enabled, particle_manager] :
-		 scene.EntitiesWith<Enabled, impl::ParticleEmitterComponent>()) {
-		particle_manager.Update(entity.GetPosition());
+void ParticleEmitter::Update(Manager& manager) {
+	for (auto [entity, particle_manager] : manager.EntitiesWith<impl::ParticleEmitterComponent>()) {
+		auto position{ GetPosition(entity) };
+		particle_manager.Update(position);
 	}
 
-	scene.Refresh();
+	manager.Refresh();
+}
+
+ParticleEmitter CreateParticleEmitter(Manager& manager, const ParticleInfo& info) {
+	ParticleEmitter emitter{ manager.CreateEntity() };
+
+	SetDraw<ParticleEmitter>(emitter);
+	auto& i{ emitter.Add<impl::ParticleEmitterComponent>() };
+	i.info = info;
+	i.manager.Reserve(i.info.max_particles);
+	Show(emitter);
+	SetPosition(emitter, {});
+
+	return emitter;
 }
 
 } // namespace ptgn

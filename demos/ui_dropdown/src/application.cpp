@@ -1,8 +1,8 @@
 #include <functional>
 #include <string_view>
 
-#include "core/entity.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "debug/log.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -13,22 +13,6 @@
 
 using namespace ptgn;
 
-class ButtonScript : public Script<ButtonScript> {
-public:
-	ButtonScript() = default;
-
-	explicit ButtonScript(const std::function<void()>& on_activate_callback) :
-		on_activate{ on_activate_callback } {}
-
-	void OnButtonActivate() override {
-		if (on_activate) {
-			std::invoke(on_activate);
-		}
-	}
-
-	std::function<void()> on_activate;
-};
-
 class DropdownScene : public Scene {
 public:
 	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
@@ -36,7 +20,7 @@ public:
 		button.SetBackgroundColor(color::Gray);
 		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		button.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		button.AddScript<ButtonScript>(on_activate);
+		button.OnActivate(on_activate);
 		button.SetBorderColor(color::Red);
 		button.SetBorderWidth(3.0f);
 		return button;
@@ -49,9 +33,9 @@ public:
 		d.SetBackgroundColor(color::Gray);
 		d.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		d.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		d.SetPosition({ 400, 200 });
+		SetPosition(d, { 400, 200 });
 		d.SetSize({ 200, 100 });
-		d.SetOrigin(Origin::Center);
+		// SetDrawOrigin(d, Origin::Center);
 		d.SetBorderColor(color::Gold);
 		d.SetBorderWidth(3.0f);
 		d.SetButtonSize({ 100, 50 });
@@ -60,10 +44,13 @@ public:
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);
 		Dropdown dropdown3 = CreateDropdown(true);
 		Dropdown dropdown4 = CreateDropdown(false);
+
 		dropdown.AddButton(CreateButton("First", []() { PTGN_LOG("Pressed first"); }));
 		dropdown.AddButton(CreateButton("Second", []() { PTGN_LOG("Pressed second"); }));
 		dropdown.AddButton(dropdown2);

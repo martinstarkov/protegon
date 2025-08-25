@@ -11,45 +11,15 @@
 #include "components/sprite.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/vector2.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
-#include "scene/scene.h"
 
 namespace ptgn {
-
-Animation CreateAnimation(
-	Scene& scene, const TextureHandle& texture_key, std::size_t frame_count,
-	milliseconds animation_duration, V2_int frame_size, std::int64_t play_count,
-	const V2_int& start_pixel
-) {
-	PTGN_ASSERT(
-		play_count == -1 || play_count >= 0,
-		"Play count must be -1 (infinite) or otherwise non-negative"
-	);
-
-	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
-
-	Animation animation{ CreateSprite(scene, texture_key) };
-
-	auto texture_size{ texture_key.GetSize() };
-
-	if (frame_size.IsZero()) {
-		frame_size = { texture_size.x / frame_count, texture_size.y };
-	}
-
-	const auto& anim = animation.Add<impl::AnimationInfo>(
-		animation_duration, frame_count, frame_size, play_count, start_pixel
-	);
-	auto& crop = animation.Add<TextureCrop>();
-
-	crop.position = anim.GetCurrentFramePosition();
-	crop.size	  = anim.frame_size;
-
-	return animation;
-}
 
 void Animation::Start(bool force) {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
@@ -62,7 +32,9 @@ void Animation::Start(bool force) {
 	crop.size		   = anim.frame_size;
 	bool started{ anim.frame_timer.Start(force) };
 	if (started) {
-		InvokeScript<&impl::IScript::OnAnimationStart>();
+		if (auto scripts{ TryGet<Scripts>() }) {
+			scripts->AddAction(&AnimationScript::OnAnimationStart);
+		}
 	}
 }
 
@@ -75,14 +47,18 @@ void Animation::Reset() {
 	auto& crop		   = Get<TextureCrop>();
 	crop.position	   = anim.GetCurrentFramePosition();
 	crop.size		   = anim.frame_size;
-	InvokeScript<&impl::IScript::OnAnimationStop>();
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationStop);
+	}
 	anim.frame_timer.Reset();
 }
 
 void Animation::Stop() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	InvokeScript<&impl::IScript::OnAnimationStop>();
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationStop);
+	}
 	anim.frame_timer.Stop();
 }
 
@@ -97,14 +73,18 @@ void Animation::Toggle() {
 void Animation::Pause() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	InvokeScript<&impl::IScript::OnAnimationPause>();
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationPause);
+	}
 	anim.frame_timer.Pause();
 }
 
 void Animation::Resume() {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	auto& anim{ Get<impl::AnimationInfo>() };
-	InvokeScript<&impl::IScript::OnAnimationResume>();
+	if (auto scripts{ TryGet<Scripts>() }) {
+		scripts->AddAction(&AnimationScript::OnAnimationResume);
+	}
 	anim.frame_timer.Resume();
 }
 
@@ -215,8 +195,8 @@ void AnimationInfo::IncrementFrame() {
 	SetCurrentFrame(current_frame + 1);
 }
 
-void AnimationSystem::Update(Scene& scene) {
-	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationInfo, TextureCrop>()) {
+void AnimationSystem::Update(Manager& manager) {
+	for (auto [entity, anim, crop] : manager.EntitiesWith<AnimationInfo, TextureCrop>()) {
 		if (anim.frame_dirty) {
 			crop.size	  = anim.frame_size;
 			crop.position = anim.GetCurrentFramePosition();
@@ -233,18 +213,26 @@ void AnimationSystem::Update(Scene& scene) {
 		if (bool infinite_playback{ anim.play_count == -1 };
 			!infinite_playback &&
 			anim.frames_played >= static_cast<std::size_t>(anim.play_count) * anim.frame_count) {
-			entity.InvokeScript<&impl::IScript::OnAnimationComplete>();
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationComplete);
+			}
 			// Reset animation to start frame after it finishes.
 			anim.SetCurrentFrame(0);
-			entity.InvokeScript<&impl::IScript::OnAnimationFrameChange>(anim.current_frame);
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationFrameChange);
+			}
 			crop.size	  = anim.frame_size;
 			crop.position = anim.GetCurrentFramePosition();
 			anim.frame_timer.Stop();
-			entity.InvokeScript<&impl::IScript::OnAnimationStop>();
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationStop);
+			}
 			continue;
 		}
 
-		entity.InvokeScript<&impl::IScript::OnAnimationUpdate>();
+		if (auto scripts{ entity.TryGet<Scripts>() }) {
+			scripts->AddAction(&AnimationScript::OnAnimationUpdate);
+		}
 
 		if (auto frame_duration{ anim.GetFrameDuration() };
 			!anim.frame_timer.Completed(frame_duration)) {
@@ -257,19 +245,27 @@ void AnimationSystem::Update(Scene& scene) {
 
 		anim.IncrementFrame();
 
-		entity.InvokeScript<&impl::IScript::OnAnimationFrameChange>(anim.current_frame);
+		if (auto scripts{ entity.TryGet<Scripts>() }) {
+			scripts->AddAction(&AnimationScript::OnAnimationFrameChange);
+		}
 
 		crop.size	  = anim.frame_size;
 		crop.position = anim.GetCurrentFramePosition();
 
 		if (anim.frames_played % anim.frame_count == 0) {
-			entity.InvokeScript<&impl::IScript::OnAnimationRepeat>(anim.GetPlayCount());
+			if (auto scripts{ entity.TryGet<Scripts>() }) {
+				scripts->AddAction(&AnimationScript::OnAnimationRepeat);
+			}
 		}
 
 		anim.frame_timer.Start(true);
 	}
 
-	scene.Refresh();
+	for (auto [e, anim, scripts] : manager.EntitiesWith<AnimationInfo, Scripts>()) {
+		scripts.InvokeActions();
+	}
+
+	manager.Refresh();
 }
 
 } // namespace impl
@@ -277,7 +273,7 @@ void AnimationSystem::Update(Scene& scene) {
 Animation& AnimationMap::Load(const ActiveMapManager::Key& key, Animation&& entity, bool hide) {
 	auto [it, inserted] = GetMap().try_emplace(GetInternalKey(key), std::move(entity));
 	if (hide) {
-		it->second.Hide();
+		Hide(it->second);
 	}
 	return it->second;
 }
@@ -287,12 +283,43 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 		return false;
 	}
 	auto& active{ GetActive() };
-	active.Hide();
+	Hide(active);
 	active.Pause();
 	ActiveMapManager::SetActive(key);
 	auto& new_active{ GetActive() };
-	new_active.Show();
+	Show(new_active);
 	return true;
+}
+
+Animation CreateAnimation(
+	Manager& manager, const TextureHandle& texture_key, const V2_float& position,
+	std::size_t frame_count, milliseconds animation_duration, V2_int frame_size,
+	std::int64_t play_count, const V2_int& start_pixel
+) {
+	PTGN_ASSERT(
+		play_count == -1 || play_count >= 0,
+		"Play count must be -1 (infinite) or otherwise non-negative"
+	);
+
+	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
+
+	Animation animation{ CreateSprite(manager, texture_key, position) };
+
+	auto texture_size{ texture_key.GetSize() };
+
+	if (frame_size.IsZero()) {
+		frame_size = { texture_size.x / frame_count, texture_size.y };
+	}
+
+	const auto& anim = animation.Add<impl::AnimationInfo>(
+		animation_duration, frame_count, frame_size, play_count, start_pixel
+	);
+	auto& crop = animation.Add<TextureCrop>();
+
+	crop.position = anim.GetCurrentFramePosition();
+	crop.size	  = anim.frame_size;
+
+	return animation;
 }
 
 } // namespace ptgn

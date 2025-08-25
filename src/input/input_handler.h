@@ -18,6 +18,7 @@ union SDL_Event;
 namespace ptgn {
 
 class Scene;
+class Manager;
 class SceneInput;
 
 namespace impl {
@@ -66,24 +67,30 @@ public:
 	// @param Whether or not mouse relative mode should be turned on or not.
 	void SetRelativeMouseMode(bool on) const;
 
+	// @param relative_to_viewport If true, returns the position translated and scaled such that
+	// (0,0) is in the top left of the viewport, instead of the window.
 	// @return Mouse position relative to the top left of the window, clamped to the range [0,
 	// window_size].
-	[[nodiscard]] V2_float GetMousePosition() const;
+	[[nodiscard]] V2_float GetMouseWindowPosition(bool relative_to_viewport = true) const;
 
 	// @return Mouse position relative to the top left of the window, without clamping to the range
 	// [0, window_size].
-	[[nodiscard]] V2_float GetMousePositionUnclamped() const;
+	[[nodiscard]] V2_float GetMouseWindowPositionUnclamped() const;
 
+	// @param relative_to_viewport If true, returns the position translated and scaled such that
+	// (0,0) is in the top left of the viewport, instead of the window.
 	// @return Mouse position during the previous frame relative to the top left of the window.
-	[[nodiscard]] V2_float GetMousePositionPrevious() const;
+	[[nodiscard]] V2_float GetMouseWindowPositionPrevious(bool relative_to_viewport = true) const;
 
+	// @param relative_to_viewport If true, returns the position translated and scaled such that
+	// (0,0) is in the top left of the viewport, instead of the window.
 	// @return Mouse position difference between the current and previous frames relative to the top
 	// left of the window.
-	[[nodiscard]] V2_float GetMouseDifference() const;
+	[[nodiscard]] V2_float GetMouseWindowPositionDifference(bool relative_to_viewport = true) const;
 
 	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
 	// GetMousePosition().
-	[[nodiscard]] V2_float GetMousePositionGlobal() const;
+	[[nodiscard]] V2_float GetMouseScreenPosition() const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
 	// positive upward, negative downward. Zero if no scroll occurred.
@@ -106,21 +113,21 @@ public:
 	// that).
 	[[nodiscard]] bool MouseUp(Mouse mouse_button) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True if the key is pressed (true every frame that the key is down).
 	[[nodiscard]] bool KeyPressed(Key key) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True if the key is released (true every frame that the key is up).
 	[[nodiscard]] bool KeyReleased(Key key) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True the first frame that the key is pressed (false every frame after that).
-	[[nodiscard]] bool KeyDown(Key key);
+	[[nodiscard]] bool KeyDown(Key key) const;
 
-	// @param mouse_button The key to check.
+	// @param key The key to check.
 	// @return True the first frame that the key is released (false every frame after that).
-	[[nodiscard]] bool KeyUp(Key key);
+	[[nodiscard]] bool KeyUp(Key key) const;
 
 private:
 	friend class ptgn::Scene;
@@ -164,12 +171,16 @@ private:
 	V2_int mouse_position_;
 	V2_int previous_mouse_position_;
 
-	Timestamp mouse_scroll_timestamp_{ 0 };
+	// Total scroll amount in the current frame (cumulative).
+	V2_int mouse_scroll_delta_;
+	// Scroll amount in the most recent scroll event.
 	V2_int mouse_scroll_;
+	// Timestamp of the most recent scroll event.
+	Timestamp mouse_scroll_timestamp_{ 0 };
 
 	void Prepare();
 	void ProcessInputEvents();
-	void DispatchInputEvents(Scene& scene);
+	void InvokeInputEvents(Manager& manager);
 
 	InputQueue queue_;
 };

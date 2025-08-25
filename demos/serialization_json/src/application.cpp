@@ -1,14 +1,14 @@
 #include <string>
 
 #include "audio/audio.h"
-#include "components/common.h"
 #include "components/draw.h"
-#include "components/input.h"
+#include "components/interactive.h"
 #include "components/lifetime.h"
 #include "components/offsets.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "math/geometry/circle.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
@@ -35,26 +35,28 @@ public:
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
-	entity.SetPosition({ 30, 50 });
+	SetPosition(entity, { 30, 50 });
 
 	Manager m;
 
 	auto e0 = m.CreateEntity();
-	e0.SetPosition(V2_float{ -69, -69 });
+	SetPosition(e0, V2_float{ -69, -69 });
 
 	auto e1 = m.CreateEntity();
-	e1.Add<Draggable>(V2_float{ 1, 1 }, V2_float{ 30, 40 }, true);
-	e1.SetTransform({ V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
-	e1.Enable();
-	e1.Show();
-	e1.SetDepth(22);
+	SetTransform(e1, { V2_float{ 30, 50 }, 2.14f, V2_float{ 2.0f } });
+	Show(e1);
+	SetDepth(e1, 22);
 	auto tint_color{ color::Blue };
-	e1.Add<Tint>(tint_color);
+	SetTint(e1, tint_color);
 	e1.Add<LineWidth>(3.5f);
 	e1.Add<TextureHandle>("sheep1");
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
-	e1.Add<Interactive>();
+	SetInteractive(e1);
+	// auto child = m.CreateEntity();
+	// child.Add<Circle>(30.0f);
+	// AddInteractable(e1, std::move(child));
+	e1.Add<Draggable>();
 	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
 							 // values.
 	e1.Add<Lifetime>(milliseconds{ 300 }).Start();
@@ -88,7 +90,6 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		PTGN_ASSERT(e2.Has<UUID>());
 		PTGN_ASSERT(e2.Has<Draggable>());
 		PTGN_ASSERT(e2.Has<TextureCrop>());
-		PTGN_ASSERT(e2.Has<Enabled>());
 		PTGN_ASSERT(e2.Has<Visible>());
 		PTGN_ASSERT(e2.Has<Depth>());
 		PTGN_ASSERT(e2.Has<Tint>());
@@ -137,25 +138,18 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	};
 
 	{
-		std::invoke(
-			test_manager_serialization, "texture", game.texture, "resources/texture1.png",
-			"resources/texture2.png"
+		test_manager_serialization(
+			"texture", game.texture, "resources/texture1.png", "resources/texture2.png"
 		);
-		std::invoke(
-			test_manager_serialization, "font", game.font, "resources/font1.ttf",
-			"resources/font2.ttf"
+		test_manager_serialization("font", game.font, "resources/font1.ttf", "resources/font2.ttf");
+		test_manager_serialization(
+			"sound", game.sound, "resources/sound1.ogg", "resources/sound2.ogg"
 		);
-		std::invoke(
-			test_manager_serialization, "sound", game.sound, "resources/sound1.ogg",
-			"resources/sound2.ogg"
+		test_manager_serialization(
+			"music", game.music, "resources/sound1.ogg", "resources/sound2.ogg", true
 		);
-		std::invoke(
-			test_manager_serialization, "music", game.music, "resources/sound1.ogg",
-			"resources/sound2.ogg", true
-		);
-		std::invoke(
-			test_manager_serialization, "json", game.json, "resources/json1.json",
-			"resources/json2.json"
+		test_manager_serialization(
+			"json", game.json, "resources/json1.json", "resources/json2.json"
 		);
 	}
 
@@ -285,7 +279,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 
 	// Simulate update loop
 	for (int i = 0; i <= 30; ++i) {
-		V2_float pos = entity.GetPosition();
+		V2_float pos = GetPosition(entity);
 		PTGN_LOG("Time: ", static_cast<float>(i) * dt, "s - Position: ", pos);
 		for (const auto& script : script_container.scripts) {
 			script->OnUpdate(entity, dt);

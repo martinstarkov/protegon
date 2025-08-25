@@ -8,11 +8,13 @@
 
 #include "common/assert.h"
 #include "components/generic.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "math/vector2.h"
 #include "resources/fonts.h"
 #include "resources/resource_manager.h"
+#include "scene/scene.h"
 #include "SDL_error.h"
 #include "SDL_rwops.h"
 #include "SDL_ttf.h"
@@ -20,7 +22,23 @@
 #include "serialization/json.h"
 #include "utility/file.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+FontSize FontSize::GetHD(const Entity& entity) const {
+	FontSize final_font_size{ *this };
+
+	const auto& scene{ entity.GetScene() };
+	const auto& camera{ entity.GetCamera() };
+
+	auto scene_scale{ scene.GetScaleRelativeTo(camera) };
+
+	final_font_size =
+		static_cast<std::int32_t>(static_cast<float>(final_font_size) * scene_scale.y);
+
+	return final_font_size;
+}
+
+namespace impl {
 
 void TTF_FontDeleter::operator()(TTF_Font* font) const {
 	if (game.sdl_instance_->SDLTTFIsInitialized()) {
@@ -41,13 +59,13 @@ FontManager& FontManager::operator=(FontManager&& other) noexcept {
 }
 
 FontManager::~FontManager() {
-	if (game.sdl_instance_->SDLIsInitialized()) {
+	if (game.sdl_instance_->SDLIsInitialized() && raw_default_font_) {
 		SDL_RWclose(raw_default_font_);
 	}
 }
 
 void FontManager::Load(const ResourceHandle& key, const path& filepath) {
-	Load(key, filepath, default_font_size_);
+	Load(key, filepath, default_font_size);
 }
 
 void FontManager::Load(
@@ -75,9 +93,9 @@ void FontManager::Load(
 void FontManager::Init() {
 	ResourceHandle key{};
 	if (!raw_default_font_) {
-		raw_default_font_ = GetRawBuffer(LiberationSansRegular);
+		raw_default_font_ = GetRawBuffer(GetLiberationSansRegular());
 		auto default_font{
-			LoadFromBinary(raw_default_font_, default_font_size_, default_font_index_, false)
+			LoadFromBinary(raw_default_font_, default_font_size, default_font_index, false)
 		};
 		auto [it, inserted] = resources_.try_emplace(key);
 		if (inserted) {
@@ -113,7 +131,7 @@ TemporaryFont FontManager::Get(const ResourceHandle& key, const FontSize& font_s
 	PTGN_ASSERT(
 		key == ResourceHandle{}, "Font key must have a valid path unless it is the default font"
 	);
-	return TemporaryFont{ LoadFromBinary(raw_default_font_, font_size, default_font_index_, false),
+	return TemporaryFont{ LoadFromBinary(raw_default_font_, font_size, default_font_index, false),
 						  TTF_FontDeleter{} };
 }
 
@@ -129,7 +147,8 @@ V2_int FontManager::GetSize(
 		size.y = GetHeight(key, font_size);
 		return size;
 	}
-
+	PTGN_ASSERT(content.find("\n") == std::string::npos, "Cannot get size of text with newlines");
+	// TODO: Use TTF_GetStringSizeWrapped in SDL3.
 	TTF_SizeUTF8(font.get(), content.c_str(), &size.x, &size.y);
 	return size;
 }
@@ -153,7 +172,7 @@ Font FontManager::LoadFromFile(const path& filepath, std::int32_t size, std::int
 }
 
 Font FontManager::LoadFromFile(const path& filepath) {
-	return LoadFromFile(filepath, default_font_size_, default_font_index_);
+	return LoadFromFile(filepath, default_font_size, default_font_index);
 }
 
 TTF_Font* FontManager::LoadFromBinary(
@@ -186,4 +205,6 @@ void from_json(const json& j, FontManager& manager) {
 	manager.Init();
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

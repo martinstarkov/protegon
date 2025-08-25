@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "geometry/rect.h"
@@ -14,48 +15,45 @@
 
 namespace ptgn {
 
-Shape ApplyOffset(const Shape& shape, const Entity& entity) {
+Transform ApplyOffset(const Shape& shape, const Transform& transform, const Entity& entity) {
 	if (!std::holds_alternative<Rect>(shape)) {
-		return shape;
+		return transform;
 	}
 	const Rect& rect{ std::get<Rect>(shape) };
-	auto origin{ entity.GetOrigin() };
-	auto offset_rect{ rect.Offset(origin) };
-	return offset_rect;
+	auto draw_origin{ GetDrawOrigin(entity) };
+	return rect.Offset(transform, draw_origin);
 }
 
-V2_float ToWorldPoint(
+V2_float ApplyTransform(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale, float cos_angle,
 	float sin_angle
 ) {
 	PTGN_ASSERT(!scale.IsZero(), "Cannot get world point for an object with zero scale");
-	return position + scale * local_point.Rotated(cos_angle, sin_angle);
+	return position + (scale * local_point).Rotated(cos_angle, sin_angle);
 }
 
-V2_float ToWorldPoint(
+V2_float ApplyTransform(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale
 ) {
 	PTGN_ASSERT(!scale.IsZero(), "Cannot get world point for an object with zero scale");
 	return position + scale * local_point;
 }
 
-V2_float ToWorldPoint(const V2_float& local_point, const Transform& transform) {
-	if (transform.rotation == 0.0f) {
-		return ToWorldPoint(local_point, transform.position, transform.scale);
+V2_float ApplyTransform(const V2_float& local_point, const Transform& transform) {
+	if (transform.GetRotation() == 0.0f) {
+		return ApplyTransform(local_point, transform.GetPosition(), transform.GetScale());
 	}
-	return ToWorldPoint(
-		local_point, transform.position, transform.scale, std::cos(transform.rotation),
-		std::sin(transform.rotation)
+	return ApplyTransform(
+		local_point, transform.GetPosition(), transform.GetScale(),
+		std::cos(transform.GetRotation()), std::sin(transform.GetRotation())
 	);
 }
 
-void ToWorldPoint(
+void ApplyTransform(
 	const V2_float* local_points, std::size_t count, V2_float* out_world_points,
 	const Transform& transform
 ) {
-	const bool no_rotation = (transform.rotation == 0.0f);
-
-	if (no_rotation) {
+	if (transform.GetRotation() == 0.0f) {
 		if (transform == Transform{}) {
 			for (std::size_t i{ 0 }; i < count; ++i) {
 				out_world_points[i] = local_points[i];
@@ -63,24 +61,25 @@ void ToWorldPoint(
 		}
 		for (std::size_t i{ 0 }; i < count; ++i) {
 			out_world_points[i] =
-				ToWorldPoint(local_points[i], transform.position, transform.scale);
+				ApplyTransform(local_points[i], transform.GetPosition(), transform.GetScale());
 		}
 	} else {
-		const float cosA = std::cos(transform.rotation);
-		const float sinA = std::sin(transform.rotation);
+		const float cosA = std::cos(transform.GetRotation());
+		const float sinA = std::sin(transform.GetRotation());
 
 		for (std::size_t i{ 0 }; i < count; ++i) {
-			out_world_points[i] =
-				ToWorldPoint(local_points[i], transform.position, transform.scale, cosA, sinA);
+			out_world_points[i] = ApplyTransform(
+				local_points[i], transform.GetPosition(), transform.GetScale(), cosA, sinA
+			);
 		}
 	}
 }
 
-std::vector<V2_float> ToWorldPoint(
+std::vector<V2_float> ApplyTransform(
 	const std::vector<V2_float>& local_points, const Transform& transform
 ) {
 	std::vector<V2_float> world_points(local_points.size());
-	ToWorldPoint(local_points.data(), local_points.size(), world_points.data(), transform);
+	ApplyTransform(local_points.data(), local_points.size(), world_points.data(), transform);
 	return world_points;
 }
 
@@ -275,6 +274,7 @@ std::vector<std::array<V2_float, 3>> Triangulate(const V2_float* contour, std::s
 }
 
 /*
+// TODO: Remove these once shaders for these shapes have been implemented.
 void Arc::Draw(bool clockwise, const Color& color, float line_width, std::int32_t render_layer)
 	const {
 	PTGN_ASSERT(radius >= 0.0f, "Cannot draw filled arc with negative radius");

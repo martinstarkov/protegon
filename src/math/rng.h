@@ -1,26 +1,27 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
-#include <functional>
 #include <limits>
-#include <nlohmann/detail/meta/type_traits.hpp>
 #include <optional>
 #include <random>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
 #include "common/assert.h"
 #include "serialization/enum.h"
 #include "serialization/json.h"
-#include "serialization/serializable.h"
 
 namespace ptgn {
 
 namespace impl {
 
 template <typename T, typename... Ts>
-inline constexpr bool invalid_rng_type{ (!std::is_same_v<T, Ts> && ...) };
+inline constexpr bool invalid_rng_type = (std::same_as<T, Ts> || ...);
+
+template <typename T>
+concept RNGType = std::is_arithmetic_v<T> &&
+				  !invalid_rng_type<T, char, signed char, unsigned char, std::int8_t, std::uint8_t>;
 
 } // namespace impl
 
@@ -39,25 +40,21 @@ enum class Distribution {
  * @tparam E Type of rng engine to use (std::minstd_rand,
  * std::mt19937, etc).
  */
-template <
-	typename T, Distribution D = Distribution::Uniform, typename E = std::mt19937,
-	typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+template <impl::RNGType T, Distribution D = Distribution::Uniform, typename E = std::mt19937>
 class RNG {
 private:
-	using uniform_type = typename std::conditional_t<
+	using uniform_type = std::conditional_t<
 		std::is_floating_point_v<T>, std::uniform_real_distribution<T>,
-		typename std::conditional_t<std::is_integral_v<T>, std::uniform_int_distribution<T>, void>>;
+		std::uniform_int_distribution<T>>;
+
 	using normal_type = std::normal_distribution<T>;
+
 	// Template which picks correct distribution based on the provided type.
 	using distribution = typename std::conditional_t<
 		(D == Distribution::Uniform), uniform_type,
-		typename std::conditional_t<(D == Distribution::Normal), normal_type, void>>;
+		std::conditional_t<(D == Distribution::Normal), normal_type, void>>;
 
 public:
-	static_assert(
-		impl::invalid_rng_type<T, char, signed char, unsigned char, std::int8_t, std::uint8_t>,
-		"RNG does not support the given type"
-	);
 	// Default range seedless distribution.
 	// Range: [0, 1] (inclusive).
 	RNG() = default;
@@ -75,7 +72,7 @@ public:
 
 	// Custom range seedless distribution.
 	// Range: [min, max] (inclusive).
-	RNG(T min, T max) : RNG{ std::invoke(std::random_device{}), min, max } {}
+	RNG(T min, T max) : RNG{ std::random_device{}(), min, max } {}
 
 	// Generate a new random number in the specified range.
 	[[nodiscard]] T operator()() {
@@ -117,25 +114,6 @@ public:
 
 	// TODO: Add binary de/serialization.
 
-	template <
-		typename BasicJsonType, nlohmann::detail::enable_if_t<
-									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
-	friend void to_json(BasicJsonType& nlohmann_json_j, const RNG& nlohmann_json_t) {
-		nlohmann_json_j["seed"] = nlohmann_json_t.seed_;
-		nlohmann_json_j["min"]	= nlohmann_json_t.min_;
-		nlohmann_json_j["max"]	= nlohmann_json_t.max_;
-	}
-
-	template <
-		typename BasicJsonType, nlohmann::detail::enable_if_t<
-									nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>
-	friend void from_json(const BasicJsonType& nlohmann_json_j, RNG& nlohmann_json_t) {
-		nlohmann_json_t.min_ = nlohmann_json_j["min"];
-		nlohmann_json_t.max_ = nlohmann_json_j["max"];
-		nlohmann_json_t.SetSeed(nlohmann_json_j["seed"]);
-		nlohmann_json_t.SetupDistribution();
-	}
-
 	friend void to_json(json& j, const RNG& rng) {
 		j["seed"] = rng.GetSeed();
 		j["min"]  = rng.GetMin();
@@ -143,7 +121,10 @@ public:
 	}
 
 	friend void from_json(const json& j, RNG& rng) {
-		rng = RNG{ j.at("seed"), j.at("min"), j.at("max") };
+		rng.min_ = j["min"];
+		rng.max_ = j["max"];
+		rng.SetSeed(j["seed"]);
+		rng.SetupDistribution();
 	}
 
 private:
@@ -172,7 +153,7 @@ private:
 		}
 	}
 
-	std::uint32_t seed_{ std::invoke(std::random_device{}) };
+	std::uint32_t seed_{ std::random_device{}() };
 
 	T min_{ 0 };
 	T max_{ 1 };
@@ -195,6 +176,12 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 // @return True for "heads", false for "tails"
 [[nodiscard]] bool FlipCoin();
 
+template <impl::RNGType T = std::int32_t>
+[[nodiscard]] T RandomNumber() {
+	static RNG<T> rng{ std::numeric_limits<T>::min(), std::numeric_limits<T>::max() };
+	return rng();
+}
+
 template <typename T>
 class RandomPicker {
 public:
@@ -210,7 +197,7 @@ public:
 			return std::nullopt;
 		}
 
-		std::size_t idx{ std::invoke(rng_) };
+		std::size_t idx{ rng_() };
 		T value{ std::move(items_[idx]) };
 		items_.erase(items_.begin() + idx);
 
@@ -235,7 +222,7 @@ public:
 	template <typename Func>
 	void ForEach(Func func) {
 		for (auto i = 0; i < Size(); i++) {
-			std::invoke(func, items_[i]);
+			func(items_[i]);
 		}
 	}
 

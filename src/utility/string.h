@@ -6,11 +6,11 @@
 #include <string>
 #include <string_view>
 
-#include "common/type_traits.h"
+#include "common/concepts.h"
 
 namespace ptgn {
 
-template <typename T, tt::stream_writable<std::ostream, T> = true>
+template <StreamWritable T>
 std::string ToString(const T& object) {
 	std::ostringstream ss;
 	ss << object;
@@ -19,7 +19,7 @@ std::string ToString(const T& object) {
 
 // @param precision The number of decimal places of precision to have in numbers converted to
 // string.
-template <typename T, tt::stream_writable<std::ostream, T> = true>
+template <StreamWritable T>
 std::string ToString(const T& object, int precision) {
 	std::ostringstream ss;
 	ss << std::fixed << std::setprecision(precision);

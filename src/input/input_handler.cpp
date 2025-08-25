@@ -4,13 +4,8 @@
 #include <optional>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_timer.h"
-#include "SDL_video.h"
 #include "common/assert.h"
 #include "components/transform.h"
 #include "core/entity.h"
@@ -24,7 +19,15 @@
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
+#include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
+#include "SDL_events.h"
+#include "SDL_keyboard.h"
+#include "SDL_mouse.h"
+#include "SDL_stdinc.h"
+#include "SDL_timer.h"
+#include "SDL_video.h"
 
 namespace ptgn::impl {
 
@@ -33,7 +36,8 @@ std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
 		case SDL_MOUSEMOTION: {
 			V2_int new_mouse_position{ e.motion.x, e.motion.y };
 			mouse_position_ = new_mouse_position;
-			return MouseMove{ new_mouse_position, V2_int{ e.motion.xrel, e.motion.yrel } };
+			// V2_int difference{ e.motion.xrel, e.motion.yrel };
+			return MouseMove{};
 		}
 		case SDL_MOUSEBUTTONDOWN: {
 			Mouse mouse{ static_cast<Mouse>(e.button.button) };
@@ -77,10 +81,11 @@ std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
 		}
 		case SDL_MOUSEWHEEL: {
 			V2_int new_mouse_position{ e.wheel.mouseX, e.wheel.mouseY };
-			mouse_position_			= new_mouse_position;
-			mouse_scroll_timestamp_ = e.wheel.timestamp;
-			mouse_scroll_			= { e.wheel.x, e.wheel.y };
-			return MouseScroll{ mouse_scroll_, mouse_position_ };
+			mouse_position_			 = new_mouse_position;
+			mouse_scroll_timestamp_	 = e.wheel.timestamp;
+			mouse_scroll_			 = { e.wheel.x, e.wheel.y };
+			mouse_scroll_delta_		+= mouse_scroll_;
+			return MouseScroll{ mouse_scroll_ };
 		}
 		case SDL_QUIT: {
 			return WindowQuit{};
@@ -89,20 +94,20 @@ std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
 			switch (e.window.event) {
 				case SDL_WINDOWEVENT_RESIZED:
 				case SDL_WINDOWEVENT_SIZE_CHANGED: {
-					V2_int window_size{ e.window.data1, e.window.data2 };
-					return WindowResized{ window_size };
+					// V2_int window_size{ e.window.data1, e.window.data2 };
+					return WindowResized{};
 				}
 				case SDL_WINDOWEVENT_MAXIMIZED: {
-					V2_int window_size{ e.window.data1, e.window.data2 };
-					return WindowMaximized{ window_size };
+					//	V2_int window_size{ e.window.data1, e.window.data2 };
+					return WindowMaximized{};
 				}
 				case SDL_WINDOWEVENT_MINIMIZED: {
-					V2_int window_size{ e.window.data1, e.window.data2 };
-					return WindowMinimized{ window_size };
+					//	V2_int window_size{ e.window.data1, e.window.data2 };
+					return WindowMinimized{};
 				}
 				case SDL_WINDOWEVENT_MOVED: {
-					V2_int window_position{ e.window.data1, e.window.data2 };
-					return WindowMoved{ window_position };
+					//	V2_int window_position{ e.window.data1, e.window.data2 };
+					return WindowMoved{};
 				}
 				case SDL_WINDOWEVENT_FOCUS_LOST: {
 					return WindowFocusLost{};
@@ -137,13 +142,18 @@ void InputHandler::ProcessInputEvents() {
 	}
 
 	V2_int new_mouse_position;
+	// TODO: Consider using global mouse position here in the future.
+	// I can foresee a bug where mouse position difference is zero if the user alt+tabs to
+	// lose window focus and then regains it via alt+tab while the mouse is technically in the same
+	// location. This would result in no MouseMove event being queued, which may make certain
+	// scripts function incorrectly. But I'm not sure to be honest, so I won't change it.
 	SDL_GetMouseState(&new_mouse_position.x, &new_mouse_position.y);
 
 	V2_int difference{ new_mouse_position - mouse_position_ };
 
 	if (!difference.IsZero()) {
 		mouse_position_ = new_mouse_position;
-		queue_.emplace_back(MouseMove{ mouse_position_, difference });
+		queue_.emplace_back(MouseMove{});
 	}
 }
 
@@ -163,6 +173,7 @@ void InputHandler::Prepare() {
 
 	previous_mouse_position_ = mouse_position_;
 	mouse_scroll_			 = {};
+	mouse_scroll_delta_		 = {};
 	queue_.clear();
 
 	for (auto& mouse_state : mouse_states_) {
@@ -170,62 +181,96 @@ void InputHandler::Prepare() {
 			mouse_state = MouseState::Pressed;
 		}
 	}
+	for (auto& key_state : key_states_) {
+		if (key_state == KeyState::Down) {
+			key_state = KeyState::Pressed;
+		}
+	}
 }
 
-void InputHandler::DispatchInputEvents(Scene& scene) {
+void InputHandler::InvokeInputEvents(Manager& manager) {
 	for (const auto& event : queue_) {
 		std::visit(
 			[&](auto&& ev) {
 				using T = std::decay_t<decltype(ev)>;
 
-				// --- Keyboard Events ---
-				if constexpr (std::is_same_v<T, impl::KeyDown>) {
-					Scripts::Invoke<&impl::IScript::OnKeyDown>(scene, ev.key);
-					Scripts::Invoke<&impl::IScript::OnKeyPressed>(scene, ev.key);
-					// PTGN_LOG("KeyDown: ", ev.key);
-					// PTGN_LOG("KeyPressed: ", ev.key);
-				} else if constexpr (std::is_same_v<T, impl::KeyPressed>) {
-					Scripts::Invoke<&impl::IScript::OnKeyPressed>(scene, ev.key);
-					// PTGN_LOG("KeyPressed: ", ev.key);
-				} else if constexpr (std::is_same_v<T, impl::KeyUp>) {
-					Scripts::Invoke<&impl::IScript::OnKeyUp>(scene, ev.key);
-					// PTGN_LOG("KeyUp: ", ev.key);
-				}
-
-				// --- Mouse Events ---
-				else if constexpr (std::is_same_v<T, impl::MouseMove>) {
-					// PTGN_LOG("MouseMove: ", ev.position);
+				// Mouse events.
+				if constexpr (std::is_same_v<T, impl::MouseMove>) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&GlobalMouseScript::OnMouseMove);
+					}
 				} else if constexpr (std::is_same_v<T, impl::MouseDown>) {
-					// PTGN_LOG("MouseDown: ", ev.button, ", pos: ", ev.position);
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&GlobalMouseScript::OnMouseDown, ev.button);
+					}
 				} else if constexpr (std::is_same_v<T, impl::MousePressed>) {
-					// PTGN_LOG("MousePressed: ", ev.button, ", pos: ", ev.position);
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&GlobalMouseScript::OnMousePressed, ev.button);
+					}
 				} else if constexpr (std::is_same_v<T, impl::MouseUp>) {
-					// PTGN_LOG("MouseUp: ", ev.button, ", pos: ", ev.position);
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&GlobalMouseScript::OnMouseUp, ev.button);
+					}
 				} else if constexpr (std::is_same_v<T, impl::MouseScroll>) {
-					// PTGN_LOG("MouseScroll: ", ev.scroll, ", pos: ", ev.position);
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&GlobalMouseScript::OnMouseScroll, ev.scroll);
+					}
 				}
 
-				// --- Window Events ---
+				// Keyboard events.
+				if constexpr (std::is_same_v<T, impl::KeyDown>) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&KeyScript::OnKeyDown, ev.key);
+						scripts.AddAction(&KeyScript::OnKeyPressed, ev.key);
+					}
+				} else if constexpr (std::is_same_v<T, impl::KeyPressed>) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&KeyScript::OnKeyPressed, ev.key);
+					}
+				} else if constexpr (std::is_same_v<T, impl::KeyUp>) {
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&KeyScript::OnKeyUp, ev.key);
+					}
+				}
+
+				// Window events.
 				else if constexpr (std::is_same_v<T, impl::WindowResized>) {
-					// PTGN_LOG("WindowResized: (", ev.size.x, ", ", ev.size.y, ")");
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&WindowScript::OnWindowResized);
+					}
 				} else if constexpr (std::is_same_v<T, impl::WindowMoved>) {
-					// PTGN_LOG("WindowMoved: (", ev.position.x, ", ", ev.position.y, ")");
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&WindowScript::OnWindowMoved);
+					}
 				} else if constexpr (std::is_same_v<T, impl::WindowMaximized>) {
-					// PTGN_LOG("WindowMaximized");
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&WindowScript::OnWindowMaximized);
+					}
 				} else if constexpr (std::is_same_v<T, impl::WindowMinimized>) {
-					// PTGN_LOG("WindowMinimized");
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&WindowScript::OnWindowMinimized);
+					}
 				} else if constexpr (std::is_same_v<T, impl::WindowFocusLost>) {
-					// PTGN_LOG("WindowFocusLost");
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&WindowScript::OnWindowFocusLost);
+					}
 				} else if constexpr (std::is_same_v<T, impl::WindowFocusGained>) {
-					// PTGN_LOG("WindowFocusGained");
+					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+						scripts.AddAction(&WindowScript::OnWindowFocusGained);
+					}
 				} else if constexpr (std::is_same_v<T, impl::WindowQuit>) {
-					// PTGN_LOG("WindowQuit");
 					game.Stop();
 				}
 			},
 			event
 		);
 	}
+
+	for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+		scripts.InvokeActions();
+	}
+
+	manager.Refresh();
 }
 
 void InputHandler::Update() {
@@ -234,7 +279,7 @@ void InputHandler::Update() {
 }
 
 bool InputHandler::MouseWithinWindow() const {
-	auto screen_pointer{ game.input.GetMousePositionGlobal() };
+	auto screen_pointer{ GetMouseScreenPosition() };
 	Transform window_transform{ game.window.GetPosition() };
 	Rect window_rect{ game.window.GetSize() };
 	return Overlap(screen_pointer, window_transform, window_rect);
@@ -244,31 +289,42 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-V2_float InputHandler::GetMousePositionGlobal() const {
+V2_float InputHandler::GetMouseScreenPosition() const {
 	V2_int position;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&position.x, &position.y);
 	return position;
 }
 
-V2_float InputHandler::GetMousePosition() const {
-	return mouse_position_;
+V2_float InputHandler::GetMouseWindowPosition(bool relative_to_viewport) const {
+	if (!relative_to_viewport) {
+		return mouse_position_;
+	}
+
+	const auto& rd{ game.renderer.GetRenderData() };
+	return rd.RelativeToViewport(mouse_position_);
 }
 
-V2_float InputHandler::GetMousePositionUnclamped() const {
-	return GetMousePositionGlobal() - game.window.GetPosition();
+V2_float InputHandler::GetMouseWindowPositionUnclamped() const {
+	return GetMouseScreenPosition() - game.window.GetPosition();
 }
 
-V2_float InputHandler::GetMousePositionPrevious() const {
-	return previous_mouse_position_;
+V2_float InputHandler::GetMouseWindowPositionPrevious(bool relative_to_viewport) const {
+	if (!relative_to_viewport) {
+		return mouse_position_;
+	}
+
+	const auto& rd{ game.renderer.GetRenderData() };
+	return rd.RelativeToViewport(previous_mouse_position_);
 }
 
-V2_float InputHandler::GetMouseDifference() const {
-	return mouse_position_ - previous_mouse_position_;
+V2_float InputHandler::GetMouseWindowPositionDifference(bool relative_to_viewport) const {
+	return GetMouseWindowPosition(relative_to_viewport) -
+		   GetMouseWindowPositionPrevious(relative_to_viewport);
 }
 
 int InputHandler::GetMouseScroll() const {
-	return mouse_scroll_.y;
+	return mouse_scroll_delta_.y;
 }
 
 milliseconds InputHandler::GetTimeSince(Timestamp timestamp) {
@@ -403,11 +459,11 @@ bool InputHandler::KeyReleased(Key key) const {
 	return state == KeyState::Released || state == KeyState::Up;
 }
 
-bool InputHandler::KeyDown(Key key) {
+bool InputHandler::KeyDown(Key key) const {
 	return GetKeyState(key) == KeyState::Down;
 }
 
-bool InputHandler::KeyUp(Key key) {
+bool InputHandler::KeyUp(Key key) const {
 	return GetKeyState(key) == KeyState::Up;
 }
 

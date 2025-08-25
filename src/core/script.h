@@ -1,17 +1,28 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <concepts>
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
-#include <type_traits>
+#include <tuple>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
-#include "common/type_info.h"
-#include "ecs/ecs.h"
+#include "common/assert.h"
+#include "core/entity.h"
+#include "core/script_interfaces.h"
 #include "math/hash.h"
+#include "nlohmann/json.hpp"
+#include "serialization/fwd.h"
 #include "serialization/json.h"
 
 namespace ptgn {
+
+class Scene;
 
 namespace impl {
 
@@ -37,8 +48,17 @@ private:
 	std::unordered_map<std::size_t, std::function<std::shared_ptr<Base>()>> registry_;
 };
 
-template <typename Derived, typename Base>
-class Script : public Base {
+template <typename T, template <typename...> typename Template>
+concept DerivedFromTemplate = requires(T* ptr) {
+	// Works if T is derived from Template<TArgs...> for some TArgs...
+	[]<typename... TArgs>(Template<TArgs...>*) {
+	}(ptr);
+};
+
+} // namespace impl
+
+template <typename TDerived, typename... TScripts>
+class Script : public impl::IScript, public TScripts... {
 public:
 	// Constructor ensures that the static variable 'is_registered_' is initialized
 	Script() {
@@ -48,160 +68,366 @@ public:
 
 	json Serialize() const final {
 		json j;
-		j["type"] = type_name<Derived>();
-		if constexpr (tt::has_to_json_v<Derived>) {
-			j["data"] = *static_cast<const Derived*>(this);
-		} // else script does not have a defined serialization.
+
+		constexpr auto name{ type_name<TDerived>() };
+
+		j["type"] = name;
+		to_json(j["entity"], entity);
+		if constexpr (JsonSerializable<TDerived>) {
+			to_json(j["data"], *static_cast<const TDerived*>(this));
+		} else {
+			using Tuple = std::tuple<TScripts...>;
+			SerializeScripts<Tuple>(static_cast<const TDerived*>(this), j);
+		}
+
 		return j;
 	}
 
 	void Deserialize(const json& j) final {
-		if constexpr (tt::has_from_json_v<Derived>) {
-			PTGN_ASSERT(
-				j.contains("data"), "Failed to deserialize data for type ", type_name<Derived>()
-			);
-			*static_cast<Derived*>(this) = j.at("data").get<Derived>();
-		} // else script does not have a defined deserialization.
+		constexpr auto name{ type_name<TDerived>() };
+		if constexpr (JsonDeserializable<TDerived>) {
+			PTGN_ASSERT(j.contains("data"), "Failed to deserialize data for type ", name);
+			// PTGN_ASSERT(j.at("data").contains(name), "Failed to deserialize data for type ",
+			// name);
+			from_json(j.at("data"), *static_cast<TDerived*>(this));
+		} else {
+			using Tuple = std::tuple<TScripts...>;
+			DeserializeScripts<Tuple>(static_cast<TDerived*>(this), j);
+		}
+		PTGN_ASSERT(j.contains("entity"), "Failed to deserialize entity for type ", name);
+		from_json(j.at("entity"), entity);
+	}
+
+	constexpr std::size_t GetHash() const final {
+		constexpr auto name{ type_name<TDerived>() };
+		return Hash(name);
 	}
 
 private:
+	friend class Scripts;
+
+	constexpr bool HasScriptType(ScriptType type) const final {
+		return HasScriptTypeImpl(type);
+	}
+
+	static constexpr bool HasScriptTypeImpl(ScriptType type) {
+		return std::ranges::find(script_types_, type) != script_types_.end();
+	}
+
+	static constexpr std::array<ScriptType, sizeof...(TScripts) + 1> Extract() {
+		return { impl::IScript::GetScriptType(), TScripts::GetScriptType()... };
+	}
+
+	static constexpr std::array<ScriptType, sizeof...(TScripts) + 1> script_types_{ Extract() };
+
+	template <typename Tuple, std::size_t I = 0>
+	static void SerializeScripts(const TDerived* self, json& j) {
+		if constexpr (I < std::tuple_size_v<Tuple>) {
+			using Base = std::tuple_element_t<I, Tuple>;
+			if constexpr (JsonSerializable<Base>) {
+				constexpr auto base_name{ type_name<Base>() };
+				const Base& base{ *static_cast<const Base*>(self) };
+				to_json(j["data"][base_name], base);
+				SerializeScripts<Tuple, I + 1>(self, j);
+			}
+		}
+	}
+
+	template <typename Tuple, std::size_t I = 0>
+	static void DeserializeScripts(TDerived* self, const json& j) {
+		if constexpr (I < std::tuple_size_v<Tuple>) {
+			using Base = std::tuple_element_t<I, Tuple>;
+			if constexpr (JsonDeserializable<Base>) {
+				constexpr auto base_name{ type_name<Base>() };
+				PTGN_ASSERT(j.contains("data"), "Failed to deserialize data for type ", base_name);
+				PTGN_ASSERT(
+					j.at("data").contains(base_name), "Failed to deserialize data for type ",
+					base_name
+				);
+				Base& base{ *static_cast<Base*>(self) };
+				from_json(j.at("data").at(base_name), base);
+				DeserializeScripts<Tuple, I + 1>(self, j);
+			}
+		}
+	}
+
+	// TODO: Add deserialize tscripts function to iterate parameter pack.
+
 	// Static variable for ensuring class is registered once and for all
 	static bool is_registered_;
 
 	// The static Register function handles the actual registration of the class
 	static bool Register() {
-		ScriptRegistry<Base>::Instance().Register(
-			type_name<Derived>(),
-			[]() -> std::shared_ptr<Base> { return std::make_shared<Derived>(); }
+		constexpr auto name{ type_name<TDerived>() };
+		impl::ScriptRegistry<impl::IScript>::Instance().Register(
+			name, []() -> std::shared_ptr<impl::IScript> { return std::make_shared<TDerived>(); }
 		);
 		return true;
 	}
 };
 
 // Initialize static variable, which will trigger the Register function
-template <typename Derived, typename Base>
-bool Script<Derived, Base>::is_registered_ = Script<Derived, Base>::Register();
+template <typename TDerived, typename... TScripts>
+bool Script<TDerived, TScripts...>::is_registered_ = Script<TDerived, TScripts...>::Register();
 
-template <typename TBaseScript>
-class ScriptContainer {
+class Scripts {
 public:
-	template <typename T, typename... TArgs>
-	T& AddScript(TArgs&&... args) {
-		static_assert(
-			std::is_base_of_v<TBaseScript, T>,
-			"Cannot add script which does not inherit from the base script class"
-		);
-		static_assert(
-			std::is_base_of_v<Script<T, TBaseScript>, T>,
-			"Cannot add script which does not inherit from the base script class"
-		);
-		static_assert(
-			std::is_constructible_v<T, TArgs...>,
-			"Script must be constructible from the given arguments"
-		);
-		auto script{ std::make_shared<T>(std::forward<TArgs>(args)...) };
-		constexpr auto class_name{ type_name<T>() };
-		constexpr auto hash{ Hash(class_name) };
-		auto [it, _] = scripts.try_emplace(hash, script);
-		return *std::dynamic_pointer_cast<T>(it->second);
+	// Will call ClearActions after all actions have been executed.
+	void InvokeActions() {
+		while (!actions_.empty()) {
+			auto current_actions{ std::move(actions_) };
+			ClearActions();
+
+			for (const auto& action : current_actions) {
+				action(*this);
+			}
+		}
 	}
 
-	template <typename T>
-	[[nodiscard]] bool HasScript() const {
-		constexpr auto class_name{ type_name<T>() };
-		constexpr auto hash{ Hash(class_name) };
-		return scripts.find(hash) != scripts.end();
+	void ClearActions() {
+		actions_.clear();
 	}
 
-	template <typename T>
-	[[nodiscard]] const T& GetScript() const {
-		static_assert(
-			std::is_base_of_v<TBaseScript, T>,
-			"Cannot get script which does not inherit from the base script class"
-		);
-		static_assert(
-			std::is_base_of_v<Script<T, TBaseScript>, T>,
-			"Cannot get script which does not inherit from the base script class"
-		);
-		constexpr auto class_name{ type_name<T>() };
-		constexpr auto hash{ Hash(class_name) };
-		auto it{ scripts.find(hash) };
-		PTGN_ASSERT(
-			it != scripts.end(), "Cannot get script which does not exist in ScriptContainer"
-		);
-		return *std::dynamic_pointer_cast<T>(it->second);
-	}
-
-	template <typename T>
-	[[nodiscard]] T& GetScript() {
-		return const_cast<T&>(std::as_const(*this).template GetScript<T>());
-	}
-
-	template <typename T>
-	void RemoveScript() {
-		constexpr auto class_name{ type_name<T>() };
-		constexpr auto hash{ Hash(class_name) };
-		scripts.erase(hash);
-	}
-
-	void RemoveScript(std::size_t hash) {
-		scripts.erase(hash);
-	}
-
-	[[nodiscard]] bool IsEmpty() const {
-		return scripts.empty();
-	}
-
-	[[nodiscard]] std::size_t Size() const {
-		return scripts.size();
-	}
-
-	friend void to_json(json& j, const ScriptContainer& container) {
-		if (container.scripts.empty()) {
+	// Only add an action if the scripts container already has a script which listens to that type
+	// of action.
+	template <typename TInterface, typename... TArgs>
+	void AddAction(void (TInterface::*func)(TArgs...), TArgs... args) {
+		constexpr ScriptType type{ TInterface::GetScriptType() };
+		bool has_script{ false };
+		for (const auto& script : scripts_) {
+			if (script->HasScriptType(type)) {
+				has_script = true;
+				break;
+			}
+		}
+		if (!has_script) {
 			return;
 		}
-		if (container.scripts.size() == 1) {
-			auto it{ container.scripts.begin() };
-			j = it->second->Serialize();
+		auto action{ MakeAction(func, std::forward<TArgs>(args)...) };
+		actions_.emplace_back(action);
+	}
+
+	// Example usage:
+	// scripts.Invoke(&KeyScript::OnKeyDown, Key::W);
+	template <typename TInterface, typename... TArgs>
+	void Invoke(void (TInterface::*func)(TArgs...), TArgs&&... args) {
+		constexpr ScriptType type{ TInterface::GetScriptType() };
+
+		// In case the action function removes scripts, this prevents iterator
+		// invalidation.
+		auto scripts{ scripts_ };
+		for (std::shared_ptr<impl::IScript> script : scripts) {
+			if (!script->HasScriptType(type)) {
+				continue;
+			}
+			TryInvoke(script.get(), func, std::forward<TArgs>(args)...);
+		}
+	}
+
+	template <typename TScript, typename... TArgs>
+		requires std::constructible_from<
+			TScript, TArgs...> // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script>
+	TScript& AddScript(TArgs&&... args) {
+		auto& script{ scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...)
+		) };
+		// Explicit for debugging purposes.
+		TScript& s{ *std::dynamic_pointer_cast<TScript>(script) };
+		return s;
+	}
+
+	template <typename TScript>
+	[[nodiscard]] bool HasScript() const {
+		constexpr auto name{ type_name<TScript>() };
+		constexpr auto hash{ Hash(name) };
+		return std::ranges::any_of(scripts_, [](const auto& script) {
+			return script->GetHash() == hash;
+		});
+	}
+
+	template <typename TScript>
+	void RemoveScripts() {
+		constexpr auto name{ type_name<TScript>() };
+		constexpr auto hash{ Hash(name) };
+		auto it{ std::remove_if(scripts_.begin(), scripts_.end(), [](const auto& script) {
+			return script->GetHash() == hash;
+		}) };
+		scripts_.erase(it, scripts_.end());
+	}
+
+	friend void to_json(json& j, const Scripts& container) {
+		if (container.scripts_.empty()) {
+			return;
+		}
+		if (container.scripts_.size() == 1) {
+			j = json{};
+			const auto& script{ container.scripts_.front() };
+			j = script->Serialize();
+			// j["entity"] = script->entity;
 		} else {
 			j = json::array();
-			for (const auto& [key, script] : container.scripts) {
+			for (const auto& script : container.scripts_) {
+				// json object;
+				//  object["type"]	 = script->Serialize();
+				//  object["entity"] = script->Serialize();
 				j.push_back(script->Serialize());
 			}
 		}
 	}
 
-	friend void from_json(const json& j, ScriptContainer& container) {
-		container					  = {};
+	friend void from_json(const json& j, Scripts& container) {
+		container = {};
+
 		const auto deserialize_script = [&container](const json& script) {
+			PTGN_ASSERT(script.contains("type"));
+
 			std::string class_name{ script.at("type") };
-			auto instance{ ScriptRegistry<TBaseScript>::Instance().Create(class_name) };
+
+			auto instance{ impl::ScriptRegistry<impl::IScript>::Instance().Create(class_name) };
+
 			if (instance) {
+				PTGN_ASSERT(script.contains("data"));
+				PTGN_ASSERT(script.contains("entity"));
+
+				Entity entity;
+				script.at("entity").get_to(entity);
 				instance->Deserialize(script);
-				container.scripts.try_emplace(Hash(class_name), std::move(instance));
+				PTGN_ASSERT(entity, "Failed to deserialize entity for type: ", class_name);
+				instance->entity = entity;
+				container.scripts_.emplace_back(instance);
 			}
 		};
 		if (j.is_array()) {
 			for (const auto& json_script : j) {
-				std::invoke(deserialize_script, json_script);
+				deserialize_script(json_script);
 			}
 		} else {
-			PTGN_ASSERT(j.contains("type"));
-			std::invoke(deserialize_script, j);
+			deserialize_script(j);
 		}
 	}
 
-	friend bool operator==(const ScriptContainer& a, const ScriptContainer& b) {
-		return a.scripts == b.scripts;
+	friend bool operator==(const Scripts& a, const Scripts& b) {
+		return a.scripts_ == b.scripts_;
 	}
 
-	friend bool operator!=(const ScriptContainer& a, const ScriptContainer& b) {
-		return !operator==(a, b);
+	template <typename TInterface, typename... TArgs>
+	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(TArgs...) const, TArgs&&... args)
+		const {
+		constexpr ScriptType type{ TInterface::GetScriptType() };
+
+		// In case the condition check function removes scripts, this prevents iterator
+		// invalidation.
+		auto scripts{ scripts_ };
+		for (const auto& script : scripts) {
+			if (!script->HasScriptType(type)) {
+				continue;
+			}
+			if (const auto* handler = dynamic_cast<const TInterface*>(script.get())) {
+				bool result{ (handler->*func)(std::forward<TArgs>(args)...) };
+				if (!result) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
-	std::unordered_map<std::size_t, std::shared_ptr<TBaseScript>> scripts;
+private:
+	std::vector<std::shared_ptr<impl::IScript>> scripts_;
+
+	std::vector<std::function<void(Scripts&)>> actions_;
+
+	template <typename TInterface, typename... TArgs>
+	auto MakeAction(void (TInterface::*func)(TArgs...), TArgs&&... args) {
+		return
+			[func, tup = std::make_tuple(std::forward<TArgs>(args)...)](Scripts& scripts) mutable {
+				std::apply(
+					[&scripts, func](auto&&... unpacked) mutable {
+						// If there is ever a crash here, it is most likely because the scripts
+						// reference is no longer valid. In this case, just change this lambda to
+						// take a copy of scripts into a variable to keep it valid throughout the
+						// invokation.
+						scripts.Invoke(func, std::forward<decltype(unpacked)>(unpacked)...);
+					},
+					std::move(tup)
+				);
+			};
+	}
+
+	template <typename TInterface, typename... TArgs>
+	static void TryInvoke(
+		impl::IScript* script, void (TInterface::*func)(TArgs...), TArgs&&... args
+	) {
+		if (auto* handler = dynamic_cast<TInterface*>(script)) {
+			(handler->*func)(std::forward<TArgs>(args)...);
+		}
+	}
 };
 
-} // namespace impl
+/**
+ * @brief Adds a script of type T to the entity.
+ *
+ * Constructs and attaches a script of the specified type using the provided constructor
+ * arguments. If the same script type T already exists on the entity, nothing happens.
+ *
+ * @tparam T The script type to be added.
+ * @tparam TArgs The types of arguments to pass to the script constructor.
+ * @param args Arguments forwarded to the script's constructor.
+ * @return A reference to the newly added script.
+ */
+template <typename T, typename... TArgs>
+T& AddScript(Entity& entity, TArgs&&... args) {
+	auto& scripts{ entity.TryAdd<Scripts>() };
+
+	auto& script{ scripts.AddScript<T>(std::forward<TArgs>(args)...) };
+
+	script.entity = entity;
+
+	return script;
+}
+
+// Same as AddScript but no-op if script type exists on the entity.
+template <typename T, typename... TArgs>
+void TryAddScript(Entity& entity, TArgs&&... args) {
+	auto& scripts{ entity.TryAdd<Scripts>() };
+
+	if (scripts.HasScript<T>()) {
+		return;
+	}
+
+	auto& script{ scripts.AddScript<T>(std::forward<TArgs>(args)...) };
+
+	script.entity = entity;
+}
+
+/**
+ * @brief Checks whether a script of the specified type is attached to the entity.
+ *
+ * @tparam T The script type to check.
+ * @return True if the script exists, false otherwise.
+ */
+template <typename T>
+[[nodiscard]] bool HasScript(const Entity& entity) {
+	return entity.Has<Scripts>() && entity.Get<Scripts>().HasScript<T>();
+}
+
+/**
+ * @brief Removes the scripts of the specified type from the entity.
+ *
+ * @tparam T The script type to remove.
+ */
+template <typename T>
+void RemoveScripts(Entity& entity) {
+	if (!entity.Has<Scripts>()) {
+		return;
+	}
+
+	auto& scripts{ entity.Get<Scripts>() };
+
+	if (!scripts.HasScript<T>()) {
+		return;
+	}
+
+	scripts.RemoveScripts<T>();
+}
 
 } // namespace ptgn

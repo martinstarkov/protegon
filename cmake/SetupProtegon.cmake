@@ -8,7 +8,7 @@ else()
                               ${PROTEGON_CORE_SHADERS})
 endif()
 
-target_compile_features(protegon PUBLIC cxx_std_17)
+target_compile_features(protegon PUBLIC cxx_std_20)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CreateSymlink.cmake")
 
@@ -46,7 +46,7 @@ else()
     set(ECXXFLAGS "-O3")
   endif()
   set(ECXXFLAGS
-      "${ECXXFLAGS} -std=c++17 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg --use-port=sdl2_mixer --use-port=sdl2_ttf"
+      "${ECXXFLAGS} -std=c++20 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg --use-port=sdl2_mixer --use-port=sdl2_ttf"
   )
   set_target_properties(
     protegon

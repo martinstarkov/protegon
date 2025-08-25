@@ -3,9 +3,12 @@
 #include <set>
 #include <vector>
 
+#include "components/transform.h"
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "math/vector2.h"
+#include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/color.h"
 #include "renderer/render_target.h"
@@ -14,7 +17,6 @@
 #include "scene/scene_key.h"
 #include "serialization/fwd.h"
 #include "serialization/serializable.h"
-#include "tweens/tween_effects.h"
 
 namespace ptgn {
 
@@ -89,9 +91,18 @@ public:
 		/* user implementation */
 	}
 
+	void SetBackgroundColor(const Color& background_color);
+	[[nodiscard]] Color GetBackgroundColor() const;
+
+	[[nodiscard]] const RenderTarget& GetRenderTarget() const;
+	[[nodiscard]] RenderTarget& GetRenderTarget();
+
+	// @return Size of scene render target divided by size of the camera viewport.
+	[[nodiscard]] V2_float GetScaleRelativeTo(const Camera& relative_to_camera) const;
+
 	SceneInput input;
 	Physics physics;
-	CameraManager camera;
+	Camera camera;
 
 	friend void to_json(json& j, const Scene& scene);
 	friend void from_json(const json& j, Scene& scene);
@@ -101,15 +112,11 @@ private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	void Init();
+	Manager cameras_;
 
-	impl::TranslateEffectSystem translate_effects_;
-	impl::RotateEffectSystem rotate_effects_;
-	impl::ScaleEffectSystem scale_effects_;
-	impl::TintEffectSystem tint_effects_;
-	impl::BounceEffectSystem bounce_effects_;
-	impl::ShakeEffectSystem shake_effects_;
-	impl::FollowEffectSystem follow_effects_;
+	impl::CollisionHandler collision_;
+
+	void Init();
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
@@ -123,10 +130,10 @@ private:
 
 	void Add(Action new_action);
 
-	// TODO: Move back to RenderData and clear between scene draws.
 	RenderTarget render_target_;
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
+	float collider_line_width_{ 1.0f };
 };
 
 } // namespace ptgn

@@ -7,14 +7,6 @@ namespace ptgn {
 SceneTransition::SceneTransition(TransitionType type, milliseconds duration) :
 	type_{ type }, duration_{ duration } {}
 
-bool SceneTransition::operator==(const SceneTransition& o) const {
-	return type_ == o.type_ && duration_ == o.duration_;
-}
-
-bool SceneTransition::operator!=(const SceneTransition& o) const {
-	return !(*this == o);
-}
-
 SceneTransition& SceneTransition::SetDuration(milliseconds duration) {
 	PTGN_ASSERT(duration > milliseconds{ 0 }, "Cannot set scene transition duration <= 0");
 	duration_ = duration;
@@ -133,11 +125,10 @@ void SceneTransition::Start(
 	};
 	const auto fade_through_color = [&]() {
 		float transition_duration{
-			std::chrono::duration_cast<duration<float, milliseconds::period>>(duration_).count()
+			to_duration_value<millisecondsf>(duration_)
 		};
 		float color_duration{
-			std::chrono::duration_cast<duration<float, milliseconds::period>>(color_duration_)
-				.count()
+			to_duration_value<millisecondsf>(color_duration_)
 		};
 		float total_duration{ transition_duration + color_duration };
 		float fade_duration{ transition_duration / 2.0f };
@@ -230,7 +221,7 @@ void SceneTransition::Start(
 			);
 		}
 		if (start != nullptr) {
-			std::invoke(start);
+			start();
 		}
 	});
 	if (!transition_in) {
@@ -238,13 +229,13 @@ void SceneTransition::Start(
 	}
 	tween.OnUpdate([=](float f) {
 		if (update != nullptr) {
-			std::invoke(update, f);
+			update(f);
 		}
 	});
 	tween.OnDestroy([=]() mutable {
 		camera.SetPosition(og_c);
 		if (stop != nullptr) {
-			std::invoke(stop);
+			stop();
 		}
 	});
 	game.tween.Add(tween).Start();

@@ -3,15 +3,16 @@
 #include <array>
 #include <iomanip>
 #include <ios>
-#include <iosfwd>
+#include <iterator>
 #include <ostream>
+#include <type_traits>
 
 #include "common/assert.h"
-#include "common/type_traits.h"
+#include "common/concepts.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "serialization/serializable.h"
+#include "serialization/fwd.h"
 
 namespace ptgn {
 
@@ -22,20 +23,23 @@ public:
 	constexpr static V2_size size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Matrix4, m_)
+	friend void to_json(json& j, const Matrix4& m);
+
+	friend void from_json(const json& j, Matrix4& m);
 
 private:
 	friend class Quaternion;
 
+	/* Column major, indices as follows:
+	 * [0,  4,  8, 12]
+	 * [1,  5,  9, 13]
+	 * [2,  6, 10, 14]
+	 * [3,  7, 11, 15]
+	 */
 	std::array<float, length> m_{};
 
 public:
-	constexpr Matrix4()							 = default;
-	constexpr Matrix4(const Matrix4&)			 = default;
-	constexpr Matrix4& operator=(const Matrix4&) = default;
-	constexpr Matrix4(Matrix4&&)				 = default;
-	constexpr Matrix4& operator=(Matrix4&&)		 = default;
-	~Matrix4()									 = default;
+	constexpr Matrix4() = default;
 
 	constexpr Matrix4(float x, float y, float z, float w) {
 		m_[0]  = x;
@@ -46,7 +50,7 @@ public:
 
 	explicit constexpr Matrix4(const std::array<float, length>& m) : m_{ m } {}
 
-	template <typename... Ts>
+	template <Arithmetic... Ts>
 	explicit constexpr Matrix4(Ts... args) : m_{ args... } {}
 
 	constexpr Matrix4(
@@ -140,8 +144,8 @@ public:
 	[[nodiscard]] Matrix4 Inverse() const;
 
 	// Field of view angle fov_x in radians.
-	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f),
-	// (float)game.window.GetSize().x / (float)game.window.GetSize().y, 0.1f, 100.0f);
+	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
+	// 100.0f);
 	[[nodiscard]] static Matrix4 Perspective(
 		float fov_x_radians, float aspect_ratio, float front, float back
 	);
@@ -159,9 +163,14 @@ public:
 
 	[[nodiscard]] bool ExactlyEquals(const Matrix4& o) const;
 
-	[[nodiscard]] bool operator==(const Matrix4& o) const;
-
-	[[nodiscard]] bool operator!=(const Matrix4& o) const;
+	friend bool operator==(const Matrix4& a, const Matrix4& b) {
+		for (std::size_t i{ 0 }; i < length; i++) {
+			if (!NearlyEqual(a.m_[i], b.m_[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
 
 	[[nodiscard]] Matrix4 operator+(const Matrix4& rhs);
 
@@ -169,7 +178,7 @@ public:
 
 	[[nodiscard]] Matrix4 operator*(const Matrix4& rhs);
 
-	template <typename U, tt::arithmetic<U> = true>
+	template <Arithmetic U>
 	[[nodiscard]] inline Vector4<float> operator*(const Vector4<U>& rhs) {
 		Vector4<float> res;
 
@@ -181,7 +190,7 @@ public:
 		return res;
 	}
 
-	template <typename U, tt::arithmetic<U> = true>
+	template <Arithmetic U>
 	[[nodiscard]] inline Matrix4 operator*(U rhs) {
 		Matrix4 res;
 
@@ -191,7 +200,7 @@ public:
 		return res;
 	}
 
-	template <typename U, tt::arithmetic<U> = true>
+	template <Arithmetic U>
 	[[nodiscard]] inline Matrix4 operator/(U rhs) {
 		Matrix4 res;
 
@@ -228,7 +237,7 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4& m) {
 	return os;
 }
 
-template <typename U, tt::arithmetic<U> = true>
+template <Arithmetic U>
 [[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) {
 	return B * A;
 }

@@ -1,22 +1,37 @@
 #include "math/matrix4.h"
 
 #include <cmath>
-#include <type_traits>
+#include <functional>
 
-#include "math/math.h"
+#include "common/assert.h"
+#include "math/tolerance.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "common/assert.h"
+#include "serialization/fwd.h"
+#include "serialization/json.h"
 
 namespace ptgn {
+
+void to_json(json& j, const Matrix4& m) {
+	if (m != Matrix4{}) {
+		j = m.m_;
+	}
+}
+
+void from_json(const json& j, Matrix4& m) {
+	if (j.empty()) {
+		m = {};
+	} else {
+		j.get_to(m.m_);
+	}
+}
 
 Matrix4 Matrix4::LookAt(
 	const Vector3<float>& position, const Vector3<float>& target, const Vector3<float>& up
 ) {
-	static_assert(std::is_floating_point_v<float>, "Function requires floating point type");
-	Vector3<float> dir	 = (target - position).Normalized();
-	Vector3<float> right = (dir.Cross(up)).Normalized();
-	Vector3<float> up_n	 = right.Cross(dir);
+	Vector3<float> dir{ (target - position).Normalized() };
+	Vector3<float> right{ (dir.Cross(up)).Normalized() };
+	Vector3<float> up_n{ right.Cross(dir) };
 
 	Matrix4 result{ 1.0f };
 	result[0]  = right.x;
@@ -44,22 +59,26 @@ Matrix4 Matrix4::Orthographic(
 ) {
 	Matrix4 o;
 
-	PTGN_ASSERT(right != left, "Orthographic matrix division by zero");
-	PTGN_ASSERT(bottom != top, "Orthographic matrix division by zero");
-	PTGN_ASSERT(far != near, "Orthographic matrix division by zero");
+	float depth{ far - near };
+	float horizontal{ right - left };
+	float vertical{ top - bottom };
 
-	float plane_dist{ far - near };
+	PTGN_ASSERT(!NearlyEqual(depth, 0.0f), "Orthographic matrix depth cannot be zero");
+	PTGN_ASSERT(!NearlyEqual(horizontal, 0.0f), "Orthographic matrix horizontal cannot be zero");
+	PTGN_ASSERT(!NearlyEqual(vertical, 0.0f), "Orthographic matrix vertical cannot be zero");
 
-	o[0]  = 2.0f / (right - left);
-	o[5]  = 2.0f / (top - bottom);
-	o[10] = -2.0f / plane_dist; // -1 by default
-	o[12] = -(right + left) / (right - left);
-	o[13] = -(top + bottom) / (top - bottom);
+	o[0]  = 2.0f / horizontal;
+	o[5]  = 2.0f / vertical;
+	o[10] = -2.0f / depth; // -1 by default
+	o[12] = -(right + left) / horizontal;
+	o[13] = -(top + bottom) / vertical;
 	float plane_sum{ far + near };
+
 	if (std::isnan(plane_sum)) {
 		plane_sum = 0.0f;
 	}
-	o[14] = -plane_sum / plane_dist; // 0 by default
+
+	o[14] = -plane_sum / depth; // 0 by default
 	o[15] = 1.0f;
 
 	PTGN_ASSERT(
@@ -78,65 +97,73 @@ Matrix4 Matrix4::Orthographic(
 }
 
 Matrix4 Matrix4::Inverse() const {
-	float Coef00{ m_[10] * m_[15] - m_[14] * m_[11] };
-	float Coef02{ m_[6] * m_[15] - m_[14] * m_[7] };
-	float Coef03{ m_[6] * m_[11] - m_[10] * m_[7] };
-	float Coef04{ m_[9] * m_[15] - m_[13] * m_[11] };
-	float Coef06{ m_[5] * m_[15] - m_[13] * m_[7] };
-	float Coef07{ m_[5] * m_[11] - m_[9] * m_[7] };
-	float Coef08{ m_[9] * m_[14] - m_[13] * m_[10] };
-	float Coef10{ m_[5] * m_[14] - m_[13] * m_[6] };
-	float Coef11{ m_[5] * m_[10] - m_[9] * m_[6] };
-	float Coef12{ m_[8] * m_[15] - m_[12] * m_[11] };
-	float Coef14{ m_[4] * m_[15] - m_[12] * m_[7] };
-	float Coef15{ m_[4] * m_[11] - m_[8] * m_[7] };
-	float Coef16{ m_[8] * m_[14] - m_[12] * m_[10] };
-	float Coef18{ m_[4] * m_[14] - m_[12] * m_[6] };
-	float Coef19{ m_[4] * m_[10] - m_[8] * m_[6] };
-	float Coef20{ m_[8] * m_[13] - m_[12] * m_[9] };
-	float Coef22{ m_[4] * m_[13] - m_[12] * m_[5] };
-	float Coef23{ m_[4] * m_[9] - m_[8] * m_[5] };
+	float coef00{ m_[10] * m_[15] - m_[14] * m_[11] };
+	float coef02{ m_[6] * m_[15] - m_[14] * m_[7] };
+	float coef03{ m_[6] * m_[11] - m_[10] * m_[7] };
+	float coef04{ m_[9] * m_[15] - m_[13] * m_[11] };
+	float coef06{ m_[5] * m_[15] - m_[13] * m_[7] };
+	float coef07{ m_[5] * m_[11] - m_[9] * m_[7] };
+	float coef08{ m_[9] * m_[14] - m_[13] * m_[10] };
+	float coef10{ m_[5] * m_[14] - m_[13] * m_[6] };
+	float coef11{ m_[5] * m_[10] - m_[9] * m_[6] };
+	float coef12{ m_[8] * m_[15] - m_[12] * m_[11] };
+	float coef14{ m_[4] * m_[15] - m_[12] * m_[7] };
+	float coef15{ m_[4] * m_[11] - m_[8] * m_[7] };
+	float coef16{ m_[8] * m_[14] - m_[12] * m_[10] };
+	float coef18{ m_[4] * m_[14] - m_[12] * m_[6] };
+	float coef19{ m_[4] * m_[10] - m_[8] * m_[6] };
+	float coef20{ m_[8] * m_[13] - m_[12] * m_[9] };
+	float coef22{ m_[4] * m_[13] - m_[12] * m_[5] };
+	float coef23{ m_[4] * m_[9] - m_[8] * m_[5] };
 
-	Vector4<float> Fac0(Coef00, Coef00, Coef02, Coef03);
-	Vector4<float> Fac1(Coef04, Coef04, Coef06, Coef07);
-	Vector4<float> Fac2(Coef08, Coef08, Coef10, Coef11);
-	Vector4<float> Fac3(Coef12, Coef12, Coef14, Coef15);
-	Vector4<float> Fac4(Coef16, Coef16, Coef18, Coef19);
-	Vector4<float> Fac5(Coef20, Coef20, Coef22, Coef23);
-	Vector4<float> Vec0(m_[4], m_[0], m_[0], m_[0]);
-	Vector4<float> Vec1(m_[5], m_[1], m_[1], m_[1]);
-	Vector4<float> Vec2(m_[6], m_[2], m_[2], m_[2]);
-	Vector4<float> Vec3(m_[7], m_[3], m_[3], m_[3]);
-	Vector4<float> Inv0(Vec1 * Fac0 - Vec2 * Fac1 + Vec3 * Fac2);
-	Vector4<float> Inv1(Vec0 * Fac0 - Vec2 * Fac3 + Vec3 * Fac4);
-	Vector4<float> Inv2(Vec0 * Fac1 - Vec1 * Fac3 + Vec3 * Fac5);
-	Vector4<float> Inv3(Vec0 * Fac2 - Vec1 * Fac4 + Vec2 * Fac5);
-	Vector4<float> SignA(+1, -1, +1, -1);
-	Vector4<float> SignB(-1, +1, -1, +1);
-	Matrix4 Inverse(Inv0 * SignA, Inv1 * SignB, Inv2 * SignA, Inv3 * SignB);
-	Vector4<float> Row0(Inverse[0], Inverse[4], Inverse[8], Inverse[12]);
-	Vector4<float> Dot0(m_[0] * Row0);
-	float Dot1 = (Dot0.x + Dot0.y) + (Dot0.z + Dot0.w);
+	Vector4 fac0{ coef00, coef00, coef02, coef03 };
+	Vector4 fac1{ coef04, coef04, coef06, coef07 };
+	Vector4 fac2{ coef08, coef08, coef10, coef11 };
+	Vector4 fac3{ coef12, coef12, coef14, coef15 };
+	Vector4 fac4{ coef16, coef16, coef18, coef19 };
+	Vector4 fac5{ coef20, coef20, coef22, coef23 };
 
-	float OneOverDeterminant{ 1.0f / Dot1 };
+	Vector4 vec0{ m_[4], m_[0], m_[0], m_[0] };
+	Vector4 vec1{ m_[5], m_[1], m_[1], m_[1] };
+	Vector4 vec2{ m_[6], m_[2], m_[2], m_[2] };
+	Vector4 vec3{ m_[7], m_[3], m_[3], m_[3] };
 
-	Matrix4 result{ Inverse * OneOverDeterminant };
+	Vector4 inv0{ vec1 * fac0 - vec2 * fac1 + vec3 * fac2 };
+	Vector4 inv1{ vec0 * fac0 - vec2 * fac3 + vec3 * fac4 };
+	Vector4 inv2{ vec0 * fac1 - vec1 * fac3 + vec3 * fac5 };
+	Vector4 inv3{ vec0 * fac2 - vec1 * fac4 + vec2 * fac5 };
+
+	Vector4 signA{ +1, -1, +1, -1 };
+	Vector4 signB{ -1, +1, -1, +1 };
+
+	Matrix4 inverse{ inv0 * signA, inv1 * signB, inv2 * signA, inv3 * signB };
+
+	Vector4 row0{ inverse[0], inverse[4], inverse[8], inverse[12] };
+
+	Vector4 dot0{ m_[0] * row0 };
+	float determinant{ dot0.x + dot0.y + dot0.z + dot0.w };
+
+	Matrix4 result{ inverse * 1.0f / determinant };
 
 	return result;
 }
 
 Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float front, float back) {
-	static_assert(std::is_floating_point_v<float>, "Function requires floating point type");
-	float tangent = std::tan(fov_x_radians / 2.0f); // tangent of half fovX
-	float right	  = front * tangent;				// half width of near plane
-	float top	  = right / aspect_ratio;			// half height of near plane
+	float tangent{ std::tan(fov_x_radians / 2.0f) }; // tangent of half fovX
+	float right{ front * tangent };					 // half width of near plane
+	PTGN_ASSERT(!NearlyEqual(aspect_ratio, 0.0f), "Perspective matrix aspect ratio cannot be zero");
+	float top{ right / aspect_ratio };				 // half height of near plane
+
+	float depth{ back - front };
+
+	PTGN_ASSERT(!NearlyEqual(depth, 0.0f), "Perspective matrix depth cannot be zero");
 
 	Matrix4 p;
 	p[0]  = front / right;
 	p[5]  = front / top;
-	p[10] = -(back + front) / (back - front);
+	p[10] = -(back + front) / depth;
 	p[11] = -1.0f;
-	p[14] = -(2.0f * back * front) / (back - front);
+	p[14] = -(2.0f * back * front) / depth;
 	p[15] = 0.0f;
 	return p;
 }
@@ -150,10 +177,8 @@ Matrix4 Matrix4::Translate(const Matrix4& m, const Vector3<float>& axes) {
 }
 
 Matrix4 Matrix4::Rotate(const Matrix4& matrix, float angle_radians, const Vector3<float>& axes) {
-	static_assert(std::is_floating_point_v<float>, "Function requires floating point type");
-	const float a = angle_radians;
-	const float c = std::cos(a);
-	const float s = std::sin(a);
+	const float c{ std::cos(angle_radians) };
+	const float s{ std::sin(angle_radians) };
 
 	float magnitude{ axes.Dot(axes) };
 
@@ -165,7 +190,7 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, float angle_radians, const Vector
 
 	float d = 1.0f - c;
 
-	Vector3<float> temp{ d * axis.x, d * axis.y, d * axis.z };
+	Vector3 temp{ d * axis.x, d * axis.y, d * axis.z };
 
 	Matrix4 rotate;
 
@@ -222,19 +247,6 @@ bool Matrix4::ExactlyEquals(const Matrix4& o) const {
 		}
 	}
 	return true;
-}
-
-bool Matrix4::operator==(const Matrix4& o) const {
-	for (std::size_t i{ 0 }; i < length; i++) {
-		if (!NearlyEqual(m_[i], o.m_[i])) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool Matrix4::operator!=(const Matrix4& o) const {
-	return !operator==(o);
 }
 
 Matrix4 Matrix4::operator+(const Matrix4& rhs) {

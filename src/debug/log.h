@@ -10,7 +10,6 @@
 #include <string_view>
 #include <type_traits>
 
-#include "common/type_traits.h"
 #include "core/time.h"
 #include "debug/debugging.h"
 #include "utility/string.h"
@@ -27,15 +26,11 @@ constexpr size_t NumberOfArgs(T...) {
 #define PTGN_NUMBER_OF_ARGS(...) ptgn::impl::NumberOfArgs(__VA_ARGS__)
 
 // @param precision -1 for default precision.
-template <typename... TArgs>
+template <StreamWritable... TArgs>
 inline void Print(std::ostream& ostream, int precision, bool scientific, TArgs&&... items) {
 	// TODO: Figure out how to add this since PTGN_ASSERT requires print.
 	// PTGN_ASSERT(precision == -1 || precision >= 0, "Invalid print precision");
 	using ptgn::operator<<;
-	/*static_assert(
-		(tt::is_stream_writable_v<std::ostream, TArgs> && ...),
-		"PTGN_* argument must be stream writeable"
-	);*/
 	std::ios state{ nullptr };
 	state.copyfmt(ostream);
 	if (scientific) {

@@ -3,11 +3,13 @@
 #include <string_view>
 #include <type_traits>
 
+#include "common/concepts.h"
+
 namespace ptgn {
 
 class Entity;
 
-template <typename T>
+template <Arithmetic T>
 struct Vector2;
 
 //[[nodiscard]] inline std::size_t Hash(std::string_view string) {
@@ -45,7 +47,7 @@ struct Vector2;
 	*/
 }
 
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] std::size_t Hash(const Vector2<T>& vector);
 
 [[nodiscard]] std::size_t Hash(const Entity& entity);

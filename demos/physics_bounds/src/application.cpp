@@ -34,8 +34,7 @@ struct PhysicsBoundaryScene : public Scene {
 		const V2_float& center, const V2_float& size, const Color& color,
 		bool set_random_velocity = true
 	) {
-		Entity entity = CreateRect(*this, center, size, color);
-		entity.Enable();
+		Entity entity		  = CreateRect(*this, center, size, color);
 		const auto random_vel = []() {
 			V2_float dir{ V2_float::Random(-0.5f, 0.5f) };
 			float speed = 60.0f;
@@ -56,7 +55,7 @@ struct PhysicsBoundaryScene : public Scene {
 	void Enter() override {
 		physics.SetBounds({}, window_size, behavior);
 		player = AddEntity(window_size * 0.5f, player_size, color::Purple, false);
-		player.SetDepth(1);
+		SetDepth(player, 1);
 
 		for (std::size_t i{ 0 }; i < entity_count; ++i) {
 			AddEntity({ rngx(), rngy() }, { rngsize(), rngsize() }, Color::RandomTransparent());
@@ -64,12 +63,14 @@ struct PhysicsBoundaryScene : public Scene {
 	}
 
 	void Update() override {
-		MoveWASD(player.GetPosition(), V2_float{ 100.0f } * game.dt(), false);
+		V2_float pos{ GetPosition(player) };
+		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
+		SetPosition(player, pos);
 
-		if (game.input.KeyDown(Key::Q)) {
+		if (input.KeyDown(Key::Q)) {
 			behavior = BoundaryBehavior::StopAtBounds;
 			ReEnter();
-		} else if (game.input.KeyDown(Key::E)) {
+		} else if (input.KeyDown(Key::E)) {
 			behavior = BoundaryBehavior::ReflectVelocity;
 			ReEnter();
 		}

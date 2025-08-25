@@ -35,14 +35,6 @@ VertexArray::~VertexArray() {
 	DeleteVertexArray();
 }
 
-bool VertexArray::operator==(const VertexArray& other) const {
-	return id_ == other.id_;
-}
-
-bool VertexArray::operator!=(const VertexArray& other) const {
-	return !(*this == other);
-}
-
 void VertexArray::GenerateVertexArray() {
 	GLCall(GenVertexArrays(1, &id_));
 	PTGN_ASSERT(IsValid(), "Failed to generate vertex array using OpenGL context");

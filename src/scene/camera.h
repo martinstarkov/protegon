@@ -1,47 +1,58 @@
 #pragma once
 
 #include <array>
-#include <iosfwd>
 #include <ostream>
 
 #include "components/transform.h"
 #include "core/entity.h"
-#include "core/time.h"
-#include "math/easing.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
-#include "renderer/api/origin.h"
-#include "scene/scene_key.h"
-#include "serialization/fwd.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
-#include "tweens/follow_config.h"
-#include "tweens/shake_config.h"
+
+// TODO: Add 2D camera and rename Camera to Camera3D.
 
 namespace ptgn {
 
 class Scene;
 class CameraManager;
 class Camera;
+struct Color;
+
+// Determines what viewport size the camera resizes to.
+enum class CameraResizeMode {
+	PhysicalResolution,
+	LogicalResolution,
+	Custom
+};
+
+// Determines what viewport position the camera centers on.
+enum class CameraCenterMode {
+	PhysicalResolution,
+	LogicalResolution,
+	Custom
+};
 
 namespace impl {
 
-Camera CreateCamera(const Entity& entity);
+class SceneManager;
 
 class CameraInfo {
 public:
-	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
+	void SetViewportSize(const V2_float& new_viewport_size);
 	// @param position Top left.
 	void SetBoundingBox(const V2_float& new_bounding_position, const V2_float& new_bounding_size);
 
-	void SetResizeToWindow(bool resize);
-	void SetCenterOnWindow(bool center);
+	void SetResizeMode(CameraResizeMode resize);
+	void SetCenterMode(CameraCenterMode center) const;
 
 	void SetFlip(Flip flip);
-
-	void SetSize(const V2_float& size);
 
 	void SetPositionZ(float z);
 	void SetRotationY(float rotation_y);
@@ -49,7 +60,6 @@ public:
 
 	void SetPixelRounding(bool enabled);
 
-	[[nodiscard]] V2_float GetViewportPosition() const;
 	[[nodiscard]] V2_float GetViewportSize() const;
 
 	// @return Top left position.
@@ -57,23 +67,16 @@ public:
 	// @return Size of the bounding box.
 	[[nodiscard]] V2_float GetBoundingBoxSize() const;
 
-	[[nodiscard]] bool GetResizeToWindow() const;
-	[[nodiscard]] bool GetCenterOnWindow() const;
+	[[nodiscard]] CameraResizeMode GetResizeMode() const;
+	[[nodiscard]] CameraCenterMode GetCenterMode() const;
 
 	[[nodiscard]] Flip GetFlip() const;
-
-	[[nodiscard]] V2_float GetSize() const;
 
 	[[nodiscard]] float GetPositionZ() const;
 	[[nodiscard]] float GetRotationY() const;
 	[[nodiscard]] float GetRotationZ() const;
 
 	[[nodiscard]] bool GetPixelRounding() const;
-
-	// Update the internal transform vector.
-	void UpdatePosition(const V2_float& position);
-	void UpdateRotation(float rotation);
-	void UpdateScale(const V2_float& scale);
 
 	[[nodiscard]] const Matrix4& GetViewProjection(const Transform& current, const Entity& entity)
 		const;
@@ -90,28 +93,29 @@ public:
 
 	[[nodiscard]] static V2_float ClampToBounds(
 		V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
-		const V2_float& camera_size, const V2_float& camera_zoom
+		const V2_float& viewport_size, const V2_float& camera_zoom
 	);
 
-	// TODO: Change this to recalculate view and projection matrices based on position instead of
-	// storing it. This requires that the entity CameraInfo component is processed after Transform.
+	// TODO: This serialization requires that the entity CameraInfo component is processed after
+	// Transform. Might not be relevant after introducing Transform dirty flags.
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		CameraInfo, previous, view_dirty, projection_dirty, view, projection, view_projection,
-		viewport_position, viewport_size, center_on_window, resize_to_window, pixel_rounding,
-		bounding_box_position, bounding_box_size, flip, position_z, orientation_y, orientation_z,
-		size
+		CameraInfo, viewport_size, center_mode, resize_mode, pixel_rounding, bounding_box_position,
+		bounding_box_size, flip, position_z, orientation_y, orientation_z
 	)
 
 	void SetViewDirty();
 
 private:
-	// Keep track of previous transform since other external ECS systems may modify the position,
-	// rotation, or scale (zoom) of the camera without setting the dirty flags to true.
+	friend class ptgn::Camera;
+	// Keep track of previous transform since the Transform dirty flags are only reset at the end of
+	// the frame and the camera view or projection matrices may be requested multiple times in one
+	// frame.
 	mutable Transform previous;
+	mutable Transform previous_offset;
 
-	mutable bool view_dirty{ false };
-	mutable bool projection_dirty{ false };
+	mutable bool view_dirty{ true };
+	mutable bool projection_dirty{ true };
 
 	// Mutable used because view projection is recalculated only upon retrieval to reduce matrix
 	// multiplications.
@@ -119,11 +123,10 @@ private:
 	mutable Matrix4 projection{ 1.0f };
 	mutable Matrix4 view_projection{ 1.0f };
 
-	V2_float viewport_position;
 	V2_float viewport_size;
 
-	bool center_on_window{ true };
-	bool resize_to_window{ true };
+	mutable CameraCenterMode center_mode{ CameraCenterMode::LogicalResolution };
+	CameraResizeMode resize_mode{ CameraResizeMode::LogicalResolution };
 
 	// If true, rounds camera position to pixel precision.
 	// TODO: Check that this works.
@@ -139,185 +142,53 @@ private:
 	float position_z{ 0.0f };
 	float orientation_y{ 0.0f };
 	float orientation_z{ 0.0f };
+};
 
-	V2_float size;
+struct CameraLogicalResolutionResizeScript :
+	public Script<CameraLogicalResolutionResizeScript, LogicalResolutionScript> {
+	void OnLogicalResolutionChanged() override;
+};
+
+struct CameraPhysicalResolutionResizeScript :
+	public Script<CameraPhysicalResolutionResizeScript, PhysicalResolutionScript> {
+	void OnPhysicalResolutionChanged() override;
 };
 
 } // namespace impl
 
 class Camera : public Entity {
 public:
-	/**
-	 * @brief Translates the camera to a target position over a specified duration.
-	 *
-	 * @param target_position The position to move the camera's center to.
-	 * @param duration The duration over which the translation should occur.
-	 * @param ease The easing function to apply for the translation animation.
-	 * @param force If true, forcibly overrides any ongoing translation.
-	 */
-	Camera& TranslateTo(
-		const V2_float& target_position, milliseconds duration,
-		const Ease& ease = SymmetricalEase::Linear, bool force = true
-	);
-
-	/**
-	 * @brief Rotates the camera to a target angle over a specified duration.
-	 *
-	 * @param target_angle The angle (in radians) to rotate the camera to. Positive clockwise,
-	 * negative counter-clockwise.
-	 * @param duration The duration over which the rotation should occur.
-	 * @param ease The easing function to apply for the rotation animation.
-	 * @param force If true, forcibly overrides any ongoing rotation.
-	 *            -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *             1.5708
-	 */
-	Camera& RotateTo(
-		float target_angle, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
-		bool force = true
-	);
-
-	/**
-	 * @brief Zooms the camera to a target zoom over a specified duration.
-	 *
-	 * @param target_zoom The target zoom (x, y) to apply to the camera.
-	 * @param duration The duration over which the zooming should occur.
-	 * @param ease The easing function to apply for the zoom animation.
-	 * @param force If true, forcibly overrides any ongoing zooming.
-	 */
-	Camera& ZoomTo(
-		const V2_float& target_zoom, milliseconds duration,
-		const Ease& ease = SymmetricalEase::Linear, bool force = true
-	);
-
-	/**
-	 * @brief Applies a continuous shake effect to the camera.
-	 *
-	 * @param intensity The intensity of the shake, in the range [0, 1].
-	 * @param duration The total duration of the shake effect. If -1, the shake continues until
-	 * StopShake is called.
-	 * @param config Configuration parameters for the shake behavior.
-	 * @param ease The easing function to use for the shake. If SymmetricalEase::None, shake remains
-	 * at full intensity for the entire time.
-	 * @param force If true, overrides any existing shake effect.
-	 */
-	Camera& Shake(
-		float intensity, milliseconds duration, const ShakeConfig& config = {},
-		const Ease& ease = SymmetricalEase::None, bool force = true
-	);
-
-	/**
-	 * @brief Applies an instantenous shake effect to the camera.
-	 *
-	 * @param entity The entity to apply the shake effect to.
-	 * @param intensity The intensity of the shake, in the range [0, 1].
-	 * @param config Configuration parameters for the shake behavior.
-	 * @param force If true, overrides any existing shake effect.
-	 */
-	Camera& Shake(float intensity, const ShakeConfig& config = {}, bool force = true);
-
-	/**
-	 * @brief Stops any ongoing camera shake.
-	 *
-	 * @param force If true, clears all queued or active shake effects.
-	 */
-	Camera& StopShake(bool force = true);
-
-	Camera& StartFollow(Entity target, const FollowConfig& config = {}, bool force = true);
-
-	Camera& StopFollow(bool force = false);
-
-	/**
-	 * @brief Fades the camera from its current tint to a color over a specified duration.
-	 *
-	 * @param target_color The target color to fade the camera to.
-	 * @param duration The duration over which the fade should occur.
-	 * @param ease The easing function to apply for the fade animation.
-	 * @param force If true, forcibly overrides any ongoing fading.
-	 */
-	// TODO: Implement.
-	// Camera& FadeTo(
-	// 	const Color& target_color, milliseconds duration,
-	// 	const Ease& ease = SymmetricalEase::Linear, bool force = true
-	// );
-
-	/**
-	 * @brief Fades the camera from the specified color to transparent over a specified duration.
-	 *
-	 * @param start_color The color that the camera fades from.
-	 * @param duration The duration over which the fade should occur.
-	 * @param ease The easing function to apply for the fade animation.
-	 * @param force If true, forcibly overrides any ongoing fading.
-	 */
-	// TODO: Implement.
-	// Camera& FadeFrom(
-	// 	const Color& start_color, milliseconds duration,
-	// 	const Ease& ease = SymmetricalEase::Linear, bool force = true
-	// );
-
-	// TODO: Implement.
-	// Camera& SetColor(const Color& color, bool force = false);
-
 	Camera() = default;
 	Camera(const Entity& entity);
+
+	// Get camera top left point.
+	[[nodiscard]] V2_float GetTopLeft() const;
 
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;
 
-	// Top left position.
-	[[nodiscard]] V2_float GetViewportPosition() const;
+	// Set the camera to be centered on the logical resolution.
+	// Set the camera viewport to be equal to the logical resolution.
+	void SetToLogicalResolution(bool continuously = true);
+
+	// Set the camera to be centered on the physical resolution.
+	// Set the camera viewport to be equal to the physical resolution.
+	void SetToPhysicalResolution(bool continuously = true);
+
+	// Set the camera to be centered on the specified center mode.
+	void SetCenterMode(CameraCenterMode center_mode, bool continuously = false);
+
+	// Set the camera viewport to be equal to the specified resize mode resolution.
+	void SetResizeMode(CameraResizeMode resize_mode, bool continuously = false);
+
+	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
 	[[nodiscard]] V2_float GetViewportSize() const;
-
-	// If continuously is true, camera will subscribe to window resize event.
-	// Set the camera to be the size of the window and centered on the window.
-	void SetToWindow(bool continuously = true);
-
-	// If continuously is true, camera will subscribe to window resize event.
-	// Set the camera to be centered on the window.
-	void CenterOnWindow(bool continuously = false);
-
-	// If continuously is true, camera will subscribe to window resize event.
-	// Set the camera to be the size of the window.
-	void SetSizeToWindow(bool continuously = false);
-
-	// Set the camera to be centered on area of the given size. Effectively the same as changing the
-	// size and position of the camera.
-	void CenterOnArea(const V2_float& size);
-
-	// Transforms a window relative pixel size to being relative to the camera.
-	// @param screen_relative_size The size to be scaled.
-	[[nodiscard]] V2_float ScaleToCamera(const V2_float& screen_relative_size) const;
-	[[nodiscard]] float ScaleToCamera(float screen_relative_size) const;
-
-	// Transforms a camera relative world size to being relative to the screen (pixels).
-	// @param camera_relative_size The size to be scaled.
-	[[nodiscard]] V2_float ScaleToScreen(const V2_float& camera_relative_size) const;
-	[[nodiscard]] float ScaleToScreen(float camera_relative_size) const;
-
-	// Transforms a window relative pixel coordinate to being relative to the camera.
-	// @param screen_relative_coordinate The coordinate to be transformed.
-	[[nodiscard]] V2_float TransformToCamera(const V2_float& screen_relative_coordinate) const;
-
-	// Transforms a camera relative pixel coordinate to being relative to the screen.
-	// @param camera_relative_coordinate The coordinate to be transformed.
-	[[nodiscard]] V2_float TransformToScreen(const V2_float& camera_relative_coordinate) const;
-
-	[[nodiscard]] std::array<V2_float, 4> GetVertices(const V2_float& scale = { 1.0f, 1.0f }) const;
-
-	// @param account_for_zoom If true, divides the camera size by its zoom.
-	[[nodiscard]] V2_float GetSize(bool account_for_zoom = false) const;
 
 	[[nodiscard]] V2_float GetZoom() const;
 
 	[[nodiscard]] V2_float GetBoundsPosition() const;
 	[[nodiscard]] V2_float GetBoundsSize() const;
-
-	// @param origin What point on the camera the position represents.
-	// @return The position of the camera.
-	[[nodiscard]] V2_float GetPosition(Origin origin = Origin::Center) const;
 
 	[[nodiscard]] Flip GetFlip() const;
 
@@ -328,9 +199,10 @@ public:
 	// @param position Top left position of the bounds.
 	void SetBounds(const V2_float& position, const V2_float& size);
 
-	void SetSize(const V2_float& size);
+	// Equivalent of performing SetViewportSize(size) and SetPosition(size / 2).
+	void CenterOnViewport(const V2_float& viewport_size);
 
-	void Translate(const V2_float& position_change);
+	void SetViewportSize(const V2_float& viewport_size);
 
 	void SetZoom(float new_zoom);
 	void SetZoom(V2_float new_zoom);
@@ -344,68 +216,18 @@ public:
 	// (yaw, pitch, roll) in radians.
 	// void Rotate(const V3_float& angle_change_radians);
 
-	// Set 2D rotation angle in radians.
-	/* Range: (-3.14159, 3.14159].
-	 * (clockwise positive).
-	 *            -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *             1.5708
-	 */
-	// void SetRotation(float angle_radians);
-
-	// Rotate camera in 2D (radians).
-	/* Range: (-3.14159, 3.14159].
-	 * (clockwise positive).
-	 *            -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *             1.5708
-	 */
-	void Rotate(float angle_change_radians);
-
-	// Angle in radians.
+	//// Angle in radians.
 	// void SetYaw(float angle_radians);
-
 	//// Angle in radians.
 	// void Yaw(float angle_change_radians);
-
 	//// Angle in radians.
 	// void SetPitch(float angle_radians);
-
 	//// Angle in radians.
 	// void Pitch(float angle_change_radians);
-
 	//// Angle in radians.
 	// void SetRoll(float angle_radians);
-
 	//// Angle in radians.
 	// void Roll(float angle_change_radians);
-
-	/*
-	// Only applies when camera is following a target.
-	// Range: [0, 1]. Determines how smoothly the camera tracks to the target's position. 1 for
-	// instant tracking, 0 to disable tracking.
-	void SetLerp(const V2_float& lerp = V2_float{ 1.0f });
-
-	[[nodiscard]] V2_float GetLerp() const;
-
-	// Only applies when camera is following a target.
-	// Deadzone is a rectangle centered on the target inside of which the camera does not track the
-	// target. If {}, deadzone is removed.
-	void SetDeadzone(const V2_float& size = {});
-
-	[[nodiscard]] V2_float GetDeadzone() const;
-
-	// Only applies when camera is following a target.
-	// Sets an offset such that the camera follows target.transform + offset.
-	// If {}, offset is removed.
-	void SetFollowOffset(const V2_float& offset = {});
-
-	[[nodiscard]] V2_float GetFollowOffset() const;
-	*/
 
 	void Reset();
 
@@ -415,11 +237,11 @@ public:
 
 	operator Matrix4() const;
 
-	[[nodiscard]] V2_float ZoomIfNeeded(const V2_float& zoomed_coordinate) const;
-
 protected:
+	friend struct impl::CameraPhysicalResolutionResizeScript;
+	friend struct impl::CameraLogicalResolutionResizeScript;
 	friend class CameraManager;
-	friend Camera impl::CreateCamera(const Entity& entity);
+	friend Camera CreateCamera(Manager& manager);
 
 	// @return (yaw, pitch, roll) (radians).
 	[[nodiscard]] V3_float GetOrientation() const;
@@ -427,55 +249,39 @@ protected:
 	// Orientation as a quaternion.
 	[[nodiscard]] Quaternion GetQuaternion() const;
 
-	void SubscribeToWindowEvents();
-	void UnsubscribeFromWindowEvents();
-
-	// @param start_color Starting color.
-	// @param end_color Ending color.
-	// @param duration Duration of fade.
-	// @param ease Easing function for the fade.
-	// @param force If false, the fade is queued in the fade queue, if true the fade is executed
-	// immediately, clearing any previously queued fades.
-	/*Tween& FadeFromTo(
-		const Color& start_color, const Color& end_color, milliseconds duration, const Ease& ease,
-		bool force
-	);*/
+	void SubscribeToResolutionEvents(CameraResizeMode resize_mode, CameraCenterMode center_mode);
+	void UnsubscribeFromResolutionEvents();
 
 	void RefreshBounds();
 
-	void OnWindowResize(V2_float size);
+	static void OnResolutionChanged(
+		Camera camera, V2_float size, CameraResizeMode resize_mode, CameraCenterMode center_mode
+	);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
-	os << "[center position: " << c.GetPosition() << ", size: " << c.GetSize() << "]";
+	os << "[center position: " << GetPosition(c) << ", viewport size: " << c.GetViewportSize()
+	   << "]";
 	return os;
 }
 
-class CameraManager {
-public:
-	// Reset primary camera back to window and reset window camera in case it has been
-	// modified.
-	void Reset();
+[[nodiscard]] V2_float ApplyTransform(
+	const V2_float& screen_point, const V2_float& viewport_size, const Transform& transform
+);
 
-	Camera primary;
-	Camera window;
+Camera CreateCamera(Manager& manager);
 
-	friend void to_json(json& j, const CameraManager& camera_manager);
-	friend void from_json(const json& j, CameraManager& camera_manager);
+PTGN_SERIALIZER_REGISTER_ENUM(
+	CameraCenterMode, { { CameraCenterMode::LogicalResolution, "logical_resolution" },
+						{ CameraCenterMode::PhysicalResolution, "physical_resolution" },
+						{ CameraCenterMode::Custom, "custom" } }
+);
 
-	Camera primary_unzoomed;
-	Camera window_unzoomed;
-
-private:
-	friend class Scene;
-	friend class impl::RenderData;
-
-	void Init(impl::SceneKey scene_key);
-
-	impl::SceneKey scene_key_{ 0 };
-};
-
-Camera CreateCamera(Scene& scene);
+PTGN_SERIALIZER_REGISTER_ENUM(
+	CameraResizeMode, { { CameraResizeMode::LogicalResolution, "logical_resolution" },
+						{ CameraResizeMode::PhysicalResolution, "physical_resolution" },
+						{ CameraResizeMode::Custom, "custom" } }
+);
 
 /*
 class CameraController;
@@ -574,7 +380,7 @@ public:
 
 	// processes input received from any keyboard-like input system. Accepts input parameter in
 the
-	// form of camera defined ENUM (to abstract it from windowing systems)
+	// form of camera defined ENUM (to abstract it from other systems)
 	void Move(CameraDirection direction, float dt) {
 		float velocity = speed * dt;
 		switch (direction) {

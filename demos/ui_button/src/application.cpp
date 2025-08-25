@@ -1,9 +1,15 @@
 #include <iostream>
 #include <ostream>
 
-#include "core/entity.h"
+#include "components/draw.h"
+#include "components/transform.h"
 #include "core/game.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
+#include "core/window.h"
 #include "debug/log.h"
+#include "input/input_handler.h"
+#include "input/key.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -13,13 +19,13 @@
 
 using namespace ptgn;
 
-struct ButtonScript1 : public Script<ButtonScript1> {
+struct ButtonScript1 : public Script<ButtonScript1, ButtonScript> {
 	void OnButtonActivate() override {
 		PTGN_LOG("Clicked regular button");
 	}
 };
 
-struct ToggleButtonScript1 : public Script<ToggleButtonScript1> {
+struct ToggleButtonScript1 : public Script<ToggleButtonScript1, ButtonScript> {
 	void OnButtonActivate() override {
 		PTGN_LOG("Toggled button");
 	}
@@ -31,20 +37,21 @@ public:
 	ToggleButton b2;
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		b1 = CreateButton(*this);
-		b1.AddScript<ButtonScript1>();
-		b1.SetPosition(V2_float{ 50, 50 });
+		AddScript<ButtonScript1>(b1);
+		SetPosition(b1, V2_float{ 50, 50 });
 		b1.SetSize({ 200, 100 });
-		b1.SetOrigin(Origin::TopLeft);
+		SetDrawOrigin(b1, Origin::TopLeft);
 		b1.SetBackgroundColor(color::Pink);
 		b1.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b1.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
 
 		b2 = CreateToggleButton(*this, false);
-		b2.AddScript<ToggleButtonScript1>();
-		b2.SetPosition(V2_float{ 50, 300 });
+		AddScript<ToggleButtonScript1>(b2);
+		SetPosition(b2, V2_float{ 50, 300 });
 		b2.SetSize({ 200, 100 });
-		b2.SetOrigin(Origin::TopLeft);
+		SetDrawOrigin(b2, Origin::TopLeft);
 		b2.SetBackgroundColor(color::LightRed);
 		b2.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b2.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
@@ -59,11 +66,21 @@ public:
 			state = s;
 			std::cout << "Button 1 internal state: " << state << std::endl;
 		}
+		if (input.KeyDown(Key::Q)) {
+			b1.Disable();
+			b2.Disable();
+			PTGN_LOG("Disabled both buttons");
+		}
+		if (input.KeyDown(Key::E)) {
+			b1.Enable();
+			b2.Enable();
+			PTGN_LOG("Enabled both buttons");
+		}
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ButtonScene");
+	game.Init("ButtonScene: Q/E to disable/enable buttons");
 	game.scene.Enter<ButtonScene>("");
 	return 0;
 }

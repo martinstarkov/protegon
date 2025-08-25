@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/concepts.h"
 #include "renderer/gl/gl_types.h"
 
 namespace ptgn::impl {
@@ -30,14 +31,9 @@ struct BufferElement {
 	bool normalized{ false };
 };
 
-template <typename... Ts>
+template <VertexDataType... Ts>
+	requires NonEmptyPack<Ts...>
 struct BufferLayout {
-	static_assert(
-		(impl::is_vertex_data_type<Ts> && ...),
-		"Provided vertex type should only contain ptgn::glsl:: types"
-	);
-	static_assert(sizeof...(Ts) > 0, "Must provide layout types as template arguments");
-
 	constexpr BufferLayout() {
 		CalculateOffsets();
 	}
@@ -50,12 +46,8 @@ struct BufferLayout {
 		return elements_.empty();
 	}
 
-	template <typename T>
+	template <VertexDataType T>
 	[[nodiscard]] constexpr static bool IsInteger() {
-		static_assert(
-			impl::is_vertex_data_type<T>,
-			"Provided vertex type should only contain ptgn::glsl:: types"
-		);
 		using V = typename T::value_type;
 		return std::is_same_v<V, bool> || std::is_same_v<V, std::int32_t> ||
 			   std::is_same_v<V, std::uint32_t>;
@@ -78,8 +70,8 @@ struct BufferLayout {
 		stride_ = static_cast<std::int32_t>(offset);
 	}
 
-	[[nodiscard]] constexpr const std::array<impl::BufferElement, sizeof...(Ts)>&
-	GetElements() const {
+	[[nodiscard]] constexpr const std::array<impl::BufferElement, sizeof...(Ts)>& GetElements(
+	) const {
 		return elements_;
 	}
 };

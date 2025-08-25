@@ -21,34 +21,36 @@ using Point = V2_float;
 
 using Shape = std::variant<Point, Rect, Circle, Polygon, Line, Triangle, Capsule>;
 
-[[nodiscard]] Shape ApplyOffset(const Shape& shape, const Entity& entity);
+[[nodiscard]] Transform ApplyOffset(
+	const Shape& shape, const Transform& transform, const Entity& entity
+);
 
-[[nodiscard]] V2_float ToWorldPoint(
+[[nodiscard]] V2_float ApplyTransform(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale, float cos_angle,
 	float sin_angle
 );
 
-[[nodiscard]] V2_float ToWorldPoint(
+[[nodiscard]] V2_float ApplyTransform(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale
 );
 
-[[nodiscard]] V2_float ToWorldPoint(const V2_float& local_point, const Transform& transform);
+[[nodiscard]] V2_float ApplyTransform(const V2_float& local_point, const Transform& transform);
 
-void ToWorldPoint(
+void ApplyTransform(
 	const V2_float* local_points, std::size_t count, V2_float* out_world_points,
 	const Transform& transform
 );
 
-std::vector<V2_float> ToWorldPoint(
+std::vector<V2_float> ApplyTransform(
 	const std::vector<V2_float>& local_points, const Transform& transform
 );
 
 template <std::size_t N>
-std::array<V2_float, N> ToWorldPoint(
+std::array<V2_float, N> ApplyTransform(
 	const std::array<V2_float, N>& local_points, const Transform& transform
 ) {
 	std::array<V2_float, N> world_points;
-	ToWorldPoint(local_points.data(), N, world_points.data(), transform);
+	ApplyTransform(local_points.data(), N, world_points.data(), transform);
 	return world_points;
 }
 

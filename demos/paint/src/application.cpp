@@ -29,7 +29,7 @@ public:
 	void Enter() override {
 		outer_grid.Fill(0);
 		text = CreateText(*this, "", color::Orange);
-		text.SetDepth(1);
+		SetDepth(text, 1);
 	}
 
 	bool toggle = true;
@@ -44,7 +44,7 @@ public:
 			}
 		});
 		inner_grid = Grid<int>{ outer_grid.GetSize(), cells_without };
-		if (game.input.KeyDown(Key::B)) {
+		if (input.KeyDown(Key::B)) {
 			toggle = !toggle;
 		}
 		if (toggle) {
@@ -53,15 +53,15 @@ public:
 			grid = inner_grid;
 		}
 
-		V2_int mouse_pos = game.input.GetMousePosition();
+		V2_int mouse_pos = input.GetMousePosition();
 
 		V2_int mouse_tile = mouse_pos / tile_size;
 
 		if (grid.Has(mouse_tile)) {
-			if (game.input.MousePressed(Mouse::Left)) {
+			if (input.MousePressed(Mouse::Left)) {
 				outer_grid.Set(mouse_tile, 1);
 			}
-			if (game.input.MousePressed(Mouse::Right)) {
+			if (input.MousePressed(Mouse::Right)) {
 				outer_grid.Set(mouse_tile, 0);
 			}
 		}
@@ -82,7 +82,7 @@ public:
 			DrawDebugRect(mouse_tile * tile_size, tile_size, color::Yellow, Origin::TopLeft);
 		}
 		text.SetContent(ToString(mouse_tile));
-		text.SetPosition(mouse_tile * tile_size + tile_size / 2.0f);
+		SetPosition(text, mouse_tile * tile_size + tile_size / 2.0f);
 	}
 };
 

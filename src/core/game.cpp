@@ -6,10 +6,8 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
-#include "SDL_timer.h"
 #include "audio/audio.h"
 #include "common/assert.h"
 #include "core/sdl_instance.h"
@@ -29,6 +27,7 @@
 #include "renderer/shader.h"
 #include "renderer/texture.h"
 #include "scene/scene_manager.h"
+#include "SDL_timer.h"
 #include "serialization/json.h"
 #include "serialization/json_manager.h"
 #include "utility/file.h"
@@ -150,8 +149,6 @@ Game::Game() :
 	texture{ *texture_ },
 	shader_{ std::make_unique<ShaderManager>() },
 	shader{ *shader_ },
-	/*light_{ std::make_unique<LightManager>() },
-	light{ *light_ },*/
 	profiler_{ std::make_unique<Profiler>() },
 	profiler{ *profiler_ } {
 	// TODO: Move all of this init code into respective constructors.
@@ -168,7 +165,6 @@ Game::Game() :
 
 	shader.Init();
 	renderer.Init();
-	// light.Init();
 }
 
 Game::~Game() {
@@ -197,12 +193,11 @@ bool Game::IsRunning() const {
 	return running_;
 }
 
-void Game::Init(
-	const std::string& title, const V2_int& window_size, const Color& background_color
-) {
-	renderer.SetBackgroundColor(background_color);
-	game.window.SetTitle(title);
-	game.window.SetSize(window_size);
+void Game::Init(const std::string& title, const V2_int& logical_resolution) {
+	window.SetTitle(title);
+	// Order matters here.
+	window.SetSize(logical_resolution);
+	renderer.SetLogicalResolution(logical_resolution);
 }
 
 void Game::Shutdown() {
@@ -259,7 +254,7 @@ void Game::Update() {
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
 	// Calculate time elapsed during previous frame. Unit: seconds.
-	duration<float, seconds::period> elapsed_time{ end - start };
+	secondsf elapsed_time{ end - start };
 
 	float elapsed{ elapsed_time.count() };
 
@@ -270,7 +265,7 @@ void Game::Update() {
 	dt_ = 1.0f / fps;*/
 
 	/*if (elapsed < dt_) {
-		impl::SDLInstance::Delay(std::chrono::duration_cast<milliseconds>(duration<float>{
+		impl::SDLInstance::Delay(to_duration<milliseconds>(secondsf{
 			dt_ - elapsed }));
 	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
 	// PTGN_LOG("Dt: ", dt_);
@@ -282,8 +277,6 @@ void Game::Update() {
 	if (game.scene.GetActiveSceneCount() != 0) {
 		renderer.ClearScreen();
 
-		// scene.ClearSceneTargets();
-
 		scene.Update();
 
 		renderer.PresentScreen();
@@ -292,10 +285,10 @@ void Game::Update() {
 #ifdef PTGN_DEBUG
 	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the
 	// screen.
-	/*PTGN_LOG(
-		"Screen Color at Mouse: ",
-		renderer.screen_target_.GetPixel(game.input.GetMousePositionWindow())
-	);*/
+	// PTGN_LOG(
+	//	"Screen Color at Mouse: ",
+	//	renderer.screen_target_.GetPixel(input.GetMousePositionWindow())
+	//);
 	// game.stats.PrintCollisionOverlap();
 	// game.stats.PrintCollisionIntersect();
 	// game.stats.PrintCollisionRaycast();

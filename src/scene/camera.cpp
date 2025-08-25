@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <functional>
 #include <limits>
 
 #include "common/assert.h"
@@ -11,38 +10,29 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
-#include "core/time.h"
-#include "core/window.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "debug/log.h"
-#include "events/event_handler.h"
-#include "events/events.h"
-#include "math/easing.h"
 #include "math/geometry.h"
+#include "math/geometry/rect.h"
 #include "math/math.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/api/flip.h"
-#include "renderer/api/origin.h"
-#include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "scene/scene.h"
-#include "scene/scene_key.h"
-#include "scene/scene_manager.h"
-#include "tweens/follow_config.h"
-#include "tweens/shake_config.h"
-#include "tweens/tween_effects.h"
 
 namespace ptgn {
 
 namespace impl {
 
-void CameraInfo::SetViewport(
-	const V2_float& new_viewport_position, const V2_float& new_viewport_size
-) {
-	viewport_position = new_viewport_position;
-	viewport_size	  = new_viewport_size;
+void CameraInfo::SetViewportSize(const V2_float& new_viewport_size) {
+	if (viewport_size == new_viewport_size) {
+		return;
+	}
+	viewport_size	 = new_viewport_size;
+	projection_dirty = true;
 }
 
 void CameraInfo::SetBoundingBox(
@@ -56,20 +46,20 @@ void CameraInfo::SetBoundingBox(
 	view_dirty			  = true;
 }
 
-void CameraInfo::SetResizeToWindow(bool resize) {
-	if (resize_to_window == resize) {
+void CameraInfo::SetResizeMode(CameraResizeMode resize) {
+	if (resize_mode == resize) {
 		return;
 	}
-	resize_to_window = resize;
+	resize_mode		 = resize;
 	projection_dirty = true;
 }
 
-void CameraInfo::SetCenterOnWindow(bool center) {
-	if (center_on_window == center) {
+void CameraInfo::SetCenterMode(CameraCenterMode center) const {
+	if (center_mode == center) {
 		return;
 	}
-	center_on_window = center;
-	view_dirty		 = true;
+	center_mode = center;
+	view_dirty	= true;
 }
 
 void CameraInfo::SetFlip(Flip new_flip) {
@@ -77,14 +67,6 @@ void CameraInfo::SetFlip(Flip new_flip) {
 		return;
 	}
 	flip			 = new_flip;
-	projection_dirty = true;
-}
-
-void CameraInfo::SetSize(const V2_float& new_size) {
-	if (size == new_size) {
-		return;
-	}
-	size			 = new_size;
 	projection_dirty = true;
 }
 
@@ -121,10 +103,6 @@ void CameraInfo::SetPixelRounding(bool enabled) {
 	projection_dirty = true;
 }
 
-V2_float CameraInfo::GetViewportPosition() const {
-	return viewport_position;
-}
-
 V2_float CameraInfo::GetViewportSize() const {
 	return viewport_size;
 }
@@ -137,20 +115,16 @@ V2_float CameraInfo::GetBoundingBoxSize() const {
 	return bounding_box_size;
 }
 
-bool CameraInfo::GetResizeToWindow() const {
-	return resize_to_window;
+CameraResizeMode CameraInfo::GetResizeMode() const {
+	return resize_mode;
 }
 
-bool CameraInfo::GetCenterOnWindow() const {
-	return center_on_window;
+CameraCenterMode CameraInfo::GetCenterMode() const {
+	return center_mode;
 }
 
 Flip CameraInfo::GetFlip() const {
 	return flip;
-}
-
-V2_float CameraInfo::GetSize() const {
-	return size;
 }
 
 float CameraInfo::GetPositionZ() const {
@@ -169,30 +143,6 @@ bool CameraInfo::GetPixelRounding() const {
 	return pixel_rounding;
 }
 
-void CameraInfo::UpdatePosition(const V2_float& position) {
-	if (previous.position == position) {
-		return;
-	}
-	previous.position = position;
-	view_dirty		  = true;
-}
-
-void CameraInfo::UpdateRotation(float rotation) {
-	if (previous.rotation == rotation) {
-		return;
-	}
-	previous.rotation = rotation;
-	view_dirty		  = true;
-}
-
-void CameraInfo::UpdateScale(const V2_float& scale) {
-	if (previous.scale == scale) {
-		return;
-	}
-	previous.scale	 = scale;
-	projection_dirty = true;
-}
-
 const Matrix4& CameraInfo::GetView(const Transform& current, const Entity& entity) const {
 	if (view_dirty) {
 		RecalculateView(current, GetOffset(entity));
@@ -208,19 +158,24 @@ const Matrix4& CameraInfo::GetProjection(const Transform& current) const {
 }
 
 const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Entity& entity) const {
-	auto offset_transform{ GetOffset(entity) };
+	auto offset{ GetOffset(entity) };
+
+	bool position_changed{ current.GetPosition() != previous.GetPosition() };
+
+	if (position_changed) {
+		SetCenterMode(CameraCenterMode::Custom);
+	}
 
 	// Either view is dirty, the camera has been offset (due to shake or other effects), or the
 	// current position of the camera differs from its previous position (for instance, as a result
 	// of a system changing the position of the camera entity externally).
-	bool update_view{ view_dirty || current.position != previous.position ||
-					  offset_transform != Transform{} ||
-					  !NearlyEqual(current.rotation, previous.rotation) };
+	bool update_view{ view_dirty || position_changed || offset != previous_offset ||
+					  !NearlyEqual(current.GetRotation(), previous.GetRotation()) };
 
-	bool update_projection{ projection_dirty || current.scale != previous.scale };
+	bool update_projection{ projection_dirty || current.GetScale() != previous.GetScale() };
 
 	if (update_view) {
-		RecalculateView(current, offset_transform);
+		RecalculateView(current, offset);
 	}
 
 	if (update_projection) {
@@ -231,7 +186,8 @@ const Matrix4& CameraInfo::GetViewProjection(const Transform& current, const Ent
 		RecalculateViewProjection();
 	}
 
-	previous = current;
+	previous		= current;
+	previous_offset = offset;
 
 	return view_projection;
 }
@@ -242,19 +198,20 @@ void CameraInfo::RecalculateViewProjection() const {
 
 void CameraInfo::RecalculateView(const Transform& current, const Transform& offset_transform)
 	const {
-	V3_float position{ current.position.x, current.position.y, position_z };
-	V3_float orientation{ current.rotation, orientation_y, orientation_z };
+	V3_float position{ current.GetPosition().x, current.GetPosition().y, position_z };
+	V3_float orientation{ current.GetRotation(), orientation_y, orientation_z };
 
-	position.x	  += offset_transform.position.x;
-	position.y	  += offset_transform.position.y;
-	orientation.x += offset_transform.rotation;
+	position.x	  += offset_transform.GetPosition().x;
+	position.y	  += offset_transform.GetPosition().y;
+	orientation.x += offset_transform.GetRotation();
 
-	if (!offset_transform.position.IsZero()) {
-		auto zoom{ Abs(current.scale) };
+	if (!offset_transform.GetPosition().IsZero()) {
+		auto zoom{ Abs(current.GetScale()) };
 		// Reclamp offset position to ensure camera shake does not move the camera out of
 		// bounds.
 		auto clamped{ ClampToBounds(
-			{ position.x, position.y }, bounding_box_position, bounding_box_size, size, zoom
+			{ position.x, position.y }, bounding_box_position, bounding_box_size, viewport_size,
+			zoom
 		) };
 
 		position.x = clamped.x;
@@ -265,21 +222,29 @@ void CameraInfo::RecalculateView(const Transform& current, const Transform& offs
 		position = Round(position);
 	}
 
+	// Mirrored because camera transforms are in world space and the world must be shown relative to
+	// the camera.
 	V3_float mirror_position{ -position.x, -position.y, position.z };
+	V3_float mirror_orienation{ -orientation.x, -orientation.y, -orientation.z };
 
-	Quaternion quat_orientation{ Quaternion::FromEuler(orientation) };
+	Quaternion quat_orientation{ Quaternion::FromEuler(mirror_orienation) };
 	view	   = Matrix4::Translate(quat_orientation.ToMatrix4(), mirror_position);
 	view_dirty = false;
 }
 
 void CameraInfo::RecalculateProjection(const Transform& current) const {
-	auto zoom{ Abs(current.scale) };
-	PTGN_ASSERT(zoom.x > 0.0f && zoom.y > 0.0f);
-	V2_float extents{ (size * 0.5f) / zoom };
+	auto zoom{ Abs(current.GetScale()) };
+
+	PTGN_ASSERT(zoom.BothAboveZero());
+
+	V2_float extents{ (viewport_size * 0.5f) / zoom };
+
 	if (pixel_rounding) {
 		extents = Round(extents);
 	}
+
 	V2_float flip_dir{ 1.0f, 1.0f };
+
 	switch (flip) {
 		case Flip::None:	   break;
 		case Flip::Vertical:   flip_dir.y = -1.0f; break;
@@ -290,17 +255,19 @@ void CameraInfo::RecalculateProjection(const Transform& current) const {
 			break;
 		default: PTGN_ERROR("Unrecognized flip state");
 	}
+
 	projection = Matrix4::Orthographic(
 		flip_dir.x * -extents.x, flip_dir.x * extents.x, flip_dir.y * extents.y,
 		flip_dir.y * -extents.y, -std::numeric_limits<float>::infinity(),
 		std::numeric_limits<float>::infinity()
 	);
+
 	projection_dirty = false;
 }
 
 V2_float CameraInfo::ClampToBounds(
 	V2_float position, const V2_float& bounding_box_position, const V2_float& bounding_box_size,
-	const V2_float& camera_size, const V2_float& camera_zoom
+	const V2_float& viewport_size, const V2_float& camera_zoom
 ) {
 	if (bounding_box_size.IsZero()) {
 		return position;
@@ -313,7 +280,7 @@ V2_float CameraInfo::ClampToBounds(
 	V2_float center{ Midpoint(min, max) };
 
 	// TODO: Incoporate yaw, i.e. data.orientation.x into the bounds using sin and cos.
-	V2_float real_size{ camera_size / camera_zoom };
+	V2_float real_size{ viewport_size / camera_zoom };
 	V2_float half{ real_size * 0.5f };
 
 	if (real_size.x > bounding_box_size.x) {
@@ -334,98 +301,83 @@ void CameraInfo::SetViewDirty() {
 	view_dirty = true;
 }
 
-Camera CreateCamera(const Entity& entity) {
-	Camera camera{ entity };
-	camera.SetPosition({});
-	camera.Add<impl::CameraInfo>();
-	PTGN_ASSERT(
-		!game.event.window.IsSubscribed(camera),
-		"Cannot create camera from entity which is already subscribed to window events"
+void CameraLogicalResolutionResizeScript::OnLogicalResolutionChanged() {
+	auto logical_resolution{ game.renderer.GetLogicalResolution() };
+	Camera::OnResolutionChanged(
+		entity, logical_resolution, CameraResizeMode::LogicalResolution,
+		CameraCenterMode::LogicalResolution
 	);
-	camera.SubscribeToWindowEvents();
-	return camera;
+}
+
+void CameraPhysicalResolutionResizeScript::OnPhysicalResolutionChanged() {
+	auto physical_resolution{ game.renderer.GetPhysicalResolution() };
+	Camera::OnResolutionChanged(
+		entity, physical_resolution, CameraResizeMode::PhysicalResolution,
+		CameraCenterMode::PhysicalResolution
+	);
 }
 
 } // namespace impl
 
-Camera CreateCamera(Scene& scene) {
-	return impl::CreateCamera(scene.CreateEntity());
-}
-
-V2_float Camera::ZoomIfNeeded(const V2_float& zoomed_coordinate) const {
-	const auto& camera_manager{ game.scene.GetCurrent().camera };
-
-	V2_float center;
-
-	if (!*this) {
-		auto camera{ game.renderer.GetRenderData().render_state.camera };
-		if (!camera) {
-			return zoomed_coordinate;
-		}
-		center = camera.GetPosition();
-	} else {
-		center = GetPosition();
-	}
-
-	V2_float zoom{ 1.0f, 1.0f };
-
-	if (*this == camera_manager.window_unzoomed) {
-		zoom = camera_manager.window.GetZoom();
-	} else if (*this == camera_manager.primary_unzoomed) {
-		zoom = camera_manager.primary.GetZoom();
-	} else {
-		return zoomed_coordinate;
-	}
-
-	PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
-
-	return (zoomed_coordinate - center) * zoom + center;
-}
-
-void Camera::SubscribeToWindowEvents() {
-	if (game.event.window.IsSubscribed(*this)) {
+void Camera::SubscribeToResolutionEvents(
+	CameraResizeMode resize_mode, CameraCenterMode center_mode
+) {
+	if (resize_mode == CameraResizeMode::Custom) {
 		return;
 	}
-	std::function<void(const WindowResizedEvent&)> f = [*this](const WindowResizedEvent& e
-													   ) mutable {
-		OnWindowResize(e.size);
-	};
-	game.event.window.Subscribe(WindowEvent::Resized, *this, f);
-	OnWindowResize(game.window.GetSize());
+	TryAddScript<impl::CameraLogicalResolutionResizeScript>(*this);
+	TryAddScript<impl::CameraPhysicalResolutionResizeScript>(*this);
+	V2_int resolution;
+	if (resize_mode == CameraResizeMode::LogicalResolution) {
+		resolution = game.renderer.GetLogicalResolution();
+	} else if (resize_mode == CameraResizeMode::PhysicalResolution) {
+		resolution = game.renderer.GetPhysicalResolution();
+	}
+	OnResolutionChanged(*this, resolution, resize_mode, center_mode);
 }
 
-void Camera::UnsubscribeFromWindowEvents() {
-	game.event.window.Unsubscribe(*this);
+void Camera::UnsubscribeFromResolutionEvents() {
+	RemoveScripts<impl::CameraLogicalResolutionResizeScript>(*this);
+	RemoveScripts<impl::CameraPhysicalResolutionResizeScript>(*this);
 }
 
-void Camera::OnWindowResize(V2_float size) {
-	auto& info{ Get<impl::CameraInfo>() };
-	size *= GetZoom();
-	// TODO: Potentially allow this to be modified in the future.
-	info.SetViewport({}, game.window.GetSize());
-	bool resize{ info.GetResizeToWindow() };
-	bool center{ info.GetCenterOnWindow() };
+void Camera::OnResolutionChanged(
+	Camera camera, V2_float size, CameraResizeMode resize_mode, CameraCenterMode center_mode
+) {
+	auto& info{ camera.Get<impl::CameraInfo>() };
+	size *= camera.GetZoom();
+
+	bool position_changed{ GetPosition(camera) != info.previous.GetPosition() };
+
+	if (position_changed) {
+		info.SetCenterMode(CameraCenterMode::Custom);
+	}
+
+	bool resize{ info.GetResizeMode() == resize_mode };
+	bool center{ info.GetCenterMode() == center_mode };
 	if (resize) {
-		info.SetSize(size);
+		info.SetViewportSize(size);
 	}
 	if (center) {
 		auto pos{ size * 0.5f };
-		SetPosition(pos);
-		info.UpdatePosition(pos);
+		ptgn::SetPosition(camera, pos);
+		info.view_dirty = true;
+		// This prevents the mode from center_mode being switched to CameraCenterMode::Custom when
+		// re-calculating the view projection matrix.
+		info.previous.SetPosition(pos);
 	}
 	if (resize || center) {
-		RefreshBounds();
+		camera.RefreshBounds();
 	}
 }
 
 void Camera::RefreshBounds() {
-	auto& info{ Get<impl::CameraInfo>() };
+	const auto& info{ Get<impl::CameraInfo>() };
 	auto clamped{ impl::CameraInfo::ClampToBounds(
-		Entity::GetPosition(), info.GetBoundingBoxPosition(), info.GetBoundingBoxSize(),
-		info.GetSize(), GetZoom()
+		ptgn::GetPosition(*this), info.GetBoundingBoxPosition(), info.GetBoundingBoxSize(),
+		info.GetViewportSize(), GetZoom()
 	) };
-	SetPosition(clamped);
-	info.UpdatePosition(clamped);
+	ptgn::SetPosition(*this, clamped);
 }
 
 Camera::Camera(const Entity& entity) : Entity{ entity } {}
@@ -436,10 +388,6 @@ void Camera::SetPixelRounding(bool enabled) {
 
 bool Camera::IsPixelRoundingEnabled() const {
 	return Get<impl::CameraInfo>().GetPixelRounding();
-}
-
-V2_float Camera::GetViewportPosition() const {
-	return Get<impl::CameraInfo>().GetViewportPosition();
 }
 
 V2_float Camera::GetViewportSize() const {
@@ -458,164 +406,101 @@ V2_float Camera::GetBoundsSize() const {
 	return Get<impl::CameraInfo>().GetBoundingBoxSize();
 }
 
-V2_float Camera::GetPosition(Origin origin) const {
-	PTGN_ASSERT(Has<impl::CameraInfo>());
-	auto position{ Entity::GetPosition() };
-	auto offset{ GetOriginOffset(origin, GetSize(true)) };
-	return position - offset;
-}
-
-void Camera::SetToWindow(bool continuously) {
+void Camera::SetToLogicalResolution(bool continuously) {
 	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
-		UnsubscribeFromWindowEvents();
+		UnsubscribeFromResolutionEvents();
 	}
 	info = {};
-	CenterOnWindow(continuously);
-	SetSizeToWindow(continuously);
+	SetCenterMode(CameraCenterMode::LogicalResolution, continuously);
+	SetResizeMode(CameraResizeMode::LogicalResolution, continuously);
 }
 
-void Camera::CenterOnArea(const V2_float& new_size) {
-	SetSize(new_size);
-	auto pos{ new_size / 2.0f };
-	auto& info{ Get<impl::CameraInfo>() };
-	SetPosition(pos);
-	info.UpdatePosition(pos);
-}
-
-V2_float Camera::ScaleToCamera(const V2_float& screen_relative_size) const {
-	const auto& info{ Get<impl::CameraInfo>() };
-
-	auto camera_zoom{ GetZoom() };
-	PTGN_ASSERT(camera_zoom.x != 0.0f && camera_zoom.y != 0.0f);
-
-	auto viewport_size{ info.GetViewportSize() };
-	PTGN_ASSERT(viewport_size.x != 0.0f && viewport_size.y != 0.0f);
-
-	auto camera_size{ info.GetSize() };
-
-	// Ratio of camera size (in world units) to viewport size (in pixels).
-	auto pixels_to_world{ (camera_size / viewport_size) / camera_zoom };
-
-	// Convert screen size in pixels to world units.
-	auto world_size{ screen_relative_size * pixels_to_world };
-
-	return world_size;
-}
-
-float Camera::ScaleToCamera(float screen_relative_size) const {
-	return ScaleToCamera(V2_float{ screen_relative_size }).x;
-}
-
-V2_float Camera::ScaleToScreen(const V2_float& camera_relative_size) const {
-	const auto& info{ Get<impl::CameraInfo>() };
-
-	auto camera_size{ info.GetSize() };
-	PTGN_ASSERT(camera_size.x != 0.0f && camera_size.y != 0.0f);
-
-	auto camera_zoom{ GetZoom() };
-	auto viewport_size{ info.GetViewportSize() };
-
-	// Scale camera size by zoom.
-	auto zoomed_size{ camera_relative_size * camera_zoom };
-
-	// Convert to screen pixels.
-	auto pixels_per_world_unit{ viewport_size / camera_size };
-	auto screen_size{ zoomed_size * pixels_per_world_unit };
-
-	return screen_size;
-}
-
-float Camera::ScaleToScreen(float camera_relative_size) const {
-	return ScaleToScreen(V2_float{ camera_relative_size }).x;
-}
-
-V2_float Camera::TransformToCamera(const V2_float& screen_relative_coordinate) const {
-	// TODO: Take into account camera rotation.
-	const auto& info{ Get<impl::CameraInfo>() };
-
-	auto camera_zoom{ GetZoom() };
-	PTGN_ASSERT(camera_zoom.x != 0.0f && camera_zoom.y != 0.0f);
-
-	auto viewport_pos{ info.GetViewportPosition() };
-	auto viewport_size{ info.GetViewportSize() };
-	PTGN_ASSERT(viewport_size.x != 0.0f && viewport_size.y != 0.0f);
-
-	// Normalize screen coordinates to [0, 1] range.
-	auto normalized_coordinate{ (screen_relative_coordinate - viewport_pos) / viewport_size };
-
-	auto camera_size{ info.GetSize() };
-
-	// Scale normalized coordinates to camera size and apply zoom.
-	auto world_coordinate{ (normalized_coordinate * camera_size) / camera_zoom };
-
-	// Translate to camera position (using bottom right as origin because viewport is relative to
-	// top left).
-	world_coordinate += GetPosition(Origin::BottomRight);
-
-	return world_coordinate;
-}
-
-V2_float Camera::TransformToScreen(const V2_float& camera_relative_coordinate) const {
-	// TODO: Take into account camera rotation.
-	const auto& info{ Get<impl::CameraInfo>() };
-
-	auto camera_size{ info.GetSize() };
-	PTGN_ASSERT(camera_size.x != 0.0f && camera_size.y != 0.0f);
-
-	auto camera_zoom{ GetZoom() };
-
-	auto viewport_pos{ info.GetViewportPosition() };
-	auto viewport_size{ info.GetViewportSize() };
-
-	V2_float relative_coordinate{ (camera_relative_coordinate - GetPosition(Origin::BottomRight)) *
-								  camera_zoom };
-
-	V2_float normalized_coordinate{ relative_coordinate / camera_size };
-
-	V2_float screen_coordinate{ viewport_pos + normalized_coordinate * viewport_size };
-
-	return screen_coordinate;
-}
-
-void Camera::CenterOnWindow(bool continuously) {
+void Camera::SetToPhysicalResolution(bool continuously) {
 	auto& info{ Get<impl::CameraInfo>() };
 	if (continuously) {
-		info.SetCenterOnWindow(true);
-		SubscribeToWindowEvents();
-	} else {
-		auto center{ game.window.GetCenter() };
-		SetPosition(center);
-		info.UpdatePosition(center);
+		UnsubscribeFromResolutionEvents();
+	}
+	info = {};
+	SetCenterMode(CameraCenterMode::PhysicalResolution, continuously);
+	SetResizeMode(CameraResizeMode::PhysicalResolution, continuously);
+}
+
+void Camera::SetCenterMode(CameraCenterMode center_mode, bool continuously) {
+	auto& info{ Get<impl::CameraInfo>() };
+	if (continuously) {
+		info.SetCenterMode(center_mode);
+		if (center_mode != CameraCenterMode::Custom) {
+			V2_float resolution;
+			if (center_mode == CameraCenterMode::LogicalResolution) {
+				resolution = game.renderer.GetLogicalResolution();
+			} else if (center_mode == CameraCenterMode::PhysicalResolution) {
+				resolution = game.renderer.GetPhysicalResolution();
+			}
+
+			auto pos{ GetZoom() * resolution * 0.5f };
+			ptgn::SetPosition(*this, pos);
+			// This prevents the mode from center_mode being switched to CameraCenterMode::Custom
+			// when re-calculating the view projection matrix.
+			info.previous.SetPosition(pos);
+
+			SubscribeToResolutionEvents(info.GetResizeMode(), center_mode);
+		}
+	} else if (center_mode != CameraCenterMode::Custom) {
+		V2_float resolution;
+		if (center_mode == CameraCenterMode::LogicalResolution) {
+			resolution = game.renderer.GetLogicalResolution();
+		} else if (center_mode == CameraCenterMode::PhysicalResolution) {
+			resolution = game.renderer.GetPhysicalResolution();
+		}
+		auto center{ resolution / 2.0f };
+		ptgn::SetPosition(*this, center);
 	}
 }
 
-std::array<V2_float, 4> Camera::GetVertices(const V2_float& scale) const {
-	PTGN_ASSERT(!scale.IsZero(), "Camera scale cannot be zero");
-	auto size{ GetSize(true) };
-	Rect rect{ size };
-	Transform transform{ GetPosition(Origin::Center), GetRotation(), scale };
+void Camera::SetResizeMode(CameraResizeMode resize_mode, bool continuously) {
+	auto& info{ Get<impl::CameraInfo>() };
+	SetZoom(1.0f);
+	if (continuously) {
+		info.SetResizeMode(resize_mode);
+		if (resize_mode != CameraResizeMode::Custom) {
+			SubscribeToResolutionEvents(resize_mode, info.GetCenterMode());
+		}
+	} else if (resize_mode != CameraResizeMode::Custom) {
+		V2_float resolution;
+		if (resize_mode == CameraResizeMode::LogicalResolution) {
+			resolution = game.renderer.GetLogicalResolution();
+		} else if (resize_mode == CameraResizeMode::PhysicalResolution) {
+			resolution = game.renderer.GetPhysicalResolution();
+		}
+		PTGN_ASSERT(
+			!resolution.IsZero(), "Failed to find a valid resolution for the resizing camera"
+		);
+		SetViewportSize(resolution);
+	}
+}
+
+std::array<V2_float, 4> Camera::GetWorldVertices() const {
+	const auto& info{ Get<impl::CameraInfo>() };
+	Transform transform{ GetTransform(*this) };
+	auto zoom{ transform.GetScale() };
+	transform.SetScale(V2_float{ 1.0f, 1.0f });
+	Rect rect{ info.GetViewportSize() / zoom };
+	PTGN_ASSERT(
+		transform.GetScale().BothAboveZero(),
+		"Cannot get world vertices for camera with negative or zero zoom"
+	);
 	auto world_vertices{ rect.GetWorldVertices(transform) };
 	return world_vertices;
 }
 
-V2_float Camera::GetSize(bool account_for_zoom) const {
-	if (account_for_zoom) {
-		auto zoom{ GetZoom() };
-		PTGN_ASSERT(zoom.x != 0.0f && zoom.y != 0.0f);
-		auto size{ Get<impl::CameraInfo>().GetSize() };
-		return size / zoom;
-	}
-	return Get<impl::CameraInfo>().GetSize();
-}
-
 V2_float Camera::GetZoom() const {
-	return Abs(GetScale());
+	return Abs(ptgn::GetScale(*this));
 }
 
 V3_float Camera::GetOrientation() const {
 	const auto& info{ Get<impl::CameraInfo>() };
-	return { Entity::GetRotation(), info.GetRotationY(), info.GetRotationZ() };
+	return { ptgn::GetRotation(*this), info.GetRotationY(), info.GetRotationZ() };
 }
 
 Quaternion Camera::GetQuaternion() const {
@@ -637,61 +522,94 @@ void Camera::SetBounds(const V2_float& position, const V2_float& size) {
 	RefreshBounds();
 }
 
-void Camera::SetSize(const V2_float& new_size) {
+void Camera::CenterOnViewport(const V2_float& new_viewport_size) {
+	SetViewportSize(new_viewport_size);
+	SetPosition(*this, new_viewport_size / 2.0f);
+}
+
+void Camera::SetViewportSize(const V2_float& new_size) {
 	auto& info{ Get<impl::CameraInfo>() };
-	info.SetResizeToWindow(false);
-	info.SetSize(new_size);
+	info.SetResizeMode(CameraResizeMode::Custom);
+	info.SetViewportSize(new_size);
 	RefreshBounds();
 }
 
-void Camera::SetZoom(V2_float new_zoom) {
-	PTGN_ASSERT(new_zoom.x > 0.0f && new_zoom.y > 0.0f, "New zoom cannot be negative or zero");
-	new_zoom.x = std::clamp(new_zoom.x, epsilon<float>, std::numeric_limits<float>::max());
-	new_zoom.y = std::clamp(new_zoom.y, epsilon<float>, std::numeric_limits<float>::max());
-	auto zoom{ Entity::GetScale() };
-	new_zoom *= V2_float{ Sign(zoom.x), Sign(zoom.y) };
-	Entity::SetScale(new_zoom);
-	auto& info{ Get<impl::CameraInfo>() };
-	info.UpdateScale(new_zoom);
+void Camera::SetZoom(V2_float zoom) {
+	zoom = Clamp(
+		zoom, V2_float{ 1000.0f * epsilon<float> }, V2_float{ std::numeric_limits<float>::max() }
+	);
+	PTGN_ASSERT(zoom.BothAboveZero(), "New zoom cannot be negative or zero");
+	zoom *= V2_float{ Sign(zoom.x), Sign(zoom.y) };
+	ptgn::SetScale(*this, zoom);
 }
 
 void Camera::SetZoom(float new_zoom) {
 	SetZoom(V2_float{ new_zoom });
 }
 
-void Camera::Translate(const V2_float& position_change) {
-	// TODO: This might boil down to not needing quaternions (since z position change is zero) but I
-	// am not sure due to the sine and cosines.
-	auto change{ V3_float{ position_change.x, position_change.y, 0.0f } * GetQuaternion() };
-	auto old_pos{ Entity::GetPosition() };
-	auto& info{ Get<impl::CameraInfo>() };
-	auto new_pos{ old_pos + V2_float{ change.x, change.y } };
-	SetPosition(new_pos);
-	info.UpdatePosition(new_pos);
-	info.SetPositionZ(info.GetPositionZ() + change.z);
-}
-
 void Camera::Zoom(const V2_float& zoom_change) {
-	auto current_zoom{ GetZoom() };
-	auto new_zoom{ current_zoom + zoom_change };
-	constexpr float min_zoom{ epsilon<float> };
-	new_zoom.x = std::max(new_zoom.x, min_zoom);
-	new_zoom.y = std::max(new_zoom.y, min_zoom);
-	PTGN_ASSERT(
-		new_zoom.x > 0.0f && new_zoom.y > 0.0f, "Resulting zoom cannot be negative or zero"
-	);
-	SetZoom(new_zoom);
+	auto zoom{ GetZoom() + zoom_change };
+	SetZoom(zoom);
 }
 
 void Camera::Zoom(float zoom_change) {
 	Zoom(V2_float{ zoom_change });
 }
 
-void Camera::Rotate(float angle_change_radians) {
-	auto rotation{ GetRotation() + angle_change_radians };
-	SetRotation(rotation);
+void Camera::Reset() {
+	ptgn::SetTransform(*this, Transform{});
 	auto& info{ Get<impl::CameraInfo>() };
-	info.UpdateRotation(rotation);
+	info = {};
+	SubscribeToResolutionEvents(
+		CameraResizeMode::LogicalResolution, CameraCenterMode::LogicalResolution
+	);
+}
+
+V2_float Camera::GetTopLeft() const {
+	const auto& info{ Get<impl::CameraInfo>() };
+	auto viewport_size{ info.GetViewportSize() };
+	auto half_viewport_size{ viewport_size * 0.5f };
+	return ApplyTransform(
+		V2_float{ -half_viewport_size.x, -half_viewport_size.y }, GetTransform(*this)
+	);
+}
+
+const Matrix4& Camera::GetViewProjection() const {
+	return Get<impl::CameraInfo>().GetViewProjection(ptgn::GetTransform(*this), *this);
+}
+
+void Camera::PrintInfo() const {
+	auto bounds_position{ GetBoundsPosition() };
+	auto bounds_size{ GetBoundsSize() };
+	auto orient{ GetOrientation() };
+	Print(
+		"center position: ", GetPosition(*this), ", viewport size: ", GetViewportSize(),
+		", zoom: ", GetZoom(), ", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ",
+		RadToDeg(orient.y), ", ", RadToDeg(orient.z), "), Bounds: "
+	);
+	if (bounds_size.IsZero()) {
+		PrintLine("none");
+	} else {
+		PrintLine(bounds_position, "->", bounds_position + bounds_size);
+	}
+}
+
+V2_float ApplyTransform(
+	const V2_float& screen_point, const V2_float& viewport_size, const Transform& transform
+) {
+	PTGN_ASSERT(transform.GetScale().BothAboveZero());
+	V2_float unzoomed		= (screen_point - viewport_size / 2.0f) / transform.GetScale();
+	V2_float rotated		= unzoomed.Rotated(transform.GetRotation());
+	V2_float world_position = rotated + transform.GetPosition();
+
+	return world_position;
+}
+
+Camera CreateCamera(Manager& manager) {
+	Camera camera{ manager.CreateEntity() };
+	camera.Add<impl::CameraInfo>();
+	camera.Reset();
+	return camera;
 }
 
 /*
@@ -722,136 +640,18 @@ void Camera::Roll(float angle_change) {
 }
 */
 
-void Camera::SetSizeToWindow(bool continuously) {
-	auto& info{ Get<impl::CameraInfo>() };
-	SetZoom(1.0f);
-	if (continuously) {
-		info.SetResizeToWindow(true);
-		SubscribeToWindowEvents();
-	} else {
-		SetSize(game.window.GetSize());
-	}
-}
-
-void Camera::Reset() {
-	Entity::SetTransform(Transform{});
-	auto& info{ Get<impl::CameraInfo>() };
-	info = {};
-	SubscribeToWindowEvents();
-}
-
-Camera& Camera::StartFollow(Entity target, const FollowConfig& config, bool force) {
-	ptgn::StartFollow(*this, target, config, force);
-	return *this;
-}
-
-Camera& Camera::StopFollow(bool force) {
-	ptgn::StopFollow(*this, force);
-	return *this;
-}
-
-Camera& Camera::TranslateTo(
-	const V2_float& target_position, milliseconds duration, const Ease& ease, bool force
-) {
-	ptgn::TranslateTo(*this, target_position, duration, ease, force);
-	return *this;
-}
-
-Camera& Camera::RotateTo(float target_angle, milliseconds duration, const Ease& ease, bool force) {
-	ptgn::RotateTo(*this, target_angle, duration, ease, force);
-	return *this;
-}
-
-Camera& Camera::ZoomTo(
-	const V2_float& target_zoom, milliseconds duration, const Ease& ease, bool force
-) {
-	ptgn::ScaleTo(*this, target_zoom, duration, ease, force);
-	return *this;
-}
-
-Camera& Camera::Shake(
-	float intensity, milliseconds duration, const ShakeConfig& config, const Ease& ease, bool force
-) {
-	ptgn::Shake(*this, intensity, duration, config, ease, force);
-	return *this;
-}
-
-Camera& Camera::Shake(float intensity, const ShakeConfig& config, bool force) {
-	ptgn::Shake(*this, intensity, config, force);
-	return *this;
-}
-
-Camera& Camera::StopShake(bool force) {
-	ptgn::StopShake(*this, force);
-	return *this;
-}
-
-void Camera::PrintInfo() const {
-	auto bounds_position{ GetBoundsPosition() };
-	auto bounds_size{ GetBoundsSize() };
-	auto orient{ GetOrientation() };
-	Print(
-		"center position: ", GetPosition(Origin::Center), ", size: ", GetSize(),
-		", zoom: ", GetZoom(), ", orientation (yaw/pitch/roll) (deg): (", RadToDeg(orient.x), ", ",
-		RadToDeg(orient.y), ", ", RadToDeg(orient.z), "), Bounds: "
-	);
-	if (bounds_size.IsZero()) {
-		PrintLine("none");
-	} else {
-		PrintLine(bounds_position, "->", bounds_position + bounds_size);
-	}
-}
-
-const Matrix4& Camera::GetViewProjection() const {
-	return Get<impl::CameraInfo>().GetViewProjection(Entity::GetTransform(), *this);
-}
-
-void CameraManager::Init(impl::SceneKey scene_key) {
-	scene_key_ = scene_key;
-	auto& scene{ game.scene.Get<Scene>(scene_key_) };
-	PTGN_ASSERT(!window && !primary);
-	primary			 = CreateCamera(scene);
-	window			 = CreateCamera(scene);
-	primary_unzoomed = CreateCamera(scene);
-	window_unzoomed	 = CreateCamera(scene);
-}
-
-void CameraManager::Reset() {
-	primary.Reset();
-	window.Reset();
-	primary_unzoomed.Reset();
-	window_unzoomed.Reset();
-}
-
-void to_json(json& j, const CameraManager& camera_manager) {
-	j["scene_key"]		  = camera_manager.scene_key_;
-	j["primary"]		  = camera_manager.primary;
-	j["window"]			  = camera_manager.window;
-	j["primary_unzoomed"] = camera_manager.primary_unzoomed;
-	j["window_unzoomed"]  = camera_manager.window_unzoomed;
-}
-
-void from_json(const json& j, CameraManager& camera_manager) {
-	j.at("scene_key").get_to(camera_manager.scene_key_);
-	auto& scene{ game.scene.Get<Scene>(camera_manager.scene_key_) };
-	camera_manager.primary			= scene.GetEntityByUUID(j.at("primary").at("UUID"));
-	camera_manager.window			= scene.GetEntityByUUID(j.at("window").at("UUID"));
-	camera_manager.primary_unzoomed = scene.GetEntityByUUID(j.at("primary_unzoomed").at("UUID"));
-	camera_manager.window_unzoomed	= scene.GetEntityByUUID(j.at("window_unzoomed").at("UUID"));
-}
-
 /*
 // To move camera according to mouse drag (in 3D):
 void CameraController::OnMouseMoveEvent([[maybe_unused]] const MouseMoveEvent& e) {
 
 	static bool first_mouse = true;
 
-	if (game.input.MousePressed(Mouse::Left)) {
+	if (input.MousePressed(Mouse::Left)) {
 		const MouseMoveEvent& mouse = static_cast<const MouseMoveEvent&>(e);
 		if (!first_mouse) {
 			V2_float offset = mouse.GetDifference();
 
-			V2_float info.size = game.window.GetSize();
+			info.size = logical_resolution;
 
 			V2_float scaled_offset = offset / info.size;
 

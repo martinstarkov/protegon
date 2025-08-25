@@ -34,7 +34,7 @@
 // }
 //
 // void DataPoints::SortAscendingByX() {
-//	std::sort(points.begin(), points.end(), [](const V2_float& a, const V2_float& b) {
+//	std::ranges::sort(points, [](const V2_float& a, const V2_float& b) {
 //		return a.x < b.x;
 //	});
 // }
@@ -133,22 +133,22 @@
 //
 //	canvas_.SetRect(dest);
 //
-//	V2_float mouse_pos{ game.input.GetMousePosition() };
+//	V2_float mouse_pos{ input.GetMousePosition() };
 //	Rect canvas_rect{ canvas_.GetRect() };
 //	bool mouse_on_plot{ canvas_rect.Overlaps(mouse_pos) };
 //
 //	V2_float canvas_mouse{ canvas_.GetMousePosition() };
 //	bool mouse_on_legend{ legend_rect_ != Rect{} && legend_rect_.Overlaps(canvas_mouse) };
 //
-//	if (game.input.MouseDown(Mouse::Left) && mouse_on_plot && !mouse_on_legend) {
+//	if (input.MouseDown(Mouse::Left) && mouse_on_plot && !mouse_on_legend) {
 //		offset_		 = mouse_pos;
 //		move_axis_	 = current_axis_;
 //		moving_plot_ = true;
-//	} else if (game.input.MouseUp(Mouse::Left)) {
+//	} else if (input.MouseUp(Mouse::Left)) {
 //		offset_ = V2_float::Infinity();
 //	}
 //
-//	auto scroll{ game.input.GetMouseScroll() };
+//	auto scroll{ input.GetMouseScroll() };
 //
 //	if (scroll != 0 && mouse_on_plot) {
 //		// To zoom into where mouse is located, we scale zoom amount for each axis
@@ -283,7 +283,7 @@
 //
 //	ForEachKeyValue([&](auto& name, DataSeries& series) {
 //		Text text{ name, legend.text_color,
-//				   Font{ font::LiberationSansRegular, legend.text_point_size } };
+//				   Font{ GetLiberationSansRegular(), legend.text_point_size } };
 //		Button& button{ series.GetButton() };
 //		if (legend.toggleable_data) {
 //			button.Enable();

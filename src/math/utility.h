@@ -10,7 +10,7 @@ namespace ptgn {
 
 namespace impl {
 
-[[nodiscard]] bool WithinPerimeter(float radius, float dist2);
+[[nodiscard]] bool WithinPerimeter(float radius, float dist2, bool include_edge = false);
 
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf

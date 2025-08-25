@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <functional>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -201,7 +202,7 @@ RaycastResult RaycastRect(
 		return c;
 	}
 
-	if (transform2.rotation != 0.0f) {
+	if (transform2.GetRotation() != 0.0f) {
 		return RaycastPolygon(ray_start, ray_end, transform2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -343,11 +344,10 @@ RaycastResult RaycastCapsule(
 	RaycastResult c;
 
 	// TODO: Add early exit if overlap test fails.
-
-	V2_float cv{ ray_end - ray_start };
-	float mag2{ cv.Dot(cv) };
-
 	auto world_points{ B.GetWorldVertices(transform2) };
+
+	V2_float cv{ world_points[1] - world_points[0] };
+	float mag2{ cv.Dot(cv) };
 
 	float capsule_radius{ B.GetRadius(transform2) };
 
@@ -366,10 +366,12 @@ RaycastResult RaycastCapsule(
 	RaycastResult col_min{ c };
 
 	auto c1{ RaycastLine(
-		ray_start, ray_end, Transform{}, Line{ ray_start + ncu_dist, ray_end + ncu_dist }
+		ray_start, ray_end, Transform{},
+		Line{ world_points[0] + ncu_dist, world_points[1] + ncu_dist }
 	) };
 	auto c2{ RaycastLine(
-		ray_start, ray_end, Transform{}, Line{ ray_start - ncu_dist, ray_end - ncu_dist }
+		ray_start, ray_end, Transform{},
+		Line{ world_points[0] - ncu_dist, world_points[1] - ncu_dist }
 	) };
 	auto c3{
 		RaycastCircle(ray_start, ray_end, Transform{ world_points[0] }, Circle{ capsule_radius })
@@ -475,7 +477,7 @@ RaycastResult RaycastCircleCircle(
 	auto circleA_center{ A.GetCenter(transform1) };
 	auto circleB_center{ B.GetCenter(transform2) };
 	return RaycastCircle(
-		circleA_center, circleA_center + ray, Transform{ circleB_center, transform2.rotation },
+		circleA_center, circleA_center + ray, Transform{ circleB_center, transform2.GetRotation() },
 		Circle{ A.GetRadius(transform1) + B.GetRadius(transform2) }
 	);
 }
@@ -487,7 +489,7 @@ RaycastResult RaycastCircleRect(
 #ifdef PTGN_DEBUG
 	game.stats.raycast_circle_rect++;
 #endif
-	if (transform2.rotation != 0.0f) {
+	if (transform2.GetRotation() != 0.0f) {
 		return RaycastCirclePolygon(
 			ray, transform1, A, transform2, Polygon{ B.GetLocalVertices() }
 		);
@@ -529,46 +531,25 @@ RaycastResult RaycastCircleRect(
 
 	RaycastResult col_min{ c };
 
-	auto half{ rect_size * 0.5f };
-	auto rect_min{ rect_center - half };
-	auto rect_max{ rect_center + half };
+	V2_float half{ rect_size * 0.5f };
+	V2_float top_left{ rect_center - half };
+	V2_float bottom_right{ rect_center + half };
+	V2_float top_right{ bottom_right.x, top_left.y };
+	V2_float bottom_left{ top_left.x, bottom_right.y };
 
-	// Top segment.
-	auto c1{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ rect_min, V2_float{ rect_max.x, rect_min.y }, circle_radius }
-	) };
+	const auto raycast_capsule_segment = [&](const V2_float& start, const V2_float& end) {
+		auto collision{ RaycastCapsule(
+			circle_center, ray_end, Transform{}, Capsule{ start, end, circle_radius }
+		) };
+		if (collision.Occurred() && collision.t < col_min.t) {
+			col_min = collision;
+		}
+	};
 
-	// Right segment.
-	auto c2{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ V2_float{ rect_max.x, rect_min.y }, rect_max, circle_radius }
-	) };
-
-	// Bottom segment.
-	auto c3{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ rect_max, V2_float{ rect_min.x, rect_max.y }, circle_radius }
-	) };
-
-	// Left segment.
-	auto c4{ RaycastCapsule(
-		circle_center, ray_end, Transform{},
-		Capsule{ V2_float{ rect_min.x, rect_max.y }, rect_min, circle_radius }
-	) };
-
-	if (c1.Occurred() && c1.t < col_min.t) {
-		col_min = c1;
-	}
-	if (c2.Occurred() && c2.t < col_min.t) {
-		col_min = c2;
-	}
-	if (c3.Occurred() && c3.t < col_min.t) {
-		col_min = c3;
-	}
-	if (c4.Occurred() && c4.t < col_min.t) {
-		col_min = c4;
-	}
+	raycast_capsule_segment(top_left, top_right);		// Top segment.
+	raycast_capsule_segment(top_right, bottom_right);	// Right segment.
+	raycast_capsule_segment(bottom_right, bottom_left); // Bottom segment.
+	raycast_capsule_segment(bottom_left, top_left);		// Left segment.
 
 	if (col_min.t < 0.0f || col_min.t >= 1.0f) {
 		return c;
@@ -588,9 +569,9 @@ RaycastResult RaycastCircleCapsule(
 	const Capsule& B
 ) {
 	auto circle_center{ A.GetCenter(transform1) };
-	auto capsule_center{ transform2.position };
+	auto capsule_center{ transform2.GetPosition() };
 	return RaycastCapsule(
-		circle_center, circle_center + ray, Transform{ capsule_center, transform2.rotation },
+		circle_center, circle_center + ray, Transform{ capsule_center, transform2.GetRotation() },
 		Capsule{ B.start, B.end, A.GetRadius(transform1) + B.GetRadius(transform2) }
 	);
 }
@@ -609,14 +590,14 @@ RaycastResult RaycastRectRect(
 #ifdef PTGN_DEBUG
 	game.stats.raycast_rect_rect++;
 #endif
-	bool rotated1{ transform1.rotation != 0.0f };
-	bool rotated2{ transform2.rotation != 0.0f };
+	bool rotated1{ transform1.GetRotation() != 0.0f };
+	bool rotated2{ transform2.GetRotation() != 0.0f };
 
 	if (!rotated1 && !rotated2 || !rotated1 && rotated2) {
 		auto rectA_center{ A.GetCenter(transform1) };
 		auto rectB_center{ B.GetCenter(transform2) };
 		return RaycastRect(
-			rectA_center, rectA_center + ray, Transform{ rectB_center, transform2.rotation },
+			rectA_center, rectA_center + ray, Transform{ rectB_center, transform2.GetRotation() },
 			Rect{ A.GetSize(transform1) + B.GetSize(transform2) }
 		);
 	} else if (rotated1 && !rotated2) {

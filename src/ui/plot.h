@@ -22,7 +22,7 @@
 // #include "resources/fonts.h"
 // #include "ui/button.h"
 // #include "common/assert.h"
-// #include "common/type_traits.h"
+// 
 //
 // namespace ptgn {
 //
@@ -344,7 +344,7 @@
 //
 //			Text division_text{
 //				ToString(division_number, axis.division_number_precision), axis.division_text_color,
-//				Font{ font::LiberationSansRegular, axis.division_text_point_size }
+//				Font{ GetLiberationSansRegular(), axis.division_text_point_size }
 //			};
 //
 //			V2_float text_size{ division_text.GetSize() };

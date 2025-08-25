@@ -25,34 +25,26 @@ struct KeyUp {
 //	Key key;
 // };
 
-struct MouseMove {
-	V2_int position;
-	V2_int difference;
-};
+struct MouseMove {};
 
 struct MouseDown {
 	Mouse button;
-	V2_int position;
 };
 
 struct MouseUp {
 	Mouse button;
-	V2_int position;
 };
 
 struct MousePressed {
 	Mouse button;
-	V2_int position;
 };
 
 // struct MouseReleased {
 //	Mouse button;
-//	V2_int position;
 // };
 
 struct MouseScroll {
 	V2_int scroll;
-	V2_int position;
 };
 
 /* fires once when the window is quit */
@@ -60,13 +52,9 @@ struct WindowQuit {};
 
 /* fires one or more times (consult SDL_PollEvent rate and game FPS) after size change
 				 occurs or resizing  is finished (window is released) */
-struct WindowResized {
-	V2_int size;
-};
+struct WindowResized {};
 
-struct WindowMoved {
-	V2_int position;
-};
+struct WindowMoved {};
 
 /* fires repeatedly while window is being resized */
 // struct WindowResizing {
@@ -78,13 +66,9 @@ struct WindowMoved {
 //	V2_int position;
 // };
 
-struct WindowMaximized {
-	V2_int size;
-};
+struct WindowMaximized {};
 
-struct WindowMinimized {
-	V2_int size;
-};
+struct WindowMinimized {};
 
 struct WindowFocusLost {};
 

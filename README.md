@@ -1,6 +1,6 @@
 # protegon
 
-**protegon** is a fast, modular **2D game engine** written in C++17, using **OpenGL** for rendering and **SDL2** for input, audio, and font support. Designed for flexibility and performance, it gives you full control over your game while providing helpful abstractions to get you started quickly.
+**protegon** is a fast, modular **2D game engine** written in C++20, using **OpenGL** for rendering and **SDL2** for input, audio, and font support. Designed for flexibility and performance, it gives you full control over your game while providing helpful abstractions to get you started quickly.
 
 ---
 
@@ -26,7 +26,7 @@
 
 ### Prerequisites
 
-- **C++17 or newer**
+- **C++20 or newer**
 - **[CMake 3.20+](https://cmake.org/download/)**
 - A C++ compiler + build system (Visual Studio, Ninja, Make, etc.)
 

@@ -1,7 +1,6 @@
 #pragma once
 
-#include <type_traits>
-
+#include "components/utility.h"
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "ecs/ecs.h"
@@ -9,6 +8,16 @@
 #include "serialization/json_archiver.h"
 
 namespace ptgn {
+
+class Scene;
+class SceneInput;
+class Physics;
+
+namespace impl {
+
+class RenderData;
+
+} // namespace impl
 
 template <bool is_const>
 using Entities =
@@ -24,7 +33,7 @@ using EntitiesWithout = ecs::impl::EntityContainer<
 
 class Manager : private ecs::impl::Manager<JSONArchiver> {
 private:
-	using Parent = ecs::impl::Manager<JSONArchiver>;
+	using ManagerBase = ecs::impl::Manager<JSONArchiver>;
 
 public:
 	Manager()							   = default;
@@ -38,13 +47,9 @@ public:
 		return &a == &b;
 	}
 
-	friend bool operator!=(const Manager& a, const Manager& b) {
-		return !(a == b);
-	}
-
 	template <typename T>
 	void RegisterType() {
-		Parent::GetOrAddPool<T>(Parent::GetId<T>());
+		ManagerBase::GetOrAddPool<T>(ManagerBase::GetId<T>());
 	}
 
 	void Refresh();
@@ -67,47 +72,44 @@ public:
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
-		Parent::CopyEntity<UUID>(from, to);
-		Parent::CopyEntity<Ts...>(from, to);
+		ManagerBase::CopyEntity<UUID>(from, to);
+		ManagerBase::CopyEntity<Ts...>(from, to);
 	}
 
 	// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(const Entity& from) {
-		auto entity{ Parent::CopyEntity<Ts...>(from) };
+		auto entity{ ManagerBase::CopyEntity<Ts...>(from) };
 		entity.template Add<UUID>();
 		return entity;
 	}
-
-	// TODO: Find a way to restrict retrieval from these if Ts... contains a non-retrievable
-	// component.
 
 	template <typename... Ts>
 	ptgn::EntitiesWith<true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
-	template <typename... Ts>
+	template <impl::RetrievableComponent... Ts>
 	ptgn::EntitiesWith<false, Ts...> EntitiesWith() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::EntitiesWithout<true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::EntitiesWithout<false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
-					 Parent::GetPool<Ts>(Parent::GetId<Ts>())... } };
+					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	ptgn::Entities<true> Entities() const {
@@ -140,7 +142,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& OnConstruct() {
-		return Parent::OnConstruct<T>();
+		return ManagerBase::OnConstruct<T>();
 	}
 
 	/**
@@ -155,7 +157,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& OnDestruct() {
-		return Parent::OnDestruct<T>();
+		return ManagerBase::OnDestruct<T>();
 	}
 
 	/**
@@ -170,7 +172,7 @@ public:
 	 */
 	template <typename T>
 	[[nodiscard]] ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& OnUpdate() {
-		return Parent::OnUpdate<T>();
+		return ManagerBase::OnUpdate<T>();
 	}
 
 	/**
@@ -186,7 +188,7 @@ public:
 	template <typename T>
 	[[nodiscard]] bool HasOnConstruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
 	) const {
-		return Parent::HasOnConstruct<T>(hook);
+		return ManagerBase::HasOnConstruct<T>(hook);
 	}
 
 	/**
@@ -202,7 +204,7 @@ public:
 	template <typename T>
 	[[nodiscard]] bool HasOnDestruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
 	) const {
-		return Parent::HasOnDestruct<T>(hook);
+		return ManagerBase::HasOnDestruct<T>(hook);
 	}
 
 	/**
@@ -218,7 +220,7 @@ public:
 	template <typename T>
 	[[nodiscard]] bool HasOnUpdate(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
 	) const {
-		return Parent::HasOnUpdate<T>(hook);
+		return ManagerBase::HasOnUpdate<T>(hook);
 	}
 
 	/**
@@ -229,7 +231,7 @@ public:
 	 */
 	template <typename T>
 	void RemoveOnConstruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook) {
-		Parent::RemoveOnConstruct<T>(hook);
+		ManagerBase::RemoveOnConstruct<T>(hook);
 	}
 
 	/**
@@ -240,7 +242,7 @@ public:
 	 */
 	template <typename T>
 	void RemoveOnDestruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook) {
-		Parent::RemoveOnDestruct<T>(hook);
+		ManagerBase::RemoveOnDestruct<T>(hook);
 	}
 
 	/**
@@ -251,7 +253,7 @@ public:
 	 */
 	template <typename T>
 	void RemoveOnUpdate(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook) {
-		Parent::RemoveOnUpdate<T>(hook);
+		ManagerBase::RemoveOnUpdate<T>(hook);
 	}
 
 	friend void to_json(json& j, const Manager& manager);
@@ -259,10 +261,23 @@ public:
 
 private:
 	friend class Entity;
+	friend class Scene;
+	friend class SceneInput;
+	friend class impl::RenderData;
+	friend class Physics;
+
+	// Same as EntitiesWith except allows non-retrievable components to be retrieved. Used for
+	// internal engine systems.
+	template <typename... Ts>
+	ptgn::EntitiesWith<false, Ts...> InternalEntitiesWith() {
+		return { this, next_entity_,
+				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
+					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
+	}
 
 	void ClearEntities() final;
 
-	explicit Manager(Parent&& manager) : Parent{ std::move(manager) } {}
+	explicit Manager(ManagerBase&& manager);
 };
 
 } // namespace ptgn

@@ -7,6 +7,7 @@
 namespace ptgn {
 
 class Scene;
+struct Transform;
 
 namespace impl {
 
@@ -54,8 +55,8 @@ private:
 	void PostCollisionUpdate(Scene& scene) const;
 
 	static void HandleBoundary(
-		float& position, float& velocity, float min_bound, float max_bound,
-		BoundaryBehavior behavior
+		Transform& transform, V2_float& velocity, const V2_float& min_bound,
+		const V2_float& max_bound, BoundaryBehavior behavior
 	);
 
 	bool enabled_{ true };

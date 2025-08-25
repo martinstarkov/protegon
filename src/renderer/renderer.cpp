@@ -3,22 +3,33 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
-#include "components/common.h"
 #include "components/draw.h"
+#include "components/effects.h"
+#include "components/generic.h"
 #include "components/transform.h"
-#include "core/entity.h"
 #include "core/game.h"
 #include "core/window.h"
+#include "debug/log.h"
 #include "math/geometry.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/triangle.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/buffers/frame_buffer.h"
+#include "renderer/font.h"
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/render_data.h"
 #include "renderer/render_target.h"
@@ -26,8 +37,8 @@
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
-
-// TODO: Fix all the debug functions.
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -60,15 +71,24 @@ void DrawDebugTexture(
 
 void DrawDebugText(
 	const std::string& content, const V2_float& position, const TextColor& color, Origin origin,
-	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties,
-	const V2_float& size, float rotation, const Camera& camera
+	const FontSize& font_size, bool hd_text, const ResourceHandle& font_key,
+	const TextProperties& properties, const V2_float& size, float rotation, const Camera& camera
 ) {
 	auto& render_data{ game.renderer.GetRenderData() };
-	auto texture{ Text::CreateTexture(content, color, font_size, font_key, properties) };
+	FontSize final_font_size{ font_size };
+	Transform transform{ position, rotation };
+	if (hd_text) {
+		const auto& scene{ game.scene.GetCurrent() };
+		auto scene_scale{ scene.GetScaleRelativeTo(camera) };
+		transform.Scale(1.0f / scene_scale);
+		final_font_size = static_cast<std::int32_t>(static_cast<float>(font_size) * scene_scale.y);
+	}
+	auto texture{ Text::CreateTexture(content, color, final_font_size, font_key, properties) };
 	render_data.AddTexturedQuad(
-		texture, Transform{ position, rotation },
-		size.IsZero() ? V2_float{ Text::GetSize(content, font_key) } : size, origin, color::White,
-		impl::max_depth, impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
+		texture, transform,
+		size.IsZero() ? V2_float{ Text::GetSize(content, font_key, final_font_size) } : size,
+		origin, color::White, impl::max_depth, impl::GetDefaultTextureCoordinates(),
+		impl::GetDebugRenderState(camera), {}
 	);
 	render_data.AddTemporaryTexture(std::move(texture));
 }
@@ -134,6 +154,21 @@ void DrawDebugCircle(
 	);
 }
 
+void DrawDebugCapsule(
+	const V2_float& start, const V2_float& end, float radius, const Color& color, float line_width,
+	const Camera& camera
+) {
+	auto state{ impl::GetDebugRenderState(camera) };
+
+	auto& render_data{ game.renderer.GetRenderData() };
+
+	// TODO: Fix and replace with game.renderer.GetRenderData().AddCapsule when capsule shader is
+	// implemented.
+	render_data.AddCircle(Transform{ start }, radius, color, impl::max_depth, line_width, state);
+	render_data.AddCircle(Transform{ end }, radius, color, impl::max_depth, line_width, state);
+	render_data.AddLine(start, end, color, impl::max_depth, line_width, state);
+}
+
 void DrawDebugPolygon(
 	const std::vector<V2_float>& vertices, const Color& color, float line_width,
 	const Camera& camera
@@ -149,6 +184,44 @@ void DrawDebugPoint(const V2_float position, const Color& color, const Camera& c
 	);
 }
 
+void DrawDebugShape(
+	const Transform& transform, const Shape& shape, const Color& color, float line_width,
+	const Camera& camera
+) {
+	std::visit(
+		[&](const auto& s1) {
+			using S1 = std::decay_t<decltype(s1)>;
+			if constexpr (std::is_same_v<S1, Point>) {
+				DrawDebugPoint(s1, color, camera);
+			} else if constexpr (std::is_same_v<S1, Rect>) {
+				DrawDebugRect(
+					transform.GetPosition(), s1.GetSize(transform), color, Origin::Center,
+					line_width, transform.GetRotation(), camera
+				);
+			} else if constexpr (std::is_same_v<S1, Circle>) {
+				DrawDebugCircle(
+					transform.GetPosition(), s1.GetRadius(transform), color, line_width, camera
+				);
+			} else if constexpr (std::is_same_v<S1, Line>) {
+				auto [start, end] = s1.GetWorldVertices(transform);
+				DrawDebugLine(start, end, color, line_width, camera);
+			} else if constexpr (std::is_same_v<S1, Triangle>) {
+				auto v = s1.GetWorldVertices(transform);
+				DrawDebugTriangle(v, color, line_width, camera);
+			} else if constexpr (std::is_same_v<S1, Polygon>) {
+				auto v = s1.GetWorldVertices(transform);
+				DrawDebugPolygon(v, color, line_width, camera);
+			} else if constexpr (std::is_same_v<S1, Capsule>) {
+				auto [start, end] = s1.GetWorldVertices(transform);
+				DrawDebugCapsule(start, end, s1.GetRadius(transform), color, line_width, camera);
+			} else {
+				PTGN_ERROR("Cannot draw unknown shape type");
+			}
+		},
+		shape
+	);
+}
+
 namespace impl {
 
 void Renderer::Init() {
@@ -156,58 +229,51 @@ void Renderer::Init() {
 }
 
 void Renderer::SetBackgroundColor(const Color& background_color) {
-	background_color_ = background_color;
+	render_data_.screen_target_.SetClearColor(background_color);
 }
 
 Color Renderer::GetBackgroundColor() const {
-	return background_color_;
+	return render_data_.screen_target_.GetClearColor();
 }
 
 void Renderer::Reset() {
-	render_data_.resolution_   = {};
-	render_data_.scaling_mode_ = ResolutionMode::Disabled;
-
 	bound_ = {};
 
 	FrameBuffer::Unbind(); // Will set bound_frame_buffer_id_ to 0.
+
+	render_data_ = {};
+	render_data_.Init();
 }
 
 void Renderer::Shutdown() {
 	Reset();
 }
 
-void Renderer::SetResolution(const V2_int& resolution) {
-	render_data_.resolution_ = resolution;
-	// User expects setting resolution to take effect immediately so it is defaulted to stretch.
-	if (render_data_.scaling_mode_ == ResolutionMode::Disabled) {
-		render_data_.scaling_mode_ = ResolutionMode::Stretch;
-	}
+void Renderer::SetLogicalResolutionMode(LogicalResolutionMode logical_resolution_mode) {
+	V2_int resolution{ render_data_.logical_resolution_set_ ? render_data_.logical_resolution_
+															: game.window.GetSize() };
+	render_data_.UpdateResolutions(resolution, logical_resolution_mode);
 }
 
-void Renderer::SetLogicalResolution(const V2_int& logical_resolution) {
-	render_data_.logical_resolution_ = logical_resolution;
+void Renderer::SetLogicalResolution(
+	const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
+) {
+	render_data_.logical_resolution_set_ = !logical_resolution.IsZero();
+	V2_int resolution{ render_data_.logical_resolution_set_ ? logical_resolution
+															: game.window.GetSize() };
+	render_data_.UpdateResolutions(resolution, logical_resolution_mode);
 }
 
-void Renderer::SetResolutionMode(ResolutionMode scaling_mode) {
-	render_data_.scaling_mode_ = scaling_mode;
-}
-
-V2_int Renderer::GetResolution() const {
-	if (render_data_.resolution_.IsZero()) {
-		return game.window.GetSize();
-	}
-	return render_data_.resolution_;
+V2_int Renderer::GetPhysicalResolution() const {
+	return render_data_.physical_viewport_.size;
 }
 
 V2_int Renderer::GetLogicalResolution() const {
-	if (render_data_.logical_resolution_.IsZero()) {
-		return GetResolution();
-	}
 	return render_data_.logical_resolution_;
 }
 
-ResolutionMode Renderer::GetResolutionMode() const {
-	return render_data_.scaling_mode_;
+LogicalResolutionMode Renderer::GetLogicalResolutionMode() const {
+	return render_data_.resolution_mode_;
 }
 
 RenderData& Renderer::GetRenderData() {
@@ -237,50 +303,13 @@ void Renderer::PresentScreen() {
 	);
 
 	game.window.SwapBuffers();
-
-	// TODO: Fix.
-	/*
-	// TODO: Move this to happen only when setting resolution. This would allow for example only one
-	// render target to be drawn as resolution.
-	auto camera{ screen_target_.GetCamera().GetPrimary() };
-	Rect dest{ Rect::Fullscreen() };
-	auto center_on_resolution = [&]() {
-		camera.CenterOnArea(resolution_.IsZero() ? game.window.GetSize() : resolution_);
-	};
-	std::function<void()> post_flush;
-	switch (scaling_mode_) {
-		case ResolutionMode::Disabled:
-			camera.SetToWindow();
-			// Uses fullscreen.
-			// resolution_ = {};
-			break;
-		case ResolutionMode::Stretch:
-			std::invoke(center_on_resolution);
-			//   resolution_ = {};
-			//   resolution_.origin = Origin::TopLeft;
-			//   resolution_.size = resolution;
-			break;
-		case ResolutionMode::Letterbox: {
-			// Size of the blackbars on one side.
-			V2_float letterbox_size{ 160, 0 };
-			V2_float size{ resolution_.IsZero() ? game.window.GetSize() : resolution_ };
-			std::invoke(center_on_resolution);
-			// camera.SetSize(size + letterbox_size);
-			//  camera.SetPosition(size / 2.0f);
-			GLRenderer::SetViewport(letterbox_size, game.window.GetSize() - 2.0f * letterbox_size);
-			break;
-		}
-		case ResolutionMode::Overscan:	   break;
-		case ResolutionMode::IntegerScale: break;
-		default:						   PTGN_ERROR("Unrecognized resolution mode");
-	}
-	*/
 }
 
 void Renderer::ClearScreen() const {
 	FrameBuffer::Unbind();
-	GLRenderer::SetClearColor(background_color_);
+	GLRenderer::SetClearColor(color::Transparent);
 	GLRenderer::Clear();
+	render_data_.ClearScreenTarget();
 }
 
 } // namespace impl

@@ -8,7 +8,6 @@ layout (location = 0) in vec4 v_Color;
 layout (location = 1) in vec2 v_TexCoord;
 
 uniform sampler2D u_Texture;
-uniform vec2 u_Resolution;
 
 float kernel[9] = float[](
     1.0f,  1.0f, 1.0f,
@@ -17,8 +16,9 @@ float kernel[9] = float[](
 );
 
 void main() {
-	float offset_x = 1.0f / u_Resolution.x;  
-	float offset_y = 1.0f / u_Resolution.y;
+	ivec2 texSize = textureSize(u_Texture, 0); // mip level 0
+	float offset_x = 1.0f / float(texSize.x);
+	float offset_y = 1.0f / float(texSize.y);
 
 	vec2 offsets[9] = vec2[](
 		vec2(-offset_x,  offset_y), vec2( 0.0f,    offset_y), vec2( offset_x,  offset_y),

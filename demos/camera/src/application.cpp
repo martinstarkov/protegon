@@ -1,21 +1,31 @@
+#include "components/draw.h"
+#include "components/drawable.h"
+#include "components/effects.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/manager.h"
-#include "core/time.h"
+#include "core/window.h"
+#include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
 #include "input/mouse.h"
-#include "math/easing.h"
-#include "math/math.h"
+#include "math/vector2.h"
+#include "renderer/api/blend_mode.h"
+#include "renderer/api/color.h"
+#include "renderer/render_data.h"
+#include "renderer/renderer.h"
+#include "renderer/shader.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "scene/scene_input.h"
 #include "scene/scene_manager.h"
 #include "tweens/follow_config.h"
 #include "tweens/tween_effects.h"
 
 using namespace ptgn;
+
+constexpr V2_int resolution{ 800, 800 };
 
 /*
 class CameraUIScene : public Scene {
@@ -42,9 +52,9 @@ public:
 		deadzone.SetTint(color::DarkGreen);
 		deadzone.Show();
 
-		camera.primary.FadeFrom(color::Black, seconds{ 3 });
-		camera.primary.FadeTo(color::Red, seconds{ 3 });
-		camera.primary.FadeFrom(color::Red, seconds{ 3 });
+		camera.FadeFrom(color::Black, seconds{ 3 });
+		camera.FadeTo(color::Red, seconds{ 3 });
+		camera.FadeFrom(color::Red, seconds{ 3 });
 	}
 };
 */
@@ -67,8 +77,8 @@ public:
 	void Enter() override {
 		game.texture.Load("texture", "resources/test1.jpg");
 
-		camera.primary.SetPosition(game.window.GetCenter());
-		// camera.primary.SetBounds({}, window_size);
+		camera.SetPosition(game.window.GetCenter());
+		// camera.SetBounds({}, window_size);
 
 		auto texture = CreateSprite(*this, "texture");
 		texture.SetPosition(game.window.GetCenter());
@@ -121,85 +131,85 @@ public:
 		mouse.SetTint(color::Red);
 		mouse.Show();
 
-		camera.primary.PanTo({ 0, 0 }, seconds{ 3 });
-		camera.primary.PanTo({ 800, 0 }, seconds{ 3 });
-		camera.primary.PanTo({ 800, 800 }, seconds{ 3 });
-		camera.primary.PanTo({ 0, 800 }, seconds{ 3 });
-		camera.primary.StartFollow(mouse);
-		camera.primary.SetLerp(V2_float{ 0.9f });
-		// camera.primary.SetOffset(V2_float{ -75, -75 });
-		camera.primary.SetDeadzone(deadzone_size);
+		camera.PanTo({ 0, 0 }, seconds{ 3 });
+		camera.PanTo({ 800, 0 }, seconds{ 3 });
+		camera.PanTo({ 800, 800 }, seconds{ 3 });
+		camera.PanTo({ 0, 800 }, seconds{ 3 });
+		StartFollow(camera,mouse);
+		camera.SetLerp(V2_float{ 0.9f });
+		// camera.SetOffset(V2_float{ -75, -75 });
+		camera.SetDeadzone(deadzone_size);
 
-		camera.primary.ZoomTo(0.5f, seconds{ 3 });
-		camera.primary.ZoomTo(2.0f, seconds{ 3 });
-		camera.primary.ZoomTo(0.25f, seconds{ 3 });
-		camera.primary.ZoomTo(1.0f, seconds{ 3 });
+		camera.ZoomTo(0.5f, seconds{ 3 });
+		camera.ZoomTo(2.0f, seconds{ 3 });
+		camera.ZoomTo(0.25f, seconds{ 3 });
+		camera.ZoomTo(1.0f, seconds{ 3 });
 
-		camera.primary.RotateTo(DegToRad(90.0f), seconds{ 3 });
-		camera.primary.RotateTo(DegToRad(0.0f), seconds{ 3 });
-		camera.primary.RotateTo(DegToRad(-90.0f), seconds{ 3 });
-		camera.primary.RotateTo(DegToRad(0.0f), seconds{ 3 });
+		camera.RotateTo(DegToRad(90.0f), seconds{ 3 });
+		camera.RotateTo(DegToRad(0.0f), seconds{ 3 });
+		camera.RotateTo(DegToRad(-90.0f), seconds{ 3 });
+		camera.RotateTo(DegToRad(0.0f), seconds{ 3 });
 	}
 
 	void Update() override {
 		V2_float center{ game.window.GetCenter() };
 		float dt{ game.dt() };
 
-		if (game.input.KeyPressed(Key::W)) {
-			camera.primary.Translate({ 0, -pan_speed * dt });
+		if (input.KeyPressed(Key::W)) {
+			Translate(camera,{ 0, -pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::S)) {
-			camera.primary.Translate({ 0, pan_speed * dt });
+		if (input.KeyPressed(Key::S)) {
+			Translate(camera,{ 0, pan_speed * dt });
 		}
-		if (game.input.KeyPressed(Key::A)) {
-			camera.primary.Translate({ -pan_speed * dt, 0 });
+		if (input.KeyPressed(Key::A)) {
+			Translate(camera,{ -pan_speed * dt, 0 });
 		}
-		if (game.input.KeyPressed(Key::D)) {
-			camera.primary.Translate({ pan_speed * dt, 0 });
-		}
-
-		if (game.input.KeyPressed(Key::Z)) {
-			camera.primary.Yaw(rotation_speed * dt);
+		if (input.KeyPressed(Key::D)) {
+			Translate(camera,{ pan_speed * dt, 0 });
 		}
 
-		if (game.input.KeyPressed(Key::X)) {
-			camera.primary.Yaw(-rotation_speed * dt);
+		if (input.KeyPressed(Key::Z)) {
+			camera.Yaw(rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::C)) {
-			camera.primary.Pitch(rotation_speed * dt);
+		if (input.KeyPressed(Key::X)) {
+			camera.Yaw(-rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::V)) {
-			camera.primary.Pitch(-rotation_speed * dt);
+		if (input.KeyPressed(Key::C)) {
+			camera.Pitch(rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::B)) {
-			camera.primary.Roll(rotation_speed * dt);
+		if (input.KeyPressed(Key::V)) {
+			camera.Pitch(-rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::N)) {
-			camera.primary.Roll(-rotation_speed * dt);
+		if (input.KeyPressed(Key::B)) {
+			camera.Roll(rotation_speed * dt);
 		}
 
-		if (game.input.KeyPressed(Key::E)) {
-			camera.primary.Zoom(zoom_speed * dt);
-		}
-		if (game.input.KeyPressed(Key::Q)) {
-			camera.primary.Zoom(-zoom_speed * dt);
+		if (input.KeyPressed(Key::N)) {
+			camera.Roll(-rotation_speed * dt);
 		}
 
-		if (game.input.KeyDown(Key::R)) {
-			camera.primary.SetPosition(center);
-			camera.primary.SetZoom(1.0f);
+		if (input.KeyPressed(Key::E)) {
+			camera.Zoom(zoom_speed * dt);
+		}
+		if (input.KeyPressed(Key::Q)) {
+			camera.Zoom(-zoom_speed * dt);
 		}
 
-		if (game.input.MouseDown(Mouse::Left)) {
+		if (input.KeyDown(Key::R)) {
+			camera.SetPosition(center);
+			camera.SetZoom(1.0f);
+		}
+
+		if (input.MouseDown(Mouse::Left)) {
 			mouse.SetPosition( =
-				camera.primary.TransformToCamera(game.input.GetMousePosition());
-			//camera.primary.PanTo(camera.primary.TransformToCamera(game.input.GetMousePosition()),
-seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (game.input.MouseDown(Mouse::Right)) {
-			camera.primary.StopFollow();
+				camera.TransformToCamera(input.GetMousePosition());
+			//camera.PanTo(camera.TransformToCamera(input.GetMousePosition()),
+seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (input.MouseDown(Mouse::Right)) {
+			StopFollow(camera);
 		}
 
 		const auto& r{ rt.Get<RenderTarget>() };
@@ -211,6 +221,44 @@ seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (game.input.MouseDown
 };
 */
 
+class PostProcessingEffect {
+public:
+	PostProcessingEffect() {}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
+		impl::RenderState state;
+		state.blend_mode  = GetBlendMode(entity);
+		state.shader_pass = entity.Get<impl::ShaderPass>();
+		state.post_fx	  = entity.GetOrDefault<PostFX>();
+		state.camera	  = entity.GetOrDefault<Camera>();
+		ctx.AddShader(entity, state, color::Transparent);
+	}
+};
+
+PTGN_DRAWABLE_REGISTER(PostProcessingEffect);
+
+Entity CreatePostFX(Scene& scene) {
+	auto effect{ scene.CreateEntity() };
+
+	SetDraw<PostProcessingEffect>(effect);
+	Show(effect);
+	SetBlendMode(effect, BlendMode::None);
+
+	return effect;
+}
+
+Entity CreateBlur(Scene& scene) {
+	auto blur{ CreatePostFX(scene) };
+	blur.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Blur>(), nullptr);
+	return blur;
+}
+
+Entity CreateGrayscale(Scene& scene) {
+	auto grayscale{ CreatePostFX(scene) };
+	grayscale.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Grayscale>(), nullptr);
+	return grayscale;
+}
+
 class CameraScene : public Scene {
 public:
 	const float pan_speed{ 200.0f };
@@ -218,72 +266,98 @@ public:
 	const float zoom_speed{ 0.4f };
 
 	Entity mouse;
-	FollowConfig follow_config;
+	TargetFollowConfig follow_config;
+
+	std::string content{ "The quick brown fox jumps over the lazy dog" };
+	Color color{ color::White };
+	FontSize font_size{ 20 };
+	V2_int center{ resolution / 2 };
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
+		//	camera.SetPixelRounding(true);
 		LoadResource("tree", "resources/test1.jpg");
 
 		mouse = CreateEntity();
-		mouse.SetPosition({});
+		SetPosition(mouse, {});
 
-		CreateSprite(*this, "tree").SetPosition({ 200, 400 });
-		CreateSprite(*this, "tree").SetPosition({ 600, 400 });
+		auto blur{ CreateBlur(*this) };
+		auto grayscale{ CreateGrayscale(*this) };
+		auto s1{ CreateSprite(*this, "tree", { 100, 400 }) };
+		AddPreFX(s1, blur);
+		auto s2{ CreateSprite(*this, "tree", { 700, 400 }) };
+		AddPostFX(s2, grayscale);
 
-		follow_config.move_mode	  = MoveMode::Lerp;
-		follow_config.lerp_factor = { 0.5f, 0.5f };
-		follow_config.deadzone	  = { 300, 300 };
+		follow_config.move_mode = MoveMode::Lerp;
+		follow_config.lerp		= { 0.5f, 0.5f };
+		follow_config.deadzone	= { 300, 300 };
 
-		// camera.primary.Shake(0.5f, seconds{ 5 });
-		// camera.primary.RotateTo(DegToRad(360.0f), seconds{ 5 });
-		//  camera.primary.Shake(1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
-		//  camera.primary.Shake(0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
-		// camera.primary.FadeTo(color::Black, seconds{ 5 });
-		camera.primary.StartFollow(mouse, follow_config);
+		// Shake(camera, 0.5f, seconds{ 5 });
+		// RotateTo(camera, DegToRad(360.0f), seconds{ 5 });
+		// Shake(camera, 1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// Shake(camera, 0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// FadeTo(camera, color::Red, seconds{ 5 });
+		// FadeFrom(camera, color::Red, seconds{ 3 }, SymmetricalEase::InOutBack, false);
+		// StartFollow(camera, mouse, follow_config);
 	}
 
 	void Update() override {
 		float dt{ game.dt() };
 
-		mouse.SetPosition(input.GetMousePosition());
+		/*	PTGN_LOG(
+				"Mouse screen pos: ", input.GetMouseWindowPosition(),
+				", Mouse world pos: ", input.GetMousePosition()
+			);*/
 
-		if (game.input.KeyPressed(Key::W)) {
-			camera.primary.Translate({ 0, -pan_speed * dt });
-		}
-		if (game.input.KeyPressed(Key::S)) {
-			camera.primary.Translate({ 0, pan_speed * dt });
-		}
-		if (game.input.KeyPressed(Key::A)) {
-			camera.primary.Translate({ -pan_speed * dt, 0 });
-		}
-		if (game.input.KeyPressed(Key::D)) {
-			camera.primary.Translate({ pan_speed * dt, 0 });
-		}
+		SetPosition(mouse, input.GetMousePosition());
 
-		if (game.input.KeyPressed(Key::Z)) {
-			camera.primary.Rotate(rotation_speed * dt);
+		if (input.KeyPressed(Key::W)) {
+			Translate(camera, { 0, -pan_speed * dt });
 		}
-
-		if (game.input.KeyPressed(Key::X)) {
-			camera.primary.Rotate(-rotation_speed * dt);
+		if (input.KeyPressed(Key::S)) {
+			Translate(camera, { 0, pan_speed * dt });
+		}
+		if (input.KeyPressed(Key::A)) {
+			Translate(camera, { -pan_speed * dt, 0 });
+		}
+		if (input.KeyPressed(Key::D)) {
+			Translate(camera, { pan_speed * dt, 0 });
 		}
 
-		if (game.input.KeyPressed(Key::E)) {
-			camera.primary.Zoom(zoom_speed * dt);
-		}
-		if (game.input.KeyPressed(Key::Q)) {
-			camera.primary.Zoom(-zoom_speed * dt);
+		if (input.KeyPressed(Key::Z)) {
+			Rotate(camera, rotation_speed * dt);
 		}
 
-		if (game.input.MouseDown(Mouse::Left)) {
-			camera.primary.StopFollow();
-		} else if (game.input.MouseDown(Mouse::Right)) {
-			camera.primary.StartFollow(mouse, follow_config);
+		if (input.KeyPressed(Key::X)) {
+			Rotate(camera, -rotation_speed * dt);
 		}
+
+		if (input.KeyPressed(Key::E)) {
+			camera.Zoom(zoom_speed * dt);
+		}
+		if (input.KeyPressed(Key::Q)) {
+			camera.Zoom(-zoom_speed * dt);
+		}
+
+		if (input.MouseDown(Mouse::Left)) {
+			StopFollow(camera);
+		} else if (input.MouseDown(Mouse::Right)) {
+			StartFollow(camera, mouse, follow_config);
+		}
+
+		DrawDebugText(
+			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
+			false
+		);
+		DrawDebugText(
+			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
+			true
+		);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Camera: WASD move, Q/E zoom");
+	game.Init("Camera: WASD move, Q/E zoom", resolution);
 	game.scene.Enter<CameraScene>("");
 	return 0;
 }

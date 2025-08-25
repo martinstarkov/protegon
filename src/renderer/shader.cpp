@@ -45,6 +45,37 @@ Shader::Shader(
 	Compile(vertex_shader.source_, fragment_shader.source_);
 }
 
+// Extract just the content inside R"( ... )"
+static void TrimRawStringLiteral(std::string& content) {
+	const std::string raw_start{ "R\"(" };
+	const std::string raw_end{ ")\"" };
+
+	std::size_t start{ content.find(raw_start) };
+	std::size_t end{ content.rfind(raw_end) };
+
+	if (start != std::string::npos && end != std::string::npos &&
+		end > start + raw_start.length()) {
+		content = content.substr(start + raw_start.length(), end - (start + raw_start.length()));
+	}
+}
+
+Shader::Shader(
+	const ShaderCode& vertex_shader, const path& fragment_shader_path, std::string_view shader_name
+) :
+	shader_name_{ shader_name } {
+	PTGN_ASSERT(
+		FileExists(fragment_shader_path),
+		"Cannot create shader from nonexistent fragment shader path: ",
+		fragment_shader_path.string()
+	);
+	Create();
+	auto fragment_source{ FileToString(fragment_shader_path) };
+
+	TrimRawStringLiteral(fragment_source);
+
+	Compile(vertex_shader.source_, fragment_source);
+}
+
 Shader::Shader(
 	const path& vertex_shader_path, const path& fragment_shader_path, std::string_view shader_name
 ) :

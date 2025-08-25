@@ -1,76 +1,69 @@
 #include "renderer/render_target.h"
 
 #include <functional>
-#include <memory>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/drawable.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "core/window.h"
-#include "events/event_handler.h"
-#include "events/events.h"
+#include "core/game_object.h"
+#include "core/manager.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
+#include "debug/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/texture.h"
-#include "scene/scene.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 
 namespace impl {
 
-RenderTarget CreateRenderTarget(
-	const Entity& entity, const Color& clear_color, TextureFormat texture_format
+RenderTarget AddRenderTargetComponents(
+	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
 	PTGN_ASSERT(entity);
-	V2_int size{ game.window.GetSize() };
-	RenderTarget render_target{ CreateRenderTarget(entity, size, clear_color, texture_format) };
-	game.event.window.Subscribe(
-		WindowEvent::Resized, entity, std::function([entity](const WindowResizedEvent& e) {
-			RenderTarget{ entity }.GetTexture().Resize(e.size);
-		})
-	);
-	return render_target;
-}
 
-RenderTarget CreateRenderTarget(
-	const Entity& entity, const V2_float& size, const Color& clear_color,
-	TextureFormat texture_format
-) {
 	RenderTarget render_target{ entity };
-	render_target.SetPosition({});
-	render_target.SetDraw<RenderTarget>();
+
+	SetPosition(render_target, {});
+
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();
-	render_target.Show();
-	// TODO: Add camera which resizes with size.
 	render_target.Add<impl::ClearColor>(clear_color);
+	SetDraw<RenderTarget>(render_target);
+	Show(render_target);
+
 	// TODO: Move frame buffer object to a FrameBufferManager.
 	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
 		nullptr, size, texture_format }) };
+
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
+
 	render_target.Clear();
+
 	return render_target;
 }
 
+void LogicalRenderTargetResizeScript::OnLogicalResolutionChanged() {
+	auto logical_resolution{ game.renderer.GetLogicalResolution() };
+	RenderTarget{ entity }.Resize(logical_resolution);
+}
+
+void PhysicalRenderTargetResizeScript::OnPhysicalResolutionChanged() {
+	auto physical_resolution{ game.renderer.GetPhysicalResolution() };
+	RenderTarget{ entity }.Resize(physical_resolution);
+}
+
 } // namespace impl
-
-RenderTarget CreateRenderTarget(
-	Scene& scene, const V2_float& size, const Color& clear_color, TextureFormat texture_format
-) {
-	return impl::CreateRenderTarget(scene.CreateEntity(), size, clear_color, texture_format);
-}
-
-RenderTarget CreateRenderTarget(
-	Scene& scene, const Color& clear_color, TextureFormat texture_format
-) {
-	return impl::CreateRenderTarget(scene.CreateEntity(), clear_color, texture_format);
-}
 
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
@@ -121,9 +114,7 @@ void RenderTarget::ClearDisplayList() {
 
 void RenderTarget::AddToDisplayList(Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot add invalid entity to render target");
-	PTGN_ASSERT(
-		entity.Has<IDrawable>(), "Entity added to render target display list must be drawable"
-	);
+	PTGN_ASSERT(HasDraw(entity), "Entity added to render target display list must be drawable");
 	// TODO: Consider allowing render targets to be rendered to other render targets.
 	PTGN_ASSERT(
 		!entity.Has<impl::FrameBuffer>(),
@@ -138,13 +129,11 @@ void RenderTarget::AddToDisplayList(Entity& entity) {
 
 void RenderTarget::RemoveFromDisplayList(Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot remove invalid entity from render target");
-	PTGN_ASSERT(
-		entity.Has<IDrawable>(), "Entity remove from render target display list must be drawable"
-	);
+	PTGN_ASSERT(HasDraw(entity), "Entity remove from render target display list must be drawable");
 	entity.Remove<RenderTarget>();
 	PTGN_ASSERT(Has<impl::DisplayList>());
 	auto& dl{ Get<impl::DisplayList>().entities };
-	dl.erase(std::remove(dl.begin(), dl.end(), entity), dl.end());
+	std::erase(dl, entity);
 }
 
 const std::vector<Entity>& RenderTarget::GetDisplayList() const {
@@ -167,10 +156,6 @@ const impl::Texture& RenderTarget::GetTexture() const {
 	return GetFrameBuffer().GetTexture();
 }
 
-impl::Texture& RenderTarget::GetTexture() {
-	return Get<impl::FrameBuffer>().GetTexture();
-}
-
 const impl::FrameBuffer& RenderTarget::GetFrameBuffer() const {
 	return Get<impl::FrameBuffer>();
 }
@@ -183,6 +168,49 @@ void RenderTarget::ForEachPixel(
 	const std::function<void(V2_int, Color)>& func, bool restore_bind_state
 ) const {
 	return GetFrameBuffer().ForEachPixel(func, restore_bind_state);
+}
+
+void RenderTarget::Resize(const V2_int& size) {
+	Get<impl::FrameBuffer>().GetTexture().Resize(size);
+}
+
+RenderTarget CreateRenderTarget(
+	Manager& manager, ResizeToResolution resize_to_resolution, const Color& clear_color,
+	TextureFormat texture_format
+) {
+	RenderTarget render_target{ manager.CreateEntity() };
+
+	V2_int resolution;
+
+	if (resize_to_resolution == ResizeToResolution::Physical) {
+		resolution = game.renderer.GetPhysicalResolution();
+		AddScript<impl::PhysicalRenderTargetResizeScript>(render_target);
+	} else if (resize_to_resolution == ResizeToResolution::Logical) {
+		resolution = game.renderer.GetLogicalResolution();
+		AddScript<impl::LogicalRenderTargetResizeScript>(render_target);
+	} else {
+		PTGN_ERROR("Unknown resize to resolution value");
+	}
+
+	PTGN_ASSERT(
+		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
+	);
+
+	render_target =
+		impl::AddRenderTargetComponents(render_target, resolution, clear_color, texture_format);
+
+	PTGN_ASSERT(render_target);
+
+	return render_target;
+}
+
+RenderTarget CreateRenderTarget(
+	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format
+) {
+	auto render_target{
+		impl::AddRenderTargetComponents(manager.CreateEntity(), size, clear_color, texture_format)
+	};
+	return render_target;
 }
 
 } // namespace ptgn

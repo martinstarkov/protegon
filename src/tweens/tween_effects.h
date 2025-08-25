@@ -1,255 +1,159 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
-#include <deque>
+#include <functional>
+#include <vector>
 
 #include "common/assert.h"
 #include "core/entity.h"
+#include "core/entity_hierarchy.h"
+#include "core/game_object.h"
 #include "core/time.h"
-#include "core/timer.h"
 #include "math/easing.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "serialization/serializable.h"
 #include "tweens/follow_config.h"
 #include "tweens/shake_config.h"
+#include "tweens/tween.h"
 
 namespace ptgn {
 
-class Scene;
+class Manager;
 
 namespace impl {
 
-struct FollowEffectInfo {
-	FollowEffectInfo() = default;
+struct Offsets;
 
-	FollowEffectInfo(Entity follow_target, const FollowConfig& follow_config);
+template <typename T>
+struct Effect {
+	Effect() = default;
 
-	Entity target;
-	FollowConfig config;
+	Effect(const T& start) : start{ start } {}
+
+	T start{};
+
+	bool operator==(const Effect&) const = default;
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Effect, start)
+};
+
+struct TranslateEffect : public Effect<V2_float> {};
+
+struct RotateEffect : public Effect<float> {};
+
+struct ScaleEffect : public Effect<V2_float> {};
+
+struct TintEffect : public Effect<Color> {};
+
+struct FollowEffect {
+	FollowEffect() = default;
 
 	std::size_t current_waypoint{ 0 };
 
-	friend bool operator==(const FollowEffectInfo& a, const FollowEffectInfo& b) {
-		return a.target == b.target && a.config == b.config &&
-			   a.current_waypoint == b.current_waypoint;
-	}
+	// Cache for comparing when a waypoint path changes.
+	std::vector<V2_float> waypoints;
 
-	friend bool operator!=(const FollowEffectInfo& a, const FollowEffectInfo& b) {
-		return !(a == b);
-	}
+	bool operator==(const FollowEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffectInfo, target, config, current_waypoint)
-};
-
-struct FollowEffect {
-	std::deque<FollowEffectInfo> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, tasks)
-};
-
-template <typename T>
-struct EffectInfo {
-	EffectInfo() = default;
-
-	EffectInfo(
-		const T& start, const T& target, milliseconds tween_duration, const Ease& tween_ease
-	) :
-		start_value{ start },
-		target_value{ target },
-		duration{ tween_duration },
-		ease{ tween_ease } {}
-
-	T start_value{};
-	T target_value{};
-	milliseconds duration{ 0 };
-	Ease ease{ SymmetricalEase::Linear };
-	Timer timer;
-
-	friend bool operator==(const EffectInfo& a, const EffectInfo& b) {
-		return a.start_value == b.start_value && a.target_value == b.target_value &&
-			   a.duration == b.duration && a.ease == b.ease && a.timer == b.timer;
-	}
-
-	friend bool operator!=(const EffectInfo& a, const EffectInfo& b) {
-		return !(a == b);
-	}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		EffectInfo, start_value, target_value, duration, ease, timer
-	)
-};
-
-struct TranslateEffect {
-	std::deque<EffectInfo<V2_float>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TranslateEffect, tasks)
-};
-
-struct RotateEffect {
-	std::deque<EffectInfo<float>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RotateEffect, tasks)
-};
-
-struct ScaleEffect {
-	std::deque<EffectInfo<V2_float>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ScaleEffect, tasks)
-};
-
-struct TintEffect {
-	std::deque<EffectInfo<Color>> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TintEffect, tasks)
-};
-
-struct BounceEffectInfo {
-	BounceEffectInfo() = default;
-
-	BounceEffectInfo(
-		const V2_float& amplitude, milliseconds duration, const Ease& ease,
-		const V2_float& static_offset, std::int64_t total_periods, bool symmetrical
-	);
-
-	V2_float amplitude;
-	milliseconds duration{ 0 };
-	Ease ease{ SymmetricalEase::Linear };
-	Timer timer;
-	V2_float static_offset;
-	std::int64_t total_periods{ -1 };	 // -1 means infinite
-	std::int64_t periods_completed{ 0 }; // How many times the bounce has repeated so far.
-	bool symmetrical{ false }; // If true, bounce origin is the middle point of the movement. If
-							   // false, bounce origin is the bottom (or top) point of the movement.
-
-	friend bool operator==(const BounceEffectInfo& a, const BounceEffectInfo& b) {
-		return a.amplitude == b.amplitude && a.duration == b.duration && a.ease == b.ease &&
-			   a.timer == b.timer && a.static_offset == b.static_offset &&
-			   a.total_periods == b.total_periods && a.periods_completed == b.periods_completed &&
-			   a.symmetrical == b.symmetrical;
-	}
-
-	friend bool operator!=(const BounceEffectInfo& a, const BounceEffectInfo& b) {
-		return !(a == b);
-	}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		BounceEffectInfo, amplitude, duration, ease, timer, static_offset, total_periods,
-		periods_completed, symmetrical
-	)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(FollowEffect, current_waypoint, waypoints)
 };
 
 struct BounceEffect {
-	std::deque<BounceEffectInfo> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(BounceEffect, tasks)
+	BounceEffect() = default;
 };
 
-struct ShakeEffectInfo : public EffectInfo<float> {
-	ShakeEffectInfo() = default;
-
-	ShakeEffectInfo(
-		float start_intensity, float target_intensity, milliseconds duration, const Ease& ease,
-		const ShakeConfig& config, std::int32_t seed
-	);
-
-	ShakeConfig config;
-
-	// Perlin noise seed.
-	std::int32_t seed{ 0 };
+struct ShakeEffect {
+	ShakeEffect() = default;
 
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
 
-	friend bool operator==(const ShakeEffectInfo& a, const ShakeEffectInfo& b) {
-		return NearlyEqual(a.trauma, b.trauma) && a.config == b.config && a.seed == b.seed;
-	}
+	float previous_target{ 0.0f };
 
-	friend bool operator!=(const ShakeEffectInfo& a, const ShakeEffectInfo& b) {
-		return !(a == b);
-	}
+	bool operator==(const ShakeEffect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		ShakeEffectInfo, start_value, target_value, duration, ease, timer, config, seed, trauma
-	)
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, trauma, previous_target)
 };
 
-struct ShakeEffect {
-	std::deque<ShakeEffectInfo> tasks;
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(ShakeEffect, tasks)
+template <typename TComponent>
+struct EffectObject : public GameObject<Tween> {
+	using GameObject::GameObject;
 };
 
-class TranslateEffectSystem {
-public:
-	void Update(Scene& scene) const;
-};
+template <typename TComponent>
+EffectObject<TComponent>& GetTween(Entity& entity) {
+	EffectObject<TComponent>* tween{ nullptr };
 
-class RotateEffectSystem {
-public:
-	void Update(Scene& scene) const;
-};
-
-class ScaleEffectSystem {
-public:
-	void Update(Scene& scene) const;
-};
-
-class TintEffectSystem {
-public:
-	void Update(Scene& scene) const;
-};
-
-class BounceEffectSystem {
-public:
-	void Update(Scene& scene) const;
-
-private:
-	[[nodiscard]] static float ApplyEase(float t, bool symmetrical, const Ease& ease);
-};
-
-class ShakeEffectSystem {
-public:
-	void Update(Scene& scene, float time, float dt) const;
-};
-
-class FollowEffectSystem {
-public:
-	void Update(Scene& scene) const;
-};
-
-template <typename TComponent, typename T>
-void AddTweenEffect(
-	Entity& entity, const T& target, milliseconds duration, const Ease& ease, bool force,
-	const T& current_value
-) {
-	PTGN_ASSERT(duration >= milliseconds{ 0 }, "Tween effect must have a positive duration");
-
-	auto& comp{ entity.TryAdd<TComponent>() };
-
-	T start{};
-
-	bool first_task{ force || comp.tasks.empty() };
-
-	if (first_task) {
-		comp.tasks.clear();
-		start = current_value;
+	if (!entity.Has<EffectObject<TComponent>>()) {
+		tween = &entity.Add<EffectObject<TComponent>>(CreateTween(entity.GetManager()));
+		SetParent(*tween, entity);
 	} else {
-		// Use previous task's target value as new starting point.
-		start = comp.tasks.back().target_value;
+		tween = &entity.Get<EffectObject<TComponent>>();
 	}
 
-	auto& task{ comp.tasks.emplace_back(start, target, duration, ease) };
+	PTGN_ASSERT(tween);
 
-	if (first_task) {
-		task.timer.Start(true);
-	}
+	return *tween;
 }
 
-void BounceImpl(
+template <typename TComponent, typename T>
+EffectObject<TComponent>& AddTweenEffect(
+	Entity& entity, const T& target, milliseconds duration, const Ease& ease, bool force,
+	const std::function<T(Entity)>& get_current_value,
+	const std::function<void(Entity, T)>& set_current_value
+) {
+	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween effect must have a positive duration");
+
+	EffectObject<TComponent>& tween{ GetTween<TComponent>(entity) };
+
+	tween.template TryAdd<TComponent>();
+
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+
+	auto update_start = [get_current_value](auto e) mutable {
+		auto& value{ e.template Get<TComponent>() };
+		Entity parent{ GetParent(e) };
+		value.start = get_current_value(parent);
+	};
+
+	tween.During(duration)
+		.Ease(ease)
+		.OnStart(update_start)
+		.OnProgress([target, set_current_value](Entity e, float progress) mutable {
+			auto& value{ e.template Get<TComponent>() };
+			auto result{ Lerp(value.start, target, progress) };
+			Entity parent{ GetParent(e) };
+			set_current_value(parent, result);
+		})
+		.OnPointComplete(update_start)
+		.OnComplete(update_start)
+		.OnStop(update_start)
+		.OnReset(update_start);
+	tween.Start(force);
+
+	return tween;
+}
+
+EffectObject<BounceEffect>& BounceImpl(
 	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
 	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
 );
+
+void ApplyShake(impl::Offsets& offsets, float trauma, const ShakeConfig& config, std::int32_t seed);
+
+V2_float GetFollowPosition(
+	const FollowConfig& config, const V2_float& position, const V2_float& target_position
+);
+
+void VelocityModeMoveImpl(const FollowConfig& config, Entity& parent, const V2_float& dir);
+
+void EntityFollowStartImpl(Entity& parent, const FollowConfig& config);
+
+void EntityFollowStopImpl(Entity tween);
 
 } // namespace impl
 
@@ -263,7 +167,7 @@ void BounceImpl(
  * @param ease The easing function to apply for the translation animation.
  * @param force If true, forcibly overrides any ongoing translation.
  */
-void TranslateTo(
+impl::EffectObject<impl::TranslateEffect>& TranslateTo(
 	Entity& entity, const V2_float& target_position, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -278,7 +182,7 @@ void TranslateTo(
  * @param ease The easing function to apply for the rotation animation.
  * @param force If true, forcibly overrides any ongoing rotation.
  */
-void RotateTo(
+impl::EffectObject<impl::RotateEffect>& RotateTo(
 	Entity& entity, float target_angle, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -292,7 +196,7 @@ void RotateTo(
  * @param ease The easing function to apply for the scale animation.
  * @param force If true, forcibly overrides any ongoing scaling.
  */
-void ScaleTo(
+impl::EffectObject<impl::ScaleEffect>& ScaleTo(
 	Entity& entity, const V2_float& target_scale, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -306,7 +210,7 @@ void ScaleTo(
  * @param ease The easing function to apply for the tint animation.
  * @param force If true, forcibly overrides any ongoing tinting.
  */
-void TintTo(
+impl::EffectObject<impl::TintEffect>& TintTo(
 	Entity& entity, const Color& target_tint, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
@@ -319,7 +223,7 @@ void TintTo(
  * @param ease The easing function used to interpolate the fade.
  * @param force If true, the fade-in will override any ongoing fade effect.
  */
-void FadeIn(
+impl::EffectObject<impl::TintEffect>& FadeIn(
 	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 	bool force = true
 );
@@ -332,7 +236,7 @@ void FadeIn(
  * @param ease The easing function used to interpolate the fade.
  * @param force If true, the fade-out will override any ongoing fade effect.
  */
-void FadeOut(
+impl::EffectObject<impl::TintEffect>& FadeOut(
 	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 	bool force = true
 );
@@ -353,7 +257,7 @@ void FadeOut(
  * @param static_offset A constant offset added to the entity's position throughout the bounce.
  * @param force If true, overrides any existing bounce effect on the entity.
  */
-void Bounce(
+impl::EffectObject<impl::BounceEffect>& Bounce(
 	Entity& entity, const V2_float& bounce_amplitude, milliseconds duration,
 	std::int64_t total_periods = -1, const Ease& ease = SymmetricalEase::Linear,
 	const V2_float& static_offset = {}, bool force = true
@@ -378,7 +282,7 @@ void Bounce(
  * @param static_offset A constant offset added to the entity's position throughout the bounce.
  * @param force If true, overrides any existing bounce effect on the entity.
  */
-void SymmetricalBounce(
+impl::EffectObject<impl::BounceEffect>& SymmetricalBounce(
 	Entity& entity, const V2_float& bounce_amplitude, milliseconds duration,
 	std::int64_t total_periods = -1, SymmetricalEase ease = SymmetricalEase::Linear,
 	const V2_float& static_offset = {}, bool force = true
@@ -396,28 +300,52 @@ void StopBounce(Entity& entity, bool force = true);
  * @brief Applies a continuous shake effect to the specified entity.
  *
  * @param entity The entity to apply the shake effect to.
- * @param intensity The intensity of the shake, in the range [0, 1].
+ * @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
+ * existing shake trauma).
  * @param duration The total duration of the shake effect. If -1, the shake continues until
  * StopShake is called.
  * @param config Configuration parameters for the shake behavior.
  * @param ease The easing function to use for the shake. If SymmetricalEase::None, shake remains at
  * full intensity for the entire time.
  * @param force If true, overrides any existing shake effect.
+ * @param reset_trauma If true, resets the trauma immediately upon completing the final queued shake
+ * effect.
  */
-void Shake(
+impl::EffectObject<impl::ShakeEffect>& Shake(
 	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
-	const Ease& ease = SymmetricalEase::None, bool force = true
+	const Ease& ease = SymmetricalEase::None, bool force = true, bool reset_trauma = false
+);
+
+/**
+ * @brief Applies a continuous constant shake of a given intensity to the specified entity.
+ *
+ * @param entity The entity to apply the shake effect to.
+ * @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
+ * existing shake trauma).
+ * @param duration The total duration of the shake effect. If -1, the shake continues until
+ * StopShake is called.
+ * @param config Configuration parameters for the shake behavior.
+ * @param force If true, overrides any existing shake effect.
+ * @param reset_trauma If true, resets the trauma immediately upon completing the final queued shake
+ * effect.
+ */
+impl::EffectObject<impl::ShakeEffect>& Shake(
+	Entity& entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
+	bool force = true, bool reset_trauma = false
 );
 
 /**
  * @brief Applies an instantenous shake effect to the specified entity.
  *
  * @param entity The entity to apply the shake effect to.
- * @param intensity The intensity of the shake, in the range [0, 1].
+ * @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
+ * existing shake trauma).
  * @param config Configuration parameters for the shake behavior.
  * @param force If true, overrides any existing shake effect.
  */
-void Shake(Entity& entity, float intensity, const ShakeConfig& config = {}, bool force = true);
+impl::EffectObject<impl::ShakeEffect>& Shake(
+	Entity& entity, float intensity, const ShakeConfig& config = {}, bool force = true
+);
 
 /**
  * @brief Stops any ongoing shake effect on the specified entity.
@@ -436,14 +364,36 @@ void StopShake(Entity& entity, bool force = true);
  * @param config The configuration parameters that define how the follow behavior should operate.
  * @param force If true, forces the replacement of any existing follow behavior on the entity.
  */
-void StartFollow(Entity entity, Entity target, FollowConfig config = {}, bool force = true);
+impl::EffectObject<impl::FollowEffect>& StartFollow(
+	Entity entity, Entity target, const TargetFollowConfig& config = {}, bool force = true
+);
+
+/**
+ * @brief Starts a follow behavior where the entity follows a path of waypoints based on the
+ * specified configuration.
+ *
+ * @param entity The entity that will follow the target.
+ * @param waypoints The set of waypoints the entity will visit during the follow.
+ * @param config The configuration parameters that define how the follow behavior should operate.
+ * @param force If true, forces the replacement of any existing follow behavior on the entity.
+ * @param reset_waypoint_index If true, resets the waypoint index to 0. If false, continues where it
+ * started as long as waypoints have not changed or the end has not been reached (if
+ * config.loop_path is false).
+ */
+impl::EffectObject<impl::FollowEffect>& StartFollow(
+	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config = {},
+	bool force = true, bool reset_waypoint_index = false
+);
 
 /**
  * @brief Stops any active follow behavior on the specified entity.
  *
  * @param entity The entity whose follow behavior should be stopped.
  * @param force If true, clears all queued follows effects.
+ * @param reset_previous_waypoints If true, resets the previously set waypoints. If false, a new
+ * follow will continue where it started as long as waypoints have not changed or the end has not
+ * been reached (if config.loop_path is false).
  */
-void StopFollow(Entity entity, bool force = true);
+void StopFollow(Entity entity, bool force = true, bool reset_previous_waypoints = false);
 
 } // namespace ptgn

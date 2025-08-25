@@ -3,6 +3,7 @@
 #include <string>
 
 #include "audio/audio.h"
+#include "components/draw.h"
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/time.h"
@@ -17,22 +18,6 @@
 #include "ui/button.h"
 
 using namespace ptgn;
-
-class AudioScript : public Script<AudioScript> {
-public:
-	AudioScript() = default;
-
-	explicit AudioScript(const std::function<void()>& on_activate_callback) :
-		on_activate{ on_activate_callback } {}
-
-	void OnButtonActivate() override {
-		if (on_activate) {
-			std::invoke(on_activate);
-		}
-	}
-
-	std::function<void()> on_activate;
-};
 
 class AudioScene : public Scene {
 public:
@@ -70,11 +55,12 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		b.AddScript<AudioScript>(on_activate);
+		b.OnActivate(on_activate);
 		return b;
 	}
 
 	void Enter() override {
+		game.window.SetSetting(WindowSetting::Resizable);
 		game.music.Load("music1", "resources/music1.ogg");
 		game.sound.Load("sound1", "resources/sound1.ogg");
 		game.music.Load("music2", "resources/music2.ogg");
@@ -286,8 +272,8 @@ public:
 
 		grid.ForEach([size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
-				b.SetPosition(coord * (size + offset) + offset);
-				b.SetOrigin(Origin::TopLeft);
+				SetPosition(b, coord * (size + offset) + offset);
+				SetDrawOrigin(b, Origin::TopLeft);
 				b.SetSize(size);
 			}
 		});

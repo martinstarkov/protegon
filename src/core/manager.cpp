@@ -2,27 +2,26 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/uuid.h"
 #include "core/entity.h"
-#include "core/game.h"
 #include "ecs/ecs.h"
 #include "nlohmann/json.hpp"
 #include "serialization/component_registry.h"
 #include "serialization/fwd.h"
-#include "serialization/json.h"
 #include "serialization/json_archiver.h"
 
 namespace ptgn {
 
 void Manager::Refresh() {
-	Parent::Refresh();
+	ManagerBase::Refresh();
 }
 
 void Manager::Reserve(std::size_t capacity) {
-	Parent::Reserve(capacity);
+	ManagerBase::Reserve(capacity);
 }
 
 Entity Manager::GetEntityByUUID(const UUID& uuid) const {
@@ -45,8 +44,8 @@ Entity Manager::CreateEntity(const json& j) {
 }
 
 Entity Manager::CreateEntity(UUID uuid) {
-	Entity entity{ Parent::CreateEntity() };
-	entity.Add<UUID>(uuid);
+	Entity entity{ ManagerBase::CreateEntity() };
+	impl::EntityAccess::Add<UUID>(entity, uuid);
 	return entity;
 }
 
@@ -55,15 +54,15 @@ Entity Manager::CreateEntity() {
 }
 
 std::size_t Manager::Size() const {
-	return Parent::Size();
+	return ManagerBase::Size();
 }
 
 bool Manager::IsEmpty() const {
-	return Parent::IsEmpty();
+	return ManagerBase::IsEmpty();
 }
 
 std::size_t Manager::Capacity() const {
-	return Parent::Capacity();
+	return ManagerBase::Capacity();
 }
 
 void Manager::ClearEntities() {
@@ -73,12 +72,14 @@ void Manager::ClearEntities() {
 }
 
 void Manager::Clear() {
-	return Parent::Clear();
+	return ManagerBase::Clear();
 }
 
 void Manager::Reset() {
-	return Parent::Reset();
+	return ManagerBase::Reset();
 }
+
+Manager::Manager(ManagerBase&& manager) : ManagerBase{ std::move(manager) } {}
 
 void to_json(json& j, const Manager& manager) {
 	j["next_entity"]	  = manager.next_entity_;

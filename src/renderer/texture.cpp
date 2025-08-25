@@ -557,7 +557,7 @@ void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)
 		for (int i{ 0 }; i < size.x; i++) {
 			V2_int coordinate{ i, j };
 			auto index{ idx_row + static_cast<std::size_t>(i) };
-			std::invoke(function, coordinate, GetPixel(index));
+			function(coordinate, GetPixel(index));
 		}
 	}
 }

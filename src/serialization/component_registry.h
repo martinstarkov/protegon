@@ -6,12 +6,12 @@
 
 #include "common/type_info.h"
 #include "components/animation.h"
-#include "components/common.h"
 #include "components/draw.h"
-#include "components/input.h"
+#include "components/interactive.h"
 #include "components/lifetime.h"
 #include "components/movement.h"
 #include "components/offsets.h"
+#include "components/relatives.h"
 #include "components/sprite.h"
 #include "components/transform.h"
 #include "components/uuid.h"
@@ -73,7 +73,7 @@ public:
 	static void AddTypes(Manager& manager) {
 		const auto& registry{ GetData() };
 		for (const auto& [type_name, component_func] : registry) {
-			std::invoke(component_func, manager);
+			component_func(manager);
 		}
 	}
 };
@@ -90,7 +90,6 @@ public:
 	static TComponent##Registration global_##TComponent##Registration; \
 	}
 
-PTGN_REGISTER_COMPONENT(Enabled)
 PTGN_REGISTER_COMPONENT(Visible)
 PTGN_REGISTER_COMPONENT(Tint)
 PTGN_REGISTER_COMPONENT(Depth)
@@ -142,13 +141,14 @@ PTGN_REGISTER_COMPONENT(CameraInfo)
 PTGN_REGISTER_COMPONENT(SceneComponent)
 PTGN_REGISTER_COMPONENT(TransitionType)
 PTGN_REGISTER_COMPONENT(SceneTransition)
-PTGN_REGISTER_COMPONENT(FollowConfig)
+PTGN_REGISTER_COMPONENT(TargetFollowConfig)
+PTGN_REGISTER_COMPONENT(PathFollowConfig)
 PTGN_REGISTER_COMPONENT(ShakeConfig)
-PTGN_REGISTER_COMPONENT(FollowEffect)
 PTGN_REGISTER_COMPONENT(TranslateEffect)
 PTGN_REGISTER_COMPONENT(RotateEffect)
 PTGN_REGISTER_COMPONENT(ScaleEffect)
 PTGN_REGISTER_COMPONENT(TintEffect)
+PTGN_REGISTER_COMPONENT(FollowEffect)
 PTGN_REGISTER_COMPONENT(BounceEffect)
 PTGN_REGISTER_COMPONENT(ShakeEffect)
 PTGN_REGISTER_COMPONENT(TweenInstance)
