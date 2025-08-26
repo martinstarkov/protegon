@@ -137,10 +137,12 @@ void RenderTarget::RemoveFromDisplayList(Entity& entity) {
 }
 
 const std::vector<Entity>& RenderTarget::GetDisplayList() const {
+	PTGN_ASSERT(Has<impl::DisplayList>());
 	return Get<impl::DisplayList>().entities;
 }
 
 std::vector<Entity>& RenderTarget::GetDisplayList() {
+	PTGN_ASSERT(Has<impl::DisplayList>());
 	return Get<impl::DisplayList>().entities;
 }
 
