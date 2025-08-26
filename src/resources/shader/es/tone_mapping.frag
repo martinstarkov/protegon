@@ -20,7 +20,7 @@ void main() {
     // Alternative: Exposure tone mapping
     vec3 mapped = vec3(1.0f) - exp(-hdr_color * u_Exposure);
 
-    // Gamma correction. When this was enabled, black areas of the screen became red.
+    // Gamma correction.
     mapped = pow(mapped, vec3(1.0f / u_Gamma));
 
 	o_Color = vec4(mapped, tex.a);
