@@ -4,10 +4,12 @@
 #include <array>
 #include <concepts>
 #include <map>
+#include <memory>
 #include <ranges>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace ptgn {
@@ -89,7 +91,12 @@ template <typename Key, typename Value, typename Compare, typename Alloc>
 
 template <typename T>
 [[nodiscard]] static bool VectorContains(const std::vector<T>& container, const T& value) {
-	return std::find(container.begin(), container.end(), value) != container.end();
+	return std::ranges::find(container, value) != container.end();
+}
+
+template <typename T, typename Predicate>
+[[nodiscard]] static bool VectorFindIf(const std::vector<T>& container, Predicate&& condition) {
+	return std::ranges::find_if(container, std::forward<Predicate>(condition)) != container.end();
 }
 
 template <typename Type, std::size_t... sizes>
@@ -139,6 +146,75 @@ static void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 		return;
 	}
 	std::swap(*it1, *it2);
+}
+
+// Do not emplace if condition is true.
+// @return first True if emplaced, false if condition was met
+//         second Reference to emplaced or existing element.
+template <typename T, typename Predicate, typename... Args>
+static std::pair<bool, T&> VectorTryEmplaceIf(
+	std::vector<T>& vec, Predicate&& condition, Args&&... args
+) {
+	for (auto& item : vec) {
+		if (condition(item)) {
+			return { false, item };
+		}
+	}
+	return { true, vec.emplace_back(std::forward<Args>(args)...) };
+}
+
+// Do not emplace if condition is true.
+// @return first True if emplaced, false if condition was met
+//         second Reference to emplaced or existing element.
+template <typename T, typename Predicate, typename... Args>
+static std::pair<bool, T&> VectorTryEmplaceIf(
+	std::vector<std::shared_ptr<T>>& vec, Predicate&& condition, Args&&... args
+) {
+	for (const auto& item : vec) {
+		if (condition(item)) {
+			return { false, item };
+		}
+	}
+	return { true, vec.emplace_back(std::make_shared<T>(std::forward<Args>(args)...)) };
+}
+
+// @return first True if replaced, false if emplaced.
+//         second Reference to replaced or emplaced element.
+template <typename T, typename Predicate, typename... Args>
+static std::pair<bool, T&> VectorReplaceOrEmplaceIf(
+	std::vector<T>& vec, Predicate&& condition, Args&&... args
+) {
+	for (auto& item : vec) {
+		if (condition(item)) {
+			item = T{ std::forward<Args>(args)... };
+			return { true, item }; // Replaced.
+		}
+	}
+	return { false, vec.emplace_back(std::forward<Args>(args)...) }; // Emplaced.
+}
+
+// @return first True if replaced, false if emplaced.
+//         second Reference to replaced or emplaced element.
+template <typename T, typename Predicate, typename... Args>
+static std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
+	std::vector<std::shared_ptr<T>>& vec, Predicate&& condition, Args&&... args
+) {
+	for (auto& item : vec) {
+		if (condition(item)) {
+			item = std::make_shared<T>(std::forward<Args>(args)...);
+			return { true, item }; // Replaced.
+		}
+	}
+	return { false,
+			 vec.emplace_back(std::make_shared<T>(std::forward<Args>(args)...)) }; // Emplaced.
+}
+
+// @return True if the element was erased from the vector, false otherwise.
+template <typename T, typename Predicate>
+static bool VectorEraseIf(std::vector<T>& v, Predicate&& condition) {
+	auto before{ v.size() };
+	std::erase_if(v, condition);
+	return v.size() != before;
 }
 
 // @return True if the element was erased from the vector, false otherwise.
