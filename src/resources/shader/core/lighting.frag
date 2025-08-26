@@ -55,7 +55,7 @@ void main() {
 
     // Various alternative light attenuation functions:
     //float attenuation = attenuate_no_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
-    // float attenuation = 1.0f / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
+    //float attenuation = 1.0f / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
     //float attenuation = 1.0f - distance * distance / (u_LightRadius * u_LightRadius);
     //float attenuation = 1.0f - smoothstep(0.0f, u_LightRadius, distance);
     //float attenuation = pow(clamp(1.0f - distance / u_LightRadius, 0.0f, 1.0f), 2.0f) * u_LightIntensity;

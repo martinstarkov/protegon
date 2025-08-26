@@ -15,7 +15,7 @@ uniform float u_LightRadius;
 uniform float u_Falloff;
 uniform vec3 u_AmbientColor;
 uniform float u_AmbientIntensity;
-//uniform vec3 u_LightAttenuation;
+uniform vec3 u_LightAttenuation;
 
 float sqr(float x) {
     return x * x;
@@ -53,11 +53,11 @@ void main() {
     float attenuation = attenuate_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
 
     // Various alternative light attenuation functions:
-    // float attenuation = attenuate_no_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
-    // float attenuation = 1.0f / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
-    // float attenuation = 1.0f - distance * distance / (u_LightRadius * u_LightRadius);
-    // float attenuation = 1.0f - smoothstep(0.0f, u_LightRadius, distance);
-    // float attenuation = pow(clamp(1.0f - distance / u_LightRadius, 0.0f, 1.0f), 2.0f) * u_LightIntensity;
+    //float attenuation = attenuate_no_cusp(distance, u_LightRadius, u_LightIntensity, u_Falloff);
+    //float attenuation = 1.0f / (u_LightAttenuation.x + u_LightAttenuation.y * distance + u_LightAttenuation.z * distance * distance);
+    //float attenuation = 1.0f - distance * distance / (u_LightRadius * u_LightRadius);
+    //float attenuation = 1.0f - smoothstep(0.0f, u_LightRadius, distance);
+    //float attenuation = pow(clamp(1.0f - distance / u_LightRadius, 0.0f, 1.0f), 2.0f) * u_LightIntensity;
 
     vec4 total_light = vec4(u_Color.rgb * attenuation + u_AmbientColor.rgb * u_AmbientIntensity, attenuation + u_AmbientIntensity);
     o_Color = total_light * v_Color;
