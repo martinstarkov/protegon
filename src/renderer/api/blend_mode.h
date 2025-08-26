@@ -47,9 +47,14 @@ enum class BlendMode {
 		 dstRGB = srcRGB * dstRGB
 		 dstA   = dstA */
 
-	Multiply,
+	MultiplyWithAlphaBlend,
 	/**< Color multiply:
 		 dstRGB = srcRGB * dstRGB + dstRGB * (1 - srcA)
+		 dstA   = dstA */
+
+	Multiply
+	/**< Color multiply:
+		 dstRGB = srcRGB * dstRGB
 		 dstA   = dstA */
 };
 
@@ -63,6 +68,7 @@ inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 		case BlendMode::AddPremultipliedWithAlpha: os << "AddPremultipliedWithAlpha"; break;
 		case BlendMode::Modulate:				   os << "Modulate"; break;
 		case BlendMode::Multiply:				   os << "Multiply"; break;
+		case BlendMode::MultiplyWithAlphaBlend:	   os << "MultiplyWithAlphaBlend"; break;
 		// case BlendMode::Stencil:			os << "Stencil"; break; // TODO: Readd.
 		case BlendMode::None:					   os << "None"; break;
 		default:								   PTGN_ERROR("Failed to identify blend mode");
@@ -79,7 +85,8 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 				 { BlendMode::AddPremultiplied, "add_premultiplied" },
 				 { BlendMode::AddPremultipliedWithAlpha, "add_premultiplied_with_alpha" },
 				 { BlendMode::Modulate, "modulate" },
-				 { BlendMode::Multiply, "multiply" } }
+				 { BlendMode::Multiply, "multiply" },
+				 { BlendMode::MultiplyWithAlphaBlend, "multiply_with_alpha_blend" } }
 );
 
 } // namespace ptgn

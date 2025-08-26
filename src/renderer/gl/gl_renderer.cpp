@@ -87,6 +87,9 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			GLCall(BlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE));
 			break;
 		case BlendMode::Multiply:
+			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ONE, GL_ZERO));
+			break;
+		case BlendMode::MultiplyWithAlphaBlend:
 			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE));
 			break;
 		case BlendMode::None: GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO)); break;
