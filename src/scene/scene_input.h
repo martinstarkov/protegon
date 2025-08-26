@@ -10,6 +10,7 @@
 #include "input/mouse.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
+#include "scene/scene_key.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -166,6 +167,9 @@ private:
 	friend class Scene;
 	friend class Button;
 
+	SceneInput() = default;
+	explicit SceneInput(const impl::SceneKey& scene_key);
+
 	enum class DropzoneAction {
 		Move,
 		Drop,
@@ -234,9 +238,6 @@ private:
 
 	void Update(Scene& scene);
 
-	void Init(std::size_t scene_key);
-	void Shutdown();
-
 	struct InteractiveEntities {
 		std::vector<Entity> under_mouse;
 		std::vector<Entity> not_under_mouse;
@@ -256,11 +257,11 @@ private:
 
 	// TODO: Add to serialization.
 
+	impl::SceneKey scene_key_;
+
 	std::unordered_set<Entity> dragging_entities_;
 	std::unordered_set<Entity> last_mouse_over_;
 	std::unordered_set<Entity> last_dropzones_;
-
-	std::size_t scene_key_{ 0 };
 
 	bool top_only_{ false };
 

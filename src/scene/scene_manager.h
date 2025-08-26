@@ -2,35 +2,26 @@
 
 #include <concepts>
 #include <memory>
-#include <string_view>
-#include <type_traits>
+#include <vector>
 
 #include "common/assert.h"
 #include "common/concepts.h"
-#include "core/entity.h"
-#include "core/manager.h"
 #include "scene/scene.h"
+#include "scene/scene_key.h"
 #include "scene/scene_transition.h"
+#include "utility/span.h"
 
 namespace ptgn {
-
-class Entity;
-class SceneTransition;
 
 namespace impl {
 
 class Game;
-class Renderer;
-
-struct SceneComponent {
-	// Important that this is a unique ptr so that adding new scenes does not invalidate scene
-	// references. This may happen if the user transitions scenes inside a callback (which
-	// internally loops through scene entities).
-	std::unique_ptr<Scene> scene;
-};
 
 template <typename T>
 concept SceneType = IsOrDerivedFrom<T, Scene>;
+
+template <typename T>
+concept SceneTransitionType = IsOrDerivedFrom<T, SceneTransition> || std::is_same_v<T, void>;
 
 class SceneManager {
 public:
@@ -41,167 +32,103 @@ public:
 	SceneManager(const SceneManager&)				 = delete;
 	SceneManager& operator=(const SceneManager&)	 = delete;
 
-	// Load a scene into the scene manager.
-	// Note: Loading a scene means it will be constructed but not entered.
-	// If the provided scene is already loaded, nothing happens.
-	// @tparam TScene The type of scene to be loaded.
-	// @param scene_key A unique identifier for the loaded scene.
-	// @param constructor_args Optional: Arguments passed to TScene's constructor.
 	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
-	TScene& Load(std::string_view scene_key, TArgs&&... constructor_args) {
-		auto key{ GetInternalKey(scene_key) };
-		auto scene{ GetScene(key) };
-		SceneComponent* sc{ nullptr };
-		if (!scene) { // New scene.
-			scene = scenes_.CreateEntity();
-			sc	  = &scene.Add<SceneComponent>(
-				   std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
-			   );
-			sc->scene->key_ = key;
-			scenes_.Refresh();
-		} else { // Existing scene.
-			sc = &scene.Get<SceneComponent>();
-		}
-		return *static_cast<TScene*>(sc->scene.get());
-	}
-
-	// TODO: Find a better name for this. Perhaps switch to TryLoad and Load.
-	template <SceneType TScene, typename... TArgs>
-		requires std::constructible_from<TScene, TArgs...>
-	TScene& ForceLoad(std::string_view scene_key, TArgs&&... constructor_args) {
-		auto key{ GetInternalKey(scene_key) };
-		auto scene{ GetScene(key) };
-		SceneComponent* sc{ nullptr };
-		if (!scene) { // New scene.
-			scene = scenes_.CreateEntity();
-		}
-
-		sc = &scene.Add<SceneComponent>(
-			std::make_unique<TScene>(std::forward<TArgs>(constructor_args)...)
+	TScene& TryLoad(const SceneKey& scene_key, TArgs&&... constructor_args) {
+		auto [inserted, scene] = VectorTryEmplaceIf<TScene>(
+			queued_scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
+			std::forward<TArgs>(constructor_args)...
 		);
-		sc->scene->key_ = key;
-		scenes_.Refresh();
-		return *static_cast<TScene*>(sc->scene.get());
+		if (inserted) {
+			scene->SetKey(scene_key);
+		}
+		return *static_cast<TScene*>(scene.get());
 	}
 
-	// Makes a scene active.
-	// The scene must first be loaded into the scene manager using Load().
-	// If the provided scene is already active, it is restarted.
-	// Active scenes are updated every frame of the main game loop.
-	// The most recently loaded scene is updated and rendered last.
-	// @param scene_key The unique identifier for the scene to be made active.
-	void Enter(std::string_view scene_key) {
-		EnterImpl(GetInternalKey(scene_key));
-	}
-
-	// Load a scene into the scene manager and make it active.
-	// The scene will be constructed immediately and initialized before the start of the next frame.
-	// @tparam TScene The type of scene to be loaded and set as active.
-	// @param scene_key A unique identifier for the loaded scene.
-	// @param constructor_args Optional: Arguments passed to TScene's constructor.
 	template <SceneType TScene, typename... TArgs>
-	TScene& Enter(std::string_view scene_key, TArgs&&... constructor_args) {
+		requires std::constructible_from<TScene, TArgs...>
+	TScene& Load(const SceneKey& scene_key, TArgs&&... constructor_args) {
+		auto [replaced, scene] = VectorReplaceOrEmplaceIf<TScene>(
+			queued_scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
+			std::forward<TArgs>(constructor_args)...
+		);
+		if (!replaced) {
+			scene->SetKey(scene_key);
+		}
+		return *static_cast<TScene*>(scene.get());
+	}
+
+	template <SceneType TScene, typename... TArgs>
+		requires std::constructible_from<TScene, TArgs...>
+	TScene& Enter(const SceneKey& scene_key, TArgs&&... constructor_args) {
 		auto& scene{ Load<TScene>(scene_key, std::forward<TArgs>(constructor_args)...) };
+		[[maybe_unused]] auto keep_alive{ GetImpl(scene_key) };
 		Enter(scene_key);
 		return scene;
 	}
 
-	// Unload a scene from the scene manager. If active, the scene is exited first.
-	// If the provided scene is not loaded, nothing happens.
-	// @param scene_key The unique identifier for the scene.
-	void Unload(std::string_view scene_key) {
-		UnloadImpl(GetInternalKey(scene_key));
-	}
-
-	// Exits an active scene.
-	// Note: This will not call the scene destructor, but instead its Exit function.
-	// If the provided scene is not active, nothing happens.
-	// @param scene_key The unique identifier for the scene to be removed from active scenes.
-	void Exit(std::string_view scene_key) {
-		ExitImpl(GetInternalKey(scene_key));
-	}
-
-	// Transitions from one active scene to another.
-	// @param from_scene_key The unique identifier for the scene to be exited.
-	// @param to_scene_key The unique identifier for the scene to be entered.
-	// @param transition An optional class allowing for custom scene transitions. If {}, no
-	// transition is used.
-	void Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		const SceneTransition& transition = {}
-	) {
-		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
-	}
-
-	template <SceneType TScene, typename... TArgs>
+	template <SceneType TScene, SceneTransitionType Transition = void, typename... TArgs>
+		requires std::constructible_from<TScene, TArgs...>
 	TScene& Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		const SceneTransition& transition, TArgs&&... constructor_args
+		const SceneKey& from_scene_key, const SceneKey& to_scene_key, TArgs&&... constructor_args
 	) {
-		auto& scene{ ForceLoad<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
-		TransitionImpl(GetInternalKey(from_scene_key), GetInternalKey(to_scene_key), transition);
+		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
+		SceneManager::Transition<Transition>(from_scene_key, to_scene_key);
 		return scene;
 	}
 
-	// Retrieve a scene from the scene manager. If the scene does not exist in the scene manager an
-	// assertion is called.
-	// @param scene_key The unique identifier for the retrieved scene.
-	// @tparam TScene An optional type to cast the retrieved scene pointer to (i.e. return will be
-	// shared_ptr<TScene>).
-	// @return A shared pointer to the desired scene.
+	void Transition(const SceneKey& from_scene_key, const SceneKey& to_scene_key) {
+		SceneManager::Transition<void>(from_scene_key, to_scene_key);
+	}
+
+	template <SceneTransitionType Transition>
+	void Transition(const SceneKey& from_scene_key, const SceneKey& to_scene_key) {
+		if constexpr (std::is_same_v<Transition, void>) {
+			Exit(from_scene_key);
+			Enter(to_scene_key);
+		}
+		// TODO: Fix.
+
+		/*if (transition == SceneTransition{}) {
+			ExitImpl(from_scene_key);
+			EnterImpl(to_scene_key);
+			return;
+		}
+
+		if (HasActiveScene(to_scene_key)) {
+			return;
+		}
+		auto from{ GetScene(from_scene_key).Get<SceneComponent>().scene.get() };
+		auto to{ GetScene(to_scene_key).Get<SceneComponent>().scene.get() };
+		transition.Start(false, from_scene_key, to_scene_key, from);
+		transition.Start(true, to_scene_key, from_scene_key, to);*/
+	}
+
+	void Enter(const SceneKey& scene_key);
+
+	void Unload(const SceneKey& scene_key);
+
+	void Exit(const SceneKey& scene_key);
+
 	template <SceneType TScene = Scene>
-	[[nodiscard]] TScene& Get(std::string_view scene_key) {
-		return Get<TScene>(GetInternalKey(scene_key));
+	[[nodiscard]] TScene& Get(const SceneKey& scene_key) {
+		auto scene{ GetImpl(scene_key) };
+		PTGN_ASSERT(scene, "Cannot retrieve scene which does not exist in the scene manager");
+		return *static_cast<TScene*>(scene.get());
 	}
 
-	// Exits all active scenes. This does not unload the scenes from the
-	// scene manager.
-	// The most recently loaded scene is removed last.
-	void ExitAll();
+	[[nodiscard]] const Scene& GetCurrent() const;
 
-	// Unloads all scenes from the scene manager.
-	// If a scene was active, it is exited first.
-	void UnloadAllScenes();
+	[[nodiscard]] Scene& GetCurrent();
 
-	template <SceneType TScene = Scene>
-	[[nodiscard]] TScene& Get(std::size_t scene_key) {
-		auto scene{ GetScene(scene_key) };
-		PTGN_ASSERT(scene, "Scene key does not exist in the scene manager");
-		PTGN_ASSERT(scene.Has<SceneComponent>());
-		return *static_cast<TScene*>(scene.Get<SceneComponent>().scene.get());
-	}
+	[[nodiscard]] bool Has(const SceneKey& scene_key) const;
 
-	[[nodiscard]] const Scene& GetCurrent() const {
-		PTGN_ASSERT(HasCurrent(), "Cannot get current scene when one has not been set");
-		return *current_.Get<SceneComponent>().scene;
-	}
-
-	[[nodiscard]] Scene& GetCurrent() {
-		return const_cast<Scene&>(std::as_const(*this).GetCurrent());
-	}
-
-	[[nodiscard]] bool HasCurrent() const {
-		return current_.operator bool();
-	}
-
-	[[nodiscard]] bool Has(std::string_view scene_key) const {
-		return HasScene(GetInternalKey(scene_key));
-	}
-
-	[[nodiscard]] bool HasScene(std::size_t scene_key) const;
-	[[nodiscard]] bool HasActiveScene(std::size_t scene_key) const;
+	[[nodiscard]] bool IsActive(const SceneKey& scene_key) const;
 
 private:
-	friend class ptgn::SceneTransition;
 	friend class Game;
-	friend class ptgn::Scene;
-	friend class Renderer;
-	friend class ptgn::Entity;
 
-	void ReEnter(std::size_t scene_key);
-
-	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
+	std::shared_ptr<Scene> GetImpl(const SceneKey& scene_key) const;
 
 	// Updates all the active scenes.
 	void Update(Game& game);
@@ -209,34 +136,15 @@ private:
 	// Clears the frame buffers of each scene.
 	// void ClearSceneTargets();
 
-	void EnterScene(std::size_t scene_key);
-
-	void UnloadImpl(std::size_t scene_key);
-
-	void EnterImpl(std::size_t scene_key);
-
-	void ExitImpl(std::size_t scene_key);
-
-	void TransitionImpl(
-		std::size_t from_scene_key, std::size_t to_scene_key, const SceneTransition& transition
-	);
-
-	// Switches the places of the components of two scenes. This will invalidate all pointers or
-	// references to both of the given scenes.
-	void SwitchActiveScenesImpl(std::size_t scene1, std::size_t scene2);
-
 	void Reset();
 	void Shutdown();
 
 	void HandleSceneEvents();
 
-	[[nodiscard]] std::size_t GetActiveSceneCount() const;
-
-	[[nodiscard]] Entity GetScene(std::size_t scene_key) const;
-	[[nodiscard]] Entity GetActiveScene(std::size_t scene_key) const;
-
-	Manager scenes_;
-	Entity current_;
+	std::vector<std::shared_ptr<Scene>> active_scenes_;
+	std::vector<std::shared_ptr<Scene>> scenes_;
+	std::vector<std::shared_ptr<Scene>> queued_scenes_;
+	std::shared_ptr<Scene> current_;
 };
 
 } // namespace impl

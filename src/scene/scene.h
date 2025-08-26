@@ -31,21 +31,6 @@ class SceneManager;
 } // namespace impl
 
 class Scene : public Manager {
-private:
-	impl::SceneKey key_;
-
-	bool active_{ false };
-
-	// If the actions is manually numbered, its order determines the execution order of scene
-	// functions.
-	enum class Action {
-		Enter  = 0,
-		Exit   = 1,
-		Unload = 2
-	};
-
-	std::set<Action> actions_;
-
 protected:
 	void SetColliderColor(const Color& collider_color);
 	void SetColliderVisibility(bool collider_visibility);
@@ -112,11 +97,8 @@ private:
 	friend class impl::SceneManager;
 	friend class SceneTransition;
 
-	Manager cameras_;
-
-	impl::CollisionHandler collision_;
-
 	void Init();
+	void SetKey(const impl::SceneKey& key);
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
@@ -128,7 +110,25 @@ private:
 
 	void RemoveFromDisplayList(Entity entity);
 
-	void Add(Action new_action);
+	impl::SceneKey key_;
+
+	// If the actions is manually numbered, its order determines the execution order of scene
+	// functions.
+	enum class State {
+		Constructed = 0,
+		Entering,
+		Running,
+		Paused,
+		Sleeping,
+		Exiting,
+		Unloading
+	};
+
+	State state_{ State::Constructed };
+
+	Manager cameras_;
+
+	impl::CollisionHandler collision_;
 
 	RenderTarget render_target_;
 	bool collider_visibility_{ false };

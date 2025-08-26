@@ -1,153 +1,111 @@
 #include "scene/scene_manager.h"
 
+#include <algorithm>
 #include <memory>
-#include <string_view>
+#include <vector>
 
 #include "common/assert.h"
-#include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
 #include "input/input_handler.h"
-#include "math/hash.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/scene_transition.h"
+#include "scene/scene_key.h"
 #include "tweens/tween.h"
+#include "utility/span.h"
 
 namespace ptgn::impl {
 
-void SceneManager::UnloadImpl(std::size_t scene_key) {
-	auto scene{ GetScene(scene_key) };
+const Scene& SceneManager::GetCurrent() const {
+	PTGN_ASSERT(current_, "Cannot get current scene when one has not been set");
+	return *current_;
+}
+
+Scene& SceneManager::GetCurrent() {
+	return const_cast<Scene&>(std::as_const(*this).GetCurrent());
+}
+
+bool SceneManager::Has(const SceneKey& scene_key) const {
+	return GetImpl(scene_key) != nullptr;
+}
+
+bool SceneManager::IsActive(const SceneKey& scene_key) const {
+	return VectorFindIf(active_scenes_, [scene_key](const auto& scene) {
+		return scene->key_ == scene_key;
+	});
+}
+
+std::shared_ptr<Scene> SceneManager::GetImpl(const SceneKey& scene_key) const {
+	auto queued_it{ std::ranges::find_if(queued_scenes_, [scene_key](const auto& scene) {
+		return scene->key_ == scene_key;
+	}) };
+	if (queued_it != queued_scenes_.end()) {
+		return *queued_it;
+	}
+	auto it{ std::ranges::find_if(scenes_, [scene_key](const auto& scene) {
+		return scene->key_ == scene_key;
+	}) };
+	if (it == scenes_.end()) {
+		return nullptr;
+	}
+	return *it;
+}
+
+void SceneManager::Unload(const SceneKey& scene_key) {
+	auto scene{ GetImpl(scene_key) };
 	if (scene) {
-		scene.Get<SceneComponent>().scene->Add(Scene::Action::Unload);
+		scene->state_ = Scene::State::Unloading;
 	}
 }
 
-void SceneManager::EnterScene(std::size_t scene_key) {
-	auto scene{ GetScene(scene_key) };
-	PTGN_ASSERT(scene, "Cannot initialize a scene unless it has been loaded first");
-	scene.Get<SceneComponent>().scene->Add(Scene::Action::Enter);
-}
+void SceneManager::Enter(const SceneKey& scene_key) {
+	auto scene{ GetImpl(scene_key) };
+	PTGN_ASSERT(scene, "Cannot enter a scene unless it has been loaded first");
 
-void SceneManager::EnterImpl(std::size_t scene_key) {
-	if (HasActiveScene(scene_key)) {
-		return;
-	}
-	auto scene{ GetScene(scene_key) };
-	PTGN_ASSERT(scene, "Cannot enter scene unless it has been loaded first");
+	scene->state_ = Scene::State::Entering;
 
-	bool first_scene{ GetActiveSceneCount() == 0 };
-
-	EnterScene(scene_key);
-
-	if (first_scene) {
+	if (active_scenes_.empty()) {
 		// First active scene, aka the starting scene. Enter the game loop.
 		game.MainLoop();
 	}
 }
 
-void SceneManager::ExitAll() {
-	for (auto e : scenes_.Entities()) {
-		const auto& sc{ e.Get<SceneComponent>() };
-		if (sc.scene->active_) {
-			sc.scene->Add(Scene::Action::Exit);
-		}
-	}
-}
+void SceneManager::Exit(const SceneKey& scene_key) {
+	auto scene{ GetImpl(scene_key) };
 
-void SceneManager::UnloadAllScenes() {
-	for (auto e : scenes_.Entities()) {
-		const auto& sc{ e.Get<SceneComponent>() };
-		sc.scene->Add(Scene::Action::Unload);
-	}
-}
-
-void SceneManager::ExitImpl(std::size_t scene_key) {
-	auto scene{ GetScene(scene_key) };
 	if (!scene) {
 		return;
 	}
-	auto& sc{ scene.Get<SceneComponent>() };
-	if (!sc.scene->active_) {
-		return;
-	}
-	sc.scene->Add(Scene::Action::Exit);
-}
 
-void SceneManager::TransitionImpl(
-	std::size_t from_scene_key, std::size_t to_scene_key, const SceneTransition& transition
-) {
-	if (transition == SceneTransition{}) {
-		ExitImpl(from_scene_key);
-		EnterImpl(to_scene_key);
+	if (!IsActive(scene_key)) {
 		return;
 	}
 
-	if (HasActiveScene(to_scene_key)) {
-		return;
-	}
-	auto from{ GetScene(from_scene_key).Get<SceneComponent>().scene.get() };
-	auto to{ GetScene(to_scene_key).Get<SceneComponent>().scene.get() };
-	transition.Start(false, from_scene_key, to_scene_key, from);
-	transition.Start(true, to_scene_key, from_scene_key, to);
-}
-
-void SceneManager::SwitchActiveScenesImpl(std::size_t scene1, std::size_t scene2) {
-	PTGN_ASSERT(
-		HasActiveScene(scene1),
-		"Cannot switch scene which does not exist in the active scene vector"
-	);
-	PTGN_ASSERT(
-		HasActiveScene(scene2),
-		"Cannot switch scene which does not exist in the active scene vector"
-	);
-	auto s1{ GetActiveScene(scene1) };
-	auto s2{ GetActiveScene(scene2) };
-	auto& sc1{ s1.Get<SceneComponent>() };
-	auto& sc2{ s2.Get<SceneComponent>() };
-	std::swap(sc1.scene, sc2.scene);
+	scene->state_ = Scene::State::Exiting;
 }
 
 void SceneManager::Reset() {
-	UnloadAllScenes();
+	for (auto& scene : scenes_) {
+		scene->state_ = Scene::State::Unloading;
+	}
 	HandleSceneEvents();
-	scenes_.Reset();
+	scenes_		   = {};
+	active_scenes_ = {};
+	queued_scenes_ = {};
+	current_	   = nullptr;
 }
 
 void SceneManager::Shutdown() {
 	Reset();
 }
 
-void SceneManager::ReEnter(std::size_t scene_key) {
-	auto scene{ GetScene(scene_key) };
-	PTGN_ASSERT(scene, "Cannot re-enter a scene that is not loaded in the scene manager");
-	auto& sc{ scene.Get<SceneComponent>() };
-	PTGN_ASSERT(sc.scene->active_, "Cannot re-enter a scene that is not active");
-	sc.scene->Add(Scene::Action::Enter);
-}
-
-std::size_t SceneManager::GetInternalKey(std::string_view key) {
-	return Hash(key);
-}
-
-/*
-void SceneManager::ClearSceneTargets() {
-	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		if (sc.scene->active_) {
-			sc.scene->ClearTarget();
-		}
-	}
-}
-*/
-
 void SceneManager::Update(Game& g) {
 	HandleSceneEvents();
 
-	if (GetActiveSceneCount() == 0) {
+	if (active_scenes_.empty()) {
 		return;
 	}
 
@@ -189,13 +147,17 @@ void SceneManager::Update(Game& g) {
 
 	Tween::Update(render_data.render_manager, g.dt());
 
-	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		PTGN_ASSERT(sc.scene != nullptr);
-		invoke_resolution_events((*sc.scene).cameras_);
-		invoke_resolution_events(*sc.scene);
-		if (sc.scene->active_) {
-			sc.scene->InternalUpdate();
-		}
+	auto scenes{ scenes_ };
+	for (auto scene : scenes) {
+		invoke_resolution_events(scene->cameras_);
+		invoke_resolution_events(*scene);
+	}
+
+	auto active_scenes{ active_scenes_ };
+	for (auto active_scene : active_scenes) {
+		current_ = active_scene;
+		active_scene->InternalUpdate();
+		current_ = nullptr;
 	}
 
 	render_data.DrawScreenTarget();
@@ -207,70 +169,65 @@ void SceneManager::Update(Game& g) {
 }
 
 void SceneManager::HandleSceneEvents() {
-	for (auto [e, sc] : scenes_.EntitiesWith<SceneComponent>()) {
-		while (!e.Get<SceneComponent>().scene->actions_.empty()) {
-			auto action{ e.Get<SceneComponent>().scene->actions_.begin() };
-			switch (*action) {
-				case Scene::Action::Enter:
-					if (e.Get<SceneComponent>().scene->active_) {
-						e.Get<SceneComponent>().scene->InternalExit();
-					}
-					// Reference may get invalidated if Exit adds a scene to the scene manager.
-					e.Get<SceneComponent>().scene->InternalEnter();
-					break;
-				case Scene::Action::Exit: e.Get<SceneComponent>().scene->InternalExit(); break;
-				case Scene::Action::Unload:
-					if (e.Get<SceneComponent>().scene->active_) {
-						e.Get<SceneComponent>().scene->InternalExit();
-					}
-					e.Destroy();
-					break;
+	for (const auto& queued_scene : queued_scenes_) {
+		VectorReplaceOrEmplaceIf(
+			scenes_,
+			[&queued_scene](const auto& scene) { return scene->key_ == queued_scene->key_; },
+			queued_scene
+		);
+	}
+	queued_scenes_ = {};
+
+	// If bool is true, erase scene from active vector.
+	std::vector<std::pair<bool, std::shared_ptr<Scene>>> exit;
+	// If bool is true, add scene to active vector.
+	std::vector<std::pair<bool, std::shared_ptr<Scene>>> enter;
+	std::vector<std::shared_ptr<Scene>> unload;
+
+	for (auto scene : scenes_) {
+		switch (scene->state_) {
+			case Scene::State::Running:		break;
+			case Scene::State::Constructed: break;
+			case Scene::State::Paused:		break;
+			case Scene::State::Sleeping:	break;
+			case Scene::State::Entering:	{
+				if (IsActive(scene->key_)) {
+					exit.emplace_back(false, scene);
+					enter.emplace_back(false, scene);
+				} else {
+					enter.emplace_back(true, scene);
+				}
+				scene->state_ = Scene::State::Running;
+				break;
 			}
-			// Reference may get invalidated if an Enter or Exit adds a scene to the scene manager.
-			e.Get<SceneComponent>().scene->actions_.erase(action);
+			case Scene::State::Exiting:
+				exit.emplace_back(true, scene);
+				scene->state_ = Scene::State::Constructed;
+				break;
+			case Scene::State::Unloading: {
+				if (IsActive(scene->key_)) {
+					exit.emplace_back(true, scene);
+				}
+				unload.emplace_back(scene);
+				break;
+			}
 		}
 	}
-
-	scenes_.Refresh();
-}
-
-std::size_t SceneManager::GetActiveSceneCount() const {
-	std::size_t active_scene_count{ 0 };
-	for (auto e : scenes_.Entities()) {
-		const auto& sc{ e.Get<SceneComponent>() };
-		if (sc.scene->active_) {
-			active_scene_count++;
+	for (auto [erase_active, scene] : exit) {
+		scene->InternalExit();
+		if (erase_active) {
+			VectorErase(active_scenes_, scene);
 		}
 	}
-	return active_scene_count;
-}
-
-bool SceneManager::HasActiveScene(std::size_t scene_key) const {
-	return GetActiveScene(scene_key).operator bool();
-}
-
-bool SceneManager::HasScene(std::size_t scene_key) const {
-	return GetScene(scene_key).operator bool();
-}
-
-Entity SceneManager::GetActiveScene(std::size_t scene_key) const {
-	for (auto e : scenes_.Entities()) {
-		const auto& sc{ e.Get<SceneComponent>() };
-		if (sc.scene->active_ && sc.scene->key_ == scene_key) {
-			return e;
+	for (auto [add_active, scene] : enter) {
+		if (add_active) {
+			active_scenes_.emplace_back(scene);
 		}
+		scene->InternalEnter();
 	}
-	return {};
-}
-
-Entity SceneManager::GetScene(std::size_t scene_key) const {
-	for (auto e : scenes_.Entities()) {
-		const auto& sc{ e.Get<SceneComponent>() };
-		if (sc.scene->key_ == scene_key) {
-			return e;
-		}
+	for (auto scene : unload) {
+		VectorErase(scenes_, scene);
 	}
-	return {};
 }
 
 } // namespace ptgn::impl

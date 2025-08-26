@@ -28,6 +28,7 @@
 #include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "scene/scene_key.h"
 #include "scene/scene_manager.h"
 #include "utility/span.h"
 
@@ -681,19 +682,6 @@ void SceneInput::Update(Scene& scene) {
 	CleanupDropzones(dropzones);
 
 	scene.Refresh();
-}
-
-void SceneInput::Init(std::size_t scene_key) {
-	/*if (draw_interactives_) {
-		PTGN_WARN("Drawing interactable hitboxes");
-	}*/
-
-	scene_key_ = scene_key;
-}
-
-void SceneInput::Shutdown() {
-	top_only_		   = false;
-	draw_interactives_ = false;
 }
 
 bool SceneInput::IsTopOnly() const {

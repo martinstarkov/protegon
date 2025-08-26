@@ -70,7 +70,7 @@ const Manager& Entity::GetManager() const {
 const Scene& Entity::GetScene() const {
 	PTGN_ASSERT(Has<impl::SceneKey>());
 	const auto& scene_key{ Get<impl::SceneKey>() };
-	PTGN_ASSERT(game.scene.HasScene(scene_key));
+	PTGN_ASSERT(game.scene.Has(scene_key));
 	return game.scene.Get(scene_key);
 }
 
