@@ -52,6 +52,9 @@ add_subdirectory(resolution)
 add_subdirectory(resolution_mode)
 add_subdirectory(resolution_text)
 
+add_subdirectory(scene)
+add_subdirectory(scene_transition)
+
 add_subdirectory(script)
 add_subdirectory(script_sequence)
 
@@ -61,7 +64,6 @@ add_subdirectory(player_top_down)
 add_subdirectory(sandbox)
 
 add_subdirectory(paint)
-add_subdirectory(scene_transition)
 add_subdirectory(audio)
 add_subdirectory(pathfinding)
 add_subdirectory(component_hooks)
