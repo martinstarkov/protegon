@@ -35,16 +35,52 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 	auto ambient_color{ PointLight::GetShaderColor(light.GetAmbientColor()) };
 	shader.SetUniform("u_AmbientColor", ambient_color);
 	shader.SetUniform("u_AmbientIntensity", light.GetAmbientIntensity());
+	shader.SetUniform("u_LightAttenuation", 1.0f, 0.0f, 0.1f);
+}
+
+PointLight CreatePointLight(
+	Manager& manager, const V2_float& position, float radius, const Color& color, float intensity,
+	float falloff
+) {
+	PointLight point_light{ manager.CreateEntity() };
+
+	// Entity properties.
+
+	SetDraw<PointLight>(point_light);
+	Show(point_light);
+	SetPosition(point_light, position);
+
+	// Point light properties.
+
+	auto& light_properties{ point_light.Add<impl::LightProperties>() };
+
+	light_properties.color	   = color;
+	light_properties.intensity = intensity;
+	light_properties.radius	   = radius;
+	light_properties.falloff   = falloff;
+
+	// Blend mode with which the lights are added to the scene.
+	SetBlendMode(point_light, BlendMode::AddPremultipliedWithAlpha);
+
+	return point_light;
 }
 
 void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::RenderState state;
+	// Blend mode with which the lights are added to the scene.
 	state.blend_mode  = GetBlendMode(entity);
 	state.shader_pass = { game.shader.Get<OtherShader::Light>(), &PointLight::SetUniform };
 	state.post_fx	  = entity.GetOrDefault<PostFX>();
 	state.camera	  = entity.GetOrDefault<Camera>();
 
-	ctx.AddShader(entity, state, color::Transparent, V2_int{}, false);
+	// Blend mode with which the lights are added to the light render target.
+	auto light_blend_mode{ BlendMode::AddPremultipliedWithAlpha };
+	// Color to which the light render target is cleared before drawing lights.
+	auto light_clear_color{ color::Black };
+	ctx.AddShader(
+		entity, state, light_clear_color, V2_int{}, false,
+		light_blend_mode /*, TextureFormat::HDR_RGBA*/
+	);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {
@@ -118,31 +154,6 @@ float PointLight::GetFalloff() const {
 V3_float PointLight::GetShaderColor(const Color& color) {
 	V4_float n{ color.Normalized() };
 	return { n.x, n.y, n.z };
-}
-
-PointLight CreatePointLight(
-	Manager& manager, const V2_float& position, float radius, const Color& color, float intensity,
-	float falloff
-) {
-	PointLight point_light{ manager.CreateEntity() };
-
-	// Entity properties.
-
-	SetDraw<PointLight>(point_light);
-	Show(point_light);
-	SetPosition(point_light, position);
-	SetBlendMode(point_light, BlendMode::AddPremultipliedWithAlpha);
-
-	// Point light properties.
-
-	auto& light_properties{ point_light.Add<impl::LightProperties>() };
-
-	light_properties.color	   = color;
-	light_properties.intensity = intensity;
-	light_properties.radius	   = radius;
-	light_properties.falloff   = falloff;
-
-	return point_light;
 }
 
 } // namespace ptgn

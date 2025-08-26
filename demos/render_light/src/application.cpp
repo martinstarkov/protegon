@@ -25,9 +25,11 @@ public:
 		auto sprite = CreateSprite(*this, "test", { 50, 50 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
 
+		CreateRect(*this, { 300, 400 }, { 100, 100 }, color::Blue, -1.0f, Origin::TopLeft);
+
 		float intensity{ 0.5f };
-		float radius{ 200.0f };
-		float falloff{ 1.0f };
+		float radius{ 100.0f };
+		float falloff{ 2.0f };
 
 		float step{ 80 };
 
@@ -48,7 +50,7 @@ public:
 		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
 		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
 
-		mouse_light = CreatePointLight(*this, {}, 300.0f, color::Red, 0.8f, 2.0f);
+		mouse_light = CreatePointLight(*this, {}, 200.0f, color::White, 0.8f, 1.0f);
 		// mouse_light.SetAmbientColor(color::Red);
 		// mouse_light.SetAmbientIntensity(0.1f);
 	}
@@ -56,7 +58,7 @@ public:
 	void Update() override {
 		SetPosition(mouse_light, input.GetMousePosition());
 
-		DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
+		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
 	}
 
 	void Exit() override {
