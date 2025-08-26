@@ -450,7 +450,7 @@ void RenderData::AddTexturedQuad(
 void RenderData::Init() {
 	// GLRenderer::EnableLineSmoothing();
 
-	GLRenderer::DisableGammaCorrection();
+	// GLRenderer::DisableGammaCorrection();
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
 
@@ -1053,30 +1053,16 @@ void RenderData::ClearRenderTargets(Scene& scene) const {
 }
 
 void RenderData::DrawFromTo(
-	const RenderTarget& source_target, const std::array<V2_float, 4>& points,
+	const Shader& shader, const RenderTarget& source_target, const std::array<V2_float, 4>& points,
 	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
 ) {
-	const Shader* shader{ nullptr };
-
-	if constexpr (HDR_ENABLED) {
-		shader = &game.shader.Get<OtherShader::ToneMapping>();
-		PTGN_ASSERT(shader != nullptr);
-		shader->Bind();
-		shader->SetUniform("u_Texture", 1);
-		shader->SetUniform("u_Exposure", 1.0f);
-		shader->SetUniform("u_Gamma", 2.2f);
-	} else {
-		shader = &game.shader.Get<ScreenShader::Default>();
-		PTGN_ASSERT(shader != nullptr);
-	}
-
 	auto target{ GetDrawTarget(source_target, {}, {}, false) };
 	target.view_projection = projection;
 	target.points		   = points;
 	target.viewport		   = viewport;
 	target.frame_buffer	   = destination_buffer;
 
-	DrawFullscreenQuad(*shader, target, true, false, color::Transparent);
+	DrawFullscreenQuad(shader, target, true, false, color::Transparent);
 }
 
 void RenderData::DrawScreenTarget() {
@@ -1089,8 +1075,22 @@ void RenderData::DrawScreenTarget() {
 		physical_viewport_.size / 2.0f,
 		V2_float{ -physical_viewport_.size.x / 2.0f, physical_viewport_.size.y / 2.0f }
 	};
-	//	PTGN_LOG("Mouse position in window: ", game.input.GetMouseWindowPosition());
-	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr);
+
+	const Shader* shader{ nullptr };
+
+	if constexpr (HDR_ENABLED) {
+		shader = &game.shader.Get<OtherShader::ToneMapping>();
+		PTGN_ASSERT(shader != nullptr);
+		shader->Bind();
+		shader->SetUniform("u_Texture", 1);
+		shader->SetUniform("u_Exposure", 1.0f);
+		shader->SetUniform("u_Gamma", 1.0f);
+	} else {
+		shader = &game.shader.Get<ScreenShader::Default>();
+		PTGN_ASSERT(shader != nullptr);
+	}
+
+	DrawFromTo(*shader, screen_target_, points, projection, physical_viewport_, nullptr);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -1112,7 +1112,8 @@ void RenderData::Draw(Scene& scene) {
 	viewport.size	  = physical_viewport_.size;
 
 	DrawFromTo(
-		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer()
+		game.shader.Get<ScreenShader::Default>(), scene.render_target_, points, projection,
+		viewport, &screen_target_.GetFrameBuffer()
 	);
 
 	Reset();

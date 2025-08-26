@@ -408,6 +408,7 @@ private:
 	 * This is typically used for compositing, where one render target  is drawn onto another buffer
 	 * or the screen target.
 	 *
+	 * @param shader The shader to use when drawing the source target to the destination buffer.
 	 * @param source_target       The render target whose texture will be drawn.
 	 * @param points              The four corner points (in destination space) of the quad onto
 	 * which the source target will be mapped. These should be in the order: top-left, top-right,
@@ -420,8 +421,9 @@ private:
 	 *                            If null, draws to the default framebuffer (usually the screen).
 	 */
 	void DrawFromTo(
-		const RenderTarget& source_target, const std::array<V2_float, 4>& points,
-		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
+		const Shader& shader, const RenderTarget& source_target,
+		const std::array<V2_float, 4>& points, const Matrix4& projection, const Viewport& viewport,
+		const FrameBuffer* destination_buffer
 	);
 
 	// Draws the screen target to the default frame buffer.
