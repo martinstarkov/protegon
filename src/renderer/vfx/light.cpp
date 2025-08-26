@@ -14,6 +14,7 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "scene/camera.h"
 
@@ -25,6 +26,8 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 	PointLight light{ entity };
 
 	auto transform{ GetDrawTransform(entity) };
+	// TODO: Translate coordinate system back to the center being 0.0f.
+	transform.Translate(game.renderer.GetLogicalResolution() * 0.5f);
 	float radius{ light.GetRadius() * Abs(transform.GetAverageScale()) };
 
 	shader.SetUniform("u_LightPosition", transform.GetPosition());
