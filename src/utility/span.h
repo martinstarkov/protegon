@@ -12,6 +12,8 @@
 #include <utility>
 #include <vector>
 
+#include "common/concepts.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -166,7 +168,8 @@ static std::pair<bool, T&> VectorTryEmplaceIf(
 // Do not emplace if condition is true.
 // @return first True if emplaced, false if condition was met
 //         second Reference to emplaced or existing element.
-template <typename T, typename Predicate, typename... Args>
+template <typename S, typename T, typename Predicate, typename... Args>
+	requires IsOrDerivedFrom<S, T>
 static std::pair<bool, T&> VectorTryEmplaceIf(
 	std::vector<std::shared_ptr<T>>& vec, Predicate&& condition, Args&&... args
 ) {
@@ -175,7 +178,7 @@ static std::pair<bool, T&> VectorTryEmplaceIf(
 			return { false, item };
 		}
 	}
-	return { true, vec.emplace_back(std::make_shared<T>(std::forward<Args>(args)...)) };
+	return { true, vec.emplace_back(std::make_shared<S>(std::forward<Args>(args)...)) };
 }
 
 // @return first True if replaced, false if emplaced.
@@ -195,18 +198,19 @@ static std::pair<bool, T&> VectorReplaceOrEmplaceIf(
 
 // @return first True if replaced, false if emplaced.
 //         second Reference to replaced or emplaced element.
-template <typename T, typename Predicate, typename... Args>
+template <typename S, typename T, typename Predicate, typename... Args>
+	requires IsOrDerivedFrom<S, T>
 static std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
 	std::vector<std::shared_ptr<T>>& vec, Predicate&& condition, Args&&... args
 ) {
 	for (auto& item : vec) {
 		if (condition(item)) {
-			item = std::make_shared<T>(std::forward<Args>(args)...);
+			item = std::make_shared<S>(std::forward<Args>(args)...);
 			return { true, item }; // Replaced.
 		}
 	}
 	return { false,
-			 vec.emplace_back(std::make_shared<T>(std::forward<Args>(args)...)) }; // Emplaced.
+			 vec.emplace_back(std::make_shared<S>(std::forward<Args>(args)...)) }; // Emplaced.
 }
 
 // @return True if the element was erased from the vector, false otherwise.
