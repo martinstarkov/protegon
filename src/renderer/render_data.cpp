@@ -150,10 +150,8 @@ void ShaderPass::Invoke(Entity entity) const {
 	}
 }
 
-DrawContext::DrawContext(const V2_int& size) :
-	frame_buffer{ Texture{ nullptr, size,
-						   HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888 } },
-	timer{ true } {}
+DrawContext::DrawContext(const V2_int& size, TextureFormat texture_format) :
+	frame_buffer{ Texture{ nullptr, size, texture_format } }, timer{ true } {}
 
 DrawContextPool::DrawContextPool(milliseconds max_age) : max_age_{ max_age } {}
 
@@ -172,7 +170,7 @@ void DrawContextPool::TrimExpired() {
 	}
 }
 
-std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size) {
+std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat texture_format) {
 	PTGN_ASSERT(size.x > 0 && size.y > 0);
 
 	constexpr V2_int max_resolution{ 4096, 2160 };
@@ -183,14 +181,14 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size) {
 	std::shared_ptr<DrawContext> spare_context;
 
 	for (auto& context : contexts_) {
-		if (!context->in_use) {
+		if (!context->in_use && context->frame_buffer.GetTexture().GetFormat() == texture_format) {
 			spare_context = context;
 			break;
 		}
 	}
 
 	if (!spare_context) {
-		return contexts_.emplace_back(std::make_shared<DrawContext>(size));
+		return contexts_.emplace_back(std::make_shared<DrawContext>(size, texture_format));
 	}
 
 	auto& texture{ spare_context->frame_buffer.GetTexture() };
@@ -342,7 +340,7 @@ TextureId RenderData::PingPong(
 	PTGN_ASSERT(!container.empty(), "Cannot ping pong on an empty container");
 
 	auto read{ read_context };
-	auto write{ draw_context_pool.Get(target.viewport.size) };
+	auto write{ draw_context_pool.Get(target.viewport.size, target.texture_format) };
 
 	PTGN_ASSERT(read != nullptr && write != nullptr);
 	PTGN_ASSERT(read->frame_buffer.GetTexture().GetSize() == target.viewport.size);
@@ -417,11 +415,14 @@ void RenderData::AddTexturedQuad(
 		Viewport viewport{ {}, texture_size };
 
 		DrawTarget target;
-		target.viewport = viewport;
+		target.viewport		  = viewport;
+		target.texture_format = texture.GetFormat();
 		SetPointsAndProjection(target);
 
-		texture_id =
-			PingPong(pre_fx.pre_fx_, draw_context_pool.Get(viewport.size), texture, target, true);
+		texture_id = PingPong(
+			pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format), texture,
+			target, true
+		);
 
 		white_texture.Bind(0);
 
@@ -450,7 +451,7 @@ void RenderData::AddTexturedQuad(
 void RenderData::Init() {
 	// GLRenderer::EnableLineSmoothing();
 
-	// GLRenderer::DisableGammaCorrection();
+	GLRenderer::DisableGammaCorrection();
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
 
@@ -490,8 +491,7 @@ void RenderData::Init() {
 	intermediate_target = {};
 
 	screen_target_ = CreateRenderTarget(
-		render_manager, ResizeToResolution::Physical, color::Transparent,
-		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+		render_manager, ResizeToResolution::Physical, color::Transparent, TextureFormat::RGBA8888
 	);
 	SetBlendMode(screen_target_, BlendMode::None);
 
@@ -551,7 +551,8 @@ V2_float RenderData::GetResolutionScale(const V2_float& viewport_size) {
 
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, const Color& target_clear_color,
-	const TextureOrSize& texture_or_size, bool clear_between_consecutive_calls
+	const TextureOrSize& texture_or_size, bool clear_between_consecutive_calls,
+	BlendMode blend_mode, TextureFormat texture_format
 ) {
 	bool state_changed{ SetState(state) };
 
@@ -575,26 +576,28 @@ void RenderData::AddShader(
 
 	target.depth	  = GetDepth(entity);
 	target.tint		  = target.tint.Normalized() * GetTint(entity).Normalized();
-	target.blend_mode = GetBlendMode(entity);
+	target.blend_mode = blend_mode;
 
 	if (uses_size) {
 		if (!std::get<V2_int>(texture_or_size).IsZero()) {
 			target.viewport.size = std::get<V2_int>(texture_or_size);
 		}
+		target.texture_format = texture_format;
 	} else if (std::holds_alternative<std::reference_wrapper<const Texture>>(texture_or_size)) {
 		const Texture& texture =
 			std::get<std::reference_wrapper<const Texture>>(texture_or_size).get();
 
 		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
 
-		target.viewport.size = texture.GetSize();
-		target.texture_id	 = texture.GetId();
+		target.viewport.size  = texture.GetSize();
+		target.texture_id	  = texture.GetId();
+		target.texture_format = texture.GetFormat();
 	} else {
 		PTGN_ERROR("Unknown variant value");
 	}
 
 	if (clear) {
-		intermediate_target = draw_context_pool.Get(target.viewport.size);
+		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
 	}
 
 	const auto& shader{ render_state.shader_pass.GetShader() };
@@ -773,7 +776,7 @@ void RenderData::Flush() {
 	if (has_post_fx) {
 		PTGN_ASSERT(!intermediate_target);
 
-		intermediate_target = draw_context_pool.Get(target.viewport.size);
+		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
 
 		target.frame_buffer = &intermediate_target->frame_buffer;
 
@@ -800,16 +803,15 @@ void RenderData::Flush() {
 
 		if (!has_post_fx) {
 			// The light case discussed above.
-			target.texture_id = intermediate_target->frame_buffer.GetTexture().GetId();
+			const auto& texture{ intermediate_target->frame_buffer.GetTexture() };
+			target.texture_id	  = texture.GetId();
+			target.texture_format = texture.GetFormat();
 		}
 
-		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
-
 		// Flush intermediate target onto drawing_to frame buffer.
-
 		DrawFullscreenQuad(
-			shader, target, has_post_fx /* Only flip if postfx have been applied. */, false,
-			color::Transparent
+			GetFullscreenShader(target.texture_format), target,
+			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
 		);
 
 	} else if (render_state.shader_pass != ShaderPass{}) {
@@ -896,8 +898,9 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 	const auto& texture{ render_target.GetTexture() };
 	auto texture_size{ render_target.GetTextureSize() };
 
-	target.texture_size = texture_size;
-	target.texture_id	= texture.GetId();
+	target.texture_size	  = texture_size;
+	target.texture_id	  = texture.GetId();
+	target.texture_format = texture.GetFormat();
 
 	if (const auto custom_viewport{ render_target.TryGet<Viewport>() }) {
 		target.viewport = *custom_viewport;
@@ -1052,8 +1055,26 @@ void RenderData::ClearRenderTargets(Scene& scene) const {
 	}
 }
 
+const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
+	const Shader* shader{ nullptr };
+
+	if (texture_format == TextureFormat::HDR_RGBA || texture_format == TextureFormat::HDR_RGB) {
+		shader = &game.shader.Get<OtherShader::ToneMapping>();
+		PTGN_ASSERT(shader != nullptr);
+		shader->Bind();
+		shader->SetUniform("u_Texture", 1);
+		// TODO: Add a way to adjust these.
+		shader->SetUniform("u_Exposure", 1.0f);
+		shader->SetUniform("u_Gamma", 2.2f);
+	} else {
+		shader = &game.shader.Get<ScreenShader::Default>();
+	}
+
+	return *shader;
+}
+
 void RenderData::DrawFromTo(
-	const Shader& shader, const RenderTarget& source_target, const std::array<V2_float, 4>& points,
+	const RenderTarget& source_target, const std::array<V2_float, 4>& points,
 	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
 ) {
 	auto target{ GetDrawTarget(source_target, {}, {}, false) };
@@ -1062,7 +1083,9 @@ void RenderData::DrawFromTo(
 	target.viewport		   = viewport;
 	target.frame_buffer	   = destination_buffer;
 
-	DrawFullscreenQuad(shader, target, true, false, color::Transparent);
+	DrawFullscreenQuad(
+		GetFullscreenShader(target.texture_format), target, true, false, color::Transparent
+	);
 }
 
 void RenderData::DrawScreenTarget() {
@@ -1076,21 +1099,7 @@ void RenderData::DrawScreenTarget() {
 		V2_float{ -physical_viewport_.size.x / 2.0f, physical_viewport_.size.y / 2.0f }
 	};
 
-	const Shader* shader{ nullptr };
-
-	if constexpr (HDR_ENABLED) {
-		shader = &game.shader.Get<OtherShader::ToneMapping>();
-		PTGN_ASSERT(shader != nullptr);
-		shader->Bind();
-		shader->SetUniform("u_Texture", 1);
-		shader->SetUniform("u_Exposure", 1.0f);
-		shader->SetUniform("u_Gamma", 1.0f);
-	} else {
-		shader = &game.shader.Get<ScreenShader::Default>();
-		PTGN_ASSERT(shader != nullptr);
-	}
-
-	DrawFromTo(*shader, screen_target_, points, projection, physical_viewport_, nullptr);
+	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -1112,8 +1121,7 @@ void RenderData::Draw(Scene& scene) {
 	viewport.size	  = physical_viewport_.size;
 
 	DrawFromTo(
-		game.shader.Get<ScreenShader::Default>(), scene.render_target_, points, projection,
-		viewport, &screen_target_.GetFrameBuffer()
+		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer()
 	);
 
 	Reset();

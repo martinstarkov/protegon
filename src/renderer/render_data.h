@@ -32,8 +32,6 @@
 #include "scene/camera.h"
 #include "serialization/serializable.h"
 
-#define HDR_ENABLED 0
-
 namespace ptgn {
 
 class Camera;
@@ -145,7 +143,7 @@ struct ShapeDrawInfo {
 };
 
 struct DrawContext {
-	DrawContext(const V2_int& size);
+	DrawContext(const V2_int& size, TextureFormat texture_format);
 
 	FrameBuffer frame_buffer;
 
@@ -169,7 +167,7 @@ public:
 
 	// Retrieve a framebuffer of the given size.
 	// Size must be positive and non-zero.
-	std::shared_ptr<DrawContext> Get(V2_int size);
+	std::shared_ptr<DrawContext> Get(V2_int size, TextureFormat texture_format);
 
 	// Clear and destroy all pooled framebuffers.
 	void Clear();
@@ -235,9 +233,14 @@ public:
 	// consecutive calls. This prevents stacking of shader calls onto the same target. An example of
 	// where this is not desired is when rendering many lights back to back. Does not apply if a
 	// texture is used.
+	// @param blend_mode The blend mode with which each shader call is blended to the intermediate
+	// target.
+	// @param texture_format Specify a custom texture format to use for the shader.
 	void AddShader(
 		Entity entity, const RenderState& render_state, const Color& target_clear_color,
-		const TextureOrSize& texture_or_size = V2_int{}, bool clear_between_consecutive_calls = true
+		const TextureOrSize& texture_or_size = V2_int{},
+		bool clear_between_consecutive_calls = true, BlendMode blend_mode = BlendMode::Blend,
+		TextureFormat texture_format = TextureFormat::RGBA8888
 	);
 
 	void AddTemporaryTexture(Texture&& texture);
@@ -254,6 +257,7 @@ private:
 		Viewport viewport;
 		V2_int texture_size;
 		TextureId texture_id{ 0 };
+		TextureFormat texture_format{ TextureFormat::RGBA8888 };
 		const FrameBuffer* frame_buffer{ nullptr };
 		std::array<V2_float, 4> points{};
 		Depth depth;
@@ -408,7 +412,6 @@ private:
 	 * This is typically used for compositing, where one render target  is drawn onto another buffer
 	 * or the screen target.
 	 *
-	 * @param shader The shader to use when drawing the source target to the destination buffer.
 	 * @param source_target       The render target whose texture will be drawn.
 	 * @param points              The four corner points (in destination space) of the quad onto
 	 * which the source target will be mapped. These should be in the order: top-left, top-right,
@@ -421,9 +424,8 @@ private:
 	 *                            If null, draws to the default framebuffer (usually the screen).
 	 */
 	void DrawFromTo(
-		const Shader& shader, const RenderTarget& source_target,
-		const std::array<V2_float, 4>& points, const Matrix4& projection, const Viewport& viewport,
-		const FrameBuffer* destination_buffer
+		const RenderTarget& source_target, const std::array<V2_float, 4>& points,
+		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
 	);
 
 	// Draws the screen target to the default frame buffer.
@@ -434,6 +436,8 @@ private:
 	// Clear the scene's internal render target, and all of the render target objects that exist in
 	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
+
+	const Shader& GetFullscreenShader(TextureFormat texture_format);
 
 	std::shared_ptr<DrawContext> intermediate_target;
 
