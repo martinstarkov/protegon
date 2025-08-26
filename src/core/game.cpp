@@ -272,15 +272,7 @@ void Game::Update() {
 
 	start = end;
 
-	scene.HandleSceneEvents();
-
-	if (game.scene.GetActiveSceneCount() != 0) {
-		renderer.ClearScreen();
-
-		scene.Update();
-
-		renderer.PresentScreen();
-	}
+	scene.Update(*this);
 
 #ifdef PTGN_DEBUG
 	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the

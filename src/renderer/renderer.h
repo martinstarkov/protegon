@@ -142,6 +142,7 @@ private:
 	friend class Game;
 	friend class Batch;
 	friend class RenderData;
+	friend class SceneManager;
 
 	// Present the screen target to the window.
 	void PresentScreen();

@@ -91,7 +91,7 @@ void SceneManager::TransitionImpl(
 		return;
 	}
 	auto from{ GetScene(from_scene_key).Get<SceneComponent>().scene.get() };
-	auto to{ GetScene(from_scene_key).Get<SceneComponent>().scene.get() };
+	auto to{ GetScene(to_scene_key).Get<SceneComponent>().scene.get() };
 	transition.Start(false, from_scene_key, to_scene_key, from);
 	transition.Start(true, to_scene_key, from_scene_key, to);
 }
@@ -144,10 +144,18 @@ void SceneManager::ClearSceneTargets() {
 }
 */
 
-void SceneManager::Update() {
-	auto& render_data{ game.renderer.GetRenderData() };
+void SceneManager::Update(Game& g) {
+	HandleSceneEvents();
 
-	game.input.Update();
+	if (GetActiveSceneCount() == 0) {
+		return;
+	}
+
+	g.renderer.ClearScreen();
+
+	auto& render_data{ g.renderer.GetRenderData() };
+
+	g.input.Update();
 
 	// TODO: Figure out a better way to do non-scene events / scripts.
 
@@ -176,10 +184,10 @@ void SceneManager::Update() {
 		manager.Refresh();
 	};
 
-	game.input.InvokeInputEvents(render_data.render_manager);
+	g.input.InvokeInputEvents(render_data.render_manager);
 	invoke_resolution_events(render_data.render_manager);
 
-	Tween::Update(render_data.render_manager, game.dt());
+	Tween::Update(render_data.render_manager, g.dt());
 
 	for (auto [s, sc] : scenes_.EntitiesWith<SceneComponent>()) {
 		PTGN_ASSERT(sc.scene != nullptr);
@@ -194,6 +202,8 @@ void SceneManager::Update() {
 
 	render_data.logical_resolution_changed_	 = false;
 	render_data.physical_resolution_changed_ = false;
+
+	g.renderer.PresentScreen();
 }
 
 void SceneManager::HandleSceneEvents() {

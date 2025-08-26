@@ -204,7 +204,7 @@ private:
 	[[nodiscard]] static std::size_t GetInternalKey(std::string_view key);
 
 	// Updates all the active scenes.
-	void Update();
+	void Update(Game& game);
 
 	// Clears the frame buffers of each scene.
 	// void ClearSceneTargets();
