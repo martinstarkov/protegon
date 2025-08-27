@@ -21,7 +21,7 @@ template <typename T>
 concept SceneType = IsOrDerivedFrom<T, Scene>;
 
 template <typename T>
-concept SceneTransitionType = IsOrDerivedFrom<T, SceneTransition> || std::is_same_v<T, void>;
+concept SceneTransitionType = IsOrDerivedFrom<T, SceneTransition> || std::is_same_v<T, int>;
 
 class SceneManager {
 public:
@@ -67,41 +67,45 @@ public:
 		return scene;
 	}
 
-	template <SceneType TScene, SceneTransitionType Transition = void, typename... TArgs>
+	template <
+		SceneType TScene, SceneTransitionType TransitionIn = int,
+		SceneTransitionType TransitionOut = int, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& Transition(
-		const SceneKey& from_scene_key, const SceneKey& to_scene_key, TArgs&&... constructor_args
+		const SceneKey& from_scene_key, const SceneKey& to_scene_key, TransitionIn&& in,
+		TransitionOut&& out, TArgs&&... constructor_args
 	) {
 		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
-		SceneManager::Transition<Transition>(from_scene_key, to_scene_key);
+		SceneManager::Transition<TransitionIn, TransitionOut>(
+			from_scene_key, to_scene_key, std::forward<TransitionIn>(in),
+			std::forward<TransitionOut>(out)
+		);
 		return scene;
 	}
 
 	void Transition(const SceneKey& from_scene_key, const SceneKey& to_scene_key) {
-		SceneManager::Transition<void>(from_scene_key, to_scene_key);
+		SceneManager::Transition<int, int>(from_scene_key, to_scene_key, 0, 0);
 	}
 
-	template <SceneTransitionType Transition>
-	void Transition(const SceneKey& from_scene_key, const SceneKey& to_scene_key) {
-		if constexpr (std::is_same_v<Transition, void>) {
-			Exit(from_scene_key);
-			Enter(to_scene_key);
+	template <SceneTransitionType TransitionIn, SceneTransitionType TransitionOut = int>
+	void Transition(
+		const SceneKey& from_scene_key, const SceneKey& to_scene_key, TransitionIn&& in,
+		TransitionOut&& out = 0
+	) {
+		if constexpr (!std::is_same_v<TransitionOut, int>) {
+			auto scene_from{ GetImpl(from_scene_key) };
+			auto transition_out		= std::make_shared<TransitionOut>(std::move(out));
+			transition_out->scene	= scene_from.get();
+			scene_from->transition_ = transition_out;
 		}
-		// TODO: Fix.
-
-		/*if (transition == SceneTransition{}) {
-			ExitImpl(from_scene_key);
-			EnterImpl(to_scene_key);
-			return;
+		if constexpr (!std::is_same_v<TransitionIn, int>) {
+			auto scene_to{ GetImpl(to_scene_key) };
+			auto transition_in	  = std::make_shared<TransitionIn>(std::move(in));
+			transition_in->scene  = scene_to.get();
+			scene_to->transition_ = transition_in;
 		}
-
-		if (HasActiveScene(to_scene_key)) {
-			return;
-		}
-		auto from{ GetScene(from_scene_key).Get<SceneComponent>().scene.get() };
-		auto to{ GetScene(to_scene_key).Get<SceneComponent>().scene.get() };
-		transition.Start(false, from_scene_key, to_scene_key, from);
-		transition.Start(true, to_scene_key, from_scene_key, to);*/
+		Exit(from_scene_key);
+		Enter(to_scene_key);
 	}
 
 	void Enter(const SceneKey& scene_key);

@@ -14,6 +14,7 @@
 #include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
+#include "scene/scene_transition.h"
 #include "tweens/tween.h"
 #include "utility/span.h"
 
@@ -201,6 +202,13 @@ void SceneManager::HandleSceneEvents() {
 				break;
 			}
 			case Scene::State::Exiting:
+				if (scene->transition_) {
+					if (!scene->transition_->HasStarted()) {
+						scene->transition_->Start();
+					}
+					// Wait for transition to exit.
+					break;
+				}
 				exit.emplace_back(true, scene);
 				scene->state_ = Scene::State::Constructed;
 				break;
@@ -224,6 +232,9 @@ void SceneManager::HandleSceneEvents() {
 			active_scenes_.emplace_back(scene);
 		}
 		scene->InternalEnter();
+		if (scene->transition_) {
+			scene->transition_->Start();
+		}
 	}
 	for (auto scene : unload) {
 		VectorErase(scenes_, scene);

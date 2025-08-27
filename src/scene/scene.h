@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -82,6 +83,8 @@ public:
 	[[nodiscard]] const RenderTarget& GetRenderTarget() const;
 	[[nodiscard]] RenderTarget& GetRenderTarget();
 
+	[[nodiscard]] impl::SceneKey GetKey() const;
+
 	// @return Size of scene render target divided by size of the camera viewport.
 	[[nodiscard]] V2_float GetScaleRelativeTo(const Camera& relative_to_camera) const;
 
@@ -109,6 +112,8 @@ private:
 	void AddToDisplayList(Entity entity);
 
 	void RemoveFromDisplayList(Entity entity);
+
+	std::shared_ptr<SceneTransition> transition_;
 
 	impl::SceneKey key_;
 

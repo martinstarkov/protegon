@@ -50,9 +50,9 @@ public:
 	}
 };
 
-class SceneTransitionExample : public Scene {
+class SceneExample : public Scene {
 public:
-	SceneTransitionExample() {
+	SceneExample() {
 		LoadResources({ { "bg1", "resources/bg1.png" },
 						{ "bg2", "resources/bg2.png" },
 						{ "bg3", "resources/bg3.png" } });
@@ -71,7 +71,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample", window_size);
-	game.scene.Enter<SceneTransitionExample>("scene_transition_example");
+	game.Init("SceneExample", window_size);
+	game.scene.Enter<SceneExample>("scene_example");
 	return 0;
 }

@@ -136,6 +136,10 @@ RenderTarget& Scene::GetRenderTarget() {
 	return render_target_;
 }
 
+impl::SceneKey Scene::GetKey() const {
+	return key_;
+}
+
 void Scene::Init() {
 	cameras_.Reset();
 	camera = CreateCamera(cameras_);
