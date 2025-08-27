@@ -1,6 +1,7 @@
 #include "scene/scene_manager.h"
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -20,6 +21,15 @@
 
 namespace ptgn::impl {
 
+template <typename Container>
+static auto FindSceneIt(Container& container, const SceneKey& key) {
+	auto it{ std::ranges::find_if(container, [&key](const auto& scene) {
+		return scene->GetKey() == key;
+	}) };
+	PTGN_ASSERT(it != container.end(), "Scene ", key.GetKey(), " not found in scene manager");
+	return it;
+}
+
 const Scene& SceneManager::GetCurrent() const {
 	PTGN_ASSERT(current_, "Cannot get current scene when one has not been set");
 	return *current_;
@@ -35,13 +45,13 @@ bool SceneManager::Has(const SceneKey& scene_key) const {
 
 bool SceneManager::IsActive(const SceneKey& scene_key) const {
 	return VectorFindIf(active_scenes_, [scene_key](const auto& scene) {
-		return scene->key_ == scene_key;
+		return scene->GetKey() == scene_key;
 	});
 }
 
 std::shared_ptr<Scene> SceneManager::GetImpl(const SceneKey& scene_key) const {
-	auto it{ std::ranges::find_if(scenes_, [scene_key](const auto& scene) {
-		return scene->key_ == scene_key;
+	auto it{ std::ranges::find_if(scenes_, [&scene_key](const auto& scene) {
+		return scene->GetKey() == scene_key;
 	}) };
 	if (it == scenes_.end()) {
 		return nullptr;
@@ -176,7 +186,7 @@ void SceneManager::HandleSceneEvents() {
 			case Scene::State::Paused:		break;
 			case Scene::State::Sleeping:	break;
 			case Scene::State::Entering:	{
-				if (IsActive(scene->key_)) {
+				if (IsActive(scene->GetKey())) {
 					exit.emplace_back(false, scene);
 					enter.emplace_back(false, scene);
 				} else {
@@ -197,7 +207,7 @@ void SceneManager::HandleSceneEvents() {
 				scene->state_ = Scene::State::Constructed;
 				break;
 			case Scene::State::Unloading: {
-				if (IsActive(scene->key_)) {
+				if (IsActive(scene->GetKey())) {
 					exit.emplace_back(true, scene);
 				}
 				unload.emplace_back(scene);
@@ -223,6 +233,74 @@ void SceneManager::HandleSceneEvents() {
 	for (auto scene : unload) {
 		VectorErase(scenes_, scene);
 	}
+}
+
+void SceneManager::MoveUp(const SceneKey& scene_key) {
+	auto it{ FindSceneIt(scenes_, scene_key) };
+	if (it != scenes_.begin()) {
+		std::iter_swap(it, std::prev(it));
+	}
+}
+
+void SceneManager::MoveDown(const SceneKey& scene_key) {
+	auto it{ FindSceneIt(scenes_, scene_key) };
+	if (std::next(it) != scenes_.end()) {
+		std::iter_swap(it, std::next(it));
+	}
+}
+
+void SceneManager::BringToTop(const SceneKey& scene_key) {
+	auto it{ FindSceneIt(scenes_, scene_key) };
+	if (it != std::prev(scenes_.end())) {
+		auto scene{ *it };
+		scenes_.erase(it);
+		scenes_.push_back(scene);
+	}
+}
+
+void SceneManager::MoveToBottom(const SceneKey& scene_key) {
+	auto it{ FindSceneIt(scenes_, scene_key) };
+	if (it != scenes_.begin()) {
+		auto scene{ *it };
+		scenes_.erase(it);
+		scenes_.insert(scenes_.begin(), scene);
+	}
+}
+
+void SceneManager::MoveAbove(const SceneKey& source_key, const SceneKey& target_key) {
+	if (source_key == target_key) {
+		return;
+	}
+
+	auto source_it{ FindSceneIt(scenes_, source_key) };
+	auto target_it{ FindSceneIt(scenes_, target_key) };
+
+	auto scene{ *source_it };
+	scenes_.erase(source_it);
+
+	// Recalculate target_it in case source was before target and got erased.
+	target_it = FindSceneIt(scenes_, target_key);
+
+	// Insert before target.
+	scenes_.insert(target_it, scene);
+}
+
+void SceneManager::MoveBelow(const SceneKey& source_key, const SceneKey& target_key) {
+	if (source_key == target_key) {
+		return;
+	}
+
+	auto source_it{ FindSceneIt(scenes_, source_key) };
+	auto target_it{ FindSceneIt(scenes_, target_key) };
+
+	auto scene{ *source_it };
+	scenes_.erase(source_it);
+
+	// Recalculate target_it in case source was before target.
+	target_it = FindSceneIt(scenes_, target_key);
+
+	// Insert after target.
+	scenes_.insert(std::next(target_it), scene);
 }
 
 } // namespace ptgn::impl

@@ -36,7 +36,7 @@ public:
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& TryLoad(const SceneKey& scene_key, TArgs&&... constructor_args) {
 		auto [inserted, scene] = VectorTryEmplaceIf<TScene>(
-			scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
+			scenes_, [scene_key](const auto& s) { return s->GetKey() == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
 		if (inserted) {
@@ -49,7 +49,7 @@ public:
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& Load(const SceneKey& scene_key, TArgs&&... constructor_args) {
 		auto [replaced, scene] = VectorReplaceOrEmplaceIf<TScene>(
-			scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
+			scenes_, [scene_key](const auto& s) { return s->GetKey() == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
 		if (!replaced) {
@@ -128,6 +128,24 @@ public:
 	[[nodiscard]] bool Has(const SceneKey& scene_key) const;
 
 	[[nodiscard]] bool IsActive(const SceneKey& scene_key) const;
+
+	// Move a scene up in the scene list.
+	void MoveUp(const SceneKey& scene_key);
+
+	// Move a scene down in the scene list.
+	void MoveDown(const SceneKey& scene_key);
+
+	// Bring a scene to the top of the scene list.
+	void BringToTop(const SceneKey& scene_key);
+
+	// Move a scene to the bottom of the scene list.
+	void MoveToBottom(const SceneKey& scene_key);
+
+	// Move a scene above another scene in the scene list.
+	void MoveAbove(const SceneKey& source_key, const SceneKey& target_key);
+
+	// Move a scene below another scene in the scene list.
+	void MoveBelow(const SceneKey& source_key, const SceneKey& target_key);
 
 private:
 	friend class Game;
