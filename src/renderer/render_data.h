@@ -284,8 +284,6 @@ private:
 		const std::array<V2_float, 4>& points, bool use_viewport
 	);
 
-	[[nodiscard]] static V2_float GetResolutionScale(const V2_float& viewport_size);
-
 	[[nodiscard]] V2_float RelativeToViewport(const V2_float& window_relative_point) const;
 
 	void AddShape(
