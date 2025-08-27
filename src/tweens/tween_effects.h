@@ -216,7 +216,8 @@ impl::EffectObject<impl::TintEffect>& TintTo(
 );
 
 /**
- * @brief Fades in the specified entity over a given duration.
+ * @brief Fades in the specified entity over a given duration. If the object already has a tint of
+ * color::White, does nothing. Set tint to color::Transparent for a full fade in effect.
  *
  * @param entity The entity to apply the fade-in effect to.
  * @param duration The time span over which the fade-in will occur.
@@ -229,7 +230,8 @@ impl::EffectObject<impl::TintEffect>& FadeIn(
 );
 
 /**
- * @brief Fades out the specified entity over a given duration.
+ * @brief Fades out the specified entity over a given duration. If the object already has a tint of
+ * color::Transparent, does nothing. Set tint to color::White for a full fade out effect.
  *
  * @param entity The entity to apply the fade-out effect to.
  * @param duration The time span over which the fade-out will occur.
