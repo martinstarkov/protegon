@@ -8,7 +8,6 @@ layout (location = 0) in vec4 v_Color;
 layout (location = 1) in vec2 v_TexCoord;
 
 //uniform sampler2D u_Texture;
-uniform vec2 u_Resolution;
 uniform vec2 u_LightPosition;
 uniform vec4 u_Color;
 uniform float u_LightIntensity;
@@ -47,7 +46,7 @@ float attenuate_cusp(float distance, float radius,
 }
 
 void main() {
-	vec2 pixel = gl_FragCoord.xy / u_Resolution;
+	vec2 pixel = gl_FragCoord.xy;
 	vec2 diff = u_LightPosition - pixel;
 	float distance = length(diff);
 
