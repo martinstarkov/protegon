@@ -32,6 +32,22 @@ V2_float ApplyTransform(
 	return position + (scale * local_point).Rotated(cos_angle, sin_angle);
 }
 
+V2_float ApplyInverseTransform(
+	const V2_float& local_point, const V2_float& position, const V2_float& scale, float cos_angle,
+	float sin_angle
+) {
+	V2_float inv_scale{ scale.x != 0 ? 1.0f / scale.x : 0.0f,
+						scale.y != 0 ? 1.0f / scale.y : 0.0f };
+
+	V2_float delta{ local_point - position };
+
+	// Unrotate and unscale the position.
+	V2_float inverse{ delta.Rotated(cos_angle, -sin_angle) };
+	inverse *= inv_scale;
+
+	return inverse;
+}
+
 V2_float ApplyTransform(
 	const V2_float& local_point, const V2_float& position, const V2_float& scale
 ) {
@@ -39,11 +55,34 @@ V2_float ApplyTransform(
 	return position + scale * local_point;
 }
 
+V2_float ApplyInverseTransform(
+	const V2_float& local_point, const V2_float& position, const V2_float& scale
+) {
+	V2_float inv_scale{ scale.x != 0 ? 1.0f / scale.x : 0.0f,
+						scale.y != 0 ? 1.0f / scale.y : 0.0f };
+
+	V2_float delta{ local_point - position };
+
+	V2_float inverse{ delta * inv_scale };
+
+	return inverse;
+}
+
 V2_float ApplyTransform(const V2_float& local_point, const Transform& transform) {
 	if (transform.GetRotation() == 0.0f) {
 		return ApplyTransform(local_point, transform.GetPosition(), transform.GetScale());
 	}
 	return ApplyTransform(
+		local_point, transform.GetPosition(), transform.GetScale(),
+		std::cos(transform.GetRotation()), std::sin(transform.GetRotation())
+	);
+}
+
+V2_float ApplyInverseTransform(const V2_float& local_point, const Transform& transform) {
+	if (transform.GetRotation() == 0.0f) {
+		return ApplyInverseTransform(local_point, transform.GetPosition(), transform.GetScale());
+	}
+	return ApplyInverseTransform(
 		local_point, transform.GetPosition(), transform.GetScale(),
 		std::cos(transform.GetRotation()), std::sin(transform.GetRotation())
 	);
@@ -75,11 +114,46 @@ void ApplyTransform(
 	}
 }
 
+void ApplyInverseTransform(
+	const V2_float* local_points, std::size_t count, V2_float* out_world_points,
+	const Transform& transform
+) {
+	if (transform.GetRotation() == 0.0f) {
+		if (transform == Transform{}) {
+			for (std::size_t i{ 0 }; i < count; ++i) {
+				out_world_points[i] = local_points[i];
+			}
+		}
+		for (std::size_t i{ 0 }; i < count; ++i) {
+			out_world_points[i] = ApplyInverseTransform(
+				local_points[i], transform.GetPosition(), transform.GetScale()
+			);
+		}
+	} else {
+		const float cosA = std::cos(transform.GetRotation());
+		const float sinA = std::sin(transform.GetRotation());
+
+		for (std::size_t i{ 0 }; i < count; ++i) {
+			out_world_points[i] = ApplyInverseTransform(
+				local_points[i], transform.GetPosition(), transform.GetScale(), cosA, sinA
+			);
+		}
+	}
+}
+
 std::vector<V2_float> ApplyTransform(
 	const std::vector<V2_float>& local_points, const Transform& transform
 ) {
 	std::vector<V2_float> world_points(local_points.size());
 	ApplyTransform(local_points.data(), local_points.size(), world_points.data(), transform);
+	return world_points;
+}
+
+std::vector<V2_float> ApplyInverseTransform(
+	const std::vector<V2_float>& local_points, const Transform& transform
+) {
+	std::vector<V2_float> world_points(local_points.size());
+	ApplyInverseTransform(local_points.data(), local_points.size(), world_points.data(), transform);
 	return world_points;
 }
 
