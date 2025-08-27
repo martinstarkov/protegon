@@ -578,10 +578,9 @@ V2_float SceneInput::WorldToScreen(const V2_float& world_point) const {
 
 	auto rt_local_point{ ApplyInverseTransform(world_point, camera_transform) };
 
-	V2_float screen_point{ rt_local_point.Rotated(rt_rot) * rt_scale + rt_pos +
-						   screen_size * 0.5f };
+	auto stuff2{ (rt_local_point - rt_pos).Rotated(rt_rot) * rt_scale + rt_pos };
 
-	return screen_point;
+	return stuff2 + screen_size * 0.5f;
 }
 
 V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
