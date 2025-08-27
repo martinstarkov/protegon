@@ -17,6 +17,7 @@
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "scene/camera.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
@@ -26,11 +27,31 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 	PointLight light{ entity };
 
 	auto transform{ GetDrawTransform(entity) };
-	// TODO: Translate coordinate system back to the center being 0.0f.
-	transform.Translate(game.renderer.GetLogicalResolution() * 0.5f);
-	float radius{ light.GetRadius() * Abs(transform.GetAverageScale()) };
 
-	shader.SetUniform("u_LightPosition", transform.GetPosition());
+	auto light_world_pos{ transform.GetPosition() };
+
+	auto& scene{ entity.GetScene() };
+	Camera camera{ entity.GetCamera() };
+	auto camera_transform{ GetAbsoluteTransform(camera) };
+	auto scene_transform{ GetAbsoluteTransform(scene.GetRenderTarget()) };
+
+	auto light_screen_pos{ entity.GetScene().input.WorldToScreen(light_world_pos) };
+
+	auto physical_size{ game.renderer.GetPhysicalResolution() };
+
+	light_screen_pos -= physical_size * 0.5f;
+
+	V2_float ratio{ camera.GetViewportSize() / physical_size };
+
+	light_screen_pos /= ratio;
+
+	light_screen_pos += physical_size * 0.5f;
+
+	float radius{ light.GetRadius() * Abs(transform.GetAverageScale()) *
+				  Abs(camera_transform.GetAverageScale()) *
+				  Abs(scene_transform.GetAverageScale()) };
+
+	shader.SetUniform("u_LightPosition", light_screen_pos);
 	shader.SetUniform("u_LightIntensity", light.GetIntensity());
 	shader.SetUniform("u_LightRadius", radius);
 	shader.SetUniform("u_Falloff", light.GetFalloff());
