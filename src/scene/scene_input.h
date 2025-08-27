@@ -51,6 +51,9 @@ public:
 	void SetDrawInteractivesColor(const Color& color);
 	void SetDrawInteractivesLineWidth(float line_width);
 
+	// Convert a point from world space to screen space.
+	[[nodiscard]] V2_float WorldToScreen(const V2_float& world_point) const;
+
 	// Convert a point from screen space to scene primary camera (world) space.
 	[[nodiscard]] V2_float ScreenToWorld(const V2_float& screen_point) const;
 

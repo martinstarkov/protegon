@@ -564,6 +564,26 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 	}
 }
 
+V2_float SceneInput::WorldToScreen(const V2_float& world_point) const {
+	const auto& scene{ game.scene.Get(scene_key_) };
+
+	auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
+
+	auto rt_pos{ rt_transform.GetPosition() };
+	auto rt_scale{ rt_transform.GetScale() };
+	auto rt_rot{ rt_transform.GetRotation() };
+	auto camera_transform{ GetTransform(scene.camera) };
+	auto screen_size{ game.renderer.GetLogicalResolution() };
+	camera_transform.SetScale(1.0f / camera_transform.GetScale());
+
+	auto rt_local_point{ ApplyInverseTransform(world_point, camera_transform) };
+
+	V2_float screen_point{ rt_local_point.Rotated(rt_rot) * rt_scale + rt_pos +
+						   screen_size * 0.5f };
+
+	return screen_point;
+}
+
 V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	const auto& scene{ game.scene.Get(scene_key_) };
 
