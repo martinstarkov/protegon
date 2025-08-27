@@ -40,12 +40,6 @@ bool SceneManager::IsActive(const SceneKey& scene_key) const {
 }
 
 std::shared_ptr<Scene> SceneManager::GetImpl(const SceneKey& scene_key) const {
-	auto queued_it{ std::ranges::find_if(queued_scenes_, [scene_key](const auto& scene) {
-		return scene->key_ == scene_key;
-	}) };
-	if (queued_it != queued_scenes_.end()) {
-		return *queued_it;
-	}
 	auto it{ std::ranges::find_if(scenes_, [scene_key](const auto& scene) {
 		return scene->key_ == scene_key;
 	}) };
@@ -95,7 +89,6 @@ void SceneManager::Reset() {
 	HandleSceneEvents();
 	scenes_		   = {};
 	active_scenes_ = {};
-	queued_scenes_ = {};
 	current_	   = nullptr;
 }
 
@@ -170,15 +163,6 @@ void SceneManager::Update(Game& g) {
 }
 
 void SceneManager::HandleSceneEvents() {
-	for (const auto& queued_scene : queued_scenes_) {
-		VectorReplaceOrEmplaceIf(
-			scenes_,
-			[&queued_scene](const auto& scene) { return scene->key_ == queued_scene->key_; },
-			queued_scene
-		);
-	}
-	queued_scenes_ = {};
-
 	// If bool is true, erase scene from active vector.
 	std::vector<std::pair<bool, std::shared_ptr<Scene>>> exit;
 	// If bool is true, add scene to active vector.

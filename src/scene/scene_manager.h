@@ -36,7 +36,7 @@ public:
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& TryLoad(const SceneKey& scene_key, TArgs&&... constructor_args) {
 		auto [inserted, scene] = VectorTryEmplaceIf<TScene>(
-			queued_scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
+			scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
 		if (inserted) {
@@ -49,7 +49,7 @@ public:
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& Load(const SceneKey& scene_key, TArgs&&... constructor_args) {
 		auto [replaced, scene] = VectorReplaceOrEmplaceIf<TScene>(
-			queued_scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
+			scenes_, [scene_key](const auto& s) { return s->key_ == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
 		if (!replaced) {
@@ -147,7 +147,6 @@ private:
 
 	std::vector<std::shared_ptr<Scene>> active_scenes_;
 	std::vector<std::shared_ptr<Scene>> scenes_;
-	std::vector<std::shared_ptr<Scene>> queued_scenes_;
 	std::shared_ptr<Scene> current_;
 };
 
