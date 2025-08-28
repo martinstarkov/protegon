@@ -205,7 +205,7 @@ void CollisionHandler::Intersect(Entity& entity1, float dt) {
 
 		Translate(root_entity, minimum_translation_vector);
 
-		moved_entities.emplace_back(root_entity);
+		moved_entities.emplace_back(entity1);
 
 		if (auto rigid_body{ root_entity.TryGet<RigidBody>() }) {
 			rigid_body->velocity = GetRemainingVelocity(
