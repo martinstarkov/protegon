@@ -32,7 +32,7 @@ float Capsule::GetRadius() const {
 }
 
 float Capsule::GetRadius(const Transform& transform) const {
-	return GetRadius() * transform.GetAverageScale();
+	return GetRadius() * Abs(transform.GetAverageScale());
 }
 
 } // namespace ptgn

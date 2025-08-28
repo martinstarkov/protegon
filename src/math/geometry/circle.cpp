@@ -25,7 +25,7 @@ float Circle::GetRadius() const {
 }
 
 float Circle::GetRadius(const Transform& transform) const {
-	return GetRadius() * transform.GetAverageScale();
+	return GetRadius() * Abs(transform.GetAverageScale());
 }
 
 std::array<V2_float, 2> Circle::GetExtents(const Transform& transform) const {

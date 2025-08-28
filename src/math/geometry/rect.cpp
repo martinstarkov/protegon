@@ -27,7 +27,7 @@ V2_float Rect::GetSize() const {
 }
 
 V2_float Rect::GetSize(const Transform& transform) const {
-	return GetSize() * transform.GetScale();
+	return GetSize() * Abs(transform.GetScale());
 }
 
 Transform Rect::Offset(const Transform& transform, Origin draw_origin) const {
@@ -50,9 +50,8 @@ std::array<V2_float, 4> Rect::GetLocalVertices() const {
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }
 
-std::array<V2_float, 4> Rect::GetWorldVertices(
-	const Transform& transform, Origin draw_origin
-) const {
+std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform, Origin draw_origin)
+	const {
 	auto offset{ Offset(transform, draw_origin) };
 	auto local_vertices{ GetLocalVertices() };
 	return ApplyTransform(local_vertices, offset);
