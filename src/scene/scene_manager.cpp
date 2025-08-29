@@ -153,7 +153,6 @@ void SceneManager::Update(Game& g) {
 
 	auto scenes{ scenes_ };
 	for (auto scene : scenes) {
-		invoke_resolution_events(scene->cameras_);
 		invoke_resolution_events(*scene);
 	}
 

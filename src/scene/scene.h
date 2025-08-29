@@ -131,8 +131,6 @@ private:
 
 	State state_{ State::Constructed };
 
-	Manager cameras_;
-
 	impl::CollisionHandler collision_;
 
 	RenderTarget render_target_;

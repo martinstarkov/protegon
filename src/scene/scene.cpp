@@ -43,6 +43,8 @@ Scene::Scene() {
 	render_target_ = CreateRenderTarget(
 		render_manager, ResizeToResolution::Physical, color::Transparent, TextureFormat::RGBA8888
 	);
+	PTGN_ASSERT(render_target_.camera);
+	camera = render_target_.camera;
 	SetBlendMode(render_target_, BlendMode::Blend);
 }
 
@@ -141,8 +143,7 @@ impl::SceneKey Scene::GetKey() const {
 }
 
 void Scene::Init() {
-	cameras_.Reset();
-	camera = CreateCamera(cameras_);
+	render_target_.camera.Reset();
 }
 
 void Scene::SetKey(const impl::SceneKey& key) {
@@ -169,10 +170,10 @@ void Scene::InternalExit() {
 	Refresh();
 	// Clears component hooks.
 	Reset();
-	cameras_.Reset();
 	camera	= {};
 	physics = {};
 	render_target_.ClearDisplayList();
+	render_target_.camera.Reset();
 	Refresh();
 }
 
@@ -196,9 +197,7 @@ void Scene::InternalUpdate() {
 	render_data.drawing_to_ = impl::RenderData::GetDrawTarget(*this);
 
 	Refresh();
-	cameras_.Refresh();
 
-	game.input.InvokeInputEvents(cameras_);
 	game.input.InvokeInputEvents(*this);
 
 	input.Update(*this);
@@ -211,7 +210,6 @@ void Scene::InternalUpdate() {
 		manager.Refresh();
 	};
 
-	invoke_scripts(cameras_);
 	invoke_scripts(*this);
 
 	float dt{ game.dt() };
@@ -225,20 +223,16 @@ void Scene::InternalUpdate() {
 		invoke_scripts(manager);
 	};
 
-	invoke_scripts(cameras_);
 	update_scripts(*this);
 
 	Update();
 
-	cameras_.Refresh();
 	Refresh();
 
-	invoke_scripts(cameras_);
 	invoke_scripts(*this);
 
 	ParticleEmitter::Update(*this);
 
-	Tween::Update(cameras_, dt);
 	Tween::Update(*this, dt);
 
 	impl::AnimationSystem::Update(*this);
@@ -269,7 +263,6 @@ void Scene::InternalUpdate() {
 
 void to_json(json& j, const Scene& scene) {
 	to_json(j["manager"], static_cast<const Manager&>(scene));
-	j["cameras"]			 = scene.cameras_;
 	j["camera"]				 = scene.camera;
 	j["key"]				 = scene.key_;
 	j["physics"]			 = scene.physics;
@@ -295,9 +288,6 @@ void from_json(const json& j, Scene& scene) {
 
 	j.at("input").get_to(scene.input);
 	j.at("render_target").get_to(scene.render_target_);
-
-	j.at("cameras").get_to(scene.cameras_);
-	scene.camera = scene.cameras_.GetEntityByUUID(j.at("camera").at("UUID"));
 }
 
 } // namespace ptgn

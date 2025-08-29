@@ -38,6 +38,9 @@ RenderTarget AddRenderTargetComponents(
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();
 	render_target.Add<impl::ClearColor>(clear_color);
+	render_target.Add<impl::CameraInfo>();
+	// TODO: Make camera resize to render target size.
+	Camera{ render_target }.Reset();
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
