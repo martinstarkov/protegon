@@ -131,7 +131,7 @@ void ViewportResizeScript::OnWindowResized() {
 	if (!render_data.logical_resolution_set_) {
 		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
 	}
-	render_data.RecomputeViewport(window_size);
+	render_data.RecomputePhysicalViewport(window_size);
 }
 
 ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
@@ -405,7 +405,7 @@ void RenderData::AddTexturedQuad(
 
 	auto texture_id{ texture.GetId() };
 
-	if (bool has_pre_fx{ !pre_fx.pre_fx_.empty() }) {
+	if (!pre_fx.pre_fx_.empty()) {
 		auto texture_size{ texture.GetSize() };
 
 		PTGN_ASSERT(
@@ -509,7 +509,7 @@ void RenderData::Init() {
 	viewport_tracker = render_manager.CreateEntity();
 	AddScript<ViewportResizeScript>(viewport_tracker);
 	auto window_size{ game.window.GetSize() };
-	RecomputeViewport(window_size);
+	RecomputePhysicalViewport(window_size);
 
 	render_manager.Refresh();
 }
@@ -853,10 +853,12 @@ RenderData::DrawTarget RenderData::GetDrawTarget(const Scene& scene) {
 void RenderData::SetPoints(RenderData::DrawTarget& target) {
 	PTGN_ASSERT(target.viewport.size.BothAboveZero());
 
-	target.points = { target.viewport.position,
-					  target.viewport.position + V2_float{ target.viewport.size.x, 0.0f },
-					  target.viewport.position + target.viewport.size,
-					  target.viewport.position + V2_float{ 0.0f, target.viewport.size.y } };
+	auto half_viewport{ target.viewport.size * 0.5f };
+
+	target.points = { target.viewport.position - half_viewport,
+					  target.viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
+					  target.viewport.position + half_viewport,
+					  target.viewport.position + V2_float{ -half_viewport.x, half_viewport.y } };
 }
 
 void RenderData::SetProjection(RenderData::DrawTarget& target) {
@@ -893,12 +895,7 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 	target.texture_size	  = texture_size;
 	target.texture_id	  = texture.GetId();
 	target.texture_format = texture.GetFormat();
-
-	if (const auto custom_viewport{ render_target.TryGet<Viewport>() }) {
-		target.viewport = *custom_viewport;
-	} else {
-		target.viewport.size = texture_size;
-	}
+	target.viewport.size  = texture_size;
 
 	if (use_viewport) {
 		SetPointsAndProjection(target);
@@ -953,7 +950,7 @@ void RenderData::DrawScene(Scene& scene) {
 	Flush();
 }
 
-void RenderData::RecomputeViewport(const V2_int& window_size) {
+void RenderData::RecomputePhysicalViewport(const V2_int& window_size) {
 	if (!logical_resolution_.BothAboveZero()) {
 		UpdateResolutions(window_size, resolution_mode_);
 	}
@@ -1030,7 +1027,7 @@ void RenderData::UpdateResolutions(
 	logical_resolution_			= logical_resolution;
 	resolution_mode_			= logical_resolution_mode;
 	logical_resolution_changed_ = true;
-	RecomputeViewport(window_size);
+	RecomputePhysicalViewport(window_size);
 }
 
 void RenderData::ClearScreenTarget() const {
@@ -1081,15 +1078,11 @@ void RenderData::DrawFromTo(
 }
 
 void RenderData::DrawScreenTarget() {
-	auto projection{
-		GetProjection(-physical_viewport_.size / 2.0f, physical_viewport_.size / 2.0f)
-	};
-	std::array<V2_float, 4> points{
-		-physical_viewport_.size / 2.0f,
-		V2_float{ physical_viewport_.size.x / 2.0f, -physical_viewport_.size.y / 2.0f },
-		physical_viewport_.size / 2.0f,
-		V2_float{ -physical_viewport_.size.x / 2.0f, physical_viewport_.size.y / 2.0f }
-	};
+	auto half_viewport{ physical_viewport_.size * 0.5f };
+
+	auto projection{ GetProjection(-half_viewport, half_viewport) };
+	std::array<V2_float, 4> points{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y },
+									half_viewport, V2_float{ -half_viewport.x, half_viewport.y } };
 
 	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr);
 }
@@ -1102,7 +1095,9 @@ void RenderData::Draw(Scene& scene) {
 
 	DrawScene(scene);
 
-	auto projection{ GetProjection(-logical_resolution_ / 2.0f, logical_resolution_ / 2.0f) };
+	auto half_logical_resolution{ logical_resolution_ * 0.5f };
+
+	auto projection{ GetProjection(-half_logical_resolution, half_logical_resolution) };
 
 	Transform scene_transform{ GetTransform(scene.render_target_) };
 

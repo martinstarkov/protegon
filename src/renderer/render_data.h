@@ -395,7 +395,7 @@ private:
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);
 
-	void RecomputeViewport(const V2_int& window_size);
+	void RecomputePhysicalViewport(const V2_int& window_size);
 
 	void Flush();
 
