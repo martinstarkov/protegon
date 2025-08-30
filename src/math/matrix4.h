@@ -127,6 +127,20 @@ public:
 		return std::end(m_);
 	}
 
+	void Scale(const Vector3<float>& axes) {
+		*this = Scale(*this, axes);
+	}
+
+	void Rotate(float angle_radians, const Vector3<float>& axes) {
+		*this = Rotate(*this, angle_radians, axes);
+	}
+
+	void Translate(const Vector3<float>& t) {
+		*this = Translate(*this, t);
+	}
+
+	[[nodiscard]] Matrix4 Inverse() const;
+
 	[[nodiscard]] static Matrix4 LookAt(
 		const Vector3<float>& position, const Vector3<float>& target, const Vector3<float>& up
 	);
@@ -138,10 +152,23 @@ public:
 		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
 	);
 
-	// From:
-	// https://github.com/g-truc/glm/blob/33b4a621a697a305bc3a7610d290677b96beb181/glm/detail/func_matrix.inl#L388
+	[[nodiscard]] static Matrix4 MakeTransform(
+		const Vector3<float>& position, const Vector3<float>& scale, float rotation_radians,
+		const Vector3<float>& rotation_axis
+	);
 
-	[[nodiscard]] Matrix4 Inverse() const;
+	[[nodiscard]] static Matrix4 MakeTransform(
+		const Vector2<float>& position, const Vector2<float>& scale, float rotation_radians
+	);
+
+	[[nodiscard]] static Matrix4 MakeInverseTransform(
+		const Vector3<float>& position, const Vector3<float>& scale, float rotation_radians,
+		const Vector3<float>& rotation_axis
+	);
+
+	[[nodiscard]] static Matrix4 MakeInverseTransform(
+		const Vector2<float>& position, const Vector2<float>& scale, float rotation_radians
+	);
 
 	// Field of view angle fov_x in radians.
 	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
