@@ -593,7 +593,7 @@ RaycastResult RaycastRectRect(
 	bool rotated1{ transform1.GetRotation() != 0.0f };
 	bool rotated2{ transform2.GetRotation() != 0.0f };
 
-	if (!rotated1 && !rotated2 || !rotated1 && rotated2) {
+	if ((!rotated1 && !rotated2) || (!rotated1 && rotated2)) {
 		auto rectA_center{ A.GetCenter(transform1) };
 		auto rectB_center{ B.GetCenter(transform2) };
 		return RaycastRect(

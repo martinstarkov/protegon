@@ -134,8 +134,9 @@ std::vector<Entity> KDTree::Raycast(
 	return hits;
 }
 
-Entity KDTree::RaycastFirst(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb)
-	const {
+Entity KDTree::RaycastFirst(
+	const Entity& entity, const V2_float& dir, const BoundingAABB& aabb
+) const {
 	Entity closest_hit;
 	float closest_t{ 1.0f };
 	Rect rect{ aabb.min, aabb.max };

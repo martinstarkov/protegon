@@ -85,7 +85,7 @@ Entity& AddInteractable(
 	}
 	AddChild(entity, shape, name);
 	auto& shapes{ impl::GetInteractive(entity).shapes };
-	shapes.emplace_back(std::move(GameObject{ std::move(shape) }));
+	shapes.emplace_back(GameObject{ std::move(shape) });
 	return entity;
 }
 

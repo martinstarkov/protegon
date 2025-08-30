@@ -184,7 +184,7 @@ Intersection IntersectCirclePolygon(
 		float distance_to_edge{ edge_normal.Dot(circle_center - a) };
 
 		if (distance_to_edge > circle_radius) {
-			// No intersection — circle is outside
+			// No intersection circle is outside
 			return c; // c.Occurred() == false
 		}
 
