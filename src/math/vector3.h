@@ -177,6 +177,11 @@ struct Vector3 {
 	[[nodiscard]] bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 });
 	}
+
+	// @return True if any component is zero.
+	[[nodiscard]] bool HasZero() const {
+		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 }) || NearlyEqual(z, T{ 0 });
+	}
 };
 
 template <Arithmetic T>
