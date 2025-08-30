@@ -580,7 +580,7 @@ V2_float SceneInput::WorldToScreen(const V2_float& world_point) const {
 
 	auto stuff2{ (rt_local_point - rt_pos).Rotated(rt_rot) * rt_scale + rt_pos };
 
-	return stuff2 + screen_size * 0.5f;
+	return stuff2;
 }
 
 V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
