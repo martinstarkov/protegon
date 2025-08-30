@@ -43,8 +43,8 @@ Scene::Scene() {
 	render_target_ = CreateRenderTarget(
 		render_manager, ResizeToResolution::Physical, color::Transparent, TextureFormat::RGBA8888
 	);
-	PTGN_ASSERT(render_target_.camera);
-	camera = render_target_.camera;
+	PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
+	camera = render_target_.Get<GameObject<Camera>>();
 	SetBlendMode(render_target_, BlendMode::Blend);
 }
 
@@ -143,7 +143,7 @@ impl::SceneKey Scene::GetKey() const {
 }
 
 void Scene::Init() {
-	render_target_.camera.Reset();
+	render_target_.Get<GameObject<Camera>>().Reset();
 }
 
 void Scene::SetKey(const impl::SceneKey& key) {
@@ -173,7 +173,7 @@ void Scene::InternalExit() {
 	camera	= {};
 	physics = {};
 	render_target_.ClearDisplayList();
-	render_target_.camera.Reset();
+	render_target_.Get<GameObject<Camera>>().Reset();
 	Refresh();
 }
 
@@ -213,7 +213,6 @@ void Scene::InternalUpdate() {
 	invoke_scripts(*this);
 
 	float dt{ game.dt() };
-	float time{ game.time() };
 
 	const auto update_scripts = [&](Manager& manager) {
 		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
@@ -251,14 +250,9 @@ void Scene::InternalUpdate() {
 
 	InternalDraw();
 
-	const auto update_transforms = [&](Manager& manager) {
-		for (auto [entity, transform] : manager.InternalEntitiesWith<Transform>()) {
-			transform.dirty_flags_.ClearAll();
-		}
-	};
-
-	update_transforms(cameras_);
-	update_transforms(*this);
+	for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
+		transform.dirty_flags_.ClearAll();
+	}
 }
 
 void to_json(json& j, const Scene& scene) {

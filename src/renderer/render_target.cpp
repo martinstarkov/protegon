@@ -27,7 +27,8 @@ namespace ptgn {
 namespace impl {
 
 RenderTarget AddRenderTargetComponents(
-	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
+	const Entity& entity, Manager& manager, const V2_int& size, const Color& clear_color,
+	TextureFormat texture_format
 ) {
 	PTGN_ASSERT(entity);
 
@@ -38,9 +39,8 @@ RenderTarget AddRenderTargetComponents(
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();
 	render_target.Add<impl::ClearColor>(clear_color);
-	render_target.Add<impl::CameraInfo>();
-	// TODO: Make camera resize to render target size.
-	Camera{ render_target }.Reset();
+	auto& camera{ render_target.Add<GameObject<Camera>>(CreateCamera(manager)) };
+	camera.SetViewport(-size * 0.5f, size);
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
@@ -201,8 +201,9 @@ RenderTarget CreateRenderTarget(
 		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
 	);
 
-	render_target =
-		impl::AddRenderTargetComponents(render_target, resolution, clear_color, texture_format);
+	render_target = impl::AddRenderTargetComponents(
+		render_target, manager, resolution, clear_color, texture_format
+	);
 
 	PTGN_ASSERT(render_target);
 
@@ -212,9 +213,9 @@ RenderTarget CreateRenderTarget(
 RenderTarget CreateRenderTarget(
 	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
-	auto render_target{
-		impl::AddRenderTargetComponents(manager.CreateEntity(), size, clear_color, texture_format)
-	};
+	auto render_target{ impl::AddRenderTargetComponents(
+		manager.CreateEntity(), manager, size, clear_color, texture_format
+	) };
 	return render_target;
 }
 

@@ -6,14 +6,12 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
-#include "core/game_object.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -32,7 +30,8 @@ namespace impl {
 class RenderData;
 
 RenderTarget AddRenderTargetComponents(
-	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
+	const Entity& entity, Manager& manager, const V2_int& size, const Color& clear_color,
+	TextureFormat texture_format
 );
 
 struct DisplayList {
@@ -126,7 +125,7 @@ private:
 	friend class impl::RenderData;
 	friend class Scene;
 	friend RenderTarget impl::AddRenderTargetComponents(
-		const Entity& entity, const V2_int& size, const Color& clear_color,
+		const Entity& entity, Manager& manager, const V2_int& size, const Color& clear_color,
 		TextureFormat texture_format
 	);
 
