@@ -213,7 +213,28 @@ Transform GetTransform(const Entity& entity) {
 	return {};
 }
 
-Transform GetAbsoluteTransform(const Entity& entity, bool relative_to_scene_primary_camera) {
+Transform GetTransform(const Camera& camera) {
+	return camera.GetTransform();
+}
+
+Transform GetAbsoluteTransform(const Entity& entity) {
+	auto world_transform{ GetWorldTransform(entity) };
+	if (entity.Has<impl::CameraInstance>()) {
+		// Cameras are relative to themselves.
+		return world_transform;
+	}
+	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
+		auto camera_transform{ GetTransform(*camera) };
+		auto inverse_transform{ world_transform.InverseRelativeTo(camera_transform) };
+		auto primary_camera{ entity.GetScene().camera };
+		auto primary_transform{ GetTransform(primary_camera) };
+		auto absolute_transform{ inverse_transform.RelativeTo(primary_transform) };
+		return absolute_transform;
+	}
+	return world_transform;
+}
+
+Transform GetWorldTransform(const Entity& entity) {
 	auto transform{ GetTransform(entity) };
 	if (entity.Has<impl::IgnoreParentTransform>() && entity.Get<impl::IgnoreParentTransform>()) {
 		return transform;
@@ -221,24 +242,15 @@ Transform GetAbsoluteTransform(const Entity& entity, bool relative_to_scene_prim
 	Transform relative_to;
 	if (HasParent(entity)) {
 		Entity parent{ GetParent(entity) };
-		relative_to = GetAbsoluteTransform(parent, relative_to_scene_primary_camera);
+		relative_to = GetWorldTransform(parent);
 	}
-	auto absolute_transform{ transform.RelativeTo(relative_to) };
-	if (!relative_to_scene_primary_camera || entity.Has<impl::CameraInfo>()) {
-		return absolute_transform;
-	}
-	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
-		auto camera_transform{ GetTransform(*camera) };
-		absolute_transform = absolute_transform.InverseRelativeTo(camera_transform);
-		auto primary_transform{ GetTransform(entity.GetScene().camera) };
-		absolute_transform = absolute_transform.RelativeTo(primary_transform);
-	}
-	return absolute_transform;
+	auto world_transform{ transform.RelativeTo(relative_to) };
+	return world_transform;
 }
 
 Transform GetDrawTransform(const Entity& entity) {
 	auto offset_transform{ GetOffset(entity) };
-	auto transform{ GetAbsoluteTransform(entity, false) };
+	auto transform{ GetWorldTransform(entity) };
 	transform = transform.RelativeTo(offset_transform);
 	return transform;
 }
