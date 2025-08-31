@@ -39,13 +39,13 @@ public:
 			i++;
 		};
 
-		create_light(color::Cyan);
-		create_light(color::Green);
-		create_light(color::Blue);
-		create_light(color::Magenta);
-		create_light(color::Yellow);
-		create_light(color::Cyan);
-		create_light(color::White);
+		// create_light(color::Cyan);
+		// create_light(color::Green);
+		// create_light(color::Blue);
+		// create_light(color::Magenta);
+		// create_light(color::Yellow);
+		// create_light(color::Cyan);
+		// create_light(color::White);
 
 		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
 		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
@@ -56,7 +56,7 @@ public:
 	}
 
 	void Update() override {
-		PTGN_LOG(input.GetMousePosition());
+		// PTGN_LOG(input.GetMousePosition());
 		SetPosition(mouse_light, input.GetMousePosition());
 
 		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);

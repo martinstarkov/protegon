@@ -32,24 +32,29 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 
 	auto& scene{ entity.GetScene() };
 	Camera camera{ entity.GetCamera() };
+
 	auto camera_transform{ GetAbsoluteTransform(camera) };
 	auto scene_transform{ GetAbsoluteTransform(scene.GetRenderTarget()) };
 
 	auto light_screen_pos{ entity.GetScene().input.WorldToScreen(light_world_pos) };
 
-	auto physical_size{ game.renderer.GetPhysicalResolution() };
-
-	light_screen_pos -= physical_size * 0.5f;
+	auto physical_size{ game.renderer.GetLogicalResolution() };
 
 	V2_float ratio{ camera.GetViewportSize() / physical_size };
+
+	PTGN_ASSERT(ratio.BothAboveZero());
 
 	light_screen_pos /= ratio;
 
 	light_screen_pos += physical_size * 0.5f;
 
+	V2_float zoomed_ratio{ camera.GetDisplaySize() / physical_size };
+
 	float radius{ light.GetRadius() * Abs(transform.GetAverageScale()) *
-				  Abs(camera_transform.GetAverageScale()) *
-				  Abs(scene_transform.GetAverageScale()) };
+				  Abs(camera_transform.GetAverageScale()) * Abs(scene_transform.GetAverageScale()) *
+				  ((zoomed_ratio.x + zoomed_ratio.y) * 0.5f) };
+
+	PTGN_LOG(camera_transform); //, ", ", light_screen_pos, ", ", radius);
 
 	shader.SetUniform("u_LightPosition", light_screen_pos);
 	shader.SetUniform("u_LightIntensity", light.GetIntensity());

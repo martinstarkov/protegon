@@ -296,13 +296,17 @@ void CameraInstance::RecalculateViewProjection() const {
 }
 
 void CameraInstance::RecalculateView() const {
-	auto t{ transform };
+	Transform t{ transform };
 	// TODO: Add shake and other offsets to position and rotation.
 	// TODO: Apply clamp to bounds to offset position.
 
 	if (pixel_rounding) {
 		t.SetPosition(Round(t.GetPosition()));
 	}
+
+	PTGN_ASSERT(t.GetScale().BothAboveZero(), "Camera cannot have negative or zero zoom");
+
+	t.SetScale(1.0f / t.GetScale());
 
 	view = Matrix4::MakeInverseTransform(t);
 
