@@ -780,7 +780,7 @@ void RenderData::Flush() {
 		// Add post fx to the intermediate target.
 
 		// Flip only every odd ping pong to keep the flushed target upright.
-		bool flip{ render_state.post_fx.post_fx_.size() % 2 == 1 };
+		bool flip{ render_state.post_fx.post_fx_.size() % 2 == 0 };
 		auto id{ PingPong(render_state.post_fx.post_fx_, intermediate_target, {}, target, flip) };
 		target.texture_id = id;
 	}
@@ -803,7 +803,7 @@ void RenderData::Flush() {
 		// Flush intermediate target onto drawing_to frame buffer.
 		DrawFullscreenQuad(
 			GetFullscreenShader(target.texture_format), target,
-			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
+			false /* Only flip if postfx have been applied. */, false, color::Transparent
 		);
 
 	} else if (render_state.shader_pass != ShaderPass{}) {
@@ -892,10 +892,11 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 	const auto& texture{ render_target.GetTexture() };
 	auto texture_size{ render_target.GetTextureSize() };
 
-	target.texture_size	  = texture_size;
-	target.texture_id	  = texture.GetId();
-	target.texture_format = texture.GetFormat();
-	target.viewport.size  = texture_size;
+	target.texture_size		 = texture_size;
+	target.texture_id		 = texture.GetId();
+	target.texture_format	 = texture.GetFormat();
+	target.viewport.position = {};
+	target.viewport.size	 = texture_size;
 
 	if (use_viewport) {
 		SetPointsAndProjection(target);
@@ -1064,7 +1065,8 @@ const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
 
 void RenderData::DrawFromTo(
 	const RenderTarget& source_target, const std::array<V2_float, 4>& points,
-	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
+	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer,
+	bool flip_texture
 ) {
 	auto target{ GetDrawTarget(source_target, {}, {}, false) };
 	target.view_projection = projection;
@@ -1073,7 +1075,7 @@ void RenderData::DrawFromTo(
 	target.frame_buffer	   = destination_buffer;
 
 	DrawFullscreenQuad(
-		GetFullscreenShader(target.texture_format), target, true, false, color::Transparent
+		GetFullscreenShader(target.texture_format), target, flip_texture, false, color::Transparent
 	);
 }
 
@@ -1084,7 +1086,7 @@ void RenderData::DrawScreenTarget() {
 	std::array<V2_float, 4> points{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y },
 									half_viewport, V2_float{ -half_viewport.x, half_viewport.y } };
 
-	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr);
+	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr, false);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -1108,7 +1110,7 @@ void RenderData::Draw(Scene& scene) {
 	viewport.size	  = physical_viewport_.size;
 
 	DrawFromTo(
-		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer()
+		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer(), true
 	);
 
 	Reset();

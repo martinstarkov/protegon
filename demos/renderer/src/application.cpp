@@ -158,18 +158,24 @@ std::vector<std::vector<std::size_t>> GenerateNumberPermutations(std::size_t N) 
 
 float rect_thickness{ -1.0f };
 float circle_thickness{ -1.0f };
-V2_float rect1_pos{ 300, 300 };
+V2_float rect1_pos{ -100, -100 };
 V2_float rect1_size{ 400, 400 };
 Color rect1_color{ color::Red };
-V2_float rect2_pos{ 300, 500 };
+V2_float rect2_pos{ -100, 100 };
 V2_float rect2_size{ 400, 400 };
 Color rect2_color{ color::Green };
-V2_float circle1_pos{ 500, 300 };
+V2_float circle1_pos{ 100, -100 };
 float circle1_radius{ 200 };
 Color circle1_color{ color::Blue };
-V2_float circle2_pos{ 500, 500 };
+V2_float circle2_pos{ 100, 100 };
 float circle2_radius{ 200 };
 Color circle2_color{ color::Gold };
+V2_float light1_pos{ 200, 200 };
+V2_float light2_pos{ 200, 300 };
+float light1_radius{ 100.0f };
+float light2_radius{ 100.0f };
+V2_float sprite1_pos{ -200, -220 };
+V2_float sprite2_pos{ 200, -220 };
 
 Entity AddRect(Scene& s, V2_float pos, V2_float size, Color color) {
 	auto e = CreateRect(s, pos, size, color, rect_thickness);
@@ -223,6 +229,13 @@ struct FollowMouseScript : public Script<FollowMouseScript> {
 void GenerateTestCases() {
 	LoadResource("test", "resources/test1.jpg");
 	LoadResource("noise", "resources/noise.png");
+
+	tests.emplace_back([](Scene& s) { auto sprite{ AddSprite(s, rect1_pos) }; });
+
+	tests.emplace_back([](Scene& s) {
+		auto sprite{ AddSprite(s, rect1_pos) };
+		AddSprite(s, rect2_pos);
+	});
 
 	tests.emplace_back([](Scene& s) {
 		auto sprite{ AddSprite(s, rect1_pos) };
@@ -548,53 +561,53 @@ void GenerateTestCases() {
 		AddCircle(s, circle2_pos, circle2_radius, circle2_color);
 	});
 
-	auto rect = [](Scene& s) {
-		CreateRect(s, { 100, 100 }, { 50, 50 }, color::Red, -1.0f);
+	auto rect1 = [](Scene& s) {
+		CreateRect(s, rect1_pos, { 50, 50 }, color::Red, -1.0f);
 
 		PTGN_LOG("Rect");
 	};
 
 	auto rect2 = [](Scene& s) {
-		CreateRect(s, { 100, 100 }, { 50, 50 }, color::Red, -1.0f);
-		CreateRect(s, { 100, 200 }, { 50, 50 }, color::Red, -1.0f);
+		CreateRect(s, rect1_pos, { 50, 50 }, color::Red, -1.0f);
+		CreateRect(s, rect2_pos, { 50, 50 }, color::Red, -1.0f);
 
 		PTGN_LOG("2x Rect");
 	};
 
-	auto circle = [](Scene& s) {
-		CreateCircle(s, { 200, 200 }, 30.0f, color::Blue, -1.0f);
+	auto circle1 = [](Scene& s) {
+		CreateCircle(s, circle1_pos, 30.0f, color::Blue, -1.0f);
 		PTGN_LOG("Circle");
 	};
 
 	auto circle2 = [](Scene& s) {
-		CreateCircle(s, { 200, 200 }, 30.0f, color::Blue, -1.0f);
-		CreateCircle(s, { 200, 300 }, 30.0f, color::Blue, -1.0f);
+		CreateCircle(s, circle1_pos, 30.0f, color::Blue, -1.0f);
+		CreateCircle(s, circle2_pos, 30.0f, color::Blue, -1.0f);
 		PTGN_LOG("2x Circle");
 	};
 
-	auto sprite = [](Scene& s) {
-		CreateSprite(s, "test", { 500, 500 });
+	auto sprite1 = [](Scene& s) {
+		CreateSprite(s, "test", sprite1_pos);
 		PTGN_LOG("Sprite");
 	};
 
 	auto sprite2 = [](Scene& s) {
-		CreateSprite(s, "test", { 500, 500 });
-		CreateSprite(s, "test", { 500, 700 });
+		CreateSprite(s, "test", sprite1_pos);
+		CreateSprite(s, "test", sprite2_pos);
 		PTGN_LOG("2x Sprite");
 	};
 
-	auto light = [](Scene& s) {
-		CreatePointLight(s, { 400, 400 }, 100.0f, color::Purple, 1.0f, 1.0f);
+	auto light1 = [](Scene& s) {
+		CreatePointLight(s, light1_pos, light1_radius, color::Purple, 1.0f, 1.0f);
 		PTGN_LOG("Point light");
 	};
 
 	auto light2 = [](Scene& s) {
-		CreatePointLight(s, { 400, 400 }, 100.0f, color::Purple, 1.0f, 1.0f);
-		CreatePointLight(s, { 400, 500 }, 100.0f, color::Purple, 1.0f, 1.0f);
+		CreatePointLight(s, light1_pos, light1_radius, color::Purple, 1.0f, 1.0f);
+		CreatePointLight(s, light2_pos, light2_radius, color::Purple, 1.0f, 1.0f);
 		PTGN_LOG("2x Point light");
 	};
 
-	auto blur = [](Scene& s) {
+	auto blur1 = [](Scene& s) {
 		CreateBlur(s);
 		PTGN_LOG("Blur");
 	};

@@ -170,7 +170,6 @@ void Scene::InternalExit() {
 	Refresh();
 	// Clears component hooks.
 	Reset();
-	camera	= {};
 	physics = {};
 	render_target_.ClearDisplayList();
 	render_target_.Get<GameObject<Camera>>().Reset();
