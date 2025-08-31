@@ -780,7 +780,7 @@ void RenderData::Flush() {
 		// Add post fx to the intermediate target.
 
 		// Flip only every odd ping pong to keep the flushed target upright.
-		bool flip{ render_state.post_fx.post_fx_.size() % 2 == 0 };
+		bool flip{ render_state.post_fx.post_fx_.size() % 2 == 1 };
 		auto id{ PingPong(render_state.post_fx.post_fx_, intermediate_target, {}, target, flip) };
 		target.texture_id = id;
 	}
@@ -803,7 +803,7 @@ void RenderData::Flush() {
 		// Flush intermediate target onto drawing_to frame buffer.
 		DrawFullscreenQuad(
 			GetFullscreenShader(target.texture_format), target,
-			false /* Only flip if postfx have been applied. */, false, color::Transparent
+			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
 		);
 
 	} else if (render_state.shader_pass != ShaderPass{}) {
@@ -1086,7 +1086,7 @@ void RenderData::DrawScreenTarget() {
 	std::array<V2_float, 4> points{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y },
 									half_viewport, V2_float{ -half_viewport.x, half_viewport.y } };
 
-	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr, false);
+	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr, true);
 }
 
 void RenderData::Draw(Scene& scene) {

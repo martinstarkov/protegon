@@ -327,7 +327,7 @@ void CameraInstance::RecalculateProjection() const {
 
 	projection = Matrix4::Orthographic(
 		viewport_position.x - half_size.x, viewport_position.x + half_size.x,
-		viewport_position.y - half_size.y, viewport_position.y + half_size.y,
+		viewport_position.y + half_size.y, viewport_position.y - half_size.y,
 		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
 	);
 
