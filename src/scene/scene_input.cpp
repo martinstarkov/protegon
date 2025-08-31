@@ -601,7 +601,7 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 
 	auto center_offset{ screen_center - rt_pos };
 
-	auto rt_local_point{ (center_offset / rt_scale).Rotated(-rt_rot) };
+	auto rt_local_point{ (center_offset / rt_scale).Rotated(rt_rot) };
 
 	auto world_point{ ApplyTransform(rt_local_point, camera_transform) };
 
