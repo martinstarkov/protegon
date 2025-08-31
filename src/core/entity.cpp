@@ -24,17 +24,17 @@ namespace ptgn {
 Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
 
 ecs::impl::Index Entity::GetId() const {
-	return EntityBase::GetId();
+	return BaseEntity::GetId();
 }
 
-Entity::Entity(const EntityBase& entity) : EntityBase{ entity } {}
+Entity::Entity(const BaseEntity& entity) : BaseEntity{ entity } {}
 
 void Entity::Clear() const {
-	EntityBase::Clear();
+	BaseEntity::Clear();
 }
 
 bool Entity::IsAlive() const {
-	return EntityBase::IsAlive();
+	return BaseEntity::IsAlive();
 }
 
 Entity& Entity::Destroy(bool orphan_children) {
@@ -55,16 +55,16 @@ Entity& Entity::Destroy(bool orphan_children) {
 		}
 	}
 
-	EntityBase::Destroy();
+	BaseEntity::Destroy();
 	return *this;
 }
 
 Manager& Entity::GetManager() {
-	return static_cast<Manager&>(EntityBase::GetManager());
+	return static_cast<Manager&>(BaseEntity::GetManager());
 }
 
 const Manager& Entity::GetManager() const {
-	return static_cast<const Manager&>(EntityBase::GetManager());
+	return static_cast<const Manager&>(BaseEntity::GetManager());
 }
 
 const Scene& Entity::GetScene() const {
@@ -97,7 +97,7 @@ Camera& Entity::GetCamera() {
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
-	return EntityBase::IsIdenticalTo(e);
+	return BaseEntity::IsIdenticalTo(e);
 }
 
 UUID Entity::GetUUID() const {
@@ -106,17 +106,17 @@ UUID Entity::GetUUID() const {
 }
 
 std::size_t Entity::GetHash() const {
-	return std::hash<EntityBase>()(*this);
+	return std::hash<BaseEntity>()(*this);
 }
 
 bool Entity::WasCreatedBefore(const Entity& other) const {
 	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
-	auto version{ EntityBase::GetVersion() };
-	auto other_version{ other.EntityBase::GetVersion() };
+	auto version{ BaseEntity::GetVersion() };
+	auto other_version{ other.BaseEntity::GetVersion() };
 	if (version != other_version) {
 		return version < other_version;
 	}
-	return EntityBase::GetId() < other.EntityBase::GetId();
+	return BaseEntity::GetId() < other.BaseEntity::GetId();
 }
 
 void Entity::Invalidate() {

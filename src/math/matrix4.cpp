@@ -4,6 +4,7 @@
 #include <functional>
 
 #include "common/assert.h"
+#include "components/transform.h"
 #include "math/tolerance.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
@@ -12,17 +13,17 @@
 
 namespace ptgn {
 
-void to_json(json& j, const Matrix4& m) {
-	if (m != Matrix4{}) {
-		j = m.m_;
+void to_json(json& j, const Matrix4& matrix) {
+	if (matrix != Matrix4{}) {
+		j = matrix.m_;
 	}
 }
 
-void from_json(const json& j, Matrix4& m) {
+void from_json(const json& j, Matrix4& matrix) {
 	if (j.empty()) {
-		m = {};
+		matrix = {};
 	} else {
-		j.get_to(m.m_);
+		j.get_to(matrix.m_);
 	}
 }
 
@@ -110,8 +111,8 @@ Matrix4 Matrix4::Inverse() const {
 }
 
 Matrix4 Matrix4::MakeTransform(
-	const Vector3<float>& position, const Vector3<float>& scale, float rotation_radians,
-	const Vector3<float>& rotation_axis
+	const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
+	const Vector3<float>& scale
 ) {
 	Matrix4 m{ Matrix4::Identity() };
 
@@ -123,20 +124,21 @@ Matrix4 Matrix4::MakeTransform(
 }
 
 Matrix4 Matrix4::MakeTransform(
-	const Vector2<float>& position, const Vector2<float>& scale, float rotation_radians
+	const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
 ) {
-	Matrix4 m{ Matrix4::Identity() };
+	return MakeTransform(
+		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
+		{ scale.x, scale.y, 1.0f }
+	);
+}
 
-	m = Matrix4::Scale(m, { scale.x, scale.y, 1.0f });
-	m = Matrix4::Rotate(m, rotation_radians, { 0.0f, 0.0f, 1.0f });
-	m = Matrix4::Translate(m, { position.x, position.y, 0.0f });
-
-	return m;
+Matrix4 Matrix4::MakeTransform(const Transform& transform) {
+	return MakeTransform(transform.GetPosition(), transform.GetRotation(), transform.GetScale());
 }
 
 Matrix4 Matrix4::MakeInverseTransform(
-	const Vector3<float>& position, const Vector3<float>& scale, float rotation_radians,
-	const Vector3<float>& rotation_axis
+	const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
+	const Vector3<float>& scale
 ) {
 	PTGN_ASSERT(!scale.HasZero(), "Cannot get inverse transform with zero scale");
 
@@ -150,17 +152,18 @@ Matrix4 Matrix4::MakeInverseTransform(
 }
 
 Matrix4 Matrix4::MakeInverseTransform(
-	const Vector2<float>& position, const Vector2<float>& scale, float rotation_radians
+	const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
 ) {
-	PTGN_ASSERT(!scale.HasZero(), "Cannot get inverse transform with zero scale");
+	return MakeInverseTransform(
+		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
+		{ scale.x, scale.y, 1.0f }
+	);
+}
 
-	Matrix4 m{ Matrix4::Identity() };
-
-	m = Matrix4::Scale(m, { 1.0f / scale.x, 1.0f / scale.y, 1.0f });
-	m = Matrix4::Rotate(m, -rotation_radians, { 0.0f, 0.0f, 1.0f });
-	m = Matrix4::Translate(m, { -position.x, -position.y, 0.0f });
-
-	return m;
+Matrix4 Matrix4::MakeInverseTransform(const Transform& transform) {
+	return MakeInverseTransform(
+		transform.GetPosition(), transform.GetRotation(), transform.GetScale()
+	);
 }
 
 Matrix4 Matrix4::Orthographic(
@@ -205,6 +208,10 @@ Matrix4 Matrix4::Orthographic(
 	return o;
 }
 
+Matrix4 Matrix4::Orthographic(const V2_float& min, const V2_float& max, float near, float far) {
+	return Orthographic(min.x, max.x, max.y, min.y, near, far);
+}
+
 Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float front, float back) {
 	float tangent{ std::tan(fov_x_radians / 2.0f) }; // tangent of half fovX
 	float right{ front * tangent };					 // half width of near plane
@@ -233,9 +240,9 @@ Matrix4 Matrix4::Translate(const Matrix4& m, const Vector3<float>& axes) {
 	return result;
 }
 
-Matrix4 Matrix4::Rotate(const Matrix4& matrix, float angle_radians, const Vector3<float>& axes) {
-	const float c{ std::cos(angle_radians) };
-	const float s{ std::sin(angle_radians) };
+Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, const Vector3<float>& axes) {
+	const float c{ std::cos(rotation_radians) };
+	const float s{ std::sin(rotation_radians) };
 
 	float magnitude{ axes.Dot(axes) };
 

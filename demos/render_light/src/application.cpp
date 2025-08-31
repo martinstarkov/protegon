@@ -56,6 +56,7 @@ public:
 	}
 
 	void Update() override {
+		PTGN_LOG(input.GetMousePosition());
 		SetPosition(mouse_light, input.GetMousePosition());
 
 		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);

@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "components/generic.h"
+#include "core/entity.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 #include "utility/flags.h"
@@ -10,7 +11,6 @@
 namespace ptgn {
 
 class Camera;
-class Entity;
 class Scene;
 
 namespace impl {
@@ -61,6 +61,8 @@ struct Transform {
 	[[nodiscard]] V2_float GetScale() const;
 
 	Transform& SetPosition(const V2_float& position);
+	// Set position along a particular axis: x == 0, y == 1.
+	Transform& SetPosition(std::size_t index, float position);
 	Transform& SetPositionX(float x);
 	Transform& SetPositionY(float y);
 	Transform& SetRotation(float rotation);
@@ -89,6 +91,7 @@ struct Transform {
 	[[nodiscard]] bool IsRotationDirty() const;
 	[[nodiscard]] bool IsScaleDirty() const;
 	[[nodiscard]] bool IsDirty() const;
+	void ClearDirtyFlags() const;
 
 private:
 	friend class Scene;
@@ -98,9 +101,9 @@ private:
 	V2_float scale_{ 1.0f, 1.0f };
 
 	// By default all flags are dirty.
-	Flags<impl::TransformDirty> dirty_flags_{ impl::TransformDirty::Position |
-											  impl::TransformDirty::Rotation |
-											  impl::TransformDirty::Scale };
+	mutable Flags<impl::TransformDirty> dirty_flags_{ impl::TransformDirty::Position |
+													  impl::TransformDirty::Rotation |
+													  impl::TransformDirty::Scale };
 
 	PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(
 		Transform, KeyValue("position", position_), KeyValue("rotation", rotation_),
@@ -111,41 +114,72 @@ private:
 // Set the transform of the entity with respect to its parent entity.
 // @return *this.
 Entity& SetTransform(Entity& entity, const Transform& transform);
+Camera& SetTransform(Camera& entity, const Transform& transform);
 
 // @return The transform of the entity with respect to its parent entity.
 [[nodiscard]] Transform GetTransform(const Entity& entity);
 [[nodiscard]] Transform& GetTransform(Entity& entity);
 
 [[nodiscard]] Transform GetTransform(const Camera& camera);
+[[nodiscard]] Transform& GetTransform(Camera& camera);
 
 // @return The transform of the entity with respect to the scene primary camera.
 [[nodiscard]] Transform GetAbsoluteTransform(const Entity& entity);
+[[nodiscard]] Transform GetAbsoluteTransform(const Camera& entity);
 
 // @return The transform of the entity with respect to its parent camera.
 [[nodiscard]] Transform GetWorldTransform(const Entity& entity);
+[[nodiscard]] Transform GetWorldTransform(const Camera& entity);
 
 // @return The transform of the entity with respect to its parent camera, including any visual
 // offsets caused by effects such as shake or bounce.
 [[nodiscard]] Transform GetDrawTransform(const Entity& entity);
 
-// Set the relative position of the entity with respect to its parent entity, camera, or
-// scene camera position.
-// @return *this.
-Entity& SetPosition(Entity& entity, const V2_float& position);
-Entity& SetPositionX(Entity& entity, float position_x);
-Entity& SetPositionY(Entity& entity, float position_y);
+template <EntityBase T>
+T& SetPosition(T& entity, const V2_float& position) {
+	GetTransform(entity).SetPosition(position);
+	return entity;
+}
 
-// position += position_difference
-Entity& Translate(Entity& entity, const V2_float& position_difference);
-Entity& TranslateX(Entity& entity, float position_x_difference);
-Entity& TranslateY(Entity& entity, float position_y_difference);
+template <EntityBase T>
+T& SetPositionX(T& entity, float position_x) {
+	GetTransform(entity).SetPositionX(position_x);
+	return entity;
+}
 
-// @return The relative position of the entity with respect to its parent entity, camera, or
-// scene camera position.
-[[nodiscard]] V2_float GetPosition(const Entity& entity);
+template <EntityBase T>
+T& SetPositionY(T& entity, float position_y) {
+	GetTransform(entity).SetPositionY(position_y);
+	return entity;
+}
 
-// @return The absolute position of the entity with respect to its parent scene camera position.
-[[nodiscard]] V2_float GetAbsolutePosition(const Entity& entity);
+template <EntityBase T>
+T& Translate(T& entity, const V2_float& position_difference) {
+	GetTransform(entity).Translate(position_difference);
+	return entity;
+}
+
+template <EntityBase T>
+T& TranslateX(T& entity, float position_x_difference) {
+	GetTransform(entity).TranslateX(position_x_difference);
+	return entity;
+}
+
+template <EntityBase T>
+T& TranslateY(T& entity, float position_y_difference) {
+	GetTransform(entity).TranslateY(position_y_difference);
+	return entity;
+}
+
+template <EntityBase T>
+V2_float GetPosition(const T& entity) {
+	return GetTransform(entity).GetPosition();
+}
+
+template <EntityBase T>
+V2_float GetAbsolutePosition(const T& entity) {
+	return GetAbsoluteTransform(entity).GetPosition();
+}
 
 // Set 2D rotation angle in radians.
 /* Range: (-3.14159, 3.14159].
@@ -156,40 +190,77 @@ Entity& TranslateY(Entity& entity, float position_y_difference);
  *               |
  *             1.5708
  */
-// Set the relative rotation of the entity with respect to its parent entity, camera, or
-// scene camera rotation. Clockwise positive. Unit: Radians.
-// @return *this.
-Entity& SetRotation(Entity& entity, float rotation);
+template <EntityBase T>
+T& SetRotation(T& entity, float rotation) {
+	GetTransform(entity).SetRotation(rotation);
+	return entity;
+}
 
-// rotation += angle_difference
-Entity& Rotate(Entity& entity, float angle_difference);
+template <EntityBase T>
+T& Rotate(T& entity, float angle_difference) {
+	GetTransform(entity).Rotate(angle_difference);
+	return entity;
+}
 
-// @return The relative rotation of the entity with respect to its parent entity, camera, or
-// scene camera rotation. Clockwise positive. Unit: Radians.
-[[nodiscard]] float GetRotation(const Entity& entity);
+template <EntityBase T>
+float GetRotation(const T& entity) {
+	return GetTransform(entity).GetRotation();
+}
 
-// @return The absolute rotation of the entity with respect to its parent scene camera rotation.
-// Clockwise positive. Unit: Radians.
-[[nodiscard]] float GetAbsoluteRotation(const Entity& entity);
+template <EntityBase T>
+float GetAbsoluteRotation(const T& entity) {
+	return GetAbsoluteTransform(entity).GetRotation();
+}
 
-// Set the relative scale of the entity with respect to its parent entity, camera, or
-// scene camera scale.
-// @return *this.
-Entity& SetScale(Entity& entity, const V2_float& scale);
-Entity& SetScale(Entity& entity, float scale);
-Entity& SetScaleX(Entity& entity, float scale_x);
-Entity& SetScaleY(Entity& entity, float scale_y);
+template <EntityBase T>
+T& SetScale(T& entity, float scale) {
+	return SetScale(entity, V2_float{ scale });
+}
 
-// scale *= scale_multiplier
-Entity& Scale(Entity& entity, const V2_float& scale_multiplier);
-Entity& ScaleX(Entity& entity, float scale_x_multiplier);
-Entity& ScaleY(Entity& entity, float scale_y_multiplier);
+template <EntityBase T>
+T& SetScale(T& entity, const V2_float& scale) {
+	GetTransform(entity).SetScale(scale);
+	return entity;
+}
 
-// @return The relative scale of the entity with respect to its parent entity, camera, or
-// scene camera scale.
-[[nodiscard]] V2_float GetScale(const Entity& entity);
+template <EntityBase T>
+T& SetScaleX(T& entity, float scale_x) {
+	GetTransform(entity).SetScaleX(scale_x);
+	return entity;
+}
 
-// @return The absolute scale of the entity with respect to its parent scene camera scale.
-[[nodiscard]] V2_float GetAbsoluteScale(const Entity& entity);
+template <EntityBase T>
+T& SetScaleY(T& entity, float scale_y) {
+	GetTransform(entity).SetScaleY(scale_y);
+	return entity;
+}
+
+template <EntityBase T>
+T& Scale(T& entity, const V2_float& scale_multiplier) {
+	GetTransform(entity).Scale(scale_multiplier);
+	return entity;
+}
+
+template <EntityBase T>
+T& ScaleX(T& entity, float scale_x_multiplier) {
+	GetTransform(entity).ScaleX(scale_x_multiplier);
+	return entity;
+}
+
+template <EntityBase T>
+T& ScaleY(T& entity, float scale_y_multiplier) {
+	GetTransform(entity).ScaleY(scale_y_multiplier);
+	return entity;
+}
+
+template <EntityBase T>
+V2_float GetScale(const T& entity) {
+	return GetTransform(entity).GetScale();
+}
+
+template <EntityBase T>
+V2_float GetAbsoluteScale(const T& entity) {
+	return GetAbsoluteTransform(entity).GetScale();
+}
 
 } // namespace ptgn

@@ -97,6 +97,14 @@ V2_float Transform::GetScale() const {
 	return scale_;
 }
 
+Transform& Transform::SetPosition(std::size_t index, float position) {
+	PTGN_ASSERT(index == 0 || index == 1, "Axis index out of range");
+	if (index == 0) {
+		return SetPositionX(position);
+	}
+	return SetPositionY(position);
+}
+
 Transform& Transform::SetPosition(const V2_float& position) {
 	if (position_ == position) {
 		return *this;
@@ -193,6 +201,10 @@ bool Transform::IsDirty() const {
 	return dirty_flags_.AnySet();
 }
 
+void Transform::ClearDirtyFlags() const {
+	dirty_flags_.ClearAll();
+}
+
 Entity& SetTransform(Entity& entity, const Transform& transform) {
 	if (entity.Has<Transform>()) {
 		impl::EntityAccess::Get<Transform>(entity) = transform;
@@ -217,12 +229,13 @@ Transform GetTransform(const Camera& camera) {
 	return camera.GetTransform();
 }
 
+Transform& GetTransform(Camera& camera) {
+	return camera.GetTransform();
+}
+
 Transform GetAbsoluteTransform(const Entity& entity) {
 	auto world_transform{ GetWorldTransform(entity) };
-	if (entity.Has<impl::CameraInstance>()) {
-		// Cameras are relative to themselves.
-		return world_transform;
-	}
+	PTGN_ASSERT(!entity.Has<impl::CameraInstance>());
 	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
 		auto camera_transform{ GetTransform(*camera) };
 		auto inverse_transform{ world_transform.InverseRelativeTo(camera_transform) };
@@ -231,6 +244,11 @@ Transform GetAbsoluteTransform(const Entity& entity) {
 		auto absolute_transform{ inverse_transform.RelativeTo(primary_transform) };
 		return absolute_transform;
 	}
+	return world_transform;
+}
+
+Transform GetAbsoluteTransform(const Camera& entity) {
+	auto world_transform{ GetWorldTransform(entity) };
 	return world_transform;
 }
 
@@ -248,109 +266,17 @@ Transform GetWorldTransform(const Entity& entity) {
 	return world_transform;
 }
 
-Transform GetDrawTransform(const Entity& entity) {
-	auto offset_transform{ GetOffset(entity) };
-	auto transform{ GetWorldTransform(entity) };
-	transform = transform.RelativeTo(offset_transform);
+Transform GetWorldTransform(const Camera& entity) {
+	auto transform{ GetTransform(entity) };
 	return transform;
 }
 
-Entity& SetPosition(Entity& entity, const V2_float& position) {
-	GetTransform(entity).SetPosition(position);
-	return entity;
-}
-
-Entity& SetPositionX(Entity& entity, float position_x) {
-	GetTransform(entity).SetPositionX(position_x);
-	return entity;
-}
-
-Entity& SetPositionY(Entity& entity, float position_y) {
-	GetTransform(entity).SetPositionY(position_y);
-	return entity;
-}
-
-Entity& Translate(Entity& entity, const V2_float& position_difference) {
-	GetTransform(entity).Translate(position_difference);
-	return entity;
-}
-
-Entity& TranslateX(Entity& entity, float position_x_difference) {
-	GetTransform(entity).TranslateX(position_x_difference);
-	return entity;
-}
-
-Entity& TranslateY(Entity& entity, float position_y_difference) {
-	GetTransform(entity).TranslateY(position_y_difference);
-	return entity;
-}
-
-V2_float GetPosition(const Entity& entity) {
-	return GetTransform(entity).GetPosition();
-}
-
-V2_float GetAbsolutePosition(const Entity& entity) {
-	return GetAbsoluteTransform(entity).GetPosition();
-}
-
-Entity& SetRotation(Entity& entity, float rotation) {
-	GetTransform(entity).SetRotation(rotation);
-	return entity;
-}
-
-Entity& Rotate(Entity& entity, float angle_difference) {
-	GetTransform(entity).Rotate(angle_difference);
-	return entity;
-}
-
-float GetRotation(const Entity& entity) {
-	return GetTransform(entity).GetRotation();
-}
-
-float GetAbsoluteRotation(const Entity& entity) {
-	return GetAbsoluteTransform(entity).GetRotation();
-}
-
-Entity& SetScale(Entity& entity, float scale) {
-	return SetScale(entity, V2_float{ scale });
-}
-
-Entity& SetScale(Entity& entity, const V2_float& scale) {
-	GetTransform(entity).SetScale(scale);
-	return entity;
-}
-
-Entity& SetScaleX(Entity& entity, float scale_x) {
-	GetTransform(entity).SetScaleX(scale_x);
-	return entity;
-}
-
-Entity& SetScaleY(Entity& entity, float scale_y) {
-	GetTransform(entity).SetScaleY(scale_y);
-	return entity;
-}
-
-Entity& Scale(Entity& entity, const V2_float& scale_multiplier) {
-	GetTransform(entity).Scale(scale_multiplier);
-	return entity;
-}
-
-Entity& ScaleX(Entity& entity, float scale_x_multiplier) {
-	GetTransform(entity).ScaleX(scale_x_multiplier);
-	return entity;
-}
-
-Entity& ScaleY(Entity& entity, float scale_y_multiplier) {
-	GetTransform(entity).ScaleY(scale_y_multiplier);
-	return entity;
-}
-
-V2_float GetScale(const Entity& entity) {
-	return GetTransform(entity).GetScale();
-}
-
-V2_float GetAbsoluteScale(const Entity& entity) {
-	return GetAbsoluteTransform(entity).GetScale();
+Transform GetDrawTransform(const Entity& entity) {
+	auto offset_transform{ GetOffset(entity) };
+	PTGN_ASSERT(!entity.Has<impl::CameraInstance>());
+	auto transform{ GetWorldTransform(entity) };
+	transform = transform.RelativeTo(offset_transform);
+	return transform;
 }
 
 } // namespace ptgn

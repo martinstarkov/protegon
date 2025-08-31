@@ -573,14 +573,12 @@ V2_float SceneInput::WorldToScreen(const V2_float& world_point) const {
 	auto rt_scale{ rt_transform.GetScale() };
 	auto rt_rot{ rt_transform.GetRotation() };
 	auto camera_transform{ GetTransform(scene.camera) };
-	auto screen_size{ game.renderer.GetLogicalResolution() };
-	camera_transform.SetScale(1.0f / camera_transform.GetScale());
 
 	auto rt_local_point{ ApplyInverseTransform(world_point, camera_transform) };
 
-	auto stuff2{ (rt_local_point - rt_pos).Rotated(rt_rot) * rt_scale + rt_pos };
+	auto screen_point{ (rt_local_point).Rotated(rt_rot) * rt_scale + rt_pos };
 
-	return stuff2;
+	return screen_point;
 }
 
 V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
@@ -593,15 +591,10 @@ V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
 	auto rt_rot{ rt_transform.GetRotation() };
 
 	auto camera_transform{ GetTransform(scene.camera) };
-	camera_transform.SetScale(1.0f / camera_transform.GetScale());
 
-	auto screen_size{ game.renderer.GetLogicalResolution() };
+	auto center_offset{ screen_point - rt_pos };
 
-	auto screen_center{ screen_point - screen_size * 0.5f };
-
-	auto center_offset{ screen_center - rt_pos };
-
-	auto rt_local_point{ (center_offset / rt_scale).Rotated(rt_rot) };
+	auto rt_local_point{ (center_offset / rt_scale).Rotated(-rt_rot) };
 
 	auto world_point{ ApplyTransform(rt_local_point, camera_transform) };
 

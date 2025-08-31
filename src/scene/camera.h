@@ -34,6 +34,7 @@ public:
 	void Reset();
 
 	[[nodiscard]] Transform GetTransform() const;
+	[[nodiscard]] Transform& GetTransform();
 
 	// Center position.
 	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
@@ -99,7 +100,7 @@ public:
 	void Resize(const V2_float& new_size);
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		CameraInstance, viewport_position, viewport_size, scroll, zoom, rotation, pixel_rounding,
+		CameraInstance, viewport_position, viewport_size, transform, pixel_rounding,
 		bounding_box_position, bounding_box_size
 	)
 private:
@@ -115,9 +116,7 @@ private:
 	V2_float viewport_position;
 	V2_float viewport_size;
 
-	V2_float scroll;
-	V2_float zoom{ 1.0f, 1.0f };
-	float rotation{ 0.0f };
+	Transform transform; // scroll, zoom, rotation.
 
 	bool auto_resize{ true };
 	bool auto_center{ true };
@@ -144,6 +143,7 @@ public:
 	Camera(const Entity& entity);
 
 	[[nodiscard]] Transform GetTransform() const;
+	[[nodiscard]] Transform& GetTransform();
 
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;

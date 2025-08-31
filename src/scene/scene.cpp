@@ -250,7 +250,7 @@ void Scene::InternalUpdate() {
 	InternalDraw();
 
 	for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
-		transform.dirty_flags_.ClearAll();
+		transform.ClearDirtyFlags();
 	}
 }
 

@@ -28,7 +28,11 @@ namespace ptgn {
 namespace impl {
 
 Transform CameraInstance::GetTransform() const {
-	return { scroll, rotation, zoom };
+	return transform;
+}
+
+Transform& CameraInstance::GetTransform() {
+	return transform;
 }
 
 void CameraInstance::Reset() {
@@ -45,32 +49,32 @@ void CameraInstance::Resize(const V2_float& new_size) {
 }
 
 void CameraInstance::SetScroll(const V2_float& new_scroll_position) {
-	if (new_scroll_position == scroll) {
+	if (GetScroll() == new_scroll_position) {
 		return;
 	}
-	scroll = new_scroll_position;
+	transform.SetPosition(new_scroll_position);
 	ApplyBounds();
 	view_dirty = true;
 }
 
 void CameraInstance::SetScrollX(float new_scroll_x_position) {
-	SetScroll({ new_scroll_x_position, scroll.y });
+	SetScroll({ new_scroll_x_position, GetScroll().y });
 }
 
 void CameraInstance::SetScrollY(float new_scroll_y_position) {
-	SetScroll({ scroll.x, new_scroll_y_position });
+	SetScroll({ GetScroll().x, new_scroll_y_position });
 }
 
 void CameraInstance::Scroll(const V2_float& scroll_amount) {
-	SetScroll(scroll + scroll_amount);
+	SetScroll(GetScroll() + scroll_amount);
 }
 
 void CameraInstance::ScrollX(float scroll_x_amount) {
-	SetScrollX(scroll.x + scroll_x_amount);
+	SetScrollX(GetScroll().x + scroll_x_amount);
 }
 
 void CameraInstance::ScrollY(float scroll_y_amount) {
-	SetScrollY(scroll.y + scroll_y_amount);
+	SetScrollY(GetScroll().y + scroll_y_amount);
 }
 
 void CameraInstance::SetZoom(const V2_float& new_zoom) {
@@ -78,10 +82,10 @@ void CameraInstance::SetZoom(const V2_float& new_zoom) {
 		new_zoom, V2_float{ 1000.0f * epsilon<float> },
 		V2_float{ std::numeric_limits<float>::max() }
 	) };
-	if (zoom == clamped) {
+	if (GetZoom() == clamped) {
 		return;
 	}
-	zoom = clamped;
+	transform.SetScale(clamped);
 	ApplyBounds();
 	view_dirty = true;
 }
@@ -91,56 +95,55 @@ void CameraInstance::SetZoom(float new_xy_zoom) {
 }
 
 void CameraInstance::SetZoomX(float new_x_zoom) {
-	SetZoom(V2_float{ new_x_zoom, zoom.y });
+	SetZoom(V2_float{ new_x_zoom, GetZoom().y });
 }
 
 void CameraInstance::SetZoomY(float new_y_zoom) {
-	SetZoom(V2_float{ zoom.x, new_y_zoom });
+	SetZoom(V2_float{ GetZoom().x, new_y_zoom });
 }
 
 void CameraInstance::Zoom(const V2_float& zoom_amount) {
-	SetZoom(zoom + zoom_amount);
+	SetZoom(GetZoom() + zoom_amount);
 }
 
 void CameraInstance::Zoom(float zoom_xy_amount) {
-	SetZoom(zoom + V2_float{ zoom_xy_amount });
+	SetZoom(GetZoom() + V2_float{ zoom_xy_amount });
 }
 
 void CameraInstance::ZoomX(float zoom_x_amount) {
-	SetZoomX(zoom.x + zoom_x_amount);
+	SetZoomX(GetZoom().x + zoom_x_amount);
 }
 
 void CameraInstance::ZoomY(float zoom_y_amount) {
-	SetZoomY(zoom.y + zoom_y_amount);
+	SetZoomY(GetZoom().y + zoom_y_amount);
 }
 
 void CameraInstance::SetRotation(float new_rotation) {
-	if (NearlyEqual(rotation, new_rotation)) {
+	if (NearlyEqual(GetRotation(), new_rotation)) {
 		return;
 	}
-	rotation   = new_rotation;
+	transform.SetRotation(new_rotation);
 	view_dirty = true;
 }
 
 void CameraInstance::Rotate(float rotation_amount) {
-	SetRotation(rotation + rotation_amount);
+	SetRotation(GetRotation() + rotation_amount);
 }
 
 V2_float CameraInstance::GetScroll() const {
-	return scroll;
+	return transform.GetPosition();
 }
 
 V2_float CameraInstance::GetZoom() const {
-	return zoom;
+	return transform.GetScale();
 }
 
 float CameraInstance::GetRotation() const {
-	return rotation;
+	return transform.GetRotation();
 }
 
 std::array<V2_float, 4> CameraInstance::GetWorldVertices() const {
 	Rect rect{ GetViewportSize() };
-	Transform transform{ GetTransform() };
 	auto world_vertices{ rect.GetWorldVertices(transform) };
 	return world_vertices;
 }
@@ -160,10 +163,15 @@ void CameraInstance::ApplyBounds() {
 	const auto clamp_axis = [&](std::size_t axis) -> void {
 		if (display_size[axis] >= bounding_box_size[axis]) {
 			// Center.
-			scroll[axis] = bounding_box_position[axis] + bounding_box_size[axis] * 0.5f;
+			transform.SetPosition(
+				axis, bounding_box_position[axis] + bounding_box_size[axis] * 0.5f
+			);
 		} else {
-			scroll[axis] = std::clamp(
-				scroll[axis], min[axis] + half_display[axis], max[axis] - half_display[axis]
+			transform.SetPosition(
+				axis, std::clamp(
+						  transform.GetPosition()[axis], min[axis] + half_display[axis],
+						  max[axis] - half_display[axis]
+					  )
 			);
 		}
 	};
@@ -212,8 +220,8 @@ V2_float CameraInstance::GetViewportPosition() const {
 }
 
 V2_float CameraInstance::GetDisplaySize() const {
-	PTGN_ASSERT(zoom.BothAboveZero(), "Cannot get display size of camera with zero zoom");
-	return viewport_size / zoom;
+	PTGN_ASSERT(GetZoom().BothAboveZero(), "Cannot get display size of camera with zero zoom");
+	return viewport_size / GetZoom();
 }
 
 void CameraInstance::SetBounds(
@@ -264,6 +272,8 @@ const Matrix4& CameraInstance::GetProjection() const {
 }
 
 const Matrix4& CameraInstance::GetViewProjection() const {
+	view_dirty = view_dirty || transform.IsDirty();
+
 	bool update_vp{ view_dirty || projection_dirty };
 
 	if (view_dirty) {
@@ -286,19 +296,17 @@ void CameraInstance::RecalculateViewProjection() const {
 }
 
 void CameraInstance::RecalculateView() const {
-	V2_float position{ scroll };
-	V2_float scale{ zoom };
-	float angle{ rotation };
-
+	auto t{ transform };
 	// TODO: Add shake and other offsets to position and rotation.
 	// TODO: Apply clamp to bounds to offset position.
 
 	if (pixel_rounding) {
-		position = Round(position);
+		t.SetPosition(Round(t.GetPosition()));
 	}
 
-	view = Matrix4::MakeInverseTransform(position, scale, angle);
+	view = Matrix4::MakeInverseTransform(t);
 
+	transform.ClearDirtyFlags();
 	view_dirty = false;
 }
 
@@ -325,11 +333,8 @@ void CameraInstance::RecalculateProjection() const {
 
 	auto half_size{ flip_dir * size * 0.5f };
 
-	projection = Matrix4::Orthographic(
-		viewport_position.x - half_size.x, viewport_position.x + half_size.x,
-		viewport_position.y + half_size.y, viewport_position.y - half_size.y,
-		-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()
-	);
+	projection =
+		Matrix4::Orthographic(viewport_position - half_size, viewport_position + half_size);
 
 	projection_dirty = false;
 }
@@ -471,6 +476,10 @@ void Camera::Reset() {
 }
 
 Transform Camera::GetTransform() const {
+	return Get<impl::CameraInstance>().GetTransform();
+}
+
+Transform& Camera::GetTransform() {
 	return Get<impl::CameraInstance>().GetTransform();
 }
 

@@ -618,7 +618,7 @@ V2_float RenderData::RelativeToViewport(const V2_float& window_relative_point) c
 
 	V2_float local{ (window_relative_point - physical_viewport_.position) * scale };
 
-	return local;
+	return local - logical_resolution_ * 0.5f;
 }
 
 void RenderData::AddShape(
@@ -850,39 +850,6 @@ RenderData::DrawTarget RenderData::GetDrawTarget(const Scene& scene) {
 	);
 }
 
-void RenderData::SetPoints(RenderData::DrawTarget& target) {
-	PTGN_ASSERT(target.viewport.size.BothAboveZero());
-
-	auto half_viewport{ target.viewport.size * 0.5f };
-
-	target.points = { target.viewport.position - half_viewport,
-					  target.viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
-					  target.viewport.position + half_viewport,
-					  target.viewport.position + V2_float{ -half_viewport.x, half_viewport.y } };
-}
-
-void RenderData::SetProjection(RenderData::DrawTarget& target) {
-	SetProjection(target, target.points[0], target.points[2]);
-}
-
-void RenderData::SetProjection(
-	RenderData::DrawTarget& target, const V2_float& min, const V2_float& max
-) {
-	target.view_projection = GetProjection(min, max);
-}
-
-Matrix4 RenderData::GetProjection(const V2_float& min, const V2_float& max) {
-	return Matrix4::Orthographic(
-		min.x, max.x, max.y, min.y, -std::numeric_limits<float>::infinity(),
-		std::numeric_limits<float>::infinity()
-	);
-}
-
-void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {
-	SetPoints(target);
-	SetProjection(target);
-}
-
 RenderData::DrawTarget RenderData::GetDrawTarget(
 	const RenderTarget& render_target, const Matrix4& view_projection,
 	const std::array<V2_float, 4>& points, bool use_viewport
@@ -1079,10 +1046,23 @@ void RenderData::DrawFromTo(
 	);
 }
 
+void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {
+	PTGN_ASSERT(target.viewport.size.BothAboveZero());
+
+	auto half_viewport{ target.viewport.size * 0.5f };
+
+	target.points = { target.viewport.position - half_viewport,
+					  target.viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
+					  target.viewport.position + half_viewport,
+					  target.viewport.position + V2_float{ -half_viewport.x, half_viewport.y } };
+
+	target.view_projection = Matrix4::Orthographic(target.points[0], target.points[2]);
+}
+
 void RenderData::DrawScreenTarget() {
 	auto half_viewport{ physical_viewport_.size * 0.5f };
 
-	auto projection{ GetProjection(-half_viewport, half_viewport) };
+	auto projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	std::array<V2_float, 4> points{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y },
 									half_viewport, V2_float{ -half_viewport.x, half_viewport.y } };
 
@@ -1099,7 +1079,7 @@ void RenderData::Draw(Scene& scene) {
 
 	auto half_logical_resolution{ logical_resolution_ * 0.5f };
 
-	auto projection{ GetProjection(-half_logical_resolution, half_logical_resolution) };
+	auto projection{ Matrix4::Orthographic(-half_logical_resolution, half_logical_resolution) };
 
 	Transform scene_transform{ GetTransform(scene.render_target_) };
 

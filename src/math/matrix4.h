@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <ios>
 #include <iterator>
+#include <limits>
 #include <ostream>
 #include <type_traits>
 
@@ -16,6 +17,7 @@
 
 namespace ptgn {
 
+struct Transform;
 class Quaternion;
 
 struct Matrix4 {
@@ -131,12 +133,12 @@ public:
 		*this = Scale(*this, axes);
 	}
 
-	void Rotate(float angle_radians, const Vector3<float>& axes) {
-		*this = Rotate(*this, angle_radians, axes);
+	void Rotate(float rotation_radians, const Vector3<float>& axes) {
+		*this = Rotate(*this, rotation_radians, axes);
 	}
 
-	void Translate(const Vector3<float>& t) {
-		*this = Translate(*this, t);
+	void Translate(const Vector3<float>& translation) {
+		*this = Translate(*this, translation);
 	}
 
 	[[nodiscard]] Matrix4 Inverse() const;
@@ -147,28 +149,39 @@ public:
 
 	[[nodiscard]] static Matrix4 Identity();
 
-	// Example usage: Matrix4 proj = Matrix4::Orthographic(-1.0f, 1.0f, -1.0f, 1.0f);
 	[[nodiscard]] static Matrix4 Orthographic(
-		float left, float right, float bottom, float top, float near = -1.0f, float far = 1.0f
+		float left, float right, float bottom, float top,
+		float near = -std::numeric_limits<float>::infinity(),
+		float far  = std::numeric_limits<float>::infinity()
+	);
+
+	[[nodiscard]] static Matrix4 Orthographic(
+		const V2_float& min, const V2_float& max,
+		float near = -std::numeric_limits<float>::infinity(),
+		float far  = std::numeric_limits<float>::infinity()
 	);
 
 	[[nodiscard]] static Matrix4 MakeTransform(
-		const Vector3<float>& position, const Vector3<float>& scale, float rotation_radians,
-		const Vector3<float>& rotation_axis
+		const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
+		const Vector3<float>& scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeTransform(
-		const Vector2<float>& position, const Vector2<float>& scale, float rotation_radians
+		const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
+	);
+
+	[[nodiscard]] static Matrix4 MakeTransform(const Transform& transform);
+
+	[[nodiscard]] static Matrix4 MakeInverseTransform(
+		const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
+		const Vector3<float>& scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		const Vector3<float>& position, const Vector3<float>& scale, float rotation_radians,
-		const Vector3<float>& rotation_axis
+		const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
 	);
 
-	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		const Vector2<float>& position, const Vector2<float>& scale, float rotation_radians
-	);
+	[[nodiscard]] static Matrix4 MakeInverseTransform(const Transform& transform);
 
 	// Field of view angle fov_x in radians.
 	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
@@ -177,14 +190,14 @@ public:
 		float fov_x_radians, float aspect_ratio, float front, float back
 	);
 
-	[[nodiscard]] static Matrix4 Translate(const Matrix4& m, const Vector3<float>& axes);
+	[[nodiscard]] static Matrix4 Translate(const Matrix4& matrix, const Vector3<float>& axes);
 
 	// Angle in radians.
 	[[nodiscard]] static Matrix4 Rotate(
-		const Matrix4& matrix, float angle_radians, const Vector3<float>& axes
+		const Matrix4& matrix, float rotation_radians, const Vector3<float>& axes
 	);
 
-	[[nodiscard]] static Matrix4 Scale(const Matrix4& m, const Vector3<float>& axes);
+	[[nodiscard]] static Matrix4 Scale(const Matrix4& matrix, const Vector3<float>& axes);
 
 	[[nodiscard]] bool IsZero() const;
 
