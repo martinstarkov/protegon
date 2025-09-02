@@ -16,7 +16,7 @@ class Game;
 } // namespace impl
 
 enum class BoundaryBehavior {
-	StopVelocity,	// Clamp position and stop velocity along clamped axis.
+	StopVelocity,	// Clamp position and stop velocity.
 	SlideVelocity,	// Clamp position and do not change velocity.
 	ReflectVelocity // Bounce off bounds by flipping velocity
 };
