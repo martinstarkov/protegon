@@ -41,10 +41,10 @@ void CameraInstance::Reset() {
 
 void CameraInstance::Resize(const V2_float& new_size) {
 	if (auto_center) {
-		SetViewportPosition({});
+		SetViewportPosition({}, false);
 	}
 	if (auto_resize) {
-		SetViewportSize(new_size);
+		SetViewportSize(new_size, false);
 	}
 }
 
@@ -203,8 +203,12 @@ void CameraInstance::CenterOnViewport(const V2_float& new_viewport_size) {
 	SetViewportSize(new_viewport_size);
 }
 
-void CameraInstance::SetViewportPosition(const V2_float& new_viewport_position) {
-	auto_center = false;
+void CameraInstance::SetViewportPosition(
+	const V2_float& new_viewport_position, bool disable_auto_center
+) {
+	if (disable_auto_center) {
+		auto_center = false;
+	}
 	if (viewport_position == new_viewport_position) {
 		return;
 	}
@@ -212,8 +216,10 @@ void CameraInstance::SetViewportPosition(const V2_float& new_viewport_position) 
 	projection_dirty  = true;
 }
 
-void CameraInstance::SetViewportSize(const V2_float& new_viewport_size) {
-	auto_resize = false;
+void CameraInstance::SetViewportSize(const V2_float& new_viewport_size, bool disable_auto_resize) {
+	if (disable_auto_resize) {
+		auto_resize = false;
+	}
 	if (viewport_size == new_viewport_size) {
 		return;
 	}

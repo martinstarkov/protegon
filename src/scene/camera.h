@@ -36,9 +36,11 @@ public:
 	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
 
 	// Center position.
-	void SetViewportPosition(const V2_float& new_viewport_position);
+	void SetViewportPosition(
+		const V2_float& new_viewport_position, bool disable_auto_resize = true
+	);
 
-	void SetViewportSize(const V2_float& new_viewport_size);
+	void SetViewportSize(const V2_float& new_viewport_size, bool disable_auto_resize = true);
 	void CenterOnViewport(const V2_float& new_viewport_size);
 
 	[[nodiscard]] V2_float GetViewportPosition() const;
