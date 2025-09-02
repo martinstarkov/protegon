@@ -44,6 +44,8 @@ struct Transform {
 
 	Transform(const V2_float& position, float rotation, const V2_float& scale = { 1.0f, 1.0f });
 
+	[[nodiscard]] Transform Inverse() const;
+
 	[[nodiscard]] Transform RelativeTo(const Transform& parent) const;
 
 	[[nodiscard]] Transform InverseRelativeTo(const Transform& parent) const;

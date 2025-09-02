@@ -52,6 +52,11 @@ Transform::Transform(const V2_float& position) : position_{ position } {}
 Transform::Transform(const V2_float& position, float rotation, const V2_float& scale) :
 	position_{ position }, rotation_{ rotation }, scale_{ scale } {}
 
+Transform Transform::Inverse() const {
+	PTGN_ASSERT(!scale_.HasZero(), "Cannot get inverse of transform with zero scale");
+	return { -position_, -rotation_, 1.0f / scale_ };
+}
+
 Transform Transform::RelativeTo(const Transform& parent) const {
 	Transform result;
 	// Order is important.
