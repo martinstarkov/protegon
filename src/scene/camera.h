@@ -82,17 +82,21 @@ public:
 
 	[[nodiscard]] bool GetPixelRounding() const;
 
-	[[nodiscard]] const Matrix4& GetViewProjection() const;
-	[[nodiscard]] const Matrix4& GetView() const;
+	[[nodiscard]] const Matrix4& GetViewProjection(const Camera& camera) const;
+	[[nodiscard]] const Matrix4& GetView(const Camera& camera) const;
 	[[nodiscard]] const Matrix4& GetProjection() const;
 
 	// Set the point which is at the center of the camera view.
 	// void SetPosition(const V3_float& new_position);
 
 	void RecalculateViewProjection() const;
-	void RecalculateView() const;
+	void RecalculateView(const Transform& current_offsets) const;
 	void RecalculateProjection() const;
 
+	// @return Scroll with bounds applied.
+	[[nodiscard]] V2_float ApplyBounds(const V2_float& scroll) const;
+
+	// Apply bounds to the current scroll.
 	void ApplyBounds();
 
 	void Resize(const V2_float& new_size);
@@ -102,8 +106,6 @@ public:
 		bounding_box_position, bounding_box_size
 	)
 private:
-	void SetScroll(std::size_t index, float new_scroll_position);
-
 	mutable bool view_dirty{ true };
 	mutable bool projection_dirty{ true };
 
@@ -112,6 +114,9 @@ private:
 	mutable Matrix4 view{ 1.0f };
 	mutable Matrix4 projection{ 1.0f };
 	mutable Matrix4 view_projection{ 1.0f };
+
+	// Cache of previous offsets.
+	mutable Transform offsets; // camera shake, bounce, etc.
 
 	V2_float viewport_position;
 	V2_float viewport_size;

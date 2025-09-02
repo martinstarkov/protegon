@@ -57,15 +57,6 @@ void CameraInstance::SetScroll(const V2_float& new_scroll_position) {
 	view_dirty = true;
 }
 
-void CameraInstance::SetScroll(std::size_t index, float new_scroll_position) {
-	PTGN_ASSERT(index == 0 || index == 1, "Axis index out of range");
-	if (index == 0) {
-		SetScrollX(new_scroll_position);
-		return;
-	}
-	SetScrollY(new_scroll_position);
-}
-
 void CameraInstance::SetScrollX(float new_scroll_x_position) {
 	SetScroll({ new_scroll_x_position, GetScroll().y });
 }
@@ -161,10 +152,12 @@ std::array<V2_float, 4> CameraInstance::GetWorldVertices() const {
 	return world_vertices;
 }
 
-void CameraInstance::ApplyBounds() {
+V2_float CameraInstance::ApplyBounds(const V2_float& scroll) const {
 	if (bounding_box_size.IsZero()) {
-		return;
+		return scroll;
 	}
+
+	V2_float clamped_scroll;
 
 	V2_float display_size{ GetDisplaySize() };
 	V2_float half_display{ display_size * 0.5f };
@@ -176,19 +169,22 @@ void CameraInstance::ApplyBounds() {
 	const auto clamp_axis = [&](std::size_t axis) {
 		if (display_size[axis] >= bounding_box_size[axis]) {
 			// Center.
-			SetScroll(axis, bounding_box_position[axis] + bounding_box_size[axis] * 0.5f);
+			clamped_scroll[axis] = bounding_box_position[axis] + bounding_box_size[axis] * 0.5f;
 		} else {
-			SetScroll(
-				axis, std::clamp(
-						  GetScroll()[axis], min[axis] + half_display[axis],
-						  max[axis] - half_display[axis]
-					  )
+			clamped_scroll[axis] = std::clamp(
+				scroll[axis], min[axis] + half_display[axis], max[axis] - half_display[axis]
 			);
 		}
 	};
 
 	clamp_axis(0);
 	clamp_axis(1);
+
+	return clamped_scroll;
+}
+
+void CameraInstance::ApplyBounds() {
+	SetScroll(ApplyBounds(GetScroll()));
 }
 
 void CameraInstance::SetViewport(
@@ -274,9 +270,13 @@ bool CameraInstance::GetPixelRounding() const {
 	return pixel_rounding;
 }
 
-const Matrix4& CameraInstance::GetView() const {
+const Matrix4& CameraInstance::GetView(const Camera& camera) const {
+	auto current_offsets{ GetOffset(camera) };
+
+	view_dirty = view_dirty || transform.IsDirty() || offsets != current_offsets;
+
 	if (view_dirty) {
-		RecalculateView();
+		RecalculateView(current_offsets);
 	}
 	return view;
 }
@@ -288,13 +288,16 @@ const Matrix4& CameraInstance::GetProjection() const {
 	return projection;
 }
 
-const Matrix4& CameraInstance::GetViewProjection() const {
-	view_dirty = view_dirty || transform.IsDirty();
+const Matrix4& CameraInstance::GetViewProjection(const Camera& camera) const {
+	auto current_offsets{ GetOffset(camera) };
 
+	view_dirty = view_dirty || transform.IsDirty() || offsets != current_offsets;
+
+	// Must be set before calling RecalculateView, as it may reset view_dirty to false.
 	bool update_vp{ view_dirty || projection_dirty };
 
 	if (view_dirty) {
-		RecalculateView();
+		RecalculateView(current_offsets);
 	}
 
 	if (projection_dirty) {
@@ -312,10 +315,15 @@ void CameraInstance::RecalculateViewProjection() const {
 	view_projection = projection * view;
 }
 
-void CameraInstance::RecalculateView() const {
+void CameraInstance::RecalculateView(const Transform& current_offsets) const {
 	Transform t{ transform };
-	// TODO: Add shake and other offsets to position and rotation.
-	// TODO: Apply clamp to bounds to offset position.
+
+	t.Translate(current_offsets.GetPosition());
+	t.Rotate(current_offsets.GetRotation());
+
+	if (!current_offsets.GetPosition().IsZero()) {
+		t.SetPosition(ApplyBounds(t.GetPosition()));
+	}
 
 	if (pixel_rounding) {
 		t.SetPosition(Round(t.GetPosition()));
@@ -323,6 +331,7 @@ void CameraInstance::RecalculateView() const {
 
 	view = Matrix4::MakeInverseTransform(t);
 
+	offsets = current_offsets;
 	transform.ClearDirtyFlags();
 	view_dirty = false;
 }
@@ -501,7 +510,7 @@ Transform& Camera::GetTransform() {
 }
 
 const Matrix4& Camera::GetViewProjection() const {
-	return Get<impl::CameraInstance>().GetViewProjection();
+	return Get<impl::CameraInstance>().GetViewProjection(*this);
 }
 
 Camera CreateCamera(Manager& manager) {

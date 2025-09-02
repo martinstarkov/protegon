@@ -271,7 +271,7 @@ public:
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 	Color color{ color::White };
 	FontSize font_size{ 20 };
-	V2_int center{ resolution / 2 };
+	V2_int center{ 0, 0 };
 
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
@@ -283,9 +283,9 @@ public:
 
 		auto blur{ CreateBlur(*this) };
 		auto grayscale{ CreateGrayscale(*this) };
-		auto s1{ CreateSprite(*this, "tree", { 100, 400 }) };
+		auto s1{ CreateSprite(*this, "tree", -resolution * 0.5f + V2_float{ 100, 400 }) };
 		AddPreFX(s1, blur);
-		auto s2{ CreateSprite(*this, "tree", { 700, 400 }) };
+		auto s2{ CreateSprite(*this, "tree", -resolution * 0.5f + V2_float{ 700, 400 }) };
 		AddPostFX(s2, grayscale);
 
 		follow_config.move_mode = MoveMode::Lerp;
