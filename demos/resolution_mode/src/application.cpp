@@ -17,6 +17,7 @@ constexpr V2_int resolution{ 320, 240 }; // 4, 3
 class ScalingModeScene : public Scene {
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetSize(window_size);
 		LoadResource("background", "resources/test1.jpg");
 		game.renderer.SetGameSize(resolution, ScalingMode::Disabled);
 	}
@@ -52,7 +53,7 @@ class ScalingModeScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScalingModeScene: QWERT: Switch Resolution Modes", window_size);
+	game.Init("ScalingModeScene: QWERT: Switch Resolution Modes", resolution);
 	game.scene.Enter<ScalingModeScene>("");
 	return 0;
 }

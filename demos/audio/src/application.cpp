@@ -11,6 +11,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -267,7 +268,7 @@ public:
 		);
 
 		V2_int offset{ 6, 6 };
-		V2_int size{ (game.window.GetSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
+		V2_int size{ (game.renderer.GetGameSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
 					 grid.GetSize() };
 
 		grid.ForEach([size, offset](auto coord, Button& b) {

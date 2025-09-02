@@ -30,7 +30,6 @@ class PathfindingScene : public Scene {
 	std::deque<V2_int> local_waypoints;
 
 	void Enter() override {
-		// tile_size = game.window.GetSize() / grid.GetSize();
 		start = { 1, grid.GetSize().y / 2 };
 		pos	  = start;
 		end	  = { grid.GetSize().x - 2, grid.GetSize().y / 2 };

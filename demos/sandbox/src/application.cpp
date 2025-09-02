@@ -4975,7 +4975,7 @@ private:
 	bool isEnabled;
 
 	void updateCursorPositionIfApplicable() {
-		auto event{ ptgn::game.input.GetMouseWindowPosition() };
+		auto event{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
 		if (ball->isFreeze()) {
 			cursorPosition = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 			// Event consumption if applicable
@@ -4983,7 +4983,7 @@ private:
 	}
 
 	void freezeBallIfApplicable() {
-		auto event{ ptgn::game.input.GetMouseWindowPosition() };
+		auto event{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
 		auto worldPos = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 		if (ball->contains(worldPos, 4)) {
 			cursorPosition = worldPos;
@@ -5117,8 +5117,9 @@ DebuggerDragEventHandler::DebuggerDragEventHandler(std::shared_ptr<GameObjects> 
 	painter_(GraphicsEngine::createHandler()) {}
 
 void DebuggerDragEventHandler::update() {
-	ptgn::V2_float cur{ ptgn::game.input.GetMouseWindowPosition() };
-	ptgn::V2_float prev{ ptgn::game.input.GetMouseWindowPositionPrevious() };
+	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
+	) };
 	if (ptgn::game.input.MousePressed(ptgn::Mouse::Left)) {
 		Point2D worldPos = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
 		auto located	 = locateDraggable(worldPos);
@@ -5209,8 +5210,9 @@ void BreakoutDragEventHandler::update() {
 		return;
 	}
 
-	ptgn::V2_float cur{ ptgn::game.input.GetMouseWindowPosition() };
-	ptgn::V2_float prev{ ptgn::game.input.GetMouseWindowPositionPrevious() };
+	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
+	) };
 	if (ptgn::game.input.MouseDown(ptgn::Mouse::Left)) {
 		focused_ = !focused_;
 

@@ -1394,7 +1394,7 @@ struct SweepTest : public CollisionTest {
 
 	void Draw() override {
 
-		V2_int grid_size = game.window.GetSize() / size;
+		V2_int grid_size = game.renderer.GetGameSize() / size;
 
 		for (std::size_t i = 0; i < grid_size.x; i++) {
 			for (std::size_t j = 0; j < grid_size.y; j++) {
@@ -1514,7 +1514,6 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	using Id = std::size_t;
 
 	explicit DynamicRectCollisionTest(float speed) : speed{ speed } {
-		ws = game.window.GetSize();
 	}
 
 	void CreateDynamicEntity(
@@ -1732,8 +1731,6 @@ public:
 	std::vector<std::shared_ptr<CollisionTest>> tests;
 
 	void Enter() override {
-		ws = game.window.GetSize();
-
 		// TODO: Rework this whole test thing.
 		tests.emplace_back(new CollisionCallbackTest());
 		/*
@@ -1767,7 +1764,6 @@ public:
 	}
 
 	void Update() override {
-		ws = game.window.GetSize();
 		if (input.KeyDown(Key::Left)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test--;

@@ -32,19 +32,17 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void Enter() override {
-		LoadResources(
-			{ { "background", "resources/background.png" },
-			  { "planet_b", "resources/planet_b.png" },
-			  { "planet_s", "resources/planet_s.png" },
-			  { "stars", "resources/stars.png" } }
-		);
+		LoadResources({ { "background", "resources/background.png" },
+						{ "planet_b", "resources/planet_b.png" },
+						{ "planet_s", "resources/planet_s.png" },
+						{ "stars", "resources/stars.png" } });
 
-		bg_pos		 = game.window.GetCenter();
-		planet_b_pos = game.window.GetCenter() - V2_float{ 200, 200 };
-		planet_s_pos = game.window.GetCenter() + V2_float{ 200, 200 };
-		stars_pos	 = game.window.GetCenter();
+		bg_pos		 = game.renderer.GetGameSize() * 0.5f;
+		planet_b_pos = game.renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };
+		planet_s_pos = game.renderer.GetGameSize() * 0.5f + V2_float{ 200, 200 };
+		stars_pos	 = game.renderer.GetGameSize() * 0.5f;
 
-		size			= game.window.GetSize() * scale;
+		size			= game.renderer.GetGameSize() * scale;
 		background_size = game.texture.GetSize("background");
 		bg_aspect_ratio = background_size.x / background_size.y;
 
@@ -85,12 +83,12 @@ public:
 
 		// TODO: Fix.
 		DrawDebugTexture("background", bg_pos, { size.x * bg_aspect_ratio, size.y });
-		Translate(camera,background_cam);
+		Translate(camera, background_cam);
 		DrawDebugTexture("stars", stars_pos, { size.x * bg_aspect_ratio, size.y });
-		Translate(camera,star_cam);
+		Translate(camera, star_cam);
 		DrawDebugTexture("planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale);
 		DrawDebugTexture("planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale);
-		Translate(camera,foreground_cam);
+		Translate(camera, foreground_cam);
 	}
 };
 

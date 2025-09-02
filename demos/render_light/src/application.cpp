@@ -22,35 +22,38 @@ public:
 		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("test", "resources/test1.jpg");
 
-		auto sprite = CreateSprite(*this, "test", { 50, 50 });
+		auto sprite = CreateSprite(*this, "test", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
 
-		CreateRect(*this, { 300, 400 }, { 100, 100 }, color::Blue, -1.0f, Origin::TopLeft);
+		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, -1.0f, Origin::TopLeft);
 
 		float intensity{ 0.5f };
-		float radius{ 100.0f };
+		float radius{ 30.0f };
 		float falloff{ 2.0f };
 
 		float step{ 80 };
 
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
-			CreatePointLight(*this, V2_float{ i * step }, radius, color, intensity, falloff);
+			CreatePointLight(
+				*this, V2_float{ -camera.GetViewportSize() * 0.5f } + V2_float{ i * step }, radius,
+				color, intensity, falloff
+			);
 			i++;
 		};
 
-		// create_light(color::Cyan);
-		// create_light(color::Green);
-		// create_light(color::Blue);
-		// create_light(color::Magenta);
-		// create_light(color::Yellow);
-		// create_light(color::Cyan);
-		// create_light(color::White);
+		create_light(color::Cyan);
+		create_light(color::Green);
+		create_light(color::Blue);
+		create_light(color::Magenta);
+		create_light(color::Yellow);
+		create_light(color::Cyan);
+		create_light(color::White);
 
 		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
 		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
 
-		mouse_light = CreatePointLight(*this, {}, 200.0f, color::White, 0.8f, 1.0f);
+		mouse_light = CreatePointLight(*this, {}, 50.0f, color::White, 0.8f, 1.0f);
 		// mouse_light.SetAmbientColor(color::Red);
 		// mouse_light.SetAmbientIntensity(0.1f);
 	}
