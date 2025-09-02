@@ -39,9 +39,7 @@ public:
 			scenes_, [scene_key](const auto& s) { return s->GetKey() == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
-		if (inserted) {
-			scene->SetKey(scene_key);
-		}
+		scene->SetKey(scene_key);
 		return *static_cast<TScene*>(scene.get());
 	}
 
@@ -52,9 +50,7 @@ public:
 			scenes_, [scene_key](const auto& s) { return s->GetKey() == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
-		if (!replaced) {
-			scene->SetKey(scene_key);
-		}
+		scene->SetKey(scene_key);
 		return *static_cast<TScene*>(scene.get());
 	}
 
