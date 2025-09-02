@@ -975,13 +975,14 @@ void RenderData::RecomputeDisplaySize(const V2_int& window_size) {
 }
 
 void RenderData::UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode) {
-	if (game_size_ == game_size && resolution_mode_ == scaling_mode) {
+	bool new_game_size{ game_size_ != game_size };
+	if (!new_game_size && resolution_mode_ == scaling_mode) {
 		return;
 	}
 	auto window_size{ game.window.GetSize() };
 	game_size_		   = game_size;
 	resolution_mode_   = scaling_mode;
-	game_size_changed_ = true;
+	game_size_changed_ = new_game_size;
 	RecomputeDisplaySize(window_size);
 }
 
