@@ -39,6 +39,7 @@ public:
 	int types{ 4 };
 
 	void Enter() override {
+		game.renderer.SetBackgroundColor(color::Magenta);
 		game.window.SetSetting(WindowSetting::Resizable);
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 	}
