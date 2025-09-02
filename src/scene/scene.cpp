@@ -11,6 +11,7 @@
 #include "components/uuid.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/game_object.h"
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
@@ -18,6 +19,7 @@
 #include "input/input_handler.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
+#include "nlohmann/json.hpp"
 #include "physics/collision/collider.h"
 #include "physics/collision/collision_handler.h"
 #include "physics/physics.h"
@@ -44,7 +46,8 @@ Scene::Scene() {
 		render_manager, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8888
 	);
 	PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
-	camera = render_target_.Get<GameObject<Camera>>();
+	camera		 = render_target_.Get<GameObject<Camera>>();
+	fixed_camera = CreateCamera(*this);
 	SetBlendMode(render_target_, BlendMode::Blend);
 }
 
@@ -144,6 +147,7 @@ impl::SceneKey Scene::GetKey() const {
 
 void Scene::Init() {
 	render_target_.Get<GameObject<Camera>>().Reset();
+	fixed_camera.Reset();
 }
 
 void Scene::SetKey(const impl::SceneKey& key) {
@@ -173,6 +177,7 @@ void Scene::InternalExit() {
 	physics = {};
 	render_target_.ClearDisplayList();
 	render_target_.Get<GameObject<Camera>>().Reset();
+	fixed_camera.Reset();
 	Refresh();
 }
 

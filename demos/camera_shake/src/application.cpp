@@ -59,8 +59,6 @@ public:
 		V2_float offset{ 6, 6 };
 		V2_float size{ 200, 50 };
 
-		auto cam1 = CreateCamera(*this);
-
 		grid.ForEach([&](auto coord, Button& b) {
 			if (!b) {
 				return;
@@ -68,7 +66,7 @@ public:
 			SetPosition(b, -res * 0.5f + screen_offset + (offset + size) * coord);
 			b.SetSize(size);
 			SetDrawOrigin(b, Origin::TopLeft);
-			b.Add<Camera>(cam1);
+			b.Add<Camera>(fixed_camera);
 		});
 	}
 

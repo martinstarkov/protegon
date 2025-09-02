@@ -92,6 +92,9 @@ public:
 	Physics physics;
 	Camera camera;
 
+	// A default camera with a viewport the size of the game.
+	Camera fixed_camera;
+
 	friend void to_json(json& j, const Scene& scene);
 	friend void from_json(const json& j, Scene& scene);
 
