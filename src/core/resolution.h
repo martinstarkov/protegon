@@ -20,7 +20,9 @@ enum class ScalingMode {
 enum class ViewportType {
 	Game,
 	Display,
-	World
+	World,
+	WindowCenter,
+	WindowTopLeft
 };
 
 [[nodiscard]] V2_float DisplayToGame(const V2_float& display_point);

@@ -8,7 +8,6 @@
 
 #include "common/assert.h"
 #include "components/transform.h"
-#include "core/entity.h"
 #include "core/game.h"
 #include "core/resolution.h"
 #include "core/time.h"
@@ -20,9 +19,6 @@
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
-#include "renderer/renderer.h"
-#include "scene/scene.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
 #include "SDL_mouse.h"
@@ -303,10 +299,12 @@ V2_float InputHandler::GetPositionRelativeTo(
 	window_point -= window_center;
 
 	switch (relative_to) {
-		case ViewportType::World:	return WindowToWorld(window_point, {});
-		case ViewportType::Game:	return WindowToGame(window_point);
-		case ViewportType::Display: return WindowToDisplay(window_point);
-		default:					PTGN_ERROR("Unrecognized viewport type")
+		case ViewportType::World:		  return WindowToWorld(window_point, {});
+		case ViewportType::Game:		  return WindowToGame(window_point);
+		case ViewportType::Display:		  return WindowToDisplay(window_point);
+		case ViewportType::WindowCenter:  return window_point;
+		case ViewportType::WindowTopLeft: return window_position;
+		default:						  PTGN_ERROR("Unrecognized viewport type")
 	}
 }
 
