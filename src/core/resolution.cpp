@@ -94,14 +94,14 @@ V2_float CameraToGame(const V2_float& camera_point, const Camera& camera) {
 namespace impl {
 
 V2_float WindowToDisplay(const V2_float& window_point) {
-	auto window_size{ game.window.GetSize() };
+	/*auto window_size{ game.window.GetSize() };
 	auto display_size{ game.renderer.GetDisplaySize() };
 
 	V2_float offset{ (window_size - display_size) * 0.5f };
 
-	auto display_point{ window_point - offset };
+	auto display_point{ window_point - offset };*/
 
-	return display_point;
+	return window_point;
 }
 
 V2_float DisplayToWindow(const V2_float& display_point) {
