@@ -7,12 +7,12 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 class Scene3 : public Scene {
 public:
 	void Update() final {
-		DrawDebugTexture("bg3", {}, window_size / 2.0f, Origin::TopLeft);
+		DrawDebugTexture("bg3", -resolution * 0.5f, resolution * 0.5f, Origin::TopLeft);
 		if (input.KeyDown(Key::N)) {
 			game.scene.Transition(
 				"scene3", "scene1", FadeInTransition{ milliseconds{ 3000 } },
@@ -35,7 +35,7 @@ public:
 	}
 
 	void Update() final {
-		DrawDebugTexture("bg2", window_size / 2.0f, window_size / 2.0f, Origin::TopLeft);
+		DrawDebugTexture("bg2", {}, resolution * 0.5f, Origin::TopLeft);
 		if (input.KeyDown(Key::A)) {
 			// game.scene.Enter("scene2");
 			game.scene.Enter<Scene2>("scene2", ++i);
@@ -57,7 +57,7 @@ public:
 	void Update() final {
 		// SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
 		DrawDebugTexture(
-			"bg1", { window_size.x / 2.0f, 0.0f }, window_size / 2.0f, Origin::TopLeft
+			"bg1", V2_float{ 0.0f, -resolution.y * 0.5f }, resolution * 0.5f, Origin::TopLeft
 		);
 
 		if (input.KeyDown(Key::N)) {
@@ -89,7 +89,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample", window_size);
+	game.Init("SceneTransitionExample: N: Transition to next scene", resolution);
 	game.scene.Enter<SceneTransitionExample>("scene_transition_example");
 	return 0;
 }

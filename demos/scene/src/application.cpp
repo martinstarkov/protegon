@@ -7,13 +7,13 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 class Scene3 : public Scene {
 public:
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		DrawDebugTexture("bg3", {}, window_size, Origin::TopLeft);
+		DrawDebugTexture("bg3", {}, resolution, Origin::Center);
 	}
 };
 
@@ -31,7 +31,7 @@ public:
 
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		DrawDebugTexture("bg2", {}, window_size, Origin::TopLeft);
+		DrawDebugTexture("bg2", {}, resolution, Origin::Center);
 		if (input.KeyDown(Key::A)) {
 			// game.scene.Enter("scene2");
 			game.scene.Enter<Scene2>("scene2", ++i);
@@ -46,7 +46,7 @@ class Scene1 : public Scene {
 public:
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		DrawDebugTexture("bg1", {}, window_size, Origin::TopLeft);
+		DrawDebugTexture("bg1", {}, resolution, Origin::Center);
 	}
 };
 
@@ -71,7 +71,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneExample", window_size);
+	game.Init("SceneExample", resolution);
 	game.scene.Enter<SceneExample>("scene_example");
 	return 0;
 }

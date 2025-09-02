@@ -149,13 +149,16 @@ struct RenderTargetScene : public Scene {
 		AddPreFX(circle4, grayscale);
 		*/
 
-		auto rect1 = CreateRect(*this, { 0, 0 }, { 400, 400 }, color::Red, -1.0f, Origin::TopLeft);
-		auto rt	   = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
+		auto rect1 = CreateRect(
+			*this, -resolution * 0.5f + V2_float{ 0, 0 }, { 400, 400 }, color::Red, -1.0f,
+			Origin::TopLeft
+		);
+		auto rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
 		SetDrawOrigin(rt, Origin::TopLeft);
-		SetPosition(rt, { 400, 400 });
-		// Rect2 position is relative to rt position.
+		SetPosition(rt, -resolution * 0.5f + V2_float{ 400, 400 });
+		// Rect2 position is relative to rt position (0, 0 is center of rt).
 		auto rect2 =
-			CreateRect(*this, { 200, 200 }, { 100, 100 }, color::White, -1.0f, Origin::TopLeft);
+			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, -1.0f, Origin::TopLeft);
 		rt.AddToDisplayList(rect2);
 	}
 

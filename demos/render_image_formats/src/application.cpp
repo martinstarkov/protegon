@@ -6,6 +6,7 @@
 #include "components/sprite.h"
 #include "core/game.h"
 #include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "utility/file.h"
@@ -34,23 +35,75 @@ class TextureFormatScene : public Scene {
 						{ "png10", "resources/png10.png" },
 						{ "png11", "resources/png11.png" } });
 
-		SetScale(sprites.emplace_back(CreateSprite(*this, "jpg1", { 0, 0 })), 1.0f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "jpg2", { 320, 0 })), 0.5f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "jpg3", { 0, 240 })), 0.25f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "bmp1", { 0, 432 })), 0.1f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "bmp2", { 76.2, 432 })), 0.25f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "bmp3", { 204.2, 432 })), 0.5f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png1", { 0, 562.9 })), 0.1f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png2", { 76.2, 562.9 })), 0.25f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png3", { 204.2, 562.9 })), 0.5f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png4", { 304.2, 562.9 })), 0.25f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png5", { 0, 693.8 })), 0.5f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png6", { 100, 693.8 })), 0.33f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png7", { 200, 693.8 })), 0.33f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png8", { 300, 693.8 })), 0.33f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png9", { 400, 693.8 })), 0.33f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png10", { 500, 693.8 })), 0.33f);
-		SetScale(sprites.emplace_back(CreateSprite(*this, "png11", { 600, 693.8 })), 0.33f);
+		V2_float ws{ game.renderer.GetGameSize() };
+
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "jpg1", -ws * 0.5f + V2_float{ 0, 0 })), 1.0f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "jpg2", -ws * 0.5f + V2_float{ 320, 0 })), 0.5f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "jpg3", -ws * 0.5f + V2_float{ 0, 240 })),
+			0.25f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "bmp1", -ws * 0.5f + V2_float{ 0, 432 })), 0.1f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "bmp2", -ws * 0.5f + V2_float{ 76.2, 432 })),
+			0.25f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "bmp3", -ws * 0.5f + V2_float{ 204.2, 432 })),
+			0.5f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png1", -ws * 0.5f + V2_float{ 0, 562.9 })),
+			0.1f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png2", -ws * 0.5f + V2_float{ 76.2, 562.9 })),
+			0.25f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png3", -ws * 0.5f + V2_float{ 204.2, 562.9 })
+			),
+			0.5f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png4", -ws * 0.5f + V2_float{ 304.2, 562.9 })
+			),
+			0.25f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png5", -ws * 0.5f + V2_float{ 0, 693.8 })),
+			0.5f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png6", -ws * 0.5f + V2_float{ 100, 693.8 })),
+			0.33f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png7", -ws * 0.5f + V2_float{ 200, 693.8 })),
+			0.33f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png8", -ws * 0.5f + V2_float{ 300, 693.8 })),
+			0.33f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png9", -ws * 0.5f + V2_float{ 400, 693.8 })),
+			0.33f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png10", -ws * 0.5f + V2_float{ 500, 693.8 })),
+			0.33f
+		);
+		SetScale(
+			sprites.emplace_back(CreateSprite(*this, "png11", -ws * 0.5f + V2_float{ 600, 693.8 })),
+			0.33f
+		);
 
 		for (auto& sprite : sprites) {
 			SetDrawOrigin(sprite, Origin::TopLeft);

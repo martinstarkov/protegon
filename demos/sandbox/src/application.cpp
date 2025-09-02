@@ -5495,6 +5495,7 @@ struct SandboxScene : public ptgn::Scene {
 	Controller controller{ true };
 
 	void Enter() override {
+		SetPosition(camera, window_size / 2.0f);
 		// Initialize and start your app (replace with actual UI initialization)
 		controller.start();
 	}
