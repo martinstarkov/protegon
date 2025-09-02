@@ -1,10 +1,19 @@
 #include "components/draw.h"
 #include "components/sprite.h"
+#include "core/entity.h"
 #include "core/game.h"
+#include "core/time.h"
+#include "debug/log.h"
 #include "input/input_handler.h"
+#include "input/key.h"
+#include "input/mouse.h"
+#include "math/easing.h"
+#include "renderer/api/color.h"
 #include "renderer/renderer.h"
 #include "scene/scene.h"
+#include "scene/scene_input.h"
 #include "scene/scene_manager.h"
+#include "tweens/tween.h"
 #include "tweens/tween_effects.h"
 
 using namespace ptgn;
@@ -19,8 +28,8 @@ struct FadeEffectScene : public Scene {
 		LoadResource("tree", "resources/tree.jpg");
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(*this, "tree", { 100, 100 });
-		sprite2 = CreateSprite(*this, "smile", { 600, 600 });
+		sprite1 = CreateSprite(*this, "tree", { -200, -200 });
+		sprite2 = CreateSprite(*this, "smile", { 200, 200 });
 
 		SetTint(sprite1, color::Transparent);
 

@@ -52,11 +52,11 @@ struct FollowEffectScene : public Scene {
 		mouse = CreateEntity();
 		SetPosition(mouse, {});
 
-		entity1 = CreateFollower(color::Red, { 100, 100 });
-		entity2 = CreateFollower(color::Green, { 200, 200 });
-		entity3 = CreateFollower(color::Blue, { 300, 300 });
-		entity4 = CreateFollower(color::Yellow, { 400, 400 });
-		entity5 = CreateFollower(color::Magenta, { 500, 500 });
+		entity1 = CreateFollower(color::Red, { -300, -300 });
+		entity2 = CreateFollower(color::Green, { -200, -200 });
+		entity3 = CreateFollower(color::Blue, { -100, -100 });
+		entity4 = CreateFollower(color::Yellow, { 0, 0 });
+		entity5 = CreateFollower(color::Magenta, { 100, 100 });
 
 		// Target follow (snap).
 		config1.lerp = { 1.0f, 1.0f };
@@ -78,10 +78,12 @@ struct FollowEffectScene : public Scene {
 		config5.stop_distance = 40.0f;
 		config5.move_mode	  = MoveMode::Velocity;
 
-		auto e{ game.renderer.GetGameSize() };
-		auto c{ e / 2.0f };
+		V2_float game_size{ game.renderer.GetGameSize() };
+		V2_float half{ game_size * 0.5f };
+		V2_float center{ 0, 0 };
 
-		waypoints = { V2_float{}, c, V2_float{ e.x, 0 }, c, e, c, V2_float{ 0, e.y }, c };
+		waypoints = { -half, center, V2_float{ half.x, -half.y }, center,
+					  half,	 center, V2_float{ -half.x, half.y }, center };
 
 		Start();
 	}
@@ -100,7 +102,7 @@ struct FollowEffectScene : public Scene {
 		StartFollow(entity5, waypoints, config5);
 	}
 
-	void Stop() const {
+	void Stop() {
 		StopFollow(entity1);
 		StopFollow(entity2);
 		StopFollow(entity3);

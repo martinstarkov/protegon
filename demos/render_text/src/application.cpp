@@ -25,7 +25,7 @@ struct TextScene : public Scene {
 
 		auto text = ptgn::CreateText(*this, content, color, font_size, font_key);
 		SetDrawOrigin(text, Origin::CenterTop);
-		SetPosition(text, { resolution.x / 2.0f, stride * static_cast<float>(index) });
+		SetPosition(text, { 0.0f, -resolution.y * 0.5f + stride * static_cast<float>(index) });
 		return text;
 	}
 

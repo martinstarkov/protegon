@@ -116,7 +116,7 @@ void SetProgress(const V2_float& size, const Entity& e, float progress) {
 	if (HasParent(e)) {
 		target = GetParent(e);
 	}
-	SetPositionX(target, size.x / 2.0f + width * progress);
+	SetPositionX(target, size.x * 0.5f - res.x * 0.5f + width * progress);
 }
 
 class TweenScene : public Scene {
@@ -126,8 +126,10 @@ public:
 	V2_float size{ 40.0f };
 
 	V2_float GetNextPosition() const {
+		V2_float res{ game.renderer.GetGameSize() };
 		static int count{ 0 };
-		V2_float pos{ size.x / 2.0f, size.y * static_cast<float>(count) };
+		V2_float pos{ -res.x * 0.5f + size.x / 2.0f,
+					  -res.y * 0.5f + size.y * static_cast<float>(count) };
 		count++;
 		return pos;
 	}
