@@ -354,18 +354,19 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 	return &line->pages[static_cast<std::size_t>(current_page_)];
 }
 
-void DialogueComponent::DrawInfo() {
+void DialogueComponent::DrawInfo(const V2_float& position) {
 	FontSize font_size{ 32 };
 	DrawDebugText(
-		"Dialogue: " + current_dialogue_, { 0, 0 }, color::White, Origin::TopLeft, font_size
+		"Dialogue: " + current_dialogue_, position + V2_float{ 0, 0 }, color::White,
+		Origin::TopLeft, font_size
 	);
 	DrawDebugText(
-		"Line: " + std::to_string(current_line_), { 0, 50 }, color::White, Origin::TopLeft,
-		font_size
+		"Line: " + std::to_string(current_line_), position + V2_float{ 0, 50 }, color::White,
+		Origin::TopLeft, font_size
 	);
 	DrawDebugText(
-		"Page: " + std::to_string(current_page_), { 0, 100 }, color::White, Origin::TopLeft,
-		font_size
+		"Page: " + std::to_string(current_page_), position + V2_float{ 0, 100 }, color::White,
+		Origin::TopLeft, font_size
 	);
 }
 
