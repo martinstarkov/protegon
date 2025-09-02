@@ -78,7 +78,7 @@ struct FollowEffectScene : public Scene {
 		config5.stop_distance = 40.0f;
 		config5.move_mode	  = MoveMode::Velocity;
 
-		auto e{ game.renderer.GetLogicalResolution() };
+		auto e{ game.renderer.GetGameSize() };
 		auto c{ e / 2.0f };
 
 		waypoints = { V2_float{}, c, V2_float{ e.x, 0 }, c, e, c, V2_float{ 0, e.y }, c };

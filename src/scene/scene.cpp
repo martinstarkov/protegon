@@ -41,7 +41,7 @@ namespace ptgn {
 Scene::Scene() {
 	auto& render_manager{ game.renderer.GetRenderData().render_manager };
 	render_target_ = CreateRenderTarget(
-		render_manager, ResizeToResolution::Physical, color::Transparent, TextureFormat::RGBA8888
+		render_manager, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8888
 	);
 	PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
 	camera = render_target_.Get<GameObject<Camera>>();

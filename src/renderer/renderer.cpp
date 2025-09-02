@@ -249,30 +249,35 @@ void Renderer::Shutdown() {
 	Reset();
 }
 
-void Renderer::SetLogicalResolutionMode(LogicalResolutionMode logical_resolution_mode) {
-	V2_int resolution{ render_data_.logical_resolution_set_ ? render_data_.logical_resolution_
-															: game.window.GetSize() };
-	render_data_.UpdateResolutions(resolution, logical_resolution_mode);
+void Renderer::SetScalingMode(ScalingMode scaling_mode) {
+	V2_int resolution{ render_data_.game_size_set_ ? render_data_.game_size_
+												   : game.window.GetSize() };
+	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
-void Renderer::SetLogicalResolution(
-	const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
-) {
-	render_data_.logical_resolution_set_ = !logical_resolution.IsZero();
-	V2_int resolution{ render_data_.logical_resolution_set_ ? logical_resolution
-															: game.window.GetSize() };
-	render_data_.UpdateResolutions(resolution, logical_resolution_mode);
+void Renderer::SetGameSize(const V2_int& game_size, ScalingMode scaling_mode) {
+	render_data_.game_size_set_ = !game_size.IsZero();
+	V2_int resolution{ render_data_.game_size_set_ ? game_size : game.window.GetSize() };
+	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
-V2_int Renderer::GetPhysicalResolution() const {
-	return render_data_.physical_viewport_.size;
+V2_int Renderer::GetDisplaySize() const {
+	return render_data_.display_viewport_.size;
 }
 
-V2_int Renderer::GetLogicalResolution() const {
-	return render_data_.logical_resolution_;
+V2_float Renderer::GetScale() const {
+	V2_int display_size{ GetDisplaySize() };
+	V2_int game_size{ GetGameSize() };
+	PTGN_ASSERT(display_size.BothAboveZero());
+	PTGN_ASSERT(game_size.BothAboveZero());
+	return V2_float{ display_size } / game_size;
 }
 
-LogicalResolutionMode Renderer::GetLogicalResolutionMode() const {
+V2_int Renderer::GetGameSize() const {
+	return render_data_.game_size_;
+}
+
+ScalingMode Renderer::GetScalingMode() const {
 	return render_data_.resolution_mode_;
 }
 

@@ -9,11 +9,7 @@
 #include "core/script.h"
 #include "core/script_interfaces.h"
 #include "math/matrix4.h"
-#include "math/quaternion.h"
 #include "math/vector2.h"
-#include "math/vector3.h"
-#include "renderer/api/flip.h"
-#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -104,6 +100,8 @@ public:
 		bounding_box_position, bounding_box_size
 	)
 private:
+	void SetScroll(std::size_t index, float new_scroll_position);
+
 	mutable bool view_dirty{ true };
 	mutable bool projection_dirty{ true };
 
@@ -130,9 +128,8 @@ private:
 	V2_float bounding_box_size;
 };
 
-struct CameraLogicalResolutionResizeScript :
-	public Script<CameraLogicalResolutionResizeScript, LogicalResolutionScript> {
-	void OnLogicalResolutionChanged() override;
+struct CameraGameSizeResizeScript : public Script<CameraGameSizeResizeScript, GameSizeScript> {
+	void OnGameSizeChanged() override;
 };
 
 } // namespace impl
@@ -196,7 +193,7 @@ public:
 	[[nodiscard]] V2_float GetZoom() const;
 	[[nodiscard]] V2_float GetRotation() const;
 
-	// Reset camera to auto resize to the logical resolution.
+	// Reset camera to auto resize to the game size.
 	void Reset();
 
 	[[nodiscard]] const Matrix4& GetViewProjection() const;
@@ -204,7 +201,7 @@ public:
 	operator Matrix4() const;
 
 protected:
-	friend struct impl::CameraLogicalResolutionResizeScript;
+	friend struct impl::CameraGameSizeResizeScript;
 	friend class CameraManager;
 	friend Camera CreateCamera(Manager& manager);
 

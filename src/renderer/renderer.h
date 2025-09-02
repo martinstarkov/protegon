@@ -111,24 +111,24 @@ public:
 	void SetBackgroundColor(const Color& background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
-	// @param logical_resolution Setting to {} will use window size.
-	void SetLogicalResolution(
-		const V2_int& logical_resolution			  = {},
-		LogicalResolutionMode logical_resolution_mode = LogicalResolutionMode::Letterbox
+	// @param game_size Setting to {} will use window size.
+	void SetGameSize(
+		const V2_int& game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
 	);
 
-	void SetLogicalResolutionMode(
-		LogicalResolutionMode logical_resolution_mode = LogicalResolutionMode::Letterbox
-	);
+	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
 
-	// @return The physical resolution of the renderer.
-	[[nodiscard]] V2_int GetPhysicalResolution() const;
+	// @return The display size of the renderer.
+	[[nodiscard]] V2_int GetDisplaySize() const;
 
-	// @return The logical resolution of the renderer.
-	[[nodiscard]] V2_int GetLogicalResolution() const;
+	// @return The amount by which game size is scaled to achieve the display size.
+	[[nodiscard]] V2_float GetScale() const;
 
-	// @return The logical resolution scaling mode.
-	[[nodiscard]] LogicalResolutionMode GetLogicalResolutionMode() const;
+	// @return The game size of the renderer.
+	[[nodiscard]] V2_int GetGameSize() const;
+
+	// @return The game size scaling mode.
+	[[nodiscard]] ScalingMode GetScalingMode() const;
 
 	// @return The render data associated with the current render queue.
 	[[nodiscard]] RenderData& GetRenderData();

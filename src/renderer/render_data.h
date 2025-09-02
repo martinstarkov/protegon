@@ -15,6 +15,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/resolution.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "math/geometry/line.h"
@@ -38,18 +39,6 @@ class Camera;
 class Shader;
 class Scene;
 struct Matrix4;
-
-// How the renderer resolution is scaled to the window size.
-enum class LogicalResolutionMode {
-	Disabled,  /**< There is no scaling in effect */
-	Stretch,   /**< The rendered content is stretched to the output resolution */
-	Letterbox, /**< The rendered content is fit to the largest dimension and the other dimension is
-				  letterboxed with black bars */
-	Overscan,  /**< The rendered content is fit to the smallest dimension and the other dimension
-				  extends beyond the output bounds */
-	IntegerScale, /**< The rendered content is scaled up by integer multiples to fit the output
-					 resolution */
-};
 
 struct Viewport {
 	Viewport() = default;
@@ -228,7 +217,7 @@ public:
 	);
 
 	// @param texture_or_size If texture, uses texture size, otherwise uses the V2_int size or the
-	// scene render target size (physical resolution).
+	// scene render target size (display size).
 	// @param clear_between_consecutive_calls Will clear the intermediate render target between
 	// consecutive calls. This prevents stacking of shader calls onto the same target. An example of
 	// where this is not desired is when rendering many lights back to back. Does not apply if a
@@ -274,8 +263,6 @@ private:
 		const RenderTarget& render_target, const Matrix4& view_projection,
 		const std::array<V2_float, 4>& points, bool use_viewport
 	);
-
-	[[nodiscard]] V2_float RelativeToViewport(const V2_float& window_relative_point) const;
 
 	void AddShape(
 		std::span<const Vertex> shape_vertices, std::span<const Index> shape_indices,
@@ -386,7 +373,7 @@ private:
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);
 
-	void RecomputePhysicalViewport(const V2_int& window_size);
+	void RecomputeDisplaySize(const V2_int& window_size);
 
 	void Flush();
 
@@ -441,19 +428,17 @@ private:
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 
-	void UpdateResolutions(
-		const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
-	);
+	void UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode);
 
-	bool logical_resolution_set_{ false };
-	LogicalResolutionMode resolution_mode_{ LogicalResolutionMode::Letterbox };
+	bool game_size_set_{ false };
+	ScalingMode resolution_mode_{ ScalingMode::Letterbox };
 
 	// Allow for creation of targets before window has been initialized.
-	V2_int logical_resolution_{ 1, 1 };
-	Viewport physical_viewport_{ {}, { 1, 1 } };
+	V2_int game_size_{ 1, 1 };
+	Viewport display_viewport_{ {}, { 1, 1 } };
 
-	bool logical_resolution_changed_{ false };
-	bool physical_resolution_changed_{ false };
+	bool game_size_changed_{ false };
+	bool display_size_changed_{ false };
 
 	RenderTarget screen_target_;
 	Entity viewport_tracker;
@@ -474,11 +459,11 @@ private:
 } // namespace impl
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	LogicalResolutionMode, { { LogicalResolutionMode::Disabled, "disabled" },
-							 { LogicalResolutionMode::Stretch, "stretch" },
-							 { LogicalResolutionMode::Letterbox, "letterbox" },
-							 { LogicalResolutionMode::Overscan, "overscan" },
-							 { LogicalResolutionMode::IntegerScale, "integer_scale" } }
+	ScalingMode, { { ScalingMode::Disabled, "disabled" },
+				   { ScalingMode::Stretch, "stretch" },
+				   { ScalingMode::Letterbox, "letterbox" },
+				   { ScalingMode::Overscan, "overscan" },
+				   { ScalingMode::IntegerScale, "integer_scale" } }
 );
 
 } // namespace ptgn

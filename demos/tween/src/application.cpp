@@ -110,7 +110,7 @@ public:
 };
 
 void SetProgress(const V2_float& size, const Entity& e, float progress) {
-	V2_float res{ game.renderer.GetLogicalResolution() };
+	V2_float res{ game.renderer.GetGameSize() };
 	auto width{ res.x - size.x };
 	Entity target{ e };
 	if (HasParent(e)) {
@@ -217,7 +217,7 @@ public:
 
 		PTGN_ASSERT(tween_count > 0);
 
-		V2_float res{ game.renderer.GetLogicalResolution() };
+		V2_float res{ game.renderer.GetGameSize() };
 		size   = { 0.0f, res.y / static_cast<float>(tween_count) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
 

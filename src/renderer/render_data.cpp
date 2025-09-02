@@ -128,10 +128,10 @@ ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
 void ViewportResizeScript::OnWindowResized() {
 	auto& render_data{ game.renderer.GetRenderData() };
 	auto window_size{ game.window.GetSize() };
-	if (!render_data.logical_resolution_set_) {
+	if (!render_data.game_size_set_) {
 		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
 	}
-	render_data.RecomputePhysicalViewport(window_size);
+	render_data.RecomputeDisplaySize(window_size);
 }
 
 ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
@@ -491,7 +491,7 @@ void RenderData::Init() {
 	intermediate_target = {};
 
 	screen_target_ = CreateRenderTarget(
-		render_manager, ResizeToResolution::Physical, color::Transparent, TextureFormat::RGBA8888
+		render_manager, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8888
 	);
 	SetBlendMode(screen_target_, BlendMode::None);
 
@@ -509,7 +509,7 @@ void RenderData::Init() {
 	viewport_tracker = render_manager.CreateEntity();
 	AddScript<ViewportResizeScript>(viewport_tracker);
 	auto window_size{ game.window.GetSize() };
-	RecomputePhysicalViewport(window_size);
+	RecomputeDisplaySize(window_size);
 
 	render_manager.Refresh();
 }
@@ -609,16 +609,6 @@ void RenderData::AddShader(
 
 void RenderData::AddTemporaryTexture(Texture&& texture) {
 	temporary_textures.emplace_back(std::move(texture));
-}
-
-V2_float RenderData::RelativeToViewport(const V2_float& window_relative_point) const {
-	V2_float scale{
-		V2_float{ logical_resolution_ } / physical_viewport_.size,
-	};
-
-	V2_float local{ (window_relative_point - physical_viewport_.position) * scale };
-
-	return local - logical_resolution_ * 0.5f;
 }
 
 void RenderData::AddShape(
@@ -918,8 +908,8 @@ void RenderData::DrawScene(Scene& scene) {
 	Flush();
 }
 
-void RenderData::RecomputePhysicalViewport(const V2_int& window_size) {
-	if (!logical_resolution_.BothAboveZero()) {
+void RenderData::RecomputeDisplaySize(const V2_int& window_size) {
+	if (!game_size_.BothAboveZero()) {
 		UpdateResolutions(window_size, resolution_mode_);
 	}
 
@@ -930,72 +920,69 @@ void RenderData::RecomputePhysicalViewport(const V2_int& window_size) {
 	auto compute_aspect_fit = [&](bool letterbox_mode) {
 		float window_aspect{ static_cast<float>(window_size.x) /
 							 static_cast<float>(window_size.y) };
-		float logical_aspect{ static_cast<float>(logical_resolution_.x) /
-							  static_cast<float>(logical_resolution_.y) };
+		float game_aspect{ static_cast<float>(game_size_.x) / static_cast<float>(game_size_.y) };
 
-		// In letterbox mode we need require window_aspect > logical_aspect to fit height, and in
-		// overscan we require window_aspect > logical_aspect to fit height.
-		bool fit_height{ (window_aspect > logical_aspect) == letterbox_mode };
+		// In letterbox mode we need require window_aspect > game_aspect to fit height, and in
+		// overscan we require window_aspect > game_aspect to fit height.
+		bool fit_height{ (window_aspect > game_aspect) == letterbox_mode };
 
 		if (fit_height) {
 			vp.size.y = window_size.y;
-			vp.size.x = static_cast<int>(static_cast<float>(window_size.y) * logical_aspect + 0.5f);
+			vp.size.x = static_cast<int>(static_cast<float>(window_size.y) * game_aspect + 0.5f);
 			vp.position.x = (window_size.x - vp.size.x) / 2; // left edge.
 			vp.position.y = 0;
 		} else {
 			// Fit width.
 			vp.size.x = window_size.x;
-			vp.size.y = static_cast<int>(static_cast<float>(window_size.x) / logical_aspect + 0.5f);
+			vp.size.y = static_cast<int>(static_cast<float>(window_size.x) / game_aspect + 0.5f);
 			vp.position.x = 0;
 			vp.position.y = (window_size.y - vp.size.y) / 2; // top edge.
 		}
 	};
 
 	switch (resolution_mode_) {
-		case LogicalResolutionMode::Letterbox:	  compute_aspect_fit(true); break;
+		case ScalingMode::Letterbox:	compute_aspect_fit(true); break;
 
-		case LogicalResolutionMode::IntegerScale: {
-			V2_int ratio{ window_size / logical_resolution_ };
+		case ScalingMode::IntegerScale: {
+			V2_int ratio{ window_size / game_size_ };
 			// Find which dimension limits the scaling factor.
 			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
-			vp.size		= logical_resolution_ * scale; // scale up.
+			vp.size		= game_size_ * scale;		   // scale up.
 			vp.position = (window_size - vp.size) / 2; // center of window.
 			break;
 		}
 
-		case LogicalResolutionMode::Stretch:
+		case ScalingMode::Stretch:
 			// Viewport is full window (default).
 			break;
 
-		case LogicalResolutionMode::Disabled:
-			vp.size		= logical_resolution_;		   // no change.
+		case ScalingMode::Disabled:
+			vp.size		= game_size_;				   // no change.
 			vp.position = (window_size - vp.size) / 2; // center of window.
 			break;
 
-		case LogicalResolutionMode::Overscan: compute_aspect_fit(false); break;
+		case ScalingMode::Overscan: compute_aspect_fit(false); break;
 
-		default:							  PTGN_ERROR("Unsupported resolution mode")
+		default:					PTGN_ERROR("Unsupported resolution mode")
 	}
 
-	if (vp != physical_viewport_) {
-		// Only update viewport if it changed. This reduces PhysicalResolutionChanged event
+	if (vp != display_viewport_) {
+		// Only update viewport if it changed. This reduces DisplaySizeChanged event
 		// dispatch.
-		physical_viewport_			 = vp;
-		physical_resolution_changed_ = true;
+		display_viewport_	  = vp;
+		display_size_changed_ = true;
 	}
 }
 
-void RenderData::UpdateResolutions(
-	const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
-) {
-	if (logical_resolution_ == logical_resolution && resolution_mode_ == logical_resolution_mode) {
+void RenderData::UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode) {
+	if (game_size_ == game_size && resolution_mode_ == scaling_mode) {
 		return;
 	}
 	auto window_size{ game.window.GetSize() };
-	logical_resolution_			= logical_resolution;
-	resolution_mode_			= logical_resolution_mode;
-	logical_resolution_changed_ = true;
-	RecomputePhysicalViewport(window_size);
+	game_size_		   = game_size;
+	resolution_mode_   = scaling_mode;
+	game_size_changed_ = true;
+	RecomputeDisplaySize(window_size);
 }
 
 void RenderData::ClearScreenTarget() const {
@@ -1060,13 +1047,13 @@ void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {
 }
 
 void RenderData::DrawScreenTarget() {
-	auto half_viewport{ physical_viewport_.size * 0.5f };
+	auto half_viewport{ display_viewport_.size * 0.5f };
 
 	auto projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	std::array<V2_float, 4> points{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y },
 									half_viewport, V2_float{ -half_viewport.x, half_viewport.y } };
 
-	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr, true);
+	DrawFromTo(screen_target_, points, projection, display_viewport_, nullptr, true);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -1077,9 +1064,9 @@ void RenderData::Draw(Scene& scene) {
 
 	DrawScene(scene);
 
-	auto half_logical_resolution{ logical_resolution_ * 0.5f };
+	auto half_game_size{ game_size_ * 0.5f };
 
-	auto projection{ Matrix4::Orthographic(-half_logical_resolution, half_logical_resolution) };
+	auto projection{ Matrix4::Orthographic(-half_game_size, half_game_size) };
 
 	Transform scene_transform{ GetTransform(scene.render_target_) };
 
@@ -1087,7 +1074,7 @@ void RenderData::Draw(Scene& scene) {
 
 	Viewport viewport;
 	viewport.position = {};
-	viewport.size	  = physical_viewport_.size;
+	viewport.size	  = display_viewport_.size;
 
 	DrawFromTo(
 		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer(), true

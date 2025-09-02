@@ -32,7 +32,7 @@ class ResolutionTextScene : public Scene {
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("background", "resources/bg.png");
-		game.renderer.SetLogicalResolution(resolution);
+		game.renderer.SetGameSize(resolution);
 
 		// TODO: Readd once debug stuff is drawn on top.
 		// CreateSprite(*this, "background", resolution / 2.0f);

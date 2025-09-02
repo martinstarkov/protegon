@@ -56,14 +56,14 @@ RenderTarget AddRenderTargetComponents(
 	return render_target;
 }
 
-void LogicalRenderTargetResizeScript::OnLogicalResolutionChanged() {
-	auto logical_resolution{ game.renderer.GetLogicalResolution() };
-	RenderTarget{ entity }.Resize(logical_resolution);
+void GameResizeScript::OnGameSizeChanged() {
+	auto game_size{ game.renderer.GetGameSize() };
+	RenderTarget{ entity }.Resize(game_size);
 }
 
-void PhysicalRenderTargetResizeScript::OnPhysicalResolutionChanged() {
-	auto physical_resolution{ game.renderer.GetPhysicalResolution() };
-	RenderTarget{ entity }.Resize(physical_resolution);
+void DisplayResizeScript::OnDisplaySizeChanged() {
+	auto display_size{ game.renderer.GetDisplaySize() };
+	RenderTarget{ entity }.Resize(display_size);
 }
 
 } // namespace impl
@@ -180,19 +180,19 @@ void RenderTarget::Resize(const V2_int& size) {
 }
 
 RenderTarget CreateRenderTarget(
-	Manager& manager, ResizeToResolution resize_to_resolution, const Color& clear_color,
+	Manager& manager, ResizeMode resize_to_resolution, const Color& clear_color,
 	TextureFormat texture_format
 ) {
 	RenderTarget render_target{ manager.CreateEntity() };
 
 	V2_int resolution;
 
-	if (resize_to_resolution == ResizeToResolution::Physical) {
-		resolution = game.renderer.GetPhysicalResolution();
-		AddScript<impl::PhysicalRenderTargetResizeScript>(render_target);
-	} else if (resize_to_resolution == ResizeToResolution::Logical) {
-		resolution = game.renderer.GetLogicalResolution();
-		AddScript<impl::LogicalRenderTargetResizeScript>(render_target);
+	if (resize_to_resolution == ResizeMode::DisplaySize) {
+		resolution = game.renderer.GetDisplaySize();
+		AddScript<impl::DisplayResizeScript>(render_target);
+	} else if (resize_to_resolution == ResizeMode::GameSize) {
+		resolution = game.renderer.GetGameSize();
+		AddScript<impl::GameResizeScript>(render_target);
 	} else {
 		PTGN_ERROR("Unknown resize to resolution value");
 	}

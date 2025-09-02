@@ -121,20 +121,20 @@ void SceneManager::Update(Game& g) {
 
 	// TODO: Figure out a better way to do non-scene events / scripts.
 
-	bool invoke_actions{ render_data.logical_resolution_changed_ ||
-						 render_data.physical_resolution_changed_ };
+	bool invoke_actions{ render_data.game_size_changed_ ||
+						 render_data.display_size_changed_ };
 
 	const auto invoke_resolution_events = [&](Manager& manager) {
 		manager.Refresh();
 
-		if (render_data.logical_resolution_changed_) {
+		if (render_data.game_size_changed_) {
 			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-				scripts.AddAction(&LogicalResolutionScript::OnLogicalResolutionChanged);
+				scripts.AddAction(&GameSizeScript::OnGameSizeChanged);
 			}
 		}
-		if (render_data.physical_resolution_changed_) {
+		if (render_data.display_size_changed_) {
 			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-				scripts.AddAction(&PhysicalResolutionScript::OnPhysicalResolutionChanged);
+				scripts.AddAction(&DisplaySizeScript::OnDisplaySizeChanged);
 			}
 		}
 		if (invoke_actions) {
@@ -165,8 +165,8 @@ void SceneManager::Update(Game& g) {
 
 	render_data.DrawScreenTarget();
 
-	render_data.logical_resolution_changed_	 = false;
-	render_data.physical_resolution_changed_ = false;
+	render_data.game_size_changed_	 = false;
+	render_data.display_size_changed_ = false;
 
 	g.renderer.PresentScreen();
 }

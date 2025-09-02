@@ -14,8 +14,8 @@ enum class ScriptType {
 	Base,
 	Draw,
 	Window,
-	LogicalResolution,
-	PhysicalResolution,
+	GameSize,
+	DisplaySize,
 	Key,
 	GlobalMouse,
 	Mouse,
@@ -83,16 +83,16 @@ struct DrawScript : public impl::BaseScript<ScriptType::Draw> {
 	friend class Script;
 };
 
-struct LogicalResolutionScript : public impl::BaseScript<ScriptType::LogicalResolution> {
-	virtual ~LogicalResolutionScript() = default;
+struct GameSizeScript : public impl::BaseScript<ScriptType::GameSize> {
+	virtual ~GameSizeScript() = default;
 
-	virtual void OnLogicalResolutionChanged() { /* user implementation */ }
+	virtual void OnGameSizeChanged() { /* user implementation */ }
 };
 
-struct PhysicalResolutionScript : public impl::BaseScript<ScriptType::PhysicalResolution> {
-	virtual ~PhysicalResolutionScript() = default;
+struct DisplaySizeScript : public impl::BaseScript<ScriptType::DisplaySize> {
+	virtual ~DisplaySizeScript() = default;
 
-	virtual void OnPhysicalResolutionChanged() { /* user implementation */ }
+	virtual void OnDisplaySizeChanged() { /* user implementation */ }
 };
 
 struct WindowScript : public impl::BaseScript<ScriptType::Window> {

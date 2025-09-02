@@ -39,9 +39,9 @@ struct ResolutionScene : public Scene {
 	Sprite circle;
 
 	void Enter() override {
-		SetBackgroundColor(color::LightBlue);
+		game.renderer.SetBackgroundColor(color::LightBlue);
 		game.window.SetSetting(WindowSetting::Resizable);
-		game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
+		game.renderer.SetScalingMode(ScalingMode::Letterbox);
 
 		RenderTarget rt{ GetRenderTarget() };
 
@@ -58,16 +58,16 @@ struct ResolutionScene : public Scene {
 
 		V2_float camera_center{ GetTransform(camera).GetPosition() };
 
-		CreateRect(*this, camera_center - V2_float{ 100, 0 }, { 50, 50 }, color::Green);
+		CreateRect(*this, camera_center - V2_float{ 100, 0 }, { 100, 100 }, color::Green);
 
 		float intensity{ 0.5f };
 		float falloff{ 2.0f };
 
 		CreatePointLight(
-			*this, camera_center + V2_float{ 100, 0 }, 100.0f, color::Red, intensity, falloff
+			*this, camera_center + V2_float{ 100, 0 }, 50.0f, color::Red, intensity, falloff
 		);
 
-		float radius{ 40.0f };
+		float radius{ 50.0f };
 		circle = CreateEntity();
 		SetPosition(circle, camera_center);
 		auto child{ CreateEntity(*this) };
@@ -82,15 +82,6 @@ struct ResolutionScene : public Scene {
 
 	void Update() override {
 		MoveWASD(camera, { 3.0f, 3.0f });
-
-		auto mouse_window{ input.GetMouseWindowPosition() };
-		auto mouse_world_point{ input.ScreenToWorld(mouse_window) };
-		auto mouse_screen_point{ input.WorldToScreen(mouse_world_point) };
-
-		/*PTGN_LOG(
-			"mouse_window: ", mouse_window, ", mouse_world_point: ", mouse_world_point,
-			", mouse_screen_point: ", mouse_screen_point
-		);*/
 
 		auto dt{ game.dt() };
 

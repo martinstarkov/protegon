@@ -20,9 +20,9 @@ class Camera;
 class Manager;
 class RenderTarget;
 
-enum class ResizeToResolution {
-	Logical,
-	Physical
+enum class ResizeMode {
+	GameSize,
+	DisplaySize
 };
 
 namespace impl {
@@ -44,14 +44,12 @@ struct ClearColor : public ColorComponent {
 	ClearColor() : ColorComponent{ color::Transparent } {}
 };
 
-struct LogicalRenderTargetResizeScript :
-	public Script<LogicalRenderTargetResizeScript, LogicalResolutionScript> {
-	void OnLogicalResolutionChanged() override;
+struct GameResizeScript : public Script<GameResizeScript, GameSizeScript> {
+	void OnGameSizeChanged() override;
 };
 
-struct PhysicalRenderTargetResizeScript :
-	public Script<PhysicalRenderTargetResizeScript, PhysicalResolutionScript> {
-	void OnPhysicalResolutionChanged() override;
+struct DisplayResizeScript : public Script<DisplayResizeScript, DisplaySizeScript> {
+	void OnDisplaySizeChanged() override;
 };
 
 } // namespace impl
@@ -147,7 +145,7 @@ RenderTarget CreateRenderTarget(
 // Create a render target that is continuously sized to the specified resolution.
 // @param clear_color The background color of the render target.
 RenderTarget CreateRenderTarget(
-	Manager& manager, ResizeToResolution resize_to_resolution = ResizeToResolution::Physical,
+	Manager& manager, ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
 	const Color& clear_color	 = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );

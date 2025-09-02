@@ -74,7 +74,7 @@ struct RenderTargetScene : public Scene {
 	void Enter() override {
 		SetBackgroundColor(color::LightGray);
 		game.window.SetSetting(WindowSetting::Resizable);
-		game.renderer.SetLogicalResolution(resolution);
+		game.renderer.SetGameSize(resolution);
 
 		/*
 		LoadResource("test", "resources/test1.jpg");

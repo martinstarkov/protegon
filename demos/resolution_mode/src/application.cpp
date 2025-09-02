@@ -14,28 +14,28 @@ using namespace ptgn;
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int resolution{ 320, 240 }; // 4, 3
 
-class ResolutionModeScene : public Scene {
+class ScalingModeScene : public Scene {
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("background", "resources/test1.jpg");
-		game.renderer.SetLogicalResolution(resolution, LogicalResolutionMode::Disabled);
+		game.renderer.SetGameSize(resolution, ScalingMode::Disabled);
 	}
 
 	void Update() override {
 		if (input.KeyDown(Key::Q)) {
-			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Disabled);
+			game.renderer.SetScalingMode(ScalingMode::Disabled);
 		}
 		if (input.KeyDown(Key::W)) {
-			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Stretch);
+			game.renderer.SetScalingMode(ScalingMode::Stretch);
 		}
 		if (input.KeyDown(Key::E)) {
-			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
+			game.renderer.SetScalingMode(ScalingMode::Letterbox);
 		}
 		if (input.KeyDown(Key::R)) {
-			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::IntegerScale);
+			game.renderer.SetScalingMode(ScalingMode::IntegerScale);
 		}
 		if (input.KeyDown(Key::T)) {
-			game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Overscan);
+			game.renderer.SetScalingMode(ScalingMode::Overscan);
 		}
 
 		DrawDebugTexture("background", { 0, 0 }, resolution, Origin::TopLeft);
@@ -52,7 +52,7 @@ class ResolutionModeScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ResolutionModeScene: QWERT: Switch Resolution Modes", window_size);
-	game.scene.Enter<ResolutionModeScene>("");
+	game.Init("ScalingModeScene: QWERT: Switch Resolution Modes", window_size);
+	game.scene.Enter<ScalingModeScene>("");
 	return 0;
 }

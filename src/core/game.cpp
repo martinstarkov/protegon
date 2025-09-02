@@ -193,11 +193,11 @@ bool Game::IsRunning() const {
 	return running_;
 }
 
-void Game::Init(const std::string& title, const V2_int& logical_resolution) {
+void Game::Init(const std::string& title, const V2_int& game_size) {
 	window.SetTitle(title);
 	// Order matters here.
-	window.SetSize(logical_resolution);
-	renderer.SetLogicalResolution(logical_resolution);
+	window.SetSize(game_size);
+	renderer.SetGameSize(game_size);
 }
 
 void Game::Shutdown() {
