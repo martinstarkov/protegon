@@ -12,6 +12,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -69,7 +70,9 @@ public:
 
 		chunk_manager.AddNoiseLayer(NoiseLayer{
 			fractal_noise, [&](const V2_float& coordinate, float noise) {
-				return CreateColorTile(coordinate, color::White.WithAlpha(noise));
+				return CreateColorTile(
+					-game.renderer.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
+				);
 			} });
 
 		sheep = CreateSheep(V2_float{ 0, 0 });

@@ -30,7 +30,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 V2_float ws;
 
@@ -134,12 +134,12 @@ public:
 		SetTint(overlap, color::Orange);
 		SetTint(overlap_circle, color::Orange);
 
-		SetPosition(intersect, V2_float{ 100, 100 });
-		SetPosition(overlap, V2_float{ 200, 200 });
-		SetPosition(sweep, V2_float{ 300, 300 });
-		SetPosition(intersect_circle, V2_float{ 400, 400 });
-		SetPosition(overlap_circle, V2_float{ 500, 500 });
-		SetPosition(sweep_circle, V2_float{ 300, 600 });
+		SetPosition(intersect, -resolution * 0.5f + V2_float{ 100, 100 });
+		SetPosition(overlap, -resolution * 0.5f + V2_float{ 200, 200 });
+		SetPosition(sweep, -resolution * 0.5f + V2_float{ 300, 300 });
+		SetPosition(intersect_circle, -resolution * 0.5f + V2_float{ 400, 400 });
+		SetPosition(overlap_circle, -resolution * 0.5f + V2_float{ 500, 500 });
+		SetPosition(sweep_circle, -resolution * 0.5f + V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
@@ -1781,7 +1781,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CollisionScene:  Arrow keys to flip between tests", window_size);
+	game.Init("CollisionScene:  Arrow keys to flip between tests", resolution);
 	game.scene.Enter<CollisionScene>("");
 	return 0;
 }

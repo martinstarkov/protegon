@@ -273,7 +273,9 @@ public:
 
 		grid.ForEach([size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
-				SetPosition(b, coord * (size + offset) + offset);
+				SetPosition(
+					b, -game.renderer.GetGameSize() * 0.5f + coord * (size + offset) + offset
+				);
 				SetDrawOrigin(b, Origin::TopLeft);
 				b.SetSize(size);
 			}

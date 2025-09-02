@@ -53,7 +53,9 @@ public:
 			grid = inner_grid;
 		}
 
-		V2_int mouse_pos = input.GetMousePosition();
+		auto res{ game.renderer.GetGameSize() };
+
+		V2_int mouse_pos = input.GetMousePosition() + res * 0.5f;
 
 		V2_int mouse_tile = mouse_pos / tile_size;
 
@@ -75,14 +77,17 @@ public:
 				}
 			}
 			DrawDebugRect(
-				V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, c, Origin::TopLeft, -1.0f
+				-res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, c,
+				Origin::TopLeft, -1.0f
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			DrawDebugRect(mouse_tile * tile_size, tile_size, color::Yellow, Origin::TopLeft);
+			DrawDebugRect(
+				-res * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, Origin::TopLeft
+			);
 		}
 		text.SetContent(ToString(mouse_tile));
-		SetPosition(text, mouse_tile * tile_size + tile_size / 2.0f);
+		SetPosition(text, -res * 0.5f + mouse_tile * tile_size + tile_size / 2.0f);
 	}
 };
 

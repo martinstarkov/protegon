@@ -16,7 +16,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 struct PhysicsBoundaryScene : public Scene {
 	Entity player;
@@ -26,8 +26,8 @@ struct PhysicsBoundaryScene : public Scene {
 
 	std::size_t entity_count{ 1000 };
 
-	RNG<float> rngx{ 0.0f, (float)window_size.x };
-	RNG<float> rngy{ 0.0f, (float)window_size.y };
+	RNG<float> rngx{ -(float)resolution.x * 0.5f, (float)resolution.x * 0.5f };
+	RNG<float> rngy{ -(float)resolution.y * 0.5f, (float)resolution.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 10.0f };
 
 	Entity AddEntity(
@@ -53,8 +53,8 @@ struct PhysicsBoundaryScene : public Scene {
 	}
 
 	void Enter() override {
-		physics.SetBounds({}, window_size, behavior);
-		player = AddEntity(window_size * 0.5f, player_size, color::Purple, false);
+		physics.SetBounds(-resolution * 0.5f, resolution, behavior);
+		player = AddEntity({}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
 		for (std::size_t i{ 0 }; i < entity_count; ++i) {
@@ -78,7 +78,7 @@ struct PhysicsBoundaryScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("PhysicsBoundaryScene: Q/E to switch boundary behavior", window_size);
+	game.Init("PhysicsBoundaryScene: Q/E to switch boundary behavior", resolution);
 	game.scene.Enter<PhysicsBoundaryScene>("");
 	return 0;
 }
