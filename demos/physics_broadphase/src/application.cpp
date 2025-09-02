@@ -21,7 +21,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 // TODO: Move all of this into the collision system.
 
@@ -53,14 +53,14 @@ struct BroadphaseScene : public Scene {
 	Entity player;
 	V2_float player_size{ 20, 20 };
 
-	RNG<float> rngx{ 0.0f, (float)window_size.x };
-	RNG<float> rngy{ 0.0f, (float)window_size.y };
+	RNG<float> rngx{ -(float)resolution.x * 0.5f, (float)resolution.x * 0.5f };
+	RNG<float> rngy{ -(float)resolution.y * 0.5f, (float)resolution.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 30.0f };
 
 	void Enter() override {
-		physics.SetBounds({}, window_size, BoundaryBehavior::ReflectVelocity);
+		physics.SetBounds(-resolution * 0.5f, resolution, BoundaryBehavior::ReflectVelocity);
 
-		player = AddEntity(*this, window_size * 0.5f, player_size, color::Purple, false);
+		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
 		for (std::size_t i{ 0 }; i < entity_count; ++i) {
@@ -179,7 +179,7 @@ struct BroadphaseScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BroadphaseScene", window_size);
+	game.Init("BroadphaseScene", resolution);
 	game.scene.Enter<BroadphaseScene>("");
 	return 0;
 }

@@ -134,9 +134,8 @@ std::vector<Entity> KDTree::Raycast(
 	return hits;
 }
 
-Entity KDTree::RaycastFirst(
-	const Entity& entity, const V2_float& dir, const BoundingAABB& aabb
-) const {
+Entity KDTree::RaycastFirst(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb)
+	const {
 	Entity closest_hit;
 	float closest_t{ 1.0f };
 	Rect rect{ aabb.min, aabb.max };
@@ -194,6 +193,11 @@ std::unique_ptr<KDNode> KDTree::BuildRecursive(const std::vector<KDObject>& obje
 		} else {
 			right_objs.push_back(obj);
 		}
+	}
+
+	if (left_objs.empty() || right_objs.empty()) {
+		node->objects = objects;
+		return node;
 	}
 
 	node->left	= BuildRecursive(left_objs, depth + 1);

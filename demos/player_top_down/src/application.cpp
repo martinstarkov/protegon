@@ -12,7 +12,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 960, 540 };
+constexpr V2_int resolution{ 960, 540 };
 
 constexpr CollisionCategory ground_category{ 1 };
 
@@ -93,8 +93,7 @@ class TopDownMovementScene : public Scene {
 
 	Entity CreatePlayer() {
 		Entity entity = CreateRect(
-			*this, window_size / 2.0f + V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen,
-			-1.0f, Origin::Center
+			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, -1.0f, Origin::Center
 		);
 		AddScript<TopDownScript1>(entity);
 		auto& rb = entity.Add<RigidBody>();
@@ -107,18 +106,21 @@ class TopDownMovementScene : public Scene {
 	void Enter() override {
 		SetColliderVisibility(true);
 
-		V2_float ws{ window_size };
+		V2_float ws{ resolution };
 
 		CreatePlayer();
-		CreateWall({ 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft);
-		CreateWall({ 0, ws.y / 2.0f }, { 200, 10 }, Origin::TopLeft);
-		CreateWall({ ws.x, ws.y / 2.0f }, { 200, 10 }, Origin::TopRight);
-		CreateWall({ ws.x - 200, ws.y / 2.0f + 140 }, { ws.x - 400, 10 }, Origin::TopRight);
+		CreateWall(-ws * 0.5f + V2_float{ 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft);
+		CreateWall(-ws * 0.5f + V2_float{ 0, ws.y / 2.0f }, { 200, 10 }, Origin::TopLeft);
+		CreateWall(-ws * 0.5f + V2_float{ ws.x, ws.y / 2.0f }, { 200, 10 }, Origin::TopRight);
+		CreateWall(
+			-ws * 0.5f + V2_float{ ws.x - 200, ws.y / 2.0f + 140 }, { ws.x - 400, 10 },
+			Origin::TopRight
+		);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TopDownMovementScene: WASD to move", window_size);
+	game.Init("TopDownMovementScene: WASD to move", resolution);
 	game.scene.Enter<TopDownMovementScene>("");
 	return 0;
 }
