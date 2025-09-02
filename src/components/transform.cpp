@@ -224,6 +224,11 @@ Transform& GetTransform(Entity& entity) {
 }
 
 Transform GetTransform(const Entity& entity) {
+	PTGN_ASSERT(
+		!entity.Has<impl::CameraInstance>(),
+		"GetTransform(Entity) cannot be used on a Camera entity. Use "
+		"GetTransform(Camera) instead."
+	);
 	if (auto transform{ entity.TryGet<Transform>() }; transform) {
 		return *transform;
 	}
@@ -240,7 +245,6 @@ Transform& GetTransform(Camera& camera) {
 
 Transform GetAbsoluteTransform(const Entity& entity) {
 	auto world_transform{ GetWorldTransform(entity) };
-	PTGN_ASSERT(!entity.Has<impl::CameraInstance>());
 	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
 		auto camera_transform{ GetTransform(*camera) };
 		auto inverse_transform{ world_transform.InverseRelativeTo(camera_transform) };
