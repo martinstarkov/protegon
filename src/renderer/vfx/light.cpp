@@ -7,6 +7,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/resolution.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
@@ -30,33 +31,24 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 
 	auto light_world_pos{ transform.GetPosition() };
 
-	auto& scene{ entity.GetScene() };
 	Camera camera{ entity.GetCamera() };
 
-	auto camera_transform{ GetAbsoluteTransform(camera) };
-	auto scene_transform{ GetAbsoluteTransform(scene.GetRenderTarget()) };
+	V2_float light_display_pos{ WorldToDisplay(light_world_pos, camera) };
 
-	auto light_screen_pos{ entity.GetScene().input.WorldToScreen(light_world_pos) };
+	auto display_size{ game.renderer.GetDisplaySize() };
 
-	auto physical_size{ game.renderer.GetLogicalResolution() };
+	light_display_pos += display_size * 0.5f;
 
-	V2_float ratio{ camera.GetViewportSize() / physical_size };
+	auto camera_display_size{ camera.GetDisplaySize() };
 
-	PTGN_ASSERT(ratio.BothAboveZero());
+	PTGN_ASSERT(camera_display_size.BothAboveZero());
 
-	light_screen_pos /= ratio;
+	auto ratio{ game.renderer.GetDisplaySize() / camera_display_size };
 
-	light_screen_pos += physical_size * 0.5f;
+	float radius{ 2.0f * light.GetRadius() * Abs(transform.GetAverageScale()) *
+				  ((ratio.x + ratio.y) * 0.5f) };
 
-	V2_float zoomed_ratio{ camera.GetDisplaySize() / physical_size };
-
-	float radius{ light.GetRadius() * Abs(transform.GetAverageScale()) *
-				  Abs(camera_transform.GetAverageScale()) * Abs(scene_transform.GetAverageScale()) *
-				  ((zoomed_ratio.x + zoomed_ratio.y) * 0.5f) };
-
-	PTGN_LOG(camera_transform); //, ", ", light_screen_pos, ", ", radius);
-
-	shader.SetUniform("u_LightPosition", light_screen_pos);
+	shader.SetUniform("u_LightPosition", light_display_pos);
 	shader.SetUniform("u_LightIntensity", light.GetIntensity());
 	shader.SetUniform("u_LightRadius", radius);
 	shader.SetUniform("u_Falloff", light.GetFalloff());
