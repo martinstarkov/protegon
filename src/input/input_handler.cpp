@@ -19,6 +19,7 @@
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
+#include "renderer/renderer.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
 #include "SDL_mouse.h"
@@ -289,7 +290,7 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 }
 
 V2_float InputHandler::GetPositionRelativeTo(
-	const V2_int& window_position, ViewportType relative_to
+	const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
 ) {
 	V2_int window_center{ game.window.GetSize() / 2 };
 
@@ -299,9 +300,25 @@ V2_float InputHandler::GetPositionRelativeTo(
 	window_point -= window_center;
 
 	switch (relative_to) {
-		case ViewportType::World:		  return WindowToWorld(window_point, {});
-		case ViewportType::Game:		  return WindowToGame(window_point);
-		case ViewportType::Display:		  return WindowToDisplay(window_point);
+		case ViewportType::World: return WindowToWorld(window_point, {});
+		case ViewportType::Game:  {
+			auto game_point{ WindowToGame(window_point) };
+			if (clamp_to_viewport) {
+				auto game_size{ game.renderer.GetGameSize() };
+				auto half_size{ game_size * 0.5f };
+				game_point = Clamp(game_point, -half_size, half_size);
+			}
+			return game_point;
+		}
+		case ViewportType::Display: {
+			auto display_point{ WindowToDisplay(window_point) };
+			if (clamp_to_viewport) {
+				auto display_size{ game.renderer.GetDisplaySize() };
+				auto half_size{ display_size * 0.5f };
+				display_point = Clamp(display_point, -half_size, half_size);
+			}
+			return display_point;
+		}
 		case ViewportType::WindowCenter:  return window_point;
 		case ViewportType::WindowTopLeft: return window_position;
 		default:						  PTGN_ERROR("Unrecognized viewport type")
@@ -324,15 +341,18 @@ V2_float InputHandler::GetMousePosition(ViewportType relative_to, bool clamp_to_
 		mouse_window_pos = GetMouseScreenPosition();
 	}
 
-	return GetPositionRelativeTo(mouse_window_pos, relative_to);
+	return GetPositionRelativeTo(mouse_window_pos, relative_to, clamp_to_viewport);
 }
 
-V2_float InputHandler::GetMousePositionPrevious(ViewportType relative_to) const {
-	return GetPositionRelativeTo(previous_mouse_position_, relative_to);
+V2_float InputHandler::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
+	const {
+	return GetPositionRelativeTo(previous_mouse_position_, relative_to, clamp_to_viewport);
 }
 
-V2_float InputHandler::GetMousePositionDifference(ViewportType relative_to) const {
-	return GetMousePosition(relative_to, true) - GetMousePositionPrevious(relative_to);
+V2_float InputHandler::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
+	const {
+	return GetMousePosition(relative_to, clamp_to_viewport) -
+		   GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }
 
 int InputHandler::GetMouseScroll() const {

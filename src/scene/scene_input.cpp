@@ -530,16 +530,17 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 			if (dragging == last_dropzone) {
 				continue;
 			}
-			if (!draggable.dropzones_.contains(last_dropzone)) {
-				if (last_dropzone.Has<Dropzone, Interactive>() &&
-					last_dropzone.Get<Interactive>().enabled) {
-					if (auto dropzone_scripts{ last_dropzone.TryGet<Scripts>() }) {
-						dropzone_scripts->AddAction(&DropzoneScript::OnDraggableLeave, dragging);
-					}
+			if (draggable.dropzones_.contains(last_dropzone)) {
+				continue;
+			}
+			if (last_dropzone.Has<Dropzone, Interactive>() &&
+				last_dropzone.Get<Interactive>().enabled) {
+				if (auto dropzone_scripts{ last_dropzone.TryGet<Scripts>() }) {
+					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableLeave, dragging);
 				}
-				if (scripts) {
-					scripts->AddAction(&DragScript::OnDragLeave, last_dropzone);
-				}
+			}
+			if (scripts) {
+				scripts->AddAction(&DragScript::OnDragLeave, last_dropzone);
 			}
 		}
 
@@ -550,13 +551,14 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 			if (dragging == dropzone) {
 				continue;
 			}
-			if (!draggable.dropzones_.contains(dropzone)) {
-				if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOut, dragging);
-				}
-				if (scripts) {
-					scripts->AddAction(&DragScript::OnDragOut, dropzone);
-				}
+			if (draggable.dropzones_.contains(dropzone)) {
+				continue;
+			}
+			if (auto dropzone_scripts{ dropzone.TryGet<Scripts>() }) {
+				dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOut, dragging);
+			}
+			if (scripts) {
+				scripts->AddAction(&DragScript::OnDragOut, dropzone);
 			}
 		}
 
@@ -569,12 +571,14 @@ V2_float SceneInput::GetMousePosition(ViewportType relative_to, bool clamp_to_vi
 	return game.input.GetMousePosition(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionPrevious(ViewportType relative_to) const {
-	return game.input.GetMousePositionPrevious(relative_to);
+V2_float SceneInput::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
+	const {
+	return game.input.GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionDifference(ViewportType relative_to) const {
-	return game.input.GetMousePositionDifference(relative_to);
+V2_float SceneInput::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
+	const {
+	return game.input.GetMousePositionDifference(relative_to, clamp_to_viewport);
 }
 
 void SceneInput::Update(Scene& scene) {

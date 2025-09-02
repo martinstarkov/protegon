@@ -58,12 +58,13 @@ public:
 	) const;
 
 	// @return Mouse position during the previous frame.
-	[[nodiscard]] V2_float GetMousePositionPrevious(ViewportType relative_to = ViewportType::World)
-		const;
+	[[nodiscard]] V2_float GetMousePositionPrevious(
+		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	) const;
 
 	// @return Mouse position difference between the current and previous frames.
 	[[nodiscard]] V2_float GetMousePositionDifference(
-		ViewportType relative_to = ViewportType::World
+		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
 	) const;
 
 	// @param mouse_button The mouse button to check.

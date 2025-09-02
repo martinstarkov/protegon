@@ -74,12 +74,13 @@ public:
 	) const;
 
 	// @return Mouse position during the previous frame.
-	[[nodiscard]] V2_float GetMousePositionPrevious(ViewportType relative_to = ViewportType::World)
-		const;
+	[[nodiscard]] V2_float GetMousePositionPrevious(
+		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	) const;
 
 	// @return Mouse position difference between the current and previous frames.
 	[[nodiscard]] V2_float GetMousePositionDifference(
-		ViewportType relative_to = ViewportType::World
+		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
 	) const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
@@ -130,7 +131,7 @@ private:
 	// Convert position from being relative to the top left of the window to being relative to the
 	// center of the specified viewport.
 	[[nodiscard]] static V2_float GetPositionRelativeTo(
-		const V2_int& window_position, ViewportType relative_to
+		const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
 	);
 
 	// @return Mouse position relative to the top left of the screen.
