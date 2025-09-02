@@ -1,3 +1,4 @@
+#include "components/sprite.h"
 #include "core/game.h"
 #include "core/window.h"
 #include "input/input_handler.h"
@@ -20,6 +21,8 @@ class ScalingModeScene : public Scene {
 		game.window.SetSize(window_size);
 		LoadResource("background", "resources/test1.jpg");
 		game.renderer.SetGameSize(resolution, ScalingMode::Disabled);
+
+		CreateSprite(*this, "background", {});
 	}
 
 	void Update() override {
@@ -39,16 +42,24 @@ class ScalingModeScene : public Scene {
 			game.renderer.SetScalingMode(ScalingMode::Overscan);
 		}
 
-		DrawDebugTexture("background", { 0, 0 }, resolution, Origin::TopLeft);
+		// DrawDebugTexture("background", { 0, 0 }, resolution, Origin::Center);
 
-		DrawDebugRect({ 0, 0 }, { resolution.x, 30 }, color::Red, Origin::TopLeft, -1.0f);
 		DrawDebugRect(
-			{ resolution.x - 30, 0 }, { 30, resolution.y }, color::Green, Origin::TopLeft, -1.0f
+			{ -resolution.x * 0.5f, -resolution.y * 0.5f }, { resolution.x, 30 }, color::Red,
+			Origin::TopLeft, -1.0f
 		);
 		DrawDebugRect(
-			{ 0, resolution.y - 30 }, { resolution.x, 30 }, color::Blue, Origin::TopLeft, -1.0f
+			{ resolution.x * 0.5f - 30, -resolution.y * 0.5f }, { 30, resolution.y }, color::Green,
+			Origin::TopLeft, -1.0f
 		);
-		DrawDebugRect({ 0, 0 }, { 30, resolution.y }, color::Teal, Origin::TopLeft, -1.0f);
+		DrawDebugRect(
+			{ -resolution.x * 0.5f, resolution.y * 0.5f - 30 }, { resolution.x, 30 }, color::Blue,
+			Origin::TopLeft, -1.0f
+		);
+		DrawDebugRect(
+			{ -resolution.x * 0.5f, -resolution.y * 0.5f }, { 30, resolution.y }, color::Teal,
+			Origin::TopLeft, -1.0f
+		);
 	}
 };
 
