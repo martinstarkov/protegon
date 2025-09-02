@@ -5,6 +5,7 @@
 
 #include "components/interactive.h"
 #include "core/entity.h"
+#include "core/resolution.h"
 #include "core/time.h"
 #include "input/key.h"
 #include "input/mouse.h"
@@ -51,26 +52,19 @@ public:
 	void SetDrawInteractivesColor(const Color& color);
 	void SetDrawInteractivesLineWidth(float line_width);
 
-	// Convert a point from world space to screen space.
-	[[nodiscard]] V2_float WorldToScreen(const V2_float& world_point) const;
+	// @return Mouse position.
+	[[nodiscard]] V2_float GetMousePosition(
+		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	) const;
 
-	// Convert a point from screen space to scene primary camera (world) space.
-	[[nodiscard]] V2_float ScreenToWorld(const V2_float& screen_point) const;
+	// @return Mouse position during the previous frame.
+	[[nodiscard]] V2_float GetMousePositionPrevious(ViewportType relative_to = ViewportType::World)
+		const;
 
-	// @return Mouse position relative to the scene primary camera, clamped to the range [0,
-	// window_size].
-	[[nodiscard]] V2_float GetMousePosition() const;
-
-	// @return Mouse position relative to the scene primary camera, without clamping to the range
-	// [0, window_size].
-	[[nodiscard]] V2_float GetMousePositionUnclamped() const;
-
-	// @return Mouse position during the previous frame relative to the scene primary camera.
-	[[nodiscard]] V2_float GetMousePositionPrevious() const;
-
-	// @return Mouse position difference between the current and previous frames relative to the
-	// scene primary camera.
-	[[nodiscard]] V2_float GetMousePositionDifference() const;
+	// @return Mouse position difference between the current and previous frames.
+	[[nodiscard]] V2_float GetMousePositionDifference(
+		ViewportType relative_to = ViewportType::World
+	) const;
 
 	// @param mouse_button The mouse button to check.
 	// @return The amount of time that the mouse button has been held down, 0 if it is not currently
@@ -95,39 +89,11 @@ public:
 	 */
 	[[nodiscard]] bool KeyHeld(Key key, milliseconds time = milliseconds{ 50 }) const;
 
-	// @return True if mouse position is within window bounds, false otherwise.
-	[[nodiscard]] bool MouseWithinWindow() const;
-
 	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
 	// to the window, and there will be continuous relative mouse motion events triggered even if
 	// the mouse is at the edge of the window.
 	// @param Whether or not mouse relative mode should be turned on or not.
 	void SetRelativeMouseMode(bool on) const;
-
-	// @param relative_to_viewport If true, returns the position translated and scaled such that
-	// (0,0) is in the top left of the viewport, instead of the window.
-	// @return Mouse position relative to the top left of the window, clamped to the range [0,
-	// window_size].
-	[[nodiscard]] V2_float GetMouseWindowPosition(bool relative_to_viewport = true) const;
-
-	// @return Mouse position relative to the top left of the window, without clamping to the range
-	// [0, window_size].
-	[[nodiscard]] V2_float GetMouseWindowPositionUnclamped() const;
-
-	// @param relative_to_viewport If true, returns the position translated and scaled such that
-	// (0,0) is in the top left of the viewport, instead of the window.
-	// @return Mouse position during the previous frame relative to the top left of the window.
-	[[nodiscard]] V2_float GetMouseWindowPositionPrevious(bool relative_to_viewport = true) const;
-
-	// @param relative_to_viewport If true, returns the position translated and scaled such that
-	// (0,0) is in the top left of the viewport, instead of the window.
-	// @return Mouse position difference between the current and previous frames relative to the top
-	// left of the window.
-	[[nodiscard]] V2_float GetMouseWindowPositionDifference(bool relative_to_viewport = true) const;
-
-	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
-	// GetMousePosition().
-	[[nodiscard]] V2_float GetMouseScreenPosition() const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
 	// positive upward, negative downward. Zero if no scroll occurred.
@@ -247,18 +213,21 @@ private:
 	};
 
 	InteractiveEntities GetInteractiveEntities(Scene& scene, const MouseInfo& mouse_state) const;
+
 	static std::vector<Entity> GetDropzones(Scene& scene);
+
 	void DispatchMouseEvents(
 		const std::vector<Entity>& over, const std::vector<Entity>& out, const MouseInfo& mouse
 	) const;
+
 	void UpdateMouseOverStates(const std::vector<Entity>& current) const;
+
 	void HandleDragging(
 		const std::vector<Entity>& over, const std::vector<Entity>& dropzones,
 		const MouseInfo& mouse
 	);
-	void HandleDropzones(const std::vector<Entity>& dropzones, const MouseInfo& mouse);
 
-	// TODO: Add to serialization.
+	void HandleDropzones(const std::vector<Entity>& dropzones, const MouseInfo& mouse);
 
 	impl::SceneKey scene_key_;
 

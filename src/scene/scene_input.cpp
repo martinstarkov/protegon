@@ -13,6 +13,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/resolution.h"
 #include "core/script.h"
 #include "debug/log.h"
 #include "ecs/ecs.h"
@@ -35,7 +36,7 @@
 namespace ptgn {
 
 MouseInfo::MouseInfo(const Scene& scene) :
-	position{ scene.input.GetMousePosition() },
+	position{ scene.input.GetMousePosition(ViewportType::World) },
 	scroll_delta{ scene.input.GetMouseScroll() },
 	left_pressed{ scene.input.MousePressed(Mouse::Left) },
 	left_down{ scene.input.MouseDown(Mouse::Left) },
@@ -564,65 +565,16 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 	}
 }
 
-V2_float SceneInput::WorldToScreen(const V2_float& world_point) const {
-	const auto& scene{ game.scene.Get(scene_key_) };
-
-	auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
-
-	auto rt_pos{ rt_transform.GetPosition() };
-	auto rt_scale{ rt_transform.GetScale() };
-	auto rt_rot{ rt_transform.GetRotation() };
-	auto camera_transform{ GetTransform(scene.camera) };
-
-	auto rt_local_point{ ApplyInverseTransform(world_point, camera_transform) };
-
-	auto screen_point{ (rt_local_point).Rotated(rt_rot) * rt_scale + rt_pos };
-
-	return screen_point;
+V2_float SceneInput::GetMousePosition(ViewportType relative_to, bool clamp_to_viewport) const {
+	return game.input.GetMousePosition(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::ScreenToWorld(const V2_float& screen_point) const {
-	const auto& scene{ game.scene.Get(scene_key_) };
-
-	auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
-
-	auto rt_pos{ rt_transform.GetPosition() };
-	auto rt_scale{ rt_transform.GetScale() };
-	auto rt_rot{ rt_transform.GetRotation() };
-
-	auto camera_transform{ GetTransform(scene.camera) };
-
-	auto center_offset{ screen_point - rt_pos };
-
-	auto rt_local_point{ (center_offset / rt_scale).Rotated(-rt_rot) };
-
-	auto world_point{ ApplyTransform(rt_local_point, camera_transform) };
-
-	return world_point;
+V2_float SceneInput::GetMousePositionPrevious(ViewportType relative_to) const {
+	return game.input.GetMousePositionPrevious(relative_to);
 }
 
-V2_float SceneInput::GetMousePosition() const {
-	auto screen_point{ GetMouseWindowPosition() };
-	auto world_point{ ScreenToWorld(screen_point) };
-	return world_point;
-}
-
-V2_float SceneInput::GetMousePositionUnclamped() const {
-	auto screen_point{ GetMouseWindowPositionUnclamped() };
-	auto world_point{ ScreenToWorld(screen_point) };
-	return world_point;
-}
-
-V2_float SceneInput::GetMousePositionPrevious() const {
-	auto screen_point{ GetMouseWindowPositionPrevious() };
-	auto world_point{ ScreenToWorld(screen_point) };
-	return world_point;
-}
-
-V2_float SceneInput::GetMousePositionDifference() const {
-	auto screen_point{ GetMouseWindowPositionDifference() };
-	auto world_point{ ScreenToWorld(screen_point) };
-	return world_point;
+V2_float SceneInput::GetMousePositionDifference(ViewportType relative_to) const {
+	return game.input.GetMousePositionDifference(relative_to);
 }
 
 void SceneInput::Update(Scene& scene) {
@@ -732,32 +684,8 @@ bool SceneInput::KeyHeld(Key key, milliseconds time) const {
 	return game.input.KeyHeld(key, time);
 }
 
-bool SceneInput::MouseWithinWindow() const {
-	return game.input.MouseWithinWindow();
-}
-
 void SceneInput::SetRelativeMouseMode(bool on) const {
 	game.input.SetRelativeMouseMode(on);
-}
-
-V2_float SceneInput::GetMouseWindowPosition(bool relative_to_viewport) const {
-	return game.input.GetMouseWindowPosition(relative_to_viewport);
-}
-
-V2_float SceneInput::GetMouseWindowPositionUnclamped() const {
-	return game.input.GetMouseWindowPositionUnclamped();
-}
-
-V2_float SceneInput::GetMouseWindowPositionPrevious(bool relative_to_viewport) const {
-	return game.input.GetMouseWindowPositionPrevious(relative_to_viewport);
-}
-
-V2_float SceneInput::GetMouseWindowPositionDifference(bool relative_to_viewport) const {
-	return game.input.GetMouseWindowPositionDifference(relative_to_viewport);
-}
-
-V2_float SceneInput::GetMouseScreenPosition() const {
-	return game.input.GetMouseScreenPosition();
 }
 
 int SceneInput::GetMouseScroll() const {
