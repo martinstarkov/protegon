@@ -17,6 +17,7 @@
 #include "debug/log.h"
 #include "debug/stats.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
 #include "renderer/buffers/frame_buffer.h"
@@ -562,8 +563,6 @@ void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)
 	}
 }
 
-/*
-// TODO: Include in texture:
 void Texture::SetClampBorderColor(const Color& color) const {
 	PTGN_ASSERT(IsValid(), "Cannot set clamp border color of invalid or uninitialized texture");
 
@@ -581,7 +580,6 @@ void Texture::SetClampBorderColor(const Color& color) const {
 
 	Texture::BindId(restore_id);
 }
-*/
 
 } // namespace impl
 

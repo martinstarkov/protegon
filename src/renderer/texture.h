@@ -257,6 +257,8 @@ public:
 
 	void Resize(const V2_int& new_size);
 
+	void SetClampBorderColor(const Color& color) const;
+
 private:
 	void GenerateTexture();
 	void DeleteTexture() noexcept;
