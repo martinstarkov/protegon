@@ -59,10 +59,6 @@ public:
 		const std::deque<V2_int>& waypoints, const V2_int& position
 	);
 
-	static void DisplayWaypoints(
-		const std::deque<V2_int>& waypoints, const V2_int& tile_size, const Color& color
-	);
-
 private:
 	void SolvePath(const V2_int& start, const V2_int& end);
 };
