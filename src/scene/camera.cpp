@@ -57,6 +57,15 @@ void CameraInstance::SetScroll(const V2_float& new_scroll_position) {
 	view_dirty = true;
 }
 
+void CameraInstance::SetScroll(std::size_t index, float new_scroll_position) {
+	PTGN_ASSERT(index == 0 || index == 1, "Axis index out of range");
+	if (index == 0) {
+		SetScrollX(new_scroll_position);
+		return;
+	}
+	SetScrollY(new_scroll_position);
+}
+
 void CameraInstance::SetScrollX(float new_scroll_x_position) {
 	SetScroll({ new_scroll_x_position, GetScroll().y });
 }
@@ -85,7 +94,8 @@ void CameraInstance::SetZoom(const V2_float& new_zoom) {
 	if (GetZoom() == clamped) {
 		return;
 	}
-	transform.SetScale(clamped);
+	PTGN_ASSERT(clamped.BothAboveZero(), "Cannot set negative or zero zoom");
+	transform.SetScale(1.0f / clamped);
 	ApplyBounds();
 	view_dirty = true;
 }
@@ -135,7 +145,9 @@ V2_float CameraInstance::GetScroll() const {
 }
 
 V2_float CameraInstance::GetZoom() const {
-	return transform.GetScale();
+	auto scale{ transform.GetScale() };
+	PTGN_ASSERT(scale.BothAboveZero(), "Cannot divide by negative or zero camera scale");
+	return 1.0f / scale;
 }
 
 float CameraInstance::GetRotation() const {
@@ -144,7 +156,8 @@ float CameraInstance::GetRotation() const {
 
 std::array<V2_float, 4> CameraInstance::GetWorldVertices() const {
 	Rect rect{ GetViewportSize() };
-	auto world_vertices{ rect.GetWorldVertices(transform) };
+	auto t{ transform };
+	auto world_vertices{ rect.GetWorldVertices(t) };
 	return world_vertices;
 }
 
@@ -160,16 +173,14 @@ void CameraInstance::ApplyBounds() {
 	V2_float max{ bounding_box_position + bounding_box_size };
 	PTGN_ASSERT(min.x < max.x && min.y < max.y, "Bounding box min must be below maximum");
 
-	const auto clamp_axis = [&](std::size_t axis) -> void {
+	const auto clamp_axis = [&](std::size_t axis) {
 		if (display_size[axis] >= bounding_box_size[axis]) {
 			// Center.
-			transform.SetPosition(
-				axis, bounding_box_position[axis] + bounding_box_size[axis] * 0.5f
-			);
+			SetScroll(axis, bounding_box_position[axis] + bounding_box_size[axis] * 0.5f);
 		} else {
-			transform.SetPosition(
+			SetScroll(
 				axis, std::clamp(
-						  transform.GetPosition()[axis], min[axis] + half_display[axis],
+						  GetScroll()[axis], min[axis] + half_display[axis],
 						  max[axis] - half_display[axis]
 					  )
 			);
@@ -304,10 +315,6 @@ void CameraInstance::RecalculateView() const {
 		t.SetPosition(Round(t.GetPosition()));
 	}
 
-	PTGN_ASSERT(t.GetScale().BothAboveZero(), "Camera cannot have negative or zero zoom");
-
-	t.SetScale(1.0f / t.GetScale());
-
 	view = Matrix4::MakeInverseTransform(t);
 
 	transform.ClearDirtyFlags();
@@ -343,21 +350,21 @@ void CameraInstance::RecalculateProjection() const {
 	projection_dirty = false;
 }
 
-void CameraLogicalResolutionResizeScript::OnLogicalResolutionChanged() {
-	auto logical_resolution{ game.renderer.GetLogicalResolution() };
-	Camera::Resize(entity, logical_resolution);
+void CameraGameSizeResizeScript::OnGameSizeChanged() {
+	auto game_size{ game.renderer.GetGameSize() };
+	Camera::Resize(entity, game_size);
 }
 
 } // namespace impl
 
 void Camera::Subscribe() {
-	TryAddScript<impl::CameraLogicalResolutionResizeScript>(*this);
-	V2_int logical_resolution{ game.renderer.GetLogicalResolution() };
-	Resize(*this, logical_resolution);
+	TryAddScript<impl::CameraGameSizeResizeScript>(*this);
+	V2_int game_size{ game.renderer.GetGameSize() };
+	Resize(*this, game_size);
 }
 
 void Camera::Unsubscribe() {
-	RemoveScripts<impl::CameraLogicalResolutionResizeScript>(*this);
+	RemoveScripts<impl::CameraGameSizeResizeScript>(*this);
 }
 
 void Camera::Resize(Camera camera, const V2_float& new_size) {
