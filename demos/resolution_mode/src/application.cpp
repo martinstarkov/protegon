@@ -17,12 +17,13 @@ constexpr V2_int resolution{ 320, 240 }; // 4, 3
 
 class ScalingModeScene : public Scene {
 	void Enter() override {
+		SetBackgroundColor(color::LightBlue);
 		game.window.SetSetting(WindowSetting::Resizable);
 		game.window.SetSize(window_size);
 		LoadResource("background", "resources/test1.jpg");
 		game.renderer.SetGameSize(resolution, ScalingMode::Disabled);
 
-		CreateSprite(*this, "background", {});
+		// CreateSprite(*this, "background", {});
 	}
 
 	void Update() override {
@@ -42,7 +43,8 @@ class ScalingModeScene : public Scene {
 			game.renderer.SetScalingMode(ScalingMode::Overscan);
 		}
 
-		// DrawDebugTexture("background", { 0, 0 }, resolution, Origin::Center);
+		/*
+		DrawDebugTexture("background", { 0, 0 }, resolution, Origin::Center);
 
 		DrawDebugRect(
 			{ -resolution.x * 0.5f, -resolution.y * 0.5f }, { resolution.x, 30 }, color::Red,
@@ -60,6 +62,7 @@ class ScalingModeScene : public Scene {
 			{ -resolution.x * 0.5f, -resolution.y * 0.5f }, { 30, resolution.y }, color::Teal,
 			Origin::TopLeft, -1.0f
 		);
+		*/
 	}
 };
 

@@ -121,8 +121,7 @@ void SceneManager::Update(Game& g) {
 
 	// TODO: Figure out a better way to do non-scene events / scripts.
 
-	bool invoke_actions{ render_data.game_size_changed_ ||
-						 render_data.display_size_changed_ };
+	bool invoke_actions{ render_data.game_size_changed_ || render_data.display_size_changed_ };
 
 	const auto invoke_resolution_events = [&](Manager& manager) {
 		manager.Refresh();
@@ -156,6 +155,9 @@ void SceneManager::Update(Game& g) {
 		invoke_resolution_events(*scene);
 	}
 
+	render_data.game_size_changed_	  = false;
+	render_data.display_size_changed_ = false;
+
 	auto active_scenes{ active_scenes_ };
 	for (auto active_scene : active_scenes) {
 		current_ = active_scene;
@@ -164,9 +166,6 @@ void SceneManager::Update(Game& g) {
 	}
 
 	render_data.DrawScreenTarget();
-
-	render_data.game_size_changed_	 = false;
-	render_data.display_size_changed_ = false;
 
 	g.renderer.PresentScreen();
 }
