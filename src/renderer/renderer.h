@@ -51,6 +51,7 @@ void DrawDebugTriangle(
 	const Camera& camera = {}
 );
 
+// @param rotation Unit: Radians, Direction: Clockwise positive.
 void DrawDebugRect(
 	const V2_float& position, const V2_float& size, const Color& color,
 	Origin origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
