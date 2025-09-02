@@ -10,6 +10,7 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/resolution.h"
 #include "core/time.h"
 #include "core/window.h"
 #include "debug/log.h"
@@ -280,8 +281,10 @@ void InputHandler::Update() {
 
 bool InputHandler::MouseWithinWindow() const {
 	auto screen_pointer{ GetMouseScreenPosition() };
-	Transform window_transform{ game.window.GetPosition() };
-	Rect window_rect{ game.window.GetSize() };
+	auto window_size{ game.window.GetSize() };
+	auto window_position{ game.window.GetPosition() };
+	Transform window_transform{ window_position + window_size / 2 };
+	Rect window_rect{ window_size };
 	return Overlap(screen_pointer, window_transform, window_rect);
 }
 
@@ -289,38 +292,49 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
 
-V2_float InputHandler::GetMouseScreenPosition() const {
-	V2_int position;
+V2_float InputHandler::GetPositionRelativeTo(
+	const V2_int& window_position, ViewportType relative_to
+) {
+	V2_int window_center{ game.window.GetSize() / 2 };
+
+	V2_int window_point{ window_position };
+
+	// Make position relative to the center of the window.
+	window_point -= window_center;
+
+	switch (relative_to) {
+		case ViewportType::World:	return WindowToWorld(window_point, {});
+		case ViewportType::Game:	return WindowToGame(window_point);
+		case ViewportType::Display: return WindowToDisplay(window_point);
+		default:					PTGN_ERROR("Unrecognized viewport type")
+	}
+}
+
+V2_int InputHandler::GetMouseScreenPosition() const {
+	V2_int mouse_screen_pos;
 	// SDL_PumpEvents not required as this function queries the OS directly.
-	SDL_GetGlobalMouseState(&position.x, &position.y);
-	return position;
+	SDL_GetGlobalMouseState(&mouse_screen_pos.x, &mouse_screen_pos.y);
+	V2_int window_pos{ game.window.GetPosition() };
+	mouse_screen_pos -= window_pos;
+	return mouse_screen_pos;
 }
 
-V2_float InputHandler::GetMouseWindowPosition(bool relative_to_viewport) const {
-	if (!relative_to_viewport) {
-		return mouse_position_;
+V2_float InputHandler::GetMousePosition(ViewportType relative_to, bool clamp_to_viewport) const {
+	V2_int mouse_window_pos{ mouse_position_ };
+
+	if (!clamp_to_viewport) {
+		mouse_window_pos = GetMouseScreenPosition();
 	}
 
-	const auto& rd{ game.renderer.GetRenderData() };
-	return rd.RelativeToViewport(mouse_position_);
+	return GetPositionRelativeTo(mouse_window_pos, relative_to);
 }
 
-V2_float InputHandler::GetMouseWindowPositionUnclamped() const {
-	return GetMouseScreenPosition() - game.window.GetPosition();
+V2_float InputHandler::GetMousePositionPrevious(ViewportType relative_to) const {
+	return GetPositionRelativeTo(previous_mouse_position_, relative_to);
 }
 
-V2_float InputHandler::GetMouseWindowPositionPrevious(bool relative_to_viewport) const {
-	if (!relative_to_viewport) {
-		return mouse_position_;
-	}
-
-	const auto& rd{ game.renderer.GetRenderData() };
-	return rd.RelativeToViewport(previous_mouse_position_);
-}
-
-V2_float InputHandler::GetMouseWindowPositionDifference(bool relative_to_viewport) const {
-	return GetMouseWindowPosition(relative_to_viewport) -
-		   GetMouseWindowPositionPrevious(relative_to_viewport);
+V2_float InputHandler::GetMousePositionDifference(ViewportType relative_to) const {
+	return GetMousePosition(relative_to, true) - GetMousePositionPrevious(relative_to);
 }
 
 int InputHandler::GetMouseScroll() const {

@@ -6,6 +6,7 @@
 #include <optional>
 #include <utility>
 
+#include "core/resolution.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "input/events.h"
@@ -67,30 +68,19 @@ public:
 	// @param Whether or not mouse relative mode should be turned on or not.
 	void SetRelativeMouseMode(bool on) const;
 
-	// @param relative_to_viewport If true, returns the position translated and scaled such that
-	// (0,0) is in the top left of the viewport, instead of the window.
-	// @return Mouse position relative to the top left of the window, clamped to the range [0,
-	// window_size].
-	[[nodiscard]] V2_float GetMouseWindowPosition(bool relative_to_viewport = true) const;
+	// @return Mouse position.
+	[[nodiscard]] V2_float GetMousePosition(
+		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	) const;
 
-	// @return Mouse position relative to the top left of the window, without clamping to the range
-	// [0, window_size].
-	[[nodiscard]] V2_float GetMouseWindowPositionUnclamped() const;
+	// @return Mouse position during the previous frame.
+	[[nodiscard]] V2_float GetMousePositionPrevious(ViewportType relative_to = ViewportType::World)
+		const;
 
-	// @param relative_to_viewport If true, returns the position translated and scaled such that
-	// (0,0) is in the top left of the viewport, instead of the window.
-	// @return Mouse position during the previous frame relative to the top left of the window.
-	[[nodiscard]] V2_float GetMouseWindowPositionPrevious(bool relative_to_viewport = true) const;
-
-	// @param relative_to_viewport If true, returns the position translated and scaled such that
-	// (0,0) is in the top left of the viewport, instead of the window.
-	// @return Mouse position difference between the current and previous frames relative to the top
-	// left of the window.
-	[[nodiscard]] V2_float GetMouseWindowPositionDifference(bool relative_to_viewport = true) const;
-
-	// @return In desktop mode: mouse position relative to the screen (display). In browser: same as
-	// GetMousePosition().
-	[[nodiscard]] V2_float GetMouseScreenPosition() const;
+	// @return Mouse position difference between the current and previous frames.
+	[[nodiscard]] V2_float GetMousePositionDifference(
+		ViewportType relative_to = ViewportType::World
+	) const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
 	// positive upward, negative downward. Zero if no scroll occurred.
@@ -137,6 +127,15 @@ private:
 
 	using Timestamp = std::uint32_t;
 
+	// Convert position from being relative to the top left of the window to being relative to the
+	// center of the specified viewport.
+	[[nodiscard]] static V2_float GetPositionRelativeTo(
+		const V2_int& window_position, ViewportType relative_to
+	);
+
+	// @return Mouse position relative to the top left of the screen.
+	[[nodiscard]] V2_int GetMouseScreenPosition() const;
+
 	// Updates the user inputs and posts any triggered input events. Run internally when using game
 	// scenes.
 	void Update();
@@ -168,6 +167,7 @@ private:
 	std::array<MouseState, mouse_count_> mouse_states_;
 	std::array<Timestamp, mouse_count_> mouse_timestamps_;
 
+	// Stored mouse positions are relative to the top left of the window.
 	V2_int mouse_position_;
 	V2_int previous_mouse_position_;
 
