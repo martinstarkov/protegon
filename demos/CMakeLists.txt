@@ -29,6 +29,7 @@ add_subdirectory(serialization_json)
 add_subdirectory(serialization_scene)
 add_subdirectory(serialization_script)
 
+add_subdirectory(render_shape)
 add_subdirectory(render_animation)
 add_subdirectory(render_target)
 add_subdirectory(render_light)
