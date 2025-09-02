@@ -30,7 +30,6 @@ public:
 	void Reset();
 
 	[[nodiscard]] Transform GetTransform() const;
-	[[nodiscard]] Transform& GetTransform();
 
 	// Center position.
 	void SetViewport(const V2_float& new_viewport_position, const V2_float& new_viewport_size);
@@ -147,7 +146,6 @@ public:
 	Camera(const Entity& entity);
 
 	[[nodiscard]] Transform GetTransform() const;
-	[[nodiscard]] Transform& GetTransform();
 
 	void SetPixelRounding(bool enabled);
 	[[nodiscard]] bool IsPixelRoundingEnabled() const;

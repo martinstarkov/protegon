@@ -31,10 +31,6 @@ Transform CameraInstance::GetTransform() const {
 	return transform;
 }
 
-Transform& CameraInstance::GetTransform() {
-	return transform;
-}
-
 void CameraInstance::Reset() {
 	*this = {};
 }
@@ -502,10 +498,6 @@ void Camera::Reset() {
 }
 
 Transform Camera::GetTransform() const {
-	return Get<impl::CameraInstance>().GetTransform();
-}
-
-Transform& Camera::GetTransform() {
 	return Get<impl::CameraInstance>().GetTransform();
 }
 

@@ -115,7 +115,16 @@ private:
 
 // Set the transform of the entity with respect to its parent entity.
 // @return *this.
-Entity& SetTransform(Entity& entity, const Transform& transform);
+template <EntityBase T>
+T& SetTransform(T& entity, const Transform& transform) {
+	if (entity.Has<Transform>()) {
+		impl::EntityAccess::Get<Transform>(entity) = transform;
+	} else {
+		impl::EntityAccess::Add<Transform>(entity, transform);
+	}
+	return entity;
+}
+
 Camera& SetTransform(Camera& entity, const Transform& transform);
 
 // @return The transform of the entity with respect to its parent entity.
@@ -123,7 +132,6 @@ Camera& SetTransform(Camera& entity, const Transform& transform);
 [[nodiscard]] Transform& GetTransform(Entity& entity);
 
 [[nodiscard]] Transform GetTransform(const Camera& camera);
-[[nodiscard]] Transform& GetTransform(Camera& camera);
 
 // @return The transform of the entity with respect to the scene primary camera.
 [[nodiscard]] Transform GetAbsoluteTransform(const Entity& entity);
@@ -138,42 +146,6 @@ Camera& SetTransform(Camera& entity, const Transform& transform);
 [[nodiscard]] Transform GetDrawTransform(const Entity& entity);
 
 template <EntityBase T>
-T& SetPosition(T& entity, const V2_float& position) {
-	GetTransform(entity).SetPosition(position);
-	return entity;
-}
-
-template <EntityBase T>
-T& SetPositionX(T& entity, float position_x) {
-	GetTransform(entity).SetPositionX(position_x);
-	return entity;
-}
-
-template <EntityBase T>
-T& SetPositionY(T& entity, float position_y) {
-	GetTransform(entity).SetPositionY(position_y);
-	return entity;
-}
-
-template <EntityBase T>
-T& Translate(T& entity, const V2_float& position_difference) {
-	GetTransform(entity).Translate(position_difference);
-	return entity;
-}
-
-template <EntityBase T>
-T& TranslateX(T& entity, float position_x_difference) {
-	GetTransform(entity).TranslateX(position_x_difference);
-	return entity;
-}
-
-template <EntityBase T>
-T& TranslateY(T& entity, float position_y_difference) {
-	GetTransform(entity).TranslateY(position_y_difference);
-	return entity;
-}
-
-template <EntityBase T>
 V2_float GetPosition(const T& entity) {
 	return GetTransform(entity).GetPosition();
 }
@@ -181,27 +153,6 @@ V2_float GetPosition(const T& entity) {
 template <EntityBase T>
 V2_float GetAbsolutePosition(const T& entity) {
 	return GetAbsoluteTransform(entity).GetPosition();
-}
-
-// Set 2D rotation angle in radians.
-/* Range: (-3.14159, 3.14159].
- * (clockwise positive).
- *            -1.5708
- *               |
- *    3.14159 ---o--- 0
- *               |
- *             1.5708
- */
-template <EntityBase T>
-T& SetRotation(T& entity, float rotation) {
-	GetTransform(entity).SetRotation(rotation);
-	return entity;
-}
-
-template <EntityBase T>
-T& Rotate(T& entity, float angle_difference) {
-	GetTransform(entity).Rotate(angle_difference);
-	return entity;
 }
 
 template <EntityBase T>
@@ -215,47 +166,6 @@ float GetAbsoluteRotation(const T& entity) {
 }
 
 template <EntityBase T>
-T& SetScale(T& entity, float scale) {
-	return SetScale(entity, V2_float{ scale });
-}
-
-template <EntityBase T>
-T& SetScale(T& entity, const V2_float& scale) {
-	GetTransform(entity).SetScale(scale);
-	return entity;
-}
-
-template <EntityBase T>
-T& SetScaleX(T& entity, float scale_x) {
-	GetTransform(entity).SetScaleX(scale_x);
-	return entity;
-}
-
-template <EntityBase T>
-T& SetScaleY(T& entity, float scale_y) {
-	GetTransform(entity).SetScaleY(scale_y);
-	return entity;
-}
-
-template <EntityBase T>
-T& Scale(T& entity, const V2_float& scale_multiplier) {
-	GetTransform(entity).Scale(scale_multiplier);
-	return entity;
-}
-
-template <EntityBase T>
-T& ScaleX(T& entity, float scale_x_multiplier) {
-	GetTransform(entity).ScaleX(scale_x_multiplier);
-	return entity;
-}
-
-template <EntityBase T>
-T& ScaleY(T& entity, float scale_y_multiplier) {
-	GetTransform(entity).ScaleY(scale_y_multiplier);
-	return entity;
-}
-
-template <EntityBase T>
 V2_float GetScale(const T& entity) {
 	return GetTransform(entity).GetScale();
 }
@@ -263,6 +173,100 @@ V2_float GetScale(const T& entity) {
 template <EntityBase T>
 V2_float GetAbsoluteScale(const T& entity) {
 	return GetAbsoluteTransform(entity).GetScale();
+}
+
+template <EntityBase T>
+T& SetPosition(T& entity, const V2_float& position) {
+	auto transform{ GetTransform(entity) };
+	transform.SetPosition(position);
+	return SetTransform(entity, transform);
+}
+
+template <EntityBase T>
+T& SetPositionX(T& entity, float position_x) {
+	return SetPosition(entity, V2_float{ position_x, GetPosition(entity).y });
+}
+
+template <EntityBase T>
+T& SetPositionY(T& entity, float position_y) {
+	return SetPosition(entity, V2_float{ GetPosition(entity).x, position_y });
+}
+
+template <EntityBase T>
+T& Translate(T& entity, const V2_float& position_difference) {
+	return SetPosition(entity, GetPosition(entity) + position_difference);
+}
+
+template <EntityBase T>
+T& TranslateX(T& entity, float position_x_difference) {
+	return Translate(entity, V2_float{ position_x_difference, 0.0f });
+}
+
+template <EntityBase T>
+T& TranslateY(T& entity, float position_y_difference) {
+	return Translate(entity, V2_float{ 0.0f, position_y_difference });
+}
+
+// Set 2D rotation angle in radians.
+/* Range: (-3.14159, 3.14159].
+ * (clockwise positive).
+ *            -1.5708
+ *               |
+ *    3.14159 ---o--- 0
+ *               |
+ *             1.5708
+ */
+template <EntityBase T>
+T& SetRotation(T& entity, float rotation) {
+	auto transform{ GetTransform(entity) };
+	transform.SetRotation(rotation);
+	return SetTransform(entity, transform);
+}
+
+template <EntityBase T>
+T& Rotate(T& entity, float angle_difference) {
+	return SetRotation(entity, GetRotation(entity) + angle_difference);
+}
+
+template <EntityBase T>
+T& SetScale(T& entity, const V2_float& scale) {
+	auto transform{ GetTransform(entity) };
+	transform.SetScale(scale);
+	return SetTransform(entity, transform);
+}
+
+template <EntityBase T>
+T& SetScale(T& entity, float scale) {
+	return SetScale(entity, V2_float{ scale });
+}
+
+template <EntityBase T>
+T& SetScaleX(T& entity, float scale_x) {
+	return SetScale(entity, V2_float{ scale_x, GetScale(entity).y });
+}
+
+template <EntityBase T>
+T& SetScaleY(T& entity, float scale_y) {
+	return SetScale(entity, V2_float{ GetScale(entity).x, scale_y });
+}
+
+template <EntityBase T>
+T& Scale(T& entity, const V2_float& scale_multiplier) {
+	return SetScale(entity, GetScale(entity) * scale_multiplier);
+}
+
+template <EntityBase T>
+T& ScaleX(T& entity, float scale_x_multiplier) {
+	V2_float scale{ GetScale(entity) };
+	scale.x *= scale_x_multiplier;
+	return SetScale(entity, scale);
+}
+
+template <EntityBase T>
+T& ScaleY(T& entity, float scale_y_multiplier) {
+	V2_float scale{ GetScale(entity) };
+	scale.y *= scale_y_multiplier;
+	return SetScale(entity, scale);
 }
 
 } // namespace ptgn

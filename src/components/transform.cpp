@@ -210,16 +210,19 @@ void Transform::ClearDirtyFlags() const {
 	dirty_flags_.ClearAll();
 }
 
-Entity& SetTransform(Entity& entity, const Transform& transform) {
-	if (entity.Has<Transform>()) {
-		impl::EntityAccess::Get<Transform>(entity) = transform;
-	} else {
-		impl::EntityAccess::Add<Transform>(entity, transform);
-	}
+Camera& SetTransform(Camera& entity, const Transform& transform) {
+	entity.SetScroll(transform.GetPosition());
+	entity.SetRotation(transform.GetRotation());
+	entity.SetZoom(transform.GetScale());
 	return entity;
 }
 
 Transform& GetTransform(Entity& entity) {
+	PTGN_ASSERT(
+		!entity.Has<impl::CameraInstance>(),
+		"GetTransform(Entity) cannot be used on a Camera entity. Use "
+		"camera.GetTransform() instead."
+	);
 	return impl::EntityAccess::TryAdd<Transform>(entity);
 }
 
@@ -236,10 +239,6 @@ Transform GetTransform(const Entity& entity) {
 }
 
 Transform GetTransform(const Camera& camera) {
-	return camera.GetTransform();
-}
-
-Transform& GetTransform(Camera& camera) {
 	return camera.GetTransform();
 }
 
