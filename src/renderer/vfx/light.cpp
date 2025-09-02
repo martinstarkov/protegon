@@ -18,7 +18,6 @@
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "scene/camera.h"
-#include "scene/scene.h"
 
 namespace ptgn {
 
