@@ -99,10 +99,6 @@ V2_int Window::GetSize() const {
 	return size;
 }
 
-V2_float Window::GetCenter() const {
-	return GetSize() / 2.0f;
-}
-
 void Window::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }

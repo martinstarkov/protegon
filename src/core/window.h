@@ -75,9 +75,7 @@ public:
 	[[nodiscard]] V2_int GetCanvasSize() const;
 #endif
 
-	// Returns the center coordinate of the window.
-	[[nodiscard]] V2_float GetCenter() const;
-
+	// @return Top left of the window relative to the top left of the screen.
 	[[nodiscard]] V2_int GetPosition() const;
 
 	void SetTitle(const std::string& title) const;
