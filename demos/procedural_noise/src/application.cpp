@@ -215,9 +215,7 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				DrawDebugRect(
-					p * pixel_size, pixel_size, color::Orange, Origin::Center, -1.0f, 0.0f, {}
-				);
+				DrawDebugRect(p * pixel_size, pixel_size, color, Origin::Center, -1.0f, 0.0f, {});
 			}
 		}
 

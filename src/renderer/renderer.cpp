@@ -65,7 +65,7 @@ void DrawDebugTexture(
 	game.renderer.GetRenderData().AddTexturedQuad(
 		texture_key.GetTexture(), Transform{ position, rotation },
 		size.IsZero() ? V2_float{ texture_key.GetSize() } : size, origin, color::White,
-		impl::max_depth, impl::default_texture_coordinates, impl::GetDebugRenderState(camera), {}
+		impl::max_depth, impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
 	);
 }
 

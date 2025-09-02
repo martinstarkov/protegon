@@ -237,7 +237,7 @@ void RenderData::AddLines(
 		Line l{ line_points[i], line_points[(i + 1) % vertex_modulo] };
 		auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 		auto quad_vertices{
-			GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
+			GetQuadVertices(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
 		};
 
 		AddVertices(quad_vertices, quad_indices);
@@ -254,7 +254,7 @@ void RenderData::AddLine(
 	auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 
 	auto quad_vertices{
-		GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
+		GetQuadVertices(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
 	};
 
 	SetState(state);
@@ -277,7 +277,7 @@ void RenderData::AddQuad(
 	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw quad with invalid size");
 	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	auto quad_vertices{
-		GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
+		GetQuadVertices(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
 	};
 
 	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
@@ -326,7 +326,7 @@ void RenderData::AddEllipse(
 
 	auto quad_points{ Rect{ radii * 2.0f }.GetWorldVertices(transform) };
 	auto points{
-		GetQuadVertices(quad_points, tint, depth, line_width, default_texture_coordinates)
+		GetQuadVertices(quad_points, tint, depth, line_width, GetDefaultTextureCoordinates())
 	};
 
 	SetState(state);
@@ -675,7 +675,7 @@ void RenderData::DrawFullscreenQuad(
 	DrawCall(
 		shader,
 		GetQuadVertices(
-			target.points, target.tint, target.depth, 1.0f, default_texture_coordinates,
+			target.points, target.tint, target.depth, 1.0f, GetDefaultTextureCoordinates(),
 			flip_texture
 		),
 		quad_indices, { target.texture_id }, target.frame_buffer, clear_frame_buffer,
@@ -788,6 +788,7 @@ void RenderData::Flush() {
 			const auto& texture{ intermediate_target->frame_buffer.GetTexture() };
 			target.texture_id	  = texture.GetId();
 			target.texture_format = texture.GetFormat();
+			target.texture_size	  = texture.GetSize();
 		}
 
 		// Flush intermediate target onto drawing_to frame buffer.

@@ -65,10 +65,6 @@ struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> 
 using Index			= std::uint32_t;
 using TextureOrSize = std::variant<std::reference_wrapper<const Texture>, V2_int>;
 
-constexpr std::array<V2_float, 4> default_texture_coordinates{
-	V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
-};
-
 constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
 	quad_vertex_layout;
 
