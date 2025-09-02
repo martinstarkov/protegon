@@ -1,6 +1,7 @@
 #include "math/geometry/line.h"
 
 #include <array>
+#include <utility>
 
 #include "components/draw.h"
 #include "components/transform.h"
@@ -18,8 +19,9 @@ void Line::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::DrawLine(ctx, entity);
 }
 
-std::array<V2_float, 4> Line::GetWorldQuadVertices(const Transform& transform, float line_width)
-	const {
+std::pair<std::array<V2_float, 4>, V2_float> Line::GetWorldQuadVertices(
+	const Transform& transform, float line_width
+) const {
 	auto dir{ end - start };
 
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
@@ -30,7 +32,7 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(const Transform& transform, f
 	float rotation{ dir.Angle() };
 	V2_float size{ dir.Magnitude(), line_width };
 	Rect rect{ size };
-	return rect.GetWorldVertices(Transform{ center, rotation });
+	return { rect.GetWorldVertices(Transform{ center, rotation }), size };
 }
 
 std::array<V2_float, 2> Line::GetWorldVertices(const Transform& transform) const {

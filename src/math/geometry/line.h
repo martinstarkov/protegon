@@ -24,9 +24,9 @@ struct Line {
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
-	// @return Quad vertices relative to the given transform for this line with a given a line
-	// width.
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(
+	// @return { Quad vertices relative to the given transform for this line with a given a line
+	// width, size of unrotated quad that makes up the line }.
+	[[nodiscard]] std::pair<std::array<V2_float, 4>, V2_float> GetWorldQuadVertices(
 		const Transform& transform, float line_width
 	) const;
 
