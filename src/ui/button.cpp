@@ -143,16 +143,10 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 		return;
 	}
 
+	PTGN_ASSERT(self.Has<ToggleButtonGroupKey>());
+
 	PTGN_ASSERT(toggle_button_group);
-
-	PTGN_ASSERT(toggle_button_group.Has<impl::ToggleButtonGroupInfo>());
-
-	auto& info{ toggle_button_group.Get<impl::ToggleButtonGroupInfo>() };
-
-	for (auto& [key, toggle_button] : info.buttons_) {
-		toggle_button.SetToggled(false);
-	}
-	self.SetToggled(true);
+	toggle_button_group.SetActive(self.Get<ToggleButtonGroupKey>());
 }
 
 void ButtonColor::SetToState(ButtonState state) {
@@ -1025,46 +1019,73 @@ ToggleButton& ToggleButton::SetButtonTintToggled(const Color& color, ButtonState
 	return *this;
 }
 
-impl::ToggleButtonGroupInfo::~ToggleButtonGroupInfo() {
-	for (auto& [key, toggle_button] : buttons_) {
-		toggle_button.Destroy();
-	}
-}
-
-ToggleButton& ToggleButtonGroup::Load(std::string_view button_key, ToggleButton&& toggle_button) {
+ToggleButton& ToggleButtonGroup::Load(
+	const ToggleButtonGroupKey& button_key, ToggleButton&& toggle_button
+) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
 
 	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
 
-	auto key{ Hash(button_key) };
+	toggle_button.Add<ToggleButtonGroupKey>(button_key);
 
-	if (auto it{ info.buttons_.find(key) }; it == info.buttons_.end()) {
-		auto [new_it, inserted] = info.buttons_.try_emplace(key, std::move(toggle_button));
+	if (auto it{ info.buttons.find(button_key) }; it == info.buttons.end()) {
+		auto [new_it, inserted] = info.buttons.try_emplace(button_key, std::move(toggle_button));
 		PTGN_ASSERT(inserted, "Failed to insert toggle button");
 		AddToggleScript(new_it->second);
 		return new_it->second;
 	} else {
-		it->second.Destroy();
 		it->second = std::move(toggle_button);
 		return it->second;
 	}
 }
 
-void ToggleButtonGroup::Unload(std::string_view button_key) {
+void ToggleButtonGroup::Unload(const ToggleButtonGroupKey& button_key) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
 
 	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
 
-	auto key{ Hash(button_key) };
+	auto it{ info.buttons.find(button_key) };
 
-	auto it{ info.buttons_.find(key) };
-
-	if (it == info.buttons_.end()) {
+	if (it == info.buttons.end()) {
 		return;
 	}
 
-	it->second.Destroy();
-	info.buttons_.erase(it);
+	info.buttons.erase(it);
+}
+
+ToggleButton ToggleButtonGroup::GetActive() const {
+	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
+
+	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
+
+	auto it{ info.buttons.find(info.active) };
+
+	if (it == info.buttons.end() || !it->second.IsToggled()) {
+		return {};
+	}
+
+	return it->second;
+}
+
+void ToggleButtonGroup::SetActive(const ToggleButtonGroupKey& button_key) {
+	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
+
+	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
+
+	auto it{ info.buttons.find(button_key) };
+
+	PTGN_ASSERT(
+		it != info.buttons.end(),
+		"Cannot set non-existent toggle button key to active: ", button_key.GetKey()
+	);
+
+	for (auto& [key, toggle_button] : info.buttons) {
+		toggle_button.SetToggled(false);
+	}
+
+	info.active = button_key;
+
+	it->second.SetToggled(true);
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {

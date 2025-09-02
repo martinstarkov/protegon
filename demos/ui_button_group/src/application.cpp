@@ -47,10 +47,17 @@ class ToggleButtonGroupScene : public Scene {
 	void Enter() override {
 		game.window.SetSetting(WindowSetting::Resizable);
 		group = CreateToggleButtonGroup(*this);
-		group.Load("1", CreateToggleButtonGroupItem(V2_float{ 50, 50 }, 1));
-		group.Load("2", CreateToggleButtonGroupItem(V2_float{ 50, 230 }, 2));
-		group.Load("3", CreateToggleButtonGroupItem(V2_float{ 50, 410 }, 3));
-		group.Load("4", CreateToggleButtonGroupItem(V2_float{ 50, 590 }, 4));
+		group.Load("1", CreateToggleButtonGroupItem(V2_float{ -100, -300 - 130 / 2 }, 1));
+		group.Load("2", CreateToggleButtonGroupItem(V2_float{ -100, -100 - 130 / 2 }, 2));
+		group.Load("3", CreateToggleButtonGroupItem(V2_float{ -100, 100 - 130 / 2 }, 3));
+		group.Load("4", CreateToggleButtonGroupItem(V2_float{ -100, 300 - 130 / 2 }, 4));
+		group.SetActive("3");
+	}
+
+	void Update() override {
+		if (input.KeyDown(Key::I)) {
+			PTGN_LOG("Active Toggle Button ID: ", group.GetActive().GetId());
+		}
 	}
 };
 
