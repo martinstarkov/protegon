@@ -117,7 +117,7 @@ private:
 // @return *this.
 template <EntityBase T>
 T& SetTransform(T& entity, const Transform& transform) {
-	if (entity.Has<Transform>()) {
+	if (entity.template Has<Transform>()) {
 		impl::EntityAccess::Get<Transform>(entity) = transform;
 	} else {
 		impl::EntityAccess::Add<Transform>(entity, transform);

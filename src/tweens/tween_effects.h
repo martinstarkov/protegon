@@ -263,11 +263,11 @@ void EntityFollowStartImpl(T parent, const FollowConfig& config) {
 		parent.template Remove<RigidBody>();
 		return;
 	}
-	parent.TryAdd<RigidBody>();
-	if (!parent.Has<Transform>()) {
+	parent.template TryAdd<RigidBody>();
+	if (!parent.template Has<Transform>()) {
 		SetPosition(parent, {});
 	}
-	auto& movement{ parent.TryAdd<TopDownMovement>() };
+	auto& movement{ parent.template TryAdd<TopDownMovement>() };
 	movement.max_acceleration		  = config.max_acceleration;
 	movement.max_deceleration		  = config.max_acceleration;
 	movement.max_speed				  = config.max_speed;
