@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmrc/cmrc.hpp>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -14,16 +15,7 @@
 #include "serialization/enum.h"
 #include "utility/file.h"
 
-// clang-format off
-#define PTGN_SHADER_STRINGIFY_MACRO(x) PTGN_STRINGIFY(x)
-
-// These allow for shaders to differ for Emscripten as it uses OpenGL ES 3.0.
-#ifdef __EMSCRIPTEN__
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND(resources/shader/es/)PTGN_EXPAND(file))
-#else
-#define PTGN_SHADER_PATH(file) PTGN_SHADER_STRINGIFY_MACRO(PTGN_EXPAND(resources/shader/core/)PTGN_EXPAND(file))
-#endif
-// clang-format on
+CMRC_DECLARE(shader);
 
 namespace ptgn {
 
@@ -159,185 +151,18 @@ namespace impl {
 
 class ShaderManager {
 public:
-	std::unordered_map<std::string, Shader> shaders;
-
 	template <auto S>
 	[[nodiscard]] const Shader& Get() const {
-		using ShaderType = decltype(S);
-		if constexpr (std::is_same_v<ShaderType, ShapeShader>) {
-			if constexpr (S == ShapeShader::Quad) {
-				return quad_;
-			} else if constexpr (S == ShapeShader::Circle) {
-				return circle_;
-			} else {
-				PTGN_ERROR("Cannot retrieve unrecognized circle shader");
-			}
-		} else if constexpr (std::is_same_v<ShaderType, OtherShader>) {
-			if constexpr (S == OtherShader::Light) {
-				return light_;
-			} else if constexpr (S == OtherShader::ToneMapping) {
-				return tone_mapping_;
-			} else {
-				PTGN_ERROR("Cannot retrieve unrecognized other shader");
-			}
-		} else if constexpr (std::is_same_v<ShaderType, ScreenShader>) {
-			if constexpr (S == ScreenShader::Default) {
-				return default_;
-			} else if constexpr (S == ScreenShader::Blur) {
-				return blur_;
-			} else if constexpr (S == ScreenShader::GaussianBlur) {
-				return gaussian_blur_;
-			} else if constexpr (S == ScreenShader::EdgeDetection) {
-				return edge_detection_;
-			} else if constexpr (S == ScreenShader::InverseColor) {
-				return inverse_color_;
-			} else if constexpr (S == ScreenShader::Grayscale) {
-				return grayscale_;
-			} else if constexpr (S == ScreenShader::Sharpen) {
-				return sharpen_;
-			} else {
-				PTGN_ERROR("Cannot retrieve unrecognized screen shader");
-			}
-		} else {
-			PTGN_ERROR("Cannot retrieve unrecognized shader type");
-		}
+		std::shared_ptr<Shader> test{ std::make_shared<Shader>() };
+		return *test;
 	}
 
 private:
 	friend class Game;
 
 	void Init();
-
-	// Note: Defined in header to ensure that changing a shader will recompile the necessary files.
-
-	void InitShapeShaders() {
-		// Quad is initialized in cpp because it depends on texture slots.
-
-		circle_ = { ShaderCode{
-#include PTGN_SHADER_PATH(quad.vert)
-					},
-					ShaderCode{
-#include PTGN_SHADER_PATH(circle.frag)
-					},
-					"Circle" };
-	}
-
-	void InitScreenShaders() {
-		default_ = { ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-					 },
-					 ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.frag)
-					 },
-					 "Default" };
-
-		blur_ = { ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-				  },
-				  ShaderCode{
-#include PTGN_SHADER_PATH(screen_blur.frag)
-				  },
-				  "Blur" };
-
-		gaussian_blur_ = { ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-						   },
-						   ShaderCode{
-#include PTGN_SHADER_PATH(screen_gaussian_blur.frag)
-						   },
-						   "Gaussian Blur" };
-
-		edge_detection_ = { ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-							},
-							ShaderCode{
-#include PTGN_SHADER_PATH(screen_edge_detection.frag)
-							},
-							"Edge Detection" };
-
-		grayscale_ = { ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-					   },
-					   ShaderCode{
-#include PTGN_SHADER_PATH(screen_grayscale.frag)
-					   },
-					   "Grayscale" };
-
-		inverse_color_ = { ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-						   },
-						   ShaderCode{
-#include PTGN_SHADER_PATH(screen_inverse_color.frag)
-						   },
-						   "Inverse Color" };
-
-		sharpen_ = { ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-					 },
-					 ShaderCode{
-#include PTGN_SHADER_PATH(screen_sharpen.frag)
-					 },
-					 "Sharpen" };
-	}
-
-	void InitOtherShaders() {
-		light_ = Shader(
-			ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-			},
-			ShaderCode{
-#include PTGN_SHADER_PATH(lighting.frag)
-			},
-			"Light"
-		);
-
-		tone_mapping_ = Shader(
-			ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-			},
-			ShaderCode{
-#include PTGN_SHADER_PATH(tone_mapping.frag)
-			},
-			"Tone Mapping"
-		);
-	}
-
-	// Screen shaders.
-	Shader default_;
-	Shader blur_;
-	Shader gaussian_blur_;
-	Shader grayscale_;
-	Shader inverse_color_;
-	Shader edge_detection_;
-	Shader sharpen_;
-
-	// Color shaders.
-	Shader quad_;
-	Shader circle_;
-
-	// Other shaders.
-	Shader light_;
-	Shader tone_mapping_;
 };
 
 } // namespace impl
-
-PTGN_SERIALIZER_REGISTER_ENUM(
-	ScreenShader, { { ScreenShader::Default, "default" },
-					{ ScreenShader::Blur, "blur" },
-					{ ScreenShader::GaussianBlur, "gaussian_blur" },
-					{ ScreenShader::EdgeDetection, "edge_detection" },
-					{ ScreenShader::Grayscale, "grayscale" },
-					{ ScreenShader::InverseColor, "inverse_color" },
-					{ ScreenShader::Sharpen, "sharpen" } }
-);
-
-PTGN_SERIALIZER_REGISTER_ENUM(
-	ShapeShader, { { ShapeShader::Quad, "quad" }, { ShapeShader::Circle, "circle" } }
-);
-
-PTGN_SERIALIZER_REGISTER_ENUM(
-	OtherShader, { { OtherShader::Light, "light" }, { OtherShader::ToneMapping, "tone_mapping" } }
-);
 
 } // namespace ptgn

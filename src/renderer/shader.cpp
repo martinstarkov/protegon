@@ -392,33 +392,47 @@ void ShaderManager::Init() {
 	PTGN_ASSERT(max_texture_slots > 0, "Max texture slots must be set before initializing shaders");
 
 	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
-	// This strange way of including files allows for them to be packed into the library binary.
-	ShaderCode quad_frag;
 
-	if (max_texture_slots == 8) {
-		quad_frag = ShaderCode{
-#include PTGN_SHADER_PATH(quad_8.frag)
-		};
-	} else if (max_texture_slots == 16) {
-		quad_frag = ShaderCode{
-#include PTGN_SHADER_PATH(quad_16.frag)
-		};
-	} else if (max_texture_slots == 32) {
-		quad_frag = ShaderCode{
-#include PTGN_SHADER_PATH(quad_32.frag)
-		};
-	} else {
-		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots);
+	auto fs{ cmrc::shader::get_filesystem() };
+	auto dir{ fs.iterate_directory("common") };
+
+	for (auto resource : dir) {
+		if (!resource.is_file()) {
+			continue;
+		}
+		auto filename{ resource.filename() };
+		auto file{ fs.open("common/" + filename) };
+		std::string_view data(file.begin(), file.end() - file.begin());
+		PTGN_LOG("---------------------------");
+		PTGN_LOG(filename);
+		PTGN_LOG("---------------------------");
+		PTGN_LOG(data);
 	}
 
-	quad_ = { ShaderCode{
-#include PTGN_SHADER_PATH(quad.vert)
-			  },
-			  quad_frag, "Quad" };
+	PTGN_LOG("Done");
 
-	InitShapeShaders();
-	InitScreenShaders();
-	InitOtherShaders();
+	// This strange way of including files allows for them to be packed into the library binary.
+	//  ShaderCode quad_frag;
+	//	if (max_texture_slots == 8) {
+	//		quad_frag = ShaderCode{
+	// #include PTGN_SHADER_PATH(quad_8.frag)
+	//		};
+	//	} else if (max_texture_slots == 16) {
+	//		quad_frag = ShaderCode{
+	// #include PTGN_SHADER_PATH(quad_16.frag)
+	//		};
+	//	} else if (max_texture_slots == 32) {
+	//		quad_frag = ShaderCode{
+	// #include PTGN_SHADER_PATH(quad_32.frag)
+	//		};
+	//	} else {
+	//		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots);
+	//	}
+	//
+	//	quad_ = { ShaderCode{
+	// #include PTGN_SHADER_PATH(quad.vert)
+	//			  },
+	//			  quad_frag, "Quad" };
 }
 
 } // namespace impl
