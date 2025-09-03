@@ -1,0 +1,13 @@
+{
+  "fullscreen_blur": {
+    "vertex": "quad.glsl",
+    "fragment": "blur.glsl"
+  },
+  "phong": {
+    "source": "phong.glsl"
+  },
+  "postprocess": {
+    "fragment": "postprocess.glsl",
+    "vertex": "quad.glsl"
+  }
+}
