@@ -273,8 +273,9 @@ void Shader::SetUniform(const std::string& name, const Matrix4& matrix) const {
 	}
 }
 
-void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
-	const {
+void Shader::SetUniform(
+	const std::string& name, const std::int32_t* data, std::int32_t count
+) const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
@@ -351,8 +352,9 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 	}
 }
 
-void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-	const {
+void Shader::SetUniform(
+	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+) const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
@@ -394,14 +396,27 @@ void ShaderManager::Init() {
 	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
 
 	auto fs{ cmrc::shader::get_filesystem() };
-	auto dir{ fs.iterate_directory("common") };
+	std::string subdir{ "common/" };
+	auto dir{ fs.iterate_directory(subdir) };
+
+	std::string manifest_name{ "manifest.json" };
+
+	PTGN_ASSERT(fs.exists(manifest_name));
+	auto manifest{ fs.open(manifest_name) };
+
+	std::string_view manifest_data(manifest.begin(), manifest.end() - manifest.begin());
+
+	PTGN_LOG("---------------------------");
+	PTGN_LOG(manifest_name);
+	PTGN_LOG("---------------------------");
+	PTGN_LOG(manifest_data);
 
 	for (auto resource : dir) {
 		if (!resource.is_file()) {
 			continue;
 		}
 		auto filename{ resource.filename() };
-		auto file{ fs.open("common/" + filename) };
+		auto file{ fs.open(subdir + filename) };
 		std::string_view data(file.begin(), file.end() - file.begin());
 		PTGN_LOG("---------------------------");
 		PTGN_LOG(filename);
