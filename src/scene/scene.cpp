@@ -47,7 +47,7 @@ Scene::Scene() {
 	);
 	PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
 	camera		 = render_target_.Get<GameObject<Camera>>();
-	fixed_camera = CreateCamera(*this);
+	fixed_camera = CreateCamera(render_manager);
 	SetBlendMode(render_target_, BlendMode::Blend);
 }
 
