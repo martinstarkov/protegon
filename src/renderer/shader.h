@@ -32,7 +32,31 @@ struct ShaderCode {
 	std::string source_;
 };
 
-[[nodiscard]] std::string_view GetShaderName(std::uint32_t shader_type);
+enum class ShaderType : std::uint32_t {
+	Vertex	 = 0x8B31, // GL_VERTEX_SHADER
+	Fragment = 0x8B30, // GL_FRAGMENT_SHADER
+					   /*
+						   Compute		   = 0x91B9, // GL_COMPUTE_SHADER
+						   Geometry	   = 0x8DD9, // GL_GEOMETRY_SHADER
+						   TessEvaluation = 0x8E87, // GL_TESS_EVALUATION_SHADER
+						   TessControl	   = 0x8E88	 // GL_TESS_CONTROL_SHADER
+					   */
+};
+
+inline std::ostream& operator<<(std::ostream& os, ShaderType type) {
+	switch (type) {
+		case ShaderType::Vertex:   os << "Vertex"; break;
+		case ShaderType::Fragment: os << "Fragment"; break;
+		/*
+		case ShaderType::Compute:		 os << "Compute"; break;
+		case ShaderType::Geometry:		 os << "Geometry"; break;
+		case ShaderType::TessEvaluation: os << "TessEvaluation"; break;
+		case ShaderType::TessControl:	 os << "TessControl"; break;
+		*/
+		default:				   PTGN_ERROR("Unrecognized shader type")
+	}
+	return os;
+}
 
 using ShaderId = std::uint32_t;
 
@@ -117,7 +141,7 @@ private:
 	void Compile(const std::string& vertex_shader, const std::string& fragment_shader);
 
 	// Compile shader
-	[[nodiscard]] static ShaderId Compile(std::uint32_t type, const std::string& source);
+	[[nodiscard]] static ShaderId Compile(ShaderType type, const std::string& source);
 
 	ShaderId id_{ 0 };
 	std::string_view shader_name_;

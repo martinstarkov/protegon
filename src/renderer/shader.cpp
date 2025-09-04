@@ -25,18 +25,6 @@
 
 namespace ptgn {
 
-std::string_view GetShaderName(std::uint32_t shader_type) {
-	switch (shader_type) {
-		case GL_VERTEX_SHADER:	 return "vertex";
-		case GL_FRAGMENT_SHADER: return "fragment";
-		// case GL_COMPUTE_SHADER:			return "compute";
-		// case GL_GEOMETRY_SHADER:		return "geometry";
-		// case GL_TESS_CONTROL_SHADER:	return "tess control";
-		// case GL_TESS_EVALUATION_SHADER: return "tess evaluation";
-		default:				 return "invalid";
-	}
-}
-
 Shader::Shader(
 	const ShaderCode& vertex_shader, const ShaderCode& fragment_shader, std::string_view shader_name
 ) :
@@ -131,8 +119,8 @@ void Shader::Delete() noexcept {
 	id_ = 0;
 }
 
-ShaderId Shader::Compile(std::uint32_t type, const std::string& source) {
-	ShaderId id{ GLCallReturn(CreateShader(type)) };
+ShaderId Shader::Compile(ShaderType type, const std::string& source) {
+	ShaderId id{ GLCallReturn(CreateShader(static_cast<std::uint32_t>(type))) };
 
 	auto src{ source.c_str() };
 
@@ -152,7 +140,7 @@ ShaderId Shader::Compile(std::uint32_t type, const std::string& source) {
 
 		GLCall(DeleteShader(id));
 
-		PTGN_ERROR("Failed to compile ", GetShaderName(type), " shader: \n", source, "\n", log);
+		PTGN_ERROR("Failed to compile ", type, " shader: \n", source, "\n", log);
 	}
 
 	return id;
@@ -161,8 +149,8 @@ ShaderId Shader::Compile(std::uint32_t type, const std::string& source) {
 void Shader::Compile(const std::string& vertex_source, const std::string& fragment_source) {
 	location_cache_.clear();
 
-	ShaderId vertex{ Compile(GL_VERTEX_SHADER, vertex_source) };
-	ShaderId fragment{ Compile(GL_FRAGMENT_SHADER, fragment_source) };
+	ShaderId vertex{ Compile(ShaderType::Vertex, vertex_source) };
+	ShaderId fragment{ Compile(ShaderType::Fragment, fragment_source) };
 
 	if (vertex && fragment) {
 		GLCall(AttachShader(id_, vertex));
@@ -273,9 +261,8 @@ void Shader::SetUniform(const std::string& name, const Matrix4& matrix) const {
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, const std::int32_t* data, std::int32_t count
-) const {
+void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
@@ -352,9 +339,8 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-) const {
+void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
@@ -388,6 +374,56 @@ std::string_view Shader::GetName() const {
 
 namespace impl {
 
+// TODO: Better name.
+static void DealWithManifest(const cmrc::embedded_filesystem& fs) {
+	// TODO: Cleanup
+	std::string manifest_name{ "manifest.json" };
+
+	PTGN_ASSERT(fs.exists(manifest_name));
+	auto manifest_file{ fs.open(manifest_name) };
+
+	std::string_view manifest_data(
+		manifest_file.begin(), manifest_file.end() - manifest_file.begin()
+	);
+
+	json manifest{ json::parse(manifest_data) };
+
+	PTGN_LOG("---------------------------");
+	PTGN_LOG(manifest_name);
+	PTGN_LOG("---------------------------");
+	PTGN_LOG(manifest.dump(4));
+}
+
+struct ShaderCache {};
+
+static void ParseShader(
+	const std::string& filename, std::string_view shader_src, ShaderCache& cache
+) {
+	PTGN_LOG("---------------------------");
+	PTGN_LOG(filename);
+	PTGN_LOG("---------------------------");
+	PTGN_LOG(shader_src);
+}
+
+static void DealWithShaders(const cmrc::embedded_filesystem& fs) {
+	std::string subdir{ "common/" };
+	auto dir{ fs.iterate_directory(subdir) };
+
+	ShaderCache cache;
+
+	for (auto resource : dir) {
+		if (!resource.is_file()) {
+			continue;
+		}
+		auto filename{ resource.filename() };
+		auto file{ fs.open(subdir + filename) };
+		std::string_view shader_src(file.begin(), file.end() - file.begin());
+		ParseShader(filename, shader_src, cache);
+		// TODO: Remove.
+		break;
+	}
+}
+
 void ShaderManager::Init() {
 	std::uint32_t max_texture_slots{ GLRenderer::GetMaxTextureSlots() };
 
@@ -396,33 +432,9 @@ void ShaderManager::Init() {
 	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
 
 	auto fs{ cmrc::shader::get_filesystem() };
-	std::string subdir{ "common/" };
-	auto dir{ fs.iterate_directory(subdir) };
 
-	std::string manifest_name{ "manifest.json" };
-
-	PTGN_ASSERT(fs.exists(manifest_name));
-	auto manifest{ fs.open(manifest_name) };
-
-	std::string_view manifest_data(manifest.begin(), manifest.end() - manifest.begin());
-
-	PTGN_LOG("---------------------------");
-	PTGN_LOG(manifest_name);
-	PTGN_LOG("---------------------------");
-	PTGN_LOG(manifest_data);
-
-	for (auto resource : dir) {
-		if (!resource.is_file()) {
-			continue;
-		}
-		auto filename{ resource.filename() };
-		auto file{ fs.open(subdir + filename) };
-		std::string_view data(file.begin(), file.end() - file.begin());
-		PTGN_LOG("---------------------------");
-		PTGN_LOG(filename);
-		PTGN_LOG("---------------------------");
-		PTGN_LOG(data);
-	}
+	// DealWithManifest(fs);
+	DealWithShaders(fs);
 
 	PTGN_LOG("Done");
 
