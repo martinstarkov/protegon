@@ -14,6 +14,7 @@
 #include "debug/debugging.h"
 #include "debug/log.h"
 #include "debug/stats.h"
+#include "math/hash.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
@@ -47,6 +48,12 @@ static void TrimRawStringLiteral(std::string& content) {
 		end > start + raw_start.length()) {
 		content = content.substr(start + raw_start.length(), end - (start + raw_start.length()));
 	}
+}
+
+Shader::Shader(ShaderId vertex, ShaderId fragment, std::string_view shader_name) :
+	shader_name_{ shader_name } {
+	Create();
+	Link(vertex, fragment);
 }
 
 Shader::Shader(
@@ -146,6 +153,41 @@ ShaderId Shader::Compile(ShaderType type, const std::string& source) {
 	}
 
 	return id;
+}
+
+void Shader::Link(ShaderId vertex, ShaderId fragment) {
+	location_cache_.clear();
+
+	PTGN_ASSERT(vertex);
+	PTGN_ASSERT(fragment);
+
+	GLCall(AttachShader(id_, vertex));
+	GLCall(AttachShader(id_, fragment));
+	GLCall(LinkProgram(id_));
+
+	// Check for shader link errors.
+	std::int32_t linked{ GL_FALSE };
+	GLCall(GetProgramiv(id_, GL_LINK_STATUS, &linked));
+
+	if (linked == GL_FALSE) {
+		std::int32_t length{ 0 };
+		GLCall(GetProgramiv(id_, GL_INFO_LOG_LENGTH, &length));
+		std::string log;
+		log.resize(static_cast<std::size_t>(length));
+		GLCall(GetProgramInfoLog(id_, length, &length, &log[0]));
+
+		GLCall(DeleteProgram(id_));
+
+		GLCall(DeleteShader(vertex));
+		GLCall(DeleteShader(fragment));
+
+		PTGN_ERROR(
+			"Failed to link shaders to program: \nVertex: ", vertex, "\nFragment: ", fragment, "\n",
+			log
+		);
+	}
+
+	GLCall(ValidateProgram(id_));
 }
 
 void Shader::Compile(const std::string& vertex_source, const std::string& fragment_source) {
@@ -376,31 +418,6 @@ std::string_view Shader::GetName() const {
 
 namespace impl {
 
-// TODO: Better name.
-static void DealWithManifest(const cmrc::embedded_filesystem& fs) {
-	// TODO: Cleanup
-	std::string manifest_name{ "manifest.json" };
-
-	PTGN_ASSERT(fs.exists(manifest_name));
-	auto manifest_file{ fs.open(manifest_name) };
-
-	std::string_view manifest_data(
-		manifest_file.begin(), manifest_file.end() - manifest_file.begin()
-	);
-
-	json manifest{ json::parse(manifest_data) };
-
-	PTGN_LOG("---------------------------");
-	PTGN_LOG(manifest_name);
-	PTGN_LOG("---------------------------");
-	PTGN_LOG(manifest.dump(4));
-}
-
-struct ShaderCache {
-	std::unordered_map<std::string, ShaderId> vertex_shaders;
-	std::unordered_map<std::string, ShaderId> fragment_shaders;
-};
-
 struct ShaderTypeSource {
 	ShaderType type{ ShaderType::Fragment };
 	ShaderCode source;
@@ -539,14 +556,12 @@ static std::string InjectShaderPreamble(
 															   : result.size() };
 
 #ifdef __EMSCRIPTEN__
-	// Inject precision (only for fragment shader on Emscripten)
-	if (type == ShaderStage::Fragment) {
-		std::regex precision_regex(R"(precision\s+(highp|mediump|lowp)\s+float\s*;)");
-		if (!std::regex_search(result, precision_regex)) {
-			std::string precision{ "precision highp float;\n" };
-			result.insert(insert_pos, precision);
-			// insert_pos += extension.length(); // Update insert position.
-		}
+	// Inject precision (only for on Emscripten)
+	std::regex precision_regex(R"(precision\s+(highp|mediump|lowp)\s+float\s*;)");
+	if (!std::regex_search(result, precision_regex)) {
+		std::string precision{ "precision highp float;\n" };
+		result.insert(insert_pos, precision);
+		// insert_pos += extension.length(); // Update insert position.
 	}
 #else
 	// Inject #extension if needed (desktop only)
@@ -646,15 +661,50 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType typ
 	source = output.str();
 }
 
-static void ParseShader(
-	const std::string& filename, const std::string& source, ShaderCache& cache
+struct ShaderCache {
+	std::unordered_map<std::string, ShaderId> vertex_shaders;
+	std::unordered_map<std::string, ShaderId> fragment_shaders;
+};
+
+static std::string GenerateTextureSwitchBlock(std::size_t max_texture_slots) {
+	std::ostringstream oss;
+	for (std::size_t i{ 0 }; i < max_texture_slots; ++i) {
+		oss << std::format(
+			"    if (v_TexIndex == {}.0f) {{\n"
+			"        texColor *= texture(u_Texture[{}], v_TexCoord);\n"
+			"    }}\n",
+			i, i
+		);
+	}
+	return oss.str();
+}
+
+static std::string ReplaceAll(std::string str, const std::string& from, const std::string& to) {
+	if (from.empty()) {
+		return str;
+	}
+
+	std::size_t start_pos{ 0 };
+	while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+		str.replace(start_pos, from.length(), to);
+		start_pos += to.length(); // Move past the replacement
+	}
+	return str;
+}
+
+static std::vector<std::pair<std::string, ShaderTypeSource>> ParseShader(
+	const std::string& filename, const std::string& source
 ) {
+	std::string name_without_ext{ std::filesystem::path(filename).stem().string() };
+
+	std::vector<std::pair<std::string, ShaderTypeSource>> output;
+
 	auto [header, sources] = ParseShaderSources(source);
 
-	PTGN_LOG("-------- Name ---------");
-	PTGN_LOG(filename);
-	PTGN_LOG("------- Header ---------");
-	PTGN_LOG(header);
+	// PTGN_LOG("-------- Name ---------");
+	// PTGN_LOG(name_without_ext);
+	// PTGN_LOG("------- Header ---------");
+	// PTGN_LOG(header);
 
 	auto auto_layout_name{ "auto_layout" };
 
@@ -662,22 +712,39 @@ static void ParseShader(
 
 	for (std::size_t i{ 0 }; i < sources.size(); i++) {
 		auto& sts{ sources[i] };
-		PTGN_LOG("------- Source ", i, " (type: ", sts.type, ") -------------");
 		if (bool auto_layout{ global_auto_layout ||
 							  HasOption(sts.source.source_, auto_layout_name) }) {
 			AddShaderLayout(sts.source.source_, sts.type);
 		}
 		RemoveOption(sts.source.source_);
 		sts.source.source_ = InjectShaderPreamble(sts.source.source_, sts.type);
-		PTGN_LOG(sts.source.source_);
+		output.push_back({ name_without_ext, sts });
+		// PTGN_LOG("------- Source ", i, " (type: ", sts.type, ") -------------");
+		// PTGN_LOG(sts.source.source_);
+	}
+	return output;
+}
+
+static void CompileShaders(
+	const std::vector<std::pair<std::string, ShaderTypeSource>>& sources, ShaderCache& cache
+) {
+	for (const auto& [name, sts] : sources) {
+		auto shader_id{ Shader::Compile(sts.type, sts.source.source_) };
+		switch (sts.type) {
+			case ShaderType::Fragment: cache.fragment_shaders.emplace(name, shader_id); break;
+			case ShaderType::Vertex:   cache.vertex_shaders.emplace(name, shader_id); break;
+			default:				   PTGN_ERROR("Unknown shader type")
+		}
 	}
 }
 
-static void DealWithShaders(const cmrc::embedded_filesystem& fs) {
+static void PopulateShaderCache(
+	const cmrc::embedded_filesystem& fs, ShaderCache& cache, std::size_t max_texture_slots
+) {
 	std::string subdir{ "common/" };
 	auto dir{ fs.iterate_directory(subdir) };
 
-	ShaderCache cache;
+	std::vector<std::pair<std::string, ShaderTypeSource>> sources;
 
 	for (auto resource : dir) {
 		if (!resource.is_file()) {
@@ -686,10 +753,97 @@ static void DealWithShaders(const cmrc::embedded_filesystem& fs) {
 		auto filename{ resource.filename() };
 		auto file{ fs.open(subdir + filename) };
 		std::string shader_src(file.begin(), file.end() - file.begin());
-		ParseShader(filename, shader_src, cache);
-		// TODO: Remove.
-		break;
+		auto srcs{ ParseShader(filename, shader_src) };
+		sources.insert(sources.end(), srcs.begin(), srcs.end());
 	}
+
+	// This is primarily for the quad shader, which requires a block of if-statements based on how
+	// many texture slots there are.
+
+	std::string switch_block{ GenerateTextureSwitchBlock(max_texture_slots) };
+	auto slots{ std::to_string(max_texture_slots) };
+
+	for (auto& [name, sts] : sources) {
+		sts.source.source_ = ReplaceAll(sts.source.source_, "{MAX_TEXTURE_SLOTS}", slots);
+		sts.source.source_ = ReplaceAll(sts.source.source_, "{TEXTURE_SWITCH_BLOCK}", switch_block);
+	}
+
+	CompileShaders(sources, cache);
+}
+
+static std::unordered_map<std::size_t, Shader> GenerateShadersFromManifest(
+	const cmrc::embedded_filesystem& fs, const ShaderCache& cache
+) {
+	std::unordered_map<std::size_t, Shader> shaders;
+
+	std::string manifest_name{ "manifest.json" };
+
+	PTGN_ASSERT(fs.exists(manifest_name));
+	auto manifest_file{ fs.open(manifest_name) };
+
+	std::string_view manifest_data(
+		manifest_file.begin(), manifest_file.end() - manifest_file.begin()
+	);
+
+	json manifest{ json::parse(manifest_data) };
+
+	// PTGN_LOG("--------- Manifest Name ----------");
+	// PTGN_LOG(manifest_name);
+	// PTGN_LOG("-------- Manifest Content -------");
+	// PTGN_LOG(manifest.dump(4));
+
+	for (const auto& [shader_name, shader_object] : manifest.items()) {
+		std::string vertex_name;
+		std::string fragment_name;
+
+		if (shader_object.contains("vertex") && shader_object.contains("fragment")) {
+			vertex_name	  = shader_object.at("vertex");
+			fragment_name = shader_object.at("fragment");
+		} else if (shader_object.contains("source")) {
+			auto name{ shader_object.at("source") };
+			vertex_name	  = name;
+			fragment_name = name;
+		} else {
+			PTGN_ERROR(
+				"Manifest shader ", shader_name,
+				" must specify either a 'vertex' and 'fragment' property for individual "
+				"specification, or a combined 'source' "
+				"property for same-name vertex/fragment shaders"
+			);
+		}
+
+		auto vert_it{ cache.vertex_shaders.find(vertex_name) };
+		auto frag_it{ cache.fragment_shaders.find(fragment_name) };
+
+		PTGN_ASSERT(
+			vert_it != cache.vertex_shaders.end(), "Vertex shader: ", vertex_name, " for ",
+			shader_name, " not found in shader directory"
+		);
+
+		PTGN_ASSERT(
+			frag_it != cache.fragment_shaders.end(), "Fragment shader: ", fragment_name, " for ",
+			shader_name, " not found in shader directory"
+		);
+
+		ShaderId vert_id{ vert_it->second };
+		ShaderId frag_id{ frag_it->second };
+
+		auto hash{ Hash(shader_name) };
+
+		shaders.emplace(hash, Shader{ vert_id, frag_id, shader_name });
+	}
+
+	return shaders;
+}
+
+const Shader& ShaderManager::Get(std::string_view shader_name) const {
+	auto hash{ Hash(shader_name) };
+	auto shader_it{ shaders_.find(hash) };
+	PTGN_ASSERT(
+		shader_it != shaders_.end(), "Shader with name: ", shader_name,
+		" not found in shader manager"
+	);
+	return shader_it->second;
 }
 
 void ShaderManager::Init() {
@@ -701,33 +855,22 @@ void ShaderManager::Init() {
 
 	auto fs{ cmrc::shader::get_filesystem() };
 
-	// DealWithManifest(fs);
-	DealWithShaders(fs);
+	ShaderCache cache;
 
-	PTGN_LOG("Done");
+	PopulateShaderCache(fs, cache, max_texture_slots);
+	auto shaders{ GenerateShadersFromManifest(fs, cache) };
+	shaders_ = std::move(shaders);
 
-	// This strange way of including files allows for them to be packed into the library binary.
-	//  ShaderCode quad_frag;
-	//	if (max_texture_slots == 8) {
-	//		quad_frag = ShaderCode{
-	// #include PTGN_SHADER_PATH(quad_8.frag)
-	//		};
-	//	} else if (max_texture_slots == 16) {
-	//		quad_frag = ShaderCode{
-	// #include PTGN_SHADER_PATH(quad_16.frag)
-	//		};
-	//	} else if (max_texture_slots == 32) {
-	//		quad_frag = ShaderCode{
-	// #include PTGN_SHADER_PATH(quad_32.frag)
-	//		};
-	//	} else {
-	//		PTGN_ERROR("Unsupported Texture Slot Size: ", max_texture_slots);
-	//	}
-	//
-	//	quad_ = { ShaderCode{
-	// #include PTGN_SHADER_PATH(quad.vert)
-	//			  },
-	//			  quad_frag, "Quad" };
+	const auto delete_shaders = [](const std::unordered_map<std::string, ShaderId>& container) {
+		for (const auto& [_, id] : container) {
+			if (id) {
+				GLCall(DeleteShader(id));
+			}
+		}
+	};
+
+	delete_shaders(cache.vertex_shaders);
+	delete_shaders(cache.fragment_shaders);
 }
 
 } // namespace impl
