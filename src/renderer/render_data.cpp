@@ -122,7 +122,7 @@ ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
 	tint{ GetTint(entity) },
 	depth{ GetDepth(entity) },
 	line_width{ entity.GetOrDefault<LineWidth>() },
-	state{ game.shader.Get<ShapeShader::Quad>(), GetBlendMode(entity),
+	state{ game.shader.Get("quad"), GetBlendMode(entity),
 		   entity.GetOrDefault<Camera>(), entity.GetOrDefault<PostFX>() } {}
 
 void ViewportResizeScript::OnWindowResized() {
@@ -455,17 +455,17 @@ void RenderData::Init() {
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
 
-	const auto& screen_shader{ game.shader.Get<ScreenShader::Default>() };
+	const auto& screen_shader{ game.shader.Get("screen_default") };
 	PTGN_ASSERT(screen_shader.IsValid());
 	screen_shader.Bind();
 	screen_shader.SetUniform("u_Texture", 1);
 
-	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+	const auto& quad_shader{ game.shader.Get("quad") };
 
 	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(game.shader.Get<ShapeShader::Circle>().IsValid());
-	PTGN_ASSERT(game.shader.Get<ScreenShader::Default>().IsValid());
-	PTGN_ASSERT(game.shader.Get<OtherShader::Light>().IsValid());
+	PTGN_ASSERT(game.shader.Get("circle").IsValid());
+	PTGN_ASSERT(game.shader.Get("screen_default").IsValid());
+	PTGN_ASSERT(game.shader.Get("light").IsValid());
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
@@ -594,7 +594,7 @@ void RenderData::AddShader(
 
 	const auto& shader{ render_state.shader_pass.GetShader() };
 
-	PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
+	PTGN_ASSERT(shader != game.shader.Get("quad"));
 
 	shader.Bind();
 	shader.SetUniform("u_Texture", 1);
@@ -1005,7 +1005,7 @@ const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
 	const Shader* shader{ nullptr };
 
 	if (texture_format == TextureFormat::HDR_RGBA || texture_format == TextureFormat::HDR_RGB) {
-		shader = &game.shader.Get<OtherShader::ToneMapping>();
+		shader = &game.shader.Get("tone_mapping");
 		PTGN_ASSERT(shader != nullptr);
 		shader->Bind();
 		shader->SetUniform("u_Texture", 1);
@@ -1013,7 +1013,7 @@ const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
 		shader->SetUniform("u_Exposure", 1.0f);
 		shader->SetUniform("u_Gamma", 2.2f);
 	} else {
-		shader = &game.shader.Get<ScreenShader::Default>();
+		shader = &game.shader.Get("screen_default");
 	}
 
 	return *shader;

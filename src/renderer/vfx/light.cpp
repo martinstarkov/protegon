@@ -89,7 +89,7 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::RenderState state;
 	// Blend mode with which the lights are added to the scene.
 	state.blend_mode  = GetBlendMode(entity);
-	state.shader_pass = { game.shader.Get<OtherShader::Light>(), &PointLight::SetUniform };
+	state.shader_pass = { game.shader.Get("light"), &PointLight::SetUniform };
 	state.post_fx	  = entity.GetOrDefault<PostFX>();
 	state.camera	  = entity.GetOrDefault<Camera>();
 

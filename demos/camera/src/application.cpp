@@ -249,13 +249,13 @@ Entity CreatePostFX(Scene& scene) {
 
 Entity CreateBlur(Scene& scene) {
 	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Blur>(), nullptr);
+	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
 	return blur;
 }
 
 Entity CreateGrayscale(Scene& scene) {
 	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Grayscale>(), nullptr);
+	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
 	return grayscale;
 }
 

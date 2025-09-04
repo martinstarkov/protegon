@@ -51,7 +51,7 @@ RenderState GetDebugRenderState(const Camera& camera) {
 	impl::RenderState state;
 	state.blend_mode  = debug_blend_mode;
 	state.camera	  = camera;
-	state.shader_pass = { game.shader.Get<ShapeShader::Quad>() };
+	state.shader_pass = { game.shader.Get("quad") };
 	state.post_fx	  = {};
 	return state;
 }
@@ -136,7 +136,7 @@ void DrawDebugEllipse(
 	float rotation, const Camera& camera
 ) {
 	auto state{ impl::GetDebugRenderState(camera) };
-	state.shader_pass = game.shader.Get<ShapeShader::Circle>();
+	state.shader_pass = game.shader.Get("circle");
 
 	game.renderer.GetRenderData().AddEllipse(
 		Transform{ center, rotation }, radii, color, impl::max_depth, line_width, state
@@ -147,7 +147,7 @@ void DrawDebugCircle(
 	const V2_float& center, float radius, const Color& color, float line_width, const Camera& camera
 ) {
 	auto state{ impl::GetDebugRenderState(camera) };
-	state.shader_pass = game.shader.Get<ShapeShader::Circle>();
+	state.shader_pass = game.shader.Get("circle");
 
 	game.renderer.GetRenderData().AddCircle(
 		Transform{ center }, radius, color, impl::max_depth, line_width, state
@@ -165,7 +165,7 @@ void DrawDebugCapsule(
 	// TODO: Fix and replace with game.renderer.GetRenderData().AddCapsule when capsule shader is
 	// implemented.
 	render_data.AddLine(start, end, color, impl::max_depth, line_width, state);
-	state.shader_pass = game.shader.Get<ShapeShader::Circle>();
+	state.shader_pass = game.shader.Get("circle");
 	render_data.AddCircle(Transform{ start }, radius, color, impl::max_depth, line_width, state);
 	render_data.AddCircle(Transform{ end }, radius, color, impl::max_depth, line_width, state);
 }

@@ -98,7 +98,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::RenderState state;
 	state.camera	  = entity.GetOrParentOrDefault<Camera>();
 	state.blend_mode  = GetBlendMode(entity);
-	state.shader_pass = game.shader.Get<ShapeShader::Quad>();
+	state.shader_pass = game.shader.Get("quad");
 	state.post_fx	  = entity.GetOrDefault<PostFX>();
 
 	if (i.info.texture_enabled && i.info.texture_key) {
@@ -120,7 +120,7 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
-			state.shader_pass = game.shader.Get<ShapeShader::Circle>();
+			state.shader_pass = game.shader.Get("circle");
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				ctx.AddCircle(
 					Transform{ p.position }, p.radius, p.color, depth, i.info.line_width, state

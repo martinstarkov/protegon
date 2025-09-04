@@ -393,7 +393,7 @@ void DrawCircle(RenderData& ctx, const Entity& entity) {
 	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Circle>());
 	const auto& circle{ entity.Get<Circle>() };
-	info.state.shader_pass = game.shader.Get<ShapeShader::Circle>();
+	info.state.shader_pass = game.shader.Get("circle");
 	ctx.AddCircle(
 		info.transform, circle.radius, info.tint, info.depth, info.line_width, info.state
 	);
