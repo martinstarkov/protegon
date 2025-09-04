@@ -75,6 +75,7 @@ public:
 		const ShaderCode& vertex_shader, const path& fragment_shader_path,
 		std::string_view shader_name
 	);
+	Shader(ShaderId vertex, ShaderId fragment, std::string_view shader_name);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
 	Shader(Shader&& other) noexcept;
@@ -131,6 +132,9 @@ public:
 
 	[[nodiscard]] std::string_view GetName() const;
 
+	// Compile shader
+	[[nodiscard]] static ShaderId Compile(ShaderType type, const std::string& source);
+
 private:
 	void Create();
 	void Delete() noexcept;
@@ -140,8 +144,7 @@ private:
 	// Compile program
 	void Compile(const std::string& vertex_shader, const std::string& fragment_shader);
 
-	// Compile shader
-	[[nodiscard]] static ShaderId Compile(ShaderType type, const std::string& source);
+	void Link(ShaderId vertex, ShaderId fragment);
 
 	ShaderId id_{ 0 };
 	std::string_view shader_name_;
@@ -150,39 +153,16 @@ private:
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
 };
 
-// Note: If applicable, TextureInfo tint is applied after shader effect.
-enum class ScreenShader {
-	Default,
-	Blur,
-	GaussianBlur,
-	EdgeDetection,
-	Grayscale,
-	InverseColor,
-	Sharpen,
-};
-
-enum class ShapeShader {
-	Quad,
-	Circle
-};
-
-enum class OtherShader {
-	Light,
-	ToneMapping
-};
-
 namespace impl {
 
 class ShaderManager {
 public:
-	template <auto S>
-	[[nodiscard]] const Shader& Get() const {
-		std::shared_ptr<Shader> test{ std::make_shared<Shader>() };
-		return *test;
-	}
+	[[nodiscard]] const Shader& Get(std::string_view shader_name) const;
 
 private:
 	friend class Game;
+
+	std::unordered_map<std::size_t, Shader> shaders_;
 
 	void Init();
 };
