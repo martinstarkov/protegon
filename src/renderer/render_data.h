@@ -230,6 +230,8 @@ public:
 
 	void AddTemporaryTexture(Texture&& texture);
 
+	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
+
 private:
 	friend class SceneManager;
 	friend class ptgn::Scene;
@@ -447,7 +449,8 @@ private:
 	std::vector<Index> indices_;
 	std::vector<TextureId> textures_;
 	Index index_offset_{ 0 };
-	std::size_t max_texture_slots{ 0 };
+	// Cached variable.
+	mutable std::size_t max_texture_slots{ 0 };
 	Texture white_texture;
 	VertexArray triangle_vao;
 };

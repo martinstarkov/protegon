@@ -122,8 +122,8 @@ ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
 	tint{ GetTint(entity) },
 	depth{ GetDepth(entity) },
 	line_width{ entity.GetOrDefault<LineWidth>() },
-	state{ game.shader.Get("quad"), GetBlendMode(entity),
-		   entity.GetOrDefault<Camera>(), entity.GetOrDefault<PostFX>() } {}
+	state{ game.shader.Get("quad"), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		   entity.GetOrDefault<PostFX>() } {}
 
 void ViewportResizeScript::OnWindowResized() {
 	auto& render_data{ game.renderer.GetRenderData() };
@@ -609,6 +609,13 @@ void RenderData::AddShader(
 
 void RenderData::AddTemporaryTexture(Texture&& texture) {
 	temporary_textures.emplace_back(std::move(texture));
+}
+
+std::size_t RenderData::GetMaxTextureSlots() const {
+	if (!max_texture_slots) {
+		max_texture_slots = GLRenderer::GetMaxTextureSlots();
+	}
+	return max_texture_slots;
 }
 
 void RenderData::AddShape(
