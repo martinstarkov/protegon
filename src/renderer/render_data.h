@@ -5,32 +5,29 @@
 #include <functional>
 #include <memory>
 #include <span>
-#include <utility>
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
 #include "components/draw.h"
 #include "components/effects.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
 #include "core/resolution.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "math/geometry/line.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/api/vertex.h"
-#include "renderer/buffers/buffer_layout.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/buffers/vertex_array.h"
-#include "renderer/gl/gl_types.h"
 #include "renderer/render_target.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
 
 namespace ptgn {
@@ -49,7 +46,7 @@ struct Viewport {
 
 	bool operator==(const Viewport&) const = default;
 
-	PTGN_SERIALIZER_REGISTER(Viewport, position, size);
+	PTGN_SERIALIZER_REGISTER(Viewport, position, size)
 };
 
 namespace impl {
@@ -65,21 +62,9 @@ struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> 
 using Index			= std::uint32_t;
 using TextureOrSize = std::variant<std::reference_wrapper<const Texture>, V2_int>;
 
-constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
-	quad_vertex_layout;
-
 constexpr std::size_t batch_capacity{ 10000 };
 constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
-
-[[nodiscard]] std::array<Vertex, 3> GetTriangleVertices(
-	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
-);
-
-[[nodiscard]] std::array<Vertex, 4> GetQuadVertices(
-	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices = false
-);
 
 using UniformCallback = void (*)(Entity, const Shader&);
 

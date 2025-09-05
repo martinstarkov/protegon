@@ -5,7 +5,6 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include <limits>
 #include <list>
 #include <memory>
 #include <numeric>
@@ -23,12 +22,12 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/resolution.h"
 #include "core/script.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "core/window.h"
 #include "debug/log.h"
-#include "input/input_handler.h"
 #include "math/geometry.h"
 #include "math/geometry/line.h"
 #include "math/geometry/rect.h"
@@ -37,7 +36,6 @@
 #include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
 #include "renderer/api/vertex.h"
 #include "renderer/buffers/buffer.h"
@@ -51,7 +49,6 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -59,58 +56,6 @@ Viewport::Viewport(const V2_int& position, const V2_int& size) :
 	position{ position }, size{ size } {}
 
 namespace impl {
-
-std::array<Vertex, 3> GetTriangleVertices(
-	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
-) {
-	constexpr std::array<V2_float, 3> texture_coordinates{
-		V2_float{ 0.0f, 0.0f }, // lower-left corner
-		V2_float{ 1.0f, 0.0f }, // lower-right corner
-		V2_float{ 0.5f, 1.0f }, // top-center corner
-	};
-
-	std::array<Vertex, 3> vertices{};
-
-	auto c{ color.Normalized() };
-
-	PTGN_ASSERT(vertices.size() == triangle_points.size());
-	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
-
-	for (std::size_t i{ 0 }; i < triangle_points.size(); i++) {
-		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y,
-								  static_cast<float>(depth) };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-		vertices[i].tex_index = { 0.0f };
-	}
-
-	return vertices;
-}
-
-std::array<Vertex, 4> GetQuadVertices(
-	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices
-) {
-	std::array<Vertex, 4> vertices{};
-
-	auto c{ color.Normalized() };
-
-	if (flip_vertices) {
-		FlipTextureCoordinates(texture_coordinates, Flip::Vertical);
-	}
-
-	PTGN_ASSERT(vertices.size() == quad_points.size());
-	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
-
-	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
-		vertices[i].position  = { quad_points[i].x, quad_points[i].y, static_cast<float>(depth) };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-		vertices[i].tex_index = { texture_index };
-	}
-
-	return vertices;
-}
 
 RenderState::RenderState(
 	const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
@@ -237,7 +182,7 @@ void RenderData::AddLines(
 		Line l{ line_points[i], line_points[(i + 1) % vertex_modulo] };
 		auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 		auto quad_vertices{
-			GetQuadVertices(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
+			Vertex::GetQuad(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
 		};
 
 		AddVertices(quad_vertices, quad_indices);
@@ -254,7 +199,7 @@ void RenderData::AddLine(
 	auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 
 	auto quad_vertices{
-		GetQuadVertices(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
+		Vertex::GetQuad(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
 	};
 
 	SetState(state);
@@ -265,7 +210,7 @@ void RenderData::AddTriangle(
 	const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	auto triangle_vertices{ GetTriangleVertices(triangle_points, tint, depth) };
+	auto triangle_vertices{ Vertex::GetTriangle(triangle_points, tint, depth) };
 
 	AddShape(triangle_vertices, triangle_indices, triangle_points, line_width, state);
 }
@@ -277,7 +222,7 @@ void RenderData::AddQuad(
 	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw quad with invalid size");
 	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	auto quad_vertices{
-		GetQuadVertices(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
+		Vertex::GetQuad(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
 	};
 
 	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
@@ -293,7 +238,7 @@ void RenderData::AddPolygon(
 		SetState(state);
 		auto triangles{ Triangulate(polygon_points.data(), polygon_points.size()) };
 		for (const auto& triangle : triangles) {
-			auto triangle_vertices{ GetTriangleVertices(triangle, tint, depth) };
+			auto triangle_vertices{ Vertex::GetTriangle(triangle, tint, depth) };
 			AddVertices(triangle_vertices, triangle_indices);
 		}
 	} else {
@@ -326,7 +271,7 @@ void RenderData::AddEllipse(
 
 	auto quad_points{ Rect{ radii * 2.0f }.GetWorldVertices(transform) };
 	auto points{
-		GetQuadVertices(quad_points, tint, depth, line_width, GetDefaultTextureCoordinates())
+		Vertex::GetQuad(quad_points, tint, depth, line_width, GetDefaultTextureCoordinates())
 	};
 
 	SetState(state);
@@ -400,7 +345,7 @@ void RenderData::AddTexturedQuad(
 	auto texture_points{ Rect{ size }.GetWorldVertices(transform, origin) };
 
 	auto texture_vertices{
-		GetQuadVertices(texture_points, tint, depth, 0.0f, texture_coordinates, false)
+		Vertex::GetQuad(texture_points, tint, depth, 0.0f, texture_coordinates, false)
 	};
 
 	auto texture_id{ texture.GetId() };
@@ -481,7 +426,7 @@ void RenderData::Init() {
 						  BufferUsage::DynamicDraw };
 
 	triangle_vao = VertexArray(
-		PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
+		PrimitiveMode::Triangles, std::move(quad_vb), Vertex::GetLayout(), std::move(quad_ib)
 	);
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
@@ -681,7 +626,7 @@ void RenderData::DrawFullscreenQuad(
 ) {
 	DrawCall(
 		shader,
-		GetQuadVertices(
+		Vertex::GetQuad(
 			target.points, target.tint, target.depth, 1.0f, GetDefaultTextureCoordinates(),
 			flip_texture
 		),
