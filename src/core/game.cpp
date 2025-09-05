@@ -209,6 +209,7 @@ void Game::Shutdown() {
 	profiler.Reset();
 
 	renderer.Shutdown();
+	shader.Shutdown();
 	input.Shutdown();
 	window.Shutdown();
 
