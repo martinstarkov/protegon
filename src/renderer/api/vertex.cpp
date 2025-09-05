@@ -32,7 +32,6 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 								  static_cast<float>(depth) };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-		vertices[i].tex_index = { 0.0f };
 	}
 
 	return vertices;
@@ -40,7 +39,8 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 
 std::array<Vertex, 4> Vertex::GetQuad(
 	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices
+	const std::array<float, 4>& data, std::array<V2_float, 4> texture_coordinates,
+	bool flip_vertices
 ) {
 	std::array<Vertex, 4> vertices{};
 
@@ -57,10 +57,16 @@ std::array<Vertex, 4> Vertex::GetQuad(
 		vertices[i].position  = { quad_points[i].x, quad_points[i].y, static_cast<float>(depth) };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-		vertices[i].tex_index = { texture_index };
+		vertices[i].data	  = data;
 	}
 
 	return vertices;
+}
+
+void Vertex::SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_index) {
+	for (auto& v : vertices) {
+		v.data = { texture_index };
+	}
 }
 
 } // namespace ptgn::impl

@@ -182,7 +182,7 @@ void RenderData::AddLines(
 		Line l{ line_points[i], line_points[(i + 1) % vertex_modulo] };
 		auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 		auto quad_vertices{
-			Vertex::GetQuad(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
+			Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
 		};
 
 		AddVertices(quad_vertices, quad_indices);
@@ -199,7 +199,7 @@ void RenderData::AddLine(
 	auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 
 	auto quad_vertices{
-		Vertex::GetQuad(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
+		Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
 	};
 
 	SetState(state);
@@ -222,7 +222,7 @@ void RenderData::AddQuad(
 	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw quad with invalid size");
 	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	auto quad_vertices{
-		Vertex::GetQuad(quad_points, tint, depth, 0.0f, GetDefaultTextureCoordinates())
+		Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
 	};
 
 	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
@@ -271,7 +271,7 @@ void RenderData::AddEllipse(
 
 	auto quad_points{ Rect{ radii * 2.0f }.GetWorldVertices(transform) };
 	auto points{
-		Vertex::GetQuad(quad_points, tint, depth, line_width, GetDefaultTextureCoordinates())
+		Vertex::GetQuad(quad_points, tint, depth, { line_width }, GetDefaultTextureCoordinates())
 	};
 
 	SetState(state);
@@ -345,7 +345,7 @@ void RenderData::AddTexturedQuad(
 	auto texture_points{ Rect{ size }.GetWorldVertices(transform, origin) };
 
 	auto texture_vertices{
-		Vertex::GetQuad(texture_points, tint, depth, 0.0f, texture_coordinates, false)
+		Vertex::GetQuad(texture_points, tint, depth, { 0.0f }, texture_coordinates, false)
 	};
 
 	auto texture_id{ texture.GetId() };
@@ -378,9 +378,7 @@ void RenderData::AddTexturedQuad(
 
 	bool existing_texture{ GetTextureIndex(texture_id, texture_index) };
 
-	for (auto& v : texture_vertices) {
-		v.tex_index = { texture_index };
-	}
+	Vertex::SetTextureIndex(texture_vertices, texture_index);
 
 	AddVertices(texture_vertices, quad_indices);
 
@@ -624,11 +622,12 @@ void RenderData::DrawFullscreenQuad(
 	const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
 	bool clear_frame_buffer, const Color& target_clear_color
 ) {
+	float texture_index{ 1.0f };
 	DrawCall(
 		shader,
 		Vertex::GetQuad(
-			target.points, target.tint, target.depth, 1.0f, GetDefaultTextureCoordinates(),
-			flip_texture
+			target.points, target.tint, target.depth, { texture_index },
+			GetDefaultTextureCoordinates(), flip_texture
 		),
 		quad_indices, { target.texture_id }, target.frame_buffer, clear_frame_buffer,
 		target_clear_color, target.blend_mode, target.viewport, target.view_projection
