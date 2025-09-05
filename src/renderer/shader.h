@@ -6,6 +6,7 @@
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
+#include <variant>
 
 #include "debug/log.h"
 #include "math/matrix4.h"
@@ -64,18 +65,9 @@ class Shader {
 public:
 	Shader() = default;
 	Shader(
-		const ShaderCode& vertex_shader, const ShaderCode& fragment_shader,
-		std::string_view shader_name
+		std::variant<ShaderCode, path, ShaderId> vertex,
+		std::variant<ShaderCode, path, ShaderId> fragment, std::string_view shader_name
 	);
-	Shader(
-		const path& vertex_shader_path, const path& fragment_shader_path,
-		std::string_view shader_name
-	);
-	Shader(
-		const ShaderCode& vertex_shader, const path& fragment_shader_path,
-		std::string_view shader_name
-	);
-	Shader(ShaderId vertex, ShaderId fragment, std::string_view shader_name);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
 	Shader(Shader&& other) noexcept;
@@ -155,16 +147,25 @@ private:
 
 namespace impl {
 
+struct ShaderCache {
+	std::unordered_map<std::size_t, ShaderId> vertex_shaders;
+	std::unordered_map<std::size_t, ShaderId> fragment_shaders;
+};
+
 class ShaderManager {
 public:
 	[[nodiscard]] const Shader& Get(std::string_view shader_name) const;
+	[[nodiscard]] ShaderId Get(ShaderType type, std::string_view shader_name) const;
+
+	std::unordered_map<std::size_t, Shader> shaders_;
 
 private:
 	friend class Game;
 
-	std::unordered_map<std::size_t, Shader> shaders_;
+	ShaderCache cache_;
 
 	void Init();
+	void Shutdown();
 };
 
 } // namespace impl
