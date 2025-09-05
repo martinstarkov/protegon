@@ -12,18 +12,18 @@ void main() {
     float fade = 0.005f;
 
     float border_thickness = v_Data.x; // 0.0f = hollow, 1.0f = filled
-    vec2 local_pos = v_TexCoord * vec2(2.0f) - vec2(1.0f);
     
-    float distance = 1.0f - length(local_pos);
+    vec2 uv = v_TexCoord * 2.0f - 1.0f; // Normalize to: [-1, 1]
     
-    float circle = smoothstep(0.0f, fade, distance);
+    float distance = 1.0f - length(uv);
     
-    circle *= smoothstep(border_thickness + fade, border_thickness, distance);
+    float alpha = smoothstep(0.0f, fade, distance);
+    alpha *= smoothstep(border_thickness + fade, border_thickness, distance);
 
-	if (circle <= 0.0f)
+	if (alpha <= 0.0f)
 		discard;
 
     // Set output color
     o_Color = v_Color;
-	o_Color.a *= circle;
+	o_Color.a *= alpha;
 }
