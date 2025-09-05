@@ -45,8 +45,9 @@ struct ShapeScene : public Scene {
 		DrawDebugLine({ -200, -325 }, { -150, -300 }, color::Yellow, 5.0f);
 		DrawDebugCapsule({ -275, -250 }, { -175, -250 }, 12.0f, color::Yellow, 1.0f);
 		DrawDebugCapsule({ -300, -300 + 150 }, { -250, -350 + 150 }, 12.0f, color::Orange, 5.0f);
-		// TODO: Replace with solid capsule.
-		DrawDebugCapsule({ -200, -350 + 150 }, { -150, -300 + 150 }, 12.0f, color::LightGold, 1.0f);
+		DrawDebugCapsule(
+			{ -200, -350 + 150 }, { -150, -300 + 150 }, 12.0f, color::LightGold, -1.0f
+		);
 		DrawDebugRect({ -50, -325 }, { 50, 25 }, color::Blue, Origin::Center, 1.0f, 0.0f);
 		DrawDebugRect({ 0, -325 }, { 50, 25 }, color::LightBlue, Origin::TopLeft, -1.0f, 0.0f);
 		DrawDebugRect({ 100, -325 }, { 50, 25 }, color::DarkBlue, Origin::Center, 5.0f, 0.0f);

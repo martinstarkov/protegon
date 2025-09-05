@@ -6,19 +6,21 @@ out vec4 o_Color;
 
 in vec4 v_Color;
 in vec2 v_TexCoord;
-in vec4 v_Data;
+in vec4 v_Data; // x = border_thickness
 
 void main() {
     float fade = 0.005f;
-    // 1.0f for filled, 0.0f for hollow.
-    float thickness = v_Data.x;
-    // Calculate distance and fill circle with white
-    vec2 local_pos = v_TexCoord * vec2(2.0f) - vec2(1.0f);
-    float distance = 1.0f - length(local_pos);
-    float circle = smoothstep(0.0f, fade, distance);
-    circle *= smoothstep(thickness + fade, thickness, distance);
 
-	if (circle == 0.0f)
+    float border_thickness = v_Data.x; // 0.0f = hollow, 1.0f = filled
+    vec2 local_pos = v_TexCoord * vec2(2.0f) - vec2(1.0f);
+    
+    float distance = 1.0f - length(local_pos);
+    
+    float circle = smoothstep(0.0f, fade, distance);
+    
+    circle *= smoothstep(border_thickness + fade, border_thickness, distance);
+
+	if (circle <= 0.0f)
 		discard;
 
     // Set output color

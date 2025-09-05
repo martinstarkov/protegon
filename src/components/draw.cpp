@@ -372,21 +372,11 @@ void DrawCapsule(RenderData& ctx, const Entity& entity) {
 	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Capsule>());
 	const auto& capsule{ entity.Get<Capsule>() };
+	info.state.shader_pass = game.shader.Get("capsule");
+
 	auto [start, end] = capsule.GetWorldVertices(info.transform);
 
-	// TODO: Replace with a capsule shader.
-
-	ctx.AddCircle(
-		Transform{ start }, capsule.radius, info.tint, info.depth, info.line_width, info.state
-	);
-	ctx.AddCircle(
-		Transform{ end }, capsule.radius, info.tint, info.depth, info.line_width, info.state
-	);
-
-	ctx.AddLine(start, end, info.tint, info.depth, info.line_width, info.state);
-
-	// ctx.AddCapsule(start, end, capsule.radius, info.tint, info.depth, info.line_width,
-	// info.state);
+	ctx.AddCapsule(start, end, capsule.radius, info.tint, info.depth, info.line_width, info.state);
 }
 
 void DrawCircle(RenderData& ctx, const Entity& entity) {

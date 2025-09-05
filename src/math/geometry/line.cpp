@@ -19,8 +19,9 @@ void Line::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::DrawLine(ctx, entity);
 }
 
-std::array<V2_float, 4> Line::GetWorldQuadVertices(const Transform& transform, float line_width)
-	const {
+std::array<V2_float, 4> Line::GetWorldQuadVertices(
+	const Transform& transform, float line_width, float x_padding, V2_float* out_size
+) const {
 	auto dir{ end - start };
 
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
@@ -29,7 +30,10 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(const Transform& transform, f
 	V2_float center{ ApplyTransform(local_center, transform) };
 
 	float rotation{ dir.Angle() };
-	V2_float size{ dir.Magnitude(), line_width };
+	V2_float size{ dir.Magnitude() + x_padding, line_width };
+	if (out_size) {
+		*out_size = size;
+	}
 	Rect rect{ size };
 	return rect.GetWorldVertices(Transform{ center, rotation });
 }

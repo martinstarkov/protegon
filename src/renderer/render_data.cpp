@@ -189,6 +189,25 @@ void RenderData::AddLines(
 	}
 }
 
+void RenderData::AddCapsule(
+	const V2_float& start, const V2_float& end, float radius, const Color& tint, const Depth& depth,
+	float line_width, const RenderState& state
+) {
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, V2_float{ radius }) };
+
+	Line l{ start, end };
+	V2_float size;
+	auto quad_points{ l.GetWorldQuadVertices(Transform{}, radius * 2.0f, radius * 2.0f, &size) };
+
+	auto quad_vertices{ Vertex::GetQuad(
+		quad_points, tint, depth, { thickness, radius, size.x, size.y },
+		GetDefaultTextureCoordinates()
+	) };
+
+	SetState(state);
+	AddVertices(quad_vertices, quad_indices);
+}
+
 void RenderData::AddLine(
 	const V2_float& start, const V2_float& end, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
@@ -257,21 +276,11 @@ void RenderData::AddEllipse(
 	const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	if (line_width == -1.0f) {
-		// Internally line width for a filled ellipse is 1.0f.
-		line_width = 1.0f;
-	} else {
-		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for circle");
-
-		// Internally line width for a completely hollow ellipse is 0.0f.
-		// TODO: Check that dividing by std::max(radii.x, radii.y) does not cause
-		// any unexpected bugs.
-		line_width = 0.005f + line_width / std::min(radii.x, radii.y);
-	}
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, radii) };
 
 	auto quad_points{ Rect{ radii * 2.0f }.GetWorldVertices(transform) };
 	auto points{
-		Vertex::GetQuad(quad_points, tint, depth, { line_width }, GetDefaultTextureCoordinates())
+		Vertex::GetQuad(quad_points, tint, depth, { thickness }, GetDefaultTextureCoordinates())
 	};
 
 	SetState(state);
@@ -984,6 +993,21 @@ void RenderData::DrawFromTo(
 	DrawFullscreenQuad(
 		GetFullscreenShader(target.texture_format), target, flip_texture, false, color::Transparent
 	);
+}
+
+float RenderData::NormalizeArcLineWidthToThickness(float line_width, const V2_float& radii) {
+	if (line_width == -1.0f) {
+		// Internally line width for a filled SDF is 1.0f.
+		line_width = 1.0f;
+	} else {
+		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for circle");
+
+		// Internally line width for a completely hollow ellipse is 0.0f.
+		// TODO: Check that dividing by std::max(radii.x, radii.y) does not cause
+		// any unexpected bugs.
+		line_width = 0.005f + line_width / std::min(radii.x, radii.y);
+	}
+	return line_width;
 }
 
 void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {

@@ -166,6 +166,11 @@ public:
 		float line_width, bool connect_last_to_first, const RenderState& state
 	);
 
+	void AddCapsule(
+		const V2_float& start, const V2_float& end, float radius, const Color& tint,
+		const Depth& depth, float line_width, const RenderState& state
+	);
+
 	void AddTriangle(
 		const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
 		float line_width, const RenderState& state
@@ -237,6 +242,8 @@ private:
 		Matrix4 view_projection{ 1.0f };
 		BlendMode blend_mode{};
 	};
+
+	static float NormalizeArcLineWidthToThickness(float line_width, const V2_float& radii);
 
 	static void SetPointsAndProjection(DrawTarget& target);
 

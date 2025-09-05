@@ -159,15 +159,11 @@ void DrawDebugCapsule(
 	const Camera& camera
 ) {
 	auto state{ impl::GetDebugRenderState(camera) };
+	state.shader_pass = game.shader.Get("capsule");
 
-	auto& render_data{ game.renderer.GetRenderData() };
-
-	// TODO: Fix and replace with game.renderer.GetRenderData().AddCapsule when capsule shader is
-	// implemented.
-	render_data.AddLine(start, end, color, impl::max_depth, line_width, state);
-	state.shader_pass = game.shader.Get("circle");
-	render_data.AddCircle(Transform{ start }, radius, color, impl::max_depth, line_width, state);
-	render_data.AddCircle(Transform{ end }, radius, color, impl::max_depth, line_width, state);
+	game.renderer.GetRenderData().AddCapsule(
+		start, end, radius, color, impl::max_depth, line_width, state
+	);
 }
 
 void DrawDebugPolygon(

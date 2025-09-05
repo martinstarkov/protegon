@@ -27,7 +27,7 @@ out vec4 o_Color;
 
 in vec4 v_Color;
 in vec2 v_TexCoord;
-in vec4 v_Data;
+in vec4 v_Data; // x = texture index
 
 uniform sampler2D u_Texture[{MAX_TEXTURE_SLOTS}];
 

@@ -9,6 +9,10 @@
     "vertex": "quad",
     "fragment": "circle"
   },
+  "capsule": {
+    "vertex": "quad",
+    "fragment": "capsule"
+  },
   "blur": {
     "vertex": "screen_default",
     "fragment": "screen_blur"
