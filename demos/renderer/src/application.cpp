@@ -86,13 +86,11 @@ Entity CreateWhirlpoolEffect(
 	SetTint(effect, tint);
 	effect.Add<impl::UsePreviousTexture>(false);
 	effect.Add<WhirlpoolInfo>(info);
-	Shader whirlpool_shader{ ShaderCode{
-#include PTGN_SHADER_PATH(screen_default.vert)
-							 },
-							 "resources/whirlpool.frag", "Whirlpool" };
-	game.shader.shaders.emplace("whirlpool", std::move(whirlpool_shader));
+	Shader whirlpool_shader{ game.shader.Get(ShaderType::Vertex, "screen_default"),
+							 "resources/whirlpool.glsl", "Whirlpool" };
+	game.shader.shaders_.emplace(Hash("whirlpool"), std::move(whirlpool_shader));
 	effect.Add<impl::ShaderPass>(
-		game.shader.shaders.find("whirlpool")->second, &SetWhirlpoolUniform
+		game.shader.shaders_.find(Hash("whirlpool"))->second, &SetWhirlpoolUniform
 	);
 
 	return effect;
@@ -171,7 +169,7 @@ V2_float circle2_pos{ 100, 100 };
 float circle2_radius{ 200 };
 Color circle2_color{ color::Gold };
 V2_float light1_pos{ -200, -200 };
-V2_float light2_pos{ -200, -100 };
+V2_float light2_pos{ 0, -100 };
 float light1_radius{ 100.0f };
 float light2_radius{ 100.0f };
 V2_float sprite1_pos{ -200, -220 };
