@@ -86,12 +86,10 @@ Entity CreateWhirlpoolEffect(
 	SetTint(effect, tint);
 	effect.Add<impl::UsePreviousTexture>(false);
 	effect.Add<WhirlpoolInfo>(info);
-	Shader whirlpool_shader{ game.shader.Get(ShaderType::Vertex, "screen_default"),
-							 "resources/whirlpool.glsl", "Whirlpool" };
-	game.shader.shaders_.emplace(Hash("whirlpool"), std::move(whirlpool_shader));
-	effect.Add<impl::ShaderPass>(
-		game.shader.shaders_.find(Hash("whirlpool"))->second, &SetWhirlpoolUniform
-	);
+	const auto& shader{
+		game.shader.TryLoad("whirlpool", "screen_default", "resources/whirlpool.glsl")
+	};
+	effect.Add<impl::ShaderPass>(shader, &SetWhirlpoolUniform);
 
 	return effect;
 }
