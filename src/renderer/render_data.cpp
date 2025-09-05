@@ -197,7 +197,10 @@ void RenderData::AddCapsule(
 
 	Line l{ start, end };
 	V2_float size;
-	auto quad_points{ l.GetWorldQuadVertices(Transform{}, radius * 2.0f, radius * 2.0f, &size) };
+	float diameter{ 2.0f * radius };
+	auto quad_points{ l.GetWorldQuadVertices(Transform{}, diameter, diameter, &size) };
+
+	PTGN_ASSERT(size.x >= diameter);
 
 	auto quad_vertices{ Vertex::GetQuad(
 		quad_points, tint, depth, { thickness, radius, size.x, size.y },
