@@ -193,17 +193,25 @@ void RenderData::AddCapsule(
 	const V2_float& start, const V2_float& end, float radius, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, V2_float{ radius }) };
+	if (radius <= 0.0f) {
+		return;
+	}
 
 	Line l{ start, end };
 	V2_float size;
 	float diameter{ 2.0f * radius };
 	auto quad_points{ l.GetWorldQuadVertices(Transform{}, diameter, diameter, &size) };
 
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, V2_float{ radius }) };
+
+	float fade{ 4.0f / size.y };
+
 	PTGN_ASSERT(size.x >= diameter);
 
+	float aspect_ratio{ size.y / size.x };
+
 	auto quad_vertices{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, radius, size.x, size.y },
+		quad_points, tint, depth, { thickness, fade, diameter / size.x, aspect_ratio },
 		GetDefaultTextureCoordinates()
 	) };
 
@@ -279,12 +287,21 @@ void RenderData::AddEllipse(
 	const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
+	if (radii.HasZero()) {
+		return;
+	}
+
 	float thickness{ NormalizeArcLineWidthToThickness(line_width, radii) };
 
-	auto quad_points{ Rect{ radii * 2.0f }.GetWorldVertices(transform) };
-	auto points{
-		Vertex::GetQuad(quad_points, tint, depth, { thickness }, GetDefaultTextureCoordinates())
-	};
+	auto diameter{ 2.0f * radii };
+
+	auto quad_points{ Rect{ diameter }.GetWorldVertices(transform) };
+
+	float fade{ 4.0f / diameter.y };
+
+	auto points{ Vertex::GetQuad(
+		quad_points, tint, depth, { thickness, fade }, GetDefaultTextureCoordinates()
+	) };
 
 	SetState(state);
 	AddVertices(points, quad_indices);
@@ -1006,9 +1023,8 @@ float RenderData::NormalizeArcLineWidthToThickness(float line_width, const V2_fl
 		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for circle");
 
 		// Internally line width for a completely hollow ellipse is 0.0f.
-		// TODO: Check that dividing by std::max(radii.x, radii.y) does not cause
-		// any unexpected bugs.
-		line_width = 0.005f + line_width / std::min(radii.x, radii.y);
+		constexpr float minimum_fade{ 0.005f };
+		line_width = minimum_fade + line_width / std::min(radii.x, radii.y);
 	}
 	return line_width;
 }

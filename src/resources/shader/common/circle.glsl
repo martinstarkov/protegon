@@ -6,24 +6,26 @@ out vec4 o_Color;
 
 in vec4 v_Color;
 in vec2 v_TexCoord;
-in vec4 v_Data; // x = border_thickness
+in vec4 v_Data; // x = thickness, y = fade
+
+float CircleDistance(vec2 point, float radius) {
+    return radius - length(point);
+}
 
 void main() {
-    float fade = 0.005f;
-
-    float border_thickness = v_Data.x; // 0.0f = hollow, 1.0f = filled
+    float thickness = v_Data.x; // 0.0f = hollow, 1.0f = filled
+    float fade = v_Data.y;
     
     vec2 uv = v_TexCoord * 2.0f - 1.0f; // Normalize to: [-1, 1]
-    
-    float distance = 1.0f - length(uv);
-    
+    // Not technically an exact ellipse, for that see: https://iquilezles.org/articles/distfunctions2d/
+
+    float distance = CircleDistance(uv, 1.0f);
+
     float alpha = smoothstep(0.0f, fade, distance);
-    alpha *= smoothstep(border_thickness + fade, border_thickness, distance);
+    alpha *= smoothstep(thickness + fade, thickness, distance);
 
-	if (alpha <= 0.0f)
-		discard;
+    if (alpha <= 0.0f)
+        discard;
 
-    // Set output color
-    o_Color = v_Color;
-	o_Color.a *= alpha;
+    o_Color = vec4(v_Color.rgb, v_Color.a * alpha);
 }
