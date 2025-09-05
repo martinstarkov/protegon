@@ -1,14 +1,21 @@
 #include "renderer/shader.h"
 
+#include <serialization/fwd.h>
+
+#include <cmrc/cmrc.hpp>
 #include <cstdint>
 #include <filesystem>
+#include <format>
 #include <list>
 #include <ostream>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "common/assert.h"
 #include "core/game.h"
@@ -32,9 +39,12 @@ namespace ptgn {
 
 namespace impl {
 
+// TODO: Move parsing code to another file.
+
 struct ShaderTypeSource {
 	ShaderType type{ ShaderType::Fragment };
 	ShaderCode source;
+	std::string name; // optional name for shader.
 };
 
 using Header = std::string;
@@ -57,7 +67,8 @@ static ShaderType GetShaderType(const std::string& type) {
 	PTGN_ERROR("Unknown shader type: ", type);
 }
 
-static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(const std::string& source
+static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(
+	const std::string& source, const std::string& name_without_ext
 ) {
 	Header header;
 	std::vector<ShaderTypeSource> sources;
@@ -107,7 +118,7 @@ static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(const
 
 		PTGN_ASSERT(!contains_type(type), "GLSL file can only contain one type of shader: ", type);
 
-		sources.emplace_back(type, ShaderCode{ code });
+		sources.emplace_back(type, ShaderCode{ code }, name_without_ext);
 	}
 
 	return { header, sources };
@@ -301,12 +312,12 @@ static std::string ReplaceAll(std::string str, const std::string& from, const st
 	return str;
 }
 
-static std::vector<std::pair<std::string, ShaderTypeSource>> ParseShader(
-	const std::string& name_without_ext, const std::string& source
+static std::vector<ShaderTypeSource> ParseShader(
+	const std::string& source, const std::string& name_without_ext = ""
 ) {
-	std::vector<std::pair<std::string, ShaderTypeSource>> output;
+	std::vector<ShaderTypeSource> output;
 
-	auto [header, sources] = ParseShaderSources(source);
+	auto [header, sources] = ParseShaderSources(source, name_without_ext);
 
 	// PTGN_LOG("-------- Name ---------");
 	// PTGN_LOG(name_without_ext);
@@ -325,30 +336,29 @@ static std::vector<std::pair<std::string, ShaderTypeSource>> ParseShader(
 		}
 		RemoveOption(sts.source.source_);
 		sts.source.source_ = InjectShaderPreamble(sts.source.source_, sts.type);
-		output.push_back({ name_without_ext, sts });
+		output.emplace_back(sts);
 		// PTGN_LOG("------- Source ", i, " (type: ", sts.type, ") -------------");
 		// PTGN_LOG(sts.source.source_);
 	}
 	return output;
 }
 
-static void CompileShaders(
-	const std::vector<std::pair<std::string, ShaderTypeSource>>& sources, ShaderCache& cache
-) {
-	for (const auto& [name, sts] : sources) {
-		auto hash{ Hash(name) };
+static void CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCache& cache) {
+	for (const auto& sts : sources) {
+		auto hash{ Hash(sts.name) };
 		auto shader_id{ Shader::Compile(sts.type, sts.source.source_) };
 		switch (sts.type) {
 			case ShaderType::Fragment:
 				PTGN_ASSERT(
 					!cache.fragment_shaders.contains(hash),
-					"Cannot add shader to cache twice: ", name
+					"Cannot add shader to cache twice: ", sts.name
 				);
 				cache.fragment_shaders.try_emplace(hash, shader_id);
 				break;
 			case ShaderType::Vertex:
 				PTGN_ASSERT(
-					!cache.vertex_shaders.contains(hash), "Cannot add shader to cache twice: ", name
+					!cache.vertex_shaders.contains(hash),
+					"Cannot add shader to cache twice: ", sts.name
 				);
 				cache.vertex_shaders.try_emplace(hash, shader_id);
 				break;
@@ -358,7 +368,7 @@ static void CompileShaders(
 }
 
 static void SubstituteShaderTokens(
-	std::vector<std::pair<std::string, ShaderTypeSource>>& sources, std::size_t max_texture_slots
+	std::vector<ShaderTypeSource>& sources, std::size_t max_texture_slots
 ) {
 	// This is primarily for the quad shader, which requires a block of if-statements based on how
 	// many texture slots there are.
@@ -366,7 +376,7 @@ static void SubstituteShaderTokens(
 	std::string switch_block{ GenerateTextureSwitchBlock(max_texture_slots) };
 	auto slots{ std::to_string(max_texture_slots) };
 
-	for (auto& [name, sts] : sources) {
+	for (auto& sts : sources) {
 		sts.source.source_ = ReplaceAll(sts.source.source_, "{MAX_TEXTURE_SLOTS}", slots);
 		sts.source.source_ = ReplaceAll(sts.source.source_, "{TEXTURE_SWITCH_BLOCK}", switch_block);
 	}
@@ -378,7 +388,7 @@ static void PopulateShaderCache(
 	std::string subdir{ "common/" };
 	auto dir{ fs.iterate_directory(subdir) };
 
-	std::vector<std::pair<std::string, ShaderTypeSource>> sources;
+	std::vector<ShaderTypeSource> sources;
 
 	for (auto resource : dir) {
 		if (!resource.is_file()) {
@@ -388,7 +398,7 @@ static void PopulateShaderCache(
 		auto file{ fs.open(subdir + filename) };
 		std::string shader_src(file.begin(), file.end() - file.begin());
 		std::string name_without_ext{ std::filesystem::path(filename).stem().string() };
-		auto srcs{ ParseShader(name_without_ext, shader_src) };
+		auto srcs{ ParseShader(shader_src, name_without_ext) };
 		sources.insert(sources.end(), srcs.begin(), srcs.end());
 	}
 
@@ -521,14 +531,9 @@ void ShaderManager::Shutdown() {
 }
 
 static std::vector<ShaderTypeSource> ParseShaderSourceFile(const std::string& source) {
-	auto srcs{ ParseShader("", source) };
+	auto srcs{ ParseShader(source) };
 	SubstituteShaderTokens(srcs, game.renderer.GetRenderData().GetMaxTextureSlots());
-	std::vector<ShaderTypeSource> output;
-	output.reserve(srcs.size());
-	for (const auto& [key, value] : srcs) {
-		output.push_back(value);
-	}
-	return output;
+	return srcs;
 }
 
 } // namespace impl
