@@ -34,7 +34,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(json)
 
 target_link_libraries(protegon PUBLIC nlohmann_json::nlohmann_json)
-target_link_libraries(protegon PRIVATE rc::shader)
+target_link_libraries(protegon PUBLIC rc::shader)
 
 if(NOT EMSCRIPTEN)
   find_package(OpenGL REQUIRED)
