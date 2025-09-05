@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmrc/cmrc.hpp>
+#include <concepts>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -8,17 +9,26 @@
 #include <unordered_map>
 #include <variant>
 
+#include "common/assert.h"
 #include "debug/log.h"
+#include "math/hash.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
 #include "serialization/enum.h"
+#include "serialization/fwd.h"
 #include "utility/file.h"
 
 CMRC_DECLARE(shader);
 
 namespace ptgn {
+
+namespace impl {
+
+class ShaderManager;
+
+} // namespace impl
 
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
@@ -64,9 +74,11 @@ using ShaderId = std::uint32_t;
 class Shader {
 public:
 	Shader() = default;
+	Shader(std::variant<ShaderCode, path> source, const std::string& shader_name);
+	// String can be path to shader or the name of a pre-existing shader of the respective type.
 	Shader(
-		std::variant<ShaderCode, path, ShaderId> vertex,
-		std::variant<ShaderCode, path, ShaderId> fragment, std::string_view shader_name
+		std::variant<ShaderCode, std::string> vertex,
+		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
 	);
 	Shader(const Shader&)			 = delete;
 	Shader& operator=(const Shader&) = delete;
@@ -128,6 +140,10 @@ public:
 	[[nodiscard]] static ShaderId Compile(ShaderType type, const std::string& source);
 
 private:
+	friend class impl::ShaderManager;
+
+	Shader(ShaderId vertex, ShaderId fragment, const std::string& shader_name);
+
 	void Create();
 	void Delete() noexcept;
 
@@ -139,7 +155,7 @@ private:
 	void Link(ShaderId vertex, ShaderId fragment);
 
 	ShaderId id_{ 0 };
-	std::string_view shader_name_;
+	std::string shader_name_;
 
 	// Location cache should not prevent const calls.
 	mutable std::unordered_map<std::string, std::int32_t> location_cache_;
@@ -155,14 +171,29 @@ struct ShaderCache {
 class ShaderManager {
 public:
 	[[nodiscard]] const Shader& Get(std::string_view shader_name) const;
-	[[nodiscard]] ShaderId Get(ShaderType type, std::string_view shader_name) const;
 
-	std::unordered_map<std::size_t, Shader> shaders_;
+	[[nodiscard]] const Shader& TryLoad(
+		std::string_view shader_name, std::variant<ShaderCode, std::string> vertex,
+		std::variant<ShaderCode, std::string> fragment
+	);
+
+	[[nodiscard]] const Shader& TryLoad(
+		std::string_view shader_name, std::variant<ShaderCode, path> source
+	);
+
+	[[nodiscard]] bool Has(std::string_view shader_name) const;
 
 private:
 	friend class Game;
+	friend class Shader;
+
+	void PopulateShadersFromCache(const json& manifest);
+
+	[[nodiscard]] ShaderId Get(ShaderType type, std::string_view shader_name) const;
+	[[nodiscard]] bool Has(ShaderType type, std::string_view shader_name) const;
 
 	ShaderCache cache_;
+	std::unordered_map<std::size_t, Shader> shaders_;
 
 	void Init();
 	void Shutdown();

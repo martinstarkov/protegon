@@ -50,11 +50,11 @@ struct ShaderTypeSource {
 using Header = std::string;
 
 static std::string TrimWhitespace(const std::string& s) {
-	std::size_t start = s.find_first_not_of(" \n\r\t");
+	std::size_t start{ s.find_first_not_of(" \n\r\t") };
 	if (start == std::string::npos) {
 		return "";
 	}
-	std::size_t end = s.find_last_not_of(" \n\r\t");
+	std::size_t end{ s.find_last_not_of(" \n\r\t") };
 	return s.substr(start, end - start + 1);
 }
 
@@ -67,11 +67,28 @@ static ShaderType GetShaderType(const std::string& type) {
 	PTGN_ERROR("Unknown shader type: ", type);
 }
 
+// Extract just the content inside R"( ... )"
+static void TrimRawStringLiteral(std::string& content) {
+	const std::string raw_start{ "R\"(" };
+	const std::string raw_end{ ")\"" };
+
+	std::size_t start{ content.find(raw_start) };
+	std::size_t end{ content.rfind(raw_end) };
+
+	if (start != std::string::npos && end != std::string::npos &&
+		end > start + raw_start.length()) {
+		content = content.substr(start + raw_start.length(), end - (start + raw_start.length()));
+	}
+}
+
 static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(
 	const std::string& source, const std::string& name_without_ext
 ) {
 	Header header;
 	std::vector<ShaderTypeSource> sources;
+
+	std::string input{ source };
+	TrimRawStringLiteral(input);
 
 	const auto contains_type = [&sources](ShaderType type) {
 		return VectorFindIf(sources, [type](const ShaderTypeSource& sts) {
@@ -81,7 +98,7 @@ static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(
 
 	// Regex to find: #type <stage> and capture everything until next #type or EOF
 	std::regex type_regex(R"(#type\s+(\w+))");
-	auto words_begin{ std::sregex_iterator(source.begin(), source.end(), type_regex) };
+	auto words_begin{ std::sregex_iterator(input.begin(), input.end(), type_regex) };
 	auto words_end{ std::sregex_iterator() };
 
 	std::vector<std::pair<std::string, std::size_t>> found_types; // (type, position)
@@ -93,11 +110,13 @@ static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(
 		found_types.emplace_back(type, pos);
 	}
 
-	PTGN_ASSERT(!found_types.empty(), "No #type declarations found in shader source");
+	PTGN_ASSERT(
+		!found_types.empty(), "No #type declarations found in shader source: ", name_without_ext
+	);
 
 	// Extract header before the first #type
 	std::size_t first_type_pos{ found_types.front().second };
-	std::string header_code{ source.substr(0, first_type_pos) };
+	std::string header_code{ input.substr(0, first_type_pos) };
 	header = TrimWhitespace(header_code);
 
 	// Extract blocks between #type markers
@@ -107,13 +126,13 @@ static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(
 		std::size_t start{ found_types[i].second + std::string("#type ").size() +
 						   type_string.size() };
 
-		std::size_t end{ source.size() };
+		std::size_t end{ input.size() };
 
 		if (i + 1 < found_types.size()) {
 			end = found_types[i + 1].second;
 		}
 
-		std::string code{ source.substr(start, end - start) };
+		std::string code{ input.substr(start, end - start) };
 		code = TrimWhitespace(code);
 
 		PTGN_ASSERT(!contains_type(type), "GLSL file can only contain one type of shader: ", type);
@@ -152,8 +171,9 @@ static std::string InjectShaderPreamble(
 	std::smatch match;
 
 	if (std::regex_search(source, match, version_regex)) {
-		std::string version_number	= match[1].str();						  // e.g. "330" or "300"
-		std::string version_profile = match.size() > 2 ? match[2].str() : ""; // e.g. "core" or "es"
+		std::string version_number{ match[1].str() };		  // e.g. "330" or "300"
+		std::string version_profile{ match.size() > 2 ? match[2].str()
+													  : "" }; // e.g. "core" or "es"
 
 #ifdef __EMSCRIPTEN__
 		PTGN_ASSERT(
@@ -218,11 +238,11 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType typ
 	// ^\s*                      - Start of line with optional leading whitespace
 	// (in|out)                  - Capture group 1: either 'in' or 'out'
 	// \s+                       - One or more spaces after 'in' or 'out'
-	// [a-zA-Z_][a-zA-Z0-9_]*    - Capture group 2: type name (e.g., vec3, float), must start with a
-	// letter or underscore
+	// [a-zA-Z_][a-zA-Z0-9_]*    - Capture group 2: type name (e.g., vec3, float), must start
+	// with a letter or underscore
 	// \s+                       - One or more spaces after type
-	// [a-zA-Z_][a-zA-Z0-9_]*    - Capture group 3: variable name (e.g., a_Position, o_Color), valid
-	// identifier
+	// [a-zA-Z_][a-zA-Z0-9_]*    - Capture group 3: variable name (e.g., a_Position, o_Color),
+	// valid identifier
 	// \s*;                      - Optional spaces before semicolon, then a required semicolon
 	// \r?                       - Match zero or one carriage return character
 	// $                         - Match string end
@@ -313,7 +333,7 @@ static std::string ReplaceAll(std::string str, const std::string& from, const st
 }
 
 static std::vector<ShaderTypeSource> ParseShader(
-	const std::string& source, const std::string& name_without_ext = ""
+	const std::string& source, const std::string& name_without_ext
 ) {
 	std::vector<ShaderTypeSource> output;
 
@@ -370,8 +390,8 @@ static void CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderC
 static void SubstituteShaderTokens(
 	std::vector<ShaderTypeSource>& sources, std::size_t max_texture_slots
 ) {
-	// This is primarily for the quad shader, which requires a block of if-statements based on how
-	// many texture slots there are.
+	// This is primarily for the quad shader, which requires a block of if-statements based on
+	// how many texture slots there are.
 
 	std::string switch_block{ GenerateTextureSwitchBlock(max_texture_slots) };
 	auto slots{ std::to_string(max_texture_slots) };
@@ -406,14 +426,12 @@ static void PopulateShaderCache(
 	CompileShaders(sources, cache);
 }
 
-static std::unordered_map<std::size_t, Shader> GenerateShadersFromManifest(
-	const cmrc::embedded_filesystem& fs, const ShaderCache& cache
-) {
-	std::unordered_map<std::size_t, Shader> shaders;
-
+static json GetManifest(const cmrc::embedded_filesystem& fs) {
 	std::string manifest_name{ "manifest.json" };
 
-	PTGN_ASSERT(fs.exists(manifest_name));
+	PTGN_ASSERT(
+		fs.exists(manifest_name), "Could not find shader manifest file with name: ", manifest_name
+	);
 	auto manifest_file{ fs.open(manifest_name) };
 
 	std::string_view manifest_data(
@@ -426,7 +444,10 @@ static std::unordered_map<std::size_t, Shader> GenerateShadersFromManifest(
 	// PTGN_LOG(manifest_name);
 	// PTGN_LOG("-------- Manifest Content -------");
 	// PTGN_LOG(manifest.dump(4));
+	return manifest;
+}
 
+void ShaderManager::PopulateShadersFromCache(const json& manifest) {
 	for (const auto& [shader_name, shader_object] : manifest.items()) {
 		std::string vertex_name;
 		std::string fragment_name;
@@ -447,28 +468,46 @@ static std::unordered_map<std::size_t, Shader> GenerateShadersFromManifest(
 			);
 		}
 
-		auto vert_it{ cache.vertex_shaders.find(Hash(vertex_name)) };
-		auto frag_it{ cache.fragment_shaders.find(Hash(fragment_name)) };
+		auto vert_hash{ Hash(vertex_name) };
+		auto frag_hash{ Hash(fragment_name) };
 
 		PTGN_ASSERT(
-			vert_it != cache.vertex_shaders.end(), "Vertex shader: ", vertex_name, " for ",
+			cache_.vertex_shaders.contains(vert_hash), "Vertex shader: ", vertex_name, " for ",
 			shader_name, " not found in shader directory"
 		);
 
 		PTGN_ASSERT(
-			frag_it != cache.fragment_shaders.end(), "Fragment shader: ", fragment_name, " for ",
-			shader_name, " not found in shader directory"
+			cache_.fragment_shaders.contains(frag_hash), "Fragment shader: ", fragment_name,
+			" for ", shader_name, " not found in shader directory"
 		);
+
+		auto vert_it{ cache_.vertex_shaders.find(vert_hash) };
+		auto frag_it{ cache_.fragment_shaders.find(frag_hash) };
 
 		ShaderId vert_id{ vert_it->second };
 		ShaderId frag_id{ frag_it->second };
 
 		auto hash{ Hash(shader_name) };
 
-		shaders.emplace(hash, Shader{ vert_id, frag_id, shader_name });
+		shaders_.emplace(hash, Shader{ vert_id, frag_id, shader_name });
 	}
+}
 
-	return shaders;
+const Shader& ShaderManager::TryLoad(
+	std::string_view shader_name, std::variant<ShaderCode, path> source
+) {
+	auto hash{ Hash(shader_name) };
+	auto [it, _] = shaders_.try_emplace(hash, source, std::string(shader_name));
+	return it->second;
+}
+
+const Shader& ShaderManager::TryLoad(
+	std::string_view shader_name, std::variant<ShaderCode, std::string> vertex,
+	std::variant<ShaderCode, std::string> fragment
+) {
+	auto hash{ Hash(shader_name) };
+	auto [it, _] = shaders_.try_emplace(hash, vertex, fragment, std::string(shader_name));
+	return it->second;
 }
 
 const Shader& ShaderManager::Get(std::string_view shader_name) const {
@@ -482,22 +521,35 @@ const Shader& ShaderManager::Get(std::string_view shader_name) const {
 
 ShaderId ShaderManager::Get(ShaderType type, std::string_view shader_name) const {
 	auto hash{ Hash(shader_name) };
+	PTGN_ASSERT(
+		Has(type, shader_name), "Could not find ", type, " shader with name: ", shader_name
+	);
 	switch (type) {
 		case ShaderType::Fragment: {
-			PTGN_ASSERT(
-				cache_.fragment_shaders.contains(hash), "Could not find ", type,
-				" shader with name: ", shader_name
-			);
 			auto it{ cache_.fragment_shaders.find(hash) };
 			return it->second;
 		};
 		case ShaderType::Vertex: {
-			PTGN_ASSERT(
-				cache_.vertex_shaders.contains(hash), "Could not find ", type,
-				" shader with name: ", shader_name
-			);
 			auto it{ cache_.vertex_shaders.find(hash) };
 			return it->second;
+		};
+		default: PTGN_ERROR("Unknown shader type")
+	}
+}
+
+bool ShaderManager::Has(std::string_view shader_name) const {
+	auto hash{ Hash(shader_name) };
+	return shaders_.contains(hash);
+}
+
+bool ShaderManager::Has(ShaderType type, std::string_view shader_name) const {
+	auto hash{ Hash(shader_name) };
+	switch (type) {
+		case ShaderType::Fragment: {
+			return cache_.fragment_shaders.contains(hash);
+		};
+		case ShaderType::Vertex: {
+			return cache_.vertex_shaders.contains(hash);
 		};
 		default: PTGN_ERROR("Unknown shader type")
 	}
@@ -513,8 +565,10 @@ void ShaderManager::Init() {
 	auto fs{ cmrc::shader::get_filesystem() };
 
 	PopulateShaderCache(fs, cache_, max_texture_slots);
-	auto shaders{ GenerateShadersFromManifest(fs, cache_) };
-	shaders_ = std::move(shaders);
+
+	auto manifest{ GetManifest(fs) };
+
+	PopulateShadersFromCache(manifest);
 }
 
 void ShaderManager::Shutdown() {
@@ -530,48 +584,115 @@ void ShaderManager::Shutdown() {
 	delete_shaders(cache_.fragment_shaders);
 }
 
-static std::vector<ShaderTypeSource> ParseShaderSourceFile(const std::string& source) {
-	auto srcs{ ParseShader(source) };
+static std::vector<ShaderTypeSource> ParseShaderSourceFile(
+	const std::string& source, const std::string& name
+) {
+	auto srcs{ ParseShader(source, name) };
 	SubstituteShaderTokens(srcs, game.renderer.GetRenderData().GetMaxTextureSlots());
 	return srcs;
 }
 
 } // namespace impl
 
-static ShaderId CompileSource(const std::string& source, ShaderType type) {
-	auto srcs{ impl::ParseShaderSourceFile(source) };
+static ShaderId CompileSource(const std::string& source, ShaderType type, const std::string& name) {
+	auto srcs{ impl::ParseShaderSourceFile(source, name) };
 	PTGN_ASSERT(srcs.size() == 1, "Wrong constructor for a multi-source shader file");
 	const auto& front{ srcs.front() };
 	PTGN_ASSERT(front.type == type, "Shader type mismatch");
 	return Shader::Compile(type, front.source.source_);
 }
 
-static ShaderId CompilePath(const path& p, ShaderType type) {
+static ShaderId CompilePath(const path& p, ShaderType type, const std::string& name) {
 	PTGN_ASSERT(FileExists(p), "Cannot create shader from nonexistent shader path: ", p.string());
 	auto source{ FileToString(p) };
-	return CompileSource(source, type);
+	return CompileSource(source, type, name);
+}
+
+Shader::Shader(ShaderId vertex, ShaderId fragment, const std::string& shader_name) :
+	shader_name_{ shader_name } {
+	Create();
+
+	Link(vertex, fragment);
+}
+
+Shader::Shader(std::variant<ShaderCode, path> source, const std::string& shader_name) :
+	shader_name_{ shader_name } {
+	Create();
+
+	std::string source_string;
+
+	if (std::holds_alternative<path>(source)) {
+		const auto& p{ std::get<path>(source) };
+		source_string = FileToString(p);
+	} else if (std::holds_alternative<ShaderCode>(source)) {
+		const auto& src{ std::get<ShaderCode>(source) };
+		source_string = src.source_;
+	} else {
+		PTGN_ERROR("Unknown variant type");
+	}
+
+	auto srcs{ impl::ParseShaderSourceFile(source_string, shader_name) };
+
+	PTGN_ASSERT(
+		srcs.size() == 2, "Shader file must provide a vertex and fragment type: ", shader_name
+	);
+
+	const auto& first{ srcs[0] };
+	const auto& second{ srcs[0] };
+
+	std::string vertex_source;
+	std::string fragment_source;
+
+	if (first.type == ShaderType::Vertex && second.type == ShaderType::Fragment) {
+		vertex_source	= first.source.source_;
+		fragment_source = second.source.source_;
+	} else if (first.type == ShaderType::Fragment && second.type == ShaderType::Vertex) {
+		fragment_source = first.source.source_;
+		vertex_source	= second.source.source_;
+	} else {
+		PTGN_ERROR("Shader file must provide a vertex and fragment type: ", shader_name);
+	}
+
+	ShaderId vertex_id{ Shader::Compile(ShaderType::Vertex, vertex_source) };
+	ShaderId fragment_id{ Shader::Compile(ShaderType::Fragment, fragment_source) };
+
+	Link(vertex_id, fragment_id);
+
+	if (vertex_id) {
+		GLCall(DeleteShader(vertex_id));
+	}
+
+	if (fragment_id) {
+		GLCall(DeleteShader(fragment_id));
+	}
 }
 
 Shader::Shader(
-	// TODO: Add std::string for direct access to shader cache.
-	std::variant<ShaderCode, path, ShaderId> vertex,
-	std::variant<ShaderCode, path, ShaderId> fragment, std::string_view shader_name
+	std::variant<ShaderCode, std::string> vertex, std::variant<ShaderCode, std::string> fragment,
+	const std::string& shader_name
 ) :
 	shader_name_{ shader_name } {
 	// bool: If true, delete shader id after.
-	const auto get_id = [](const std::variant<ShaderCode, path, ShaderId>& v,
-						   ShaderType type) -> std::pair<ShaderId, bool> {
-		if (std::holds_alternative<ShaderId>(v)) {
-			return { std::get<ShaderId>(v), false };
-		} else if (std::holds_alternative<path>(v)) {
-			const auto& p{ std::get<path>(v) };
-			PTGN_ASSERT(
-				p.extension() == ".glsl", "Shader file extension must be .glsl: ", p.string()
-			);
-			return { CompilePath(p, type), true };
+	const auto get_id = [shader_name](
+							const std::variant<ShaderCode, std::string>& v, ShaderType type
+						) -> std::pair<ShaderId, bool> {
+		if (std::holds_alternative<std::string>(v)) {
+			const auto& name{ std::get<std::string>(v) };
+			path file{ name };
+			if (FileExists(file)) {
+				PTGN_ASSERT(
+					file.extension() == ".glsl",
+					"Shader file extension must be .glsl: ", file.string()
+				);
+				return { CompilePath(file, type, shader_name), true };
+			} else if (game.shader.Has(type, name)) {
+				return { game.shader.Get(type, name), false };
+			} else {
+				PTGN_ERROR(name, " is not a valid shader path or loaded ", type, " shader name");
+			}
 		} else if (std::holds_alternative<ShaderCode>(v)) {
 			const auto& src{ std::get<ShaderCode>(v) };
-			return { CompileSource(src.source_, type), true };
+			return { CompileSource(src.source_, type, shader_name), true };
 		} else {
 			PTGN_ERROR("Unknown variant type");
 		}
@@ -584,11 +705,11 @@ Shader::Shader(
 
 	Link(vertex_id, fragment_id);
 
-	if (delete_vert_after) {
+	if (delete_vert_after && vertex_id) {
 		GLCall(DeleteShader(vertex_id));
 	}
 
-	if (delete_frag_after) {
+	if (delete_frag_after && fragment_id) {
 		GLCall(DeleteShader(fragment_id));
 	}
 }
