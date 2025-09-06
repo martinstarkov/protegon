@@ -14,23 +14,24 @@ float RoundedRectDistance(vec2 point, vec2 half_size, float radius) {
     
     vec2 q = abs(point) - half_size + r;
     
-    float dist = min(max(q.x, q.y), 0.0f) + length(max(q, 0.0f)) + r;
+    float dist = min(max(q.x, q.y), 0.0f) + length(max(q, 0.0f)) - r;
 
-    return 1.0f - dist;
+    return dist * -1.0f;
 }
 
 void main() {
-    float thickness    = v_Data.x; // 0.0f = hollow, 1.0f = filled
     float fade         = v_Data.y;
-    float radius       = v_Data.z;
     float aspect_ratio = v_Data.w;
+    float radius       = v_Data.z * aspect_ratio;
+    float thickness    = v_Data.x * aspect_ratio; // 0.0f = hollow, 1.0f = filled
     
     vec2 uv = v_TexCoord * 2.0f - 1.0f; // Normalize to: [-1, 1]
+    uv.y *= aspect_ratio;
 
-    float distance = RoundedRectDistance(uv, vec2(1.0f), radius);
+    float distance = RoundedRectDistance(uv, vec2(1.0f, aspect_ratio), radius );
 
     float alpha = smoothstep(0.0f, fade, distance);
-    alpha *= smoothstep(thickness + fade, thickness, distance);
+    alpha *= smoothstep(thickness + fade, thickness , distance);
 
     if (alpha <= 0.0f)
         discard;

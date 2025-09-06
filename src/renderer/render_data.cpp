@@ -211,7 +211,10 @@ void RenderData::AddArc(
 		return;
 	}
 
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, V2_float{ radius }) };
+	float diameter{ 2.0f * radius };
+
+	float fade{ GetFade(diameter) };
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
 
 	float aperture{ arc.GetAperture() };
 
@@ -220,7 +223,6 @@ void RenderData::AddArc(
 
 	auto quad_points{ arc.GetWorldQuadVertices(rotated) };
 
-	float fade{ 4.0f / (2.0f * radius) };
 	float direction{ clockwise ? 1.0f : -1.0f };
 
 	auto quad_vertices{ Vertex::GetQuad(
@@ -245,16 +247,17 @@ void RenderData::AddCapsule(
 	V2_float size;
 	auto quad_points{ capsule.GetWorldQuadVertices(transform, &size) };
 
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, V2_float{ radius }) };
+	float diameter{ 2.0f * radius };
 
-	float fade{ 4.0f / size.y };
+	float fade{ GetFade(diameter) };
 
-	PTGN_ASSERT(size.x >= 2.0f * radius);
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
 
-	float aspect_ratio{ size.y / size.x };
+	float aspect_ratio{ GetAspectRatio(size) };
+	float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
 
 	auto quad_vertices{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, fade, 2.0f * radius / size.x, aspect_ratio },
+		quad_points, tint, depth, { thickness, fade, normalized_radius, aspect_ratio },
 		GetDefaultTextureCoordinates()
 	) };
 
@@ -331,23 +334,21 @@ void RenderData::AddRoundedQuad(
 	}
 
 	auto quad_points{ rrect.GetWorldQuadVertices(transform, draw_origin) };
-
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, size * 0.5f) };
-
-	float fade{ 4.0f / size.y };
-
 	auto diameter{ 2.0f * radius };
+	float fade{ GetFade(diameter) };
 
-	PTGN_ASSERT(size.x >= diameter);
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
 
-	float aspect_ratio{ size.y / size.x };
+	float aspect_ratio{ GetAspectRatio(size) };
+	float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
 
 	auto quad_vertices{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, fade, diameter / size.x, aspect_ratio },
+		quad_points, tint, depth, { thickness, fade, normalized_radius, aspect_ratio },
 		GetDefaultTextureCoordinates()
 	) };
 
-	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
+	SetState(state);
+	AddVertices(quad_vertices, quad_indices);
 }
 
 void RenderData::AddPolygon(
@@ -390,8 +391,10 @@ void RenderData::AddEllipse(
 
 	auto quad_points{ ellipse.GetWorldQuadVertices(transform) };
 
-	float fade{ 4.0f / (2.0f * radius.y) };
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, radius) };
+	auto diameter{ 2.0f * radius };
+
+	float fade{ GetFade(diameter.y) };
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, radius) };
 
 	auto points{ Vertex::GetQuad(
 		quad_points, tint, depth, { thickness, fade }, GetDefaultTextureCoordinates()
@@ -1114,7 +1117,14 @@ void RenderData::DrawFromTo(
 	);
 }
 
-float RenderData::NormalizeArcLineWidthToThickness(float line_width, const V2_float& radii) {
+float RenderData::GetFade(float diameter_y) {
+	constexpr float fade_scaling_constant{ 0.12f };
+	return fade_scaling_constant / diameter_y;
+}
+
+float RenderData::NormalizeArcLineWidthToThickness(
+	float line_width, float fade, const V2_float& radii
+) {
 	if (line_width == -1.0f) {
 		// Internally line width for a filled SDF is 1.0f.
 		line_width = 1.0f;
@@ -1122,10 +1132,19 @@ float RenderData::NormalizeArcLineWidthToThickness(float line_width, const V2_fl
 		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for circle");
 
 		// Internally line width for a completely hollow ellipse is 0.0f.
-		constexpr float minimum_fade{ 0.005f };
-		line_width = minimum_fade + line_width / std::min(radii.x, radii.y);
+		line_width = fade + line_width / std::min(radii.x, radii.y);
 	}
 	return line_width;
+}
+
+float RenderData::GetAspectRatio(const V2_float& size) {
+	PTGN_ASSERT(size.x > 0.0f);
+	return size.y / size.x;
+}
+
+float RenderData::GetNormalizedRadius(float diameter, float size_x) {
+	PTGN_ASSERT(size_x > 0.0f);
+	return diameter / size_x;
 }
 
 void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {

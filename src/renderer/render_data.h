@@ -264,7 +264,14 @@ private:
 		BlendMode blend_mode{};
 	};
 
-	static float NormalizeArcLineWidthToThickness(float line_width, const V2_float& radii);
+	[[nodiscard]] static float GetFade(float diameter_y);
+
+	static float NormalizeArcLineWidthToThickness(
+		float line_width, float fade, const V2_float& radii
+	);
+
+	static float GetAspectRatio(const V2_float& size);
+	static float GetNormalizedRadius(float diameter, float size_x);
 
 	static void SetPointsAndProjection(DrawTarget& target);
 
