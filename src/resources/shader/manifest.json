@@ -13,6 +13,14 @@
     "vertex": "quad",
     "fragment": "capsule"
   },
+  "rounded_rect": {
+    "vertex": "quad",
+    "fragment": "rounded_rect"
+  },
+  "arc": {
+    "vertex": "quad",
+    "fragment": "arc"
+  },
   "blur": {
     "vertex": "screen_default",
     "fragment": "screen_blur"
