@@ -72,101 +72,39 @@ Entity AddSprite(Scene& s, V2_float pos) {
 }
 
 struct RenderTargetScene : public Scene {
-	RenderTarget rt;
+	RenderTarget rt1;
+	RenderTarget rt2;
 
 	void Enter() override {
 		SetBackgroundColor(color::LightGray);
 		game.window.SetSetting(WindowSetting::Resizable);
 		game.renderer.SetGameSize(resolution);
 
-		/*
-		LoadResource("test", "resources/test1.jpg");
+		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);
 
-		// Helper for reuse
-		auto grayscale = CreateGrayscale(*this);
-		auto blur	   = CreateBlur(*this);
+		rt1 = CreateRenderTarget(*this, { 400, 400 }, color::Red);
+		SetDrawOrigin(rt1, Origin::TopLeft);
+		SetPosition(rt1, -resolution * 0.5f);
 
-		// === Dimensions for objects ===
-		V2_float rect_size{ 80, 80 };
-		float circle_radius{ 40.0f };
-		V2_float sprite_size{ game.texture.GetSize("test"
-		) };							// Approximate, since sprite has no size defined
-		V2_float sprite_offset{ 0, 0 }; // used as safe offset from edge
-
-		// Center
 		auto rect1 =
-			AddRect(*this, { resolution.x / 2.0f, resolution.y / 2.0f }, { 200, 200 }, color::Red);
-		SetDrawOrigin(rect1, Origin::Center);
-		AddPostFX(rect1, grayscale);
+			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange, -1.0f, Origin::Center);
 
-		auto circle1 =
-			AddCircle(*this, { resolution.x / 2.0f, resolution.y / 2.0f }, 50.0f, color::Gold);
-		AddPostFX(circle1, blur);
+		rt1.AddToDisplayList(rect1);
 
-		// Top left corner
-		auto sprite1 = AddSprite(*this, sprite_offset);
-		SetDrawOrigin(sprite1, Origin::TopLeft);
-		AddPreFX(sprite1, grayscale);
+		rt2 = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
+		SetDrawOrigin(rt2, Origin::TopLeft);
+		SetPosition(rt2, -resolution * 0.5f + V2_float{ 400, 400 });
 
-		auto rect2 = AddRect(*this, { 0, 0 }, rect_size, color::Green);
-		SetDrawOrigin(rect2, Origin::TopLeft);
-		AddPostFX(rect2, blur);
-
-		// Top right corner
-		auto circle2 = AddCircle(
-			*this, { resolution.x - circle_radius, circle_radius }, circle_radius, color::Blue
-		);
-		AddPostFX(circle2, grayscale);
-
-		auto rect3 = AddRect(*this, { resolution.x - rect_size.x, 0 }, rect_size, color::Cyan);
-		SetDrawOrigin(rect3, Origin::TopLeft);
-		AddPreFX(rect3, blur);
-
-		// Bottom left
-		auto sprite2 = AddSprite(*this, { sprite_offset.x, resolution.y - sprite_offset.y });
-		SetDrawOrigin(sprite2, Origin::BottomLeft);
-		AddPreFX(sprite2, blur);
-
-		auto circle3 = AddCircle(
-			*this, { circle_radius, resolution.y - circle_radius }, circle_radius, color::Purple
-		);
-		AddPostFX(circle3, grayscale);
-
-		auto sprite3 = AddSprite(*this, { resolution.x, resolution.y });
-		SetDrawOrigin(sprite3, Origin::BottomRight);
-		AddPreFX(sprite3, grayscale);
-		AddPreFX(sprite3, blur);
-
-		// Bottom right
-		auto rect4 = AddRect(
-			*this, { resolution.x - rect_size.x, resolution.y - rect_size.y }, rect_size,
-			color::Orange
-		);
-		SetDrawOrigin(rect4, Origin::TopLeft);
-		AddPostFX(rect4, blur);
-
-		auto circle4 = AddCircle(
-			*this, { resolution.x - circle_radius, resolution.y - circle_radius }, circle_radius,
-			color::Magenta
-		);
-		AddPreFX(circle4, grayscale);
-		*/
-
-		auto rect1 = CreateRect(
-			*this, -resolution * 0.5f + V2_float{ 0, 0 }, { 400, 400 }, color::Red, -1.0f,
-			Origin::TopLeft
-		);
-		rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
-		SetDrawOrigin(rt, Origin::TopLeft);
-		SetPosition(rt, -resolution * 0.5f + V2_float{ 400, 400 });
 		// Rect2 position is relative to rt position (0, 0 is center of rt).
 		auto rect2 =
 			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, -1.0f, Origin::Center);
-		rt.AddToDisplayList(rect2);
+
+		rt2.AddToDisplayList(rect2);
 	}
 
 	void Update() override {
-		MoveWASD(rt.GetCamera(), V2_float{ 3.0f });
+		MoveArrowKeys(rt1.GetCamera(), V2_float{ 3.0f });
+		MoveWASD(rt2.GetCamera(), V2_float{ 3.0f });
 	}
 };
 
