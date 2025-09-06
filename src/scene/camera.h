@@ -15,6 +15,7 @@
 namespace ptgn {
 
 class Scene;
+class RenderTarget;
 class CameraManager;
 class Camera;
 struct Color;
@@ -98,7 +99,7 @@ public:
 	// Apply bounds to the current scroll.
 	void ApplyBounds();
 
-	void Resize(const V2_float& new_size);
+	void Resize(const V2_float& new_size, bool disable_auto_center, bool disable_auto_resize);
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		CameraInstance, viewport_position, viewport_size, transform, pixel_rounding,
@@ -206,6 +207,7 @@ public:
 	operator Matrix4() const;
 
 protected:
+	friend class RenderTarget;
 	friend struct impl::CameraGameSizeResizeScript;
 	friend class CameraManager;
 	friend Camera CreateCamera(Manager& manager);
@@ -213,7 +215,9 @@ protected:
 	void Subscribe();
 	void Unsubscribe();
 
-	static void Resize(Camera camera, const V2_float& new_size);
+	static void Resize(
+		Camera camera, const V2_float& new_size, bool disable_auto_center, bool disable_auto_resize
+	);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {

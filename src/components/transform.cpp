@@ -213,7 +213,9 @@ void Transform::ClearDirtyFlags() const {
 Camera& SetTransform(Camera& entity, const Transform& transform) {
 	entity.SetScroll(transform.GetPosition());
 	entity.SetRotation(transform.GetRotation());
-	entity.SetZoom(transform.GetScale());
+	auto scale{ transform.GetScale() };
+	PTGN_ASSERT(scale.BothAboveZero(), "Cannot set camera zoom to be below or equal to zero");
+	entity.SetZoom(1.0f / scale);
 	return entity;
 }
 

@@ -35,12 +35,14 @@ void CameraInstance::Reset() {
 	*this = {};
 }
 
-void CameraInstance::Resize(const V2_float& new_size) {
+void CameraInstance::Resize(
+	const V2_float& new_size, bool disable_auto_center, bool disable_auto_resize
+) {
 	if (auto_center) {
-		SetViewportPosition({}, false);
+		SetViewportPosition({}, disable_auto_center);
 	}
 	if (auto_resize) {
-		SetViewportSize(new_size, false);
+		SetViewportSize(new_size, disable_auto_resize);
 	}
 }
 
@@ -100,11 +102,13 @@ void CameraInstance::SetZoomY(float new_y_zoom) {
 }
 
 void CameraInstance::Zoom(const V2_float& zoom_amount) {
-	SetZoom(GetZoom() + zoom_amount);
+	auto new_zoom{ GetZoom() + zoom_amount };
+	SetZoom(new_zoom);
 }
 
 void CameraInstance::Zoom(float zoom_xy_amount) {
-	SetZoom(GetZoom() + V2_float{ zoom_xy_amount });
+	auto new_zoom{ GetZoom() + V2_float{ zoom_xy_amount } };
+	SetZoom(new_zoom);
 }
 
 void CameraInstance::ZoomX(float zoom_x_amount) {
@@ -363,7 +367,7 @@ void CameraInstance::RecalculateProjection() const {
 
 void CameraGameSizeResizeScript::OnGameSizeChanged() {
 	auto game_size{ game.renderer.GetGameSize() };
-	Camera::Resize(entity, game_size);
+	Camera::Resize(entity, game_size, false, false);
 }
 
 } // namespace impl
@@ -371,15 +375,17 @@ void CameraGameSizeResizeScript::OnGameSizeChanged() {
 void Camera::Subscribe() {
 	TryAddScript<impl::CameraGameSizeResizeScript>(*this);
 	V2_int game_size{ game.renderer.GetGameSize() };
-	Resize(*this, game_size);
+	Resize(*this, game_size, false, false);
 }
 
 void Camera::Unsubscribe() {
 	RemoveScripts<impl::CameraGameSizeResizeScript>(*this);
 }
 
-void Camera::Resize(Camera camera, const V2_float& new_size) {
-	camera.Get<impl::CameraInstance>().Resize(new_size);
+void Camera::Resize(
+	Camera camera, const V2_float& new_size, bool disable_auto_center, bool disable_auto_resize
+) {
+	camera.Get<impl::CameraInstance>().Resize(new_size, disable_auto_center, disable_auto_resize);
 }
 
 Camera::Camera(const Entity& entity) : Entity{ entity } {}
