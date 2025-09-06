@@ -24,13 +24,12 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(
 ) const {
 	auto dir{ end - start };
 
-	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	auto local_center{ start + dir * 0.5f };
 
 	V2_float center{ ApplyTransform(local_center, transform) };
 
 	float rotation{ dir.Angle() };
-	Rect rect{ V2_float{ dir.Magnitude(), line_width } };
+	Rect rect{ V2_float{ dir.Magnitude() + line_width, line_width } };
 	if (out_size) {
 		*out_size = rect.GetSize(transform);
 	}
