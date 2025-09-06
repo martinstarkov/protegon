@@ -40,7 +40,7 @@ RenderTarget AddRenderTargetComponents(
 	render_target.Add<impl::DisplayList>();
 	render_target.Add<impl::ClearColor>(clear_color);
 	auto& camera{ render_target.Add<GameObject<Camera>>(CreateCamera(manager)) };
-	camera.SetViewport(-size * 0.5f, size);
+	camera.SetViewport({}, size);
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
@@ -86,6 +86,14 @@ V2_float RenderTarget::GetDisplaySize() const {
 	return impl::GetDisplaySize(*this);
 }
 
+const Camera& RenderTarget::GetCamera() const {
+	return Get<GameObject<Camera>>();
+}
+
+Camera& RenderTarget::GetCamera() {
+	return Get<GameObject<Camera>>();
+}
+
 void RenderTarget::Bind() const {
 	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
 	PTGN_ASSERT(frame_buffer.IsValid(), "Cannot bind invalid or uninitialized frame buffer");
@@ -115,7 +123,7 @@ void RenderTarget::ClearDisplayList() {
 	display_list.clear();
 }
 
-void RenderTarget::AddToDisplayList(Entity& entity) {
+void RenderTarget::AddToDisplayList(Entity entity) {
 	PTGN_ASSERT(entity, "Cannot add invalid entity to render target");
 	PTGN_ASSERT(HasDraw(entity), "Entity added to render target display list must be drawable");
 	// TODO: Consider allowing render targets to be rendered to other render targets.
@@ -130,7 +138,7 @@ void RenderTarget::AddToDisplayList(Entity& entity) {
 	entity.Add<RenderTarget>(*this);
 }
 
-void RenderTarget::RemoveFromDisplayList(Entity& entity) {
+void RenderTarget::RemoveFromDisplayList(Entity entity) {
 	PTGN_ASSERT(entity, "Cannot remove invalid entity from render target");
 	PTGN_ASSERT(HasDraw(entity), "Entity remove from render target display list must be drawable");
 	entity.Remove<RenderTarget>();
@@ -176,6 +184,9 @@ void RenderTarget::ForEachPixel(
 }
 
 void RenderTarget::Resize(const V2_int& size) {
+	if (auto camera{ TryGet<GameObject<Camera>>() }) {
+		Camera::Resize(*camera, size, true, true);
+	}
 	Get<impl::FrameBuffer>().GetTexture().Resize(size);
 }
 

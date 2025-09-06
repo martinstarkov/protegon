@@ -1,5 +1,6 @@
 
 #include "components/draw.h"
+#include "components/movement.h"
 #include "components/sprite.h"
 #include "core/game.h"
 #include "core/window.h"
@@ -71,6 +72,8 @@ Entity AddSprite(Scene& s, V2_float pos) {
 }
 
 struct RenderTargetScene : public Scene {
+	RenderTarget rt;
+
 	void Enter() override {
 		SetBackgroundColor(color::LightGray);
 		game.window.SetSetting(WindowSetting::Resizable);
@@ -153,16 +156,18 @@ struct RenderTargetScene : public Scene {
 			*this, -resolution * 0.5f + V2_float{ 0, 0 }, { 400, 400 }, color::Red, -1.0f,
 			Origin::TopLeft
 		);
-		auto rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
+		rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
 		SetDrawOrigin(rt, Origin::TopLeft);
 		SetPosition(rt, -resolution * 0.5f + V2_float{ 400, 400 });
 		// Rect2 position is relative to rt position (0, 0 is center of rt).
 		auto rect2 =
-			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, -1.0f, Origin::TopLeft);
+			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, -1.0f, Origin::Center);
 		rt.AddToDisplayList(rect2);
 	}
 
-	void Update() override {}
+	void Update() override {
+		MoveWASD(rt.GetCamera(), V2_float{ 3.0f });
+	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {

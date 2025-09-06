@@ -965,7 +965,11 @@ void RenderData::DrawScene(Scene& scene) {
 
 		SortByDepth(display_list.entities);
 
-		drawing_to_ = GetDrawTarget(rt, {}, {}, true);
+		Camera rt_camera{ rt.GetCamera() };
+
+		PTGN_ASSERT(rt_camera);
+
+		drawing_to_ = GetDrawTarget(rt, rt_camera, rt_camera.GetWorldVertices(), false);
 
 		for (const auto& display_entity : display_list.entities) {
 			InvokeDrawable(display_entity);

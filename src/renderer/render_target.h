@@ -72,9 +72,12 @@ public:
 	// @return Scaled size of the cropped texture in pixels.
 	[[nodiscard]] V2_float GetDisplaySize() const;
 
+	[[nodiscard]] const Camera& GetCamera() const;
+	[[nodiscard]] Camera& GetCamera();
+
 	void ClearDisplayList();
-	void AddToDisplayList(Entity& entity);
-	void RemoveFromDisplayList(Entity& entity);
+	void AddToDisplayList(Entity entity);
+	void RemoveFromDisplayList(Entity entity);
 
 	[[nodiscard]] const std::vector<Entity>& GetDisplayList() const;
 
