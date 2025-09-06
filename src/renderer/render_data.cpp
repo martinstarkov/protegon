@@ -917,10 +917,9 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 	draw_function(*this, entity);
 }
 
-RenderData::DrawTarget RenderData::GetDrawTarget(const Scene& scene) {
-	return GetDrawTarget(
-		scene.render_target_, scene.camera, scene.camera.GetWorldVertices(), false
-	);
+RenderData::DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
+	Camera camera{ render_target.GetCamera() };
+	return GetDrawTarget(render_target, camera, camera.GetWorldVertices(), false);
 }
 
 RenderData::DrawTarget RenderData::GetDrawTarget(
@@ -953,6 +952,24 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 	return target;
 }
 
+void RenderData::DrawDisplayList(
+	const RenderTarget& render_target, std::vector<Entity>& display_list,
+	const std::function<bool(const Entity&)>& filter
+) {
+	SortByDepth(display_list);
+
+	drawing_to_ = GetDrawTarget(render_target);
+
+	for (const auto& entity : display_list) {
+		if (filter && filter(entity)) {
+			continue;
+		}
+		InvokeDrawable(entity);
+	}
+
+	Flush();
+}
+
 void RenderData::DrawScene(Scene& scene) {
 	// Loop through render targets and render their display lists onto their internal frame buffers.
 	for (auto [entity, visible, drawable, frame_buffer, display_list] :
@@ -961,38 +978,15 @@ void RenderData::DrawScene(Scene& scene) {
 			continue;
 		}
 
-		RenderTarget rt{ entity };
-
-		SortByDepth(display_list.entities);
-
-		Camera rt_camera{ rt.GetCamera() };
-
-		PTGN_ASSERT(rt_camera);
-
-		drawing_to_ = GetDrawTarget(rt, rt_camera, rt_camera.GetWorldVertices(), false);
-
-		for (const auto& display_entity : display_list.entities) {
-			InvokeDrawable(display_entity);
-		}
-
-		Flush();
+		DrawDisplayList(entity, display_list.entities);
 	}
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
-	SortByDepth(display_list);
 
-	drawing_to_ = GetDrawTarget(scene);
-
-	for (const auto& entity : display_list) {
+	DrawDisplayList(scene.render_target_, display_list, [](const Entity& entity) {
 		// Skip entities which are in the display list of a custom render target.
-		// TODO: Perhaps rethink how this is done after HD render targets are introduced.
-		if (entity.Has<RenderTarget>()) {
-			continue;
-		}
-		InvokeDrawable(entity);
-	}
-
-	Flush();
+		return entity.Has<RenderTarget>();
+	});
 }
 
 void RenderData::RecomputeDisplaySize(const V2_int& window_size) {

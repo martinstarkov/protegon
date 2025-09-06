@@ -198,7 +198,7 @@ void Scene::InternalDraw() {
 void Scene::InternalUpdate() {
 	auto& render_data{ game.renderer.GetRenderData() };
 	render_data.ClearRenderTargets(*this);
-	render_data.drawing_to_ = impl::RenderData::GetDrawTarget(*this);
+	render_data.drawing_to_ = impl::RenderData::GetDrawTarget(render_target_);
 
 	Refresh();
 

@@ -275,7 +275,7 @@ private:
 
 	static void SetPointsAndProjection(DrawTarget& target);
 
-	[[nodiscard]] static DrawTarget GetDrawTarget(const Scene& scene);
+	[[nodiscard]] static DrawTarget GetDrawTarget(const RenderTarget& render_target);
 
 	[[nodiscard]] static DrawTarget GetDrawTarget(
 		const RenderTarget& render_target, const Matrix4& view_projection,
@@ -425,6 +425,12 @@ private:
 
 	// Draws the screen target to the default frame buffer.
 	void DrawScreenTarget();
+
+	// @param filter If function returns true, the entity is not drawn.
+	void DrawDisplayList(
+		const RenderTarget& render_target, std::vector<Entity>& display_list,
+		const std::function<bool(const Entity&)>& filter = {}
+	);
 
 	void ClearScreenTarget() const;
 
