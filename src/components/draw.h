@@ -160,8 +160,11 @@ void DrawText(
 void DrawText(RenderData& ctx, const Entity& entity);
 void DrawCapsule(RenderData& ctx, const Entity& entity);
 void DrawCircle(RenderData& ctx, const Entity& entity);
+void DrawEllipse(RenderData& ctx, const Entity& entity);
+void DrawArc(RenderData& ctx, const Entity& entity, bool clockwise);
 void DrawPolygon(RenderData& ctx, const Entity& entity);
 void DrawRect(RenderData& ctx, const Entity& entity);
+void DrawRoundedRect(RenderData& ctx, const Entity& entity);
 void DrawTriangle(RenderData& ctx, const Entity& entity);
 void DrawLine(RenderData& ctx, const Entity& entity);
 

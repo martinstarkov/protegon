@@ -111,8 +111,8 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 			// TODO: Add texture rotation.
 			ctx.AddTexturedQuad(
-				i.info.texture_key.GetTexture(), Transform{ p.position },
-				{ 2.0f * p.radius, 2.0f * p.radius }, Origin::Center, tint, depth,
+				Transform{ p.position }, i.info.texture_key.GetTexture(),
+				Rect{ V2_float{ 2.0f * p.radius, 2.0f * p.radius } }, Origin::Center, tint, depth,
 				impl::GetDefaultTextureCoordinates(), state
 			);
 		}
@@ -123,7 +123,8 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 			state.shader_pass = game.shader.Get("circle");
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				ctx.AddCircle(
-					Transform{ p.position }, p.radius, p.color, depth, i.info.line_width, state
+					Transform{ p.position }, Circle{ p.radius }, p.color, depth, i.info.line_width,
+					state
 				);
 			}
 			break;
@@ -132,8 +133,8 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				// TODO: Add rect rotation.
 				ctx.AddQuad(
-					Transform{ p.position }, V2_float{ 2.0f * p.radius }, Origin::Center, p.color,
-					depth, i.info.line_width, state
+					Transform{ p.position }, Rect{ V2_float{ 2.0f * p.radius } }, Origin::Center,
+					p.color, depth, i.info.line_width, state
 				);
 			}
 			break;

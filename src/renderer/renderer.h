@@ -58,6 +58,12 @@ void DrawDebugRect(
 	const Camera& camera = {}
 );
 
+void DrawDebugRoundedRect(
+	const V2_float& position, const V2_float& size, float radius, const Color& color,
+	Origin origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
+	const Camera& camera = {}
+);
+
 void DrawDebugEllipse(
 	const V2_float& center, const V2_float& radii, const Color& color, float line_width = 1.0f,
 	float rotation = 0.0f, const Camera& camera = {}
@@ -71,6 +77,11 @@ void DrawDebugCircle(
 void DrawDebugCapsule(
 	const V2_float& start, const V2_float& end, float radius, const Color& color,
 	float line_width = 1.0f, const Camera& camera = {}
+);
+
+void DrawDebugArc(
+	const V2_float& center, float radius, float start_angle, float end_angle, const Color& color,
+	float line_width = 1.0f, bool clockwise = true, const Camera& camera = {}
 );
 
 void DrawDebugPolygon(

@@ -48,6 +48,123 @@ struct ShapeScene : public Scene {
 		DrawDebugCapsule(
 			{ -200, -350 + 150 }, { -150, -300 + 150 }, 12.0f, color::LightGold, -1.0f
 		);
+
+		float start_angle1{ DegToRad(0.0f) };
+		float end_angle1{ DegToRad(180.0f) };
+		float start_angle2{ DegToRad(180.0f) };
+		float end_angle2{ DegToRad(0.0f) };
+		float start_angle3{ DegToRad(-180.0f) };
+		float end_angle3{ DegToRad(90.0f) };
+		float start_angle4{ DegToRad(-90.0f) };
+		float end_angle4{ DegToRad(269.0f) };
+
+		float arc_radius{ 20.0f };
+		bool clockwise{ true };
+
+		float arc_y{ -10 };
+
+		DrawDebugArc(
+			{ -50, arc_y }, arc_radius, start_angle1, end_angle1, color::BrightGreen, 1.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 0, arc_y }, arc_radius, start_angle2, end_angle2, color::BrightGreen, 1.0f, clockwise
+		);
+		DrawDebugArc(
+			{ 50, arc_y }, arc_radius, start_angle3, end_angle3, color::BrightGreen, 1.0f, clockwise
+		);
+		DrawDebugArc(
+			{ 100, arc_y }, arc_radius, start_angle4, end_angle4, color::BrightGreen, 1.0f,
+			clockwise
+		);
+
+		DrawDebugArc(
+			{ -50, arc_y + 50.0f }, arc_radius, start_angle1, end_angle1, color::BrightPink, 5.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 0, arc_y + 50.0f }, arc_radius, start_angle3, end_angle2, color::BrightPink, 5.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 50, arc_y + 50.0f }, arc_radius, start_angle3, end_angle3, color::BrightPink, 5.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 100, arc_y + 50.0f }, arc_radius, start_angle4, end_angle4, color::BrightPink, 5.0f,
+			clockwise
+		);
+
+		DrawDebugArc(
+			{ -50, arc_y + 100.0f }, arc_radius, start_angle1, end_angle1, color::BrightYellow,
+			-1.0f, clockwise
+		);
+		DrawDebugArc(
+			{ 0, arc_y + 100.0f }, arc_radius, start_angle3, end_angle2, color::BrightYellow, -1.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 50, arc_y + 100.0f }, arc_radius, start_angle3, end_angle3, color::BrightYellow,
+			-1.0f, clockwise
+		);
+		DrawDebugArc(
+			{ 100, arc_y + 100.0f }, arc_radius, start_angle4, end_angle4, color::BrightYellow,
+			-1.0f, clockwise
+		);
+
+		clockwise = false;
+
+		DrawDebugArc(
+			{ -50, arc_y + 150.0f }, arc_radius, start_angle1, end_angle1, color::BrightGreen, 1.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 0, arc_y + 150.0f }, arc_radius, start_angle2, end_angle2, color::BrightGreen, 1.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 50, arc_y + 150.0f }, arc_radius, start_angle3, end_angle3, color::BrightGreen, 1.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 100, arc_y + 150.0f }, arc_radius, start_angle4, end_angle4, color::BrightGreen, 1.0f,
+			clockwise
+		);
+
+		DrawDebugArc(
+			{ -50, arc_y + 200.0f }, arc_radius, start_angle1, end_angle1, color::BrightPink, 5.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 0, arc_y + 200.0f }, arc_radius, start_angle3, end_angle2, color::BrightPink, 5.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 50, arc_y + 200.0f }, arc_radius, start_angle3, end_angle3, color::BrightPink, 5.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 100, arc_y + 200.0f }, arc_radius, start_angle4, end_angle4, color::BrightPink, 5.0f,
+			clockwise
+		);
+
+		DrawDebugArc(
+			{ -50, arc_y + 250.0f }, arc_radius, start_angle1, end_angle1, color::BrightYellow,
+			-1.0f, clockwise
+		);
+		DrawDebugArc(
+			{ 0, arc_y + 250.0f }, arc_radius, start_angle3, end_angle2, color::BrightYellow, -1.0f,
+			clockwise
+		);
+		DrawDebugArc(
+			{ 50, arc_y + 250.0f }, arc_radius, start_angle3, end_angle3, color::BrightYellow,
+			-1.0f, clockwise
+		);
+		DrawDebugArc(
+			{ 100, arc_y + 250.0f }, arc_radius, start_angle4, end_angle4, color::BrightYellow,
+			-1.0f, clockwise
+		);
+
 		DrawDebugRect({ -50, -325 }, { 50, 25 }, color::Blue, Origin::Center, 1.0f, 0.0f);
 		DrawDebugRect({ 0, -325 }, { 50, 25 }, color::LightBlue, Origin::TopLeft, -1.0f, 0.0f);
 		DrawDebugRect({ 100, -325 }, { 50, 25 }, color::DarkBlue, Origin::Center, 5.0f, 0.0f);
@@ -63,6 +180,29 @@ struct ShapeScene : public Scene {
 			{ 100, -250 }, { 50, 25 }, color::DarkBlue, Origin::Center, 5.0f,
 			DegToRad(game.time() / 10.0f)
 		);
+
+		DrawDebugRoundedRect(
+			{ -50, -175 }, { 50, 25 }, 12.0f, color::Blue, Origin::Center, 1.0f, 0.0f
+		);
+		DrawDebugRoundedRect(
+			{ 0, -175 }, { 50, 25 }, 12.0f, color::LightBlue, Origin::TopLeft, -1.0f, 0.0f
+		);
+		DrawDebugRoundedRect(
+			{ 100, -175 }, { 50, 25 }, 12.0f, color::DarkBlue, Origin::Center, 5.0f, 0.0f
+		);
+		DrawDebugRoundedRect(
+			{ -50, -100 }, { 50, 25 }, 12.0f, color::Blue, Origin::Center, 1.0f,
+			DegToRad(game.time() / 10.0f)
+		);
+		DrawDebugRoundedRect(
+			{ 0, -100 }, { 50, 25 }, 12.0f, color::LightBlue, Origin::TopLeft, -1.0f,
+			DegToRad(game.time() / 10.0f)
+		);
+		DrawDebugRoundedRect(
+			{ 100, -100 }, { 50, 25 }, 12.0f, color::DarkBlue, Origin::Center, 5.0f,
+			DegToRad(game.time() / 10.0f)
+		);
+
 		DrawDebugCircle({ 200, -325 }, 25.0f, color::Gold, 1.0f);
 		DrawDebugCircle({ 275, -325 }, 25.0f, color::DarkYellow, 5.0f);
 		DrawDebugCircle({ 350, -325 }, 25.0f, color::LightYellow, -1.0f);

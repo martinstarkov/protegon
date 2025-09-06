@@ -8,8 +8,8 @@ in vec4 v_Color;
 in vec2 v_TexCoord;
 in vec4 v_Data; // x = thickness, y = fade
 
-float CircleDistance(vec2 point, float radius) {
-    return radius - length(point);
+float CircleDistance(vec2 point) {
+    return 1.0f - length(point);
 }
 
 void main() {
@@ -19,7 +19,7 @@ void main() {
     vec2 uv = v_TexCoord * 2.0f - 1.0f; // Normalize to: [-1, 1]
     // Not technically an exact ellipse, for that see: https://iquilezles.org/articles/distfunctions2d/
 
-    float distance = CircleDistance(uv, 1.0f);
+    float distance = CircleDistance(uv);
 
     float alpha = smoothstep(0.0f, fade, distance);
     alpha *= smoothstep(thickness + fade, thickness, distance);

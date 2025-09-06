@@ -20,7 +20,7 @@ void Line::Draw(impl::RenderData& ctx, const Entity& entity) {
 }
 
 std::array<V2_float, 4> Line::GetWorldQuadVertices(
-	const Transform& transform, float line_width, float x_padding, V2_float* out_size
+	const Transform& transform, float line_width, V2_float* out_size
 ) const {
 	auto dir{ end - start };
 
@@ -30,12 +30,11 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(
 	V2_float center{ ApplyTransform(local_center, transform) };
 
 	float rotation{ dir.Angle() };
-	V2_float size{ dir.Magnitude() + x_padding, line_width };
+	Rect rect{ V2_float{ dir.Magnitude(), line_width } };
 	if (out_size) {
-		*out_size = size;
+		*out_size = rect.GetSize(transform);
 	}
-	Rect rect{ size };
-	return rect.GetWorldVertices(Transform{ center, rotation });
+	return rect.GetWorldVertices(Transform{ center, rotation, transform.GetScale() });
 }
 
 std::array<V2_float, 2> Line::GetWorldVertices(const Transform& transform) const {

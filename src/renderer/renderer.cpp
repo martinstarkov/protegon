@@ -18,11 +18,14 @@
 #include "core/window.h"
 #include "debug/log.h"
 #include "math/geometry.h"
+#include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
+#include "math/geometry/ellipse.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/geometry/rect.h"
+#include "math/geometry/rounded_rect.h"
 #include "math/geometry/triangle.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
@@ -62,9 +65,10 @@ void DrawDebugTexture(
 	const TextureHandle& texture_key, const V2_float& position, const V2_float& size, Origin origin,
 	float rotation, const Camera& camera
 ) {
+	Rect rect{ size.IsZero() ? V2_float{ texture_key.GetSize() } : size };
+
 	game.renderer.GetRenderData().AddTexturedQuad(
-		texture_key.GetTexture(), Transform{ position, rotation },
-		size.IsZero() ? V2_float{ texture_key.GetSize() } : size, origin, color::White,
+		Transform{ position, rotation }, texture_key.GetTexture(), rect, origin, color::White,
 		impl::max_depth, impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
 	);
 }
@@ -84,11 +88,13 @@ void DrawDebugText(
 		final_font_size = static_cast<std::int32_t>(static_cast<float>(font_size) * scene_scale.y);
 	}
 	auto texture{ Text::CreateTexture(content, color, final_font_size, font_key, properties) };
+
+	Rect rect{ size.IsZero() ? V2_float{ Text::GetSize(content, font_key, final_font_size) }
+							 : size };
+
 	render_data.AddTexturedQuad(
-		texture, transform,
-		size.IsZero() ? V2_float{ Text::GetSize(content, font_key, final_font_size) } : size,
-		origin, color::White, impl::max_depth, impl::GetDefaultTextureCoordinates(),
-		impl::GetDebugRenderState(camera), {}
+		transform, texture, rect, origin, color::White, impl::max_depth,
+		impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
 	);
 	render_data.AddTemporaryTexture(std::move(texture));
 }
@@ -98,7 +104,8 @@ void DrawDebugLine(
 	const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddLine(
-		line_start, line_end, color, impl::max_depth, line_width, impl::GetDebugRenderState(camera)
+		Transform{}, Line{ line_start, line_end }, color, impl::max_depth, line_width,
+		impl::GetDebugRenderState(camera)
 	);
 }
 
@@ -107,7 +114,7 @@ void DrawDebugLines(
 	bool connect_last_to_first, const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddLines(
-		points, color, impl::max_depth, line_width, connect_last_to_first,
+		Transform{}, points, color, impl::max_depth, line_width, connect_last_to_first,
 		impl::GetDebugRenderState(camera)
 	);
 }
@@ -117,7 +124,8 @@ void DrawDebugTriangle(
 	const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddTriangle(
-		vertices, color, impl::max_depth, line_width, impl::GetDebugRenderState(camera)
+		Transform{}, Triangle{ vertices }, color, impl::max_depth, line_width,
+		impl::GetDebugRenderState(camera)
 	);
 }
 
@@ -126,8 +134,21 @@ void DrawDebugRect(
 	float line_width, float rotation, const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddQuad(
-		Transform{ position, rotation }, size, origin, color, impl::max_depth, line_width,
+		Transform{ position, rotation }, Rect{ size }, origin, color, impl::max_depth, line_width,
 		impl::GetDebugRenderState(camera)
+	);
+}
+
+void DrawDebugRoundedRect(
+	const V2_float& position, const V2_float& size, float radius, const Color& color, Origin origin,
+	float line_width, float rotation, const Camera& camera
+) {
+	auto state{ impl::GetDebugRenderState(camera) };
+	state.shader_pass = game.shader.Get("rounded_rect");
+
+	game.renderer.GetRenderData().AddRoundedQuad(
+		Transform{ position, rotation }, RoundedRect{ size, radius }, origin, color,
+		impl::max_depth, line_width, state
 	);
 }
 
@@ -139,7 +160,7 @@ void DrawDebugEllipse(
 	state.shader_pass = game.shader.Get("circle");
 
 	game.renderer.GetRenderData().AddEllipse(
-		Transform{ center, rotation }, radii, color, impl::max_depth, line_width, state
+		Transform{ center, rotation }, Ellipse{ radii }, color, impl::max_depth, line_width, state
 	);
 }
 
@@ -150,7 +171,7 @@ void DrawDebugCircle(
 	state.shader_pass = game.shader.Get("circle");
 
 	game.renderer.GetRenderData().AddCircle(
-		Transform{ center }, radius, color, impl::max_depth, line_width, state
+		Transform{ center }, Circle{ radius }, color, impl::max_depth, line_width, state
 	);
 }
 
@@ -162,7 +183,20 @@ void DrawDebugCapsule(
 	state.shader_pass = game.shader.Get("capsule");
 
 	game.renderer.GetRenderData().AddCapsule(
-		start, end, radius, color, impl::max_depth, line_width, state
+		Transform{}, Capsule{ start, end, radius }, color, impl::max_depth, line_width, state
+	);
+}
+
+void DrawDebugArc(
+	const V2_float& center, float radius, float start_angle, float end_angle, const Color& color,
+	float line_width, bool clockwise, const Camera& camera
+) {
+	auto state{ impl::GetDebugRenderState(camera) };
+	state.shader_pass = game.shader.Get("arc");
+
+	game.renderer.GetRenderData().AddArc(
+		Transform{ center }, Arc{ radius, start_angle, end_angle }, clockwise, color,
+		impl::max_depth, line_width, state
 	);
 }
 
@@ -171,13 +205,14 @@ void DrawDebugPolygon(
 	const Camera& camera
 ) {
 	game.renderer.GetRenderData().AddPolygon(
-		vertices, color, impl::max_depth, line_width, impl::GetDebugRenderState(camera)
+		Transform{}, Polygon{ vertices }, color, impl::max_depth, line_width,
+		impl::GetDebugRenderState(camera)
 	);
 }
 
 void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera) {
 	game.renderer.GetRenderData().AddPoint(
-		position, color, impl::max_depth, impl::GetDebugRenderState(camera)
+		Transform{}, position, color, impl::max_depth, impl::GetDebugRenderState(camera)
 	);
 }
 

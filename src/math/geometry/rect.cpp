@@ -8,7 +8,6 @@
 #include "core/entity.h"
 #include "math/geometry.h"
 #include "math/vector2.h"
-#include "rect.h"
 #include "renderer/api/origin.h"
 #include "renderer/render_data.h"
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <list>
@@ -29,8 +30,16 @@
 #include "core/window.h"
 #include "debug/log.h"
 #include "math/geometry.h"
+#include "math/geometry/arc.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/ellipse.h"
 #include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
 #include "math/geometry/rect.h"
+#include "math/geometry/rounded_rect.h"
+#include "math/geometry/triangle.h"
+#include "math/math.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -149,14 +158,17 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat tex
 }
 
 void RenderData::AddPoint(
-	const V2_float& position, const Color& tint, const Depth& depth, const RenderState& state
+	const Transform& transform, const V2_float& position, const Color& tint, const Depth& depth,
+	const RenderState& state
 ) {
-	AddQuad(Transform{ position }, V2_float{ 1.0f }, Origin::Center, tint, depth, -1.0f, state);
+	Transform translated{ transform };
+	translated.Translate(position);
+	AddQuad(translated, Rect{ V2_float{ 1.0f } }, Origin::Center, tint, depth, -1.0f, state);
 }
 
 void RenderData::AddLines(
-	const std::vector<V2_float>& line_points, const Color& tint, const Depth& depth,
-	float line_width, bool connect_last_to_first, const RenderState& state
+	const Transform& transform, const std::vector<V2_float>& line_points, const Color& tint,
+	const Depth& depth, float line_width, bool connect_last_to_first, const RenderState& state
 ) {
 	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for line");
 
@@ -180,7 +192,7 @@ void RenderData::AddLines(
 
 	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
 		Line l{ line_points[i], line_points[(i + 1) % vertex_modulo] };
-		auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
+		auto quad_points{ l.GetWorldQuadVertices(transform, line_width) };
 		auto quad_vertices{
 			Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
 		};
@@ -189,29 +201,60 @@ void RenderData::AddLines(
 	}
 }
 
-void RenderData::AddCapsule(
-	const V2_float& start, const V2_float& end, float radius, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
+void RenderData::AddArc(
+	const Transform& transform, const Arc& arc, bool clockwise, const Color& tint,
+	const Depth& depth, float line_width, const RenderState& state
 ) {
+	auto radius{ arc.GetRadius(transform) };
+
 	if (radius <= 0.0f) {
 		return;
 	}
 
-	Line l{ start, end };
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, V2_float{ radius }) };
+
+	float aperture{ arc.GetAperture() };
+
+	Transform rotated{ transform };
+	rotated.Rotate(arc.GetStartAngle());
+
+	auto quad_points{ arc.GetWorldQuadVertices(rotated) };
+
+	float fade{ 4.0f / (2.0f * radius) };
+	float direction{ clockwise ? 1.0f : -1.0f };
+
+	auto quad_vertices{ Vertex::GetQuad(
+		quad_points, tint, depth, { thickness, fade, aperture, direction },
+		GetDefaultTextureCoordinates()
+	) };
+
+	SetState(state);
+	AddVertices(quad_vertices, quad_indices);
+}
+
+void RenderData::AddCapsule(
+	const Transform& transform, const Capsule& capsule, const Color& tint, const Depth& depth,
+	float line_width, const RenderState& state
+) {
+	auto radius{ capsule.GetRadius(transform) };
+
+	if (radius <= 0.0f) {
+		return;
+	}
+
 	V2_float size;
-	float diameter{ 2.0f * radius };
-	auto quad_points{ l.GetWorldQuadVertices(Transform{}, diameter, diameter, &size) };
+	auto quad_points{ capsule.GetWorldQuadVertices(transform, &size) };
 
 	float thickness{ NormalizeArcLineWidthToThickness(line_width, V2_float{ radius }) };
 
 	float fade{ 4.0f / size.y };
 
-	PTGN_ASSERT(size.x >= diameter);
+	PTGN_ASSERT(size.x >= 2.0f * radius);
 
 	float aspect_ratio{ size.y / size.x };
 
 	auto quad_vertices{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, fade, diameter / size.x, aspect_ratio },
+		quad_points, tint, depth, { thickness, fade, 2.0f * radius / size.x, aspect_ratio },
 		GetDefaultTextureCoordinates()
 	) };
 
@@ -220,13 +263,14 @@ void RenderData::AddCapsule(
 }
 
 void RenderData::AddLine(
-	const V2_float& start, const V2_float& end, const Color& tint, const Depth& depth,
+	const Transform& transform, const Line& line, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for line");
+	if (line_width <= min_line_width) {
+		return;
+	}
 
-	Line l{ start, end };
-	auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
+	auto quad_points{ line.GetWorldQuadVertices(transform, line_width) };
 
 	auto quad_vertices{
 		Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
@@ -237,20 +281,28 @@ void RenderData::AddLine(
 }
 
 void RenderData::AddTriangle(
-	const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
+	const Transform& transform, const Triangle& triangle, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	auto triangle_vertices{ Vertex::GetTriangle(triangle_points, tint, depth) };
+	auto points{ triangle.GetWorldVertices(transform) };
 
-	AddShape(triangle_vertices, triangle_indices, triangle_points, line_width, state);
+	auto triangle_vertices{ Vertex::GetTriangle(points, tint, depth) };
+
+	AddShape(triangle_vertices, triangle_indices, points, line_width, state);
 }
 
 void RenderData::AddQuad(
-	const Transform& transform, const V2_float& size, Origin draw_origin, const Color& tint,
+	const Transform& transform, const Rect& rect, Origin draw_origin, const Color& tint,
 	const Depth& depth, float line_width, const RenderState& state
 ) {
-	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw quad with invalid size");
-	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
+	auto size{ rect.GetSize(transform) };
+
+	if (!size.BothAboveZero()) {
+		return;
+	}
+
+	auto quad_points{ rect.GetWorldVertices(transform, draw_origin) };
+
 	auto quad_vertices{
 		Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
 	};
@@ -258,46 +310,88 @@ void RenderData::AddQuad(
 	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
 }
 
+void RenderData::AddRoundedQuad(
+	const Transform& transform, const RoundedRect& rrect, Origin draw_origin, const Color& tint,
+	const Depth& depth, float line_width, const RenderState& state
+) {
+	auto size{ rrect.GetSize(transform) };
+
+	if (!size.BothAboveZero()) {
+		return;
+	}
+	auto radius{ rrect.GetRadius(transform) };
+
+	if (radius <= 0.0f) {
+		RenderState quad_state{ state };
+		quad_state.shader_pass = game.shader.Get("quad");
+		AddQuad(
+			transform, Rect{ rrect.GetSize() }, draw_origin, tint, depth, line_width, quad_state
+		);
+		return;
+	}
+
+	auto quad_points{ rrect.GetWorldQuadVertices(transform, draw_origin) };
+
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, size * 0.5f) };
+
+	float fade{ 4.0f / size.y };
+
+	auto diameter{ 2.0f * radius };
+
+	PTGN_ASSERT(size.x >= diameter);
+
+	float aspect_ratio{ size.y / size.x };
+
+	auto quad_vertices{ Vertex::GetQuad(
+		quad_points, tint, depth, { thickness, fade, diameter / size.x, aspect_ratio },
+		GetDefaultTextureCoordinates()
+	) };
+
+	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
+}
+
 void RenderData::AddPolygon(
-	const std::vector<V2_float>& polygon_points, const Color& tint, const Depth& depth,
+	const Transform& transform, const Polygon& polygon, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	PTGN_ASSERT(polygon_points.size() >= 3, "Polygon must have at least 3 points");
+	PTGN_ASSERT(polygon.vertices.size() >= 3, "Polygon must have at least 3 points");
 
 	if (line_width == -1.0f) {
+		auto vertices{ polygon.GetWorldVertices(transform) };
 		SetState(state);
-		auto triangles{ Triangulate(polygon_points.data(), polygon_points.size()) };
+		auto triangles{ Triangulate(vertices.data(), vertices.size()) };
 		for (const auto& triangle : triangles) {
 			auto triangle_vertices{ Vertex::GetTriangle(triangle, tint, depth) };
 			AddVertices(triangle_vertices, triangle_indices);
 		}
 	} else {
-		AddLines(polygon_points, tint, depth, line_width, true, state);
+		AddLines(transform, polygon.vertices, tint, depth, line_width, true, state);
 	}
 }
 
 void RenderData::AddCircle(
-	const Transform& transform, float radius, const Color& tint, const Depth& depth,
+	const Transform& transform, const Circle& circle, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	AddEllipse(transform, V2_float{ radius, radius }, tint, depth, line_width, state);
+	AddEllipse(
+		transform, Ellipse{ V2_float{ circle.GetRadius() } }, tint, depth, line_width, state
+	);
 }
 
 void RenderData::AddEllipse(
-	const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
+	const Transform& transform, const Ellipse& ellipse, const Color& tint, const Depth& depth,
 	float line_width, const RenderState& state
 ) {
-	if (radii.HasZero()) {
+	auto radius{ ellipse.GetRadius(transform) };
+
+	if (!radius.BothAboveZero()) {
 		return;
 	}
 
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, radii) };
+	auto quad_points{ ellipse.GetWorldQuadVertices(transform) };
 
-	auto diameter{ 2.0f * radii };
-
-	auto quad_points{ Rect{ diameter }.GetWorldVertices(transform) };
-
-	float fade{ 4.0f / diameter.y };
+	float fade{ 4.0f / (2.0f * radius.y) };
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, radius) };
 
 	auto points{ Vertex::GetQuad(
 		quad_points, tint, depth, { thickness, fade }, GetDefaultTextureCoordinates()
@@ -305,6 +399,70 @@ void RenderData::AddEllipse(
 
 	SetState(state);
 	AddVertices(points, quad_indices);
+}
+
+void RenderData::AddTexturedQuad(
+	const Transform& transform, const Texture& texture, const Rect& rect, Origin origin,
+	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
+	const RenderState& state, const PreFX& pre_fx
+) {
+	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
+
+	auto size{ rect.GetSize(transform) };
+
+	if (!size.BothAboveZero()) {
+		return;
+	}
+
+	SetState(state);
+
+	auto texture_points{ rect.GetWorldVertices(transform, origin) };
+
+	auto texture_vertices{
+		Vertex::GetQuad(texture_points, tint, depth, { 0.0f }, texture_coordinates, false)
+	};
+
+	auto texture_id{ texture.GetId() };
+
+	if (!pre_fx.pre_fx_.empty()) {
+		auto texture_size{ texture.GetSize() };
+
+		PTGN_ASSERT(
+			texture_size.BothAboveZero(), "Texture must have a valid size for it to have post fx"
+		);
+
+		Viewport viewport{ {}, texture_size };
+
+		DrawTarget target;
+		target.viewport		  = viewport;
+		target.texture_format = texture.GetFormat();
+		SetPointsAndProjection(target);
+
+		texture_id = PingPong(
+			pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format), texture,
+			target, true
+		);
+
+		white_texture.Bind(0);
+
+		force_flush = true;
+	}
+
+	float texture_index{ 0.0f };
+
+	bool existing_texture{ GetTextureIndex(texture_id, texture_index) };
+
+	Vertex::SetTextureIndex(texture_vertices, texture_index);
+
+	AddVertices(texture_vertices, quad_indices);
+
+	if (!existing_texture) {
+		// Must be done after AddVertices and SetState because both of them may Flush the current
+		// batch, which will clear textures.
+		textures_.emplace_back(texture_id);
+	}
+
+	PTGN_ASSERT(textures_.size() < max_texture_slots);
 }
 
 TextureId RenderData::PingPong(
@@ -359,65 +517,6 @@ TextureId RenderData::PingPong(
 	read->in_use = false;
 
 	return write->frame_buffer.GetTexture().GetId();
-}
-
-void RenderData::AddTexturedQuad(
-	const Texture& texture, Transform transform, const V2_float& size, Origin origin,
-	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-	const RenderState& state, const PreFX& pre_fx
-) {
-	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
-	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw textured quad with zero or negative size");
-
-	SetState(state);
-
-	auto texture_points{ Rect{ size }.GetWorldVertices(transform, origin) };
-
-	auto texture_vertices{
-		Vertex::GetQuad(texture_points, tint, depth, { 0.0f }, texture_coordinates, false)
-	};
-
-	auto texture_id{ texture.GetId() };
-
-	if (!pre_fx.pre_fx_.empty()) {
-		auto texture_size{ texture.GetSize() };
-
-		PTGN_ASSERT(
-			texture_size.BothAboveZero(), "Texture must have a valid size for it to have post fx"
-		);
-
-		Viewport viewport{ {}, texture_size };
-
-		DrawTarget target;
-		target.viewport		  = viewport;
-		target.texture_format = texture.GetFormat();
-		SetPointsAndProjection(target);
-
-		texture_id = PingPong(
-			pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format), texture,
-			target, true
-		);
-
-		white_texture.Bind(0);
-
-		force_flush = true;
-	}
-
-	float texture_index{ 0.0f };
-
-	bool existing_texture{ GetTextureIndex(texture_id, texture_index) };
-
-	Vertex::SetTextureIndex(texture_vertices, texture_index);
-
-	AddVertices(texture_vertices, quad_indices);
-
-	if (!existing_texture) {
-		// Must be done after AddVertices and SetState because both of them may Flush the current
-		// batch, which will clear textures.
-		textures_.emplace_back(texture_id);
-	}
-
-	PTGN_ASSERT(textures_.size() < max_texture_slots);
 }
 
 void RenderData::Init() {
@@ -613,11 +712,11 @@ void RenderData::AddLinesImpl(
 	PTGN_ASSERT(points.size() == line_vertices.size());
 
 	for (std::size_t i = 0; i < points.size(); ++i) {
-		auto start = points[i];
-		auto end   = points[(i + 1) % points.size()];
+		auto start{ points[i] };
+		auto end{ points[(i + 1) % points.size()] };
 
 		Line l{ start, end };
-		auto line_points = l.GetWorldQuadVertices(Transform{}, line_width);
+		auto line_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
 
 		for (std::size_t j = 0; j < line_vertices.size(); ++j) {
 			line_vertices[j].position[0] = line_points[j].x;

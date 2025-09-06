@@ -371,7 +371,7 @@ static void DrawTexturedButton(
 	}
 
 	ctx.AddTexturedQuad(
-		button_texture, info.transform, size, origin, texture_tint.Normalized() * tint_n,
+		info.transform, button_texture, Rect{ size }, origin, texture_tint.Normalized() * tint_n,
 		info.depth, Sprite{ button }.GetTextureCoordinates(false), info.state
 	);
 }
@@ -395,7 +395,7 @@ static void DrawButtonQuad(
 
 	// TODO: Fix rounded buttons.
 	ctx.AddQuad(
-		info.transform, size, origin, color.Normalized() * tint_n, info.depth, line_width,
+		info.transform, Rect{ size }, origin, color.Normalized() * tint_n, info.depth, line_width,
 		info.state
 	);
 }

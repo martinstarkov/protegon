@@ -18,11 +18,14 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
+#include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
+#include "math/geometry/ellipse.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/geometry/rect.h"
+#include "math/geometry/rounded_rect.h"
 #include "math/geometry/triangle.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -269,14 +272,14 @@ void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture) {
 
 	Sprite sprite{ entity };
 	const auto& texture{ sprite.GetTexture() };
-	auto size{ sprite.GetSize() };
+	Rect rect{ sprite.GetSize() };
 	auto texture_coordinates{ sprite.GetTextureCoordinates(flip_texture) };
 
 	auto origin{ GetDrawOrigin(entity) };
 	auto pre_fx{ entity.GetOrDefault<PreFX>() };
 
 	ctx.AddTexturedQuad(
-		texture, info.transform, size, origin, info.tint, info.depth, texture_coordinates,
+		info.transform, texture, rect, origin, info.tint, info.depth, texture_coordinates,
 		info.state, pre_fx
 	);
 }
@@ -314,7 +317,7 @@ void DrawText(
 	if (bool is_hd{ text.IsHD() }) {
 		auto scene_scale{ text.GetScene().GetScaleRelativeTo(text.GetCamera()) };
 
-		info.transform.Scale(1.0f / scene_scale);
+		info.transform.Scale(info.transform.GetScale() / scene_scale);
 
 		if (text.GetFontSize(is_hd) != text.Get<impl::CachedFontSize>()) {
 			text.RecreateTexture();
@@ -349,8 +352,8 @@ void DrawText(
 	}
 
 	ctx.AddTexturedQuad(
-		text_texture, info.transform, size, origin, text_tint, info.depth, texture_coordinates,
-		info.state, pre_fx
+		info.transform, text_texture, Rect{ size }, origin, text_tint, info.depth,
+		texture_coordinates, info.state, pre_fx
 	);
 }
 
@@ -359,64 +362,102 @@ void DrawText(RenderData& ctx, const Entity& entity) {
 }
 
 void DrawRect(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Rect>());
+
+	ShapeDrawInfo info{ entity };
+
 	const auto& rect{ entity.Get<Rect>() };
 	auto origin{ GetDrawOrigin(entity) };
-	ctx.AddQuad(
-		info.transform, rect.GetSize(), origin, info.tint, info.depth, info.line_width, info.state
+
+	ctx.AddQuad(info.transform, rect, origin, info.tint, info.depth, info.line_width, info.state);
+}
+
+void DrawRoundedRect(RenderData& ctx, const Entity& entity) {
+	PTGN_ASSERT(entity.Has<RoundedRect>());
+
+	ShapeDrawInfo info{ entity };
+	info.state.shader_pass = game.shader.Get("rounded_rect");
+
+	const auto& rrect{ entity.Get<RoundedRect>() };
+	auto origin{ GetDrawOrigin(entity) };
+
+	ctx.AddRoundedQuad(
+		info.transform, rrect, origin, info.tint, info.depth, info.line_width, info.state
 	);
+}
+
+void DrawArc(RenderData& ctx, const Entity& entity, bool clockwise) {
+	PTGN_ASSERT(entity.Has<Arc>());
+
+	ShapeDrawInfo info{ entity };
+	info.state.shader_pass = game.shader.Get("arc");
+
+	const auto& arc{ entity.Get<Arc>() };
+
+	ctx.AddArc(info.transform, arc, clockwise, info.tint, info.depth, info.line_width, info.state);
 }
 
 void DrawCapsule(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Capsule>());
-	const auto& capsule{ entity.Get<Capsule>() };
+
+	ShapeDrawInfo info{ entity };
 	info.state.shader_pass = game.shader.Get("capsule");
 
-	auto [start, end] = capsule.GetWorldVertices(info.transform);
+	const auto& capsule{ entity.Get<Capsule>() };
 
-	ctx.AddCapsule(start, end, capsule.radius, info.tint, info.depth, info.line_width, info.state);
+	ctx.AddCapsule(info.transform, capsule, info.tint, info.depth, info.line_width, info.state);
 }
 
 void DrawCircle(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Circle>());
-	const auto& circle{ entity.Get<Circle>() };
+
+	ShapeDrawInfo info{ entity };
 	info.state.shader_pass = game.shader.Get("circle");
-	ctx.AddCircle(
-		info.transform, circle.radius, info.tint, info.depth, info.line_width, info.state
-	);
+
+	const auto& circle{ entity.Get<Circle>() };
+
+	ctx.AddCircle(info.transform, circle, info.tint, info.depth, info.line_width, info.state);
+}
+
+void DrawEllipse(RenderData& ctx, const Entity& entity) {
+	PTGN_ASSERT(entity.Has<Ellipse>());
+
+	ShapeDrawInfo info{ entity };
+	info.state.shader_pass = game.shader.Get("circle"); // ellipses use the circle shader.
+
+	const auto& ellipse{ entity.Get<Ellipse>() };
+
+	ctx.AddEllipse(info.transform, ellipse, info.tint, info.depth, info.line_width, info.state);
 }
 
 void DrawLine(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Line>());
+
+	ShapeDrawInfo info{ entity };
+
 	const auto& line{ entity.Get<Line>() };
 
-	auto [start, end] = line.GetWorldVertices(info.transform);
-
-	ctx.AddLine(start, end, info.tint, info.depth, info.line_width, info.state);
+	ctx.AddLine(info.transform, line, info.tint, info.depth, info.line_width, info.state);
 }
 
 void DrawPolygon(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Polygon>());
+
+	ShapeDrawInfo info{ entity };
+
 	const auto& polygon{ entity.Get<Polygon>() };
 
-	auto points{ polygon.GetWorldVertices(info.transform) };
-
-	ctx.AddPolygon(points, info.tint, info.depth, info.line_width, info.state);
+	ctx.AddPolygon(info.transform, polygon, info.tint, info.depth, info.line_width, info.state);
 }
 
 void DrawTriangle(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
 	PTGN_ASSERT(entity.Has<Triangle>());
+
+	ShapeDrawInfo info{ entity };
+
 	const auto& triangle{ entity.Get<Triangle>() };
 
-	auto points{ triangle.GetWorldVertices(info.transform) };
-
-	ctx.AddTriangle(points, info.tint, info.depth, info.line_width, info.state);
+	ctx.AddTriangle(info.transform, triangle, info.tint, info.depth, info.line_width, info.state);
 }
 
 } // namespace impl

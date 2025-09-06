@@ -35,7 +35,17 @@ namespace ptgn {
 class Camera;
 class Shader;
 class Scene;
+
 struct Matrix4;
+struct Capsule;
+struct Arc;
+struct Circle;
+struct Ellipse;
+struct RoundedRect;
+struct Rect;
+struct Line;
+struct Polygon;
+struct Triangle;
 
 struct Viewport {
 	Viewport() = default;
@@ -153,51 +163,62 @@ private:
 class RenderData {
 public:
 	void AddPoint(
-		const V2_float& position, const Color& tint, const Depth& depth, const RenderState& state
+		const Transform& transform, const V2_float& position, const Color& tint, const Depth& depth,
+		const RenderState& state
 	);
 
 	void AddLine(
-		const V2_float& start, const V2_float& end, const Color& tint, const Depth& depth,
+		const Transform& transform, const Line& line, const Color& tint, const Depth& depth,
 		float line_width, const RenderState& state
 	);
 
 	void AddLines(
-		const std::vector<V2_float>& line_points, const Color& tint, const Depth& depth,
-		float line_width, bool connect_last_to_first, const RenderState& state
+		const Transform& transform, const std::vector<V2_float>& line_points, const Color& tint,
+		const Depth& depth, float line_width, bool connect_last_to_first, const RenderState& state
 	);
 
 	void AddCapsule(
-		const V2_float& start, const V2_float& end, float radius, const Color& tint,
+		const Transform& transform, const Capsule& capsule, const Color& tint, const Depth& depth,
+		float line_width, const RenderState& state
+	);
+
+	void AddArc(
+		const Transform& transform, const Arc& arc, bool clockwise, const Color& tint,
 		const Depth& depth, float line_width, const RenderState& state
 	);
 
 	void AddTriangle(
-		const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
+		const Transform& transform, const Triangle& triangle, const Color& tint, const Depth& depth,
 		float line_width, const RenderState& state
 	);
 
 	void AddQuad(
-		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
+		const Transform& transform, const Rect& rect, Origin origin, const Color& tint,
+		const Depth& depth, float line_width, const RenderState& state
+	);
+
+	void AddRoundedQuad(
+		const Transform& transform, const RoundedRect& rrect, Origin origin, const Color& tint,
 		const Depth& depth, float line_width, const RenderState& state
 	);
 
 	void AddPolygon(
-		const std::vector<V2_float>& polygon_points, const Color& tint, const Depth& depth,
+		const Transform& transform, const Polygon& polygon, const Color& tint, const Depth& depth,
 		float line_width, const RenderState& state
 	);
 
 	void AddEllipse(
-		const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
+		const Transform& transform, const Ellipse& ellipse, const Color& tint, const Depth& depth,
 		float line_width, const RenderState& state
 	);
 
 	void AddCircle(
-		const Transform& transform, float radius, const Color& tint, const Depth& depth,
+		const Transform& transform, const Circle& circle, const Color& tint, const Depth& depth,
 		float line_width, const RenderState& state
 	);
 
 	void AddTexturedQuad(
-		const Texture& texture, Transform transform, const V2_float& size, Origin origin,
+		const Transform& transform, const Texture& texture, const Rect& rect, Origin origin,
 		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
 		const RenderState& state, const PreFX& pre_fx = {}
 	);
