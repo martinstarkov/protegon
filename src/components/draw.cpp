@@ -481,6 +481,24 @@ Entity CreateRect(
 	return rect;
 }
 
+Entity CreatePolygon(
+	Manager& manager, const V2_float& position, const std::vector<V2_float>& vertices,
+	const Color& color, float line_width
+) {
+	auto polygon{ manager.CreateEntity() };
+
+	SetDraw<Polygon>(polygon);
+	Show(polygon);
+
+	SetPosition(polygon, position);
+	polygon.Add<Polygon>(vertices);
+
+	SetTint(polygon, color);
+	polygon.Add<LineWidth>(line_width);
+
+	return polygon;
+}
+
 Entity CreateCircle(
 	Manager& manager, const V2_float& position, float radius, const Color& color, float line_width
 ) {

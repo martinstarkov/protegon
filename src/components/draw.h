@@ -188,6 +188,11 @@ Entity CreateRect(
 	float line_width = -1.0f, Origin origin = Origin::Center
 );
 
+Entity CreatePolygon(
+	Manager& manager, const V2_float& position, const std::vector<V2_float>& vertices,
+	const Color& color, float line_width = -1.0f
+);
+
 /**
  * @brief Creates a circle entity in the manager.
  *
