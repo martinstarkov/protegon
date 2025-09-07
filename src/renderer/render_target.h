@@ -1,17 +1,23 @@
 #pragma once
 
+#include <concepts>
 #include <functional>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
+#include "common/type_info.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
+#include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/texture.h"
+#include "serialization/serializable.h"
 
 namespace ptgn {
 
@@ -52,7 +58,55 @@ struct DisplayResizeScript : public Script<DisplayResizeScript, DisplaySizeScrip
 	void OnDisplaySizeChanged() override;
 };
 
+template <typename T>
+concept DrawFilterType = requires(RenderData& ctx, const RenderTarget& render_target) {
+	{ T::Filter(ctx, render_target) } -> std::same_as<void>;
+};
+
+class IDrawFilter {
+public:
+	IDrawFilter() = default;
+
+	IDrawFilter(std::string_view name) : hash{ Hash(name) } {}
+
+	using FilterFunc = void (*)(RenderData&, const RenderTarget&);
+
+	static auto& data() {
+		static std::unordered_map<std::size_t, FilterFunc> s;
+		return s;
+	}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(IDrawFilter, hash)
+
+	std::size_t hash{ 0 };
+};
+
+template <DrawFilterType T>
+class DrawFilterRegistrar {
+	friend RenderTarget;
+
+	friend T;
+
+	static bool RegisterDrawFilterFunction() {
+		constexpr auto name{ type_name<T>() };
+		IDrawFilter::data()[Hash(name)] = &T::Filter;
+		return true;
+	}
+
+	static bool registered_filter;
+
+	DrawFilterRegistrar() {
+		(void)registered_filter;
+	}
+};
+
+template <DrawFilterType T>
+bool DrawFilterRegistrar<T>::registered_filter =
+	DrawFilterRegistrar<T>::RegisterDrawFilterFunction();
+
 } // namespace impl
+
+#define PTGN_DRAW_FILTER_REGISTER(Type) template class impl::DrawFilterRegistrar<Type>
 
 // Each render target is initialized with a window camera.
 class RenderTarget : public Entity {
@@ -62,6 +116,8 @@ public:
 	RenderTarget(const Entity& entity);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
+
+	static void Filter(impl::RenderData& ctx, const RenderTarget& render_target) {}
 
 	// @return Unscaled size of the entire texture in pixels.
 	[[nodiscard]] V2_int GetTextureSize() const;
@@ -136,6 +192,7 @@ private:
 };
 
 PTGN_DRAWABLE_REGISTER(RenderTarget);
+PTGN_DRAW_FILTER_REGISTER(RenderTarget);
 
 // Create a render target with a custom size.
 // @param size The size of the render target.
@@ -152,5 +209,23 @@ RenderTarget CreateRenderTarget(
 	const Color& clear_color	 = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
+
+namespace impl {
+
+// @return render_target
+RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view filter_name);
+
+} // namespace impl
+
+// @return render_target.
+template <DrawableType T>
+RenderTarget& SetDrawFilter(RenderTarget& render_target) {
+	return impl::SetDrawFilterImpl(render_target, type_name<T>());
+}
+
+[[nodiscard]] bool HasDrawFilter(const RenderTarget& render_target);
+
+// @return render_target.
+RenderTarget& RemoveDrawFilter(RenderTarget& render_target);
 
 } // namespace ptgn

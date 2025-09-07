@@ -18,14 +18,15 @@ class UUID;
 namespace impl {
 
 class IDrawable;
+class IDrawFilter;
 struct ChildKey;
 struct IgnoreParentTransform;
 
 // Components which	cannot be modified or retrieved by the user through the entity class.
 template <typename T>
 concept RetrievableComponent = !IsAnyOf<
-	T, Transform, Depth, Visible, Interactive, impl::IDrawable, Tint, Children, Parent,
-	impl::ChildKey, impl::IgnoreParentTransform, PreFX, PostFX, UUID>;
+	T, Transform, Depth, Visible, Interactive, impl::IDrawable, impl::IDrawFilter, Tint, Children,
+	Parent, impl::ChildKey, impl::IgnoreParentTransform, PreFX, PostFX, UUID>;
 
 template <typename... Ts>
 concept AllRetrievableComponents = (RetrievableComponent<Ts> && ...);

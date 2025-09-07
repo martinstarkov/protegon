@@ -1,6 +1,7 @@
 #include "renderer/render_target.h"
 
 #include <functional>
+#include <string_view>
 #include <vector>
 
 #include "common/assert.h"
@@ -227,6 +228,24 @@ RenderTarget CreateRenderTarget(
 	auto render_target{ impl::AddRenderTargetComponents(
 		manager.CreateEntity(), manager, size, clear_color, texture_format
 	) };
+	return render_target;
+}
+
+namespace impl {
+
+RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view filter_name) {
+	EntityAccess::Add<IDrawFilter>(render_target, filter_name);
+	return render_target;
+}
+
+} // namespace impl
+
+bool HasDrawFilter(const RenderTarget& render_target) {
+	return render_target.Has<impl::IDrawFilter>();
+}
+
+RenderTarget& RemoveDrawFilter(RenderTarget& render_target) {
+	impl::EntityAccess::Remove<impl::IDrawFilter>(render_target);
 	return render_target;
 }
 
