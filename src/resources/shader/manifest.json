@@ -1,4 +1,7 @@
 {
+  "color": {
+    "source": "color"
+  },
   "quad": {
     "source": "quad"
   },
