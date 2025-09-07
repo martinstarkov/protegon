@@ -17,7 +17,7 @@ public:
 
 	void Enter() override {
 		// game.renderer.SetBackgroundColor(color::White);
-		SetBackgroundColor(color::Transparent);
+		SetBackgroundColor(color::LightBlue.WithAlpha(1));
 
 		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("test", "resources/test1.jpg");
