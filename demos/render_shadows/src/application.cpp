@@ -4,6 +4,7 @@
 #include "input/input_handler.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/vfx/light.h"
 #include "scene/camera.h"
@@ -34,7 +35,7 @@ public:
 
 		float step{ 80 };
 
-		auto rt = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
+		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, color::Transparent);
 
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
@@ -46,20 +47,21 @@ public:
 			return light;
 		};
 
-		rt.AddToDisplayList(create_light(color::Cyan));
+		/*rt.AddToDisplayList(create_light(color::Cyan));
 		rt.AddToDisplayList(create_light(color::Green));
 		rt.AddToDisplayList(create_light(color::Blue));
 		rt.AddToDisplayList(create_light(color::Magenta));
 		rt.AddToDisplayList(create_light(color::Yellow));
 		rt.AddToDisplayList(create_light(color::Cyan));
-		rt.AddToDisplayList(create_light(color::White));
+		rt.AddToDisplayList(create_light(color::White));*/
 
 		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
 		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
 
 		mouse_light = CreatePointLight(*this, {}, 50.0f, color::White, 0.8f, 1.0f);
-		// mouse_light.SetAmbientColor(color::Red);
-		// mouse_light.SetAmbientIntensity(0.1f);
+		rt.AddToDisplayList(mouse_light);
+		//  mouse_light.SetAmbientColor(color::Red);
+		//  mouse_light.SetAmbientIntensity(0.1f);
 	}
 
 	void Update() override {
