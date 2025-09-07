@@ -92,12 +92,9 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 		case BlendMode::MultiplyWithAlphaBlend:
 			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE));
 			break;
-		case BlendMode::None: GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO)); break;
-		// TODO: Add stencil blend mode.
-		/*case BlendMode::Stencil:
-			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
-			break;*/
-		default:			  PTGN_ERROR("Failed to identify blend mode");
+		case BlendMode::None:	 GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO)); break;
+		case BlendMode::Stencil: GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO)); break;
+		default:				 PTGN_ERROR("Failed to identify blend mode");
 	}
 	game.renderer.bound_.blend_mode = mode;
 #ifdef PTGN_DEBUG
