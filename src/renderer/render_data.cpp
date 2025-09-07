@@ -923,7 +923,7 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 	draw_function(*this, entity);
 }
 
-void RenderData::InvokeDrawFilter(const RenderTarget& render_target) {
+void RenderData::InvokeDrawFilter(RenderTarget& render_target) {
 	if (!render_target.Has<IDrawFilter>()) {
 		return;
 	}
@@ -936,7 +936,7 @@ void RenderData::InvokeDrawFilter(const RenderTarget& render_target) {
 
 	const auto& filter_function{ filter_functions.find(filter.hash)->second };
 
-	filter_function(*this, render_target);
+	filter_function(render_target);
 }
 
 RenderData::DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
@@ -975,7 +975,7 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 }
 
 void RenderData::DrawDisplayList(
-	const RenderTarget& render_target, std::vector<Entity>& display_list,
+	RenderTarget& render_target, std::vector<Entity>& display_list,
 	const std::function<bool(const Entity&)>& filter
 ) {
 	SortByDepth(display_list);
@@ -1002,7 +1002,9 @@ void RenderData::DrawScene(Scene& scene) {
 			continue;
 		}
 
-		DrawDisplayList(entity, display_list.entities);
+		RenderTarget rt{ entity };
+
+		DrawDisplayList(rt, display_list.entities);
 	}
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
@@ -1194,7 +1196,7 @@ void RenderData::DrawScreenTarget() {
 
 void RenderData::Draw(Scene& scene) {
 	// PTGN_LOG(draw_context_pool.contexts_.size());
-	//  PTGN_PROFILE_FUNCTION();
+	// PTGN_PROFILE_FUNCTION();
 
 	white_texture.Bind(0);
 

@@ -59,8 +59,8 @@ struct DisplayResizeScript : public Script<DisplayResizeScript, DisplaySizeScrip
 };
 
 template <typename T>
-concept DrawFilterType = requires(RenderData& ctx, const RenderTarget& render_target) {
-	{ T::Filter(ctx, render_target) } -> std::same_as<void>;
+concept DrawFilterType = requires(RenderTarget& render_target) {
+	{ T::Filter(render_target) } -> std::same_as<void>;
 };
 
 class IDrawFilter {
@@ -69,7 +69,7 @@ public:
 
 	IDrawFilter(std::string_view name) : hash{ Hash(name) } {}
 
-	using FilterFunc = void (*)(RenderData&, const RenderTarget&);
+	using FilterFunc = void (*)(RenderTarget&);
 
 	static auto& data() {
 		static std::unordered_map<std::size_t, FilterFunc> s;
@@ -104,6 +104,9 @@ template <DrawFilterType T>
 bool DrawFilterRegistrar<T>::registered_filter =
 	DrawFilterRegistrar<T>::RegisterDrawFilterFunction();
 
+// @return render_target
+RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view filter_name);
+
 } // namespace impl
 
 #define PTGN_DRAW_FILTER_REGISTER(Type) template class impl::DrawFilterRegistrar<Type>
@@ -117,7 +120,9 @@ public:
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
-	static void Filter(impl::RenderData& ctx, const RenderTarget& render_target) {}
+	// Interface function for filtering the display list prior to drawing its entities to the render
+	// target.
+	static void Filter([[maybe_unused]] RenderTarget& render_target) {}
 
 	// @return Unscaled size of the entire texture in pixels.
 	[[nodiscard]] V2_int GetTextureSize() const;
@@ -136,6 +141,8 @@ public:
 	void RemoveFromDisplayList(Entity entity);
 
 	[[nodiscard]] const std::vector<Entity>& GetDisplayList() const;
+
+	[[nodiscard]] std::vector<Entity>& GetDisplayList();
 
 	// @return The clear color of the render target.
 	[[nodiscard]] Color GetClearColor() const;
@@ -178,6 +185,17 @@ public:
 
 	void Resize(const V2_int& size);
 
+	// @return render_target.
+	template <impl::DrawFilterType T>
+	RenderTarget& SetDrawFilter() {
+		return impl::SetDrawFilterImpl(*this, type_name<T>());
+	}
+
+	[[nodiscard]] bool HasDrawFilter();
+
+	// @return render_target.
+	RenderTarget& RemoveDrawFilter();
+
 private:
 	friend class impl::RenderData;
 	friend class Scene;
@@ -185,10 +203,6 @@ private:
 		const Entity& entity, Manager& manager, const V2_int& size, const Color& clear_color,
 		TextureFormat texture_format
 	);
-
-	// Scene uses vector directly when adding to display list instead of AddToDisplayList. This
-	// avoids adding a render target to each scene entity.
-	[[nodiscard]] std::vector<Entity>& GetDisplayList();
 };
 
 PTGN_DRAWABLE_REGISTER(RenderTarget);
@@ -209,23 +223,5 @@ RenderTarget CreateRenderTarget(
 	const Color& clear_color	 = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
-
-namespace impl {
-
-// @return render_target
-RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view filter_name);
-
-} // namespace impl
-
-// @return render_target.
-template <DrawableType T>
-RenderTarget& SetDrawFilter(RenderTarget& render_target) {
-	return impl::SetDrawFilterImpl(render_target, type_name<T>());
-}
-
-[[nodiscard]] bool HasDrawFilter(const RenderTarget& render_target);
-
-// @return render_target.
-RenderTarget& RemoveDrawFilter(RenderTarget& render_target);
 
 } // namespace ptgn

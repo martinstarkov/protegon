@@ -191,6 +191,24 @@ void RenderTarget::Resize(const V2_int& size) {
 	Get<impl::FrameBuffer>().GetTexture().Resize(size);
 }
 
+namespace impl {
+
+RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view filter_name) {
+	EntityAccess::Add<IDrawFilter>(render_target, filter_name);
+	return render_target;
+}
+
+} // namespace impl
+
+bool RenderTarget::HasDrawFilter() {
+	return Has<impl::IDrawFilter>();
+}
+
+RenderTarget& RenderTarget::RemoveDrawFilter() {
+	impl::EntityAccess::Remove<impl::IDrawFilter>(*this);
+	return *this;
+}
+
 RenderTarget CreateRenderTarget(
 	Manager& manager, ResizeMode resize_to_resolution, const Color& clear_color,
 	TextureFormat texture_format
@@ -228,24 +246,6 @@ RenderTarget CreateRenderTarget(
 	auto render_target{ impl::AddRenderTargetComponents(
 		manager.CreateEntity(), manager, size, clear_color, texture_format
 	) };
-	return render_target;
-}
-
-namespace impl {
-
-RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view filter_name) {
-	EntityAccess::Add<IDrawFilter>(render_target, filter_name);
-	return render_target;
-}
-
-} // namespace impl
-
-bool HasDrawFilter(const RenderTarget& render_target) {
-	return render_target.Has<impl::IDrawFilter>();
-}
-
-RenderTarget& RemoveDrawFilter(RenderTarget& render_target) {
-	impl::EntityAccess::Remove<impl::IDrawFilter>(render_target);
 	return render_target;
 }
 

@@ -299,7 +299,7 @@ private:
 	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
 
 	void InvokeDrawable(const Entity& entity);
-	void InvokeDrawFilter(const RenderTarget& render_target);
+	void InvokeDrawFilter(RenderTarget& render_target);
 
 	/*
 	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between
@@ -433,7 +433,7 @@ private:
 
 	// @param filter If function returns true, the entity is not drawn.
 	void DrawDisplayList(
-		const RenderTarget& render_target, std::vector<Entity>& display_list,
+		RenderTarget& render_target, std::vector<Entity>& display_list,
 		const std::function<bool(const Entity&)>& filter = {}
 	);
 
