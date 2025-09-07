@@ -306,7 +306,7 @@ private:
 	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
 
 	void InvokeDrawable(const Entity& entity);
-	void InvokeDrawFilter(RenderTarget& render_target);
+	void InvokeDrawFilter(RenderTarget& render_target, FilterType type);
 
 	/*
 	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between

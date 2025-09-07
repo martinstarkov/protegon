@@ -31,6 +31,11 @@ enum class ResizeMode {
 	DisplaySize
 };
 
+enum class FilterType {
+	Pre,
+	Post
+};
+
 namespace impl {
 
 class RenderData;
@@ -59,8 +64,8 @@ struct DisplayResizeScript : public Script<DisplayResizeScript, DisplaySizeScrip
 };
 
 template <typename T>
-concept DrawFilterType = requires(RenderTarget& render_target) {
-	{ T::Filter(render_target) } -> std::same_as<void>;
+concept DrawFilterType = requires(RenderTarget& render_target, FilterType type) {
+	{ T::Filter(render_target, type) } -> std::same_as<void>;
 };
 
 class IDrawFilter {
@@ -69,7 +74,7 @@ public:
 
 	IDrawFilter(std::string_view name) : hash{ Hash(name) } {}
 
-	using FilterFunc = void (*)(RenderTarget&);
+	using FilterFunc = void (*)(RenderTarget&, FilterType);
 
 	static auto& data() {
 		static std::unordered_map<std::size_t, FilterFunc> s;
@@ -89,7 +94,9 @@ class DrawFilterRegistrar {
 
 	static bool RegisterDrawFilterFunction() {
 		constexpr auto name{ type_name<T>() };
+
 		IDrawFilter::data()[Hash(name)] = &T::Filter;
+
 		return true;
 	}
 
@@ -122,7 +129,9 @@ public:
 
 	// Interface function for filtering the display list prior to drawing its entities to the render
 	// target.
-	static void Filter([[maybe_unused]] RenderTarget& render_target) {}
+	static void Filter(
+		[[maybe_unused]] RenderTarget& render_target, [[maybe_unused]] FilterType type
+	) {}
 
 	// @return Unscaled size of the entire texture in pixels.
 	[[nodiscard]] V2_int GetTextureSize() const;

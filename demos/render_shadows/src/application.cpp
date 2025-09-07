@@ -18,80 +18,9 @@
 
 using namespace ptgn;
 
-class Shadow {
-public:
-	V2_float origin;
-
-	static void RemoveAlpha(impl::RenderData& ctx, const Camera& camera, const Depth& depth) {
-		impl::RenderState state{ game.shader.Get("color"), BlendMode::ReplaceAlpha, camera, {} };
-
-		Rect rect{ game.renderer.GetDisplaySize() };
-
-		ctx.AddQuad({}, rect, Origin::Center, color::Transparent, depth, -1.0f, state);
-	}
-
-	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		impl::ShapeDrawInfo info{ entity };
-
-		RemoveAlpha(ctx, info.state.camera, info.depth);
-
-		PTGN_ASSERT(entity.Has<Polygon>());
-
-		const auto& polygon{ entity.Get<Polygon>() };
-
-		info.state.blend_mode = BlendMode::AddAlpha;
-		info.tint			  = color::White;
-
-		// We need at least 3 points to form a triangle
-		if (polygon.vertices.size() < 3) {
-			return;
-		}
-
-		// Use the first point as the fan origin
-		const V2_float& origin = entity.Get<Shadow>().origin;
-
-		for (size_t i = 0; i < polygon.vertices.size(); ++i) {
-			const V2_float& a = polygon.vertices[i];
-			const V2_float& b = polygon.vertices[(i + 1) % polygon.vertices.size()];
-			ctx.AddTriangle(
-				info.transform, Triangle{ origin, a, b }, info.tint, info.depth, info.line_width,
-				info.state
-			);
-		}
-
-		// ctx.AddPolygon(info.transform, polygon, info.tint, info.depth, info.line_width,
-		// info.state);
-	}
-};
-
-PTGN_DRAWABLE_REGISTER(Shadow);
-
 class LightMap {
 public:
-	static void Filter(RenderTarget& render_target) {
-		auto& display_list{ render_target.GetDisplayList() };
-		SortShadows(display_list);
-	}
-
-private:
-	static void SortShadows(std::vector<Entity>& entities) {
-		std::stable_sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
-			const bool a_is_light = a.Has<impl::LightProperties>();
-			const bool b_is_light = b.Has<impl::LightProperties>();
-			if (a_is_light != b_is_light) {
-				return a_is_light; // true (1) comes before false (0)
-			}
-
-			const bool a_is_shadow = a.Has<Shadow>();
-			const bool b_is_shadow = b.Has<Shadow>();
-			if (a_is_shadow != b_is_shadow) {
-				return !a_is_shadow; // false (0) comes before true (1)
-			}
-
-			// Otherwise, preserve order
-			return false;
-		});
-	}
+	static void Filter(RenderTarget& render_target, FilterType type);
 };
 
 PTGN_DRAW_FILTER_REGISTER(LightMap);
@@ -626,7 +555,6 @@ std::vector<Vector> visibility_polygon(Vector point, InputIterator begin, InputI
 class ShadowScene : public Scene {
 public:
 	PointLight mouse_light;
-	Entity polygon;
 
 	std::vector<geometry::line_segment<geometry::vec2>> shadow_segments;
 
@@ -653,13 +581,6 @@ public:
 		// TODO: Fix having to do this.
 		SetBlendMode(rt, BlendMode::PremultipliedAddRGBA);
 
-		polygon = CreatePolygon(
-			*this, { 0, 0 }, { V2_float{ 0, -100 }, V2_float{ 100, 100 }, V2_float{ -100, 100 } },
-			color::Blue, -1.0f
-		);
-		SetDraw<Shadow>(polygon);
-		polygon.Add<Shadow>();
-
 		V2_float s{ game.renderer.GetGameSize() };
 
 		geometry::vec2 size{ s.x, s.y };
@@ -678,8 +599,6 @@ public:
 		shadow_segments.emplace_back(geometry::vec2{ size.x * 0.5f, -size.y * 0.5f }, size * 0.5f);
 		shadow_segments.emplace_back(size * 0.5f, geometry::vec2{ -size.x * 0.5f, size.y * 0.5f });
 		shadow_segments.emplace_back(geometry::vec2{ -size.x * 0.5f, size.y * 0.5f }, -size * 0.5f);
-
-		rt.AddToDisplayList(polygon);
 
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
@@ -711,18 +630,6 @@ public:
 	void Update() override {
 		auto pos{ input.GetMousePosition() };
 		SetPosition(mouse_light, pos);
-		geometry::vec2 posv{ pos.x, pos.y };
-		auto verts{
-			geometry::visibility_polygon(posv, shadow_segments.begin(), shadow_segments.end())
-		};
-		std::vector<V2_float> verts_2;
-		for (const auto& v : verts) {
-			verts_2.emplace_back(v.x, v.y);
-		}
-		if (verts_2.size() >= 3) {
-			polygon.Get<Polygon>().vertices = verts_2;
-			polygon.Get<Shadow>().origin	= pos;
-		}
 	}
 
 	void Exit() override {
@@ -730,6 +637,63 @@ public:
 		// SaveJson(j, "resources/light_scene.json");
 	}
 };
+
+void LightMap::Filter(RenderTarget& render_target, FilterType type) {
+	auto& display_list{ render_target.GetDisplayList() };
+	if (type == FilterType::Pre) {
+		// SortShadows(display_list);
+	} else {
+		auto& ctx{ game.renderer.GetRenderData() };
+		for (auto& entity : display_list) {
+			if (!entity.Has<impl::LightProperties>()) {
+				continue;
+			}
+			const auto& light{ entity.Get<impl::LightProperties>() };
+
+			auto pos{ GetPosition(entity) };
+
+			auto& shadow_segments{ game.scene.Get<ShadowScene>("").shadow_segments };
+
+			geometry::vec2 posv{ pos.x, pos.y };
+			auto verts{
+				geometry::visibility_polygon(posv, shadow_segments.begin(), shadow_segments.end())
+			};
+			std::vector<V2_float> verts_2;
+			for (const auto& v : verts) {
+				verts_2.emplace_back(v.x, v.y);
+			}
+			if (verts_2.size() >= 3) {
+				impl::ShapeDrawInfo info{ entity };
+
+				impl::RenderState state{
+					game.shader.Get("color"), BlendMode::ReplaceAlpha, info.state.camera, {}
+				};
+
+				Rect rect{ game.renderer.GetDisplaySize() };
+
+				ctx.AddQuad({}, rect, Origin::Center, color::Transparent, 0.0f, -1.0f, state);
+
+				info.state.blend_mode = BlendMode::AddAlpha;
+
+				// We need at least 3 points to form a triangle
+				if (verts_2.size() < 3) {
+					return;
+				}
+
+				// Use the first point as the fan origin
+				const V2_float& origin = pos;
+
+				for (size_t i = 0; i < verts_2.size(); ++i) {
+					const V2_float& a = verts_2[i];
+					const V2_float& b = verts_2[(i + 1) % verts_2.size()];
+					ctx.AddTriangle(
+						{}, Triangle{ origin, a, b }, color::White, 0.0f, -1.0f, info.state
+					);
+				}
+			}
+		}
+	}
+}
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("ShadowScene", { 800, 800 });

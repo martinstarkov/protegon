@@ -931,20 +931,21 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 	draw_function(*this, entity);
 }
 
-void RenderData::InvokeDrawFilter(RenderTarget& render_target) {
+void RenderData::InvokeDrawFilter(RenderTarget& render_target, FilterType type) {
 	if (!render_target.Has<IDrawFilter>()) {
 		return;
 	}
 
-	const auto& filter{ render_target.GetImpl<IDrawFilter>() };
-
-	const auto& filter_functions{ IDrawFilter::data() };
+	const auto& filter			 = render_target.GetImpl<IDrawFilter>();
+	const auto& filter_functions = IDrawFilter::data();
 
 	PTGN_ASSERT(filter_functions.contains(filter.hash), "Failed to identify filter hash");
 
 	const auto& filter_function{ filter_functions.find(filter.hash)->second };
 
-	filter_function(render_target);
+	PTGN_ASSERT(filter_function);
+
+	filter_function(render_target, type);
 }
 
 RenderData::DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
@@ -990,7 +991,7 @@ void RenderData::DrawDisplayList(
 
 	drawing_to_ = GetDrawTarget(render_target);
 
-	InvokeDrawFilter(render_target);
+	InvokeDrawFilter(render_target, FilterType::Pre);
 
 	for (const auto& entity : display_list) {
 		if (filter && filter(entity)) {
@@ -998,6 +999,8 @@ void RenderData::DrawDisplayList(
 		}
 		InvokeDrawable(entity);
 	}
+
+	InvokeDrawFilter(render_target, FilterType::Post);
 
 	Flush();
 }
