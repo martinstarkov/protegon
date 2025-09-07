@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <variant>
 #include <vector>
@@ -131,6 +132,8 @@ struct DrawContext {
 
 	FrameBuffer frame_buffer;
 
+	bool blend_mode_set{ false };
+	BlendMode blend_to_draw_target{ BlendMode::Blend };
 	bool in_use{ true };
 	bool keep_alive{ false };
 
@@ -233,14 +236,18 @@ public:
 	// consecutive calls. This prevents stacking of shader calls onto the same target. An example of
 	// where this is not desired is when rendering many lights back to back. Does not apply if a
 	// texture is used.
-	// @param blend_mode The blend mode with which each shader call is blended to the intermediate
-	// target.
+	// @param blend_to_intermediate_target The blend mode with which each shader call is blended to
+	// the intermediate target.
+	// @param blend_to_draw_target The blend mode with which the intermediate target is blended to
+	// the draw target.
 	// @param texture_format Specify a custom texture format to use for the shader.
 	void AddShader(
 		Entity entity, const RenderState& render_state, const Color& target_clear_color,
-		const TextureOrSize& texture_or_size = V2_int{},
-		bool clear_between_consecutive_calls = true, BlendMode blend_mode = BlendMode::Blend,
-		TextureFormat texture_format = TextureFormat::RGBA8888
+		const TextureOrSize& texture_or_size		  = V2_int{},
+		bool clear_between_consecutive_calls		  = true,
+		BlendMode blend_to_intermediate_target		  = BlendMode::Blend,
+		std::optional<BlendMode> blend_to_draw_target = std::nullopt,
+		TextureFormat texture_format				  = TextureFormat::RGBA8888
 	);
 
 	void AddTemporaryTexture(Texture&& texture);

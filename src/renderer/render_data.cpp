@@ -622,7 +622,8 @@ bool RenderData::SetState(const RenderState& new_render_state) {
 void RenderData::AddShader(
 	Entity entity, const RenderState& state, const Color& target_clear_color,
 	const TextureOrSize& texture_or_size, bool clear_between_consecutive_calls,
-	BlendMode blend_mode, TextureFormat texture_format
+	BlendMode blend_to_intermediate_target, std::optional<BlendMode> blend_to_draw_target,
+	TextureFormat texture_format
 ) {
 	bool state_changed{ SetState(state) };
 
@@ -646,7 +647,7 @@ void RenderData::AddShader(
 
 	target.depth	  = GetDepth(entity);
 	target.tint		  = target.tint.Normalized() * GetTint(entity).Normalized();
-	target.blend_mode = blend_mode;
+	target.blend_mode = blend_to_intermediate_target;
 
 	if (uses_size) {
 		if (!std::get<V2_int>(texture_or_size).IsZero()) {
@@ -668,6 +669,10 @@ void RenderData::AddShader(
 
 	if (clear) {
 		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
+		if (blend_to_draw_target.has_value()) {
+			intermediate_target->blend_to_draw_target = *blend_to_draw_target;
+			intermediate_target->blend_mode_set		  = true;
+		}
 	}
 
 	const auto& shader{ render_state.shader_pass.GetShader() };
@@ -881,6 +886,9 @@ void RenderData::Flush() {
 		}
 
 		// Flush intermediate target onto drawing_to frame buffer.
+		if (intermediate_target->blend_mode_set) {
+			target.blend_mode = intermediate_target->blend_to_draw_target;
+		}
 		DrawFullscreenQuad(
 			GetFullscreenShader(target.texture_format), target,
 			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
