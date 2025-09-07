@@ -17,7 +17,7 @@ public:
 
 	void Enter() override {
 		// game.renderer.SetBackgroundColor(color::White);
-		SetBackgroundColor(color::LightBlue.WithAlpha(1));
+		SetBackgroundColor(color::Transparent);
 
 		game.window.SetSetting(WindowSetting::Resizable);
 		LoadResource("test", "resources/test1.jpg");
@@ -54,6 +54,11 @@ public:
 		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
 
 		mouse_light = CreatePointLight(*this, {}, 50.0f, color::White, 0.8f, 1.0f);
+
+		auto sprite2 = CreateSprite(*this, "test", { -200, 150 });
+		SetDrawOrigin(sprite2, Origin::TopLeft);
+
+		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
 		// mouse_light.SetAmbientColor(color::Red);
 		// mouse_light.SetAmbientIntensity(0.1f);
 	}
