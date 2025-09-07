@@ -36,6 +36,7 @@ public:
 		float step{ 80 };
 
 		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, color::Transparent);
+		SetBlendMode(rt, BlendMode::AddPremultipliedWithAlpha);
 
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
@@ -47,28 +48,25 @@ public:
 			return light;
 		};
 
-		/*rt.AddToDisplayList(create_light(color::Cyan));
+		rt.AddToDisplayList(create_light(color::Cyan));
 		rt.AddToDisplayList(create_light(color::Green));
 		rt.AddToDisplayList(create_light(color::Blue));
 		rt.AddToDisplayList(create_light(color::Magenta));
 		rt.AddToDisplayList(create_light(color::Yellow));
 		rt.AddToDisplayList(create_light(color::Cyan));
-		rt.AddToDisplayList(create_light(color::White));*/
-
-		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
-		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
+		rt.AddToDisplayList(create_light(color::White));
 
 		mouse_light = CreatePointLight(*this, {}, 50.0f, color::White, 0.8f, 1.0f);
 		rt.AddToDisplayList(mouse_light);
-		//  mouse_light.SetAmbientColor(color::Red);
-		//  mouse_light.SetAmbientIntensity(0.1f);
+
+		auto sprite2 = CreateSprite(*this, "test", { -200, 150 });
+		SetDrawOrigin(sprite2, Origin::TopLeft);
+
+		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
 	}
 
 	void Update() override {
-		// PTGN_LOG(input.GetMousePosition());
 		SetPosition(mouse_light, input.GetMousePosition());
-
-		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
 	}
 
 	void Exit() override {
