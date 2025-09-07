@@ -71,7 +71,9 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 			);
 			break;
-		case BlendMode::ReplaceRGBA: GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO));
+		case BlendMode::ReplaceRGBA:
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO));
+			break;
 		case BlendMode::ReplaceRGB:
 			GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE));
 			break;
