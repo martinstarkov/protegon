@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "common/type_info.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "math/vector2.h"
