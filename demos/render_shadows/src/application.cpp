@@ -10,6 +10,7 @@
 #include "renderer/api/origin.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
+#include "renderer/shader.h"
 #include "renderer/vfx/light.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -21,15 +22,25 @@ class Shadow {
 public:
 	V2_float origin;
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		PTGN_ASSERT(entity.Has<Polygon>());
+	static void RemoveAlpha(impl::RenderData& ctx, const Camera& camera, const Depth& depth) {
+		impl::RenderState state{ game.shader.Get("color"), BlendMode::ReplaceAlpha, camera, {} };
 
+		Rect rect{ game.renderer.GetDisplaySize() };
+
+		ctx.AddQuad({}, rect, Origin::Center, color::Transparent, depth, -1.0f, state);
+	}
+
+	static void Draw(impl::RenderData& ctx, const Entity& entity) {
 		impl::ShapeDrawInfo info{ entity };
+
+		RemoveAlpha(ctx, info.state.camera, info.depth);
+
+		PTGN_ASSERT(entity.Has<Polygon>());
 
 		const auto& polygon{ entity.Get<Polygon>() };
 
-		info.state.blend_mode = BlendMode::ReplaceRGBA;
-		info.tint			  = color::Black;
+		info.state.blend_mode = BlendMode::AddAlpha;
+		info.tint			  = color::White;
 
 		// We need at least 3 points to form a triangle
 		if (polygon.vertices.size() < 3) {
@@ -65,16 +76,16 @@ public:
 private:
 	static void SortShadows(std::vector<Entity>& entities) {
 		std::stable_sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
-			const bool a_is_shadow = a.Has<Shadow>();
-			const bool b_is_shadow = b.Has<Shadow>();
-			if (a_is_shadow != b_is_shadow) {
-				return a_is_shadow; // false (0) comes before true (1)
-			}
-
 			const bool a_is_light = a.Has<impl::LightProperties>();
 			const bool b_is_light = b.Has<impl::LightProperties>();
 			if (a_is_light != b_is_light) {
-				return !a_is_light; // true (1) comes before false (0)
+				return a_is_light; // true (1) comes before false (0)
+			}
+
+			const bool a_is_shadow = a.Has<Shadow>();
+			const bool b_is_shadow = b.Has<Shadow>();
+			if (a_is_shadow != b_is_shadow) {
+				return !a_is_shadow; // false (0) comes before true (1)
 			}
 
 			// Otherwise, preserve order
@@ -652,10 +663,17 @@ public:
 		V2_float s{ game.renderer.GetGameSize() };
 
 		geometry::vec2 size{ s.x, s.y };
+		auto t1 = GetAbsoluteTransform(sprite);
+		Rect r1{ sprite.GetDisplaySize() };
 
-		shadow_segments.emplace_back(geometry::vec2{ 0, -100 }, geometry::vec2{ 100, 100 });
-		shadow_segments.emplace_back(geometry::vec2{ 100, 100 }, geometry::vec2{ -100, 100 });
-		shadow_segments.emplace_back(geometry::vec2{ -100, 100 }, geometry::vec2{ 0, -100 });
+		auto verts1{ r1.GetWorldVertices(t1, GetDrawOrigin(sprite)) };
+		for (std::size_t i{ 0 }; i < verts1.size(); i++) {
+			geometry::vec2 p1{ verts1[i].x, verts1[i].y };
+			auto& v2{ verts1[(i + 1) % verts1.size()] };
+			geometry::vec2 p2{ v2.x, v2.y };
+			shadow_segments.emplace_back(p1, p2);
+		}
+
 		shadow_segments.emplace_back(-size * 0.5f, geometry::vec2{ size.x * 0.5f, -size.y * 0.5f });
 		shadow_segments.emplace_back(geometry::vec2{ size.x * 0.5f, -size.y * 0.5f }, size * 0.5f);
 		shadow_segments.emplace_back(size * 0.5f, geometry::vec2{ -size.x * 0.5f, size.y * 0.5f });
