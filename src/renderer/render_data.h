@@ -104,6 +104,10 @@ public:
 		const PostFX& post_fx = {}
 	);
 
+	// @return True if the render state is set, false if it has been reset (no shader pass
+	// specified).
+	[[nodiscard]] bool IsSet() const;
+
 	bool operator==(const RenderState&) const = default;
 
 	ShaderPass shader_pass;
@@ -295,6 +299,7 @@ private:
 	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
 
 	void InvokeDrawable(const Entity& entity);
+	void InvokeDrawFilter(const RenderTarget& render_target);
 
 	/*
 	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between

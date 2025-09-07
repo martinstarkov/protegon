@@ -71,6 +71,10 @@ RenderState::RenderState(
 ) :
 	shader_pass{ shader_pass }, blend_mode{ blend_mode }, camera{ camera }, post_fx{ post_fx } {}
 
+bool RenderState::IsSet() const {
+	return shader_pass != ShaderPass{};
+}
+
 ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
 	transform{ GetDrawTransform(entity) },
 	tint{ GetTint(entity) },
@@ -831,11 +835,13 @@ void RenderData::Flush() {
 
 	auto target{ drawing_to_ };
 
-	if (render_state.camera) {
-		target.view_projection = render_state.camera;
-		target.points		   = render_state.camera.GetWorldVertices();
+	if (render_state.IsSet()) {
+		if (render_state.camera) {
+			target.view_projection = render_state.camera;
+			target.points		   = render_state.camera.GetWorldVertices();
+		}
+		target.blend_mode = render_state.blend_mode;
 	}
-	target.blend_mode = render_state.blend_mode;
 
 	if (has_post_fx) {
 		PTGN_ASSERT(!intermediate_target);
@@ -857,6 +863,7 @@ void RenderData::Flush() {
 		target.texture_id = id;
 	}
 
+	// Reset because post fx may change target.frame_buffer.
 	target.frame_buffer = drawing_to_.frame_buffer;
 
 	if (intermediate_target) {
@@ -879,7 +886,7 @@ void RenderData::Flush() {
 			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
 		);
 
-	} else if (render_state.shader_pass != ShaderPass{}) {
+	} else if (render_state.IsSet()) {
 		// No post fx, and no intermediate target.
 
 		const auto& shader{ render_state.shader_pass.GetShader() };
@@ -892,6 +899,7 @@ void RenderData::Flush() {
 }
 
 void RenderData::Reset() {
+	render_state		= {};
 	intermediate_target = {};
 	vertices_.clear();
 	indices_.clear();
@@ -908,13 +916,27 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 
 	const auto& drawable_functions{ IDrawable::data() };
 
-	const auto it{ drawable_functions.find(drawable.hash) };
+	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
 
-	PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
-
-	const auto& draw_function{ it->second };
+	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
 
 	draw_function(*this, entity);
+}
+
+void RenderData::InvokeDrawFilter(const RenderTarget& render_target) {
+	if (!render_target.Has<IDrawFilter>()) {
+		return;
+	}
+
+	const auto& filter{ render_target.GetImpl<IDrawFilter>() };
+
+	const auto& filter_functions{ IDrawFilter::data() };
+
+	PTGN_ASSERT(filter_functions.contains(filter.hash), "Failed to identify filter hash");
+
+	const auto& filter_function{ filter_functions.find(filter.hash)->second };
+
+	filter_function(*this, render_target);
 }
 
 RenderData::DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
@@ -959,6 +981,8 @@ void RenderData::DrawDisplayList(
 	SortByDepth(display_list);
 
 	drawing_to_ = GetDrawTarget(render_target);
+
+	InvokeDrawFilter(render_target);
 
 	for (const auto& entity : display_list) {
 		if (filter && filter(entity)) {
