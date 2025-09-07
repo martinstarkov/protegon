@@ -171,7 +171,7 @@ private:
 		std::uint32_t frame_buffer_id{ 0 };
 		std::uint32_t shader_id{ 0 };
 		std::uint32_t vertex_array_id{ 0 };
-		BlendMode blend_mode{ BlendMode::None };
+		BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 		V2_int viewport_position;
 		V2_int viewport_size;
 	};

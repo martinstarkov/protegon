@@ -28,7 +28,7 @@ public:
 
 		const auto& polygon{ entity.Get<Polygon>() };
 
-		info.state.blend_mode = BlendMode::None;
+		info.state.blend_mode = BlendMode::ReplaceRGBA;
 		info.tint			  = color::Black;
 
 		// We need at least 3 points to form a triangle
@@ -95,9 +95,7 @@ struct vector2 {
 	template <typename ScalarType, typename ReturnType>
 	using if_scalar = typename std::enable_if<std::is_scalar<ScalarType>::value, ReturnType>::type;
 
-	struct {
-		T x, y;
-	};
+	T x{ 0 }, y{ 0 };
 
 	vector2() {}
 
@@ -642,7 +640,7 @@ public:
 		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, color::Transparent);
 		rt.SetDrawFilter<LightMap>();
 		// TODO: Fix having to do this.
-		SetBlendMode(rt, BlendMode::AddPremultipliedWithAlpha);
+		SetBlendMode(rt, BlendMode::PremultipliedAddRGBA);
 
 		polygon = CreatePolygon(
 			*this, { 0, 0 }, { V2_float{ 0, -100 }, V2_float{ 100, 100 }, V2_float{ -100, 100 } },

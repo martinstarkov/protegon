@@ -571,7 +571,7 @@ void RenderData::Init() {
 	screen_target_ = CreateRenderTarget(
 		render_manager, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8888
 	);
-	SetBlendMode(screen_target_, BlendMode::None);
+	SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
 
 #ifdef PTGN_PLATFORM_MACOS
 	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
@@ -582,7 +582,7 @@ void RenderData::Init() {
 	}
 #endif
 
-	SetState(RenderState{ {}, BlendMode::None, {} });
+	SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
 
 	viewport_tracker = render_manager.CreateEntity();
 	AddScript<ViewportResizeScript>(viewport_tracker);

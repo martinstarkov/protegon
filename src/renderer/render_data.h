@@ -112,7 +112,7 @@ public:
 	bool operator==(const RenderState&) const = default;
 
 	ShaderPass shader_pass;
-	BlendMode blend_mode{ BlendMode::None };
+	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 	Camera camera;
 	PostFX post_fx;
 };

@@ -68,7 +68,7 @@ struct PhysicsBoundaryScene : public Scene {
 		SetPosition(player, pos);
 
 		if (input.KeyDown(Key::Q)) {
-			behavior = BoundaryBehavior::StopAtBounds;
+			behavior = BoundaryBehavior::StopVelocity;
 			ReEnter();
 		} else if (input.KeyDown(Key::E)) {
 			behavior = BoundaryBehavior::ReflectVelocity;

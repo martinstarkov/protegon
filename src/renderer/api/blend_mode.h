@@ -14,85 +14,115 @@ enum class BlendMode {
 		 dstRGB = srcRGB * srcA + dstRGB * (1 - srcA)
 		 dstA   = srcA + dstA * (1 - srcA) */
 
-	None,
-	/**< No blending:
-		 dstRGBA = srcRGBA */
-
-	BlendPremultiplied,
+	PremultipliedBlend,
 	/**< Premultiplied alpha blending:
-		 dstRGBA = srcRGBA + dstRGBA * (1 - srcA) */
+		 dstRGB = srcRGB + dstRGB * (1 - srcA)
+		 dstA = srcA + dstA * (1 - srcA) */
 
-	Add,
+	ReplaceRGBA,
+	/**< Replace RGBA:
+		 dstRGB = srcRGB
+		 dstA   = srcA */
+
+	ReplaceRGB,
+	/**< Replace RGB:
+		 dstRGB = srcRGB
+		 dstA   = dstA */
+
+	ReplaceAlpha,
+	/**< Replace alpha:
+		 dstRGB = dstRGB
+		 dstA   = srcA */
+
+	AddRGB,
 	/**< Additive blending:
 		 dstRGB = srcRGB * srcA + dstRGB
 		 dstA   = dstA */
 
-	AddWithAlpha,
-	/**< Additive blending with alpha accumulation:
+	AddRGBA,
+	/**< Additive blending with alpha:
 		 dstRGB = srcRGB * srcA + dstRGB
 		 dstA   = srcA + dstA */
 
-	AddPremultiplied,
+	AddAlpha,
+	/**< Additive blending for only alpha:
+		 dstRGB = dstRGB
+		 dstA   = srcA + dstA */
+
+	PremultipliedAddRGB,
 	/**< Premultiplied additive blending:
 		 dstRGB = srcRGB + dstRGB
 		 dstA   = dstA */
 
-	AddPremultipliedWithAlpha,
-	/**< Premultiplied additive blending with alpha accumulation:
+	PremultipliedAddRGBA,
+	/**< Premultiplied additive blending with alpha:
 		 dstRGB = srcRGB + dstRGB
 		 dstA   = srcA + dstA */
 
-	Modulate,
-	/**< Color modulation:
+	MultiplyRGB,
+	/**< Color multiply:
 		 dstRGB = srcRGB * dstRGB
 		 dstA   = dstA */
 
-	MultiplyWithAlphaBlend,
+	MultiplyRGBA,
+	/**< Color multiply with alpha:
+		 dstRGB = srcRGB * dstRGB
+		 dstA   = srcA * dstA */
+
+	MultiplyAlpha,
+	/**< Alpha multiply:
+		 dstRGB = dstRGB
+		 dstA   = srcA * dstA */
+
+	MultiplyRGBWithAlphaBlend,
 	/**< Color multiply:
 		 dstRGB = srcRGB * dstRGB + dstRGB * (1 - srcA)
 		 dstA   = dstA */
 
-	Multiply,
+	MultiplyRGBAWithAlphaBlend
 	/**< Color multiply:
-		 dstRGB = srcRGB * dstRGB
-		 dstA   = dstA */
-
-	Stencil
-	/**< Stencil multiply:
-		 dstRGB = dstRGB
-		 dstA   = srcA */
+		 dstRGB = srcRGB * dstRGB + dstRGB * (1 - srcA)
+		 dstA   = srcA * dstA */
 };
 
 inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 	switch (blend_mode) {
-		case BlendMode::Blend:					   os << "Blend"; break;
-		case BlendMode::BlendPremultiplied:		   os << "BlendPremultiplied"; break;
-		case BlendMode::Add:					   os << "Add"; break;
-		case BlendMode::AddPremultiplied:		   os << "AddPremultiplied"; break;
-		case BlendMode::AddWithAlpha:			   os << "AddWithAlpha"; break;
-		case BlendMode::AddPremultipliedWithAlpha: os << "AddPremultipliedWithAlpha"; break;
-		case BlendMode::Modulate:				   os << "Modulate"; break;
-		case BlendMode::Multiply:				   os << "Multiply"; break;
-		case BlendMode::MultiplyWithAlphaBlend:	   os << "MultiplyWithAlphaBlend"; break;
-		case BlendMode::Stencil:				   os << "Stencil"; break;
-		case BlendMode::None:					   os << "None"; break;
-		default:								   PTGN_ERROR("Failed to identify blend mode");
+		case BlendMode::Blend:						os << "Blend"; break;
+		case BlendMode::PremultipliedBlend:			os << "PremultipliedBlend"; break;
+		case BlendMode::ReplaceRGBA:				os << "ReplaceRGBA"; break;
+		case BlendMode::ReplaceRGB:					os << "ReplaceRGB"; break;
+		case BlendMode::ReplaceAlpha:				os << "ReplaceAlpha"; break;
+		case BlendMode::AddRGB:						os << "AddRGB"; break;
+		case BlendMode::AddRGBA:					os << "AddRGBA"; break;
+		case BlendMode::AddAlpha:					os << "AddAlpha"; break;
+		case BlendMode::PremultipliedAddRGB:		os << "PremultipliedAddRGB"; break;
+		case BlendMode::PremultipliedAddRGBA:		os << "PremultipliedAddRGBA"; break;
+		case BlendMode::MultiplyRGB:				os << "MultiplyRGB"; break;
+		case BlendMode::MultiplyRGBA:				os << "MultiplyRGBA"; break;
+		case BlendMode::MultiplyAlpha:				os << "MultiplyAlpha"; break;
+		case BlendMode::MultiplyRGBWithAlphaBlend:	os << "MultiplyRGBWithAlphaBlend"; break;
+		case BlendMode::MultiplyRGBAWithAlphaBlend: os << "MultiplyRGBAWithAlphaBlend"; break;
+		default:									PTGN_ERROR("Failed to identify blend mode");
 	}
 	return os;
 }
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	BlendMode, { { BlendMode::Blend, "blend" },
-				 { BlendMode::None, "none" },
-				 { BlendMode::BlendPremultiplied, "blend_premultiplied" },
-				 { BlendMode::Add, "add" },
-				 { BlendMode::AddWithAlpha, "add_with_alpha" },
-				 { BlendMode::AddPremultiplied, "add_premultiplied" },
-				 { BlendMode::AddPremultipliedWithAlpha, "add_premultiplied_with_alpha" },
-				 { BlendMode::Modulate, "modulate" },
-				 { BlendMode::Multiply, "multiply" },
-				 { BlendMode::Stencil, "stencil" },
-				 { BlendMode::MultiplyWithAlphaBlend, "multiply_with_alpha_blend" } }
+				 { BlendMode::PremultipliedBlend, "premultiplied_blend" },
+				 { BlendMode::ReplaceRGBA, "replace_rgba" },
+				 { BlendMode::ReplaceRGB, "replace_rgb" },
+				 { BlendMode::ReplaceAlpha, "replace_alpha" },
+				 { BlendMode::AddRGB, "add_rgb" },
+				 { BlendMode::AddRGBA, "add_rgba" },
+				 { BlendMode::AddAlpha, "add_alpha" },
+				 { BlendMode::PremultipliedAddRGB, "premultiplied_add_rgb" },
+				 { BlendMode::PremultipliedAddRGBA, "premultiplied_add_rgba" },
+				 { BlendMode::MultiplyRGB, "multiply_rgb" },
+				 { BlendMode::MultiplyRGBA, "multiply_rgba" },
+				 { BlendMode::MultiplyAlpha, "multiply_alpha" },
+				 { BlendMode::MultiplyRGBWithAlphaBlend, "multiply_rgb_with_alpha_blend" },
+				 { BlendMode::MultiplyRGBAWithAlphaBlend, "multiply_rgba_with_alpha_blend" } }
 );
 
 } // namespace ptgn

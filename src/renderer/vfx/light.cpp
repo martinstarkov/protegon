@@ -80,7 +80,7 @@ PointLight CreatePointLight(
 	light_properties.falloff   = falloff;
 
 	// Blend mode with which the lights are added to the scene.
-	SetBlendMode(point_light, BlendMode::AddPremultipliedWithAlpha);
+	SetBlendMode(point_light, BlendMode::PremultipliedAddRGBA);
 
 	return point_light;
 }
@@ -94,7 +94,7 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	state.camera	  = entity.GetOrDefault<Camera>();
 
 	// Blend mode with which the lights are added to the light render target.
-	auto light_blend_mode{ BlendMode::AddPremultipliedWithAlpha };
+	auto light_blend_mode{ BlendMode::PremultipliedAddRGBA };
 	// Color to which the light render target is cleared before drawing lights.
 	auto light_clear_color{ color::Black };
 	ctx.AddShader(

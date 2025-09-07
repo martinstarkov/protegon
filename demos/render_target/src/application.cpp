@@ -39,7 +39,7 @@ Entity CreatePostFX(Scene& scene) {
 
 	SetDraw<PostProcessingEffect>(effect);
 	Show(effect);
-	SetBlendMode(effect, BlendMode::None);
+	SetBlendMode(effect, BlendMode::ReplaceRGBA);
 
 	return effect;
 }

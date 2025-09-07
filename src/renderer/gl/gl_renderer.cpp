@@ -49,7 +49,7 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 		return;
 	}
 	/*
-	if (mode == BlendMode::None) {
+	if (mode == BlendMode::ReplaceRGBA) {
 		// GLCall(glDisable(GL_BLEND));
 		// GLCall(glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE));
 		// TODO: If re-enabling, put the print before this.
@@ -67,34 +67,46 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 				GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA
 			));
 			break;
-		case BlendMode::BlendPremultiplied:
+		case BlendMode::PremultipliedBlend:
 			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 			);
 			break;
-		case BlendMode::Add:
+		case BlendMode::ReplaceRGBA: GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO));
+		case BlendMode::ReplaceRGB:
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE));
+			break;
+		case BlendMode::ReplaceAlpha:
+			GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO));
+			break;
+		case BlendMode::AddRGB:
 			GLCall(BlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE));
 			break;
-		case BlendMode::AddPremultiplied:
-			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
-			break;
-		case BlendMode::AddWithAlpha:
+		case BlendMode::AddRGBA:
 			GLCall(BlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE));
 			break;
-		case BlendMode::AddPremultipliedWithAlpha:
+		case BlendMode::AddAlpha: GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ONE)); break;
+		case BlendMode::PremultipliedAddRGB:
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
+			break;
+		case BlendMode::PremultipliedAddRGBA:
 			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE));
 			break;
-		case BlendMode::Modulate:
-			GLCall(BlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE));
+		case BlendMode::MultiplyRGB:
+			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE));
 			break;
-		case BlendMode::Multiply:
-			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ONE, GL_ZERO));
+		case BlendMode::MultiplyRGBA:
+			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO));
 			break;
-		case BlendMode::MultiplyWithAlphaBlend:
+		case BlendMode::MultiplyAlpha:
+			GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_DST_ALPHA, GL_ZERO));
+			break;
+		case BlendMode::MultiplyRGBWithAlphaBlend:
 			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE));
 			break;
-		case BlendMode::None:	 GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO)); break;
-		case BlendMode::Stencil: GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO)); break;
-		default:				 PTGN_ERROR("Failed to identify blend mode");
+		case BlendMode::MultiplyRGBAWithAlphaBlend:
+			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ZERO));
+			break;
+		default: PTGN_ERROR("Failed to identify blend mode");
 	}
 	game.renderer.bound_.blend_mode = mode;
 #ifdef PTGN_DEBUG
