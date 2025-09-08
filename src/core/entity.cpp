@@ -78,15 +78,17 @@ Scene& Entity::GetScene() {
 	return const_cast<Scene&>(std::as_const(*this).GetScene());
 }
 
-static RenderTarget GetParentRenderTarget(const Entity& entity) {
+static RenderTarget GetParentRenderTarget(const Entity& root, const Entity& entity) {
+	// @return Root or the entities render target or any of its parents' render targets (whichever
+	// is first in the hierarchy).
 	if (auto rt{ entity.TryGet<RenderTarget>() }) {
 		return *rt;
 	}
 	if (HasParent(entity)) {
 		Entity parent{ GetParent(entity) };
-		return GetParentRenderTarget(parent);
+		return GetParentRenderTarget(root, parent);
 	}
-	return entity;
+	return root;
 }
 
 const Camera& Entity::GetCamera() const {
@@ -96,7 +98,8 @@ const Camera& Entity::GetCamera() const {
 	if (const auto rt{ TryGet<RenderTarget>() }) {
 		return rt->GetCamera();
 	}
-	if (auto rt{ GetParentRenderTarget(*this) }; rt != *this) {
+	if (RenderTarget rt{ GetParentRenderTarget(*this, *this) }; rt != *this) {
+		PTGN_ASSERT(rt);
 		return rt.GetCamera();
 	}
 	return GetScene().camera;
