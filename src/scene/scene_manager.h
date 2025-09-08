@@ -63,6 +63,16 @@ public:
 		return scene;
 	}
 
+	template <SceneType TScene, typename... TArgs>
+		requires std::constructible_from<TScene, TArgs...>
+	TScene& Transition(
+		const SceneKey& from_scene_key, const SceneKey& to_scene_key, TArgs&&... constructor_args
+	) {
+		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
+		SceneManager::Transition(from_scene_key, to_scene_key);
+		return scene;
+	}
+
 	template <
 		SceneType TScene, SceneTransitionType TransitionIn = int,
 		SceneTransitionType TransitionOut = int, typename... TArgs>
