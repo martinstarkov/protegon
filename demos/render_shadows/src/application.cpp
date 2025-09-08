@@ -558,6 +558,34 @@ public:
 
 	std::vector<geometry::line_segment<geometry::vec2>> shadow_segments;
 
+	void AddShadow(Transform t1, Rect r1, Origin origin = Origin::Center) {
+		auto verts1{ r1.GetWorldVertices(t1, origin) };
+		for (std::size_t i{ 0 }; i < verts1.size(); i++) {
+			geometry::vec2 p1{ verts1[i].x, verts1[i].y };
+			auto& v2{ verts1[(i + 1) % verts1.size()] };
+			geometry::vec2 p2{ v2.x, v2.y };
+			shadow_segments.emplace_back(p1, p2);
+		}
+	}
+
+	void AddShadow(Entity e) {
+		if (!e.Has<Rect>()) {
+			return;
+		}
+
+		auto t1 = GetAbsoluteTransform(e);
+		Rect r1{ e.Get<Rect>() };
+
+		AddShadow(t1, r1, GetDrawOrigin(e));
+	}
+
+	void AddShadow(Sprite e) {
+		auto t1 = GetAbsoluteTransform(e);
+		Rect r1{ e.GetDisplaySize() };
+
+		AddShadow(t1, r1, GetDrawOrigin(e));
+	}
+
 	void Enter() override {
 		// game.renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1));
@@ -574,26 +602,13 @@ public:
 
 		float step{ 80 };
 
-		// TODO: Shadows work when light renders to transparent target, but it breaks the scene
-		// background color.
 		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, color::Transparent);
 		rt.SetDrawFilter<LightMap>();
-		// TODO: Fix having to do this.
 		SetBlendMode(rt, BlendMode::PremultipliedAddRGBA);
 
 		V2_float s{ game.renderer.GetGameSize() };
 
 		geometry::vec2 size{ s.x, s.y };
-		auto t1 = GetAbsoluteTransform(sprite);
-		Rect r1{ sprite.GetDisplaySize() };
-
-		auto verts1{ r1.GetWorldVertices(t1, GetDrawOrigin(sprite)) };
-		for (std::size_t i{ 0 }; i < verts1.size(); i++) {
-			geometry::vec2 p1{ verts1[i].x, verts1[i].y };
-			auto& v2{ verts1[(i + 1) % verts1.size()] };
-			geometry::vec2 p2{ v2.x, v2.y };
-			shadow_segments.emplace_back(p1, p2);
-		}
 
 		shadow_segments.emplace_back(-size * 0.5f, geometry::vec2{ size.x * 0.5f, -size.y * 0.5f });
 		shadow_segments.emplace_back(geometry::vec2{ size.x * 0.5f, -size.y * 0.5f }, size * 0.5f);
@@ -611,20 +626,20 @@ public:
 		};
 
 		rt.AddToDisplayList(create_light(color::Cyan));
-		rt.AddToDisplayList(create_light(color::Green));
-		rt.AddToDisplayList(create_light(color::Blue));
-		rt.AddToDisplayList(create_light(color::Magenta));
-		rt.AddToDisplayList(create_light(color::Yellow));
-		rt.AddToDisplayList(create_light(color::Cyan));
-		rt.AddToDisplayList(create_light(color::White));
 
-		mouse_light = CreatePointLight(*this, {}, 50.0f, color::White, 0.8f, 1.0f);
+		mouse_light = CreatePointLight(*this, { -300, 300 }, 50.0f, color::Red, 0.8f, 1.0f);
 		rt.AddToDisplayList(mouse_light);
 
 		auto sprite2 = CreateSprite(*this, "test", { -200, 150 });
+
 		SetDrawOrigin(sprite2, Origin::TopLeft);
 
-		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
+		auto rect2 =
+			CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
+
+		AddShadow(sprite);
+		AddShadow(sprite2);
+		AddShadow(rect2);
 	}
 
 	void Update() override {
@@ -644,6 +659,13 @@ void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 		// SortShadows(display_list);
 	} else {
 		auto& ctx{ game.renderer.GetRenderData() };
+
+		impl::RenderState state{ game.shader.Get("color"), BlendMode::ReplaceAlpha, {}, {} };
+
+		Rect rect{ game.renderer.GetDisplaySize() };
+
+		ctx.AddQuad({}, rect, Origin::Center, color::Transparent, 0.0f, -1.0f, state);
+
 		for (auto& entity : display_list) {
 			if (!entity.Has<impl::LightProperties>()) {
 				continue;
@@ -664,14 +686,6 @@ void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 			}
 			if (verts_2.size() >= 3) {
 				impl::ShapeDrawInfo info{ entity };
-
-				impl::RenderState state{
-					game.shader.Get("color"), BlendMode::ReplaceAlpha, info.state.camera, {}
-				};
-
-				Rect rect{ game.renderer.GetDisplaySize() };
-
-				ctx.AddQuad({}, rect, Origin::Center, color::Transparent, 0.0f, -1.0f, state);
 
 				info.state.blend_mode = BlendMode::AddAlpha;
 
