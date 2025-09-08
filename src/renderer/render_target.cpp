@@ -6,7 +6,6 @@
 
 #include "common/assert.h"
 #include "components/draw.h"
-#include "components/drawable.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -88,10 +87,12 @@ V2_float RenderTarget::GetDisplaySize() const {
 }
 
 const Camera& RenderTarget::GetCamera() const {
+	PTGN_ASSERT(Has<GameObject<Camera>>());
 	return Get<GameObject<Camera>>();
 }
 
 Camera& RenderTarget::GetCamera() {
+	PTGN_ASSERT(Has<GameObject<Camera>>());
 	return Get<GameObject<Camera>>();
 }
 
