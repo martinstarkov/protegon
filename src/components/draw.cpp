@@ -146,11 +146,7 @@ BlendMode GetBlendMode(const Entity& entity) {
 }
 
 Entity& SetTint(Entity& entity, const Color& color) {
-	if (color != Tint{}) {
-		impl::EntityAccess::Add<Tint>(entity, color);
-	} else {
-		impl::EntityAccess::Remove<Tint>(entity);
-	}
+	impl::EntityAccess::TryAdd<Tint>(entity, color);
 	return entity;
 }
 
