@@ -199,6 +199,14 @@ void CameraInstance::CenterOnViewport(const V2_float& new_viewport_size) {
 	SetViewportSize(new_viewport_size);
 }
 
+bool CameraInstance::WillAutoCenter() const {
+	return auto_center;
+}
+
+bool CameraInstance::WillAutoResize() const {
+	return auto_resize;
+}
+
 void CameraInstance::SetViewportPosition(
 	const V2_float& new_viewport_position, bool disable_auto_center
 ) {
@@ -442,10 +450,6 @@ std::array<V2_float, 4> Camera::GetWorldVertices() const {
 	return Get<impl::CameraInstance>().GetWorldVertices();
 }
 
-V2_float Camera::GetZoom() const {
-	return Get<impl::CameraInstance>().GetZoom();
-}
-
 void Camera::SetBounds(const V2_float& position, const V2_float& size) {
 	Get<impl::CameraInstance>().SetBounds(position, size);
 }
@@ -498,6 +502,18 @@ void Camera::Rotate(float rotation_amount) {
 	Get<impl::CameraInstance>().Rotate(rotation_amount);
 }
 
+V2_float Camera::GetScroll() const {
+	return Get<impl::CameraInstance>().GetScroll();
+}
+
+float Camera::GetRotation() const {
+	return Get<impl::CameraInstance>().GetRotation();
+}
+
+V2_float Camera::GetZoom() const {
+	return Get<impl::CameraInstance>().GetZoom();
+}
+
 void Camera::Reset() {
 	Get<impl::CameraInstance>().Reset();
 	Subscribe();
@@ -511,10 +527,21 @@ const Matrix4& Camera::GetViewProjection() const {
 	return Get<impl::CameraInstance>().GetViewProjection(*this);
 }
 
+bool Camera::IsGameCamera() const {
+	const auto& instance{ Get<impl::CameraInstance>() };
+	return instance.WillAutoResize() && instance.WillAutoCenter();
+}
+
 Camera CreateCamera(Manager& manager) {
 	Camera camera{ manager.CreateEntity() };
 	camera.Add<impl::CameraInstance>();
 	camera.Reset();
+	return camera;
+}
+
+Camera CreateCamera(Manager& manager, const V2_float& viewport_size) {
+	Camera camera{ CreateCamera(manager) };
+	camera.SetViewportSize(viewport_size);
 	return camera;
 }
 

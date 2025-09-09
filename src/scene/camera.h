@@ -43,6 +43,9 @@ public:
 	void SetViewportSize(const V2_float& new_viewport_size, bool disable_auto_resize = true);
 	void CenterOnViewport(const V2_float& new_viewport_size);
 
+	[[nodiscard]] bool WillAutoCenter() const;
+	[[nodiscard]] bool WillAutoResize() const;
+
 	[[nodiscard]] V2_float GetViewportPosition() const;
 	[[nodiscard]] V2_float GetViewportSize() const;
 	[[nodiscard]] V2_float GetDisplaySize() const;
@@ -197,14 +200,18 @@ public:
 
 	[[nodiscard]] V2_float GetScroll() const;
 	[[nodiscard]] V2_float GetZoom() const;
-	[[nodiscard]] V2_float GetRotation() const;
+	[[nodiscard]] float GetRotation() const;
 
-	// Reset camera to auto resize to the game size.
+	// Reset camera to auto resize to the game size and auto center to { 0, 0 }.
 	void Reset();
 
 	[[nodiscard]] const Matrix4& GetViewProjection() const;
 
 	operator Matrix4() const;
+
+	// @return True if camera has enabled auto resizing and auto centering to game size and { 0, 0 }
+	// respectively.
+	[[nodiscard]] bool IsGameCamera() const;
 
 protected:
 	friend class RenderTarget;
@@ -226,6 +233,10 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::Camera& c) {
 	return os;
 }
 
+// Create a default camera which has the same viewport as the game size (automatic resizing).
 Camera CreateCamera(Manager& manager);
+
+// Create a camera with a custom viewport.
+Camera CreateCamera(Manager& manager, const V2_float& viewport_size);
 
 } // namespace ptgn
