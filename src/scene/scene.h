@@ -85,8 +85,12 @@ public:
 
 	[[nodiscard]] impl::SceneKey GetKey() const;
 
-	// @return Size of scene render target divided by size of the camera viewport.
-	[[nodiscard]] V2_float GetScaleRelativeTo(const Camera& relative_to_camera) const;
+	// @return Size of scene render target divided by the viewport size of the provided camera.
+	[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera) const;
+
+	// @return Viewport size of scene primary camera divided by the viewport size of the provided
+	// camera.
+	[[nodiscard]] V2_float GetCameraScaleRelativeTo(const Camera& relative_to_camera) const;
 
 	SceneInput input;
 	Physics physics;

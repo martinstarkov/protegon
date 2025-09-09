@@ -43,7 +43,7 @@ namespace ptgn {
 Scene::Scene() {
 	auto& render_manager{ game.renderer.GetRenderData().render_manager };
 	render_target_ = CreateRenderTarget(
-		render_manager, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8888
+		render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
 	);
 	PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
 	camera		 = render_target_.Get<GameObject<Camera>>();
@@ -111,17 +111,42 @@ void Scene::SetColliderVisibility(bool collider_visibility) {
 	collider_visibility_ = collider_visibility;
 }
 
-V2_float Scene::GetScaleRelativeTo(const Camera& relative_to_camera) const {
+V2_float Scene::GetCameraScaleRelativeTo(const Camera& relative_to_camera) const {
+	if (!relative_to_camera) {
+		return { 1.0f, 1.0f };
+	}
+
+	V2_float camera_size{ relative_to_camera.GetViewportSize() };
+
+	V2_float primary_camera_size{ camera.GetViewportSize() };
+
+	PTGN_ASSERT(camera_size.BothAboveZero());
+
+	V2_float scale{ primary_camera_size / camera_size };
+
+	PTGN_ASSERT(scale.BothAboveZero());
+
+	return scale;
+}
+
+V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera) const {
 	auto cam{ relative_to_camera ? relative_to_camera : camera };
+
+	V2_float camera_size{ cam.GetViewportSize() };
+
 	// auto camera_zoom{ cam.GetZoom() };
 	// PTGN_ASSERT(camera_zoom.BothAboveZero());
-	V2_float camera_size{ cam.GetViewportSize() };
 	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
 	// camera_size /= camera_zoom;
+
 	V2_float draw_size{ render_target_.GetTextureSize() };
+
 	PTGN_ASSERT(camera_size.BothAboveZero());
+
 	V2_float scale{ draw_size / camera_size };
+
 	PTGN_ASSERT(scale.BothAboveZero());
+
 	return scale;
 }
 

@@ -83,9 +83,11 @@ void DrawDebugText(
 	Transform transform{ position, rotation };
 	if (hd_text) {
 		const auto& scene{ game.scene.GetCurrent() };
-		auto scene_scale{ scene.GetScaleRelativeTo(camera) };
-		transform.Scale(1.0f / scene_scale);
-		final_font_size = static_cast<std::int32_t>(static_cast<float>(font_size) * scene_scale.y);
+		auto render_target_scale{ scene.GetRenderTargetScaleRelativeTo(camera) };
+		PTGN_ASSERT(render_target_scale.BothAboveZero());
+		transform.Scale(1.0f / render_target_scale);
+		final_font_size =
+			static_cast<std::int32_t>(static_cast<float>(font_size) * render_target_scale.y);
 	}
 	auto texture{ Text::CreateTexture(content, color, final_font_size, font_key, properties) };
 
