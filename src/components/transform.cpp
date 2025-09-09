@@ -213,9 +213,7 @@ void Transform::ClearDirtyFlags() const {
 Camera& SetTransform(Camera& entity, const Transform& transform) {
 	entity.SetScroll(transform.GetPosition());
 	entity.SetRotation(transform.GetRotation());
-	auto scale{ transform.GetScale() };
-	PTGN_ASSERT(scale.BothAboveZero(), "Cannot set camera zoom to be below or equal to zero");
-	entity.SetZoom(1.0f / scale);
+	entity.SetZoom(transform.GetScale());
 	return entity;
 }
 
@@ -241,13 +239,29 @@ Transform GetTransform(const Entity& entity) {
 }
 
 Transform GetTransform(const Camera& camera) {
-	return camera.GetTransform();
+	return { camera.GetScroll(), camera.GetRotation(), camera.GetZoom() };
 }
 
 Transform GetAbsoluteTransform(const Entity& entity) {
-	auto world_transform{ GetWorldTransform(entity) };
+	Transform world_transform;
+	auto transform{ GetTransform(entity) };
+	if (entity.Has<impl::IgnoreParentTransform>() && entity.Get<impl::IgnoreParentTransform>()) {
+		world_transform = transform;
+	} else {
+		Transform relative_to;
+		if (HasParent(entity)) {
+			Entity parent{ GetParent(entity) };
+			relative_to = GetAbsoluteTransform(parent);
+		}
+		world_transform = transform.RelativeTo(relative_to);
+	}
 	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
 		auto camera_transform{ GetTransform(*camera) };
+		auto scale{ camera_transform.GetScale() };
+		auto camera_scale{ entity.GetScene().GetCameraScaleRelativeTo(*camera) };
+		PTGN_ASSERT(camera_scale.BothAboveZero());
+		scale /= camera_scale;
+		camera_transform.SetScale(scale);
 		auto inverse_transform{ world_transform.InverseRelativeTo(camera_transform) };
 		auto primary_camera{ entity.GetScene().camera };
 		auto primary_transform{ GetTransform(primary_camera) };
