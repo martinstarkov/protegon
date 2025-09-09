@@ -78,8 +78,15 @@ static void GetShapes(
 	}
 }
 
-static Transform GetAbsoluteOffsetTransform(const auto& shape, const Entity& shape_entity) {
+static Transform GetAbsoluteOffsetTransform(
+	const auto& shape, const Entity& shape_entity, const Entity& parent
+) {
 	auto transform{ GetAbsoluteTransform(shape_entity) };
+
+	if (parent.Has<Rect>()) {
+		transform = ApplyOffset(parent.Get<Rect>(), transform, parent);
+	}
+
 	transform = ApplyOffset(shape, transform, shape_entity);
 	return transform;
 }
@@ -91,7 +98,7 @@ static bool Overlap(const V2_float& point, const Entity& entity) {
 	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
 
 	for (const auto& [shape, e] : shapes) {
-		auto transform{ GetAbsoluteOffsetTransform(shape, e) };
+		auto transform{ GetAbsoluteOffsetTransform(shape, e, entity) };
 		if (Overlap(point, transform, shape)) {
 			return true;
 		}
@@ -113,9 +120,9 @@ static bool Overlap(const Entity& entityA, const Entity& entityB) {
 	);
 
 	for (const auto& [shapeA, eA] : shapesA) {
-		auto transformA{ GetAbsoluteOffsetTransform(shapeA, eA) };
+		auto transformA{ GetAbsoluteOffsetTransform(shapeA, eA, entityA) };
 		for (const auto& [shapeB, eB] : shapesB) {
-			auto transformB{ GetAbsoluteOffsetTransform(shapeB, eB) };
+			auto transformB{ GetAbsoluteOffsetTransform(shapeB, eB, entityB) };
 			if (Overlap(transformA, shapeA, transformB, shapeB)) {
 				return true;
 			}
@@ -160,10 +167,15 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		entity_shapes.try_emplace(entity, shapes);
 
 		for (const auto& [shape, shape_entity] : shapes) {
-			auto transform{ GetAbsoluteOffsetTransform(shape, shape_entity) };
+			auto transform{ GetAbsoluteOffsetTransform(shape, shape_entity, entity) };
 
 			if (draw_interactives_) {
 				auto draw_transform{ GetDrawTransform(shape_entity) };
+
+				if (entity.Has<Rect>()) {
+					draw_transform = ApplyOffset(entity.Get<Rect>(), draw_transform, entity);
+				}
+
 				draw_transform = ApplyOffset(shape, draw_transform, shape_entity);
 				DrawDebugShape(
 					draw_transform, shape, draw_interactive_color_, draw_interactive_line_width_,
@@ -199,7 +211,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 				continue;
 			}
 
-			auto transform{ GetAbsoluteOffsetTransform(shape, shape_entity) };
+			auto transform{ GetAbsoluteOffsetTransform(shape, shape_entity, entity) };
 
 			if (Overlap(mouse_state.position, transform, shape)) {
 				PTGN_ASSERT(
