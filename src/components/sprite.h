@@ -5,6 +5,7 @@
 #include "components/drawable.h"
 #include "core/entity.h"
 #include "math/vector2.h"
+#include "renderer/api/origin.h"
 #include "renderer/texture.h"
 
 namespace ptgn {
@@ -45,6 +46,9 @@ struct Sprite : public Entity {
 
 PTGN_DRAWABLE_REGISTER(Sprite);
 
-Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key, const V2_float& position);
+Sprite CreateSprite(
+	Manager& manager, const TextureHandle& texture_key, const V2_float& position,
+	Origin draw_origin = Origin::Center
+);
 
 } // namespace ptgn
