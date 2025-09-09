@@ -67,7 +67,7 @@ bool IsInteractive(const Entity& entity) {
 Entity& SetInteractable(
 	Entity& entity, Entity&& shape, std::string_view name, bool ignore_parent_transform
 ) {
-	impl::ClearInteractables(entity);
+	ClearInteractables(entity);
 	AddInteractable(entity, std::move(shape), name, ignore_parent_transform);
 	return entity;
 }
@@ -135,6 +135,15 @@ void Interactive::ClearShapes() {
 	shapes.clear();
 }
 
+void ClearInteractables(Entity& entity) {
+	if (!entity.Has<Interactive>()) {
+		return;
+	}
+	auto& interactive{ impl::GetInteractive(entity) };
+	// Clear owned entities.
+	interactive.ClearShapes();
+}
+
 namespace impl {
 
 const Interactive& GetInteractive(const Entity& entity) {
@@ -144,15 +153,6 @@ const Interactive& GetInteractive(const Entity& entity) {
 
 Interactive& GetInteractive(Entity& entity) {
 	return const_cast<Interactive&>(GetInteractive(std::as_const(entity)));
-}
-
-void ClearInteractables(Entity& entity) {
-	if (!entity.Has<Interactive>()) {
-		return;
-	}
-	auto& interactive{ GetInteractive(entity) };
-	// Clear owned entities.
-	interactive.ClearShapes();
 }
 
 } // namespace impl
