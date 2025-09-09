@@ -36,7 +36,7 @@ struct Vertex {
 		bool flip_vertices = false
 	);
 
-	[[nodiscard]] static void SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_index);
+	static void SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_index);
 };
 
 } // namespace impl

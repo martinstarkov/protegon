@@ -108,8 +108,9 @@ public:
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-		const;
+	void SetUniform(
+		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+	) const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
@@ -185,7 +186,7 @@ public:
 
 private:
 	friend class Game;
-	friend class Shader;
+	friend class ptgn::Shader;
 
 	void PopulateShadersFromCache(const json& manifest);
 

@@ -350,8 +350,7 @@ static std::vector<ShaderTypeSource> ParseShader(
 
 	for (std::size_t i{ 0 }; i < sources.size(); i++) {
 		auto& sts{ sources[i] };
-		if (bool auto_layout{ global_auto_layout ||
-							  HasOption(sts.source.source_, auto_layout_name) }) {
+		if (global_auto_layout || HasOption(sts.source.source_, auto_layout_name)) {
 			AddShaderLayout(sts.source.source_, sts.type);
 		}
 		RemoveOption(sts.source.source_);
@@ -416,7 +415,7 @@ static void PopulateShaderCache(
 		}
 		auto filename{ resource.filename() };
 		auto file{ fs.open(subdir + filename) };
-		std::string shader_src(file.begin(), file.end() - file.begin());
+		std::string shader_src(file.begin(), file.end());
 		std::string name_without_ext{ std::filesystem::path(filename).stem().string() };
 		auto srcs{ ParseShader(shader_src, name_without_ext) };
 		sources.insert(sources.end(), srcs.begin(), srcs.end());
@@ -434,9 +433,7 @@ static json GetManifest(const cmrc::embedded_filesystem& fs) {
 	);
 	auto manifest_file{ fs.open(manifest_name) };
 
-	std::string_view manifest_data(
-		manifest_file.begin(), manifest_file.end() - manifest_file.begin()
-	);
+	std::string_view manifest_data(manifest_file.begin(), manifest_file.end());
 
 	json manifest{ json::parse(manifest_data) };
 
@@ -929,8 +926,9 @@ void Shader::SetUniform(const std::string& name, const Matrix4& matrix) const {
 	}
 }
 
-void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
-	const {
+void Shader::SetUniform(
+	const std::string& name, const std::int32_t* data, std::int32_t count
+) const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
@@ -1007,8 +1005,9 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 	}
 }
 
-void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-	const {
+void Shader::SetUniform(
+	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+) const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
