@@ -221,7 +221,7 @@ DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entit
 	DialoguePageProperties default_properties;
 	default_properties.box_size	 = background_.GetDisplaySize();
 	default_properties.font_key	 = text_.GetFontKey();
-	default_properties.font_size = text_.GetFontSize(false);
+	default_properties.font_size = text_.GetFontSize(false, {});
 	LoadFromJson(j, default_properties);
 	Close();
 }

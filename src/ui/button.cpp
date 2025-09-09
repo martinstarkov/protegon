@@ -223,7 +223,7 @@ TextContent ButtonText::GetTextContent(ButtonState state) const {
 }
 
 FontSize ButtonText::GetFontSize(ButtonState state) const {
-	return GetValid(state).GetFontSize();
+	return GetValid(state).GetFontSize(false, {});
 }
 
 TextJustify ButtonText::GetTextJustify(ButtonState state) const {
@@ -268,7 +268,7 @@ void ButtonText::Set(
 		text.SetParameter(text_content, false);
 		text.SetParameter(font_key, false);
 		text.SetParameter(font_size, false);
-		text.SetProperties(text_properties, true);
+		text.SetProperties(text_properties, true, {});
 	}
 }
 
@@ -565,7 +565,7 @@ Button& Button::SetSize(const V2_float& size) {
 		Add<Rect>(size);
 	}
 	if (IsInteractive(*this)) {
-		impl::ClearInteractables(*this);
+		ClearInteractables(*this);
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Rect>(size);
@@ -582,7 +582,7 @@ Button& Button::SetRadius(float radius) {
 		Add<Circle>(radius);
 	}
 	if (IsInteractive(*this)) {
-		impl::ClearInteractables(*this);
+		ClearInteractables(*this);
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Circle>(radius);
