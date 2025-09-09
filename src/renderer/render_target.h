@@ -41,8 +41,8 @@ namespace impl {
 class RenderData;
 
 RenderTarget AddRenderTargetComponents(
-	const Entity& entity, Manager& manager, const V2_int& size, const Color& clear_color,
-	TextureFormat texture_format
+	const Entity& entity, Manager& manager, const V2_int& render_target_size, bool game_size_camera,
+	const Color& clear_color, TextureFormat texture_format
 );
 
 struct DisplayList {
@@ -209,8 +209,8 @@ private:
 	friend class impl::RenderData;
 	friend class Scene;
 	friend RenderTarget impl::AddRenderTargetComponents(
-		const Entity& entity, Manager& manager, const V2_int& size, const Color& clear_color,
-		TextureFormat texture_format
+		const Entity& entity, Manager& manager, const V2_int& render_target_size,
+		bool game_size_camera, const Color& clear_color, TextureFormat texture_format
 	);
 };
 
@@ -218,18 +218,23 @@ PTGN_DRAWABLE_REGISTER(RenderTarget);
 PTGN_DRAW_FILTER_REGISTER(RenderTarget);
 
 // Create a render target with a custom size.
-// @param size The size of the render target.
+// @param size The size of the render target and its camera viewport.
 // @param clear_color The background color of the render target.
+// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 RenderTarget CreateRenderTarget(
 	Manager& manager, const V2_int& size, const Color& clear_color = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 
 // Create a render target that is continuously sized to the specified resolution.
+// @param resize_to_resolution Which resolution the render target automatically resizes to.
 // @param clear_color The background color of the render target.
+// @param game_size_camera If true, render target camera is set to auto resize to the game size
+// instead of to the render target size.
+// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 RenderTarget CreateRenderTarget(
 	Manager& manager, ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
-	const Color& clear_color	 = color::Transparent,
+	bool game_size_camera = true, const Color& clear_color = color::Transparent,
 	TextureFormat texture_format = TextureFormat::RGBA8888
 );
 

@@ -569,7 +569,7 @@ void RenderData::Init() {
 	intermediate_target = {};
 
 	screen_target_ = CreateRenderTarget(
-		render_manager, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8888
+		render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
 	);
 	SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
 

@@ -27,8 +27,8 @@ namespace ptgn {
 namespace impl {
 
 RenderTarget AddRenderTargetComponents(
-	const Entity& entity, Manager& manager, const V2_int& size, const Color& clear_color,
-	TextureFormat texture_format
+	const Entity& entity, Manager& manager, const V2_int& render_target_size, bool game_size_camera,
+	const Color& clear_color, TextureFormat texture_format
 ) {
 	PTGN_ASSERT(entity);
 
@@ -40,13 +40,15 @@ RenderTarget AddRenderTargetComponents(
 	render_target.Add<impl::DisplayList>();
 	render_target.Add<impl::ClearColor>(clear_color);
 	auto& camera{ render_target.Add<GameObject<Camera>>(CreateCamera(manager)) };
-	camera.SetViewport({}, size);
+	if (!game_size_camera) {
+		camera.SetViewport({}, render_target_size);
+	}
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
 	// TODO: Move frame buffer object to a FrameBufferManager.
 	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
-		nullptr, size, texture_format }) };
+		nullptr, render_target_size, texture_format }) };
 
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
@@ -186,7 +188,7 @@ void RenderTarget::ForEachPixel(
 }
 
 void RenderTarget::Resize(const V2_int& size) {
-	if (auto camera{ TryGet<GameObject<Camera>>() }) {
+	if (auto camera{ TryGet<GameObject<Camera>>() }; camera && !camera->IsGameCamera()) {
 		Camera::Resize(*camera, size, true, true);
 	}
 	Get<impl::FrameBuffer>().GetTexture().Resize(size);
@@ -211,8 +213,8 @@ RenderTarget& RenderTarget::RemoveDrawFilter() {
 }
 
 RenderTarget CreateRenderTarget(
-	Manager& manager, ResizeMode resize_to_resolution, const Color& clear_color,
-	TextureFormat texture_format
+	Manager& manager, ResizeMode resize_to_resolution, bool game_size_camera,
+	const Color& clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ manager.CreateEntity() };
 
@@ -233,7 +235,7 @@ RenderTarget CreateRenderTarget(
 	);
 
 	render_target = impl::AddRenderTargetComponents(
-		render_target, manager, resolution, clear_color, texture_format
+		render_target, manager, resolution, game_size_camera, clear_color, texture_format
 	);
 
 	PTGN_ASSERT(render_target);
@@ -245,7 +247,7 @@ RenderTarget CreateRenderTarget(
 	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
 	auto render_target{ impl::AddRenderTargetComponents(
-		manager.CreateEntity(), manager, size, clear_color, texture_format
+		manager.CreateEntity(), manager, size, false, clear_color, texture_format
 	) };
 	return render_target;
 }
