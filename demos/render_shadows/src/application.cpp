@@ -16,6 +16,9 @@
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
+// TODO: Fix light position scaling when lights are rendered on a separate render target (when
+// display size is above game size).
+
 using namespace ptgn;
 
 class LightMap {
