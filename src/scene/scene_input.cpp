@@ -9,6 +9,7 @@
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/interactive.h"
+#include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -27,6 +28,7 @@
 #include "physics/collision/bounding_aabb.h"
 #include "physics/collision/broadphase.h"
 #include "renderer/renderer.h"
+#include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
@@ -76,6 +78,12 @@ static void GetShapes(
 	}
 }
 
+static Transform GetAbsoluteOffsetTransform(const auto& shape, const Entity& shape_entity) {
+	auto transform{ GetAbsoluteTransform(shape_entity) };
+	transform = ApplyOffset(shape, transform, shape_entity);
+	return transform;
+}
+
 static bool Overlap(const V2_float& point, const Entity& entity) {
 	std::vector<std::pair<Shape, Entity>> shapes;
 	GetShapes(entity, entity, shapes);
@@ -83,8 +91,7 @@ static bool Overlap(const V2_float& point, const Entity& entity) {
 	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
 
 	for (const auto& [shape, e] : shapes) {
-		auto transform{ GetAbsoluteTransform(e) };
-		transform = ApplyOffset(shape, transform, e);
+		auto transform{ GetAbsoluteOffsetTransform(shape, e) };
 		if (Overlap(point, transform, shape)) {
 			return true;
 		}
@@ -106,11 +113,9 @@ static bool Overlap(const Entity& entityA, const Entity& entityB) {
 	);
 
 	for (const auto& [shapeA, eA] : shapesA) {
-		auto transformA{ GetAbsoluteTransform(eA) };
-		transformA = ApplyOffset(shapeA, transformA, eA);
+		auto transformA{ GetAbsoluteOffsetTransform(shapeA, eA) };
 		for (const auto& [shapeB, eB] : shapesB) {
-			auto transformB{ GetAbsoluteTransform(eB) };
-			transformB = ApplyOffset(shapeB, transformB, eB);
+			auto transformB{ GetAbsoluteOffsetTransform(shapeB, eB) };
 			if (Overlap(transformA, shapeA, transformB, shapeB)) {
 				return true;
 			}
@@ -134,12 +139,9 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
 
-	struct EntityInfo {
-		Transform absolute_transform;
-		std::vector<std::pair<Shape, Entity>> shapes;
-	};
+	using Shapes = std::vector<std::pair<Shape, Entity>>;
 
-	std::unordered_map<Entity, EntityInfo> entity_shapes;
+	std::unordered_map<Entity, Shapes> entity_shapes;
 
 	std::vector<Entity> all_entities;
 
@@ -151,27 +153,24 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	}
 
 	for (Entity entity : all_entities) {
-		auto base_transform{ GetAbsoluteTransform(entity) };
-		Transform base_draw_transform;
-		if (draw_interactives_) {
-			base_draw_transform = GetDrawTransform(entity);
-		}
 		std::vector<std::pair<Shape, Entity>> shapes;
+
 		GetShapes(entity, entity, shapes);
-		entity_shapes.try_emplace(entity, base_transform, shapes);
+
+		entity_shapes.try_emplace(entity, shapes);
+
 		for (const auto& [shape, shape_entity] : shapes) {
-			// First apply base entity origin.
-			Transform transform{ ApplyOffset(shape, base_transform, entity) };
-			// Then apply shape entity origin.
-			transform = ApplyOffset(shape, transform, shape_entity);
+			auto transform{ GetAbsoluteOffsetTransform(shape, shape_entity) };
+
 			if (draw_interactives_) {
-				base_draw_transform = ApplyOffset(shape, base_draw_transform, entity);
-				base_draw_transform = ApplyOffset(shape, base_draw_transform, shape_entity);
+				auto draw_transform{ GetDrawTransform(shape_entity) };
+				draw_transform = ApplyOffset(shape, draw_transform, shape_entity);
 				DrawDebugShape(
-					base_draw_transform, shape, draw_interactive_color_,
-					draw_interactive_line_width_, entity.GetCamera()
+					draw_transform, shape, draw_interactive_color_, draw_interactive_line_width_,
+					entity.GetCamera()
 				);
 			}
+
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
 		}
 	}
@@ -182,21 +181,31 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 	// PTGN_LOG("Mouse: ", mouse_state.position);
 
+	VectorRemoveDuplicates(candidates);
+
 	InteractiveEntities entities;
 	entities.under_mouse.reserve(candidates.size());
 
 	for (const auto& entity : candidates) {
-		auto it{ entity_shapes.find(entity) };
 		PTGN_ASSERT(
-			it != entity_shapes.end(), "Entity cannot be candidate in broadphase without a shape"
+			entity_shapes.contains(entity),
+			"Entity cannot be candidate in broadphase without a shape"
 		);
-		const auto& base_entity{ it->first };
-		const auto& base_transform{ it->second.absolute_transform };
-		const auto& shapes{ it->second.shapes };
+
+		const auto& shapes{ entity_shapes.find(entity)->second };
+
 		for (const auto& [shape, shape_entity] : shapes) {
-			Transform transform{ ApplyOffset(shape, base_transform, base_entity) };
-			transform = ApplyOffset(shape, transform, shape_entity);
+			if (VectorContains(entities.under_mouse, entity)) {
+				continue;
+			}
+
+			auto transform{ GetAbsoluteOffsetTransform(shape, shape_entity) };
+
 			if (Overlap(mouse_state.position, transform, shape)) {
+				PTGN_ASSERT(
+					!VectorContains(entities.under_mouse, entity),
+					"Attempting to check same interactive entity under mouse twice"
+				);
 				entities.under_mouse.emplace_back(entity);
 			}
 		}
@@ -215,6 +224,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		}
 
 		PTGN_ASSERT(draggable_it != entities.under_mouse.end());
+
 		entities.under_mouse = { *draggable_it };
 	}
 	VectorSubtract(all_entities, entities.under_mouse);
@@ -230,6 +240,7 @@ std::vector<Entity> SceneInput::GetDropzones(Scene& scene) {
 		if (!interactive.enabled) {
 			continue;
 		}
+
 		objects.emplace_back(entity);
 	}
 
@@ -264,8 +275,10 @@ void SceneInput::DispatchMouseEvents(
 		if (!e.Has<Scripts>()) {
 			continue;
 		}
+
 		auto& scripts{ e.Get<Scripts>() };
 		scripts.AddAction(&MouseScript::OnMouseMoveOver);
+
 		if (mouse.left_down) {
 			scripts.AddAction(&MouseScript::OnMouseDownOver, Mouse::Left);
 		}
@@ -287,8 +300,10 @@ void SceneInput::DispatchMouseEvents(
 		if (VectorContains(over, e)) {
 			continue;
 		}
+
 		auto& scripts{ e.Get<Scripts>() };
 		scripts.AddAction(&MouseScript::OnMouseMoveOut);
+
 		if (mouse.left_down) {
 			scripts.AddAction(&MouseScript::OnMouseDownOut, Mouse::Left);
 		}
@@ -314,13 +329,14 @@ bool SceneInput::IsOverlappingDropzone(
 			is_overlapping = Overlap(mouse_position, dropzone);
 			break;
 		}
-		case CallbackTrigger::CenterOverlaps: {
+		case CallbackTrigger::TransformOverlaps: {
 			PTGN_ASSERT(
 				draggable.GetCamera() == dropzone.GetCamera(),
 				"Dropzone entity and drag entity must share the same camera"
 			);
-			auto center{ GetAbsolutePosition(draggable) };
-			is_overlapping = Overlap(center, dropzone);
+			// Origin not accounted for because this is about TransformOverlaps, not center.
+			auto position{ GetAbsolutePosition(draggable) };
+			is_overlapping = Overlap(position, dropzone);
 			break;
 		}
 		case CallbackTrigger::Overlaps: {
@@ -393,7 +409,9 @@ void SceneInput::HandleDragging(
 
 			draggable.dragging_ = true;
 			draggable.start_	= mouse.position;
-			draggable.offset_	= GetAbsolutePosition(dragging) - draggable.start_;
+			// Origin does not need to be accounted for here because offset will be used to set the
+			// position (most often).
+			draggable.offset_ = GetAbsolutePosition(dragging) - draggable.start_;
 		}
 	}
 
