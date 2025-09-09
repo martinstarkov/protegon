@@ -833,7 +833,7 @@ void RenderData::DrawVertices(
 	);
 }
 
-void RenderData::Flush() {
+void RenderData::Flush(bool final_flush) {
 	std::vector<TextureId> texture_id;
 
 	bool has_post_fx{ !render_state.post_fx.post_fx_.empty() };
@@ -904,10 +904,13 @@ void RenderData::Flush() {
 	}
 
 	Reset();
+
+	if (final_flush) {
+		render_state = {};
+	}
 }
 
 void RenderData::Reset() {
-	render_state		= {};
 	intermediate_target = {};
 	vertices_.clear();
 	indices_.clear();
@@ -1002,7 +1005,7 @@ void RenderData::DrawDisplayList(
 
 	InvokeDrawFilter(render_target, FilterType::Post);
 
-	Flush();
+	Flush(true);
 }
 
 void RenderData::DrawScene(Scene& scene) {
@@ -1231,8 +1234,8 @@ void RenderData::Draw(Scene& scene) {
 
 	Reset();
 
-	temporary_textures = std::vector<Texture>{};
 	render_state	   = {};
+	temporary_textures = std::vector<Texture>{};
 }
 
 } // namespace impl

@@ -405,7 +405,7 @@ private:
 
 	void RecomputeDisplaySize(const V2_int& window_size);
 
-	void Flush();
+	void Flush(bool final_flush = false);
 
 	void DrawScene(Scene& scene);
 
