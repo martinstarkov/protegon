@@ -32,17 +32,19 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 
 	Camera camera{ entity.GetCamera() };
 
-	V2_float light_display_pos{ WorldToDisplay(light_world_pos, camera) };
-
 	auto display_size{ game.renderer.GetDisplaySize() };
-
-	light_display_pos += display_size * 0.5f;
 
 	auto camera_display_size{ camera.GetDisplaySize() };
 
 	PTGN_ASSERT(camera_display_size.BothAboveZero());
 
 	auto ratio{ game.renderer.GetDisplaySize() / camera_display_size };
+
+	PTGN_ASSERT(ratio.BothAboveZero());
+
+	V2_float light_display_pos{ WorldToDisplay(light_world_pos, camera) /*/ ratio*/ };
+
+	light_display_pos += display_size * 0.5f;
 
 	float radius{ 2.0f * light.GetRadius() * Abs(transform.GetAverageScale()) *
 				  ((ratio.x + ratio.y) * 0.5f) };
