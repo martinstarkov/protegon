@@ -210,6 +210,18 @@ bool Window::GetSetting(WindowSetting setting) const {
 	}
 }
 
+void Window::SetResizable() const {
+	SetSetting(WindowSetting::Resizable);
+}
+
+void Window::SetFixedSize() const {
+	SetSetting(WindowSetting::FixedSize);
+}
+
+void Window::SetFullscreen() const {
+	SetSetting(WindowSetting::Fullscreen);
+}
+
 } // namespace impl
 
 } // namespace ptgn

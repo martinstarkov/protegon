@@ -90,6 +90,12 @@ public:
 	// Get the current state of a window setting.
 	[[nodiscard]] bool GetSetting(WindowSetting setting) const;
 
+	void SetResizable() const;
+
+	void SetFixedSize() const;
+
+	void SetFullscreen() const;
+
 	void SwapBuffers() const;
 
 private:
