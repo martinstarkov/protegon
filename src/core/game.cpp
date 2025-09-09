@@ -198,6 +198,7 @@ void Game::Init(const std::string& title, const V2_int& game_size) {
 	// Order matters here.
 	window.SetSize(game_size);
 	renderer.SetGameSize(game_size);
+	window.SetSetting(WindowSetting::FixedSize);
 }
 
 void Game::Shutdown() {
@@ -241,7 +242,6 @@ void Game::MainLoop() {
 	EmscriptenInit();
 	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
 #else
-	window.SetSetting(WindowSetting::FixedSize);
 	while (running_) {
 		Update();
 	}
