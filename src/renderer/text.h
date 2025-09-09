@@ -122,7 +122,7 @@ public:
 	);
 
 	// Set text to be in high definition instead of natively scaling to its camera.
-	Text& SetHD(bool hd, const Camera& camera);
+	Text& SetHD(bool hd = true, const Camera& camera = {});
 	[[nodiscard]] bool IsHD() const;
 
 	// @param font_key Default: "" corresponds to the default engine font (use
@@ -169,21 +169,21 @@ public:
 	// @param hd If true, returns font size scaled to high definition.
 	// @param camera The camera relative to which an hd font size is retrieved. Only applicable if
 	// hd is true. If {}, uses the text's camera component, which may be the scene camera.
-	[[nodiscard]] FontSize GetFontSize(bool hd, const Camera& camera) const;
+	[[nodiscard]] FontSize GetFontSize(bool hd = false, const Camera& camera = {}) const;
 
 	// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
 	// text is hd. If {}, uses the text's camera component, which may be the scene camera.
 	// @return The unscaled size of the text texture given the current content and font.
-	[[nodiscard]] V2_int GetSize(const Camera& camera) const;
+	[[nodiscard]] V2_int GetSize(const Camera& camera = {}) const;
 
 	// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
 	// text is hd. If {}, uses the text's camera component, which may be the scene camera.
 	// @return The unscaled size of the text texture given the specified content.
-	[[nodiscard]] V2_int GetSize(const TextContent& content, const Camera& camera) const;
+	[[nodiscard]] V2_int GetSize(const TextContent& content, const Camera& camera = {}) const;
 
 	// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
 	// text is hd. If {}, uses the text's camera component, which may be the scene camera.
-	[[nodiscard]] static V2_int GetSize(const Entity& text, const Camera& camera);
+	[[nodiscard]] static V2_int GetSize(const Entity& text, const Camera& camera = {});
 
 	[[nodiscard]] static V2_int GetSize(
 		const TextContent& content, const ResourceHandle& font_key, const FontSize& font_size = {}
@@ -191,7 +191,7 @@ public:
 
 	[[nodiscard]] TextProperties GetProperties() const;
 
-	void SetProperties(const TextProperties& properties, const Camera& camera);
+	void SetProperties(const TextProperties& properties, const Camera& camera = {});
 
 	// @return True if the parameter was changed.
 	template <TextParameter T>
@@ -215,7 +215,7 @@ public:
 	}
 
 	void SetProperties(
-		const TextProperties& properties, bool recreate_texture, const Camera& camera
+		const TextProperties& properties, bool recreate_texture, const Camera& camera = {}
 	);
 
 private:
