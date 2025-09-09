@@ -59,7 +59,7 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		p = CreateParticleEmitter(*this);
 
 		p.SetMaxParticles(1000);

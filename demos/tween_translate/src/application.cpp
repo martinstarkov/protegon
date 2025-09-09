@@ -14,7 +14,7 @@ struct TranslateEffectScene : public Scene {
 	Sprite sprite3;
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		SetBackgroundColor(color::LightBlue);
 
 		LoadResource("smile", "resources/smile.png");

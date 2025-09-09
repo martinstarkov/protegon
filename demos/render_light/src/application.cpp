@@ -19,7 +19,7 @@ public:
 		// game.renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1));
 
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		LoadResource("test", "resources/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });

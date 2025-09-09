@@ -44,7 +44,7 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		SetBackgroundColor(color::DarkGray);
 
 		LoadResource("smile", "resources/smile.png");

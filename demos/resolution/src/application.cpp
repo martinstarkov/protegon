@@ -40,7 +40,7 @@ struct ResolutionScene : public Scene {
 
 	void Enter() override {
 		game.renderer.SetBackgroundColor(color::LightBlue);
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		game.renderer.SetScalingMode(ScalingMode::Letterbox);
 
 		RenderTarget rt{ GetRenderTarget() };

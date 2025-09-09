@@ -39,7 +39,7 @@ public:
 	void Enter() override {
 		Origin button_origin{ Origin::TopLeft };
 
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		b1 = CreateButton(*this);
 		AddScript<ButtonScript1>(b1);
 		SetPosition(b1, V2_float{ -100, -150 - 50 });

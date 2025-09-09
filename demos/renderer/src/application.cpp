@@ -655,7 +655,7 @@ struct RendererScene : public Scene {
 
 	void Enter() override {
 		SetBackgroundColor(color::LightBlue);
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		PTGN_LOG("-------- Test ", test_index, " --------");
 		PTGN_ASSERT(test_index < tests.size());
 		if (tests[test_index]) {

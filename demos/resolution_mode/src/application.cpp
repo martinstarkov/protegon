@@ -18,7 +18,7 @@ constexpr V2_int resolution{ 320, 240 }; // 4, 3
 class ScalingModeScene : public Scene {
 	void Enter() override {
 		SetBackgroundColor(color::LightBlue);
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		game.window.SetSize(window_size);
 		LoadResource("background", "resources/test1.jpg");
 		game.renderer.SetGameSize(resolution, ScalingMode::Disabled);

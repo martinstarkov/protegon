@@ -409,7 +409,7 @@ struct InteractiveScene : public Scene {
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(10.0f);

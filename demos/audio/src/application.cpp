@@ -61,7 +61,7 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		game.music.Load("music1", "resources/music1.ogg");
 		game.sound.Load("sound1", "resources/sound1.ogg");
 		game.music.Load("music2", "resources/music2.ogg");

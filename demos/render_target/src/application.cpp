@@ -77,7 +77,7 @@ struct RenderTargetScene : public Scene {
 
 	void Enter() override {
 		SetBackgroundColor(color::LightGray);
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		game.renderer.SetGameSize(resolution);
 
 		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);

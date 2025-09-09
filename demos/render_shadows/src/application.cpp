@@ -353,12 +353,12 @@ struct line_segment_dist_comparer {
 		auto a = x.a, b = x.b;
 		auto c = y.a, d = y.b;
 
-		assert(
-			compute_orientation(origin, a, b) != orientation::collinear &&
+		PTGN_ASSERT(
+			compute_orientation(origin, a, b) != orientation::collinear,
 			"AB must not be collinear with the origin."
 		);
-		assert(
-			compute_orientation(origin, c, d) != orientation::collinear &&
+		PTGN_ASSERT(
+			compute_orientation(origin, c, d) != orientation::collinear,
 			"CD must not be collinear with the origin."
 		);
 
@@ -522,7 +522,7 @@ std::vector<Vector> visibility_polygon(Vector point, InputIterator begin, InputI
 			ray<Vector> ray{ point, event.point() - point };
 			auto nearest_segment = *state.begin();
 			auto intersects		 = ray.intersects(nearest_segment, intersection);
-			assert(intersects && "Ray intersects line segment L iff L is in the state");
+			PTGN_ASSERT(intersects, "Ray intersects line segment L iff L is in the state");
 
 			if (event.type == event_type::start_vertex) {
 				vertices.push_back(intersection);
@@ -590,7 +590,7 @@ public:
 		// game.renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1));
 
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		LoadResource("test", "resources/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
@@ -602,7 +602,7 @@ public:
 
 		float step{ 80 };
 
-		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, color::Transparent);
+		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, true, color::Transparent);
 		rt.SetDrawFilter<LightMap>();
 		SetBlendMode(rt, BlendMode::PremultipliedAddRGBA);
 

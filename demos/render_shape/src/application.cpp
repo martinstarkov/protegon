@@ -12,7 +12,7 @@ constexpr V2_int resolution{ 800, 800 };
 
 struct ShapeScene : public Scene {
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 	}
 
 	std::vector<V2_float> GetStarVertices(int count, float outer_radius, float inner_radius) {

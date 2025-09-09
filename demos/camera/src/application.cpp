@@ -274,7 +274,7 @@ public:
 	V2_int center{ 0, 0 };
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		//	camera.SetPixelRounding(true);
 		LoadResource("tree", "resources/test1.jpg");
 

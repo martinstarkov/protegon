@@ -40,7 +40,7 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 
 		auto res{ game.renderer.GetGameSize() };
 

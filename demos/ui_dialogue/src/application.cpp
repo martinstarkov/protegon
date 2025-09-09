@@ -19,7 +19,7 @@ struct DialogueScene : public Scene {
 
 	void Enter() override {
 		PTGN_LOG("Entity count: ", Size());
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		LoadResource("dialogue_box", "resources/box.png");
 
 		npc = CreateEntity();

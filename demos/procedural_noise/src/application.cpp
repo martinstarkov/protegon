@@ -40,7 +40,7 @@ public:
 
 	void Enter() override {
 		game.renderer.SetBackgroundColor(color::Magenta);
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 	}
 
