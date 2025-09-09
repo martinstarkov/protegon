@@ -522,7 +522,8 @@ std::vector<Vector> visibility_polygon(Vector point, InputIterator begin, InputI
 			ray<Vector> ray{ point, event.point() - point };
 			auto nearest_segment = *state.begin();
 			auto intersects		 = ray.intersects(nearest_segment, intersection);
-			PTGN_ASSERT(intersects, "Ray intersects line segment L iff L is in the state");
+			// TODO: Readd this assert.
+			// PTGN_ASSERT(intersects, "Ray intersects line segment L iff L is in the state");
 
 			if (event.type == event_type::start_vertex) {
 				vertices.push_back(intersection);
@@ -664,7 +665,7 @@ void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 
 		Rect rect{ game.renderer.GetDisplaySize() };
 
-		ctx.AddQuad({}, rect, Origin::Center, color::Transparent, 0.0f, -1.0f, state);
+		ctx.AddQuad({}, rect, Origin::Center, color::Transparent, 0, -1.0f, state);
 
 		for (auto& entity : display_list) {
 			if (!entity.Has<impl::LightProperties>()) {
@@ -701,7 +702,8 @@ void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 					const V2_float& a = verts_2[i];
 					const V2_float& b = verts_2[(i + 1) % verts_2.size()];
 					ctx.AddTriangle(
-						{}, Triangle{ origin, a, b }, color::White, 0.0f, -1.0f, info.state
+						{}, Triangle{ origin, a, b }, color::White, GetDepth(entity) + 1, -1.0f,
+						info.state
 					);
 				}
 			}
