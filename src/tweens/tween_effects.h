@@ -378,7 +378,7 @@ impl::EffectObject<impl::TranslateEffect>& TranslateTo(
  */
 template <EntityBase T = Entity>
 impl::EffectObject<impl::RotateEffect>& RotateTo(
-	Entity& entity, float target_angle, milliseconds duration,
+	T& entity, float target_angle, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 ) {
 	return impl::AddTweenEffect<impl::RotateEffect, float>(
@@ -405,7 +405,7 @@ impl::EffectObject<impl::RotateEffect>& RotateTo(
  */
 template <EntityBase T = Entity>
 impl::EffectObject<impl::ScaleEffect>& ScaleTo(
-	Entity& entity, const V2_float& target_scale, milliseconds duration,
+	T& entity, const V2_float& target_scale, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 ) {
 	return impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
