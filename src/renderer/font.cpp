@@ -14,6 +14,7 @@
 #include "math/vector2.h"
 #include "resources/fonts.h"
 #include "resources/resource_manager.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "SDL_error.h"
 #include "SDL_rwops.h"
@@ -24,16 +25,13 @@
 
 namespace ptgn {
 
-FontSize FontSize::GetHD(const Entity& entity) const {
+FontSize FontSize::GetHD(const Scene& scene, const Camera& camera) const {
 	FontSize final_font_size{ *this };
 
-	const auto& scene{ entity.GetScene() };
-	const auto& camera{ entity.GetCamera() };
-
-	auto scene_scale{ scene.GetScaleRelativeTo(camera) };
+	auto render_target_scale{ scene.GetRenderTargetScaleRelativeTo(camera) };
 
 	final_font_size =
-		static_cast<std::int32_t>(static_cast<float>(final_font_size) * scene_scale.y);
+		static_cast<std::int32_t>(static_cast<float>(final_font_size) * render_target_scale.y);
 
 	return final_font_size;
 }

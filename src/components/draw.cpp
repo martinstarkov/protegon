@@ -146,7 +146,11 @@ BlendMode GetBlendMode(const Entity& entity) {
 }
 
 Entity& SetTint(Entity& entity, const Color& color) {
-	impl::EntityAccess::TryAdd<Tint>(entity, color);
+	if (color != Tint{}) {
+		impl::EntityAccess::Add<Tint>(entity, color);
+	} else {
+		impl::EntityAccess::Remove<Tint>(entity);
+	}
 	return entity;
 }
 
@@ -311,12 +315,14 @@ void DrawText(
 	info.transform.Translate(offset);
 
 	if (bool is_hd{ text.IsHD() }) {
-		auto scene_scale{ text.GetScene().GetScaleRelativeTo(text.GetCamera()) };
+		auto scene_scale{ text.GetScene().GetRenderTargetScaleRelativeTo(info.state.camera) };
+
+		PTGN_ASSERT(scene_scale.BothAboveZero());
 
 		info.transform.Scale(info.transform.GetScale() / scene_scale);
 
-		if (text.GetFontSize(is_hd) != text.Get<impl::CachedFontSize>()) {
-			text.RecreateTexture();
+		if (text.GetFontSize(is_hd, info.state.camera) != text.Get<impl::CachedFontSize>()) {
+			text.RecreateTexture(info.state.camera);
 		}
 	}
 
