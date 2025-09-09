@@ -48,7 +48,7 @@ public:
 	// button on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only);
 
-	void SetDrawInteractives(bool draw_interactives);
+	void SetDrawInteractives(bool draw_interactives = true);
 	void SetDrawInteractivesColor(const Color& color);
 	void SetDrawInteractivesLineWidth(float line_width);
 
