@@ -146,16 +146,34 @@ void DrawDebugRect(
 	const V2_float& position, const V2_float& size, const Color& color, Origin origin,
 	float line_width, float rotation, const Camera& camera
 ) {
-	DrawDebugShape(Transform{ position, rotation }, Rect{ size }, color, line_width, camera);
+	impl::DrawShapeCommand cmd;
+
+	cmd.transform	 = Transform{ position, rotation };
+	cmd.shape		 = Rect{ size };
+	cmd.tint		 = color;
+	cmd.origin		 = origin;
+	cmd.depth		 = impl::max_depth;
+	cmd.line_width	 = line_width;
+	cmd.render_state = impl::GetDebugRenderState(camera);
+
+	game.renderer.GetRenderData().Submit(cmd);
 }
 
 void DrawDebugRoundedRect(
 	const V2_float& position, const V2_float& size, float radius, const Color& color, Origin origin,
 	float line_width, float rotation, const Camera& camera
 ) {
-	DrawDebugShape(
-		Transform{ position, rotation }, RoundedRect{ size, radius }, color, line_width, camera
-	);
+	impl::DrawShapeCommand cmd;
+
+	cmd.transform	 = Transform{ position, rotation };
+	cmd.shape		 = RoundedRect{ size, radius };
+	cmd.tint		 = color;
+	cmd.origin		 = origin;
+	cmd.depth		 = impl::max_depth;
+	cmd.line_width	 = line_width;
+	cmd.render_state = impl::GetDebugRenderState(camera);
+
+	game.renderer.GetRenderData().Submit(cmd);
 }
 
 void DrawDebugEllipse(
