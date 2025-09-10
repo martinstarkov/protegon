@@ -274,7 +274,7 @@ struct Vector2 {
 	}
 
 	[[nodiscard]] bool BothAboveZero() const {
-		return x > 0 && y > 0;
+		return x > 0 && y > 0 && !HasZero();
 	}
 };
 
