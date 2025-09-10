@@ -173,6 +173,19 @@ void RenderData::DrawShape(DrawShapeCommand cmd) {
 				IsAnyOf<T, V2_float, Line, Capsule, Arc, RoundedRect, Ellipse>
 			};
 
+			const auto add_shape = [this](
+									   const auto& state, float line_width, auto& vertices,
+									   const auto& indices, const auto& points
+								   ) {
+				SetState(state);
+
+				if (line_width == -1.0f) {
+					AddVertices(vertices, indices);
+				} else {
+					AddLinesImpl(vertices, indices, points, line_width, {});
+				}
+			};
+
 			const auto get_data = [](const auto& shape, auto radius, float line_width,
 									 const V2_float& size) -> std::array<float, 4> {
 				std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
@@ -296,53 +309,45 @@ void RenderData::DrawShape(DrawShapeCommand cmd) {
 
 				SetState(cmd.render_state);
 				AddVertices(quad_vertices, quad_indices);
-			} else if constexpr (std::is_same_v<T, Triangle>) {
-				auto points			   = shape.GetWorldVertices(cmd.transform);
-				auto triangle_vertices = Vertex::GetTriangle(points, cmd.tint, cmd.depth);
-				AddShape(
-					triangle_vertices, triangle_indices, points, cmd.line_width, cmd.render_state
-				);
-			} else if constexpr (std::is_same_v<T, Polygon>) {
-				PTGN_ASSERT(shape.vertices.size() >= 3);
-
-				if (cmd.line_width == -1.0f) {
-					auto vertices = shape.GetWorldVertices(cmd.transform);
-					SetState(cmd.render_state);
-					auto triangles = Triangulate(shape.vertices);
-					for (const auto& tri : triangles) {
-						auto tri_verts = Vertex::GetTriangle(tri, cmd.tint, cmd.depth);
-						AddVertices(tri_verts, triangle_indices);
-					}
-				} else {
-					auto& points = shape.vertices;
-					PTGN_ASSERT(points.size() >= 3);
-					SetState(cmd.render_state);
-					for (std::size_t i = 0; i < points.size(); ++i) {
-						Line l{ points[i], points[(i + 1) % points.size()] };
-						auto quad_points   = l.GetWorldQuadVertices(cmd.transform, cmd.line_width);
-						auto quad_vertices = Vertex::GetQuad(
-							quad_points, cmd.tint, cmd.depth, { 0.0f },
-							GetDefaultTextureCoordinates()
-						);
-						AddVertices(quad_vertices, quad_indices);
-					}
-				}
+			} else if constexpr (std::is_same_v<T, Circle>) {
+				cmd.shape = Ellipse{ V2_float{ shape.GetRadius() } };
+				DrawShape(cmd);
 			} else if constexpr (std::is_same_v<T, Rect>) {
 				auto size = shape.GetSize(cmd.transform);
 				if (!size.BothAboveZero()) {
 					return;
 				}
 
-				auto quad_points   = shape.GetWorldVertices(cmd.transform, cmd.origin);
-				auto quad_vertices = Vertex::GetQuad(
-					quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+				auto points	  = shape.GetWorldVertices(cmd.transform, cmd.origin);
+				auto vertices = Vertex::GetQuad(
+					points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
 				);
-				AddShape(
-					quad_vertices, quad_indices, quad_points, cmd.line_width, cmd.render_state
-				);
-			} else if constexpr (std::is_same_v<T, Circle>) {
-				cmd.shape = Ellipse{ V2_float{ shape.GetRadius() } };
-				DrawShape(cmd);
+
+				add_shape(cmd.render_state, cmd.line_width, vertices, quad_indices, points);
+			} else if constexpr (std::is_same_v<T, Triangle>) {
+				auto points	  = shape.GetWorldVertices(cmd.transform);
+				auto vertices = Vertex::GetTriangle(points, cmd.tint, cmd.depth);
+
+				add_shape(cmd.render_state, cmd.line_width, vertices, triangle_indices, points);
+			} else if constexpr (std::is_same_v<T, Polygon>) {
+				SetState(cmd.render_state);
+
+				PTGN_ASSERT(shape.vertices.size() >= 3);
+
+				auto points = shape.GetWorldVertices(cmd.transform);
+
+				if (cmd.line_width == -1.0f) {
+					auto triangles{ Triangulate(points) };
+					for (const auto& triangle : triangles) {
+						auto vertices = Vertex::GetTriangle(triangle, cmd.tint, cmd.depth);
+						AddVertices(vertices, triangle_indices);
+					}
+				} else {
+					auto vertices = Vertex::GetQuad(
+						{}, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+					);
+					AddLinesImpl(vertices, quad_indices, points, cmd.line_width, {});
+				}
 			}
 		},
 		cmd.shape
@@ -445,6 +450,7 @@ void RenderData::DrawTexture(DrawTextureCommand cmd) {
 		// current batch, which will clear textures.
 		textures_.emplace_back(texture_id);
 	}
+
 	PTGN_ASSERT(textures_.size() < max_texture_slots);
 }
 
@@ -688,34 +694,17 @@ std::size_t RenderData::GetMaxTextureSlots() const {
 	return max_texture_slots;
 }
 
-void RenderData::AddShape(
-	std::span<const Vertex> shape_vertices, std::span<const Index> shape_indices,
-	std::span<const V2_float> shape_points, float line_width, const RenderState& state
-) {
-	SetState(state);
-
-	if (line_width == -1.0f) {
-		AddVertices(shape_vertices, shape_indices);
-	} else {
-		// We need a mutable copy of the vertices when drawing lines
-		std::vector<Vertex> mutable_vertices{ shape_vertices.begin(), shape_vertices.end() };
-		AddLinesImpl(mutable_vertices, shape_indices, shape_points, line_width, state);
-	}
-}
-
 void RenderData::AddLinesImpl(
 	std::span<Vertex> line_vertices, std::span<const Index> line_indices,
-	std::span<const V2_float> points, float line_width, [[maybe_unused]] const RenderState& state
+	std::span<const V2_float> points, float line_width, const Transform& transform
 ) {
 	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for lines");
-	PTGN_ASSERT(points.size() == line_vertices.size());
 
 	for (std::size_t i = 0; i < points.size(); ++i) {
-		auto start{ points[i] };
-		auto end{ points[(i + 1) % points.size()] };
+		Line l{ points[i], points[(i + 1) % points.size()] };
+		auto line_points{ l.GetWorldQuadVertices(transform, line_width) };
 
-		Line l{ start, end };
-		auto line_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
+		PTGN_ASSERT(line_vertices.size() == line_points.size());
 
 		for (std::size_t j = 0; j < line_vertices.size(); ++j) {
 			line_vertices[j].position[0] = line_points[j].x;

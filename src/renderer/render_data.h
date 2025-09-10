@@ -272,14 +272,9 @@ private:
 		const std::array<V2_float, 4>& points, bool use_viewport
 	);
 
-	void AddShape(
-		std::span<const Vertex> shape_vertices, std::span<const Index> shape_indices,
-		std::span<const V2_float> shape_points, float line_width, const RenderState& state
-	);
-
 	void AddLinesImpl(
 		std::span<Vertex> line_vertices, std::span<const Index> line_indices,
-		std::span<const V2_float> points, float line_width, const RenderState& state
+		std::span<const V2_float> points, float line_width, const Transform& transform
 	);
 
 	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
