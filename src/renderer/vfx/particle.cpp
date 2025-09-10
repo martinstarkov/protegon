@@ -96,10 +96,9 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 
 	impl::RenderState state;
-	state.camera	  = entity.GetOrParentOrDefault<Camera>();
-	state.blend_mode  = GetBlendMode(entity);
-	state.shader_pass = game.shader.Get("quad");
-	state.post_fx	  = entity.GetOrDefault<PostFX>();
+	state.camera	 = entity.GetOrParentOrDefault<Camera>();
+	state.blend_mode = GetBlendMode(entity);
+	state.post_fx	 = entity.GetOrDefault<PostFX>();
 
 	if (i.info.texture_enabled && i.info.texture_key) {
 		Color tint{ color::White };
@@ -127,8 +126,6 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
-			state.shader_pass = game.shader.Get("circle");
-
 			impl::DrawShapeCommand cmd;
 			cmd.depth		 = depth;
 			cmd.render_state = state;
