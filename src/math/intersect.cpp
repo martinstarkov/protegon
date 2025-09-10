@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "common/type_info.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "debug/debugging.h"
@@ -16,8 +17,8 @@
 #include "geometry/circle.h"
 #include "geometry/polygon.h"
 #include "geometry/rect.h"
-#include "math/geometry.h"
 #include "math/geometry/axis.h"
+#include "math/geometry/shape.h"
 #include "math/overlap.h"
 #include "math/utility.h"
 #include "math/vector2.h"
@@ -333,7 +334,8 @@ Intersection IntersectPolygonPolygon(
 } // namespace impl
 
 Intersection Intersect(
-	const Transform& t1, const Shape& shape1, const Transform& t2, const Shape& shape2
+	const Transform& t1, const ColliderShape& shape1, const Transform& t2,
+	const ColliderShape& shape2
 ) {
 	return std::visit(
 		[&](const auto& s1) -> Intersection {
@@ -342,7 +344,10 @@ Intersection Intersect(
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
 					PTGN_INTERSECT_SHAPE_PAIR_TABLE {
-						PTGN_ERROR("Cannot find intersect function for the given shapes");
+						PTGN_ERROR(
+							"Cannot find intersect function for the given shapes: ",
+							type_name<S1>(), " and ", type_name<S2>()
+						);
 					}
 				},
 				shape2

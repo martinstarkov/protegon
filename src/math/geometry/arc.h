@@ -20,7 +20,7 @@ struct ReverseArc {};
 struct Arc {
 	Arc() = default;
 
-	Arc(float arc_radius, float start_angle, float end_angle);
+	Arc(float arc_radius, float start_angle, float end_angle, bool clockwise = true);
 
 	static void Draw(impl::RenderData& ctx, const Entity& entity);
 
@@ -43,7 +43,10 @@ struct Arc {
 	float start_angle{ 0.0f };
 	float end_angle{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius, start_angle, end_angle)
+	// Direction of arc.
+	bool clockwise{ true };
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius, start_angle, end_angle, clockwise)
 };
 
 void SetArcReversed(Entity& entity, bool reversed = true);

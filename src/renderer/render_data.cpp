@@ -79,9 +79,11 @@ ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
 	transform{ GetDrawTransform(entity) },
 	tint{ GetTint(entity) },
 	depth{ GetDepth(entity) },
-	line_width{ entity.GetOrDefault<LineWidth>() },
-	state{ game.shader.Get("quad"), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
-		   entity.GetOrDefault<PostFX>() } {}
+	line_width{ entity.GetOrDefault<LineWidth>() } {
+	state.blend_mode = GetBlendMode(entity);
+	state.camera	 = entity.GetOrDefault<Camera>();
+	state.post_fx	 = entity.GetOrDefault<PostFX>();
+}
 
 void ViewportResizeScript::OnWindowResized() {
 	auto& render_data{ game.renderer.GetRenderData() };
@@ -161,277 +163,260 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat tex
 	return spare_context;
 }
 
-void RenderData::AddPoint(
-	const Transform& transform, const V2_float& position, const Color& tint, const Depth& depth,
-	const RenderState& state
-) {
-	Transform translated{ transform };
-	translated.Translate(position);
-	AddQuad(translated, Rect{ V2_float{ 1.0f } }, Origin::Center, tint, depth, -1.0f, state);
+void RenderData::DrawShape(DrawShapeCommand cmd) {
+	std::visit(
+		[&](const auto& shape) {
+			using T = std::decay_t<decltype(shape)>;
+
+			if constexpr (std::is_same_v<T, V2_float>) {
+				Transform translated = cmd.transform;
+				translated.Translate(shape);
+				Rect r{ V2_float{ 1.0f } };
+				auto size		   = r.GetSize(translated);
+				auto quad_points   = r.GetWorldVertices(translated, Origin::Center);
+				auto quad_vertices = Vertex::GetQuad(
+					quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+				);
+				SetState(cmd.render_state);
+				AddVertices(quad_vertices, quad_indices);
+			} else if constexpr (std::is_same_v<T, Line>) {
+				if (cmd.line_width <= min_line_width) {
+					return;
+				}
+
+				auto quad_points   = shape.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+				auto quad_vertices = Vertex::GetQuad(
+					quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+				);
+				SetState(cmd.render_state);
+				AddVertices(quad_vertices, quad_indices);
+			} else if constexpr (std::is_same_v<T, Capsule>) {
+				auto radius{ shape.GetRadius(cmd.transform) };
+
+				if (radius <= 0.0f) {
+					return;
+				}
+
+				V2_float size;
+				auto quad_points{ shape.GetWorldQuadVertices(cmd.transform, &size) };
+
+				float diameter{ 2.0f * radius };
+
+				float fade{ GetFade(diameter) };
+
+				float thickness{
+					NormalizeArcLineWidthToThickness(cmd.line_width, fade, V2_float{ radius })
+				};
+
+				float aspect_ratio{ GetAspectRatio(size) };
+				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+
+				auto quad_vertices{ Vertex::GetQuad(
+					quad_points, cmd.tint, cmd.depth,
+					{ thickness, fade, normalized_radius, aspect_ratio },
+					GetDefaultTextureCoordinates()
+				) };
+				if (!cmd.render_state.shader_pass.has_value()) {
+					cmd.render_state.shader_pass = game.shader.Get("capsule");
+				}
+				SetState(cmd.render_state);
+				AddVertices(quad_vertices, quad_indices);
+			} else if constexpr (std::is_same_v<T, Arc>) {
+				auto radius{ shape.GetRadius(cmd.transform) };
+
+				if (radius <= 0.0f) {
+					return;
+				}
+
+				float diameter{ 2.0f * radius };
+
+				float fade{ GetFade(diameter) };
+				float thickness{
+					NormalizeArcLineWidthToThickness(cmd.line_width, fade, V2_float{ radius })
+				};
+
+				float aperture{ shape.GetAperture() };
+
+				Transform rotated{ cmd.transform };
+				rotated.Rotate(shape.GetStartAngle());
+
+				auto quad_points{ shape.GetWorldQuadVertices(rotated) };
+
+				float direction{ shape.clockwise ? 1.0f : -1.0f };
+
+				auto quad_vertices{ Vertex::GetQuad(
+					quad_points, cmd.tint, cmd.depth, { thickness, fade, aperture, direction },
+					GetDefaultTextureCoordinates()
+				) };
+
+				if (!cmd.render_state.shader_pass.has_value()) {
+					cmd.render_state.shader_pass = game.shader.Get("arc");
+				}
+				SetState(cmd.render_state);
+				AddVertices(quad_vertices, quad_indices);
+			} else if constexpr (std::is_same_v<T, Triangle>) {
+				auto points			   = shape.GetWorldVertices(cmd.transform);
+				auto triangle_vertices = Vertex::GetTriangle(points, cmd.tint, cmd.depth);
+				AddShape(
+					triangle_vertices, triangle_indices, points, cmd.line_width, cmd.render_state
+				);
+			} else if constexpr (std::is_same_v<T, Polygon>) {
+				PTGN_ASSERT(shape.vertices.size() >= 3);
+
+				if (cmd.line_width == -1.0f) {
+					auto vertices = shape.GetWorldVertices(cmd.transform);
+					SetState(cmd.render_state);
+					auto triangles = Triangulate(shape.vertices);
+					for (const auto& tri : triangles) {
+						auto tri_verts = Vertex::GetTriangle(tri, cmd.tint, cmd.depth);
+						AddVertices(tri_verts, triangle_indices);
+					}
+				} else {
+					auto& points = shape.vertices;
+					PTGN_ASSERT(points.size() >= 3);
+					SetState(cmd.render_state);
+					for (std::size_t i = 0; i < points.size(); ++i) {
+						Line l{ points[i], points[(i + 1) % points.size()] };
+						auto quad_points   = l.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+						auto quad_vertices = Vertex::GetQuad(
+							quad_points, cmd.tint, cmd.depth, { 0.0f },
+							GetDefaultTextureCoordinates()
+						);
+						AddVertices(quad_vertices, quad_indices);
+					}
+				}
+			} else if constexpr (std::is_same_v<T, RoundedRect>) {
+				float radius = shape.GetRadius(cmd.transform);
+
+				if (radius <= 0.0f) {
+					return;
+				}
+
+				auto size = shape.GetSize(cmd.transform);
+
+				if (!size.BothAboveZero()) {
+					return;
+				}
+
+				auto quad_points{ shape.GetWorldQuadVertices(cmd.transform, cmd.origin) };
+
+				if (radius <= 0.0f) {
+					cmd.render_state.shader_pass = std::nullopt;
+					cmd.shape					 = Rect{ shape.GetSize() };
+					DrawShape(cmd);
+					return;
+				}
+
+				auto diameter{ 2.0f * radius };
+				float fade{ GetFade(diameter) };
+
+				float thickness{
+					NormalizeArcLineWidthToThickness(cmd.line_width, fade, V2_float{ radius })
+				};
+
+				float aspect_ratio{ GetAspectRatio(size) };
+				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+
+				auto quad_vertices = Vertex::GetQuad(
+					quad_points, cmd.tint, cmd.depth,
+					{ thickness, fade, normalized_radius, aspect_ratio },
+					GetDefaultTextureCoordinates()
+				);
+				if (!cmd.render_state.shader_pass.has_value()) {
+					cmd.render_state.shader_pass = game.shader.Get("rounded_rect");
+				}
+				SetState(cmd.render_state);
+				AddVertices(quad_vertices, quad_indices);
+			} else if constexpr (std::is_same_v<T, Rect>) {
+				auto size = shape.GetSize(cmd.transform);
+				if (!size.BothAboveZero()) {
+					return;
+				}
+
+				auto quad_points   = shape.GetWorldVertices(cmd.transform, cmd.origin);
+				auto quad_vertices = Vertex::GetQuad(
+					quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+				);
+				AddShape(
+					quad_vertices, quad_indices, quad_points, cmd.line_width, cmd.render_state
+				);
+			} else if constexpr (std::is_same_v<T, Ellipse>) {
+				auto radius = shape.GetRadius(cmd.transform);
+				if (!radius.BothAboveZero()) {
+					return;
+				}
+
+				auto quad_points = shape.GetWorldQuadVertices(cmd.transform);
+				auto diameter{ 2.0f * radius };
+				auto fade{ GetFade(diameter.y) };
+				float thickness{ NormalizeArcLineWidthToThickness(cmd.line_width, fade, radius) };
+				auto verts = Vertex::GetQuad(
+					quad_points, cmd.tint, cmd.depth, { thickness, fade },
+					GetDefaultTextureCoordinates()
+				);
+				if (!cmd.render_state.shader_pass.has_value()) {
+					cmd.render_state.shader_pass = game.shader.Get("circle");
+				}
+				SetState(cmd.render_state);
+				AddVertices(verts, quad_indices);
+			} else if constexpr (std::is_same_v<T, Circle>) {
+				cmd.shape = Ellipse{ V2_float{ shape.GetRadius() } };
+				DrawShape(cmd);
+			}
+		},
+		cmd.shape
+	);
 }
 
-void RenderData::AddLines(
-	const Transform& transform, const std::vector<V2_float>& line_points, const Color& tint,
-	const Depth& depth, float line_width, bool connect_last_to_first, const RenderState& state
-) {
-	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for line");
+void RenderData::DrawLines(DrawLinesCommand cmd) {
+	const auto& points = cmd.points;
+	std::size_t count  = points.size();
+	PTGN_ASSERT(cmd.line_width >= min_line_width);
+	PTGN_ASSERT(
+		(cmd.connect_last_to_first && count >= 3) || (!cmd.connect_last_to_first && count >= 2)
+	);
 
-	SetState(state);
-
-	std::size_t vertex_modulo{ line_points.size() };
-
-	if (!connect_last_to_first) {
-		PTGN_ASSERT(
-			line_points.size() >= 2,
-			"Lines which do not connect the last vertex to the first vertex "
-			"must have at least 2 vertices"
-		);
+	std::size_t vertex_modulo = count;
+	if (!cmd.connect_last_to_first) {
 		vertex_modulo -= 1;
-	} else {
-		PTGN_ASSERT(
-			line_points.size() >= 3, "Lines which connect the last vertex to the first vertex "
-									 "must have at least 3 vertices"
-		);
 	}
 
-	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
-		Line l{ line_points[i], line_points[(i + 1) % vertex_modulo] };
-		auto quad_points{ l.GetWorldQuadVertices(transform, line_width) };
-		auto quad_vertices{
-			Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
-		};
+	SetState(cmd.render_state);
 
+	for (std::size_t i = 0; i < count; ++i) {
+		Line l{ points[i], points[(i + 1) % vertex_modulo] };
+		auto quad_points   = l.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+		auto quad_vertices = Vertex::GetQuad(
+			quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+		);
 		AddVertices(quad_vertices, quad_indices);
 	}
 }
 
-void RenderData::AddArc(
-	const Transform& transform, const Arc& arc, bool clockwise, const Color& tint,
-	const Depth& depth, float line_width, const RenderState& state
-) {
-	auto radius{ arc.GetRadius(transform) };
+void RenderData::DrawTexture(DrawTextureCommand cmd) {
+	PTGN_ASSERT(cmd.texture);
 
-	if (radius <= 0.0f) {
-		return;
-	}
+	const auto& texture{ *cmd.texture };
 
-	float diameter{ 2.0f * radius };
-
-	float fade{ GetFade(diameter) };
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
-
-	float aperture{ arc.GetAperture() };
-
-	Transform rotated{ transform };
-	rotated.Rotate(arc.GetStartAngle());
-
-	auto quad_points{ arc.GetWorldQuadVertices(rotated) };
-
-	float direction{ clockwise ? 1.0f : -1.0f };
-
-	auto quad_vertices{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, fade, aperture, direction },
-		GetDefaultTextureCoordinates()
-	) };
-
-	SetState(state);
-	AddVertices(quad_vertices, quad_indices);
-}
-
-void RenderData::AddCapsule(
-	const Transform& transform, const Capsule& capsule, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	auto radius{ capsule.GetRadius(transform) };
-
-	if (radius <= 0.0f) {
-		return;
-	}
-
-	V2_float size;
-	auto quad_points{ capsule.GetWorldQuadVertices(transform, &size) };
-
-	float diameter{ 2.0f * radius };
-
-	float fade{ GetFade(diameter) };
-
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
-
-	float aspect_ratio{ GetAspectRatio(size) };
-	float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
-
-	auto quad_vertices{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, fade, normalized_radius, aspect_ratio },
-		GetDefaultTextureCoordinates()
-	) };
-
-	SetState(state);
-	AddVertices(quad_vertices, quad_indices);
-}
-
-void RenderData::AddLine(
-	const Transform& transform, const Line& line, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	if (line_width <= min_line_width) {
-		return;
-	}
-
-	auto quad_points{ line.GetWorldQuadVertices(transform, line_width) };
-
-	auto quad_vertices{
-		Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
-	};
-
-	SetState(state);
-	AddVertices(quad_vertices, quad_indices);
-}
-
-void RenderData::AddTriangle(
-	const Transform& transform, const Triangle& triangle, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	auto points{ triangle.GetWorldVertices(transform) };
-
-	auto triangle_vertices{ Vertex::GetTriangle(points, tint, depth) };
-
-	AddShape(triangle_vertices, triangle_indices, points, line_width, state);
-}
-
-void RenderData::AddQuad(
-	const Transform& transform, const Rect& rect, Origin draw_origin, const Color& tint,
-	const Depth& depth, float line_width, const RenderState& state
-) {
-	auto size{ rect.GetSize(transform) };
-
-	if (!size.BothAboveZero()) {
-		return;
-	}
-
-	auto quad_points{ rect.GetWorldVertices(transform, draw_origin) };
-
-	auto quad_vertices{
-		Vertex::GetQuad(quad_points, tint, depth, { 0.0f }, GetDefaultTextureCoordinates())
-	};
-
-	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
-}
-
-void RenderData::AddRoundedQuad(
-	const Transform& transform, const RoundedRect& rrect, Origin draw_origin, const Color& tint,
-	const Depth& depth, float line_width, const RenderState& state
-) {
-	auto size{ rrect.GetSize(transform) };
-
-	if (!size.BothAboveZero()) {
-		return;
-	}
-	auto radius{ rrect.GetRadius(transform) };
-
-	if (radius <= 0.0f) {
-		RenderState quad_state{ state };
-		quad_state.shader_pass = game.shader.Get("quad");
-		AddQuad(
-			transform, Rect{ rrect.GetSize() }, draw_origin, tint, depth, line_width, quad_state
-		);
-		return;
-	}
-
-	auto quad_points{ rrect.GetWorldQuadVertices(transform, draw_origin) };
-	auto diameter{ 2.0f * radius };
-	float fade{ GetFade(diameter) };
-
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
-
-	float aspect_ratio{ GetAspectRatio(size) };
-	float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
-
-	auto quad_vertices{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, fade, normalized_radius, aspect_ratio },
-		GetDefaultTextureCoordinates()
-	) };
-
-	SetState(state);
-	AddVertices(quad_vertices, quad_indices);
-}
-
-void RenderData::AddPolygon(
-	const Transform& transform, const Polygon& polygon, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	PTGN_ASSERT(polygon.vertices.size() >= 3, "Polygon must have at least 3 points");
-
-	if (line_width == -1.0f) {
-		auto vertices{ polygon.GetWorldVertices(transform) };
-		SetState(state);
-		auto triangles{ Triangulate(vertices.data(), vertices.size()) };
-		for (const auto& triangle : triangles) {
-			auto triangle_vertices{ Vertex::GetTriangle(triangle, tint, depth) };
-			AddVertices(triangle_vertices, triangle_indices);
-		}
-	} else {
-		AddLines(transform, polygon.vertices, tint, depth, line_width, true, state);
-	}
-}
-
-void RenderData::AddCircle(
-	const Transform& transform, const Circle& circle, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	AddEllipse(
-		transform, Ellipse{ V2_float{ circle.GetRadius() } }, tint, depth, line_width, state
-	);
-}
-
-void RenderData::AddEllipse(
-	const Transform& transform, const Ellipse& ellipse, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	auto radius{ ellipse.GetRadius(transform) };
-
-	if (!radius.BothAboveZero()) {
-		return;
-	}
-
-	auto quad_points{ ellipse.GetWorldQuadVertices(transform) };
-
-	auto diameter{ 2.0f * radius };
-
-	float fade{ GetFade(diameter.y) };
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, radius) };
-
-	auto points{ Vertex::GetQuad(
-		quad_points, tint, depth, { thickness, fade }, GetDefaultTextureCoordinates()
-	) };
-
-	SetState(state);
-	AddVertices(points, quad_indices);
-}
-
-void RenderData::AddTexturedQuad(
-	const Transform& transform, const Texture& texture, const Rect& rect, Origin origin,
-	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-	const RenderState& state, const PreFX& pre_fx
-) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
 
-	auto size{ rect.GetSize(transform) };
+	auto size{ cmd.rect.GetSize(cmd.transform) };
 
 	if (!size.BothAboveZero()) {
 		return;
 	}
 
-	SetState(state);
+	SetState(cmd.render_state);
 
-	auto texture_points{ rect.GetWorldVertices(transform, origin) };
+	auto texture_points{ cmd.rect.GetWorldVertices(cmd.transform, cmd.origin) };
 
-	auto texture_vertices{
-		Vertex::GetQuad(texture_points, tint, depth, { 0.0f }, texture_coordinates, false)
-	};
+	auto texture_vertices{ Vertex::GetQuad(
+		texture_points, cmd.tint, cmd.depth, { 0.0f }, cmd.texture_coordinates, false
+	) };
 
 	auto texture_id{ texture.GetId() };
 
-	if (!pre_fx.pre_fx_.empty()) {
+	if (!cmd.pre_fx.pre_fx_.empty()) {
 		auto texture_size{ texture.GetSize() };
 
 		PTGN_ASSERT(
@@ -439,37 +424,99 @@ void RenderData::AddTexturedQuad(
 		);
 
 		Viewport viewport{ {}, texture_size };
-
 		DrawTarget target;
 		target.viewport		  = viewport;
 		target.texture_format = texture.GetFormat();
 		SetPointsAndProjection(target);
 
 		texture_id = PingPong(
-			pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format), texture,
-			target, true
+			cmd.pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format),
+			texture, target, true
 		);
 
 		white_texture.Bind(0);
-
 		force_flush = true;
 	}
 
-	float texture_index{ 0.0f };
-
-	bool existing_texture{ GetTextureIndex(texture_id, texture_index) };
-
+	float texture_index = 0.0f;
+	bool existing		= GetTextureIndex(texture_id, texture_index);
 	Vertex::SetTextureIndex(texture_vertices, texture_index);
-
 	AddVertices(texture_vertices, quad_indices);
 
-	if (!existing_texture) {
-		// Must be done after AddVertices and SetState because both of them may Flush the current
-		// batch, which will clear textures.
+	if (!existing) {
+		// Must be done after AddVertices and SetState because both of them may Flush the
+		// current batch, which will clear textures.
 		textures_.emplace_back(texture_id);
 	}
-
 	PTGN_ASSERT(textures_.size() < max_texture_slots);
+}
+
+void RenderData::DrawShader(DrawShaderCommand cmd) {
+	bool state_changed{ SetState(cmd.render_state) };
+
+	bool uses_size{ std::holds_alternative<V2_int>(cmd.texture_or_size) };
+
+	// Clear the intermediate frame buffer if the shader is new (changes renderer state), or if
+	// the shader uses size (no texture) and the user desires it (most often true). In the case
+	// of back-to-back light rendering this is not desired.
+	bool clear{ state_changed || (uses_size && cmd.clear_between_consecutive_calls) };
+
+	if (cmd.clear_between_consecutive_calls) {
+		force_flush = true;
+	}
+
+	auto target{ drawing_to_ };
+
+	if (render_state.camera) {
+		target.view_projection = render_state.camera;
+		target.points		   = render_state.camera.GetWorldVertices();
+	}
+
+	target.depth	  = GetDepth(cmd.entity);
+	target.tint		  = target.tint.Normalized() * GetTint(cmd.entity).Normalized();
+	target.blend_mode = cmd.blend_to_intermediate_target;
+
+	if (uses_size) {
+		if (!std::get<V2_int>(cmd.texture_or_size).IsZero()) {
+			target.viewport.size = std::get<V2_int>(cmd.texture_or_size);
+		}
+		target.texture_format = cmd.texture_format;
+	} else if (std::holds_alternative<std::reference_wrapper<const Texture>>(cmd.texture_or_size)) {
+		const Texture& texture =
+			std::get<std::reference_wrapper<const Texture>>(cmd.texture_or_size).get();
+
+		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
+
+		target.viewport.size  = texture.GetSize();
+		target.texture_id	  = texture.GetId();
+		target.texture_format = texture.GetFormat();
+	} else {
+		PTGN_ERROR("Unknown variant value");
+	}
+
+	if (clear) {
+		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
+		if (cmd.blend_to_draw_target.has_value()) {
+			intermediate_target->blend_to_draw_target = *cmd.blend_to_draw_target;
+			intermediate_target->blend_mode_set		  = true;
+		}
+	}
+
+	PTGN_ASSERT(
+		cmd.render_state.shader_pass.has_value(), "Must specify shader when drawing shader"
+	);
+	const auto& shader_pass = *cmd.render_state.shader_pass;
+	const auto& shader		= shader_pass.GetShader();
+
+	shader.Bind();
+	shader.SetUniform("u_Texture", 1);
+	shader.SetUniform("u_ViewportSize", V2_float{ target.viewport.size });
+
+	shader_pass.Invoke(cmd.entity);
+
+	target.frame_buffer = &intermediate_target->frame_buffer;
+
+	DrawFullscreenQuad(shader, target, false, clear, cmd.target_clear_color);
 }
 
 TextureId RenderData::PingPong(
@@ -610,6 +657,20 @@ bool RenderData::GetTextureIndex(std::uint32_t texture_id, float& out_texture_in
 	return false;
 }
 
+const Shader& RenderData::GetCurrentShader() const {
+	const Shader* shader{ nullptr };
+
+	if (!render_state.shader_pass.has_value()) {
+		shader = &game.shader.Get("quad");
+	} else {
+		shader = &(*render_state.shader_pass).GetShader();
+	}
+
+	PTGN_ASSERT(shader);
+
+	return *shader;
+}
+
 bool RenderData::SetState(const RenderState& new_render_state) {
 	if (new_render_state != render_state || force_flush) {
 		Flush();
@@ -617,77 +678,6 @@ bool RenderData::SetState(const RenderState& new_render_state) {
 		return true;
 	}
 	return false;
-}
-
-void RenderData::AddShader(
-	Entity entity, const RenderState& state, const Color& target_clear_color,
-	const TextureOrSize& texture_or_size, bool clear_between_consecutive_calls,
-	BlendMode blend_to_intermediate_target, std::optional<BlendMode> blend_to_draw_target,
-	TextureFormat texture_format
-) {
-	bool state_changed{ SetState(state) };
-
-	bool uses_size{ std::holds_alternative<V2_int>(texture_or_size) };
-
-	// Clear the intermediate frame buffer if the shader is new (changes renderer state), or if the
-	// shader uses size (no texture) and the user desires it (most often true). In the case of
-	// back-to-back light rendering this is not desired.
-	bool clear{ state_changed || (uses_size && clear_between_consecutive_calls) };
-
-	if (clear_between_consecutive_calls) {
-		force_flush = true;
-	}
-
-	auto target{ drawing_to_ };
-
-	if (render_state.camera) {
-		target.view_projection = render_state.camera;
-		target.points		   = render_state.camera.GetWorldVertices();
-	}
-
-	target.depth	  = GetDepth(entity);
-	target.tint		  = target.tint.Normalized() * GetTint(entity).Normalized();
-	target.blend_mode = blend_to_intermediate_target;
-
-	if (uses_size) {
-		if (!std::get<V2_int>(texture_or_size).IsZero()) {
-			target.viewport.size = std::get<V2_int>(texture_or_size);
-		}
-		target.texture_format = texture_format;
-	} else if (std::holds_alternative<std::reference_wrapper<const Texture>>(texture_or_size)) {
-		const Texture& texture =
-			std::get<std::reference_wrapper<const Texture>>(texture_or_size).get();
-
-		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
-
-		target.viewport.size  = texture.GetSize();
-		target.texture_id	  = texture.GetId();
-		target.texture_format = texture.GetFormat();
-	} else {
-		PTGN_ERROR("Unknown variant value");
-	}
-
-	if (clear) {
-		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
-		if (blend_to_draw_target.has_value()) {
-			intermediate_target->blend_to_draw_target = *blend_to_draw_target;
-			intermediate_target->blend_mode_set		  = true;
-		}
-	}
-
-	const auto& shader{ render_state.shader_pass.GetShader() };
-
-	PTGN_ASSERT(shader != game.shader.Get("quad"));
-
-	shader.Bind();
-	shader.SetUniform("u_Texture", 1);
-	shader.SetUniform("u_ViewportSize", V2_float{ target.viewport.size });
-
-	render_state.shader_pass.Invoke(entity);
-
-	target.frame_buffer = &intermediate_target->frame_buffer;
-
-	DrawFullscreenQuad(shader, target, false, clear, target_clear_color);
 }
 
 void RenderData::AddTemporaryTexture(Texture&& texture) {
@@ -855,7 +845,7 @@ void RenderData::Flush(bool final_flush) {
 
 		target.frame_buffer = &intermediate_target->frame_buffer;
 
-		const auto& shader{ render_state.shader_pass.GetShader() };
+		const auto& shader{ GetCurrentShader() };
 
 		// Draw unflushed vertices to intermediate target before adding post fx to it.
 		DrawVertices(shader, target, true);
@@ -872,10 +862,11 @@ void RenderData::Flush(bool final_flush) {
 	target.frame_buffer = drawing_to_.frame_buffer;
 
 	if (intermediate_target) {
-		// This branch is for when an intermediate target needs to be flushed onto the drawing_to
-		// frame buffer. It is used in cases where postfx are applied, or when a shader that uses
-		// the intermediate target is being flushed (for instance a set of lights rendered onto an
-		// intermediate target and then flushed onto the drawing_to frame buffer).
+		// This branch is for when an intermediate target needs to be flushed onto the
+		// drawing_to frame buffer. It is used in cases where postfx are applied, or when a
+		// shader that uses the intermediate target is being flushed (for instance a set of
+		// lights rendered onto an intermediate target and then flushed onto the drawing_to
+		// frame buffer).
 
 		if (!has_post_fx) {
 			// The light case discussed above.
@@ -897,7 +888,7 @@ void RenderData::Flush(bool final_flush) {
 	} else if (render_state.IsSet()) {
 		// No post fx, and no intermediate target.
 
-		const auto& shader{ render_state.shader_pass.GetShader() };
+		const auto& shader{ GetCurrentShader() };
 
 		// Draw unflushed vertices directly to drawing_to frame buffer.
 		DrawVertices(shader, target, false);
@@ -1009,7 +1000,8 @@ void RenderData::DrawDisplayList(
 }
 
 void RenderData::DrawScene(Scene& scene) {
-	// Loop through render targets and render their display lists onto their internal frame buffers.
+	// Loop through render targets and render their display lists onto their internal frame
+	// buffers.
 	for (auto [entity, visible, drawable, frame_buffer, display_list] :
 		 scene.InternalEntitiesWith<Visible, IDrawable, FrameBuffer, DisplayList>()) {
 		if (!visible) {

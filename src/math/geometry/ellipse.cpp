@@ -6,7 +6,6 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/render_data.h"
 
@@ -32,7 +31,7 @@ V2_float Ellipse::GetRadius(const Transform& transform) const {
 
 std::array<V2_float, 4> Ellipse::GetWorldQuadVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalQuadVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 4> Ellipse::GetLocalQuadVertices() const {

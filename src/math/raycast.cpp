@@ -10,19 +10,20 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "common/type_info.h"
 #include "components/transform.h"
 #include "core/game.h"
 #include "debug/debugging.h"
 #include "debug/log.h"
 #include "debug/stats.h"
-#include "geometry.h"
-#include "geometry/capsule.h"
-#include "geometry/circle.h"
-#include "geometry/line.h"
-#include "geometry/polygon.h"
-#include "geometry/rect.h"
-#include "math/math.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/shape.h"
 #include "math/overlap.h"
+#include "math/tolerance.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 
@@ -54,6 +55,8 @@
 	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Polygon, Polygon, Raycast)
 
 namespace ptgn {
+
+using Point = V2_float;
 
 bool RaycastResult::Occurred() const {
 	PTGN_ASSERT(t >= 0.0f);
@@ -678,8 +681,8 @@ RaycastResult RaycastCapsuleCircle(
 } // namespace impl
 
 RaycastResult Raycast(
-	const V2_float& ray, const Transform& transform1, const Shape& shape1,
-	const Transform& transform2, const Shape& shape2
+	const V2_float& ray, const Transform& transform1, const ColliderShape& shape1,
+	const Transform& transform2, const ColliderShape& shape2
 ) {
 	return std::visit(
 		[&](const auto& s1) -> RaycastResult {
@@ -687,9 +690,10 @@ RaycastResult Raycast(
 				[&](const auto& s2) -> RaycastResult {
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
-					PTGN_RAYCAST_SHAPE_PAIR_TABLE {
-						PTGN_ERROR("Cannot find raycast function for the given shapes");
-					}
+					PTGN_ERROR(
+						"Cannot find raycast function for the given shapes: ", type_name<S1>(),
+						" and ", type_name<S2>()
+					);
 				},
 				shape2
 			);

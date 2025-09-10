@@ -6,15 +6,17 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/render_data.h"
 
 namespace ptgn {
 
-Arc::Arc(float arc_radius, float start_angle, float end_angle) :
-	radius{ arc_radius }, start_angle{ start_angle }, end_angle{ end_angle } {}
+Arc::Arc(float arc_radius, float start_angle, float end_angle, bool clockwise) :
+	radius{ arc_radius },
+	start_angle{ start_angle },
+	end_angle{ end_angle },
+	clockwise{ clockwise } {}
 
 void Arc::Draw(impl::RenderData& ctx, const Entity& entity) {
 	impl::DrawArc(ctx, entity, entity.Has<impl::ReverseArc>());
@@ -47,7 +49,7 @@ float Arc::GetAperture() const {
 
 std::array<V2_float, 4> Arc::GetWorldQuadVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalQuadVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 4> Arc::GetLocalQuadVertices() const {

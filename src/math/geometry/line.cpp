@@ -1,12 +1,10 @@
 #include "math/geometry/line.h"
 
 #include <array>
-#include <utility>
 
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "renderer/render_data.h"
@@ -26,7 +24,7 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(
 
 	auto local_center{ start + dir * 0.5f };
 
-	V2_float center{ ApplyTransform(local_center, transform) };
+	V2_float center{ transform.Apply(local_center) };
 
 	float rotation{ dir.Angle() };
 	Rect rect{ V2_float{ dir.Magnitude() + line_width, line_width } };
@@ -38,7 +36,7 @@ std::array<V2_float, 4> Line::GetWorldQuadVertices(
 
 std::array<V2_float, 2> Line::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 2> Line::GetLocalVertices() const {

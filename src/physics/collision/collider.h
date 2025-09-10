@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "core/entity.h"
-#include "math/geometry.h"
+#include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "serialization/enum.h"
 
@@ -75,9 +75,9 @@ enum class CollisionMode {
 struct Collider {
 	Collider() = default;
 
-	Collider(const Shape& shape);
+	Collider(const ColliderShape& shape);
 
-	Shape shape;
+	ColliderShape shape;
 
 	CollisionMode mode{ CollisionMode::Discrete };
 
@@ -114,9 +114,11 @@ struct Collider {
 	[[nodiscard]] Collision SweptWith(const Entity& other) const;
 	[[nodiscard]] bool OverlappedWith(const Entity& other) const;
 
+	// TODO: Fix collider shape serialization: KeyValue("shape", shape)
+
 	PTGN_SERIALIZER_REGISTER_NAMED(
-		Collider, KeyValue("shape", shape), KeyValue("mode", mode), KeyValue("response", response),
-		KeyValue("mask", mask_), KeyValue("category", category_)
+		Collider, KeyValue("mode", mode), KeyValue("response", response), KeyValue("mask", mask_),
+		KeyValue("category", category_)
 	)
 
 private:

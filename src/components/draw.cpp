@@ -278,10 +278,18 @@ void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture) {
 	auto origin{ GetDrawOrigin(entity) };
 	auto pre_fx{ entity.GetOrDefault<PreFX>() };
 
-	ctx.AddTexturedQuad(
-		info.transform, texture, rect, origin, info.tint, info.depth, texture_coordinates,
-		info.state, pre_fx
-	);
+	DrawTextureCommand cmd;
+	cmd.depth				= info.depth;
+	cmd.origin				= origin;
+	cmd.pre_fx				= pre_fx;
+	cmd.render_state		= info.state;
+	cmd.texture				= &texture;
+	cmd.texture_coordinates = texture_coordinates;
+	cmd.tint				= info.tint;
+	cmd.transform			= info.transform;
+	cmd.rect				= rect;
+
+	ctx.Submit(cmd);
 }
 
 void DrawText(
@@ -353,113 +361,82 @@ void DrawText(
 		}
 	}
 
-	ctx.AddTexturedQuad(
-		info.transform, text_texture, Rect{ size }, origin, text_tint, info.depth,
-		texture_coordinates, info.state, pre_fx
-	);
+	DrawTextureCommand cmd;
+	cmd.depth				= info.depth;
+	cmd.origin				= origin;
+	cmd.pre_fx				= pre_fx;
+	cmd.render_state		= info.state;
+	cmd.texture				= &text_texture;
+	cmd.texture_coordinates = texture_coordinates;
+	cmd.tint				= text_tint;
+	cmd.transform			= info.transform;
+	cmd.rect				= Rect{ size };
+
+	ctx.Submit(cmd);
 }
 
 void DrawText(RenderData& ctx, const Entity& entity) {
 	impl::DrawText(ctx, entity, V2_float{}, Camera{}, color::White, Origin::Center, V2_float{});
 }
 
-void DrawRect(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<Rect>());
+template <typename T>
+static void DrawShape(RenderData& ctx, const Entity& entity) {
+	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
+
+	Origin origin{ Origin::Center };
+
+	if constexpr (IsAnyOf<T, Rect, RoundedRect>) {
+		origin = GetDrawOrigin(entity);
+	}
 
 	ShapeDrawInfo info{ entity };
 
-	const auto& rect{ entity.Get<Rect>() };
-	auto origin{ GetDrawOrigin(entity) };
+	DrawShapeCommand cmd;
+	cmd.depth		 = info.depth;
+	cmd.line_width	 = info.line_width;
+	cmd.render_state = info.state;
+	cmd.tint		 = info.tint;
+	cmd.transform	 = info.transform;
+	cmd.origin		 = origin;
+	cmd.shape		 = entity.Get<T>();
 
-	ctx.AddQuad(info.transform, rect, origin, info.tint, info.depth, info.line_width, info.state);
+	ctx.Submit(cmd);
+}
+
+void DrawRect(RenderData& ctx, const Entity& entity) {
+	DrawShape<Rect>(ctx, entity);
 }
 
 void DrawRoundedRect(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<RoundedRect>());
-
-	ShapeDrawInfo info{ entity };
-	info.state.shader_pass = game.shader.Get("rounded_rect");
-
-	const auto& rrect{ entity.Get<RoundedRect>() };
-	auto origin{ GetDrawOrigin(entity) };
-
-	ctx.AddRoundedQuad(
-		info.transform, rrect, origin, info.tint, info.depth, info.line_width, info.state
-	);
+	DrawShape<RoundedRect>(ctx, entity);
 }
 
 void DrawArc(RenderData& ctx, const Entity& entity, bool clockwise) {
-	PTGN_ASSERT(entity.Has<Arc>());
-
-	ShapeDrawInfo info{ entity };
-	info.state.shader_pass = game.shader.Get("arc");
-
-	const auto& arc{ entity.Get<Arc>() };
-
-	ctx.AddArc(info.transform, arc, clockwise, info.tint, info.depth, info.line_width, info.state);
+	DrawShape<Arc>(ctx, entity);
 }
 
 void DrawCapsule(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<Capsule>());
-
-	ShapeDrawInfo info{ entity };
-	info.state.shader_pass = game.shader.Get("capsule");
-
-	const auto& capsule{ entity.Get<Capsule>() };
-
-	ctx.AddCapsule(info.transform, capsule, info.tint, info.depth, info.line_width, info.state);
+	DrawShape<Capsule>(ctx, entity);
 }
 
 void DrawCircle(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<Circle>());
-
-	ShapeDrawInfo info{ entity };
-	info.state.shader_pass = game.shader.Get("circle");
-
-	const auto& circle{ entity.Get<Circle>() };
-
-	ctx.AddCircle(info.transform, circle, info.tint, info.depth, info.line_width, info.state);
+	DrawShape<Circle>(ctx, entity);
 }
 
 void DrawEllipse(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<Ellipse>());
-
-	ShapeDrawInfo info{ entity };
-	info.state.shader_pass = game.shader.Get("circle"); // ellipses use the circle shader.
-
-	const auto& ellipse{ entity.Get<Ellipse>() };
-
-	ctx.AddEllipse(info.transform, ellipse, info.tint, info.depth, info.line_width, info.state);
+	DrawShape<Ellipse>(ctx, entity);
 }
 
 void DrawLine(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<Line>());
-
-	ShapeDrawInfo info{ entity };
-
-	const auto& line{ entity.Get<Line>() };
-
-	ctx.AddLine(info.transform, line, info.tint, info.depth, info.line_width, info.state);
+	DrawShape<Line>(ctx, entity);
 }
 
 void DrawPolygon(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<Polygon>());
-
-	ShapeDrawInfo info{ entity };
-
-	const auto& polygon{ entity.Get<Polygon>() };
-
-	ctx.AddPolygon(info.transform, polygon, info.tint, info.depth, info.line_width, info.state);
+	DrawShape<Polygon>(ctx, entity);
 }
 
 void DrawTriangle(RenderData& ctx, const Entity& entity) {
-	PTGN_ASSERT(entity.Has<Triangle>());
-
-	ShapeDrawInfo info{ entity };
-
-	const auto& triangle{ entity.Get<Triangle>() };
-
-	ctx.AddTriangle(info.transform, triangle, info.tint, info.depth, info.line_width, info.state);
+	DrawShape<Triangle>(ctx, entity);
 }
 
 } // namespace impl

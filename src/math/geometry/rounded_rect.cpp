@@ -6,7 +6,6 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
@@ -52,7 +51,7 @@ Transform RoundedRect::Offset(const Transform& transform, Origin draw_origin) co
 
 std::array<V2_float, 4> RoundedRect::GetWorldQuadVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalQuadVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 4> RoundedRect::GetLocalQuadVertices() const {
@@ -63,9 +62,9 @@ std::array<V2_float, 4> RoundedRect::GetLocalQuadVertices() const {
 std::array<V2_float, 4> RoundedRect::GetWorldQuadVertices(
 	const Transform& transform, Origin draw_origin
 ) const {
-	auto offset{ Offset(transform, draw_origin) };
+	auto offset_transform{ Offset(transform, draw_origin) };
 	auto local_vertices{ GetLocalQuadVertices() };
-	return ApplyTransform(local_vertices, offset);
+	return offset_transform.Apply(local_vertices);
 }
 
 V2_float RoundedRect::GetCenter(const Transform& transform) const {

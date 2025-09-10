@@ -1,6 +1,10 @@
 #include "components/transform.h"
 
+#include <algorithm>
+#include <cmath>
+#include <span>
 #include <utility>
+#include <vector>
 
 #include "common/assert.h"
 #include "components/offsets.h"
@@ -8,7 +12,6 @@
 #include "core/entity_hierarchy.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "renderer/api/origin.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "utility/flags.h"
@@ -208,6 +211,113 @@ bool Transform::IsDirty() const {
 
 void Transform::ClearDirtyFlags() const {
 	dirty_flags_.ClearAll();
+}
+
+V2_float Transform::ApplyWithRotation(
+	const V2_float& point, float cos_angle_radians, float sin_angle_radians
+) const {
+	PTGN_ASSERT(!scale_.IsZero(), "Cannot transform point for an object with zero scale");
+	return position_ + (scale_ * point).Rotated(cos_angle_radians, sin_angle_radians);
+}
+
+V2_float Transform::ApplyWithoutRotation(const V2_float& point) const {
+	PTGN_ASSERT(!scale_.IsZero(), "Cannot transform point for an object with zero scale");
+	return position_ + scale_ * point;
+}
+
+V2_float Transform::ApplyInverseWithRotation(
+	const V2_float& point, float cos_angle_radians, float sin_angle_radians
+) const {
+	PTGN_ASSERT(!scale_.IsZero(), "Cannot inverse transform point for an object with zero scale");
+
+	return (point - position_).Rotated(cos_angle_radians, -sin_angle_radians) / scale_;
+}
+
+V2_float Transform::ApplyInverseWithoutRotation(const V2_float& point) const {
+	PTGN_ASSERT(!scale_.IsZero(), "Cannot inverse transform point for an object with zero scale");
+
+	return (point - position_) / scale_;
+}
+
+V2_float Transform::Apply(const V2_float& point) const {
+	if (rotation_ != 0.0f) {
+		return ApplyWithRotation(point, std::cos(rotation_), std::sin(rotation_));
+	}
+	if (*this != Transform{}) {
+		return ApplyWithoutRotation(point);
+	}
+	return point;
+}
+
+V2_float Transform::ApplyInverse(const V2_float& point) const {
+	if (rotation_ != 0.0f) {
+		return ApplyInverseWithRotation(point, std::cos(rotation_), std::sin(rotation_));
+	}
+	if (*this != Transform{}) {
+		return ApplyInverseWithoutRotation(point);
+	}
+	return point;
+}
+
+void Transform::Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points)
+	const {
+	PTGN_ASSERT(out_transformed_points.size() >= points.size());
+
+	if (rotation_ != 0.0f) {
+		float cosA{ std::cos(rotation_) };
+		float sinA{ std::sin(rotation_) };
+
+		for (std::size_t i{ 0 }; i < points.size(); ++i) {
+			out_transformed_points[i] = ApplyWithRotation(points[i], cosA, sinA);
+		}
+		return;
+	}
+
+	if (*this != Transform{}) {
+		for (std::size_t i{ 0 }; i < points.size(); ++i) {
+			out_transformed_points[i] = ApplyWithoutRotation(points[i]);
+		}
+		return;
+	}
+
+	std::ranges::copy(points, out_transformed_points.begin());
+}
+
+void Transform::ApplyInverse(
+	std::span<const V2_float> points, std::span<V2_float> out_transformed_points
+) const {
+	PTGN_ASSERT(out_transformed_points.size() >= points.size());
+
+	if (rotation_ != 0.0f) {
+		float cosA{ std::cos(rotation_) };
+		float sinA{ std::sin(rotation_) };
+
+		for (std::size_t i{ 0 }; i < points.size(); ++i) {
+			out_transformed_points[i] = ApplyInverseWithRotation(points[i], cosA, sinA);
+		}
+		return;
+	}
+
+	if (*this != Transform{}) {
+		for (std::size_t i{ 0 }; i < points.size(); ++i) {
+			out_transformed_points[i] = ApplyInverseWithoutRotation(points[i]);
+		}
+		return;
+	}
+
+	std::ranges::copy(points, out_transformed_points.begin());
+}
+
+std::vector<V2_float> Transform::Apply(const std::vector<V2_float>& points) const {
+	std::vector<V2_float> transformed_points(points.size());
+	Apply(points, transformed_points);
+	return transformed_points;
+}
+
+std::vector<V2_float> Transform::ApplyInverse(const std::vector<V2_float>& points) const {
+	std::vector<V2_float> transformed_points(points.size());
+	ApplyInverse(points, transformed_points);
+	return transformed_points;
 }
 
 Camera& SetTransform(Camera& entity, const Transform& transform) {

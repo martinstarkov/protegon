@@ -231,7 +231,12 @@ public:
 		state.shader_pass = entity.Get<impl::ShaderPass>();
 		state.post_fx	  = entity.GetOrDefault<PostFX>();
 		state.camera	  = entity.GetOrDefault<Camera>();
-		ctx.AddShader(entity, state, color::Transparent);
+
+		impl::DrawShaderCommand cmd;
+		cmd.entity		 = entity;
+		cmd.render_state = state;
+
+		ctx.Submit(cmd);
 	}
 };
 

@@ -6,7 +6,6 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/render_data.h"
 
@@ -48,7 +47,7 @@ V2_float Polygon::GetCenter() const {
 }
 
 std::vector<V2_float> Polygon::GetWorldVertices(const Transform& transform) const {
-	return ApplyTransform(vertices, transform);
+	return transform.Apply(vertices);
 }
 
 std::vector<V2_float> Polygon::GetLocalVertices() const {

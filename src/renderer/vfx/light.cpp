@@ -99,14 +99,20 @@ void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
 	auto light_blend_mode{ BlendMode::PremultipliedAddRGBA };
 	// Color to which the light render target is cleared before drawing lights.
 	auto light_clear_color{ color::Black };
-	ctx.AddShader(
-		entity, state, light_clear_color, V2_int{}, false,
-		light_blend_mode /*, TextureFormat::HDR_RGBA*/
-	);
+
+	impl::DrawShaderCommand cmd;
+	cmd.clear_between_consecutive_calls = false;
+	cmd.entity							= entity;
+	cmd.render_state					= state;
+	cmd.blend_to_intermediate_target	= light_blend_mode;
+	cmd.target_clear_color				= light_clear_color;
+	cmd.texture_or_size					= V2_int{};
+	// cmd.texture_format = TextureFormat::HDR_RGBA;
+
+	ctx.Submit(cmd);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {
-	PTGN_ASSERT(Has<impl::LightProperties>(), "Point light must have LightProperties component");
 	Get<impl::LightProperties>().intensity = intensity;
 	return *this;
 }

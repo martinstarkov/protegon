@@ -370,10 +370,18 @@ static void DrawTexturedButton(
 		return;
 	}
 
-	ctx.AddTexturedQuad(
-		info.transform, button_texture, Rect{ size }, origin, texture_tint.Normalized() * tint_n,
-		info.depth, Sprite{ button }.GetTextureCoordinates(false), info.state
-	);
+	impl::DrawTextureCommand cmd;
+
+	cmd.depth				= info.depth;
+	cmd.origin				= origin;
+	cmd.rect				= Rect{ size };
+	cmd.render_state		= info.state;
+	cmd.texture				= &button_texture;
+	cmd.texture_coordinates = Sprite{ button }.GetTextureCoordinates(false);
+	cmd.tint				= texture_tint.Normalized() * tint_n;
+	cmd.transform			= info.transform;
+
+	ctx.Submit(cmd);
 }
 
 template <typename DefaultComponent, typename ToggledComponent, typename LineWidthComponent>
@@ -393,11 +401,19 @@ static void DrawButtonQuad(
 		return;
 	}
 
+	impl::DrawShapeCommand cmd;
+
+	cmd.depth  = info.depth;
+	cmd.origin = origin;
+
 	// TODO: Fix rounded buttons.
-	ctx.AddQuad(
-		info.transform, Rect{ size }, origin, color.Normalized() * tint_n, info.depth, line_width,
-		info.state
-	);
+	cmd.shape		 = Rect{ size };
+	cmd.render_state = info.state;
+	cmd.tint		 = color.Normalized() * tint_n;
+	cmd.transform	 = info.transform;
+	cmd.line_width	 = line_width.GetValue();
+
+	ctx.Submit(cmd);
 }
 
 static void DrawColoredButton(

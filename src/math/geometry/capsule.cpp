@@ -5,7 +5,6 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/geometry/rect.h"
 #include "math/math.h"
 #include "math/vector2.h"
@@ -28,7 +27,7 @@ std::array<V2_float, 4> Capsule::GetWorldQuadVertices(
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	auto local_center{ start + dir * 0.5f };
 
-	V2_float center{ ApplyTransform(local_center, transform) };
+	V2_float center{ transform.Apply(local_center) };
 
 	float rotation{ dir.Angle() };
 
@@ -43,7 +42,7 @@ std::array<V2_float, 4> Capsule::GetWorldQuadVertices(
 
 std::array<V2_float, 2> Capsule::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 2> Capsule::GetLocalVertices() const {

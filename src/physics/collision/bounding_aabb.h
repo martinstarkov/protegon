@@ -1,10 +1,10 @@
 #pragma once
 
-#include "math/geometry.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
+class ColliderShape;
 struct Transform;
 
 struct BoundingAABB {
@@ -19,6 +19,6 @@ struct BoundingAABB {
 };
 
 // @return Axis aligned bounding box which contains the given shape (fully surrounding it).
-[[nodiscard]] BoundingAABB GetBoundingAABB(const Shape& shape, const Transform& transform);
+[[nodiscard]] BoundingAABB GetBoundingAABB(const ColliderShape& shape, const Transform& transform);
 
 } // namespace ptgn

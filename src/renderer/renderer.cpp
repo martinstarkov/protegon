@@ -52,10 +52,9 @@ const BlendMode debug_blend_mode{ BlendMode::Blend };
 
 RenderState GetDebugRenderState(const Camera& camera) {
 	impl::RenderState state;
-	state.blend_mode  = debug_blend_mode;
-	state.camera	  = camera;
-	state.shader_pass = { game.shader.Get("quad") };
-	state.post_fx	  = {};
+	state.blend_mode = debug_blend_mode;
+	state.camera	 = camera;
+	state.post_fx	 = {};
 	return state;
 }
 
@@ -67,10 +66,16 @@ void DrawDebugTexture(
 ) {
 	Rect rect{ size.IsZero() ? V2_float{ texture_key.GetSize() } : size };
 
-	game.renderer.GetRenderData().AddTexturedQuad(
-		Transform{ position, rotation }, texture_key.GetTexture(), rect, origin, color::White,
-		impl::max_depth, impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
-	);
+	impl::DrawTextureCommand cmd;
+
+	cmd.transform	 = Transform{ position, rotation };
+	cmd.texture		 = &texture_key.GetTexture();
+	cmd.rect		 = rect;
+	cmd.origin		 = origin;
+	cmd.depth		 = impl::max_depth;
+	cmd.render_state = impl::GetDebugRenderState(camera);
+
+	game.renderer.GetRenderData().Submit(cmd);
 }
 
 void DrawDebugText(
@@ -94,63 +99,62 @@ void DrawDebugText(
 	Rect rect{ size.IsZero() ? V2_float{ Text::GetSize(content, font_key, final_font_size) }
 							 : size };
 
-	render_data.AddTexturedQuad(
-		transform, texture, rect, origin, color::White, impl::max_depth,
-		impl::GetDefaultTextureCoordinates(), impl::GetDebugRenderState(camera), {}
-	);
-	render_data.AddTemporaryTexture(std::move(texture));
-}
+	impl::DrawTextureCommand cmd;
 
-void DrawDebugLine(
-	const V2_float& line_start, const V2_float& line_end, const Color& color, float line_width,
-	const Camera& camera
-) {
-	game.renderer.GetRenderData().AddLine(
-		Transform{}, Line{ line_start, line_end }, color, impl::max_depth, line_width,
-		impl::GetDebugRenderState(camera)
-	);
+	cmd.transform	 = transform;
+	cmd.texture		 = &texture;
+	cmd.rect		 = rect;
+	cmd.origin		 = origin;
+	cmd.depth		 = impl::max_depth;
+	cmd.render_state = impl::GetDebugRenderState(camera);
+
+	render_data.Submit(cmd);
+	render_data.AddTemporaryTexture(std::move(texture));
 }
 
 void DrawDebugLines(
 	const std::vector<V2_float>& points, const Color& color, float line_width,
 	bool connect_last_to_first, const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddLines(
-		Transform{}, points, color, impl::max_depth, line_width, connect_last_to_first,
-		impl::GetDebugRenderState(camera)
-	);
+	impl::DrawLinesCommand cmd;
+
+	cmd.points				  = points;
+	cmd.connect_last_to_first = connect_last_to_first;
+	cmd.tint				  = color;
+	cmd.depth				  = impl::max_depth;
+	cmd.line_width			  = line_width;
+	cmd.render_state		  = impl::GetDebugRenderState(camera);
+
+	game.renderer.GetRenderData().Submit(cmd);
+}
+
+void DrawDebugLine(
+	const V2_float& line_start, const V2_float& line_end, const Color& color, float line_width,
+	const Camera& camera
+) {
+	DrawDebugShape({}, Line{ line_start, line_end }, color, line_width, camera);
 }
 
 void DrawDebugTriangle(
 	const std::array<V2_float, 3>& vertices, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddTriangle(
-		Transform{}, Triangle{ vertices }, color, impl::max_depth, line_width,
-		impl::GetDebugRenderState(camera)
-	);
+	DrawDebugShape({}, Triangle{ vertices }, color, line_width, camera);
 }
 
 void DrawDebugRect(
 	const V2_float& position, const V2_float& size, const Color& color, Origin origin,
 	float line_width, float rotation, const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddQuad(
-		Transform{ position, rotation }, Rect{ size }, origin, color, impl::max_depth, line_width,
-		impl::GetDebugRenderState(camera)
-	);
+	DrawDebugShape(Transform{ position, rotation }, Rect{ size }, color, line_width, camera);
 }
 
 void DrawDebugRoundedRect(
 	const V2_float& position, const V2_float& size, float radius, const Color& color, Origin origin,
 	float line_width, float rotation, const Camera& camera
 ) {
-	auto state{ impl::GetDebugRenderState(camera) };
-	state.shader_pass = game.shader.Get("rounded_rect");
-
-	game.renderer.GetRenderData().AddRoundedQuad(
-		Transform{ position, rotation }, RoundedRect{ size, radius }, origin, color,
-		impl::max_depth, line_width, state
+	DrawDebugShape(
+		Transform{ position, rotation }, RoundedRect{ size, radius }, color, line_width, camera
 	);
 }
 
@@ -158,47 +162,29 @@ void DrawDebugEllipse(
 	const V2_float& center, const V2_float& radii, const Color& color, float line_width,
 	float rotation, const Camera& camera
 ) {
-	auto state{ impl::GetDebugRenderState(camera) };
-	state.shader_pass = game.shader.Get("circle");
-
-	game.renderer.GetRenderData().AddEllipse(
-		Transform{ center, rotation }, Ellipse{ radii }, color, impl::max_depth, line_width, state
-	);
+	DrawDebugShape(Transform{ center, rotation }, Ellipse{ radii }, color, line_width, camera);
 }
 
 void DrawDebugCircle(
 	const V2_float& center, float radius, const Color& color, float line_width, const Camera& camera
 ) {
-	auto state{ impl::GetDebugRenderState(camera) };
-	state.shader_pass = game.shader.Get("circle");
-
-	game.renderer.GetRenderData().AddCircle(
-		Transform{ center }, Circle{ radius }, color, impl::max_depth, line_width, state
-	);
+	DrawDebugShape(Transform{ center }, Circle{ radius }, color, line_width, camera);
 }
 
 void DrawDebugCapsule(
 	const V2_float& start, const V2_float& end, float radius, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	auto state{ impl::GetDebugRenderState(camera) };
-	state.shader_pass = game.shader.Get("capsule");
-
-	game.renderer.GetRenderData().AddCapsule(
-		Transform{}, Capsule{ start, end, radius }, color, impl::max_depth, line_width, state
-	);
+	DrawDebugShape({}, Capsule{ start, end, radius }, color, line_width, camera);
 }
 
 void DrawDebugArc(
 	const V2_float& center, float radius, float start_angle, float end_angle, const Color& color,
 	float line_width, bool clockwise, const Camera& camera
 ) {
-	auto state{ impl::GetDebugRenderState(camera) };
-	state.shader_pass = game.shader.Get("arc");
-
-	game.renderer.GetRenderData().AddArc(
-		Transform{ center }, Arc{ radius, start_angle, end_angle }, clockwise, color,
-		impl::max_depth, line_width, state
+	DrawDebugShape(
+		Transform{ center }, Arc{ radius, start_angle, end_angle, clockwise }, color, line_width,
+		camera
 	);
 }
 
@@ -206,54 +192,27 @@ void DrawDebugPolygon(
 	const std::vector<V2_float>& vertices, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	game.renderer.GetRenderData().AddPolygon(
-		Transform{}, Polygon{ vertices }, color, impl::max_depth, line_width,
-		impl::GetDebugRenderState(camera)
-	);
+	DrawDebugShape({}, Polygon{ vertices }, color, line_width, camera);
 }
 
 void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera) {
-	game.renderer.GetRenderData().AddPoint(
-		Transform{}, position, color, impl::max_depth, impl::GetDebugRenderState(camera)
-	);
+	DrawDebugShape({}, position, color, -1.0f, camera);
 }
 
 void DrawDebugShape(
 	const Transform& transform, const Shape& shape, const Color& color, float line_width,
 	const Camera& camera
 ) {
-	std::visit(
-		[&](const auto& s1) {
-			using S1 = std::decay_t<decltype(s1)>;
-			if constexpr (std::is_same_v<S1, Point>) {
-				DrawDebugPoint(s1, color, camera);
-			} else if constexpr (std::is_same_v<S1, Rect>) {
-				DrawDebugRect(
-					transform.GetPosition(), s1.GetSize(transform), color, Origin::Center,
-					line_width, transform.GetRotation(), camera
-				);
-			} else if constexpr (std::is_same_v<S1, Circle>) {
-				DrawDebugCircle(
-					transform.GetPosition(), s1.GetRadius(transform), color, line_width, camera
-				);
-			} else if constexpr (std::is_same_v<S1, Line>) {
-				auto [start, end] = s1.GetWorldVertices(transform);
-				DrawDebugLine(start, end, color, line_width, camera);
-			} else if constexpr (std::is_same_v<S1, Triangle>) {
-				auto v = s1.GetWorldVertices(transform);
-				DrawDebugTriangle(v, color, line_width, camera);
-			} else if constexpr (std::is_same_v<S1, Polygon>) {
-				auto v = s1.GetWorldVertices(transform);
-				DrawDebugPolygon(v, color, line_width, camera);
-			} else if constexpr (std::is_same_v<S1, Capsule>) {
-				auto [start, end] = s1.GetWorldVertices(transform);
-				DrawDebugCapsule(start, end, s1.GetRadius(transform), color, line_width, camera);
-			} else {
-				PTGN_ERROR("Cannot draw unknown shape type");
-			}
-		},
-		shape
-	);
+	impl::DrawShapeCommand cmd;
+
+	cmd.transform	 = transform;
+	cmd.shape		 = shape;
+	cmd.tint		 = color;
+	cmd.depth		 = impl::max_depth;
+	cmd.line_width	 = line_width;
+	cmd.render_state = impl::GetDebugRenderState(camera);
+
+	game.renderer.GetRenderData().Submit(cmd);
 }
 
 namespace impl {

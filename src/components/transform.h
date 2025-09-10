@@ -1,9 +1,13 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <span>
+#include <vector>
 
 #include "components/generic.h"
 #include "core/entity.h"
+#include "math/tolerance.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 #include "utility/flags.h"
@@ -95,8 +99,47 @@ struct Transform {
 	[[nodiscard]] bool IsDirty() const;
 	void ClearDirtyFlags() const;
 
+	[[nodiscard]] V2_float Apply(const V2_float& point) const;
+
+	[[nodiscard]] V2_float ApplyInverse(const V2_float& point) const;
+
+	std::vector<V2_float> Apply(const std::vector<V2_float>& points) const;
+
+	std::vector<V2_float> ApplyInverse(const std::vector<V2_float>& points) const;
+
+	template <std::size_t N>
+	std::array<V2_float, N> Apply(const std::array<V2_float, N>& points) const {
+		std::array<V2_float, N> transformed_points;
+		Apply(points, transformed_points);
+		return transformed_points;
+	}
+
+	template <std::size_t N>
+	std::array<V2_float, N> ApplyInverse(const std::array<V2_float, N>& points) const {
+		std::array<V2_float, N> transformed_points;
+		ApplyInverse(points, transformed_points);
+		return transformed_points;
+	}
+
 private:
 	friend class Scene;
+
+	void Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points) const;
+
+	void ApplyInverse(std::span<const V2_float> points, std::span<V2_float> out_transformed_points)
+		const;
+
+	[[nodiscard]] V2_float ApplyWithRotation(
+		const V2_float& point, float cos_angle_radians, float sin_angle_radians
+	) const;
+
+	[[nodiscard]] V2_float ApplyWithoutRotation(const V2_float& point) const;
+
+	[[nodiscard]] V2_float ApplyInverseWithRotation(
+		const V2_float& point, float cos_angle_radians, float sin_angle_radians
+	) const;
+
+	[[nodiscard]] V2_float ApplyInverseWithoutRotation(const V2_float& point) const;
 
 	V2_float position_;
 	float rotation_{ 0.0f };

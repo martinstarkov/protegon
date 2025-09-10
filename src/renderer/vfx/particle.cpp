@@ -104,38 +104,59 @@ void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
 	if (i.info.texture_enabled && i.info.texture_key) {
 		Color tint{ color::White };
 
+		impl::DrawTextureCommand cmd;
+
+		cmd.depth		 = depth;
+		cmd.render_state = state;
+
 		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 			if (i.info.tint_texture) {
 				tint = p.color;
 			}
 
+			cmd.tint	= tint;
+			cmd.rect	= Rect{ V2_float{ 2.0f * p.radius, 2.0f * p.radius } };
+			cmd.texture = &i.info.texture_key.GetTexture();
+
 			// TODO: Add texture rotation.
-			ctx.AddTexturedQuad(
-				Transform{ p.position }, i.info.texture_key.GetTexture(),
-				Rect{ V2_float{ 2.0f * p.radius, 2.0f * p.radius } }, Origin::Center, tint, depth,
-				impl::GetDefaultTextureCoordinates(), state
-			);
+			cmd.transform = Transform{ p.position };
+
+			ctx.Submit(cmd);
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
 			state.shader_pass = game.shader.Get("circle");
+
+			impl::DrawShapeCommand cmd;
+			cmd.depth		 = depth;
+			cmd.render_state = state;
+
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
-				ctx.AddCircle(
-					Transform{ p.position }, Circle{ p.radius }, p.color, depth, i.info.line_width,
-					state
-				);
+				cmd.line_width = i.info.line_width;
+				cmd.shape	   = Circle{ p.radius };
+				cmd.tint	   = p.color;
+				cmd.transform  = Transform{ p.position };
+
+				ctx.Submit(cmd);
 			}
 			break;
 		}
 		case ParticleShape::Square: {
+			impl::DrawShapeCommand cmd;
+			cmd.depth		 = depth;
+			cmd.render_state = state;
+
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
+				cmd.line_width = i.info.line_width;
+				cmd.shape	   = Rect{ V2_float{ 2.0f * p.radius } };
+				cmd.tint	   = p.color;
+
 				// TODO: Add rect rotation.
-				ctx.AddQuad(
-					Transform{ p.position }, Rect{ V2_float{ 2.0f * p.radius } }, Origin::Center,
-					p.color, depth, i.info.line_width, state
-				);
+				cmd.transform = Transform{ p.position };
+
+				ctx.Submit(cmd);
 			}
 			break;
 		}

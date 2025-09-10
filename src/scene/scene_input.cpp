@@ -9,7 +9,6 @@
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/interactive.h"
-#include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -17,10 +16,8 @@
 #include "core/resolution.h"
 #include "core/script.h"
 #include "debug/log.h"
-#include "ecs/ecs.h"
 #include "input/input_handler.h"
 #include "input/mouse.h"
-#include "math/geometry.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
@@ -28,11 +25,8 @@
 #include "physics/collision/bounding_aabb.h"
 #include "physics/collision/broadphase.h"
 #include "renderer/renderer.h"
-#include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/scene_key.h"
-#include "scene/scene_manager.h"
 #include "utility/span.h"
 
 namespace ptgn {
@@ -45,7 +39,8 @@ MouseInfo::MouseInfo(const Scene& scene) :
 	left_up{ scene.input.MouseUp(Mouse::Left) } {}
 
 static void GetShapes(
-	const Entity& entity, const Entity& root_entity, std::vector<std::pair<Shape, Entity>>& vector
+	const Entity& entity, const Entity& root_entity,
+	std::vector<std::pair<InteractiveShape, Entity>>& vector
 ) {
 	bool is_parent{ entity == root_entity };
 
@@ -84,15 +79,15 @@ static Transform GetAbsoluteOffsetTransform(
 	auto transform{ GetAbsoluteTransform(shape_entity) };
 
 	if (parent.Has<Rect>()) {
-		transform = ApplyOffset(parent.Get<Rect>(), transform, parent);
+		transform = OffsetByOrigin(parent.Get<Rect>(), transform, parent);
 	}
 
-	transform = ApplyOffset(shape, transform, shape_entity);
+	transform = OffsetByOrigin(shape, transform, shape_entity);
 	return transform;
 }
 
 static bool Overlap(const V2_float& point, const Entity& entity) {
-	std::vector<std::pair<Shape, Entity>> shapes;
+	std::vector<std::pair<InteractiveShape, Entity>> shapes;
 	GetShapes(entity, entity, shapes);
 
 	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
@@ -108,10 +103,10 @@ static bool Overlap(const V2_float& point, const Entity& entity) {
 }
 
 static bool Overlap(const Entity& entityA, const Entity& entityB) {
-	std::vector<std::pair<Shape, Entity>> shapesA;
+	std::vector<std::pair<InteractiveShape, Entity>> shapesA;
 	GetShapes(entityA, entityA, shapesA);
 
-	std::vector<std::pair<Shape, Entity>> shapesB;
+	std::vector<std::pair<InteractiveShape, Entity>> shapesB;
 	GetShapes(entityB, entityB, shapesB);
 
 	PTGN_ASSERT(
@@ -146,7 +141,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
 
-	using Shapes = std::vector<std::pair<Shape, Entity>>;
+	using Shapes = std::vector<std::pair<InteractiveShape, Entity>>;
 
 	std::unordered_map<Entity, Shapes> entity_shapes;
 
@@ -160,7 +155,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	}
 
 	for (Entity entity : all_entities) {
-		std::vector<std::pair<Shape, Entity>> shapes;
+		std::vector<std::pair<InteractiveShape, Entity>> shapes;
 
 		GetShapes(entity, entity, shapes);
 
@@ -173,10 +168,10 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 				auto draw_transform{ GetDrawTransform(shape_entity) };
 
 				if (entity.Has<Rect>()) {
-					draw_transform = ApplyOffset(entity.Get<Rect>(), draw_transform, entity);
+					draw_transform = OffsetByOrigin(entity.Get<Rect>(), draw_transform, entity);
 				}
 
-				draw_transform = ApplyOffset(shape, draw_transform, shape_entity);
+				draw_transform = OffsetByOrigin(shape, draw_transform, shape_entity);
 				DrawDebugShape(
 					draw_transform, shape, draw_interactive_color_, draw_interactive_line_width_,
 					entity.GetCamera()

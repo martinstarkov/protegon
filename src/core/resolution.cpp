@@ -4,7 +4,6 @@
 #include "components/transform.h"
 #include "core/game.h"
 #include "core/window.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/renderer.h"
 #include "scene/camera.h"
@@ -55,7 +54,7 @@ V2_float CameraToWorld(const V2_float& camera_point, const Camera& camera) {
 	auto cam{ camera ? camera : game.scene.GetCurrent().camera };
 
 	Transform camera_transform{ cam.GetTransform() };
-	auto world_point{ ApplyTransform(camera_point, camera_transform) };
+	auto world_point{ camera_transform.Apply(camera_point) };
 
 	return world_point;
 }
@@ -64,7 +63,7 @@ V2_float WorldToCamera(const V2_float& world_point, const Camera& camera) {
 	auto cam{ camera ? camera : game.scene.GetCurrent().camera };
 
 	Transform camera_transform{ cam.GetTransform() };
-	auto camera_point{ ApplyInverseTransform(world_point, camera_transform) };
+	auto camera_point{ camera_transform.ApplyInverse(world_point) };
 
 	return camera_point;
 }

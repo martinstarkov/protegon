@@ -6,7 +6,6 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/render_data.h"
 
@@ -24,7 +23,7 @@ void Triangle::Draw(impl::RenderData& ctx, const Entity& entity) {
 
 std::array<V2_float, 3> Triangle::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 3> Triangle::GetLocalVertices() const {

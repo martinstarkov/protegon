@@ -19,6 +19,8 @@
 #include "core/script_interfaces.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "math/geometry.h"
+#include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
@@ -111,7 +113,7 @@ public:
 
 	bool operator==(const RenderState&) const = default;
 
-	ShaderPass shader_pass;
+	std::optional<ShaderPass> shader_pass;
 	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 	Camera camera;
 	PostFX post_fx;
@@ -167,94 +169,83 @@ private:
 	milliseconds max_age_{ 0 };
 };
 
+struct DrawShapeCommand {
+	Shape shape;
+	Transform transform;
+	Tint tint;
+	Depth depth;
+	LineWidth line_width;
+	Origin origin{ Origin::Center };
+	RenderState render_state;
+};
+
+struct DrawLinesCommand {
+	std::vector<V2_float> points;
+	bool connect_last_to_first{ false };
+	Transform transform;
+	Tint tint;
+	Depth depth;
+	LineWidth line_width;
+	RenderState render_state;
+};
+
+struct DrawTextureCommand {
+	const Texture* texture{ nullptr };
+	Rect rect;
+	Transform transform;
+	std::array<V2_float, 4> texture_coordinates{ GetDefaultTextureCoordinates() };
+	Origin origin{ Origin::Center };
+	Tint tint;
+	Depth depth;
+	PreFX pre_fx;
+	RenderState render_state;
+};
+
+struct DrawShaderCommand {
+	BlendMode blend_to_intermediate_target{ BlendMode::Blend };
+	// If nullopt, uses the draw target's blend mode.
+	std::optional<BlendMode> blend_to_draw_target;
+	bool clear_between_consecutive_calls{ true };
+	TextureFormat texture_format{ TextureFormat::RGBA8888 };
+	TextureOrSize texture_or_size{ V2_int{} };
+	Color target_clear_color{ color::Transparent };
+	Entity entity;
+	RenderState render_state;
+};
+
+using RenderCommand =
+	std::variant<DrawShapeCommand, DrawLinesCommand, DrawTextureCommand, DrawShaderCommand>;
+
 class RenderData {
 public:
-	void AddPoint(
-		const Transform& transform, const V2_float& position, const Color& tint, const Depth& depth,
-		const RenderState& state
-	);
-
-	void AddLine(
-		const Transform& transform, const Line& line, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddLines(
-		const Transform& transform, const std::vector<V2_float>& line_points, const Color& tint,
-		const Depth& depth, float line_width, bool connect_last_to_first, const RenderState& state
-	);
-
-	void AddCapsule(
-		const Transform& transform, const Capsule& capsule, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddArc(
-		const Transform& transform, const Arc& arc, bool clockwise, const Color& tint,
-		const Depth& depth, float line_width, const RenderState& state
-	);
-
-	void AddTriangle(
-		const Transform& transform, const Triangle& triangle, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddQuad(
-		const Transform& transform, const Rect& rect, Origin origin, const Color& tint,
-		const Depth& depth, float line_width, const RenderState& state
-	);
-
-	void AddRoundedQuad(
-		const Transform& transform, const RoundedRect& rrect, Origin origin, const Color& tint,
-		const Depth& depth, float line_width, const RenderState& state
-	);
-
-	void AddPolygon(
-		const Transform& transform, const Polygon& polygon, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddEllipse(
-		const Transform& transform, const Ellipse& ellipse, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddCircle(
-		const Transform& transform, const Circle& circle, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddTexturedQuad(
-		const Transform& transform, const Texture& texture, const Rect& rect, Origin origin,
-		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-		const RenderState& state, const PreFX& pre_fx = {}
-	);
-
-	// @param texture_or_size If texture, uses texture size, otherwise uses the V2_int size or the
-	// scene render target size (display size).
-	// @param clear_between_consecutive_calls Will clear the intermediate render target between
-	// consecutive calls. This prevents stacking of shader calls onto the same target. An example of
-	// where this is not desired is when rendering many lights back to back. Does not apply if a
-	// texture is used.
-	// @param blend_to_intermediate_target The blend mode with which each shader call is blended to
-	// the intermediate target.
-	// @param blend_to_draw_target The blend mode with which the intermediate target is blended to
-	// the draw target.
-	// @param texture_format Specify a custom texture format to use for the shader.
-	void AddShader(
-		Entity entity, const RenderState& render_state, const Color& target_clear_color,
-		const TextureOrSize& texture_or_size		  = V2_int{},
-		bool clear_between_consecutive_calls		  = true,
-		BlendMode blend_to_intermediate_target		  = BlendMode::Blend,
-		std::optional<BlendMode> blend_to_draw_target = std::nullopt,
-		TextureFormat texture_format				  = TextureFormat::RGBA8888
-	);
+	void Submit(const RenderCommand& command) {
+		std::visit(
+			[&](const auto& cmd) {
+				using T = std::decay_t<decltype(cmd)>;
+				if constexpr (std::is_same_v<T, DrawShapeCommand>) {
+					DrawShape(cmd);
+				} else if constexpr (std::is_same_v<T, DrawLinesCommand>) {
+					DrawLines(cmd);
+				} else if constexpr (std::is_same_v<T, DrawTextureCommand>) {
+					DrawTexture(cmd);
+				} else if constexpr (std::is_same_v<T, DrawShaderCommand>) {
+					DrawShader(cmd);
+				}
+			},
+			command
+		);
+	}
 
 	void AddTemporaryTexture(Texture&& texture);
 
 	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
 
 private:
+	void DrawShape(DrawShapeCommand cmd);
+	void DrawLines(DrawLinesCommand cmd);
+	void DrawTexture(DrawTextureCommand cmd);
+	void DrawShader(DrawShaderCommand cmd);
+
 	friend class SceneManager;
 	friend class ptgn::Scene;
 	friend class Renderer;
@@ -399,6 +390,8 @@ private:
 	// @return True if the texture_index currently exists in the textures vector, false if it must
 	// be emplaced.
 	[[nodiscard]] bool GetTextureIndex(std::uint32_t texture_id, float& out_texture_index);
+
+	[[nodiscard]] const Shader& GetCurrentShader() const;
 
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);
