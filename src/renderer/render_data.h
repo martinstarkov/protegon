@@ -213,28 +213,12 @@ struct DrawShaderCommand {
 	RenderState render_state;
 };
 
-using RenderCommand =
-	std::variant<DrawShapeCommand, DrawLinesCommand, DrawTextureCommand, DrawShaderCommand>;
-
 class RenderData {
 public:
-	void Submit(const RenderCommand& command) {
-		std::visit(
-			[&](const auto& cmd) {
-				using T = std::decay_t<decltype(cmd)>;
-				if constexpr (std::is_same_v<T, DrawShapeCommand>) {
-					DrawShape(cmd);
-				} else if constexpr (std::is_same_v<T, DrawLinesCommand>) {
-					DrawLines(cmd);
-				} else if constexpr (std::is_same_v<T, DrawTextureCommand>) {
-					DrawTexture(cmd);
-				} else if constexpr (std::is_same_v<T, DrawShaderCommand>) {
-					DrawShader(cmd);
-				}
-			},
-			command
-		);
-	}
+	void Submit(const DrawShapeCommand& command);
+	void Submit(const DrawShaderCommand& command);
+	void Submit(const DrawTextureCommand& command);
+	void Submit(const DrawLinesCommand& command);
 
 	void AddTemporaryTexture(Texture&& texture);
 
@@ -266,13 +250,17 @@ private:
 		BlendMode blend_mode{};
 	};
 
+	[[nodiscard]] static float GetFade(const V2_float& diameter);
 	[[nodiscard]] static float GetFade(float diameter_y);
 
 	static float NormalizeArcLineWidthToThickness(
 		float line_width, float fade, const V2_float& radii
 	);
 
+	// @return y / x
 	static float GetAspectRatio(const V2_float& size);
+
+	// @return Range: [0.0f, 1.0f]
 	static float GetNormalizedRadius(float diameter, float size_x);
 
 	static void SetPointsAndProjection(DrawTarget& target);

@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "common/concepts.h"
 #include "components/draw.h"
 #include "components/drawable.h"
 #include "components/effects.h"
@@ -168,90 +169,131 @@ void RenderData::DrawShape(DrawShapeCommand cmd) {
 		[&](const auto& shape) {
 			using T = std::decay_t<decltype(shape)>;
 
-			if constexpr (std::is_same_v<T, V2_float>) {
-				Transform translated = cmd.transform;
-				translated.Translate(shape);
-				Rect r{ V2_float{ 1.0f } };
-				auto size		   = r.GetSize(translated);
-				auto quad_points   = r.GetWorldVertices(translated, Origin::Center);
-				auto quad_vertices = Vertex::GetQuad(
-					quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
-				);
-				SetState(cmd.render_state);
-				AddVertices(quad_vertices, quad_indices);
-			} else if constexpr (std::is_same_v<T, Line>) {
-				if (cmd.line_width <= min_line_width) {
-					return;
-				}
+			constexpr bool quad_vertex_type{
+				IsAnyOf<T, V2_float, Line, Capsule, Arc, RoundedRect, Ellipse>
+			};
 
-				auto quad_points   = shape.GetWorldQuadVertices(cmd.transform, cmd.line_width);
-				auto quad_vertices = Vertex::GetQuad(
-					quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
-				);
-				SetState(cmd.render_state);
-				AddVertices(quad_vertices, quad_indices);
-			} else if constexpr (std::is_same_v<T, Capsule>) {
-				auto radius{ shape.GetRadius(cmd.transform) };
+			const auto get_data = [](const auto& shape, auto radius, float line_width,
+									 const V2_float& size) -> std::array<float, 4> {
+				std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
 
-				if (radius <= 0.0f) {
-					return;
-				}
-
-				V2_float size;
-				auto quad_points{ shape.GetWorldQuadVertices(cmd.transform, &size) };
-
-				float diameter{ 2.0f * radius };
+				auto diameter{ 2.0f * radius };
 
 				float fade{ GetFade(diameter) };
 
 				float thickness{
-					NormalizeArcLineWidthToThickness(cmd.line_width, fade, V2_float{ radius })
+					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
 				};
 
-				float aspect_ratio{ GetAspectRatio(size) };
-				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+				data[0] = thickness;
+				data[1] = fade;
+
+				if constexpr (std::is_same_v<T, Arc>) {
+					float aperture{ shape.GetAperture() };
+					float direction{ shape.clockwise ? 1.0f : -1.0f };
+
+					data[2] = aperture;
+					data[3] = direction;
+				} else if constexpr (IsAnyOf<T, Capsule, RoundedRect>) {
+					float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+					float aspect_ratio{ GetAspectRatio(size) };
+
+					data[2] = normalized_radius;
+					data[3] = aspect_ratio;
+				}
+
+				return data;
+			};
+
+			if constexpr (quad_vertex_type) {
+				std::array<V2_float, 4> quad_points;
+				std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+				if constexpr (std::is_same_v<T, V2_float>) {
+					Transform translated = cmd.transform;
+					translated.Translate(shape);
+
+					Rect r{ V2_float{ 1.0f } };
+
+					quad_points = r.GetWorldVertices(translated, Origin::Center);
+				} else if constexpr (std::is_same_v<T, Line>) {
+					if (cmd.line_width < min_line_width) {
+						return;
+					}
+
+					quad_points = shape.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+				} else if constexpr (std::is_same_v<T, Capsule>) {
+					auto radius{ shape.GetRadius(cmd.transform) };
+
+					if (radius <= 0.0f) {
+						return;
+					}
+
+					V2_float size;
+
+					quad_points = shape.GetWorldQuadVertices(cmd.transform, &size);
+					data		= get_data(shape, radius, cmd.line_width, size);
+
+					if (!cmd.render_state.shader_pass.has_value()) {
+						cmd.render_state.shader_pass = game.shader.Get("capsule");
+					}
+				} else if constexpr (std::is_same_v<T, Arc>) {
+					auto radius{ shape.GetRadius(cmd.transform) };
+
+					if (radius <= 0.0f) {
+						return;
+					}
+
+					Transform rotated{ cmd.transform };
+					rotated.Rotate(shape.GetStartAngle());
+
+					quad_points = shape.GetWorldQuadVertices(rotated);
+					data		= get_data(shape, radius, cmd.line_width, {});
+
+					if (!cmd.render_state.shader_pass.has_value()) {
+						cmd.render_state.shader_pass = game.shader.Get("arc");
+					}
+				} else if constexpr (std::is_same_v<T, RoundedRect>) {
+					auto size = shape.GetSize(cmd.transform);
+
+					if (!size.BothAboveZero()) {
+						return;
+					}
+
+					float radius = shape.GetRadius(cmd.transform);
+
+					if (radius <= 0.0f) {
+						cmd.render_state.shader_pass = std::nullopt;
+						cmd.shape					 = Rect{ shape.GetSize() };
+						DrawShape(cmd);
+						return;
+					}
+
+					quad_points = shape.GetWorldQuadVertices(cmd.transform, cmd.origin);
+					data		= get_data(shape, radius, cmd.line_width, size);
+
+					if (!cmd.render_state.shader_pass.has_value()) {
+						cmd.render_state.shader_pass = game.shader.Get("rounded_rect");
+					}
+				} else if constexpr (std::is_same_v<T, Ellipse>) {
+					auto radius = shape.GetRadius(cmd.transform);
+
+					if (!radius.BothAboveZero()) {
+						return;
+					}
+
+					quad_points = shape.GetWorldQuadVertices(cmd.transform);
+					data		= get_data(shape, radius, cmd.line_width, {});
+
+					if (!cmd.render_state.shader_pass.has_value()) {
+						cmd.render_state.shader_pass = game.shader.Get("circle");
+					}
+				}
 
 				auto quad_vertices{ Vertex::GetQuad(
-					quad_points, cmd.tint, cmd.depth,
-					{ thickness, fade, normalized_radius, aspect_ratio },
-					GetDefaultTextureCoordinates()
-				) };
-				if (!cmd.render_state.shader_pass.has_value()) {
-					cmd.render_state.shader_pass = game.shader.Get("capsule");
-				}
-				SetState(cmd.render_state);
-				AddVertices(quad_vertices, quad_indices);
-			} else if constexpr (std::is_same_v<T, Arc>) {
-				auto radius{ shape.GetRadius(cmd.transform) };
-
-				if (radius <= 0.0f) {
-					return;
-				}
-
-				float diameter{ 2.0f * radius };
-
-				float fade{ GetFade(diameter) };
-				float thickness{
-					NormalizeArcLineWidthToThickness(cmd.line_width, fade, V2_float{ radius })
-				};
-
-				float aperture{ shape.GetAperture() };
-
-				Transform rotated{ cmd.transform };
-				rotated.Rotate(shape.GetStartAngle());
-
-				auto quad_points{ shape.GetWorldQuadVertices(rotated) };
-
-				float direction{ shape.clockwise ? 1.0f : -1.0f };
-
-				auto quad_vertices{ Vertex::GetQuad(
-					quad_points, cmd.tint, cmd.depth, { thickness, fade, aperture, direction },
-					GetDefaultTextureCoordinates()
+					quad_points, cmd.tint, cmd.depth, data, GetDefaultTextureCoordinates()
 				) };
 
-				if (!cmd.render_state.shader_pass.has_value()) {
-					cmd.render_state.shader_pass = game.shader.Get("arc");
-				}
 				SetState(cmd.render_state);
 				AddVertices(quad_vertices, quad_indices);
 			} else if constexpr (std::is_same_v<T, Triangle>) {
@@ -285,48 +327,6 @@ void RenderData::DrawShape(DrawShapeCommand cmd) {
 						AddVertices(quad_vertices, quad_indices);
 					}
 				}
-			} else if constexpr (std::is_same_v<T, RoundedRect>) {
-				float radius = shape.GetRadius(cmd.transform);
-
-				if (radius <= 0.0f) {
-					return;
-				}
-
-				auto size = shape.GetSize(cmd.transform);
-
-				if (!size.BothAboveZero()) {
-					return;
-				}
-
-				auto quad_points{ shape.GetWorldQuadVertices(cmd.transform, cmd.origin) };
-
-				if (radius <= 0.0f) {
-					cmd.render_state.shader_pass = std::nullopt;
-					cmd.shape					 = Rect{ shape.GetSize() };
-					DrawShape(cmd);
-					return;
-				}
-
-				auto diameter{ 2.0f * radius };
-				float fade{ GetFade(diameter) };
-
-				float thickness{
-					NormalizeArcLineWidthToThickness(cmd.line_width, fade, V2_float{ radius })
-				};
-
-				float aspect_ratio{ GetAspectRatio(size) };
-				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
-
-				auto quad_vertices = Vertex::GetQuad(
-					quad_points, cmd.tint, cmd.depth,
-					{ thickness, fade, normalized_radius, aspect_ratio },
-					GetDefaultTextureCoordinates()
-				);
-				if (!cmd.render_state.shader_pass.has_value()) {
-					cmd.render_state.shader_pass = game.shader.Get("rounded_rect");
-				}
-				SetState(cmd.render_state);
-				AddVertices(quad_vertices, quad_indices);
 			} else if constexpr (std::is_same_v<T, Rect>) {
 				auto size = shape.GetSize(cmd.transform);
 				if (!size.BothAboveZero()) {
@@ -340,25 +340,6 @@ void RenderData::DrawShape(DrawShapeCommand cmd) {
 				AddShape(
 					quad_vertices, quad_indices, quad_points, cmd.line_width, cmd.render_state
 				);
-			} else if constexpr (std::is_same_v<T, Ellipse>) {
-				auto radius = shape.GetRadius(cmd.transform);
-				if (!radius.BothAboveZero()) {
-					return;
-				}
-
-				auto quad_points = shape.GetWorldQuadVertices(cmd.transform);
-				auto diameter{ 2.0f * radius };
-				auto fade{ GetFade(diameter.y) };
-				float thickness{ NormalizeArcLineWidthToThickness(cmd.line_width, fade, radius) };
-				auto verts = Vertex::GetQuad(
-					quad_points, cmd.tint, cmd.depth, { thickness, fade },
-					GetDefaultTextureCoordinates()
-				);
-				if (!cmd.render_state.shader_pass.has_value()) {
-					cmd.render_state.shader_pass = game.shader.Get("circle");
-				}
-				SetState(cmd.render_state);
-				AddVertices(verts, quad_indices);
 			} else if constexpr (std::is_same_v<T, Circle>) {
 				cmd.shape = Ellipse{ V2_float{ shape.GetRadius() } };
 				DrawShape(cmd);
@@ -366,6 +347,22 @@ void RenderData::DrawShape(DrawShapeCommand cmd) {
 		},
 		cmd.shape
 	);
+}
+
+void RenderData::Submit(const DrawShapeCommand& command) {
+	DrawShape(command);
+}
+
+void RenderData::Submit(const DrawShaderCommand& command) {
+	DrawShader(command);
+}
+
+void RenderData::Submit(const DrawTextureCommand& command) {
+	DrawTexture(command);
+}
+
+void RenderData::Submit(const DrawLinesCommand& command) {
+	DrawLines(command);
 }
 
 void RenderData::DrawLines(DrawLinesCommand cmd) {
@@ -1147,6 +1144,10 @@ void RenderData::DrawFromTo(
 	);
 }
 
+float RenderData::GetFade(const V2_float& diameter) {
+	return GetFade(diameter.y);
+}
+
 float RenderData::GetFade(float diameter_y) {
 	constexpr float fade_scaling_constant{ 0.12f };
 	return fade_scaling_constant / diameter_y;
@@ -1174,7 +1175,8 @@ float RenderData::GetAspectRatio(const V2_float& size) {
 
 float RenderData::GetNormalizedRadius(float diameter, float size_x) {
 	PTGN_ASSERT(size_x > 0.0f);
-	return diameter / size_x;
+	float normalized_radius{ diameter / size_x };
+	return std::clamp(normalized_radius, 0.0f, 1.0f);
 }
 
 void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {
