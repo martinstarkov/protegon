@@ -690,10 +690,12 @@ RaycastResult Raycast(
 				[&](const auto& s2) -> RaycastResult {
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
-					PTGN_ERROR(
-						"Cannot find raycast function for the given shapes: ", type_name<S1>(),
-						" and ", type_name<S2>()
-					);
+					PTGN_RAYCAST_SHAPE_PAIR_TABLE {
+						PTGN_ERROR(
+							"Cannot find raycast function for the given shapes: ", type_name<S1>(),
+							" and ", type_name<S2>()
+						);
+					}
 				},
 				shape2
 			);
