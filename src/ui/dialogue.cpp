@@ -21,6 +21,7 @@
 #include "core/game_object.h"
 #include "core/manager.h"
 #include "core/script.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -356,15 +357,15 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 
 void DialogueComponent::DrawInfo(const V2_float& position) {
 	FontSize font_size{ 32 };
-	DrawDebugText(
+	game.debug.DrawText(
 		"Dialogue: " + current_dialogue_, position + V2_float{ 0, 0 }, color::White,
 		Origin::TopLeft, font_size
 	);
-	DrawDebugText(
+	game.debug.DrawText(
 		"Line: " + std::to_string(current_line_), position + V2_float{ 0, 50 }, color::White,
 		Origin::TopLeft, font_size
 	);
-	DrawDebugText(
+	game.debug.DrawText(
 		"Page: " + std::to_string(current_page_), position + V2_float{ 0, 100 }, color::White,
 		Origin::TopLeft, font_size
 	);

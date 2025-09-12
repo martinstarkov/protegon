@@ -15,6 +15,7 @@
 #include "core/manager.h"
 #include "core/resolution.h"
 #include "core/script.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/mouse.h"
@@ -171,10 +172,9 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 					draw_transform = OffsetByOrigin(entity.Get<Rect>(), draw_transform, entity);
 				}
 
-				draw_transform = OffsetByOrigin(shape, draw_transform, shape_entity);
-				DrawDebugShape(
+				game.debug.DrawShape(
 					draw_transform, shape, draw_interactive_color_, draw_interactive_line_width_,
-					entity.GetCamera()
+					GetDrawOrigin(shape_entity), entity.GetCamera()
 				);
 			}
 
@@ -610,7 +610,7 @@ void SceneInput::Update(Scene& scene) {
 	MouseInfo mouse_state{ scene };
 
 	if (draw_interactives_) {
-		DrawDebugPoint(mouse_state.position, draw_interactive_color_);
+		game.debug.DrawPoint(mouse_state.position, draw_interactive_color_);
 	}
 
 	auto entities = GetInteractiveEntities(scene, mouse_state);
