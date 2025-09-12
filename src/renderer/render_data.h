@@ -19,7 +19,6 @@
 #include "core/script_interfaces.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "math/geometry.h"
 #include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
@@ -64,10 +63,6 @@ struct Viewport {
 
 namespace impl {
 
-class InputHandler;
-class Renderer;
-class SceneManager;
-
 struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
 	void OnWindowResized() override;
 };
@@ -85,7 +80,7 @@ class ShaderPass {
 public:
 	ShaderPass() = default;
 
-	ShaderPass(const Shader& shader, UniformCallback uniform_callback = nullptr);
+	ShaderPass(const Shader& shader, const UniformCallback& uniform_callback = nullptr);
 
 	[[nodiscard]] const Shader& GetShader() const;
 
@@ -113,7 +108,8 @@ public:
 
 	bool operator==(const RenderState&) const = default;
 
-	std::optional<ShaderPass> shader_pass;
+	// std::nullopt = reset RenderState; ShaderPass{} == Quad shader.
+	std::optional<ShaderPass> shader_pass{ ShaderPass{} };
 	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 	Camera camera;
 	PostFX post_fx;
@@ -169,6 +165,19 @@ private:
 	milliseconds max_age_{ 0 };
 };
 
+struct DrawTarget {
+	Viewport viewport;
+	V2_int texture_size;
+	TextureId texture_id{ 0 };
+	TextureFormat texture_format{ TextureFormat::RGBA8888 };
+	const FrameBuffer* frame_buffer{ nullptr };
+	std::array<V2_float, 4> points{};
+	Depth depth;
+	Tint tint;
+	Matrix4 view_projection{ 1.0f };
+	BlendMode blend_mode{};
+};
+
 struct DrawShapeCommand {
 	Shape shape;
 	Transform transform;
@@ -213,6 +222,10 @@ struct DrawShaderCommand {
 	RenderState render_state;
 };
 
+inline constexpr float min_line_width{ 1.0f };
+inline constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
+inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
+
 class RenderData {
 public:
 	void Submit(const DrawShapeCommand& command);
@@ -224,53 +237,12 @@ public:
 
 	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
 
-private:
-	void DrawShape(DrawShapeCommand cmd);
-	void DrawLines(DrawLinesCommand cmd);
-	void DrawTexture(DrawTextureCommand cmd);
-	void DrawShader(DrawShaderCommand cmd);
-
-	friend class SceneManager;
-	friend class ptgn::Scene;
-	friend class Renderer;
-	friend class ptgn::Camera;
-	friend struct ViewportResizeScript;
-	friend class InputHandler;
-
-	struct DrawTarget {
-		Viewport viewport;
-		V2_int texture_size;
-		TextureId texture_id{ 0 };
-		TextureFormat texture_format{ TextureFormat::RGBA8888 };
-		const FrameBuffer* frame_buffer{ nullptr };
-		std::array<V2_float, 4> points{};
-		Depth depth;
-		Tint tint;
-		Matrix4 view_projection{ 1.0f };
-		BlendMode blend_mode{};
-	};
-
-	[[nodiscard]] static float GetFade(const V2_float& diameter);
-	[[nodiscard]] static float GetFade(float diameter_y);
-
-	static float NormalizeArcLineWidthToThickness(
-		float line_width, float fade, const V2_float& radii
-	);
-
-	// @return y / x
-	static float GetAspectRatio(const V2_float& size);
-
-	// @return Range: [0.0f, 1.0f]
-	static float GetNormalizedRadius(float diameter, float size_x);
-
-	static void SetPointsAndProjection(DrawTarget& target);
-
 	[[nodiscard]] static DrawTarget GetDrawTarget(const RenderTarget& render_target);
 
-	[[nodiscard]] static DrawTarget GetDrawTarget(
-		const RenderTarget& render_target, const Matrix4& view_projection,
-		const std::array<V2_float, 4>& points, bool use_viewport
-	);
+	void DrawShape(const DrawShapeCommand& cmd);
+	void DrawLines(const DrawLinesCommand& cmd);
+	void DrawTexture(const DrawTextureCommand& cmd);
+	void DrawShader(const DrawShaderCommand& cmd);
 
 	void AddLinesImpl(
 		std::span<Vertex> line_vertices, std::span<const Index> line_indices,
@@ -280,7 +252,7 @@ private:
 	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
 
 	void InvokeDrawable(const Entity& entity);
-	void InvokeDrawFilter(RenderTarget& render_target, FilterType type);
+	static void InvokeDrawFilter(RenderTarget& render_target, FilterType type);
 
 	/*
 	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between
@@ -319,9 +291,7 @@ private:
 	 *                            blend mode, viewport, etc.
 	 * @param clear_frame_buffer  If true, the target's framebuffer will be cleared before drawing.
 	 */
-	void DrawVertices(
-		const Shader& shader, const RenderData::DrawTarget& target, bool clear_frame_buffer
-	);
+	void DrawVertices(const Shader& shader, const DrawTarget& target, bool clear_frame_buffer);
 
 	/**
 	 * Draws a fullscreen quad using the provided shader, commonly used for post-processing effects.
@@ -336,8 +306,8 @@ private:
 	 * @param target_clear_color  The color used to clear the framebuffer, if clearing is enabled.
 	 */
 	void DrawFullscreenQuad(
-		const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
-		bool clear_frame_buffer, const Color& target_clear_color
+		const Shader& shader, const DrawTarget& target, bool flip_texture, bool clear_frame_buffer,
+		const Color& target_clear_color
 	);
 
 	/**
@@ -433,10 +403,6 @@ private:
 	DrawTarget drawing_to_;
 
 	// TODO: Clean this up.
-
-	static constexpr float min_line_width{ 1.0f };
-	static constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
-	static constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 
