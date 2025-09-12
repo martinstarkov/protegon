@@ -17,6 +17,7 @@
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
+#include "renderer/texture.h"
 #include "scene/camera.h"
 
 namespace ptgn {
@@ -87,29 +88,22 @@ PointLight CreatePointLight(
 	return point_light;
 }
 
-void PointLight::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::RenderState state;
+void PointLight::Draw(const Entity& entity) {
 	// Blend mode with which the lights are added to the scene.
-	state.blend_mode  = GetBlendMode(entity);
-	state.shader_pass = { game.shader.Get("light"), &PointLight::SetUniform };
-	state.post_fx	  = entity.GetOrDefault<PostFX>();
-	state.camera	  = entity.GetOrDefault<Camera>();
+	BlendMode blend_mode{ GetBlendMode(entity) };
 
 	// Blend mode with which the lights are added to the light render target.
-	auto light_blend_mode{ BlendMode::PremultipliedAddRGBA };
+	auto intermediate_blend_mode{ BlendMode::PremultipliedAddRGBA };
 	// Color to which the light render target is cleared before drawing lights.
 	auto light_clear_color{ color::Black };
 
-	impl::DrawShaderCommand cmd;
-	cmd.clear_between_consecutive_calls = false;
-	cmd.entity							= entity;
-	cmd.render_state					= state;
-	cmd.blend_to_intermediate_target	= light_blend_mode;
-	cmd.target_clear_color				= light_clear_color;
-	cmd.texture_or_size					= V2_int{};
-	// cmd.texture_format = TextureFormat::HDR_RGBA;
+	TextureFormat texture_format{ default_texture_format /*TextureFormat::HDR_RGBA*/ };
 
-	ctx.Submit(cmd);
+	game.renderer.DrawShader(
+		{ "light", &PointLight::SetUniform }, entity, false, light_clear_color, V2_int{},
+		intermediate_blend_mode, GetDepth(entity), blend_mode, entity.GetOrDefault<Camera>(),
+		texture_format, entity.GetOrDefault<PostFX>()
+	);
 }
 
 PointLight& PointLight::SetIntensity(float intensity) {
