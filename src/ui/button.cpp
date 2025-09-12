@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <list>
-#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -22,13 +21,11 @@
 #include "input/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
-#include "math/hash.h"
-#include "math/math.h"
+#include "math/tolerance.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
@@ -177,20 +174,6 @@ ButtonText::ButtonText(
 	if (state != ButtonState::Default) {
 		Set(parent, manager, state, text_content, text_color, font_size, font_key, text_properties);
 	}
-}
-
-ButtonText::~ButtonText() {
-	// TODO: Fix. These are an issue when a scene is deleted which destroys pools which destroys
-	// these.
-	// if (default_) {
-	//	default_.Destroy();
-	//}
-	// if (hover_) {
-	//	hover_.Destroy();
-	//}
-	// if (pressed_) {
-	//	pressed_.Destroy();
-	//}
 }
 
 Text ButtonText::Get(ButtonState state) const {
@@ -357,88 +340,84 @@ static Text GetButtonText(const Button& button, bool is_toggled, const ButtonSta
 	return text;
 }
 
-static void DrawTexturedButton(
-	impl::RenderData& ctx, const Button& button, bool is_toggled,
-	const impl::Texture& button_texture, const impl::ShapeDrawInfo& info, const V2_float& size,
-	Origin origin, const V4_float& tint_n
-) {
-	auto texture_tint{ GetEffectiveColor<impl::ButtonTint, impl::ButtonTintToggled>(
-		button, is_toggled, color::White
-	) };
+void Button::Draw(const Entity& entity) {
+	Button button{ entity };
 
-	if (!texture_tint.a) {
+	Color tint{ GetTint(button) };
+
+	if (tint.a == 0) {
 		return;
 	}
 
-	impl::DrawTextureCommand cmd;
+	auto transform{ GetDrawTransform(button) };
+	auto depth{ GetDepth(button) };
+	auto blend_mode{ GetBlendMode(entity) };
+	auto camera{ entity.GetOrDefault<Camera>() };
+	auto post_fx{ entity.GetOrDefault<PostFX>() };
 
-	cmd.depth				= info.depth;
-	cmd.origin				= origin;
-	cmd.rect				= Rect{ size };
-	cmd.render_state		= info.state;
-	cmd.texture				= &button_texture;
-	cmd.texture_coordinates = Sprite{ button }.GetTextureCoordinates(false);
-	cmd.tint				= texture_tint.Normalized() * tint_n;
-	cmd.transform			= info.transform;
+	auto tint_n{ tint.Normalized() };
+	const auto state{ button.GetState() };
+	auto button_size{ button.GetSize() };
+	bool is_toggled{ IsToggled(button) };
+	PTGN_ASSERT(!button_size.IsZero(), "Buttons must have a non-zero size");
+	auto button_origin{ GetDrawOrigin(button) };
+	auto text{ GetButtonText(button, is_toggled, state) };
 
-	ctx.Submit(cmd);
-}
+	UpdateStateProperty<impl::ButtonColor>(button, state);
+	UpdateStateProperty<impl::ButtonColorToggled>(button, state);
+	UpdateStateProperty<impl::ButtonTint>(button, state);
+	UpdateStateProperty<impl::ButtonTintToggled>(button, state);
+	UpdateStateProperty<impl::ButtonBorderColor>(button, state);
+	UpdateStateProperty<impl::ButtonBorderColorToggled>(button, state);
 
-template <typename DefaultComponent, typename ToggledComponent, typename LineWidthComponent>
-static void DrawButtonQuad(
-	impl::RenderData& ctx, const Button& button, bool is_toggled, const impl::ShapeDrawInfo& info,
-	const V2_float& size, Origin origin, const V4_float& tint_n
-) {
-	auto line_width{ button.GetOrDefault<LineWidthComponent>() };
+	auto button_texture{ GetButtonTexture(button, is_toggled, state) };
 
-	if (line_width == 0.0f) {
-		return;
+	if (button_texture) {
+		auto texture_tint{ GetEffectiveColor<impl::ButtonTint, impl::ButtonTintToggled>(
+			button, is_toggled, color::White
+		) };
+
+		if (texture_tint.a) {
+			auto pre_fx{ entity.GetOrDefault<PreFX>() };
+
+			game.renderer.DrawTexture(
+				*button_texture, transform, button_size, button_origin,
+				Tint{ texture_tint.Normalized() * tint_n }, depth, blend_mode, camera, pre_fx,
+				post_fx, Sprite{ button }.GetTextureCoordinates(false)
+			);
+		}
+	} else {
+		auto line_width{ button.GetOrDefault<impl::ButtonBackgroundWidth>() };
+
+		if (line_width != 0.0f) {
+			auto color{
+				GetEffectiveColor<impl::ButtonColor, impl::ButtonColorToggled>(button, is_toggled)
+			};
+
+			if (color.a) {
+				game.renderer.DrawRect(
+					transform, button_size, Tint{ color.Normalized() * tint_n },
+					line_width.GetValue(), button_origin, depth, blend_mode, camera, post_fx
+				);
+			}
+		}
 	}
 
-	auto color{ GetEffectiveColor<DefaultComponent, ToggledComponent>(button, is_toggled) };
+	auto line_width{ button.GetOrDefault<impl::ButtonBorderWidth>() };
 
-	if (!color.a) {
-		return;
+	if (line_width != 0.0f) {
+		auto color{ GetEffectiveColor<impl::ButtonBorderColor, impl::ButtonBorderColorToggled>(
+			button, is_toggled
+		) };
+
+		if (color.a) {
+			game.renderer.DrawRect(
+				transform, button_size, Tint{ color.Normalized() * tint_n }, line_width.GetValue(),
+				button_origin, depth, blend_mode, camera, post_fx
+			);
+		}
 	}
 
-	impl::DrawShapeCommand cmd;
-
-	cmd.depth  = info.depth;
-	cmd.origin = origin;
-
-	// TODO: Fix rounded buttons.
-	cmd.shape		 = Rect{ size };
-	cmd.render_state = info.state;
-	cmd.tint		 = color.Normalized() * tint_n;
-	cmd.transform	 = info.transform;
-	cmd.line_width	 = line_width.GetValue();
-
-	ctx.Submit(cmd);
-}
-
-static void DrawColoredButton(
-	impl::RenderData& ctx, const Button& button, bool is_toggled, const impl::ShapeDrawInfo& info,
-	const V2_float& size, Origin origin, const V4_float& tint_n
-) {
-	DrawButtonQuad<impl::ButtonColor, impl::ButtonColorToggled, impl::ButtonBackgroundWidth>(
-		ctx, button, is_toggled, info, size, origin, tint_n
-	);
-}
-
-static void DrawButtonBorder(
-	impl::RenderData& ctx, const Button& button, bool is_toggled, const impl::ShapeDrawInfo& info,
-	const V2_float& size, Origin origin, const V4_float& tint_n
-) {
-	DrawButtonQuad<
-		impl::ButtonBorderColor, impl::ButtonBorderColorToggled, impl::ButtonBorderWidth>(
-		ctx, button, is_toggled, info, size, origin, tint_n
-	);
-}
-
-static void DrawButtonText(
-	impl::RenderData& ctx, const Button& button, const Text& text, const V2_float& button_size,
-	Origin button_origin, const impl::ShapeDrawInfo& info
-) {
 	if (!text) {
 		return;
 	}
@@ -455,57 +434,9 @@ static void DrawButtonText(
 		}
 	}
 
-	auto text_camera{ text.GetOrDefault<Camera>(info.state.camera) };
+	auto text_camera{ text.GetOrDefault<Camera>(camera) };
 
-	impl::DrawText(ctx, text, text_size, text_camera, info.tint, button_origin, button_size);
-}
-
-static void DrawButton(
-	impl::RenderData& ctx, const Button& button, bool is_toggled,
-	const impl::Texture* button_texture, const Text& text, const impl::ShapeDrawInfo& info,
-	const V2_float& button_size, Origin button_origin, const V4_float& tint_n
-) {
-	if (button_texture) {
-		DrawTexturedButton(
-			ctx, button, is_toggled, *button_texture, info, button_size, button_origin, tint_n
-		);
-	} else {
-		DrawColoredButton(ctx, button, is_toggled, info, button_size, button_origin, tint_n);
-	}
-
-	DrawButtonBorder(ctx, button, is_toggled, info, button_size, button_origin, tint_n);
-	DrawButtonText(ctx, button, text, button_size, button_origin, info);
-}
-
-void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
-	Button button{ entity };
-
-	impl::ShapeDrawInfo info{ button };
-
-	if (info.tint.a == 0) {
-		return;
-	}
-
-	auto tint_n{ info.tint.Normalized() };
-	const auto state{ button.GetState() };
-	auto button_size{ button.GetSize() };
-	bool is_toggled{ IsToggled(button) };
-	PTGN_ASSERT(!button_size.IsZero(), "Buttons must have a non-zero size");
-	Origin button_origin{ GetDrawOrigin(button) };
-	auto text{ GetButtonText(button, is_toggled, state) };
-
-	UpdateStateProperty<impl::ButtonColor>(button, state);
-	UpdateStateProperty<impl::ButtonColorToggled>(button, state);
-	UpdateStateProperty<impl::ButtonTint>(button, state);
-	UpdateStateProperty<impl::ButtonTintToggled>(button, state);
-	UpdateStateProperty<impl::ButtonBorderColor>(button, state);
-	UpdateStateProperty<impl::ButtonBorderColorToggled>(button, state);
-
-	auto button_texture{ GetButtonTexture(button, is_toggled, state) };
-
-	DrawButton(
-		ctx, button, is_toggled, button_texture, text, info, button_size, button_origin, tint_n
-	);
+	impl::DrawText(text, text_size, text_camera, tint, button_origin, button_size);
 }
 
 Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
