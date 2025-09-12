@@ -12,6 +12,7 @@
 #include <span>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -78,18 +79,8 @@ bool RenderState::IsSet() const {
 	return shader_pass.has_value();
 }
 
-ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
-	transform{ GetDrawTransform(entity) },
-	tint{ GetTint(entity) },
-	depth{ GetDepth(entity) },
-	line_width{ entity.GetOrDefault<LineWidth>() } {
-	state.blend_mode = GetBlendMode(entity);
-	state.camera	 = entity.GetOrDefault<Camera>();
-	state.post_fx	 = entity.GetOrDefault<PostFX>();
-}
-
 void ViewportResizeScript::OnWindowResized() {
-	auto& render_data{ game.renderer.GetRenderData() };
+	auto& render_data{ game.renderer.render_data_ };
 	auto window_size{ game.window.GetSize() };
 	if (!render_data.game_size_set_) {
 		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
@@ -100,14 +91,19 @@ void ViewportResizeScript::OnWindowResized() {
 ShaderPass::ShaderPass(const Shader& shader, const UniformCallback& uniform_callback) :
 	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
 
+ShaderPass::ShaderPass(std::string_view shader_name, const UniformCallback& uniform_callback) :
+	shader_{ &game.shader.Get(shader_name) }, uniform_callback_{ uniform_callback } {}
+
+ShaderPass::ShaderPass(const char* shader_name) : shader_{ &game.shader.Get(shader_name) } {}
+
 const Shader& ShaderPass::GetShader() const {
 	PTGN_ASSERT(shader_ != nullptr);
 	return *shader_;
 }
 
 void ShaderPass::Invoke(Entity entity) const {
-	PTGN_ASSERT(shader_ != nullptr);
 	if (uniform_callback_) {
+		PTGN_ASSERT(shader_ != nullptr);
 		shader_->Bind();
 		uniform_callback_(entity, *shader_);
 	}
@@ -405,6 +401,27 @@ static void SetPointsAndProjection(DrawTarget& target) {
 	target.view_projection = Matrix4::Orthographic(target.points[0], target.points[2]);
 }
 
+void RenderData::DrawCommand(const impl::DrawCommand& cmd) {
+	std::visit(
+		[&](const auto& command) {
+			using T = std::decay_t<decltype(command)>;
+
+			if constexpr (std::is_same_v<T, DrawShapeCommand>) {
+				DrawShape(command);
+			} else if constexpr (std::is_same_v<T, DrawTextureCommand>) {
+				DrawTexture(command);
+			} else if constexpr (std::is_same_v<T, DrawShaderCommand>) {
+				DrawShader(command);
+			} else if constexpr (std::is_same_v<T, DrawLinesCommand>) {
+				DrawLines(command);
+			} else {
+				PTGN_ERROR("Unknown draw command type");
+			}
+		},
+		cmd
+	);
+}
+
 void RenderData::DrawShape(const DrawShapeCommand& cmd) {
 	std::visit(
 		[&](const auto& shape) {
@@ -416,20 +433,12 @@ void RenderData::DrawShape(const DrawShapeCommand& cmd) {
 	);
 }
 
-void RenderData::Submit(const DrawShapeCommand& command) {
-	DrawShape(command);
-}
+void RenderData::Submit(const impl::DrawCommand& command) {
+	PTGN_ASSERT(
+		drawing_to_.texture_id, "Cannot submit render command to unspecified render target"
+	);
 
-void RenderData::Submit(const DrawShaderCommand& command) {
-	DrawShader(command);
-}
-
-void RenderData::Submit(const DrawTextureCommand& command) {
-	DrawTexture(command);
-}
-
-void RenderData::Submit(const DrawLinesCommand& command) {
-	DrawLines(command);
+	draw_queues_[drawing_to_.texture_id].emplace_back(command);
 }
 
 void RenderData::DrawLines(const DrawLinesCommand& cmd) {
@@ -459,11 +468,9 @@ void RenderData::DrawLines(const DrawLinesCommand& cmd) {
 }
 
 void RenderData::DrawTexture(const DrawTextureCommand& cmd) {
-	PTGN_ASSERT(cmd.texture);
+	auto texture_id{ cmd.texture_id };
 
-	const auto& texture{ *cmd.texture };
-
-	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
+	PTGN_ASSERT(texture_id, "Cannot draw textured quad with invalid texture");
 
 	if (auto size{ cmd.rect.GetSize(cmd.transform) }; !size.BothAboveZero()) {
 		return;
@@ -477,24 +484,21 @@ void RenderData::DrawTexture(const DrawTextureCommand& cmd) {
 		texture_points, cmd.tint, cmd.depth, { 0.0f }, cmd.texture_coordinates, false
 	) };
 
-	auto texture_id{ texture.GetId() };
-
 	if (!cmd.pre_fx.pre_fx_.empty()) {
-		auto texture_size{ texture.GetSize() };
-
 		PTGN_ASSERT(
-			texture_size.BothAboveZero(), "Texture must have a valid size for it to have post fx"
+			cmd.texture_size.BothAboveZero(),
+			"Texture must have a valid size for it to have post fx"
 		);
 
-		Viewport viewport{ {}, texture_size };
+		Viewport viewport{ {}, cmd.texture_size };
 		DrawTarget target;
 		target.viewport		  = viewport;
-		target.texture_format = texture.GetFormat();
+		target.texture_format = cmd.texture_format;
 		SetPointsAndProjection(target);
 
 		texture_id = PingPong(
 			cmd.pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format),
-			texture, target, true
+			texture_id, target, true
 		);
 
 		white_texture.Bind(0);
@@ -536,9 +540,10 @@ void RenderData::DrawShader(const DrawShaderCommand& cmd) {
 		target.points		   = render_state.camera.GetWorldVertices();
 	}
 
-	target.depth	  = GetDepth(cmd.entity);
-	target.tint		  = target.tint.Normalized() * GetTint(cmd.entity).Normalized();
-	target.blend_mode = cmd.blend_to_intermediate_target;
+	target.depth = cmd.depth;
+	auto entity_tint{ cmd.entity ? GetTint(cmd.entity) : color::White };
+	target.tint		  = target.tint.Normalized() * entity_tint.Normalized();
+	target.blend_mode = cmd.intermediate_blend_mode;
 
 	if (uses_size) {
 		if (!std::get<V2_int>(cmd.texture_or_size).IsZero()) {
@@ -560,10 +565,6 @@ void RenderData::DrawShader(const DrawShaderCommand& cmd) {
 
 	if (clear) {
 		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
-		if (cmd.blend_to_draw_target.has_value()) {
-			intermediate_target->blend_to_draw_target = *cmd.blend_to_draw_target;
-			intermediate_target->blend_mode_set		  = true;
-		}
 	}
 
 	PTGN_ASSERT(
@@ -585,7 +586,7 @@ void RenderData::DrawShader(const DrawShaderCommand& cmd) {
 
 TextureId RenderData::PingPong(
 	const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
-	const Texture& texture, DrawTarget target, bool flip_vertices
+	TextureId id, DrawTarget target, bool flip_vertices
 ) {
 	PTGN_ASSERT(!container.empty(), "Cannot ping pong on an empty container");
 
@@ -609,8 +610,8 @@ TextureId RenderData::PingPong(
 
 		TextureId texture_id{ 0 };
 
-		if ((first_effect || !use_previous_texture) && texture.IsValid()) {
-			texture_id = texture.GetId();
+		if ((first_effect || !use_previous_texture) && id) {
+			texture_id = id;
 		} else {
 			texture_id = read->frame_buffer.GetTexture().GetId();
 		}
@@ -767,7 +768,7 @@ void RenderData::AddLinesImpl(
 		Line l{ points[i], points[(i + 1) % points.size()] };
 		auto line_points{ l.GetWorldQuadVertices(transform, line_width) };
 
-		PTGN_ASSERT(line_vertices.size() == line_points.size());
+		PTGN_ASSERT(line_vertices.size() <= line_points.size());
 
 		for (std::size_t j = 0; j < line_vertices.size(); ++j) {
 			line_vertices[j].position[0] = line_points[j].x;
@@ -924,11 +925,6 @@ void RenderData::Flush(bool final_flush) {
 			target.texture_format = texture.GetFormat();
 			target.texture_size	  = texture.GetSize();
 		}
-
-		// Flush intermediate target onto drawing_to frame buffer.
-		if (intermediate_target->blend_mode_set) {
-			target.blend_mode = intermediate_target->blend_to_draw_target;
-		}
 		DrawFullscreenQuad(
 			GetFullscreenShader(target.texture_format), target,
 			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
@@ -971,7 +967,7 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 
 	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
 
-	draw_function(*this, entity);
+	draw_function(entity);
 }
 
 void RenderData::InvokeDrawFilter(RenderTarget& render_target, FilterType type) {
@@ -1026,15 +1022,52 @@ DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
 	return impl::GetDrawTarget(render_target, camera, camera.GetWorldVertices(), false);
 }
 
+static float GetDepth(const DrawCommand& cmd) {
+	return std::visit(
+		[](const auto& c) {
+			return static_cast<float>(c.depth); // Assuming Depth can convert to float
+		},
+		cmd
+	);
+}
+
+static void SortByDepth(std::vector<DrawCommand>& commands, bool ascending) {
+	std::ranges::stable_sort(commands, [ascending](const DrawCommand& a, const DrawCommand& b) {
+		auto depth_a{ GetDepth(a) };
+		auto depth_b{ GetDepth(b) };
+		return ascending ? (depth_a < depth_b) : (depth_a > depth_b);
+	});
+}
+
+void RenderData::FlushDrawQueue(TextureId id) {
+	auto it{ draw_queues_.find(id) };
+
+	if (it == draw_queues_.end()) {
+		return;
+	}
+
+	std::vector<impl::DrawCommand>& commands{ it->second };
+
+	// Must be sorted here so that debug render commands appear last.
+	SortByDepth(commands, true);
+
+	for (const auto& command : commands) {
+		DrawCommand(command);
+	}
+
+	Flush(true);
+}
+
 void RenderData::DrawDisplayList(
 	RenderTarget& render_target, std::vector<Entity>& display_list,
 	const std::function<bool(const Entity&)>& filter
 ) {
-	SortByDepth(display_list);
-
-	drawing_to_ = GetDrawTarget(render_target);
+	SetDrawingTo(render_target);
 
 	InvokeDrawFilter(render_target, FilterType::Pre);
+
+	// Must be sorted here so that creation order is accounted for.
+	SortByDepth(display_list, true);
 
 	for (const auto& entity : display_list) {
 		if (filter && filter(entity)) {
@@ -1045,7 +1078,11 @@ void RenderData::DrawDisplayList(
 
 	InvokeDrawFilter(render_target, FilterType::Post);
 
-	Flush(true);
+	FlushDrawQueue(drawing_to_.texture_id);
+}
+
+void RenderData::SetDrawingTo(const RenderTarget& render_target) {
+	drawing_to_ = GetDrawTarget(render_target);
 }
 
 void RenderData::DrawScene(Scene& scene) {
@@ -1229,6 +1266,8 @@ void RenderData::Draw(Scene& scene) {
 	DrawFromTo(
 		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer(), true
 	);
+
+	draw_queues_.clear();
 
 	Reset();
 

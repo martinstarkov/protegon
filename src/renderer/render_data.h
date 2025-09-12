@@ -6,6 +6,8 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -61,6 +63,10 @@ struct Viewport {
 	PTGN_SERIALIZER_REGISTER(Viewport, position, size)
 };
 
+constexpr BlendMode default_blend_mode{ BlendMode::Blend };
+constexpr Origin default_origin{ Origin::Center };
+constexpr TextureFormat default_texture_format{ TextureFormat::RGBA8888 };
+
 namespace impl {
 
 struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
@@ -81,6 +87,10 @@ public:
 	ShaderPass() = default;
 
 	ShaderPass(const Shader& shader, const UniformCallback& uniform_callback = nullptr);
+
+	ShaderPass(std::string_view shader_name, const UniformCallback& uniform_callback = nullptr);
+
+	ShaderPass(const char* shader_name);
 
 	[[nodiscard]] const Shader& GetShader() const;
 
@@ -115,23 +125,11 @@ public:
 	PostFX post_fx;
 };
 
-struct ShapeDrawInfo {
-	explicit ShapeDrawInfo(const Entity& entity);
-
-	Transform transform;
-	Color tint;
-	Depth depth;
-	LineWidth line_width;
-	RenderState state;
-};
-
 struct DrawContext {
 	DrawContext(const V2_int& size, TextureFormat texture_format);
 
 	FrameBuffer frame_buffer;
 
-	bool blend_mode_set{ false };
-	BlendMode blend_to_draw_target{ BlendMode::Blend };
 	bool in_use{ true };
 	bool keep_alive{ false };
 
@@ -170,6 +168,7 @@ struct DrawTarget {
 	V2_int texture_size;
 	TextureId texture_id{ 0 };
 	TextureFormat texture_format{ TextureFormat::RGBA8888 };
+	// TODO: Use something other than pointer here.
 	const FrameBuffer* frame_buffer{ nullptr };
 	std::array<V2_float, 4> points{};
 	Depth depth;
@@ -184,7 +183,7 @@ struct DrawShapeCommand {
 	Tint tint;
 	Depth depth;
 	LineWidth line_width;
-	Origin origin{ Origin::Center };
+	Origin origin{ default_origin };
 	RenderState render_state;
 };
 
@@ -199,11 +198,13 @@ struct DrawLinesCommand {
 };
 
 struct DrawTextureCommand {
-	const Texture* texture{ nullptr };
+	TextureId texture_id{ 0 };
+	V2_int texture_size;
+	TextureFormat texture_format{ default_texture_format };
 	Rect rect;
 	Transform transform;
 	std::array<V2_float, 4> texture_coordinates{ GetDefaultTextureCoordinates() };
-	Origin origin{ Origin::Center };
+	Origin origin{ default_origin };
 	Tint tint;
 	Depth depth;
 	PreFX pre_fx;
@@ -211,16 +212,20 @@ struct DrawTextureCommand {
 };
 
 struct DrawShaderCommand {
-	BlendMode blend_to_intermediate_target{ BlendMode::Blend };
-	// If nullopt, uses the draw target's blend mode.
-	std::optional<BlendMode> blend_to_draw_target;
+	BlendMode intermediate_blend_mode{ default_blend_mode };
 	bool clear_between_consecutive_calls{ true };
-	TextureFormat texture_format{ TextureFormat::RGBA8888 };
+	TextureFormat texture_format{ default_texture_format };
+	// If V2_int{} uses drawing to render target viewport size. If Texture, uses texture size.
 	TextureOrSize texture_or_size{ V2_int{} };
 	Color target_clear_color{ color::Transparent };
+	Depth depth;
+	// Entity passed to render_state.shader_pass.uniform_callback. Can be {}.
 	Entity entity;
 	RenderState render_state;
 };
+
+using DrawCommand =
+	std::variant<DrawShapeCommand, DrawLinesCommand, DrawTextureCommand, DrawShaderCommand>;
 
 inline constexpr float min_line_width{ 1.0f };
 inline constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
@@ -228,10 +233,7 @@ inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 
 class RenderData {
 public:
-	void Submit(const DrawShapeCommand& command);
-	void Submit(const DrawShaderCommand& command);
-	void Submit(const DrawTextureCommand& command);
-	void Submit(const DrawLinesCommand& command);
+	void Submit(const DrawCommand& command);
 
 	void AddTemporaryTexture(Texture&& texture);
 
@@ -239,6 +241,7 @@ public:
 
 	[[nodiscard]] static DrawTarget GetDrawTarget(const RenderTarget& render_target);
 
+	void DrawCommand(const impl::DrawCommand& cmd);
 	void DrawShape(const DrawShapeCommand& cmd);
 	void DrawLines(const DrawLinesCommand& cmd);
 	void DrawTexture(const DrawTextureCommand& cmd);
@@ -251,7 +254,7 @@ public:
 
 	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
 
-	void InvokeDrawable(const Entity& entity);
+	static void InvokeDrawable(const Entity& entity);
 	static void InvokeDrawFilter(RenderTarget& render_target, FilterType type);
 
 	/*
@@ -280,7 +283,7 @@ public:
 	 */
 	[[nodiscard]] TextureId PingPong(
 		const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
-		const Texture& texture, DrawTarget target, bool flip_vertices
+		TextureId id, DrawTarget target, bool flip_vertices
 	);
 
 	/**
@@ -390,13 +393,19 @@ public:
 		const std::function<bool(const Entity&)>& filter = {}
 	);
 
+	void FlushDrawQueue(TextureId id);
+
+	void SetDrawingTo(const RenderTarget& render_target);
+
 	void ClearScreenTarget() const;
 
 	// Clear the scene's internal render target, and all of the render target objects that exist in
 	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
 
-	const Shader& GetFullscreenShader(TextureFormat texture_format);
+	static const Shader& GetFullscreenShader(TextureFormat texture_format);
+
+	std::unordered_map<TextureId, std::vector<impl::DrawCommand>> draw_queues_;
 
 	std::shared_ptr<DrawContext> intermediate_target;
 
