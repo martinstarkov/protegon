@@ -17,7 +17,7 @@ class TextureFormatScene : public Scene {
 	std::vector<Sprite> sprites;
 
 	void Enter() override {
-		LoadResources({ { "jpg1", "resources/jpg1.jpg" },
+		LoadResource({ { "jpg1", "resources/jpg1.jpg" },
 						{ "jpg2", "resources/jpg2.jpg" },
 						{ "jpg3", "resources/jpg3.jpg" },
 						{ "bmp1", "resources/bmp1.bmp" },

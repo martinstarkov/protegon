@@ -3686,9 +3686,9 @@ public:
 
 		if (isDebugMode) {
 			bricks = {}; // empty
-			paddle->setIsActiveDrawable(false);
-			paddle->setIsActiveCollider(false);
-			paddle->setIsActiveDraggable(false);
+			paddle->setIsActiveDrawable(true);
+			paddle->setIsActiveCollider(true);
+			paddle->setIsActiveDraggable(true);
 			obstacles = constructObstacles();
 		} else {
 			bricks	  = constructBricks(8, 12);
@@ -4604,27 +4604,34 @@ private:
 		addCorner(x + r, bottom - ry, 90.0f);
 
 		for (auto& triangle : triangles) {
-			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, -1.0f, currentTransform);
+			ptgn::game.renderer.DrawTriangle(
+				{}, triangle, color, -1.0f, {}, ptgn::default_blend_mode, currentTransform
+			);
 		}
 	}
 
 	void drawRect(double x, double y, double w, double h, bool filled) {
-		ptgn::DrawDebugRect(
+		ptgn::game.renderer.DrawRect(
 			ptgn::V2_float{ x, y }, ptgn::V2_float{ w, h }, filled ? fillColor : strokeColor,
-			ptgn::Origin::TopLeft, filled ? -1.0f : line_width, 0.0f, currentTransform
+			filled ? -1.0f : line_width, ptgn::Origin::TopLeft, {}, ptgn::default_blend_mode,
+			currentTransform
 		);
 	}
 
 	void drawOval(double x, double y, double w, double h, bool filled) {
 		float cx = float(x + w / 2), cy = float(y + h / 2), rx = float(w / 2), ry = float(h / 2);
-		ptgn::DrawDebugEllipse(
-			{ cx, cy }, { rx, ry }, filled ? fillColor : strokeColor, filled ? -1.0f : line_width,
-			0.0f, currentTransform
+		ptgn::game.renderer.DrawEllipse(
+			ptgn::V2_float{ cx, cy }, ptgn::Ellipse{ ptgn::V2_float{ rx, ry } },
+			filled ? fillColor : strokeColor, filled ? -1.0f : line_width, {},
+			ptgn::default_blend_mode, currentTransform
 		);
 	}
 
 	void drawLine(double x1, double y1, double x2, double y2) {
-		ptgn::DrawDebugLine({ x1, y1 }, { x2, y2 }, strokeColor, line_width, currentTransform);
+		ptgn::game.renderer.DrawLine(
+			{ x1, y1 }, { x2, y2 }, strokeColor, line_width, {}, ptgn::default_blend_mode,
+			currentTransform
+		);
 	}
 
 	void drawFilledPath(const std::vector<ptgn::V2_float>& vertices, const ptgn::Color& color) {
@@ -4639,7 +4646,9 @@ private:
 			triangles.emplace_back(center, vertices.at(i), vertices.at(i + 1));
 		}
 		for (auto& triangle : triangles) {
-			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, -1.0f, currentTransform);
+			ptgn::game.renderer.DrawTriangle(
+				{}, triangle, color, -1.0f, {}, ptgn::default_blend_mode, currentTransform
+			);
 		}
 	}
 
@@ -4672,7 +4681,9 @@ private:
 			strokeTriangles.emplace_back(a, c, d);
 		}
 		for (auto& triangle : strokeTriangles) {
-			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, width, currentTransform);
+			ptgn::game.renderer.DrawTriangle(
+				{}, triangle, color, width, {}, ptgn::default_blend_mode, currentTransform
+			);
 		}
 	}
 

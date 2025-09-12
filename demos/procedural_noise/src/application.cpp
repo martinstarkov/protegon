@@ -31,7 +31,7 @@ public:
 
 	std::size_t divisions{ 10 };
 
-	V2_int pixel_size{ 8, 8 };
+	V2_int pixel_size{ 16, 16 };
 
 	bool thresholding{ false };
 
@@ -216,16 +216,16 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				DrawDebugRect(p * pixel_size, pixel_size, color, Origin::Center, -1.0f, 0.0f, {});
+				game.renderer.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
 			}
 		}
 
-		DrawDebugRect(
+		game.renderer.DrawRect(
 			(min * pixel_size + max * pixel_size) * 0.5f, (max - min) * pixel_size, color::Orange,
-			Origin::Center, 3.0f, 0.0f, {}
+			3.0f, Origin::Center
 		);
 
-		DrawDebugRect({}, { 30.0f, 30.0f }, color::Red, Origin::TopLeft, -1.0f);
+		game.renderer.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
 	}
 };
 

@@ -33,25 +33,24 @@ class ResolutionTextScene : public Scene {
 		LoadResource("background", "resources/bg.png");
 		game.renderer.SetGameSize(resolution);
 
-		// TODO: Readd once debug stuff is drawn on top.
-		// CreateSprite(*this, "background", resolution / 2.0f);
+		CreateSprite(*this, "background", {});
 
 		text = CreateText(*this, content, color, font_size);
-		SetPosition(text, 2 * V2_float{ 0.0f, text.GetFontSize() });
+		SetPosition(text, -2 * V2_float{ 0.0f, text.GetFontSize() });
 		text.SetHD(false);
 
 		text_hd = CreateText(*this, content, color, font_size);
-		SetPosition(text_hd, 1 * V2_float{ 0.0f, text.GetFontSize() });
+		SetPosition(text_hd, 2 * V2_float{ 0.0f, text.GetFontSize() });
 	}
 
 	void Update() override {
-		DrawDebugText(
-			content, 0 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
-			false
+		game.renderer.DrawText(
+			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
+			{}, {}, {}, {}, false
 		);
-		DrawDebugText(
-			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
-			true
+		game.renderer.DrawText(
+			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size, {},
+			{}, {}, {}, true
 		);
 	}
 };

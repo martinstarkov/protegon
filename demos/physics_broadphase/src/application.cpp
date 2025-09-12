@@ -158,7 +158,7 @@ struct BroadphaseScene : public Scene {
 			SetTint(candidate, color::Red);
 		}
 
-		DrawDebugLine(player_pos, mouse_pos, color::Gold, 2.0f);
+		game.renderer.DrawLine(player_pos, mouse_pos, color::Gold, 2.0f);
 
 #else
 		PTGN_PROFILE_FUNCTION();

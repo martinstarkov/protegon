@@ -12,6 +12,7 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/window.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -24,7 +25,6 @@
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -240,13 +240,13 @@ public:
 		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
 			auto transform{ GetAbsoluteTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
-				DrawDebugText("Intersect", transform.GetPosition(), text_color);
+				game.debug.DrawText("Intersect", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Overlap) {
-				DrawDebugText("Overlap", transform.GetPosition(), text_color);
+				game.debug.DrawText("Overlap", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Continuous) {
-				DrawDebugText("Sweep", transform.GetPosition(), text_color);
+				game.debug.DrawText("Sweep", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::None) {
-				DrawDebugText("None", transform.GetPosition(), text_color);
+				game.debug.DrawText("None", transform.GetPosition(), text_color);
 			}
 		}
 	}

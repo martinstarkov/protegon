@@ -19,6 +19,8 @@
 // TODO: Fix light position scaling when lights are rendered on a separate render target (when
 // display size is above game size).
 
+// TODO: Move LightMap to engine.
+
 using namespace ptgn;
 
 class LightMap {
@@ -559,6 +561,7 @@ std::vector<Vector> visibility_polygon(Vector point, InputIterator begin, InputI
 class ShadowScene : public Scene {
 public:
 	PointLight mouse_light;
+	PointLight static_light;
 
 	std::vector<geometry::line_segment<geometry::vec2>> shadow_segments;
 
@@ -629,7 +632,8 @@ public:
 			return light;
 		};
 
-		rt.AddToDisplayList(create_light(color::Cyan));
+		static_light = create_light(color::Cyan);
+		rt.AddToDisplayList(static_light);
 
 		mouse_light = CreatePointLight(*this, { -300, 300 }, 50.0f, color::Red, 0.8f, 1.0f);
 		rt.AddToDisplayList(mouse_light);
@@ -649,6 +653,10 @@ public:
 	void Update() override {
 		auto pos{ input.GetMousePosition() };
 		SetPosition(mouse_light, pos);
+
+		if (input.MousePressed(Mouse::Right)) {
+			SetPosition(static_light, pos);
+		}
 	}
 
 	void Exit() override {
@@ -662,19 +670,10 @@ void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 	if (type == FilterType::Pre) {
 		// SortShadows(display_list);
 	} else {
-		auto& ctx{ game.renderer.GetRenderData() };
-
-		impl::RenderState state{ game.shader.Get("color"), BlendMode::ReplaceAlpha, {}, {} };
-
-		Rect rect{ game.renderer.GetDisplaySize() };
-
-		impl::DrawShapeCommand cmd0;
-		cmd0.shape		  = rect;
-		cmd0.line_width	  = -1.0f;
-		cmd0.render_state = state;
-		cmd0.tint		  = color::Transparent;
-
-		ctx.Submit(cmd0);
+		game.renderer.DrawShape(
+			{}, Rect{ game.renderer.GetDisplaySize() }, color::Transparent, -1.0f, Origin::Center,
+			{}, BlendMode::ReplaceAlpha, {}, {}, "color"
+		);
 
 		for (auto& entity : display_list) {
 			if (!entity.Has<impl::LightProperties>()) {
@@ -687,47 +686,35 @@ void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 			auto& shadow_segments{ game.scene.Get<ShadowScene>("").shadow_segments };
 
 			geometry::vec2 posv{ pos.x, pos.y };
-			auto verts{
+			auto visibility{
 				geometry::visibility_polygon(posv, shadow_segments.begin(), shadow_segments.end())
 			};
-			std::vector<V2_float> verts_2;
+			std::vector<V2_float> vertices;
 
-			for (const auto& v : verts) {
-				verts_2.emplace_back(v.x, v.y);
+			for (const auto& v : visibility) {
+				vertices.emplace_back(v.x, v.y);
 			}
-			if (verts_2.size() >= 3) {
-				impl::ShapeDrawInfo info{ entity };
-				info.state.blend_mode = BlendMode::AddAlpha;
+			// We need at least 3 points to form a triangle
+			if (vertices.size() < 3) {
+				continue;
+			}
 
-				impl::DrawShapeCommand cmd;
-				cmd.shape		 = rect;
-				cmd.line_width	 = -1.0f;
-				cmd.render_state = info.state;
-				cmd.depth		 = GetDepth(entity) + 1;
+			for (std::size_t i = 0; i < vertices.size(); ++i) {
+				const V2_float& a = vertices[i];
+				const V2_float& b = vertices[(i + 1) % vertices.size()];
 
-				// We need at least 3 points to form a triangle
-				if (verts_2.size() < 3) {
-					return;
-				}
-
-				// Use the first point as the fan origin
-				const V2_float& origin = pos;
-
-				for (size_t i = 0; i < verts_2.size(); ++i) {
-					const V2_float& a = verts_2[i];
-					const V2_float& b = verts_2[(i + 1) % verts_2.size()];
-
-					cmd.shape = Triangle{ origin, a, b };
-
-					ctx.Submit(cmd);
-				}
+				game.renderer.DrawTriangle(
+					{}, Triangle{ pos, a, b }, GetTint(entity), -1.0f, GetDepth(entity) + 1,
+					BlendMode::AddAlpha, entity.GetOrDefault<Camera>(),
+					entity.GetOrDefault<PostFX>()
+				);
 			}
 		}
 	}
 }
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ShadowScene", { 800, 800 });
+	game.Init("ShadowScene: Right: Move static light", { 800, 800 });
 	game.scene.Enter<ShadowScene>("");
 	return 0;
 }

@@ -374,8 +374,8 @@ public:
 					}
 				}
 
-				DrawDebugRect(
-					-resolution * 0.5f + position * scale, scale, color, Origin::TopLeft, -1.0f
+				game.renderer.DrawRect(
+					-resolution * 0.5f + position * scale, scale, color, -1.0f, Origin::TopLeft
 				);
 			}
 		}

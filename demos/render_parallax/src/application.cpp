@@ -32,10 +32,10 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void Enter() override {
-		LoadResources({ { "background", "resources/background.png" },
-						{ "planet_b", "resources/planet_b.png" },
-						{ "planet_s", "resources/planet_s.png" },
-						{ "stars", "resources/stars.png" } });
+		LoadResource({ { "background", "resources/background.png" },
+					   { "planet_b", "resources/planet_b.png" },
+					   { "planet_s", "resources/planet_s.png" },
+					   { "stars", "resources/stars.png" } });
 
 		bg_pos		 = game.renderer.GetGameSize() * 0.5f;
 		planet_b_pos = game.renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };
@@ -56,7 +56,7 @@ public:
 	}
 
 	void Update() override {
-		float speed = 100.0f * game.dt();
+		float speed = 10.0f * game.dt();
 
 		V2_float velocity;
 
@@ -81,13 +81,22 @@ public:
 		star_cam	   += velocity / 6.0f;
 		foreground_cam += velocity / 2.0f;
 
-		// TODO: Fix.
-		DrawDebugTexture("background", bg_pos, { size.x * bg_aspect_ratio, size.y });
+		// TODO: Fix by implementing SetScrollFactor().
+
+		game.renderer.DrawTexture(
+			"background", bg_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
+		);
 		Translate(camera, background_cam);
-		DrawDebugTexture("stars", stars_pos, { size.x * bg_aspect_ratio, size.y });
+		game.renderer.DrawTexture(
+			"stars", stars_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
+		);
 		Translate(camera, star_cam);
-		DrawDebugTexture("planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale);
-		DrawDebugTexture("planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale);
+		game.renderer.DrawTexture(
+			"planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale, Origin::Center
+		);
+		game.renderer.DrawTexture(
+			"planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale, Origin::Center
+		);
 		Translate(camera, foreground_cam);
 	}
 };

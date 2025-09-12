@@ -6,6 +6,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/window.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -225,18 +226,8 @@ class PostProcessingEffect {
 public:
 	PostProcessingEffect() {}
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		impl::RenderState state;
-		state.blend_mode  = GetBlendMode(entity);
-		state.shader_pass = entity.Get<impl::ShaderPass>();
-		state.post_fx	  = entity.GetOrDefault<PostFX>();
-		state.camera	  = entity.GetOrDefault<Camera>();
-
-		impl::DrawShaderCommand cmd;
-		cmd.entity		 = entity;
-		cmd.render_state = state;
-
-		ctx.Submit(cmd);
+	static void Draw(const Entity& entity) {
+		impl::DrawShader(entity);
 	}
 };
 
@@ -350,13 +341,13 @@ public:
 			StartFollow(camera, mouse, follow_config);
 		}
 
-		DrawDebugText(
-			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
-			false
+		game.renderer.DrawText(
+			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
+			{}, {}, {}, false
 		);
-		DrawDebugText(
-			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
-			true
+		game.renderer.DrawText(
+			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
+			{}, {}, {}, true
 		);
 	}
 };

@@ -41,23 +41,23 @@ class ScalingModeScene : public Scene {
 			game.renderer.SetScalingMode(ScalingMode::Overscan);
 		}
 
-		DrawDebugTexture("background", { 0, 0 }, resolution, Origin::Center);
+		game.renderer.DrawTexture("background", V2_int{ 0, 0 }, resolution, Origin::Center);
 
-		DrawDebugRect(
-			{ -resolution.x * 0.5f, -resolution.y * 0.5f }, { resolution.x, 30 }, color::Red,
-			Origin::TopLeft, -1.0f
+		game.renderer.DrawRect(
+			V2_int{ -resolution.x * 0.5f, -resolution.y * 0.5f }, V2_int{ resolution.x, 30 },
+			color::Red, -1.0f, Origin::TopLeft
 		);
-		DrawDebugRect(
-			{ resolution.x * 0.5f - 30, -resolution.y * 0.5f }, { 30, resolution.y }, color::Green,
-			Origin::TopLeft, -1.0f
+		game.renderer.DrawRect(
+			V2_int{ resolution.x * 0.5f - 30, -resolution.y * 0.5f }, V2_int{ 30, resolution.y },
+			color::Green, -1.0f, Origin::TopLeft
 		);
-		DrawDebugRect(
-			{ -resolution.x * 0.5f, resolution.y * 0.5f - 30 }, { resolution.x, 30 }, color::Blue,
-			Origin::TopLeft, -1.0f
+		game.renderer.DrawRect(
+			V2_int{ -resolution.x * 0.5f, resolution.y * 0.5f - 30 }, V2_int{ resolution.x, 30 },
+			color::Blue, -1.0f, Origin::TopLeft
 		);
-		DrawDebugRect(
-			{ -resolution.x * 0.5f, -resolution.y * 0.5f }, { 30, resolution.y }, color::Teal,
-			Origin::TopLeft, -1.0f
+		game.renderer.DrawRect(
+			V2_int{ -resolution.x * 0.5f, -resolution.y * 0.5f }, V2_int{ 30, resolution.y },
+			color::Teal, -1.0f, Origin::TopLeft
 		);
 	}
 };

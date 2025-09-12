@@ -13,6 +13,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/vfx/light.h"
 #include "scene/scene.h"
@@ -36,18 +37,8 @@ class PostProcessingEffect {
 public:
 	PostProcessingEffect() {}
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		impl::RenderState state;
-		state.blend_mode  = GetBlendMode(entity);
-		state.shader_pass = entity.Get<impl::ShaderPass>();
-		state.post_fx	  = entity.GetOrDefault<PostFX>();
-		state.camera	  = entity.GetOrDefault<Camera>();
-
-		impl::DrawShaderCommand cmd;
-		cmd.entity		 = entity;
-		cmd.render_state = state;
-
-		ctx.Submit(cmd);
+	static void Draw(const Entity& entity) {
+		impl::DrawShader(entity);
 	}
 };
 

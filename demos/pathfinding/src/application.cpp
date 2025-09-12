@@ -73,14 +73,14 @@ class PathfindingScene : public Scene {
 			} else if (tile == end) {
 				c = color::Gold;
 			}
-			DrawDebugRect(
-				-resolution * 0.5f + tile * tile_size, tile_size, c, Origin::TopLeft, -1.0f
+			game.renderer.DrawRect(
+				-resolution * 0.5f + tile * tile_size, tile_size, c, -1.0f, Origin::TopLeft
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
-			DrawDebugRect(
-				-resolution * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow,
+			game.renderer.DrawRect(
+				-resolution * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
 				Origin::Center
 			);
 		}
@@ -118,7 +118,7 @@ class PathfindingScene : public Scene {
 			assert(idx >= 0);
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
-			DrawDebugRect(
+			game.renderer.DrawRect(
 				-resolution * 0.5f +
 					V2_int{ Lerp(
 						V2_float{ pos * tile_size },
@@ -126,20 +126,22 @@ class PathfindingScene : public Scene {
 								  tile_size },
 						current_waypoint
 					) },
-				tile_size, color::Purple, Origin::TopLeft, -1.0f
+				tile_size, color::Purple, -1.0f, Origin::TopLeft
 			);
 		} else {
-			DrawDebugRect(
-				-resolution * 0.5f + pos * tile_size, tile_size, color::Purple, Origin::TopLeft,
-				-1.0f
+			game.renderer.DrawRect(
+				-resolution * 0.5f + pos * tile_size, tile_size, color::Purple, -1.0f,
+				Origin::TopLeft
 			);
 		}
 
 		const auto display_waypoints = [=](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-				DrawDebugLine(
-					-resolution * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
-					-resolution * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f, color
+				game.renderer.DrawLine(
+					{},
+					{ -resolution * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
+					  -resolution * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
+					color
 				);
 			}
 		};

@@ -13,7 +13,7 @@ class Scene3 : public Scene {
 public:
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		DrawDebugTexture("bg3", {}, resolution, Origin::Center);
+		game.renderer.DrawTexture("bg3", {}, resolution, Origin::Center);
 	}
 };
 
@@ -31,7 +31,7 @@ public:
 
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		DrawDebugTexture("bg2", {}, resolution, Origin::Center);
+		game.renderer.DrawTexture("bg2", {}, resolution, Origin::Center);
 		if (input.KeyDown(Key::A)) {
 			// game.scene.Enter("scene2");
 			game.scene.Enter<Scene2>("scene2", ++i);
@@ -46,16 +46,16 @@ class Scene1 : public Scene {
 public:
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		DrawDebugTexture("bg1", {}, resolution, Origin::Center);
+		game.renderer.DrawTexture("bg1", {}, resolution, Origin::Center);
 	}
 };
 
 class SceneExample : public Scene {
 public:
 	SceneExample() {
-		LoadResources({ { "bg1", "resources/bg1.png" },
-						{ "bg2", "resources/bg2.png" },
-						{ "bg3", "resources/bg3.png" } });
+		LoadResource({ { "bg1", "resources/bg1.png" },
+					   { "bg2", "resources/bg2.png" },
+					   { "bg3", "resources/bg3.png" } });
 
 		game.scene.Load<Scene1>("scene1");
 		game.scene.Load<Scene2>("scene2");
