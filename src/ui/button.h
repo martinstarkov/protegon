@@ -175,20 +175,18 @@ struct ButtonTextureToggled : public ButtonTexture {
 };
 
 struct ButtonText {
-	ButtonText() = default;
+	ButtonText()								 = default;
+	ButtonText& operator=(ButtonText&&) noexcept = default;
+	ButtonText(ButtonText&&) noexcept			 = default;
+	ButtonText& operator=(const ButtonText&)	 = delete;
+	ButtonText(const ButtonText&)				 = delete;
+	~ButtonText()								 = default;
 
 	ButtonText(
 		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 		const TextProperties& text_properties
 	);
-
-	ButtonText& operator=(const ButtonText&)	 = default;
-	ButtonText(const ButtonText&)				 = default;
-	ButtonText& operator=(ButtonText&&) noexcept = default;
-	ButtonText(ButtonText&&) noexcept			 = default;
-
-	~ButtonText();
 
 	[[nodiscard]] TextColor GetTextColor(ButtonState state) const;
 	[[nodiscard]] TextContent GetTextContent(ButtonState state) const;
@@ -203,14 +201,9 @@ struct ButtonText {
 		const TextProperties& text_properties
 	);
 
-	Text default_;
-	Text hover_;
-	Text pressed_;
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		ButtonText, KeyValue("default", default_), KeyValue("hover", hover_),
-		KeyValue("pressed", pressed_)
-	)
+	GameObject<Text> default_;
+	GameObject<Text> hover_;
+	GameObject<Text> pressed_;
 };
 
 struct ButtonTextToggled : public ButtonText {
@@ -231,7 +224,7 @@ public:
 	Button() = default;
 	Button(const Entity& entity);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	// Will set the script for when the button is activated.
 	Button& OnActivate(const std::function<void()>& on_activate_callback);
