@@ -8,8 +8,7 @@
 namespace ptgn {
 
 // Owning version of an entity handle.
-template <typename T = Entity>
-	requires IsOrDerivedFrom<T, Entity>
+template <EntityBase T = Entity>
 class GameObject : public T {
 public:
 	GameObject() = default;
@@ -18,7 +17,7 @@ public:
 
 	GameObject(Entity&& entity) : T{ std::move(entity) } {}
 
-	GameObject(const Entity::EntityBase& entity) : T{ entity } {}
+	GameObject(const Entity::BaseEntity& entity) : T{ entity } {}
 
 	~GameObject() {
 		T::Destroy();

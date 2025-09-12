@@ -195,6 +195,11 @@ std::unique_ptr<KDNode> KDTree::BuildRecursive(const std::vector<KDObject>& obje
 		}
 	}
 
+	if (left_objs.empty() || right_objs.empty()) {
+		node->objects = objects;
+		return node;
+	}
+
 	node->left	= BuildRecursive(left_objs, depth + 1);
 	node->right = BuildRecursive(right_objs, depth + 1);
 

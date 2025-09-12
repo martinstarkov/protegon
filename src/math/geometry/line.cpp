@@ -5,37 +5,37 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
 Line::Line(const V2_float& start, const V2_float& end) : start{ start }, end{ end } {}
 
-void Line::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawLine(ctx, entity);
+void Line::Draw(const Entity& entity) {
+	impl::DrawLine(entity);
 }
 
-std::array<V2_float, 4> Line::GetWorldQuadVertices(const Transform& transform, float line_width)
-	const {
+std::array<V2_float, 4> Line::GetWorldQuadVertices(
+	const Transform& transform, float line_width, V2_float* out_size
+) const {
 	auto dir{ end - start };
 
-	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
 	auto local_center{ start + dir * 0.5f };
 
-	V2_float center{ ApplyTransform(local_center, transform) };
+	V2_float center{ transform.Apply(local_center) };
 
 	float rotation{ dir.Angle() };
-	V2_float size{ dir.Magnitude(), line_width };
-	Rect rect{ size };
-	return rect.GetWorldVertices(Transform{ center, rotation });
+	Rect rect{ V2_float{ dir.Magnitude() + line_width, line_width } };
+	if (out_size) {
+		*out_size = rect.GetSize(transform);
+	}
+	return rect.GetWorldVertices(Transform{ center, rotation, transform.GetScale() });
 }
 
 std::array<V2_float, 2> Line::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 2> Line::GetLocalVertices() const {

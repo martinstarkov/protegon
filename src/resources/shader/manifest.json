@@ -1,0 +1,59 @@
+{
+  "color": {
+    "source": "color"
+  },
+  "quad": {
+    "source": "quad"
+  },
+  "screen_default": {
+    "source": "screen_default"
+  },
+  "circle": {
+    "vertex": "quad",
+    "fragment": "circle"
+  },
+  "capsule": {
+    "vertex": "quad",
+    "fragment": "capsule"
+  },
+  "rounded_rect": {
+    "vertex": "quad",
+    "fragment": "rounded_rect"
+  },
+  "arc": {
+    "vertex": "quad",
+    "fragment": "arc"
+  },
+  "blur": {
+    "vertex": "screen_default",
+    "fragment": "screen_blur"
+  },
+  "gaussian_blur": {
+    "vertex": "screen_default",
+    "fragment": "screen_gaussian_blur"
+  },
+  "edge_detection": {
+    "vertex": "screen_default",
+    "fragment": "screen_edge_detection"
+  },
+  "grayscale": {
+    "vertex": "screen_default",
+    "fragment": "screen_grayscale"
+  },
+  "inverse_color": {
+    "vertex": "screen_default",
+    "fragment": "screen_inverse_color"
+  },
+  "sharpen": {
+    "vertex": "screen_default",
+    "fragment": "screen_sharpen"
+  },
+  "light": {
+    "vertex": "screen_default",
+    "fragment": "light"
+  },
+  "tone_mapping": {
+    "vertex": "screen_default",
+    "fragment": "tone_mapping"
+  }
+}

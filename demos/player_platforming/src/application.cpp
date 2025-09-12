@@ -17,7 +17,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 960, 540 };
+constexpr V2_int resolution{ 960, 540 };
 
 constexpr CollisionCategory ground_category{ 1 };
 
@@ -46,8 +46,7 @@ class PlatformingScene : public Scene {
 
 	Entity CreatePlayer() {
 		auto entity = CreateRect(
-			*this, window_size / 2.0f + V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen,
-			-1.0f, Origin::Center
+			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, -1.0f, Origin::Center
 		);
 		auto& rb   = entity.Add<RigidBody>();
 		rb.gravity = 1.0f;
@@ -61,19 +60,22 @@ class PlatformingScene : public Scene {
 
 	void Enter() override {
 		SetColliderVisibility(true);
-		V2_float ws{ window_size };
+		V2_float ws{ resolution };
 		physics.SetGravity({ 0.0f, 1.0f });
 
 		CreatePlayer();
-		CreatePlatform({ 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft);
-		CreatePlatform({ 0, ws.y / 2.0f }, { 200, 10 }, Origin::TopLeft);
-		CreatePlatform({ ws.x, ws.y / 2.0f }, { 200, 10 }, Origin::TopRight);
-		CreatePlatform({ ws.x - 200, ws.y / 2.0f + 140 }, { ws.x - 400, 10 }, Origin::TopRight);
+		CreatePlatform(-ws * 0.5f + V2_float{ 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft);
+		CreatePlatform(-ws * 0.5f + V2_float{ 0, ws.y / 2.0f }, { 200, 10 }, Origin::TopLeft);
+		CreatePlatform(-ws * 0.5f + V2_float{ ws.x, ws.y / 2.0f }, { 200, 10 }, Origin::TopRight);
+		CreatePlatform(
+			-ws * 0.5f + V2_float{ ws.x - 200, ws.y / 2.0f + 140 }, { ws.x - 400, 10 },
+			Origin::TopRight
+		);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("PlatformingScene", window_size);
+	game.Init("PlatformingScene", resolution);
 	game.scene.Enter<PlatformingScene>("");
 	return 0;
 }

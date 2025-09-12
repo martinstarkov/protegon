@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/assert.h"
+#include "common/concepts.h"
 #include "components/utility.h"
 #include "components/uuid.h"
 #include "core/entity_hierarchy.h"
@@ -33,22 +34,22 @@ class EntityAccess;
 
 class Entity : private ecs::impl::Entity<JSONArchiver> {
 protected:
-	using EntityBase = ecs::impl::Entity<JSONArchiver>;
+	using BaseEntity = ecs::impl::Entity<JSONArchiver>;
 
 public:
 	// Entity wrapper functionality.
 
-	using EntityBase::Entity;
+	using BaseEntity::Entity;
 
 	Entity() = default;
-	Entity(const EntityBase& e);
+	Entity(const BaseEntity& e);
 
 	explicit Entity(Scene& scene);
 
 	[[nodiscard]] ecs::impl::Index GetId() const;
 
 	explicit operator bool() const {
-		return EntityBase::operator bool();
+		return BaseEntity::operator bool();
 	}
 
 	friend bool operator<(const Entity& lhs, const Entity& rhs) {
@@ -59,7 +60,7 @@ public:
 	}
 
 	friend bool operator==(const Entity& a, const Entity& b) {
-		return static_cast<const EntityBase&>(a) == static_cast<const EntityBase&>(b);
+		return static_cast<const BaseEntity&>(a) == static_cast<const BaseEntity&>(b);
 	}
 
 	// Copying a destroyed entity will return a null entity.
@@ -67,7 +68,7 @@ public:
 	// Make sure to call manager.Refresh() after this function.
 	template <impl::ModifiableComponent... Ts>
 	[[nodiscard]] Entity Copy() {
-		return EntityBase::Copy<Ts...>();
+		return BaseEntity::Copy<Ts...>();
 	}
 
 	// Adds or replaces the component if the entity already has it.
@@ -91,12 +92,12 @@ public:
 
 	template <typename... Ts>
 	[[nodiscard]] bool Has() const {
-		return EntityBase::Has<Ts...>();
+		return BaseEntity::Has<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool HasAny() const {
-		return EntityBase::HasAny<Ts...>();
+		return BaseEntity::HasAny<Ts...>();
 	}
 
 	template <typename... Ts>
@@ -214,37 +215,37 @@ private:
 
 	template <typename... Ts>
 	void RemoveImpl() {
-		EntityBase::Remove<Ts...>();
+		BaseEntity::Remove<Ts...>();
 	}
 
 	template <typename T, typename... Ts>
 	T& AddImpl(Ts&&... constructor_args) {
-		return EntityBase::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return BaseEntity::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename T, typename... Ts>
 	T& TryAddImpl(Ts&&... constructor_args) {
-		return EntityBase::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return BaseEntity::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() const {
-		return EntityBase::Get<Ts...>();
+		return BaseEntity::Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() {
-		return EntityBase::Get<Ts...>();
+		return BaseEntity::Get<Ts...>();
 	}
 
 	template <typename T>
 	[[nodiscard]] const T* TryGetImpl() const {
-		return EntityBase::TryGet<T>();
+		return BaseEntity::TryGet<T>();
 	}
 
 	template <typename T>
 	[[nodiscard]] T* TryGetImpl() {
-		return EntityBase::TryGet<T>();
+		return BaseEntity::TryGet<T>();
 	}
 
 	template <JsonSerializable T>
@@ -265,6 +266,9 @@ private:
 
 	void DeserializeAllImpl(const json& j);
 };
+
+template <typename T>
+concept EntityBase = IsOrDerivedFrom<T, Entity>;
 
 namespace impl {
 

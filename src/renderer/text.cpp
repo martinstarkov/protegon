@@ -21,6 +21,7 @@
 #include "renderer/render_data.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 #include "SDL_blendmode.h"
 #include "SDL_pixels.h"
@@ -32,8 +33,8 @@ namespace ptgn {
 
 Text::Text(const Entity& entity) : Entity{ entity } {}
 
-void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawText(ctx, entity);
+void Text::Draw(const Entity& entity) {
+	impl::DrawText(entity);
 }
 
 Text& Text::SetFont(const ResourceHandle& font_key) {
@@ -126,27 +127,29 @@ const impl::Texture& Text::GetTexture() const {
 	return Get<impl::Texture>();
 }
 
-FontSize Text::GetFontSize(bool hd) const {
+FontSize Text::GetFontSize(bool hd, const Camera& camera) const {
 	FontSize font_size{ GetParameter(FontSize{}) };
 	if (hd) {
-		return font_size.GetHD(*this);
+		const auto& scene{ GetScene() };
+		auto cam{ camera ? camera : GetCamera() };
+		return font_size.GetHD(scene, cam);
 	}
 	return font_size;
 }
 
-V2_int Text::GetSize() const {
-	return GetSize(*this);
+V2_int Text::GetSize(const Camera& camera) const {
+	return GetSize(*this, camera);
 }
 
-V2_int Text::GetSize(const TextContent& content) const {
-	return GetSize(content, GetFontKey(), GetFontSize(IsHD()));
+V2_int Text::GetSize(const TextContent& content, const Camera& camera) const {
+	return GetSize(content, GetFontKey(), GetFontSize(IsHD(), camera));
 }
 
-V2_int Text::GetSize(const Entity& text) {
+V2_int Text::GetSize(const Entity& text, const Camera& camera) {
 	Text t{ text };
 	return GetSize(
 		GetParameter(text, TextContent{}), GetParameter(text, ResourceHandle{}),
-		t.GetFontSize(t.IsHD())
+		t.GetFontSize(t.IsHD(), camera)
 	);
 }
 
@@ -276,12 +279,12 @@ impl::Texture Text::CreateTexture(
 	return impl::Texture(impl::Surface{ surface });
 }
 
-Text& Text::SetHD(bool hd) {
+Text& Text::SetHD(bool hd, const Camera& camera) {
 	if (hd == IsHD()) {
 		return *this;
 	}
 	Add<impl::HDText>(hd);
-	RecreateTexture();
+	RecreateTexture(camera);
 	return *this;
 }
 
@@ -289,10 +292,10 @@ bool Text::IsHD() const {
 	return Has<impl::HDText>() && Get<impl::HDText>();
 }
 
-void Text::RecreateTexture() {
+void Text::RecreateTexture(const Camera& camera) {
 	TextContent content{ GetContent() };
 	TextColor color{ GetColor() };
-	FontSize font_size{ GetFontSize(IsHD()) };
+	FontSize font_size{ GetFontSize(IsHD(), camera) };
 	ResourceHandle font_key{ GetFontKey() };
 	TextProperties properties{ GetProperties() };
 
@@ -325,11 +328,13 @@ TextProperties Text::GetProperties() const {
 	return properties;
 }
 
-void Text::SetProperties(const TextProperties& properties) {
-	SetProperties(properties, true);
+void Text::SetProperties(const TextProperties& properties, const Camera& camera) {
+	SetProperties(properties, true, camera);
 }
 
-void Text::SetProperties(const TextProperties& properties, bool recreate_texture) {
+void Text::SetProperties(
+	const TextProperties& properties, bool recreate_texture, const Camera& camera
+) {
 	bool changed  = false;
 	changed		 |= SetParameter(properties.justify, false);
 	changed		 |= SetParameter(properties.line_skip, false);
@@ -340,7 +345,7 @@ void Text::SetProperties(const TextProperties& properties, bool recreate_texture
 	changed		 |= SetParameter(properties.wrap_after, false);
 
 	if (changed && recreate_texture) {
-		RecreateTexture();
+		RecreateTexture(camera);
 	}
 }
 
@@ -357,7 +362,7 @@ Text CreateText(
 	text.SetParameter(text_color, false);
 	text.SetParameter(font_key, false);
 	text.SetParameter(font_size, false);
-	text.SetProperties(properties, true);
+	text.SetProperties(properties, true, {});
 	return text;
 }
 

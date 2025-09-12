@@ -6,8 +6,8 @@ namespace ptgn {
 
 namespace impl {
 
-struct SceneKey : public ArithmeticComponent<std::size_t> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct SceneKey : public HashComponent {
+	using HashComponent::HashComponent;
 };
 
 } // namespace impl

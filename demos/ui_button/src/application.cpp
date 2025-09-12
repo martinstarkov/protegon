@@ -37,21 +37,23 @@ public:
 	ToggleButton b2;
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		Origin button_origin{ Origin::TopLeft };
+
+		game.window.SetResizable();
 		b1 = CreateButton(*this);
 		AddScript<ButtonScript1>(b1);
-		SetPosition(b1, V2_float{ 50, 50 });
+		SetPosition(b1, V2_float{ -100, -150 - 50 });
 		b1.SetSize({ 200, 100 });
-		SetDrawOrigin(b1, Origin::TopLeft);
+		SetDrawOrigin(b1, button_origin);
 		b1.SetBackgroundColor(color::Pink);
 		b1.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b1.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
 
 		b2 = CreateToggleButton(*this, false);
 		AddScript<ToggleButtonScript1>(b2);
-		SetPosition(b2, V2_float{ 50, 300 });
+		SetPosition(b2, V2_float{ -100, 150 - 50 });
 		b2.SetSize({ 200, 100 });
-		SetDrawOrigin(b2, Origin::TopLeft);
+		SetDrawOrigin(b2, button_origin);
 		b2.SetBackgroundColor(color::LightRed);
 		b2.SetBackgroundColor(color::Red, ButtonState::Hover);
 		b2.SetBackgroundColor(color::DarkRed, ButtonState::Pressed);

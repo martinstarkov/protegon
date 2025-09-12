@@ -19,21 +19,26 @@ public:
 		// game.renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1));
 
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		LoadResource("test", "resources/test1.jpg");
 
-		auto sprite = CreateSprite(*this, "test", { 50, 50 });
+		auto sprite = CreateSprite(*this, "test", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
 
+		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, -1.0f, Origin::TopLeft);
+
 		float intensity{ 0.5f };
-		float radius{ 200.0f };
-		float falloff{ 1.0f };
+		float radius{ 30.0f };
+		float falloff{ 2.0f };
 
 		float step{ 80 };
 
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
-			CreatePointLight(*this, V2_float{ i * step }, radius, color, intensity, falloff);
+			CreatePointLight(
+				*this, V2_float{ -camera.GetViewportSize() * 0.5f } + V2_float{ i * step }, radius,
+				color, intensity, falloff
+			);
 			i++;
 		};
 
@@ -48,15 +53,21 @@ public:
 		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
 		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
 
-		mouse_light = CreatePointLight(*this, {}, 300.0f, color::Red, 0.8f, 2.0f);
+		mouse_light = CreatePointLight(*this, {}, 50.0f, color::White, 0.8f, 1.0f);
+
+		auto sprite2 = CreateSprite(*this, "test", { -200, 150 });
+		SetDrawOrigin(sprite2, Origin::TopLeft);
+
+		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
 		// mouse_light.SetAmbientColor(color::Red);
 		// mouse_light.SetAmbientIntensity(0.1f);
 	}
 
 	void Update() override {
+		// PTGN_LOG(input.GetMousePosition());
 		SetPosition(mouse_light, input.GetMousePosition());
 
-		DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
+		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
 	}
 
 	void Exit() override {

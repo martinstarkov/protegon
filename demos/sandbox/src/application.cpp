@@ -3686,9 +3686,9 @@ public:
 
 		if (isDebugMode) {
 			bricks = {}; // empty
-			paddle->setIsActiveDrawable(false);
-			paddle->setIsActiveCollider(false);
-			paddle->setIsActiveDraggable(false);
+			paddle->setIsActiveDrawable(true);
+			paddle->setIsActiveCollider(true);
+			paddle->setIsActiveDraggable(true);
 			obstacles = constructObstacles();
 		} else {
 			bricks	  = constructBricks(8, 12);
@@ -4604,27 +4604,34 @@ private:
 		addCorner(x + r, bottom - ry, 90.0f);
 
 		for (auto& triangle : triangles) {
-			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, -1.0f, currentTransform);
+			ptgn::game.renderer.DrawTriangle(
+				{}, triangle, color, -1.0f, {}, ptgn::default_blend_mode, currentTransform
+			);
 		}
 	}
 
 	void drawRect(double x, double y, double w, double h, bool filled) {
-		ptgn::DrawDebugRect(
+		ptgn::game.renderer.DrawRect(
 			ptgn::V2_float{ x, y }, ptgn::V2_float{ w, h }, filled ? fillColor : strokeColor,
-			ptgn::Origin::TopLeft, filled ? -1.0f : line_width, 0.0f, currentTransform
+			filled ? -1.0f : line_width, ptgn::Origin::TopLeft, {}, ptgn::default_blend_mode,
+			currentTransform
 		);
 	}
 
 	void drawOval(double x, double y, double w, double h, bool filled) {
 		float cx = float(x + w / 2), cy = float(y + h / 2), rx = float(w / 2), ry = float(h / 2);
-		ptgn::DrawDebugEllipse(
-			{ cx, cy }, { rx, ry }, filled ? fillColor : strokeColor, filled ? -1.0f : line_width,
-			0.0f, currentTransform
+		ptgn::game.renderer.DrawEllipse(
+			ptgn::V2_float{ cx, cy }, ptgn::Ellipse{ ptgn::V2_float{ rx, ry } },
+			filled ? fillColor : strokeColor, filled ? -1.0f : line_width, {},
+			ptgn::default_blend_mode, currentTransform
 		);
 	}
 
 	void drawLine(double x1, double y1, double x2, double y2) {
-		ptgn::DrawDebugLine({ x1, y1 }, { x2, y2 }, strokeColor, line_width, currentTransform);
+		ptgn::game.renderer.DrawLine(
+			{ x1, y1 }, { x2, y2 }, strokeColor, line_width, {}, ptgn::default_blend_mode,
+			currentTransform
+		);
 	}
 
 	void drawFilledPath(const std::vector<ptgn::V2_float>& vertices, const ptgn::Color& color) {
@@ -4639,7 +4646,9 @@ private:
 			triangles.emplace_back(center, vertices.at(i), vertices.at(i + 1));
 		}
 		for (auto& triangle : triangles) {
-			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, -1.0f, currentTransform);
+			ptgn::game.renderer.DrawTriangle(
+				{}, triangle, color, -1.0f, {}, ptgn::default_blend_mode, currentTransform
+			);
 		}
 	}
 
@@ -4672,7 +4681,9 @@ private:
 			strokeTriangles.emplace_back(a, c, d);
 		}
 		for (auto& triangle : strokeTriangles) {
-			ptgn::DrawDebugTriangle(triangle.GetLocalVertices(), color, width, currentTransform);
+			ptgn::game.renderer.DrawTriangle(
+				{}, triangle, color, width, {}, ptgn::default_blend_mode, currentTransform
+			);
 		}
 	}
 
@@ -4975,7 +4986,7 @@ private:
 	bool isEnabled;
 
 	void updateCursorPositionIfApplicable() {
-		auto event{ ptgn::game.input.GetMouseWindowPosition() };
+		auto event{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
 		if (ball->isFreeze()) {
 			cursorPosition = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 			// Event consumption if applicable
@@ -4983,7 +4994,7 @@ private:
 	}
 
 	void freezeBallIfApplicable() {
-		auto event{ ptgn::game.input.GetMouseWindowPosition() };
+		auto event{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
 		auto worldPos = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 		if (ball->contains(worldPos, 4)) {
 			cursorPosition = worldPos;
@@ -5117,8 +5128,9 @@ DebuggerDragEventHandler::DebuggerDragEventHandler(std::shared_ptr<GameObjects> 
 	painter_(GraphicsEngine::createHandler()) {}
 
 void DebuggerDragEventHandler::update() {
-	ptgn::V2_float cur{ ptgn::game.input.GetMouseWindowPosition() };
-	ptgn::V2_float prev{ ptgn::game.input.GetMouseWindowPositionPrevious() };
+	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
+	) };
 	if (ptgn::game.input.MousePressed(ptgn::Mouse::Left)) {
 		Point2D worldPos = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
 		auto located	 = locateDraggable(worldPos);
@@ -5209,8 +5221,9 @@ void BreakoutDragEventHandler::update() {
 		return;
 	}
 
-	ptgn::V2_float cur{ ptgn::game.input.GetMouseWindowPosition() };
-	ptgn::V2_float prev{ ptgn::game.input.GetMouseWindowPositionPrevious() };
+	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
+	) };
 	if (ptgn::game.input.MouseDown(ptgn::Mouse::Left)) {
 		focused_ = !focused_;
 
@@ -5493,6 +5506,7 @@ struct SandboxScene : public ptgn::Scene {
 	Controller controller{ true };
 
 	void Enter() override {
+		SetPosition(camera, window_size / 2.0f);
 		// Initialize and start your app (replace with actual UI initialization)
 		controller.start();
 	}

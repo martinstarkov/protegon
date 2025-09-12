@@ -17,8 +17,8 @@ namespace ptgn {
 
 Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
 
-void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawTexture(ctx, entity, false);
+void Sprite::Draw(const Entity& entity) {
+	impl::DrawTexture(entity, false);
 }
 
 Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {
@@ -63,12 +63,15 @@ std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) cons
 	return impl::GetTextureCoordinates(*this, flip_vertically);
 }
 
-Sprite CreateSprite(Manager& manager, const TextureHandle& texture_key, const V2_float& position) {
+Sprite CreateSprite(
+	Manager& manager, const TextureHandle& texture_key, const V2_float& position, Origin draw_origin
+) {
 	Sprite sprite{ manager.CreateEntity() };
 	SetDraw<Sprite>(sprite);
 	sprite.SetTextureKey(texture_key);
 	Show(sprite);
 	SetPosition(sprite, position);
+	SetDrawOrigin(sprite, draw_origin);
 	return sprite;
 }
 

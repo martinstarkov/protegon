@@ -23,7 +23,8 @@ struct SDL_RWops;
 namespace ptgn {
 
 class Text;
-class Entity;
+class Scene;
+class Camera;
 
 static constexpr std::int32_t default_font_size{ 18 };
 static constexpr std::int32_t default_font_index{ 0 };
@@ -47,7 +48,7 @@ struct FontSize : public ArithmeticComponent<std::int32_t> {
 
 	FontSize() : ArithmeticComponent{ default_font_size } {}
 
-	[[nodiscard]] FontSize GetHD(const Entity& entity) const;
+	[[nodiscard]] FontSize GetHD(const Scene& scene, const Camera& camera) const;
 };
 
 [[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {

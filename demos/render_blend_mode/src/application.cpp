@@ -5,6 +5,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -15,19 +16,23 @@ struct BlendModeScene : public Scene {
 		LoadResource("semitransparent", "resources/semitransparent.png");
 		LoadResource("opaque", "resources/opaque.png");
 
-		V2_float ws{ game.window.GetSize() };
+		V2_float ws{ game.renderer.GetGameSize() };
 
-		CreateRect(*this, {}, { ws.x, 100 }, color::Red, -1.0f, Origin::TopLeft);
 		CreateRect(
-			*this, { 0, 100 }, { ws.x, 100 }, Color{ 255, 0, 0, 128 }, -1.0f, Origin::TopLeft
+			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, -1.0f, Origin::TopLeft
 		);
 		CreateRect(
-			*this, {}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 }, -1.0f, Origin::TopLeft
+			*this, -ws * 0.5f + V2_float{ 0, 100 }, { ws.x, 100 }, Color{ 255, 0, 0, 128 }, -1.0f,
+			Origin::TopLeft
+		);
+		CreateRect(
+			*this, -ws * 0.5f + V2_float{}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 }, -1.0f,
+			Origin::TopLeft
 		);
 
-		auto s1 = CreateSprite(*this, "semitransparent", { 100, 100 });
+		auto s1 = CreateSprite(*this, "semitransparent", -ws * 0.5f + V2_float{ 100, 100 });
 		SetDrawOrigin(s1, Origin::TopLeft);
-		auto s2 = CreateSprite(*this, "opaque", { 200, 200 });
+		auto s2 = CreateSprite(*this, "opaque", -ws * 0.5f + V2_float{ 200, 200 });
 		SetDrawOrigin(s2, Origin::TopLeft);
 	}
 };

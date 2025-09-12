@@ -5,6 +5,8 @@
 
 #include "common/assert.h"
 #include "core/game.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "debug/stats.h"
 #include "renderer/buffers/buffer.h"
 #include "renderer/buffers/buffer_layout.h"
@@ -86,7 +88,7 @@ void VertexArray::Bind(std::uint32_t id) {
 	GLCall(BindVertexArray(id));
 	game.renderer.bound_.vertex_array_id = id;
 #ifdef PTGN_DEBUG
-	++game.stats.vertex_array_binds;
+	++game.debug.stats.vertex_array_binds;
 #endif
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
 	PTGN_LOG("GL: Bound vertex array with id ", id);

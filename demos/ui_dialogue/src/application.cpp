@@ -12,18 +12,18 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 struct DialogueScene : public Scene {
 	Entity npc;
 
 	void Enter() override {
 		PTGN_LOG("Entity count: ", Size());
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		LoadResource("dialogue_box", "resources/box.png");
 
 		npc = CreateEntity();
-		SetPosition(npc, window_size / 2);
+		SetPosition(npc, {});
 
 		Refresh();
 		PTGN_LOG("Entity count: ", Size());
@@ -56,7 +56,7 @@ struct DialogueScene : public Scene {
 			if (input.KeyDown(Key::E)) {
 				dialogue->SetDialogue("epilogue");
 			}
-			dialogue->DrawInfo();
+			dialogue->DrawInfo(-resolution * 0.5f);
 		}
 		if (input.KeyDown(Key::A)) {
 			npc.Add<DialogueComponent>(
@@ -75,7 +75,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init(
 		"DialogueScene: Space: Show, Enter: Continue, N: Next, A/D: Add/Delete, I: Intro, O: "
 		"Outro, E: Epilogue",
-		window_size
+		resolution
 	);
 	game.scene.Enter<DialogueScene>("");
 	return 0;

@@ -21,6 +21,7 @@
 #include "core/game_object.h"
 #include "core/manager.h"
 #include "core/script.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -221,7 +222,7 @@ DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entit
 	DialoguePageProperties default_properties;
 	default_properties.box_size	 = background_.GetDisplaySize();
 	default_properties.font_key	 = text_.GetFontKey();
-	default_properties.font_size = text_.GetFontSize(false);
+	default_properties.font_size = text_.GetFontSize(false, {});
 	LoadFromJson(j, default_properties);
 	Close();
 }
@@ -354,18 +355,19 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 	return &line->pages[static_cast<std::size_t>(current_page_)];
 }
 
-void DialogueComponent::DrawInfo() {
+void DialogueComponent::DrawInfo(const V2_float& position) {
 	FontSize font_size{ 32 };
-	DrawDebugText(
-		"Dialogue: " + current_dialogue_, { 0, 0 }, color::White, Origin::TopLeft, font_size
+	game.debug.DrawText(
+		"Dialogue: " + current_dialogue_, position + V2_float{ 0, 0 }, color::White,
+		Origin::TopLeft, font_size
 	);
-	DrawDebugText(
-		"Line: " + std::to_string(current_line_), { 0, 50 }, color::White, Origin::TopLeft,
-		font_size
+	game.debug.DrawText(
+		"Line: " + std::to_string(current_line_), position + V2_float{ 0, 50 }, color::White,
+		Origin::TopLeft, font_size
 	);
-	DrawDebugText(
-		"Page: " + std::to_string(current_page_), { 0, 100 }, color::White, Origin::TopLeft,
-		font_size
+	game.debug.DrawText(
+		"Page: " + std::to_string(current_page_), position + V2_float{ 0, 100 }, color::White,
+		Origin::TopLeft, font_size
 	);
 }
 

@@ -46,13 +46,13 @@ Entity& RemoveInteractable(Entity& entity, std::string_view name);
 
 [[nodiscard]] std::vector<Entity> GetInteractables(const Entity& entity);
 
+void ClearInteractables(Entity& entity);
+
 namespace impl {
 
 [[nodiscard]] const Interactive& GetInteractive(const Entity& entity);
 
 [[nodiscard]] Interactive& GetInteractive(Entity& entity);
-
-void ClearInteractables(Entity& entity);
 
 } // namespace impl
 
@@ -77,11 +77,11 @@ struct Interactive {
 };
 
 enum class CallbackTrigger {
-	None,			// Event is never triggered.
-	MouseOverlaps,	// Event triggered if the mouse position overlaps the dropzone.
-	CenterOverlaps, // Event triggered if the object's center overlaps the dropzone.
-	Overlaps,		// Event triggered if any part of the object overlaps the dropzone.
-	Contains		// Event triggered if the object is entirely contained within the dropzone.
+	None,			   // Event is never triggered.
+	MouseOverlaps,	   // Event triggered if the mouse position overlaps the dropzone.
+	TransformOverlaps, // Event triggered if the object's transform overlaps the dropzone.
+	Overlaps,		   // Event triggered if any part of the object overlaps the dropzone.
+	Contains		   // Event triggered if the object is entirely contained within the dropzone.
 };
 
 struct Draggable {
@@ -172,7 +172,7 @@ private:
 PTGN_SERIALIZER_REGISTER_ENUM(
 	CallbackTrigger, { { CallbackTrigger::None, nullptr },
 					   { CallbackTrigger::MouseOverlaps, "mouse_overlaps" },
-					   { CallbackTrigger::CenterOverlaps, "center_overlaps" },
+					   { CallbackTrigger::TransformOverlaps, "transform_overlaps" },
 					   { CallbackTrigger::Overlaps, "overlaps" },
 					   { CallbackTrigger::Contains, "contains" } }
 );

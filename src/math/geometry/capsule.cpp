@@ -5,22 +5,43 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
+#include "math/geometry/rect.h"
+#include "math/math.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
 Capsule::Capsule(const V2_float& start, const V2_float& end, float radius) :
 	start{ start }, end{ end }, radius{ radius } {}
 
-void Capsule::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawCapsule(ctx, entity);
+void Capsule::Draw(const Entity& entity) {
+	impl::DrawCapsule(entity);
+}
+
+std::array<V2_float, 4> Capsule::GetWorldQuadVertices(
+	const Transform& transform, V2_float* out_size
+) const {
+	auto dir{ end - start };
+
+	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
+	auto local_center{ start + dir * 0.5f };
+
+	V2_float center{ transform.Apply(local_center) };
+
+	float rotation{ dir.Angle() };
+
+	auto diameter{ 2.0f * GetRadius() };
+
+	Rect rect{ V2_float{ diameter + dir.Magnitude(), diameter } };
+	if (out_size) {
+		*out_size = rect.GetSize(transform);
+	}
+	return rect.GetWorldVertices(Transform{ center, rotation, transform.GetScale() });
 }
 
 std::array<V2_float, 2> Capsule::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 2> Capsule::GetLocalVertices() const {
@@ -32,7 +53,7 @@ float Capsule::GetRadius() const {
 }
 
 float Capsule::GetRadius(const Transform& transform) const {
-	return GetRadius() * transform.GetAverageScale();
+	return GetRadius() * Abs(transform.GetAverageScale());
 }
 
 } // namespace ptgn

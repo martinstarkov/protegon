@@ -3,19 +3,22 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <functional>
-#include <limits>
 #include <list>
 #include <memory>
 #include <numeric>
 #include <span>
+#include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "common/assert.h"
+#include "common/concepts.h"
 #include "components/draw.h"
 #include "components/drawable.h"
 #include "components/effects.h"
@@ -23,21 +26,29 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
+#include "core/resolution.h"
 #include "core/script.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "core/window.h"
 #include "debug/log.h"
-#include "input/input_handler.h"
 #include "math/geometry.h"
+#include "math/geometry/arc.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/ellipse.h"
 #include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
 #include "math/geometry/rect.h"
+#include "math/geometry/rounded_rect.h"
+#include "math/geometry/shape.h"
+#include "math/geometry/triangle.h"
+#include "math/math.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
 #include "renderer/api/vertex.h"
 #include "renderer/buffers/buffer.h"
@@ -51,7 +62,6 @@
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -60,82 +70,31 @@ Viewport::Viewport(const V2_int& position, const V2_int& size) :
 
 namespace impl {
 
-std::array<Vertex, 3> GetTriangleVertices(
-	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
-) {
-	constexpr std::array<V2_float, 3> texture_coordinates{
-		V2_float{ 0.0f, 0.0f }, // lower-left corner
-		V2_float{ 1.0f, 0.0f }, // lower-right corner
-		V2_float{ 0.5f, 1.0f }, // top-center corner
-	};
-
-	std::array<Vertex, 3> vertices{};
-
-	auto c{ color.Normalized() };
-
-	PTGN_ASSERT(vertices.size() == triangle_points.size());
-	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
-
-	for (std::size_t i{ 0 }; i < triangle_points.size(); i++) {
-		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y,
-								  static_cast<float>(depth) };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-		vertices[i].tex_index = { 0.0f };
-	}
-
-	return vertices;
-}
-
-std::array<Vertex, 4> GetQuadVertices(
-	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices
-) {
-	std::array<Vertex, 4> vertices{};
-
-	auto c{ color.Normalized() };
-
-	if (flip_vertices) {
-		FlipTextureCoordinates(texture_coordinates, Flip::Vertical);
-	}
-
-	PTGN_ASSERT(vertices.size() == quad_points.size());
-	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
-
-	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
-		vertices[i].position  = { quad_points[i].x, quad_points[i].y, static_cast<float>(depth) };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-		vertices[i].tex_index = { texture_index };
-	}
-
-	return vertices;
-}
-
 RenderState::RenderState(
 	const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
 ) :
 	shader_pass{ shader_pass }, blend_mode{ blend_mode }, camera{ camera }, post_fx{ post_fx } {}
 
-ShapeDrawInfo::ShapeDrawInfo(const Entity& entity) :
-	transform{ GetDrawTransform(entity) },
-	tint{ GetTint(entity) },
-	depth{ GetDepth(entity) },
-	line_width{ entity.GetOrDefault<LineWidth>() },
-	state{ game.shader.Get<ShapeShader::Quad>(), GetBlendMode(entity),
-		   entity.GetOrDefault<Camera>(), entity.GetOrDefault<PostFX>() } {}
-
-void ViewportResizeScript::OnWindowResized() {
-	auto& render_data{ game.renderer.GetRenderData() };
-	auto window_size{ game.window.GetSize() };
-	if (!render_data.logical_resolution_set_) {
-		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
-	}
-	render_data.RecomputeViewport(window_size);
+bool RenderState::IsSet() const {
+	return shader_pass.has_value();
 }
 
-ShaderPass::ShaderPass(const Shader& shader, UniformCallback uniform_callback) :
+void ViewportResizeScript::OnWindowResized() {
+	auto& render_data{ game.renderer.render_data_ };
+	auto window_size{ game.window.GetSize() };
+	if (!render_data.game_size_set_) {
+		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
+	}
+	render_data.RecomputeDisplaySize(window_size);
+}
+
+ShaderPass::ShaderPass(const Shader& shader, const UniformCallback& uniform_callback) :
 	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
+
+ShaderPass::ShaderPass(std::string_view shader_name, const UniformCallback& uniform_callback) :
+	shader_{ &game.shader.Get(shader_name) }, uniform_callback_{ uniform_callback } {}
+
+ShaderPass::ShaderPass(const char* shader_name) : shader_{ &game.shader.Get(shader_name) } {}
 
 const Shader& ShaderPass::GetShader() const {
 	PTGN_ASSERT(shader_ != nullptr);
@@ -143,17 +102,15 @@ const Shader& ShaderPass::GetShader() const {
 }
 
 void ShaderPass::Invoke(Entity entity) const {
-	PTGN_ASSERT(shader_ != nullptr);
 	if (uniform_callback_) {
+		PTGN_ASSERT(shader_ != nullptr);
 		shader_->Bind();
 		uniform_callback_(entity, *shader_);
 	}
 }
 
-DrawContext::DrawContext(const V2_int& size) :
-	frame_buffer{ Texture{ nullptr, size,
-						   HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888 } },
-	timer{ true } {}
+DrawContext::DrawContext(const V2_int& size, TextureFormat texture_format) :
+	frame_buffer{ Texture{ nullptr, size, texture_format } }, timer{ true } {}
 
 DrawContextPool::DrawContextPool(milliseconds max_age) : max_age_{ max_age } {}
 
@@ -172,7 +129,7 @@ void DrawContextPool::TrimExpired() {
 	}
 }
 
-std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size) {
+std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat texture_format) {
 	PTGN_ASSERT(size.x > 0 && size.y > 0);
 
 	constexpr V2_int max_resolution{ 4096, 2160 };
@@ -183,19 +140,17 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size) {
 	std::shared_ptr<DrawContext> spare_context;
 
 	for (auto& context : contexts_) {
-		if (!context->in_use) {
+		if (!context->in_use && context->frame_buffer.GetTexture().GetFormat() == texture_format) {
 			spare_context = context;
 			break;
 		}
 	}
 
 	if (!spare_context) {
-		return contexts_.emplace_back(std::make_shared<DrawContext>(size));
+		return contexts_.emplace_back(std::make_shared<DrawContext>(size, texture_format));
 	}
 
-	auto& texture{ spare_context->frame_buffer.GetTexture() };
-
-	if (texture.GetSize() != size) {
+	if (auto& texture{ spare_context->frame_buffer.GetTexture() }; texture.GetSize() != size) {
 		texture.Resize(size);
 	}
 
@@ -205,144 +160,438 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size) {
 	return spare_context;
 }
 
-void RenderData::AddPoint(
-	const V2_float& position, const Color& tint, const Depth& depth, const RenderState& state
-) {
-	AddQuad(Transform{ position }, V2_float{ 1.0f }, Origin::Center, tint, depth, -1.0f, state);
+static float GetFade(float diameter_y) {
+	constexpr float fade_scaling_constant{ 0.12f };
+	return fade_scaling_constant / diameter_y;
 }
 
-void RenderData::AddLines(
-	const std::vector<V2_float>& line_points, const Color& tint, const Depth& depth,
-	float line_width, bool connect_last_to_first, const RenderState& state
-) {
-	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for line");
-
-	SetState(state);
-
-	std::size_t vertex_modulo{ line_points.size() };
-
-	if (!connect_last_to_first) {
-		PTGN_ASSERT(
-			line_points.size() >= 2,
-			"Lines which do not connect the last vertex to the first vertex "
-			"must have at least 2 vertices"
-		);
-		vertex_modulo -= 1;
-	} else {
-		PTGN_ASSERT(
-			line_points.size() >= 3, "Lines which connect the last vertex to the first vertex "
-									 "must have at least 3 vertices"
-		);
-	}
-
-	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
-		Line l{ line_points[i], line_points[(i + 1) % vertex_modulo] };
-		auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
-		auto quad_vertices{
-			GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
-		};
-
-		AddVertices(quad_vertices, quad_indices);
-	}
+static float GetFade(const V2_float& diameter) {
+	return GetFade(diameter.y);
 }
 
-void RenderData::AddLine(
-	const V2_float& start, const V2_float& end, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for line");
-
-	Line l{ start, end };
-	auto quad_points{ l.GetWorldQuadVertices(Transform{}, line_width) };
-
-	auto quad_vertices{
-		GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
-	};
-
-	SetState(state);
-	AddVertices(quad_vertices, quad_indices);
-}
-
-void RenderData::AddTriangle(
-	const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	auto triangle_vertices{ GetTriangleVertices(triangle_points, tint, depth) };
-
-	AddShape(triangle_vertices, triangle_indices, triangle_points, line_width, state);
-}
-
-void RenderData::AddQuad(
-	const Transform& transform, const V2_float& size, Origin draw_origin, const Color& tint,
-	const Depth& depth, float line_width, const RenderState& state
-) {
-	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw quad with invalid size");
-	auto quad_points{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
-	auto quad_vertices{
-		GetQuadVertices(quad_points, tint, depth, 0.0f, default_texture_coordinates)
-	};
-
-	AddShape(quad_vertices, quad_indices, quad_points, line_width, state);
-}
-
-void RenderData::AddPolygon(
-	const std::vector<V2_float>& polygon_points, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	PTGN_ASSERT(polygon_points.size() >= 3, "Polygon must have at least 3 points");
-
+static float NormalizeArcLineWidthToThickness(float line_width, float fade, const V2_float& radii) {
 	if (line_width == -1.0f) {
-		SetState(state);
-		auto triangles{ Triangulate(polygon_points.data(), polygon_points.size()) };
-		for (const auto& triangle : triangles) {
-			auto triangle_vertices{ GetTriangleVertices(triangle, tint, depth) };
-			AddVertices(triangle_vertices, triangle_indices);
-		}
-	} else {
-		AddLines(polygon_points, tint, depth, line_width, true, state);
-	}
-}
-
-void RenderData::AddCircle(
-	const Transform& transform, float radius, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	AddEllipse(transform, V2_float{ radius, radius }, tint, depth, line_width, state);
-}
-
-void RenderData::AddEllipse(
-	const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
-	float line_width, const RenderState& state
-) {
-	if (line_width == -1.0f) {
-		// Internally line width for a filled ellipse is 1.0f.
+		// Internally line width for a filled SDF is 1.0f.
 		line_width = 1.0f;
 	} else {
 		PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for circle");
 
 		// Internally line width for a completely hollow ellipse is 0.0f.
-		// TODO: Check that dividing by std::max(radii.x, radii.y) does not cause
-		// any unexpected bugs.
-		line_width = 0.005f + line_width / std::min(radii.x, radii.y);
+		line_width = fade + line_width / std::min(radii.x, radii.y);
+	}
+	return line_width;
+}
+
+static float GetAspectRatio(const V2_float& size) {
+	PTGN_ASSERT(size.x > 0.0f);
+	return size.y / size.x;
+}
+
+static float GetNormalizedRadius(float diameter, float size_x) {
+	PTGN_ASSERT(size_x > 0.0f);
+	float normalized_radius{ diameter / size_x };
+	return std::clamp(normalized_radius, 0.0f, 1.0f);
+}
+
+template <ShapeType T>
+static std::array<float, 4> GetData(
+	const T& shape, auto radius, float line_width, const V2_float& size
+) {
+	std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+	auto diameter{ 2.0f * radius };
+
+	float fade{ GetFade(diameter) };
+
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
+
+	data[0] = thickness;
+	data[1] = fade;
+
+	if constexpr (std::is_same_v<T, Arc>) {
+		float aperture{ shape.GetAperture() };
+		float direction{ shape.clockwise ? 1.0f : -1.0f };
+
+		data[2] = aperture;
+		data[3] = direction;
+	} else if constexpr (IsAnyOf<T, Capsule, RoundedRect>) {
+		float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+		float aspect_ratio{ GetAspectRatio(size) };
+
+		data[2] = normalized_radius;
+		data[3] = aspect_ratio;
 	}
 
-	auto quad_points{ Rect{ radii * 2.0f }.GetWorldVertices(transform) };
-	auto points{
-		GetQuadVertices(quad_points, tint, depth, line_width, default_texture_coordinates)
+	return data;
+}
+
+struct QuadInfo {
+	std::array<V2_float, 4> points;
+	std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
+};
+
+template <ShapeType T>
+static std::optional<QuadInfo> GetQuadInfo(RenderData& ctx, DrawShapeCommand& cmd, const T& shape) {
+	QuadInfo info;
+
+	const auto set_shader = [](DrawShapeCommand& c, std::string_view shader_name) {
+		if (c.render_state.shader_pass.has_value() && *c.render_state.shader_pass != ShaderPass{}) {
+			return;
+		}
+		c.render_state.shader_pass = game.shader.Get(shader_name);
 	};
 
-	SetState(state);
-	AddVertices(points, quad_indices);
+	if constexpr (std::is_same_v<T, V2_float>) {
+		Transform translated = cmd.transform;
+		translated.Translate(shape);
+
+		Rect r{ V2_float{ 1.0f } };
+
+		info.points = r.GetWorldVertices(translated, Origin::Center);
+	} else if constexpr (std::is_same_v<T, Line>) {
+		if (cmd.line_width < min_line_width) {
+			return std::nullopt;
+		}
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+	} else if constexpr (std::is_same_v<T, Capsule>) {
+		auto radius{ shape.GetRadius(cmd.transform) };
+
+		if (radius <= 0.0f) {
+			return std::nullopt;
+		}
+
+		V2_float size;
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform, &size);
+		info.data	= GetData(shape, radius, cmd.line_width, size);
+
+		set_shader(cmd, "capsule");
+	} else if constexpr (std::is_same_v<T, Arc>) {
+		auto radius{ shape.GetRadius(cmd.transform) };
+
+		if (radius <= 0.0f) {
+			return std::nullopt;
+		}
+
+		Transform rotated{ cmd.transform };
+		rotated.Rotate(shape.GetStartAngle());
+
+		info.points = shape.GetWorldQuadVertices(rotated);
+		info.data	= GetData(shape, radius, cmd.line_width, {});
+
+		set_shader(cmd, "arc");
+	} else if constexpr (std::is_same_v<T, RoundedRect>) {
+		auto size = shape.GetSize(cmd.transform);
+
+		if (!size.BothAboveZero()) {
+			return std::nullopt;
+		}
+
+		float radius = shape.GetRadius(cmd.transform);
+
+		if (radius <= 0.0f) {
+			cmd.render_state.shader_pass = std::nullopt;
+			cmd.shape					 = Rect{ shape.GetSize() };
+			ctx.DrawShape(cmd);
+			return std::nullopt;
+		}
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform, cmd.origin);
+		info.data	= GetData(shape, radius, cmd.line_width, size);
+
+		set_shader(cmd, "rounded_rect");
+	} else if constexpr (std::is_same_v<T, Ellipse>) {
+		auto radius = shape.GetRadius(cmd.transform);
+
+		if (!radius.BothAboveZero()) {
+			return std::nullopt;
+		}
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform);
+		info.data	= GetData(shape, radius, cmd.line_width, {});
+
+		set_shader(cmd, "circle");
+	} else {
+		return std::nullopt;
+	}
+
+	return info;
+}
+
+static void AddShape(
+	RenderData& ctx, const auto& state, float line_width, auto& vertices, const auto& indices,
+	const auto& points
+) {
+	ctx.SetState(state);
+
+	if (line_width == -1.0f) {
+		ctx.AddVertices(vertices, indices);
+	} else {
+		ctx.AddLinesImpl(vertices, indices, points, line_width, {});
+	}
+};
+
+template <ShapeType T>
+static void DrawShape(RenderData& ctx, DrawShapeCommand cmd, const T& shape) {
+	if constexpr (IsAnyOf<T, V2_float, Line, Capsule, Arc, RoundedRect, Ellipse>) {
+		auto info{ GetQuadInfo(ctx, cmd, shape) };
+
+		if (!info.has_value()) {
+			return;
+		}
+
+		const auto& [points, data] = *info;
+
+		auto quad_vertices{
+			Vertex::GetQuad(points, cmd.tint, cmd.depth, data, GetDefaultTextureCoordinates())
+		};
+
+		ctx.SetState(cmd.render_state);
+		ctx.AddVertices(quad_vertices, quad_indices);
+	} else if constexpr (std::is_same_v<T, Circle>) {
+		cmd.shape = Ellipse{ V2_float{ shape.GetRadius() } };
+		ctx.DrawShape(cmd);
+	} else if constexpr (std::is_same_v<T, Rect>) {
+		if (auto size{ shape.GetSize(cmd.transform) }; !size.BothAboveZero()) {
+			return;
+		}
+
+		auto points = shape.GetWorldVertices(cmd.transform, cmd.origin);
+		auto vertices =
+			Vertex::GetQuad(points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates());
+
+		AddShape(ctx, cmd.render_state, cmd.line_width, vertices, quad_indices, points);
+	} else if constexpr (std::is_same_v<T, Triangle>) {
+		auto points	  = shape.GetWorldVertices(cmd.transform);
+		auto vertices = Vertex::GetTriangle(points, cmd.tint, cmd.depth);
+
+		AddShape(ctx, cmd.render_state, cmd.line_width, vertices, triangle_indices, points);
+	} else if constexpr (std::is_same_v<T, Polygon>) {
+		ctx.SetState(cmd.render_state);
+
+		PTGN_ASSERT(shape.vertices.size() >= 3);
+
+		auto points = shape.GetWorldVertices(cmd.transform);
+
+		if (cmd.line_width == -1.0f) {
+			auto triangles{ Triangulate(points) };
+			for (const auto& triangle : triangles) {
+				auto vertices = Vertex::GetTriangle(triangle, cmd.tint, cmd.depth);
+				ctx.AddVertices(vertices, triangle_indices);
+			}
+		} else {
+			auto vertices =
+				Vertex::GetQuad({}, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates());
+			ctx.AddLinesImpl(vertices, quad_indices, points, cmd.line_width, {});
+		}
+	}
+}
+
+static void SetPointsAndProjection(DrawTarget& target) {
+	PTGN_ASSERT(target.viewport.size.BothAboveZero());
+
+	auto half_viewport{ target.viewport.size * 0.5f };
+
+	target.points = { target.viewport.position - half_viewport,
+					  target.viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
+					  target.viewport.position + half_viewport,
+					  target.viewport.position + V2_float{ -half_viewport.x, half_viewport.y } };
+
+	target.view_projection = Matrix4::Orthographic(target.points[0], target.points[2]);
+}
+
+void RenderData::DrawCommand(const impl::DrawCommand& cmd) {
+	std::visit(
+		[&](const auto& command) {
+			using T = std::decay_t<decltype(command)>;
+
+			if constexpr (std::is_same_v<T, DrawShapeCommand>) {
+				DrawShape(command);
+			} else if constexpr (std::is_same_v<T, DrawTextureCommand>) {
+				DrawTexture(command);
+			} else if constexpr (std::is_same_v<T, DrawShaderCommand>) {
+				DrawShader(command);
+			} else if constexpr (std::is_same_v<T, DrawLinesCommand>) {
+				DrawLines(command);
+			} else {
+				PTGN_ERROR("Unknown draw command type");
+			}
+		},
+		cmd
+	);
+}
+
+void RenderData::DrawShape(const DrawShapeCommand& cmd) {
+	std::visit(
+		[&](const auto& shape) {
+			using T = std::decay_t<decltype(shape)>;
+
+			impl::DrawShape(*this, cmd, shape);
+		},
+		cmd.shape
+	);
+}
+
+void RenderData::Submit(const impl::DrawCommand& command) {
+	PTGN_ASSERT(
+		drawing_to_.texture_id, "Cannot submit render command to unspecified render target"
+	);
+
+	draw_queues_[drawing_to_.texture_id].emplace_back(command);
+}
+
+void RenderData::DrawLines(const DrawLinesCommand& cmd) {
+	std::size_t count = cmd.points.size();
+
+	PTGN_ASSERT(cmd.line_width >= min_line_width);
+
+	PTGN_ASSERT(
+		(cmd.connect_last_to_first && count >= 3) || (!cmd.connect_last_to_first && count >= 2)
+	);
+
+	std::size_t vertex_modulo = count;
+	if (!cmd.connect_last_to_first) {
+		vertex_modulo -= 1;
+	}
+
+	SetState(cmd.render_state);
+
+	for (std::size_t i = 0; i < count; ++i) {
+		Line l{ cmd.points[i], cmd.points[(i + 1) % vertex_modulo] };
+		auto quad_points   = l.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+		auto quad_vertices = Vertex::GetQuad(
+			quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+		);
+		AddVertices(quad_vertices, quad_indices);
+	}
+}
+
+void RenderData::DrawTexture(const DrawTextureCommand& cmd) {
+	auto texture_id{ cmd.texture_id };
+
+	PTGN_ASSERT(texture_id, "Cannot draw textured quad with invalid texture");
+
+	if (auto size{ cmd.rect.GetSize(cmd.transform) }; !size.BothAboveZero()) {
+		return;
+	}
+
+	SetState(cmd.render_state);
+
+	auto texture_points{ cmd.rect.GetWorldVertices(cmd.transform, cmd.origin) };
+
+	auto texture_vertices{ Vertex::GetQuad(
+		texture_points, cmd.tint, cmd.depth, { 0.0f }, cmd.texture_coordinates, false
+	) };
+
+	if (!cmd.pre_fx.pre_fx_.empty()) {
+		PTGN_ASSERT(
+			cmd.texture_size.BothAboveZero(),
+			"Texture must have a valid size for it to have post fx"
+		);
+
+		Viewport viewport{ {}, cmd.texture_size };
+		DrawTarget target;
+		target.viewport		  = viewport;
+		target.texture_format = cmd.texture_format;
+		SetPointsAndProjection(target);
+
+		texture_id = PingPong(
+			cmd.pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format),
+			texture_id, target, true
+		);
+
+		white_texture.Bind(0);
+		force_flush = true;
+	}
+
+	float texture_index = 0.0f;
+	bool existing		= GetTextureIndex(texture_id, texture_index);
+	Vertex::SetTextureIndex(texture_vertices, texture_index);
+	AddVertices(texture_vertices, quad_indices);
+
+	if (!existing) {
+		// Must be done after AddVertices and SetState because both of them may Flush the
+		// current batch, which will clear textures.
+		textures_.emplace_back(texture_id);
+	}
+
+	PTGN_ASSERT(textures_.size() < max_texture_slots);
+}
+
+void RenderData::DrawShader(const DrawShaderCommand& cmd) {
+	bool state_changed{ SetState(cmd.render_state) };
+
+	bool uses_size{ std::holds_alternative<V2_int>(cmd.texture_or_size) };
+
+	// Clear the intermediate frame buffer if the shader is new (changes renderer state), or if
+	// the shader uses size (no texture) and the user desires it (most often true). In the case
+	// of back-to-back light rendering this is not desired.
+	bool clear{ state_changed || (uses_size && cmd.clear_between_consecutive_calls) };
+
+	if (cmd.clear_between_consecutive_calls) {
+		force_flush = true;
+	}
+
+	auto target{ drawing_to_ };
+
+	if (render_state.camera) {
+		target.view_projection = render_state.camera;
+		target.points		   = render_state.camera.GetWorldVertices();
+	}
+
+	target.depth = cmd.depth;
+	auto entity_tint{ cmd.entity ? GetTint(cmd.entity) : color::White };
+	target.tint		  = target.tint.Normalized() * entity_tint.Normalized();
+	target.blend_mode = cmd.intermediate_blend_mode;
+
+	if (uses_size) {
+		if (!std::get<V2_int>(cmd.texture_or_size).IsZero()) {
+			target.viewport.size = std::get<V2_int>(cmd.texture_or_size);
+		}
+		target.texture_format = cmd.texture_format;
+	} else if (std::holds_alternative<std::reference_wrapper<const Texture>>(cmd.texture_or_size)) {
+		const Texture& texture =
+			std::get<std::reference_wrapper<const Texture>>(cmd.texture_or_size).get();
+
+		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
+
+		target.viewport.size  = texture.GetSize();
+		target.texture_id	  = texture.GetId();
+		target.texture_format = texture.GetFormat();
+	} else {
+		PTGN_ERROR("Unknown variant value");
+	}
+
+	if (clear) {
+		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
+	}
+
+	PTGN_ASSERT(
+		cmd.render_state.shader_pass.has_value(), "Must specify shader when drawing shader"
+	);
+	const auto& shader_pass = *cmd.render_state.shader_pass;
+	const auto& shader		= shader_pass.GetShader();
+
+	shader.Bind();
+	shader.SetUniform("u_Texture", 1);
+	shader.SetUniform("u_ViewportSize", V2_float{ target.viewport.size });
+
+	shader_pass.Invoke(cmd.entity);
+
+	target.frame_buffer = &intermediate_target->frame_buffer;
+
+	DrawFullscreenQuad(shader, target, false, clear, cmd.target_clear_color);
 }
 
 TextureId RenderData::PingPong(
 	const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
-	const Texture& texture, DrawTarget target, bool flip_vertices
+	TextureId id, DrawTarget target, bool flip_vertices
 ) {
 	PTGN_ASSERT(!container.empty(), "Cannot ping pong on an empty container");
 
 	auto read{ read_context };
-	auto write{ draw_context_pool.Get(target.viewport.size) };
+	auto write{ draw_context_pool.Get(target.viewport.size, target.texture_format) };
 
 	PTGN_ASSERT(read != nullptr && write != nullptr);
 	PTGN_ASSERT(read->frame_buffer.GetTexture().GetSize() == target.viewport.size);
@@ -361,8 +610,8 @@ TextureId RenderData::PingPong(
 
 		TextureId texture_id{ 0 };
 
-		if ((first_effect || !use_previous_texture) && texture.IsValid()) {
-			texture_id = texture.GetId();
+		if ((first_effect || !use_previous_texture) && id) {
+			texture_id = id;
 		} else {
 			texture_id = read->frame_buffer.GetTexture().GetId();
 		}
@@ -372,7 +621,7 @@ TextureId RenderData::PingPong(
 
 		shader.Bind();
 		shader.SetUniform("u_Texture", 1);
-		shader.SetUniform("u_Resolution", GetResolutionScale(target.viewport.size));
+		shader.SetUniform("u_ViewportSize", V2_float{ target.viewport.size });
 		shader_pass.Invoke(fx);
 
 		target.texture_id	= texture_id;
@@ -389,64 +638,6 @@ TextureId RenderData::PingPong(
 	return write->frame_buffer.GetTexture().GetId();
 }
 
-void RenderData::AddTexturedQuad(
-	const Texture& texture, Transform transform, const V2_float& size, Origin origin,
-	const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-	const RenderState& state, const PreFX& pre_fx
-) {
-	PTGN_ASSERT(texture.IsValid(), "Cannot draw textured quad with invalid texture");
-	PTGN_ASSERT(size.BothAboveZero(), "Cannot draw textured quad with zero or negative size");
-
-	SetState(state);
-
-	auto texture_points{ Rect{ size }.GetWorldVertices(transform, origin) };
-
-	auto texture_vertices{
-		GetQuadVertices(texture_points, tint, depth, 0.0f, texture_coordinates, false)
-	};
-
-	auto texture_id{ texture.GetId() };
-
-	if (bool has_pre_fx{ !pre_fx.pre_fx_.empty() }) {
-		auto texture_size{ texture.GetSize() };
-
-		PTGN_ASSERT(
-			texture_size.BothAboveZero(), "Texture must have a valid size for it to have post fx"
-		);
-
-		Viewport viewport{ {}, texture_size };
-
-		DrawTarget target;
-		target.viewport = viewport;
-		SetPointsAndProjection(target);
-
-		texture_id =
-			PingPong(pre_fx.pre_fx_, draw_context_pool.Get(viewport.size), texture, target, true);
-
-		white_texture.Bind(0);
-
-		force_flush = true;
-	}
-
-	float texture_index{ 0.0f };
-
-	bool existing_texture{ GetTextureIndex(texture_id, texture_index) };
-
-	for (auto& v : texture_vertices) {
-		v.tex_index = { texture_index };
-	}
-
-	AddVertices(texture_vertices, quad_indices);
-
-	if (!existing_texture) {
-		// Must be done after AddVertices and SetState because both of them may Flush the current
-		// batch, which will clear textures.
-		textures_.emplace_back(texture_id);
-	}
-
-	PTGN_ASSERT(textures_.size() < max_texture_slots);
-}
-
 void RenderData::Init() {
 	// GLRenderer::EnableLineSmoothing();
 
@@ -454,17 +645,17 @@ void RenderData::Init() {
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
 
-	const auto& screen_shader{ game.shader.Get<ScreenShader::Default>() };
+	const auto& screen_shader{ game.shader.Get("screen_default") };
 	PTGN_ASSERT(screen_shader.IsValid());
 	screen_shader.Bind();
 	screen_shader.SetUniform("u_Texture", 1);
 
-	const auto& quad_shader{ game.shader.Get<ShapeShader::Quad>() };
+	const auto& quad_shader{ game.shader.Get("quad") };
 
 	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(game.shader.Get<ShapeShader::Circle>().IsValid());
-	PTGN_ASSERT(game.shader.Get<ScreenShader::Default>().IsValid());
-	PTGN_ASSERT(game.shader.Get<OtherShader::Light>().IsValid());
+	PTGN_ASSERT(game.shader.Get("circle").IsValid());
+	PTGN_ASSERT(game.shader.Get("screen_default").IsValid());
+	PTGN_ASSERT(game.shader.Get("light").IsValid());
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
@@ -480,7 +671,7 @@ void RenderData::Init() {
 						  BufferUsage::DynamicDraw };
 
 	triangle_vao = VertexArray(
-		PrimitiveMode::Triangles, std::move(quad_vb), quad_vertex_layout, std::move(quad_ib)
+		PrimitiveMode::Triangles, std::move(quad_vb), Vertex::GetLayout(), std::move(quad_ib)
 	);
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
@@ -490,10 +681,9 @@ void RenderData::Init() {
 	intermediate_target = {};
 
 	screen_target_ = CreateRenderTarget(
-		render_manager, ResizeToResolution::Physical, color::Transparent,
-		HDR_ENABLED ? TextureFormat::HDR_RGBA : TextureFormat::RGBA8888
+		render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
 	);
-	SetBlendMode(screen_target_, BlendMode::None);
+	SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
 
 #ifdef PTGN_PLATFORM_MACOS
 	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
@@ -504,12 +694,12 @@ void RenderData::Init() {
 	}
 #endif
 
-	SetState(RenderState{ {}, BlendMode::None, {} });
+	SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
 
 	viewport_tracker = render_manager.CreateEntity();
 	AddScript<ViewportResizeScript>(viewport_tracker);
 	auto window_size{ game.window.GetSize() };
-	RecomputeViewport(window_size);
+	RecomputeDisplaySize(window_size);
 
 	render_manager.Refresh();
 }
@@ -532,6 +722,22 @@ bool RenderData::GetTextureIndex(std::uint32_t texture_id, float& out_texture_in
 	return false;
 }
 
+const Shader& RenderData::GetCurrentShader() const {
+	const Shader* shader{ nullptr };
+
+	PTGN_ASSERT(render_state.shader_pass.has_value());
+
+	if (*render_state.shader_pass == ShaderPass{}) {
+		shader = &game.shader.Get("quad");
+	} else {
+		shader = &(*render_state.shader_pass).GetShader();
+	}
+
+	PTGN_ASSERT(shader);
+
+	return *shader;
+}
+
 bool RenderData::SetState(const RenderState& new_render_state) {
 	if (new_render_state != render_state || force_flush) {
 		Flush();
@@ -541,119 +747,28 @@ bool RenderData::SetState(const RenderState& new_render_state) {
 	return false;
 }
 
-V2_float RenderData::GetResolutionScale(const V2_float& viewport_size) {
-	auto logical_resolution{ game.renderer.GetLogicalResolution() };
-	PTGN_ASSERT(logical_resolution.BothAboveZero());
-	V2_float resolution_scale{ V2_float{ viewport_size } / logical_resolution };
-	PTGN_ASSERT(resolution_scale.BothAboveZero());
-	return resolution_scale;
-}
-
-void RenderData::AddShader(
-	Entity entity, const RenderState& state, const Color& target_clear_color,
-	const TextureOrSize& texture_or_size, bool clear_between_consecutive_calls
-) {
-	bool state_changed{ SetState(state) };
-
-	bool uses_size{ std::holds_alternative<V2_int>(texture_or_size) };
-
-	// Clear the intermediate frame buffer if the shader is new (changes renderer state), or if the
-	// shader uses size (no texture) and the user desires it (most often true). In the case of
-	// back-to-back light rendering this is not desired.
-	bool clear{ state_changed || (uses_size && clear_between_consecutive_calls) };
-
-	if (clear_between_consecutive_calls) {
-		force_flush = true;
-	}
-
-	auto target{ drawing_to_ };
-
-	if (render_state.camera) {
-		target.view_projection = render_state.camera;
-		target.points		   = render_state.camera.GetWorldVertices();
-	}
-
-	target.depth	  = GetDepth(entity);
-	target.tint		  = target.tint.Normalized() * GetTint(entity).Normalized();
-	target.blend_mode = GetBlendMode(entity);
-
-	if (uses_size) {
-		if (!std::get<V2_int>(texture_or_size).IsZero()) {
-			target.viewport.size = std::get<V2_int>(texture_or_size);
-		}
-	} else if (std::holds_alternative<std::reference_wrapper<const Texture>>(texture_or_size)) {
-		const Texture& texture =
-			std::get<std::reference_wrapper<const Texture>>(texture_or_size).get();
-
-		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
-
-		target.viewport.size = texture.GetSize();
-		target.texture_id	 = texture.GetId();
-	} else {
-		PTGN_ERROR("Unknown variant value");
-	}
-
-	if (clear) {
-		intermediate_target = draw_context_pool.Get(target.viewport.size);
-	}
-
-	const auto& shader{ render_state.shader_pass.GetShader() };
-
-	PTGN_ASSERT(shader != game.shader.Get<ShapeShader::Quad>());
-
-	shader.Bind();
-	shader.SetUniform("u_Texture", 1);
-	shader.SetUniform("u_Resolution", GetResolutionScale(target.viewport.size));
-
-	render_state.shader_pass.Invoke(entity);
-
-	target.frame_buffer = &intermediate_target->frame_buffer;
-
-	DrawFullscreenQuad(shader, target, false, clear, target_clear_color);
-}
-
 void RenderData::AddTemporaryTexture(Texture&& texture) {
 	temporary_textures.emplace_back(std::move(texture));
 }
 
-V2_float RenderData::RelativeToViewport(const V2_float& window_relative_point) const {
-	V2_float scale{
-		V2_float{ logical_resolution_ } / physical_viewport_.size,
-	};
-
-	V2_float local{ (window_relative_point - physical_viewport_.position) * scale };
-
-	return local;
-}
-
-void RenderData::AddShape(
-	std::span<const Vertex> shape_vertices, std::span<const Index> shape_indices,
-	std::span<const V2_float> shape_points, float line_width, const RenderState& state
-) {
-	SetState(state);
-
-	if (line_width == -1.0f) {
-		AddVertices(shape_vertices, shape_indices);
-	} else {
-		// We need a mutable copy of the vertices when drawing lines
-		std::vector<Vertex> mutable_vertices{ shape_vertices.begin(), shape_vertices.end() };
-		AddLinesImpl(mutable_vertices, shape_indices, shape_points, line_width, state);
+std::size_t RenderData::GetMaxTextureSlots() const {
+	if (!max_texture_slots) {
+		max_texture_slots = GLRenderer::GetMaxTextureSlots();
 	}
+	return max_texture_slots;
 }
 
 void RenderData::AddLinesImpl(
 	std::span<Vertex> line_vertices, std::span<const Index> line_indices,
-	std::span<const V2_float> points, float line_width, [[maybe_unused]] const RenderState& state
+	std::span<const V2_float> points, float line_width, const Transform& transform
 ) {
 	PTGN_ASSERT(line_width >= min_line_width, "Invalid line width for lines");
-	PTGN_ASSERT(points.size() == line_vertices.size());
 
 	for (std::size_t i = 0; i < points.size(); ++i) {
-		auto start = points[i];
-		auto end   = points[(i + 1) % points.size()];
+		Line l{ points[i], points[(i + 1) % points.size()] };
+		auto line_points{ l.GetWorldQuadVertices(transform, line_width) };
 
-		Line l{ start, end };
-		auto line_points = l.GetWorldQuadVertices(Transform{}, line_width);
+		PTGN_ASSERT(line_vertices.size() <= line_points.size());
 
 		for (std::size_t j = 0; j < line_vertices.size(); ++j) {
 			line_vertices[j].position[0] = line_points[j].x;
@@ -684,14 +799,15 @@ void RenderData::AddVertices(
 }
 
 void RenderData::DrawFullscreenQuad(
-	const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
-	bool clear_frame_buffer, const Color& target_clear_color
+	const Shader& shader, const DrawTarget& target, bool flip_texture, bool clear_frame_buffer,
+	const Color& target_clear_color
 ) {
+	float texture_index{ 1.0f };
 	DrawCall(
 		shader,
-		GetQuadVertices(
-			target.points, target.tint, target.depth, 1.0f, default_texture_coordinates,
-			flip_texture
+		Vertex::GetQuad(
+			target.points, target.tint, target.depth, { texture_index },
+			GetDefaultTextureCoordinates(), flip_texture
 		),
 		quad_indices, { target.texture_id }, target.frame_buffer, clear_frame_buffer,
 		target_clear_color, target.blend_mode, target.viewport, target.view_projection
@@ -749,7 +865,7 @@ void RenderData::DrawCall(
 }
 
 void RenderData::DrawVertices(
-	const Shader& shader, const RenderData::DrawTarget& target, bool clear_frame_buffer
+	const Shader& shader, const DrawTarget& target, bool clear_frame_buffer
 ) {
 	DrawCall(
 		shader, vertices_, indices_, textures_, target.frame_buffer, clear_frame_buffer,
@@ -757,27 +873,29 @@ void RenderData::DrawVertices(
 	);
 }
 
-void RenderData::Flush() {
+void RenderData::Flush(bool final_flush) {
 	std::vector<TextureId> texture_id;
 
 	bool has_post_fx{ !render_state.post_fx.post_fx_.empty() };
 
 	auto target{ drawing_to_ };
 
-	if (render_state.camera) {
-		target.view_projection = render_state.camera;
-		target.points		   = render_state.camera.GetWorldVertices();
+	if (render_state.IsSet()) {
+		if (render_state.camera) {
+			target.view_projection = render_state.camera;
+			target.points		   = render_state.camera.GetWorldVertices();
+		}
+		target.blend_mode = render_state.blend_mode;
 	}
-	target.blend_mode = render_state.blend_mode;
 
 	if (has_post_fx) {
 		PTGN_ASSERT(!intermediate_target);
 
-		intermediate_target = draw_context_pool.Get(target.viewport.size);
+		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
 
 		target.frame_buffer = &intermediate_target->frame_buffer;
 
-		const auto& shader{ render_state.shader_pass.GetShader() };
+		const auto& shader{ GetCurrentShader() };
 
 		// Draw unflushed vertices to intermediate target before adding post fx to it.
 		DrawVertices(shader, target, true);
@@ -790,38 +908,42 @@ void RenderData::Flush() {
 		target.texture_id = id;
 	}
 
+	// Reset because post fx may change target.frame_buffer.
 	target.frame_buffer = drawing_to_.frame_buffer;
 
 	if (intermediate_target) {
-		// This branch is for when an intermediate target needs to be flushed onto the drawing_to
-		// frame buffer. It is used in cases where postfx are applied, or when a shader that uses
-		// the intermediate target is being flushed (for instance a set of lights rendered onto an
-		// intermediate target and then flushed onto the drawing_to frame buffer).
+		// This branch is for when an intermediate target needs to be flushed onto the
+		// drawing_to frame buffer. It is used in cases where postfx are applied, or when a
+		// shader that uses the intermediate target is being flushed (for instance a set of
+		// lights rendered onto an intermediate target and then flushed onto the drawing_to
+		// frame buffer).
 
 		if (!has_post_fx) {
 			// The light case discussed above.
-			target.texture_id = intermediate_target->frame_buffer.GetTexture().GetId();
+			const auto& texture{ intermediate_target->frame_buffer.GetTexture() };
+			target.texture_id	  = texture.GetId();
+			target.texture_format = texture.GetFormat();
+			target.texture_size	  = texture.GetSize();
 		}
-
-		const auto& shader{ game.shader.Get<ScreenShader::Default>() };
-
-		// Flush intermediate target onto drawing_to frame buffer.
-
 		DrawFullscreenQuad(
-			shader, target, has_post_fx /* Only flip if postfx have been applied. */, false,
-			color::Transparent
+			GetFullscreenShader(target.texture_format), target,
+			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
 		);
 
-	} else if (render_state.shader_pass != ShaderPass{}) {
+	} else if (render_state.IsSet()) {
 		// No post fx, and no intermediate target.
 
-		const auto& shader{ render_state.shader_pass.GetShader() };
+		const auto& shader{ GetCurrentShader() };
 
 		// Draw unflushed vertices directly to drawing_to frame buffer.
 		DrawVertices(shader, target, false);
 	}
 
 	Reset();
+
+	if (final_flush) {
+		render_state = {};
+	}
 }
 
 void RenderData::Reset() {
@@ -841,53 +963,31 @@ void RenderData::InvokeDrawable(const Entity& entity) {
 
 	const auto& drawable_functions{ IDrawable::data() };
 
-	const auto it{ drawable_functions.find(drawable.hash) };
+	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
 
-	PTGN_ASSERT(it != drawable_functions.end(), "Failed to identify drawable hash");
+	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
 
-	const auto& draw_function{ it->second };
-
-	draw_function(*this, entity);
+	draw_function(entity);
 }
 
-RenderData::DrawTarget RenderData::GetDrawTarget(const Scene& scene) {
-	return GetDrawTarget(
-		scene.render_target_, scene.camera, scene.camera.GetWorldVertices(), false
-	);
+void RenderData::InvokeDrawFilter(RenderTarget& render_target, FilterType type) {
+	if (!render_target.Has<IDrawFilter>()) {
+		return;
+	}
+
+	const auto& filter{ render_target.GetImpl<IDrawFilter>() };
+	const auto& filter_functions{ IDrawFilter::data() };
+
+	PTGN_ASSERT(filter_functions.contains(filter.hash), "Failed to identify filter hash");
+
+	const auto& filter_function{ filter_functions.find(filter.hash)->second };
+
+	PTGN_ASSERT(filter_function);
+
+	filter_function(render_target, type);
 }
 
-void RenderData::SetPoints(RenderData::DrawTarget& target) {
-	PTGN_ASSERT(target.viewport.size.BothAboveZero());
-
-	target.points = { target.viewport.position,
-					  target.viewport.position + V2_float{ target.viewport.size.x, 0.0f },
-					  target.viewport.position + target.viewport.size,
-					  target.viewport.position + V2_float{ 0.0f, target.viewport.size.y } };
-}
-
-void RenderData::SetProjection(RenderData::DrawTarget& target) {
-	SetProjection(target, target.points[0], target.points[2]);
-}
-
-void RenderData::SetProjection(
-	RenderData::DrawTarget& target, const V2_float& min, const V2_float& max
-) {
-	target.view_projection = GetProjection(min, max);
-}
-
-Matrix4 RenderData::GetProjection(const V2_float& min, const V2_float& max) {
-	return Matrix4::Orthographic(
-		min.x, max.x, max.y, min.y, -std::numeric_limits<float>::infinity(),
-		std::numeric_limits<float>::infinity()
-	);
-}
-
-void RenderData::SetPointsAndProjection(RenderData::DrawTarget& target) {
-	SetPoints(target);
-	SetProjection(target);
-}
-
-RenderData::DrawTarget RenderData::GetDrawTarget(
+static DrawTarget GetDrawTarget(
 	const RenderTarget& render_target, const Matrix4& view_projection,
 	const std::array<V2_float, 4>& points, bool use_viewport
 ) {
@@ -896,14 +996,11 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 	const auto& texture{ render_target.GetTexture() };
 	auto texture_size{ render_target.GetTextureSize() };
 
-	target.texture_size = texture_size;
-	target.texture_id	= texture.GetId();
-
-	if (const auto custom_viewport{ render_target.TryGet<Viewport>() }) {
-		target.viewport = *custom_viewport;
-	} else {
-		target.viewport.size = texture_size;
-	}
+	target.texture_size		 = texture_size;
+	target.texture_id		 = texture.GetId();
+	target.texture_format	 = texture.GetFormat();
+	target.viewport.position = {};
+	target.viewport.size	 = texture_size;
 
 	if (use_viewport) {
 		SetPointsAndProjection(target);
@@ -920,8 +1017,77 @@ RenderData::DrawTarget RenderData::GetDrawTarget(
 	return target;
 }
 
+DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
+	Camera camera{ render_target.GetCamera() };
+	return impl::GetDrawTarget(render_target, camera, camera.GetWorldVertices(), false);
+}
+
+static float GetDepth(const DrawCommand& cmd) {
+	return std::visit(
+		[](const auto& c) {
+			return static_cast<float>(c.depth); // Assuming Depth can convert to float
+		},
+		cmd
+	);
+}
+
+static void SortByDepth(std::vector<DrawCommand>& commands, bool ascending) {
+	std::ranges::stable_sort(commands, [ascending](const DrawCommand& a, const DrawCommand& b) {
+		auto depth_a{ GetDepth(a) };
+		auto depth_b{ GetDepth(b) };
+		return ascending ? (depth_a < depth_b) : (depth_a > depth_b);
+	});
+}
+
+void RenderData::FlushDrawQueue(TextureId id) {
+	auto it{ draw_queues_.find(id) };
+
+	if (it == draw_queues_.end()) {
+		return;
+	}
+
+	std::vector<impl::DrawCommand>& commands{ it->second };
+
+	// Must be sorted here so that debug render commands appear last.
+	SortByDepth(commands, true);
+
+	for (const auto& command : commands) {
+		DrawCommand(command);
+	}
+
+	Flush(true);
+}
+
+void RenderData::DrawDisplayList(
+	RenderTarget& render_target, std::vector<Entity>& display_list,
+	const std::function<bool(const Entity&)>& filter
+) {
+	SetDrawingTo(render_target);
+
+	InvokeDrawFilter(render_target, FilterType::Pre);
+
+	// Must be sorted here so that creation order is accounted for.
+	SortByDepth(display_list, true);
+
+	for (const auto& entity : display_list) {
+		if (filter && filter(entity)) {
+			continue;
+		}
+		InvokeDrawable(entity);
+	}
+
+	InvokeDrawFilter(render_target, FilterType::Post);
+
+	FlushDrawQueue(drawing_to_.texture_id);
+}
+
+void RenderData::SetDrawingTo(const RenderTarget& render_target) {
+	drawing_to_ = GetDrawTarget(render_target);
+}
+
 void RenderData::DrawScene(Scene& scene) {
-	// Loop through render targets and render their display lists onto their internal frame buffers.
+	// Loop through render targets and render their display lists onto their internal frame
+	// buffers.
 	for (auto [entity, visible, drawable, frame_buffer, display_list] :
 		 scene.InternalEntitiesWith<Visible, IDrawable, FrameBuffer, DisplayList>()) {
 		if (!visible) {
@@ -930,36 +1096,19 @@ void RenderData::DrawScene(Scene& scene) {
 
 		RenderTarget rt{ entity };
 
-		SortByDepth(display_list.entities);
-
-		drawing_to_ = GetDrawTarget(rt, {}, {}, true);
-
-		for (const auto& display_entity : display_list.entities) {
-			InvokeDrawable(display_entity);
-		}
-
-		Flush();
+		DrawDisplayList(rt, display_list.entities);
 	}
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
-	SortByDepth(display_list);
 
-	drawing_to_ = GetDrawTarget(scene);
-
-	for (const auto& entity : display_list) {
+	DrawDisplayList(scene.render_target_, display_list, [](const Entity& entity) {
 		// Skip entities which are in the display list of a custom render target.
-		// TODO: Perhaps rethink how this is done after HD render targets are introduced.
-		if (entity.Has<RenderTarget>()) {
-			continue;
-		}
-		InvokeDrawable(entity);
-	}
-
-	Flush();
+		return entity.Has<RenderTarget>();
+	});
 }
 
-void RenderData::RecomputeViewport(const V2_int& window_size) {
-	if (!logical_resolution_.BothAboveZero()) {
+void RenderData::RecomputeDisplaySize(const V2_int& window_size) {
+	if (!game_size_.BothAboveZero()) {
 		UpdateResolutions(window_size, resolution_mode_);
 	}
 
@@ -970,72 +1119,70 @@ void RenderData::RecomputeViewport(const V2_int& window_size) {
 	auto compute_aspect_fit = [&](bool letterbox_mode) {
 		float window_aspect{ static_cast<float>(window_size.x) /
 							 static_cast<float>(window_size.y) };
-		float logical_aspect{ static_cast<float>(logical_resolution_.x) /
-							  static_cast<float>(logical_resolution_.y) };
+		float game_aspect{ static_cast<float>(game_size_.x) / static_cast<float>(game_size_.y) };
 
-		// In letterbox mode we need require window_aspect > logical_aspect to fit height, and in
-		// overscan we require window_aspect > logical_aspect to fit height.
-		bool fit_height{ (window_aspect > logical_aspect) == letterbox_mode };
+		// In letterbox mode we need require window_aspect > game_aspect to fit height, and in
+		// overscan we require window_aspect > game_aspect to fit height.
+		bool fit_height{ (window_aspect > game_aspect) == letterbox_mode };
 
 		if (fit_height) {
 			vp.size.y = window_size.y;
-			vp.size.x = static_cast<int>(static_cast<float>(window_size.y) * logical_aspect + 0.5f);
+			vp.size.x = static_cast<int>(static_cast<float>(window_size.y) * game_aspect + 0.5f);
 			vp.position.x = (window_size.x - vp.size.x) / 2; // left edge.
 			vp.position.y = 0;
 		} else {
 			// Fit width.
 			vp.size.x = window_size.x;
-			vp.size.y = static_cast<int>(static_cast<float>(window_size.x) / logical_aspect + 0.5f);
+			vp.size.y = static_cast<int>(static_cast<float>(window_size.x) / game_aspect + 0.5f);
 			vp.position.x = 0;
 			vp.position.y = (window_size.y - vp.size.y) / 2; // top edge.
 		}
 	};
 
 	switch (resolution_mode_) {
-		case LogicalResolutionMode::Letterbox:	  compute_aspect_fit(true); break;
+		case ScalingMode::Letterbox:	compute_aspect_fit(true); break;
 
-		case LogicalResolutionMode::IntegerScale: {
-			V2_int ratio{ window_size / logical_resolution_ };
+		case ScalingMode::IntegerScale: {
+			V2_int ratio{ window_size / game_size_ };
 			// Find which dimension limits the scaling factor.
 			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
-			vp.size		= logical_resolution_ * scale; // scale up.
+			vp.size		= game_size_ * scale;		   // scale up.
 			vp.position = (window_size - vp.size) / 2; // center of window.
 			break;
 		}
 
-		case LogicalResolutionMode::Stretch:
+		case ScalingMode::Stretch:
 			// Viewport is full window (default).
 			break;
 
-		case LogicalResolutionMode::Disabled:
-			vp.size		= logical_resolution_;		   // no change.
+		case ScalingMode::Disabled:
+			vp.size		= game_size_;				   // no change.
 			vp.position = (window_size - vp.size) / 2; // center of window.
 			break;
 
-		case LogicalResolutionMode::Overscan: compute_aspect_fit(false); break;
+		case ScalingMode::Overscan: compute_aspect_fit(false); break;
 
-		default:							  PTGN_ERROR("Unsupported resolution mode")
+		default:					PTGN_ERROR("Unsupported resolution mode")
 	}
 
-	if (vp != physical_viewport_) {
-		// Only update viewport if it changed. This reduces PhysicalResolutionChanged event
+	if (vp != display_viewport_) {
+		// Only update viewport if it changed. This reduces DisplaySizeChanged event
 		// dispatch.
-		physical_viewport_			 = vp;
-		physical_resolution_changed_ = true;
+		display_viewport_	  = vp;
+		display_size_changed_ = true;
 	}
 }
 
-void RenderData::UpdateResolutions(
-	const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
-) {
-	if (logical_resolution_ == logical_resolution && resolution_mode_ == logical_resolution_mode) {
+void RenderData::UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode) {
+	bool new_game_size{ game_size_ != game_size };
+	if (!new_game_size && resolution_mode_ == scaling_mode) {
 		return;
 	}
 	auto window_size{ game.window.GetSize() };
-	logical_resolution_			= logical_resolution;
-	resolution_mode_			= logical_resolution_mode;
-	logical_resolution_changed_ = true;
-	RecomputeViewport(window_size);
+	game_size_		   = game_size;
+	resolution_mode_   = scaling_mode;
+	game_size_changed_ = new_game_size;
+	RecomputeDisplaySize(window_size);
 }
 
 void RenderData::ClearScreenTarget() const {
@@ -1052,56 +1199,61 @@ void RenderData::ClearRenderTargets(Scene& scene) const {
 	}
 }
 
-void RenderData::DrawFromTo(
-	const RenderTarget& source_target, const std::array<V2_float, 4>& points,
-	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
-) {
+const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
 	const Shader* shader{ nullptr };
 
-	if constexpr (HDR_ENABLED) {
-		shader = &game.shader.Get<OtherShader::ToneMapping>();
+	if (texture_format == TextureFormat::HDR_RGBA || texture_format == TextureFormat::HDR_RGB) {
+		shader = &game.shader.Get("tone_mapping");
 		PTGN_ASSERT(shader != nullptr);
 		shader->Bind();
 		shader->SetUniform("u_Texture", 1);
+		// TODO: Add a way to adjust these.
 		shader->SetUniform("u_Exposure", 1.0f);
 		shader->SetUniform("u_Gamma", 2.2f);
 	} else {
-		shader = &game.shader.Get<ScreenShader::Default>();
-		PTGN_ASSERT(shader != nullptr);
+		shader = &game.shader.Get("screen_default");
 	}
 
-	auto target{ GetDrawTarget(source_target, {}, {}, false) };
+	return *shader;
+}
+
+void RenderData::DrawFromTo(
+	const RenderTarget& source_target, const std::array<V2_float, 4>& points,
+	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer,
+	bool flip_texture
+) {
+	auto target{ impl::GetDrawTarget(source_target, {}, {}, false) };
 	target.view_projection = projection;
 	target.points		   = points;
 	target.viewport		   = viewport;
 	target.frame_buffer	   = destination_buffer;
 
-	DrawFullscreenQuad(*shader, target, true, false, color::Transparent);
+	DrawFullscreenQuad(
+		GetFullscreenShader(target.texture_format), target, flip_texture, false, color::Transparent
+	);
 }
 
 void RenderData::DrawScreenTarget() {
-	auto projection{
-		GetProjection(-physical_viewport_.size / 2.0f, physical_viewport_.size / 2.0f)
-	};
-	std::array<V2_float, 4> points{
-		-physical_viewport_.size / 2.0f,
-		V2_float{ physical_viewport_.size.x / 2.0f, -physical_viewport_.size.y / 2.0f },
-		physical_viewport_.size / 2.0f,
-		V2_float{ -physical_viewport_.size.x / 2.0f, physical_viewport_.size.y / 2.0f }
-	};
-	//	PTGN_LOG("Mouse position in window: ", game.input.GetMouseWindowPosition());
-	DrawFromTo(screen_target_, points, projection, physical_viewport_, nullptr);
+	auto half_viewport{ display_viewport_.size * 0.5f };
+
+	auto projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+	std::array<V2_float, 4> points{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y },
+									half_viewport, V2_float{ -half_viewport.x, half_viewport.y } };
+
+	DrawFromTo(screen_target_, points, projection, display_viewport_, nullptr, true);
 }
 
 void RenderData::Draw(Scene& scene) {
 	// PTGN_LOG(draw_context_pool.contexts_.size());
-	//  PTGN_PROFILE_FUNCTION();
+	// PTGN_PROFILE_FUNCTION();
 
 	white_texture.Bind(0);
 
 	DrawScene(scene);
 
-	auto projection{ GetProjection(-logical_resolution_ / 2.0f, logical_resolution_ / 2.0f) };
+	auto half_game_size{ game_size_ * 0.5f };
+
+	auto projection{ Matrix4::Orthographic(-half_game_size, half_game_size) };
 
 	Transform scene_transform{ GetTransform(scene.render_target_) };
 
@@ -1109,16 +1261,18 @@ void RenderData::Draw(Scene& scene) {
 
 	Viewport viewport;
 	viewport.position = {};
-	viewport.size	  = physical_viewport_.size;
+	viewport.size	  = display_viewport_.size;
 
 	DrawFromTo(
-		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer()
+		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer(), true
 	);
+
+	draw_queues_.clear();
 
 	Reset();
 
-	temporary_textures = std::vector<Texture>{};
 	render_state	   = {};
+	temporary_textures = std::vector<Texture>{};
 }
 
 } // namespace impl

@@ -6,12 +6,14 @@
 #include <vector>
 
 #include "components/transform.h"
-#include "math/geometry.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
+#include "math/geometry/ellipse.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/geometry/rect.h"
+#include "math/geometry/rounded_rect.h"
+#include "math/geometry/shape.h"
 #include "math/geometry/triangle.h"
 #include "math/vector2.h"
 
@@ -49,7 +51,7 @@ BoundingAABB BoundingAABB::ExpandByVelocity(const V2_float& velocity) const {
 	return expanded;
 }
 
-BoundingAABB GetBoundingAABB(const Shape& shape, const Transform& transform) {
+BoundingAABB GetBoundingAABB(const ColliderShape& shape, const Transform& transform) {
 	return std::visit(
 		[&](const auto& s) -> BoundingAABB {
 			using T = std::decay_t<decltype(s)>;
@@ -77,11 +79,19 @@ BoundingAABB GetBoundingAABB(const Shape& shape, const Transform& transform) {
 			} else if constexpr (std::is_same_v<T, Line>) {
 				auto v = s.GetWorldVertices(transform);
 				vertices.assign(v.begin(), v.end());
-			} else if constexpr (std::is_same_v<T, Point>) {
+			} else if constexpr (std::is_same_v<T, V2_float>) {
 				// Assume Point is a single position with no size
 				V2_float p{ transform.GetPosition() };
 				vertices.emplace_back(p);
-			}
+			} /*
+			  // TODO: Re-enable if collisions are added for these shapes:
+			  else if constexpr (std::is_same_v<T, RoundedRect>) {
+				 auto v = s.GetWorldQuadVertices(transform);
+				 vertices.assign(v.begin(), v.end());
+			 } else if constexpr (std::is_same_v<T, Ellipse>) {
+				 auto v = s.GetWorldQuadVertices(transform);
+				 vertices.assign(v.begin(), v.end());
+			 }*/
 
 			V2_float min{ vertices[0] };
 			V2_float max{ vertices[0] };

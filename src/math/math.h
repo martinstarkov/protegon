@@ -145,7 +145,7 @@ template <std::floating_point T>
 [[nodiscard]] T ClampAngle2Pi(T angle_radians) {
 	T clamped{ std::fmod(angle_radians, two_pi<T>) };
 
-	if (clamped < 0.0) {
+	if (clamped < T{ 0 }) {
 		clamped += two_pi<T>;
 	}
 

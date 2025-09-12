@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "common/macro.h"
 #include "core/game.h"
 #include "core/sdl_instance.h"
 #include "core/window.h"

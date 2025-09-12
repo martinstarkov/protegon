@@ -5,12 +5,12 @@
 
 #include "common/assert.h"
 #include "core/entity.h"
-#include "math/geometry.h"
+#include "math/geometry/shape.h"
 #include "utility/span.h"
 
 namespace ptgn {
 
-Collider::Collider(const Shape& shape) : shape{ shape } {}
+Collider::Collider(const ColliderShape& shape) : shape{ shape } {}
 
 Collider& Collider::SetOverlapMode() {
 	mode = CollisionMode::Overlap;

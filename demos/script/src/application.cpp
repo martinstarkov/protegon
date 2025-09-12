@@ -43,8 +43,7 @@ struct ScriptScene : public Scene {
 	Entity entity;
 
 	void Enter() override {
-		entity =
-			CreateRect(*this, game.renderer.GetLogicalResolution() / 2.0f, { 30, 30 }, color::Red);
+		entity = CreateRect(*this, {}, { 30, 30 }, color::Red);
 
 		AddScript<RemoveScript>(entity);
 		AddScript<PlayerController>(entity);

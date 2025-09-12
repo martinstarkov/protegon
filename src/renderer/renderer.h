@@ -2,14 +2,18 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <vector>
 
+#include "components/draw.h"
+#include "components/effects.h"
+#include "components/generic.h"
 #include "components/transform.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/font.h"
 #include "renderer/render_data.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
@@ -17,87 +21,31 @@
 
 namespace ptgn {
 
-namespace impl {
-
-[[nodiscard]] RenderState GetDebugRenderState(const Camera& camera);
-
-}
-
-void DrawDebugTexture(
-	const TextureHandle& texture_key, const V2_float& position, const V2_float& size = {},
-	Origin origin = Origin::Center, float rotation = 0.0f, const Camera& camera = {}
-);
-
-// @param size {} results in unscaled size of text based on font.
-void DrawDebugText(
-	const std::string& content, const V2_float& position, const TextColor& color = color::White,
-	Origin origin = Origin::Center, const FontSize& font_size = {}, bool hd_text = true,
-	const ResourceHandle& font_key = {}, const TextProperties& properties = {},
-	const V2_float& size = {}, float rotation = 0.0f, const Camera& camera = {}
-);
-
-void DrawDebugLine(
-	const V2_float& line_start, const V2_float& line_end, const Color& color,
-	float line_width = 1.0f, const Camera& camera = {}
-);
-
-void DrawDebugLines(
-	const std::vector<V2_float>& points, const Color& color, float line_width = 1.0f,
-	bool connect_last_to_first = false, const Camera& camera = {}
-);
-
-void DrawDebugTriangle(
-	const std::array<V2_float, 3>& vertices, const Color& color, float line_width = 1.0f,
-	const Camera& camera = {}
-);
-
-void DrawDebugRect(
-	const V2_float& position, const V2_float& size, const Color& color,
-	Origin origin = Origin::Center, float line_width = 1.0f, float rotation = 0.0f,
-	const Camera& camera = {}
-);
-
-void DrawDebugEllipse(
-	const V2_float& center, const V2_float& radii, const Color& color, float line_width = 1.0f,
-	float rotation = 0.0f, const Camera& camera = {}
-);
-
-void DrawDebugCircle(
-	const V2_float& center, float radius, const Color& color, float line_width = 1.0f,
-	const Camera& camera = {}
-);
-
-void DrawDebugCapsule(
-	const V2_float& start, const V2_float& end, float radius, const Color& color,
-	float line_width = 1.0f, const Camera& camera = {}
-);
-
-void DrawDebugPolygon(
-	const std::vector<V2_float>& vertices, const Color& color, float line_width = 1.0f,
-	const Camera& camera = {}
-);
-
-void DrawDebugPoint(const V2_float position, const Color& color, const Camera& camera = {});
-
-void DrawDebugShape(
-	const Transform& transform, const Shape& shape, const Color& color, float line_width = 1.0f,
-	const Camera& camera = {}
-);
-
 class Shader;
+class Scene;
 class RenderTarget;
+class Shape;
+class Entity;
+struct Capsule;
+struct Arc;
+struct Circle;
+struct Ellipse;
+struct RoundedRect;
+struct Rect;
+struct Line;
+struct Polygon;
+struct Triangle;
 
 namespace impl {
 
+class Game;
 class FrameBuffer;
 class VertexArray;
-class Game;
 class SceneManager;
-class SceneCamera;
-class Batch;
+class ShaderManager;
 class GLRenderer;
 class InputHandler;
-class RenderData;
+struct ViewportResizeScript;
 
 class Renderer {
 public:
@@ -111,27 +59,157 @@ public:
 	void SetBackgroundColor(const Color& background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
-	// @param logical_resolution Setting to {} will use window size.
-	void SetLogicalResolution(
-		const V2_int& logical_resolution			  = {},
-		LogicalResolutionMode logical_resolution_mode = LogicalResolutionMode::Letterbox
+	// @param game_size Setting to {} will use window size.
+	void SetGameSize(
+		const V2_int& game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
 	);
 
-	void SetLogicalResolutionMode(
-		LogicalResolutionMode logical_resolution_mode = LogicalResolutionMode::Letterbox
+	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+
+	// @return The display size of the renderer.
+	[[nodiscard]] V2_int GetDisplaySize() const;
+
+	// @return The amount by which game size is scaled to achieve the display size.
+	[[nodiscard]] V2_float GetScale() const;
+
+	// @return The game size of the renderer.
+	[[nodiscard]] V2_int GetGameSize() const;
+
+	// @return The game size scaling mode.
+	[[nodiscard]] ScalingMode GetScalingMode() const;
+
+	void DrawTexture(
+		const impl::Texture& texture, const Transform& transform, const V2_float& texture_size = {},
+		Origin origin = default_origin, const Tint& tint = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PreFX& pre_fx = {}, const PostFX& post_fx = {},
+		const std::array<V2_float, 4>& texture_coordinates = GetDefaultTextureCoordinates()
 	);
 
-	// @return The physical resolution of the renderer.
-	[[nodiscard]] V2_int GetPhysicalResolution() const;
+	void DrawTexture(
+		const TextureHandle& texture_key, const Transform& transform,
+		const V2_float& texture_size = {}, Origin origin = default_origin, const Tint& tint = {},
+		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
+		const Camera& camera = {}, const PreFX& pre_fx = {}, const PostFX& post_fx = {},
+		const std::array<V2_float, 4>& texture_coordinates = GetDefaultTextureCoordinates()
+	);
 
-	// @return The logical resolution of the renderer.
-	[[nodiscard]] V2_int GetLogicalResolution() const;
+	void DrawLines(
+		const Transform& transform, const std::vector<V2_float>& line_points, const Tint& color,
+		const LineWidth& line_width = {}, bool connect_last_to_first = false,
+		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
+		const Camera& camera = {}, const PostFX& post_fx = {}
+	);
 
-	// @return The logical resolution scaling mode.
-	[[nodiscard]] LogicalResolutionMode GetLogicalResolutionMode() const;
+	void DrawLines(
+		const std::vector<V2_float>& line_points, const Tint& color,
+		const LineWidth& line_width = {}, bool connect_last_to_first = false,
+		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
+		const Camera& camera = {}, const PostFX& post_fx = {}
+	);
 
-	// @return The render data associated with the current render queue.
-	[[nodiscard]] RenderData& GetRenderData();
+	// @param origin only applicable to Rect and RoundedRect.
+	void DrawShape(
+		const Transform& transform, const Shape& shape, const Tint& color,
+		const LineWidth& line_width = {}, Origin origin = default_origin, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}, const ShaderPass& shader_pass = {}
+	);
+
+	void DrawShader(
+		const ShaderPass& shader, const Entity& entity, bool clear_between_consecutive_calls = true,
+		const Color& target_clear_color		 = color::Transparent,
+		const TextureOrSize& texture_or_size = V2_int{},
+		BlendMode intermediate_blend_mode = default_blend_mode, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		TextureFormat texture_format = default_texture_format, const PostFX& post_fx = {}
+	);
+
+	// @param text_size {} results in unscaled size of text based on font.
+	void DrawText(
+		const std::string& content, Transform transform, const TextColor& color,
+		Origin origin = default_origin, const FontSize& font_size = {},
+		const ResourceHandle& font_key = {}, const TextProperties& properties = {},
+		const V2_float& text_size = {}, const Tint& tint = {}, bool hd_text = true,
+		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
+		const Camera& camera = {}, const PreFX& pre_fx = {}, const PostFX& post_fx = {},
+		const std::array<V2_float, 4>& texture_coordinates = GetDefaultTextureCoordinates()
+	);
+
+	void DrawRect(
+		const Transform& transform, const Rect& rect, const Tint& color,
+		const LineWidth& line_width = {}, Origin origin = default_origin, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawRoundedRect(
+		const Transform& transform, const RoundedRect& rounded_rect, const Tint& color,
+		const LineWidth& line_width = {}, Origin origin = default_origin, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawLine(
+		const Transform& transform, const Line& line, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawLine(
+		const V2_float& start, const V2_float& end, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawTriangle(
+		const Transform& transform, const Triangle& triangle, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawEllipse(
+		const Transform& transform, const Ellipse& ellipse, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawCircle(
+		const Transform& transform, const Circle& circle, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawCapsule(
+		const Transform& transform, const Capsule& capsule, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawArc(
+		const Transform& transform, const Arc& arc, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawPolygon(
+		const Transform& transform, const Polygon& polygon, const Tint& color,
+		const LineWidth& line_width = {}, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
+		const PostFX& post_fx = {}
+	);
+
+	void DrawPoint(
+		const V2_float& point, const Tint& color, const Depth& depth = {},
+		BlendMode blend_mode = default_blend_mode, const Camera& camera = {}
+	);
 
 private:
 	friend class ptgn::Shader;
@@ -139,9 +217,11 @@ private:
 	friend class VertexArray;
 	friend class FrameBuffer;
 	friend class GLRenderer;
+	friend class SceneManager;
+	friend class ptgn::Scene;
 	friend class Game;
-	friend class Batch;
-	friend class RenderData;
+	friend struct ViewportResizeScript;
+	friend class ShaderManager;
 
 	// Present the screen target to the window.
 	void PresentScreen();
@@ -158,7 +238,7 @@ private:
 		std::uint32_t frame_buffer_id{ 0 };
 		std::uint32_t shader_id{ 0 };
 		std::uint32_t vertex_array_id{ 0 };
-		BlendMode blend_mode{ BlendMode::None };
+		BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 		V2_int viewport_position;
 		V2_int viewport_size;
 	};

@@ -81,18 +81,6 @@ int AStarGrid::FindWaypointIndex(const std::deque<V2_int>& waypoints, const V2_i
 	return -1;
 };
 
-void AStarGrid::DisplayWaypoints(
-	const std::deque<V2_int>& waypoints, [[maybe_unused]] const V2_int& tile_size,
-	[[maybe_unused]] const Color& color
-) {
-	for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-		DrawDebugLine(
-			waypoints[i] * tile_size + tile_size / 2.0f,
-			waypoints[i + 1] * tile_size + tile_size / 2.0f, color
-		);
-	}
-}
-
 void AStarGrid::SolvePath(const V2_int& start, const V2_int& end) {
 	PTGN_ASSERT(Has(start));
 	PTGN_ASSERT(Has(end));

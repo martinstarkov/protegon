@@ -12,7 +12,9 @@
 
 #include "common/assert.h"
 #include "core/entity.h"
+#include "core/game.h"
 #include "core/manager.h"
+#include "debug/debug_system.h"
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
@@ -207,15 +209,14 @@ void ChunkManager::AddNoiseLayer(const NoiseLayer& noise_layer) {
 
 void ChunkManager::DrawDebugChunkBorders() const {
 	for (const auto& [coordinate, chunk] : chunks) {
-		DrawDebugRect(
-			coordinate * chunk_size * tile_size, chunk_size * tile_size, color::Red,
-			Origin::TopLeft, 2.0f
+		game.debug.DrawShape(
+			{ coordinate * chunk_size * tile_size }, Rect{ chunk_size * tile_size }, color::Red,
+			2.0f, Origin::TopLeft
 		);
 	}
 }
 
-[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(
-	const V2_int& chunk_coordinate
+[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(const V2_int& chunk_coordinate
 ) const {
 	std::vector<Entity> entities;
 	for (const auto& layer : noise_layers_) {

@@ -23,7 +23,7 @@ struct Triangle {
 	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
 	explicit Triangle(const std::array<V2_float, 3>& vertices);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	[[nodiscard]] std::array<V2_float, 3> GetWorldVertices(const Transform& transform) const;
 

@@ -21,7 +21,6 @@
 	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::FUNC_NAME)
 
 #define PTGN_ADD_TWEEN_GLOBAL_ACTION(FUNC_NAME)                     \
-	auto& FUNC_NAME##_tween{ Get<impl::TweenInstance>() };          \
 	for (auto& point : tween.points_) {                             \
 		point.script_container_.AddAction(&TweenScript::FUNC_NAME); \
 	}

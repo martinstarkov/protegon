@@ -9,6 +9,7 @@
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
+#include "core/game_object.h"
 #include "core/script.h"
 #include "debug/log.h"
 #include "input/mouse.h"
@@ -174,20 +175,18 @@ struct ButtonTextureToggled : public ButtonTexture {
 };
 
 struct ButtonText {
-	ButtonText() = default;
+	ButtonText()								 = default;
+	ButtonText& operator=(ButtonText&&) noexcept = default;
+	ButtonText(ButtonText&&) noexcept			 = default;
+	ButtonText& operator=(const ButtonText&)	 = delete;
+	ButtonText(const ButtonText&)				 = delete;
+	~ButtonText()								 = default;
 
 	ButtonText(
 		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
 		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
 		const TextProperties& text_properties
 	);
-
-	ButtonText& operator=(const ButtonText&)	 = default;
-	ButtonText(const ButtonText&)				 = default;
-	ButtonText& operator=(ButtonText&&) noexcept = default;
-	ButtonText(ButtonText&&) noexcept			 = default;
-
-	~ButtonText();
 
 	[[nodiscard]] TextColor GetTextColor(ButtonState state) const;
 	[[nodiscard]] TextContent GetTextContent(ButtonState state) const;
@@ -202,14 +201,9 @@ struct ButtonText {
 		const TextProperties& text_properties
 	);
 
-	Text default_;
-	Text hover_;
-	Text pressed_;
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		ButtonText, KeyValue("default", default_), KeyValue("hover", hover_),
-		KeyValue("pressed", pressed_)
-	)
+	GameObject<Text> default_;
+	GameObject<Text> hover_;
+	GameObject<Text> pressed_;
 };
 
 struct ButtonTextToggled : public ButtonText {
@@ -230,7 +224,7 @@ public:
 	Button() = default;
 	Button(const Entity& entity);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	// Will set the script for when the button is activated.
 	Button& OnActivate(const std::function<void()>& on_activate_callback);
@@ -392,28 +386,51 @@ public:
 	);
 };
 
+struct ToggleButtonGroupKey : public HashComponent {
+	using HashComponent::HashComponent;
+};
+
+} // namespace ptgn
+
+namespace std {
+
+template <>
+struct hash<ptgn::ToggleButtonGroupKey> {
+	std::size_t operator()(const ptgn::ToggleButtonGroupKey& group_key) const {
+		return group_key.GetHash();
+	}
+};
+
+} // namespace std
+
+namespace ptgn {
+
 namespace impl {
 
 struct ToggleButtonGroupInfo {
 	ToggleButtonGroupInfo()											   = default;
-	ToggleButtonGroupInfo(const ToggleButtonGroupInfo&)				   = delete;
-	ToggleButtonGroupInfo& operator=(const ToggleButtonGroupInfo&)	   = delete;
+	~ToggleButtonGroupInfo()										   = default;
 	ToggleButtonGroupInfo(ToggleButtonGroupInfo&&) noexcept			   = default;
 	ToggleButtonGroupInfo& operator=(ToggleButtonGroupInfo&&) noexcept = default;
-	~ToggleButtonGroupInfo();
+	ToggleButtonGroupInfo(const ToggleButtonGroupInfo&)				   = delete;
+	ToggleButtonGroupInfo& operator=(const ToggleButtonGroupInfo&)	   = delete;
 
-	std::unordered_map<std::size_t, ToggleButton> buttons_;
+	ToggleButtonGroupKey active;
+	std::unordered_map<ToggleButtonGroupKey, GameObject<ToggleButton>> buttons;
 };
 
 } // namespace impl
 
 class ToggleButtonGroup : public Entity {
 public:
-	ToggleButton& Load(std::string_view button_key, ToggleButton&& toggle_button);
+	ToggleButton& Load(const ToggleButtonGroupKey& button_key, ToggleButton&& toggle_button);
 
-	void Unload(std::string_view button_key);
+	void Unload(const ToggleButtonGroupKey& button_key);
 
-	// TODO: Add more utility functions.
+	void SetActive(const ToggleButtonGroupKey& button_key);
+
+	// @return Active button, or null entity if no button is active.
+	ToggleButton GetActive() const;
 
 private:
 	friend class impl::ToggleButtonGroupScript;

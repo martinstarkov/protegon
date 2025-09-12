@@ -409,14 +409,14 @@ struct InteractiveScene : public Scene {
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 
 		input.SetDrawInteractives(true);
-		input.SetDrawInteractivesLineWidth(10.0f);
+		input.SetDrawInteractivesLineWidth(3.0f);
 
-		LoadResources({ { "drag", "resources/drag.png" },
-						{ "drag_circle", "resources/drag_circle.png" },
-						{ "dropzone", "resources/dropzone.png" } });
+		LoadResource({ { "drag", "resources/drag.png" },
+					   { "drag_circle", "resources/drag_circle.png" },
+					   { "dropzone", "resources/dropzone.png" } });
 
 		V2_float center{ GetTransform(camera).GetPosition() };
 
@@ -473,9 +473,7 @@ struct InteractiveScene : public Scene {
 
 		PTGN_LOG("Rect drag id: ", r3.GetId());
 
-		auto c3 = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
-		// TODO: Figure out why having a sprite hides the interactive.
-		Hide(c3);
+		auto c3		  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
 		auto c3_child = CreateInteractiveCircle(c3.GetDisplaySize().x * 0.5f);
 		AddInteractable(c3, std::move(c3_child));
 		c3.Add<Draggable>(); //.SetTrigger(CallbackTrigger::MouseOverlaps);

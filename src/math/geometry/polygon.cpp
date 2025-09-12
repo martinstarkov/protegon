@@ -6,14 +6,12 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
-void Polygon::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawPolygon(ctx, entity);
+void Polygon::Draw(const Entity& entity) {
+	impl::DrawPolygon(entity);
 }
 
 V2_float Polygon::GetCenter() const {
@@ -48,7 +46,7 @@ V2_float Polygon::GetCenter() const {
 }
 
 std::vector<V2_float> Polygon::GetWorldVertices(const Transform& transform) const {
-	return ApplyTransform(vertices, transform);
+	return transform.Apply(vertices);
 }
 
 std::vector<V2_float> Polygon::GetLocalVertices() const {

@@ -6,12 +6,16 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/movement.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/entity_hierarchy.h"
 #include "core/game_object.h"
 #include "core/time.h"
 #include "math/easing.h"
+#include "math/tolerance.h"
 #include "math/vector2.h"
+#include "physics/rigid_body.h"
 #include "renderer/api/color.h"
 #include "serialization/serializable.h"
 #include "tweens/follow_config.h"
@@ -138,12 +142,7 @@ EffectObject<TComponent>& AddTweenEffect(
 	return tween;
 }
 
-EffectObject<BounceEffect>& BounceImpl(
-	Entity& entity, const V2_float& amplitude, milliseconds duration, std::int64_t total_periods,
-	const Ease& ease, const V2_float& static_offset, bool force, bool symmetrical
-);
-
-void ApplyShake(impl::Offsets& offsets, float trauma, const ShakeConfig& config, std::int32_t seed);
+void ApplyShake(Offsets& offsets, float trauma, const ShakeConfig& config, std::int32_t seed);
 
 V2_float GetFollowPosition(
 	const FollowConfig& config, const V2_float& position, const V2_float& target_position
@@ -151,9 +150,191 @@ V2_float GetFollowPosition(
 
 void VelocityModeMoveImpl(const FollowConfig& config, Entity& parent, const V2_float& dir);
 
-void EntityFollowStartImpl(Entity& parent, const FollowConfig& config);
+template <EntityBase T>
+void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Entity tween_entity) {
+	if (!config.follow_x && !config.follow_y) {
+		return;
+	}
 
-void EntityFollowStopImpl(Entity tween);
+	Tween tween{ tween_entity };
+
+	if (!target || !target.IsAlive()) {
+		tween.IncrementPoint();
+		return;
+	}
+
+	T parent{ GetParent(tween_entity) };
+	auto current_position{ GetAbsolutePosition(parent) };
+	V2_float target_pos{ GetAbsolutePosition(target) + config.offset };
+
+	auto dir{ target_pos - current_position };
+
+	if (config.move_mode == MoveMode::Velocity) {
+		VelocityModeMoveImpl(config, parent, dir);
+	} else {
+		auto new_pos{ GetFollowPosition(config, current_position, target_pos) };
+		dir = target_pos - new_pos;
+
+		SetPosition(parent, new_pos);
+	}
+	if (config.stop_distance < epsilon<float>) {
+		return;
+	}
+	if (auto dist2{ dir.MagnitudeSquared() };
+		dist2 >= config.stop_distance * config.stop_distance) {
+		return;
+	}
+	tween.IncrementPoint();
+}
+
+template <EntityBase T>
+void PathFollowImpl(
+	const std::vector<V2_float>& waypoints, const PathFollowConfig& config, Entity tween_entity
+) {
+	if (!config.follow_x && !config.follow_y) {
+		return;
+	}
+
+	Tween tween{ tween_entity };
+	T parent{ GetParent(tween_entity) };
+
+	auto current_pos{ GetAbsolutePosition(parent) };
+
+	auto& follow{ tween_entity.Get<FollowEffect>() };
+
+	PTGN_ASSERT(follow.current_waypoint < waypoints.size());
+
+	V2_float target_pos{ waypoints[follow.current_waypoint] + config.offset };
+
+	auto dir{ target_pos - current_pos };
+
+	if (dir.MagnitudeSquared() < config.stop_distance * config.stop_distance) {
+		if (follow.current_waypoint + 1 < waypoints.size()) {
+			follow.current_waypoint++;
+		} else if (config.loop_path) {
+			follow.current_waypoint = 0;
+		} else {
+			tween.IncrementPoint();
+			return;
+		}
+	}
+
+	if (config.move_mode == MoveMode::Velocity) {
+		VelocityModeMoveImpl(config, parent, dir);
+		return;
+	}
+
+	auto new_pos{ GetFollowPosition(config, current_pos, target_pos) };
+	SetPosition(parent, new_pos);
+}
+
+void EntityFollowStopImpl(Entity e);
+
+EffectObject<FollowEffect>& StartFollowImpl(
+	const FollowConfig& config, Entity& entity, bool force, auto start_func, auto update_func
+) {
+	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
+	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
+
+	EffectObject<FollowEffect>& tween{ GetTween<FollowEffect>(entity) };
+
+	tween.TryAdd<FollowEffect>();
+
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+
+	tween.During(milliseconds{ 0 })
+		.Repeat(-1)
+		.OnStart(start_func)
+		.OnProgress(update_func)
+		.OnPointComplete(&EntityFollowStopImpl)
+		.OnComplete(&EntityFollowStopImpl)
+		.OnStop(&EntityFollowStopImpl)
+		.OnReset(&EntityFollowStopImpl);
+	tween.Start(force);
+	return tween;
+}
+
+template <EntityBase T>
+void EntityFollowStartImpl(T parent, const FollowConfig& config) {
+	if (config.move_mode != MoveMode::Velocity) {
+		parent.template Remove<TopDownMovement>();
+		parent.template Remove<RigidBody>();
+		return;
+	}
+	parent.template TryAdd<RigidBody>();
+	if (!parent.template Has<Transform>()) {
+		SetPosition(parent, {});
+	}
+	auto& movement{ parent.template TryAdd<TopDownMovement>() };
+	movement.max_acceleration		  = config.max_acceleration;
+	movement.max_deceleration		  = config.max_acceleration;
+	movement.max_speed				  = config.max_speed;
+	movement.keys_enabled			  = false;
+	movement.only_orthogonal_movement = false;
+}
+
+template <EntityBase T>
+impl::EffectObject<impl::FollowEffect>& StartFollowPathImpl(
+	T& entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config = {},
+	bool force = true, bool reset_waypoint_index = false
+) {
+	PTGN_ASSERT(!waypoints.empty(), "Cannot follow an empty set of waypoints");
+	PTGN_ASSERT(
+		config.stop_distance >= epsilon<float>,
+		"Stopping distance cannot be negative or 0 when following waypoints"
+	);
+
+	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
+	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
+
+	impl::EffectObject<impl::FollowEffect>& tween{ impl::GetTween<impl::FollowEffect>(entity) };
+
+	auto& follow_comp{ tween.TryAdd<impl::FollowEffect>() };
+
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+
+	std::vector<V2_float> prev_waypoints{ follow_comp.waypoints };
+	follow_comp.waypoints = waypoints;
+
+	const auto start_func = [reset_waypoint_index, config, waypoints, prev_waypoints](auto e) {
+		T parent{ GetParent(e) };
+		if (config.teleport_on_start && !waypoints.empty()) {
+			V2_float target_position{ waypoints.back() };
+			SetPosition(parent, target_position);
+		}
+
+		// Reasons to reset waypoint index:
+		// 1. User requested it.
+		// 2. Current waypoint is beyond the waypoints array size.
+		// 3. Waypoints have changed.
+		if (auto& follow{ e.template Get<impl::FollowEffect>() };
+			reset_waypoint_index || follow.current_waypoint >= waypoints.size() ||
+			waypoints != prev_waypoints) {
+			follow.current_waypoint = 0;
+		}
+
+		impl::EntityFollowStartImpl<T>(parent, config);
+	};
+
+	const auto update_func = [config, waypoints](Entity e, float) {
+		impl::PathFollowImpl<T>(waypoints, config, e);
+	};
+
+	tween.During(milliseconds{ 0 })
+		.Repeat(-1)
+		.OnStart(start_func)
+		.OnProgress(update_func)
+		.OnPointComplete(&impl::EntityFollowStopImpl)
+		.OnComplete(&impl::EntityFollowStopImpl)
+		.OnStop(&impl::EntityFollowStopImpl)
+		.OnReset(&impl::EntityFollowStopImpl);
+	tween.Start(force);
+	return tween;
+}
 
 } // namespace impl
 
@@ -167,10 +348,23 @@ void EntityFollowStopImpl(Entity tween);
  * @param ease The easing function to apply for the translation animation.
  * @param force If true, forcibly overrides any ongoing translation.
  */
+template <EntityBase T = Entity>
 impl::EffectObject<impl::TranslateEffect>& TranslateTo(
-	Entity& entity, const V2_float& target_position, milliseconds duration,
+	T& entity, const V2_float& target_position, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
-);
+) {
+	return impl::AddTweenEffect<impl::TranslateEffect, V2_float>(
+		entity, target_position, duration, ease, force,
+		[](Entity e) {
+			T derived{ e };
+			return GetPosition(derived);
+		},
+		[](Entity e, V2_float v) {
+			T derived{ e };
+			SetPosition(derived, v);
+		}
+	);
+}
 
 /**
  * @brief Rotates an entity to a target angle over a specified duration using a tweening function.
@@ -182,10 +376,23 @@ impl::EffectObject<impl::TranslateEffect>& TranslateTo(
  * @param ease The easing function to apply for the rotation animation.
  * @param force If true, forcibly overrides any ongoing rotation.
  */
+template <EntityBase T = Entity>
 impl::EffectObject<impl::RotateEffect>& RotateTo(
-	Entity& entity, float target_angle, milliseconds duration,
+	T& entity, float target_angle, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
-);
+) {
+	return impl::AddTweenEffect<impl::RotateEffect, float>(
+		entity, target_angle, duration, ease, force,
+		[](Entity e) {
+			T derived{ e };
+			return GetRotation(derived);
+		},
+		[](Entity e, float v) {
+			T derived{ e };
+			SetRotation(derived, v);
+		}
+	);
+}
 
 /**
  * @brief Scales an entity to a target size over a specified duration using a tweening function.
@@ -196,10 +403,23 @@ impl::EffectObject<impl::RotateEffect>& RotateTo(
  * @param ease The easing function to apply for the scale animation.
  * @param force If true, forcibly overrides any ongoing scaling.
  */
+template <EntityBase T = Entity>
 impl::EffectObject<impl::ScaleEffect>& ScaleTo(
-	Entity& entity, const V2_float& target_scale, milliseconds duration,
+	T& entity, const V2_float& target_scale, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
-);
+) {
+	return impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+		entity, target_scale, duration, ease, force,
+		[](Entity e) {
+			T derived{ e };
+			return GetScale(derived);
+		},
+		[](Entity e, V2_float v) {
+			T derived{ e };
+			SetScale(derived, v);
+		}
+	);
+}
 
 /**
  * @brief Tints an entity to a target color over a specified duration using a tweening function.
@@ -216,7 +436,8 @@ impl::EffectObject<impl::TintEffect>& TintTo(
 );
 
 /**
- * @brief Fades in the specified entity over a given duration.
+ * @brief Fades in the specified entity over a given duration. If the object already has a tint of
+ * color::White, does nothing. Set tint to color::Transparent for a full fade in effect.
  *
  * @param entity The entity to apply the fade-in effect to.
  * @param duration The time span over which the fade-in will occur.
@@ -229,7 +450,8 @@ impl::EffectObject<impl::TintEffect>& FadeIn(
 );
 
 /**
- * @brief Fades out the specified entity over a given duration.
+ * @brief Fades out the specified entity over a given duration. If the object already has a tint of
+ * color::Transparent, does nothing. Set tint to color::White for a full fade out effect.
  *
  * @param entity The entity to apply the fade-out effect to.
  * @param duration The time span over which the fade-out will occur.
@@ -364,9 +586,24 @@ void StopShake(Entity& entity, bool force = true);
  * @param config The configuration parameters that define how the follow behavior should operate.
  * @param force If true, forces the replacement of any existing follow behavior on the entity.
  */
+template <EntityBase T = Entity>
 impl::EffectObject<impl::FollowEffect>& StartFollow(
-	Entity entity, Entity target, const TargetFollowConfig& config = {}, bool force = true
-);
+	T& entity, Entity target, const TargetFollowConfig& config = {}, bool force = true
+) {
+	Entity base{ entity };
+
+	return impl::StartFollowImpl(
+		config, base, force,
+		[config, target](Entity e) {
+			T parent{ GetParent(e) };
+			if (config.teleport_on_start) {
+				SetPosition(parent, GetPosition(target));
+			}
+			impl::EntityFollowStartImpl<T>(parent, config);
+		},
+		[config, target](Entity e, float) { impl::TargetFollowImpl<T>(target, config, e); }
+	);
+}
 
 /**
  * @brief Starts a follow behavior where the entity follows a path of waypoints based on the
@@ -380,10 +617,13 @@ impl::EffectObject<impl::FollowEffect>& StartFollow(
  * started as long as waypoints have not changed or the end has not been reached (if
  * config.loop_path is false).
  */
+template <EntityBase T = Entity>
 impl::EffectObject<impl::FollowEffect>& StartFollow(
-	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config = {},
+	T& entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config = {},
 	bool force = true, bool reset_waypoint_index = false
-);
+) {
+	return impl::StartFollowPathImpl<T>(entity, waypoints, config, force, reset_waypoint_index);
+}
 
 /**
  * @brief Stops any active follow behavior on the specified entity.
@@ -394,6 +634,6 @@ impl::EffectObject<impl::FollowEffect>& StartFollow(
  * follow will continue where it started as long as waypoints have not changed or the end has not
  * been reached (if config.loop_path is false).
  */
-void StopFollow(Entity entity, bool force = true, bool reset_previous_waypoints = false);
+void StopFollow(Entity& entity, bool force = true, bool reset_previous_waypoints = false);
 
 } // namespace ptgn

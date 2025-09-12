@@ -24,6 +24,8 @@ if(MSVC)
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVCSetup.cmake")
 endif()
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ShaderSetup.cmake")
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -32,6 +34,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(json)
 
 target_link_libraries(protegon PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(protegon PUBLIC rc::shader)
 
 if(NOT EMSCRIPTEN)
   find_package(OpenGL REQUIRED)

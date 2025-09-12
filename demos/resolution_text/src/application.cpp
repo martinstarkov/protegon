@@ -27,32 +27,30 @@ class ResolutionTextScene : public Scene {
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 	Color color{ color::White };
 	FontSize font_size{ 20 };
-	V2_int center{ resolution / 2 };
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		LoadResource("background", "resources/bg.png");
-		game.renderer.SetLogicalResolution(resolution);
+		game.renderer.SetGameSize(resolution);
 
-		// TODO: Readd once debug stuff is drawn on top.
-		// CreateSprite(*this, "background", resolution / 2.0f);
+		CreateSprite(*this, "background", {});
 
 		text = CreateText(*this, content, color, font_size);
-		SetPosition(text, center - 2 * V2_float{ 0.0f, text.GetFontSize() });
+		SetPosition(text, -2 * V2_float{ 0.0f, text.GetFontSize() });
 		text.SetHD(false);
 
 		text_hd = CreateText(*this, content, color, font_size);
-		SetPosition(text_hd, center - 1 * V2_float{ 0.0f, text.GetFontSize() });
+		SetPosition(text_hd, 2 * V2_float{ 0.0f, text.GetFontSize() });
 	}
 
 	void Update() override {
-		DrawDebugText(
-			content, center - 0 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center,
-			font_size, false
+		game.renderer.DrawText(
+			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
+			{}, {}, {}, {}, false
 		);
-		DrawDebugText(
-			content, center + 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center,
-			font_size, true
+		game.renderer.DrawText(
+			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size, {},
+			{}, {}, {}, true
 		);
 	}
 };

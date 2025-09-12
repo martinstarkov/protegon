@@ -1,11 +1,11 @@
 #include "renderer/render_target.h"
 
 #include <functional>
+#include <string_view>
 #include <vector>
 
 #include "common/assert.h"
 #include "components/draw.h"
-#include "components/drawable.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -27,7 +27,8 @@ namespace ptgn {
 namespace impl {
 
 RenderTarget AddRenderTargetComponents(
-	const Entity& entity, const V2_int& size, const Color& clear_color, TextureFormat texture_format
+	const Entity& entity, Manager& manager, const V2_int& render_target_size, bool game_size_camera,
+	const Color& clear_color, TextureFormat texture_format
 ) {
 	PTGN_ASSERT(entity);
 
@@ -38,12 +39,16 @@ RenderTarget AddRenderTargetComponents(
 	render_target.Add<TextureHandle>();
 	render_target.Add<impl::DisplayList>();
 	render_target.Add<impl::ClearColor>(clear_color);
+	auto& camera{ render_target.Add<GameObject<Camera>>(CreateCamera(manager)) };
+	if (!game_size_camera) {
+		camera.SetViewport({}, render_target_size);
+	}
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
 	// TODO: Move frame buffer object to a FrameBufferManager.
 	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
-		nullptr, size, texture_format }) };
+		nullptr, render_target_size, texture_format }) };
 
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
@@ -53,22 +58,22 @@ RenderTarget AddRenderTargetComponents(
 	return render_target;
 }
 
-void LogicalRenderTargetResizeScript::OnLogicalResolutionChanged() {
-	auto logical_resolution{ game.renderer.GetLogicalResolution() };
-	RenderTarget{ entity }.Resize(logical_resolution);
+void GameResizeScript::OnGameSizeChanged() {
+	auto game_size{ game.renderer.GetGameSize() };
+	RenderTarget{ entity }.Resize(game_size);
 }
 
-void PhysicalRenderTargetResizeScript::OnPhysicalResolutionChanged() {
-	auto physical_resolution{ game.renderer.GetPhysicalResolution() };
-	RenderTarget{ entity }.Resize(physical_resolution);
+void DisplayResizeScript::OnDisplaySizeChanged() {
+	auto display_size{ game.renderer.GetDisplaySize() };
+	RenderTarget{ entity }.Resize(display_size);
 }
 
 } // namespace impl
 
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
-void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawTexture(ctx, entity, true);
+void RenderTarget::Draw(const Entity& entity) {
+	impl::DrawTexture(entity, true);
 }
 
 V2_int RenderTarget::GetTextureSize() const {
@@ -81,6 +86,16 @@ V2_int RenderTarget::GetSize() const {
 
 V2_float RenderTarget::GetDisplaySize() const {
 	return impl::GetDisplaySize(*this);
+}
+
+const Camera& RenderTarget::GetCamera() const {
+	PTGN_ASSERT(Has<GameObject<Camera>>());
+	return Get<GameObject<Camera>>();
+}
+
+Camera& RenderTarget::GetCamera() {
+	PTGN_ASSERT(Has<GameObject<Camera>>());
+	return Get<GameObject<Camera>>();
 }
 
 void RenderTarget::Bind() const {
@@ -112,7 +127,7 @@ void RenderTarget::ClearDisplayList() {
 	display_list.clear();
 }
 
-void RenderTarget::AddToDisplayList(Entity& entity) {
+void RenderTarget::AddToDisplayList(Entity entity) {
 	PTGN_ASSERT(entity, "Cannot add invalid entity to render target");
 	PTGN_ASSERT(HasDraw(entity), "Entity added to render target display list must be drawable");
 	// TODO: Consider allowing render targets to be rendered to other render targets.
@@ -127,7 +142,7 @@ void RenderTarget::AddToDisplayList(Entity& entity) {
 	entity.Add<RenderTarget>(*this);
 }
 
-void RenderTarget::RemoveFromDisplayList(Entity& entity) {
+void RenderTarget::RemoveFromDisplayList(Entity entity) {
 	PTGN_ASSERT(entity, "Cannot remove invalid entity from render target");
 	PTGN_ASSERT(HasDraw(entity), "Entity remove from render target display list must be drawable");
 	entity.Remove<RenderTarget>();
@@ -137,10 +152,12 @@ void RenderTarget::RemoveFromDisplayList(Entity& entity) {
 }
 
 const std::vector<Entity>& RenderTarget::GetDisplayList() const {
+	PTGN_ASSERT(Has<impl::DisplayList>());
 	return Get<impl::DisplayList>().entities;
 }
 
 std::vector<Entity>& RenderTarget::GetDisplayList() {
+	PTGN_ASSERT(Has<impl::DisplayList>());
 	return Get<impl::DisplayList>().entities;
 }
 
@@ -171,23 +188,44 @@ void RenderTarget::ForEachPixel(
 }
 
 void RenderTarget::Resize(const V2_int& size) {
+	if (auto camera{ TryGet<GameObject<Camera>>() }; camera && !camera->IsGameCamera()) {
+		Camera::Resize(*camera, size, true, true);
+	}
 	Get<impl::FrameBuffer>().GetTexture().Resize(size);
 }
 
+namespace impl {
+
+RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view filter_name) {
+	EntityAccess::Add<IDrawFilter>(render_target, filter_name);
+	return render_target;
+}
+
+} // namespace impl
+
+bool RenderTarget::HasDrawFilter() const {
+	return Has<impl::IDrawFilter>();
+}
+
+RenderTarget& RenderTarget::RemoveDrawFilter() {
+	impl::EntityAccess::Remove<impl::IDrawFilter>(*this);
+	return *this;
+}
+
 RenderTarget CreateRenderTarget(
-	Manager& manager, ResizeToResolution resize_to_resolution, const Color& clear_color,
-	TextureFormat texture_format
+	Manager& manager, ResizeMode resize_to_resolution, bool game_size_camera,
+	const Color& clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ manager.CreateEntity() };
 
 	V2_int resolution;
 
-	if (resize_to_resolution == ResizeToResolution::Physical) {
-		resolution = game.renderer.GetPhysicalResolution();
-		AddScript<impl::PhysicalRenderTargetResizeScript>(render_target);
-	} else if (resize_to_resolution == ResizeToResolution::Logical) {
-		resolution = game.renderer.GetLogicalResolution();
-		AddScript<impl::LogicalRenderTargetResizeScript>(render_target);
+	if (resize_to_resolution == ResizeMode::DisplaySize) {
+		resolution = game.renderer.GetDisplaySize();
+		AddScript<impl::DisplayResizeScript>(render_target);
+	} else if (resize_to_resolution == ResizeMode::GameSize) {
+		resolution = game.renderer.GetGameSize();
+		AddScript<impl::GameResizeScript>(render_target);
 	} else {
 		PTGN_ERROR("Unknown resize to resolution value");
 	}
@@ -196,8 +234,9 @@ RenderTarget CreateRenderTarget(
 		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
 	);
 
-	render_target =
-		impl::AddRenderTargetComponents(render_target, resolution, clear_color, texture_format);
+	render_target = impl::AddRenderTargetComponents(
+		render_target, manager, resolution, game_size_camera, clear_color, texture_format
+	);
 
 	PTGN_ASSERT(render_target);
 
@@ -207,9 +246,9 @@ RenderTarget CreateRenderTarget(
 RenderTarget CreateRenderTarget(
 	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format
 ) {
-	auto render_target{
-		impl::AddRenderTargetComponents(manager.CreateEntity(), size, clear_color, texture_format)
-	};
+	auto render_target{ impl::AddRenderTargetComponents(
+		manager.CreateEntity(), manager, size, false, clear_color, texture_format
+	) };
 	return render_target;
 }
 

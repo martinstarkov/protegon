@@ -94,7 +94,7 @@ bool ResourceManager<Derived, HandleType, ItemType>::Has(const HandleType& key) 
 template <typename Derived, typename HandleType, typename ItemType>
 const typename ResourceManager<Derived, HandleType, ItemType>::ResourceInfo&
 ResourceManager<Derived, HandleType, ItemType>::GetResourceInfo(const HandleType& key) const {
-	PTGN_ASSERT(Has(key), "Cannot get resource which has not been loaded: ", key);
+	PTGN_ASSERT(Has(key), "Cannot get resource which has not been loaded: ", key.GetKey());
 	return resources_.find(key)->second;
 }
 

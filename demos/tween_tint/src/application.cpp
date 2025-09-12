@@ -20,10 +20,10 @@ struct TintEffectScene : public Scene {
 		LoadResource("tree", "resources/tree.jpg");
 		LoadResource("smile", "resources/smile.png");
 
-		sprite1 = CreateSprite(*this, "tree", { 100, 100 });
-		sprite2 = CreateSprite(*this, "tree", { 100, 600 });
-		sprite3 = CreateSprite(*this, "tree", { 600, 100 });
-		sprite4 = CreateSprite(*this, "smile", { 600, 600 });
+		sprite1 = CreateSprite(*this, "tree", { -300, -300 });
+		sprite2 = CreateSprite(*this, "tree", { -300, 200 });
+		sprite3 = CreateSprite(*this, "tree", { 200, -300 });
+		sprite4 = CreateSprite(*this, "smile", { 200, 200 });
 
 		TintTo(sprite1, color::Red, milliseconds{ 4000 }, SymmetricalEase::Linear);
 		TintTo(sprite1, color::White, milliseconds{ 1000 }, SymmetricalEase::Linear, false);
@@ -46,7 +46,7 @@ struct TintEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TintEffectScene: left/right click to tint/untint");
+	game.Init("TintEffectScene: left/right: tint/untint");
 	game.scene.Enter<TintEffectScene>("");
 	return 0;
 }

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <cstdlib>
+#include <stdexcept>
 
-#include "debug/debugging.h"
+#include "debug/config.h"
+#include "debug/debug_break.h"
 #include "debug/log.h"
 
 #ifdef PTGN_DEBUG

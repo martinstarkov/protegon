@@ -6,20 +6,15 @@
 #include "components/draw.h"
 #include "components/transform.h"
 #include "core/entity.h"
-#include "math/geometry.h"
 #include "math/vector2.h"
-#include "rect.h"
 #include "renderer/api/origin.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
 Rect::Rect(const V2_float& min, const V2_float& max) : min{ min }, max{ max } {}
 
-Rect::Rect(const V2_float& size) : min{ -size * 0.5f }, max{ size * 0.5f } {}
-
-void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawRect(ctx, entity);
+void Rect::Draw(const Entity& entity) {
+	impl::DrawRect(entity);
 }
 
 V2_float Rect::GetSize() const {
@@ -27,7 +22,7 @@ V2_float Rect::GetSize() const {
 }
 
 V2_float Rect::GetSize(const Transform& transform) const {
-	return GetSize() * transform.GetScale();
+	return GetSize() * Abs(transform.GetScale());
 }
 
 Transform Rect::Offset(const Transform& transform, Origin draw_origin) const {
@@ -42,7 +37,7 @@ Transform Rect::Offset(const Transform& transform, Origin draw_origin) const {
 
 std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform) const {
 	auto local_vertices{ GetLocalVertices() };
-	return ApplyTransform(local_vertices, transform);
+	return transform.Apply(local_vertices);
 }
 
 std::array<V2_float, 4> Rect::GetLocalVertices() const {
@@ -50,12 +45,11 @@ std::array<V2_float, 4> Rect::GetLocalVertices() const {
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }
 
-std::array<V2_float, 4> Rect::GetWorldVertices(
-	const Transform& transform, Origin draw_origin
-) const {
-	auto offset{ Offset(transform, draw_origin) };
+std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform, Origin draw_origin)
+	const {
+	auto offset_transform{ Offset(transform, draw_origin) };
 	auto local_vertices{ GetLocalVertices() };
-	return ApplyTransform(local_vertices, offset);
+	return offset_transform.Apply(local_vertices);
 }
 
 V2_float Rect::GetCenter(const Transform& transform) const {

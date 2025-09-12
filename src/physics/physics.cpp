@@ -3,6 +3,7 @@
 #include "common/assert.h"
 #include "components/movement.h"
 #include "components/transform.h"
+#include "core/entity.h"
 #include "core/game.h"
 #include "core/manager.h"
 #include "debug/log.h"
@@ -120,7 +121,13 @@ void Physics::PostCollisionUpdate(Scene& scene) const {
 
 		// Enforce world boundary behavior for the positions.
 
-		HandleBoundary(transform, rigid_body.velocity, min_bounds, max_bounds, boundary_behavior_);
+		BoundaryBehavior behavior{ boundary_behavior_ };
+
+		if (entity.Has<BoundaryBehavior>()) {
+			behavior = entity.Get<BoundaryBehavior>();
+		}
+
+		HandleBoundary(transform, rigid_body.velocity, min_bounds, max_bounds, behavior);
 	}
 
 	scene.Refresh();
@@ -132,7 +139,15 @@ void Physics::HandleBoundary(
 ) {
 	const V2_float position{ transform.GetPosition() };
 	switch (behavior) {
-		case BoundaryBehavior::StopAtBounds: {
+		case BoundaryBehavior::StopVelocity: {
+			V2_float clamped_position{ Clamp(position, min_bound, max_bound) };
+			if (clamped_position != position) {
+				velocity = {};
+			}
+			transform.SetPosition(clamped_position);
+			break;
+		}
+		case BoundaryBehavior::SlideVelocity: {
 			V2_float clamped_position{ Clamp(position, min_bound, max_bound) };
 			transform.SetPosition(clamped_position);
 			break;

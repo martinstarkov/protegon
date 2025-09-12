@@ -10,7 +10,6 @@
 namespace ptgn {
 
 enum class Origin {
-	Invalid = -1,
 	Center,
 	TopLeft,
 	CenterTop,
@@ -42,7 +41,6 @@ inline std::ostream& operator<<(std::ostream& os, Origin origin) {
 		case Origin::BottomLeft:   os << "Bottom Left"; break;
 		case Origin::CenterBottom: os << "Center Bottom"; break;
 		case Origin::BottomRight:  os << "Bottom Right"; break;
-		case Origin::Invalid:	   [[fallthrough]];
 		default:				   PTGN_ERROR("Invalid origin");
 	}
 
@@ -50,8 +48,7 @@ inline std::ostream& operator<<(std::ostream& os, Origin origin) {
 }
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	Origin, { { Origin::Invalid, nullptr },
-			  { Origin::Center, "center" },
+	Origin, { { Origin::Center, "center" },
 			  { Origin::TopLeft, "top_left" },
 			  { Origin::CenterTop, "center_top" },
 			  { Origin::TopRight, "top_right" },

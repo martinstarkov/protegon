@@ -99,10 +99,6 @@ V2_int Window::GetSize() const {
 	return size;
 }
 
-V2_float Window::GetCenter() const {
-	return GetSize() / 2.0f;
-}
-
 void Window::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
 }
@@ -212,6 +208,18 @@ bool Window::GetSetting(WindowSetting setting) const {
 		case WindowSetting::Minimized:	return flags & SDL_WINDOW_MINIMIZED;
 		default:						PTGN_ERROR("Cannot retrieve unrecognized window setting");
 	}
+}
+
+void Window::SetResizable() const {
+	SetSetting(WindowSetting::Resizable);
+}
+
+void Window::SetFixedSize() const {
+	SetSetting(WindowSetting::FixedSize);
+}
+
+void Window::SetFullscreen() const {
+	SetSetting(WindowSetting::Fullscreen);
 }
 
 } // namespace impl

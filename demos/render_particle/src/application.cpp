@@ -9,6 +9,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "renderer/vfx/particle.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -58,7 +59,7 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		p = CreateParticleEmitter(*this);
 
 		p.SetMaxParticles(1000);
@@ -69,8 +70,10 @@ public:
 		p.SetEmissionDelay(milliseconds{ 1 });
 		p.Start();
 
-		CreateFixedEmitter({ 400.0f, 300.0f }, color::Orange, color::Red);
-		CreateFixedEmitter({ 500.0f, 500.0f }, color::Cyan, color::Magenta);
+		V2_float ws{ game.renderer.GetGameSize() };
+
+		CreateFixedEmitter(-ws * 0.5f + V2_float{ 400, 300 }, color::Orange, color::Red);
+		CreateFixedEmitter(-ws * 0.5f + V2_float{ 500, 500 }, color::Cyan, color::Magenta);
 
 		grid.Set({ 0, 0 }, CreateParticleButton("Switch Particle Shape", [=]() {
 					 int shape{ static_cast<int>(p.GetShape()) };
@@ -93,7 +96,7 @@ public:
 		V2_int size{ 200, 90 };
 
 		grid.ForEach([&](auto coord, Button& b) {
-			SetPosition(b, coord * size + (coord + V2_int{ 1, 1 }) * offset);
+			SetPosition(b, -ws * 0.5f + coord * size + (coord + V2_int{ 1, 1 }) * offset);
 			b.SetSize(size);
 			SetDrawOrigin(b, Origin::TopLeft);
 		});

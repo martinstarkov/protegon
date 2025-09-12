@@ -308,7 +308,7 @@ Animation CreateAnimation(
 	auto texture_size{ texture_key.GetSize() };
 
 	if (frame_size.IsZero()) {
-		frame_size = { texture_size.x / frame_count, texture_size.y };
+		frame_size = { static_cast<std::size_t>(texture_size.x) / frame_count, texture_size.y };
 	}
 
 	const auto& anim = animation.Add<impl::AnimationInfo>(

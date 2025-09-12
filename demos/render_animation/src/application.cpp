@@ -65,7 +65,7 @@ public:
 		// CreateAnimation(*this, "anim3", GetPosition(camera), 16, milliseconds{ 1000 },
 		// V2_int{ 512, 512 }, -1, {});
 		animation = CreateAnimation(
-			*this, "anim2", GetPosition(camera), 16, milliseconds{ 4000 }, V2_int{ 512, 512 }, -1,
+			*this, "anim2", GetPosition(camera), 16, milliseconds{ 2000 }, V2_int{ 512, 512 }, -1,
 			{}
 		);
 		AddScript<MyAnimationScript1>(animation);

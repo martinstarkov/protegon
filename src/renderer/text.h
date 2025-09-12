@@ -12,6 +12,7 @@
 #include "renderer/api/origin.h"
 #include "renderer/font.h"
 #include "renderer/texture.h"
+#include "scene/camera.h"
 #include "serialization/enum.h"
 #include "serialization/serializable.h"
 
@@ -24,12 +25,11 @@ class Text;
 
 namespace impl {
 
-class RenderData;
 struct ButtonText;
 
 void DrawText(
-	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
-	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+	Text text, const V2_int& text_size, const Camera& camera, const Color& additional_tint,
+	Origin offset_origin, const V2_float& offset_size
 );
 
 struct HDText : public BoolComponent {
@@ -110,7 +110,7 @@ public:
 
 	Text(const Entity& entity);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	[[nodiscard]] impl::Texture CreateTexture(const FontSize& font_size) const;
 
@@ -121,7 +121,7 @@ public:
 	);
 
 	// Set text to be in high definition instead of natively scaling to its camera.
-	Text& SetHD(bool hd = true);
+	Text& SetHD(bool hd = true, const Camera& camera = {});
 	[[nodiscard]] bool IsHD() const;
 
 	// @param font_key Default: "" corresponds to the default engine font (use
@@ -164,16 +164,25 @@ public:
 	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
 	[[nodiscard]] Color GetShadingColor() const;
 	[[nodiscard]] TextJustify GetTextJustify() const;
+
 	// @param hd If true, returns font size scaled to high definition.
-	[[nodiscard]] FontSize GetFontSize(bool hd = false) const;
+	// @param camera The camera relative to which an hd font size is retrieved. Only applicable if
+	// hd is true. If {}, uses the text's camera component, which may be the scene camera.
+	[[nodiscard]] FontSize GetFontSize(bool hd = false, const Camera& camera = {}) const;
 
+	// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
+	// text is hd. If {}, uses the text's camera component, which may be the scene camera.
 	// @return The unscaled size of the text texture given the current content and font.
-	[[nodiscard]] V2_int GetSize() const;
+	[[nodiscard]] V2_int GetSize(const Camera& camera = {}) const;
 
+	// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
+	// text is hd. If {}, uses the text's camera component, which may be the scene camera.
 	// @return The unscaled size of the text texture given the specified content.
-	[[nodiscard]] V2_int GetSize(const TextContent& content) const;
+	[[nodiscard]] V2_int GetSize(const TextContent& content, const Camera& camera = {}) const;
 
-	[[nodiscard]] static V2_int GetSize(const Entity& text);
+	// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
+	// text is hd. If {}, uses the text's camera component, which may be the scene camera.
+	[[nodiscard]] static V2_int GetSize(const Entity& text, const Camera& camera = {});
 
 	[[nodiscard]] static V2_int GetSize(
 		const TextContent& content, const ResourceHandle& font_key, const FontSize& font_size = {}
@@ -181,7 +190,7 @@ public:
 
 	[[nodiscard]] TextProperties GetProperties() const;
 
-	void SetProperties(const TextProperties& properties);
+	void SetProperties(const TextProperties& properties, const Camera& camera = {});
 
 	// @return True if the parameter was changed.
 	template <TextParameter T>
@@ -189,31 +198,36 @@ public:
 		if (!Has<T>()) {
 			Add<T>(value);
 			if (recreate_texture) {
-				RecreateTexture();
+				RecreateTexture({});
 			}
 			return true;
 		}
 		T& t{ Get<T>() };
 		if (t == value) {
+			if (recreate_texture) {
+				RecreateTexture({});
+			}
 			return false;
 		}
 		t = value;
 		if (recreate_texture) {
-			RecreateTexture();
+			RecreateTexture({});
 		}
 		return true;
 	}
 
-	void SetProperties(const TextProperties& properties, bool recreate_texture);
+	void SetProperties(
+		const TextProperties& properties, bool recreate_texture, const Camera& camera = {}
+	);
 
 private:
 	friend void impl::DrawText(
-		impl::RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
-		const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+		Text text, const V2_int& text_size, const Camera& camera, const Color& additional_tint,
+		Origin offset_origin, const V2_float& offset_size
 	);
 
 	// Using own properties.
-	void RecreateTexture();
+	void RecreateTexture(const Camera& camera);
 
 	// Using custom properties.
 	void RecreateTexture(

@@ -12,6 +12,7 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/window.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -24,13 +25,12 @@
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 V2_float ws;
 
@@ -134,12 +134,12 @@ public:
 		SetTint(overlap, color::Orange);
 		SetTint(overlap_circle, color::Orange);
 
-		SetPosition(intersect, V2_float{ 100, 100 });
-		SetPosition(overlap, V2_float{ 200, 200 });
-		SetPosition(sweep, V2_float{ 300, 300 });
-		SetPosition(intersect_circle, V2_float{ 400, 400 });
-		SetPosition(overlap_circle, V2_float{ 500, 500 });
-		SetPosition(sweep_circle, V2_float{ 300, 600 });
+		SetPosition(intersect, -resolution * 0.5f + V2_float{ 100, 100 });
+		SetPosition(overlap, -resolution * 0.5f + V2_float{ 200, 200 });
+		SetPosition(sweep, -resolution * 0.5f + V2_float{ 300, 300 });
+		SetPosition(intersect_circle, -resolution * 0.5f + V2_float{ 400, 400 });
+		SetPosition(overlap_circle, -resolution * 0.5f + V2_float{ 500, 500 });
+		SetPosition(sweep_circle, -resolution * 0.5f + V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
@@ -240,13 +240,13 @@ public:
 		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
 			auto transform{ GetAbsoluteTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
-				DrawDebugText("Intersect", transform.GetPosition(), text_color);
+				game.debug.DrawText("Intersect", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Overlap) {
-				DrawDebugText("Overlap", transform.GetPosition(), text_color);
+				game.debug.DrawText("Overlap", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Continuous) {
-				DrawDebugText("Sweep", transform.GetPosition(), text_color);
+				game.debug.DrawText("Sweep", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::None) {
-				DrawDebugText("None", transform.GetPosition(), text_color);
+				game.debug.DrawText("None", transform.GetPosition(), text_color);
 			}
 		}
 	}
@@ -1394,7 +1394,7 @@ struct SweepTest : public CollisionTest {
 
 	void Draw() override {
 
-		V2_int grid_size = game.window.GetSize() / size;
+		V2_int grid_size = game.renderer.GetGameSize() / size;
 
 		for (std::size_t i = 0; i < grid_size.x; i++) {
 			for (std::size_t j = 0; j < grid_size.y; j++) {
@@ -1514,7 +1514,6 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	using Id = std::size_t;
 
 	explicit DynamicRectCollisionTest(float speed) : speed{ speed } {
-		ws = game.window.GetSize();
 	}
 
 	void CreateDynamicEntity(
@@ -1732,8 +1731,6 @@ public:
 	std::vector<std::shared_ptr<CollisionTest>> tests;
 
 	void Enter() override {
-		ws = game.window.GetSize();
-
 		// TODO: Rework this whole test thing.
 		tests.emplace_back(new CollisionCallbackTest());
 		/*
@@ -1767,7 +1764,6 @@ public:
 	}
 
 	void Update() override {
-		ws = game.window.GetSize();
 		if (input.KeyDown(Key::Left)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test--;
@@ -1785,7 +1781,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CollisionScene:  Arrow keys to flip between tests", window_size);
+	game.Init("CollisionScene:  Arrow keys to flip between tests", resolution);
 	game.scene.Enter<CollisionScene>("");
 	return 0;
 }

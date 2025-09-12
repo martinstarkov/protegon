@@ -16,7 +16,8 @@ class Game;
 } // namespace impl
 
 enum class BoundaryBehavior {
-	StopAtBounds,	// Prevent movement beyond world bounds (clamp/stop position)
+	StopVelocity,	// Clamp position and stop velocity.
+	SlideVelocity,	// Clamp position and do not change velocity.
 	ReflectVelocity // Bounce off bounds by flipping velocity
 };
 
@@ -27,7 +28,7 @@ public:
 	// Default values of {} result in no boundary enforcement.
 	void SetBounds(
 		const V2_float& top_left_position = {}, const V2_float& size = {},
-		BoundaryBehavior behavior = BoundaryBehavior::StopAtBounds
+		BoundaryBehavior behavior = BoundaryBehavior::SlideVelocity
 	);
 
 	[[nodiscard]] V2_float GetGravity() const;
@@ -62,12 +63,13 @@ private:
 	bool enabled_{ true };
 	V2_float bounds_top_left_;
 	V2_float bounds_size_;
-	BoundaryBehavior boundary_behavior_{ BoundaryBehavior::StopAtBounds };
+	BoundaryBehavior boundary_behavior_{ BoundaryBehavior::SlideVelocity };
 	V2_float gravity_{ 0.0f, 0.0f };
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	BoundaryBehavior, { { BoundaryBehavior::StopAtBounds, "stop_at_bounds" },
+	BoundaryBehavior, { { BoundaryBehavior::StopVelocity, "stop_velocity" },
+						{ BoundaryBehavior::SlideVelocity, "slide_velocity" },
 						{ BoundaryBehavior::ReflectVelocity, "reflect_velocity" } }
 );
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <concepts>
+#include <ranges>
 #include <vector>
 
 #include "components/drawable.h"
@@ -21,11 +23,13 @@ struct Polygon {
 	Polygon() = default;
 
 	template <typename Container>
-	explicit Polygon(const Container& points) {
+		requires std::ranges::input_range<Container> &&
+				 std::convertible_to<std::ranges::range_value_t<Container>, V2_float>
+	Polygon(const Container& points) {
 		vertices.assign(points.begin(), points.end());
 	}
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	[[nodiscard]] std::vector<V2_float> GetWorldVertices(const Transform& transform) const;
 

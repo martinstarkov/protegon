@@ -13,10 +13,12 @@
 #include "components/generic.h"
 #include "core/entity.h"
 #include "core/game.h"
-#include "debug/debugging.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "debug/stats.h"
 #include "math/vector2.h"
+#include "math/vector4.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
 #include "renderer/buffers/frame_buffer.h"
@@ -313,7 +315,7 @@ void Texture::BindId(TextureId id) {
 	/*PTGN_LOG("GL: Bound texture with id ", id, " to slot: ", GetActiveSlot());*/
 	GLCall(glBindTexture(static_cast<GLenum>(TextureTarget::Texture2D), id));
 #ifdef PTGN_DEBUG
-	++game.stats.texture_binds;
+	++game.debug.stats.texture_binds;
 #endif
 #ifdef GL_ANNOUNCE_TEXTURE_CALLS
 	PTGN_LOG("GL: Bound texture with id ", id);
@@ -562,8 +564,6 @@ void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)
 	}
 }
 
-/*
-// TODO: Include in texture:
 void Texture::SetClampBorderColor(const Color& color) const {
 	PTGN_ASSERT(IsValid(), "Cannot set clamp border color of invalid or uninitialized texture");
 
@@ -581,7 +581,6 @@ void Texture::SetClampBorderColor(const Color& color) const {
 
 	Texture::BindId(restore_id);
 }
-*/
 
 } // namespace impl
 

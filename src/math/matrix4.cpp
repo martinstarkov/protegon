@@ -4,6 +4,7 @@
 #include <functional>
 
 #include "common/assert.h"
+#include "components/transform.h"
 #include "math/tolerance.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
@@ -12,17 +13,17 @@
 
 namespace ptgn {
 
-void to_json(json& j, const Matrix4& m) {
-	if (m != Matrix4{}) {
-		j = m.m_;
+void to_json(json& j, const Matrix4& matrix) {
+	if (matrix != Matrix4{}) {
+		j = matrix.m_;
 	}
 }
 
-void from_json(const json& j, Matrix4& m) {
+void from_json(const json& j, Matrix4& matrix) {
 	if (j.empty()) {
-		m = {};
+		matrix = {};
 	} else {
-		j.get_to(m.m_);
+		j.get_to(matrix.m_);
 	}
 }
 
@@ -54,49 +55,10 @@ Matrix4 Matrix4::Identity() {
 	return Matrix4{ 1.0f };
 }
 
-Matrix4 Matrix4::Orthographic(
-	float left, float right, float bottom, float top, float near, float far
-) {
-	Matrix4 o;
-
-	float depth{ far - near };
-	float horizontal{ right - left };
-	float vertical{ top - bottom };
-
-	PTGN_ASSERT(!NearlyEqual(depth, 0.0f), "Orthographic matrix depth cannot be zero");
-	PTGN_ASSERT(!NearlyEqual(horizontal, 0.0f), "Orthographic matrix horizontal cannot be zero");
-	PTGN_ASSERT(!NearlyEqual(vertical, 0.0f), "Orthographic matrix vertical cannot be zero");
-
-	o[0]  = 2.0f / horizontal;
-	o[5]  = 2.0f / vertical;
-	o[10] = -2.0f / depth; // -1 by default
-	o[12] = -(right + left) / horizontal;
-	o[13] = -(top + bottom) / vertical;
-	float plane_sum{ far + near };
-
-	if (std::isnan(plane_sum)) {
-		plane_sum = 0.0f;
-	}
-
-	o[14] = -plane_sum / depth; // 0 by default
-	o[15] = 1.0f;
-
-	PTGN_ASSERT(
-		std::invoke([&]() -> bool {
-			for (std::size_t i{ 0 }; i < o.length; i++) {
-				if (std::isnan(o[i]) || std::isinf(o[i])) {
-					return false;
-				}
-			}
-			return true;
-		}),
-		"Failed to create valid orthographic matrix"
-	);
-
-	return o;
-}
-
 Matrix4 Matrix4::Inverse() const {
+	// From:
+	// https://github.com/g-truc/glm/blob/33b4a621a697a305bc3a7610d290677b96beb181/glm/detail/func_matrix.inl#L388
+
 	float coef00{ m_[10] * m_[15] - m_[14] * m_[11] };
 	float coef02{ m_[6] * m_[15] - m_[14] * m_[7] };
 	float coef03{ m_[6] * m_[11] - m_[10] * m_[7] };
@@ -148,6 +110,108 @@ Matrix4 Matrix4::Inverse() const {
 	return result;
 }
 
+Matrix4 Matrix4::MakeTransform(
+	const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
+	const Vector3<float>& scale
+) {
+	Matrix4 m{ Matrix4::Identity() };
+
+	m = Matrix4::Scale(m, scale);
+	m = Matrix4::Rotate(m, rotation_radians, rotation_axis);
+	m = Matrix4::Translate(m, position);
+
+	return m;
+}
+
+Matrix4 Matrix4::MakeTransform(
+	const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
+) {
+	return MakeTransform(
+		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
+		{ scale.x, scale.y, 1.0f }
+	);
+}
+
+Matrix4 Matrix4::MakeTransform(const Transform& transform) {
+	return MakeTransform(transform.GetPosition(), transform.GetRotation(), transform.GetScale());
+}
+
+Matrix4 Matrix4::MakeInverseTransform(
+	const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
+	const Vector3<float>& scale
+) {
+	PTGN_ASSERT(!scale.HasZero(), "Cannot get inverse transform with zero scale");
+
+	Matrix4 m{ Matrix4::Identity() };
+
+	m = Matrix4::Scale(m, 1.0f / scale);
+	m = Matrix4::Rotate(m, -rotation_radians, rotation_axis);
+	m = Matrix4::Translate(m, -position);
+
+	return m;
+}
+
+Matrix4 Matrix4::MakeInverseTransform(
+	const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
+) {
+	return MakeInverseTransform(
+		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
+		{ scale.x, scale.y, 1.0f }
+	);
+}
+
+Matrix4 Matrix4::MakeInverseTransform(const Transform& transform) {
+	return MakeInverseTransform(
+		transform.GetPosition(), transform.GetRotation(), transform.GetScale()
+	);
+}
+
+Matrix4 Matrix4::Orthographic(
+	float left, float right, float bottom, float top, float near, float far
+) {
+	Matrix4 o;
+
+	float depth{ far - near };
+	float horizontal{ right - left };
+	float vertical{ top - bottom };
+
+	PTGN_ASSERT(!NearlyEqual(depth, 0.0f), "Orthographic matrix depth cannot be zero");
+	PTGN_ASSERT(!NearlyEqual(horizontal, 0.0f), "Orthographic matrix horizontal cannot be zero");
+	PTGN_ASSERT(!NearlyEqual(vertical, 0.0f), "Orthographic matrix vertical cannot be zero");
+
+	o[0]  = 2.0f / horizontal;
+	o[5]  = 2.0f / vertical;
+	o[10] = -2.0f / depth; // -1 by default
+	o[12] = -(right + left) / horizontal;
+	o[13] = -(top + bottom) / vertical;
+	float plane_sum{ far + near };
+
+	if (std::isnan(plane_sum)) {
+		plane_sum = 0.0f;
+	}
+
+	o[14] = -plane_sum / depth; // 0 by default
+	o[15] = 1.0f;
+
+	PTGN_ASSERT(
+		std::invoke([&]() -> bool {
+			for (std::size_t i{ 0 }; i < o.length; i++) {
+				if (std::isnan(o[i]) || std::isinf(o[i])) {
+					return false;
+				}
+			}
+			return true;
+		}),
+		"Failed to create valid orthographic matrix"
+	);
+
+	return o;
+}
+
+Matrix4 Matrix4::Orthographic(const V2_float& min, const V2_float& max, float near, float far) {
+	return Orthographic(min.x, max.x, max.y, min.y, near, far);
+}
+
 Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float front, float back) {
 	float tangent{ std::tan(fov_x_radians / 2.0f) }; // tangent of half fovX
 	float right{ front * tangent };					 // half width of near plane
@@ -176,9 +240,9 @@ Matrix4 Matrix4::Translate(const Matrix4& m, const Vector3<float>& axes) {
 	return result;
 }
 
-Matrix4 Matrix4::Rotate(const Matrix4& matrix, float angle_radians, const Vector3<float>& axes) {
-	const float c{ std::cos(angle_radians) };
-	const float s{ std::sin(angle_radians) };
+Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, const Vector3<float>& axes) {
+	const float c{ std::cos(rotation_radians) };
+	const float s{ std::sin(rotation_radians) };
 
 	float magnitude{ axes.Dot(axes) };
 

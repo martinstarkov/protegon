@@ -4,54 +4,52 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
-#include <utility>
+#include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
 #include "components/draw.h"
 #include "components/effects.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/manager.h"
+#include "core/resolution.h"
+#include "core/script.h"
+#include "core/script_interfaces.h"
 #include "core/time.h"
 #include "core/timer.h"
-#include "math/geometry/line.h"
+#include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/api/vertex.h"
-#include "renderer/buffers/buffer_layout.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/buffers/vertex_array.h"
-#include "renderer/gl/gl_types.h"
 #include "renderer/render_target.h"
 #include "renderer/texture.h"
-#include "scene/camera.h"
+#include "serialization/enum.h"
 #include "serialization/serializable.h"
-
-#define HDR_ENABLED 0
 
 namespace ptgn {
 
 class Camera;
 class Shader;
 class Scene;
-struct Matrix4;
 
-// How the renderer resolution is scaled to the window size.
-enum class LogicalResolutionMode {
-	Disabled,  /**< There is no scaling in effect */
-	Stretch,   /**< The rendered content is stretched to the output resolution */
-	Letterbox, /**< The rendered content is fit to the largest dimension and the other dimension is
-				  letterboxed with black bars */
-	Overscan,  /**< The rendered content is fit to the smallest dimension and the other dimension
-				  extends beyond the output bounds */
-	IntegerScale, /**< The rendered content is scaled up by integer multiples to fit the output
-					 resolution */
-};
+struct Matrix4;
+struct Capsule;
+struct Arc;
+struct Circle;
+struct Ellipse;
+struct RoundedRect;
+struct Rect;
+struct Line;
+struct Polygon;
+struct Triangle;
 
 struct Viewport {
 	Viewport() = default;
@@ -62,14 +60,14 @@ struct Viewport {
 
 	bool operator==(const Viewport&) const = default;
 
-	PTGN_SERIALIZER_REGISTER(Viewport, position, size);
+	PTGN_SERIALIZER_REGISTER(Viewport, position, size)
 };
 
-namespace impl {
+constexpr BlendMode default_blend_mode{ BlendMode::Blend };
+constexpr Origin default_origin{ Origin::Center };
+constexpr TextureFormat default_texture_format{ TextureFormat::RGBA8888 };
 
-class InputHandler;
-class Renderer;
-class SceneManager;
+namespace impl {
 
 struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
 	void OnWindowResized() override;
@@ -78,25 +76,9 @@ struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> 
 using Index			= std::uint32_t;
 using TextureOrSize = std::variant<std::reference_wrapper<const Texture>, V2_int>;
 
-constexpr std::array<V2_float, 4> default_texture_coordinates{
-	V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
-};
-
-constexpr inline const BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::float_>
-	quad_vertex_layout;
-
 constexpr std::size_t batch_capacity{ 10000 };
 constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
-
-[[nodiscard]] std::array<Vertex, 3> GetTriangleVertices(
-	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
-);
-
-[[nodiscard]] std::array<Vertex, 4> GetQuadVertices(
-	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
-	float texture_index, std::array<V2_float, 4> texture_coordinates, bool flip_vertices = false
-);
 
 using UniformCallback = void (*)(Entity, const Shader&);
 
@@ -104,7 +86,11 @@ class ShaderPass {
 public:
 	ShaderPass() = default;
 
-	ShaderPass(const Shader& shader, UniformCallback uniform_callback = nullptr);
+	ShaderPass(const Shader& shader, const UniformCallback& uniform_callback = nullptr);
+
+	ShaderPass(std::string_view shader_name, const UniformCallback& uniform_callback = nullptr);
+
+	ShaderPass(const char* shader_name);
 
 	[[nodiscard]] const Shader& GetShader() const;
 
@@ -126,26 +112,21 @@ public:
 		const PostFX& post_fx = {}
 	);
 
+	// @return True if the render state is set, false if it has been reset (no shader pass
+	// specified).
+	[[nodiscard]] bool IsSet() const;
+
 	bool operator==(const RenderState&) const = default;
 
-	ShaderPass shader_pass;
-	BlendMode blend_mode{ BlendMode::None };
+	// std::nullopt = reset RenderState; ShaderPass{} == Quad shader.
+	std::optional<ShaderPass> shader_pass{ ShaderPass{} };
+	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 	Camera camera;
 	PostFX post_fx;
 };
 
-struct ShapeDrawInfo {
-	explicit ShapeDrawInfo(const Entity& entity);
-
-	Transform transform;
-	Color tint;
-	Depth depth;
-	LineWidth line_width;
-	RenderState state;
-};
-
 struct DrawContext {
-	DrawContext(const V2_int& size);
+	DrawContext(const V2_int& size, TextureFormat texture_format);
 
 	FrameBuffer frame_buffer;
 
@@ -169,7 +150,7 @@ public:
 
 	// Retrieve a framebuffer of the given size.
 	// Size must be positive and non-zero.
-	std::shared_ptr<DrawContext> Get(V2_int size);
+	std::shared_ptr<DrawContext> Get(V2_int size, TextureFormat texture_format);
 
 	// Clear and destroy all pooled framebuffers.
 	void Clear();
@@ -182,121 +163,99 @@ private:
 	milliseconds max_age_{ 0 };
 };
 
+struct DrawTarget {
+	Viewport viewport;
+	V2_int texture_size;
+	TextureId texture_id{ 0 };
+	TextureFormat texture_format{ TextureFormat::RGBA8888 };
+	// TODO: Use something other than pointer here.
+	const FrameBuffer* frame_buffer{ nullptr };
+	std::array<V2_float, 4> points{};
+	Depth depth;
+	Tint tint;
+	Matrix4 view_projection{ 1.0f };
+	BlendMode blend_mode{};
+};
+
+struct DrawShapeCommand {
+	Shape shape;
+	Transform transform;
+	Tint tint;
+	Depth depth;
+	LineWidth line_width;
+	Origin origin{ default_origin };
+	RenderState render_state;
+};
+
+struct DrawLinesCommand {
+	std::vector<V2_float> points;
+	bool connect_last_to_first{ false };
+	Transform transform;
+	Tint tint;
+	Depth depth;
+	LineWidth line_width;
+	RenderState render_state;
+};
+
+struct DrawTextureCommand {
+	TextureId texture_id{ 0 };
+	V2_int texture_size;
+	TextureFormat texture_format{ default_texture_format };
+	Rect rect;
+	Transform transform;
+	std::array<V2_float, 4> texture_coordinates{ GetDefaultTextureCoordinates() };
+	Origin origin{ default_origin };
+	Tint tint;
+	Depth depth;
+	PreFX pre_fx;
+	RenderState render_state;
+};
+
+struct DrawShaderCommand {
+	BlendMode intermediate_blend_mode{ default_blend_mode };
+	bool clear_between_consecutive_calls{ true };
+	TextureFormat texture_format{ default_texture_format };
+	// If V2_int{} uses drawing to render target viewport size. If Texture, uses texture size.
+	TextureOrSize texture_or_size{ V2_int{} };
+	Color target_clear_color{ color::Transparent };
+	Depth depth;
+	// Entity passed to render_state.shader_pass.uniform_callback. Can be {}.
+	Entity entity;
+	RenderState render_state;
+};
+
+using DrawCommand =
+	std::variant<DrawShapeCommand, DrawLinesCommand, DrawTextureCommand, DrawShaderCommand>;
+
+inline constexpr float min_line_width{ 1.0f };
+inline constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
+inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
+
 class RenderData {
 public:
-	void AddPoint(
-		const V2_float& position, const Color& tint, const Depth& depth, const RenderState& state
-	);
-
-	void AddLine(
-		const V2_float& start, const V2_float& end, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddLines(
-		const std::vector<V2_float>& line_points, const Color& tint, const Depth& depth,
-		float line_width, bool connect_last_to_first, const RenderState& state
-	);
-
-	void AddTriangle(
-		const std::array<V2_float, 3>& triangle_points, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddQuad(
-		const Transform& transform, const V2_float& size, Origin origin, const Color& tint,
-		const Depth& depth, float line_width, const RenderState& state
-	);
-
-	void AddPolygon(
-		const std::vector<V2_float>& polygon_points, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddEllipse(
-		const Transform& transform, const V2_float& radii, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddCircle(
-		const Transform& transform, float radius, const Color& tint, const Depth& depth,
-		float line_width, const RenderState& state
-	);
-
-	void AddTexturedQuad(
-		const Texture& texture, Transform transform, const V2_float& size, Origin origin,
-		const Color& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates,
-		const RenderState& state, const PreFX& pre_fx = {}
-	);
-
-	// @param texture_or_size If texture, uses texture size, otherwise uses the V2_int size or the
-	// scene render target size (physical resolution).
-	// @param clear_between_consecutive_calls Will clear the intermediate render target between
-	// consecutive calls. This prevents stacking of shader calls onto the same target. An example of
-	// where this is not desired is when rendering many lights back to back. Does not apply if a
-	// texture is used.
-	void AddShader(
-		Entity entity, const RenderState& render_state, const Color& target_clear_color,
-		const TextureOrSize& texture_or_size = V2_int{}, bool clear_between_consecutive_calls = true
-	);
+	void Submit(const DrawCommand& command);
 
 	void AddTemporaryTexture(Texture&& texture);
 
-private:
-	friend class SceneManager;
-	friend class ptgn::Scene;
-	friend class Renderer;
-	friend class ptgn::Camera;
-	friend struct ViewportResizeScript;
-	friend class InputHandler;
+	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
 
-	struct DrawTarget {
-		Viewport viewport;
-		V2_int texture_size;
-		TextureId texture_id{ 0 };
-		const FrameBuffer* frame_buffer{ nullptr };
-		std::array<V2_float, 4> points{};
-		Depth depth;
-		Tint tint;
-		Matrix4 view_projection{ 1.0f };
-		BlendMode blend_mode{};
-	};
+	[[nodiscard]] static DrawTarget GetDrawTarget(const RenderTarget& render_target);
 
-	static void SetPoints(DrawTarget& target);
-
-	// Must be called after points are set.
-	static void SetProjection(DrawTarget& target);
-
-	static void SetProjection(DrawTarget& target, const V2_float& min, const V2_float& max);
-
-	[[nodiscard]] static Matrix4 GetProjection(const V2_float& min, const V2_float& max);
-
-	static void SetPointsAndProjection(DrawTarget& target);
-
-	[[nodiscard]] static DrawTarget GetDrawTarget(const Scene& scene);
-
-	[[nodiscard]] static DrawTarget GetDrawTarget(
-		const RenderTarget& render_target, const Matrix4& view_projection,
-		const std::array<V2_float, 4>& points, bool use_viewport
-	);
-
-	[[nodiscard]] static V2_float GetResolutionScale(const V2_float& viewport_size);
-
-	[[nodiscard]] V2_float RelativeToViewport(const V2_float& window_relative_point) const;
-
-	void AddShape(
-		std::span<const Vertex> shape_vertices, std::span<const Index> shape_indices,
-		std::span<const V2_float> shape_points, float line_width, const RenderState& state
-	);
+	void DrawCommand(const impl::DrawCommand& cmd);
+	void DrawShape(const DrawShapeCommand& cmd);
+	void DrawLines(const DrawLinesCommand& cmd);
+	void DrawTexture(const DrawTextureCommand& cmd);
+	void DrawShader(const DrawShaderCommand& cmd);
 
 	void AddLinesImpl(
 		std::span<Vertex> line_vertices, std::span<const Index> line_indices,
-		std::span<const V2_float> points, float line_width, const RenderState& state
+		std::span<const V2_float> points, float line_width, const Transform& transform
 	);
 
 	void AddVertices(std::span<const Vertex> point_vertices, std::span<const Index> point_indices);
 
-	void InvokeDrawable(const Entity& entity);
+	static void InvokeDrawable(const Entity& entity);
+	static void InvokeDrawFilter(RenderTarget& render_target, FilterType type);
 
 	/*
 	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between
@@ -324,7 +283,7 @@ private:
 	 */
 	[[nodiscard]] TextureId PingPong(
 		const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
-		const Texture& texture, DrawTarget target, bool flip_vertices
+		TextureId id, DrawTarget target, bool flip_vertices
 	);
 
 	/**
@@ -335,9 +294,7 @@ private:
 	 *                            blend mode, viewport, etc.
 	 * @param clear_frame_buffer  If true, the target's framebuffer will be cleared before drawing.
 	 */
-	void DrawVertices(
-		const Shader& shader, const RenderData::DrawTarget& target, bool clear_frame_buffer
-	);
+	void DrawVertices(const Shader& shader, const DrawTarget& target, bool clear_frame_buffer);
 
 	/**
 	 * Draws a fullscreen quad using the provided shader, commonly used for post-processing effects.
@@ -352,8 +309,8 @@ private:
 	 * @param target_clear_color  The color used to clear the framebuffer, if clearing is enabled.
 	 */
 	void DrawFullscreenQuad(
-		const Shader& shader, const RenderData::DrawTarget& target, bool flip_texture,
-		bool clear_frame_buffer, const Color& target_clear_color
+		const Shader& shader, const DrawTarget& target, bool flip_texture, bool clear_frame_buffer,
+		const Color& target_clear_color
 	);
 
 	/**
@@ -390,12 +347,14 @@ private:
 	// be emplaced.
 	[[nodiscard]] bool GetTextureIndex(std::uint32_t texture_id, float& out_texture_index);
 
+	[[nodiscard]] const Shader& GetCurrentShader() const;
+
 	// @return True if the render state changed, false otherwise.
 	bool SetState(const RenderState& new_render_state);
 
-	void RecomputeViewport(const V2_int& window_size);
+	void RecomputeDisplaySize(const V2_int& window_size);
 
-	void Flush();
+	void Flush(bool final_flush = false);
 
 	void DrawScene(Scene& scene);
 
@@ -421,11 +380,22 @@ private:
 	 */
 	void DrawFromTo(
 		const RenderTarget& source_target, const std::array<V2_float, 4>& points,
-		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer
+		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer,
+		bool flip_texture
 	);
 
 	// Draws the screen target to the default frame buffer.
 	void DrawScreenTarget();
+
+	// @param filter If function returns true, the entity is not drawn.
+	void DrawDisplayList(
+		RenderTarget& render_target, std::vector<Entity>& display_list,
+		const std::function<bool(const Entity&)>& filter = {}
+	);
+
+	void FlushDrawQueue(TextureId id);
+
+	void SetDrawingTo(const RenderTarget& render_target);
 
 	void ClearScreenTarget() const;
 
@@ -433,31 +403,29 @@ private:
 	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
 
+	static const Shader& GetFullscreenShader(TextureFormat texture_format);
+
+	std::unordered_map<TextureId, std::vector<impl::DrawCommand>> draw_queues_;
+
 	std::shared_ptr<DrawContext> intermediate_target;
 
 	DrawTarget drawing_to_;
 
 	// TODO: Clean this up.
-
-	static constexpr float min_line_width{ 1.0f };
-	static constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
-	static constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 
-	void UpdateResolutions(
-		const V2_int& logical_resolution, LogicalResolutionMode logical_resolution_mode
-	);
+	void UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode);
 
-	bool logical_resolution_set_{ false };
-	LogicalResolutionMode resolution_mode_{ LogicalResolutionMode::Letterbox };
+	bool game_size_set_{ false };
+	ScalingMode resolution_mode_{ ScalingMode::Letterbox };
 
 	// Allow for creation of targets before window has been initialized.
-	V2_int logical_resolution_{ 1, 1 };
-	Viewport physical_viewport_{ {}, { 1, 1 } };
+	V2_int game_size_{ 1, 1 };
+	Viewport display_viewport_{ {}, { 1, 1 } };
 
-	bool logical_resolution_changed_{ false };
-	bool physical_resolution_changed_{ false };
+	bool game_size_changed_{ false };
+	bool display_size_changed_{ false };
 
 	RenderTarget screen_target_;
 	Entity viewport_tracker;
@@ -470,7 +438,8 @@ private:
 	std::vector<Index> indices_;
 	std::vector<TextureId> textures_;
 	Index index_offset_{ 0 };
-	std::size_t max_texture_slots{ 0 };
+	// Cached variable.
+	mutable std::size_t max_texture_slots{ 0 };
 	Texture white_texture;
 	VertexArray triangle_vao;
 };
@@ -478,11 +447,11 @@ private:
 } // namespace impl
 
 PTGN_SERIALIZER_REGISTER_ENUM(
-	LogicalResolutionMode, { { LogicalResolutionMode::Disabled, "disabled" },
-							 { LogicalResolutionMode::Stretch, "stretch" },
-							 { LogicalResolutionMode::Letterbox, "letterbox" },
-							 { LogicalResolutionMode::Overscan, "overscan" },
-							 { LogicalResolutionMode::IntegerScale, "integer_scale" } }
+	ScalingMode, { { ScalingMode::Disabled, "disabled" },
+				   { ScalingMode::Stretch, "stretch" },
+				   { ScalingMode::Letterbox, "letterbox" },
+				   { ScalingMode::Overscan, "overscan" },
+				   { ScalingMode::IntegerScale, "integer_scale" } }
 );
 
 } // namespace ptgn

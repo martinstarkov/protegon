@@ -6,6 +6,7 @@
 #include "debug/log.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "ui/button.h"
@@ -27,13 +28,15 @@ public:
 	}
 
 	Dropdown CreateDropdown(bool open = false) {
+		auto game_size{ game.renderer.GetGameSize() };
+
 		Dropdown d;
 		d = CreateDropdownButton(*this, open);
 		d.SetText("Dropdown", color::Yellow);
 		d.SetBackgroundColor(color::Gray);
 		d.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		d.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		SetPosition(d, { 400, 200 });
+		SetPosition(d, -game_size * 0.5f + V2_float{ 400, 200 });
 		d.SetSize({ 200, 100 });
 		// SetDrawOrigin(d, Origin::Center);
 		d.SetBorderColor(color::Gold);
@@ -44,7 +47,7 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);

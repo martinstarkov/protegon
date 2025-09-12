@@ -24,17 +24,17 @@ namespace ptgn {
 Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
 
 ecs::impl::Index Entity::GetId() const {
-	return EntityBase::GetId();
+	return BaseEntity::GetId();
 }
 
-Entity::Entity(const EntityBase& entity) : EntityBase{ entity } {}
+Entity::Entity(const BaseEntity& entity) : BaseEntity{ entity } {}
 
 void Entity::Clear() const {
-	EntityBase::Clear();
+	BaseEntity::Clear();
 }
 
 bool Entity::IsAlive() const {
-	return EntityBase::IsAlive();
+	return BaseEntity::IsAlive();
 }
 
 Entity& Entity::Destroy(bool orphan_children) {
@@ -55,22 +55,22 @@ Entity& Entity::Destroy(bool orphan_children) {
 		}
 	}
 
-	EntityBase::Destroy();
+	BaseEntity::Destroy();
 	return *this;
 }
 
 Manager& Entity::GetManager() {
-	return static_cast<Manager&>(EntityBase::GetManager());
+	return static_cast<Manager&>(BaseEntity::GetManager());
 }
 
 const Manager& Entity::GetManager() const {
-	return static_cast<const Manager&>(EntityBase::GetManager());
+	return static_cast<const Manager&>(BaseEntity::GetManager());
 }
 
 const Scene& Entity::GetScene() const {
 	PTGN_ASSERT(Has<impl::SceneKey>());
 	const auto& scene_key{ Get<impl::SceneKey>() };
-	PTGN_ASSERT(game.scene.HasScene(scene_key));
+	PTGN_ASSERT(game.scene.Has(scene_key));
 	return game.scene.Get(scene_key);
 }
 
@@ -78,19 +78,29 @@ Scene& Entity::GetScene() {
 	return const_cast<Scene&>(std::as_const(*this).GetScene());
 }
 
-static RenderTarget GetParentRenderTarget(const Entity& entity) {
-	if (entity.Has<RenderTarget>()) {
-		return entity.Get<RenderTarget>();
+static RenderTarget GetParentRenderTarget(const Entity& root, const Entity& entity) {
+	// @return Root or the entities render target or any of its parents' render targets (whichever
+	// is first in the hierarchy).
+	if (auto rt{ entity.TryGet<RenderTarget>() }) {
+		return *rt;
 	}
 	if (HasParent(entity)) {
-		return GetParentRenderTarget(GetParent(entity));
+		Entity parent{ GetParent(entity) };
+		return GetParentRenderTarget(root, parent);
 	}
-	return entity;
+	return root;
 }
 
 const Camera& Entity::GetCamera() const {
 	if (const auto camera{ GetNonPrimaryCamera() }) {
 		return *camera;
+	}
+	if (const auto rt{ TryGet<RenderTarget>() }) {
+		return rt->GetCamera();
+	}
+	if (RenderTarget rt{ GetParentRenderTarget(*this, *this) }; rt != *this) {
+		PTGN_ASSERT(rt);
+		return rt.GetCamera();
 	}
 	return GetScene().camera;
 }
@@ -107,7 +117,7 @@ Camera& Entity::GetCamera() {
 }
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
-	return EntityBase::IsIdenticalTo(e);
+	return BaseEntity::IsIdenticalTo(e);
 }
 
 UUID Entity::GetUUID() const {
@@ -116,17 +126,17 @@ UUID Entity::GetUUID() const {
 }
 
 std::size_t Entity::GetHash() const {
-	return std::hash<EntityBase>()(*this);
+	return std::hash<BaseEntity>()(*this);
 }
 
 bool Entity::WasCreatedBefore(const Entity& other) const {
 	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
-	auto version{ EntityBase::GetVersion() };
-	auto other_version{ other.EntityBase::GetVersion() };
+	auto version{ BaseEntity::GetVersion() };
+	auto other_version{ other.BaseEntity::GetVersion() };
 	if (version != other_version) {
 		return version < other_version;
 	}
-	return EntityBase::GetId() < other.EntityBase::GetId();
+	return BaseEntity::GetId() < other.BaseEntity::GetId();
 }
 
 void Entity::Invalidate() {

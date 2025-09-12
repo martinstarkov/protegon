@@ -4,7 +4,7 @@
 #include "geometry/circle.h"
 #include "geometry/polygon.h"
 #include "geometry/rect.h"
-#include "math/geometry.h"
+#include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
@@ -44,7 +44,8 @@ namespace impl {
 } // namespace impl
 
 [[nodiscard]] Intersection Intersect(
-	const Transform& t1, const Shape& shape1, const Transform& t2, const Shape& shape2
+	const Transform& t1, const ColliderShape& shape1, const Transform& t2,
+	const ColliderShape& shape2
 );
 
 } // namespace ptgn

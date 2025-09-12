@@ -6,6 +6,7 @@
 #include "core/entity.h"
 #include "core/game.h"
 #include "core/window.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -225,13 +226,8 @@ class PostProcessingEffect {
 public:
 	PostProcessingEffect() {}
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity) {
-		impl::RenderState state;
-		state.blend_mode  = GetBlendMode(entity);
-		state.shader_pass = entity.Get<impl::ShaderPass>();
-		state.post_fx	  = entity.GetOrDefault<PostFX>();
-		state.camera	  = entity.GetOrDefault<Camera>();
-		ctx.AddShader(entity, state, color::Transparent);
+	static void Draw(const Entity& entity) {
+		impl::DrawShader(entity);
 	}
 };
 
@@ -242,20 +238,20 @@ Entity CreatePostFX(Scene& scene) {
 
 	SetDraw<PostProcessingEffect>(effect);
 	Show(effect);
-	SetBlendMode(effect, BlendMode::None);
+	SetBlendMode(effect, BlendMode::ReplaceRGBA);
 
 	return effect;
 }
 
 Entity CreateBlur(Scene& scene) {
 	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Blur>(), nullptr);
+	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
 	return blur;
 }
 
 Entity CreateGrayscale(Scene& scene) {
 	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get<ScreenShader::Grayscale>(), nullptr);
+	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
 	return grayscale;
 }
 
@@ -271,10 +267,10 @@ public:
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 	Color color{ color::White };
 	FontSize font_size{ 20 };
-	V2_int center{ resolution / 2 };
+	V2_int center{ 0, 0 };
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 		//	camera.SetPixelRounding(true);
 		LoadResource("tree", "resources/test1.jpg");
 
@@ -283,9 +279,9 @@ public:
 
 		auto blur{ CreateBlur(*this) };
 		auto grayscale{ CreateGrayscale(*this) };
-		auto s1{ CreateSprite(*this, "tree", { 100, 400 }) };
+		auto s1{ CreateSprite(*this, "tree", -resolution * 0.5f + V2_float{ 100, 400 }) };
 		AddPreFX(s1, blur);
-		auto s2{ CreateSprite(*this, "tree", { 700, 400 }) };
+		auto s2{ CreateSprite(*this, "tree", -resolution * 0.5f + V2_float{ 700, 400 }) };
 		AddPostFX(s2, grayscale);
 
 		follow_config.move_mode = MoveMode::Lerp;
@@ -345,13 +341,13 @@ public:
 			StartFollow(camera, mouse, follow_config);
 		}
 
-		DrawDebugText(
-			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
-			false
+		game.renderer.DrawText(
+			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
+			{}, {}, {}, false
 		);
-		DrawDebugText(
-			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size,
-			true
+		game.renderer.DrawText(
+			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
+			{}, {}, {}, true
 		);
 	}
 };

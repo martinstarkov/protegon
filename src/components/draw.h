@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "common/type_info.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "math/vector2.h"
@@ -150,20 +151,22 @@ struct TextureCrop {
 
 namespace impl {
 
-class RenderData;
-
-void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture);
+void DrawTexture(const Entity& entity, bool flip_texture);
 void DrawText(
-	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
-	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+	Text text, const V2_int& text_size, const Camera& camera, const Color& additional_tint,
+	Origin offset_origin, const V2_float& offset_size
 );
-void DrawText(RenderData& ctx, const Entity& entity);
-void DrawCapsule(RenderData& ctx, const Entity& entity);
-void DrawCircle(RenderData& ctx, const Entity& entity);
-void DrawPolygon(RenderData& ctx, const Entity& entity);
-void DrawRect(RenderData& ctx, const Entity& entity);
-void DrawTriangle(RenderData& ctx, const Entity& entity);
-void DrawLine(RenderData& ctx, const Entity& entity);
+void DrawText(const Entity& entity);
+void DrawCapsule(const Entity& entity);
+void DrawCircle(const Entity& entity);
+void DrawEllipse(const Entity& entity);
+void DrawArc(const Entity& entity, bool clockwise);
+void DrawPolygon(const Entity& entity);
+void DrawRect(const Entity& entity);
+void DrawRoundedRect(const Entity& entity);
+void DrawTriangle(const Entity& entity);
+void DrawLine(const Entity& entity);
+void DrawShader(const Entity& entity);
 
 } // namespace impl
 
@@ -182,6 +185,11 @@ void DrawLine(RenderData& ctx, const Entity& entity);
 Entity CreateRect(
 	Manager& manager, const V2_float& position, const V2_float& size, const Color& color,
 	float line_width = -1.0f, Origin origin = Origin::Center
+);
+
+Entity CreatePolygon(
+	Manager& manager, const V2_float& position, const std::vector<V2_float>& vertices,
+	const Color& color, float line_width = -1.0f
 );
 
 /**

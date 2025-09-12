@@ -8,19 +8,21 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "common/type_info.h"
 #include "components/transform.h"
 #include "core/game.h"
-#include "debug/debugging.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "debug/stats.h"
-#include "geometry/capsule.h"
-#include "geometry/circle.h"
-#include "geometry/line.h"
-#include "geometry/polygon.h"
-#include "geometry/rect.h"
-#include "geometry/triangle.h"
-#include "math/geometry.h"
 #include "math/geometry/axis.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/shape.h"
+#include "math/geometry/triangle.h"
 #include "math/utility.h"
 #include "math/vector2.h"
 
@@ -67,6 +69,8 @@
 	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Capsule, Capsule, Overlap)
 
 namespace ptgn {
+
+using Point = V2_float;
 
 namespace impl {
 
@@ -185,15 +189,17 @@ bool PolygonContainsTriangle(
 		   OverlapPointPolygon(Transform{}, c, Transform{}, world_polygon);
 }
 
-bool OverlapPointPoint(const Transform& t1, const Point& A, const Transform& t2, const Point& B) {
-	return ApplyTransform(A, t1) == ApplyTransform(B, t2);
+bool OverlapPointPoint(
+	const Transform& t1, const V2_float& A, const Transform& t2, const V2_float& B
+) {
+	return t1.Apply(A) == t2.Apply(B);
 }
 
-bool OverlapPointLine(const Transform& t1, const Point& A, const Transform& t2, const Line& B) {
+bool OverlapPointLine(const Transform& t1, const V2_float& A, const Transform& t2, const Line& B) {
 #ifdef PTGN_DEBUG
-	game.stats.overlap_point_line++;
+	game.debug.stats.overlap_point_line++;
 #endif
-	auto point					= ApplyTransform(A, t1);
+	auto point{ t1.Apply(A) };
 	auto [line_start, line_end] = B.GetWorldVertices(t2);
 
 	// Source:
@@ -220,12 +226,12 @@ bool OverlapPointLine(const Transform& t1, const Point& A, const Transform& t2, 
 }
 
 bool OverlapPointTriangle(
-	const Transform& t1, const Point& A, const Transform& t2, const Triangle& B
+	const Transform& t1, const V2_float& A, const Transform& t2, const Triangle& B
 ) {
 #ifdef PTGN_DEBUG
-	game.stats.overlap_point_triangle++;
+	game.debug.stats.overlap_point_triangle++;
 #endif
-	auto point								  = ApplyTransform(A, t1);
+	auto point{ t1.Apply(A) };
 	auto [triangle_a, triangle_b, triangle_c] = B.GetWorldVertices(t2);
 
 	// Using barycentric coordinates method.
@@ -242,34 +248,36 @@ bool OverlapPointTriangle(
 	return s >= 0.0f && t >= 0.0f && (s + t) <= 1.0f;
 }
 
-bool OverlapPointCircle(const Transform& t1, const Point& A, const Transform& t2, const Circle& B) {
+bool OverlapPointCircle(
+	const Transform& t1, const V2_float& A, const Transform& t2, const Circle& B
+) {
 	auto circle_radius{ B.GetRadius(t2) };
 	if (circle_radius <= 0.0f) {
 		return false;
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_point_circle++;
+	game.debug.stats.overlap_point_circle++;
 #endif
-	auto point = ApplyTransform(A, t1);
+	auto point{ t1.Apply(A) };
 	auto circle_center{ B.GetCenter(t2) };
 
 	V2_float dist{ circle_center - point };
 	return impl::WithinPerimeter(circle_radius, dist.Dot(dist));
 }
 
-bool OverlapPointRect(const Transform& t1, const Point& A, const Transform& t2, const Rect& B) {
+bool OverlapPointRect(const Transform& t1, const V2_float& A, const Transform& t2, const Rect& B) {
 	auto rect_size{ B.GetSize(t2) };
 	if (rect_size.IsZero()) {
 		return false;
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_point_rect++;
+	game.debug.stats.overlap_point_rect++;
 #endif
 	if (t2.GetRotation() != 0.0f) {
 		return OverlapPointPolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
-	auto point = ApplyTransform(A, t1);
+	auto point{ t1.Apply(A) };
 	auto rect_center{ B.GetCenter(t2) };
 
 	auto half{ rect_size * 0.5f };
@@ -296,17 +304,17 @@ bool OverlapPointRect(const Transform& t1, const Point& A, const Transform& t2, 
 }
 
 bool OverlapPointCapsule(
-	const Transform& t1, const Point& A, const Transform& t2, const Capsule& B
+	const Transform& t1, const V2_float& A, const Transform& t2, const Capsule& B
 ) {
 	auto capsule_radius{ B.GetRadius(t2) };
 	if (capsule_radius <= 0.0f) {
 		return false;
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_point_capsule++;
+	game.debug.stats.overlap_point_capsule++;
 #endif
 
-	auto point						  = ApplyTransform(A, t1);
+	auto point{ t1.Apply(A) };
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
 
 	// Source:
@@ -318,14 +326,14 @@ bool OverlapPointCapsule(
 }
 
 bool OverlapPointPolygon(
-	const Transform& t1, const Point& A, const Transform& t2, const Polygon& B
+	const Transform& t1, const V2_float& A, const Transform& t2, const Polygon& B
 ) {
 #ifdef PTGN_DEBUG
-	game.stats.overlap_point_polygon++;
+	game.debug.stats.overlap_point_polygon++;
 #endif
-	auto point = ApplyTransform(A, t1);
+	auto point{ t1.Apply(A) };
 
-	auto world_points{ ApplyTransform(B.vertices, t2) };
+	auto world_points{ t2.Apply(B.vertices) };
 	std::size_t count{ world_points.size() };
 	const auto& v{ world_points };
 
@@ -335,7 +343,9 @@ bool OverlapPointPolygon(
 	// Algorithm from: https://wrfranklin.org/Research/Short_Notes/pnpoly.html
 	for (; i < count; j = i++) {
 		bool a{ (v[i].y > point.y) != (v[j].y > point.y) };
-		bool b{ point.x < (v[j].x - v[i].x) * (point.y - v[i].y) / (v[j].y - v[i].y) + v[i].x };
+		auto vji{ v[j] - v[i] };
+		auto d{ (point.y - v[i].y) * vji.x / vji.y };
+		bool b{ point.x < d + v[i].x };
 		if (a && b) {
 			c = !c;
 		}
@@ -345,7 +355,7 @@ bool OverlapPointPolygon(
 
 bool OverlapLineLine(const Transform& t1, const Line& A, const Transform& t2, const Line& B) {
 #ifdef PTGN_DEBUG
-	game.stats.overlap_line_line++;
+	game.debug.stats.overlap_line_line++;
 #endif
 	auto [lineA_start, lineA_end] = A.GetWorldVertices(t1);
 	auto [lineB_start, lineB_end] = B.GetWorldVertices(t2);
@@ -413,7 +423,7 @@ bool OverlapLineCircle(const Transform& t1, const Line& A, const Transform& t2, 
 		return false;
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_line_circle++;
+	game.debug.stats.overlap_line_circle++;
 #endif
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
 	// Source: https://www.baeldung.com/cs/circle-line-segment-collision-detection
@@ -474,7 +484,7 @@ bool OverlapLineRect(const Transform& t1, const Line& A, const Transform& t2, co
 	}
 
 #ifdef PTGN_DEBUG
-	game.stats.overlap_line_rect++;
+	game.debug.stats.overlap_line_rect++;
 #endif
 	auto rect_center{ B.GetCenter(t2) };
 
@@ -521,7 +531,7 @@ bool OverlapLineCapsule(const Transform& t1, const Line& A, const Transform& t2,
 		return false;
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_line_capsule++;
+	game.debug.stats.overlap_line_capsule++;
 #endif
 	auto [line_start, line_end]		  = A.GetWorldVertices(t1);
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
@@ -564,7 +574,7 @@ bool OverlapCircleCircle(
 	const Transform& t1, const Circle& A, const Transform& t2, const Circle& B
 ) {
 #ifdef PTGN_DEBUG
-	game.stats.overlap_circle_circle++;
+	game.debug.stats.overlap_circle_circle++;
 #endif
 	auto circleA_center{ A.GetCenter(t1) };
 	auto circleB_center{ B.GetCenter(t2) };
@@ -605,7 +615,7 @@ bool OverlapCircleRect(const Transform& t1, const Circle& A, const Transform& t2
 		return OverlapCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_circle_rect++;
+	game.debug.stats.overlap_circle_rect++;
 #endif
 	auto circle_center{ A.GetCenter(t1) };
 	auto rect_center{ B.GetCenter(t2) };
@@ -662,7 +672,7 @@ bool OverlapCircleCapsule(
 		return false;
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_circle_capsule++;
+	game.debug.stats.overlap_circle_capsule++;
 #endif
 	auto circle_center{ A.GetCenter(t1) };
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
@@ -701,7 +711,7 @@ bool OverlapTriangleRect(
 		return false;
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_triangle_rect++;
+	game.debug.stats.overlap_triangle_rect++;
 #endif
 	return OverlapPolygonPolygon(
 		t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
@@ -743,7 +753,7 @@ bool OverlapTriangleCapsule(
 	}
 
 #ifdef PTGN_DEBUG
-	game.stats.overlap_triangle_capsule++;
+	game.debug.stats.overlap_triangle_capsule++;
 #endif
 
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
@@ -773,7 +783,7 @@ bool OverlapRectRect(const Transform& t1, const Rect& A, const Transform& t2, co
 		);
 	}
 #ifdef PTGN_DEBUG
-	game.stats.overlap_rect_rect++;
+	game.debug.stats.overlap_rect_rect++;
 #endif
 	auto rectA_size{ A.GetSize(t1) };
 	auto rectB_size{ B.GetSize(t2) };
@@ -820,7 +830,7 @@ bool OverlapRectCapsule(const Transform& t1, const Rect& A, const Transform& t2,
 	}
 
 #ifdef PTGN_DEBUG
-	game.stats.overlap_rect_capsule++;
+	game.debug.stats.overlap_rect_capsule++;
 #endif
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
 
@@ -888,7 +898,7 @@ bool OverlapCapsuleCapsule(
 	const Transform& t1, const Capsule& A, const Transform& t2, const Capsule& B
 ) {
 #ifdef PTGN_DEBUG
-	game.stats.overlap_capsule_capsule++;
+	game.debug.stats.overlap_capsule_capsule++;
 #endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -916,7 +926,7 @@ bool OverlapPolygonPolygon(
 	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
 ) {
 #ifdef PTGN_DEBUG
-	game.stats.overlap_polygon_polygon++;
+	game.debug.stats.overlap_polygon_polygon++;
 #endif
 	PTGN_ASSERT(
 		impl::IsConvexPolygon(A.vertices.data(), A.vertices.size()),
@@ -957,7 +967,10 @@ bool OverlapPolygonCapsule(
 
 } // namespace impl
 
-bool Overlap(const Transform& t1, const Shape& shape1, const Transform& t2, const Shape& shape2) {
+bool Overlap(
+	const Transform& t1, const ColliderShape& shape1, const Transform& t2,
+	const ColliderShape& shape2
+) {
 	return std::visit(
 		[&](const auto& s1) -> bool {
 			return std::visit(
@@ -965,7 +978,10 @@ bool Overlap(const Transform& t1, const Shape& shape1, const Transform& t2, cons
 					using S1 = std::decay_t<decltype(s1)>;
 					using S2 = std::decay_t<decltype(s2)>;
 					PTGN_OVERLAP_SHAPE_PAIR_TABLE {
-						PTGN_ERROR("Cannot find overlap function for the given shapes");
+						PTGN_ERROR(
+							"Cannot find overlap function for the given shapes: ", type_name<S1>(),
+							" and ", type_name<S2>()
+						);
 					}
 				},
 				shape2
@@ -975,11 +991,11 @@ bool Overlap(const Transform& t1, const Shape& shape1, const Transform& t2, cons
 	);
 }
 
-bool Overlap(const Point& point, const Transform& t2, const Shape& shape2) {
-	return Overlap(Transform{}, point, t2, shape2);
+bool Overlap(const V2_float& point, const Transform& t2, const ColliderShape& shape2) {
+	return Overlap(Transform{}, ColliderShape{ point }, t2, shape2);
 }
 
-bool Overlap(const Transform& t1, const Shape& shape1, const Point& point) {
+bool Overlap(const Transform& t1, const ColliderShape& shape1, const V2_float& point) {
 	return Overlap(point, t1, shape1);
 }
 

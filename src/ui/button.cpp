@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <list>
-#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -22,13 +21,11 @@
 #include "input/mouse.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
-#include "math/hash.h"
-#include "math/math.h"
+#include "math/tolerance.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
 #include "resources/resource_manager.h"
@@ -143,16 +140,10 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 		return;
 	}
 
+	PTGN_ASSERT(self.Has<ToggleButtonGroupKey>());
+
 	PTGN_ASSERT(toggle_button_group);
-
-	PTGN_ASSERT(toggle_button_group.Has<impl::ToggleButtonGroupInfo>());
-
-	auto& info{ toggle_button_group.Get<impl::ToggleButtonGroupInfo>() };
-
-	for (auto& [key, toggle_button] : info.buttons_) {
-		toggle_button.SetToggled(false);
-	}
-	self.SetToggled(true);
+	toggle_button_group.SetActive(self.Get<ToggleButtonGroupKey>());
 }
 
 void ButtonColor::SetToState(ButtonState state) {
@@ -185,20 +176,6 @@ ButtonText::ButtonText(
 	}
 }
 
-ButtonText::~ButtonText() {
-	// TODO: Fix. These are an issue when a scene is deleted which destroys pools which destroys
-	// these.
-	// if (default_) {
-	//	default_.Destroy();
-	//}
-	// if (hover_) {
-	//	hover_.Destroy();
-	//}
-	// if (pressed_) {
-	//	pressed_.Destroy();
-	//}
-}
-
 Text ButtonText::Get(ButtonState state) const {
 	switch (state) {
 		case ButtonState::Default: return default_;
@@ -229,7 +206,7 @@ TextContent ButtonText::GetTextContent(ButtonState state) const {
 }
 
 FontSize ButtonText::GetFontSize(ButtonState state) const {
-	return GetValid(state).GetFontSize();
+	return GetValid(state).GetFontSize(false, {});
 }
 
 TextJustify ButtonText::GetTextJustify(ButtonState state) const {
@@ -274,7 +251,7 @@ void ButtonText::Set(
 		text.SetParameter(text_content, false);
 		text.SetParameter(font_key, false);
 		text.SetParameter(font_size, false);
-		text.SetProperties(text_properties, true);
+		text.SetProperties(text_properties, true, {});
 	}
 }
 
@@ -363,72 +340,84 @@ static Text GetButtonText(const Button& button, bool is_toggled, const ButtonSta
 	return text;
 }
 
-static void DrawTexturedButton(
-	impl::RenderData& ctx, const Button& button, bool is_toggled,
-	const impl::Texture& button_texture, const impl::ShapeDrawInfo& info, const V2_float& size,
-	Origin origin, const V4_float& tint_n
-) {
-	auto texture_tint{ GetEffectiveColor<impl::ButtonTint, impl::ButtonTintToggled>(
-		button, is_toggled, color::White
-	) };
+void Button::Draw(const Entity& entity) {
+	Button button{ entity };
 
-	if (!texture_tint.a) {
+	Color tint{ GetTint(button) };
+
+	if (tint.a == 0) {
 		return;
 	}
 
-	ctx.AddTexturedQuad(
-		button_texture, info.transform, size, origin, texture_tint.Normalized() * tint_n,
-		info.depth, Sprite{ button }.GetTextureCoordinates(false), info.state
-	);
-}
+	auto transform{ GetDrawTransform(button) };
+	auto depth{ GetDepth(button) };
+	auto blend_mode{ GetBlendMode(entity) };
+	auto camera{ entity.GetOrDefault<Camera>() };
+	auto post_fx{ entity.GetOrDefault<PostFX>() };
 
-template <typename DefaultComponent, typename ToggledComponent, typename LineWidthComponent>
-static void DrawButtonQuad(
-	impl::RenderData& ctx, const Button& button, bool is_toggled, const impl::ShapeDrawInfo& info,
-	const V2_float& size, Origin origin, const V4_float& tint_n
-) {
-	auto line_width{ button.GetOrDefault<LineWidthComponent>() };
+	auto tint_n{ tint.Normalized() };
+	const auto state{ button.GetState() };
+	auto button_size{ button.GetSize() };
+	bool is_toggled{ IsToggled(button) };
+	PTGN_ASSERT(!button_size.IsZero(), "Buttons must have a non-zero size");
+	auto button_origin{ GetDrawOrigin(button) };
+	auto text{ GetButtonText(button, is_toggled, state) };
 
-	if (line_width == 0.0f) {
-		return;
+	UpdateStateProperty<impl::ButtonColor>(button, state);
+	UpdateStateProperty<impl::ButtonColorToggled>(button, state);
+	UpdateStateProperty<impl::ButtonTint>(button, state);
+	UpdateStateProperty<impl::ButtonTintToggled>(button, state);
+	UpdateStateProperty<impl::ButtonBorderColor>(button, state);
+	UpdateStateProperty<impl::ButtonBorderColorToggled>(button, state);
+
+	auto button_texture{ GetButtonTexture(button, is_toggled, state) };
+
+	if (button_texture) {
+		auto texture_tint{ GetEffectiveColor<impl::ButtonTint, impl::ButtonTintToggled>(
+			button, is_toggled, color::White
+		) };
+
+		if (texture_tint.a) {
+			auto pre_fx{ entity.GetOrDefault<PreFX>() };
+
+			game.renderer.DrawTexture(
+				*button_texture, transform, button_size, button_origin,
+				Tint{ texture_tint.Normalized() * tint_n }, depth, blend_mode, camera, pre_fx,
+				post_fx, Sprite{ button }.GetTextureCoordinates(false)
+			);
+		}
+	} else {
+		auto line_width{ button.GetOrDefault<impl::ButtonBackgroundWidth>() };
+
+		if (line_width != 0.0f) {
+			auto color{
+				GetEffectiveColor<impl::ButtonColor, impl::ButtonColorToggled>(button, is_toggled)
+			};
+
+			if (color.a) {
+				game.renderer.DrawRect(
+					transform, button_size, Tint{ color.Normalized() * tint_n },
+					line_width.GetValue(), button_origin, depth, blend_mode, camera, post_fx
+				);
+			}
+		}
 	}
 
-	auto color{ GetEffectiveColor<DefaultComponent, ToggledComponent>(button, is_toggled) };
+	auto line_width{ button.GetOrDefault<impl::ButtonBorderWidth>() };
 
-	if (!color.a) {
-		return;
+	if (line_width != 0.0f) {
+		auto color{ GetEffectiveColor<impl::ButtonBorderColor, impl::ButtonBorderColorToggled>(
+			button, is_toggled
+		) };
+
+		if (color.a) {
+			game.renderer.DrawRect(
+				transform, button_size, Tint{ color.Normalized() * tint_n }, line_width.GetValue(),
+				button_origin, depth, blend_mode, camera, post_fx
+			);
+		}
 	}
 
-	// TODO: Fix rounded buttons.
-	ctx.AddQuad(
-		info.transform, size, origin, color.Normalized() * tint_n, info.depth, line_width,
-		info.state
-	);
-}
-
-static void DrawColoredButton(
-	impl::RenderData& ctx, const Button& button, bool is_toggled, const impl::ShapeDrawInfo& info,
-	const V2_float& size, Origin origin, const V4_float& tint_n
-) {
-	DrawButtonQuad<impl::ButtonColor, impl::ButtonColorToggled, impl::ButtonBackgroundWidth>(
-		ctx, button, is_toggled, info, size, origin, tint_n
-	);
-}
-
-static void DrawButtonBorder(
-	impl::RenderData& ctx, const Button& button, bool is_toggled, const impl::ShapeDrawInfo& info,
-	const V2_float& size, Origin origin, const V4_float& tint_n
-) {
-	DrawButtonQuad<
-		impl::ButtonBorderColor, impl::ButtonBorderColorToggled, impl::ButtonBorderWidth>(
-		ctx, button, is_toggled, info, size, origin, tint_n
-	);
-}
-
-static void DrawButtonText(
-	impl::RenderData& ctx, const Button& button, const Text& text, const V2_float& button_size,
-	Origin button_origin, const impl::ShapeDrawInfo& info
-) {
 	if (!text) {
 		return;
 	}
@@ -445,57 +434,9 @@ static void DrawButtonText(
 		}
 	}
 
-	auto text_camera{ text.GetOrDefault<Camera>(info.state.camera) };
+	auto text_camera{ text.GetOrDefault<Camera>(camera) };
 
-	impl::DrawText(ctx, text, text_size, text_camera, info.tint, button_origin, button_size);
-}
-
-static void DrawButton(
-	impl::RenderData& ctx, const Button& button, bool is_toggled,
-	const impl::Texture* button_texture, const Text& text, const impl::ShapeDrawInfo& info,
-	const V2_float& button_size, Origin button_origin, const V4_float& tint_n
-) {
-	if (button_texture) {
-		DrawTexturedButton(
-			ctx, button, is_toggled, *button_texture, info, button_size, button_origin, tint_n
-		);
-	} else {
-		DrawColoredButton(ctx, button, is_toggled, info, button_size, button_origin, tint_n);
-	}
-
-	DrawButtonBorder(ctx, button, is_toggled, info, button_size, button_origin, tint_n);
-	DrawButtonText(ctx, button, text, button_size, button_origin, info);
-}
-
-void Button::Draw(impl::RenderData& ctx, const Entity& entity) {
-	Button button{ entity };
-
-	impl::ShapeDrawInfo info{ button };
-
-	if (info.tint.a == 0) {
-		return;
-	}
-
-	auto tint_n{ info.tint.Normalized() };
-	const auto state{ button.GetState() };
-	auto button_size{ button.GetSize() };
-	bool is_toggled{ IsToggled(button) };
-	PTGN_ASSERT(!button_size.IsZero(), "Buttons must have a non-zero size");
-	Origin button_origin{ GetDrawOrigin(button) };
-	auto text{ GetButtonText(button, is_toggled, state) };
-
-	UpdateStateProperty<impl::ButtonColor>(button, state);
-	UpdateStateProperty<impl::ButtonColorToggled>(button, state);
-	UpdateStateProperty<impl::ButtonTint>(button, state);
-	UpdateStateProperty<impl::ButtonTintToggled>(button, state);
-	UpdateStateProperty<impl::ButtonBorderColor>(button, state);
-	UpdateStateProperty<impl::ButtonBorderColorToggled>(button, state);
-
-	auto button_texture{ GetButtonTexture(button, is_toggled, state) };
-
-	DrawButton(
-		ctx, button, is_toggled, button_texture, text, info, button_size, button_origin, tint_n
-	);
+	impl::DrawText(text, text_size, text_camera, tint, button_origin, button_size);
 }
 
 Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
@@ -571,7 +512,7 @@ Button& Button::SetSize(const V2_float& size) {
 		Add<Rect>(size);
 	}
 	if (IsInteractive(*this)) {
-		impl::ClearInteractables(*this);
+		ClearInteractables(*this);
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Rect>(size);
@@ -588,7 +529,7 @@ Button& Button::SetRadius(float radius) {
 		Add<Circle>(radius);
 	}
 	if (IsInteractive(*this)) {
-		impl::ClearInteractables(*this);
+		ClearInteractables(*this);
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
 		shape.Add<Circle>(radius);
@@ -1025,46 +966,73 @@ ToggleButton& ToggleButton::SetButtonTintToggled(const Color& color, ButtonState
 	return *this;
 }
 
-impl::ToggleButtonGroupInfo::~ToggleButtonGroupInfo() {
-	for (auto& [key, toggle_button] : buttons_) {
-		toggle_button.Destroy();
-	}
-}
-
-ToggleButton& ToggleButtonGroup::Load(std::string_view button_key, ToggleButton&& toggle_button) {
+ToggleButton& ToggleButtonGroup::Load(
+	const ToggleButtonGroupKey& button_key, ToggleButton&& toggle_button
+) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
 
 	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
 
-	auto key{ Hash(button_key) };
+	toggle_button.Add<ToggleButtonGroupKey>(button_key);
 
-	if (auto it{ info.buttons_.find(key) }; it == info.buttons_.end()) {
-		auto [new_it, inserted] = info.buttons_.try_emplace(key, std::move(toggle_button));
+	if (auto it{ info.buttons.find(button_key) }; it == info.buttons.end()) {
+		auto [new_it, inserted] = info.buttons.try_emplace(button_key, std::move(toggle_button));
 		PTGN_ASSERT(inserted, "Failed to insert toggle button");
 		AddToggleScript(new_it->second);
 		return new_it->second;
 	} else {
-		it->second.Destroy();
 		it->second = std::move(toggle_button);
 		return it->second;
 	}
 }
 
-void ToggleButtonGroup::Unload(std::string_view button_key) {
+void ToggleButtonGroup::Unload(const ToggleButtonGroupKey& button_key) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
 
 	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
 
-	auto key{ Hash(button_key) };
+	auto it{ info.buttons.find(button_key) };
 
-	auto it{ info.buttons_.find(key) };
-
-	if (it == info.buttons_.end()) {
+	if (it == info.buttons.end()) {
 		return;
 	}
 
-	it->second.Destroy();
-	info.buttons_.erase(it);
+	info.buttons.erase(it);
+}
+
+ToggleButton ToggleButtonGroup::GetActive() const {
+	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
+
+	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
+
+	auto it{ info.buttons.find(info.active) };
+
+	if (it == info.buttons.end() || !it->second.IsToggled()) {
+		return {};
+	}
+
+	return it->second;
+}
+
+void ToggleButtonGroup::SetActive(const ToggleButtonGroupKey& button_key) {
+	PTGN_ASSERT(Has<impl::ToggleButtonGroupInfo>());
+
+	auto& info{ Get<impl::ToggleButtonGroupInfo>() };
+
+	auto it{ info.buttons.find(button_key) };
+
+	PTGN_ASSERT(
+		it != info.buttons.end(),
+		"Cannot set non-existent toggle button key to active: ", button_key.GetKey()
+	);
+
+	for (auto& [key, toggle_button] : info.buttons) {
+		toggle_button.SetToggled(false);
+	}
+
+	info.active = button_key;
+
+	it->second.SetToggled(true);
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton& target) {

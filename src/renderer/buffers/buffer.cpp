@@ -3,7 +3,9 @@
 #include <cstdint>
 
 #include "common/assert.h"
-#include "debug/stats.h"
+#include "core/game.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "renderer/buffers/vertex_array.h"
 #include "renderer/gl/gl_helper.h"
 #include "renderer/gl/gl_loader.h"
@@ -134,7 +136,7 @@ template <BufferType BT>
 void Buffer<BT>::Bind(std::uint32_t id) {
 	GLCall(BindBuffer(static_cast<GLenum>(BT), id));
 #ifdef PTGN_DEBUG
-	++game.stats.buffer_binds;
+	++game.debug.stats.buffer_binds;
 #endif
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Bound buffer with id ", id);

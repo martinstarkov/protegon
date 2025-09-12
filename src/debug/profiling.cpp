@@ -4,9 +4,10 @@
 #include <string_view>
 
 #include "core/game.h"
-#include "resources/resource_manager.h"
 #include "core/timer.h"
+#include "debug/debug_system.h"
 #include "math/hash.h"
+#include "resources/resource_manager.h"
 
 namespace ptgn::impl {
 
@@ -15,7 +16,7 @@ ProfileInstance::ProfileInstance(std::string_view function_name) :
 
 ProfileInstance::~ProfileInstance() {
 	PTGN_ASSERT(!name_.empty());
-	auto& time = game.profiler.Load(name_);
+	auto& time = game.debug.profiler.Load(name_);
 	auto elapsed{ timer_.Elapsed<nanoseconds>() };
 	time += elapsed;
 }

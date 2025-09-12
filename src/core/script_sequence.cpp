@@ -65,7 +65,9 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	auto& instance{ sequence.Add<impl::ScriptSequenceInstance>(tween) };
 
 	if (destroy_on_complete) {
-		instance.tween.OnComplete([](Entity e) { GetParent(e).Destroy(); });
+		instance.tween.During(milliseconds{ 0 }).OnComplete([](Entity e) {
+			GetParent(e).Destroy();
+		});
 	}
 
 	return sequence;

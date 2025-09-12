@@ -65,7 +65,7 @@
 //	Entity e2;
 //
 //	void Enter() override {
-//		game.window.SetSetting(WindowSetting::Resizable);
+//		game.window.SetResizable();
 //
 //		e1 = CreateEntity();
 //		e2 = CreateEntity();

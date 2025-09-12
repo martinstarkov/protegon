@@ -2,6 +2,7 @@
 
 #include "common/move_direction.h"
 #include "components/transform.h"
+#include "core/entity.h"
 #include "core/time.h"
 #include "core/timer.h"
 #include "input/key.h"
@@ -11,8 +12,6 @@
 #include "serialization/serializable.h"
 
 namespace ptgn {
-
-class Entity;
 
 namespace impl {
 
@@ -25,13 +24,23 @@ void MoveImpl(
 
 } // namespace impl
 
-void MoveWASD(Entity& entity, const V2_float& speed);
-
-void MoveArrowKeys(Entity& entity, const V2_float& speed);
-
 void MoveWASD(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
 
 void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_if_unpressed = true);
+
+template <EntityBase T>
+void MoveWASD(T& entity, const V2_float& speed) {
+	V2_float position{ GetPosition(entity) };
+	MoveWASD(position, speed, false);
+	SetPosition(entity, position);
+}
+
+template <EntityBase T>
+void MoveArrowKeys(T& entity, const V2_float& speed) {
+	V2_float position{ GetPosition(entity) };
+	MoveArrowKeys(position, speed, false);
+	SetPosition(entity, position);
+}
 
 struct TopDownMovement {
 	// Parameters:
@@ -158,8 +167,9 @@ struct PlatformerMovement {
 	)
 private:
 	// @param dt Unit: seconds.
-	void RunWithAcceleration(const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt)
-		const;
+	void RunWithAcceleration(
+		const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt
+	) const;
 };
 
 struct PlatformerJump {

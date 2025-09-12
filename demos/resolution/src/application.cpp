@@ -10,6 +10,7 @@
 #include "core/script.h"
 #include "core/script_interfaces.h"
 #include "core/window.h"
+#include "input/input_handler.h"
 #include "input/key.h"
 #include "math/geometry/circle.h"
 #include "math/math.h"
@@ -18,6 +19,7 @@
 #include "renderer/render_data.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
+#include "renderer/vfx/light.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_input.h"
@@ -37,9 +39,9 @@ struct ResolutionScene : public Scene {
 	Sprite circle;
 
 	void Enter() override {
-		SetBackgroundColor(color::LightBlue);
-		game.window.SetSetting(WindowSetting::Resizable);
-		game.renderer.SetLogicalResolutionMode(LogicalResolutionMode::Letterbox);
+		game.renderer.SetBackgroundColor(color::LightBlue);
+		game.window.SetResizable();
+		game.renderer.SetScalingMode(ScalingMode::Letterbox);
 
 		RenderTarget rt{ GetRenderTarget() };
 
@@ -56,9 +58,16 @@ struct ResolutionScene : public Scene {
 
 		V2_float camera_center{ GetTransform(camera).GetPosition() };
 
-		CreateRect(*this, camera_center - V2_float{ 100, 0 }, { 50, 50 }, color::Green);
+		CreateRect(*this, camera_center - V2_float{ 100, 0 }, { 100, 100 }, color::Green);
 
-		float radius{ 40.0f };
+		float intensity{ 0.5f };
+		float falloff{ 2.0f };
+
+		CreatePointLight(
+			*this, camera_center + V2_float{ 100, 0 }, 50.0f, color::Red, intensity, falloff
+		);
+
+		float radius{ 50.0f };
 		circle = CreateEntity();
 		SetPosition(circle, camera_center);
 		auto child{ CreateEntity(*this) };

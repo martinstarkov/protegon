@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "common/concepts.h"
 #include "components/drawable.h"
 #include "components/effects.h"
 #include "components/generic.h"
@@ -18,11 +19,15 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
+#include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
+#include "math/geometry/ellipse.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"
 #include "math/geometry/rect.h"
+#include "math/geometry/rounded_rect.h"
+#include "math/geometry/shape.h"
 #include "math/geometry/triangle.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -31,6 +36,7 @@
 #include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
 #include "renderer/render_data.h"
+#include "renderer/renderer.h"
 #include "renderer/shader.h"
 #include "renderer/text.h"
 #include "renderer/texture.h"
@@ -264,26 +270,20 @@ bool EntityDepthCompare::operator()(const Entity& a, const Entity& b) const {
 
 namespace impl {
 
-void DrawTexture(RenderData& ctx, const Entity& entity, bool flip_texture) {
-	ShapeDrawInfo info{ entity };
-
+void DrawTexture(const Entity& entity, bool flip_texture) {
 	Sprite sprite{ entity };
-	const auto& texture{ sprite.GetTexture() };
-	auto size{ sprite.GetSize() };
-	auto texture_coordinates{ sprite.GetTextureCoordinates(flip_texture) };
 
-	auto origin{ GetDrawOrigin(entity) };
-	auto pre_fx{ entity.GetOrDefault<PreFX>() };
-
-	ctx.AddTexturedQuad(
-		texture, info.transform, size, origin, info.tint, info.depth, texture_coordinates,
-		info.state, pre_fx
+	game.renderer.DrawTexture(
+		sprite.GetTexture(), GetDrawTransform(entity), sprite.GetSize(), GetDrawOrigin(entity),
+		GetTint(entity), GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PreFX>(), entity.GetOrDefault<PostFX>(),
+		sprite.GetTextureCoordinates(flip_texture)
 	);
 }
 
 void DrawText(
-	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
-	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+	Text text, const V2_int& text_size, const Camera& camera, const Color& additional_tint,
+	Origin offset_origin, const V2_float& offset_size
 ) {
 	if (!text.Has<TextContent>()) {
 		return;
@@ -297,37 +297,33 @@ void DrawText(
 		return;
 	}
 
-	impl::ShapeDrawInfo info{ text };
+	Tint tint{ GetTint(text) };
+	Transform transform{ GetDrawTransform(text) };
+	Camera cam{ text.GetOrDefault<Camera>() };
 
-	if (info.tint.a == 0 || additional_tint.a == 0) {
+	if (tint.a == 0 || additional_tint.a == 0) {
 		return;
 	}
 
 	if (camera) {
-		info.state.camera = camera;
+		cam = camera;
 	}
 
 	// Offset text so it is centered on the offset origin and size.
-	auto offset{ -GetOriginOffset(offset_origin, offset_size * Abs(info.transform.GetScale())) };
-	info.transform.Translate(offset);
+	auto offset{ -GetOriginOffset(offset_origin, offset_size * Abs(transform.GetScale())) };
+	transform.Translate(offset);
 
 	if (bool is_hd{ text.IsHD() }) {
-		auto scene_scale{ text.GetScene().GetScaleRelativeTo(text.GetCamera()) };
+		auto scene_scale{ text.GetScene().GetRenderTargetScaleRelativeTo(cam) };
 
-		info.transform.Scale(1.0f / scene_scale);
+		PTGN_ASSERT(scene_scale.BothAboveZero());
 
-		if (text.GetFontSize(is_hd) != text.Get<impl::CachedFontSize>()) {
-			text.RecreateTexture();
+		transform.Scale(transform.GetScale() / scene_scale);
+
+		if (text.GetFontSize(is_hd, cam) != text.Get<impl::CachedFontSize>()) {
+			text.RecreateTexture(cam);
 		}
 	}
-
-	auto origin{ GetDrawOrigin(text) };
-
-	auto texture_coordinates{ Sprite{ text }.GetTextureCoordinates(false) };
-
-	auto pre_fx{ text.GetOrDefault<PreFX>() };
-
-	Color text_tint{ additional_tint.Normalized() * info.tint.Normalized() };
 
 	const auto& text_texture{ text.GetTexture() };
 
@@ -348,85 +344,82 @@ void DrawText(
 		}
 	}
 
-	ctx.AddTexturedQuad(
-		text_texture, info.transform, size, origin, text_tint, info.depth, texture_coordinates,
-		info.state, pre_fx
+	auto texture_coordinates{ Sprite{ text }.GetTextureCoordinates(false) };
+
+	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
+
+	game.renderer.DrawTexture(
+		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
+		GetBlendMode(text), cam, text.GetOrDefault<PreFX>(), text.GetOrDefault<PostFX>(),
+		texture_coordinates
 	);
 }
 
-void DrawText(RenderData& ctx, const Entity& entity) {
-	impl::DrawText(ctx, entity, V2_float{}, Camera{}, color::White, Origin::Center, V2_float{});
+void DrawText(const Entity& entity) {
+	impl::DrawText(entity, V2_float{}, Camera{}, color::White, Origin::Center, V2_float{});
 }
 
-void DrawRect(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
-	PTGN_ASSERT(entity.Has<Rect>());
-	const auto& rect{ entity.Get<Rect>() };
-	auto origin{ GetDrawOrigin(entity) };
-	ctx.AddQuad(
-		info.transform, rect.GetSize(), origin, info.tint, info.depth, info.line_width, info.state
+template <ShapeType T>
+static void DrawShape(const Entity& entity) {
+	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
+
+	Origin origin{ Origin::Center };
+
+	if constexpr (IsAnyOf<T, Rect, RoundedRect>) {
+		origin = GetDrawOrigin(entity);
+	}
+
+	const auto& shape{ entity.Get<T>() };
+
+	game.renderer.DrawShape(
+		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
+		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
 	);
 }
 
-void DrawCapsule(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
-	PTGN_ASSERT(entity.Has<Capsule>());
-	const auto& capsule{ entity.Get<Capsule>() };
-	auto [start, end] = capsule.GetWorldVertices(info.transform);
+void DrawRect(const Entity& entity) {
+	DrawShape<Rect>(entity);
+}
 
-	// TODO: Replace with a capsule shader.
+void DrawRoundedRect(const Entity& entity) {
+	DrawShape<RoundedRect>(entity);
+}
 
-	ctx.AddCircle(
-		Transform{ start }, capsule.radius, info.tint, info.depth, info.line_width, info.state
+void DrawArc(const Entity& entity, bool clockwise) {
+	DrawShape<Arc>(entity);
+}
+
+void DrawCapsule(const Entity& entity) {
+	DrawShape<Capsule>(entity);
+}
+
+void DrawCircle(const Entity& entity) {
+	DrawShape<Circle>(entity);
+}
+
+void DrawEllipse(const Entity& entity) {
+	DrawShape<Ellipse>(entity);
+}
+
+void DrawLine(const Entity& entity) {
+	DrawShape<Line>(entity);
+}
+
+void DrawPolygon(const Entity& entity) {
+	DrawShape<Polygon>(entity);
+}
+
+void DrawTriangle(const Entity& entity) {
+	DrawShape<Triangle>(entity);
+}
+
+void DrawShader(const Entity& entity) {
+	game.renderer.DrawShader(
+		entity.Get<impl::ShaderPass>(), entity, true, color::Transparent, V2_int{},
+		default_blend_mode, GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		default_texture_format, entity.GetOrDefault<PostFX>()
 	);
-	ctx.AddCircle(
-		Transform{ end }, capsule.radius, info.tint, info.depth, info.line_width, info.state
-	);
-
-	ctx.AddLine(start, end, info.tint, info.depth, info.line_width, info.state);
-
-	// ctx.AddCapsule(start, end, capsule.radius, info.tint, info.depth, info.line_width,
-	// info.state);
-}
-
-void DrawCircle(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
-	PTGN_ASSERT(entity.Has<Circle>());
-	const auto& circle{ entity.Get<Circle>() };
-	info.state.shader_pass = game.shader.Get<ShapeShader::Circle>();
-	ctx.AddCircle(
-		info.transform, circle.radius, info.tint, info.depth, info.line_width, info.state
-	);
-}
-
-void DrawLine(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
-	PTGN_ASSERT(entity.Has<Line>());
-	const auto& line{ entity.Get<Line>() };
-
-	auto [start, end] = line.GetWorldVertices(info.transform);
-
-	ctx.AddLine(start, end, info.tint, info.depth, info.line_width, info.state);
-}
-
-void DrawPolygon(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
-	PTGN_ASSERT(entity.Has<Polygon>());
-	const auto& polygon{ entity.Get<Polygon>() };
-
-	auto points{ polygon.GetWorldVertices(info.transform) };
-
-	ctx.AddPolygon(points, info.tint, info.depth, info.line_width, info.state);
-}
-
-void DrawTriangle(RenderData& ctx, const Entity& entity) {
-	ShapeDrawInfo info{ entity };
-	PTGN_ASSERT(entity.Has<Triangle>());
-	const auto& triangle{ entity.Get<Triangle>() };
-
-	auto points{ triangle.GetWorldVertices(info.transform) };
-
-	ctx.AddTriangle(points, info.tint, info.depth, info.line_width, info.state);
 }
 
 } // namespace impl
@@ -448,6 +441,24 @@ Entity CreateRect(
 	rect.Add<LineWidth>(line_width);
 
 	return rect;
+}
+
+Entity CreatePolygon(
+	Manager& manager, const V2_float& position, const std::vector<V2_float>& vertices,
+	const Color& color, float line_width
+) {
+	auto polygon{ manager.CreateEntity() };
+
+	SetDraw<Polygon>(polygon);
+	Show(polygon);
+
+	SetPosition(polygon, position);
+	polygon.Add<Polygon>(vertices);
+
+	SetTint(polygon, color);
+	polygon.Add<LineWidth>(line_width);
+
+	return polygon;
 }
 
 Entity CreateCircle(

@@ -5,6 +5,8 @@
 
 #include "common/assert.h"
 #include "core/game.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
@@ -49,7 +51,7 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 		return;
 	}
 	/*
-	if (mode == BlendMode::None) {
+	if (mode == BlendMode::ReplaceRGBA) {
 		// GLCall(glDisable(GL_BLEND));
 		// GLCall(glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE));
 		// TODO: If re-enabling, put the print before this.
@@ -67,38 +69,52 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 				GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA
 			));
 			break;
-		case BlendMode::BlendPremultiplied:
+		case BlendMode::PremultipliedBlend:
 			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 			);
 			break;
-		case BlendMode::Add:
+		case BlendMode::ReplaceRGBA:
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO));
+			break;
+		case BlendMode::ReplaceRGB:
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE));
+			break;
+		case BlendMode::ReplaceAlpha:
+			GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO));
+			break;
+		case BlendMode::AddRGB:
 			GLCall(BlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE));
 			break;
-		case BlendMode::AddPremultiplied:
-			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
-			break;
-		case BlendMode::AddWithAlpha:
+		case BlendMode::AddRGBA:
 			GLCall(BlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE));
 			break;
-		case BlendMode::AddPremultipliedWithAlpha:
+		case BlendMode::AddAlpha: GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ONE)); break;
+		case BlendMode::PremultipliedAddRGB:
+			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
+			break;
+		case BlendMode::PremultipliedAddRGBA:
 			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE));
 			break;
-		case BlendMode::Modulate:
-			GLCall(BlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE));
+		case BlendMode::MultiplyRGB:
+			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE));
 			break;
-		case BlendMode::Multiply:
+		case BlendMode::MultiplyRGBA:
+			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO));
+			break;
+		case BlendMode::MultiplyAlpha:
+			GLCall(BlendFuncSeparate(GL_ZERO, GL_ONE, GL_DST_ALPHA, GL_ZERO));
+			break;
+		case BlendMode::MultiplyRGBWithAlphaBlend:
 			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE));
 			break;
-		case BlendMode::None: GLCall(BlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO)); break;
-		// TODO: Add stencil blend mode.
-		/*case BlendMode::Stencil:
-			GLCall(BlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE));
-			break;*/
-		default:			  PTGN_ERROR("Failed to identify blend mode");
+		case BlendMode::MultiplyRGBAWithAlphaBlend:
+			GLCall(BlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ZERO));
+			break;
+		default: PTGN_ERROR("Failed to identify blend mode");
 	}
 	game.renderer.bound_.blend_mode = mode;
 #ifdef PTGN_DEBUG
-	++game.stats.blend_mode_changes;
+	++game.debug.stats.blend_mode_changes;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Changed blend mode to ", mode);
@@ -179,7 +195,7 @@ void GLRenderer::DrawElements(
 		static_cast<GLenum>(impl::GetType<std::uint32_t>()), nullptr
 	));
 #ifdef PTGN_DEBUG
-	++game.stats.draw_calls;
+	++game.debug.stats.draw_calls;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Draw elements");
@@ -201,7 +217,7 @@ void GLRenderer::DrawArrays(
 		static_cast<GLenum>(vao.GetPrimitiveMode()), 0, static_cast<std::int32_t>(vertex_count)
 	));
 #ifdef PTGN_DEBUG
-	++game.stats.draw_calls;
+	++game.debug.stats.draw_calls;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Draw arrays");
@@ -219,7 +235,7 @@ void GLRenderer::SetClearColor(const Color& color) {
 	auto c{ color.Normalized() };
 	GLCall(glClearColor(c[0], c[1], c[2], c[3]));
 #ifdef PTGN_DEBUG
-	++game.stats.clear_colors;
+	++game.debug.stats.clear_colors;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Changed clear color to ", color);
@@ -235,7 +251,7 @@ void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	game.renderer.bound_.viewport_position = position;
 	game.renderer.bound_.viewport_size	   = size;
 #ifdef PTGN_DEBUG
-	++game.stats.viewport_changes;
+	++game.debug.stats.viewport_changes;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Set viewport [position: ", position, ", size: ", size, "]");
@@ -257,7 +273,7 @@ V2_int GLRenderer::GetViewportPosition() {
 void GLRenderer::Clear() {
 	GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 #ifdef PTGN_DEBUG
-	++game.stats.clears;
+	++game.debug.stats.clears;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Cleared color and depth buffers");
@@ -281,7 +297,7 @@ void GLRenderer::ClearToColor(const V4_float& normalized_color) {
 	color_array.data()));
 	*/
 #ifdef PTGN_DEBUG
-	++game.stats.clears;
+	++game.debug.stats.clears;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Cleared to color ", normalized_color);

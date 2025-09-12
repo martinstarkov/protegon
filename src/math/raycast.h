@@ -1,12 +1,12 @@
 #pragma once
 
 #include "components/transform.h"
-#include "geometry/capsule.h"
-#include "geometry/circle.h"
-#include "geometry/line.h"
-#include "geometry/polygon.h"
-#include "geometry/rect.h"
-#include "math/geometry.h"
+#include "math/geometry/capsule.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/line.h"
+#include "math/geometry/polygon.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
 
@@ -102,8 +102,8 @@ namespace impl {
 } // namespace impl
 
 [[nodiscard]] RaycastResult Raycast(
-	const V2_float& ray, const Transform& transform1, const Shape& shape1,
-	const Transform& transform2, const Shape& shape2
+	const V2_float& ray, const Transform& transform1, const ColliderShape& shape1,
+	const Transform& transform2, const ColliderShape& shape2
 );
 
 } // namespace ptgn

@@ -16,7 +16,6 @@
 #include "serialization/fwd.h"
 
 // TODO: Add xyz() and xyzw() functions.
-// TODO: Scrap support for int and stick to float/double. Do the same in all vectors and matrix4.
 
 namespace ptgn {
 
@@ -220,7 +219,7 @@ struct Vector2 {
 		}
 		auto c{ std::cos(angle_radians) };
 		auto s{ std::sin(angle_radians) };
-		return { x * c - y * s, x * s + y * c };
+		return Rotated(c, s);
 	}
 
 	// Provide cached std::cos(angle_radians) and std::sin(angle_radians) values.
@@ -275,7 +274,7 @@ struct Vector2 {
 	}
 
 	[[nodiscard]] bool BothAboveZero() const {
-		return x > 0 && y > 0;
+		return x > 0 && y > 0 && !HasZero();
 	}
 };
 

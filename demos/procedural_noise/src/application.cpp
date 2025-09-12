@@ -2,7 +2,9 @@
 #include <cstdint>
 
 #include "common/assert.h"
+#include "components/movement.h"
 #include "core/game.h"
+#include "core/window.h"
 #include "debug/log.h"
 #include "input/input_handler.h"
 #include "input/key.h"
@@ -18,7 +20,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int resolution{ 800, 800 };
 
 class NoiseExampleScene : public Scene {
 public:
@@ -29,7 +31,7 @@ public:
 
 	std::size_t divisions{ 10 };
 
-	V2_int pixel_size{ 8, 8 };
+	V2_int pixel_size{ 16, 16 };
 
 	bool thresholding{ false };
 
@@ -37,6 +39,8 @@ public:
 	int types{ 4 };
 
 	void Enter() override {
+		game.renderer.SetBackgroundColor(color::Magenta);
+		game.window.SetResizable();
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 	}
 
@@ -115,22 +119,7 @@ public:
 			thresholding = !thresholding;
 		}
 
-		const float pan_speed{ 200.0f };
-
-		float dt{ game.dt() };
-
-		if (input.KeyPressed(Key::W)) {
-			Translate(camera, { 0, -pan_speed * dt });
-		}
-		if (input.KeyPressed(Key::S)) {
-			Translate(camera, { 0, pan_speed * dt });
-		}
-		if (input.KeyPressed(Key::A)) {
-			Translate(camera, { -pan_speed * dt, 0 });
-		}
-		if (input.KeyPressed(Key::D)) {
-			Translate(camera, { pan_speed * dt, 0 });
-		}
+		MoveWASD(camera, V2_float{ 200.0f * game.dt() });
 
 		// Clamp fractal noise parameters.
 
@@ -168,15 +157,15 @@ public:
 
 	void Draw() {
 		auto vertices{ camera.GetWorldVertices() };
-		V2_int min{ vertices[0] / pixel_size - V2_int{ 1 } };
-		V2_int max{ vertices[2] / pixel_size + V2_int{ 1 } };
+		V2_int min{ Floor(vertices[0] / pixel_size) - V2_int{ 1 } };
+		V2_int max{ Ceil(vertices[2] / pixel_size) + V2_int{ 1 } };
 
 		PTGN_LOG("Min: ", min, ", Max: ", max);
 
 		PTGN_ASSERT(min.x < max.x && min.y < max.y);
 
-		for (int i{ min.x }; i < max.x; i++) {
-			for (int j{ min.y }; j < max.y; j++) {
+		for (int i{ min.x }; i <= max.x; i++) {
+			for (int j{ min.y }; j <= max.y; j++) {
 				V2_int p{ i, j };
 
 				float noise_value{ 0.0f };
@@ -227,16 +216,21 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				DrawDebugRect(p * pixel_size, pixel_size, color, Origin::TopLeft, -1.0f, 0.0f, {});
+				game.renderer.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
 			}
 		}
 
-		DrawDebugRect({}, { 30.0f, 30.0f }, color::Red, Origin::TopLeft, -1.0f);
+		game.renderer.DrawRect(
+			(min * pixel_size + max * pixel_size) * 0.5f, (max - min) * pixel_size, color::Orange,
+			3.0f, Origin::Center
+		);
+
+		game.renderer.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("NoiseExample: Arrow keys to swap noise type", window_size);
+	game.Init("NoiseExample: Arrow keys to swap noise type", resolution);
 	game.scene.Enter<NoiseExampleScene>("");
 	return 0;
 }

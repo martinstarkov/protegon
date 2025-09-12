@@ -12,6 +12,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -39,10 +40,12 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetSetting(WindowSetting::Resizable);
+		game.window.SetResizable();
 
-		CreateRect(*this, V2_float{ 500, 250 }, { 200, 50 }, color::Green);
-		player = CreateRect(*this, V2_float{ 400, 150 }, { 50, 50 }, color::Red);
+		auto res{ game.renderer.GetGameSize() };
+
+		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);
+		player = CreateRect(*this, -res * 0.5f + V2_float{ 400, 150 }, { 50, 50 }, color::Red);
 
 		StartFollow(camera, player);
 
@@ -56,16 +59,14 @@ public:
 		V2_float offset{ 6, 6 };
 		V2_float size{ 200, 50 };
 
-		auto cam1 = CreateCamera(*this);
-
 		grid.ForEach([&](auto coord, Button& b) {
 			if (!b) {
 				return;
 			}
-			SetPosition(b, screen_offset + (offset + size) * coord);
+			SetPosition(b, -res * 0.5f + screen_offset + (offset + size) * coord);
 			b.SetSize(size);
 			SetDrawOrigin(b, Origin::TopLeft);
-			b.Add<Camera>(cam1);
+			b.Add<Camera>(fixed_camera);
 		});
 	}
 
