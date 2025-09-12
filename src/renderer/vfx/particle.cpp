@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "algorithm"
 #include "components/draw.h"
 #include "components/effects.h"
 #include "components/transform.h"
@@ -12,14 +13,14 @@
 #include "core/manager.h"
 #include "core/time.h"
 #include "core/timer.h"
+#include "math/geometry/circle.h"
+#include "math/geometry/rect.h"
 #include "math/math.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/render_data.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
+#include "renderer/renderer.h"
 #include "scene/camera.h"
 
 namespace ptgn {
@@ -90,70 +91,48 @@ void ParticleEmitterComponent::ResetParticle(const V2_float& start_position, Par
 
 } // namespace impl
 
-void ParticleEmitter::Draw(impl::RenderData& ctx, const Entity& entity) {
+void ParticleEmitter::Draw(const Entity& entity) {
 	auto depth{ GetDepth(entity) };
+	auto blend_mode{ GetBlendMode(entity) };
+	auto camera{ entity.GetOrParentOrDefault<Camera>() };
+	auto pre_fx{ entity.GetOrDefault<PreFX>() };
+	auto post_fx{ entity.GetOrDefault<PostFX>() };
 
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 
-	impl::RenderState state;
-	state.camera	 = entity.GetOrParentOrDefault<Camera>();
-	state.blend_mode = GetBlendMode(entity);
-	state.post_fx	 = entity.GetOrDefault<PostFX>();
-
 	if (i.info.texture_enabled && i.info.texture_key) {
 		Color tint{ color::White };
-
-		impl::DrawTextureCommand cmd;
-
-		cmd.depth		 = depth;
-		cmd.render_state = state;
 
 		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 			if (i.info.tint_texture) {
 				tint = p.color;
 			}
 
-			cmd.tint	= tint;
-			cmd.rect	= Rect{ V2_float{ 2.0f * p.radius, 2.0f * p.radius } };
-			cmd.texture = &i.info.texture_key.GetTexture();
-
-			// TODO: Add texture rotation.
-			cmd.transform = Transform{ p.position };
-
-			ctx.Submit(cmd);
+			game.renderer.DrawTexture(
+				i.info.texture_key, Transform{ p.position },
+				V2_float{ 2.0f * p.radius, 2.0f * p.radius }, Origin::Center, tint, depth,
+				blend_mode, camera, pre_fx, post_fx
+			);
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
-			impl::DrawShapeCommand cmd;
-			cmd.depth		 = depth;
-			cmd.render_state = state;
-
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
-				cmd.line_width = i.info.line_width;
-				cmd.shape	   = Circle{ p.radius };
-				cmd.tint	   = p.color;
-				cmd.transform  = Transform{ p.position };
-
-				ctx.Submit(cmd);
+				game.renderer.DrawCircle(
+					Transform{ p.position }, Circle{ p.radius }, p.color, i.info.line_width, depth,
+					blend_mode, camera, post_fx
+				);
 			}
 			break;
 		}
 		case ParticleShape::Square: {
-			impl::DrawShapeCommand cmd;
-			cmd.depth		 = depth;
-			cmd.render_state = state;
-
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
-				cmd.line_width = i.info.line_width;
-				cmd.shape	   = Rect{ V2_float{ 2.0f * p.radius } };
-				cmd.tint	   = p.color;
-
-				// TODO: Add rect rotation.
-				cmd.transform = Transform{ p.position };
-
-				ctx.Submit(cmd);
+				// TODO: Add rotation.
+				game.renderer.DrawRect(
+					Transform{ p.position }, Rect{ V2_float{ 2.0f * p.radius } }, p.color,
+					i.info.line_width, Origin::Center, depth, blend_mode, camera, post_fx
+				);
 			}
 			break;
 		}
