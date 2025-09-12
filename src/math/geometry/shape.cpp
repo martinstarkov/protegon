@@ -6,8 +6,6 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "math/geometry/rect.h"
-#include "math/vector2.h"
-#include "serialization/json.h"
 
 namespace ptgn {
 

@@ -2,16 +2,16 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
 #include <iomanip>
 #include <ios>
-#include <iosfwd>
 #include <iostream>
 #include <ostream>
 #include <string_view>
-#include <type_traits>
 
+#include "common/concepts.h"
 #include "core/time.h"
-#include "debug/debugging.h"
+#include "debug/debug_break.h"
 #include "utility/string.h"
 
 namespace ptgn {

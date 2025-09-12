@@ -2,12 +2,12 @@
 
 #include <chrono>
 #include <cstdint>
-#include <iosfwd>
+#include <ctime>
 #include <ostream>
 #include <thread>
 
 #include "common/assert.h"
-#include "core/time.h"
+#include "debug/config.h"
 #include "debug/log.h"
 #include "renderer/gl/gl_renderer.h"
 #include "SDL.h"
@@ -15,7 +15,6 @@
 #include "SDL_hints.h"
 #include "SDL_image.h"
 #include "SDL_mixer.h"
-#include "SDL_timer.h"
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"

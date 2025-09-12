@@ -10,10 +10,11 @@
 #include "core/timer.h"
 #include "debug/log.h"
 #include "resources/resource_manager.h"
+#include "utility/function.h"
 
 namespace ptgn::impl {
 
-class Game;
+class DebugSystem;
 
 class ProfileInstance {
 public:
@@ -71,7 +72,7 @@ public:
 	}
 
 private:
-	friend class Game;
+	friend class DebugSystem;
 	friend class ProfileInstance;
 
 	bool enabled_{ false };
