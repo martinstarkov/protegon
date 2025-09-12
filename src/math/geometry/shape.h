@@ -27,15 +27,18 @@ template <typename... Ts>
 struct NamedVariant : public std::variant<Ts...> {
 	using std::variant<Ts...>::variant;
 	using variant_type = std::variant<Ts...>;
+
+	template <typename T>
+	static constexpr bool contains = (std::is_same_v<T, Ts> || ...);
 };
 
-using ShapeType = NamedVariant<
+using ShapeVariant = NamedVariant<
 	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
 
-using ColliderType = NamedVariant<
+using ColliderVariant = NamedVariant<
 	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
 
-using InteractiveType = NamedVariant<Rect, Circle>;
+using InteractiveVariant = NamedVariant<Rect, Circle>;
 
 } // namespace impl
 
@@ -44,9 +47,18 @@ concept Visitable = requires(const T& v) {
 	std::visit([](const auto&) {}, static_cast<const typename T::variant_type&>(v));
 };
 
-class InteractiveShape : public impl::InteractiveType {
+template <typename T>
+concept ShapeType = impl::ShapeVariant::template contains<T>;
+
+template <typename T>
+concept InteractiveType = impl::InteractiveVariant::template contains<T>;
+
+template <typename T>
+concept ColliderType = impl::ColliderVariant::template contains<T>;
+
+class InteractiveShape : public impl::InteractiveVariant {
 public:
-	using impl::InteractiveType::InteractiveType;
+	using impl::InteractiveVariant::InteractiveVariant;
 
 	template <Visitable T>
 	InteractiveShape(const T& shape) {
@@ -57,9 +69,9 @@ public:
 	// friend void from_json(const json& j, InteractiveShape& shape);
 };
 
-class ColliderShape : public impl::ColliderType {
+class ColliderShape : public impl::ColliderVariant {
 public:
-	using impl::ColliderType::ColliderType;
+	using impl::ColliderVariant::ColliderVariant;
 
 	template <Visitable T>
 	ColliderShape(const T& shape) {
@@ -70,9 +82,9 @@ public:
 	// friend void from_json(const json& j, ColliderShape& shape);
 };
 
-class Shape : public impl::ShapeType {
+class Shape : public impl::ShapeVariant {
 public:
-	using impl::ShapeType::ShapeType;
+	using impl::ShapeVariant::ShapeVariant;
 
 	Shape() = default;
 
