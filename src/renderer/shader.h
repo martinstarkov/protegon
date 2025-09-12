@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <variant>
+#include <vector>
 
 #include "common/assert.h"
 #include "debug/log.h"
@@ -108,9 +109,8 @@ public:
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(
-		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-	) const;
+	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+		const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
@@ -169,6 +169,14 @@ struct ShaderCache {
 	std::unordered_map<std::size_t, ShaderId> fragment_shaders;
 };
 
+struct ShaderTypeSource {
+	ShaderType type{ ShaderType::Fragment };
+	ShaderCode source;
+	std::string name; // optional name for shader.
+};
+
+ShaderId CompileSource(const std::string& source, ShaderType type, const std::string& name);
+
 class ShaderManager {
 public:
 	[[nodiscard]] const Shader& Get(std::string_view shader_name) const;
@@ -187,6 +195,13 @@ public:
 private:
 	friend class Game;
 	friend class ptgn::Shader;
+	friend ShaderId CompileSource(
+		const std::string& source, ShaderType type, const std::string& name
+	);
+
+	static std::vector<ShaderTypeSource> ParseShaderSourceFile(
+		const std::string& source, const std::string& name
+	);
 
 	void PopulateShadersFromCache(const json& manifest);
 
