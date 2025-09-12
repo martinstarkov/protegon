@@ -15,6 +15,7 @@
 #include "core/manager.h"
 #include "core/script.h"
 #include "core/script_interfaces.h"
+#include "debug/debug_system.h"
 #include "ecs/ecs.h"
 #include "input/input_handler.h"
 #include "math/geometry.h"
@@ -41,7 +42,7 @@
 namespace ptgn {
 
 Scene::Scene() {
-	auto& render_manager{ game.renderer.GetRenderData().render_manager };
+	auto& render_manager{ game.renderer.render_data_.render_manager };
 	render_target_ = CreateRenderTarget(
 		render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
 	);
@@ -57,7 +58,7 @@ Scene::~Scene() {
 	}
 	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
-	game.renderer.GetRenderData().render_manager.Refresh();
+	game.renderer.render_data_.render_manager.Refresh();
 }
 
 void Scene::AddToDisplayList(Entity entity) {
@@ -209,21 +210,18 @@ void Scene::InternalExit() {
 void Scene::InternalDraw() {
 	if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {
-			auto transform{ GetDrawTransform(entity) };
-			transform = OffsetByOrigin(collider.shape, transform, entity);
-			DrawDebugShape(
-				transform, collider.shape, collider_color_, collider_line_width_, entity.GetCamera()
+			game.debug.DrawShape(
+				GetDrawTransform(entity), collider.shape, collider_color_, collider_line_width_,
+				GetDrawOrigin(entity), entity.GetCamera()
 			);
 		}
 	}
-	auto& render_data{ game.renderer.GetRenderData() };
-	render_data.Draw(*this);
+	game.renderer.render_data_.Draw(*this);
 }
 
 void Scene::InternalUpdate() {
-	auto& render_data{ game.renderer.GetRenderData() };
-	render_data.ClearRenderTargets(*this);
-	render_data.drawing_to_ = impl::RenderData::GetDrawTarget(render_target_);
+	game.renderer.render_data_.ClearRenderTargets(*this);
+	game.renderer.render_data_.SetDrawingTo(render_target_);
 
 	Refresh();
 

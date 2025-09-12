@@ -115,7 +115,7 @@ void SceneManager::Update(Game& g) {
 
 	g.renderer.ClearScreen();
 
-	auto& render_data{ g.renderer.GetRenderData() };
+	auto& render_data{ g.renderer.render_data_ };
 
 	g.input.Update();
 
