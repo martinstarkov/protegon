@@ -13,7 +13,7 @@
 #include "core/sdl_instance.h"
 #include "core/time.h"
 #include "core/window.h"
-#include "debug/debugging.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "debug/profiling.h"
 #include "debug/stats.h"
@@ -149,8 +149,8 @@ Game::Game() :
 	texture{ *texture_ },
 	shader_{ std::make_unique<ShaderManager>() },
 	shader{ *shader_ },
-	profiler_{ std::make_unique<Profiler>() },
-	profiler{ *profiler_ } {
+	debug_{ std::make_unique<DebugSystem>() },
+	debug{ *debug_ } {
 	// TODO: Move all of this init code into respective constructors.
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	impl::InitApplePath();
@@ -206,8 +206,9 @@ void Game::Shutdown() {
 
 	sound.Stop(-1);
 	music.Stop();
+
 	// TODO: Simply reset all the unique pointers instead of doing this.
-	profiler.Reset();
+	debug.Shutdown();
 
 	renderer.Shutdown();
 	shader.Shutdown();
@@ -250,7 +251,7 @@ void Game::MainLoop() {
 }
 
 void Game::Update() {
-	profiler.Clear();
+	debug.PreUpdate();
 
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
@@ -275,22 +276,7 @@ void Game::Update() {
 
 	scene.Update(*this);
 
-#ifdef PTGN_DEBUG
-	// Uncomment to examine the color of the pixel at the mouse position that is drawn to the
-	// screen.
-	// PTGN_LOG(
-	//	"Screen Color at Mouse: ",
-	//	renderer.screen_target_.GetPixel(input.GetMousePositionWindow())
-	//);
-	// game.stats.PrintCollisionOverlap();
-	// game.stats.PrintCollisionIntersect();
-	// game.stats.PrintCollisionRaycast();
-	// game.stats.PrintRenderer();
-	// PTGN_LOG("--------------------------------------");
-	game.stats.Reset();
-#endif
-
-	profiler.PrintAll();
+	debug.PostUpdate();
 
 	end = std::chrono::system_clock::now();
 }
@@ -340,7 +326,7 @@ void LoadResource(std::string_view key, const path& resource_path, bool is_music
 	}
 }
 
-void LoadResources(const std::vector<Resource>& resource_paths) {
+void LoadResource(const std::vector<Resource>& resource_paths) {
 	for (const auto& [key, filepath, is_music] : resource_paths) {
 		LoadResource(key, filepath, is_music);
 	}

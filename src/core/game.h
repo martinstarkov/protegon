@@ -3,12 +3,9 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
-#include "debug/stats.h"
 #include "math/vector2.h"
-#include "renderer/api/color.h"
 #include "utility/file.h"
 
 namespace ptgn {
@@ -23,14 +20,15 @@ namespace ptgn {
 // Supported extensions:
 // Texture: .PNG, .JPG, .BMP, .GIF
 // Audio: .OGG (only one supported by Emscripten), MP3, WAV, OPUS
-// Font: .TTF JSON: .JSON
+// Font: .TTF
+// JSON: .JSON
 // @param music_resource_suffix Resources which have a key that ends with this suffix will be loaded
 // as music instead of sounds, provided their extension is a valid audio extension.
 void LoadResources(const path& resource_file, std::string_view music_resource_suffix = "_music");
 
 // @param is_music If true and is a supported audio format, loads the resource as music instead of
 // sound.
-// Resource path must end in a supported extension (see LoadResources comment).
+// Resource path must end in a supported extension (see LoadResource comment).
 void LoadResource(std::string_view key, const path& resource_path, bool is_music = false);
 
 struct Resource {
@@ -41,7 +39,7 @@ struct Resource {
 	bool is_music{ false };
 };
 
-void LoadResources(const std::vector<Resource>& resource_paths);
+void LoadResource(const std::vector<Resource>& resource_paths);
 
 namespace impl {
 
@@ -57,7 +55,7 @@ class SoundManager;
 class FontManager;
 class TextureManager;
 class ShaderManager;
-class Profiler;
+class DebugSystem;
 
 struct WindowDeleter;
 struct Mix_MusicDeleter;
@@ -82,6 +80,10 @@ private:
 	Game(Game&&)				 = delete;
 	Game& operator=(const Game&) = delete;
 	Game& operator=(Game&&)		 = delete;
+
+	bool running_{ false };
+	// Frame time in seconds.
+	float dt_{ 0.0f };
 
 public:
 	// @return Previous frame time in seconds.
@@ -190,20 +192,10 @@ public:
 	ShaderManager& shader;
 
 private:
-	std::unique_ptr<Profiler> profiler_;
+	std::unique_ptr<DebugSystem> debug_;
 
 public:
-	Profiler& profiler;
-
-private:
-	bool running_{ false };
-	// Frame time in seconds.
-	float dt_{ 0.0f };
-
-public:
-#ifdef PTGN_DEBUG
-	Stats stats;
-#endif
+	DebugSystem& debug;
 };
 
 } // namespace impl
