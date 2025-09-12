@@ -1,12 +1,16 @@
 #pragma once
 
 #include <filesystem>
-#include <type_traits>
+#include <functional>
+#include <vector>
 
-#include "common/assert.h"
 #include "core/game.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
+#include "debug/log.h"
+#include "debug/stats.h"
 #include "renderer/gl/gl_context.h"
-#include "renderer/gl/gl_types.h"
+#include "utility/function.h"
 
 #ifdef PTGN_DEBUG
 // Uncomment for debugging purposes
@@ -25,7 +29,7 @@ namespace ptgn::impl {
 
 #define GLCall(x)                                                     \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
-		++game.stats.gl_calls;                                        \
+		++game.debug.stats.gl_calls;                                  \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		x;                                                            \
 		auto errors{ ptgn::impl::GLContext::GetErrors() };            \
@@ -38,7 +42,7 @@ namespace ptgn::impl {
 	})
 #define GLCallReturn(x)                                               \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
-		++game.stats.gl_calls;                                        \
+		++game.debug.stats.gl_calls;                                  \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		auto value{ x };                                              \
 		auto errors{ ptgn::impl::GLContext::GetErrors() };            \

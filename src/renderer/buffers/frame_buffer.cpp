@@ -8,7 +8,8 @@
 
 #include "common/assert.h"
 #include "core/game.h"
-#include "debug/debugging.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "debug/stats.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -194,7 +195,7 @@ void FrameBuffer::Bind(FrameBufferId id) {
 	GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
 	game.renderer.bound_.frame_buffer_id = id;
 #ifdef PTGN_DEBUG
-	++game.stats.frame_buffer_binds;
+	++game.debug.stats.frame_buffer_binds;
 #endif
 #ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
 	PTGN_LOG("GL: Bound frame buffer with id ", id);

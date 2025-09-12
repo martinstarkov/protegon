@@ -11,7 +11,8 @@
 #include "common/type_info.h"
 #include "components/transform.h"
 #include "core/game.h"
-#include "debug/debugging.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "debug/stats.h"
 #include "geometry/circle.h"
@@ -72,13 +73,13 @@ Intersection IntersectCircleCircle(
 	// No overlap.
 	if (!impl::WithinPerimeter(r, dist2)) {
 #ifdef PTGN_DEBUG
-		game.stats.overlap_circle_circle++;
+		game.debug.stats.overlap_circle_circle++;
 #endif
 		return c;
 	}
 
 #ifdef PTGN_DEBUG
-	game.stats.intersect_circle_circle++;
+	game.debug.stats.intersect_circle_circle++;
 #endif
 
 	if (dist2 > epsilon<float> * epsilon<float>) {
@@ -105,7 +106,7 @@ Intersection IntersectCircleRect(
 	}
 
 #ifdef PTGN_DEBUG
-	game.stats.intersect_circle_rect++;
+	game.debug.stats.intersect_circle_rect++;
 #endif
 	// Source:
 	// https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
@@ -162,7 +163,7 @@ Intersection IntersectCirclePolygon(
 ) {
 	Intersection c;
 #ifdef PTGN_DEBUG
-	game.stats.intersect_circle_polygon++;
+	game.debug.stats.intersect_circle_polygon++;
 #endif
 
 	float min_penetration{ std::numeric_limits<float>::infinity() };
@@ -217,7 +218,7 @@ Intersection IntersectRectRect(
 	}
 
 #ifdef PTGN_DEBUG
-	game.stats.intersect_rect_rect++;
+	game.debug.stats.intersect_rect_rect++;
 #endif
 
 	auto rectA_center{ A.GetCenter(t1) };
@@ -258,7 +259,7 @@ Intersection IntersectPolygonPolygon(
 	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
 ) {
 #ifdef PTGN_DEBUG
-	game.stats.intersect_polygon_polygon++;
+	game.debug.stats.intersect_polygon_polygon++;
 #endif
 
 	Polygon polygon_A{ A.GetWorldVertices(t1) };

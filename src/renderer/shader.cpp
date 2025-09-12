@@ -19,7 +19,8 @@
 
 #include "common/assert.h"
 #include "core/game.h"
-#include "debug/debugging.h"
+#include "debug/config.h"
+#include "debug/debug_system.h"
 #include "debug/log.h"
 #include "debug/stats.h"
 #include "math/hash.h"
@@ -29,7 +30,6 @@
 #include "math/vector4.h"
 #include "renderer/gl/gl_helper.h"
 #include "renderer/gl/gl_loader.h"
-#include "renderer/gl/gl_renderer.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "utility/file.h"
@@ -38,14 +38,6 @@
 namespace ptgn {
 
 namespace impl {
-
-// TODO: Move parsing code to another file.
-
-struct ShaderTypeSource {
-	ShaderType type{ ShaderType::Fragment };
-	ShaderCode source;
-	std::string name; // optional name for shader.
-};
 
 using Header = std::string;
 
@@ -553,7 +545,7 @@ bool ShaderManager::Has(ShaderType type, std::string_view shader_name) const {
 }
 
 void ShaderManager::Init() {
-	std::size_t max_texture_slots{ game.renderer.GetRenderData().GetMaxTextureSlots() };
+	std::size_t max_texture_slots{ game.renderer.render_data_.GetMaxTextureSlots() };
 
 	PTGN_ASSERT(max_texture_slots > 0, "Max texture slots must be set before initializing shaders");
 
@@ -581,28 +573,28 @@ void ShaderManager::Shutdown() {
 	delete_shaders(cache_.fragment_shaders);
 }
 
-static std::vector<ShaderTypeSource> ParseShaderSourceFile(
+std::vector<ShaderTypeSource> ShaderManager::ParseShaderSourceFile(
 	const std::string& source, const std::string& name
 ) {
 	auto srcs{ ParseShader(source, name) };
-	SubstituteShaderTokens(srcs, game.renderer.GetRenderData().GetMaxTextureSlots());
+	SubstituteShaderTokens(srcs, game.renderer.render_data_.GetMaxTextureSlots());
 	return srcs;
 }
 
-} // namespace impl
-
-static ShaderId CompileSource(const std::string& source, ShaderType type, const std::string& name) {
-	auto srcs{ impl::ParseShaderSourceFile(source, name) };
+ShaderId CompileSource(const std::string& source, ShaderType type, const std::string& name) {
+	auto srcs{ ShaderManager::ParseShaderSourceFile(source, name) };
 	PTGN_ASSERT(srcs.size() == 1, "Wrong constructor for a multi-source shader file");
 	const auto& front{ srcs.front() };
 	PTGN_ASSERT(front.type == type, "Shader type mismatch");
 	return Shader::Compile(type, front.source.source_);
 }
 
+} // namespace impl
+
 static ShaderId CompilePath(const path& p, ShaderType type, const std::string& name) {
 	PTGN_ASSERT(FileExists(p), "Cannot create shader from nonexistent shader path: ", p.string());
 	auto source{ FileToString(p) };
-	return CompileSource(source, type, name);
+	return impl::CompileSource(source, type, name);
 }
 
 Shader::Shader(ShaderId vertex, ShaderId fragment, const std::string& shader_name) :
@@ -628,7 +620,7 @@ Shader::Shader(std::variant<ShaderCode, path> source, const std::string& shader_
 		PTGN_ERROR("Unknown variant type");
 	}
 
-	auto srcs{ impl::ParseShaderSourceFile(source_string, shader_name) };
+	auto srcs{ impl::ShaderManager::ParseShaderSourceFile(source_string, shader_name) };
 
 	PTGN_ASSERT(
 		srcs.size() == 2, "Shader file must provide a vertex and fragment type: ", shader_name
@@ -689,7 +681,7 @@ Shader::Shader(
 			}
 		} else if (std::holds_alternative<ShaderCode>(v)) {
 			const auto& src{ std::get<ShaderCode>(v) };
-			return { CompileSource(src.source_, type, shader_name), true };
+			return { impl::CompileSource(src.source_, type, shader_name), true };
 		} else {
 			PTGN_ERROR("Unknown variant type");
 		}
@@ -863,7 +855,7 @@ void Shader::Bind(ShaderId id) {
 	GLCall(UseProgram(id));
 	game.renderer.bound_.shader_id = id;
 #ifdef PTGN_DEBUG
-	++game.stats.shader_binds;
+	++game.debug.stats.shader_binds;
 #endif
 #ifdef GL_ANNOUNCE_SHADER_CALLS
 	PTGN_LOG("GL: Bound shader program with id ", id);
@@ -926,9 +918,8 @@ void Shader::SetUniform(const std::string& name, const Matrix4& matrix) const {
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, const std::int32_t* data, std::int32_t count
-) const {
+void Shader::SetUniform(const std::string& name, const std::int32_t* data, std::int32_t count)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
@@ -1005,9 +996,8 @@ void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v
 	}
 }
 
-void Shader::SetUniform(
-	const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-) const {
+void Shader::SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
+	const {
 	std::int32_t location{ GetUniform(name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
