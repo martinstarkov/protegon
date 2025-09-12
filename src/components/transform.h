@@ -5,6 +5,7 @@
 #include <span>
 #include <vector>
 
+#include "common/concepts.h"
 #include "components/generic.h"
 #include "core/entity.h"
 #include "math/tolerance.h"
@@ -44,7 +45,8 @@ struct Transform {
 	Transform(const Transform& other);
 	Transform& operator=(const Transform& other);
 
-	Transform(const V2_float& position);
+	template <Arithmetic T>
+	Transform(const Vector2<T>& position) : position_{ position } {}
 
 	Transform(const V2_float& position, float rotation, const V2_float& scale = { 1.0f, 1.0f });
 
@@ -54,8 +56,6 @@ struct Transform {
 
 	[[nodiscard]] Transform InverseRelativeTo(const Transform& parent) const;
 
-	[[nodiscard]] float GetAverageScale() const;
-
 	// Dirty flags should not be compared.
 	friend bool operator==(const Transform& a, const Transform& b) {
 		return a.position_ == b.position_ && NearlyEqual(a.rotation_, b.rotation_) &&
@@ -63,39 +63,46 @@ struct Transform {
 	}
 
 	[[nodiscard]] V2_float GetPosition() const;
-	[[nodiscard]] float GetRotation() const;
-	[[nodiscard]] V2_float GetScale() const;
 
 	Transform& SetPosition(const V2_float& position);
 	// Set position along a particular axis: x == 0, y == 1.
 	Transform& SetPosition(std::size_t index, float position);
 	Transform& SetPositionX(float x);
 	Transform& SetPositionY(float y);
-	Transform& SetRotation(float rotation);
-	Transform& SetScale(float scale);
-	Transform& SetScale(const V2_float& scale);
-	Transform& SetScaleX(float x);
-	Transform& SetScaleY(float y);
 
 	// position += position_difference
 	Transform& Translate(const V2_float& position_difference);
 	Transform& TranslateX(float position_x_difference);
 	Transform& TranslateY(float position_y_difference);
 
+	// @return Unit: Radians, Direction: Clockwise positive.
+	[[nodiscard]] float GetRotation() const;
+
+	// @param rotation Unit: Radians, Direction: Clockwise positive.
+	Transform& SetRotation(float rotation);
+
+	// @param angle_difference Unit: Radians, Direction: Clockwise positive.
 	// rotation += angle_difference
 	Transform& Rotate(float angle_difference);
+
+	// Clamps rotation between [0, 2 pi).
+	Transform& ClampRotation();
+
+	// @return (scale_x + scale_y) / 2
+	[[nodiscard]] float GetAverageScale() const;
+
+	[[nodiscard]] V2_float GetScale() const;
+
+	Transform& SetScale(float scale);
+	Transform& SetScale(const V2_float& scale);
+	Transform& SetScaleX(float x);
+	Transform& SetScaleY(float y);
 
 	// scale *= scale_multiplier
 	Transform& Scale(const V2_float& scale_multiplier);
 	Transform& ScaleX(float scale_x_multiplier);
 	Transform& ScaleY(float scale_y_multiplier);
 
-	// Clamps rotation between [0, 2 pi).
-	Transform& ClampRotation();
-
-	[[nodiscard]] bool IsPositionDirty() const;
-	[[nodiscard]] bool IsRotationDirty() const;
-	[[nodiscard]] bool IsScaleDirty() const;
 	[[nodiscard]] bool IsDirty() const;
 	void ClearDirtyFlags() const;
 
@@ -142,7 +149,10 @@ private:
 	[[nodiscard]] V2_float ApplyInverseWithoutRotation(const V2_float& point) const;
 
 	V2_float position_;
+
+	// @param rotation Unit: Radians, Direction: Clockwise positive.
 	float rotation_{ 0.0f };
+
 	V2_float scale_{ 1.0f, 1.0f };
 
 	// By default all flags are dirty.

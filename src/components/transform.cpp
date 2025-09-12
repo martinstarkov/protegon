@@ -50,8 +50,6 @@ Transform& Transform::operator=(Transform&& other) noexcept {
 	return *this;
 }
 
-Transform::Transform(const V2_float& position) : position_{ position } {}
-
 Transform::Transform(const V2_float& position, float rotation, const V2_float& scale) :
 	position_{ position }, rotation_{ rotation }, scale_{ scale } {}
 
@@ -191,18 +189,6 @@ Transform& Transform::ScaleX(float scale_x_multiplier) {
 
 Transform& Transform::ScaleY(float scale_y_multiplier) {
 	return SetScaleY(scale_.y * scale_y_multiplier);
-}
-
-bool Transform::IsPositionDirty() const {
-	return dirty_flags_.IsSet(impl::TransformDirty::Position);
-}
-
-bool Transform::IsRotationDirty() const {
-	return dirty_flags_.IsSet(impl::TransformDirty::Rotation);
-}
-
-bool Transform::IsScaleDirty() const {
-	return dirty_flags_.IsSet(impl::TransformDirty::Scale);
 }
 
 bool Transform::IsDirty() const {
