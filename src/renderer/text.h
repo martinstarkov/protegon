@@ -25,12 +25,11 @@ class Text;
 
 namespace impl {
 
-class RenderData;
 struct ButtonText;
 
 void DrawText(
-	RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
-	const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+	Text text, const V2_int& text_size, const Camera& camera, const Color& additional_tint,
+	Origin offset_origin, const V2_float& offset_size
 );
 
 struct HDText : public BoolComponent {
@@ -111,7 +110,7 @@ public:
 
 	Text(const Entity& entity);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	[[nodiscard]] impl::Texture CreateTexture(const FontSize& font_size) const;
 
@@ -205,6 +204,9 @@ public:
 		}
 		T& t{ Get<T>() };
 		if (t == value) {
+			if (recreate_texture) {
+				RecreateTexture({});
+			}
 			return false;
 		}
 		t = value;
@@ -220,8 +222,8 @@ public:
 
 private:
 	friend void impl::DrawText(
-		impl::RenderData& ctx, Text text, const V2_int& text_size, const Camera& camera,
-		const Color& additional_tint, Origin offset_origin, const V2_float& offset_size
+		Text text, const V2_int& text_size, const Camera& camera, const Color& additional_tint,
+		Origin offset_origin, const V2_float& offset_size
 	);
 
 	// Using own properties.
