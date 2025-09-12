@@ -125,7 +125,7 @@ public:
 	RenderTarget() = default;
 	RenderTarget(const Entity& entity);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	// Interface function for filtering the display list prior to drawing its entities to the render
 	// target.

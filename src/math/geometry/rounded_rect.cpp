@@ -9,7 +9,6 @@
 #include "math/math.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
@@ -19,8 +18,8 @@ RoundedRect::RoundedRect(const V2_float& min, const V2_float& max, float radius)
 RoundedRect::RoundedRect(const V2_float& size, float radius) :
 	min{ -size * 0.5f }, max{ size * 0.5f }, radius{ radius } {}
 
-void RoundedRect::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawRoundedRect(ctx, entity);
+void RoundedRect::Draw(const Entity& entity) {
+	impl::DrawRoundedRect(entity);
 }
 
 V2_float RoundedRect::GetSize() const {

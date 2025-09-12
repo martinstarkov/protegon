@@ -8,15 +8,14 @@
 #include "math/geometry/rect.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
 Capsule::Capsule(const V2_float& start, const V2_float& end, float radius) :
 	start{ start }, end{ end }, radius{ radius } {}
 
-void Capsule::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawCapsule(ctx, entity);
+void Capsule::Draw(const Entity& entity) {
+	impl::DrawCapsule(entity);
 }
 
 std::array<V2_float, 4> Capsule::GetWorldQuadVertices(

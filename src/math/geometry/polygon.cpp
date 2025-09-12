@@ -7,12 +7,11 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
-void Polygon::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawPolygon(ctx, entity);
+void Polygon::Draw(const Entity& entity) {
+	impl::DrawPolygon(entity);
 }
 
 V2_float Polygon::GetCenter() const {

@@ -33,8 +33,8 @@ namespace ptgn {
 
 Text::Text(const Entity& entity) : Entity{ entity } {}
 
-void Text::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawText(ctx, entity);
+void Text::Draw(const Entity& entity) {
+	impl::DrawText(entity);
 }
 
 Text& Text::SetFont(const ResourceHandle& font_key) {

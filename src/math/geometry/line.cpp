@@ -7,14 +7,13 @@
 #include "core/entity.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
 Line::Line(const V2_float& start, const V2_float& end) : start{ start }, end{ end } {}
 
-void Line::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawLine(ctx, entity);
+void Line::Draw(const Entity& entity) {
+	impl::DrawLine(entity);
 }
 
 std::array<V2_float, 4> Line::GetWorldQuadVertices(

@@ -8,7 +8,6 @@
 #include "core/entity.h"
 #include "math/math.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
@@ -18,8 +17,8 @@ Arc::Arc(float arc_radius, float start_angle, float end_angle, bool clockwise) :
 	end_angle{ end_angle },
 	clockwise{ clockwise } {}
 
-void Arc::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawArc(ctx, entity, entity.Has<impl::ReverseArc>());
+void Arc::Draw(const Entity& entity) {
+	impl::DrawArc(entity, entity.Has<impl::ReverseArc>());
 }
 
 V2_float Arc::GetCenter(const Transform& transform) const {

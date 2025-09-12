@@ -22,7 +22,7 @@ struct Arc {
 
 	Arc(float arc_radius, float start_angle, float end_angle, bool clockwise = true);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;

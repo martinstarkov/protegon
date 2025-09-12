@@ -17,8 +17,8 @@ namespace ptgn {
 
 Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
 
-void Sprite::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawTexture(ctx, entity, false);
+void Sprite::Draw(const Entity& entity) {
+	impl::DrawTexture(entity, false);
 }
 
 Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {

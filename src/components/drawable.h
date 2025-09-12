@@ -29,8 +29,8 @@ class RenderData;
 class Entity;
 
 template <typename T>
-concept DrawableType = requires(impl::RenderData& ctx, const Entity& entity) {
-	{ T::Draw(ctx, entity) } -> std::same_as<void>;
+concept DrawableType = requires(const Entity& entity) {
+	{ T::Draw(entity) } -> std::same_as<void>;
 };
 
 namespace impl {
@@ -41,7 +41,7 @@ public:
 
 	IDrawable(std::string_view name) : hash{ Hash(name) } {}
 
-	using DrawFunc = void (*)(impl::RenderData&, const Entity&);
+	using DrawFunc = void (*)(const Entity&);
 
 	static auto& data() {
 		static std::unordered_map<std::size_t, DrawFunc> s;

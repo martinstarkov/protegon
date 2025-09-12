@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "common/concepts.h"
 #include "components/drawable.h"
 #include "math/vector2.h"
 #include "serialization/serializable.h"
@@ -20,9 +21,10 @@ class RenderData;
 struct Ellipse {
 	Ellipse() = default;
 
-	explicit Ellipse(const V2_float& radius);
+	template <Arithmetic T>
+	explicit Ellipse(const Vector2<T>& ellipse_radius) : radius{ ellipse_radius } {}
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;

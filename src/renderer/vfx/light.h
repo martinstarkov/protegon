@@ -49,7 +49,7 @@ public:
 
 	PointLight(const Entity& entity);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	PointLight& SetIntensity(float intensity);
 	[[nodiscard]] float GetIntensity() const;

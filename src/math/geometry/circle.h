@@ -18,9 +18,9 @@ class RenderData;
 struct Circle {
 	Circle() = default;
 
-	explicit Circle(float radius);
+	Circle(float radius);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;

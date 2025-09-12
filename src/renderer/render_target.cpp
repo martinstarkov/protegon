@@ -72,8 +72,8 @@ void DisplayResizeScript::OnDisplaySizeChanged() {
 
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
-void RenderTarget::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawTexture(ctx, entity, true);
+void RenderTarget::Draw(const Entity& entity) {
+	impl::DrawTexture(entity, true);
 }
 
 V2_int RenderTarget::GetTextureSize() const {

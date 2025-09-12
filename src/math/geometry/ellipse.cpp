@@ -7,14 +7,11 @@
 #include "components/transform.h"
 #include "core/entity.h"
 #include "math/vector2.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
-Ellipse::Ellipse(const V2_float& ellipse_radius) : radius{ ellipse_radius } {}
-
-void Ellipse::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawEllipse(ctx, entity);
+void Ellipse::Draw(const Entity& entity) {
+	impl::DrawEllipse(entity);
 }
 
 V2_float Ellipse::GetCenter(const Transform& transform) const {

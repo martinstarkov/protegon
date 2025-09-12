@@ -25,9 +25,9 @@ struct RoundedRect {
 	RoundedRect() = default;
 
 	RoundedRect(const V2_float& min, const V2_float& max, float radius);
-	explicit RoundedRect(const V2_float& size, float radius);
+	RoundedRect(const V2_float& size, float radius);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	[[nodiscard]] V2_float GetSize() const;
 	[[nodiscard]] float GetRadius() const;

@@ -129,7 +129,7 @@ public:
 
 	using Sprite::Sprite;
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	// Starts emitting particles.
 	ParticleEmitter& Start();

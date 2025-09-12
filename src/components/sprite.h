@@ -22,7 +22,7 @@ struct Sprite : public Entity {
 	Sprite() = default;
 	Sprite(const Entity& entity);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	static void Draw(const Entity& entity);
 
 	Sprite& SetTextureKey(const TextureHandle& texture_key);
 
@@ -47,7 +47,7 @@ struct Sprite : public Entity {
 PTGN_DRAWABLE_REGISTER(Sprite);
 
 Sprite CreateSprite(
-	Manager& manager, const TextureHandle& texture_key, const V2_float& position,
+	Manager& manager, const TextureHandle& texture_key, const V2_float& position = {},
 	Origin draw_origin = Origin::Center
 );
 

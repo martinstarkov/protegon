@@ -8,16 +8,13 @@
 #include "core/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
 Rect::Rect(const V2_float& min, const V2_float& max) : min{ min }, max{ max } {}
 
-Rect::Rect(const V2_float& size) : min{ -size * 0.5f }, max{ size * 0.5f } {}
-
-void Rect::Draw(impl::RenderData& ctx, const Entity& entity) {
-	impl::DrawRect(ctx, entity);
+void Rect::Draw(const Entity& entity) {
+	impl::DrawRect(entity);
 }
 
 V2_float Rect::GetSize() const {

@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "common/concepts.h"
 #include "components/drawable.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
@@ -25,9 +26,11 @@ struct Rect {
 	Rect() = default;
 
 	Rect(const V2_float& min, const V2_float& max);
-	explicit Rect(const V2_float& size);
 
-	static void Draw(impl::RenderData& ctx, const Entity& entity);
+	template <Arithmetic T>
+	Rect(const Vector2<T>& size) : min{ -size * 0.5f }, max{ size * 0.5f } {}
+
+	static void Draw(const Entity& entity);
 
 	[[nodiscard]] V2_float GetSize() const;
 
