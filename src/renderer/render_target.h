@@ -200,7 +200,7 @@ public:
 		return impl::SetDrawFilterImpl(*this, type_name<T>());
 	}
 
-	[[nodiscard]] bool HasDrawFilter();
+	[[nodiscard]] bool HasDrawFilter() const;
 
 	// @return render_target.
 	RenderTarget& RemoveDrawFilter();

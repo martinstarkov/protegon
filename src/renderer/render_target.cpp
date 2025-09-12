@@ -203,7 +203,7 @@ RenderTarget& SetDrawFilterImpl(RenderTarget& render_target, std::string_view fi
 
 } // namespace impl
 
-bool RenderTarget::HasDrawFilter() {
+bool RenderTarget::HasDrawFilter() const {
 	return Has<impl::IDrawFilter>();
 }
 
