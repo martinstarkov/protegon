@@ -651,12 +651,12 @@ RaycastResult RaycastPolygonPolygon(
 	// Build edges of polygons
 	auto get_edges = [](const std::vector<V2_float>& pts) {
 		std::vector<Line> edges;
-		size_t n = pts.size();
+		std::size_t n = pts.size();
 		if (n < 2) {
 			return edges;
 		}
 		edges.reserve(n);
-		for (size_t i = 0; i < n; ++i) {
+		for (std::size_t i = 0; i < n; ++i) {
 			edges.push_back({ pts[i], pts[(i + 1) % n] });
 		}
 		return edges;
