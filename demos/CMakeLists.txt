@@ -1,4 +1,3 @@
-
 add_subdirectory(tween)
 add_subdirectory(tween_translate)
 add_subdirectory(tween_rotate)
@@ -12,15 +11,14 @@ add_subdirectory(tween_follow)
 add_subdirectory(camera)
 add_subdirectory(camera_shake)
 
-# add_subdirectory(camera_translate)
-# add_subdirectory(camera_zoom)
-# add_subdirectory(camera_rotate)
-# add_subdirectory(camera_follow)
+# add_subdirectory(camera_translate) add_subdirectory(camera_zoom)
+# add_subdirectory(camera_rotate) add_subdirectory(camera_follow)
 # add_subdirectory(camera_fade)
 
 add_subdirectory(ui_dialogue)
 add_subdirectory(ui_dropdown)
 add_subdirectory(ui_button)
+add_subdirectory(ui_button_animated)
 add_subdirectory(ui_button_group)
 add_subdirectory(ui_plot)
 
