@@ -342,6 +342,8 @@ struct ButtonScript : public impl::BaseScript<ScriptType::Button> {
 
 	virtual void OnButtonHoverStart() { /* user implementation */ }
 
+	virtual void OnButtonHover() { /* user implementation */ }
+
 	virtual void OnButtonHoverStop() { /* user implementation */ }
 
 	virtual void OnButtonActivate() { /* user implementation */ }

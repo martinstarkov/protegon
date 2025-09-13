@@ -292,7 +292,7 @@ bool AnimationMap::SetActive(const ActiveMapManager::Key& key) {
 }
 
 Animation CreateAnimation(
-	Manager& manager, const TextureHandle& texture_key, const V2_float& position,
+	Manager& manager, const TextureHandle& animation_key, const V2_float& position,
 	std::size_t frame_count, milliseconds animation_duration, V2_int frame_size,
 	std::int64_t play_count, const V2_int& start_pixel
 ) {
@@ -303,9 +303,9 @@ Animation CreateAnimation(
 
 	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
 
-	Animation animation{ CreateSprite(manager, texture_key, position) };
+	Animation animation{ CreateSprite(manager, animation_key, position) };
 
-	auto texture_size{ texture_key.GetSize() };
+	auto texture_size{ animation_key.GetSize() };
 
 	if (frame_size.IsZero()) {
 		frame_size = { static_cast<std::size_t>(texture_size.x) / frame_count, texture_size.y };
