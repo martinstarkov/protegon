@@ -25,7 +25,16 @@ namespace ptgn::impl {
 RenderBuffer::RenderBuffer(const V2_int& size, InternalGLFormat format) {
 	GenerateRenderBuffer();
 	Bind();
+	SetStorage(size, format);
+}
+
+void RenderBuffer::SetStorage(const V2_int& size, InternalGLFormat format) {
+	PTGN_ASSERT(IsBound(), "Render buffer must be bound prior to setting its storage");
+
 	GLCall(RenderbufferStorage(GL_RENDERBUFFER, static_cast<GLenum>(format), size.x, size.y));
+
+	size_	= size;
+	format_ = format;
 }
 
 RenderBuffer::RenderBuffer(RenderBuffer&& other) noexcept : id_{ std::exchange(other.id_, 0) } {}
@@ -61,20 +70,31 @@ void RenderBuffer::DeleteRenderBuffer() noexcept {
 	id_ = 0;
 }
 
-void RenderBuffer::Bind(RenderBufferId id) {
+void RenderBuffer::BindId(RenderBufferId id) {
+	if (game.renderer.bound_.render_buffer_id == id) {
+		return;
+	}
 	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
+	game.renderer.bound_.render_buffer_id = id;
+#ifdef PTGN_DEBUG
+	++game.debug.stats.render_buffer_binds;
+#endif
 #ifdef GL_ANNOUNCE_RENDER_BUFFER_CALLS
 	PTGN_LOG("GL: Bound render buffer with id ", id);
 #endif
 }
 
+bool RenderBuffer::IsBound() const {
+	return GetBoundId() == id_;
+}
+
 void RenderBuffer::Bind() const {
 	PTGN_ASSERT(IsValid(), "Cannot bind destroyed or uninitialized render buffer");
-	Bind(id_);
+	BindId(id_);
 }
 
 void RenderBuffer::Unbind() {
-	Bind(0);
+	BindId(0);
 }
 
 RenderBufferId RenderBuffer::GetBoundId() {
@@ -92,19 +112,36 @@ RenderBufferId RenderBuffer::GetId() const {
 	return id_;
 }
 
+InternalGLFormat RenderBuffer::GetFormat() const {
+	return format_;
+}
+
+V2_int RenderBuffer::GetSize() const {
+	return size_;
+}
+
+void RenderBuffer::Resize(const V2_int& new_size) {
+	if (!IsValid() || size_ == new_size) {
+		return;
+	}
+
+	RenderBufferId restore_render_buffer_id{ RenderBuffer::GetBoundId() };
+	Bind();
+	SetStorage(new_size, GetFormat());
+	RenderBuffer::BindId(restore_render_buffer_id);
+}
+
 FrameBuffer::FrameBuffer(Texture&& texture) {
 	GenerateFrameBuffer();
 	Bind();
-	auto size{ texture.GetSize() };
+	V2_int size{ texture.GetSize() };
 	PTGN_ASSERT(
 		texture.GetFormat() != TextureFormat::Depth24 &&
 		texture.GetFormat() != TextureFormat::Depth24_Stencil8
 	);
 	AttachTexture(std::move(texture), FrameBufferAttachment::Color0);
-	// TODO: Fix stencil buffer.
-	// RenderBuffer rbo{ size, InternalGLFormat::STENCIL8 };
-	// Texture stencil{ nullptr, size, TextureFormat::Depth24_Stencil8 };
-	// AttachTexture(std::move(stencil), FrameBufferAttachment::DepthStencil);
+	RenderBuffer rbo{ size, InternalGLFormat::DEPTH24_STENCIL8 };
+	AttachRenderBuffer(std::move(rbo), FrameBufferAttachment::DepthStencil);
 }
 
 FrameBuffer::FrameBuffer(FrameBuffer&& other) noexcept :
@@ -145,7 +182,7 @@ void FrameBuffer::DeleteFrameBuffer() noexcept {
 	id_ = 0;
 }
 
-static void SetDrawBuffer(FrameBufferAttachment attachment) {
+void FrameBuffer::SetDrawBuffer(FrameBufferAttachment attachment) {
 	if (attachment != FrameBufferAttachment::DepthStencil &&
 		attachment != FrameBufferAttachment::Stencil &&
 		attachment != FrameBufferAttachment::Depth) {
@@ -166,7 +203,6 @@ void FrameBuffer::AttachTexture(Texture&& texture, FrameBufferAttachment attachm
 	GLCall(FramebufferTexture2D(
 		GL_FRAMEBUFFER, static_cast<GLenum>(attachment), GL_TEXTURE_2D, texture_.GetId(), 0
 	));
-	SetDrawBuffer(attachment);
 	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer: ", GetStatus());
 }
 
@@ -179,7 +215,6 @@ void FrameBuffer::AttachRenderBuffer(
 	GLCall(FramebufferRenderbuffer(
 		GL_FRAMEBUFFER, static_cast<GLenum>(attachment), GL_RENDERBUFFER, render_buffer_.GetId()
 	));
-	SetDrawBuffer(attachment);
 	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer: ", GetStatus());
 }
 
@@ -213,6 +248,11 @@ const char* FrameBuffer::GetStatus() const {
 				   "matching.";
 		default: return "Unknown framebuffer status.";
 	}
+}
+
+void FrameBuffer::Resize(const V2_int& size) {
+	texture_.Resize(size);
+	render_buffer_.Resize(size);
 }
 
 const Texture& FrameBuffer::GetTexture() const {

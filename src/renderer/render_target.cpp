@@ -211,7 +211,7 @@ void RenderTarget::Resize(const V2_int& size) {
 	if (auto camera{ TryGet<GameObject<Camera>>() }; camera && !camera->IsGameCamera()) {
 		Camera::Resize(*camera, size, true, true);
 	}
-	Get<impl::FrameBuffer>().GetTexture().Resize(size);
+	Get<impl::FrameBuffer>().Resize(size);
 }
 
 namespace impl {
