@@ -6,6 +6,7 @@
 
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -73,7 +74,26 @@ void DisplayResizeScript::OnDisplaySizeChanged() {
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
 void RenderTarget::Draw(const Entity& entity) {
-	impl::DrawTexture(entity, true);
+	Sprite sprite{ entity };
+
+	Camera camera{ RenderTarget{ entity }.GetCamera() };
+
+	V2_float texture_size;
+
+	if (camera) {
+		texture_size = camera.GetViewportSize();
+	}
+
+	if (texture_size.IsZero()) {
+		texture_size = sprite.GetSize();
+	}
+
+	game.renderer.DrawTexture(
+		sprite.GetTexture(), GetDrawTransform(entity), texture_size, GetDrawOrigin(entity),
+		GetTint(entity), GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PreFX>(), entity.GetOrDefault<PostFX>(),
+		sprite.GetTextureCoordinates(true)
+	);
 }
 
 V2_int RenderTarget::GetTextureSize() const {

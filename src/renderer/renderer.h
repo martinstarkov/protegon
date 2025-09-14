@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -46,6 +47,7 @@ class ShaderManager;
 class GLRenderer;
 class InputHandler;
 struct ViewportResizeScript;
+class DebugSystem;
 
 class Renderer {
 public:
@@ -122,7 +124,8 @@ public:
 		const TextureOrSize& texture_or_size = V2_int{},
 		BlendMode intermediate_blend_mode = default_blend_mode, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
-		TextureFormat texture_format = default_texture_format, const PostFX& post_fx = {}
+		TextureFormat texture_format = default_texture_format, const PostFX& post_fx = {},
+		std::optional<BlendMode> target_blend_mode = std::nullopt
 	);
 
 	// @param text_size {} results in unscaled size of text based on font.
@@ -130,7 +133,7 @@ public:
 		const std::string& content, Transform transform, const TextColor& color,
 		Origin origin = default_origin, const FontSize& font_size = {},
 		const ResourceHandle& font_key = {}, const TextProperties& properties = {},
-		const V2_float& text_size = {}, const Tint& tint = {}, bool hd_text = true,
+		V2_float text_size = {}, const Tint& tint = {}, bool hd_text = true,
 		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
 		const Camera& camera = {}, const PreFX& pre_fx = {}, const PostFX& post_fx = {},
 		const std::array<V2_float, 4>& texture_coordinates = GetDefaultTextureCoordinates()
@@ -211,6 +214,11 @@ public:
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {}
 	);
 
+	void EnableStencilMask();
+	void DisableStencilMask();
+	void DrawOutsideStencilMask();
+	void DrawInsideStencilMask();
+
 private:
 	friend class ptgn::Shader;
 	friend class ptgn::RenderTarget;
@@ -222,6 +230,13 @@ private:
 	friend class Game;
 	friend struct ViewportResizeScript;
 	friend class ShaderManager;
+	friend class DebugSystem;
+
+	[[nodiscard]] impl::Texture CreateTexture(
+		Transform& out_transform, V2_float& out_text_size, const TextContent& content,
+		const TextColor& color, const FontSize& font_size, const ResourceHandle& font_key,
+		const TextProperties& properties, bool hd_text, const Camera& camera
+	);
 
 	// Present the screen target to the window.
 	void PresentScreen();
