@@ -41,6 +41,7 @@ namespace impl {
 
 class Game;
 class FrameBuffer;
+class RenderBuffer;
 class VertexArray;
 class SceneManager;
 class ShaderManager;
@@ -224,6 +225,7 @@ private:
 	friend class ptgn::RenderTarget;
 	friend class VertexArray;
 	friend class FrameBuffer;
+	friend class RenderBuffer;
 	friend class GLRenderer;
 	friend class SceneManager;
 	friend class ptgn::Scene;
@@ -251,6 +253,7 @@ private:
 	// Renderer keeps track of what is bound.
 	struct BoundStates {
 		std::uint32_t frame_buffer_id{ 0 };
+		std::uint32_t render_buffer_id{ 0 };
 		std::uint32_t shader_id{ 0 };
 		std::uint32_t vertex_array_id{ 0 };
 		BlendMode blend_mode{ BlendMode::ReplaceRGBA };
