@@ -271,7 +271,7 @@ V2_int GLRenderer::GetViewportPosition() {
 }
 
 void GLRenderer::Clear() {
-	GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+	GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 #ifdef PTGN_DEBUG
 	++game.debug.stats.clears;
 #endif
@@ -289,6 +289,7 @@ void GLRenderer::ClearToColor(const V4_float& normalized_color) {
 	std::array<float, 4> color_array{ normalized_color.x, normalized_color.y, normalized_color.z,
 									  normalized_color.w };
 
+	GLCall(glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 	GLCall(ClearBufferfv(static_cast<GLenum>(BufferCategory::Color), 0, color_array.data()));
 	/*
 	// TODO: Check image format of bound texture and potentially use glClearBufferuiv instead of

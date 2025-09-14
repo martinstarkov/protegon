@@ -59,6 +59,7 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #define ShaderSource			glShaderSource
 #define ClearBufferfv			glClearBufferfv
 #define ClearBufferuiv			glClearBufferuiv
+#define DrawBuffers				glDrawBuffers
 #define GenBuffers				glGenBuffers
 #define DeleteBuffers			glDeleteBuffers
 #define GetBufferParameteriv	glGetBufferParameteriv
@@ -146,6 +147,7 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 	GLE(CompileShader, COMPILESHADER)                       \
 	GLE(CreateProgram, CREATEPROGRAM)                       \
 	GLE(CreateShader, CREATESHADER)                         \
+	GLE(DrawBuffers, DRAWBUFFERS)                           \
 	GLE(DeleteBuffers, DELETEBUFFERS)                       \
 	GLE(DeleteFramebuffers, DELETEFRAMEBUFFERS)             \
 	GLE(EnableVertexAttribArray, ENABLEVERTEXATTRIBARRAY)   \

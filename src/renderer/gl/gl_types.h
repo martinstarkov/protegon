@@ -104,15 +104,16 @@ concept VertexDataType = IsAnyOf<
 	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4>;
 
 enum class GLType : std::uint32_t {
-	None		  = 0,
-	Byte		  = 0x1400, // GL_BYTE
-	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
-	Short		  = 0x1402, // GL_SHORT
-	UnsignedShort = 0x1403, // GL_UNSIGNED_SHORT
-	Int			  = 0x1404, // GL_INT
-	UnsignedInt	  = 0x1405, // GL_UNSIGNED_INT
-	Float		  = 0x1406, // GL_FLOAT
-	Double		  = 0x140A, // GL_DOUBLE
+	None			= 0,
+	Byte			= 0x1400, // GL_BYTE
+	UnsignedByte	= 0x1401, // GL_UNSIGNED_BYTE
+	Short			= 0x1402, // GL_SHORT
+	UnsignedShort	= 0x1403, // GL_UNSIGNED_SHORT
+	Int				= 0x1404, // GL_INT
+	UnsignedInt		= 0x1405, // GL_UNSIGNED_INT
+	Float			= 0x1406, // GL_FLOAT
+	Double			= 0x140A, // GL_DOUBLE
+	UnsignedInt24_8 = 0x84FA  // GL_UNSIGNED_INT_24_8
 };
 
 template <typename T>
