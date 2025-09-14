@@ -59,6 +59,7 @@
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/shader.h"
+#include "renderer/stencil_mask.h"
 #include "renderer/texture.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -414,6 +415,14 @@ void RenderData::DrawCommand(const impl::DrawCommand& cmd) {
 				DrawShader(command);
 			} else if constexpr (std::is_same_v<T, DrawLinesCommand>) {
 				DrawLines(command);
+			} else if constexpr (std::is_same_v<T, EnableStencilMask>) {
+				StencilMask::Enable();
+			} else if constexpr (std::is_same_v<T, DisableStencilMask>) {
+				StencilMask::Disable();
+			} else if constexpr (std::is_same_v<T, DrawInsideStencilMask>) {
+				StencilMask::DrawInside();
+			} else if constexpr (std::is_same_v<T, DrawOutsideStencilMask>) {
+				StencilMask::DrawOutside();
 			} else {
 				PTGN_ERROR("Unknown draw command type");
 			}
@@ -433,12 +442,15 @@ void RenderData::DrawShape(const DrawShapeCommand& cmd) {
 	);
 }
 
-void RenderData::Submit(const impl::DrawCommand& command) {
+void RenderData::Submit(const impl::DrawCommand& command, bool debug) {
 	PTGN_ASSERT(
 		drawing_to_.texture_id, "Cannot submit render command to unspecified render target"
 	);
-
-	draw_queues_[drawing_to_.texture_id].emplace_back(command);
+	if (debug) {
+		debug_queue_.emplace_back(command);
+	} else {
+		draw_queues_[drawing_to_.texture_id].emplace_back(command);
+	}
 }
 
 void RenderData::DrawLines(const DrawLinesCommand& cmd) {
@@ -567,6 +579,8 @@ void RenderData::DrawShader(const DrawShaderCommand& cmd) {
 		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
 	}
 
+	intermediate_target->blend_mode = cmd.target_blend_mode;
+
 	PTGN_ASSERT(
 		cmd.render_state.shader_pass.has_value(), "Must specify shader when drawing shader"
 	);
@@ -641,6 +655,7 @@ TextureId RenderData::PingPong(
 void RenderData::Init() {
 	// GLRenderer::EnableLineSmoothing();
 
+	GLRenderer::DisableDepthTesting();
 	GLRenderer::DisableGammaCorrection();
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
@@ -925,6 +940,9 @@ void RenderData::Flush(bool final_flush) {
 			target.texture_format = texture.GetFormat();
 			target.texture_size	  = texture.GetSize();
 		}
+		if (intermediate_target->blend_mode.has_value()) {
+			target.blend_mode = *intermediate_target->blend_mode;
+		}
 		DrawFullscreenQuad(
 			GetFullscreenShader(target.texture_format), target,
 			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
@@ -1022,37 +1040,21 @@ DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
 	return impl::GetDrawTarget(render_target, camera, camera.GetWorldVertices(), false);
 }
 
-static float GetDepth(const DrawCommand& cmd) {
-	return std::visit(
-		[](const auto& c) {
-			return static_cast<float>(c.depth); // Assuming Depth can convert to float
-		},
-		cmd
-	);
-}
-
-static void SortByDepth(std::vector<DrawCommand>& commands, bool ascending) {
-	std::ranges::stable_sort(commands, [ascending](const DrawCommand& a, const DrawCommand& b) {
-		auto depth_a{ GetDepth(a) };
-		auto depth_b{ GetDepth(b) };
-		return ascending ? (depth_a < depth_b) : (depth_a > depth_b);
-	});
-}
-
-void RenderData::FlushDrawQueue(TextureId id) {
+void RenderData::FlushDrawQueue(TextureId id, bool draw_debug) {
 	auto it{ draw_queues_.find(id) };
 
-	if (it == draw_queues_.end()) {
-		return;
+	if (it != draw_queues_.end()) {
+		std::vector<impl::DrawCommand>& commands{ it->second };
+
+		for (const auto& command : commands) {
+			DrawCommand(command);
+		}
 	}
 
-	std::vector<impl::DrawCommand>& commands{ it->second };
-
-	// Must be sorted here so that debug render commands appear last.
-	SortByDepth(commands, true);
-
-	for (const auto& command : commands) {
-		DrawCommand(command);
+	if (draw_debug) {
+		for (const auto& command : debug_queue_) {
+			DrawCommand(command);
+		}
 	}
 
 	Flush(true);
@@ -1060,14 +1062,14 @@ void RenderData::FlushDrawQueue(TextureId id) {
 
 void RenderData::DrawDisplayList(
 	RenderTarget& render_target, std::vector<Entity>& display_list,
-	const std::function<bool(const Entity&)>& filter
+	const std::function<bool(const Entity&)>& filter, bool draw_debug
 ) {
 	SetDrawingTo(render_target);
 
-	InvokeDrawFilter(render_target, FilterType::Pre);
-
-	// Must be sorted here so that creation order is accounted for.
+	// Must be sorted here so that depth and creation order is accounted for.
 	SortByDepth(display_list, true);
+
+	InvokeDrawFilter(render_target, FilterType::Pre);
 
 	for (const auto& entity : display_list) {
 		if (filter && filter(entity)) {
@@ -1078,7 +1080,7 @@ void RenderData::DrawDisplayList(
 
 	InvokeDrawFilter(render_target, FilterType::Post);
 
-	FlushDrawQueue(drawing_to_.texture_id);
+	FlushDrawQueue(drawing_to_.texture_id, draw_debug);
 }
 
 void RenderData::SetDrawingTo(const RenderTarget& render_target) {
@@ -1101,10 +1103,14 @@ void RenderData::DrawScene(Scene& scene) {
 
 	auto& display_list{ scene.render_target_.GetDisplayList() };
 
-	DrawDisplayList(scene.render_target_, display_list, [](const Entity& entity) {
-		// Skip entities which are in the display list of a custom render target.
-		return entity.Has<RenderTarget>();
-	});
+	DrawDisplayList(
+		scene.render_target_, display_list,
+		[](const Entity& entity) {
+			// Skip entities which are in the display list of a custom render target.
+			return entity.Has<RenderTarget>();
+		},
+		true
+	);
 }
 
 void RenderData::RecomputeDisplaySize(const V2_int& window_size) {
@@ -1268,6 +1274,7 @@ void RenderData::Draw(Scene& scene) {
 	);
 
 	draw_queues_.clear();
+	debug_queue_.clear();
 
 	Reset();
 
