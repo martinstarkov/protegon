@@ -9,10 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "common/assert.h"
 #include "components/generic.h"
 #include "core/entity.h"
@@ -31,6 +27,10 @@
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
 #include "resources/resource_manager.h"
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "utility/file.h"
 
 namespace ptgn {
@@ -387,6 +387,10 @@ bool Texture::ValidMinifyingForMipmaps(TextureScaling minifying) {
 }
 
 void Texture::Resize(const V2_int& new_size) {
+	if (!IsValid() || size_ == new_size) {
+		return;
+	}
+
 	TextureId restore_texture_id{ Texture::GetBoundId() };
 	Bind();
 	SetData(nullptr, new_size, GetFormat(), 0);
