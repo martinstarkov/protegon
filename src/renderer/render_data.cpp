@@ -152,7 +152,7 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat tex
 	}
 
 	if (auto& texture{ spare_context->frame_buffer.GetTexture() }; texture.GetSize() != size) {
-		texture.Resize(size);
+		spare_context->frame_buffer.Resize(size);
 	}
 
 	spare_context->in_use = true;
@@ -416,12 +416,16 @@ void RenderData::DrawCommand(const impl::DrawCommand& cmd) {
 			} else if constexpr (std::is_same_v<T, DrawLinesCommand>) {
 				DrawLines(command);
 			} else if constexpr (std::is_same_v<T, EnableStencilMask>) {
+				Flush();
 				StencilMask::Enable();
 			} else if constexpr (std::is_same_v<T, DisableStencilMask>) {
+				Flush();
 				StencilMask::Disable();
 			} else if constexpr (std::is_same_v<T, DrawInsideStencilMask>) {
+				Flush();
 				StencilMask::DrawInside();
 			} else if constexpr (std::is_same_v<T, DrawOutsideStencilMask>) {
+				Flush();
 				StencilMask::DrawOutside();
 			} else {
 				PTGN_ERROR("Unknown draw command type");
