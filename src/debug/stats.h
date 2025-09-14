@@ -11,6 +11,7 @@ struct Stats {
 	std::int32_t buffer_binds{ 0 };
 	std::int32_t vertex_array_binds{ 0 };
 	std::int32_t frame_buffer_binds{ 0 };
+	std::int32_t render_buffer_binds{ 0 };
 	std::int32_t blend_mode_changes{ 0 };
 	std::int32_t viewport_changes{ 0 };
 	std::int32_t clears{ 0 };
