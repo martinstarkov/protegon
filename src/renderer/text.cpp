@@ -5,6 +5,11 @@
 #include <memory>
 #include <string>
 
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "common/assert.h"
 #include "components/draw.h"
 #include "components/effects.h"
@@ -23,11 +28,6 @@
 #include "resources/resource_manager.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 
 namespace ptgn {
 

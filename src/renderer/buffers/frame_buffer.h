@@ -6,16 +6,26 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/texture.h"
+#include "serialization/enum.h"
 
 namespace ptgn::impl {
 
 using RenderBufferId = std::uint32_t;
 
+enum class FrameBufferAttachment {
+	DepthStencil = 0x821A, //  GL_DEPTH_STENCIL
+	Depth		 = 0x8D00, // GL_DEPTH_COMPONENT
+	Stencil		 = 0x8D20, //  GL_STENCIL_INDEX
+	Color0		 = 0x8CE0, // GL_COLOR_ATTACHMENT0
+	Color1		 = 0x8CE1, // GL_COLOR_ATTACHMENT1
+	Color2		 = 0x8CE2  // GL_COLOR_ATTACHMENT2
+};
+
 class RenderBuffer {
 public:
 	RenderBuffer() = default;
 	// @param size Desired size of the render buffer.
-	explicit RenderBuffer(const V2_int& size);
+	explicit RenderBuffer(const V2_int& size, InternalGLFormat format);
 
 	RenderBuffer(const RenderBuffer&)			 = delete;
 	RenderBuffer& operator=(const RenderBuffer&) = delete;
@@ -55,17 +65,15 @@ public:
 
 	explicit FrameBuffer(Texture&& texture);
 
-	explicit FrameBuffer(RenderBuffer&& render_buffer);
-
 	FrameBuffer(const FrameBuffer&)			   = delete;
 	FrameBuffer& operator=(const FrameBuffer&) = delete;
 	FrameBuffer(FrameBuffer&& other) noexcept;
 	FrameBuffer& operator=(FrameBuffer&& other) noexcept;
 	~FrameBuffer();
 
-	void AttachTexture(Texture&& texture);
+	void AttachTexture(Texture&& texture, FrameBufferAttachment attachment);
 
-	void AttachRenderBuffer(RenderBuffer&& render_buffer);
+	void AttachRenderBuffer(RenderBuffer&& render_buffer, FrameBufferAttachment attachment);
 
 	// @return The texture attached to the frame buffer.
 	[[nodiscard]] const Texture& GetTexture() const;
@@ -76,6 +84,8 @@ public:
 
 	// @return True if the frame buffer attachment / creation was successful, false otherwise.
 	[[nodiscard]] bool IsComplete() const;
+
+	[[nodiscard]] const char* GetStatus() const;
 
 	// Bind a specific id as the current frame buffer.
 	// Note: Calling this outside of the FrameBuffer class may mess with the renderer as it keeps
@@ -130,5 +140,14 @@ private:
 	Texture texture_;
 	RenderBuffer render_buffer_;
 };
+
+PTGN_SERIALIZER_REGISTER_ENUM(
+	FrameBufferAttachment, { { FrameBufferAttachment::DepthStencil, "depth_stencil" },
+							 { FrameBufferAttachment::Stencil, "stencil" },
+							 { FrameBufferAttachment::Depth, "depth" },
+							 { FrameBufferAttachment::Color0, "color0" },
+							 { FrameBufferAttachment::Color1, "color1" },
+							 { FrameBufferAttachment::Color2, "color2" } }
+);
 
 } // namespace ptgn::impl

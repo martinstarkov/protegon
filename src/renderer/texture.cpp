@@ -9,6 +9,10 @@
 #include <utility>
 #include <vector>
 
+#include "SDL_error.h"
+#include "SDL_image.h"
+#include "SDL_pixels.h"
+#include "SDL_surface.h"
 #include "common/assert.h"
 #include "components/generic.h"
 #include "core/entity.h"
@@ -27,10 +31,6 @@
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
 #include "resources/resource_manager.h"
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "utility/file.h"
 
 namespace ptgn {
@@ -137,6 +137,12 @@ GLFormats GetGLFormats(TextureFormat format) {
 		}
 		case TextureFormat::A8: {
 			return { InternalGLFormat::R8, InputGLFormat::SingleChannel, 1 };
+		}
+		case TextureFormat::Depth24: {
+			return { InternalGLFormat::DEPTH24, InputGLFormat::Depth, 0 };
+		}
+		case TextureFormat::Depth24_Stencil8: {
+			return { InternalGLFormat::DEPTH24_STENCIL8, InputGLFormat::DepthStencil, 0 };
 		}
 #endif
 		default:
@@ -405,7 +411,13 @@ void Texture::SetData(
 	if (formats.internal_format == InternalGLFormat::HDR_RGBA ||
 		formats.internal_format == InternalGLFormat::HDR_RGB) {
 		type = GLType::Float;
+	} else if (formats.internal_format == InternalGLFormat::DEPTH24_STENCIL8) {
+		type = GLType::UnsignedInt24_8;
+	} else if (formats.internal_format == InternalGLFormat::DEPTH24) {
+		type = GLType::Int;
 	}
+
+	PTGN_ASSERT(formats.internal_format != InternalGLFormat::STENCIL8);
 
 	GLCall(glTexImage2D(
 		static_cast<GLenum>(TextureTarget::Texture2D), mipmap_level,

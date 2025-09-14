@@ -22,13 +22,10 @@
 
 namespace ptgn::impl {
 
-RenderBuffer::RenderBuffer(const V2_int& size) {
+RenderBuffer::RenderBuffer(const V2_int& size, InternalGLFormat format) {
 	GenerateRenderBuffer();
 	Bind();
-	GLCall(RenderbufferStorage(
-		GL_RENDERBUFFER, static_cast<GLenum>(InternalGLDepthFormat::DEPTH24_STENCIL8), size.x,
-		size.y
-	));
+	GLCall(RenderbufferStorage(GL_RENDERBUFFER, static_cast<GLenum>(format), size.x, size.y));
 }
 
 RenderBuffer::RenderBuffer(RenderBuffer&& other) noexcept : id_{ std::exchange(other.id_, 0) } {}
@@ -98,13 +95,16 @@ RenderBufferId RenderBuffer::GetId() const {
 FrameBuffer::FrameBuffer(Texture&& texture) {
 	GenerateFrameBuffer();
 	Bind();
-	AttachTexture(std::move(texture));
-}
-
-FrameBuffer::FrameBuffer(RenderBuffer&& render_buffer) {
-	GenerateFrameBuffer();
-	Bind();
-	AttachRenderBuffer(std::move(render_buffer));
+	auto size{ texture.GetSize() };
+	PTGN_ASSERT(
+		texture.GetFormat() != TextureFormat::Depth24 &&
+		texture.GetFormat() != TextureFormat::Depth24_Stencil8
+	);
+	AttachTexture(std::move(texture), FrameBufferAttachment::Color0);
+	// TODO: Fix stencil buffer.
+	// RenderBuffer rbo{ size, InternalGLFormat::STENCIL8 };
+	// Texture stencil{ nullptr, size, TextureFormat::Depth24_Stencil8 };
+	// AttachTexture(std::move(stencil), FrameBufferAttachment::DepthStencil);
 }
 
 FrameBuffer::FrameBuffer(FrameBuffer&& other) noexcept :
@@ -145,7 +145,18 @@ void FrameBuffer::DeleteFrameBuffer() noexcept {
 	id_ = 0;
 }
 
-void FrameBuffer::AttachTexture(Texture&& texture) {
+static void SetDrawBuffer(FrameBufferAttachment attachment) {
+	if (attachment != FrameBufferAttachment::DepthStencil &&
+		attachment != FrameBufferAttachment::Stencil &&
+		attachment != FrameBufferAttachment::Depth) {
+		std::vector<GLenum> attachments{ static_cast<GLenum>(attachment) };
+		GLCall(DrawBuffers(static_cast<GLsizei>(attachments.size()), attachments.data()));
+	} else {
+		glDrawBuffer(GL_NONE);
+	}
+}
+
+void FrameBuffer::AttachTexture(Texture&& texture, FrameBufferAttachment attachment) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
 	PTGN_ASSERT(
@@ -153,27 +164,55 @@ void FrameBuffer::AttachTexture(Texture&& texture) {
 	);
 	texture_ = std::move(texture);
 	GLCall(FramebufferTexture2D(
-		GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_.GetId(), 0
+		GL_FRAMEBUFFER, static_cast<GLenum>(attachment), GL_TEXTURE_2D, texture_.GetId(), 0
 	));
-	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer");
+	SetDrawBuffer(attachment);
+	PTGN_ASSERT(IsComplete(), "Failed to attach texture to frame buffer: ", GetStatus());
 }
 
-void FrameBuffer::AttachRenderBuffer(RenderBuffer&& render_buffer) {
+void FrameBuffer::AttachRenderBuffer(
+	RenderBuffer&& render_buffer, FrameBufferAttachment attachment
+) {
 	PTGN_ASSERT(render_buffer.IsValid(), "Cannot attach invalid render buffer to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach render buffer until frame buffer is bound");
 	render_buffer_ = std::move(render_buffer);
 	GLCall(FramebufferRenderbuffer(
-		GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer_.GetId()
+		GL_FRAMEBUFFER, static_cast<GLenum>(attachment), GL_RENDERBUFFER, render_buffer_.GetId()
 	));
-	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer");
+	SetDrawBuffer(attachment);
+	PTGN_ASSERT(IsComplete(), "Failed to attach render buffer to frame buffer: ", GetStatus());
 }
 
 bool FrameBuffer::IsComplete() const {
 	PTGN_ASSERT(IsBound(), "Cannot check status of frame buffer until it is bound");
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	return status == GL_FRAMEBUFFER_COMPLETE;
-	// TODO: Consider adding a way to query frame buffer status.
-	// PTGN_ERROR("Incomplete FrameBuffer: ", status);
+}
+
+const char* FrameBuffer::GetStatus() const {
+	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+	switch (status) {
+		case GL_FRAMEBUFFER_COMPLETE:  return "Framebuffer is complete.";
+		case GL_FRAMEBUFFER_UNDEFINED: return "Framebuffer is undefined (no framebuffer bound).";
+		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+			return "Incomplete attachment: One or more framebuffer attachment points are "
+				   "incomplete.";
+		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+			return "Missing attachment: No images are attached to the framebuffer.";
+		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+			return "Incomplete draw buffer: Draw buffer points to a missing attachment.";
+		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+			return "Incomplete read buffer: Read buffer points to a missing attachment.";
+		case GL_FRAMEBUFFER_UNSUPPORTED:
+			return "Framebuffer unsupported: Format combination not supported by implementation.";
+		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+			return "Incomplete multisample: Mismatched sample counts or improper use of "
+				   "multisampling.";
+		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+			return "Incomplete layer targets: Layered attachments are not all complete or not "
+				   "matching.";
+		default: return "Unknown framebuffer status.";
+	}
 }
 
 const Texture& FrameBuffer::GetTexture() const {
