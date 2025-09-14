@@ -612,7 +612,7 @@ public:
 
 		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, true, color::Transparent);
 		rt.SetDrawFilter<LightMap>();
-		SetBlendMode(rt, BlendMode::PremultipliedAddRGBA);
+		SetBlendMode(rt, BlendMode::MultiplyRGBA);
 
 		V2_float s{ game.renderer.GetGameSize() };
 
@@ -634,10 +634,10 @@ public:
 		};
 
 		static_light = create_light(color::Cyan);
-		// rt.AddToDisplayList(static_light);
+		rt.AddToDisplayList(static_light);
 
 		mouse_light = CreatePointLight(*this, { -300, 300 }, 50.0f, color::Red, 0.8f, 1.0f);
-		// rt.AddToDisplayList(mouse_light);
+		rt.AddToDisplayList(mouse_light);
 
 		auto sprite2 = CreateSprite(*this, "test", { -200, 150 });
 
@@ -669,7 +669,8 @@ public:
 void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 	auto& display_list{ render_target.GetDisplayList() };
 	if (type == FilterType::Pre) {
-		// game.renderer.EnableStencilMask();
+	} else {
+		game.renderer.EnableStencilMask();
 
 		for (auto& entity : display_list) {
 			if (!entity.Has<impl::LightProperties>()) {
@@ -699,35 +700,25 @@ void LightMap::Filter(RenderTarget& render_target, FilterType type) {
 				const V2_float& a = vertices[i];
 				const V2_float& b = vertices[(i + 1) % vertices.size()];
 
-				/*game.renderer.DrawTriangle(
+				game.renderer.DrawTriangle(
 					{}, Triangle{ pos, a, b }, GetTint(entity), -1.0f, GetDepth(entity) + 1,
-					BlendMode::ReplaceRGBA, entity.GetOrDefault<Camera>(),
+					BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
 					entity.GetOrDefault<PostFX>()
-				);*/
+				);
 			}
 		}
 
-		game.renderer.DrawTriangle(
-			{}, Triangle{ { 0, 300 }, { -300, 0 }, { 300, 0 } }, color::White, -1.0f, 0,
-			BlendMode::ReplaceRGBA, {}, {}
-		);
+		game.renderer.DrawOutsideStencilMask();
 
-		// game.renderer.DrawInsideStencilMask();
-		/*
 		game.renderer.DrawShape(
-			{}, Rect{ game.renderer.GetDisplaySize() }, color::Red, -1.0f, Origin::Center, {},
-			BlendMode::ReplaceRGBA, {}, {}, "color"
+			{}, Rect{ game.renderer.GetDisplaySize() }, color::Transparent, -1.0f, Origin::Center,
+			{}, BlendMode::ReplaceAlpha, {}, {}, "color"
 		);
 
 		game.renderer.DisableStencilMask();
-		*/
-	} else {
-		/*
-		StencilMask::DrawOutside();
-
-		game.renderer.DrawShape(
-			{}, Rect{ game.renderer.GetDisplaySize() }, color::Black, -1.0f, Origin::Center, {},
-			BlendMode::ReplaceAlpha, {}, {}, "color"
+		/*game.renderer.DrawShape(
+			{}, Rect{ game.renderer.GetDisplaySize() }, color::Red, -1.0f, Origin::Center, {},
+			BlendMode::ReplaceRGBA, {}, {}, "color"
 		);*/
 	}
 }
