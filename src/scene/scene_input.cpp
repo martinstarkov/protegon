@@ -45,16 +45,20 @@ static void GetShapes(
 ) {
 	bool is_parent{ entity == root_entity };
 
+	const auto get_shape = [&](auto e) {
+		if (e.Has<Rect>()) {
+			const auto& rect{ e.Get<Rect>() };
+			vector.emplace_back(rect, e);
+		}
+		if (e.Has<Circle>()) {
+			const auto& circle{ e.Get<Circle>() };
+			vector.emplace_back(circle, e);
+		}
+	};
+
 	// Accumulate the shapes of each interactable of the root_entity into the vector.
 	if (!is_parent) {
-		if (entity.Has<Rect>()) {
-			const auto& rect{ entity.Get<Rect>() };
-			vector.emplace_back(rect, entity);
-		}
-		if (entity.Has<Circle>()) {
-			const auto& circle{ entity.Get<Circle>() };
-			vector.emplace_back(circle, entity);
-		}
+		get_shape(entity);
 	}
 
 	// Get sub interactables of the entity recursively.
@@ -68,6 +72,9 @@ static void GetShapes(
 	// Once recursion is completed, there should be at least one interactable shape on an
 	// interactive entity.
 	if (is_parent) {
+		if (vector.empty()) {
+			get_shape(root_entity);
+		}
 		PTGN_ASSERT(
 			!vector.empty(), "Failed to find a valid interactable for the entity: ", entity.GetId()
 		);
