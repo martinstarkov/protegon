@@ -37,6 +37,9 @@ public:
 
 	virtual ~IScript() = default;
 
+	// Called when the script is created, after entity is populated.
+	virtual void OnCreate() { /* user implementation */ }
+
 	virtual void OnUpdate() { /* user implementation */ }
 
 	// TODO: Consider implementing?

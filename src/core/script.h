@@ -382,6 +382,8 @@ T& AddScript(Entity& entity, TArgs&&... args) {
 
 	script.entity = entity;
 
+	script.OnCreate();
+
 	return script;
 }
 
@@ -397,6 +399,8 @@ void TryAddScript(Entity& entity, TArgs&&... args) {
 	auto& script{ scripts.AddScript<T>(std::forward<TArgs>(args)...) };
 
 	script.entity = entity;
+
+	script.OnCreate();
 }
 
 /**
