@@ -30,6 +30,9 @@ struct Rect {
 	template <Arithmetic T>
 	Rect(const Vector2<T>& size) : min{ -size * 0.5f }, max{ size * 0.5f } {}
 
+	template <Arithmetic T>
+	Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
+
 	static void Draw(const Entity& entity);
 
 	[[nodiscard]] V2_float GetSize() const;
