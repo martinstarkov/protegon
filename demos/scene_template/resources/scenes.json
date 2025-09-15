@@ -1,30 +1,43 @@
 {
-    "main_menu": {
-        "buttons": [
-            {
-                "name": "Play",
-                "activates": "game"
-            },
-            {
-                "name": "Options",
-                "activates": "options"
-            }
-        ]
+  "scenes": {
+    "MainMenu": {
+      "archetype": "MainMenu",
+      "template": "VerticalList",
+      "layout": {
+        "origin": [640, 360],
+        "spacing": 60
+      },
+      "buttons": [
+        { "id": "btn_play", "label": "Play", "action": "scene:LevelSelect" },
+        { "id": "btn_options", "label": "Options", "action": "scene:OptionsMenu" },
+        { "id": "btn_quit", "label": "Quit", "action": "quit" }
+      ]
     },
-    "options": {
-        "buttons": [
-            {
-                "name": "Back",
-                "activates": "main_menu"
-            }
-        ]
+    "OptionsMenu": {
+      "archetype": "OptionsMenu",
+      "template": "Grid",
+      "layout": {
+        "origin": [640, 360],
+        "spacing": [120, 80],
+        "rows": 2,
+        "columns": 2
+      },
+      "buttons": [
+        { "id": "btn_audio", "label": "Audio", "action": "open_audio_settings" },
+        { "id": "btn_back", "label": "Back", "action": "scene:MainMenu" }
+      ]
     },
-    "game": {
-        "buttons": [
-            {
-                "name": "Back",
-                "activates": "main_menu"
-            }
-        ]
+    "LevelSelect": {
+      "archetype": "LevelSelect",
+      "template": "HorizontalList",
+      "layout": {
+        "origin": [640, 360],
+        "spacing": 60
+      },
+      "buttons": [
+        { "id": "btn_level1", "label": "Level 1", "action": "load_level_1" },
+        { "id": "btn_back", "label": "Back", "action": "scene:MainMenu" }
+      ]
     }
+  }
 }
