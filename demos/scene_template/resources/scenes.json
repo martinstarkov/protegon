@@ -1,0 +1,30 @@
+{
+    "main_menu": {
+        "buttons": [
+            {
+                "name": "Play",
+                "activates": "game"
+            },
+            {
+                "name": "Options",
+                "activates": "options"
+            }
+        ]
+    },
+    "options": {
+        "buttons": [
+            {
+                "name": "Back",
+                "activates": "main_menu"
+            }
+        ]
+    },
+    "game": {
+        "buttons": [
+            {
+                "name": "Back",
+                "activates": "main_menu"
+            }
+        ]
+    }
+}

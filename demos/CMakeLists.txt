@@ -47,6 +47,7 @@ add_subdirectory(resolution_text)
 
 add_subdirectory(scene)
 add_subdirectory(scene_transition)
+add_subdirectory(scene_template)
 
 add_subdirectory(script)
 add_subdirectory(script_sequence)
