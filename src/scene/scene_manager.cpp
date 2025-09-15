@@ -214,7 +214,9 @@ void SceneManager::HandleSceneEvents() {
 		}
 	}
 	for (auto [erase_active, scene] : exit) {
+		current_ = scene;
 		scene->InternalExit();
+		current_ = nullptr;
 		if (erase_active) {
 			VectorErase(active_scenes_, scene);
 		}
@@ -223,10 +225,12 @@ void SceneManager::HandleSceneEvents() {
 		if (add_active) {
 			active_scenes_.emplace_back(scene);
 		}
+		current_ = scene;
 		scene->InternalEnter();
 		if (scene->transition_) {
 			scene->transition_->Start();
 		}
+		current_ = nullptr;
 	}
 	for (auto scene : unload) {
 		VectorErase(scenes_, scene);
