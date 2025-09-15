@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(render_graphics_object)
+project(render_graphics)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
