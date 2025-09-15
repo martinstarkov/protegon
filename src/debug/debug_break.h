@@ -1,6 +1,7 @@
 #pragma once
 
 #include "debug/config.h"
+#include "utility/platform.h"
 
 #define PTGN_DEBUGBREAK() ((void)0)
 
