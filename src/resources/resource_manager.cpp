@@ -13,25 +13,19 @@ namespace ptgn {
 
 template <typename Derived, typename HandleType, typename ItemType>
 void ResourceManager<Derived, HandleType, ItemType>::LoadList(const path& json_filepath) {
-	auto resources{ ptgn::LoadJson(json_filepath) };
+	auto resources = ptgn::LoadJson(json_filepath);
 	LoadJson(resources);
 }
 
 template <typename Derived, typename HandleType, typename ItemType>
 void ResourceManager<Derived, HandleType, ItemType>::UnloadList(const path& json_filepath) {
-	auto resources{ ptgn::LoadJson(json_filepath) };
+	auto resources = ptgn::LoadJson(json_filepath);
 	UnloadJson(resources);
 }
 
 template <typename Derived, typename HandleType, typename ItemType>
 void ResourceManager<Derived, HandleType, ItemType>::LoadJson(const json& resources) {
-	json items{ resources };
-#ifdef __EMSCRIPTEN__
-	if (items.is_array()) {
-		items = items.at(0);
-	}
-#endif
-	for (auto it = items.begin(); it != items.end(); ++it) {
+	for (auto it = resources.begin(); it != resources.end(); ++it) {
 		const std::string& resource_key = it.key();
 		const auto& resource_path		= it.value();
 		if (!resource_path.is_string()) {
@@ -43,13 +37,7 @@ void ResourceManager<Derived, HandleType, ItemType>::LoadJson(const json& resour
 
 template <typename Derived, typename HandleType, typename ItemType>
 void ResourceManager<Derived, HandleType, ItemType>::UnloadJson(const json& resources) {
-	json items{ resources };
-#ifdef __EMSCRIPTEN__
-	if (items.is_array()) {
-		items = items.at(0);
-	}
-#endif
-	for (auto it = items.begin(); it != items.end(); ++it) {
+	for (auto it = resources.begin(); it != resources.end(); ++it) {
 		const std::string& resource_key = it.key();
 		const auto& resource_path		= it.value();
 		if (!resource_path.is_string()) {
@@ -112,9 +100,9 @@ template <typename Derived, typename HandleType, typename ItemType>
 void to_json(json& j, const ResourceManager<Derived, HandleType, ItemType>& manager) {
 	for (const auto& pair : manager.resources_) {
 		// This due to warning: captured structured bindings are a C++20 extension.
-		const auto& resource{ pair.second };
+		const auto& resource = pair.second;
 
-		const auto& key{ resource.key.GetKey() };
+		const auto& key = resource.key.GetKey();
 
 		/*
 		// TODO: Currently the FontManager uses the "" key to indicate the default font. Consider

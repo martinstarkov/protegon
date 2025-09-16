@@ -50,7 +50,7 @@ public:
 				return {};
 			}
 			T component{};
-			json json_component{ j.at(class_name) };
+			json json_component = j.at(class_name);
 			if (!json_component.empty()) {
 				json_component.get_to(component);
 			}

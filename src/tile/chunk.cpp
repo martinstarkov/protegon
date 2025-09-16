@@ -4,7 +4,6 @@
 #include <array>
 #include <functional>
 #include <list>
-#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -20,7 +19,6 @@
 #include "nlohmann/json.hpp"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/renderer.h"
 #include "scene/camera.h"
 #include "serialization/fwd.h"
 
@@ -61,7 +59,7 @@ json Chunk::Serialize() const {
 
 void Chunk::Deserialize(const json& j, Manager& manager) {
 	PTGN_ASSERT(entities.empty());
-	const auto& json_entities{ j["entities"] };
+	const auto& json_entities = j["entities"];
 	entities.reserve(json_entities.size());
 	for (const auto& entity : json_entities) {
 		PTGN_ASSERT(entity != json{});

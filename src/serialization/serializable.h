@@ -5,7 +5,6 @@
 #include <string_view>
 
 #include "common/macro.h"
-
 #include "serialization/enum.h"
 #include "serialization/json.h"
 
@@ -37,7 +36,7 @@ struct JsonKeyValuePair {
 	S default_value;
 
 	JsonKeyValuePair(std::string_view json_key, T& json_value, const S& default_value) :
-		key{ json_key }, value{ json_value }, default_value{ default_value } {}
+		key{ json_key }, value(json_value), default_value(default_value) {}
 };
 
 template <typename T>
@@ -90,19 +89,19 @@ template <typename T, typename S>
 
 #define PTGN_KEY_VALUE_TO_JSON_COMPARE(kv) nlohmann_json_j[kv.key] = kv.value;
 
-#define PTGN_KEY_VALUE_FROM_JSON_WITH_DEFAULT(kv)                                                 \
-	if (auto nlohmann_json_j_value{ nlohmann_json_j.contains(kv.key) ? nlohmann_json_j.at(kv.key) \
-																	 : json{} };                  \
-		nlohmann_json_j_value.empty()) {                                                          \
-		kv.value = kv.default_value;                                                              \
-	} else {                                                                                      \
-		nlohmann_json_j_value.get_to(kv.value);                                                   \
+#define PTGN_KEY_VALUE_FROM_JSON_WITH_DEFAULT(kv)                                   \
+	if (auto nlohmann_json_j_value =                                                \
+			nlohmann_json_j.contains(kv.key) ? nlohmann_json_j.at(kv.key) : json{}; \
+		nlohmann_json_j_value.empty()) {                                            \
+		kv.value = kv.default_value;                                                \
+	} else {                                                                        \
+		nlohmann_json_j_value.get_to(kv.value);                                     \
 	}
 
 #define PTGN_TO_JSON(member) nlohmann_json_j[#member] = nlohmann_json_t.member;
 #define PTGN_FROM_JSON_WITH_DEFAULT(member)                                                        \
-	if (auto nlohmann_json_j_value{                                                                \
-			nlohmann_json_j.contains(#member) ? nlohmann_json_j.at(#member) : json{} };            \
+	if (auto nlohmann_json_j_value =                                                               \
+			nlohmann_json_j.contains(#member) ? nlohmann_json_j.at(#member) : json{};              \
 		nlohmann_json_j_value.empty()) {                                                           \
 		nlohmann_json_t.member = nlohmann_json_default_obj.member;                                 \
 	} else {                                                                                       \
@@ -110,10 +109,10 @@ template <typename T, typename S>
 	}
 
 #define PTGN_SERIALIZER_REGISTER(Type, ...)                                                 \
-	friend void to_json(nlohmann::json& nlohmann_json_j, const Type& nlohmann_json_t) {     \
+	friend void to_json(json& nlohmann_json_j, const Type& nlohmann_json_t) {               \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_TO_JSON, __VA_ARGS__))                \
 	}                                                                                       \
-	friend void from_json(const nlohmann::json& nlohmann_json_j, Type& nlohmann_json_t) {   \
+	friend void from_json(const json& nlohmann_json_j, Type& nlohmann_json_t) {             \
 		const Type nlohmann_json_default_obj{};                                             \
 		(void)nlohmann_json_default_obj;                                                    \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_FROM_JSON_WITH_DEFAULT, __VA_ARGS__)) \
@@ -125,7 +124,7 @@ template <typename T, typename S>
 	}
 
 #define PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Type, ...)                                 \
-	friend void to_json(nlohmann::json& nlohmann_json_j, const Type& nlohmann_json_t) {     \
+	friend void to_json(json& nlohmann_json_j, const Type& nlohmann_json_t) {               \
 		if constexpr (std::is_default_constructible_v<Type>) {                              \
 			const Type nlohmann_json_default_obj{};                                         \
 			(void)nlohmann_json_default_obj;                                                \
@@ -134,7 +133,7 @@ template <typename T, typename S>
 			NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_TO_JSON, __VA_ARGS__))            \
 		}                                                                                   \
 	}                                                                                       \
-	friend void from_json(const nlohmann::json& nlohmann_json_j, Type& nlohmann_json_t) {   \
+	friend void from_json(const json& nlohmann_json_j, Type& nlohmann_json_t) {             \
 		const Type nlohmann_json_default_obj{};                                             \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_FROM_JSON_WITH_DEFAULT, __VA_ARGS__)) \
 	}                                                                                       \

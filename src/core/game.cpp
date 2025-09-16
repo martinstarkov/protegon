@@ -234,6 +234,7 @@ void Game::Shutdown() {
 }
 
 void Game::MainLoop() {
+	PTGN_ASSERT(window.IsValid(), "Game must be initialized before entering a scene");
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
@@ -333,13 +334,7 @@ void LoadResource(const std::vector<Resource>& resource_paths) {
 }
 
 void LoadResources(const path& resource_file, std::string_view music_resource_suffix) {
-	json resources{ LoadJson(resource_file) };
-
-#ifdef __EMSCRIPTEN__
-	if (resources.is_array()) {
-		resources = resources.at(0);
-	}
-#endif
+	json resources = LoadJson(resource_file);
 
 	if (!resources.is_object()) {
 		PTGN_ERROR(
@@ -350,10 +345,7 @@ void LoadResources(const path& resource_file, std::string_view music_resource_su
 	// Track unique resource keys.
 	std::unordered_set<std::size_t> taken_resource_keys;
 
-	for (auto it = resources.begin(); it != resources.end(); ++it) {
-		const std::string& key	  = it.key();
-		const auto& resource_path = it.value();
-
+	for (const auto& [key, resource_path] : resources.items()) {
 		auto key_hash{ Hash(key) };
 
 		PTGN_ASSERT(

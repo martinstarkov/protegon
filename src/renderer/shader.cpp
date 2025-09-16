@@ -427,7 +427,7 @@ static json GetManifest(const cmrc::embedded_filesystem& fs) {
 
 	std::string_view manifest_data(manifest_file.begin(), manifest_file.end());
 
-	json manifest{ json::parse(manifest_data) };
+	json manifest = json::parse(manifest_data);
 
 	// PTGN_LOG("--------- Manifest Name ----------");
 	// PTGN_LOG(manifest_name);
@@ -442,10 +442,10 @@ void ShaderManager::PopulateShadersFromCache(const json& manifest) {
 		std::string fragment_name;
 
 		if (shader_object.contains("vertex") && shader_object.contains("fragment")) {
-			vertex_name	  = shader_object.at("vertex");
-			fragment_name = shader_object.at("fragment");
+			vertex_name	  = shader_object.at("vertex").get<std::string>();
+			fragment_name = shader_object.at("fragment").get<std::string>();
 		} else if (shader_object.contains("source")) {
-			auto name{ shader_object.at("source") };
+			auto name	  = shader_object.at("source").get<std::string>();
 			vertex_name	  = name;
 			fragment_name = name;
 		} else {
@@ -555,7 +555,7 @@ void ShaderManager::Init() {
 
 	PopulateShaderCache(fs, cache_, max_texture_slots);
 
-	auto manifest{ GetManifest(fs) };
+	auto manifest = GetManifest(fs);
 
 	PopulateShadersFromCache(manifest);
 }

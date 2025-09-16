@@ -280,7 +280,7 @@ public:
 		const auto deserialize_script = [&container](const json& script) {
 			PTGN_ASSERT(script.contains("type"));
 
-			std::string class_name{ script.at("type") };
+			std::string class_name{ script.at("type").get<std::string>() };
 
 			auto instance{ impl::ScriptRegistry<impl::IScript>::Instance().Create(class_name) };
 

@@ -82,7 +82,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	}
 
 	{
-		auto j{ LoadJson("resources/mydata.json") };
+		auto j = LoadJson("resources/mydata.json");
 
 		Entity e2{ m.CreateEntity(j) };
 

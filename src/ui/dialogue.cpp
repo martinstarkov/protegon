@@ -204,14 +204,9 @@ int Dialogue::GetNewDialogueLine() {
 }
 
 DialogueComponent::DialogueComponent(Entity parent, const path& json_path, Entity&& background) {
-	json j{ LoadJson(json_path) };
-#ifdef __EMSCRIPTEN__
-	if (j.is_array()) {
-		j = j.at(0);
-	}
-#endif
+	json j = LoadJson(json_path);
 	auto& scene{ parent.GetScene() };
-	background_ = background;
+	background_ = std::move(background);
 	if (background_) {
 		SetParent(background_, parent);
 	}
