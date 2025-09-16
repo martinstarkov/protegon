@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "common/assert.h"
@@ -13,10 +15,14 @@
 #include "input/input_handler.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
+#include "scene/menu_template.h"
 #include "scene/scene.h"
 #include "scene/scene_key.h"
 #include "scene/scene_transition.h"
+#include "serialization/fwd.h"
+#include "serialization/json.h"
 #include "tweens/tween.h"
+#include "utility/file.h"
 #include "utility/span.h"
 
 namespace ptgn::impl {
@@ -49,6 +55,12 @@ bool SceneManager::IsActive(const SceneKey& scene_key) const {
 	});
 }
 
+void SceneManager::ExitAll() {
+	for (const auto& scene : active_scenes_) {
+		Exit(scene->GetKey());
+	}
+}
+
 std::shared_ptr<Scene> SceneManager::GetImpl(const SceneKey& scene_key) const {
 	auto it{ std::ranges::find_if(scenes_, [&scene_key](const auto& scene) {
 		return scene->GetKey() == scene_key;
@@ -72,7 +84,7 @@ void SceneManager::Enter(const SceneKey& scene_key) {
 
 	scene->state_ = Scene::State::Entering;
 
-	if (active_scenes_.empty()) {
+	if (scene->first_scene_ && active_scenes_.empty()) {
 		// First active scene, aka the starting scene. Enter the game loop.
 		game.MainLoop();
 	}
@@ -303,6 +315,21 @@ void SceneManager::MoveBelow(const SceneKey& source_key, const SceneKey& target_
 
 	// Insert after target.
 	scenes_.insert(std::next(target_it), scene);
+}
+
+void SceneManager::EnterConfig(const path& scene_json_file) {
+	json j = LoadJson(scene_json_file);
+
+	PTGN_ASSERT(j.contains("scenes"), "Scene config must contain a scenes dictionary");
+	PTGN_ASSERT(j.contains("start_scene"), "Scene config must specify a start scene");
+
+	const json& scene_json = j.at("scenes");
+
+	auto start_scene{ j.at("start_scene").get<std::string>() };
+
+	PTGN_ASSERT(scene_json.contains(start_scene), "Start scene must be in the scenes dictionary");
+
+	game.scene.Enter<TemplateMenuScene>(start_scene, start_scene, scene_json);
 }
 
 } // namespace ptgn::impl

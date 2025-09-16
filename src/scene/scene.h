@@ -144,6 +144,9 @@ private:
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
 	float collider_line_width_{ 1.0f };
+
+	// Set to true for only the first scene entered. Used to trigger the game loop.
+	bool first_scene_{ false };
 };
 
 } // namespace ptgn
