@@ -1,72 +1,38 @@
+#include <optional>
+
+#include "common/assert.h"
+#include "components/draw.h"
 #include "core/game.h"
-#include "math/vector2.h"
-#include "renderer/api/origin.h"
-#include "renderer/renderer.h"
+#include "renderer/api/color.h"
+#include "renderer/text.h"
+#include "scene/menu_template.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+class GameScene : public Scene {
+public:
+	int level{ -1 };
 
-void ApplyVerticalLayout(
-	std::vector<Entity>& entities, const V2_float& origin, float spacing, bool center_items
-) {
-	float total_height = static_cast<float>(entities.size()) * spacing;
-	float start_y	   = origin.y;
+	GameScene(int level) : level{ level } {}
 
-	if (center_items) {
-		start_y = origin.y - (total_height - spacing) / 2.0f;
+	void Enter() override {
+		PTGN_ASSERT(level != -1);
+
+		std::string label{ std::format("Level {}", level) };
+		Color color;
+
+		switch (level) {
+			case 1:	 color = color::Blue; break;
+			case 2:	 color = color::Red; break;
+			default: color = Color::RandomOpaque(); break;
+		}
+
+		CreateRect(*this, {}, { 100, 100 }, color);
+		CreateText(*this, label, color::White);
 	}
-
-	for (std::size_t i = 0; i < entities.size(); ++i) {
-		SetPosition(entities[i], { origin.x, start_y + i * spacing });
-	}
-}
-
-void ApplyHorizontalLayout(
-	std::vector<Entity>& entities, const V2_float& origin, float spacing, bool center_items
-) {
-	float total_width = static_cast<float>(entities.size()) * spacing;
-	float start_x	  = origin.x;
-
-	if (center_items) {
-		start_x = origin.x - (total_width - spacing) / 2.0f;
-	}
-
-	for (std::size_t i = 0; i < entities.size(); ++i) {
-		SetPosition(entities[i], { start_x + i * spacing, origin.y });
-	}
-}
-
-void ApplyGridLayout(
-	std::vector<Entity>& entities, const V2_float& origin, const V2_float& spacing,
-	const V2_int& grid_size
-) {
-	int rows = std::max(1, grid_size.y);
-	int cols = std::max(1, grid_size.x);
-
-	if (rows == 1 && cols == 1 && entities.size() > 1) {
-		cols = static_cast<int>(entities.size());
-	}
-
-	V2_float total{ cols * spacing.x, rows * spacing.y };
-
-	V2_float start{ origin - (total - spacing) / 2.0f };
-
-	for (std::size_t i = 0; i < entities.size(); ++i) {
-		int r = static_cast<int>(i) / cols; // entities[i].row.value_or
-		int c = static_cast<int>(i) % cols; // entities[i].col.value_or
-		SetPosition(entities[i], { start + V2_float{ c, r } * spacing });
-	}
-}
-
-void LoadScene(const path& scene_file) {
-	json j{ LoadJson(scene_file) };
-	PTGN_LOG(j.dump(4));
-}
-
-// --------------------------------------------
+};
 
 class SceneTemplateExample : public Scene {
 public:
@@ -75,12 +41,18 @@ public:
 					   { "bg2", "resources/bg2.png" },
 					   { "bg3", "resources/bg3.png" } });
 
-		LoadScene("resources/scenes.json");
+		SceneAction::Register("load_level_1", []() {
+			game.scene.Transition<GameScene>(std::nullopt, "game_scene", 1);
+		});
+		SceneAction::Register("load_level_2", []() {
+			game.scene.Transition<GameScene>(std::nullopt, "game_scene", 2);
+		});
+		game.scene.EnterConfig("resources/scenes.json");
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTemplateExample", resolution);
+	game.Init("SceneTemplateExample");
 	game.scene.Enter<SceneTemplateExample>("");
 	return 0;
 }

@@ -1,42 +1,44 @@
 {
+  "start_scene": "MainMenu",
   "scenes": {
     "MainMenu": {
       "archetype": "MainMenu",
       "template": "VerticalList",
       "layout": {
-        "origin": [640, 360],
+        "origin": [0, 0],
         "spacing": 60
       },
       "buttons": [
-        { "id": "btn_play", "label": "Play", "action": "scene:LevelSelect" },
-        { "id": "btn_options", "label": "Options", "action": "scene:OptionsMenu" },
-        { "id": "btn_quit", "label": "Quit", "action": "quit" }
+        { "label": "Play", "action": "transition:LevelSelect" },
+        { "label": "Options", "action": "transition:OptionsMenu" },
+        { "label": "Quit", "action": "quit" }
       ]
     },
     "OptionsMenu": {
       "archetype": "OptionsMenu",
       "template": "Grid",
       "layout": {
-        "origin": [640, 360],
+        "origin": [0, 0],
         "spacing": [120, 80],
         "rows": 2,
         "columns": 2
       },
       "buttons": [
-        { "id": "btn_audio", "label": "Audio", "action": "open_audio_settings" },
-        { "id": "btn_back", "label": "Back", "action": "scene:MainMenu" }
+        { "label": "Audio", "action": "open_audio_settings" },
+        { "label": "Back", "action": "transition:MainMenu" }
       ]
     },
     "LevelSelect": {
       "archetype": "LevelSelect",
       "template": "HorizontalList",
       "layout": {
-        "origin": [640, 360],
-        "spacing": 60
+        "origin": [0, 0],
+        "spacing": 150
       },
       "buttons": [
-        { "id": "btn_level1", "label": "Level 1", "action": "load_level_1" },
-        { "id": "btn_back", "label": "Back", "action": "scene:MainMenu" }
+        { "label": "Level 1", "action": "load_level_1" },
+        { "label": "Level 2", "action": "load_level_2" },
+        { "label": "Back", "action": "transition:MainMenu" }
       ]
     }
   }
