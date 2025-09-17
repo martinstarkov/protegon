@@ -67,6 +67,8 @@ public:
 		std::visit([&](const auto& value) { *this = InteractiveShape{ value }; }, shape);
 	}
 
+	bool operator==(const InteractiveShape&) const = default;
+
 	// friend void to_json(json& j, const InteractiveShape& shape);
 	// friend void from_json(const json& j, InteractiveShape& shape);
 };
@@ -79,6 +81,8 @@ public:
 	ColliderShape(const T& shape) {
 		std::visit([&](const auto& value) { *this = ColliderShape{ value }; }, shape);
 	}
+
+	bool operator==(const ColliderShape&) const = default;
 
 	// friend void to_json(json& j, const ColliderShape& shape);
 	// friend void from_json(const json& j, ColliderShape& shape);
@@ -94,6 +98,8 @@ public:
 	Shape(const T& shape) {
 		std::visit([&](const auto& value) { *this = Shape{ value }; }, shape);
 	}
+
+	bool operator==(const Shape&) const = default;
 
 	// friend void to_json(json& j, const Shape& shape);
 	// friend void from_json(const json& j, Shape& shape);

@@ -35,6 +35,8 @@ struct Line {
 
 	[[nodiscard]] std::array<V2_float, 2> GetLocalVertices() const;
 
+	bool operator==(const Line&) const = default;
+
 	V2_float start;
 	V2_float end;
 

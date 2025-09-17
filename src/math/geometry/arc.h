@@ -39,6 +39,8 @@ struct Arc {
 
 	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
 
+	bool operator==(const Arc&) const = default;
+
 	float radius{ 0.0f };
 	float start_angle{ 0.0f };
 	float end_angle{ 0.0f };

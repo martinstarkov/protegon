@@ -55,6 +55,8 @@ struct Rect {
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
 
+	bool operator==(const Rect&) const = default;
+
 	V2_float min;
 	V2_float max;
 

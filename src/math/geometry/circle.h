@@ -36,6 +36,8 @@ struct Circle {
 
 	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
 
+	bool operator==(const Circle&) const = default;
+
 	float radius{ 0.0f };
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius)
