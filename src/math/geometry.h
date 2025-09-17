@@ -61,7 +61,7 @@ enum class Orientation {
  */
 [[nodiscard]] Orientation GetOrientation(const V2_float& a, const V2_float& b, const V2_float& c);
 
-[[nodiscard]] bool VisibilityRayIntersects(
+bool VisibilityRayIntersects(
 	const V2_float& origin, const V2_float& direction, const Line& segment, V2_float& out_point
 );
 
@@ -87,11 +87,11 @@ struct VisibilityEvent {
  * @return vector of vertices of the visibility polygon.
  */
 [[nodiscard]] std::vector<V2_float> GetVisibilityPolygon(
-	const V2_float& point, const std::vector<Line>& shadow_segments
+	const V2_float& origin, const std::vector<Line>& segments
 );
 
 [[nodiscard]] std::vector<Triangle> GetVisibilityTriangles(
-	const V2_float& origin, const std::vector<Line>& shadow_segments
+	const V2_float& origin, const std::vector<Line>& segments
 );
 
 std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connect_last_to_first);
