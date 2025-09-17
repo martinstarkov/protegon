@@ -371,7 +371,19 @@ static void DrawShape(RenderData& ctx, DrawShapeCommand cmd, const T& shape) {
 	} else if constexpr (std::is_same_v<T, Polygon>) {
 		ctx.SetState(cmd.render_state);
 
-		PTGN_ASSERT(shape.vertices.size() >= 3);
+		if (shape.vertices.size() < 3) {
+			if (shape.vertices.empty()) {
+				return;
+			} else if (shape.vertices.size() == 1) {
+				cmd.shape = V2_float{ shape.vertices.front() };
+				ctx.DrawShape(cmd);
+				return;
+			} else if (shape.vertices.size() == 2) {
+				cmd.shape = Line{ shape.vertices[0], shape.vertices[1] };
+				ctx.DrawShape(cmd);
+				return;
+			}
+		}
 
 		auto points = shape.GetWorldVertices(cmd.transform);
 
