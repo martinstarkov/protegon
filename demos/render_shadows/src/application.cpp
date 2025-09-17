@@ -1,12 +1,24 @@
 #include <algorithm>
+#include <optional>
 #include <vector>
 
+#include "components/draw.h"
+#include "components/effects.h"
 #include "components/sprite.h"
+#include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
+#include "core/game_object.h"
+#include "core/manager.h"
 #include "core/window.h"
 #include "input/input_handler.h"
+#include "input/mouse.h"
 #include "math/geometry.h"
+#include "math/geometry/line.h"
+#include "math/geometry/rect.h"
+#include "math/geometry/shape.h"
+#include "math/vector2.h"
+#include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/render_target.h"
@@ -16,50 +28,147 @@
 #include "renderer/vfx/light.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
+#include "scene/scene_input.h"
 #include "scene/scene_manager.h"
 
 // TODO: Move LightMap to engine.
 
 using namespace ptgn;
 
-class LightMap {
-public:
-	static void Filter(RenderTarget& render_target, FilterType type);
+namespace ptgn {
+
+namespace impl {
+
+struct LightMapInstance {
+	// Entities which will form the shadow segments.
+	std::vector<Entity> shadow_entities;
+	std::vector<PointLight> light_entities;
+	// TODO: Draw lights to this render target, and then draw shadows on top.
+	GameObject<RenderTarget> light_render_target;
 };
 
-PTGN_DRAW_FILTER_REGISTER(LightMap);
+} // namespace impl
+
+class LightMap : public Entity {
+public:
+	LightMap() = default;
+
+	LightMap(const Entity& entity) : Entity{ entity } {}
+
+	void AddShadow(const Entity& entity) {
+		auto& light_map{ Get<impl::LightMapInstance>() };
+
+		PTGN_ASSERT(
+			GetSpriteOrShape(entity).has_value(), "Cannot add shadow entity which has no shape"
+		);
+
+		light_map.shadow_entities.emplace_back(entity);
+	}
+
+	void AddLight(const Entity& entity) {
+		auto& light_map{ Get<impl::LightMapInstance>() };
+
+		PTGN_ASSERT(
+			entity.Has<impl::LightProperties>(), "Cannot add light entity which is not a light"
+		);
+
+		light_map.light_entities.emplace_back(entity);
+	}
+
+	static void Draw(const Entity& entity) {
+		const auto& light_map{ entity.Get<impl::LightMapInstance>() };
+
+		game.renderer.EnableStencilMask();
+
+		auto shadow_segments{ GetShadowSegments(light_map.shadow_entities) };
+
+		for (const auto& light : light_map.light_entities) {
+			if (!light.Has<impl::LightProperties>()) {
+				continue;
+			}
+
+			auto origin{ GetPosition(light) };
+
+			auto visibility_triangles{ GetVisibilityTriangles(origin, shadow_segments) };
+
+			for (const auto& triangle : visibility_triangles) {
+				game.renderer.DrawTriangle(
+					{}, triangle, color::Black, -1.0f, GetDepth(entity) + 1,
+					BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
+					entity.GetOrDefault<PostFX>()
+				);
+			}
+		}
+
+		game.renderer.DrawOutsideStencilMask();
+
+		game.renderer.DrawShape(
+			{}, Rect{ game.renderer.GetDisplaySize() }, color::Black, -1.0f, Origin::Center, {},
+			BlendMode::ReplaceRGBA, {}, {}, "color"
+		);
+
+		game.renderer.DisableStencilMask();
+	}
+
+private:
+	static void AddWorldBoundaries(std::vector<Line>& shadow_segments) {
+		auto size{ game.renderer.GetGameSize() };
+		auto half_size{ size * 0.5f };
+
+		shadow_segments.emplace_back(-half_size, V2_float{ half_size.x, -half_size.y });
+		shadow_segments.emplace_back(V2_float{ half_size.x, -half_size.y }, half_size);
+		shadow_segments.emplace_back(half_size, V2_float{ -half_size.x, half_size.y });
+		shadow_segments.emplace_back(V2_float{ -half_size.x, half_size.y }, -half_size);
+	}
+
+	static std::vector<Line> GetShadowSegments(const std::vector<Entity>& shadow_entities) {
+		std::vector<Line> shadow_segments;
+
+		for (const auto& entity : shadow_entities) {
+			if (auto shape{ GetSpriteOrShape(entity) }) {
+				auto transform{ GetAbsoluteTransform(entity) };
+
+				transform = OffsetByOrigin(*shape, transform, entity);
+
+				auto edge_info{ GetEdges(*shape, transform) };
+
+				shadow_segments.insert(
+					shadow_segments.end(), edge_info.edges.begin(), edge_info.edges.end()
+				);
+			}
+		}
+
+		AddWorldBoundaries(shadow_segments);
+
+		return shadow_segments;
+	}
+};
+
+PTGN_DRAWABLE_REGISTER(LightMap);
+
+LightMap CreateLightMap(Manager& manager) {
+	LightMap light_map{ manager.CreateEntity() };
+
+	Show(light_map);
+	SetDraw<LightMap>(light_map);
+
+	auto& instance{ light_map.Add<impl::LightMapInstance>() };
+
+	// TODO: Fix.
+	// instance.light_render_target = CreateRenderTarget(manager, ResizeMode::DisplaySize, true,
+	// color::Transparent);
+
+	return light_map;
+}
+
+} // namespace ptgn
 
 class ShadowScene : public Scene {
 public:
 	PointLight mouse_light;
 	PointLight static_light;
 
-	std::vector<Line> shadow_segments;
-
-	void AddShadow(Transform t1, Rect r1, Origin origin = Origin::Center) {
-		auto verts1{ r1.GetWorldVertices(t1, origin) };
-		for (std::size_t i{ 0 }; i < verts1.size(); i++) {
-			shadow_segments.emplace_back(verts1[i], verts1[(i + 1) % verts1.size()]);
-		}
-	}
-
-	void AddShadow(Entity e) {
-		if (!e.Has<Rect>()) {
-			return;
-		}
-
-		auto t1 = GetAbsoluteTransform(e);
-		Rect r1{ e.Get<Rect>() };
-
-		AddShadow(t1, r1, GetDrawOrigin(e));
-	}
-
-	void AddShadow(Sprite e) {
-		auto t1 = GetAbsoluteTransform(e);
-		Rect r1{ e.GetDisplaySize() };
-
-		AddShadow(t1, r1, GetDrawOrigin(e));
-	}
+	LightMap light_map;
 
 	void Enter() override {
 		// game.renderer.SetBackgroundColor(color::White);
@@ -77,32 +186,19 @@ public:
 
 		float step{ 80 };
 
-		auto rt = CreateRenderTarget(*this, ResizeMode::DisplaySize, true, color::Transparent);
-		rt.SetDrawFilter<LightMap>();
-		SetBlendMode(rt, BlendMode::MultiplyRGBA);
-
-		V2_float s{ game.renderer.GetGameSize() };
-
-		shadow_segments.emplace_back(-s * 0.5f, V2_float{ s.x * 0.5f, -s.y * 0.5f });
-		shadow_segments.emplace_back(V2_float{ s.x * 0.5f, -s.y * 0.5f }, s * 0.5f);
-		shadow_segments.emplace_back(s * 0.5f, V2_float{ -s.x * 0.5f, s.y * 0.5f });
-		shadow_segments.emplace_back(V2_float{ -s.x * 0.5f, s.y * 0.5f }, -s * 0.5f);
-
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
 			auto light	 = CreatePointLight(
-				  *this, V2_float{ -rt.GetCamera().GetViewportSize() * 0.5f } + V2_float{ i * step },
-				  radius, color, intensity, falloff
+				  *this, -game.renderer.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
+				  intensity, falloff
 			  );
 			i++;
 			return light;
 		};
 
 		static_light = create_light(color::Cyan);
-		rt.AddToDisplayList(static_light);
 
 		mouse_light = CreatePointLight(*this, { -300, 300 }, 50.0f, color::Red, 0.8f, 1.0f);
-		rt.AddToDisplayList(mouse_light);
 
 		auto sprite2 = CreateSprite(*this, "test", { -200, 150 });
 
@@ -111,9 +207,14 @@ public:
 		auto rect2 =
 			CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
 
-		AddShadow(sprite);
-		AddShadow(sprite2);
-		AddShadow(rect2);
+		light_map = CreateLightMap(*this);
+
+		light_map.AddLight(static_light);
+		light_map.AddLight(mouse_light);
+
+		light_map.AddShadow(sprite);
+		light_map.AddShadow(sprite2);
+		light_map.AddShadow(rect2);
 	}
 
 	void Update() override {
@@ -125,47 +226,6 @@ public:
 		}
 	}
 };
-
-void LightMap::Filter(RenderTarget& render_target, FilterType type) {
-	auto& display_list{ render_target.GetDisplayList() };
-	if (type == FilterType::Pre) {
-	} else {
-		game.renderer.EnableStencilMask();
-
-		for (auto& entity : display_list) {
-			if (!entity.Has<impl::LightProperties>()) {
-				continue;
-			}
-
-			auto origin{ GetPosition(entity) };
-
-			const auto& shadow_segments{ game.scene.Get<ShadowScene>("").shadow_segments };
-
-			auto visibility_triangles{ GetVisibilityTriangles(origin, shadow_segments) };
-
-			for (const auto& triangle : visibility_triangles) {
-				game.renderer.DrawTriangle(
-					{}, triangle, GetTint(entity), -1.0f, GetDepth(entity) + 1,
-					BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
-					entity.GetOrDefault<PostFX>()
-				);
-			}
-		}
-
-		game.renderer.DrawOutsideStencilMask();
-
-		game.renderer.DrawShape(
-			{}, Rect{ game.renderer.GetDisplaySize() }, color::Transparent, -1.0f, Origin::Center,
-			{}, BlendMode::ReplaceAlpha, {}, {}, "color"
-		);
-
-		game.renderer.DisableStencilMask();
-		/*game.renderer.DrawShape(
-			{}, Rect{ game.renderer.GetDisplaySize() }, color::Red, -1.0f, Origin::Center, {},
-			BlendMode::ReplaceRGBA, {}, {}, "color"
-		);*/
-	}
-}
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	game.Init("ShadowScene: Right: Move static light", { 800, 800 });
