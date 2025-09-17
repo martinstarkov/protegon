@@ -93,4 +93,6 @@ struct VisibilityEvent {
 	const V2_float& origin, const std::vector<Line>& shadow_segments
 );
 
+std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connect_last_to_first);
+
 } // namespace ptgn

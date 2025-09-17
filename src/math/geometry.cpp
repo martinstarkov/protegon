@@ -8,6 +8,7 @@
 #include <set>
 #include <span>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "common/assert.h"
@@ -446,6 +447,25 @@ std::vector<Triangle> GetVisibilityTriangles(
 	}
 
 	return triangles;
+}
+
+std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connect_last_to_first) {
+	std::size_t count{ points.size() };
+
+	if (count < 2) {
+		return {};
+	}
+
+	std::size_t end{ connect_last_to_first ? count : count - 1 };
+
+	std::vector<Line> lines;
+	lines.reserve(end);
+
+	for (std::size_t i{ 0 }; i < end; ++i) {
+		// Wraps around if connect_last_to_first is true.
+		lines.emplace_back(points[i], points[(i + 1) % count]);
+	}
+	return lines;
 }
 
 } // namespace ptgn
