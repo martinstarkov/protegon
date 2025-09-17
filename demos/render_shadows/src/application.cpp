@@ -46,15 +46,25 @@ struct LightMapInstance {
 	// TODO: Draw lights to this render target, and then draw shadows on top.
 	GameObject<RenderTarget> light_render_target;
 	bool hide_shadow_entities{ false };
+	bool shadow_layering{ true };
 };
 
 } // namespace impl
+
+struct ShadowDepth : public Depth {
+	using Depth::Depth;
+};
 
 class LightMap : public Entity {
 public:
 	LightMap() = default;
 
 	LightMap(const Entity& entity) : Entity{ entity } {}
+
+	void DisableShadowLayering(bool disable = true) {
+		auto& light_map{ Get<impl::LightMapInstance>() };
+		light_map.shadow_layering = !disable;
+	}
 
 	void HideShadowEntities(bool hide = true) {
 		auto& light_map{ Get<impl::LightMapInstance>() };
@@ -121,8 +131,8 @@ public:
 		game.renderer.DrawOutsideStencilMask();
 
 		game.renderer.DrawShape(
-			{}, Rect{ game.renderer.GetDisplaySize() }, color::Black, -1.0f, Origin::Center, {},
-			BlendMode::ReplaceRGBA, {}, {}, "color"
+			{}, Rect{ game.renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
+			Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
 		);
 
 		game.renderer.DisableStencilMask();
@@ -249,7 +259,7 @@ public:
 		light_map.AddShadow(sprite2);
 		light_map.AddShadow(rect2);
 
-		light_map.HideShadowEntities();
+		// light_map.HideShadowEntities();
 	}
 
 	void Update() override {
