@@ -45,6 +45,7 @@ struct LightMapInstance {
 	std::vector<PointLight> light_entities;
 	// TODO: Draw lights to this render target, and then draw shadows on top.
 	GameObject<RenderTarget> light_render_target;
+	bool hide_shadow_entities{ false };
 };
 
 } // namespace impl
@@ -54,6 +55,11 @@ public:
 	LightMap() = default;
 
 	LightMap(const Entity& entity) : Entity{ entity } {}
+
+	void HideShadowEntities(bool hide = true) {
+		auto& light_map{ Get<impl::LightMapInstance>() };
+		light_map.hide_shadow_entities = hide;
+	}
 
 	void AddShadow(const Entity& entity) {
 		auto& light_map{ Get<impl::LightMapInstance>() };
@@ -80,7 +86,23 @@ public:
 
 		game.renderer.EnableStencilMask();
 
-		auto shadow_segments{ GetShadowSegments(light_map.shadow_entities) };
+		const auto add_to_stencil_mask = [entity](const auto& shape, const Transform& transform) {
+			game.renderer.DrawShape(
+				transform, shape, color::Black, -1.0f, Origin::Center, GetDepth(entity) + 1,
+				BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
+				entity.GetOrDefault<PostFX>()
+			);
+		};
+
+		auto shadows{ GetShadowInfo(light_map.shadow_entities) };
+
+		if (!light_map.hide_shadow_entities) {
+			for (const auto& [shape, transform] : shadows) {
+				add_to_stencil_mask(shape, transform);
+			}
+		}
+
+		auto shadow_segments{ GetShadowSegments(shadows) };
 
 		for (const auto& light : light_map.light_entities) {
 			if (!light.Has<impl::LightProperties>()) {
@@ -92,11 +114,7 @@ public:
 			auto visibility_triangles{ GetVisibilityTriangles(origin, shadow_segments) };
 
 			for (const auto& triangle : visibility_triangles) {
-				game.renderer.DrawTriangle(
-					{}, triangle, color::Black, -1.0f, GetDepth(entity) + 1,
-					BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
-					entity.GetOrDefault<PostFX>()
-				);
+				add_to_stencil_mask(triangle, {});
 			}
 		}
 
@@ -121,8 +139,13 @@ private:
 		shadow_segments.emplace_back(V2_float{ -half_size.x, half_size.y }, -half_size);
 	}
 
-	static std::vector<Line> GetShadowSegments(const std::vector<Entity>& shadow_entities) {
-		std::vector<Line> shadow_segments;
+	struct ShadowInfo {
+		Shape shape;
+		Transform transform;
+	};
+
+	static std::vector<ShadowInfo> GetShadowInfo(const std::vector<Entity>& shadow_entities) {
+		std::vector<ShadowInfo> shadow_info;
 
 		for (const auto& entity : shadow_entities) {
 			if (auto shape{ GetSpriteOrShape(entity) }) {
@@ -130,12 +153,22 @@ private:
 
 				transform = OffsetByOrigin(*shape, transform, entity);
 
-				auto edge_info{ GetEdges(*shape, transform) };
-
-				shadow_segments.insert(
-					shadow_segments.end(), edge_info.edges.begin(), edge_info.edges.end()
-				);
+				shadow_info.emplace_back(*shape, transform);
 			}
+		}
+
+		return shadow_info;
+	}
+
+	static std::vector<Line> GetShadowSegments(const std::vector<ShadowInfo>& shadows) {
+		std::vector<Line> shadow_segments;
+
+		for (const auto& [shape, transform] : shadows) {
+			auto edge_info{ GetEdges(shape, transform) };
+
+			shadow_segments.insert(
+				shadow_segments.end(), edge_info.edges.begin(), edge_info.edges.end()
+			);
 		}
 
 		AddWorldBoundaries(shadow_segments);
@@ -215,6 +248,8 @@ public:
 		light_map.AddShadow(sprite);
 		light_map.AddShadow(sprite2);
 		light_map.AddShadow(rect2);
+
+		light_map.HideShadowEntities();
 	}
 
 	void Update() override {
