@@ -2,6 +2,7 @@
 
 #include <array>
 #include <limits>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -94,5 +95,24 @@ struct VisibilityEvent {
 );
 
 std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connect_last_to_first);
+
+namespace impl {
+
+// @return True if point `p` is inside the edge (i.e., to the left of the edge from start to end).
+[[nodiscard]] bool IsInside(const V2_float& p, const Line& edge);
+
+// Computes intersection point between segment AB and line CD (clip edge).
+// @return Nullopt if lines are parallel or no intersection on AB segment.
+[[nodiscard]] std::optional<V2_float> ComputeIntersection(
+	const V2_float& a, const V2_float& b, const V2_float& c, const V2_float& d
+);
+
+} // namespace impl
+
+// Clips the subject polygon by the convex clip polygon using Sutherland-Hodgman algorithm.
+// Both polygons are represented as vectors of points (in order).
+[[nodiscard]] std::vector<V2_float> ClipPolygons(
+	const std::vector<V2_float>& subject_polygon, const std::vector<V2_float>& clip_polygon
+);
 
 } // namespace ptgn

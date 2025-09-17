@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <optional>
 #include <set>
 #include <span>
 #include <utility>
@@ -418,6 +419,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 	for (auto it{ vertices.begin() }; it != vertices.end(); ++it) {
 		auto prev{ top == vertices.begin() ? vertices.end() - 1 : top - 1 };
 		auto next{ it + 1 == vertices.end() ? vertices.begin() : it + 1 };
+
 		if (GetOrientation(*prev, *it, *next) != Orientation::Collinear) {
 			*top++ = *it;
 		}
@@ -440,8 +442,8 @@ std::vector<Triangle> GetVisibilityTriangles(
 	triangles.reserve(polygon.size());
 
 	for (std::size_t i = 0; i < polygon.size(); ++i) {
-		const V2_float& a{ polygon[i] };
-		const V2_float& b{ polygon[(i + 1) % polygon.size()] };
+		V2_float a{ polygon[i] };
+		V2_float b{ polygon[(i + 1) % polygon.size()] };
 
 		triangles.emplace_back(origin, a, b);
 	}
@@ -466,6 +468,86 @@ std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connec
 		lines.emplace_back(points[i], points[(i + 1) % count]);
 	}
 	return lines;
+}
+
+namespace impl {
+
+bool IsInside(const V2_float& p, const Line& edge) {
+	V2_float edge_vec{ edge.end - edge.start };
+	V2_float point_vec{ p - edge.start };
+
+	// Cross product >= 0 means p is to the left or on the edge line.
+	return edge_vec.Cross(point_vec) >= 0;
+}
+
+std::optional<V2_float> ComputeIntersection(
+	const V2_float& a, const V2_float& b, const V2_float& c, const V2_float& d
+) {
+	V2_float ab{ b - a };
+	V2_float cd{ d - c };
+
+	float denominator{ ab.Cross(cd) };
+
+	if (std::abs(denominator) < epsilon<float>) {
+		return std::nullopt; // Lines are parallel.
+	}
+
+	float t{ (c - a).Cross(cd) / denominator };
+
+	if (t < 0.0f || t > 1.0f) {
+		return std::nullopt; // Intersection not within segment AB.
+	}
+
+	return a + ab * t;
+}
+
+} // namespace impl
+
+std::vector<V2_float> ClipPolygons(
+	const std::vector<V2_float>& subject_polygon, const std::vector<V2_float>& clip_polygon
+) {
+	std::vector<V2_float> output_list{ subject_polygon };
+
+	for (std::size_t i{ 0 }; i < clip_polygon.size(); ++i) {
+		V2_float clip_start = clip_polygon[i];
+		V2_float clip_end	= clip_polygon[(i + 1) % clip_polygon.size()];
+
+		Line clip_edge{ clip_start, clip_end };
+
+		std::vector<V2_float> input_list{ output_list };
+
+		output_list.clear();
+
+		if (input_list.empty()) {
+			break;
+		}
+
+		V2_float s{ input_list.back() };
+
+		for (const V2_float& e : input_list) {
+			bool e_inside{ impl::IsInside(e, clip_edge) };
+			bool s_inside{ impl::IsInside(s, clip_edge) };
+
+			if (e_inside) {
+				if (!s_inside) {
+					if (auto intersection{
+							impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
+						output_list.push_back(*intersection);
+					}
+				}
+				output_list.push_back(e);
+			} else if (s_inside) {
+				if (auto intersection{
+						impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
+					output_list.push_back(*intersection);
+				}
+			}
+
+			s = e;
+		}
+	}
+
+	return output_list;
 }
 
 } // namespace ptgn
