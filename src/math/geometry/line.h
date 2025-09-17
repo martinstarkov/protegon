@@ -28,7 +28,7 @@ struct Line {
 	// @return Quad vertices relative to the given transform for this line with a given a line
 	// width.
 	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(
-		const Transform& transform, float line_width, V2_float* out_size = nullptr
+		const Transform& transform, float line_width = 1.0f, V2_float* out_size = nullptr
 	) const;
 
 	[[nodiscard]] std::array<V2_float, 2> GetWorldVertices(const Transform& transform) const;
