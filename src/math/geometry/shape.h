@@ -1,6 +1,8 @@
 #pragma once
 
+#include <optional>
 #include <variant>
+#include <vector>
 
 #include "components/transform.h"
 #include "math/geometry/arc.h"
@@ -100,5 +102,30 @@ public:
 [[nodiscard]] Transform OffsetByOrigin(
 	const Shape& shape, const Transform& transform, const Entity& entity
 );
+
+// @return The shape of the entity, if it has one.
+std::optional<Shape> GetShape(const Entity& entity);
+
+// @return The display size of the entity sprite (if it has a TextureHandle), or its shape, if it
+// has one.
+std::optional<Shape> GetSpriteOrShape(const Entity& entity);
+
+// @return The vertices that fully contain the shape.
+// For a line, this is the start and end points.
+// For polygons, this is equivalent to their vertices.
+// For shapes with curved edges, this is the quad that contains them.
+[[nodiscard]] std::vector<V2_float> GetWorldVertices(
+	const Shape& shape, const Transform& transform
+);
+
+struct EdgeInfo {
+	// If a shape has arced edges, this is set to true and edges is populated with the quad edges
+	// that outline the shape.
+	bool quad_approximation{ false };
+
+	std::vector<Line> edges;
+};
+
+[[nodiscard]] EdgeInfo GetEdges(const Shape& shape, const Transform& transform);
 
 } // namespace ptgn
