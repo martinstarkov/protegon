@@ -4,14 +4,27 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <set>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include "common/assert.h"
+#include "math/geometry/line.h"
+#include "math/geometry/triangle.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"
 
 namespace ptgn {
+
+bool StrictlyLess(float a, float b, float epsilon) {
+	return (b - a) > std::max(std::abs(a), std::abs(b)) * epsilon;
+}
+
+bool StrictlyLess(const V2_float& a, const V2_float& b, float epsilon) {
+	return StrictlyLess(a.x, b.x, epsilon) && StrictlyLess(a.y, b.y, epsilon);
+}
 
 namespace impl {
 
@@ -188,6 +201,251 @@ std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> verti
 	return result;
 }
 
+Orientation GetOrientation(const V2_float& a, const V2_float& b, const V2_float& c) {
+	auto det{ (b - a).Cross(c - a) };
+
+	return static_cast<Orientation>(
+		static_cast<int>(StrictlyLess(0.0f, det)) - static_cast<int>(StrictlyLess(det, 0.0f))
+	);
+}
+
+bool VisibilityRayIntersects(
+	const V2_float& origin, const V2_float& direction, const Line& segment, V2_float& out_point
+) {
+	auto ao{ origin - segment.start };
+	auto ab{ segment.end - segment.start };
+	auto det{ ab.Cross(direction) };
+
+	if (NearlyEqual(det, 0.f)) {
+		if (GetOrientation(segment.start, segment.end, origin) != Orientation::Collinear) {
+			return false;
+		}
+
+		auto dist_a{ ao.Dot(direction) };
+		auto dist_b{ (origin - segment.end).Dot(direction) };
+
+		if (dist_a > 0 && dist_b > 0) {
+			return false;
+		} else if ((dist_a > 0) != (dist_b > 0)) {
+			out_point = origin;
+		} else if (dist_a > dist_b) {  // at this point, both distances are negative
+			out_point = segment.start; // hence the nearest point is A
+		} else {
+			out_point = segment.end;
+		}
+
+		return true;
+	}
+
+	if (auto u{ ao.Cross(direction) / det }; StrictlyLess(u, 0.0f) || StrictlyLess(1.0f, u)) {
+		return false;
+	}
+
+	auto t = -(ab.Cross(ao)) / det;
+
+	out_point = origin + t * direction;
+
+	return NearlyEqual(t, 0.0f) || t > 0;
+}
+
 } // namespace impl
+
+std::vector<V2_float> GetVisibilityPolygon(
+	const V2_float& point, const std::vector<Line>& shadow_segments
+) {
+	using namespace ptgn::impl;
+
+	/* Compare 2 line segments based on their distance from given point.
+	 * Assumes: (1) The line segments are intersected by some ray from the origin.
+	 *          (2) The line segments do not intersect except at their endpoints.
+	 *          (3) No line segment is Collinear with the origin.
+	 * Check whether the line segment x is closer to the origin than the line segment y.
+	 * @param x Line segment: Left hand side of the comparison operator.
+	 * @param y Line segment: Right hand side of the comparison operator.
+	 * @return True if x < y (x is closer than y).
+	 */
+	const auto cmp_dist = [origin = point](const Line& x, const Line& y) {
+		auto [a, b] = x.GetLocalVertices();
+		auto [c, d] = y.GetLocalVertices();
+
+		PTGN_ASSERT(
+			GetOrientation(origin, a, b) != Orientation::Collinear,
+			"AB must not be Collinear with the origin."
+		);
+		PTGN_ASSERT(
+			GetOrientation(origin, c, d) != Orientation::Collinear,
+			"CD must not be Collinear with the origin."
+		);
+
+		// Sort the endpoints so that if there are common endpoints, it will be a and c.
+		if (b == c || b == d) {
+			std::swap(a, b);
+		}
+		if (a == d) {
+			std::swap(c, d);
+		}
+
+		// Cases with common endpoints.
+		if (a == c) {
+			if (b == d || GetOrientation(origin, a, d) != GetOrientation(origin, a, b)) {
+				return false;
+			}
+			return GetOrientation(a, b, d) != GetOrientation(a, b, origin);
+		}
+
+		// Cases without common endpoints.
+		auto cda{ GetOrientation(c, d, a) };
+		auto cdb{ GetOrientation(c, d, b) };
+
+		if (cdb == Orientation::Collinear && cda == Orientation::Collinear) {
+			return (origin - a).MagnitudeSquared() < (origin - c).MagnitudeSquared();
+		} else if (cda == cdb || cda == Orientation::Collinear || cdb == Orientation::Collinear) {
+			auto cdo = GetOrientation(c, d, origin);
+			return cdo == cda || cdo == cdb;
+		} else {
+			auto abo = GetOrientation(a, b, origin);
+			return abo != GetOrientation(a, b, c);
+		}
+	};
+
+	std::set<Line, decltype(cmp_dist)> state{ cmp_dist };
+	std::vector<VisibilityEvent> events;
+
+	for (const auto& segment : shadow_segments) {
+		// Sort line segment endpoints and add them as events.
+		// Skip line segments Collinear with the point.
+		if (auto pab{ GetOrientation(point, segment.start, segment.end) };
+			pab == Orientation::Collinear) {
+			continue;
+		} else if (pab == Orientation::RightTurn) {
+			events.emplace_back(VisibilityEvent::StartVertex, segment);
+			events.emplace_back(VisibilityEvent::EndVertex, Line{ segment.end, segment.start });
+		} else {
+			events.emplace_back(VisibilityEvent::StartVertex, Line{ segment.end, segment.start });
+			events.emplace_back(VisibilityEvent::EndVertex, segment);
+		}
+
+		// Initialize state by adding line segments that are intersected
+		// by vertical ray from the point.
+		auto [a, b] = segment.GetLocalVertices();
+
+		if (a.x > b.x) {
+			std::swap(a, b);
+		}
+
+		if (GetOrientation(a, b, point) == Orientation::RightTurn &&
+			(NearlyEqual(b.x, point.x) || (a.x < point.x && point.x < b.x))) {
+			state.insert(segment);
+		}
+	}
+
+	// compare angles clockwise starting at the positive y axis
+	const auto angle_comparer = [point](const V2_float& a, const V2_float& b) {
+		auto is_a_left{ StrictlyLess(a.x, point.x) };
+		auto is_b_left{ StrictlyLess(b.x, point.x) };
+
+		if (is_a_left != is_b_left) {
+			return is_b_left;
+		}
+
+		if (NearlyEqual(a.x, point.x) && NearlyEqual(b.x, point.x)) {
+			if (!StrictlyLess(a.y, point.y) || !StrictlyLess(b.y, point.y)) {
+				return StrictlyLess(b.y, a.y);
+			}
+			return StrictlyLess(a.y, b.y);
+		}
+
+		auto oa{ a - point };
+		auto ob{ b - point };
+		auto det{ oa.Cross(ob) };
+
+		if (NearlyEqual(det, 0.f)) {
+			return oa.MagnitudeSquared() < ob.MagnitudeSquared();
+		}
+
+		return det < 0;
+	};
+
+	// Sort events by angle.
+	std::sort(events.begin(), events.end(), [&angle_comparer](const auto& a, const auto& b) {
+		// If the points are equal, sort end vertices first.
+		if (a.segment.start == b.segment.start) {
+			return a.type == VisibilityEvent::EndVertex && b.type == VisibilityEvent::StartVertex;
+		}
+		return angle_comparer(a.segment.start, b.segment.start);
+	});
+
+	// Find the visibility polygon.
+	std::vector<V2_float> vertices;
+
+	for (const auto& event : events) {
+		if (event.type == VisibilityEvent::EndVertex) {
+			state.erase(event.segment);
+		}
+
+		if (state.empty()) {
+			vertices.emplace_back(event.segment.start);
+		} else if (cmp_dist(event.segment, *state.begin())) {
+			// Nearest line segment has changed.
+			// Compute the intersection point with this segment.
+			V2_float intersection;
+			Line nearest_segment{ *state.begin() };
+			[[maybe_unused]] auto intersects{ VisibilityRayIntersects(
+				point, event.segment.start - point, nearest_segment, intersection
+			) };
+
+			// TODO: Readd this assert once the resolution change no longer crashes the algorithm.
+			// PTGN_ASSERT(intersects, "Ray intersects line segment L if L is in the state");
+
+			if (event.type == VisibilityEvent::StartVertex) {
+				vertices.emplace_back(intersection);
+				vertices.emplace_back(event.segment.start);
+			} else {
+				vertices.emplace_back(event.segment.start);
+				vertices.emplace_back(intersection);
+			}
+		}
+
+		if (event.type == VisibilityEvent::StartVertex) {
+			state.insert(event.segment);
+		}
+	}
+
+	auto top{ vertices.begin() };
+
+	// Remove collinear points.
+	for (auto it{ vertices.begin() }; it != vertices.end(); ++it) {
+		auto prev{ top == vertices.begin() ? vertices.end() - 1 : top - 1 };
+		auto next{ it + 1 == vertices.end() ? vertices.begin() : it + 1 };
+		if (GetOrientation(*prev, *it, *next) != Orientation::Collinear) {
+			*top++ = *it;
+		}
+	}
+	vertices.erase(top, vertices.end());
+	return vertices;
+}
+
+std::vector<Triangle> GetVisibilityTriangles(
+	const V2_float& origin, const std::vector<Line>& shadow_segments
+) {
+	auto polygon{ GetVisibilityPolygon(origin, shadow_segments) };
+
+	// We need at least 3 points to form a triangle.
+	if (polygon.size() < 3) {
+		return {};
+	}
+
+	std::vector<Triangle> triangles;
+	triangles.reserve(polygon.size());
+
+	for (std::size_t i = 0; i < polygon.size(); ++i) {
+		const V2_float& a{ polygon[i] };
+		const V2_float& b{ polygon[(i + 1) % polygon.size()] };
+
+		triangles.emplace_back(origin, a, b);
+	}
+
+	return triangles;
+}
 
 } // namespace ptgn
