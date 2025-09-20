@@ -627,7 +627,7 @@ Shader::Shader(std::variant<ShaderCode, path> source, const std::string& shader_
 	);
 
 	const auto& first{ srcs[0] };
-	const auto& second{ srcs[0] };
+	const auto& second{ srcs[1] };
 
 	std::string vertex_source;
 	std::string fragment_source;
