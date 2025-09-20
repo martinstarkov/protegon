@@ -13,7 +13,7 @@ struct Depth;
 
 namespace impl {
 
-struct Vertex {
+struct Vertex : public VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4> {
 	glsl::vec3 position{};
 	glsl::vec4 color{};
 	glsl::vec2 tex_coord{};
@@ -21,10 +21,6 @@ struct Vertex {
 	// Index 0: For solid triangles/quads this is 0 (white 1x1 texture).
 	// Index 0: For circles this stores the thickness: 0 is hollow, 1 is solid.
 	glsl::vec4 data{};
-
-	static constexpr BufferLayout<glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4> GetLayout() {
-		return {};
-	}
 
 	[[nodiscard]] static std::array<Vertex, 3> GetTriangle(
 		const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth

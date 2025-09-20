@@ -76,4 +76,11 @@ struct BufferLayout {
 	}
 };
 
+template <typename Derived, typename... Elements>
+struct VertexLayout {
+	static constexpr BufferLayout<Elements...> GetLayout() {
+		return {};
+	}
+};
+
 } // namespace ptgn::impl
