@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -24,8 +25,10 @@ namespace ptgn::impl {
 
 RenderBuffer::RenderBuffer(const V2_int& size, InternalGLFormat format) {
 	GenerateRenderBuffer();
+	RenderBufferId restore_render_buffer_id{ RenderBuffer::GetBoundId() };
 	Bind();
 	SetStorage(size, format);
+	RenderBuffer::BindId(restore_render_buffer_id);
 }
 
 void RenderBuffer::SetStorage(const V2_int& size, InternalGLFormat format) {
@@ -74,8 +77,8 @@ void RenderBuffer::BindId(RenderBufferId id) {
 	if (game.renderer.bound_.render_buffer_id == id) {
 		return;
 	}
-	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
 	game.renderer.bound_.render_buffer_id = id;
+	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
 #ifdef PTGN_DEBUG
 	++game.debug.stats.render_buffer_binds;
 #endif
@@ -85,7 +88,8 @@ void RenderBuffer::BindId(RenderBufferId id) {
 }
 
 bool RenderBuffer::IsBound() const {
-	return GetBoundId() == id_;
+	auto bound_id{ GetBoundId() };
+	return bound_id == id_;
 }
 
 void RenderBuffer::Bind() const {
@@ -131,8 +135,12 @@ void RenderBuffer::Resize(const V2_int& new_size) {
 	RenderBuffer::BindId(restore_render_buffer_id);
 }
 
-FrameBuffer::FrameBuffer(Texture&& texture) {
+FrameBuffer::FrameBuffer(Texture&& texture, bool bind_frame_buffer) {
 	GenerateFrameBuffer();
+	std::optional<FrameBufferId> restore_frame_buffer_id;
+	if (!bind_frame_buffer) {
+		restore_frame_buffer_id = FrameBuffer::GetBoundId();
+	}
 	Bind();
 	V2_int size{ texture.GetSize() };
 	PTGN_ASSERT(
@@ -142,6 +150,9 @@ FrameBuffer::FrameBuffer(Texture&& texture) {
 	AttachTexture(std::move(texture), FrameBufferAttachment::Color0);
 	RenderBuffer rbo{ size, InternalGLFormat::DEPTH24_STENCIL8 };
 	AttachRenderBuffer(std::move(rbo), FrameBufferAttachment::DepthStencil);
+	if (restore_frame_buffer_id.has_value()) {
+		FrameBuffer::BindId(*restore_frame_buffer_id);
+	}
 }
 
 FrameBuffer::FrameBuffer(FrameBuffer&& other) noexcept :
@@ -267,7 +278,7 @@ const RenderBuffer& FrameBuffer::GetRenderBuffer() const {
 	return render_buffer_;
 }
 
-void FrameBuffer::Bind(FrameBufferId id) {
+void FrameBuffer::BindId(FrameBufferId id) {
 	if (game.renderer.bound_.frame_buffer_id == id) {
 		return;
 	}
@@ -282,11 +293,13 @@ void FrameBuffer::Bind(FrameBufferId id) {
 }
 
 bool FrameBuffer::IsBound() const {
-	return GetBoundId() == id_;
+	auto bound_id{ GetBoundId() };
+	return bound_id == id_;
 }
 
 bool FrameBuffer::IsUnbound() {
-	return GetBoundId() == 0;
+	auto bound_id{ GetBoundId() };
+	return bound_id == 0;
 }
 
 void FrameBuffer::ClearToColor(const Color& color) const {
@@ -304,11 +317,11 @@ FrameBufferId FrameBuffer::GetId() const {
 }
 
 void FrameBuffer::Bind() const {
-	Bind(id_);
+	BindId(id_);
 }
 
 void FrameBuffer::Unbind() {
-	Bind(0);
+	BindId(0);
 }
 
 FrameBufferId FrameBuffer::GetBoundId() {
@@ -319,6 +332,8 @@ FrameBufferId FrameBuffer::GetBoundId() {
 }
 
 Color FrameBuffer::GetPixel(const V2_int& coordinate, bool restore_bind_state) const {
+	// TODO: Allow reading pixels from stencil or depth buffers.
+
 	V2_int size{ texture_.GetSize() };
 	PTGN_ASSERT(
 		coordinate.x >= 0 && coordinate.x < size.x,
@@ -328,9 +343,11 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate, bool restore_bind_state) c
 		coordinate.y >= 0 && coordinate.y < size.y,
 		"Cannot get pixel out of range of frame buffer texture"
 	);
-	TextureId restore_texture_id{ 0 };
+	std::optional<TextureId> restore_texture_id;
+	std::optional<FrameBufferId> restore_frame_buffer_id;
 	if (restore_bind_state) {
-		restore_texture_id = Texture::GetBoundId();
+		restore_texture_id		= Texture::GetBoundId();
+		restore_frame_buffer_id = FrameBuffer::GetBoundId();
 	}
 	texture_.Bind();
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
@@ -341,18 +358,16 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate, bool restore_bind_state) c
 	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * 1 * 1));
 	int y{ size.y - 1 - coordinate.y };
 	PTGN_ASSERT(y >= 0);
-	FrameBufferId restore_frame_buffer_id{ 0 };
-	if (restore_bind_state) {
-		restore_frame_buffer_id = FrameBuffer::GetBoundId();
-	}
 	Bind();
 	GLCall(glReadPixels(
 		coordinate.x, y, 1, 1, static_cast<GLenum>(formats.input_format),
 		static_cast<GLenum>(impl::GLType::UnsignedByte), static_cast<void*>(v.data())
 	));
-	if (restore_bind_state) {
-		Texture::BindId(restore_texture_id);
-		FrameBuffer::Bind(restore_frame_buffer_id);
+	if (restore_texture_id.has_value()) {
+		Texture::BindId(*restore_texture_id);
+	}
+	if (restore_frame_buffer_id.has_value()) {
+		FrameBuffer::BindId(*restore_frame_buffer_id);
 	}
 	return Color{ v[0], v[1], v[2],
 				  formats.color_components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
@@ -361,11 +376,17 @@ Color FrameBuffer::GetPixel(const V2_int& coordinate, bool restore_bind_state) c
 void FrameBuffer::ForEachPixel(
 	const std::function<void(V2_int, Color)>& func, bool restore_bind_state
 ) const {
+	// TODO: Allow reading pixels from stencil or depth buffers.
+
 	V2_int size{ texture_.GetSize() };
-	TextureId restore_texture_id{ 0 };
+
+	std::optional<TextureId> restore_texture_id;
+	std::optional<FrameBufferId> restore_frame_buffer_id;
 	if (restore_bind_state) {
-		restore_texture_id = Texture::GetBoundId();
+		restore_texture_id		= Texture::GetBoundId();
+		restore_frame_buffer_id = FrameBuffer::GetBoundId();
 	}
+
 	texture_.Bind();
 	auto formats{ impl::GetGLFormats(texture_.GetFormat()) };
 	PTGN_ASSERT(
@@ -375,10 +396,6 @@ void FrameBuffer::ForEachPixel(
 
 	std::vector<std::uint8_t> v(static_cast<std::size_t>(formats.color_components * size.x * size.y)
 	);
-	FrameBufferId restore_frame_buffer_id{ 0 };
-	if (restore_bind_state) {
-		restore_frame_buffer_id = FrameBuffer::GetBoundId();
-	}
 	Bind();
 	GLCall(glReadPixels(
 		0, 0, size.x, size.y, static_cast<GLenum>(formats.input_format),
@@ -397,9 +414,11 @@ void FrameBuffer::ForEachPixel(
 			func(V2_int{ i, j }, color);
 		}
 	}
-	if (restore_bind_state) {
-		Texture::BindId(restore_texture_id);
-		FrameBuffer::Bind(restore_frame_buffer_id);
+	if (restore_texture_id.has_value()) {
+		Texture::BindId(*restore_texture_id);
+	}
+	if (restore_frame_buffer_id.has_value()) {
+		FrameBuffer::BindId(*restore_frame_buffer_id);
 	}
 }
 

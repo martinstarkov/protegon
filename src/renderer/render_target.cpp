@@ -48,8 +48,9 @@ RenderTarget AddRenderTargetComponents(
 	Show(render_target);
 
 	// TODO: Move frame buffer object to a FrameBufferManager.
-	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
-		nullptr, render_target_size, texture_format }) };
+	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(
+		impl::Texture{ nullptr, render_target_size, texture_format }, true
+	) };
 
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");

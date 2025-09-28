@@ -80,7 +80,7 @@ class FrameBuffer {
 public:
 	FrameBuffer() = default;
 
-	explicit FrameBuffer(Texture&& texture);
+	explicit FrameBuffer(Texture&& texture, bool bind_frame_buffer = false);
 
 	FrameBuffer(const FrameBuffer&)			   = delete;
 	FrameBuffer& operator=(const FrameBuffer&) = delete;
@@ -107,7 +107,7 @@ public:
 	// Bind a specific id as the current frame buffer.
 	// Note: Calling this outside of the FrameBuffer class may mess with the renderer as it
 	// keeps track of the currently bound frame buffer.
-	static void Bind(FrameBufferId id);
+	static void BindId(FrameBufferId id);
 
 	void Bind() const;
 
