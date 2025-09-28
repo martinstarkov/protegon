@@ -39,5 +39,9 @@ void main() {
     // Why? https://stackoverflow.com/a/74729081
 	{TEXTURE_SWITCH_BLOCK}
 
+	// v_TexIndex == 0 is the white texture, which should be drawn if tinted transparent.
+    if (texColor.a <= 0.0f && v_TexIndex != 0.0f)
+        discard;
+
 	o_Color = texColor;
 }
