@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -140,7 +141,8 @@ void Renderer::DrawShader(
 	const ShaderPass& shader_pass, const Entity& entity, bool clear_between_consecutive_calls,
 	const Color& target_clear_color, const TextureOrSize& texture_or_size,
 	BlendMode intermediate_blend_mode, const Depth& depth, BlendMode blend_mode,
-	const Camera& camera, TextureFormat texture_format, const PostFX& post_fx
+	const Camera& camera, TextureFormat texture_format, const PostFX& post_fx,
+	std::optional<BlendMode> target_blend_mode
 ) {
 	DrawShaderCommand cmd;
 
@@ -149,6 +151,7 @@ void Renderer::DrawShader(
 	cmd.target_clear_color				= target_clear_color;
 	cmd.texture_or_size					= texture_or_size;
 	cmd.intermediate_blend_mode			= intermediate_blend_mode;
+	cmd.target_blend_mode				= target_blend_mode;
 	cmd.depth							= depth;
 	cmd.texture_format					= texture_format;
 	cmd.render_state.shader_pass		= shader_pass;
@@ -159,12 +162,10 @@ void Renderer::DrawShader(
 	render_data_.Submit(cmd);
 }
 
-void Renderer::DrawText(
-	const std::string& content, Transform transform, const TextColor& color, Origin origin,
-	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties,
-	const V2_float& text_size, const Tint& tint, bool hd_text, const Depth& depth,
-	BlendMode blend_mode, const Camera& camera, const PreFX& pre_fx, const PostFX& post_fx,
-	const std::array<V2_float, 4>& texture_coordinates
+impl::Texture Renderer::CreateTexture(
+	Transform& out_transform, V2_float& out_text_size, const TextContent& content,
+	const TextColor& color, const FontSize& font_size, const ResourceHandle& font_key,
+	const TextProperties& properties, bool hd_text, const Camera& camera
 ) {
 	FontSize final_font_size{ font_size };
 
@@ -175,7 +176,7 @@ void Renderer::DrawText(
 
 		PTGN_ASSERT(render_target_scale.BothAboveZero());
 
-		transform.Scale(1.0f / render_target_scale);
+		out_transform.Scale(1.0f / render_target_scale);
 
 		final_font_size =
 			static_cast<std::int32_t>(static_cast<float>(font_size) * render_target_scale.y);
@@ -183,12 +184,26 @@ void Renderer::DrawText(
 
 	auto texture{ Text::CreateTexture(content, color, final_font_size, font_key, properties) };
 
-	auto texture_size{ !text_size.IsZero()
-						   ? text_size
-						   : V2_float{ Text::GetSize(content, font_key, final_font_size) } };
+	if (out_text_size.IsZero()) {
+		out_text_size = Text::GetSize(content, font_key, final_font_size);
+	}
+
+	return texture;
+}
+
+void Renderer::DrawText(
+	const std::string& content, Transform transform, const TextColor& color, Origin origin,
+	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties,
+	V2_float text_size, const Tint& tint, bool hd_text, const Depth& depth, BlendMode blend_mode,
+	const Camera& camera, const PreFX& pre_fx, const PostFX& post_fx,
+	const std::array<V2_float, 4>& texture_coordinates
+) {
+	auto texture{ CreateTexture(
+		transform, text_size, content, color, font_size, font_key, properties, hd_text, camera
+	) };
 
 	DrawTexture(
-		texture, transform, texture_size, origin, tint, depth, blend_mode, camera, pre_fx, post_fx,
+		texture, transform, text_size, origin, tint, depth, blend_mode, camera, pre_fx, post_fx,
 		texture_coordinates
 	);
 
@@ -293,6 +308,22 @@ void Renderer::DrawPoint(
 	const Camera& camera
 ) {
 	DrawShape({}, point, color, -1.0f, Origin::Center, depth, blend_mode, camera, {});
+}
+
+void Renderer::EnableStencilMask() {
+	render_data_.Submit(impl::EnableStencilMask{});
+}
+
+void Renderer::DisableStencilMask() {
+	render_data_.Submit(impl::DisableStencilMask{});
+}
+
+void Renderer::DrawOutsideStencilMask() {
+	render_data_.Submit(impl::DrawOutsideStencilMask{});
+}
+
+void Renderer::DrawInsideStencilMask() {
+	render_data_.Submit(impl::DrawInsideStencilMask{});
 }
 
 void Renderer::Init() {

@@ -38,6 +38,8 @@ struct Ellipse {
 
 	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
 
+	bool operator==(const Ellipse&) const = default;
+
 	V2_float radius;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Ellipse, radius)

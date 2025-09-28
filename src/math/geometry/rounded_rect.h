@@ -51,6 +51,8 @@ struct RoundedRect {
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
 
+	bool operator==(const RoundedRect&) const = default;
+
 	V2_float min;
 	V2_float max;
 	float radius{ 0.0f };

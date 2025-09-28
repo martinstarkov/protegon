@@ -280,7 +280,7 @@ public:
 		const auto deserialize_script = [&container](const json& script) {
 			PTGN_ASSERT(script.contains("type"));
 
-			std::string class_name{ script.at("type") };
+			std::string class_name{ script.at("type").get<std::string>() };
 
 			auto instance{ impl::ScriptRegistry<impl::IScript>::Instance().Create(class_name) };
 
@@ -382,6 +382,8 @@ T& AddScript(Entity& entity, TArgs&&... args) {
 
 	script.entity = entity;
 
+	script.OnCreate();
+
 	return script;
 }
 
@@ -397,6 +399,8 @@ void TryAddScript(Entity& entity, TArgs&&... args) {
 	auto& script{ scripts.AddScript<T>(std::forward<TArgs>(args)...) };
 
 	script.entity = entity;
+
+	script.OnCreate();
 }
 
 /**

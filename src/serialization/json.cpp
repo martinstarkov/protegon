@@ -27,17 +27,7 @@ json LoadJson(const path& filepath) {
 		"Cannot load json file from a nonexistent file path: ", filepath.string()
 	);
 	std::ifstream json_file(filepath);
-	json j{ json::parse(json_file) };
-#ifdef __EMSCRIPTEN__
-	if (j.is_array()) {
-		j = j.at(0);
-	}
-#endif
-	if (!j.is_object()) {
-		PTGN_ERROR(
-			"Failed to load json from file: ", filepath.string(), ", json contains: ", j.dump(4)
-		);
-	}
+	json j = json::parse(json_file);
 	return j;
 }
 

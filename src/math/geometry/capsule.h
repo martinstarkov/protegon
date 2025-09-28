@@ -40,6 +40,8 @@ struct Capsule {
 	// @return Radius scaled relative to the transform.
 	[[nodiscard]] float GetRadius(const Transform& transform) const;
 
+	bool operator==(const Capsule&) const = default;
+
 	V2_float start;
 	V2_float end;
 	float radius{ 0.0f };

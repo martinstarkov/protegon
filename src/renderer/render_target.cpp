@@ -6,6 +6,7 @@
 
 #include "common/assert.h"
 #include "components/draw.h"
+#include "components/sprite.h"
 #include "components/transform.h"
 #include "core/entity.h"
 #include "core/game.h"
@@ -47,8 +48,9 @@ RenderTarget AddRenderTargetComponents(
 	Show(render_target);
 
 	// TODO: Move frame buffer object to a FrameBufferManager.
-	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(impl::Texture{
-		nullptr, render_target_size, texture_format }) };
+	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(
+		impl::Texture{ nullptr, render_target_size, texture_format }, true
+	) };
 
 	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
 	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
@@ -73,7 +75,26 @@ void DisplayResizeScript::OnDisplaySizeChanged() {
 RenderTarget::RenderTarget(const Entity& entity) : Entity{ entity } {}
 
 void RenderTarget::Draw(const Entity& entity) {
-	impl::DrawTexture(entity, true);
+	Sprite sprite{ entity };
+
+	Camera camera{ RenderTarget{ entity }.GetCamera() };
+
+	V2_float texture_size;
+
+	if (camera) {
+		texture_size = camera.GetViewportSize();
+	}
+
+	if (texture_size.IsZero()) {
+		texture_size = sprite.GetSize();
+	}
+
+	game.renderer.DrawTexture(
+		sprite.GetTexture(), GetDrawTransform(entity), texture_size, GetDrawOrigin(entity),
+		GetTint(entity), GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PreFX>(), entity.GetOrDefault<PostFX>(),
+		sprite.GetTextureCoordinates(true)
+	);
 }
 
 V2_int RenderTarget::GetTextureSize() const {
@@ -191,7 +212,7 @@ void RenderTarget::Resize(const V2_int& size) {
 	if (auto camera{ TryGet<GameObject<Camera>>() }; camera && !camera->IsGameCamera()) {
 		Camera::Resize(*camera, size, true, true);
 	}
-	Get<impl::FrameBuffer>().GetTexture().Resize(size);
+	Get<impl::FrameBuffer>().Resize(size);
 }
 
 namespace impl {

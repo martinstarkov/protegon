@@ -121,9 +121,9 @@ public:
 	}
 
 	friend void from_json(const json& j, RNG& rng) {
-		rng.min_ = j["min"];
-		rng.max_ = j["max"];
-		rng.SetSeed(j["seed"]);
+		rng.min_ = j.at("min").get<T>();
+		rng.max_ = j.at("max").get<T>();
+		rng.SetSeed(j.at("seed").get<std::uint32_t>());
 		rng.SetupDistribution();
 	}
 

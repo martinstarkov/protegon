@@ -49,6 +49,8 @@ enum class TextureFormat : std::uint32_t {
 	ABGR8888 = 376840196, // SDL_PIXELFORMAT_ABGR8888
 	ARGB8888 = 372645892, // SDL_PIXELFORMAT_ARGB8888
 	A8		 = 318769153, // SDL_PIXELFORMAT_INDEX8 // Only alpha values.
+	Depth24,
+	Depth24_Stencil8
 };
 
 enum class TextureWrapping {
@@ -113,11 +115,14 @@ private:
 };
 
 enum class InternalGLFormat : std::int32_t {
-	R8		 = 0x8229, // GL_R8
-	RGB8	 = 0x8051, // GL_RGB8
-	RGBA8	 = 0x8058, // GL_RGBA8
-	HDR_RGBA = 0x881A, // GL_RGBA16F
-	HDR_RGB	 = 0x881B  // GL_RGB16F
+	R8				 = 0x8229, // GL_R8
+	RGB8			 = 0x8051, // GL_RGB8
+	RGBA8			 = 0x8058, // GL_RGBA8
+	HDR_RGBA		 = 0x881A, // GL_RGBA16F
+	HDR_RGB			 = 0x881B, // GL_RGB16F
+	DEPTH24_STENCIL8 = 0x88F0, // GL_DEPTH24_STENCIL8 AND GL_DEPTH24_STENCIL8_OES
+	STENCIL8		 = 0x8D48, // GL_STENCIL_INDEX8
+	DEPTH24			 = 0x81A6  // GL_DEPTH_COMPONENT24
 };
 
 enum class InputGLFormat {
@@ -126,10 +131,9 @@ enum class InputGLFormat {
 	RGBA		  = 0x1908, // GL_RGBA
 	BGR			  = 0x80E0, // GL_BGR
 	BGRA		  = 0x80E1, // GL_BGRA
-};
-
-enum class InternalGLDepthFormat {
-	DEPTH24_STENCIL8 = 0x88F0 // GL_DEPTH24_STENCIL8 AND GL_DEPTH24_STENCIL8_OES
+	DepthStencil  = 0x821A, //  GL_DEPTH_STENCIL
+	Depth		  = 0x8D00, // GL_DEPTH_COMPONENT
+							// Stencil		 = 0x8D20,	//  GL_STENCIL_INDEX // Not allowed for textures.
 };
 
 enum class TextureTarget {
@@ -343,7 +347,10 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 						{ InternalGLFormat::R8, "r8" },
 						{ InternalGLFormat::RGB8, "rgb8" },
 						{ InternalGLFormat::HDR_RGBA, "hdr_rgba" },
-						{ InternalGLFormat::HDR_RGB, "hdr_rgb" } }
+						{ InternalGLFormat::HDR_RGB, "hdr_rgb" },
+						{ InternalGLFormat::DEPTH24_STENCIL8, "depth24_stencil8" },
+						{ InternalGLFormat::STENCIL8, "stencil8" },
+						{ InternalGLFormat::DEPTH24, "depth24" } }
 );
 
 PTGN_SERIALIZER_REGISTER_ENUM(
@@ -352,10 +359,6 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 					 { InputGLFormat::RGB, "rgb" },
 					 { InputGLFormat::BGR, "bgr" },
 					 { InputGLFormat::BGRA, "bgra" } }
-);
-
-PTGN_SERIALIZER_REGISTER_ENUM(
-	InternalGLDepthFormat, { { InternalGLDepthFormat::DEPTH24_STENCIL8, "depth24_stencil8" } }
 );
 
 PTGN_SERIALIZER_REGISTER_ENUM(TextureTarget, { { TextureTarget::Texture2D, "texture2d" } });

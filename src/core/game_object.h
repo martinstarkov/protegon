@@ -20,7 +20,7 @@ public:
 	GameObject(const Entity::BaseEntity& entity) : T{ entity } {}
 
 	~GameObject() {
-		T::Destroy();
+		Entity::Destroy();
 	}
 
 	GameObject(GameObject&& other) noexcept : T{ std::move(other) } {
@@ -29,7 +29,7 @@ public:
 
 	GameObject& operator=(GameObject&& other) noexcept {
 		if (this != &other) {
-			T::Destroy();
+			Entity::Destroy();
 			T::operator=(std::move(other));
 			other.Invalidate();
 		}

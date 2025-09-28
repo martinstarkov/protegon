@@ -12,12 +12,7 @@ const json& JsonManager::Get(const ResourceHandle& key) const {
 }
 
 json JsonManager::LoadFromFile(const path& filepath) {
-	json j{ ptgn::LoadJson(filepath) };
-#ifdef __EMSCRIPTEN__
-	if (j.is_array()) {
-		j = j.at(0);
-	}
-#endif
+	json j = ptgn::LoadJson(filepath);
 	return j;
 }
 

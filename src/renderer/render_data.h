@@ -130,6 +130,7 @@ struct DrawContext {
 
 	FrameBuffer frame_buffer;
 
+	std::optional<BlendMode> blend_mode{ std::nullopt };
 	bool in_use{ true };
 	bool keep_alive{ false };
 
@@ -180,8 +181,8 @@ struct DrawTarget {
 struct DrawShapeCommand {
 	Shape shape;
 	Transform transform;
-	Tint tint;
 	Depth depth;
+	Tint tint;
 	LineWidth line_width;
 	Origin origin{ default_origin };
 	RenderState render_state;
@@ -191,8 +192,8 @@ struct DrawLinesCommand {
 	std::vector<V2_float> points;
 	bool connect_last_to_first{ false };
 	Transform transform;
-	Tint tint;
 	Depth depth;
+	Tint tint;
 	LineWidth line_width;
 	RenderState render_state;
 };
@@ -205,14 +206,18 @@ struct DrawTextureCommand {
 	Transform transform;
 	std::array<V2_float, 4> texture_coordinates{ GetDefaultTextureCoordinates() };
 	Origin origin{ default_origin };
-	Tint tint;
 	Depth depth;
+	Tint tint;
 	PreFX pre_fx;
 	RenderState render_state;
 };
 
 struct DrawShaderCommand {
+	// How subsequent shader calls are blended to the intermediate target.
 	BlendMode intermediate_blend_mode{ default_blend_mode };
+	// How the intermediate target is blended to the drawing target. If unset, uses the drawing
+	// target's blend mode.
+	std::optional<BlendMode> target_blend_mode{ std::nullopt };
 	bool clear_between_consecutive_calls{ true };
 	TextureFormat texture_format{ default_texture_format };
 	// If V2_int{} uses drawing to render target viewport size. If Texture, uses texture size.
@@ -224,8 +229,17 @@ struct DrawShaderCommand {
 	RenderState render_state;
 };
 
-using DrawCommand =
-	std::variant<DrawShapeCommand, DrawLinesCommand, DrawTextureCommand, DrawShaderCommand>;
+struct EnableStencilMask {};
+
+struct DisableStencilMask {};
+
+struct DrawOutsideStencilMask {};
+
+struct DrawInsideStencilMask {};
+
+using DrawCommand = std::variant<
+	DrawShapeCommand, DrawLinesCommand, DrawTextureCommand, DrawShaderCommand, EnableStencilMask,
+	DisableStencilMask, DrawInsideStencilMask, DrawOutsideStencilMask>;
 
 inline constexpr float min_line_width{ 1.0f };
 inline constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
@@ -233,7 +247,7 @@ inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 
 class RenderData {
 public:
-	void Submit(const DrawCommand& command);
+	void Submit(const DrawCommand& command, bool debug = false);
 
 	void AddTemporaryTexture(Texture&& texture);
 
@@ -390,10 +404,10 @@ public:
 	// @param filter If function returns true, the entity is not drawn.
 	void DrawDisplayList(
 		RenderTarget& render_target, std::vector<Entity>& display_list,
-		const std::function<bool(const Entity&)>& filter = {}
+		const std::function<bool(const Entity&)>& filter = {}, bool draw_debug = false
 	);
 
-	void FlushDrawQueue(TextureId id);
+	void FlushDrawQueue(TextureId id, bool draw_debug);
 
 	void SetDrawingTo(const RenderTarget& render_target);
 
@@ -405,6 +419,7 @@ public:
 
 	static const Shader& GetFullscreenShader(TextureFormat texture_format);
 
+	std::vector<impl::DrawCommand> debug_queue_;
 	std::unordered_map<TextureId, std::vector<impl::DrawCommand>> draw_queues_;
 
 	std::shared_ptr<DrawContext> intermediate_target;

@@ -8,6 +8,7 @@
 #include "common/type_info.h"
 #include "components/drawable.h"
 #include "components/generic.h"
+#include "core/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
@@ -79,13 +80,13 @@ Entity& RemoveDraw(Entity& entity);
 Entity& SetDrawOffset(Entity& entity, const V2_float& offset = {});
 
 // @return entity.
-Entity& SetVisible(Entity& entity, bool visible);
+Entity& SetVisible(Entity entity, bool visible);
 
 // @return entity.
-Entity& Show(Entity& entity);
+Entity& Show(Entity entity);
 
 // @return entity.
-Entity& Hide(Entity& entity);
+Entity& Hide(Entity entity);
 
 [[nodiscard]] bool IsVisible(const Entity& entity);
 

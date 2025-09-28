@@ -43,6 +43,8 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 
 	PTGN_ASSERT(ratio.BothAboveZero());
 
+	// TODO: Eventually switch to WorldToRenderTarget instead of WorldToDisplay.
+
 	V2_float light_display_pos{ WorldToDisplay(light_world_pos, camera) /*/ ratio*/ };
 
 	light_display_pos += display_size * 0.5f;
@@ -94,6 +96,7 @@ void PointLight::Draw(const Entity& entity) {
 
 	// Blend mode with which the lights are added to the light render target.
 	auto intermediate_blend_mode{ BlendMode::PremultipliedAddRGBA };
+	auto target_blend_mode{ intermediate_blend_mode };
 	// Color to which the light render target is cleared before drawing lights.
 	auto light_clear_color{ color::Black };
 
@@ -102,7 +105,7 @@ void PointLight::Draw(const Entity& entity) {
 	game.renderer.DrawShader(
 		{ "light", &PointLight::SetUniform }, entity, false, light_clear_color, V2_int{},
 		intermediate_blend_mode, GetDepth(entity), blend_mode, entity.GetOrDefault<Camera>(),
-		texture_format, entity.GetOrDefault<PostFX>()
+		texture_format, entity.GetOrDefault<PostFX>(), target_blend_mode
 	);
 }
 

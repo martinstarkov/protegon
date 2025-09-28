@@ -37,6 +37,9 @@ public:
 
 	virtual ~IScript() = default;
 
+	// Called when the script is created, after entity is populated.
+	virtual void OnCreate() { /* user implementation */ }
+
 	virtual void OnUpdate() { /* user implementation */ }
 
 	// TODO: Consider implementing?
@@ -341,6 +344,8 @@ struct ButtonScript : public impl::BaseScript<ScriptType::Button> {
 	virtual ~ButtonScript() = default;
 
 	virtual void OnButtonHoverStart() { /* user implementation */ }
+
+	virtual void OnButtonHover() { /* user implementation */ }
 
 	virtual void OnButtonHoverStop() { /* user implementation */ }
 

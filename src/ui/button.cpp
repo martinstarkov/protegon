@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "components/animation.h"
 #include "components/draw.h"
 #include "components/generic.h"
 #include "components/interactive.h"
@@ -49,7 +50,9 @@ void InternalButtonScript::OnMouseMoveOver() {
 		button.StartHover();
 	} else if (state == InternalButtonState::HeldOutside) {
 		state = InternalButtonState::Pressed;
+		return;
 	}
+	button.ContinueHover();
 }
 
 void InternalButtonScript::OnMouseMoveOut() {
@@ -439,8 +442,23 @@ void Button::Draw(const Entity& entity) {
 	impl::DrawText(text, text_size, text_camera, tint, button_origin, button_size);
 }
 
-Button& Button::OnActivate(const std::function<void()>& on_activate_callback) {
-	AddScript<impl::ButtonActivateScript>(*this, on_activate_callback);
+Button& Button::OnActivate(const std::function<void()>& callback) {
+	AddScript<impl::ButtonActivateScript>(*this, callback);
+	return *this;
+}
+
+Button& Button::OnHover(const std::function<void()>& callback) {
+	AddScript<impl::ButtonHoverScript>(*this, callback);
+	return *this;
+}
+
+Button& Button::OnHoverStart(const std::function<void()>& callback) {
+	AddScript<impl::ButtonHoverStartScript>(*this, callback);
+	return *this;
+}
+
+Button& Button::OnHoverStop(const std::function<void()>& callback) {
+	AddScript<impl::ButtonHoverStopScript>(*this, callback);
 	return *this;
 }
 
@@ -806,6 +824,13 @@ void Button::StartHover() {
 	Get<Scripts>().AddAction(&ButtonScript::OnButtonHoverStart);
 }
 
+void Button::ContinueHover() {
+	if (!IsEnabled(true) || !Has<Scripts>()) {
+		return;
+	}
+	Get<Scripts>().AddAction(&ButtonScript::OnButtonHover);
+}
+
 void Button::StopHover() {
 	if (!IsEnabled(true) || !Has<Scripts>()) {
 		return;
@@ -1079,6 +1104,34 @@ ToggleButtonGroup CreateToggleButtonGroup(Manager& manager) {
 	toggle_button_group.Add<impl::ToggleButtonGroupInfo>();
 
 	return toggle_button_group;
+}
+
+Button CreateAnimatedButton(
+	Manager& manager, const V2_float& button_size, const Animation& activate_animation,
+	const Animation& hover_animation, bool force_start_on_activate, bool force_start_on_hover_start,
+	bool stop_on_hover_stop
+) {
+	auto button{ CreateButton(manager) };
+
+	if (activate_animation) {
+		// TODO: Change this once AddChild takes an Entity and not Entity&.
+		Entity activate{ activate_animation };
+		AddChild(button, activate, "activate_animation");
+	}
+	if (hover_animation) {
+		// TODO: Change this once AddChild takes an Entity and not Entity&.
+		Entity hover{ hover_animation };
+		AddChild(button, hover, "hover_animation");
+	}
+
+	button.SetSize(button_size);
+
+	AddScript<impl::AnimatedButtonScript>(
+		button, activate_animation, hover_animation, force_start_on_activate,
+		force_start_on_hover_start, stop_on_hover_stop
+	);
+
+	return button;
 }
 
 } // namespace ptgn

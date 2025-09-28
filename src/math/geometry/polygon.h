@@ -38,6 +38,8 @@ struct Polygon {
 	// @return Centroid of the polygon.
 	[[nodiscard]] V2_float GetCenter() const;
 
+	bool operator==(const Polygon&) const = default;
+
 	std::vector<V2_float> vertices;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Polygon, vertices)

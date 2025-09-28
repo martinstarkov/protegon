@@ -29,6 +29,8 @@ struct Triangle {
 
 	[[nodiscard]] std::array<V2_float, 3> GetLocalVertices() const;
 
+	bool operator==(const Triangle&) const = default;
+
 	V2_float a;
 	V2_float b;
 	V2_float c;

@@ -6,6 +6,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "components/animation.h"
 #include "components/drawable.h"
 #include "components/generic.h"
 #include "core/entity.h"
@@ -68,20 +69,69 @@ public:
 	void OnButtonActivate() override;
 };
 
-class ButtonActivateScript : public Script<ButtonActivateScript, ButtonScript> {
-public:
-	ButtonActivateScript() = default;
+#define PTGN_DEFINE_BUTTON_SCRIPT(SCRIPT_NAME)                                     \
+	class SCRIPT_NAME##Script : public Script<SCRIPT_NAME##Script, ButtonScript> { \
+	public:                                                                        \
+		SCRIPT_NAME##Script() = default;                                           \
+                                                                                   \
+		explicit SCRIPT_NAME##Script(const std::function<void()>& callback) :      \
+			callback{ callback } {}                                                \
+                                                                                   \
+		void On##SCRIPT_NAME##() override {                                        \
+			if (callback) {                                                        \
+				callback();                                                        \
+			}                                                                      \
+		}                                                                          \
+                                                                                   \
+		std::function<void()> callback;                                            \
+	}
 
-	explicit ButtonActivateScript(const std::function<void()>& on_activate_callback) :
-		on_activate{ on_activate_callback } {}
+PTGN_DEFINE_BUTTON_SCRIPT(ButtonActivate);
+PTGN_DEFINE_BUTTON_SCRIPT(ButtonHoverStart);
+PTGN_DEFINE_BUTTON_SCRIPT(ButtonHoverStop);
+PTGN_DEFINE_BUTTON_SCRIPT(ButtonHover);
 
-	void OnButtonActivate() override {
-		if (on_activate) {
-			on_activate();
+struct AnimatedButtonScript : public Script<AnimatedButtonScript, ButtonScript> {
+	AnimatedButtonScript() = default;
+
+	AnimatedButtonScript(
+		const Animation& activate_animation, const Animation& hover_animation = {},
+		bool force_start_on_activate = true, bool force_start_on_hover_start = true,
+		bool stop_on_hover_stop = true
+	) :
+		activate_animation{ activate_animation },
+		hover_animation{ hover_animation },
+		force_start_on_activate{ force_start_on_activate },
+		force_start_on_hover_start{ force_start_on_hover_start },
+		stop_on_hover_stop{ stop_on_hover_stop } {}
+
+	Animation activate_animation;
+	Animation hover_animation;
+
+	bool force_start_on_activate{ true };
+
+	bool force_start_on_hover_start{ true };
+	bool stop_on_hover_stop{ true };
+
+	void OnButtonHoverStart() override {
+		if (hover_animation) {
+			hover_animation.Start(force_start_on_hover_start);
 		}
 	}
 
-	std::function<void()> on_activate;
+	// void OnButtonHover() {}
+
+	void OnButtonHoverStop() override {
+		if (hover_animation && stop_on_hover_stop) {
+			hover_animation.Stop();
+		}
+	}
+
+	void OnButtonActivate() override {
+		if (activate_animation) {
+			activate_animation.Start(force_start_on_activate);
+		}
+	}
 };
 
 struct ButtonToggled : public BoolComponent {
@@ -214,7 +264,7 @@ struct ButtonEnabled {
 	bool activate{ true };
 	bool hover{ true };
 
-	PTGN_SERIALIZER_REGISTER(ButtonEnabled, activate, hover);
+	PTGN_SERIALIZER_REGISTER(ButtonEnabled, activate, hover)
 };
 
 } // namespace impl
@@ -226,8 +276,11 @@ public:
 
 	static void Draw(const Entity& entity);
 
-	// Will set the script for when the button is activated.
-	Button& OnActivate(const std::function<void()>& on_activate_callback);
+	// Set button callback scripts.
+	Button& OnActivate(const std::function<void()>& callback);
+	Button& OnHover(const std::function<void()>& callback);
+	Button& OnHoverStart(const std::function<void()>& callback);
+	Button& OnHoverStop(const std::function<void()>& callback);
 
 	// @param size {} results in texture sized button.
 	Button& SetSize(const V2_float& size = {});
@@ -250,8 +303,13 @@ public:
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
 
 	// Manual button script triggers.
+	// Called when the mouse is clicked over the button.
 	void Activate();
+	// Called once when hovering starts (mouse enters button).
 	void StartHover();
+	// Called continuously when hovering (including when hover starts).
+	void ContinueHover();
+	// Called once when hovering stops (mouse exits button).
 	void StopHover();
 
 	[[nodiscard]] ButtonState GetState() const;
@@ -485,6 +543,12 @@ Button CreateTextButton(
 ToggleButton CreateToggleButton(Manager& manager, bool toggled = false);
 
 ToggleButtonGroup CreateToggleButtonGroup(Manager& manager);
+
+Button CreateAnimatedButton(
+	Manager& manager, const V2_float& button_size, const Animation& activate_animation,
+	const Animation& hover_animation = {}, bool force_start_on_activate = true,
+	bool force_start_on_hover_start = true, bool stop_on_hover_stop = true
+);
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	ButtonState, { { ButtonState::Default, "default" },

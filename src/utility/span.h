@@ -41,18 +41,18 @@ std::vector<ReturnType> GetElements(const Map& map) {
 
 // @return How many bits the contents of the vector take up.
 template <typename T>
-static std::size_t Sizeof(const std::vector<T>& vector) {
+inline std::size_t Sizeof(const std::vector<T>& vector) {
 	return sizeof(T) * vector.size();
 }
 
 // @return How many bits the contents of the array take up.
 template <typename T, std::size_t I>
-static constexpr std::size_t Sizeof(const std::array<T, I>& array) {
+inline constexpr std::size_t Sizeof(const std::array<T, I>& array) {
 	return sizeof(T) * array.size();
 }
 
 template <typename T>
-static std::vector<T> ToVector(const std::unordered_set<T>& set) {
+inline std::vector<T> ToVector(const std::unordered_set<T>& set) {
 	std::vector<T> v;
 	v.reserve(set.size());
 	for (const auto& element : set) {
@@ -62,7 +62,7 @@ static std::vector<T> ToVector(const std::unordered_set<T>& set) {
 }
 
 template <typename Type, std::size_t Size>
-static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
+inline std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 	std::vector<Type> v;
 	v.reserve(Size);
 	for (const auto& a : array) {
@@ -71,38 +71,43 @@ static std::vector<Type> ToVector(const std::array<Type, Size>& array) {
 	return v;
 }
 
+template <typename Type>
+inline const std::vector<Type>& ToVector(const std::vector<Type>& vector) {
+	return vector;
+}
+
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
-[[nodiscard]] static auto GetKeys(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
+[[nodiscard]] inline auto GetKeys(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
 	return impl::GetElements<Key>(map);
 }
 
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
-[[nodiscard]] static auto GetValues(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
+[[nodiscard]] inline auto GetValues(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
 	return impl::GetElements<Value>(map);
 }
 
 template <typename Key, typename Value, typename Compare, typename Alloc>
-[[nodiscard]] static auto GetKeys(const std::map<Key, Value, Compare, Alloc>& map) {
+[[nodiscard]] inline auto GetKeys(const std::map<Key, Value, Compare, Alloc>& map) {
 	return impl::GetElements<Key>(map);
 }
 
 template <typename Key, typename Value, typename Compare, typename Alloc>
-[[nodiscard]] static auto GetValues(const std::map<Key, Value, Compare, Alloc>& map) {
+[[nodiscard]] inline auto GetValues(const std::map<Key, Value, Compare, Alloc>& map) {
 	return impl::GetElements<Value>(map);
 }
 
 template <typename T>
-[[nodiscard]] static bool VectorContains(const std::vector<T>& container, const T& value) {
+[[nodiscard]] inline bool VectorContains(const std::vector<T>& container, const T& value) {
 	return std::ranges::find(container, value) != container.end();
 }
 
 template <typename T, typename Predicate>
-[[nodiscard]] static bool VectorFindIf(const std::vector<T>& container, Predicate&& condition) {
+[[nodiscard]] inline bool VectorFindIf(const std::vector<T>& container, Predicate&& condition) {
 	return std::ranges::find_if(container, std::forward<Predicate>(condition)) != container.end();
 }
 
 template <typename Type, std::size_t... sizes>
-[[nodiscard]] static auto ConcatenateArrays(const std::array<Type, sizes>&... arrays) {
+[[nodiscard]] inline auto ConcatenateArrays(const std::array<Type, sizes>&... arrays) {
 	std::array<Type, (sizes + ...)> result;
 	std::size_t index{ 0 };
 
@@ -112,7 +117,7 @@ template <typename Type, std::size_t... sizes>
 }
 
 template <typename T, typename... TArgs>
-[[nodiscard]] static auto ConcatenateVectors(
+[[nodiscard]] inline auto ConcatenateVectors(
 	const std::vector<T>& v1, const std::vector<T>& v2, const TArgs&... vectors
 ) {
 	std::vector<T> result;
@@ -124,7 +129,7 @@ template <typename T, typename... TArgs>
 }
 
 template <typename T>
-[[nodiscard]] static auto ConcatenateVectors(const std::vector<T>& v1, const std::vector<T>& v2) {
+[[nodiscard]] inline auto ConcatenateVectors(const std::vector<T>& v1, const std::vector<T>& v2) {
 	std::vector<T> result;
 	result.reserve(v1.size() + v2.size());
 	result.insert(result.end(), v1.begin(), v1.end());
@@ -141,7 +146,7 @@ void VectorRemoveDuplicates(std::vector<T>& v) {
 
 // Swaps vector elements if they both exist in the vector.
 template <typename T>
-static void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
+inline void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 	auto it1{ std::find(v.begin(), v.end(), e1) };
 	auto it2{ std::find(v.begin(), v.end(), e2) };
 	if (it1 == v.end() || it2 == v.end()) {
@@ -154,7 +159,7 @@ static void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 // @return first True if emplaced, false if condition was met
 //         second Reference to emplaced or existing element.
 template <typename T, typename Predicate, typename... Args>
-static std::pair<bool, T&> VectorTryEmplaceIf(
+inline std::pair<bool, T&> VectorTryEmplaceIf(
 	std::vector<T>& vec, Predicate&& condition, Args&&... args
 ) {
 	for (auto& item : vec) {
@@ -170,7 +175,7 @@ static std::pair<bool, T&> VectorTryEmplaceIf(
 //         second Reference to emplaced or existing element.
 template <typename S, typename T, typename Predicate, typename... Args>
 	requires IsOrDerivedFrom<S, T>
-static std::pair<bool, T&> VectorTryEmplaceIf(
+inline std::pair<bool, T&> VectorTryEmplaceIf(
 	std::vector<std::shared_ptr<T>>& vec, Predicate&& condition, Args&&... args
 ) {
 	for (const auto& item : vec) {
@@ -184,7 +189,7 @@ static std::pair<bool, T&> VectorTryEmplaceIf(
 // @return first True if replaced, false if emplaced.
 //         second Reference to replaced or emplaced element.
 template <typename T, typename Predicate, typename... Args>
-static std::pair<bool, T&> VectorReplaceOrEmplaceIf(
+inline std::pair<bool, T&> VectorReplaceOrEmplaceIf(
 	std::vector<T>& vec, Predicate&& condition, Args&&... args
 ) {
 	for (auto& item : vec) {
@@ -200,7 +205,7 @@ static std::pair<bool, T&> VectorReplaceOrEmplaceIf(
 //         second Reference to replaced or emplaced element.
 template <typename S, typename T, typename Predicate, typename... Args>
 	requires IsOrDerivedFrom<S, T>
-static std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
+inline std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
 	std::vector<std::shared_ptr<T>>& vec, Predicate&& condition, Args&&... args
 ) {
 	for (auto& item : vec) {
@@ -215,7 +220,7 @@ static std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
 
 // @return True if the element was erased from the vector, false otherwise.
 template <typename T, typename Predicate>
-static bool VectorEraseIf(std::vector<T>& v, Predicate&& condition) {
+inline bool VectorEraseIf(std::vector<T>& v, Predicate&& condition) {
 	auto before{ v.size() };
 	std::erase_if(v, condition);
 	return v.size() != before;
@@ -223,7 +228,7 @@ static bool VectorEraseIf(std::vector<T>& v, Predicate&& condition) {
 
 // @return True if the element was erased from the vector, false otherwise.
 template <typename T>
-static bool VectorErase(std::vector<T>& v, const T& element) {
+inline bool VectorErase(std::vector<T>& v, const T& element) {
 	auto before{ v.size() };
 	std::erase(v, element);
 	return v.size() != before;
@@ -231,7 +236,7 @@ static bool VectorErase(std::vector<T>& v, const T& element) {
 
 // Subtract elements of b from a.
 template <typename T>
-static void VectorSubtract(std::vector<T>& a, const std::vector<T>& b) {
+inline void VectorSubtract(std::vector<T>& a, const std::vector<T>& b) {
 	// Create a hash set of elements in b for fast lookup
 	std::unordered_set<T> b_set(b.begin(), b.end());
 

@@ -53,57 +53,22 @@ BoundingAABB BoundingAABB::ExpandByVelocity(const V2_float& velocity) const {
 
 BoundingAABB GetBoundingAABB(const ColliderShape& shape, const Transform& transform) {
 	return std::visit(
-		[&](const auto& s) -> BoundingAABB {
+		[&](const auto& s) {
 			using T = std::decay_t<decltype(s)>;
 
-			std::vector<V2_float> vertices;
-			if constexpr (std::is_same_v<T, Circle>) {
-				auto v = s.GetExtents(transform);
-				vertices.assign(v.begin(), v.end());
-			} else if constexpr (std::is_same_v<T, Rect>) {
-				auto v = s.GetWorldVertices(transform);
-				vertices.assign(v.begin(), v.end());
-			} else if constexpr (std::is_same_v<T, Polygon>) {
-				vertices = s.GetWorldVertices(transform);
-			} else if constexpr (std::is_same_v<T, Triangle>) {
-				auto v = s.GetWorldVertices(transform);
-				vertices.assign(v.begin(), v.end());
-			} else if constexpr (std::is_same_v<T, Capsule>) {
-				auto v = s.GetWorldVertices(transform);
-				V2_float r{ s.GetRadius(transform) };
-				// Treat capsule as two circles and a rectangle between them
-				vertices.emplace_back(v[0] - r);
-				vertices.emplace_back(v[0] + r);
-				vertices.emplace_back(v[1] - r);
-				vertices.emplace_back(v[1] + r);
-			} else if constexpr (std::is_same_v<T, Line>) {
-				auto v = s.GetWorldVertices(transform);
-				vertices.assign(v.begin(), v.end());
-			} else if constexpr (std::is_same_v<T, V2_float>) {
-				// Assume Point is a single position with no size
-				V2_float p{ transform.GetPosition() };
-				vertices.emplace_back(p);
-			} /*
-			  // TODO: Re-enable if collisions are added for these shapes:
-			  else if constexpr (std::is_same_v<T, RoundedRect>) {
-				 auto v = s.GetWorldQuadVertices(transform);
-				 vertices.assign(v.begin(), v.end());
-			 } else if constexpr (std::is_same_v<T, Ellipse>) {
-				 auto v = s.GetWorldQuadVertices(transform);
-				 vertices.assign(v.begin(), v.end());
-			 }*/
+			auto world_vertices{ GetWorldVertices(shape, transform) };
 
-			V2_float min{ vertices[0] };
-			V2_float max{ vertices[0] };
+			V2_float min{ world_vertices[0] };
+			V2_float max{ world_vertices[0] };
 
-			for (const auto& v : vertices) {
+			for (const auto& v : world_vertices) {
 				min.x = std::min(min.x, v.x);
 				min.y = std::min(min.y, v.y);
 				max.x = std::max(max.x, v.x);
 				max.y = std::max(max.y, v.y);
 			}
 
-			return { min, max };
+			return BoundingAABB{ min, max };
 		},
 		shape
 	);

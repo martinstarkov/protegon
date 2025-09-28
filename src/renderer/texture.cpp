@@ -138,6 +138,12 @@ GLFormats GetGLFormats(TextureFormat format) {
 		case TextureFormat::A8: {
 			return { InternalGLFormat::R8, InputGLFormat::SingleChannel, 1 };
 		}
+		case TextureFormat::Depth24: {
+			return { InternalGLFormat::DEPTH24, InputGLFormat::Depth, 0 };
+		}
+		case TextureFormat::Depth24_Stencil8: {
+			return { InternalGLFormat::DEPTH24_STENCIL8, InputGLFormat::DepthStencil, 0 };
+		}
 #endif
 		default:
 			PTGN_ERROR("Could not determine compatible OpenGL formats for given TextureFormat");
@@ -381,6 +387,10 @@ bool Texture::ValidMinifyingForMipmaps(TextureScaling minifying) {
 }
 
 void Texture::Resize(const V2_int& new_size) {
+	if (!IsValid() || size_ == new_size) {
+		return;
+	}
+
 	TextureId restore_texture_id{ Texture::GetBoundId() };
 	Bind();
 	SetData(nullptr, new_size, GetFormat(), 0);
@@ -405,7 +415,13 @@ void Texture::SetData(
 	if (formats.internal_format == InternalGLFormat::HDR_RGBA ||
 		formats.internal_format == InternalGLFormat::HDR_RGB) {
 		type = GLType::Float;
+	} else if (formats.internal_format == InternalGLFormat::DEPTH24_STENCIL8) {
+		type = GLType::UnsignedInt24_8;
+	} else if (formats.internal_format == InternalGLFormat::DEPTH24) {
+		type = GLType::Int;
 	}
+
+	PTGN_ASSERT(formats.internal_format != InternalGLFormat::STENCIL8);
 
 	GLCall(glTexImage2D(
 		static_cast<GLenum>(TextureTarget::Texture2D), mipmap_level,
