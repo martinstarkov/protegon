@@ -9,6 +9,7 @@
 #include <list>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <type_traits>
