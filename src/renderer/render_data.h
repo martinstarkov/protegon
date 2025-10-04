@@ -253,10 +253,7 @@ public:
 
 	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
 
-	[[nodiscard]] static DrawTarget GetDrawTarget(const RenderTarget& render_target);
-
 	void DrawCommand(const impl::DrawCommand& cmd);
-	void DrawShape(const DrawShapeCommand& cmd);
 	void DrawLines(const DrawLinesCommand& cmd);
 	void DrawTexture(const DrawTextureCommand& cmd);
 	void DrawShader(const DrawShaderCommand& cmd);
@@ -301,33 +298,6 @@ public:
 	);
 
 	/**
-	 * Draws a set of previously prepared vertices using the specified shader and render target.
-	 *
-	 * @param shader              The shader to use for rendering.
-	 * @param target              The rendering target that contains the destination framebuffer,
-	 *                            blend mode, viewport, etc.
-	 * @param clear_frame_buffer  If true, the target's framebuffer will be cleared before drawing.
-	 */
-	void DrawVertices(const Shader& shader, const DrawTarget& target, bool clear_frame_buffer);
-
-	/**
-	 * Draws a fullscreen quad using the provided shader, commonly used for post-processing effects.
-	 *
-	 * @param shader              The shader to apply to the fullscreen quad.
-	 * @param target              The rendering target that contains the destination framebuffer,
-	 *                            blend mode, viewport, etc.
-	 * @param flip_texture        If true, vertically flips the texture coordinates (useful when
-	 * rendering to screen-space or handling texture origin discrepancies).
-	 * @param clear_frame_buffer  If true, clears the framebuffer to the specified clear color
-	 * before drawing.
-	 * @param target_clear_color  The color used to clear the framebuffer, if clearing is enabled.
-	 */
-	void DrawFullscreenQuad(
-		const Shader& shader, const DrawTarget& target, bool flip_texture, bool clear_frame_buffer,
-		const Color& target_clear_color
-	);
-
-	/**
 	 * Issues a low-level draw call with the given vertex and index data, rendering to the specified
 	 * framebuffer.
 	 *
@@ -356,11 +326,6 @@ public:
 
 	void Init();
 
-	// @param out_texture_index The available texture index for the texture id.
-	// @return True if the texture_index currently exists in the textures vector, false if it must
-	// be emplaced.
-	[[nodiscard]] bool GetTextureIndex(std::uint32_t texture_id, float& out_texture_index);
-
 	[[nodiscard]] const Shader& GetCurrentShader() const;
 
 	// @return True if the render state changed, false otherwise.
@@ -373,30 +338,6 @@ public:
 	void DrawScene(Scene& scene);
 
 	void Draw(Scene& scene);
-
-	/**
-	 * Draws a textured quad using the contents of a source render target onto a destination
-	 * framebuffer.
-	 *
-	 * This is typically used for compositing, where one render target  is drawn onto another buffer
-	 * or the screen target.
-	 *
-	 * @param source_target       The render target whose texture will be drawn.
-	 * @param points              The four corner points (in destination space) of the quad onto
-	 * which the source target will be mapped. These should be in the order: top-left, top-right,
-	 * bottom-right, bottom-left.
-	 * @param projection          The projection matrix that transforms the quad's points into clip
-	 * space. Defines the coordinate system used during drawing.
-	 * @param viewport            The portion of the destination framebuffer that will be rendered
-	 * to.
-	 * @param destination_buffer  The framebuffer that the source target will be drawn into.
-	 *                            If null, draws to the default framebuffer (usually the screen).
-	 */
-	void DrawFromTo(
-		const RenderTarget& source_target, const std::array<V2_float, 4>& points,
-		const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer,
-		bool flip_texture
-	);
 
 	// Draws the screen target to the default frame buffer.
 	void DrawScreenTarget();

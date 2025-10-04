@@ -295,7 +295,7 @@ static std::optional<QuadInfo> GetQuadInfo(RenderData& ctx, DrawShapeCommand& cm
 		if (radius <= 0.0f) {
 			cmd.render_state.shader_pass = std::nullopt;
 			cmd.shape					 = Rect{ shape.GetSize() };
-			ctx.DrawShape(cmd);
+			ctx.DrawCommand(cmd);
 			return std::nullopt;
 		}
 
@@ -321,19 +321,6 @@ static std::optional<QuadInfo> GetQuadInfo(RenderData& ctx, DrawShapeCommand& cm
 	return info;
 }
 
-static void AddShape(
-	RenderData& ctx, const auto& state, float line_width, auto& vertices, const auto& indices,
-	const auto& points
-) {
-	ctx.SetState(state);
-
-	if (line_width == -1.0f) {
-		ctx.AddVertices(vertices, indices);
-	} else {
-		ctx.AddLinesImpl(vertices, indices, points, line_width, {});
-	}
-};
-
 template <ShapeType T>
 static void DrawShape(RenderData& ctx, DrawShapeCommand cmd, const T& shape) {
 	if constexpr (IsAnyOf<T, V2_float, Line, Capsule, Arc, RoundedRect, Ellipse>) {
@@ -353,7 +340,7 @@ static void DrawShape(RenderData& ctx, DrawShapeCommand cmd, const T& shape) {
 		ctx.AddVertices(quad_vertices, quad_indices);
 	} else if constexpr (std::is_same_v<T, Circle>) {
 		cmd.shape = Ellipse{ V2_float{ shape.GetRadius() } };
-		ctx.DrawShape(cmd);
+		ctx.DrawCommand(cmd);
 	} else if constexpr (std::is_same_v<T, Rect>) {
 		if (auto size{ shape.GetSize(cmd.transform) }; !size.BothAboveZero()) {
 			return;
@@ -363,12 +350,25 @@ static void DrawShape(RenderData& ctx, DrawShapeCommand cmd, const T& shape) {
 		auto vertices =
 			Vertex::GetQuad(points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates());
 
-		AddShape(ctx, cmd.render_state, cmd.line_width, vertices, quad_indices, points);
+		ctx.SetState(cmd.render_state);
+
+		if (cmd.line_width == -1.0f) {
+			ctx.AddVertices(vertices, quad_indices);
+		} else {
+			ctx.AddLinesImpl(vertices, quad_indices, points, cmd.line_width, {});
+		}
+
 	} else if constexpr (std::is_same_v<T, Triangle>) {
 		auto points	  = shape.GetWorldVertices(cmd.transform);
 		auto vertices = Vertex::GetTriangle(points, cmd.tint, cmd.depth);
 
-		AddShape(ctx, cmd.render_state, cmd.line_width, vertices, triangle_indices, points);
+		ctx.SetState(cmd.render_state);
+
+		if (cmd.line_width == -1.0f) {
+			ctx.AddVertices(vertices, triangle_indices);
+		} else {
+			ctx.AddLinesImpl(vertices, triangle_indices, points, cmd.line_width, {});
+		}
 	} else if constexpr (std::is_same_v<T, Polygon>) {
 		ctx.SetState(cmd.render_state);
 
@@ -377,11 +377,11 @@ static void DrawShape(RenderData& ctx, DrawShapeCommand cmd, const T& shape) {
 				return;
 			} else if (shape.vertices.size() == 1) {
 				cmd.shape = V2_float{ shape.vertices.front() };
-				ctx.DrawShape(cmd);
+				ctx.DrawCommand(cmd);
 				return;
 			} else if (shape.vertices.size() == 2) {
 				cmd.shape = Line{ shape.vertices[0], shape.vertices[1] };
-				ctx.DrawShape(cmd);
+				ctx.DrawCommand(cmd);
 				return;
 			}
 		}
@@ -402,26 +402,20 @@ static void DrawShape(RenderData& ctx, DrawShapeCommand cmd, const T& shape) {
 	}
 }
 
-static void SetPointsAndProjection(DrawTarget& target) {
-	PTGN_ASSERT(target.viewport.size.BothAboveZero());
-
-	auto half_viewport{ target.viewport.size * 0.5f };
-
-	target.points = { target.viewport.position - half_viewport,
-					  target.viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
-					  target.viewport.position + half_viewport,
-					  target.viewport.position + V2_float{ -half_viewport.x, half_viewport.y } };
-
-	target.view_projection = Matrix4::Orthographic(target.points[0], target.points[2]);
-}
-
 void RenderData::DrawCommand(const impl::DrawCommand& cmd) {
 	std::visit(
 		[&](const auto& command) {
 			using T = std::decay_t<decltype(command)>;
 
 			if constexpr (std::is_same_v<T, DrawShapeCommand>) {
-				DrawShape(command);
+				std::visit(
+					[&](const auto& shape) {
+						using T = std::decay_t<decltype(shape)>;
+
+						impl::DrawShape(*this, command, shape);
+					},
+					command.shape
+				);
 			} else if constexpr (std::is_same_v<T, DrawTextureCommand>) {
 				DrawTexture(command);
 			} else if constexpr (std::is_same_v<T, DrawShaderCommand>) {
@@ -445,17 +439,6 @@ void RenderData::DrawCommand(const impl::DrawCommand& cmd) {
 			}
 		},
 		cmd
-	);
-}
-
-void RenderData::DrawShape(const DrawShapeCommand& cmd) {
-	std::visit(
-		[&](const auto& shape) {
-			using T = std::decay_t<decltype(shape)>;
-
-			impl::DrawShape(*this, cmd, shape);
-		},
-		cmd.shape
 	);
 }
 
@@ -523,7 +506,18 @@ void RenderData::DrawTexture(const DrawTextureCommand& cmd) {
 		DrawTarget target;
 		target.viewport		  = viewport;
 		target.texture_format = cmd.texture_format;
-		SetPointsAndProjection(target);
+
+		PTGN_ASSERT(target.viewport.size.BothAboveZero());
+
+		auto half_viewport{ target.viewport.size * 0.5f };
+
+		target.points = { target.viewport.position - half_viewport,
+						  target.viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
+						  target.viewport.position + half_viewport,
+						  target.viewport.position +
+							  V2_float{ -half_viewport.x, half_viewport.y } };
+
+		target.view_projection = Matrix4::Orthographic(target.points[0], target.points[2]);
 
 		texture_id = PingPong(
 			cmd.pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format),
@@ -535,7 +529,27 @@ void RenderData::DrawTexture(const DrawTextureCommand& cmd) {
 	}
 
 	float texture_index = 0.0f;
-	bool existing		= GetTextureIndex(texture_id, texture_index);
+
+	auto get_texture_index = [&](TextureId id, float& out_texture_index) {
+		PTGN_ASSERT(id != white_texture.GetId());
+		// Texture exists in batch, therefore do not add it again.
+		for (std::size_t i{ 0 }; i < textures_.size(); i++) {
+			if (textures_[i] == id) {
+				// i + 1 because first texture index is white texture.
+				out_texture_index = static_cast<float>(i + 1);
+				return true;
+			}
+		}
+		// Batch is at texture capacity.
+		if (static_cast<std::uint32_t>(textures_.size()) == max_texture_slots - 1) {
+			Flush();
+		}
+		out_texture_index = static_cast<float>(textures_.size() + 1);
+		return false;
+	};
+
+	bool existing = get_texture_index(texture_id, texture_index);
+
 	Vertex::SetTextureIndex(texture_vertices, texture_index);
 	AddVertices(texture_vertices, quad_indices);
 
@@ -612,7 +626,15 @@ void RenderData::DrawShader(const DrawShaderCommand& cmd) {
 
 	target.frame_buffer = &intermediate_target->frame_buffer;
 
-	DrawFullscreenQuad(shader, target, false, clear, cmd.target_clear_color);
+	DrawCall(
+		shader,
+		Vertex::GetQuad(
+			target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
+			false
+		),
+		quad_indices, { target.texture_id }, target.frame_buffer, clear, cmd.target_clear_color,
+		target.blend_mode, target.viewport, target.view_projection
+	);
 }
 
 TextureId RenderData::PingPong(
@@ -660,7 +682,15 @@ TextureId RenderData::PingPong(
 		target.tint			= GetTint(fx);
 		target.blend_mode	= GetBlendMode(fx);
 
-		DrawFullscreenQuad(shader, target, flip_vertices, use_previous_texture, color::Transparent);
+		DrawCall(
+			shader,
+			Vertex::GetQuad(
+				target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
+				flip_vertices
+			),
+			quad_indices, { target.texture_id }, target.frame_buffer, use_previous_texture,
+			color::Transparent, target.blend_mode, target.viewport, target.view_projection
+		);
 
 		use_previous_texture = fx.GetOrDefault<UsePreviousTexture>();
 	}
@@ -734,24 +764,6 @@ void RenderData::Init() {
 	RecomputeDisplaySize(window_size);
 
 	render_manager.Refresh();
-}
-
-bool RenderData::GetTextureIndex(std::uint32_t texture_id, float& out_texture_index) {
-	PTGN_ASSERT(texture_id != white_texture.GetId());
-	// Texture exists in batch, therefore do not add it again.
-	for (std::size_t i{ 0 }; i < textures_.size(); i++) {
-		if (textures_[i] == texture_id) {
-			// i + 1 because first texture index is white texture.
-			out_texture_index = static_cast<float>(i + 1);
-			return true;
-		}
-	}
-	// Batch is at texture capacity.
-	if (static_cast<std::uint32_t>(textures_.size()) == max_texture_slots - 1) {
-		Flush();
-	}
-	out_texture_index = static_cast<float>(textures_.size() + 1);
-	return false;
 }
 
 const Shader& RenderData::GetCurrentShader() const {
@@ -830,22 +842,6 @@ void RenderData::AddVertices(
 	index_offset_ += static_cast<Index>(point_vertices.size());
 }
 
-void RenderData::DrawFullscreenQuad(
-	const Shader& shader, const DrawTarget& target, bool flip_texture, bool clear_frame_buffer,
-	const Color& target_clear_color
-) {
-	float texture_index{ 1.0f };
-	DrawCall(
-		shader,
-		Vertex::GetQuad(
-			target.points, target.tint, target.depth, { texture_index },
-			GetDefaultTextureCoordinates(), flip_texture
-		),
-		quad_indices, { target.texture_id }, target.frame_buffer, clear_frame_buffer,
-		target_clear_color, target.blend_mode, target.viewport, target.view_projection
-	);
-}
-
 void RenderData::DrawCall(
 	const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
 	const std::vector<TextureId>& textures, const FrameBuffer* frame_buffer,
@@ -896,15 +892,6 @@ void RenderData::DrawCall(
 	GLRenderer::DrawElements(triangle_vao, indices.size(), false);
 }
 
-void RenderData::DrawVertices(
-	const Shader& shader, const DrawTarget& target, bool clear_frame_buffer
-) {
-	DrawCall(
-		shader, vertices_, indices_, textures_, target.frame_buffer, clear_frame_buffer,
-		color::Transparent, target.blend_mode, target.viewport, target.view_projection
-	);
-}
-
 void RenderData::Flush(bool final_flush) {
 	std::vector<TextureId> texture_id;
 
@@ -930,7 +917,10 @@ void RenderData::Flush(bool final_flush) {
 		const auto& shader{ GetCurrentShader() };
 
 		// Draw unflushed vertices to intermediate target before adding post fx to it.
-		DrawVertices(shader, target, true);
+		DrawCall(
+			shader, vertices_, indices_, textures_, target.frame_buffer, true, color::Transparent,
+			target.blend_mode, target.viewport, target.view_projection
+		);
 
 		// Add post fx to the intermediate target.
 
@@ -960,9 +950,15 @@ void RenderData::Flush(bool final_flush) {
 		if (intermediate_target->blend_mode.has_value()) {
 			target.blend_mode = *intermediate_target->blend_mode;
 		}
-		DrawFullscreenQuad(
-			GetFullscreenShader(target.texture_format), target,
-			has_post_fx /* Only flip if postfx have been applied. */, false, color::Transparent
+
+		DrawCall(
+			GetFullscreenShader(target.texture_format),
+			Vertex::GetQuad(
+				target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
+				has_post_fx /* Only flip if postfx have been applied. */
+			),
+			quad_indices, { target.texture_id }, target.frame_buffer, false, color::Transparent,
+			target.blend_mode, target.viewport, target.view_projection
 		);
 
 	} else if (render_state.IsSet()) {
@@ -971,7 +967,10 @@ void RenderData::Flush(bool final_flush) {
 		const auto& shader{ GetCurrentShader() };
 
 		// Draw unflushed vertices directly to drawing_to frame buffer.
-		DrawVertices(shader, target, false);
+		DrawCall(
+			shader, vertices_, indices_, textures_, target.frame_buffer, false, color::Transparent,
+			target.blend_mode, target.viewport, target.view_projection
+		);
 	}
 
 	Reset();
@@ -1022,41 +1021,6 @@ void RenderData::InvokeDrawFilter(RenderTarget& render_target, FilterType type) 
 	filter_function(render_target, type);
 }
 
-static DrawTarget GetDrawTarget(
-	const RenderTarget& render_target, const Matrix4& view_projection,
-	const std::array<V2_float, 4>& points, bool use_viewport
-) {
-	DrawTarget target;
-
-	const auto& texture{ render_target.GetTexture() };
-	auto texture_size{ render_target.GetTextureSize() };
-
-	target.texture_size		 = texture_size;
-	target.texture_id		 = texture.GetId();
-	target.texture_format	 = texture.GetFormat();
-	target.viewport.position = {};
-	target.viewport.size	 = texture_size;
-
-	if (use_viewport) {
-		SetPointsAndProjection(target);
-	} else {
-		target.view_projection = view_projection;
-		target.points		   = points;
-	}
-
-	target.blend_mode	= GetBlendMode(render_target);
-	target.depth		= GetDepth(render_target);
-	target.tint			= GetTint(render_target);
-	target.frame_buffer = &render_target.GetFrameBuffer();
-
-	return target;
-}
-
-DrawTarget RenderData::GetDrawTarget(const RenderTarget& render_target) {
-	Camera camera{ render_target.GetCamera() };
-	return impl::GetDrawTarget(render_target, camera, camera.GetWorldVertices(), false);
-}
-
 void RenderData::FlushDrawQueue(TextureId id, bool draw_debug) {
 	auto it{ draw_queues_.find(id) };
 
@@ -1081,7 +1045,24 @@ void RenderData::DrawDisplayList(
 	RenderTarget& render_target, std::vector<Entity>& display_list,
 	const std::function<bool(const Entity&)>& filter, bool draw_debug
 ) {
-	SetDrawingTo(render_target);
+	Camera camera{ render_target.GetCamera() };
+
+	const auto& texture{ render_target.GetTexture() };
+	auto texture_size{ render_target.GetTextureSize() };
+
+	drawing_to_.texture_size	  = texture_size;
+	drawing_to_.texture_id		  = texture.GetId();
+	drawing_to_.texture_format	  = texture.GetFormat();
+	drawing_to_.viewport.position = {};
+	drawing_to_.viewport.size	  = texture_size;
+
+	drawing_to_.view_projection = camera;
+	drawing_to_.points			= camera.GetWorldVertices();
+
+	drawing_to_.blend_mode	 = GetBlendMode(render_target);
+	drawing_to_.depth		 = GetDepth(render_target);
+	drawing_to_.tint		 = GetTint(render_target);
+	drawing_to_.frame_buffer = &render_target.GetFrameBuffer();
 
 	// Must be sorted here so that depth and creation order is accounted for.
 	SortByDepth(display_list, true);
@@ -1101,7 +1082,23 @@ void RenderData::DrawDisplayList(
 }
 
 void RenderData::SetDrawingTo(const RenderTarget& render_target) {
-	drawing_to_ = GetDrawTarget(render_target);
+	const auto& texture{ render_target.GetTexture() };
+	auto texture_size{ render_target.GetTextureSize() };
+	Camera camera{ render_target.GetCamera() };
+
+	drawing_to_.texture_size	  = texture_size;
+	drawing_to_.texture_id		  = texture.GetId();
+	drawing_to_.texture_format	  = texture.GetFormat();
+	drawing_to_.viewport.position = {};
+	drawing_to_.viewport.size	  = texture_size;
+
+	drawing_to_.view_projection = camera;
+	drawing_to_.points			= camera.GetWorldVertices();
+
+	drawing_to_.blend_mode	 = GetBlendMode(render_target);
+	drawing_to_.depth		 = GetDepth(render_target);
+	drawing_to_.tint		 = GetTint(render_target);
+	drawing_to_.frame_buffer = &render_target.GetFrameBuffer();
 }
 
 void RenderData::DrawScene(Scene& scene) {
@@ -1240,30 +1237,23 @@ const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
 	return *shader;
 }
 
-void RenderData::DrawFromTo(
-	const RenderTarget& source_target, const std::array<V2_float, 4>& points,
-	const Matrix4& projection, const Viewport& viewport, const FrameBuffer* destination_buffer,
-	bool flip_texture
-) {
-	auto target{ impl::GetDrawTarget(source_target, {}, {}, false) };
-	target.view_projection = projection;
-	target.points		   = points;
-	target.viewport		   = viewport;
-	target.frame_buffer	   = destination_buffer;
-
-	DrawFullscreenQuad(
-		GetFullscreenShader(target.texture_format), target, flip_texture, false, color::Transparent
-	);
-}
-
 void RenderData::DrawScreenTarget() {
 	auto half_viewport{ display_viewport_.size * 0.5f };
 
-	auto projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	std::array<V2_float, 4> points{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y },
-									half_viewport, V2_float{ -half_viewport.x, half_viewport.y } };
+	const auto& texture{ screen_target_.GetTexture() };
 
-	DrawFromTo(screen_target_, points, projection, display_viewport_, nullptr, true);
+	DrawCall(
+		GetFullscreenShader(texture.GetFormat()),
+		Vertex::GetQuad(
+			{ -half_viewport, V2_float{ half_viewport.x, -half_viewport.y }, half_viewport,
+			  V2_float{ -half_viewport.x, half_viewport.y } },
+			GetTint(screen_target_), GetDepth(screen_target_), { 1.0f },
+			GetDefaultTextureCoordinates(), true
+		),
+		quad_indices, { texture.GetId() }, nullptr, false, color::Transparent,
+		GetBlendMode(screen_target_), display_viewport_,
+		Matrix4::Orthographic(-half_viewport, half_viewport)
+	);
 }
 
 void RenderData::Draw(Scene& scene) {
@@ -1276,18 +1266,23 @@ void RenderData::Draw(Scene& scene) {
 
 	auto half_game_size{ game_size_ * 0.5f };
 
-	auto projection{ Matrix4::Orthographic(-half_game_size, half_game_size) };
-
 	Transform scene_transform{ GetTransform(scene.render_target_) };
 
 	auto points{ Rect{ scene.camera.GetViewportSize() }.GetWorldVertices(scene_transform) };
+	auto projection{ Matrix4::Orthographic(-half_game_size, half_game_size) };
 
-	Viewport viewport;
-	viewport.position = {};
-	viewport.size	  = display_viewport_.size;
+	Viewport viewport{ {}, display_viewport_.size };
 
-	DrawFromTo(
-		scene.render_target_, points, projection, viewport, &screen_target_.GetFrameBuffer(), true
+	const auto& texture{ scene.render_target_.GetTexture() };
+
+	DrawCall(
+		GetFullscreenShader(texture.GetFormat()),
+		Vertex::GetQuad(
+			points, GetTint(scene.render_target_), GetDepth(scene.render_target_), { 1.0f },
+			GetDefaultTextureCoordinates(), true
+		),
+		quad_indices, { texture.GetId() }, &screen_target_.GetFrameBuffer(), false,
+		color::Transparent, GetBlendMode(scene.render_target_), viewport, projection
 	);
 
 	draw_queues_.clear();
