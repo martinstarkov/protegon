@@ -65,6 +65,161 @@
 #include "scene/camera.h"
 #include "scene/scene.h"
 
+/*
+
+// TODO: Move toward something like a render graph:
+
+struct DrawCommand {
+	const Shader* shader = nullptr;               // Shader program to use
+	FrameBuffer* target = nullptr;                 // Output framebuffer, or nullptr for screen
+
+	std::vector<TextureId> textures;               // Input textures bound to shader
+
+	VertexArray* vao = nullptr;                     // Geometry vertex array (VAO)
+	std::vector<Vertex> vertices;                   // Optional: vertex data (for dynamic batching)
+	std::vector<Index> indices;                      // Optional: index data
+
+	RenderPipelineState state;                       // Pipeline state (blending, depth test, etc.)
+
+	// Optional uniforms (could be a map or structured uniform data)
+	std::unordered_map<std::string, UniformValue> uniforms;
+
+	float depth = 0.0f;                             // For sorting, if needed
+
+	// Constructor, methods to set uniforms, etc. can be added here
+};
+
+struct RenderResource {
+	std::string name;
+	TextureFormat format;
+	int width, height;
+	TextureId texture;
+	FrameBuffer* fbo;
+};
+
+struct RenderPass {
+	std::string name;
+	std::vector<std::string> inputs;   // Names of textures needed
+	std::vector<std::string> outputs;  // Names of textures produced
+	std::function<void(RenderGraph&)> execute;
+};
+
+class RenderGraph {
+public:
+	void AddPass(const RenderPass& pass) {
+		passes_.push_back(pass);
+	}
+
+	void Execute() {
+		ResolveExecutionOrder(); // Topo sort (omitted here for brevity)
+
+		for (auto& pass : passes_) {
+			// Allocate outputs if needed
+			for (const auto& outputName : pass.outputs) {
+				if (resources_.count(outputName) == 0) {
+					resources_[outputName] = AllocateRenderTarget(outputName);
+				}
+			}
+
+			// Run the pass
+			pass.execute(*this);
+		}
+
+		ClearTempResources(); // Free or pool intermediates
+	}
+
+	TextureId GetTexture(const std::string& name) {
+		return resources_.at(name).texture;
+	}
+
+	FrameBuffer* GetFramebufferFor(const std::string& name) {
+		return resources_.at(name).fbo;
+	}
+
+private:
+	std::vector<RenderPass> passes_;
+	std::unordered_map<std::string, RenderResource> resources_;
+
+	RenderResource AllocateRenderTarget(const std::string& name) {
+		RenderResource res;
+		res.name = name;
+		res.width = screenWidth;
+		res.height = screenHeight;
+		res.format = TextureFormat::RGBA16F;
+		res.texture = Texture::Create(res.format, res.width, res.height);
+		res.fbo = new FrameBuffer(res.texture);
+		return res;
+	}
+};
+
+// Usage:
+
+RenderGraph graph;
+
+// 1. Bright pass
+graph.AddPass({
+	.name = "BrightExtract",
+	.inputs = { "sceneColor" },
+	.outputs = { "brightColor" },
+	.execute = [](RenderGraph& g) {
+		DrawCommand cmd;
+		cmd.shader = &brightExtractShader;
+		cmd.textures = { g.GetTexture("sceneColor") };
+		cmd.target = g.GetFramebufferFor("brightColor");
+		SubmitCommand(cmd);
+	}
+});
+
+// 2. Blur
+graph.AddPass({
+	.name = "BlurHorizontal",
+	.inputs = { "brightColor" },
+	.outputs = { "blurH" },
+	.execute = [](RenderGraph& g) {
+		DrawCommand cmd;
+		cmd.shader = &blurShader;
+		blurShader.SetUniform("horizontal", true);
+		cmd.textures = { g.GetTexture("brightColor") };
+		cmd.target = g.GetFramebufferFor("blurH");
+		SubmitCommand(cmd);
+	}
+});
+
+graph.AddPass({
+	.name = "BlurVertical",
+	.inputs = { "blurH" },
+	.outputs = { "blurV" },
+	.execute = [](RenderGraph& g) {
+		DrawCommand cmd;
+		cmd.shader = &blurShader;
+		blurShader.SetUniform("horizontal", false);
+		cmd.textures = { g.GetTexture("blurH") };
+		cmd.target = g.GetFramebufferFor("blurV");
+		SubmitCommand(cmd);
+	}
+});
+
+// 3. Composite
+graph.AddPass({
+	.name = "BloomComposite",
+	.inputs = { "sceneColor", "blurV" },
+	.outputs = {}, // No output means render to screen
+	.execute = [](RenderGraph& g) {
+		DrawCommand cmd;
+		cmd.shader = &compositeShader;
+		cmd.textures = {
+			g.GetTexture("sceneColor"),
+			g.GetTexture("blurV")
+		};
+		cmd.target = nullptr; // Render to screen
+		SubmitCommand(cmd);
+	}
+});
+
+graph.Execute();
+
+*/
+
 namespace ptgn {
 
 Viewport::Viewport(const V2_int& position, const V2_int& size) :
