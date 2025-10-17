@@ -150,14 +150,14 @@ std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> verti
 		}
 	}
 
-	auto nv{ n };
+	std::size_t nv{ n };
 
 	/*  remove nv-2 Vertices, creating 1 triangle every time */
 	std::int64_t r_count{ 2 * static_cast<std::int64_t>(nv) }; /* error detection */
 
 	for ([[maybe_unused]] std::size_t m{ 0 }, v = nv - 1; nv > 2;) {
 		/* if we loop, it is probably a non-simple polygon */
-		if (0 > (r_count--)) {
+		if ((r_count--) < 0) {
 			//** Triangulate: ERROR - probable bad polygon!
 			return result;
 		}
@@ -196,7 +196,7 @@ std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> verti
 			nv--;
 
 			/* resest error detection counter */
-			r_count = 2 * nv;
+			r_count = 2 * static_cast<std::int64_t>(nv);
 		}
 	}
 

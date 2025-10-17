@@ -46,12 +46,12 @@ static void GetShapes(
 	bool is_parent{ entity == root_entity };
 
 	const auto get_shape = [&](auto e) {
-		if (e.Has<Rect>()) {
-			const auto& rect{ e.Get<Rect>() };
+		if (e.template Has<Rect>()) {
+			const auto& rect{ e.template Get<Rect>() };
 			vector.emplace_back(rect, e);
 		}
-		if (e.Has<Circle>()) {
-			const auto& circle{ e.Get<Circle>() };
+		if (e.template Has<Circle>()) {
+			const auto& circle{ e.template Get<Circle>() };
 			vector.emplace_back(circle, e);
 		}
 	};
@@ -603,13 +603,15 @@ V2_float SceneInput::GetMousePosition(ViewportType relative_to, bool clamp_to_vi
 	return game.input.GetMousePosition(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
-	const {
+V2_float SceneInput::GetMousePositionPrevious(
+	ViewportType relative_to, bool clamp_to_viewport
+) const {
 	return game.input.GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
-	const {
+V2_float SceneInput::GetMousePositionDifference(
+	ViewportType relative_to, bool clamp_to_viewport
+) const {
 	return game.input.GetMousePositionDifference(relative_to, clamp_to_viewport);
 }
 

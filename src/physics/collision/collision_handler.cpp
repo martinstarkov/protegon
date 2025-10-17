@@ -332,7 +332,7 @@ void CollisionHandler::Sweep(Entity& entity, float dt) {
 	PTGN_ASSERT(entity.Get<Collider>().mode == CollisionMode::Continuous);
 	PTGN_ASSERT(entity.Has<RigidBody>());
 
-	std::size_t iterations{ 0 };
+	[[maybe_unused]] std::size_t iterations{ 0 };
 
 	V2_float offset;
 

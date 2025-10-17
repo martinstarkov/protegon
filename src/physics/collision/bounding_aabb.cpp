@@ -52,26 +52,19 @@ BoundingAABB BoundingAABB::ExpandByVelocity(const V2_float& velocity) const {
 }
 
 BoundingAABB GetBoundingAABB(const ColliderShape& shape, const Transform& transform) {
-	return std::visit(
-		[&](const auto& s) {
-			using T = std::decay_t<decltype(s)>;
+	auto world_vertices{ GetWorldVertices(shape, transform) };
 
-			auto world_vertices{ GetWorldVertices(shape, transform) };
+	V2_float min{ world_vertices[0] };
+	V2_float max{ world_vertices[0] };
 
-			V2_float min{ world_vertices[0] };
-			V2_float max{ world_vertices[0] };
+	for (const auto& v : world_vertices) {
+		min.x = std::min(min.x, v.x);
+		min.y = std::min(min.y, v.y);
+		max.x = std::max(max.x, v.x);
+		max.y = std::max(max.y, v.y);
+	}
 
-			for (const auto& v : world_vertices) {
-				min.x = std::min(min.x, v.x);
-				min.y = std::min(min.y, v.y);
-				max.x = std::max(max.x, v.x);
-				max.y = std::max(max.y, v.y);
-			}
-
-			return BoundingAABB{ min, max };
-		},
-		shape
-	);
+	return BoundingAABB{ min, max };
 }
 
 } // namespace ptgn

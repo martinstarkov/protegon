@@ -80,13 +80,13 @@ Entity& RemoveDraw(Entity& entity);
 Entity& SetDrawOffset(Entity& entity, const V2_float& offset = {});
 
 // @return entity.
-Entity& SetVisible(Entity entity, bool visible);
+Entity SetVisible(Entity entity, bool visible);
 
 // @return entity.
-Entity& Show(Entity entity);
+Entity Show(Entity entity);
 
 // @return entity.
-Entity& Hide(Entity entity);
+Entity Hide(Entity entity);
 
 [[nodiscard]] bool IsVisible(const Entity& entity);
 
@@ -161,7 +161,7 @@ void DrawText(const Entity& entity);
 void DrawCapsule(const Entity& entity);
 void DrawCircle(const Entity& entity);
 void DrawEllipse(const Entity& entity);
-void DrawArc(const Entity& entity, bool clockwise);
+void DrawArc(const Entity& entity);
 void DrawPolygon(const Entity& entity);
 void DrawRect(const Entity& entity);
 void DrawRoundedRect(const Entity& entity);

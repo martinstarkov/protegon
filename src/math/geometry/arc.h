@@ -13,8 +13,6 @@ namespace impl {
 
 class RenderData;
 
-struct ReverseArc {};
-
 } // namespace impl
 
 struct Arc {
@@ -50,8 +48,6 @@ struct Arc {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius, start_angle, end_angle, clockwise)
 };
-
-void SetArcReversed(Entity& entity, bool reversed = true);
 
 PTGN_DRAWABLE_REGISTER(Arc);
 

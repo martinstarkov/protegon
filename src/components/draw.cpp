@@ -85,7 +85,7 @@ Origin GetDrawOrigin(const Entity& entity) {
 	return entity.GetOrDefault<Origin>(Origin::Center);
 }
 
-Entity& SetVisible(Entity entity, bool visible) {
+Entity SetVisible(Entity entity, bool visible) {
 	if (visible) {
 		impl::EntityAccess::Add<Visible>(entity, visible);
 		if (entity.Has<Scripts>()) {
@@ -100,11 +100,11 @@ Entity& SetVisible(Entity entity, bool visible) {
 	return entity;
 }
 
-Entity& Show(Entity entity) {
+Entity Show(Entity entity) {
 	return SetVisible(entity, true);
 }
 
-Entity& Hide(Entity entity) {
+Entity Hide(Entity entity) {
 	return SetVisible(entity, false);
 }
 
@@ -386,7 +386,7 @@ void DrawRoundedRect(const Entity& entity) {
 	DrawShape<RoundedRect>(entity);
 }
 
-void DrawArc(const Entity& entity, bool clockwise) {
+void DrawArc(const Entity& entity) {
 	DrawShape<Arc>(entity);
 }
 

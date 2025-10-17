@@ -564,11 +564,7 @@ void RenderData::DrawCommand(const impl::DrawCommand& cmd) {
 
 			if constexpr (std::is_same_v<T, DrawShapeCommand>) {
 				std::visit(
-					[&](const auto& shape) {
-						using T = std::decay_t<decltype(shape)>;
-
-						impl::DrawShape(*this, command, shape);
-					},
+					[&](const auto& shape) { impl::DrawShape(*this, command, shape); },
 					command.shape
 				);
 			} else if constexpr (std::is_same_v<T, DrawTextureCommand>) {

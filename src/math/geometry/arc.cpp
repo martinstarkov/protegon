@@ -18,7 +18,7 @@ Arc::Arc(float arc_radius, float start_angle, float end_angle, bool clockwise) :
 	clockwise{ clockwise } {}
 
 void Arc::Draw(const Entity& entity) {
-	impl::DrawArc(entity, entity.Has<impl::ReverseArc>());
+	impl::DrawArc(entity);
 }
 
 V2_float Arc::GetCenter(const Transform& transform) const {
@@ -56,14 +56,6 @@ std::array<V2_float, 4> Arc::GetLocalQuadVertices() const {
 	V2_float max{ radius };
 	PTGN_ASSERT(min != max, "Cannot get local vertices for an arc with size zero");
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
-}
-
-void SetArcReversed(Entity& entity, bool reversed) {
-	if (reversed) {
-		entity.TryAdd<impl::ReverseArc>();
-	} else {
-		entity.Remove<impl::ReverseArc>();
-	}
 }
 
 } // namespace ptgn

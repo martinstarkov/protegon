@@ -111,7 +111,7 @@ public:
 		TransitionIn in, TransitionOut out = 0
 	) {
 		if constexpr (!std::is_same_v<TransitionOut, int>) {
-			const auto transition_out_func = [](auto& scene_from) {
+			const auto transition_out_func = [&out](auto& scene_from) {
 				auto transition_out		= std::make_shared<TransitionOut>(out);
 				transition_out->scene	= scene_from.get();
 				scene_from->transition_ = transition_out;

@@ -77,7 +77,7 @@ public:
 		explicit SCRIPT_NAME##Script(const std::function<void()>& callback) :      \
 			callback{ callback } {}                                                \
                                                                                    \
-		void On##SCRIPT_NAME##() override {                                        \
+		void On##SCRIPT_NAME() override {                                          \
 			if (callback) {                                                        \
 				callback();                                                        \
 			}                                                                      \
@@ -318,8 +318,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
