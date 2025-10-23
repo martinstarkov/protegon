@@ -64,7 +64,9 @@ target_include_directories(
   protegon
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
          "${CMAKE_CURRENT_SOURCE_DIR}/modules/ecs/include"
-  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+         "${CMAKE_CURRENT_SOURCE_DIR}/engine/assets"
+  # Keeping this public for testing purposes.
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/engine/src")
 
 # Add d to debug static lib files to differentiate them from release
 set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)

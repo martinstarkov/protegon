@@ -1,0 +1,372 @@
+#include "core/app/game.h"
+
+#include <chrono>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <unordered_set>
+#include <vector>
+
+#include "audio/audio.h"
+#include "core/app/sdl_instance.h"
+#include "core/app/window.h"
+#include "core/input/input_handler.h"
+#include "core/utils/file.h"
+#include "core/utils/string.h"
+#include "core/utils/time.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/profiling.h"
+#include "debug/runtime/stats.h"
+#include "math/hash.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/gl/gl_context.h"
+#include "renderer/materials/shader.h"
+#include "renderer/materials/texture.h"
+#include "renderer/renderer.h"
+#include "renderer/text/font.h"
+#include "SDL_timer.h"
+#include "serialization/json/json.h"
+#include "serialization/json/json_manager.h"
+#include "world/scene/scene_manager.h"
+
+#ifdef __EMSCRIPTEN__
+
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+EM_JS(int, get_screen_width, (), { return window.screen.width; });
+EM_JS(int, get_screen_height, (), { return window.screen.height; });
+EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
+
+#endif
+
+#ifdef PTGN_PLATFORM_MACOS
+
+#include <mach-o/dyld.h>
+
+#include <filesystem>
+#include <iostream>
+
+#include "CoreFoundation/CoreFoundation.h"
+
+#endif
+
+namespace ptgn {
+
+impl::Game game;
+
+namespace impl {
+
+#ifdef __EMSCRIPTEN__
+
+static EM_BOOL EmscriptenResize(
+	int event_type, const EmscriptenUiEvent* ui_event, void* user_data
+) {
+	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
+	// TODO: Figure out how to deal with itch.io fullscreen button not changing SDL status to
+	// fullscreen.
+	V2_int screen_size{ get_screen_width(), get_screen_height() };
+	if (window_size == screen_size) {
+		auto device_pixel_ratio{ get_device_pixel_ratio() };
+		window_size = window_size * device_pixel_ratio;
+	}
+	game.window.SetSize(window_size);
+	return 0;
+}
+
+void EmscriptenInit() {
+	emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, EmscriptenResize);
+}
+
+void EmscriptenLoop() {
+	game.Update();
+
+	if (!game.running_) {
+		game.Shutdown();
+		emscripten_cancel_main_loop();
+	}
+}
+
+#endif
+
+#ifdef PTGN_PLATFORM_MACOS
+
+// When using AppleClang, the working directory for the executable is set to $HOME instead of the
+// executable directory. Therefore, the C++ code corrects the working directory using
+// std::filesystem so that relative paths work properly.
+static void InitApplePath() {
+	// TODO: Add check that this hasnt happened yet.
+	char path[1024];
+	std::uint32_t size = sizeof(path);
+	std::filesystem::path exe_dir;
+	if (_NSGetExecutablePath(path, &size) == 0) {
+		exe_dir = std::filesystem::path(path).parent_path();
+	} else {
+		std::cout << "Buffer too small to retrieve executable path. Please run "
+					 "the executable from a terminal"
+				  << std::endl;
+		exe_dir = std::getenv("PWD");
+	}
+	std::filesystem::current_path(exe_dir);
+	// TODO: Check if needed:
+	/*CFBundleRef main_bundle = CFBundleGetMainBundle();
+	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
+	char path[PATH_MAX];
+	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path,
+	PATH_MAX)) { std::cout << "Couldn't get file system representation! " <<
+	std::endl;
+	}
+	CFRelease(resources_url);
+	chdir(path);*/
+}
+
+#endif
+
+Game::Game() :
+	sdl_instance_{ std::make_unique<SDLInstance>() },
+	window_{ std::make_unique<Window>() },
+	window{ *window_ },
+	gl_context_{ std::make_unique<GLContext>() },
+	input_{ std::make_unique<InputHandler>() },
+	input{ *input_ },
+	renderer_{ std::make_unique<Renderer>() },
+	renderer{ *renderer_ },
+	scene_{ std::make_unique<SceneManager>() },
+	scene{ *scene_ },
+	music_{ std::make_unique<MusicManager>() },
+	music{ *music_ },
+	sound_{ std::make_unique<SoundManager>() },
+	sound{ *sound_ },
+	json_{ std::make_unique<JsonManager>() },
+	json{ *json_ },
+	font_{ std::make_unique<FontManager>() },
+	font{ *font_ },
+	texture_{ std::make_unique<TextureManager>() },
+	texture{ *texture_ },
+	shader_{ std::make_unique<ShaderManager>() },
+	shader{ *shader_ },
+	debug_{ std::make_unique<DebugSystem>() },
+	debug{ *debug_ } {
+	// TODO: Move all of this init code into respective constructors.
+#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
+	impl::InitApplePath();
+#endif
+	if (!sdl_instance_->IsInitialized()) {
+		sdl_instance_->Init();
+	}
+	font.Init();
+	window.Init();
+	gl_context_->Init();
+	input.Init();
+
+	shader.Init();
+	renderer.Init();
+}
+
+Game::~Game() {
+	gl_context_->Shutdown();
+	sdl_instance_->Shutdown();
+}
+
+float Game::dt() const {
+	return dt_;
+}
+
+float Game::time() const {
+	// TODO: Consider casting to chrono duration instead.
+	return static_cast<float>(SDL_GetTicks64());
+}
+
+void Game::Stop() {
+	running_ = false;
+}
+
+bool Game::IsInitialized() const {
+	return gl_context_->IsInitialized() && sdl_instance_->IsInitialized();
+}
+
+bool Game::IsRunning() const {
+	return running_;
+}
+
+void Game::Init(const std::string& title, const V2_int& game_size) {
+	window.SetTitle(title);
+	// Order matters here.
+	window.SetSize(game_size);
+	renderer.SetGameSize(game_size);
+	window.SetSetting(WindowSetting::FixedSize);
+}
+
+void Game::Shutdown() {
+	scene.Shutdown();
+
+	sound.Stop(-1);
+	music.Stop();
+
+	// TODO: Simply reset all the unique pointers instead of doing this.
+	debug.Shutdown();
+
+	renderer.Shutdown();
+	shader.Shutdown();
+	input.Shutdown();
+	window.Shutdown();
+
+	// Keep SDL2 instance and OpenGL context alive to ensure SDL2 objects such as TTF_Font are
+	// consistent across game instances. For instance: If the user does the following:
+	//
+	// game.scene.Enter<StartScene>();
+	// // Inside StartScene:
+	// static Font test_font;
+	// Text test_text{ test_font };
+	// // After window quit start again:
+	// game.scene.Enter<StartScene>();
+	// static Font test_font; // handle already created in the previous SDL initialization.
+	// Text test_text{ test_font }; // if SDL has been shutdown, this would not work due to
+	// inconsistent SDL versions.
+	//
+	// Instead, these are called in the Game destructor, which is called upon main() termination.
+	// gl_context_.Shutdown();
+	// sdl_instance_.Shutdown();
+}
+
+void Game::MainLoop() {
+	PTGN_ASSERT(window.IsValid(), "Game must be initialized before entering a scene");
+	// Design decision: Latest possible point to show window is right before
+	// loop starts. Comment this if you wish the window to appear hidden for an
+	// indefinite period of time.
+	window.SetSetting(WindowSetting::Shown);
+	running_ = true;
+#ifdef __EMSCRIPTEN__
+	EmscriptenInit();
+	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
+#else
+	while (running_) {
+		Update();
+	}
+	Shutdown();
+#endif
+}
+
+void Game::Update() {
+	debug.PreUpdate();
+
+	static auto start{ std::chrono::system_clock::now() };
+	static auto end{ std::chrono::system_clock::now() };
+	// Calculate time elapsed during previous frame. Unit: seconds.
+	secondsf elapsed_time{ end - start };
+
+	float elapsed{ elapsed_time.count() };
+
+	dt_ = elapsed;
+
+	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
+	/*constexpr const float fps{ 60.0f };
+	dt_ = 1.0f / fps;*/
+
+	/*if (elapsed < dt_) {
+		impl::SDLInstance::Delay(to_duration<milliseconds>(secondsf{
+			dt_ - elapsed }));
+	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
+	// PTGN_LOG("Dt: ", dt_);
+
+	start = end;
+
+	scene.Update(*this);
+
+	debug.PostUpdate();
+
+	end = std::chrono::system_clock::now();
+}
+
+} // namespace impl
+
+void LoadResource(std::string_view key, const path& resource_path, bool is_music) {
+	PTGN_ASSERT(
+		FileExists(resource_path),
+		"Cannot load non-existent resource file: ", resource_path.string()
+	);
+
+	std::string ext{ ToLower(resource_path.extension().string()) };
+
+	PTGN_ASSERT(!ext.empty(), "Resource file extension is invalid: ", resource_path.string());
+
+	bool is_audio{ ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus" };
+	bool is_texture{ ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif" };
+	bool is_font{ ext == ".ttf" };
+	bool is_json{ ext == ".json" };
+
+	PTGN_ASSERT(
+		(is_music ? is_audio : true),
+		"Music resource path must end in a valid audio format extension"
+	);
+
+	if (is_texture) {
+		game.texture.Load(key, resource_path);
+	} else if (is_audio && !is_music) {
+		game.sound.Load(key, resource_path);
+	} else if (is_audio && is_music) {
+		game.music.Load(key, resource_path);
+	} else if (is_font) {
+		game.font.Load(key, resource_path);
+	} else if (is_json) {
+		game.json.Load(key, resource_path);
+	} /*
+	  // TODO: Add shader loading support.
+	  else if (ext == ".vert" || ext == ".frag") {
+		game.shader.Load(key, p);
+	} */
+	else {
+		PTGN_ERROR(
+			"Attempting to load unsupported file extension from resource file: ",
+			resource_path.string()
+		);
+	}
+}
+
+void LoadResource(const std::vector<Resource>& resource_paths) {
+	for (const auto& [key, filepath, is_music] : resource_paths) {
+		LoadResource(key, filepath, is_music);
+	}
+}
+
+void LoadResources(const path& resource_file, std::string_view music_resource_suffix) {
+	json resources = LoadJson(resource_file);
+
+	if (!resources.is_object()) {
+		PTGN_ERROR(
+			"Expected json object, but got something else for resources: ", resources.dump(4)
+		);
+	}
+
+	// Track unique resource keys.
+	std::unordered_set<std::size_t> taken_resource_keys;
+
+	for (const auto& [key, resource_path] : resources.items()) {
+		auto key_hash{ Hash(key) };
+
+		PTGN_ASSERT(
+			taken_resource_keys.count(key_hash) == 0,
+			"Resource key should not be repeated more than once: ", key
+		);
+
+		taken_resource_keys.insert(key_hash);
+
+		bool is_music{ EndsWith(key, music_resource_suffix) };
+
+		if (!resource_path.is_string()) {
+			PTGN_ERROR(
+				"Expected string, but got something else for resource path: ", resource_path.dump(4)
+			);
+		}
+
+		path filepath{ resource_path.get<std::string>() };
+
+		LoadResource(key, filepath, is_music);
+	}
+}
+
+} // namespace ptgn

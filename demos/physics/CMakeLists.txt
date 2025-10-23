@@ -1,0 +1,6 @@
+add_subdirectory(physics_fluid)
+add_subdirectory(physics_collision)
+add_subdirectory(physics_broadphase)
+add_subdirectory(physics_bounds)
+add_subdirectory(player_platforming)
+add_subdirectory(player_top_down)
