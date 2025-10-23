@@ -9,7 +9,7 @@
 #include <string>
 #include <type_traits>
 
-#include "serialization/json.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

@@ -2,9 +2,9 @@
 
 #include <cstdint>
 
-#include "common/assert.h"
-#include "debug/log.h"
-#include "math/math.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
 
 namespace ptgn {
 

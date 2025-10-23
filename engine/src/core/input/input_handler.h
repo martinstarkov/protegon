@@ -6,12 +6,12 @@
 #include <optional>
 #include <utility>
 
-#include "core/resolution.h"
-#include "core/time.h"
-#include "core/timer.h"
-#include "input/events.h"
-#include "input/key.h"
-#include "input/mouse.h"
+#include "core/app/resolution.h"
+#include "core/input/events.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
 #include "math/vector2.h"
 
 union SDL_Event;

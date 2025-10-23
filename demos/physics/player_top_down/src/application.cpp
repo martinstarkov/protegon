@@ -1,14 +1,14 @@
-#include "components/draw.h"
-#include "components/movement.h"
-#include "core/game.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/movement.h"
+#include "core/app/game.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
-#include "physics/collision/collider.h"
+#include "physics/collider.h"
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

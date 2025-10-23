@@ -8,9 +8,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "common/type_info.h"
+#include "core/utils/type_info.h"
 #include "math/hash.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
 
 // The reason for this instead of a virtual Draw() function in the entity class is because when
 // using entity looping functions, the manager constructs Entity objects, which disables

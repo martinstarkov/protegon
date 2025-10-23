@@ -6,14 +6,14 @@
 #include <ratio>
 #include <string>
 
-#include "common/assert.h"
-#include "components/generic.h"
-#include "core/game.h"
-#include "core/sdl_instance.h"
-#include "core/time.h"
-#include "resources/resource_manager.h"
+#include "debug/runtime/assert.h"
+#include "core/ecs/components/generic.h"
+#include "core/app/game.h"
+#include "core/app/sdl_instance.h"
+#include "core/utils/time.h"
+#include "core/resource/resource_manager.h"
 #include "SDL_mixer.h"
-#include "utility/file.h"
+#include "core/utils/file.h"
 
 namespace ptgn::impl {
 

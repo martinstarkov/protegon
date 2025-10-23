@@ -6,18 +6,18 @@
 #include <unordered_map>
 #include <vector>
 
-#include "common/type_info.h"
-#include "components/drawable.h"
-#include "components/generic.h"
-#include "core/entity.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "core/utils/type_info.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
-#include "renderer/texture.h"
-#include "serialization/serializable.h"
+#include "renderer/materials/texture.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

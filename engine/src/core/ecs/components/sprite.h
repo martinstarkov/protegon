@@ -2,11 +2,11 @@
 
 #include <array>
 
-#include "components/drawable.h"
-#include "core/entity.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
-#include "renderer/texture.h"
+#include "renderer/materials/texture.h"
 
 namespace ptgn {
 

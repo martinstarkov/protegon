@@ -1,12 +1,12 @@
-#include "physics/collision/collider.h"
+#include "physics/collider.h"
 
 #include <algorithm>
 #include <vector>
 
-#include "common/assert.h"
-#include "core/entity.h"
+#include "core/ecs/entity.h"
+#include "core/utils/span.h"
+#include "debug/runtime/assert.h"
 #include "math/geometry/shape.h"
-#include "utility/span.h"
 
 namespace ptgn {
 

@@ -9,13 +9,13 @@
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
-#include "core/entity.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/time.h"
+#include "core/app/manager.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/utils/time.h"
+#include "debug/runtime/assert.h"
 #include "math/easing.h"
-#include "math/math.h"
+#include "math/math_utils.h"
 
 #define PTGN_ADD_TWEEN_ACTION(FUNC_NAME) \
 	GetCurrentTweenPoint().script_container_.AddAction(&TweenScript::FUNC_NAME)

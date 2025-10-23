@@ -1,13 +1,13 @@
-#include "components/interactive.h"
+#include "core/ecs/components/interactive.h"
 
 #include <algorithm>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "core/entity.h"
-#include "core/entity_hierarchy.h"
-#include "core/game_object.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/entity_hierarchy.h"
+#include "core/ecs/game_object.h"
 #include "math/vector2.h"
 
 namespace ptgn {

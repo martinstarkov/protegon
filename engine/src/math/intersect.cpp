@@ -7,21 +7,22 @@
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
-#include "common/type_info.h"
-#include "components/transform.h"
-#include "core/game.h"
-#include "debug/config.h"
-#include "debug/debug_system.h"
-#include "debug/log.h"
-#include "debug/stats.h"
+#include "core/app/game.h"
+#include "core/ecs/components/transform.h"
+#include "core/utils/type_info.h"
+#include "debug/core/debug_config.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/stats.h"
 #include "geometry/circle.h"
 #include "geometry/polygon.h"
 #include "geometry/rect.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/shape.h"
+#include "math/geometry_utils.h"
+#include "math/math_utils.h"
 #include "math/overlap.h"
-#include "math/utility.h"
 #include "math/vector2.h"
 
 #define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \

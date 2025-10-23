@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include "core/entity.h"
+#include "core/ecs/entity.h"
 #include "math/vector2.h"
 
 namespace ptgn {

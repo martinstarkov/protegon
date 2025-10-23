@@ -1,16 +1,16 @@
-#include "physics/collision/broadphase.h"
+#include "physics/broadphase.h"
 
 #include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
 
-#include "components/transform.h"
-#include "core/entity.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
 #include "math/geometry/rect.h"
 #include "math/raycast.h"
 #include "math/vector2.h"
-#include "physics/collision/bounding_aabb.h"
+#include "physics/bounding_aabb.h"
 
 namespace ptgn {
 
@@ -134,9 +134,8 @@ std::vector<Entity> KDTree::Raycast(
 	return hits;
 }
 
-Entity KDTree::RaycastFirst(
-	const Entity& entity, const V2_float& dir, const BoundingAABB& aabb
-) const {
+Entity KDTree::RaycastFirst(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb)
+	const {
 	Entity closest_hit;
 	float closest_t{ 1.0f };
 	Rect rect{ aabb.min, aabb.max };

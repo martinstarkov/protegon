@@ -1,14 +1,14 @@
 // #include <functional>
 //
-// #include "common/assert.h"
-// #include "core/game.h"
+// #include "debug/runtime/assert.h"
+// #include "core/app/game.h"
 //
-// #include "core/window.h"
-// #include "debug/log.h"
-// #include "input/input_handler.h"
+// #include "core/app/window.h"
+// #include "debug/core/log.h"
+// #include "core/input/input_handler.h"
 // #include "math/vector2.h"
-// #include "scene/scene.h"
-// #include "scene/scene_manager.h"
+// #include "world/scene/scene.h"
+// #include "world/scene/scene_manager.h"
 //
 // using namespace ptgn;
 //
@@ -228,8 +228,8 @@ int main() {
 #include <unordered_set>
 #include <vector>
 
-#include "core/manager.h"
-#include "core/script.h"
+#include "core/app/manager.h"
+#include "core/scripting/script.h"
 
 using namespace ptgn;
 

@@ -3,8 +3,8 @@
 #include <variant>
 #include <vector>
 
-#include "input/key.h"
-#include "input/mouse.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "math/vector2.h"
 
 namespace ptgn::impl {

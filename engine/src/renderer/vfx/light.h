@@ -1,11 +1,11 @@
 #pragma once
 
-#include "components/drawable.h"
-#include "core/entity.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/entity.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "renderer/api/color.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

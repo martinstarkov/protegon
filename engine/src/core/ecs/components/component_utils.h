@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common/concepts.h"
+#include "core/utils/concepts.h"
 
 namespace ptgn {
 

@@ -1,4 +1,4 @@
-#include "components/generic.h"
+#include "core/ecs/components/generic.h"
 
 #include <string>
 #include <string_view>

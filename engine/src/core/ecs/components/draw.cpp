@@ -1,4 +1,4 @@
-#include "components/draw.h"
+#include "core/ecs/components/draw.h"
 
 #include <algorithm>
 #include <array>
@@ -6,19 +6,19 @@
 #include <string_view>
 #include <vector>
 
-#include "common/assert.h"
-#include "common/concepts.h"
-#include "components/drawable.h"
-#include "components/effects.h"
-#include "components/generic.h"
-#include "components/offsets.h"
-#include "components/sprite.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/components/effects.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/components/offsets.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "core/utils/concepts.h"
+#include "debug/runtime/assert.h"
 #include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
@@ -35,13 +35,13 @@
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
+#include "renderer/materials/shader.h"
+#include "renderer/materials/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "renderer/shader.h"
-#include "renderer/text.h"
-#include "renderer/texture.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
+#include "renderer/text/text.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

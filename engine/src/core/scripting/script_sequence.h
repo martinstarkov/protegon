@@ -5,10 +5,10 @@
 #include <ctime>
 #include <functional>
 
-#include "core/entity.h"
-#include "core/game_object.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/game_object.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
 #include "tweens/tween.h"
 
 namespace ptgn {

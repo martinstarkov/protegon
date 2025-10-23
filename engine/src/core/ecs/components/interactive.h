@@ -4,11 +4,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/entity.h"
-#include "core/game_object.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/game_object.h"
 #include "math/vector2.h"
-#include "serialization/enum.h"
-#include "serialization/serializable.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

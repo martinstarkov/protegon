@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <utility>
 
-#include "common/assert.h"
+#include "core/utils/file.h"
+#include "debug/runtime/assert.h"
 #include "math/hash.h"
-#include "serialization/fwd.h"
-#include "utility/file.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

@@ -1,4 +1,4 @@
-#include "tile/chunk.h"
+#include "world/tile/chunk.h"
 
 #include <algorithm>
 #include <array>
@@ -9,18 +9,18 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "debug/debug_system.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/entity.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "scene/camera.h"
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
+#include "world/scene/camera.h"
 
 namespace ptgn {
 

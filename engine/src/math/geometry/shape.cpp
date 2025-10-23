@@ -6,13 +6,13 @@
 #include <variant>
 #include <vector>
 
-#include "common/concepts.h"
-#include "components/draw.h"
-#include "components/sprite.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "debug/log.h"
-#include "math/geometry.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/utils/concepts.h"
+#include "core/utils/span.h"
+#include "debug/core/log.h"
 #include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
@@ -22,9 +22,9 @@
 #include "math/geometry/rect.h"
 #include "math/geometry/rounded_rect.h"
 #include "math/geometry/triangle.h"
+#include "math/geometry_utils.h"
 #include "math/vector2.h"
-#include "renderer/texture.h"
-#include "utility/span.h"
+#include "renderer/materials/texture.h"
 
 namespace ptgn {
 

@@ -8,9 +8,9 @@
 #include <type_traits>
 #include <vector>
 
-#include "common/assert.h"
-#include "serialization/enum.h"
-#include "serialization/json.h"
+#include "debug/runtime/assert.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

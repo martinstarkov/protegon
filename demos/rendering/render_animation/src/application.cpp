@@ -1,11 +1,11 @@
-#include "components/animation.h"
-#include "core/game.h"
-#include "core/script.h"
-#include "core/time.h"
-#include "input/input_handler.h"
+#include "core/ecs/components/animation.h"
+#include "core/app/game.h"
+#include "core/scripting/script.h"
+#include "core/utils/time.h"
+#include "core/input/input_handler.h"
 #include "math/vector2.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

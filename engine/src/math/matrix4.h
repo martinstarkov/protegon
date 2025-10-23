@@ -8,12 +8,12 @@
 #include <ostream>
 #include <type_traits>
 
-#include "common/assert.h"
-#include "common/concepts.h"
+#include "core/utils/concepts.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

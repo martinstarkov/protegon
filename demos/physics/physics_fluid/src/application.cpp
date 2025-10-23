@@ -2,16 +2,16 @@
 #include <cstdint>
 #include <vector>
 
-#include "core/game.h"
-#include "input/input_handler.h"
-#include "input/key.h"
-#include "input/mouse.h"
+#include "core/app/game.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

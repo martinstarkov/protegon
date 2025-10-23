@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "common/assert.h"
+#include "debug/runtime/assert.h"
 #include "renderer/buffers/buffer.h"
 #include "renderer/buffers/buffer_layout.h"
 #include "renderer/gl/gl_types.h"

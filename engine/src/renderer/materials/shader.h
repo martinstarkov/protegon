@@ -10,16 +10,16 @@
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
-#include "debug/log.h"
+#include "core/utils/file.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/hash.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "serialization/enum.h"
-#include "serialization/fwd.h"
-#include "utility/file.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/fwd.h"
 
 CMRC_DECLARE(shader);
 

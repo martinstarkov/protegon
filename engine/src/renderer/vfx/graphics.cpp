@@ -2,12 +2,12 @@
 
 #include <vector>
 
-#include "common/assert.h"
-#include "components/draw.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "debug/runtime/assert.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"

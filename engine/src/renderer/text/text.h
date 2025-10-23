@@ -3,18 +3,18 @@
 #include <cstdint>
 #include <limits>
 
-#include "common/concepts.h"
-#include "components/drawable.h"
-#include "components/generic.h"
-#include "core/entity.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/utils/concepts.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/font.h"
-#include "renderer/texture.h"
-#include "scene/camera.h"
-#include "serialization/enum.h"
-#include "serialization/serializable.h"
+#include "renderer/materials/texture.h"
+#include "renderer/text/font.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/serializable.h"
+#include "world/scene/camera.h"
 
 namespace ptgn {
 

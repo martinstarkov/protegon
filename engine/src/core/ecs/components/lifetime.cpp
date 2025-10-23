@@ -1,9 +1,9 @@
-#include "components/lifetime.h"
+#include "core/ecs/components/lifetime.h"
 
-#include "core/entity.h"
-#include "core/time.h"
-#include "core/timer.h"
-#include "scene/scene.h"
+#include "core/ecs/entity.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

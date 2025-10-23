@@ -3,11 +3,11 @@
 #include <array>
 #include <cstdint>
 
-#include "common/assert.h"
-#include "core/game.h"
-#include "debug/config.h"
-#include "debug/debug_system.h"
-#include "debug/log.h"
+#include "core/app/game.h"
+#include "debug/core/debug_config.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"

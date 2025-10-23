@@ -5,13 +5,13 @@
 #include <optional>
 #include <vector>
 
-#include "common/assert.h"
-#include "common/concepts.h"
-#include "scene/scene.h"
-#include "scene/scene_key.h"
-#include "scene/scene_transition.h"
-#include "utility/file.h"
-#include "utility/span.h"
+#include "core/utils/concepts.h"
+#include "core/utils/file.h"
+#include "core/utils/span.h"
+#include "debug/runtime/assert.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_key.h"
+#include "world/scene/scene_transition.h"
 
 namespace ptgn {
 

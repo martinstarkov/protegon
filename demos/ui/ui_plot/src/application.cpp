@@ -1,18 +1,18 @@
 #include <chrono>
 #include <cmath>
 
-#include "core/game.h"
-#include "core/time.h"
-#include "core/timer.h"
-#include "core/window.h"
-#include "input/input_handler.h"
-#include "input/key.h"
+#include "core/app/game.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
+#include "core/app/window.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

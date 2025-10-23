@@ -1,4 +1,4 @@
-#include "input/input_handler.h"
+#include "core/input/input_handler.h"
 
 #include <chrono>
 #include <optional>
@@ -6,16 +6,16 @@
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/transform.h"
-#include "core/game.h"
-#include "core/resolution.h"
-#include "core/time.h"
-#include "core/window.h"
-#include "debug/log.h"
-#include "input/events.h"
-#include "input/key.h"
-#include "input/mouse.h"
+#include "core/app/game.h"
+#include "core/app/resolution.h"
+#include "core/app/window.h"
+#include "core/ecs/components/transform.h"
+#include "core/input/events.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
+#include "core/utils/time.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"

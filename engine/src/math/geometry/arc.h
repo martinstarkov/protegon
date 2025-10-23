@@ -1,8 +1,8 @@
 #pragma once
 
-#include "components/drawable.h"
+#include "core/ecs/components/drawable.h"
 #include "math/vector2.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

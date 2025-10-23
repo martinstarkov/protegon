@@ -1,11 +1,11 @@
 #pragma once
 
-#include "components/utility.h"
-#include "components/uuid.h"
-#include "core/entity.h"
+#include "core/ecs/components/component_utils.h"
+#include "core/ecs/components/uuid.h"
+#include "core/ecs/entity.h"
 #include "ecs/ecs.h"
-#include "serialization/fwd.h"
-#include "serialization/json_archiver.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/json_archiver.h"
 
 namespace ptgn {
 

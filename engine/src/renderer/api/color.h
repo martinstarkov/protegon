@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <ostream>
 
-#include "math/math.h"
+#include "math/math_utils.h"
 #include "math/vector4.h"
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
 
 struct SDL_Color;
 

@@ -5,9 +5,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/entity.h"
+#include "core/ecs/entity.h"
 #include "math/vector2.h"
-#include "physics/collision/bounding_aabb.h"
+#include "physics/bounding_aabb.h"
 
 namespace ptgn {
 
@@ -75,9 +75,8 @@ public:
 	std::vector<Entity> Query(const V2_float& point) const;
 
 	// @param entity passed to avoid raycasting against itself.
-	std::vector<Entity> Raycast(
-		const Entity& entity, const V2_float& dir, const BoundingAABB& aabb
-	) const;
+	std::vector<Entity> Raycast(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb)
+		const;
 
 	// @param entity passed to avoid raycasting against itself.
 	Entity RaycastFirst(const Entity& entity, const V2_float& dir, const BoundingAABB& aabb) const;

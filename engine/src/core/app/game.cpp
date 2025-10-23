@@ -1,4 +1,4 @@
-#include "core/game.h"
+#include "core/app/game.h"
 
 #include <chrono>
 #include <filesystem>
@@ -9,29 +9,29 @@
 #include <vector>
 
 #include "audio/audio.h"
-#include "common/assert.h"
-#include "core/sdl_instance.h"
-#include "core/time.h"
-#include "core/window.h"
-#include "debug/debug_system.h"
-#include "debug/log.h"
-#include "debug/profiling.h"
-#include "debug/stats.h"
-#include "input/input_handler.h"
+#include "core/app/sdl_instance.h"
+#include "core/app/window.h"
+#include "core/input/input_handler.h"
+#include "core/utils/file.h"
+#include "core/utils/string.h"
+#include "core/utils/time.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/profiling.h"
+#include "debug/runtime/stats.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/font.h"
 #include "renderer/gl/gl_context.h"
+#include "renderer/materials/shader.h"
+#include "renderer/materials/texture.h"
 #include "renderer/renderer.h"
-#include "renderer/shader.h"
-#include "renderer/texture.h"
-#include "scene/scene_manager.h"
+#include "renderer/text/font.h"
 #include "SDL_timer.h"
-#include "serialization/json.h"
-#include "serialization/json_manager.h"
-#include "utility/file.h"
-#include "utility/string.h"
+#include "serialization/json/json.h"
+#include "serialization/json/json_manager.h"
+#include "world/scene/scene_manager.h"
 
 #ifdef __EMSCRIPTEN__
 

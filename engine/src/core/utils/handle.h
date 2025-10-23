@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "common/assert.h"
+#include "debug/runtime/assert.h"
 
 namespace ptgn {
 

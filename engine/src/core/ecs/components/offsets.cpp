@@ -1,7 +1,7 @@
-#include "components/offsets.h"
+#include "core/ecs/components/offsets.h"
 
-#include "components/transform.h"
-#include "core/entity.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
 
 namespace ptgn {
 

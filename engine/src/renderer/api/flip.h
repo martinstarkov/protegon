@@ -1,6 +1,6 @@
 #pragma once
 
-#include "serialization/enum.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 

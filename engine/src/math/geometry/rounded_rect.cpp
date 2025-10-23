@@ -2,11 +2,11 @@
 
 #include <array>
 
-#include "common/assert.h"
-#include "components/draw.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "math/math.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 

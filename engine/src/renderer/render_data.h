@@ -11,16 +11,16 @@
 #include <variant>
 #include <vector>
 
-#include "components/draw.h"
-#include "components/effects.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/manager.h"
-#include "core/resolution.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
-#include "core/time.h"
-#include "core/timer.h"
+#include "core/app/manager.h"
+#include "core/app/resolution.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/effects.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
 #include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
@@ -29,10 +29,10 @@
 #include "renderer/api/vertex.h"
 #include "renderer/buffers/frame_buffer.h"
 #include "renderer/buffers/vertex_array.h"
+#include "renderer/materials/texture.h"
 #include "renderer/render_target.h"
-#include "renderer/texture.h"
-#include "serialization/enum.h"
-#include "serialization/serializable.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

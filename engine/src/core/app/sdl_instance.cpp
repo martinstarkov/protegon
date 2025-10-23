@@ -1,4 +1,4 @@
-#include "core/sdl_instance.h"
+#include "core/app/sdl_instance.h"
 
 #include <chrono>
 #include <cstdint>
@@ -6,9 +6,9 @@
 #include <ostream>
 #include <thread>
 
-#include "common/assert.h"
-#include "debug/config.h"
-#include "debug/log.h"
+#include "debug/core/debug_config.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "renderer/gl/gl_renderer.h"
 #include "SDL.h"
 #include "SDL_error.h"

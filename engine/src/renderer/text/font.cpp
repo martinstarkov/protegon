@@ -1,4 +1,4 @@
-#include "renderer/font.h"
+#include "renderer/text/font.h"
 
 #include <cstdint>
 #include <memory>
@@ -6,22 +6,22 @@
 #include <unordered_map>
 #include <utility>
 
-#include "common/assert.h"
-#include "components/generic.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/sdl_instance.h"
+#include "core/app/game.h"
+#include "core/app/sdl_instance.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/resource/resource_manager.h"
+#include "core/utils/file.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
-#include "resources/fonts.h"
-#include "resources/resource_manager.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
+#include "renderer/text/fonts.h"
 #include "SDL_error.h"
 #include "SDL_rwops.h"
 #include "SDL_ttf.h"
-#include "serialization/fwd.h"
-#include "serialization/json.h"
-#include "utility/file.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

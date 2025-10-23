@@ -4,10 +4,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "core/entity.h"
+#include "core/ecs/entity.h"
 #include "math/noise.h"
 #include "math/vector2.h"
-#include "serialization/json.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

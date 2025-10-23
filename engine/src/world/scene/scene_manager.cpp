@@ -1,4 +1,4 @@
-#include "scene/scene_manager.h"
+#include "world/scene/scene_manager.h"
 
 #include <algorithm>
 #include <iterator>
@@ -7,23 +7,23 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
-#include "input/input_handler.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/input/input_handler.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "core/utils/file.h"
+#include "core/utils/span.h"
+#include "debug/runtime/assert.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "scene/menu_template.h"
-#include "scene/scene.h"
-#include "scene/scene_key.h"
-#include "scene/scene_transition.h"
-#include "serialization/fwd.h"
-#include "serialization/json.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 #include "tweens/tween.h"
-#include "utility/file.h"
-#include "utility/span.h"
+#include "ui/menu_template.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_key.h"
+#include "world/scene/scene_transition.h"
 
 namespace ptgn::impl {
 

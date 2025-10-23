@@ -6,10 +6,12 @@
 #include <ostream>
 #include <type_traits>
 
-#include "common/assert.h"
-#include "common/concepts.h"
-#include "math/math.h"
-#include "serialization/fwd.h"
+#include "core/utils/concepts.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
+#include "serialization/json/fwd.h"
+
+// TODO: Stop exposing assert.h
 
 namespace ptgn {
 

@@ -1,8 +1,8 @@
-#include "components/movement.h"
-#include "core/game.h"
+#include "core/ecs/components/movement.h"
+#include "core/app/game.h"
 #include "renderer/vfx/graphics.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

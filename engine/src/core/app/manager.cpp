@@ -1,18 +1,18 @@
-#include "core/manager.h"
+#include "core/app/manager.h"
 
 #include <cstdint>
 #include <memory>
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/uuid.h"
-#include "core/entity.h"
+#include "core/ecs/component_registry.h"
+#include "core/ecs/components/uuid.h"
+#include "core/ecs/entity.h"
+#include "debug/runtime/assert.h"
 #include "ecs/ecs.h"
 #include "nlohmann/json.hpp"
-#include "serialization/component_registry.h"
-#include "serialization/fwd.h"
-#include "serialization/json_archiver.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/json_archiver.h"
 
 namespace ptgn {
 

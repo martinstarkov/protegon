@@ -4,11 +4,11 @@
 #include <functional>
 #include <vector>
 
-#include "core/entity.h"
-#include "core/script.h"
-#include "core/time.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/utils/time.h"
 #include "math/easing.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

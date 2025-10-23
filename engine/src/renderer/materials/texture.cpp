@@ -1,4 +1,4 @@
-#include "renderer/texture.h"
+#include "renderer/materials/texture.h"
 
 #include <algorithm>
 #include <array>
@@ -9,14 +9,16 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/generic.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "debug/config.h"
-#include "debug/debug_system.h"
-#include "debug/log.h"
-#include "debug/stats.h"
+#include "core/app/game.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/resource/resource_manager.h"
+#include "core/utils/file.h"
+#include "debug/core/debug_config.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/stats.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"
@@ -26,12 +28,10 @@
 #include "renderer/gl/gl_loader.h"
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
-#include "resources/resource_manager.h"
 #include "SDL_error.h"
 #include "SDL_image.h"
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
-#include "utility/file.h"
 
 namespace ptgn {
 

@@ -3,13 +3,13 @@
 #include <cmath>
 #include <functional>
 
-#include "common/assert.h"
-#include "components/transform.h"
+#include "core/ecs/components/transform.h"
+#include "debug/runtime/assert.h"
 #include "math/tolerance.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-#include "serialization/fwd.h"
-#include "serialization/json.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

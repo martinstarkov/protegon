@@ -1,17 +1,17 @@
-#include "components/sprite.h"
+#include "core/ecs/components/sprite.h"
 
 #include <array>
 #include <utility>
 
-#include "components/draw.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/manager.h"
-#include "debug/log.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "debug/core/log.h"
 #include "math/vector2.h"
 #include "renderer/buffers/frame_buffer.h"
+#include "renderer/materials/texture.h"
 #include "renderer/render_data.h"
-#include "renderer/texture.h"
 
 namespace ptgn {
 

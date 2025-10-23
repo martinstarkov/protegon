@@ -3,11 +3,11 @@
 #include <string>
 #include <string_view>
 
-#include "common/concepts.h"
+#include "core/utils/concepts.h"
+#include "core/utils/file.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "serialization/serializable.h"
-#include "utility/file.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

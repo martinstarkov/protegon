@@ -1,10 +1,10 @@
 
-#include "components/draw.h"
-#include "core/game.h"
-#include "core/window.h"
+#include "core/ecs/components/draw.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "renderer/renderer.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

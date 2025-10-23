@@ -4,24 +4,24 @@
 #include <string_view>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/draw.h"
-#include "components/sprite.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/game_object.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
-#include "debug/log.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/game_object.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/buffers/frame_buffer.h"
+#include "renderer/materials/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "renderer/texture.h"
-#include "scene/camera.h"
+#include "world/scene/camera.h"
 
 namespace ptgn {
 

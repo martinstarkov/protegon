@@ -4,7 +4,7 @@
 #include <variant>
 #include <vector>
 
-#include "components/transform.h"
+#include "core/ecs/components/transform.h"
 #include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
@@ -15,7 +15,7 @@
 #include "math/geometry/rounded_rect.h"
 #include "math/geometry/triangle.h"
 #include "math/vector2.h"
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

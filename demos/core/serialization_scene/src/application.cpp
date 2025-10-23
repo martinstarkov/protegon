@@ -1,6 +1,6 @@
-#include "core/game.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "core/app/game.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

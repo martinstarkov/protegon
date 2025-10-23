@@ -5,9 +5,9 @@
 #include <string_view>
 #include <variant>
 
-#include "common/type_info.h"
-#include "serialization/fwd.h"
-#include "utility/file.h"
+#include "core/utils/file.h"
+#include "core/utils/type_info.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

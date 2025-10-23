@@ -3,16 +3,16 @@
 #include <unordered_set>
 #include <vector>
 
-#include "components/interactive.h"
-#include "core/entity.h"
-#include "core/resolution.h"
-#include "core/time.h"
-#include "input/key.h"
-#include "input/mouse.h"
+#include "core/app/resolution.h"
+#include "core/ecs/components/interactive.h"
+#include "core/ecs/entity.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
+#include "core/utils/time.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "scene/scene_key.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
+#include "world/scene/scene_key.h"
 
 namespace ptgn {
 

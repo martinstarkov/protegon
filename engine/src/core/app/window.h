@@ -4,9 +4,9 @@
 #include <string>
 #include <string_view>
 
-#include "common/handle.h"
+#include "core/utils/handle.h"
 #include "math/vector2.h"
-#include "serialization/enum.h"
+#include "serialization/json/enum.h"
 
 struct SDL_Window;
 

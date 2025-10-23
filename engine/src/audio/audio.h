@@ -2,10 +2,10 @@
 
 #include <memory>
 
-#include "components/generic.h"
-#include "core/time.h"
-#include "resources/resource_manager.h"
-#include "utility/file.h"
+#include "core/ecs/components/generic.h"
+#include "core/resource/resource_manager.h"
+#include "core/utils/file.h"
+#include "core/utils/time.h"
 
 struct _Mix_Music;
 using Mix_Music = _Mix_Music;

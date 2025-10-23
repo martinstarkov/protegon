@@ -2,9 +2,9 @@
 
 #include <string_view>
 
-#include "components/draw.h"
-#include "core/entity.h"
-#include "core/time.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/entity.h"
+#include "core/utils/time.h"
 #include "math/vector2.h"
 
 namespace ptgn {

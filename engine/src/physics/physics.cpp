@@ -1,15 +1,15 @@
 #include "physics/physics.h"
 
-#include "common/assert.h"
-#include "components/movement.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "debug/log.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/movement.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
-#include "scene/scene.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "components/generic.h"
-#include "resources/resource_manager.h"
-#include "serialization/json.h"
-#include "utility/file.h"
+#include "core/ecs/components/generic.h"
+#include "core/resource/resource_manager.h"
+#include "core/utils/file.h"
+#include "serialization/json/json.h"
 
 namespace ptgn::impl {
 

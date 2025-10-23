@@ -1,14 +1,14 @@
-#include "core/script_sequence.h"
+#include "core/scripting/script_sequence.h"
 
 #include <cstdint>
 #include <ctime>
 #include <functional>
 #include <utility>
 
-#include "core/entity.h"
-#include "entity_hierarchy.h"
-#include "scene/scene.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/entity_hierarchy.h"
 #include "tweens/tween.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

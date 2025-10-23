@@ -2,16 +2,16 @@
 #include <memory>
 #include <vector>
 
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "debug/log.h"
+#include "core/ecs/entity.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "debug/core/log.h"
 #include "ecs/ecs.h"
-#include "input/input_handler.h"
-#include "input/key.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
 #include "math/vector2.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

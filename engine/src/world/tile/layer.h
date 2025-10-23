@@ -2,15 +2,15 @@
 
 // TODO: Come back to this.
 /*
-#include "core/game.h"
-#include "core/manager.h"
-#include "math/geometry.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "math/geometry_utils.h"
 #include "math/hash.h"
 #include "math/vector2.h"
-#include "renderer/texture.h"
-#include "tile/grid.h"
-#include "common/assert.h"
-#include "utility/file.h"
+#include "renderer/materials/texture.h"
+#include "world/tile/grid.h"
+#include "debug/runtime/assert.h"
+#include "core/utils/file.h"
 
 namespace ptgn {
 

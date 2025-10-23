@@ -6,23 +6,23 @@
 // #include <string_view>
 // #include <vector>
 //
-// #include "components/generic.h"
-// #include "resources/resource_manager.h"
-// #include "core/entity.h"
-// #include "core/manager.h"
+// #include "core/ecs/components/generic.h"
+// #include "core/resource/resource_manager.h"
+// #include "core/ecs/entity.h"
+// #include "core/app/manager.h"
 //
-// #include "math/geometry.h"
+// #include "math/geometry_utils.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
-// #include "renderer/font.h"
+// #include "renderer/text/font.h"
 // #include "renderer/api/origin.h"
 // #include "renderer/render_target.h"
-// #include "renderer/text.h"
-// #include "renderer/texture.h"
-// #include "resources/fonts.h"
+// #include "renderer/text/text.h"
+// #include "renderer/materials/texture.h"
+// #include "renderer/text/fonts.h"
 // #include "ui/button.h"
-// #include "common/assert.h"
-// 
+// #include "debug/runtime/assert.h"
+//
 //
 // namespace ptgn {
 //

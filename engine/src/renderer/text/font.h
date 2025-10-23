@@ -4,13 +4,13 @@
 #include <memory>
 #include <string>
 
-#include "components/generic.h"
+#include "core/ecs/components/generic.h"
+#include "core/resource/resource_manager.h"
+#include "core/utils/file.h"
 #include "math/vector2.h"
-#include "resources/fonts.h"
-#include "resources/resource_manager.h"
-#include "serialization/enum.h"
-#include "serialization/fwd.h"
-#include "utility/file.h"
+#include "renderer/text/fonts.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/fwd.h"
 
 #ifdef __EMSCRIPTEN__
 struct _TTF_Font;

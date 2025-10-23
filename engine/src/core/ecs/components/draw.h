@@ -5,16 +5,16 @@
 #include <string_view>
 #include <vector>
 
-#include "common/type_info.h"
-#include "components/drawable.h"
-#include "components/generic.h"
-#include "core/entity.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/utils/type_info.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/text.h"
-#include "serialization/serializable.h"
+#include "renderer/text/text.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

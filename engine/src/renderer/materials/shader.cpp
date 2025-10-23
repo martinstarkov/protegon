@@ -1,6 +1,4 @@
-#include "renderer/shader.h"
-
-#include <serialization/fwd.h>
+#include "renderer/materials/shader.h"
 
 #include <cmrc/cmrc.hpp>
 #include <cstdint>
@@ -17,12 +15,14 @@
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
-#include "core/game.h"
-#include "debug/config.h"
-#include "debug/debug_system.h"
-#include "debug/log.h"
-#include "debug/stats.h"
+#include "core/app/game.h"
+#include "core/utils/file.h"
+#include "core/utils/span.h"
+#include "debug/core/debug_config.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/stats.h"
 #include "math/hash.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
@@ -32,8 +32,7 @@
 #include "renderer/gl/gl_loader.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "utility/file.h"
-#include "utility/span.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

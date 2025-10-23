@@ -5,8 +5,8 @@
 
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/texture.h"
-#include "serialization/enum.h"
+#include "renderer/materials/texture.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn::impl {
 

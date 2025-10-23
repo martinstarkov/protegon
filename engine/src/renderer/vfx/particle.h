@@ -2,18 +2,18 @@
 
 #include <string_view>
 
-#include "components/drawable.h"
-#include "components/sprite.h"
-#include "core/entity.h"
-#include "core/manager.h"
-#include "core/time.h"
-#include "core/timer.h"
-#include "math/math.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/entity.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
+#include "math/math_utils.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/texture.h"
-#include "serialization/enum.h"
+#include "renderer/materials/texture.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 

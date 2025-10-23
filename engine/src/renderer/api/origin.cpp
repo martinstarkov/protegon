@@ -1,6 +1,6 @@
 #include "renderer/api/origin.h"
 
-#include "debug/log.h"
+#include "debug/core/log.h"
 #include "math/vector2.h"
 
 namespace ptgn {

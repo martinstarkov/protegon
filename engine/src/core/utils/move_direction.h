@@ -2,8 +2,8 @@
 
 #include <ostream>
 
-#include "debug/log.h"
-#include "serialization/enum.h"
+#include "debug/core/log.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 

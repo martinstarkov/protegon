@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <ostream>
 
-#include "debug/log.h"
-#include "serialization/enum.h"
-#include "utility/platform.h"
+#include "core/utils/platform.h"
+#include "debug/core/log.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 

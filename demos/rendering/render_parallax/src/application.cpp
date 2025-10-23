@@ -1,11 +1,11 @@
-#include "core/game.h"
-#include "core/window.h"
-#include "input/input_handler.h"
-#include "input/key.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
 #include "math/vector2.h"
 #include "renderer/renderer.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 // TODO: Fix this demo.
 

@@ -2,8 +2,8 @@
 
 #include <type_traits>
 
-#include "common/concepts.h"
-#include "serialization/serializable.h"
+#include "core/utils/concepts.h"
+#include "serialization/json/serializable.h"
 
 #define PTGN_FLAGS_OPERATORS(EnumType)                                         \
 	inline EnumType operator|(EnumType a, EnumType b) {                        \

@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "components/draw.h"
-#include "components/drawable.h"
-#include "core/entity.h"
-#include "core/manager.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/entity.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"

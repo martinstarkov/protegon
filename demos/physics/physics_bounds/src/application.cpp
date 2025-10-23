@@ -1,18 +1,18 @@
 
-#include "components/draw.h"
-#include "components/movement.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "input/input_handler.h"
-#include "input/key.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/movement.h"
+#include "core/ecs/entity.h"
+#include "core/app/game.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
 #include "math/geometry/rect.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

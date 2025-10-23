@@ -7,19 +7,19 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "core/game.h"
-#include "debug/config.h"
-#include "debug/debug_system.h"
-#include "debug/stats.h"
+#include "core/app/game.h"
+#include "debug/core/debug_config.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/stats.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/gl/gl_helper.h"
 #include "renderer/gl/gl_loader.h"
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
+#include "renderer/materials/texture.h"
 #include "renderer/renderer.h"
-#include "renderer/texture.h"
 
 namespace ptgn::impl {
 

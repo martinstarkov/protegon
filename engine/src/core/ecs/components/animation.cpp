@@ -1,4 +1,4 @@
-#include "components/animation.h"
+#include "core/ecs/components/animation.h"
 
 #include <chrono>
 #include <cstdint>
@@ -6,18 +6,18 @@
 #include <unordered_map>
 #include <utility>
 
-#include "common/assert.h"
-#include "components/draw.h"
-#include "components/sprite.h"
-#include "core/entity.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
-#include "core/time.h"
-#include "core/timer.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/entity.h"
+#include "core/resource/resource_manager.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
-#include "renderer/texture.h"
-#include "resources/resource_manager.h"
+#include "renderer/materials/texture.h"
 
 namespace ptgn {
 

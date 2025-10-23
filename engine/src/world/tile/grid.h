@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "common/assert.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 
 // TODO: Add serialization.

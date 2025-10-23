@@ -1,7 +1,7 @@
 #pragma once
 
-#include "components/transform.h"
-#include "serialization/serializable.h"
+#include "core/ecs/components/transform.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

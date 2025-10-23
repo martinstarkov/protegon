@@ -3,19 +3,19 @@
 #include <string>
 
 #include "audio/audio.h"
-#include "components/draw.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/time.h"
-#include "core/window.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/entity.h"
+#include "core/app/game.h"
+#include "core/utils/time.h"
+#include "core/app/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/text.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
-#include "tile/grid.h"
+#include "renderer/text/text.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
+#include "world/tile/grid.h"
 #include "ui/button.h"
 
 using namespace ptgn;

@@ -2,13 +2,13 @@
 
 #include <cstdint>
 
-#include "components/sprite.h"
-#include "core/time.h"
-#include "core/timer.h"
+#include "core/ecs/components/sprite.h"
+#include "core/resource/resource_manager.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
 #include "math/vector2.h"
-#include "renderer/texture.h"
-#include "resources/resource_manager.h"
-#include "serialization/serializable.h"
+#include "renderer/materials/texture.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

@@ -2,8 +2,8 @@
 
 #include <utility>
 
-#include "common/concepts.h"
-#include "core/entity.h"
+#include "core/ecs/entity.h"
+#include "core/utils/concepts.h"
 
 namespace ptgn {
 

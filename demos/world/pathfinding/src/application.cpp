@@ -1,18 +1,18 @@
 #include <cassert>
 #include <deque>
 
-#include "core/game.h"
-#include "input/input_handler.h"
-#include "input/key.h"
-#include "input/mouse.h"
+#include "core/app/game.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
-#include "tile/a_star.h"
-#include "tile/grid.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
+#include "world/tile/a_star.h"
+#include "world/tile/grid.h"
 
 using namespace ptgn;
 

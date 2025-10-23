@@ -1,4 +1,4 @@
-#include "core/script.h"
+#include "core/scripting/script.h"
 
 namespace ptgn {
 

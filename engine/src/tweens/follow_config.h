@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "math/vector2.h"
-#include "serialization/enum.h"
-#include "serialization/serializable.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

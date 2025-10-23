@@ -1,6 +1,6 @@
 #pragma once
 
-#include "components/transform.h"
+#include "core/ecs/components/transform.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
@@ -14,6 +14,15 @@
 namespace ptgn {
 
 namespace impl {
+
+[[nodiscard]] std::vector<Axis> GetPolygonAxes(
+	const V2_float* vertices, std::size_t vertex_count, bool intersection_info
+);
+
+// @return { min, max } of all the polygon vertices projected onto the given axis.
+[[nodiscard]] std::pair<float, float> GetPolygonProjectionMinMax(
+	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
+);
 
 [[nodiscard]] bool PolygonsHaveOverlapAxis(
 	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B

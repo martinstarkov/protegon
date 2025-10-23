@@ -1,19 +1,19 @@
 #include <string>
 
-#include "components/sprite.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/window.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/font.h"
+#include "renderer/text/font.h"
 #include "renderer/renderer.h"
-#include "renderer/text.h"
-#include "renderer/texture.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "renderer/text/text.h"
+#include "renderer/materials/texture.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

@@ -1,15 +1,15 @@
 #pragma once
 
-#include "common/move_direction.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/time.h"
-#include "core/timer.h"
-#include "input/key.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/input/key.h"
+#include "core/utils/move_direction.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
 #include "math/vector2.h"
-#include "physics/collision/collider.h"
+#include "physics/collider.h"
 #include "physics/rigid_body.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 
@@ -167,9 +167,8 @@ struct PlatformerMovement {
 	)
 private:
 	// @param dt Unit: seconds.
-	void RunWithAcceleration(
-		const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt
-	) const;
+	void RunWithAcceleration(const V2_float& desired_velocity, float dir_x, RigidBody& rb, float dt)
+		const;
 };
 
 struct PlatformerJump {

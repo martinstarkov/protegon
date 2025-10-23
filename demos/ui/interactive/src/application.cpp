@@ -1,17 +1,17 @@
 
-#include "components/draw.h"
-#include "components/interactive.h"
-#include "components/movement.h"
-#include "components/sprite.h"
-#include "components/transform.h"
-#include "core/game.h"
-#include "core/script.h"
-#include "core/window.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/interactive.h"
+#include "core/ecs/components/movement.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/components/transform.h"
+#include "core/app/game.h"
+#include "core/scripting/script.h"
+#include "core/app/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

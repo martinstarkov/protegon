@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "core/entity.h"
+#include "core/ecs/entity.h"
 #include "math/vector2.h"
-#include "scene/scene.h"
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

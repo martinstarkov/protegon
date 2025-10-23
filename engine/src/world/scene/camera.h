@@ -3,14 +3,14 @@
 #include <array>
 #include <ostream>
 
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
 #include "math/matrix4.h"
 #include "math/vector2.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

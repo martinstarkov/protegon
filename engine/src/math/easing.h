@@ -2,7 +2,7 @@
 
 #include <variant>
 
-#include "serialization/enum.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 

@@ -1,13 +1,13 @@
-#include "core/window.h"
+#include "core/app/window.h"
 
 #include <memory>
 #include <string>
 #include <string_view>
 
-#include "common/assert.h"
-#include "core/game.h"
-#include "core/sdl_instance.h"
-#include "debug/log.h"
+#include "core/app/game.h"
+#include "core/app/sdl_instance.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "SDL_error.h"
 #include "SDL_mouse.h"

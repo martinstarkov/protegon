@@ -1,4 +1,4 @@
-#include "utility/file.h"
+#include "core/utils/file.h"
 
 #include <filesystem>
 #include <fstream>
@@ -8,8 +8,8 @@
 #include <sstream>
 #include <string>
 
-#include "common/assert.h"
-#include "serialization/json.h"
+#include "debug/runtime/assert.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

@@ -1,12 +1,12 @@
-#include "components/relatives.h"
+#include "core/ecs/components/relatives.h"
 
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include "core/entity.h"
-#include "debug/log.h"
-#include "utility/span.h"
+#include "core/ecs/entity.h"
+#include "core/utils/span.h"
+#include "debug/core/log.h"
 
 namespace ptgn {
 

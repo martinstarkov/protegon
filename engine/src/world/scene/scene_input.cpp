@@ -1,4 +1,4 @@
-#include "scene/scene_input.h"
+#include "world/scene/scene_input.h"
 
 #include <algorithm>
 #include <unordered_map>
@@ -6,29 +6,29 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/draw.h"
-#include "components/interactive.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "core/resolution.h"
-#include "core/script.h"
-#include "debug/debug_system.h"
-#include "debug/log.h"
-#include "input/input_handler.h"
-#include "input/mouse.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/app/resolution.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/interactive.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/input/input_handler.h"
+#include "core/input/mouse.h"
+#include "core/scripting/script.h"
+#include "core/utils/span.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
-#include "physics/collision/bounding_aabb.h"
-#include "physics/collision/broadphase.h"
+#include "physics/bounding_aabb.h"
+#include "physics/broadphase.h"
 #include "renderer/renderer.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
-#include "utility/span.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 
@@ -603,15 +603,13 @@ V2_float SceneInput::GetMousePosition(ViewportType relative_to, bool clamp_to_vi
 	return game.input.GetMousePosition(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionPrevious(
-	ViewportType relative_to, bool clamp_to_viewport
-) const {
+V2_float SceneInput::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
+	const {
 	return game.input.GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionDifference(
-	ViewportType relative_to, bool clamp_to_viewport
-) const {
+V2_float SceneInput::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
+	const {
 	return game.input.GetMousePositionDifference(relative_to, clamp_to_viewport);
 }
 

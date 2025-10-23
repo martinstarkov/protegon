@@ -8,11 +8,11 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "math/math.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
 #include "math/rng.h"
 #include "math/vector2.h"
-#include "serialization/enum.h"
+#include "serialization/json/enum.h"
 
 // TODO: Add serialization.
 

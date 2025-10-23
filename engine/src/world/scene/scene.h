@@ -4,20 +4,20 @@
 #include <set>
 #include <vector>
 
-#include "components/transform.h"
-#include "components/uuid.h"
-#include "core/entity.h"
-#include "core/manager.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/components/uuid.h"
+#include "core/ecs/entity.h"
 #include "math/vector2.h"
-#include "physics/collision/collision_handler.h"
+#include "physics/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/color.h"
 #include "renderer/render_target.h"
-#include "scene/camera.h"
-#include "scene/scene_input.h"
-#include "scene/scene_key.h"
-#include "serialization/fwd.h"
-#include "serialization/serializable.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/serializable.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene_input.h"
+#include "world/scene/scene_key.h"
 
 namespace ptgn {
 

@@ -1,27 +1,27 @@
 #include "renderer/vfx/particle.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 
-#include "algorithm"
-#include "components/draw.h"
-#include "components/effects.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "core/time.h"
-#include "core/timer.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/effects.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
-#include "math/math.h"
+#include "math/math_utils.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "scene/camera.h"
+#include "world/scene/camera.h"
 
 namespace ptgn {
 

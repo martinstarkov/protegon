@@ -12,7 +12,9 @@
 #include <utility>
 #include <vector>
 
-#include "common/concepts.h"
+#include "core/utils/concepts.h"
+
+// TODO: Get rid of stuff that is outdated as of my C++ 20 move.
 
 namespace ptgn {
 

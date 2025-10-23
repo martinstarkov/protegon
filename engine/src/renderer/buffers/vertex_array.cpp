@@ -3,11 +3,11 @@
 #include <array>
 #include <cstdint>
 
-#include "common/assert.h"
-#include "core/game.h"
-#include "debug/config.h"
-#include "debug/debug_system.h"
-#include "debug/stats.h"
+#include "core/app/game.h"
+#include "debug/core/debug_config.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/stats.h"
 #include "renderer/buffers/buffer.h"
 #include "renderer/buffers/buffer_layout.h"
 #include "renderer/gl/gl_helper.h"

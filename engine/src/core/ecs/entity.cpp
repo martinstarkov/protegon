@@ -1,23 +1,23 @@
-#include "core/entity.h"
+#include "core/ecs/entity.h"
 
 #include <memory>
 #include <utility>
 
-#include "common/assert.h"
-#include "common/type_info.h"
-#include "components/uuid.h"
-#include "core/entity_hierarchy.h"
-#include "core/game.h"
-#include "core/manager.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/component_registry.h"
+#include "core/ecs/components/uuid.h"
+#include "core/ecs/entity_hierarchy.h"
+#include "core/utils/type_info.h"
+#include "debug/runtime/assert.h"
 #include "ecs/ecs.h"
 #include "renderer/render_target.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
-#include "scene/scene_key.h"
-#include "scene/scene_manager.h"
-#include "serialization/component_registry.h"
-#include "serialization/fwd.h"
-#include "serialization/json_archiver.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/json_archiver.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_key.h"
+#include "world/scene/scene_manager.h"
 
 namespace ptgn {
 

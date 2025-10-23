@@ -5,14 +5,14 @@
 #include <functional>
 #include <vector>
 
-#include "components/generic.h"
-#include "core/entity.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/resource/resource_manager.h"
+#include "core/utils/file.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
-#include "resources/resource_manager.h"
-#include "serialization/enum.h"
-#include "utility/file.h"
+#include "serialization/json/enum.h"
 
 struct SDL_Surface;
 

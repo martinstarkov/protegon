@@ -5,11 +5,10 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "common/assert.h"
+#include "debug/runtime/assert.h"
 #include "math/matrix4.h"
 #include "math/vector3.h"
 #include "math/vector4.h"
-
 
 namespace ptgn {
 

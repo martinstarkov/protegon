@@ -7,14 +7,14 @@
 #include <variant>
 #include <vector>
 
-#include "common/assert.h"
-#include "common/type_info.h"
-#include "components/transform.h"
-#include "core/game.h"
-#include "debug/config.h"
-#include "debug/debug_system.h"
-#include "debug/log.h"
-#include "debug/stats.h"
+#include "core/app/game.h"
+#include "core/ecs/components/transform.h"
+#include "core/utils/type_info.h"
+#include "debug/core/debug_config.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
+#include "debug/runtime/stats.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
@@ -23,7 +23,8 @@
 #include "math/geometry/rect.h"
 #include "math/geometry/shape.h"
 #include "math/geometry/triangle.h"
-#include "math/utility.h"
+#include "math/geometry_utils.h"
+#include "math/math_utils.h"
 #include "math/vector2.h"
 
 #define PTGN_HANDLE_OVERLAP_SOLO_PAIR(TypeA, TypeB, PREFIX)                 \
@@ -73,6 +74,75 @@ namespace ptgn {
 using Point = V2_float;
 
 namespace impl {
+
+std::vector<Axis> GetPolygonAxes(
+	const V2_float* vertices, std::size_t vertex_count, [[maybe_unused]] bool intersection_info
+) {
+	std::vector<Axis> axes;
+
+	const auto parallel_axis_exists = [&axes](const Axis& o_axis) {
+		for (const auto& axis : axes) {
+			if (NearlyEqual(o_axis.direction.Cross(axis.direction), 0.0f)) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	axes.reserve(vertex_count);
+
+	for (std::size_t a{ 0 }; a < vertex_count; a++) {
+		std::size_t b{ a + 1 == vertex_count ? 0 : a + 1 };
+
+		Axis axis;
+		axis.midpoint  = Midpoint(vertices[a], vertices[b]);
+		axis.direction = vertices[a] - vertices[b];
+
+		// Skip coinciding points with no axis.
+		if (axis.direction.IsZero()) {
+			continue;
+		}
+
+		axis.direction = axis.direction.Skewed();
+
+		// TODO: Check if this still produces accurate results.
+		// if (intersection_info) {
+		axis.direction = axis.direction.Normalized();
+		//}
+
+		if (!parallel_axis_exists(axis)) {
+			axes.emplace_back(axis);
+		}
+	}
+
+	return axes;
+}
+
+std::pair<float, float> GetPolygonProjectionMinMax(
+	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
+) {
+	PTGN_ASSERT(vertex_count > 0);
+	PTGN_ASSERT(
+		std::invoke([&]() {
+			float mag2{ axis.direction.MagnitudeSquared() };
+			return mag2 < 1.0f || NearlyEqual(mag2, 1.0f);
+		}),
+		"Projection axis must be normalized"
+	);
+
+	float min{ axis.direction.Dot(vertices[0]) };
+	float max{ min };
+	for (std::size_t i{ 1 }; i < vertex_count; i++) {
+		float p = vertices[i].Dot(axis.direction);
+		if (p < min) {
+			min = p;
+		} else if (p > max) {
+			max = p;
+		}
+	}
+
+	return { min, max };
+}
 
 bool PolygonsHaveOverlapAxis(
 	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B

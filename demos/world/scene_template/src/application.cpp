@@ -1,13 +1,13 @@
 #include <optional>
 
-#include "common/assert.h"
-#include "components/draw.h"
-#include "core/game.h"
+#include "core/app/game.h"
+#include "core/ecs/components/draw.h"
+#include "debug/runtime/assert.h"
 #include "renderer/api/color.h"
-#include "renderer/text.h"
-#include "scene/menu_template.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "renderer/text/text.h"
+#include "ui/menu_template.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

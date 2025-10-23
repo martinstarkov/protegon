@@ -1,11 +1,11 @@
-#include "components/sprite.h"
-#include "core/game.h"
-#include "core/time.h"
-#include "input/input_handler.h"
-#include "input/mouse.h"
+#include "core/ecs/components/sprite.h"
+#include "core/app/game.h"
+#include "core/utils/time.h"
+#include "core/input/input_handler.h"
+#include "core/input/mouse.h"
 #include "math/easing.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 #include "tweens/tween_effects.h"
 
 using namespace ptgn;

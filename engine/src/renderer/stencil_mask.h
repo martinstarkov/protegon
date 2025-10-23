@@ -1,5 +1,7 @@
 #pragma once
 
+// TODO: This should just be render commands behind the GLRenderer API.
+
 namespace ptgn {
 
 class StencilMask {

@@ -3,10 +3,10 @@
 #include <cmath>
 #include <variant>
 
-#include "common/assert.h"
-#include "debug/log.h"
-#include "math/math.h"
-#include "serialization/json.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

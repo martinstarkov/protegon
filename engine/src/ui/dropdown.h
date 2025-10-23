@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "core/entity.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "ui/button.h"

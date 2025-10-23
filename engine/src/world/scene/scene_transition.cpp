@@ -1,17 +1,17 @@
-#include "scene/scene_transition.h"
+#include "world/scene/scene_transition.h"
 
 #include <memory>
 
-#include "common/assert.h"
-#include "components/draw.h"
-#include "core/entity.h"
-#include "core/script_sequence.h"
-#include "core/time.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script_sequence.h"
+#include "core/utils/time.h"
+#include "debug/runtime/assert.h"
 #include "renderer/api/color.h"
 #include "renderer/render_target.h"
-#include "scene/scene.h"
 #include "tweens/tween.h"
 #include "tweens/tween_effects.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

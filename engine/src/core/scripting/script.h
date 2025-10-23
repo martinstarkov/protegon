@@ -12,13 +12,13 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "core/entity.h"
-#include "core/script_interfaces.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script_interfaces.h"
+#include "debug/runtime/assert.h"
 #include "math/hash.h"
 #include "nlohmann/json.hpp"
-#include "serialization/fwd.h"
-#include "serialization/json.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

@@ -1,10 +1,10 @@
 
-#include "core/game.h"
-#include "core/script_sequence.h"
-#include "input/input_handler.h"
-#include "input/key.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "core/app/game.h"
+#include "core/scripting/script_sequence.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

@@ -3,7 +3,7 @@
 #include <string_view>
 #include <type_traits>
 
-#include "common/concepts.h"
+#include "core/utils/concepts.h"
 
 namespace ptgn {
 

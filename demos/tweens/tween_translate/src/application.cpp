@@ -1,9 +1,9 @@
-#include "components/sprite.h"
-#include "core/game.h"
-#include "core/window.h"
-#include "input/input_handler.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "core/ecs/components/sprite.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
+#include "core/input/input_handler.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 #include "tweens/tween_effects.h"
 
 using namespace ptgn;

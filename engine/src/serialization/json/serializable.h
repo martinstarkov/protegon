@@ -4,9 +4,9 @@
 #include <nlohmann/detail/meta/type_traits.hpp>
 #include <string_view>
 
-#include "common/macro.h"
-#include "serialization/enum.h"
-#include "serialization/json.h"
+#include "core/utils/macro.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

@@ -1,16 +1,16 @@
-#include "tile/a_star.h"
+#include "world/tile/a_star.h"
 
 #include <deque>
 #include <limits>
 #include <list>
 #include <utility>
 
-#include "common/assert.h"
-#include "core/game.h"
+#include "core/app/game.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
-#include "tile/grid.h"
+#include "world/tile/grid.h"
 
 namespace ptgn {
 

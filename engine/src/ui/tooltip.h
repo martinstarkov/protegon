@@ -3,16 +3,16 @@
 #include <string>
 #include <string_view>
 
-#include "components/sprite.h"
-#include "core/entity.h"
-#include "core/game_object.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/game_object.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/text.h"
-#include "renderer/texture.h"
+#include "renderer/materials/texture.h"
+#include "renderer/text/text.h"
 
 namespace ptgn {
 

@@ -1,15 +1,15 @@
 #include <string>
 #include <string_view>
 
-#include "components/draw.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/window.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/entity.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "renderer/api/color.h"
-#include "renderer/font.h"
-#include "renderer/text.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "renderer/text/font.h"
+#include "renderer/text/text.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

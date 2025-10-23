@@ -1,6 +1,6 @@
-#include "resources/fonts.h"
+#include "renderer/text/fonts.h"
 
-#include "resources/fonts/LiberationSans-Regular.h"
+#include "fonts/LiberationSans-Regular.h"
 
 namespace ptgn::impl {
 

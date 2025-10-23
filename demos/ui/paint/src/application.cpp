@@ -1,19 +1,19 @@
 #include <vector>
 
-#include "core/entity.h"
-#include "core/game.h"
-#include "input/input_handler.h"
-#include "input/key.h"
-#include "input/mouse.h"
+#include "core/ecs/entity.h"
+#include "core/app/game.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/text.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
-#include "tile/grid.h"
-#include "utility/string.h"
+#include "renderer/text/text.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
+#include "world/tile/grid.h"
+#include "core/utils/string.h"
 
 using namespace ptgn;
 

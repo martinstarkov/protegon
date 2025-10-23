@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "common/concepts.h"
+#include "core/utils/concepts.h"
 
 namespace ptgn::impl {
 

@@ -1,21 +1,21 @@
-#include "scene/camera.h"
+#include "world/scene/camera.h"
 
 #include <algorithm>
 #include <array>
 #include <limits>
 
-#include "common/assert.h"
-#include "components/offsets.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
-#include "debug/log.h"
-#include "math/geometry.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/offsets.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/geometry/rect.h"
-#include "math/math.h"
+#include "math/geometry_utils.h"
+#include "math/math_utils.h"
 #include "math/matrix4.h"
 #include "math/quaternion.h"
 #include "math/vector2.h"

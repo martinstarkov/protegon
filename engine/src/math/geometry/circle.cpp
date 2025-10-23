@@ -2,10 +2,10 @@
 
 #include <array>
 
-#include "components/draw.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "math/math.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "math/math_utils.h"
 #include "math/vector2.h"
 
 namespace ptgn {

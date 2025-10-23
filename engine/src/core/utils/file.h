@@ -4,7 +4,7 @@
 #include <fstream>
 #include <string>
 
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

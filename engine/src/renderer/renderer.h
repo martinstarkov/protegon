@@ -6,19 +6,19 @@
 #include <string>
 #include <vector>
 
-#include "components/draw.h"
-#include "components/effects.h"
-#include "components/generic.h"
-#include "components/transform.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/effects.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/components/transform.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/font.h"
+#include "renderer/materials/texture.h"
 #include "renderer/render_data.h"
-#include "renderer/text.h"
-#include "renderer/texture.h"
-#include "scene/camera.h"
+#include "renderer/text/font.h"
+#include "renderer/text/text.h"
+#include "world/scene/camera.h"
 
 namespace ptgn {
 

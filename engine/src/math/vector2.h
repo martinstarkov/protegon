@@ -8,12 +8,14 @@
 #include <ostream>
 #include <type_traits>
 
-#include "common/assert.h"
-#include "common/concepts.h"
-#include "math/math.h"
+#include "core/utils/concepts.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
 #include "math/rng.h"
 #include "math/tolerance.h"
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
+
+// TODO: Stop exposing assert.h
 
 // TODO: Add xyz() and xyzw() functions.
 

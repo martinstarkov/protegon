@@ -1,4 +1,4 @@
-#include "serialization/json.h"
+#include "serialization/json/json.h"
 
 #include <filesystem>
 #include <iomanip>
@@ -6,10 +6,10 @@
 #include <nlohmann/json.hpp>
 #include <ostream>
 
-#include "common/assert.h"
-#include "debug/log.h"
-#include "serialization/fwd.h"
-#include "utility/file.h"
+#include "core/utils/file.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

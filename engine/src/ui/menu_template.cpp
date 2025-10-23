@@ -1,4 +1,4 @@
-#include "scene/menu_template.h"
+#include "ui/menu_template.h"
 
 #include <algorithm>
 #include <functional>
@@ -8,20 +8,20 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "debug/log.h"
+#include "core/app/game.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
 #include "renderer/api/color.h"
-#include "scene/scene.h"
-#include "scene/scene_input.h"
-#include "scene/scene_manager.h"
-#include "serialization/fwd.h"
+#include "serialization/json/fwd.h"
 #include "ui/button.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_input.h"
+#include "world/scene/scene_manager.h"
 
 namespace ptgn {
 

@@ -1,11 +1,11 @@
-#include "physics/collision/bounding_aabb.h"
+#include "physics/bounding_aabb.h"
 
 #include <algorithm>
 #include <type_traits>
 #include <variant>
 #include <vector>
 
-#include "components/transform.h"
+#include "core/ecs/components/transform.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/ellipse.h"

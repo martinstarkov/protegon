@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "components/generic.h"
-#include "core/entity.h"
-#include "serialization/serializable.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

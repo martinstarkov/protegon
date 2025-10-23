@@ -1,6 +1,6 @@
 #include "math/vector3.h"
 
-#include "serialization/json.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

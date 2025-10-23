@@ -1,10 +1,10 @@
 
-#include "components/animation.h"
-#include "components/transform.h"
-#include "core/game.h"
-#include "core/window.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "core/ecs/components/animation.h"
+#include "core/ecs/components/transform.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 #include "ui/button.h"
 
 using namespace ptgn;

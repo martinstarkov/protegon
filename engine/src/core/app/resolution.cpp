@@ -1,14 +1,14 @@
-#include "core/resolution.h"
+#include "core/app/resolution.h"
 
-#include "common/assert.h"
-#include "components/transform.h"
-#include "core/game.h"
-#include "core/window.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
+#include "core/ecs/components/transform.h"
+#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/renderer.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 namespace ptgn {
 

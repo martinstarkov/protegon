@@ -1,28 +1,28 @@
-#include "physics/collision/collision_handler.h"
+#include "physics/collision_handler.h"
 
 #include <algorithm>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/entity_hierarchy.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "core/script.h"
-#include "debug/log.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/entity_hierarchy.h"
+#include "core/scripting/script.h"
+#include "core/utils/span.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/geometry/shape.h"
 #include "math/intersect.h"
-#include "math/math.h"
+#include "math/math_utils.h"
 #include "math/overlap.h"
 #include "math/raycast.h"
 #include "math/vector2.h"
-#include "physics/collision/bounding_aabb.h"
-#include "physics/collision/broadphase.h"
-#include "physics/collision/collider.h"
+#include "physics/bounding_aabb.h"
+#include "physics/broadphase.h"
+#include "physics/collider.h"
 #include "physics/rigid_body.h"
-#include "scene/scene.h"
-#include "utility/span.h"
+#include "world/scene/scene.h"
 
 namespace ptgn::impl {
 

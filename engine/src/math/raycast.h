@@ -1,6 +1,6 @@
 #pragma once
 
-#include "components/transform.h"
+#include "core/ecs/components/transform.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -8,7 +8,7 @@
 #include "math/geometry/rect.h"
 #include "math/geometry/shape.h"
 #include "math/vector2.h"
-#include "serialization/serializable.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

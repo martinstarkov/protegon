@@ -6,16 +6,16 @@
 #include <string_view>
 #include <vector>
 
-#include "common/assert.h"
-#include "common/macro.h"
-#include "core/game.h"
-#include "core/sdl_instance.h"
-#include "core/window.h"
-#include "debug/log.h"
+#include "core/app/game.h"
+#include "core/app/sdl_instance.h"
+#include "core/app/window.h"
+#include "core/utils/file.h"
+#include "core/utils/macro.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "renderer/gl/gl_loader.h"
 #include "SDL_error.h"
 #include "SDL_video.h"
-#include "utility/file.h"
 
 #define PTGN_VSYNC_MODE -1
 

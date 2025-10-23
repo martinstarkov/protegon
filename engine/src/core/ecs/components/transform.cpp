@@ -1,4 +1,4 @@
-#include "components/transform.h"
+#include "core/ecs/components/transform.h"
 
 #include <algorithm>
 #include <cmath>
@@ -6,15 +6,15 @@
 #include <utility>
 #include <vector>
 
-#include "common/assert.h"
-#include "components/offsets.h"
-#include "core/entity.h"
-#include "core/entity_hierarchy.h"
-#include "math/math.h"
+#include "core/ecs/components/offsets.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/entity_hierarchy.h"
+#include "core/utils/flags.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
 #include "math/vector2.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
-#include "utility/flags.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

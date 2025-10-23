@@ -2,11 +2,11 @@
 
 #include <vector>
 
-#include "core/entity.h"
+#include "core/ecs/entity.h"
 #include "math/raycast.h"
 #include "math/vector2.h"
-#include "physics/collision/broadphase.h"
-#include "physics/collision/collider.h"
+#include "physics/broadphase.h"
+#include "physics/collider.h"
 
 namespace ptgn {
 

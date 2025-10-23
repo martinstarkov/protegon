@@ -1,13 +1,13 @@
-#include "resources/resource_manager.h"
+#include "core/resource/resource_manager.h"
 
 #include "audio/audio.h"
-#include "common/assert.h"
-#include "components/generic.h"
-#include "renderer/font.h"
-#include "renderer/texture.h"
-#include "serialization/json.h"
-#include "serialization/json_manager.h"
-#include "utility/file.h"
+#include "core/ecs/components/generic.h"
+#include "core/utils/file.h"
+#include "debug/runtime/assert.h"
+#include "renderer/materials/texture.h"
+#include "renderer/text/font.h"
+#include "serialization/json/json.h"
+#include "serialization/json/json_manager.h"
 
 namespace ptgn {
 

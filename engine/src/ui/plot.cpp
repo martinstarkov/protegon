@@ -7,21 +7,21 @@
 // #include <utility>
 // #include <vector>
 //
-// #include "core/game.h"
-// #include "core/entity.h"
-// #include "input/input_handler.h"
-// #include "input/mouse.h"
+// #include "core/app/game.h"
+// #include "core/ecs/entity.h"
+// #include "core/input/input_handler.h"
+// #include "core/input/mouse.h"
 //
-// #include "math/geometry.h"
-// #include "math/math.h"
+// #include "math/geometry_utils.h"
+// #include "math/math_utils.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
-// #include "renderer/font.h"
+// #include "renderer/text/font.h"
 // #include "renderer/api/origin.h"
-// #include "renderer/text.h"
-// #include "resources/fonts.h"
+// #include "renderer/text/text.h"
+// #include "renderer/text/fonts.h"
 // #include "ui/button.h"
-// #include "common/assert.h"
+// #include "debug/runtime/assert.h"
 //
 // namespace ptgn {
 //

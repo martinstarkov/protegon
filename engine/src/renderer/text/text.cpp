@@ -1,33 +1,33 @@
-#include "renderer/text.h"
+#include "renderer/text/text.h"
 
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <string>
 
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/effects.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/resource/resource_manager.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
+#include "renderer/materials/texture.h"
+#include "renderer/render_data.h"
+#include "renderer/text/font.h"
 #include "SDL_blendmode.h"
 #include "SDL_pixels.h"
 #include "SDL_rect.h"
 #include "SDL_surface.h"
 #include "SDL_ttf.h"
-#include "common/assert.h"
-#include "components/draw.h"
-#include "components/effects.h"
-#include "components/generic.h"
-#include "components/sprite.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/manager.h"
-#include "debug/log.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/font.h"
-#include "renderer/render_data.h"
-#include "renderer/texture.h"
-#include "resources/resource_manager.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
+#include "world/scene/camera.h"
+#include "world/scene/scene.h"
 
 namespace ptgn {
 

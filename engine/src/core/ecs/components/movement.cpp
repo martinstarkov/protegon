@@ -1,22 +1,22 @@
-#include "components/movement.h"
+#include "core/ecs/components/movement.h"
 
 #include <algorithm>
 #include <cmath>
 #include <type_traits>
 #include <utility>
 
-#include "common/assert.h"
-#include "components/transform.h"
-#include "core/entity.h"
-#include "core/game.h"
-#include "core/script.h"
-#include "core/timer.h"
-#include "debug/log.h"
-#include "input/input_handler.h"
-#include "input/key.h"
-#include "math/math.h"
+#include "core/app/game.h"
+#include "core/ecs/components/transform.h"
+#include "core/ecs/entity.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
+#include "core/scripting/script.h"
+#include "core/utils/timer.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "math/math_utils.h"
 #include "math/vector2.h"
-#include "physics/collision/collider.h"
+#include "physics/collider.h"
 #include "physics/rigid_body.h"
 
 namespace ptgn {
@@ -292,9 +292,8 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(
-	const V2_float& desired_velocity, RigidBody& rb, float dt
-) const {
+void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, RigidBody& rb, float dt)
+	const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };

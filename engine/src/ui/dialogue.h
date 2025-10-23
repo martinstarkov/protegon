@@ -4,23 +4,23 @@
 #include <unordered_map>
 #include <vector>
 
-#include "components/generic.h"
-#include "components/sprite.h"
-#include "core/entity.h"
-#include "core/game_object.h"
-#include "core/script.h"
-#include "core/script_interfaces.h"
-#include "core/time.h"
-#include "input/key.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/components/sprite.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/game_object.h"
+#include "core/input/key.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
+#include "core/utils/file.h"
+#include "core/utils/time.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/font.h"
-#include "renderer/text.h"
-#include "serialization/enum.h"
-#include "serialization/fwd.h"
-#include "serialization/serializable.h"
+#include "renderer/text/font.h"
+#include "renderer/text/text.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/fwd.h"
+#include "serialization/json/serializable.h"
 #include "tweens/tween.h"
-#include "utility/file.h"
 
 namespace ptgn {
 

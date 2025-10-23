@@ -3,9 +3,9 @@
 #include <iosfwd>
 #include <ostream>
 
-#include "debug/log.h"
+#include "debug/core/log.h"
 #include "math/vector2.h"
-#include "serialization/enum.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 

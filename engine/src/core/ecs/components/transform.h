@@ -5,13 +5,13 @@
 #include <span>
 #include <vector>
 
-#include "common/concepts.h"
-#include "components/generic.h"
-#include "core/entity.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/utils/concepts.h"
+#include "core/utils/flags.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"
-#include "serialization/serializable.h"
-#include "utility/flags.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 

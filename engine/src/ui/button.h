@@ -6,20 +6,20 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "components/animation.h"
-#include "components/drawable.h"
-#include "components/generic.h"
-#include "core/entity.h"
-#include "core/game_object.h"
-#include "core/script.h"
-#include "debug/log.h"
-#include "input/mouse.h"
+#include "core/ecs/components/animation.h"
+#include "core/ecs/components/drawable.h"
+#include "core/ecs/components/generic.h"
+#include "core/ecs/entity.h"
+#include "core/ecs/game_object.h"
+#include "core/input/mouse.h"
+#include "core/scripting/script.h"
+#include "debug/core/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/text.h"
-#include "renderer/texture.h"
-#include "serialization/enum.h"
-#include "serialization/serializable.h"
+#include "renderer/materials/texture.h"
+#include "renderer/text/text.h"
+#include "serialization/json/enum.h"
+#include "serialization/json/serializable.h"
 
 namespace ptgn {
 
@@ -318,9 +318,8 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
