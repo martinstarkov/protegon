@@ -1,5 +1,3 @@
-#include "core/app/game.h"
-
 #include <chrono>
 #include <filesystem>
 #include <memory>
@@ -9,12 +7,13 @@
 #include <vector>
 
 #include "audio/audio.h"
+#include "core/app/game.h"
 #include "core/app/sdl_instance.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
-#include "core/utils/file.h"
-#include "core/utils/string.h"
-#include "core/utils/time.h"
+#include "core/util/file.h"
+#include "core/util/string.h"
+#include "core/util/time.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
 #include "debug/runtime/debug_system.h"
@@ -33,98 +32,11 @@
 #include "serialization/json/json_manager.h"
 #include "world/scene/scene_manager.h"
 
-#ifdef __EMSCRIPTEN__
-
-#include <emscripten.h>
-#include <emscripten/html5.h>
-
-EM_JS(int, get_screen_width, (), { return window.screen.width; });
-EM_JS(int, get_screen_height, (), { return window.screen.height; });
-EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
-
-#endif
-
-#ifdef PTGN_PLATFORM_MACOS
-
-#include <mach-o/dyld.h>
-
-#include <filesystem>
-#include <iostream>
-
-#include "CoreFoundation/CoreFoundation.h"
-
-#endif
-
 namespace ptgn {
 
 impl::Game game;
 
 namespace impl {
-
-#ifdef __EMSCRIPTEN__
-
-static EM_BOOL EmscriptenResize(
-	int event_type, const EmscriptenUiEvent* ui_event, void* user_data
-) {
-	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
-	// TODO: Figure out how to deal with itch.io fullscreen button not changing SDL status to
-	// fullscreen.
-	V2_int screen_size{ get_screen_width(), get_screen_height() };
-	if (window_size == screen_size) {
-		auto device_pixel_ratio{ get_device_pixel_ratio() };
-		window_size = window_size * device_pixel_ratio;
-	}
-	game.window.SetSize(window_size);
-	return 0;
-}
-
-void EmscriptenInit() {
-	emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, EmscriptenResize);
-}
-
-void EmscriptenLoop() {
-	game.Update();
-
-	if (!game.running_) {
-		game.Shutdown();
-		emscripten_cancel_main_loop();
-	}
-}
-
-#endif
-
-#ifdef PTGN_PLATFORM_MACOS
-
-// When using AppleClang, the working directory for the executable is set to $HOME instead of the
-// executable directory. Therefore, the C++ code corrects the working directory using
-// std::filesystem so that relative paths work properly.
-static void InitApplePath() {
-	// TODO: Add check that this hasnt happened yet.
-	char path[1024];
-	std::uint32_t size = sizeof(path);
-	std::filesystem::path exe_dir;
-	if (_NSGetExecutablePath(path, &size) == 0) {
-		exe_dir = std::filesystem::path(path).parent_path();
-	} else {
-		std::cout << "Buffer too small to retrieve executable path. Please run "
-					 "the executable from a terminal"
-				  << std::endl;
-		exe_dir = std::getenv("PWD");
-	}
-	std::filesystem::current_path(exe_dir);
-	// TODO: Check if needed:
-	/*CFBundleRef main_bundle = CFBundleGetMainBundle();
-	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
-	char path[PATH_MAX];
-	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path,
-	PATH_MAX)) { std::cout << "Couldn't get file system representation! " <<
-	std::endl;
-	}
-	CFRelease(resources_url);
-	chdir(path);*/
-}
-
-#endif
 
 Game::Game() :
 	sdl_instance_{ std::make_unique<SDLInstance>() },
@@ -243,6 +155,9 @@ void Game::MainLoop() {
 #ifdef __EMSCRIPTEN__
 	EmscriptenInit();
 	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
+	// TODO: emscripten_set_main_loop_arg(em_arg_callback_func func, void *arg, int fps, bool
+	// simulate_infinite_loop)
+	// From: https://emscripten.org/docs/api_reference/emscripten.h.html#c.emscripten_set_main_loop
 #else
 	while (running_) {
 		Update();
@@ -283,90 +198,5 @@ void Game::Update() {
 }
 
 } // namespace impl
-
-void LoadResource(std::string_view key, const path& resource_path, bool is_music) {
-	PTGN_ASSERT(
-		FileExists(resource_path),
-		"Cannot load non-existent resource file: ", resource_path.string()
-	);
-
-	std::string ext{ ToLower(resource_path.extension().string()) };
-
-	PTGN_ASSERT(!ext.empty(), "Resource file extension is invalid: ", resource_path.string());
-
-	bool is_audio{ ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus" };
-	bool is_texture{ ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif" };
-	bool is_font{ ext == ".ttf" };
-	bool is_json{ ext == ".json" };
-
-	PTGN_ASSERT(
-		(is_music ? is_audio : true),
-		"Music resource path must end in a valid audio format extension"
-	);
-
-	if (is_texture) {
-		game.texture.Load(key, resource_path);
-	} else if (is_audio && !is_music) {
-		game.sound.Load(key, resource_path);
-	} else if (is_audio && is_music) {
-		game.music.Load(key, resource_path);
-	} else if (is_font) {
-		game.font.Load(key, resource_path);
-	} else if (is_json) {
-		game.json.Load(key, resource_path);
-	} /*
-	  // TODO: Add shader loading support.
-	  else if (ext == ".vert" || ext == ".frag") {
-		game.shader.Load(key, p);
-	} */
-	else {
-		PTGN_ERROR(
-			"Attempting to load unsupported file extension from resource file: ",
-			resource_path.string()
-		);
-	}
-}
-
-void LoadResource(const std::vector<Resource>& resource_paths) {
-	for (const auto& [key, filepath, is_music] : resource_paths) {
-		LoadResource(key, filepath, is_music);
-	}
-}
-
-void LoadResources(const path& resource_file, std::string_view music_resource_suffix) {
-	json resources = LoadJson(resource_file);
-
-	if (!resources.is_object()) {
-		PTGN_ERROR(
-			"Expected json object, but got something else for resources: ", resources.dump(4)
-		);
-	}
-
-	// Track unique resource keys.
-	std::unordered_set<std::size_t> taken_resource_keys;
-
-	for (const auto& [key, resource_path] : resources.items()) {
-		auto key_hash{ Hash(key) };
-
-		PTGN_ASSERT(
-			taken_resource_keys.count(key_hash) == 0,
-			"Resource key should not be repeated more than once: ", key
-		);
-
-		taken_resource_keys.insert(key_hash);
-
-		bool is_music{ EndsWith(key, music_resource_suffix) };
-
-		if (!resource_path.is_string()) {
-			PTGN_ERROR(
-				"Expected string, but got something else for resource path: ", resource_path.dump(4)
-			);
-		}
-
-		path filepath{ resource_path.get<std::string>() };
-
-		LoadResource(key, filepath, is_music);
-	}
-}
 
 } // namespace ptgn
