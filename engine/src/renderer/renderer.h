@@ -14,7 +14,7 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/text/font.h"
 #include "renderer/text/text.h"
@@ -36,19 +36,6 @@ struct Rect;
 struct Line;
 struct Polygon;
 struct Triangle;
-
-namespace impl {
-
-class Game;
-class FrameBuffer;
-class RenderBuffer;
-class VertexArray;
-class SceneManager;
-class ShaderManager;
-class GLRenderer;
-class InputHandler;
-struct ViewportResizeScript;
-class DebugSystem;
 
 class Renderer {
 public:
@@ -86,7 +73,7 @@ public:
 		Origin origin = default_origin, const Tint& tint = {}, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
 		const PreFX& pre_fx = {}, const PostFX& post_fx = {},
-		const std::array<V2_float, 4>& texture_coordinates = GetDefaultTextureCoordinates()
+		const std::array<V2_float, 4>& texture_coordinates = impl::GetDefaultTextureCoordinates()
 	);
 
 	void DrawTexture(
@@ -94,7 +81,7 @@ public:
 		const V2_float& texture_size = {}, Origin origin = default_origin, const Tint& tint = {},
 		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
 		const Camera& camera = {}, const PreFX& pre_fx = {}, const PostFX& post_fx = {},
-		const std::array<V2_float, 4>& texture_coordinates = GetDefaultTextureCoordinates()
+		const std::array<V2_float, 4>& texture_coordinates = impl::GetDefaultTextureCoordinates()
 	);
 
 	void DrawLines(
@@ -116,13 +103,14 @@ public:
 		const Transform& transform, const Shape& shape, const Tint& color,
 		const LineWidth& line_width = {}, Origin origin = default_origin, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
-		const PostFX& post_fx = {}, const ShaderPass& shader_pass = {}
+		const PostFX& post_fx = {}, const impl::ShaderPass& shader_pass = {}
 	);
 
 	void DrawShader(
-		const ShaderPass& shader, const Entity& entity, bool clear_between_consecutive_calls = true,
-		const Color& target_clear_color		 = color::Transparent,
-		const TextureOrSize& texture_or_size = V2_int{},
+		const impl::ShaderPass& shader, const Entity& entity,
+		bool clear_between_consecutive_calls	   = true,
+		const Color& target_clear_color			   = color::Transparent,
+		const impl::TextureOrSize& texture_or_size = V2_int{},
 		BlendMode intermediate_blend_mode = default_blend_mode, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
 		TextureFormat texture_format = default_texture_format, const PostFX& post_fx = {},
@@ -137,7 +125,7 @@ public:
 		V2_float text_size = {}, const Tint& tint = {}, bool hd_text = true,
 		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
 		const Camera& camera = {}, const PreFX& pre_fx = {}, const PostFX& post_fx = {},
-		const std::array<V2_float, 4>& texture_coordinates = GetDefaultTextureCoordinates()
+		const std::array<V2_float, 4>& texture_coordinates = impl::GetDefaultTextureCoordinates()
 	);
 
 	void DrawRect(
@@ -220,19 +208,9 @@ public:
 	void DrawOutsideStencilMask();
 	void DrawInsideStencilMask();
 
-private:
-	friend class ptgn::Shader;
-	friend class ptgn::RenderTarget;
-	friend class VertexArray;
-	friend class FrameBuffer;
-	friend class RenderBuffer;
-	friend class GLRenderer;
-	friend class SceneManager;
-	friend class ptgn::Scene;
-	friend class Game;
-	friend struct ViewportResizeScript;
-	friend class ShaderManager;
-	friend class DebugSystem;
+	// TODO: Move everything below this to private.
+
+	impl::RenderData render_data_;
 
 	[[nodiscard]] impl::Texture CreateTexture(
 		Transform& out_transform, V2_float& out_text_size, const TextContent& content,
@@ -263,9 +241,7 @@ private:
 
 	BoundStates bound_;
 
-	RenderData render_data_;
+private:
 };
-
-} // namespace impl
 
 } // namespace ptgn

@@ -10,7 +10,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
@@ -32,10 +32,10 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/buffers/frame_buffer.h"
+#include "renderer/buffer/frame_buffer.h"
 #include "renderer/gl/gl_renderer.h"
-#include "renderer/materials/shader.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/shader.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/render_target.h"
 #include "renderer/text/font.h"
@@ -46,7 +46,8 @@
 
 namespace ptgn {
 
-namespace impl {
+// TODO: Get rid of this.
+using namespace impl;
 
 void Renderer::DrawTexture(
 	const Texture& texture, const Transform& transform, const V2_float& texture_size, Origin origin,
@@ -170,9 +171,9 @@ impl::Texture Renderer::CreateTexture(
 	FontSize final_font_size{ font_size };
 
 	if (hd_text) {
-		const auto& scene{ game.scene.GetCurrent() };
+		const auto& scene{ Application::Get().scene_.GetCurrent() };
 
-		auto render_target_scale{ scene.GetRenderTargetScaleRelativeTo(camera) };
+		auto render_target_scale{ scene->GetRenderTargetScaleRelativeTo(camera) };
 
 		PTGN_ASSERT(render_target_scale.BothAboveZero());
 
@@ -353,13 +354,14 @@ void Renderer::Shutdown() {
 
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
 	V2_int resolution{ render_data_.game_size_set_ ? render_data_.game_size_
-												   : game.window.GetSize() };
+												   : Application::Get().window_.GetSize() };
 	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
 void Renderer::SetGameSize(const V2_int& game_size, ScalingMode scaling_mode) {
 	render_data_.game_size_set_ = !game_size.IsZero();
-	V2_int resolution{ render_data_.game_size_set_ ? game_size : game.window.GetSize() };
+	V2_int resolution{ render_data_.game_size_set_ ? game_size
+												   : Application::Get().window_.GetSize() };
 	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
@@ -405,7 +407,7 @@ void Renderer::PresentScreen() {
 		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
 	);
 
-	game.window.SwapBuffers();
+	Application::Get().window_.SwapBuffers();
 }
 
 void Renderer::ClearScreen() const {
@@ -414,7 +416,5 @@ void Renderer::ClearScreen() const {
 	GLRenderer::Clear();
 	render_data_.ClearScreenTarget();
 }
-
-} // namespace impl
 
 } // namespace ptgn
