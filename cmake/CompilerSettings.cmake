@@ -2,6 +2,7 @@ function(set_compiler_settings project_name)
   target_compile_options(
     ${project_name}
     PUBLIC
+      $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<COMPILE_LANGUAGE:CXX>>:/Zc:preprocessor>
       $<$<CXX_COMPILER_ID:MSVC>:/MP>
       # $<$<AND:$<CXX_COMPILER_ID:GNU>,$<PLATFORM_ID:Windows>>:-static-libstdc++>
     PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
