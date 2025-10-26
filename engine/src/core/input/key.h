@@ -344,7 +344,7 @@ inline std::ostream& operator<<(std::ostream& os, Key key) {
 		case Key::KP_Divide:	os << "Keypad /"; break;
 
 		case Key::Invalid:		[[fallthrough]];
-		default:				PTGN_ERROR("Invalid key enum value")
+		default:				PTGN_ERROR("Invalid key enum value");
 	}
 
 	return os;

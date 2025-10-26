@@ -6,7 +6,7 @@
 #include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/buffers/vertex_array.h"
+#include "renderer/buffer/vertex_array.h"
 
 #ifdef __EMSCRIPTEN__
 

@@ -18,9 +18,9 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/text/text.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 namespace ptgn {
 

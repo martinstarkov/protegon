@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/transform.h"
@@ -40,7 +40,7 @@ void GraphicsInstance::AddCommand(const Transform& transform, const Shape& shape
 
 void GraphicsInstance::Draw(const Transform& transform) const {
 	for (const auto& cmd : commands_) {
-		game.renderer.DrawShape(
+		Application::Get().render_.DrawShape(
 			cmd.transform.RelativeTo(transform), cmd.shape, cmd.color, cmd.line_width
 		);
 	}

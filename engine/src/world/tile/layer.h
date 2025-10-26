@@ -2,12 +2,12 @@
 
 // TODO: Come back to this.
 /*
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "math/geometry_utils.h"
 #include "math/hash.h"
 #include "math/vector2.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "world/tile/grid.h"
 #include "debug/runtime/assert.h"
 #include "core/util/file.h"
@@ -35,7 +35,7 @@ public:
 		scale{ scale },
 		scaled_tile_size{ scale * tile_size } {
 		PTGN_ASSERT(FileExists(tileset_path));
-		game.texture.Load(texture_key, tileset_path);
+		Application::Get().texture.Load(texture_key, tileset_path);
 		for (int i = 0; i < size.x; i++) {
 			for (int j = 0; j < size.y; j++) {
 				V2_int tile{ i, j };

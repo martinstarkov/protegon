@@ -1,4 +1,4 @@
-#include "renderer/buffers/frame_buffer.h"
+#include "renderer/buffer/frame_buffer.h"
 
 #include <cstdint>
 #include <functional>
@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "debug/core/debug_config.h"
 #include "debug/runtime/assert.h"
 #include "debug/runtime/debug_system.h"
@@ -18,7 +18,7 @@
 #include "renderer/gl/gl_loader.h"
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/renderer.h"
 
 namespace ptgn::impl {
@@ -74,13 +74,13 @@ void RenderBuffer::DeleteRenderBuffer() noexcept {
 }
 
 void RenderBuffer::BindId(RenderBufferId id) {
-	if (game.renderer.bound_.render_buffer_id == id) {
+	if (Application::Get().render_.bound_.render_buffer_id == id) {
 		return;
 	}
-	game.renderer.bound_.render_buffer_id = id;
+	Application::Get().render_.bound_.render_buffer_id = id;
 	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
 #ifdef PTGN_DEBUG
-	++game.debug.stats.render_buffer_binds;
+	++Application::Get().debug_.stats.render_buffer_binds;
 #endif
 #ifdef GL_ANNOUNCE_RENDER_BUFFER_CALLS
 	PTGN_LOG("GL: Bound render buffer with id ", id);
@@ -279,13 +279,13 @@ const RenderBuffer& FrameBuffer::GetRenderBuffer() const {
 }
 
 void FrameBuffer::BindId(FrameBufferId id) {
-	if (game.renderer.bound_.frame_buffer_id == id) {
+	if (Application::Get().render_.bound_.frame_buffer_id == id) {
 		return;
 	}
 	GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
-	game.renderer.bound_.frame_buffer_id = id;
+	Application::Get().render_.bound_.frame_buffer_id = id;
 #ifdef PTGN_DEBUG
-	++game.debug.stats.frame_buffer_binds;
+	++Application::Get().debug_.stats.frame_buffer_binds;
 #endif
 #ifdef GL_ANNOUNCE_FRAME_BUFFER_CALLS
 	PTGN_LOG("GL: Bound frame buffer with id ", id);

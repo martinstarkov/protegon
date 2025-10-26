@@ -4,7 +4,7 @@
 #include <functional>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/util/function.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
@@ -29,7 +29,7 @@ namespace ptgn::impl {
 
 #define GLCall(x)                                                     \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
-		++game.debug.stats.gl_calls;                                  \
+		++Application::Get().debug_.stats.gl_calls;                                  \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		x;                                                            \
 		auto errors{ ptgn::impl::GLContext::GetErrors() };            \
@@ -42,7 +42,7 @@ namespace ptgn::impl {
 	})
 #define GLCallReturn(x)                                               \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
-		++game.debug.stats.gl_calls;                                  \
+		++Application::Get().debug_.stats.gl_calls;                                  \
 		ptgn::impl::GLContext::ClearErrors();                         \
 		auto value{ x };                                              \
 		auto errors{ ptgn::impl::GLContext::GetErrors() };            \

@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/drawable.h"
 #include "core/ecs/components/effects.h"
@@ -35,8 +35,8 @@
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
-#include "renderer/materials/shader.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/shader.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
@@ -273,7 +273,7 @@ namespace impl {
 void DrawTexture(const Entity& entity, bool flip_texture) {
 	Sprite sprite{ entity };
 
-	game.renderer.DrawTexture(
+	Application::Get().render_.DrawTexture(
 		sprite.GetTexture(), GetDrawTransform(entity), sprite.GetSize(), GetDrawOrigin(entity),
 		GetTint(entity), GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
 		entity.GetOrDefault<PreFX>(), entity.GetOrDefault<PostFX>(),
@@ -348,7 +348,7 @@ void DrawText(
 
 	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
 
-	game.renderer.DrawTexture(
+	Application::Get().render_.DrawTexture(
 		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
 		GetBlendMode(text), cam, text.GetOrDefault<PreFX>(), text.GetOrDefault<PostFX>(),
 		texture_coordinates
@@ -371,7 +371,7 @@ static void DrawShape(const Entity& entity) {
 
 	const auto& shape{ entity.Get<T>() };
 
-	game.renderer.DrawShape(
+	Application::Get().render_.DrawShape(
 		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
 		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
 		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
@@ -415,7 +415,7 @@ void DrawTriangle(const Entity& entity) {
 }
 
 void DrawShader(const Entity& entity) {
-	game.renderer.DrawShader(
+	Application::Get().render_.DrawShader(
 		entity.Get<impl::ShaderPass>(), entity, true, color::Transparent, V2_int{},
 		default_blend_mode, GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
 		default_texture_format, entity.GetOrDefault<PostFX>()

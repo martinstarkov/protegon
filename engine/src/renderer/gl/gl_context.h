@@ -6,6 +6,8 @@
 
 #include "core/util/file.h"
 
+struct SDL_Window;
+
 namespace ptgn::impl {
 
 enum class GLError {
@@ -28,17 +30,13 @@ struct GLVersion {
 // Must be constructed after SDL_Window has been created.
 class GLContext {
 public:
-	GLContext()							   = default;
-	~GLContext()						   = default;
+	GLContext() = delete;
+	explicit GLContext(SDL_Window* window);
+	~GLContext();
 	GLContext(const GLContext&)			   = delete;
 	GLContext(GLContext&&)				   = default;
 	GLContext& operator=(const GLContext&) = delete;
 	GLContext& operator=(GLContext&&)	   = default;
-
-	[[nodiscard]] bool IsInitialized() const;
-
-	void Init();
-	void Shutdown();
 
 	static void ClearErrors();
 

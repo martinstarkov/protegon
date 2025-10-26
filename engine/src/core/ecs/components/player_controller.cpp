@@ -1,7 +1,7 @@
 #include "core/ecs/components/player_controller.h"
 
 #include "audio/audio.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/animation.h"
 #include "core/ecs/components/draw.h"
@@ -21,12 +21,14 @@ namespace ptgn {
 Entity CreateTopDownPlayer(
 	Manager& manager, const V2_float& position, const TopDownPlayerConfig& config
 ) {
-	PTGN_ASSERT(
-		game.texture.Has(config.animation_texture_key),
-		"Cannot create player with animation key which has not been loaded"
-	);
+	// TODO: Fix this.
+	// PTGN_ASSERT(
+	//	Application::Get().texture.Has(config.animation_texture_key),
+	//	"Cannot create player with animation key which has not been loaded"
+	//);
 
-	bool has_sound_key{ game.sound.Has(config.walk_sound_key) };
+	// bool has_sound_key{ Application::Get().sound.Has(config.walk_sound_key) };
+	PTGN_ASSERT(false);
 
 	auto player{ manager.CreateEntity() };
 
@@ -94,12 +96,14 @@ Entity CreateTopDownPlayer(
 		void OnAnimationFrameChange() override {
 			auto frame{ Animation{ entity }.GetCurrentFrame() };
 			if (frame % walk_sound_frequency == 0) {
-				game.sound.Play(walk_sound_key);
+				// TODO: Fix this.
+				// Application::Get().sound.Play(walk_sound_key);
 			}
 		}
 	};
 
-	if (has_sound_key) {
+	// TODO: Fix this.
+	if (false /*has_sound_key*/) {
 		AddScript<AnimationRepeat>(a0, config.walk_sound_frequency, config.walk_sound_key);
 		AddScript<AnimationRepeat>(a1, config.walk_sound_frequency, config.walk_sound_key);
 		AddScript<AnimationRepeat>(a2, config.walk_sound_frequency, config.walk_sound_key);

@@ -1,4 +1,4 @@
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 
 #include <algorithm>
 #include <array>
@@ -9,10 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
-#include "core/resource/resource_manager.h"
+#include "core/asset/asset_manager.h"
 #include "core/util/file.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
@@ -23,7 +23,7 @@
 #include "math/vector4.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
-#include "renderer/buffers/frame_buffer.h"
+#include "renderer/buffer/frame_buffer.h"
 #include "renderer/gl/gl_helper.h"
 #include "renderer/gl/gl_loader.h"
 #include "renderer/gl/gl_renderer.h"
@@ -321,7 +321,7 @@ void Texture::BindId(TextureId id) {
 	/*PTGN_LOG("GL: Bound texture with id ", id, " to slot: ", GetActiveSlot());*/
 	GLCall(glBindTexture(static_cast<GLenum>(TextureTarget::Texture2D), id));
 #ifdef PTGN_DEBUG
-	++game.debug.stats.texture_binds;
+	++Application::Get().debug_.stats.texture_binds;
 #endif
 #ifdef GL_ANNOUNCE_TEXTURE_CALLS
 	PTGN_LOG("GL: Bound texture with id ", id);
@@ -603,9 +603,9 @@ void Texture::SetClampBorderColor(const Color& color) const {
 const impl::Texture& TextureHandle::GetTexture(const Entity& entity) const {
 	if (TextureHandle::GetHash()) {
 		PTGN_ASSERT(
-			game.texture.Has(*this), "Texture must be loaded into the texture manager: ", key_
+			Application::Get().texture.Has(*this), "Texture must be loaded into the texture manager: ", key_
 		);
-		return game.texture.Get(*this);
+		return Application::Get().texture.Get(*this);
 	}
 	PTGN_ASSERT(entity, "Texture must be owned by a valid entity");
 	if (entity.Has<impl::Texture>()) {

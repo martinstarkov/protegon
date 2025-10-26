@@ -5,7 +5,7 @@
 #include <string>
 
 #include "core/ecs/components/generic.h"
-#include "core/resource/resource_manager.h"
+#include "core/asset/asset_manager.h"
 #include "core/util/file.h"
 #include "math/vector2.h"
 #include "renderer/text/fonts.h"

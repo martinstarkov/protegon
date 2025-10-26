@@ -7,7 +7,7 @@
 
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
-#include "tweens/tween.h"
+#include "tween/tween.h"
 #include "world/scene/scene.h"
 
 namespace ptgn {

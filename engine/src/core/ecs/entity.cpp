@@ -3,7 +3,7 @@
 #include <memory>
 #include <utility>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/component_registry.h"
 #include "core/ecs/components/uuid.h"
@@ -68,10 +68,10 @@ const Manager& Entity::GetManager() const {
 }
 
 const Scene& Entity::GetScene() const {
-	PTGN_ASSERT(Has<impl::SceneKey>());
-	const auto& scene_key{ Get<impl::SceneKey>() };
-	PTGN_ASSERT(game.scene.Has(scene_key));
-	return game.scene.Get(scene_key);
+	PTGN_ASSERT(Has<SceneKey>());
+	const auto& scene_key{ Get<SceneKey>() };
+	PTGN_ASSERT(Application::Get().scene_.Has(scene_key));
+	return *Application::Get().scene_.Get(scene_key);
 }
 
 Scene& Entity::GetScene() {
@@ -187,9 +187,9 @@ void to_json(json& j, const Entity& entity) {
 
 	j[uuid_name] = entity.GetUUID();
 
-	if (entity.Has<impl::SceneKey>()) {
-		constexpr auto scene_key_name{ type_name_without_namespaces<impl::SceneKey>() };
-		j[scene_key_name] = entity.Get<impl::SceneKey>();
+	if (entity.Has<SceneKey>()) {
+		constexpr auto scene_key_name{ type_name_without_namespaces<SceneKey>() };
+		j[scene_key_name] = entity.Get<SceneKey>();
 	}
 }
 
@@ -215,12 +215,12 @@ void from_json(const json& j, Entity& entity) {
 
 	PTGN_ASSERT(entity, "Failed to find entity with UUID: ", uuid);
 
-	constexpr auto scene_key_name{ type_name_without_namespaces<impl::SceneKey>() };
+	constexpr auto scene_key_name{ type_name_without_namespaces<SceneKey>() };
 
 	if (j.contains(scene_key_name)) {
-		impl::SceneKey scene_key;
+		SceneKey scene_key;
 		j[scene_key_name].get_to(scene_key);
-		entity.Add<impl::SceneKey>(scene_key);
+		entity.Add<SceneKey>(scene_key);
 	}
 }
 

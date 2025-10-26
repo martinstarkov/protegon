@@ -15,10 +15,10 @@ namespace ptgn {
 class Manager;
 class Scene;
 class ScriptSequence;
+class SceneManager;
 
 namespace impl {
 
-class SceneManager;
 struct TweenPoint;
 
 } // namespace impl
@@ -151,7 +151,7 @@ public:
 private:
 	friend class Scene;
 	friend class ScriptSequence;
-	friend class impl::SceneManager;
+	friend class SceneManager;
 
 	[[nodiscard]] milliseconds GetTotalDuration() const;
 

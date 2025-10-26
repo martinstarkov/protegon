@@ -4,12 +4,8 @@
 
 namespace ptgn {
 
-namespace impl {
-
 struct SceneKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
-
-} // namespace impl
 
 } // namespace ptgn

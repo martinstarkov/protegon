@@ -1,10 +1,10 @@
-#include "core/resource/resource_manager.h"
+#include "core/asset/asset_manager.h"
 
 #include "audio/audio.h"
 #include "core/ecs/components/generic.h"
 #include "core/util/file.h"
 #include "debug/runtime/assert.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/text/font.h"
 #include "serialization/json/json.h"
 #include "serialization/json/json_manager.h"

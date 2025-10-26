@@ -5,7 +5,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
@@ -47,10 +47,10 @@ void ParticleEmitterComponent::Update(const V2_float& start_position) {
 
 		if (!info.use_random_velocities) {
 			// Apply gravity.
-			p.velocity += info.gravity * game.dt();
+			p.velocity += info.gravity * Application::Get().dt();
 		}
 
-		p.position += p.velocity * game.dt();
+		p.position += p.velocity * Application::Get().dt();
 	}
 	manager.Refresh();
 }
@@ -108,7 +108,7 @@ void ParticleEmitter::Draw(const Entity& entity) {
 				tint = p.color;
 			}
 
-			game.renderer.DrawTexture(
+			Application::Get().render_.DrawTexture(
 				i.info.texture_key, Transform{ p.position },
 				V2_float{ 2.0f * p.radius, 2.0f * p.radius }, Origin::Center, tint, depth,
 				blend_mode, camera, pre_fx, post_fx
@@ -119,7 +119,7 @@ void ParticleEmitter::Draw(const Entity& entity) {
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
-				game.renderer.DrawCircle(
+				Application::Get().render_.DrawCircle(
 					Transform{ p.position }, Circle{ p.radius }, p.color, i.info.line_width, depth,
 					blend_mode, camera, post_fx
 				);
@@ -129,7 +129,7 @@ void ParticleEmitter::Draw(const Entity& entity) {
 		case ParticleShape::Square: {
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				// TODO: Add rotation.
-				game.renderer.DrawRect(
+				Application::Get().render_.DrawRect(
 					Transform{ p.position }, Rect{ V2_float{ 2.0f * p.radius } }, p.color,
 					i.info.line_width, Origin::Center, depth, blend_mode, camera, post_fx
 				);

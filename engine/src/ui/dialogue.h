@@ -20,7 +20,7 @@
 #include "serialization/json/enum.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/serializable.h"
-#include "tweens/tween.h"
+#include "tween/tween.h"
 
 namespace ptgn {
 

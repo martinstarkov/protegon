@@ -6,7 +6,7 @@
 #include "core/ecs/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 
 namespace ptgn {
 

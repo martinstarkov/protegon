@@ -38,7 +38,7 @@ struct RigidBody {
 	float max_angular_speed{ -1.0f };
 	float drag{ 0.0f };
 	float angular_drag{ 0.0f };
-	// Gravity relative to game.physics.GetGravity().
+	// Gravity relative to Application::Get().physics.GetGravity().
 	float gravity{ 0.0f };
 	bool immovable{ false };
 	V2_float velocity;

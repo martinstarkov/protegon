@@ -15,8 +15,8 @@
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/buffers/frame_buffer.h"
-#include "renderer/materials/texture.h"
+#include "renderer/buffer/frame_buffer.h"
+#include "renderer/material/texture.h"
 #include "serialization/json/serializable.h"
 
 namespace ptgn {

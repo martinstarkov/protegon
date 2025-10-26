@@ -138,7 +138,7 @@ private:
 	friend class Button;
 
 	SceneInput() = default;
-	explicit SceneInput(const impl::SceneKey& scene_key);
+	explicit SceneInput(const SceneKey& scene_key);
 
 	enum class DropzoneAction {
 		Move,
@@ -230,7 +230,7 @@ private:
 
 	void HandleDropzones(const std::vector<Entity>& dropzones, const MouseInfo& mouse);
 
-	impl::SceneKey scene_key_;
+	SceneKey scene_key_;
 
 	std::unordered_set<Entity> dragging_entities_;
 	std::unordered_set<Entity> last_mouse_over_;

@@ -3,11 +3,11 @@
 #include <cstdint>
 
 #include "core/ecs/components/sprite.h"
-#include "core/resource/resource_manager.h"
+#include "core/asset/asset_manager.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "math/vector2.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "serialization/json/serializable.h"
 
 namespace ptgn {

@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/entity.h"
 #include "debug/runtime/assert.h"
@@ -207,7 +207,7 @@ void ChunkManager::AddNoiseLayer(const NoiseLayer& noise_layer) {
 
 void ChunkManager::DrawDebugChunkBorders() const {
 	for (const auto& [coordinate, chunk] : chunks) {
-		game.debug.DrawShape(
+		Application::Get().debug_.DrawShape(
 			{ coordinate * chunk_size * tile_size }, Rect{ chunk_size * tile_size }, color::Red,
 			2.0f, Origin::TopLeft
 		);

@@ -9,8 +9,8 @@
 #include "debug/runtime/assert.h"
 #include "renderer/api/color.h"
 #include "renderer/render_target.h"
-#include "tweens/tween.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween.h"
+#include "tween/tween_effect.h"
 #include "world/scene/scene.h"
 
 namespace ptgn {

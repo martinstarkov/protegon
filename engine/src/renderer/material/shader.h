@@ -65,7 +65,7 @@ inline std::ostream& operator<<(std::ostream& os, ShaderType type) {
 		case ShaderType::TessEvaluation: os << "TessEvaluation"; break;
 		case ShaderType::TessControl:	 os << "TessControl"; break;
 		*/
-		default:				   PTGN_ERROR("Unrecognized shader type")
+		default:				   PTGN_ERROR("Unrecognized shader type");
 	}
 	return os;
 }

@@ -18,7 +18,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
 #include "core/app/window.h"
@@ -52,13 +52,13 @@
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/api/vertex.h"
-#include "renderer/buffers/buffer.h"
-#include "renderer/buffers/frame_buffer.h"
-#include "renderer/buffers/vertex_array.h"
+#include "renderer/buffer/buffer.h"
+#include "renderer/buffer/frame_buffer.h"
+#include "renderer/buffer/vertex_array.h"
 #include "renderer/gl/gl_renderer.h"
 #include "renderer/gl/gl_types.h"
-#include "renderer/materials/shader.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/shader.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/stencil_mask.h"
@@ -237,8 +237,8 @@ bool RenderState::IsSet() const {
 }
 
 void ViewportResizeScript::OnWindowResized() {
-	auto& render_data{ game.renderer.render_data_ };
-	auto window_size{ game.window.GetSize() };
+	auto& render_data{ Application::Get().render_.render_data_ };
+	auto window_size{ Application::Get().window_.GetSize() };
 	if (!render_data.game_size_set_) {
 		render_data.UpdateResolutions(window_size, render_data.resolution_mode_);
 	}
@@ -249,9 +249,10 @@ ShaderPass::ShaderPass(const Shader& shader, const UniformCallback& uniform_call
 	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
 
 ShaderPass::ShaderPass(std::string_view shader_name, const UniformCallback& uniform_callback) :
-	shader_{ &game.shader.Get(shader_name) }, uniform_callback_{ uniform_callback } {}
+	shader_{ &Application::Get().shader.Get(shader_name) }, uniform_callback_{ uniform_callback } {}
 
-ShaderPass::ShaderPass(const char* shader_name) : shader_{ &game.shader.Get(shader_name) } {}
+ShaderPass::ShaderPass(const char* shader_name) :
+	shader_{ &Application::Get().shader.Get(shader_name) } {}
 
 const Shader& ShaderPass::GetShader() const {
 	PTGN_ASSERT(shader_ != nullptr);
@@ -395,7 +396,7 @@ static std::optional<QuadInfo> GetQuadInfo(RenderData& ctx, DrawShapeCommand& cm
 		if (c.render_state.shader_pass.has_value() && *c.render_state.shader_pass != ShaderPass{}) {
 			return;
 		}
-		c.render_state.shader_pass = game.shader.Get(shader_name);
+		c.render_state.shader_pass = Application::Get().shader.Get(shader_name);
 	};
 
 	if constexpr (std::is_same_v<T, V2_float>) {
@@ -858,17 +859,17 @@ void RenderData::Init() {
 
 	max_texture_slots = GLRenderer::GetMaxTextureSlots();
 
-	const auto& screen_shader{ game.shader.Get("screen_default") };
+	const auto& screen_shader{ Application::Get().shader.Get("screen_default") };
 	PTGN_ASSERT(screen_shader.IsValid());
 	screen_shader.Bind();
 	screen_shader.SetUniform("u_Texture", 1);
 
-	const auto& quad_shader{ game.shader.Get("quad") };
+	const auto& quad_shader{ Application::Get().shader.Get("quad") };
 
 	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(game.shader.Get("circle").IsValid());
-	PTGN_ASSERT(game.shader.Get("screen_default").IsValid());
-	PTGN_ASSERT(game.shader.Get("light").IsValid());
+	PTGN_ASSERT(Application::Get().shader.Get("circle").IsValid());
+	PTGN_ASSERT(Application::Get().shader.Get("screen_default").IsValid());
+	PTGN_ASSERT(Application::Get().shader.Get("light").IsValid());
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
@@ -911,7 +912,7 @@ void RenderData::Init() {
 
 	viewport_tracker = render_manager.CreateEntity();
 	AddScript<ViewportResizeScript>(viewport_tracker);
-	auto window_size{ game.window.GetSize() };
+	auto window_size{ Application::Get().window_.GetSize() };
 	RecomputeDisplaySize(window_size);
 
 	render_manager.Refresh();
@@ -923,7 +924,7 @@ const Shader& RenderData::GetCurrentShader() const {
 	PTGN_ASSERT(render_state.shader_pass.has_value());
 
 	if (*render_state.shader_pass == ShaderPass{}) {
-		shader = &game.shader.Get("quad");
+		shader = &Application::Get().shader.Get("quad");
 	} else {
 		shader = &(*render_state.shader_pass).GetShader();
 	}
@@ -1333,7 +1334,7 @@ void RenderData::RecomputeDisplaySize(const V2_int& window_size) {
 
 		case ScalingMode::Overscan: compute_aspect_fit(false); break;
 
-		default:					PTGN_ERROR("Unsupported resolution mode")
+		default:					PTGN_ERROR("Unsupported resolution mode");
 	}
 
 	if (vp != display_viewport_) {
@@ -1349,7 +1350,7 @@ void RenderData::UpdateResolutions(const V2_int& game_size, ScalingMode scaling_
 	if (!new_game_size && resolution_mode_ == scaling_mode) {
 		return;
 	}
-	auto window_size{ game.window.GetSize() };
+	auto window_size{ Application::Get().window_.GetSize() };
 	game_size_		   = game_size;
 	resolution_mode_   = scaling_mode;
 	game_size_changed_ = new_game_size;
@@ -1374,7 +1375,7 @@ const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
 	const Shader* shader{ nullptr };
 
 	if (texture_format == TextureFormat::HDR_RGBA || texture_format == TextureFormat::HDR_RGB) {
-		shader = &game.shader.Get("tone_mapping");
+		shader = &Application::Get().shader.Get("tone_mapping");
 		PTGN_ASSERT(shader != nullptr);
 		shader->Bind();
 		shader->SetUniform("u_Texture", 1);
@@ -1382,7 +1383,7 @@ const Shader& RenderData::GetFullscreenShader(TextureFormat texture_format) {
 		shader->SetUniform("u_Exposure", 1.0f);
 		shader->SetUniform("u_Gamma", 2.2f);
 	} else {
-		shader = &game.shader.Get("screen_default");
+		shader = &Application::Get().shader.Get("screen_default");
 	}
 
 	return *shader;

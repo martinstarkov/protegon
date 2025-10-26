@@ -10,7 +10,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/text/font.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serializable.h"
@@ -125,7 +125,7 @@ public:
 	[[nodiscard]] bool IsHD() const;
 
 	// @param font_key Default: "" corresponds to the default engine font (use
-	// game.font.SetDefault(...) to change.
+	// Application::Get().font.SetDefault(...) to change.
 	Text& SetFont(const ResourceHandle& font_key = {});
 	Text& SetContent(const TextContent& content);
 	Text& SetColor(const TextColor& color);
@@ -255,7 +255,7 @@ private:
 PTGN_DRAWABLE_REGISTER(Text);
 
 // @param font_key Default: {} corresponds to the default engine font (use
-// game.font.SetDefault(...) to change.
+// Application::Get().font.SetDefault(...) to change.
 Text CreateText(
 	Manager& manager, const TextContent& content, const TextColor& text_color = {},
 	const FontSize& font_size = {}, const ResourceHandle& font_key = {},

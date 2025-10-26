@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/animation.h"
 #include "core/ecs/components/draw.h"
@@ -27,13 +27,13 @@
 #include "physics/physics.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/vfx/particle.h"
 #include "serialization/json/fwd.h"
-#include "tweens/tween.h"
+#include "tween/tween.h"
 #include "world/scene/camera.h"
 #include "world/scene/scene_input.h"
 #include "world/scene/scene_key.h"
@@ -42,7 +42,7 @@
 namespace ptgn {
 
 Scene::Scene() {
-	auto& render_manager{ game.renderer.render_data_.render_manager };
+	auto& render_manager{ Application::Get().render_.render_data_.render_manager };
 	render_target_ = CreateRenderTarget(
 		render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
 	);
@@ -58,7 +58,7 @@ Scene::~Scene() {
 	}
 	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
-	game.renderer.render_data_.render_manager.Refresh();
+	Application::Get().render_.render_data_.render_manager.Refresh();
 }
 
 void Scene::AddToDisplayList(Entity entity) {
@@ -82,26 +82,24 @@ void Scene::RemoveFromDisplayList(Entity entity) {
 
 Entity Scene::CreateEntity() {
 	auto entity{ Manager::CreateEntity() };
-	entity.template Add<impl::SceneKey>(key_);
+	entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(UUID uuid) {
 	auto entity{ Manager::CreateEntity(uuid) };
-	entity.template Add<impl::SceneKey>(key_);
+	entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(const json& j) {
 	auto entity{ Manager::CreateEntity(j) };
-	PTGN_ASSERT(
-		entity.Has<impl::SceneKey>(), "Scene entity created from json must have a scene key"
-	);
+	PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
 	return entity;
 }
 
 void Scene::ReEnter() {
-	game.scene.Enter(key_);
+	Application::Get().scene_.Enter(key_);
 }
 
 void Scene::SetColliderColor(const Color& collider_color) {
@@ -167,7 +165,7 @@ RenderTarget& Scene::GetRenderTarget() {
 	return render_target_;
 }
 
-impl::SceneKey Scene::GetKey() const {
+SceneKey Scene::GetKey() const {
 	return key_;
 }
 
@@ -176,7 +174,7 @@ void Scene::Init() {
 	fixed_camera.Reset();
 }
 
-void Scene::SetKey(const impl::SceneKey& key) {
+void Scene::SetKey(const SceneKey& key) {
 	key_			 = key;
 	input.scene_key_ = key;
 }
@@ -210,22 +208,22 @@ void Scene::InternalExit() {
 void Scene::InternalDraw() {
 	if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {
-			game.debug.DrawShape(
+			Application::Get().debug_.DrawShape(
 				GetDrawTransform(entity), collider.shape, collider_color_, collider_line_width_,
 				GetDrawOrigin(entity), entity.GetCamera()
 			);
 		}
 	}
-	game.renderer.render_data_.Draw(*this);
+	Application::Get().render_.render_data_.Draw(*this);
 }
 
-void Scene::InternalUpdate() {
-	game.renderer.render_data_.ClearRenderTargets(*this);
-	game.renderer.render_data_.SetDrawingTo(render_target_);
+void Scene::InternalUpdate(Application& app) {
+	app.render_.render_data_.ClearRenderTargets(*this);
+	app.render_.render_data_.SetDrawingTo(render_target_);
 
 	Refresh();
 
-	game.input.InvokeInputEvents(*this);
+	app.input_.InvokeInputEvents(app, *this);
 
 	input.Update(*this);
 
@@ -239,7 +237,7 @@ void Scene::InternalUpdate() {
 
 	invoke_scripts(*this);
 
-	float dt{ game.dt() };
+	float dt{ app.dt() };
 
 	const auto update_scripts = [&](Manager& manager) {
 		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {

@@ -6,27 +6,21 @@
 #include <ratio>
 #include <string>
 
-#include "debug/runtime/assert.h"
+#include "core/asset/asset_manager.h"
 #include "core/ecs/components/generic.h"
-#include "core/app/game.h"
-#include "core/app/sdl_instance.h"
-#include "core/util/time.h"
-#include "core/resource/resource_manager.h"
-#include "SDL_mixer.h"
 #include "core/util/file.h"
+#include "core/util/time.h"
+#include "debug/runtime/assert.h"
+#include "SDL_mixer.h"
 
 namespace ptgn::impl {
 
 void Mix_MusicDeleter::operator()(Mix_Music* music) const {
-	if (game.sdl_instance_->SDLMixerIsInitialized()) {
-		Mix_FreeMusic(music);
-	}
+	Mix_FreeMusic(music);
 }
 
 void Mix_ChunkDeleter::operator()(Mix_Chunk* sound) const {
-	if (game.sdl_instance_->SDLMixerIsInitialized()) {
-		Mix_FreeChunk(sound);
-	}
+	Mix_FreeChunk(sound);
 }
 
 Music MusicManager::LoadFromFile(const path& filepath) {

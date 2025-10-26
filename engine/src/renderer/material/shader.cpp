@@ -1,4 +1,4 @@
-#include "renderer/materials/shader.h"
+#include "renderer/material/shader.h"
 
 #include <cmrc/cmrc.hpp>
 #include <cstdint>
@@ -15,7 +15,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/util/file.h"
 #include "core/util/span.h"
 #include "debug/core/debug_config.h"
@@ -372,7 +372,7 @@ static void CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderC
 				);
 				cache.vertex_shaders.try_emplace(hash, shader_id);
 				break;
-			default: PTGN_ERROR("Unknown shader type")
+			default: PTGN_ERROR("Unknown shader type");
 		}
 	}
 }
@@ -521,7 +521,7 @@ ShaderId ShaderManager::Get(ShaderType type, std::string_view shader_name) const
 			auto it{ cache_.vertex_shaders.find(hash) };
 			return it->second;
 		};
-		default: PTGN_ERROR("Unknown shader type")
+		default: PTGN_ERROR("Unknown shader type");
 	}
 }
 
@@ -539,12 +539,12 @@ bool ShaderManager::Has(ShaderType type, std::string_view shader_name) const {
 		case ShaderType::Vertex: {
 			return cache_.vertex_shaders.contains(hash);
 		};
-		default: PTGN_ERROR("Unknown shader type")
+		default: PTGN_ERROR("Unknown shader type");
 	}
 }
 
 void ShaderManager::Init() {
-	std::size_t max_texture_slots{ game.renderer.render_data_.GetMaxTextureSlots() };
+	std::size_t max_texture_slots{ Application::Get().render_.render_data_.GetMaxTextureSlots() };
 
 	PTGN_ASSERT(max_texture_slots > 0, "Max texture slots must be set before initializing shaders");
 
@@ -576,7 +576,7 @@ std::vector<ShaderTypeSource> ShaderManager::ParseShaderSourceFile(
 	const std::string& source, const std::string& name
 ) {
 	auto srcs{ ParseShader(source, name) };
-	SubstituteShaderTokens(srcs, game.renderer.render_data_.GetMaxTextureSlots());
+	SubstituteShaderTokens(srcs, Application::Get().render_.render_data_.GetMaxTextureSlots());
 	return srcs;
 }
 
@@ -673,8 +673,8 @@ Shader::Shader(
 					"Shader file extension must be .glsl: ", file.string()
 				);
 				return { CompilePath(file, type, shader_name), true };
-			} else if (game.shader.Has(type, name)) {
-				return { game.shader.Get(type, name), false };
+			} else if (Application::Get().shader.Has(type, name)) {
+				return { Application::Get().shader.Get(type, name), false };
 			} else {
 				PTGN_ERROR(name, " is not a valid shader path or loaded ", type, " shader name");
 			}
@@ -848,13 +848,13 @@ void Shader::Compile(const std::string& vertex_source, const std::string& fragme
 }
 
 void Shader::Bind(ShaderId id) {
-	if (game.renderer.bound_.shader_id == id) {
+	if (Application::Get().render_.bound_.shader_id == id) {
 		return;
 	}
 	GLCall(UseProgram(id));
-	game.renderer.bound_.shader_id = id;
+	Application::Get().render_.bound_.shader_id = id;
 #ifdef PTGN_DEBUG
-	++game.debug.stats.shader_binds;
+	++Application::Get().debug_.stats.shader_binds;
 #endif
 #ifdef GL_ANNOUNCE_SHADER_CALLS
 	PTGN_LOG("GL: Bound shader program with id ", id);

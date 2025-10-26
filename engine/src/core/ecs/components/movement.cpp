@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
 #include "core/input/input_handler.h"
@@ -27,10 +27,10 @@ void MoveImpl(
 	V2_float& vel, const V2_float& amount, Key left_key, Key right_key, Key up_key, Key down_key,
 	bool cancel_velocity_if_unpressed
 ) {
-	bool left{ game.input.KeyPressed(left_key) };
-	bool right{ game.input.KeyPressed(right_key) };
-	bool up{ game.input.KeyPressed(up_key) };
-	bool down{ game.input.KeyPressed(down_key) };
+	bool left{ Application::Get().input_.KeyPressed(left_key) };
+	bool right{ Application::Get().input_.KeyPressed(right_key) };
+	bool up{ Application::Get().input_.KeyPressed(up_key) };
+	bool down{ Application::Get().input_.KeyPressed(down_key) };
 
 	if (left && !right) {
 		vel.x -= amount.x;
@@ -69,16 +69,16 @@ void MoveArrowKeys(V2_float& vel, const V2_float& amount, bool cancel_velocity_i
 
 void TopDownMovement::Update(Entity& entity, Transform& transform, RigidBody& rb, float dt) {
 	if (keys_enabled) {
-		if (game.input.KeyPressed(up_key)) {
+		if (Application::Get().input_.KeyPressed(up_key)) {
 			up_input = true;
 		}
-		if (game.input.KeyPressed(down_key)) {
+		if (Application::Get().input_.KeyPressed(down_key)) {
 			down_input = true;
 		}
-		if (game.input.KeyPressed(left_key)) {
+		if (Application::Get().input_.KeyPressed(left_key)) {
 			left_input = true;
 		}
-		if (game.input.KeyPressed(right_key)) {
+		if (Application::Get().input_.KeyPressed(right_key)) {
 			right_input = true;
 		}
 	}
@@ -327,8 +327,8 @@ void TopDownMovement::RunWithAcceleration(const V2_float& desired_velocity, Rigi
 }
 
 void PlatformerMovement::Update(Transform& transform, RigidBody& rb, float dt) const {
-	bool left{ game.input.KeyPressed(left_key) };
-	bool right{ game.input.KeyPressed(right_key) };
+	bool left{ Application::Get().input_.KeyPressed(left_key) };
+	bool right{ Application::Get().input_.KeyPressed(right_key) };
 
 	float dir_x{ 0.0f };
 
@@ -372,8 +372,8 @@ void PlatformerMovement::RunWithAcceleration(
 	float deceleration{ grounded ? max_deceleration : max_air_deceleration };
 	float turn_speed{ grounded ? max_turn_speed : max_air_turn_speed };
 
-	bool left{ game.input.KeyPressed(left_key) };
-	bool right{ game.input.KeyPressed(right_key) };
+	bool left{ Application::Get().input_.KeyPressed(left_key) };
+	bool right{ Application::Get().input_.KeyPressed(right_key) };
 	bool pressing_key{ (left && !right) || (!left && right) };
 
 	float max_speed_change{ 0.0f };
@@ -420,7 +420,7 @@ void PlatformerJump::Ground(
 }
 
 void PlatformerJump::Update(RigidBody& rb, bool grounded, const V2_float& gravity) {
-	bool pressed_jump{ game.input.KeyDown(jump_key) };
+	bool pressed_jump{ Application::Get().input_.KeyDown(jump_key) };
 
 	if (grounded) {
 		coyote_timer_.Start();
@@ -482,11 +482,11 @@ void PlatformerJump::CalculateGravity(RigidBody& rb, bool grounded, const V2_flo
 
 	if (grounded) {
 		gravity_multiplier = default_gravity_scale;
-	} else if (downward_key_speedup && game.input.KeyPressed(down_key)) {
+	} else if (downward_key_speedup && Application::Get().input_.KeyPressed(down_key)) {
 		gravity_multiplier = downward_speedup_gravity_multiplier;
 	} else if (rb.velocity.y < -0.01f) {
 		if (!variable_jump_height ||
-			(variable_jump_height && game.input.KeyPressed(jump_key) && jumping_)) {
+			(variable_jump_height && Application::Get().input_.KeyPressed(jump_key) && jumping_)) {
 			gravity_multiplier = upward_gravity_multiplier;
 		} else if (variable_jump_height) {
 			gravity_multiplier = jump_cut_off_gravity_multiplier;

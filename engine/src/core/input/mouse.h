@@ -33,7 +33,7 @@ inline std::ostream& operator<<(std::ostream& os, Mouse mouse) {
 		case Mouse::Right:	 os << "Right"; break;
 		case Mouse::Middle:	 os << "Middle"; break;
 		case Mouse::Invalid: [[fallthrough]];
-		default:			 PTGN_ERROR("Invalid mouse type")
+		default:			 PTGN_ERROR("Invalid mouse type");
 	}
 
 	return os;

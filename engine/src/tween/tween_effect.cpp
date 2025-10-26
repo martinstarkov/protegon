@@ -1,4 +1,4 @@
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 #include <algorithm>
 #include <chrono>
@@ -7,7 +7,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/offsets.h"
@@ -24,9 +24,9 @@
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
-#include "tweens/follow_config.h"
-#include "tweens/shake_config.h"
-#include "tweens/tween.h"
+#include "tween/follow_config.h"
+#include "tween/shake_config.h"
+#include "tween/tween.h"
 
 namespace ptgn {
 
@@ -39,7 +39,7 @@ void ApplyShake(Offsets& offsets, float trauma, const ShakeConfig& config, std::
 	// out the transition from shaking to being static.
 	float shake_value{ std::pow(trauma, config.trauma_exponent) };
 
-	float x{ game.time() * config.frequency };
+	float x{ Application::Get().time() * config.frequency };
 
 	V2_float position_noise{ PerlinNoise::GetValue(x, 0.0f, seed + 0) * 2.0f - 1.0f,
 							 PerlinNoise::GetValue(x, 0.0f, seed + 1) * 2.0f - 1.0f };
@@ -136,8 +136,8 @@ V2_float GetFollowPosition(
 	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
 	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
 
-	V2_float lerp{ 1.0f - std::pow(1.0f - config.lerp.x, game.dt()),
-				   1.0f - std::pow(1.0f - config.lerp.y, game.dt()) };
+	V2_float lerp{ 1.0f - std::pow(1.0f - config.lerp.x, Application::Get().dt()),
+				   1.0f - std::pow(1.0f - config.lerp.y, Application::Get().dt()) };
 
 	V2_float new_pos{ position };
 
@@ -379,7 +379,7 @@ impl::EffectObject<impl::ShakeEffect>& Shake(
 			Entity parent{ GetParent(e) };
 			auto& offsets{ parent.Get<impl::Offsets>() };
 
-			shake.trauma = std::clamp(shake.trauma - config.recovery_speed * game.dt(), 0.0f, 1.0f);
+			shake.trauma = std::clamp(shake.trauma - config.recovery_speed * Application::Get().dt(), 0.0f, 1.0f);
 			ApplyShake(offsets, shake.trauma, config, seed);
 
 			if (shake.trauma <= 0.0f) {

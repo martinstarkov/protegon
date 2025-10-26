@@ -1,6 +1,6 @@
 #include "physics/physics.h"
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
@@ -42,7 +42,7 @@ void Physics::SetGravity(const V2_float& gravity) {
 
 float Physics::dt() const {
 	// TODO: Consider changing in the future.
-	return game.dt();
+	return Application::Get().dt();
 }
 
 void Physics::SetEnabled(bool enabled) {
@@ -163,7 +163,7 @@ void Physics::HandleBoundary(
 			transform.SetPosition(clamped_position);
 			break;
 		}
-		default: PTGN_ERROR("Unknown physics boundary behavior specified")
+		default: PTGN_ERROR("Unknown physics boundary behavior specified");
 	}
 }
 

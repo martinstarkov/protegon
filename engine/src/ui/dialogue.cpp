@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/generic.h"
@@ -37,7 +37,7 @@
 #include "renderer/text/text.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
-#include "tweens/tween.h"
+#include "tween/tween.h"
 #include "world/scene/scene.h"
 
 namespace ptgn {
@@ -61,7 +61,7 @@ DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 void DialogueWaitScript::OnUpdate() {
 	auto& dialogue_component{ GetDialogueComponent() };
 	auto continue_key{ dialogue_component.GetContinueKey() };
-	if (!game.input.KeyDown(continue_key)) {
+	if (!Application::Get().input_.KeyDown(continue_key)) {
 		return;
 	}
 	PTGN_ASSERT(dialogue_component.tween_);
@@ -352,15 +352,15 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 
 void DialogueComponent::DrawInfo(const V2_float& position) {
 	FontSize font_size{ 32 };
-	game.debug.DrawText(
+	Application::Get().debug_.DrawText(
 		"Dialogue: " + current_dialogue_, position + V2_float{ 0, 0 }, color::White,
 		Origin::TopLeft, font_size
 	);
-	game.debug.DrawText(
+	Application::Get().debug_.DrawText(
 		"Line: " + std::to_string(current_line_), position + V2_float{ 0, 50 }, color::White,
 		Origin::TopLeft, font_size
 	);
-	game.debug.DrawText(
+	Application::Get().debug_.DrawText(
 		"Page: " + std::to_string(current_page_), position + V2_float{ 0, 100 }, color::White,
 		Origin::TopLeft, font_size
 	);
@@ -535,10 +535,10 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 ) {
 	// TODO: Potentially move these outside of this function.
 	const int split_begin_width{
-		game.font.GetSize(properties.font_key, split_begin, properties.font_size).x
+		Application::Get().font.GetSize(properties.font_key, split_begin, properties.font_size).x
 	};
 	const int split_end_width{
-		game.font.GetSize(properties.font_key, split_end, properties.font_size).x
+		Application::Get().font.GetSize(properties.font_key, split_end, properties.font_size).x
 	};
 
 	std::vector<DialoguePage> pages;
@@ -552,7 +552,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		return pages;
 	}
 
-	const int line_height = game.font.GetSize(properties.font_key, "Ay", properties.font_size).y;
+	const int line_height = Application::Get().font.GetSize(properties.font_key, "Ay", properties.font_size).y;
 
 	auto WrapTextToBox = [&](const std::string& text, int max_width, int max_lines,
 							 int split_begin_width,
@@ -568,7 +568,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		while (word_stream >> word) {
 			std::string test_line = current_line.empty() ? word : current_line + " " + word;
 
-			V2_int size{ game.font.GetSize(properties.font_key, test_line, properties.font_size) };
+			V2_int size{ Application::Get().font.GetSize(properties.font_key, test_line, properties.font_size) };
 
 			if (is_first_line) {
 				size.x += split_begin_width; // Add split_begin width on the first line
@@ -585,7 +585,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 					for (char ch : word) {
 						chunk += ch;
 						V2_int part_size =
-							game.font.GetSize(properties.font_key, chunk, properties.font_size);
+							Application::Get().font.GetSize(properties.font_key, chunk, properties.font_size);
 						if (part_size.x > max_width) {
 							if (chunk.size() > 1) {
 								chunk.pop_back();
@@ -611,7 +611,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 
 		if (!current_line.empty()) {
 			V2_int size =
-				game.font.GetSize(properties.font_key, current_line, properties.font_size);
+				Application::Get().font.GetSize(properties.font_key, current_line, properties.font_size);
 			if (size.x <= max_width) {
 				lines.push_back(current_line);
 			} else {
@@ -620,7 +620,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 				for (char ch : current_line) {
 					chunk += ch;
 					V2_int part_size =
-						game.font.GetSize(properties.font_key, chunk, properties.font_size);
+						Application::Get().font.GetSize(properties.font_key, chunk, properties.font_size);
 					if (part_size.x > max_width) {
 						if (chunk.size() > 1) {
 							chunk.pop_back();

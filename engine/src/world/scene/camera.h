@@ -22,8 +22,6 @@ struct Color;
 
 namespace impl {
 
-class SceneManager;
-
 class CameraInstance {
 public:
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;

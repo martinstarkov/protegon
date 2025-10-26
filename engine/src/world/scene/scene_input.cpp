@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
 #include "core/ecs/components/draw.h"
@@ -179,7 +179,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 					draw_transform = OffsetByOrigin(entity.Get<Rect>(), draw_transform, entity);
 				}
 
-				game.debug.DrawShape(
+				Application::Get().debug_.DrawShape(
 					draw_transform, shape, draw_interactive_color_, draw_interactive_line_width_,
 					GetDrawOrigin(shape_entity), entity.GetCamera()
 				);
@@ -600,24 +600,24 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 }
 
 V2_float SceneInput::GetMousePosition(ViewportType relative_to, bool clamp_to_viewport) const {
-	return game.input.GetMousePosition(relative_to, clamp_to_viewport);
+	return Application::Get().input_.GetMousePosition(relative_to, clamp_to_viewport);
 }
 
 V2_float SceneInput::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
 	const {
-	return game.input.GetMousePositionPrevious(relative_to, clamp_to_viewport);
+	return Application::Get().input_.GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }
 
 V2_float SceneInput::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
 	const {
-	return game.input.GetMousePositionDifference(relative_to, clamp_to_viewport);
+	return Application::Get().input_.GetMousePositionDifference(relative_to, clamp_to_viewport);
 }
 
 void SceneInput::Update(Scene& scene) {
 	MouseInfo mouse_state{ scene };
 
 	if (draw_interactives_) {
-		game.debug.DrawPoint(mouse_state.position, draw_interactive_color_);
+		Application::Get().debug_.DrawPoint(mouse_state.position, draw_interactive_color_);
 	}
 
 	auto entities = GetInteractiveEntities(scene, mouse_state);
@@ -705,59 +705,59 @@ void SceneInput::SetDrawInteractivesLineWidth(float line_width) {
 }
 
 milliseconds SceneInput::GetMouseHeldTime(Mouse mouse_button) const {
-	return game.input.GetMouseHeldTime(mouse_button);
+	return Application::Get().input_.GetMouseHeldTime(mouse_button);
 }
 
 milliseconds SceneInput::GetKeyHeldTime(Key key) const {
-	return game.input.GetKeyHeldTime(key);
+	return Application::Get().input_.GetKeyHeldTime(key);
 }
 
 bool SceneInput::MouseHeld(Mouse mouse_button, milliseconds time) const {
-	return game.input.MouseHeld(mouse_button, time);
+	return Application::Get().input_.MouseHeld(mouse_button, time);
 }
 
 bool SceneInput::KeyHeld(Key key, milliseconds time) const {
-	return game.input.KeyHeld(key, time);
+	return Application::Get().input_.KeyHeld(key, time);
 }
 
 void SceneInput::SetRelativeMouseMode(bool on) const {
-	game.input.SetRelativeMouseMode(on);
+	Application::Get().input_.SetRelativeMouseMode(on);
 }
 
 int SceneInput::GetMouseScroll() const {
-	return game.input.GetMouseScroll();
+	return Application::Get().input_.GetMouseScroll();
 }
 
 bool SceneInput::MousePressed(Mouse mouse_button) const {
-	return game.input.MousePressed(mouse_button);
+	return Application::Get().input_.MousePressed(mouse_button);
 }
 
 bool SceneInput::MouseReleased(Mouse mouse_button) const {
-	return game.input.MouseReleased(mouse_button);
+	return Application::Get().input_.MouseReleased(mouse_button);
 }
 
 bool SceneInput::MouseDown(Mouse mouse_button) const {
-	return game.input.MouseDown(mouse_button);
+	return Application::Get().input_.MouseDown(mouse_button);
 }
 
 bool SceneInput::MouseUp(Mouse mouse_button) const {
-	return game.input.MouseUp(mouse_button);
+	return Application::Get().input_.MouseUp(mouse_button);
 }
 
 bool SceneInput::KeyPressed(Key key) const {
-	return game.input.KeyPressed(key);
+	return Application::Get().input_.KeyPressed(key);
 }
 
 bool SceneInput::KeyReleased(Key key) const {
-	return game.input.KeyReleased(key);
+	return Application::Get().input_.KeyReleased(key);
 }
 
 bool SceneInput::KeyDown(Key key) const {
-	return game.input.KeyDown(key);
+	return Application::Get().input_.KeyDown(key);
 }
 
 bool SceneInput::KeyUp(Key key) const {
-	return game.input.KeyUp(key);
+	return Application::Get().input_.KeyUp(key);
 }
 
 } // namespace ptgn

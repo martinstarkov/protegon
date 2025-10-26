@@ -23,11 +23,12 @@ namespace ptgn {
 
 class Scene;
 class SceneTransition;
+class SceneManager;
+class Application;
 
 namespace impl {
 
 class RenderData;
-class SceneManager;
 
 } // namespace impl
 
@@ -55,7 +56,7 @@ public:
 	template <typename... Ts>
 	Entity CopyEntity(const Entity& from) {
 		auto entity{ Manager::CopyEntity<Ts...>(from) };
-		entity.template Add<impl::SceneKey>(key_);
+		entity.template Add<SceneKey>(key_);
 		return entity;
 	}
 
@@ -83,7 +84,7 @@ public:
 	[[nodiscard]] const RenderTarget& GetRenderTarget() const;
 	[[nodiscard]] RenderTarget& GetRenderTarget();
 
-	[[nodiscard]] impl::SceneKey GetKey() const;
+	[[nodiscard]] SceneKey GetKey() const;
 
 	// @return Size of scene render target divided by the viewport size of the provided camera.
 	[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera) const;
@@ -96,7 +97,7 @@ public:
 	Physics physics;
 	Camera camera;
 
-	// A default camera with a viewport the size of the game.
+	// A default camera with a viewport the size of the Application::Get().
 	Camera fixed_camera;
 
 	friend void to_json(json& j, const Scene& scene);
@@ -104,15 +105,16 @@ public:
 
 private:
 	friend class impl::RenderData;
-	friend class impl::SceneManager;
+	friend class SceneManager;
 	friend class SceneTransition;
 
 	void Init();
-	void SetKey(const impl::SceneKey& key);
+	void SetKey(const SceneKey& key);
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void InternalUpdate();
+	// TODO: Pass more specific subsystems.
+	void InternalUpdate(Application& app);
 	void InternalDraw();
 	void InternalExit();
 
@@ -122,7 +124,7 @@ private:
 
 	std::shared_ptr<SceneTransition> transition_;
 
-	impl::SceneKey key_;
+	SceneKey key_;
 
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.
@@ -144,9 +146,6 @@ private:
 	bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
 	float collider_line_width_{ 1.0f };
-
-	// Set to true for only the first scene entered. Used to trigger the game loop.
-	bool first_scene_{ false };
 };
 
 } // namespace ptgn

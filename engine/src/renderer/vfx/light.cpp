@@ -1,6 +1,6 @@
 #include "renderer/vfx/light.h"
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
 #include "core/ecs/components/draw.h"
@@ -14,8 +14,8 @@
 #include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/materials/shader.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/shader.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "world/scene/camera.h"
@@ -33,13 +33,13 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 
 	Camera camera{ entity.GetCamera() };
 
-	auto display_size{ game.renderer.GetDisplaySize() };
+	auto display_size{ Application::Get().render_.GetDisplaySize() };
 
 	auto camera_display_size{ camera.GetDisplaySize() };
 
 	PTGN_ASSERT(camera_display_size.BothAboveZero());
 
-	auto ratio{ game.renderer.GetDisplaySize() / camera_display_size };
+	auto ratio{ Application::Get().render_.GetDisplaySize() / camera_display_size };
 
 	PTGN_ASSERT(ratio.BothAboveZero());
 
@@ -102,7 +102,7 @@ void PointLight::Draw(const Entity& entity) {
 
 	TextureFormat texture_format{ default_texture_format /*TextureFormat::HDR_RGBA*/ };
 
-	game.renderer.DrawShader(
+	Application::Get().render_.DrawShader(
 		{ "light", &PointLight::SetUniform }, entity, false, light_clear_color, V2_int{},
 		intermediate_blend_mode, GetDepth(entity), blend_mode, entity.GetOrDefault<Camera>(),
 		texture_format, entity.GetOrDefault<PostFX>(), target_blend_mode

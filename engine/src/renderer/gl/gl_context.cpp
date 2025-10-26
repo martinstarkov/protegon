@@ -6,8 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/sdl_instance.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "core/util/file.h"
 #include "core/util/macro.h"
@@ -95,23 +94,15 @@ void GLContext::LoadGLFunctions() {
 #endif
 }
 
-bool GLContext::IsInitialized() const {
-	return context_ != nullptr;
-}
-
-void GLContext::Init() {
-	PTGN_ASSERT(
-		game.window.IsValid(), "GLContext must be constructed after SDL window construction"
-	);
-
-	if (IsInitialized()) {
-		int result = game.window.MakeGLContextCurrent(context_);
+GLContext::GLContext(SDL_Window* window) {
+	if (context_ != nullptr) {
+		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(result == 0, SDL_GetError());
 		return;
 	}
 
-	context_ = game.window.CreateGLContext();
-	PTGN_ASSERT(IsInitialized(), SDL_GetError());
+	context_ = SDL_GL_CreateContext(window);
+	PTGN_ASSERT(context_ != nullptr, SDL_GetError());
 
 	GLVersion gl_version;
 
@@ -128,23 +119,21 @@ void GLContext::Init() {
 	LoadGLFunctions();
 }
 
-void GLContext::Shutdown() {
+GLContext::~GLContext() {
 	SDL_GL_DeleteContext(context_);
 	context_ = nullptr;
 	PTGN_INFO("Destroyed OpenGL context");
 }
 
 void GLContext::ClearErrors() {
-	while (game.running_ && game.gl_context_->IsInitialized() &&
-		   game.sdl_instance_->IsInitialized() && glGetError() != static_cast<GLenum>(GLError::None)
+	while (glGetError() != static_cast<GLenum>(GLError::None)
 	) { /* glGetError clears the error queue */
 	}
 }
 
 std::vector<GLError> GLContext::GetErrors() {
 	std::vector<GLError> errors;
-	while (game.running_ && game.gl_context_->IsInitialized() && game.sdl_instance_->IsInitialized()
-	) {
+	while (true) {
 		GLenum error{ glGetError() };
 		auto e{ static_cast<GLError>(error) };
 		if (e == GLError::None) {

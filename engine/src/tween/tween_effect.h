@@ -18,9 +18,9 @@
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
 #include "serialization/json/serializable.h"
-#include "tweens/follow_config.h"
-#include "tweens/shake_config.h"
-#include "tweens/tween.h"
+#include "tween/follow_config.h"
+#include "tween/shake_config.h"
+#include "tween/tween.h"
 
 namespace ptgn {
 

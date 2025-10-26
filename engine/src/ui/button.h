@@ -16,7 +16,7 @@
 #include "debug/core/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/text/text.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serializable.h"
@@ -515,7 +515,7 @@ inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 		case ButtonState::Default: os << "Default"; break;
 		case ButtonState::Hover:   os << "Hover"; break;
 		case ButtonState::Pressed: os << "Pressed"; break;
-		default:				   PTGN_ERROR("Invalid button state")
+		default:				   PTGN_ERROR("Invalid button state");
 	}
 	return os;
 }
@@ -528,7 +528,7 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 		case impl::InternalButtonState::HoverPressed: os << "Hover Pressed"; break;
 		case impl::InternalButtonState::Pressed:	  os << "Pressed"; break;
 		case impl::InternalButtonState::HeldOutside:  os << "Held Outside"; break;
-		default:									  PTGN_ERROR("Invalid internal button state")
+		default:									  PTGN_ERROR("Invalid internal button state");
 	}
 	return os;
 }

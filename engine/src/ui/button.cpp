@@ -6,8 +6,9 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/asset/asset_manager.h"
 #include "core/ecs/components/animation.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/generic.h"
@@ -16,7 +17,6 @@
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/input/mouse.h"
-#include "core/resource/resource_manager.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
 #include "debug/core/log.h"
@@ -27,7 +27,7 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
 #include "world/scene/camera.h"
@@ -159,7 +159,7 @@ const Color& ButtonColor::Get(ButtonState state) const {
 		case ButtonState::Default: return default_;
 		case ButtonState::Hover:   return hover_;
 		case ButtonState::Pressed: return pressed_;
-		default:				   PTGN_ERROR("Invalid button state")
+		default:				   PTGN_ERROR("Invalid button state");
 	}
 }
 
@@ -185,7 +185,7 @@ Text ButtonText::Get(ButtonState state) const {
 		case ButtonState::Hover:   return hover_;
 		case ButtonState::Pressed: return pressed_;
 		case ButtonState::Current: [[fallthrough]];
-		default:				   PTGN_ERROR("Invalid button state")
+		default:				   PTGN_ERROR("Invalid button state");
 	}
 }
 
@@ -247,7 +247,7 @@ void ButtonText::Set(
 				break;
 			}
 			case ButtonState::Current: [[fallthrough]];
-			default:				   PTGN_ERROR("Invalid button state")
+			default:				   PTGN_ERROR("Invalid button state");
 		}
 	} else {
 		text.SetParameter(text_color, false);
@@ -321,7 +321,7 @@ static const impl::Texture* GetButtonTexture(
 
 	auto button_texture_key{ button.GetOrDefault<TextureHandle>() };
 
-	if (!game.texture.Has(button_texture_key)) {
+	if (!Application::Get().texture.Has(button_texture_key)) {
 		return nullptr;
 	}
 
@@ -383,7 +383,7 @@ void Button::Draw(const Entity& entity) {
 		if (texture_tint.a) {
 			auto pre_fx{ entity.GetOrDefault<PreFX>() };
 
-			game.renderer.DrawTexture(
+			Application::Get().render_.DrawTexture(
 				*button_texture, transform, button_size, button_origin,
 				Tint{ texture_tint.Normalized() * tint_n }, depth, blend_mode, camera, pre_fx,
 				post_fx, Sprite{ button }.GetTextureCoordinates(false)
@@ -398,7 +398,7 @@ void Button::Draw(const Entity& entity) {
 			};
 
 			if (color.a) {
-				game.renderer.DrawRect(
+				Application::Get().render_.DrawRect(
 					transform, button_size, Tint{ color.Normalized() * tint_n },
 					line_width.GetValue(), button_origin, depth, blend_mode, camera, post_fx
 				);
@@ -414,7 +414,7 @@ void Button::Draw(const Entity& entity) {
 		) };
 
 		if (color.a) {
-			game.renderer.DrawRect(
+			Application::Get().render_.DrawRect(
 				transform, button_size, Tint{ color.Normalized() * tint_n }, line_width.GetValue(),
 				button_origin, depth, blend_mode, camera, post_fx
 			);
@@ -501,7 +501,7 @@ V2_float Button::GetSize() const {
 		button_texture_key = Get<TextureHandle>();
 	}
 
-	if (game.texture.Has(button_texture_key)) {
+	if (Application::Get().texture.Has(button_texture_key)) {
 		button_texture = &button_texture_key.GetTexture();
 	}
 

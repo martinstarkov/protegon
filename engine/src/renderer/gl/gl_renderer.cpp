@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdint>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
@@ -11,7 +11,7 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"
-#include "renderer/buffers/vertex_array.h"
+#include "renderer/buffer/vertex_array.h"
 #include "renderer/gl/gl_helper.h"
 #include "renderer/gl/gl_loader.h"
 #include "renderer/gl/gl_types.h"
@@ -47,7 +47,7 @@ void GLRenderer::SetPolygonMode(PolygonMode mode) {
 #endif
 
 void GLRenderer::SetBlendMode(BlendMode mode) {
-	if (game.renderer.bound_.blend_mode == mode) {
+	if (Application::Get().render_.bound_.blend_mode == mode) {
 		return;
 	}
 	/*
@@ -112,9 +112,9 @@ void GLRenderer::SetBlendMode(BlendMode mode) {
 			break;
 		default: PTGN_ERROR("Failed to identify blend mode");
 	}
-	game.renderer.bound_.blend_mode = mode;
+	Application::Get().render_.bound_.blend_mode = mode;
 #ifdef PTGN_DEBUG
-	++game.debug.stats.blend_mode_changes;
+	++Application::Get().debug_.stats.blend_mode_changes;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Changed blend mode to ", mode);
@@ -195,7 +195,7 @@ void GLRenderer::DrawElements(
 		static_cast<GLenum>(impl::GetType<std::uint32_t>()), nullptr
 	));
 #ifdef PTGN_DEBUG
-	++game.debug.stats.draw_calls;
+	++Application::Get().debug_.stats.draw_calls;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Draw elements");
@@ -217,7 +217,7 @@ void GLRenderer::DrawArrays(
 		static_cast<GLenum>(vao.GetPrimitiveMode()), 0, static_cast<std::int32_t>(vertex_count)
 	));
 #ifdef PTGN_DEBUG
-	++game.debug.stats.draw_calls;
+	++Application::Get().debug_.stats.draw_calls;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Draw arrays");
@@ -235,7 +235,7 @@ void GLRenderer::SetClearColor(const Color& color) {
 	auto c{ color.Normalized() };
 	GLCall(glClearColor(c[0], c[1], c[2], c[3]));
 #ifdef PTGN_DEBUG
-	++game.debug.stats.clear_colors;
+	++Application::Get().debug_.stats.clear_colors;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Changed clear color to ", color);
@@ -243,15 +243,15 @@ void GLRenderer::SetClearColor(const Color& color) {
 }
 
 void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
-	if (game.renderer.bound_.viewport_position == position &&
-		game.renderer.bound_.viewport_size == size) {
+	if (Application::Get().render_.bound_.viewport_position == position &&
+		Application::Get().render_.bound_.viewport_size == size) {
 		return;
 	}
 	GLCall(glViewport(position.x, position.y, size.x, size.y));
-	game.renderer.bound_.viewport_position = position;
-	game.renderer.bound_.viewport_size	   = size;
+	Application::Get().render_.bound_.viewport_position = position;
+	Application::Get().render_.bound_.viewport_size	   = size;
 #ifdef PTGN_DEBUG
-	++game.debug.stats.viewport_changes;
+	++Application::Get().debug_.stats.viewport_changes;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Set viewport [position: ", position, ", size: ", size, "]");
@@ -274,7 +274,7 @@ void GLRenderer::Clear() {
 	// GLCall(glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 	GLCall(glClear(GL_COLOR_BUFFER_BIT));
 #ifdef PTGN_DEBUG
-	++game.debug.stats.clears;
+	++Application::Get().debug_.stats.clears;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Cleared color and depth buffers");
@@ -299,7 +299,7 @@ void GLRenderer::ClearToColor(const V4_float& normalized_color) {
 	color_array.data()));
 	*/
 #ifdef PTGN_DEBUG
-	++game.debug.stats.clears;
+	++Application::Get().debug_.stats.clears;
 #endif
 #ifdef GL_ANNOUNCE_RENDERER_CALLS
 	PTGN_LOG("GL: Cleared to color ", normalized_color);

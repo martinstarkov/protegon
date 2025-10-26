@@ -24,7 +24,7 @@
 #include "math/geometry/triangle.h"
 #include "math/geometry_utils.h"
 #include "math/vector2.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 
 namespace ptgn {
 

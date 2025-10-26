@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
@@ -532,7 +532,7 @@ void CollisionHandler::Update(Scene& scene) {
 	std::vector<KDObject> objects;
 	std::vector<KDObject> dynamic_objects;
 
-	float dt{ game.dt() };
+	float dt{ Application::Get().dt() };
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();
@@ -574,7 +574,7 @@ void CollisionHandler::Update(Scene& scene) {
 			case CollisionMode::None: {
 				break;
 			}
-			default: PTGN_ERROR("Unknown collision mode")
+			default: PTGN_ERROR("Unknown collision mode");
 		}
 	}
 

@@ -7,7 +7,7 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 
 namespace ptgn::impl {
 

@@ -1,6 +1,6 @@
 #include "core/app/resolution.h"
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "core/ecs/components/transform.h"
 #include "debug/runtime/assert.h"
@@ -13,14 +13,14 @@
 namespace ptgn {
 
 V2_float DisplayToGame(const V2_float& display_point) {
-	auto game_scale{ game.renderer.GetScale() };
+	auto game_scale{ Application::Get().render_.GetScale() };
 	PTGN_ASSERT(game_scale.BothAboveZero());
 	auto game_point{ display_point / game_scale };
 	return game_point;
 }
 
 V2_float GameToDisplay(const V2_float& game_point) {
-	auto game_scale{ game.renderer.GetScale() };
+	auto game_scale{ Application::Get().render_.GetScale() };
 	PTGN_ASSERT(game_scale.BothAboveZero());
 	auto display_point{ game_point * game_scale };
 	return display_point;
@@ -51,7 +51,7 @@ V2_float WorldToGame(const V2_float& world_point, const Camera& camera) {
 }
 
 V2_float CameraToWorld(const V2_float& camera_point, const Camera& camera) {
-	auto cam{ camera ? camera : game.scene.GetCurrent().camera };
+	auto cam{ camera ? camera : Application::Get().scene_.GetCurrent()->camera };
 
 	Transform camera_transform{ cam.GetTransform() };
 	auto world_point{ camera_transform.Apply(camera_point) };
@@ -60,7 +60,7 @@ V2_float CameraToWorld(const V2_float& camera_point, const Camera& camera) {
 }
 
 V2_float WorldToCamera(const V2_float& world_point, const Camera& camera) {
-	auto cam{ camera ? camera : game.scene.GetCurrent().camera };
+	auto cam{ camera ? camera : Application::Get().scene_.GetCurrent()->camera };
 
 	Transform camera_transform{ cam.GetTransform() };
 	auto camera_point{ camera_transform.ApplyInverse(world_point) };
@@ -75,13 +75,13 @@ V2_float CameraToDisplay(const V2_float& camera_point, const Camera& camera) {
 }
 
 V2_float CameraToGame(const V2_float& camera_point, const Camera& camera) {
-	const auto& scene{ game.scene.GetCurrent() };
-	auto cam{ camera ? camera : scene.camera };
+	const auto& scene{ Application::Get().scene_.GetCurrent() };
+	auto cam{ camera ? camera : scene->camera };
 
 	auto camera_viewport_pos{ cam.GetViewportPosition() };
 	auto camera_viewport_size{ cam.GetViewportSize() };
 	PTGN_ASSERT(camera_viewport_size.BothAboveZero());
-	auto game_viewport_size{ game.renderer.GetGameSize() };
+	auto game_viewport_size{ Application::Get().render_.GetGameSize() };
 	PTGN_ASSERT(game_viewport_size.BothAboveZero());
 
 	V2_float game_point{ (camera_point - camera_viewport_pos) / camera_viewport_size *
@@ -93,8 +93,8 @@ V2_float CameraToGame(const V2_float& camera_point, const Camera& camera) {
 namespace impl {
 
 V2_float WindowToDisplay(const V2_float& window_point) {
-	/*auto window_size{ game.window.GetSize() };
-	auto display_size{ game.renderer.GetDisplaySize() };
+	/*auto window_size{ Application::Get().window_.GetSize() };
+	auto display_size{ Application::Get().render_.GetDisplaySize() };
 
 	V2_float offset{ (window_size - display_size) * 0.5f };
 
@@ -104,8 +104,8 @@ V2_float WindowToDisplay(const V2_float& window_point) {
 }
 
 V2_float DisplayToWindow(const V2_float& display_point) {
-	auto window_size{ game.window.GetSize() };
-	auto display_size{ game.renderer.GetDisplaySize() };
+	auto window_size{ Application::Get().window_.GetSize() };
+	auto display_size{ Application::Get().render_.GetDisplaySize() };
 
 	V2_float offset{ (window_size - display_size) * 0.5f };
 
@@ -156,9 +156,9 @@ V2_float DisplayToSceneTarget(const V2_float& display_point) {
 }
 
 V2_float GameToSceneTarget(const V2_float& game_point) {
-	const auto& scene{ game.scene.GetCurrent() };
+	const auto& scene{ Application::Get().scene_.GetCurrent() };
 
-	auto rt_transform{ GetTransform(scene.GetRenderTarget()) };
+	auto rt_transform{ GetTransform(scene->GetRenderTarget()) };
 
 	auto position{ rt_transform.GetPosition() };
 	auto scale{ rt_transform.GetScale() };

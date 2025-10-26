@@ -1,15 +1,15 @@
-#include "renderer/buffers/vertex_array.h"
+#include "renderer/buffer/vertex_array.h"
 
 #include <array>
 #include <cstdint>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "debug/core/debug_config.h"
 #include "debug/runtime/assert.h"
 #include "debug/runtime/debug_system.h"
 #include "debug/runtime/stats.h"
-#include "renderer/buffers/buffer.h"
-#include "renderer/buffers/buffer_layout.h"
+#include "renderer/buffer/buffer.h"
+#include "renderer/buffer/buffer_layout.h"
 #include "renderer/gl/gl_helper.h"
 #include "renderer/gl/gl_loader.h"
 #include "renderer/renderer.h"
@@ -76,7 +76,7 @@ void VertexArray::Bind() const {
 }
 
 void VertexArray::Bind(std::uint32_t id) {
-	if (game.renderer.bound_.vertex_array_id == id) {
+	if (Application::Get().render_.bound_.vertex_array_id == id) {
 		return;
 	}
 #ifdef PTGN_PLATFORM_MACOS
@@ -86,9 +86,9 @@ void VertexArray::Bind(std::uint32_t id) {
 	}
 #endif
 	GLCall(BindVertexArray(id));
-	game.renderer.bound_.vertex_array_id = id;
+	Application::Get().render_.bound_.vertex_array_id = id;
 #ifdef PTGN_DEBUG
-	++game.debug.stats.vertex_array_binds;
+	++Application::Get().debug_.stats.vertex_array_binds;
 #endif
 #ifdef GL_ANNOUNCE_VERTEX_ARRAY_CALLS
 	PTGN_LOG("GL: Bound vertex array with id ", id);

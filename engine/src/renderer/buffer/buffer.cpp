@@ -1,12 +1,12 @@
-#include "renderer/buffers/buffer.h"
+#include "renderer/buffer/buffer.h"
 
 #include <cstdint>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "debug/core/debug_config.h"
 #include "debug/runtime/assert.h"
 #include "debug/runtime/debug_system.h"
-#include "renderer/buffers/vertex_array.h"
+#include "renderer/buffer/vertex_array.h"
 #include "renderer/gl/gl_helper.h"
 #include "renderer/gl/gl_loader.h"
 
@@ -136,7 +136,7 @@ template <BufferType BT>
 void Buffer<BT>::Bind(std::uint32_t id) {
 	GLCall(BindBuffer(static_cast<GLenum>(BT), id));
 #ifdef PTGN_DEBUG
-	++game.debug.stats.buffer_binds;
+	++Application::Get().debug_.stats.buffer_binds;
 #endif
 #ifdef GL_ANNOUNCE_BUFFER_CALLS
 	PTGN_LOG("GL: Bound buffer with id ", id);

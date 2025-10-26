@@ -4,7 +4,7 @@
 #include <array>
 #include <limits>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/offsets.h"
 #include "core/ecs/components/transform.h"
@@ -374,7 +374,7 @@ void CameraInstance::RecalculateProjection() const {
 }
 
 void CameraGameSizeResizeScript::OnGameSizeChanged() {
-	auto game_size{ game.renderer.GetGameSize() };
+	auto game_size{ Application::Get().render_.GetGameSize() };
 	Camera::Resize(entity, game_size, false, false);
 }
 
@@ -382,7 +382,7 @@ void CameraGameSizeResizeScript::OnGameSizeChanged() {
 
 void Camera::Subscribe() {
 	TryAddScript<impl::CameraGameSizeResizeScript>(*this);
-	V2_int game_size{ game.renderer.GetGameSize() };
+	V2_int game_size{ Application::Get().render_.GetGameSize() };
 	Resize(*this, game_size, false, false);
 }
 

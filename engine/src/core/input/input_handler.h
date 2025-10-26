@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "core/app/resolution.h"
-#include "core/input/events.h"
+#include "core/event/events.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/util/time.h"
@@ -21,11 +21,7 @@ namespace ptgn {
 class Scene;
 class Manager;
 class SceneInput;
-
-namespace impl {
-
-class Game;
-class SceneManager;
+class Application;
 
 class InputHandler {
 public:
@@ -122,7 +118,6 @@ public:
 
 private:
 	friend class ptgn::Scene;
-	friend class SceneManager;
 	friend class Game;
 	friend class ptgn::SceneInput;
 
@@ -141,17 +136,17 @@ private:
 	// scenes.
 	void Update();
 
-	[[nodiscard]] MouseState GetMouseState(Mouse mouse_button) const;
+	[[nodiscard]] impl::MouseState GetMouseState(Mouse mouse_button) const;
 	[[nodiscard]] Timestamp GetMouseTimestamp(Mouse mouse_button) const;
 
-	[[nodiscard]] KeyState GetKeyState(Key key) const;
+	[[nodiscard]] impl::KeyState GetKeyState(Key key) const;
 	[[nodiscard]] Timestamp GetKeyTimestamp(Key key) const;
 
 	[[nodiscard]] std::size_t GetKeyIndex(Key key) const;
 	[[nodiscard]] std::size_t GetMouseIndex(Mouse mouse_button) const;
 	[[nodiscard]] Mouse GetMouse(std::size_t mouse_index) const;
 
-	[[nodiscard]] std::optional<InputEvent> GetInputEvent(const SDL_Event& e);
+	[[nodiscard]] std::optional<impl::InputEvent> GetInputEvent(const SDL_Event& e);
 
 	void Init();
 	void Shutdown();
@@ -163,9 +158,9 @@ private:
 
 	static constexpr std::size_t mouse_count_{ 3 };
 
-	std::array<KeyState, key_count_> key_states_;
+	std::array<impl::KeyState, key_count_> key_states_;
 	std::array<Timestamp, key_count_> key_timestamps_;
-	std::array<MouseState, mouse_count_> mouse_states_;
+	std::array<impl::MouseState, mouse_count_> mouse_states_;
 	std::array<Timestamp, mouse_count_> mouse_timestamps_;
 
 	// Stored mouse positions are relative to the top left of the window.
@@ -181,11 +176,9 @@ private:
 
 	void Prepare();
 	void ProcessInputEvents();
-	void InvokeInputEvents(Manager& manager);
+	void InvokeInputEvents(Application& app, Manager& manager);
 
-	InputQueue queue_;
+	impl::InputQueue queue_;
 };
-
-} // namespace impl
 
 } // namespace ptgn

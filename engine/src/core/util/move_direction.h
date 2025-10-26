@@ -30,7 +30,7 @@ inline std::ostream& operator<<(std::ostream& os, MoveDirection direction) {
 		case MoveDirection::DownLeft:  os << "Down Left"; break;
 		case MoveDirection::Down:	   os << "Down"; break;
 		case MoveDirection::DownRight: os << "Down Right"; break;
-		default:					   PTGN_ERROR("Invalid movement direction")
+		default:					   PTGN_ERROR("Invalid movement direction");
 	}
 
 	return os;

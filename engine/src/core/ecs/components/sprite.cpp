@@ -9,8 +9,8 @@
 #include "core/ecs/entity.h"
 #include "debug/core/log.h"
 #include "math/vector2.h"
-#include "renderer/buffers/frame_buffer.h"
-#include "renderer/materials/texture.h"
+#include "renderer/buffer/frame_buffer.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 
 namespace ptgn {

@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
@@ -17,8 +17,8 @@
 #include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/buffers/frame_buffer.h"
-#include "renderer/materials/texture.h"
+#include "renderer/buffer/frame_buffer.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "world/scene/camera.h"
@@ -61,12 +61,12 @@ RenderTarget AddRenderTargetComponents(
 }
 
 void GameResizeScript::OnGameSizeChanged() {
-	auto game_size{ game.renderer.GetGameSize() };
+	auto game_size{ Application::Get().render_.GetGameSize() };
 	RenderTarget{ entity }.Resize(game_size);
 }
 
 void DisplayResizeScript::OnDisplaySizeChanged() {
-	auto display_size{ game.renderer.GetDisplaySize() };
+	auto display_size{ Application::Get().render_.GetDisplaySize() };
 	RenderTarget{ entity }.Resize(display_size);
 }
 
@@ -89,7 +89,7 @@ void RenderTarget::Draw(const Entity& entity) {
 		texture_size = sprite.GetSize();
 	}
 
-	game.renderer.DrawTexture(
+	Application::Get().render_.DrawTexture(
 		sprite.GetTexture(), GetDrawTransform(entity), texture_size, GetDrawOrigin(entity),
 		GetTint(entity), GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
 		entity.GetOrDefault<PreFX>(), entity.GetOrDefault<PostFX>(),
@@ -242,10 +242,10 @@ RenderTarget CreateRenderTarget(
 	V2_int resolution;
 
 	if (resize_to_resolution == ResizeMode::DisplaySize) {
-		resolution = game.renderer.GetDisplaySize();
+		resolution = Application::Get().render_.GetDisplaySize();
 		AddScript<impl::DisplayResizeScript>(render_target);
 	} else if (resize_to_resolution == ResizeMode::GameSize) {
-		resolution = game.renderer.GetGameSize();
+		resolution = Application::Get().render_.GetGameSize();
 		AddScript<impl::GameResizeScript>(render_target);
 	} else {
 		PTGN_ERROR("Unknown resize to resolution value");

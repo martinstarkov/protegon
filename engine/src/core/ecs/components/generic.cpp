@@ -51,7 +51,7 @@ void from_json(const json& j, HashComponent& hash_component) {
 		hash_component.key_ = {};
 		j.get_to(hash_component.hash_);
 	} else {
-		PTGN_ERROR("Deserializing HashComponent from json requires it to be string or integer")
+		PTGN_ERROR("Deserializing HashComponent from json requires it to be string or integer");
 	}
 }
 

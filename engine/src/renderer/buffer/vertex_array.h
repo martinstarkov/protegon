@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "debug/runtime/assert.h"
-#include "renderer/buffers/buffer.h"
-#include "renderer/buffers/buffer_layout.h"
+#include "renderer/buffer/buffer.h"
+#include "renderer/buffer/buffer_layout.h"
 #include "renderer/gl/gl_types.h"
 
 namespace ptgn::impl {

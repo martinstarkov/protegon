@@ -3,7 +3,7 @@
 #include <array>
 
 #include "math/vector2.h"
-#include "renderer/buffers/buffer_layout.h"
+#include "renderer/buffer/buffer_layout.h"
 #include "renderer/gl/gl_types.h"
 
 namespace ptgn {

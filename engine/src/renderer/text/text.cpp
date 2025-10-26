@@ -5,20 +5,19 @@
 #include <memory>
 #include <string>
 
-#include "core/app/game.h"
 #include "core/app/manager.h"
+#include "core/asset/asset_manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/resource/resource_manager.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/text/font.h"
 #include "SDL_blendmode.h"
@@ -156,11 +155,14 @@ V2_int Text::GetSize(const Entity& text, const Camera& camera) {
 V2_int Text::GetSize(
 	const TextContent& content, const ResourceHandle& font_key, const FontSize& font_size
 ) {
-	PTGN_ASSERT(
-		game.font.Has(font_key),
-		"Cannot get size of text texture unless its font is loaded in the font manager"
-	);
-	return game.font.GetSize(font_key, content, font_size);
+	// TODO: FIX THIS TO USE ASSET MANAGER.
+	PTGN_ASSERT(false);
+	return {};
+	// PTGN_ASSERT(
+	//	Application::Get().font.Has(font_key),
+	//	"Cannot get size of text texture unless its font is loaded in the font manager"
+	//);
+	// return Application::Get().font.GetSize(font_key, content, font_size);
 }
 
 impl::Texture Text::CreateTexture(const FontSize& font_size) const {
@@ -182,16 +184,20 @@ impl::Texture Text::CreateTexture(
 		return {};
 	}
 
-	PTGN_ASSERT(
-		game.font.Has(font_key),
-		"Cannot create texture for text with font key which is not loaded in the font manager"
-	);
+	// TODO: Fix these to use asset manager.
 
-	auto shared_font{ game.font.Get(
-		font_key, {} /* Force retrieval of the font regardless of size since this function also sets
-						the font size. */
-	) };
-	auto font{ shared_font.get() };
+	// PTGN_ASSERT(
+	//	Application::Get().font.Has(font_key),
+	//	"Cannot create texture for text with font key which is not loaded in the font manager"
+	//);
+
+	// auto shared_font{ Application::Get().font.Get(
+	//	font_key, {} /* Force retrieval of the font regardless of size since this function also sets
+	//					the font size. */
+	//) };
+	// auto font{ shared_font.get() };
+
+	TTF_Font* font{ nullptr };
 
 	PTGN_ASSERT(font != nullptr, "Cannot create texture for text with nullptr font");
 
@@ -259,7 +265,8 @@ impl::Texture Text::CreateTexture(
 			);
 			break;
 		default:
-			PTGN_ERROR("Unrecognized render mode given when creating surface from font information")
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
+			);
 	}
 
 	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");

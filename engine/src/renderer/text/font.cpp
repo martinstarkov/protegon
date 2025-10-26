@@ -6,11 +6,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "core/app/game.h"
-#include "core/app/sdl_instance.h"
+#include "core/asset/asset_manager.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
-#include "core/resource/resource_manager.h"
 #include "core/util/file.h"
 #include "debug/runtime/assert.h"
 #include "math/vector2.h"
@@ -39,9 +37,7 @@ FontSize FontSize::GetHD(const Scene& scene, const Camera& camera) const {
 namespace impl {
 
 void TTF_FontDeleter::operator()(TTF_Font* font) const {
-	if (game.sdl_instance_->SDLTTFIsInitialized()) {
-		TTF_CloseFont(font);
-	}
+	TTF_CloseFont(font);
 }
 
 FontManager::FontManager(FontManager&& other) noexcept : ResourceManager{ std::move(other) } {
@@ -57,7 +53,7 @@ FontManager& FontManager::operator=(FontManager&& other) noexcept {
 }
 
 FontManager::~FontManager() {
-	if (game.sdl_instance_->SDLIsInitialized() && raw_default_font_) {
+	if (raw_default_font_) {
 		SDL_RWclose(raw_default_font_);
 	}
 }

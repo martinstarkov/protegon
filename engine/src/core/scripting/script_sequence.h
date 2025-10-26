@@ -9,7 +9,7 @@
 #include "core/ecs/game_object.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
-#include "tweens/tween.h"
+#include "tween/tween.h"
 
 namespace ptgn {
 

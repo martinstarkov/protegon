@@ -6,11 +6,10 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/resolution.h"
 #include "core/app/window.h"
 #include "core/ecs/components/transform.h"
-#include "core/input/events.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/util/time.h"
@@ -27,7 +26,10 @@
 #include "SDL_timer.h"
 #include "SDL_video.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+// TODO: Get rid of this.
+using namespace impl;
 
 std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
 	switch (e.type) {
@@ -186,7 +188,7 @@ void InputHandler::Prepare() {
 	}
 }
 
-void InputHandler::InvokeInputEvents(Manager& manager) {
+void InputHandler::InvokeInputEvents(Application& app, Manager& manager) {
 	for (const auto& event : queue_) {
 		std::visit(
 			[&](auto&& ev) {
@@ -257,7 +259,7 @@ void InputHandler::InvokeInputEvents(Manager& manager) {
 						scripts.AddAction(&WindowScript::OnWindowFocusGained);
 					}
 				} else if constexpr (std::is_same_v<T, impl::WindowQuit>) {
-					game.Stop();
+					app.Stop();
 				}
 			},
 			event
@@ -278,8 +280,8 @@ void InputHandler::Update() {
 
 bool InputHandler::MouseWithinWindow() const {
 	auto screen_pointer{ GetMouseScreenPosition() };
-	auto window_size{ game.window.GetSize() };
-	auto window_position{ game.window.GetPosition() };
+	auto window_size{ Application::Get().window_.GetSize() };
+	auto window_position{ Application::Get().window_.GetPosition() };
 	Transform window_transform{ window_position + window_size / 2 };
 	Rect window_rect{ window_size };
 	return Overlap(screen_pointer, window_transform, window_rect);
@@ -292,7 +294,7 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 V2_float InputHandler::GetPositionRelativeTo(
 	const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
 ) {
-	V2_int window_center{ game.window.GetSize() / 2 };
+	V2_int window_center{ Application::Get().window_.GetSize() / 2 };
 
 	V2_int window_point{ window_position };
 
@@ -304,7 +306,7 @@ V2_float InputHandler::GetPositionRelativeTo(
 		case ViewportType::Game:  {
 			auto game_point{ WindowToGame(window_point) };
 			if (clamp_to_viewport) {
-				auto game_size{ game.renderer.GetGameSize() };
+				auto game_size{ Application::Get().render_.GetGameSize() };
 				auto half_size{ game_size * 0.5f };
 				game_point = Clamp(game_point, -half_size, half_size);
 			}
@@ -313,7 +315,7 @@ V2_float InputHandler::GetPositionRelativeTo(
 		case ViewportType::Display: {
 			auto display_point{ WindowToDisplay(window_point) };
 			if (clamp_to_viewport) {
-				auto display_size{ game.renderer.GetDisplaySize() };
+				auto display_size{ Application::Get().render_.GetDisplaySize() };
 				auto half_size{ display_size * 0.5f };
 				display_point = Clamp(display_point, -half_size, half_size);
 			}
@@ -321,7 +323,7 @@ V2_float InputHandler::GetPositionRelativeTo(
 		}
 		case ViewportType::WindowCenter:  return window_point;
 		case ViewportType::WindowTopLeft: return window_position;
-		default:						  PTGN_ERROR("Unrecognized viewport type")
+		default:						  PTGN_ERROR("Unrecognized viewport type");
 	}
 }
 
@@ -329,7 +331,7 @@ V2_int InputHandler::GetMouseScreenPosition() const {
 	V2_int mouse_screen_pos;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&mouse_screen_pos.x, &mouse_screen_pos.y);
-	V2_int window_pos{ game.window.GetPosition() };
+	V2_int window_pos{ Application::Get().window_.GetPosition() };
 	mouse_screen_pos -= window_pos;
 	return mouse_screen_pos;
 }
@@ -499,4 +501,4 @@ bool InputHandler::KeyUp(Key key) const {
 	return GetKeyState(key) == KeyState::Up;
 }
 
-} // namespace ptgn::impl
+} // namespace ptgn

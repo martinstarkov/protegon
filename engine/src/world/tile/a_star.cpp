@@ -5,7 +5,7 @@
 #include <list>
 #include <utility>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
