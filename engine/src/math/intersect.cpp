@@ -7,14 +7,12 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/components/transform.h"
 #include "core/util/type_info.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
-#include "debug/runtime/stats.h"
 #include "geometry/circle.h"
 #include "geometry/polygon.h"
 #include "geometry/rect.h"
@@ -73,15 +71,8 @@ Intersection IntersectCircleCircle(
 
 	// No overlap.
 	if (!impl::WithinPerimeter(r, dist2)) {
-#ifdef PTGN_DEBUG
-		game.debug.stats.overlap_circle_circle++;
-#endif
 		return c;
 	}
-
-#ifdef PTGN_DEBUG
-	game.debug.stats.intersect_circle_circle++;
-#endif
 
 	if (dist2 > epsilon<float> * epsilon<float>) {
 		float dist{ std::sqrt(dist2) };
@@ -106,9 +97,6 @@ Intersection IntersectCircleRect(
 		return IntersectCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
-#ifdef PTGN_DEBUG
-	game.debug.stats.intersect_circle_rect++;
-#endif
 	// Source:
 	// https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 	Intersection c;
@@ -163,9 +151,6 @@ Intersection IntersectCirclePolygon(
 	const Transform& t1, const Circle& A, const Transform& t2, const Polygon& B
 ) {
 	Intersection c;
-#ifdef PTGN_DEBUG
-	game.debug.stats.intersect_circle_polygon++;
-#endif
 
 	float min_penetration{ std::numeric_limits<float>::infinity() };
 	V2_float collision_normal;
@@ -218,10 +203,6 @@ Intersection IntersectRectRect(
 		);
 	}
 
-#ifdef PTGN_DEBUG
-	game.debug.stats.intersect_rect_rect++;
-#endif
-
 	auto rectA_center{ A.GetCenter(t1) };
 	auto rectA_size{ A.GetSize(t1) };
 
@@ -259,10 +240,6 @@ Intersection IntersectRectRect(
 Intersection IntersectPolygonPolygon(
 	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.intersect_polygon_polygon++;
-#endif
-
 	Polygon polygon_A{ A.GetWorldVertices(t1) };
 	Polygon polygon_B{ B.GetWorldVertices(t2) };
 
@@ -309,15 +286,15 @@ Intersection IntersectPolygonPolygon(
 	// Draw all polygon points projected onto all the axes.
 	const auto draw_axes = [](const std::vector<Axis>& axes, const Polygon& p) {
 		for (const auto& a : axes) {
-			game.draw.Axis(a.midpoint, a.direction, color::Pink, 1.0f);
+			Application::Get().draw.Axis(a.midpoint, a.direction, color::Pink, 1.0f);
 			auto [min, max] = impl::GetProjectionMinMax(p, a);
 			V2_float p1{ a.midpoint + a.direction * min };
 			V2_float p2{ a.midpoint + a.direction * max };
-			game.draw.Point(p1, color::Purple, 5.0f);
-			game.draw.Point(p2, color::Orange, 5.0f);
+			Application::Get().draw.Point(p1, color::Purple, 5.0f);
+			Application::Get().draw.Point(p2, color::Orange, 5.0f);
 			V2_float to{ 0.0f, -17.0f };
-			game.draw.Text(std::to_string((int)min), p1 + to, color::Purple);
-			game.draw.Text(std::to_string((int)max), p2 + to, color::Orange);
+			Application::Get().draw.Text(std::to_string((int)min), p1 + to, color::Purple);
+			Application::Get().draw.Text(std::to_string((int)max), p2 + to, color::Orange);
 		}
 	};
 
@@ -327,9 +304,10 @@ Intersection IntersectPolygonPolygon(
 	draw_axes(impl::GetAxes(polygon, true), polygon);
 
 	// Draw overlap axis and overlap amounts on both sides.
-	game.draw.Axis(axis.midpoint, c.normal, color::Black, 2.0f);
-	game.draw.Line(axis.midpoint, axis.midpoint - c.normal * c.depth, color::Cyan, 3.0f);
-	game.draw.Line(axis.midpoint, axis.midpoint + c.normal * c.depth, color::Cyan, 3.0f);
+	Application::Get().draw.Axis(axis.midpoint, c.normal, color::Black, 2.0f);
+	Application::Get().draw.Line(axis.midpoint, axis.midpoint - c.normal * c.depth,
+	color::Cyan, 3.0f); Application::Get().draw.Line(axis.midpoint, axis.midpoint + c.normal *
+	c.depth, color::Cyan, 3.0f);
 	*/
 }
 

@@ -9,14 +9,12 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/components/transform.h"
 #include "core/util/type_info.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
-#include "debug/runtime/stats.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -70,9 +68,6 @@ namespace impl {
 RaycastResult RaycastLine(
 	const V2_float& ray_start, const V2_float& ray_end, const Transform& t2, const Line& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.raycast_line_line++;
-#endif
 	// Source:
 	// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
 
@@ -128,9 +123,6 @@ RaycastResult RaycastLine(
 RaycastResult RaycastCircle(
 	const V2_float& ray_start, const V2_float& ray_end, const Transform& transform2, const Circle& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.raycast_line_circle++;
-#endif
 	// Source:
 	// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
 
@@ -188,9 +180,6 @@ RaycastResult RaycastCircle(
 RaycastResult RaycastRect(
 	const V2_float& ray_start, const V2_float& ray_end, const Transform& transform2, const Rect& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.raycast_line_rect++;
-#endif
 	RaycastResult c;
 
 	bool start_in{ OverlapPointRect(Transform{}, ray_start, transform2, B) };
@@ -341,9 +330,6 @@ RaycastResult RaycastCapsule(
 	const V2_float& ray_start, const V2_float& ray_end, const Transform& transform2,
 	const Capsule& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.raycast_line_capsule++;
-#endif
 	// Source: https://stackoverflow.com/a/52462458
 
 	RaycastResult c;
@@ -491,9 +477,6 @@ RaycastResult RaycastCircleRect(
 	const V2_float& ray, const Transform& transform1, const Circle& A, const Transform& transform2,
 	const Rect& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.raycast_circle_rect++;
-#endif
 	if (transform2.GetRotation() != 0.0f) {
 		return RaycastCirclePolygon(
 			ray, transform1, A, transform2, Polygon{ B.GetLocalVertices() }
@@ -592,9 +575,6 @@ RaycastResult RaycastRectRect(
 	const V2_float& ray, const Transform& transform1, const Rect& A, const Transform& transform2,
 	const Rect& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.raycast_rect_rect++;
-#endif
 	bool rotated1{ transform1.GetRotation() != 0.0f };
 	bool rotated2{ transform2.GetRotation() != 0.0f };
 

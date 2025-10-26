@@ -7,14 +7,12 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/components/transform.h"
 #include "core/util/type_info.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
-#include "debug/runtime/stats.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
@@ -266,9 +264,6 @@ bool OverlapPointPoint(
 }
 
 bool OverlapPointLine(const Transform& t1, const V2_float& A, const Transform& t2, const Line& B) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_point_line++;
-#endif
 	auto point{ t1.Apply(A) };
 	auto [line_start, line_end] = B.GetWorldVertices(t2);
 
@@ -298,9 +293,6 @@ bool OverlapPointLine(const Transform& t1, const V2_float& A, const Transform& t
 bool OverlapPointTriangle(
 	const Transform& t1, const V2_float& A, const Transform& t2, const Triangle& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_point_triangle++;
-#endif
 	auto point{ t1.Apply(A) };
 	auto [triangle_a, triangle_b, triangle_c] = B.GetWorldVertices(t2);
 
@@ -325,9 +317,6 @@ bool OverlapPointCircle(
 	if (circle_radius <= 0.0f) {
 		return false;
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_point_circle++;
-#endif
 	auto point{ t1.Apply(A) };
 	auto circle_center{ B.GetCenter(t2) };
 
@@ -340,9 +329,6 @@ bool OverlapPointRect(const Transform& t1, const V2_float& A, const Transform& t
 	if (rect_size.IsZero()) {
 		return false;
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_point_rect++;
-#endif
 	if (t2.GetRotation() != 0.0f) {
 		return OverlapPointPolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
@@ -380,9 +366,6 @@ bool OverlapPointCapsule(
 	if (capsule_radius <= 0.0f) {
 		return false;
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_point_capsule++;
-#endif
 
 	auto point{ t1.Apply(A) };
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
@@ -398,9 +381,6 @@ bool OverlapPointCapsule(
 bool OverlapPointPolygon(
 	const Transform& t1, const V2_float& A, const Transform& t2, const Polygon& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_point_polygon++;
-#endif
 	auto point{ t1.Apply(A) };
 
 	auto world_points{ t2.Apply(B.vertices) };
@@ -424,9 +404,6 @@ bool OverlapPointPolygon(
 }
 
 bool OverlapLineLine(const Transform& t1, const Line& A, const Transform& t2, const Line& B) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_line_line++;
-#endif
 	auto [lineA_start, lineA_end] = A.GetWorldVertices(t1);
 	auto [lineB_start, lineB_end] = B.GetWorldVertices(t2);
 	// Source:
@@ -492,9 +469,6 @@ bool OverlapLineCircle(const Transform& t1, const Line& A, const Transform& t2, 
 	if (circle_radius <= 0.0f) {
 		return false;
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_line_circle++;
-#endif
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
 	// Source: https://www.baeldung.com/cs/circle-line-segment-collision-detection
 
@@ -553,9 +527,6 @@ bool OverlapLineRect(const Transform& t1, const Line& A, const Transform& t2, co
 		);
 	}
 
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_line_rect++;
-#endif
 	auto rect_center{ B.GetCenter(t2) };
 
 	V2_float c{ rect_center };
@@ -600,9 +571,6 @@ bool OverlapLineCapsule(const Transform& t1, const Line& A, const Transform& t2,
 	if (capsule_radius <= 0.0f) {
 		return false;
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_line_capsule++;
-#endif
 	auto [line_start, line_end]		  = A.GetWorldVertices(t1);
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
 	// Source:
@@ -643,9 +611,6 @@ bool OverlapLinePolygon(const Transform& t1, const Line& A, const Transform& t2,
 bool OverlapCircleCircle(
 	const Transform& t1, const Circle& A, const Transform& t2, const Circle& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_circle_circle++;
-#endif
 	auto circleA_center{ A.GetCenter(t1) };
 	auto circleB_center{ B.GetCenter(t2) };
 	auto circleA_radius{ A.GetRadius(t1) };
@@ -684,9 +649,6 @@ bool OverlapCircleRect(const Transform& t1, const Circle& A, const Transform& t2
 	if (t2.GetRotation() != 0.0f) {
 		return OverlapCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_circle_rect++;
-#endif
 	auto circle_center{ A.GetCenter(t1) };
 	auto rect_center{ B.GetCenter(t2) };
 	// Source:
@@ -741,9 +703,6 @@ bool OverlapCircleCapsule(
 	if (capsule_radius <= 0.0f) {
 		return false;
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_circle_capsule++;
-#endif
 	auto circle_center{ A.GetCenter(t1) };
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
 	// Source:
@@ -780,9 +739,6 @@ bool OverlapTriangleRect(
 	if (auto rect_size{ B.GetSize(t2) }; rect_size.IsZero()) {
 		return false;
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_triangle_rect++;
-#endif
 	return OverlapPolygonPolygon(
 		t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 	);
@@ -822,10 +778,6 @@ bool OverlapTriangleCapsule(
 		return false;
 	}
 
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_triangle_capsule++;
-#endif
-
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
 
 	auto triangle_polygon{ A.GetWorldVertices(t1) };
@@ -852,9 +804,6 @@ bool OverlapRectRect(const Transform& t1, const Rect& A, const Transform& t2, co
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);
 	}
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_rect_rect++;
-#endif
 	auto rectA_size{ A.GetSize(t1) };
 	auto rectB_size{ B.GetSize(t2) };
 	auto rectA_center{ A.GetCenter(t1) };
@@ -899,9 +848,6 @@ bool OverlapRectCapsule(const Transform& t1, const Rect& A, const Transform& t2,
 		return false;
 	}
 
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_rect_capsule++;
-#endif
 	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
 
 	if (OverlapPointRect(Transform{}, capsule_start, t1, A)) {
@@ -967,9 +913,6 @@ bool OverlapRectPolygon(const Transform& t1, const Rect& A, const Transform& t2,
 bool OverlapCapsuleCapsule(
 	const Transform& t1, const Capsule& A, const Transform& t2, const Capsule& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_capsule_capsule++;
-#endif
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114-115.
@@ -995,9 +938,6 @@ bool OverlapCapsuleCapsule(
 bool OverlapPolygonPolygon(
 	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
 ) {
-#ifdef PTGN_DEBUG
-	game.debug.stats.overlap_polygon_polygon++;
-#endif
 	PTGN_ASSERT(
 		impl::IsConvexPolygon(A.vertices.data(), A.vertices.size()),
 		"PolygonPolygon overlap check only works if both polygons are convex"
