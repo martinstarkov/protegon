@@ -15,54 +15,49 @@
 
 namespace ptgn {
 
-namespace impl {
+class Application;
 
-class Game;
+namespace impl {
 
 template <typename T>
 concept SceneType = IsOrDerivedFrom<T, Scene>;
 
-template <typename T>
-concept SceneTransitionType = IsOrDerivedFrom<T, SceneTransition> || std::is_same_v<T, int>;
+} // namespace impl
 
 class SceneManager {
 public:
 	SceneManager()									 = default;
 	~SceneManager()									 = default;
-	SceneManager(SceneManager&&) noexcept			 = default;
-	SceneManager& operator=(SceneManager&&) noexcept = default;
+	SceneManager(SceneManager&&) noexcept			 = delete;
+	SceneManager& operator=(SceneManager&&) noexcept = delete;
 	SceneManager(const SceneManager&)				 = delete;
 	SceneManager& operator=(const SceneManager&)	 = delete;
 
-	template <SceneType TScene, typename... TArgs>
+	template <impl::SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& TryLoad(const SceneKey& scene_key, TArgs&&... constructor_args) {
-		bool first_scene{ scene_index_ == 0 };
 		scene_index_++;
 		auto [inserted, scene] = VectorTryEmplaceIf<TScene>(
 			scenes_, [scene_key](const auto& s) { return s->GetKey() == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
-		scene->first_scene_ = first_scene;
 		scene->SetKey(scene_key);
 		return *static_cast<TScene*>(scene.get());
 	}
 
-	template <SceneType TScene, typename... TArgs>
+	template <impl::SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& Load(const SceneKey& scene_key, TArgs&&... constructor_args) {
-		bool first_scene{ scene_index_ == 0 };
 		scene_index_++;
 		auto [replaced, scene] = VectorReplaceOrEmplaceIf<TScene>(
 			scenes_, [scene_key](const auto& s) { return s->GetKey() == scene_key; },
 			std::forward<TArgs>(constructor_args)...
 		);
-		scene->first_scene_ = first_scene;
 		scene->SetKey(scene_key);
 		return *static_cast<TScene*>(scene.get());
 	}
 
-	template <SceneType TScene, typename... TArgs>
+	template <impl::SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& Enter(const SceneKey& scene_key, TArgs&&... constructor_args) {
 		auto& scene{ Load<TScene>(scene_key, std::forward<TArgs>(constructor_args)...) };
@@ -72,72 +67,48 @@ public:
 	}
 
 	// @param from_scene_key If nullopt, will transition from all currently active scenes.
-	template <SceneType TScene, typename... TArgs>
-		requires std::constructible_from<TScene, TArgs...>
-	TScene& Transition(
-		const std::optional<SceneKey>& from_scene_key, const SceneKey& to_scene_key,
-		TArgs&&... constructor_args
-	) {
-		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
-		SceneManager::Transition(from_scene_key, to_scene_key);
-		return scene;
-	}
-
-	// @param from_scene_key If nullopt, will transition from all currently active scenes.
 	template <
-		SceneType TScene, SceneTransitionType TransitionIn = int,
-		SceneTransitionType TransitionOut = int, typename... TArgs>
+		impl::SceneType TScene, impl::SceneTransitionType TransitionIn = NoTransition,
+		impl::SceneTransitionType TransitionOut = NoTransition, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	TScene& Transition(
 		const std::optional<SceneKey>& from_scene_key, const SceneKey& to_scene_key,
-		const TransitionIn& in, const TransitionOut& out, TArgs&&... constructor_args
+		TransitionIn&& in = {}, TransitionOut&& out = {}, TArgs&&... args
 	) {
-		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(constructor_args)...) };
-		SceneManager::Transition<TransitionIn, TransitionOut>(
-			from_scene_key, to_scene_key, in, out
-		);
-		return scene;
-	}
+		auto& scene{ Load<TScene>(to_scene_key, std::forward<TArgs>(args)...) };
 
-	// @param from_scene_key If nullopt, will transition from all currently active scenes.
-	void Transition(const std::optional<SceneKey>& from_scene_key, const SceneKey& to_scene_key) {
-		SceneManager::Transition<int, int>(from_scene_key, to_scene_key, 0, 0);
-	}
-
-	// @param from_scene_key If nullopt, will transition from all currently active scenes.
-	template <SceneTransitionType TransitionIn, SceneTransitionType TransitionOut = int>
-	void Transition(
-		const std::optional<SceneKey>& from_scene_key, const SceneKey& to_scene_key,
-		TransitionIn in, TransitionOut out = 0
-	) {
-		if constexpr (!std::is_same_v<TransitionOut, int>) {
-			const auto transition_out_func = [&out](auto& scene_from) {
-				auto transition_out		= std::make_shared<TransitionOut>(out);
-				transition_out->scene	= scene_from.get();
-				scene_from->transition_ = transition_out;
+		if constexpr (!std::same_as<std::remove_cvref_t<TransitionOut>, NoTransition>) {
+			auto set_out = [&](auto& scene_from) {
+				auto t = std::make_shared<std::remove_cvref_t<TransitionOut>>(
+					std::forward<TransitionOut>(out)
+				);
+				t->scene				= scene_from.get();
+				scene_from->transition_ = std::move(t);
 			};
-
-			if (from_scene_key.has_value()) {
-				auto scene_from{ GetImpl(*from_scene_key) };
-				transition_out_func(scene_from);
+			if (from_scene_key) {
+				set_out(GetImpl(*from_scene_key));
 			} else {
-				for (const auto& scene_from : active_scenes_) {
-					transition_out_func(scene_from);
+				for (auto& s : active_scenes_) {
+					set_out(s);
 				}
 			}
 		}
-		if constexpr (!std::is_same_v<TransitionIn, int>) {
-			auto scene_to{ GetImpl(to_scene_key) };
-			auto transition_in	  = std::make_shared<TransitionIn>(in);
-			transition_in->scene  = scene_to.get();
-			scene_to->transition_ = transition_in;
+
+		if constexpr (!std::same_as<std::remove_cvref_t<TransitionIn>, NoTransition>) {
+			auto scene_to = GetImpl(to_scene_key);
+			auto t =
+				std::make_shared<std::remove_cvref_t<TransitionIn>>(std::forward<TransitionIn>(in));
+			t->scene			  = scene_to.get();
+			scene_to->transition_ = std::move(t);
 		}
-		if (from_scene_key.has_value()) {
+
+		if (from_scene_key) {
 			Exit(*from_scene_key);
 		} else {
 			ExitAll();
 		}
 		Enter(to_scene_key);
+		return scene;
 	}
 
 	void Enter(const SceneKey& scene_key);
@@ -148,16 +119,48 @@ public:
 
 	void Exit(const SceneKey& scene_key);
 
-	template <SceneType TScene = Scene>
-	[[nodiscard]] TScene& Get(const SceneKey& scene_key) {
-		auto scene{ GetImpl(scene_key) };
-		PTGN_ASSERT(scene, "Cannot retrieve scene which does not exist in the scene manager");
-		return *static_cast<TScene*>(scene.get());
+	[[nodiscard]] std::shared_ptr<Scene> Get(const SceneKey& key) {
+		auto p = GetImpl(key);
+		PTGN_ASSERT(p, "Cannot retrieve scene which does not exist in the scene manager");
+		return p;
 	}
 
-	[[nodiscard]] const Scene& GetCurrent() const;
+	[[nodiscard]] std::shared_ptr<const Scene> Get(const SceneKey& key) const {
+		auto p = GetImpl(key);
+		PTGN_ASSERT(p, "Cannot retrieve scene which does not exist in the scene manager");
+		return std::static_pointer_cast<const Scene>(p);
+	}
 
-	[[nodiscard]] Scene& GetCurrent();
+	template <impl::SceneType TScene /*= Scene*/>
+	[[nodiscard]] std::shared_ptr<TScene> Get(const SceneKey& key) {
+		auto base = GetImpl(key);
+		PTGN_ASSERT(base, "Cannot retrieve scene which does not exist in the scene manager");
+
+		if constexpr (std::is_same_v<std::remove_cv_t<TScene>, Scene>) {
+			return std::static_pointer_cast<Scene>(base);
+		} else {
+			auto d = std::dynamic_pointer_cast<TScene>(base);
+			PTGN_ASSERT(d, "Requested scene type does not match stored type for key");
+			return d;
+		}
+	}
+
+	template <impl::SceneType TScene /*= Scene*/>
+	[[nodiscard]] std::shared_ptr<const TScene> Get(const SceneKey& key) const {
+		auto base = GetImpl(key);
+		PTGN_ASSERT(base, "Cannot retrieve scene which does not exist in the scene manager");
+
+		if constexpr (std::is_same_v<std::remove_cv_t<TScene>, Scene>) {
+			return std::static_pointer_cast<const Scene>(base);
+		} else {
+			auto d = std::dynamic_pointer_cast<const TScene>(base);
+			PTGN_ASSERT(d, "Requested scene type does not match stored type for key");
+			return d;
+		}
+	}
+
+	[[nodiscard]] std::shared_ptr<const Scene> GetCurrent() const;
+	[[nodiscard]] std::shared_ptr<Scene> GetCurrent();
 
 	[[nodiscard]] bool Has(const SceneKey& scene_key) const;
 
@@ -182,14 +185,14 @@ public:
 	void MoveBelow(const SceneKey& source_key, const SceneKey& target_key);
 
 private:
-	friend class Game;
+	friend class Application;
 
 	void ExitAll();
 
 	std::shared_ptr<Scene> GetImpl(const SceneKey& scene_key) const;
 
 	// Updates all the active scenes.
-	void Update(Game& game);
+	void Update();
 
 	// Clears the frame buffers of each scene.
 	// void ClearSceneTargets();
@@ -205,7 +208,5 @@ private:
 
 	std::size_t scene_index_{ 0 };
 };
-
-} // namespace impl
 
 } // namespace ptgn

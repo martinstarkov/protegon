@@ -7,25 +7,18 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
 #include "core/app/manager.h"
-#include "core/input/input_handler.h"
-#include "core/scripting/script.h"
-#include "core/scripting/script_interfaces.h"
 #include "core/util/file.h"
 #include "core/util/span.h"
 #include "debug/runtime/assert.h"
-#include "renderer/render_data.h"
-#include "renderer/renderer.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
-#include "tweens/tween.h"
 #include "ui/menu_template.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_key.h"
 #include "world/scene/scene_transition.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 template <typename Container>
 static auto FindSceneIt(Container& container, const SceneKey& key) {
@@ -36,13 +29,12 @@ static auto FindSceneIt(Container& container, const SceneKey& key) {
 	return it;
 }
 
-const Scene& SceneManager::GetCurrent() const {
-	PTGN_ASSERT(current_, "Cannot get current scene when one has not been set");
-	return *current_;
+std::shared_ptr<const Scene> SceneManager::GetCurrent() const {
+	return current_;
 }
 
-Scene& SceneManager::GetCurrent() {
-	return const_cast<Scene&>(std::as_const(*this).GetCurrent());
+std::shared_ptr<Scene> SceneManager::GetCurrent() {
+	return current_;
 }
 
 bool SceneManager::Has(const SceneKey& scene_key) const {
@@ -81,13 +73,7 @@ void SceneManager::Unload(const SceneKey& scene_key) {
 void SceneManager::Enter(const SceneKey& scene_key) {
 	auto scene{ GetImpl(scene_key) };
 	PTGN_ASSERT(scene, "Cannot enter a scene unless it has been loaded first");
-
 	scene->state_ = Scene::State::Entering;
-
-	if (scene->first_scene_ && active_scenes_.empty()) {
-		// First active scene, aka the starting scene. Enter the game loop.
-		game.MainLoop();
-	}
 }
 
 void SceneManager::Exit(const SceneKey& scene_key) {
@@ -118,68 +104,70 @@ void SceneManager::Shutdown() {
 	Reset();
 }
 
-void SceneManager::Update(Game& g) {
-	HandleSceneEvents();
+void SceneManager::Update() {
+	PTGN_LOG("Updating scene manager...");
 
-	if (active_scenes_.empty()) {
-		return;
-	}
+	// HandleSceneEvents();
 
-	g.renderer.ClearScreen();
+	// if (active_scenes_.empty()) {
+	//	return;
+	// }
 
-	auto& render_data{ g.renderer.render_data_ };
+	// g.renderer.ClearScreen();
 
-	g.input.Update();
+	// auto& render_data{ g.renderer.render_data_ };
 
-	// TODO: Figure out a better way to do non-scene events / scripts.
+	// g.input.Update();
 
-	bool invoke_actions{ render_data.game_size_changed_ || render_data.display_size_changed_ };
+	//// TODO: Figure out a better way to do non-scene events / scripts.
 
-	const auto invoke_resolution_events = [&](Manager& manager) {
-		manager.Refresh();
+	// bool invoke_actions{ render_data.game_size_changed_ || render_data.display_size_changed_ };
 
-		if (render_data.game_size_changed_) {
-			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-				scripts.AddAction(&GameSizeScript::OnGameSizeChanged);
-			}
-		}
-		if (render_data.display_size_changed_) {
-			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-				scripts.AddAction(&DisplaySizeScript::OnDisplaySizeChanged);
-			}
-		}
-		if (invoke_actions) {
-			for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-				scripts.InvokeActions();
-			}
-		}
+	// const auto invoke_resolution_events = [&](Manager& manager) {
+	//	manager.Refresh();
 
-		manager.Refresh();
-	};
+	//	if (render_data.game_size_changed_) {
+	//		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+	//			scripts.AddAction(&GameSizeScript::OnGameSizeChanged);
+	//		}
+	//	}
+	//	if (render_data.display_size_changed_) {
+	//		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+	//			scripts.AddAction(&DisplaySizeScript::OnDisplaySizeChanged);
+	//		}
+	//	}
+	//	if (invoke_actions) {
+	//		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+	//			scripts.InvokeActions();
+	//		}
+	//	}
 
-	g.input.InvokeInputEvents(render_data.render_manager);
-	invoke_resolution_events(render_data.render_manager);
+	//	manager.Refresh();
+	//};
 
-	Tween::Update(render_data.render_manager, g.dt());
+	// g.input.InvokeInputEvents(render_data.render_manager);
+	// invoke_resolution_events(render_data.render_manager);
 
-	auto scenes{ scenes_ };
-	for (auto scene : scenes) {
-		invoke_resolution_events(*scene);
-	}
+	// Tween::Update(render_data.render_manager, g.dt());
 
-	render_data.game_size_changed_	  = false;
-	render_data.display_size_changed_ = false;
+	// auto scenes{ scenes_ };
+	// for (auto scene : scenes) {
+	//	invoke_resolution_events(*scene);
+	// }
 
-	auto active_scenes{ active_scenes_ };
-	for (auto active_scene : active_scenes) {
-		current_ = active_scene;
-		active_scene->InternalUpdate();
-		current_ = nullptr;
-	}
+	// render_data.game_size_changed_	  = false;
+	// render_data.display_size_changed_ = false;
 
-	render_data.DrawScreenTarget();
+	// auto active_scenes{ active_scenes_ };
+	// for (auto active_scene : active_scenes) {
+	//	current_ = active_scene;
+	//	active_scene->InternalUpdate(app);
+	//	current_ = nullptr;
+	// }
 
-	g.renderer.PresentScreen();
+	// render_data.DrawScreenTarget();
+
+	// g.renderer.PresentScreen();
 }
 
 void SceneManager::HandleSceneEvents() {
@@ -329,7 +317,7 @@ void SceneManager::EnterConfig(const path& scene_json_file) {
 
 	PTGN_ASSERT(scene_json.contains(start_scene), "Start scene must be in the scenes dictionary");
 
-	game.scene.Enter<TemplateMenuScene>(start_scene, start_scene, scene_json);
+	Enter<impl::TemplateMenuScene>(start_scene, start_scene, scene_json);
 }
 
-} // namespace ptgn::impl
+} // namespace ptgn
