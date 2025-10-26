@@ -1,6 +1,8 @@
 #pragma once
 
+#include <concepts>
 #include <memory>
+#include <type_traits>
 
 #include "core/util/time.h"
 
@@ -47,5 +49,15 @@ private:
 	milliseconds duration_{ 0 };
 	milliseconds delay_{ 0 };
 };
+
+struct NoTransition {};
+
+namespace impl {
+
+template <typename T>
+concept SceneTransitionType = std::derived_from<std::remove_cvref_t<T>, SceneTransition> ||
+							  std::same_as<std::remove_cvref_t<T>, NoTransition>;
+
+} // namespace impl
 
 } // namespace ptgn
