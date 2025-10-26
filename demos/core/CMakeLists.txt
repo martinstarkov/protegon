@@ -1,7 +1,0 @@
-add_subdirectory(component_hooks)
-add_subdirectory(script)
-add_subdirectory(script_sequence)
-add_subdirectory(serialization_binary)
-add_subdirectory(serialization_json)
-add_subdirectory(serialization_scene)
-add_subdirectory(serialization_script)
