@@ -4,8 +4,6 @@
 #include <string>
 #include <string_view>
 
-#include "core/app/game.h"
-#include "core/app/sdl_instance.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
 #include "math/vector2.h"
@@ -26,16 +24,14 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 
 namespace ptgn {
 
-V2_int Screen::GetSize() {
-	SDL_DisplayMode dm;
-	if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
-		PTGN_LOG("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
-		return {};
-	}
-	return { dm.w, dm.h };
+namespace impl {
+
+void WindowDeleter::operator()(SDL_Window* window) const {
+	SDL_DestroyWindow(window);
+	PTGN_INFO("Destroyed SDL2 window");
 }
 
-namespace impl {
+} // namespace impl
 
 #ifdef __EMSCRIPTEN__
 
@@ -49,53 +45,39 @@ V2_int Window::GetCanvasSize() const {
 
 #endif
 
-void WindowDeleter::operator()(SDL_Window* window) const {
-	if (game.sdl_instance_->SDLIsInitialized()) {
-		SDL_DestroyWindow(window);
-		PTGN_INFO("Destroyed SDL2 window");
+V2_int Screen::GetSize() {
+	SDL_DisplayMode dm;
+	if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+		PTGN_LOG("SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+		return {};
 	}
+	return { dm.w, dm.h };
 }
 
-WindowInstance::WindowInstance() {
-	// Windows start zero-sized.
-	window_.reset(SDL_CreateWindow(
-		"", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
-	));
-}
+Window::Window(const char* title, const V2_int& size) :
+	instance_{ SDL_CreateWindow(
+				   "", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0,
+				   SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
+			   ),
+			   impl::WindowDeleter{} },
+	gl_context_{ std::invoke([&]() -> SDL_Window* {
+		PTGN_ASSERT(instance_, "SDL_CreateWindow failed: {}", SDL_GetError());
+		PTGN_INFO("Created SDL2 window");
+		return instance_.get();
+	}) } {}
 
-WindowInstance::operator SDL_Window*() const {
-	PTGN_ASSERT(window_ != nullptr, "Window uninitialized or destroyed");
-	return window_.get();
-}
-
-void Window::Init() {
-	PTGN_ASSERT(!IsValid(), "Previous window must be destroyed before initializing a new one");
-	Create();
-	PTGN_ASSERT(IsValid(), SDL_GetError());
-	PTGN_INFO("Created SDL2 window");
-}
-
-void Window::Shutdown() {
-	Destroy();
-}
-
-void* Window::CreateGLContext() {
-	return SDL_GL_CreateContext(Get());
-}
-
-int Window::MakeGLContextCurrent(void* context) {
-	return SDL_GL_MakeCurrent(Get(), context);
+Window::operator SDL_Window*() const {
+	PTGN_ASSERT(instance_ != nullptr, "Window uninitialized or destroyed");
+	return instance_.get();
 }
 
 void Window::SwapBuffers() const {
-	SDL_GL_SwapWindow(Get());
+	SDL_GL_SwapWindow(*this);
 }
 
 V2_int Window::GetSize() const {
-	PTGN_ASSERT(IsValid(), "Cannot get size of uninitialized or destroyed window");
 	V2_int size;
-	SDL_GetWindowSizeInPixels(Get(), &size.x, &size.y);
+	SDL_GetWindowSizeInPixels(*this, &size.x, &size.y);
 	return size;
 }
 
@@ -104,7 +86,7 @@ void Window::SetRelativeMouseMode(bool on) const {
 }
 
 void Window::SetMouseGrab(bool on) const {
-	SDL_SetWindowMouseGrab(Get(), static_cast<SDL_bool>(on));
+	SDL_SetWindowMouseGrab(*this, static_cast<SDL_bool>(on));
 }
 
 void Window::CaptureMouse(bool on) const {
@@ -112,44 +94,44 @@ void Window::CaptureMouse(bool on) const {
 }
 
 void Window::SetAlwaysOnTop(bool on) const {
-	SDL_SetWindowAlwaysOnTop(Get(), static_cast<SDL_bool>(on));
+	SDL_SetWindowAlwaysOnTop(*this, static_cast<SDL_bool>(on));
 }
 
 void Window::SetMinimumSize(const V2_int& minimum_size) const {
-	SDL_SetWindowMinimumSize(Get(), minimum_size.x, minimum_size.y);
+	SDL_SetWindowMinimumSize(*this, minimum_size.x, minimum_size.y);
 }
 
 V2_int Window::GetMinimumSize() const {
 	V2_int minimum_size;
-	SDL_GetWindowMinimumSize(Get(), &minimum_size.x, &minimum_size.y);
+	SDL_GetWindowMinimumSize(*this, &minimum_size.x, &minimum_size.y);
 	return minimum_size;
 }
 
 void Window::SetMaximumSize(const V2_int& maximum_size) const {
-	SDL_SetWindowMaximumSize(Get(), maximum_size.x, maximum_size.y);
+	SDL_SetWindowMaximumSize(*this, maximum_size.x, maximum_size.y);
 }
 
 V2_int Window::GetMaximumSize() const {
 	V2_int maximum_size;
-	SDL_GetWindowMinimumSize(Get(), &maximum_size.x, &maximum_size.y);
+	SDL_GetWindowMinimumSize(*this, &maximum_size.x, &maximum_size.y);
 	return maximum_size;
 }
 
 V2_int Window::GetPosition() const {
 	V2_int origin;
-	SDL_GetWindowPosition(Get(), &origin.x, &origin.y);
+	SDL_GetWindowPosition(*this, &origin.x, &origin.y);
 	return origin;
 }
 
 std::string_view Window::GetTitle() const {
-	return SDL_GetWindowTitle(Get());
+	return SDL_GetWindowTitle(*this);
 }
 
 void Window::SetSize(const V2_int& new_size, bool centered) const {
 #ifdef __EMSCRIPTEN__
 	SetCanvasSize(new_size);
 #endif
-	SDL_SetWindowSize(Get(), new_size.x, new_size.y);
+	SDL_SetWindowSize(*this, new_size.x, new_size.y);
 	// Important to center after resizing.
 	if (centered) {
 		Center();
@@ -157,7 +139,7 @@ void Window::SetSize(const V2_int& new_size, bool centered) const {
 }
 
 void Window::SetPosition(const V2_int& new_origin) const {
-	SDL_SetWindowPosition(Get(), new_origin.x, new_origin.y);
+	SDL_SetWindowPosition(*this, new_origin.x, new_origin.y);
 }
 
 void Window::Center() const {
@@ -165,11 +147,11 @@ void Window::Center() const {
 }
 
 void Window::SetTitle(const std::string& new_title) const {
-	return SDL_SetWindowTitle(Get(), new_title.c_str());
+	return SDL_SetWindowTitle(*this, new_title.c_str());
 }
 
 void Window::SetSetting(WindowSetting setting) const {
-	SDL_Window* win{ Get() };
+	SDL_Window* win{ *this };
 	switch (setting) {
 		case WindowSetting::Shown:	  SDL_ShowWindow(win); break;
 		case WindowSetting::Hidden:	  SDL_HideWindow(win); break;
@@ -191,7 +173,7 @@ void Window::SetSetting(WindowSetting setting) const {
 }
 
 bool Window::GetSetting(WindowSetting setting) const {
-	std::uint32_t flags{ SDL_GetWindowFlags(Get()) };
+	std::uint32_t flags{ SDL_GetWindowFlags(*this) };
 	switch (setting) {
 		case WindowSetting::Shown:	return flags & SDL_WINDOW_SHOWN;
 		case WindowSetting::Hidden: return !(flags & SDL_WINDOW_SHOWN);
@@ -221,7 +203,5 @@ void Window::SetFixedSize() const {
 void Window::SetFullscreen() const {
 	SetSetting(WindowSetting::Fullscreen);
 }
-
-} // namespace impl
 
 } // namespace ptgn

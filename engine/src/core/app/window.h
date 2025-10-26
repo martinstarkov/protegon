@@ -4,8 +4,8 @@
 #include <string>
 #include <string_view>
 
-#include "core/util/handle.h"
 #include "math/vector2.h"
+#include "renderer/gl/gl_context.h"
 #include "serialization/json/enum.h"
 
 struct SDL_Window;
@@ -33,33 +33,20 @@ enum class WindowSetting {
 
 namespace impl {
 
-class Renderer;
-class InputHandler;
-class GLContext;
-
 struct WindowDeleter {
 	void operator()(SDL_Window* window) const;
 };
 
-struct WindowInstance {
-	WindowInstance();
-	WindowInstance(WindowInstance&&) noexcept			 = default;
-	WindowInstance& operator=(WindowInstance&&) noexcept = default;
-	WindowInstance(const WindowInstance&)				 = delete;
-	WindowInstance& operator=(const WindowInstance&)	 = delete;
-	~WindowInstance()									 = default;
-	std::unique_ptr<SDL_Window, WindowDeleter> window_;
-	operator SDL_Window*() const;
-};
+}; // namespace impl
 
-class Window : public Handle<WindowInstance> {
+class Window {
 public:
-	Window()							 = default;
-	Window(Window&&) noexcept			 = default;
-	Window& operator=(Window&&) noexcept = default;
+	Window(const char* title, const V2_int& size);
+	~Window()							 = default;
+	Window(Window&&) noexcept			 = delete;
+	Window& operator=(Window&&) noexcept = delete;
 	Window(const Window&)				 = delete;
 	Window& operator=(const Window&)	 = delete;
-	~Window()							 = default;
 
 	void SetMinimumSize(const V2_int& minimum_size) const;
 	[[nodiscard]] V2_int GetMinimumSize() const;
@@ -99,23 +86,17 @@ public:
 	void SwapBuffers() const;
 
 private:
-	friend class Game;
-	friend class GLContext;
-	friend class Renderer;
+	operator SDL_Window*() const;
 
-	void* CreateGLContext();
-	int MakeGLContextCurrent(void* context);
+	std::unique_ptr<SDL_Window, impl::WindowDeleter> instance_;
 
-	void Init();
-	void Shutdown();
+	impl::GLContext gl_context_;
 
 	void SetRelativeMouseMode(bool on) const;
 	void SetMouseGrab(bool on) const;
 	void CaptureMouse(bool on) const;
 	void SetAlwaysOnTop(bool on) const;
 };
-
-} // namespace impl
 
 PTGN_SERIALIZER_REGISTER_ENUM(
 	WindowSetting, { { WindowSetting::None, "none" },
