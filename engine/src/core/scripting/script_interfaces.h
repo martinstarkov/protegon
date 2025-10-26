@@ -3,7 +3,7 @@
 #include "core/ecs/entity.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
-#include "core/utils/move_direction.h"
+#include "core/util/move_direction.h"
 #include "math/vector2.h"
 #include "physics/collider.h"
 #include "serialization/json/fwd.h"

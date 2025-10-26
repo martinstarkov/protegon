@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <ostream>
 
-#include "core/utils/platform.h"
+#include "core/util/platform.h"
 #include "debug/core/log.h"
 #include "serialization/json/enum.h"
 

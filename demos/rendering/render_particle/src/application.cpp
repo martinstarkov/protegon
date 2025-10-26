@@ -2,7 +2,7 @@
 
 #include "core/ecs/components/draw.h"
 #include "core/app/game.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "math/math_utils.h"

@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "core/app/game.h"
-#include "core/utils/function.h"
+#include "core/util/function.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
 #include "debug/runtime/debug_system.h"

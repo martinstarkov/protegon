@@ -10,10 +10,10 @@
 #include "core/ecs/components/generic.h"
 #include "core/app/game.h"
 #include "core/app/sdl_instance.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "core/resource/resource_manager.h"
 #include "SDL_mixer.h"
-#include "core/utils/file.h"
+#include "core/util/file.h"
 
 namespace ptgn::impl {
 

@@ -11,7 +11,7 @@
 
 #include "core/app/game.h"
 #include "core/ecs/components/transform.h"
-#include "core/utils/type_info.h"
+#include "core/util/type_info.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"

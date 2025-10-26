@@ -4,8 +4,8 @@
 
 #include "core/ecs/components/sprite.h"
 #include "core/resource/resource_manager.h"
-#include "core/utils/time.h"
-#include "core/utils/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "math/vector2.h"
 #include "renderer/materials/texture.h"
 #include "serialization/json/serializable.h"

@@ -12,7 +12,7 @@
 #include "core/app/manager.h"
 #include "core/ecs/entity.h"
 #include "core/scripting/script.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "debug/runtime/assert.h"
 #include "math/easing.h"
 #include "math/math_utils.h"

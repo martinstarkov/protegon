@@ -6,7 +6,7 @@
 #include "core/ecs/components/drawable.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
-#include "core/utils/concepts.h"
+#include "core/util/concepts.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"

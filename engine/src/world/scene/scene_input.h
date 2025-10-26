@@ -8,7 +8,7 @@
 #include "core/ecs/entity.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "serialization/json/serializable.h"

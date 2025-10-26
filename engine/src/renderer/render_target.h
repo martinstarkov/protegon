@@ -11,7 +11,7 @@
 #include "core/ecs/entity.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
-#include "core/utils/type_info.h"
+#include "core/util/type_info.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"

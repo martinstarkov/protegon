@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "core/utils/concepts.h"
+#include "core/util/concepts.h"
 #include "renderer/gl/gl_types.h"
 
 namespace ptgn::impl {

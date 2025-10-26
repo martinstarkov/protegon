@@ -5,7 +5,7 @@
 #include "core/ecs/components/draw.h"
 #include "core/ecs/entity.h"
 #include "core/scripting/script_sequence.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "debug/runtime/assert.h"
 #include "renderer/api/color.h"
 #include "renderer/render_target.h"

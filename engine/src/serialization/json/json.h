@@ -5,8 +5,8 @@
 #include <string_view>
 #include <variant>
 
-#include "core/utils/file.h"
-#include "core/utils/type_info.h"
+#include "core/util/file.h"
+#include "core/util/type_info.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

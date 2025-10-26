@@ -16,8 +16,8 @@
 #include <vector>
 
 #include "core/app/game.h"
-#include "core/utils/file.h"
-#include "core/utils/span.h"
+#include "core/util/file.h"
+#include "core/util/span.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"

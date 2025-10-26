@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-#include "core/utils/concepts.h"
+#include "core/util/concepts.h"
 #include "serialization/json/serializable.h"
 
 #define PTGN_FLAGS_OPERATORS(EnumType)                                         \

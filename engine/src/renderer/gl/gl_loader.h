@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/utils/platform.h"
+#include "core/util/platform.h"
 
 // IMPORTANT: This file is not meant to be included outside the protegon library
 // so keep it in .cpp files only!

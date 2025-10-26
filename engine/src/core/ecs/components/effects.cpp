@@ -1,7 +1,7 @@
 #include "core/ecs/components/effects.h"
 
 #include "core/ecs/components/draw.h"
-#include "core/utils/span.h"
+#include "core/util/span.h"
 
 namespace ptgn {
 

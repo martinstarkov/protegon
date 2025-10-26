@@ -1,8 +1,8 @@
 #include "core/ecs/components/lifetime.h"
 
 #include "core/ecs/entity.h"
-#include "core/utils/time.h"
-#include "core/utils/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "world/scene/scene.h"
 
 namespace ptgn {

@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "core/ecs/entity.h"
-#include "core/utils/span.h"
+#include "core/util/span.h"
 #include "debug/core/log.h"
 
 namespace ptgn {

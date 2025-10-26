@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/utils/time.h"
-#include "core/utils/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "serialization/json/serializable.h"
 
 namespace ptgn {

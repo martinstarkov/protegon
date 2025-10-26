@@ -10,7 +10,7 @@
 #include "core/ecs/entity.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
-#include "core/utils/move_direction.h"
+#include "core/util/move_direction.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collider.h"

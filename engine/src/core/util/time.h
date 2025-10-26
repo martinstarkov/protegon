@@ -13,6 +13,8 @@
 
 namespace ptgn {
 
+using namespace std::chrono_literals;
+
 template <typename Rep, typename Period = std::ratio<1>>
 using duration = std::chrono::duration<Rep, Period>;
 

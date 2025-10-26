@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "core/utils/type_info.h"
+#include "core/util/type_info.h"
 #include "math/hash.h"
 #include "serialization/json/serializable.h"
 

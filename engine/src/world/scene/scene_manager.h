@@ -5,9 +5,9 @@
 #include <optional>
 #include <vector>
 
-#include "core/utils/concepts.h"
-#include "core/utils/file.h"
-#include "core/utils/span.h"
+#include "core/util/concepts.h"
+#include "core/util/file.h"
+#include "core/util/span.h"
 #include "debug/runtime/assert.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_key.h"

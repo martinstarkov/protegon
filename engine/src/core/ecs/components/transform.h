@@ -7,8 +7,8 @@
 
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
-#include "core/utils/concepts.h"
-#include "core/utils/flags.h"
+#include "core/util/concepts.h"
+#include "core/util/flags.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"
 #include "serialization/json/serializable.h"

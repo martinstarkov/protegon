@@ -9,7 +9,7 @@
 #include "renderer/renderer.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "core/utils/file.h"
+#include "core/util/file.h"
 
 using namespace ptgn;
 

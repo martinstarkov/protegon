@@ -11,7 +11,7 @@
 #include "core/ecs/entity_hierarchy.h"
 #include "core/ecs/game_object.h"
 #include "core/scripting/script_interfaces.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "debug/runtime/assert.h"
 #include "math/easing.h"
 #include "math/hash.h"

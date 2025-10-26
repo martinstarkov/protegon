@@ -9,7 +9,7 @@
 #include "core/ecs/components/offsets.h"
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
-#include "core/utils/flags.h"
+#include "core/util/flags.h"
 #include "debug/runtime/assert.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"

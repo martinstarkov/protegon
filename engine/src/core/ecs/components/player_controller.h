@@ -4,7 +4,7 @@
 
 #include "core/ecs/components/draw.h"
 #include "core/ecs/entity.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "math/vector2.h"
 
 namespace ptgn {

@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-#include "core/utils/concepts.h"
+#include "core/util/concepts.h"
 
 // TODO: Get rid of stuff that is outdated as of my C++ 20 move.
 

@@ -13,7 +13,7 @@
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 #include "world/tile/grid.h"
-#include "core/utils/string.h"
+#include "core/util/string.h"
 
 using namespace ptgn;
 

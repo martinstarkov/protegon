@@ -2,7 +2,7 @@
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/entity.h"
 #include "core/app/game.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "debug/core/log.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"

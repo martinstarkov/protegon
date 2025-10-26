@@ -3,7 +3,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/utils/type_info.h"
+#include "core/util/type_info.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

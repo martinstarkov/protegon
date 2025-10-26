@@ -9,7 +9,7 @@
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/scripting/script.h"
-#include "core/utils/span.h"
+#include "core/util/span.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
 #include "math/geometry/shape.h"

@@ -4,8 +4,8 @@
 
 #include "core/ecs/components/generic.h"
 #include "core/resource/resource_manager.h"
-#include "core/utils/file.h"
-#include "core/utils/time.h"
+#include "core/util/file.h"
+#include "core/util/time.h"
 
 struct _Mix_Music;
 using Mix_Music = _Mix_Music;

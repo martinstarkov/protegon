@@ -2,7 +2,7 @@
 
 #include "core/ecs/components/generic.h"
 #include "core/resource/resource_manager.h"
-#include "core/utils/file.h"
+#include "core/util/file.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::impl {

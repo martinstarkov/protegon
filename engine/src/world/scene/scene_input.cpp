@@ -16,7 +16,7 @@
 #include "core/input/input_handler.h"
 #include "core/input/mouse.h"
 #include "core/scripting/script.h"
-#include "core/utils/span.h"
+#include "core/util/span.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
 #include "debug/runtime/debug_system.h"

@@ -4,7 +4,7 @@
 #include <nlohmann/detail/meta/type_traits.hpp>
 #include <string_view>
 
-#include "core/utils/macro.h"
+#include "core/util/macro.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/json.h"
 

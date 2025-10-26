@@ -6,7 +6,7 @@
 
 #include "core/ecs/entity.h"
 #include "core/scripting/script.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "math/easing.h"
 #include "serialization/json/serializable.h"
 

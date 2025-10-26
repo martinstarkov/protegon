@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "core/utils/handle.h"
+#include "core/util/handle.h"
 #include "math/vector2.h"
 #include "serialization/json/enum.h"
 

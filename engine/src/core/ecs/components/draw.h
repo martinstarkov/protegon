@@ -8,7 +8,7 @@
 #include "core/ecs/components/drawable.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
-#include "core/utils/type_info.h"
+#include "core/util/type_info.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"

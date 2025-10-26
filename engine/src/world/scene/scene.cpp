@@ -15,7 +15,7 @@
 #include "core/input/input_handler.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
-#include "core/utils/flags.h"
+#include "core/util/flags.h"
 #include "debug/runtime/assert.h"
 #include "debug/runtime/debug_system.h"
 #include "ecs/ecs.h"

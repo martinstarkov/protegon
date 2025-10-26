@@ -1,7 +1,7 @@
 #include "core/ecs/components/animation.h"
 #include "core/app/game.h"
 #include "core/scripting/script.h"
-#include "core/utils/time.h"
+#include "core/util/time.h"
 #include "core/input/input_handler.h"
 #include "math/vector2.h"
 #include "world/scene/scene.h"

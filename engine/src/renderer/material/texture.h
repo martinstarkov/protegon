@@ -8,7 +8,7 @@
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
 #include "core/resource/resource_manager.h"
-#include "core/utils/file.h"
+#include "core/util/file.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"

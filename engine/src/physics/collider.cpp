@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "core/ecs/entity.h"
-#include "core/utils/span.h"
+#include "core/util/span.h"
 #include "debug/runtime/assert.h"
 #include "math/geometry/shape.h"
 

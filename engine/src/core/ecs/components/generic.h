@@ -3,8 +3,8 @@
 #include <string>
 #include <string_view>
 
-#include "core/utils/concepts.h"
-#include "core/utils/file.h"
+#include "core/util/concepts.h"
+#include "core/util/file.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "serialization/json/serializable.h"
