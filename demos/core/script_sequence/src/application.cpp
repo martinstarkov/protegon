@@ -49,7 +49,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScriptSequenceScene");
-	game.scene.Enter<ScriptSequenceScene>("");
+	Application::Get().Init("ScriptSequenceScene");
+	Application::Get().scene_.Enter<ScriptSequenceScene>("");
 	return 0;
 }

@@ -19,7 +19,7 @@ struct DialogueScene : public Scene {
 
 	void Enter() override {
 		PTGN_LOG("Entity count: ", Size());
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		LoadResource("dialogue_box", "resources/box.png");
 
 		npc = CreateEntity();
@@ -72,11 +72,11 @@ struct DialogueScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
+	Application::Get().Init(
 		"DialogueScene: Space: Show, Enter: Continue, N: Next, A/D: Add/Delete, I: Intro, O: "
 		"Outro, E: Epilogue",
 		resolution
 	);
-	game.scene.Enter<DialogueScene>("");
+	Application::Get().scene_.Enter<DialogueScene>("");
 	return 0;
 }

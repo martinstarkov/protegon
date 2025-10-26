@@ -39,7 +39,7 @@ public:
 	void Enter() override {
 		Origin button_origin{ Origin::TopLeft };
 
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		b1 = CreateButton(*this);
 		AddScript<ButtonScript1>(b1);
 		SetPosition(b1, V2_float{ -100, -150 - 50 });
@@ -82,7 +82,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ButtonScene: Q/E to disable/enable buttons");
-	game.scene.Enter<ButtonScene>("");
+	Application::Get().Init("ButtonScene: Q/E to disable/enable buttons");
+	Application::Get().scene_.Enter<ButtonScene>("");
 	return 0;
 }

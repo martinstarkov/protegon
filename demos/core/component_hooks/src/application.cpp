@@ -55,7 +55,7 @@ struct ComponentHookScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ComponentHookScene: A: Add Entity, C: Clear Entities", window_size);
-	game.scene.Enter<ComponentHookScene>("");
+	Application::Get().Init("ComponentHookScene: A: Add Entity, C: Clear Entities", window_size);
+	Application::Get().scene_.Enter<ComponentHookScene>("");
 	return 0;
 }

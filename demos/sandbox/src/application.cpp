@@ -1,5 +1,7 @@
 #include "core/app/application.h"
 
+#include "world/scene/scene_transition.h"
+
 using namespace ptgn;
 
 class TestScene : public Scene {
@@ -19,7 +21,7 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Application app{};
-	app.StartWith<TestScene>("test", FadeIn{ 3000ms });
+	app.StartWith<TestScene>("test", NoTransition{});
 
 	return 0;
 }

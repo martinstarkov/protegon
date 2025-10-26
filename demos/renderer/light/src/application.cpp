@@ -16,10 +16,10 @@ public:
 	PointLight mouse_light;
 
 	void Enter() override {
-		// game.renderer.SetBackgroundColor(color::White);
+		// Application::Get().render_.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		LoadResource("test", "resources/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
@@ -77,7 +77,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightScene", { 800, 800 });
-	game.scene.Enter<LightScene>("");
+	Application::Get().Init("LightScene", { 800, 800 });
+	Application::Get().scene_.Enter<LightScene>("");
 	return 0;
 }

@@ -16,13 +16,13 @@
 #include "renderer/api/color.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "renderer/materials/shader.h"
+#include "renderer/material/shader.h"
 #include "world/scene/camera.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_input.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/follow_config.h"
-#include "tweens/tween_effects.h"
+#include "tween/follow_config.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -33,7 +33,7 @@ class CameraUIScene : public Scene {
 constexpr V2_int deadzone_size{ 150, 150 };
 public:
 	void Enter() override {
-		game.texture.Load("ui_texture2", "resources/ui2.jpg");
+		Application::Get().texture.Load("ui_texture2", "resources/ui2.jpg");
 
 		auto ui = CreateSprite(*this, "ui_texture2");
 		ui.SetPosition({});
@@ -41,13 +41,13 @@ public:
 
 		auto camera_center = manager.CreateEntity();
 		camera_center.Add<Circle>(3.0f);
-		camera_center.SetPosition(game.window.GetCenter());
+		camera_center.SetPosition(Application::Get().window_.GetCenter());
 		camera_center.SetTint(color::Black);
 		camera_center.Show();
 
 		auto deadzone = manager.CreateEntity();
 		deadzone.Add<Rect>(deadzone_size, Origin::Center);
-		deadzone.SetPosition(game.window.GetCenter());
+		deadzone.SetPosition(Application::Get().window_.GetCenter());
 		deadzone.Add<LineWidth>(2.0f);
 		deadzone.SetOrigin;
 		deadzone.SetTint(color::DarkGreen);
@@ -72,17 +72,17 @@ public:
 	Entity mouse;
 
 	CameraExampleScene() {
-		game.scene.Load<CameraUIScene>("ui_scene");
+		Application::Get().scene_.Load<CameraUIScene>("ui_scene");
 	}
 
 	void Enter() override {
-		game.texture.Load("texture", "resources/test1.jpg");
+		Application::Get().texture.Load("texture", "resources/test1.jpg");
 
-		camera.SetPosition(game.window.GetCenter());
+		camera.SetPosition(Application::Get().window_.GetCenter());
 		// camera.SetBounds({}, window_size);
 
 		auto texture = CreateSprite(*this, "texture");
-		texture.SetPosition(game.window.GetCenter());
+		texture.SetPosition(Application::Get().window_.GetCenter());
 		texture.Add<Interactive>();
 		texture.Add<callback::KeyDown>([](auto key) {
 			if (key == Key::W) {
@@ -112,9 +112,9 @@ public:
 		b.SetTint(color::Red);
 		b.Show();
 
-		game.scene.Enter("ui_scene");
+		Application::Get().scene_.Enter("ui_scene");
 
-		game.texture.Load("ui_texture", "resources/ui.jpg");
+		Application::Get().texture.Load("ui_texture", "resources/ui.jpg");
 
 		ui = CreateSprite(*this, "ui_texture");
 		ui.SetPosition(V2_float{ window_size.x, 0 });
@@ -153,8 +153,8 @@ public:
 	}
 
 	void Update() override {
-		V2_float center{ game.window.GetCenter() };
-		float dt{ game.dt() };
+		V2_float center{ Application::Get().window_.GetCenter() };
+		float dt{ Application::Get().dt() };
 
 		if (input.KeyPressed(Key::W)) {
 			Translate(camera,{ 0, -pan_speed * dt });
@@ -245,13 +245,13 @@ Entity CreatePostFX(Scene& scene) {
 
 Entity CreateBlur(Scene& scene) {
 	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
+	blur.Add<impl::ShaderPass>(Application::Get().shader.Get("blur"), nullptr);
 	return blur;
 }
 
 Entity CreateGrayscale(Scene& scene) {
 	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
+	grayscale.Add<impl::ShaderPass>(Application::Get().shader.Get("grayscale"), nullptr);
 	return grayscale;
 }
 
@@ -270,7 +270,7 @@ public:
 	V2_int center{ 0, 0 };
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		//	camera.SetPixelRounding(true);
 		LoadResource("tree", "resources/test1.jpg");
 
@@ -298,7 +298,7 @@ public:
 	}
 
 	void Update() override {
-		float dt{ game.dt() };
+		float dt{ Application::Get().dt() };
 
 		/*	PTGN_LOG(
 				"Mouse screen pos: ", input.GetMouseWindowPosition(),
@@ -341,11 +341,11 @@ public:
 			StartFollow(camera, mouse, follow_config);
 		}
 
-		game.renderer.DrawText(
+		Application::Get().render_.DrawText(
 			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
 			{}, {}, {}, false
 		);
-		game.renderer.DrawText(
+		Application::Get().render_.DrawText(
 			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
 			{}, {}, {}, true
 		);
@@ -353,7 +353,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Camera: WASD move, Q/E zoom", resolution);
-	game.scene.Enter<CameraScene>("");
+	Application::Get().Init("Camera: WASD move, Q/E zoom", resolution);
+	Application::Get().scene_.Enter<CameraScene>("");
 	return 0;
 }

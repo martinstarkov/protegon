@@ -14,7 +14,7 @@ public:
 	Button b1;
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		input.SetDrawInteractives();
 
 		LoadResource("animation", "resources/animation.png");
@@ -32,7 +32,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("AnimatedButtonScene");
-	game.scene.Enter<AnimatedButtonScene>("");
+	Application::Get().Init("AnimatedButtonScene");
+	Application::Get().scene_.Enter<AnimatedButtonScene>("");
 	return 0;
 }

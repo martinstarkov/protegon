@@ -40,7 +40,7 @@ struct CollisionTest {
 	Manager* manager;
 
 	CollisionTest() {
-		manager = &game.scene.Get("");
+		manager = &Application::Get().scene_.Get("");
 	}
 
 	virtual void Enter() {}
@@ -206,10 +206,10 @@ public:
 	}
 
 	void Update() override {
-		if (game.input.KeyDown(Key::E)) {
+		if (Application::Get().input_.KeyDown(Key::E)) {
 			move_entity++;
 		}
-		if (game.input.KeyDown(Key::Q)) {
+		if (Application::Get().input_.KeyDown(Key::Q)) {
 			move_entity--;
 		}
 		move_entity = Mod(move_entity, move_entities);
@@ -232,21 +232,21 @@ public:
 
 		PTGN_ASSERT(vel != nullptr);
 
-		MoveWASD(*vel, speed * game.scene.Get("").physics.dt());
+		MoveWASD(*vel, speed * Application::Get().scene_.Get("").physics.dt());
 	}
 
 	void Draw() override {
 		constexpr Color text_color{ color::Blue };
-		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
+		for (auto [e, collider] : Application::Get().scene_.Get("").EntitiesWith<Collider>()) {
 			auto transform{ GetAbsoluteTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
-				game.debug.DrawText("Intersect", transform.GetPosition(), text_color);
+				Application::Get().debug_.DrawText("Intersect", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Overlap) {
-				game.debug.DrawText("Overlap", transform.GetPosition(), text_color);
+				Application::Get().debug_.DrawText("Overlap", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Continuous) {
-				game.debug.DrawText("Sweep", transform.GetPosition(), text_color);
+				Application::Get().debug_.DrawText("Sweep", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::None) {
-				game.debug.DrawText("None", transform.GetPosition(), text_color);
+				Application::Get().debug_.DrawText("None", transform.GetPosition(), text_color);
 			}
 		}
 	}
@@ -277,7 +277,7 @@ public:
 	void Update() override {
 		MoveWASD(
 			entity.Get<RigidBody>().velocity,
-			speed * game.scene.Get("").physics.dt()
+			speed * Application::Get().scene_.Get("").physics.dt()
 		);
 
 		if (input.KeyDown(Key::R)) {
@@ -641,16 +641,16 @@ public:
 		}
 
 		if (input.KeyPressed(Key::Q)) {
-			rot_1 -= rot_speed * game.dt();
+			rot_1 -= rot_speed * Application::Get().dt();
 		}
 		if (input.KeyPressed(Key::E)) {
-			rot_1 += rot_speed * game.dt();
+			rot_1 += rot_speed * Application::Get().dt();
 		}
 		if (input.KeyPressed(Key::Z)) {
-			rot_2 -= rot_speed * game.dt();
+			rot_2 -= rot_speed * Application::Get().dt();
 		}
 		if (input.KeyPressed(Key::C)) {
-			rot_2 += rot_speed * game.dt();
+			rot_2 += rot_speed * Application::Get().dt();
 		}
 
 		V2_float position2 = mouse;
@@ -977,7 +977,7 @@ public:
 
 struct SegmentRectOverlapTest : public CollisionTest {
 	void Enter() override {
-		game.camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
 	}
 
 	Rect aabb{ { 60.0f, 30.0f }, { 30.0f, 30.0f }, Origin::TopLeft };
@@ -1054,7 +1054,7 @@ struct SegmentRectOverlapTest : public CollisionTest {
 
 struct SegmentRectDynamicTest : public CollisionTest {
 	void Enter() override {
-		game.camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
 	}
 
 	Rect aabb{ { 60.0f, 30.0f }, { 30.0f, 30.0f }, Origin::TopLeft };
@@ -1128,7 +1128,7 @@ struct SegmentRectDynamicTest : public CollisionTest {
 
 struct RectRectDynamicTest : public CollisionTest {
 	void Enter() override {
-		game.camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
 	}
 
 	Rect aabb{ { 60.0f, 30.0f }, { 30.0f, 30.0f }, Origin::TopLeft };
@@ -1323,12 +1323,12 @@ struct SweepTest : public CollisionTest {
 
 		if (player.Has<BoxCollider>()) {
 			auto& box = player.Get<BoxCollider>();
-			Rect{ transform.position + rb.velocity * game.dt(), box.size, box.origin }.Draw(
+			Rect{ transform.position + rb.velocity * Application::Get().dt(), box.size, box.origin }.Draw(
 				color::DarkGreen
 			);
 		} else if (player.Has<CircleCollider>()) {
 			auto& circle = player.Get<CircleCollider>();
-			Circle{ transform.position + rb.velocity * game.dt(), circle.radius }.Draw(
+			Circle{ transform.position + rb.velocity * Application::Get().dt(), circle.radius }.Draw(
 				color::DarkGreen, 1.0f
 			);
 		}
@@ -1359,16 +1359,16 @@ struct SweepTest : public CollisionTest {
 
 		if (player.Has<BoxCollider>()) {
 			auto& collider{ player.Get<BoxCollider>() };
-			game.collision.Sweep(player, collider, boxes, circles, true);
-			game.collision.Intersect(player, collider, boxes, circles);
+			Application::Get().collision.Sweep(player, collider, boxes, circles, true);
+			Application::Get().collision.Intersect(player, collider, boxes, circles);
 		} else if (player.Has<CircleCollider>()) {
 			auto& collider{ player.Get<CircleCollider>() };
-			game.collision.Sweep(player, collider, boxes, circles, true);
-			game.collision.Intersect(player, collider, boxes, circles);
+			Application::Get().collision.Sweep(player, collider, boxes, circles, true);
+			Application::Get().collision.Intersect(player, collider, boxes, circles);
 		}
 
 		if (input.KeyDown(Key::Space)) {
-			transform.position += rb.velocity * game.dt();
+			transform.position += rb.velocity * Application::Get().dt();
 		}
 
 		const auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
@@ -1394,12 +1394,12 @@ struct SweepTest : public CollisionTest {
 
 	void Draw() override {
 
-		V2_int grid_size = game.renderer.GetGameSize() / size;
+		V2_int grid_size = Application::Get().render_.GetGameSize() / size;
 
 		for (std::size_t i = 0; i < grid_size.x; i++) {
 			for (std::size_t j = 0; j < grid_size.y; j++) {
 				V2_float pos{ i * size.x, j * size.y };
-				game.draw.Rect(pos, size, color::Black, Origin::Center, 1.0f);
+				Application::Get().draw.Rect(pos, size, color::Black, Origin::Center, 1.0f);
 			}
 		}
 }
@@ -1424,7 +1424,7 @@ struct RectCollisionTest : public SweepTest {
 		AddCollisionObject({ 50.0f, 200.0f }, { 40.0f, 20.0f });
 		AddCollisionObject({ 50.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 200.0f, 10.0f }, { 20.0f, 20.0f });
-		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 256, 240 });
 		SweepTest::Enter();
 	}
 };
@@ -1440,7 +1440,7 @@ struct RectCollisionTest1 : public SweepTest {
 		AddCollisionObject({ 50.0f, 130.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 150.0f, 100.0f }, { 10.0f, 1.0f });
 		AddCollisionObject({ 200.0f, 100.0f }, { 20.0f, 60.0f });
-		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 256, 240 });
 		SweepTest::Enter();
 	}
 };
@@ -1454,7 +1454,7 @@ struct RectCollisionTest2 : public SweepTest {
 		);
 		AddCollisionObject({ 20.0f, 90.0f }, { 20.0f, 90.0f });
 		AddCollisionObject({ 50.0f, 50.0f }, { 20.0f, 20.0f });
-		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 256, 240 });
 		SweepTest::Enter();
 	}
 };
@@ -1467,7 +1467,7 @@ struct RectCollisionTest3 : public SweepTest {
 			{ -100000.0f, 100000.0f }
 		);
 		AddCollisionObject({ 150.0f, 100.0f }, { 10.0f, 1.0f });
-		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 256, 240 });
 		SweepTest::Enter();
 	}
 };
@@ -1481,7 +1481,7 @@ struct RectCollisionTest4 : public SweepTest {
 		);
 		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
 		AddCollisionObject({ 110.0f, 50.0f }, { 20.0f, 20.0f });
-		game.camera.GetPrimary().CenterOnArea({ 256, 240 });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 256, 240 });
 		SweepTest::Enter();
 	}
 };
@@ -1494,7 +1494,7 @@ struct CircleRectCollisionTest1 : public SweepTest {
 			{ 50.0f, 50.0f }, { 0.00000000f, 10000.0f }, Origin::Center, true
 		);
 		AddCollisionObject(V2_float{ 50, 650 }, V2_float{ 500, 10 }, {}, Origin::TopLeft);
-		game.camera.GetPrimary().CenterOnArea({ 800, 800 });
+		Application::Get().camera.GetPrimary().CenterOnArea({ 800, 800 });
 		SweepTest::Enter();
 	}
 };
@@ -1567,15 +1567,15 @@ struct DynamicRectCollisionTest : public CollisionTest {
 
 		for (auto [e, b, rb, id, nv] :
 			 manager.EntitiesWith<BoxCollider, RigidBody, Id, NextVel>()) {
-			game.collision.Sweep(e, b, boxes, circles, true);
-			game.collision.Intersect(e, b, boxes, circles);
+			Application::Get().collision.Sweep(e, b, boxes, circles, true);
+			Application::Get().collision.Intersect(e, b, boxes, circles);
 		}
 
 		for (auto [e, b, rb, id, nv] :
 			 manager.EntitiesWith<BoxCollider, RigidBody, Id, NextVel>()) {
 			 auto& t{ GetTransform(e) };
 			if (space_down) {
-				t.position += rb.velocity * game.dt();
+				t.position += rb.velocity * Application::Get().dt();
 			}
 			for (auto [e2, b2, rb2] :
 				 manager.EntitiesWith<BoxCollider, RigidBody>()) {
@@ -1606,10 +1606,10 @@ struct DynamicRectCollisionTest : public CollisionTest {
 struct HeadOnDynamicRectTest1 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest1(float speed) : DynamicRectCollisionTest{ speed } {
 		CreateDynamicEntity(
-			{ 0, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+			{ 0, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
 		);
 		CreateDynamicEntity(
-			{ ws.x, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
+			{ ws.x, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
 			{ -1.0f, 0.0f }
 		);
 	}
@@ -1618,17 +1618,17 @@ struct HeadOnDynamicRectTest1 : public DynamicRectCollisionTest {
 struct HeadOnDynamicRectTest2 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest2(float speed) : DynamicRectCollisionTest{ speed } {
 		CreateDynamicEntity(
-			{ game.window.GetCenter().x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f }
+			{ Application::Get().window_.GetCenter().x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f }
 		);
 		CreateDynamicEntity(
-			{ game.window.GetCenter().x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom,
+			{ Application::Get().window_.GetCenter().x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom,
 			{ 0, -1.0f }
 		);
 		CreateDynamicEntity(
-			{ 0, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+			{ 0, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
 		);
 		CreateDynamicEntity(
-			{ ws.x, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
+			{ ws.x, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
 			{ -1.0f, 0.0f }
 		);
 	}
@@ -1781,7 +1781,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CollisionScene:  Arrow keys to flip between tests", resolution);
-	game.scene.Enter<CollisionScene>("");
+	Application::Get().Init("CollisionScene:  Arrow keys to flip between tests", resolution);
+	Application::Get().scene_.Enter<CollisionScene>("");
 	return 0;
 }

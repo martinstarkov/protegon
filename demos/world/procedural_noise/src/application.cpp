@@ -39,8 +39,8 @@ public:
 	int types{ 4 };
 
 	void Enter() override {
-		game.renderer.SetBackgroundColor(color::Magenta);
-		game.window.SetResizable();
+		Application::Get().render_.SetBackgroundColor(color::Magenta);
+		Application::Get().window_.SetResizable();
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 	}
 
@@ -119,7 +119,7 @@ public:
 			thresholding = !thresholding;
 		}
 
-		MoveWASD(camera, V2_float{ 200.0f * game.dt() });
+		MoveWASD(camera, V2_float{ 200.0f * Application::Get().dt() });
 
 		// Clamp fractal noise parameters.
 
@@ -216,21 +216,21 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				game.renderer.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
+				Application::Get().render_.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
 			}
 		}
 
-		game.renderer.DrawRect(
+		Application::Get().render_.DrawRect(
 			(min * pixel_size + max * pixel_size) * 0.5f, (max - min) * pixel_size, color::Orange,
 			3.0f, Origin::Center
 		);
 
-		game.renderer.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
+		Application::Get().render_.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("NoiseExample: Arrow keys to swap noise type", resolution);
-	game.scene.Enter<NoiseExampleScene>("");
+	Application::Get().Init("NoiseExample: Arrow keys to swap noise type", resolution);
+	Application::Get().scene_.Enter<NoiseExampleScene>("");
 	return 0;
 }

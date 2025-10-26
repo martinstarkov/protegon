@@ -32,7 +32,7 @@ struct TextScene : public Scene {
 	void Enter() override {
 		SetBackgroundColor(color::LightGray);
 
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 
 		LoadResource(font, "resources/Arial.ttf");
 
@@ -74,7 +74,7 @@ struct TextScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextScene", resolution);
-	game.scene.Enter<TextScene>("");
+	Application::Get().Init("TextScene", resolution);
+	Application::Get().scene_.Enter<TextScene>("");
 	return 0;
 }

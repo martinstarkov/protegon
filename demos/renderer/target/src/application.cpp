@@ -7,7 +7,7 @@
 #include "math/vector2.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "renderer/materials/shader.h"
+#include "renderer/material/shader.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
@@ -41,13 +41,13 @@ Entity CreatePostFX(Scene& scene) {
 
 Entity CreateBlur(Scene& scene) {
 	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
+	blur.Add<impl::ShaderPass>(Application::Get().shader.Get("blur"), nullptr);
 	return blur;
 }
 
 Entity CreateGrayscale(Scene& scene) {
 	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
+	grayscale.Add<impl::ShaderPass>(Application::Get().shader.Get("grayscale"), nullptr);
 	return grayscale;
 }
 
@@ -72,8 +72,8 @@ struct RenderTargetScene : public Scene {
 
 	void Enter() override {
 		SetBackgroundColor(color::LightGray);
-		game.window.SetResizable();
-		game.renderer.SetGameSize(resolution);
+		Application::Get().window_.SetResizable();
+		Application::Get().render_.SetGameSize(resolution);
 
 		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);
 
@@ -104,7 +104,7 @@ struct RenderTargetScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("RenderTargetScene", resolution);
-	game.scene.Enter<RenderTargetScene>("");
+	Application::Get().Init("RenderTargetScene", resolution);
+	Application::Get().scene_.Enter<RenderTargetScene>("");
 	return 0;
 }

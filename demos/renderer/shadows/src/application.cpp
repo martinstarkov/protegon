@@ -23,7 +23,7 @@
 #include "renderer/api/origin.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
-#include "renderer/materials/shader.h"
+#include "renderer/material/shader.h"
 #include "renderer/stencil_mask.h"
 #include "renderer/vfx/light.h"
 #include "world/scene/camera.h"
@@ -94,10 +94,10 @@ public:
 	static void Draw(const Entity& entity) {
 		const auto& light_map{ entity.Get<impl::LightMapInstance>() };
 
-		game.renderer.EnableStencilMask();
+		Application::Get().render_.EnableStencilMask();
 
 		const auto add_to_stencil_mask = [entity](const auto& shape, const Transform& transform) {
-			game.renderer.DrawShape(
+			Application::Get().render_.DrawShape(
 				transform, shape, color::Black, -1.0f, Origin::Center, GetDepth(entity) + 1,
 				BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
 				entity.GetOrDefault<PostFX>()
@@ -128,19 +128,19 @@ public:
 			}
 		}
 
-		game.renderer.DrawOutsideStencilMask();
+		Application::Get().render_.DrawOutsideStencilMask();
 
-		game.renderer.DrawShape(
-			{}, Rect{ game.renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
+		Application::Get().render_.DrawShape(
+			{}, Rect{ Application::Get().render_.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
 			Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
 		);
 
-		game.renderer.DisableStencilMask();
+		Application::Get().render_.DisableStencilMask();
 	}
 
 private:
 	static void AddWorldBoundaries(std::vector<Line>& shadow_segments) {
-		auto size{ game.renderer.GetGameSize() };
+		auto size{ Application::Get().render_.GetGameSize() };
 		auto half_size{ size * 0.5f };
 
 		shadow_segments.emplace_back(-half_size, V2_float{ half_size.x, -half_size.y });
@@ -214,10 +214,10 @@ public:
 	LightMap light_map;
 
 	void Enter() override {
-		// game.renderer.SetBackgroundColor(color::White);
+		// Application::Get().render_.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		LoadResource("test", "resources/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
@@ -232,7 +232,7 @@ public:
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
 			auto light	 = CreatePointLight(
-				  *this, -game.renderer.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
+				  *this, -Application::Get().render_.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
 				  intensity, falloff
 			  );
 			i++;
@@ -273,7 +273,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ShadowScene: Right: Move static light", { 800, 800 });
-	game.scene.Enter<ShadowScene>("");
+	Application::Get().Init("ShadowScene: Right: Move static light", { 800, 800 });
+	Application::Get().scene_.Enter<ShadowScene>("");
 	return 0;
 }

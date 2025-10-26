@@ -42,17 +42,17 @@ public:
 					   { "bg3", "resources/bg3.png" } });
 
 		SceneAction::Register("load_level_1", []() {
-			game.scene.Transition<GameScene>(std::nullopt, "game_scene", 1);
+			Application::Get().scene_.Transition<GameScene>(std::nullopt, "game_scene", 1);
 		});
 		SceneAction::Register("load_level_2", []() {
-			game.scene.Transition<GameScene>(std::nullopt, "game_scene", 2);
+			Application::Get().scene_.Transition<GameScene>(std::nullopt, "game_scene", 2);
 		});
-		game.scene.EnterConfig("resources/scenes.json");
+		Application::Get().scene_.EnterConfig("resources/scenes.json");
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTemplateExample");
-	game.scene.Enter<SceneTemplateExample>("");
+	Application::Get().Init("SceneTemplateExample");
+	Application::Get().scene_.Enter<SceneTemplateExample>("");
 	return 0;
 }

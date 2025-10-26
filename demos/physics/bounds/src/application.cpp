@@ -64,7 +64,7 @@ struct PhysicsBoundaryScene : public Scene {
 
 	void Update() override {
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
+		MoveWASD(pos, V2_float{ 100.0f } * Application::Get().dt(), false);
 		SetPosition(player, pos);
 
 		if (input.KeyDown(Key::Q)) {
@@ -78,7 +78,7 @@ struct PhysicsBoundaryScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("PhysicsBoundaryScene: Q/E to switch boundary behavior", resolution);
-	game.scene.Enter<PhysicsBoundaryScene>("");
+	Application::Get().Init("PhysicsBoundaryScene: Q/E to switch boundary behavior", resolution);
+	Application::Get().scene_.Enter<PhysicsBoundaryScene>("");
 	return 0;
 }

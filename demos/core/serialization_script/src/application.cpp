@@ -29,7 +29,7 @@
 //
 //				// entity.Destroy();
 //				// PTGN_LOG("Destroying entity: ", entity.GetId());
-//				game.scene.Transition<OtherScene>("", "other", {});
+//				Application::Get().scene_.Transition<OtherScene>("", "other", {});
 //			} else {
 //				PTGN_WARN("Should not be here after pressing R");
 //			}
@@ -65,7 +65,7 @@
 //	Entity e2;
 //
 //	void Enter() override {
-//		game.window.SetResizable();
+//		Application::Get().window_.SetResizable();
 //
 //		e1 = CreateEntity();
 //		e2 = CreateEntity();
@@ -80,8 +80,8 @@
 // };
 //
 // int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-//	game.Init("EventScene", window_size);
-//	game.scene.Enter<EventScene>("");
+//	Application::Get().Init("EventScene", window_size);
+//	Application::Get().scene_.Enter<EventScene>("");
 //	return 0;
 // }
 

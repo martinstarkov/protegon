@@ -75,7 +75,7 @@ class PlatformingScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("PlatformingScene", resolution);
-	game.scene.Enter<PlatformingScene>("");
+	Application::Get().Init("PlatformingScene", resolution);
+	Application::Get().scene_.Enter<PlatformingScene>("");
 	return 0;
 }

@@ -5,7 +5,7 @@
 #include "math/easing.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -38,7 +38,7 @@ struct ShakeEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ShakeEffectScene: left/right click to start/stop shake");
-	game.scene.Enter<ShakeEffectScene>("");
+	Application::Get().Init("ShakeEffectScene: left/right click to start/stop shake");
+	Application::Get().scene_.Enter<ShakeEffectScene>("");
 	return 0;
 }

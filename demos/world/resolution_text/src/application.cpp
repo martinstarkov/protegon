@@ -11,7 +11,7 @@
 #include "renderer/text/font.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
@@ -29,9 +29,9 @@ class ResolutionTextScene : public Scene {
 	FontSize font_size{ 20 };
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		LoadResource("background", "resources/bg.png");
-		game.renderer.SetGameSize(resolution);
+		Application::Get().render_.SetGameSize(resolution);
 
 		CreateSprite(*this, "background", {});
 
@@ -44,11 +44,11 @@ class ResolutionTextScene : public Scene {
 	}
 
 	void Update() override {
-		game.renderer.DrawText(
+		Application::Get().render_.DrawText(
 			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
 			{}, {}, {}, {}, false
 		);
-		game.renderer.DrawText(
+		Application::Get().render_.DrawText(
 			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size, {},
 			{}, {}, {}, true
 		);
@@ -56,7 +56,7 @@ class ResolutionTextScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ResolutionTextScene", window_size);
-	game.scene.Enter<ResolutionTextScene>("");
+	Application::Get().Init("ResolutionTextScene", window_size);
+	Application::Get().scene_.Enter<ResolutionTextScene>("");
 	return 0;
 }

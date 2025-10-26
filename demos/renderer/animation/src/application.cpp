@@ -94,7 +94,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("AnimationScene: (P)ause/(R)esume/(T)oggle");
-	game.scene.Enter<AnimationScene>("");
+	Application::Get().Init("AnimationScene: (P)ause/(R)esume/(T)oggle");
+	Application::Get().scene_.Enter<AnimationScene>("");
 	return 0;
 }

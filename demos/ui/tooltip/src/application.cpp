@@ -14,7 +14,7 @@ using namespace ptgn;
 class TooltipScene : public Scene {
 public:
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		input.SetDrawInteractives();
 
 		LoadResource("bg", "resources/bg.png");
@@ -29,7 +29,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TooltipScene", { 800, 800 });
-	game.scene.Enter<TooltipScene>("");
+	Application::Get().Init("TooltipScene", { 800, 800 });
+	Application::Get().scene_.Enter<TooltipScene>("");
 	return 0;
 }

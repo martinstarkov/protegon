@@ -33,7 +33,7 @@ public:
 
 	[[nodiscard]] float GetValue() {
 		sampling.Start();
-		return amplitude_rng() * std::sin(sine_frequency * game.time());
+		return amplitude_rng() * std::sin(sine_frequency * Application::Get().time());
 	}
 
 	float sine_frequency{ 0.0005f };
@@ -115,12 +115,12 @@ class PlotScene : public Scene {
 			plot.Reset();
 		}
 
-		plot.Draw({ game.window.GetCenter(), { 500, 500 }, Origin::Center });
+		plot.Draw({ Application::Get().window_.GetCenter(), { 500, 500 }, Origin::Center });
 	}*/
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Plot Scene", window_size);
-	game.scene.Enter<PlotScene>("plot");
+	Application::Get().Init("Plot Scene", window_size);
+	Application::Get().scene_.Enter<PlotScene>("plot");
 	return 0;
 }

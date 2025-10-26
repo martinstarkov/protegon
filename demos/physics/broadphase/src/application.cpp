@@ -79,7 +79,7 @@ struct BroadphaseScene : public Scene {
 
 	void Update() override {
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
+		MoveWASD(pos, V2_float{ 100.0f } * Application::Get().dt(), false);
 		SetPosition(player, pos);
 
 		for (auto [e, tint] : EntitiesWith<Tint>()) {
@@ -158,7 +158,7 @@ struct BroadphaseScene : public Scene {
 			SetTint(candidate, color::Red);
 		}
 
-		game.renderer.DrawLine(player_pos, mouse_pos, color::Gold, 2.0f);
+		Application::Get().render_.DrawLine(player_pos, mouse_pos, color::Gold, 2.0f);
 
 #else
 		PTGN_PROFILE_FUNCTION();
@@ -179,7 +179,7 @@ struct BroadphaseScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BroadphaseScene", resolution);
-	game.scene.Enter<BroadphaseScene>("");
+	Application::Get().Init("BroadphaseScene", resolution);
+	Application::Get().scene_.Enter<BroadphaseScene>("");
 	return 0;
 }

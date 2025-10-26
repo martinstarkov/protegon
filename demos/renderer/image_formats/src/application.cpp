@@ -35,7 +35,7 @@ class TextureFormatScene : public Scene {
 						{ "png10", "resources/png10.png" },
 						{ "png11", "resources/png11.png" } });
 
-		V2_float ws{ game.renderer.GetGameSize() };
+		V2_float ws{ Application::Get().render_.GetGameSize() };
 
 		SetScale(
 			sprites.emplace_back(CreateSprite(*this, "jpg1", -ws * 0.5f + V2_float{ 0, 0 })), 1.0f
@@ -112,7 +112,7 @@ class TextureFormatScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextureFormatScene");
-	game.scene.Enter<TextureFormatScene>("TextureFormatScene");
+	Application::Get().Init("TextureFormatScene");
+	Application::Get().scene_.Enter<TextureFormatScene>("TextureFormatScene");
 	return 0;
 }

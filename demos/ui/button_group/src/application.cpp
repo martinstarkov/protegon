@@ -45,7 +45,7 @@ class ToggleButtonGroupScene : public Scene {
 	}
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		group = CreateToggleButtonGroup(*this);
 		group.Load("1", CreateToggleButtonGroupItem(V2_float{ -100, -300 - 130 / 2 }, 1));
 		group.Load("2", CreateToggleButtonGroupItem(V2_float{ -100, -100 - 130 / 2 }, 2));
@@ -62,7 +62,7 @@ class ToggleButtonGroupScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ToggleButtonGroupScene");
-	game.scene.Enter<ToggleButtonGroupScene>("");
+	Application::Get().Init("ToggleButtonGroupScene");
+	Application::Get().scene_.Enter<ToggleButtonGroupScene>("");
 	return 0;
 }

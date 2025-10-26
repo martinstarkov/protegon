@@ -4,7 +4,7 @@
 #include "core/input/input_handler.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -14,7 +14,7 @@ struct TranslateEffectScene : public Scene {
 	Sprite sprite3;
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		SetBackgroundColor(color::LightBlue);
 
 		LoadResource("smile", "resources/smile.png");
@@ -51,7 +51,7 @@ struct TranslateEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TranslateEffectScene: left click to translate to mouse");
-	game.scene.Enter<TranslateEffectScene>("");
+	Application::Get().Init("TranslateEffectScene: left click to translate to mouse");
+	Application::Get().scene_.Enter<TranslateEffectScene>("");
 	return 0;
 }

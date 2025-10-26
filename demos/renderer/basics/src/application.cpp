@@ -14,7 +14,7 @@
 #include "renderer/api/color.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "renderer/materials/shader.h"
+#include "renderer/material/shader.h"
 #include "renderer/vfx/light.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
@@ -64,7 +64,7 @@ void SetWhirlpoolUniform(Entity entity, const Shader& shader) {
 	/*auto transform{ GetDrawTransform(entity) };
 	float radius{ radius * Abs(transform.scale.x) };*/
 
-	float time{ game.time() };
+	float time{ Application::Get().time() };
 
 	const auto& info = entity.Get<WhirlpoolInfo>();
 
@@ -83,7 +83,7 @@ Entity CreateWhirlpoolEffect(
 	effect.Add<impl::UsePreviousTexture>(false);
 	effect.Add<WhirlpoolInfo>(info);
 	const auto& shader{
-		game.shader.TryLoad("whirlpool", "screen_default", "resources/whirlpool.glsl")
+		Application::Get().shader.TryLoad("whirlpool", "screen_default", "resources/whirlpool.glsl")
 	};
 	effect.Add<impl::ShaderPass>(shader, &SetWhirlpoolUniform);
 
@@ -92,13 +92,13 @@ Entity CreateWhirlpoolEffect(
 
 Entity CreateBlur(Scene& scene) {
 	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
+	blur.Add<impl::ShaderPass>(Application::Get().shader.Get("blur"), nullptr);
 	return blur;
 }
 
 Entity CreateGrayscale(Scene& scene) {
 	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
+	grayscale.Add<impl::ShaderPass>(Application::Get().shader.Get("grayscale"), nullptr);
 	return grayscale;
 }
 
@@ -211,8 +211,8 @@ struct FollowMouseScript : public Script<FollowMouseScript> {
 	void OnUpdate() override {
 		SetPosition(entity, entity.GetScene().input.GetMousePosition());
 		float timescale{ 1000 };
-		V2_float size{ V2_float{ Abs(std::sin(game.time() / timescale) * 256),
-								 Abs(std::sin(game.time() / timescale) * 256) } +
+		V2_float size{ V2_float{ Abs(std::sin(Application::Get().time() / timescale) * 256),
+								 Abs(std::sin(Application::Get().time() / timescale) * 256) } +
 					   V2_float{ 256, 256 } };
 		Sprite{ entity }.SetDisplaySize(size);
 	}
@@ -651,7 +651,7 @@ struct RendererScene : public Scene {
 
 	void Enter() override {
 		SetBackgroundColor(color::LightBlue);
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		PTGN_LOG("-------- Test ", test_index, " --------");
 		PTGN_ASSERT(test_index < tests.size());
 		if (tests[test_index]) {
@@ -666,7 +666,7 @@ struct RendererScene : public Scene {
 };
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-	game.Init("RendererScene", window_size);
-	game.scene.Enter<RendererScene>("");
+	Application::Get().Init("RendererScene", window_size);
+	Application::Get().scene_.Enter<RendererScene>("");
 	return 0;
 }

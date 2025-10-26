@@ -28,7 +28,7 @@ public:
 	}
 
 	Dropdown CreateDropdown(bool open = false) {
-		auto game_size{ game.renderer.GetGameSize() };
+		auto game_size{ Application::Get().render_.GetGameSize() };
 
 		Dropdown d;
 		d = CreateDropdownButton(*this, open);
@@ -47,7 +47,7 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);
@@ -85,7 +85,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("DropdownScene", { 800, 800 });
-	game.scene.Enter<DropdownScene>("");
+	Application::Get().Init("DropdownScene", { 800, 800 });
+	Application::Get().scene_.Enter<DropdownScene>("");
 	return 0;
 }

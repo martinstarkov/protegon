@@ -59,7 +59,7 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		p = CreateParticleEmitter(*this);
 
 		p.SetMaxParticles(1000);
@@ -70,7 +70,7 @@ public:
 		p.SetEmissionDelay(milliseconds{ 1 });
 		p.Start();
 
-		V2_float ws{ game.renderer.GetGameSize() };
+		V2_float ws{ Application::Get().render_.GetGameSize() };
 
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 400, 300 }, color::Orange, color::Red);
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 500, 500 }, color::Cyan, color::Magenta);
@@ -112,7 +112,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ParticleScene");
-	game.scene.Enter<ParticleScene>("");
+	Application::Get().Init("ParticleScene");
+	Application::Get().scene_.Enter<ParticleScene>("");
 	return 0;
 }

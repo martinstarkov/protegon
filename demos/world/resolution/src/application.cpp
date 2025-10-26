@@ -39,9 +39,9 @@ struct ResolutionScene : public Scene {
 	Sprite circle;
 
 	void Enter() override {
-		game.renderer.SetBackgroundColor(color::LightBlue);
-		game.window.SetResizable();
-		game.renderer.SetScalingMode(ScalingMode::Letterbox);
+		Application::Get().render_.SetBackgroundColor(color::LightBlue);
+		Application::Get().window_.SetResizable();
+		Application::Get().render_.SetScalingMode(ScalingMode::Letterbox);
 
 		RenderTarget rt{ GetRenderTarget() };
 
@@ -83,7 +83,7 @@ struct ResolutionScene : public Scene {
 	void Update() override {
 		MoveWASD(camera, { 3.0f, 3.0f });
 
-		auto dt{ game.dt() };
+		auto dt{ Application::Get().dt() };
 
 		if (input.KeyPressed(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
@@ -117,11 +117,11 @@ struct ResolutionScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
+	Application::Get().Init(
 		"ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
 		"Move/Rotate/Scale scene target",
 		{ 1200, 800 }
 	);
-	game.scene.Enter<ResolutionScene>("");
+	Application::Get().scene_.Enter<ResolutionScene>("");
 	return 0;
 }

@@ -23,12 +23,12 @@ struct GraphicsScene : public Scene {
 	}
 
 	void Update() override {
-		MoveWASD(graphics, V2_float{ 300.0f * game.dt() });
+		MoveWASD(graphics, V2_float{ 300.0f * Application::Get().dt() });
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("GraphicsScene");
-	game.scene.Enter<GraphicsScene>("");
+	Application::Get().Init("GraphicsScene");
+	Application::Get().scene_.Enter<GraphicsScene>("");
 	return 0;
 }

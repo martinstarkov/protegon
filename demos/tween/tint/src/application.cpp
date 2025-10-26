@@ -6,7 +6,7 @@
 #include "math/easing.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -46,7 +46,7 @@ struct TintEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TintEffectScene: left/right: tint/untint");
-	game.scene.Enter<TintEffectScene>("");
+	Application::Get().Init("TintEffectScene: left/right: tint/untint");
+	Application::Get().scene_.Enter<TintEffectScene>("");
 	return 0;
 }

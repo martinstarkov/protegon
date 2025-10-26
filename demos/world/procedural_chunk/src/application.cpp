@@ -13,12 +13,12 @@
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/materials/texture.h"
+#include "renderer/material/texture.h"
 #include "world/scene/camera.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 #include "world/tile/chunk.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -63,15 +63,15 @@ public:
 		fractal_noise.SetLacunarity(20.0f);
 		fractal_noise.SetPersistence(0.8f);
 
-		game.texture.Load("sheep", "resources/test.png");
-		game.texture.Load("red", "resources/red_tile.png");
-		game.texture.Load("blue", "resources/blue_tile.png");
-		game.texture.Load("green", "resources/green_tile.png");
+		Application::Get().texture.Load("sheep", "resources/test.png");
+		Application::Get().texture.Load("red", "resources/red_tile.png");
+		Application::Get().texture.Load("blue", "resources/blue_tile.png");
+		Application::Get().texture.Load("green", "resources/green_tile.png");
 
 		chunk_manager.AddNoiseLayer(NoiseLayer{
 			fractal_noise, [&](const V2_float& coordinate, float noise) {
 				return CreateColorTile(
-					-game.renderer.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
+					-Application::Get().render_.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
 				);
 			} });
 
@@ -81,13 +81,13 @@ public:
 
 	void Update() override {
 		MoveWASD(vel, speed, true);
-		Translate(sheep, vel * game.dt());
+		Translate(sheep, vel * Application::Get().dt());
 
 		if (input.KeyPressed(Key::Q)) {
-			camera.Zoom(-zoom_speed * game.dt());
+			camera.Zoom(-zoom_speed * Application::Get().dt());
 		}
 		if (input.KeyPressed(Key::E)) {
-			camera.Zoom(zoom_speed * game.dt());
+			camera.Zoom(zoom_speed * Application::Get().dt());
 		}
 
 		chunk_manager.Update(*this, camera);
@@ -95,7 +95,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ChunkScene", { 1280, 720 });
-	game.scene.Enter<ChunkScene>("");
+	Application::Get().Init("ChunkScene", { 1280, 720 });
+	Application::Get().scene_.Enter<ChunkScene>("");
 	return 0;
 }

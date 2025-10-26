@@ -22,7 +22,7 @@ public:
 	V2_float vel;
 
 	void OnUpdate() override {
-		MoveWASD(vel, V2_float{ 10.0f } * game.dt(), true);
+		MoveWASD(vel, V2_float{ 10.0f } * Application::Get().dt(), true);
 		Translate(entity, vel);
 	}
 };
@@ -51,7 +51,7 @@ struct ScriptScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScriptScene: WASD: move, Q/E: add/remove script");
-	game.scene.Enter<ScriptScene>("");
+	Application::Get().Init("ScriptScene: WASD: move, Q/E: add/remove script");
+	Application::Get().scene_.Enter<ScriptScene>("");
 	return 0;
 }

@@ -16,7 +16,7 @@ struct BlendModeScene : public Scene {
 		LoadResource("semitransparent", "resources/semitransparent.png");
 		LoadResource("opaque", "resources/opaque.png");
 
-		V2_float ws{ game.renderer.GetGameSize() };
+		V2_float ws{ Application::Get().render_.GetGameSize() };
 
 		CreateRect(
 			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, -1.0f, Origin::TopLeft
@@ -38,7 +38,7 @@ struct BlendModeScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BlendModeScene");
-	game.scene.Enter<BlendModeScene>("");
+	Application::Get().Init("BlendModeScene");
+	Application::Get().scene_.Enter<BlendModeScene>("");
 	return 0;
 }

@@ -15,8 +15,8 @@
 #include "world/scene/scene.h"
 #include "world/scene/scene_input.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/follow_config.h"
-#include "tweens/tween_effects.h"
+#include "tween/follow_config.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -44,7 +44,7 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 		SetBackgroundColor(color::DarkGray);
 
 		LoadResource("smile", "resources/smile.png");
@@ -78,7 +78,7 @@ struct FollowEffectScene : public Scene {
 		config5.stop_distance = 40.0f;
 		config5.move_mode	  = MoveMode::Velocity;
 
-		V2_float game_size{ game.renderer.GetGameSize() };
+		V2_float game_size{ Application::Get().render_.GetGameSize() };
 		V2_float half{ game_size * 0.5f };
 		V2_float center{ 0, 0 };
 
@@ -121,7 +121,7 @@ struct FollowEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("FollowEffectScene: Left/Right: Stop/Start Follow");
-	game.scene.Enter<FollowEffectScene>("");
+	Application::Get().Init("FollowEffectScene: Left/Right: Stop/Start Follow");
+	Application::Get().scene_.Enter<FollowEffectScene>("");
 	return 0;
 }

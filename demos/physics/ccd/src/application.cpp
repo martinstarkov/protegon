@@ -4604,14 +4604,14 @@ private:
 		addCorner(x + r, bottom - ry, 90.0f);
 
 		for (auto& triangle : triangles) {
-			ptgn::game.renderer.DrawTriangle(
+			ptgn::Application::Get().render_.DrawTriangle(
 				{}, triangle, color, -1.0f, {}, ptgn::default_blend_mode, currentTransform
 			);
 		}
 	}
 
 	void drawRect(double x, double y, double w, double h, bool filled) {
-		ptgn::game.renderer.DrawRect(
+		ptgn::Application::Get().render_.DrawRect(
 			ptgn::V2_float{ x, y }, ptgn::V2_float{ w, h }, filled ? fillColor : strokeColor,
 			filled ? -1.0f : line_width, ptgn::Origin::TopLeft, {}, ptgn::default_blend_mode,
 			currentTransform
@@ -4620,7 +4620,7 @@ private:
 
 	void drawOval(double x, double y, double w, double h, bool filled) {
 		float cx = float(x + w / 2), cy = float(y + h / 2), rx = float(w / 2), ry = float(h / 2);
-		ptgn::game.renderer.DrawEllipse(
+		ptgn::Application::Get().render_.DrawEllipse(
 			ptgn::V2_float{ cx, cy }, ptgn::Ellipse{ ptgn::V2_float{ rx, ry } },
 			filled ? fillColor : strokeColor, filled ? -1.0f : line_width, {},
 			ptgn::default_blend_mode, currentTransform
@@ -4628,7 +4628,7 @@ private:
 	}
 
 	void drawLine(double x1, double y1, double x2, double y2) {
-		ptgn::game.renderer.DrawLine(
+		ptgn::Application::Get().render_.DrawLine(
 			{ x1, y1 }, { x2, y2 }, strokeColor, line_width, {}, ptgn::default_blend_mode,
 			currentTransform
 		);
@@ -4646,7 +4646,7 @@ private:
 			triangles.emplace_back(center, vertices.at(i), vertices.at(i + 1));
 		}
 		for (auto& triangle : triangles) {
-			ptgn::game.renderer.DrawTriangle(
+			ptgn::Application::Get().render_.DrawTriangle(
 				{}, triangle, color, -1.0f, {}, ptgn::default_blend_mode, currentTransform
 			);
 		}
@@ -4681,7 +4681,7 @@ private:
 			strokeTriangles.emplace_back(a, c, d);
 		}
 		for (auto& triangle : strokeTriangles) {
-			ptgn::game.renderer.DrawTriangle(
+			ptgn::Application::Get().render_.DrawTriangle(
 				{}, triangle, color, width, {}, ptgn::default_blend_mode, currentTransform
 			);
 		}
@@ -4958,9 +4958,9 @@ public:
 
 		updateCursorPositionIfApplicable();
 
-		if (ptgn::game.input.MouseDown(ptgn::Mouse::Left)) {
+		if (ptgn::Application::Get().input_.MouseDown(ptgn::Mouse::Left)) {
 			freezeBallIfApplicable();
-		} else if (ptgn::game.input.MouseUp(ptgn::Mouse::Left)) {
+		} else if (ptgn::Application::Get().input_.MouseUp(ptgn::Mouse::Left)) {
 			throwBallIfApplicable();
 			painter->clear();
 		}
@@ -4986,7 +4986,7 @@ private:
 	bool isEnabled;
 
 	void updateCursorPositionIfApplicable() {
-		auto event{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+		auto event{ ptgn::Application::Get().input_.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
 		if (ball->isFreeze()) {
 			cursorPosition = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 			// Event consumption if applicable
@@ -4994,7 +4994,7 @@ private:
 	}
 
 	void freezeBallIfApplicable() {
-		auto event{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+		auto event{ ptgn::Application::Get().input_.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
 		auto worldPos = TransformationHelper::fromCanvasToWorld(event.x, event.y);
 		if (ball->contains(worldPos, 4)) {
 			cursorPosition = worldPos;
@@ -5128,10 +5128,10 @@ DebuggerDragEventHandler::DebuggerDragEventHandler(std::shared_ptr<GameObjects> 
 	painter_(GraphicsEngine::createHandler()) {}
 
 void DebuggerDragEventHandler::update() {
-	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
-	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
+	ptgn::V2_float cur{ ptgn::Application::Get().input_.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+	ptgn::V2_float prev{ ptgn::Application::Get().input_.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
 	) };
-	if (ptgn::game.input.MousePressed(ptgn::Mouse::Left)) {
+	if (ptgn::Application::Get().input_.MousePressed(ptgn::Mouse::Left)) {
 		Point2D worldPos = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
 		auto located	 = locateDraggable(worldPos);
 		if (located) {
@@ -5141,13 +5141,13 @@ void DebuggerDragEventHandler::update() {
 
 			delta_ = Point2D(0, 0);
 		}
-	} else if (ptgn::game.input.MouseReleased(ptgn::Mouse::Left)) {
+	} else if (ptgn::Application::Get().input_.MouseReleased(ptgn::Mouse::Left)) {
 		if (target_) {
 			acceptIfDrawable(target_, false);
 		}
 		target_ = nullptr;
 	}
-	if (cur != prev && ptgn::game.input.MousePressed(ptgn::Mouse::Left)) {
+	if (cur != prev && ptgn::Application::Get().input_.MousePressed(ptgn::Mouse::Left)) {
 		if (target_) {
 			Point2D current	 = TransformationHelper::fromCanvasToWorld(cur.x, cur.y);
 			Point2D previous = TransformationHelper::fromCanvasToWorld(prev.x, prev.y);
@@ -5221,10 +5221,10 @@ void BreakoutDragEventHandler::update() {
 		return;
 	}
 
-	ptgn::V2_float cur{ ptgn::game.input.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
-	ptgn::V2_float prev{ ptgn::game.input.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
+	ptgn::V2_float cur{ ptgn::Application::Get().input_.GetMousePosition(ptgn::ViewportType::WindowTopLeft) };
+	ptgn::V2_float prev{ ptgn::Application::Get().input_.GetMousePositionPrevious(ptgn::ViewportType::WindowTopLeft
 	) };
-	if (ptgn::game.input.MouseDown(ptgn::Mouse::Left)) {
+	if (ptgn::Application::Get().input_.MouseDown(ptgn::Mouse::Left)) {
 		focused_ = !focused_;
 
 		if (focused_) {
@@ -5521,7 +5521,7 @@ struct SandboxScene : public ptgn::Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	ptgn::game.Init("SandboxScene", window_size);
-	ptgn::game.scene.Enter<SandboxScene>("");
+	ptgn::Application::Get().Init("SandboxScene", window_size);
+	ptgn::Application::Get().scene_.Enter<SandboxScene>("");
 	return 0;
 }

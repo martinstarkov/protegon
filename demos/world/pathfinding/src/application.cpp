@@ -73,13 +73,13 @@ class PathfindingScene : public Scene {
 			} else if (tile == end) {
 				c = color::Gold;
 			}
-			game.renderer.DrawRect(
+			Application::Get().render_.DrawRect(
 				-resolution * 0.5f + tile * tile_size, tile_size, c, -1.0f, Origin::TopLeft
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
-			game.renderer.DrawRect(
+			Application::Get().render_.DrawRect(
 				-resolution * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
 				Origin::Center
 			);
@@ -98,7 +98,7 @@ class PathfindingScene : public Scene {
 		}
 
 		if (path_exists) { // global or local path exists
-			current_waypoint += game.dt() * vel;
+			current_waypoint += Application::Get().dt() * vel;
 			assert(idx >= 0);
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
@@ -118,7 +118,7 @@ class PathfindingScene : public Scene {
 			assert(idx >= 0);
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
-			game.renderer.DrawRect(
+			Application::Get().render_.DrawRect(
 				-resolution * 0.5f +
 					V2_int{ Lerp(
 						V2_float{ pos * tile_size },
@@ -129,7 +129,7 @@ class PathfindingScene : public Scene {
 				tile_size, color::Purple, -1.0f, Origin::TopLeft
 			);
 		} else {
-			game.renderer.DrawRect(
+			Application::Get().render_.DrawRect(
 				-resolution * 0.5f + pos * tile_size, tile_size, color::Purple, -1.0f,
 				Origin::TopLeft
 			);
@@ -137,7 +137,7 @@ class PathfindingScene : public Scene {
 
 		const auto display_waypoints = [=](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-				game.renderer.DrawLine(
+				Application::Get().render_.DrawLine(
 					{},
 					{ -resolution * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
 					  -resolution * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
@@ -152,11 +152,11 @@ class PathfindingScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
+	Application::Get().Init(
 		"Pathfinding: 'ESC' (++category), 'left/right' (place/remove), 'ctrl+left/right' "
 		"(start/end), 'V' (visited) ",
 		resolution
 	);
-	game.scene.Enter<PathfindingScene>("");
+	Application::Get().scene_.Enter<PathfindingScene>("");
 	return 0;
 }

@@ -13,7 +13,7 @@ class Scene3 : public Scene {
 public:
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		game.renderer.DrawTexture("bg3", {}, resolution, Origin::Center);
+		Application::Get().render_.DrawTexture("bg3", {}, resolution, Origin::Center);
 	}
 };
 
@@ -31,13 +31,13 @@ public:
 
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		game.renderer.DrawTexture("bg2", {}, resolution, Origin::Center);
+		Application::Get().render_.DrawTexture("bg2", {}, resolution, Origin::Center);
 		if (input.KeyDown(Key::A)) {
-			// game.scene.Enter("scene2");
-			game.scene.Enter<Scene2>("scene2", ++i);
-			// game.scene.Transition("scene2", "scene2");
-			// game.scene.Transition<Scene2>("scene2", "scene2");
-			// game.scene.Transition<Scene2>("scene2", "scene2", ++i);
+			// Application::Get().scene_.Enter("scene2");
+			Application::Get().scene_.Enter<Scene2>("scene2", ++i);
+			// Application::Get().scene_.Transition("scene2", "scene2");
+			// Application::Get().scene_.Transition<Scene2>("scene2", "scene2");
+			// Application::Get().scene_.Transition<Scene2>("scene2", "scene2", ++i);
 		}
 	}
 };
@@ -46,7 +46,7 @@ class Scene1 : public Scene {
 public:
 	void Update() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		game.renderer.DrawTexture("bg1", {}, resolution, Origin::Center);
+		Application::Get().render_.DrawTexture("bg1", {}, resolution, Origin::Center);
 	}
 };
 
@@ -57,21 +57,21 @@ public:
 					   { "bg2", "resources/bg2.png" },
 					   { "bg3", "resources/bg3.png" } });
 
-		game.scene.Load<Scene1>("scene1");
-		game.scene.Load<Scene2>("scene2");
-		game.scene.Load<Scene3>("scene3");
+		Application::Get().scene_.Load<Scene1>("scene1");
+		Application::Get().scene_.Load<Scene2>("scene2");
+		Application::Get().scene_.Load<Scene3>("scene3");
 	}
 
 	void Enter() override {
-		game.scene.Enter("scene1");
-		game.scene.Enter("scene2");
+		Application::Get().scene_.Enter("scene1");
+		Application::Get().scene_.Enter("scene2");
 	}
 
 	void Update() override {}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneExample", resolution);
-	game.scene.Enter<SceneExample>("scene_example");
+	Application::Get().Init("SceneExample", resolution);
+	Application::Get().scene_.Enter<SceneExample>("scene_example");
 	return 0;
 }

@@ -53,7 +53,7 @@ public:
 			grid = inner_grid;
 		}
 
-		auto res{ game.renderer.GetGameSize() };
+		auto res{ Application::Get().render_.GetGameSize() };
 
 		V2_int mouse_pos = input.GetMousePosition() + res * 0.5f;
 
@@ -76,13 +76,13 @@ public:
 					case 1: c = color::Green; break;
 				}
 			}
-			game.renderer.DrawRect(
+			Application::Get().render_.DrawRect(
 				-res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, c, -1.0f,
 				Origin::TopLeft
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			game.renderer.DrawRect(
+			Application::Get().render_.DrawRect(
 				-res * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
 				Origin::TopLeft
 			);
@@ -93,7 +93,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("paint: left click to draw; right click to erase; B to flip color", { 720, 720 });
-	game.scene.Enter<Paint>("");
+	Application::Get().Init("paint: left click to draw; right click to erase; B to flip color", { 720, 720 });
+	Application::Get().scene_.Enter<Paint>("");
 	return 0;
 }

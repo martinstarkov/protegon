@@ -17,7 +17,7 @@
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 #include "world/tile/grid.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 #include "ui/button.h"
 
 using namespace ptgn;
@@ -40,9 +40,9 @@ public:
 	}
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 
-		auto res{ game.renderer.GetGameSize() };
+		auto res{ Application::Get().render_.GetGameSize() };
 
 		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);
 		player = CreateRect(*this, -res * 0.5f + V2_float{ 400, 150 }, { 50, 50 }, color::Red);
@@ -79,7 +79,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CameraShakeScene: WASD: Move");
-	game.scene.Enter<CameraShakeScene>("");
+	Application::Get().Init("CameraShakeScene: WASD: Move");
+	Application::Get().scene_.Enter<CameraShakeScene>("");
 	return 0;
 }

@@ -409,7 +409,7 @@ struct InteractiveScene : public Scene {
 	}
 
 	void Enter() override {
-		game.window.SetResizable();
+		Application::Get().window_.SetResizable();
 
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(3.0f);
@@ -451,7 +451,7 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r1, std::move(r1_child));
 		AddScript<ScriptR1>(r1);
 
-		game.texture.Load("box", "resources/box.png");
+		Application::Get().texture.Load("box", "resources/box.png");
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateInteractiveRect(r2.GetDisplaySize());
@@ -494,7 +494,7 @@ struct InteractiveScene : public Scene {
 
 		MoveWASD(camera, { 3.0f, 3.0f });
 
-		auto dt{ game.dt() };
+		auto dt{ Application::Get().dt() };
 
 		if (input.KeyPressed(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
@@ -512,11 +512,11 @@ struct InteractiveScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
+	Application::Get().Init(
 		"InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
 		"Move/Rotate/Zoom Camera",
 		{ 800, 800 }
 	);
-	game.scene.Enter<InteractiveScene>("");
+	Application::Get().scene_.Enter<InteractiveScene>("");
 	return 0;
 }

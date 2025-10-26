@@ -374,7 +374,7 @@ public:
 					}
 				}
 
-				game.renderer.DrawRect(
+				Application::Get().render_.DrawRect(
 					-resolution * 0.5f + position * scale, scale, color, -1.0f, Origin::TopLeft
 				);
 			}
@@ -383,11 +383,11 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
+	Application::Get().Init(
 		"Fluid with Obstacles: Click (add), Arrows (flow), R (reset gravity), Space (reset fluid), "
 		"D (toggle view)",
 		resolution
 	);
-	game.scene.Enter<FluidScene>("");
+	Application::Get().scene_.Enter<FluidScene>("");
 	return 0;
 }

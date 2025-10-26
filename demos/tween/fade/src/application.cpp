@@ -13,8 +13,8 @@
 #include "world/scene/scene.h"
 #include "world/scene/scene_input.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -60,9 +60,9 @@ struct FadeEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
+	Application::Get().Init(
 		"FadeEffectScene: R/T: Scene Fade In/Out, Left/Right: Tree Fade In/Out", { 800, 800 }
 	);
-	game.scene.Enter<FadeEffectScene>("");
+	Application::Get().scene_.Enter<FadeEffectScene>("");
 	return 0;
 }

@@ -120,7 +120,7 @@ class TopDownMovementScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TopDownMovementScene: WASD to move", resolution);
-	game.scene.Enter<TopDownMovementScene>("");
+	Application::Get().Init("TopDownMovementScene: WASD to move", resolution);
+	Application::Get().scene_.Enter<TopDownMovementScene>("");
 	return 0;
 }

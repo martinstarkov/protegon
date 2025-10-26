@@ -3,7 +3,7 @@
 #include "core/input/input_handler.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -38,7 +38,7 @@ struct ScaleEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScaleEffectScene: left/right click to scale");
-	game.scene.Enter<ScaleEffectScene>("");
+	Application::Get().Init("ScaleEffectScene: left/right click to scale");
+	Application::Get().scene_.Enter<ScaleEffectScene>("");
 	return 0;
 }

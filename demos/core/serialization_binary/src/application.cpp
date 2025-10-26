@@ -117,13 +117,13 @@ public:
 			print_values();
 		}
 
-		game.Stop();
+		Application::Get().Stop();
 	}
 */
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BinarySerializationScene", { 1280, 720 });
-	game.scene.Enter<BinarySerializationScene>("");
+	Application::Get().Init("BinarySerializationScene", { 1280, 720 });
+	Application::Get().scene_.Enter<BinarySerializationScene>("");
 	return 0;
 }

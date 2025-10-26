@@ -3,7 +3,7 @@
 #include "core/input/input_handler.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
+#include "tween/tween_effect.h"
 
 using namespace ptgn;
 
@@ -40,7 +40,7 @@ struct RotateEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("RotateEffectScene: left/right click to rotate");
-	game.scene.Enter<RotateEffectScene>("");
+	Application::Get().Init("RotateEffectScene: left/right click to rotate");
+	Application::Get().scene_.Enter<RotateEffectScene>("");
 	return 0;
 }

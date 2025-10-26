@@ -30,7 +30,7 @@
 #include "renderer/text/text.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween.h"
+#include "tween/tween.h"
 
 using namespace ptgn;
 
@@ -110,7 +110,7 @@ public:
 };
 
 void SetProgress(const V2_float& size, const Entity& e, float progress) {
-	V2_float res{ game.renderer.GetGameSize() };
+	V2_float res{ Application::Get().render_.GetGameSize() };
 	auto width{ res.x - size.x };
 	Entity target{ e };
 	if (HasParent(e)) {
@@ -126,7 +126,7 @@ public:
 	V2_float size{ 40.0f };
 
 	V2_float GetNextPosition() const {
-		V2_float res{ game.renderer.GetGameSize() };
+		V2_float res{ Application::Get().render_.GetGameSize() };
 		static int count{ 0 };
 		V2_float pos{ -res.x * 0.5f + size.x / 2.0f,
 					  -res.y * 0.5f + size.y * static_cast<float>(count) };
@@ -219,7 +219,7 @@ public:
 
 		PTGN_ASSERT(tween_count > 0);
 
-		V2_float res{ game.renderer.GetGameSize() };
+		V2_float res{ Application::Get().render_.GetGameSize() };
 		size   = { 0.0f, res.y / static_cast<float>(tween_count) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
 
@@ -267,7 +267,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TweenScene: (T)oggle pause, (R)estart, (S)top");
-	game.scene.Enter<TweenScene>("");
+	Application::Get().Init("TweenScene: (T)oggle pause, (R)estart, (S)top");
+	Application::Get().scene_.Enter<TweenScene>("");
 	return 0;
 }
