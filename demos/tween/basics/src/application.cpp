@@ -12,7 +12,7 @@
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/scripting/script.h"
 #include "core/util/time.h"

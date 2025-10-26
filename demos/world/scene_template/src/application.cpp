@@ -1,6 +1,6 @@
 #include <optional>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/components/draw.h"
 #include "debug/runtime/assert.h"
 #include "renderer/api/color.h"

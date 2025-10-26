@@ -1,6 +1,6 @@
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/util/time.h"
 #include "core/input/input_handler.h"
 #include "core/input/mouse.h"

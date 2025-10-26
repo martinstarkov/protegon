@@ -1,7 +1,7 @@
 #include <functional>
 #include <string_view>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "debug/core/log.h"
 #include "renderer/api/color.h"

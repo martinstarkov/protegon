@@ -1,5 +1,5 @@
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/scripting/script_sequence.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"

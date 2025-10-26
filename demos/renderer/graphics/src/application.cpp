@@ -1,5 +1,5 @@
 #include "core/ecs/components/movement.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "renderer/vfx/graphics.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"

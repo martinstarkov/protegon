@@ -5,7 +5,7 @@
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"

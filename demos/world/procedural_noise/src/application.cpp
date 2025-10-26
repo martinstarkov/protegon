@@ -3,7 +3,7 @@
 
 #include "debug/runtime/assert.h"
 #include "core/ecs/components/movement.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "debug/core/log.h"
 #include "core/input/input_handler.h"

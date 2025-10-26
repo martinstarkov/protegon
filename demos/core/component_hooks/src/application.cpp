@@ -1,14 +1,15 @@
 
+#include "core/app/application.h"
+
 #include <memory>
 #include <vector>
 
-#include "core/ecs/entity.h"
-#include "core/app/game.h"
 #include "core/app/manager.h"
-#include "debug/core/log.h"
-#include "ecs/ecs.h"
+#include "core/ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "debug/core/log.h"
+#include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"

@@ -1,7 +1,7 @@
 #include <chrono>
 #include <cmath>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "core/app/window.h"

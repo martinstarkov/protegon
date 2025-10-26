@@ -1,5 +1,5 @@
 #include "core/ecs/components/animation.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/scripting/script.h"
 #include "core/util/time.h"
 #include "core/input/input_handler.h"

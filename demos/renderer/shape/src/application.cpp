@@ -1,6 +1,6 @@
 
 #include "core/ecs/components/draw.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "renderer/renderer.h"
 #include "world/scene/scene.h"

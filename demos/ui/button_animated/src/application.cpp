@@ -1,7 +1,7 @@
 
 #include "core/ecs/components/animation.h"
 #include "core/ecs/components/transform.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"

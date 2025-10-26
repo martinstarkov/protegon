@@ -1,4 +1,4 @@
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 

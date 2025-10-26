@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "math/vector2.h"

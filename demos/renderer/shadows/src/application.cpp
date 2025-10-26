@@ -7,7 +7,7 @@
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/ecs/game_object.h"
 #include "core/app/manager.h"
 #include "core/app/window.h"

@@ -6,7 +6,7 @@
 #include "core/ecs/components/lifetime.h"
 #include "core/ecs/components/offsets.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "math/geometry/circle.h"
 #include "math/rng.h"

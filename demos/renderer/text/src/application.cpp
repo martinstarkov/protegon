@@ -3,7 +3,7 @@
 
 #include "core/ecs/components/draw.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/app/window.h"
 #include "renderer/api/color.h"
 #include "renderer/text/font.h"

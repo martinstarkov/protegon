@@ -1,6 +1,6 @@
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collider.h"

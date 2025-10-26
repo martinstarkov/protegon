@@ -1,7 +1,7 @@
 // #include <functional>
 //
 // #include "debug/runtime/assert.h"
-// #include "core/app/game.h"
+// #include "core/app/application.h"
 //
 // #include "core/app/window.h"
 // #include "debug/core/log.h"

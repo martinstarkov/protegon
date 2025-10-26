@@ -4,7 +4,7 @@
 
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
 #include "world/scene/scene.h"

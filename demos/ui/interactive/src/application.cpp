@@ -4,7 +4,7 @@
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
-#include "core/app/game.h"
+#include "core/app/application.h"
 #include "core/scripting/script.h"
 #include "core/app/window.h"
 #include "math/vector2.h"
