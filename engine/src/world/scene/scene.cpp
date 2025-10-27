@@ -42,7 +42,8 @@
 namespace ptgn {
 
 Scene::Scene() {
-	auto& render_manager{ Application::Get().render_.render_data_.render_manager };
+	auto& app{ Application::Get() };
+	auto& render_manager{ app.render_.render_data_.render_manager };
 	render_target_ = CreateRenderTarget(
 		render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
 	);
@@ -99,7 +100,8 @@ Entity Scene::CreateEntity(const json& j) {
 }
 
 void Scene::ReEnter() {
-	Application::Get().scene_.Enter(key_);
+	// TODO: Fix.
+	// Application::Get().scene_.Enter(key_);
 }
 
 void Scene::SetColliderColor(const Color& collider_color) {
