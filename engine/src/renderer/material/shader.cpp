@@ -543,13 +543,7 @@ bool ShaderManager::Has(ShaderType type, std::string_view shader_name) const {
 	}
 }
 
-void ShaderManager::Init() {
-	std::size_t max_texture_slots{ Application::Get().render_.render_data_.GetMaxTextureSlots() };
-
-	PTGN_ASSERT(max_texture_slots > 0, "Max texture slots must be set before initializing shaders");
-
-	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
-
+ShaderManager::ShaderManager(std::size_t max_texture_slots) {
 	auto fs{ cmrc::shader::get_filesystem() };
 
 	PopulateShaderCache(fs, cache_, max_texture_slots);
@@ -559,7 +553,7 @@ void ShaderManager::Init() {
 	PopulateShadersFromCache(manifest);
 }
 
-void ShaderManager::Shutdown() {
+ShaderManager::~ShaderManager() {
 	const auto delete_shaders = [](const auto& container) {
 		for (const auto& [_, id] : container) {
 			if (id) {

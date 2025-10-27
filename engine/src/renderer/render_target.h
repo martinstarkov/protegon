@@ -223,7 +223,7 @@ PTGN_DRAW_FILTER_REGISTER(RenderTarget);
 // @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 RenderTarget CreateRenderTarget(
 	Manager& manager, const V2_int& size, const Color& clear_color = color::Transparent,
-	TextureFormat texture_format = TextureFormat::RGBA8888
+	TextureFormat texture_format = TextureFormat::RGBA8888, bool game_size_camera = false
 );
 
 // Create a render target that is continuously sized to the specified resolution.

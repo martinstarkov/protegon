@@ -33,19 +33,26 @@ void PointLight::SetUniform(Entity entity, const Shader& shader) {
 
 	Camera camera{ entity.GetCamera() };
 
-	auto display_size{ Application::Get().render_.GetDisplaySize() };
+	const auto display_size{ Application::Get().render_.GetDisplaySize() };
 
 	auto camera_display_size{ camera.GetDisplaySize() };
 
 	PTGN_ASSERT(camera_display_size.BothAboveZero());
 
-	auto ratio{ Application::Get().render_.GetDisplaySize() / camera_display_size };
+	auto ratio{ display_size / camera_display_size };
 
 	PTGN_ASSERT(ratio.BothAboveZero());
 
+	// TODO: Move to using scene context.
+
+	auto game_scale{ Application::Get().render_.GetScale() };
+	auto game_size{ Application::Get().render_.GetGameSize() };
+
 	// TODO: Eventually switch to WorldToRenderTarget instead of WorldToDisplay.
 
-	V2_float light_display_pos{ WorldToDisplay(light_world_pos, camera) /*/ ratio*/ };
+	V2_float light_display_pos{ WorldToDisplay(
+		game_scale, game_size, light_world_pos, camera
+	) /*/ ratio*/ };
 
 	light_display_pos += display_size * 0.5f;
 
@@ -102,8 +109,10 @@ void PointLight::Draw(const Entity& entity) {
 
 	TextureFormat texture_format{ default_texture_format /*TextureFormat::HDR_RGBA*/ };
 
+	auto& light_shader{ Application::Get().shader.Get("light") };
+
 	Application::Get().render_.DrawShader(
-		{ "light", &PointLight::SetUniform }, entity, false, light_clear_color, V2_int{},
+		{ light_shader, &PointLight::SetUniform }, entity, false, light_clear_color, V2_int{},
 		intermediate_blend_mode, GetDepth(entity), blend_mode, entity.GetOrDefault<Camera>(),
 		texture_format, entity.GetOrDefault<PostFX>(), target_blend_mode
 	);

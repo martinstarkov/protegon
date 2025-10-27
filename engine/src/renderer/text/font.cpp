@@ -52,6 +52,10 @@ FontManager& FontManager::operator=(FontManager&& other) noexcept {
 	return *this;
 }
 
+FontManager::FontManager() {
+	Init();
+}
+
 FontManager::~FontManager() {
 	if (raw_default_font_) {
 		SDL_RWclose(raw_default_font_);

@@ -146,15 +146,17 @@ SceneAction::SceneAction() :
 				} } },
 	prefix_handlers_{ { "enter:",
 						[](const std::string&, const json& scenes, const std::string& to) {
-							Application::Get().scene_.Enter<impl::TemplateMenuScene>(
+							// TODO: Fix.
+							/*Application::Get().scene_.Enter<impl::TemplateMenuScene>(
 								to, scenes, scenes
-							);
+							);*/
 						} },
 					  { "transition:",
 						[](const std::string& from, const json& scenes, const std::string& to) {
-							Application::Get().scene_.Transition<impl::TemplateMenuScene>(
+							// TODO: Fix.
+							/*Application::Get().scene_.Transition<impl::TemplateMenuScene>(
 								from, to, {}, {}, to, scenes
-							);
+							);*/
 						} } } {}
 
 void SceneAction::Register(const std::string& name, const std::function<void()>& action) {

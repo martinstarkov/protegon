@@ -27,14 +27,16 @@ namespace ptgn::impl {
 
 #ifdef PTGN_DEBUG
 
+// TODO: Fix gl_calls stats.
+// ++Application::Get().debug_.stats.gl_calls;
+
 #define GLCall(x)                                                     \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
-		++Application::Get().debug_.stats.gl_calls;                                  \
-		ptgn::impl::GLContext::ClearErrors();                         \
+		::ptgn::impl::GLContext::ClearErrors();                       \
 		x;                                                            \
-		auto errors{ ptgn::impl::GLContext::GetErrors() };            \
+		auto errors{ ::ptgn::impl::GLContext::GetErrors() };          \
 		if (!errors.empty()) {                                        \
-			ptgn::impl::GLContext::PrintErrors(                       \
+			::ptgn::impl::GLContext::PrintErrors(                     \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \
 			PTGN_ERROR("OpenGL Error");                               \
@@ -42,12 +44,11 @@ namespace ptgn::impl {
 	})
 #define GLCallReturn(x)                                               \
 	std::invoke([&, fn = PTGN_FUNCTION_NAME()]() {                    \
-		++Application::Get().debug_.stats.gl_calls;                                  \
-		ptgn::impl::GLContext::ClearErrors();                         \
+		::ptgn::impl::GLContext::ClearErrors();                       \
 		auto value{ x };                                              \
-		auto errors{ ptgn::impl::GLContext::GetErrors() };            \
+		auto errors{ ::ptgn::impl::GLContext::GetErrors() };          \
 		if (!errors.empty()) {                                        \
-			ptgn::impl::GLContext::PrintErrors(                       \
+			::ptgn::impl::GLContext::PrintErrors(                     \
 				fn, std::filesystem::path(__FILE__), __LINE__, errors \
 			);                                                        \
 			PTGN_ERROR("OpenGL Error");                               \

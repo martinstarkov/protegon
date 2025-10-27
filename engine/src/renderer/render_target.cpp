@@ -265,10 +265,11 @@ RenderTarget CreateRenderTarget(
 }
 
 RenderTarget CreateRenderTarget(
-	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format
+	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format,
+	bool game_size_camera
 ) {
 	auto render_target{ impl::AddRenderTargetComponents(
-		manager.CreateEntity(), manager, size, false, clear_color, texture_format
+		manager.CreateEntity(), manager, size, game_size_camera, clear_color, texture_format
 	) };
 	return render_target;
 }
