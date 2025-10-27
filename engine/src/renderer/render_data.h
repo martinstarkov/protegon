@@ -11,6 +11,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/app/engine_context.h"
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
 #include "core/ecs/components/draw.h"
@@ -70,7 +71,13 @@ constexpr TextureFormat default_texture_format{ TextureFormat::RGBA8888 };
 namespace impl {
 
 struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
+	ViewportResizeScript() = default;
+
+	explicit ViewportResizeScript(EngineContext ctx) : ctx_{ ctx } {}
+
 	void OnWindowResized() override;
+
+	EngineContext ctx_;
 };
 
 using Index			= std::uint32_t;
@@ -87,10 +94,6 @@ public:
 	ShaderPass() = default;
 
 	ShaderPass(const Shader& shader, const UniformCallback& uniform_callback = nullptr);
-
-	ShaderPass(std::string_view shader_name, const UniformCallback& uniform_callback = nullptr);
-
-	ShaderPass(const char* shader_name);
 
 	[[nodiscard]] const Shader& GetShader() const;
 
@@ -247,6 +250,14 @@ inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 
 class RenderData {
 public:
+	RenderData() = default;
+	explicit RenderData(EngineContext ctx, const V2_float& viewport_size);
+	~RenderData() noexcept						 = default;
+	RenderData(const RenderData&)				 = delete;
+	RenderData(RenderData&&) noexcept			 = delete;
+	RenderData& operator=(const RenderData&)	 = delete;
+	RenderData& operator=(RenderData&&) noexcept = default;
+
 	void Submit(const DrawCommand& command, bool debug = false);
 
 	void AddTemporaryTexture(Texture&& texture);
@@ -324,8 +335,6 @@ public:
 
 	void Reset();
 
-	void Init();
-
 	[[nodiscard]] const Shader& GetCurrentShader() const;
 
 	// @return True if the render state changed, false otherwise.
@@ -358,7 +367,7 @@ public:
 	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
 
-	static const Shader& GetFullscreenShader(TextureFormat texture_format);
+	const Shader& GetFullscreenShader(TextureFormat texture_format) const;
 
 	std::vector<impl::DrawCommand> debug_queue_;
 	std::unordered_map<TextureId, std::vector<impl::DrawCommand>> draw_queues_;
@@ -373,14 +382,14 @@ public:
 
 	void UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode);
 
-	bool game_size_set_{ false };
+	bool game_size_set_{ true };
 	ScalingMode resolution_mode_{ ScalingMode::Letterbox };
 
 	// Allow for creation of targets before window has been initialized.
 	V2_int game_size_{ 1, 1 };
 	Viewport display_viewport_{ {}, { 1, 1 } };
 
-	bool game_size_changed_{ false };
+	bool game_size_changed_{ true };
 	bool display_size_changed_{ false };
 
 	RenderTarget screen_target_;
@@ -398,6 +407,8 @@ public:
 	mutable std::size_t max_texture_slots{ 0 };
 	Texture white_texture;
 	VertexArray triangle_vao;
+
+	EngineContext ctx_;
 };
 
 } // namespace impl

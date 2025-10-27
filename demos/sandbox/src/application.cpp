@@ -21,7 +21,7 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Application app{};
-	app.StartWith<TestScene>("test", NoTransition{});
+	app.StartWith<TestScene>("test", SlideLeft{ 2.0 });
 
 	return 0;
 }

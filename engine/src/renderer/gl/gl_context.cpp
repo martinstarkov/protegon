@@ -4,6 +4,7 @@
 #include <iosfwd>
 #include <ostream>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "core/app/application.h"
@@ -120,9 +121,18 @@ GLContext::GLContext(SDL_Window* window) {
 }
 
 GLContext::~GLContext() {
-	SDL_GL_DeleteContext(context_);
-	context_ = nullptr;
-	PTGN_INFO("Destroyed OpenGL context");
+	if (context_) {
+		SDL_GL_DeleteContext(context_);
+		context_ = nullptr;
+		PTGN_INFO("Destroyed OpenGL context");
+	}
+}
+
+GLContext& GLContext::operator=(GLContext&& o) {
+	if (this != &o) {
+		context_ = std::exchange(o.context_, nullptr);
+	}
+	return *this;
 }
 
 void GLContext::ClearErrors() {

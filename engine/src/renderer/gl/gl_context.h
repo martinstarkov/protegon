@@ -30,13 +30,13 @@ struct GLVersion {
 // Must be constructed after SDL_Window has been created.
 class GLContext {
 public:
-	GLContext() = delete;
+	GLContext() = default;
 	explicit GLContext(SDL_Window* window);
 	~GLContext();
 	GLContext(const GLContext&)			   = delete;
 	GLContext(GLContext&&)				   = default;
 	GLContext& operator=(const GLContext&) = delete;
-	GLContext& operator=(GLContext&&)	   = default;
+	GLContext& operator=(GLContext&& o);
 
 	static void ClearErrors();
 

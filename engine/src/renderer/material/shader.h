@@ -179,6 +179,14 @@ ShaderId CompileSource(const std::string& source, ShaderType type, const std::st
 
 class ShaderManager {
 public:
+	ShaderManager() = default;
+	explicit ShaderManager(std::size_t max_texture_slots);
+	~ShaderManager() noexcept;
+	ShaderManager(const ShaderManager&)				   = delete;
+	ShaderManager(ShaderManager&&) noexcept			   = delete;
+	ShaderManager& operator=(const ShaderManager&)	   = delete;
+	ShaderManager& operator=(ShaderManager&&) noexcept = default;
+
 	[[nodiscard]] const Shader& Get(std::string_view shader_name) const;
 
 	[[nodiscard]] const Shader& TryLoad(
@@ -193,7 +201,6 @@ public:
 	[[nodiscard]] bool Has(std::string_view shader_name) const;
 
 private:
-	friend class Game;
 	friend class ptgn::Shader;
 	friend ShaderId CompileSource(
 		const std::string& source, ShaderType type, const std::string& name
@@ -210,9 +217,6 @@ private:
 
 	ShaderCache cache_;
 	std::unordered_map<std::size_t, Shader> shaders_;
-
-	void Init();
-	void Shutdown();
 };
 
 } // namespace impl

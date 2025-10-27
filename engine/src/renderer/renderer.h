@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/app/engine_context.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/generic.h"
@@ -39,12 +40,14 @@ struct Triangle;
 
 class Renderer {
 public:
-	Renderer()							 = default;
-	~Renderer()							 = default;
-	Renderer(const Renderer&)			 = delete;
-	Renderer(Renderer&&)				 = default;
-	Renderer& operator=(const Renderer&) = delete;
-	Renderer& operator=(Renderer&&)		 = default;
+	Renderer() = default;
+	Renderer(EngineContext ctx, const V2_int& viewport_size);
+
+	~Renderer() noexcept					 = default;
+	Renderer(const Renderer&)				 = delete;
+	Renderer(Renderer&&) noexcept			 = delete;
+	Renderer& operator=(const Renderer&)	 = delete;
+	Renderer& operator=(Renderer&&) noexcept = default;
 
 	void SetBackgroundColor(const Color& background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
@@ -209,7 +212,7 @@ public:
 	void DrawInsideStencilMask();
 
 	// TODO: Move everything below this to private.
-
+	EngineContext ctx_;
 	impl::RenderData render_data_;
 
 	[[nodiscard]] impl::Texture CreateTexture(
@@ -223,10 +226,6 @@ public:
 
 	// Clears the window buffer.
 	void ClearScreen() const;
-
-	void Init();
-	void Shutdown();
-	void Reset();
 
 	// Renderer keeps track of what is bound.
 	struct BoundStates {

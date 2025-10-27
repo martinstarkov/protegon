@@ -36,22 +36,54 @@ struct ApplicationConfig {
 };
 
 class Application {
-public:
-	Application(const ApplicationConfig& config = {});
-	~Application();
-	Application(const Application&)			   = delete;
-	Application& operator=(const Application&) = delete;
-	Application(Application&&)				   = delete;
-	Application& operator=(Application&&)	   = delete;
+private:
+	inline static Application* instance_{ nullptr };
 
-	template <impl::SceneType TScene, impl::SceneTransitionType TransitionIn, class... TArgs>
+	struct SDLInstance {
+		SDLInstance();
+		~SDLInstance();
+		SDLInstance(const SDLInstance&)			   = delete;
+		SDLInstance& operator=(const SDLInstance&) = delete;
+		SDLInstance(SDLInstance&&)				   = delete;
+		SDLInstance& operator=(SDLInstance&&)	   = delete;
+	};
+
+	SDLInstance sdl_;
+
+public:
+	explicit Application(const ApplicationConfig& config = {});
+	~Application() noexcept;
+	Application(const Application&)				   = delete;
+	Application& operator=(const Application&)	   = delete;
+	Application(Application&&) noexcept			   = delete;
+	Application& operator=(Application&&) noexcept = delete;
+
+	// template <impl::SceneType TScene, impl::SceneTransitionType TransitionIn, class... TArgs>
+	//	requires std::constructible_from<TScene, TArgs...>
+	// void StartWith(const SceneKey& key, TransitionIn&& transition_in, TArgs&&... args) {
+	//	// Construct and register the scene
+	//	scene_.Transition<TScene>(
+	//		std::nullopt, key, std::forward<TransitionIn>(transition_in), NoTransition{},
+	//		std::forward<TArgs>(args)...
+	//	);
+	//	EnterMainLoop();
+	// }
+
+	template <typename TScene, typename TransitionIn, class... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(const SceneKey& key, TransitionIn&& transition_in, TArgs&&... args) {
-		// Construct and register the scene
-		scene_.Transition<TScene>(
-			std::nullopt, key, std::forward<TransitionIn>(transition_in), NoTransition{},
+		// Initialize the first scene using the SceneManager.
+		scene_.SwitchTo<TScene>(
+			key,
+			std::make_unique<std::remove_cvref_t<TransitionIn>>(
+				std::forward<TransitionIn>(transition_in)
+			),
 			std::forward<TArgs>(args)...
 		);
+
+		// Flush queued ops so the first scene becomes active before main loop.
+		scene_.Update(0.0);
+
 		EnterMainLoop();
 	}
 
@@ -71,11 +103,7 @@ public:
 	// TODO: Move this to private.
 	static Application& Get();
 	// TODO: Move this to private.
-	Renderer render_;
-	// TODO: Move this to private.
 	Window window_;
-	// TODO: Move this to private.
-	SceneManager scene_;
 	// TODO: Move this to private.
 	InputHandler input_;
 
@@ -84,8 +112,14 @@ public:
 	impl::SoundManager sound;
 	impl::MusicManager music;
 	impl::TextureManager texture;
-	impl::FontManager font;
 	impl::ShaderManager shader;
+	impl::FontManager font;
+
+	// TODO: Move this to private.
+	Renderer render_;
+
+	// TODO: Move this to private.
+	SceneManager scene_;
 
 private:
 #ifdef __EMSCRIPTEN__
@@ -103,25 +137,12 @@ private:
 
 	void EnterMainLoop();
 	void Update();
-
-	struct SDLInstance {
-		SDLInstance();
-		~SDLInstance();
-		SDLInstance(const SDLInstance&)			   = delete;
-		SDLInstance& operator=(const SDLInstance&) = delete;
-		SDLInstance(SDLInstance&&)				   = delete;
-		SDLInstance& operator=(SDLInstance&&)	   = delete;
-	};
-
-	SDLInstance sdl_;
 	// TODO: Add this.
 	// EventRegistry events_;
 	// AssetManager assets_;
 
 	float dt_{ 0.0f };
 	bool running_{ false };
-
-	inline static Application* instance_{ nullptr };
 };
 
 } // namespace ptgn

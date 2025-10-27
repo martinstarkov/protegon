@@ -6,6 +6,7 @@
 #include <optional>
 #include <utility>
 
+#include "core/app/engine_context.h"
 #include "core/app/resolution.h"
 #include "core/event/events.h"
 #include "core/input/key.h"
@@ -25,11 +26,12 @@ class Application;
 
 class InputHandler {
 public:
-	InputHandler()									 = default;
+	InputHandler() = default;
+	explicit InputHandler(EngineContext ctx);
 	~InputHandler() noexcept						 = default;
 	InputHandler(const InputHandler&)				 = delete;
 	InputHandler& operator=(const InputHandler&)	 = delete;
-	InputHandler(InputHandler&&) noexcept			 = default;
+	InputHandler(InputHandler&&) noexcept			 = delete;
 	InputHandler& operator=(InputHandler&&) noexcept = default;
 
 	// @param mouse_button The mouse button to check.
@@ -118,16 +120,17 @@ public:
 
 private:
 	friend class ptgn::Scene;
-	friend class Game;
 	friend class ptgn::SceneInput;
+
+	EngineContext ctx_;
 
 	using Timestamp = std::uint32_t;
 
 	// Convert position from being relative to the top left of the window to being relative to the
 	// center of the specified viewport.
-	[[nodiscard]] static V2_float GetPositionRelativeTo(
+	[[nodiscard]] V2_float GetPositionRelativeTo(
 		const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
-	);
+	) const;
 
 	// @return Mouse position relative to the top left of the screen.
 	[[nodiscard]] V2_int GetMouseScreenPosition() const;
@@ -158,10 +161,10 @@ private:
 
 	static constexpr std::size_t mouse_count_{ 3 };
 
-	std::array<impl::KeyState, key_count_> key_states_;
-	std::array<Timestamp, key_count_> key_timestamps_;
-	std::array<impl::MouseState, mouse_count_> mouse_states_;
-	std::array<Timestamp, mouse_count_> mouse_timestamps_;
+	std::array<impl::KeyState, key_count_> key_states_{};
+	std::array<Timestamp, key_count_> key_timestamps_{};
+	std::array<impl::MouseState, mouse_count_> mouse_states_{};
+	std::array<Timestamp, mouse_count_> mouse_timestamps_{};
 
 	// Stored mouse positions are relative to the top left of the window.
 	V2_int mouse_position_;

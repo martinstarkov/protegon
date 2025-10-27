@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "audio/audio.h"
+#include "core/app/engine_context.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/util/file.h"
@@ -24,6 +25,7 @@
 #include "renderer/api/color.h"
 #include "renderer/gl/gl_context.h"
 #include "renderer/gl/gl_renderer.h"
+#include "renderer/material/shader.h"
 #include "renderer/renderer.h"
 #include "renderer/text/font.h"
 #include "SDL.h"
@@ -226,12 +228,21 @@ Application::SDLInstance::~SDLInstance() {
 	PTGN_INFO("Deinitialized SDL");
 }
 
-Application::Application(const ApplicationConfig& config) :
-	window_{ config.title, config.window_size } /*renderer_{ config.window_size }*/ {
-	window_.SetSetting(WindowSetting::FixedSize);
-
-	PTGN_ASSERT(!instance_, "Only one Application instance allowed at a time");
+Application::Application(const ApplicationConfig& config) {
+	PTGN_ASSERT(!instance_, "Can only have one application instance at a time");
+	// TODO: Figure out if this can be moved to initializer list. I should try again because the
+	// Application::Get().render issues seems to be caused by inlining.
 	instance_ = this;
+	// TODO: Instead of doing it like this. Separate all the non-critical code into functions and
+	// run those here. That way we get RAII and can delete all the default constructors, but can
+	// also wait for instance_ to be set.
+	window_ = Window{ config.title, config.window_size };
+	input_	= InputHandler{ EngineContext::Get(*this) };
+	shader	= impl::ShaderManager{ impl::GLRenderer::GetMaxTextureSlots() };
+	render_ = Renderer{ EngineContext::Get(*this), config.window_size };
+	scene_	= SceneManager{ EngineContext::Get(*this) };
+	// TODO: Move to application config.
+	window_.SetSetting(WindowSetting::FixedSize);
 }
 
 Application::~Application() {
@@ -290,7 +301,7 @@ void Application::Update() {
 
 	start = end;
 
-	scene_.Update();
+	scene_.Update(dt_);
 
 	debug_.PostUpdate();
 

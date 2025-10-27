@@ -10,7 +10,6 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/application.h"
 #include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
@@ -171,7 +170,7 @@ impl::Texture Renderer::CreateTexture(
 	FontSize final_font_size{ font_size };
 
 	if (hd_text) {
-		const auto& scene{ Application::Get().scene_.GetCurrent() };
+		const auto& scene{ ctx_.scene->GetCurrent() };
 
 		auto render_target_scale{ scene->GetRenderTargetScaleRelativeTo(camera) };
 
@@ -327,9 +326,8 @@ void Renderer::DrawInsideStencilMask() {
 	render_data_.Submit(impl::DrawInsideStencilMask{});
 }
 
-void Renderer::Init() {
-	render_data_.Init();
-}
+Renderer::Renderer(EngineContext ctx, const V2_int& viewport_size) :
+	ctx_{ ctx }, render_data_{ ctx, viewport_size } {}
 
 void Renderer::SetBackgroundColor(const Color& background_color) {
 	render_data_.screen_target_.SetClearColor(background_color);
@@ -339,29 +337,15 @@ Color Renderer::GetBackgroundColor() const {
 	return render_data_.screen_target_.GetClearColor();
 }
 
-void Renderer::Reset() {
-	bound_ = {};
-
-	FrameBuffer::Unbind(); // Will set bound_frame_buffer_id_ to 0.
-
-	render_data_ = {};
-	render_data_.Init();
-}
-
-void Renderer::Shutdown() {
-	Reset();
-}
-
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
 	V2_int resolution{ render_data_.game_size_set_ ? render_data_.game_size_
-												   : Application::Get().window_.GetSize() };
+												   : ctx_.window->GetSize() };
 	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
 void Renderer::SetGameSize(const V2_int& game_size, ScalingMode scaling_mode) {
 	render_data_.game_size_set_ = !game_size.IsZero();
-	V2_int resolution{ render_data_.game_size_set_ ? game_size
-												   : Application::Get().window_.GetSize() };
+	V2_int resolution{ render_data_.game_size_set_ ? game_size : ctx_.window->GetSize() };
 	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
@@ -407,7 +391,7 @@ void Renderer::PresentScreen() {
 		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
 	);
 
-	Application::Get().window_.SwapBuffers();
+	ctx_.window->SwapBuffers();
 }
 
 void Renderer::ClearScreen() const {

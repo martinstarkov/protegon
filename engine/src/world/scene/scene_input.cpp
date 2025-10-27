@@ -599,6 +599,8 @@ void SceneInput::HandleDropzones(const std::vector<Entity>& dropzones, const Mou
 	}
 }
 
+// TODO: Move to using scene engine context.
+
 V2_float SceneInput::GetMousePosition(ViewportType relative_to, bool clamp_to_viewport) const {
 	return Application::Get().input_.GetMousePosition(relative_to, clamp_to_viewport);
 }
