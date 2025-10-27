@@ -56,7 +56,7 @@ V2_int Screen::GetSize() {
 
 Window::Window(const char* title, const V2_int& size) :
 	instance_{ SDL_CreateWindow(
-				   "", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0,
+				   title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size.x, size.y,
 				   SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
 			   ),
 			   impl::WindowDeleter{} },

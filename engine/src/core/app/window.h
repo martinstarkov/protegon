@@ -41,10 +41,11 @@ struct WindowDeleter {
 
 class Window {
 public:
-	Window(const char* title, const V2_int& size);
-	~Window()							 = default;
+	Window() = default;
+	explicit Window(const char* title, const V2_int& size);
+	~Window() noexcept					 = default;
 	Window(Window&&) noexcept			 = delete;
-	Window& operator=(Window&&) noexcept = delete;
+	Window& operator=(Window&&) noexcept = default;
 	Window(const Window&)				 = delete;
 	Window& operator=(const Window&)	 = delete;
 
