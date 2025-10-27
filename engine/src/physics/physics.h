@@ -9,12 +9,6 @@ namespace ptgn {
 class Scene;
 struct Transform;
 
-namespace impl {
-
-class Game;
-
-} // namespace impl
-
 enum class BoundaryBehavior {
 	StopVelocity,	// Clamp position and stop velocity.
 	SlideVelocity,	// Clamp position and do not change velocity.
@@ -49,7 +43,6 @@ public:
 	)
 
 private:
-	friend class impl::Game;
 	friend class ptgn::Scene;
 
 	void PreCollisionUpdate(Scene& scene) const;

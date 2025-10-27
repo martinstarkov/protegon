@@ -4,8 +4,8 @@
 #include <memory>
 #include <string>
 
-#include "core/ecs/components/generic.h"
 #include "core/asset/asset_manager.h"
+#include "core/ecs/components/generic.h"
 #include "core/util/file.h"
 #include "math/vector2.h"
 #include "renderer/text/fonts.h"
@@ -61,8 +61,6 @@ struct FontSize : public ArithmeticComponent<std::int32_t> {
 
 namespace impl {
 
-class Game;
-
 struct TTF_FontDeleter {
 	void operator()(TTF_Font* font) const;
 };
@@ -73,12 +71,12 @@ using TemporaryFont = std::shared_ptr<TTF_Font>;
 
 class FontManager : public ResourceManager<FontManager, ResourceHandle, Font> {
 public:
-	FontManager()							   = default;
+	FontManager();
 	FontManager(const FontManager&)			   = delete;
 	FontManager& operator=(const FontManager&) = delete;
 	FontManager(FontManager&& other) noexcept;
 	FontManager& operator=(FontManager&& other) noexcept;
-	~FontManager() override;
+	~FontManager() noexcept override;
 
 	void Load(const ResourceHandle& key, const path& filepath) final;
 
@@ -116,11 +114,9 @@ public:
 	friend void from_json(const json& j, FontManager& manager);
 
 private:
-	friend class Game;
 	friend class ptgn::Text;
 	friend ParentManager;
 
-	// Initializes the default font from a binary.
 	void Init();
 
 	[[nodiscard]] static SDL_RWops* GetRawBuffer(const FontBinary& binary);

@@ -14,7 +14,6 @@ class Scene;
 
 namespace impl {
 
-class Game;
 class Physics;
 
 class CollisionHandler {
@@ -32,7 +31,6 @@ public:
 	);
 
 private:
-	friend class Game;
 	friend class Physics;
 	friend class ptgn::Scene;
 
