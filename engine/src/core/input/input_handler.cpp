@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "core/app/application.h"
-#include "core/app/engine_context.h"
 #include "core/app/resolution.h"
 #include "core/app/window.h"
 #include "core/ecs/components/transform.h"
@@ -31,6 +30,9 @@ namespace ptgn {
 
 // TODO: Get rid of this.
 using namespace impl;
+
+InputHandler::InputHandler(Window& window, Renderer& renderer, SceneManager& scenes) :
+	window_{ window }, renderer_{ renderer }, scenes_{ scenes } {}
 
 std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
 	switch (e.type) {
@@ -279,14 +281,14 @@ void InputHandler::Update() {
 	ProcessInputEvents();
 }
 
-bool InputHandler::MouseWithinWindow() const {
-	auto screen_pointer{ GetMouseScreenPosition() };
-	auto window_size{ ctx_.window->GetSize() };
-	auto window_position{ ctx_.window->GetPosition() };
-	Transform window_transform{ window_position + window_size / 2 };
-	Rect window_rect{ window_size };
-	return Overlap(screen_pointer, window_transform, window_rect);
-}
+// bool InputHandler::MouseWithinWindow() const {
+//	auto screen_pointer{ GetMouseScreenPosition() };
+//	auto window_size{ ctx_.window->GetSize() };
+//	auto window_position{ ctx_.window->GetPosition() };
+//	Transform window_transform{ window_position + window_size / 2 };
+//	Rect window_rect{ window_size };
+//	return Overlap(screen_pointer, window_transform, window_rect);
+// }
 
 void InputHandler::SetRelativeMouseMode(bool on) const {
 	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
@@ -295,7 +297,7 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 V2_float InputHandler::GetPositionRelativeTo(
 	const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
 ) const {
-	V2_int window_center{ ctx_.window->GetSize() / 2 };
+	V2_int window_center{ window_.GetSize() / 2 };
 
 	V2_int window_point{ window_position };
 
@@ -304,17 +306,17 @@ V2_float InputHandler::GetPositionRelativeTo(
 
 	switch (relative_to) {
 		case ViewportType::World: {
-			auto game_scale{ ctx_.render->GetScale() };
-			auto current{ ctx_.scene->GetCurrent() };
+			auto game_scale{ renderer_.GetScale() };
+			auto current{ scenes_.GetCurrent() };
 			PTGN_ASSERT(current != nullptr);
 			auto rt_transform{ GetTransform(current->GetRenderTarget()) };
 			return WindowToWorld(game_scale, rt_transform, window_point, current->camera);
 		}
 		case ViewportType::Game: {
-			auto game_scale{ ctx_.render->GetScale() };
+			auto game_scale{ render_->GetScale() };
 			auto game_point{ WindowToGame(game_scale, window_point) };
 			if (clamp_to_viewport) {
-				auto game_size{ ctx_.render->GetGameSize() };
+				auto game_size{ renderer_.GetGameSize() };
 				auto half_size{ game_size * 0.5f };
 				game_point = Clamp(game_point, -half_size, half_size);
 			}
@@ -323,7 +325,7 @@ V2_float InputHandler::GetPositionRelativeTo(
 		case ViewportType::Display: {
 			auto display_point{ WindowToDisplay(window_point) };
 			if (clamp_to_viewport) {
-				auto display_size{ ctx_.render->GetDisplaySize() };
+				auto display_size{ render_->GetDisplaySize() };
 				auto half_size{ display_size * 0.5f };
 				display_point = Clamp(display_point, -half_size, half_size);
 			}
@@ -339,7 +341,7 @@ V2_int InputHandler::GetMouseScreenPosition() const {
 	V2_int mouse_screen_pos;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&mouse_screen_pos.x, &mouse_screen_pos.y);
-	V2_int window_pos{ ctx_.window->GetPosition() };
+	V2_int window_pos{ window_.GetPosition() };
 	mouse_screen_pos -= window_pos;
 	return mouse_screen_pos;
 }
@@ -374,8 +376,6 @@ milliseconds InputHandler::GetTimeSince(Timestamp timestamp) {
 	PTGN_ASSERT(current >= timestamp, "Timestamp cannot be in the future");
 	return milliseconds{ current - timestamp };
 }
-
-InputHandler::InputHandler(EngineContext ctx) : ctx_{ ctx } {}
 
 milliseconds InputHandler::GetMouseHeldTime(Mouse mouse_button) const {
 	auto index{ GetMouseIndex(mouse_button) };
