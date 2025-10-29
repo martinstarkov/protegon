@@ -6,7 +6,6 @@
 #include <string>
 #include <vector>
 
-#include "core/app/engine_context.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/generic.h"
@@ -40,14 +39,14 @@ struct Triangle;
 
 class Renderer {
 public:
-	Renderer() = default;
-	Renderer(EngineContext ctx, const V2_int& viewport_size);
+	Renderer() = delete;
+	Renderer(const V2_int& viewport_size);
 
 	~Renderer() noexcept					 = default;
 	Renderer(const Renderer&)				 = delete;
 	Renderer(Renderer&&) noexcept			 = delete;
 	Renderer& operator=(const Renderer&)	 = delete;
-	Renderer& operator=(Renderer&&) noexcept = default;
+	Renderer& operator=(Renderer&&) noexcept = delete;
 
 	void SetBackgroundColor(const Color& background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
@@ -211,8 +210,9 @@ public:
 	void DrawOutsideStencilMask();
 	void DrawInsideStencilMask();
 
-	// TODO: Move everything below this to private.
-	EngineContext ctx_;
+private:
+	impl::GLManager gl_;
+
 	impl::RenderData render_data_;
 
 	[[nodiscard]] impl::Texture CreateTexture(
@@ -239,8 +239,6 @@ public:
 	};
 
 	BoundStates bound_;
-
-private:
 };
 
 } // namespace ptgn

@@ -1,33 +1,19 @@
 #pragma once
 
+#include <source_location>
+#include <string_view>
+
 #include "core/util/platform.h"
+#include "debug/core/debug_config.h"
 
 // IMPORTANT: This file is not meant to be included outside the protegon library
 // so keep it in .cpp files only!
 
+namespace ptgn::impl::gl {
+
 #ifdef __EMSCRIPTEN__
 
 #include "SDL_opengles2.h"
-
-#else
-
-#ifdef PTGN_PLATFORM_MACOS
-
-#define GL_SILENCE_DEPRECATION
-
-#include <OpenGL/gl3.h>
-#include <OpenGL/gl3ext.h>
-
-#else
-
-#include <SDL_opengl.h>
-#include <SDL_opengl_glext.h>
-
-#endif
-
-#endif
-
-#ifdef __EMSCRIPTEN__
 
 typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 	GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer
@@ -51,9 +37,12 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 // #define GL_FRAMEBUFFER_SRGB 0x8DB9
 // #endif
 
-#else
+#elif defined(PTGN_PLATFORM_MACOS)
 
-#ifdef PTGN_PLATFORM_MACOS
+#define GL_SILENCE_DEPRECATION
+
+#include <OpenGL/gl3.h>
+#include <OpenGL/gl3ext.h>
 
 #define CompileShader			glCompileShader
 #define ShaderSource			glShaderSource
@@ -111,7 +100,10 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 #define BlendEquationSeparate	glBlendEquationSeparate
 #define BlendFuncSeparate		glBlendFuncSeparate
 
-#endif
+#else
+
+#include <SDL_opengl.h>
+#include <SDL_opengl_glext.h>
 
 #endif
 
@@ -214,7 +206,14 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 GL_LIST_1
 #undef GLE
 
-#ifdef __EMSCRIPTEN__
+#ifndef __EMSCRIPTEN__
+
+#define GLE(name, caps_name) extern PFNGL##caps_name##PROC name;
+GL_LIST_2
+GL_LIST_3
+#undef GLE
+
+#else
 
 #define GLE(name, caps_name) extern PFNGL##caps_name##OESPROC name;
 GL_LIST_2
@@ -224,13 +223,39 @@ GL_LIST_2
 GL_LIST_3
 #undef GLE
 
+#endif
+
+#endif
+
+#ifdef PTGN_DEBUG
+
+inline void ClearErrors() {
+	while (glGetError() != GL_NO_ERROR) { /* glGetError clears the error queue */
+	}
+}
+
+std::string_view GetErrorString(GLenum error);
+
+void HandleErrors(std::source_location location = std::source_location::current());
+
+#define GLCall(x)  \
+	ClearErrors(); \
+	x;             \
+	HandleErrors()
+
+#define GLCallReturn(x) \
+	std::invoke([&]() { \
+		ClearErrors();  \
+		auto value = x; \
+		HandleErrors(); \
+		return value;   \
+	})
+
 #else
 
-#define GLE(name, caps_name) extern PFNGL##caps_name##PROC name;
-GL_LIST_2
-GL_LIST_3
-#undef GLE
+#define GLCall(x)		x
+#define GLCallReturn(x) x
 
 #endif
 
-#endif
+} // namespace ptgn::impl::gl

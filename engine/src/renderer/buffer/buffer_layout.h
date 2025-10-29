@@ -10,6 +10,13 @@
 
 namespace ptgn::impl {
 
+template <typename T>
+concept VertexDataType = IsAnyOf<
+	T, glsl::float_, glsl::vec2, glsl::vec3, glsl::vec4, glsl::double_, glsl::dvec2, glsl::dvec3,
+	glsl::dvec4, glsl::bool_, glsl::bvec2, glsl::bvec3, glsl::bvec4, glsl::int_, glsl::ivec2,
+	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4>;
+}
+
 struct BufferElement {
 	constexpr BufferElement(
 		std::uint16_t buffer_size, std::uint16_t buffer_count, impl::GLType buffer_type,
