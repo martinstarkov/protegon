@@ -6,7 +6,6 @@
 #include <optional>
 #include <utility>
 
-#include "core/app/engine_context.h"
 #include "core/app/resolution.h"
 #include "core/event/events.h"
 #include "core/input/key.h"
@@ -19,20 +18,20 @@ union SDL_Event;
 
 namespace ptgn {
 
-class Scene;
-class Manager;
-class SceneInput;
 class Application;
+class Window;
+class Renderer;
+class SceneManager;
 
 class InputHandler {
 public:
-	InputHandler() = default;
-	explicit InputHandler(EngineContext ctx);
+	InputHandler() = delete;
+	explicit InputHandler(Window& window, Renderer& renderer, SceneManager& scenes);
 	~InputHandler() noexcept						 = default;
 	InputHandler(const InputHandler&)				 = delete;
 	InputHandler& operator=(const InputHandler&)	 = delete;
 	InputHandler(InputHandler&&) noexcept			 = delete;
-	InputHandler& operator=(InputHandler&&) noexcept = default;
+	InputHandler& operator=(InputHandler&&) noexcept = delete;
 
 	// @param mouse_button The mouse button to check.
 	// @return The amount of time that the mouse button has been held down, 0 if it is not currently
@@ -58,7 +57,7 @@ public:
 	[[nodiscard]] bool KeyHeld(Key key, milliseconds time = milliseconds{ 50 }) const;
 
 	// @return True if mouse position is within window bounds, false otherwise.
-	[[nodiscard]] bool MouseWithinWindow() const;
+	//[[nodiscard]] bool MouseWithinWindow() const;
 
 	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
 	// to the window, and there will be continuous relative mouse motion events triggered even if
@@ -119,11 +118,6 @@ public:
 	[[nodiscard]] bool KeyUp(Key key) const;
 
 private:
-	friend class ptgn::Scene;
-	friend class ptgn::SceneInput;
-
-	EngineContext ctx_;
-
 	using Timestamp = std::uint32_t;
 
 	// Convert position from being relative to the top left of the window to being relative to the
@@ -156,6 +150,10 @@ private:
 
 	[[nodiscard]] static milliseconds GetTimeSince(Timestamp timestamp);
 
+	void Prepare();
+	void ProcessInputEvents();
+	void InvokeInputEvents(Application& app, Manager& manager);
+
 	// Number of keys stored in the SDL key states array.
 	static constexpr std::size_t key_count_{ 512 };
 
@@ -177,11 +175,11 @@ private:
 	// Timestamp of the most recent scroll event.
 	Timestamp mouse_scroll_timestamp_{ 0 };
 
-	void Prepare();
-	void ProcessInputEvents();
-	void InvokeInputEvents(Application& app, Manager& manager);
-
 	impl::InputQueue queue_;
+
+	Window& window_;
+	Renderer& renderer_;
+	SceneManager& scenes_;
 };
 
 } // namespace ptgn

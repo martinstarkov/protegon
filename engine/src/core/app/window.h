@@ -16,6 +16,7 @@ struct Screen {
 	[[nodiscard]] static V2_int GetSize();
 };
 
+// TODO: Make it so these can be | together.
 enum class WindowSetting {
 	None,
 	Windowed,
@@ -41,11 +42,12 @@ struct WindowDeleter {
 
 class Window {
 public:
-	Window() = default;
+	Window() = delete;
+	// TODO: Add flags to window constructor.
 	explicit Window(const char* title, const V2_int& size);
 	~Window() noexcept					 = default;
 	Window(Window&&) noexcept			 = delete;
-	Window& operator=(Window&&) noexcept = default;
+	Window& operator=(Window&&) noexcept = delete;
 	Window(const Window&)				 = delete;
 	Window& operator=(const Window&)	 = delete;
 
@@ -57,11 +59,6 @@ public:
 
 	void SetSize(const V2_int& new_size, bool centered = true) const;
 	[[nodiscard]] V2_int GetSize() const;
-
-#ifdef __EMSCRIPTEN__
-	void SetCanvasSize(const V2_int& new_size) const;
-	[[nodiscard]] V2_int GetCanvasSize() const;
-#endif
 
 	// @return Top left of the window relative to the top left of the screen.
 	[[nodiscard]] V2_int GetPosition() const;
@@ -86,17 +83,22 @@ public:
 
 	void SwapBuffers() const;
 
+#ifdef __EMSCRIPTEN__
+	void SetCanvasSize(const V2_int& new_size) const;
+	[[nodiscard]] V2_int GetCanvasSize() const;
+#endif
+
 private:
 	operator SDL_Window*() const;
-
-	std::unique_ptr<SDL_Window, impl::WindowDeleter> instance_;
-
-	impl::GLContext gl_context_;
 
 	void SetRelativeMouseMode(bool on) const;
 	void SetMouseGrab(bool on) const;
 	void CaptureMouse(bool on) const;
 	void SetAlwaysOnTop(bool on) const;
+
+	std::unique_ptr<SDL_Window, impl::WindowDeleter> instance_;
+
+	impl::gl::GLContext gl_context_;
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(
