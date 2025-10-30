@@ -96,6 +96,8 @@ public:
 	void Bind(const Handle<T>& handle) {
 		PTGN_ASSERT(handle);
 
+		// TODO: Update gl bound state.
+
 		if constexpr (T == GLResourceType::Shader) {
 			GLCall(glUseProgram(*handle.resource_));
 		} else if constexpr (T == GLResourceType::Buffer) {
