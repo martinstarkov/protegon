@@ -1,79 +1,32 @@
 #pragma once
 
 #include <memory>
-#include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "debug/core/log.h"
 #include "renderer/gl/gl.h"
 
 namespace ptgn::impl::gl {
 
-//}
-// glGenTextures(1, &id)
-// else if constexpr (std::is_same_v<T, RenderBuffer>) {
-//	GLCall(glGenRenderbuffers(1, &id));
-//}
-// else if constexpr (std::is_same_v<T, Shader>) {
-//	id = GLCallReturn(glCreateProgram());
-//}
-// else if constexpr (std::is_same_v<T, Buffer>) {
-//	GLCall(glGenBuffers(1, &id));
-//}
-// else if constexpr (std::is_same_v<T, FrameBuffer>) {
-//	GLCall(glGenFramebuffers(1, &id));
-//}
-// else if constexpr (std::is_same_v<T, VertexArray>) {
-//	GLCall(glGenVertexArrays(1, &id));
-//}
-//
-// PTGN_ASSERT(id, "Failed to generate OpenGL resource");
-//
-// resource_id_ = std::make_shared<GLuint>(id);
-//}
-//
-//~Resource() {
-//	auto id{ Get() };
-//
-//	using namespace GLResourceType;
-//
-//	if constexpr (std::is_same_v<T, Texture>) {
-//		GLCall(glDeleteTextures(1, &id));
-//	} else if constexpr (std::is_same_v<T, RenderBuffer>) {
-//		GLCall(glDeleteRenderbuffers(1, &id));
-//	} else if constexpr (std::is_same_v<T, Shader>) {
-//		GLCall(glDeleteProgram(id));
-//	} else if constexpr (std::is_same_v<T, Buffer>) {
-//		GLCall(glDeleteBuffers(1, &id));
-//	} else if constexpr (std::is_same_v<T, FrameBuffer>) {
-//		GLCall(glDeleteFramebuffers(1, &id));
-//	} else if constexpr (std::is_same_v<T, VertexArray>) {
-//		GLCall(glDeleteVertexArrays(1, &id));
-//	}
-//}
-//
-// void Bind() {
-//	auto id{ Get() };
-//
-//
-//	if constexpr (std::is_same_v<T, GLResourceType::Texture>) {
-//		GLCall(glBindTexture(GL_TEXTURE_2D, id));
-//	} else if constexpr (std::is_same_v<T, GLResourceType::Buffer>) {
-//		GLCall(glBindBuffer(GL_ARRAY_BUFFER, id));
-//	} else if constexpr (std::is_same_v<T, GLResourceType::FrameBuffer>) {
-//		GLCall(glBindFramebuffer(GL_FRAMEBUFFER, id));
-//	} else if constexpr (std::is_same_v<T, GLResourceType::VertexArray>) {
-//		GLCall(glBindVertexArray(id));
-//	} else if constexpr (std::is_same_v<T, GLResourceType::RenderBuffer>) {
-//		GLCall(glBindRenderbuffer(GL_RENDERBUFFER, id));
-//	}
-//}
-//}
-//;
+#define PTGN_DEFINE_GL_RESOURCE_CREATION(ResourceEnum, GenFunc, DeleteFunc, InitLambda) \
+	else if constexpr (T == GLResource::ResourceEnum) {                                 \
+		resource = std::shared_ptr<GLuint>(new GLuint(0), [](GLuint* id) {              \
+			GLCall(DeleteFunc(1, id));                                                  \
+			delete id;                                                                  \
+		});                                                                             \
+		GLCall(GenFunc(1, resource.get()));                                             \
+		PTGN_ASSERT(resource && *resource, "Failed to create ", #ResourceEnum);         \
+		InitLambda(*resource, std::forward<TArgs>(args)...);                            \
+	}
 
 enum class GLResource {
+	Shader,
+	Buffer,
+	RenderBuffer,
 	Texture,
+	FrameBuffer,
+	VertexArray
 };
 
 class GLManager;
@@ -83,35 +36,57 @@ class Handle {
 public:
 	bool operator==(const Handle&) const = default;
 
+	bool operator() const {
+		return resource_;
+	}
+
 private:
 	friend class GLManager;
 
-	Handle(std::shared_ptr<int> resource) : resource_{ std::move(resource) } {}
+	Handle(std::shared_ptr<GLuint> resource) : resource_{ std::move(resource) } {}
 
-	std::shared_ptr<int> resource_;
-};
-
-struct TextureDeleter {
-	void operator()(int* texture) {
-		std::cout << "destroying texture: " << *texture << std::endl;
-		delete texture;
-	}
+	std::shared_ptr<GLuint> resource_;
 };
 
 class GLManager {
 public:
 	template <GLResource T, bool kPersistent = false, typename... TArgs>
 	Handle<T> Create(TArgs&&... args) {
-		std::shared_ptr<int> resource;
+		std::shared_ptr<GLuint> resource;
 
-		if constexpr (T == GLResource::Texture) {
-			// TODO: Replace with actual gl bind.
-			resource =
-				std::shared_ptr<int>(new int(std::forward<TArgs>(args)...), TextureDeleter{});
-			std::cout << "created texture: " << *resource << std::endl;
+		if constexpr (T == GLResource::Shader) {
+			resource = std::shared_ptr<GLuint>(
+				new GLuint(GLCallReturn(glCreateProgram())),
+				[](GLuint* id) {
+					GLCall(glDeleteProgram(*id));
+					delete id;
+				}
+			);
+			PTGN_ASSERT(resource && *resource, "Failed to create Shader");
+			const GLuint id{ *resource };
+			PTGN_LOG("Initializing shader");
+			// TODO: Init shader with TArgs...
 		}
+		PTGN_DEFINE_GL_RESOURCE_CREATION(Buffer, glGenBuffers, glDeleteBuffers, [](GLuint id) {
+			PTGN_LOG("Initializing buffer");
+		})
+		PTGN_DEFINE_GL_RESOURCE_CREATION(
+			RenderBuffer, glGenRenderbuffers, glDeleteRenderbuffers,
+			[](GLuint id) { PTGN_LOG("Initializing render buffer"); }
+		)
+		PTGN_DEFINE_GL_RESOURCE_CREATION(Texture, glGenTextures, glDeleteTextures, [](GLuint id) {
+			PTGN_LOG("Initializing texture");
+		})
+		PTGN_DEFINE_GL_RESOURCE_CREATION(
+			FrameBuffer, glGenFramebuffers, glDeleteFramebuffers,
+			[](GLuint id) { PTGN_LOG("Initializing frame buffer"); }
+		)
+		PTGN_DEFINE_GL_RESOURCE_CREATION(
+			VertexArray, glGenVertexArrays, glDeleteVertexArrays,
+			[](GLuint id) { PTGN_LOG("Initializing vertex array"); }
+		)
 
-		// TODO: Assert that resource is not nullptr.
+		PTGN_ASSERT(id && *id, "Failed to create resource");
 
 		GetResources<kPersistent>().emplace_back(resource);
 		return resource;
@@ -119,31 +94,36 @@ public:
 
 	template <GLResource T>
 	void Bind(const Handle<T>& handle) {
-		if constexpr (T == GLResource::Texture) {
-			std::cout << "binding texture: " << *handle.resource_ << std::endl;
+		PTGN_ASSERT(handle);
+
+		if constexpr (T == GLResourceType::Shader) {
+			GLCall(glUseProgram(*handle.resource_));
+		} else if constexpr (T == GLResourceType::Buffer) {
+			GLCall(glBindBuffer(GL_ARRAY_BUFFER, *handle.resource_));
+		} else if constexpr (T == GLResourceType::RenderBuffer) {
+			GLCall(glBindRenderbuffer(GL_RENDERBUFFER, *handle.resource_));
+		} else if constexpr (T == GLResourceType::Texture) {
+			GLCall(glBindTexture(GL_TEXTURE_2D, *handle.resource_));
+		} else if constexpr (T == GLResourceType::FrameBuffer) {
+			GLCall(glBindFramebuffer(GL_FRAMEBUFFER, *handle.resource_));
+		} else if constexpr (T == GLResourceType::VertexArray) {
+			GLCall(glBindVertexArray(*handle.resource_));
 		}
 	}
 
 	void ClearUnused() {
-		std::erase_if(resources_, [](const auto& resource) {
-			if (resource.use_count() == 1) {
-				std::cout << "clearing non-persistent resource with id: " << *resource << std::endl;
-				return true;
-			} else {
-				return false;
-			}
-		});
+		std::erase_if(resources_, [](const auto& r) { return r.use_count() == 1; });
 	}
 
 private:
 	template <bool kPersistent>
-	std::vector<std::shared_ptr<int>>& GetResources() {
+	auto& GetResources() {
 		return kPersistent ? persistent_resources_ : resources_;
 	}
 
-	std::vector<std::shared_ptr<int>> resources_;
+	std::vector<std::shared_ptr<GLuint>> resources_;
 
-	std::vector<std::shared_ptr<int>> persistent_resources_;
+	std::vector<std::shared_ptr<GLuint>> persistent_resources_;
 };
 
 } // namespace ptgn::impl::gl
