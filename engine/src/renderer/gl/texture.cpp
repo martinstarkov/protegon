@@ -10,9 +10,9 @@
 #include <vector>
 
 #include "core/app/application.h"
+#include "core/asset/asset_manager.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
-#include "core/asset/asset_manager.h"
 #include "core/util/file.h"
 #include "debug/core/debug_config.h"
 #include "debug/core/log.h"
@@ -500,8 +500,6 @@ Color Surface::GetPixel(std::size_t index) const {
 Surface::Surface(SDL_Surface* sdl_surface) {
 	PTGN_ASSERT(sdl_surface != nullptr, "Invalid surface");
 
-	format = TextureFormat::RGBA8888;
-
 	// TODO: In the future, instead of converting all formats to RGBA, figure out how to deal with
 	// Windows and MacOS discrepencies between image formats and SDL2 surface formats to enable the
 	// use of RGB888 format (faster for JPGs). When I was using this approach in the past, MacOS had
@@ -603,7 +601,8 @@ void Texture::SetClampBorderColor(const Color& color) const {
 const impl::Texture& TextureHandle::GetTexture(const Entity& entity) const {
 	if (TextureHandle::GetHash()) {
 		PTGN_ASSERT(
-			Application::Get().texture.Has(*this), "Texture must be loaded into the texture manager: ", key_
+			Application::Get().texture.Has(*this),
+			"Texture must be loaded into the texture manager: ", key_
 		);
 		return Application::Get().texture.Get(*this);
 	}

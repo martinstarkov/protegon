@@ -23,25 +23,26 @@ struct BufferResource {
 struct RenderBufferResource {
 	GLuint id{ 0 };
 	V2_int size;
-	GLenum format{ GL_RGBA8 };
+	GLenum internal_format{ GL_RGBA8 };
 };
 
 struct TextureResource {
 	GLuint id{ 0 };
 	V2_int size;
-	GLenum format{ GL_RGBA8 };
+	GLenum internal_format{ GL_RGBA8 };
+	GLenum pixel_format{ GL_RGBA };
 };
 
 struct FrameBufferResource {
 	GLuint id{ 0 };
-	GLuint texture{ 0 };
-	GLuint render_buffer{ 0 };
+	Handle<GLResource::Texture> texture;
+	Handle<GLResource::RenderBuffer> render_buffer;
 };
 
 struct VertexArrayResource {
 	GLuint id{ 0 };
-	GLuint vertex_buffer{ 0 };
-	GLuint element_buffer{ 0 };
+	Handle<GLResource::VertexBuffer> vertex_buffer;
+	Handle<GLResource::ElementBuffer> element_buffer;
 };
 
 struct ShaderResource {
@@ -167,15 +168,12 @@ public:
 
 	template <bool kPersistent = false>
 	Handle<GLResource::Texture> Create(
-		const V2_int& size, GLenum format = GL_RGBA8, GLenum pixel_format = GL_RGBA,
+		const V2_int& size, GLenum internal_format = GL_RGBA8, GLenum pixel_format = GL_RGBA,
 		GLenum pixel_data_type = GL_UNSIGNED_BYTE
 	) {
 		auto resource = MakeGLResource<GLResource::Texture, TextureResource>();
 		GLCall(glGenTextures(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create texture");
-
-		resource->size	 = size;
-		resource->format = format;
 
 		auto& list = kPersistent ? persistent_textures_ : textures_;
 		list.push_back(resource);
@@ -184,8 +182,20 @@ public:
 
 		Bind(handle);
 
+#ifdef __EMSCRIPTEN__
+		PTGN_ASSERT(
+			format != GL_BGRA && format != GL_BGR,
+			"OpenGL ES3.0 does not support BGR(A) texture formats in glTexImage2D"
+		);
+#endif
+
+		resource->size			  = size;
+		resource->internal_format = internal_format;
+		resource->pixel_format	  = pixel_format;
+
 		GLCall(glTexImage2D(
-			GL_TEXTURE_2D, 0, format, size.x, size.y, 0, pixel_format, pixel_data_type, nullptr
+			GL_TEXTURE_2D, 0, internal_format, size.x, size.y, 0, pixel_format, pixel_data_type,
+			nullptr
 		));
 
 		// TODO: Make these modifiable.
@@ -201,10 +211,8 @@ public:
 	Handle<GLResource::RenderBuffer> Create(const V2_int& size, GLenum format = GL_RGBA8) {
 		auto resource = MakeGLResource<GLResource::RenderBuffer, RenderBufferResource>();
 		GLCall(glGenRenderbuffers(1, &resource->id));
+		auto restore_render_buffer_id{ GetBoundId<GLResource::RenderBuffer>() };
 		PTGN_ASSERT(resource->id, "Failed to create render buffer");
-
-		resource->size	 = size;
-		resource->format = format;
 
 		auto& list = kPersistent ? persistent_render_buffers_ : render_buffers_;
 		list.push_back(resource);
@@ -213,39 +221,55 @@ public:
 
 		Bind(handle);
 
-		GLCall(glRenderbufferStorage(GL_RENDERBUFFER, format, size.x, size.y));
+		SetRenderBufferStorage(handle, size, format);
+
+		BindId<GLResource::RenderBuffer>(restore_render_buffer_id);
 
 		return handle;
 	}
 
 	template <bool kPersistent = false>
 	Handle<GLResource::FrameBuffer> Create(
-		const Handle<GLResource::Texture>& texture,
-		const Handle<GLResource::RenderBuffer>& render_buffer
+		const Handle<GLResource::Texture>& texture, bool bind_frame_buffer = false
 	) {
+		PTGN_ASSERT(
+			texture.Get().size.BothAboveZero(),
+			"Cannot attach texture with no size to a frame buffer"
+		);
+
 		auto resource = MakeGLResource<GLResource::FrameBuffer, FrameBufferResource>();
 		GLCall(glGenFramebuffers(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create framebuffer");
 
-		resource->texture		= texture->id;
-		resource->render_buffer = render_buffer->id;
+		resource->texture = texture;
+		resource->render_buffer =
+			Create<GLResource::RenderBuffer, false>(texture.Get().size, GL_DEPTH24_STENCIL8);
 
 		auto& list = kPersistent ? persistent_frame_buffers_ : frame_buffers_;
 		list.push_back(resource);
 
 		Handle<GLResource::FrameBuffer> handle{ std::move(resource) };
 
+		std::optional<GLuint> restore_frame_buffer_id;
+		if (!bind_frame_buffer) {
+			restore_frame_buffer_id = GetBoundId<GLResource::FrameBuffer>();
+		}
+
 		Bind(handle);
 
 		GLCall(glFramebufferTexture2D(
 			GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0
 		));
-		GLCall(glFramebufferRenderbuffer(
-			GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, render_buffer->id
+
+		GLCall(FramebufferRenderbuffer(
+			GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer->id
 		));
 
-		const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-		PTGN_ASSERT(status == GL_FRAMEBUFFER_COMPLETE, "Incomplete framebuffer");
+		PTGN_ASSERT(FrameBufferIsComplete(handle));
+
+		if (restore_frame_buffer_id.has_value()) {
+			BindId<GLResource::FrameBuffer>(*restore_frame_buffer_id);
+		}
 
 		return handle;
 	}
@@ -259,8 +283,8 @@ public:
 		GLCall(glGenVertexArrays(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create vertex array");
 
-		resource->vertex_buffer	 = vertex_buffer->id;
-		resource->element_buffer = element_buffer->id;
+		resource->vertex_buffer	 = vertex_buffer;
+		resource->element_buffer = element_buffer;
 
 		auto& list = kPersistent ? persistent_vertex_arrays_ : vertex_arrays_;
 		list.push_back(resource);
@@ -304,6 +328,39 @@ public:
 		BindId<T>(handle.Get().id);
 	}
 
+	template <GLResource T>
+	[[nodiscard]] GLuint GetBoundId() const {
+		GLint id{ -1 };
+
+		if constexpr (T == GLResource::VertexBuffer) {
+			GLCall(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &id));
+		} else if constexpr (T == GLResource::ElementBuffer) {
+			GLCall(glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &id));
+		} else if constexpr (T == GLResource::UniformBuffer) {
+			GLCall(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &id));
+		} else if constexpr (T == GLResource::Texture) {
+			GLCall(glGetIntegerv(GL_TEXTURE_BINDING_2D, &id));
+		} else if constexpr (T == GLResource::RenderBuffer) {
+			GLCall(glGetIntegerv(GL_RENDERBUFFER_BINDING, &id));
+		} else if constexpr (T == GLResource::FrameBuffer) {
+			GLCall(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &id));
+		} else if constexpr (T == GLResource::VertexArray) {
+			GLCall(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &id));
+		} else if constexpr (T == GLResource::Shader) {
+			GLCall(glGetIntegerv(GL_CURRENT_PROGRAM, &id));
+		} else {
+			static_assert(false, "Unsupported GLResource in GetBoundId()");
+		}
+
+		PTGN_ASSERT(id >= 0, "Failed to retrieve bound GL id");
+		return static_cast<GLuint>(id);
+	}
+
+	template <GLResource T>
+	[[nodiscard]] bool IsBound(const Handle<T>& handle) {
+		return GetBoundId<T>() == handle.Get().id;
+	}
+
 	void ClearUnused() {
 		constexpr auto pred = [](const auto& r) {
 			return r.use_count() == 1;
@@ -319,6 +376,205 @@ public:
 	}
 
 private:
+	// WARNING: This function is slow and should be
+	// primarily used for debugging frame buffers.
+	// @param coordinate Pixel coordinate from [0, size).
+	// @param restore_bind_state If true, rebinds the previously bound frame buffer and texture
+	// ids.
+	// @return Color value of the given pixel.
+	// Note: Only RGB/RGBA format textures supported.
+	[[nodiscard]] Color GetFrameBufferPixel(
+		const Handle<GLResource::FrameBuffer>& handle, const V2_int& coordinate,
+		bool restore_bind_state = true
+	) {
+		// TODO: Allow reading pixels from stencil or depth buffers.
+
+		V2_int size{ handle.Get().texture.Get().size };
+		PTGN_ASSERT(
+			coordinate.x >= 0 && coordinate.x < size.x,
+			"Cannot get pixel out of range of frame buffer texture"
+		);
+		PTGN_ASSERT(
+			coordinate.y >= 0 && coordinate.y < size.y,
+			"Cannot get pixel out of range of frame buffer texture"
+		);
+		std::optional<GLuint> restore_texture_id;
+		std::optional<GLuint> restore_frame_buffer_id;
+		if (restore_bind_state) {
+			restore_texture_id		= GetBoundId<GLResource::Texture>();
+			restore_frame_buffer_id = GetBoundId<GLResource::FrameBuffer>();
+		}
+		Bind(handle.Get().texture);
+		auto components{ GetColorComponentCount(handle.Get().texture.Get().internal_format) };
+		PTGN_ASSERT(
+			components >= 3,
+			"Textures with less than 3 pixel components cannot currently be queried"
+		);
+		std::vector<std::uint8_t> v(static_cast<std::size_t>(components * 1 * 1));
+		int y{ size.y - 1 - coordinate.y };
+		PTGN_ASSERT(y >= 0);
+		Bind(handle);
+		GLCall(glReadPixels(
+			coordinate.x, y, 1, 1, handle.Get().texture.Get().pixel_format, GL_UNSIGNED_BYTE,
+			static_cast<void*>(v.data())
+		));
+		if (restore_texture_id.has_value()) {
+			BindId<GLResource::Texture>(*restore_texture_id);
+		}
+		if (restore_frame_buffer_id.has_value()) {
+			BindId<GLResource::FrameBuffer>(*restore_frame_buffer_id);
+		}
+		return Color{ v[0], v[1], v[2], components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
+	}
+
+	// WARNING: This function is slow and should be
+	// primarily used for debugging frame buffers.
+	// @param callback Function to be called for each pixel.
+	// @param restore_bind_state If true, rebinds the previously bound frame buffer and texture
+	// ids. Note: Only RGB/RGBA format textures supported.
+	void ForEachFrameBufferPixel(
+		const Handle<GLResource::FrameBuffer>& handle,
+		const std::function<void(V2_int, Color)>& func, bool restore_bind_state = true
+	) {
+		// TODO: Allow reading pixels from stencil or depth buffers.
+
+		V2_int size{ handle.Get().texture.Get().size };
+
+		std::optional<GLuint> restore_texture_id;
+		std::optional<GLuint> restore_frame_buffer_id;
+		if (restore_bind_state) {
+			restore_texture_id		= GetBoundId<GLResource::Texture>();
+			restore_frame_buffer_id = GetBoundId<GLResource::FrameBuffer>();
+		}
+
+		Bind(handle.Get().texture);
+		auto components{ GetColorComponentCount(handle.Get().texture.Get().internal_format) };
+		PTGN_ASSERT(
+			components >= 3,
+			"Textures with less than 3 pixel components cannot currently be queried"
+		);
+
+		std::vector<std::uint8_t> v(static_cast<std::size_t>(components * size.x * size.y));
+		Bind(handle);
+		GLCall(glReadPixels(
+			0, 0, size.x, size.y, handle.Get().texture.Get().pixel_format, GL_UNSIGNED_BYTE,
+			static_cast<void*>(v.data())
+		));
+		for (int j{ 0 }; j < size.y; j++) {
+			// Ensure left-to-right and top-to-bottom iteration.
+			int row{ (size.y - 1 - j) * size.x * components };
+			for (int i{ 0 }; i < size.x; i++) {
+				int idx{ row + i * components };
+				PTGN_ASSERT(static_cast<std::size_t>(idx) < v.size());
+				Color color{ v[static_cast<std::size_t>(idx)], v[static_cast<std::size_t>(idx + 1)],
+							 v[static_cast<std::size_t>(idx + 2)],
+							 components == 4 ? v[static_cast<std::size_t>(idx + 3)]
+											 : static_cast<std::uint8_t>(255) };
+				func(V2_int{ i, j }, color);
+			}
+		}
+		if (restore_texture_id.has_value()) {
+			BindId<GLResource::Texture>(*restore_texture_id);
+		}
+		if (restore_frame_buffer_id.has_value()) {
+			BindId<GLResource::FrameBuffer>(*restore_frame_buffer_id);
+		}
+	}
+
+	[[nodiscard]] constexpr static int GetColorComponentCount(GLenum internal_format) {
+		switch (internal_format) {
+			case GL_STENCIL_INDEX:	 return 1; // stencil only
+			case GL_DEPTH_COMPONENT: return 1; // depth only
+			case GL_DEPTH_STENCIL:	 return 2; // depth + stencil
+
+			case GL_RED:			 return 1;
+			case GL_GREEN:			 return 1;
+			case GL_BLUE:			 return 1;
+
+			case GL_RG:				 return 2; // red + green
+			case GL_RGB:			 return 3; // red + green + blue
+			case GL_BGR:			 return 3; // blue + green + red (different order)
+			case GL_RGBA:			 return 4; // red + green + blue + alpha
+			case GL_BGRA:			 return 4;			   // blue + green + red + alpha (different order)
+
+			default:
+				PTGN_ASSERT(false, "Unknown or unsupported internal GL format: ", internal_format);
+				return 0;
+		}
+	}
+
+	[[nodiscard]] bool FrameBufferIsComplete(const Handle<GLResource::FrameBuffer>& handle) const {
+		PTGN_ASSERT(IsBound(handle), "Cannot check status of frame buffer until it is bound");
+		auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+		return status == GL_FRAMEBUFFER_COMPLETE;
+	}
+
+	[[nodiscard]] const char* GetFrameBufferStatus() const {
+		auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+		switch (status) {
+			case GL_FRAMEBUFFER_COMPLETE: return "Framebuffer is complete.";
+			case GL_FRAMEBUFFER_UNDEFINED:
+				return "Framebuffer is undefined (no framebuffer bound).";
+			case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+				return "Incomplete attachment: One or more framebuffer attachment points are "
+					   "incomplete.";
+			case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+				return "Missing attachment: No images are attached to the framebuffer.";
+			case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+				return "Incomplete draw buffer: Draw buffer points to a missing attachment.";
+			case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+				return "Incomplete read buffer: Read buffer points to a missing attachment.";
+			case GL_FRAMEBUFFER_UNSUPPORTED:
+				return "Framebuffer unsupported: Format combination not supported by "
+					   "implementation.";
+			case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+				return "Incomplete multisample: Mismatched sample counts or improper use of "
+					   "multisampling.";
+			case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+				return "Incomplete layer targets: Layered attachments are not all complete or not "
+					   "matching.";
+			default: return "Unknown framebuffer status.";
+		}
+	}
+
+	void Resize(Handle<GLResource::FrameBuffer>& handle, const V2_int& new_size) {
+		Resize(handle.Get().texture, new_size);
+		Resize(handle.Get().render_buffer, new_size);
+	}
+
+	void Resize(Handle<GLResource::RenderBuffer>& handle, const V2_int& new_size) {
+		if (handle && handle.Get().size == new_size) {
+			return;
+		}
+
+		auto restore_render_buffer_id{ GetBoundId<GLResource::RenderBuffer>() };
+
+		Bind(handle);
+
+		SetRenderBufferStorage(handle, new_size, handle.Get().internal_format);
+
+		BindId<GLResource::RenderBuffer>(restore_render_buffer_id);
+	}
+
+	void SetRenderBufferStorage(
+		Handle<GLResource::RenderBuffer>& handle, const V2_int& size, GLenum internal_format
+	) {
+		PTGN_ASSERT(IsBound(handle), "Render buffer must be bound prior to setting its storage");
+
+		GLCall(RenderbufferStorage(GL_RENDERBUFFER, internal_format, size.x, size.y));
+
+		handle.Get().size			 = size;
+		handle.Get().internal_format = internal_format;
+	}
+
+	template <typename T = GLint>
+	T GetBufferParameter(GLenum target, GLenum pname) {
+		GLint value = -1;
+		GLCall(glGetBufferParameteriv(target, pname, &value));
+		PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
+		return static_cast<T>(value);
+	}
+
 	template <GLResource T, bool kPersistent>
 	Handle<T> CreateBuffer(
 		GLenum target, const void* data, std::uint32_t element_count, std::uint32_t element_size,
@@ -342,34 +598,79 @@ private:
 
 		const std::uint32_t size = element_count * element_size;
 
-		BindId<GLResource::VertexArray>(0);
-
-		GLCall(glBindBuffer(target, resource->id));
-		GLCall(glBufferData(target, size, data, usage));
-
 		resource_list.push_back(resource);
 
-		return Handle<T>(std::move(resource));
+		Handle<T> handle{ std::move(resource) };
+
+		BindId<GLResource::VertexArray>(0);
+		Bind(handle);
+
+		GLCall(glBufferData(target, size, data, usage));
+
+		return handle;
 	}
 
 	template <GLResource T>
-	constexpr void DeleteId(GLuint id) {
+	void SetBufferSubData(
+		const Handle<T>& handle, GLenum target, const void* data, std::int32_t byte_offset,
+		std::uint32_t element_count, std::uint32_t element_size, bool unbind_vertex_array,
+		bool buffer_orphaning
+	) {
+		PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
+		PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
+
+		PTGN_ASSERT(data != nullptr);
+
+		if (unbind_vertex_array) {
+			// Ensure that this buffer does not get bound to any currently bound vertex array.
+			BindId<GLResource::VertexArray>(0);
+		}
+
+		Bind(handle);
+
+		std::uint32_t size{ element_count * element_size };
+
+		// This buffer size check must be done after the buffer is bound.
+		PTGN_ASSERT(
+			size <= GetBufferParameter(GL_ARRAY_BUFFER, GL_BUFFER_SIZE),
+			"Attempting to bind data outside of allocated buffer size"
+		);
+
+		auto usage{ handle.Get().usage };
+		auto count{ handle.Get().count };
+
+		if (buffer_orphaning && (usage == GL_DYNAMIC_DRAW || usage == GL_STREAM_DRAW)) {
+			std::uint32_t buffer_size{ count * element_size };
+			PTGN_ASSERT(
+				buffer_size <= GetBufferParameter(GL_ARRAY_BUFFER, GL_BUFFER_SIZE),
+				"Buffer element size does not appear to match the "
+				"originally allocated buffer element size"
+			);
+			GLCall(BufferData(target, buffer_size, nullptr, usage));
+		}
+
+		GLCall(BufferSubData(target, byte_offset, size, data));
+	}
+
+	template <GLResource T>
+	constexpr void DeleteId(GLuint id) const {
 		if (id == 0) {
 			return; // nothing to delete
 		}
 
-		if constexpr (T == GLResource::VertexBuffer || T == GLResource::ElementBuffer ||
-					  T == GLResource::UniformBuffer) {
+		using enum ptgn::impl::gl::GLResource;
+
+		if constexpr (T == VertexBuffer || T == ElementBuffer || T == UniformBuffer) {
 			GLCall(glDeleteBuffers(1, &id));
-		} else if constexpr (T == GLResource::Texture) {
+		} else if constexpr (T == Texture) {
 			GLCall(glDeleteTextures(1, &id));
-		} else if constexpr (T == GLResource::RenderBuffer) {
+		} else if constexpr (T == RenderBuffer) {
 			GLCall(glDeleteRenderbuffers(1, &id));
-		} else if constexpr (T == GLResource::FrameBuffer) {
+		} else if constexpr (T == FrameBuffer) {
 			GLCall(glDeleteFramebuffers(1, &id));
-		} else if constexpr (T == GLResource::VertexArray) {
+		} else if constexpr (T == VertexArray) {
 			GLCall(glDeleteVertexArrays(1, &id));
-		} else if constexpr (T == GLResource::Shader) {
+		} else if constexpr (T == Shader) {
 			GLCall(glDeleteProgram(id));
 		} else {
 			static_assert(false, "Unsupported GLResource type in DeleteId()");
