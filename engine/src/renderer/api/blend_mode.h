@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iosfwd>
 #include <ostream>
 
 #include "debug/core/log.h"
@@ -87,22 +86,23 @@ enum class BlendMode {
 
 inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 	switch (blend_mode) {
-		case BlendMode::Blend:						os << "Blend"; break;
-		case BlendMode::PremultipliedBlend:			os << "PremultipliedBlend"; break;
-		case BlendMode::ReplaceRGBA:				os << "ReplaceRGBA"; break;
-		case BlendMode::ReplaceRGB:					os << "ReplaceRGB"; break;
-		case BlendMode::ReplaceAlpha:				os << "ReplaceAlpha"; break;
-		case BlendMode::AddRGB:						os << "AddRGB"; break;
-		case BlendMode::AddRGBA:					os << "AddRGBA"; break;
-		case BlendMode::AddAlpha:					os << "AddAlpha"; break;
-		case BlendMode::PremultipliedAddRGB:		os << "PremultipliedAddRGB"; break;
-		case BlendMode::PremultipliedAddRGBA:		os << "PremultipliedAddRGBA"; break;
-		case BlendMode::MultiplyRGB:				os << "MultiplyRGB"; break;
-		case BlendMode::MultiplyRGBA:				os << "MultiplyRGBA"; break;
-		case BlendMode::MultiplyAlpha:				os << "MultiplyAlpha"; break;
-		case BlendMode::MultiplyRGBWithAlphaBlend:	os << "MultiplyRGBWithAlphaBlend"; break;
-		case BlendMode::MultiplyRGBAWithAlphaBlend: os << "MultiplyRGBAWithAlphaBlend"; break;
-		default:									PTGN_ERROR("Failed to identify blend mode");
+		using enum ptgn::BlendMode;
+		case Blend:						 os << "Blend"; break;
+		case PremultipliedBlend:		 os << "PremultipliedBlend"; break;
+		case ReplaceRGBA:				 os << "ReplaceRGBA"; break;
+		case ReplaceRGB:				 os << "ReplaceRGB"; break;
+		case ReplaceAlpha:				 os << "ReplaceAlpha"; break;
+		case AddRGB:					 os << "AddRGB"; break;
+		case AddRGBA:					 os << "AddRGBA"; break;
+		case AddAlpha:					 os << "AddAlpha"; break;
+		case PremultipliedAddRGB:		 os << "PremultipliedAddRGB"; break;
+		case PremultipliedAddRGBA:		 os << "PremultipliedAddRGBA"; break;
+		case MultiplyRGB:				 os << "MultiplyRGB"; break;
+		case MultiplyRGBA:				 os << "MultiplyRGBA"; break;
+		case MultiplyAlpha:				 os << "MultiplyAlpha"; break;
+		case MultiplyRGBWithAlphaBlend:	 os << "MultiplyRGBWithAlphaBlend"; break;
+		case MultiplyRGBAWithAlphaBlend: os << "MultiplyRGBAWithAlphaBlend"; break;
+		default:						 PTGN_ERROR("Failed to identify blend mode");
 	}
 	return os;
 }

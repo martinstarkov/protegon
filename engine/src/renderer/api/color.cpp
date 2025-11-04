@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
+#include "debug/runtime/assert.h"
 #include "math/rng.h"
-#include "math/vector4.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

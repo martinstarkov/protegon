@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iosfwd>
 #include <ostream>
 
 #include "debug/core/log.h"
@@ -32,16 +31,17 @@ namespace impl {
 
 inline std::ostream& operator<<(std::ostream& os, Origin origin) {
 	switch (origin) {
-		case Origin::TopLeft:	   os << "Top Left"; break;
-		case Origin::CenterTop:	   os << "Center Top"; break;
-		case Origin::TopRight:	   os << "Top Right"; break;
-		case Origin::CenterLeft:   os << "Center Left"; break;
-		case Origin::Center:	   os << "Center"; break;
-		case Origin::CenterRight:  os << "Center Right"; break;
-		case Origin::BottomLeft:   os << "Bottom Left"; break;
-		case Origin::CenterBottom: os << "Center Bottom"; break;
-		case Origin::BottomRight:  os << "Bottom Right"; break;
-		default:				   PTGN_ERROR("Invalid origin");
+		using enum ptgn::Origin;
+		case TopLeft:	   os << "Top Left"; break;
+		case CenterTop:	   os << "Center Top"; break;
+		case TopRight:	   os << "Top Right"; break;
+		case CenterLeft:   os << "Center Left"; break;
+		case Center:	   os << "Center"; break;
+		case CenterRight:  os << "Center Right"; break;
+		case BottomLeft:   os << "Bottom Left"; break;
+		case CenterBottom: os << "Center Bottom"; break;
+		case BottomRight:  os << "Bottom Right"; break;
+		default:		   PTGN_ERROR("Invalid origin");
 	}
 
 	return os;

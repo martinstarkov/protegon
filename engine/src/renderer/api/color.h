@@ -3,10 +3,14 @@
 #include <concepts>
 #include <cstdint>
 #include <ostream>
+#include <type_traits>
 
-#include "math/math_utils.h"
+#include "core/util/concepts.h"
+#include "debug/runtime/assert.h"
 #include "math/vector4.h"
 #include "serialization/json/fwd.h"
+
+// TODO: Stop exposing assert.h
 
 struct SDL_Color;
 
@@ -26,7 +30,7 @@ struct Color {
 
 	explicit Color(const json& j);
 
-	constexpr Color(const V4_float& normalized_color) :
+	explicit constexpr Color(const V4_float& normalized_color) :
 		r{ static_cast<std::uint8_t>(normalized_color.x * 255.0f) },
 		g{ static_cast<std::uint8_t>(normalized_color.y * 255.0f) },
 		b{ static_cast<std::uint8_t>(normalized_color.z * 255.0f) },
@@ -76,6 +80,16 @@ struct Color {
 	friend void to_json(json& j, const Color& color);
 
 	friend void from_json(const json& j, Color& color);
+
+	friend std::ostream& operator<<(std::ostream& os, const Color& color) {
+		os << "[";
+		os << static_cast<int>(color.r) << ", ";
+		os << static_cast<int>(color.g) << ", ";
+		os << static_cast<int>(color.b) << ", ";
+		os << static_cast<int>(color.a);
+		os << "]";
+		return os;
+	}
 };
 
 template <std::floating_point U>
@@ -100,24 +114,20 @@ inline constexpr Color Transparent{ 0, 0, 0, 0 };
 inline constexpr Color Black{ 0, 0, 0, 255 };
 inline constexpr Color White{ 255, 255, 255, 255 };
 
-// Reds
 inline constexpr Color Red{ 255, 0, 0, 255 };
 inline constexpr Color LightRed{ 255, 128, 128, 255 };
 inline constexpr Color DarkRed{ 128, 0, 0, 255 };
 inline constexpr Color BrightRed{ 255, 69, 0, 255 };
 inline constexpr Color DeepRed{ 178, 34, 34, 255 };
 
-// Browns
 inline constexpr Color Brown{ 165, 42, 42, 255 };
 inline constexpr Color LightBrown{ 210, 180, 140, 255 };
 inline constexpr Color DarkBrown{ 101, 67, 33, 255 };
 
-// Oranges
 inline constexpr Color Orange{ 255, 165, 0, 255 };
 inline constexpr Color LightOrange{ 255, 215, 128, 255 };
 inline constexpr Color DarkOrange{ 204, 102, 0, 255 };
 
-// Yellows
 inline constexpr Color Yellow{ 255, 255, 0, 255 };
 inline constexpr Color LightYellow{ 255, 255, 128, 255 };
 inline constexpr Color DarkYellow{ 204, 204, 0, 255 };
@@ -126,21 +136,18 @@ inline constexpr Color Gold{ 255, 215, 0, 255 };
 inline constexpr Color LightGold{ 255, 235, 153, 255 };
 inline constexpr Color DarkGold{ 184, 134, 11, 255 };
 
-// Greens
 inline constexpr Color Green{ 0, 255, 0, 255 };
 inline constexpr Color LightGreen{ 144, 238, 144, 255 };
 inline constexpr Color DarkGreen{ 0, 100, 0, 255 };
 inline constexpr Color BrightGreen{ 0, 255, 102, 255 };
 inline constexpr Color LimeGreen{ 191, 255, 0, 255 };
 
-// Blues
 inline constexpr Color Blue{ 0, 0, 255, 255 };
 inline constexpr Color LightBlue{ 173, 216, 230, 255 };
 inline constexpr Color DarkBlue{ 0, 0, 128, 255 };
 inline constexpr Color SkyBlue{ 135, 206, 235, 255 };
 inline constexpr Color DeepBlue{ 0, 70, 128, 255 };
 
-// Cyans/Teals
 inline constexpr Color Cyan{ 0, 255, 255, 255 };
 inline constexpr Color LightCyan{ 224, 255, 255, 255 };
 inline constexpr Color DarkCyan{ 0, 139, 139, 255 };
@@ -148,7 +155,6 @@ inline constexpr Color Teal{ 0, 128, 128, 255 };
 inline constexpr Color LightTeal{ 128, 255, 212, 255 };
 inline constexpr Color DarkTeal{ 0, 80, 80, 255 };
 
-// Magentas/Purples
 inline constexpr Color Magenta{ 255, 0, 255, 255 };
 inline constexpr Color LightMagenta{ 255, 105, 180, 255 };
 inline constexpr Color DarkMagenta{ 139, 0, 139, 255 };
@@ -156,32 +162,19 @@ inline constexpr Color Purple{ 128, 0, 128, 255 };
 inline constexpr Color LightPurple{ 178, 102, 255, 255 };
 inline constexpr Color DarkPurple{ 75, 0, 130, 255 };
 
-// Pinks
 inline constexpr Color Pink{ 255, 192, 203, 255 };
 inline constexpr Color LightPink{ 255, 182, 193, 255 };
 inline constexpr Color DarkPink{ 197, 137, 123, 255 };
 inline constexpr Color BrightPink{ 255, 0, 127, 255 };
 
-// Grays
 inline constexpr Color Gray{ 128, 128, 128, 255 };
 inline constexpr Color LightGray{ 192, 192, 192, 255 };
 inline constexpr Color DarkGray{ 64, 64, 64, 255 };
 
-// Other/Neutrals (These are generally easy to guess)
 inline constexpr Color Beige{ 245, 245, 220, 255 };
 inline constexpr Color IvoryWhite{ 255, 240, 240, 255 };
 inline constexpr Color KhakiTan{ 240, 230, 140, 255 };
 
 } // namespace color
-
-inline std::ostream& operator<<(std::ostream& os, const Color& color) {
-	os << "[";
-	os << static_cast<int>(color.r) << ", ";
-	os << static_cast<int>(color.g) << ", ";
-	os << static_cast<int>(color.b) << ", ";
-	os << static_cast<int>(color.a);
-	os << "]";
-	return os;
-}
 
 } // namespace ptgn

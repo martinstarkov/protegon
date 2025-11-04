@@ -3,8 +3,8 @@
 #include <array>
 
 #include "math/vector2.h"
+#include "renderer/api/glsl_types.h"
 #include "renderer/buffer/buffer_layout.h"
-#include "renderer/gl/gl_types.h"
 
 namespace ptgn {
 
@@ -13,7 +13,7 @@ struct Depth;
 
 namespace impl {
 
-struct Vertex : public VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4> {
+struct Vertex : public gl::VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4> {
 	glsl::vec3 position{};
 	glsl::vec4 color{};
 	glsl::vec2 tex_coord{};

@@ -12,9 +12,7 @@
 #include "math/vector4.h"
 #include "renderer/api/color.h"
 #include "renderer/buffer/vertex_array.h"
-#include "renderer/gl/gl_helper.h"
-#include "renderer/gl/gl_loader.h"
-#include "renderer/gl/gl_types.h"
+#include "renderer/gl/gl.h"
 #include "renderer/renderer.h"
 
 namespace ptgn::impl {
@@ -249,7 +247,7 @@ void GLRenderer::SetViewport(const V2_int& position, const V2_int& size) {
 	}
 	GLCall(glViewport(position.x, position.y, size.x, size.y));
 	Application::Get().render_.bound_.viewport_position = position;
-	Application::Get().render_.bound_.viewport_size	   = size;
+	Application::Get().render_.bound_.viewport_size		= size;
 #ifdef PTGN_DEBUG
 	++Application::Get().debug_.stats.viewport_changes;
 #endif
