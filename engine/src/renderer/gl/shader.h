@@ -85,7 +85,7 @@ public:
 	Shader& operator=(const Shader&) = delete;
 	Shader(Shader&& other) noexcept;
 	Shader& operator=(Shader&& other) noexcept;
-	~Shader();
+	~Shader() noexcept;
 
 	friend bool operator==(const Shader& a, const Shader& b) {
 		return a.id_ == b.id_;

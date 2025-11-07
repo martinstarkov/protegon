@@ -1,7 +1,10 @@
 #pragma once
 
 // #include "core/event/event_handler.h"
+#include "core/app/window.h"
+#include "core/asset/asset_manager.h"
 #include "core/input/input_handler.h"
+#include "debug/runtime/debug_system.h"
 #include "math/vector2.h"
 #include "renderer/renderer.h"
 #include "world/scene/scene_key.h"
@@ -67,7 +70,7 @@ private:
 
 	struct SDLInstance {
 		SDLInstance();
-		~SDLInstance();
+		~SDLInstance() noexcept;
 		SDLInstance(const SDLInstance&)				   = delete;
 		SDLInstance& operator=(const SDLInstance&)	   = delete;
 		SDLInstance(SDLInstance&&) noexcept			   = delete;
