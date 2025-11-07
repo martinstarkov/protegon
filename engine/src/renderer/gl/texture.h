@@ -159,20 +159,6 @@ private:
 	TextureFormat format_{ TextureFormat::Unknown };
 };
 
-class TextureManager : public ResourceManager<TextureManager, TextureHandle, Texture> {
-public:
-	// @return Size of the texture.
-	[[nodiscard]] V2_int GetSize(const TextureHandle& key) const;
-
-private:
-	[[nodiscard]] const Texture& Get(const TextureHandle& key) const;
-
-	friend ParentManager;
-	friend struct ptgn::TextureHandle;
-
-	[[nodiscard]] static Texture LoadFromFile(const path& filepath);
-};
-
 } // namespace impl
 
 PTGN_SERIALIZER_REGISTER_ENUM(
