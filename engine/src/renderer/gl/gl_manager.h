@@ -6,8 +6,10 @@
 #include <utility>
 #include <vector>
 
+#include "core/util/concepts.h"
 #include "debug/core/log.h"
 #include "math/vector2.h"
+#include "renderer/gl/buffer_layout.h"
 #include "renderer/gl/gl.h"
 
 namespace ptgn::impl::gl {
@@ -94,6 +96,8 @@ PTGN_GL_RESOURCE_TYPES(DEFINE_GL_RESOURCE_TRAIT)
 template <GLResource T>
 class Handle {
 public:
+	Handle() = default;
+
 	bool operator==(const Handle&) const = default;
 
 	explicit operator bool() const {
@@ -153,7 +157,7 @@ public:
 	template <bool kPersistent = false>
 	Handle<GLResource::Shader> Create(std::string_view shader_name) {
 		auto resource		  = MakeGLResource<GLResource::Shader, ShaderResource>();
-		resource->id		  = GLCallReturn(glCreateProgram());
+		resource->id		  = GLCallReturn(CreateProgram());
 		resource->shader_name = shader_name;
 
 		// TODO: Create shader.
@@ -210,7 +214,7 @@ public:
 	template <bool kPersistent = false>
 	Handle<GLResource::RenderBuffer> Create(const V2_int& size, GLenum format = GL_RGBA8) {
 		auto resource = MakeGLResource<GLResource::RenderBuffer, RenderBufferResource>();
-		GLCall(glGenRenderbuffers(1, &resource->id));
+		GLCall(GenRenderbuffers(1, &resource->id));
 		auto restore_render_buffer_id{ GetBoundId<GLResource::RenderBuffer>() };
 		PTGN_ASSERT(resource->id, "Failed to create render buffer");
 
@@ -238,7 +242,7 @@ public:
 		);
 
 		auto resource = MakeGLResource<GLResource::FrameBuffer, FrameBufferResource>();
-		GLCall(glGenFramebuffers(1, &resource->id));
+		GLCall(GenFramebuffers(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create framebuffer");
 
 		resource->texture = texture;
@@ -257,7 +261,7 @@ public:
 
 		Bind(handle);
 
-		GLCall(glFramebufferTexture2D(
+		GLCall(FramebufferTexture2D(
 			GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0
 		));
 
@@ -274,13 +278,14 @@ public:
 		return handle;
 	}
 
-	template <bool kPersistent = false>
+	template <bool kPersistent = false, typename... Ts>
 	Handle<GLResource::VertexArray> Create(
 		const Handle<GLResource::VertexBuffer>& vertex_buffer,
+		const BufferLayout<Ts...>& vertex_buffer_layout,
 		const Handle<GLResource::ElementBuffer>& element_buffer
 	) {
 		auto resource = MakeGLResource<GLResource::VertexArray, VertexArrayResource>();
-		GLCall(glGenVertexArrays(1, &resource->id));
+		GLCall(GenVertexArrays(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create vertex array");
 
 		resource->vertex_buffer	 = vertex_buffer;
@@ -292,8 +297,9 @@ public:
 		Handle<GLResource::VertexArray> handle{ std::move(resource) };
 
 		Bind(handle);
-		Bind(vertex_buffer);
-		Bind(element_buffer);
+		SetVertexBuffer(vertex_buffer);
+		SetElementBuffer(element_buffer);
+		SetVertexArrayLayout(vertex_buffer_layout);
 
 		return handle;
 	}
@@ -303,21 +309,27 @@ public:
 		// TODO: Update gl bound state.
 		using enum ptgn::impl::gl::GLResource;
 		if constexpr (T == VertexBuffer) {
-			GLCall(glBindBuffer(GL_ARRAY_BUFFER, id));
+			GLCall(BindBuffer(GL_ARRAY_BUFFER, id));
 		} else if constexpr (T == ElementBuffer) {
-			GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
+			GLCall(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
 		} else if constexpr (T == UniformBuffer) {
-			GLCall(glBindBuffer(GL_UNIFORM_BUFFER, id));
+			GLCall(BindBuffer(GL_UNIFORM_BUFFER, id));
 		} else if constexpr (T == Shader) {
-			GLCall(glUseProgram(id));
+			GLCall(UseProgram(id));
 		} else if constexpr (T == RenderBuffer) {
-			GLCall(glBindRenderbuffer(GL_RENDERBUFFER, id));
+			GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
 		} else if constexpr (T == Texture) {
 			GLCall(glBindTexture(GL_TEXTURE_2D, id));
 		} else if constexpr (T == FrameBuffer) {
-			GLCall(glBindFramebuffer(GL_FRAMEBUFFER, id));
+			GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
 		} else if constexpr (T == VertexArray) {
-			GLCall(glBindVertexArray(id));
+#ifdef PTGN_PLATFORM_MACOS
+			// MacOS complains about binding 0 id vertex array.
+			if (id == 0) {
+				return;
+			}
+#endif
+			GLCall(BindVertexArray(id));
 		} else {
 			static_assert(false, "Unsupported GLResource type in BindId()");
 		}
@@ -330,35 +342,26 @@ public:
 
 	template <GLResource T>
 	[[nodiscard]] GLuint GetBoundId() const {
-		GLint id{ -1 };
-
-		if constexpr (T == GLResource::VertexBuffer) {
-			GLCall(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &id));
-		} else if constexpr (T == GLResource::ElementBuffer) {
-			GLCall(glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &id));
-		} else if constexpr (T == GLResource::UniformBuffer) {
-			GLCall(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &id));
-		} else if constexpr (T == GLResource::Texture) {
-			GLCall(glGetIntegerv(GL_TEXTURE_BINDING_2D, &id));
-		} else if constexpr (T == GLResource::RenderBuffer) {
-			GLCall(glGetIntegerv(GL_RENDERBUFFER_BINDING, &id));
-		} else if constexpr (T == GLResource::FrameBuffer) {
-			GLCall(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &id));
-		} else if constexpr (T == GLResource::VertexArray) {
-			GLCall(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &id));
-		} else if constexpr (T == GLResource::Shader) {
-			GLCall(glGetIntegerv(GL_CURRENT_PROGRAM, &id));
+		using enum ptgn::impl::gl::GLResource;
+		if constexpr (T == VertexBuffer) {
+			return GetInteger<GLuint>(GL_ARRAY_BUFFER_BINDING);
+		} else if constexpr (T == ElementBuffer) {
+			return GetInteger<GLuint>(GL_ELEMENT_ARRAY_BUFFER_BINDING);
+		} else if constexpr (T == UniformBuffer) {
+			return GetInteger<GLuint>(GL_UNIFORM_BUFFER_BINDING);
+		} else if constexpr (T == Texture) {
+			return GetInteger<GLuint>(GL_TEXTURE_BINDING_2D);
+		} else if constexpr (T == RenderBuffer) {
+			return GetInteger<GLuint>(GL_RENDERBUFFER_BINDING);
+		} else if constexpr (T == FrameBuffer) {
+			return GetInteger<GLuint>(GL_FRAMEBUFFER_BINDING);
+		} else if constexpr (T == VertexArray) {
+			return GetInteger<GLuint>(GL_VERTEX_ARRAY_BINDING);
+		} else if constexpr (T == Shader) {
+			return GetInteger<GLuint>(GL_CURRENT_PROGRAM);
 		} else {
 			static_assert(false, "Unsupported GLResource in GetBoundId()");
 		}
-
-		PTGN_ASSERT(id >= 0, "Failed to retrieve bound GL id");
-		return static_cast<GLuint>(id);
-	}
-
-	template <GLResource T>
-	[[nodiscard]] bool IsBound(const Handle<T>& handle) {
-		return GetBoundId<T>() == handle.Get().id;
 	}
 
 	void ClearUnused() {
@@ -375,7 +378,78 @@ public:
 		std::erase_if(vertex_arrays_, pred);
 	}
 
+	template <GLResource T>
+	[[nodiscard]] bool IsBound(const Handle<T>& handle) const {
+		return GetBoundId<T>() == handle.Get().id;
+	}
+
+	void SetVertexBuffer(
+		Handle<GLResource::VertexArray>& vertex_array,
+		const Handle<GLResource::VertexBuffer>& vertex_buffer
+	) {
+		PTGN_ASSERT(
+			IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer"
+		);
+		vertex_array.Get().vertex_buffer = vertex_buffer;
+		Bind(vertex_buffer);
+	}
+
+	void SetElementBuffer(
+		Handle<GLResource::VertexArray>& vertex_array,
+		const Handle<GLResource::ElementBuffer>& element_buffer
+	) {
+		PTGN_ASSERT(
+			IsBound(vertex_array), "Vertex array must be bound before setting element buffer"
+		);
+		vertex_array.Get().element_buffer = element_buffer;
+		Bind(element_buffer);
+	}
+
+	template <VertexDataType... Ts>
+		requires NonEmptyPack<Ts...>
+	void SetVertexArrayLayout(const BufferLayout<Ts...>& layout) {
+		PTGN_ASSERT(
+			!layout.IsEmpty(),
+			"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
+		);
+
+		const auto& elements{ layout.GetElements() };
+		PTGN_ASSERT(
+			elements.size() < GetInteger<GLuint>(GL_MAX_VERTEX_ATTRIBS),
+			"Vertex buffer layout cannot exceed maximum number of vertex array attributes"
+		);
+
+		auto stride{ layout.GetStride() };
+		PTGN_ASSERT(stride > 0, "Failed to calculate buffer layout stride");
+
+		for (std::uint32_t i{ 0 }; i < elements.size(); ++i) {
+			const auto& element{ elements[i] };
+			GLCall(EnableVertexAttribArray(i));
+			if (element.is_integer) {
+				GLCall(VertexAttribIPointer(
+					i, element.count, static_cast<GLenum>(element.type), stride,
+					reinterpret_cast<const void*>(element.offset)
+				));
+				return;
+			}
+			GLCall(VertexAttribPointer(
+				i, element.count, static_cast<GLenum>(element.type),
+				element.normalized ? static_cast<GLboolean>(GL_TRUE)
+								   : static_cast<GLboolean>(GL_FALSE),
+				stride, reinterpret_cast<const void*>(element.offset)
+			));
+		}
+	}
+
 private:
+	template <typename T = GLint>
+	static T GetInteger(GLenum pname) {
+		GLint value = -1;
+		GLCall(glGetIntegerv(pname, &value));
+		PTGN_ASSERT(value >= 0, "Failed to query integer parameter");
+		return static_cast<T>(value);
+	}
+
 	// WARNING: This function is slow and should be
 	// primarily used for debugging frame buffers.
 	// @param coordinate Pixel coordinate from [0, size).
@@ -558,7 +632,7 @@ private:
 
 	void SetRenderBufferStorage(
 		Handle<GLResource::RenderBuffer>& handle, const V2_int& size, GLenum internal_format
-	) {
+	) const {
 		PTGN_ASSERT(IsBound(handle), "Render buffer must be bound prior to setting its storage");
 
 		GLCall(RenderbufferStorage(GL_RENDERBUFFER, internal_format, size.x, size.y));
@@ -570,7 +644,7 @@ private:
 	template <typename T = GLint>
 	T GetBufferParameter(GLenum target, GLenum pname) {
 		GLint value = -1;
-		GLCall(glGetBufferParameteriv(target, pname, &value));
+		GLCall(GetBufferParameteriv(target, pname, &value));
 		PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
 		return static_cast<T>(value);
 	}
@@ -653,7 +727,7 @@ private:
 	}
 
 	template <GLResource T>
-	constexpr void DeleteId(GLuint id) const {
+	static constexpr void DeleteId(GLuint id) {
 		if (id == 0) {
 			return; // nothing to delete
 		}
@@ -661,25 +735,25 @@ private:
 		using enum ptgn::impl::gl::GLResource;
 
 		if constexpr (T == VertexBuffer || T == ElementBuffer || T == UniformBuffer) {
-			GLCall(glDeleteBuffers(1, &id));
+			GLCall(DeleteBuffers(1, &id));
 		} else if constexpr (T == Texture) {
 			GLCall(glDeleteTextures(1, &id));
 		} else if constexpr (T == RenderBuffer) {
-			GLCall(glDeleteRenderbuffers(1, &id));
+			GLCall(DeleteRenderbuffers(1, &id));
 		} else if constexpr (T == FrameBuffer) {
-			GLCall(glDeleteFramebuffers(1, &id));
+			GLCall(DeleteFramebuffers(1, &id));
 		} else if constexpr (T == VertexArray) {
-			GLCall(glDeleteVertexArrays(1, &id));
+			GLCall(DeleteVertexArrays(1, &id));
 		} else if constexpr (T == Shader) {
-			GLCall(glDeleteProgram(id));
+			GLCall(DeleteProgram(id));
 		} else {
 			static_assert(false, "Unsupported GLResource type in DeleteId()");
 		}
 	}
 
 	template <GLResource T, typename ResourceType>
-	std::shared_ptr<ResourceType> MakeGLResource() {
-		return std::shared_ptr<ResourceType>(new ResourceType(), [](ResourceType* res) {
+	static std::shared_ptr<ResourceType> MakeGLResource() {
+		return std::shared_ptr<ResourceType>(new ResourceType{}, [](ResourceType* res) {
 			if (res && res->id) {
 				DeleteId<T>(res->id);
 				res->id = 0;
