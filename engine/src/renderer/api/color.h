@@ -22,13 +22,29 @@ struct Color {
 	std::uint8_t b{ 0 };
 	std::uint8_t a{ 0 };
 
+	constexpr std::uint8_t* Data() noexcept {
+		static_assert(std::is_standard_layout_v<Color>);
+		return &r;
+	}
+
+	constexpr const std::uint8_t* Data() const noexcept {
+		static_assert(std::is_standard_layout_v<Color>);
+		return &r;
+	}
+
 	// Default color is black.
 	constexpr Color() = default;
 
 	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
 		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
 
-	explicit Color(const json& j);
+	explicit constexpr Color(const std::array<float, 4>& normalized_color) :
+		Color{ V4_float{ normalized_color[0], normalized_color[1], normalized_color[2],
+						 normalized_color[3] } } {}
+
+	explicit constexpr Color(const std::array<std::uint8_t, 4>& normalized_color) :
+		Color{ normalized_color[0], normalized_color[1], normalized_color[2],
+			   normalized_color[3] } {}
 
 	explicit constexpr Color(const V4_float& normalized_color) :
 		r{ static_cast<std::uint8_t>(normalized_color.x * 255.0f) },
@@ -70,6 +86,19 @@ struct Color {
 	[[nodiscard]] constexpr V4_float Normalized() const {
 		return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
 				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
+	}
+
+	explicit operator V4_float() const noexcept {
+		return Normalized();
+	}
+
+	explicit operator std::array<float, 4>() const noexcept {
+		auto n{ Normalized() };
+		return { n.x, n.y, n.z, n.w };
+	}
+
+	explicit operator std::array<std::uint8_t, 4>() const noexcept {
+		return { r, g, b, a };
 	}
 
 	[[nodiscard]] static Color RandomOpaque();

@@ -21,6 +21,16 @@ struct Vector3 {
 	T y{ 0 };
 	T z{ 0 };
 
+	constexpr T* Data() noexcept {
+		static_assert(std::is_standard_layout_v<Vector3>);
+		return &x;
+	}
+
+	constexpr const T* Data() const noexcept {
+		static_assert(std::is_standard_layout_v<Vector3>);
+		return &x;
+	}
+
 	constexpr Vector3() = default;
 
 	template <Arithmetic U>

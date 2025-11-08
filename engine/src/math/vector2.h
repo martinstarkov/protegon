@@ -26,6 +26,16 @@ struct Vector2 {
 	T x{ 0 };
 	T y{ 0 };
 
+	constexpr T* Data() noexcept {
+		static_assert(std::is_standard_layout_v<Vector2>);
+		return &x;
+	}
+
+	constexpr const T* Data() const noexcept {
+		static_assert(std::is_standard_layout_v<Vector2>);
+		return &x;
+	}
+
 	constexpr Vector2() = default;
 
 	template <Arithmetic U>

@@ -20,10 +20,6 @@ Color Color::RandomTransparent() {
 			 static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()) };
 }
 
-Color::Color(const json& j) {
-	j.get_to(*this);
-}
-
 void to_json(json& j, const Color& color) {
 	j = json::array({ color.r, color.g, color.b, color.a });
 }
