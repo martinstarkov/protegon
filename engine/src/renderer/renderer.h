@@ -254,6 +254,22 @@ inline constexpr float min_line_width{ 1.0f };
 inline constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
 inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 
+[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
+	return {
+		V2_float{ 0.0f, 0.0f },
+		V2_float{ 1.0f, 0.0f },
+		V2_float{ 1.0f, 1.0f },
+		V2_float{ 0.0f, 1.0f },
+	};
+}
+
+[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
+	const V2_float& source_position, const V2_float& source_size, const V2_float& texture_size,
+	bool offset_texels = false
+);
+
+void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
+
 } // namespace impl
 
 class Renderer {
