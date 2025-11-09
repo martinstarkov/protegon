@@ -186,6 +186,11 @@ struct Vector4 {
 		return *this / std::sqrt(static_cast<S>(m));
 	}
 
+	[[nodiscard]] constexpr bool IsNormalized() const {
+		return x >= 0.0f && x <= 1.0f && y >= 0.0f && y <= 1.0f && z >= 0.0f && z <= 1.0f &&
+			   w >= 0.0f && w <= 1.0f;
+	}
+
 	[[nodiscard]] bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 }) &&
 			   NearlyEqual(w, T{ 0 });
