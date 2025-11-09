@@ -6,14 +6,17 @@
 #include <ratio>
 #include <string>
 
+#include "SDL_mixer.h"
+#include "core/assert.h"
+#include "core/asset/asset_handle.h"
 #include "core/asset/asset_manager.h"
 #include "core/ecs/components/generic.h"
 #include "core/util/file.h"
 #include "core/util/time.h"
-#include "debug/runtime/assert.h"
-#include "SDL_mixer.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 void Mix_MusicDeleter::operator()(Mix_Music* music) const {
 	Mix_FreeMusic(music);
@@ -23,7 +26,11 @@ void Mix_ChunkDeleter::operator()(Mix_Chunk* sound) const {
 	Mix_FreeChunk(sound);
 }
 
-Music MusicManager::LoadFromFile(const path& filepath) {
+} // namespace impl
+
+namespace music {
+
+Music LoadFromFile(const path& filepath) {
 	PTGN_ASSERT(
 		FileExists(filepath), "Cannot create music from a nonexistent filepath: ", filepath.string()
 	);
@@ -32,33 +39,33 @@ Music MusicManager::LoadFromFile(const path& filepath) {
 	return ptr;
 }
 
-void MusicManager::Play(const ResourceHandle& key, int loops) const {
+void Play(const ResourceHandle& key, int loops) const {
 	Mix_PlayMusic(Get(key).get(), loops);
 }
 
-void MusicManager::FadeIn(const ResourceHandle& key, milliseconds fade_time, int loops) const {
+void FadeIn(const ResourceHandle& key, milliseconds fade_time, int loops) const {
 	auto time_int{ to_duration<duration<int, milliseconds::period>>(fade_time) };
 	Mix_FadeInMusic(Get(key).get(), loops, time_int.count());
 }
 
-void MusicManager::Stop() const {
+void Stop() const {
 	Mix_HaltMusic();
 }
 
-void MusicManager::FadeOut(milliseconds time) const {
+void FadeOut(milliseconds time) const {
 	auto time_int{ to_duration<duration<int, std::milli>>(time) };
 	Mix_FadeOutMusic(time_int.count());
 }
 
-void MusicManager::Pause() const {
+void Pause() const {
 	Mix_PauseMusic();
 }
 
-void MusicManager::Resume() const {
+void Resume() const {
 	Mix_ResumeMusic();
 }
 
-void MusicManager::ToggleVolume(int new_volume) const {
+void ToggleVolume(int new_volume) const {
 	if (GetVolume() != 0) {
 		SetVolume(0);
 	} else {
@@ -66,7 +73,7 @@ void MusicManager::ToggleVolume(int new_volume) const {
 	}
 }
 
-void MusicManager::TogglePause() const {
+void TogglePause() const {
 	if (IsPaused()) {
 		Resume();
 	} else {
@@ -74,26 +81,26 @@ void MusicManager::TogglePause() const {
 	}
 }
 
-int MusicManager::GetVolume() const {
+int GetVolume() const {
 	return Mix_VolumeMusic(-1);
 }
 
-void MusicManager::SetVolume(int volume) const {
+void SetVolume(int volume) const {
 	PTGN_ASSERT(
 		volume >= 0 && volume <= max_volume, "Cannot set music volume outside of valid range"
 	);
 	Mix_VolumeMusic(volume);
 }
 
-bool MusicManager::IsPlaying() const {
+bool IsPlaying() const {
 	return static_cast<bool>(Mix_PlayingMusic());
 }
 
-bool MusicManager::IsPaused() const {
+bool IsPaused() const {
 	return static_cast<bool>(Mix_PausedMusic());
 }
 
-bool MusicManager::IsFading() const {
+bool IsFading() const {
 	switch (Mix_FadingMusic()) {
 		case MIX_NO_FADING:	 return false;
 		case MIX_FADING_OUT: return true;
@@ -102,7 +109,11 @@ bool MusicManager::IsFading() const {
 	}
 }
 
-Sound SoundManager::LoadFromFile(const path& filepath) {
+} // namespace music
+
+namespace sound {
+
+Sound LoadFromFile(const path& filepath) {
 	PTGN_ASSERT(
 		FileExists(filepath),
 		"Cannot create sound from a nonexistent sound path: ", filepath.string()
@@ -112,19 +123,18 @@ Sound SoundManager::LoadFromFile(const path& filepath) {
 	return ptr;
 }
 
-void SoundManager::Play(const ResourceHandle& key, int channel, int loops) const {
+void Play(const ResourceHandle& key, int channel, int loops) const {
 	PTGN_ASSERT(Has(key), "Cannot play sound which has not been loaded in the music manager");
 	Mix_PlayChannel(channel, Get(key).get(), loops);
 }
 
-void SoundManager::FadeIn(const ResourceHandle& key, milliseconds fade_time, int channel, int loops)
-	const {
+void FadeIn(const ResourceHandle& key, milliseconds fade_time, int channel, int loops) const {
 	PTGN_ASSERT(Has(key), "Cannot fade in sound which has not been loaded in the music manager");
 	auto time_int{ to_duration<duration<int, std::milli>>(fade_time) };
 	Mix_FadeInChannel(channel, Get(key).get(), loops, time_int.count());
 }
 
-void SoundManager::SetVolume(const ResourceHandle& key, int volume) const {
+void SetVolume(const ResourceHandle& key, int volume) const {
 	PTGN_ASSERT(
 		Has(key), "Cannot set volume of sound which has not been loaded in the music manager"
 	);
@@ -134,7 +144,7 @@ void SoundManager::SetVolume(const ResourceHandle& key, int volume) const {
 	Mix_VolumeChunk(Get(key).get(), volume);
 }
 
-void SoundManager::SetVolume(int channel, int volume) const {
+void SetVolume(int channel, int volume) const {
 	PTGN_ASSERT(
 		volume >= 0 && volume <= max_volume,
 		"Cannot set sound channel volume outside of valid range"
@@ -142,14 +152,14 @@ void SoundManager::SetVolume(int channel, int volume) const {
 	Mix_Volume(channel, volume);
 }
 
-int SoundManager::GetVolume(const ResourceHandle& key) const {
+int GetVolume(const ResourceHandle& key) const {
 	PTGN_ASSERT(
 		Has(key), "Cannot get volume of sound which has not been loaded in the music manager"
 	);
 	return Mix_VolumeChunk(Get(key).get(), -1);
 }
 
-void SoundManager::ToggleVolume(const ResourceHandle& key, int new_volume) const {
+void ToggleVolume(const ResourceHandle& key, int new_volume) const {
 	PTGN_ASSERT(
 		Has(key), "Cannot toggle volume of sound which has not been loaded in the music manager"
 	);
@@ -160,19 +170,19 @@ void SoundManager::ToggleVolume(const ResourceHandle& key, int new_volume) const
 	}
 }
 
-void SoundManager::Stop(int channel) const {
+void Stop(int channel) const {
 	Mix_HaltChannel(channel);
 }
 
-void SoundManager::Resume(int channel) const {
+void Resume(int channel) const {
 	Mix_Resume(channel);
 }
 
-void SoundManager::Pause(int channel) const {
+void Pause(int channel) const {
 	Mix_Pause(channel);
 }
 
-void SoundManager::TogglePause(int channel) const {
+void TogglePause(int channel) const {
 	if (IsPaused(channel)) {
 		Resume(channel);
 	} else {
@@ -180,24 +190,24 @@ void SoundManager::TogglePause(int channel) const {
 	}
 }
 
-void SoundManager::FadeOut(milliseconds fade_time, int channel) const {
+void FadeOut(milliseconds fade_time, int channel) const {
 	auto time_int{ to_duration<duration<int, std::milli>>(fade_time) };
 	Mix_FadeOutChannel(channel, time_int.count());
 }
 
-int SoundManager::GetVolume(int channel) const {
+int GetVolume(int channel) const {
 	return Mix_Volume(channel, -1);
 }
 
-bool SoundManager::IsPlaying(int channel) const {
+bool IsPlaying(int channel) const {
 	return static_cast<bool>(Mix_Playing(channel));
 }
 
-bool SoundManager::IsPaused(int channel) const {
+bool IsPaused(int channel) const {
 	return static_cast<bool>(Mix_Paused(channel));
 }
 
-bool SoundManager::IsFading(int channel) const {
+bool IsFading(int channel) const {
 	switch (Mix_FadingChannel(channel)) {
 		case MIX_NO_FADING:	 return false;
 		case MIX_FADING_OUT: return true;
@@ -206,4 +216,6 @@ bool SoundManager::IsFading(int channel) const {
 	}
 }
 
-} // namespace ptgn::impl
+} // namespace sound
+
+} // namespace ptgn

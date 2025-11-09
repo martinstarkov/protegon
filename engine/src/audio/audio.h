@@ -2,18 +2,28 @@
 
 #include <memory>
 
+#include "core/asset/asset_handle.h"
 #include "core/ecs/components/generic.h"
-#include "core/asset/asset_manager.h"
 #include "core/util/file.h"
 #include "core/util/time.h"
+
+// TODO: Add something along the lines of:
+
+// Handle<Sound> is a shared_ptr<Mix_Chunk>
+
+// let sound_handle = asset_manager.Load<Sound>("path/to/sound");
+
+// entity.Add<Sound>(sound_handle);
+
+// entity.Get<Sound>().Play();
 
 struct _Mix_Music;
 using Mix_Music = _Mix_Music;
 struct Mix_Chunk;
 
-namespace ptgn::impl {
+namespace ptgn {
 
-constexpr int max_volume{ 128 };
+namespace impl {
 
 struct Mix_MusicDeleter {
 	void operator()(Mix_Music* music) const;
@@ -23,126 +33,119 @@ struct Mix_ChunkDeleter {
 	void operator()(Mix_Chunk* sound) const;
 };
 
-using Music = std::unique_ptr<Mix_Music, Mix_MusicDeleter>;
+} // namespace impl
 
-class MusicManager : public ResourceManager<MusicManager, ResourceHandle, Music> {
-public:
-	// @param loops The number of loops to play the music for, -1 for infinite looping.
-	void Play(const ResourceHandle& key, int loops = -1) const;
+namespace music {
 
-	// @param fade_time How long to fade the music in for.
-	// @param loops The number of loops to play the music for, -1 for infinite looping.
-	void FadeIn(const ResourceHandle& key, milliseconds fade_time, int loops = -1) const;
+constexpr int max_volume{ 128 };
 
-	// Pause the currently playing music.
-	void Pause() const;
+// @param loops The number of loops to play the music for, -1 for infinite looping.
+void Play(const ResourceHandle& key, int loops = -1);
 
-	// Resume the currently playing music.
-	void Resume() const;
+// @param fade_time How long to fade the music in for.
+// @param loops The number of loops to play the music for, -1 for infinite looping.
+void FadeIn(const ResourceHandle& key, milliseconds fade_time, int loops = -1);
 
-	// Toggles the pause state of the music.
-	void TogglePause() const;
+// Pause the currently playing music.
+void Pause();
 
-	// @return The current music track volume in range [0, 128].
-	[[nodiscard]] int GetVolume() const;
+// Resume the currently playing music.
+void Resume();
 
-	// @param volume Volume of the music in range [0, 128].
-	void SetVolume(int volume) const;
+// Toggles the pause state of the music.
+void TogglePause();
 
-	// Toggles the volume between 0 and new_volume.
-	// @param new_volume When toggle unmutes, it will set the new volume of the music to this value
-	// in range [0, 128].
-	void ToggleVolume(int new_volume = max_volume) const;
+// @return The current music track volume in range [0, 128].
+[[nodiscard]] int GetVolume();
 
-	// Stop the currently playing music.
-	void Stop() const;
+// @param volume Volume of the music in range [0, 128].
+void SetVolume(int volume);
 
-	// @param fade_time Time over which to fade the music out.
-	void FadeOut(milliseconds fade_time) const;
+// Toggles the volume between 0 and new_volume.
+// @param new_volume When toggle unmutes, it will set the new volume of the music to this value
+// in range [0, 128].
+void ToggleVolume(int new_volume = max_volume);
 
-	// @return True if any music is currently playing, false otherwise.
-	[[nodiscard]] bool IsPlaying() const;
+// Stop the currently playing music.
+void Stop();
 
-	// @return True if the currently playing music is paused, false otherwise.
-	[[nodiscard]] bool IsPaused() const;
+// @param fade_time Time over which to fade the music out.
+void FadeOut(milliseconds fade_time);
 
-	// @return True if the currently playing music is fading in OR out, false otherwise.
-	[[nodiscard]] bool IsFading() const;
+// @return True if any music is currently playing, false otherwise.
+[[nodiscard]] bool IsPlaying();
 
-private:
-	friend ParentManager;
+// @return True if the currently playing music is paused, false otherwise.
+[[nodiscard]] bool IsPaused();
 
-	[[nodiscard]] static Music LoadFromFile(const path& filepath);
-};
+// @return True if the currently playing music is fading in OR out, false otherwise.
+[[nodiscard]] bool IsFading();
 
-using Sound = std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter>;
+} // namespace music
 
-class SoundManager : public ResourceManager<SoundManager, ResourceHandle, Sound> {
-public:
-	// @param channel The channel on which to play the sound on, -1 plays on the first available
-	// channel.
-	// @param loops Number of times to loop sound, -1 for infinite looping.
-	void Play(const ResourceHandle& key, int channel = -1, int loops = 0) const;
+namespace sound {
 
-	// @param fade_time Time over which to fade the sound in.
-	// @param channel The channel on which to play the sound on, -1 plays on the first available
-	// channel.
-	// @param loops Number of times to loop sound, -1 for infinite looping.
-	void FadeIn(const ResourceHandle& key, milliseconds fade_time, int channel = -1, int loops = 0)
-		const;
+constexpr int max_volume{ 128 };
 
-	// Set volume of the sound. Volume range: [0, 128].
-	void SetVolume(const ResourceHandle& key, int volume) const;
+// @param channel The channel on which to play the sound on, -1 plays on the first available
+// channel.
+// @param loops Number of times to loop sound, -1 for infinite looping.
+void Play(const ResourceHandle& key, int channel = -1, int loops = 0);
 
-	// Set volume of the channel.
-	// @param channel The channel for which the volume is set, -1 sets the volume for all sound
-	// channels.
-	// @param volume Volume of the sound channel. Volume range: [0, 128].
-	void SetVolume(int channel, int volume) const;
+// @param fade_time Time over which to fade the sound in.
+// @param channel The channel on which to play the sound on, -1 plays on the first available
+// channel.
+// @param loops Number of times to loop sound, -1 for infinite looping.
+void FadeIn(const ResourceHandle& key, milliseconds fade_time, int channel = -1, int loops = 0);
 
-	// @return Volume of the sound. Volume range: [0, 128].
-	[[nodiscard]] int GetVolume(const ResourceHandle& key) const;
+// Set volume of the sound. Volume range: [0, 128].
+void SetVolume(const ResourceHandle& key, int volume);
 
-	// Toggles the sound volume between 0 and new_volume.
-	// @param new_volume When toggle unmutes, it will set the new volume of the sound to this value
-	// in range [0, 128].
-	void ToggleVolume(const ResourceHandle& key, int new_volume = max_volume) const;
+// Set volume of the channel.
+// @param channel The channel for which the volume is set, -1 sets the volume for all sound
+// channels.
+// @param volume Volume of the sound channel. Volume range: [0, 128].
+void SetVolume(int channel, int volume);
 
-	// Stops the sound playing on the specified channel, -1 stops all sound channels.
-	void Stop(int channel) const;
+// @return Volume of the sound. Volume range: [0, 128].
+[[nodiscard]] int GetVolume(const ResourceHandle& key);
 
-	// Resumes the sound playing on the specified channel, -1 resumes all paused sound channels.
-	void Resume(int channel) const;
+// Toggles the sound volume between 0 and new_volume.
+// @param new_volume When toggle unmutes, it will set the new volume of the sound to this value
+// in range [0, 128].
+void ToggleVolume(const ResourceHandle& key, int new_volume = max_volume);
 
-	// Pauses the sound playing on the specified channel, -1 pauses all sound channels.
-	void Pause(int channel) const;
+// Stops the sound playing on the specified channel, -1 stops all sound channels.
+void Stop(int channel);
 
-	// Toggles the pause state of the channel.
-	void TogglePause(int channel) const;
+// Resumes the sound playing on the specified channel, -1 resumes all paused sound channels.
+void Resume(int channel);
 
-	// @param fade_time Time over which to fade the sound in.
-	// @param channel The channel on which to play the sound on, -1 plays on the first available
-	// channel.
-	void FadeOut(milliseconds fade_time, int channel) const;
+// Pauses the sound playing on the specified channel, -1 pauses all sound channels.
+void Pause(int channel);
 
-	// @param channel The channel for which to query the volume, -1 gets the average of all sound
-	// channels.
-	// @return Volume of the sound. Volume range: [0, 128].
-	[[nodiscard]] int GetVolume(int channel) const;
+// Toggles the pause state of the channel.
+void TogglePause(int channel);
 
-	// @return True if the sound channel is playing, -1 to check if any channel is playing.
-	[[nodiscard]] bool IsPlaying(int channel) const;
+// @param fade_time Time over which to fade the sound in.
+// @param channel The channel on which to play the sound on, -1 plays on the first available
+// channel.
+void FadeOut(milliseconds fade_time, int channel);
 
-	// @return True if the sound channel is paused, -1 to check if any channel is paused.
-	[[nodiscard]] bool IsPaused(int channel) const;
+// @param channel The channel for which to query the volume, -1 gets the average of all sound
+// channels.
+// @return Volume of the sound. Volume range: [0, 128].
+[[nodiscard]] int GetVolume(int channel);
 
-	// @return True if the sound channel is fading in or out, -1 to check if any channel is playing.
-	[[nodiscard]] bool IsFading(int channel) const;
+// @return True if the sound channel is playing, -1 to check if any channel is playing.
+[[nodiscard]] bool IsPlaying(int channel);
 
-private:
-	friend ParentManager;
+// @return True if the sound channel is paused, -1 to check if any channel is paused.
+[[nodiscard]] bool IsPaused(int channel);
 
-	[[nodiscard]] static Sound LoadFromFile(const path& filepath);
-};
+// @return True if the sound channel is fading in or out, -1 to check if any channel is playing.
+[[nodiscard]] bool IsFading(int channel);
 
-} // namespace ptgn::impl
+} // namespace sound
+
+} // namespace ptgn
