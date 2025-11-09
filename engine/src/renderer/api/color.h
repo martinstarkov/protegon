@@ -38,31 +38,18 @@ struct Color {
 	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
 		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
 
-	explicit constexpr Color(const std::array<float, 4>& normalized_color) :
-		Color{ V4_float{ normalized_color[0], normalized_color[1], normalized_color[2],
-						 normalized_color[3] } } {}
+	explicit constexpr Color(const std::array<float, 4>& color) :
+		Color{ V4_float{ color[0], color[1], color[2], color[3] } } {}
 
-	explicit constexpr Color(const std::array<std::uint8_t, 4>& normalized_color) :
-		Color{ normalized_color[0], normalized_color[1], normalized_color[2],
-			   normalized_color[3] } {}
+	explicit constexpr Color(const std::array<std::uint8_t, 4>& color) :
+		Color{ color[0], color[1], color[2], color[3] } {}
 
-	explicit constexpr Color(const V4_float& normalized_color) :
-		r{ static_cast<std::uint8_t>(normalized_color.x * 255.0f) },
-		g{ static_cast<std::uint8_t>(normalized_color.y * 255.0f) },
-		b{ static_cast<std::uint8_t>(normalized_color.z * 255.0f) },
-		a{ static_cast<std::uint8_t>(normalized_color.w * 255.0f) } {
-		PTGN_ASSERT(
-			normalized_color.x >= 0.0f && normalized_color.x <= 1.0f, "Color must be normalized"
-		);
-		PTGN_ASSERT(
-			normalized_color.y >= 0.0f && normalized_color.y <= 1.0f, "Color must be normalized"
-		);
-		PTGN_ASSERT(
-			normalized_color.z >= 0.0f && normalized_color.z <= 1.0f, "Color must be normalized"
-		);
-		PTGN_ASSERT(
-			normalized_color.w >= 0.0f && normalized_color.w <= 1.0f, "Color must be normalized"
-		);
+	explicit constexpr Color(const V4_float& color) :
+		r{ static_cast<std::uint8_t>(color.x * 255.0f) },
+		g{ static_cast<std::uint8_t>(color.y * 255.0f) },
+		b{ static_cast<std::uint8_t>(color.z * 255.0f) },
+		a{ static_cast<std::uint8_t>(color.w * 255.0f) } {
+		PTGN_ASSERT(color.IsNormalized(), "Color must be normalized");
 	}
 
 	// @param alpha Value of transparency to set for the color.
