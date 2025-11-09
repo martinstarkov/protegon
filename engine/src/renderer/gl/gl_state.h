@@ -1,73 +1,116 @@
 #pragma once
 
-#include <cstdint>
+#include <vector>
 
 #include "math/vector2.h"
-#include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-
-#ifdef __EMSCRIPTEN__
-
-constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
-constexpr auto PTGN_OPENGL_MINOR_VERSION = 0;
-#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_ES
-
-#else
-
-constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
-constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
-#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_CORE
-
-#endif
+#include "renderer/gl/gl.h"
+#include "renderer/gl/gl_resource.h"
 
 namespace ptgn::impl::gl {
 
-class GLRenderer {
-public:
-	void EnableGammaCorrection();
-	void DisableGammaCorrection();
-	void EnableDepthWriting();
-	void DisableDepthWriting();
+struct Viewport {
+	// Top left position.
+	V2_int position;
+	V2_int size;
 
-	// Sets the blend mode for the currently bound frame buffer.
-	void SetBlendMode(BlendMode mode);
+	bool operator==(const Viewport&) const = default;
+};
 
-	void EnableDepthTesting();
-	void DisableDepthTesting();
+struct TextureUnitState {
+	Handle<Texture> texture;
+	GLenum min_filter{ GL_LINEAR };
+	GLenum mag_filter{ GL_LINEAR };
+	GLenum wrap_s{ GL_REPEAT };
+	GLenum wrap_t{ GL_REPEAT };
 
-	// Sets the viewport dimensions.
-	void SetViewport(const V2_int& position, const V2_int& size);
+	bool operator==(const TextureUnitState&) const = default;
+};
 
-	// @return The size of the viewport.
-	[[nodiscard]] V2_int GetViewportSize();
+struct StencilState {
+	GLboolean enabled{ GL_FALSE };
+	GLenum func{ GL_ALWAYS };
+	GLint ref{ 0 };
+	GLuint mask{ 0xFFFFFFFF };
+	GLenum fail_op{ GL_KEEP };
+	GLenum zfail_op{ GL_KEEP };
+	GLenum zpass_op{ GL_KEEP };
+	GLuint write_mask{ 0xFFFFFFFF };
 
-	// @return The top left position of the viewport.
-	[[nodiscard]] V2_int GetViewportPosition();
+	bool operator==(const StencilState&) const = default;
+};
 
-	// Clears the currently bound frame buffer's color and depth buffers.
-	void Clear();
+struct DepthState {
+	GLboolean test{ GL_FALSE };
+	GLboolean write{ GL_TRUE };
+	GLenum func{ GL_LESS };
+	GLfloat range_near{ 0.0f };
+	GLfloat range_far{ 1.0f };
 
-	// Sets the clear color for all color buffers.
-	void SetClearColor(const Color& color);
+	bool operator==(const DepthState&) const = default;
+};
 
-	// Clears the currently bound frame buffer's color buffer to the specified color.
-	void ClearToColor(const Color& color);
+struct ColorMaskState {
+	GLboolean red{ GL_TRUE };
+	GLboolean green{ GL_TRUE };
+	GLboolean blue{ GL_TRUE };
+	GLboolean alpha{ GL_TRUE };
 
-	// Clears the currently bound frame buffer's color buffer to the specified color.
-	// @param normalized_color All values must be in range [0, 1].
-	void ClearToColor(const V4_float& normalized_color);
+	bool operator==(const ColorMaskState&) const = default;
+};
 
-	void DrawElements(
-		const VertexArray& va, std::size_t index_count, bool bind_vertex_array = true
-	);
-	void DrawArrays(const VertexArray& va, std::size_t vertex_count, bool bind_vertex_array = true);
+struct ScissorState {
+	GLboolean enabled{ GL_FALSE };
+	// Top left position.
+	V2_int position;
+	V2_int size;
 
-	// @return The maximum number of texture slots available on the current hardware.
-	[[nodiscard]] std::uint32_t GetMaxTextureSlots();
+	bool operator==(const ScissorState&) const = default;
+};
 
-	// @return True if depth testing is enabled, false otherwise.
-	[[nodiscard]] bool IsDepthTestingEnabled();
+struct CullState {
+	GLboolean enabled{ GL_FALSE };
+	GLenum face{ GL_BACK };
+	GLenum front{ GL_CCW };
+
+	bool operator==(const CullState&) const = default;
+};
+
+struct State {
+	// Core object bindings
+	Handle<FrameBuffer> frame_buffer;
+	Handle<RenderBuffer> render_buffer;
+	Handle<UniformBuffer> uniform_buffer;
+	Handle<Shader> shader;
+	Handle<VertexArray> vertex_array;
+
+	Viewport viewport;
+
+	DepthState depth;
+
+	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
+	GLboolean blending{ GL_FALSE };
+
+	ColorMaskState color_mask;
+
+	GLuint active_texture_slot{ 0 };
+	std::vector<TextureUnitState> texture_units;
+
+	Color clear_color;
+
+	ScissorState scissor;
+
+	// Polygon rasterization
+	GLenum polygon_mode_front{ GL_FILL };
+	GLenum polygon_mode_back{ GL_FILL };
+	GLfloat line_width{ 1.0f };
+
+	CullState cull;
+
+	StencilState stencil;
+
+	bool operator==(const State&) const = default;
 };
 
 } // namespace ptgn::impl::gl
