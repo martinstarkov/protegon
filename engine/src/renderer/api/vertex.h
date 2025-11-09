@@ -4,7 +4,7 @@
 
 #include "math/vector2.h"
 #include "renderer/api/glsl_types.h"
-#include "renderer/buffer/buffer_layout.h"
+#include "renderer/gl/buffer_layout.h"
 
 namespace ptgn {
 

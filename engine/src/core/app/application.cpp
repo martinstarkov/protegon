@@ -8,6 +8,15 @@
 #include <unordered_set>
 #include <vector>
 
+#include "SDL.h"
+#include "SDL_error.h"
+#include "SDL_hints.h"
+#include "SDL_image.h"
+#include "SDL_mixer.h"
+#include "SDL_timer.h"
+#include "SDL_ttf.h"
+#include "SDL_version.h"
+#include "SDL_video.h"
 #include "audio/audio.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
@@ -27,15 +36,6 @@
 #include "renderer/material/shader.h"
 #include "renderer/renderer.h"
 #include "renderer/text/font.h"
-#include "SDL.h"
-#include "SDL_error.h"
-#include "SDL_hints.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
-#include "SDL_timer.h"
-#include "SDL_ttf.h"
-#include "SDL_version.h"
-#include "SDL_video.h"
 #include "serialization/json/json.h"
 #include "serialization/json/json_manager.h"
 #include "world/scene/scene_manager.h"
@@ -229,7 +229,7 @@ Application::SDLInstance::~SDLInstance() {
 
 Application::Application(const ApplicationConfig& config) :
 	window_{ config.title, config.window_size },
-	renderer_{ config.window_size },
+	renderer_{ window_ },
 	scenes_{},
 	input_{ window_, renderer_, scenes_ },
 	assets_{} {

@@ -20,10 +20,8 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/app/window.h"
-#include "core/ecs/components/draw.h"
 #include "core/ecs/components/drawable.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/generic.h"
@@ -54,20 +52,12 @@
 #include "renderer/api/color.h"
 #include "renderer/api/glsl_types.h"
 #include "renderer/api/origin.h"
-#include "renderer/api/vertex.h"
-#include "renderer/buffer/buffer.h"
-#include "renderer/buffer/frame_buffer.h"
-#include "renderer/buffer/vertex_array.h"
-#include "renderer/gl/gl_renderer.h"
-#include "renderer/material/shader.h"
-#include "renderer/material/texture.h"
-#include "renderer/render_target.h"
+#include "renderer/gl/gl_context.h"
 #include "renderer/stencil_mask.h"
 #include "renderer/text/font.h"
 #include "renderer/text/text.h"
 #include "world/scene/camera.h"
 #include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -912,8 +902,11 @@ TextureId Renderer::PingPong(
 	return write->frame_buffer.GetTexture().GetId();
 }
 
-Renderer::Renderer(const V2_float& viewport_size) : game_size_{ viewport_size } {
-	RecomputeDisplaySize(ctx_.window->GetSize());
+Renderer::Renderer(Window& window) :
+	game_size_{ window.GetSize() },
+	window_{ window },
+	ctx_{ std::make_unique<impl::gl::GLContext>(window) } {
+	RecomputeDisplaySize(window_.GetSize());
 
 	// GLRenderer::EnableLineSmoothing();
 
@@ -924,17 +917,17 @@ Renderer::Renderer(const V2_float& viewport_size) : game_size_{ viewport_size } 
 
 	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
 
-	const auto& screen_shader{ ctx_.shader->Get("screen_default") };
+	const auto& screen_shader{ ctx_->shader->Get("screen_default") };
 	PTGN_ASSERT(screen_shader.IsValid());
 	screen_shader.Bind();
 	screen_shader.SetUniform("u_Texture", 1);
 
-	const auto& quad_shader{ ctx_.shader->Get("quad") };
+	const auto& quad_shader{ ctx_->shader->Get("quad") };
 
 	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(ctx_.shader->Get("circle").IsValid());
-	PTGN_ASSERT(ctx_.shader->Get("screen_default").IsValid());
-	PTGN_ASSERT(ctx_.shader->Get("light").IsValid());
+	PTGN_ASSERT(ctx_->shader->Get("circle").IsValid());
+	PTGN_ASSERT(ctx_->shader->Get("screen_default").IsValid());
+	PTGN_ASSERT(ctx_->shader->Get("light").IsValid());
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
@@ -979,7 +972,7 @@ Renderer::Renderer(const V2_float& viewport_size) : game_size_{ viewport_size } 
 
 	viewport_tracker = render_manager.CreateEntity();
 	AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
-	auto window_size{ ctx_.window->GetSize() };
+	auto window_size{ window_.GetSize() };
 	RecomputeDisplaySize(window_size);
 
 	render_manager.Refresh();
@@ -991,7 +984,7 @@ const Shader& Renderer::GetCurrentShader() const {
 	PTGN_ASSERT(render_state.shader_pass.has_value());
 
 	if (*render_state.shader_pass == ShaderPass{}) {
-		shader = &ctx_.shader->Get("quad");
+		shader = &ctx_->shader->Get("quad");
 	} else {
 		shader = &(*render_state.shader_pass).GetShader();
 	}
@@ -1417,7 +1410,7 @@ void Renderer::UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mo
 	if (!new_game_size && resolution_mode_ == scaling_mode) {
 		return;
 	}
-	auto window_size{ ctx_.window->GetSize() };
+	auto window_size{ window_.GetSize() };
 	game_size_		   = game_size;
 	resolution_mode_   = scaling_mode;
 	game_size_changed_ = new_game_size;
@@ -1442,7 +1435,7 @@ const Shader& Renderer::GetFullscreenShader(TextureFormat texture_format) const 
 	const Shader* shader{ nullptr };
 
 	if (texture_format == TextureFormat::HDR_RGBA || texture_format == TextureFormat::HDR_RGB) {
-		shader = &ctx_.shader->Get("tone_mapping");
+		shader = &ctx_->shader->Get("tone_mapping");
 		PTGN_ASSERT(shader != nullptr);
 		shader->Bind();
 		shader->SetUniform("u_Texture", 1);
@@ -1450,7 +1443,7 @@ const Shader& Renderer::GetFullscreenShader(TextureFormat texture_format) const 
 		shader->SetUniform("u_Exposure", 1.0f);
 		shader->SetUniform("u_Gamma", 2.2f);
 	} else {
-		shader = &ctx_.shader->Get("screen_default");
+		shader = &ctx_->shader->Get("screen_default");
 	}
 
 	return *shader;
@@ -1640,7 +1633,8 @@ impl::Texture Renderer::CreateTexture(
 	FontSize final_font_size{ font_size };
 
 	if (hd_text) {
-		const auto& scene{ ctx_.scene->GetCurrent() };
+		// TODO: Figure out a better solution to this.
+		const auto& scene{ ctx_->scene->GetCurrent() };
 
 		auto render_target_scale{ scene->GetRenderTargetScaleRelativeTo(camera) };
 
@@ -1805,14 +1799,13 @@ Color Renderer::GetBackgroundColor() const {
 }
 
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
-	V2_int resolution{ render_data_.game_size_set_ ? render_data_.game_size_
-												   : ctx_.window->GetSize() };
+	V2_int resolution{ render_data_.game_size_set_ ? render_data_.game_size_ : window_.GetSize() };
 	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
 void Renderer::SetGameSize(const V2_int& game_size, ScalingMode scaling_mode) {
 	render_data_.game_size_set_ = !game_size.IsZero();
-	V2_int resolution{ render_data_.game_size_set_ ? game_size : ctx_.window->GetSize() };
+	V2_int resolution{ render_data_.game_size_set_ ? game_size : window_.GetSize() };
 	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
@@ -1858,7 +1851,7 @@ void Renderer::PresentScreen() {
 		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
 	);
 
-	ctx_.window->SwapBuffers();
+	window->SwapBuffers();
 }
 
 void Renderer::ClearScreen() const {

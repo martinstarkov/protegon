@@ -18,6 +18,7 @@ enum class BlendMode {
 		 dstRGB = srcRGB + dstRGB * (1 - srcA)
 		 dstA = srcA + dstA * (1 - srcA) */
 
+	// Aka no blending.
 	ReplaceRGBA,
 	/**< Replace RGBA:
 		 dstRGB = srcRGB

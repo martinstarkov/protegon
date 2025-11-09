@@ -12,7 +12,6 @@
 #include "physics/collision_handler.h"
 #include "physics/physics.h"
 #include "renderer/api/color.h"
-#include "renderer/render_target.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/serializable.h"
 #include "world/scene/camera.h"

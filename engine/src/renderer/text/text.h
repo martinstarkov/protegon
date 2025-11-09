@@ -10,7 +10,6 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/material/texture.h"
 #include "renderer/text/font.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serializable.h"
