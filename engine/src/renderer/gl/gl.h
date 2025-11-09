@@ -3,8 +3,8 @@
 #include <source_location>
 #include <string_view>
 
-#include "core/util/platform.h"
-#include "debug/core/debug_config.h"
+#include "core/config/build_config.h"
+#include "core/platform/platform.h"
 
 // IMPORTANT: This file is not meant to be included outside the protegon library
 // so keep it in .cpp files only!

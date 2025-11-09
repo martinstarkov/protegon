@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "math/math_utils.h"
 #include "math/rng.h"
 #include "math/vector2.h"

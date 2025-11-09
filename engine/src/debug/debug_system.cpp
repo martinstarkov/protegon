@@ -1,4 +1,4 @@
-#include "debug/runtime/debug_system.h"
+#include "debug/debug_system.h"
 
 #include <cstdint>
 #include <limits>
@@ -9,7 +9,7 @@
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/components/transform.h"
-#include "debug/runtime/stats.h"
+#include "debug/stats.h"
 #include "math/geometry/line.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"

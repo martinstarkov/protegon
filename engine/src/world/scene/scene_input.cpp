@@ -9,17 +9,17 @@
 #include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/interactive.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/mouse.h"
+#include "core/log.h"
 #include "core/scripting/script.h"
 #include "core/util/span.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
+#include "debug/debug_system.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
@@ -605,13 +605,15 @@ V2_float SceneInput::GetMousePosition(ViewportType relative_to, bool clamp_to_vi
 	return Application::Get().input_.GetMousePosition(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
-	const {
+V2_float SceneInput::GetMousePositionPrevious(
+	ViewportType relative_to, bool clamp_to_viewport
+) const {
 	return Application::Get().input_.GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }
 
-V2_float SceneInput::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
-	const {
+V2_float SceneInput::GetMousePositionDifference(
+	ViewportType relative_to, bool clamp_to_viewport
+) const {
 	return Application::Get().input_.GetMousePositionDifference(relative_to, clamp_to_viewport);
 }
 

@@ -1,6 +1,6 @@
-#include "debug/runtime/stats.h"
+#include "debug/stats.h"
 
-#include "debug/core/log.h"
+#include "core/log.h"
 
 namespace ptgn::impl {
 

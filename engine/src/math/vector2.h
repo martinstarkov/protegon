@@ -8,8 +8,8 @@
 #include <ostream>
 #include <type_traits>
 
+#include "core/assert.h"
 #include "core/util/concepts.h"
-#include "debug/runtime/assert.h"
 #include "math/math_utils.h"
 #include "math/rng.h"
 #include "math/tolerance.h"

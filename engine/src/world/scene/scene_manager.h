@@ -5,11 +5,10 @@
 #include <optional>
 #include <vector>
 
-#include "core/app/engine_context.h"
+#include "core/assert.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/span.h"
-#include "debug/runtime/assert.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_key.h"
 #include "world/scene/scene_transition.h"
@@ -45,7 +44,6 @@ struct SceneEntry {
 };
 
 struct TransitionContext {
-	EngineContext& ctx;
 	Scene& from; // Can be same as `to` if overlay-in
 	Scene& to;
 	float t;	 // 0..1 progress
@@ -127,7 +125,7 @@ class SceneManager {
 public:
 	SceneManager() = default;
 
-	explicit SceneManager(EngineContext ctx) : ctx_{ ctx } {}
+	explicit SceneManager() {}
 
 	~SceneManager() noexcept						 = default;
 	SceneManager(const SceneManager&)				 = delete;
@@ -229,7 +227,6 @@ private:
 
 	Scene* current_scene_ = nullptr;
 
-	EngineContext ctx_;
 	std::vector<SceneEntry> entries_;
 	std::vector<Operation> queue_;
 	std::vector<TransitionRun> runs_;
@@ -276,8 +273,10 @@ private:
 
 				if (has_from && op.transition) {
 					// Normal transition path
-					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
-												   0.0, op.kill_from_on_end });
+					runs_.push_back(
+						TransitionRun{ from_index, to_index, std::move(op.transition), 0.0,
+									   op.kill_from_on_end }
+					);
 					ApplyPoliciesOnStart(runs_.back());
 				} else if (!has_from) {
 					// First scene: start immediately
@@ -299,8 +298,9 @@ private:
 				size_t to_index	  = IndexById(entries_.back().id);
 				size_t from_index = (entries_.size() >= 2) ? to_index - 1 : SIZE_MAX;
 				if (op.transition && from_index != SIZE_MAX) {
-					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
-												   0.0, false });
+					runs_.push_back(
+						TransitionRun{ from_index, to_index, std::move(op.transition), 0.0, false }
+					);
 					ApplyPoliciesOnStart(runs_.back());
 				} else {
 					entries_[to_index].phase = Phase::Running;
@@ -312,8 +312,9 @@ private:
 				}
 				size_t to_index = (from_index > 0) ? from_index - 1 : from_index;
 				if (op.transition && from_index != SIZE_MAX) {
-					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
-												   0.0, true });
+					runs_.push_back(
+						TransitionRun{ from_index, to_index, std::move(op.transition), 0.0, true }
+					);
 					ApplyPoliciesOnStart(runs_.back());
 				} else {
 					entries_[from_index].phase = Phase::Dead;
@@ -339,8 +340,8 @@ private:
 		std::vector<size_t> done;
 		for (size_t i = 0; i < runs_.size(); ++i) {
 			auto& run = runs_[i];
-			TransitionContext context{ ctx_, *entries_[run.from_index].ptr,
-									   *entries_[run.to_index].ptr, run.progress, dt };
+			TransitionContext context{ *entries_[run.from_index].ptr, *entries_[run.to_index].ptr,
+									   run.progress, dt };
 			bool finished = run.transition->Step(context);
 			run.progress  = context.t;
 			if (finished) {

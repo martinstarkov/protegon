@@ -2,7 +2,7 @@
 
 #include <ostream>
 
-#include "debug/core/log.h"
+#include "core/log.h"
 #include "math/vector2.h"
 #include "serialization/json/enum.h"
 

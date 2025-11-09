@@ -12,9 +12,9 @@
 #include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/ecs/entity.h"
 #include "core/scripting/script_interfaces.h"
-#include "debug/runtime/assert.h"
 #include "math/hash.h"
 #include "nlohmann/json.hpp"
 #include "serialization/json/fwd.h"
@@ -228,8 +228,9 @@ public:
 		requires std::constructible_from<
 			TScript, TArgs...> // TODO: Fix concept impl::DerivedFromTemplate<TScript, Script>
 	TScript& AddScript(TArgs&&... args) {
-		auto& script{ scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...)
-		) };
+		auto& script{
+			scripts_.emplace_back(std::make_shared<TScript>(std::forward<TArgs>(args)...))
+		};
 		// Explicit for debugging purposes.
 		TScript& s{ *std::dynamic_pointer_cast<TScript>(script) };
 		return s;
@@ -310,8 +311,9 @@ public:
 	}
 
 	template <typename TInterface, typename... TArgs>
-	[[nodiscard]] bool ConditionCheck(bool (TInterface::*func)(TArgs...) const, TArgs&&... args)
-		const {
+	[[nodiscard]] bool ConditionCheck(
+		bool (TInterface::*func)(TArgs...) const, TArgs&&... args
+	) const {
 		constexpr ScriptType type{ TInterface::GetScriptType() };
 
 		// In case the condition check function removes scripts, this prevents iterator

@@ -2,10 +2,10 @@
 
 #include <array>
 
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 
@@ -45,8 +45,9 @@ std::array<V2_float, 4> Rect::GetLocalVertices() const {
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }
 
-std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform, Origin draw_origin)
-	const {
+std::array<V2_float, 4> Rect::GetWorldVertices(
+	const Transform& transform, Origin draw_origin
+) const {
 	auto offset_transform{ Offset(transform, draw_origin) };
 	auto local_vertices{ GetLocalVertices() };
 	return offset_transform.Apply(local_vertices);

@@ -6,7 +6,7 @@
 // #include <string_view>
 // #include <type_traits>
 //
-// #include "debug/runtime/assert.h"
+// #include "core/assert.h"
 // #include "core/util/type_info.h"
 //
 // #include "core/ecs/entity.h"

@@ -1,4 +1,4 @@
-#include "debug/runtime/profiling.h"
+#include "debug/profiling.h"
 
 #include <string>
 #include <string_view>
@@ -6,7 +6,7 @@
 #include "core/app/Application.h"
 #include "core/asset/asset_manager.h"
 #include "core/util/timer.h"
-#include "debug/runtime/debug_system.h"
+#include "debug/debug_system.h"
 
 namespace ptgn::impl {
 

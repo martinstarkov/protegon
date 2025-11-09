@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
+#include "core/log.h"
 #include "math/math_utils.h"
 
 namespace ptgn {

@@ -6,11 +6,11 @@
 #include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/ecs/components/offsets.h"
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/util/flags.h"
-#include "debug/runtime/assert.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
 #include "world/scene/camera.h"
@@ -245,8 +245,9 @@ V2_float Transform::ApplyInverse(const V2_float& point) const {
 	return point;
 }
 
-void Transform::Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points)
-	const {
+void Transform::Apply(
+	std::span<const V2_float> points, std::span<V2_float> out_transformed_points
+) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
 	if (rotation_ != 0.0f) {

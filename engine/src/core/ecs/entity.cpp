@@ -5,11 +5,11 @@
 
 #include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/component_registry.h"
 #include "core/ecs/components/uuid.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/util/type_info.h"
-#include "debug/runtime/assert.h"
 #include "ecs/ecs.h"
 #include "renderer/render_target.h"
 #include "serialization/json/fwd.h"

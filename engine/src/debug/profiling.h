@@ -5,12 +5,12 @@
 #include <string_view>
 #include <type_traits>
 
+#include "core/assert.h"
 #include "core/asset/asset_manager.h"
+#include "core/log.h"
 #include "core/util/function.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
 
 namespace ptgn::impl {
 
@@ -35,7 +35,7 @@ private:
 class Profiler : protected MapManager<nanoseconds, std::string, std::string, false> {
 public:
 	Profiler()								 = default;
-	~Profiler() override					 = default;
+	~Profiler()								 = default;
 	Profiler(Profiler&&) noexcept			 = default;
 	Profiler& operator=(Profiler&&) noexcept = default;
 	Profiler(const Profiler&)				 = delete;

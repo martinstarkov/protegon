@@ -4,10 +4,10 @@
 
 #include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "debug/runtime/assert.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
 #include "math/geometry/polygon.h"

@@ -11,9 +11,9 @@
 
 #include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/entity.h"
-#include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
+#include "debug/debug_system.h"
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
@@ -214,7 +214,8 @@ void ChunkManager::DrawDebugChunkBorders() const {
 	}
 }
 
-[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(const V2_int& chunk_coordinate
+[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(
+	const V2_int& chunk_coordinate
 ) const {
 	std::vector<Entity> entities;
 	for (const auto& layer : noise_layers_) {

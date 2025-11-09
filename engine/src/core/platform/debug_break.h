@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/util/platform.h"
-#include "debug/core/debug_config.h"
+#include "core/config/build_config.h"
+#include "core/platform/platform.h"
 
 #define PTGN_DEBUGBREAK() ((void)0)
 

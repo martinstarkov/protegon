@@ -4,6 +4,7 @@
 
 #include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/animation.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/drawable.h"
@@ -16,8 +17,7 @@
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
 #include "core/util/flags.h"
-#include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
+#include "debug/debug_system.h"
 #include "ecs/ecs.h"
 #include "math/geometry_utils.h"
 #include "math/vector2.h"

@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "core/app/application.h"
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"

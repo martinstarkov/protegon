@@ -1,10 +1,10 @@
 #pragma once
 
+#include "core/assert.h"
 #include "core/ecs/components/component_utils.h"
 #include "core/ecs/components/uuid.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/util/concepts.h"
-#include "debug/runtime/assert.h"
 #include "ecs/ecs.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"

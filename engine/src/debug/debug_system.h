@@ -2,11 +2,10 @@
 
 #include <string>
 
-#include "core/ecs/components/draw.h"
 #include "core/ecs/components/generic.h"
-#include "debug/runtime/allocation.h"
-#include "debug/runtime/profiling.h"
-#include "debug/runtime/stats.h"
+#include "debug/allocation.h"
+#include "debug/profiling.h"
+#include "debug/stats.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"

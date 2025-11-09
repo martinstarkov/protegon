@@ -3,8 +3,8 @@
 #include <cmath>
 #include <functional>
 
+#include "core/assert.h"
 #include "core/ecs/components/transform.h"
-#include "debug/runtime/assert.h"
 #include "math/tolerance.h"
 #include "math/vector3.h"
 #include "math/vector4.h"

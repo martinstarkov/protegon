@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "math/rng.h"
 #include "serialization/json/json.h"
 

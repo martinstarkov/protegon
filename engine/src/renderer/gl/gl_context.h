@@ -1,13 +1,14 @@
 #pragma once
 
+#include <cmrc/cmrc.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "core/log.h"
 #include "core/util/concepts.h"
-#include "debug/core/log.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"
@@ -15,6 +16,8 @@
 #include "renderer/gl/gl.h"
 #include "renderer/gl/gl_resource.h"
 #include "renderer/gl/gl_state.h"
+
+CMRC_DECLARE(shader);
 
 #ifdef __EMSCRIPTEN__
 
@@ -46,7 +49,7 @@ public:
 
 	~BindGuard() {
 		if constexpr (kRestoreBind) {
-			gl_.Bind<false>(handle_);
+			auto _ = gl_.Bind<false>(handle_);
 		}
 	}
 
@@ -260,9 +263,7 @@ public:
 			PTGN_ASSERT(bound_.texture_units[slot].texture != handle);
 			GLCall(glBindTexture(GL_TEXTURE_2D, id));
 			bound_.texture_units[slot].texture = handle;
-		}
-
-		else if constexpr (T == FrameBuffer) {
+		} else if constexpr (T == FrameBuffer) {
 			GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
 			bound_.frame_buffer = handle;
 		} else if constexpr (T == VertexArray) {
@@ -336,7 +337,8 @@ public:
 			IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer"
 		);
 		vertex_array.Get().vertex_buffer = vertex_buffer;
-		Bind<false>(vertex_buffer);
+
+		auto _ = Bind<false>(vertex_buffer);
 	}
 
 	void SetElementBuffer(
@@ -346,7 +348,8 @@ public:
 			IsBound(vertex_array), "Vertex array must be bound before setting element buffer"
 		);
 		vertex_array.Get().element_buffer = element_buffer;
-		Bind<false>(element_buffer);
+
+		auto _ = Bind<false>(element_buffer);
 	}
 
 	template <VertexDataType... Ts>
@@ -709,8 +712,8 @@ private:
 
 		Handle<T> handle{ std::move(resource) };
 
-		auto _ = Bind<VertexArray, true>({});
-		Bind<false>(handle);
+		auto _1 = Bind<true>(Handle<VertexArray>{});
+		auto _2 = Bind<false>(handle);
 
 		GLCall(BufferData(target, size, data, usage));
 

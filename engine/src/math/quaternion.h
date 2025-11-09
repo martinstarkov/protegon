@@ -5,7 +5,7 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "math/matrix4.h"
 #include "math/vector3.h"
 #include "math/vector4.h"

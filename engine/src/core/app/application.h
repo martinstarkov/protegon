@@ -4,7 +4,7 @@
 #include "core/app/window.h"
 #include "core/asset/asset_manager.h"
 #include "core/input/input_handler.h"
-#include "debug/runtime/debug_system.h"
+#include "debug/debug_system.h"
 #include "math/vector2.h"
 #include "renderer/renderer.h"
 #include "world/scene/scene_key.h"

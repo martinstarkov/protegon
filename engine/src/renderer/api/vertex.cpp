@@ -2,8 +2,8 @@
 
 #include <array>
 
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
-#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"

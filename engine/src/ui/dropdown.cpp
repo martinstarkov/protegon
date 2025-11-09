@@ -3,13 +3,13 @@
 #include <vector>
 
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
-#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "ui/button.h"

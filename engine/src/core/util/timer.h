@@ -3,8 +3,8 @@
 #include <chrono>
 #include <type_traits>
 
+#include "core/assert.h"
 #include "core/util/time.h"
-#include "debug/runtime/assert.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

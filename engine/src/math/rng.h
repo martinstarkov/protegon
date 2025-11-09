@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/json.h"
 

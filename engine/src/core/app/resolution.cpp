@@ -1,7 +1,7 @@
 #include "core/app/resolution.h"
 
+#include "core/assert.h"
 #include "core/ecs/components/transform.h"
-#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "world/scene/camera.h"
 

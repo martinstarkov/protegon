@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/ecs/entity.h"
 #include "core/util/span.h"
-#include "debug/runtime/assert.h"
 #include "math/geometry/shape.h"
 
 namespace ptgn {

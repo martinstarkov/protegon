@@ -12,8 +12,8 @@
 #include "core/ecs/entity.h"
 #include "core/ecs/game_object.h"
 #include "core/input/mouse.h"
+#include "core/log.h"
 #include "core/scripting/script.h"
-#include "debug/core/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/material/texture.h"
@@ -318,8 +318,9 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(ButtonState state = ButtonState::Current)
-		const;
+	[[nodiscard]] const TextureHandle& GetTextureKey(
+		ButtonState state = ButtonState::Current
+	) const;
 
 	Button& SetTextureKey(
 		const TextureHandle& texture_key, ButtonState state = ButtonState::Default

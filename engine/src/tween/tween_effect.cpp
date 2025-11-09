@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/app/application.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/offsets.h"
@@ -15,7 +16,6 @@
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/util/time.h"
-#include "debug/runtime/assert.h"
 #include "math/easing.h"
 #include "math/math_utils.h"
 #include "math/noise.h"
@@ -379,7 +379,9 @@ impl::EffectObject<impl::ShakeEffect>& Shake(
 			Entity parent{ GetParent(e) };
 			auto& offsets{ parent.Get<impl::Offsets>() };
 
-			shake.trauma = std::clamp(shake.trauma - config.recovery_speed * Application::Get().dt(), 0.0f, 1.0f);
+			shake.trauma = std::clamp(
+				shake.trauma - config.recovery_speed * Application::Get().dt(), 0.0f, 1.0f
+			);
 			ApplyShake(offsets, shake.trauma, config, seed);
 
 			if (shake.trauma <= 0.0f) {

@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
@@ -12,7 +13,6 @@
 #include "core/ecs/game_object.h"
 #include "core/scripting/script_interfaces.h"
 #include "core/util/time.h"
-#include "debug/runtime/assert.h"
 #include "math/easing.h"
 #include "math/hash.h"
 #include "math/vector2.h"

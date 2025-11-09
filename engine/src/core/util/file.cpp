@@ -8,7 +8,7 @@
 #include <sstream>
 #include <string>
 
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

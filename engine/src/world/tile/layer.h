@@ -9,7 +9,7 @@
 #include "math/vector2.h"
 #include "renderer/material/texture.h"
 #include "world/tile/grid.h"
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "core/util/file.h"
 
 namespace ptgn {

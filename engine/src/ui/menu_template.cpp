@@ -9,10 +9,10 @@
 #include <vector>
 
 #include "core/app/application.h"
+#include "core/assert.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
+#include "core/log.h"
 #include "math/hash.h"
 #include "math/vector2.h"
 #include "nlohmann/json.hpp"
@@ -140,10 +140,7 @@ void TemplateMenuScene::Enter() {
 } // namespace impl
 
 SceneAction::SceneAction() :
-	actions_{ { Hash("quit"),
-				[]() {
-					Application::Get().Stop();
-				} } },
+	actions_{ { Hash("quit"), []() { Application::Get().Stop(); } } },
 	prefix_handlers_{ { "enter:",
 						[](const std::string&, const json& scenes, const std::string& to) {
 							// TODO: Fix.

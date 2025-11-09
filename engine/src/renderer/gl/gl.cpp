@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-#include "debug/core/log.h"
+#include "core/log.h"
 
 namespace ptgn::impl::gl {
 

@@ -10,62 +10,28 @@
 #include <variant>
 #include <vector>
 
-#include "core/util/file.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "math/hash.h"
-#include "math/matrix4.h"
-#include "math/vector2.h"
-#include "math/vector3.h"
-#include "math/vector4.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/fwd.h"
-
-CMRC_DECLARE(shader);
+#include "core/log.h"
+#include "renderer/gl/gl.h"
 
 namespace ptgn {
-
-namespace impl {
-
-class ShaderManager;
-
-} // namespace impl
 
 // Wrapper for distinguishing between Shader from path construction and Shader
 // from source construction.
 struct ShaderCode {
-	ShaderCode() = default;
-
-	// Explicit construction prevents conflict with Shader path construction.
-	explicit ShaderCode(const std::string& source) : source_{ source } {}
-
-	~ShaderCode() = default;
-
-	std::string source_;
+	std::string source;
 };
 
-enum class ShaderType : std::uint32_t {
-	Vertex	 = 0x8B31, // GL_VERTEX_SHADER
-	Fragment = 0x8B30, // GL_FRAGMENT_SHADER
-					   /*
-						   Compute		   = 0x91B9, // GL_COMPUTE_SHADER
-						   Geometry	   = 0x8DD9, // GL_GEOMETRY_SHADER
-						   TessEvaluation = 0x8E87, // GL_TESS_EVALUATION_SHADER
-						   TessControl	   = 0x8E88	 // GL_TESS_CONTROL_SHADER
-					   */
-};
-
-inline std::ostream& operator<<(std::ostream& os, ShaderType type) {
-	switch (type) {
-		case ShaderType::Vertex:   os << "Vertex"; break;
-		case ShaderType::Fragment: os << "Fragment"; break;
+inline std::ostream& operator<<(std::ostream& os, GLuint shader_type) {
+	switch (shader_type) {
+		case GL_VERTEX_SHADER:	 os << "Vertex"; break;
+		case GL_FRAGMENT_SHADER: os << "Fragment"; break;
 		/*
-		case ShaderType::Compute:		 os << "Compute"; break;
-		case ShaderType::Geometry:		 os << "Geometry"; break;
-		case ShaderType::TessEvaluation: os << "TessEvaluation"; break;
-		case ShaderType::TessControl:	 os << "TessControl"; break;
+		case GL_COMPUTE_SHADER:		 os << "Compute"; break;
+		case GL_GEOMETRY_SHADER:		 os << "Geometry"; break;
+		case GL_TESS_EVALUATION_SHADER: os << "TessEvaluation"; break;
+		case GL_TESS_CONTROL_SHADER:	 os << "TessControl"; break;
 		*/
-		default:				   PTGN_ERROR("Unrecognized shader type");
+		default:				 PTGN_ERROR("Unrecognized shader type");
 	}
 	return os;
 }
@@ -109,8 +75,9 @@ public:
 	void SetUniform(const std::string& name, const Vector4<std::int32_t>& v) const;
 	void SetUniform(const std::string& name, std::int32_t v0) const;
 	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1) const;
-	void SetUniform(const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2)
-		const;
+	void SetUniform(
+		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+	) const;
 	void SetUniform(
 		const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2, std::int32_t v3
 	) const;
@@ -138,7 +105,7 @@ public:
 	[[nodiscard]] std::string_view GetName() const;
 
 	// Compile shader
-	[[nodiscard]] static ShaderId Compile(ShaderType type, const std::string& source);
+	[[nodiscard]] static ShaderId Compile(GLuint type, const std::string& source);
 
 private:
 	friend class impl::ShaderManager;
@@ -170,7 +137,7 @@ struct ShaderCache {
 };
 
 struct ShaderTypeSource {
-	ShaderType type{ ShaderType::Fragment };
+	GLuint type{ GL_FRAGMENT_SHADAER };
 	ShaderCode source;
 	std::string name; // optional name for shader.
 };

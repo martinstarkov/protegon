@@ -5,13 +5,13 @@
 #include <functional>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
 #include "core/ecs/game_object.h"
 #include "core/util/time.h"
-#include "debug/runtime/assert.h"
 #include "math/easing.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"

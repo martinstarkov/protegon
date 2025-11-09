@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "core/ecs/entity.h"
+#include "core/log.h"
 #include "core/util/span.h"
-#include "debug/core/log.h"
 
 namespace ptgn {
 

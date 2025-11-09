@@ -5,10 +5,10 @@
 #include <vector>
 
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/relatives.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "debug/runtime/assert.h"
 
 namespace ptgn {
 

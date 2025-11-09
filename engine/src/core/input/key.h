@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <ostream>
 
-#include "core/util/platform.h"
-#include "debug/core/log.h"
+#include "core/log.h"
+#include "core/platform/platform.h"
 #include "serialization/json/enum.h"
 
 namespace ptgn {

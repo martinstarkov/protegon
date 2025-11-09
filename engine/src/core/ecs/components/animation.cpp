@@ -7,15 +7,15 @@
 #include <utility>
 
 #include "core/app/manager.h"
+#include "core/assert.h"
+#include "core/asset/asset_manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/entity.h"
-#include "core/asset/asset_manager.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
-#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/material/texture.h"
 

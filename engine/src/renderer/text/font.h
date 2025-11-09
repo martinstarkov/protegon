@@ -104,8 +104,9 @@ public:
 	) const;
 
 	// @return Total height of the font in pixels.
-	[[nodiscard]] FontSize GetHeight(const ResourceHandle& key, const FontSize& font_size = {})
-		const;
+	[[nodiscard]] FontSize GetHeight(
+		const ResourceHandle& key, const FontSize& font_size = {}
+	) const;
 
 	// Note: This function will not serialize any fonts loaded from binaries.
 	friend void to_json(json& j, const FontManager& manager);
@@ -136,8 +137,9 @@ private:
 
 	[[nodiscard]] static Font LoadFromFile(const path& filepath);
 
-	[[nodiscard]] TemporaryFont Get(const ResourceHandle& key, const FontSize& font_size = {})
-		const;
+	[[nodiscard]] TemporaryFont Get(
+		const ResourceHandle& key, const FontSize& font_size = {}
+	) const;
 
 	ResourceHandle default_key_;
 

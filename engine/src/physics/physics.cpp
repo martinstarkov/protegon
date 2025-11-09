@@ -2,11 +2,11 @@
 
 #include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
+#include "core/log.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "world/scene/scene.h"

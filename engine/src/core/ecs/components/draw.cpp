@@ -8,6 +8,7 @@
 
 #include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/drawable.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/generic.h"
@@ -18,7 +19,6 @@
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
 #include "core/util/concepts.h"
-#include "debug/runtime/assert.h"
 #include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"

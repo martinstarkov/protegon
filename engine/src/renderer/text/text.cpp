@@ -5,7 +5,13 @@
 #include <memory>
 #include <string>
 
+#include "SDL_blendmode.h"
+#include "SDL_pixels.h"
+#include "SDL_rect.h"
+#include "SDL_surface.h"
+#include "SDL_ttf.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/asset/asset_manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
@@ -13,18 +19,12 @@
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
+#include "core/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/material/texture.h"
 #include "renderer/render_data.h"
 #include "renderer/text/font.h"
-#include "SDL_blendmode.h"
-#include "SDL_pixels.h"
-#include "SDL_rect.h"
-#include "SDL_surface.h"
-#include "SDL_ttf.h"
 #include "world/scene/camera.h"
 #include "world/scene/scene.h"
 
@@ -265,7 +265,8 @@ impl::Texture Text::CreateTexture(
 			);
 			break;
 		default:
-			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
+			PTGN_ERROR(
+				"Unrecognized render mode given when creating surface from font information"
 			);
 	}
 

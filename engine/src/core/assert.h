@@ -7,9 +7,9 @@
 #include <sstream>
 #include <string_view>
 
-#include "debug/core/debug_break.h"
-#include "debug/core/debug_config.h"
-#include "debug/core/log.h"
+#include "core/config/build_config.h"
+#include "core/log.h"
+#include "core/platform/debug_break.h"
 
 #ifdef PTGN_DEBUG
 #define PTGN_ENABLE_ASSERTS
@@ -30,7 +30,7 @@ template <Loggable... Ts>
 	const std::string composed =
 		msg.empty() ? std::string{ expr } : std::format("{} | {}", expr, msg);
 
-	::ptgn::DebugMessage("ASSERTION FAILED: ", std::optional<std::string>{ composed }, where);
+	DebugMessage("ASSERTION FAILED: ", std::optional<std::string>{ composed }, where);
 
 	PTGN_DEBUGBREAK();
 	std::abort();

@@ -7,7 +7,7 @@
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "debug/core/log.h"
+#include "core/log.h"
 #include "math/vector2.h"
 #include "renderer/buffer/frame_buffer.h"
 #include "renderer/material/texture.h"

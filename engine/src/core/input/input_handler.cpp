@@ -6,25 +6,25 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/application.h"
-#include "core/app/resolution.h"
-#include "core/app/window.h"
-#include "core/ecs/components/transform.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "core/util/time.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "math/geometry/rect.h"
-#include "math/overlap.h"
-#include "math/vector2.h"
-#include "renderer/renderer.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_timer.h"
 #include "SDL_video.h"
+#include "core/app/application.h"
+#include "core/app/resolution.h"
+#include "core/app/window.h"
+#include "core/assert.h"
+#include "core/ecs/components/transform.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
+#include "core/log.h"
+#include "core/util/time.h"
+#include "math/geometry/rect.h"
+#include "math/overlap.h"
+#include "math/vector2.h"
+#include "renderer/renderer.h"
 
 namespace ptgn {
 
@@ -356,13 +356,15 @@ V2_float InputHandler::GetMousePosition(ViewportType relative_to, bool clamp_to_
 	return GetPositionRelativeTo(mouse_window_pos, relative_to, clamp_to_viewport);
 }
 
-V2_float InputHandler::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
-	const {
+V2_float InputHandler::GetMousePositionPrevious(
+	ViewportType relative_to, bool clamp_to_viewport
+) const {
 	return GetPositionRelativeTo(previous_mouse_position_, relative_to, clamp_to_viewport);
 }
 
-V2_float InputHandler::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
-	const {
+V2_float InputHandler::GetMousePositionDifference(
+	ViewportType relative_to, bool clamp_to_viewport
+) const {
 	return GetMousePosition(relative_to, clamp_to_viewport) -
 		   GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }

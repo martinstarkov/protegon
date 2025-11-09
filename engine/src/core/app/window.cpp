@@ -8,8 +8,8 @@
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
+#include "core/log.h"
 #include "math/vector2.h"
 
 #ifdef __EMSCRIPTEN__

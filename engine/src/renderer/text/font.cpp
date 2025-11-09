@@ -6,16 +6,16 @@
 #include <unordered_map>
 #include <utility>
 
+#include "SDL_error.h"
+#include "SDL_rwops.h"
+#include "SDL_ttf.h"
+#include "core/assert.h"
 #include "core/asset/asset_manager.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/entity.h"
 #include "core/util/file.h"
-#include "debug/runtime/assert.h"
 #include "math/vector2.h"
 #include "renderer/text/fonts.h"
-#include "SDL_error.h"
-#include "SDL_rwops.h"
-#include "SDL_ttf.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 #include "world/scene/camera.h"
@@ -116,8 +116,7 @@ TemporaryFont FontManager::Get(const ResourceHandle& key, const FontSize& font_s
 	auto& resource_info{ resources_.find(key)->second };
 
 	if (font_size == FontSize{}) {
-		return TemporaryFont{ resource_info.resource.get(), [](TTF_Font*) {
-							 } };
+		return TemporaryFont{ resource_info.resource.get(), [](TTF_Font*) {} };
 	}
 
 	if (!resource_info.filepath.empty()) {

@@ -12,7 +12,11 @@
 #include <string>
 #include <string_view>
 
-#include "debug/core/debug_break.h"
+#include "core/platform/debug_break.h"
+
+#define PTGN_ABORT()   \
+	PTGN_DEBUGBREAK(); \
+	std::abort()
 
 namespace ptgn::impl {
 
@@ -143,6 +147,3 @@ template <impl::Loggable... Ts>
 #define PTGN_INFO(...)	::ptgn::impl::Info(__VA_ARGS__)
 #define PTGN_WARN(...)	::ptgn::impl::Warn(__VA_ARGS__)
 #define PTGN_ERROR(...) ::ptgn::impl::Error(__VA_ARGS__)
-#define PTGN_ABORT()   \
-	PTGN_DEBUGBREAK(); \
-	std::abort()

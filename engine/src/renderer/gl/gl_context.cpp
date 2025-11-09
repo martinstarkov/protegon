@@ -4,9 +4,9 @@
 
 #include "SDL_error.h"
 #include "SDL_video.h"
+#include "core/assert.h"
+#include "core/log.h"
 #include "core/util/macro.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
 #include "renderer/gl/gl.h"
 
 #define PTGN_VSYNC_MODE -1

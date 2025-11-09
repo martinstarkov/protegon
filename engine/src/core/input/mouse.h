@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <ostream>
 
-#include "debug/core/log.h"
+#include "core/log.h"
 #include "serialization/json/enum.h"
 
 namespace ptgn {

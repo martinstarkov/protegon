@@ -12,6 +12,7 @@
 
 #include "core/app/application.h"
 #include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/components/sprite.h"
@@ -21,12 +22,11 @@
 #include "core/ecs/game_object.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/log.h"
 #include "core/scripting/script.h"
 #include "core/util/file.h"
 #include "core/util/span.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
+#include "debug/debug_system.h"
 #include "math/math_utils.h"
 #include "math/rng.h"
 #include "math/vector2.h"
@@ -552,7 +552,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		return pages;
 	}
 
-	const int line_height = Application::Get().font.GetSize(properties.font_key, "Ay", properties.font_size).y;
+	const int line_height =
+		Application::Get().font.GetSize(properties.font_key, "Ay", properties.font_size).y;
 
 	auto WrapTextToBox = [&](const std::string& text, int max_width, int max_lines,
 							 int split_begin_width,
@@ -568,7 +569,9 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		while (word_stream >> word) {
 			std::string test_line = current_line.empty() ? word : current_line + " " + word;
 
-			V2_int size{ Application::Get().font.GetSize(properties.font_key, test_line, properties.font_size) };
+			V2_int size{ Application::Get().font.GetSize(
+				properties.font_key, test_line, properties.font_size
+			) };
 
 			if (is_first_line) {
 				size.x += split_begin_width; // Add split_begin width on the first line
@@ -583,9 +586,10 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 				if (current_line.empty()) {
 					std::string chunk;
 					for (char ch : word) {
-						chunk += ch;
-						V2_int part_size =
-							Application::Get().font.GetSize(properties.font_key, chunk, properties.font_size);
+						chunk			 += ch;
+						V2_int part_size  = Application::Get().font.GetSize(
+							 properties.font_key, chunk, properties.font_size
+						 );
 						if (part_size.x > max_width) {
 							if (chunk.size() > 1) {
 								chunk.pop_back();
@@ -610,17 +614,19 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		}
 
 		if (!current_line.empty()) {
-			V2_int size =
-				Application::Get().font.GetSize(properties.font_key, current_line, properties.font_size);
+			V2_int size = Application::Get().font.GetSize(
+				properties.font_key, current_line, properties.font_size
+			);
 			if (size.x <= max_width) {
 				lines.push_back(current_line);
 			} else {
 				// Final check in case of leftover overlong word
 				std::string chunk;
 				for (char ch : current_line) {
-					chunk += ch;
-					V2_int part_size =
-						Application::Get().font.GetSize(properties.font_key, chunk, properties.font_size);
+					chunk			 += ch;
+					V2_int part_size  = Application::Get().font.GetSize(
+						 properties.font_key, chunk, properties.font_size
+					 );
 					if (part_size.x > max_width) {
 						if (chunk.size() > 1) {
 							chunk.pop_back();

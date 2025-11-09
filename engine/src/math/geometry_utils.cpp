@@ -12,7 +12,7 @@
 #include <variant>
 #include <vector>
 
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
 #include "math/geometry/line.h"
 #include "math/geometry/triangle.h"
 #include "math/tolerance.h"
