@@ -1,10 +1,10 @@
 // #include <functional>
 //
-// #include "debug/runtime/assert.h"
+// #include "core/assert.h"
 // #include "core/app/application.h"
 //
 // #include "core/app/window.h"
-// #include "debug/core/log.h"
+// #include "core/log.h"
 // #include "core/input/input_handler.h"
 // #include "math/vector2.h"
 // #include "world/scene/scene.h"

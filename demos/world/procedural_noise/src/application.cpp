@@ -1,13 +1,14 @@
+#include "core/app/application.h"
+
 #include <algorithm>
 #include <cstdint>
 
-#include "debug/runtime/assert.h"
-#include "core/ecs/components/movement.h"
-#include "core/app/application.h"
 #include "core/app/window.h"
-#include "debug/core/log.h"
+#include "core/assert.h"
+#include "core/ecs/components/movement.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/log.h"
 #include "math/math_utils.h"
 #include "math/noise.h"
 #include "math/vector2.h"
@@ -216,7 +217,9 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				Application::Get().render_.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
+				Application::Get().render_.DrawRect(
+					p * pixel_size, pixel_size, color, -1.0f, Origin::Center
+				);
 			}
 		}
 
@@ -225,7 +228,9 @@ public:
 			3.0f, Origin::Center
 		);
 
-		Application::Get().render_.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
+		Application::Get().render_.DrawRect(
+			{}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft
+		);
 	}
 };
 

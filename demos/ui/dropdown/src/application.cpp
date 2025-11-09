@@ -1,16 +1,17 @@
+#include "core/app/application.h"
+
 #include <functional>
 #include <string_view>
 
-#include "core/app/application.h"
 #include "core/app/window.h"
-#include "debug/core/log.h"
+#include "core/log.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
 #include "ui/button.h"
 #include "ui/dropdown.h"
+#include "world/scene/scene.h"
+#include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 

@@ -8,7 +8,7 @@
 #include "core/ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
-#include "debug/core/log.h"
+#include "core/log.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "world/scene/scene.h"

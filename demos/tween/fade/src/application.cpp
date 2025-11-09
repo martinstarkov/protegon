@@ -1,20 +1,21 @@
+#include "core/app/application.h"
+
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/entity.h"
-#include "core/app/application.h"
-#include "core/util/time.h"
-#include "debug/core/log.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "core/log.h"
+#include "core/util/time.h"
 #include "math/easing.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
+#include "tween/tween.h"
+#include "tween/tween_effect.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_input.h"
 #include "world/scene/scene_manager.h"
-#include "tween/tween.h"
-#include "tween/tween_effect.h"
 
 using namespace ptgn;
 

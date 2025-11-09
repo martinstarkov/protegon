@@ -1,8 +1,9 @@
+#include "core/app/application.h"
+
 #include <optional>
 
-#include "core/app/application.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
-#include "debug/runtime/assert.h"
 #include "renderer/api/color.h"
 #include "renderer/text/text.h"
 #include "ui/menu_template.h"
@@ -37,9 +38,11 @@ public:
 class SceneTemplateExample : public Scene {
 public:
 	SceneTemplateExample() {
-		LoadResource({ { "bg1", "resources/bg1.png" },
-					   { "bg2", "resources/bg2.png" },
-					   { "bg3", "resources/bg3.png" } });
+		LoadResource(
+			{ { "bg1", "resources/bg1.png" },
+			  { "bg2", "resources/bg2.png" },
+			  { "bg3", "resources/bg3.png" } }
+		);
 
 		SceneAction::Register("load_level_1", []() {
 			Application::Get().scene_.Transition<GameScene>(std::nullopt, "game_scene", 1);

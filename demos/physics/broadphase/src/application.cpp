@@ -1,13 +1,14 @@
+#include "core/app/application.h"
+
 #include <vector>
 
+#include "core/app/manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/application.h"
-#include "core/app/manager.h"
-#include "debug/runtime/profiling.h"
 #include "core/input/input_handler.h"
+#include "debug/profiling.h"
 #include "math/geometry/rect.h"
 #include "math/rng.h"
 #include "math/vector2.h"

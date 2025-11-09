@@ -1,21 +1,22 @@
+#include "core/app/application.h"
+
 #include <memory>
 #include <new>
 #include <string>
 #include <vector>
 
-#include "debug/runtime/assert.h"
+#include "core/app/manager.h"
+#include "core/app/window.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/application.h"
-#include "core/app/manager.h"
-#include "core/scripting/script.h"
-#include "core/app/window.h"
-#include "debug/runtime/debug_system.h"
-#include "debug/core/log.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/log.h"
+#include "core/scripting/script.h"
+#include "debug/debug_system.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/math_utils.h"
@@ -240,7 +241,9 @@ public:
 		for (auto [e, collider] : Application::Get().scene_.Get("").EntitiesWith<Collider>()) {
 			auto transform{ GetAbsoluteTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
-				Application::Get().debug_.DrawText("Intersect", transform.GetPosition(), text_color);
+				Application::Get().debug_.DrawText(
+					"Intersect", transform.GetPosition(), text_color
+				);
 			} else if (collider.mode == CollisionMode::Overlap) {
 				Application::Get().debug_.DrawText("Overlap", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Continuous) {
@@ -1323,13 +1326,13 @@ struct SweepTest : public CollisionTest {
 
 		if (player.Has<BoxCollider>()) {
 			auto& box = player.Get<BoxCollider>();
-			Rect{ transform.position + rb.velocity * Application::Get().dt(), box.size, box.origin }.Draw(
-				color::DarkGreen
+			Rect{ transform.position + rb.velocity * Application::Get().dt(), box.size, box.origin
+}.Draw( color::DarkGreen
 			);
 		} else if (player.Has<CircleCollider>()) {
 			auto& circle = player.Get<CircleCollider>();
-			Circle{ transform.position + rb.velocity * Application::Get().dt(), circle.radius }.Draw(
-				color::DarkGreen, 1.0f
+			Circle{ transform.position + rb.velocity * Application::Get().dt(), circle.radius
+}.Draw( color::DarkGreen, 1.0f
 			);
 		}
 
@@ -1606,11 +1609,12 @@ struct DynamicRectCollisionTest : public CollisionTest {
 struct HeadOnDynamicRectTest1 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest1(float speed) : DynamicRectCollisionTest{ speed } {
 		CreateDynamicEntity(
-			{ 0, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+			{ 0, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft,
+{ 1.0f, 0.0f }
 		);
 		CreateDynamicEntity(
-			{ ws.x, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
-			{ -1.0f, 0.0f }
+			{ ws.x, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f },
+Origin::CenterRight, { -1.0f, 0.0f }
 		);
 	}
 };
@@ -1618,18 +1622,20 @@ struct HeadOnDynamicRectTest1 : public DynamicRectCollisionTest {
 struct HeadOnDynamicRectTest2 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest2(float speed) : DynamicRectCollisionTest{ speed } {
 		CreateDynamicEntity(
-			{ Application::Get().window_.GetCenter().x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f }
+			{ Application::Get().window_.GetCenter().x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, {
+0, 1.0f }
 		);
 		CreateDynamicEntity(
-			{ Application::Get().window_.GetCenter().x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom,
-			{ 0, -1.0f }
+			{ Application::Get().window_.GetCenter().x, ws.y }, { 40.0f, 40.0f },
+Origin::CenterBottom, { 0, -1.0f }
 		);
 		CreateDynamicEntity(
-			{ 0, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+			{ 0, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft,
+{ 1.0f, 0.0f }
 		);
 		CreateDynamicEntity(
-			{ ws.x, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
-			{ -1.0f, 0.0f }
+			{ ws.x, Application::Get().window_.GetCenter().y }, { 40.0f, 40.0f },
+Origin::CenterRight, { -1.0f, 0.0f }
 		);
 	}
 };

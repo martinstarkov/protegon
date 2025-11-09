@@ -1,16 +1,17 @@
+#include "core/app/application.h"
+
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/transform.h"
-#include "core/app/application.h"
+#include "core/log.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
-#include "core/app/window.h"
-#include "debug/core/log.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "ui/button.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "ui/button.h"
 
 using namespace ptgn;
 

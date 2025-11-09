@@ -1,3 +1,5 @@
+#include "core/app/application.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -6,20 +8,19 @@
 #include <tuple>
 #include <vector>
 
-#include "debug/runtime/assert.h"
+#include "core/app/manager.h"
+#include "core/assert.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/relatives.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
-#include "core/app/application.h"
-#include "core/app/manager.h"
-#include "core/scripting/script.h"
-#include "core/util/time.h"
-#include "debug/core/log.h"
-#include "ecs/ecs.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/log.h"
+#include "core/scripting/script.h"
+#include "core/util/time.h"
+#include "ecs/ecs.h"
 #include "math/easing.h"
 #include "math/geometry/rect.h"
 #include "math/hash.h"
@@ -28,9 +29,9 @@
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
+#include "tween/tween.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tween/tween.h"
 
 using namespace ptgn;
 
@@ -186,8 +187,9 @@ public:
 			.Yoyo()
 			.Repeat(-1)
 			.Reverse()
-			.OnRepeat([](auto entity) { PTGN_LOG("Lambda repeat: ", Tween{ entity }.GetRepeats()); }
-			);
+			.OnRepeat([](auto entity) {
+				PTGN_LOG("Lambda repeat: ", Tween{ entity }.GetRepeats());
+			});
 
 		tweenN.AddScript<TweenScriptCustom>()
 			.During(duration)
