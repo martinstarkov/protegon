@@ -2,12 +2,12 @@
 
 #include <ostream>
 
+#include "SDL_error.h"
+#include "SDL_video.h"
 #include "core/util/macro.h"
 #include "debug/core/log.h"
 #include "debug/runtime/assert.h"
 #include "renderer/gl/gl.h"
-#include "SDL_error.h"
-#include "SDL_video.h"
 
 #define PTGN_VSYNC_MODE -1
 
@@ -34,7 +34,7 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 void GLContext::LoadGLFunctions() {
 #ifdef PTGN_PLATFORM_MACOS
 	return;
-#endif
+#else
 
 #define GLE(name, caps_name) \
 	name =                   \
@@ -53,16 +53,16 @@ void GLContext::LoadGLFunctions() {
 
 #else
 
-#define GLE(name, caps_name)                                                                       \
-	name =                                                                                         \
-		reinterpret_cast<PFNGL##caps_name##OESPROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name) \
-		));
+#define GLE(name, caps_name)                            \
+	name = reinterpret_cast<PFNGL##caps_name##OESPROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)) \
+	);
 	GL_LIST_2
 #undef GLE
-#define GLE(name, caps_name)                                                                       \
-	name =                                                                                         \
-		reinterpret_cast<PFNGL##caps_name##EXTPROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name) \
-		));
+#define GLE(name, caps_name)                            \
+	name = reinterpret_cast<PFNGL##caps_name##EXTPROC>( \
+		SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)) \
+	);
 	GL_LIST_3
 #undef GLE
 
@@ -83,6 +83,7 @@ void GLContext::LoadGLFunctions() {
 #undef GLE
 	PTGN_ASSERT(gl_init, "Failed to load OpenGL functions");
 	PTGN_INFO("Loaded all OpenGL functions");
+#endif
 }
 
 GLContext::GLContext(SDL_Window* window) {
@@ -108,6 +109,10 @@ GLContext::GLContext(SDL_Window* window) {
 	}
 
 	LoadGLFunctions();
+
+	auto max_texture_slots{ GetInteger<GLuint>(GL_MAX_TEXTURE_IMAGE_UNITS) };
+	PTGN_ASSERT(max_texture_slots > 0);
+	bound_.texture_units.resize(max_texture_slots, {});
 }
 
 GLContext::~GLContext() {
