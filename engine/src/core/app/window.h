@@ -5,7 +5,6 @@
 #include <string_view>
 
 #include "math/vector2.h"
-#include "renderer/gl/gl_context.h"
 #include "serialization/json/enum.h"
 
 struct SDL_Window;
@@ -97,8 +96,6 @@ private:
 	void SetAlwaysOnTop(bool on) const;
 
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> instance_;
-
-	impl::gl::GLContext gl_context_;
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(

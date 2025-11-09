@@ -14,7 +14,6 @@
 
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
-#include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/components/transform.h"
@@ -28,14 +27,7 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/api/vertex.h"
-#include "renderer/buffer/frame_buffer.h"
-#include "renderer/buffer/vertex_array.h"
-#include "renderer/gl/gl_manager.h"
-#include "renderer/material/texture.h"
-#include "renderer/render_target.h"
 #include "renderer/text/font.h"
-#include "renderer/text/text.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serializable.h"
 #include "world/scene/camera.h"
@@ -59,23 +51,16 @@ struct Line;
 struct Polygon;
 struct Triangle;
 
-struct Viewport {
-	Viewport() = default;
-	Viewport(const V2_int& position, const V2_int& size);
-
-	V2_int position;
-	V2_int size;
-
-	bool operator==(const Viewport&) const = default;
-
-	PTGN_SERIALIZER_REGISTER(Viewport, position, size)
-};
-
 constexpr BlendMode default_blend_mode{ BlendMode::Blend };
 constexpr Origin default_origin{ Origin::Center };
-constexpr TextureFormat default_texture_format{ TextureFormat::RGBA8888 };
 
 namespace impl {
+
+namespace gl {
+
+class GLContext;
+
+} // namespace gl
 
 struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
 	explicit ViewportResizeScript(Window& window, Renderer& renderer);
@@ -275,7 +260,7 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 class Renderer {
 public:
 	Renderer() = delete;
-	Renderer(const V2_int& viewport_size);
+	Renderer(Window& window);
 
 	~Renderer() noexcept					 = default;
 	Renderer(const Renderer&)				 = delete;
@@ -617,18 +602,8 @@ private:
 
 	void Update();
 
-	// Renderer keeps track of what is bound.
-	struct BoundStates {
-		std::uint32_t frame_buffer_id{ 0 };
-		std::uint32_t render_buffer_id{ 0 };
-		std::uint32_t shader_id{ 0 };
-		std::uint32_t vertex_array_id{ 0 };
-		BlendMode blend_mode{ BlendMode::ReplaceRGBA };
-		V2_int viewport_position;
-		V2_int viewport_size;
-	};
-
-	BoundStates bound_;
+	Window& window_;
+	std::unique_ptr<impl::gl::GLContext> ctx_;
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(

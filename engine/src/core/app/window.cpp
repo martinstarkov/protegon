@@ -4,13 +4,13 @@
 #include <string>
 #include <string_view>
 
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "math/vector2.h"
 #include "SDL_error.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_video.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "math/vector2.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -63,12 +63,10 @@ Window::Window(const char* title, const V2_int& size) :
 				   title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size.x, size.y,
 				   SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
 			   ),
-			   impl::WindowDeleter{} },
-	gl_context_{ std::invoke([&]() {
-		PTGN_ASSERT(instance_, "SDL_CreateWindow failed: {}", SDL_GetError());
-		PTGN_INFO("Created SDL2 window");
-		return instance_.get();
-	}) } {}
+			   impl::WindowDeleter{} } {
+	PTGN_ASSERT(instance_, "SDL_CreateWindow failed: {}", SDL_GetError());
+	PTGN_INFO("Created SDL2 window");
+}
 
 Window::operator SDL_Window*() const {
 	PTGN_ASSERT(instance_ != nullptr, "Window uninitialized or destroyed");

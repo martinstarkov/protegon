@@ -16,6 +16,20 @@
 #include "renderer/gl/gl_resource.h"
 #include "renderer/gl/gl_state.h"
 
+#ifdef __EMSCRIPTEN__
+
+constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
+constexpr auto PTGN_OPENGL_MINOR_VERSION = 0;
+#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_ES
+
+#else
+
+constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
+constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
+#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_CORE
+
+#endif
+
 #define PTGN_IMPL_BLEND_CASE(name, srcRGB, dstRGB, srcA, dstA) \
 	case BlendMode::name: GLCall(BlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
 
