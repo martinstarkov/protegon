@@ -1,19 +1,24 @@
 #pragma once
 
 #include <cmrc/cmrc.hpp>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+#include <string_view>
 
+#include "core/assert.h"
 #include "core/log.h"
 #include "core/util/concepts.h"
+#include "math/tolerance.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
+#include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/gl/buffer_layout.h"
 #include "renderer/gl/gl.h"
+#include "renderer/gl/gl_handle.h"
 #include "renderer/gl/gl_resource.h"
 #include "renderer/gl/gl_state.h"
 
@@ -71,36 +76,28 @@ public:
 	GLContext& operator=(const GLContext&)	   = delete;
 	GLContext& operator=(GLContext&&) noexcept = delete;
 
-	template <bool kPersistent>
-	Handle<VertexBuffer> Create(
+	Handle<VertexBuffer> CreateVertexBuffer(
 		const void* data, std::uint32_t element_count, std::uint32_t element_size, GLenum usage
 	) {
-		return CreateBuffer<VertexBuffer, kPersistent>(
-			GL_ARRAY_BUFFER, data, element_count, element_size, usage,
-			kPersistent ? persistent_vertex_buffers_ : vertex_buffers_
+		return CreateBuffer<VertexBuffer>(
+			GL_ARRAY_BUFFER, data, element_count, element_size, usage
 		);
 	}
 
-	template <bool kPersistent>
-	Handle<ElementBuffer> Create(
+	Handle<ElementBuffer> CreateElementBuffer(
 		const void* data, std::uint32_t element_count, std::uint32_t element_size, GLenum usage
 	) {
-		return CreateBuffer<ElementBuffer, kPersistent>(
-			GL_ELEMENT_ARRAY_BUFFER, data, element_count, element_size, usage,
-			kPersistent ? persistent_element_buffers_ : element_buffers_
+		return CreateBuffer<ElementBuffer>(
+			GL_ELEMENT_ARRAY_BUFFER, data, element_count, element_size, usage
 		);
 	}
 
-	template <bool kPersistent>
-	Handle<UniformBuffer> Create(const void* data, std::uint32_t size, GLenum usage) {
-		return CreateBuffer<UniformBuffer, kPersistent>(
-			GL_UNIFORM_BUFFER, data, size, 1, usage,
-			kPersistent ? persistent_uniform_buffers_ : uniform_buffers_
-		);
+	Handle<UniformBuffer> CreateUniformBuffer(const void* data, std::uint32_t size, GLenum usage) {
+		return CreateBuffer<UniformBuffer>(GL_UNIFORM_BUFFER, data, size, 1, usage);
 	}
 
-	template <bool kPersistent, bool kRestoreBind>
-	Handle<Shader> Create(std::string_view shader_name) {
+	template <bool kRestoreBind = true>
+	Handle<Shader> CreateShader(std::string_view shader_name) {
 		auto resource		  = MakeGLResource<Shader, ShaderResource>();
 		resource->id		  = GLCallReturn(CreateProgram());
 		resource->shader_name = shader_name;
@@ -109,14 +106,11 @@ public:
 
 		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
 
-		auto& list = kPersistent ? persistent_shaders_ : shaders_;
-		list.push_back(resource);
-
 		return Handle<Shader>(std::move(resource));
 	}
 
-	template <bool kPersistent, bool kRestoreBind>
-	Handle<Texture> Create(
+	template <bool kRestoreBind = true>
+	Handle<Texture> CreateTexture(
 		const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
 		const V2_int& size, GLenum internal_format
 
@@ -124,9 +118,6 @@ public:
 		auto resource = MakeGLResource<Texture, TextureResource>();
 		GLCall(glGenTextures(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create texture");
-
-		auto& list = kPersistent ? persistent_textures_ : textures_;
-		list.push_back(resource);
 
 		Handle<Texture> handle{ std::move(resource) };
 
@@ -151,14 +142,11 @@ public:
 		return handle;
 	}
 
-	template <bool kPersistent, bool kRestoreBind>
-	Handle<RenderBuffer> Create(const V2_int& size, GLenum internal_format) {
+	template <bool kRestoreBind = true>
+	Handle<RenderBuffer> CreateRenderBuffer(const V2_int& size, GLenum internal_format) {
 		auto resource = MakeGLResource<RenderBuffer, RenderBufferResource>();
 		GLCall(GenRenderbuffers(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create render buffer");
-
-		auto& list = kPersistent ? persistent_render_buffers_ : render_buffers_;
-		list.push_back(resource);
 
 		Handle<RenderBuffer> handle{ std::move(resource) };
 
@@ -169,8 +157,8 @@ public:
 		return handle;
 	}
 
-	template <bool kPersistent, bool kRestoreBind>
-	Handle<FrameBuffer> Create(const Handle<Texture>& texture) {
+	template <bool kRestoreBind = true>
+	Handle<FrameBuffer> CreateFrameBuffer(const Handle<Texture>& texture) {
 		PTGN_ASSERT(
 			texture.Get().size.BothAboveZero(),
 			"Cannot attach texture with no size to a frame buffer"
@@ -184,10 +172,7 @@ public:
 		// Render buffer is implicitly as persistent as the frame buffer since the frame buffer
 		// holds a reference to it.
 		resource->render_buffer =
-			Create<RenderBuffer, false, kRestoreBind>(texture.Get().size, GL_DEPTH24_STENCIL8);
-
-		auto& list = kPersistent ? persistent_frame_buffers_ : frame_buffers_;
-		list.push_back(resource);
+			CreateRenderBuffer<kRestoreBind>(texture.Get().size, GL_DEPTH24_STENCIL8);
 
 		Handle<FrameBuffer> handle{ std::move(resource) };
 
@@ -206,8 +191,8 @@ public:
 		return handle;
 	}
 
-	template <bool kPersistent, bool kRestoreBind, typename... Ts>
-	Handle<VertexArray> Create(
+	template <bool kRestoreBind = true, typename... Ts>
+	Handle<VertexArray> CreateVertexArray(
 		const Handle<VertexBuffer>& vertex_buffer, const BufferLayout<Ts...>& vertex_buffer_layout,
 		const Handle<ElementBuffer>& element_buffer
 	) {
@@ -217,9 +202,6 @@ public:
 
 		resource->vertex_buffer	 = vertex_buffer;
 		resource->element_buffer = element_buffer;
-
-		auto& list = kPersistent ? persistent_vertex_arrays_ : vertex_arrays_;
-		list.push_back(resource);
 
 		Handle<VertexArray> handle{ std::move(resource) };
 
@@ -311,20 +293,6 @@ public:
 		}
 	}
 
-	void ClearUnused() {
-		constexpr auto pred = [](const auto& r) {
-			return r.use_count() == 1;
-		};
-		std::erase_if(shaders_, pred);
-		std::erase_if(vertex_buffers_, pred);
-		std::erase_if(element_buffers_, pred);
-		std::erase_if(uniform_buffers_, pred);
-		std::erase_if(render_buffers_, pred);
-		std::erase_if(textures_, pred);
-		std::erase_if(frame_buffers_, pred);
-		std::erase_if(vertex_arrays_, pred);
-	}
-
 	template <Resource T>
 	[[nodiscard]] bool IsBound(const Handle<T>& handle) const {
 		return GetBound<T>() == handle;
@@ -354,9 +322,8 @@ public:
 
 	template <VertexDataType... Ts>
 		requires NonEmptyPack<Ts...>
-	void SetBufferLayout(
-		const Handle<VertexArray>& vertex_array, const BufferLayout<Ts...>& layout
-	) const {
+	void SetBufferLayout(const Handle<VertexArray>& vertex_array, const BufferLayout<Ts...>& layout)
+		const {
 		PTGN_ASSERT(
 			IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"
 		);
@@ -552,7 +519,7 @@ public:
 
 	void DrawElements(
 		const Handle<VertexArray>& vertex_array, GLsizei element_count, GLenum primitive_mode
-	) {
+	) const {
 		PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before drawing elements");
 		PTGN_ASSERT(
 			vertex_array.Get().vertex_buffer,
@@ -570,7 +537,7 @@ public:
 
 	void DrawArrays(
 		const Handle<VertexArray>& vertex_array, GLsizei vertex_count, GLenum primitive_mode
-	) {
+	) const {
 		PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before drawing arrays");
 		PTGN_ASSERT(
 			vertex_array.Get().vertex_buffer,
@@ -642,8 +609,7 @@ public:
 
 		if (scissor.enabled) {
 			GLCall(glEnable(GL_SCISSOR_TEST));
-			GLCall(
-				glScissor(scissor.position.x, scissor.position.y, scissor.size.x, scissor.size.y)
+			GLCall(glScissor(scissor.position.x, scissor.position.y, scissor.size.x, scissor.size.y)
 			);
 		} else {
 			GLCall(glDisable(GL_SCISSOR_TEST));
@@ -690,11 +656,11 @@ public:
 private:
 	static void LoadGLFunctions();
 
-	template <Resource T, bool kPersistent>
+	template <Resource T>
 		requires(T == VertexBuffer || T == ElementBuffer || T == UniformBuffer)
 	Handle<T> CreateBuffer(
 		GLenum target, const void* data, std::uint32_t element_count, std::uint32_t element_size,
-		GLenum usage, std::vector<std::shared_ptr<BufferResource>>& resource_list
+		GLenum usage
 	) {
 		PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
 		PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
@@ -707,8 +673,6 @@ private:
 		resource->count = element_count;
 
 		const std::uint32_t size = element_count * element_size;
-
-		resource_list.push_back(resource);
 
 		Handle<T> handle{ std::move(resource) };
 
@@ -881,6 +845,19 @@ private:
 		SetRenderBufferStorage(handle, new_size, handle.Get().internal_format);
 	}
 
+	template <bool kRestoreBind>
+	void Resize(Handle<Texture>& handle, const V2_int& new_size) {
+		if (handle && handle.Get().size == new_size) {
+			return;
+		}
+
+		auto _ = Bind<kRestoreBind>(handle);
+
+		SetTextureData(
+			handle, nullptr, GL_RGBA, GL_UNSIGNED_BYTE, new_size, handle.Get().internal_format
+		);
+	}
+
 	void SetRenderBufferStorage(
 		Handle<RenderBuffer>& handle, const V2_int& size, GLenum internal_format
 	) const {
@@ -920,19 +897,6 @@ private:
 
 	[[nodiscard]] GLuint GetActiveSlot() const {
 		return bound_.active_texture_slot;
-	}
-
-	template <bool kRestoreBind>
-	void Resize(Handle<Texture>& handle, const V2_int& new_size) {
-		if (handle && handle.Get().size == new_size) {
-			return;
-		}
-
-		auto _ = Bind<kRestoreBind>(handle);
-
-		SetTextureData(
-			handle, nullptr, GL_RGBA, GL_UNSIGNED_BYTE, new_size, handle.Get().internal_format
-		);
 	}
 
 	void SetTextureData(
@@ -979,17 +943,15 @@ private:
 		SetTextureParameter(handle, GL_TEXTURE_BORDER_COLOR, c.Data());
 	}
 
-	void SetTextureParameter(
-		const Handle<Texture>& handle, GLenum param, const GLfloat* values
-	) const {
+	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, const GLfloat* values)
+		const {
 		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
 		PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 		GLCall(glTexParameterfv(GL_TEXTURE_2D, param, values));
 	}
 
-	void SetTextureParameter(
-		const Handle<Texture>& handle, GLenum param, const GLint* values
-	) const {
+	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, const GLint* values)
+		const {
 		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
 		PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 		GLCall(glTexParameteriv(GL_TEXTURE_2D, param, values));
@@ -1109,24 +1071,6 @@ private:
 	void* context_{ nullptr };
 
 	State bound_;
-
-	std::vector<std::shared_ptr<ShaderResource>> shaders_;
-	std::vector<std::shared_ptr<TextureResource>> textures_;
-	std::vector<std::shared_ptr<BufferResource>> vertex_buffers_;
-	std::vector<std::shared_ptr<BufferResource>> element_buffers_;
-	std::vector<std::shared_ptr<BufferResource>> uniform_buffers_;
-	std::vector<std::shared_ptr<RenderBufferResource>> render_buffers_;
-	std::vector<std::shared_ptr<FrameBufferResource>> frame_buffers_;
-	std::vector<std::shared_ptr<VertexArrayResource>> vertex_arrays_;
-
-	std::vector<std::shared_ptr<ShaderResource>> persistent_shaders_;
-	std::vector<std::shared_ptr<TextureResource>> persistent_textures_;
-	std::vector<std::shared_ptr<BufferResource>> persistent_vertex_buffers_;
-	std::vector<std::shared_ptr<BufferResource>> persistent_element_buffers_;
-	std::vector<std::shared_ptr<BufferResource>> persistent_uniform_buffers_;
-	std::vector<std::shared_ptr<RenderBufferResource>> persistent_render_buffers_;
-	std::vector<std::shared_ptr<FrameBufferResource>> persistent_frame_buffers_;
-	std::vector<std::shared_ptr<VertexArrayResource>> persistent_vertex_arrays_;
 };
 
 } // namespace ptgn::impl::gl

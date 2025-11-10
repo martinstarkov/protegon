@@ -36,10 +36,6 @@ FontSize FontSize::GetHD(const Scene& scene, const Camera& camera) const {
 
 namespace impl {
 
-void TTF_FontDeleter::operator()(TTF_Font* font) const {
-	TTF_CloseFont(font);
-}
-
 FontManager::FontManager(FontManager&& other) noexcept : ResourceManager{ std::move(other) } {
 	raw_default_font_ = std::exchange(other.raw_default_font_, nullptr);
 }
@@ -116,7 +112,8 @@ TemporaryFont FontManager::Get(const ResourceHandle& key, const FontSize& font_s
 	auto& resource_info{ resources_.find(key)->second };
 
 	if (font_size == FontSize{}) {
-		return TemporaryFont{ resource_info.resource.get(), [](TTF_Font*) {} };
+		return TemporaryFont{ resource_info.resource.get(), [](TTF_Font*) {
+							 } };
 	}
 
 	if (!resource_info.filepath.empty()) {

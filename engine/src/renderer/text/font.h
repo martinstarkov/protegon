@@ -1,24 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
-#include <string>
 
-#include "core/asset/asset_manager.h"
 #include "core/ecs/components/generic.h"
-#include "core/util/file.h"
-#include "math/vector2.h"
-#include "renderer/text/fonts.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/fwd.h"
-
-#ifdef __EMSCRIPTEN__
-struct _TTF_Font;
-using TTF_Font = _TTF_Font;
-#else
-struct TTF_Font;
-#endif
-struct SDL_RWops;
 
 namespace ptgn {
 
@@ -61,105 +45,32 @@ struct FontSize : public ArithmeticComponent<std::int32_t> {
 
 namespace impl {
 
-struct TTF_FontDeleter {
-	void operator()(TTF_Font* font) const;
-};
+// Empty font key corresponds to the engine default font.
+// void SetDefaultFont(const ResourceHandle& key = {});
 
-using Font = std::unique_ptr<TTF_Font, TTF_FontDeleter>;
+//[[nodiscard]] static SDL_RWops* GetRawBuffer(const FontBinary& binary);
 
-using TemporaryFont = std::shared_ptr<TTF_Font>;
+// @param free_buffer If true, frees raw_buffer after use.
+//[[nodiscard]] static TTF_Font* LoadFromBinary(
+//	SDL_RWops* raw_buffer, std::int32_t size, std::int32_t index, bool free_buffer
+//);
 
-class FontManager : public ResourceManager<FontManager, ResourceHandle, Font> {
-public:
-	FontManager();
-	FontManager(const FontManager&)			   = delete;
-	FontManager& operator=(const FontManager&) = delete;
-	FontManager(FontManager&& other) noexcept;
-	FontManager& operator=(FontManager&& other) noexcept;
-	~FontManager() noexcept override;
+//[[nodiscard]] static Font LoadFromBinary(
+//	const FontBinary& binary, std::int32_t size, std::int32_t index
+//);
 
-	void Load(const ResourceHandle& key, const path& filepath) final;
+//[[nodiscard]] static Font LoadFromFile(
+//	const path& filepath, std::int32_t size, std::int32_t index
+//);
 
-	const Font& Get(const ResourceHandle& key) const = delete;
+//[[nodiscard]] static Font LoadFromFile(const path& filepath);
 
-	void Load(
-		const ResourceHandle& key, const path& filepath, std::int32_t size,
-		std::int32_t index = default_font_index
-	);
+//[[nodiscard]] TemporaryFont Get(const ResourceHandle& key, const FontSize& font_size = {}) const;
 
-	void Load(
-		const ResourceHandle& key, const FontBinary& binary, std::int32_t size = default_font_size,
-		std::int32_t index = default_font_index
-	);
+// ResourceHandle default_key_;
 
-	// Empty font key corresponds to the engine default font.
-	void SetDefault(const ResourceHandle& key = {});
-
-	[[nodiscard]] int GetLineSkip(const ResourceHandle& key, const FontSize& font_size = {}) const;
-
-	// @param font_size If left with default {}, will use currently set font size of the provided
-	// font key.
-	[[nodiscard]] V2_int GetSize(
-		const ResourceHandle& key, const std::string& content, const FontSize& font_size = {}
-	) const;
-
-	// @return Total height of the font in pixels.
-	[[nodiscard]] FontSize GetHeight(
-		const ResourceHandle& key, const FontSize& font_size = {}
-	) const;
-
-	// Note: This function will not serialize any fonts loaded from binaries.
-	friend void to_json(json& j, const FontManager& manager);
-
-	// Note: This function will not deserialize any fonts loaded from binaries.
-	friend void from_json(const json& j, FontManager& manager);
-
-private:
-	friend class ptgn::Text;
-	friend ParentManager;
-
-	void Init();
-
-	[[nodiscard]] static SDL_RWops* GetRawBuffer(const FontBinary& binary);
-
-	// @param free_buffer If true, frees raw_buffer after use.
-	[[nodiscard]] static TTF_Font* LoadFromBinary(
-		SDL_RWops* raw_buffer, std::int32_t size, std::int32_t index, bool free_buffer
-	);
-
-	[[nodiscard]] static Font LoadFromBinary(
-		const FontBinary& binary, std::int32_t size, std::int32_t index
-	);
-
-	[[nodiscard]] static Font LoadFromFile(
-		const path& filepath, std::int32_t size, std::int32_t index
-	);
-
-	[[nodiscard]] static Font LoadFromFile(const path& filepath);
-
-	[[nodiscard]] TemporaryFont Get(
-		const ResourceHandle& key, const FontSize& font_size = {}
-	) const;
-
-	ResourceHandle default_key_;
-
-	SDL_RWops* raw_default_font_{ nullptr };
-};
+// SDL_RWops* raw_default_font_{ nullptr };
 
 } // namespace impl
-
-PTGN_SERIALIZER_REGISTER_ENUM(
-	FontRenderMode, { { FontRenderMode::Solid, "solid" },
-					  { FontRenderMode::Shaded, "shaded" },
-					  { FontRenderMode::Blended, "blended" } }
-);
-
-PTGN_SERIALIZER_REGISTER_ENUM(
-	FontStyle, { { FontStyle::Normal, "normal" },
-				 { FontStyle::Bold, "bold" },
-				 { FontStyle::Italic, "italic" },
-				 { FontStyle::Underline, "underline" },
-				 { FontStyle::Strikethrough, "strikethrough" } }
-);
 
 } // namespace ptgn

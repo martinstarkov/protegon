@@ -1,10 +1,18 @@
 #include "renderer/image/surface.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <functional>
+
 #include "SDL_error.h"
 #include "SDL_image.h"
 #include "SDL_pixels.h"
 #include "SDL_surface.h"
 #include "core/assert.h"
+#include "core/log.h"
+#include "core/util/file.h"
+#include "math/vector2.h"
+#include "renderer/api/color.h"
 
 namespace ptgn::impl {
 
@@ -43,14 +51,14 @@ Surface::Surface(const path& filepath) {
 	std::size_t total_pixels{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) *
 							  bytes_per_pixel };
 
-	data.reserve(total_pixels);
+	pixels.reserve(total_pixels);
 
 	for (int y{ 0 }; y < size.y; ++y) {
 		auto row{ static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch };
 		for (int x{ 0 }; x < size.x; ++x) {
 			auto pixel{ row + static_cast<std::size_t>(x) * bytes_per_pixel };
 			for (std::size_t b{ 0 }; b < bytes_per_pixel; ++b) {
-				data.push_back(pixel[b]);
+				pixels.push_back(pixel[b]);
 			}
 		}
 	}
@@ -60,12 +68,12 @@ Surface::Surface(const path& filepath) {
 }
 
 void Surface::FlipVertically() {
-	PTGN_ASSERT(!data.empty(), "Cannot vertically flip an empty surface");
+	PTGN_ASSERT(!pixels.empty(), "Cannot vertically flip an empty surface");
 	// TODO: Check that this works as intended (i.e. middle row in odd height images is skipped).
 	for (int row{ 0 }; row < size.y / 2; ++row) {
 		std::swap_ranges(
-			data.begin() + row * size.x, data.begin() + (row + 1) * size.x,
-			data.begin() + (size.y - row - 1) * size.x
+			pixels.begin() + row * size.x, pixels.begin() + (row + 1) * size.x,
+			pixels.begin() + (size.y - row - 1) * size.x
 		);
 	}
 }
@@ -82,25 +90,25 @@ Color Surface::GetPixel(const V2_int& coordinate) const {
 }
 
 Color Surface::GetPixel(std::size_t index) const {
-	PTGN_ASSERT(!data.empty(), "Cannot get pixel of an empty surface");
-	PTGN_ASSERT(index < data.size(), "Coordinate outside of range of grid");
+	PTGN_ASSERT(!pixels.empty(), "Cannot get pixel of an empty surface");
+	PTGN_ASSERT(index < pixels.size(), "Coordinate outside of range of grid");
 	index *= bytes_per_pixel;
 	if constexpr (bytes_per_pixel == 4) {
-		PTGN_ASSERT(index + 3 < data.size(), "Coordinate outside of range of grid");
-		return { data[index + 0], data[index + 1], data[index + 2], data[index + 3] };
+		PTGN_ASSERT(index + 3 < pixels.size(), "Coordinate outside of range of grid");
+		return { pixels[index + 0], pixels[index + 1], pixels[index + 2], pixels[index + 3] };
 	} else if constexpr (bytes_per_pixel == 3) {
-		PTGN_ASSERT(index + 2 < data.size(), "Coordinate outside of range of grid");
-		return { data[index + 0], data[index + 1], data[index + 2], 255 };
+		PTGN_ASSERT(index + 2 < pixels.size(), "Coordinate outside of range of grid");
+		return { pixels[index + 0], pixels[index + 1], pixels[index + 2], 255 };
 	} else if constexpr (bytes_per_pixel == 1) {
-		PTGN_ASSERT(index < data.size(), "Coordinate outside of range of grid");
-		return { 255, 255, 255, data[index] };
+		PTGN_ASSERT(index < pixels.size(), "Coordinate outside of range of grid");
+		return { 255, 255, 255, pixels[index] };
 	} else {
 		PTGN_ERROR("Unsupported texture format");
 	}
 }
 
 void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) const {
-	PTGN_ASSERT(!data.empty(), "Cannot loop through each pixel of an empty surface");
+	PTGN_ASSERT(!pixels.empty(), "Cannot loop through each pixel of an empty surface");
 	PTGN_ASSERT(function != nullptr, "Invalid loop function");
 	for (int j{ 0 }; j < size.y; j++) {
 		auto idx_row{ static_cast<std::size_t>(j) * static_cast<std::size_t>(size.x) };
