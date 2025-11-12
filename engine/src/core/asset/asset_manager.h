@@ -36,11 +36,12 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	template <Asset T>
-	Handle<T> Load(const path& asset_path);
-
-	template <Asset T>
-	Handle<T> Load(const path& asset_path, std::int32_t pt_size);
+	Handle<Sound> LoadSound(const path& asset_path);
+	Handle<Music> LoadMusic(const path& asset_path);
+	Handle<Json> LoadJson(const path& asset_path);
+	Handle<Shader> LoadShader(const path& asset_path);
+	Handle<Texture> LoadTexture(const path& asset_path);
+	Handle<Font> LoadFont(const path& asset_path, std::int32_t pt_size);
 
 private:
 	impl::gl::GLContext& gl_;

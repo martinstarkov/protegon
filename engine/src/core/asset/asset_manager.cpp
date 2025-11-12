@@ -19,8 +19,7 @@ namespace ptgn {
 
 AssetManager::AssetManager(impl::gl::GLContext& gl) : gl_{ gl } {}
 
-template <>
-Handle<Shader> AssetManager::Load<Shader>(const path& asset_path) {
+Handle<Shader> AssetManager::LoadShader(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create shader from invalid path: ", asset_path.string()
 	);
@@ -29,8 +28,7 @@ Handle<Shader> AssetManager::Load<Shader>(const path& asset_path) {
 	return Handle<Shader>{};
 }
 
-template <>
-Handle<Texture> AssetManager::Load<Texture>(const path& asset_path) {
+Handle<Texture> AssetManager::LoadTexture(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create texture from invalid path: ", asset_path.string()
 	);
@@ -43,8 +41,7 @@ Handle<Texture> AssetManager::Load<Texture>(const path& asset_path) {
 	return Handle<Texture>{ std::make_shared<impl::TextureAsset>(texture) };
 }
 
-template <>
-Handle<Font> AssetManager::Load<Font>(const path& asset_path, std::int32_t pt_size) {
+Handle<Font> AssetManager::LoadFont(const path& asset_path, std::int32_t pt_size) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create font from invalid path: ", asset_path.string()
 	);
@@ -58,8 +55,7 @@ Handle<Font> AssetManager::Load<Font>(const path& asset_path, std::int32_t pt_si
 	return Handle<Font>{ std::make_shared<impl::FontAsset>(font, pt_size) };
 }
 
-template <>
-Handle<Sound> AssetManager::Load<Sound>(const path& asset_path) {
+Handle<Sound> AssetManager::LoadSound(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create sound from invalid path: ", asset_path.string()
 	);
@@ -72,8 +68,7 @@ Handle<Sound> AssetManager::Load<Sound>(const path& asset_path) {
 	return Handle<Sound>{ std::make_shared<impl::SoundAsset>(sound) };
 }
 
-template <>
-Handle<Music> AssetManager::Load<Music>(const path& asset_path) {
+Handle<Music> AssetManager::LoadMusic(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create music from invalid path: ", asset_path.string()
 	);
@@ -86,8 +81,7 @@ Handle<Music> AssetManager::Load<Music>(const path& asset_path) {
 	return Handle<Music>{ std::make_shared<impl::MusicAsset>(music) };
 }
 
-template <>
-Handle<Json> AssetManager::Load<Json>(const path& asset_path) {
+Handle<Json> AssetManager::LoadJson(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create json from invalid path: ", asset_path.string()
 	);
