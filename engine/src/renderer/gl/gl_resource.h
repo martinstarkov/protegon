@@ -40,6 +40,12 @@ struct VertexArrayResource {
 	Handle<ElementBuffer> element_buffer;
 };
 
+// Wrapper for distinguishing between Shader from path construction and Shader
+// from source construction.
+struct ShaderCode {
+	std::string source;
+};
+
 struct ShaderResource {
 	GLuint id{ 0 };
 

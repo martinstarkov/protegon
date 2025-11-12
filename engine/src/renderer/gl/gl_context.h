@@ -7,12 +7,15 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/concepts.h"
+#include "math/matrix4.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"
+#include "math/vector3.h"
 #include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
@@ -46,6 +49,17 @@ struct SDL_Window;
 namespace ptgn::impl::gl {
 
 class GLContext;
+
+struct ShaderCache {
+	std::unordered_map<std::size_t, GLuint> vertex_shaders;
+	std::unordered_map<std::size_t, GLuint> fragment_shaders;
+};
+
+struct ShaderTypeSource {
+	GLuint type{ GL_FRAGMENT_SHADER };
+	ShaderCode source;
+	std::string name; // optional name for shader.
+};
 
 template <Resource R, bool kRestoreBind>
 class BindGuard {
@@ -97,12 +111,157 @@ public:
 	}
 
 	template <bool kRestoreBind = true>
-	Handle<Shader> CreateShader(std::string_view shader_name) {
+	Handle<Shader> CreateShader(GLuint vertex, GLuint fragment, const std::string& shader_name) {
 		auto resource		  = MakeGLResource<Shader, ShaderResource>();
 		resource->id		  = GLCallReturn(CreateProgram());
 		resource->shader_name = shader_name;
 
-		// TODO: Create shader.
+		LinkShader(vertex, fragment);
+
+		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
+
+		return Handle<Shader>(std::move(resource));
+	}
+
+	template <bool kRestoreBind = true>
+	// String can be path to shader or the name of a pre-existing shader of the respective type.
+	Handle<Shader> CreateShader(
+		std::variant<ShaderCode, std::string> vertex,
+		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
+	) {
+		auto resource		  = MakeGLResource<Shader, ShaderResource>();
+		resource->id		  = GLCallReturn(CreateProgram());
+		resource->shader_name = shader_name;
+
+		const auto has = [&](GLuint type) {
+			auto hash{ Hash(shader_name) };
+			switch (type) {
+				case GL_FRAGMENT_SHADER {
+					return shader_cache_.fragment_shaders.contains(hash);
+				};
+					case GL_VERTEX_SHADER: {
+					return shader_cache_.vertex_shaders.contains(hash);
+				};
+				default: PTGN_ERROR("Unknown shader type");
+			}
+		};
+
+		const auto get = [&](GLuint type) {
+			auto hash{ Hash(shader_name) };
+			PTGN_ASSERT(has(type), "Could not find ", type, " shader with name: ", shader_name);
+			switch (type) {
+				case GL_FRAGMENT_SHADER: {
+					auto it{ shader_cache_.fragment_shaders.find(hash) };
+					return it->second;
+				};
+				case GL_VERTEX_SHADER: {
+					auto it{ shader_cache_.vertex_shaders.find(hash) };
+					return it->second;
+				};
+				default: PTGN_ERROR("Unknown shader type");
+			}
+		};
+
+		// bool: If true, delete shader id after.
+		const auto get_id = [shader_name](
+								const std::variant<ShaderCode, std::string>& v, GLuint type
+							) -> std::pair<GLuint, bool> {
+			if (std::holds_alternative<std::string>(v)) {
+				const auto& name{ std::get<std::string>(v) };
+				path file{ name };
+				if (FileExists(file)) {
+					PTGN_ASSERT(
+						file.extension() == ".glsl",
+						"Shader file extension must be .glsl: ", file.string()
+					);
+					return { CompileShaderPath(file, type, shader_name), true };
+				} else if (has(type)) {
+					return { get(type), false };
+				} else {
+					PTGN_ERROR(
+						name, " is not a valid shader path or loaded ", type, " shader name"
+					);
+				}
+			} else if (std::holds_alternative<ShaderCode>(v)) {
+				const auto& src{ std::get<ShaderCode>(v) };
+				return { CompileShaderSource(src.source_, type, shader_name), true };
+			} else {
+				PTGN_ERROR("Unknown variant type");
+			}
+		};
+
+		auto [vertex_id, delete_vert_after]	  = get_id(vertex, GL_VERTEX_SHADER);
+		auto [fragment_id, delete_frag_after] = get_id(fragment, GL_FRAGMENT_SHADER);
+
+		LinkShader(vertex_id, fragment_id);
+
+		if (delete_vert_after && vertex_id) {
+			GLCall(DeleteShader(vertex_id));
+		}
+
+		if (delete_frag_after && fragment_id) {
+			GLCall(DeleteShader(fragment_id));
+		}
+
+		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
+
+		return Handle<Shader>(std::move(resource));
+	}
+
+	template <bool kRestoreBind = true>
+	Handle<Shader> CreateShader(
+		std::variant<ShaderCode, path> source, const std::string& shader_name
+	) {
+		auto resource		  = MakeGLResource<Shader, ShaderResource>();
+		resource->id		  = GLCallReturn(CreateProgram());
+		resource->shader_name = shader_name;
+
+		std::string source_string;
+
+		if (std::holds_alternative<path>(source)) {
+			const auto& p{ std::get<path>(source) };
+			source_string = FileToString(p);
+		} else if (std::holds_alternative<ShaderCode>(source)) {
+			const auto& src{ std::get<ShaderCode>(source) };
+			source_string = src.source_;
+		} else {
+			PTGN_ERROR("Unknown variant type");
+		}
+
+		auto srcs{ impl::ShaderManager::ParseShaderSourceFile(source_string, shader_name) };
+
+		PTGN_ASSERT(
+			srcs.size() == 2, "Shader file must provide a vertex and fragment type: ", shader_name
+		);
+
+		const auto& first{ srcs[0] };
+		const auto& second{ srcs[1] };
+
+		std::string vertex_source;
+		std::string fragment_source;
+
+		if (first.type == ShaderType::Vertex && second.type == ShaderType::Fragment) {
+			vertex_source	= first.source.source_;
+			fragment_source = second.source.source_;
+		} else if (first.type == ShaderType::Fragment && second.type == ShaderType::Vertex) {
+			fragment_source = first.source.source_;
+			vertex_source	= second.source.source_;
+		} else {
+			PTGN_ERROR("Shader file must provide a vertex and fragment type: ", shader_name);
+		}
+
+		ShaderId vertex_id{ Shader::Compile(ShaderType::Vertex, vertex_source) };
+		ShaderId fragment_id{ Shader::Compile(ShaderType::Fragment, fragment_source) };
+
+		Link(vertex_id, fragment_id);
+
+		if (vertex_id) {
+			GLCall(DeleteShader(vertex_id));
+		}
+
+		if (fragment_id) {
+			GLCall(DeleteShader(fragment_id));
+		}
 
 		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
 
@@ -653,8 +812,184 @@ public:
 		bound_.stencil = stencil;
 	}
 
+	// Sets the uniform value for the specified uniform name. If the uniform does not exist in the
+	// shader, nothing happens.
+	// Note: Make sure to bind the shader before setting uniforms.
+
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Vector2<float>& v)
+		const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform2f(location, v.x, v.y));
+		}
+	}
+
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Vector3<float>& v)
+		const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform3f(location, v.x, v.y, v.z));
+		}
+	}
+
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Vector4<float>& v)
+		const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform4f(location, v.x, v.y, v.z, v.w));
+		}
+	}
+
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Matrix4& matrix)
+		const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(UniformMatrix4fv(location, 1, GL_FALSE, matrix.Data()));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, const std::int32_t* data,
+		std::int32_t count
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform1iv(location, count, data));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, const float* data, std::int32_t count
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform1fv(location, count, data));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, const Vector2<std::int32_t>& v
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform2i(location, v.x, v.y));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, const Vector3<std::int32_t>& v
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform3i(location, v.x, v.y, v.z));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, const Vector4<std::int32_t>& v
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform4i(location, v.x, v.y, v.z, v.w));
+		}
+	}
+
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, float v0) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform1f(location, v0));
+		}
+	}
+
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, float v0, float v1)
+		const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform2f(location, v0, v1));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, float v0, float v1, float v2
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform3f(location, v0, v1, v2));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, float v0, float v1, float v2,
+		float v3
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform4f(location, v0, v1, v2, v3));
+		}
+	}
+
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, std::int32_t v0) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform1i(location, v0));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, std::int32_t v0, std::int32_t v1
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform2i(location, v0, v1));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, std::int32_t v0, std::int32_t v1,
+		std::int32_t v2
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform3i(location, v0, v1, v2));
+		}
+	}
+
+	void SetUniform(
+		const Handle<Shader>& handle, const std::string& name, std::int32_t v0, std::int32_t v1,
+		std::int32_t v2, std::int32_t v3
+	) const {
+		std::int32_t location{ GetUniform(handle, name) };
+		if (location != -1) {
+			GLCall(Uniform4i(location, v0, v1, v2, v3));
+		}
+	}
+
+	// Behaves identically to SetUniform(name, std::int32_t).
+	void SetUniform(const Handle<Shader>& handle, const std::string& name, bool value) const {
+		SetUniform(handle, name, static_cast<std::int32_t>(value));
+	}
+
 private:
 	static void LoadGLFunctions();
+
+	[[nodiscard]] std::int32_t GetUniform(const Handle<Shader>& handle, const std::string& name)
+		const {
+		PTGN_ASSERT(
+			IsBound(handle), "Cannot get uniform location of shader which is not currently bound"
+		);
+
+		const auto& resource{ handle.Get() };
+
+		if (auto it{ resource.location_cache.find(name) }; it != resource.location_cache.end()) {
+			return it->second;
+		}
+
+		std::int32_t location{ GLCallReturn(GetUniformLocation(resource.id, name.c_str())) };
+
+		resource.location_cache.try_emplace(name, location);
+
+		return location;
+	}
 
 	template <Resource T>
 		requires(T == VertexBuffer || T == ElementBuffer || T == UniformBuffer)
@@ -1068,9 +1403,13 @@ private:
 		});
 	}
 
+	std::unordered_map<std::size_t, ShaderResource> shaders_;
+
 	void* context_{ nullptr };
 
 	State bound_;
+
+	ShaderCache shader_cache_;
 };
 
 } // namespace ptgn::impl::gl
