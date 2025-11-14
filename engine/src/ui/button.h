@@ -16,7 +16,6 @@
 #include "core/scripting/script.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/material/texture.h"
 #include "renderer/text/text.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serializable.h"
@@ -138,8 +137,8 @@ struct ButtonToggled : public BoolComponent {
 	using BoolComponent::BoolComponent;
 };
 
-struct ButtonDisabledTextureKey : public TextureHandle {
-	using TextureHandle::TextureHandle;
+struct ButtonDisabledTexture : public Handle<Texture> {
+	using Handle<Texture>::Handle<Texture>;
 };
 
 struct ButtonTextFixedSize : public Vector2Component<float> {
@@ -205,14 +204,15 @@ struct ButtonBorderColorToggled : public ButtonBorderColor {
 struct ButtonTexture {
 	ButtonTexture() = default;
 
-	ButtonTexture(const TextureHandle& key) : default_{ key }, hover_{ key }, pressed_{ key } {}
+	ButtonTexture(const Handle<Texture>& texture) :
+		default_{ texture }, hover_{ texture }, pressed_{ texture } {}
 
-	[[nodiscard]] const TextureHandle& Get(ButtonState state) const;
-	[[nodiscard]] TextureHandle& Get(ButtonState state);
+	[[nodiscard]] const Handle<Texture>& Get(ButtonState state) const;
+	[[nodiscard]] Handle<Texture>& Get(ButtonState state);
 
-	TextureHandle default_;
-	TextureHandle hover_;
-	TextureHandle pressed_;
+	Handle<Texture> default_;
+	Handle<Texture> hover_;
+	Handle<Texture> pressed_;
 
 	PTGN_SERIALIZER_REGISTER_NAMED(
 		ButtonTexture, KeyValue("default", default_), KeyValue("hover", hover_),
@@ -234,7 +234,7 @@ struct ButtonText {
 
 	ButtonText(
 		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
-		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+		const TextColor& text_color, const FontSize& font_size, const Handle<Font>& font_key,
 		const TextProperties& text_properties
 	);
 
@@ -247,7 +247,7 @@ struct ButtonText {
 
 	void Set(
 		Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
-		const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+		const TextColor& text_color, const FontSize& font_size, const Handle<Font>& font_key,
 		const TextProperties& text_properties
 	);
 
@@ -318,17 +318,14 @@ public:
 
 	Button& SetBackgroundColor(const Color& color, ButtonState state = ButtonState::Default);
 
-	[[nodiscard]] const TextureHandle& GetTextureKey(
-		ButtonState state = ButtonState::Current
-	) const;
+	[[nodiscard]] const Handle<Texture>& GetTextureKey(ButtonState state = ButtonState::Current)
+		const;
 
-	Button& SetTextureKey(
-		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
-	);
+	Button& SetTexture(const Handle<Texture>& texture, ButtonState state = ButtonState::Default);
 
-	Button& SetDisabledTextureKey(const TextureHandle& texture_key);
+	Button& SetDisabledTextureKey(const Handle<Texture>& texture);
 
-	[[nodiscard]] const TextureHandle& GetDisabledTextureKey() const;
+	[[nodiscard]] const Handle<Texture>& GetDisabledTextureKey() const;
 
 	[[nodiscard]] Color GetButtonTint(ButtonState state = ButtonState::Current) const;
 
@@ -362,7 +359,7 @@ public:
 
 	Button& SetText(
 		const TextContent& content, const TextColor& text_color = color::Black,
-		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+		const FontSize& font_size = {}, const Handle<Font>& font_key = {},
 		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
 	);
 
@@ -404,12 +401,12 @@ public:
 		const Color& color, ButtonState state = ButtonState::Default
 	);
 
-	[[nodiscard]] const TextureHandle& GetTextureKeyToggled(
+	[[nodiscard]] const Handle<Texture>& GetTextureKeyToggled(
 		ButtonState state = ButtonState::Default
 	) const;
 
 	ToggleButton& SetTextureKeyToggled(
-		const TextureHandle& texture_key, ButtonState state = ButtonState::Default
+		const Handle<Texture>& texture, ButtonState state = ButtonState::Default
 	);
 
 	[[nodiscard]] Color GetButtonTintToggled(ButtonState state = ButtonState::Current) const;
@@ -432,7 +429,7 @@ public:
 
 	ToggleButton& SetTextToggled(
 		const TextContent& content, const TextColor& text_color = color::Black,
-		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+		const FontSize& font_size = {}, const Handle<Font>& font_key = {},
 		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
 	);
 

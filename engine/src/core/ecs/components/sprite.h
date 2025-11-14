@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "core/asset/asset_handle.h"
 #include "core/ecs/components/drawable.h"
 #include "core/ecs/entity.h"
 #include "math/vector2.h"
@@ -23,11 +24,7 @@ struct Sprite : public Entity {
 
 	static void Draw(const Entity& entity);
 
-	Sprite& SetTextureKey(const TextureHandle& texture_key);
-
-	[[nodiscard]] const impl::Texture& GetTexture() const;
-
-	[[nodiscard]] impl::Texture& GetTexture();
+	Sprite& SetTexture(const Handle<Texture>& texture);
 
 	// @return Unscaled size of the entire texture in pixels.
 	[[nodiscard]] V2_int GetTextureSize() const;
@@ -46,7 +43,7 @@ struct Sprite : public Entity {
 PTGN_DRAWABLE_REGISTER(Sprite);
 
 Sprite CreateSprite(
-	Manager& manager, const TextureHandle& texture_key, const V2_float& position = {},
+	Manager& manager, const Handle<Texture>& texture, const V2_float& position = {},
 	Origin draw_origin = Origin::Center
 );
 

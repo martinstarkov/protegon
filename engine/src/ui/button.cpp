@@ -27,7 +27,6 @@
 #include "math/vector2.h"
 #include "math/vector4.h"
 #include "renderer/api/color.h"
-#include "renderer/material/texture.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
 #include "world/scene/camera.h"
@@ -169,7 +168,7 @@ Color& ButtonColor::Get(ButtonState state) {
 
 ButtonText::ButtonText(
 	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
-	const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+	const TextColor& text_color, const FontSize& font_size, const Handle<Font>& font_key,
 	const TextProperties& text_properties
 ) {
 	Set(parent, manager, ButtonState::Default, text_content, text_color, font_size, font_key,
@@ -218,7 +217,7 @@ TextJustify ButtonText::GetTextJustify(ButtonState state) const {
 
 void ButtonText::Set(
 	Entity parent, Manager& manager, ButtonState state, const TextContent& text_content,
-	const TextColor& text_color, const FontSize& font_size, const ResourceHandle& font_key,
+	const TextColor& text_color, const FontSize& font_size, const Handle<Font>& font_key,
 	const TextProperties& text_properties
 ) {
 	PTGN_ASSERT(
@@ -258,7 +257,7 @@ void ButtonText::Set(
 	}
 }
 
-const TextureHandle& ButtonTexture::Get(ButtonState state) const {
+const Handle<Texture>& ButtonTexture::Get(ButtonState state) const {
 	switch (state) {
 		case ButtonState::Default: return default_;
 		case ButtonState::Hover:   return hover_;
@@ -268,8 +267,8 @@ const TextureHandle& ButtonTexture::Get(ButtonState state) const {
 	}
 }
 
-TextureHandle& ButtonTexture::Get(ButtonState state) {
-	return const_cast<TextureHandle&>(std::as_const(*this).Get(state));
+Handle<Texture>& ButtonTexture::Get(ButtonState state) {
+	return const_cast<Handle<Texture>&>(std::as_const(*this).Get(state));
 }
 
 } // namespace impl
@@ -284,12 +283,12 @@ static void UpdateStateProperty(Button& button, const ButtonState& state) {
 }
 
 static void SetTextureState(Button& button, bool is_toggled, const ButtonState& state) {
-	auto key{ button.TryGet<TextureHandle>() };
+	auto key{ button.TryGet<Handle<Texture>>() };
 	if (!key) {
 		return;
 	}
-	if (!button.IsEnabled(false) && button.Has<impl::ButtonDisabledTextureKey>()) {
-		*key = button.Get<impl::ButtonDisabledTextureKey>();
+	if (!button.IsEnabled(false) && button.Has<impl::ButtonDisabledTexture>()) {
+		*key = button.Get<impl::ButtonDisabledTexture>();
 	} else if (is_toggled && button.Has<impl::ButtonTextureToggled>()) {
 		*key = button.Get<impl::ButtonTextureToggled>().Get(state);
 	} else if (button.Has<impl::ButtonTexture>()) {
@@ -319,13 +318,13 @@ static const impl::Texture* GetButtonTexture(
 ) {
 	SetTextureState(button, is_toggled, state);
 
-	auto button_texture_key{ button.GetOrDefault<TextureHandle>() };
+	auto button_texture{ button.GetOrDefault<Handle<Texture>>() };
 
-	if (!Application::Get().texture.Has(button_texture_key)) {
+	if (!Application::Get().texture.Has(button_texture)) {
 		return nullptr;
 	}
 
-	return &button_texture_key.GetTexture();
+	return &button_texture.GetTexture();
 }
 
 // @return Button text, or empty text object if button has no text.
@@ -495,14 +494,14 @@ V2_float Button::GetSize() const {
 
 	const impl::Texture* button_texture{ nullptr };
 
-	TextureHandle button_texture_key;
+	Handle<Texture> button_texture;
 
-	if (Has<TextureHandle>()) {
-		button_texture_key = Get<TextureHandle>();
+	if (Has<Handle<Texture>>()) {
+		button_texture = Get<Handle<Texture>>();
 	}
 
-	if (Application::Get().texture.Has(button_texture_key)) {
-		button_texture = &button_texture_key.GetTexture();
+	if (Application::Get().texture.Has(button_texture)) {
+		button_texture = &button_texture.GetTexture();
 	}
 
 	if (button_texture != nullptr && size.IsZero()) {
@@ -573,7 +572,7 @@ Button& Button::SetBackgroundColor(const Color& color, ButtonState state) {
 
 Button& Button::SetText(
 	const TextContent& content, const TextColor& text_color, const FontSize& font_size,
-	const ResourceHandle& font_key, const TextProperties& text_properties, ButtonState state
+	const Handle<Font>& font_key, const TextProperties& text_properties, ButtonState state
 ) {
 	if (!Has<impl::ButtonText>()) {
 		Add<impl::ButtonText>(
@@ -599,7 +598,7 @@ TextColor Button::GetTextColor(ButtonState state) const {
 Button& Button::SetTextColor(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		Add<impl::ButtonText>(
-			*this, GetManager(), state, TextContent{}, text_color, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, TextContent{}, text_color, FontSize{}, Handle<Font>{},
 			TextProperties{}
 		);
 	} else {
@@ -616,7 +615,7 @@ TextContent Button::GetTextContent(ButtonState state) const {
 Button& Button::SetTextContent(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		Add<impl::ButtonText>(
-			*this, GetManager(), state, content, TextColor{}, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, content, TextColor{}, FontSize{}, Handle<Font>{},
 			TextProperties{}
 		);
 	} else {
@@ -635,7 +634,7 @@ Button& Button::SetTextJustify(const TextJustify& justify, ButtonState state) {
 		TextProperties p{};
 		p.justify = justify;
 		Add<impl::ButtonText>(
-			*this, GetManager(), state, TextContent{}, TextColor{}, FontSize{}, ResourceHandle{}, p
+			*this, GetManager(), state, TextContent{}, TextColor{}, FontSize{}, Handle<Font>{}, p
 		);
 	} else {
 		const auto& c{ Get<impl::ButtonText>() };
@@ -665,7 +664,7 @@ FontSize Button::GetFontSize(ButtonState state) const {
 Button& Button::SetFontSize(const FontSize& font_size, ButtonState state) {
 	if (!Has<impl::ButtonText>()) {
 		Add<impl::ButtonText>(
-			*this, GetManager(), state, TextContent{}, TextColor{}, font_size, ResourceHandle{},
+			*this, GetManager(), state, TextContent{}, TextColor{}, font_size, Handle<Font>{},
 			TextProperties{}
 		);
 	} else {
@@ -675,13 +674,13 @@ Button& Button::SetFontSize(const FontSize& font_size, ButtonState state) {
 	return *this;
 }
 
-const TextureHandle& Button::GetTextureKey(ButtonState state) const {
+const Handle<Texture>& Button::GetTextureKey(ButtonState state) const {
 	if (state == ButtonState::Current) {
 		PTGN_ASSERT(
-			Has<TextureHandle>(),
+			Has<Handle<Texture>>(),
 			"Cannot retrieve current texture key as no texture has been added to the button"
 		);
-		return Get<TextureHandle>();
+		return Get<Handle<Texture>>();
 	}
 	PTGN_ASSERT(
 		Has<impl::ButtonTexture>(),
@@ -690,7 +689,7 @@ const TextureHandle& Button::GetTextureKey(ButtonState state) const {
 	return Get<impl::ButtonTexture>().Get(state);
 }
 
-Button& Button::SetTextureKey(const TextureHandle& texture_key, ButtonState state) {
+Button& Button::SetTextureKey(const Handle<Texture>& texture_key, ButtonState state) {
 	if (IsInteractive(*this) && GetInteractables(*this).empty()) {
 		auto shape{ GetManager().CreateEntity() };
 		AddChild(*this, shape);
@@ -698,10 +697,10 @@ Button& Button::SetTextureKey(const TextureHandle& texture_key, ButtonState stat
 		shape.Add<Rect>(size);
 		AddInteractable(*this, std::move(shape));
 	}
-	if (!Has<TextureHandle>()) {
-		Add<TextureHandle>(texture_key);
+	if (!Has<Handle<Texture>>()) {
+		Add<Handle<Texture>>(texture_key);
 	} else if (state == ButtonState::Current) {
-		Add<TextureHandle>(texture_key);
+		Add<Handle<Texture>>(texture_key);
 		return *this;
 	}
 	if (!Has<impl::ButtonTexture>()) {
@@ -713,21 +712,21 @@ Button& Button::SetTextureKey(const TextureHandle& texture_key, ButtonState stat
 	return *this;
 }
 
-Button& Button::SetDisabledTextureKey(const TextureHandle& texture_key) {
+Button& Button::SetDisabledTextureKey(const Handle<Texture>& texture_key) {
 	if (!texture_key) {
-		Remove<impl::ButtonDisabledTextureKey>();
+		Remove<impl::ButtonDisabledTexture>();
 	} else {
-		Add<impl::ButtonDisabledTextureKey>(texture_key);
+		Add<impl::ButtonDisabledTexture>(texture_key);
 	}
 	return *this;
 }
 
-const TextureHandle& Button::GetDisabledTextureKey() const {
+const Handle<Texture>& Button::GetDisabledTextureKey() const {
 	PTGN_ASSERT(
-		Has<impl::ButtonDisabledTextureKey>(),
+		Has<impl::ButtonDisabledTexture>(),
 		"Cannot retrieve disabled texture key as it has not been set for the button"
 	);
-	return Get<impl::ButtonDisabledTextureKey>();
+	return Get<impl::ButtonDisabledTexture>();
 }
 
 Color Button::GetButtonTint(ButtonState state) const {
@@ -877,7 +876,7 @@ TextColor ToggleButton::GetTextColorToggled(ButtonState state) const {
 ToggleButton& ToggleButton::SetTextColorToggled(const TextColor& text_color, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
-			*this, GetManager(), state, TextContent{}, text_color, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, TextContent{}, text_color, FontSize{}, Handle<Font>{},
 			TextProperties{}
 		);
 	} else {
@@ -894,7 +893,7 @@ TextContent ToggleButton::GetTextContentToggled(ButtonState state) const {
 ToggleButton& ToggleButton::SetTextContentToggled(const TextContent& content, ButtonState state) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
-			*this, GetManager(), state, content, TextColor{}, FontSize{}, ResourceHandle{},
+			*this, GetManager(), state, content, TextColor{}, FontSize{}, Handle<Font>{},
 			TextProperties{}
 		);
 	} else {
@@ -906,7 +905,7 @@ ToggleButton& ToggleButton::SetTextContentToggled(const TextContent& content, Bu
 
 ToggleButton& ToggleButton::SetTextToggled(
 	const TextContent& content, const TextColor& text_color, const FontSize& font_size,
-	const ResourceHandle& font_key, const TextProperties& text_properties, ButtonState state
+	const Handle<Font>& font_key, const TextProperties& text_properties, ButtonState state
 ) {
 	if (!Has<impl::ButtonTextToggled>()) {
 		Add<impl::ButtonTextToggled>(
@@ -941,13 +940,13 @@ ToggleButton& ToggleButton::SetBorderColorToggled(const Color& color, ButtonStat
 	return *this;
 }
 
-const TextureHandle& ToggleButton::GetTextureKeyToggled(ButtonState state) const {
+const Handle<Texture>& ToggleButton::GetTextureKeyToggled(ButtonState state) const {
 	if (state == ButtonState::Current) {
 		PTGN_ASSERT(
-			Has<TextureHandle>(),
+			Has<Handle<Texture>>(),
 			"Cannot retrieve current texture key as no texture has been added to the button"
 		);
-		return Get<TextureHandle>();
+		return Get<Handle<Texture>>();
 	}
 	PTGN_ASSERT(
 		Has<impl::ButtonTextureToggled>(),
@@ -957,12 +956,12 @@ const TextureHandle& ToggleButton::GetTextureKeyToggled(ButtonState state) const
 }
 
 ToggleButton& ToggleButton::SetTextureKeyToggled(
-	const TextureHandle& texture_key, ButtonState state
+	const Handle<Texture>& texture_key, ButtonState state
 ) {
-	if (!Has<TextureHandle>()) {
-		Add<TextureHandle>(texture_key);
+	if (!Has<Handle<Texture>>()) {
+		Add<Handle<Texture>>(texture_key);
 	} else if (state == ButtonState::Current && Get<impl::ButtonToggled>()) {
-		Add<TextureHandle>(texture_key);
+		Add<Handle<Texture>>(texture_key);
 		return *this;
 	}
 	if (!Has<impl::ButtonTextureToggled>()) {

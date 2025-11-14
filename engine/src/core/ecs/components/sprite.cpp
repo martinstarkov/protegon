@@ -1,17 +1,13 @@
 #include "core/ecs/components/sprite.h"
 
 #include <array>
-#include <utility>
 
 #include "core/app/manager.h"
+#include "core/asset/asset_handle.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/log.h"
 #include "math/vector2.h"
-#include "renderer/buffer/frame_buffer.h"
-#include "renderer/material/texture.h"
-#include "renderer/render_data.h"
 
 namespace ptgn {
 
@@ -21,26 +17,13 @@ void Sprite::Draw(const Entity& entity) {
 	impl::DrawTexture(entity, false);
 }
 
-Sprite& Sprite::SetTextureKey(const TextureHandle& texture_key) {
-	if (Has<TextureHandle>()) {
-		Get<TextureHandle>() = texture_key;
+Sprite& Sprite::SetTexture(const Handle<Texture>& texture) {
+	if (Has<Handle<Texture>>()) {
+		Get<Handle<Texture>>() = texture;
 	} else {
-		Add<TextureHandle>(texture_key);
+		Add<Handle<Texture>>(texture);
 	}
 	return *this;
-}
-
-const impl::Texture& Sprite::GetTexture() const {
-	if (auto texture_handle{ TryGet<TextureHandle>() }; texture_handle) {
-		return texture_handle->GetTexture(*this);
-	} else if (auto frame_buffer{ TryGet<impl::FrameBuffer>() }; frame_buffer) {
-		return frame_buffer->GetTexture();
-	}
-	PTGN_ERROR("Entity has no valid texture");
-}
-
-impl::Texture& Sprite::GetTexture() {
-	return const_cast<impl::Texture&>(std::as_const(*this).GetTexture());
 }
 
 V2_int Sprite::GetTextureSize() const {
@@ -64,11 +47,11 @@ std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) cons
 }
 
 Sprite CreateSprite(
-	Manager& manager, const TextureHandle& texture_key, const V2_float& position, Origin draw_origin
+	Manager& manager, const Handle<Texture>& texture, const V2_float& position, Origin draw_origin
 ) {
 	Sprite sprite{ manager.CreateEntity() };
 	SetDraw<Sprite>(sprite);
-	sprite.SetTextureKey(texture_key);
+	sprite.SetTexture(texture);
 	Show(sprite);
 	SetPosition(sprite, position);
 	SetDrawOrigin(sprite, draw_origin);
