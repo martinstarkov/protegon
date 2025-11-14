@@ -595,12 +595,9 @@ GLuint GLContext::CompileShaderPath(
 	return CompileShaderSource(source, type, name, max_texture_slots);
 }
 
-void GLContext::LinkShader(
-	const std::shared_ptr<ShaderResource>& resource, GLuint vertex, GLuint fragment
-) {
-	resource->location_cache.clear();
-
-	auto id{ resource->id };
+void GLContext::LinkShader(GLuint id, GLuint vertex, GLuint fragment) {
+	// TODO: Fix.
+	// resource->location_cache.clear();
 
 	PTGN_ASSERT(vertex);
 	PTGN_ASSERT(fragment);
@@ -626,8 +623,8 @@ void GLContext::LinkShader(
 		GLCall(gl::DeleteShader(fragment));
 
 		PTGN_ERROR(
-			"Failed to link shaders to program: ", resource->shader_name, "\nVertex : ", vertex,
-			"\nFragment : ", fragment, "\n ", log
+			"Failed to link shaders to program:\nVertex : ", vertex, "\nFragment : ", fragment,
+			"\n ", log
 		);
 	}
 
@@ -635,13 +632,9 @@ void GLContext::LinkShader(
 }
 
 void GLContext::CompileShader(
-	const Handle<Shader>& handle, const std::string& vertex_source,
-	const std::string& fragment_source
+	GLuint id, const std::string& vertex_source, const std::string& fragment_source
 ) const {
-	const auto& resource{ handle.Get() };
-	auto id{ resource.id };
-
-	resource.location_cache.clear();
+	// TODO: Ensure shader cache is cleared if it exists.
 
 	GLuint vertex{ CompileShaderFromSource(GL_VERTEX_SHADER, vertex_source) };
 	GLuint fragment{ CompileShaderFromSource(GL_FRAGMENT_SHADER, fragment_source) };

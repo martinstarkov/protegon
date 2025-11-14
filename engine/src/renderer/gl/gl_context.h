@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/log.h"
@@ -116,7 +117,7 @@ public:
 		resource->id		  = GLCallReturn(gl::CreateProgram());
 		resource->shader_name = shader_name;
 
-		LinkShader(resource, vertex, fragment);
+		LinkShader(resource->id, vertex, fragment);
 
 		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
 
@@ -192,7 +193,7 @@ public:
 		auto [vertex_id, delete_vert_after]	  = get_id(vertex, GL_VERTEX_SHADER);
 		auto [fragment_id, delete_frag_after] = get_id(fragment, GL_FRAGMENT_SHADER);
 
-		LinkShader(resource, vertex_id, fragment_id);
+		LinkShader(resource->id, vertex_id, fragment_id);
 
 		if (delete_vert_after && vertex_id) {
 			GLCall(gl::DeleteShader(vertex_id));
@@ -254,7 +255,7 @@ public:
 		auto vertex_id{ CompileShaderFromSource(GL_VERTEX_SHADER, vertex_source) };
 		auto fragment_id{ CompileShaderFromSource(GL_FRAGMENT_SHADER, fragment_source) };
 
-		LinkShader(resource, vertex_id, fragment_id);
+		LinkShader(resource->id, vertex_id, fragment_id);
 
 		if (vertex_id) {
 			GLCall(gl::DeleteShader(vertex_id));
@@ -318,35 +319,37 @@ public:
 	}
 
 	template <bool kRestoreBind = true>
-	Handle<FrameBuffer> CreateFrameBuffer(const Handle<Texture>& texture) {
-		PTGN_ASSERT(
+	Handle<FrameBuffer> CreateFrameBuffer(GLuint texture, GLuint render_buffer) {
+		// TODO: Fix.
+		/*PTGN_ASSERT(
 			texture.Get().size.BothAboveZero(),
 			"Cannot attach texture with no size to a frame buffer"
-		);
+		);*/
 
 		auto resource = MakeGLResource<FrameBuffer, FrameBufferResource>();
 		GLCall(gl::GenFramebuffers(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create framebuffer");
 
-		resource->texture = texture;
-		// Render buffer is implicitly as persistent as the frame buffer since the frame buffer
-		// holds a reference to it.
-		resource->render_buffer =
-			CreateRenderBuffer<kRestoreBind>(texture.Get().size, GL_DEPTH24_STENCIL8);
+		resource->texture		= texture;
+		resource->render_buffer = render_buffer;
 
 		Handle<FrameBuffer> handle{ std::move(resource) };
 
-		auto _ = Bind<kRestoreBind>(handle);
+		auto _ = Bind<kRestoreBind, FrameBuffer>(resource->id);
 
-		GLCall(gl::FramebufferTexture2D(
-			GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0
-		));
+		if (resource->texture) {
+			GLCall(gl::FramebufferTexture2D(
+				GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0
+			));
+		}
 
-		GLCall(gl::FramebufferRenderbuffer(
-			GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer->id
-		));
+		if (resource->render_buffer) {
+			GLCall(gl::FramebufferRenderbuffer(
+				GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer
+			));
+		}
 
-		PTGN_ASSERT(FrameBufferIsComplete(handle));
+		PTGN_ASSERT(FrameBufferIsComplete(resource->id));
 
 		return handle;
 	}
@@ -375,39 +378,37 @@ public:
 	}
 
 	template <bool kRestoreBind, Resource T>
-	[[nodiscard]] std::optional<BindGuard<T, kRestoreBind>> Bind(const Handle<T>& handle) {
-		Handle<T> previous{ GetBound<T>() };
+	[[nodiscard]] std::optional<BindGuard<T, kRestoreBind>> Bind(GLuint id) {
+		auto previous{ GetBound<T>() };
 
-		if (handle == previous) {
+		if (id == previous) {
 			return;
 		}
 
-		GLuint id{ handle ? handle.Get().id : 0 };
-
 		if constexpr (T == VertexBuffer) {
 			GLCall(gl::BindBuffer(GL_ARRAY_BUFFER, id));
-			bound_.vertex_array.Get().vertex_buffer = handle;
+			bound_.vertex_buffer = id;
 		} else if constexpr (T == ElementBuffer) {
 			GLCall(gl::BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
-			bound_.vertex_array.Get().element_buffer = handle;
+			bound_.element_buffer = id;
 		} else if constexpr (T == UniformBuffer) {
 			GLCall(gl::BindBuffer(GL_UNIFORM_BUFFER, id));
-			bound_.uniform_buffer = handle;
+			bound_.uniform_buffer = id;
 		} else if constexpr (T == Shader) {
 			GLCall(gl::UseProgram(id));
-			bound_.shader = handle;
+			bound_.shader = id;
 		} else if constexpr (T == RenderBuffer) {
 			GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, id));
-			bound_.render_buffer = handle;
+			bound_.render_buffer = id;
 		} else if constexpr (T == Texture) {
 			auto slot{ GetActiveTextureSlot() };
 			PTGN_ASSERT(slot < bound_.texture_units.size(), "Slot out of range of max slots");
-			PTGN_ASSERT(bound_.texture_units[slot].texture != handle);
+			PTGN_ASSERT(bound_.texture_units[slot].id != id);
 			GLCall(gl::glBindTexture(GL_TEXTURE_2D, id));
-			bound_.texture_units[slot].texture = handle;
+			bound_.texture_units[slot].id = id;
 		} else if constexpr (T == FrameBuffer) {
 			GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, id));
-			bound_.frame_buffer = handle;
+			bound_.frame_buffer = id;
 		} else if constexpr (T == VertexArray) {
 #ifdef PTGN_PLATFORM_MACOS
 			// MacOS complains about binding 0 id vertex array.
@@ -417,7 +418,7 @@ public:
 #else
 			GLCall(gl::BindVertexArray(id));
 #endif
-			bound_.vertex_array = handle;
+			bound_.vertex_array = id;
 		} else {
 			static_assert(false, "Unsupported Resource type");
 		}
@@ -430,16 +431,16 @@ public:
 	}
 
 	template <Resource T>
-	[[nodiscard]] const Handle<T>& GetBound() const {
+	[[nodiscard]] GLuint GetBound() const {
 		if constexpr (T == VertexBuffer) {
-			return bound_.vertex_array.Get().vertex_buffer;
+			return bound_.vertex_buffer;
 		} else if constexpr (T == ElementBuffer) {
-			return bound_.vertex_array.Get().element_buffer;
+			return bound_.element_buffer;
 		} else if constexpr (T == UniformBuffer) {
 			return bound_.uniform_buffer;
 		} else if constexpr (T == Texture) {
 			PTGN_ASSERT(bound_.active_texture_slot < bound_.textures.size());
-			return bound_.textures[bound_.active_texture_slot].texture;
+			return bound_.textures[bound_.active_texture_slot].id;
 		} else if constexpr (T == RenderBuffer) {
 			return bound_.render_buffer;
 		} else if constexpr (T == FrameBuffer) {
@@ -454,38 +455,32 @@ public:
 	}
 
 	template <Resource T>
-	[[nodiscard]] bool IsBound(const Handle<T>& handle) const {
-		return GetBound<T>() == handle;
+	[[nodiscard]] bool IsBound(GLuint id) const {
+		return GetBound<T>() == id;
 	}
 
-	void SetVertexBuffer(
-		Handle<VertexArray>& vertex_array, const Handle<VertexBuffer>& vertex_buffer
-	) {
+	void SetVertexBuffer(GLuint vertex_array, GLuint vertex_buffer) {
 		PTGN_ASSERT(
-			IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer"
+			IsBound<VertexArray>(vertex_array),
+			"Vertex array must be bound before setting vertex buffer"
 		);
-		vertex_array.Get().vertex_buffer = vertex_buffer;
-
-		auto _ = Bind<false>(vertex_buffer);
+		auto _ = Bind<false, VertexBuffer>(vertex_buffer);
 	}
 
-	void SetElementBuffer(
-		Handle<VertexArray>& vertex_array, const Handle<ElementBuffer>& element_buffer
-	) {
+	void SetElementBuffer(GLuint vertex_array, GLuint element_buffer) {
 		PTGN_ASSERT(
-			IsBound(vertex_array), "Vertex array must be bound before setting element buffer"
+			IsBound<VertexArray>(vertex_array),
+			"Vertex array must be bound before setting element buffer"
 		);
-		vertex_array.Get().element_buffer = element_buffer;
-
-		auto _ = Bind<false>(element_buffer);
+		auto _ = Bind<false, ElementBuffer>(element_buffer);
 	}
 
 	template <VertexDataType... Ts>
 		requires NonEmptyPack<Ts...>
-	void SetBufferLayout(const Handle<VertexArray>& vertex_array, const BufferLayout<Ts...>& layout)
-		const {
+	void SetBufferLayout(GLuint vertex_array, const BufferLayout<Ts...>& layout) const {
 		PTGN_ASSERT(
-			IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"
+			IsBound<VertexArray>(vertex_array),
+			"Vertex array must be bound before setting its buffer layout"
 		);
 		PTGN_ASSERT(
 			!layout.IsEmpty(),
@@ -677,16 +672,16 @@ public:
 		bound_.blend_mode = mode;
 	}
 
-	void DrawElements(
-		const Handle<VertexArray>& vertex_array, GLsizei element_count, GLenum primitive_mode
-	) const {
-		PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before drawing elements");
+	void DrawElements(GLuint vertex_array, GLsizei element_count, GLenum primitive_mode) const {
 		PTGN_ASSERT(
-			vertex_array.Get().vertex_buffer,
+			IsBound<VertexArray>(vertex_array), "Vertex array must be bound before drawing elements"
+		);
+		PTGN_ASSERT(
+			GetBound<VertexBuffer>(),
 			"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 		);
 		PTGN_ASSERT(
-			vertex_array.Get().element_buffer,
+			GetBound<ElementBuffer>(),
 			"Cannot draw vertex array with uninitialized or destroyed element buffer"
 		);
 
@@ -695,12 +690,12 @@ public:
 		GLCall(gl::glDrawElements(primitive_mode, element_count, element_type, nullptr));
 	}
 
-	void DrawArrays(
-		const Handle<VertexArray>& vertex_array, GLsizei vertex_count, GLenum primitive_mode
-	) const {
-		PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before drawing arrays");
+	void DrawArrays(GLuint vertex_array, GLsizei vertex_count, GLenum primitive_mode) const {
 		PTGN_ASSERT(
-			vertex_array.Get().vertex_buffer,
+			IsBound<VertexArray>(vertex_array), "Vertex array must be bound before drawing arrays"
+		);
+		PTGN_ASSERT(
+			GetBound<VertexBuffer>(),
 			"Cannot draw vertex array with uninitialized or destroyed vertex buffer"
 		);
 
@@ -739,9 +734,10 @@ public:
 	}
 
 	// Clears the currently bound frame buffer's color buffer to the specified color.
-	void ClearToColor(const Handle<FrameBuffer>& frame_buffer, const Color& color) const {
+	void ClearToColor(GLuint frame_buffer, const Color& color) const {
 		PTGN_ASSERT(
-			IsBound(frame_buffer), "Frame buffer must be bound before clearing it to color"
+			IsBound<FrameBuffer>(frame_buffer),
+			"Frame buffer must be bound before clearing it to color"
 		);
 		// TODO: Update clear color state and add early exit if same.
 		// GLCall(gl::glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
@@ -818,157 +814,173 @@ public:
 	// shader, nothing happens.
 	// Note: Make sure to bind the shader before setting uniforms.
 
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Vector2<float>& v)
-		const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, const Vector2<float>& v) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform2f(location, v.x, v.y));
 		}
 	}
 
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Vector3<float>& v)
-		const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, const Vector3<float>& v) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform3f(location, v.x, v.y, v.z));
 		}
 	}
 
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Vector4<float>& v)
-		const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, const Vector4<float>& v) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform4f(location, v.x, v.y, v.z, v.w));
 		}
 	}
 
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, const Matrix4& matrix)
-		const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, const Matrix4& matrix) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::UniformMatrix4fv(location, 1, GL_FALSE, matrix.Data()));
 		}
 	}
 
 	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, const std::int32_t* data,
-		std::int32_t count
+		GLuint shader_id, const std::string& name, const std::int32_t* data, std::int32_t count
 	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform1iv(location, count, data));
 		}
 	}
 
 	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, const float* data, std::int32_t count
+		GLuint shader_id, const std::string& name, const float* data, std::int32_t count
 	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform1fv(location, count, data));
 		}
 	}
 
-	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, const Vector2<std::int32_t>& v
-	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, const Vector2<std::int32_t>& v)
+		const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform2i(location, v.x, v.y));
 		}
 	}
 
-	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, const Vector3<std::int32_t>& v
-	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, const Vector3<std::int32_t>& v)
+		const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform3i(location, v.x, v.y, v.z));
 		}
 	}
 
-	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, const Vector4<std::int32_t>& v
-	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, const Vector4<std::int32_t>& v)
+		const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform4i(location, v.x, v.y, v.z, v.w));
 		}
 	}
 
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, float v0) const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, float v0) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform1f(location, v0));
 		}
 	}
 
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, float v0, float v1)
-		const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, float v0, float v1) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform2f(location, v0, v1));
 		}
 	}
 
-	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, float v0, float v1, float v2
-	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, float v0, float v1, float v2) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform3f(location, v0, v1, v2));
 		}
 	}
 
 	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, float v0, float v1, float v2,
-		float v3
+		GLuint shader_id, const std::string& name, float v0, float v1, float v2, float v3
 	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform4f(location, v0, v1, v2, v3));
 		}
 	}
 
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, std::int32_t v0) const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, std::int32_t v0) const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform1i(location, v0));
 		}
 	}
 
-	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, std::int32_t v0, std::int32_t v1
-	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+	void SetUniform(GLuint shader_id, const std::string& name, std::int32_t v0, std::int32_t v1)
+		const {
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform2i(location, v0, v1));
 		}
 	}
 
 	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, std::int32_t v0, std::int32_t v1,
-		std::int32_t v2
+		GLuint shader_id, const std::string& name, std::int32_t v0, std::int32_t v1, std::int32_t v2
 	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform3i(location, v0, v1, v2));
 		}
 	}
 
 	void SetUniform(
-		const Handle<Shader>& handle, const std::string& name, std::int32_t v0, std::int32_t v1,
+		GLuint shader_id, const std::string& name, std::int32_t v0, std::int32_t v1,
 		std::int32_t v2, std::int32_t v3
 	) const {
-		std::int32_t location{ GetUniform(handle, name) };
+		std::int32_t location{ GetUniform(shader_id, name) };
 		if (location != -1) {
 			GLCall(gl::Uniform4i(location, v0, v1, v2, v3));
 		}
 	}
 
 	// Behaves identically to SetUniform(name, std::int32_t).
-	void SetUniform(const Handle<Shader>& handle, const std::string& name, bool value) const {
-		SetUniform(handle, name, static_cast<std::int32_t>(value));
+	void SetUniform(GLuint shader_id, const std::string& name, bool value) const {
+		SetUniform(shader_id, name, static_cast<std::int32_t>(value));
+	}
+
+	[[nodiscard]] Handle<Shader> GetShader(const std::string_view shader_name) const {
+		auto key{ Hash(shader_name) };
+		PTGN_ASSERT(shaders_.contains(key), "Shader does not exist");
+		return Handle<Shader>{ shaders_.find(key)->second };
+	}
+
+	void SetActiveTextureSlot(GLuint slot) {
+		if (bound_.active_texture_slot == slot) {
+			return;
+		}
+		PTGN_ASSERT(
+			slot < GetMaxTextureSlots(),
+			"Attempting to bind a slot outside of OpenGL texture slot maximum"
+		);
+		GLCall(gl::glActiveTexture(GL_TEXTURE0 + slot));
+		bound_.active_texture_slot = slot;
+	}
+
+	void SetActiveTextureSlot(GLuint slot) {
+		if (bound_.active_texture_slot == slot) {
+			return;
+		}
+		PTGN_ASSERT(
+			slot < GetMaxTextureSlots(),
+			"Attempting to bind a slot outside of OpenGL texture slot maximum"
+		);
+		GLCall(gl::glActiveTexture(GL_TEXTURE0 + slot));
+		bound_.active_texture_slot = slot;
 	}
 
 private:
@@ -995,22 +1007,20 @@ private:
 	) const;
 
 	void CompileShader(
-		const Handle<Shader>& handle, const std::string& vertex_source,
-		const std::string& fragment_source
+		GLuint shader_id, const std::string& vertex_source, const std::string& fragment_source
 	) const;
 
 	[[nodiscard]] GLuint CompileShaderFromSource(GLuint type, const std::string& source) const;
 
-	void LinkShader(
-		const std::shared_ptr<ShaderResource>& resource, GLuint vertex, GLuint fragment
-	);
+	void LinkShader(GLuint shader_id, GLuint vertex, GLuint fragment);
 
-	[[nodiscard]] std::int32_t GetUniform(const Handle<Shader>& handle, const std::string& name)
-		const {
+	[[nodiscard]] std::int32_t GetUniform(GLuint shader_id, const std::string& name) const {
 		PTGN_ASSERT(
-			IsBound(handle), "Cannot get uniform location of shader which is not currently bound"
+			IsBound<Shader>(shader_id),
+			"Cannot get uniform location of shader which is not currently bound"
 		);
 
+		// TODO: Fetch from the gl context cache by id.
 		const auto& resource{ handle.Get() };
 
 		if (auto it{ resource.location_cache.find(name) }; it != resource.location_cache.end()) {
@@ -1083,6 +1093,7 @@ private:
 			"Cannot get pixel out of range of frame buffer texture"
 		);
 		auto _1 = Bind<kRestoreBind>(handle.Get().texture);
+		// TODO: Fix.
 		auto components{ GetColorComponentCount(handle.Get().texture.Get().internal_format) };
 		PTGN_ASSERT(
 			components >= 3,
@@ -1162,8 +1173,11 @@ private:
 		}
 	}
 
-	[[nodiscard]] bool FrameBufferIsComplete(const Handle<FrameBuffer>& handle) const {
-		PTGN_ASSERT(IsBound(handle), "Cannot check status of frame buffer until it is bound");
+	[[nodiscard]] bool FrameBufferIsComplete(GLuint frame_buffer) const {
+		PTGN_ASSERT(
+			IsBound<FrameBuffer>(frame_buffer),
+			"Cannot check status of frame buffer until it is bound"
+		);
 		auto status{ GLCallReturn(gl::CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 		return status == GL_FRAMEBUFFER_COMPLETE;
 	}
@@ -1196,30 +1210,37 @@ private:
 		}
 	}
 
+	// TODO: Replace with GLuints, use gl context cache of resource elements.
 	template <bool kRestoreBind>
-	void Resize(Handle<FrameBuffer>& handle, const V2_int& new_size) {
-		Resize<kRestoreBind>(handle.Get().texture, new_size);
-		Resize<kRestoreBind>(handle.Get().render_buffer, new_size);
+	void ResizeFrameBuffer(Handle<FrameBuffer>& handle, const V2_int& new_size) {
+		if (handle.Get().texture) {
+			ResizeTexture<kRestoreBind>(handle.Get().texture, new_size);
+		}
+		if (handle.Get().render_buffer) {
+			ResizeRenderBuffer<kRestoreBind>(handle.Get().render_buffer, new_size);
+		}
 	}
 
 	template <bool kRestoreBind>
-	void Resize(Handle<RenderBuffer>& handle, const V2_int& new_size) {
-		if (handle && handle.Get().size == new_size) {
+	void ResizeRenderBuffer(Handle<RenderBuffer>& handle, const V2_int& new_size) {
+		PTGN_ASSERT(handle);
+		if (handle.Get().size == new_size) {
 			return;
 		}
 
-		auto _ = Bind<kRestoreBind>(handle);
+		auto _ = Bind<kRestoreBind, RenderBuffer>(handle.Get().id);
 
 		SetRenderBufferStorage(handle, new_size, handle.Get().internal_format);
 	}
 
 	template <bool kRestoreBind>
-	void Resize(Handle<Texture>& handle, const V2_int& new_size) {
-		if (handle && handle.Get().size == new_size) {
+	void ResizeTexture(Handle<Texture>& handle, const V2_int& new_size) {
+		PTGN_ASSERT(handle);
+		if (handle.Get().size == new_size) {
 			return;
 		}
 
-		auto _ = Bind<kRestoreBind>(handle);
+		auto _ = Bind<kRestoreBind, Texture>(handle.Get().id);
 
 		SetTextureData(
 			handle, nullptr, GL_RGBA, GL_UNSIGNED_BYTE, new_size, handle.Get().internal_format
@@ -1229,49 +1250,27 @@ private:
 	void SetRenderBufferStorage(
 		Handle<RenderBuffer>& handle, const V2_int& size, GLenum internal_format
 	) const {
-		PTGN_ASSERT(IsBound(handle), "Render buffer must be bound prior to setting its storage");
+		auto& resource{ handle.Get() };
+		PTGN_ASSERT(
+			IsBound<RenderBuffer>(resource.id),
+			"Render buffer must be bound prior to setting its storage"
+		);
 
 		GLCall(gl::RenderbufferStorage(GL_RENDERBUFFER, internal_format, size.x, size.y));
 
-		auto& resource{ handle.Get() };
 		resource.size			 = size;
 		resource.internal_format = internal_format;
-	}
-
-	template <typename T = GLint>
-	T GetBufferParameter(GLenum target, GLenum pname) {
-		GLint value = -1;
-		GLCall(gl::GetBufferParameteriv(target, pname, &value));
-		PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
-		return static_cast<T>(value);
-	}
-
-	void SetActiveTexture(GLuint slot) {
-		if (bound_.active_texture_slot == slot) {
-			return;
-		}
-		PTGN_ASSERT(
-			slot < GetMaxTextureSlots(),
-			"Attempting to bind a slot outside of OpenGL texture slot maximum"
-		);
-		GLCall(gl::glActiveTexture(GL_TEXTURE0 + slot));
-		bound_.active_texture_slot = slot;
-	}
-
-	// @return The maximum number of texture slots available on the current hardware.
-	[[nodiscard]] GLuint GetMaxTextureSlots() const {
-		return bound_.texture_units.size();
-	}
-
-	[[nodiscard]] GLuint GetActiveSlot() const {
-		return bound_.active_texture_slot;
 	}
 
 	void SetTextureData(
 		Handle<Texture>& handle, const void* pixel_data, GLenum pixel_data_format,
 		GLenum pixel_data_type, const V2_int& size, GLenum internal_format
 	) const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its data");
+		auto& resource{ handle.Get() };
+
+		PTGN_ASSERT(
+			IsBound<Texture>(resource.id), "Texture must be bound prior to setting its data"
+		);
 
 		constexpr GLint mipmap_level{ 0 };
 		constexpr GLint border{ 0 };
@@ -1281,16 +1280,17 @@ private:
 			pixel_data_type, pixel_data
 		));
 
-		auto& resource{ handle.Get() };
 		resource.size			 = size;
 		resource.internal_format = internal_format;
 	}
 
 	void SetTextureSubData(
-		const Handle<Texture>& handle, const void* pixel_subdata, GLenum pixel_data_format,
-		GLenum pixel_data_type, const V2_int& subdata_size, const V2_int& subdata_offset
+		GLuint texture, const void* pixel_subdata, GLenum pixel_data_format, GLenum pixel_data_type,
+		const V2_int& subdata_size, const V2_int& subdata_offset
 	) const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its subdata");
+		PTGN_ASSERT(
+			IsBound<Texture>(texture), "Texture must be bound prior to setting its subdata"
+		);
 
 		PTGN_ASSERT(pixel_subdata != nullptr, "Cannot set texture subdata to nullptr");
 
@@ -1302,47 +1302,73 @@ private:
 		));
 	}
 
-	void SetTextureClampBorderColor(const Handle<Texture>& handle, const Color& color) const {
+	void SetTextureClampBorderColor(GLuint texture, const Color& color) const {
 		PTGN_ASSERT(
-			IsBound(handle), "Texture must be bound prior to setting its clamp border color"
+			IsBound<Texture>(texture),
+			"Texture must be bound prior to setting its clamp border color"
 		);
 
 		auto c{ static_cast<V4_float>(color) };
-		SetTextureParameter(handle, GL_TEXTURE_BORDER_COLOR, c.Data());
+		SetTextureParameter(texture, GL_TEXTURE_BORDER_COLOR, c.Data());
 	}
 
-	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, const GLfloat* values)
-		const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
+	void SetTextureParameter(GLuint texture, GLenum param, const GLfloat* values) const {
+		PTGN_ASSERT(
+			IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters"
+		);
 		PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 		GLCall(gl::glTexParameterfv(GL_TEXTURE_2D, param, values));
 	}
 
-	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, const GLint* values)
-		const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
+	void SetTextureParameter(GLuint texture, GLenum param, const GLint* values) const {
+		PTGN_ASSERT(
+			IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters"
+		);
 		PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 		GLCall(gl::glTexParameteriv(GL_TEXTURE_2D, param, values));
 	}
 
-	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, GLfloat value) const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
+	void SetTextureParameter(GLuint texture, GLenum param, GLfloat value) const {
+		PTGN_ASSERT(
+			IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters"
+		);
 		PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 		GLCall(gl::glTexParameterf(GL_TEXTURE_2D, param, value));
 	}
 
-	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, GLint value) const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
+	void SetTextureParameter(GLuint texture, GLenum param, GLint value) const {
+		PTGN_ASSERT(
+			IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters"
+		);
 		PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 		GLCall(gl::glTexParameteri(GL_TEXTURE_2D, param, value));
 	}
 
-	[[nodiscard]] GLint GetTextureParameter(const Handle<Texture>& handle, GLenum param) const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to getting its parameters");
+	[[nodiscard]] GLint GetTextureParameter(GLuint texture, GLenum param) const {
+		PTGN_ASSERT(
+			IsBound<Texture>(texture), "Texture must be bound prior to getting its parameters"
+		);
 		GLint value{ -1 };
 		GLCall(gl::glGetTexParameteriv(GL_TEXTURE_2D, param, &value));
 		PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 		return value;
+	}
+
+	// @return The maximum number of texture slots available on the current hardware.
+	[[nodiscard]] GLuint GetMaxTextureSlots() const {
+		return bound_.texture_units.size();
+	}
+
+	[[nodiscard]] GLuint GetActiveTextureSlot() const {
+		return bound_.active_texture_slot;
+	}
+
+	template <typename T = GLint>
+	T GetBufferParameter(GLenum target, GLenum pname) {
+		GLint value = -1;
+		GLCall(gl::GetBufferParameteriv(target, pname, &value));
+		PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
+		return static_cast<T>(value);
 	}
 
 	// Ensure that the texture scaling of the currently bound texture is valid for generating
@@ -1354,11 +1380,13 @@ private:
 			   texture_min_filter == GL_NEAREST_MIPMAP_NEAREST;
 	}
 
-	void GenerateMipmaps(const Handle<Texture>& handle) const {
-		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to generating mipmaps for it");
+	void GenerateMipmaps(GLuint texture) const {
+		PTGN_ASSERT(
+			IsBound<Texture>(texture), "Texture must be bound prior to generating mipmaps for it"
+		);
 #ifndef __EMSCRIPTEN__
 		PTGN_ASSERT(
-			SupportsMipmaps(GetTextureParameter(handle, GL_TEXTURE_MIN_FILTER)),
+			SupportsMipmaps(GetTextureParameter(texture, GL_TEXTURE_MIN_FILTER)),
 			"Set texture minifying scaling to mipmap type before generating mipmaps"
 		);
 #endif
@@ -1368,10 +1396,11 @@ private:
 	template <Resource T, bool kBufferOrphaning = true>
 		requires(T == VertexBuffer || T == ElementBuffer || T == UniformBuffer)
 	void SetBufferSubData(
-		const Handle<T>& handle, GLenum target, const void* data, std::int32_t byte_offset,
-		std::uint32_t element_count, std::uint32_t element_size
+		GLuint id, GLenum target, const void* data, std::int32_t byte_offset,
+		std::uint32_t element_count, std::uint32_t element_size, GLenum usage,
+		std::uint32_t total_count
 	) const {
-		PTGN_ASSERT(IsBound(handle), "Buffer must be bound before setting its subdata");
+		PTGN_ASSERT(IsBound<T>(id), "Buffer must be bound before setting its subdata");
 		PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
 		PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
 
@@ -1384,9 +1413,6 @@ private:
 			size <= GetBufferParameter(GL_ARRAY_BUFFER, GL_BUFFER_SIZE),
 			"Attempting to bind data outside of allocated buffer size"
 		);
-
-		auto usage{ handle.Get().usage };
-		auto count{ handle.Get().count };
 
 		if constexpr (kBufferOrphaning) {
 			if (usage == GL_DYNAMIC_DRAW || usage == GL_STREAM_DRAW) {
@@ -1404,7 +1430,7 @@ private:
 	}
 
 	template <Resource T>
-	constexpr void UnsafeDeleteId(GLuint id) {
+	void UnsafeDeleteId(GLuint id) {
 		if (id == 0) {
 			return;
 		}
@@ -1428,13 +1454,19 @@ private:
 
 	template <Resource T, typename ResourceType>
 	[[nodiscard]] std::shared_ptr<ResourceType> MakeGLResource() {
-		return std::shared_ptr<ResourceType>(new ResourceType{}, [](ResourceType* res) {
+		return std::shared_ptr<ResourceType>(new ResourceType{}, [this](ResourceType* res) {
 			if (res && res->id) {
 				UnsafeDeleteId<T>(res->id);
 			}
 			delete res;
 		});
 	}
+
+	// TODO: Make sure to update the cache when the parameters change. I.e. when resizing a
+	// texture.
+	// TODO: Store resource cached values here by GLuint key and erase them in the resource deleter.
+	// e.g. std::unordered_map<GLuint, location_cache> location_caches_;
+	// UnsafeDelete(); location_caches_.erase(id);
 
 	std::unordered_map<std::size_t, std::shared_ptr<ShaderResource>> shaders_;
 

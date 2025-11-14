@@ -14,6 +14,7 @@
 
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
+#include "core/asset/asset_handle.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/components/transform.h"
@@ -72,29 +73,19 @@ struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> 
 };
 
 using Index			= std::uint32_t;
-using TextureOrSize = std::variant<std::reference_wrapper<const Texture>, V2_int>;
+using TextureOrSize = std::variant<std::reference_wrapper<const Handle<Texture>>, V2_int>;
 
 constexpr std::size_t batch_capacity{ 10000 };
 constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
-using UniformCallback = void (*)(Entity, const Shader&);
+using UniformCallback = void (*)(Entity, gl::GLContext&, const Handle<Shader>&);
 
-class ShaderPass {
-public:
-	ShaderPass() = default;
-
-	ShaderPass(const Shader& shader, const UniformCallback& uniform_callback = nullptr);
-
-	[[nodiscard]] const Shader& GetShader() const;
-
-	void Invoke(Entity entity) const;
-
+struct ShaderPass {
 	bool operator==(const ShaderPass&) const = default;
 
-private:
-	const Shader* shader_{ nullptr };
-	UniformCallback uniform_callback_{ nullptr };
+	Handle<Shader> shader;
+	UniformCallback uniform_callback{ nullptr };
 };
 
 class RenderState {
@@ -430,12 +421,11 @@ public:
 	void DrawOutsideStencilMask();
 	void DrawInsideStencilMask();
 
+	// TODO: figure out if this should be public or private.
+	void Submit(const impl::DrawCommand& command, bool debug = false);
+
 private:
 	friend struct impl::ViewportResizeScript;
-
-	impl::gl::GLManager gl_;
-
-	void Submit(const impl::DrawCommand& command, bool debug = false);
 
 	void AddTemporaryTexture(Texture&& texture);
 
@@ -547,7 +537,7 @@ private:
 	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
 
-	const Shader& GetFullscreenShader(TextureFormat texture_format) const;
+	Handle<Shader> GetFullscreenShader(bool hdr) const;
 
 	std::vector<impl::DrawCommand> debug_queue_;
 	std::unordered_map<TextureId, std::vector<impl::DrawCommand>> draw_queues_;
@@ -600,10 +590,8 @@ private:
 	// Clears the window buffer.
 	void ClearScreen() const;
 
-	void Update();
-
 	Window& window_;
-	std::unique_ptr<impl::gl::GLContext> ctx_;
+	std::unique_ptr<impl::gl::GLContext> gl_;
 };
 
 PTGN_SERIALIZER_REGISTER_ENUM(

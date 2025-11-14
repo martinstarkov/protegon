@@ -19,7 +19,7 @@ struct Viewport {
 };
 
 struct TextureUnitState {
-	Handle<Texture> texture;
+	GLuint id{ 0 };
 	GLenum min_filter{ GL_LINEAR };
 	GLenum mag_filter{ GL_LINEAR };
 	GLenum wrap_s{ GL_REPEAT };
@@ -79,11 +79,11 @@ struct CullState {
 
 struct State {
 	// Core object bindings
-	Handle<FrameBuffer> frame_buffer;
-	Handle<RenderBuffer> render_buffer;
-	Handle<UniformBuffer> uniform_buffer;
-	Handle<Shader> shader;
-	Handle<VertexArray> vertex_array;
+	GLuint frame_buffer{ 0 };
+	GLuint render_buffer{ 0 };
+	GLuint uniform_buffer{ 0 };
+	GLuint shader{ 0 };
+	GLuint vertex_array{ 0 };
 
 	Viewport viewport;
 

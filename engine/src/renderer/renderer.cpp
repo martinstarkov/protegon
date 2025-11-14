@@ -50,6 +50,7 @@
 #include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
+#include "renderer/api/flip.h"
 #include "renderer/api/glsl_types.h"
 #include "renderer/api/origin.h"
 #include "renderer/gl/gl_context.h"
@@ -216,10 +217,22 @@ graph.Execute();
 
 */
 
-Viewport::Viewport(const V2_int& position, const V2_int& size) :
-	position{ position }, size{ size } {}
-
 namespace impl {
+
+static impl::gl::Handle<impl::gl::Shader> GetFullscreenShader(impl::gl::GLContext& gl, bool hdr) {
+	if (hdr) {
+		auto shader{ gl.GetShader("tone_mapping") };
+		PTGN_ASSERT(shader);
+		auto _ = gl.Bind<false>(shader);
+		gl.SetUniform(shader, "u_Texture", 1);
+		// TODO: Add a way to adjust these.
+		gl.SetUniform(shader, "u_Exposure", 1.0f);
+		gl.SetUniform(shader, "u_Gamma", 2.2f);
+		return shader;
+	} else {
+		return gl.GetShader("screen_default");
+	}
+}
 
 RenderState::RenderState(
 	const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
@@ -239,22 +252,6 @@ void ViewportResizeScript::OnWindowResized() {
 		renderer.UpdateResolutions(window_size, renderer.resolution_mode_);
 	}
 	renderer.RecomputeDisplaySize(window_size);
-}
-
-ShaderPass::ShaderPass(const Shader& shader, const UniformCallback& uniform_callback) :
-	shader_{ &shader }, uniform_callback_{ uniform_callback } {}
-
-const Shader& ShaderPass::GetShader() const {
-	PTGN_ASSERT(shader_ != nullptr);
-	return *shader_;
-}
-
-void ShaderPass::Invoke(Entity entity) const {
-	if (uniform_callback_) {
-		PTGN_ASSERT(shader_ != nullptr);
-		shader_->Bind();
-		uniform_callback_(entity, *shader_);
-	}
 }
 
 DrawContext::DrawContext(const V2_int& size, TextureFormat texture_format) :
@@ -825,7 +822,11 @@ void Renderer::DrawShader(const DrawShaderCommand& cmd) {
 	shader.SetUniform("u_Texture", 1);
 	shader.SetUniform("u_ViewportSize", V2_float{ target.viewport.size });
 
-	shader_pass.Invoke(cmd.entity);
+	if (shader_pass.uniform_callback) {
+		PTGN_ASSERT(shader_pass.shader);
+		gl_->Bind(shader_pass.shader);
+		shader_pass.uniform_callback(cmd.entity, gl_, shader_pass.shader);
+	}
 
 	target.frame_buffer = &intermediate_target->frame_buffer;
 
@@ -864,7 +865,7 @@ TextureId Renderer::PingPong(
 			std::swap(read, write);
 		}
 
-		TextureId texture_id{ 0 };
+		auto texture_id{ 0 };
 
 		if ((first_effect || !use_previous_texture) && id) {
 			texture_id = id;
@@ -873,12 +874,17 @@ TextureId Renderer::PingPong(
 		}
 
 		const auto& shader_pass{ fx.Get<ShaderPass>() };
-		const auto& shader{ shader_pass.GetShader() };
+		const auto& shader{ shader_pass.shader };
 
-		shader.Bind();
-		shader.SetUniform("u_Texture", 1);
-		shader.SetUniform("u_ViewportSize", V2_float{ target.viewport.size });
-		shader_pass.Invoke(fx);
+		gl_->Bind(shader);
+		gl_->SetUniform(shader, "u_Texture", 1);
+		gl_->SetUniform(shader, "u_ViewportSize", V2_float{ target.viewport.size });
+
+		if (shader_pass.uniform_callback) {
+			PTGN_ASSERT(shader_pass.shader);
+			gl_->Bind(shader_pass.shader);
+			shader_pass.uniform_callback(fx, gl_, shader_pass.shader);
+		}
 
 		target.texture_id	= texture_id;
 		target.frame_buffer = &write->frame_buffer;
@@ -905,7 +911,7 @@ TextureId Renderer::PingPong(
 Renderer::Renderer(Window& window) :
 	game_size_{ window.GetSize() },
 	window_{ window },
-	ctx_{ std::make_unique<impl::gl::GLContext>(window) } {
+	gl_{ std::make_unique<impl::gl::GLContext>(window) } {
 	RecomputeDisplaySize(window_.GetSize());
 
 	// GLRenderer::EnableLineSmoothing();
@@ -917,34 +923,35 @@ Renderer::Renderer(Window& window) :
 
 	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
 
-	const auto& screen_shader{ ctx_->shader->Get("screen_default") };
+	const auto& screen_shader{ gl_->GetShader("screen_default") };
 	PTGN_ASSERT(screen_shader.IsValid());
-	screen_shader.Bind();
-	screen_shader.SetUniform("u_Texture", 1);
+	gl_->Bind(screen_shader);
+	gl_->SetUniform(screen_shader, "u_Texture", 1);
 
-	const auto& quad_shader{ ctx_->shader->Get("quad") };
+	const auto& quad_shader{ gl_->GetShader("quad") };
 
 	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(ctx_->shader->Get("circle").IsValid());
-	PTGN_ASSERT(ctx_->shader->Get("screen_default").IsValid());
-	PTGN_ASSERT(ctx_->shader->Get("light").IsValid());
+	PTGN_ASSERT(gl_->GetShader("circle").IsValid());
+	PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
+	PTGN_ASSERT(gl_->GetShader("light").IsValid());
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
 
-	quad_shader.Bind();
-	quad_shader.SetUniform(
-		"u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
+	gl_->Bind(quad_shader);
+	gl_->SetUniform(
+		quad_shader, "u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
 	);
 
-	IndexBuffer quad_ib{ nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)),
-						 BufferUsage::DynamicDraw };
-	VertexBuffer quad_vb{ nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)),
-						  BufferUsage::DynamicDraw };
+	auto quad_ib{ gl_->CreateElementBuffer(
+		nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)), GL_DYNAMIC_DRAW
+	) };
+	auto quad_vb{ gl_->CreateVertexBuffer(
+		nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)), GL_DYNAMIC_DRAW
+	) };
 
-	triangle_vao = VertexArray(
-		PrimitiveMode::Triangles, std::move(quad_vb), Vertex::GetLayout(), std::move(quad_ib)
-	);
+	triangle_vao =
+		gl_->CreateVertexArray(std::move(quad_vb), Vertex::GetLayout(), std::move(quad_ib));
 
 	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 	white_texture.Bind(0);
@@ -984,7 +991,7 @@ const Shader& Renderer::GetCurrentShader() const {
 	PTGN_ASSERT(render_state.shader_pass.has_value());
 
 	if (*render_state.shader_pass == ShaderPass{}) {
-		shader = &ctx_->shader->Get("quad");
+		shader = &gl_->GetShader("quad");
 	} else {
 		shader = &(*render_state.shader_pass).GetShader();
 	}
@@ -1056,7 +1063,7 @@ void Renderer::AddVertices(
 
 void Renderer::DrawCall(
 	const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
-	const std::vector<TextureId>& textures, const FrameBuffer* frame_buffer,
+	const std::vector<Handle<Texture>>& textures, const FrameBuffer* frame_buffer,
 	bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
 	const Viewport& viewport, const Matrix4& view_projection
 ) {
@@ -1098,10 +1105,11 @@ void Renderer::DrawCall(
 		PTGN_ASSERT(textures[i], "Cannot bind invalid texture");
 		// Save first texture slot for empty white texture.
 		std::uint32_t slot{ i + 1 };
-		Texture::Bind(textures[i], slot);
+		gl_->SetActiveTextureSlot(slot);
+		gl_->Bind(textures[i]);
 	}
 
-	GLRenderer::DrawElements(triangle_vao, indices.size(), false);
+	gl_->DrawElements(triangle_vao, indices.size(), GL_TRIANGLES);
 }
 
 void Renderer::Flush(bool final_flush) {
@@ -1429,24 +1437,6 @@ void Renderer::ClearRenderTargets(Scene& scene) const {
 		rt.Clear();
 		// rt.ClearDisplayList();
 	}
-}
-
-const Shader& Renderer::GetFullscreenShader(TextureFormat texture_format) const {
-	const Shader* shader{ nullptr };
-
-	if (texture_format == TextureFormat::HDR_RGBA || texture_format == TextureFormat::HDR_RGB) {
-		shader = &ctx_->shader->Get("tone_mapping");
-		PTGN_ASSERT(shader != nullptr);
-		shader->Bind();
-		shader->SetUniform("u_Texture", 1);
-		// TODO: Add a way to adjust these.
-		shader->SetUniform("u_Exposure", 1.0f);
-		shader->SetUniform("u_Gamma", 2.2f);
-	} else {
-		shader = &ctx_->shader->Get("screen_default");
-	}
-
-	return *shader;
 }
 
 void Renderer::DrawScreenTarget() {
@@ -1859,10 +1849,6 @@ void Renderer::ClearScreen() const {
 	GLRenderer::SetClearColor(color::Transparent);
 	GLRenderer::Clear();
 	render_data_.ClearScreenTarget();
-}
-
-void Renderer::Update() {
-	gl_.ClearUnused();
 }
 
 } // namespace ptgn

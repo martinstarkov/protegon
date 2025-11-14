@@ -6,7 +6,6 @@
 
 #include "math/vector2.h"
 #include "renderer/gl/gl.h"
-#include "renderer/gl/gl_handle.h"
 
 namespace ptgn::impl::gl {
 
@@ -30,14 +29,12 @@ struct TextureResource {
 
 struct FrameBufferResource {
 	GLuint id{ 0 };
-	Handle<Texture> texture;
-	Handle<RenderBuffer> render_buffer;
+	GLuint texture{ 0 };
+	GLuint render_buffer{ 0 };
 };
 
 struct VertexArrayResource {
 	GLuint id{ 0 };
-	Handle<VertexBuffer> vertex_buffer;
-	Handle<ElementBuffer> element_buffer;
 };
 
 // Wrapper for distinguishing between Shader from path construction and Shader
