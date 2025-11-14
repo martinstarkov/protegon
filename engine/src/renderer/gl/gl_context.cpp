@@ -558,7 +558,7 @@ void GLContext::PopulateShadersFromCache(const json& manifest) {
 		shader->id			= GLCallReturn(CreateProgram());
 		shader->shader_name = shader_name;
 
-		LinkShader(shader, vert_id, frag_id);
+		LinkShader(shader->id, vert_id, frag_id);
 
 		PTGN_ASSERT(shader->id != 0, "Failed to create shader");
 
