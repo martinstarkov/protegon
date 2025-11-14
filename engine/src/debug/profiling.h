@@ -1,12 +1,11 @@
 #pragma once
 
-#include <ctime>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 
 #include "core/assert.h"
-#include "core/asset/asset_manager.h"
 #include "core/log.h"
 #include "core/util/function.h"
 #include "core/util/time.h"
@@ -32,26 +31,14 @@ private:
 	Timer timer_;
 };
 
-class Profiler : protected MapManager<nanoseconds, std::string, std::string, false> {
+class Profiler {
 public:
 	Profiler()								 = default;
-	~Profiler()								 = default;
-	Profiler(Profiler&&) noexcept			 = default;
-	Profiler& operator=(Profiler&&) noexcept = default;
+	~Profiler() noexcept					 = default;
+	Profiler(Profiler&&) noexcept			 = delete;
+	Profiler& operator=(Profiler&&) noexcept = delete;
 	Profiler(const Profiler&)				 = delete;
 	Profiler& operator=(const Profiler&)	 = delete;
-
-	void Enable() {
-		enabled_ = true;
-	}
-
-	void Disable() {
-		enabled_ = false;
-	}
-
-	[[nodiscard]] bool IsEnabled() const {
-		return enabled_;
-	}
 
 	void PrintAll() const {
 		PrintAll<>();
@@ -59,15 +46,18 @@ public:
 
 	template <Duration D = milliseconds>
 	void PrintAll() const {
-		for (const auto& [name, time] : GetMap()) {
+		for (const auto& [name, time] : timings_) {
 			PrintInfo<D>(name, to_duration<D>(time));
 		}
 	}
 
 	template <Duration D = milliseconds>
 	void Print(const std::string& name) const {
-		PTGN_ASSERT(Has(name), "Cannot print profiling info for name which is not being profiled");
-		auto& time{ Get(name) };
+		PTGN_ASSERT(
+			timings_.contains(name),
+			"Cannot print profiling info for name which is not being profiled"
+		);
+		auto& time{ timings_.find(name)->second };
 		PrintInfo<D>(name, to_duration<D>(time));
 	}
 
@@ -75,13 +65,18 @@ private:
 	friend class DebugSystem;
 	friend class ProfileInstance;
 
-	bool enabled_{ false };
-
 	template <Duration D = milliseconds>
 	void PrintInfo(std::string_view name, const D& time) const {
 		PrintLine("PROFILING: ", impl::TrimFunctionSignature(name), ": ", time);
 	}
+
+	std::unordered_map<std::string, nanoseconds> timings_;
 };
+
+Profiler& GetProfiler() {
+	static Profiler profiler;
+	return profiler;
+}
 
 } // namespace ptgn::impl
 

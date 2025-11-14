@@ -5,16 +5,17 @@
 #include <string>
 
 #include "core/app/application.h"
+#include "core/asset/asset_handle.h"
 #include "core/asset/asset_manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/generic.h"
 #include "core/ecs/components/transform.h"
+#include "debug/profiling.h"
 #include "debug/stats.h"
 #include "math/geometry/line.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
-#include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "renderer/text/font.h"
 #include "renderer/text/text.h"
@@ -24,15 +25,17 @@ namespace ptgn::impl {
 
 const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
 
+// TODO: Fix.
+/*
 void DebugSystem::DrawText(
 	const std::string& content, const Transform& og_transform, const TextColor& color,
-	Origin origin, const FontSize& font_size, const ResourceHandle& font_key,
+	Origin origin, const FontSize& font_size, const Handle<Font>& font_key,
 	const TextProperties& properties, const V2_float& text_size, const Camera& camera
 ) {
 	V2_float size{ text_size };
 	Transform transform{ og_transform };
 
-	auto texture{ Application::Get().render_.CreateTexture(
+	auto texture{ CreateTexture(
 		transform, size, content, color, font_size, font_key, properties, true, camera
 	) };
 
@@ -52,7 +55,9 @@ void DebugSystem::DrawText(
 	Application::Get().render_.render_data_.Submit(cmd, true);
 
 	Application::Get().render_.render_data_.AddTemporaryTexture(std::move(texture));
-}
+}*/
+
+DebugSystem::DebugSystem(Renderer& renderer) : renderer_{ renderer } {}
 
 void DebugSystem::DrawShape(
 	const Transform& transform, const Shape& shape, const Tint& color, const LineWidth& line_width,
@@ -69,7 +74,7 @@ void DebugSystem::DrawShape(
 	cmd.render_state.blend_mode = default_blend_mode;
 	cmd.render_state.camera		= camera;
 
-	Application::Get().render_.render_data_.Submit(cmd, true);
+	renderer_.Submit(cmd, true);
 }
 
 void DebugSystem::DrawLine(
@@ -84,7 +89,7 @@ void DebugSystem::DrawPoint(const V2_float& point, const Tint& color, const Came
 }
 
 void DebugSystem::PreUpdate() {
-	profiler.Clear();
+	GetProfiler().timings_.clear();
 }
 
 void DebugSystem::PostUpdate() {

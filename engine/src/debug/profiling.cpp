@@ -3,10 +3,8 @@
 #include <string>
 #include <string_view>
 
-#include "core/app/Application.h"
-#include "core/asset/asset_manager.h"
+#include "core/util/time.h"
 #include "core/util/timer.h"
-#include "debug/debug_system.h"
 
 namespace ptgn::impl {
 
@@ -15,7 +13,7 @@ ProfileInstance::ProfileInstance(std::string_view function_name) :
 
 ProfileInstance::~ProfileInstance() {
 	PTGN_ASSERT(!name_.empty());
-	auto& time = Application::Get().debug_.profiler.Load(name_);
+	auto& time = GetProfiler().timings_.emplace(name_).first->second;
 	auto elapsed{ timer_.Elapsed<nanoseconds>() };
 	time += elapsed;
 }

@@ -2,9 +2,10 @@
 
 #include <string>
 
+#include "core/asset/asset_handle.h"
+#include "core/ecs/components/draw.h"
 #include "core/ecs/components/generic.h"
 #include "debug/allocation.h"
-#include "debug/profiling.h"
 #include "debug/stats.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -18,23 +19,31 @@ namespace ptgn {
 struct Transform;
 class Shape;
 class Application;
+class Renderer;
 
 namespace impl {
 
 class DebugSystem {
 public:
+	DebugSystem(Renderer& renderer);
+	~DebugSystem() noexcept						   = default;
+	DebugSystem(const DebugSystem&)				   = delete;
+	DebugSystem& operator=(const DebugSystem&)	   = delete;
+	DebugSystem(DebugSystem&&) noexcept			   = delete;
+	DebugSystem& operator=(DebugSystem&&) noexcept = delete;
+
 	Allocations allocations;
-	Profiler profiler;
 	Stats stats;
 
 	// @param text_size {} results in unscaled size of text based on font.
-	void DrawText(
+	// TODO: Fix.
+	/*void DrawText(
 		const std::string& content, const Transform& transform,
 		const TextColor& color = color::White, Origin origin = Origin::Center,
-		const FontSize& font_size = {}, const ResourceHandle& font_key = {},
+		const FontSize& font_size = {}, const Handle<Font>& font_key = {},
 		const TextProperties& properties = {}, const V2_float& text_size = {},
 		const Camera& camera = {}
-	);
+	);*/
 
 	// @param origin only applicable to Rect and RoundedRect.
 	void DrawShape(
@@ -54,6 +63,8 @@ private:
 
 	void PreUpdate();
 	void PostUpdate();
+
+	Renderer& renderer_;
 };
 
 } // namespace impl
