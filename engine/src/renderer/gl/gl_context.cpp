@@ -34,7 +34,7 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 }
 
 // Must be called after SDL and window have been initialized.
-void GLContext::LoadGLFunctions() {
+static void LoadGLFunctions() {
 #ifdef PTGN_PLATFORM_MACOS
 	return;
 #else
@@ -71,8 +71,6 @@ void GLContext::LoadGLFunctions() {
 
 #endif
 
-	// PTGN_LOG("OpenGL Build: ", GLCall(glGetString(GL_VERSION)));
-
 	// For debugging which commands were not initialized.
 #define GLE(name, caps_name) PTGN_ASSERT(name, "Failed to load ", PTGN_STRINGIFY(name));
 	GL_LIST_1
@@ -100,7 +98,7 @@ static std::string TrimWhitespace(const std::string& s) {
 	return s.substr(start, end - start + 1);
 }
 
-static GLuint GetShaderType(const std::string& type) {
+static GLenum GetShaderType(const std::string& type) {
 	if (type == "fragment") {
 		return GL_FRAGMENT_SHADER;
 	} else if (type == "vertex") {
@@ -132,7 +130,7 @@ static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(
 	std::string input{ source };
 	TrimRawStringLiteral(input);
 
-	const auto contains_type = [&sources](GLuint type) {
+	const auto contains_type = [&sources](GLenum type) {
 		return VectorFindIf(sources, [type](const ShaderTypeSource& sts) {
 			return sts.type == type;
 		});
@@ -204,7 +202,7 @@ static void RemoveOption(std::string& source, const std::string& option = "") {
 	source = std::regex_replace(source, pattern, "");
 }
 
-static std::string InjectShaderPreamble(const std::string& source, [[maybe_unused]] GLuint type) {
+static std::string InjectShaderPreamble(const std::string& source, [[maybe_unused]] GLenum type) {
 	std::string result{ source };
 
 	std::regex version_regex(R"(#version\s+(\d+)(?:\s+(\w+))?)");
@@ -260,7 +258,7 @@ static std::string InjectShaderPreamble(const std::string& source, [[maybe_unuse
 	return result;
 }
 
-static void AddShaderLayout(std::string& source, [[maybe_unused]] GLuint type) {
+static void AddShaderLayout(std::string& source, [[maybe_unused]] GLenum type) {
 	std::string result;
 
 	std::istringstream input{ source };
@@ -402,7 +400,8 @@ static std::vector<ShaderTypeSource> ParseShader(
 	return output;
 }
 
-static void CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCache& cache) {
+void GLContext::CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCache& cache)
+	const {
 	for (const auto& sts : sources) {
 		auto hash{ Hash(sts.name) };
 		auto shader_id{ CompileShaderFromSource(sts.type, sts.source.source) };
@@ -432,6 +431,8 @@ static void SubstituteShaderTokens(
 	// This is primarily for the quad shader, which requires a block of if-statements based on
 	// how many texture slots there are.
 
+	PTGN_ASSERT(max_texture_slots > 0, "Cannot substitute shader tokens for 0 texture slots");
+
 	std::string switch_block{ GenerateTextureSwitchBlock(max_texture_slots) };
 	auto slots{ std::to_string(max_texture_slots) };
 
@@ -441,11 +442,11 @@ static void SubstituteShaderTokens(
 	}
 }
 
-static void PopulateShaderCache(
-	const cmrc::embedded_filesystem& fs, ShaderCache& cache, std::size_t max_texture_slots
-) {
+void GLContext::PopulateShaderCache(
+	const cmrc::embedded_filesystem& filesystem, ShaderCache& cache, std::size_t max_texture_slots
+) const {
 	std::string subdir{ "common/" };
-	auto dir{ fs.iterate_directory(subdir) };
+	auto dir{ filesystem.iterate_directory(subdir) };
 
 	std::vector<ShaderTypeSource> sources;
 
@@ -454,7 +455,7 @@ static void PopulateShaderCache(
 			continue;
 		}
 		auto filename{ resource.filename() };
-		auto file{ fs.open(subdir + filename) };
+		auto file{ filesystem.open(subdir + filename) };
 		std::string shader_src(file.begin(), file.end());
 		std::string name_without_ext{ std::filesystem::path(filename).stem().string() };
 		auto srcs{ ParseShader(shader_src, name_without_ext) };
@@ -484,7 +485,34 @@ static json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
 	return manifest;
 }
 
-static void PopulateShadersFromCache(const json& manifest) {
+GLuint GLContext::CompileShaderFromSource(GLenum type, const std::string& source) const {
+	GLuint id{ GLCallReturn(gl::CreateShader(type)) };
+
+	auto src{ source.c_str() };
+
+	GLCall(gl::ShaderSource(id, 1, &src, nullptr));
+	GLCall(gl::CompileShader(id));
+
+	// Check for shader compilation errors.
+	std::int32_t result{ GL_FALSE };
+	GLCall(gl::GetShaderiv(id, GL_COMPILE_STATUS, &result));
+
+	if (result == GL_FALSE) {
+		std::int32_t length{ 0 };
+		GLCall(gl::GetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
+		std::string log;
+		log.resize(static_cast<std::size_t>(length));
+		GLCall(gl::GetShaderInfoLog(id, length, &length, &log[0]));
+
+		GLCall(gl::DeleteShader(id));
+
+		PTGN_ERROR("Failed to compile ", type, " shader: \n", source, "\n", log);
+	}
+
+	return id;
+}
+
+void GLContext::PopulateShadersFromCache(const json& manifest) {
 	for (const auto& [shader_name, shader_object] : manifest.items()) {
 		std::string vertex_name;
 		std::string fragment_name;
@@ -526,21 +554,29 @@ static void PopulateShadersFromCache(const json& manifest) {
 
 		auto hash{ Hash(shader_name) };
 
-		shaders_.emplace(hash, Shader{ vert_id, frag_id, shader_name });
+		auto shader			= MakeGLResource<Shader, ShaderResource>();
+		shader->id			= GLCallReturn(CreateProgram());
+		shader->shader_name = shader_name;
+
+		LinkShader(shader, vert_id, frag_id);
+
+		PTGN_ASSERT(shader->id != 0, "Failed to create shader");
+
+		shaders_.emplace(hash, std::move(shader));
 	}
 }
 
-static std::vector<ShaderTypeSource> ParseShaderSourceFile(
+std::vector<ShaderTypeSource> GLContext::ParseShaderSourceFile(
 	const std::string& source, const std::string& name, std::size_t max_texture_slots
-) {
+) const {
 	auto srcs{ ParseShader(source, name) };
 	SubstituteShaderTokens(srcs, max_texture_slots);
 	return srcs;
 }
 
-static GLuint CompileShaderSource(
-	const std::string& source, GLuint type, const std::string& name, std::size_t max_texture_slots
-) {
+GLuint GLContext::CompileShaderSource(
+	const std::string& source, GLenum type, const std::string& name, std::size_t max_texture_slots
+) const {
 	auto srcs{ ParseShaderSourceFile(source, name, max_texture_slots) };
 	PTGN_ASSERT(srcs.size() == 1, "Wrong constructor for a multi-source shader file");
 	const auto& front{ srcs.front() };
@@ -548,102 +584,88 @@ static GLuint CompileShaderSource(
 	return CompileShaderFromSource(type, front.source.source);
 }
 
-static GLuint CompileShaderPath(const path& p, GLuint type, const std::string& name) {
-	PTGN_ASSERT(FileExists(p), "Cannot create shader from nonexistent shader path: ", p.string());
-	auto source{ FileToString(p) };
-	return CompileShaderSource(source, type, name);
+GLuint GLContext::CompileShaderPath(
+	const path& shader_path, GLenum type, const std::string& name, std::size_t max_texture_slots
+) const {
+	PTGN_ASSERT(
+		FileExists(shader_path),
+		"Cannot create shader from nonexistent shader path: ", shader_path.string()
+	);
+	auto source{ FileToString(shader_path) };
+	return CompileShaderSource(source, type, name, max_texture_slots);
 }
 
-static GLuint CompileShaderFromSource(GLuint type, const std::string& source) {
-	GLuint id{ GLCallReturn(CreateShader(static_cast<std::uint32_t>(type))) };
+void GLContext::LinkShader(
+	const std::shared_ptr<ShaderResource>& resource, GLuint vertex, GLuint fragment
+) {
+	resource->location_cache.clear();
 
-	auto src{ source.c_str() };
-
-	GLCall(ShaderSource(id, 1, &src, nullptr));
-	GLCall(CompileShader(id));
-
-	// Check for shader compilation errors.
-	std::int32_t result{ GL_FALSE };
-	GLCall(GetShaderiv(id, GL_COMPILE_STATUS, &result));
-
-	if (result == GL_FALSE) {
-		std::int32_t length{ 0 };
-		GLCall(GetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
-		std::string log;
-		log.resize(static_cast<std::size_t>(length));
-		GLCall(GetShaderInfoLog(id, length, &length, &log[0]));
-
-		GLCall(DeleteShader(id));
-
-		PTGN_ERROR("Failed to compile ", type, " shader: \n", source, "\n", log);
-	}
-
-	return id;
-}
-
-static void LinkShader(GLuint vertex, GLuint fragment) {
-	location_cache_.clear();
+	auto id{ resource->id };
 
 	PTGN_ASSERT(vertex);
 	PTGN_ASSERT(fragment);
 
-	GLCall(AttachShader(id_, vertex));
-	GLCall(AttachShader(id_, fragment));
-	GLCall(LinkProgram(id_));
+	GLCall(gl::AttachShader(id, vertex));
+	GLCall(gl::AttachShader(id, fragment));
+	GLCall(gl::LinkProgram(id));
 
 	// Check for shader link errors.
 	std::int32_t linked{ GL_FALSE };
-	GLCall(GetProgramiv(id_, GL_LINK_STATUS, &linked));
+	GLCall(gl::GetProgramiv(id, GL_LINK_STATUS, &linked));
 
 	if (linked == GL_FALSE) {
 		std::int32_t length{ 0 };
-		GLCall(GetProgramiv(id_, GL_INFO_LOG_LENGTH, &length));
+		GLCall(gl::GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
 		std::string log;
 		log.resize(static_cast<std::size_t>(length));
-		GLCall(GetProgramInfoLog(id_, length, &length, &log[0]));
+		GLCall(gl::GetProgramInfoLog(id, length, &length, &log[0]));
 
-		GLCall(DeleteProgram(id_));
+		GLCall(gl::DeleteProgram(id));
 
-		GLCall(DeleteShader(vertex));
-		GLCall(DeleteShader(fragment));
+		GLCall(gl::DeleteShader(vertex));
+		GLCall(gl::DeleteShader(fragment));
 
 		PTGN_ERROR(
-			"Failed to link shaders to program: \nVertex: ", vertex, "\nFragment: ", fragment, "\n",
-			log
+			"Failed to link shaders to program: ", resource->shader_name, "\nVertex : ", vertex,
+			"\nFragment : ", fragment, "\n ", log
 		);
 	}
 
-	GLCall(ValidateProgram(id_));
+	GLCall(gl::ValidateProgram(id));
 }
 
-static void CompileShaderFromSource(
-	const std::string& vertex_source, const std::string& fragment_source
-) {
-	location_cache_.clear();
+void GLContext::CompileShader(
+	const Handle<Shader>& handle, const std::string& vertex_source,
+	const std::string& fragment_source
+) const {
+	const auto& resource{ handle.Get() };
+	auto id{ resource.id };
 
-	GLuint vertex{ Compile(GL_VERTEX_SHADER, vertex_source) };
-	GLuint fragment{ Compile(GL_FRAGMENT_SHADER, fragment_source) };
+	resource.location_cache.clear();
+
+	GLuint vertex{ CompileShaderFromSource(GL_VERTEX_SHADER, vertex_source) };
+	GLuint fragment{ CompileShaderFromSource(GL_FRAGMENT_SHADER, fragment_source) };
 
 	if (vertex && fragment) {
-		GLCall(AttachShader(id_, vertex));
-		GLCall(AttachShader(id_, fragment));
-		GLCall(LinkProgram(id_));
+		GLCall(gl::AttachShader(id, vertex));
+		GLCall(gl::AttachShader(id, fragment));
+		GLCall(gl::LinkProgram(id));
 
 		// Check for shader link errors.
 		std::int32_t linked{ GL_FALSE };
-		GLCall(GetProgramiv(id_, GL_LINK_STATUS, &linked));
+		GLCall(gl::GetProgramiv(id, GL_LINK_STATUS, &linked));
 
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
-			GLCall(GetProgramiv(id_, GL_INFO_LOG_LENGTH, &length));
+			GLCall(gl::GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
 			std::string log;
 			log.resize(static_cast<std::size_t>(length));
-			GLCall(GetProgramInfoLog(id_, length, &length, &log[0]));
+			GLCall(gl::GetProgramInfoLog(id, length, &length, &log[0]));
 
-			GLCall(DeleteProgram(id_));
+			GLCall(gl::DeleteProgram(id));
 
-			GLCall(DeleteShader(vertex));
-			GLCall(DeleteShader(fragment));
+			GLCall(gl::DeleteShader(vertex));
+			GLCall(gl::DeleteShader(fragment));
 
 			PTGN_ERROR(
 				"Failed to link shaders to program: \n", vertex_source, "\n", fragment_source, "\n",
@@ -651,15 +673,15 @@ static void CompileShaderFromSource(
 			);
 		}
 
-		GLCall(ValidateProgram(id_));
+		GLCall(gl::ValidateProgram(id));
 	}
 
 	if (vertex) {
-		GLCall(DeleteShader(vertex));
+		GLCall(gl::DeleteShader(vertex));
 	}
 
 	if (fragment) {
-		GLCall(DeleteShader(fragment));
+		GLCall(gl::DeleteShader(fragment));
 	}
 }
 
@@ -687,6 +709,8 @@ GLContext::GLContext(SDL_Window* window) {
 
 	LoadGLFunctions();
 
+	// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
+
 	auto max_texture_slots{ GetInteger<GLuint>(GL_MAX_TEXTURE_IMAGE_UNITS) };
 	PTGN_ASSERT(max_texture_slots > 0);
 	bound_.texture_units.resize(max_texture_slots, {});
@@ -704,7 +728,7 @@ GLContext::~GLContext() {
 	const auto delete_shaders = [](const auto& container) {
 		for (const auto& [_, id] : container) {
 			if (id) {
-				GLCall(DeleteShader(id));
+				GLCall(gl::DeleteShader(id));
 			}
 		}
 	};

@@ -42,7 +42,7 @@ constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
 #endif
 
 #define PTGN_IMPL_BLEND_CASE(name, srcRGB, dstRGB, srcA, dstA) \
-	case BlendMode::name: GLCall(BlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
+	case BlendMode::name: GLCall(gl::BlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
 
 struct SDL_Window;
 
@@ -113,36 +113,32 @@ public:
 	template <bool kRestoreBind = true>
 	Handle<Shader> CreateShader(GLuint vertex, GLuint fragment, const std::string& shader_name) {
 		auto resource		  = MakeGLResource<Shader, ShaderResource>();
-		resource->id		  = GLCallReturn(CreateProgram());
+		resource->id		  = GLCallReturn(gl::CreateProgram());
 		resource->shader_name = shader_name;
 
-		LinkShader(vertex, fragment);
+		LinkShader(resource, vertex, fragment);
 
 		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
 
 		return Handle<Shader>(std::move(resource));
 	}
 
-	template <bool kRestoreBind = true>
 	// String can be path to shader or the name of a pre-existing shader of the respective type.
+	template <bool kRestoreBind = true>
 	Handle<Shader> CreateShader(
 		std::variant<ShaderCode, std::string> vertex,
 		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
 	) {
 		auto resource		  = MakeGLResource<Shader, ShaderResource>();
-		resource->id		  = GLCallReturn(CreateProgram());
+		resource->id		  = GLCallReturn(gl::CreateProgram());
 		resource->shader_name = shader_name;
 
 		const auto has = [&](GLuint type) {
 			auto hash{ Hash(shader_name) };
 			switch (type) {
-				case GL_FRAGMENT_SHADER {
-					return shader_cache_.fragment_shaders.contains(hash);
-				};
-					case GL_VERTEX_SHADER: {
-					return shader_cache_.vertex_shaders.contains(hash);
-				};
-				default: PTGN_ERROR("Unknown shader type");
+				case GL_FRAGMENT_SHADER: return shader_cache_.fragment_shaders.contains(hash);
+				case GL_VERTEX_SHADER:	 return shader_cache_.vertex_shaders.contains(hash);
+				default:				 PTGN_ERROR("Unknown shader type");
 			}
 		};
 
@@ -153,16 +149,18 @@ public:
 				case GL_FRAGMENT_SHADER: {
 					auto it{ shader_cache_.fragment_shaders.find(hash) };
 					return it->second;
-				};
+				}
 				case GL_VERTEX_SHADER: {
 					auto it{ shader_cache_.vertex_shaders.find(hash) };
 					return it->second;
-				};
+				}
 				default: PTGN_ERROR("Unknown shader type");
 			}
 		};
 
-		// bool: If true, delete shader id after.
+		auto max_texture_slots{ bound_.texture_units.size() };
+
+		// @return { id, bool }: If true, delete shader id after.
 		const auto get_id = [shader_name](
 								const std::variant<ShaderCode, std::string>& v, GLuint type
 							) -> std::pair<GLuint, bool> {
@@ -174,7 +172,7 @@ public:
 						file.extension() == ".glsl",
 						"Shader file extension must be .glsl: ", file.string()
 					);
-					return { CompileShaderPath(file, type, shader_name), true };
+					return { CompileShaderPath(file, type, shader_name, max_texture_slots), true };
 				} else if (has(type)) {
 					return { get(type), false };
 				} else {
@@ -184,7 +182,8 @@ public:
 				}
 			} else if (std::holds_alternative<ShaderCode>(v)) {
 				const auto& src{ std::get<ShaderCode>(v) };
-				return { CompileShaderSource(src.source_, type, shader_name), true };
+				return { CompileShaderSource(src.source_, type, shader_name, max_texture_slots),
+						 true };
 			} else {
 				PTGN_ERROR("Unknown variant type");
 			}
@@ -193,14 +192,14 @@ public:
 		auto [vertex_id, delete_vert_after]	  = get_id(vertex, GL_VERTEX_SHADER);
 		auto [fragment_id, delete_frag_after] = get_id(fragment, GL_FRAGMENT_SHADER);
 
-		LinkShader(vertex_id, fragment_id);
+		LinkShader(resource, vertex_id, fragment_id);
 
 		if (delete_vert_after && vertex_id) {
-			GLCall(DeleteShader(vertex_id));
+			GLCall(gl::DeleteShader(vertex_id));
 		}
 
 		if (delete_frag_after && fragment_id) {
-			GLCall(DeleteShader(fragment_id));
+			GLCall(gl::DeleteShader(fragment_id));
 		}
 
 		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
@@ -213,7 +212,7 @@ public:
 		std::variant<ShaderCode, path> source, const std::string& shader_name
 	) {
 		auto resource		  = MakeGLResource<Shader, ShaderResource>();
-		resource->id		  = GLCallReturn(CreateProgram());
+		resource->id		  = GLCallReturn(gl::CreateProgram());
 		resource->shader_name = shader_name;
 
 		std::string source_string;
@@ -228,7 +227,9 @@ public:
 			PTGN_ERROR("Unknown variant type");
 		}
 
-		auto srcs{ impl::ShaderManager::ParseShaderSourceFile(source_string, shader_name) };
+		auto max_textures_slots{ bound_.texture_units.size() };
+
+		auto srcs{ ParseShaderSourceFile(source_string, shader_name, max_texture_slots) };
 
 		PTGN_ASSERT(
 			srcs.size() == 2, "Shader file must provide a vertex and fragment type: ", shader_name
@@ -240,27 +241,27 @@ public:
 		std::string vertex_source;
 		std::string fragment_source;
 
-		if (first.type == ShaderType::Vertex && second.type == ShaderType::Fragment) {
+		if (first.type == GL_VERTEX_SHADER && second.type == GL_FRAGMENT_SHADER) {
 			vertex_source	= first.source.source_;
 			fragment_source = second.source.source_;
-		} else if (first.type == ShaderType::Fragment && second.type == ShaderType::Vertex) {
+		} else if (first.type == GL_FRAGMENT_SHADER && second.type == GL_VERTEX_SHADER) {
 			fragment_source = first.source.source_;
 			vertex_source	= second.source.source_;
 		} else {
 			PTGN_ERROR("Shader file must provide a vertex and fragment type: ", shader_name);
 		}
 
-		ShaderId vertex_id{ Shader::Compile(ShaderType::Vertex, vertex_source) };
-		ShaderId fragment_id{ Shader::Compile(ShaderType::Fragment, fragment_source) };
+		auto vertex_id{ CompileShaderFromSource(GL_VERTEX_SHADER, vertex_source) };
+		auto fragment_id{ CompileShaderFromSource(GL_FRAGMENT_SHADER, fragment_source) };
 
-		Link(vertex_id, fragment_id);
+		LinkShader(resource, vertex_id, fragment_id);
 
 		if (vertex_id) {
-			GLCall(DeleteShader(vertex_id));
+			GLCall(gl::DeleteShader(vertex_id));
 		}
 
 		if (fragment_id) {
-			GLCall(DeleteShader(fragment_id));
+			GLCall(gl::DeleteShader(fragment_id));
 		}
 
 		PTGN_ASSERT(resource->id != 0, "Failed to create shader");
@@ -275,7 +276,7 @@ public:
 
 	) {
 		auto resource = MakeGLResource<Texture, TextureResource>();
-		GLCall(glGenTextures(1, &resource->id));
+		GLCall(gl::glGenTextures(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create texture");
 
 		Handle<Texture> handle{ std::move(resource) };
@@ -304,7 +305,7 @@ public:
 	template <bool kRestoreBind = true>
 	Handle<RenderBuffer> CreateRenderBuffer(const V2_int& size, GLenum internal_format) {
 		auto resource = MakeGLResource<RenderBuffer, RenderBufferResource>();
-		GLCall(GenRenderbuffers(1, &resource->id));
+		GLCall(gl::GenRenderbuffers(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create render buffer");
 
 		Handle<RenderBuffer> handle{ std::move(resource) };
@@ -324,7 +325,7 @@ public:
 		);
 
 		auto resource = MakeGLResource<FrameBuffer, FrameBufferResource>();
-		GLCall(GenFramebuffers(1, &resource->id));
+		GLCall(gl::GenFramebuffers(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create framebuffer");
 
 		resource->texture = texture;
@@ -337,11 +338,11 @@ public:
 
 		auto _ = Bind<kRestoreBind>(handle);
 
-		GLCall(FramebufferTexture2D(
+		GLCall(gl::FramebufferTexture2D(
 			GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0
 		));
 
-		GLCall(FramebufferRenderbuffer(
+		GLCall(gl::FramebufferRenderbuffer(
 			GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_buffer->id
 		));
 
@@ -356,7 +357,7 @@ public:
 		const Handle<ElementBuffer>& element_buffer
 	) {
 		auto resource = MakeGLResource<VertexArray, VertexArrayResource>();
-		GLCall(GenVertexArrays(1, &resource->id));
+		GLCall(gl::GenVertexArrays(1, &resource->id));
 		PTGN_ASSERT(resource->id, "Failed to create vertex array");
 
 		resource->vertex_buffer	 = vertex_buffer;
@@ -384,37 +385,37 @@ public:
 		GLuint id{ handle ? handle.Get().id : 0 };
 
 		if constexpr (T == VertexBuffer) {
-			GLCall(BindBuffer(GL_ARRAY_BUFFER, id));
+			GLCall(gl::BindBuffer(GL_ARRAY_BUFFER, id));
 			bound_.vertex_array.Get().vertex_buffer = handle;
 		} else if constexpr (T == ElementBuffer) {
-			GLCall(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
+			GLCall(gl::BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
 			bound_.vertex_array.Get().element_buffer = handle;
 		} else if constexpr (T == UniformBuffer) {
-			GLCall(BindBuffer(GL_UNIFORM_BUFFER, id));
+			GLCall(gl::BindBuffer(GL_UNIFORM_BUFFER, id));
 			bound_.uniform_buffer = handle;
 		} else if constexpr (T == Shader) {
-			GLCall(UseProgram(id));
+			GLCall(gl::UseProgram(id));
 			bound_.shader = handle;
 		} else if constexpr (T == RenderBuffer) {
-			GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
+			GLCall(gl::BindRenderbuffer(GL_RENDERBUFFER, id));
 			bound_.render_buffer = handle;
 		} else if constexpr (T == Texture) {
 			auto slot{ GetActiveTextureSlot() };
 			PTGN_ASSERT(slot < bound_.texture_units.size(), "Slot out of range of max slots");
 			PTGN_ASSERT(bound_.texture_units[slot].texture != handle);
-			GLCall(glBindTexture(GL_TEXTURE_2D, id));
+			GLCall(gl::glBindTexture(GL_TEXTURE_2D, id));
 			bound_.texture_units[slot].texture = handle;
 		} else if constexpr (T == FrameBuffer) {
-			GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
+			GLCall(gl::BindFramebuffer(GL_FRAMEBUFFER, id));
 			bound_.frame_buffer = handle;
 		} else if constexpr (T == VertexArray) {
 #ifdef PTGN_PLATFORM_MACOS
 			// MacOS complains about binding 0 id vertex array.
 			if (id != 0) {
-				GLCall(BindVertexArray(id));
+				GLCall(gl::BindVertexArray(id));
 			}
 #else
-			GLCall(BindVertexArray(id));
+			GLCall(gl::BindVertexArray(id));
 #endif
 			bound_.vertex_array = handle;
 		} else {
@@ -502,15 +503,15 @@ public:
 
 		for (std::uint32_t i{ 0 }; i < elements.size(); ++i) {
 			const auto& element{ elements[i] };
-			GLCall(EnableVertexAttribArray(i));
+			GLCall(gl::EnableVertexAttribArray(i));
 			if (element.is_integer) {
-				GLCall(VertexAttribIPointer(
+				GLCall(gl::VertexAttribIPointer(
 					i, element.count, static_cast<GLenum>(element.type), stride,
 					reinterpret_cast<const void*>(element.offset)
 				));
 				return;
 			}
-			GLCall(VertexAttribPointer(
+			GLCall(gl::VertexAttribPointer(
 				i, element.count, static_cast<GLenum>(element.type),
 				element.normalized ? static_cast<GLboolean>(GL_TRUE)
 								   : static_cast<GLboolean>(GL_FALSE),
@@ -521,7 +522,7 @@ public:
 
 	void EnableGammaCorrection() {
 #ifndef __EMSCRIPTEN__
-		GLCall(glEnable(GL_FRAMEBUFFER_SRGB));
+		GLCall(gl::glEnable(GL_FRAMEBUFFER_SRGB));
 #else
 		PTGN_WARN("glEnable(GL_FRAMEBUFFER_SRGB) not supported by Emscripten");
 #endif
@@ -529,7 +530,7 @@ public:
 
 	void DisableGammaCorrection() {
 #ifndef __EMSCRIPTEN__
-		GLCall(glDisable(GL_FRAMEBUFFER_SRGB));
+		GLCall(gl::glDisable(GL_FRAMEBUFFER_SRGB));
 #else
 		PTGN_WARN("glDisable(GL_FRAMEBUFFER_SRGB) not supported by Emscripten");
 #endif
@@ -539,7 +540,7 @@ public:
 		if (bound_.depth.write == enabled) {
 			return;
 		}
-		GLCall(glDepthMask(enabled));
+		GLCall(gl::glDepthMask(enabled));
 		bound_.depth.write = enabled;
 	}
 
@@ -552,9 +553,9 @@ public:
 			return;
 		}
 		if (enabled) {
-			GLCall(glEnable(GL_BLEND));
+			GLCall(gl::glEnable(GL_BLEND));
 		} else {
-			GLCall(glDisable(GL_BLEND));
+			GLCall(gl::glDisable(GL_BLEND));
 		}
 		bound_.blending = enabled;
 	}
@@ -563,7 +564,7 @@ public:
 		if (bound_.depth.func == depth_func) {
 			return;
 		}
-		GLCall(glDepthFunc(depth_func));
+		GLCall(gl::glDepthFunc(depth_func));
 		bound_.depth.func = depth_func;
 	}
 
@@ -576,10 +577,10 @@ public:
 			return;
 		}
 		if (enabled) {
-			GLCall(glClearDepth(1.0)); /* Enables Clearing Of The Depth Buffer */
-			GLCall(glEnable(GL_DEPTH_TEST));
+			GLCall(gl::glClearDepth(1.0)); /* Enables Clearing Of The Depth Buffer */
+			GLCall(gl::glEnable(GL_DEPTH_TEST));
 		} else {
-			GLCall(glDisable(GL_DEPTH_TEST));
+			GLCall(gl::glDisable(GL_DEPTH_TEST));
 		}
 		bound_.depth.test = enabled;
 	}
@@ -589,7 +590,7 @@ public:
 			NearlyEqual(bound_.depth.range_far, far_val)) {
 			return;
 		}
-		GLCall(glDepthRange(near_val, far_val));
+		GLCall(gl::glDepthRange(near_val, far_val));
 		bound_.depth.range_near = near_val;
 		bound_.depth.range_far	= far_val;
 	}
@@ -598,7 +599,7 @@ public:
 		if (bound_.line_width == width) {
 			return;
 		}
-		GLCall(glLineWidth(width));
+		GLCall(gl::glLineWidth(width));
 		bound_.line_width = width;
 	}
 
@@ -606,9 +607,9 @@ public:
 #ifndef __EMSCRIPTEN__
 		if (enabled) {
 			SetBlending(GL_TRUE);
-			GLCall(glEnable(GL_LINE_SMOOTH));
+			GLCall(gl::glEnable(GL_LINE_SMOOTH));
 		} else {
-			GLCall(glDisable(GL_LINE_SMOOTH));
+			GLCall(gl::glDisable(GL_LINE_SMOOTH));
 		}
 #else
 		PTGN_WARN("GL_LINE_SMOOTH not supported by Emscripten");
@@ -622,10 +623,10 @@ public:
 		}
 
 		if (front_mode == back_mode) {
-			GLCall(glPolygonMode(GL_FRONT_AND_BACK, front_mode));
+			GLCall(gl::glPolygonMode(GL_FRONT_AND_BACK, front_mode));
 		} else {
-			GLCall(glPolygonMode(GL_FRONT, front_mode));
-			GLCall(glPolygonMode(GL_BACK, back_mode));
+			GLCall(gl::glPolygonMode(GL_FRONT, front_mode));
+			GLCall(gl::glPolygonMode(GL_BACK, back_mode));
 		}
 
 		bound_.polygon_mode_front = front_mode;
@@ -643,7 +644,7 @@ public:
 			return;
 		}
 
-		GLCall(BlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD));
+		GLCall(gl::BlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD));
 
 		switch (mode) {
 			PTGN_IMPL_BLEND_CASE(
@@ -691,7 +692,7 @@ public:
 
 		constexpr GLenum element_type{ GL_UNSIGNED_BYTE };
 
-		GLCall(glDrawElements(primitive_mode, element_count, element_type, nullptr));
+		GLCall(gl::glDrawElements(primitive_mode, element_count, element_type, nullptr));
 	}
 
 	void DrawArrays(
@@ -705,16 +706,16 @@ public:
 
 		constexpr GLint starting_index{ 0 };
 
-		GLCall(glDrawArrays(primitive_mode, starting_index, vertex_count));
+		GLCall(gl::glDrawArrays(primitive_mode, starting_index, vertex_count));
 	}
 
 	void SetViewport(const Viewport& viewport) {
 		if (bound_.viewport == viewport) {
 			return;
 		}
-		GLCall(
-			glViewport(viewport.position.x, viewport.position.y, viewport.size.x, viewport.size.y)
-		);
+		GLCall(gl::glViewport(
+			viewport.position.x, viewport.position.y, viewport.size.x, viewport.size.y
+		));
 		bound_.viewport = viewport;
 	}
 
@@ -727,14 +728,14 @@ public:
 			return;
 		}
 		auto n{ static_cast<V4_float>(color) };
-		GLCall(glClearColor(n.x, n.y, n.z, n.w));
+		GLCall(gl::glClearColor(n.x, n.y, n.z, n.w));
 		bound_.clear_color = color;
 	}
 
 	// Clears the currently bound frame buffer's buffers.
 	void Clear() {
-		// GLCall(glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-		GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		// GLCall(gl::glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		GLCall(gl::glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 	}
 
 	// Clears the currently bound frame buffer's color buffer to the specified color.
@@ -743,13 +744,13 @@ public:
 			IsBound(frame_buffer), "Frame buffer must be bound before clearing it to color"
 		);
 		// TODO: Update clear color state and add early exit if same.
-		// GLCall(glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		// GLCall(gl::glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 		auto c{ static_cast<V4_float>(color) };
-		GLCall(ClearBufferfv(GL_COLOR_BUFFER_BIT, 0, c.Data()));
+		GLCall(gl::ClearBufferfv(GL_COLOR_BUFFER_BIT, 0, c.Data()));
 		/*
 		// TODO: Check image format of bound texture and potentially use glClearBufferuiv instead of
 		ClearBufferfv.
-		GLCall(ClearBufferuiv(GL_COLOR, 0, color.Data()));
+		GLCall(gl::ClearBufferuiv(GL_COLOR, 0, color.Data()));
 		*/
 	}
 
@@ -757,7 +758,7 @@ public:
 		if (bound_.color_mask == mask) {
 			return;
 		}
-		GLCall(glColorMask(mask.red, mask.green, mask.blue, mask.alpha));
+		GLCall(gl::glColorMask(mask.red, mask.green, mask.blue, mask.alpha));
 		bound_.color_mask = mask;
 	}
 
@@ -767,11 +768,12 @@ public:
 		}
 
 		if (scissor.enabled) {
-			GLCall(glEnable(GL_SCISSOR_TEST));
-			GLCall(glScissor(scissor.position.x, scissor.position.y, scissor.size.x, scissor.size.y)
-			);
+			GLCall(gl::glEnable(GL_SCISSOR_TEST));
+			GLCall(gl::glScissor(
+				scissor.position.x, scissor.position.y, scissor.size.x, scissor.size.y
+			));
 		} else {
-			GLCall(glDisable(GL_SCISSOR_TEST));
+			GLCall(gl::glDisable(GL_SCISSOR_TEST));
 		}
 
 		bound_.scissor = scissor;
@@ -783,13 +785,13 @@ public:
 		}
 
 		if (cull.enabled) {
-			GLCall(glEnable(GL_CULL_FACE));
+			GLCall(gl::glEnable(GL_CULL_FACE));
 		} else {
-			GLCall(glDisable(GL_CULL_FACE));
+			GLCall(gl::glDisable(GL_CULL_FACE));
 		}
 
-		GLCall(glCullFace(cull.face));
-		GLCall(glFrontFace(cull.front));
+		GLCall(gl::glCullFace(cull.face));
+		GLCall(gl::glFrontFace(cull.front));
 
 		bound_.cull = cull;
 	}
@@ -800,14 +802,14 @@ public:
 		}
 
 		if (stencil.enabled) {
-			GLCall(glEnable(GL_STENCIL_TEST));
+			GLCall(gl::glEnable(GL_STENCIL_TEST));
 		} else {
-			GLCall(glDisable(GL_STENCIL_TEST));
+			GLCall(gl::glDisable(GL_STENCIL_TEST));
 		}
 
-		GLCall(glStencilFunc(stencil.func, stencil.ref, stencil.mask));
-		GLCall(glStencilOp(stencil.fail_op, stencil.zfail_op, stencil.zpass_op));
-		GLCall(glStencilMask(stencil.write_mask));
+		GLCall(gl::glStencilFunc(stencil.func, stencil.ref, stencil.mask));
+		GLCall(gl::glStencilOp(stencil.fail_op, stencil.zfail_op, stencil.zpass_op));
+		GLCall(gl::glStencilMask(stencil.write_mask));
 
 		bound_.stencil = stencil;
 	}
@@ -820,7 +822,7 @@ public:
 		const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform2f(location, v.x, v.y));
+			GLCall(gl::Uniform2f(location, v.x, v.y));
 		}
 	}
 
@@ -828,7 +830,7 @@ public:
 		const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform3f(location, v.x, v.y, v.z));
+			GLCall(gl::Uniform3f(location, v.x, v.y, v.z));
 		}
 	}
 
@@ -836,7 +838,7 @@ public:
 		const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform4f(location, v.x, v.y, v.z, v.w));
+			GLCall(gl::Uniform4f(location, v.x, v.y, v.z, v.w));
 		}
 	}
 
@@ -844,7 +846,7 @@ public:
 		const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(UniformMatrix4fv(location, 1, GL_FALSE, matrix.Data()));
+			GLCall(gl::UniformMatrix4fv(location, 1, GL_FALSE, matrix.Data()));
 		}
 	}
 
@@ -854,7 +856,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform1iv(location, count, data));
+			GLCall(gl::Uniform1iv(location, count, data));
 		}
 	}
 
@@ -863,7 +865,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform1fv(location, count, data));
+			GLCall(gl::Uniform1fv(location, count, data));
 		}
 	}
 
@@ -872,7 +874,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform2i(location, v.x, v.y));
+			GLCall(gl::Uniform2i(location, v.x, v.y));
 		}
 	}
 
@@ -881,7 +883,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform3i(location, v.x, v.y, v.z));
+			GLCall(gl::Uniform3i(location, v.x, v.y, v.z));
 		}
 	}
 
@@ -890,14 +892,14 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform4i(location, v.x, v.y, v.z, v.w));
+			GLCall(gl::Uniform4i(location, v.x, v.y, v.z, v.w));
 		}
 	}
 
 	void SetUniform(const Handle<Shader>& handle, const std::string& name, float v0) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform1f(location, v0));
+			GLCall(gl::Uniform1f(location, v0));
 		}
 	}
 
@@ -905,7 +907,7 @@ public:
 		const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform2f(location, v0, v1));
+			GLCall(gl::Uniform2f(location, v0, v1));
 		}
 	}
 
@@ -914,7 +916,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform3f(location, v0, v1, v2));
+			GLCall(gl::Uniform3f(location, v0, v1, v2));
 		}
 	}
 
@@ -924,14 +926,14 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform4f(location, v0, v1, v2, v3));
+			GLCall(gl::Uniform4f(location, v0, v1, v2, v3));
 		}
 	}
 
 	void SetUniform(const Handle<Shader>& handle, const std::string& name, std::int32_t v0) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform1i(location, v0));
+			GLCall(gl::Uniform1i(location, v0));
 		}
 	}
 
@@ -940,7 +942,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform2i(location, v0, v1));
+			GLCall(gl::Uniform2i(location, v0, v1));
 		}
 	}
 
@@ -950,7 +952,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform3i(location, v0, v1, v2));
+			GLCall(gl::Uniform3i(location, v0, v1, v2));
 		}
 	}
 
@@ -960,7 +962,7 @@ public:
 	) const {
 		std::int32_t location{ GetUniform(handle, name) };
 		if (location != -1) {
-			GLCall(Uniform4i(location, v0, v1, v2, v3));
+			GLCall(gl::Uniform4i(location, v0, v1, v2, v3));
 		}
 	}
 
@@ -970,7 +972,38 @@ public:
 	}
 
 private:
-	static void LoadGLFunctions();
+	[[nodiscard]] std::vector<ShaderTypeSource> ParseShaderSourceFile(
+		const std::string& source, const std::string& name, std::size_t max_texture_slots
+	) const;
+
+	void PopulateShadersFromCache(const json& manifest);
+
+	void CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCache& cache) const;
+
+	void PopulateShaderCache(
+		const cmrc::embedded_filesystem& filesystem, ShaderCache& cache,
+		std::size_t max_texture_slots
+	) const;
+
+	[[nodiscard]] GLuint CompileShaderSource(
+		const std::string& source, GLenum type, const std::string& name,
+		std::size_t max_texture_slots
+	) const;
+
+	GLuint CompileShaderPath(
+		const path& shader_path, GLenum type, const std::string& name, std::size_t max_texture_slots
+	) const;
+
+	void CompileShader(
+		const Handle<Shader>& handle, const std::string& vertex_source,
+		const std::string& fragment_source
+	) const;
+
+	[[nodiscard]] GLuint CompileShaderFromSource(GLuint type, const std::string& source) const;
+
+	void LinkShader(
+		const std::shared_ptr<ShaderResource>& resource, GLuint vertex, GLuint fragment
+	);
 
 	[[nodiscard]] std::int32_t GetUniform(const Handle<Shader>& handle, const std::string& name)
 		const {
@@ -984,7 +1017,7 @@ private:
 			return it->second;
 		}
 
-		std::int32_t location{ GLCallReturn(GetUniformLocation(resource.id, name.c_str())) };
+		std::int32_t location{ GLCallReturn(gl::GetUniformLocation(resource.id, name.c_str())) };
 
 		resource.location_cache.try_emplace(name, location);
 
@@ -1001,7 +1034,7 @@ private:
 		PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
 
 		auto resource = MakeGLResource<T, BufferResource>();
-		GLCall(glGenBuffers(1, &resource->id));
+		GLCall(gl::glGenBuffers(1, &resource->id));
 		PTGN_ASSERT(resource->id != 0, "Failed to create buffer resource");
 
 		resource->usage = usage;
@@ -1014,7 +1047,7 @@ private:
 		auto _1 = Bind<true>(Handle<VertexArray>{});
 		auto _2 = Bind<false>(handle);
 
-		GLCall(BufferData(target, size, data, usage));
+		GLCall(gl::BufferData(target, size, data, usage));
 
 		return handle;
 	}
@@ -1022,7 +1055,7 @@ private:
 	template <typename T = GLint>
 	T GetInteger(GLenum pname) {
 		GLint value = -1;
-		GLCall(glGetIntegerv(pname, &value));
+		GLCall(gl::glGetIntegerv(pname, &value));
 		PTGN_ASSERT(value >= 0, "Failed to query integer parameter");
 		return static_cast<T>(value);
 	}
@@ -1059,7 +1092,7 @@ private:
 		int y{ size.y - 1 - coordinate.y };
 		PTGN_ASSERT(y >= 0);
 		auto _2 = Bind<kRestoreBind>(handle);
-		GLCall(glReadPixels(
+		GLCall(gl::glReadPixels(
 			coordinate.x, y, 1, 1, handle.Get().texture.Get().pixel_format, GL_UNSIGNED_BYTE,
 			static_cast<void*>(v.data())
 		));
@@ -1088,7 +1121,7 @@ private:
 
 		std::vector<std::uint8_t> v(static_cast<std::size_t>(components * size.x * size.y));
 		auto _2 = Bind<kRestoreBind>(handle);
-		GLCall(glReadPixels(
+		GLCall(gl::glReadPixels(
 			0, 0, size.x, size.y, handle.Get().texture.Get().pixel_format, GL_UNSIGNED_BYTE,
 			static_cast<void*>(v.data())
 		));
@@ -1131,12 +1164,12 @@ private:
 
 	[[nodiscard]] bool FrameBufferIsComplete(const Handle<FrameBuffer>& handle) const {
 		PTGN_ASSERT(IsBound(handle), "Cannot check status of frame buffer until it is bound");
-		auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+		auto status{ GLCallReturn(gl::CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 		return status == GL_FRAMEBUFFER_COMPLETE;
 	}
 
 	[[nodiscard]] const char* GetFrameBufferStatus() {
-		auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+		auto status{ GLCallReturn(gl::CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 		switch (status) {
 			case GL_FRAMEBUFFER_COMPLETE: return "Framebuffer is complete.";
 			case GL_FRAMEBUFFER_UNDEFINED:
@@ -1198,7 +1231,7 @@ private:
 	) const {
 		PTGN_ASSERT(IsBound(handle), "Render buffer must be bound prior to setting its storage");
 
-		GLCall(RenderbufferStorage(GL_RENDERBUFFER, internal_format, size.x, size.y));
+		GLCall(gl::RenderbufferStorage(GL_RENDERBUFFER, internal_format, size.x, size.y));
 
 		auto& resource{ handle.Get() };
 		resource.size			 = size;
@@ -1208,7 +1241,7 @@ private:
 	template <typename T = GLint>
 	T GetBufferParameter(GLenum target, GLenum pname) {
 		GLint value = -1;
-		GLCall(GetBufferParameteriv(target, pname, &value));
+		GLCall(gl::GetBufferParameteriv(target, pname, &value));
 		PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
 		return static_cast<T>(value);
 	}
@@ -1221,7 +1254,7 @@ private:
 			slot < GetMaxTextureSlots(),
 			"Attempting to bind a slot outside of OpenGL texture slot maximum"
 		);
-		GLCall(glActiveTexture(GL_TEXTURE0 + slot));
+		GLCall(gl::glActiveTexture(GL_TEXTURE0 + slot));
 		bound_.active_texture_slot = slot;
 	}
 
@@ -1243,7 +1276,7 @@ private:
 		constexpr GLint mipmap_level{ 0 };
 		constexpr GLint border{ 0 };
 
-		GLCall(glTexImage2D(
+		GLCall(gl::glTexImage2D(
 			GL_TEXTURE_2D, mipmap_level, internal_format, size.x, size.y, border, pixel_data_format,
 			pixel_data_type, pixel_data
 		));
@@ -1263,7 +1296,7 @@ private:
 
 		constexpr GLint mipmap_level{ 0 };
 
-		GLCall(glTexSubImage2D(
+		GLCall(gl::glTexSubImage2D(
 			GL_TEXTURE_2D, mipmap_level, subdata_offset.x, subdata_offset.y, subdata_size.x,
 			subdata_size.y, pixel_data_format, pixel_data_type, pixel_subdata
 		));
@@ -1282,32 +1315,32 @@ private:
 		const {
 		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
 		PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
-		GLCall(glTexParameterfv(GL_TEXTURE_2D, param, values));
+		GLCall(gl::glTexParameterfv(GL_TEXTURE_2D, param, values));
 	}
 
 	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, const GLint* values)
 		const {
 		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
 		PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
-		GLCall(glTexParameteriv(GL_TEXTURE_2D, param, values));
+		GLCall(gl::glTexParameteriv(GL_TEXTURE_2D, param, values));
 	}
 
 	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, GLfloat value) const {
 		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
 		PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-		GLCall(glTexParameterf(GL_TEXTURE_2D, param, value));
+		GLCall(gl::glTexParameterf(GL_TEXTURE_2D, param, value));
 	}
 
 	void SetTextureParameter(const Handle<Texture>& handle, GLenum param, GLint value) const {
 		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to setting its parameters");
 		PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-		GLCall(glTexParameteri(GL_TEXTURE_2D, param, value));
+		GLCall(gl::glTexParameteri(GL_TEXTURE_2D, param, value));
 	}
 
 	[[nodiscard]] GLint GetTextureParameter(const Handle<Texture>& handle, GLenum param) const {
 		PTGN_ASSERT(IsBound(handle), "Texture must be bound prior to getting its parameters");
 		GLint value{ -1 };
-		GLCall(glGetTexParameteriv(GL_TEXTURE_2D, param, &value));
+		GLCall(gl::glGetTexParameteriv(GL_TEXTURE_2D, param, &value));
 		PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 		return value;
 	}
@@ -1329,7 +1362,7 @@ private:
 			"Set texture minifying scaling to mipmap type before generating mipmaps"
 		);
 #endif
-		GLCall(GenerateMipmap(GL_TEXTURE_2D));
+		GLCall(gl::GenerateMipmap(GL_TEXTURE_2D));
 	}
 
 	template <Resource T, bool kBufferOrphaning = true>
@@ -1363,11 +1396,11 @@ private:
 					"Buffer element size does not appear to match the "
 					"originally allocated buffer element size"
 				);
-				GLCall(BufferData(target, buffer_size, nullptr, usage));
+				GLCall(gl::BufferData(target, buffer_size, nullptr, usage));
 			}
 		}
 
-		GLCall(BufferSubData(target, byte_offset, size, data));
+		GLCall(gl::BufferSubData(target, byte_offset, size, data));
 	}
 
 	template <Resource T>
@@ -1377,17 +1410,17 @@ private:
 		}
 
 		if constexpr (T == VertexBuffer || T == ElementBuffer || T == UniformBuffer) {
-			GLCall(DeleteBuffers(1, &id));
+			GLCall(gl::DeleteBuffers(1, &id));
 		} else if constexpr (T == Texture) {
-			GLCall(glDeleteTextures(1, &id));
+			GLCall(gl::glDeleteTextures(1, &id));
 		} else if constexpr (T == RenderBuffer) {
-			GLCall(DeleteRenderbuffers(1, &id));
+			GLCall(gl::DeleteRenderbuffers(1, &id));
 		} else if constexpr (T == FrameBuffer) {
-			GLCall(DeleteFramebuffers(1, &id));
+			GLCall(gl::DeleteFramebuffers(1, &id));
 		} else if constexpr (T == VertexArray) {
-			GLCall(DeleteVertexArrays(1, &id));
+			GLCall(gl::DeleteVertexArrays(1, &id));
 		} else if constexpr (T == Shader) {
-			GLCall(DeleteProgram(id));
+			GLCall(gl::DeleteProgram(id));
 		} else {
 			static_assert(false, "Unsupported Resource type in DeleteId()");
 		}
@@ -1403,7 +1436,7 @@ private:
 		});
 	}
 
-	std::unordered_map<std::size_t, ShaderResource> shaders_;
+	std::unordered_map<std::size_t, std::shared_ptr<ShaderResource>> shaders_;
 
 	void* context_{ nullptr };
 
