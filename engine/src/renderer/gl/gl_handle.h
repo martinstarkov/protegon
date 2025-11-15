@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "core/assert.h"
+#include "renderer/gl/gl.h"
 
 namespace ptgn::impl::gl {
 
@@ -17,33 +18,6 @@ enum Resource {
 	VertexArray
 };
 
-struct ShaderResource;
-struct BufferResource;
-struct RenderBufferResource;
-struct TextureResource;
-struct FrameBufferResource;
-struct VertexArrayResource;
-
-template <Resource>
-struct ResourceTraits;
-
-#define PTGN_DEFINE_GL_RESOURCE_TRAIT(EnumName, TypeName) \
-	template <>                                           \
-	struct ResourceTraits<EnumName> {                     \
-		using Type = TypeName;                            \
-	};
-
-PTGN_DEFINE_GL_RESOURCE_TRAIT(Shader, ShaderResource)
-PTGN_DEFINE_GL_RESOURCE_TRAIT(VertexBuffer, BufferResource)
-PTGN_DEFINE_GL_RESOURCE_TRAIT(ElementBuffer, BufferResource)
-PTGN_DEFINE_GL_RESOURCE_TRAIT(UniformBuffer, BufferResource)
-PTGN_DEFINE_GL_RESOURCE_TRAIT(RenderBuffer, RenderBufferResource)
-PTGN_DEFINE_GL_RESOURCE_TRAIT(Texture, TextureResource)
-PTGN_DEFINE_GL_RESOURCE_TRAIT(FrameBuffer, FrameBufferResource)
-PTGN_DEFINE_GL_RESOURCE_TRAIT(VertexArray, VertexArrayResource)
-
-#undef PTGN_DEFINE_GL_RESOURCE_TRAIT
-
 template <Resource T>
 class Handle {
 public:
@@ -52,27 +26,20 @@ public:
 	bool operator==(const Handle&) const = default;
 
 	explicit operator bool() const {
-		return static_cast<bool>(resource_);
+		return static_cast<bool>(id_);
 	}
 
-	auto& Get() {
-		PTGN_ASSERT(resource_);
-		return *resource_;
-	}
-
-	const auto& Get() const {
-		PTGN_ASSERT(resource_);
-		return *resource_;
+	GLuint Get() const {
+		PTGN_ASSERT(id_);
+		return *id_;
 	}
 
 private:
 	friend class GLContext;
 
-	using ResourceType = typename ResourceTraits<T>::Type;
+	explicit Handle(std::shared_ptr<GLuint> id) : id_{ std::move(id) } {}
 
-	explicit Handle(std::shared_ptr<ResourceType> resource) : resource_{ std::move(resource) } {}
-
-	std::shared_ptr<ResourceType> resource_;
+	std::shared_ptr<GLuint> id_{ 0 };
 };
 
 } // namespace ptgn::impl::gl

@@ -400,7 +400,7 @@ static std::vector<ShaderTypeSource> ParseShader(
 	return output;
 }
 
-void GLContext::CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCache& cache)
+void GLContext::CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCaches& cache)
 	const {
 	for (const auto& sts : sources) {
 		auto hash{ Hash(sts.name) };
@@ -443,7 +443,7 @@ static void SubstituteShaderTokens(
 }
 
 void GLContext::PopulateShaderCache(
-	const cmrc::embedded_filesystem& filesystem, ShaderCache& cache, std::size_t max_texture_slots
+	const cmrc::embedded_filesystem& filesystem, ShaderCaches& cache, std::size_t max_texture_slots
 ) const {
 	std::string subdir{ "common/" };
 	auto dir{ filesystem.iterate_directory(subdir) };

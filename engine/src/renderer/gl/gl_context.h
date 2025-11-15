@@ -51,7 +51,7 @@ namespace ptgn::impl::gl {
 
 class GLContext;
 
-struct ShaderCache {
+struct ShaderCaches {
 	std::unordered_map<std::size_t, GLuint> vertex_shaders;
 	std::unordered_map<std::size_t, GLuint> fragment_shaders;
 };
@@ -990,10 +990,10 @@ private:
 
 	void PopulateShadersFromCache(const json& manifest);
 
-	void CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCache& cache) const;
+	void CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCaches& cache) const;
 
 	void PopulateShaderCache(
-		const cmrc::embedded_filesystem& filesystem, ShaderCache& cache,
+		const cmrc::embedded_filesystem& filesystem, ShaderCaches& cache,
 		std::size_t max_texture_slots
 	) const;
 
@@ -1474,7 +1474,7 @@ private:
 
 	State bound_;
 
-	ShaderCache shader_cache_;
+	ShaderCaches shader_cache_;
 };
 
 } // namespace ptgn::impl::gl

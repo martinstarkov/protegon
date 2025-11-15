@@ -9,32 +9,24 @@
 
 namespace ptgn::impl::gl {
 
-struct BufferResource {
-	GLuint id{ 0 };
+struct BufferCache {
 	GLenum usage{ GL_STATIC_DRAW };
 	std::uint32_t count{ 0 };
 };
 
-struct RenderBufferResource {
-	GLuint id{ 0 };
+struct RenderBufferCache {
 	V2_int size;
 	GLenum internal_format{ GL_RGBA8 };
 };
 
-struct TextureResource {
-	GLuint id{ 0 };
+struct TextureCache {
 	V2_int size;
 	GLenum internal_format{ GL_RGBA8 };
 };
 
-struct FrameBufferResource {
-	GLuint id{ 0 };
+struct FrameBufferCache {
 	GLuint texture{ 0 };
 	GLuint render_buffer{ 0 };
-};
-
-struct VertexArrayResource {
-	GLuint id{ 0 };
 };
 
 // Wrapper for distinguishing between Shader from path construction and Shader
@@ -43,13 +35,11 @@ struct ShaderCode {
 	std::string source;
 };
 
-struct ShaderResource {
-	GLuint id{ 0 };
-
+struct ShaderCache {
 	std::string shader_name;
 
 	// cache needs to be mutable even in const functions.
-	mutable std::unordered_map<std::string, std::int32_t> location_cache;
+	mutable std::unordered_map<std::string, std::int32_t> uniform_locations;
 };
 
 } // namespace ptgn::impl::gl
