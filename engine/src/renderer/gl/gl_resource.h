@@ -2,8 +2,8 @@
 
 #include <cstdint>
 #include <string>
-#include <unordered_map>
 
+#include "core/util/id_map.h"
 #include "math/vector2.h"
 #include "renderer/gl/gl.h"
 
@@ -39,7 +39,7 @@ struct ShaderCache {
 	std::string shader_name;
 
 	// cache needs to be mutable even in const functions.
-	mutable std::unordered_map<std::string, std::int32_t> uniform_locations;
+	mutable IdMap<std::size_t, std::int32_t> uniform_locations;
 };
 
 } // namespace ptgn::impl::gl

@@ -6,7 +6,6 @@
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/gl/gl.h"
-#include "renderer/gl/gl_resource.h"
 
 namespace ptgn::impl::gl {
 

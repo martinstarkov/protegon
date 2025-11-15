@@ -13,6 +13,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/concepts.h"
+#include "core/util/id_map.h"
 #include "math/matrix4.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"
@@ -52,8 +53,8 @@ namespace ptgn::impl::gl {
 class GLContext;
 
 struct ShaderCaches {
-	std::unordered_map<std::size_t, GLuint> vertex_shaders;
-	std::unordered_map<std::size_t, GLuint> fragment_shaders;
+	IdMap<std::size_t, GLuint> vertex_shaders;
+	IdMap<std::size_t, GLuint> fragment_shaders;
 };
 
 struct ShaderTypeSource {
@@ -65,11 +66,11 @@ struct ShaderTypeSource {
 template <Resource R, bool kRestoreBind>
 class BindGuard {
 public:
-	explicit BindGuard(GLContext& gl, const Handle<R>& handle) : gl_{ gl }, handle_{ handle } {}
+	explicit BindGuard(GLContext& gl, GLuint id) : gl_{ gl }, id_{ id } {}
 
 	~BindGuard() {
 		if constexpr (kRestoreBind) {
-			auto _ = gl_.Bind<false>(handle_);
+			auto _ = gl_.Bind<false, R>(id_);
 		}
 	}
 
@@ -78,7 +79,7 @@ public:
 
 private:
 	GLContext& gl_;
-	Handle<R> handle_;
+	GLuint id_;
 };
 
 class GLContext {
@@ -955,8 +956,7 @@ public:
 
 	[[nodiscard]] Handle<Shader> GetShader(const std::string_view shader_name) const {
 		auto key{ Hash(shader_name) };
-		PTGN_ASSERT(shaders_.contains(key), "Shader does not exist");
-		return Handle<Shader>{ shaders_.find(key)->second };
+		return Handle<Shader>{ shaders_.Get(key) };
 	}
 
 	void SetActiveTextureSlot(GLuint slot) {
@@ -1468,7 +1468,14 @@ private:
 	// e.g. std::unordered_map<GLuint, location_cache> location_caches_;
 	// UnsafeDelete(); location_caches_.erase(id);
 
-	std::unordered_map<std::size_t, std::shared_ptr<ShaderResource>> shaders_;
+	IdMap<std::size_t, Handle<Shader>> shaders_;
+
+	IdMap<GLuint, ShaderCache> shader_cache_;
+	IdMap<GLuint, FrameBufferCache> frame_buffer_cache_;
+	IdMap<GLuint, TextureCache> texture_cache_;
+	IdMap<GLuint, RenderBufferCache> render_buffer_cache_;
+	IdMap<GLuint, BufferCache> vertex_buffer_cache_;
+	IdMap<GLuint, BufferCache> element_buffer_cache_;
 
 	void* context_{ nullptr };
 

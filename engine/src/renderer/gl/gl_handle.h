@@ -29,7 +29,7 @@ public:
 		return static_cast<bool>(id_);
 	}
 
-	GLuint Get() const {
+	operator GLuint() const {
 		PTGN_ASSERT(id_);
 		return *id_;
 	}

@@ -15,6 +15,22 @@
 
 // entity.Get<Sound>().Play();
 
+// In asset manager, map the hashed path to a weak ptr of the resource.
+
+// When the handle gets destroyed (shared ptr custom deleter), free the mapped path.
+
+// When using a duplicate path, get it from the mapped paths and turn the weak ptr into a shared
+// ptr.
+
+// Compile time:
+// template <size_t N>
+// void Load(const char (&filepath)[N]) {}
+
+// Runtime:
+// void Load(const path& filepath) {}
+
+// Internally hash the filepath into std::size_t
+
 namespace ptgn {
 
 namespace impl {
