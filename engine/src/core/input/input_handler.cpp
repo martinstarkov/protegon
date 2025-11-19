@@ -16,11 +16,11 @@
 #include "core/app/resolution.h"
 #include "core/app/window.h"
 #include "core/assert.h"
-#include "ecs/components/transform.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/log.h"
 #include "core/util/time.h"
+#include "ecs/components/transform.h"
 #include "math/geometry/rect.h"
 #include "math/overlap.h"
 #include "math/vector2.h"
@@ -192,6 +192,7 @@ void InputHandler::Prepare() {
 }
 
 void InputHandler::InvokeInputEvents(Application& app, Manager& manager) {
+	/*
 	for (const auto& event : queue_) {
 		std::visit(
 			[&](auto&& ev) {
@@ -273,7 +274,7 @@ void InputHandler::InvokeInputEvents(Application& app, Manager& manager) {
 		scripts.InvokeActions();
 	}
 
-	manager.Refresh();
+	manager.Refresh();*/
 }
 
 void InputHandler::Update() {
@@ -297,6 +298,8 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 V2_float InputHandler::GetPositionRelativeTo(
 	const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
 ) const {
+	// TODO: Move into a resolution manager.
+	/*
 	V2_int window_center{ window_.GetSize() / 2 };
 
 	V2_int window_point{ window_position };
@@ -334,7 +337,8 @@ V2_float InputHandler::GetPositionRelativeTo(
 		case ViewportType::WindowCenter:  return window_point;
 		case ViewportType::WindowTopLeft: return window_position;
 		default:						  PTGN_ERROR("Unrecognized viewport type");
-	}
+	}*/
+	return window_position;
 }
 
 V2_int InputHandler::GetMouseScreenPosition() const {

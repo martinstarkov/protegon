@@ -2,32 +2,21 @@
 
 #include <array>
 
-#include "ecs/components/drawable.h"
+#include "ecs/components/origin.h"
 #include "math/vector2.h"
-#include "renderer/api/origin.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
 struct Transform;
-class Entity;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 // RoundedRect has no rotation center because this can be achieved via using a parent Entity and
 // positioning it where the origin should be.
-
 struct RoundedRect {
 	RoundedRect() = default;
 
 	RoundedRect(const V2_float& min, const V2_float& max, float radius);
 	RoundedRect(const V2_float& size, float radius);
-
-	static void Draw(const Entity& entity);
 
 	[[nodiscard]] V2_float GetSize() const;
 	[[nodiscard]] float GetRadius() const;
@@ -59,7 +48,5 @@ struct RoundedRect {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RoundedRect, min, max, radius)
 };
-
-PTGN_DRAWABLE_REGISTER(RoundedRect);
 
 } // namespace ptgn

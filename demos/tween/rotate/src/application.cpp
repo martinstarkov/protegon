@@ -1,8 +1,8 @@
 #include "ecs/components/sprite.h"
 #include "core/app/application.h"
 #include "core/input/input_handler.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "tween/tween_effect.h"
 
 using namespace ptgn;

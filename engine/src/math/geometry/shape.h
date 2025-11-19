@@ -19,6 +19,8 @@
 
 namespace ptgn {
 
+// TODO: Move some of this stuff to a component?
+
 class Entity;
 
 class Shape;

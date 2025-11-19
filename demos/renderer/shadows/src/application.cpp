@@ -20,16 +20,16 @@
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "ecs/components/origin.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/material/shader.h"
 #include "renderer/stencil_mask.h"
 #include "renderer/vfx/light.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_input.h"
+#include "scene/scene_manager.h"
 
 // TODO: Move LightMap to engine.
 

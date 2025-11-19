@@ -3,8 +3,8 @@
 #include "ecs/components/transform.h"
 #include "core/app/application.h"
 #include "core/app/window.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "ui/button.h"
 
 using namespace ptgn;

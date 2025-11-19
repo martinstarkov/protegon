@@ -1,14 +1,13 @@
 #pragma once
 
 #include "core/assert.h"
-#include "ecs/components/component_utils.h"
-#include "ecs/components/uuid.h"
-#include "ecs/entity_hierarchy.h"
 #include "core/util/concepts.h"
+#include "ecs/components/uuid.h"
 #include "ecs/ecs.h"
+#include "ecs/entity_hierarchy.h"
+#include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
-#include "serialization/json/json_archiver.h"
 
 namespace ptgn {
 
@@ -19,18 +18,6 @@ class Camera;
 class SceneInput;
 
 struct Transform;
-struct Depth;
-struct Interactive;
-struct PostFX;
-struct PreFX;
-
-namespace impl {
-
-class RenderData;
-class IScript;
-class EntityAccess;
-
-} // namespace impl
 
 class Scene; // forward
 

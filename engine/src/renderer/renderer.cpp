@@ -1,64 +1,8 @@
 #include "renderer/renderer.h"
 
-#include <algorithm>
-#include <array>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <functional>
-#include <limits>
-#include <list>
 #include <memory>
-#include <numeric>
-#include <optional>
-#include <span>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <unordered_map>
-#include <utility>
-#include <variant>
-#include <vector>
 
-#include "core/app/manager.h"
 #include "core/app/window.h"
-#include "core/assert.h"
-#include "ecs/components/drawable.h"
-#include "ecs/components/effects.h"
-#include "ecs/components/generic.h"
-#include "ecs/components/transform.h"
-#include "ecs/entity.h"
-#include "core/log.h"
-#include "core/scripting/script.h"
-#include "core/util/concepts.h"
-#include "core/util/time.h"
-#include "core/util/timer.h"
-#include "math/geometry/arc.h"
-#include "math/geometry/capsule.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/ellipse.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/geometry/rect.h"
-#include "math/geometry/rounded_rect.h"
-#include "math/geometry/shape.h"
-#include "math/geometry/triangle.h"
-#include "math/geometry_utils.h"
-#include "math/math_utils.h"
-#include "math/matrix4.h"
-#include "math/vector2.h"
-#include "math/vector4.h"
-#include "renderer/api/blend_mode.h"
-#include "renderer/api/color.h"
-#include "renderer/api/flip.h"
-#include "renderer/api/glsl_types.h"
-#include "renderer/api/origin.h"
-#include "renderer/gl/gl_context.h"
-#include "renderer/stencil_mask.h"
-#include "renderer/text/font.h"
-#include "renderer/text/text.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
 
 namespace ptgn {
 

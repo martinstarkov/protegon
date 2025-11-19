@@ -39,7 +39,7 @@ inline std::ostream& operator<<(std::ostream& os, Mouse mouse) {
 	return os;
 }
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	Mouse, { { Mouse::Invalid, nullptr },
 			 { Mouse::Left, "left" },
 			 { Mouse::Middle, "middle" },
@@ -48,7 +48,7 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 
 namespace impl {
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	MouseState, { { MouseState::Up, "up" },
 				  { MouseState::Down, "down" },
 				  { MouseState::Released, "released" },

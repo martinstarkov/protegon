@@ -1,6 +1,6 @@
 #include "core/app/application.h"
 
-#include "world/scene/scene_transition.h"
+#include "scene/scene_transition.h"
 
 using namespace ptgn;
 

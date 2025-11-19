@@ -1,7 +1,7 @@
 #pragma once
 
 #include "math/vector2.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 

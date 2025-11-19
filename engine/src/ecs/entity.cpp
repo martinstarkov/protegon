@@ -6,18 +6,14 @@
 #include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/assert.h"
+#include "core/util/type_info.h"
 #include "ecs/component_registry.h"
 #include "ecs/components/uuid.h"
-#include "ecs/entity_hierarchy.h"
-#include "core/util/type_info.h"
 #include "ecs/ecs.h"
-#include "renderer/render_target.h"
+#include "ecs/entity_hierarchy.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/json_archiver.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_key.h"
-#include "world/scene/scene_manager.h"
 
 namespace ptgn {
 

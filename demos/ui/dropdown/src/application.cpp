@@ -6,12 +6,12 @@
 #include "core/app/window.h"
 #include "core/log.h"
 #include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "ecs/components/origin.h"
 #include "renderer/renderer.h"
 #include "ui/button.h"
 #include "ui/dropdown.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

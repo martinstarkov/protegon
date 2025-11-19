@@ -20,10 +20,10 @@
 #include "renderer/renderer.h"
 #include "tween/follow_config.h"
 #include "tween/tween_effect.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "scene/camera.h"
+#include "scene/scene.h"
+#include "scene/scene_input.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

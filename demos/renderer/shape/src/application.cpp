@@ -3,8 +3,8 @@
 #include "core/app/application.h"
 #include "core/app/window.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

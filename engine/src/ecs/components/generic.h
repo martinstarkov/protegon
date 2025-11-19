@@ -7,7 +7,7 @@
 #include "core/util/file.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 

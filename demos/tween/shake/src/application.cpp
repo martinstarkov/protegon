@@ -3,8 +3,8 @@
 #include "core/util/time.h"
 #include "core/input/input_handler.h"
 #include "math/easing.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "tween/tween_effect.h"
 
 using namespace ptgn;

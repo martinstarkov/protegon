@@ -54,7 +54,7 @@ using Ease = std::variant<SymmetricalEase, AsymmetricalEase>;
 
 [[nodiscard]] float ApplyEase(float t, const Ease& ease);
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	SymmetricalEase, { { SymmetricalEase::Invalid, nullptr },
 					   { SymmetricalEase::None, "none" },
 					   { SymmetricalEase::Linear, "linear" },
@@ -70,7 +70,7 @@ PTGN_SERIALIZER_REGISTER_ENUM(
 					   { SymmetricalEase::InOutBounce, "in_out_bounce" } }
 );
 
-PTGN_SERIALIZER_REGISTER_ENUM(AsymmetricalEase, { { AsymmetricalEase::Invalid, nullptr },
+PTGN_SERIALIZE_ENUM(AsymmetricalEase, { { AsymmetricalEase::Invalid, nullptr },
 												  { AsymmetricalEase::InSine, "in_sine" },
 												  { AsymmetricalEase::OutSine, "out_sine" },
 												  { AsymmetricalEase::InQuad, "in_quad" },

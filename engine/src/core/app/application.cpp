@@ -1,12 +1,7 @@
 #include "core/app/application.h"
 
 #include <chrono>
-#include <filesystem>
 #include <memory>
-#include <string>
-#include <string_view>
-#include <unordered_set>
-#include <vector>
 
 #include "SDL.h"
 #include "SDL_error.h"
@@ -17,26 +12,15 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "audio/audio.h"
 #include "core/app/window.h"
 #include "core/assert.h"
-#include "core/input/input_handler.h"
 #include "core/log.h"
-#include "core/util/file.h"
-#include "core/util/string.h"
 #include "core/util/time.h"
 #include "debug/debug_system.h"
-#include "debug/profiling.h"
-#include "debug/stats.h"
-#include "math/hash.h"
 #include "math/vector2.h"
-#include "renderer/api/color.h"
 #include "renderer/gl/gl_context.h"
 #include "renderer/renderer.h"
-#include "renderer/text/font.h"
-#include "serialization/json/json.h"
-#include "serialization/json/json_manager.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene_manager.h"
 
 #ifdef __EMSCRIPTEN__
 

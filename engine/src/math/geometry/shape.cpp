@@ -1,18 +1,15 @@
 #include "math/geometry/shape.h"
 
-#include <array>
 #include <optional>
 #include <type_traits>
 #include <variant>
 #include <vector>
 
-#include "ecs/components/draw.h"
-#include "ecs/components/sprite.h"
-#include "ecs/components/transform.h"
-#include "ecs/entity.h"
 #include "core/log.h"
 #include "core/util/concepts.h"
 #include "core/util/span.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"

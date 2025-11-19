@@ -17,7 +17,7 @@
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 #include "serialization/json/json_manager.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 using namespace ptgn;
 

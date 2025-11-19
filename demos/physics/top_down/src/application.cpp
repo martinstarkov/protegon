@@ -6,9 +6,9 @@
 #include "physics/collider.h"
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "ecs/components/origin.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

@@ -2,4 +2,8 @@
 
 #include <nlohmann/json_fwd.hpp>
 
-using json = nlohmann::json;
+namespace ptgn {
+
+using json = ::nlohmann::json;
+
+} // namespace ptgn

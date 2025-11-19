@@ -8,8 +8,8 @@
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
 #include "renderer/material/shader.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

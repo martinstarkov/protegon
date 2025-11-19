@@ -2,27 +2,17 @@
 
 #include <array>
 
-#include "ecs/components/drawable.h"
 #include "math/vector2.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
 struct Transform;
-class Entity;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 struct Line {
 	Line() = default;
 
 	Line(const V2_float& start, const V2_float& end);
-
-	static void Draw(const Entity& entity);
 
 	// @param out_size Optional parameter for the unrotated size of the quad.
 	// @return Quad vertices relative to the given transform for this line with a given a line
@@ -42,7 +32,5 @@ struct Line {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Line, start, end)
 };
-
-PTGN_DRAWABLE_REGISTER(Line);
 
 } // namespace ptgn

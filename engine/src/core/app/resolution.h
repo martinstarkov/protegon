@@ -1,7 +1,7 @@
 #pragma once
 
 #include "math/vector2.h"
-#include "world/scene/camera.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 

@@ -5,17 +5,16 @@
 #include <span>
 #include <vector>
 
-#include "ecs/components/generic.h"
-#include "ecs/entity.h"
 #include "core/util/concepts.h"
 #include "core/util/flags.h"
+#include "ecs/components/generic.h"
+#include "ecs/entity.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
-class Camera;
 class Scene;
 
 namespace impl {
@@ -178,25 +177,26 @@ T& SetTransform(T& entity, const Transform& transform) {
 	return entity;
 }
 
-Camera& SetTransform(Camera& entity, const Transform& transform);
+// Camera& SetTransform(Camera& entity, const Transform& transform);
 
 // @return The transform of the entity with respect to its parent entity.
 [[nodiscard]] Transform GetTransform(const Entity& entity);
 [[nodiscard]] Transform& GetTransform(Entity& entity);
 
-[[nodiscard]] Transform GetTransform(const Camera& camera);
+//[[nodiscard]] Transform GetTransform(const Camera& camera);
 
 // @return The transform of the entity with respect to the scene primary camera.
 [[nodiscard]] Transform GetAbsoluteTransform(const Entity& entity);
-[[nodiscard]] Transform GetAbsoluteTransform(const Camera& entity);
+//[[nodiscard]] Transform GetAbsoluteTransform(const Camera& entity);
 
 // @return The transform of the entity with respect to its parent camera.
 [[nodiscard]] Transform GetWorldTransform(const Entity& entity);
-[[nodiscard]] Transform GetWorldTransform(const Camera& entity);
+
+//[[nodiscard]] Transform GetWorldTransform(const Camera& entity);
 
 // @return The transform of the entity with respect to its parent camera, including any visual
 // offsets caused by effects such as shake or bounce.
-[[nodiscard]] Transform GetDrawTransform(const Entity& entity);
+//[[nodiscard]] Transform GetDrawTransform(const Entity& entity);
 
 template <EntityBase T>
 V2_float GetPosition(const T& entity) {

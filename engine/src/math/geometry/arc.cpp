@@ -3,9 +3,7 @@
 #include <array>
 
 #include "core/assert.h"
-#include "ecs/components/draw.h"
 #include "ecs/components/transform.h"
-#include "ecs/entity.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
 
@@ -16,11 +14,6 @@ Arc::Arc(float arc_radius, float start_angle, float end_angle, bool clockwise) :
 	start_angle{ start_angle },
 	end_angle{ end_angle },
 	clockwise{ clockwise } {}
-
-void Arc::Draw(const Entity& entity) {
-	// TODO: Fix.
-	// impl::DrawArc(entity);
-}
 
 V2_float Arc::GetCenter(const Transform& transform) const {
 	return transform.GetPosition();

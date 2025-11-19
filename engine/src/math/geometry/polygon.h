@@ -4,20 +4,12 @@
 #include <ranges>
 #include <vector>
 
-#include "ecs/components/drawable.h"
 #include "math/vector2.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
-class Entity;
 struct Transform;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 struct Polygon {
 	Polygon() = default;
@@ -28,8 +20,6 @@ struct Polygon {
 	Polygon(const Container& points) {
 		vertices.assign(points.begin(), points.end());
 	}
-
-	static void Draw(const Entity& entity);
 
 	[[nodiscard]] std::vector<V2_float> GetWorldVertices(const Transform& transform) const;
 
@@ -44,7 +34,5 @@ struct Polygon {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Polygon, vertices)
 };
-
-PTGN_DRAWABLE_REGISTER(Polygon);
 
 } // namespace ptgn

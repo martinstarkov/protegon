@@ -4,35 +4,14 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <optional>
-#include <span>
-#include <string>
-#include <string_view>
-#include <unordered_map>
-#include <variant>
 #include <vector>
 
-#include "core/app/manager.h"
 #include "core/app/resolution.h"
-#include "core/asset/asset_handle.h"
-#include "ecs/components/effects.h"
-#include "ecs/components/generic.h"
-#include "ecs/components/transform.h"
-#include "ecs/entity.h"
-#include "core/scripting/script.h"
-#include "core/scripting/script_interfaces.h"
-#include "core/util/time.h"
-#include "core/util/timer.h"
-#include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
-#include "renderer/api/origin.h"
-#include "renderer/text/font.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serializable.h"
-#include "world/scene/camera.h"
+#include "ecs/components/origin.h"
 
 namespace ptgn {
 
@@ -65,14 +44,14 @@ class GLContext;
 
 } // namespace gl
 
-struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
-	explicit ViewportResizeScript(Window& window, Renderer& renderer);
-
-	void OnWindowResized() override;
-
-	Window& window;
-	Renderer& renderer;
-};
+// struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> {
+//	explicit ViewportResizeScript(Window& window, Renderer& renderer);
+//
+//	void OnWindowResized() override;
+//
+//	Window& window;
+//	Renderer& renderer;
+// };
 
 using Index = std::uint32_t;
 // using TextureOrSize =
@@ -437,7 +416,7 @@ public:
 	*/
 private:
 	friend class Application;
-	friend struct impl::ViewportResizeScript;
+	// friend struct impl::ViewportResizeScript;
 
 	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
 	/*
@@ -614,12 +593,12 @@ private:
 	std::unique_ptr<impl::gl::GLContext> gl_;
 };
 
-PTGN_SERIALIZER_REGISTER_ENUM(
-	ScalingMode, { { ScalingMode::Disabled, "disabled" },
-				   { ScalingMode::Stretch, "stretch" },
-				   { ScalingMode::Letterbox, "letterbox" },
-				   { ScalingMode::Overscan, "overscan" },
-				   { ScalingMode::IntegerScale, "integer_scale" } }
-);
+// PTGN_SERIALIZE_ENUM(
+//	ScalingMode, { { ScalingMode::Disabled, "disabled" },
+//				   { ScalingMode::Stretch, "stretch" },
+//				   { ScalingMode::Letterbox, "letterbox" },
+//				   { ScalingMode::Overscan, "overscan" },
+//				   { ScalingMode::IntegerScale, "integer_scale" } }
+//);
 
 } // namespace ptgn

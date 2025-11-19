@@ -8,10 +8,10 @@
 #include "core/scripting/script_interfaces.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "ecs/components/origin.h"
 #include "ui/button.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

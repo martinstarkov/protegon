@@ -6,8 +6,8 @@
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "math/vector2.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "ui/dialogue.h"
 
 using namespace ptgn;

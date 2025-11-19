@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <functional>
 
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 

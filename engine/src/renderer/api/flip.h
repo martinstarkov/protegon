@@ -11,7 +11,7 @@ enum class Flip {
 	Both	   = 3
 };
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	Flip, { { Flip::None, "none" },
 			{ Flip::Horizontal, "horizontal" },
 			{ Flip::Vertical, "vertical" },

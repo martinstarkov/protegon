@@ -1,6 +1,5 @@
 #pragma once
 
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <string_view>
 #include <variant>
@@ -40,7 +39,7 @@ NLOHMANN_JSON_NAMESPACE_BEGIN
 namespace impl {
 
 template <typename T, typename... Ts>
-bool variant_from_json(const nlohmann::json& j, std::variant<Ts...>& data) {
+bool variant_from_json(const json& j, std::variant<Ts...>& data) {
 	if (j.at("type").get<std::string_view>() != ptgn::type_name_without_namespaces<T>()) {
 		return false;
 	}

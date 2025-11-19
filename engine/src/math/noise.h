@@ -274,7 +274,7 @@ private:
 	NoiseType noise_type_{ NoiseType::Perlin };
 };
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	NoiseType, { { NoiseType::Perlin, "perlin" },
 				 { NoiseType::Value, "value" },
 				 { NoiseType::Simplex, "simplex" } }

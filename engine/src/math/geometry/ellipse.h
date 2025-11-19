@@ -2,29 +2,19 @@
 
 #include <array>
 
-#include "ecs/components/drawable.h"
 #include "core/util/concepts.h"
 #include "math/vector2.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
-class Entity;
 struct Transform;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 struct Ellipse {
 	Ellipse() = default;
 
 	template <Arithmetic T>
 	explicit Ellipse(const Vector2<T>& ellipse_radius) : radius{ ellipse_radius } {}
-
-	static void Draw(const Entity& entity);
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
@@ -44,7 +34,5 @@ struct Ellipse {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Ellipse, radius)
 };
-
-PTGN_DRAWABLE_REGISTER(Ellipse);
 
 } // namespace ptgn

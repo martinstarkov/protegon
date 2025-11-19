@@ -12,9 +12,9 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_input.h"
+#include "scene/scene_manager.h"
 #include "tween/follow_config.h"
 #include "tween/tween_effect.h"
 

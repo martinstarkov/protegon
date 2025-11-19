@@ -5,10 +5,10 @@
 #include "ecs/components/draw.h"
 #include "ecs/components/sprite.h"
 #include "core/app/application.h"
-#include "renderer/api/origin.h"
+#include "ecs/components/origin.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 #include "core/util/file.h"
 
 using namespace ptgn;

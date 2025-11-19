@@ -11,8 +11,8 @@
 #include "core/log.h"
 #include "ecs/ecs.h"
 #include "math/vector2.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

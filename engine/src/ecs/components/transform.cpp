@@ -7,14 +7,12 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "ecs/components/offsets.h"
+#include "core/util/flags.h"
 #include "ecs/entity.h"
 #include "ecs/entity_hierarchy.h"
-#include "core/util/flags.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
+#include "scene/scene.h"
 
 namespace ptgn {
 
@@ -245,9 +243,8 @@ V2_float Transform::ApplyInverse(const V2_float& point) const {
 	return point;
 }
 
-void Transform::Apply(
-	std::span<const V2_float> points, std::span<V2_float> out_transformed_points
-) const {
+void Transform::Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points)
+	const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
 	if (rotation_ != 0.0f) {
@@ -307,37 +304,37 @@ std::vector<V2_float> Transform::ApplyInverse(const std::vector<V2_float>& point
 	return transformed_points;
 }
 
-Camera& SetTransform(Camera& entity, const Transform& transform) {
-	entity.SetScroll(transform.GetPosition());
-	entity.SetRotation(transform.GetRotation());
-	entity.SetZoom(transform.GetScale());
-	return entity;
-}
+// Camera& SetTransform(Camera& entity, const Transform& transform) {
+//	entity.SetScroll(transform.GetPosition());
+//	entity.SetRotation(transform.GetRotation());
+//	entity.SetZoom(transform.GetScale());
+//	return entity;
+// }
 
 Transform& GetTransform(Entity& entity) {
-	PTGN_ASSERT(
+	/*PTGN_ASSERT(
 		!entity.Has<impl::CameraInstance>(),
 		"GetTransform(Entity) cannot be used on a Camera entity. Use "
 		"camera.GetTransform() instead."
-	);
+	);*/
 	return impl::EntityAccess::TryAdd<Transform>(entity);
 }
 
 Transform GetTransform(const Entity& entity) {
-	PTGN_ASSERT(
+	/*PTGN_ASSERT(
 		!entity.Has<impl::CameraInstance>(),
 		"GetTransform(Entity) cannot be used on a Camera entity. Use "
 		"GetTransform(Camera) instead."
-	);
+	);*/
 	if (auto transform{ entity.TryGet<Transform>() }; transform) {
 		return *transform;
 	}
 	return {};
 }
 
-Transform GetTransform(const Camera& camera) {
-	return { camera.GetScroll(), camera.GetRotation(), camera.GetZoom() };
-}
+// Transform GetTransform(const Camera& camera) {
+//	return { camera.GetScroll(), camera.GetRotation(), camera.GetZoom() };
+// }
 
 Transform GetAbsoluteTransform(const Entity& entity) {
 	Transform world_transform;
@@ -352,6 +349,8 @@ Transform GetAbsoluteTransform(const Entity& entity) {
 		}
 		world_transform = transform.RelativeTo(relative_to);
 	}
+	// TODO: Fix?
+	/*
 	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
 		auto camera_transform{ GetTransform(*camera) };
 		auto scale{ camera_transform.GetScale() };
@@ -365,13 +364,14 @@ Transform GetAbsoluteTransform(const Entity& entity) {
 		auto absolute_transform{ inverse_transform.RelativeTo(primary_transform) };
 		return absolute_transform;
 	}
+	*/
 	return world_transform;
 }
 
-Transform GetAbsoluteTransform(const Camera& entity) {
-	auto world_transform{ GetWorldTransform(entity) };
-	return world_transform;
-}
+// Transform GetAbsoluteTransform(const Camera& entity) {
+//	auto world_transform{ GetWorldTransform(entity) };
+//	return world_transform;
+// }
 
 Transform GetWorldTransform(const Entity& entity) {
 	auto transform{ GetTransform(entity) };
@@ -392,12 +392,13 @@ Transform GetWorldTransform(const Camera& entity) {
 	return transform;
 }
 
-Transform GetDrawTransform(const Entity& entity) {
-	auto offset_transform{ GetOffset(entity) };
-	PTGN_ASSERT(!entity.Has<impl::CameraInstance>());
-	auto transform{ GetWorldTransform(entity) };
-	transform = transform.RelativeTo(offset_transform);
-	return transform;
-}
+// TODO: Fix?
+// Transform GetDrawTransform(const Entity& entity) {
+//	auto offset_transform{ GetOffset(entity) };
+//	//PTGN_ASSERT(!entity.Has<impl::CameraInstance>());
+//	auto transform{ GetWorldTransform(entity) };
+//	transform = transform.RelativeTo(offset_transform);
+//	return transform;
+//}
 
 } // namespace ptgn

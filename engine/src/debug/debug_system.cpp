@@ -7,19 +7,15 @@
 #include "core/app/application.h"
 #include "core/asset/asset_handle.h"
 #include "core/asset/asset_manager.h"
-#include "ecs/components/draw.h"
-#include "ecs/components/generic.h"
-#include "ecs/components/transform.h"
 #include "debug/profiling.h"
 #include "debug/stats.h"
+#include "ecs/components/generic.h"
+#include "ecs/components/origin.h"
+#include "ecs/components/transform.h"
 #include "math/geometry/line.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
-#include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/text/font.h"
-#include "renderer/text/text.h"
-#include "world/scene/camera.h"
 
 namespace ptgn::impl {
 

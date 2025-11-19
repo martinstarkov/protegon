@@ -98,7 +98,7 @@ private:
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> instance_;
 };
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	WindowSetting, { { WindowSetting::None, "none" },
 					 { WindowSetting::Windowed, "windowed" },
 					 { WindowSetting::Fullscreen, "fullscreen" },

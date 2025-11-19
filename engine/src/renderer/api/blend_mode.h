@@ -108,7 +108,7 @@ inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 	return os;
 }
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	BlendMode, { { BlendMode::Blend, "blend" },
 				 { BlendMode::PremultipliedBlend, "premultiplied_blend" },
 				 { BlendMode::ReplaceRGBA, "replace_rgba" },

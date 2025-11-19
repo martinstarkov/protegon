@@ -5,7 +5,7 @@
 
 #include "ecs/components/generic.h"
 #include "ecs/entity.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 

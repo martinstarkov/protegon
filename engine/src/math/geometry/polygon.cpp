@@ -3,17 +3,10 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "ecs/components/draw.h"
 #include "ecs/components/transform.h"
-#include "ecs/entity.h"
 #include "math/vector2.h"
 
 namespace ptgn {
-
-void Polygon::Draw(const Entity& entity) {
-	// TODO: Fix.
-	// impl::DrawPolygon(entity);
-}
 
 V2_float Polygon::GetCenter() const {
 	PTGN_ASSERT(vertices.size() >= 3);

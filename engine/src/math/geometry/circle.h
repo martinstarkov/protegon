@@ -2,27 +2,17 @@
 
 #include <array>
 
-#include "ecs/components/drawable.h"
 #include "math/vector2.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
-class Entity;
 struct Transform;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 struct Circle {
 	Circle() = default;
 
 	Circle(float radius);
-
-	static void Draw(const Entity& entity);
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
@@ -42,7 +32,5 @@ struct Circle {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius)
 };
-
-PTGN_DRAWABLE_REGISTER(Circle);
 
 } // namespace ptgn

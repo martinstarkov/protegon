@@ -3,7 +3,6 @@
 #include <array>
 
 #include "core/assert.h"
-#include "ecs/components/draw.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"

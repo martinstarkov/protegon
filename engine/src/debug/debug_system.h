@@ -3,21 +3,16 @@
 #include <string>
 
 #include "core/asset/asset_handle.h"
-#include "ecs/components/draw.h"
-#include "ecs/components/generic.h"
 #include "debug/allocation.h"
 #include "debug/stats.h"
+#include "ecs/components/generic.h"
+#include "ecs/components/origin.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "renderer/text/font.h"
-#include "renderer/text/text.h"
-#include "world/scene/camera.h"
 
 namespace ptgn {
 
 struct Transform;
-class Shape;
 class Application;
 class Renderer;
 

@@ -3,7 +3,7 @@
 #include "core/assert.h"
 #include "ecs/components/transform.h"
 #include "math/vector2.h"
-#include "world/scene/camera.h"
+#include "scene/camera.h"
 
 namespace ptgn {
 

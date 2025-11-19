@@ -2,26 +2,17 @@
 
 #include <array>
 
-#include "ecs/components/drawable.h"
 #include "core/util/concepts.h"
+#include "ecs/components/origin.h"
 #include "math/vector2.h"
-#include "renderer/api/origin.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
 struct Transform;
-class Entity;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 // Rect has no rotation center because this can be achieved via using a parent Entity and
 // positioning it where the origin should be.
-
 struct Rect {
 	Rect() = default;
 
@@ -32,8 +23,6 @@ struct Rect {
 
 	template <Arithmetic T>
 	Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
-
-	static void Draw(const Entity& entity);
 
 	[[nodiscard]] V2_float GetSize() const;
 
@@ -62,7 +51,5 @@ struct Rect {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Rect, min, max)
 };
-
-PTGN_DRAWABLE_REGISTER(Rect);
 
 } // namespace ptgn

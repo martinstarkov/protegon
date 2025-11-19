@@ -3,7 +3,7 @@
 #include <type_traits>
 
 #include "core/util/concepts.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 #define PTGN_FLAGS_OPERATORS(EnumType)                                         \
 	inline EnumType operator|(EnumType a, EnumType b) {                        \

@@ -13,9 +13,9 @@
 #include "renderer/renderer.h"
 #include "tween/tween.h"
 #include "tween/tween_effect.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_input.h"
+#include "scene/scene_manager.h"
 
 using namespace ptgn;
 

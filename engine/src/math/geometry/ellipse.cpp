@@ -3,17 +3,10 @@
 #include <array>
 
 #include "core/assert.h"
-#include "ecs/components/draw.h"
 #include "ecs/components/transform.h"
-#include "ecs/entity.h"
 #include "math/vector2.h"
 
 namespace ptgn {
-
-void Ellipse::Draw(const Entity& entity) {
-	// TODO: Fix.
-	// impl::DrawEllipse(entity);
-}
 
 V2_float Ellipse::GetCenter(const Transform& transform) const {
 	return transform.GetPosition();

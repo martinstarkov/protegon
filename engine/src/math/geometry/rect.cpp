@@ -3,20 +3,13 @@
 #include <array>
 
 #include "core/assert.h"
-#include "ecs/components/draw.h"
+#include "ecs/components/origin.h"
 #include "ecs/components/transform.h"
-#include "ecs/entity.h"
 #include "math/vector2.h"
-#include "renderer/api/origin.h"
 
 namespace ptgn {
 
 Rect::Rect(const V2_float& min, const V2_float& max) : min{ min }, max{ max } {}
-
-void Rect::Draw(const Entity& entity) {
-	// TODO: Fix.
-	// impl::DrawRect(entity);
-}
 
 V2_float Rect::GetSize() const {
 	return max - min;

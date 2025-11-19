@@ -24,8 +24,8 @@
 #include "core/input/input_handler.h"
 #include "math/vector2.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene.h"
+#include "scene/scene_manager.h"
 
 constexpr ptgn::V2_int window_size{ 800, 600 };
 

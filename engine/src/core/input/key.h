@@ -350,7 +350,7 @@ inline std::ostream& operator<<(std::ostream& os, Key key) {
 	return os;
 }
 
-PTGN_SERIALIZER_REGISTER_ENUM(
+PTGN_SERIALIZE_ENUM(
 	Key, { { Key::Invalid, nullptr },
 		   { Key::K_0, "k_0" },
 		   { Key::K_1, "k_1" },

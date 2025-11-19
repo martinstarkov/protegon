@@ -7,8 +7,7 @@
 #include "debug/debug_system.h"
 #include "math/vector2.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene_key.h"
-#include "world/scene/scene_manager.h"
+#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -38,10 +37,10 @@ public:
 
 	template <typename TScene, typename TransitionIn, class... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
-	void StartWith(const SceneKey& key, TransitionIn&& transition_in, TArgs&&... args) {
+	void StartWith(std::string_view scene_key, TransitionIn&& transition_in, TArgs&&... args) {
 		// Initialize the first scene using the SceneManager.
 		scenes_.SwitchTo<TScene>(
-			key,
+			scene_key,
 			std::make_unique<std::remove_cvref_t<TransitionIn>>(
 				std::forward<TransitionIn>(transition_in)
 			),

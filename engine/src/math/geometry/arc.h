@@ -1,26 +1,16 @@
 #pragma once
 
-#include "ecs/components/drawable.h"
 #include "math/vector2.h"
-#include "serialization/json/serializable.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
-class Entity;
 struct Transform;
-
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
 
 struct Arc {
 	Arc() = default;
 
 	Arc(float arc_radius, float start_angle, float end_angle, bool clockwise = true);
-
-	static void Draw(const Entity& entity);
 
 	// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
@@ -48,7 +38,5 @@ struct Arc {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius, start_angle, end_angle, clockwise)
 };
-
-PTGN_DRAWABLE_REGISTER(Arc);
 
 } // namespace ptgn

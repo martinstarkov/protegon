@@ -2,12 +2,10 @@
 
 #include <filesystem>
 #include <iomanip>
-#include <iosfwd>
 #include <nlohmann/json.hpp>
 #include <ostream>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/util/file.h"
 #include "serialization/json/fwd.h"
 
