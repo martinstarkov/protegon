@@ -6,6 +6,7 @@
 
 #include "SDL_error.h"
 #include "SDL_video.h"
+#include "core/app/window.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/macro.h"
@@ -404,8 +405,9 @@ static std::vector<ShaderTypeSource> ParseShader(
 }
 
 void GLContext::CompileShaders(
-	const std::vector<ShaderTypeSource>& sources, IdMap<std::size_t, GLuint>& vertex_shaders,
-	IdMap<std::size_t, GLuint>& fragment_shaders
+	const std::vector<ShaderTypeSource>& sources,
+	std::unordered_map<std::size_t, GLuint>& vertex_shaders,
+	std::unordered_map<std::size_t, GLuint>& fragment_shaders
 ) const {
 	for (const auto& sts : sources) {
 		auto hash{ Hash(sts.name) };
@@ -413,15 +415,15 @@ void GLContext::CompileShaders(
 		switch (sts.type) {
 			case GL_FRAGMENT_SHADER:
 				PTGN_ASSERT(
-					!fragment_shaders.Has(hash), "Cannot add shader to cache twice: ", sts.name
+					!fragment_shaders.contains(hash), "Cannot add shader to cache twice: ", sts.name
 				);
-				fragment_shaders.Add(hash, std::move(shader_id));
+				fragment_shaders.emplace(hash, std::move(shader_id));
 				break;
 			case GL_VERTEX_SHADER:
 				PTGN_ASSERT(
-					!vertex_shaders.Has(hash), "Cannot add shader to cache twice: ", sts.name
+					!vertex_shaders.contains(hash), "Cannot add shader to cache twice: ", sts.name
 				);
-				vertex_shaders.Add(hash, std::move(shader_id));
+				vertex_shaders.emplace(hash, std::move(shader_id));
 				break;
 			default: PTGN_ERROR("Unknown shader type");
 		}
@@ -446,8 +448,9 @@ static void SubstituteShaderTokens(
 }
 
 void GLContext::PopulateShaderCache(
-	const cmrc::embedded_filesystem& filesystem, IdMap<std::size_t, GLuint>& vertex_shaders,
-	IdMap<std::size_t, GLuint>& fragment_shaders, std::size_t max_texture_slots
+	const cmrc::embedded_filesystem& filesystem,
+	std::unordered_map<std::size_t, GLuint>& vertex_shaders,
+	std::unordered_map<std::size_t, GLuint>& fragment_shaders, std::size_t max_texture_slots
 ) const {
 	const std::string subdir{ "common/" };
 	auto dir{ filesystem.iterate_directory(subdir) };
@@ -541,27 +544,27 @@ void GLContext::PopulateShadersFromCache(const json& manifest) {
 		auto frag_hash{ Hash(fragment_name) };
 
 		PTGN_ASSERT(
-			vertex_shaders_.Has(vert_hash), "Vertex shader: ", vertex_name, " for ", shader_name,
-			" not found in shader directory"
-		);
-
-		PTGN_ASSERT(
-			fragment_shaders_.Has(frag_hash), "Fragment shader: ", fragment_name, " for ",
+			vertex_shaders_.contains(vert_hash), "Vertex shader: ", vertex_name, " for ",
 			shader_name, " not found in shader directory"
 		);
 
-		auto vert_id{ vertex_shaders_.Get(vert_hash) };
-		auto frag_id{ fragment_shaders_.Get(frag_hash) };
+		PTGN_ASSERT(
+			fragment_shaders_.contains(frag_hash), "Fragment shader: ", fragment_name, " for ",
+			shader_name, " not found in shader directory"
+		);
+
+		auto vert_id{ vertex_shaders_.find(vert_hash)->second };
+		auto frag_id{ fragment_shaders_.find(frag_hash)->second };
 
 		auto hash{ Hash(shader_name) };
 
-		PTGN_ASSERT(!shaders_.Has(hash), "Shader names in the manifest must be unique");
+		PTGN_ASSERT(!shaders_.contains(hash), "Shader names in the manifest must be unique");
 
 		auto shader{ CreateShaderImpl(shader_name) };
 
 		LinkShader(shader, vert_id, frag_id);
 
-		shaders_.Add(hash, std::move(shader));
+		shaders_.emplace(hash, std::move(shader));
 	}
 }
 
@@ -676,7 +679,7 @@ void GLContext::CompileShader(
 	}
 }
 
-GLContext::GLContext(SDL_Window* window) {
+GLContext::GLContext(Window& window) {
 	if (context_ != nullptr) {
 		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(!result, SDL_GetError());
@@ -717,7 +720,7 @@ GLContext::GLContext(SDL_Window* window) {
 
 GLContext::~GLContext() {
 	const auto delete_shaders = [](const auto& container) {
-		for (auto id : container) {
+		for (const auto& [hash, id] : container) {
 			if (id) {
 				GLCall(DeleteShader(id));
 			}

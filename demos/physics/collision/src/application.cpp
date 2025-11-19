@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 #include "core/app/window.h"
 #include "core/assert.h"
 #include "ecs/components/draw.h"

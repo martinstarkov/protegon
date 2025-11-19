@@ -12,6 +12,7 @@
 #include "core/input/mouse.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
+#include "ecs/manager.h"
 #include "math/vector2.h"
 
 union SDL_Event;

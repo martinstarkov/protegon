@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "core/app/window.h"
+#include "renderer/gl/gl_context.h"
 
 namespace ptgn {
 
@@ -83,6 +84,10 @@ Renderer::Renderer(Window& window) :
 
 	render_manager.Refresh();
 	*/
+}
+
+Renderer::~Renderer() noexcept {
+	// Needs to have access to GLContext destructor, forward declaration is not enough.
 }
 
 /*

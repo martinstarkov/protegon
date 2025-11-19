@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 #include "ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"

@@ -8,7 +8,7 @@
 #include <tuple>
 #include <vector>
 
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 #include "core/assert.h"
 #include "ecs/components/draw.h"
 #include "ecs/components/relatives.h"

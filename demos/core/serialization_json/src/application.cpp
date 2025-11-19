@@ -7,7 +7,7 @@
 #include "ecs/components/offsets.h"
 #include "ecs/entity.h"
 #include "core/app/application.h"
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 #include "math/geometry/circle.h"
 #include "math/rng.h"
 #include "math/vector2.h"

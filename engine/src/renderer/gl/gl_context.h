@@ -46,7 +46,11 @@ constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
 #define PTGN_IMPL_BLEND_CASE(name, srcRGB, dstRGB, srcA, dstA) \
 	case BlendMode::name: GLCall(BlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
 
-struct SDL_Window;
+namespace ptgn {
+
+class Window;
+
+} // namespace ptgn
 
 namespace ptgn::impl::gl {
 
@@ -80,7 +84,7 @@ private:
 class GLContext {
 public:
 	GLContext() = delete;
-	explicit GLContext(SDL_Window* window);
+	explicit GLContext(Window& window);
 	~GLContext() noexcept;
 	GLContext(const GLContext&)				   = delete;
 	GLContext(GLContext&&) noexcept			   = delete;
@@ -131,8 +135,8 @@ public:
 		const auto has = [&](GLuint type) {
 			auto hash{ Hash(shader_name) };
 			switch (type) {
-				case GL_FRAGMENT_SHADER: return fragment_shaders_.Has(hash);
-				case GL_VERTEX_SHADER:	 return vertex_shaders_.Has(hash);
+				case GL_FRAGMENT_SHADER: return fragment_shaders_.contains(hash);
+				case GL_VERTEX_SHADER:	 return vertex_shaders_.contains(hash);
 				default:				 PTGN_ERROR("Unknown shader type");
 			}
 		};
@@ -142,10 +146,10 @@ public:
 			PTGN_ASSERT(has(type), "Could not find ", type, " shader with name: ", shader_name);
 			switch (type) {
 				case GL_FRAGMENT_SHADER: {
-					return fragment_shaders_.Get(hash);
+					return fragment_shaders_.find(hash)->second;
 				}
 				case GL_VERTEX_SHADER: {
-					return vertex_shaders_.Get(hash);
+					return vertex_shaders_.find(hash)->second;
 				}
 				default: PTGN_ERROR("Unknown shader type");
 			}
@@ -946,7 +950,8 @@ public:
 
 	[[nodiscard]] StrongGLHandle<Shader> GetShader(std::string_view shader_name) const {
 		auto key{ Hash(shader_name) };
-		return shaders_.Get(key);
+		PTGN_ASSERT(shaders_.contains(key));
+		return shaders_.find(key)->second;
 	}
 
 	void SetActiveTextureSlot(GLuint slot) {
@@ -1094,13 +1099,15 @@ private:
 	void PopulateShadersFromCache(const json& manifest);
 
 	void CompileShaders(
-		const std::vector<ShaderTypeSource>& sources, IdMap<std::size_t, GLuint>& vertex_shaders,
-		IdMap<std::size_t, GLuint>& fragment_shaders
+		const std::vector<ShaderTypeSource>& sources,
+		std::unordered_map<std::size_t, GLuint>& vertex_shaders,
+		std::unordered_map<std::size_t, GLuint>& fragment_shaders
 	) const;
 
 	void PopulateShaderCache(
-		const cmrc::embedded_filesystem& filesystem, IdMap<std::size_t, GLuint>& vertex_shaders,
-		IdMap<std::size_t, GLuint>& fragment_shaders, std::size_t max_texture_slots
+		const cmrc::embedded_filesystem& filesystem,
+		std::unordered_map<std::size_t, GLuint>& vertex_shaders,
+		std::unordered_map<std::size_t, GLuint>& fragment_shaders, std::size_t max_texture_slots
 	) const;
 
 	[[nodiscard]] GLuint CompileShaderSource(
@@ -1673,7 +1680,7 @@ private:
 	// deleter. e.g. std::unordered_map<GLuint, location_cache> location_caches_;
 	// UnsafeDelete(); location_caches_.erase(id);
 
-	IdMap<std::size_t, StrongGLHandle<Shader>> shaders_;
+	std::unordered_map<std::size_t, StrongGLHandle<Shader>> shaders_;
 
 	IdMap<GLuint, ShaderCache> shader_cache_;
 	IdMap<GLuint, TextureCache> texture_cache_;
@@ -1686,8 +1693,8 @@ private:
 
 	State bound_;
 
-	IdMap<std::size_t, GLuint> vertex_shaders_;
-	IdMap<std::size_t, GLuint> fragment_shaders_;
+	std::unordered_map<std::size_t, GLuint> vertex_shaders_;
+	std::unordered_map<std::size_t, GLuint> fragment_shaders_;
 };
 
 template <GLResource R>

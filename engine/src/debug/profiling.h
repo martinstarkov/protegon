@@ -73,7 +73,7 @@ private:
 	std::unordered_map<std::string, nanoseconds> timings_;
 };
 
-Profiler& GetProfiler() {
+static Profiler& GetProfiler() {
 	static Profiler profiler;
 	return profiler;
 }

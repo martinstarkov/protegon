@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 #include "core/assert.h"
 #include "ecs/components/relatives.h"
 #include "ecs/components/transform.h"

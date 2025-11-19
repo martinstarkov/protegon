@@ -9,9 +9,8 @@
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/span.h"
+#include "math/hash.h"
 #include "scene/scene.h"
-#include "scene/scene_key.h"
-#include "scene/scene_transition.h"
 
 namespace ptgn {
 
@@ -40,7 +39,7 @@ struct SceneEntry {
 	bool updates	  = true;  // Can manager flip this? Yes, during transitions
 	bool renders	  = true;  // Ditto
 	std::size_t id	  = 0;	   // Stable handle
-	SceneKey key;
+	std::size_t key{ 0 };
 };
 
 struct TransitionContext {
@@ -118,7 +117,7 @@ struct Operation {
 	std::unique_ptr<Transition> transition;			 // May be null (instant)
 	std::size_t from_id	  = 0;						 // Optional: explicit source
 	bool kill_from_on_end = true;					 // Switch/Replace vs Overlay
-	SceneKey key;
+	std::size_t key{ 0 };
 };
 
 class SceneManager {
@@ -132,9 +131,11 @@ public:
 
 	// High-level API (always enqueues; processed at frame boundary)
 	template <class TScene, class... Args>
-	void SwitchTo(const SceneKey& key, std::unique_ptr<Transition> transition, Args&&... args) {
+	void SwitchTo(
+		std::string_view scene_key, std::unique_ptr<Transition> transition, Args&&... args
+	) {
 		Operation op;
-		op.key	   = key;
+		op.key	   = Hash(scene_key);
 		op.kind	   = OperationKind::Switch;
 		op.make_to = [this, &args...]() {
 			return std::make_unique<TScene>(args...);
@@ -145,10 +146,10 @@ public:
 
 	template <class TScene, class... Args>
 	void Overlay(
-		const SceneKey& key, std::unique_ptr<Transition> transition, int z, Args&&... args
+		std::string_view scene_key, std::unique_ptr<Transition> transition, int z, Args&&... args
 	) {
 		Operation op;
-		op.key	   = key;
+		op.key	   = Hash(scene_key);
 		op.kind	   = OperationKind::Overlay;
 		op.make_to = [this, &args...]() {
 			return std::make_unique<TScene>(args...);
@@ -158,9 +159,9 @@ public:
 		pending_overlay_z_ = z;
 	}
 
-	void PopTop(const SceneKey& key, std::unique_ptr<Transition> transition) {
+	void PopTop(std::string_view scene_key, std::unique_ptr<Transition> transition) {
 		Operation op;
-		op.key		  = key;
+		op.key		  = Hash(scene_key);
 		op.kind		  = OperationKind::Pop;
 		op.transition = std::move(transition);
 		queue_.push_back(std::move(op));
@@ -185,13 +186,15 @@ public:
 		return current_scene_;
 	}
 
-	bool Has(const SceneKey& key) const {
+	bool Has(std::string_view scene_key) const {
+		auto key{ Hash(scene_key) };
 		return std::any_of(entries_.begin(), entries_.end(), [&](const SceneEntry& e) {
 			return e.key == key && e.phase != Phase::Dead;
 		});
 	}
 
-	Scene* Get(const SceneKey& key) {
+	Scene* Get(std::string_view scene_key) {
+		auto key{ Hash(scene_key) };
 		for (auto& e : entries_) {
 			if (e.key == key && e.phase != Phase::Dead) {
 				return e.ptr.get();
@@ -200,7 +203,8 @@ public:
 		return nullptr;
 	}
 
-	const Scene* Get(const SceneKey& key) const {
+	const Scene* Get(std::string_view scene_key) const {
+		auto key{ Hash(scene_key) };
 		for (auto& e : entries_) {
 			if (e.key == key && e.phase != Phase::Dead) {
 				return e.ptr.get();
@@ -561,20 +565,20 @@ public:
 
 	void Exit(const SceneKey& scene_key);
 
-	[[nodiscard]] std::shared_ptr<Scene> Get(const SceneKey& key) {
+	[[nodiscard]] std::shared_ptr<Scene> Get(std::string_view scene_key) {
 		auto p = GetImpl(key);
 		PTGN_ASSERT(p, "Cannot retrieve scene which does not exist in the scene manager");
 		return p;
 	}
 
-	[[nodiscard]] std::shared_ptr<const Scene> Get(const SceneKey& key) const {
+	[[nodiscard]] std::shared_ptr<const Scene> Get(std::string_view scene_key) const {
 		auto p = GetImpl(key);
 		PTGN_ASSERT(p, "Cannot retrieve scene which does not exist in the scene manager");
 		return std::static_pointer_cast<const Scene>(p);
 	}
 
 	template <impl::SceneType TScene>
-	[[nodiscard]] std::shared_ptr<TScene> Get(const SceneKey& key) {
+	[[nodiscard]] std::shared_ptr<TScene> Get(std::string_view scene_key) {
 		auto base = GetImpl(key);
 		PTGN_ASSERT(base, "Cannot retrieve scene which does not exist in the scene manager");
 
@@ -588,7 +592,7 @@ public:
 	}
 
 	template <impl::SceneType TScene>
-	[[nodiscard]] std::shared_ptr<const TScene> Get(const SceneKey& key) const {
+	[[nodiscard]] std::shared_ptr<const TScene> Get(std::string_view scene_key) const {
 		auto base = GetImpl(key);
 		PTGN_ASSERT(base, "Cannot retrieve scene which does not exist in the scene manager");
 

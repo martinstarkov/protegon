@@ -1,17 +1,14 @@
 #pragma once
 
-#include "ecs/components/component_utils.h"
 #include "ecs/components/uuid.h"
-#include "ecs/entity.h"
 #include "ecs/ecs.h"
+#include "ecs/entity.h"
+#include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/json_archiver.h"
 
 namespace ptgn {
 
 class Scene;
-class SceneInput;
-class Physics;
 
 namespace impl {
 
@@ -19,20 +16,20 @@ class RenderData;
 
 } // namespace impl
 
-template <bool is_const>
-using View = ecs::impl::View<Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::None>;
+// template <bool is_const>
+// using View = ecs::impl::View<Entity, JsonArchiver, is_const, ecs::impl::LoopCriterion::None>;
+//
+// template <bool is_const, typename... TComponents>
+// using ViewWith = ecs::impl::View<
+//	Entity, JsonArchiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
+//
+// template <bool is_const, typename... TComponents>
+// using ViewWithout = ecs::impl::View<
+//	Entity, JsonArchiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
 
-template <bool is_const, typename... TComponents>
-using ViewWith = ecs::impl::View<
-	Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
-
-template <bool is_const, typename... TComponents>
-using ViewWithout = ecs::impl::View<
-	Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
-
-class Manager : private ecs::impl::Manager<JSONArchiver> {
+class Manager : private ecs::impl::Manager<JsonArchiver> {
 private:
-	using ManagerBase = ecs::impl::Manager<JSONArchiver>;
+	using ManagerBase = ecs::impl::Manager<JsonArchiver>;
 
 public:
 	Manager()							   = default;
@@ -83,41 +80,43 @@ public:
 		return entity;
 	}
 
+	/*
 	template <typename... Ts>
 	ptgn::ViewWith<true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
+				 ecs::impl::Pools<Entity, JsonArchiver, true, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
-	template <impl::RetrievableComponent... Ts>
+	template <typename... Ts>
 	ptgn::ViewWith<false, Ts...> EntitiesWith() {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
+				 ecs::impl::Pools<Entity, JsonArchiver, false, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::ViewWithout<true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
+				 ecs::impl::Pools<Entity, JsonArchiver, true, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
 	ptgn::ViewWithout<false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
+				 ecs::impl::Pools<Entity, JsonArchiver, false, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	ptgn::View<true> Entities() const {
-		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, true>{} };
+		return { this, next_entity_, ecs::impl::Pools<Entity, JsonArchiver, true>{} };
 	}
 
 	ptgn::View<false> Entities() {
-		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, false>{} };
+		return { this, next_entity_, ecs::impl::Pools<Entity, JsonArchiver, false>{} };
 	}
+	*/
 
 	[[nodiscard]] std::size_t Size() const;
 
@@ -140,7 +139,7 @@ public:
 	 * removal.
 	 */
 	template <typename T>
-	[[nodiscard]] ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& OnConstruct() {
+	[[nodiscard]] ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& OnConstruct() {
 		return ManagerBase::OnConstruct<T>();
 	}
 
@@ -155,7 +154,7 @@ public:
 	 * removal.
 	 */
 	template <typename T>
-	[[nodiscard]] ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& OnDestruct() {
+	[[nodiscard]] ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& OnDestruct() {
 		return ManagerBase::OnDestruct<T>();
 	}
 
@@ -170,7 +169,7 @@ public:
 	 * removal.
 	 */
 	template <typename T>
-	[[nodiscard]] ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& OnUpdate() {
+	[[nodiscard]] ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& OnUpdate() {
 		return ManagerBase::OnUpdate<T>();
 	}
 
@@ -185,7 +184,8 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnConstruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
+	[[nodiscard]] bool HasOnConstruct(
+		const ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook
 	) const {
 		return ManagerBase::HasOnConstruct<T>(hook);
 	}
@@ -201,7 +201,8 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnDestruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
+	[[nodiscard]] bool HasOnDestruct(
+		const ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook
 	) const {
 		return ManagerBase::HasOnDestruct<T>(hook);
 	}
@@ -217,7 +218,8 @@ public:
 	 * @return true if the hook is registered; false otherwise.
 	 */
 	template <typename T>
-	[[nodiscard]] bool HasOnUpdate(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook
+	[[nodiscard]] bool HasOnUpdate(
+		const ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook
 	) const {
 		return ManagerBase::HasOnUpdate<T>(hook);
 	}
@@ -229,7 +231,7 @@ public:
 	 * @param hook The hook instance to remove.
 	 */
 	template <typename T>
-	void RemoveOnConstruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook) {
+	void RemoveOnConstruct(const ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook) {
 		ManagerBase::RemoveOnConstruct<T>(hook);
 	}
 
@@ -240,7 +242,7 @@ public:
 	 * @param hook The hook instance to remove.
 	 */
 	template <typename T>
-	void RemoveOnDestruct(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook) {
+	void RemoveOnDestruct(const ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook) {
 		ManagerBase::RemoveOnDestruct<T>(hook);
 	}
 
@@ -251,7 +253,7 @@ public:
 	 * @param hook The hook instance to remove.
 	 */
 	template <typename T>
-	void RemoveOnUpdate(const ecs::Hook<void, ecs::impl::Entity<JSONArchiver>>& hook) {
+	void RemoveOnUpdate(const ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook) {
 		ManagerBase::RemoveOnUpdate<T>(hook);
 	}
 
@@ -261,18 +263,16 @@ public:
 private:
 	friend class Entity;
 	friend class Scene;
-	friend class SceneInput;
 	friend class impl::RenderData;
-	friend class Physics;
 
 	// Same as EntitiesWith except allows non-retrievable components to be retrieved. Used for
 	// internal engine systems.
-	template <typename... Ts>
+	/*template <typename... Ts>
 	ptgn::ViewWith<false, Ts...> InternalEntitiesWith() {
 		return { this, next_entity_,
-				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
+				 ecs::impl::Pools<Entity, JsonArchiver, false, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
-	}
+	}*/
 
 	void ClearEntities() final;
 
@@ -283,8 +283,8 @@ private:
 
 namespace ecs::impl {
 
-void to_json(json& j, const DynamicBitset& bitset);
+void to_json(ptgn::json& j, const DynamicBitset& bitset);
 
-void from_json(const json& j, DynamicBitset& bitset);
+void from_json(const ptgn::json& j, DynamicBitset& bitset);
 
 } // namespace ecs::impl

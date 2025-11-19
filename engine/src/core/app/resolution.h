@@ -1,7 +1,6 @@
 #pragma once
 
 #include "math/vector2.h"
-#include "scene/camera.h"
 
 namespace ptgn {
 
@@ -27,6 +26,7 @@ enum class ViewportType {
 	WindowTopLeft
 };
 
+/*
 [[nodiscard]] V2_float DisplayToGame(const V2_float& game_scale, const V2_float& display_point);
 [[nodiscard]] V2_float DisplayToWorld(
 	const V2_float& game_scale, const Transform& rt_transform, const V2_float& display_point,
@@ -90,5 +90,6 @@ namespace impl {
 );
 
 } // namespace impl
+*/
 
 } // namespace ptgn

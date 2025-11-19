@@ -21,6 +21,8 @@ struct Transform;
 
 class Scene; // forward
 
+/*
+
 class Entity {
 public:
 	using Native = ecs::Entity;
@@ -83,18 +85,20 @@ private:
 	Scene* scene_{ nullptr };
 };
 
+*/
+
 class Entity {
 public:
 	// Entity wrapper functionality.
 
 	Entity() = default;
 
+	Entity(ecs::impl::EntityHandle<JsonArchiver> entity) : entity_{ entity } {}
+
 	explicit Entity(Scene& scene);
 
-	[[nodiscard]] ecs::impl::Index GetId() const;
-
 	explicit operator bool() const {
-		return BaseEntity::operator bool();
+		return entity_.operator bool();
 	}
 
 	friend bool operator<(const Entity& lhs, const Entity& rhs) {
@@ -105,44 +109,44 @@ public:
 	}
 
 	friend bool operator==(const Entity& a, const Entity& b) {
-		return static_cast<const BaseEntity&>(a) == static_cast<const BaseEntity&>(b);
+		return a.entity_ == b.entity_;
 	}
 
 	// Copying a destroyed entity will return a null entity.
 	// Copying an entity with no components simply returns a new entity.
 	// Make sure to call manager.Refresh() after this function.
-	template <impl::ModifiableComponent... Ts>
+	template <typename... Ts>
 	[[nodiscard]] Entity Copy() {
-		return BaseEntity::Copy<Ts...>();
+		return entity_.Copy<Ts...>();
 	}
 
 	// Adds or replaces the component if the entity already has it.
 	// @return Reference to the added or replaced component.
-	template <impl::ModifiableComponent T, typename... Ts>
+	template <typename T, typename... Ts>
 	T& Add(Ts&&... constructor_args) {
 		return AddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	// Only adds the component if one does not exist on the entity.
 	// @return Reference to the added or existing component.
-	template <impl::ModifiableComponent T, typename... Ts>
+	template <typename T, typename... Ts>
 	T& TryAdd(Ts&&... constructor_args) {
 		return TryAddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
-	template <impl::ModifiableComponent... Ts>
+	template <typename... Ts>
 	void Remove() {
 		RemoveImpl<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool Has() const {
-		return BaseEntity::Has<Ts...>();
+		return entity_.Has<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] bool HasAny() const {
-		return BaseEntity::HasAny<Ts...>();
+		return entity_.HasAny<Ts...>();
 	}
 
 	template <typename... Ts>
@@ -150,7 +154,7 @@ public:
 		return GetImpl<Ts...>();
 	}
 
-	template <impl::RetrievableComponent... Ts>
+	template <typename... Ts>
 	[[nodiscard]] decltype(auto) Get() {
 		return GetImpl<Ts...>();
 	}
@@ -160,7 +164,7 @@ public:
 		return TryGetImpl<T>();
 	}
 
-	template <impl::RetrievableComponent T>
+	template <typename T>
 	[[nodiscard]] T* TryGet() {
 		return TryGetImpl<T>();
 	}
@@ -177,12 +181,12 @@ public:
 	[[nodiscard]] const Scene& GetScene() const;
 	[[nodiscard]] Scene& GetScene();
 
-	[[nodiscard]] const Camera& GetCamera() const;
-	[[nodiscard]] Camera& GetCamera();
+	//[[nodiscard]] const Camera& GetCamera() const;
+	//[[nodiscard]] Camera& GetCamera();
 
 	// @return If the entity has a non primary camera attached to it, return its address, otherwise
 	// return nullptr.
-	[[nodiscard]] const Camera* GetNonPrimaryCamera() const;
+	//[[nodiscard]] const Camera* GetNonPrimaryCamera() const;
 
 	[[nodiscard]] const Manager& GetManager() const;
 	[[nodiscard]] Manager& GetManager();
@@ -254,43 +258,41 @@ public:
 	void Invalidate();
 
 private:
-	friend class impl::EntityAccess;
 	friend class Manager;
-	friend class impl::RenderData;
 
 	template <typename... Ts>
 	void RemoveImpl() {
-		BaseEntity::Remove<Ts...>();
+		entity_.Remove<Ts...>();
 	}
 
 	template <typename T, typename... Ts>
 	T& AddImpl(Ts&&... constructor_args) {
-		return BaseEntity::Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return entity_.Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename T, typename... Ts>
 	T& TryAddImpl(Ts&&... constructor_args) {
-		return BaseEntity::TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return entity_.TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() const {
-		return BaseEntity::Get<Ts...>();
+		return entity_.Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] decltype(auto) GetImpl() {
-		return BaseEntity::Get<Ts...>();
+		return entity_.Get<Ts...>();
 	}
 
 	template <typename T>
 	[[nodiscard]] const T* TryGetImpl() const {
-		return BaseEntity::TryGet<T>();
+		return entity_.TryGet<T>();
 	}
 
 	template <typename T>
 	[[nodiscard]] T* TryGetImpl() {
-		return BaseEntity::TryGet<T>();
+		return entity_.TryGet<T>();
 	}
 
 	template <JsonSerializable T>
@@ -312,7 +314,7 @@ private:
 	void DeserializeAllImpl(const json& j);
 
 	Scene* scene_{ nullptr };
-	ecs::impl::EntityHandle<JSONArchiver> entity_;
+	ecs::impl::EntityHandle<JsonArchiver> entity_;
 };
 
 template <typename T>
@@ -324,37 +326,37 @@ class EntityAccess {
 public:
 	template <typename... Ts>
 	static void Remove(Entity& e) {
-		e.RemoveImpl<Ts...>();
+		e.Remove<Ts...>();
 	}
 
 	template <typename T, typename... Ts>
 	static T& Add(Entity& e, Ts&&... constructor_args) {
-		return e.AddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return e.Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename T, typename... Ts>
 	static T& TryAdd(Entity& e, Ts&&... constructor_args) {
-		return e.TryAddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
+		return e.TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] static decltype(auto) Get(const Entity& e) {
-		return e.GetImpl<Ts...>();
+		return e.Get<Ts...>();
 	}
 
 	template <typename... Ts>
 	[[nodiscard]] static decltype(auto) Get(Entity& e) {
-		return e.GetImpl<Ts...>();
+		return e.Get<Ts...>();
 	}
 
 	template <typename T>
 	[[nodiscard]] static const T* TryGet(const Entity& e) {
-		return e.TryGetImpl<T>();
+		return e.TryGet<T>();
 	}
 
 	template <typename T>
 	[[nodiscard]] static T* TryGet(Entity& e) {
-		return e.TryGetImpl<T>();
+		return e.TryGet<T>();
 	}
 };
 

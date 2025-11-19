@@ -387,10 +387,10 @@ Transform GetWorldTransform(const Entity& entity) {
 	return world_transform;
 }
 
-Transform GetWorldTransform(const Camera& entity) {
-	auto transform{ GetTransform(entity) };
-	return transform;
-}
+// Transform GetWorldTransform(const Camera& entity) {
+//	auto transform{ GetTransform(entity) };
+//	return transform;
+// }
 
 // TODO: Fix?
 // Transform GetDrawTransform(const Entity& entity) {

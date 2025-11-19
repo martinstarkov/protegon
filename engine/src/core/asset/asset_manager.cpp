@@ -38,7 +38,7 @@ Handle<Texture> AssetManager::LoadTexture(const path& asset_path) {
 	auto texture =
 		gl_.CreateTexture(surface.pixels.data(), GL_RGBA8, GL_UNSIGNED_BYTE, surface.size, GL_RGBA);
 
-	return Handle<Texture>{ std::make_shared<impl::TextureAsset>(texture) };
+	return Handle<Texture>{ std::make_shared<impl::TextureAsset>(std::move(texture)) };
 }
 
 Handle<Font> AssetManager::LoadFont(const path& asset_path, std::int32_t pt_size) {
@@ -50,9 +50,9 @@ Handle<Font> AssetManager::LoadFont(const path& asset_path, std::int32_t pt_size
 
 	PTGN_ASSERT(ttf_font, TTF_GetError());
 
-	auto font = std::make_unique<TTF_Font>(ttf_font, impl::TTF_FontDeleter{});
+	std::unique_ptr<TTF_Font, impl::TTF_FontDeleter> font{ ttf_font, impl::TTF_FontDeleter{} };
 
-	return Handle<Font>{ std::make_shared<impl::FontAsset>(font, pt_size) };
+	return Handle<Font>{ std::make_shared<impl::FontAsset>(std::move(font), pt_size) };
 }
 
 Handle<Sound> AssetManager::LoadSound(const path& asset_path) {
@@ -63,9 +63,9 @@ Handle<Sound> AssetManager::LoadSound(const path& asset_path) {
 
 	PTGN_ASSERT(mix_chunk, Mix_GetError());
 
-	auto sound = std::make_unique<Mix_Chunk>(mix_chunk, impl::Mix_ChunkDeleter{});
+	std::unique_ptr<Mix_Chunk, impl::Mix_ChunkDeleter> sound{ mix_chunk, impl::Mix_ChunkDeleter{} };
 
-	return Handle<Sound>{ std::make_shared<impl::SoundAsset>(sound) };
+	return Handle<Sound>{ std::make_shared<impl::SoundAsset>(std::move(sound)) };
 }
 
 Handle<Music> AssetManager::LoadMusic(const path& asset_path) {
@@ -76,9 +76,9 @@ Handle<Music> AssetManager::LoadMusic(const path& asset_path) {
 
 	PTGN_ASSERT(mix_music, Mix_GetError());
 
-	auto music = std::make_unique<Mix_Music>(mix_music, impl::Mix_MusicDeleter{});
+	std::unique_ptr<Mix_Music, impl::Mix_MusicDeleter> music{ mix_music, impl::Mix_MusicDeleter{} };
 
-	return Handle<Music>{ std::make_shared<impl::MusicAsset>(music) };
+	return Handle<Music>{ std::make_shared<impl::MusicAsset>(std::move(music)) };
 }
 
 Handle<Json> AssetManager::LoadJson(const path& asset_path) {
@@ -86,9 +86,9 @@ Handle<Json> AssetManager::LoadJson(const path& asset_path) {
 		FileExists(asset_path), "Cannot create json from invalid path: ", asset_path.string()
 	);
 
-	auto json = LoadJson(asset_path);
+	auto json = ptgn::LoadJson(asset_path);
 
-	return Handle<Json>{ std::make_shared<impl::JsonAsset>(json) };
+	return Handle<Json>{ std::make_shared<impl::JsonAsset>(std::move(json)) };
 }
 
 } // namespace ptgn

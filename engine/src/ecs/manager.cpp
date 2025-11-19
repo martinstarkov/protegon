@@ -1,4 +1,4 @@
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 
 #include <cstdint>
 #include <memory>
@@ -8,11 +8,11 @@
 #include "core/assert.h"
 #include "ecs/component_registry.h"
 #include "ecs/components/uuid.h"
-#include "ecs/entity.h"
 #include "ecs/ecs.h"
+#include "ecs/entity.h"
 #include "nlohmann/json.hpp"
+#include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/json_archiver.h"
 
 namespace ptgn {
 
@@ -90,7 +90,7 @@ void to_json(json& j, const Manager& manager) {
 	j["free_entities"]	  = manager.free_entities_;
 	j["versions"]		  = manager.versions_;
 
-	JSONArchiver archiver;
+	JsonArchiver archiver;
 
 	for (const auto& pool : manager.pools_) {
 		if (pool == nullptr) {
@@ -111,7 +111,7 @@ void from_json(const json& j, Manager& manager) {
 	j.at("free_entities").get_to(manager.free_entities_);
 	j.at("versions").get_to(manager.versions_);
 
-	JSONArchiver archiver;
+	JsonArchiver archiver;
 	archiver.j = j.at("pools");
 
 	impl::ComponentRegistry::AddTypes(manager);
@@ -130,12 +130,12 @@ void from_json(const json& j, Manager& manager) {
 
 namespace ecs::impl {
 
-void to_json(json& j, const DynamicBitset& bitset) {
-	j["bit_count"] = bitset.GetBitCount();
+void to_json(ptgn::json& j, const DynamicBitset& bitset) {
+	j["bit_count"] = bitset.Size();
 	j["data"]	   = bitset.GetData();
 }
 
-void from_json(const json& j, DynamicBitset& bitset) {
+void from_json(const ptgn::json& j, DynamicBitset& bitset) {
 	std::vector<std::uint8_t> data;
 	std::size_t bit_count{ 0 };
 	j.at("bit_count").get_to(bit_count);

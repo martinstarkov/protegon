@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 #include "ecs/components/draw.h"
 #include "ecs/components/movement.h"
 #include "ecs/components/transform.h"

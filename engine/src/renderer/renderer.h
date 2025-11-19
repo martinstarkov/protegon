@@ -7,11 +7,11 @@
 #include <vector>
 
 #include "core/app/resolution.h"
+#include "ecs/components/origin.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
-#include "ecs/components/origin.h"
 
 namespace ptgn {
 
@@ -241,8 +241,7 @@ class Renderer {
 public:
 	Renderer() = delete;
 	Renderer(Window& window);
-
-	~Renderer() noexcept					 = default;
+	~Renderer() noexcept;
 	Renderer(const Renderer&)				 = delete;
 	Renderer(Renderer&&) noexcept			 = delete;
 	Renderer& operator=(const Renderer&)	 = delete;
@@ -560,7 +559,7 @@ private:
 	bool display_size_changed_{ false };
 
 	// RenderTarget screen_target_;
-	Entity viewport_tracker;
+	// Entity viewport_tracker;
 
 	/*
 	std::vector<Texture> temporary_textures;

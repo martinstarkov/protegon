@@ -28,7 +28,7 @@ struct IdMap {
 		}
 
 		if (sparse_[id] == std::numeric_limits<I>::max()) { // new
-			sparse_[id] = dense_.size();
+			sparse_[id] = static_cast<I>(dense_.size());
 			dense_.emplace_back(id);
 			data_.emplace_back(value);
 		} else { // overwrite

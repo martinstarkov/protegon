@@ -1,41 +1,13 @@
 #include "scene/scene.h"
 
-#include <vector>
-
 #include "core/app/application.h"
-#include "core/app/manager.h"
-#include "core/assert.h"
-#include "ecs/components/animation.h"
-#include "ecs/components/draw.h"
-#include "ecs/components/drawable.h"
-#include "ecs/components/lifetime.h"
 #include "ecs/components/transform.h"
 #include "ecs/components/uuid.h"
 #include "ecs/entity.h"
-#include "ecs/game_object.h"
-#include "core/input/input_handler.h"
-#include "core/scripting/script.h"
-#include "core/scripting/script_interfaces.h"
-#include "core/util/flags.h"
-#include "debug/debug_system.h"
-#include "ecs/ecs.h"
-#include "math/geometry_utils.h"
-#include "math/vector2.h"
+#include "ecs/manager.h"
 #include "nlohmann/json.hpp"
-#include "physics/collider.h"
-#include "physics/collision_handler.h"
-#include "physics/physics.h"
-#include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/render_target.h"
-#include "renderer/renderer.h"
-#include "renderer/vfx/particle.h"
 #include "serialization/json/fwd.h"
-#include "tween/tween.h"
-#include "scene/camera.h"
-#include "scene/scene_input.h"
-#include "scene/scene_key.h"
-#include "scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -85,19 +57,19 @@ void Scene::RemoveFromDisplayList(Entity entity) {
 
 Entity Scene::CreateEntity() {
 	auto entity{ Manager::CreateEntity() };
-	entity.template Add<SceneKey>(key_);
+	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(UUID uuid) {
 	auto entity{ Manager::CreateEntity(uuid) };
-	entity.template Add<SceneKey>(key_);
+	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(const json& j) {
 	auto entity{ Manager::CreateEntity(j) };
-	PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
+	// PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
 	return entity;
 }
 
@@ -106,14 +78,14 @@ void Scene::ReEnter() {
 	// Application::Get().scene_.Enter(key_);
 }
 
-void Scene::SetColliderColor(const Color& collider_color) {
-	collider_color_ = collider_color;
-}
-
-void Scene::SetColliderVisibility(bool collider_visibility) {
-	collider_visibility_ = collider_visibility;
-}
-
+// void Scene::SetColliderColor(const Color& collider_color) {
+//	collider_color_ = collider_color;
+// }
+//
+// void Scene::SetColliderVisibility(bool collider_visibility) {
+//	collider_visibility_ = collider_visibility;
+// }
+/*
 V2_float Scene::GetCameraScaleRelativeTo(const Camera& relative_to_camera) const {
 	if (!relative_to_camera) {
 		return { 1.0f, 1.0f };
@@ -143,7 +115,7 @@ V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera)
 	// camera_size /= camera_zoom;
 
 	// TODO: Fix.
-	V2_float draw_size{ /*render_target_.GetTextureSize()*/ };
+	V2_float draw_size{ render_target_.GetTextureSize() };
 
 	PTGN_ASSERT(camera_size.BothAboveZero());
 
@@ -153,6 +125,8 @@ V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera)
 
 	return scale;
 }
+
+	*/
 
 void Scene::SetBackgroundColor(const Color& background_color) {
 	// TODO: Fix.
@@ -173,28 +147,28 @@ Color Scene::GetBackgroundColor() const {
 //	return render_target_;
 // }
 
-SceneKey Scene::GetKey() const {
-	return key_;
-}
+// SceneKey Scene::GetKey() const {
+//	return key_;
+// }
 
 void Scene::Init() {
 	// TODO: Fix.
 	// render_target_.Get<GameObject<Camera>>().Reset();
-	fixed_camera.Reset();
+	// fixed_camera.Reset();
 }
 
-void Scene::SetKey(const SceneKey& key) {
-	key_			 = key;
-	input.scene_key_ = key;
-}
+// void Scene::SetKey(const SceneKey& key) {
+//	key_			 = key;
+//	input.scene_key_ = key;
+// }
 
 void Scene::InternalEnter() {
 	// Here instead of scene constructor because exiting a scene resets the manager, which will
 	// clear the component pool vector which contains all the hooks.
-	OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
-	OnConstruct<impl::IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	OnDestruct<impl::IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+	// OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	// OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+	// OnConstruct<impl::IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
+	// OnDestruct<impl::IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
 
 	Init();
 	Enter();
@@ -207,11 +181,11 @@ void Scene::InternalExit() {
 	Refresh();
 	// Clears component hooks.
 	Reset();
-	physics = {};
-	// TODO: Fix.
+	// physics = {};
+	//  TODO: Fix.
 	/*render_target_.ClearDisplayList();
 	render_target_.Get<GameObject<Camera>>().Reset();*/
-	fixed_camera.Reset();
+	// fixed_camera.Reset();
 	Refresh();
 }
 
@@ -238,70 +212,70 @@ void Scene::InternalUpdate(Application& app) {
 	// TODO: Fix.
 	// app.input_.InvokeInputEvents(app, *this);
 
-	input.Update(*this);
+	// input.Update(*this);
 
-	const auto invoke_scripts = [&](Manager& manager) {
-		// TODO: Consider moving this into the Scripts class.
-		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-			scripts.InvokeActions();
-		}
-		manager.Refresh();
-	};
+	// const auto invoke_scripts = [&](Manager& manager) {
+	//	// TODO: Consider moving this into the Scripts class.
+	//	for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
+	//		scripts.InvokeActions();
+	//	}
+	//	manager.Refresh();
+	// };
 
-	invoke_scripts(*this);
+	// invoke_scripts(*this);
 
 	float dt{ app.dt() };
 
-	const auto update_scripts = [&](Manager& manager) {
+	/*const auto update_scripts = [&](Manager& manager) {
 		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
 			scripts.AddAction(&impl::IScript::OnUpdate);
 		}
 
 		invoke_scripts(manager);
-	};
+	};*/
 
-	update_scripts(*this);
+	// update_scripts(*this);
 
 	Update();
 
 	Refresh();
 
-	invoke_scripts(*this);
+	// invoke_scripts(*this);
 
-	ParticleEmitter::Update(*this);
+	// ParticleEmitter::Update(*this);
 
-	Tween::Update(*this, dt);
+	// Tween::Update(*this, dt);
 
 	// TODO: Fix.
 	// impl::AnimationSystem::Update(*this);
 
-	Lifetime::Update(*this);
+	// Lifetime::Update(*this);
 
-	physics.PreCollisionUpdate(*this);
+	// physics.PreCollisionUpdate(*this);
 
-	collision_.Update(*this);
+	// collision_.Update(*this);
 
-	physics.PostCollisionUpdate(*this);
+	// physics.PostCollisionUpdate(*this);
 
-	invoke_scripts(*this);
+	// invoke_scripts(*this);
 
 	// TODO: Update dirty vertex caches.
 
 	InternalDraw();
 
-	for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
+	/*for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
 		transform.ClearDirtyFlags();
-	}
+	}*/
 }
 
 void to_json(json& j, const Scene& scene) {
 	to_json(j["manager"], static_cast<const Manager&>(scene));
-	j["camera"]				 = scene.camera;
+	/*j["camera"]				 = scene.camera;
 	j["key"]				 = scene.key_;
 	j["physics"]			 = scene.physics;
 	j["input"]				 = scene.input;
 	j["collider_visibility"] = scene.collider_visibility_;
-	j["collider_color"]		 = scene.collider_color_;
+	j["collider_color"]		 = scene.collider_color_;*/
 	// TODO: Fix.
 	// j["render_target"]		 = scene.render_target_;
 }
@@ -309,20 +283,20 @@ void to_json(json& j, const Scene& scene) {
 void from_json(const json& j, Scene& scene) {
 	scene.Reset();
 
-	j.at("key").get_to(scene.key_);
+	// j.at("key").get_to(scene.key_);
 
 	// Ensure manager is deserialized before any of the other scene systems which may reference
 	// manager entities (such as the CameraManager).
 	from_json(j.at("manager"), static_cast<Manager&>(scene));
 
-	j.at("physics").get_to(scene.physics);
+	// j.at("physics").get_to(scene.physics);
 
-	j.at("collider_visibility").get_to(scene.collider_visibility_);
-	j.at("collider_color").get_to(scene.collider_color_);
+	// j.at("collider_visibility").get_to(scene.collider_visibility_);
+	// j.at("collider_color").get_to(scene.collider_color_);
 
-	j.at("input").get_to(scene.input);
-	// TODO: Fix.
-	// j.at("render_target").get_to(scene.render_target_);
+	// j.at("input").get_to(scene.input);
+	//  TODO: Fix.
+	//  j.at("render_target").get_to(scene.render_target_);
 }
 
 } // namespace ptgn

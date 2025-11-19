@@ -228,7 +228,7 @@ int main() {
 #include <unordered_set>
 #include <vector>
 
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 #include "core/scripting/script.h"
 
 using namespace ptgn;

@@ -4,7 +4,7 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "core/app/manager.h"
+#include "ecs/manager.h"
 // #include "ecs/components/animation.h"
 // #include "ecs/components/draw.h"
 // #include "ecs/components/interactive.h"
@@ -138,7 +138,7 @@ PTGN_REGISTER_COMPONENT(Origin)
 // PTGN_REGISTER_COMPONENT(TextureScaling)
 // PTGN_REGISTER_COMPONENT(TextureHandle)
 // PTGN_REGISTER_COMPONENT(CameraInstance)
-PTGN_REGISTER_COMPONENT(SceneTransition)
+// PTGN_REGISTER_COMPONENT(SceneTransition)
 // PTGN_REGISTER_COMPONENT(TargetFollowConfig)
 // PTGN_REGISTER_COMPONENT(PathFollowConfig)
 // PTGN_REGISTER_COMPONENT(ShakeConfig)

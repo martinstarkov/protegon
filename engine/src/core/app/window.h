@@ -37,6 +37,12 @@ struct WindowDeleter {
 	void operator()(SDL_Window* window) const;
 };
 
+namespace gl {
+
+class GLContext;
+
+} // namespace gl
+
 }; // namespace impl
 
 class Window {
@@ -88,6 +94,8 @@ public:
 #endif
 
 private:
+	friend class impl::gl::GLContext;
+
 	operator SDL_Window*() const;
 
 	void SetRelativeMouseMode(bool on) const;

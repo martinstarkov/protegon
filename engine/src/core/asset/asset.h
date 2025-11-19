@@ -50,8 +50,8 @@ struct SoundAsset {
 };
 
 struct FontAsset {
-	std::int32_t pt_size{ 0 };
 	std::unique_ptr<TTF_Font, TTF_FontDeleter> font;
+	std::int32_t pt_size{ 0 };
 };
 
 struct JsonAsset {

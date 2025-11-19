@@ -1,28 +1,14 @@
 #pragma once
 
-#include <memory>
-#include <set>
-#include <vector>
-
-#include "core/app/manager.h"
-#include "ecs/components/transform.h"
 #include "ecs/components/uuid.h"
-#include "ecs/ecs.h"
 #include "ecs/entity.h"
-#include "math/vector2.h"
-#include "physics/collision_handler.h"
-#include "physics/physics.h"
+#include "ecs/manager.h"
 #include "renderer/api/color.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/serialize.h"
-#include "scene/camera.h"
-#include "scene/scene_input.h"
-#include "scene/scene_key.h"
 
 namespace ptgn {
 
 class Scene;
-class SceneTransition;
 class SceneManager;
 class Application;
 
@@ -31,6 +17,8 @@ namespace impl {
 class RenderData;
 
 } // namespace impl
+
+/*
 
 template <typename SceneT, typename EcsView, typename... TComponents>
 struct SceneEntitiesWithRange {
@@ -150,6 +138,8 @@ public:
 private:
 };
 
+*/
+
 /*
 
 Scene scene;
@@ -183,8 +173,8 @@ for (auto e : scene.EntitiesWithout<ProfileTestComponent>()) {
 
 class Scene : public Manager {
 protected:
-	void SetColliderColor(const Color& collider_color);
-	void SetColliderVisibility(bool collider_visibility);
+	// void SetColliderColor(const Color& collider_color);
+	// void SetColliderVisibility(bool collider_visibility);
 
 public:
 	Scene();
@@ -205,7 +195,7 @@ public:
 	template <typename... Ts>
 	Entity CopyEntity(const Entity& from) {
 		auto entity{ Manager::CopyEntity<Ts...>(from) };
-		entity.template Add<SceneKey>(key_);
+		// entity.template Add<SceneKey>(key_);
 		return entity;
 	}
 
@@ -233,14 +223,14 @@ public:
 	//[[nodiscard]] const RenderTarget& GetRenderTarget() const;
 	//[[nodiscard]] RenderTarget& GetRenderTarget();
 
-	[[nodiscard]] SceneKey GetKey() const;
+	//[[nodiscard]] SceneKey GetKey() const;
 
 	// @return Size of scene render target divided by the viewport size of the provided camera.
-	[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera) const;
+	//[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera) const;
 
 	// @return Viewport size of scene primary camera divided by the viewport size of the provided
 	// camera.
-	[[nodiscard]] V2_float GetCameraScaleRelativeTo(const Camera& relative_to_camera) const;
+	//[[nodiscard]] V2_float GetCameraScaleRelativeTo(const Camera& relative_to_camera) const;
 
 	/*SceneInput input;
 	Physics physics;
@@ -255,10 +245,9 @@ public:
 private:
 	friend class impl::RenderData;
 	friend class SceneManager;
-	friend class SceneTransition;
 
 	void Init();
-	void SetKey(const SceneKey& key);
+	// void SetKey(const SceneKey& key);
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
@@ -271,9 +260,9 @@ private:
 
 	void RemoveFromDisplayList(Entity entity);
 
-	std::shared_ptr<SceneTransition> transition_;
+	// std::shared_ptr<SceneTransition> transition_;
 
-	SceneKey key_;
+	// SceneKey key_;
 
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.
@@ -289,13 +278,13 @@ private:
 
 	State state_{ State::Constructed };
 
-	impl::CollisionHandler collision_;
+	// impl::CollisionHandler collision_;
 
 	// TODO: Fix.
 	// RenderTarget render_target_;
-	bool collider_visibility_{ false };
+	/*bool collider_visibility_{ false };
 	Color collider_color_{ color::Blue };
-	float collider_line_width_{ 1.0f };
+	float collider_line_width_{ 1.0f };*/
 };
 
 } // namespace ptgn
