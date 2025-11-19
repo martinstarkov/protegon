@@ -1,9 +1,9 @@
 #include "core/app/application.h"
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/movement.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/log.h"

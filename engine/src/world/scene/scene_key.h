@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/ecs/components/generic.h"
+#include "ecs/components/generic.h"
 
 namespace ptgn {
 

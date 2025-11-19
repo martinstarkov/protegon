@@ -1,4 +1,4 @@
-#include "core/ecs/entity_hierarchy.h"
+#include "ecs/entity_hierarchy.h"
 
 #include <string_view>
 #include <utility>
@@ -6,9 +6,9 @@
 
 #include "core/app/manager.h"
 #include "core/assert.h"
-#include "core/ecs/components/relatives.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/relatives.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 
 namespace ptgn {
 

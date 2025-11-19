@@ -5,7 +5,7 @@
 
 #include "core/app/window.h"
 #include "core/assert.h"
-#include "core/ecs/components/movement.h"
+#include "ecs/components/movement.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/log.h"

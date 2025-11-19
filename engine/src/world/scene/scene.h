@@ -5,9 +5,10 @@
 #include <vector>
 
 #include "core/app/manager.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/components/uuid.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/transform.h"
+#include "ecs/components/uuid.h"
+#include "ecs/ecs.h"
+#include "ecs/entity.h"
 #include "math/vector2.h"
 #include "physics/collision_handler.h"
 #include "physics/physics.h"
@@ -90,17 +91,7 @@ struct SceneEntitiesWithRange {
 
 class Scene {
 public:
-	using NativeManager = ecs::Manager;
-
 	Scene() = default;
-
-	NativeManager& Native() {
-		return manager_;
-	}
-
-	const NativeManager& Native() const {
-		return manager_;
-	}
 
 	// Create your wrapped entity
 	Entity CreateEntity() {
@@ -157,7 +148,6 @@ public:
 	}
 
 private:
-	NativeManager manager_;
 };
 
 /*
@@ -252,12 +242,12 @@ public:
 	// camera.
 	[[nodiscard]] V2_float GetCameraScaleRelativeTo(const Camera& relative_to_camera) const;
 
-	SceneInput input;
+	/*SceneInput input;
 	Physics physics;
-	Camera camera;
+	Camera camera;*/
 
 	// A default camera with a viewport the size of the Application::Get().
-	Camera fixed_camera;
+	// Camera fixed_camera;
 
 	friend void to_json(json& j, const Scene& scene);
 	friend void from_json(const json& j, Scene& scene);

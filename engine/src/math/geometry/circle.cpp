@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
 
@@ -13,7 +13,8 @@ namespace ptgn {
 Circle::Circle(float circle_radius) : radius{ circle_radius } {}
 
 void Circle::Draw(const Entity& entity) {
-	impl::DrawCircle(entity);
+	// TODO: Fix.
+	// impl::DrawCircle(entity);
 }
 
 V2_float Circle::GetCenter(const Transform& transform) const {

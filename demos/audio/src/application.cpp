@@ -3,8 +3,8 @@
 #include <string>
 
 #include "audio/audio.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/util/time.h"
 #include "core/app/window.h"

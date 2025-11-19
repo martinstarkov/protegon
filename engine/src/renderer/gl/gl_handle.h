@@ -1,13 +1,14 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 #include "core/assert.h"
 #include "renderer/gl/gl.h"
 
 namespace ptgn::impl::gl {
 
-enum Resource {
+enum GLResource {
 	Shader,
 	VertexBuffer,
 	ElementBuffer,
@@ -18,12 +19,12 @@ enum Resource {
 	VertexArray
 };
 
-template <Resource T>
-class Handle {
+template <GLResource T>
+class StrongGLHandle {
 public:
-	Handle() = default;
+	StrongGLHandle() = default;
 
-	bool operator==(const Handle&) const = default;
+	bool operator==(const StrongGLHandle&) const = default;
 
 	explicit operator bool() const {
 		return static_cast<bool>(id_);
@@ -37,9 +38,9 @@ public:
 private:
 	friend class GLContext;
 
-	explicit Handle(std::shared_ptr<GLuint> id) : id_{ std::move(id) } {}
+	StrongGLHandle(std::shared_ptr<GLuint> id) : id_{ std::move(id) } {}
 
-	std::shared_ptr<GLuint> id_{ 0 };
+	std::shared_ptr<GLuint> id_;
 };
 
 } // namespace ptgn::impl::gl

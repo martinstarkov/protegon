@@ -1,7 +1,7 @@
 #include "physics/rigid_body.h"
 
-#include "core/ecs/entity.h"
-#include "core/ecs/entity_hierarchy.h"
+#include "ecs/entity.h"
+#include "ecs/entity_hierarchy.h"
 #include "math/vector2.h"
 
 namespace ptgn {

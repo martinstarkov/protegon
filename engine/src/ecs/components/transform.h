@@ -5,8 +5,8 @@
 #include <span>
 #include <vector>
 
-#include "core/ecs/components/generic.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/generic.h"
+#include "ecs/entity.h"
 #include "core/util/concepts.h"
 #include "core/util/flags.h"
 #include "math/tolerance.h"

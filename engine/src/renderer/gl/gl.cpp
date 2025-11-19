@@ -6,8 +6,6 @@
 
 #include "core/log.h"
 
-namespace ptgn::impl::gl {
-
 #ifndef PTGN_PLATFORM_MACOS
 
 #define GLE(name, caps_name) PFNGL##caps_name##PROC name;
@@ -37,6 +35,10 @@ GL_LIST_3
 #endif
 
 #endif
+
+#ifdef PTGN_DEBUG
+
+namespace ptgn::impl::gl {
 
 std::string_view GetErrorString(GLenum error) {
 	switch (error) {
@@ -73,3 +75,5 @@ void HandleErrors(std::source_location location) {
 }
 
 } // namespace ptgn::impl::gl
+
+#endif

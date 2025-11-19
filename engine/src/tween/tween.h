@@ -4,7 +4,7 @@
 #include <functional>
 #include <vector>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/scripting/script.h"
 #include "core/util/time.h"
 #include "math/easing.h"

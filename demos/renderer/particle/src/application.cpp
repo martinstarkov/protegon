@@ -1,6 +1,6 @@
 #include <string_view>
 
-#include "core/ecs/components/draw.h"
+#include "ecs/components/draw.h"
 #include "core/app/application.h"
 #include "core/util/time.h"
 #include "core/app/window.h"

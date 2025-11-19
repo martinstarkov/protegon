@@ -4,9 +4,9 @@
 // #include <limits>
 //
 // #include "core/asset/asset_handle.h"
-// #include "core/ecs/components/drawable.h"
-// #include "core/ecs/components/generic.h"
-// #include "core/ecs/entity.h"
+// #include "ecs/components/drawable.h"
+// #include "ecs/components/generic.h"
+// #include "ecs/entity.h"
 // #include "core/util/concepts.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"

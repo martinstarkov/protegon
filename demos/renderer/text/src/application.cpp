@@ -1,8 +1,8 @@
 #include <string>
 #include <string_view>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/app/window.h"
 #include "renderer/api/color.h"

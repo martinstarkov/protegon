@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "core/app/manager.h"
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/log.h"

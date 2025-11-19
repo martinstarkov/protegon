@@ -3,7 +3,7 @@
 // #include <memory>
 //
 // #include "core/asset/asset_handle.h"
-// #include "core/ecs/components/generic.h"
+// #include "ecs/components/generic.h"
 // #include "core/util/file.h"
 // #include "core/util/time.h"
 //

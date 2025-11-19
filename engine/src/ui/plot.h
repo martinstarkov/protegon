@@ -6,9 +6,9 @@
 // #include <string_view>
 // #include <vector>
 //
-// #include "core/ecs/components/generic.h"
+// #include "ecs/components/generic.h"
 // #include "core/asset/asset_manager.h"
-// #include "core/ecs/entity.h"
+// #include "ecs/entity.h"
 // #include "core/app/manager.h"
 //
 // #include "math/geometry_utils.h"
@@ -18,7 +18,7 @@
 // #include "renderer/api/origin.h"
 // #include "renderer/render_target.h"
 // #include "renderer/text/text.h"
-// #include "renderer/material/texture.h"
+// 
 // #include "renderer/text/fonts.h"
 // #include "ui/button.h"
 // #include "core/assert.h"

@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/util/span.h"
 #include "math/geometry/shape.h"
 

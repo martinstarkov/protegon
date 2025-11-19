@@ -2,8 +2,8 @@
 #include <utility>
 #include <vector>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/sprite.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/sprite.h"
 #include "core/app/application.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"

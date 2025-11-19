@@ -1,5 +1,5 @@
 
-#include "core/ecs/components/draw.h"
+#include "ecs/components/draw.h"
 #include "core/app/application.h"
 #include "core/scripting/script.h"
 #include "core/app/window.h"

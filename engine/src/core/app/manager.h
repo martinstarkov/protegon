@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/ecs/components/component_utils.h"
-#include "core/ecs/components/uuid.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/component_utils.h"
+#include "ecs/components/uuid.h"
+#include "ecs/entity.h"
 #include "ecs/ecs.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json_archiver.h"
@@ -20,15 +20,14 @@ class RenderData;
 } // namespace impl
 
 template <bool is_const>
-using Entities =
-	ecs::impl::EntityContainer<Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::None>;
+using View = ecs::impl::View<Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::None>;
 
 template <bool is_const, typename... TComponents>
-using EntitiesWith = ecs::impl::EntityContainer<
+using ViewWith = ecs::impl::View<
 	Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
 
 template <bool is_const, typename... TComponents>
-using EntitiesWithout = ecs::impl::EntityContainer<
+using ViewWithout = ecs::impl::View<
 	Entity, JSONArchiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
 
 class Manager : private ecs::impl::Manager<JSONArchiver> {
@@ -85,38 +84,38 @@ public:
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWith<true, Ts...> EntitiesWith() const {
+	ptgn::ViewWith<true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	template <impl::RetrievableComponent... Ts>
-	ptgn::EntitiesWith<false, Ts...> EntitiesWith() {
+	ptgn::ViewWith<false, Ts...> EntitiesWith() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWithout<true, Ts...> EntitiesWithout() const {
+	ptgn::ViewWithout<true, Ts...> EntitiesWithout() const {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, true, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
 	template <typename... Ts>
-	ptgn::EntitiesWithout<false, Ts...> EntitiesWithout() {
+	ptgn::ViewWithout<false, Ts...> EntitiesWithout() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };
 	}
 
-	ptgn::Entities<true> Entities() const {
+	ptgn::View<true> Entities() const {
 		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, true>{} };
 	}
 
-	ptgn::Entities<false> Entities() {
+	ptgn::View<false> Entities() {
 		return { this, next_entity_, ecs::impl::Pools<Entity, JSONArchiver, false>{} };
 	}
 
@@ -269,7 +268,7 @@ private:
 	// Same as EntitiesWith except allows non-retrievable components to be retrieved. Used for
 	// internal engine systems.
 	template <typename... Ts>
-	ptgn::EntitiesWith<false, Ts...> InternalEntitiesWith() {
+	ptgn::ViewWith<false, Ts...> InternalEntitiesWith() {
 		return { this, next_entity_,
 				 ecs::impl::Pools<Entity, JSONArchiver, false, Ts...>{
 					 ManagerBase::GetOrAddPool<Ts>(ManagerBase::GetId<Ts>())... } };

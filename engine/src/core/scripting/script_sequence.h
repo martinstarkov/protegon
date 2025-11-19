@@ -5,8 +5,8 @@
 #include <ctime>
 #include <functional>
 
-#include "core/ecs/entity.h"
-#include "core/ecs/game_object.h"
+#include "ecs/entity.h"
+#include "ecs/game_object.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
 #include "tween/tween.h"

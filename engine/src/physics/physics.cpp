@@ -3,9 +3,9 @@
 #include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/assert.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/movement.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/log.h"
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
@@ -42,7 +42,9 @@ void Physics::SetGravity(const V2_float& gravity) {
 
 float Physics::dt() const {
 	// TODO: Consider changing in the future.
-	return Application::Get().dt();
+	// return Application::Get().dt();
+	// TODO: fix.
+	return 1.0f / 60.0f;
 }
 
 void Physics::SetEnabled(bool enabled) {
@@ -68,7 +70,8 @@ void Physics::PreCollisionUpdate(Scene& scene) const {
 
 	float dt{ Physics::dt() };
 
-	for (auto [entity, transform, rigid_body, movement] :
+	// TODO: Fix.
+	/*for (auto [entity, transform, rigid_body, movement] :
 		 scene.InternalEntitiesWith<Transform, RigidBody, TopDownMovement>()) {
 		movement.Update(entity, transform, rigid_body, dt);
 	}
@@ -76,23 +79,25 @@ void Physics::PreCollisionUpdate(Scene& scene) const {
 	for (auto [entity, movement, scripts] :
 		 scene.InternalEntitiesWith<TopDownMovement, Scripts>()) {
 		scripts.InvokeActions();
-	}
+	}*/
 
 	scene.Refresh();
 
-	for (auto [e, transform, rigid_body, movement, jump] :
+	// TODO: Fix.
+	/*for (auto [e, transform, rigid_body, movement, jump] :
 		 scene.InternalEntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 		movement.Update(transform, rigid_body, dt);
 		jump.Update(rigid_body, movement.grounded, gravity_);
-	}
+	}*/
 
 	for (auto [e, rigid_body] : scene.EntitiesWith<RigidBody>()) {
 		rigid_body.Update(gravity_, dt);
 	}
 
-	for (auto [e, movement] : scene.EntitiesWith<PlatformerMovement>()) {
+	// TODO: Fix.
+	/*for (auto [e, movement] : scene.EntitiesWith<PlatformerMovement>()) {
 		movement.grounded = false;
-	}
+	}*/
 
 	scene.Refresh();
 }

@@ -1,11 +1,11 @@
 
 #include <utility>
 
-#include "core/ecs/components/interactive.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/interactive.h"
+#include "ecs/components/movement.h"
+#include "ecs/components/sprite.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"

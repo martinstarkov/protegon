@@ -23,11 +23,11 @@
 #include "core/app/manager.h"
 #include "core/app/window.h"
 #include "core/assert.h"
-#include "core/ecs/components/drawable.h"
-#include "core/ecs/components/effects.h"
-#include "core/ecs/components/generic.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/drawable.h"
+#include "ecs/components/effects.h"
+#include "ecs/components/generic.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/log.h"
 #include "core/scripting/script.h"
 #include "core/util/concepts.h"
@@ -61,6 +61,85 @@
 #include "world/scene/scene.h"
 
 namespace ptgn {
+
+Renderer::Renderer(Window& window) :
+	game_size_{ window.GetSize() },
+	window_{ window },
+	gl_{ std::make_unique<impl::gl::GLContext>(window) } {
+	/*
+	RecomputeDisplaySize(window_.GetSize());
+
+	// GLRenderer::EnableLineSmoothing();
+
+	GLRenderer::DisableDepthTesting();
+	GLRenderer::DisableGammaCorrection();
+
+	max_texture_slots = GLRenderer::GetMaxTextureSlots();
+
+	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
+
+	const auto& screen_shader{ gl_->GetShader("screen_default") };
+	PTGN_ASSERT(screen_shader.IsValid());
+	gl_->Bind(screen_shader);
+	gl_->SetUniform(screen_shader, "u_Texture", 1);
+
+	const auto& quad_shader{ gl_->GetShader("quad") };
+
+	PTGN_ASSERT(quad_shader.IsValid());
+	PTGN_ASSERT(gl_->GetShader("circle").IsValid());
+	PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
+	PTGN_ASSERT(gl_->GetShader("light").IsValid());
+
+	std::vector<std::int32_t> samplers(max_texture_slots);
+	std::iota(samplers.begin(), samplers.end(), 0);
+
+	gl_->Bind(quad_shader);
+	gl_->SetUniform(
+		quad_shader, "u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
+	);
+
+	auto quad_ib{ gl_->CreateElementBuffer(
+		nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)), GL_DYNAMIC_DRAW
+	) };
+	auto quad_vb{ gl_->CreateVertexBuffer(
+		nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)), GL_DYNAMIC_DRAW
+	) };
+
+	triangle_vao =
+		gl_->CreateVertexArray(std::move(quad_vb), Vertex::GetLayout(), std::move(quad_ib));
+
+	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
+	white_texture.Bind(0);
+	Texture::SetActiveSlot(1);
+
+	intermediate_target = {};
+
+	screen_target_ = CreateRenderTarget(
+		render_manager, display_viewport_.size, color::Transparent, TextureFormat::RGBA8888, true
+	);
+	AddScript<impl::DisplayResizeScript>(screen_target_);
+
+	SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
+
+#ifdef PTGN_PLATFORM_MACOS
+	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+	// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+	// texture because texture unloadable."
+	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+		Texture::Bind(white_texture.GetId(), slot);
+	}
+#endif
+
+	SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
+
+	viewport_tracker = render_manager.CreateEntity();
+	AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
+	auto window_size{ window_.GetSize() };
+	RecomputeDisplaySize(window_size);
+
+	render_manager.Refresh();
+	*/
+}
 
 /*
 
@@ -217,6 +296,7 @@ graph.Execute();
 
 */
 
+/*
 namespace impl {
 
 static impl::gl::Handle<impl::gl::Shader> GetFullscreenShader(impl::gl::GLContext& gl, bool hdr) {
@@ -908,83 +988,6 @@ TextureId Renderer::PingPong(
 	return write->frame_buffer.GetTexture().GetId();
 }
 
-Renderer::Renderer(Window& window) :
-	game_size_{ window.GetSize() },
-	window_{ window },
-	gl_{ std::make_unique<impl::gl::GLContext>(window) } {
-	RecomputeDisplaySize(window_.GetSize());
-
-	// GLRenderer::EnableLineSmoothing();
-
-	GLRenderer::DisableDepthTesting();
-	GLRenderer::DisableGammaCorrection();
-
-	max_texture_slots = GLRenderer::GetMaxTextureSlots();
-
-	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
-
-	const auto& screen_shader{ gl_->GetShader("screen_default") };
-	PTGN_ASSERT(screen_shader.IsValid());
-	gl_->Bind(screen_shader);
-	gl_->SetUniform(screen_shader, "u_Texture", 1);
-
-	const auto& quad_shader{ gl_->GetShader("quad") };
-
-	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(gl_->GetShader("circle").IsValid());
-	PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
-	PTGN_ASSERT(gl_->GetShader("light").IsValid());
-
-	std::vector<std::int32_t> samplers(max_texture_slots);
-	std::iota(samplers.begin(), samplers.end(), 0);
-
-	gl_->Bind(quad_shader);
-	gl_->SetUniform(
-		quad_shader, "u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
-	);
-
-	auto quad_ib{ gl_->CreateElementBuffer(
-		nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)), GL_DYNAMIC_DRAW
-	) };
-	auto quad_vb{ gl_->CreateVertexBuffer(
-		nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)), GL_DYNAMIC_DRAW
-	) };
-
-	triangle_vao =
-		gl_->CreateVertexArray(std::move(quad_vb), Vertex::GetLayout(), std::move(quad_ib));
-
-	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
-	white_texture.Bind(0);
-	Texture::SetActiveSlot(1);
-
-	intermediate_target = {};
-
-	screen_target_ = CreateRenderTarget(
-		render_manager, display_viewport_.size, color::Transparent, TextureFormat::RGBA8888, true
-	);
-	AddScript<impl::DisplayResizeScript>(screen_target_);
-
-	SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
-
-#ifdef PTGN_PLATFORM_MACOS
-	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-	// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-	// texture because texture unloadable."
-	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-		Texture::Bind(white_texture.GetId(), slot);
-	}
-#endif
-
-	SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
-
-	viewport_tracker = render_manager.CreateEntity();
-	AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
-	auto window_size{ window_.GetSize() };
-	RecomputeDisplaySize(window_size);
-
-	render_manager.Refresh();
-}
-
 const Shader& Renderer::GetCurrentShader() const {
 	const Shader* shader{ nullptr };
 
@@ -1171,11 +1174,12 @@ void Renderer::Flush(bool final_flush) {
 			target.blend_mode = *intermediate_target->blend_mode;
 		}
 
+		// Only flip if postfx have been applied.
 		DrawCall(
 			GetFullscreenShader(target.texture_format),
 			Vertex::GetQuad(
 				target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
-				has_post_fx /* Only flip if postfx have been applied. */
+				has_post_fx
 			),
 			quad_indices, { target.texture_id }, target.frame_buffer, false, color::Transparent,
 			target.blend_mode, target.viewport, target.view_projection
@@ -1850,5 +1854,7 @@ void Renderer::ClearScreen() const {
 	GLRenderer::Clear();
 	render_data_.ClearScreenTarget();
 }
+
+*/
 
 } // namespace ptgn

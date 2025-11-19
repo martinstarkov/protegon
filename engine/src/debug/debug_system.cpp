@@ -7,9 +7,9 @@
 #include "core/app/application.h"
 #include "core/asset/asset_handle.h"
 #include "core/asset/asset_manager.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/generic.h"
-#include "core/ecs/components/transform.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/generic.h"
+#include "ecs/components/transform.h"
 #include "debug/profiling.h"
 #include "debug/stats.h"
 #include "math/geometry/line.h"
@@ -23,9 +23,10 @@
 
 namespace ptgn::impl {
 
-const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
+DebugSystem::DebugSystem(Renderer& renderer) : renderer_{ renderer } {}
 
 // TODO: Fix.
+// const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };
 /*
 void DebugSystem::DrawText(
 	const std::string& content, const Transform& og_transform, const TextColor& color,
@@ -57,8 +58,8 @@ void DebugSystem::DrawText(
 	Application::Get().render_.render_data_.AddTemporaryTexture(std::move(texture));
 }*/
 
-DebugSystem::DebugSystem(Renderer& renderer) : renderer_{ renderer } {}
-
+// TODO: Fix.
+/*
 void DebugSystem::DrawShape(
 	const Transform& transform, const Shape& shape, const Tint& color, const LineWidth& line_width,
 	Origin origin, const Camera& camera
@@ -87,6 +88,7 @@ void DebugSystem::DrawLine(
 void DebugSystem::DrawPoint(const V2_float& point, const Tint& color, const Camera& camera) {
 	DrawShape({}, point, color, -1.0f, Origin::Center, camera);
 }
+*/
 
 void DebugSystem::PreUpdate() {
 	GetProfiler().timings_.clear();

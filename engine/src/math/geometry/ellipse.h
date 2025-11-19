@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "core/ecs/components/drawable.h"
+#include "ecs/components/drawable.h"
 #include "core/util/concepts.h"
 #include "math/vector2.h"
 #include "serialization/json/serializable.h"

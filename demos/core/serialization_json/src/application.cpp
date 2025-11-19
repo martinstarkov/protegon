@@ -1,11 +1,11 @@
 #include <string>
 
 #include "audio/audio.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/interactive.h"
-#include "core/ecs/components/lifetime.h"
-#include "core/ecs/components/offsets.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/interactive.h"
+#include "ecs/components/lifetime.h"
+#include "ecs/components/offsets.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/app/manager.h"
 #include "math/geometry/circle.h"
@@ -13,7 +13,7 @@
 #include "math/vector2.h"
 #include "physics/rigid_body.h"
 #include "renderer/text/font.h"
-#include "renderer/material/texture.h"
+
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 #include "serialization/json/json_manager.h"

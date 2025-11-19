@@ -34,11 +34,11 @@ struct TTF_FontDeleter {
 };
 
 struct ShaderAsset {
-	gl::Handle<gl::Shader> shader;
+	gl::StrongGLHandle<gl::Shader> shader;
 };
 
 struct TextureAsset {
-	gl::Handle<gl::Texture> texture;
+	gl::StrongGLHandle<gl::Texture> texture;
 };
 
 struct MusicAsset {

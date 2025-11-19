@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/scripting/script_interfaces.h"
 #include "math/hash.h"
 #include "nlohmann/json.hpp"

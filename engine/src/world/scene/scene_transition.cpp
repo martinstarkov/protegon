@@ -3,8 +3,8 @@
 #include <memory>
 
 #include "core/assert.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/entity.h"
 #include "core/scripting/script_sequence.h"
 #include "core/util/time.h"
 #include "renderer/api/color.h"

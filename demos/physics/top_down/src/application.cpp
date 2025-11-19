@@ -1,5 +1,5 @@
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/movement.h"
 #include "core/app/application.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"

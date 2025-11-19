@@ -32,8 +32,6 @@
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/gl/gl_context.h"
-#include "renderer/gl/gl_renderer.h"
-#include "renderer/material/shader.h"
 #include "renderer/renderer.h"
 #include "renderer/text/font.h"
 #include "serialization/json/json.h"
@@ -232,7 +230,8 @@ Application::Application(const ApplicationConfig& config) :
 	renderer_{ window_ },
 	scenes_{},
 	input_{ window_, renderer_, scenes_ },
-	assets_{} {
+	assets_{ *renderer_.gl_.get() },
+	debug_{ renderer_ } {
 	// TODO: Move to application config.
 	window_.SetSetting(WindowSetting::FixedSize);
 }
@@ -284,7 +283,7 @@ void Application::Update() {
 
 	start = end;
 
-	scene_.Update(dt_);
+	scenes_.Update(dt_);
 
 	debug_.PostUpdate();
 

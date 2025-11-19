@@ -123,10 +123,7 @@ struct Operation {
 
 class SceneManager {
 public:
-	SceneManager() = default;
-
-	explicit SceneManager() {}
-
+	SceneManager()									 = default;
 	~SceneManager() noexcept						 = default;
 	SceneManager(const SceneManager&)				 = delete;
 	SceneManager(SceneManager&&) noexcept			 = delete;
@@ -273,10 +270,8 @@ private:
 
 				if (has_from && op.transition) {
 					// Normal transition path
-					runs_.push_back(
-						TransitionRun{ from_index, to_index, std::move(op.transition), 0.0,
-									   op.kill_from_on_end }
-					);
+					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
+												   0.0, op.kill_from_on_end });
 					ApplyPoliciesOnStart(runs_.back());
 				} else if (!has_from) {
 					// First scene: start immediately
@@ -298,9 +293,8 @@ private:
 				size_t to_index	  = IndexById(entries_.back().id);
 				size_t from_index = (entries_.size() >= 2) ? to_index - 1 : SIZE_MAX;
 				if (op.transition && from_index != SIZE_MAX) {
-					runs_.push_back(
-						TransitionRun{ from_index, to_index, std::move(op.transition), 0.0, false }
-					);
+					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
+												   0.0, false });
 					ApplyPoliciesOnStart(runs_.back());
 				} else {
 					entries_[to_index].phase = Phase::Running;
@@ -312,9 +306,8 @@ private:
 				}
 				size_t to_index = (from_index > 0) ? from_index - 1 : from_index;
 				if (op.transition && from_index != SIZE_MAX) {
-					runs_.push_back(
-						TransitionRun{ from_index, to_index, std::move(op.transition), 0.0, true }
-					);
+					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
+												   0.0, true });
 					ApplyPoliciesOnStart(runs_.back());
 				} else {
 					entries_[from_index].phase = Phase::Dead;

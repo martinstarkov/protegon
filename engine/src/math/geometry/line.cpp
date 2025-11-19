@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 
@@ -13,7 +13,8 @@ namespace ptgn {
 Line::Line(const V2_float& start, const V2_float& end) : start{ start }, end{ end } {}
 
 void Line::Draw(const Entity& entity) {
-	impl::DrawLine(entity);
+	// TODO: Fix.
+	// impl::DrawLine(entity);
 }
 
 std::array<V2_float, 4> Line::GetWorldQuadVertices(

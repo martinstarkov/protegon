@@ -1,4 +1,4 @@
-#include "core/ecs/components/uuid.h"
+#include "ecs/components/uuid.h"
 
 #include <cstdint>
 #include <random>

@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "core/app/resolution.h"
-#include "core/ecs/components/interactive.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/interactive.h"
+#include "ecs/entity.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/util/time.h"

@@ -5,17 +5,17 @@
 #include <unordered_map>
 
 #include "core/app/manager.h"
-#include "core/ecs/components/animation.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/interactive.h"
-#include "core/ecs/components/lifetime.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/offsets.h"
-#include "core/ecs/components/relatives.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/components/uuid.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/animation.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/interactive.h"
+#include "ecs/components/lifetime.h"
+#include "ecs/components/movement.h"
+#include "ecs/components/offsets.h"
+#include "ecs/components/relatives.h"
+#include "ecs/components/sprite.h"
+#include "ecs/components/transform.h"
+#include "ecs/components/uuid.h"
+#include "ecs/entity.h"
 #include "core/log.h"
 #include "core/util/timer.h"
 #include "core/util/type_info.h"
@@ -32,7 +32,6 @@
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
-#include "renderer/material/texture.h"
 #include "renderer/render_target.h"
 #include "renderer/text/font.h"
 #include "renderer/text/text.h"
@@ -93,17 +92,17 @@ public:
 PTGN_REGISTER_COMPONENT(Visible)
 PTGN_REGISTER_COMPONENT(Tint)
 PTGN_REGISTER_COMPONENT(Depth)
-PTGN_REGISTER_COMPONENT(LineWidth)
-PTGN_REGISTER_COMPONENT(TextureCrop)
-PTGN_REGISTER_COMPONENT(AnimationInfo)
+// PTGN_REGISTER_COMPONENT(LineWidth)
+// PTGN_REGISTER_COMPONENT(TextureCrop)
+// PTGN_REGISTER_COMPONENT(AnimationInfo)
 PTGN_REGISTER_COMPONENT(IDrawable)
 PTGN_REGISTER_COMPONENT(IDrawFilter)
 PTGN_REGISTER_COMPONENT(Interactive)
 PTGN_REGISTER_COMPONENT(Draggable)
 PTGN_REGISTER_COMPONENT(Lifetime)
-PTGN_REGISTER_COMPONENT(TopDownMovement)
-PTGN_REGISTER_COMPONENT(PlatformerMovement)
-PTGN_REGISTER_COMPONENT(PlatformerJump)
+// PTGN_REGISTER_COMPONENT(TopDownMovement)
+// PTGN_REGISTER_COMPONENT(PlatformerMovement)
+// PTGN_REGISTER_COMPONENT(PlatformerJump)
 PTGN_REGISTER_COMPONENT(Offsets)
 PTGN_REGISTER_COMPONENT(Transform)
 PTGN_REGISTER_COMPONENT(UUID)
@@ -118,25 +117,25 @@ PTGN_REGISTER_COMPONENT(BlendMode)
 PTGN_REGISTER_COMPONENT(Color)
 PTGN_REGISTER_COMPONENT(Flip)
 PTGN_REGISTER_COMPONENT(Origin)
-PTGN_REGISTER_COMPONENT(LightProperties)
-PTGN_REGISTER_COMPONENT(Particle)
-PTGN_REGISTER_COMPONENT(ParticleInfo)
-PTGN_REGISTER_COMPONENT(ParticleEmitterComponent)
-PTGN_REGISTER_COMPONENT(FontRenderMode)
-PTGN_REGISTER_COMPONENT(FontStyle)
-PTGN_REGISTER_COMPONENT(ClearColor)
-PTGN_REGISTER_COMPONENT(TextJustify)
-PTGN_REGISTER_COMPONENT(TextContent)
-PTGN_REGISTER_COMPONENT(FontSize)
-PTGN_REGISTER_COMPONENT(TextLineSkip)
-PTGN_REGISTER_COMPONENT(TextWrapAfter)
-PTGN_REGISTER_COMPONENT(TextColor)
-PTGN_REGISTER_COMPONENT(TextOutline)
-PTGN_REGISTER_COMPONENT(TextShadingColor)
-PTGN_REGISTER_COMPONENT(TextureFormat)
-PTGN_REGISTER_COMPONENT(TextureWrapping)
-PTGN_REGISTER_COMPONENT(TextureScaling)
-PTGN_REGISTER_COMPONENT(TextureHandle)
+// PTGN_REGISTER_COMPONENT(LightProperties)
+// PTGN_REGISTER_COMPONENT(Particle)
+// PTGN_REGISTER_COMPONENT(ParticleInfo)
+// PTGN_REGISTER_COMPONENT(ParticleEmitterComponent)
+// PTGN_REGISTER_COMPONENT(FontRenderMode)
+// PTGN_REGISTER_COMPONENT(FontStyle)
+// PTGN_REGISTER_COMPONENT(ClearColor)
+// PTGN_REGISTER_COMPONENT(TextJustify)
+// PTGN_REGISTER_COMPONENT(TextContent)
+// PTGN_REGISTER_COMPONENT(FontSize)
+// PTGN_REGISTER_COMPONENT(TextLineSkip)
+// PTGN_REGISTER_COMPONENT(TextWrapAfter)
+// PTGN_REGISTER_COMPONENT(TextColor)
+// PTGN_REGISTER_COMPONENT(TextOutline)
+// PTGN_REGISTER_COMPONENT(TextShadingColor)
+// PTGN_REGISTER_COMPONENT(TextureFormat)
+// PTGN_REGISTER_COMPONENT(TextureWrapping)
+// PTGN_REGISTER_COMPONENT(TextureScaling)
+// PTGN_REGISTER_COMPONENT(TextureHandle)
 PTGN_REGISTER_COMPONENT(CameraInstance)
 PTGN_REGISTER_COMPONENT(SceneTransition)
 PTGN_REGISTER_COMPONENT(TargetFollowConfig)
@@ -150,22 +149,22 @@ PTGN_REGISTER_COMPONENT(FollowEffect)
 PTGN_REGISTER_COMPONENT(BounceEffect)
 PTGN_REGISTER_COMPONENT(ShakeEffect)
 PTGN_REGISTER_COMPONENT(TweenInstance)
-PTGN_REGISTER_COMPONENT(ButtonState)
-PTGN_REGISTER_COMPONENT(InternalButtonState)
-PTGN_REGISTER_COMPONENT(ButtonToggled)
-PTGN_REGISTER_COMPONENT(ButtonDisabledTexture)
-PTGN_REGISTER_COMPONENT(ButtonTextFixedSize)
-PTGN_REGISTER_COMPONENT(ButtonBorderWidth)
-PTGN_REGISTER_COMPONENT(ButtonBackgroundWidth)
-PTGN_REGISTER_COMPONENT(ButtonColor)
-PTGN_REGISTER_COMPONENT(ButtonColorToggled)
-PTGN_REGISTER_COMPONENT(ButtonTint)
-PTGN_REGISTER_COMPONENT(ButtonTintToggled)
-PTGN_REGISTER_COMPONENT(ButtonBorderColor)
-PTGN_REGISTER_COMPONENT(ButtonBorderColorToggled)
-PTGN_REGISTER_COMPONENT(ButtonTexture)
-PTGN_REGISTER_COMPONENT(ButtonTextureToggled)
-PTGN_REGISTER_COMPONENT(ButtonTextToggled)
+// PTGN_REGISTER_COMPONENT(ButtonState)
+// PTGN_REGISTER_COMPONENT(InternalButtonState)
+// PTGN_REGISTER_COMPONENT(ButtonToggled)
+// PTGN_REGISTER_COMPONENT(ButtonDisabledTexture)
+// PTGN_REGISTER_COMPONENT(ButtonTextFixedSize)
+// PTGN_REGISTER_COMPONENT(ButtonBorderWidth)
+// PTGN_REGISTER_COMPONENT(ButtonBackgroundWidth)
+// PTGN_REGISTER_COMPONENT(ButtonColor)
+// PTGN_REGISTER_COMPONENT(ButtonColorToggled)
+// PTGN_REGISTER_COMPONENT(ButtonTint)
+// PTGN_REGISTER_COMPONENT(ButtonTintToggled)
+// PTGN_REGISTER_COMPONENT(ButtonBorderColor)
+// PTGN_REGISTER_COMPONENT(ButtonBorderColorToggled)
+// PTGN_REGISTER_COMPONENT(ButtonTexture)
+// PTGN_REGISTER_COMPONENT(ButtonTextureToggled)
+// PTGN_REGISTER_COMPONENT(ButtonTextToggled)
 PTGN_REGISTER_COMPONENT(Rect)
 PTGN_REGISTER_COMPONENT(Circle)
 PTGN_REGISTER_COMPONENT(Line)

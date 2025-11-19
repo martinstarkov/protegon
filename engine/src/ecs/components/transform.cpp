@@ -1,4 +1,4 @@
-#include "core/ecs/components/transform.h"
+#include "ecs/components/transform.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/ecs/components/offsets.h"
-#include "core/ecs/entity.h"
-#include "core/ecs/entity_hierarchy.h"
+#include "ecs/components/offsets.h"
+#include "ecs/entity.h"
+#include "ecs/entity_hierarchy.h"
 #include "core/util/flags.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"

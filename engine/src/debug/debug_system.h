@@ -3,8 +3,8 @@
 #include <string>
 
 #include "core/asset/asset_handle.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/generic.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/generic.h"
 #include "debug/allocation.h"
 #include "debug/stats.h"
 #include "math/vector2.h"
@@ -46,6 +46,7 @@ public:
 	);*/
 
 	// @param origin only applicable to Rect and RoundedRect.
+	/*
 	void DrawShape(
 		const Transform& transform, const Shape& shape, const Tint& color,
 		const LineWidth& line_width = {}, Origin origin = Origin::Center, const Camera& camera = {}
@@ -57,6 +58,7 @@ public:
 	);
 
 	void DrawPoint(const V2_float& point, const Tint& color, const Camera& camera = {});
+	*/
 
 private:
 	friend class Application;

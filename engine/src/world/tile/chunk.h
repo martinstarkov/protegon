@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "serialization/json/json.h"

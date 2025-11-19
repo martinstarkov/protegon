@@ -5,14 +5,14 @@
 #include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/assert.h"
-#include "core/ecs/components/animation.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/drawable.h"
-#include "core/ecs/components/lifetime.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/components/uuid.h"
-#include "core/ecs/entity.h"
-#include "core/ecs/game_object.h"
+#include "ecs/components/animation.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/drawable.h"
+#include "ecs/components/lifetime.h"
+#include "ecs/components/transform.h"
+#include "ecs/components/uuid.h"
+#include "ecs/entity.h"
+#include "ecs/game_object.h"
 #include "core/input/input_handler.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
@@ -27,8 +27,6 @@
 #include "physics/physics.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "renderer/material/texture.h"
-#include "renderer/render_data.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
 #include "renderer/vfx/particle.h"
@@ -42,43 +40,47 @@
 namespace ptgn {
 
 Scene::Scene() {
-	auto& app{ Application::Get() };
-	auto& render_manager{ app.render_.render_data_.render_manager };
-	render_target_ = CreateRenderTarget(
-		render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
-	);
-	PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
-	camera		 = render_target_.Get<GameObject<Camera>>();
-	fixed_camera = CreateCamera(render_manager);
-	SetBlendMode(render_target_, BlendMode::Blend);
+	// TODO: Fix.
+	// auto& app{ Application::Get() };
+	// auto& render_manager{ app.render_.render_data_.render_manager };
+	// render_target_ = CreateRenderTarget(
+	//	render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
+	//);
+	// PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
+	// camera		 = render_target_.Get<GameObject<Camera>>();
+	// fixed_camera = CreateCamera(render_manager);
+	// SetBlendMode(render_target_, BlendMode::Blend);
 }
 
 Scene::~Scene() {
-	if (!render_target_.IsAlive()) {
+	// TODO: Fix.
+	/*if (!render_target_.IsAlive()) {
 		return;
 	}
 	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
-	Application::Get().render_.render_data_.render_manager.Refresh();
+	Application::Get().render_.render_data_.render_manager.Refresh();*/
 }
 
 void Scene::AddToDisplayList(Entity entity) {
-	if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
-		return;
-	}
-	if (!IsVisible(entity) || !HasDraw(entity)) {
-		return;
-	}
-	auto& dl{ render_target_.GetDisplayList() };
-	dl.emplace_back(entity);
+	// TODO: Fix.
+	// if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
+	//	return;
+	//}
+	// if (!IsVisible(entity) || !HasDraw(entity)) {
+	//	return;
+	//}
+	// auto& dl{ render_target_.GetDisplayList() };
+	// dl.emplace_back(entity);
 }
 
 void Scene::RemoveFromDisplayList(Entity entity) {
-	if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
-		return;
-	}
-	auto& dl{ render_target_.GetDisplayList() };
-	std::erase(dl, entity);
+	// TODO: Fix.
+	// if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
+	//	return;
+	//}
+	// auto& dl{ render_target_.GetDisplayList() };
+	// std::erase(dl, entity);
 }
 
 Entity Scene::CreateEntity() {
@@ -140,7 +142,8 @@ V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera)
 	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
 	// camera_size /= camera_zoom;
 
-	V2_float draw_size{ render_target_.GetTextureSize() };
+	// TODO: Fix.
+	V2_float draw_size{ /*render_target_.GetTextureSize()*/ };
 
 	PTGN_ASSERT(camera_size.BothAboveZero());
 
@@ -152,27 +155,31 @@ V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera)
 }
 
 void Scene::SetBackgroundColor(const Color& background_color) {
-	render_target_.SetClearColor(background_color);
+	// TODO: Fix.
+	// render_target_.SetClearColor(background_color);
 }
 
 Color Scene::GetBackgroundColor() const {
-	return render_target_.GetClearColor();
+	// TODO: Fix.
+	// return render_target_.GetClearColor();
+	return {};
 }
 
-const RenderTarget& Scene::GetRenderTarget() const {
-	return render_target_;
-}
-
-RenderTarget& Scene::GetRenderTarget() {
-	return render_target_;
-}
+// const RenderTarget& Scene::GetRenderTarget() const {
+//	return render_target_;
+// }
+//
+// RenderTarget& Scene::GetRenderTarget() {
+//	return render_target_;
+// }
 
 SceneKey Scene::GetKey() const {
 	return key_;
 }
 
 void Scene::Init() {
-	render_target_.Get<GameObject<Camera>>().Reset();
+	// TODO: Fix.
+	// render_target_.Get<GameObject<Camera>>().Reset();
 	fixed_camera.Reset();
 }
 
@@ -201,14 +208,16 @@ void Scene::InternalExit() {
 	// Clears component hooks.
 	Reset();
 	physics = {};
-	render_target_.ClearDisplayList();
-	render_target_.Get<GameObject<Camera>>().Reset();
+	// TODO: Fix.
+	/*render_target_.ClearDisplayList();
+	render_target_.Get<GameObject<Camera>>().Reset();*/
 	fixed_camera.Reset();
 	Refresh();
 }
 
 void Scene::InternalDraw() {
-	if (collider_visibility_) {
+	// TODO: Fix.
+	/*if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {
 			Application::Get().debug_.DrawShape(
 				GetDrawTransform(entity), collider.shape, collider_color_, collider_line_width_,
@@ -216,16 +225,18 @@ void Scene::InternalDraw() {
 			);
 		}
 	}
-	Application::Get().render_.render_data_.Draw(*this);
+	Application::Get().render_.render_data_.Draw(*this);*/
 }
 
 void Scene::InternalUpdate(Application& app) {
-	app.render_.render_data_.ClearRenderTargets(*this);
-	app.render_.render_data_.SetDrawingTo(render_target_);
+	// TODO: Fix.
+	// app.render_.render_data_.ClearRenderTargets(*this);
+	// app.render_.render_data_.SetDrawingTo(render_target_);
 
 	Refresh();
 
-	app.input_.InvokeInputEvents(app, *this);
+	// TODO: Fix.
+	// app.input_.InvokeInputEvents(app, *this);
 
 	input.Update(*this);
 
@@ -261,7 +272,8 @@ void Scene::InternalUpdate(Application& app) {
 
 	Tween::Update(*this, dt);
 
-	impl::AnimationSystem::Update(*this);
+	// TODO: Fix.
+	// impl::AnimationSystem::Update(*this);
 
 	Lifetime::Update(*this);
 
@@ -290,7 +302,8 @@ void to_json(json& j, const Scene& scene) {
 	j["input"]				 = scene.input;
 	j["collider_visibility"] = scene.collider_visibility_;
 	j["collider_color"]		 = scene.collider_color_;
-	j["render_target"]		 = scene.render_target_;
+	// TODO: Fix.
+	// j["render_target"]		 = scene.render_target_;
 }
 
 void from_json(const json& j, Scene& scene) {
@@ -308,7 +321,8 @@ void from_json(const json& j, Scene& scene) {
 	j.at("collider_color").get_to(scene.collider_color_);
 
 	j.at("input").get_to(scene.input);
-	j.at("render_target").get_to(scene.render_target_);
+	// TODO: Fix.
+	// j.at("render_target").get_to(scene.render_target_);
 }
 
 } // namespace ptgn

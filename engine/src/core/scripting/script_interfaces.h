@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/util/move_direction.h"

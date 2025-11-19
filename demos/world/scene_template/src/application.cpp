@@ -3,7 +3,7 @@
 #include <optional>
 
 #include "core/assert.h"
-#include "core/ecs/components/draw.h"
+#include "ecs/components/draw.h"
 #include "renderer/api/color.h"
 #include "renderer/text/text.h"
 #include "ui/menu_template.h"

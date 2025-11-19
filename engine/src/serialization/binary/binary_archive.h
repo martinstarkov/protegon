@@ -9,7 +9,7 @@
 // #include "core/assert.h"
 // #include "core/util/type_info.h"
 //
-// #include "core/ecs/entity.h"
+// #include "ecs/entity.h"
 // #include "serialization/json/serializable.h"
 // #include "core/util/file.h"
 //

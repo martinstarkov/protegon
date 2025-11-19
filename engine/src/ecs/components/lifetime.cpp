@@ -1,6 +1,6 @@
-#include "core/ecs/components/lifetime.h"
+#include "ecs/components/lifetime.h"
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "world/scene/scene.h"

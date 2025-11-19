@@ -3,15 +3,16 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/vector2.h"
 
 namespace ptgn {
 
 void Polygon::Draw(const Entity& entity) {
-	impl::DrawPolygon(entity);
+	// TODO: Fix.
+	// impl::DrawPolygon(entity);
 }
 
 V2_float Polygon::GetCenter() const {

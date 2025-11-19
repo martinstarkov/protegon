@@ -9,8 +9,6 @@
 // IMPORTANT: This file is not meant to be included outside the protegon library
 // so keep it in .cpp files only!
 
-namespace ptgn::impl::gl {
-
 #ifdef __EMSCRIPTEN__
 
 #include "SDL_opengles2.h"
@@ -229,6 +227,8 @@ GL_LIST_3
 
 #ifdef PTGN_DEBUG
 
+namespace ptgn::impl::gl {
+
 inline void ClearErrors() {
 	while (glGetError() != GL_NO_ERROR) { /* glGetError clears the error queue */
 	}
@@ -238,17 +238,19 @@ std::string_view GetErrorString(GLenum error);
 
 void HandleErrors(std::source_location location = std::source_location::current());
 
-#define GLCall(x)  \
-	ClearErrors(); \
-	x;             \
-	HandleErrors()
+} // namespace ptgn::impl::gl
 
-#define GLCallReturn(x) \
-	std::invoke([&]() { \
-		ClearErrors();  \
-		auto value = x; \
-		HandleErrors(); \
-		return value;   \
+#define GLCall(x)                    \
+	::ptgn::impl::gl::ClearErrors(); \
+	x;                               \
+	::ptgn::impl::gl::HandleErrors()
+
+#define GLCallReturn(x)                   \
+	std::invoke([&]() {                   \
+		::ptgn::impl::gl::ClearErrors();  \
+		auto value = x;                   \
+		::ptgn::impl::gl::HandleErrors(); \
+		return value;                     \
 	})
 
 #else
@@ -257,5 +259,3 @@ void HandleErrors(std::source_location location = std::source_location::current(
 #define GLCallReturn(x) x
 
 #endif
-
-} // namespace ptgn::impl::gl

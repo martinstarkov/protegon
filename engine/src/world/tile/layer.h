@@ -7,7 +7,7 @@
 #include "math/geometry_utils.h"
 #include "math/hash.h"
 #include "math/vector2.h"
-#include "renderer/material/texture.h"
+
 #include "world/tile/grid.h"
 #include "core/assert.h"
 #include "core/util/file.h"

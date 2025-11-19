@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "math/raycast.h"
 #include "math/vector2.h"
 #include "physics/broadphase.h"

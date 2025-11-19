@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/ecs/component_registry.h"
-#include "core/ecs/components/uuid.h"
-#include "core/ecs/entity.h"
+#include "ecs/component_registry.h"
+#include "ecs/components/uuid.h"
+#include "ecs/entity.h"
 #include "ecs/ecs.h"
 #include "nlohmann/json.hpp"
 #include "serialization/json/fwd.h"

@@ -12,7 +12,7 @@
 #include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/assert.h"
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "debug/debug_system.h"
 #include "math/noise.h"
 #include "math/vector2.h"

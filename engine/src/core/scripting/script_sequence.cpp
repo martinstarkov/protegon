@@ -5,8 +5,8 @@
 #include <functional>
 #include <utility>
 
-#include "core/ecs/entity.h"
-#include "core/ecs/entity_hierarchy.h"
+#include "ecs/entity.h"
+#include "ecs/entity_hierarchy.h"
 #include "tween/tween.h"
 #include "world/scene/scene.h"
 

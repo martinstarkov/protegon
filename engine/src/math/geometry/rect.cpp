@@ -3,9 +3,9 @@
 #include <array>
 
 #include "core/assert.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 
@@ -14,7 +14,8 @@ namespace ptgn {
 Rect::Rect(const V2_float& min, const V2_float& max) : min{ min }, max{ max } {}
 
 void Rect::Draw(const Entity& entity) {
-	impl::DrawRect(entity);
+	// TODO: Fix.
+	// impl::DrawRect(entity);
 }
 
 V2_float Rect::GetSize() const {
@@ -45,9 +46,8 @@ std::array<V2_float, 4> Rect::GetLocalVertices() const {
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }
 
-std::array<V2_float, 4> Rect::GetWorldVertices(
-	const Transform& transform, Origin draw_origin
-) const {
+std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform, Origin draw_origin)
+	const {
 	auto offset_transform{ Offset(transform, draw_origin) };
 	auto local_vertices{ GetLocalVertices() };
 	return offset_transform.Apply(local_vertices);

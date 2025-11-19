@@ -15,10 +15,10 @@
 #include "core/app/manager.h"
 #include "core/app/resolution.h"
 #include "core/asset/asset_handle.h"
-#include "core/ecs/components/effects.h"
-#include "core/ecs/components/generic.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/effects.h"
+#include "ecs/components/generic.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
 #include "core/util/time.h"
@@ -27,6 +27,7 @@
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
+#include "renderer/api/flip.h"
 #include "renderer/api/origin.h"
 #include "renderer/text/font.h"
 #include "serialization/json/enum.h"
@@ -35,6 +36,7 @@
 
 namespace ptgn {
 
+class Application;
 class Renderer;
 class Window;
 class Shader;
@@ -72,29 +74,31 @@ struct ViewportResizeScript : public Script<ViewportResizeScript, WindowScript> 
 	Renderer& renderer;
 };
 
-using Index			= std::uint32_t;
-using TextureOrSize = std::variant<std::reference_wrapper<const Handle<Texture>>, V2_int>;
+using Index = std::uint32_t;
+// using TextureOrSize =
+//	std::variant<std::reference_wrapper<const gl::StrongGLHandle<Texture>>, V2_int>;
 
 constexpr std::size_t batch_capacity{ 10000 };
 constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
 constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
-using UniformCallback = void (*)(Entity, gl::GLContext&, const Handle<Shader>&);
+// using UniformCallback = void (*)(Entity, gl::GLContext&, const gl::StrongGLHandle<Shader>&);
+//
+// struct ShaderPass {
+//	bool operator==(const ShaderPass&) const = default;
+//
+//	gl::StrongGLHandle<Shader> shader;
+//	UniformCallback uniform_callback{ nullptr };
+// };
 
-struct ShaderPass {
-	bool operator==(const ShaderPass&) const = default;
-
-	Handle<Shader> shader;
-	UniformCallback uniform_callback{ nullptr };
-};
-
+/*
 class RenderState {
 public:
 	RenderState() = default;
 
 	RenderState(
 		const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera,
-		const PostFX& post_fx = {}
+		const PostFX& post_fx
 	);
 
 	// @return True if the render state is set, false if it has been reset (no shader pass
@@ -107,9 +111,13 @@ public:
 	std::optional<ShaderPass> shader_pass{ ShaderPass{} };
 	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 	Camera camera;
-	PostFX post_fx;
+	// TODO: Fix.
+	// PostFX post_fx;
 };
+*/
 
+// TODO: Fix.
+/*
 struct DrawContext {
 	DrawContext(const V2_int& size, TextureFormat texture_format);
 
@@ -121,7 +129,7 @@ struct DrawContext {
 
 	// Timer used to track age for reuse.
 	Timer timer;
-};
+};*/
 
 /*
  * 1. A spare DrawContext that has the same dimensions.
@@ -130,6 +138,8 @@ struct DrawContext {
  * 4. The oldest spare DrawContext, resized.
  * 5. A new DrawContext, exceeding the maximum pool size.
  */
+// TODO: Fix.
+/*
 class DrawContextPool {
 public:
 	DrawContextPool(milliseconds max_age);
@@ -229,7 +239,7 @@ using DrawCommand = std::variant<
 inline constexpr float min_line_width{ 1.0f };
 inline constexpr std::array<Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
 inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
-
+*/
 [[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
 	return {
 		V2_float{ 0.0f, 0.0f },
@@ -281,6 +291,7 @@ public:
 	// @return The game size scaling mode.
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
+	/*
 	void DrawTexture(
 		const impl::Texture& texture, const Transform& transform, const V2_float& texture_size = {},
 		Origin origin = default_origin, const Tint& tint = {}, const Depth& depth = {},
@@ -423,13 +434,16 @@ public:
 
 	// TODO: figure out if this should be public or private.
 	void Submit(const impl::DrawCommand& command, bool debug = false);
-
+	*/
 private:
+	friend class Application;
 	friend struct impl::ViewportResizeScript;
+
+	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
+	/*
 
 	void AddTemporaryTexture(Texture&& texture);
 
-	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
 
 	void DrawCommand(const impl::DrawCommand& cmd);
 	void DrawLines(const impl::DrawLinesCommand& cmd);
@@ -447,6 +461,7 @@ private:
 
 	static void InvokeDrawable(const Entity& entity);
 	static void InvokeDrawFilter(RenderTarget& render_target, FilterType type);
+	*/
 
 	/*
 	 * Applies a sequence of shader effects (e.g., post-processing passes) by ping-ponging between
@@ -472,11 +487,13 @@ private:
 	 *
 	 * @warning The input container must not be empty. An assertion will fail if it is.
 	 */
+	/*
 	[[nodiscard]] impl::TextureId PingPong(
 		const std::vector<Entity>& container,
 		const std::shared_ptr<impl::DrawContext>& read_context, impl::TextureId id,
 		impl::DrawTarget target, bool flip_vertices
 	);
+	*/
 
 	/**
 	 * Issues a low-level draw call with the given vertex and index data, rendering to the specified
@@ -496,19 +513,20 @@ private:
 	 * @param viewport            The portion of the framebuffer to draw to.
 	 * @param view_projection     The matrix used to transform vertex positions into screen space.
 	 */
+	/*
 	void DrawCall(
 		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
 		const std::vector<TextureId>& textures, const FrameBuffer* frame_buffer,
 		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
 		const Viewport& viewport, const Matrix4& view_projection
 	);
-
+	*/
 	void Reset();
 
-	[[nodiscard]] const Shader& GetCurrentShader() const;
+	//[[nodiscard]] const Shader& GetCurrentShader() const;
 
 	// @return True if the render state changed, false otherwise.
-	bool SetState(const RenderState& new_render_state);
+	// bool SetState(const RenderState& new_render_state);
 
 	void RecomputeDisplaySize(const V2_int& window_size);
 
@@ -527,7 +545,7 @@ private:
 		const std::function<bool(const Entity&)>& filter = {}, bool draw_debug = false
 	);
 
-	void FlushDrawQueue(TextureId id, bool draw_debug);
+	// void FlushDrawQueue(TextureId id, bool draw_debug);
 
 	void SetDrawingTo(const RenderTarget& render_target);
 
@@ -537,14 +555,14 @@ private:
 	// the scene.
 	void ClearRenderTargets(Scene& scene) const;
 
-	Handle<Shader> GetFullscreenShader(bool hdr) const;
+	// Handle<Shader> GetFullscreenShader(bool hdr) const;
 
-	std::vector<impl::DrawCommand> debug_queue_;
-	std::unordered_map<TextureId, std::vector<impl::DrawCommand>> draw_queues_;
+	// std::vector<impl::DrawCommand> debug_queue_;
+	// std::unordered_map<TextureId, std::vector<impl::DrawCommand>> draw_queues_;
 
-	std::shared_ptr<DrawContext> intermediate_target;
+	// std::shared_ptr<DrawContext> intermediate_target;
 
-	DrawTarget drawing_to_;
+	// DrawTarget drawing_to_;
 
 	// TODO: Clean this up.
 	// If true, will flush on the next state change regardless of state being new or not.
@@ -557,14 +575,15 @@ private:
 
 	// Allow for creation of targets before window has been initialized.
 	V2_int game_size_{ 1, 1 };
-	Viewport display_viewport_{ {}, { 1, 1 } };
+	// Viewport display_viewport_{ {}, { 1, 1 } };
 
 	bool game_size_changed_{ true };
 	bool display_size_changed_{ false };
 
-	RenderTarget screen_target_;
+	// RenderTarget screen_target_;
 	Entity viewport_tracker;
 
+	/*
 	std::vector<Texture> temporary_textures;
 	DrawContextPool draw_context_pool{ seconds{ 1 } };
 	Manager render_manager;
@@ -583,6 +602,7 @@ private:
 		const TextColor& color, const FontSize& font_size, const ResourceHandle& font_key,
 		const TextProperties& properties, bool hd_text, const Camera& camera
 	);
+	*/
 
 	// Present the screen target to the window.
 	void PresentScreen();

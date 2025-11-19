@@ -1,8 +1,8 @@
 #include <string>
 
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/sprite.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/app/window.h"
 #include "math/vector2.h"
@@ -11,7 +11,7 @@
 #include "renderer/text/font.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
-#include "renderer/material/texture.h"
+
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/ecs/components/transform.h"
+#include "ecs/components/transform.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"

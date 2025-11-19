@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "math/geometry/shape.h"
 #include "math/vector2.h"
 #include "serialization/json/enum.h"

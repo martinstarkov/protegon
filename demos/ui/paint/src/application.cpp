@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"

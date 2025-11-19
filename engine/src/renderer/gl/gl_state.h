@@ -78,8 +78,9 @@ struct CullState {
 
 struct State {
 	// Core object bindings
-	GLuint frame_buffer{ 0 };
-	GLuint render_buffer{ 0 };
+	GLuint framebuffer{ 0 };
+	GLuint renderbuffer{ 0 };
+	GLuint vertex_buffer{ 0 };
 	GLuint uniform_buffer{ 0 };
 	GLuint shader{ 0 };
 	GLuint vertex_array{ 0 };

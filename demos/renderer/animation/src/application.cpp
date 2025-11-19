@@ -1,4 +1,4 @@
-#include "core/ecs/components/animation.h"
+#include "ecs/components/animation.h"
 #include "core/app/application.h"
 #include "core/scripting/script.h"
 #include "core/util/time.h"

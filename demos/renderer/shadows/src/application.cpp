@@ -2,13 +2,13 @@
 #include <optional>
 #include <vector>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/effects.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/effects.h"
+#include "ecs/components/sprite.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
-#include "core/ecs/game_object.h"
+#include "ecs/game_object.h"
 #include "core/app/manager.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"

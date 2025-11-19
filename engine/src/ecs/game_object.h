@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/util/concepts.h"
 
 namespace ptgn {

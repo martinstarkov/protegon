@@ -1,6 +1,6 @@
 
-#include "core/ecs/components/animation.h"
-#include "core/ecs/components/transform.h"
+#include "ecs/components/animation.h"
+#include "ecs/components/transform.h"
 #include "core/app/application.h"
 #include "core/app/window.h"
 #include "world/scene/scene.h"

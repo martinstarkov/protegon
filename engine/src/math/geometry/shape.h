@@ -4,7 +4,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/ecs/components/transform.h"
+#include "ecs/components/transform.h"
 #include "math/geometry/arc.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"

@@ -11,7 +11,7 @@
 
 #include "core/app/manager.h"
 #include "core/assert.h"
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/scripting/script.h"
 #include "core/util/time.h"
 #include "math/easing.h"

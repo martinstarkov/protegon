@@ -3,16 +3,16 @@
 #include <array>
 
 #include "core/assert.h"
-#include "core/ecs/components/draw.h"
+#include "ecs/components/draw.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/flip.h"
-#include "renderer/material/texture.h"
+#include "renderer/renderer.h"
 
 namespace ptgn::impl {
 
 std::array<Vertex, 3> Vertex::GetTriangle(
-	const std::array<V2_float, 3>& triangle_points, const Color& color, const Depth& depth
+	const std::array<V2_float, 3>& triangle_points, const Color& color, float depth
 ) {
 	constexpr std::array<V2_float, 3> texture_coordinates{
 		V2_float{ 0.0f, 0.0f }, // lower-left corner
@@ -28,8 +28,7 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < triangle_points.size(); i++) {
-		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y,
-								  static_cast<float>(depth) };
+		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y, depth };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
 	}
@@ -38,7 +37,7 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 }
 
 std::array<Vertex, 4> Vertex::GetQuad(
-	const std::array<V2_float, 4>& quad_points, const Color& color, const Depth& depth,
+	const std::array<V2_float, 4>& quad_points, const Color& color, float depth,
 	const std::array<float, 4>& data, std::array<V2_float, 4> texture_coordinates,
 	bool flip_vertices
 ) {
@@ -54,7 +53,7 @@ std::array<Vertex, 4> Vertex::GetQuad(
 	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
-		vertices[i].position  = { quad_points[i].x, quad_points[i].y, static_cast<float>(depth) };
+		vertices[i].position  = { quad_points[i].x, quad_points[i].y, depth };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
 		vertices[i].data	  = data;

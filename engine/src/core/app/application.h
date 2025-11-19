@@ -40,7 +40,7 @@ public:
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(const SceneKey& key, TransitionIn&& transition_in, TArgs&&... args) {
 		// Initialize the first scene using the SceneManager.
-		scene_.SwitchTo<TScene>(
+		scenes_.SwitchTo<TScene>(
 			key,
 			std::make_unique<std::remove_cvref_t<TransitionIn>>(
 				std::forward<TransitionIn>(transition_in)
@@ -49,7 +49,7 @@ public:
 		);
 
 		// Flush queued ops so the first scene becomes active before main loop.
-		scene_.Update(0.0);
+		scenes_.Update(0.0);
 
 		EnterMainLoop();
 	}
@@ -79,15 +79,15 @@ private:
 
 	SDLInstance sdl_;
 
-	// TODO: Make a no-op version of this for release modes.
-	impl::DebugSystem debug_;
-
 	Window window_;
-	Renderer render_;
+	Renderer renderer_;
 	SceneManager scenes_;
 	InputHandler input_;
 
 	AssetManager assets_;
+
+	// TODO: Make a no-op version of this for release modes.
+	impl::DebugSystem debug_;
 
 	// EventRegistry events_;
 

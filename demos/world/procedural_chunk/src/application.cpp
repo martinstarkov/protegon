@@ -1,10 +1,10 @@
 
 #include <string_view>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/movement.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
@@ -13,7 +13,7 @@
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/material/texture.h"
+
 #include "world/scene/camera.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"

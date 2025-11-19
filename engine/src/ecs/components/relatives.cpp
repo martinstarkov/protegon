@@ -1,10 +1,10 @@
-#include "core/ecs/components/relatives.h"
+#include "ecs/components/relatives.h"
 
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "core/log.h"
 #include "core/util/span.h"
 

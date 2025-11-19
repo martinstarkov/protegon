@@ -7,9 +7,9 @@
 #include "core/app/application.h"
 #include "core/app/manager.h"
 #include "core/assert.h"
-#include "core/ecs/components/offsets.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/offsets.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/log.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
@@ -374,15 +374,17 @@ void CameraInstance::RecalculateProjection() const {
 }
 
 void CameraGameSizeResizeScript::OnGameSizeChanged() {
-	auto game_size{ Application::Get().render_.GetGameSize() };
-	Camera::Resize(entity, game_size, false, false);
+	// TODO: Fix.
+	// auto game_size{ Application::Get().render_.GetGameSize() };
+	Camera::Resize(entity, {} /*game_size*/, false, false);
 }
 
 } // namespace impl
 
 void Camera::Subscribe() {
 	TryAddScript<impl::CameraGameSizeResizeScript>(*this);
-	V2_int game_size{ Application::Get().render_.GetGameSize() };
+	// TODO: Fix.
+	V2_int game_size{ /*Application::Get().render_.GetGameSize()*/ };
 	Resize(*this, game_size, false, false);
 }
 

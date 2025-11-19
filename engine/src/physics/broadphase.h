@@ -5,7 +5,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/ecs/entity.h"
+#include "ecs/entity.h"
 #include "math/vector2.h"
 #include "physics/bounding_aabb.h"
 

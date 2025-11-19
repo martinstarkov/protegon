@@ -16,7 +16,7 @@
 #include "core/app/resolution.h"
 #include "core/app/window.h"
 #include "core/assert.h"
-#include "core/ecs/components/transform.h"
+#include "ecs/components/transform.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/log.h"
@@ -313,7 +313,7 @@ V2_float InputHandler::GetPositionRelativeTo(
 			return WindowToWorld(game_scale, rt_transform, window_point, current->camera);
 		}
 		case ViewportType::Game: {
-			auto game_scale{ render_->GetScale() };
+			auto game_scale{ renderer_.GetScale() };
 			auto game_point{ WindowToGame(game_scale, window_point) };
 			if (clamp_to_viewport) {
 				auto game_size{ renderer_.GetGameSize() };
@@ -325,7 +325,7 @@ V2_float InputHandler::GetPositionRelativeTo(
 		case ViewportType::Display: {
 			auto display_point{ WindowToDisplay(window_point) };
 			if (clamp_to_viewport) {
-				auto display_size{ render_->GetDisplaySize() };
+				auto display_size{ renderer_.GetDisplaySize() };
 				auto half_size{ display_size * 0.5f };
 				display_point = Clamp(display_point, -half_size, half_size);
 			}
@@ -356,15 +356,13 @@ V2_float InputHandler::GetMousePosition(ViewportType relative_to, bool clamp_to_
 	return GetPositionRelativeTo(mouse_window_pos, relative_to, clamp_to_viewport);
 }
 
-V2_float InputHandler::GetMousePositionPrevious(
-	ViewportType relative_to, bool clamp_to_viewport
-) const {
+V2_float InputHandler::GetMousePositionPrevious(ViewportType relative_to, bool clamp_to_viewport)
+	const {
 	return GetPositionRelativeTo(previous_mouse_position_, relative_to, clamp_to_viewport);
 }
 
-V2_float InputHandler::GetMousePositionDifference(
-	ViewportType relative_to, bool clamp_to_viewport
-) const {
+V2_float InputHandler::GetMousePositionDifference(ViewportType relative_to, bool clamp_to_viewport)
+	const {
 	return GetMousePosition(relative_to, clamp_to_viewport) -
 		   GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }

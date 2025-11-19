@@ -4,7 +4,7 @@
 #include <functional>
 
 #include "core/assert.h"
-#include "core/ecs/components/transform.h"
+#include "ecs/components/transform.h"
 #include "math/tolerance.h"
 #include "math/vector3.h"
 #include "math/vector4.h"

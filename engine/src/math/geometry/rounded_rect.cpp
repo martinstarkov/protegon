@@ -3,9 +3,9 @@
 #include <array>
 
 #include "core/assert.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
@@ -19,7 +19,8 @@ RoundedRect::RoundedRect(const V2_float& size, float radius) :
 	min{ -size * 0.5f }, max{ size * 0.5f }, radius{ radius } {}
 
 void RoundedRect::Draw(const Entity& entity) {
-	impl::DrawRoundedRect(entity);
+	// TODO: Fix.
+	// impl::DrawRoundedRect(entity);
 }
 
 V2_float RoundedRect::GetSize() const {

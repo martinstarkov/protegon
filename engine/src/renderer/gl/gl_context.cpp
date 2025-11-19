@@ -1,5 +1,6 @@
 #include "renderer/gl/gl_context.h"
 
+#include <cmrc/cmrc.hpp>
 #include <ostream>
 #include <regex>
 
@@ -86,6 +87,8 @@ static void LoadGLFunctions() {
 	PTGN_INFO("Loaded all OpenGL functions");
 #endif
 }
+
+// TODO: Move all this code to a shader parsing file.
 
 using Header = std::string;
 
@@ -400,25 +403,25 @@ static std::vector<ShaderTypeSource> ParseShader(
 	return output;
 }
 
-void GLContext::CompileShaders(const std::vector<ShaderTypeSource>& sources, ShaderCaches& cache)
-	const {
+void GLContext::CompileShaders(
+	const std::vector<ShaderTypeSource>& sources, IdMap<std::size_t, GLuint>& vertex_shaders,
+	IdMap<std::size_t, GLuint>& fragment_shaders
+) const {
 	for (const auto& sts : sources) {
 		auto hash{ Hash(sts.name) };
 		auto shader_id{ CompileShaderFromSource(sts.type, sts.source.source) };
 		switch (sts.type) {
 			case GL_FRAGMENT_SHADER:
 				PTGN_ASSERT(
-					!cache.fragment_shaders.contains(hash),
-					"Cannot add shader to cache twice: ", sts.name
+					!fragment_shaders.Has(hash), "Cannot add shader to cache twice: ", sts.name
 				);
-				cache.fragment_shaders.try_emplace(hash, shader_id);
+				fragment_shaders.Add(hash, std::move(shader_id));
 				break;
 			case GL_VERTEX_SHADER:
 				PTGN_ASSERT(
-					!cache.vertex_shaders.contains(hash),
-					"Cannot add shader to cache twice: ", sts.name
+					!vertex_shaders.Has(hash), "Cannot add shader to cache twice: ", sts.name
 				);
-				cache.vertex_shaders.try_emplace(hash, shader_id);
+				vertex_shaders.Add(hash, std::move(shader_id));
 				break;
 			default: PTGN_ERROR("Unknown shader type");
 		}
@@ -443,9 +446,10 @@ static void SubstituteShaderTokens(
 }
 
 void GLContext::PopulateShaderCache(
-	const cmrc::embedded_filesystem& filesystem, ShaderCaches& cache, std::size_t max_texture_slots
+	const cmrc::embedded_filesystem& filesystem, IdMap<std::size_t, GLuint>& vertex_shaders,
+	IdMap<std::size_t, GLuint>& fragment_shaders, std::size_t max_texture_slots
 ) const {
-	std::string subdir{ "common/" };
+	const std::string subdir{ "common/" };
 	auto dir{ filesystem.iterate_directory(subdir) };
 
 	std::vector<ShaderTypeSource> sources;
@@ -463,7 +467,7 @@ void GLContext::PopulateShaderCache(
 	}
 
 	SubstituteShaderTokens(sources, max_texture_slots);
-	CompileShaders(sources, cache);
+	CompileShaders(sources, vertex_shaders, fragment_shaders);
 }
 
 static json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
@@ -486,25 +490,25 @@ static json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
 }
 
 GLuint GLContext::CompileShaderFromSource(GLenum type, const std::string& source) const {
-	GLuint id{ GLCallReturn(gl::CreateShader(type)) };
+	GLuint id{ GLCallReturn(::CreateShader(type)) };
 
 	auto src{ source.c_str() };
 
-	GLCall(gl::ShaderSource(id, 1, &src, nullptr));
-	GLCall(gl::CompileShader(id));
+	GLCall(ShaderSource(id, 1, &src, nullptr));
+	GLCall(::CompileShader(id));
 
 	// Check for shader compilation errors.
 	std::int32_t result{ GL_FALSE };
-	GLCall(gl::GetShaderiv(id, GL_COMPILE_STATUS, &result));
+	GLCall(GetShaderiv(id, GL_COMPILE_STATUS, &result));
 
 	if (result == GL_FALSE) {
 		std::int32_t length{ 0 };
-		GLCall(gl::GetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
+		GLCall(GetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
 		std::string log;
 		log.resize(static_cast<std::size_t>(length));
-		GLCall(gl::GetShaderInfoLog(id, length, &length, &log[0]));
+		GLCall(GetShaderInfoLog(id, length, &length, &log[0]));
 
-		GLCall(gl::DeleteShader(id));
+		GLCall(DeleteShader(id));
 
 		PTGN_ERROR("Failed to compile ", type, " shader: \n", source, "\n", log);
 	}
@@ -537,32 +541,27 @@ void GLContext::PopulateShadersFromCache(const json& manifest) {
 		auto frag_hash{ Hash(fragment_name) };
 
 		PTGN_ASSERT(
-			shader_cache_.vertex_shaders.contains(vert_hash), "Vertex shader: ", vertex_name,
-			" for ", shader_name, " not found in shader directory"
+			vertex_shaders_.Has(vert_hash), "Vertex shader: ", vertex_name, " for ", shader_name,
+			" not found in shader directory"
 		);
 
 		PTGN_ASSERT(
-			shader_cache_.fragment_shaders.contains(frag_hash), "Fragment shader: ", fragment_name,
-			" for ", shader_name, " not found in shader directory"
+			fragment_shaders_.Has(frag_hash), "Fragment shader: ", fragment_name, " for ",
+			shader_name, " not found in shader directory"
 		);
 
-		auto vert_it{ shader_cache_.vertex_shaders.find(vert_hash) };
-		auto frag_it{ shader_cache_.fragment_shaders.find(frag_hash) };
-
-		GLuint vert_id{ vert_it->second };
-		GLuint frag_id{ frag_it->second };
+		auto vert_id{ vertex_shaders_.Get(vert_hash) };
+		auto frag_id{ fragment_shaders_.Get(frag_hash) };
 
 		auto hash{ Hash(shader_name) };
 
-		auto shader			= MakeGLResource<Shader, ShaderResource>();
-		shader->id			= GLCallReturn(CreateProgram());
-		shader->shader_name = shader_name;
+		PTGN_ASSERT(!shaders_.Has(hash), "Shader names in the manifest must be unique");
 
-		LinkShader(shader->id, vert_id, frag_id);
+		auto shader{ CreateShaderImpl(shader_name) };
 
-		PTGN_ASSERT(shader->id != 0, "Failed to create shader");
+		LinkShader(shader, vert_id, frag_id);
 
-		shaders_.emplace(hash, std::move(shader));
+		shaders_.Add(hash, std::move(shader));
 	}
 }
 
@@ -596,31 +595,30 @@ GLuint GLContext::CompileShaderPath(
 }
 
 void GLContext::LinkShader(GLuint id, GLuint vertex, GLuint fragment) {
-	// TODO: Fix.
-	// resource->location_cache.clear();
+	shader_cache_.Get(id).uniform_locations.Clear();
 
 	PTGN_ASSERT(vertex);
 	PTGN_ASSERT(fragment);
 
-	GLCall(gl::AttachShader(id, vertex));
-	GLCall(gl::AttachShader(id, fragment));
-	GLCall(gl::LinkProgram(id));
+	GLCall(AttachShader(id, vertex));
+	GLCall(AttachShader(id, fragment));
+	GLCall(LinkProgram(id));
 
 	// Check for shader link errors.
 	std::int32_t linked{ GL_FALSE };
-	GLCall(gl::GetProgramiv(id, GL_LINK_STATUS, &linked));
+	GLCall(GetProgramiv(id, GL_LINK_STATUS, &linked));
 
 	if (linked == GL_FALSE) {
 		std::int32_t length{ 0 };
-		GLCall(gl::GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
+		GLCall(GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
 		std::string log;
 		log.resize(static_cast<std::size_t>(length));
-		GLCall(gl::GetProgramInfoLog(id, length, &length, &log[0]));
+		GLCall(GetProgramInfoLog(id, length, &length, &log[0]));
 
-		GLCall(gl::DeleteProgram(id));
+		GLCall(DeleteProgram(id));
 
-		GLCall(gl::DeleteShader(vertex));
-		GLCall(gl::DeleteShader(fragment));
+		GLCall(DeleteShader(vertex));
+		GLCall(DeleteShader(fragment));
 
 		PTGN_ERROR(
 			"Failed to link shaders to program:\nVertex : ", vertex, "\nFragment : ", fragment,
@@ -628,7 +626,7 @@ void GLContext::LinkShader(GLuint id, GLuint vertex, GLuint fragment) {
 		);
 	}
 
-	GLCall(gl::ValidateProgram(id));
+	GLCall(ValidateProgram(id));
 }
 
 void GLContext::CompileShader(
@@ -640,25 +638,25 @@ void GLContext::CompileShader(
 	GLuint fragment{ CompileShaderFromSource(GL_FRAGMENT_SHADER, fragment_source) };
 
 	if (vertex && fragment) {
-		GLCall(gl::AttachShader(id, vertex));
-		GLCall(gl::AttachShader(id, fragment));
-		GLCall(gl::LinkProgram(id));
+		GLCall(AttachShader(id, vertex));
+		GLCall(AttachShader(id, fragment));
+		GLCall(LinkProgram(id));
 
 		// Check for shader link errors.
 		std::int32_t linked{ GL_FALSE };
-		GLCall(gl::GetProgramiv(id, GL_LINK_STATUS, &linked));
+		GLCall(GetProgramiv(id, GL_LINK_STATUS, &linked));
 
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
-			GLCall(gl::GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
+			GLCall(GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
 			std::string log;
 			log.resize(static_cast<std::size_t>(length));
-			GLCall(gl::GetProgramInfoLog(id, length, &length, &log[0]));
+			GLCall(GetProgramInfoLog(id, length, &length, &log[0]));
 
-			GLCall(gl::DeleteProgram(id));
+			GLCall(DeleteProgram(id));
 
-			GLCall(gl::DeleteShader(vertex));
-			GLCall(gl::DeleteShader(fragment));
+			GLCall(DeleteShader(vertex));
+			GLCall(DeleteShader(fragment));
 
 			PTGN_ERROR(
 				"Failed to link shaders to program: \n", vertex_source, "\n", fragment_source, "\n",
@@ -666,15 +664,15 @@ void GLContext::CompileShader(
 			);
 		}
 
-		GLCall(gl::ValidateProgram(id));
+		GLCall(ValidateProgram(id));
 	}
 
 	if (vertex) {
-		GLCall(gl::DeleteShader(vertex));
+		GLCall(DeleteShader(vertex));
 	}
 
 	if (fragment) {
-		GLCall(gl::DeleteShader(fragment));
+		GLCall(DeleteShader(fragment));
 	}
 }
 
@@ -702,7 +700,7 @@ GLContext::GLContext(SDL_Window* window) {
 
 	LoadGLFunctions();
 
-	// PTGN_LOG("OpenGL Build: ", GLCall(gl::glGetString(GL_VERSION)));
+	// PTGN_LOG("OpenGL Build: ", GLCall(glGetString(GL_VERSION)));
 
 	auto max_texture_slots{ GetInteger<GLuint>(GL_MAX_TEXTURE_IMAGE_UNITS) };
 	PTGN_ASSERT(max_texture_slots > 0);
@@ -710,7 +708,7 @@ GLContext::GLContext(SDL_Window* window) {
 
 	auto fs{ cmrc::shader::get_filesystem() };
 
-	PopulateShaderCache(fs, shader_cache_, max_texture_slots);
+	PopulateShaderCache(fs, vertex_shaders_, fragment_shaders_, max_texture_slots);
 
 	auto manifest = GetShaderManifest(fs);
 
@@ -719,15 +717,16 @@ GLContext::GLContext(SDL_Window* window) {
 
 GLContext::~GLContext() {
 	const auto delete_shaders = [](const auto& container) {
-		for (const auto& [_, id] : container) {
+		for (auto id : container) {
 			if (id) {
-				GLCall(gl::DeleteShader(id));
+				GLCall(DeleteShader(id));
 			}
 		}
 	};
 
-	delete_shaders(shader_cache_.vertex_shaders);
-	delete_shaders(shader_cache_.fragment_shaders);
+	// Delete cached vertex and fragment shaders.
+	delete_shaders(vertex_shaders_);
+	delete_shaders(fragment_shaders_);
 
 	if (context_) {
 		SDL_GL_DeleteContext(context_);

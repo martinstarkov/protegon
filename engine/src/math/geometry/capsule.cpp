@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/geometry/rect.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
@@ -15,7 +15,8 @@ Capsule::Capsule(const V2_float& start, const V2_float& end, float radius) :
 	start{ start }, end{ end }, radius{ radius } {}
 
 void Capsule::Draw(const Entity& entity) {
-	impl::DrawCapsule(entity);
+	// TODO: Fix.
+	// impl::DrawCapsule(entity);
 }
 
 std::array<V2_float, 4> Capsule::GetWorldQuadVertices(

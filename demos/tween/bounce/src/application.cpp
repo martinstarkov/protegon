@@ -1,5 +1,5 @@
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/sprite.h"
+#include "ecs/entity.h"
 #include "core/app/application.h"
 #include "core/util/time.h"
 #include "core/input/input_handler.h"

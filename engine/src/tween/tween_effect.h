@@ -6,11 +6,11 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/ecs/entity_hierarchy.h"
-#include "core/ecs/game_object.h"
+#include "ecs/components/movement.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
+#include "ecs/entity_hierarchy.h"
+#include "ecs/game_object.h"
 #include "core/util/time.h"
 #include "math/easing.h"
 #include "math/tolerance.h"

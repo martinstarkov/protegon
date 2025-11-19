@@ -4,8 +4,8 @@
 #include <ostream>
 
 #include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/log.h"

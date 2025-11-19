@@ -1,8 +1,8 @@
 #include "core/app/application.h"
 
 #include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/transform.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/transform.h"
 #include "core/log.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"

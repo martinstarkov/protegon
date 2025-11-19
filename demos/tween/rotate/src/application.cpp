@@ -1,4 +1,4 @@
-#include "core/ecs/components/sprite.h"
+#include "ecs/components/sprite.h"
 #include "core/app/application.h"
 #include "core/input/input_handler.h"
 #include "world/scene/scene.h"

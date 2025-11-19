@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -24,9 +25,21 @@ struct TextureCache {
 	GLenum internal_format{ GL_RGBA8 };
 };
 
+struct AttachmentInfo {
+	GLuint id	= 0;
+	GLenum type = 0; // GL_TEXTURE_2D, GL_RENDERBUFFER, or 0 (none)
+};
+
 struct FrameBufferCache {
-	GLuint texture{ 0 };
-	GLuint render_buffer{ 0 };
+	std::array<AttachmentInfo, 8> color;
+	AttachmentInfo depth;
+	AttachmentInfo stencil;
+	AttachmentInfo depth_stencil;
+};
+
+struct VertexArrayCache {
+	GLuint element_buffer{ 0 };
+	bool layout_set{ false };
 };
 
 // Wrapper for distinguishing between Shader from path construction and Shader

@@ -5,8 +5,8 @@
 #include <utility>
 #include <vector>
 
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "math/geometry/rect.h"
 #include "math/raycast.h"
 #include "math/vector2.h"

@@ -4,8 +4,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/ecs/entity.h"
-#include "core/ecs/game_object.h"
+#include "ecs/entity.h"
+#include "ecs/game_object.h"
 #include "math/vector2.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serializable.h"

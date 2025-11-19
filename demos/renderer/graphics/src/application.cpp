@@ -1,4 +1,4 @@
-#include "core/ecs/components/movement.h"
+#include "ecs/components/movement.h"
 #include "core/app/application.h"
 #include "renderer/vfx/graphics.h"
 #include "world/scene/scene.h"

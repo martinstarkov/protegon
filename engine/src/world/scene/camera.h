@@ -4,8 +4,8 @@
 #include <ostream>
 
 #include "core/app/manager.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/scripting/script.h"
 #include "core/scripting/script_interfaces.h"
 #include "math/matrix4.h"

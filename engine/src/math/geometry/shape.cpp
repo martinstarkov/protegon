@@ -6,10 +6,10 @@
 #include <variant>
 #include <vector>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/sprite.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
 #include "core/log.h"
 #include "core/util/concepts.h"
 #include "core/util/span.h"
@@ -24,7 +24,6 @@
 #include "math/geometry/triangle.h"
 #include "math/geometry_utils.h"
 #include "math/vector2.h"
-#include "renderer/material/texture.h"
 
 namespace ptgn {
 
@@ -61,8 +60,10 @@ Transform OffsetByOrigin(const Shape& shape, const Transform& transform, const E
 		return transform;
 	}
 	const Rect& rect{ std::get<Rect>(shape) };
-	auto draw_origin{ GetDrawOrigin(entity) };
-	return rect.Offset(transform, draw_origin);
+	// TODO: Fix.
+	// auto draw_origin{ GetDrawOrigin(entity) };
+	// return rect.Offset(transform, draw_origin);
+	return {};
 }
 
 template <typename Variant, typename... Ts>
@@ -82,9 +83,10 @@ static std::optional<Variant> GetFirstMatchingVariant(const Entity& entity) {
 }
 
 std::optional<Shape> GetSpriteOrShape(const Entity& entity) {
-	if (entity.Has<TextureHandle>()) {
-		return Rect{ Sprite{ entity }.GetDisplaySize() };
-	}
+	// TODO: Fix.
+	// if (entity.Has<TextureHandle>()) {
+	//	return Rect{ Sprite{ entity }.GetDisplaySize() };
+	//}
 	return GetShape(entity);
 }
 
