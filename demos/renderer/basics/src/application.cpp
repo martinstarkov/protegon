@@ -1,20 +1,21 @@
 
-#include "ecs/components/draw.h"
-#include "ecs/components/drawable.h"
-#include "ecs/components/sprite.h"
 #include "core/app/application.h"
-#include "core/scripting/script.h"
+
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/scripting/script.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/drawable.h"
+#include "ecs/components/sprite.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
+#include "renderer/material/shader.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "renderer/material/shader.h"
 #include "renderer/vfx/light.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -74,7 +75,7 @@ void SetWhirlpoolUniform(Entity entity, const Shader& shader) {
 }
 
 Entity CreateWhirlpoolEffect(
-	Scene& scene, const WhirlpoolInfo& info = {}, const Color& tint = color::DarkGray
+	Scene& scene, const WhirlpoolInfo& info = {}, Color tint = color::DarkGray
 ) {
 	auto effect{ scene.CreateEntity() };
 

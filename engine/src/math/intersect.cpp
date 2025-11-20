@@ -163,8 +163,8 @@ Intersection IntersectCirclePolygon(
 
 	// Check each edge of the polygon
 	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
-		const V2_float& a{ polygon_vertices[i] };
-		const V2_float& b{ polygon_vertices[(i + 1) % polygon_vertex_count] };
+		V2_float a{ polygon_vertices[i] };
+		V2_float b{ polygon_vertices[(i + 1) % polygon_vertex_count] };
 		V2_float edge{ b - a };
 		V2_float edge_normal{ edge.Skewed().Normalized() }; // outward normal
 

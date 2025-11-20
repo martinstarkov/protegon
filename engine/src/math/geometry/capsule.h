@@ -12,7 +12,7 @@ struct Transform;
 struct Capsule {
 	Capsule() = default;
 
-	Capsule(const V2_float& start, const V2_float& end, float radius);
+	Capsule(V2_float start, V2_float end, float radius);
 
 	// @param out_size Optional parameter for the unrotated size of the quad.
 	// @return Quad vertices relative to the given transform for this line with a given a line

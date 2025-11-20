@@ -27,12 +27,10 @@ void from_json(const json& j, Matrix4& matrix) {
 	}
 }
 
-Matrix4 Matrix4::LookAt(
-	const Vector3<float>& position, const Vector3<float>& target, const Vector3<float>& up
-) {
-	Vector3<float> dir{ (target - position).Normalized() };
-	Vector3<float> right{ (dir.Cross(up)).Normalized() };
-	Vector3<float> up_n{ right.Cross(dir) };
+Matrix4 Matrix4::LookAt(V3_float position, V3_float target, V3_float up) {
+	V3_float dir{ (target - position).Normalized() };
+	V3_float right{ (dir.Cross(up)).Normalized() };
+	V3_float up_n{ right.Cross(dir) };
 
 	Matrix4 result{ 1.0f };
 	result[0]  = right.x;
@@ -78,31 +76,31 @@ Matrix4 Matrix4::Inverse() const {
 	float coef22{ m_[4] * m_[13] - m_[12] * m_[5] };
 	float coef23{ m_[4] * m_[9] - m_[8] * m_[5] };
 
-	Vector4 fac0{ coef00, coef00, coef02, coef03 };
-	Vector4 fac1{ coef04, coef04, coef06, coef07 };
-	Vector4 fac2{ coef08, coef08, coef10, coef11 };
-	Vector4 fac3{ coef12, coef12, coef14, coef15 };
-	Vector4 fac4{ coef16, coef16, coef18, coef19 };
-	Vector4 fac5{ coef20, coef20, coef22, coef23 };
+	V4_float fac0{ coef00, coef00, coef02, coef03 };
+	V4_float fac1{ coef04, coef04, coef06, coef07 };
+	V4_float fac2{ coef08, coef08, coef10, coef11 };
+	V4_float fac3{ coef12, coef12, coef14, coef15 };
+	V4_float fac4{ coef16, coef16, coef18, coef19 };
+	V4_float fac5{ coef20, coef20, coef22, coef23 };
 
-	Vector4 vec0{ m_[4], m_[0], m_[0], m_[0] };
-	Vector4 vec1{ m_[5], m_[1], m_[1], m_[1] };
-	Vector4 vec2{ m_[6], m_[2], m_[2], m_[2] };
-	Vector4 vec3{ m_[7], m_[3], m_[3], m_[3] };
+	V4_float vec0{ m_[4], m_[0], m_[0], m_[0] };
+	V4_float vec1{ m_[5], m_[1], m_[1], m_[1] };
+	V4_float vec2{ m_[6], m_[2], m_[2], m_[2] };
+	V4_float vec3{ m_[7], m_[3], m_[3], m_[3] };
 
-	Vector4 inv0{ vec1 * fac0 - vec2 * fac1 + vec3 * fac2 };
-	Vector4 inv1{ vec0 * fac0 - vec2 * fac3 + vec3 * fac4 };
-	Vector4 inv2{ vec0 * fac1 - vec1 * fac3 + vec3 * fac5 };
-	Vector4 inv3{ vec0 * fac2 - vec1 * fac4 + vec2 * fac5 };
+	V4_float inv0{ vec1 * fac0 - vec2 * fac1 + vec3 * fac2 };
+	V4_float inv1{ vec0 * fac0 - vec2 * fac3 + vec3 * fac4 };
+	V4_float inv2{ vec0 * fac1 - vec1 * fac3 + vec3 * fac5 };
+	V4_float inv3{ vec0 * fac2 - vec1 * fac4 + vec2 * fac5 };
 
-	Vector4 signA{ +1, -1, +1, -1 };
-	Vector4 signB{ -1, +1, -1, +1 };
+	V4_float signA{ +1, -1, +1, -1 };
+	V4_float signB{ -1, +1, -1, +1 };
 
 	Matrix4 inverse{ inv0 * signA, inv1 * signB, inv2 * signA, inv3 * signB };
 
-	Vector4 row0{ inverse[0], inverse[4], inverse[8], inverse[12] };
+	V4_float row0{ inverse[0], inverse[4], inverse[8], inverse[12] };
 
-	Vector4 dot0{ m_[0] * row0 };
+	V4_float dot0{ m_[0] * row0 };
 	float determinant{ dot0.x + dot0.y + dot0.z + dot0.w };
 
 	Matrix4 result{ inverse * 1.0f / determinant };
@@ -111,8 +109,7 @@ Matrix4 Matrix4::Inverse() const {
 }
 
 Matrix4 Matrix4::MakeTransform(
-	const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
-	const Vector3<float>& scale
+	V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
 ) {
 	Matrix4 m{ Matrix4::Identity() };
 
@@ -123,9 +120,7 @@ Matrix4 Matrix4::MakeTransform(
 	return m;
 }
 
-Matrix4 Matrix4::MakeTransform(
-	const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
-) {
+Matrix4 Matrix4::MakeTransform(V2_float position, float rotation_radians, V2_float scale) {
 	return MakeTransform(
 		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
 		{ scale.x, scale.y, 1.0f }
@@ -137,8 +132,7 @@ Matrix4 Matrix4::MakeTransform(const Transform& transform) {
 }
 
 Matrix4 Matrix4::MakeInverseTransform(
-	const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
-	const Vector3<float>& scale
+	V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
 ) {
 	PTGN_ASSERT(!scale.HasZero(), "Cannot get inverse transform with zero scale");
 
@@ -151,9 +145,7 @@ Matrix4 Matrix4::MakeInverseTransform(
 	return m;
 }
 
-Matrix4 Matrix4::MakeInverseTransform(
-	const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
-) {
+Matrix4 Matrix4::MakeInverseTransform(V2_float position, float rotation_radians, V2_float scale) {
 	return MakeInverseTransform(
 		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
 		{ scale.x, scale.y, 1.0f }
@@ -208,7 +200,7 @@ Matrix4 Matrix4::Orthographic(
 	return o;
 }
 
-Matrix4 Matrix4::Orthographic(const V2_float& min, const V2_float& max, float near, float far) {
+Matrix4 Matrix4::Orthographic(V2_float min, V2_float max, float near, float far) {
 	return Orthographic(min.x, max.x, max.y, min.y, near, far);
 }
 
@@ -232,7 +224,7 @@ Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float fron
 	return p;
 }
 
-Matrix4 Matrix4::Translate(const Matrix4& m, const Vector3<float>& axes) {
+Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 	Matrix4 result{ m };
 	for (std::size_t i{ 0 }; i < result.size.x; i++) {
 		result[i + 12] = m[i] * axes.x + m[i + 4] * axes.y + m[i + 8] * axes.z + m[i + 12];
@@ -240,13 +232,13 @@ Matrix4 Matrix4::Translate(const Matrix4& m, const Vector3<float>& axes) {
 	return result;
 }
 
-Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, const Vector3<float>& axes) {
+Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float axes) {
 	const float c{ std::cos(rotation_radians) };
 	const float s{ std::sin(rotation_radians) };
 
 	float magnitude{ axes.Dot(axes) };
 
-	Vector3<float> axis;
+	V3_float axis;
 
 	if (!NearlyEqual(magnitude, 0.0f)) {
 		axis = axes.Normalized();
@@ -284,7 +276,7 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, const Vec
 	return result;
 }
 
-Matrix4 Matrix4::Scale(const Matrix4& m, const Vector3<float>& axes) {
+Matrix4 Matrix4::Scale(const Matrix4& m, V3_float axes) {
 	Matrix4 result;
 	for (std::size_t i{ 0 }; i < result.size.x; i++) {
 		result[i + 0]  = m[i + 0] * axes.x;

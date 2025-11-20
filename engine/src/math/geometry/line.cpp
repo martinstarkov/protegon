@@ -8,7 +8,7 @@
 
 namespace ptgn {
 
-Line::Line(const V2_float& start, const V2_float& end) : start{ start }, end{ end } {}
+Line::Line(V2_float start, V2_float end) : start{ start }, end{ end } {}
 
 std::array<V2_float, 4> Line::GetWorldQuadVertices(
 	const Transform& transform, float line_width, V2_float* out_size

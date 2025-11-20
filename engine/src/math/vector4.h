@@ -46,7 +46,7 @@ struct Vector4 {
 	explicit Vector4(const json& j);
 
 	template <Arithmetic U>
-	constexpr Vector4(const Vector4<U>& o) :
+	constexpr Vector4(Vector4<U> o) :
 		x{ static_cast<T>(o.x) },
 		y{ static_cast<T>(o.y) },
 		z{ static_cast<T>(o.z) },
@@ -62,7 +62,7 @@ struct Vector4 {
 		w{ static_cast<T>(w_component) } {}
 
 	template <Arithmetic U>
-	constexpr Vector4(const std::array<U, 4>& o) :
+	constexpr Vector4(std::array<U, 4> o) :
 		x{ static_cast<T>(o[0]) },
 		y{ static_cast<T>(o[1]) },
 		z{ static_cast<T>(o[2]) },
@@ -74,7 +74,7 @@ struct Vector4 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
-	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
+	constexpr T& operator[](std::size_t idx) {
 		if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
@@ -86,7 +86,7 @@ struct Vector4 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
-	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
+	constexpr T operator[](std::size_t idx) const {
 		if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
@@ -97,13 +97,13 @@ struct Vector4 {
 		return x; // 0
 	}
 
-	[[nodiscard]] constexpr Vector4 operator-() const {
+	constexpr Vector4 operator-() const {
 		return { -x, -y, -z, -w };
 	}
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector4& operator+=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator+=(Vector4<U> rhs) {
 		x += rhs.x;
 		y += rhs.y;
 		z += rhs.z;
@@ -113,7 +113,7 @@ struct Vector4 {
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector4& operator-=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator-=(Vector4<U> rhs) {
 		x -= rhs.x;
 		y -= rhs.y;
 		z -= rhs.z;
@@ -123,7 +123,7 @@ struct Vector4 {
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector4& operator*=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator*=(Vector4<U> rhs) {
 		x *= rhs.x;
 		y *= rhs.y;
 		z *= rhs.z;
@@ -133,7 +133,7 @@ struct Vector4 {
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector4& operator/=(const Vector4<U>& rhs) {
+	constexpr Vector4& operator/=(Vector4<U> rhs) {
 		x /= rhs.x;
 		y /= rhs.y;
 		z /= rhs.z;
@@ -162,7 +162,7 @@ struct Vector4 {
 	}
 
 	// Returns the dot product (this * o).
-	[[nodiscard]] constexpr T Dot(const Vector4& o) const {
+	[[nodiscard]] constexpr T Dot(Vector4 o) const {
 		return x * o.x + y * o.y + z * o.z + w * o.w;
 	}
 
@@ -186,12 +186,12 @@ struct Vector4 {
 		return *this / std::sqrt(static_cast<S>(m));
 	}
 
-	[[nodiscard]] constexpr bool IsNormalized() const {
+	constexpr bool IsNormalized() const {
 		return x >= 0.0f && x <= 1.0f && y >= 0.0f && y <= 1.0f && z >= 0.0f && z <= 1.0f &&
 			   w >= 0.0f && w <= 1.0f;
 	}
 
-	[[nodiscard]] bool IsZero() const {
+	bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 }) &&
 			   NearlyEqual(w, T{ 0 });
 	}
@@ -209,56 +209,54 @@ using V4_float	= Vector4<float>;
 using V4_double = Vector4<double>;
 
 template <StreamWritable V>
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector4<V>& v) {
+inline std::ostream& operator<<(std::ostream& os, ptgn::Vector4<V> v) {
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
 	return os;
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator+(const Vector4<V>& lhs, const Vector4<U>& rhs) {
+constexpr Vector4<S> operator+(Vector4<V> lhs, Vector4<U> rhs) {
 	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator-(const Vector4<V>& lhs, const Vector4<U>& rhs) {
+constexpr Vector4<S> operator-(Vector4<V> lhs, Vector4<U> rhs) {
 	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator*(const Vector4<V>& lhs, const Vector4<U>& rhs) {
+constexpr Vector4<S> operator*(Vector4<V> lhs, Vector4<U> rhs) {
 	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator/(const Vector4<V>& lhs, const Vector4<U>& rhs) {
+constexpr Vector4<S> operator/(Vector4<V> lhs, Vector4<U> rhs) {
 	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator*(V lhs, const Vector4<U>& rhs) {
+constexpr Vector4<S> operator*(V lhs, Vector4<U> rhs) {
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator*(const Vector4<V>& lhs, U rhs) {
+constexpr Vector4<S> operator*(Vector4<V> lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator/(V lhs, const Vector4<U>& rhs) {
+constexpr Vector4<S> operator/(V lhs, Vector4<U> rhs) {
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector4<S> operator/(const Vector4<V>& lhs, U rhs) {
+constexpr Vector4<S> operator/(Vector4<V> lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
 }
 
 // Clamp all components of the vector between min and max (component specific).
 template <Arithmetic T>
-[[nodiscard]] inline Vector4<T> Clamp(
-	const Vector4<T>& vector, const Vector4<T>& min, const Vector4<T>& max
-) {
+[[nodiscard]] inline Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y),
 			 std::clamp(vector.z, min.z, max.z), std::clamp(vector.w, min.w, max.w) };
 }

@@ -5,18 +5,19 @@
 #include <string>
 #include <vector>
 
-#include "ecs/manager.h"
 #include "core/app/window.h"
 #include "core/assert.h"
-#include "ecs/components/draw.h"
-#include "ecs/components/movement.h"
-#include "ecs/components/transform.h"
-#include "ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/scripting/script.h"
 #include "debug/debug_system.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/movement.h"
+#include "ecs/components/origin.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
+#include "ecs/manager.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/math_utils.h"
@@ -25,7 +26,6 @@
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "renderer/api/color.h"
-#include "ecs/components/origin.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 
@@ -198,7 +198,7 @@ public:
 		CreateObstacle(V2_float{ 100, 70 }, V2_float{ 500, 10 }, Origin::TopLeft);*/
 	}
 
-	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
+	void CreateObstacle(V2_float pos, V2_float size, Origin origin) {
 		PTGN_ASSERT(manager != nullptr);
 		auto obstacle = manager->CreateEntity();
 		SetPosition(obstacle, pos);
@@ -271,7 +271,7 @@ public:
 		CreateObstacle(V2_float{ 400, 400 }, V2_float{ 50, 50 }, Origin::Center);
 	}
 
-	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
+	void CreateObstacle(V2_float pos, V2_float size, Origin origin) {
 		auto obstacle = manager.CreateEntity();
 		obstacle.SetPosition(pos);
 		obstacle.Add<BoxCollider>(size, origin);
@@ -1237,7 +1237,7 @@ struct SweepTest : public CollisionTest {
 
 	// For circles, radius is set to s.x. Don't laugh.
 	ecs::Entity AddCollisionObject(
-		const V2_float& p, const V2_float& s = {}, const V2_float& v = {},
+		V2_float p, V2_float s = {}, V2_float v = {},
 		Origin o = Origin::Center, bool is_circle = false
 	) {
 		ecs::Entity entity = manager.CreateEntity();
@@ -1270,9 +1270,9 @@ struct SweepTest : public CollisionTest {
 	}
 
 	void AddPlayer(
-		const V2_float& player_vel, const V2_float& player_size = { 50, 50 },
-		const V2_float& player_pos = { 0, 0 }, const V2_float& obstacle_size = { 50, 50 },
-		const V2_float& fixed_vel = {}, Origin origin = Origin::Center,
+		V2_float player_vel, V2_float player_size = { 50, 50 },
+		V2_float player_pos = { 0, 0 }, V2_float obstacle_size = { 50, 50 },
+		V2_float fixed_vel = {}, Origin origin = Origin::Center,
 		bool player_is_circle = false
 	) {
 		this->player_velocity  = player_vel;
@@ -1375,10 +1375,10 @@ struct SweepTest : public CollisionTest {
 		}
 
 		const auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
-			const V2_float a_max{ a.Max() };
-			const V2_float a_min{ a.Min() };
-			const V2_float b_max{ b.Max() };
-			const V2_float b_min{ b.Min() };
+			V2_float a_max{ a.Max() };
+			V2_float a_min{ a.Min() };
+			V2_float b_max{ b.Max() };
+			V2_float b_min{ b.Min() };
 
 			if (a_max.x <= b_min.x || a_min.x >= b_max.x) {
 				return false;
@@ -1520,7 +1520,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	}
 
 	void CreateDynamicEntity(
-		const V2_float& pos, const V2_float& size, Origin origin, const V2_float& velocity_direction
+		V2_float pos, V2_float size, Origin origin, V2_float velocity_direction
 	) {
 		DynamicData data;
 		data.position = pos;
@@ -1643,7 +1643,7 @@ Origin::CenterRight, { -1.0f, 0.0f }
 struct SweepCornerTest1 : public SweepTest {
 	V2_float player_vel;
 
-	SweepCornerTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
+	SweepCornerTest1(V2_float player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
 
@@ -1658,7 +1658,7 @@ struct SweepCornerTest1 : public SweepTest {
 struct SweepCornerTest2 : public SweepTest {
 	V2_float player_vel;
 
-	SweepCornerTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
+	SweepCornerTest2(V2_float player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
 
@@ -1673,7 +1673,7 @@ struct SweepCornerTest2 : public SweepTest {
 struct SweepCornerTest3 : public SweepTest {
 	V2_float player_vel;
 
-	SweepCornerTest3(const V2_float& player_vel) : player_vel{ player_vel } {}
+	SweepCornerTest3(V2_float player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
 
@@ -1688,7 +1688,7 @@ struct SweepCornerTest3 : public SweepTest {
 struct SweepTunnelTest1 : public SweepTest {
 	V2_float player_vel;
 
-	SweepTunnelTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
+	SweepTunnelTest1(V2_float player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
 
@@ -1708,7 +1708,7 @@ struct SweepTunnelTest1 : public SweepTest {
 struct SweepTunnelTest2 : public SweepTest {
 	V2_float player_vel;
 
-	SweepTunnelTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
+	SweepTunnelTest2(V2_float player_vel) : player_vel{ player_vel } {}
 
 	void Enter() override {
 

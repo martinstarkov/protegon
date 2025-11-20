@@ -402,7 +402,7 @@ struct InteractiveScene : public Scene {
 		return entity;
 	}
 
-	Entity CreateInteractiveRect(const V2_float& size) {
+	Entity CreateInteractiveRect(V2_float size) {
 		auto entity = CreateEntity(*this);
 		entity.Add<Rect>(size);
 		return entity;

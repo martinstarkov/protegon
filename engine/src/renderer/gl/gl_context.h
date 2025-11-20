@@ -720,7 +720,7 @@ public:
 		return bound_.viewport;
 	}
 
-	void SetClearColor(const Color& color) {
+	void SetClearColor(Color color) {
 		if (bound_.clear_color == color) {
 			return;
 		}
@@ -736,7 +736,7 @@ public:
 	}
 
 	// Clears the currently bound framebuffer's color buffer to the specified color.
-	void ClearToColor(GLuint framebuffer, const Color& color) const {
+	void ClearToColor(GLuint framebuffer, Color color) const {
 		PTGN_ASSERT(
 			IsBound<FrameBuffer>(framebuffer),
 			"Framebuffer must be bound before clearing it to color"
@@ -813,21 +813,21 @@ public:
 	// Sets the uniform value for the specified uniform name. If the uniform does not exist in
 	// the shader, nothing happens. Note: Make sure to bind the shader before setting uniforms.
 
-	void SetUniform(GLuint shader, const char* uniform_name, const Vector2<float>& v) {
+	void SetUniform(GLuint shader, const char* uniform_name, V2_float v) {
 		std::int32_t location{ GetUniform(shader, uniform_name) };
 		if (location != -1) {
 			GLCall(Uniform2f(location, v.x, v.y));
 		}
 	}
 
-	void SetUniform(GLuint shader, const char* uniform_name, const Vector3<float>& v) {
+	void SetUniform(GLuint shader, const char* uniform_name, V3_float v) {
 		std::int32_t location{ GetUniform(shader, uniform_name) };
 		if (location != -1) {
 			GLCall(Uniform3f(location, v.x, v.y, v.z));
 		}
 	}
 
-	void SetUniform(GLuint shader, const char* uniform_name, const Vector4<float>& v) {
+	void SetUniform(GLuint shader, const char* uniform_name, V4_float v) {
 		std::int32_t location{ GetUniform(shader, uniform_name) };
 		if (location != -1) {
 			GLCall(Uniform4f(location, v.x, v.y, v.z, v.w));
@@ -1416,7 +1416,7 @@ private:
 		);
 	}
 
-	void SetRenderBufferStorage(GLuint renderbuffer, const V2_int& size, GLenum internal_format) {
+	void SetRenderBufferStorage(GLuint renderbuffer, V2_int size, GLenum internal_format) {
 		PTGN_ASSERT(
 			IsBound<RenderBuffer>(renderbuffer),
 			"Renderbuffer must be bound prior to setting its storage"
@@ -1460,7 +1460,7 @@ private:
 
 	void SetTextureSubData(
 		GLuint texture, const void* pixel_subdata, GLenum pixel_data_format, GLenum pixel_data_type,
-		const V2_int& subdata_size, const V2_int& subdata_offset
+		V2_int subdata_size, V2_int subdata_offset
 	) const {
 		PTGN_ASSERT(
 			IsBound<Texture>(texture), "Texture must be bound prior to setting its subdata"
@@ -1476,7 +1476,7 @@ private:
 		));
 	}
 
-	void SetTextureClampBorderColor(GLuint texture, const Color& color) const {
+	void SetTextureClampBorderColor(GLuint texture, Color color) const {
 		PTGN_ASSERT(
 			IsBound<Texture>(texture),
 			"Texture must be bound prior to setting its clamp border color"

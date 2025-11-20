@@ -11,7 +11,7 @@
 namespace ptgn::impl {
 
 std::array<Vertex, 3> Vertex::GetTriangle(
-	const std::array<V2_float, 3>& triangle_points, const Color& color, float depth
+	const std::array<V2_float, 3>& triangle_points, Color color, float depth
 ) {
 	constexpr std::array<V2_float, 3> texture_coordinates{
 		V2_float{ 0.0f, 0.0f }, // lower-left corner
@@ -36,7 +36,7 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 }
 
 std::array<Vertex, 4> Vertex::GetQuad(
-	const std::array<V2_float, 4>& quad_points, const Color& color, float depth,
+	const std::array<V2_float, 4>& quad_points, Color color, float depth,
 	const std::array<float, 4>& data, std::array<V2_float, 4> texture_coordinates,
 	bool flip_vertices
 ) {

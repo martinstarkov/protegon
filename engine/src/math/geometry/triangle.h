@@ -12,7 +12,7 @@ struct Transform;
 struct Triangle {
 	Triangle() = default;
 
-	Triangle(const V2_float& a, const V2_float& b, const V2_float& c);
+	Triangle(V2_float a, V2_float b, V2_float c);
 	explicit Triangle(const std::array<V2_float, 3>& vertices);
 
 	[[nodiscard]] std::array<V2_float, 3> GetWorldVertices(const Transform& transform) const;

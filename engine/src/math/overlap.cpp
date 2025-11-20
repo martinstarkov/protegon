@@ -258,12 +258,12 @@ bool PolygonContainsTriangle(
 }
 
 bool OverlapPointPoint(
-	const Transform& t1, const V2_float& A, const Transform& t2, const V2_float& B
+	const Transform& t1, V2_float A, const Transform& t2, V2_float B
 ) {
 	return t1.Apply(A) == t2.Apply(B);
 }
 
-bool OverlapPointLine(const Transform& t1, const V2_float& A, const Transform& t2, const Line& B) {
+bool OverlapPointLine(const Transform& t1, V2_float A, const Transform& t2, const Line& B) {
 	auto point{ t1.Apply(A) };
 	auto [line_start, line_end] = B.GetWorldVertices(t2);
 
@@ -291,7 +291,7 @@ bool OverlapPointLine(const Transform& t1, const V2_float& A, const Transform& t
 }
 
 bool OverlapPointTriangle(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Triangle& B
+	const Transform& t1, V2_float A, const Transform& t2, const Triangle& B
 ) {
 	auto point{ t1.Apply(A) };
 	auto [triangle_a, triangle_b, triangle_c] = B.GetWorldVertices(t2);
@@ -311,7 +311,7 @@ bool OverlapPointTriangle(
 }
 
 bool OverlapPointCircle(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Circle& B
+	const Transform& t1, V2_float A, const Transform& t2, const Circle& B
 ) {
 	auto circle_radius{ B.GetRadius(t2) };
 	if (circle_radius <= 0.0f) {
@@ -324,7 +324,7 @@ bool OverlapPointCircle(
 	return impl::WithinPerimeter(circle_radius, dist.Dot(dist));
 }
 
-bool OverlapPointRect(const Transform& t1, const V2_float& A, const Transform& t2, const Rect& B) {
+bool OverlapPointRect(const Transform& t1, V2_float A, const Transform& t2, const Rect& B) {
 	auto rect_size{ B.GetSize(t2) };
 	if (rect_size.IsZero()) {
 		return false;
@@ -360,7 +360,7 @@ bool OverlapPointRect(const Transform& t1, const V2_float& A, const Transform& t
 }
 
 bool OverlapPointCapsule(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Capsule& B
+	const Transform& t1, V2_float A, const Transform& t2, const Capsule& B
 ) {
 	auto capsule_radius{ B.GetRadius(t2) };
 	if (capsule_radius <= 0.0f) {
@@ -379,7 +379,7 @@ bool OverlapPointCapsule(
 }
 
 bool OverlapPointPolygon(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Polygon& B
+	const Transform& t1, V2_float A, const Transform& t2, const Polygon& B
 ) {
 	auto point{ t1.Apply(A) };
 
@@ -1001,11 +1001,11 @@ bool Overlap(
 	);
 }
 
-bool Overlap(const V2_float& point, const Transform& t2, const ColliderShape& shape2) {
+bool Overlap(V2_float point, const Transform& t2, const ColliderShape& shape2) {
 	return Overlap(Transform{}, ColliderShape{ point }, t2, shape2);
 }
 
-bool Overlap(const Transform& t1, const ColliderShape& shape1, const V2_float& point) {
+bool Overlap(const Transform& t1, const ColliderShape& shape1, V2_float point) {
 	return Overlap(point, t1, shape1);
 }
 

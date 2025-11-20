@@ -17,6 +17,7 @@ class InputHandler;
 
 /*
 
+// TODO: Add this.
 template <typename SceneT, typename EcsView, typename... TComponents>
 struct SceneEntitiesWithRange {
 	SceneT* scene;
@@ -170,7 +171,7 @@ for (auto e : scene.EntitiesWithout<ProfileTestComponent>()) {
 
 class Scene : public Manager {
 protected:
-	// void SetColliderColor(const Color& collider_color);
+	// void SetColliderColor(Color collider_color);
 	// void SetColliderVisibility(bool collider_visibility);
 
 public:
@@ -190,7 +191,7 @@ public:
 
 	// Make sure to call Refresh() after this function.
 	template <typename... Ts>
-	Entity CopyEntity(const Entity& from) {
+	Entity CopyEntity(Entity from) {
 		auto entity{ Manager::CopyEntity<Ts...>(from) };
 		// entity.template Add<SceneKey>(key_);
 		return entity;
@@ -214,7 +215,7 @@ public:
 		/* user implementation */
 	}
 
-	void SetBackgroundColor(const Color& background_color);
+	void SetBackgroundColor(Color background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
 	//[[nodiscard]] const RenderTarget& GetRenderTarget() const;

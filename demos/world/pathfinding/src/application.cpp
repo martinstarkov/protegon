@@ -60,7 +60,7 @@ class PathfindingScene : public Scene {
 			}
 		}
 
-		grid.ForEachCoordinate([&](const V2_int& tile) {
+		grid.ForEachCoordinate([&](V2_int tile) {
 			Color c = color::Gray;
 			if (input.KeyPressed(Key::V) && grid.IsVisited(tile)) {
 				c = color::Cyan;

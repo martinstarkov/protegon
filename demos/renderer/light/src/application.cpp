@@ -1,9 +1,10 @@
-#include "ecs/components/sprite.h"
 #include "core/app/application.h"
+
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
-#include "renderer/api/color.h"
 #include "ecs/components/origin.h"
+#include "ecs/components/sprite.h"
+#include "renderer/api/color.h"
 #include "renderer/renderer.h"
 #include "renderer/vfx/light.h"
 #include "scene/scene.h"
@@ -33,7 +34,7 @@ public:
 
 		float step{ 80 };
 
-		const auto create_light = [&](const Color& color) {
+		const auto create_light = [&](Color color) {
 			static int i = 1;
 			CreatePointLight(
 				*this, V2_float{ -camera.GetViewportSize() * 0.5f } + V2_float{ i * step }, radius,

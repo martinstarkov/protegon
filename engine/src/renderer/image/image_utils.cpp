@@ -6,13 +6,13 @@
 
 namespace ptgn {
 
-Color GetPixel(const path& texture_filepath, const V2_int& coordinate) {
+Color GetPixel(const path& texture_filepath, V2_int coordinate) {
 	impl::Surface s{ texture_filepath };
 	return s.GetPixel(coordinate);
 }
 
 V2_int ForEachPixel(
-	const path& texture_filepath, const std::function<void(const V2_int&, const Color&)>& function
+	const path& texture_filepath, const std::function<void(V2_int, Color)>& function
 ) {
 	impl::Surface s{ texture_filepath };
 	s.ForEachPixel(function);

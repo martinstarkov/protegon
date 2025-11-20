@@ -27,7 +27,7 @@ DebugSystem::DebugSystem(Renderer& renderer) : renderer_{ renderer } {}
 void DebugSystem::DrawText(
 	const std::string& content, const Transform& og_transform, const TextColor& color,
 	Origin origin, const FontSize& font_size, const Handle<Font>& font_key,
-	const TextProperties& properties, const V2_float& text_size, const Camera& camera
+	const TextProperties& properties, V2_float text_size, const Camera& camera
 ) {
 	V2_float size{ text_size };
 	Transform transform{ og_transform };
@@ -75,13 +75,13 @@ void DebugSystem::DrawShape(
 }
 
 void DebugSystem::DrawLine(
-	const V2_float& start, const V2_float& end, const Tint& color, const LineWidth& line_width,
+	V2_float start, V2_float end, const Tint& color, const LineWidth& line_width,
 	const Camera& camera
 ) {
 	DrawShape({}, Line{ start, end }, color, line_width, Origin::Center, camera);
 }
 
-void DebugSystem::DrawPoint(const V2_float& point, const Tint& color, const Camera& camera) {
+void DebugSystem::DrawPoint(V2_float point, const Tint& color, const Camera& camera) {
 	DrawShape({}, point, color, -1.0f, Origin::Center, camera);
 }
 */

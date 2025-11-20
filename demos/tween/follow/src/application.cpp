@@ -37,7 +37,7 @@ struct FollowEffectScene : public Scene {
 
 	std::vector<V2_float> waypoints;
 
-	Entity CreateFollower(const Color& color, const V2_float& start_position) {
+	Entity CreateFollower(Color color, V2_float start_position) {
 		auto follower{ CreateSprite(*this, "smile", start_position) };
 		SetTint(follower, color);
 		return follower;

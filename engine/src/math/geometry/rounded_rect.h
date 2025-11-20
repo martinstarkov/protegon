@@ -15,8 +15,8 @@ struct Transform;
 struct RoundedRect {
 	RoundedRect() = default;
 
-	RoundedRect(const V2_float& min, const V2_float& max, float radius);
-	RoundedRect(const V2_float& size, float radius);
+	RoundedRect(V2_float min, V2_float max, float radius);
+	RoundedRect(V2_float size, float radius);
 
 	[[nodiscard]] V2_float GetSize() const;
 	[[nodiscard]] float GetRadius() const;

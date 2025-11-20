@@ -7,7 +7,7 @@ namespace ptgn {
 
 namespace impl {
 
-V2_float GetOriginOffsetHalf(Origin origin, const V2_float& half) {
+V2_float GetOriginOffsetHalf(Origin origin, V2_float half) {
 	switch (origin) {
 		using enum ptgn::Origin;
 		case Center:	   return {};
@@ -25,7 +25,7 @@ V2_float GetOriginOffsetHalf(Origin origin, const V2_float& half) {
 
 } // namespace impl
 
-V2_float GetOriginOffset(Origin origin, const V2_float& size) {
+V2_float GetOriginOffset(Origin origin, V2_float size) {
 	return impl::GetOriginOffsetHalf(origin, size * 0.5f);
 }
 

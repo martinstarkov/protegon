@@ -24,14 +24,14 @@ bool StrictlyLess(float a, float b, float epsilon) {
 	return (b - a) > std::max(std::abs(a), std::abs(b)) * epsilon;
 }
 
-bool StrictlyLess(const V2_float& a, const V2_float& b, float epsilon) {
+bool StrictlyLess(V2_float a, V2_float b, float epsilon) {
 	return StrictlyLess(a.x, b.x, epsilon) && StrictlyLess(a.y, b.y, epsilon);
 }
 
 namespace impl {
 
 std::vector<V2_float> GetArcVertices(
-	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise
+	V2_float center, float radius, float start_angle, float end_angle, bool clockwise
 ) {
 	if (start_angle > end_angle) {
 		end_angle += two_pi<float>;
@@ -91,7 +91,7 @@ float TriangulateArea(std::span<const V2_float> vertices) {
 }
 
 bool TriangulateInsideTriangle(
-	const V2_float& A, const V2_float& B, const V2_float& C, const V2_float& P
+	V2_float A, V2_float B, V2_float C, V2_float P
 ) {
 	return (C - B).Cross(P - B) >= 0.0f && (A - C).Cross(P - C) >= 0.0f &&
 		   (B - A).Cross(P - A) >= 0.0f;
@@ -203,7 +203,7 @@ std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> verti
 	return result;
 }
 
-Orientation GetOrientation(const V2_float& a, const V2_float& b, const V2_float& c) {
+Orientation GetOrientation(V2_float a, V2_float b, V2_float c) {
 	auto det{ (b - a).Cross(c - a) };
 
 	return static_cast<Orientation>(
@@ -212,7 +212,7 @@ Orientation GetOrientation(const V2_float& a, const V2_float& b, const V2_float&
 }
 
 bool VisibilityRayIntersects(
-	const V2_float& origin, const V2_float& direction, const Line& segment, V2_float& out_point
+	V2_float origin, V2_float direction, const Line& segment, V2_float& out_point
 ) {
 	auto ao{ origin - segment.start };
 	auto ab{ segment.end - segment.start };
@@ -253,7 +253,7 @@ bool VisibilityRayIntersects(
 } // namespace impl
 
 std::vector<V2_float> GetVisibilityPolygon(
-	const V2_float& point, const std::vector<Line>& shadow_segments
+	V2_float point, const std::vector<Line>& shadow_segments
 ) {
 	using namespace ptgn::impl;
 
@@ -342,7 +342,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 	}
 
 	// compare angles clockwise starting at the positive y axis
-	const auto angle_comparer = [point](const V2_float& a, const V2_float& b) {
+	const auto angle_comparer = [point](V2_float a, V2_float b) {
 		auto is_a_left{ StrictlyLess(a.x, point.x) };
 		auto is_b_left{ StrictlyLess(b.x, point.x) };
 
@@ -429,7 +429,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 }
 
 std::vector<Triangle> GetVisibilityTriangles(
-	const V2_float& origin, const std::vector<Line>& shadow_segments
+	V2_float origin, const std::vector<Line>& shadow_segments
 ) {
 	auto polygon{ GetVisibilityPolygon(origin, shadow_segments) };
 
@@ -472,7 +472,7 @@ std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connec
 
 namespace impl {
 
-bool IsInside(const V2_float& p, const Line& edge) {
+bool IsInside(V2_float p, const Line& edge) {
 	V2_float edge_vec{ edge.end - edge.start };
 	V2_float point_vec{ p - edge.start };
 
@@ -481,7 +481,7 @@ bool IsInside(const V2_float& p, const Line& edge) {
 }
 
 std::optional<V2_float> ComputeIntersection(
-	const V2_float& a, const V2_float& b, const V2_float& c, const V2_float& d
+	V2_float a, V2_float b, V2_float c, V2_float d
 ) {
 	V2_float ab{ b - a };
 	V2_float cd{ d - c };
@@ -524,7 +524,7 @@ std::vector<V2_float> ClipPolygons(
 
 		V2_float s{ input_list.back() };
 
-		for (const V2_float& e : input_list) {
+		for (V2_float e : input_list) {
 			bool e_inside{ impl::IsInside(e, clip_edge) };
 			bool s_inside{ impl::IsInside(s, clip_edge) };
 
@@ -561,8 +561,8 @@ bool WithinPerimeter(float radius, float dist2, bool include_edge) {
 }
 
 float ClosestPointLineLine(
-	const V2_float& lineA_start, const V2_float& lineA_end, const V2_float& lineB_start,
-	const V2_float& lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
+	V2_float lineA_start, V2_float lineA_end, V2_float lineB_start,
+	V2_float lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
 ) {
 	V2_float d1{ lineA_end - lineA_start }; // Direction vector of segment S1
 	V2_float d2{ lineB_end - lineB_start }; // Direction vector of segment S2
@@ -621,7 +621,7 @@ float ClosestPointLineLine(
 	return (c1 - c2).Dot(c1 - c2);
 }
 
-float SquareDistancePointLine(const V2_float& point, const V2_float& start, const V2_float& end) {
+float SquareDistancePointLine(V2_float point, V2_float start, V2_float end) {
 	// Source:
 	// https://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 130.
@@ -642,7 +642,7 @@ float SquareDistancePointLine(const V2_float& point, const V2_float& start, cons
 }
 
 float SquareDistancePointRect(
-	const V2_float& point, const V2_float& rect_min, const V2_float& rect_max
+	V2_float point, V2_float rect_min, V2_float rect_max
 ) {
 	float dist2{ 0.0f };
 	for (std::size_t i{ 0 }; i < 2; ++i) {
@@ -657,7 +657,7 @@ float SquareDistancePointRect(
 	return dist2;
 }
 
-float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c) {
+float ParallelogramArea(V2_float a, V2_float b, V2_float c) {
 	return (a - c).Cross(b - c);
 }
 
@@ -712,7 +712,7 @@ float GetIntervalOverlap(
 bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count) {
 	PTGN_ASSERT(vertex_count >= 3, "Line or point convexity check is redundant");
 
-	const auto get_cross = [](const V2_float& a, const V2_float& b, const V2_float& c) {
+	const auto get_cross = [](V2_float a, V2_float b, V2_float c) {
 		return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
 	};
 

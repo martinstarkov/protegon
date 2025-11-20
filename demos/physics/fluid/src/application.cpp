@@ -1,14 +1,15 @@
+#include "core/app/application.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <vector>
 
-#include "core/app/application.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "ecs/components/origin.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "ecs/components/origin.h"
 #include "renderer/renderer.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
@@ -35,7 +36,7 @@ public:
 
 	std::vector<bool> obstacles; // true means obstacle (solid wall)
 
-	FluidContainer(const V2_int& size, float dt, float diff, float visc) :
+	FluidContainer(V2_int size, float dt, float diff, float visc) :
 		size{ size }, length{ size.x * size.y }, dt{ dt }, diff{ diff }, visc{ visc } {
 		px.resize(length, 0);
 		py.resize(length, 0);
@@ -280,7 +281,7 @@ public:
 
 class FluidScene : public Scene {
 public:
-	const V2_float scale{ 6, 6 };
+	V2_float scale{ 6, 6 };
 	FluidContainer fluid{ resolution / scale, 0.1f, 0.0001f, 0.000001f };
 	V2_float gravity{};
 	float gravity_increment{ 1.0f };

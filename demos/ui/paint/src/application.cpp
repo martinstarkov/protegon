@@ -68,7 +68,7 @@ public:
 			}
 		}
 
-		grid.ForEachCoordinate([&](const V2_int& p) {
+		grid.ForEachCoordinate([&](V2_int p) {
 			Color c = color::Red;
 			if (grid.Has(p)) {
 				switch (grid.Get(p)) {

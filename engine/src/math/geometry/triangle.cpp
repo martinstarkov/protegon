@@ -8,7 +8,7 @@
 
 namespace ptgn {
 
-Triangle::Triangle(const V2_float& a, const V2_float& b, const V2_float& c) :
+Triangle::Triangle(V2_float a, V2_float b, V2_float c) :
 	a{ a }, b{ b }, c{ c } {}
 
 Triangle::Triangle(const std::array<V2_float, 3>& vertices) :

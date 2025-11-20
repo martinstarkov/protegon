@@ -1,22 +1,23 @@
+#include "core/app/application.h"
+
 #include <algorithm>
 #include <functional>
 #include <string>
 
 #include "audio/audio.h"
-#include "ecs/components/draw.h"
-#include "ecs/entity.h"
-#include "core/app/application.h"
-#include "core/util/time.h"
 #include "core/app/window.h"
+#include "core/util/time.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/origin.h"
+#include "ecs/entity.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "ecs/components/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "world/tile/grid.h"
 #include "ui/button.h"
+#include "world/tile/grid.h"
 
 using namespace ptgn;
 
@@ -48,7 +49,7 @@ public:
 
 	Button CreateAudioButton(
 		const TextContent& content, const std::function<void()>& on_activate,
-		const Color& bg_color = color::LightGray
+		Color bg_color = color::LightGray
 	) {
 		Button b{ CreateTextButton(*this, content, color::Black) };
 		b.SetBackgroundColor(bg_color);
@@ -85,14 +86,16 @@ public:
 		b12 = grid.Set({ 0, 11 }, CreateAudioButton("Channel 2 Fading: ", nullptr, sound2_color));
 
 		grid.Set(
-			{ 1, 0 }, CreateAudioButton(
-						  "Play Music 1", []() { Application::Get().music.Play("music1"); }, music_color
-					  )
+			{ 1, 0 },
+			CreateAudioButton(
+				"Play Music 1", []() { Application::Get().music.Play("music1"); }, music_color
+			)
 		);
 		grid.Set(
-			{ 1, 1 }, CreateAudioButton(
-						  "Play Music 2", []() { Application::Get().music.Play("music2"); }, music_color
-					  )
+			{ 1, 1 },
+			CreateAudioButton(
+				"Play Music 2", []() { Application::Get().music.Play("music2"); }, music_color
+			)
 		);
 		grid.Set(
 			{ 1, 2 }, CreateAudioButton(
@@ -102,179 +105,214 @@ public:
 		grid.Set(
 			{ 1, 3 }, CreateAudioButton(
 						  "Fade In Music 1 (3s)",
-						  []() { Application::Get().music.FadeIn("music1", milliseconds{ 3000 }); }, music_color
+						  []() { Application::Get().music.FadeIn("music1", milliseconds{ 3000 }); },
+						  music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 4 }, CreateAudioButton(
 						  "Fade In Music 2 (3s)",
-						  []() { Application::Get().music.FadeIn("music2", milliseconds{ 3000 }); }, music_color
-					  )
-		);
-		grid.Set(
-			{ 1, 5 }, CreateAudioButton(
-						  "Fade Out Music (3s)", []() { Application::Get().music.FadeOut(milliseconds{ 3000 }); },
+						  []() { Application::Get().music.FadeIn("music2", milliseconds{ 3000 }); },
 						  music_color
 					  )
 		);
 		grid.Set(
-			{ 1, 6 }, CreateAudioButton(
-						  "Toggle Music Pause", []() { Application::Get().music.TogglePause(); }, music_color
-					  )
-		);
-		grid.Set(
-			{ 1, 7 }, CreateAudioButton(
-						  "Toggle Music Mute",
-						  [this]() { Application::Get().music.ToggleVolume(starting_volume); }, music_color
-					  )
-		);
-		grid.Set(
-			{ 1, 8 },
+			{ 1, 5 },
 			CreateAudioButton(
-				"+ Music Volume",
-				[]() { Application::Get().music.SetVolume(std::clamp(Application::Get().music.GetVolume() + 5, 0, 128)); },
-				music_color
+				"Fade Out Music (3s)",
+				[]() { Application::Get().music.FadeOut(milliseconds{ 3000 }); }, music_color
 			)
 		);
 		grid.Set(
-			{ 1, 9 },
+			{ 1, 6 },
 			CreateAudioButton(
-				"- Music Volume",
-				[]() { Application::Get().music.SetVolume(std::clamp(Application::Get().music.GetVolume() - 5, 0, 128)); },
-				music_color
+				"Toggle Music Pause", []() { Application::Get().music.TogglePause(); }, music_color
 			)
+		);
+		grid.Set(
+			{ 1, 7 },
+			CreateAudioButton(
+				"Toggle Music Mute",
+				[this]() { Application::Get().music.ToggleVolume(starting_volume); }, music_color
+			)
+		);
+		grid.Set(
+			{ 1, 8 }, CreateAudioButton(
+						  "+ Music Volume",
+						  []() {
+							  Application::Get().music.SetVolume(
+								  std::clamp(Application::Get().music.GetVolume() + 5, 0, 128)
+							  );
+						  },
+						  music_color
+					  )
+		);
+		grid.Set(
+			{ 1, 9 }, CreateAudioButton(
+						  "- Music Volume",
+						  []() {
+							  Application::Get().music.SetVolume(
+								  std::clamp(Application::Get().music.GetVolume() - 5, 0, 128)
+							  );
+						  },
+						  music_color
+					  )
 		);
 
 		grid.Set(
 			{ 2, 0 },
 			CreateAudioButton(
-				"Play Channel 1", [this]() { Application::Get().sound.Play("sound1", channel1); }, sound1_color
+				"Play Channel 1", [this]() { Application::Get().sound.Play("sound1", channel1); },
+				sound1_color
 			)
 		);
 		grid.Set(
 			{ 2, 1 }, CreateAudioButton(
-						  "Stop Channel 1", [this]() { Application::Get().sound.Stop(channel1); }, sound1_color
+						  "Stop Channel 1", [this]() { Application::Get().sound.Stop(channel1); },
+						  sound1_color
 					  )
 		);
 		grid.Set(
-			{ 2, 2 }, CreateAudioButton(
-						  "Fade In Sound 1 (3s)",
-						  [this]() { Application::Get().sound.FadeIn("sound1", milliseconds{ 3000 }, channel1); },
-						  sound1_color
-					  )
+			{ 2, 2 },
+			CreateAudioButton(
+				"Fade In Sound 1 (3s)",
+				[this]() {
+					Application::Get().sound.FadeIn("sound1", milliseconds{ 3000 }, channel1);
+				},
+				sound1_color
+			)
 		);
 		grid.Set(
 			{ 2, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 1 (3s)",
-				[this]() { Application::Get().sound.FadeOut(milliseconds{ 3000 }, channel1); }, sound1_color
+				[this]() { Application::Get().sound.FadeOut(milliseconds{ 3000 }, channel1); },
+				sound1_color
 			)
 		);
 		grid.Set(
 			{ 2, 4 }, CreateAudioButton(
-						  "Toggle Channel 1 Pause", [this]() { Application::Get().sound.TogglePause(channel1); },
-						  sound1_color
+						  "Toggle Channel 1 Pause",
+						  [this]() { Application::Get().sound.TogglePause(channel1); }, sound1_color
 					  )
 		);
 		grid.Set(
 			{ 2, 5 },
 			CreateAudioButton(
 				"Toggle Sound 1 Mute",
-				[this]() { Application::Get().sound.ToggleVolume("sound1", starting_volume); }, sound1_color
+				[this]() { Application::Get().sound.ToggleVolume("sound1", starting_volume); },
+				sound1_color
 			)
 		);
 		grid.Set(
-			{ 2, 6 }, CreateAudioButton(
-						  "+ Channel 1 Volume",
-						  [this]() {
-							  Application::Get().sound.SetVolume(
-								  channel1, std::clamp(Application::Get().sound.GetVolume(channel1) + 5, 0, 128)
-							  );
-						  },
-						  sound1_color
-					  )
+			{ 2, 6 },
+			CreateAudioButton(
+				"+ Channel 1 Volume",
+				[this]() {
+					Application::Get().sound.SetVolume(
+						channel1,
+						std::clamp(Application::Get().sound.GetVolume(channel1) + 5, 0, 128)
+					);
+				},
+				sound1_color
+			)
 		);
 		grid.Set(
-			{ 2, 7 }, CreateAudioButton(
-						  "- Channel 1 Volume",
-						  [this]() {
-							  Application::Get().sound.SetVolume(
-								  channel1, std::clamp(Application::Get().sound.GetVolume(channel1) - 5, 0, 128)
-							  );
-						  },
-						  sound1_color
-					  )
+			{ 2, 7 },
+			CreateAudioButton(
+				"- Channel 1 Volume",
+				[this]() {
+					Application::Get().sound.SetVolume(
+						channel1,
+						std::clamp(Application::Get().sound.GetVolume(channel1) - 5, 0, 128)
+					);
+				},
+				sound1_color
+			)
 		);
 
 		grid.Set(
 			{ 3, 0 },
 			CreateAudioButton(
-				"Play Channel 2", [this]() { Application::Get().sound.Play("sound2", channel2); }, sound2_color
+				"Play Channel 2", [this]() { Application::Get().sound.Play("sound2", channel2); },
+				sound2_color
 			)
 		);
 		grid.Set(
 			{ 3, 1 }, CreateAudioButton(
-						  "Stop Channel 2", [this]() { Application::Get().sound.Stop(channel2); }, sound2_color
+						  "Stop Channel 2", [this]() { Application::Get().sound.Stop(channel2); },
+						  sound2_color
 					  )
 		);
 		grid.Set(
-			{ 3, 2 }, CreateAudioButton(
-						  "Fade In Sound 2 (3s)",
-						  [this]() { Application::Get().sound.FadeIn("sound2", milliseconds{ 3000 }, channel2); },
-						  sound2_color
-					  )
+			{ 3, 2 },
+			CreateAudioButton(
+				"Fade In Sound 2 (3s)",
+				[this]() {
+					Application::Get().sound.FadeIn("sound2", milliseconds{ 3000 }, channel2);
+				},
+				sound2_color
+			)
 		);
 		grid.Set(
 			{ 3, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 2 (3s)",
-				[this]() { Application::Get().sound.FadeOut(milliseconds{ 3000 }, channel2); }, sound2_color
+				[this]() { Application::Get().sound.FadeOut(milliseconds{ 3000 }, channel2); },
+				sound2_color
 			)
 		);
 		grid.Set(
 			{ 3, 4 }, CreateAudioButton(
-						  "Toggle Channel 2 Pause", [this]() { Application::Get().sound.TogglePause(channel2); },
-						  sound2_color
+						  "Toggle Channel 2 Pause",
+						  [this]() { Application::Get().sound.TogglePause(channel2); }, sound2_color
 					  )
 		);
 		grid.Set(
 			{ 3, 5 },
 			CreateAudioButton(
 				"Toggle Sound 2 Mute",
-				[this]() { Application::Get().sound.ToggleVolume("sound2", starting_volume); }, sound2_color
+				[this]() { Application::Get().sound.ToggleVolume("sound2", starting_volume); },
+				sound2_color
 			)
 		);
 		grid.Set(
-			{ 3, 6 }, CreateAudioButton(
-						  "+ Channel 2 Volume",
-						  [this]() {
-							  Application::Get().sound.SetVolume(
-								  channel2, std::clamp(Application::Get().sound.GetVolume(channel2) + 5, 0, 128)
-							  );
-						  },
-						  sound2_color
-					  )
+			{ 3, 6 },
+			CreateAudioButton(
+				"+ Channel 2 Volume",
+				[this]() {
+					Application::Get().sound.SetVolume(
+						channel2,
+						std::clamp(Application::Get().sound.GetVolume(channel2) + 5, 0, 128)
+					);
+				},
+				sound2_color
+			)
 		);
 		grid.Set(
-			{ 3, 7 }, CreateAudioButton(
-						  "- Channel 2 Volume",
-						  [this]() {
-							  Application::Get().sound.SetVolume(
-								  channel2, std::clamp(Application::Get().sound.GetVolume(channel2) - 5, 0, 128)
-							  );
-						  },
-						  sound2_color
-					  )
+			{ 3, 7 },
+			CreateAudioButton(
+				"- Channel 2 Volume",
+				[this]() {
+					Application::Get().sound.SetVolume(
+						channel2,
+						std::clamp(Application::Get().sound.GetVolume(channel2) - 5, 0, 128)
+					);
+				},
+				sound2_color
+			)
 		);
 
 		V2_int offset{ 6, 6 };
-		V2_int size{ (Application::Get().render_.GetGameSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
+		V2_int size{ (Application::Get().render_.GetGameSize() -
+					  offset * (grid.GetSize() + V2_int{ 1, 1 })) /
 					 grid.GetSize() };
 
 		grid.ForEach([size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
 				SetPosition(
-					b, -Application::Get().render_.GetGameSize() * 0.5f + coord * (size + offset) + offset
+					b, -Application::Get().render_.GetGameSize() * 0.5f + coord * (size + offset) +
+						   offset
 				);
 				SetDrawOrigin(b, Origin::TopLeft);
 				b.SetSize(size);
@@ -288,39 +326,52 @@ public:
 	}
 
 	void Update() override {
-		b1.SetTextContent(std::string("Music Volume: ") + std::to_string(Application::Get().music.GetVolume()));
+		b1.SetTextContent(
+			std::string("Music Volume: ") + std::to_string(Application::Get().music.GetVolume())
+		);
 		b2.SetTextContent(
-			std::string("Music Is Playing: ") + (Application::Get().music.IsPlaying() ? "true" : "false")
+			std::string("Music Is Playing: ") +
+			(Application::Get().music.IsPlaying() ? "true" : "false")
 		);
 		b3.SetTextContent(
-			std::string("Music Is Paused: ") + (Application::Get().music.IsPaused() ? "true" : "false")
+			std::string("Music Is Paused: ") +
+			(Application::Get().music.IsPaused() ? "true" : "false")
 		);
 		b4.SetTextContent(
-			std::string("Music Is Fading: ") + (Application::Get().music.IsFading() ? "true" : "false")
+			std::string("Music Is Fading: ") +
+			(Application::Get().music.IsFading() ? "true" : "false")
 		);
 		b5.SetTextContent(
-			std::string("Channel 1 Volume: ") + std::to_string(Application::Get().sound.GetVolume(channel1))
+			std::string("Channel 1 Volume: ") +
+			std::to_string(Application::Get().sound.GetVolume(channel1))
 		);
 		b6.SetTextContent(
-			std::string("Channel 2 Volume: ") + std::to_string(Application::Get().sound.GetVolume(channel2))
+			std::string("Channel 2 Volume: ") +
+			std::to_string(Application::Get().sound.GetVolume(channel2))
 		);
 		b7.SetTextContent(
-			std::string("Channel 1 Playing: ") + (Application::Get().sound.IsPlaying(channel1) ? "true" : "false")
+			std::string("Channel 1 Playing: ") +
+			(Application::Get().sound.IsPlaying(channel1) ? "true" : "false")
 		);
 		b8.SetTextContent(
-			std::string("Channel 2 Playing: ") + (Application::Get().sound.IsPlaying(channel2) ? "true" : "false")
+			std::string("Channel 2 Playing: ") +
+			(Application::Get().sound.IsPlaying(channel2) ? "true" : "false")
 		);
 		b9.SetTextContent(
-			std::string("Channel 1 Paused: ") + (Application::Get().sound.IsPaused(channel1) ? "true" : "false")
+			std::string("Channel 1 Paused: ") +
+			(Application::Get().sound.IsPaused(channel1) ? "true" : "false")
 		);
 		b10.SetTextContent(
-			std::string("Channel 2 Paused: ") + (Application::Get().sound.IsPaused(channel2) ? "true" : "false")
+			std::string("Channel 2 Paused: ") +
+			(Application::Get().sound.IsPaused(channel2) ? "true" : "false")
 		);
 		b11.SetTextContent(
-			std::string("Channel 1 Fading: ") + (Application::Get().sound.IsFading(channel1) ? "true" : "false")
+			std::string("Channel 1 Fading: ") +
+			(Application::Get().sound.IsFading(channel1) ? "true" : "false")
 		);
 		b12.SetTextContent(
-			std::string("Channel 2 Fading: ") + (Application::Get().sound.IsFading(channel2) ? "true" : "false")
+			std::string("Channel 2 Fading: ") +
+			(Application::Get().sound.IsFading(channel2) ? "true" : "false")
 		);
 	}
 };

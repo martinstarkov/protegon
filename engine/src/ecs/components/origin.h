@@ -22,12 +22,12 @@ enum class Origin {
 
 namespace impl {
 
-[[nodiscard]] V2_float GetOriginOffsetHalf(Origin origin, const V2_float& half);
+[[nodiscard]] V2_float GetOriginOffsetHalf(Origin origin, V2_float half);
 
 } // namespace impl
 
 // @return Vector to be added to a position to get the object center given an origin and size.
-[[nodiscard]] V2_float GetOriginOffset(Origin origin, const V2_float& size);
+[[nodiscard]] V2_float GetOriginOffset(Origin origin, V2_float size);
 
 inline std::ostream& operator<<(std::ostream& os, Origin origin) {
 	switch (origin) {

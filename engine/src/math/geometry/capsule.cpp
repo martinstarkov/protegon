@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-Capsule::Capsule(const V2_float& start, const V2_float& end, float radius) :
+Capsule::Capsule(V2_float start, V2_float end, float radius) :
 	start{ start }, end{ end }, radius{ radius } {}
 
 std::array<V2_float, 4> Capsule::GetWorldQuadVertices(

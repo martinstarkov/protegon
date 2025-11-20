@@ -43,7 +43,7 @@ struct Vector3 {
 	explicit Vector3(const json& j);
 
 	template <Arithmetic U>
-	constexpr Vector3(const Vector3<U>& o) :
+	constexpr Vector3(Vector3<U> o) :
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
 
 	template <ConvertibleToArithmetic U, ConvertibleToArithmetic S, ConvertibleToArithmetic V>
@@ -53,7 +53,7 @@ struct Vector3 {
 		z{ static_cast<T>(z_component) } {}
 
 	template <Arithmetic U>
-	constexpr Vector3(const std::array<U, 3>& o) :
+	constexpr Vector3(std::array<U, 3> o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) }, z{ static_cast<T>(o[2]) } {}
 
 	friend bool operator==(const Vector3& lhs, const Vector3& rhs) {
@@ -61,7 +61,7 @@ struct Vector3 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
-	[[nodiscard]] constexpr T& operator[](std::size_t idx) {
+	constexpr T& operator[](std::size_t idx) {
 		if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
@@ -71,7 +71,7 @@ struct Vector3 {
 	}
 
 	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
-	[[nodiscard]] constexpr T operator[](std::size_t idx) const {
+	constexpr T operator[](std::size_t idx) const {
 		if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
@@ -80,13 +80,13 @@ struct Vector3 {
 		return x; // 0
 	}
 
-	[[nodiscard]] constexpr Vector3 operator-() const {
+	constexpr Vector3 operator-() const {
 		return { -x, -y, -z };
 	}
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector3& operator+=(const Vector3<U>& rhs) {
+	constexpr Vector3& operator+=(Vector3<U> rhs) {
 		x += rhs.x;
 		y += rhs.y;
 		z += rhs.z;
@@ -95,7 +95,7 @@ struct Vector3 {
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector3& operator-=(const Vector3<U>& rhs) {
+	constexpr Vector3& operator-=(Vector3<U> rhs) {
 		x -= rhs.x;
 		y -= rhs.y;
 		z -= rhs.z;
@@ -104,7 +104,7 @@ struct Vector3 {
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector3& operator*=(const Vector3<U>& rhs) {
+	constexpr Vector3& operator*=(Vector3<U> rhs) {
 		x *= rhs.x;
 		y *= rhs.y;
 		z *= rhs.z;
@@ -113,7 +113,7 @@ struct Vector3 {
 
 	template <Arithmetic U>
 		requires NotNarrowingArithmetic<U, T>
-	constexpr Vector3& operator/=(const Vector3<U>& rhs) {
+	constexpr Vector3& operator/=(Vector3<U> rhs) {
 		x /= rhs.x;
 		y /= rhs.y;
 		z /= rhs.z;
@@ -139,12 +139,12 @@ struct Vector3 {
 	}
 
 	// Returns the dot product (this * o).
-	[[nodiscard]] constexpr T Dot(const Vector3& o) const {
+	[[nodiscard]] constexpr T Dot(Vector3 o) const {
 		return x * o.x + y * o.y + z * o.z;
 	}
 
 	// Returns the cross product (this x o).
-	[[nodiscard]] constexpr Vector3 Cross(const Vector3& o) const {
+	[[nodiscard]] constexpr Vector3 Cross(Vector3 o) const {
 		return { y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.z };
 	}
 
@@ -186,12 +186,12 @@ struct Vector3 {
 				 x * (-sin_B) + y * (sin_a * cos_B) + z * (cos_a * cos_B) };
 	}
 
-	[[nodiscard]] bool IsZero() const {
+	bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 });
 	}
 
 	// @return True if any component is zero.
-	[[nodiscard]] bool HasZero() const {
+	bool HasZero() const {
 		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 }) || NearlyEqual(z, T{ 0 });
 	}
 };
@@ -208,48 +208,48 @@ using V3_float	= Vector3<float>;
 using V3_double = Vector3<double>;
 
 template <StreamWritable V>
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Vector3<V>& v) {
+inline std::ostream& operator<<(std::ostream& os, Vector3<V> v) {
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
 	return os;
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator+(const Vector3<V>& lhs, const Vector3<U>& rhs) {
+constexpr Vector3<S> operator+(Vector3<V> lhs, Vector3<U> rhs) {
 	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator-(const Vector3<V>& lhs, const Vector3<U>& rhs) {
+constexpr Vector3<S> operator-(Vector3<V> lhs, Vector3<U> rhs) {
 	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator*(const Vector3<V>& lhs, const Vector3<U>& rhs) {
+constexpr Vector3<S> operator*(Vector3<V> lhs, Vector3<U> rhs) {
 	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator/(const Vector3<V>& lhs, const Vector3<U>& rhs) {
+constexpr Vector3<S> operator/(Vector3<V> lhs, Vector3<U> rhs) {
 	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator*(V lhs, const Vector3<U>& rhs) {
+constexpr Vector3<S> operator*(V lhs, Vector3<U> rhs) {
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator*(const Vector3<V>& lhs, U rhs) {
+constexpr Vector3<S> operator*(Vector3<V> lhs, U rhs) {
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator/(V lhs, const Vector3<U>& rhs) {
+constexpr Vector3<S> operator/(V lhs, Vector3<U> rhs) {
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-[[nodiscard]] constexpr Vector3<S> operator/(const Vector3<V>& lhs, U rhs) {
+constexpr Vector3<S> operator/(Vector3<V> lhs, U rhs) {
 	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs };
 }
 

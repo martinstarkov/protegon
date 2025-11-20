@@ -110,7 +110,7 @@ public:
 	}
 };
 
-void SetProgress(const V2_float& size, const Entity& e, float progress) {
+void SetProgress(V2_float size, const Entity& e, float progress) {
 	V2_float res{ Application::Get().render_.GetGameSize() };
 	auto width{ res.x - size.x };
 	Entity target{ e };
@@ -135,7 +135,7 @@ public:
 		return pos;
 	}
 
-	Tween CreateRectTween(const Color& color, const std::string& name) {
+	Tween CreateRectTween(Color color, const std::string& name) {
 		auto rect	= CreateRect(*this, V2_float{}, V2_float{}, color, -1.0f, Origin::CenterTop);
 		auto text	= CreateText(*this, name, color::Black);
 		Tween tween = CreateTween(*this).During(duration);

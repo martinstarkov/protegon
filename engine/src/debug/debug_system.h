@@ -36,7 +36,7 @@ public:
 		const std::string& content, const Transform& transform,
 		const TextColor& color = color::White, Origin origin = Origin::Center,
 		const FontSize& font_size = {}, const Handle<Font>& font_key = {},
-		const TextProperties& properties = {}, const V2_float& text_size = {},
+		const TextProperties& properties = {}, V2_float text_size = {},
 		const Camera& camera = {}
 	);*/
 
@@ -48,11 +48,11 @@ public:
 	);
 
 	void DrawLine(
-		const V2_float& start, const V2_float& end, const Tint& color,
+		V2_float start, V2_float end, const Tint& color,
 		const LineWidth& line_width = {}, const Camera& camera = {}
 	);
 
-	void DrawPoint(const V2_float& point, const Tint& color, const Camera& camera = {});
+	void DrawPoint(V2_float point, const Tint& color, const Camera& camera = {});
 	*/
 
 private:

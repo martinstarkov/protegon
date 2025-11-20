@@ -29,7 +29,7 @@ namespace ptgn {
 
 #ifdef __EMSCRIPTEN__
 
-void Window::SetCanvasSize(const V2_int& new_size) const {
+void Window::SetCanvasSize(V2_int new_size) const {
 	emscripten_set_element_css_size("#canvas", new_size.x, new_size.y);
 }
 
@@ -57,7 +57,7 @@ V2_int Screen::GetSize() {
 	return { dm.w, dm.h };
 }
 
-Window::Window(const char* title, const V2_int& size) :
+Window::Window(const char* title, V2_int size) :
 	// TODO: Add flags to window constructor.
 	instance_{ SDL_CreateWindow(
 				   title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size.x, size.y,
@@ -99,7 +99,7 @@ void Window::SetAlwaysOnTop(bool on) const {
 	SDL_SetWindowAlwaysOnTop(*this, static_cast<SDL_bool>(on));
 }
 
-void Window::SetMinimumSize(const V2_int& minimum_size) const {
+void Window::SetMinimumSize(V2_int minimum_size) const {
 	SDL_SetWindowMinimumSize(*this, minimum_size.x, minimum_size.y);
 }
 
@@ -109,7 +109,7 @@ V2_int Window::GetMinimumSize() const {
 	return minimum_size;
 }
 
-void Window::SetMaximumSize(const V2_int& maximum_size) const {
+void Window::SetMaximumSize(V2_int maximum_size) const {
 	SDL_SetWindowMaximumSize(*this, maximum_size.x, maximum_size.y);
 }
 
@@ -129,7 +129,7 @@ std::string_view Window::GetTitle() const {
 	return SDL_GetWindowTitle(*this);
 }
 
-void Window::SetSize(const V2_int& new_size, bool centered) const {
+void Window::SetSize(V2_int new_size, bool centered) const {
 #ifdef __EMSCRIPTEN__
 	SetCanvasSize(new_size);
 #endif
@@ -140,7 +140,7 @@ void Window::SetSize(const V2_int& new_size, bool centered) const {
 	}
 }
 
-void Window::SetPosition(const V2_int& new_origin) const {
+void Window::SetPosition(V2_int new_origin) const {
 	SDL_SetWindowPosition(*this, new_origin.x, new_origin.y);
 }
 

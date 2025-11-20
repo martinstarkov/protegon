@@ -50,31 +50,31 @@ namespace impl {
 );
 
 [[nodiscard]] bool OverlapPointPoint(
-	const Transform& t1, const V2_float& A, const Transform& t2, const V2_float& B
+	const Transform& t1, V2_float A, const Transform& t2, V2_float B
 );
 
 [[nodiscard]] bool OverlapPointLine(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Line& B
+	const Transform& t1, V2_float A, const Transform& t2, const Line& B
 );
 
 [[nodiscard]] bool OverlapPointTriangle(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Triangle& B
+	const Transform& t1, V2_float A, const Transform& t2, const Triangle& B
 );
 
 [[nodiscard]] bool OverlapPointCircle(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Circle& B
+	const Transform& t1, V2_float A, const Transform& t2, const Circle& B
 );
 
 [[nodiscard]] bool OverlapPointRect(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Rect& B
+	const Transform& t1, V2_float A, const Transform& t2, const Rect& B
 );
 
 [[nodiscard]] bool OverlapPointCapsule(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Capsule& B
+	const Transform& t1, V2_float A, const Transform& t2, const Capsule& B
 );
 
 [[nodiscard]] bool OverlapPointPolygon(
-	const Transform& t1, const V2_float& A, const Transform& t2, const Polygon& B
+	const Transform& t1, V2_float A, const Transform& t2, const Polygon& B
 );
 
 [[nodiscard]] bool OverlapLineLine(
@@ -168,8 +168,8 @@ namespace impl {
 	const ColliderShape& shape2
 );
 
-[[nodiscard]] bool Overlap(const V2_float& point, const Transform& t2, const ColliderShape& shape2);
+[[nodiscard]] bool Overlap(V2_float point, const Transform& t2, const ColliderShape& shape2);
 
-[[nodiscard]] bool Overlap(const Transform& t1, const ColliderShape& shape1, const V2_float& point);
+[[nodiscard]] bool Overlap(const Transform& t1, const ColliderShape& shape1, V2_float point);
 
 } // namespace ptgn

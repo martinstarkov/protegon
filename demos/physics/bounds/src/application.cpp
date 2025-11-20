@@ -1,10 +1,11 @@
 
+#include "core/app/application.h"
+
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
 #include "ecs/components/draw.h"
 #include "ecs/components/movement.h"
 #include "ecs/entity.h"
-#include "core/app/application.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
 #include "math/geometry/rect.h"
 #include "math/rng.h"
 #include "math/vector2.h"
@@ -30,10 +31,7 @@ struct PhysicsBoundaryScene : public Scene {
 	RNG<float> rngy{ -(float)resolution.y * 0.5f, (float)resolution.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 10.0f };
 
-	Entity AddEntity(
-		const V2_float& center, const V2_float& size, const Color& color,
-		bool set_random_velocity = true
-	) {
+	Entity AddEntity(V2_float center, V2_float size, Color color, bool set_random_velocity = true) {
 		Entity entity		  = CreateRect(*this, center, size, color);
 		const auto random_vel = []() {
 			V2_float dir{ V2_float::Random(-0.5f, 0.5f) };

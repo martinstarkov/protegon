@@ -2,13 +2,13 @@
 
 #include <vector>
 
-#include "ecs/manager.h"
+#include "core/input/input_handler.h"
+#include "debug/profiling.h"
 #include "ecs/components/draw.h"
 #include "ecs/components/movement.h"
 #include "ecs/components/transform.h"
 #include "ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "debug/profiling.h"
+#include "ecs/manager.h"
 #include "math/geometry/rect.h"
 #include "math/rng.h"
 #include "math/vector2.h"
@@ -31,8 +31,7 @@ constexpr V2_int resolution{ 800, 800 };
 }
 
 Entity AddEntity(
-	Scene& scene, const V2_float& center, const V2_float& size, const Color& color,
-	bool induce_random_velocity = true
+	Scene& scene, V2_float center, V2_float size, Color color, bool induce_random_velocity = true
 ) {
 	Entity entity = CreateRect(scene, center, size, color);
 	if (induce_random_velocity) {

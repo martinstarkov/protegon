@@ -1,20 +1,21 @@
+#include "core/app/application.h"
+
 #include <string_view>
 
-#include "ecs/components/draw.h"
-#include "core/app/application.h"
-#include "core/util/time.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
+#include "core/util/time.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/origin.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "ecs/components/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/vfx/particle.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
-#include "world/tile/grid.h"
 #include "ui/button.h"
+#include "world/tile/grid.h"
 
 using namespace ptgn;
 
@@ -39,7 +40,7 @@ public:
 		return b;
 	}
 
-	void CreateFixedEmitter(const V2_float& position, const Color& start, const Color& end) {
+	void CreateFixedEmitter(V2_float position, Color start, Color end) {
 		ParticleInfo fixed_info;
 		fixed_info.lifetime		  = milliseconds{ 2000 };
 		fixed_info.start_scale	  = 1.0f;

@@ -124,7 +124,7 @@ private:
 	// Convert position from being relative to the top left of the window to being relative to the
 	// center of the specified viewport.
 	[[nodiscard]] V2_float GetPositionRelativeTo(
-		const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
+		V2_int window_position, ViewportType relative_to, bool clamp_to_viewport
 	) const;
 
 	// @return Mouse position relative to the top left of the screen.

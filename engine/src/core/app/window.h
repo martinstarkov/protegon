@@ -49,20 +49,20 @@ class Window {
 public:
 	Window() = delete;
 	// TODO: Add flags to window constructor.
-	explicit Window(const char* title, const V2_int& size);
+	explicit Window(const char* title, V2_int size);
 	~Window() noexcept					 = default;
 	Window(Window&&) noexcept			 = delete;
 	Window& operator=(Window&&) noexcept = delete;
 	Window(const Window&)				 = delete;
 	Window& operator=(const Window&)	 = delete;
 
-	void SetMinimumSize(const V2_int& minimum_size) const;
+	void SetMinimumSize(V2_int minimum_size) const;
 	[[nodiscard]] V2_int GetMinimumSize() const;
 
-	void SetMaximumSize(const V2_int& maximum_size) const;
+	void SetMaximumSize(V2_int maximum_size) const;
 	[[nodiscard]] V2_int GetMaximumSize() const;
 
-	void SetSize(const V2_int& new_size, bool centered = true) const;
+	void SetSize(V2_int new_size, bool centered = true) const;
 	[[nodiscard]] V2_int GetSize() const;
 
 	// @return Top left of the window relative to the top left of the screen.
@@ -73,7 +73,7 @@ public:
 
 	void Center() const;
 
-	void SetPosition(const V2_int& new_origin) const;
+	void SetPosition(V2_int new_origin) const;
 
 	void SetSetting(WindowSetting setting) const;
 
@@ -89,7 +89,7 @@ public:
 	void SwapBuffers() const;
 
 #ifdef __EMSCRIPTEN__
-	void SetCanvasSize(const V2_int& new_size) const;
+	void SetCanvasSize(V2_int new_size) const;
 	[[nodiscard]] V2_int GetCanvasSize() const;
 #endif
 

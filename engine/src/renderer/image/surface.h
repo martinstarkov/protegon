@@ -16,10 +16,10 @@ struct Surface {
 
 	// @param coordinate Pixel coordinate from [0, size).
 	// @return Color value of the given pixel.
-	[[nodiscard]] Color GetPixel(const V2_int& coordinate) const;
+	[[nodiscard]] Color GetPixel(V2_int coordinate) const;
 
 	// @param callback Function to be called for each pixel.
-	void ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) const;
+	void ForEachPixel(const std::function<void(V2_int, Color)>& function) const;
 
 	// Surface pixel data is currently always stored as RGBA32.
 	static constexpr std::size_t bytes_per_pixel{ 4 };

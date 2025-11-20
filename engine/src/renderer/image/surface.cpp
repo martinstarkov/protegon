@@ -78,7 +78,7 @@ void Surface::FlipVertically() {
 	}
 }
 
-Color Surface::GetPixel(const V2_int& coordinate) const {
+Color Surface::GetPixel(V2_int coordinate) const {
 	PTGN_ASSERT(coordinate.x >= 0, "X Coordinate outside of range of grid");
 	PTGN_ASSERT(coordinate.y >= 0, "Y Coordinate outside of range of grid");
 	PTGN_ASSERT(coordinate.x < size.x, "X Coordinate outside of range of grid");
@@ -107,7 +107,7 @@ Color Surface::GetPixel(std::size_t index) const {
 	}
 }
 
-void Surface::ForEachPixel(const std::function<void(const V2_int&, const Color&)>& function) const {
+void Surface::ForEachPixel(const std::function<void(V2_int, Color)>& function) const {
 	PTGN_ASSERT(!pixels.empty(), "Cannot loop through each pixel of an empty surface");
 	PTGN_ASSERT(function != nullptr, "Invalid loop function");
 	for (int j{ 0 }; j < size.y; j++) {

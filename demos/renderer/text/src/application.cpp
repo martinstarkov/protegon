@@ -19,7 +19,7 @@ struct TextScene : public Scene {
 	static constexpr std::string_view font{ "arial" };
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 
-	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
+	Text CreateText(Color color, int index, std::string_view font_key = font) {
 		constexpr float stride{ 44.0f };
 		FontSize font_size{ 30 };
 

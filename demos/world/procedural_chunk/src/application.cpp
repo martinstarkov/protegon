@@ -24,7 +24,7 @@ using namespace ptgn;
 
 class ChunkScene : public Scene {
 public:
-	Entity CreateSheep(const V2_float& position) {
+	Entity CreateSheep(V2_float position) {
 		auto e = CreateEntity();
 		SetPosition(e, position);
 		Show(e);
@@ -33,7 +33,7 @@ public:
 		return e;
 	}
 
-	Entity CreateTile(const V2_float& position, std::string_view texture_key) {
+	Entity CreateTile(V2_float position, std::string_view texture_key) {
 		auto e = CreateEntity();
 		SetPosition(e, position);
 		Show(e);
@@ -42,7 +42,7 @@ public:
 		return e;
 	}
 
-	Entity CreateColorTile(const V2_float& position, const Color& color) {
+	Entity CreateColorTile(V2_float position, Color color) {
 		auto e =
 			CreateRect(*this, position, chunk_manager.tile_size, color, -1.0f, Origin::TopLeft);
 		return e;
@@ -69,7 +69,7 @@ public:
 		Application::Get().texture.Load("green", "resources/green_tile.png");
 
 		chunk_manager.AddNoiseLayer(NoiseLayer{
-			fractal_noise, [&](const V2_float& coordinate, float noise) {
+			fractal_noise, [&](V2_float coordinate, float noise) {
 				return CreateColorTile(
 					-Application::Get().render_.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
 				);

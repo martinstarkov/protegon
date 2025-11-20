@@ -15,7 +15,7 @@ struct ColorComponent : public Color {
 	using Color::Color;
 	using Color::operator=;
 
-	ColorComponent(const Color& c) : Color{ c } {}
+	ColorComponent(Color c) : Color{ c } {}
 };
 
 template <Arithmetic T>

@@ -19,7 +19,7 @@ namespace ptgn {
 );
 
 [[nodiscard]] bool StrictlyLess(
-	const V2_float& a, const V2_float& b, float epsilon = std::numeric_limits<float>::epsilon()
+	V2_float a, V2_float b, float epsilon = std::numeric_limits<float>::epsilon()
 );
 
 namespace impl {
@@ -30,14 +30,14 @@ namespace impl {
 // @param end_angle Must be in range: [0, 2pi).
 // @return The vertices which make up the arc.
 [[nodiscard]] std::vector<V2_float> GetArcVertices(
-	const V2_float& center, float radius, float start_angle, float end_angle, bool clockwise
+	V2_float center, float radius, float start_angle, float end_angle, bool clockwise
 );
 
 [[nodiscard]] float TriangulateArea(std::span<const V2_float> vertices);
 
 // InsideTriangle decides if a point P is Inside of the triangle defined by A, B, C.
 [[nodiscard]] bool TriangulateInsideTriangle(
-	const V2_float& A, const V2_float& B, const V2_float& C, const V2_float& P
+	V2_float A, V2_float B, V2_float C, V2_float P
 );
 
 [[nodiscard]] bool TriangulateSnip(
@@ -61,10 +61,10 @@ enum class Orientation {
  * @return Orientation of the points in the plane (left turn, right turn
  *         or Collinear)
  */
-[[nodiscard]] Orientation GetOrientation(const V2_float& a, const V2_float& b, const V2_float& c);
+[[nodiscard]] Orientation GetOrientation(V2_float a, V2_float b, V2_float c);
 
 bool VisibilityRayIntersects(
-	const V2_float& origin, const V2_float& direction, const Line& segment, V2_float& out_point
+	V2_float origin, V2_float direction, const Line& segment, V2_float& out_point
 );
 
 struct VisibilityEvent {
@@ -89,11 +89,11 @@ struct VisibilityEvent {
  * @return vector of vertices of the visibility polygon.
  */
 [[nodiscard]] std::vector<V2_float> GetVisibilityPolygon(
-	const V2_float& origin, const std::vector<Line>& segments
+	V2_float origin, const std::vector<Line>& segments
 );
 
 [[nodiscard]] std::vector<Triangle> GetVisibilityTriangles(
-	const V2_float& origin, const std::vector<Line>& segments
+	V2_float origin, const std::vector<Line>& segments
 );
 
 std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connect_last_to_first);
@@ -101,12 +101,12 @@ std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connec
 namespace impl {
 
 // @return True if point `p` is inside the edge (i.e., to the left of the edge from start to end).
-[[nodiscard]] bool IsInside(const V2_float& p, const Line& edge);
+[[nodiscard]] bool IsInside(V2_float p, const Line& edge);
 
 // Computes intersection point between segment AB and line CD (clip edge).
 // @return Nullopt if lines are parallel or no intersection on AB segment.
 [[nodiscard]] std::optional<V2_float> ComputeIntersection(
-	const V2_float& a, const V2_float& b, const V2_float& c, const V2_float& d
+	V2_float a, V2_float b, V2_float c, V2_float d
 );
 
 } // namespace impl
@@ -128,25 +128,25 @@ namespace impl {
 // S2(t)=P2+t*(Q2-P2), returning s and t. Function result is squared
 // distance between between S1(s) and S2(t)
 float ClosestPointLineLine(
-	const V2_float& lineA_start, const V2_float& lineA_end, const V2_float& lineB_start,
-	const V2_float& lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
+	V2_float lineA_start, V2_float lineA_end, V2_float lineB_start,
+	V2_float lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
 );
 
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
 [[nodiscard]] float SquareDistancePointLine(
-	const V2_float& point, const V2_float& start, const V2_float& end
+	V2_float point, V2_float start, V2_float end
 );
 
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
 [[nodiscard]] float SquareDistancePointRect(
-	const V2_float& point, const V2_float& rect_min, const V2_float& rect_max
+	V2_float point, V2_float rect_min, V2_float rect_max
 );
 
-[[nodiscard]] float ParallelogramArea(const V2_float& a, const V2_float& b, const V2_float& c);
+[[nodiscard]] float ParallelogramArea(V2_float a, V2_float b, V2_float c);
 
 [[nodiscard]] bool IntervalsOverlap(float min1, float max1, float min2, float max2);
 

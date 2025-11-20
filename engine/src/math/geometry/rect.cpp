@@ -9,7 +9,7 @@
 
 namespace ptgn {
 
-Rect::Rect(const V2_float& min, const V2_float& max) : min{ min }, max{ max } {}
+Rect::Rect(V2_float min, V2_float max) : min{ min }, max{ max } {}
 
 V2_float Rect::GetSize() const {
 	return max - min;

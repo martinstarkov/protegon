@@ -55,10 +55,7 @@ public:
 	template <Arithmetic... Ts>
 	explicit constexpr Matrix4(Ts... args) : m_{ args... } {}
 
-	constexpr Matrix4(
-		const Vector4<float>& row0, const Vector4<float>& row1, const Vector4<float>& row2,
-		const Vector4<float>& row3
-	) {
+	constexpr Matrix4(V4_float row0, V4_float row1, V4_float row2, V4_float row3) {
 		m_[0]  = row0.x;
 		m_[1]  = row1.x;
 		m_[2]  = row2.x;
@@ -129,23 +126,21 @@ public:
 		return std::end(m_);
 	}
 
-	void Scale(const Vector3<float>& axes) {
+	void Scale(V3_float axes) {
 		*this = Scale(*this, axes);
 	}
 
-	void Rotate(float rotation_radians, const Vector3<float>& axes) {
+	void Rotate(float rotation_radians, V3_float axes) {
 		*this = Rotate(*this, rotation_radians, axes);
 	}
 
-	void Translate(const Vector3<float>& translation) {
+	void Translate(V3_float translation) {
 		*this = Translate(*this, translation);
 	}
 
 	[[nodiscard]] Matrix4 Inverse() const;
 
-	[[nodiscard]] static Matrix4 LookAt(
-		const Vector3<float>& position, const Vector3<float>& target, const Vector3<float>& up
-	);
+	[[nodiscard]] static Matrix4 LookAt(V3_float position, V3_float target, V3_float up);
 
 	[[nodiscard]] static Matrix4 Identity();
 
@@ -156,29 +151,26 @@ public:
 	);
 
 	[[nodiscard]] static Matrix4 Orthographic(
-		const V2_float& min, const V2_float& max,
-		float near = -std::numeric_limits<float>::infinity(),
-		float far  = std::numeric_limits<float>::infinity()
+		V2_float min, V2_float max, float near = -std::numeric_limits<float>::infinity(),
+		float far = std::numeric_limits<float>::infinity()
 	);
 
 	[[nodiscard]] static Matrix4 MakeTransform(
-		const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
-		const Vector3<float>& scale
+		V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeTransform(
-		const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
+		V2_float position, float rotation_radians, V2_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeTransform(const Transform& transform);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		const Vector3<float>& position, float rotation_radians, const Vector3<float>& rotation_axis,
-		const Vector3<float>& scale
+		V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		const Vector2<float>& position, float rotation_radians, const Vector2<float>& scale
+		V2_float position, float rotation_radians, V2_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(const Transform& transform);
@@ -190,14 +182,14 @@ public:
 		float fov_x_radians, float aspect_ratio, float front, float back
 	);
 
-	[[nodiscard]] static Matrix4 Translate(const Matrix4& matrix, const Vector3<float>& axes);
+	[[nodiscard]] static Matrix4 Translate(const Matrix4& matrix, V3_float axes);
 
 	// Angle in radians.
 	[[nodiscard]] static Matrix4 Rotate(
-		const Matrix4& matrix, float rotation_radians, const Vector3<float>& axes
+		const Matrix4& matrix, float rotation_radians, V3_float axes
 	);
 
-	[[nodiscard]] static Matrix4 Scale(const Matrix4& matrix, const Vector3<float>& axes);
+	[[nodiscard]] static Matrix4 Scale(const Matrix4& matrix, V3_float axes);
 
 	[[nodiscard]] bool IsZero() const;
 
@@ -219,8 +211,8 @@ public:
 	[[nodiscard]] Matrix4 operator*(const Matrix4& rhs);
 
 	template <Arithmetic U>
-	[[nodiscard]] inline Vector4<float> operator*(const Vector4<U>& rhs) {
-		Vector4<float> res;
+	[[nodiscard]] inline V4_float operator*(Vector4<U> rhs) {
+		V4_float res;
 
 		for (std::size_t row{ 0 }; row < size.x; ++row) {
 			for (std::size_t i{ 0 }; i < size.y; ++i) {

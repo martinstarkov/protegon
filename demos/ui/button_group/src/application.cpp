@@ -30,7 +30,7 @@ struct ToggleButtonScript : public Script<ToggleButtonScript, ButtonScript> {
 class ToggleButtonGroupScene : public Scene {
 	ToggleButtonGroup group;
 
-	ToggleButton CreateToggleButtonGroupItem(const V2_float& position, int number) {
+	ToggleButton CreateToggleButtonGroupItem(V2_float position, int number) {
 		ToggleButton b{ CreateToggleButton(*this, false) };
 		SetPosition(b, position);
 		b.SetSize({ 200, 130 });

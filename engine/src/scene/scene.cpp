@@ -81,7 +81,7 @@ void Scene::ReEnter() {
 	// Application::Get().scene_.Enter(key_);
 }
 
-// void Scene::SetColliderColor(const Color& collider_color) {
+// void Scene::SetColliderColor(Color collider_color) {
 //	collider_color_ = collider_color;
 // }
 //
@@ -131,7 +131,7 @@ V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera)
 
 	*/
 
-void Scene::SetBackgroundColor(const Color& background_color) {
+void Scene::SetBackgroundColor(Color background_color) {
 	// TODO: Fix.
 	// render_target_.SetClearColor(background_color);
 }

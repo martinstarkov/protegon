@@ -1,29 +1,30 @@
+#include "core/app/application.h"
+
 #include <algorithm>
 #include <optional>
 #include <vector>
 
-#include "ecs/components/draw.h"
-#include "ecs/components/effects.h"
-#include "ecs/components/sprite.h"
-#include "ecs/components/transform.h"
-#include "ecs/entity.h"
-#include "core/app/application.h"
-#include "ecs/game_object.h"
-#include "ecs/manager.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/mouse.h"
-#include "math/geometry_utils.h"
+#include "ecs/components/draw.h"
+#include "ecs/components/effects.h"
+#include "ecs/components/origin.h"
+#include "ecs/components/sprite.h"
+#include "ecs/components/transform.h"
+#include "ecs/entity.h"
+#include "ecs/game_object.h"
+#include "ecs/manager.h"
 #include "math/geometry/line.h"
 #include "math/geometry/rect.h"
 #include "math/geometry/shape.h"
+#include "math/geometry_utils.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
-#include "ecs/components/origin.h"
+#include "renderer/material/shader.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
-#include "renderer/material/shader.h"
 #include "renderer/stencil_mask.h"
 #include "renderer/vfx/light.h"
 #include "scene/camera.h"
@@ -131,8 +132,8 @@ public:
 		Application::Get().render_.DrawOutsideStencilMask();
 
 		Application::Get().render_.DrawShape(
-			{}, Rect{ Application::Get().render_.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
-			Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
+			{}, Rect{ Application::Get().render_.GetDisplaySize() }, color::Black.WithAlpha(0.5f),
+			-1.0f, Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
 		);
 
 		Application::Get().render_.DisableStencilMask();
@@ -229,11 +230,11 @@ public:
 
 		float step{ 80 };
 
-		const auto create_light = [&](const Color& color) {
+		const auto create_light = [&](Color color) {
 			static int i = 1;
 			auto light	 = CreatePointLight(
-				  *this, -Application::Get().render_.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
-				  intensity, falloff
+				  *this, -Application::Get().render_.GetGameSize() * 0.5f + V2_float{ i * step },
+				  radius, color, intensity, falloff
 			  );
 			i++;
 			return light;

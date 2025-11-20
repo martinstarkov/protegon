@@ -66,7 +66,7 @@ bool RaycastResult::Occurred() const {
 namespace impl {
 
 RaycastResult RaycastLine(
-	const V2_float& ray_start, const V2_float& ray_end, const Transform& t2, const Line& B
+	V2_float ray_start, V2_float ray_end, const Transform& t2, const Line& B
 ) {
 	// Source:
 	// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
@@ -121,7 +121,7 @@ RaycastResult RaycastLine(
 }
 
 RaycastResult RaycastCircle(
-	const V2_float& ray_start, const V2_float& ray_end, const Transform& transform2, const Circle& B
+	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Circle& B
 ) {
 	// Source:
 	// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm/1084899#1084899
@@ -178,7 +178,7 @@ RaycastResult RaycastCircle(
 }
 
 RaycastResult RaycastRect(
-	const V2_float& ray_start, const V2_float& ray_end, const Transform& transform2, const Rect& B
+	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Rect& B
 ) {
 	RaycastResult c;
 
@@ -327,7 +327,7 @@ RaycastResult RaycastRect(
 }
 
 RaycastResult RaycastCapsule(
-	const V2_float& ray_start, const V2_float& ray_end, const Transform& transform2,
+	V2_float ray_start, V2_float ray_end, const Transform& transform2,
 	const Capsule& B
 ) {
 	// Source: https://stackoverflow.com/a/52462458
@@ -395,7 +395,7 @@ RaycastResult RaycastCapsule(
 }
 
 [[nodiscard]] RaycastResult RaycastPolygon(
-	const V2_float& ray_start, const V2_float& ray_end, const Transform& transform2,
+	V2_float ray_start, V2_float ray_end, const Transform& transform2,
 	const Polygon& B
 ) {
 	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));
@@ -423,7 +423,7 @@ RaycastResult RaycastCapsule(
 }
 
 RaycastResult RaycastCircleLine(
-	const V2_float& ray, const Transform& transform1, const Circle& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
 	const Line& B
 ) {
 	auto circle_center{ A.GetCenter(transform1) };
@@ -434,7 +434,7 @@ RaycastResult RaycastCircleLine(
 }
 
 [[nodiscard]] RaycastResult RaycastCirclePolygon(
-	const V2_float& ray, const Transform& transform1, const Circle& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
 	const Polygon& B
 ) {
 	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));
@@ -462,7 +462,7 @@ RaycastResult RaycastCircleLine(
 }
 
 RaycastResult RaycastCircleCircle(
-	const V2_float& ray, const Transform& transform1, const Circle& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
 	const Circle& B
 ) {
 	auto circleA_center{ A.GetCenter(transform1) };
@@ -474,7 +474,7 @@ RaycastResult RaycastCircleCircle(
 }
 
 RaycastResult RaycastCircleRect(
-	const V2_float& ray, const Transform& transform1, const Circle& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
 	const Rect& B
 ) {
 	if (transform2.GetRotation() != 0.0f) {
@@ -525,7 +525,7 @@ RaycastResult RaycastCircleRect(
 	V2_float top_right{ bottom_right.x, top_left.y };
 	V2_float bottom_left{ top_left.x, bottom_right.y };
 
-	const auto raycast_capsule_segment = [&](const V2_float& start, const V2_float& end) {
+	const auto raycast_capsule_segment = [&](V2_float start, V2_float end) {
 		auto collision{ RaycastCapsule(
 			circle_center, ray_end, Transform{}, Capsule{ start, end, circle_radius }
 		) };
@@ -553,7 +553,7 @@ RaycastResult RaycastCircleRect(
 }
 
 RaycastResult RaycastCircleCapsule(
-	const V2_float& ray, const Transform& transform1, const Circle& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
 	const Capsule& B
 ) {
 	auto circle_center{ A.GetCenter(transform1) };
@@ -565,14 +565,14 @@ RaycastResult RaycastCircleCapsule(
 }
 
 RaycastResult RaycastRectCircle(
-	const V2_float& ray, const Transform& transform1, const Rect& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Rect& A, const Transform& transform2,
 	const Circle& B
 ) {
 	return RaycastCircleRect(-ray, transform2, B, transform1, A);
 }
 
 RaycastResult RaycastRectRect(
-	const V2_float& ray, const Transform& transform1, const Rect& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Rect& A, const Transform& transform2,
 	const Rect& B
 ) {
 	bool rotated1{ transform1.GetRotation() != 0.0f };
@@ -596,14 +596,14 @@ RaycastResult RaycastRectRect(
 }
 
 RaycastResult RaycastRectPolygon(
-	const V2_float& ray, const Transform& transform1, const Rect& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Rect& A, const Transform& transform2,
 	const Polygon& B
 ) {
 	return RaycastPolygonPolygon(ray, transform1, Polygon{ A.GetLocalVertices() }, transform2, B);
 }
 
 RaycastResult RaycastPolygonPolygon(
-	const V2_float& ray, const Transform& transform1, const Polygon& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Polygon& A, const Transform& transform2,
 	const Polygon& B
 ) {
 	PTGN_ASSERT(impl::IsConvexPolygon(A.vertices.data(), A.vertices.size()));
@@ -615,7 +615,7 @@ RaycastResult RaycastPolygonPolygon(
 	auto worldB{ B.GetWorldVertices(transform2) };
 
 	const auto sweep = [&](const std::vector<V2_float>& verts, const std::vector<Line>& edges,
-						   const V2_float& swep_vel) {
+						   V2_float swep_vel) {
 		for (const auto& v : verts) {
 			for (const auto& edge : edges) {
 				RaycastResult res{ RaycastLine(v, v + swep_vel, Transform{}, edge) };
@@ -654,7 +654,7 @@ RaycastResult RaycastPolygonPolygon(
 }
 
 RaycastResult RaycastCapsuleCircle(
-	const V2_float& ray, const Transform& transform1, const Capsule& A, const Transform& transform2,
+	V2_float ray, const Transform& transform1, const Capsule& A, const Transform& transform2,
 	const Circle& B
 ) {
 	return RaycastCircleCapsule(-ray, transform2, B, transform1, A);
@@ -663,7 +663,7 @@ RaycastResult RaycastCapsuleCircle(
 } // namespace impl
 
 RaycastResult Raycast(
-	const V2_float& ray, const Transform& transform1, const ColliderShape& shape1,
+	V2_float ray, const Transform& transform1, const ColliderShape& shape1,
 	const Transform& transform2, const ColliderShape& shape2
 ) {
 	return std::visit(

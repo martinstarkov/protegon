@@ -37,7 +37,7 @@ public:
 };
 
 class PlatformingScene : public Scene {
-	Entity CreatePlatform(const V2_float& position, const V2_float& size, Origin origin) {
+	Entity CreatePlatform(V2_float position, V2_float size, Origin origin) {
 		auto entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
 		auto& box	= entity.Add<Collider>(Rect{ size });
 		box.SetCollisionCategory(ground_category);

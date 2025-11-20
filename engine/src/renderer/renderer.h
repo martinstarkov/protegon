@@ -98,7 +98,7 @@ public:
 // TODO: Fix.
 /*
 struct DrawContext {
-	DrawContext(const V2_int& size, TextureFormat texture_format);
+	DrawContext(V2_int size, TextureFormat texture_format);
 
 	FrameBuffer frame_buffer;
 
@@ -229,7 +229,7 @@ inline constexpr std::array<Index, 3> triangle_indices{ 0, 1, 2 };
 }
 
 [[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
-	const V2_float& source_position, const V2_float& source_size, const V2_float& texture_size,
+	V2_float source_position, V2_float source_size, V2_float texture_size,
 	bool offset_texels = false
 );
 
@@ -247,12 +247,12 @@ public:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	void SetBackgroundColor(const Color& background_color);
+	void SetBackgroundColor(Color background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
 	// @param game_size Setting to {} will use window size.
 	void SetGameSize(
-		const V2_int& game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
+		V2_int game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
 	);
 
 	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
@@ -271,7 +271,7 @@ public:
 
 	/*
 	void DrawTexture(
-		const impl::Texture& texture, const Transform& transform, const V2_float& texture_size = {},
+		const impl::Texture& texture, const Transform& transform, V2_float texture_size = {},
 		Origin origin = default_origin, const Tint& tint = {}, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
 		const PreFX& pre_fx = {}, const PostFX& post_fx = {},
@@ -280,7 +280,7 @@ public:
 
 	void DrawTexture(
 		const TextureHandle& texture_key, const Transform& transform,
-		const V2_float& texture_size = {}, Origin origin = default_origin, const Tint& tint = {},
+		V2_float texture_size = {}, Origin origin = default_origin, const Tint& tint = {},
 		const Depth& depth = {}, BlendMode blend_mode = default_blend_mode,
 		const Camera& camera = {}, const PreFX& pre_fx = {}, const PostFX& post_fx = {},
 		const std::array<V2_float, 4>& texture_coordinates = impl::GetDefaultTextureCoordinates()
@@ -311,7 +311,7 @@ public:
 	void DrawShader(
 		const impl::ShaderPass& shader, const Entity& entity,
 		bool clear_between_consecutive_calls	   = true,
-		const Color& target_clear_color			   = color::Transparent,
+		Color target_clear_color			   = color::Transparent,
 		const impl::TextureOrSize& texture_or_size = V2_int{},
 		BlendMode intermediate_blend_mode = default_blend_mode, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
@@ -352,7 +352,7 @@ public:
 	);
 
 	void DrawLine(
-		const V2_float& start, const V2_float& end, const Tint& color,
+		V2_float start, V2_float end, const Tint& color,
 		const LineWidth& line_width = {}, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {},
 		const PostFX& post_fx = {}
@@ -401,7 +401,7 @@ public:
 	);
 
 	void DrawPoint(
-		const V2_float& point, const Tint& color, const Depth& depth = {},
+		V2_float point, const Tint& color, const Depth& depth = {},
 		BlendMode blend_mode = default_blend_mode, const Camera& camera = {}
 	);
 
@@ -495,7 +495,7 @@ private:
 	void DrawCall(
 		const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
 		const std::vector<TextureId>& textures, const FrameBuffer* frame_buffer,
-		bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
+		bool clear_frame_buffer, Color clear_color, BlendMode blend_mode,
 		const Viewport& viewport, const Matrix4& view_projection
 	);
 	*/
@@ -506,7 +506,7 @@ private:
 	// @return True if the render state changed, false otherwise.
 	// bool SetState(const RenderState& new_render_state);
 
-	void RecomputeDisplaySize(const V2_int& window_size);
+	void RecomputeDisplaySize(V2_int window_size);
 
 	void Flush(bool final_flush = false);
 
@@ -546,7 +546,7 @@ private:
 	// If true, will flush on the next state change regardless of state being new or not.
 	bool force_flush{ false };
 
-	void UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode);
+	void UpdateResolutions(V2_int game_size, ScalingMode scaling_mode);
 
 	bool game_size_set_{ true };
 	ScalingMode resolution_mode_{ ScalingMode::Letterbox };

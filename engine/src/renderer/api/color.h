@@ -38,13 +38,13 @@ struct Color {
 	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
 		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
 
-	explicit constexpr Color(const std::array<float, 4>& color) :
+	explicit constexpr Color(std::array<float, 4> color) :
 		Color{ V4_float{ color[0], color[1], color[2], color[3] } } {}
 
-	explicit constexpr Color(const std::array<std::uint8_t, 4>& color) :
+	explicit constexpr Color(std::array<std::uint8_t, 4> color) :
 		Color{ color[0], color[1], color[2], color[3] } {}
 
-	explicit constexpr Color(const V4_float& color) :
+	explicit constexpr Color(V4_float color) :
 		r{ static_cast<std::uint8_t>(color.x * 255.0f) },
 		g{ static_cast<std::uint8_t>(color.y * 255.0f) },
 		b{ static_cast<std::uint8_t>(color.z * 255.0f) },
@@ -97,7 +97,7 @@ struct Color {
 
 	friend void from_json(const json& j, Color& color);
 
-	friend std::ostream& operator<<(std::ostream& os, const Color& color) {
+	friend std::ostream& operator<<(std::ostream& os, Color color) {
 		os << "[";
 		os << static_cast<int>(color.r) << ", ";
 		os << static_cast<int>(color.g) << ", ";
@@ -109,7 +109,7 @@ struct Color {
 };
 
 template <std::floating_point U>
-[[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t) {
+[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, U t) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
 				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
 				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
@@ -117,7 +117,7 @@ template <std::floating_point U>
 }
 
 template <std::floating_point U>
-[[nodiscard]] inline Color Lerp(const Color& lhs, const Color& rhs, U t_r, U t_g, U t_b, U t_a) {
+[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, U t_r, U t_g, U t_b, U t_a) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),
 				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t_g)),
 				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t_b)),

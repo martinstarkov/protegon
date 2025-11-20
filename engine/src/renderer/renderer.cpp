@@ -283,7 +283,7 @@ void ViewportResizeScript::OnWindowResized() {
 	renderer.RecomputeDisplaySize(window_size);
 }
 
-DrawContext::DrawContext(const V2_int& size, TextureFormat texture_format) :
+DrawContext::DrawContext(V2_int size, TextureFormat texture_format) :
 	frame_buffer{ Texture{ nullptr, size, texture_format } }, timer{ true } {}
 
 DrawContextPool::DrawContextPool(milliseconds max_age) : max_age_{ max_age } {}
@@ -335,7 +335,7 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat tex
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(
-	const V2_float& source_position, const V2_float& source_size, const V2_float& texture_size,
+	V2_float source_position, V2_float source_size, V2_float texture_size,
 	bool offset_texels
 ) {
 	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
@@ -400,11 +400,11 @@ static float GetFade(float diameter_y) {
 	return fade_scaling_constant / diameter_y;
 }
 
-static float GetFade(const V2_float& diameter) {
+static float GetFade(V2_float diameter) {
 	return GetFade(diameter.y);
 }
 
-static float NormalizeArcLineWidthToThickness(float line_width, float fade, const V2_float& radii) {
+static float NormalizeArcLineWidthToThickness(float line_width, float fade, V2_float radii) {
 	if (line_width == -1.0f) {
 		// Internally line width for a filled SDF is 1.0f.
 		line_width = 1.0f;
@@ -417,7 +417,7 @@ static float NormalizeArcLineWidthToThickness(float line_width, float fade, cons
 	return line_width;
 }
 
-static float GetAspectRatio(const V2_float& size) {
+static float GetAspectRatio(V2_float size) {
 	PTGN_ASSERT(size.x > 0.0f);
 	return size.y / size.x;
 }
@@ -430,7 +430,7 @@ static float GetNormalizedRadius(float diameter, float size_x) {
 
 template <ShapeType T>
 static std::array<float, 4> GetData(
-	const T& shape, auto radius, float line_width, const V2_float& size
+	const T& shape, auto radius, float line_width, V2_float size
 ) {
 	std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
 
@@ -1016,7 +1016,7 @@ void Renderer::AddVertices(
 void Renderer::DrawCall(
 	const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
 	const std::vector<Handle<Texture>>& textures, const FrameBuffer* frame_buffer,
-	bool clear_frame_buffer, const Color& clear_color, BlendMode blend_mode,
+	bool clear_frame_buffer, Color clear_color, BlendMode blend_mode,
 	const Viewport& viewport, const Matrix4& view_projection
 ) {
 	if (vertices.empty() || indices.empty()) {
@@ -1300,7 +1300,7 @@ void Renderer::DrawScene(Scene& scene) {
 	);
 }
 
-void Renderer::RecomputeDisplaySize(const V2_int& window_size) {
+void Renderer::RecomputeDisplaySize(V2_int window_size) {
 	if (!game_size_.BothAboveZero()) {
 		UpdateResolutions(window_size, resolution_mode_);
 	}
@@ -1366,7 +1366,7 @@ void Renderer::RecomputeDisplaySize(const V2_int& window_size) {
 	}
 }
 
-void Renderer::UpdateResolutions(const V2_int& game_size, ScalingMode scaling_mode) {
+void Renderer::UpdateResolutions(V2_int game_size, ScalingMode scaling_mode) {
 	bool new_game_size{ game_size_ != game_size };
 	if (!new_game_size && resolution_mode_ == scaling_mode) {
 		return;
@@ -1455,7 +1455,7 @@ void Renderer::Draw(Scene& scene) {
 using namespace impl;
 
 void Renderer::DrawTexture(
-	const Texture& texture, const Transform& transform, const V2_float& texture_size, Origin origin,
+	const Texture& texture, const Transform& transform, V2_float texture_size, Origin origin,
 	const Tint& tint, const Depth& depth, BlendMode blend_mode, const Camera& camera,
 	const PreFX& pre_fx, const PostFX& post_fx, const std::array<V2_float, 4>& texture_coordinates
 ) {
@@ -1481,7 +1481,7 @@ void Renderer::DrawTexture(
 }
 
 void Renderer::DrawTexture(
-	const TextureHandle& texture_key, const Transform& transform, const V2_float& texture_size,
+	const TextureHandle& texture_key, const Transform& transform, V2_float texture_size,
 	Origin origin, const Tint& tint, const Depth& depth, BlendMode blend_mode, const Camera& camera,
 	const PreFX& pre_fx, const PostFX& post_fx, const std::array<V2_float, 4>& texture_coordinates
 ) {
@@ -1545,7 +1545,7 @@ void Renderer::DrawShape(
 
 void Renderer::DrawShader(
 	const ShaderPass& shader_pass, const Entity& entity, bool clear_between_consecutive_calls,
-	const Color& target_clear_color, const TextureOrSize& texture_or_size,
+	Color target_clear_color, const TextureOrSize& texture_or_size,
 	BlendMode intermediate_blend_mode, const Depth& depth, BlendMode blend_mode,
 	const Camera& camera, TextureFormat texture_format, const PostFX& post_fx,
 	std::optional<BlendMode> target_blend_mode
@@ -1636,7 +1636,7 @@ void Renderer::DrawRoundedRect(
 }
 
 void Renderer::DrawLine(
-	const V2_float& start, const V2_float& end, const Tint& color, const LineWidth& line_width,
+	V2_float start, V2_float end, const Tint& color, const LineWidth& line_width,
 	const Depth& depth, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
 ) {
 	DrawLine({}, Line{ start, end }, color, line_width, depth, blend_mode, camera, post_fx);
@@ -1711,7 +1711,7 @@ void Renderer::DrawPolygon(
 }
 
 void Renderer::DrawPoint(
-	const V2_float& point, const Tint& color, const Depth& depth, BlendMode blend_mode,
+	V2_float point, const Tint& color, const Depth& depth, BlendMode blend_mode,
 	const Camera& camera
 ) {
 	DrawShape({}, point, color, -1.0f, Origin::Center, depth, blend_mode, camera, {});
@@ -1733,7 +1733,7 @@ void Renderer::DrawInsideStencilMask() {
 	render_data_.Submit(impl::DrawInsideStencilMask{});
 }
 
-void Renderer::SetBackgroundColor(const Color& background_color) {
+void Renderer::SetBackgroundColor(Color background_color) {
 	render_data_.screen_target_.SetClearColor(background_color);
 }
 
@@ -1746,7 +1746,7 @@ void Renderer::SetScalingMode(ScalingMode scaling_mode) {
 	render_data_.UpdateResolutions(resolution, scaling_mode);
 }
 
-void Renderer::SetGameSize(const V2_int& game_size, ScalingMode scaling_mode) {
+void Renderer::SetGameSize(V2_int game_size, ScalingMode scaling_mode) {
 	render_data_.game_size_set_ = !game_size.IsZero();
 	V2_int resolution{ render_data_.game_size_set_ ? game_size : window_.GetSize() };
 	render_data_.UpdateResolutions(resolution, scaling_mode);

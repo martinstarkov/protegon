@@ -296,7 +296,7 @@ void InputHandler::SetRelativeMouseMode(bool on) const {
 }
 
 V2_float InputHandler::GetPositionRelativeTo(
-	const V2_int& window_position, ViewportType relative_to, bool clamp_to_viewport
+	V2_int window_position, ViewportType relative_to, bool clamp_to_viewport
 ) const {
 	// TODO: Move into a resolution manager.
 	/*

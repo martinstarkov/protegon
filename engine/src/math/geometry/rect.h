@@ -16,7 +16,7 @@ struct Transform;
 struct Rect {
 	Rect() = default;
 
-	Rect(const V2_float& min, const V2_float& max);
+	Rect(V2_float min, V2_float max);
 
 	template <Arithmetic T>
 	Rect(const Vector2<T>& size) : min{ -size * 0.5f }, max{ size * 0.5f } {}

@@ -12,7 +12,7 @@ struct Transform;
 struct Line {
 	Line() = default;
 
-	Line(const V2_float& start, const V2_float& end);
+	Line(V2_float start, V2_float end);
 
 	// @param out_size Optional parameter for the unrotated size of the quad.
 	// @return Quad vertices relative to the given transform for this line with a given a line
