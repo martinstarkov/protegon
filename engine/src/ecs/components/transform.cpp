@@ -48,7 +48,7 @@ Transform& Transform::operator=(Transform&& other) noexcept {
 	return *this;
 }
 
-Transform::Transform(const V2_float& position, float rotation, const V2_float& scale) :
+Transform::Transform(V2_float position, float rotation, V2_float scale) :
 	position_{ position }, rotation_{ rotation }, scale_{ scale } {}
 
 Transform Transform::Inverse() const {
@@ -109,7 +109,7 @@ Transform& Transform::SetPosition(std::size_t index, float position) {
 	return SetPositionY(position);
 }
 
-Transform& Transform::SetPosition(const V2_float& position) {
+Transform& Transform::SetPosition(V2_float position) {
 	if (position_ == position) {
 		return *this;
 	}
@@ -143,7 +143,7 @@ Transform& Transform::SetScale(float scale) {
 	return SetScale(V2_float{ scale });
 }
 
-Transform& Transform::SetScale(const V2_float& scale) {
+Transform& Transform::SetScale(V2_float scale) {
 	PTGN_ASSERT(!scale.HasZero(), "Cannot set transform scale with a zero component");
 	if (scale_ == scale) {
 		return *this;
@@ -161,7 +161,7 @@ Transform& Transform::SetScaleY(float y) {
 	return SetScale(V2_float{ scale_.x, y });
 }
 
-Transform& Transform::Translate(const V2_float& position_difference) {
+Transform& Transform::Translate(V2_float position_difference) {
 	return SetPosition(position_ + position_difference);
 }
 
@@ -177,7 +177,7 @@ Transform& Transform::Rotate(float angle_difference) {
 	return SetRotation(rotation_ + angle_difference);
 }
 
-Transform& Transform::Scale(const V2_float& scale_multiplier) {
+Transform& Transform::Scale(V2_float scale_multiplier) {
 	return SetScale(scale_ * scale_multiplier);
 }
 
@@ -198,32 +198,32 @@ void Transform::ClearDirtyFlags() const {
 }
 
 V2_float Transform::ApplyWithRotation(
-	const V2_float& point, float cos_angle_radians, float sin_angle_radians
+	V2_float point, float cos_angle_radians, float sin_angle_radians
 ) const {
 	PTGN_ASSERT(!scale_.IsZero(), "Cannot transform point for an object with zero scale");
 	return position_ + (scale_ * point).Rotated(cos_angle_radians, sin_angle_radians);
 }
 
-V2_float Transform::ApplyWithoutRotation(const V2_float& point) const {
+V2_float Transform::ApplyWithoutRotation(V2_float point) const {
 	PTGN_ASSERT(!scale_.IsZero(), "Cannot transform point for an object with zero scale");
 	return position_ + scale_ * point;
 }
 
 V2_float Transform::ApplyInverseWithRotation(
-	const V2_float& point, float cos_angle_radians, float sin_angle_radians
+	V2_float point, float cos_angle_radians, float sin_angle_radians
 ) const {
 	PTGN_ASSERT(!scale_.IsZero(), "Cannot inverse transform point for an object with zero scale");
 
 	return (point - position_).Rotated(cos_angle_radians, -sin_angle_radians) / scale_;
 }
 
-V2_float Transform::ApplyInverseWithoutRotation(const V2_float& point) const {
+V2_float Transform::ApplyInverseWithoutRotation(V2_float point) const {
 	PTGN_ASSERT(!scale_.IsZero(), "Cannot inverse transform point for an object with zero scale");
 
 	return (point - position_) / scale_;
 }
 
-V2_float Transform::Apply(const V2_float& point) const {
+V2_float Transform::Apply(V2_float point) const {
 	if (rotation_ != 0.0f) {
 		return ApplyWithRotation(point, std::cos(rotation_), std::sin(rotation_));
 	}
@@ -233,7 +233,7 @@ V2_float Transform::Apply(const V2_float& point) const {
 	return point;
 }
 
-V2_float Transform::ApplyInverse(const V2_float& point) const {
+V2_float Transform::ApplyInverse(V2_float point) const {
 	if (rotation_ != 0.0f) {
 		return ApplyInverseWithRotation(point, std::cos(rotation_), std::sin(rotation_));
 	}
@@ -304,76 +304,16 @@ std::vector<V2_float> Transform::ApplyInverse(const std::vector<V2_float>& point
 	return transformed_points;
 }
 
-// Camera& SetTransform(Camera& entity, const Transform& transform) {
-//	entity.SetScroll(transform.GetPosition());
-//	entity.SetRotation(transform.GetRotation());
-//	entity.SetZoom(transform.GetScale());
-//	return entity;
-// }
-
-Transform& GetTransform(Entity& entity) {
-	/*PTGN_ASSERT(
-		!entity.Has<impl::CameraInstance>(),
-		"GetTransform(Entity) cannot be used on a Camera entity. Use "
-		"camera.GetTransform() instead."
-	);*/
-	return impl::EntityAccess::TryAdd<Transform>(entity);
+Entity SetTransform(Entity entity, const Transform& transform) {
+	entity.template Add<Transform>(transform);
+	return entity;
 }
 
-Transform GetTransform(const Entity& entity) {
-	/*PTGN_ASSERT(
-		!entity.Has<impl::CameraInstance>(),
-		"GetTransform(Entity) cannot be used on a Camera entity. Use "
-		"GetTransform(Camera) instead."
-	);*/
-	if (auto transform{ entity.TryGet<Transform>() }; transform) {
-		return *transform;
-	}
-	return {};
+Transform GetTransform(Entity entity) {
+	return entity.template TryAdd<Transform>();
 }
 
-// Transform GetTransform(const Camera& camera) {
-//	return { camera.GetScroll(), camera.GetRotation(), camera.GetZoom() };
-// }
-
-Transform GetAbsoluteTransform(const Entity& entity) {
-	Transform world_transform;
-	auto transform{ GetTransform(entity) };
-	if (entity.Has<impl::IgnoreParentTransform>() && entity.Get<impl::IgnoreParentTransform>()) {
-		world_transform = transform;
-	} else {
-		Transform relative_to;
-		if (HasParent(entity)) {
-			Entity parent{ GetParent(entity) };
-			relative_to = GetAbsoluteTransform(parent);
-		}
-		world_transform = transform.RelativeTo(relative_to);
-	}
-	// TODO: Fix?
-	/*
-	if (const auto camera{ entity.GetNonPrimaryCamera() }) {
-		auto camera_transform{ GetTransform(*camera) };
-		auto scale{ camera_transform.GetScale() };
-		auto camera_scale{ entity.GetScene().GetCameraScaleRelativeTo(*camera) };
-		PTGN_ASSERT(camera_scale.BothAboveZero());
-		scale /= camera_scale;
-		camera_transform.SetScale(scale);
-		auto inverse_transform{ world_transform.InverseRelativeTo(camera_transform) };
-		auto primary_camera{ entity.GetScene().camera };
-		auto primary_transform{ GetTransform(primary_camera) };
-		auto absolute_transform{ inverse_transform.RelativeTo(primary_transform) };
-		return absolute_transform;
-	}
-	*/
-	return world_transform;
-}
-
-// Transform GetAbsoluteTransform(const Camera& entity) {
-//	auto world_transform{ GetWorldTransform(entity) };
-//	return world_transform;
-// }
-
-Transform GetWorldTransform(const Entity& entity) {
+Transform GetWorldTransform(Entity entity) {
 	auto transform{ GetTransform(entity) };
 	if (entity.Has<impl::IgnoreParentTransform>() && entity.Get<impl::IgnoreParentTransform>()) {
 		return transform;
@@ -387,18 +327,98 @@ Transform GetWorldTransform(const Entity& entity) {
 	return world_transform;
 }
 
-// Transform GetWorldTransform(const Camera& entity) {
-//	auto transform{ GetTransform(entity) };
-//	return transform;
-// }
+V2_float GetPosition(Entity entity) {
+	return GetTransform(entity).GetPosition();
+}
 
-// TODO: Fix?
-// Transform GetDrawTransform(const Entity& entity) {
-//	auto offset_transform{ GetOffset(entity) };
-//	//PTGN_ASSERT(!entity.Has<impl::CameraInstance>());
-//	auto transform{ GetWorldTransform(entity) };
-//	transform = transform.RelativeTo(offset_transform);
-//	return transform;
-//}
+V2_float GetWorldPosition(Entity entity) {
+	return GetWorldTransform(entity).GetPosition();
+}
+
+float GetRotation(Entity entity) {
+	return GetTransform(entity).GetRotation();
+}
+
+float GetWorldRotation(Entity entity) {
+	return GetWorldTransform(entity).GetRotation();
+}
+
+V2_float GetScale(Entity entity) {
+	return GetTransform(entity).GetScale();
+}
+
+V2_float GetWorldScale(Entity entity) {
+	return GetWorldTransform(entity).GetScale();
+}
+
+Entity SetPosition(Entity entity, V2_float position) {
+	auto transform{ GetTransform(entity) };
+	transform.SetPosition(position);
+	return SetTransform(entity, transform);
+}
+
+Entity SetPositionX(Entity entity, float position_x) {
+	return SetPosition(entity, V2_float{ position_x, GetPosition(entity).y });
+}
+
+Entity SetPositionY(Entity entity, float position_y) {
+	return SetPosition(entity, V2_float{ GetPosition(entity).x, position_y });
+}
+
+Entity Translate(Entity entity, V2_float position_difference) {
+	return SetPosition(entity, GetPosition(entity) + position_difference);
+}
+
+Entity TranslateX(Entity entity, float position_x_difference) {
+	return Translate(entity, V2_float{ position_x_difference, 0.0f });
+}
+
+Entity TranslateY(Entity entity, float position_y_difference) {
+	return Translate(entity, V2_float{ 0.0f, position_y_difference });
+}
+
+Entity SetRotation(Entity entity, float rotation) {
+	auto transform{ GetTransform(entity) };
+	transform.SetRotation(rotation);
+	return SetTransform(entity, transform);
+}
+
+Entity Rotate(Entity entity, float angle_difference) {
+	return SetRotation(entity, GetRotation(entity) + angle_difference);
+}
+
+Entity SetScale(Entity entity, V2_float scale) {
+	auto transform{ GetTransform(entity) };
+	transform.SetScale(scale);
+	return SetTransform(entity, transform);
+}
+
+Entity SetScale(Entity entity, float scale) {
+	return SetScale(entity, V2_float{ scale });
+}
+
+Entity SetScaleX(Entity entity, float scale_x) {
+	return SetScale(entity, V2_float{ scale_x, GetScale(entity).y });
+}
+
+Entity SetScaleY(Entity entity, float scale_y) {
+	return SetScale(entity, V2_float{ GetScale(entity).x, scale_y });
+}
+
+Entity Scale(Entity entity, V2_float scale_multiplier) {
+	return SetScale(entity, GetScale(entity) * scale_multiplier);
+}
+
+Entity ScaleX(Entity entity, float scale_x_multiplier) {
+	V2_float scale{ GetScale(entity) };
+	scale.x *= scale_x_multiplier;
+	return SetScale(entity, scale);
+}
+
+Entity ScaleY(Entity entity, float scale_y_multiplier) {
+	V2_float scale{ GetScale(entity) };
+	scale.y *= scale_y_multiplier;
+	return SetScale(entity, scale);
+}
 
 } // namespace ptgn

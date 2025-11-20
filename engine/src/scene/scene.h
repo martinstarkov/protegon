@@ -12,11 +12,8 @@ class Scene;
 class SceneManager;
 class Application;
 
-namespace impl {
-
-class RenderData;
-
-} // namespace impl
+class Renderer;
+class InputHandler;
 
 /*
 
@@ -243,7 +240,6 @@ public:
 	friend void from_json(const json& j, Scene& scene);
 
 private:
-	friend class impl::RenderData;
 	friend class SceneManager;
 
 	void Init();
@@ -251,18 +247,12 @@ private:
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	// TODO: Pass more specific subsystems.
-	void InternalUpdate(Application& app);
+	void InternalUpdate(Renderer& renderer, InputHandler& input, float dt);
 	void InternalDraw();
 	void InternalExit();
 
 	void AddToDisplayList(Entity entity);
-
 	void RemoveFromDisplayList(Entity entity);
-
-	// std::shared_ptr<SceneTransition> transition_;
-
-	// SceneKey key_;
 
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.
@@ -277,14 +267,6 @@ private:
 	};
 
 	State state_{ State::Constructed };
-
-	// impl::CollisionHandler collision_;
-
-	// TODO: Fix.
-	// RenderTarget render_target_;
-	/*bool collider_visibility_{ false };
-	Color collider_color_{ color::Blue };
-	float collider_line_width_{ 1.0f };*/
 };
 
 } // namespace ptgn

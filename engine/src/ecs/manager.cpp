@@ -45,7 +45,7 @@ Entity Manager::CreateEntity(const json& j) {
 
 Entity Manager::CreateEntity(UUID uuid) {
 	Entity entity{ ManagerBase::CreateEntity() };
-	impl::EntityAccess::Add<UUID>(entity, uuid);
+	entity.Add<UUID>(uuid);
 	return entity;
 }
 

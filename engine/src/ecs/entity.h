@@ -101,15 +101,13 @@ public:
 		return entity_.operator bool();
 	}
 
+	bool operator==(const Entity&) const = default;
+
 	friend bool operator<(const Entity& lhs, const Entity& rhs) {
 		if (lhs == rhs) {
 			return false;
 		}
 		return lhs.WasCreatedBefore(rhs);
-	}
-
-	friend bool operator==(const Entity& a, const Entity& b) {
-		return a.entity_ == b.entity_;
 	}
 
 	// Copying a destroyed entity will return a null entity.
@@ -170,8 +168,6 @@ public:
 	}
 
 	void Clear() const;
-
-	bool IsAlive() const;
 
 	// Destroy the given entity and potentially its children.
 	// @param orphan_children If false, destroys all the children (and their children). If true,

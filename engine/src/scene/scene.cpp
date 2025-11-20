@@ -1,12 +1,14 @@
 #include "scene/scene.h"
 
 #include "core/app/application.h"
+#include "core/input/input_handler.h"
 #include "ecs/components/transform.h"
 #include "ecs/components/uuid.h"
 #include "ecs/entity.h"
 #include "ecs/manager.h"
 #include "nlohmann/json.hpp"
 #include "renderer/api/color.h"
+#include "renderer/renderer.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -29,6 +31,7 @@ Scene::~Scene() {
 	/*if (!render_target_.IsAlive()) {
 		return;
 	}
+	PTGN_ASSERT(render_taret.IsAlive());
 	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
 	Application::Get().render_.render_data_.render_manager.Refresh();*/
@@ -202,7 +205,7 @@ void Scene::InternalDraw() {
 	Application::Get().render_.render_data_.Draw(*this);*/
 }
 
-void Scene::InternalUpdate(Application& app) {
+void Scene::InternalUpdate(Renderer& renderer, InputHandler& input, float dt) {
 	// TODO: Fix.
 	// app.render_.render_data_.ClearRenderTargets(*this);
 	// app.render_.render_data_.SetDrawingTo(render_target_);
@@ -223,8 +226,6 @@ void Scene::InternalUpdate(Application& app) {
 	// };
 
 	// invoke_scripts(*this);
-
-	float dt{ app.dt() };
 
 	/*const auto update_scripts = [&](Manager& manager) {
 		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {

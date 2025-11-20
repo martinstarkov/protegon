@@ -29,10 +29,6 @@ void Entity::Clear() const {
 	entity_.Clear();
 }
 
-bool Entity::IsAlive() const {
-	return entity_.IsAlive();
-}
-
 Entity& Entity::Destroy(bool orphan_children) {
 	if (*this == Entity{}) {
 		return *this;
