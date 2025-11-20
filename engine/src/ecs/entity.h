@@ -115,89 +115,90 @@ public:
 	// Copying a destroyed entity will return a null entity.
 	// Copying an entity with no components simply returns a new entity.
 	// Make sure to call manager.Refresh() after this function.
-	template <typename... Ts>
+	template <typename... TComponents>
 	[[nodiscard]] Entity Copy() {
-		return entity_.Copy<Ts...>();
+		return entity_.Copy<TComponents...>();
 	}
 
 	// Adds or replaces the component if the entity already has it.
 	// @return Reference to the added or replaced component.
-	template <typename T, typename... Ts>
-	T& Add(Ts&&... constructor_args) {
-		return AddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	template <typename TComponent, typename... TArgs>
+	TComponent& Add(TArgs&&... constructor_args) {
+		return entity_.Add<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
 	}
 
 	// Only adds the component if one does not exist on the entity.
 	// @return Reference to the added or existing component.
-	template <typename T, typename... Ts>
-	T& TryAdd(Ts&&... constructor_args) {
-		return TryAddImpl<T, Ts...>(std::forward<Ts>(constructor_args)...);
+	template <typename TComponent, typename... TArgs>
+	TComponent& TryAdd(TArgs&&... constructor_args) {
+		return entity_.TryAdd<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
 	}
 
-	template <typename... Ts>
+	template <typename... TComponents>
 	void Remove() {
-		RemoveImpl<Ts...>();
+		entity_.Remove<TComponents...>();
 	}
 
-	template <typename... Ts>
-	[[nodiscard]] bool Has() const {
-		return entity_.Has<Ts...>();
+	template <typename... TComponents>
+	bool Has() const {
+		return entity_.Has<TComponents...>();
 	}
 
-	template <typename... Ts>
-	[[nodiscard]] bool HasAny() const {
-		return entity_.HasAny<Ts...>();
+	template <typename... TComponents>
+	bool HasAny() const {
+		return entity_.HasAny<TComponents...>();
 	}
 
-	template <typename... Ts>
-	[[nodiscard]] decltype(auto) Get() const {
-		return GetImpl<Ts...>();
+	template <typename... TComponents>
+	decltype(auto) Get() const {
+		return entity_.Get<TComponents...>();
 	}
 
-	template <typename... Ts>
-	[[nodiscard]] decltype(auto) Get() {
-		return GetImpl<Ts...>();
-	}
-
-	template <typename T>
-	[[nodiscard]] const T* TryGet() const {
-		return TryGetImpl<T>();
+	template <typename... TComponents>
+	decltype(auto) Get() {
+		return entity_.Get<TComponents...>();
 	}
 
 	template <typename T>
-	[[nodiscard]] T* TryGet() {
-		return TryGetImpl<T>();
+	const T* TryGet() const {
+		return entity_.TryGet<T>();
+	}
+
+	template <typename T>
+	T* TryGet() {
+		return entity_.TryGet<T>();
 	}
 
 	void Clear() const;
 
-	[[nodiscard]] bool IsAlive() const;
+	bool IsAlive() const;
 
 	// Destroy the given entity and potentially its children.
 	// @param orphan_children If false, destroys all the children (and their children). If true,
 	// removes the parents of all the entity's children, orphaning them.
+	// @return *this, allowing for it to be set to {} if needed.
 	Entity& Destroy(bool orphan_children = false);
 
-	[[nodiscard]] const Scene& GetScene() const;
-	[[nodiscard]] Scene& GetScene();
+	const Scene& GetScene() const;
+	Scene& GetScene();
 
-	//[[nodiscard]] const Camera& GetCamera() const;
-	//[[nodiscard]] Camera& GetCamera();
+	// const Camera& GetCamera() const;
+	// Camera& GetCamera();
 
 	// @return If the entity has a non primary camera attached to it, return its address, otherwise
 	// return nullptr.
-	//[[nodiscard]] const Camera* GetNonPrimaryCamera() const;
+	// const Camera* GetNonPrimaryCamera() const;
 
-	[[nodiscard]] const Manager& GetManager() const;
-	[[nodiscard]] Manager& GetManager();
+	const Manager& GetManager() const;
+	Manager& GetManager();
 
-	[[nodiscard]] bool IsIdenticalTo(const Entity& e) const;
+	bool IsIdenticalTo(const Entity& e) const;
 
 	// Entity property functions.
 
-	[[nodiscard]] UUID GetUUID() const;
+	UUID GetUUID() const;
 
-	[[nodiscard]] std::size_t GetHash() const;
+	std::size_t GetHash() const;
 
 	// Serialization.
 
@@ -205,95 +206,61 @@ public:
 	friend void from_json(const json& j, Entity& entity);
 
 	// Converts the specified entity components to a JSON object.
-	template <JsonSerializable... Ts>
+	template <JsonSerializable... TComponents>
 	[[nodiscard]] json Serialize() const {
 		PTGN_ASSERT(*this, "Cannot serialize a null entity");
 
 		json j{};
 
-		if constexpr (sizeof...(Ts) == 0) {
+		if constexpr (sizeof...(TComponents) == 0) {
 			SerializeAllImpl(j);
 		} else {
-			(SerializeImpl<Ts>(j), ...);
+			(SerializeImpl<TComponents>(j), ...);
 		}
 
 		return j;
 	}
 
 	// Populates the entity's components based on a JSON object. Does not impact existing
-	// components, unless they are specified as part of Ts, in which case they are replaced.
-	template <JsonDeserializable... Ts>
+	// components, unless they are specified as part of TComponents, in which case they are
+	// replaced.
+	template <JsonDeserializable... TComponents>
 	void Deserialize(const json& j) {
-		if constexpr (sizeof...(Ts) == 0) {
+		if constexpr (sizeof...(TComponents) == 0) {
 			DeserializeAllImpl(j);
 		} else {
 			PTGN_ASSERT(*this, "Cannot deserialize to a null entity");
-			(DeserializeImpl<Ts>(j), ...);
+			(DeserializeImpl<TComponents>(j), ...);
 		}
 	}
 
-	template <typename T, typename... TArgs>
-	[[nodiscard]] T GetOrDefault(TArgs&&... args) const {
-		if (Has<T>()) {
-			return GetImpl<T>();
+	template <typename TComponent, typename... TArgs>
+	TComponent GetOrDefault(TArgs&&... args) const {
+		if (Has<TComponent>()) {
+			return Get<TComponent>();
 		}
-		return T{ std::forward<TArgs>(args)... };
+		return TComponent{ std::forward<TArgs>(args)... };
 	}
 
-	template <typename T, typename... TArgs>
-	[[nodiscard]] T GetOrParentOrDefault(TArgs&&... args) const {
-		if (Has<T>()) {
-			return GetImpl<T>();
+	template <typename TComponent, typename... TArgs>
+	TComponent GetOrParentOrDefault(TArgs&&... args) const {
+		if (Has<TComponent>()) {
+			return Get<TComponent>();
 		}
 		if (HasParent(*this)) {
-			return GetParent(*this).GetOrParentOrDefault<T>(std::forward<TArgs>(args)...);
+			return GetParent(*this).GetOrParentOrDefault<TComponent>(std::forward<TArgs>(args)...);
 		}
-		return T{ std::forward<TArgs>(args)... };
+		return TComponent{ std::forward<TArgs>(args)... };
 	}
 
 	// @return True if *this was created before other.
-	[[nodiscard]] bool WasCreatedBefore(const Entity& other) const;
+	bool WasCreatedBefore(const Entity& other) const;
 
 	// Equivalent of setting the entity handle to {}
 	void Invalidate();
 
 private:
 	friend class Manager;
-
-	template <typename... Ts>
-	void RemoveImpl() {
-		entity_.Remove<Ts...>();
-	}
-
-	template <typename T, typename... Ts>
-	T& AddImpl(Ts&&... constructor_args) {
-		return entity_.Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
-	}
-
-	template <typename T, typename... Ts>
-	T& TryAddImpl(Ts&&... constructor_args) {
-		return entity_.TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
-	}
-
-	template <typename... Ts>
-	[[nodiscard]] decltype(auto) GetImpl() const {
-		return entity_.Get<Ts...>();
-	}
-
-	template <typename... Ts>
-	[[nodiscard]] decltype(auto) GetImpl() {
-		return entity_.Get<Ts...>();
-	}
-
-	template <typename T>
-	[[nodiscard]] const T* TryGetImpl() const {
-		return entity_.TryGet<T>();
-	}
-
-	template <typename T>
-	[[nodiscard]] T* TryGetImpl() {
-		return entity_.TryGet<T>();
-	}
 
 	template <JsonSerializable T>
 	void SerializeImpl(json& j) const {
@@ -313,54 +280,9 @@ private:
 
 	void DeserializeAllImpl(const json& j);
 
-	Scene* scene_{ nullptr };
 	ecs::impl::EntityHandle<JsonArchiver> entity_;
+	Scene* scene_{ nullptr };
 };
-
-template <typename T>
-concept EntityBase = IsOrDerivedFrom<T, Entity>;
-
-namespace impl {
-
-class EntityAccess {
-public:
-	template <typename... Ts>
-	static void Remove(Entity& e) {
-		e.Remove<Ts...>();
-	}
-
-	template <typename T, typename... Ts>
-	static T& Add(Entity& e, Ts&&... constructor_args) {
-		return e.Add<T, Ts...>(std::forward<Ts>(constructor_args)...);
-	}
-
-	template <typename T, typename... Ts>
-	static T& TryAdd(Entity& e, Ts&&... constructor_args) {
-		return e.TryAdd<T, Ts...>(std::forward<Ts>(constructor_args)...);
-	}
-
-	template <typename... Ts>
-	[[nodiscard]] static decltype(auto) Get(const Entity& e) {
-		return e.Get<Ts...>();
-	}
-
-	template <typename... Ts>
-	[[nodiscard]] static decltype(auto) Get(Entity& e) {
-		return e.Get<Ts...>();
-	}
-
-	template <typename T>
-	[[nodiscard]] static const T* TryGet(const Entity& e) {
-		return e.TryGet<T>();
-	}
-
-	template <typename T>
-	[[nodiscard]] static T* TryGet(Entity& e) {
-		return e.TryGet<T>();
-	}
-};
-
-} // namespace impl
 
 } // namespace ptgn
 

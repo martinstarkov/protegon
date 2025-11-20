@@ -4,13 +4,13 @@
 #include <utility>
 
 #include "core/app/application.h"
-#include "ecs/manager.h"
 #include "core/assert.h"
 #include "core/util/type_info.h"
 #include "ecs/component_registry.h"
 #include "ecs/components/uuid.h"
 #include "ecs/ecs.h"
 #include "ecs/entity_hierarchy.h"
+#include "ecs/manager.h"
 #include "scene/scene.h"
 #include "scene/scene_manager.h"
 #include "serialization/json/fwd.h"

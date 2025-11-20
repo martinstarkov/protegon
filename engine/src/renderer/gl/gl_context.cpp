@@ -9,6 +9,7 @@
 #include "core/app/window.h"
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/util/file.h"
 #include "core/util/macro.h"
 #include "core/util/span.h"
 #include "math/hash.h"
