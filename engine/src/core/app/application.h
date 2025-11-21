@@ -1,25 +1,32 @@
 #pragma once
 
-// #include "core/event/event_handler.h"
-#include "core/app/window.h"
-#include "core/asset/asset_manager.h"
-#include "core/input/input_handler.h"
-#include "debug/debug_system.h"
+#include <concepts>
+#include <memory>
+#include <string_view>
+
+#include "core/util/time.h"
 #include "math/vector2.h"
-#include "renderer/renderer.h"
 #include "scene/scene_manager.h"
 
 namespace ptgn {
 
-#ifdef __EMSCRIPTEN__
+class ApplicationContext;
+class Window;
+class Renderer;
+class SceneManager;
+class InputHandler;
+class AssetManager;
 
 namespace impl {
 
+class DebugSystem;
+
+#ifdef __EMSCRIPTEN__
+
 void EmscriptenMainLoop(void* application);
 
-} // namespace impl
-
 #endif
+} // namespace impl
 
 struct ApplicationConfig {
 	const char* title{ "Default Title" };
@@ -29,43 +36,29 @@ struct ApplicationConfig {
 class Application {
 public:
 	explicit Application(const ApplicationConfig& config = {});
-	~Application() noexcept						   = default;
+	~Application() noexcept;
 	Application(const Application&)				   = delete;
 	Application& operator=(const Application&)	   = delete;
 	Application(Application&&) noexcept			   = delete;
 	Application& operator=(Application&&) noexcept = delete;
 
-	template <typename TScene, typename TransitionIn, class... TArgs>
+	template <typename TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
-	void StartWith(std::string_view scene_key, TransitionIn&& transition_in, TArgs&&... args) {
+	void StartWith(std::string_view scene_key, TArgs&&... args) {
 		// Initialize the first scene using the SceneManager.
-		scenes_.SwitchTo<TScene>(
-			scene_key,
-			std::make_unique<std::remove_cvref_t<TransitionIn>>(
-				std::forward<TransitionIn>(transition_in)
-			),
-			std::forward<TArgs>(args)...
-		);
+		scenes_->SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
 
 		// Flush queued ops so the first scene becomes active before main loop.
-		scenes_.Update(0.0);
+		scenes_->Update(secondsf{ 0.0f });
 
 		EnterMainLoop();
 	}
-
-	// @return True if inside the main loop, false otherwise.
-	[[nodiscard]] bool IsRunning() const;
-
-	void Stop();
-
-	// TODO: Move these elsewhere.
-	float dt() const;
-	float time() const;
 
 private:
 #ifdef __EMSCRIPTEN__
 	friend void impl::EmscriptenMainLoop(void* application);
 #endif
+	friend class ApplicationContext;
 
 	struct SDLInstance {
 		SDLInstance();
@@ -78,23 +71,26 @@ private:
 
 	SDLInstance sdl_;
 
-	Window window_;
-	Renderer renderer_;
-	SceneManager scenes_;
-	InputHandler input_;
+	std::unique_ptr<Window> window_;
+	std::unique_ptr<Renderer> renderer_;
+	std::unique_ptr<SceneManager> scenes_;
 
-	AssetManager assets_;
+	// std::unique_ptr<EventRegistry> events_;
+
+	std::unique_ptr<InputHandler> input_;
+
+	std::unique_ptr<AssetManager> assets_;
 
 	// TODO: Make a no-op version of this for release modes.
-	impl::DebugSystem debug_;
-
-	// EventRegistry events_;
+	std::unique_ptr<impl::DebugSystem> debug_;
 
 	void EnterMainLoop();
 	void Update();
 
-	float dt_{ 0.0f };
+	secondsf dt_{ 0.0f };
 	bool running_{ false };
+
+	std::shared_ptr<ApplicationContext> ctx_;
 };
 
 } // namespace ptgn

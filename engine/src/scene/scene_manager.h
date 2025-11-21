@@ -2,13 +2,11 @@
 
 #include <concepts>
 #include <memory>
-#include <optional>
 #include <vector>
 
+#include "core/app/context.h"
 #include "core/assert.h"
-#include "core/util/concepts.h"
-#include "core/util/file.h"
-#include "core/util/span.h"
+#include "core/util/time.h"
 #include "math/hash.h"
 #include "scene/scene.h"
 
@@ -33,20 +31,20 @@ enum class Phase : std::uint8_t {
 
 struct SceneEntry {
 	std::unique_ptr<Scene> ptr;
-	Phase phase		  = Phase::Entering;
-	int z			  = 0;	   // Draw order (higher = on top)
-	bool blocks_input = false; // Modal
-	bool updates	  = true;  // Can manager flip this? Yes, during transitions
-	bool renders	  = true;  // Ditto
-	std::size_t id	  = 0;	   // Stable handle
+	Phase phase{ Phase::Entering };
+	int z{ 0 };					// Draw order (higher = on top)
+	bool blocks_input{ false }; // Modal
+	bool updates{ true };		// Can manager flip this? Yes, during transitions
+	bool renders{ true };		// Ditto
+	std::size_t id{ 0 };		// Stable handle
 	std::size_t key{ 0 };
 };
 
 struct TransitionContext {
-	Scene& from; // Can be same as `to` if overlay-in
+	Scene& from;	 // Can be same as `to` if overlay-in
 	Scene& to;
-	float t;	 // 0..1 progress
-	float dt;	 // seconds
+	float t{ 0.0f }; // 0..1 progress
+	secondsf dt{ 0.0f };
 };
 
 class Transition {
@@ -80,7 +78,7 @@ public:
 
 class SlideLeft : public Transition {
 public:
-	explicit SlideLeft(float duration) : duration_(duration) {}
+	explicit SlideLeft(secondsf duration) : duration_(duration) {}
 
 	bool Step(TransitionContext& context) override {
 		accumulated_ += context.dt;
@@ -99,8 +97,8 @@ public:
 	}
 
 private:
-	float duration_;
-	float accumulated_ = 0.0;
+	secondsf duration_{ 0.0f };
+	secondsf accumulated_{ 0.0f };
 };
 
 enum class OperationKind {
@@ -112,11 +110,11 @@ enum class OperationKind {
 };
 
 struct Operation {
-	OperationKind kind;
+	OperationKind kind{ OperationKind::Switch };
 	std::function<std::unique_ptr<Scene>()> make_to; // TO scene factory
 	std::unique_ptr<Transition> transition;			 // May be null (instant)
-	std::size_t from_id	  = 0;						 // Optional: explicit source
-	bool kill_from_on_end = true;					 // Switch/Replace vs Overlay
+	std::size_t from_id{ 0 };						 // Optional: explicit source
+	bool kill_from_on_end{ true };					 // Switch/Replace vs Overlay
 	std::size_t key{ 0 };
 };
 
@@ -130,32 +128,38 @@ public:
 	SceneManager& operator=(SceneManager&&) noexcept = default;
 
 	// High-level API (always enqueues; processed at frame boundary)
-	template <class TScene, class... Args>
+	// TODO: Add concept.
+	template <typename TScene, typename... TArgs>
 	void SwitchTo(
-		std::string_view scene_key, std::unique_ptr<Transition> transition, Args&&... args
+		std::string_view scene_key, std::unique_ptr<Transition> transition, TArgs&&... args
 	) {
 		Operation op;
 		op.key	   = Hash(scene_key);
 		op.kind	   = OperationKind::Switch;
 		op.make_to = [this, &args...]() {
-			return std::make_unique<TScene>(args...);
+			auto scene{ std::make_unique<TScene>(args...) };
+			scene->ctx_ = ctx_;
+			return scene;
 		};
 		op.transition = std::move(transition);
-		queue_.push_back(std::move(op));
+		Enqueue(std::move(op));
 	}
 
-	template <class TScene, class... Args>
+	// TODO: Add concept.
+	template <typename TScene, typename... TArgs>
 	void Overlay(
-		std::string_view scene_key, std::unique_ptr<Transition> transition, int z, Args&&... args
+		std::string_view scene_key, std::unique_ptr<Transition> transition, int z, TArgs&&... args
 	) {
 		Operation op;
 		op.key	   = Hash(scene_key);
 		op.kind	   = OperationKind::Overlay;
 		op.make_to = [this, &args...]() {
-			return std::make_unique<TScene>(args...);
+			auto scene{ std::make_unique<TScene>(args...) };
+			scene->ctx_ = ctx_;
+			return scene;
 		};
 		op.transition = std::move(transition);
-		queue_.push_back(std::move(op));
+		Enqueue(std::move(op));
 		pending_overlay_z_ = z;
 	}
 
@@ -167,7 +171,7 @@ public:
 		queue_.push_back(std::move(op));
 	}
 
-	void Update(float dt) {
+	void Update(secondsf dt) {
 		// TODO: Move this function to private.
 
 		FlushOps();
@@ -214,33 +218,38 @@ public:
 	}
 
 private:
+	friend class Application;
+
 	void Draw() {
 		DrawScenes();
 	}
 
+	void SetContext(const std::shared_ptr<ApplicationContext>& ctx) {
+		ctx_ = ctx;
+	}
+
+	std::shared_ptr<ApplicationContext> ctx_;
+
 	struct TransitionRun {
-		size_t from_index;
-		size_t to_index;
+		std::size_t from_index{ 0 };
+		std::size_t to_index{ 0 };
 		std::unique_ptr<Transition> transition;
-		float progress		  = 0.0;
-		bool kill_from_on_end = true;
+		float progress{ 0.0f };
+		bool kill_from_on_end{ true };
 	};
 
-	Scene* current_scene_ = nullptr;
+	Scene* current_scene_{ nullptr };
 
 	std::vector<SceneEntry> entries_;
 	std::vector<Operation> queue_;
+	std::vector<Operation> deferred_queue_;
+	bool is_flushing_ = false;
 	std::vector<TransitionRun> runs_;
-	int pending_overlay_z_ = 0;
-	size_t next_id_		   = 1;
+	int pending_overlay_z_{ 0 };
+	std::size_t next_id_{ 1 };
 
-	// --- Helpers ---
-	void FlushOps() {
-		if (queue_.empty()) {
-			return;
-		}
-
-		auto is_scene_locked = [&](size_t index) -> bool {
+	void ProcessOperations(std::vector<Operation>& queue) {
+		auto is_scene_locked = [&](std::size_t index) -> bool {
 			for (auto& run : runs_) {
 				if (run.from_index == index || run.to_index == index) {
 					return true;
@@ -249,9 +258,9 @@ private:
 			return false;
 		};
 
-		for (auto& op : queue_) {
+		for (auto& op : queue) {
 			if (op.kind == OperationKind::Switch || op.kind == OperationKind::Replace) {
-				size_t from_index = TopRunningIndex();
+				std::size_t from_index = TopRunningIndex();
 
 				// Handle first scene (no from)
 				bool has_from = from_index != SIZE_MAX;
@@ -270,7 +279,7 @@ private:
 				to.key	 = op.key; // if you added SceneKey support
 				entries_.push_back(std::move(to));
 
-				size_t to_index = entries_.size() - 1;
+				std::size_t to_index = entries_.size() - 1;
 
 				if (has_from && op.transition) {
 					// Normal transition path
@@ -280,10 +289,13 @@ private:
 				} else if (!has_from) {
 					// First scene: start immediately
 					entries_[to_index].phase = Phase::Running;
+					entries_[to_index].ptr->Enter();
 				} else {
 					// Instant swap
+					entries_[from_index].ptr->Exit();
 					entries_[from_index].phase = Phase::Dead;
-					entries_[to_index].phase   = Phase::Running;
+					entries_[to_index].ptr->Enter();
+					entries_[to_index].phase = Phase::Running;
 				}
 			} else if (op.kind == OperationKind::Overlay) {
 				SceneEntry to;
@@ -294,8 +306,8 @@ private:
 				to.key	 = op.key;
 				entries_.push_back(std::move(to));
 				ResortByZ();
-				size_t to_index	  = IndexById(entries_.back().id);
-				size_t from_index = (entries_.size() >= 2) ? to_index - 1 : SIZE_MAX;
+				std::size_t to_index   = IndexById(entries_.back().id);
+				std::size_t from_index = (entries_.size() >= 2) ? to_index - 1 : SIZE_MAX;
 				if (op.transition && from_index != SIZE_MAX) {
 					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
 												   0.0, false });
@@ -304,11 +316,11 @@ private:
 					entries_[to_index].phase = Phase::Running;
 				}
 			} else if (op.kind == OperationKind::Pop) {
-				size_t from_index = TopIndex();
+				std::size_t from_index = TopIndex();
 				if (from_index == SIZE_MAX || is_scene_locked(from_index)) {
 					continue;
 				}
-				size_t to_index = (from_index > 0) ? from_index - 1 : from_index;
+				std::size_t to_index = (from_index > 0) ? from_index - 1 : from_index;
 				if (op.transition && from_index != SIZE_MAX) {
 					runs_.push_back(TransitionRun{ from_index, to_index, std::move(op.transition),
 												   0.0, true });
@@ -321,21 +333,52 @@ private:
 				}
 			}
 		}
+	}
 
-		queue_.clear();
+	void FlushOps() {
+		if (queue_.empty()) {
+			return;
+		}
+
+		is_flushing_ = true;
+
+		while (!queue_.empty()) {
+			std::vector<Operation> current = std::move(queue_);
+			queue_.clear();
+
+			ProcessOperations(current);
+		}
+
+		is_flushing_ = false;
+
+		// Move deferred operations into main queue for next frame
+		if (!deferred_queue_.empty()) {
+			queue_ = std::move(deferred_queue_);
+			deferred_queue_.clear();
+		}
+
 		Compact();
+	}
+
+	void Enqueue(Operation op) {
+		if (is_flushing_) {
+			deferred_queue_.push_back(std::move(op));
+		} else {
+			queue_.push_back(std::move(op));
+		}
 	}
 
 	void ApplyPoliciesOnStart(TransitionRun& run) {
 		auto& from = entries_[run.from_index];
 		auto& to   = entries_[run.to_index];
 		from.phase = Phase::Exiting;
-		to.phase   = Phase::Entering;
+		from.ptr->Exit();
+		to.phase = Phase::Entering;
 	}
 
-	void StepTransitions(float dt) {
-		std::vector<size_t> done;
-		for (size_t i = 0; i < runs_.size(); ++i) {
+	void StepTransitions(secondsf dt) {
+		std::vector<std::size_t> done;
+		for (std::size_t i = 0; i < runs_.size(); ++i) {
 			auto& run = runs_[i];
 			TransitionContext context{ *entries_[run.from_index].ptr, *entries_[run.to_index].ptr,
 									   run.progress, dt };
@@ -346,10 +389,13 @@ private:
 			}
 		}
 
-		for (size_t i = done.size(); i-- > 0;) {
-			auto& run					 = runs_[done[i]];
+		for (std::size_t i = done.size(); i-- > 0;) {
+			auto& run = runs_[done[i]];
+			entries_[run.to_index].ptr->Enter();
 			entries_[run.to_index].phase = Phase::Running;
+
 			if (run.kill_from_on_end) {
+				entries_[run.from_index].ptr->Exit();
 				entries_[run.from_index].phase = Phase::Dead;
 			} else {
 				entries_[run.from_index].phase = Phase::Paused;
@@ -359,7 +405,7 @@ private:
 		Compact();
 	}
 
-	void UpdateScenes(float dt) {
+	void UpdateScenes(secondsf dt) {
 		bool input_blocked = false;
 
 		current_scene_ = nullptr;
@@ -393,14 +439,14 @@ private:
 				continue;
 			}
 			current_scene_ = entry.ptr.get();
-			PTGN_LOG("Drawing scene: ", entry.id);
-			// TODO: Draw scene.
-			// entry.ptr->Draw();
+			// PTGN_LOG("Drawing scene: ", entry.id);
+			//  TODO: Draw scene.
+			//  entry.ptr->Draw();
 		}
 	}
 
 	// --- Policy helpers ---
-	bool IsInvolvedInTransition(size_t index) const {
+	bool IsInvolvedInTransition(std::size_t index) const {
 		for (auto& run : runs_) {
 			if (run.from_index == index || run.to_index == index) {
 				return true;
@@ -409,7 +455,7 @@ private:
 		return false;
 	}
 
-	bool AllowUpdateByPolicy(size_t index) const {
+	bool AllowUpdateByPolicy(std::size_t index) const {
 		for (auto& run : runs_) {
 			if (run.from_index == index) {
 				return run.transition->UpdatesFrom();
@@ -421,7 +467,7 @@ private:
 		return false;
 	}
 
-	bool IsBlockingInput(size_t index) const {
+	bool IsBlockingInput(std::size_t index) const {
 		for (auto& run : runs_) {
 			if (run.from_index == index || run.to_index == index) {
 				return run.transition->BlocksInput();
@@ -431,12 +477,12 @@ private:
 	}
 
 	// --- Bookkeeping ---
-	size_t TopIndex() const {
+	std::size_t TopIndex() const {
 		return entries_.empty() ? SIZE_MAX : entries_.size() - 1;
 	}
 
-	size_t TopRunningIndex() const {
-		for (size_t i = entries_.size(); i-- > 0;) {
+	std::size_t TopRunningIndex() const {
+		for (std::size_t i = entries_.size(); i-- > 0;) {
 			if (entries_[i].phase == Phase::Running) {
 				return i;
 			}
@@ -444,8 +490,8 @@ private:
 		return SIZE_MAX;
 	}
 
-	size_t IndexById(size_t id) const {
-		for (size_t i = 0; i < entries_.size(); ++i) {
+	std::size_t IndexById(std::size_t id) const {
+		for (std::size_t i = 0; i < entries_.size(); ++i) {
 			if (entries_[i].id == id) {
 				return i;
 			}

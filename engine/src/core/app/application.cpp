@@ -12,8 +12,11 @@
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
+#include "core/app/context.h"
 #include "core/app/window.h"
 #include "core/assert.h"
+#include "core/asset/asset_manager.h"
+#include "core/input/input_handler.h"
 #include "core/log.h"
 #include "core/util/time.h"
 #include "debug/debug_system.h"
@@ -210,25 +213,27 @@ Application::SDLInstance::~SDLInstance() {
 }
 
 Application::Application(const ApplicationConfig& config) :
-	window_{ config.title, config.window_size },
-	renderer_{ window_ },
-	scenes_{},
-	input_{ window_, renderer_, scenes_ },
-	assets_{ *renderer_.gl_.get() },
-	debug_{ renderer_ } {
+	window_{ std::make_unique<Window>(config.title, config.window_size) },
+	renderer_{ std::make_unique<Renderer>(*window_.get()) },
+	scenes_{ std::make_unique<SceneManager>() },
+	input_{ std::make_unique<InputHandler>(*window_.get(), *renderer_.get(), *scenes_.get()) },
+	assets_{ std::make_unique<AssetManager>(*renderer_->gl_.get()) },
+	debug_{ std::make_unique<impl::DebugSystem>(*renderer_.get()) },
+	ctx_{ std::make_shared<ApplicationContext>(*this) } {
+	scenes_->SetContext(ctx_);
 	// TODO: Move to application config.
-	window_.SetSetting(WindowSetting::FixedSize);
+	window_->SetSetting(WindowSetting::FixedSize);
 }
 
-bool Application::IsRunning() const {
-	return running_;
+Application::~Application() noexcept {
+	// This needs access to the destructors of the forward declared types.
 }
 
 void Application::EnterMainLoop() {
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
-	window_.SetSetting(WindowSetting::Shown);
+	window_->SetSetting(WindowSetting::Shown);
 	running_ = true;
 
 #ifdef __EMSCRIPTEN__
@@ -237,23 +242,19 @@ void Application::EnterMainLoop() {
 		impl::EmscriptenMainLoop, this, /*fps=*/0, /*simulateInfiniteLoop=*/true
 	);
 #else
-	while (IsRunning()) {
+	while (running_) {
 		Update();
 	}
 #endif
 }
 
 void Application::Update() {
-	debug_.PreUpdate();
+	debug_->PreUpdate();
 
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
 	// Calculate time elapsed during previous frame. Unit: seconds.
-	secondsf elapsed_time{ end - start };
-
-	float elapsed{ elapsed_time.count() };
-
-	dt_ = elapsed;
+	dt_ = end - start;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
 	/*constexpr const float fps{ 60.0f };
@@ -267,24 +268,11 @@ void Application::Update() {
 
 	start = end;
 
-	scenes_.Update(dt_);
+	scenes_->Update(dt_);
 
-	debug_.PostUpdate();
+	debug_->PostUpdate();
 
 	end = std::chrono::system_clock::now();
-}
-
-void Application::Stop() {
-	running_ = false;
-}
-
-float Application::dt() const {
-	return dt_;
-}
-
-float Application::time() const {
-	// TODO: Consider casting to chrono duration instead.
-	return static_cast<float>(SDL_GetTicks64());
 }
 
 } // namespace ptgn

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "ecs/components/uuid.h"
 #include "ecs/entity.h"
 #include "ecs/manager.h"
@@ -10,7 +12,7 @@ namespace ptgn {
 
 class Scene;
 class SceneManager;
-class Application;
+class ApplicationContext;
 
 class Renderer;
 class InputHandler;
@@ -240,8 +242,14 @@ public:
 	friend void to_json(json& j, const Scene& scene);
 	friend void from_json(const json& j, Scene& scene);
 
+	ApplicationContext& app();
+
+	const ApplicationContext& app() const;
+
 private:
 	friend class SceneManager;
+
+	std::shared_ptr<ApplicationContext> ctx_;
 
 	void Init();
 	// void SetKey(const SceneKey& key);

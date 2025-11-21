@@ -300,4 +300,12 @@ void from_json(const json& j, Scene& scene) {
 	//  j.at("render_target").get_to(scene.render_target_);
 }
 
+ApplicationContext& Scene::app() {
+	return *ctx_.get();
+}
+
+const ApplicationContext& Scene::app() const {
+	return *ctx_.get();
+}
+
 } // namespace ptgn
