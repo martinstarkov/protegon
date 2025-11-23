@@ -257,6 +257,7 @@ public:
 
 private:
 	friend class Manager;
+	friend class Scene;
 
 	template <JsonSerializable T>
 	void SerializeImpl(json& j) const {

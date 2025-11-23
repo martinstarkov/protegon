@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <type_traits>
 
+#include "core/event/event.h"
 #include "ecs/components/uuid.h"
 #include "ecs/entity.h"
 #include "ecs/manager.h"
@@ -13,9 +15,20 @@ namespace ptgn {
 class Scene;
 class SceneManager;
 class ApplicationContext;
+class EventHandler;
 
 class Renderer;
 class InputHandler;
+
+class SceneEventHandler {
+public:
+	explicit SceneEventHandler(Scene& scene);
+
+	void Emit(EventDispatcher d);
+
+private:
+	Scene& scene_;
+};
 
 /*
 
@@ -248,8 +261,12 @@ public:
 
 private:
 	friend class SceneManager;
+	friend class EventHandler;
+	friend class SceneEventHandler;
 
 	std::shared_ptr<ApplicationContext> ctx_;
+
+	void EmitInternal(EventDispatcher d);
 
 	void Init();
 	// void SetKey(const SceneKey& key);
@@ -276,6 +293,9 @@ private:
 	};
 
 	State state_{ State::Constructed };
+
+public:
+	SceneEventHandler events{ *this };
 };
 
 } // namespace ptgn

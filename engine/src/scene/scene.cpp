@@ -1,7 +1,9 @@
 #include "scene/scene.h"
 
 #include "core/app/application.h"
+#include "core/event/event.h"
 #include "core/input/input_handler.h"
+#include "core/scripting/scripts.h"
 #include "ecs/components/transform.h"
 #include "ecs/components/uuid.h"
 #include "ecs/entity.h"
@@ -12,6 +14,12 @@
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
+
+SceneEventHandler::SceneEventHandler(Scene& scene) : scene_{ scene } {}
+
+void SceneEventHandler::Emit(EventDispatcher d) {
+	scene_.EmitInternal(d);
+}
 
 Scene::Scene() {
 	// TODO: Fix.
@@ -60,18 +68,21 @@ void Scene::RemoveFromDisplayList(Entity entity) {
 
 Entity Scene::CreateEntity() {
 	auto entity{ Manager::CreateEntity() };
+	entity.scene_ = this;
 	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(UUID uuid) {
 	auto entity{ Manager::CreateEntity(uuid) };
+	entity.scene_ = this;
 	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(const json& j) {
 	auto entity{ Manager::CreateEntity(j) };
+	entity.scene_ = this;
 	// PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
 	return entity;
 }
@@ -306,6 +317,15 @@ ApplicationContext& Scene::app() {
 
 const ApplicationContext& Scene::app() const {
 	return *ctx_.get();
+}
+
+void Scene::EmitInternal(EventDispatcher d) {
+	for (auto [e, scripts] : EntitiesWith<Scripts>()) {
+		scripts.Emit(d);
+		if (d.IsHandled()) {
+			break;
+		}
+	}
 }
 
 } // namespace ptgn

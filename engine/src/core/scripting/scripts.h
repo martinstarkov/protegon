@@ -1,44 +1,58 @@
-#ifndef ENGINE_SCRIPTS_H_
-#define ENGINE_SCRIPTS_H_
+#pragma once
 
 #include <memory>
+#include <type_traits>
 #include <vector>
 
-#include "events.h"
-#include "script_base.h"
+#include "core/event/event.h"
+#include "core/scripting/script.h"
+#include "ecs/entity.h"
 
-namespace engine {
+namespace ptgn {
 
-struct Scripts {
-	std::vector<std::unique_ptr<BaseScript>> instances;
-};
-
-struct KeyScript {
-	virtual ~KeyScript()							  = default;
-	virtual void OnKeyDown(const KeyDownEvent& event) = 0;
-};
-
-struct CollisionScript {
-	virtual ~CollisionScript()							  = default;
-	virtual void OnCollision(const CollisionEvent& event) = 0;
-};
-
-class ExampleKeyScript : public Script<ExampleKeyScript, KeyScript> {
+class Scripts {
 public:
-	using Script::Script;
-	void OnKeyDown(const KeyDownEvent& event) override;
-	void SerializeImpl(nlohmann::json& json) const;
-	void DeserializeImpl(const nlohmann::json& json);
+	Scripts()			= default;
+	~Scripts() noexcept = default;
+
+	Scripts(const Scripts&)			   = delete;
+	Scripts& operator=(const Scripts&) = delete;
+
+	Scripts(Scripts&&) noexcept			   = default;
+	Scripts& operator=(Scripts&&) noexcept = default;
+
+	template <typename T, typename... Args>
+	// TODO: Add concept base of ScriptBase instead of static assert.
+	T& Add(Entity e, Args&&... args) {
+		static_assert(std::is_base_of_v<Script, T>);
+		auto sp	   = std::make_unique<T>(std::forward<Args>(args)...);
+		sp->entity = e;
+		auto& script{ scripts_.emplace_back(std::move(sp)) };
+		script->OnCreate();
+		return static_cast<T&>(*script);
+	}
+
+	void Emit(EventDispatcher d) {
+		for (auto& s : scripts_) {
+			s->OnEvent(d);
+			if (d.IsHandled()) {
+				break; // bubbling within this entity's scripts
+			}
+		}
+	}
+
+private:
+	std::vector<std::unique_ptr<Script>> scripts_;
 };
 
-class ExampleCollisionScript : public Script<ExampleCollisionScript, CollisionScript> {
-public:
-	using Script::Script;
-	void OnCollision(const CollisionEvent& event) override;
-	void SerializeImpl(nlohmann::json& json) const;
-	void DeserializeImpl(const nlohmann::json& json);
-};
+template <typename T, typename... TArgs>
+T& AddScript(Entity e, TArgs&&... args) {
+	static_assert(std::is_base_of_v<Script, T>, "T must derive from Script.");
 
-} // namespace engine
+	Scripts& sc = e.TryAdd<Scripts>();
 
-#endif // ENGINE_SCRIPTS_H_
+	// Add script to the Scripts component
+	return sc.Add<T>(e, std::forward<TArgs>(args)...);
+}
+
+} // namespace ptgn
