@@ -7,10 +7,12 @@
 #include "core/app/context.h"
 #include "core/assert.h"
 #include "core/util/time.h"
-#include "math/hash.h"
+#include "core/util/hash.h"
 #include "scene/scene.h"
 
 namespace ptgn {
+
+class EventHandler;
 
 class Application;
 
@@ -219,6 +221,8 @@ public:
 
 private:
 	friend class Application;
+
+	friend class EventHandler;
 
 	void Draw() {
 		DrawScenes();

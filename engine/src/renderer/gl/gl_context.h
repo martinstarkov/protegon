@@ -13,7 +13,7 @@
 #include "core/log.h"
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
-#include "math/hash.h"
+#include "core/util/hash.h"
 #include "math/matrix4.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"

@@ -25,7 +25,7 @@
 #include "math/geometry/polygon.h"
 #include "math/geometry/rect.h"
 #include "math/geometry/triangle.h"
-#include "math/hash.h"
+#include "core/util/hash.h"
 // #include "physics/collider.h"
 // #include "physics/rigid_body.h"
 #include "ecs/components/origin.h"

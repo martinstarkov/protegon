@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-#include "math/hash.h"
+#include "core/util/hash.h"
 
 namespace ptgn {
 

@@ -23,7 +23,7 @@
 #include "ecs/ecs.h"
 #include "math/easing.h"
 #include "math/geometry/rect.h"
-#include "math/hash.h"
+#include "core/util/hash.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "ecs/components/origin.h"
