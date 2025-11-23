@@ -12,7 +12,7 @@
 #include "core/util/file.h"
 #include "core/util/macro.h"
 #include "core/util/span.h"
-#include "math/hash.h"
+#include "core/util/hash.h"
 #include "renderer/gl/gl.h"
 
 #define PTGN_VSYNC_MODE -1
