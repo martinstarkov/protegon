@@ -14,6 +14,7 @@ class ApplicationContext;
 class Window;
 class Renderer;
 class SceneManager;
+class EventHandler;
 class InputHandler;
 class AssetManager;
 
@@ -75,7 +76,7 @@ private:
 	std::unique_ptr<Renderer> renderer_;
 	std::unique_ptr<SceneManager> scenes_;
 
-	// std::unique_ptr<EventRegistry> events_;
+	std::unique_ptr<EventHandler> events_;
 
 	std::unique_ptr<InputHandler> input_;
 

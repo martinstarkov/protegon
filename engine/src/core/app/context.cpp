@@ -12,6 +12,7 @@ ApplicationContext::ApplicationContext(Application& app) :
 	window{ *app.window_.get() },
 	renderer{ *app.renderer_.get() },
 	scenes{ *app.scenes_.get() },
+	events{ *app.events_.get() },
 	input{ *app.input_.get() },
 	assets{ *app.assets_.get() } {}
 

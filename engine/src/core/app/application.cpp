@@ -16,6 +16,7 @@
 #include "core/app/window.h"
 #include "core/assert.h"
 #include "core/asset/asset_manager.h"
+#include "core/event/event_handler.h"
 #include "core/input/input_handler.h"
 #include "core/log.h"
 #include "core/util/time.h"
@@ -216,6 +217,7 @@ Application::Application(const ApplicationConfig& config) :
 	window_{ std::make_unique<Window>(config.title, config.window_size) },
 	renderer_{ std::make_unique<Renderer>(*window_.get()) },
 	scenes_{ std::make_unique<SceneManager>() },
+	events_{ std::make_unique<EventHandler>(*scenes_.get()) },
 	input_{ std::make_unique<InputHandler>(*window_.get(), *renderer_.get(), *scenes_.get()) },
 	assets_{ std::make_unique<AssetManager>(*renderer_->gl_.get()) },
 	debug_{ std::make_unique<impl::DebugSystem>(*renderer_.get()) },

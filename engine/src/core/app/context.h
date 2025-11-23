@@ -8,6 +8,7 @@ class Application;
 class Window;
 class Renderer;
 class SceneManager;
+class EventHandler;
 class InputHandler;
 class AssetManager;
 
@@ -21,6 +22,7 @@ public:
 	Window& window;
 	Renderer& renderer;
 	SceneManager& scenes;
+	EventHandler& events;
 	InputHandler& input;
 	AssetManager& assets;
 
