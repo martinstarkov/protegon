@@ -14,6 +14,7 @@
 #ifdef PTGN_DEBUG
 #define PTGN_ENABLE_ASSERTS
 #endif
+#include <string>
 
 #ifdef PTGN_ENABLE_ASSERTS
 
@@ -25,7 +26,7 @@ template <Loggable... Ts>
 ) noexcept {
 	std::ostringstream oss;
 	((oss << std::forward<Ts>(parts)), ...); // stream all extra parts (if any)
-	std::string_view msg{ oss.str() };
+	auto msg{ oss.str() };
 
 	const std::string composed =
 		msg.empty() ? std::string{ expr } : std::format("{} | {}", expr, msg);
