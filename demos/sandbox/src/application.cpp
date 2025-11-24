@@ -1,13 +1,21 @@
 #include "core/app/application.h"
 
+#include <iostream>
+#include <ostream>
+
 #include "core/event/event.h"
+#include "core/event/events.h"
+#include "core/input/mouse.h"
+#include "core/log.h"
 #include "core/scripting/script.h"
 #include "core/scripting/scripts.h"
+#include "ecs/entity.h"
+#include "ecs/manager.h"
+#include "scene/scene.h"
 #include "scene/scene_manager.h"
 
 using namespace ptgn;
 
-// Example events
 struct EInventoryChanged : Event<EInventoryChanged> {
 	Entity who{};
 	int delta	 = 0;
@@ -26,7 +34,6 @@ struct EButtonClick : Event<EButtonClick> {
 	int clicks		= 1;
 };
 
-// Example script: PlayerInventoryUI
 class PlayerInventoryUI : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
@@ -44,7 +51,6 @@ public:
 	}
 };
 
-// Example script: LootPickup
 class LootPickup : public Script {
 public:
 	explicit LootPickup(int* playerCount) : counter_(playerCount) {}
@@ -69,14 +75,12 @@ private:
 	int* counter_ = nullptr;
 };
 
-// Example script: RestartButton
 class RestartButton : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<EButtonClick>([this](auto& e) {
-			if (e.target == entity) {
-				Emit(EAnnounceGlobal{ "restart requested" });
-				std::cout << "[Button] Restart requested\n";
+		d.Dispatch<MouseDown>([this](auto& e) {
+			if (e.button == Mouse::Left && !e.held) {
+				Emit(EAnnounceGlobal{ "Mouse down!" });
 				return true; // handled -> stop bubbling
 			}
 			return false;
