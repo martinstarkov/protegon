@@ -9,17 +9,6 @@
 
 namespace ptgn {
 
-namespace impl {
-
-enum class KeyState : std::uint8_t {
-	Up		 = 1,
-	Down	 = 2,
-	Released = 3,
-	Pressed	 = 4
-};
-
-} // namespace impl
-
 enum class Key {
 	Invalid = 0,		// SDL_SCANCODE_UNKNOWN
 

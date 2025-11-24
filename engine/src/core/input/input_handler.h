@@ -1,33 +1,23 @@
 #pragma once
 
 #include <array>
-#include <bitset>
 #include <cstdint>
-#include <optional>
-#include <utility>
+#include <memory>
 
 #include "core/app/resolution.h"
-#include "core/event/events.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/util/time.h"
-#include "core/util/timer.h"
-#include "ecs/manager.h"
 #include "math/vector2.h"
-
-union SDL_Event;
 
 namespace ptgn {
 
 class Application;
-class Window;
-class Renderer;
-class SceneManager;
+class ApplicationContext;
 
 class InputHandler {
 public:
-	InputHandler() = delete;
-	explicit InputHandler(Window& window, Renderer& renderer, SceneManager& scenes);
+	InputHandler()									 = default;
 	~InputHandler() noexcept						 = default;
 	InputHandler(const InputHandler&)				 = delete;
 	InputHandler& operator=(const InputHandler&)	 = delete;
@@ -119,7 +109,23 @@ public:
 	[[nodiscard]] bool KeyUp(Key key) const;
 
 private:
+	friend class Application;
+
 	using Timestamp = std::uint32_t;
+
+	enum class KeyState : std::uint8_t {
+		Up		 = 1,
+		Down	 = 2,
+		Released = 3,
+		Pressed	 = 4
+	};
+
+	enum class MouseState : std::uint8_t {
+		Up		 = 1,
+		Down	 = 2,
+		Released = 3,
+		Pressed	 = 4
+	};
 
 	// Convert position from being relative to the top left of the window to being relative to the
 	// center of the specified viewport.
@@ -134,35 +140,28 @@ private:
 	// scenes.
 	void Update();
 
-	[[nodiscard]] impl::MouseState GetMouseState(Mouse mouse_button) const;
+	[[nodiscard]] MouseState GetMouseState(Mouse mouse_button) const;
 	[[nodiscard]] Timestamp GetMouseTimestamp(Mouse mouse_button) const;
 
-	[[nodiscard]] impl::KeyState GetKeyState(Key key) const;
+	[[nodiscard]] KeyState GetKeyState(Key key) const;
 	[[nodiscard]] Timestamp GetKeyTimestamp(Key key) const;
 
 	[[nodiscard]] std::size_t GetKeyIndex(Key key) const;
 	[[nodiscard]] std::size_t GetMouseIndex(Mouse mouse_button) const;
 	[[nodiscard]] Mouse GetMouse(std::size_t mouse_index) const;
 
-	[[nodiscard]] std::optional<impl::InputEvent> GetInputEvent(const SDL_Event& e);
-
-	void Init();
-	void Shutdown();
-
 	[[nodiscard]] static milliseconds GetTimeSince(Timestamp timestamp);
 
-	void Prepare();
-	void ProcessInputEvents();
-	void InvokeInputEvents(Application& app, Manager& manager);
+	void EmitEvents();
 
 	// Number of keys stored in the SDL key states array.
 	static constexpr std::size_t key_count_{ 512 };
 
 	static constexpr std::size_t mouse_count_{ 3 };
 
-	std::array<impl::KeyState, key_count_> key_states_{};
+	std::array<KeyState, key_count_> key_states_{};
 	std::array<Timestamp, key_count_> key_timestamps_{};
-	std::array<impl::MouseState, mouse_count_> mouse_states_{};
+	std::array<MouseState, mouse_count_> mouse_states_{};
 	std::array<Timestamp, mouse_count_> mouse_timestamps_{};
 
 	// Stored mouse positions are relative to the top left of the window.
@@ -176,11 +175,23 @@ private:
 	// Timestamp of the most recent scroll event.
 	Timestamp mouse_scroll_timestamp_{ 0 };
 
-	impl::InputQueue queue_;
+	void SetContext(const std::shared_ptr<ApplicationContext>& ctx);
 
-	Window& window_;
-	Renderer& renderer_;
-	SceneManager& scenes_;
+	std::shared_ptr<ApplicationContext> ctx_;
 };
+
+PTGN_SERIALIZE_ENUM(
+	InputHandler::MouseState, { { InputHandler::MouseState::Up, "up" },
+								{ InputHandler::MouseState::Down, "down" },
+								{ InputHandler::MouseState::Released, "released" },
+								{ InputHandler::MouseState::Pressed, "pressed" } }
+);
+
+PTGN_SERIALIZE_ENUM(
+	InputHandler::KeyState, { { InputHandler::KeyState::Up, "up" },
+							  { InputHandler::KeyState::Down, "down" },
+							  { InputHandler::KeyState::Released, "released" },
+							  { InputHandler::KeyState::Pressed, "pressed" } }
+);
 
 } // namespace ptgn

@@ -1,16 +1,13 @@
 #include "scene/scene.h"
 
-#include "core/app/application.h"
+#include "core/app/context.h"
 #include "core/event/event.h"
-#include "core/input/input_handler.h"
 #include "core/scripting/scripts.h"
-#include "ecs/components/transform.h"
 #include "ecs/components/uuid.h"
 #include "ecs/entity.h"
 #include "ecs/manager.h"
 #include "nlohmann/json.hpp"
 #include "renderer/api/color.h"
-#include "renderer/renderer.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -222,9 +219,6 @@ void Scene::InternalUpdate() {
 	// app.render_.render_data_.SetDrawingTo(render_target_);
 
 	Refresh();
-
-	// TODO: Fix.
-	// app.input_.InvokeInputEvents(app, *this);
 
 	// input.Update(*this);
 

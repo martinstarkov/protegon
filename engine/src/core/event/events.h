@@ -1,87 +1,67 @@
 #pragma once
 
-#include <variant>
-#include <vector>
-
+#include "core/event/event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "math/vector2.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
-struct KeyDown {
+struct KeyDown : public Event<KeyDown> {
+	Key key;
+	// @return True if key is held for more than one frame in a row.
+	bool held{ false };
+};
+
+struct KeyUp : public Event<KeyUp> {
 	Key key;
 };
 
-struct KeyPressed {
-	Key key;
+struct MouseMove : public Event<MouseMove> {
+	V2_int position;
+	V2_int difference;
 };
 
-struct KeyUp {
-	Key key;
-};
-
-// struct KeyReleased {
-//	Key key;
-// };
-
-struct MouseMove {};
-
-struct MouseDown {
+struct MouseDown : public Event<MouseDown> {
 	Mouse button;
+	V2_int position;
+	// @return True if mouse is held for more than one frame in a row.
+	bool held{ false };
 };
 
-struct MouseUp {
+struct MouseUp : public Event<MouseUp> {
 	Mouse button;
+	V2_int position;
 };
 
-struct MousePressed {
-	Mouse button;
-};
-
-// struct MouseReleased {
-//	Mouse button;
-// };
-
-struct MouseScroll {
+struct MouseScroll : public Event<MouseScroll> {
 	V2_int scroll;
+	V2_int position;
 };
 
-/* fires once when the window is quit */
-struct WindowQuit {};
+// Fires once when the window is quit
+struct WindowQuit : public Event<WindowQuit> {};
 
-/* fires one or more times (consult SDL_PollEvent rate and game FPS) after size change
-				 occurs or resizing  is finished (window is released) */
-struct WindowResized {};
+// Fires one or more times (consult SDL_PollEvent rate and game FPS) after size change occurs or
+// resizing  is finished (window is released)
+struct WindowResized : public Event<WindowResized> {
+	V2_int size;
+};
 
-struct WindowMoved {};
+struct WindowMoved : public Event<WindowMoved> {
+	V2_int position;
+};
 
-/* fires repeatedly while window is being resized */
-// struct WindowResizing {
-//	V2_int size;
-// };
+struct WindowMaximized : public Event<WindowMaximized> {
+	V2_int size;
+};
 
-/* fires while window is being dragged (moved around) */
-// struct WindowDrag {
-//	V2_int position;
-// };
+struct WindowMinimized : public Event<WindowMinimized> {
+	V2_int size;
+};
 
-struct WindowMaximized {};
+struct WindowFocusLost : public Event<WindowFocusLost> {};
 
-struct WindowMinimized {};
+struct WindowFocusGained : public Event<WindowFocusGained> {};
 
-struct WindowFocusLost {};
-
-struct WindowFocusGained {};
-
-using InputEvent = std::variant<
-	KeyDown, KeyPressed, KeyUp /*, KeyReleased*/, MouseMove, MouseDown, MousePressed, MouseUp /*,
-	  MouseReleased*/
-	,
-	MouseScroll, WindowResized, WindowMoved, WindowMaximized, WindowMinimized, WindowFocusLost,
-	WindowFocusGained, WindowQuit
-	/*, WindowResizing, WindowDrag*/>;
-
-using InputQueue = std::vector<InputEvent>;
-
-} // namespace ptgn::impl
+} // namespace ptgn

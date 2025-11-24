@@ -1,146 +1,213 @@
 #include "core/input/input_handler.h"
 
+#include <array>
 #include <chrono>
-#include <optional>
-#include <type_traits>
-#include <variant>
-#include <vector>
 
+#include "core/app/context.h"
+#include "core/app/resolution.h"
+#include "core/app/window.h"
+#include "core/assert.h"
+#include "core/event/event_handler.h"
+#include "core/event/events.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
+#include "core/log.h"
+#include "core/util/time.h"
+#include "math/vector2.h"
+#include "scene/scene_manager.h"
 #include "SDL_events.h"
 #include "SDL_keyboard.h"
 #include "SDL_mouse.h"
 #include "SDL_stdinc.h"
 #include "SDL_timer.h"
 #include "SDL_video.h"
-#include "core/app/application.h"
-#include "core/app/resolution.h"
-#include "core/app/window.h"
-#include "core/assert.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "core/log.h"
-#include "core/util/time.h"
-#include "ecs/components/transform.h"
-#include "math/geometry/rect.h"
-#include "math/overlap.h"
-#include "math/vector2.h"
-#include "renderer/renderer.h"
 
 namespace ptgn {
 
-// TODO: Get rid of this.
-using namespace impl;
+// inline static int WindowEventWatcher([[maybe_unused]] void* data, SDL_Event* event) {
+//	if (event->type == SDL_WINDOWEVENT) {
+//		if (event->window.event == SDL_WINDOWEVENT_RESIZED ||
+//			event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+//			V2_int window_size{ event->window.data1, event->window.data2 };
+//			// This is not safe due to being on a different thread.
+//			queue.emplace_back(WindowResizing{ window_size });
+//		} else if (event->window.event == SDL_WINDOWEVENT_EXPOSED) {
+//			// This is not safe due to being on a different thread.
+//			queue.emplace_back(WindowDrag{});
+//		}
+//	}
+//	return 0;
+// }
+// SDL_AddEventWatch(WindowEventWatcher, nullptr);
+// SDL_DelEventWatch(WindowEventWatcher, nullptr);
 
-InputHandler::InputHandler(Window& window, Renderer& renderer, SceneManager& scenes) :
-	window_{ window }, renderer_{ renderer }, scenes_{ scenes } {}
-
-std::optional<InputEvent> InputHandler::GetInputEvent(const SDL_Event& e) {
-	switch (e.type) {
-		case SDL_MOUSEMOTION: {
-			V2_int new_mouse_position{ e.motion.x, e.motion.y };
-			mouse_position_ = new_mouse_position;
-			// V2_int difference{ e.motion.xrel, e.motion.yrel };
-			return MouseMove{};
-		}
-		case SDL_MOUSEBUTTONDOWN: {
-			Mouse mouse{ static_cast<Mouse>(e.button.button) };
-			auto index{ GetMouseIndex(mouse) };
-			if (mouse_states_[index] != MouseState::Pressed) {
-				mouse_timestamps_[index] = e.button.timestamp;
-				mouse_states_[index]	 = MouseState::Down;
-				return impl::MouseDown{ mouse };
-			}
-			return impl::MousePressed{ mouse };
-		}
-		case SDL_MOUSEBUTTONUP: {
-			Mouse mouse{ static_cast<Mouse>(e.button.button) };
-			auto index{ GetMouseIndex(mouse) };
-			if (mouse_states_[index] != MouseState::Released) {
-				mouse_timestamps_[index] = e.button.timestamp;
-				mouse_states_[index]	 = MouseState::Up;
-				return impl::MouseUp{ mouse };
-			}
-			break;
-		}
-		case SDL_KEYDOWN: {
-			auto index{ static_cast<std::size_t>(e.key.keysym.scancode) };
-			Key key{ static_cast<Key>(index) };
-			if (!e.key.repeat) {
-				key_timestamps_[index] = e.key.timestamp;
-				key_states_[index]	   = KeyState::Down;
-				return impl::KeyDown{ key };
-			}
-			return impl::KeyPressed{ key };
-		}
-		case SDL_KEYUP: {
-			auto index{ static_cast<std::size_t>(e.key.keysym.scancode) };
-			if (key_states_[index] != KeyState::Released) {
-				key_timestamps_[index] = e.key.timestamp;
-				key_states_[index]	   = KeyState::Up;
-				Key key{ static_cast<Key>(index) };
-				return impl::KeyUp{ key };
-			}
-			break;
-		}
-		case SDL_MOUSEWHEEL: {
-			V2_int new_mouse_position{ e.wheel.mouseX, e.wheel.mouseY };
-			mouse_position_			 = new_mouse_position;
-			mouse_scroll_timestamp_	 = e.wheel.timestamp;
-			mouse_scroll_			 = { e.wheel.x, e.wheel.y };
-			mouse_scroll_delta_		+= mouse_scroll_;
-			return MouseScroll{ mouse_scroll_ };
-		}
-		case SDL_QUIT: {
-			return WindowQuit{};
-		}
-		case SDL_WINDOWEVENT: {
-			switch (e.window.event) {
-				case SDL_WINDOWEVENT_RESIZED:
-				case SDL_WINDOWEVENT_SIZE_CHANGED: {
-					// V2_int window_size{ e.window.data1, e.window.data2 };
-					return WindowResized{};
-				}
-				case SDL_WINDOWEVENT_MAXIMIZED: {
-					//	V2_int window_size{ e.window.data1, e.window.data2 };
-					return WindowMaximized{};
-				}
-				case SDL_WINDOWEVENT_MINIMIZED: {
-					//	V2_int window_size{ e.window.data1, e.window.data2 };
-					return WindowMinimized{};
-				}
-				case SDL_WINDOWEVENT_MOVED: {
-					//	V2_int window_position{ e.window.data1, e.window.data2 };
-					return WindowMoved{};
-				}
-				case SDL_WINDOWEVENT_FOCUS_LOST: {
-					return WindowFocusLost{};
-				}
-				case SDL_WINDOWEVENT_FOCUS_GAINED: {
-					return WindowFocusGained{};
-				}
-				default: break;
-			}
-			break;
-		}
-		default: break;
-	}
-	return std::nullopt;
-}
-
-void InputHandler::ProcessInputEvents() {
+void InputHandler::EmitEvents() {
 	SDL_Event e;
 
 	while (SDL_PollEvent(&e)) {
-		if (auto event{ GetInputEvent(e) }) {
-			queue_.emplace_back(*event);
+		switch (e.type) {
+			case SDL_MOUSEMOTION: {
+				V2_int new_mouse_position{ e.motion.x, e.motion.y };
+				mouse_position_ = new_mouse_position;
+
+				ptgn::MouseMove move;
+				move.position	= new_mouse_position;
+				move.difference = { e.motion.xrel, e.motion.yrel };
+
+				ctx_->events.Emit(move);
+				break;
+			}
+			case SDL_MOUSEBUTTONDOWN: {
+				Mouse mouse{ static_cast<Mouse>(e.button.button) };
+
+				ptgn::MouseDown down;
+
+				down.button	  = mouse;
+				down.position = mouse_position_;
+
+				if (auto index{ GetMouseIndex(mouse) };
+					mouse_states_[index] != MouseState::Pressed) {
+					mouse_timestamps_[index] = e.button.timestamp;
+					mouse_states_[index]	 = MouseState::Down;
+					down.held				 = false;
+				} else {
+					down.held = true;
+				}
+
+				ctx_->events.Emit(down);
+				break;
+			}
+			case SDL_MOUSEBUTTONUP: {
+				Mouse mouse{ static_cast<Mouse>(e.button.button) };
+
+				if (auto index{ GetMouseIndex(mouse) };
+					mouse_states_[index] != MouseState::Released) {
+					ptgn::MouseUp up;
+
+					up.button	= mouse;
+					up.position = mouse_position_;
+
+					mouse_timestamps_[index] = e.button.timestamp;
+					mouse_states_[index]	 = MouseState::Up;
+
+					ctx_->events.Emit(up);
+				}
+
+				break;
+			}
+			case SDL_KEYDOWN: {
+				auto index{ static_cast<std::size_t>(e.key.keysym.scancode) };
+				Key key{ static_cast<Key>(index) };
+
+				ptgn::KeyDown down;
+				down.key = key;
+
+				if (!e.key.repeat) {
+					key_timestamps_[index] = e.key.timestamp;
+					key_states_[index]	   = KeyState::Down;
+					down.held			   = false;
+				} else {
+					down.held = true;
+				}
+
+				ctx_->events.Emit(down);
+				break;
+			}
+			case SDL_KEYUP: {
+				if (auto index{ static_cast<std::size_t>(e.key.keysym.scancode) };
+					key_states_[index] != KeyState::Released) {
+					key_timestamps_[index] = e.key.timestamp;
+					key_states_[index]	   = KeyState::Up;
+
+					ptgn::KeyUp up;
+					up.key = static_cast<Key>(index);
+
+					ctx_->events.Emit(up);
+				}
+				break;
+			}
+			case SDL_MOUSEWHEEL: {
+				V2_int new_mouse_position{ e.wheel.mouseX, e.wheel.mouseY };
+				mouse_position_			 = new_mouse_position;
+				mouse_scroll_timestamp_	 = e.wheel.timestamp;
+				mouse_scroll_			 = { e.wheel.x, e.wheel.y };
+				mouse_scroll_delta_		+= mouse_scroll_;
+
+				ptgn::MouseScroll scroll;
+				scroll.scroll	= mouse_scroll_;
+				scroll.position = mouse_position_;
+
+				ctx_->events.Emit(scroll);
+				break;
+			}
+			case SDL_QUIT: {
+				ctx_->events.Emit(WindowQuit{});
+				ctx_->Stop();
+				break;
+			}
+			case SDL_WINDOWEVENT: {
+				switch (e.window.event) {
+					case SDL_WINDOWEVENT_RESIZED:
+					case SDL_WINDOWEVENT_SIZE_CHANGED: {
+						WindowResized resized;
+
+						resized.size = { e.window.data1, e.window.data2 };
+
+						ctx_->events.Emit(resized);
+						break;
+					}
+					case SDL_WINDOWEVENT_MAXIMIZED: {
+						WindowMaximized maximized;
+
+						maximized.size = { e.window.data1, e.window.data2 };
+
+						ctx_->events.Emit(maximized);
+						break;
+					}
+					case SDL_WINDOWEVENT_MINIMIZED: {
+						WindowMinimized minimized;
+
+						minimized.size = { e.window.data1, e.window.data2 };
+
+						ctx_->events.Emit(minimized);
+						break;
+					}
+					case SDL_WINDOWEVENT_MOVED: {
+						WindowMoved moved;
+
+						moved.position = { e.window.data1, e.window.data2 };
+
+						ctx_->events.Emit(moved);
+						break;
+					}
+					case SDL_WINDOWEVENT_FOCUS_LOST: {
+						ctx_->events.Emit(WindowFocusLost{});
+						break;
+					}
+					case SDL_WINDOWEVENT_FOCUS_GAINED: {
+						ctx_->events.Emit(WindowFocusGained{});
+						break;
+					}
+					default: break;
+				}
+				break;
+			}
+			default: break;
 		}
 	}
 
 	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
 		const auto& mouse_state{ mouse_states_[i] };
 		if (mouse_state == MouseState::Pressed) {
-			Mouse mouse_button{ GetMouse(i) };
-			queue_.emplace_back(impl::MousePressed{ mouse_button });
+			Mouse mouse{ GetMouse(i) };
+
+			ptgn::MouseDown down;
+
+			down.button	  = mouse;
+			down.held	  = true;
+			down.position = mouse_position_;
+
+			ctx_->events.Emit(down);
 		}
 	}
 
@@ -156,11 +223,17 @@ void InputHandler::ProcessInputEvents() {
 
 	if (!difference.IsZero()) {
 		mouse_position_ = new_mouse_position;
-		queue_.emplace_back(MouseMove{});
+
+		ptgn::MouseMove move;
+
+		move.position	= mouse_position_;
+		move.difference = difference;
+
+		ctx_->events.Emit(move);
 	}
 }
 
-void InputHandler::Prepare() {
+void InputHandler::Update() {
 	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
 		if (key_states_[i] == KeyState::Up) {
 			key_timestamps_[i] = SDL_GetTicks();
@@ -177,7 +250,6 @@ void InputHandler::Prepare() {
 	previous_mouse_position_ = mouse_position_;
 	mouse_scroll_			 = {};
 	mouse_scroll_delta_		 = {};
-	queue_.clear();
 
 	for (auto& mouse_state : mouse_states_) {
 		if (mouse_state == MouseState::Down) {
@@ -189,97 +261,8 @@ void InputHandler::Prepare() {
 			key_state = KeyState::Pressed;
 		}
 	}
-}
 
-void InputHandler::InvokeInputEvents(Application& app, Manager& manager) {
-	/*
-	for (const auto& event : queue_) {
-		std::visit(
-			[&](auto&& ev) {
-				using T = std::decay_t<decltype(ev)>;
-
-				// Mouse events.
-				if constexpr (std::is_same_v<T, impl::MouseMove>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&GlobalMouseScript::OnMouseMove);
-					}
-				} else if constexpr (std::is_same_v<T, impl::MouseDown>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&GlobalMouseScript::OnMouseDown, ev.button);
-					}
-				} else if constexpr (std::is_same_v<T, impl::MousePressed>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&GlobalMouseScript::OnMousePressed, ev.button);
-					}
-				} else if constexpr (std::is_same_v<T, impl::MouseUp>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&GlobalMouseScript::OnMouseUp, ev.button);
-					}
-				} else if constexpr (std::is_same_v<T, impl::MouseScroll>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&GlobalMouseScript::OnMouseScroll, ev.scroll);
-					}
-				}
-
-				// Keyboard events.
-				if constexpr (std::is_same_v<T, impl::KeyDown>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&KeyScript::OnKeyDown, ev.key);
-						scripts.AddAction(&KeyScript::OnKeyPressed, ev.key);
-					}
-				} else if constexpr (std::is_same_v<T, impl::KeyPressed>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&KeyScript::OnKeyPressed, ev.key);
-					}
-				} else if constexpr (std::is_same_v<T, impl::KeyUp>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&KeyScript::OnKeyUp, ev.key);
-					}
-				}
-
-				// Window events.
-				else if constexpr (std::is_same_v<T, impl::WindowResized>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&WindowScript::OnWindowResized);
-					}
-				} else if constexpr (std::is_same_v<T, impl::WindowMoved>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&WindowScript::OnWindowMoved);
-					}
-				} else if constexpr (std::is_same_v<T, impl::WindowMaximized>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&WindowScript::OnWindowMaximized);
-					}
-				} else if constexpr (std::is_same_v<T, impl::WindowMinimized>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&WindowScript::OnWindowMinimized);
-					}
-				} else if constexpr (std::is_same_v<T, impl::WindowFocusLost>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&WindowScript::OnWindowFocusLost);
-					}
-				} else if constexpr (std::is_same_v<T, impl::WindowFocusGained>) {
-					for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-						scripts.AddAction(&WindowScript::OnWindowFocusGained);
-					}
-				} else if constexpr (std::is_same_v<T, impl::WindowQuit>) {
-					app.Stop();
-				}
-			},
-			event
-		);
-	}
-
-	for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-		scripts.InvokeActions();
-	}
-
-	manager.Refresh();*/
-}
-
-void InputHandler::Update() {
-	Prepare();
-	ProcessInputEvents();
+	EmitEvents();
 }
 
 // bool InputHandler::MouseWithinWindow() const {
@@ -341,11 +324,15 @@ V2_float InputHandler::GetPositionRelativeTo(
 	return window_position;
 }
 
+void InputHandler::SetContext(const std::shared_ptr<ApplicationContext>& ctx) {
+	ctx_ = ctx;
+}
+
 V2_int InputHandler::GetMouseScreenPosition() const {
 	V2_int mouse_screen_pos;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&mouse_screen_pos.x, &mouse_screen_pos.y);
-	V2_int window_pos{ window_.GetPosition() };
+	V2_int window_pos{ ctx_->window.GetPosition() };
 	mouse_screen_pos -= window_pos;
 	return mouse_screen_pos;
 }
@@ -401,30 +388,7 @@ milliseconds InputHandler::GetKeyHeldTime(Key key) const {
 	return GetTimeSince(key_timestamp);
 }
 
-// inline static int WindowEventWatcher([[maybe_unused]] void* data, SDL_Event* event) {
-//	if (event->type == SDL_WINDOWEVENT) {
-//		if (event->window.event == SDL_WINDOWEVENT_RESIZED ||
-//			event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-//			V2_int window_size{ event->window.data1, event->window.data2 };
-//			// TODO: This is not safe due to being on a different thread.
-//			queue.emplace_back(WindowResizing{ window_size });
-//		} else if (event->window.event == SDL_WINDOWEVENT_EXPOSED) {
-//			// TODO: This is not safe due to being on a different thread.
-//			queue.emplace_back(WindowDrag{});
-//		}
-//	}
-//	return 0;
-// }
-
-void InputHandler::Init() {
-	// SDL_AddEventWatch(WindowEventWatcher, nullptr);
-}
-
-void InputHandler::Shutdown() {
-	// SDL_DelEventWatch(WindowEventWatcher, nullptr);
-}
-
-KeyState InputHandler::GetKeyState(Key key) const {
+InputHandler::KeyState InputHandler::GetKeyState(Key key) const {
 	auto index{ GetKeyIndex(key) };
 	return key_states_[index];
 }
@@ -434,7 +398,7 @@ InputHandler::Timestamp InputHandler::GetKeyTimestamp(Key key) const {
 	return key_timestamps_[index];
 }
 
-MouseState InputHandler::GetMouseState(Mouse mouse_button) const {
+InputHandler::MouseState InputHandler::GetMouseState(Mouse mouse_button) const {
 	auto index{ GetMouseIndex(mouse_button) };
 	return mouse_states_[index];
 }
@@ -451,10 +415,11 @@ std::size_t InputHandler::GetKeyIndex(Key key) const {
 std::size_t InputHandler::GetMouseIndex(Mouse mouse_button) const {
 	std::size_t index{ 0 };
 	switch (mouse_button) {
-		case Mouse::Left:	index = 0; break;
-		case Mouse::Right:	index = 1; break;
-		case Mouse::Middle: index = 2; break;
-		default:			PTGN_ERROR("Unknown mouse button");
+		using enum ptgn::Mouse;
+		case Left:	 index = 0; break;
+		case Right:	 index = 1; break;
+		case Middle: index = 2; break;
+		default:	 PTGN_ERROR("Unknown mouse button");
 	}
 	PTGN_ASSERT(index < mouse_states_.size());
 	return index;
@@ -462,9 +427,10 @@ std::size_t InputHandler::GetMouseIndex(Mouse mouse_button) const {
 
 Mouse InputHandler::GetMouse(std::size_t mouse_index) const {
 	switch (mouse_index) {
-		case 0:	 return Mouse::Left;
-		case 1:	 return Mouse::Right;
-		case 2:	 return Mouse::Middle;
+		using enum ptgn::Mouse;
+		case 0:	 return Left;
+		case 1:	 return Right;
+		case 2:	 return Middle;
 		default: PTGN_ERROR("Unknown mouse index");
 	}
 }
