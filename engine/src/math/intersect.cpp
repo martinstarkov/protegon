@@ -7,12 +7,9 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/application.h"
 #include "core/assert.h"
-#include "core/config/build_config.h"
-#include "ecs/components/transform.h"
 #include "core/log.h"
-#include "core/util/type_info.h"
+#include "ecs/components/transform.h"
 #include "geometry/circle.h"
 #include "geometry/polygon.h"
 #include "geometry/rect.h"

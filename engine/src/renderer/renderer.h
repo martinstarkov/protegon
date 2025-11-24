@@ -251,9 +251,7 @@ public:
 	[[nodiscard]] Color GetBackgroundColor() const;
 
 	// @param game_size Setting to {} will use window size.
-	void SetGameSize(
-		V2_int game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
-	);
+	void SetGameSize(V2_int game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox);
 
 	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
 
@@ -589,6 +587,7 @@ private:
 	void ClearScreen() const;
 
 	Window& window_;
+
 	std::unique_ptr<impl::gl::GLContext> gl_;
 };
 

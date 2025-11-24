@@ -1,18 +1,14 @@
 #include "math/overlap.h"
 
 #include <algorithm>
-#include <cmath>
 #include <limits>
 #include <type_traits>
 #include <variant>
 #include <vector>
 
-#include "core/app/application.h"
 #include "core/assert.h"
-#include "core/config/build_config.h"
-#include "ecs/components/transform.h"
 #include "core/log.h"
-#include "core/util/type_info.h"
+#include "ecs/components/transform.h"
 #include "math/geometry/axis.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
@@ -257,9 +253,7 @@ bool PolygonContainsTriangle(
 		   OverlapPointPolygon(Transform{}, c, Transform{}, world_polygon);
 }
 
-bool OverlapPointPoint(
-	const Transform& t1, V2_float A, const Transform& t2, V2_float B
-) {
+bool OverlapPointPoint(const Transform& t1, V2_float A, const Transform& t2, V2_float B) {
 	return t1.Apply(A) == t2.Apply(B);
 }
 
@@ -290,9 +284,7 @@ bool OverlapPointLine(const Transform& t1, V2_float A, const Transform& t2, cons
 	return NearlyEqual(ac.Dot(ac) * f, e * e);
 }
 
-bool OverlapPointTriangle(
-	const Transform& t1, V2_float A, const Transform& t2, const Triangle& B
-) {
+bool OverlapPointTriangle(const Transform& t1, V2_float A, const Transform& t2, const Triangle& B) {
 	auto point{ t1.Apply(A) };
 	auto [triangle_a, triangle_b, triangle_c] = B.GetWorldVertices(t2);
 
@@ -310,9 +302,7 @@ bool OverlapPointTriangle(
 	return s >= 0.0f && t >= 0.0f && (s + t) <= 1.0f;
 }
 
-bool OverlapPointCircle(
-	const Transform& t1, V2_float A, const Transform& t2, const Circle& B
-) {
+bool OverlapPointCircle(const Transform& t1, V2_float A, const Transform& t2, const Circle& B) {
 	auto circle_radius{ B.GetRadius(t2) };
 	if (circle_radius <= 0.0f) {
 		return false;
@@ -359,9 +349,7 @@ bool OverlapPointRect(const Transform& t1, V2_float A, const Transform& t2, cons
 	return true;
 }
 
-bool OverlapPointCapsule(
-	const Transform& t1, V2_float A, const Transform& t2, const Capsule& B
-) {
+bool OverlapPointCapsule(const Transform& t1, V2_float A, const Transform& t2, const Capsule& B) {
 	auto capsule_radius{ B.GetRadius(t2) };
 	if (capsule_radius <= 0.0f) {
 		return false;
@@ -378,9 +366,7 @@ bool OverlapPointCapsule(
 	);
 }
 
-bool OverlapPointPolygon(
-	const Transform& t1, V2_float A, const Transform& t2, const Polygon& B
-) {
+bool OverlapPointPolygon(const Transform& t1, V2_float A, const Transform& t2, const Polygon& B) {
 	auto point{ t1.Apply(A) };
 
 	auto world_points{ t2.Apply(B.vertices) };

@@ -12,8 +12,8 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/concepts.h"
-#include "core/util/id_map.h"
 #include "core/util/hash.h"
+#include "core/util/id_map.h"
 #include "math/matrix4.h"
 #include "math/tolerance.h"
 #include "math/vector2.h"
@@ -1689,12 +1689,12 @@ private:
 	IdMap<GLuint, BufferCache> buffer_cache_;
 	IdMap<GLuint, VertexArrayCache> vertex_array_cache_;
 
-	void* context_{ nullptr };
-
 	State bound_;
 
 	std::unordered_map<std::size_t, GLuint> vertex_shaders_;
 	std::unordered_map<std::size_t, GLuint> fragment_shaders_;
+
+	void* context_{ nullptr };
 };
 
 template <GLResource R>

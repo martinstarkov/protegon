@@ -3,18 +3,14 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <functional>
 #include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "core/app/application.h"
 #include "core/assert.h"
-#include "core/config/build_config.h"
-#include "ecs/components/transform.h"
 #include "core/log.h"
-#include "core/util/type_info.h"
+#include "ecs/components/transform.h"
 #include "math/geometry/capsule.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/line.h"
@@ -327,8 +323,7 @@ RaycastResult RaycastRect(
 }
 
 RaycastResult RaycastCapsule(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2,
-	const Capsule& B
+	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Capsule& B
 ) {
 	// Source: https://stackoverflow.com/a/52462458
 
@@ -395,8 +390,7 @@ RaycastResult RaycastCapsule(
 }
 
 [[nodiscard]] RaycastResult RaycastPolygon(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2,
-	const Polygon& B
+	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Polygon& B
 ) {
 	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));
 	// Convert polygon to world space
