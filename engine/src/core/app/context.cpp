@@ -9,12 +9,12 @@ namespace ptgn {
 
 ApplicationContext::ApplicationContext(Application& app) :
 	app_{ app },
-	window{ *app.window_.get() },
-	renderer{ *app.renderer_.get() },
-	scenes{ *app.scenes_.get() },
-	events{ *app.events_.get() },
-	input{ *app.input_.get() },
-	assets{ *app.assets_.get() } {}
+	window{ app.window_ },
+	renderer{ app.renderer_ },
+	scenes{ app.scenes_ },
+	events{ app.events_ },
+	input{ app.input_ },
+	assets{ app.assets_ } {}
 
 void ApplicationContext::Stop() {
 	app_.running_ = false;

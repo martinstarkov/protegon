@@ -2,29 +2,26 @@
 
 #include <chrono>
 #include <memory>
+#include <ostream>
 
+#include "core/app/context.h"
+#include "core/app/window.h"
+#include "core/assert.h"
+#include "core/config/build_config.h"
+#include "core/input/input_handler.h"
+#include "core/log.h"
+#include "debug/debug_system.h"
+#include "renderer/gl/gl_context.h"
+#include "renderer/renderer.h"
+#include "scene/scene_manager.h"
 #include "SDL.h"
 #include "SDL_error.h"
 #include "SDL_hints.h"
 #include "SDL_image.h"
 #include "SDL_mixer.h"
-#include "SDL_timer.h"
 #include "SDL_ttf.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
-#include "core/app/context.h"
-#include "core/app/window.h"
-#include "core/assert.h"
-#include "core/asset/asset_manager.h"
-#include "core/event/event_handler.h"
-#include "core/input/input_handler.h"
-#include "core/log.h"
-#include "core/util/time.h"
-#include "debug/debug_system.h"
-#include "math/vector2.h"
-#include "renderer/gl/gl_context.h"
-#include "renderer/renderer.h"
-#include "scene/scene_manager.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -47,6 +44,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include <cstdint>
 
 inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
 	os << static_cast<int>(v.major) << "." << static_cast<int>(v.minor) << "."
@@ -214,28 +212,23 @@ Application::SDLInstance::~SDLInstance() {
 }
 
 Application::Application(const ApplicationConfig& config) :
-	window_{ std::make_unique<Window>(config.title, config.window_size) },
-	renderer_{ std::make_unique<Renderer>(*window_.get()) },
-	scenes_{ std::make_unique<SceneManager>() },
-	events_{ std::make_unique<EventHandler>(*scenes_.get()) },
-	input_{ std::make_unique<InputHandler>(*window_.get(), *renderer_.get(), *scenes_.get()) },
-	assets_{ std::make_unique<AssetManager>(*renderer_->gl_.get()) },
-	debug_{ std::make_unique<impl::DebugSystem>(*renderer_.get()) },
+	window_{ config.title, config.window_size },
+	renderer_{ window_ },
+	events_{ scenes_ },
+	assets_{ *renderer_.gl_.get() },
+	debug_{ renderer_ },
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
-	scenes_->SetContext(ctx_);
+	scenes_.SetContext(ctx_);
+	input_.SetContext(ctx_);
 	// TODO: Move to application config.
-	window_->SetSetting(WindowSetting::FixedSize);
-}
-
-Application::~Application() noexcept {
-	// This needs access to the destructors of the forward declared types.
+	window_.SetSetting(WindowSetting::FixedSize);
 }
 
 void Application::EnterMainLoop() {
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
-	window_->SetSetting(WindowSetting::Shown);
+	window_.SetSetting(WindowSetting::Shown);
 	running_ = true;
 
 #ifdef __EMSCRIPTEN__
@@ -251,7 +244,7 @@ void Application::EnterMainLoop() {
 }
 
 void Application::Update() {
-	debug_->PreUpdate();
+	debug_.PreUpdate();
 
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
@@ -270,9 +263,11 @@ void Application::Update() {
 
 	start = end;
 
-	scenes_->Update(dt_);
+	input_.Update();
 
-	debug_->PostUpdate();
+	scenes_.Update(dt_);
+
+	debug_.PostUpdate();
 
 	end = std::chrono::system_clock::now();
 }

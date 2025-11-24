@@ -4,23 +4,21 @@
 #include <memory>
 #include <string_view>
 
+#include "core/app/window.h"
+#include "core/asset/asset_manager.h"
+#include "core/event/event_handler.h"
+#include "core/input/input_handler.h"
 #include "core/util/time.h"
+#include "debug/debug_system.h"
 #include "math/vector2.h"
+#include "renderer/renderer.h"
 #include "scene/scene_manager.h"
 
 namespace ptgn {
 
 class ApplicationContext;
-class Window;
-class Renderer;
-class SceneManager;
-class EventHandler;
-class InputHandler;
-class AssetManager;
 
 namespace impl {
-
-class DebugSystem;
 
 #ifdef __EMSCRIPTEN__
 
@@ -37,7 +35,7 @@ struct ApplicationConfig {
 class Application {
 public:
 	explicit Application(const ApplicationConfig& config = {});
-	~Application() noexcept;
+	~Application() noexcept						   = default;
 	Application(const Application&)				   = delete;
 	Application& operator=(const Application&)	   = delete;
 	Application(Application&&) noexcept			   = delete;
@@ -47,10 +45,10 @@ public:
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
 		// Initialize the first scene using the SceneManager.
-		scenes_->SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
+		scenes_.SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
 
 		// Flush queued ops so the first scene becomes active before main loop.
-		scenes_->Update(secondsf{ 0.0f });
+		scenes_.Update(secondsf{ 0.0f });
 
 		EnterMainLoop();
 	}
@@ -72,18 +70,18 @@ private:
 
 	SDLInstance sdl_;
 
-	std::unique_ptr<Window> window_;
-	std::unique_ptr<Renderer> renderer_;
-	std::unique_ptr<SceneManager> scenes_;
+	Window window_;
+	Renderer renderer_;
+	SceneManager scenes_;
 
-	std::unique_ptr<EventHandler> events_;
+	EventHandler events_;
 
-	std::unique_ptr<InputHandler> input_;
+	InputHandler input_;
 
-	std::unique_ptr<AssetManager> assets_;
+	AssetManager assets_;
 
 	// TODO: Make a no-op version of this for release modes.
-	std::unique_ptr<impl::DebugSystem> debug_;
+	impl::DebugSystem debug_;
 
 	void EnterMainLoop();
 	void Update();
