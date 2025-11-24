@@ -6,8 +6,8 @@
 
 #include "core/app/context.h"
 #include "core/assert.h"
-#include "core/util/time.h"
 #include "core/util/hash.h"
+#include "core/util/time.h"
 #include "scene/scene.h"
 
 namespace ptgn {
@@ -293,12 +293,12 @@ private:
 				} else if (!has_from) {
 					// First scene: start immediately
 					entries_[to_index].phase = Phase::Running;
-					entries_[to_index].ptr->Enter();
+					entries_[to_index].ptr->InternalEnter();
 				} else {
 					// Instant swap
-					entries_[from_index].ptr->Exit();
+					entries_[from_index].ptr->InternalExit();
 					entries_[from_index].phase = Phase::Dead;
-					entries_[to_index].ptr->Enter();
+					entries_[to_index].ptr->InternalEnter();
 					entries_[to_index].phase = Phase::Running;
 				}
 			} else if (op.kind == OperationKind::Overlay) {
@@ -376,7 +376,7 @@ private:
 		auto& from = entries_[run.from_index];
 		auto& to   = entries_[run.to_index];
 		from.phase = Phase::Exiting;
-		from.ptr->Exit();
+		from.ptr->InternalExit();
 		to.phase = Phase::Entering;
 	}
 
@@ -395,11 +395,11 @@ private:
 
 		for (std::size_t i = done.size(); i-- > 0;) {
 			auto& run = runs_[done[i]];
-			entries_[run.to_index].ptr->Enter();
+			entries_[run.to_index].ptr->InternalEnter();
 			entries_[run.to_index].phase = Phase::Running;
 
 			if (run.kill_from_on_end) {
-				entries_[run.from_index].ptr->Exit();
+				entries_[run.from_index].ptr->InternalExit();
 				entries_[run.from_index].phase = Phase::Dead;
 			} else {
 				entries_[run.from_index].phase = Phase::Paused;
@@ -426,7 +426,7 @@ private:
 
 			if (allow_update) {
 				current_scene_ = entry.ptr.get();
-				entry.ptr->Update();
+				entry.ptr->InternalUpdate();
 			}
 
 			if (!input_blocked && IsBlockingInput(i)) {

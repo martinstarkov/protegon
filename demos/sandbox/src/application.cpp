@@ -30,14 +30,14 @@ struct EButtonClick : Event<EButtonClick> {
 class PlayerInventoryUI : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<EInventoryChanged>([&](EInventoryChanged& e) {
+		d.Dispatch<EInventoryChanged>([this](auto& e) {
 			if (e.who == entity) {
 				std::cout << "[UI] inventory now " << e.newCount << " (delta " << e.delta << ")\n";
 			}
 			// no bool returned -> not "handled", keep bubbling
 		});
 
-		d.Dispatch<EAnnounceGlobal>([&](EAnnounceGlobal& e) {
+		d.Dispatch<EAnnounceGlobal>([](auto& e) {
 			std::cout << e.text << "\n";
 			// also not handled, just reacts
 		});
@@ -73,7 +73,7 @@ private:
 class RestartButton : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<EButtonClick>([&](EButtonClick& e) -> bool {
+		d.Dispatch<EButtonClick>([this](auto& e) {
 			if (e.target == entity) {
 				Emit(EAnnounceGlobal{ "restart requested" });
 				std::cout << "[Button] Restart requested\n";
@@ -86,22 +86,22 @@ public:
 
 class SecondScene : public Scene {
 public:
-	void Enter() override {
+	void OnEnter() override {
 		PTGN_INFO("Entered second scene");
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		// PTGN_INFO("Updating test scene");
 	}
 
-	void Exit() override {
+	void OnExit() override {
 		// PTGN_INFO("Exiting test scene");
 	}
 };
 
 class FirstScene : public Scene {
 public:
-	void Enter() override {
+	void OnEnter() override {
 		PTGN_INFO("Entered first scene");
 
 		Entity player = CreateEntity();
@@ -130,11 +130,11 @@ public:
 		//  PTGN_INFO("Entered test scene");
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		// PTGN_INFO("Updating test scene");
 	}
 
-	void Exit() override {
+	void OnExit() override {
 		// PTGN_INFO("Exiting test scene");
 	}
 };

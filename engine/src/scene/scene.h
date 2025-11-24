@@ -216,17 +216,22 @@ public:
 	void ReEnter();
 
 	// Called when the scene is added to active scenes.
-	virtual void Enter() {
+	virtual void OnEnter() {
 		/* user implementation */
 	}
 
 	// Called once per frame for each active scene.
-	virtual void Update() {
+	virtual void OnUpdate() {
 		/* user implementation */
 	}
 
 	// Called when the scene is removed from active scenes.
-	virtual void Exit() {
+	virtual void OnExit() {
+		/* user implementation */
+	}
+
+	// Called an event is emitted by the event handler.
+	virtual void OnEvent(EventDispatcher) {
 		/* user implementation */
 	}
 
@@ -266,14 +271,14 @@ private:
 
 	std::shared_ptr<ApplicationContext> ctx_;
 
-	void EmitInternal(EventDispatcher d);
+	void InternalEmit(EventDispatcher d);
 
 	void Init();
 	// void SetKey(const SceneKey& key);
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void InternalUpdate(Renderer& renderer, InputHandler& input, float dt);
+	void InternalUpdate();
 	void InternalDraw();
 	void InternalExit();
 

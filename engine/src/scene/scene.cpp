@@ -18,7 +18,7 @@ namespace ptgn {
 SceneEventHandler::SceneEventHandler(Scene& scene) : scene_{ scene } {}
 
 void SceneEventHandler::Emit(EventDispatcher d) {
-	scene_.EmitInternal(d);
+	scene_.InternalEmit(d);
 }
 
 Scene::Scene() {
@@ -185,13 +185,13 @@ void Scene::InternalEnter() {
 	// OnDestruct<impl::IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
 
 	Init();
-	Enter();
+	OnEnter();
 	Refresh();
 }
 
 void Scene::InternalExit() {
 	Refresh();
-	Exit();
+	OnExit();
 	Refresh();
 	// Clears component hooks.
 	Reset();
@@ -216,7 +216,7 @@ void Scene::InternalDraw() {
 	Application::Get().render_.render_data_.Draw(*this);*/
 }
 
-void Scene::InternalUpdate(Renderer& renderer, InputHandler& input, float dt) {
+void Scene::InternalUpdate() {
 	// TODO: Fix.
 	// app.render_.render_data_.ClearRenderTargets(*this);
 	// app.render_.render_data_.SetDrawingTo(render_target_);
@@ -248,7 +248,7 @@ void Scene::InternalUpdate(Renderer& renderer, InputHandler& input, float dt) {
 
 	// update_scripts(*this);
 
-	Update();
+	OnUpdate();
 
 	Refresh();
 
@@ -319,12 +319,15 @@ const ApplicationContext& Scene::app() const {
 	return *ctx_.get();
 }
 
-void Scene::EmitInternal(EventDispatcher d) {
+void Scene::InternalEmit(EventDispatcher d) {
 	for (auto [e, scripts] : EntitiesWith<Scripts>()) {
 		scripts.Emit(d);
 		if (d.IsHandled()) {
 			break;
 		}
+	}
+	if (!d.IsHandled()) {
+		OnEvent(d);
 	}
 }
 

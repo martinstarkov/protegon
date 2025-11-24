@@ -9,10 +9,16 @@
 namespace ptgn {
 
 class EventDispatcher;
+class EventHandler;
+class Scene;
+class Scripts;
 
 namespace impl {
 
 struct EventBase {
+public:
+	virtual ~EventBase() = default;
+
 private:
 	friend class EventDispatcher;
 
@@ -30,7 +36,7 @@ private:
 
 	static constexpr std::size_t event_id_{ Hash(type_name<Derived>()) };
 
-	constexpr virtual std::size_t Type() override {
+	constexpr std::size_t Type() override {
 		return Hash(type_name<Derived>());
 	}
 };
@@ -39,38 +45,41 @@ class EventDispatcher {
 public:
 	EventDispatcher(impl::EventBase& e) : e_(e) {}
 
-	template <typename T>
-		requires std::is_base_of_v<impl::EventBase, std::remove_reference_t<T>>
-	EventDispatcher(T&& evt) : e_{ evt } {}
+	template <typename TEvent>
+		requires std::is_base_of_v<impl::EventBase, std::remove_reference_t<TEvent>>
+	EventDispatcher(TEvent&& evt) : e_{ evt } {}
 
-	bool IsHandled() const {
-		return e_.event_handled_;
-	}
-
-	template <typename T, typename Fn>
-	void Dispatch(Fn&& fn) {
+	template <typename TEvent, typename TEventFn>
+	void Dispatch(TEventFn&& fn) {
 		if (e_.event_handled_) {
 			return;
 		}
-		if (e_.Type() != T::event_id_) {
+		if (e_.Type() != TEvent::event_id_) {
 			return;
 		}
 
-		using Ret = std::invoke_result_t<Fn, T&>;
+		using TReturn = std::invoke_result_t<TEventFn, TEvent&>;
 
-		if constexpr (std::is_same_v<Ret, bool>) {
-			if (fn(static_cast<T&>(e_))) {
+		if constexpr (std::is_same_v<TReturn, bool>) {
+			if (fn(static_cast<TEvent&>(e_))) {
 				e_.event_handled_ = true;
 			}
-		} else if constexpr (std::is_same_v<Ret, void>) {
-			fn(static_cast<T&>(e_));
-			// void -> implicitly "not handled"
+		} else if constexpr (std::is_same_v<TReturn, void>) {
+			fn(static_cast<TEvent&>(e_));
 		}
 	}
 
 private:
+	friend class EventHandler;
+	friend class Scene;
+	friend class Scripts;
+
 	operator impl::EventBase&() const {
 		return e_;
+	}
+
+	bool IsHandled() const {
+		return e_.event_handled_;
 	}
 
 	impl::EventBase& e_;
