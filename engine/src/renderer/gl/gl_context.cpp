@@ -4,16 +4,16 @@
 #include <ostream>
 #include <regex>
 
-#include "SDL_error.h"
-#include "SDL_video.h"
 #include "core/app/window.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/file.h"
+#include "core/util/hash.h"
 #include "core/util/macro.h"
 #include "core/util/span.h"
-#include "core/util/hash.h"
 #include "renderer/gl/gl.h"
+#include "SDL_error.h"
+#include "SDL_video.h"
 
 #define PTGN_VSYNC_MODE -1
 
@@ -732,10 +732,15 @@ GLContext::~GLContext() {
 	delete_shaders(vertex_shaders_);
 	delete_shaders(fragment_shaders_);
 
+	// Must be done before deleting context.
+	shaders_.clear();
+
 	if (context_) {
 		SDL_GL_DeleteContext(context_);
 		context_ = nullptr;
 		PTGN_INFO("Destroyed OpenGL context");
+		// Note: If this is the last message you see and the window does not close, it is likely
+		// that a GL asset is destructed after the GL context has been deleted.
 	}
 }
 
