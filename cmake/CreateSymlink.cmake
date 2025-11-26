@@ -8,7 +8,7 @@ function(create_resource_symlink TARGET SRC_DIRECTORY DEST_DIRECTORY DIR_NAME)
   file(TO_NATIVE_PATH "${SOURCE_DIRECTORY}" _src_dir)
 
   if(MSVC OR XCODE)
-    set(EXE_DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${DIR_NAME}")
+    set(EXE_DEST_DIR "${DEST_DIRECTORY}/$<CONFIG>/${DIR_NAME}")
     file(TO_NATIVE_PATH "${EXE_DEST_DIR}" _exe_dir)
 
     if(MSVC)

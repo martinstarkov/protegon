@@ -4,9 +4,10 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "renderer/gl/gl.h"
 
 namespace ptgn::impl::gl {
+
+using Id = unsigned int;
 
 enum GLResource {
 	Shader,
@@ -30,7 +31,7 @@ public:
 		return static_cast<bool>(id_);
 	}
 
-	operator GLuint() const {
+	operator Id() const {
 		PTGN_ASSERT(id_);
 		return *id_;
 	}
@@ -38,9 +39,9 @@ public:
 private:
 	friend class GLContext;
 
-	StrongGLHandle(std::shared_ptr<GLuint> id) : id_{ std::move(id) } {}
+	StrongGLHandle(std::shared_ptr<Id> id) : id_{ std::move(id) } {}
 
-	std::shared_ptr<GLuint> id_;
+	std::shared_ptr<Id> id_;
 };
 
 } // namespace ptgn::impl::gl

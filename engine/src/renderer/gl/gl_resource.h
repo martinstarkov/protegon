@@ -42,12 +42,6 @@ struct VertexArrayCache {
 	bool layout_set{ false };
 };
 
-// Wrapper for distinguishing between Shader from path construction and Shader
-// from source construction.
-struct ShaderCode {
-	std::string source;
-};
-
 struct ShaderCache {
 	std::string shader_name;
 

@@ -21,6 +21,7 @@
 #include "math/vector4.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
+#include "renderer/api/shader.h"
 #include "renderer/gl/buffer_layout.h"
 #include "renderer/gl/gl.h"
 #include "renderer/gl/gl_handle.h"
@@ -158,7 +159,7 @@ public:
 		auto max_texture_slots{ bound_.texture_units.size() };
 
 		// @return { id, bool }: If true, delete shader id after.
-		const auto get_id = [shader_name, max_texture_slots](
+		const auto get_id = [&get, &has, this, shader_name, max_texture_slots](
 								const std::variant<ShaderCode, std::string>& v, GLuint type
 							) -> std::pair<GLuint, bool> {
 			if (std::holds_alternative<std::string>(v)) {

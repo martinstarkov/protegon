@@ -103,10 +103,10 @@ public:
 	}
 };
 
-class FirstScene : public Scene {
+class EventScene : public Scene {
 public:
 	void OnEnter() override {
-		PTGN_INFO("Entered first scene");
+		PTGN_INFO("Entered event scene");
 
 		Entity player = CreateEntity();
 		Entity loot	  = CreateEntity();
@@ -129,9 +129,22 @@ public:
 		click.clicks	  = 1;
 
 		events.Emit(click); // scene-local bubbling
-		// app().scenes.SwitchTo<SecondScene>("second", std::make_unique<SlideLeft>(secondsf{ 3.0f
-		// }));
-		//  PTGN_INFO("Entered test scene");
+	}
+};
+
+class AssetScene : public Scene {
+public:
+	void OnEnter() override {
+		PTGN_INFO("Entered asset scene");
+
+		// PTGN_LOG("GetExecutableDirectory: ", GetExecutableDirectory());
+		auto m = app().assets.LoadMusic("resources/music1.ogg");
+		auto s = app().assets.LoadSound("resources/sound2.ogg");
+		auto f = app().assets.LoadFont("resources/retro_gaming.ttf", 11);
+		auto t = app().assets.LoadTexture("resources/smile.png");
+		auto j = app().assets.LoadJson("resources/dialogue.json");
+
+		PTGN_LOG("Loaded all assets!");
 	}
 
 	void OnUpdate() override {
@@ -145,7 +158,7 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Application app{};
-	app.StartWith<FirstScene>("first");
+	app.StartWith<AssetScene>("");
 
 	return 0;
 }

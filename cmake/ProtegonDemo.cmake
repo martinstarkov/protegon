@@ -39,6 +39,12 @@ function(protegon_add_demo TARGET_NAME SRC_ROOT BIN_ROOT)
     set_target_properties("${TARGET_NAME}" PROPERTIES OUTPUT_NAME "index")
   endif()
 
+  if(MSVC)
+    set_target_properties(
+      "${TARGET_NAME}" PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY
+                                  "${BIN_ROOT}/$<CONFIG>")
+  endif()
+
   if(EXISTS "${SRC_ROOT}/resources")
     create_resource_symlink("${TARGET_NAME}" "${SRC_ROOT}" "${BIN_ROOT}"
                             "resources")

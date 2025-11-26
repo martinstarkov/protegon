@@ -2,13 +2,18 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <utility>
+#include <variant>
 
 #include "SDL_mixer.h"
+#include "SDL_opengl.h"
 #include "SDL_ttf.h"
 #include "core/assert.h"
 #include "core/asset/asset.h"
 #include "core/asset/asset_handle.h"
 #include "core/util/file.h"
+#include "renderer/api/shader.h"
 #include "renderer/gl/gl_context.h"
 #include "renderer/image/surface.h"
 #include "serialization/json/json.h"
@@ -19,13 +24,21 @@ namespace ptgn {
 
 AssetManager::AssetManager(impl::gl::GLContext& gl) : gl_{ gl } {}
 
-Handle<Shader> AssetManager::LoadShader(const path& asset_path) {
-	PTGN_ASSERT(
-		FileExists(asset_path), "Cannot create shader from invalid path: ", asset_path.string()
-	);
-	// TODO: Implement.
+Handle<Shader> AssetManager::LoadShader(
+	std::variant<ShaderCode, path> source, const std::string& shader_name
+) {
+	auto shader = gl_.CreateShader(source, shader_name);
 
-	return Handle<Shader>{};
+	return Handle<Shader>{ std::make_shared<impl::ShaderAsset>(std::move(shader)) };
+}
+
+Handle<Shader> AssetManager::LoadShader(
+	std::variant<ShaderCode, std::string> vertex, std::variant<ShaderCode, std::string> fragment,
+	const std::string& shader_name
+) {
+	auto shader = gl_.CreateShader(vertex, fragment, shader_name);
+
+	return Handle<Shader>{ std::make_shared<impl::ShaderAsset>(std::move(shader)) };
 }
 
 Handle<Texture> AssetManager::LoadTexture(const path& asset_path) {
@@ -36,7 +49,7 @@ Handle<Texture> AssetManager::LoadTexture(const path& asset_path) {
 	impl::Surface surface{ asset_path };
 
 	auto texture =
-		gl_.CreateTexture(surface.pixels.data(), GL_RGBA8, GL_UNSIGNED_BYTE, surface.size, GL_RGBA);
+		gl_.CreateTexture(surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA);
 
 	return Handle<Texture>{ std::make_shared<impl::TextureAsset>(std::move(texture)) };
 }

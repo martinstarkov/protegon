@@ -1,9 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <variant>
 
 #include "core/asset/asset_handle.h"
 #include "core/util/file.h"
+#include "renderer/api/shader.h"
 
 // TODO: Add something along the lines of:
 
@@ -55,7 +58,13 @@ public:
 	Handle<Sound> LoadSound(const path& asset_path);
 	Handle<Music> LoadMusic(const path& asset_path);
 	Handle<Json> LoadJson(const path& asset_path);
-	Handle<Shader> LoadShader(const path& asset_path);
+	Handle<Shader> LoadShader(
+		std::variant<ShaderCode, path> source, const std::string& shader_name
+	);
+	Handle<Shader> LoadShader(
+		std::variant<ShaderCode, std::string> vertex,
+		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
+	);
 	Handle<Texture> LoadTexture(const path& asset_path);
 	Handle<Font> LoadFont(const path& asset_path, std::int32_t pt_size);
 
