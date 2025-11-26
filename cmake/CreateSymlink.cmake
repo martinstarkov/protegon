@@ -5,11 +5,11 @@ set(PROTEGON_SCRIPT_DIR
 function(create_resource_symlink TARGET SRC_DIRECTORY DEST_DIRECTORY DIR_NAME)
   set(SOURCE_DIRECTORY "${SRC_DIRECTORY}/${DIR_NAME}")
   set(DESTINATION_DIRECTORY "${DEST_DIRECTORY}/${DIR_NAME}")
-  file(TO_NATIVE_PATH ${SOURCE_DIRECTORY} _src_dir)
+  file(TO_NATIVE_PATH "${SOURCE_DIRECTORY}" _src_dir)
 
   if(MSVC OR XCODE)
     set(EXE_DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${DIR_NAME}")
-    file(TO_NATIVE_PATH ${EXE_DEST_DIR} _exe_dir)
+    file(TO_NATIVE_PATH "${EXE_DEST_DIR}" _exe_dir)
 
     if(MSVC)
       add_custom_command(
@@ -31,7 +31,11 @@ function(create_resource_symlink TARGET SRC_DIRECTORY DEST_DIRECTORY DIR_NAME)
     # POST_BUILD COMMAND ${SYMLINK_COMMAND})
   endif()
 
-  if(NOT EXISTS ${DESTINATION_DIRECTORY})
+  if(NOT EXISTS "${DESTINATION_DIRECTORY}")
+    if(NOT EXISTS "${DEST_DIRECTORY}")
+      file(TO_NATIVE_PATH "${DEST_DIRECTORY}" _dst_parent_dir)
+      file(MAKE_DIRECTORY "${_dst_parent_dir}")
+    endif()
     if(MSVC)
       file(TO_NATIVE_PATH "${DESTINATION_DIRECTORY}" _dst_dir)
       execute_process(COMMAND cmd.exe /c mklink /J "${_dst_dir}" "${_src_dir}")
