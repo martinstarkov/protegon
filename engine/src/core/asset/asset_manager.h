@@ -44,19 +44,20 @@ class GLContext;
 
 } // namespace gl
 
+struct SDLInstance;
+
 } // namespace impl
 
 class AssetManager {
 public:
-	AssetManager(impl::gl::GLContext& gl);
+	AssetManager(impl::SDLInstance& sdl, impl::gl::GLContext& gl);
 	~AssetManager() noexcept						 = default;
 	AssetManager(const AssetManager&)				 = delete;
 	AssetManager& operator=(const AssetManager&)	 = delete;
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	Handle<Sound> LoadSound(const path& asset_path);
-	Handle<Music> LoadMusic(const path& asset_path);
+	Handle<Audio> LoadAudio(const path& asset_path);
 	Handle<Json> LoadJson(const path& asset_path);
 	Handle<Shader> LoadShader(
 		std::variant<ShaderCode, path> source, const std::string& shader_name
@@ -66,9 +67,10 @@ public:
 		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
 	);
 	Handle<Texture> LoadTexture(const path& asset_path);
-	Handle<Font> LoadFont(const path& asset_path, std::int32_t pt_size);
+	Handle<Font> LoadFont(const path& asset_path, float pt_size);
 
 private:
+	impl::SDLInstance& sdl_;
 	impl::gl::GLContext& gl_;
 };
 

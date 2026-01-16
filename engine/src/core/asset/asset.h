@@ -6,9 +6,7 @@
 #include "renderer/gl/gl_handle.h"
 #include "serialization/json/json.h"
 
-struct _Mix_Music;
-using Mix_Music = _Mix_Music;
-struct Mix_Chunk;
+struct MIX_Audio;
 
 #ifdef __EMSCRIPTEN__
 struct _TTF_Font;
@@ -17,16 +15,10 @@ using TTF_Font = _TTF_Font;
 struct TTF_Font;
 #endif
 
-namespace ptgn {
+namespace ptgn::impl {
 
-namespace impl {
-
-struct Mix_MusicDeleter {
-	void operator()(Mix_Music* music) const;
-};
-
-struct Mix_ChunkDeleter {
-	void operator()(Mix_Chunk* sound) const;
+struct MIX_AudioDeleter {
+	void operator()(MIX_Audio* audio) const;
 };
 
 struct TTF_FontDeleter {
@@ -41,23 +33,17 @@ struct TextureAsset {
 	gl::StrongGLHandle<gl::Texture> texture;
 };
 
-struct MusicAsset {
-	std::unique_ptr<Mix_Music, Mix_MusicDeleter> music;
-};
-
-struct SoundAsset {
-	std::unique_ptr<Mix_Chunk, Mix_ChunkDeleter> sound;
+struct AudioAsset {
+	std::unique_ptr<MIX_Audio, MIX_AudioDeleter> audio;
 };
 
 struct FontAsset {
 	std::unique_ptr<TTF_Font, TTF_FontDeleter> font;
-	std::int32_t pt_size{ 0 };
+	float pt_size{ 0.0f };
 };
 
 struct JsonAsset {
 	json j;
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

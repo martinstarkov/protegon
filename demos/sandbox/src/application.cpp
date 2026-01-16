@@ -138,8 +138,7 @@ public:
 		PTGN_INFO("Entered asset scene");
 
 		// PTGN_LOG("GetExecutableDirectory: ", GetExecutableDirectory());
-		auto m = app().assets.LoadMusic("resources/music1.ogg");
-		auto s = app().assets.LoadSound("resources/sound2.ogg");
+		auto a = app().assets.LoadAudio("resources/music1.ogg");
 		auto f = app().assets.LoadFont("resources/retro_gaming.ttf", 11);
 		auto t = app().assets.LoadTexture("resources/smile.png");
 		auto j = app().assets.LoadJson("resources/dialogue.json");

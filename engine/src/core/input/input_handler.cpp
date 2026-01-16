@@ -1,5 +1,8 @@
 #include "core/input/input_handler.h"
 
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_timer.h>
+
 #include <array>
 #include <chrono>
 
@@ -15,39 +18,16 @@
 #include "core/util/time.h"
 #include "math/vector2.h"
 #include "scene/scene_manager.h"
-#include "SDL_events.h"
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_stdinc.h"
-#include "SDL_timer.h"
-#include "SDL_video.h"
 
 namespace ptgn {
-
-// inline static int WindowEventWatcher([[maybe_unused]] void* data, SDL_Event* event) {
-//	if (event->type == SDL_WINDOWEVENT) {
-//		if (event->window.event == SDL_WINDOWEVENT_RESIZED ||
-//			event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-//			V2_int window_size{ event->window.data1, event->window.data2 };
-//			// This is not safe due to being on a different thread.
-//			queue.emplace_back(WindowResizing{ window_size });
-//		} else if (event->window.event == SDL_WINDOWEVENT_EXPOSED) {
-//			// This is not safe due to being on a different thread.
-//			queue.emplace_back(WindowDrag{});
-//		}
-//	}
-//	return 0;
-// }
-// SDL_AddEventWatch(WindowEventWatcher, nullptr);
-// SDL_DelEventWatch(WindowEventWatcher, nullptr);
 
 void InputHandler::EmitEvents() {
 	SDL_Event e;
 
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
-			case SDL_MOUSEMOTION: {
-				V2_int new_mouse_position{ e.motion.x, e.motion.y };
+			case SDL_EVENT_MOUSE_MOTION: {
+				V2_float new_mouse_position{ e.motion.x, e.motion.y };
 				mouse_position_ = new_mouse_position;
 
 				ptgn::MouseMove move;
@@ -57,7 +37,7 @@ void InputHandler::EmitEvents() {
 				ctx_->events.Emit(move);
 				break;
 			}
-			case SDL_MOUSEBUTTONDOWN: {
+			case SDL_EVENT_MOUSE_BUTTON_DOWN: {
 				Mouse mouse{ static_cast<Mouse>(e.button.button) };
 
 				ptgn::MouseDown down;
@@ -77,7 +57,7 @@ void InputHandler::EmitEvents() {
 				ctx_->events.Emit(down);
 				break;
 			}
-			case SDL_MOUSEBUTTONUP: {
+			case SDL_EVENT_MOUSE_BUTTON_UP: {
 				Mouse mouse{ static_cast<Mouse>(e.button.button) };
 
 				if (auto index{ GetMouseIndex(mouse) };
@@ -95,8 +75,8 @@ void InputHandler::EmitEvents() {
 
 				break;
 			}
-			case SDL_KEYDOWN: {
-				auto index{ static_cast<std::size_t>(e.key.keysym.scancode) };
+			case SDL_EVENT_KEY_DOWN: {
+				auto index{ static_cast<std::size_t>(e.key.scancode) };
 				Key key{ static_cast<Key>(index) };
 
 				ptgn::KeyDown down;
@@ -113,8 +93,8 @@ void InputHandler::EmitEvents() {
 				ctx_->events.Emit(down);
 				break;
 			}
-			case SDL_KEYUP: {
-				if (auto index{ static_cast<std::size_t>(e.key.keysym.scancode) };
+			case SDL_EVENT_KEY_UP: {
+				if (auto index{ static_cast<std::size_t>(e.key.scancode) };
 					key_states_[index] != KeyState::Released) {
 					key_timestamps_[index] = e.key.timestamp;
 					key_states_[index]	   = KeyState::Up;
@@ -126,8 +106,8 @@ void InputHandler::EmitEvents() {
 				}
 				break;
 			}
-			case SDL_MOUSEWHEEL: {
-				V2_int new_mouse_position{ e.wheel.mouseX, e.wheel.mouseY };
+			case SDL_EVENT_MOUSE_WHEEL: {
+				V2_float new_mouse_position{ e.wheel.mouse_x, e.wheel.mouse_y };
 				mouse_position_			 = new_mouse_position;
 				mouse_scroll_timestamp_	 = e.wheel.timestamp;
 				mouse_scroll_			 = { e.wheel.x, e.wheel.y };
@@ -140,56 +120,49 @@ void InputHandler::EmitEvents() {
 				ctx_->events.Emit(scroll);
 				break;
 			}
-			case SDL_QUIT: {
+			case SDL_EVENT_QUIT: {
 				ctx_->events.Emit(WindowQuit{});
 				ctx_->Stop();
 				break;
 			}
-			case SDL_WINDOWEVENT: {
-				switch (e.window.event) {
-					case SDL_WINDOWEVENT_RESIZED:
-					case SDL_WINDOWEVENT_SIZE_CHANGED: {
-						WindowResized resized;
+			case SDL_EVENT_WINDOW_RESIZED: {
+				WindowResized resized;
 
-						resized.size = { e.window.data1, e.window.data2 };
+				resized.size = { e.window.data1, e.window.data2 };
 
-						ctx_->events.Emit(resized);
-						break;
-					}
-					case SDL_WINDOWEVENT_MAXIMIZED: {
-						WindowMaximized maximized;
+				ctx_->events.Emit(resized);
+				break;
+			}
+			case SDL_EVENT_WINDOW_MAXIMIZED: {
+				WindowMaximized maximized;
 
-						maximized.size = { e.window.data1, e.window.data2 };
+				maximized.size = { e.window.data1, e.window.data2 };
 
-						ctx_->events.Emit(maximized);
-						break;
-					}
-					case SDL_WINDOWEVENT_MINIMIZED: {
-						WindowMinimized minimized;
+				ctx_->events.Emit(maximized);
+				break;
+			}
+			case SDL_EVENT_WINDOW_MINIMIZED: {
+				WindowMinimized minimized;
 
-						minimized.size = { e.window.data1, e.window.data2 };
+				minimized.size = { e.window.data1, e.window.data2 };
 
-						ctx_->events.Emit(minimized);
-						break;
-					}
-					case SDL_WINDOWEVENT_MOVED: {
-						WindowMoved moved;
+				ctx_->events.Emit(minimized);
+				break;
+			}
+			case SDL_EVENT_WINDOW_MOVED: {
+				WindowMoved moved;
 
-						moved.position = { e.window.data1, e.window.data2 };
+				moved.position = { e.window.data1, e.window.data2 };
 
-						ctx_->events.Emit(moved);
-						break;
-					}
-					case SDL_WINDOWEVENT_FOCUS_LOST: {
-						ctx_->events.Emit(WindowFocusLost{});
-						break;
-					}
-					case SDL_WINDOWEVENT_FOCUS_GAINED: {
-						ctx_->events.Emit(WindowFocusGained{});
-						break;
-					}
-					default: break;
-				}
+				ctx_->events.Emit(moved);
+				break;
+			}
+			case SDL_EVENT_WINDOW_FOCUS_LOST: {
+				ctx_->events.Emit(WindowFocusLost{});
+				break;
+			}
+			case SDL_EVENT_WINDOW_FOCUS_GAINED: {
+				ctx_->events.Emit(WindowFocusGained{});
 				break;
 			}
 			default: break;
@@ -211,7 +184,7 @@ void InputHandler::EmitEvents() {
 		}
 	}
 
-	V2_int new_mouse_position;
+	V2_float new_mouse_position;
 	// TODO: Consider using global mouse position here in the future.
 	// I can foresee a bug where mouse position difference is zero if the user alt+tabs to
 	// lose window focus and then regains it via alt+tab while the mouse is technically in the same
@@ -219,7 +192,7 @@ void InputHandler::EmitEvents() {
 	// scripts function incorrectly. But I'm not sure to be honest, so I won't change it.
 	SDL_GetMouseState(&new_mouse_position.x, &new_mouse_position.y);
 
-	V2_int difference{ new_mouse_position - mouse_position_ };
+	V2_float difference{ new_mouse_position - mouse_position_ };
 
 	if (!difference.IsZero()) {
 		mouse_position_ = new_mouse_position;
@@ -265,27 +238,14 @@ void InputHandler::Update() {
 	EmitEvents();
 }
 
-// bool InputHandler::MouseWithinWindow() const {
-//	auto screen_pointer{ GetMouseScreenPosition() };
-//	auto window_size{ ctx_.window->GetSize() };
-//	auto window_position{ ctx_.window->GetPosition() };
-//	Transform window_transform{ window_position + window_size / 2 };
-//	Rect window_rect{ window_size };
-//	return Overlap(screen_pointer, window_transform, window_rect);
-// }
-
-void InputHandler::SetRelativeMouseMode(bool on) const {
-	SDL_SetRelativeMouseMode(static_cast<SDL_bool>(on));
-}
-
 V2_float InputHandler::GetPositionRelativeTo(
-	V2_int window_position, ViewportType relative_to, bool clamp_to_viewport
+	V2_float window_position, ViewportType relative_to, bool clamp_to_viewport
 ) const {
 	// TODO: Move into a resolution manager.
 	/*
-	V2_int window_center{ window_.GetSize() / 2 };
+	V2_float window_center{ window_.GetSize() / 2 };
 
-	V2_int window_point{ window_position };
+	V2_float window_point{ window_position };
 
 	// Make position relative to the center of the window.
 	window_point -= window_center;
@@ -328,17 +288,17 @@ void InputHandler::SetContext(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 }
 
-V2_int InputHandler::GetMouseScreenPosition() const {
-	V2_int mouse_screen_pos;
+V2_float InputHandler::GetMouseScreenPosition() const {
+	V2_float mouse_screen_pos;
 	// SDL_PumpEvents not required as this function queries the OS directly.
 	SDL_GetGlobalMouseState(&mouse_screen_pos.x, &mouse_screen_pos.y);
-	V2_int window_pos{ ctx_->window.GetPosition() };
+	V2_float window_pos{ ctx_->window.GetPosition() };
 	mouse_screen_pos -= window_pos;
 	return mouse_screen_pos;
 }
 
 V2_float InputHandler::GetMousePosition(ViewportType relative_to, bool clamp_to_viewport) const {
-	V2_int mouse_window_pos{ mouse_position_ };
+	V2_float mouse_window_pos{ mouse_position_ };
 
 	if (!clamp_to_viewport) {
 		mouse_window_pos = GetMouseScreenPosition();

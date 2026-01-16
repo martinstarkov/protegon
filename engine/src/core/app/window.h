@@ -11,15 +11,11 @@ struct SDL_Window;
 
 namespace ptgn {
 
-struct Screen {
-	[[nodiscard]] static V2_int GetSize();
-};
-
 // TODO: Make it so these can be | together.
 enum class WindowSetting {
 	None,
 	Windowed,
-	Fullscreen, /* borderless fullscreen window (desktop fullscreen) */
+	Fullscreen,
 	Borderless,
 	Bordered,
 	// Note: The Maximized and Minimized settings are cancelled by setting Resizeable.
@@ -98,7 +94,12 @@ private:
 
 	operator SDL_Window*() const;
 
+	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
+	// to the window, and there will be continuous relative mouse motion events triggered even if
+	// the mouse is at the edge of the window.
+	// @param Whether or not mouse relative mode should be turned on or not.
 	void SetRelativeMouseMode(bool on) const;
+
 	void SetMouseGrab(bool on) const;
 	void CaptureMouse(bool on) const;
 	void SetAlwaysOnTop(bool on) const;

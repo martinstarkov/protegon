@@ -47,6 +47,8 @@ constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
 #define PTGN_IMPL_BLEND_CASE(name, srcRGB, dstRGB, srcA, dstA) \
 	case BlendMode::name: GLCall(BlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
 
+struct SDL_GLContextState;
+
 namespace ptgn {
 
 class Window;
@@ -1695,7 +1697,7 @@ private:
 	std::unordered_map<std::size_t, GLuint> vertex_shaders_;
 	std::unordered_map<std::size_t, GLuint> fragment_shaders_;
 
-	void* context_{ nullptr };
+	SDL_GLContextState* context_{ nullptr };
 };
 
 template <GLResource R>

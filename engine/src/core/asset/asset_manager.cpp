@@ -1,14 +1,15 @@
 #include "core/asset/asset_manager.h"
 
+#include <SDL3_mixer/SDL_mixer.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <variant>
 
-#include "SDL_mixer.h"
-#include "SDL_opengl.h"
-#include "SDL_ttf.h"
+#include "core/app/application.h"
 #include "core/assert.h"
 #include "core/asset/asset.h"
 #include "core/asset/asset_handle.h"
@@ -22,7 +23,8 @@
 
 namespace ptgn {
 
-AssetManager::AssetManager(impl::gl::GLContext& gl) : gl_{ gl } {}
+AssetManager::AssetManager(impl::SDLInstance& sdl, impl::gl::GLContext& gl) :
+	sdl_{ sdl }, gl_{ gl } {}
 
 Handle<Shader> AssetManager::LoadShader(
 	std::variant<ShaderCode, path> source, const std::string& shader_name
@@ -54,44 +56,34 @@ Handle<Texture> AssetManager::LoadTexture(const path& asset_path) {
 	return Handle<Texture>{ std::make_shared<impl::TextureAsset>(std::move(texture)) };
 }
 
-Handle<Font> AssetManager::LoadFont(const path& asset_path, std::int32_t pt_size) {
+Handle<Font> AssetManager::LoadFont(const path& asset_path, float pt_size) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create font from invalid path: ", asset_path.string()
 	);
 
 	auto ttf_font = TTF_OpenFont(asset_path.string().c_str(), pt_size);
 
-	PTGN_ASSERT(ttf_font, TTF_GetError());
+	PTGN_ASSERT(ttf_font, SDL_GetError());
 
 	std::unique_ptr<TTF_Font, impl::TTF_FontDeleter> font{ ttf_font, impl::TTF_FontDeleter{} };
 
 	return Handle<Font>{ std::make_shared<impl::FontAsset>(std::move(font), pt_size) };
 }
 
-Handle<Sound> AssetManager::LoadSound(const path& asset_path) {
+Handle<Audio> AssetManager::LoadAudio(const path& asset_path) {
 	PTGN_ASSERT(
-		FileExists(asset_path), "Cannot create sound from invalid path: ", asset_path.string()
+		FileExists(asset_path), "Cannot create audio from invalid path: ", asset_path.string()
 	);
-	auto mix_chunk = Mix_LoadWAV(asset_path.string().c_str());
 
-	PTGN_ASSERT(mix_chunk, Mix_GetError());
+	PTGN_ASSERT(sdl_.mixer_, "Cannot load audio when SDL_mixer has not been created");
 
-	std::unique_ptr<Mix_Chunk, impl::Mix_ChunkDeleter> sound{ mix_chunk, impl::Mix_ChunkDeleter{} };
+	auto mix_audio = MIX_LoadAudio(sdl_.mixer_, asset_path.string().c_str(), true);
 
-	return Handle<Sound>{ std::make_shared<impl::SoundAsset>(std::move(sound)) };
-}
+	PTGN_ASSERT(mix_audio, SDL_GetError());
 
-Handle<Music> AssetManager::LoadMusic(const path& asset_path) {
-	PTGN_ASSERT(
-		FileExists(asset_path), "Cannot create music from invalid path: ", asset_path.string()
-	);
-	auto mix_music = Mix_LoadMUS(asset_path.string().c_str());
+	std::unique_ptr<MIX_Audio, impl::MIX_AudioDeleter> music{ mix_audio, impl::MIX_AudioDeleter{} };
 
-	PTGN_ASSERT(mix_music, Mix_GetError());
-
-	std::unique_ptr<Mix_Music, impl::Mix_MusicDeleter> music{ mix_music, impl::Mix_MusicDeleter{} };
-
-	return Handle<Music>{ std::make_shared<impl::MusicAsset>(std::move(music)) };
+	return Handle<Audio>{ std::make_shared<impl::AudioAsset>(std::move(music)) };
 }
 
 Handle<Json> AssetManager::LoadJson(const path& asset_path) {

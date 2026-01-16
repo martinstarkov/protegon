@@ -14,6 +14,8 @@
 #include "renderer/renderer.h"
 #include "scene/scene_manager.h"
 
+struct MIX_Mixer;
+
 namespace ptgn {
 
 class ApplicationContext;
@@ -25,6 +27,18 @@ namespace impl {
 void EmscriptenMainLoop(void* application);
 
 #endif
+
+struct SDLInstance {
+	SDLInstance();
+	~SDLInstance() noexcept;
+	SDLInstance(const SDLInstance&)				   = delete;
+	SDLInstance& operator=(const SDLInstance&)	   = delete;
+	SDLInstance(SDLInstance&&) noexcept			   = delete;
+	SDLInstance& operator=(SDLInstance&&) noexcept = delete;
+
+	MIX_Mixer* mixer_{ nullptr };
+};
+
 } // namespace impl
 
 struct ApplicationConfig {
@@ -59,16 +73,7 @@ private:
 #endif
 	friend class ApplicationContext;
 
-	struct SDLInstance {
-		SDLInstance();
-		~SDLInstance() noexcept;
-		SDLInstance(const SDLInstance&)				   = delete;
-		SDLInstance& operator=(const SDLInstance&)	   = delete;
-		SDLInstance(SDLInstance&&) noexcept			   = delete;
-		SDLInstance& operator=(SDLInstance&&) noexcept = delete;
-	};
-
-	SDLInstance sdl_;
+	impl::SDLInstance sdl_;
 
 	Window window_;
 	Renderer renderer_;

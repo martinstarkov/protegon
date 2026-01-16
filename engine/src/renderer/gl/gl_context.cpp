@@ -1,5 +1,7 @@
 #include "renderer/gl/gl_context.h"
 
+#include <SDL3/SDL_video.h>
+
 #include <cmrc/cmrc.hpp>
 #include <ostream>
 #include <regex>
@@ -12,8 +14,6 @@
 #include "core/util/macro.h"
 #include "core/util/span.h"
 #include "renderer/gl/gl.h"
-#include "SDL_error.h"
-#include "SDL_video.h"
 
 #define PTGN_VSYNC_MODE -1
 
@@ -21,10 +21,10 @@ namespace ptgn::impl::gl {
 
 struct GLVersion {
 	GLVersion() {
-		int r = SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
-		PTGN_ASSERT(!r, SDL_GetError());
+		bool r = SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
+		PTGN_ASSERT(r, SDL_GetError());
 		r = SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
-		PTGN_ASSERT(!r, SDL_GetError());
+		PTGN_ASSERT(r, SDL_GetError());
 	}
 
 	int major{ 0 };
@@ -736,7 +736,7 @@ GLContext::~GLContext() {
 	shaders_.clear();
 
 	if (context_) {
-		SDL_GL_DeleteContext(context_);
+		SDL_GL_DestroyContext(context_);
 		context_ = nullptr;
 		PTGN_INFO("Destroyed OpenGL context");
 		// Note: If this is the last message you see and the window does not close, it is likely

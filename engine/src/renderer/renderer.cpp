@@ -1791,7 +1791,7 @@ void Renderer::PresentScreen() {
 
 	PTGN_ASSERT(
 		FrameBuffer::IsUnbound(),
-		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
+		"Frame buffer must be unbound (id=0) before swapping SDL buffer to the screen"
 	);
 
 	window->SwapBuffers();

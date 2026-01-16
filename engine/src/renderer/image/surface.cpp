@@ -1,13 +1,12 @@
 #include "renderer/image/surface.h"
 
+#include <SDL3/SDL_surface.h>
+#include <SDL3_image/SDL_image.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <functional>
 
-#include "SDL_error.h"
-#include "SDL_image.h"
-#include "SDL_pixels.h"
-#include "SDL_surface.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/file.h"
@@ -24,27 +23,27 @@ Surface::Surface(const path& filepath) {
 	// Freed by Surface constructor.
 	SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
 
-	PTGN_ASSERT(sdl_surface != nullptr, IMG_GetError());
+	PTGN_ASSERT(sdl_surface != nullptr, SDL_GetError());
 
 	// TODO: In the future, instead of converting all formats to RGBA, figure out how to deal with
-	// Windows and MacOS discrepencies between image formats and SDL2 surface formats to enable the
+	// Windows and MacOS discrepencies between image formats and SDL surface formats to enable the
 	// use of RGB888 format (faster for JPGs). When I was using this approach in the past, MacOS had
 	// an issue rendering JPG images as it perceived them as having 4 bytes per pixel with BGRA8888
-	// format even though SDL2 said they were RGB888. Whereas on Windows, the same JPGs opened as 3
+	// format even though SDL said they were RGB888. Whereas on Windows, the same JPGs opened as 3
 	// channel RGB888 surfaces as expected.
-	SDL_Surface* surface = SDL_ConvertSurfaceFormat(
-		sdl_surface, static_cast<std::uint32_t>(SDL_PIXELFORMAT_RGBA32), 0
-	);
+	SDL_Surface* surface = SDL_ConvertSurface(sdl_surface, SDL_PixelFormat::SDL_PIXELFORMAT_RGBA32);
 
 	PTGN_ASSERT(surface != nullptr, SDL_GetError());
+
 	PTGN_ASSERT(
-		surface->format->BytesPerPixel == bytes_per_pixel, "Failed to convert surface to RGBA32"
+		SDL_GetPixelFormatDetails(surface->format)->bytes_per_pixel == bytes_per_pixel,
+		"Failed to convert surface to RGBA32"
 	);
 
-	SDL_FreeSurface(sdl_surface);
+	SDL_DestroySurface(sdl_surface);
 
-	int lock{ SDL_LockSurface(surface) };
-	PTGN_ASSERT(lock == 0, "Failed to lock surface when copying pixels");
+	bool lock{ SDL_LockSurface(surface) };
+	PTGN_ASSERT(lock, "Failed to lock surface when copying pixels");
 
 	size = { surface->w, surface->h };
 
@@ -64,7 +63,7 @@ Surface::Surface(const path& filepath) {
 	}
 
 	SDL_UnlockSurface(surface);
-	SDL_FreeSurface(surface);
+	SDL_DestroySurface(surface);
 }
 
 void Surface::FlipVertically() {

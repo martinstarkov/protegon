@@ -18,7 +18,6 @@ namespace ptgn {
 class Application;
 class Renderer;
 class Window;
-class Shader;
 class Scene;
 class RenderTarget;
 class Shape;

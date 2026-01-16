@@ -50,12 +50,6 @@ public:
 	// @return True if mouse position is within window bounds, false otherwise.
 	//[[nodiscard]] bool MouseWithinWindow() const;
 
-	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
-	// to the window, and there will be continuous relative mouse motion events triggered even if
-	// the mouse is at the edge of the window.
-	// @param Whether or not mouse relative mode should be turned on or not.
-	void SetRelativeMouseMode(bool on) const;
-
 	// @return Mouse position.
 	[[nodiscard]] V2_float GetMousePosition(
 		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
@@ -111,7 +105,7 @@ public:
 private:
 	friend class Application;
 
-	using Timestamp = std::uint32_t;
+	using Timestamp = std::uint64_t;
 
 	enum class KeyState : std::uint8_t {
 		Up		 = 1,
@@ -130,11 +124,11 @@ private:
 	// Convert position from being relative to the top left of the window to being relative to the
 	// center of the specified viewport.
 	[[nodiscard]] V2_float GetPositionRelativeTo(
-		V2_int window_position, ViewportType relative_to, bool clamp_to_viewport
+		V2_float window_position, ViewportType relative_to, bool clamp_to_viewport
 	) const;
 
 	// @return Mouse position relative to the top left of the screen.
-	[[nodiscard]] V2_int GetMouseScreenPosition() const;
+	[[nodiscard]] V2_float GetMouseScreenPosition() const;
 
 	// Updates the user inputs and posts any triggered input events. Run internally when using game
 	// scenes.
@@ -165,8 +159,8 @@ private:
 	std::array<Timestamp, mouse_count_> mouse_timestamps_{};
 
 	// Stored mouse positions are relative to the top left of the window.
-	V2_int mouse_position_;
-	V2_int previous_mouse_position_;
+	V2_float mouse_position_;
+	V2_float previous_mouse_position_;
 
 	// Total scroll amount in the current frame (cumulative).
 	V2_int mouse_scroll_delta_;

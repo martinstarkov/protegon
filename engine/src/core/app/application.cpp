@@ -1,5 +1,11 @@
 #include "core/app/application.h"
 
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3_image/SDL_image.h>
+#include <SDL3_mixer/SDL_mixer.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
 #include <chrono>
 #include <memory>
 #include <ostream>
@@ -14,14 +20,6 @@
 #include "renderer/gl/gl_context.h"
 #include "renderer/renderer.h"
 #include "scene/scene_manager.h"
-#include "SDL.h"
-#include "SDL_error.h"
-#include "SDL_hints.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
-#include "SDL_ttf.h"
-#include "SDL_version.h"
-#include "SDL_video.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -46,17 +44,11 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #endif
 #include <cstdint>
 
-inline std::ostream& operator<<(std::ostream& os, const SDL_version& v) {
-	os << static_cast<int>(v.major) << "." << static_cast<int>(v.minor) << "."
-	   << static_cast<int>(v.patch);
-	return os;
-}
-
 namespace ptgn {
 
-#ifdef __EMSCRIPTEN__
-
 namespace impl {
+
+#ifdef __EMSCRIPTEN__
 
 static EM_BOOL EmscriptenResize(
 	int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr
@@ -90,11 +82,9 @@ void EmscriptenMainLoop(void* application) {
 	}
 }
 
-} // namespace impl
-
 #endif
 
-Application::SDLInstance::SDLInstance() {
+SDLInstance::SDLInstance() {
 #if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
 	// When using AppleClang, the working directory for the executable is set to $HOME instead of
 	// the executable directory. Therefore, the C++ code corrects the working directory using
@@ -131,91 +121,55 @@ Application::SDLInstance::SDLInstance() {
 	PTGN_INFO("Build Type: Release");
 #endif
 
-	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_TIMER };
+	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO };
 	PTGN_ASSERT(
 		SDL_WasInit(sdl_flags) != sdl_flags, "Cannot reinitialize SDL instance before shutting down"
 	);
 
-	// Ensures window and elements scale by monitor zoom level for constant
-	// appearance.
-	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
+	bool sdl_init{ SDL_Init(sdl_flags) };
+	PTGN_ASSERT(sdl_init, SDL_GetError());
 
-	int sdl_init{ SDL_Init(sdl_flags) };
-	PTGN_ASSERT(sdl_init == 0, SDL_GetError());
-
-	SDL_version sdl_version;
-	SDL_GetVersion(&sdl_version);
-	PTGN_INFO("Initialized SDL version: ", sdl_version);
+	PTGN_INFO("Initialized SDL version: ", SDL_GetVersion());
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
 
-	int img_flags{ IMG_INIT_PNG | IMG_INIT_JPG };
+	PTGN_INFO("Initialized SDL_image version: ", IMG_Version());
 
-	PTGN_ASSERT(
-		IMG_Init(0) != img_flags, "Cannot reinitialize SDL_image instance before shutting down"
-	);
+	bool ttf_init{ TTF_Init() };
 
-	int img_init{ IMG_Init(img_flags) };
+	PTGN_ASSERT(ttf_init, SDL_GetError());
 
-	PTGN_ASSERT(img_init == img_flags, IMG_GetError());
+	bool mix_init{ MIX_Init() };
 
-	const SDL_version* sdl_image_version = IMG_Linked_Version();
-	PTGN_INFO("Initialized SDL_image version: ", *sdl_image_version);
+	PTGN_ASSERT(mix_init, SDL_GetError());
 
-	PTGN_ASSERT(TTF_WasInit() == 0, "Cannot reinitialize SDL_ttf instance before shutting down");
+	mixer_ = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
 
-	int ttf_init{ TTF_Init() };
-	PTGN_ASSERT(ttf_init != -1, TTF_GetError());
+	PTGN_ASSERT(mixer_, SDL_GetError());
 
-	const SDL_version* sdl_ttf_version = TTF_Linked_Version();
-	PTGN_INFO("Initialized SDL_ttf version: ", *sdl_ttf_version);
-
-#ifdef PTGN_PLATFORM_MACOS
-	int mixer_flags{ MIX_INIT_MP3 | MIX_INIT_OGG };
-#else
-	int mixer_flags{ MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_OPUS |
-					 MIX_INIT_WAVPACK /* | MIX_INIT_FLAC | MIX_INIT_MOD | MIX_INIT_MID*/ };
-#endif
-
-#ifdef __EMSCRIPTEN__
-	mixer_flags = { MIX_INIT_OGG };
-#endif
-
-	PTGN_ASSERT(
-		Mix_Init(0) != mixer_flags, "Cannot reinitialize SDL_mixer instance before shutting down"
-	);
-
-	if (int mixer_init{ Mix_Init(mixer_flags) }; mixer_init != mixer_flags) {
-		PTGN_WARN(Mix_GetError());
-	}
-
-	int audio_open{ Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) };
-	PTGN_ASSERT(audio_open != -1, Mix_GetError());
-
-	const SDL_version* sdl_mixer_version = Mix_Linked_Version();
-	PTGN_INFO("Initialized SDL_mixer version: ", *sdl_mixer_version);
+	PTGN_INFO("Initialized SDL_mixer version: ", MIX_Version());
 }
 
-Application::SDLInstance::~SDLInstance() {
-	Mix_CloseAudio();
-	PTGN_INFO("Closed SDL_mixer audio");
-	Mix_Quit();
+SDLInstance::~SDLInstance() {
+	MIX_DestroyMixer(mixer_);
+	MIX_Quit();
 	PTGN_INFO("Deinitialized SDL_mixer");
 	TTF_Quit();
 	PTGN_INFO("Deinitialized SDL_ttf");
-	IMG_Quit();
-	PTGN_INFO("Deinitialized SDL_image");
 	SDL_Quit();
+	PTGN_INFO("Deinitialized SDL_image");
 	PTGN_INFO("Deinitialized SDL");
 }
+
+} // namespace impl
 
 Application::Application(const ApplicationConfig& config) :
 	window_{ config.title, config.window_size },
 	renderer_{ window_ },
 	events_{ scenes_ },
-	assets_{ *renderer_.gl_.get() },
+	assets_{ sdl_, *renderer_.gl_.get() },
 	debug_{ renderer_ },
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
 	scenes_.SetContext(ctx_);

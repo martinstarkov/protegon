@@ -11,7 +11,7 @@
 
 #ifdef __EMSCRIPTEN__
 
-#include "SDL_opengles2.h"
+#include <SDL3/SDL_opengles2.h> // GLES2 / WebGL-style API
 
 typedef void(GL_APIENTRYP PFNGLVERTEXATTRIBIPOINTERPROC)(
 	GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer
@@ -100,8 +100,8 @@ typedef void(GL_APIENTRYP PFNGLCLEARBUFFERUIVPROC)(
 
 #else
 
-#include <SDL_opengl.h>
-#include <SDL_opengl_glext.h>
+#include <SDL3/SDL_opengl.h> // Desktop GL
+#include <SDL3/SDL_opengl_glext.h>
 
 #endif
 

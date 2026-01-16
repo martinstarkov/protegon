@@ -12,8 +12,7 @@ class AssetManager;
 enum Asset {
 	Shader,
 	Texture,
-	Sound,
-	Music,
+	Audio,
 	Font,
 	Json,
 };
@@ -22,8 +21,7 @@ namespace impl {
 
 struct ShaderAsset;
 struct TextureAsset;
-struct SoundAsset;
-struct MusicAsset;
+struct AudioAsset;
 struct FontAsset;
 struct JsonAsset;
 
@@ -38,8 +36,7 @@ struct AssetTraits;
 
 PTGN_DEFINE_ASSET_TRAIT(Shader, ShaderAsset)
 PTGN_DEFINE_ASSET_TRAIT(Texture, TextureAsset)
-PTGN_DEFINE_ASSET_TRAIT(Sound, SoundAsset)
-PTGN_DEFINE_ASSET_TRAIT(Music, MusicAsset)
+PTGN_DEFINE_ASSET_TRAIT(Audio, AudioAsset)
 PTGN_DEFINE_ASSET_TRAIT(Font, FontAsset)
 PTGN_DEFINE_ASSET_TRAIT(Json, JsonAsset)
 
