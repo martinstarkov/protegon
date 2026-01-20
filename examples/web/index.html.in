@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Protegon Examples</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #121828;
+      --panel2: #0f1422;
+      --text: #e6e8ee;
+      --muted: #a6adbb;
+      --border: rgba(255,255,255,0.10);
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --radius: 14px;
+      --gap: 14px;
+      --accent: #7aa2ff;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 800px at 20% 0%, #121a33 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 16px 18px;
+      background: linear-gradient(to bottom, rgba(11,14,20,0.92), rgba(11,14,20,0.65));
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .title {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    .title h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: 0.2px;
+    }
+    .title .sub {
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .spacer { flex: 1; }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.05s ease, background 0.15s ease, border-color 0.15s ease;
+      user-select: none;
+    }
+    .btn:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.18); }
+    .btn:active { transform: translateY(1px); }
+    .btn.hidden { display: none; }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    /* Grid view */
+    #gridView { display: block; }
+    #grid {
+      display: grid;
+      gap: var(--gap);
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    }
+
+    .tile {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+      box-shadow: var(--shadow);
+      padding: 14px 14px 12px;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 140px;
+    }
+    .tile:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,0.22);
+      background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.04));
+    }
+
+    .folderIcon {
+      width: 54px;
+      height: 42px;
+      border-radius: 10px;
+      position: relative;
+      background: linear-gradient(180deg, rgba(122,162,255,0.35), rgba(122,162,255,0.14));
+      border: 1px solid rgba(122,162,255,0.35);
+      box-shadow: 0 10px 22px rgba(122,162,255,0.12);
+    }
+    .folderIcon::before {
+      content: "";
+      position: absolute;
+      top: -8px;
+      left: 8px;
+      width: 26px;
+      height: 12px;
+      border-radius: 8px 8px 3px 3px;
+      background: linear-gradient(180deg, rgba(122,162,255,0.40), rgba(122,162,255,0.18));
+      border: 1px solid rgba(122,162,255,0.35);
+    }
+
+    .tileName {
+      margin-top: auto;
+      font-weight: 650;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tilePath {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Player view */
+    #playerView { display: none; }
+    .playerShell {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--panel2);
+      box-shadow: var(--shadow);
+    }
+    .playerTop {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.04);
+    }
+    .pill {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    iframe {
+      width: 100%;
+      height: min(78vh, 900px);
+      border: 0;
+      display: block;
+      background: #000;
+    }
+
+    /* Small screens */
+    @media (max-width: 560px) {
+      .title .sub { display: none; }
+      iframe { height: 74vh; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="bar">
+      <button id="backBtn" class="btn hidden" type="button" aria-label="Back">
+        <!-- left arrow -->
+        <span aria-hidden="true">←</span>
+        Back
+      </button>
+
+      <div class="title">
+        <h1>Protegon Examples</h1>
+        <div class="sub">Choose a demo to run it in the browser</div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div id="hint" class="pill">Tip: you can bookmark a demo URL like <span style="color: var(--text);">#basic/hello_world</span></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Grid view -->
+    <section id="gridView">
+      <div id="grid"></div>
+    </section>
+
+    <!-- Player view -->
+    <section id="playerView">
+      <div class="playerShell">
+        <div class="playerTop">
+          <div id="demoLabel" class="pill"></div>
+          <div class="spacer"></div>
+          <div class="pill">Runs in an iframe</div>
+        </div>
+        <iframe id="runner" title="Protegon demo"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Populated by CMake via configure_file()
+    const examples = [
+@PROTEGON_EXAMPLE_ITEMS@
+    ].filter(x => x && x.file);
+
+    const gridView = document.getElementById("gridView");
+    const playerView = document.getElementById("playerView");
+    const grid = document.getElementById("grid");
+    const runner = document.getElementById("runner");
+    const backBtn = document.getElementById("backBtn");
+    const demoLabel = document.getElementById("demoLabel");
+    const hint = document.getElementById("hint");
+
+    function prettyName(label) {
+      // label is "category/example"
+      const parts = label.split("/");
+      return parts[parts.length - 1].replaceAll("_", " ");
+    }
+
+    function showGrid() {
+      runner.src = "about:blank";
+      playerView.style.display = "none";
+      gridView.style.display = "block";
+      backBtn.classList.add("hidden");
+      demoLabel.textContent = "";
+      hint.classList.remove("hidden");
+      // clear hash
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+
+    function showDemo(label) {
+      const ex = examples.find(e => e.label === label);
+      if (!ex) return;
+
+      gridView.style.display = "none";
+      playerView.style.display = "block";
+      backBtn.classList.remove("hidden");
+      hint.classList.add("hidden");
+
+      demoLabel.textContent = label;
+      runner.src = ex.file;
+
+      // deep link
+      location.hash = encodeURIComponent(label);
+    }
+
+    function renderGrid() {
+      grid.innerHTML = "";
+
+      if (!examples.length) {
+        const empty = document.createElement("div");
+        empty.className = "pill";
+        empty.textContent = "No demos were built.";
+        grid.appendChild(empty);
+        return;
+      }
+
+      for (const ex of examples) {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.tabIndex = 0;
+
+        const icon = document.createElement("div");
+        icon.className = "folderIcon";
+
+        const name = document.createElement("div");
+        name.className = "tileName";
+        name.textContent = prettyName(ex.label);
+
+        const path = document.createElement("div");
+        path.className = "tilePath";
+        path.textContent = ex.label;
+
+        tile.appendChild(icon);
+        tile.appendChild(document.createElement("div")); // spacer-ish
+        tile.appendChild(name);
+        tile.appendChild(path);
+
+        tile.addEventListener("click", () => showDemo(ex.label));
+        tile.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter" || ev.key === " ") showDemo(ex.label);
+        });
+
+        grid.appendChild(tile);
+      }
+    }
+
+    backBtn.addEventListener("click", showGrid);
+
+    // On load, render grid and maybe open from hash
+    renderGrid();
+
+    const hash = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+    if (hash) {
+      showDemo(hash);
+    } else {
+      showGrid();
+    }
+
+    // If the user uses browser back/forward between hash states
+    window.addEventListener("hashchange", () => {
+      const h = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+      if (h) showDemo(h);
+      else showGrid();
+    });
+  </script>
+</body>
+</html>

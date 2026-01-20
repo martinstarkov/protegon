@@ -112,6 +112,13 @@ emcc --version
 ninja --version  # or gcc --version  
 ```
 
+```bash
+emcmake cmake -S . -B build-web -DPROTEGON_BUILD_EXAMPLES=ON -DPROTEGON_EXAMPLES="audio/test_audio;audio/test_visuals"
+emcmake cmake -S . -B build-web -DPROTEGON_BUILD_EXAMPLES=ON -DPROTEGON_EXAMPLES=ALL
+cmake --build build-web
+python3 -m http.server 8000 --directory build-web/dist
+```
+
 ### Build Scripts (Run from `scripts/`)
 
 | Script | Description |

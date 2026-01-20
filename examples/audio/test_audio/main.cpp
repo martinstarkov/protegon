@@ -705,7 +705,7 @@ private:
 			return false;
 		}
 
-		constexpr std::string_view kText = "Hello SDL!";
+		constexpr std::string_view kText = "Hello Audio!";
 		SDL_Color white{ 255, 255, 255, 255 };
 
 		SDL_Surface* msg = TTF_RenderText_Solid(font.get(), kText.data(), kText.size(), white);
