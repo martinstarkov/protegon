@@ -1,7 +1,7 @@
-# cmake/Protegon.cmake
-include_guard(GLOBAL)
+include(cmake/SDLVersions.cmake)
+include(cmake/FindSDL.cmake)
 
-function(protegon_apply_to_exe target)
+function(add_protegon_to target)
   if(NOT TARGET ${target})
     message(FATAL_ERROR "protegon_apply_to_exe: target '${target}' does not exist")
   endif()
@@ -57,3 +57,34 @@ function(protegon_apply_to_exe target)
     endif()
   endif()
 endfunction()
+
+add_library(protegon STATIC
+  engine/src/test.h
+  engine/src/test.cpp
+)
+
+target_include_directories(protegon
+  PUBLIC
+    ${CMAKE_SOURCE_DIR}/include/protegon
+    ${CMAKE_SOURCE_DIR}/modules/ecs/include
+  PUBLIC
+    # you had this public for testing; keep if desired
+    ${CMAKE_SOURCE_DIR}/engine/src
+)
+
+target_compile_features(protegon PUBLIC cxx_std_23)
+
+# Link third-party deps ON THE LIBRARY
+target_link_libraries(protegon
+  PUBLIC
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    SDL3_ttf::SDL3_ttf
+    SDL3_mixer::SDL3_mixer
+)
+
+# Platform deps (OpenGL for native)
+if(NOT EMSCRIPTEN)
+  find_package(OpenGL REQUIRED)
+  target_link_libraries(protegon PUBLIC ${OPENGL_LIBRARIES})
+endif()
