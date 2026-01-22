@@ -23,6 +23,8 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -39,8 +41,7 @@ std::filesystem::path GetBasePath() {
 	if (!p) {
 		return {};
 	}
-	std::filesystem::path out(p);
-	return out;
+	return std::filesystem::path(p);
 }
 
 struct WindowDeleter {
@@ -191,96 +192,70 @@ std::optional<GlTexture> CreateTextureFromSurface(SDL_Surface* surface) {
 }
 
 #ifdef __EMSCRIPTEN__
-
 constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
 constexpr auto PTGN_OPENGL_MINOR_VERSION = 0;
 #define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_ES
-
 #else
-
 constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
 constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
 #define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_CORE
-
 #endif
 
-#ifdef __EMSCRIPTEN__
+// ---------------------------
+// Core-safe GL function table
+// ---------------------------
+struct GLApi {
+	template <typename T>
+	static bool LoadFn(T& out, const char* name) {
+		out = reinterpret_cast<T>(SDL_GL_GetProcAddress(name));
+		if (!out) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load GL function %s", name);
+			return false;
+		}
+		return true;
+	}
 
-using GLCreateShaderProc	 = GLuint (*)(GLenum);
-using GLShaderSourceProc	 = void (*)(GLuint, GLsizei, const char* const*, const GLint*);
-using GLCompileShaderProc	 = void (*)(GLuint);
-using GLGetShaderivProc		 = void (*)(GLuint, GLenum, GLint*);
-using GLGetShaderInfoLogProc = void (*)(GLuint, GLsizei, GLsizei*, char*);
-using GLDeleteShaderProc	 = void (*)(GLuint);
+	// Shaders/programs
+	GLuint (*glCreateShader)(GLenum)										  = nullptr;
+	void (*glShaderSource)(GLuint, GLsizei, const char* const*, const GLint*) = nullptr;
+	void (*glCompileShader)(GLuint)											  = nullptr;
+	void (*glGetShaderiv)(GLuint, GLenum, GLint*)							  = nullptr;
+	void (*glGetShaderInfoLog)(GLuint, GLsizei, GLsizei*, char*)			  = nullptr;
+	void (*glDeleteShader)(GLuint)											  = nullptr;
 
-using GLCreateProgramProc	  = GLuint (*)(void);
-using GLAttachShaderProc	  = void (*)(GLuint, GLuint);
-using GLLinkProgramProc		  = void (*)(GLuint);
-using GLGetProgramivProc	  = void (*)(GLuint, GLenum, GLint*);
-using GLGetProgramInfoLogProc = void (*)(GLuint, GLsizei, GLsizei*, char*);
-using GLUseProgramProc		  = void (*)(GLuint);
-using GLDeleteProgramProc	  = void (*)(GLuint);
+	GLuint (*glCreateProgram)()									  = nullptr;
+	void (*glAttachShader)(GLuint, GLuint)						  = nullptr;
+	void (*glLinkProgram)(GLuint)								  = nullptr;
+	void (*glGetProgramiv)(GLuint, GLenum, GLint*)				  = nullptr;
+	void (*glGetProgramInfoLog)(GLuint, GLsizei, GLsizei*, char*) = nullptr;
+	void (*glUseProgram)(GLuint)								  = nullptr;
+	void (*glDeleteProgram)(GLuint)								  = nullptr;
 
-using GLGetUniformLocationProc = GLint (*)(GLuint, const char*);
-using GLGetAttribLocationProc  = GLint (*)(GLuint, const char*);
+	GLint (*glGetUniformLocation)(GLuint, const char*) = nullptr;
+	void (*glUniform2f)(GLint, GLfloat, GLfloat)	   = nullptr;
+	void (*glUniform1i)(GLint, GLint)				   = nullptr;
 
-using GLGenBuffersProc	  = void (*)(GLsizei, GLuint*);
-using GLDeleteBuffersProc = void (*)(GLsizei, const GLuint*);
-using GLBindBufferProc	  = void (*)(GLenum, GLuint);
-using GLBufferDataProc	  = void (*)(GLenum, std::intptr_t, const void*, GLenum);
+	// VAO/VBO
+	void (*glGenVertexArrays)(GLsizei, GLuint*)			 = nullptr;
+	void (*glBindVertexArray)(GLuint)					 = nullptr;
+	void (*glDeleteVertexArrays)(GLsizei, const GLuint*) = nullptr;
 
-using GLEnableVertexAttribArrayProc	 = void (*)(GLuint);
-using GLDisableVertexAttribArrayProc = void (*)(GLuint);
-using GLVertexAttribPointerProc = void (*)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*);
-using GLDrawArraysProc			= void (*)(GLenum, GLint, GLsizei);
+	void (*glGenBuffers)(GLsizei, GLuint*)							 = nullptr;
+	void (*glBindBuffer)(GLenum, GLuint)							 = nullptr;
+	void (*glBufferData)(GLenum, std::intptr_t, const void*, GLenum) = nullptr;
+	void (*glDeleteBuffers)(GLsizei, const GLuint*)					 = nullptr;
 
-using GLUniform2fProc	  = void (*)(GLint, GLfloat, GLfloat);
-using GLUniform1iProc	  = void (*)(GLint, GLint);
-using GLActiveTextureProc = void (*)(GLenum);
+	// Vertex attribs
+	void (*glEnableVertexAttribArray)(GLuint)											  = nullptr;
+	void (*glVertexAttribPointer)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*) = nullptr;
 
-struct Gles2 {
-	GLCreateShaderProc glCreateShader		  = nullptr;
-	GLShaderSourceProc glShaderSource		  = nullptr;
-	GLCompileShaderProc glCompileShader		  = nullptr;
-	GLGetShaderivProc glGetShaderiv			  = nullptr;
-	GLGetShaderInfoLogProc glGetShaderInfoLog = nullptr;
-	GLDeleteShaderProc glDeleteShader		  = nullptr;
+	// Draw/state
+	void (*glActiveTexture)(GLenum)				 = nullptr;
+	void (*glDrawArrays)(GLenum, GLint, GLsizei) = nullptr;
 
-	GLCreateProgramProc glCreateProgram			= nullptr;
-	GLAttachShaderProc glAttachShader			= nullptr;
-	GLLinkProgramProc glLinkProgram				= nullptr;
-	GLGetProgramivProc glGetProgramiv			= nullptr;
-	GLGetProgramInfoLogProc glGetProgramInfoLog = nullptr;
-	GLUseProgramProc glUseProgram				= nullptr;
-	GLDeleteProgramProc glDeleteProgram			= nullptr;
-
-	GLGetUniformLocationProc glGetUniformLocation = nullptr;
-	GLGetAttribLocationProc glGetAttribLocation	  = nullptr;
-
-	GLGenBuffersProc glGenBuffers		= nullptr;
-	GLDeleteBuffersProc glDeleteBuffers = nullptr;
-	GLBindBufferProc glBindBuffer		= nullptr;
-	GLBufferDataProc glBufferData		= nullptr;
-
-	GLEnableVertexAttribArrayProc glEnableVertexAttribArray	  = nullptr;
-	GLDisableVertexAttribArrayProc glDisableVertexAttribArray = nullptr;
-	GLVertexAttribPointerProc glVertexAttribPointer			  = nullptr;
-	GLDrawArraysProc glDrawArrays							  = nullptr;
-
-	GLUniform2fProc glUniform2f			= nullptr;
-	GLUniform1iProc glUniform1i			= nullptr;
-	GLActiveTextureProc glActiveTexture = nullptr;
-
-	bool Load() {
-#define LOAD(name)                                                                              \
-	do {                                                                                        \
-		name = reinterpret_cast<decltype(name)>(SDL_GL_GetProcAddress(#name));                  \
-		if (!name) {                                                                            \
-			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load GL function %s", #name); \
-			return false;                                                                       \
-		}                                                                                       \
-	} while (0)
-
+	bool LoadAll() {
+#define LOAD(x) \
+	if (!LoadFn(x, #x)) return false
 		LOAD(glCreateShader);
 		LOAD(glShaderSource);
 		LOAD(glCompileShader);
@@ -297,28 +272,96 @@ struct Gles2 {
 		LOAD(glDeleteProgram);
 
 		LOAD(glGetUniformLocation);
-		LOAD(glGetAttribLocation);
-
-		LOAD(glGenBuffers);
-		LOAD(glDeleteBuffers);
-		LOAD(glBindBuffer);
-		LOAD(glBufferData);
-
-		LOAD(glEnableVertexAttribArray);
-		LOAD(glDisableVertexAttribArray);
-		LOAD(glVertexAttribPointer);
-		LOAD(glDrawArrays);
-
 		LOAD(glUniform2f);
 		LOAD(glUniform1i);
-		LOAD(glActiveTexture);
 
+		LOAD(glGenVertexArrays);
+		LOAD(glBindVertexArray);
+		LOAD(glDeleteVertexArrays);
+
+		LOAD(glGenBuffers);
+		LOAD(glBindBuffer);
+		LOAD(glBufferData);
+		LOAD(glDeleteBuffers);
+
+		LOAD(glEnableVertexAttribArray);
+		LOAD(glVertexAttribPointer);
+
+		LOAD(glActiveTexture);
+		LOAD(glDrawArrays);
 #undef LOAD
 		return true;
 	}
 };
 
-GLuint CompileShader(const Gles2& gl, GLenum type, const char* source) {
+// ---------------------------
+// Shaders (GL 3.3 core / ES 3)
+// ---------------------------
+#ifdef __EMSCRIPTEN__
+
+static const char* kVs = R"(#version 300 es
+precision mediump float;
+
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aUV;
+
+out vec2 vUV;
+uniform vec2 uResolution;
+
+void main() {
+  vec2 zeroToOne = aPos / uResolution;
+  vec2 clip = zeroToOne * 2.0 - 1.0;
+  clip.y = -clip.y;
+  gl_Position = vec4(clip, 0.0, 1.0);
+  vUV = aUV;
+}
+)";
+
+static const char* kFs = R"(#version 300 es
+precision mediump float;
+
+in vec2 vUV;
+out vec4 FragColor;
+
+uniform sampler2D uTexture;
+
+void main() {
+  FragColor = texture(uTexture, vUV);
+}
+)";
+
+#else
+
+static const char* kVs = R"(#version 330 core
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aUV;
+
+out vec2 vUV;
+uniform vec2 uResolution;
+
+void main() {
+  vec2 zeroToOne = aPos / uResolution;
+  vec2 clip = zeroToOne * 2.0 - 1.0;
+  clip.y = -clip.y;
+  gl_Position = vec4(clip, 0.0, 1.0);
+  vUV = aUV;
+}
+)";
+
+static const char* kFs = R"(#version 330 core
+in vec2 vUV;
+out vec4 FragColor;
+
+uniform sampler2D uTexture;
+
+void main() {
+  FragColor = texture(uTexture, vUV);
+}
+)";
+
+#endif
+
+GLuint CompileShader(const GLApi& gl, GLenum type, const char* source) {
 	GLuint shader = gl.glCreateShader(type);
 	if (!shader) {
 		return 0;
@@ -335,7 +378,7 @@ GLuint CompileShader(const Gles2& gl, GLenum type, const char* source) {
 
 	GLint log_len = 0;
 	gl.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_len);
-	std::string log(static_cast<size_t>(log_len), '\0');
+	std::string log(static_cast<size_t>((log_len > 0) ? log_len : 1), '\0');
 	GLsizei written = 0;
 	if (log_len > 0) {
 		gl.glGetShaderInfoLog(shader, log_len, &written, log.data());
@@ -346,39 +389,12 @@ GLuint CompileShader(const Gles2& gl, GLenum type, const char* source) {
 	return 0;
 }
 
-GLuint CreateProgramTexturedQuad(const Gles2& gl) {
-	static const char* kVs = R"(
-#ifdef GL_ES
-precision mediump float;
-#endif
-attribute vec2 aPos;
-attribute vec2 aUV;
-varying vec2 vUV;
-uniform vec2 uResolution;
-void main() {
-  vec2 zeroToOne = aPos / uResolution;
-  vec2 clip = zeroToOne * 2.0 - 1.0;
-  clip.y = -clip.y;
-  gl_Position = vec4(clip, 0.0, 1.0);
-  vUV = aUV;
-}
-)";
-
-	static const char* kFs = R"(
-#ifdef GL_ES
-precision mediump float;
-#endif
-varying vec2 vUV;
-uniform sampler2D uTexture;
-void main() {
-  gl_FragColor = texture2D(uTexture, vUV);
-}
-)";
-
+GLuint CreateProgramTexturedQuad(const GLApi& gl) {
 	GLuint vs = CompileShader(gl, GL_VERTEX_SHADER, kVs);
 	if (!vs) {
 		return 0;
 	}
+
 	GLuint fs = CompileShader(gl, GL_FRAGMENT_SHADER, kFs);
 	if (!fs) {
 		gl.glDeleteShader(vs);
@@ -407,7 +423,7 @@ void main() {
 
 	GLint log_len = 0;
 	gl.glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &log_len);
-	std::string log(static_cast<size_t>(log_len), '\0');
+	std::string log(static_cast<size_t>((log_len > 0) ? log_len : 1), '\0');
 	GLsizei written = 0;
 	if (log_len > 0) {
 		gl.glGetProgramInfoLog(prog, log_len, &written, log.data());
@@ -418,20 +434,24 @@ void main() {
 	return 0;
 }
 
-#endif // __EMSCRIPTEN__
-
+// ---------------------------
+// Core renderer
+// ---------------------------
 struct GlContext {
 	SDL_GLContext ctx = nullptr;
 
-#ifdef __EMSCRIPTEN__
-	Gles2 gles{};
+	GLApi gl{};
 	GLuint program	   = 0;
-	GLuint vbo		   = 0;
 	GLint u_resolution = -1;
 	GLint u_texture	   = -1;
-	GLint a_pos		   = -1;
-	GLint a_uv		   = -1;
-#endif
+
+	GLuint vao = 0;
+	GLuint vbo = 0;
+
+	struct Vertex {
+		float x, y;
+		float u, v;
+	};
 
 	bool Init(SDL_Window* window) {
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
@@ -454,58 +474,77 @@ struct GlContext {
 		SDL_GetWindowSizeInPixels(window, &w, &h);
 		glViewport(0, 0, w, h);
 
-#ifndef __EMSCRIPTEN__
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(0, w, h, 0, -1, 1);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		glEnable(GL_TEXTURE_2D);
-#else
-		if (!gles.Load()) {
+		if (!gl.LoadAll()) {
 			return false;
 		}
 
-		program = CreateProgramTexturedQuad(gles);
+		program = CreateProgramTexturedQuad(gl);
 		if (!program) {
 			return false;
 		}
 
-		gles.glUseProgram(program);
-		u_resolution = gles.glGetUniformLocation(program, "uResolution");
-		u_texture	 = gles.glGetUniformLocation(program, "uTexture");
-		a_pos		 = gles.glGetAttribLocation(program, "aPos");
-		a_uv		 = gles.glGetAttribLocation(program, "aUV");
-		if (u_resolution < 0 || u_texture < 0 || a_pos < 0 || a_uv < 0) {
+		gl.glUseProgram(program);
+		u_resolution = gl.glGetUniformLocation(program, "uResolution");
+		u_texture	 = gl.glGetUniformLocation(program, "uTexture");
+		if (u_resolution < 0 || u_texture < 0) {
 			return false;
 		}
 
-		gles.glGenBuffers(1, &vbo);
+		gl.glGenVertexArrays(1, &vao);
+		if (!vao) {
+			return false;
+		}
+		gl.glBindVertexArray(vao);
+
+		gl.glGenBuffers(1, &vbo);
 		if (!vbo) {
 			return false;
 		}
+		gl.glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
-		gles.glActiveTexture(GL_TEXTURE0);
-		gles.glUniform1i(u_texture, 0);
+		// Initialize empty buffer; updated each draw
+		gl.glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+
+		// layout(location=0) aPos: vec2
+		gl.glEnableVertexAttribArray(0);
+		gl.glVertexAttribPointer(
+			0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(0)
+		);
+
+		// layout(location=1) aUV: vec2
+		gl.glEnableVertexAttribArray(1);
+		gl.glVertexAttribPointer(
+			1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+			reinterpret_cast<const void*>(2 * sizeof(float))
+		);
+
+		// Bind texture unit 0 to sampler
+		gl.glActiveTexture(GL_TEXTURE0);
+		gl.glUniform1i(u_texture, 0);
+
+		// Core-friendly state
 		glDisable(GL_DEPTH_TEST);
-#endif
-
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		// Leave VAO bound; harmless
 		return true;
 	}
 
 	void Shutdown(SDL_Window* window) {
-#ifdef __EMSCRIPTEN__
 		if (vbo) {
-			gles.glDeleteBuffers(1, &vbo);
+			gl.glDeleteBuffers(1, &vbo);
 			vbo = 0;
 		}
+		if (vao) {
+			gl.glDeleteVertexArrays(1, &vao);
+			vao = 0;
+		}
 		if (program) {
-			gles.glDeleteProgram(program);
+			gl.glDeleteProgram(program);
 			program = 0;
 		}
-#endif
+
 		if (ctx) {
 			SDL_GL_MakeCurrent(window, nullptr);
 			SDL_GL_DestroyContext(ctx);
@@ -523,16 +562,8 @@ void BeginFrame(GlContext& glctx, SDL_Window* window, float r, float g, float b)
 	SDL_GetWindowSizeInPixels(window, &w, &h);
 	glViewport(0, 0, w, h);
 
-#ifndef __EMSCRIPTEN__
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0, w, h, 0, -1, 1);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-#else
-	glctx.gles.glUseProgram(glctx.program);
-	glctx.gles.glUniform2f(glctx.u_resolution, static_cast<float>(w), static_cast<float>(h));
-#endif
+	glctx.gl.glUseProgram(glctx.program);
+	glctx.gl.glUniform2f(glctx.u_resolution, static_cast<float>(w), static_cast<float>(h));
 
 	glClearColor(r, g, b, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -543,64 +574,31 @@ void DrawTexture(GlContext& glctx, const GlTexture& tex, float x, float y, float
 		return;
 	}
 
-#ifdef __EMSCRIPTEN__
-	struct Vertex {
-		float x, y, u, v;
-	};
-
-	Vertex verts[6] = {
+	GlContext::Vertex verts[6] = {
 		{ x, y, 0.f, 0.f }, { x + w, y, 1.f, 0.f },		{ x + w, y + h, 1.f, 1.f },
+
 		{ x, y, 0.f, 0.f }, { x + w, y + h, 1.f, 1.f }, { x, y + h, 0.f, 1.f },
 	};
 
-	glctx.gles.glActiveTexture(GL_TEXTURE0);
+	glctx.gl.glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex.id);
 
-	glctx.gles.glBindBuffer(GL_ARRAY_BUFFER, glctx.vbo);
-	glctx.gles.glBufferData(
+	glctx.gl.glBindVertexArray(glctx.vao);
+	glctx.gl.glBindBuffer(GL_ARRAY_BUFFER, glctx.vbo);
+	glctx.gl.glBufferData(
 		GL_ARRAY_BUFFER, static_cast<std::intptr_t>(sizeof(verts)), verts, GL_DYNAMIC_DRAW
 	);
 
-	glctx.gles.glEnableVertexAttribArray(glctx.a_pos);
-	glctx.gles.glVertexAttribPointer(
-		glctx.a_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(0)
-	);
-
-	glctx.gles.glEnableVertexAttribArray(glctx.a_uv);
-	glctx.gles.glVertexAttribPointer(
-		glctx.a_uv, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-		reinterpret_cast<const void*>(2 * sizeof(float))
-	);
-
-	glctx.gles.glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	glctx.gles.glDisableVertexAttribArray(glctx.a_pos);
-	glctx.gles.glDisableVertexAttribArray(glctx.a_uv);
-#else
-	glBindTexture(GL_TEXTURE_2D, tex.id);
-
-	glBegin(GL_TRIANGLES);
-	glTexCoord2f(0.f, 0.f);
-	glVertex2f(x, y);
-	glTexCoord2f(1.f, 0.f);
-	glVertex2f(x + w, y);
-	glTexCoord2f(1.f, 1.f);
-	glVertex2f(x + w, y + h);
-
-	glTexCoord2f(0.f, 0.f);
-	glVertex2f(x, y);
-	glTexCoord2f(1.f, 1.f);
-	glVertex2f(x + w, y + h);
-	glTexCoord2f(0.f, 1.f);
-	glVertex2f(x, y + h);
-	glEnd();
-#endif
+	glctx.gl.glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void EndFrame(SDL_Window* window) {
 	SDL_GL_SwapWindow(window);
 }
 
+// ---------------------------
+// App
+// ---------------------------
 class App {
 public:
 	SDL_AppResult Init(int /*argc*/, char** /*argv*/) {
@@ -611,16 +609,18 @@ public:
 
 		ttf_ = std::make_unique<TtfGuard>();
 		if (!ttf_->ok) {
-			return Fail("TTF_Init");
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "TTF_Init failed: %s", SDL_GetError());
+			return SDL_APP_FAILURE;
 		}
 
 		mix_ = std::make_unique<MixerGuard>();
 		if (!mix_->ok) {
-			return Fail("MIX_Init");
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "MIX_Init failed: %s", SDL_GetError());
+			return SDL_APP_FAILURE;
 		}
 
 		window_.reset(SDL_CreateWindow(
-			"Protegon (SDL3 + OpenGL)", kWindowStartWidth, kWindowStartHeight,
+			"Protegon (SDL3 + OpenGL core)", kWindowStartWidth, kWindowStartHeight,
 			SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_OPENGL
 		));
 		if (!window_) {
@@ -639,6 +639,8 @@ public:
 			return Fail("SDL_GetBasePath");
 		}
 #endif
+
+		SDL_Log("Base path: %s", base_path_.string().c_str());
 
 		if (!LoadAssets()) {
 			return SDL_APP_FAILURE;
@@ -698,7 +700,9 @@ public:
 
 private:
 	bool LoadAssets() {
-		const std::filesystem::path font_path = base_path_ / "assets/Inter-VariableFont.ttf";
+		const auto font_path = base_path_ / "assets/Inter-VariableFont.ttf";
+		SDL_Log("Font path: %s", font_path.string().c_str());
+
 		std::unique_ptr<TTF_Font, FontDeleter> font(TTF_OpenFont(font_path.string().c_str(), 36));
 		if (!font) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "TTF_OpenFont failed: %s", SDL_GetError());
@@ -730,7 +734,10 @@ private:
 			.h = static_cast<float>(message_tex_.height),
 		};
 
-		SDL_Surface* img = IMG_Load((base_path_ / "assets/logo.png").string().c_str());
+		const auto png_path = base_path_ / "assets/logo.png";
+		SDL_Log("PNG path: %s", png_path.string().c_str());
+
+		SDL_Surface* img = IMG_Load(png_path.string().c_str());
 		if (!img) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "IMG_Load failed: %s", SDL_GetError());
 			return false;
@@ -763,7 +770,9 @@ private:
 			return false;
 		}
 
-		const std::filesystem::path music_path = base_path_ / "assets/the_entertainer.ogg";
+		const auto music_path = base_path_ / "assets/the_entertainer.ogg";
+		SDL_Log("Music path: %s", music_path.string().c_str());
+
 		MIX_Audio* music = MIX_LoadAudio(mixer_, music_path.string().c_str(), false);
 		if (!music) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "MIX_LoadAudio failed: %s", SDL_GetError());
