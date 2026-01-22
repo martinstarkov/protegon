@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-VERSIONS_CMAKE="$REPO_ROOT/cmake/Versions.cmake"
+VERSIONS_CMAKE="$REPO_ROOT/cmake/SDLVersions.cmake"
 
 command -v brew >/dev/null 2>&1 || { echo "[error] Homebrew (brew) not found"; exit 1; }
 [[ -f "$VERSIONS_CMAKE" ]] || { echo "[error] Missing $VERSIONS_CMAKE"; exit 1; }

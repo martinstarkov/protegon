@@ -6,7 +6,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 BUILD="$REPO_ROOT/external/emscripten"
 PREFIX="$BUILD/prefix"
 
-VERSIONS="$REPO_ROOT/cmake/Versions.cmake"
+VERSIONS="$REPO_ROOT/cmake/SDLVersions.cmake"
 
 command -v emcmake >/dev/null 2>&1 || { echo "[error] emcmake not found (source emsdk_env.sh)"; exit 1; }
 command -v cmake   >/dev/null 2>&1 || { echo "[error] cmake not found"; exit 1; }

@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-VERSIONS_CMAKE="$REPO_ROOT/cmake/Versions.cmake"
+VERSIONS_CMAKE="$REPO_ROOT/cmake/SDLVersions.cmake"
 OUT_ROOT="$REPO_ROOT/external/macos/dmg"
 
 command -v curl   >/dev/null 2>&1 || { echo "[error] curl not found"; exit 1; }
@@ -66,10 +66,9 @@ download_mount_copy() {
   ditto "$mount_point" "$dest_dir"
 }
 
-# SDL core: you were using preview on Windows; change "preview" -> "release" if desired.
 download_mount_copy "SDL3"       "SDL"       "release" "$SDL_VERSION"       "SDL3-${SDL_VERSION}.dmg"
 download_mount_copy "SDL3_image" "SDL_image" "release" "$SDL_IMAGE_VERSION" "SDL3_image-${SDL_IMAGE_VERSION}.dmg"
 download_mount_copy "SDL3_ttf"   "SDL_ttf"   "release" "$SDL_TTF_VERSION"   "SDL3_ttf-${SDL_TTF_VERSION}.dmg"
-download_mount_copy "SDL3_mixer" "SDL_mixer" "release" "$SDL_MIXER_VERSION" "SDL3_mixer-${SDL_MIXER_VERSION}.dmg"
+download_mount_copy "SDL3_mixer" "SDL_mixer" "prerelease" "$SDL_MIXER_VERSION" "SDL3_mixer-${SDL_MIXER_VERSION}.dmg"
 
 echo "[info] Done"

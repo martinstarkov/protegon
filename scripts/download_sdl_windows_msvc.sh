@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-VERSIONS_CMAKE="$REPO_ROOT/cmake/Versions.cmake"
+VERSIONS_CMAKE="$REPO_ROOT/cmake/SDLVersions.cmake"
 OUT_ROOT="$REPO_ROOT/external/windows/msvc"
 
 command -v curl  >/dev/null 2>&1 || { echo "[error] curl not found"; exit 1; }
@@ -46,9 +46,9 @@ download_and_extract() {
   rm -f "$zip_path"
 }
 
-download_and_extract "https://github.com/libsdl-org/SDL/releases/download/preview-{VERSION}/SDL3-devel-{VERSION}-VC.zip"                 "$SDL_VERSION"
-download_and_extract "https://github.com/libsdl-org/SDL_image/releases/download/release-{VERSION}/SDL3_image-devel-{VERSION}-VC.zip" "$SDL_IMAGE_VERSION"
-download_and_extract "https://github.com/libsdl-org/SDL_ttf/releases/download/release-{VERSION}/SDL3_ttf-devel-{VERSION}-VC.zip"     "$SDL_TTF_VERSION"
-download_and_extract "https://github.com/martinstarkov/SDL_mixer/releases/download/{VERSION}/SDL3_mixer-devel-{VERSION}-VC.zip"      "$SDL_MIXER_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL/releases/download/release-{VERSION}/SDL3-devel-{VERSION}-VC.zip"                "$SDL_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL_image/releases/download/release-{VERSION}/SDL3_image-devel-{VERSION}-VC.zip"    "$SDL_IMAGE_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL_ttf/releases/download/release-{VERSION}/SDL3_ttf-devel-{VERSION}-VC.zip"        "$SDL_TTF_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL_mixer/releases/download/prerelease-{VERSION}/SDL3_mixer-devel-{VERSION}-VC.zip" "$SDL_MIXER_VERSION"
 
 echo "[info] Done"
