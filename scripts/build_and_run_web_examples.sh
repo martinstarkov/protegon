@@ -16,7 +16,7 @@ EXAMPLES_ARG="${1:-ALL}"
 [[ -f "$BUILD_SCRIPT" ]] || { echo "[error] Missing: $BUILD_SCRIPT"; exit 1; }
 [[ -f "$SERVE_SCRIPT" ]] || { echo "[error] Missing: $SERVE_SCRIPT"; exit 1; }
 
-echo "[info] Building web examples (PTGN_EXAMPLES=${EXAMPLES_ARG})..."
+echo "[info] Building web examples (PTGN_WEB_EXAMPLES=${EXAMPLES_ARG})..."
 "$BUILD_SCRIPT" "$EXAMPLES_ARG"
 
 echo "[info] Launching web server..."

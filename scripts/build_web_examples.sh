@@ -16,10 +16,10 @@ command -v ninja   >/dev/null 2>&1 || { echo "[error] ninja not found"; exit 1; 
 [[ -d "$PREFIX" ]] || { echo "[error] Missing web dependencies: run scripts/build_web_dependencies.sh"; exit 1; }
 
 # Optional argument:
-#   ./scripts/build_web.sh                      -> builds ALL examples
-#   ./scripts/build_web.sh ALL                  -> builds ALL examples
-#   ./scripts/build_web.sh "a/b;c/d"            -> builds selected examples
-EXAMPLES_ARG="${1:-ALL}"
+#   ./scripts/build_web.sh                      -> builds ALL web examples
+#   ./scripts/build_web.sh ALL                  -> builds ALL web examples
+#   ./scripts/build_web.sh "a/b;c/d"            -> builds selected web examples
+WEB_EXAMPLES_ARG="${1:-ALL}"
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
@@ -30,10 +30,12 @@ CMAKE_ARGS=(
   -G Ninja
   -DCMAKE_BUILD_TYPE=Release
   -DCMAKE_PREFIX_PATH="$PREFIX"
-  "-DPTGN_EXAMPLES=${EXAMPLES_ARG}"
+  -DPTGN_EXAMPLES=ON
+  "-DPTGN_WEB_EXAMPLES=${WEB_EXAMPLES_ARG}"
 )
 
-echo "[info] PTGN_EXAMPLES=${EXAMPLES_ARG}"
+echo "[info] PTGN_EXAMPLES=ON"
+echo "[info] PTGN_WEB_EXAMPLES=${WEB_EXAMPLES_ARG}"
 
 emcmake cmake "${CMAKE_ARGS[@]}"
 

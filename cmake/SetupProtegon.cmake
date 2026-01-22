@@ -1,9 +1,12 @@
 include(cmake/SDLVersions.cmake)
 include(cmake/FindSDL.cmake)
+include(cmake/SourcesAndHeaders.cmake)
+include(cmake/CreateSymlink.cmake)
+include(cmake/CMakeRC.cmake)
 
 function(add_protegon_to target)
   if(NOT TARGET ${target})
-    message(FATAL_ERROR "protegon_apply_to_exe: target '${target}' does not exist")
+    message(FATAL_ERROR "add_protegon_to: target '${target}' does not exist")
   endif()
 
   set(options)
@@ -19,7 +22,6 @@ function(add_protegon_to target)
   endif()
 
   target_link_libraries(${target} PRIVATE protegon)
-  set_target_properties(${target} PROPERTIES DEBUG_POSTFIX d)
 
   if(EMSCRIPTEN)
     set_target_properties(${target} PROPERTIES SUFFIX ".html")
@@ -45,31 +47,27 @@ function(add_protegon_to target)
     )
   else()
     if(WIN32)
-      add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          $<TARGET_FILE:SDL3::SDL3>
-          $<TARGET_FILE:SDL3_image::SDL3_image>
-          $<TARGET_FILE:SDL3_ttf::SDL3_ttf>
-          $<TARGET_FILE:SDL3_mixer::SDL3_mixer>
-          $<TARGET_FILE_DIR:${target}>
-        COMMAND_EXPAND_LISTS
-      )
+      add_sdl_dll_copy(${target})
     endif()
   endif()
 endfunction()
 
-add_library(protegon STATIC
-  engine/src/test.h
-  engine/src/test.cpp
-)
+include(FetchContent)
+
+FetchContent_Declare(
+  json
+  URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
+cmrc_add_resource_library(resources-shader ALIAS rc::shader NAMESPACE shader WHENCE "${PTGN_SHADER_DIR}" ${PTGN_SHADERS} "${PTGN_SHADER_DIR}/manifest.json")
+
+add_library(protegon STATIC ${PTGN_FILES})
 
 target_include_directories(protegon
-  PUBLIC
-    ${CMAKE_SOURCE_DIR}/include/protegon
-    ${CMAKE_SOURCE_DIR}/modules/ecs/include
-  PUBLIC
-    # you had this public for testing; keep if desired
-    ${CMAKE_SOURCE_DIR}/engine/src
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+         "${CMAKE_CURRENT_SOURCE_DIR}/modules/ecs/include"
+         "${CMAKE_CURRENT_SOURCE_DIR}/engine/assets"
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/engine/src"
 )
 
 target_compile_features(protegon PUBLIC cxx_std_23)
@@ -77,14 +75,23 @@ target_compile_features(protegon PUBLIC cxx_std_23)
 # Link third-party deps ON THE LIBRARY
 target_link_libraries(protegon
   PUBLIC
-    SDL3::SDL3
     SDL3_image::SDL3_image
     SDL3_ttf::SDL3_ttf
     SDL3_mixer::SDL3_mixer
+    SDL3::SDL3
+    rc::shader
+    nlohmann_json::nlohmann_json
 )
 
-# Platform deps (OpenGL for native)
+set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)
+
 if(NOT EMSCRIPTEN)
+  include(cmake/CompilerWarnings.cmake)
+  include(cmake/CompilerSettings.cmake)
+  
+  set_project_warnings(protegon "${PTGN_WARNINGS_AS_ERRORS}")
+  set_compiler_settings(protegon ${PTGN_FILES})
+
   find_package(OpenGL REQUIRED)
   target_link_libraries(protegon PUBLIC ${OPENGL_LIBRARIES})
 endif()

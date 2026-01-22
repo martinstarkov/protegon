@@ -80,3 +80,61 @@ find_package(SDL3       ${SDL_VERSION}       CONFIG REQUIRED)
 find_package(SDL3_image ${SDL_IMAGE_VERSION} CONFIG REQUIRED)
 find_package(SDL3_ttf   ${SDL_TTF_VERSION}   CONFIG REQUIRED)
 find_package(SDL3_mixer ${SDL_MIXER_VERSION} CONFIG REQUIRED)
+
+function(add_sdl_dll_copy target)
+  if(NOT WIN32)
+    return()
+  endif()
+
+  set(_sdl_targets
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    SDL3_ttf::SDL3_ttf
+    SDL3_mixer::SDL3_mixer
+  )
+
+  set(_dll_dirs "")
+  foreach(_t IN LISTS _sdl_targets)
+    if(NOT TARGET "${_t}")
+      continue()
+    endif()
+
+    # Try common imported properties (covers many packages)
+    get_target_property(_dll "${_t}" IMPORTED_LOCATION)
+    if(NOT _dll OR _dll STREQUAL "IMPORTED_LOCATION-NOTFOUND")
+      # Some configs use IMPORTED_LOCATION_<CONFIG>
+      get_target_property(_dll "${_t}" "IMPORTED_LOCATION_${CMAKE_BUILD_TYPE}")
+    endif()
+
+    if(_dll AND NOT _dll STREQUAL "IMPORTED_LOCATION-NOTFOUND")
+      get_filename_component(_dir "${_dll}" DIRECTORY)
+      list(APPEND _dll_dirs "${_dir}" "${_dir}/optional")
+    endif()
+  endforeach()
+
+  list(REMOVE_DUPLICATES _dll_dirs)
+
+  # Discover all DLLs in those dirs (and optional subdir)
+  set(_dlls "")
+  foreach(_dir IN LISTS _dll_dirs)
+    if(EXISTS "${_dir}")
+      file(GLOB _found CONFIGURE_DEPENDS "${_dir}/*.dll")
+      list(APPEND _dlls ${_found})
+    endif()
+  endforeach()
+
+  list(REMOVE_DUPLICATES _dlls)
+
+  if(NOT _dlls)
+    message(FATAL_ERROR "Could not find SDL DLLs for copy step (checked: ${_dll_dirs})")
+  endif()
+
+  add_custom_command(
+    TARGET "${target}"
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            ${_dlls}
+            $<TARGET_FILE_DIR:${target}>
+    COMMAND_EXPAND_LISTS
+  )
+endfunction()

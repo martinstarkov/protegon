@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(protegon LANGUAGES C CXX)
+project(protegon LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,14 +8,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(cmake/SetupProtegon.cmake)
 
-# Single variable controlling examples. Empty => don't even parse examples/ (fast).
-set(PTGN_EXAMPLES "" CACHE STRING
-  "Examples to build: empty=none, ALL=all, or list like basic/hello_world;audio/mixer_demo")
+option(PTGN_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(PTGN_EXAMPLES "Build protegon examples" ON)
 
-# Only add examples if the user requested them
-string(STRIP "${PTGN_EXAMPLES}" _ex_raw)
-string(TOUPPER "${_ex_raw}" _ex_upper)
+set(PTGN_WEB_EXAMPLES "ALL" CACHE STRING
+  "Web examples to build (Emscripten only): ALL=build all examples, or list like basic/hello_world;audio/mixer_demo")
 
-if(NOT (_ex_raw STREQUAL "" OR _ex_upper STREQUAL "OFF" OR _ex_upper STREQUAL "FALSE" OR _ex_upper STREQUAL "0"))
+if(PTGN_EXAMPLES)
   add_subdirectory(examples)
 endif()
