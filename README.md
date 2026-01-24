@@ -27,7 +27,7 @@
 ### Prerequisites
 
 - **C++23 or newer**
-- **[CMake 3.20+](https://cmake.org/download/)**
+- **[CMake 3.28+](https://cmake.org/download/)**
 - A C++ compiler + build system (Visual Studio, Ninja, Make, etc.)
 
 ---
@@ -37,20 +37,38 @@
 Clone or add protegon as a submodule:
 
 ```bash
-git clone https://github.com/yourusername/protegon.git  
+git clone https://github.com/martinstarkov/protegon.git  
 # or  
-git submodule add https://github.com/yourusername/protegon.git  
+git submodule add https://github.com/martinstarkov/protegon.git  
 ```
 
-Then, in your CMakeLists.txt:
+Then, protegon can be used as a CMake subproject via `add_subdirectory()`.
 
 ```cmake
-add_subdirectory(<repository_directory> binary_dir)  
-add_protegon_to(<target_name>)  
+add_subdirectory(<path/to/protegon_repo_root> binary_dir)
 
-# (optional) create symlink to resources folder  
-create_resource_symlink(<target_name> <source_parent_dir> <destination_parent_dir> <directory_name>)  
+# Link Protegon + configure assets (optional)
+add_protegon_to(<target> ASSETS_DIR "<path/to/your/assets_dir>")
+
+# Create asset directory symlink (optional)
+if (NOT EMSCRIPTEN AND EXISTS "<path/to/your/assets_dir>")
+  create_symlink(<target> "<path/to/your/assets_dir>" "$<TARGET_FILE_DIR:<target>>")
+endif()
 ```
+
+### Web build scripts (Emscripten)
+
+Helper scripts for external projects are available under:
+
+```
+<protegon>/scripts/external/
+```
+
+* `build_web.sh` — configure + build the web version
+* `run_web.sh` — run/serve the output using `emrun`
+* `zip_web.sh` — package the built output for upload (e.g. itch.io)
+* `build_run_web.sh` — build then run
+* `build_zip_web.sh` — build then zip
 
 ---
 
@@ -111,23 +129,6 @@ Verify setup:
 emcc --version  
 ninja --version  # or gcc --version  
 ```
-
-```bash
-emcmake cmake -S . -B build-web -DPROTEGON_BUILD_EXAMPLES=ON -DPROTEGON_EXAMPLES="audio/test_audio;audio/test_visuals"
-emcmake cmake -S . -B build-web -DPROTEGON_BUILD_EXAMPLES=ON -DPROTEGON_EXAMPLES=ALL
-cmake --build build-web
-python3 -m http.server 8000 --directory build-web/dist
-```
-
-### Build Scripts (Run from `scripts/`)
-
-| Script | Description |
-|--------|-------------|
-| `./build-emscripten.sh` | Builds WebGL version (HTML, WASM) |
-| `./run-emscripten.sh` | Serves locally via `emrun` |
-| `./build-run-emscripten.sh` | Combines build and run |
-| `./zip-for-itch.sh` | Creates `.zip` for Itch.io uploads |
-| `./build-itch.sh` | Builds and zips for Itch.io |
 
 ## ❗ Troubleshooting
 
