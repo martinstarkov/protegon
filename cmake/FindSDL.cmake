@@ -12,7 +12,7 @@ _req_var(SDL_TTF_VERSION)
 _req_var(SDL_MIXER_VERSION)
 
 if(EMSCRIPTEN)
-  set(_EM_PREFIX "${CMAKE_SOURCE_DIR}/external/emscripten/prefix")
+  set(_EM_PREFIX "${PTGN_ROOT_DIR}/external/emscripten/prefix")
 
   if(NOT EXISTS "${_EM_PREFIX}")
     message(FATAL_ERROR
@@ -32,9 +32,9 @@ if(EMSCRIPTEN)
 endif()
 
 # --- native logic unchanged below ---
-set(_WIN_MSVC_ROOT  "${CMAKE_SOURCE_DIR}/external/windows/msvc")
-set(_WIN_MINGW_ROOT "${CMAKE_SOURCE_DIR}/external/windows/mingw")
-set(_MAC_DMG_ROOT   "${CMAKE_SOURCE_DIR}/external/macos/dmg")
+set(_WIN_MSVC_ROOT  "${PTGN_ROOT_DIR}/external/windows/msvc")
+set(_WIN_MINGW_ROOT "${PTGN_ROOT_DIR}/external/windows/mingw")
+set(_MAC_DMG_ROOT   "${PTGN_ROOT_DIR}/external/macos/dmg")
 
 set(_prefixes "")
 
@@ -81,42 +81,46 @@ find_package(SDL3_image ${SDL_IMAGE_VERSION} CONFIG REQUIRED)
 find_package(SDL3_ttf   ${SDL_TTF_VERSION}   CONFIG REQUIRED)
 find_package(SDL3_mixer ${SDL_MIXER_VERSION} CONFIG REQUIRED)
 
+set(_sdl_targets
+  SDL3::SDL3
+  SDL3_image::SDL3_image
+  SDL3_ttf::SDL3_ttf
+  SDL3_mixer::SDL3_mixer
+)
+
+set(_dll_dirs "")
+foreach(_t IN LISTS _sdl_targets)
+  if(NOT TARGET "${_t}")
+    continue()
+  endif()
+
+  # Try common imported properties (covers many packages)
+  get_target_property(_dll "${_t}" IMPORTED_LOCATION)
+  if(NOT _dll OR _dll STREQUAL "IMPORTED_LOCATION-NOTFOUND")
+    # Some configs use IMPORTED_LOCATION_<CONFIG>
+    get_target_property(_dll "${_t}" "IMPORTED_LOCATION_${CMAKE_BUILD_TYPE}")
+  endif()
+
+  if(_dll AND NOT _dll STREQUAL "IMPORTED_LOCATION-NOTFOUND")
+    get_filename_component(_dir "${_dll}" DIRECTORY)
+    list(APPEND _dll_dirs "${_dir}" "${_dir}/optional")
+  endif()
+endforeach()
+
+list(REMOVE_DUPLICATES _dll_dirs)
+
+set_property(GLOBAL PROPERTY PTGN_SDL_DLL_DIRS "${_dll_dirs}")
+
 function(add_sdl_dll_copy target)
   if(NOT WIN32)
     return()
   endif()
 
-  set(_sdl_targets
-    SDL3::SDL3
-    SDL3_image::SDL3_image
-    SDL3_ttf::SDL3_ttf
-    SDL3_mixer::SDL3_mixer
-  )
-
-  set(_dll_dirs "")
-  foreach(_t IN LISTS _sdl_targets)
-    if(NOT TARGET "${_t}")
-      continue()
-    endif()
-
-    # Try common imported properties (covers many packages)
-    get_target_property(_dll "${_t}" IMPORTED_LOCATION)
-    if(NOT _dll OR _dll STREQUAL "IMPORTED_LOCATION-NOTFOUND")
-      # Some configs use IMPORTED_LOCATION_<CONFIG>
-      get_target_property(_dll "${_t}" "IMPORTED_LOCATION_${CMAKE_BUILD_TYPE}")
-    endif()
-
-    if(_dll AND NOT _dll STREQUAL "IMPORTED_LOCATION-NOTFOUND")
-      get_filename_component(_dir "${_dll}" DIRECTORY)
-      list(APPEND _dll_dirs "${_dir}" "${_dir}/optional")
-    endif()
-  endforeach()
-
-  list(REMOVE_DUPLICATES _dll_dirs)
+  get_property(_dirs GLOBAL PROPERTY PTGN_SDL_DLL_DIRS)
 
   # Discover all DLLs in those dirs (and optional subdir)
   set(_dlls "")
-  foreach(_dir IN LISTS _dll_dirs)
+  foreach(_dir IN LISTS _dirs)
     if(EXISTS "${_dir}")
       file(GLOB _found CONFIGURE_DEPENDS "${_dir}/*.dll")
       list(APPEND _dlls ${_found})
