@@ -1,3 +1,6 @@
+set(PTGN_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "")
+set(PTGN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "")
+
 include(cmake/SDLVersions.cmake)
 include(cmake/FindSDL.cmake)
 include(cmake/SourcesAndHeaders.cmake)
@@ -14,18 +17,30 @@ function(add_protegon_to target)
   cmake_parse_arguments(P "${options}" "${oneValueArgs}" "" ${ARGN})
 
   if(NOT P_ASSETS_DIR)
-    set(P_ASSETS_DIR "${CMAKE_SOURCE_DIR}/examples/assets")
+    set(P_ASSETS_DIR "${PTGN_ROOT_DIR}/examples/assets")
   endif()
 
   if(NOT P_SHELL_HTML)
-    set(P_SHELL_HTML "${CMAKE_SOURCE_DIR}/platform/emscripten/shell.html")
+    set(P_SHELL_HTML "${PTGN_ROOT_DIR}/platform/emscripten/shell.html")
   endif()
 
   target_link_libraries(${target} PRIVATE protegon)
 
   if(EMSCRIPTEN)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dist")
+    set_target_properties(${target} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
+    )
+
+    set_target_properties(${target} PROPERTIES OUTPUT_NAME "index")
     set_target_properties(${target} PROPERTIES SUFFIX ".html")
-    target_compile_options(${target} PRIVATE -O2)
+    
+    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+      target_compile_options(${target} PRIVATE -O0)
+    else()
+      target_compile_options(${target} PRIVATE -O3)
+    endif()
+    
 
     # Shared assets for ALL examples
     if(EXISTS "${P_ASSETS_DIR}")
@@ -40,7 +55,6 @@ function(add_protegon_to target)
       "-sFULL_ES3=1"
       "-sWARN_ON_UNDEFINED_SYMBOLS=1"
       "-sNO_EXIT_RUNTIME=1"
-      "-sAGGRESSIVE_VARIABLE_ELIMINATION=1"
       "-sAGGRESSIVE_VARIABLE_ELIMINATION=1"
       "-sUSE_ZLIB=1"
       "-sASSERTIONS=1"
@@ -64,10 +78,10 @@ cmrc_add_resource_library(resources-shader ALIAS rc::shader NAMESPACE shader WHE
 add_library(protegon STATIC ${PTGN_FILES})
 
 target_include_directories(protegon
-  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-         "${CMAKE_CURRENT_SOURCE_DIR}/modules/ecs/include"
-         "${CMAKE_CURRENT_SOURCE_DIR}/engine/assets"
-  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/engine/src"
+  PUBLIC "${PTGN_ROOT_DIR}/include"
+         "${PTGN_ROOT_DIR}/modules/ecs/include"
+         "${PTGN_ROOT_DIR}/engine/assets"
+  PUBLIC "${PTGN_ROOT_DIR}/engine/src"
 )
 
 target_compile_features(protegon PUBLIC cxx_std_23)
