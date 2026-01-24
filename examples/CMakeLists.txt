@@ -26,14 +26,16 @@ if(EMSCRIPTEN)
   endif()
 endif()
 
+set(_examples_dir "${PTGN_ROOT_DIR}/examples")
+
 # ---- Discover examples by main.cpp convention ----
 file(GLOB_RECURSE _example_mains
   CONFIGURE_DEPENDS
-  "${CMAKE_CURRENT_SOURCE_DIR}/*/*/main.cpp"
+  "${_examples_dir}/*/*/main.cpp"
 )
 
 if(NOT _example_mains)
-  message(STATUS "No examples found under ${CMAKE_CURRENT_SOURCE_DIR}")
+  message(STATUS "No examples found under ${_examples_dir}")
   return()
 endif()
 
@@ -47,7 +49,7 @@ if(EMSCRIPTEN AND NOT _select_all)
     if(_req MATCHES "\\.\\.")
       message(FATAL_ERROR "PTGN_WEB_EXAMPLES entry must not contain '..': '${_req}'")
     endif()
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_req}/main.cpp")
+    if(NOT EXISTS "${_examples_dir}/${_req}/main.cpp")
       message(FATAL_ERROR
         "Requested web example '${_req}' not found. Expected examples/${_req}/main.cpp")
     endif()
@@ -60,7 +62,7 @@ set(_built_examples "")
 
 foreach(_main IN LISTS _example_mains)
   get_filename_component(_example_dir "${_main}" DIRECTORY) # examples/<cat>/<ex>
-  file(RELATIVE_PATH _rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_example_dir}") # <cat>/<ex>
+  file(RELATIVE_PATH _rel "${_examples_dir}" "${_example_dir}") # <cat>/<ex>
 
   # selection (only applies to emscripten)
   if(EMSCRIPTEN AND NOT _select_all)
@@ -94,15 +96,14 @@ foreach(_main IN LISTS _example_mains)
   if(_more)
     target_sources(${_t} PRIVATE ${_more})
   endif()
+  
+  set(_assets_src "${_examples_dir}/assets")
 
-  # apply engine + shared assets + emscripten/windows behavior
-  add_protegon_to(${_t}
-    ASSETS_DIR "${CMAKE_SOURCE_DIR}/examples/assets"
-  )
+  add_protegon_to(${_t} ASSETS_DIR "${_assets_src}")
 
+  set_target_properties(${_t} PROPERTIES OUTPUT_NAME "${_t}")
   target_compile_definitions(${_t} PRIVATE PTGN_EXAMPLE_ID="${_rel}")
 
-  set(_assets_src "${CMAKE_SOURCE_DIR}/examples/assets")
   if(EXISTS "${_example_dir}/assets")
     set(_assets_src "${_example_dir}/assets")
   endif()
@@ -151,17 +152,17 @@ if(EMSCRIPTEN AND _built_examples)
   endforeach()
 
   configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/web/index.html.in"
+    "${_examples_dir}/web/index.html.in"
     "${PTGN_DIST_DIR}/index.html"
     @ONLY
   )
   configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/web/app.js.in"
+    "${_examples_dir}/web/app.js.in"
     "${PTGN_DIST_DIR}/app.js"
     @ONLY
   )
   configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/web/style.css"
+    "${_examples_dir}/web/style.css"
     "${PTGN_DIST_DIR}/style.css"
     COPYONLY
   )
@@ -174,7 +175,7 @@ if(EMSCRIPTEN AND _built_examples)
       COMMAND ${CMAKE_COMMAND}
         -DINPUT_HTML=$<TARGET_FILE:${_t}>
         -DDEST_DIR=${PTGN_DIST_DIR}
-        -P ${CMAKE_SOURCE_DIR}/cmake/CopyEmscriptenOutput.cmake
+        -P ${PTGN_ROOT_DIR}/cmake/CopyEmscriptenOutput.cmake
     )
   endforeach()
 endif()

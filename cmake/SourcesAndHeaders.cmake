@@ -1,12 +1,12 @@
 # Search for protegon source and header files
 
 file(GLOB_RECURSE PTGN_SOURCES CONFIGURE_DEPENDS LIST_DIRECTORIES false 
-	"${CMAKE_CURRENT_SOURCE_DIR}/engine/src/*.cpp")
+	"${PTGN_ROOT_DIR}/engine/src/*.cpp")
 
 file(GLOB_RECURSE PTGN_HEADERS CONFIGURE_DEPENDS LIST_DIRECTORIES false 
-  "${CMAKE_CURRENT_SOURCE_DIR}/engine/src/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+  "${PTGN_ROOT_DIR}/engine/src/*.h" "${PTGN_ROOT_DIR}/include/*.h")
 
-set(PTGN_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/engine/assets/shader")
+set(PTGN_SHADER_DIR "${PTGN_ROOT_DIR}/engine/assets/shader")
 
 file(GLOB_RECURSE PTGN_SHADERS CONFIGURE_DEPENDS LIST_DIRECTORIES false 
 	"${PTGN_SHADER_DIR}/*.glsl")

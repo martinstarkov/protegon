@@ -115,7 +115,7 @@ function(create_symlink TARGET SRC_PATH DEST_ROOT)
     COMMAND "${CMAKE_COMMAND}"
       -DPTGN_SRC:PATH=${SRC_PATH}
       -DPTGN_DST:PATH=${_dst}
-      -P "${CMAKE_SOURCE_DIR}/cmake/CreateSymlink.cmake"
+      -P "${PTGN_ROOT_DIR}/cmake/CreateSymlink.cmake"
     VERBATIM
   )
 endfunction()
