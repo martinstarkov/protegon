@@ -111,6 +111,10 @@ foreach(_main IN LISTS _example_mains)
   if(EXISTS "${_assets_src}")
     create_symlink(${_t} "${_assets_src}" "$<TARGET_FILE_DIR:${_t}>")
   endif()
+  
+  if(MSVC)
+    set_target_properties(${_t} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+  endif()
 
   # IDE folder grouping
   get_filename_component(_parent_path "${_rel}" DIRECTORY)
