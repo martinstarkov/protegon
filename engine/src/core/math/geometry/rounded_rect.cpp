@@ -1,12 +1,12 @@
-#include "math/geometry/rounded_rect.h"
+#include "core/math/geometry/rounded_rect.h"
 
 #include <array>
 
 #include "core/assert.h"
-#include "ecs/components/origin.h"
-#include "ecs/components/transform.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/origin.h"
+#include "runtime/ecs/components/transform.h"
 
 namespace ptgn {
 

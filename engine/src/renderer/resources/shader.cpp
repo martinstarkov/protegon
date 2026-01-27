@@ -1,4 +1,4 @@
-#include "renderer/api/shader.h"
+#include "renderer/resources/shader.h"
 
 namespace ptgn {
 

@@ -1,4 +1,4 @@
-#include "math/overlap.h"
+#include "core/math/overlap.h"
 
 #include <algorithm>
 #include <limits>
@@ -8,18 +8,18 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "ecs/components/transform.h"
-#include "math/geometry/axis.h"
-#include "math/geometry/capsule.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/geometry/rect.h"
-#include "math/geometry/shape.h"
-#include "math/geometry/triangle.h"
-#include "math/geometry_utils.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
+#include "core/math/geometry/axis.h"
+#include "core/math/geometry/capsule.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/geometry_utils.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/geometry/triangle.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 
 #define PTGN_HANDLE_OVERLAP_SOLO_PAIR(TypeA, TypeB, PREFIX)                 \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \

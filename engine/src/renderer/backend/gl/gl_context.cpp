@@ -1,4 +1,4 @@
-#include "renderer/gl/gl_context.h"
+#include "renderer/backend/gl/gl_context.h"
 
 #include <SDL3/SDL_video.h>
 
@@ -6,14 +6,14 @@
 #include <ostream>
 #include <regex>
 
-#include "core/app/window.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/macro.h"
 #include "core/util/span.h"
-#include "renderer/gl/gl.h"
+#include "platform/window/window.h"
+#include "renderer/backend/gl/gl.h"
 
 #define PTGN_VSYNC_MODE -1
 

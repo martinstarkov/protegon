@@ -1,10 +1,10 @@
-#include "math/noise.h"
+#include "core/math/noise.h"
 
 #include <cstdint>
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "math/math_utils.h"
+#include "core/math/math_utils.h"
 
 namespace ptgn {
 

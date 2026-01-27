@@ -7,10 +7,10 @@
 
 #include "core/util/concepts.h"
 #include "core/util/flags.h"
-#include "ecs/components/generic.h"
-#include "ecs/entity.h"
-#include "math/tolerance.h"
-#include "math/vector2.h"
+#include "runtime/ecs/components/generic.h"
+#include "runtime/ecs/entity.h"
+#include "core/math/tolerance.h"
+#include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {

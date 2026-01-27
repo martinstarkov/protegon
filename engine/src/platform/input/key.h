@@ -4,7 +4,7 @@
 #include <ostream>
 
 #include "core/log.h"
-#include "core/platform/platform.h"
+#include "platform/platform.h"
 #include "serialization/json/enum.h"
 
 namespace ptgn {

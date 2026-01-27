@@ -3,10 +3,10 @@
 #include <string>
 #include <string_view>
 
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {

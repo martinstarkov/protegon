@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "renderer/gl/gl_handle.h"
+#include "renderer/backend/gl/gl_handle.h"
 #include "serialization/json/json.h"
 
 struct MIX_Audio;

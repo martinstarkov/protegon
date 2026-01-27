@@ -1,11 +1,11 @@
-#include "math/easing.h"
+#include "core/math/easing.h"
 
 #include <cmath>
 #include <variant>
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "math/math_utils.h"
+#include "core/math/math_utils.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

@@ -8,10 +8,10 @@
 #include <functional>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
 
 namespace ptgn::impl {
 

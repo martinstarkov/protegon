@@ -4,7 +4,7 @@
 #include <type_traits>
 
 #include "core/assert.h"
-#include "core/util/time.h"
+#include "core/time/time.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

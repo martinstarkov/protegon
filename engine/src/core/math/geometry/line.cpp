@@ -1,10 +1,10 @@
-#include "math/geometry/line.h"
+#include "core/math/geometry/line.h"
 
 #include <array>
 
-#include "ecs/components/transform.h"
-#include "math/geometry/rect.h"
-#include "math/vector2.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 
 namespace ptgn {
 

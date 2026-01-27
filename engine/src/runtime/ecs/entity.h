@@ -2,9 +2,9 @@
 
 #include "core/assert.h"
 #include "core/util/concepts.h"
-#include "ecs/components/uuid.h"
 #include "ecs/ecs.h"
-#include "ecs/entity_hierarchy.h"
+#include "runtime/ecs/components/uuid.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"

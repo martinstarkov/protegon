@@ -1,13 +1,13 @@
-#include "scene/scene.h"
+#include "runtime/scene/scene.h"
 
-#include "core/app/context.h"
+#include "app/context.h"
 #include "core/event/event.h"
-#include "core/scripting/scripts.h"
-#include "ecs/components/uuid.h"
-#include "ecs/entity.h"
-#include "ecs/manager.h"
+#include "core/graphics/color.h"
 #include "nlohmann/json.hpp"
-#include "renderer/api/color.h"
+#include "runtime/ecs/components/uuid.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

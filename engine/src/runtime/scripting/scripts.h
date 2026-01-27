@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "core/event/event.h"
-#include "core/scripting/script.h"
-#include "ecs/entity.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 

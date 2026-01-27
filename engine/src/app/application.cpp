@@ -1,4 +1,4 @@
-#include "core/app/application.h"
+#include "app/application.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_init.h>
@@ -10,16 +10,16 @@
 #include <memory>
 #include <ostream>
 
-#include "core/app/context.h"
-#include "core/app/window.h"
+#include "app/context.h"
 #include "core/assert.h"
-#include "core/config/build_config.h"
-#include "core/input/input_handler.h"
+#include "core/config.h"
 #include "core/log.h"
-#include "debug/debug_system.h"
-#include "renderer/gl/gl_context.h"
+#include "platform/input/input_handler.h"
+#include "platform/window/window.h"
+#include "renderer/backend/gl/gl_context.h"
 #include "renderer/renderer.h"
-#include "scene/scene_manager.h"
+#include "runtime/scene/scene_manager.h"
+#include "tools/debug/debug_system.h"
 
 #ifdef __EMSCRIPTEN__
 

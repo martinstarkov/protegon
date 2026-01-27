@@ -3,7 +3,7 @@
 #include <utility>
 
 #include "core/util/concepts.h"
-#include "ecs/entity.h"
+#include "runtime/ecs/entity.h"
 
 namespace ptgn {
 

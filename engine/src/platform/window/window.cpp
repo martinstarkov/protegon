@@ -1,4 +1,4 @@
-#include "core/app/window.h"
+#include "platform/window/window.h"
 
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_properties.h>
@@ -10,7 +10,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
 
 #ifdef __EMSCRIPTEN__
 

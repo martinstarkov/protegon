@@ -1,17 +1,18 @@
 #pragma once
 
-#include "ecs/components/transform.h"
-#include "math/geometry/axis.h"
-#include "math/geometry/capsule.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/geometry/rect.h"
-#include "math/geometry/shape.h"
-#include "math/geometry/triangle.h"
-#include "math/vector2.h"
+#include "core/math/geometry/axis.h"
+#include "core/math/geometry/capsule.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/geometry/triangle.h"
+#include "core/math/vector2.h"
 
 namespace ptgn {
+
+struct Transform;
 
 namespace impl {
 

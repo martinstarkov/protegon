@@ -1,11 +1,11 @@
-#include "renderer/api/vertex.h"
+#include "renderer/resources/vertex.h"
 
 #include <array>
 
 #include "core/assert.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/flip.h"
+#include "core/graphics/color.h"
+#include "core/graphics/flip.h"
+#include "core/math/vector2.h"
 #include "renderer/renderer.h"
 
 namespace ptgn::impl {

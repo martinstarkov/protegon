@@ -1,7 +1,7 @@
 #include "renderer/image/image_utils.h"
 
-#include "math/vector2.h"
-#include "renderer/api/color.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
 #include "renderer/image/surface.h"
 
 namespace ptgn {

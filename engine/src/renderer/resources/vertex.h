@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include "math/vector2.h"
-#include "renderer/api/glsl_types.h"
-#include "renderer/gl/buffer_layout.h"
+#include "core/math/vector2.h"
+#include "renderer/resources/buffer_layout.h"
+#include "renderer/resources/glsl_types.h"
 
 namespace ptgn {
 

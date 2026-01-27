@@ -1,9 +1,9 @@
-#include "renderer/api/color.h"
+#include "core/graphics/color.h"
 
 #include <cstdint>
 
 #include "core/assert.h"
-#include "math/rng.h"
+#include "core/math/rng.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

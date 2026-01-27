@@ -4,10 +4,10 @@
 #include <type_traits>
 
 #include "core/event/event.h"
-#include "ecs/components/uuid.h"
-#include "ecs/entity.h"
-#include "ecs/manager.h"
-#include "renderer/api/color.h"
+#include "core/graphics/color.h"
+#include "runtime/ecs/components/uuid.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

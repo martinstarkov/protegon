@@ -1,13 +1,13 @@
-#include "ecs/entity_hierarchy.h"
+#include "runtime/ecs/entity_hierarchy.h"
 
 #include <string_view>
 #include <vector>
 
 #include "core/assert.h"
-#include "ecs/components/relatives.h"
-#include "ecs/components/transform.h"
-#include "ecs/entity.h"
-#include "ecs/manager.h"
+#include "runtime/ecs/components/relatives.h"
+#include "runtime/ecs/components/transform.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
 
 namespace ptgn {
 

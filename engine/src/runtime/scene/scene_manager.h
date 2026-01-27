@@ -4,11 +4,11 @@
 #include <memory>
 #include <vector>
 
-#include "core/app/context.h"
+#include "app/context.h"
 #include "core/assert.h"
+#include "core/time/time.h"
 #include "core/util/hash.h"
-#include "core/util/time.h"
-#include "scene/scene.h"
+#include "runtime/scene/scene.h"
 
 namespace ptgn {
 

@@ -1,15 +1,14 @@
 
-#include "math/geometry/triangle.h"
+#include "core/math/geometry/triangle.h"
 
 #include <array>
 
-#include "ecs/components/transform.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 
 namespace ptgn {
 
-Triangle::Triangle(V2_float a, V2_float b, V2_float c) :
-	a{ a }, b{ b }, c{ c } {}
+Triangle::Triangle(V2_float a, V2_float b, V2_float c) : a{ a }, b{ b }, c{ c } {}
 
 Triangle::Triangle(const std::array<V2_float, 3>& vertices) :
 	a{ vertices[0] }, b{ vertices[1] }, c{ vertices[2] } {}

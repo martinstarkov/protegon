@@ -1,9 +1,9 @@
-#include "core/scripting/script.h"
+#include "runtime/scripting/script.h"
 
-#include "core/app/context.h"
+#include "app/context.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
-#include "scene/scene.h"
+#include "runtime/scene/scene.h"
 
 namespace ptgn {
 

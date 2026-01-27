@@ -1,4 +1,4 @@
-#include "core/asset/asset_manager.h"
+#include "runtime/asset/asset_manager.h"
 
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -9,14 +9,14 @@
 #include <utility>
 #include <variant>
 
-#include "core/app/application.h"
+#include "app/application.h"
 #include "core/assert.h"
-#include "core/asset/asset.h"
-#include "core/asset/asset_handle.h"
 #include "core/util/file.h"
-#include "renderer/api/shader.h"
-#include "renderer/gl/gl_context.h"
+#include "renderer/backend/gl/gl_context.h"
 #include "renderer/image/surface.h"
+#include "renderer/resources/shader.h"
+#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_handle.h"
 #include "serialization/json/json.h"
 
 // TODO: Add async asset loading.

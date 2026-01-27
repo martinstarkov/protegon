@@ -7,9 +7,9 @@
 #include <sstream>
 #include <string_view>
 
-#include "core/config/build_config.h"
+#include "core/config.h"
 #include "core/log.h"
-#include "core/platform/debug_break.h"
+#include "platform/debug_break.h"
 
 #ifdef PTGN_DEBUG
 #define PTGN_ENABLE_ASSERTS

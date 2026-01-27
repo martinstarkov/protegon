@@ -1,4 +1,4 @@
-#include "math/intersect.h"
+#include "core/math/intersect.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,16 +9,16 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "ecs/components/transform.h"
-#include "geometry/circle.h"
-#include "geometry/polygon.h"
-#include "geometry/rect.h"
-#include "math/geometry/axis.h"
-#include "math/geometry/shape.h"
-#include "math/geometry_utils.h"
-#include "math/math_utils.h"
-#include "math/overlap.h"
-#include "math/vector2.h"
+#include "core/math/geometry/axis.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/geometry_utils.h"
+#include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/math_utils.h"
+#include "core/math/overlap.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 
 #define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \

@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <string>
 
+#include "core/math/vector2.h"
 #include "core/util/id_map.h"
-#include "math/vector2.h"
-#include "renderer/gl/gl.h"
+#include "renderer/backend/gl/gl.h"
 
 namespace ptgn::impl::gl {
 

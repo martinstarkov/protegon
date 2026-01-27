@@ -9,10 +9,10 @@
 #include <type_traits>
 
 #include "core/assert.h"
+#include "core/math/vector2.h"
+#include "core/math/vector3.h"
+#include "core/math/vector4.h"
 #include "core/util/concepts.h"
-#include "math/vector2.h"
-#include "math/vector3.h"
-#include "math/vector4.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

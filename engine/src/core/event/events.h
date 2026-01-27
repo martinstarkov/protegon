@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/event/event.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
+#include "platform/input/key.h"
+#include "platform/input/mouse.h"
 
 namespace ptgn {
 

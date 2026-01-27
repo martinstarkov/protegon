@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "math/vector2.h"
-#include "renderer/api/blend_mode.h"
-#include "renderer/api/color.h"
-#include "renderer/gl/gl.h"
+#include "core/graphics/blend_mode.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "renderer/backend/gl/gl.h"
 
 namespace ptgn::impl::gl {
 

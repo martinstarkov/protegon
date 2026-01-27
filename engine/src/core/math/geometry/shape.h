@@ -4,17 +4,17 @@
 #include <variant>
 #include <vector>
 
-#include "ecs/components/transform.h"
-#include "math/geometry/arc.h"
-#include "math/geometry/capsule.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/ellipse.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/geometry/rect.h"
-#include "math/geometry/rounded_rect.h"
-#include "math/geometry/triangle.h"
-#include "math/vector2.h"
+#include "core/math/geometry/arc.h"
+#include "core/math/geometry/capsule.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/ellipse.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/rounded_rect.h"
+#include "core/math/geometry/triangle.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

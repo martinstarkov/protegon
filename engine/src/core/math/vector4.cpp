@@ -1,5 +1,6 @@
-#include "math/vector4.h"
+#include "core/math/vector4.h"
 
+#include "core/util/concepts.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "core/app/window.h"
-#include "renderer/gl/gl_context.h"
+#include "platform/window/window.h"
+#include "renderer/backend/gl/gl_context.h"
 
 namespace ptgn {
 

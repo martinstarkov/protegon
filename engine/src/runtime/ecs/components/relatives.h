@@ -3,8 +3,8 @@
 #include <string_view>
 #include <vector>
 
-#include "ecs/components/generic.h"
-#include "ecs/entity.h"
+#include "runtime/ecs/components/generic.h"
+#include "runtime/ecs/entity.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn::impl {

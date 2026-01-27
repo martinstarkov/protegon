@@ -1,4 +1,4 @@
-#include "math/geometry_utils.h"
+#include "core/math/geometry/geometry_utils.h"
 
 #include <algorithm>
 #include <array>
@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "math/geometry/line.h"
-#include "math/geometry/triangle.h"
-#include "math/tolerance.h"
-#include "math/vector2.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/triangle.h"
+#include "core/math/tolerance.h"
+#include "core/math/vector2.h"
 
 namespace ptgn {
 
@@ -90,9 +90,7 @@ float TriangulateArea(std::span<const V2_float> vertices) {
 	return area * 0.5f;
 }
 
-bool TriangulateInsideTriangle(
-	V2_float A, V2_float B, V2_float C, V2_float P
-) {
+bool TriangulateInsideTriangle(V2_float A, V2_float B, V2_float C, V2_float P) {
 	return (C - B).Cross(P - B) >= 0.0f && (A - C).Cross(P - C) >= 0.0f &&
 		   (B - A).Cross(P - A) >= 0.0f;
 }
@@ -480,9 +478,7 @@ bool IsInside(V2_float p, const Line& edge) {
 	return edge_vec.Cross(point_vec) >= 0;
 }
 
-std::optional<V2_float> ComputeIntersection(
-	V2_float a, V2_float b, V2_float c, V2_float d
-) {
+std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, V2_float d) {
 	V2_float ab{ b - a };
 	V2_float cd{ d - c };
 
@@ -561,8 +557,8 @@ bool WithinPerimeter(float radius, float dist2, bool include_edge) {
 }
 
 float ClosestPointLineLine(
-	V2_float lineA_start, V2_float lineA_end, V2_float lineB_start,
-	V2_float lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
+	V2_float lineA_start, V2_float lineA_end, V2_float lineB_start, V2_float lineB_end, float& s,
+	float& t, V2_float& c1, V2_float& c2
 ) {
 	V2_float d1{ lineA_end - lineA_start }; // Direction vector of segment S1
 	V2_float d2{ lineB_end - lineB_start }; // Direction vector of segment S2
@@ -641,9 +637,7 @@ float SquareDistancePointLine(V2_float point, V2_float start, V2_float end) {
 	return ac.Dot(ac) - e * e / f;
 }
 
-float SquareDistancePointRect(
-	V2_float point, V2_float rect_min, V2_float rect_max
-) {
+float SquareDistancePointRect(V2_float point, V2_float rect_min, V2_float rect_max) {
 	float dist2{ 0.0f };
 	for (std::size_t i{ 0 }; i < 2; ++i) {
 		const float v{ point[i] };

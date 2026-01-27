@@ -6,7 +6,7 @@
 #include <type_traits>
 
 #include "core/util/concepts.h"
-#include "renderer/api/glsl_types.h"
+#include "renderer/resources/glsl_types.h"
 
 namespace ptgn::impl::gl {
 

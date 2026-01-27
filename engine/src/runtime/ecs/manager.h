@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ecs/components/uuid.h"
 #include "ecs/ecs.h"
-#include "ecs/entity.h"
+#include "runtime/ecs/components/uuid.h"
+#include "runtime/ecs/entity.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/event/event.h"
-#include "ecs/entity.h"
+#include "runtime/ecs/entity.h"
 
 namespace ptgn {
 

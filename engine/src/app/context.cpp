@@ -1,9 +1,9 @@
-#include "core/app/context.h"
+#include "app/context.h"
 
 #include <chrono>
 
-#include "core/app/application.h"
-#include "core/util/time.h"
+#include "app/application.h"
+#include "core/time/time.h"
 
 namespace ptgn {
 

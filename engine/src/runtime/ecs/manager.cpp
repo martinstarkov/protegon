@@ -1,16 +1,16 @@
-#include "ecs/manager.h"
+#include "runtime/ecs/manager.h"
 
 #include <cstdint>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <utility>
 #include <vector>
 
 #include "core/assert.h"
-#include "ecs/component_registry.h"
-#include "ecs/components/uuid.h"
 #include "ecs/ecs.h"
-#include "ecs/entity.h"
-#include "nlohmann/json.hpp"
+#include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/components/uuid.h"
+#include "runtime/ecs/entity.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 

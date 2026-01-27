@@ -1,8 +1,8 @@
-#include "core/app/resolution.h"
+#include "platform/window/resolution.h"
 
 #include "core/assert.h"
-#include "ecs/components/transform.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 
 namespace ptgn {
 

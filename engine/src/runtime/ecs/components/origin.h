@@ -3,7 +3,7 @@
 #include <ostream>
 
 #include "core/log.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
 #include "serialization/json/enum.h"
 
 namespace ptgn {

@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "math/vector2.h"
+#include "core/math/vector2.h"
 #include "serialization/json/enum.h"
 
 struct SDL_Window;

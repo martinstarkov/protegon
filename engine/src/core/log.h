@@ -12,7 +12,7 @@
 #include <string>
 #include <string_view>
 
-#include "core/platform/debug_break.h"
+#include "platform/debug_break.h"
 
 #define PTGN_ABORT()   \
 	PTGN_DEBUGBREAK(); \

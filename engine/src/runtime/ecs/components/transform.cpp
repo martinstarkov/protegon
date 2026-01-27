@@ -1,4 +1,4 @@
-#include "ecs/components/transform.h"
+#include "runtime/ecs/components/transform.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,12 +7,12 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
 #include "core/util/flags.h"
-#include "ecs/entity.h"
-#include "ecs/entity_hierarchy.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
-#include "scene/scene.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/scene/scene.h"
 
 namespace ptgn {
 

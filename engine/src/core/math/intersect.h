@@ -1,14 +1,15 @@
 #pragma once
 
-#include "ecs/components/transform.h"
-#include "geometry/circle.h"
-#include "geometry/polygon.h"
-#include "geometry/rect.h"
-#include "math/geometry/shape.h"
-#include "math/vector2.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
+
+struct Transform;
 
 struct Intersection {
 	float depth{ 0.0f };

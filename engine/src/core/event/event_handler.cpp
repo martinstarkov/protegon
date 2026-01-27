@@ -3,8 +3,8 @@
 #include <memory>
 
 #include "core/event/event.h"
-#include "scene/scene.h"
-#include "scene/scene_manager.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 namespace ptgn {
 

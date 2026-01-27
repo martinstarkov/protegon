@@ -1,11 +1,11 @@
-#include "ecs/components/relatives.h"
+#include "runtime/ecs/components/relatives.h"
 
 #include <string_view>
 #include <vector>
 
 #include "core/log.h"
 #include "core/util/span.h"
-#include "ecs/entity.h"
+#include "runtime/ecs/entity.h"
 
 namespace ptgn::impl {
 

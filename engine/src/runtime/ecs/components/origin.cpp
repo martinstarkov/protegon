@@ -1,7 +1,7 @@
-#include "ecs/components/origin.h"
+#include "runtime/ecs/components/origin.h"
 
 #include "core/log.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
 
 namespace ptgn {
 

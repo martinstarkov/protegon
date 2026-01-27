@@ -6,12 +6,12 @@
 #include <memory>
 #include <vector>
 
-#include "core/app/resolution.h"
-#include "ecs/components/origin.h"
-#include "math/vector2.h"
-#include "renderer/api/blend_mode.h"
-#include "renderer/api/color.h"
-#include "renderer/api/flip.h"
+#include "core/graphics/blend_mode.h"
+#include "core/graphics/color.h"
+#include "core/graphics/flip.h"
+#include "core/math/vector2.h"
+#include "platform/window/resolution.h"
+#include "runtime/ecs/components/origin.h"
 
 namespace ptgn {
 

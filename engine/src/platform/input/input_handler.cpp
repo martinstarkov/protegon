@@ -1,4 +1,4 @@
-#include "core/input/input_handler.h"
+#include "platform/input/input_handler.h"
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_timer.h>
@@ -6,18 +6,17 @@
 #include <array>
 #include <chrono>
 
-#include "core/app/context.h"
-#include "core/app/resolution.h"
-#include "core/app/window.h"
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/event_handler.h"
 #include "core/event/events.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
 #include "core/log.h"
-#include "core/util/time.h"
-#include "math/vector2.h"
-#include "scene/scene_manager.h"
+#include "core/math/vector2.h"
+#include "core/time/time.h"
+#include "platform/input/key.h"
+#include "platform/input/mouse.h"
+#include "platform/window/resolution.h"
+#include "platform/window/window.h"
 
 namespace ptgn {
 

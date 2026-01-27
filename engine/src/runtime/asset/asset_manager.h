@@ -4,9 +4,9 @@
 #include <string>
 #include <variant>
 
-#include "core/asset/asset_handle.h"
 #include "core/util/file.h"
-#include "renderer/api/shader.h"
+#include "renderer/resources/shader.h"
+#include "runtime/asset/asset_handle.h"
 
 // TODO: Add something along the lines of:
 

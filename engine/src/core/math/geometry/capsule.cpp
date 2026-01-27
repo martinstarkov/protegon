@@ -1,11 +1,11 @@
-#include "math/geometry/capsule.h"
+#include "core/math/geometry/capsule.h"
 
 #include <array>
 
-#include "ecs/components/transform.h"
-#include "math/geometry/rect.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 
 namespace ptgn {
 

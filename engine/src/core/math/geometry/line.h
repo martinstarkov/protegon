@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "math/vector2.h"
+#include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {

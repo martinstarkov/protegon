@@ -1,16 +1,16 @@
-#include "ecs/entity.h"
+#include "runtime/ecs/entity.h"
 
 #include <memory>
 #include <utility>
 
 #include "core/assert.h"
 #include "core/util/type_info.h"
-#include "ecs/component_registry.h"
-#include "ecs/components/uuid.h"
 #include "ecs/ecs.h"
-#include "ecs/entity_hierarchy.h"
-#include "ecs/manager.h"
-#include "scene/scene.h"
+#include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/components/uuid.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/scene/scene.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

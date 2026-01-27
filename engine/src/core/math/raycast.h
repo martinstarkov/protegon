@@ -1,16 +1,17 @@
 #pragma once
 
-#include "ecs/components/transform.h"
-#include "math/geometry/capsule.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/geometry/rect.h"
-#include "math/geometry/shape.h"
-#include "math/vector2.h"
+#include "core/math/geometry/capsule.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
+
+struct Transform;
 
 struct RaycastResult {
 	float t{ 1.0f }; // How far along the ray the impact occurred.
@@ -40,13 +41,11 @@ namespace impl {
 );
 
 [[nodiscard]] RaycastResult RaycastCapsule(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2,
-	const Capsule& B
+	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Capsule& B
 );
 
 [[nodiscard]] RaycastResult RaycastPolygon(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2,
-	const Polygon& B
+	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Polygon& B
 );
 
 [[nodiscard]] RaycastResult RaycastCircleLine(

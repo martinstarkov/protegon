@@ -2,8 +2,8 @@
 
 #include <functional>
 
-#include "ecs/entity.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/entity.h"
 
 namespace ptgn {
 

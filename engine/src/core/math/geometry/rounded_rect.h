@@ -2,8 +2,8 @@
 
 #include <array>
 
-#include "ecs/components/origin.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/origin.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {

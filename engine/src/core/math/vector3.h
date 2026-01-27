@@ -7,8 +7,8 @@
 #include <type_traits>
 
 #include "core/assert.h"
+#include "core/math/math_utils.h"
 #include "core/util/concepts.h"
-#include "math/math_utils.h"
 #include "serialization/json/fwd.h"
 
 // TODO: Stop exposing assert.h

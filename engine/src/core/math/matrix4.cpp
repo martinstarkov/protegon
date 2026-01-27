@@ -1,13 +1,13 @@
-#include "math/matrix4.h"
+#include "core/math/matrix4.h"
 
 #include <cmath>
 #include <functional>
 
 #include "core/assert.h"
-#include "ecs/components/transform.h"
-#include "math/tolerance.h"
-#include "math/vector3.h"
-#include "math/vector4.h"
+#include "core/math/tolerance.h"
+#include "core/math/vector3.h"
+#include "core/math/vector4.h"
+#include "runtime/ecs/components/transform.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 

@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "math/math_utils.h"
-#include "math/rng.h"
-#include "math/vector2.h"
+#include "core/math/math_utils.h"
+#include "core/math/rng.h"
+#include "core/math/vector2.h"
 #include "serialization/json/enum.h"
 
 // TODO: Add serialization.

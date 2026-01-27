@@ -1,10 +1,10 @@
-#include "math/geometry/polygon.h"
+#include "core/math/geometry/polygon.h"
 
 #include <vector>
 
 #include "core/assert.h"
-#include "ecs/components/transform.h"
-#include "math/vector2.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/transform.h"
 
 namespace ptgn {
 

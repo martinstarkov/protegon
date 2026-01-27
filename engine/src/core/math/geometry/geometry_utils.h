@@ -6,9 +6,9 @@
 #include <span>
 #include <vector>
 
-#include "math/geometry/line.h"
-#include "math/geometry/triangle.h"
-#include "math/vector2.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/triangle.h"
+#include "core/math/vector2.h"
 
 namespace ptgn {
 
@@ -36,9 +36,7 @@ namespace impl {
 [[nodiscard]] float TriangulateArea(std::span<const V2_float> vertices);
 
 // InsideTriangle decides if a point P is Inside of the triangle defined by A, B, C.
-[[nodiscard]] bool TriangulateInsideTriangle(
-	V2_float A, V2_float B, V2_float C, V2_float P
-);
+[[nodiscard]] bool TriangulateInsideTriangle(V2_float A, V2_float B, V2_float C, V2_float P);
 
 [[nodiscard]] bool TriangulateSnip(
 	const V2_float* contour, std::size_t u, std::size_t v, std::size_t w, std::size_t n,
@@ -128,23 +126,19 @@ namespace impl {
 // S2(t)=P2+t*(Q2-P2), returning s and t. Function result is squared
 // distance between between S1(s) and S2(t)
 float ClosestPointLineLine(
-	V2_float lineA_start, V2_float lineA_end, V2_float lineB_start,
-	V2_float lineB_end, float& s, float& t, V2_float& c1, V2_float& c2
+	V2_float lineA_start, V2_float lineA_end, V2_float lineB_start, V2_float lineB_end, float& s,
+	float& t, V2_float& c1, V2_float& c2
 );
 
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
-[[nodiscard]] float SquareDistancePointLine(
-	V2_float point, V2_float start, V2_float end
-);
+[[nodiscard]] float SquareDistancePointLine(V2_float point, V2_float start, V2_float end);
 
 // Source:
 // http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 // Page 79.
-[[nodiscard]] float SquareDistancePointRect(
-	V2_float point, V2_float rect_min, V2_float rect_max
-);
+[[nodiscard]] float SquareDistancePointRect(V2_float point, V2_float rect_min, V2_float rect_max);
 
 [[nodiscard]] float ParallelogramArea(V2_float a, V2_float b, V2_float c);
 
