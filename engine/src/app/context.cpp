@@ -20,11 +20,11 @@ void ApplicationContext::Stop() {
 	app_.running_ = false;
 }
 
-secondsf ApplicationContext::Dt() const {
+secondsf ApplicationContext::DeltaTime() const {
 	return app_.dt_;
 }
 
-milliseconds ApplicationContext::Time() const {
+milliseconds ApplicationContext::TimeSinceStart() const {
 	return std::chrono::duration_cast<milliseconds>(
 		std::chrono::steady_clock::now().time_since_epoch()
 	);

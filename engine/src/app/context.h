@@ -28,9 +28,9 @@ public:
 
 	void Stop();
 
-	secondsf Dt() const;
+	secondsf DeltaTime() const;
 
-	[[nodiscard]] milliseconds Time() const;
+	[[nodiscard]] milliseconds TimeSinceStart() const;
 
 	bool IsRunning() const;
 };

@@ -129,7 +129,6 @@ public:
 	SceneManager& operator=(const SceneManager&)	 = delete;
 	SceneManager& operator=(SceneManager&&) noexcept = default;
 
-	// High-level API (always enqueues; processed at frame boundary)
 	// TODO: Add concept.
 	template <typename TScene, typename... TArgs>
 	void SwitchTo(
