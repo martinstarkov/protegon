@@ -2,18 +2,18 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
+#include <functional>
 
+#include "core/event/event.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
-#include "platform/window/resolution.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 
 class Application;
-class ApplicationContext;
 
 class InputHandler {
 public:
@@ -51,19 +51,19 @@ public:
 	//[[nodiscard]] bool MouseWithinWindow() const;
 
 	// @return Mouse position.
-	[[nodiscard]] V2_float GetMousePosition(
-		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
-	) const;
+	//[[nodiscard]] V2_float GetMousePosition(
+	//	ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	//) const;
 
 	// @return Mouse position during the previous frame.
-	[[nodiscard]] V2_float GetMousePositionPrevious(
-		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
-	) const;
+	//[[nodiscard]] V2_float GetMousePositionPrevious(
+	//	ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	//) const;
 
 	// @return Mouse position difference between the current and previous frames.
-	[[nodiscard]] V2_float GetMousePositionDifference(
-		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
-	) const;
+	//[[nodiscard]] V2_float GetMousePositionDifference(
+	//	ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	//) const;
 
 	// @return The amount scrolled by the mouse vertically in the current frame,
 	// positive upward, negative downward. Zero if no scroll occurred.
@@ -105,6 +105,8 @@ public:
 private:
 	friend class Application;
 
+	using EventSink = std::function<void(impl::EventBase&)>;
+
 	using Timestamp = std::uint64_t;
 
 	enum class KeyState : std::uint8_t {
@@ -123,16 +125,16 @@ private:
 
 	// Convert position from being relative to the top left of the window to being relative to the
 	// center of the specified viewport.
-	[[nodiscard]] V2_float GetPositionRelativeTo(
-		V2_float window_position, ViewportType relative_to, bool clamp_to_viewport
-	) const;
+	//[[nodiscard]] V2_float GetPositionRelativeTo(
+	//	V2_float window_position, ViewportType relative_to, bool clamp_to_viewport
+	//) const;
 
 	// @return Mouse position relative to the top left of the screen.
-	[[nodiscard]] V2_float GetMouseScreenPosition() const;
+	//[[nodiscard]] V2_float GetMouseScreenPosition() const;
 
 	// Updates the user inputs and posts any triggered input events. Run internally when using game
 	// scenes.
-	void Update();
+	void Update(const EventSink& sink);
 
 	[[nodiscard]] MouseState GetMouseState(Mouse mouse_button) const;
 	[[nodiscard]] Timestamp GetMouseTimestamp(Mouse mouse_button) const;
@@ -146,7 +148,7 @@ private:
 
 	[[nodiscard]] static milliseconds GetTimeSince(Timestamp timestamp);
 
-	void EmitEvents();
+	void PollEvents(const EventSink& sink);
 
 	// Number of keys stored in the SDL key states array.
 	static constexpr std::size_t key_count_{ 512 };
@@ -168,10 +170,6 @@ private:
 	V2_int mouse_scroll_;
 	// Timestamp of the most recent scroll event.
 	Timestamp mouse_scroll_timestamp_{ 0 };
-
-	void SetContext(const std::shared_ptr<ApplicationContext>& ctx);
-
-	std::shared_ptr<ApplicationContext> ctx_;
 };
 
 PTGN_SERIALIZE_ENUM(

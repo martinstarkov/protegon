@@ -13,15 +13,11 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/triangle.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/transform.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
-
-// TODO: Move some of this stuff to a component?
-
-class Entity;
 
 class Shape;
 
@@ -106,17 +102,6 @@ public:
 	// friend void to_json(json& j, const Shape& shape);
 	// friend void from_json(const json& j, Shape& shape);
 };
-
-[[nodiscard]] Transform OffsetByOrigin(
-	const Shape& shape, const Transform& transform, const Entity& entity
-);
-
-// @return The shape of the entity, if it has one.
-std::optional<Shape> GetShape(const Entity& entity);
-
-// @return The display size of the entity sprite (if it has a TextureHandle), or its shape, if it
-// has one.
-std::optional<Shape> GetSpriteOrShape(const Entity& entity);
 
 // @return The vertices that fully contain the shape.
 // For a line, this is the start and end points.

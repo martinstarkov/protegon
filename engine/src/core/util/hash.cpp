@@ -3,7 +3,6 @@
 #include <functional>
 
 #include "core/math/vector2.h"
-#include "runtime/ecs/entity.h"
 
 namespace ptgn {
 
@@ -15,9 +14,5 @@ std::size_t Hash(Vector2<T> vector) {
 template std::size_t Hash<int>(const V2_int&);
 template std::size_t Hash<float>(const V2_float&);
 template std::size_t Hash<double>(const V2_double&);
-
-std::size_t Hash(const Entity& entity) {
-	return std::hash<Entity>()(entity);
-}
 
 } // namespace ptgn

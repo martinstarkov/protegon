@@ -7,17 +7,23 @@
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <chrono>
+#include <cstdint>
+#include <format>
 #include <memory>
 #include <ostream>
 
 #include "app/context.h"
 #include "core/assert.h"
 #include "core/config.h"
+#include "core/event/dispatcher.h"
+#include "core/event/event.h"
 #include "core/log.h"
+#include "platform/input/events.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/renderer.h"
+#include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -42,11 +48,18 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include <cstdint>
 
 namespace ptgn {
 
 namespace impl {
+
+static std::string FormatSDLVersion(int packed_version) {
+	const int major = packed_version / 1'000'000;
+	const int minor = (packed_version / 1'000) % 1'000;
+	const int patch = packed_version % 1'000;
+
+	return std::format("{}.{}.{}", major, minor, patch);
+}
 
 #ifdef __EMSCRIPTEN__
 
@@ -129,17 +142,19 @@ SDLInstance::SDLInstance() {
 	bool sdl_init{ SDL_Init(sdl_flags) };
 	PTGN_ASSERT(sdl_init, SDL_GetError());
 
-	PTGN_INFO("Initialized SDL version: ", SDL_GetVersion());
+	PTGN_INFO("Initialized SDL version: ", FormatSDLVersion(SDL_GetVersion()));
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
 
-	PTGN_INFO("Initialized SDL_image version: ", IMG_Version());
+	PTGN_INFO("Initialized SDL_image version: ", FormatSDLVersion(IMG_Version()));
 
 	bool ttf_init{ TTF_Init() };
 
 	PTGN_ASSERT(ttf_init, SDL_GetError());
+
+	PTGN_INFO("Initialized SDL_ttf version: ", FormatSDLVersion(TTF_Version()));
 
 	bool mix_init{ MIX_Init() };
 
@@ -149,7 +164,7 @@ SDLInstance::SDLInstance() {
 
 	PTGN_ASSERT(mixer_, SDL_GetError());
 
-	PTGN_INFO("Initialized SDL_mixer version: ", MIX_Version());
+	PTGN_INFO("Initialized SDL_mixer version: ", FormatSDLVersion(MIX_Version()));
 }
 
 SDLInstance::~SDLInstance() {
@@ -173,7 +188,6 @@ Application::Application(const ApplicationConfig& config) :
 	debug_{ renderer_ },
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
 	scenes_.SetContext(ctx_);
-	input_.SetContext(ctx_);
 	// TODO: Move to application config.
 	window_.SetSetting(WindowSetting::FixedSize);
 }
@@ -217,7 +231,13 @@ void Application::Update() {
 
 	start = end;
 
-	input_.Update();
+	input_.Update([this](impl::EventBase& e) {
+		events_.Emit(e);
+
+		if (EventDispatcher{ e }.IsType<WindowQuit>()) {
+			running_ = false;
+		}
+	});
 
 	scenes_.Update(dt_);
 

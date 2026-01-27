@@ -6,21 +6,18 @@
 #include <array>
 #include <chrono>
 
-#include "app/context.h"
 #include "core/assert.h"
-#include "core/event/event_handler.h"
-#include "core/event/events.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "platform/input/events.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
-#include "platform/window/resolution.h"
 #include "platform/window/window.h"
 
 namespace ptgn {
 
-void InputHandler::EmitEvents() {
+void InputHandler::PollEvents(const EventSink& sink) {
 	SDL_Event e;
 
 	while (SDL_PollEvent(&e)) {
@@ -33,7 +30,7 @@ void InputHandler::EmitEvents() {
 				move.position	= new_mouse_position;
 				move.difference = { e.motion.xrel, e.motion.yrel };
 
-				ctx_->events.Emit(move);
+				sink(move);
 				break;
 			}
 			case SDL_EVENT_MOUSE_BUTTON_DOWN: {
@@ -53,7 +50,7 @@ void InputHandler::EmitEvents() {
 					down.held = true;
 				}
 
-				ctx_->events.Emit(down);
+				sink(down);
 				break;
 			}
 			case SDL_EVENT_MOUSE_BUTTON_UP: {
@@ -69,7 +66,7 @@ void InputHandler::EmitEvents() {
 					mouse_timestamps_[index] = e.button.timestamp;
 					mouse_states_[index]	 = MouseState::Up;
 
-					ctx_->events.Emit(up);
+					sink(up);
 				}
 
 				break;
@@ -89,7 +86,7 @@ void InputHandler::EmitEvents() {
 					down.held = true;
 				}
 
-				ctx_->events.Emit(down);
+				sink(down);
 				break;
 			}
 			case SDL_EVENT_KEY_UP: {
@@ -101,7 +98,7 @@ void InputHandler::EmitEvents() {
 					ptgn::KeyUp up;
 					up.key = static_cast<Key>(index);
 
-					ctx_->events.Emit(up);
+					sink(up);
 				}
 				break;
 			}
@@ -116,12 +113,12 @@ void InputHandler::EmitEvents() {
 				scroll.scroll	= mouse_scroll_;
 				scroll.position = mouse_position_;
 
-				ctx_->events.Emit(scroll);
+				sink(scroll);
 				break;
 			}
 			case SDL_EVENT_QUIT: {
-				ctx_->events.Emit(WindowQuit{});
-				ctx_->Stop();
+				WindowQuit quit{};
+				sink(quit);
 				break;
 			}
 			case SDL_EVENT_WINDOW_RESIZED: {
@@ -129,7 +126,7 @@ void InputHandler::EmitEvents() {
 
 				resized.size = { e.window.data1, e.window.data2 };
 
-				ctx_->events.Emit(resized);
+				sink(resized);
 				break;
 			}
 			case SDL_EVENT_WINDOW_MAXIMIZED: {
@@ -137,7 +134,7 @@ void InputHandler::EmitEvents() {
 
 				maximized.size = { e.window.data1, e.window.data2 };
 
-				ctx_->events.Emit(maximized);
+				sink(maximized);
 				break;
 			}
 			case SDL_EVENT_WINDOW_MINIMIZED: {
@@ -145,7 +142,7 @@ void InputHandler::EmitEvents() {
 
 				minimized.size = { e.window.data1, e.window.data2 };
 
-				ctx_->events.Emit(minimized);
+				sink(minimized);
 				break;
 			}
 			case SDL_EVENT_WINDOW_MOVED: {
@@ -153,15 +150,17 @@ void InputHandler::EmitEvents() {
 
 				moved.position = { e.window.data1, e.window.data2 };
 
-				ctx_->events.Emit(moved);
+				sink(moved);
 				break;
 			}
 			case SDL_EVENT_WINDOW_FOCUS_LOST: {
-				ctx_->events.Emit(WindowFocusLost{});
+				WindowFocusLost focus{};
+				sink(focus);
 				break;
 			}
 			case SDL_EVENT_WINDOW_FOCUS_GAINED: {
-				ctx_->events.Emit(WindowFocusGained{});
+				WindowFocusGained focus{};
+				sink(focus);
 				break;
 			}
 			default: break;
@@ -179,7 +178,7 @@ void InputHandler::EmitEvents() {
 			down.held	  = true;
 			down.position = mouse_position_;
 
-			ctx_->events.Emit(down);
+			sink(down);
 		}
 	}
 
@@ -201,11 +200,11 @@ void InputHandler::EmitEvents() {
 		move.position	= mouse_position_;
 		move.difference = difference;
 
-		ctx_->events.Emit(move);
+		sink(move);
 	}
 }
 
-void InputHandler::Update() {
+void InputHandler::Update(const EventSink& sink) {
 	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
 		if (key_states_[i] == KeyState::Up) {
 			key_timestamps_[i] = SDL_GetTicks();
@@ -234,68 +233,65 @@ void InputHandler::Update() {
 		}
 	}
 
-	EmitEvents();
+	PollEvents(sink);
 }
 
-V2_float InputHandler::GetPositionRelativeTo(
-	V2_float window_position, ViewportType relative_to, bool clamp_to_viewport
-) const {
-	// TODO: Move into a resolution manager.
-	/*
-	V2_float window_center{ window_.GetSize() / 2 };
+// V2_float InputHandler::GetPositionRelativeTo(
+//	V2_float window_position, ViewportType relative_to, bool clamp_to_viewport
+//) const {
+//  TODO: Move into a resolution manager.
+/*
+V2_float window_center{ window_.GetSize() / 2 };
 
-	V2_float window_point{ window_position };
+V2_float window_point{ window_position };
 
-	// Make position relative to the center of the window.
-	window_point -= window_center;
+// Make position relative to the center of the window.
+window_point -= window_center;
 
-	switch (relative_to) {
-		case ViewportType::World: {
-			auto game_scale{ renderer_.GetScale() };
-			auto current{ scenes_.GetCurrent() };
-			PTGN_ASSERT(current != nullptr);
-			auto rt_transform{ GetTransform(current->GetRenderTarget()) };
-			return WindowToWorld(game_scale, rt_transform, window_point, current->camera);
+switch (relative_to) {
+	case ViewportType::World: {
+		auto game_scale{ renderer_.GetScale() };
+		auto current{ scenes_.GetCurrent() };
+		PTGN_ASSERT(current != nullptr);
+		auto rt_transform{ GetTransform(current->GetRenderTarget()) };
+		return WindowToWorld(game_scale, rt_transform, window_point, current->camera);
+	}
+	case ViewportType::Game: {
+		auto game_scale{ renderer_.GetScale() };
+		auto game_point{ WindowToGame(game_scale, window_point) };
+		if (clamp_to_viewport) {
+			auto game_size{ renderer_.GetGameSize() };
+			auto half_size{ game_size * 0.5f };
+			game_point = Clamp(game_point, -half_size, half_size);
 		}
-		case ViewportType::Game: {
-			auto game_scale{ renderer_.GetScale() };
-			auto game_point{ WindowToGame(game_scale, window_point) };
-			if (clamp_to_viewport) {
-				auto game_size{ renderer_.GetGameSize() };
-				auto half_size{ game_size * 0.5f };
-				game_point = Clamp(game_point, -half_size, half_size);
-			}
-			return game_point;
+		return game_point;
+	}
+	case ViewportType::Display: {
+		auto display_point{ WindowToDisplay(window_point) };
+		if (clamp_to_viewport) {
+			auto display_size{ renderer_.GetDisplaySize() };
+			auto half_size{ display_size * 0.5f };
+			display_point = Clamp(display_point, -half_size, half_size);
 		}
-		case ViewportType::Display: {
-			auto display_point{ WindowToDisplay(window_point) };
-			if (clamp_to_viewport) {
-				auto display_size{ renderer_.GetDisplaySize() };
-				auto half_size{ display_size * 0.5f };
-				display_point = Clamp(display_point, -half_size, half_size);
-			}
-			return display_point;
-		}
-		case ViewportType::WindowCenter:  return window_point;
-		case ViewportType::WindowTopLeft: return window_position;
-		default:						  PTGN_ERROR("Unrecognized viewport type");
-	}*/
-	return window_position;
-}
+		return display_point;
+	}
+	case ViewportType::WindowCenter:  return window_point;
+	case ViewportType::WindowTopLeft: return window_position;
+	default:						  PTGN_ERROR("Unrecognized viewport type");
+}*/
+//	return window_position;
+//}
 
-void InputHandler::SetContext(const std::shared_ptr<ApplicationContext>& ctx) {
-	ctx_ = ctx;
-}
+// V2_float InputHandler::GetMouseScreenPosition() const {
+//	V2_float mouse_screen_pos;
+//	// SDL_PumpEvents not required as this function queries the OS directly.
+//	SDL_GetGlobalMouseState(&mouse_screen_pos.x, &mouse_screen_pos.y);
+//	V2_float window_pos{ ctx_->window.GetPosition() };
+//	mouse_screen_pos -= window_pos;
+//	return mouse_screen_pos;
+// }
 
-V2_float InputHandler::GetMouseScreenPosition() const {
-	V2_float mouse_screen_pos;
-	// SDL_PumpEvents not required as this function queries the OS directly.
-	SDL_GetGlobalMouseState(&mouse_screen_pos.x, &mouse_screen_pos.y);
-	V2_float window_pos{ ctx_->window.GetPosition() };
-	mouse_screen_pos -= window_pos;
-	return mouse_screen_pos;
-}
-
+/*
 V2_float InputHandler::GetMousePosition(ViewportType relative_to, bool clamp_to_viewport) const {
 	V2_float mouse_window_pos{ mouse_position_ };
 
@@ -316,6 +312,7 @@ V2_float InputHandler::GetMousePositionDifference(ViewportType relative_to, bool
 	return GetMousePosition(relative_to, clamp_to_viewport) -
 		   GetMousePositionPrevious(relative_to, clamp_to_viewport);
 }
+*/
 
 int InputHandler::GetMouseScroll() const {
 	return mouse_scroll_delta_.y;

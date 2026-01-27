@@ -281,6 +281,8 @@ private:
 	Scene* scene_{ nullptr };
 };
 
+[[nodiscard]] std::size_t Hash(const Entity& entity);
+
 } // namespace ptgn
 
 namespace std {

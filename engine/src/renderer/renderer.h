@@ -9,9 +9,9 @@
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/window/resolution.h"
-#include "runtime/ecs/components/origin.h"
+#include "renderer/viewport.h"
 
 namespace ptgn {
 

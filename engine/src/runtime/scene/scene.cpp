@@ -1,7 +1,7 @@
 #include "runtime/scene/scene.h"
 
 #include "app/context.h"
-#include "core/event/event.h"
+#include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
 #include "nlohmann/json.hpp"
 #include "runtime/ecs/components/uuid.h"

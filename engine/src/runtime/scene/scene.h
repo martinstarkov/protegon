@@ -3,7 +3,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "core/event/event.h"
+#include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"

@@ -1,4 +1,4 @@
-#include "runtime/ecs/components/origin.h"
+#include "core/math/geometry/origin.h"
 
 #include "core/log.h"
 #include "core/math/vector2.h"

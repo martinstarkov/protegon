@@ -3,7 +3,7 @@
 #include <array>
 
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/origin.h"
+#include "core/math/geometry/origin.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {

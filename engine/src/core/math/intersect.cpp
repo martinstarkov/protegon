@@ -18,7 +18,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/overlap.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/transform.h"
+#include "core/math/transform.h"
 
 #define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \

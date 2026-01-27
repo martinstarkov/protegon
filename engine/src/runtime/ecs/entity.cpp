@@ -218,4 +218,8 @@ void from_json(const json& j, Entity& entity) {
 	}*/
 }
 
+std::size_t Hash(const Entity& entity) {
+	return std::hash<Entity>()(entity);
+}
+
 } // namespace ptgn

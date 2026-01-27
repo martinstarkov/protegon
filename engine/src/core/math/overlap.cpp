@@ -18,8 +18,8 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/math_utils.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/transform.h"
 
 #define PTGN_HANDLE_OVERLAP_SOLO_PAIR(TypeA, TypeB, PREFIX)                 \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \

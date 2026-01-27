@@ -23,12 +23,8 @@ std::string FileToString(const path& file) {
 	return buffer.str();
 }
 
-path GetExecutablePath() {
+path GetWorkingDirectory() {
 	return fs::current_path();
-}
-
-path GetExecutableDirectory() {
-	return GetExecutablePath().parent_path();
 }
 
 path MergePaths(const path& pathA, const path& pathB) {

@@ -7,7 +7,7 @@
 #include "core/math/tolerance.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "runtime/ecs/components/transform.h"
+#include "core/math/transform.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
