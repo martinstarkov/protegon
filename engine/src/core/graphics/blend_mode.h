@@ -8,6 +8,12 @@
 namespace ptgn {
 
 enum class BlendMode {
+	// Aka no blending.
+	ReplaceRGBA,
+	/**< Replace RGBA:
+		 dstRGB = srcRGB
+		 dstA   = srcA */
+
 	Blend,
 	/**< Alpha blending:
 		 dstRGB = srcRGB * srcA + dstRGB * (1 - srcA)
@@ -17,12 +23,6 @@ enum class BlendMode {
 	/**< Premultiplied alpha blending:
 		 dstRGB = srcRGB + dstRGB * (1 - srcA)
 		 dstA = srcA + dstA * (1 - srcA) */
-
-	// Aka no blending.
-	ReplaceRGBA,
-	/**< Replace RGBA:
-		 dstRGB = srcRGB
-		 dstA   = srcA */
 
 	ReplaceRGB,
 	/**< Replace RGB:

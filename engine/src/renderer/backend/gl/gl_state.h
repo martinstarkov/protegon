@@ -1,5 +1,6 @@
 #pragma once
 
+#include <variant>
 #include <vector>
 
 #include "core/graphics/blend_mode.h"
@@ -40,14 +41,14 @@ struct StencilState {
 	bool operator==(const StencilState&) const = default;
 };
 
-struct DepthState {
+struct DepthTestState {
 	GLboolean test{ GL_FALSE };
 	GLboolean write{ GL_TRUE };
 	GLenum func{ GL_LESS };
 	GLfloat range_near{ 0.0f };
 	GLfloat range_far{ 1.0f };
 
-	bool operator==(const DepthState&) const = default;
+	bool operator==(const DepthTestState&) const = default;
 };
 
 struct ColorMaskState {
@@ -76,35 +77,103 @@ struct CullState {
 	bool operator==(const CullState&) const = default;
 };
 
+using TextureUnits = std::vector<TextureUnitState>;
+
+struct FramebufferBinding {
+	GLuint value{ 0 };
+	bool operator==(const FramebufferBinding&) const = default;
+};
+
+struct RenderbufferBinding {
+	GLuint value{ 0 };
+	bool operator==(const RenderbufferBinding&) const = default;
+};
+
+struct VertexBufferBinding {
+	GLuint value{ 0 };
+	bool operator==(const VertexBufferBinding&) const = default;
+};
+
+struct UniformBufferBinding {
+	GLuint value{ 0 };
+	bool operator==(const UniformBufferBinding&) const = default;
+};
+
+struct ShaderBinding {
+	GLuint value{ 0 };
+	bool operator==(const ShaderBinding&) const = default;
+};
+
+struct VertexArrayBinding {
+	GLuint value{ 0 };
+	bool operator==(const VertexArrayBinding&) const = default;
+};
+
+struct BlendingEnabled {
+	GLboolean value{ GL_FALSE };
+	bool operator==(const BlendingEnabled&) const = default;
+};
+
+struct ActiveTextureSlot {
+	GLuint value{ 0 };
+	bool operator==(const ActiveTextureSlot&) const = default;
+};
+
+struct ClearColor {
+	Color value{};
+	bool operator==(const ClearColor&) const = default;
+};
+
+struct PolygonModeFront {
+	GLenum value{ GL_FILL };
+	bool operator==(const PolygonModeFront&) const = default;
+};
+
+struct PolygonModeBack {
+	GLenum value{ GL_FILL };
+	bool operator==(const PolygonModeBack&) const = default;
+};
+
+struct LineWidth {
+	GLfloat value{ 1.0f };
+	bool operator==(const LineWidth&) const = default;
+};
+
+using StateChange = std::variant<
+	FramebufferBinding, RenderbufferBinding, VertexBufferBinding, UniformBufferBinding,
+	ShaderBinding, VertexArrayBinding, Viewport, DepthTestState, BlendMode, BlendingEnabled,
+	ColorMaskState, ActiveTextureSlot, TextureUnits, ClearColor, ScissorState, PolygonModeFront,
+	PolygonModeBack, LineWidth, CullState, StencilState>;
+
 struct State {
 	// Core object bindings
-	GLuint framebuffer{ 0 };
-	GLuint renderbuffer{ 0 };
-	GLuint vertex_buffer{ 0 };
-	GLuint uniform_buffer{ 0 };
-	GLuint shader{ 0 };
-	GLuint vertex_array{ 0 };
+	FramebufferBinding framebuffer;
+	RenderbufferBinding renderbuffer;
+	VertexBufferBinding vertex_buffer;
+	UniformBufferBinding uniform_buffer;
+	ShaderBinding shader;
+	VertexArrayBinding vertex_array;
 
 	Viewport viewport;
 
-	DepthState depth;
+	DepthTestState depth;
 
 	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
-	GLboolean blending{ GL_FALSE };
+	BlendingEnabled blending;
 
 	ColorMaskState color_mask;
 
-	GLuint active_texture_slot{ 0 };
-	std::vector<TextureUnitState> texture_units;
+	ActiveTextureSlot active_texture_slot;
+	TextureUnits texture_units;
 
-	Color clear_color;
+	ClearColor clear_color;
 
 	ScissorState scissor;
 
 	// Polygon rasterization
-	GLenum polygon_mode_front{ GL_FILL };
-	GLenum polygon_mode_back{ GL_FILL };
-	GLfloat line_width{ 1.0f };
+	PolygonModeFront polygon_mode_front;
+	PolygonModeBack polygon_mode_back;
+	LineWidth line_width;
 
 	CullState cull;
 
