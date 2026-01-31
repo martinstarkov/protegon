@@ -225,6 +225,12 @@ GL_LIST_3
 
 #endif
 
+namespace ptgn::impl::gl {
+
+void LoadGLFunctions();
+
+} // namespace ptgn::impl::gl
+
 #ifdef PTGN_DEBUG
 
 namespace ptgn::impl::gl {

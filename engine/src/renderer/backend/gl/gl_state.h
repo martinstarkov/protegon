@@ -80,63 +80,147 @@ struct CullState {
 using TextureUnits = std::vector<TextureUnitState>;
 
 struct FramebufferBinding {
+	FramebufferBinding() = default;
+
+	FramebufferBinding(GLuint value) : value{ value } {}
+
 	GLuint value{ 0 };
-	bool operator==(const FramebufferBinding&) const = default;
+
+	operator GLuint() const {
+		return value;
+	}
 };
 
 struct RenderbufferBinding {
+	RenderbufferBinding() = default;
+
+	RenderbufferBinding(GLuint value) : value{ value } {}
+
 	GLuint value{ 0 };
-	bool operator==(const RenderbufferBinding&) const = default;
+
+	operator GLuint() const {
+		return value;
+	}
 };
 
 struct VertexBufferBinding {
+	VertexBufferBinding() = default;
+
+	VertexBufferBinding(GLuint value) : value{ value } {}
+
 	GLuint value{ 0 };
-	bool operator==(const VertexBufferBinding&) const = default;
+
+	operator GLuint() const {
+		return value;
+	}
 };
 
 struct UniformBufferBinding {
+	UniformBufferBinding() = default;
+
+	UniformBufferBinding(GLuint value) : value{ value } {}
+
 	GLuint value{ 0 };
-	bool operator==(const UniformBufferBinding&) const = default;
+
+	operator GLuint() const {
+		return value;
+	}
 };
 
 struct ShaderBinding {
+	ShaderBinding() = default;
+
+	ShaderBinding(GLuint value) : value{ value } {}
+
 	GLuint value{ 0 };
-	bool operator==(const ShaderBinding&) const = default;
+
+	operator GLuint() const {
+		return value;
+	}
 };
 
 struct VertexArrayBinding {
+	VertexArrayBinding() = default;
+
+	VertexArrayBinding(GLuint value) : value{ value } {}
+
 	GLuint value{ 0 };
-	bool operator==(const VertexArrayBinding&) const = default;
+
+	operator GLuint() const {
+		return value;
+	}
 };
 
 struct BlendingEnabled {
+	BlendingEnabled() = default;
+
+	BlendingEnabled(GLboolean value) : value{ value } {}
+
 	GLboolean value{ GL_FALSE };
-	bool operator==(const BlendingEnabled&) const = default;
+
+	operator GLboolean() const {
+		return value;
+	}
 };
 
 struct ActiveTextureSlot {
+	ActiveTextureSlot() = default;
+
+	ActiveTextureSlot(GLuint value) : value{ value } {}
+
 	GLuint value{ 0 };
-	bool operator==(const ActiveTextureSlot&) const = default;
+
+	operator GLuint() const {
+		return value;
+	}
 };
 
 struct ClearColor {
+	ClearColor() = default;
+
+	ClearColor(Color value) : value{ value } {}
+
 	Color value{};
-	bool operator==(const ClearColor&) const = default;
+
+	operator Color() const {
+		return value;
+	}
 };
 
 struct PolygonModeFront {
+	PolygonModeFront() = default;
+
+	PolygonModeFront(GLenum value) : value{ value } {}
+
 	GLenum value{ GL_FILL };
-	bool operator==(const PolygonModeFront&) const = default;
+
+	operator GLenum() const {
+		return value;
+	}
 };
 
 struct PolygonModeBack {
+	PolygonModeBack() = default;
+
+	PolygonModeBack(GLenum value) : value{ value } {}
+
 	GLenum value{ GL_FILL };
-	bool operator==(const PolygonModeBack&) const = default;
+
+	operator GLenum() const {
+		return value;
+	}
 };
 
 struct LineWidth {
+	LineWidth() = default;
+
+	LineWidth(float value) : value{ value } {}
+
 	GLfloat value{ 1.0f };
-	bool operator==(const LineWidth&) const = default;
+
+	operator GLfloat() const {
+		return value;
+	}
 };
 
 using StateChange = std::variant<

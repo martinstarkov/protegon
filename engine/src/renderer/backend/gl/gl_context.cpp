@@ -36,60 +36,6 @@ inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
 	return os;
 }
 
-// Must be called after SDL and window have been initialized.
-static void LoadGLFunctions() {
-#ifdef PTGN_PLATFORM_MACOS
-	return;
-#else
-
-#define GLE(name, caps_name) \
-	name =                   \
-		reinterpret_cast<PFNGL##caps_name##PROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)));
-	GL_LIST_1
-#undef GLE
-
-#ifndef __EMSCRIPTEN__
-
-#define GLE(name, caps_name) \
-	name =                   \
-		reinterpret_cast<PFNGL##caps_name##PROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name)));
-	GL_LIST_2
-	GL_LIST_3
-#undef GLE
-
-#else
-
-#define GLE(name, caps_name)                                                                       \
-	name =                                                                                         \
-		reinterpret_cast<PFNGL##caps_name##OESPROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name) \
-		));
-	GL_LIST_2
-#undef GLE
-#define GLE(name, caps_name)                                                                       \
-	name =                                                                                         \
-		reinterpret_cast<PFNGL##caps_name##EXTPROC>(SDL_GL_GetProcAddress(PTGN_STRINGIFY(gl##name) \
-		));
-	GL_LIST_3
-#undef GLE
-
-#endif
-
-	// For debugging which commands were not initialized.
-#define GLE(name, caps_name) PTGN_ASSERT(name, "Failed to load ", PTGN_STRINGIFY(name));
-	GL_LIST_1
-	GL_LIST_2
-	GL_LIST_3
-#undef GLE
-
-	// Check that each of the loaded gl functions was found.
-#define GLE(name, caps_name) name&&
-	bool gl_init = GL_LIST_1 GL_LIST_2 GL_LIST_3 true;
-#undef GLE
-	PTGN_ASSERT(gl_init, "Failed to load OpenGL functions");
-	PTGN_INFO("Loaded all OpenGL functions");
-#endif
-}
-
 // TODO: Move all this code to a shader parsing file.
 
 using Header = std::string;
