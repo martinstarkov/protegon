@@ -89,10 +89,11 @@ public:
 	[[nodiscard]] V2_int GetCanvasSize() const;
 #endif
 
+	// TODO: Move to private.
+	operator SDL_Window*() const;
+
 private:
 	friend class impl::gl::GLContext;
-
-	operator SDL_Window*() const;
 
 	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
 	// to the window, and there will be continuous relative mouse motion events triggered even if

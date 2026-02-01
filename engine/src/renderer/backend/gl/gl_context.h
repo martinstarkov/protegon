@@ -506,12 +506,13 @@ public:
 			GLCall(EnableVertexAttribArray(i));
 			if (element.is_integer) {
 				GLCall(VertexAttribIPointer(
-					i, element.count, element.type, stride,
+					i, element.count, ToGLType(element.type), stride,
 					reinterpret_cast<const void*>(element.offset)
 				));
 			} else {
 				GLCall(VertexAttribPointer(
-					i, element.count, element.type, element.normalized ? GL_TRUE : GL_FALSE, stride,
+					i, element.count, ToGLType(element.type),
+					element.normalized ? GL_TRUE : GL_FALSE, stride,
 					reinterpret_cast<const void*>(element.offset)
 				));
 			}
@@ -1699,6 +1700,21 @@ private:
 
 	SDL_GLContextState* context_{ nullptr };
 };
+
+constexpr GLenum ToGLType(BufferElementType type) noexcept {
+	switch (type) {
+		case BufferElementType::Float:	return GL_FLOAT;
+		case BufferElementType::Double: return GL_DOUBLE;
+		case BufferElementType::Int:	return GL_INT;
+		case BufferElementType::UInt:	return GL_UNSIGNED_INT;
+		case BufferElementType::Short:	return GL_SHORT;
+		case BufferElementType::UShort: return GL_UNSIGNED_SHORT;
+		case BufferElementType::Byte:	return GL_BYTE;
+		case BufferElementType::UByte:	return GL_UNSIGNED_BYTE;
+		case BufferElementType::Bool:	return GL_BOOL;
+	}
+	return GL_FLOAT;
+}
 
 template <GLResource R>
 BindGuard<R>::~BindGuard() noexcept {
