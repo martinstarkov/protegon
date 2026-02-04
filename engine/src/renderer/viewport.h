@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/math/vector2.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 
@@ -18,6 +19,14 @@ enum class ScalingMode {
 				   */
 };
 
+PTGN_SERIALIZE_ENUM(
+	ScalingMode, { { ScalingMode::Disabled, "disabled" },
+				   { ScalingMode::Stretch, "stretch" },
+				   { ScalingMode::Letterbox, "letterbox" },
+				   { ScalingMode::Overscan, "overscan" },
+				   { ScalingMode::IntegerScale, "integer_scale" } }
+);
+
 enum class ViewportType {
 	Game,
 	Display,
@@ -25,6 +34,14 @@ enum class ViewportType {
 	WindowCenter,
 	WindowTopLeft
 };
+
+PTGN_SERIALIZE_ENUM(
+	ViewportType, { { ViewportType::Game, "game" },
+					{ ViewportType::Display, "display" },
+					{ ViewportType::World, "world" },
+					{ ViewportType::WindowCenter, "window_center" },
+					{ ViewportType::WindowTopLeft, "window_top_left" } }
+);
 
 /*
 [[nodiscard]] V2_float DisplayToGame(V2_float game_scale, V2_float display_point);

@@ -263,6 +263,11 @@ public:
 		return shader;
 	}
 
+	/// @param pixel_data_format Accepted: GL_RED, GL_RG, GL_RGB, GL_BGR, GL_RGBA, GL_BGRA,
+	/// GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_BGR_INTEGER, GL_RGBA_INTEGER,
+	/// GL_BGRA_INTEGER, GL_STENCIL_INDEX, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL
+	/// @param internal_format Accepted: GL_RGBA, GL_RGB, GL_RG, GL_RED, GL_DEPTH_STENCIL,
+	/// GL_DEPTH_COMPONENT
 	template <bool kRestoreBind = true>
 	StrongGLHandle<Texture> CreateTexture(
 		const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type, V2_int size,
@@ -1069,7 +1074,9 @@ private:
 
 		if (attachment >= GL_COLOR_ATTACHMENT0 && attachment < GL_COLOR_ATTACHMENT0 + 8) {
 			auto idx{ attachment - GL_COLOR_ATTACHMENT0 };
-			PTGN_ASSERT(idx > 0 && idx < cache.color.size(), "Color attachment out of valid range");
+			PTGN_ASSERT(
+				idx >= 0 && idx < cache.color.size(), "Color attachment out of valid range"
+			);
 			return cache.color[idx];
 		} else if (attachment == GL_DEPTH_ATTACHMENT) {
 			return cache.depth;
@@ -1434,6 +1441,11 @@ private:
 		cache.internal_format = internal_format;
 	}
 
+	/// @param pixel_data_format Accepted: GL_RED, GL_RG, GL_RGB, GL_BGR, GL_RGBA, GL_BGRA,
+	/// GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_BGR_INTEGER, GL_RGBA_INTEGER,
+	/// GL_BGRA_INTEGER, GL_STENCIL_INDEX, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL
+	/// @param internal_format Accepted: GL_RGBA, GL_RGB, GL_RG, GL_RED, GL_DEPTH_STENCIL,
+	/// GL_DEPTH_COMPONENT
 	void SetTextureData(
 		GLuint texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
 		V2_int size, GLenum internal_format

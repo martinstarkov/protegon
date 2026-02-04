@@ -16,11 +16,8 @@
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/vertex.h"
-
-class Renderer {
-public:
-};
 
 int main() {
 	using namespace ptgn;
@@ -40,23 +37,7 @@ int main() {
 	ptgn::Window window{ "Title", { 1280, 720 } };
 	window.SetSetting(WindowSetting::Shown);
 
-	impl::gl::GLContext gl_{ window };
-
-	auto quad_shader = gl_.GetShader("quad");
-
-	std::uint32_t batch_capacity{ 4000 };
-	std::uint32_t vertex_capacity{ 4 * batch_capacity };
-	std::uint32_t index_capacity{ 6 * batch_capacity };
-
-	using Index = std::uint32_t;
-
-	auto ebo = gl_.CreateElementBuffer(nullptr, index_capacity, sizeof(Index), GL_DYNAMIC_DRAW);
-	auto vbo =
-		gl_.CreateVertexBuffer(nullptr, vertex_capacity, sizeof(impl::Vertex), GL_DYNAMIC_DRAW);
-
-	auto vao = gl_.CreateVertexArray(vbo, impl::Vertex::GetLayout(), ebo);
-
-	Renderer renderer;
+	Renderer renderer{ window };
 
 	bool running = true;
 

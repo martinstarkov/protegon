@@ -4,13 +4,101 @@
 
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/resources/vertex.h"
 
 namespace ptgn {
 
+namespace impl {
+
+std::array<V2_float, 4> GetTextureCoordinates(
+	V2_float source_position, V2_float source_size, V2_float texture_size, bool offset_texels
+) {
+	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
+	PTGN_ASSERT(texture_size.y > 0.0f, "Texture must have height > 0");
+
+	PTGN_ASSERT(
+		source_position.x < texture_size.x, "Source position X must be within texture width"
+	);
+	PTGN_ASSERT(
+		source_position.y < texture_size.y, "Source position Y must be within texture height"
+	);
+
+	V2_float size{ source_size };
+
+	if (size.IsZero()) {
+		size = texture_size - source_position;
+	}
+
+	// Convert to 0 -> 1 range.
+	V2_float src_pos{ source_position / texture_size };
+	V2_float src_size{ size / texture_size };
+
+	if (src_size.x > 1.0f || src_size.y > 1.0f) {
+		PTGN_WARN("Drawing source size from outside of texture size");
+	}
+
+	V2_float half_pixel{ (offset_texels ? 0.5f : 0.0f) / texture_size };
+
+	std::array<V2_float, 4> texture_coordinates{
+		src_pos + half_pixel,
+		V2_float{ src_pos.x + src_size.x - half_pixel.x, src_pos.y + half_pixel.y },
+		src_pos + src_size - half_pixel,
+		V2_float{ src_pos.x + half_pixel.x, src_pos.y + src_size.y - half_pixel.y },
+	};
+
+	return texture_coordinates;
+}
+
+void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
+	const auto flip_x = [&]() {
+		std::swap(texture_coords[0].x, texture_coords[1].x);
+		std::swap(texture_coords[2].x, texture_coords[3].x);
+	};
+	const auto flip_y = [&]() {
+		std::swap(texture_coords[0].y, texture_coords[3].y);
+		std::swap(texture_coords[1].y, texture_coords[2].y);
+	};
+	switch (flip) {
+		case Flip::None:	   break;
+		case Flip::Horizontal: flip_x(); break;
+		case Flip::Vertical:   flip_y(); break;
+		case Flip::Both:
+			flip_x();
+			flip_y();
+			break;
+		default: PTGN_ERROR("Unrecognized flip state");
+	}
+}
+
+} // namespace impl
+
 Renderer::Renderer(Window& window) :
-	game_size_{ window.GetSize() },
-	window_{ window },
-	gl_{ std::make_unique<impl::gl::GLContext>(window) } {
+	window_{ window }, gl_{ std::make_unique<impl::gl::GLContext>(window) } {
+	ebo = gl_->CreateElementBuffer(
+		nullptr, impl::index_capacity, sizeof(impl::Index), GL_DYNAMIC_DRAW
+	);
+
+	vbo = gl_->CreateVertexBuffer(
+		nullptr, impl::vertex_capacity, sizeof(impl::Vertex), GL_DYNAMIC_DRAW
+	);
+
+	vao = gl_->CreateVertexArray(vbo, impl::Vertex::GetLayout(), ebo);
+
+	white_texture = gl_->CreateTexture(
+		static_cast<const void*>(&color::White), GL_RGBA, GL_UNSIGNED_INT, { 1, 1 }, GL_RGBA
+	);
+
+	auto window_size = window.GetSize();
+
+	screen_texture = gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
+
+	screen_fbo = gl_->CreateFrameBuffer(screen_texture);
+	// TODO: Make batching system.
+	// TODO: Make ping pong system.
+	// TODO: Make render target pooling system.
+	// TODO: Make queued command system.
+	// TODO: Make fork pipeline system.
+
 	/*
 	RecomputeDisplaySize(window_.GetSize());
 
@@ -43,17 +131,6 @@ Renderer::Renderer(Window& window) :
 		quad_shader, "u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
 	);
 
-	auto quad_ib{ gl_->CreateElementBuffer(
-		nullptr, index_capacity, static_cast<std::uint32_t>(sizeof(Index)), GL_DYNAMIC_DRAW
-	) };
-	auto quad_vb{ gl_->CreateVertexBuffer(
-		nullptr, vertex_capacity, static_cast<std::uint32_t>(sizeof(Vertex)), GL_DYNAMIC_DRAW
-	) };
-
-	triangle_vao =
-		gl_->CreateVertexArray(std::move(quad_vb), Vertex::GetLayout(), std::move(quad_ib));
-
-	white_texture = Texture(static_cast<const void*>(&color::White), { 1, 1 });
 	white_texture.Bind(0);
 	Texture::SetActiveSlot(1);
 
@@ -243,9 +320,6 @@ graph.AddPass({
 
 graph.Execute();
 
-*/
-
-/*
 namespace impl {
 
 static impl::gl::Handle<impl::gl::Shader> GetFullscreenShader(impl::gl::GLContext& gl, bool hdr) {
@@ -332,67 +406,6 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat tex
 	spare_context->timer.Start(true);
 
 	return spare_context;
-}
-
-std::array<V2_float, 4> GetTextureCoordinates(
-	V2_float source_position, V2_float source_size, V2_float texture_size,
-	bool offset_texels
-) {
-	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
-	PTGN_ASSERT(texture_size.y > 0.0f, "Texture must have height > 0");
-
-	PTGN_ASSERT(
-		source_position.x < texture_size.x, "Source position X must be within texture width"
-	);
-	PTGN_ASSERT(
-		source_position.y < texture_size.y, "Source position Y must be within texture height"
-	);
-
-	V2_float size{ source_size };
-
-	if (size.IsZero()) {
-		size = texture_size - source_position;
-	}
-
-	// Convert to 0 -> 1 range.
-	V2_float src_pos{ source_position / texture_size };
-	V2_float src_size{ size / texture_size };
-
-	if (src_size.x > 1.0f || src_size.y > 1.0f) {
-		PTGN_WARN("Drawing source size from outside of texture size");
-	}
-
-	V2_float half_pixel{ (offset_texels ? 0.5f : 0.0f) / texture_size };
-
-	std::array<V2_float, 4> texture_coordinates{
-		src_pos + half_pixel,
-		V2_float{ src_pos.x + src_size.x - half_pixel.x, src_pos.y + half_pixel.y },
-		src_pos + src_size - half_pixel,
-		V2_float{ src_pos.x + half_pixel.x, src_pos.y + src_size.y - half_pixel.y },
-	};
-
-	return texture_coordinates;
-}
-
-void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
-	const auto flip_x = [&]() {
-		std::swap(texture_coords[0].x, texture_coords[1].x);
-		std::swap(texture_coords[2].x, texture_coords[3].x);
-	};
-	const auto flip_y = [&]() {
-		std::swap(texture_coords[0].y, texture_coords[3].y);
-		std::swap(texture_coords[1].y, texture_coords[2].y);
-	};
-	switch (flip) {
-		case Flip::None:	   break;
-		case Flip::Horizontal: flip_x(); break;
-		case Flip::Vertical:   flip_y(); break;
-		case Flip::Both:
-			flip_x();
-			flip_y();
-			break;
-		default: PTGN_ERROR("Unrecognized flip state");
-	}
 }
 
 static float GetFade(float diameter_y) {
