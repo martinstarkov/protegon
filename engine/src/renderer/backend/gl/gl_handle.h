@@ -32,8 +32,7 @@ public:
 	}
 
 	operator Id() const {
-		PTGN_ASSERT(id_);
-		return *id_;
+		return id_ ? *id_ : 0;
 	}
 
 private:

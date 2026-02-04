@@ -7,6 +7,8 @@
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_handle.h"
+#include "renderer/backend/gl/gl_state.h"
+#include "renderer/resources/vertex.h"
 
 namespace ptgn {
 
@@ -58,13 +60,30 @@ public:
 	// TODO: Move to private.
 	std::unique_ptr<impl::gl::GLContext> gl_;
 
-	// Move to private.
+	// TODO: Move to private.
 	void FrameStart();
-	// Move to private.
+	// TODO: Move to private.
 	void Present();
+
+	void BindRenderTarget(
+		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
+		const impl::gl::Viewport& viewport
+	);
+
+	void DrawTexture(
+		impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center,
+		V2_float size
+	);
+
+	// TODO: Move to private.
+	impl::gl::StrongGLHandle<impl::gl::FrameBuffer> screen_fbo;
 
 private:
 	friend class Application;
+
+	void UploadQuad(const std::array<impl::Vertex, 4>& vertices);
+
+	void DrawQuad();
 
 	Window& window_;
 
@@ -74,7 +93,6 @@ private:
 	impl::gl::StrongGLHandle<impl::gl::Texture> white_texture;
 
 	impl::gl::StrongGLHandle<impl::gl::Texture> screen_texture;
-	impl::gl::StrongGLHandle<impl::gl::FrameBuffer> screen_fbo;
 };
 
 } // namespace ptgn

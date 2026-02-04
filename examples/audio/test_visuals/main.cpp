@@ -16,6 +16,7 @@
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/image/surface.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/vertex.h"
 
@@ -43,13 +44,19 @@ int main() {
 
 	auto window_size = window.GetSize();
 
+	impl::Surface texture1_surface{ "assets/logo.png" };
+
+	auto texture1 = renderer.gl_->CreateTexture(
+		texture1_surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, texture1_surface.size, GL_RGBA
+	);
+
 	auto scene_texture =
 		renderer.gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
 
 	auto scene_fbo = renderer.gl_->CreateFrameBuffer(scene_texture);
 
-	/*auto _ = renderer.gl_->Bind<impl::gl::FrameBuffer, false>(scene_fbo);
-	renderer.gl_->SetClearColor(color::Red);*/
+	auto _ = renderer.gl_->Bind<impl::gl::FrameBuffer, false>(scene_fbo);
+	renderer.gl_->ClearToColor(scene_fbo, color::Red);
 
 	// renderer.Clear(scene, { 0, 0, 0, 1 });
 
@@ -64,6 +71,16 @@ int main() {
 		}
 
 		renderer.FrameStart();
+
+		renderer.BindRenderTarget(
+			scene_fbo, { { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture) }
+		);
+		renderer.gl_->SetBlendMode(BlendMode::Blend);
+		renderer.DrawTexture(texture1, { 0, 0 }, renderer.gl_->GetTextureSize(texture1));
+		// TODO: Add batching of consecutive textures.
+
+		renderer.BindRenderTarget(renderer.screen_fbo, { { 0, 0 }, window_size });
+		renderer.DrawTexture(scene_texture, { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture));
 
 		renderer.Present();
 

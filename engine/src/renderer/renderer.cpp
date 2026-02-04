@@ -93,6 +93,9 @@ Renderer::Renderer(Window& window) :
 	screen_texture = gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
 
 	screen_fbo = gl_->CreateFrameBuffer(screen_texture);
+
+	BindRenderTarget(screen_fbo, { V2_int{ 0, 0 }, window_size });
+
 	// TODO: Make batching system.
 	// TODO: Make ping pong system.
 	// TODO: Make render target pooling system.
@@ -167,70 +170,99 @@ Renderer::~Renderer() noexcept {
 	// Needs to have access to GLContext destructor, forward declaration is not enough.
 }
 
+static constexpr std::array<impl::Index, 6> MakeQuadIndices() {
+	return { 0, 1, 2, 2, 3, 0 };
+}
+
+static std::array<V2_float, 4> MakeQuadPointsPixels(V2_float center, V2_float size) {
+	const V2_float h{ size.x * 0.5f, size.y * 0.5f };
+
+	return { center - h, center + V2_float{ h.x, -h.y }, center + h,
+			 center + V2_float{ -h.x, h.y } };
+}
+
+template <bool FlipY>
+static constexpr std::array<V2_float, 4> MakeTexCoords() {
+	if constexpr (!FlipY) {
+		return { V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f },
+				 V2_float{ 0.0f, 1.0f } };
+	} else {
+		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
+				 V2_float{ 0.0f, 0.0f } };
+	}
+}
+
+void Renderer::UploadQuad(const std::array<impl::Vertex, 4>& vertices) {
+	constexpr auto indices = MakeQuadIndices();
+
+	auto _vao = gl_->Bind<impl::gl::VertexArray, false>(vao);
+
+	gl_->SetBufferSubData<impl::gl::ElementBuffer>(
+		ebo, GL_ELEMENT_ARRAY_BUFFER, indices.data(), 0, static_cast<std::uint32_t>(indices.size()),
+		sizeof(impl::Index)
+	);
+
+	gl_->SetBufferSubData<impl::gl::VertexBuffer>(
+		vbo, GL_ARRAY_BUFFER, vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()),
+		sizeof(impl::Vertex)
+	);
+}
+
+void Renderer::DrawQuad() {
+	gl_->DrawElements(vao, 6, GL_UNSIGNED_INT, GL_TRIANGLES);
+}
+
+void Renderer::DrawTexture(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center, V2_float size
+) {
+	auto viewport{ gl_->GetViewport() };
+
+	auto half_viewport{ viewport.size * 0.5f };
+	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+
+	const auto& shader = gl_->GetShader("screen_default");
+	auto _shader	   = gl_->Bind<impl::gl::Shader, false>(shader);
+
+	gl_->SetActiveTextureSlot(0);
+	auto _tex = gl_->Bind<impl::gl::GLResource::Texture, false>(texture);
+	gl_->SetUniform(shader, "u_Texture", 0);
+	gl_->SetUniform(shader, "u_ViewProjection", view_projection);
+
+	auto quad_points		  = MakeQuadPointsPixels(center, size);
+	constexpr auto tex_coords = MakeTexCoords<false>();
+
+	constexpr float depth = 0.0f;
+	std::array<float, 4> data{ 0, 0, 0, 0 };
+
+	auto vertices = impl::Vertex::GetQuad(quad_points, color::White, depth, data, tex_coords);
+
+	UploadQuad(vertices);
+	DrawQuad();
+}
+
 void Renderer::FrameStart() {
 	auto _ = gl_->Bind<impl::gl::FrameBuffer, false>(screen_fbo);
+	gl_->SetClearColor(color::Transparent);
 	gl_->Clear();
 }
 
 void Renderer::Present() {
 	auto window_size = window_.GetSize();
 
-	auto _1 = gl_->Bind<impl::gl::GLResource::FrameBuffer, false>(0);
+	BindRenderTarget({}, { { 0, 0 }, window_size });
 
 	gl_->SetBlendMode(BlendMode::ReplaceRGBA);
 
 	// TODO: Consider if this should be something else? Display resolution?
-	impl::gl::Viewport viewport{ { 0, 0 }, window_size };
+	DrawTexture(screen_texture, { 0, 0 }, gl_->GetTextureSize(screen_texture));
+}
 
+void Renderer::BindRenderTarget(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
+	const impl::gl::Viewport& viewport
+) {
+	auto _ = gl_->Bind<impl::gl::GLResource::FrameBuffer, false>(framebuffer);
 	gl_->SetViewport(viewport);
-
-	gl_->SetActiveTextureSlot(0);
-	auto _2 = gl_->Bind<impl::gl::GLResource::Texture, false>(screen_texture);
-
-	const auto& screen_shader{ gl_->GetShader("screen_default") };
-
-	auto _3 = gl_->Bind<impl::gl::Shader, false>(screen_shader);
-
-	// TODO: Consider if this should be something else? Display resolution?
-	auto half_viewport{ viewport.size * 0.5f };
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-
-	gl_->SetUniform(screen_shader, "u_ViewProjection", view_projection);
-	gl_->SetUniform(screen_shader, "u_Texture", 0);
-
-	constexpr std::array<impl::Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
-
-	std::array<V2_float, 4> quad_points{
-		viewport.position - half_viewport,
-		viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
-		viewport.position + half_viewport,
-		viewport.position + V2_float{ -half_viewport.x, half_viewport.y }
-	};
-
-	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
-
-	std::array<float, 4> data = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-	constexpr float depth = 0.0f;
-	Color color			  = color::White;
-
-	auto quad_vertices = impl::Vertex::GetQuad(quad_points, color, depth, data, tex_coords);
-
-	auto _4 = gl_->Bind<impl::gl::VertexArray, false>(vao);
-
-	gl_->SetBufferSubData<impl::gl::ElementBuffer>(
-		ebo, GL_ELEMENT_ARRAY_BUFFER, quad_indices.data(), 0,
-		static_cast<std::uint32_t>(quad_indices.size()), sizeof(impl::Index)
-	);
-
-	gl_->SetBufferSubData<impl::gl::VertexBuffer>(
-		vbo, GL_ARRAY_BUFFER, quad_vertices.data(), 0,
-		static_cast<std::uint32_t>(quad_vertices.size()), sizeof(impl::Vertex)
-	);
-
-	gl_->DrawElements(
-		vao, static_cast<std::uint32_t>(quad_indices.size()), GL_UNSIGNED_INT, GL_TRIANGLES
-	);
 }
 
 } // namespace ptgn

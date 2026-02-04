@@ -441,6 +441,11 @@ public:
 		UpdateFrameBufferCache(framebuffer, texture, texture_attachment, GL_TEXTURE_2D);
 	}
 
+	V2_int GetTextureSize(GLuint texture) const {
+		PTGN_ASSERT(texture_cache_.Has(texture), "Texture not in cache");
+		return texture_cache_.Get(texture).size;
+	}
+
 	void AttachRenderBuffer(
 		GLuint framebuffer, GLuint renderbuffer, GLenum renderbuffer_attachment
 	) {
@@ -753,7 +758,7 @@ public:
 		// TODO: Update clear color state and add early exit if same.
 		// GLCall(glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 		auto c{ static_cast<V4_float>(color) };
-		GLCall(ClearBufferfv(GL_COLOR_BUFFER_BIT, 0, c.Data()));
+		GLCall(ClearBufferfv(GL_COLOR, 0, c.Data()));
 		/*
 		// TODO: Check image format of bound texture and potentially use glClearBufferuiv
 		instead of ClearBufferfv. GLCall(ClearBufferuiv(GL_COLOR, 0, color.Data()));
@@ -1255,8 +1260,8 @@ private:
 	) {
 		auto _1 = Bind<FrameBuffer, true>(framebuffer);
 
-		auto type  = GetAttachmentDataType(attachment);
-		auto& info = GetFrameBufferAttachment(framebuffer, attachment);
+		auto type		 = GetAttachmentDataType(attachment);
+		const auto& info = GetFrameBufferAttachment(framebuffer, attachment);
 		PTGN_ASSERT(info.id != 0, "No image attached to that attachment");
 
 		V2_int size;
