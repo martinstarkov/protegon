@@ -167,6 +167,39 @@ Renderer::~Renderer() noexcept {
 	// Needs to have access to GLContext destructor, forward declaration is not enough.
 }
 
+void Renderer::FrameStart() {
+	gl_->Bind<impl::gl::FrameBuffer, false>(screen_fbo);
+	gl_->Clear();
+}
+
+void Renderer::Present() {
+	gl_->Bind<impl::gl::GLResource::FrameBuffer, false>(0);
+
+	gl_->SetActiveTextureSlot(0);
+	gl_->Bind<impl::gl::GLResource::Texture>(screen_texture);
+
+	const auto& screen_shader{ gl_->GetShader("screen_default") };
+
+	auto bind_shader{ gl_->Bind<impl::gl::Shader, false>(screen_shader) };
+
+	constexpr std::array<impl::Index, 6> quad_indices{ 0, 1, 2, 2, 3, 0 };
+
+	constexpr std::array<impl::Vertex, 4> quad_vertices{
+		impl::Vertex{ glsl::vec3{}, glsl::vec4{}, glsl::vec2{}, glsl::vec4{} }, impl::Vertex{},
+		impl::Vertex{}, impl::Vertex{}
+	}; // namespace ptgn
+
+	gl_->SetBufferSubData(
+		ebo, GL_ELEMENT_ARRAY_BUFFER, quad_indices.data(), 0,
+		static_cast<std::uint32_t>(quad_indices.size()), sizeof(impl::Index)
+	);
+
+	gl_->Bind<impl::gl::VertexArray, false>(vao);
+	gl_->DrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+}
+
+} // namespace ptgn
+
 /*
 
 // TODO: Move toward something like a render graph:
@@ -1818,5 +1851,3 @@ void Renderer::ClearScreen() const {
 }
 
 */
-
-} // namespace ptgn

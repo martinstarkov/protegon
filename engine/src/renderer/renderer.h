@@ -55,6 +55,14 @@ public:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
+	// TODO: Move to private.
+	std::unique_ptr<impl::gl::GLContext> gl_;
+
+	// Move to private.
+	void FrameStart();
+	// Move to private.
+	void Present();
+
 private:
 	friend class Application;
 
@@ -67,8 +75,6 @@ private:
 
 	impl::gl::StrongGLHandle<impl::gl::Texture> screen_texture;
 	impl::gl::StrongGLHandle<impl::gl::FrameBuffer> screen_fbo;
-
-	std::unique_ptr<impl::gl::GLContext> gl_;
 };
 
 } // namespace ptgn

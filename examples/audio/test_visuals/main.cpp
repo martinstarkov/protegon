@@ -41,6 +41,13 @@ int main() {
 
 	bool running = true;
 
+	auto window_size = window.GetSize();
+
+	auto scene_texture =
+		renderer.gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
+
+	auto scene_fbo = renderer.gl_->CreateFrameBuffer(scene_texture);
+
 	while (running) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
@@ -49,9 +56,13 @@ int main() {
 			}
 		}
 
+		renderer.FrameStart();
+
 		// renderer.Clear(scene, { 0, 0, 0, 1 });
 
 		// renderer.DrawRect(scene, { 0, 0 }, { 0.4f, 0.25f }, { 1, 0, 0, 0.85f });
+
+		renderer.Present();
 
 		SDL_GL_SwapWindow(window);
 	}
