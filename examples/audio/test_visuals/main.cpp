@@ -48,6 +48,13 @@ int main() {
 
 	auto scene_fbo = renderer.gl_->CreateFrameBuffer(scene_texture);
 
+	/*auto _ = renderer.gl_->Bind<impl::gl::FrameBuffer, false>(scene_fbo);
+	renderer.gl_->SetClearColor(color::Red);*/
+
+	// renderer.Clear(scene, { 0, 0, 0, 1 });
+
+	// renderer.DrawRect(scene, { 0, 0 }, { 0.4f, 0.25f }, { 1, 0, 0, 0.85f });
+
 	while (running) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
@@ -57,10 +64,6 @@ int main() {
 		}
 
 		renderer.FrameStart();
-
-		// renderer.Clear(scene, { 0, 0, 0, 1 });
-
-		// renderer.DrawRect(scene, { 0, 0 }, { 0.4f, 0.25f }, { 1, 0, 0, 0.85f });
 
 		renderer.Present();
 

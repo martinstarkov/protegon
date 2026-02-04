@@ -46,7 +46,7 @@ struct ShaderCache {
 	std::string shader_name;
 
 	// cache needs to be mutable even in const functions.
-	mutable IdMap<std::size_t, std::int32_t> uniform_locations;
+	mutable std::unordered_map<std::size_t, std::int32_t> uniform_locations;
 };
 
 } // namespace ptgn::impl::gl

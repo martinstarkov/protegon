@@ -545,7 +545,7 @@ GLuint GLContext::CompileShaderPath(
 }
 
 void GLContext::LinkShader(GLuint id, GLuint vertex, GLuint fragment) {
-	shader_cache_.Get(id).uniform_locations.Clear();
+	shader_cache_.Get(id).uniform_locations.clear();
 
 	PTGN_ASSERT(vertex);
 	PTGN_ASSERT(fragment);

@@ -683,7 +683,9 @@ public:
 		bound_.blend_mode = mode;
 	}
 
-	void DrawElements(GLuint vertex_array, GLsizei element_count, GLenum primitive_mode) const {
+	void DrawElements(
+		GLuint vertex_array, GLsizei element_count, GLenum element_type, GLenum primitive_mode
+	) const {
 		PTGN_ASSERT(
 			IsBound<VertexArray>(vertex_array), "Vertex array must be bound before drawing elements"
 		);
@@ -695,8 +697,6 @@ public:
 			GetBound<ElementBuffer>(),
 			"Cannot draw vertex array with uninitialized or destroyed element buffer"
 		);
-
-		constexpr GLenum element_type{ GL_UNSIGNED_BYTE };
 
 		GLCall(glDrawElements(primitive_mode, element_count, element_type, nullptr));
 	}
@@ -971,8 +971,48 @@ public:
 			slot < GetMaxTextureSlots(),
 			"Attempting to bind a slot outside of OpenGL texture slot maximum"
 		);
-		GLCall(glActiveTexture(GL_TEXTURE0 + slot));
+		GLCall(ActiveTexture(GL_TEXTURE0 + slot));
 		bound_.active_texture_slot = slot;
+	}
+
+	/// @param target OpenGL buffer binding point (e.g. GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER,
+	/// GL_UNIFORM_BUFFER)
+	template <GLResource R, bool kBufferOrphaning = true>
+		requires(R == VertexBuffer || R == ElementBuffer || R == UniformBuffer)
+	void SetBufferSubData(
+		GLuint id, GLenum target, const void* data, std::int32_t byte_offset,
+		std::uint32_t element_count, std::uint32_t element_size
+	) const {
+		PTGN_ASSERT(IsBound<R>(id), "Buffer must be bound before setting its subdata");
+		PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
+		PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
+
+		PTGN_ASSERT(data != nullptr);
+
+		std::uint32_t size{ element_count * element_size };
+
+		// This buffer size check must be done after the buffer is bound.
+		PTGN_ASSERT(
+			(size <= GetBufferParameter<GLuint>(GL_ARRAY_BUFFER, GL_BUFFER_SIZE)),
+			"Attempting to bind data outside of allocated buffer size"
+		);
+
+		if constexpr (kBufferOrphaning) {
+			const auto& cache{ buffer_cache_.Get(id) };
+
+			if (cache.usage == GL_DYNAMIC_DRAW || cache.usage == GL_STREAM_DRAW) {
+				std::uint32_t buffer_size{ cache.count * element_size };
+				PTGN_ASSERT(buffer_size > 0);
+				PTGN_ASSERT(
+					(buffer_size <= GetBufferParameter<GLuint>(GL_ARRAY_BUFFER, GL_BUFFER_SIZE)),
+					"Buffer element size does not appear to match the "
+					"originally allocated buffer element size"
+				);
+				GLCall(BufferData(target, buffer_size, nullptr, cache.usage));
+			}
+		}
+
+		GLCall(BufferSubData(target, byte_offset, size, data));
 	}
 
 private:
@@ -1073,10 +1113,12 @@ private:
 		const auto& cache = framebuffer_cache_.Get(framebuffer);
 
 		if (attachment >= GL_COLOR_ATTACHMENT0 && attachment < GL_COLOR_ATTACHMENT0 + 8) {
-			auto idx{ attachment - GL_COLOR_ATTACHMENT0 };
 			PTGN_ASSERT(
-				idx >= 0 && idx < cache.color.size(), "Color attachment out of valid range"
+				attachment >= GL_COLOR_ATTACHMENT0 &&
+					attachment < GL_COLOR_ATTACHMENT0 + cache.color.size(),
+				"Color attachment out of valid range"
 			);
+			auto idx{ attachment - GL_COLOR_ATTACHMENT0 };
 			return cache.color[idx];
 		} else if (attachment == GL_DEPTH_ATTACHMENT) {
 			return cache.depth;
@@ -1148,13 +1190,14 @@ private:
 
 		auto hash{ Hash(name) };
 
-		if (auto location{ cache.uniform_locations.TryGet(hash) }) {
-			return *location;
+		if (auto location{ cache.uniform_locations.find(hash) };
+			location != cache.uniform_locations.end()) {
+			return location->second;
 		}
 
 		std::int32_t location{ GLCallReturn(GetUniformLocation(shader, name)) };
 
-		cache.uniform_locations.Add(hash, location);
+		cache.uniform_locations.emplace(hash, location);
 
 		return location;
 	}
@@ -1581,44 +1624,6 @@ private:
 		);
 #endif
 		GLCall(GenerateMipmap(GL_TEXTURE_2D));
-	}
-
-	template <GLResource R, bool kBufferOrphaning = true>
-		requires(R == VertexBuffer || R == ElementBuffer || R == UniformBuffer)
-	void SetBufferSubData(
-		GLuint id, GLenum target, const void* data, std::int32_t byte_offset,
-		std::uint32_t element_count, std::uint32_t element_size
-	) const {
-		PTGN_ASSERT(IsBound<R>(id), "Buffer must be bound before setting its subdata");
-		PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
-		PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
-
-		PTGN_ASSERT(data != nullptr);
-
-		std::uint32_t size{ element_count * element_size };
-
-		// This buffer size check must be done after the buffer is bound.
-		PTGN_ASSERT(
-			(size <= GetBufferParameter<GLuint>(GL_ARRAY_BUFFER, GL_BUFFER_SIZE)),
-			"Attempting to bind data outside of allocated buffer size"
-		);
-
-		if constexpr (kBufferOrphaning) {
-			const auto& cache{ buffer_cache_.Get(id) };
-
-			if (cache.usage == GL_DYNAMIC_DRAW || cache.usage == GL_STREAM_DRAW) {
-				std::uint32_t buffer_size{ cache.count * element_size };
-				PTGN_ASSERT(buffer_size > 0);
-				PTGN_ASSERT(
-					(buffer_size <= GetBufferParameter<GLuint>(GL_ARRAY_BUFFER, GL_BUFFER_SIZE)),
-					"Buffer element size does not appear to match the "
-					"originally allocated buffer element size"
-				);
-				GLCall(BufferData(target, buffer_size, nullptr, cache.usage));
-			}
-		}
-
-		GLCall(BufferSubData(target, byte_offset, size, data));
 	}
 
 	[[nodiscard]] StrongGLHandle<Shader> CreateShaderImpl(const std::string& shader_name) {
