@@ -1,9 +1,21 @@
 #include "renderer/renderer.h"
 
+#include <array>
+#include <cstdint>
 #include <memory>
+#include <utility>
 
+#include "core/assert.h"
+#include "core/graphics/blend_mode.h"
+#include "core/graphics/color.h"
+#include "core/graphics/flip.h"
+#include "core/log.h"
+#include "core/math/matrix4.h"
+#include "core/math/vector2.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_handle.h"
+#include "renderer/backend/gl/gl_state.h"
 #include "renderer/resources/vertex.h"
 
 namespace ptgn {
@@ -96,11 +108,35 @@ Renderer::Renderer(Window& window) :
 
 	BindRenderTarget(screen_fbo, { V2_int{ 0, 0 }, window_size });
 
-	// TODO: Make batching system.
-	// TODO: Make ping pong system.
-	// TODO: Make render target pooling system.
-	// TODO: Make queued command system.
-	// TODO: Make fork pipeline system.
+	auto max_texture_slots{ gl_->GetMaxTextureSlots() };
+
+	std::vector<std::int32_t> samplers(max_texture_slots);
+	std::iota(samplers.begin(), samplers.end(), 0);
+
+	auto quad{ gl_->GetShader("quad") };
+	auto _1 = gl_->Bind<impl::gl::Shader, false>(quad);
+	gl_->SetUniform(quad, "u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size()));
+
+#ifdef PTGN_PLATFORM_MACOS
+	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+	//  texture because texture unloadable."
+	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+		gl_->SetActiveTextureSlot(slot);
+		auto _3 = gl_->Bind<impl::gl::Texture, false>(white_texture);
+	}
+#endif
+	gl_->SetActiveTextureSlot(0);
+	auto _2 = gl_->Bind<impl::gl::GLResource::Texture, false>(white_texture);
+
+	batch_textures.clear();
+	batch_textures.push_back(white_texture);
+
+	//  TODO: Make batching system.
+	//  TODO: Make ping pong system.
+	//  TODO: Make render target pooling system.
+	//  TODO: Make queued command system.
+	//  TODO: Make fork pipeline system.
 
 	/*
 	RecomputeDisplaySize(window_.GetSize());
@@ -125,17 +161,6 @@ Renderer::Renderer(Window& window) :
 	PTGN_ASSERT(gl_->GetShader("circle").IsValid());
 	PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
 	PTGN_ASSERT(gl_->GetShader("light").IsValid());
-
-	std::vector<std::int32_t> samplers(max_texture_slots);
-	std::iota(samplers.begin(), samplers.end(), 0);
-
-	gl_->Bind(quad_shader);
-	gl_->SetUniform(
-		quad_shader, "u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size())
-	);
-
-	white_texture.Bind(0);
-	Texture::SetActiveSlot(1);
 
 	intermediate_target = {};
 
@@ -170,6 +195,211 @@ Renderer::~Renderer() noexcept {
 	// Needs to have access to GLContext destructor, forward declaration is not enough.
 }
 
+void Renderer::FlushBatch() {
+	if (batch_indices.empty()) {
+		return; // Nothing to draw
+	}
+
+	auto _vao = gl_->Bind<impl::gl::VertexArray, false>(vao);
+
+	// Upload vertex data
+	gl_->SetBufferSubData<impl::gl::VertexBuffer>(
+		vbo, GL_ARRAY_BUFFER, batch_vertices.data(), 0,
+		static_cast<std::uint32_t>(batch_vertices.size()), sizeof(impl::Vertex)
+	);
+
+	// Upload index data
+	gl_->SetBufferSubData<impl::gl::ElementBuffer>(
+		ebo, GL_ELEMENT_ARRAY_BUFFER, batch_indices.data(), 0,
+		static_cast<std::uint32_t>(batch_indices.size()), sizeof(impl::Index)
+	);
+
+	// Bind all textures
+	for (std::uint32_t slot = 0; slot < batch_textures.size(); ++slot) {
+		gl_->SetActiveTextureSlot(slot);
+		auto _ = gl_->Bind<impl::gl::GLResource::Texture, false>(batch_textures[slot]);
+	}
+
+	// Draw
+	gl_->DrawElements(
+		vao, static_cast<std::uint32_t>(batch_indices.size()), GL_UNSIGNED_INT, GL_TRIANGLES
+	);
+
+	PTGN_LOG("Draw call");
+
+	// Clear batch (keep white texture)
+	batch_vertices.clear();
+	batch_indices.clear();
+	batch_textures.resize(1);
+	batch_textures[0] = white_texture;
+}
+
+std::uint32_t Renderer::GetTextureSlot(impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> tex
+) {
+	if (tex == white_texture) {
+		return 0; // always slot 0
+	}
+
+	// Check if texture already exists in batch
+	for (std::uint32_t i = 1; i < batch_textures.size(); ++i) {
+		if (batch_textures[i] == tex) {
+			return i;
+		}
+	}
+
+	// Get maximum texture slots from OpenGL
+	std::uint32_t max_slots = static_cast<std::uint32_t>(gl_->GetMaxTextureSlots());
+
+	// Flush if we would exceed GPU texture slots
+	if (batch_textures.size() >= max_slots) {
+		FlushBatch();
+	}
+
+	// Add texture to batch (but do NOT bind yet)
+	batch_textures.push_back(tex);
+
+	// Its slot is index in the vector
+	return static_cast<std::uint32_t>(batch_textures.size() - 1);
+}
+
+void Renderer::SetShader(const impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>& shader) {
+	if (!state.valid || state.shader != shader) {
+		FlushBatch();
+		auto _		 = gl_->Bind<impl::gl::Shader, false>(shader);
+		state.shader = shader;
+		state.valid	 = true;
+	}
+}
+
+void Renderer::SetBlend(bool enable, BlendMode mode) {
+	if (!state.valid || state.blend_enable != enable || state.blend_mode != mode) {
+		FlushBatch();
+
+		state.blend_enable = enable;
+		state.blend_mode   = mode;
+
+		gl_->SetBlending(enable);
+
+		if (enable) {
+			gl_->SetBlendMode(mode);
+		}
+
+		state.valid = true;
+	}
+}
+
+void Renderer::SetFramebuffer(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> fb,
+	const impl::gl::Viewport& viewport
+) {
+	if (!state.valid || state.framebuffer != fb) {
+		FlushBatch();
+		auto _			  = gl_->Bind<impl::gl::GLResource::FrameBuffer, false>(fb);
+		state.framebuffer = fb;
+		state.valid		  = true;
+	}
+
+	gl_->SetViewport(viewport);
+}
+
+void Renderer::SetDepth(bool test, bool write, GLenum func) {
+	if (!state.valid || state.depth_test != test || state.depth_write != write ||
+		state.depth_func != func) {
+		FlushBatch();
+
+		state.depth_test  = test;
+		state.depth_write = write;
+		state.depth_func  = func;
+
+		gl_->SetDepthTesting(test);
+
+		if (test) {
+			gl_->SetDepthFunc(func);
+		}
+
+		gl_->SetDepthMask(write);
+
+		state.valid = true;
+	}
+}
+
+void Renderer::SetStencil(
+	bool enable, GLenum func, GLint ref, GLuint mask, GLenum fail, GLenum zfail, GLenum zpass,
+	GLuint write_mask
+) {
+	if (!state.valid || state.stencil_test != enable || state.stencil_func != func ||
+		state.stencil_ref != ref || state.stencil_mask != mask || state.stencil_fail != fail ||
+		state.stencil_zfail != zfail || state.stencil_zpass != zpass ||
+		state.stencil_write_mask != write_mask) {
+		FlushBatch();
+
+		state.stencil_test		 = enable;
+		state.stencil_func		 = func;
+		state.stencil_ref		 = ref;
+		state.stencil_mask		 = mask;
+		state.stencil_fail		 = fail;
+		state.stencil_zfail		 = zfail;
+		state.stencil_zpass		 = zpass;
+		state.stencil_write_mask = write_mask;
+
+		gl_->SetStencil(impl::gl::StencilState{
+			.enabled	= state.stencil_test,
+			.func		= state.stencil_func,
+			.ref		= state.stencil_ref,
+			.mask		= state.stencil_mask,
+			.fail_op	= state.stencil_fail,
+			.zfail_op	= state.stencil_zfail,
+			.zpass_op	= state.stencil_zpass,
+			.write_mask = state.stencil_write_mask,
+		});
+
+		state.valid = true;
+	}
+}
+
+void Renderer::SetRaster(
+	bool cull, GLenum cull_mode, GLenum front_face, GLenum polygon_front_mode,
+	GLenum polygon_back_mode
+) {
+	if (!state.valid || state.cull_face != cull || state.cull_mode != cull_mode ||
+		state.front_face != front_face || state.polygon_front_mode != polygon_front_mode ||
+		state.polygon_back_mode != polygon_back_mode) {
+		FlushBatch();
+
+		state.cull_face			 = cull;
+		state.cull_mode			 = cull_mode;
+		state.front_face		 = front_face;
+		state.polygon_front_mode = polygon_front_mode;
+		state.polygon_back_mode	 = polygon_back_mode;
+
+		gl_->SetCull(impl::gl::CullState{
+			.enabled	= state.cull_face,
+			.cull_face	= state.cull_mode,
+			.front_face = state.front_face,
+		});
+
+		gl_->SetPolygonMode(polygon_front_mode, polygon_back_mode);
+
+		state.valid = true;
+	}
+}
+
+void Renderer::SetColorMask(bool r, bool g, bool b, bool a) {
+	if (!state.valid || state.color_write_r != r || state.color_write_g != g ||
+		state.color_write_b != b || state.color_write_a != a) {
+		FlushBatch();
+
+		state.color_write_r = r;
+		state.color_write_g = g;
+		state.color_write_b = b;
+		state.color_write_a = a;
+
+		gl_->SetColorMask(impl::gl::ColorMaskState{ .red = r, .green = g, .blue = b, .alpha = a });
+
+		state.valid = true;
+	}
+}
+
 static constexpr std::array<impl::Index, 6> MakeQuadIndices() {
 	return { 0, 1, 2, 2, 3, 0 };
 }
@@ -192,56 +422,53 @@ static constexpr std::array<V2_float, 4> MakeTexCoords() {
 	}
 }
 
-void Renderer::UploadQuad(const std::array<impl::Vertex, 4>& vertices) {
-	constexpr auto indices = MakeQuadIndices();
-
-	auto _vao = gl_->Bind<impl::gl::VertexArray, false>(vao);
-
-	gl_->SetBufferSubData<impl::gl::ElementBuffer>(
-		ebo, GL_ELEMENT_ARRAY_BUFFER, indices.data(), 0, static_cast<std::uint32_t>(indices.size()),
-		sizeof(impl::Index)
-	);
-
-	gl_->SetBufferSubData<impl::gl::VertexBuffer>(
-		vbo, GL_ARRAY_BUFFER, vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()),
-		sizeof(impl::Vertex)
-	);
-}
-
-void Renderer::DrawQuad() {
-	gl_->DrawElements(vao, 6, GL_UNSIGNED_INT, GL_TRIANGLES);
-}
-
 void Renderer::DrawTexture(
 	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center, V2_float size
 ) {
-	auto viewport{ gl_->GetViewport() };
+	if (batch_vertices.size() + 4 >= MaxVertices || batch_indices.size() + 6 >= MaxIndices) {
+		FlushBatch();
+	}
 
-	auto half_viewport{ viewport.size * 0.5f };
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+	auto viewport		 = gl_->GetViewport();
+	auto half_viewport	 = viewport.size * 0.5f;
+	auto view_projection = Matrix4::Orthographic(-half_viewport, half_viewport);
 
-	const auto& shader = gl_->GetShader("screen_default");
-	auto _shader	   = gl_->Bind<impl::gl::Shader, false>(shader);
-
-	gl_->SetActiveTextureSlot(0);
-	auto _tex = gl_->Bind<impl::gl::GLResource::Texture, false>(texture);
-	gl_->SetUniform(shader, "u_Texture", 0);
+	const auto& shader = gl_->GetShader("quad");
+	SetShader(shader);
 	gl_->SetUniform(shader, "u_ViewProjection", view_projection);
+
+	std::uint32_t tex_slot = GetTextureSlot(texture);
 
 	auto quad_points		  = MakeQuadPointsPixels(center, size);
 	constexpr auto tex_coords = MakeTexCoords<false>();
 
-	constexpr float depth = 0.0f;
-	std::array<float, 4> data{ 0, 0, 0, 0 };
+	std::array<float, 4> data{ static_cast<float>(tex_slot), 0, 0, 0 };
 
-	auto vertices = impl::Vertex::GetQuad(quad_points, color::White, depth, data, tex_coords);
+	auto quad = impl::Vertex::GetQuad(quad_points, color::White, 0.0f, data, tex_coords);
 
-	UploadQuad(vertices);
-	DrawQuad();
+	// Offset for indices
+	std::uint32_t start_index = static_cast<std::uint32_t>(batch_vertices.size());
+
+	// Add vertices
+	batch_vertices.insert(batch_vertices.end(), quad.begin(), quad.end());
+
+	// Add indices with offset
+	static constexpr std::array<impl::Index, 6> quad_indices = MakeQuadIndices();
+	for (auto idx : quad_indices) {
+		batch_indices.push_back(static_cast<impl::Index>(idx + start_index));
+	}
 }
 
 void Renderer::FrameStart() {
-	auto _ = gl_->Bind<impl::gl::FrameBuffer, false>(screen_fbo);
+	state.valid = false;
+	PTGN_ASSERT(batch_vertices.empty());
+	PTGN_ASSERT(batch_indices.empty());
+
+	auto _1 = gl_->Bind<impl::gl::FrameBuffer, false>({});
+	gl_->SetClearColor(color::Transparent);
+	gl_->Clear();
+
+	auto _2 = gl_->Bind<impl::gl::FrameBuffer, false>(screen_fbo);
 	gl_->SetClearColor(color::Transparent);
 	gl_->Clear();
 }
@@ -249,20 +476,19 @@ void Renderer::FrameStart() {
 void Renderer::Present() {
 	auto window_size = window_.GetSize();
 
-	BindRenderTarget({}, { { 0, 0 }, window_size });
+	SetFramebuffer({}, { { 0, 0 }, window_size });
+	SetBlend(true, BlendMode::ReplaceRGBA);
 
-	gl_->SetBlendMode(BlendMode::ReplaceRGBA);
-
-	// TODO: Consider if this should be something else? Display resolution?
 	DrawTexture(screen_texture, { 0, 0 }, gl_->GetTextureSize(screen_texture));
+
+	FlushBatch();
 }
 
 void Renderer::BindRenderTarget(
 	impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
 	const impl::gl::Viewport& viewport
 ) {
-	auto _ = gl_->Bind<impl::gl::GLResource::FrameBuffer, false>(framebuffer);
-	gl_->SetViewport(viewport);
+	SetFramebuffer(framebuffer, viewport);
 }
 
 } // namespace ptgn

@@ -158,7 +158,7 @@ public:
 			}
 		};
 
-		auto max_texture_slots{ bound_.texture_units.size() };
+		auto max_texture_slots{ GetMaxTextureSlots() };
 
 		// @return { id, bool }: If true, delete shader id after.
 		const auto get_id = [&get, &has, this, shader_name, max_texture_slots](
@@ -223,7 +223,7 @@ public:
 			PTGN_ERROR("Unknown variant type");
 		}
 
-		const auto max_texture_slots{ bound_.texture_units.size() };
+		const auto max_texture_slots{ GetMaxTextureSlots() };
 
 		auto srcs{ ParseShaderSourceFile(source_string, shader_name, max_texture_slots) };
 
@@ -368,7 +368,7 @@ public:
 			bound_.renderbuffer = id;
 		} else if constexpr (R == Texture) {
 			auto slot{ GetActiveTextureSlot() };
-			PTGN_ASSERT(slot < bound_.texture_units.size(), "Slot out of range of max slots");
+			PTGN_ASSERT(slot < GetMaxTextureSlots(), "Slot out of range of max slots");
 			PTGN_ASSERT(bound_.texture_units[slot].id != id);
 			GLCall(glBindTexture(GL_TEXTURE_2D, id));
 			bound_.texture_units[slot].id = id;
@@ -402,7 +402,7 @@ public:
 		} else if constexpr (R == UniformBuffer) {
 			return bound_.uniform_buffer;
 		} else if constexpr (R == Texture) {
-			PTGN_ASSERT(bound_.active_texture_slot < bound_.texture_units.size());
+			PTGN_ASSERT(bound_.active_texture_slot < GetMaxTextureSlots());
 			return bound_.texture_units[bound_.active_texture_slot].id;
 		} else if constexpr (R == RenderBuffer) {
 			return bound_.renderbuffer;
@@ -800,8 +800,8 @@ public:
 			GLCall(glDisable(GL_CULL_FACE));
 		}
 
-		GLCall(glCullFace(cull.face));
-		GLCall(glFrontFace(cull.front));
+		GLCall(glCullFace(cull.cull_face));
+		GLCall(glFrontFace(cull.front_face));
 
 		bound_.cull = cull;
 	}
@@ -1018,6 +1018,11 @@ public:
 		}
 
 		GLCall(BufferSubData(target, byte_offset, size, data));
+	}
+
+	// @return The maximum number of texture slots available on the current hardware.
+	[[nodiscard]] std::size_t GetMaxTextureSlots() const {
+		return bound_.texture_units.size();
 	}
 
 private:
@@ -1590,11 +1595,6 @@ private:
 		GLCall(glGetTexParameteriv(GL_TEXTURE_2D, param, &value));
 		PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 		return value;
-	}
-
-	// @return The maximum number of texture slots available on the current hardware.
-	[[nodiscard]] std::size_t GetMaxTextureSlots() const {
-		return bound_.texture_units.size();
 	}
 
 	[[nodiscard]] GLuint GetActiveTextureSlot() const {

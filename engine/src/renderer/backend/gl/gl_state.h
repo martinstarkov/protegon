@@ -71,8 +71,8 @@ struct ScissorState {
 
 struct CullState {
 	GLboolean enabled{ GL_FALSE };
-	GLenum face{ GL_BACK };
-	GLenum front{ GL_CCW };
+	GLenum cull_face{ GL_BACK };
+	GLenum front_face{ GL_CCW };
 
 	bool operator==(const CullState&) const = default;
 };

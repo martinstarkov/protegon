@@ -55,13 +55,6 @@ int main() {
 
 	auto scene_fbo = renderer.gl_->CreateFrameBuffer(scene_texture);
 
-	auto _ = renderer.gl_->Bind<impl::gl::FrameBuffer, false>(scene_fbo);
-	renderer.gl_->ClearToColor(scene_fbo, color::Red);
-
-	// renderer.Clear(scene, { 0, 0, 0, 1 });
-
-	// renderer.DrawRect(scene, { 0, 0 }, { 0.4f, 0.25f }, { 1, 0, 0, 0.85f });
-
 	while (running) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
@@ -75,14 +68,19 @@ int main() {
 		renderer.BindRenderTarget(
 			scene_fbo, { { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture) }
 		);
-		renderer.gl_->SetBlendMode(BlendMode::Blend);
+		renderer.gl_->ClearToColor(scene_fbo, color::Blue);
+		renderer.SetBlend(true, BlendMode::Blend);
 		renderer.DrawTexture(texture1, { 0, 0 }, renderer.gl_->GetTextureSize(texture1));
-		// TODO: Add batching of consecutive textures.
+		renderer.DrawTexture(texture1, -window_size / 2.0f, renderer.gl_->GetTextureSize(texture1));
+		//   TODO: Add batching of consecutive textures.
 
 		renderer.BindRenderTarget(renderer.screen_fbo, { { 0, 0 }, window_size });
+		renderer.SetBlend(true, BlendMode::ReplaceRGBA);
 		renderer.DrawTexture(scene_texture, { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture));
 
 		renderer.Present();
+
+		PTGN_LOG("--------");
 
 		SDL_GL_SwapWindow(window);
 	}

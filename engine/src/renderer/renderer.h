@@ -75,15 +75,86 @@ public:
 		V2_float size
 	);
 
+	void SetShader(const impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>& shader);
+	void SetBlend(bool enable, BlendMode mode);
+	void SetFramebuffer(
+		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> fb,
+		const impl::gl::Viewport& viewport
+	);
+	void SetDepth(bool test, bool write, GLenum func);
+	void SetStencil(
+		bool enable, GLenum func, GLint ref, GLuint mask, GLenum fail, GLenum zfail, GLenum zpass,
+		GLuint write_mask
+	);
+	void SetRaster(
+		bool cull, GLenum cull_mode, GLenum front_face, GLenum polygon_front_mode,
+		GLenum polygon_back_mode
+	);
+	void SetColorMask(bool r, bool g, bool b, bool a);
+
 	// TODO: Move to private.
 	impl::gl::StrongGLHandle<impl::gl::FrameBuffer> screen_fbo;
+
+	// TODO: Move to private.
+	void FlushBatch();
 
 private:
 	friend class Application;
 
-	void UploadQuad(const std::array<impl::Vertex, 4>& vertices);
+	std::uint32_t GetTextureSlot(impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> tex);
 
-	void DrawQuad();
+	struct RenderState {
+		// Shader
+		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader;
+
+		// Framebuffer
+		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer;
+
+		// Blending
+		bool blend_enable	 = false;
+		BlendMode blend_mode = BlendMode::ReplaceRGBA;
+
+		// Depth
+		bool depth_test	  = false;
+		bool depth_write  = false;
+		GLenum depth_func = GL_LESS;
+
+		// Stencil
+		bool stencil_test	 = false;
+		GLenum stencil_func	 = GL_ALWAYS;
+		GLint stencil_ref	 = 0;
+		GLuint stencil_mask	 = 0xFF;
+		GLenum stencil_fail	 = GL_KEEP;
+		GLenum stencil_zfail = GL_KEEP;
+		GLenum stencil_zpass = GL_KEEP;
+		GLuint stencil_write_mask{ 0xFFFFFFFF };
+
+		// Raster
+		bool cull_face			  = false;
+		GLenum cull_mode		  = GL_BACK;
+		GLenum front_face		  = GL_CCW;
+		GLenum polygon_front_mode = GL_FILL;
+		GLenum polygon_back_mode  = GL_FILL;
+
+		// Color mask
+		bool color_write_r = true;
+		bool color_write_g = true;
+		bool color_write_b = true;
+		bool color_write_a = true;
+
+		bool valid = false;
+	};
+
+	RenderState state;
+
+	static constexpr std::uint32_t MaxQuads	   = 1024;
+	static constexpr std::uint32_t MaxVertices = MaxQuads * 4;
+	static constexpr std::uint32_t MaxIndices  = MaxQuads * 6;
+
+	std::vector<impl::Vertex> batch_vertices;
+	std::vector<impl::Index> batch_indices;
+
+	std::vector<impl::gl::StrongGLHandle<impl::gl::GLResource::Texture>> batch_textures;
 
 	Window& window_;
 
