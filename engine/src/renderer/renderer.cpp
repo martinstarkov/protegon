@@ -595,7 +595,9 @@ void Renderer::DrawTexturedQuad(
 	p.tint	  = tint;
 	p.texture = texture;
 
-	DrawQuadEx(shader, p);
+	DrawQuadEx(shader, p, [this](auto s, auto& q) {
+		gl_->SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
+	});
 }
 
 void Renderer::SubmitQuad(
