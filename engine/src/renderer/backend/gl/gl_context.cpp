@@ -5,15 +5,21 @@
 #include <cmrc/cmrc.hpp>
 #include <ostream>
 #include <regex>
+#include <variant>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/macro.h"
 #include "core/util/span.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
+#include "SDL3/SDL_pixels.h"
+#include "SDL3/SDL_surface.h"
+#include "SDL3_image/SDL_image.h"
 
 #define PTGN_VSYNC_MODE -1
 
@@ -688,6 +694,48 @@ GLContext::~GLContext() {
 		// Note: If this is the last message you see and the window does not close, it is likely
 		// that a GL asset is destructed after the GL context has been deleted.
 	}
+}
+
+void GLContext::SavePNG(const path& path, GLuint framebuffer, GLenum attachment) {
+	// Ensure output directory exists
+	if (path.has_parent_path()) {
+		std::filesystem::create_directories(path.parent_path());
+	}
+
+	// Read all pixels from the framebuffer attachment
+	PixelBuffer pb = ReadPixels(framebuffer, attachment);
+
+	PTGN_ASSERT(pb.type == AttachmentDataType::Color, "SavePNG only supports color attachments");
+
+	const V2_int size	   = pb.size;
+	constexpr int channels = 4;
+
+	std::vector<std::uint8_t> rgba(static_cast<std::size_t>(size.x) * size.y * channels);
+
+	// Convert PixelBuffer -> tightly packed RGBA8
+	ForEachPixel(pb, [&rgba, size](V2_int pos, const PixelValue& px) {
+		const Color* c = std::get_if<Color>(&px);
+		PTGN_ASSERT(c != nullptr);
+
+		const std::size_t idx = static_cast<std::size_t>(pos.y * size.x + pos.x) * channels;
+
+		rgba[idx + 0] = c->r;
+		rgba[idx + 1] = c->g;
+		rgba[idx + 2] = c->b;
+		rgba[idx + 3] = c->a;
+	});
+
+	SDL_Surface* surface = SDL_CreateSurfaceFrom(
+		size.x, size.y, SDL_PIXELFORMAT_RGBA32, rgba.data(), size.x * channels
+	);
+
+	PTGN_ASSERT(surface != nullptr, SDL_GetError());
+
+	auto saved{ IMG_SavePNG(surface, path.string().c_str()) };
+
+	PTGN_ASSERT(saved, SDL_GetError());
+
+	SDL_DestroySurface(surface);
 }
 
 } // namespace ptgn::impl::gl

@@ -3,9 +3,11 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <span>
 
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
+#include "core/math/vector3.h"
 #include "renderer/backend/gl/gl_handle.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/resources/vertex.h"
@@ -45,7 +47,41 @@ constexpr std::size_t index_capacity{ batch_capacity * 6 };
 
 void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
+struct QuadDesc {
+	std::array<V2_float, 4> positions;
+	std::array<V2_float, 4> tex_coords;
+	Color color	   = color::White;
+	float rotation = 0.0f;
+	std::array<float, 4> user_data{};
+};
+
 } // namespace impl
+
+struct QuadParams {
+	V2_float center{};
+	V2_float size{ 0.0f, 0.0f };
+	float rotation = 0.0f;
+
+	Color tint = color::White;
+
+	// Optional texture
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture;
+
+	// Texcoords override (optional)
+	std::optional<std::array<V2_float, 4>> tex_coords;
+};
+
+// TODO: Move somewhere else.
+struct LightParams {
+	V2_float position;
+	float radius;
+	Color color;
+	float intensity;
+	float falloff;
+	V3_float ambient_color;
+	float ambient_intensity;
+	V3_float attenuation;
+};
 
 class Renderer {
 public:
@@ -65,6 +101,26 @@ public:
 	// TODO: Move to private.
 	void Present();
 
+	using UniformSetup =
+		std::function<void(impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>)>;
+	using QuadSetup = std::function<
+		void(impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>, impl::QuadDesc&)>;
+
+	void DrawLightQuad(const LightParams& light);
+	void DrawTexturedQuad(
+		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader,
+		impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center,
+		V2_float size, Color tint = color::White
+	);
+	void DrawQuadEx(
+		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& p,
+		const UniformSetup& u = {}
+	);
+	void DrawQuadEx(
+		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& p,
+		const QuadSetup& q
+	);
+
 	void BindRenderTarget(
 		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
 		const impl::gl::Viewport& viewport
@@ -76,7 +132,7 @@ public:
 	);
 
 	void SetShader(const impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>& shader);
-	void SetBlend(bool enable, BlendMode mode);
+	void SetBlend(BlendMode mode, bool enable = true);
 	void SetFramebuffer(
 		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> fb,
 		const impl::gl::Viewport& viewport
@@ -98,8 +154,25 @@ public:
 	// TODO: Move to private.
 	void FlushBatch();
 
+	// TODO: Move to some debug system instead.
+	void SavePNG(
+		const std::filesystem::path& path,
+		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
+		GLenum attachment /* = GL_COLOR_ATTACHMENT0 */
+	);
+
+	std::uint64_t GetFrameIndex() const noexcept {
+		return frame_index_;
+	}
+
 private:
+	std::uint64_t frame_index_ = 0; // increment once per frame
+
 	friend class Application;
+
+	impl::QuadDesc MakeQuadDesc(const QuadParams& p);
+
+	void SubmitQuad(std::span<const impl::Vertex> vertices, std::span<const impl::Index> indices);
 
 	std::uint32_t GetTextureSlot(impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> tex);
 

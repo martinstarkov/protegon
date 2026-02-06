@@ -2,10 +2,14 @@
 
 #include <array>
 #include <cstdint>
+#include <format>
+#include <iostream>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 
 #include "core/assert.h"
+#include "core/config.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
@@ -195,6 +199,112 @@ Renderer::~Renderer() noexcept {
 	// Needs to have access to GLContext destructor, forward declaration is not enough.
 }
 
+/*
+
+bool Renderer::IsTextureAttachedToCurrentFramebuffer(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> tex
+) const {
+	if (!state.framebuffer) {
+		return false; // default framebuffer
+	}
+
+	const auto& fb = state.framebuffer;
+
+	for (GLenum attachment : gl_->GetFramebufferColorAttachments(fb)) {
+		const auto& info = gl_->GetFrameBufferAttachment(fb, attachment);
+		if (info.type == GL_TEXTURE_2D && info.id == tex) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+struct PingPong {
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture;
+	impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> fbo;
+};
+
+/// Key: texture ID, Value: PingPong struct containing the texture and its associated framebuffer.
+std::unordered_map<GLuint, PingPong> ping_pong_cache;
+
+PingPong& Renderer::GetPingPongFor(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> src
+) {
+	auto& entry = ping_pong_cache[src.id];
+	if (entry.texture) {
+		return entry;
+	}
+
+	const auto& tex_info = gl_->GetTextureInfo(src);
+
+	entry.texture = gl_->CreateTexture2D(
+		tex_info.size,
+		tex_info.internal_format,
+		tex_info.filter,
+		tex_info.wrap
+	);
+
+	entry.fbo = gl_->CreateFrameBuffer();
+	gl_->AttachTexture(entry.fbo, GL_COLOR_ATTACHMENT0, entry.texture);
+
+	PTGN_ASSERT(gl_->CheckFramebufferComplete(entry.fbo));
+
+	return entry;
+}
+
+void Renderer::ResolveReadWriteHazards() {
+	if (!state.framebuffer) {
+		return; // default framebuffer, no hazard
+	}
+
+	for (std::uint32_t i = 0; i < batch_textures.size(); ++i) {
+		auto tex = batch_textures[i];
+
+		if (!IsTextureAttachedToCurrentFramebuffer(tex)) {
+			continue;
+		}
+
+		// Hazard detected
+		auto& pp = GetPingPongFor(tex);
+
+		// Flush pending geometry before redirecting
+		FlushBatch();
+
+		// Blit tex -> pingpong
+		gl_->BlitTexture(tex, pp.texture);
+
+		// Replace read texture in batch
+		batch_textures[i] = pp.texture;
+
+		// IMPORTANT: future writes now go to the pingpong target
+		// so swap framebuffer attachment
+		gl_->ReplaceFramebufferAttachment(
+			state.framebuffer,
+			tex,
+			pp.texture
+		);
+
+		// Update state so next passes read the new texture
+		std::swap(pp.texture, tex);
+
+		break; // only need one resolve per flush
+	}
+}
+
+void Renderer::FlushBatch() {
+	if (batch_indices.empty()) {
+		return;
+	}
+
+	ResolveReadWriteHazards();
+
+	...
+}
+
+
+*/
+
 void Renderer::FlushBatch() {
 	if (batch_indices.empty()) {
 		return; // Nothing to draw
@@ -271,7 +381,7 @@ void Renderer::SetShader(const impl::gl::StrongGLHandle<impl::gl::GLResource::Sh
 	}
 }
 
-void Renderer::SetBlend(bool enable, BlendMode mode) {
+void Renderer::SetBlend(BlendMode mode, bool enable) {
 	if (!state.valid || state.blend_enable != enable || state.blend_mode != mode) {
 		FlushBatch();
 
@@ -422,41 +532,120 @@ static constexpr std::array<V2_float, 4> MakeTexCoords() {
 	}
 }
 
-void Renderer::DrawTexture(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center, V2_float size
-) {
-	if (batch_vertices.size() + 4 >= MaxVertices || batch_indices.size() + 6 >= MaxIndices) {
-		FlushBatch();
-	}
+impl::QuadDesc Renderer::MakeQuadDesc(const QuadParams& p) {
+	impl::QuadDesc quad{};
+	quad.positions	= MakeQuadPointsPixels(p.center, p.size);
+	quad.tex_coords = p.tex_coords.value_or(MakeTexCoords<false>());
+	quad.color		= p.tint;
+	quad.rotation	= p.rotation;
+	return quad;
+}
 
+void Renderer::DrawQuadEx(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& params,
+	const QuadSetup& setup
+) {
 	auto viewport		 = gl_->GetViewport();
 	auto half_viewport	 = viewport.size * 0.5f;
 	auto view_projection = Matrix4::Orthographic(-half_viewport, half_viewport);
 
-	const auto& shader = gl_->GetShader("quad");
+	impl::QuadDesc quad = MakeQuadDesc(params);
+
+	// Texture -> user data slot 0 (convention)
+	if (params.texture) {
+		std::uint32_t slot = GetTextureSlot(params.texture);
+		quad.user_data[0]  = static_cast<float>(slot);
+	}
+
 	SetShader(shader);
 	gl_->SetUniform(shader, "u_ViewProjection", view_projection);
 
-	std::uint32_t tex_slot = GetTextureSlot(texture);
+	setup(shader, quad);
 
-	auto quad_points		  = MakeQuadPointsPixels(center, size);
-	constexpr auto tex_coords = MakeTexCoords<false>();
+	auto vertices{ impl::Vertex::GetQuad(
+		quad.positions, quad.color, quad.rotation, quad.user_data, quad.tex_coords
+	) };
+	auto indices{ MakeQuadIndices() };
 
-	std::array<float, 4> data{ static_cast<float>(tex_slot), 0, 0, 0 };
+	SubmitQuad(vertices, indices);
+}
 
-	auto quad = impl::Vertex::GetQuad(quad_points, color::White, 0.0f, data, tex_coords);
+void Renderer::DrawQuadEx(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& params,
+	const UniformSetup& uniforms
+) {
+	DrawQuadEx(
+		shader, params,
+		[uniforms](impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> s, impl::QuadDesc&) {
+			if (uniforms) {
+				uniforms(s);
+			}
+		}
+	);
+}
 
-	// Offset for indices
-	std::uint32_t start_index = static_cast<std::uint32_t>(batch_vertices.size());
+void Renderer::DrawTexturedQuad(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader,
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center, V2_float size,
+	Color tint
+) {
+	QuadParams p{};
+	p.center  = center;
+	p.size	  = size;
+	p.tint	  = tint;
+	p.texture = texture;
 
-	// Add vertices
-	batch_vertices.insert(batch_vertices.end(), quad.begin(), quad.end());
+	DrawQuadEx(shader, p);
+}
 
-	// Add indices with offset
-	static constexpr std::array<impl::Index, 6> quad_indices = MakeQuadIndices();
-	for (auto idx : quad_indices) {
-		batch_indices.push_back(static_cast<impl::Index>(idx + start_index));
+void Renderer::SubmitQuad(
+	std::span<const impl::Vertex> vertices, std::span<const impl::Index> indices
+) {
+	if (batch_vertices.size() + vertices.size() >= MaxVertices ||
+		batch_indices.size() + indices.size() >= MaxIndices) {
+		FlushBatch();
 	}
+
+	auto start_index = static_cast<std::uint32_t>(batch_vertices.size());
+
+	batch_vertices.insert(batch_vertices.end(), vertices.begin(), vertices.end());
+
+	for (auto idx : indices) {
+		batch_indices.push_back(idx + start_index);
+	}
+}
+
+void Renderer::DrawLightQuad(const LightParams& light) {
+	QuadParams p{};
+	p.center = light.position;
+	p.size	 = { light.radius * 2.0f, light.radius * 2.0f };
+	p.tint	 = color::White;
+
+	const auto& shader = gl_->GetShader("light");
+
+	DrawQuadEx(shader, p, [&](const auto& s, auto&) {
+		gl_->SetUniform(s, "u_LightPosition", light.position);
+		gl_->SetUniform(s, "u_Color", light.color.Normalized());
+		gl_->SetUniform(s, "u_LightIntensity", light.intensity);
+		gl_->SetUniform(s, "u_LightRadius", light.radius);
+		gl_->SetUniform(s, "u_Falloff", light.falloff);
+		gl_->SetUniform(s, "u_AmbientColor", light.ambient_color);
+		gl_->SetUniform(s, "u_AmbientIntensity", light.ambient_intensity);
+		gl_->SetUniform(s, "u_LightAttenuation", light.attenuation);
+	});
+}
+
+void Renderer::DrawTexture(
+	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center, V2_float size
+) {
+	QuadParams p{};
+	p.center  = center;
+	p.size	  = size;
+	p.texture = texture;
+
+	const auto& shader = gl_->GetShader("quad");
+
+	DrawQuadEx(shader, p);
 }
 
 void Renderer::FrameStart() {
@@ -477,7 +666,7 @@ void Renderer::Present() {
 	auto window_size = window_.GetSize();
 
 	SetFramebuffer({}, { { 0, 0 }, window_size });
-	SetBlend(true, BlendMode::ReplaceRGBA);
+	SetBlend(BlendMode::ReplaceRGBA);
 
 	DrawTexture(screen_texture, { 0, 0 }, gl_->GetTextureSize(screen_texture));
 

@@ -1025,6 +1025,206 @@ public:
 		return bound_.texture_units.size();
 	}
 
+	enum class AttachmentDataType {
+		Color,
+		Depth,
+		Stencil,
+		DepthStencil
+	};
+
+	// Color
+	// Depth -> float
+	// Stencil -> uint8_t
+	// Depth+Stencil -> {float depth, uint8_t stencil}
+	using PixelValue = std::variant<Color, float, std::uint8_t, std::pair<float, std::uint8_t>>;
+
+	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
+	// @param coordinate Pixel coordinate from [0, size).
+	PixelValue ReadPixel(
+		GLuint framebuffer, V2_int coordinate, GLenum attachment = GL_COLOR_ATTACHMENT0
+	) {
+		auto _1 = Bind<FrameBuffer, true>(framebuffer);
+
+		auto type		 = GetAttachmentDataType(attachment);
+		const auto& info = GetFrameBufferAttachment(framebuffer, attachment);
+		PTGN_ASSERT(info.id != 0, "No image attached to that attachment");
+
+		V2_int size;
+		if (info.type == GL_TEXTURE_2D) {
+			size = texture_cache_.Get(info.id).size;
+		} else {
+			size = renderbuffer_cache_.Get(info.id).size;
+		}
+
+		PTGN_ASSERT(
+			coordinate.x >= 0 && coordinate.x < size.x,
+			"Cannot get pixel out of range of frame buffer size"
+		);
+		PTGN_ASSERT(
+			coordinate.y >= 0 && coordinate.y < size.y,
+			"Cannot get pixel out of range of frame buffer size"
+		);
+
+		int read_y = size.y - 1 - coordinate.y;
+
+		if (type == AttachmentDataType::Color) {
+			const auto& tex = texture_cache_.Get(info.id);
+
+			int components = GetColorComponentCount(tex.internal_format);
+			PTGN_ASSERT(components >= 3 && components <= 4);
+
+			std::array<std::uint8_t, 4> v{ 0, 0, 0, 255 };
+
+			GLCall(glReadPixels(
+				coordinate.x, read_y, 1, 1, tex.internal_format, GL_UNSIGNED_BYTE, v.data()
+			));
+
+			return Color{ v[0], v[1], v[2],
+						  components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
+		}
+
+		if (type == AttachmentDataType::Depth) {
+			float depth = 0.0f;
+			GLCall(glReadPixels(coordinate.x, read_y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth));
+			return depth;
+		}
+
+		if (type == AttachmentDataType::Stencil) {
+			std::uint8_t stencil = 0;
+			GLCall(glReadPixels(
+				coordinate.x, read_y, 1, 1, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, &stencil
+			));
+			return stencil;
+		}
+
+		if (type == AttachmentDataType::DepthStencil) {
+			// GL_DEPTH_STENCIL returns two integers: depth + stencil packed.
+			struct {
+				std::uint32_t depth;
+				std::uint8_t stencil;
+			} ds{};
+
+			GLCall(glReadPixels(
+				coordinate.x, read_y, 1, 1, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, &ds
+			));
+
+			float depth = (ds.depth & 0xFFFFFF) / float(0xFFFFFF);
+			return std::make_pair(depth, ds.stencil);
+		}
+
+		PTGN_ERROR("Unhandled attachment type");
+	}
+
+	struct PixelBuffer {
+		V2_int size{};
+		AttachmentDataType type{};
+		std::vector<std::uint8_t> data;
+	};
+
+	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
+	PixelBuffer ReadPixels(GLuint framebuffer, GLenum attachment = GL_COLOR_ATTACHMENT0) {
+		auto type = GetAttachmentDataType(attachment);
+
+		const auto& info = GetFrameBufferAttachment(framebuffer, attachment);
+		PTGN_ASSERT(info.id != 0);
+
+		auto _ = Bind<FrameBuffer, true>(framebuffer);
+
+		V2_int size = (info.type == GL_TEXTURE_2D) ? texture_cache_.Get(info.id).size
+												   : renderbuffer_cache_.Get(info.id).size;
+
+		GLenum format	 = GL_RGBA;
+		GLenum type_enum = GL_UNSIGNED_BYTE;
+
+		switch (type) {
+			using enum AttachmentDataType;
+
+			case Color: {
+				const auto& tex = texture_cache_.Get(info.id);
+				PTGN_ASSERT(GetColorComponentCount(tex.internal_format) >= 3);
+				format	  = tex.internal_format;
+				type_enum = GL_UNSIGNED_BYTE;
+				break;
+			}
+			case Depth:
+				format	  = GL_DEPTH_COMPONENT;
+				type_enum = GL_FLOAT;
+				break;
+			case Stencil:
+				format	  = GL_STENCIL_INDEX;
+				type_enum = GL_UNSIGNED_BYTE;
+				break;
+			case DepthStencil:
+				format	  = GL_DEPTH_STENCIL;
+				type_enum = GL_UNSIGNED_INT_24_8;
+				break;
+		}
+
+		// Allocate max possible size (RGBA8 worst case)
+		std::vector<std::uint8_t> buffer(size.x * size.y * 4);
+
+		GLCall(glReadPixels(0, 0, size.x, size.y, format, type_enum, buffer.data()));
+
+		return PixelBuffer{ .size = size, .type = type, .data = std::move(buffer) };
+	}
+
+	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
+	template <typename F>
+	void ForEachPixel(
+		const PixelBuffer& buffer, F&& func /* (V2_int, PixelValue) */
+	) {
+		const auto& data			  = buffer.data;
+		const V2_int size			  = buffer.size;
+		const AttachmentDataType type = buffer.type;
+
+		for (int y = 0; y < size.y; ++y) {
+			int flipped = size.y - 1 - y;
+
+			for (int x = 0; x < size.x; ++x) {
+				const int idx = flipped * size.x + x;
+				PixelValue px;
+
+				switch (type) {
+					case AttachmentDataType::Color: {
+						const std::uint8_t* p = &data[idx * 4];
+						px					  = Color{ p[0], p[1], p[2], p[3] };
+						break;
+					}
+
+					case AttachmentDataType::Depth: {
+						const float* p = reinterpret_cast<const float*>(data.data());
+						px			   = p[idx];
+						break;
+					}
+
+					case AttachmentDataType::Stencil: {
+						px = data[idx];
+						break;
+					}
+
+					case AttachmentDataType::DepthStencil: {
+						const auto* p = reinterpret_cast<const std::uint32_t*>(data.data());
+						const std::uint32_t packed = p[idx];
+						float depth				   = float(packed & 0xFFFFFF) / float(0xFFFFFF);
+						std::uint8_t stencil	   = (packed >> 24) & 0xFF;
+						px						   = std::make_pair(depth, stencil);
+						break;
+					}
+				}
+
+				func(V2_int{ x, y }, px);
+			}
+		}
+	}
+
+	template <typename F>
+	void ForEachPixel(GLuint framebuffer, F&& func, GLenum attachment = GL_COLOR_ATTACHMENT0) {
+		PixelBuffer buffer = ReadPixels(framebuffer, attachment);
+		ForEachPixel(buffer, std::forward<F>(func));
+	}
+
+	void SavePNG(const path& path, GLuint framebuffer, GLenum attachment = GL_COLOR_ATTACHMENT0);
+
 private:
 	[[nodiscard]] constexpr static int GetColorComponentCount(GLenum internal_format) {
 		switch (internal_format) {
@@ -1085,13 +1285,6 @@ private:
 			default: return "Unknown framebuffer status.";
 		}
 	}
-
-	enum class AttachmentDataType {
-		Color,
-		Depth,
-		Stencil,
-		DepthStencil
-	};
 
 	AttachmentDataType GetAttachmentDataType(GLenum attachment) const {
 		if (attachment >= GL_COLOR_ATTACHMENT0 && attachment < GL_COLOR_ATTACHMENT0 + 8) {
@@ -1250,178 +1443,6 @@ private:
 		GLCall(glGetIntegerv(pname, &value));
 		PTGN_ASSERT(value >= 0, "Failed to query integer parameter");
 		return static_cast<T>(value);
-	}
-
-	// Color
-	// Depth -> float
-	// Stencil -? uint8_t
-	// Depth+Stencil -> {float depth, uint8_t stencil}
-	using PixelValue = std::variant<Color, float, std::uint8_t, std::pair<float, std::uint8_t>>;
-
-	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
-	// @param coordinate Pixel coordinate from [0, size).
-	PixelValue ReadPixel(
-		GLuint framebuffer, V2_int coordinate, GLenum attachment = GL_COLOR_ATTACHMENT0
-	) {
-		auto _1 = Bind<FrameBuffer, true>(framebuffer);
-
-		auto type		 = GetAttachmentDataType(attachment);
-		const auto& info = GetFrameBufferAttachment(framebuffer, attachment);
-		PTGN_ASSERT(info.id != 0, "No image attached to that attachment");
-
-		V2_int size;
-		if (info.type == GL_TEXTURE_2D) {
-			size = texture_cache_.Get(info.id).size;
-		} else {
-			size = renderbuffer_cache_.Get(info.id).size;
-		}
-
-		PTGN_ASSERT(
-			coordinate.x >= 0 && coordinate.x < size.x,
-			"Cannot get pixel out of range of frame buffer size"
-		);
-		PTGN_ASSERT(
-			coordinate.y >= 0 && coordinate.y < size.y,
-			"Cannot get pixel out of range of frame buffer size"
-		);
-
-		int read_y = size.y - 1 - coordinate.y;
-
-		if (type == AttachmentDataType::Color) {
-			const auto& tex = texture_cache_.Get(info.id);
-
-			int components = GetColorComponentCount(tex.internal_format);
-			PTGN_ASSERT(components >= 3 && components <= 4);
-
-			std::array<std::uint8_t, 4> v{ 0, 0, 0, 255 };
-
-			GLCall(glReadPixels(
-				coordinate.x, read_y, 1, 1, tex.internal_format, GL_UNSIGNED_BYTE, v.data()
-			));
-
-			return Color{ v[0], v[1], v[2],
-						  components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
-		}
-
-		if (type == AttachmentDataType::Depth) {
-			float depth = 0.0f;
-			GLCall(glReadPixels(coordinate.x, read_y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth));
-			return depth;
-		}
-
-		if (type == AttachmentDataType::Stencil) {
-			std::uint8_t stencil = 0;
-			GLCall(glReadPixels(
-				coordinate.x, read_y, 1, 1, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, &stencil
-			));
-			return stencil;
-		}
-
-		if (type == AttachmentDataType::DepthStencil) {
-			// GL_DEPTH_STENCIL returns two integers: depth + stencil packed.
-			struct {
-				std::uint32_t depth;
-				std::uint8_t stencil;
-			} ds{};
-
-			GLCall(glReadPixels(
-				coordinate.x, read_y, 1, 1, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, &ds
-			));
-
-			float depth = (ds.depth & 0xFFFFFF) / float(0xFFFFFF);
-			return std::make_pair(depth, ds.stencil);
-		}
-
-		PTGN_ERROR("Unhandled attachment type");
-	}
-
-	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
-	// @param coordinate Pixel coordinate from [0, size).
-	template <typename F>
-	void ForEachPixel(
-		GLuint framebuffer, F&& func /* takes in (V2_int, Color) */,
-		GLenum attachment = GL_COLOR_ATTACHMENT0
-	) {
-		auto type  = GetAttachmentDataType(attachment);
-		auto& info = GetFrameBufferAttachment(framebuffer, attachment);
-		PTGN_ASSERT(info.id != 0);
-
-		auto _1 = Bind<FrameBuffer, true>(framebuffer);
-
-		// Determine buffer size
-		V2_int size = (info.type == GL_TEXTURE_2D) ? texture_cache_.Get(info.id).size
-												   : renderbuffer_cache_.Get(info.id).size;
-
-		// Allocate max possible pixel size (requires different formats)
-		std::vector<std::uint8_t> buffer(size.x * size.y * 4);
-
-		GLenum format	 = GL_RGBA;
-		GLenum type_enum = GL_UNSIGNED_BYTE;
-
-		switch (type) {
-			case AttachmentDataType::Color: {
-				const auto& tex = texture_cache_.Get(info.id);
-				PTGN_ASSERT(GetColorComponentCount(tex.internal_format) >= 3);
-				format	  = tex.internal_format;
-				type_enum = GL_UNSIGNED_BYTE;
-				break;
-			}
-			case AttachmentDataType::Depth:
-				format	  = GL_DEPTH_COMPONENT;
-				type_enum = GL_FLOAT;
-				break;
-			case AttachmentDataType::Stencil:
-				format	  = GL_STENCIL_INDEX;
-				type_enum = GL_UNSIGNED_BYTE;
-				break;
-			case AttachmentDataType::DepthStencil:
-				format	  = GL_DEPTH_STENCIL;
-				type_enum = GL_UNSIGNED_INT_24_8;
-				break;
-		}
-
-		GLCall(glReadPixels(0, 0, size.x, size.y, format, type_enum, buffer.data()));
-
-		for (int y = 0; y < size.y; ++y) {
-			int flipped = size.y - 1 - y;
-
-			for (int x = 0; x < size.x; ++x) {
-				PixelValue px;
-
-				int idx = (flipped * size.x + x);
-
-				switch (type) {
-					case AttachmentDataType::Color: {
-						std::uint8_t* p = &buffer[idx * 4];
-						px				= Color{ p[0], p[1], p[2], p[3] };
-						break;
-					}
-
-					case AttachmentDataType::Depth: {
-						float* p = reinterpret_cast<float*>(buffer.data());
-						px		 = p[idx];
-						break;
-					}
-
-					case AttachmentDataType::Stencil: {
-						std::uint8_t* p = buffer.data();
-						px				= p[idx];
-						break;
-					}
-
-					case AttachmentDataType::DepthStencil: {
-						std::uint32_t* p	 = reinterpret_cast<std::uint32_t*>(buffer.data());
-						std::uint32_t packed = p[idx];
-						float depth			 = float(packed & 0xFFFFFF) / float(0xFFFFFF);
-						std::uint8_t stencil = (packed >> 24) & 0xFF;
-						px					 = std::make_pair(depth, stencil);
-						break;
-					}
-				}
-
-				func(V2_int{ x, y }, px);
-			}
-		}
 	}
 
 	void ResizeFrameBuffer(GLuint framebuffer, V2_int new_size) {

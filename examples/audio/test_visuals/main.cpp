@@ -55,6 +55,11 @@ int main() {
 
 	auto scene_fbo = renderer.gl_->CreateFrameBuffer(scene_texture);
 
+	auto scene_texture2 =
+		renderer.gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
+
+	auto scene_fbo2 = renderer.gl_->CreateFrameBuffer(scene_texture2);
+
 	while (running) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
@@ -69,13 +74,68 @@ int main() {
 			scene_fbo, { { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture) }
 		);
 		renderer.gl_->ClearToColor(scene_fbo, color::Blue);
-		renderer.SetBlend(true, BlendMode::Blend);
+		renderer.SetBlend(BlendMode::Blend);
 		renderer.DrawTexture(texture1, { 0, 0 }, renderer.gl_->GetTextureSize(texture1));
 		renderer.DrawTexture(texture1, -window_size / 2.0f, renderer.gl_->GetTextureSize(texture1));
+		renderer.DrawTexture(texture1, window_size / 2.0f, renderer.gl_->GetTextureSize(texture1));
+		renderer.DrawTexture(
+			texture1, { window_size.x / 2.0f, -window_size.y / 2.0f },
+			renderer.gl_->GetTextureSize(texture1)
+		);
+		renderer.DrawTexture(
+			texture1, { -window_size.x / 2.0f, window_size.y / 2.0f },
+			renderer.gl_->GetTextureSize(texture1)
+		);
+		renderer.DrawTexture(
+			texture1, { window_size.x / 2.0f, 0.0f }, renderer.gl_->GetTextureSize(texture1)
+		);
+		renderer.DrawTexture(
+			texture1, { -window_size.x / 2.0f, 0.0f }, renderer.gl_->GetTextureSize(texture1)
+		);
+		renderer.DrawTexture(
+			texture1, { 0.0f, window_size.y / 2.0f }, renderer.gl_->GetTextureSize(texture1)
+		);
+		renderer.DrawTexture(
+			texture1, { 0.0f, -window_size.y / 2.0f }, renderer.gl_->GetTextureSize(texture1)
+		);
+
+		/*renderer.DrawLightQuad({ .position			= { 0.0f, 0.0f },
+								 .radius			= 250.0f,
+								 .color				= color::Green,
+								 .intensity			= 2.0f,
+								 .falloff			= 1.0f,
+								 .ambient_color		= { 0.1f, 0.1f, 0.1f },
+								 .ambient_intensity = 0.2f,
+								 .attenuation		= { 1.0f, 0.09f, 0.032f } });*/
+
+		renderer.SetBlend(BlendMode::ReplaceRGBA);
+
+		renderer.gl_->SavePNG("debug_images/name_of_png1.png", scene_fbo);
+
+		renderer.BindRenderTarget(scene_fbo2, { { 0, 0 }, window_size });
+		renderer.gl_->ClearToColor(scene_fbo2, color::Transparent);
+
+		renderer.gl_->SavePNG("debug_images/grayscale0.png", scene_fbo2);
+		renderer.DrawTexturedQuad(
+			renderer.gl_->GetShader("grayscale"), scene_texture, {},
+			renderer.gl_->GetTextureSize(scene_texture)
+		);
+		renderer.FlushBatch();
+		renderer.gl_->SavePNG("debug_images/grayscale1.png", scene_fbo2);
+		renderer.BindRenderTarget(scene_fbo, { { 0, 0 }, window_size });
+		renderer.DrawTexturedQuad(
+			renderer.gl_->GetShader("screen_default"), scene_texture2, {},
+			renderer.gl_->GetTextureSize(scene_texture2)
+		);
+
+		renderer.gl_->SavePNG("debug_images/name_of_png2.png", scene_fbo);
+		renderer.FlushBatch();
+		renderer.gl_->SavePNG("debug_images/name_of_png3.png", scene_fbo);
+
 		//   TODO: Add batching of consecutive textures.
 
 		renderer.BindRenderTarget(renderer.screen_fbo, { { 0, 0 }, window_size });
-		renderer.SetBlend(true, BlendMode::ReplaceRGBA);
+		renderer.SetBlend(BlendMode::ReplaceRGBA);
 		renderer.DrawTexture(scene_texture, { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture));
 
 		renderer.Present();
