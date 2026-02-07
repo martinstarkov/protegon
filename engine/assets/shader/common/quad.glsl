@@ -22,6 +22,7 @@ void main() {
 }
 
 #type fragment
+#option batchable
 
 out vec4 o_Color;
 
@@ -29,7 +30,7 @@ in vec4 v_Color;
 in vec2 v_TexCoord;
 in vec4 v_Data; // x = texture index
 
-uniform sampler2D u_Texture[{MAX_TEXTURE_SLOTS}];
+uniform sampler2D u_Textures[{MAX_TEXTURE_SLOTS}];
 
 void main() {
 	vec4 texColor = v_Color;
