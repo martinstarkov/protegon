@@ -65,7 +65,7 @@ struct QuadParams {
 	Color tint = color::White;
 
 	// Optional texture
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture;
+	impl::gl::TextureId texture;
 
 	// Texcoords override (optional)
 	std::optional<std::array<V2_float, 4>> tex_coords;
@@ -101,42 +101,24 @@ public:
 	// TODO: Move to private.
 	void Present();
 
-	using UniformSetup =
-		std::function<void(impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>)>;
-	using QuadSetup = std::function<
-		void(impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>, impl::QuadDesc&)>;
+	using UniformSetup = std::function<void(impl::gl::ShaderId)>;
+	using QuadSetup	   = std::function<void(impl::gl::ShaderId, impl::QuadDesc&)>;
 
 	void DrawLightQuad(const LightParams& light);
 	void DrawTexturedQuad(
-		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader,
-		impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center,
-		V2_float size, Color tint = color::White
+		impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
+		Color tint = color::White
 	);
-	void DrawQuadEx(
-		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& p,
-		const UniformSetup& u = {}
-	);
-	void DrawQuadEx(
-		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& p,
-		const QuadSetup& q
-	);
+	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const UniformSetup& u = {});
+	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const QuadSetup& q);
 
-	void BindRenderTarget(
-		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
-		const impl::gl::Viewport& viewport
-	);
+	void BindRenderTarget(impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport);
 
-	void DrawTexture(
-		impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center,
-		V2_float size
-	);
+	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
 
-	void SetShader(const impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>& shader);
+	void SetShader(impl::gl::ShaderId shader);
 	void SetBlend(BlendMode mode, bool enable = true);
-	void SetFramebuffer(
-		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> fb,
-		const impl::gl::Viewport& viewport
-	);
+	void SetFramebuffer(impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport);
 	void SetDepth(bool test, bool write, GLenum func);
 	void SetStencil(
 		bool enable, GLenum func, GLint ref, GLuint mask, GLenum fail, GLenum zfail, GLenum zpass,
@@ -149,39 +131,32 @@ public:
 	void SetColorMask(bool r, bool g, bool b, bool a);
 
 	// TODO: Move to private.
-	impl::gl::StrongGLHandle<impl::gl::FrameBuffer> screen_fbo;
+	impl::gl::Framebuffer screen_fbo;
 
 	// TODO: Move to private.
 	void FlushBatch();
 
 	// TODO: Move to some debug system instead.
 	void SavePNG(
-		const std::filesystem::path& path,
-		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
+		const std::filesystem::path& path, impl::gl::FramebufferId framebuffer,
 		GLenum attachment /* = GL_COLOR_ATTACHMENT0 */
 	);
 
-	std::uint64_t GetFrameIndex() const noexcept {
-		return frame_index_;
-	}
-
 private:
-	std::uint64_t frame_index_ = 0; // increment once per frame
-
 	friend class Application;
 
 	impl::QuadDesc MakeQuadDesc(const QuadParams& p);
 
 	void SubmitQuad(std::span<const impl::Vertex> vertices, std::span<const impl::Index> indices);
 
-	std::uint32_t GetTextureSlot(impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> tex);
+	std::uint32_t GetTextureSlot(impl::gl::TextureId tex);
 
 	struct RenderState {
 		// Shader
-		impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader;
+		impl::gl::ShaderId shader;
 
 		// Framebuffer
-		impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer;
+		impl::gl::FramebufferId framebuffer;
 
 		// Blending
 		bool blend_enable	 = false;
@@ -227,16 +202,16 @@ private:
 	std::vector<impl::Vertex> batch_vertices;
 	std::vector<impl::Index> batch_indices;
 
-	std::vector<impl::gl::StrongGLHandle<impl::gl::GLResource::Texture>> batch_textures;
+	std::vector<impl::gl::TextureId> batch_textures;
 
 	Window& window_;
 
-	impl::gl::StrongGLHandle<impl::gl::VertexBuffer> vbo;
-	impl::gl::StrongGLHandle<impl::gl::ElementBuffer> ebo;
-	impl::gl::StrongGLHandle<impl::gl::VertexArray> vao;
-	impl::gl::StrongGLHandle<impl::gl::Texture> white_texture;
+	impl::gl::VertexBuffer vbo;
+	impl::gl::ElementBuffer ebo;
+	impl::gl::VertexArray vao;
+	impl::gl::Texture white_texture;
 
-	impl::gl::StrongGLHandle<impl::gl::Texture> screen_texture;
+	impl::gl::Texture screen_texture;
 };
 
 } // namespace ptgn

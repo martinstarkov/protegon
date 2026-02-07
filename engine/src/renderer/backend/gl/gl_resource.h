@@ -15,7 +15,7 @@ struct BufferCache {
 	std::uint32_t count{ 0 };
 };
 
-struct RenderBufferCache {
+struct RenderbufferCache {
 	V2_int size;
 	GLenum internal_format{ GL_RGBA8 };
 };
@@ -26,11 +26,11 @@ struct TextureCache {
 };
 
 struct AttachmentInfo {
-	GLuint id	= 0;
-	GLenum type = 0; // GL_TEXTURE_2D, GL_RENDERBUFFER, or 0 (none)
+	Id id{ 0 };
+	GLenum type{ 0 }; // GL_TEXTURE_2D, GL_RENDERBUFFER, or 0 (none)
 };
 
-struct FrameBufferCache {
+struct FramebufferCache {
 	std::array<AttachmentInfo, 8> color;
 	AttachmentInfo depth;
 	AttachmentInfo stencil;
@@ -38,7 +38,7 @@ struct FrameBufferCache {
 };
 
 struct VertexArrayCache {
-	GLuint element_buffer{ 0 };
+	ElementBufferId element_buffer;
 	bool layout_set{ false };
 };
 

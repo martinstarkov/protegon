@@ -317,7 +317,7 @@ struct TextureRef {
 // ---------------------------------- State -----------------------------------
 struct StateSnapshot {
 	GLuint framebuffer = 0;
-	GLuint shader	   = 0;
+	ShaderId shader	   = 0;
 	BlendMode blend	   = BlendMode::ReplaceRGBA;
 	int vpW = 0, vpH = 0;
 	static constexpr int kMaxSlots = 16;
@@ -467,7 +467,7 @@ public:
 private:
 	RenderEncoder& enc;
 	PipeId outPipe	= 0;
-	GLuint shader	= 0;
+	ShaderId shader	= 0;
 	BlendMode blend = BlendMode::ReplaceRGBA;
 	std::vector<std::pair<int, PipeId>> inputs;
 	std::vector<SetUniform1fSC> u1f;
@@ -576,7 +576,7 @@ public:
 	);
 
 	// Effects
-	void DrawGrayscale(PipeId pipe, GLuint shader);
+	void DrawGrayscale(PipeId pipe, ShaderId shader);
 	void DrawBlur(PipeId pipe, GLuint blurH, GLuint blurV, int iterations);
 	void DrawLight(
 		PipeId scene, PipeId lightPipe, GLuint lightShader, int blurIterations, GLuint blurH,
@@ -745,7 +745,7 @@ void RenderEncoder::DrawCircle(
 	Record(std::move(d));
 }
 
-void RenderEncoder::DrawGrayscale(PipeId pipe, GLuint shader) {
+void RenderEncoder::DrawGrayscale(PipeId pipe, ShaderId shader) {
 	auto v = FullscreenQuadV();
 	auto i = FullscreenQuadI();
 	Pass().Out(pipe).In(0, pipe).Shader(shader).Draw(v, i);

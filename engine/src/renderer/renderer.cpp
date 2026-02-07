@@ -108,7 +108,7 @@ Renderer::Renderer(Window& window) :
 
 	screen_texture = gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
 
-	screen_fbo = gl_->CreateFrameBuffer(screen_texture);
+	screen_fbo = gl_->CreateFramebuffer(screen_texture);
 
 	BindRenderTarget(screen_fbo, { V2_int{ 0, 0 }, window_size });
 
@@ -118,7 +118,7 @@ Renderer::Renderer(Window& window) :
 	std::iota(samplers.begin(), samplers.end(), 0);
 
 	auto quad{ gl_->GetShader("quad") };
-	auto _1 = gl_->Bind<impl::gl::Shader, false>(quad);
+	auto _1 = gl_->Bind(quad);
 	gl_->SetUniform(
 		quad, "u_Textures", samplers.data(), static_cast<std::int32_t>(samplers.size())
 	);
@@ -129,11 +129,11 @@ Renderer::Renderer(Window& window) :
 	//  texture because texture unloadable."
 	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
 		gl_->SetActiveTextureSlot(slot);
-		auto _3 = gl_->Bind<impl::gl::Texture, false>(white_texture);
+		auto _3 = gl_->Bind(white_texture);
 	}
 #endif
 	gl_->SetActiveTextureSlot(0);
-	auto _2 = gl_->Bind<impl::gl::GLResource::Texture, false>(white_texture);
+	auto _2 = gl_->Bind(white_texture);
 
 	batch_textures.clear();
 	batch_textures.push_back(white_texture);
@@ -204,7 +204,7 @@ Renderer::~Renderer() noexcept {
 /*
 
 bool Renderer::IsTextureAttachedToCurrentFramebuffer(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> tex
+	Texture tex
 ) const {
 	if (!state.framebuffer) {
 		return false; // default framebuffer
@@ -213,7 +213,7 @@ bool Renderer::IsTextureAttachedToCurrentFramebuffer(
 	const auto& fb = state.framebuffer;
 
 	for (GLenum attachment : gl_->GetFramebufferColorAttachments(fb)) {
-		const auto& info = gl_->GetFrameBufferAttachment(fb, attachment);
+		const auto& info = gl_->GetFramebufferAttachment(fb, attachment);
 		if (info.type == GL_TEXTURE_2D && info.id == tex) {
 			return true;
 		}
@@ -223,15 +223,15 @@ bool Renderer::IsTextureAttachedToCurrentFramebuffer(
 }
 
 struct PingPong {
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture;
-	impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> fbo;
+	Texture texture;
+	Framebuffer fbo;
 };
 
 /// Key: texture ID, Value: PingPong struct containing the texture and its associated framebuffer.
 std::unordered_map<GLuint, PingPong> ping_pong_cache;
 
 PingPong& Renderer::GetPingPongFor(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> src
+	Texture src
 ) {
 	auto& entry = ping_pong_cache[src.id];
 	if (entry.texture) {
@@ -247,7 +247,7 @@ PingPong& Renderer::GetPingPongFor(
 		tex_info.wrap
 	);
 
-	entry.fbo = gl_->CreateFrameBuffer();
+	entry.fbo = gl_->CreateFramebuffer();
 	gl_->AttachTexture(entry.fbo, GL_COLOR_ATTACHMENT0, entry.texture);
 
 	PTGN_ASSERT(gl_->CheckFramebufferComplete(entry.fbo));
@@ -312,16 +312,16 @@ void Renderer::FlushBatch() {
 		return; // Nothing to draw
 	}
 
-	auto _vao = gl_->Bind<impl::gl::VertexArray, false>(vao);
+	auto _vao = gl_->Bind(vao);
 
 	// Upload vertex data
-	gl_->SetBufferSubData<impl::gl::VertexBuffer>(
+	gl_->SetBufferSubData<impl::gl::VertexBufferId>(
 		vbo, GL_ARRAY_BUFFER, batch_vertices.data(), 0,
 		static_cast<std::uint32_t>(batch_vertices.size()), sizeof(impl::Vertex)
 	);
 
 	// Upload index data
-	gl_->SetBufferSubData<impl::gl::ElementBuffer>(
+	gl_->SetBufferSubData<impl::gl::ElementBufferId>(
 		ebo, GL_ELEMENT_ARRAY_BUFFER, batch_indices.data(), 0,
 		static_cast<std::uint32_t>(batch_indices.size()), sizeof(impl::Index)
 	);
@@ -329,7 +329,7 @@ void Renderer::FlushBatch() {
 	// Bind all textures
 	for (std::uint32_t slot = 0; slot < batch_textures.size(); ++slot) {
 		gl_->SetActiveTextureSlot(slot);
-		auto _ = gl_->Bind<impl::gl::GLResource::Texture, false>(batch_textures[slot]);
+		auto _ = gl_->Bind(batch_textures[slot]);
 	}
 
 	// Draw
@@ -346,8 +346,7 @@ void Renderer::FlushBatch() {
 	batch_textures[0] = white_texture;
 }
 
-std::uint32_t Renderer::GetTextureSlot(impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> tex
-) {
+std::uint32_t Renderer::GetTextureSlot(impl::gl::TextureId tex) {
 	if (tex == white_texture) {
 		return 0; // always slot 0
 	}
@@ -374,10 +373,10 @@ std::uint32_t Renderer::GetTextureSlot(impl::gl::StrongGLHandle<impl::gl::GLReso
 	return static_cast<std::uint32_t>(batch_textures.size() - 1);
 }
 
-void Renderer::SetShader(const impl::gl::StrongGLHandle<impl::gl::GLResource::Shader>& shader) {
+void Renderer::SetShader(impl::gl::ShaderId shader) {
 	if (!state.valid || state.shader != shader) {
 		FlushBatch();
-		auto _		 = gl_->Bind<impl::gl::Shader, false>(shader);
+		auto _		 = gl_->Bind(shader);
 		state.shader = shader;
 		state.valid	 = true;
 	}
@@ -401,13 +400,12 @@ void Renderer::SetBlend(BlendMode mode, bool enable) {
 }
 
 void Renderer::SetFramebuffer(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> fb,
-	const impl::gl::Viewport& viewport
+	impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport
 ) {
-	if (!state.valid || state.framebuffer != fb) {
+	if (!state.valid || state.framebuffer != framebuffer) {
 		FlushBatch();
-		auto _			  = gl_->Bind<impl::gl::GLResource::FrameBuffer, false>(fb);
-		state.framebuffer = fb;
+		auto _			  = gl_->Bind(framebuffer);
+		state.framebuffer = framebuffer;
 		state.valid		  = true;
 	}
 
@@ -544,8 +542,7 @@ impl::QuadDesc Renderer::MakeQuadDesc(const QuadParams& p) {
 }
 
 void Renderer::DrawQuadEx(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& params,
-	const QuadSetup& setup
+	impl::gl::ShaderId shader, const QuadParams& params, const QuadSetup& setup
 ) {
 	auto viewport		 = gl_->GetViewport();
 	auto half_viewport	 = viewport.size * 0.5f;
@@ -573,22 +570,17 @@ void Renderer::DrawQuadEx(
 }
 
 void Renderer::DrawQuadEx(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader, const QuadParams& params,
-	const UniformSetup& uniforms
+	impl::gl::ShaderId shader, const QuadParams& params, const UniformSetup& uniforms
 ) {
-	DrawQuadEx(
-		shader, params,
-		[uniforms](impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> s, impl::QuadDesc&) {
-			if (uniforms) {
-				uniforms(s);
-			}
+	DrawQuadEx(shader, params, [uniforms](impl::gl::ShaderId s, impl::QuadDesc&) {
+		if (uniforms) {
+			uniforms(s);
 		}
-	);
+	});
 }
 
 void Renderer::DrawTexturedQuad(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Shader> shader,
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center, V2_float size,
+	impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
 	Color tint
 ) {
 	QuadParams p{};
@@ -625,7 +617,7 @@ void Renderer::DrawLightQuad(const LightParams& light) {
 	p.size	 = { light.radius * 2.0f, light.radius * 2.0f };
 	p.tint	 = color::White;
 
-	const auto& shader = gl_->GetShader("light");
+	auto shader = gl_->GetShader("light");
 
 	DrawQuadEx(shader, p, [&](const auto& s, auto&) {
 		gl_->SetUniform(s, "u_LightPosition", light.position);
@@ -639,15 +631,13 @@ void Renderer::DrawLightQuad(const LightParams& light) {
 	});
 }
 
-void Renderer::DrawTexture(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::Texture> texture, V2_float center, V2_float size
-) {
+void Renderer::DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size) {
 	QuadParams p{};
 	p.center  = center;
 	p.size	  = size;
 	p.texture = texture;
 
-	const auto& shader = gl_->GetShader("quad");
+	auto shader = gl_->GetShader("quad");
 
 	DrawQuadEx(shader, p);
 }
@@ -657,11 +647,11 @@ void Renderer::FrameStart() {
 	PTGN_ASSERT(batch_vertices.empty());
 	PTGN_ASSERT(batch_indices.empty());
 
-	auto _1 = gl_->Bind<impl::gl::FrameBuffer, false>({});
+	auto _1 = gl_->Bind(impl::gl::FramebufferId{});
 	gl_->SetClearColor(color::Transparent);
 	gl_->Clear();
 
-	auto _2 = gl_->Bind<impl::gl::FrameBuffer, false>(screen_fbo);
+	auto _2 = gl_->Bind(screen_fbo);
 	gl_->SetClearColor(color::Transparent);
 	gl_->Clear();
 }
@@ -678,8 +668,7 @@ void Renderer::Present() {
 }
 
 void Renderer::BindRenderTarget(
-	impl::gl::StrongGLHandle<impl::gl::GLResource::FrameBuffer> framebuffer,
-	const impl::gl::Viewport& viewport
+	impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport
 ) {
 	SetFramebuffer(framebuffer, viewport);
 }
@@ -691,8 +680,8 @@ void Renderer::BindRenderTarget(
 // TODO: Move toward something like a render graph:
 
 struct DrawCommand {
-	const Shader* shader = nullptr;               // Shader program to use
-	FrameBuffer* target = nullptr;                 // Output framebuffer, or nullptr for screen
+	const impl::gl::Shader* shader = nullptr;               // impl::gl::Shader program to use
+	Framebuffer* target = nullptr;                 // Output framebuffer, or nullptr for screen
 
 	std::vector<TextureId> textures;               // Input textures bound to shader
 
@@ -715,7 +704,7 @@ struct RenderResource {
 	TextureFormat format;
 	int width, height;
 	TextureId texture;
-	FrameBuffer* fbo;
+	Framebuffer* fbo;
 };
 
 struct RenderPass {
@@ -753,7 +742,7 @@ public:
 		return resources_.at(name).texture;
 	}
 
-	FrameBuffer* GetFramebufferFor(const std::string& name) {
+	Framebuffer* GetFramebufferFor(const std::string& name) {
 		return resources_.at(name).fbo;
 	}
 
@@ -768,7 +757,7 @@ private:
 		res.height = screenHeight;
 		res.format = TextureFormat::RGBA16F;
 		res.texture = Texture::Create(res.format, res.width, res.height);
-		res.fbo = new FrameBuffer(res.texture);
+		res.fbo = new Framebuffer(res.texture);
 		return res;
 	}
 };
@@ -877,7 +866,7 @@ void ViewportResizeScript::OnWindowResized() {
 }
 
 DrawContext::DrawContext(V2_int size, TextureFormat texture_format) :
-	frame_buffer{ Texture{ nullptr, size, texture_format } }, timer{ true } {}
+	framebuffer{ Texture{ nullptr, size, texture_format } }, timer{ true } {}
 
 DrawContextPool::DrawContextPool(milliseconds max_age) : max_age_{ max_age } {}
 
@@ -907,7 +896,7 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat tex
 	std::shared_ptr<DrawContext> spare_context;
 
 	for (auto& context : contexts_) {
-		if (!context->in_use && context->frame_buffer.GetTexture().GetFormat() == texture_format) {
+		if (!context->in_use && context->framebuffer.GetTexture().GetFormat() == texture_format) {
 			spare_context = context;
 			break;
 		}
@@ -917,8 +906,8 @@ std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat tex
 		return contexts_.emplace_back(std::make_shared<DrawContext>(size, texture_format));
 	}
 
-	if (auto& texture{ spare_context->frame_buffer.GetTexture() }; texture.GetSize() != size) {
-		spare_context->frame_buffer.Resize(size);
+	if (auto& texture{ spare_context->framebuffer.GetTexture() }; texture.GetSize() != size) {
+		spare_context->framebuffer.Resize(size);
 	}
 
 	spare_context->in_use = true;
@@ -1389,7 +1378,7 @@ void Renderer::DrawShader(const DrawShaderCommand& cmd) {
 		shader_pass.uniform_callback(cmd.entity, gl_, shader_pass.shader);
 	}
 
-	target.frame_buffer = &intermediate_target->frame_buffer;
+	target.framebuffer = &intermediate_target->framebuffer;
 
 	DrawCall(
 		shader,
@@ -1397,7 +1386,7 @@ void Renderer::DrawShader(const DrawShaderCommand& cmd) {
 			target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
 			false
 		),
-		quad_indices, { target.texture_id }, target.frame_buffer, clear, cmd.target_clear_color,
+		quad_indices, { target.texture_id }, target.framebuffer, clear, cmd.target_clear_color,
 		target.blend_mode, target.viewport, target.view_projection
 	);
 }
@@ -1412,8 +1401,8 @@ TextureId Renderer::PingPong(
 	auto write{ draw_context_pool.Get(target.viewport.size, target.texture_format) };
 
 	PTGN_ASSERT(read != nullptr && write != nullptr);
-	PTGN_ASSERT(read->frame_buffer.GetTexture().GetSize() == target.viewport.size);
-	PTGN_ASSERT(write->frame_buffer.GetTexture().GetSize() == target.viewport.size);
+	PTGN_ASSERT(read->framebuffer.GetTexture().GetSize() == target.viewport.size);
+	PTGN_ASSERT(write->framebuffer.GetTexture().GetSize() == target.viewport.size);
 
 	bool use_previous_texture{ true };
 
@@ -1431,7 +1420,7 @@ TextureId Renderer::PingPong(
 		if ((first_effect || !use_previous_texture) && id) {
 			texture_id = id;
 		} else {
-			texture_id = read->frame_buffer.GetTexture().GetId();
+			texture_id = read->framebuffer.GetTexture().GetId();
 		}
 
 		const auto& shader_pass{ fx.Get<ShaderPass>() };
@@ -1448,7 +1437,7 @@ TextureId Renderer::PingPong(
 		}
 
 		target.texture_id	= texture_id;
-		target.frame_buffer = &write->frame_buffer;
+		target.framebuffer = &write->framebuffer;
 		target.tint			= GetTint(fx);
 		target.blend_mode	= GetBlendMode(fx);
 
@@ -1458,7 +1447,7 @@ TextureId Renderer::PingPong(
 				target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
 				flip_vertices
 			),
-			quad_indices, { target.texture_id }, target.frame_buffer, use_previous_texture,
+			quad_indices, { target.texture_id }, target.framebuffer, use_previous_texture,
 			color::Transparent, target.blend_mode, target.viewport, target.view_projection
 		);
 
@@ -1466,7 +1455,7 @@ TextureId Renderer::PingPong(
 	}
 	read->in_use = false;
 
-	return write->frame_buffer.GetTexture().GetId();
+	return write->framebuffer.GetTexture().GetId();
 }
 
 const Shader& Renderer::GetCurrentShader() const {
@@ -1547,21 +1536,21 @@ void Renderer::AddVertices(
 
 void Renderer::DrawCall(
 	const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
-	const std::vector<Handle<Texture>>& textures, const FrameBuffer* frame_buffer,
-	bool clear_frame_buffer, Color clear_color, BlendMode blend_mode,
+	const std::vector<Handle<Texture>>& textures, const Framebuffer* framebuffer,
+	bool clear_framebuffer, Color clear_color, BlendMode blend_mode,
 	const Viewport& viewport, const Matrix4& view_projection
 ) {
 	if (vertices.empty() || indices.empty()) {
 		return;
 	}
 
-	if (frame_buffer) {
-		frame_buffer->Bind();
+	if (framebuffer) {
+		framebuffer->Bind();
 	} else {
-		FrameBuffer::Unbind();
+		Framebuffer::Unbind();
 	}
 
-	if (clear_frame_buffer) {
+	if (clear_framebuffer) {
 		GLRenderer::ClearToColor(clear_color);
 	}
 
@@ -1616,13 +1605,13 @@ void Renderer::Flush(bool final_flush) {
 
 		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
 
-		target.frame_buffer = &intermediate_target->frame_buffer;
+		target.framebuffer = &intermediate_target->framebuffer;
 
 		const auto& shader{ GetCurrentShader() };
 
 		// Draw unflushed vertices to intermediate target before adding post fx to it.
 		DrawCall(
-			shader, vertices_, indices_, textures_, target.frame_buffer, true, color::Transparent,
+			shader, vertices_, indices_, textures_, target.framebuffer, true, color::Transparent,
 			target.blend_mode, target.viewport, target.view_projection
 		);
 
@@ -1634,8 +1623,8 @@ void Renderer::Flush(bool final_flush) {
 		target.texture_id = id;
 	}
 
-	// Reset because post fx may change target.frame_buffer.
-	target.frame_buffer = drawing_to_.frame_buffer;
+	// Reset because post fx may change target.framebuffer.
+	target.framebuffer = drawing_to_.framebuffer;
 
 	if (intermediate_target) {
 		// This branch is for when an intermediate target needs to be flushed onto the
@@ -1646,7 +1635,7 @@ void Renderer::Flush(bool final_flush) {
 
 		if (!has_post_fx) {
 			// The light case discussed above.
-			const auto& texture{ intermediate_target->frame_buffer.GetTexture() };
+			const auto& texture{ intermediate_target->framebuffer.GetTexture() };
 			target.texture_id	  = texture.GetId();
 			target.texture_format = texture.GetFormat();
 			target.texture_size	  = texture.GetSize();
@@ -1662,7 +1651,7 @@ void Renderer::Flush(bool final_flush) {
 				target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
 				has_post_fx
 			),
-			quad_indices, { target.texture_id }, target.frame_buffer, false, color::Transparent,
+			quad_indices, { target.texture_id }, target.framebuffer, false, color::Transparent,
 			target.blend_mode, target.viewport, target.view_projection
 		);
 
@@ -1673,7 +1662,7 @@ void Renderer::Flush(bool final_flush) {
 
 		// Draw unflushed vertices directly to drawing_to frame buffer.
 		DrawCall(
-			shader, vertices_, indices_, textures_, target.frame_buffer, false, color::Transparent,
+			shader, vertices_, indices_, textures_, target.framebuffer, false, color::Transparent,
 			target.blend_mode, target.viewport, target.view_projection
 		);
 	}
@@ -1767,7 +1756,7 @@ void Renderer::DrawDisplayList(
 	drawing_to_.blend_mode	 = GetBlendMode(render_target);
 	drawing_to_.depth		 = GetDepth(render_target);
 	drawing_to_.tint		 = GetTint(render_target);
-	drawing_to_.frame_buffer = &render_target.GetFrameBuffer();
+	drawing_to_.framebuffer = &render_target.GetFramebuffer();
 
 	// Must be sorted here so that depth and creation order is accounted for.
 	SortByDepth(display_list, true);
@@ -1803,14 +1792,14 @@ void Renderer::SetDrawingTo(const RenderTarget& render_target) {
 	drawing_to_.blend_mode	 = GetBlendMode(render_target);
 	drawing_to_.depth		 = GetDepth(render_target);
 	drawing_to_.tint		 = GetTint(render_target);
-	drawing_to_.frame_buffer = &render_target.GetFrameBuffer();
+	drawing_to_.framebuffer = &render_target.GetFramebuffer();
 }
 
 void Renderer::DrawScene(Scene& scene) {
 	// Loop through render targets and render their display lists onto their internal frame
 	// buffers.
-	for (auto [entity, visible, drawable, frame_buffer, display_list] :
-		 scene.InternalEntitiesWith<Visible, IDrawable, FrameBuffer, DisplayList>()) {
+	for (auto [entity, visible, drawable, framebuffer, display_list] :
+		 scene.InternalEntitiesWith<Visible, IDrawable, Framebuffer, DisplayList>()) {
 		if (!visible) {
 			continue;
 		}
@@ -1917,7 +1906,7 @@ void Renderer::ClearScreenTarget() const {
 void Renderer::ClearRenderTargets(Scene& scene) const {
 	scene.render_target_.Clear();
 
-	for (auto [entity, frame_buffer] : scene.EntitiesWith<FrameBuffer>()) {
+	for (auto [entity, framebuffer] : scene.EntitiesWith<Framebuffer>()) {
 		RenderTarget rt{ entity };
 		rt.Clear();
 		// rt.ClearDisplayList();
@@ -1968,7 +1957,7 @@ void Renderer::Draw(Scene& scene) {
 			points, GetTint(scene.render_target_), GetDepth(scene.render_target_), { 1.0f },
 			GetDefaultTextureCoordinates(), true
 		),
-		quad_indices, { texture.GetId() }, &screen_target_.GetFrameBuffer(), false,
+		quad_indices, { texture.GetId() }, &screen_target_.GetFramebuffer(), false,
 		color::Transparent, GetBlendMode(scene.render_target_), viewport, projection
 	);
 
@@ -2305,7 +2294,7 @@ ScalingMode Renderer::GetScalingMode() const {
 }
 
 void Renderer::PresentScreen() {
-	FrameBuffer::Unbind();
+	Framebuffer::Unbind();
 
 	// PTGN_ASSERT(
 	// 	std::invoke([]() {
@@ -2322,7 +2311,7 @@ void Renderer::PresentScreen() {
 	// );
 
 	PTGN_ASSERT(
-		FrameBuffer::IsUnbound(),
+		Framebuffer::IsUnbound(),
 		"Frame buffer must be unbound (id=0) before swapping SDL buffer to the screen"
 	);
 
@@ -2330,7 +2319,7 @@ void Renderer::PresentScreen() {
 }
 
 void Renderer::ClearScreen() const {
-	FrameBuffer::Unbind();
+	Framebuffer::Unbind();
 	GLRenderer::SetClearColor(color::Transparent);
 	GLRenderer::Clear();
 	render_data_.ClearScreenTarget();

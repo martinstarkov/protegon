@@ -53,12 +53,12 @@ int main() {
 	auto scene_texture =
 		renderer.gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
 
-	auto scene_fbo = renderer.gl_->CreateFrameBuffer(scene_texture);
+	auto scene_fbo = renderer.gl_->CreateFramebuffer(scene_texture);
 
 	auto scene_texture2 =
 		renderer.gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
 
-	auto scene_fbo2 = renderer.gl_->CreateFrameBuffer(scene_texture2);
+	auto scene_fbo2 = renderer.gl_->CreateFramebuffer(scene_texture2);
 
 	while (running) {
 		SDL_Event ev;

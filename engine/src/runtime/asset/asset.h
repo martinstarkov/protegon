@@ -26,11 +26,11 @@ struct TTF_FontDeleter {
 };
 
 struct ShaderAsset {
-	gl::StrongGLHandle<gl::Shader> shader;
+	gl::Shader shader;
 };
 
 struct TextureAsset {
-	gl::StrongGLHandle<gl::Texture> texture;
+	gl::Texture texture;
 };
 
 struct AudioAsset {

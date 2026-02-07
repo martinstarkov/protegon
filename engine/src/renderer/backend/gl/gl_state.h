@@ -19,7 +19,7 @@ struct Viewport {
 };
 
 struct TextureUnitState {
-	GLuint id{ 0 };
+	TextureId id{ 0 };
 	GLenum min_filter{ GL_LINEAR };
 	GLenum mag_filter{ GL_LINEAR };
 	GLenum wrap_s{ GL_REPEAT };
@@ -79,78 +79,6 @@ struct CullState {
 
 using TextureUnits = std::vector<TextureUnitState>;
 
-struct FramebufferBinding {
-	FramebufferBinding() = default;
-
-	FramebufferBinding(GLuint value) : value{ value } {}
-
-	GLuint value{ 0 };
-
-	operator GLuint() const {
-		return value;
-	}
-};
-
-struct RenderbufferBinding {
-	RenderbufferBinding() = default;
-
-	RenderbufferBinding(GLuint value) : value{ value } {}
-
-	GLuint value{ 0 };
-
-	operator GLuint() const {
-		return value;
-	}
-};
-
-struct VertexBufferBinding {
-	VertexBufferBinding() = default;
-
-	VertexBufferBinding(GLuint value) : value{ value } {}
-
-	GLuint value{ 0 };
-
-	operator GLuint() const {
-		return value;
-	}
-};
-
-struct UniformBufferBinding {
-	UniformBufferBinding() = default;
-
-	UniformBufferBinding(GLuint value) : value{ value } {}
-
-	GLuint value{ 0 };
-
-	operator GLuint() const {
-		return value;
-	}
-};
-
-struct ShaderBinding {
-	ShaderBinding() = default;
-
-	ShaderBinding(GLuint value) : value{ value } {}
-
-	GLuint value{ 0 };
-
-	operator GLuint() const {
-		return value;
-	}
-};
-
-struct VertexArrayBinding {
-	VertexArrayBinding() = default;
-
-	VertexArrayBinding(GLuint value) : value{ value } {}
-
-	GLuint value{ 0 };
-
-	operator GLuint() const {
-		return value;
-	}
-};
-
 struct BlendingEnabled {
 	BlendingEnabled() = default;
 
@@ -166,11 +94,11 @@ struct BlendingEnabled {
 struct ActiveTextureSlot {
 	ActiveTextureSlot() = default;
 
-	ActiveTextureSlot(GLuint value) : value{ value } {}
+	ActiveTextureSlot(Id value) : value{ value } {}
 
-	GLuint value{ 0 };
+	Id value{ 0 };
 
-	operator GLuint() const {
+	operator Id() const {
 		return value;
 	}
 };
@@ -224,19 +152,19 @@ struct LineWidth {
 };
 
 using StateChange = std::variant<
-	FramebufferBinding, RenderbufferBinding, VertexBufferBinding, UniformBufferBinding,
-	ShaderBinding, VertexArrayBinding, Viewport, DepthTestState, BlendMode, BlendingEnabled,
-	ColorMaskState, ActiveTextureSlot, TextureUnits, ClearColor, ScissorState, PolygonModeFront,
-	PolygonModeBack, LineWidth, CullState, StencilState>;
+	FramebufferId, RenderbufferId, VertexBufferId, UniformBufferId, ShaderId, VertexArrayId,
+	Viewport, DepthTestState, BlendMode, BlendingEnabled, ColorMaskState, ActiveTextureSlot,
+	TextureUnits, ClearColor, ScissorState, PolygonModeFront, PolygonModeBack, LineWidth, CullState,
+	StencilState>;
 
 struct State {
 	// Core object bindings
-	FramebufferBinding framebuffer;
-	RenderbufferBinding renderbuffer;
-	VertexBufferBinding vertex_buffer;
-	UniformBufferBinding uniform_buffer;
-	ShaderBinding shader;
-	VertexArrayBinding vertex_array;
+	FramebufferId framebuffer;
+	RenderbufferId renderbuffer;
+	VertexBufferId vertex_buffer;
+	UniformBufferId uniform_buffer;
+	ShaderId shader;
+	VertexArrayId vertex_array;
 
 	Viewport viewport;
 

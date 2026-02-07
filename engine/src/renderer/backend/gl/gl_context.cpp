@@ -582,7 +582,7 @@ GLuint GLContext::CompileShaderPath(
 	return CompileShaderSource(source, type, name, max_texture_slots);
 }
 
-void GLContext::LinkShader(GLuint id, GLuint vertex, GLuint fragment) {
+void GLContext::LinkShader(ShaderId id, GLuint vertex, GLuint fragment) const {
 	shader_cache_.Get(id).uniform_locations.clear();
 
 	PTGN_ASSERT(vertex);
@@ -618,7 +618,7 @@ void GLContext::LinkShader(GLuint id, GLuint vertex, GLuint fragment) {
 }
 
 void GLContext::CompileShader(
-	GLuint id, const std::string& vertex_source, const std::string& fragment_source
+	ShaderId shader, const std::string& vertex_source, const std::string& fragment_source
 ) const {
 	// TODO: Ensure shader cache is cleared if it exists.
 
@@ -626,22 +626,22 @@ void GLContext::CompileShader(
 	GLuint fragment{ CompileShaderFromSource(GL_FRAGMENT_SHADER, fragment_source) };
 
 	if (vertex && fragment) {
-		GLCall(AttachShader(id, vertex));
-		GLCall(AttachShader(id, fragment));
-		GLCall(LinkProgram(id));
+		GLCall(AttachShader(shader, vertex));
+		GLCall(AttachShader(shader, fragment));
+		GLCall(LinkProgram(shader));
 
 		// Check for shader link errors.
 		std::int32_t linked{ GL_FALSE };
-		GLCall(GetProgramiv(id, GL_LINK_STATUS, &linked));
+		GLCall(GetProgramiv(shader, GL_LINK_STATUS, &linked));
 
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
-			GLCall(GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
+			GLCall(GetProgramiv(shader, GL_INFO_LOG_LENGTH, &length));
 			std::string log;
 			log.resize(static_cast<std::size_t>(length));
-			GLCall(GetProgramInfoLog(id, length, &length, &log[0]));
+			GLCall(GetProgramInfoLog(shader, length, &length, &log[0]));
 
-			GLCall(DeleteProgram(id));
+			GLCall(DeleteProgram(shader));
 
 			GLCall(DeleteShader(vertex));
 			GLCall(DeleteShader(fragment));
@@ -652,7 +652,7 @@ void GLContext::CompileShader(
 			);
 		}
 
-		GLCall(ValidateProgram(id));
+		GLCall(ValidateProgram(shader));
 	}
 
 	if (vertex) {
@@ -728,31 +728,27 @@ GLContext::~GLContext() {
 	}
 }
 
-StrongGLHandle<VertexBuffer> GLContext::CreateVertexBuffer(
+VertexBuffer GLContext::CreateVertexBuffer(
 	const void* data, std::uint32_t element_count, std::uint32_t element_size, GLenum usage
 ) {
-	return CreateBufferImpl<VertexBuffer>(
+	return CreateBufferImpl<Resource::VertexBuffer>(
 		GL_ARRAY_BUFFER, data, element_count, element_size, usage
 	);
 }
 
-StrongGLHandle<ElementBuffer> GLContext::CreateElementBuffer(
+ElementBuffer GLContext::CreateElementBuffer(
 	const void* data, std::uint32_t element_count, std::uint32_t element_size, GLenum usage
 ) {
-	return CreateBufferImpl<ElementBuffer>(
+	return CreateBufferImpl<Resource::ElementBuffer>(
 		GL_ELEMENT_ARRAY_BUFFER, data, element_count, element_size, usage
 	);
 }
 
-StrongGLHandle<UniformBuffer> GLContext::CreateUniformBuffer(
-	const void* data, std::uint32_t size, GLenum usage
-) {
-	return CreateBufferImpl<UniformBuffer>(GL_UNIFORM_BUFFER, data, size, 1, usage);
+UniformBuffer GLContext::CreateUniformBuffer(const void* data, std::uint32_t size, GLenum usage) {
+	return CreateBufferImpl<Resource::UniformBuffer>(GL_UNIFORM_BUFFER, data, size, 1, usage);
 }
 
-StrongGLHandle<Shader> GLContext::CreateShader(
-	GLuint vertex, GLuint fragment, const std::string& shader_name
-) {
+Shader GLContext::CreateShader(GLuint vertex, GLuint fragment, const std::string& shader_name) {
 	auto shader{ CreateShaderImpl(shader_name) };
 
 	LinkShader(shader, vertex, fragment);
@@ -760,7 +756,7 @@ StrongGLHandle<Shader> GLContext::CreateShader(
 	return shader;
 }
 
-StrongGLHandle<Shader> GLContext::CreateShader(
+Shader GLContext::CreateShader(
 	std::variant<ShaderCode, std::string> vertex, std::variant<ShaderCode, std::string> fragment,
 	const std::string& shader_name
 ) {
@@ -833,7 +829,7 @@ StrongGLHandle<Shader> GLContext::CreateShader(
 	return shader;
 }
 
-StrongGLHandle<Shader> GLContext::CreateShader(
+Shader GLContext::CreateShader(
 	std::variant<ShaderCode, path> source, const std::string& shader_name
 ) {
 	auto shader{ CreateShaderImpl(shader_name) };
@@ -890,10 +886,247 @@ StrongGLHandle<Shader> GLContext::CreateShader(
 	return shader;
 }
 
-void GLContext::AttachTexture(GLuint framebuffer, GLuint texture, GLenum texture_attachment) {
+Texture GLContext::CreateTexture(
+	const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type, V2_int size,
+	GLenum internal_format, bool restore_bind
+) {
+	auto texture{ CreateTextureImpl() };
+
+	auto _ = Bind(texture, restore_bind);
+
+	SetTextureData(texture, pixel_data, pixel_data_format, pixel_data_type, size, internal_format);
+
+	SetTextureParameter(texture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	SetTextureParameter(texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	SetTextureParameter(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	SetTextureParameter(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	return texture;
+}
+
+Renderbuffer GLContext::CreateRenderbuffer(V2_int size, GLenum internal_format, bool restore_bind) {
+	auto renderbuffer{ CreateRenderbufferImpl() };
+
+	auto _ = Bind(renderbuffer, restore_bind);
+
+	SetRenderbufferStorage(renderbuffer, size, internal_format);
+
+	return renderbuffer;
+}
+
+Framebuffer GLContext::CreateFramebuffer(
+	TextureId texture, GLenum texture_attachment, RenderbufferId renderbuffer,
+	GLenum renderbuffer_attachment, bool restore_bind
+) {
 	PTGN_ASSERT(
-		IsBound<FrameBuffer>(framebuffer), "Framebuffer must be bound before attaching a texture"
+		texture || renderbuffer,
+		"Must provide at least one valid image attachment when creating a framebuffer"
 	);
+
+	auto framebuffer{ CreateFramebufferImpl() };
+	auto _ = Bind(framebuffer, restore_bind);
+
+	if (texture) {
+		AttachTexture(framebuffer, texture, texture_attachment);
+	}
+
+	if (renderbuffer) {
+		AttachRenderbuffer(framebuffer, renderbuffer, renderbuffer_attachment);
+	}
+
+	PTGN_ASSERT(FramebufferIsComplete(framebuffer));
+
+	return framebuffer;
+}
+
+BindGuard<VertexBufferId> GLContext::Bind(VertexBufferId id, bool restore_bind) {
+	auto previous{ GetBoundVertexBuffer() };
+
+	if (id == previous) {
+		return BindGuard<VertexBufferId>{ *this, VertexBufferId{}, false };
+	}
+
+	GLCall(BindBuffer(GL_ARRAY_BUFFER, id));
+	bound_.vertex_buffer = id;
+
+	return BindGuard<VertexBufferId>{ *this, previous, restore_bind };
+}
+
+BindGuard<ElementBufferId> GLContext::Bind(ElementBufferId id, bool restore_bind) {
+	auto previous{ GetBoundElementBuffer() };
+
+	if (id == previous) {
+		return BindGuard<ElementBufferId>{ *this, ElementBufferId{}, false };
+	}
+
+	GLCall(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
+
+	if (bound_.vertex_array) {
+		vertex_array_cache_.Get(bound_.vertex_array).element_buffer = id;
+	}
+
+	return BindGuard<ElementBufferId>{ *this, previous, restore_bind };
+}
+
+BindGuard<UniformBufferId> GLContext::Bind(UniformBufferId id, bool restore_bind) {
+	auto previous{ GetBoundUniformBuffer() };
+
+	if (id == previous) {
+		return BindGuard<UniformBufferId>{ *this, UniformBufferId{}, false };
+	}
+
+	GLCall(BindBuffer(GL_UNIFORM_BUFFER, id));
+	bound_.uniform_buffer = id;
+
+	return BindGuard<UniformBufferId>{ *this, previous, restore_bind };
+}
+
+BindGuard<ShaderId> GLContext::Bind(ShaderId id, bool restore_bind) {
+	auto previous{ GetBoundShader() };
+
+	if (id == previous) {
+		return BindGuard<ShaderId>{ *this, ShaderId{}, false };
+	}
+
+	GLCall(UseProgram(id));
+	bound_.shader = id;
+
+	return BindGuard<ShaderId>{ *this, previous, restore_bind };
+}
+
+BindGuard<RenderbufferId> GLContext::Bind(RenderbufferId id, bool restore_bind) {
+	auto previous{ GetBoundRenderbuffer() };
+
+	if (id == previous) {
+		return BindGuard<RenderbufferId>{ *this, RenderbufferId{}, false };
+	}
+
+	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
+	bound_.renderbuffer = id;
+
+	return BindGuard<RenderbufferId>{ *this, previous, restore_bind };
+}
+
+BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind) {
+	auto previous{ GetBoundTexture() };
+
+	if (id == previous) {
+		return BindGuard<TextureId>{ *this, TextureId{}, false };
+	}
+
+	auto slot{ GetActiveTextureSlot() };
+	PTGN_ASSERT(slot < GetMaxTextureSlots(), "Slot out of range of max slots");
+	PTGN_ASSERT(bound_.texture_units[slot].id != id);
+
+	GLCall(glBindTexture(GL_TEXTURE_2D, id));
+	bound_.texture_units[slot].id = id;
+
+	return BindGuard<TextureId>{ *this, previous, restore_bind };
+}
+
+BindGuard<FramebufferId> GLContext::Bind(FramebufferId id, bool restore_bind) {
+	auto previous{ GetBoundFramebuffer() };
+
+	if (id == previous) {
+		return BindGuard<FramebufferId>{ *this, FramebufferId{}, false };
+	}
+
+	GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
+	bound_.framebuffer = id;
+
+	return BindGuard<FramebufferId>{ *this, previous, restore_bind };
+}
+
+BindGuard<VertexArrayId> GLContext::Bind(VertexArrayId id, bool restore_bind) {
+	auto previous{ GetBoundVertexArray() };
+
+	if (id == previous) {
+		return BindGuard<VertexArrayId>{ *this, VertexArrayId{}, false };
+	}
+
+#ifdef PTGN_PLATFORM_MACOS
+	if (id) {
+		GLCall(BindVertexArray(id));
+	}
+#else
+	GLCall(BindVertexArray(id));
+#endif
+
+	bound_.vertex_array = id;
+
+	return BindGuard<VertexArrayId>{ *this, previous, restore_bind };
+}
+
+VertexBufferId GLContext::GetBoundVertexBuffer() const {
+	return bound_.vertex_buffer;
+}
+
+ElementBufferId GLContext::GetBoundElementBuffer() const {
+	return bound_.vertex_array ? vertex_array_cache_.Get(bound_.vertex_array).element_buffer
+							   : ElementBufferId{ 0 };
+}
+
+UniformBufferId GLContext::GetBoundUniformBuffer() const {
+	return bound_.uniform_buffer;
+}
+
+ShaderId GLContext::GetBoundShader() const {
+	return bound_.shader;
+}
+
+TextureId GLContext::GetBoundTexture() const {
+	PTGN_ASSERT(bound_.active_texture_slot < GetMaxTextureSlots());
+	return bound_.texture_units[bound_.active_texture_slot].id;
+}
+
+RenderbufferId GLContext::GetBoundRenderbuffer() const {
+	return bound_.renderbuffer;
+}
+
+FramebufferId GLContext::GetBoundFramebuffer() const {
+	return bound_.framebuffer;
+}
+
+VertexArrayId GLContext::GetBoundVertexArray() const {
+	return bound_.vertex_array;
+}
+
+bool GLContext::IsBound(VertexBufferId id) const {
+	return GetBoundVertexBuffer() == id;
+}
+
+bool GLContext::IsBound(ElementBufferId id) const {
+	return GetBoundElementBuffer() == id;
+}
+
+bool GLContext::IsBound(UniformBufferId id) const {
+	return GetBoundUniformBuffer() == id;
+}
+
+bool GLContext::IsBound(ShaderId id) const {
+	return GetBoundShader() == id;
+}
+
+bool GLContext::IsBound(RenderbufferId id) const {
+	return GetBoundRenderbuffer() == id;
+}
+
+bool GLContext::IsBound(TextureId id) const {
+	return GetBoundTexture() == id;
+}
+
+bool GLContext::IsBound(FramebufferId id) const {
+	return GetBoundFramebuffer() == id;
+}
+
+bool GLContext::IsBound(VertexArrayId id) const {
+	return GetBoundVertexArray() == id;
+}
+
+void GLContext::AttachTexture(
+	FramebufferId framebuffer, TextureId texture, GLenum texture_attachment
+) {
+	PTGN_ASSERT(IsBound(framebuffer), "Framebuffer must be bound before attaching a texture");
 
 	if (texture) {
 		PTGN_ASSERT(texture_cache_.Has(texture), "Texture not in cache");
@@ -904,21 +1137,18 @@ void GLContext::AttachTexture(GLuint framebuffer, GLuint texture, GLenum texture
 
 	GLCall(FramebufferTexture2D(GL_FRAMEBUFFER, texture_attachment, GL_TEXTURE_2D, texture, 0));
 
-	UpdateFrameBufferCache(framebuffer, texture, texture_attachment, GL_TEXTURE_2D);
+	UpdateFramebufferCache(framebuffer, texture, texture_attachment, GL_TEXTURE_2D);
 }
 
-V2_int GLContext::GetTextureSize(GLuint texture) const {
+V2_int GLContext::GetTextureSize(TextureId texture) const {
 	PTGN_ASSERT(texture_cache_.Has(texture), "Texture not in cache");
 	return texture_cache_.Get(texture).size;
 }
 
-void GLContext::AttachRenderBuffer(
-	GLuint framebuffer, GLuint renderbuffer, GLenum renderbuffer_attachment
+void GLContext::AttachRenderbuffer(
+	FramebufferId framebuffer, RenderbufferId renderbuffer, GLenum renderbuffer_attachment
 ) {
-	PTGN_ASSERT(
-		IsBound<FrameBuffer>(framebuffer),
-		"Framebuffer must be bound before attaching a renderbuffer"
-	);
+	PTGN_ASSERT(IsBound(framebuffer), "Framebuffer must be bound before attaching a renderbuffer");
 
 	if (renderbuffer) {
 		PTGN_ASSERT(renderbuffer_cache_.Has(renderbuffer), "Renderbuffer not in cache");
@@ -932,25 +1162,19 @@ void GLContext::AttachRenderBuffer(
 		GL_FRAMEBUFFER, renderbuffer_attachment, GL_RENDERBUFFER, renderbuffer
 	));
 
-	UpdateFrameBufferCache(framebuffer, renderbuffer, renderbuffer_attachment, GL_RENDERBUFFER);
+	UpdateFramebufferCache(framebuffer, renderbuffer, renderbuffer_attachment, GL_RENDERBUFFER);
 }
 
-void GLContext::SetVertexBuffer(GLuint vertex_array, GLuint vertex_buffer) {
-	PTGN_ASSERT(
-		IsBound<VertexArray>(vertex_array),
-		"Vertex array must be bound before setting vertex buffer"
-	);
+void GLContext::SetVertexBuffer(VertexArrayId vertex_array, VertexBufferId vertex_buffer) {
+	PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer");
 
-	auto _ = Bind<VertexBuffer, false>(vertex_buffer);
+	auto _ = Bind(vertex_buffer, false);
 }
 
-void GLContext::SetElementBuffer(GLuint vertex_array, GLuint element_buffer) {
-	PTGN_ASSERT(
-		IsBound<VertexArray>(vertex_array),
-		"Vertex array must be bound before setting element buffer"
-	);
+void GLContext::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId element_buffer) {
+	PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before setting element buffer");
 
-	auto _ = Bind<ElementBuffer, false>(element_buffer);
+	auto _ = Bind(element_buffer, false);
 }
 
 void GLContext::EnableGammaCorrection() {
@@ -1107,17 +1331,18 @@ void GLContext::SetBlendMode(BlendMode mode) {
 }
 
 void GLContext::DrawElements(
-	GLuint vertex_array, GLsizei element_count, GLenum element_type, GLenum primitive_mode
+	VertexArrayId vertex_array, GLsizei element_count, GLenum element_type, GLenum primitive_mode
 ) const {
-	PTGN_ASSERT(IsBound<VertexArray>(vertex_array));
+	PTGN_ASSERT(IsBound(vertex_array));
 	PTGN_ASSERT(vertex_array_cache_.Get(vertex_array).layout_set);
-	PTGN_ASSERT(GetBound<ElementBuffer>());
+	PTGN_ASSERT(GetBoundElementBuffer());
 
 	GLCall(glDrawElements(primitive_mode, element_count, element_type, nullptr));
 }
 
-void GLContext::DrawArrays(GLuint vertex_array, GLsizei vertex_count, GLenum primitive_mode) const {
-	PTGN_ASSERT(IsBound<VertexArray>(vertex_array));
+void GLContext::DrawArrays(VertexArrayId vertex_array, GLsizei vertex_count, GLenum primitive_mode)
+	const {
+	PTGN_ASSERT(IsBound(vertex_array));
 	PTGN_ASSERT(vertex_array_cache_.Get(vertex_array).layout_set);
 
 	constexpr GLint starting_index{ 0 };
@@ -1149,8 +1374,8 @@ void GLContext::Clear() {
 	GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 }
 
-void GLContext::ClearToColor(GLuint framebuffer, Color color) const {
-	PTGN_ASSERT(IsBound<FrameBuffer>(framebuffer));
+void GLContext::ClearToColor(FramebufferId framebuffer, Color color) const {
+	PTGN_ASSERT(IsBound(framebuffer));
 	auto c{ static_cast<V4_float>(color) };
 	GLCall(ClearBufferfv(GL_COLOR, 0, c.Data()));
 }
@@ -1213,28 +1438,28 @@ void GLContext::SetStencil(const StencilState& stencil) {
 	bound_.stencil = stencil;
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, V2_float v) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, V2_float v) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v.x, v.y));
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, V3_float v) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, V3_float v) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v.x, v.y, v.z));
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, V4_float v) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, V4_float v) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4f(location, v.x, v.y, v.z, v.w));
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, const Matrix4& matrix) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, const Matrix4& matrix) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(UniformMatrix4fv(location, 1, GL_FALSE, matrix.Data()));
@@ -1242,7 +1467,7 @@ void GLContext::SetUniform(GLuint shader, const char* uniform_name, const Matrix
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, const std::int32_t* data, std::int32_t count
+	ShaderId shader, const char* uniform_name, const std::int32_t* data, std::int32_t count
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1251,7 +1476,7 @@ void GLContext::SetUniform(
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, const float* data, std::int32_t count
+	ShaderId shader, const char* uniform_name, const float* data, std::int32_t count
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1260,7 +1485,7 @@ void GLContext::SetUniform(
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, const Vector2<std::int32_t>& v
+	ShaderId shader, const char* uniform_name, const Vector2<std::int32_t>& v
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1269,7 +1494,7 @@ void GLContext::SetUniform(
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, const Vector3<std::int32_t>& v
+	ShaderId shader, const char* uniform_name, const Vector3<std::int32_t>& v
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1278,7 +1503,7 @@ void GLContext::SetUniform(
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, const Vector4<std::int32_t>& v
+	ShaderId shader, const char* uniform_name, const Vector4<std::int32_t>& v
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1286,21 +1511,23 @@ void GLContext::SetUniform(
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, float v0) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, float v0) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1f(location, v0));
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, float v0, float v1) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, float v0, float v1) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v0, v1));
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, float v0, float v1, float v2) {
+void GLContext::SetUniform(
+	ShaderId shader, const char* uniform_name, float v0, float v1, float v2
+) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v0, v1, v2));
@@ -1308,7 +1535,7 @@ void GLContext::SetUniform(GLuint shader, const char* uniform_name, float v0, fl
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, float v0, float v1, float v2, float v3
+	ShaderId shader, const char* uniform_name, float v0, float v1, float v2, float v3
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1316,7 +1543,7 @@ void GLContext::SetUniform(
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, std::int32_t v0) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, std::int32_t v0) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1i(location, v0));
@@ -1324,7 +1551,7 @@ void GLContext::SetUniform(GLuint shader, const char* uniform_name, std::int32_t
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, std::int32_t v0, std::int32_t v1
+	ShaderId shader, const char* uniform_name, std::int32_t v0, std::int32_t v1
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1333,7 +1560,7 @@ void GLContext::SetUniform(
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+	ShaderId shader, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
 	if (location != -1) {
@@ -1342,7 +1569,7 @@ void GLContext::SetUniform(
 }
 
 void GLContext::SetUniform(
-	GLuint shader, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
+	ShaderId shader, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
 	std::int32_t v3
 ) {
 	std::int32_t location{ GetUniform(shader, uniform_name) };
@@ -1351,11 +1578,11 @@ void GLContext::SetUniform(
 	}
 }
 
-void GLContext::SetUniform(GLuint shader, const char* uniform_name, bool value) {
+void GLContext::SetUniform(ShaderId shader, const char* uniform_name, bool value) {
 	SetUniform(shader, uniform_name, static_cast<std::int32_t>(value));
 }
 
-StrongGLHandle<Shader> GLContext::GetShader(std::string_view shader_name) const {
+Shader GLContext::GetShader(std::string_view shader_name) const {
 	auto key{ Hash(shader_name) };
 	PTGN_ASSERT(shaders_.contains(key));
 	return shaders_.find(key)->second;
@@ -1378,12 +1605,12 @@ std::size_t GLContext::GetMaxTextureSlots() const {
 }
 
 GLContext::PixelValue GLContext::ReadPixel(
-	GLuint framebuffer, V2_int coordinate, GLenum attachment
+	FramebufferId framebuffer, V2_int coordinate, GLenum attachment
 ) {
-	auto _1 = Bind<FrameBuffer, true>(framebuffer);
+	auto _1 = Bind(framebuffer, true);
 
 	auto type		 = GetAttachmentDataType(attachment);
-	const auto& info = GetFrameBufferAttachment(framebuffer, attachment);
+	const auto& info = GetFramebufferAttachment(framebuffer, attachment);
 	PTGN_ASSERT(info.id != 0, "No image attached to that attachment");
 
 	V2_int size;
@@ -1450,13 +1677,13 @@ GLContext::PixelValue GLContext::ReadPixel(
 	PTGN_ERROR("Unhandled attachment type");
 }
 
-GLContext::PixelBuffer GLContext::ReadPixels(GLuint framebuffer, GLenum attachment) {
+GLContext::PixelBuffer GLContext::ReadPixels(FramebufferId framebuffer, GLenum attachment) {
 	auto type = GetAttachmentDataType(attachment);
 
-	const auto& info = GetFrameBufferAttachment(framebuffer, attachment);
+	const auto& info = GetFramebufferAttachment(framebuffer, attachment);
 	PTGN_ASSERT(info.id != 0);
 
-	auto _ = Bind<FrameBuffer, true>(framebuffer);
+	auto _ = Bind(framebuffer, true);
 
 	V2_int size = (info.type == GL_TEXTURE_2D) ? texture_cache_.Get(info.id).size
 											   : renderbuffer_cache_.Get(info.id).size;
@@ -1496,15 +1723,13 @@ GLContext::PixelBuffer GLContext::ReadPixels(GLuint framebuffer, GLenum attachme
 	return PixelBuffer{ .size = size, .type = type, .data = std::move(buffer) };
 }
 
-bool GLContext::FrameBufferIsComplete(GLuint framebuffer) const {
-	PTGN_ASSERT(
-		IsBound<FrameBuffer>(framebuffer), "Cannot check status of framebuffer until it is bound"
-	);
+bool GLContext::FramebufferIsComplete(FramebufferId framebuffer) const {
+	PTGN_ASSERT(IsBound(framebuffer), "Cannot check status of framebuffer until it is bound");
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	return status == GL_FRAMEBUFFER_COMPLETE;
 }
 
-const char* GLContext::GetFrameBufferStatus() {
+const char* GLContext::GetFramebufferStatus() {
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	switch (status) {
 		case GL_FRAMEBUFFER_COMPLETE:  return "Framebuffer is complete.";
@@ -1552,14 +1777,15 @@ GLContext::AttachmentDataType GLContext::GetAttachmentDataType(GLenum attachment
 	PTGN_ERROR("Unsupported framebuffer attachment");
 }
 
-AttachmentInfo& GLContext::GetFrameBufferAttachment(GLenum framebuffer, GLenum attachment) {
+AttachmentInfo& GLContext::GetFramebufferAttachment(FramebufferId framebuffer, GLenum attachment) {
 	return const_cast<AttachmentInfo&>(
-		std::as_const(*this).GetFrameBufferAttachment(framebuffer, attachment)
+		std::as_const(*this).GetFramebufferAttachment(framebuffer, attachment)
 	);
 }
 
-const AttachmentInfo& GLContext::GetFrameBufferAttachment(GLenum framebuffer, GLenum attachment)
-	const {
+const AttachmentInfo& GLContext::GetFramebufferAttachment(
+	FramebufferId framebuffer, GLenum attachment
+) const {
 	const auto& cache = framebuffer_cache_.Get(framebuffer);
 
 	if (attachment >= GL_COLOR_ATTACHMENT0 && attachment < GL_COLOR_ATTACHMENT0 + 8) {
@@ -1581,22 +1807,21 @@ const AttachmentInfo& GLContext::GetFrameBufferAttachment(GLenum framebuffer, GL
 	}
 }
 
-void GLContext::UpdateFrameBufferCache(
-	GLenum framebuffer, GLuint image_id, GLenum attachment, GLenum image_type
+void GLContext::UpdateFramebufferCache(
+	FramebufferId framebuffer, GLuint image_id, GLenum attachment, GLenum image_type
 ) {
 	PTGN_ASSERT(image_type == GL_TEXTURE_2D || image_type == GL_RENDERBUFFER, "Invalid image type");
 
 	auto& cache = framebuffer_cache_.Get(framebuffer);
 
-	auto& info{ GetFrameBufferAttachment(framebuffer, attachment) };
+	auto& info{ GetFramebufferAttachment(framebuffer, attachment) };
 	info.id	  = image_id;
 	info.type = image_id ? image_type : 0;
 }
 
-std::int32_t GLContext::GetUniform(GLuint shader, const char* name) {
+std::int32_t GLContext::GetUniform(ShaderId shader, const char* name) {
 	PTGN_ASSERT(
-		IsBound<Shader>(shader),
-		"Cannot get uniform location of shader which is not currently bound"
+		IsBound(shader), "Cannot get uniform location of shader which is not currently bound"
 	);
 
 	auto& cache{ shader_cache_.Get(shader) };
@@ -1615,7 +1840,7 @@ std::int32_t GLContext::GetUniform(GLuint shader, const char* name) {
 	return location;
 }
 
-void GLContext::ResizeFrameBuffer(GLuint framebuffer, V2_int new_size) {
+void GLContext::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size) {
 	auto& cache = framebuffer_cache_.Get(framebuffer);
 
 	auto resize_attachment = [&](const AttachmentInfo& info) {
@@ -1624,9 +1849,9 @@ void GLContext::ResizeFrameBuffer(GLuint framebuffer, V2_int new_size) {
 		}
 
 		if (info.type == GL_TEXTURE_2D) {
-			ResizeTexture(info.id, new_size);
+			ResizeTexture(TextureId{ info.id }, new_size);
 		} else if (info.type == GL_RENDERBUFFER) {
-			ResizeRenderBuffer(info.id, new_size);
+			ResizeRenderbuffer(RenderbufferId{ info.id }, new_size);
 		} else {
 			PTGN_ASSERT(false, "Unknown framebuffer attachment type");
 		}
@@ -1641,7 +1866,7 @@ void GLContext::ResizeFrameBuffer(GLuint framebuffer, V2_int new_size) {
 	resize_attachment(cache.depth_stencil);
 }
 
-void GLContext::ResizeRenderBuffer(GLuint renderbuffer, V2_int new_size) {
+void GLContext::ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_size) {
 	PTGN_ASSERT(renderbuffer);
 
 	const auto& cache = renderbuffer_cache_.Get(renderbuffer);
@@ -1650,12 +1875,12 @@ void GLContext::ResizeRenderBuffer(GLuint renderbuffer, V2_int new_size) {
 		return;
 	}
 
-	auto _ = Bind<RenderBuffer, true>(renderbuffer);
+	auto _ = Bind(renderbuffer, true);
 
-	SetRenderBufferStorage(renderbuffer, new_size, cache.internal_format);
+	SetRenderbufferStorage(renderbuffer, new_size, cache.internal_format);
 }
 
-void GLContext::ResizeTexture(GLuint texture, V2_int new_size) {
+void GLContext::ResizeTexture(TextureId texture, V2_int new_size) {
 	PTGN_ASSERT(texture);
 
 	const auto& cache = texture_cache_.Get(texture);
@@ -1664,16 +1889,15 @@ void GLContext::ResizeTexture(GLuint texture, V2_int new_size) {
 		return;
 	}
 
-	auto _ = Bind<Texture, true>(texture);
+	auto _ = Bind(texture, true);
 
 	SetTextureData(texture, nullptr, GL_RGBA, GL_UNSIGNED_BYTE, new_size, cache.internal_format);
 }
 
-void GLContext::SetRenderBufferStorage(GLuint renderbuffer, V2_int size, GLenum internal_format) {
-	PTGN_ASSERT(
-		IsBound<RenderBuffer>(renderbuffer),
-		"Renderbuffer must be bound prior to setting its storage"
-	);
+void GLContext::SetRenderbufferStorage(
+	RenderbufferId renderbuffer, V2_int size, GLenum internal_format
+) {
+	PTGN_ASSERT(IsBound(renderbuffer), "Renderbuffer must be bound prior to setting its storage");
 
 	GLCall(RenderbufferStorage(GL_RENDERBUFFER, internal_format, size.x, size.y));
 
@@ -1683,10 +1907,10 @@ void GLContext::SetRenderBufferStorage(GLuint renderbuffer, V2_int size, GLenum 
 }
 
 void GLContext::SetTextureData(
-	GLuint texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
+	TextureId texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
 	V2_int size, GLenum internal_format
 ) {
-	PTGN_ASSERT(IsBound<Texture>(texture), "Texture must be bound prior to setting its data");
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its data");
 
 	constexpr GLint mipmap_level{ 0 };
 	constexpr GLint border{ 0 };
@@ -1710,10 +1934,10 @@ void GLContext::SetTextureData(
 }
 
 void GLContext::SetTextureSubData(
-	GLuint texture, const void* pixel_subdata, GLenum pixel_data_format, GLenum pixel_data_type,
+	TextureId texture, const void* pixel_subdata, GLenum pixel_data_format, GLenum pixel_data_type,
 	V2_int subdata_size, V2_int subdata_offset
 ) const {
-	PTGN_ASSERT(IsBound<Texture>(texture), "Texture must be bound prior to setting its subdata");
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its subdata");
 	PTGN_ASSERT(pixel_subdata != nullptr, "Cannot set texture subdata to nullptr");
 
 	constexpr GLint mipmap_level{ 0 };
@@ -1724,41 +1948,39 @@ void GLContext::SetTextureSubData(
 	));
 }
 
-void GLContext::SetTextureClampBorderColor(GLuint texture, Color color) const {
-	PTGN_ASSERT(
-		IsBound<Texture>(texture), "Texture must be bound prior to setting its clamp border color"
-	);
+void GLContext::SetTextureClampBorderColor(TextureId texture, Color color) const {
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its clamp border color");
 
 	auto c{ static_cast<V4_float>(color) };
 	SetTextureParameter(texture, GL_TEXTURE_BORDER_COLOR, c.Data());
 }
 
-void GLContext::SetTextureParameter(GLuint texture, GLenum param, const GLfloat* values) const {
-	PTGN_ASSERT(IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters");
+void GLContext::SetTextureParameter(TextureId texture, GLenum param, const GLfloat* values) const {
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 	GLCall(glTexParameterfv(GL_TEXTURE_2D, param, values));
 }
 
-void GLContext::SetTextureParameter(GLuint texture, GLenum param, const GLint* values) const {
-	PTGN_ASSERT(IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters");
+void GLContext::SetTextureParameter(TextureId texture, GLenum param, const GLint* values) const {
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 	GLCall(glTexParameteriv(GL_TEXTURE_2D, param, values));
 }
 
-void GLContext::SetTextureParameter(GLuint texture, GLenum param, GLfloat value) const {
-	PTGN_ASSERT(IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters");
+void GLContext::SetTextureParameter(TextureId texture, GLenum param, GLfloat value) const {
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	GLCall(glTexParameterf(GL_TEXTURE_2D, param, value));
 }
 
-void GLContext::SetTextureParameter(GLuint texture, GLenum param, GLint value) const {
-	PTGN_ASSERT(IsBound<Texture>(texture), "Texture must be bound prior to setting its parameters");
+void GLContext::SetTextureParameter(TextureId texture, GLenum param, GLint value) const {
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	GLCall(glTexParameteri(GL_TEXTURE_2D, param, value));
 }
 
-GLint GLContext::GetTextureParameter(GLuint texture, GLenum param) const {
-	PTGN_ASSERT(IsBound<Texture>(texture), "Texture must be bound prior to getting its parameters");
+GLint GLContext::GetTextureParameter(TextureId texture, GLenum param) const {
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to getting its parameters");
 	GLint value{ -1 };
 	GLCall(glGetTexParameteriv(GL_TEXTURE_2D, param, &value));
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
@@ -1776,10 +1998,8 @@ bool GLContext::SupportsMipmaps(GLenum texture_min_filter) {
 		   texture_min_filter == GL_NEAREST_MIPMAP_NEAREST;
 }
 
-void GLContext::GenerateMipmaps(GLuint texture) const {
-	PTGN_ASSERT(
-		IsBound<Texture>(texture), "Texture must be bound prior to generating mipmaps for it"
-	);
+void GLContext::GenerateMipmaps(TextureId texture) const {
+	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to generating mipmaps for it");
 #ifndef __EMSCRIPTEN__
 	PTGN_ASSERT(
 		SupportsMipmaps(GetTextureParameter(texture, GL_TEXTURE_MIN_FILTER)),
@@ -1789,7 +2009,7 @@ void GLContext::GenerateMipmaps(GLuint texture) const {
 	GLCall(GenerateMipmap(GL_TEXTURE_2D));
 }
 
-StrongGLHandle<Shader> GLContext::CreateShaderImpl(const std::string& shader_name) {
+Shader GLContext::CreateShaderImpl(const std::string& shader_name) {
 	auto id = new GLuint{ GLCallReturn(CreateProgram()) };
 	PTGN_ASSERT(id && *id, "Failed to create shader");
 	shader_cache_.Add(*id, ShaderCache{ .shader_name = shader_name });
@@ -1802,7 +2022,7 @@ StrongGLHandle<Shader> GLContext::CreateShaderImpl(const std::string& shader_nam
 	});
 }
 
-StrongGLHandle<VertexArray> GLContext::CreateVertexArrayImpl() {
+VertexArray GLContext::CreateVertexArrayImpl() {
 	auto id = new GLuint{ 0 };
 	GLCall(GenVertexArrays(1, id));
 	PTGN_ASSERT(id && *id, "Failed to create vertex array");
@@ -1816,11 +2036,11 @@ StrongGLHandle<VertexArray> GLContext::CreateVertexArrayImpl() {
 	});
 }
 
-StrongGLHandle<FrameBuffer> GLContext::CreateFrameBufferImpl() {
+Framebuffer GLContext::CreateFramebufferImpl() {
 	auto id = new GLuint{ 0 };
 	GLCall(GenFramebuffers(1, id));
 	PTGN_ASSERT(id && *id, "Failed to create framebuffer");
-	framebuffer_cache_.Add(*id, FrameBufferCache{});
+	framebuffer_cache_.Add(*id, FramebufferCache{});
 	return std::shared_ptr<GLuint>(id, [this](GLuint* id) {
 		if (id && *id) {
 			GLCall(DeleteFramebuffers(1, id));
@@ -1830,7 +2050,7 @@ StrongGLHandle<FrameBuffer> GLContext::CreateFrameBufferImpl() {
 	});
 }
 
-StrongGLHandle<Texture> GLContext::CreateTextureImpl() {
+Texture GLContext::CreateTextureImpl() {
 	auto id = new GLuint{ 0 };
 	GLCall(glGenTextures(1, id));
 	PTGN_ASSERT(id && *id, "Failed to create texture");
@@ -1844,11 +2064,11 @@ StrongGLHandle<Texture> GLContext::CreateTextureImpl() {
 	});
 }
 
-StrongGLHandle<RenderBuffer> GLContext::CreateRenderBufferImpl() {
+Renderbuffer GLContext::CreateRenderbufferImpl() {
 	auto id = new GLuint{ 0 };
 	GLCall(GenRenderbuffers(1, id));
 	PTGN_ASSERT(id && *id, "Failed to create renderbuffer");
-	renderbuffer_cache_.Add(*id, RenderBufferCache{});
+	renderbuffer_cache_.Add(*id, RenderbufferCache{});
 	return std::shared_ptr<GLuint>(id, [this](GLuint* id) {
 		if (id && *id) {
 			GLCall(DeleteRenderbuffers(1, id));
@@ -1858,7 +2078,7 @@ StrongGLHandle<RenderBuffer> GLContext::CreateRenderBufferImpl() {
 	});
 }
 
-void GLContext::SavePNG(const path& path, GLuint framebuffer, GLenum attachment) {
+void GLContext::SavePNG(const path& path, FramebufferId framebuffer, GLenum attachment) {
 	// Ensure output directory exists
 	if (path.has_parent_path()) {
 		std::filesystem::create_directories(path.parent_path());
