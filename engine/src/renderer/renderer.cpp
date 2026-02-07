@@ -119,7 +119,9 @@ Renderer::Renderer(Window& window) :
 
 	auto quad{ gl_->GetShader("quad") };
 	auto _1 = gl_->Bind<impl::gl::Shader, false>(quad);
-	gl_->SetUniform(quad, "u_Texture", samplers.data(), static_cast<std::int32_t>(samplers.size()));
+	gl_->SetUniform(
+		quad, "u_Textures", samplers.data(), static_cast<std::int32_t>(samplers.size())
+	);
 
 #ifdef PTGN_PLATFORM_MACOS
 	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
@@ -378,6 +380,8 @@ void Renderer::SetShader(const impl::gl::StrongGLHandle<impl::gl::GLResource::Sh
 		auto _		 = gl_->Bind<impl::gl::Shader, false>(shader);
 		state.shader = shader;
 		state.valid	 = true;
+
+		state.batchable = gl_->IsBatchableShader(shader);
 	}
 }
 
@@ -553,6 +557,13 @@ void Renderer::DrawQuadEx(
 
 	// Texture -> user data slot 0 (convention)
 	if (params.texture) {
+		// TODO: If not batchable shader, simply use the 0th texture slot.
+		// if (!state.batchable) {
+		//		FlushBatch();
+		//      PTGN_ASSERT(batch_textures.empty());
+		//      batch_textures.emplace_back(params.texture);
+		//		gl_->SetUniform(shader, "u_Texture", 0);
+		// }
 		std::uint32_t slot = GetTextureSlot(params.texture);
 		quad.user_data[0]  = static_cast<float>(slot);
 	}
@@ -596,6 +607,7 @@ void Renderer::DrawTexturedQuad(
 	p.texture = texture;
 
 	DrawQuadEx(shader, p, [this](auto s, auto& q) {
+		// TODO: Determine this based on if state batchable.
 		gl_->SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
 	});
 }

@@ -44,6 +44,7 @@ struct VertexArrayCache {
 
 struct ShaderCache {
 	std::string shader_name;
+	bool batchable{ false };
 
 	// cache needs to be mutable even in const functions.
 	mutable std::unordered_map<std::size_t, std::int32_t> uniform_locations;
