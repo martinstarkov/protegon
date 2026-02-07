@@ -98,6 +98,14 @@ template <typename Key, typename Value, typename Compare, typename Alloc>
 	return impl::GetElements<Value>(map);
 }
 
+// Checks if a container (map/unordered_map) contains a value
+template <typename MapType, typename ValueType>
+bool ValuesContain(const MapType& map, const ValueType& value) {
+	return std::any_of(map.begin(), map.end(), [&](const auto& pair) {
+		return pair.second == value;
+	});
+}
+
 template <typename T>
 [[nodiscard]] inline bool VectorContains(const std::vector<T>& container, const T& value) {
 	return std::ranges::find(container, value) != container.end();
