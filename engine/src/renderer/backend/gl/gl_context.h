@@ -373,6 +373,8 @@ public:
 
 	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
 	// @param coordinate Pixel coordinate from [0, size).
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
 	PixelValue ReadPixel(
 		FramebufferId framebuffer, V2_int coordinate, GLenum attachment = GL_COLOR_ATTACHMENT0
 	);
@@ -384,6 +386,8 @@ public:
 	};
 
 	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
 	PixelBuffer ReadPixels(FramebufferId framebuffer, GLenum attachment = GL_COLOR_ATTACHMENT0);
 
 	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
@@ -435,6 +439,8 @@ public:
 		}
 	}
 
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
 	template <typename F>
 	void ForEachPixel(
 		FramebufferId framebuffer, F&& func, GLenum attachment = GL_COLOR_ATTACHMENT0
@@ -443,9 +449,20 @@ public:
 		ForEachPixel(buffer, std::forward<F>(func));
 	}
 
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
 	void SavePNG(
 		const path& path, FramebufferId framebuffer, GLenum attachment = GL_COLOR_ATTACHMENT0
 	);
+
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
+	AttachmentInfo& GetFramebufferAttachment(FramebufferId framebuffer, GLenum attachment);
+
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
+	const AttachmentInfo& GetFramebufferAttachment(FramebufferId framebufferv, GLenum attachment)
+		const;
 
 private:
 	[[nodiscard]] constexpr static int GetColorComponentCount(GLenum internal_format) {
@@ -474,13 +491,12 @@ private:
 
 	[[nodiscard]] const char* GetFramebufferStatus();
 
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
 	AttachmentDataType GetAttachmentDataType(GLenum attachment) const;
 
-	AttachmentInfo& GetFramebufferAttachment(FramebufferId framebuffer, GLenum attachment);
-
-	const AttachmentInfo& GetFramebufferAttachment(FramebufferId framebufferv, GLenum attachment)
-		const;
-
+	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
+	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
 	void UpdateFramebufferCache(
 		FramebufferId framebuffer, GLuint image_id, GLenum attachment, GLenum image_type
 	);
@@ -628,6 +644,10 @@ private:
 	// TODO: Store resource cached values here by GLuint key and erase them in the resource
 	// deleter. e.g. std::unordered_map<GLuint, location_cache> location_caches_;
 	// UnsafeDelete(); location_caches_.erase(id);
+
+	// equivalent to GL_MAX_COLOR_ATTACHMENTS, or the number of color attachments a framebuffer can
+	// have. This is set by the constructor and should not be modified afterward.
+	GLuint max_color_attachments_{ 0 };
 
 	std::unordered_map<std::size_t, Shader> shaders_;
 

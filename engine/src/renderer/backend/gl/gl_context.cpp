@@ -694,6 +694,9 @@ GLContext::GLContext(Window& window) {
 	PTGN_ASSERT(max_texture_slots > 0);
 	bound_.texture_units.resize(max_texture_slots, {});
 
+	max_color_attachments_ = GetInteger<GLuint>(GL_MAX_COLOR_ATTACHMENTS);
+	PTGN_ASSERT(max_color_attachments_ > 0);
+
 	auto fs{ cmrc::shader::get_filesystem() };
 
 	PopulateShaderCache(fs, vertex_shaders_, fragment_shaders_, max_texture_slots);
@@ -1758,7 +1761,8 @@ const char* GLContext::GetFramebufferStatus() {
 }
 
 GLContext::AttachmentDataType GLContext::GetAttachmentDataType(GLenum attachment) const {
-	if (attachment >= GL_COLOR_ATTACHMENT0 && attachment < GL_COLOR_ATTACHMENT0 + 8) {
+	if (attachment >= GL_COLOR_ATTACHMENT0 &&
+		attachment < GL_COLOR_ATTACHMENT0 + max_color_attachments_) {
 		return AttachmentDataType::Color;
 	}
 
@@ -1788,7 +1792,8 @@ const AttachmentInfo& GLContext::GetFramebufferAttachment(
 ) const {
 	const auto& cache = framebuffer_cache_.Get(framebuffer);
 
-	if (attachment >= GL_COLOR_ATTACHMENT0 && attachment < GL_COLOR_ATTACHMENT0 + 8) {
+	if (attachment >= GL_COLOR_ATTACHMENT0 &&
+		attachment < GL_COLOR_ATTACHMENT0 + max_color_attachments_) {
 		PTGN_ASSERT(
 			attachment >= GL_COLOR_ATTACHMENT0 &&
 				attachment < GL_COLOR_ATTACHMENT0 + cache.color.size(),

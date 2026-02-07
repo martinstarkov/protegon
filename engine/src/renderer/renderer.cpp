@@ -583,6 +583,12 @@ void Renderer::DrawTexturedQuad(
 	impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
 	Color tint
 ) {
+	PTGN_ASSERT(
+		impl::gl::TextureId{
+			gl_->GetFramebufferAttachment(state.framebuffer, GL_COLOR_ATTACHMENT0).id } != texture,
+		"Cannot draw a texture that is attached to the currently set framebuffer"
+	);
+
 	QuadParams p{};
 	p.center  = center;
 	p.size	  = size;
@@ -611,6 +617,7 @@ void Renderer::SubmitQuad(
 	}
 }
 
+/*
 void Renderer::DrawLightQuad(const LightParams& light) {
 	QuadParams p{};
 	p.center = light.position;
@@ -630,6 +637,7 @@ void Renderer::DrawLightQuad(const LightParams& light) {
 		gl_->SetUniform(s, "u_LightAttenuation", light.attenuation);
 	});
 }
+*/
 
 void Renderer::DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size) {
 	QuadParams p{};

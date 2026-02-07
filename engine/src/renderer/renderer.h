@@ -72,6 +72,7 @@ struct QuadParams {
 };
 
 // TODO: Move somewhere else.
+/*
 struct LightParams {
 	V2_float position;
 	float radius;
@@ -82,6 +83,7 @@ struct LightParams {
 	float ambient_intensity;
 	V3_float attenuation;
 };
+*/
 
 class Renderer {
 public:
@@ -104,7 +106,7 @@ public:
 	using UniformSetup = std::function<void(impl::gl::ShaderId)>;
 	using QuadSetup	   = std::function<void(impl::gl::ShaderId, impl::QuadDesc&)>;
 
-	void DrawLightQuad(const LightParams& light);
+	// void DrawLightQuad(const LightParams& light);
 	void DrawTexturedQuad(
 		impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
 		Color tint = color::White
