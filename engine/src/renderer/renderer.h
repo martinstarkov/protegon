@@ -215,8 +215,7 @@ private:
 		bool color_write_b = true;
 		bool color_write_a = true;
 
-		bool valid	   = false;
-		bool batchable = false;
+		bool valid = false;
 	};
 
 	RenderState state;

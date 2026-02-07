@@ -58,7 +58,6 @@ class GLContext;
 
 struct ShaderOptions {
 	bool auto_layout{ false };
-	bool batchable{ false };
 };
 
 struct ShaderTypeSource {
@@ -281,8 +280,6 @@ public:
 	[[nodiscard]] bool IsBound(GLuint id) const {
 		return GetBound<R>() == id;
 	}
-
-	bool IsBatchableShader(GLuint shader) const;
 
 	void AttachTexture(GLuint framebuffer, GLuint texture, GLenum texture_attachment);
 
@@ -594,15 +591,13 @@ private:
 	void CompileShaders(
 		const std::vector<ShaderTypeSource>& sources,
 		std::unordered_map<std::size_t, GLuint>& vertex_shaders,
-		std::unordered_map<std::size_t, GLuint>& fragment_shaders,
-		std::vector<GLuint>& batchable_shaders
+		std::unordered_map<std::size_t, GLuint>& fragment_shaders
 	) const;
 
 	void PopulateShaderCache(
 		const cmrc::embedded_filesystem& filesystem,
 		std::unordered_map<std::size_t, GLuint>& vertex_shaders,
-		std::unordered_map<std::size_t, GLuint>& fragment_shaders,
-		std::vector<GLuint>& batchable_shaders, std::size_t max_texture_slots
+		std::unordered_map<std::size_t, GLuint>& fragment_shaders, std::size_t max_texture_slots
 	) const;
 
 	[[nodiscard]] GLuint CompileShaderSource(
@@ -741,7 +736,6 @@ private:
 
 	std::unordered_map<std::size_t, GLuint> vertex_shaders_;
 	std::unordered_map<std::size_t, GLuint> fragment_shaders_;
-	std::vector<GLuint> batchable_shaders_;
 
 	SDL_GLContextState* context_{ nullptr };
 };

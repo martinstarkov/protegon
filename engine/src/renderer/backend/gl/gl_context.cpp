@@ -33,7 +33,6 @@
 #include "core/math/vector4.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
-#include "core/util/macro.h"
 #include "core/util/span.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
@@ -365,7 +364,6 @@ static std::vector<ShaderTypeSource> ParseShader(
 
 	ShaderOptions global_options;
 	global_options.auto_layout = HasOption(header, "auto_layout");
-	global_options.batchable   = HasOption(header, "batchable");
 
 	for (std::size_t i{ 0 }; i < sources.size(); i++) {
 		auto& sts{ sources[i] };
@@ -374,7 +372,6 @@ static std::vector<ShaderTypeSource> ParseShader(
 		auto& src{ sts.source.source };
 
 		sts.options.auto_layout |= HasOption(src, "auto_layout");
-		sts.options.batchable	|= HasOption(src, "batchable");
 
 		if (sts.options.auto_layout) {
 			AddShaderLayout(src, sts.type);
@@ -394,8 +391,7 @@ static std::vector<ShaderTypeSource> ParseShader(
 void GLContext::CompileShaders(
 	const std::vector<ShaderTypeSource>& sources,
 	std::unordered_map<std::size_t, GLuint>& vertex_shaders,
-	std::unordered_map<std::size_t, GLuint>& fragment_shaders,
-	std::vector<GLuint>& batchable_shaders
+	std::unordered_map<std::size_t, GLuint>& fragment_shaders
 ) const {
 	for (const auto& sts : sources) {
 		auto hash{ Hash(sts.name) };
@@ -407,18 +403,12 @@ void GLContext::CompileShaders(
 					!fragment_shaders.contains(hash), "Cannot add shader to cache twice: ", sts.name
 				);
 				fragment_shaders.emplace(hash, std::move(shader_id));
-				if (sts.options.batchable) {
-					batchable_shaders.push_back(shader_id);
-				}
 				break;
 			case GL_VERTEX_SHADER:
 				PTGN_ASSERT(
 					!vertex_shaders.contains(hash), "Cannot add shader to cache twice: ", sts.name
 				);
 				vertex_shaders.emplace(hash, std::move(shader_id));
-				PTGN_ASSERT(
-					!sts.options.batchable, "Vertex shaders cannot use the 'batchable' option"
-				);
 				break;
 			default: PTGN_ERROR("Unknown shader type");
 		}
@@ -445,8 +435,7 @@ static void SubstituteShaderTokens(
 void GLContext::PopulateShaderCache(
 	const cmrc::embedded_filesystem& filesystem,
 	std::unordered_map<std::size_t, GLuint>& vertex_shaders,
-	std::unordered_map<std::size_t, GLuint>& fragment_shaders,
-	std::vector<GLuint>& batchable_shaders, std::size_t max_texture_slots
+	std::unordered_map<std::size_t, GLuint>& fragment_shaders, std::size_t max_texture_slots
 ) const {
 	const std::string subdir{ "common/" };
 	auto dir{ filesystem.iterate_directory(subdir) };
@@ -466,7 +455,7 @@ void GLContext::PopulateShaderCache(
 	}
 
 	SubstituteShaderTokens(sources, max_texture_slots);
-	CompileShaders(sources, vertex_shaders, fragment_shaders, batchable_shaders);
+	CompileShaders(sources, vertex_shaders, fragment_shaders);
 }
 
 static json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
@@ -516,8 +505,6 @@ GLuint GLContext::CompileShaderFromSource(GLenum type, const std::string& source
 }
 
 void GLContext::PopulateShadersFromCache(const json& manifest) {
-	std::vector<GLuint> batchable_shaders;
-
 	for (const auto& [shader_name, shader_object] : manifest.items()) {
 		std::string vertex_name;
 		std::string fragment_name;
@@ -562,20 +549,8 @@ void GLContext::PopulateShadersFromCache(const json& manifest) {
 
 		LinkShader(shader, vert_id, frag_id);
 
-		PTGN_ASSERT(
-			!VectorContains(batchable_shaders_, vert_id),
-			"Vertex shaders cannot use the 'batchable' option"
-		);
-
-		if (VectorContains(batchable_shaders_, frag_id)) {
-			batchable_shaders.push_back(shader);
-		}
-
 		shaders_.emplace(hash, std::move(shader));
 	}
-
-	// batchable_shaders_ goes from containing fragment shader ids to shader program ids.
-	batchable_shaders_ = batchable_shaders;
 }
 
 std::vector<ShaderTypeSource> GLContext::ParseShaderSourceFile(
@@ -721,9 +696,7 @@ GLContext::GLContext(Window& window) {
 
 	auto fs{ cmrc::shader::get_filesystem() };
 
-	PopulateShaderCache(
-		fs, vertex_shaders_, fragment_shaders_, batchable_shaders_, max_texture_slots
-	);
+	PopulateShaderCache(fs, vertex_shaders_, fragment_shaders_, max_texture_slots);
 
 	auto manifest = GetShaderManifest(fs);
 
@@ -915,14 +888,6 @@ StrongGLHandle<Shader> GLContext::CreateShader(
 	}
 
 	return shader;
-}
-
-bool GLContext::IsBatchableShader(GLuint shader) const {
-	PTGN_ASSERT(
-		ValuesContain(shaders_, shader), "Shader id must be in cache to check if it is batchable"
-	);
-
-	return VectorContains(batchable_shaders_, shader);
 }
 
 void GLContext::AttachTexture(GLuint framebuffer, GLuint texture, GLenum texture_attachment) {

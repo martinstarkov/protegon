@@ -22,7 +22,6 @@ void main() {
 }
 
 #type fragment
-#option batchable
 
 out vec4 o_Color;
 
