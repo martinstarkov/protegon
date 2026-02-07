@@ -1808,7 +1808,7 @@ const AttachmentInfo& GLContext::GetFramebufferAttachment(
 	} else if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
 		return cache.depth_stencil;
 	} else {
-		PTGN_ASSERT(false, "Unsupported framebuffer attachment enum");
+		PTGN_ERROR("Unsupported framebuffer attachment enum");
 	}
 }
 
@@ -1858,7 +1858,7 @@ void GLContext::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size) {
 		} else if (info.type == GL_RENDERBUFFER) {
 			ResizeRenderbuffer(RenderbufferId{ info.id }, new_size);
 		} else {
-			PTGN_ASSERT(false, "Unknown framebuffer attachment type");
+			PTGN_ERROR("Unknown framebuffer attachment type");
 		}
 	};
 

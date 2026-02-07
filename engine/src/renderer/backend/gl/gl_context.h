@@ -12,6 +12,7 @@
 #include "core/assert.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -479,11 +480,9 @@ private:
 			case GL_RGB:			 return 3; // red + green + blue
 			case GL_BGR:			 return 3; // blue + green + red (different order)
 			case GL_RGBA:			 return 4; // red + green + blue + alpha
-			case GL_BGRA:			 return 4;			   // blue + green + red + alpha (different order)
+			case GL_BGRA:			 return 4; // blue + green + red + alpha (different order)
 
-			default:
-				PTGN_ASSERT(false, "Unknown or unsupported internal GL format: ", internal_format);
-				return 0;
+			default:				 PTGN_ERROR("Unknown or unsupported internal GL format: ", internal_format);
 		}
 	}
 
