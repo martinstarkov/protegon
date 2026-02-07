@@ -2,14 +2,15 @@
 
 #include <array>
 #include <cstdint>
-#include <format>
-#include <iostream>
+#include <functional>
 #include <memory>
-#include <unordered_set>
+#include <numeric>
+#include <optional>
+#include <span>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
-#include "core/config.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
@@ -19,8 +20,10 @@
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_handle.h"
+#include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/resources/vertex.h"
+#include "resources/buffer_layout.h"
 
 namespace ptgn {
 
@@ -138,7 +141,6 @@ Renderer::Renderer(Window& window) :
 	batch_textures.clear();
 	batch_textures.push_back(white_texture);
 
-	//  TODO: Make batching system.
 	//  TODO: Make ping pong system.
 	//  TODO: Make render target pooling system.
 	//  TODO: Make queued command system.
