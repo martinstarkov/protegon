@@ -25,6 +25,7 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/shader.h"
+#include "renderer/resources/texture_format.h"
 
 CMRC_DECLARE(shader);
 
@@ -67,6 +68,84 @@ struct ShaderTypeSource {
 	std::string name; // optional name for shader.
 	ShaderOptions options;
 };
+
+struct TextureFormatDesc {
+	GLenum internal_format{ 0 };
+	GLenum pixel_format{ 0 };
+	GLenum pixel_type{ 0 };
+
+	bool has_depth{ false };
+	bool has_stencil{ false };
+	bool is_srgb{ false };
+};
+
+constexpr TextureFormatDesc GetTextureFormatDesc(TextureFormat fmt) {
+	switch (fmt) {
+		using enum ptgn::TextureFormat;
+
+		case RGBA8:		 return { GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false, false };
+
+		case RGBA8_SRGB: return { GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false, true };
+
+		case RGBA16F:	 return { GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT, false, false, false };
+
+		case R8:		 return { GL_R8, GL_RED, GL_UNSIGNED_BYTE, false, false, false };
+
+		case RG8:		 return { GL_RG8, GL_RG, GL_UNSIGNED_BYTE, false, false, false };
+
+		case RGBA32F:	 return { GL_RGBA32F, GL_RGBA, GL_FLOAT, false, false, false };
+
+		case R11G11B10F:
+			return {
+				GL_R11F_G11F_B10F, GL_RGB, GL_UNSIGNED_INT_10F_11F_11F_REV, false, false, false
+			};
+
+		case Depth24:
+			return {
+				GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, true, false, false
+			};
+
+		case Depth32F:
+			return { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT, true, false, false };
+
+		case Depth24_Stencil8:
+			return {
+				GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, true, true, false
+			};
+
+		case Stencil8:
+			return { GL_STENCIL_INDEX8, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, false, true, false };
+	}
+
+	// No UB / no exceptions:
+	PTGN_ERROR("Unknown TextureFormat");
+}
+
+inline bool IsDepthFormat(TextureFormat fmt) {
+	switch (fmt) {
+		using enum ptgn::TextureFormat;
+		case Depth16:
+		case Depth24:
+		case Depth32F:
+		case Depth24_Stencil8:
+		case Depth32F_Stencil8: return true;
+		default:				return false;
+	}
+}
+
+inline bool IsColorFormat(TextureFormat fmt) {
+	return !IsDepthFormat(fmt) && fmt != TextureFormat::Stencil8;
+}
+
+inline bool IsHDRFormat(TextureFormat fmt) {
+	switch (fmt) {
+		using enum ptgn::TextureFormat;
+		case RGBA16F:
+		case RGBA32F:
+		case R11G11B10F: return true;
+		default:		 return false;
+	}
+}
 
 template <typename T>
 class BindGuard {
@@ -465,6 +544,12 @@ public:
 	const AttachmentInfo& GetFramebufferAttachment(FramebufferId framebufferv, GLenum attachment)
 		const;
 
+	void ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size);
+
+	void ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_size);
+
+	void ResizeTexture(TextureId texture, V2_int new_size);
+
 private:
 	[[nodiscard]] constexpr static int GetColorComponentCount(GLenum internal_format) {
 		switch (internal_format) {
@@ -579,12 +664,6 @@ private:
 		PTGN_ASSERT(value >= 0, "Failed to query integer parameter");
 		return static_cast<T>(value);
 	}
-
-	void ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size);
-
-	void ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_size);
-
-	void ResizeTexture(TextureId texture, V2_int new_size);
 
 	void SetRenderbufferStorage(RenderbufferId renderbuffer, V2_int size, GLenum internal_format);
 
