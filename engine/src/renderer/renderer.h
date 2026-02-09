@@ -3,19 +3,33 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 
+#include "core/graphics/color.h"
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "renderer/backend/gl/gl_handle.h"
 #include "renderer/backend/gl/gl_state.h"
+#include "renderer/resources/texture_format.h"
 #include "renderer/resources/vertex.h"
 
 namespace ptgn {
 
 class Application;
 class Window;
+class Renderer;
+
+struct RenderTarget {
+	impl::gl::Framebuffer framebuffer;
+	impl::gl::Texture color;
+	impl::gl::Renderbuffer depth; // optional
+	V2_int size;
+	TextureFormat format{ TextureFormat::RGBA8 };
+
+	bool operator==(const RenderTarget&) const = default;
+};
 
 namespace impl {
 
@@ -55,12 +69,20 @@ struct QuadDesc {
 	std::array<float, 4> user_data{};
 };
 
+struct PooledTarget {
+	RenderTarget target;
+	std::uint64_t last_used = 0;
+	bool in_use				= false;
+};
+
 } // namespace impl
 
 struct QuadParams {
 	V2_float center{};
 	V2_float size{ 0.0f, 0.0f };
 	float rotation = 0.0f;
+
+	bool flip_y = false;
 
 	Color tint = color::White;
 
@@ -85,6 +107,22 @@ struct LightParams {
 };
 */
 
+struct RenderPass {
+	Renderer* renderer = nullptr;
+	std::uint32_t id   = 0;
+
+	RenderPass(Renderer& r, std::uint32_t id_);
+
+	RenderPass(const RenderPass&)			 = delete;
+	RenderPass& operator=(const RenderPass&) = delete;
+
+	RenderPass(RenderPass&& other) noexcept;
+
+	RenderPass& operator=(RenderPass&& other) noexcept;
+
+	~RenderPass();
+};
+
 class Renderer {
 public:
 	Renderer() = delete;
@@ -94,6 +132,10 @@ public:
 	Renderer(Renderer&&) noexcept			 = delete;
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
+
+	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
+
+	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
 
 	// TODO: Move to private.
 	std::unique_ptr<impl::gl::GLContext> gl_;
@@ -109,12 +151,13 @@ public:
 	// void DrawLightQuad(const LightParams& light);
 	void DrawTexturedQuad(
 		impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
-		Color tint = color::White
+		Color tint = color::White, bool flip_y = false
 	);
 	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const UniformSetup& u = {});
 	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const QuadSetup& q);
 
 	void BindRenderTarget(impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport);
+	void BindRenderTarget(const RenderTarget& rt);
 
 	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
 
@@ -144,14 +187,24 @@ public:
 		GLenum attachment /* = GL_COLOR_ATTACHMENT0 */
 	);
 
+	RenderPass ForkSceneTarget(RenderTarget scene_target);
+
+	void BindRenderTarget(const RenderPass& pass);
+
+	void DrawTexture(impl::gl::ShaderId shader, const RenderPass& pass, RenderTarget scene_target);
+
 private:
 	friend class Application;
+	friend struct RenderPass;
 
 	impl::QuadDesc MakeQuadDesc(const QuadParams& p);
 
 	void SubmitQuad(std::span<const impl::Vertex> vertices, std::span<const impl::Index> indices);
 
 	std::uint32_t GetTextureSlot(impl::gl::TextureId tex);
+
+	RenderTarget AcquireTempTarget(V2_int size, TextureFormat format);
+	void ReleaseTempTarget(RenderTarget target);
 
 	struct RenderState {
 		// Shader
@@ -214,6 +267,28 @@ private:
 	impl::gl::Texture white_texture;
 
 	impl::gl::Texture screen_texture;
+
+	std::vector<impl::PooledTarget> rt_pool;
+	std::uint64_t pool_tick	  = 0;
+	std::size_t max_pool_size = 16;
+
+	struct LazyPass {
+		RenderTarget source;
+
+		RenderTarget ping;
+		RenderTarget pong;
+
+		bool has_ping = false;
+		bool has_pong = false;
+
+		// "latest output" tracking
+		bool has_output		= false; // false -> latest is source
+		bool output_in_ping = true;	 // valid only if has_output == true
+	};
+
+	void ReleasePass(std::uint32_t id);
+
+	std::vector<LazyPass> passes;
 };
 
 } // namespace ptgn

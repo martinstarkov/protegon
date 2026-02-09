@@ -22,8 +22,9 @@
 #include "renderer/backend/gl/gl_handle.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
+#include "renderer/resources/buffer_layout.h"
+#include "renderer/resources/texture_format.h"
 #include "renderer/resources/vertex.h"
-#include "resources/buffer_layout.h"
 
 namespace ptgn {
 
@@ -309,6 +310,96 @@ void Renderer::FlushBatch() {
 
 */
 
+RenderPass Renderer::ForkSceneTarget(RenderTarget scene_target) {
+	LazyPass p{};
+	p.source = scene_target;
+
+	p.ping	   = AcquireTempTarget(scene_target.size, scene_target.format);
+	p.has_ping = true;
+
+	p.has_output	 = false; // latest = source initially
+	p.output_in_ping = true;  // irrelevant until has_output==true
+
+	std::uint32_t id = static_cast<std::uint32_t>(passes.size());
+	passes.push_back(p);
+
+	return RenderPass{ *this, id };
+}
+
+void Renderer::BindRenderTarget(const RenderPass& pass) {
+	auto& p = passes[pass.id];
+
+	// Bind the next write target (opposite of latest output; ping for first write)
+	RenderTarget write;
+
+	if (!p.has_output) {
+		write = p.ping;
+	} else {
+		if (!p.has_pong && p.output_in_ping) {
+			p.pong	   = AcquireTempTarget(p.source.size, p.source.format);
+			p.has_pong = true;
+		}
+		write = p.output_in_ping ? p.pong : p.ping;
+	}
+
+	BindRenderTarget(write);
+}
+
+void Renderer::DrawTexture(
+	impl::gl::ShaderId shader, const RenderPass& pass, RenderTarget scene_target
+) {
+	auto& p = passes[pass.id];
+
+	// Input = latest output, or source before first draw
+	RenderTarget input = !p.has_output ? p.source : p.output_in_ping ? p.ping : p.pong;
+
+	// Are we rendering *into this pass*?
+	bool writing_to_pass = state.framebuffer == p.ping.framebuffer ||
+						   (p.has_pong && state.framebuffer == p.pong.framebuffer);
+
+	bool input_is_offscreen = input.framebuffer != scene_target.framebuffer;
+
+	bool output_is_offscreen = state.framebuffer != scene_target.framebuffer;
+
+	bool flip_y = input_is_offscreen && !output_is_offscreen;
+
+	// Only ping-pong if we're writing into the pass
+	if (writing_to_pass) {
+		RenderTarget write;
+
+		if (!p.has_output) {
+			write = p.ping;
+		} else {
+			if (!p.has_pong && p.output_in_ping) {
+				p.pong	   = AcquireTempTarget(p.source.size, p.source.format);
+				p.has_pong = true;
+			}
+			write = p.output_in_ping ? p.pong : p.ping;
+		}
+
+		BindRenderTarget(write);
+
+		DrawTexturedQuad(
+			shader, input.color, { 0, 0 }, gl_->GetTextureSize(input.color), color::White, flip_y
+		);
+
+		// Update pass state
+		p.has_output	 = true;
+		p.output_in_ping = (write.framebuffer == p.ping.framebuffer);
+	} else {
+		// Read-only draw: no mutation, no flip
+		DrawTexturedQuad(
+			shader, input.color, { 0, 0 }, gl_->GetTextureSize(input.color), color::White, flip_y
+		);
+	}
+}
+
+void Renderer::ReleasePass(std::uint32_t id) {
+	auto& p = passes[id];
+	// TODO: Erase from vector otherwise it grows forever.
+	passes[id] = {};
+}
+
 void Renderer::FlushBatch() {
 	if (batch_indices.empty()) {
 		return; // Nothing to draw
@@ -346,6 +437,87 @@ void Renderer::FlushBatch() {
 	batch_indices.clear();
 	batch_textures.resize(1);
 	batch_textures[0] = white_texture;
+}
+
+RenderTarget Renderer::AcquireTempTarget(V2_int size, TextureFormat format) {
+	++pool_tick;
+
+	impl::PooledTarget* same_size = nullptr;
+	impl::PooledTarget* unused	  = nullptr;
+	impl::PooledTarget* oldest	  = nullptr;
+
+	// 1. Spare with same size + format
+	for (auto& e : rt_pool) {
+		if (!e.in_use && e.target.size == size && e.target.format == format) {
+			same_size = &e;
+			break;
+		}
+	}
+
+	// 2. Spare with same format, least recently used
+	if (!same_size) {
+		for (auto& e : rt_pool) {
+			if (!e.in_use && e.target.format == format) {
+				if (!unused || e.last_used < unused->last_used) {
+					unused = &e;
+				}
+			}
+		}
+	}
+
+	// 3. New target within pool limit
+	if (!same_size && !unused && rt_pool.size() < max_pool_size) {
+		impl::PooledTarget e{};
+		e.target	= CreateRenderTarget(size, format);
+		e.in_use	= true;
+		e.last_used = pool_tick;
+		rt_pool.push_back(e);
+		return e.target;
+	}
+
+	// 4. Oldest spare with same format
+	if (!same_size && !unused) {
+		for (auto& e : rt_pool) {
+			if (!e.in_use && e.target.format == format) {
+				if (!oldest || e.last_used < oldest->last_used) {
+					oldest = &e;
+				}
+			}
+		}
+	}
+
+	impl::PooledTarget* chosen = same_size ? same_size : unused ? unused : oldest;
+
+	// 5. New target exceeding pool limit (no compatible spare)
+	if (!chosen) {
+		impl::PooledTarget e{};
+		e.target	= CreateRenderTarget(size, format);
+		e.in_use	= true;
+		e.last_used = pool_tick;
+		rt_pool.push_back(e);
+		return e.target;
+	}
+
+	// Resize if needed
+	if (chosen->target.size != size) {
+		ResizeRenderTarget(chosen->target, size);
+	}
+
+	chosen->in_use	  = true;
+	chosen->last_used = pool_tick;
+	return chosen->target;
+}
+
+void Renderer::ReleaseTempTarget(RenderTarget target) {
+	++pool_tick;
+
+	for (auto& e : rt_pool) {
+		if (e.target == target) {
+			e.in_use	= false;
+			e.last_used = pool_tick;
+			return;
+		}
+	}
 }
 
 std::uint32_t Renderer::GetTextureSlot(impl::gl::TextureId tex) {
@@ -523,9 +695,8 @@ static std::array<V2_float, 4> MakeQuadPointsPixels(V2_float center, V2_float si
 			 center + V2_float{ -h.x, h.y } };
 }
 
-template <bool FlipY>
-static constexpr std::array<V2_float, 4> MakeTexCoords() {
-	if constexpr (!FlipY) {
+static constexpr std::array<V2_float, 4> MakeTexCoords(bool flip_y) {
+	if (!flip_y) {
 		return { V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f },
 				 V2_float{ 0.0f, 1.0f } };
 	} else {
@@ -537,7 +708,7 @@ static constexpr std::array<V2_float, 4> MakeTexCoords() {
 impl::QuadDesc Renderer::MakeQuadDesc(const QuadParams& p) {
 	impl::QuadDesc quad{};
 	quad.positions	= MakeQuadPointsPixels(p.center, p.size);
-	quad.tex_coords = p.tex_coords.value_or(MakeTexCoords<false>());
+	quad.tex_coords = p.tex_coords.value_or(MakeTexCoords(p.flip_y));
 	quad.color		= p.tint;
 	quad.rotation	= p.rotation;
 	return quad;
@@ -583,7 +754,7 @@ void Renderer::DrawQuadEx(
 
 void Renderer::DrawTexturedQuad(
 	impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
-	Color tint
+	Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(
 		impl::gl::TextureId{
@@ -596,6 +767,7 @@ void Renderer::DrawTexturedQuad(
 	p.size	  = size;
 	p.tint	  = tint;
 	p.texture = texture;
+	p.flip_y  = flip_y;
 
 	DrawQuadEx(shader, p, [this](auto s, auto& q) {
 		gl_->SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
@@ -641,6 +813,39 @@ void Renderer::DrawLightQuad(const LightParams& light) {
 }
 */
 
+RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
+	const auto& desc = impl::gl::GetTextureFormatDesc(format);
+
+	impl::gl::Texture color =
+		gl_->CreateTexture(nullptr, desc.pixel_format, desc.pixel_type, size, desc.internal_format);
+
+	impl::gl::Renderbuffer depth;
+	if (desc.has_depth || desc.has_stencil) {
+		GLenum rb_format = desc.has_stencil ? GL_DEPTH_STENCIL : GL_DEPTH_COMPONENT;
+
+		depth = gl_->CreateRenderbuffer(size, rb_format);
+	}
+
+	impl::gl::Framebuffer fb = gl_->CreateFramebuffer(
+		color, GL_COLOR_ATTACHMENT0, depth,
+		desc.has_stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT
+	);
+
+	return RenderTarget{
+		.framebuffer = fb, .color = color, .depth = depth, .size = size, .format = format
+	};
+}
+
+void Renderer::ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const {
+	if (rt.size == new_size) {
+		return;
+	}
+
+	gl_->ResizeFramebuffer(rt.framebuffer, new_size);
+
+	rt.size = new_size;
+}
+
 void Renderer::DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size) {
 	QuadParams p{};
 	p.center  = center;
@@ -681,6 +886,34 @@ void Renderer::BindRenderTarget(
 	impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport
 ) {
 	SetFramebuffer(framebuffer, viewport);
+}
+
+void Renderer::BindRenderTarget(const RenderTarget& rt) {
+	BindRenderTarget(rt.framebuffer, { { 0, 0 }, rt.size });
+}
+
+RenderPass::RenderPass(Renderer& r, std::uint32_t id_) : renderer(&r), id(id_) {}
+
+RenderPass::RenderPass(RenderPass&& other) noexcept : renderer(other.renderer), id(other.id) {
+	other.renderer = nullptr;
+}
+
+RenderPass& RenderPass::operator=(RenderPass&& other) noexcept {
+	if (this != &other) {
+		if (renderer) {
+			renderer->ReleasePass(id);
+		}
+		renderer	   = other.renderer;
+		id			   = other.id;
+		other.renderer = nullptr;
+	}
+	return *this;
+}
+
+RenderPass::~RenderPass() {
+	if (renderer) {
+		renderer->ReleasePass(id);
+	}
 }
 
 } // namespace ptgn

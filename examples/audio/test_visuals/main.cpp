@@ -50,15 +50,7 @@ int main() {
 		texture1_surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, texture1_surface.size, GL_RGBA
 	);
 
-	auto scene_texture =
-		renderer.gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
-
-	auto scene_fbo = renderer.gl_->CreateFramebuffer(scene_texture);
-
-	auto scene_texture2 =
-		renderer.gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
-
-	auto scene_fbo2 = renderer.gl_->CreateFramebuffer(scene_texture2);
+	auto scene_target = renderer.CreateRenderTarget(window_size, TextureFormat::RGBA8);
 
 	while (running) {
 		SDL_Event ev;
@@ -70,10 +62,8 @@ int main() {
 
 		renderer.FrameStart();
 
-		renderer.BindRenderTarget(
-			scene_fbo, { { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture) }
-		);
-		renderer.gl_->ClearToColor(scene_fbo, color::Blue);
+		renderer.BindRenderTarget(scene_target);
+		renderer.gl_->ClearToColor(scene_target.framebuffer, color::Blue);
 		renderer.SetBlend(BlendMode::Blend);
 		renderer.DrawTexture(texture1, { 0, 0 }, renderer.gl_->GetTextureSize(texture1));
 		renderer.DrawTexture(texture1, -window_size / 2.0f, renderer.gl_->GetTextureSize(texture1));
@@ -98,6 +88,20 @@ int main() {
 		renderer.DrawTexture(
 			texture1, { 0.0f, -window_size.y / 2.0f }, renderer.gl_->GetTextureSize(texture1)
 		);
+
+		auto pass = renderer.ForkSceneTarget(scene_target);
+
+		renderer.BindRenderTarget(pass);
+		renderer.SetBlend(BlendMode::ReplaceRGBA);
+
+		renderer.SetShader(renderer.gl_->GetShader("isolate_bright"));
+		renderer.gl_->SetUniform(renderer.gl_->GetShader("isolate_bright"), "threshold", 0.8f);
+		renderer.DrawTexture(renderer.gl_->GetShader("isolate_bright"), pass, scene_target);
+		renderer.DrawTexture(renderer.gl_->GetShader("blur"), pass, scene_target);
+
+		renderer.BindRenderTarget(scene_target);
+		renderer.SetBlend(BlendMode::AddRGBA);
+		renderer.DrawTexture(renderer.gl_->GetShader("quad"), pass, scene_target);
 
 		/*
 		renderer.DrawLightQuad({ .position			= { 0.0f, 0.0f },
@@ -136,7 +140,7 @@ int main() {
 
 		renderer.BindRenderTarget(renderer.screen_fbo, { { 0, 0 }, window_size });
 		renderer.SetBlend(BlendMode::ReplaceRGBA);
-		renderer.DrawTexture(scene_texture, { 0, 0 }, renderer.gl_->GetTextureSize(scene_texture));
+		renderer.DrawTexture(scene_target.color, { 0, 0 }, scene_target.size);
 
 		renderer.Present();
 
