@@ -21,6 +21,20 @@ class Application;
 class Window;
 class Renderer;
 
+// TODO: Move somewhere else.
+/*
+struct LightParams {
+	V2_float position;
+	float radius;
+	Color color;
+	float intensity;
+	float falloff;
+	V3_float ambient_color;
+	float ambient_intensity;
+	V3_float attenuation;
+};
+*/
+
 struct RenderTarget {
 	impl::gl::Framebuffer framebuffer;
 	impl::gl::Texture color;
@@ -71,8 +85,8 @@ struct QuadDesc {
 
 struct PooledTarget {
 	RenderTarget target;
-	std::uint64_t last_used = 0;
-	bool in_use				= false;
+	std::uint64_t last_used_tick = 0;
+	bool in_use					 = false;
 };
 
 } // namespace impl
@@ -92,20 +106,6 @@ struct QuadParams {
 	// Texcoords override (optional)
 	std::optional<std::array<V2_float, 4>> tex_coords;
 };
-
-// TODO: Move somewhere else.
-/*
-struct LightParams {
-	V2_float position;
-	float radius;
-	Color color;
-	float intensity;
-	float falloff;
-	V3_float ambient_color;
-	float ambient_intensity;
-	V3_float attenuation;
-};
-*/
 
 struct RenderPass {
 	Renderer* renderer = nullptr;
@@ -141,9 +141,9 @@ public:
 	std::unique_ptr<impl::gl::GLContext> gl_;
 
 	// TODO: Move to private.
-	void FrameStart();
+	void BeginFrame();
 	// TODO: Move to private.
-	void Present();
+	void EndFrame();
 
 	using UniformSetup = std::function<void(impl::gl::ShaderId)>;
 	using QuadSetup	   = std::function<void(impl::gl::ShaderId, impl::QuadDesc&)>;
@@ -176,7 +176,7 @@ public:
 	void SetColorMask(bool r, bool g, bool b, bool a);
 
 	// TODO: Move to private.
-	impl::gl::Framebuffer screen_fbo;
+	RenderTarget screen_target;
 
 	// TODO: Move to private.
 	void FlushBatch();
@@ -187,7 +187,7 @@ public:
 		GLenum attachment /* = GL_COLOR_ATTACHMENT0 */
 	);
 
-	RenderPass ForkSceneTarget(RenderTarget scene_target);
+	RenderPass BeginPass(RenderTarget scene_target);
 
 	void BindRenderTarget(const RenderPass& pass);
 
@@ -203,8 +203,8 @@ private:
 
 	std::uint32_t GetTextureSlot(impl::gl::TextureId tex);
 
-	RenderTarget AcquireTempTarget(V2_int size, TextureFormat format);
-	void ReleaseTempTarget(RenderTarget target);
+	RenderTarget AcquirePooledTarget(V2_int size, TextureFormat format);
+	void ReleasePooledTarget(RenderTarget target);
 
 	struct RenderState {
 		// Shader
@@ -266,13 +266,11 @@ private:
 	impl::gl::VertexArray vao;
 	impl::gl::Texture white_texture;
 
-	impl::gl::Texture screen_texture;
-
 	std::vector<impl::PooledTarget> rt_pool;
 	std::uint64_t pool_tick	  = 0;
 	std::size_t max_pool_size = 16;
 
-	struct LazyPass {
+	struct PingPongPass {
 		RenderTarget source;
 
 		RenderTarget ping;
@@ -282,13 +280,13 @@ private:
 		bool has_pong = false;
 
 		// "latest output" tracking
-		bool has_output		= false; // false -> latest is source
-		bool output_in_ping = true;	 // valid only if has_output == true
+		bool has_written_once = false; // false -> latest is source
+		bool latest_is_ping	  = true;  // valid only if has_written_once == true
 	};
 
 	void ReleasePass(std::uint32_t id);
 
-	std::vector<LazyPass> passes;
+	std::vector<PingPongPass> passes;
 };
 
 } // namespace ptgn

@@ -92,118 +92,6 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) 
 
 } // namespace impl
 
-Renderer::Renderer(Window& window) :
-	window_{ window }, gl_{ std::make_unique<impl::gl::GLContext>(window) } {
-	ebo = gl_->CreateElementBuffer(
-		nullptr, impl::index_capacity, sizeof(impl::Index), GL_DYNAMIC_DRAW
-	);
-
-	vbo = gl_->CreateVertexBuffer(
-		nullptr, impl::vertex_capacity, sizeof(impl::Vertex), GL_DYNAMIC_DRAW
-	);
-
-	vao = gl_->CreateVertexArray(vbo, impl::Vertex::GetLayout(), ebo);
-
-	white_texture = gl_->CreateTexture(
-		static_cast<const void*>(&color::White), GL_RGBA, GL_UNSIGNED_INT, { 1, 1 }, GL_RGBA
-	);
-
-	auto window_size = window.GetSize();
-
-	screen_texture = gl_->CreateTexture(nullptr, GL_RGBA, GL_UNSIGNED_INT, window_size, GL_RGBA);
-
-	screen_fbo = gl_->CreateFramebuffer(screen_texture);
-
-	BindRenderTarget(screen_fbo, { V2_int{ 0, 0 }, window_size });
-
-	auto max_texture_slots{ gl_->GetMaxTextureSlots() };
-
-	std::vector<std::int32_t> samplers(max_texture_slots);
-	std::iota(samplers.begin(), samplers.end(), 0);
-
-	auto quad{ gl_->GetShader("quad") };
-	auto _1 = gl_->Bind(quad);
-	gl_->SetUniform(
-		quad, "u_Textures", samplers.data(), static_cast<std::int32_t>(samplers.size())
-	);
-
-#ifdef PTGN_PLATFORM_MACOS
-	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-	//  texture because texture unloadable."
-	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-		gl_->SetActiveTextureSlot(slot);
-		auto _3 = gl_->Bind(white_texture);
-	}
-#endif
-	gl_->SetActiveTextureSlot(0);
-	auto _2 = gl_->Bind(white_texture);
-
-	batch_textures.clear();
-	batch_textures.push_back(white_texture);
-
-	//  TODO: Make ping pong system.
-	//  TODO: Make render target pooling system.
-	//  TODO: Make queued command system.
-	//  TODO: Make fork pipeline system.
-
-	/*
-	RecomputeDisplaySize(window_.GetSize());
-
-	// GLRenderer::EnableLineSmoothing();
-
-	GLRenderer::DisableDepthTesting();
-	GLRenderer::DisableGammaCorrection();
-
-	max_texture_slots = GLRenderer::GetMaxTextureSlots();
-
-	PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
-
-	const auto& screen_shader{ gl_->GetShader("screen_default") };
-	PTGN_ASSERT(screen_shader.IsValid());
-	gl_->Bind(screen_shader);
-	gl_->SetUniform(screen_shader, "u_Texture", 1);
-
-	const auto& quad_shader{ gl_->GetShader("quad") };
-
-	PTGN_ASSERT(quad_shader.IsValid());
-	PTGN_ASSERT(gl_->GetShader("circle").IsValid());
-	PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
-	PTGN_ASSERT(gl_->GetShader("light").IsValid());
-
-	intermediate_target = {};
-
-	screen_target_ = CreateRenderTarget(
-		render_manager, display_viewport_.size, color::Transparent, TextureFormat::RGBA8888, true
-	);
-	AddScript<impl::DisplayResizeScript>(screen_target_);
-
-	SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
-
-#ifdef PTGN_PLATFORM_MACOS
-	// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-	// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-	// texture because texture unloadable."
-	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-		Texture::Bind(white_texture.GetId(), slot);
-	}
-#endif
-
-	SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
-
-	viewport_tracker = render_manager.CreateEntity();
-	AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
-	auto window_size{ window_.GetSize() };
-	RecomputeDisplaySize(window_size);
-
-	render_manager.Refresh();
-	*/
-}
-
-Renderer::~Renderer() noexcept {
-	// Needs to have access to GLContext destructor, forward declaration is not enough.
-}
-
 /*
 
 bool Renderer::IsTextureAttachedToCurrentFramebuffer(
@@ -310,15 +198,124 @@ void Renderer::FlushBatch() {
 
 */
 
-RenderPass Renderer::ForkSceneTarget(RenderTarget scene_target) {
-	LazyPass p{};
+//  TODO: Make ping pong system.
+//  TODO: Make render target pooling system.
+//  TODO: Make queued command system.
+//  TODO: Make fork pipeline system.
+
+/*
+RecomputeDisplaySize(window_.GetSize());
+
+// GLRenderer::EnableLineSmoothing();
+
+GLRenderer::DisableDepthTesting();
+GLRenderer::DisableGammaCorrection();
+
+max_texture_slots = GLRenderer::GetMaxTextureSlots();
+
+PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
+
+const auto& screen_shader{ gl_->GetShader("screen_default") };
+PTGN_ASSERT(screen_shader.IsValid());
+gl_->Bind(screen_shader);
+gl_->SetUniform(screen_shader, "u_Texture", 1);
+
+const auto& quad_shader{ gl_->GetShader("quad") };
+
+PTGN_ASSERT(quad_shader.IsValid());
+PTGN_ASSERT(gl_->GetShader("circle").IsValid());
+PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
+PTGN_ASSERT(gl_->GetShader("light").IsValid());
+
+intermediate_target = {};
+
+screen_target_ = CreateRenderTarget(
+	render_manager, display_viewport_.size, color::Transparent, TextureFormat::RGBA8888, true
+);
+AddScript<impl::DisplayResizeScript>(screen_target_);
+
+SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
+
+#ifdef PTGN_PLATFORM_MACOS
+// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+// texture because texture unloadable."
+for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+	Texture::Bind(white_texture.GetId(), slot);
+}
+#endif
+
+SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
+
+viewport_tracker = render_manager.CreateEntity();
+AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
+auto window_size{ window_.GetSize() };
+RecomputeDisplaySize(window_size);
+
+render_manager.Refresh();
+*/
+
+Renderer::Renderer(Window& window) :
+	window_{ window }, gl_{ std::make_unique<impl::gl::GLContext>(window) } {
+	ebo = gl_->CreateElementBuffer(
+		nullptr, impl::index_capacity, sizeof(impl::Index), GL_DYNAMIC_DRAW
+	);
+
+	vbo = gl_->CreateVertexBuffer(
+		nullptr, impl::vertex_capacity, sizeof(impl::Vertex), GL_DYNAMIC_DRAW
+	);
+
+	vao = gl_->CreateVertexArray(vbo, impl::Vertex::GetLayout(), ebo);
+
+	white_texture = gl_->CreateTexture(
+		static_cast<const void*>(&color::White), GL_RGBA, GL_UNSIGNED_INT, { 1, 1 }, GL_RGBA
+	);
+
+	auto window_size = window.GetSize();
+
+	screen_target = CreateRenderTarget(window_size, TextureFormat::RGBA8);
+	BindRenderTarget(screen_target);
+
+	auto max_texture_slots{ gl_->GetMaxTextureSlots() };
+
+	std::vector<std::int32_t> samplers(max_texture_slots);
+	std::iota(samplers.begin(), samplers.end(), 0);
+
+	auto quad{ gl_->GetShader("quad") };
+	auto _1 = gl_->Bind(quad);
+	gl_->SetUniform(
+		quad, "u_Textures", samplers.data(), static_cast<std::int32_t>(samplers.size())
+	);
+
+#ifdef PTGN_PLATFORM_MACOS
+	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+	//  texture because texture unloadable."
+	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+		gl_->SetActiveTextureSlot(slot);
+		auto _3 = gl_->Bind(white_texture);
+	}
+#endif
+	gl_->SetActiveTextureSlot(0);
+	auto _2 = gl_->Bind(white_texture);
+
+	batch_textures.clear();
+	batch_textures.push_back(white_texture);
+}
+
+Renderer::~Renderer() noexcept {
+	// Needs to have access to GLContext destructor, forward declaration is not enough.
+}
+
+RenderPass Renderer::BeginPass(RenderTarget scene_target) {
+	PingPongPass p{};
 	p.source = scene_target;
 
-	p.ping	   = AcquireTempTarget(scene_target.size, scene_target.format);
+	p.ping	   = AcquirePooledTarget(scene_target.size, scene_target.format);
 	p.has_ping = true;
 
-	p.has_output	 = false; // latest = source initially
-	p.output_in_ping = true;  // irrelevant until has_output==true
+	p.has_written_once = false; // latest = source initially
+	p.latest_is_ping   = true;	// irrelevant until has_written_once==true
 
 	std::uint32_t id = static_cast<std::uint32_t>(passes.size());
 	passes.push_back(p);
@@ -332,14 +329,14 @@ void Renderer::BindRenderTarget(const RenderPass& pass) {
 	// Bind the next write target (opposite of latest output; ping for first write)
 	RenderTarget write;
 
-	if (!p.has_output) {
+	if (!p.has_written_once) {
 		write = p.ping;
 	} else {
-		if (!p.has_pong && p.output_in_ping) {
-			p.pong	   = AcquireTempTarget(p.source.size, p.source.format);
+		if (!p.has_pong && p.latest_is_ping) {
+			p.pong	   = AcquirePooledTarget(p.source.size, p.source.format);
 			p.has_pong = true;
 		}
-		write = p.output_in_ping ? p.pong : p.ping;
+		write = p.latest_is_ping ? p.pong : p.ping;
 	}
 
 	BindRenderTarget(write);
@@ -351,7 +348,7 @@ void Renderer::DrawTexture(
 	auto& p = passes[pass.id];
 
 	// Input = latest output, or source before first draw
-	RenderTarget input = !p.has_output ? p.source : p.output_in_ping ? p.ping : p.pong;
+	RenderTarget input = !p.has_written_once ? p.source : p.latest_is_ping ? p.ping : p.pong;
 
 	// Are we rendering *into this pass*?
 	bool writing_to_pass = state.framebuffer == p.ping.framebuffer ||
@@ -367,14 +364,14 @@ void Renderer::DrawTexture(
 	if (writing_to_pass) {
 		RenderTarget write;
 
-		if (!p.has_output) {
+		if (!p.has_written_once) {
 			write = p.ping;
 		} else {
-			if (!p.has_pong && p.output_in_ping) {
-				p.pong	   = AcquireTempTarget(p.source.size, p.source.format);
+			if (!p.has_pong && p.latest_is_ping) {
+				p.pong	   = AcquirePooledTarget(p.source.size, p.source.format);
 				p.has_pong = true;
 			}
-			write = p.output_in_ping ? p.pong : p.ping;
+			write = p.latest_is_ping ? p.pong : p.ping;
 		}
 
 		BindRenderTarget(write);
@@ -384,8 +381,8 @@ void Renderer::DrawTexture(
 		);
 
 		// Update pass state
-		p.has_output	 = true;
-		p.output_in_ping = (write.framebuffer == p.ping.framebuffer);
+		p.has_written_once = true;
+		p.latest_is_ping   = (write.framebuffer == p.ping.framebuffer);
 	} else {
 		// Read-only draw: no mutation, no flip
 		DrawTexturedQuad(
@@ -439,7 +436,7 @@ void Renderer::FlushBatch() {
 	batch_textures[0] = white_texture;
 }
 
-RenderTarget Renderer::AcquireTempTarget(V2_int size, TextureFormat format) {
+RenderTarget Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
 	++pool_tick;
 
 	impl::PooledTarget* same_size = nullptr;
@@ -458,7 +455,7 @@ RenderTarget Renderer::AcquireTempTarget(V2_int size, TextureFormat format) {
 	if (!same_size) {
 		for (auto& e : rt_pool) {
 			if (!e.in_use && e.target.format == format) {
-				if (!unused || e.last_used < unused->last_used) {
+				if (!unused || e.last_used_tick < unused->last_used_tick) {
 					unused = &e;
 				}
 			}
@@ -468,9 +465,9 @@ RenderTarget Renderer::AcquireTempTarget(V2_int size, TextureFormat format) {
 	// 3. New target within pool limit
 	if (!same_size && !unused && rt_pool.size() < max_pool_size) {
 		impl::PooledTarget e{};
-		e.target	= CreateRenderTarget(size, format);
-		e.in_use	= true;
-		e.last_used = pool_tick;
+		e.target		 = CreateRenderTarget(size, format);
+		e.in_use		 = true;
+		e.last_used_tick = pool_tick;
 		rt_pool.push_back(e);
 		return e.target;
 	}
@@ -479,7 +476,7 @@ RenderTarget Renderer::AcquireTempTarget(V2_int size, TextureFormat format) {
 	if (!same_size && !unused) {
 		for (auto& e : rt_pool) {
 			if (!e.in_use && e.target.format == format) {
-				if (!oldest || e.last_used < oldest->last_used) {
+				if (!oldest || e.last_used_tick < oldest->last_used_tick) {
 					oldest = &e;
 				}
 			}
@@ -491,9 +488,9 @@ RenderTarget Renderer::AcquireTempTarget(V2_int size, TextureFormat format) {
 	// 5. New target exceeding pool limit (no compatible spare)
 	if (!chosen) {
 		impl::PooledTarget e{};
-		e.target	= CreateRenderTarget(size, format);
-		e.in_use	= true;
-		e.last_used = pool_tick;
+		e.target		 = CreateRenderTarget(size, format);
+		e.in_use		 = true;
+		e.last_used_tick = pool_tick;
 		rt_pool.push_back(e);
 		return e.target;
 	}
@@ -503,18 +500,18 @@ RenderTarget Renderer::AcquireTempTarget(V2_int size, TextureFormat format) {
 		ResizeRenderTarget(chosen->target, size);
 	}
 
-	chosen->in_use	  = true;
-	chosen->last_used = pool_tick;
+	chosen->in_use		   = true;
+	chosen->last_used_tick = pool_tick;
 	return chosen->target;
 }
 
-void Renderer::ReleaseTempTarget(RenderTarget target) {
+void Renderer::ReleasePooledTarget(RenderTarget target) {
 	++pool_tick;
 
 	for (auto& e : rt_pool) {
 		if (e.target == target) {
-			e.in_use	= false;
-			e.last_used = pool_tick;
+			e.in_use		 = false;
+			e.last_used_tick = pool_tick;
 			return;
 		}
 	}
@@ -791,28 +788,6 @@ void Renderer::SubmitQuad(
 	}
 }
 
-/*
-void Renderer::DrawLightQuad(const LightParams& light) {
-	QuadParams p{};
-	p.center = light.position;
-	p.size	 = { light.radius * 2.0f, light.radius * 2.0f };
-	p.tint	 = color::White;
-
-	auto shader = gl_->GetShader("light");
-
-	DrawQuadEx(shader, p, [&](const auto& s, auto&) {
-		gl_->SetUniform(s, "u_LightPosition", light.position);
-		gl_->SetUniform(s, "u_Color", light.color.Normalized());
-		gl_->SetUniform(s, "u_LightIntensity", light.intensity);
-		gl_->SetUniform(s, "u_LightRadius", light.radius);
-		gl_->SetUniform(s, "u_Falloff", light.falloff);
-		gl_->SetUniform(s, "u_AmbientColor", light.ambient_color);
-		gl_->SetUniform(s, "u_AmbientIntensity", light.ambient_intensity);
-		gl_->SetUniform(s, "u_LightAttenuation", light.attenuation);
-	});
-}
-*/
-
 RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
 	const auto& desc = impl::gl::GetTextureFormatDesc(format);
 
@@ -857,7 +832,7 @@ void Renderer::DrawTexture(impl::gl::TextureId texture, V2_float center, V2_floa
 	DrawQuadEx(shader, p);
 }
 
-void Renderer::FrameStart() {
+void Renderer::BeginFrame() {
 	state.valid = false;
 	PTGN_ASSERT(batch_vertices.empty());
 	PTGN_ASSERT(batch_indices.empty());
@@ -866,18 +841,17 @@ void Renderer::FrameStart() {
 	gl_->SetClearColor(color::Transparent);
 	gl_->Clear();
 
-	auto _2 = gl_->Bind(screen_fbo);
-	gl_->SetClearColor(color::Transparent);
-	gl_->Clear();
+	BindRenderTarget(screen_target);
+	gl_->ClearToColor(screen_target.framebuffer, color::Transparent);
 }
 
-void Renderer::Present() {
+void Renderer::EndFrame() {
 	auto window_size = window_.GetSize();
 
 	SetFramebuffer({}, { { 0, 0 }, window_size });
 	SetBlend(BlendMode::ReplaceRGBA);
 
-	DrawTexture(screen_texture, { 0, 0 }, gl_->GetTextureSize(screen_texture));
+	DrawTexture(screen_target.color, { 0, 0 }, screen_target.size);
 
 	FlushBatch();
 }
@@ -915,6 +889,28 @@ RenderPass::~RenderPass() {
 		renderer->ReleasePass(id);
 	}
 }
+
+/*
+void Renderer::DrawLightQuad(const LightParams& light) {
+	QuadParams p{};
+	p.center = light.position;
+	p.size	 = { light.radius * 2.0f, light.radius * 2.0f };
+	p.tint	 = color::White;
+
+	auto shader = gl_->GetShader("light");
+
+	DrawQuadEx(shader, p, [&](const auto& s, auto&) {
+		gl_->SetUniform(s, "u_LightPosition", light.position);
+		gl_->SetUniform(s, "u_Color", light.color.Normalized());
+		gl_->SetUniform(s, "u_LightIntensity", light.intensity);
+		gl_->SetUniform(s, "u_LightRadius", light.radius);
+		gl_->SetUniform(s, "u_Falloff", light.falloff);
+		gl_->SetUniform(s, "u_AmbientColor", light.ambient_color);
+		gl_->SetUniform(s, "u_AmbientIntensity", light.ambient_intensity);
+		gl_->SetUniform(s, "u_LightAttenuation", light.attenuation);
+	});
+}
+*/
 
 } // namespace ptgn
 

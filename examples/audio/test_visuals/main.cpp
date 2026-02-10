@@ -60,7 +60,7 @@ int main() {
 			}
 		}
 
-		renderer.FrameStart();
+		renderer.BeginFrame();
 
 		renderer.BindRenderTarget(scene_target);
 		renderer.gl_->ClearToColor(scene_target.framebuffer, color::Blue);
@@ -89,7 +89,7 @@ int main() {
 			texture1, { 0.0f, -window_size.y / 2.0f }, renderer.gl_->GetTextureSize(texture1)
 		);
 
-		auto pass = renderer.ForkSceneTarget(scene_target);
+		auto pass = renderer.BeginPass(scene_target);
 
 		renderer.BindRenderTarget(pass);
 		renderer.SetBlend(BlendMode::ReplaceRGBA);
@@ -138,11 +138,11 @@ int main() {
 
 		//   TODO: Add batching of consecutive textures.
 
-		renderer.BindRenderTarget(renderer.screen_fbo, { { 0, 0 }, window_size });
+		renderer.BindRenderTarget(renderer.screen_target);
 		renderer.SetBlend(BlendMode::ReplaceRGBA);
 		renderer.DrawTexture(scene_target.color, { 0, 0 }, scene_target.size);
 
-		renderer.Present();
+		renderer.EndFrame();
 
 		PTGN_LOG("--------");
 
