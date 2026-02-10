@@ -108,19 +108,17 @@ struct QuadParams {
 };
 
 struct RenderPass {
-	Renderer* renderer = nullptr;
-	std::uint32_t id   = 0;
+	RenderTarget source;
 
-	RenderPass(Renderer& r, std::uint32_t id_);
+	RenderTarget ping;
+	RenderTarget pong;
 
-	RenderPass(const RenderPass&)			 = delete;
-	RenderPass& operator=(const RenderPass&) = delete;
+	bool has_ping = false;
+	bool has_pong = false;
 
-	RenderPass(RenderPass&& other) noexcept;
-
-	RenderPass& operator=(RenderPass&& other) noexcept;
-
-	~RenderPass();
+	// "latest output" tracking
+	bool has_written_once = false; // false -> latest is source
+	bool latest_is_ping	  = true;  // valid only if has_written_once == true
 };
 
 class Renderer {
@@ -189,9 +187,9 @@ public:
 
 	RenderPass BeginPass(RenderTarget scene_target);
 
-	void BindRenderTarget(const RenderPass& pass);
+	void BindRenderTarget(RenderPass& pass);
 
-	void DrawTexture(impl::gl::ShaderId shader, const RenderPass& pass, RenderTarget scene_target);
+	void DrawTexture(impl::gl::ShaderId shader, RenderPass& pass, RenderTarget scene_target);
 
 private:
 	friend class Application;
@@ -269,24 +267,6 @@ private:
 	std::vector<impl::PooledTarget> rt_pool;
 	std::uint64_t pool_tick	  = 0;
 	std::size_t max_pool_size = 16;
-
-	struct PingPongPass {
-		RenderTarget source;
-
-		RenderTarget ping;
-		RenderTarget pong;
-
-		bool has_ping = false;
-		bool has_pong = false;
-
-		// "latest output" tracking
-		bool has_written_once = false; // false -> latest is source
-		bool latest_is_ping	  = true;  // valid only if has_written_once == true
-	};
-
-	void ReleasePass(std::uint32_t id);
-
-	std::vector<PingPongPass> passes;
 };
 
 } // namespace ptgn

@@ -308,7 +308,7 @@ Renderer::~Renderer() noexcept {
 }
 
 RenderPass Renderer::BeginPass(RenderTarget scene_target) {
-	PingPongPass p{};
+	RenderPass p{};
 	p.source = scene_target;
 
 	p.ping	   = AcquirePooledTarget(scene_target.size, scene_target.format);
@@ -317,15 +317,10 @@ RenderPass Renderer::BeginPass(RenderTarget scene_target) {
 	p.has_written_once = false; // latest = source initially
 	p.latest_is_ping   = true;	// irrelevant until has_written_once==true
 
-	std::uint32_t id = static_cast<std::uint32_t>(passes.size());
-	passes.push_back(p);
-
-	return RenderPass{ *this, id };
+	return p;
 }
 
-void Renderer::BindRenderTarget(const RenderPass& pass) {
-	auto& p = passes[pass.id];
-
+void Renderer::BindRenderTarget(RenderPass& p) {
 	// Bind the next write target (opposite of latest output; ping for first write)
 	RenderTarget write;
 
@@ -342,11 +337,7 @@ void Renderer::BindRenderTarget(const RenderPass& pass) {
 	BindRenderTarget(write);
 }
 
-void Renderer::DrawTexture(
-	impl::gl::ShaderId shader, const RenderPass& pass, RenderTarget scene_target
-) {
-	auto& p = passes[pass.id];
-
+void Renderer::DrawTexture(impl::gl::ShaderId shader, RenderPass& p, RenderTarget scene_target) {
 	// Input = latest output, or source before first draw
 	RenderTarget input = !p.has_written_once ? p.source : p.latest_is_ping ? p.ping : p.pong;
 
@@ -389,12 +380,6 @@ void Renderer::DrawTexture(
 			shader, input.color, { 0, 0 }, gl_->GetTextureSize(input.color), color::White, flip_y
 		);
 	}
-}
-
-void Renderer::ReleasePass(std::uint32_t id) {
-	auto& p = passes[id];
-	// TODO: Erase from vector otherwise it grows forever.
-	passes[id] = {};
 }
 
 void Renderer::FlushBatch() {
@@ -864,30 +849,6 @@ void Renderer::BindRenderTarget(
 
 void Renderer::BindRenderTarget(const RenderTarget& rt) {
 	BindRenderTarget(rt.framebuffer, { { 0, 0 }, rt.size });
-}
-
-RenderPass::RenderPass(Renderer& r, std::uint32_t id_) : renderer(&r), id(id_) {}
-
-RenderPass::RenderPass(RenderPass&& other) noexcept : renderer(other.renderer), id(other.id) {
-	other.renderer = nullptr;
-}
-
-RenderPass& RenderPass::operator=(RenderPass&& other) noexcept {
-	if (this != &other) {
-		if (renderer) {
-			renderer->ReleasePass(id);
-		}
-		renderer	   = other.renderer;
-		id			   = other.id;
-		other.renderer = nullptr;
-	}
-	return *this;
-}
-
-RenderPass::~RenderPass() {
-	if (renderer) {
-		renderer->ReleasePass(id);
-	}
 }
 
 /*
