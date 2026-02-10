@@ -299,7 +299,7 @@ Renderer::Renderer(Window& window) :
 	gl_->SetActiveTextureSlot(0);
 	auto _2 = gl_->Bind(white_texture);
 
-	batch_textures.clear();
+	PTGN_ASSERT(batch_textures.empty());
 	batch_textures.push_back(white_texture);
 }
 
@@ -876,184 +876,6 @@ void Renderer::DrawLightQuad(const LightParams& light) {
 } // namespace ptgn
 
 /*
-
-// TODO: Move toward something like a render graph:
-
-struct DrawCommand {
-	const impl::gl::Shader* shader = nullptr;               // impl::gl::Shader program to use
-	Framebuffer* target = nullptr;                 // Output framebuffer, or nullptr for screen
-
-	std::vector<TextureId> textures;               // Input textures bound to shader
-
-	VertexArray* vao = nullptr;                     // Geometry vertex array (VAO)
-	std::vector<Vertex> vertices;                   // Optional: vertex data (for dynamic batching)
-	std::vector<Index> indices;                      // Optional: index data
-
-	RenderPipelineState state;                       // Pipeline state (blending, depth test, etc.)
-
-	// Optional uniforms (could be a map or structured uniform data)
-	std::unordered_map<std::string, UniformValue> uniforms;
-
-	float depth = 0.0f;                             // For sorting, if needed
-
-	// Constructor, methods to set uniforms, etc. can be added here
-};
-
-struct RenderResource {
-	std::string name;
-	TextureFormat format;
-	int width, height;
-	TextureId texture;
-	Framebuffer* fbo;
-};
-
-struct RenderPass {
-	std::string name;
-	std::vector<std::string> inputs;   // Names of textures needed
-	std::vector<std::string> outputs;  // Names of textures produced
-	std::function<void(RenderGraph&)> execute;
-};
-
-class RenderGraph {
-public:
-	void AddPass(const RenderPass& pass) {
-		passes_.push_back(pass);
-	}
-
-	void Execute() {
-		ResolveExecutionOrder(); // Topo sort (omitted here for brevity)
-
-		for (auto& pass : passes_) {
-			// Allocate outputs if needed
-			for (const auto& outputName : pass.outputs) {
-				if (resources_.count(outputName) == 0) {
-					resources_[outputName] = AllocateRenderTarget(outputName);
-				}
-			}
-
-			// Run the pass
-			pass.execute(*this);
-		}
-
-		ClearTempResources(); // Free or pool intermediates
-	}
-
-	TextureId GetTexture(const std::string& name) {
-		return resources_.at(name).texture;
-	}
-
-	Framebuffer* GetFramebufferFor(const std::string& name) {
-		return resources_.at(name).fbo;
-	}
-
-private:
-	std::vector<RenderPass> passes_;
-	std::unordered_map<std::string, RenderResource> resources_;
-
-	RenderResource AllocateRenderTarget(const std::string& name) {
-		RenderResource res;
-		res.name = name;
-		res.width = screenWidth;
-		res.height = screenHeight;
-		res.format = TextureFormat::RGBA16F;
-		res.texture = Texture::Create(res.format, res.width, res.height);
-		res.fbo = new Framebuffer(res.texture);
-		return res;
-	}
-};
-
-// Usage:
-
-RenderGraph graph;
-
-// 1. Bright pass
-graph.AddPass({
-	.name = "BrightExtract",
-	.inputs = { "sceneColor" },
-	.outputs = { "brightColor" },
-	.execute = [](RenderGraph& g) {
-		DrawCommand cmd;
-		cmd.shader = &brightExtractShader;
-		cmd.textures = { g.GetTexture("sceneColor") };
-		cmd.target = g.GetFramebufferFor("brightColor");
-		SubmitCommand(cmd);
-	}
-});
-
-// 2. Blur
-graph.AddPass({
-	.name = "BlurHorizontal",
-	.inputs = { "brightColor" },
-	.outputs = { "blurH" },
-	.execute = [](RenderGraph& g) {
-		DrawCommand cmd;
-		cmd.shader = &blurShader;
-		blurShader.SetUniform("horizontal", true);
-		cmd.textures = { g.GetTexture("brightColor") };
-		cmd.target = g.GetFramebufferFor("blurH");
-		SubmitCommand(cmd);
-	}
-});
-
-graph.AddPass({
-	.name = "BlurVertical",
-	.inputs = { "blurH" },
-	.outputs = { "blurV" },
-	.execute = [](RenderGraph& g) {
-		DrawCommand cmd;
-		cmd.shader = &blurShader;
-		blurShader.SetUniform("horizontal", false);
-		cmd.textures = { g.GetTexture("blurH") };
-		cmd.target = g.GetFramebufferFor("blurV");
-		SubmitCommand(cmd);
-	}
-});
-
-// 3. Composite
-graph.AddPass({
-	.name = "BloomComposite",
-	.inputs = { "sceneColor", "blurV" },
-	.outputs = {}, // No output means render to screen
-	.execute = [](RenderGraph& g) {
-		DrawCommand cmd;
-		cmd.shader = &compositeShader;
-		cmd.textures = {
-			g.GetTexture("sceneColor"),
-			g.GetTexture("blurV")
-		};
-		cmd.target = nullptr; // Render to screen
-		SubmitCommand(cmd);
-	}
-});
-
-graph.Execute();
-
-namespace impl {
-
-static impl::gl::Handle<impl::gl::Shader> GetFullscreenShader(impl::gl::GLContext& gl, bool hdr) {
-	if (hdr) {
-		auto shader{ gl.GetShader("tone_mapping") };
-		PTGN_ASSERT(shader);
-		auto _ = gl.Bind<false>(shader);
-		gl.SetUniform(shader, "u_Texture", 1);
-		// TODO: Add a way to adjust these.
-		gl.SetUniform(shader, "u_Exposure", 1.0f);
-		gl.SetUniform(shader, "u_Gamma", 2.2f);
-		return shader;
-	} else {
-		return gl.GetShader("screen_default");
-	}
-}
-
-RenderState::RenderState(
-	const ShaderPass& shader_pass, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
-) :
-	shader_pass{ shader_pass }, blend_mode{ blend_mode }, camera{ camera }, post_fx{ post_fx } {}
-
-bool RenderState::IsSet() const {
-	return shader_pass.has_value();
-}
-
 ViewportResizeScript::ViewportResizeScript(Window& window, Renderer& renderer) :
 	window{ window }, renderer{ renderer } {}
 
@@ -1063,57 +885,6 @@ void ViewportResizeScript::OnWindowResized() {
 		renderer.UpdateResolutions(window_size, renderer.resolution_mode_);
 	}
 	renderer.RecomputeDisplaySize(window_size);
-}
-
-DrawContext::DrawContext(V2_int size, TextureFormat texture_format) :
-	framebuffer{ Texture{ nullptr, size, texture_format } }, timer{ true } {}
-
-DrawContextPool::DrawContextPool(milliseconds max_age) : max_age_{ max_age } {}
-
-void DrawContextPool::TrimExpired() {
-	for (auto it{ contexts_.begin() }; it != contexts_.end();) {
-		const auto& context{ *it };
-		if (!context->in_use && !context->keep_alive && context->timer.Elapsed() > max_age_ &&
-			context.use_count() <= 1) {
-			it = contexts_.erase(it);
-		} else {
-			if (!context->keep_alive) {
-				context->in_use = false;
-			}
-			++it;
-		}
-	}
-}
-
-std::shared_ptr<DrawContext> DrawContextPool::Get(V2_int size, TextureFormat texture_format) {
-	PTGN_ASSERT(size.x > 0 && size.y > 0);
-
-	constexpr V2_int max_resolution{ 4096, 2160 };
-
-	size.x = std::min(size.x, max_resolution.x);
-	size.y = std::min(size.y, max_resolution.y);
-
-	std::shared_ptr<DrawContext> spare_context;
-
-	for (auto& context : contexts_) {
-		if (!context->in_use && context->framebuffer.GetTexture().GetFormat() == texture_format) {
-			spare_context = context;
-			break;
-		}
-	}
-
-	if (!spare_context) {
-		return contexts_.emplace_back(std::make_shared<DrawContext>(size, texture_format));
-	}
-
-	if (auto& texture{ spare_context->framebuffer.GetTexture() }; texture.GetSize() != size) {
-		spare_context->framebuffer.Resize(size);
-	}
-
-	spare_context->in_use = true;
-	spare_context->timer.Start(true);
-
-	return spare_context;
 }
 
 static float GetFade(float diameter_y) {
@@ -1392,17 +1163,6 @@ void Renderer::DrawCommand(const impl::DrawCommand& cmd) {
 	);
 }
 
-void Renderer::Submit(const impl::DrawCommand& command, bool debug) {
-	PTGN_ASSERT(
-		drawing_to_.texture_id, "Cannot submit render command to unspecified render target"
-	);
-	if (debug) {
-		debug_queue_.emplace_back(command);
-	} else {
-		draw_queues_[drawing_to_.texture_id].emplace_back(command);
-	}
-}
-
 void Renderer::DrawLines(const DrawLinesCommand& cmd) {
 	std::size_t count = cmd.points.size();
 
@@ -1656,31 +1416,6 @@ TextureId Renderer::PingPong(
 	read->in_use = false;
 
 	return write->framebuffer.GetTexture().GetId();
-}
-
-const Shader& Renderer::GetCurrentShader() const {
-	const Shader* shader{ nullptr };
-
-	PTGN_ASSERT(render_state.shader_pass.has_value());
-
-	if (*render_state.shader_pass == ShaderPass{}) {
-		shader = &gl_->GetShader("quad");
-	} else {
-		shader = &(*render_state.shader_pass).GetShader();
-	}
-
-	PTGN_ASSERT(shader);
-
-	return *shader;
-}
-
-bool Renderer::SetState(const RenderState& new_render_state) {
-	if (new_render_state != render_state || force_flush) {
-		Flush();
-		render_state = new_render_state;
-		return true;
-	}
-	return false;
 }
 
 void Renderer::AddTemporaryTexture(Texture&& texture) {
@@ -2199,17 +1934,6 @@ void Renderer::DrawTexture(
 	cmd.render_state.post_fx	= post_fx;
 
 	render_data_.Submit(cmd);
-}
-
-void Renderer::DrawTexture(
-	const TextureHandle& texture_key, const Transform& transform, V2_float texture_size,
-	Origin origin, const Tint& tint, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PreFX& pre_fx, const PostFX& post_fx, const std::array<V2_float, 4>& texture_coordinates
-) {
-	DrawTexture(
-		texture_key.GetTexture(), transform, texture_size, origin, tint, depth, blend_mode, camera,
-		pre_fx, post_fx, texture_coordinates
-	);
 }
 
 void Renderer::DrawLines(

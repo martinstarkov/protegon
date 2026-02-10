@@ -115,6 +115,30 @@ struct ClearColor {
 	}
 };
 
+struct ClearDepth {
+	ClearDepth() = default;
+
+	ClearDepth(double value) : value{ value } {}
+
+	double value{ 0.0 };
+
+	operator double() const {
+		return value;
+	}
+};
+
+struct ClearStencil {
+	ClearStencil() = default;
+
+	ClearStencil(int value) : value{ value } {}
+
+	int value{ 0 };
+
+	operator int() const {
+		return value;
+	}
+};
+
 struct PolygonModeFront {
 	PolygonModeFront() = default;
 
@@ -154,8 +178,8 @@ struct LineWidth {
 using StateChange = std::variant<
 	FramebufferId, RenderbufferId, VertexBufferId, UniformBufferId, ShaderId, VertexArrayId,
 	Viewport, DepthTestState, BlendMode, BlendingEnabled, ColorMaskState, ActiveTextureSlot,
-	TextureUnits, ClearColor, ScissorState, PolygonModeFront, PolygonModeBack, LineWidth, CullState,
-	StencilState>;
+	TextureUnits, ClearColor, ClearDepth, ClearStencil, ScissorState, PolygonModeFront,
+	PolygonModeBack, LineWidth, CullState, StencilState>;
 
 struct State {
 	// Core object bindings
@@ -179,6 +203,8 @@ struct State {
 	TextureUnits texture_units;
 
 	ClearColor clear_color;
+	ClearDepth clear_depth;
+	ClearStencil clear_stencil;
 
 	ScissorState scissor;
 

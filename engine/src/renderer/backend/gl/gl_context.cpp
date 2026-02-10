@@ -42,6 +42,8 @@
 #include "renderer/resources/shader.h"
 #include "serialization/json/fwd.h"
 
+/// 0 for immediate updates, 1 for updates synchronized with the vertical retrace, -1 for adaptive
+/// vsync.
 #define PTGN_VSYNC_MODE -1
 
 namespace ptgn::impl::gl {
@@ -54,14 +56,14 @@ struct GLVersion {
 		PTGN_ASSERT(r, SDL_GetError());
 	}
 
+	friend std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
+		os << v.major << "." << v.minor;
+		return os;
+	}
+
 	int major{ 0 };
 	int minor{ 0 };
 };
-
-inline std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
-	os << v.major << "." << v.minor;
-	return os;
-}
 
 // TODO: Move all this code to a shader parsing file.
 
@@ -161,8 +163,8 @@ static std::pair<Header, std::vector<ShaderTypeSource>> ParseShaderSources(
 	return { header, sources };
 }
 
-static bool HasOption(const std::string& string, const std::string& option_name) {
-	return string.find("#option " + option_name) != std::string::npos;
+static bool HasOption(std::string_view string, const std::string& option_name) {
+	return string.contains("#option " + option_name);
 }
 
 static void RemoveOption(std::string& source, const std::string& option = "") {
@@ -184,9 +186,8 @@ static std::string InjectShaderPreamble(const std::string& source, [[maybe_unuse
 	std::string result{ source };
 
 	std::regex version_regex(R"(#version\s+(\d+)(?:\s+(\w+))?)");
-	std::smatch match;
 
-	if (std::regex_search(source, match, version_regex)) {
+	if (std::smatch match; std::regex_search(source, match, version_regex)) {
 		std::string version_number{ match[1].str() };		  // e.g. "330" or "300"
 		std::string version_profile{ match.size() > 2 ? match[2].str()
 													  : "" }; // e.g. "core" or "es"
@@ -226,7 +227,7 @@ static std::string InjectShaderPreamble(const std::string& source, [[maybe_unuse
 	}
 #else
 	// Inject #extension if needed (desktop only)
-	if (result.find("#extension GL_ARB_separate_shader_objects") == std::string::npos) {
+	if (!result.contains("#extension GL_ARB_separate_shader_objects")) {
 		std::string extension{ "#extension GL_ARB_separate_shader_objects : require\n" };
 		result.insert(insert_pos, extension);
 		// insert_pos += extension.length(); // Update insert position.
@@ -272,7 +273,7 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] GLenum type) {
 
 	while (std::getline(input, line)) {
 		// Stop injecting once we hit `void main()`
-		if (!in_main && line.find("void main") != std::string::npos) {
+		if (!in_main && line.contains("void main")) {
 			in_main = true;
 		}
 
@@ -335,7 +336,7 @@ static std::string GenerateTextureSwitchBlock(std::size_t max_texture_slots) {
 	return oss.str();
 }
 
-static std::string ReplaceAll(std::string str, const std::string& from, const std::string& to) {
+static std::string ReplaceAll(std::string str, std::string_view from, std::string_view to) {
 	if (from.empty()) {
 		return str;
 	}
@@ -359,8 +360,6 @@ static std::vector<ShaderTypeSource> ParseShader(
 	// PTGN_LOG(name_without_ext);
 	// PTGN_LOG("------- Header ---------");
 	// PTGN_LOG(header);
-
-	auto auto_layout_name{ "auto_layout" };
 
 	ShaderOptions global_options;
 	global_options.auto_layout = HasOption(header, "auto_layout");
@@ -402,13 +401,13 @@ void GLContext::CompileShaders(
 				PTGN_ASSERT(
 					!fragment_shaders.contains(hash), "Cannot add shader to cache twice: ", sts.name
 				);
-				fragment_shaders.emplace(hash, std::move(shader_id));
+				fragment_shaders.emplace(hash, shader_id);
 				break;
 			case GL_VERTEX_SHADER:
 				PTGN_ASSERT(
 					!vertex_shaders.contains(hash), "Cannot add shader to cache twice: ", sts.name
 				);
-				vertex_shaders.emplace(hash, std::move(shader_id));
+				vertex_shaders.emplace(hash, shader_id);
 				break;
 			default: PTGN_ERROR("Unknown shader type");
 		}
@@ -446,10 +445,10 @@ void GLContext::PopulateShaderCache(
 		if (!resource.is_file()) {
 			continue;
 		}
-		auto filename{ resource.filename() };
+		const std::string& filename{ resource.filename() };
 		auto file{ filesystem.open(subdir + filename) };
 		std::string shader_src(file.begin(), file.end());
-		std::string name_without_ext{ std::filesystem::path(filename).stem().string() };
+		std::string name_without_ext{ path(filename).stem().string() };
 		auto srcs{ ParseShader(shader_src, name_without_ext) };
 		sources.insert(sources.end(), srcs.begin(), srcs.end());
 	}
@@ -664,7 +663,7 @@ void GLContext::CompileShader(
 	}
 }
 
-GLContext::GLContext(Window& window) {
+GLContext::GLContext(const Window& window) {
 	if (context_ != nullptr) {
 		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(!result, SDL_GetError());
@@ -759,65 +758,67 @@ Shader GLContext::CreateShader(GLuint vertex, GLuint fragment, const std::string
 	return shader;
 }
 
+bool GLContext::ShaderExists(std::string_view shader_name, GLenum type) const {
+	auto hash{ Hash(shader_name) };
+	switch (type) {
+		case GL_FRAGMENT_SHADER: return fragment_shaders_.contains(hash);
+		case GL_VERTEX_SHADER:	 return vertex_shaders_.contains(hash);
+		default:				 PTGN_ERROR("Unknown shader type");
+	}
+}
+
+GLuint GLContext::GetShaderId(std::string_view shader_name, GLenum type) const {
+	auto hash{ Hash(shader_name) };
+	switch (type) {
+		case GL_FRAGMENT_SHADER: {
+			PTGN_ASSERT(
+				fragment_shaders_.contains(hash),
+				"Could not find fragment shader with name: ", shader_name
+			);
+			return fragment_shaders_.find(hash)->second;
+		}
+		case GL_VERTEX_SHADER: {
+			PTGN_ASSERT(
+				vertex_shaders_.contains(hash),
+				"Could not find vertex shader with name: ", shader_name
+			);
+			return vertex_shaders_.find(hash)->second;
+		}
+		default: PTGN_ERROR("Unknown shader type");
+	}
+}
+
+std::pair<GLuint, bool> GLContext::GetShaderIdWithDeleteFlag(
+	const std::variant<ShaderCode, std::string>& v, GLenum type, const std::string& shader_name
+) const {
+	if (std::holds_alternative<std::string>(v)) {
+		const auto& name{ std::get<std::string>(v) };
+		path file{ name };
+		if (FileExists(file)) {
+			return { CompileShaderPath(file, type, shader_name, GetMaxTextureSlots()), true };
+		} else if (ShaderExists(shader_name, type)) {
+			return { GetShaderId(shader_name, type), false };
+		} else {
+			PTGN_ERROR(name, " is not a valid shader path or loaded ", type, " shader name");
+		}
+	} else if (std::holds_alternative<ShaderCode>(v)) {
+		const auto& src{ std::get<ShaderCode>(v) };
+		return { CompileShaderSource(src.source, type, shader_name, GetMaxTextureSlots()), true };
+	} else {
+		PTGN_ERROR("Unknown variant type");
+	}
+}
+
 Shader GLContext::CreateShader(
-	std::variant<ShaderCode, std::string> vertex, std::variant<ShaderCode, std::string> fragment,
-	const std::string& shader_name
+	const std::variant<ShaderCode, std::string>& vertex,
+	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 ) {
 	auto shader{ CreateShaderImpl(shader_name) };
 
-	const auto has = [&](GLuint type) {
-		auto hash{ Hash(shader_name) };
-		switch (type) {
-			case GL_FRAGMENT_SHADER: return fragment_shaders_.contains(hash);
-			case GL_VERTEX_SHADER:	 return vertex_shaders_.contains(hash);
-			default:				 PTGN_ERROR("Unknown shader type");
-		}
-	};
-
-	const auto get = [&](GLuint type) {
-		auto hash{ Hash(shader_name) };
-		PTGN_ASSERT(has(type), "Could not find ", type, " shader with name: ", shader_name);
-		switch (type) {
-			case GL_FRAGMENT_SHADER: {
-				return fragment_shaders_.find(hash)->second;
-			}
-			case GL_VERTEX_SHADER: {
-				return vertex_shaders_.find(hash)->second;
-			}
-			default: PTGN_ERROR("Unknown shader type");
-		}
-	};
-
-	auto max_texture_slots{ GetMaxTextureSlots() };
-
-	// @return { id, bool }: If true, delete shader id after.
-	const auto get_id = [&get, &has, this, shader_name, max_texture_slots](
-							const std::variant<ShaderCode, std::string>& v, GLuint type
-						) -> std::pair<GLuint, bool> {
-		if (std::holds_alternative<std::string>(v)) {
-			const auto& name{ std::get<std::string>(v) };
-			path file{ name };
-			if (FileExists(file)) {
-				PTGN_ASSERT(
-					file.extension() == ".glsl",
-					"Shader file extension must be .glsl: ", file.string()
-				);
-				return { CompileShaderPath(file, type, shader_name, max_texture_slots), true };
-			} else if (has(type)) {
-				return { get(type), false };
-			} else {
-				PTGN_ERROR(name, " is not a valid shader path or loaded ", type, " shader name");
-			}
-		} else if (std::holds_alternative<ShaderCode>(v)) {
-			const auto& src{ std::get<ShaderCode>(v) };
-			return { CompileShaderSource(src.source, type, shader_name, max_texture_slots), true };
-		} else {
-			PTGN_ERROR("Unknown variant type");
-		}
-	};
-
-	auto [vertex_id, delete_vert_after]	  = get_id(vertex, GL_VERTEX_SHADER);
-	auto [fragment_id, delete_frag_after] = get_id(fragment, GL_FRAGMENT_SHADER);
+	auto [vertex_id, delete_vert_after] =
+		GetShaderIdWithDeleteFlag(vertex, GL_VERTEX_SHADER, shader_name);
+	auto [fragment_id, delete_frag_after] =
+		GetShaderIdWithDeleteFlag(fragment, GL_FRAGMENT_SHADER, shader_name);
 
 	LinkShader(shader, vertex_id, fragment_id);
 
@@ -1180,7 +1181,7 @@ void GLContext::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId ele
 	auto _ = Bind(element_buffer, false);
 }
 
-void GLContext::EnableGammaCorrection() {
+void GLContext::EnableGammaCorrection() const {
 #ifndef __EMSCRIPTEN__
 	GLCall(glEnable(GL_FRAMEBUFFER_SRGB));
 #else
@@ -1188,7 +1189,7 @@ void GLContext::EnableGammaCorrection() {
 #endif
 }
 
-void GLContext::DisableGammaCorrection() {
+void GLContext::DisableGammaCorrection() const {
 #ifndef __EMSCRIPTEN__
 	GLCall(glDisable(GL_FRAMEBUFFER_SRGB));
 #else
@@ -1373,14 +1374,39 @@ void GLContext::SetClearColor(Color color) {
 	bound_.clear_color = color;
 }
 
-void GLContext::Clear() {
-	GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+void GLContext::SetClearDepth(GLdouble depth) {
+	if (NearlyEqual(bound_.clear_depth.value, depth)) {
+		return;
+	}
+	GLCall(glClearDepth(depth));
+	bound_.clear_depth = depth;
 }
 
-void GLContext::ClearToColor(FramebufferId framebuffer, Color color) const {
+void GLContext::SetClearStencil(GLint stencil) {
+	if (bound_.clear_stencil == stencil) {
+		return;
+	}
+	GLCall(glClearStencil(stencil));
+	bound_.clear_stencil = stencil;
+}
+
+void GLContext::Clear(GLbitfield buffer_bits) const {
+	GLCall(glClear(buffer_bits));
+}
+
+void GLContext::ClearToColor(
+	FramebufferId framebuffer, Color color, GLenum buffer, GLint drawbuffer
+) const {
 	PTGN_ASSERT(IsBound(framebuffer));
+	PTGN_ASSERT(drawbuffer >= 0, "Drawbuffer cannot be negative");
+	PTGN_ASSERT(
+		buffer == GL_COLOR && static_cast<GLuint>(drawbuffer) < max_color_attachments_ ||
+			buffer != GL_COLOR && drawbuffer == 0,
+		"Drawbuffer must be 0 for depth and stencil buffers and within max color attachments for "
+		"color buffers"
+	);
 	auto c{ static_cast<V4_float>(color) };
-	GLCall(ClearBufferfv(GL_COLOR, 0, c.Data()));
+	GLCall(ClearBufferfv(buffer, drawbuffer, c.Data()));
 }
 
 void GLContext::SetColorMask(const ColorMaskState& mask) {
@@ -1732,7 +1758,7 @@ bool GLContext::FramebufferIsComplete(FramebufferId framebuffer) const {
 	return status == GL_FRAMEBUFFER_COMPLETE;
 }
 
-const char* GLContext::GetFramebufferStatus() {
+const char* GLContext::GetFramebufferStatus() const {
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	switch (status) {
 		case GL_FRAMEBUFFER_COMPLETE:  return "Framebuffer is complete.";
@@ -1756,7 +1782,7 @@ const char* GLContext::GetFramebufferStatus() {
 			return "Incomplete layer targets: Layered attachments are not all complete or "
 				   "not "
 				   "matching.";
-		default: return "Unknown framebuffer status.";
+		default: PTGN_ERROR("Unknown framebuffer status.");
 	}
 }
 
@@ -1816,9 +1842,6 @@ void GLContext::UpdateFramebufferCache(
 	FramebufferId framebuffer, GLuint image_id, GLenum attachment, GLenum image_type
 ) {
 	PTGN_ASSERT(image_type == GL_TEXTURE_2D || image_type == GL_RENDERBUFFER, "Invalid image type");
-
-	auto& cache = framebuffer_cache_.Get(framebuffer);
-
 	auto& info{ GetFramebufferAttachment(framebuffer, attachment) };
 	info.id	  = image_id;
 	info.type = image_id ? image_type : 0;
@@ -1846,7 +1869,7 @@ std::int32_t GLContext::GetUniform(ShaderId shader, const char* name) {
 }
 
 void GLContext::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size) {
-	auto& cache = framebuffer_cache_.Get(framebuffer);
+	const auto& cache = framebuffer_cache_.Get(framebuffer);
 
 	auto resize_attachment = [&](const AttachmentInfo& info) {
 		if (info.id == 0) {
@@ -1862,7 +1885,7 @@ void GLContext::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size) {
 		}
 	};
 
-	for (auto& color : cache.color) {
+	for (const auto& color : cache.color) {
 		resize_attachment(color);
 	}
 

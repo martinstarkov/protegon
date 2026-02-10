@@ -81,23 +81,48 @@ struct TextureFormatDesc {
 
 constexpr TextureFormatDesc GetTextureFormatDesc(TextureFormat fmt) {
 	switch (fmt) {
-		using enum ptgn::TextureFormat;
+		using enum TextureFormat;
 
+		// -----------------------------------------------------------------
+		// Most common color formats (put first)
+		// -----------------------------------------------------------------
 		case RGBA8:		 return { GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false, false };
-
 		case RGBA8_SRGB: return { GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false, true };
-
 		case RGBA16F:	 return { GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT, false, false, false };
-
-		case R8:		 return { GL_R8, GL_RED, GL_UNSIGNED_BYTE, false, false, false };
-
-		case RG8:		 return { GL_RG8, GL_RG, GL_UNSIGNED_BYTE, false, false, false };
-
 		case RGBA32F:	 return { GL_RGBA32F, GL_RGBA, GL_FLOAT, false, false, false };
 
+		case RG8:		 return { GL_RG8, GL_RG, GL_UNSIGNED_BYTE, false, false, false };
+		case R8:		 return { GL_R8, GL_RED, GL_UNSIGNED_BYTE, false, false, false };
+
+		// -----------------------------------------------------------------
+		// Color (16-bit / float) - missing before
+		// -----------------------------------------------------------------
+		case R16F:		 return { GL_R16F, GL_RED, GL_HALF_FLOAT, false, false, false };
+		case RG16F:		 return { GL_RG16F, GL_RG, GL_HALF_FLOAT, false, false, false };
+
+		// -----------------------------------------------------------------
+		// Color (32-bit float) - missing before
+		// -----------------------------------------------------------------
+		case R32F:		 return { GL_R32F, GL_RED, GL_FLOAT, false, false, false };
+		case RG32F:		 return { GL_RG32F, GL_RG, GL_FLOAT, false, false, false };
+
+		// -----------------------------------------------------------------
+		// HDR / lighting
+		// -----------------------------------------------------------------
 		case R11G11B10F:
 			return {
 				GL_R11F_G11F_B10F, GL_RGB, GL_UNSIGNED_INT_10F_11F_11F_REV, false, false, false
+			};
+
+		case RGB10_A2:
+			return { GL_RGB10_A2, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, false, false, false };
+
+		// -----------------------------------------------------------------
+		// Depth / stencil
+		// -----------------------------------------------------------------
+		case Depth16:
+			return {
+				GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true, false, false
 			};
 
 		case Depth24:
@@ -113,37 +138,40 @@ constexpr TextureFormatDesc GetTextureFormatDesc(TextureFormat fmt) {
 				GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, true, true, false
 			};
 
+		case Depth32F_Stencil8:
+			return { GL_DEPTH32F_STENCIL8,
+					 GL_DEPTH_STENCIL,
+					 GL_FLOAT_32_UNSIGNED_INT_24_8_REV,
+					 true,
+					 true,
+					 false };
+
 		case Stencil8:
 			return { GL_STENCIL_INDEX8, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, false, true, false };
-	}
 
-	// No UB / no exceptions:
-	PTGN_ERROR("Unknown TextureFormat");
-}
-
-inline bool IsDepthFormat(TextureFormat fmt) {
-	switch (fmt) {
-		using enum ptgn::TextureFormat;
-		case Depth16:
-		case Depth24:
-		case Depth32F:
-		case Depth24_Stencil8:
-		case Depth32F_Stencil8: return true;
-		default:				return false;
+		default:
+			// No UB / no exceptions:
+			PTGN_ERROR("Unknown TextureFormat");
 	}
 }
 
-inline bool IsColorFormat(TextureFormat fmt) {
-	return !IsDepthFormat(fmt) && fmt != TextureFormat::Stencil8;
-}
+[[nodiscard]] constexpr int GetColorComponentCount(GLenum internal_format) {
+	switch (internal_format) {
+		case GL_STENCIL_INDEX:	 return 1; // stencil only
+		case GL_DEPTH_COMPONENT: return 1; // depth only
+		case GL_DEPTH_STENCIL:	 return 2; // depth + stencil
 
-inline bool IsHDRFormat(TextureFormat fmt) {
-	switch (fmt) {
-		using enum ptgn::TextureFormat;
-		case RGBA16F:
-		case RGBA32F:
-		case R11G11B10F: return true;
-		default:		 return false;
+		case GL_RED:			 return 1;
+		case GL_GREEN:			 return 1;
+		case GL_BLUE:			 return 1;
+
+		case GL_RG:				 return 2; // red + green
+		case GL_RGB:			 return 3; // red + green + blue
+		case GL_BGR:			 return 3; // blue + green + red (different order)
+		case GL_RGBA:			 return 4; // red + green + blue + alpha
+		case GL_BGRA:			 return 4; // blue + green + red + alpha (different order)
+
+		default:				 PTGN_ERROR("Unknown or unsupported internal GL format: ", internal_format);
 	}
 }
 
@@ -169,7 +197,7 @@ private:
 class GLContext {
 public:
 	GLContext() = delete;
-	explicit GLContext(Window& window);
+	explicit GLContext(const Window& window);
 	~GLContext() noexcept;
 	GLContext(const GLContext&)				   = delete;
 	GLContext(GLContext&&) noexcept			   = delete;
@@ -190,8 +218,8 @@ public:
 
 	// String can be path to shader or the name of a pre-existing shader of the respective type.
 	Shader CreateShader(
-		std::variant<ShaderCode, std::string> vertex,
-		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
+		const std::variant<ShaderCode, std::string>& vertex,
+		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 	);
 
 	Shader CreateShader(std::variant<ShaderCode, path> source, const std::string& shader_name);
@@ -312,8 +340,8 @@ public:
 		vertex_array_cache_.Get(vertex_array).layout_set = true;
 	}
 
-	void EnableGammaCorrection();
-	void DisableGammaCorrection();
+	void EnableGammaCorrection() const;
+	void DisableGammaCorrection() const;
 
 	void SetDepthMask(GLboolean enabled);
 
@@ -346,8 +374,20 @@ public:
 	[[nodiscard]] Viewport GetViewport() const;
 
 	void SetClearColor(Color color);
-	void Clear();
-	void ClearToColor(FramebufferId framebuffer, Color color) const;
+	void SetClearDepth(GLdouble depth);
+	void SetClearStencil(GLint stencil);
+
+	/// Clear buffers to preset values
+	void Clear(
+		GLbitfield buffer_bits = GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT
+	) const;
+
+	/// Clear individual buffers of a framebuffer.
+	/// @param drawbuffer Specify a particular draw buffer to clear.
+	/// @param drawbuffer Specify the buffer to clear. Accepted: GL_COLOR, GL_DEPTH, GL_STENCIL.
+	void ClearToColor(
+		FramebufferId framebuffer, Color color, GLenum buffer = GL_COLOR, GLint drawbuffer = 0
+	) const;
 
 	void SetColorMask(const ColorMaskState& mask);
 	void SetScissor(const ScissorState& scissor);
@@ -358,15 +398,12 @@ public:
 	void SetUniform(ShaderId shader, const char* uniform_name, V3_float v);
 	void SetUniform(ShaderId shader, const char* uniform_name, V4_float v);
 	void SetUniform(ShaderId shader, const char* uniform_name, const Matrix4& matrix);
-
 	void SetUniform(
 		ShaderId shader, const char* uniform_name, const std::int32_t* data, std::int32_t count
 	);
-
 	void SetUniform(
 		ShaderId shader, const char* uniform_name, const float* data, std::int32_t count
 	);
-
 	void SetUniform(ShaderId shader, const char* uniform_name, const Vector2<std::int32_t>& v);
 	void SetUniform(ShaderId shader, const char* uniform_name, const Vector3<std::int32_t>& v);
 	void SetUniform(ShaderId shader, const char* uniform_name, const Vector4<std::int32_t>& v);
@@ -377,7 +414,6 @@ public:
 	void SetUniform(
 		ShaderId shader, const char* uniform_name, float v0, float v1, float v2, float v3
 	);
-
 	void SetUniform(ShaderId shader, const char* uniform_name, std::int32_t v0);
 	void SetUniform(ShaderId shader, const char* uniform_name, std::int32_t v0, std::int32_t v1);
 	void SetUniform(
@@ -387,7 +423,6 @@ public:
 		ShaderId shader, const char* uniform_name, std::int32_t v0, std::int32_t v1,
 		std::int32_t v2, std::int32_t v3
 	);
-
 	// Behaves identically to SetUniform(name, std::int32_t).
 	void SetUniform(ShaderId shader, const char* uniform_name, bool value);
 
@@ -438,13 +473,6 @@ public:
 	// @return The maximum number of texture slots available on the current hardware.
 	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
 
-	enum class AttachmentDataType {
-		Color,
-		Depth,
-		Stencil,
-		DepthStencil
-	};
-
 	// Color
 	// Depth -> float
 	// Stencil -> uint8_t
@@ -458,6 +486,13 @@ public:
 	PixelValue ReadPixel(
 		FramebufferId framebuffer, V2_int coordinate, GLenum attachment = GL_COLOR_ATTACHMENT0
 	);
+
+	enum class AttachmentDataType {
+		Color,
+		Depth,
+		Stencil,
+		DepthStencil
+	};
 
 	struct PixelBuffer {
 		V2_int size{};
@@ -474,7 +509,7 @@ public:
 	template <typename F>
 	void ForEachPixel(
 		const PixelBuffer& buffer, F&& func /* (V2_int, PixelValue) */
-	) {
+	) const {
 		const auto& data			  = buffer.data;
 		const V2_int size			  = buffer.size;
 		const AttachmentDataType type = buffer.type;
@@ -551,29 +586,15 @@ public:
 	void ResizeTexture(TextureId texture, V2_int new_size);
 
 private:
-	[[nodiscard]] constexpr static int GetColorComponentCount(GLenum internal_format) {
-		switch (internal_format) {
-			case GL_STENCIL_INDEX:	 return 1; // stencil only
-			case GL_DEPTH_COMPONENT: return 1; // depth only
-			case GL_DEPTH_STENCIL:	 return 2; // depth + stencil
-
-			case GL_RED:			 return 1;
-			case GL_GREEN:			 return 1;
-			case GL_BLUE:			 return 1;
-
-			case GL_RG:				 return 2; // red + green
-			case GL_RGB:			 return 3; // red + green + blue
-			case GL_BGR:			 return 3; // blue + green + red (different order)
-			case GL_RGBA:			 return 4; // red + green + blue + alpha
-			case GL_BGRA:			 return 4; // blue + green + red + alpha (different order)
-
-			default:				 PTGN_ERROR("Unknown or unsupported internal GL format: ", internal_format);
-		}
-	}
+	bool ShaderExists(std::string_view shader_name, GLenum type) const;
+	GLuint GetShaderId(std::string_view shader_name, GLenum type) const;
+	std::pair<GLuint, bool> GetShaderIdWithDeleteFlag(
+		const std::variant<ShaderCode, std::string>& v, GLenum type, const std::string& shader_name
+	) const;
 
 	[[nodiscard]] bool FramebufferIsComplete(FramebufferId framebuffer) const;
 
-	[[nodiscard]] const char* GetFramebufferStatus();
+	[[nodiscard]] const char* GetFramebufferStatus() const;
 
 	// @param attachment Accepted: GL_COLOR_ATTACHMENT0-8, GL_DEPTH_ATTACHMENT,
 	// GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
