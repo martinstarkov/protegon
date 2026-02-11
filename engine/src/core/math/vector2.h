@@ -53,7 +53,7 @@ struct Vector2 {
 	template <Arithmetic U>
 	constexpr Vector2(std::array<U, 2> o) : x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
-	friend bool operator==(const Vector2& lhs, const Vector2& rhs) {
+	friend bool operator==(Vector2 lhs, Vector2 rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
 	}
 
@@ -302,7 +302,7 @@ using V2_float	= Vector2<float>;
 using V2_double = Vector2<double>;
 
 template <StreamWritable S> /* Some types such as std::uint8_t are not stream writable */
-inline std::ostream& operator<<(std::ostream& os, ptgn::Vector2<S>& v) {
+inline std::ostream& operator<<(std::ostream& os, ptgn::Vector2<S> v) {
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;
 }
@@ -451,7 +451,7 @@ template <Arithmetic T>
 // This allows for use of unordered maps and sets with Vector2s as keys.
 template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector2<T>> {
-	std::size_t operator()(const ptgn::Vector2<T>& v) const noexcept {
+	std::size_t operator()(ptgn::Vector2<T> v) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
 		std::size_t value{ 17 };
