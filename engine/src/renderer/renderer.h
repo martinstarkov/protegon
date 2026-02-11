@@ -123,6 +123,8 @@ struct RenderPass {
 
 class Renderer {
 public:
+	// TODO: Add display viewport.
+
 	Renderer() = delete;
 	Renderer(Window& window);
 	~Renderer() noexcept;

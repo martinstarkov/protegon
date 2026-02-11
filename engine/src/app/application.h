@@ -73,6 +73,8 @@ private:
 #endif
 	friend class ApplicationContext;
 
+	// TODO: Add game size.
+
 	impl::SDLInstance sdl_;
 
 	Window window_;
