@@ -35,7 +35,7 @@ int main() {
 
 	int W = 1280, H = 720;
 
-	ptgn::Window window{ "Title", { 1280, 720 } };
+	ptgn::Window window{ { "Title", { W, H } } };
 	window.SetSetting(WindowSetting::Shown);
 
 	Renderer renderer{ window };

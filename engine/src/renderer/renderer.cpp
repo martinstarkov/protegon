@@ -541,9 +541,7 @@ void Renderer::SetShader(impl::gl::ShaderId shader) {
 void Renderer::SetBlend(BlendMode mode, bool enabled) {
 	impl::gl::BlendState desired{ mode, enabled };
 
-	UpdateStateIfChanged(*this, state.blend, desired, [this, desired] {
-		gl_->SetBlending(desired);
-	});
+	UpdateStateIfChanged(*this, state.blend, desired, [this, desired] { gl_->SetBlend(desired); });
 }
 
 void Renderer::SetFramebuffer(
@@ -619,7 +617,7 @@ void Renderer::DrawQuadEx(
 
 	// Texture -> user data slot 0 (convention)
 	if (params.texture) {
-		std::uint32_t slot = GetTextureSlot(params.texture);
+		std::uint32_t slot = GetTextureSlot(*params.texture);
 		quad.user_data[0]  = static_cast<float>(slot);
 	}
 

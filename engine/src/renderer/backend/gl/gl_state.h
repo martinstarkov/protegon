@@ -133,10 +133,6 @@ struct BlendState {
 	BlendMode mode{ BlendMode::ReplaceRGBA };
 	bool enabled{ false };
 
-	operator bool() const {
-		return enabled;
-	}
-
 	bool operator==(const BlendState&) const = default;
 };
 

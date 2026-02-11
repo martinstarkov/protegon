@@ -2,9 +2,11 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
+#include <vector>
 
 #include "app/context.h"
 #include "core/event/dispatcher.h"
@@ -107,10 +109,8 @@ struct QuadParams {
 
 	Color tint = color::White;
 
-	// Optional texture
-	impl::gl::TextureId texture;
+	std::optional<impl::gl::TextureId> texture;
 
-	// Texcoords override (optional)
 	std::optional<std::array<V2_float, 4>> tex_coords;
 };
 
@@ -205,25 +205,15 @@ private:
 	void ReleasePooledTarget(const RenderTarget& target);
 
 	struct RenderState {
-		// Shader
 		impl::gl::ShaderId shader;
-
-		// Framebuffer
 		impl::gl::FramebufferId framebuffer;
-
-		// Blending
 		impl::gl::BlendState blend;
-
-		// Depth
 		impl::gl::DepthState depth;
-
 		impl::gl::StencilState stencil;
-
 		impl::gl::RasterState raster;
-
 		impl::gl::ColorMaskState color_mask;
 
-		bool valid = false;
+		bool valid{ false };
 	};
 
 	RenderState state;
