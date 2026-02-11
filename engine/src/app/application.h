@@ -2,8 +2,10 @@
 
 #include <concepts>
 #include <memory>
+#include <optional>
 #include <string_view>
 
+#include "app/scaling_mode.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/input_handler.h"
@@ -42,8 +44,7 @@ struct SDLInstance {
 } // namespace impl
 
 struct ApplicationConfig {
-	const char* title{ "Default Title" };
-	V2_int window_size{ 800, 800 };
+	WindowConfig window;
 };
 
 class Application {
@@ -78,13 +79,10 @@ private:
 	impl::SDLInstance sdl_;
 
 	Window window_;
+	InputHandler input_;
 	Renderer renderer_;
 	SceneManager scenes_;
-
 	EventHandler events_;
-
-	InputHandler input_;
-
 	AssetManager assets_;
 
 	// TODO: Make a no-op version of this for release modes.
@@ -92,6 +90,11 @@ private:
 
 	void EnterMainLoop();
 	void Update();
+
+	void UpdateScalingConfig(std::optional<V2_int> game_size, ScalingMode scaling_mode);
+
+	std::optional<V2_int> game_size_;
+	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
 
 	secondsf dt_{ 0.0f };
 	bool running_{ false };

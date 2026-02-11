@@ -41,11 +41,16 @@ class GLContext;
 
 }; // namespace impl
 
+struct WindowConfig {
+	const char* title{ "Default Title" };
+	V2_int size{ 800, 800 };
+	bool resizeable{ false };
+};
+
 class Window {
 public:
 	Window() = delete;
-	// TODO: Add flags to window constructor.
-	explicit Window(const char* title, V2_int size);
+	explicit Window(const WindowConfig& config);
 	~Window() noexcept					 = default;
 	Window(Window&&) noexcept			 = delete;
 	Window& operator=(Window&&) noexcept = delete;

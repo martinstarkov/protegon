@@ -48,14 +48,14 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 
 } // namespace impl
 
-Window::Window(const char* title, V2_int size) {
+Window::Window(const WindowConfig& config) {
 	// TODO: Add flags to window constructor.
 	SDL_PropertiesID props = SDL_CreateProperties();
-	SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
+	SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, config.title);
 	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED);
 	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED);
-	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, size.x);
-	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, size.y);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, config.size.x);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, config.size.y);
 	SDL_SetNumberProperty(
 		props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER,
 		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
@@ -65,6 +65,10 @@ Window::Window(const char* title, V2_int size) {
 
 	PTGN_ASSERT(instance_, "SDL_CreateWindow failed: {}", SDL_GetError());
 	PTGN_INFO("Created window");
+
+	if (!config.resizeable) {
+		SetSetting(WindowSetting::FixedSize);
+	}
 }
 
 Window::operator SDL_Window*() const {

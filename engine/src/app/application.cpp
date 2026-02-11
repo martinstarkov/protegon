@@ -48,6 +48,10 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include <optional>
+
+#include "core/math/vector2.h"
+#include "scaling_mode.h"
 
 namespace ptgn {
 
@@ -181,15 +185,13 @@ SDLInstance::~SDLInstance() {
 } // namespace impl
 
 Application::Application(const ApplicationConfig& config) :
-	window_{ config.title, config.window_size },
+	window_{ config.window },
 	renderer_{ window_ },
-	events_{ scenes_ },
+	events_{ scenes_, renderer_ },
 	assets_{ sdl_, *renderer_.gl_.get() },
 	debug_{ renderer_ },
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
 	scenes_.SetContext(ctx_);
-	// TODO: Move to application config.
-	window_.SetSetting(WindowSetting::FixedSize);
 }
 
 void Application::EnterMainLoop() {
@@ -244,6 +246,10 @@ void Application::Update() {
 	debug_.PostUpdate();
 
 	end = std::chrono::system_clock::now();
+}
+
+void Application::UpdateScalingConfig(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
+	game_size_ = game_size;
 }
 
 } // namespace ptgn
