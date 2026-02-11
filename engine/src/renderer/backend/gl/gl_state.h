@@ -20,48 +20,48 @@ struct Viewport {
 
 struct TextureUnitState {
 	TextureId id{ 0 };
-	GLenum min_filter{ GL_LINEAR };
-	GLenum mag_filter{ GL_LINEAR };
-	GLenum wrap_s{ GL_REPEAT };
-	GLenum wrap_t{ GL_REPEAT };
+	std::uint32_t min_filter{ GL_LINEAR };
+	std::uint32_t mag_filter{ GL_LINEAR };
+	std::uint32_t wrap_s{ GL_REPEAT };
+	std::uint32_t wrap_t{ GL_REPEAT };
 
 	bool operator==(const TextureUnitState&) const = default;
 };
 
 struct StencilState {
-	GLboolean enabled{ GL_FALSE };
-	GLenum func{ GL_ALWAYS };
-	GLint ref{ 0 };
-	GLuint mask{ 0xFFFFFFFF };
-	GLenum fail_op{ GL_KEEP };
-	GLenum zfail_op{ GL_KEEP };
-	GLenum zpass_op{ GL_KEEP };
-	GLuint write_mask{ 0xFFFFFFFF };
+	bool enabled{ false };
+	std::uint32_t func{ GL_ALWAYS };
+	int ref{ 0 };
+	std::uint32_t mask{ 0xFFFFFFFF };
+	std::uint32_t fail_op{ GL_KEEP };
+	std::uint32_t zfail_op{ GL_KEEP };
+	std::uint32_t zpass_op{ GL_KEEP };
+	std::uint32_t write_mask{ 0xFFFFFFFF };
 
 	bool operator==(const StencilState&) const = default;
 };
 
-struct DepthTestState {
-	GLboolean test{ GL_FALSE };
-	GLboolean write{ GL_TRUE };
-	GLenum func{ GL_LESS };
-	GLfloat range_near{ 0.0f };
-	GLfloat range_far{ 1.0f };
+struct DepthState {
+	bool test{ false };
+	bool write{ true };
+	std::uint32_t func{ GL_LESS };
+	float range_near{ 0.0f };
+	float range_far{ 1.0f };
 
-	bool operator==(const DepthTestState&) const = default;
+	bool operator==(const DepthState&) const = default;
 };
 
 struct ColorMaskState {
-	GLboolean red{ GL_TRUE };
-	GLboolean green{ GL_TRUE };
-	GLboolean blue{ GL_TRUE };
-	GLboolean alpha{ GL_TRUE };
+	bool red{ true };
+	bool green{ true };
+	bool blue{ true };
+	bool alpha{ true };
 
 	bool operator==(const ColorMaskState&) const = default;
 };
 
 struct ScissorState {
-	GLboolean enabled{ GL_FALSE };
+	bool enabled{ false };
 	// Top left position.
 	V2_int position;
 	V2_int size;
@@ -70,25 +70,74 @@ struct ScissorState {
 };
 
 struct CullState {
-	GLboolean enabled{ GL_FALSE };
-	GLenum cull_face{ GL_BACK };
-	GLenum front_face{ GL_CCW };
+	bool enabled{ false };
+	std::uint32_t cull_face{ GL_BACK };
+	std::uint32_t front_face{ GL_CCW };
 
 	bool operator==(const CullState&) const = default;
 };
 
-using TextureUnits = std::vector<TextureUnitState>;
+struct PolygonModeFront {
+	PolygonModeFront() = default;
 
-struct BlendingEnabled {
-	BlendingEnabled() = default;
+	PolygonModeFront(std::uint32_t value) : value{ value } {}
 
-	BlendingEnabled(GLboolean value) : value{ value } {}
+	std::uint32_t value{ GL_FILL };
 
-	GLboolean value{ GL_FALSE };
-
-	operator GLboolean() const {
+	operator std::uint32_t() const {
 		return value;
 	}
+};
+
+struct PolygonModeBack {
+	PolygonModeBack() = default;
+
+	PolygonModeBack(std::uint32_t value) : value{ value } {}
+
+	std::uint32_t value{ GL_FILL };
+
+	operator std::uint32_t() const {
+		return value;
+	}
+};
+
+struct LineWidth {
+	LineWidth() = default;
+
+	LineWidth(float value) : value{ value } {}
+
+	float value{ 1.0f };
+
+	operator float() const {
+		return value;
+	}
+};
+
+struct RasterState {
+	CullState cull;
+	PolygonModeFront polygon_mode_front{ GL_FILL };
+	PolygonModeBack polygon_mode_back{ GL_FILL };
+	LineWidth line_width{ 1.0f };
+	bool line_smoothing{ false };
+
+	bool operator==(const RasterState&) const = default;
+};
+
+using TextureUnits = std::vector<TextureUnitState>;
+
+struct BlendState {
+	BlendState() = default;
+
+	BlendState(BlendMode mode, bool enabled) : mode{ mode }, enabled{ enabled } {}
+
+	BlendMode mode{ BlendMode::ReplaceRGBA };
+	bool enabled{ false };
+
+	operator bool() const {
+		return enabled;
+	}
+
+	bool operator==(const BlendState&) const = default;
 };
 
 struct ActiveTextureSlot {
@@ -139,47 +188,11 @@ struct ClearStencil {
 	}
 };
 
-struct PolygonModeFront {
-	PolygonModeFront() = default;
-
-	PolygonModeFront(GLenum value) : value{ value } {}
-
-	GLenum value{ GL_FILL };
-
-	operator GLenum() const {
-		return value;
-	}
-};
-
-struct PolygonModeBack {
-	PolygonModeBack() = default;
-
-	PolygonModeBack(GLenum value) : value{ value } {}
-
-	GLenum value{ GL_FILL };
-
-	operator GLenum() const {
-		return value;
-	}
-};
-
-struct LineWidth {
-	LineWidth() = default;
-
-	LineWidth(float value) : value{ value } {}
-
-	GLfloat value{ 1.0f };
-
-	operator GLfloat() const {
-		return value;
-	}
-};
-
 using StateChange = std::variant<
 	FramebufferId, RenderbufferId, VertexBufferId, UniformBufferId, ShaderId, VertexArrayId,
-	Viewport, DepthTestState, BlendMode, BlendingEnabled, ColorMaskState, ActiveTextureSlot,
-	TextureUnits, ClearColor, ClearDepth, ClearStencil, ScissorState, PolygonModeFront,
-	PolygonModeBack, LineWidth, CullState, StencilState>;
+	Viewport, DepthState, BlendState, ColorMaskState, ActiveTextureSlot, TextureUnits, ClearColor,
+	ClearDepth, ClearStencil, ScissorState, PolygonModeFront, PolygonModeBack, LineWidth, CullState,
+	StencilState>;
 
 struct State {
 	// Core object bindings
@@ -192,10 +205,9 @@ struct State {
 
 	Viewport viewport;
 
-	DepthTestState depth;
+	DepthState depth;
 
-	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
-	BlendingEnabled blending;
+	BlendState blend;
 
 	ColorMaskState color_mask;
 
@@ -209,11 +221,7 @@ struct State {
 	ScissorState scissor;
 
 	// Polygon rasterization
-	PolygonModeFront polygon_mode_front;
-	PolygonModeBack polygon_mode_back;
-	LineWidth line_width;
-
-	CullState cull;
+	RasterState raster;
 
 	StencilState stencil;
 

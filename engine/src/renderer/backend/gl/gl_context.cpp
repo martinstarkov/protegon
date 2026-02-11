@@ -33,6 +33,7 @@
 #include "core/math/vector4.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "core/util/id_map.h"
 #include "core/util/span.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
@@ -1197,19 +1198,18 @@ void GLContext::DisableGammaCorrection() const {
 #endif
 }
 
-void GLContext::SetDepthMask(GLboolean enabled) {
-	if (bound_.depth.write == enabled) {
-		return;
+void GLContext::SetBlend(const BlendState& blend_state) {
+	SetBlending(blend_state.enabled);
+	if (blend_state.enabled) {
+		SetBlendMode(blend_state.mode);
 	}
-	GLCall(glDepthMask(enabled));
-	bound_.depth.write = enabled;
 }
 
-void GLContext::SetBlending(GLboolean enabled) {
+void GLContext::SetBlending(bool enabled) {
 	if (enabled) {
 		SetDepthTesting(GL_FALSE);
 	}
-	if (bound_.blending == enabled) {
+	if (bound_.blend.enabled == enabled) {
 		return;
 	}
 	if (enabled) {
@@ -1217,7 +1217,22 @@ void GLContext::SetBlending(GLboolean enabled) {
 	} else {
 		GLCall(glDisable(GL_BLEND));
 	}
-	bound_.blending = enabled;
+	bound_.blend.enabled = enabled;
+}
+
+void GLContext::SetDepth(const DepthState& depth_state) {
+	SetDepthMask(depth_state.write);
+	SetDepthFunc(depth_state.func);
+	SetDepthTesting(depth_state.test);
+	SetDepthRange(depth_state.range_near, depth_state.range_far);
+}
+
+void GLContext::SetDepthMask(bool enabled) {
+	if (bound_.depth.write == enabled) {
+		return;
+	}
+	GLCall(glDepthMask(enabled));
+	bound_.depth.write = enabled;
 }
 
 void GLContext::SetDepthFunc(GLenum depth_func) {
@@ -1228,7 +1243,7 @@ void GLContext::SetDepthFunc(GLenum depth_func) {
 	bound_.depth.func = depth_func;
 }
 
-void GLContext::SetDepthTesting(GLboolean enabled) {
+void GLContext::SetDepthTesting(bool enabled) {
 	if (enabled) {
 		SetBlending(GL_FALSE);
 	}
@@ -1255,14 +1270,17 @@ void GLContext::SetDepthRange(float near_val, float far_val) {
 }
 
 void GLContext::SetLineWidth(float width) {
-	if (bound_.line_width == width) {
+	if (NearlyEqual(bound_.raster.line_width.value, width)) {
 		return;
 	}
 	GLCall(glLineWidth(width));
-	bound_.line_width = width;
+	bound_.raster.line_width = width;
 }
 
 void GLContext::SetLineSmoothing(bool enabled) {
+	if (bound_.raster.line_smoothing == enabled) {
+		return;
+	}
 #ifndef __EMSCRIPTEN__
 	if (enabled) {
 		SetBlending(GL_TRUE);
@@ -1271,13 +1289,17 @@ void GLContext::SetLineSmoothing(bool enabled) {
 		GLCall(glDisable(GL_LINE_SMOOTH));
 	}
 #else
-	PTGN_WARN("GL_LINE_SMOOTH not supported by Emscripten");
+	if (enabled) {
+		PTGN_WARN("GL_LINE_SMOOTH not supported by Emscripten");
+	}
 #endif
+	bound_.raster.line_smoothing = enabled;
 }
 
 void GLContext::SetPolygonMode(GLenum front_mode, GLenum back_mode) {
 #ifndef __EMSCRIPTEN__
-	if (bound_.polygon_mode_front == front_mode && bound_.polygon_mode_back == back_mode) {
+	if (bound_.raster.polygon_mode_front == front_mode &&
+		bound_.raster.polygon_mode_back == back_mode) {
 		return;
 	}
 
@@ -1288,8 +1310,8 @@ void GLContext::SetPolygonMode(GLenum front_mode, GLenum back_mode) {
 		GLCall(glPolygonMode(GL_BACK, back_mode));
 	}
 
-	bound_.polygon_mode_front = front_mode;
-	bound_.polygon_mode_back  = back_mode;
+	bound_.raster.polygon_mode_front = front_mode;
+	bound_.raster.polygon_mode_back	 = back_mode;
 #else
 	PTGN_WARN("glPolygonMode not supported by Emscripten");
 #endif
@@ -1298,7 +1320,7 @@ void GLContext::SetPolygonMode(GLenum front_mode, GLenum back_mode) {
 void GLContext::SetBlendMode(BlendMode mode) {
 	SetBlending(GL_TRUE);
 
-	if (bound_.blend_mode == mode) {
+	if (bound_.blend.mode == mode) {
 		return;
 	}
 
@@ -1331,7 +1353,7 @@ void GLContext::SetBlendMode(BlendMode mode) {
 		default: PTGN_ERROR("Failed to identify blend mode");
 	}
 
-	bound_.blend_mode = mode;
+	bound_.blend.mode = mode;
 }
 
 void GLContext::DrawElements(
@@ -1433,7 +1455,7 @@ void GLContext::SetScissor(const ScissorState& scissor) {
 }
 
 void GLContext::SetCull(const CullState& cull) {
-	if (bound_.cull == cull) {
+	if (bound_.raster.cull == cull) {
 		return;
 	}
 
@@ -1446,7 +1468,14 @@ void GLContext::SetCull(const CullState& cull) {
 	GLCall(glCullFace(cull.cull_face));
 	GLCall(glFrontFace(cull.front_face));
 
-	bound_.cull = cull;
+	bound_.raster.cull = cull;
+}
+
+void GLContext::SetRaster(const RasterState& raster) {
+	SetLineWidth(raster.line_width);
+	SetLineSmoothing(raster.line_smoothing);
+	SetPolygonMode(raster.polygon_mode_front, raster.polygon_mode_back);
+	SetCull(raster.cull);
 }
 
 void GLContext::SetStencil(const StencilState& stencil) {

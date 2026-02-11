@@ -343,25 +343,30 @@ public:
 	void EnableGammaCorrection() const;
 	void DisableGammaCorrection() const;
 
-	void SetDepthMask(GLboolean enabled);
-
 	// Enabling blending will disable depth testing.
-	void SetBlending(GLboolean enabled);
-
-	void SetDepthFunc(GLenum depth_func);
-
-	// Enabling depth testing will disable blending.
-	void SetDepthTesting(GLboolean enabled);
-
-	void SetDepthRange(float near_val, float far_val);
-
-	void SetLineWidth(float width);
-	void SetLineSmoothing(bool enabled);
-
-	void SetPolygonMode(GLenum front_mode, GLenum back_mode);
-
+	void SetBlending(bool enabled);
+	void SetBlend(const BlendState& blend_state);
 	// Will disable depth testing.
 	void SetBlendMode(BlendMode mode);
+
+	// Enabling depth testing will disable blending.
+	void SetDepthTesting(bool enabled);
+
+	void SetDepth(const DepthState& state);
+	void SetDepthMask(bool enabled);
+	void SetDepthFunc(GLenum depth_func);
+	void SetDepthRange(float near_val, float far_val);
+	void SetLineWidth(float width);
+	void SetLineSmoothing(bool enabled);
+	void SetPolygonMode(GLenum front_mode, GLenum back_mode);
+	void SetColorMask(const ColorMaskState& mask);
+	void SetScissor(const ScissorState& scissor);
+	void SetCull(const CullState& cull);
+	void SetRaster(const RasterState& raster);
+	void SetStencil(const StencilState& stencil);
+	void SetClearColor(Color color);
+	void SetClearDepth(GLdouble depth);
+	void SetClearStencil(GLint stencil);
 
 	void DrawElements(
 		VertexArrayId vertex_array, GLsizei element_count, GLenum element_type,
@@ -372,10 +377,6 @@ public:
 
 	void SetViewport(const Viewport& viewport);
 	[[nodiscard]] Viewport GetViewport() const;
-
-	void SetClearColor(Color color);
-	void SetClearDepth(GLdouble depth);
-	void SetClearStencil(GLint stencil);
 
 	/// Clear buffers to preset values
 	void Clear(
@@ -388,11 +389,6 @@ public:
 	void ClearToColor(
 		FramebufferId framebuffer, Color color, GLenum buffer = GL_COLOR, GLint drawbuffer = 0
 	) const;
-
-	void SetColorMask(const ColorMaskState& mask);
-	void SetScissor(const ScissorState& scissor);
-	void SetCull(const CullState& cull);
-	void SetStencil(const StencilState& stencil);
 
 	void SetUniform(ShaderId shader, const char* uniform_name, V2_float v);
 	void SetUniform(ShaderId shader, const char* uniform_name, V3_float v);

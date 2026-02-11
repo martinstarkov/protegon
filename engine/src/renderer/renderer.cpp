@@ -12,6 +12,7 @@
 
 #include "app/context.h"
 #include "core/assert.h"
+#include "core/event/dispatcher.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
@@ -258,7 +259,7 @@ render_manager.Refresh();
 */
 
 Renderer::Renderer(Window& window) :
-	window_{ window }, gl_{ std::make_unique<impl::gl::GLContext>(window) } {
+	gl_{ std::make_unique<impl::gl::GLContext>(window) }, window_{ window } {
 	ebo = gl_->CreateElementBuffer(
 		nullptr, impl::index_capacity, sizeof(impl::Index), GL_DYNAMIC_DRAW
 	);
@@ -309,13 +310,11 @@ Renderer::~Renderer() noexcept {
 	// Needs to have access to GLContext destructor, forward declaration is not enough.
 }
 
-RenderPass Renderer::BeginPass(RenderTarget scene_target) {
+RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
 	RenderPass p{};
-	p.source = scene_target;
-
-	p.ping	   = AcquirePooledTarget(scene_target.size, scene_target.format);
-	p.has_ping = true;
-
+	p.source		   = scene_target;
+	p.ping			   = AcquirePooledTarget(scene_target.size, scene_target.format);
+	p.has_ping		   = true;
 	p.has_written_once = false; // latest = source initially
 	p.latest_is_ping   = true;	// irrelevant until has_written_once==true
 
@@ -339,9 +338,19 @@ void Renderer::BindRenderTarget(RenderPass& p) {
 	BindRenderTarget(write);
 }
 
-void Renderer::DrawTexture(impl::gl::ShaderId shader, RenderPass& p, RenderTarget scene_target) {
+void Renderer::DrawTexture(
+	impl::gl::ShaderId shader, RenderPass& p, const RenderTarget& scene_target
+) {
+	RenderTarget input;
+
 	// Input = latest output, or source before first draw
-	RenderTarget input = !p.has_written_once ? p.source : p.latest_is_ping ? p.ping : p.pong;
+	if (!p.has_written_once) {
+		input = p.source;
+	} else if (p.latest_is_ping) {
+		input = p.ping;
+	} else {
+		input = p.pong;
+	}
 
 	// Are we rendering *into this pass*?
 	bool writing_to_pass = state.framebuffer == p.ping.framebuffer ||
@@ -426,73 +435,58 @@ void Renderer::FlushBatch() {
 RenderTarget Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
 	++pool_tick;
 
-	impl::PooledTarget* same_size = nullptr;
-	impl::PooledTarget* unused	  = nullptr;
-	impl::PooledTarget* oldest	  = nullptr;
+	auto claim = [&](impl::PooledTarget& e) {
+		if (e.target.size != size) {
+			ResizeRenderTarget(e.target, size);
+		}
+		e.in_use		 = true;
+		e.last_used_tick = pool_tick;
+		return e.target;
+	};
 
-	// 1. Spare with same size + format
+	// Find a free candidate:
+	//  - Prefer exact size+format
+	//  - Otherwise pick least-recently-used with same format
+	impl::PooledTarget* exact			= nullptr;
+	impl::PooledTarget* lru_same_format = nullptr;
+
 	for (auto& e : rt_pool) {
-		if (!e.in_use && e.target.size == size && e.target.format == format) {
-			same_size = &e;
-			break;
+		if (e.in_use) {
+			continue;
+		}
+		if (e.target.format != format) {
+			continue;
+		}
+
+		if (e.target.size == size) {
+			exact = &e;
+			break; // can't beat an exact match
+		}
+
+		if (!lru_same_format || e.last_used_tick < lru_same_format->last_used_tick) {
+			lru_same_format = &e;
 		}
 	}
 
-	// 2. Spare with same format, least recently used
-	if (!same_size) {
-		for (auto& e : rt_pool) {
-			if (!e.in_use && e.target.format == format) {
-				if (!unused || e.last_used_tick < unused->last_used_tick) {
-					unused = &e;
-				}
-			}
-		}
+	if (exact) {
+		return claim(*exact);
+	}
+	if (lru_same_format) {
+		return claim(*lru_same_format);
 	}
 
-	// 3. New target within pool limit
-	if (!same_size && !unused && rt_pool.size() < max_pool_size) {
-		impl::PooledTarget e{};
-		e.target		 = CreateRenderTarget(size, format);
-		e.in_use		 = true;
-		e.last_used_tick = pool_tick;
-		rt_pool.push_back(e);
-		return e.target;
-	}
-
-	// 4. Oldest spare with same format
-	if (!same_size && !unused) {
-		for (auto& e : rt_pool) {
-			if (!e.in_use && e.target.format == format) {
-				if (!oldest || e.last_used_tick < oldest->last_used_tick) {
-					oldest = &e;
-				}
-			}
-		}
-	}
-
-	impl::PooledTarget* chosen = same_size ? same_size : unused ? unused : oldest;
-
-	// 5. New target exceeding pool limit (no compatible spare)
-	if (!chosen) {
-		impl::PooledTarget e{};
-		e.target		 = CreateRenderTarget(size, format);
-		e.in_use		 = true;
-		e.last_used_tick = pool_tick;
-		rt_pool.push_back(e);
-		return e.target;
-	}
-
-	// Resize if needed
-	if (chosen->target.size != size) {
-		ResizeRenderTarget(chosen->target, size);
-	}
-
-	chosen->in_use		   = true;
-	chosen->last_used_tick = pool_tick;
-	return chosen->target;
+	// No compatible free target available.
+	// If we have room in the pool, create one.
+	// Pool is at/over the limit and no compatible spare existed:
+	impl::PooledTarget entry{};
+	entry.target		 = CreateRenderTarget(size, format);
+	entry.in_use		 = true;
+	entry.last_used_tick = pool_tick;
+	rt_pool.push_back(std::move(entry));
+	return rt_pool.back().target;
 }
 
-void Renderer::ReleasePooledTarget(RenderTarget target) {
+void Renderer::ReleasePooledTarget(const RenderTarget& target) {
 	++pool_tick;
 
 	for (auto& e : rt_pool) {
@@ -516,11 +510,8 @@ std::uint32_t Renderer::GetTextureSlot(impl::gl::TextureId tex) {
 		}
 	}
 
-	// Get maximum texture slots from OpenGL
-	std::uint32_t max_slots = static_cast<std::uint32_t>(gl_->GetMaxTextureSlots());
-
 	// Flush if we would exceed GPU texture slots
-	if (batch_textures.size() >= max_slots) {
+	if (batch_textures.size() >= gl_->GetMaxTextureSlots()) {
 		FlushBatch();
 	}
 
@@ -531,145 +522,57 @@ std::uint32_t Renderer::GetTextureSlot(impl::gl::TextureId tex) {
 	return static_cast<std::uint32_t>(batch_textures.size() - 1);
 }
 
-void Renderer::SetShader(impl::gl::ShaderId shader) {
-	if (!state.valid || state.shader != shader) {
-		FlushBatch();
-		auto _		 = gl_->Bind(shader);
-		state.shader = shader;
-		state.valid	 = true;
+template <class State, class Func>
+void UpdateStateIfChanged(Renderer& r, State& cached, const State& desired, Func&& func) {
+	if (!r.state.valid || cached != desired) {
+		r.FlushBatch();
+		cached = desired;
+		std::invoke(std::forward<Func>(func));
+		r.state.valid = true;
 	}
 }
 
-void Renderer::SetBlend(BlendMode mode, bool enable) {
-	if (!state.valid || state.blend_enable != enable || state.blend_mode != mode) {
-		FlushBatch();
+void Renderer::SetShader(impl::gl::ShaderId shader) {
+	UpdateStateIfChanged(*this, state.shader, shader, [this, shader] {
+		auto _ = gl_->Bind(shader);
+	});
+}
 
-		state.blend_enable = enable;
-		state.blend_mode   = mode;
+void Renderer::SetBlend(BlendMode mode, bool enabled) {
+	impl::gl::BlendState desired{ mode, enabled };
 
-		gl_->SetBlending(enable);
-
-		if (enable) {
-			gl_->SetBlendMode(mode);
-		}
-
-		state.valid = true;
-	}
+	UpdateStateIfChanged(*this, state.blend, desired, [this, desired] {
+		gl_->SetBlending(desired);
+	});
 }
 
 void Renderer::SetFramebuffer(
 	impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport
 ) {
-	if (!state.valid || state.framebuffer != framebuffer) {
-		FlushBatch();
-		auto _			  = gl_->Bind(framebuffer);
-		state.framebuffer = framebuffer;
-		state.valid		  = true;
-	}
-
+	UpdateStateIfChanged(*this, state.framebuffer, framebuffer, [this, framebuffer] {
+		auto _ = gl_->Bind(framebuffer);
+	});
 	gl_->SetViewport(viewport);
 }
 
-void Renderer::SetDepth(bool test, bool write, GLenum func) {
-	if (!state.valid || state.depth_test != test || state.depth_write != write ||
-		state.depth_func != func) {
-		FlushBatch();
-
-		state.depth_test  = test;
-		state.depth_write = write;
-		state.depth_func  = func;
-
-		gl_->SetDepthTesting(test);
-
-		if (test) {
-			gl_->SetDepthFunc(func);
-		}
-
-		gl_->SetDepthMask(write);
-
-		state.valid = true;
-	}
+void Renderer::SetDepth(const impl::gl::DepthState& depth) {
+	UpdateStateIfChanged(*this, state.depth, depth, [this, depth] { gl_->SetDepth(depth); });
 }
 
-void Renderer::SetStencil(
-	bool enable, GLenum func, GLint ref, GLuint mask, GLenum fail, GLenum zfail, GLenum zpass,
-	GLuint write_mask
-) {
-	if (!state.valid || state.stencil_test != enable || state.stencil_func != func ||
-		state.stencil_ref != ref || state.stencil_mask != mask || state.stencil_fail != fail ||
-		state.stencil_zfail != zfail || state.stencil_zpass != zpass ||
-		state.stencil_write_mask != write_mask) {
-		FlushBatch();
-
-		state.stencil_test		 = enable;
-		state.stencil_func		 = func;
-		state.stencil_ref		 = ref;
-		state.stencil_mask		 = mask;
-		state.stencil_fail		 = fail;
-		state.stencil_zfail		 = zfail;
-		state.stencil_zpass		 = zpass;
-		state.stencil_write_mask = write_mask;
-
-		gl_->SetStencil(impl::gl::StencilState{
-			.enabled	= state.stencil_test,
-			.func		= state.stencil_func,
-			.ref		= state.stencil_ref,
-			.mask		= state.stencil_mask,
-			.fail_op	= state.stencil_fail,
-			.zfail_op	= state.stencil_zfail,
-			.zpass_op	= state.stencil_zpass,
-			.write_mask = state.stencil_write_mask,
-		});
-
-		state.valid = true;
-	}
+void Renderer::SetStencil(const impl::gl::StencilState& stencil) {
+	UpdateStateIfChanged(*this, state.stencil, stencil, [this, stencil] {
+		gl_->SetStencil(stencil);
+	});
 }
 
-void Renderer::SetRaster(
-	bool cull, GLenum cull_mode, GLenum front_face, GLenum polygon_front_mode,
-	GLenum polygon_back_mode
-) {
-	if (!state.valid || state.cull_face != cull || state.cull_mode != cull_mode ||
-		state.front_face != front_face || state.polygon_front_mode != polygon_front_mode ||
-		state.polygon_back_mode != polygon_back_mode) {
-		FlushBatch();
-
-		state.cull_face			 = cull;
-		state.cull_mode			 = cull_mode;
-		state.front_face		 = front_face;
-		state.polygon_front_mode = polygon_front_mode;
-		state.polygon_back_mode	 = polygon_back_mode;
-
-		gl_->SetCull(impl::gl::CullState{
-			.enabled	= state.cull_face,
-			.cull_face	= state.cull_mode,
-			.front_face = state.front_face,
-		});
-
-		gl_->SetPolygonMode(polygon_front_mode, polygon_back_mode);
-
-		state.valid = true;
-	}
+void Renderer::SetRaster(const impl::gl::RasterState& raster) {
+	UpdateStateIfChanged(*this, state.raster, raster, [this, raster] { gl_->SetRaster(raster); });
 }
 
-void Renderer::SetColorMask(bool r, bool g, bool b, bool a) {
-	if (!state.valid || state.color_write_r != r || state.color_write_g != g ||
-		state.color_write_b != b || state.color_write_a != a) {
-		FlushBatch();
-
-		state.color_write_r = r;
-		state.color_write_g = g;
-		state.color_write_b = b;
-		state.color_write_a = a;
-
-		gl_->SetColorMask(impl::gl::ColorMaskState{ .red = r, .green = g, .blue = b, .alpha = a });
-
-		state.valid = true;
-	}
-}
-
-static constexpr std::array<impl::Index, 6> MakeQuadIndices() {
-	return { 0, 1, 2, 2, 3, 0 };
+void Renderer::SetColorMask(const impl::gl::ColorMaskState& color_mask) {
+	UpdateStateIfChanged(*this, state.color_mask, color_mask, [this, color_mask] {
+		gl_->SetColorMask(color_mask);
+	});
 }
 
 static std::array<V2_float, 4> MakeQuadPointsPixels(V2_float center, V2_float size) {
@@ -729,7 +632,7 @@ void Renderer::DrawQuadEx(
 		quad.positions, quad.color, quad.rotation, quad.user_data, quad.tex_coords
 	) };
 
-	auto indices{ MakeQuadIndices() };
+	constexpr std::array<impl::Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
 
 	if (batch_vertices.size() + vertices.size() >= MaxVertices ||
 		batch_indices.size() + indices.size() >= MaxIndices) {

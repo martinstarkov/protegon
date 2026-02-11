@@ -8,6 +8,7 @@
 
 #include "app/context.h"
 #include "core/event/dispatcher.h"
+#include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
@@ -23,6 +24,9 @@ class Application;
 class Window;
 class Renderer;
 class EventHandler;
+
+template <class State, class Func>
+void UpdateStateIfChanged(Renderer&, State&, const State&, Func&&);
 
 // TODO: Move somewhere else.
 /*
@@ -157,7 +161,7 @@ public:
 		Color tint = color::White, bool flip_y = false
 	);
 	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
-	void DrawTexture(impl::gl::ShaderId shader, RenderPass& pass, RenderTarget scene_target);
+	void DrawTexture(impl::gl::ShaderId shader, RenderPass& pass, const RenderTarget& scene_target);
 	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const UniformSetup& u = {});
 	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const QuadSetup& q);
 
@@ -166,34 +170,30 @@ public:
 	void BindRenderTarget(RenderPass& pass);
 
 	void SetShader(impl::gl::ShaderId shader);
-	void SetBlend(BlendMode mode, bool enable = true);
+	void SetBlend(BlendMode mode, bool enabled = true);
 	void SetFramebuffer(impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport);
-	void SetDepth(bool test, bool write, GLenum func);
-	void SetStencil(
-		bool enable, GLenum func, GLint ref, GLuint mask, GLenum fail, GLenum zfail, GLenum zpass,
-		GLuint write_mask
-	);
-	void SetRaster(
-		bool cull, GLenum cull_mode, GLenum front_face, GLenum polygon_front_mode,
-		GLenum polygon_back_mode
-	);
-	void SetColorMask(bool r, bool g, bool b, bool a);
+	void SetDepth(const impl::gl::DepthState& depth);
+	void SetStencil(const impl::gl::StencilState& stencil);
+	void SetRaster(const impl::gl::RasterState& raster);
+	void SetColorMask(const impl::gl::ColorMaskState& color_mask);
 
 	// TODO: Move to private.
 	RenderTarget screen_target;
 
 	// TODO: Move to some debug system instead.
 	void SavePNG(
-		const std::filesystem::path& path, impl::gl::FramebufferId framebuffer,
+		const path& path, impl::gl::FramebufferId framebuffer,
 		GLenum attachment /* = GL_COLOR_ATTACHMENT0 */
 	);
 
-	RenderPass BeginPass(RenderTarget scene_target);
+	RenderPass BeginPass(const RenderTarget& scene_target);
 
 private:
 	friend class Application;
 	friend struct RenderPass;
 	friend class EventHandler;
+	template <class State, class Func>
+	friend void UpdateStateIfChanged(Renderer&, State&, const State&, Func&&);
 
 	void OnEvent(EventDispatcher d);
 
@@ -202,7 +202,7 @@ private:
 	std::uint32_t GetTextureSlot(impl::gl::TextureId tex);
 
 	RenderTarget AcquirePooledTarget(V2_int size, TextureFormat format);
-	void ReleasePooledTarget(RenderTarget target);
+	void ReleasePooledTarget(const RenderTarget& target);
 
 	struct RenderState {
 		// Shader
@@ -212,36 +212,16 @@ private:
 		impl::gl::FramebufferId framebuffer;
 
 		// Blending
-		bool blend_enable	 = false;
-		BlendMode blend_mode = BlendMode::ReplaceRGBA;
+		impl::gl::BlendState blend;
 
 		// Depth
-		bool depth_test	  = false;
-		bool depth_write  = false;
-		GLenum depth_func = GL_LESS;
+		impl::gl::DepthState depth;
 
-		// Stencil
-		bool stencil_test	 = false;
-		GLenum stencil_func	 = GL_ALWAYS;
-		GLint stencil_ref	 = 0;
-		GLuint stencil_mask	 = 0xFF;
-		GLenum stencil_fail	 = GL_KEEP;
-		GLenum stencil_zfail = GL_KEEP;
-		GLenum stencil_zpass = GL_KEEP;
-		GLuint stencil_write_mask{ 0xFFFFFFFF };
+		impl::gl::StencilState stencil;
 
-		// Raster
-		bool cull_face			  = false;
-		GLenum cull_mode		  = GL_BACK;
-		GLenum front_face		  = GL_CCW;
-		GLenum polygon_front_mode = GL_FILL;
-		GLenum polygon_back_mode  = GL_FILL;
+		impl::gl::RasterState raster;
 
-		// Color mask
-		bool color_write_r = true;
-		bool color_write_g = true;
-		bool color_write_b = true;
-		bool color_write_a = true;
+		impl::gl::ColorMaskState color_mask;
 
 		bool valid = false;
 	};
