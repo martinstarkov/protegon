@@ -701,15 +701,6 @@ void Renderer::OnEvent(EventDispatcher d) {
 	// TODO: Update physical resolution.
 }
 
-impl::QuadDesc Renderer::MakeQuadDesc(const QuadParams& p) {
-	impl::QuadDesc quad{};
-	quad.positions	= MakeQuadPointsPixels(p.center, p.size);
-	quad.tex_coords = p.tex_coords.value_or(MakeTexCoords(p.flip_y));
-	quad.color		= p.tint;
-	quad.rotation	= p.rotation;
-	return quad;
-}
-
 void Renderer::DrawQuadEx(
 	impl::gl::ShaderId shader, const QuadParams& params, const QuadSetup& setup
 ) {
@@ -717,7 +708,11 @@ void Renderer::DrawQuadEx(
 	auto half_viewport	 = viewport.size * 0.5f;
 	auto view_projection = Matrix4::Orthographic(-half_viewport, half_viewport);
 
-	impl::QuadDesc quad = MakeQuadDesc(params);
+	impl::QuadDesc quad{};
+	quad.positions	= MakeQuadPointsPixels(params.center, params.size);
+	quad.tex_coords = params.tex_coords.value_or(MakeTexCoords(params.flip_y));
+	quad.color		= params.tint;
+	quad.rotation	= params.rotation;
 
 	// Texture -> user data slot 0 (convention)
 	if (params.texture) {
@@ -733,9 +728,21 @@ void Renderer::DrawQuadEx(
 	auto vertices{ impl::Vertex::GetQuad(
 		quad.positions, quad.color, quad.rotation, quad.user_data, quad.tex_coords
 	) };
+
 	auto indices{ MakeQuadIndices() };
 
-	SubmitQuad(vertices, indices);
+	if (batch_vertices.size() + vertices.size() >= MaxVertices ||
+		batch_indices.size() + indices.size() >= MaxIndices) {
+		FlushBatch();
+	}
+
+	auto start_index = static_cast<std::uint32_t>(batch_vertices.size());
+
+	batch_vertices.insert(batch_vertices.end(), vertices.begin(), vertices.end());
+
+	for (auto idx : indices) {
+		batch_indices.push_back(idx + start_index);
+	}
 }
 
 void Renderer::DrawQuadEx(
@@ -768,23 +775,6 @@ void Renderer::DrawTexturedQuad(
 	DrawQuadEx(shader, p, [this](auto s, auto& q) {
 		gl_->SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
 	});
-}
-
-void Renderer::SubmitQuad(
-	std::span<const impl::Vertex> vertices, std::span<const impl::Index> indices
-) {
-	if (batch_vertices.size() + vertices.size() >= MaxVertices ||
-		batch_indices.size() + indices.size() >= MaxIndices) {
-		FlushBatch();
-	}
-
-	auto start_index = static_cast<std::uint32_t>(batch_vertices.size());
-
-	batch_vertices.insert(batch_vertices.end(), vertices.begin(), vertices.end());
-
-	for (auto idx : indices) {
-		batch_indices.push_back(idx + start_index);
-	}
 }
 
 RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {

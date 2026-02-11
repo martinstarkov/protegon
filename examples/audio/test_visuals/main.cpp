@@ -124,7 +124,6 @@ int main() {
 			renderer.gl_->GetShader("grayscale"), scene_texture, {},
 			renderer.gl_->GetTextureSize(scene_texture)
 		);*/
-		// renderer.FlushBatch();
 		// renderer.gl_->SavePNG("debug_images/grayscale1.png", scene_fbo2);
 		// renderer.BindRenderTarget(scene_fbo, { { 0, 0 }, window_size });
 		/*renderer.DrawTexturedQuad(
@@ -133,7 +132,6 @@ int main() {
 		);*/
 
 		// renderer.gl_->SavePNG("debug_images/name_of_png2.png", scene_fbo);
-		// renderer.FlushBatch();
 		// renderer.gl_->SavePNG("debug_images/name_of_png3.png", scene_fbo);
 
 		//   TODO: Add batching of consecutive textures.

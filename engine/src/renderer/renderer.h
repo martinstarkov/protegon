@@ -156,13 +156,14 @@ public:
 		impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
 		Color tint = color::White, bool flip_y = false
 	);
+	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
+	void DrawTexture(impl::gl::ShaderId shader, RenderPass& pass, RenderTarget scene_target);
 	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const UniformSetup& u = {});
 	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const QuadSetup& q);
 
 	void BindRenderTarget(impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport);
 	void BindRenderTarget(const RenderTarget& rt);
-
-	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
+	void BindRenderTarget(RenderPass& pass);
 
 	void SetShader(impl::gl::ShaderId shader);
 	void SetBlend(BlendMode mode, bool enable = true);
@@ -181,9 +182,6 @@ public:
 	// TODO: Move to private.
 	RenderTarget screen_target;
 
-	// TODO: Move to private.
-	void FlushBatch();
-
 	// TODO: Move to some debug system instead.
 	void SavePNG(
 		const std::filesystem::path& path, impl::gl::FramebufferId framebuffer,
@@ -192,10 +190,6 @@ public:
 
 	RenderPass BeginPass(RenderTarget scene_target);
 
-	void BindRenderTarget(RenderPass& pass);
-
-	void DrawTexture(impl::gl::ShaderId shader, RenderPass& pass, RenderTarget scene_target);
-
 private:
 	friend class Application;
 	friend struct RenderPass;
@@ -203,9 +197,7 @@ private:
 
 	void OnEvent(EventDispatcher d);
 
-	impl::QuadDesc MakeQuadDesc(const QuadParams& p);
-
-	void SubmitQuad(std::span<const impl::Vertex> vertices, std::span<const impl::Index> indices);
+	void FlushBatch();
 
 	std::uint32_t GetTextureSlot(impl::gl::TextureId tex);
 
