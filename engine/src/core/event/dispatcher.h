@@ -34,6 +34,16 @@ public:
 		}
 	}
 
+	template <typename TEvent, typename TObject>
+	void Dispatch(void (TObject::*memfn)(const TEvent&), TObject* obj) {
+		Dispatch<TEvent>([obj, memfn](TEvent& e) { (obj->*memfn)(e); });
+	}
+
+	template <typename TEvent, typename TObject>
+	void Dispatch(bool (TObject::*memfn)(const TEvent&), TObject* obj) {
+		Dispatch<TEvent>([obj, memfn](TEvent& e) { return (obj->*memfn)(e); });
+	}
+
 	operator impl::EventBase&() const {
 		return e_;
 	}
