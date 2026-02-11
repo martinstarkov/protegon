@@ -1,9 +1,13 @@
 #include "app/context.h"
 
 #include <chrono>
+#include <optional>
 
 #include "app/application.h"
+#include "app/scaling_mode.h"
+#include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "platform/window/window.h"
 
 namespace ptgn {
 
@@ -32,6 +36,21 @@ milliseconds ApplicationContext::TimeSinceStart() const {
 
 bool ApplicationContext::IsRunning() const {
 	return app_.running_;
+}
+
+void ApplicationContext::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
+	app_.UpdateScalingConfig(game_size, scaling_mode);
+}
+
+void ApplicationContext::SetScalingMode(ScalingMode scaling_mode) {
+	app_.UpdateScalingConfig(app_.game_size_, scaling_mode);
+}
+
+V2_int ApplicationContext::GetGameSize() const {
+	if (auto size = app_.game_size_) {
+		return *size;
+	}
+	return window.GetSize();
 }
 
 } // namespace ptgn

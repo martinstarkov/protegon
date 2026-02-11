@@ -20,6 +20,8 @@ namespace ptgn {
 class Application;
 class Window;
 class Renderer;
+class EventHandler;
+struct WindowResized;
 
 // TODO: Move somewhere else.
 /*
@@ -196,6 +198,9 @@ public:
 private:
 	friend class Application;
 	friend struct RenderPass;
+	friend class EventHandler;
+
+	void OnEvent(const WindowResized& resized);
 
 	impl::QuadDesc MakeQuadDesc(const QuadParams& p);
 

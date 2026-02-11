@@ -17,6 +17,7 @@
 #include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "platform/input/events.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_handle.h"
@@ -685,6 +686,11 @@ static constexpr std::array<V2_float, 4> MakeTexCoords(bool flip_y) {
 		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
 				 V2_float{ 0.0f, 0.0f } };
 	}
+}
+
+void Renderer::OnEvent(const WindowResized& resized) {
+	// TODO: Update physical resolution.
+	PTGN_LOG("Rendrerer resolution resized: ", resized.size);
 }
 
 impl::QuadDesc Renderer::MakeQuadDesc(const QuadParams& p) {
