@@ -6,6 +6,8 @@
 #include <optional>
 #include <span>
 
+#include "app/context.h"
+#include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
@@ -21,7 +23,6 @@ class Application;
 class Window;
 class Renderer;
 class EventHandler;
-struct WindowResized;
 
 // TODO: Move somewhere else.
 /*
@@ -200,7 +201,7 @@ private:
 	friend struct RenderPass;
 	friend class EventHandler;
 
-	void OnEvent(const WindowResized& resized);
+	void OnEvent(EventDispatcher d);
 
 	impl::QuadDesc MakeQuadDesc(const QuadParams& p);
 
@@ -274,6 +275,12 @@ private:
 	std::vector<impl::PooledTarget> rt_pool;
 	std::uint64_t pool_tick	  = 0;
 	std::size_t max_pool_size = 16;
+
+	void SetContext(const std::shared_ptr<ApplicationContext>& ctx) {
+		ctx_ = ctx;
+	}
+
+	std::shared_ptr<ApplicationContext> ctx_;
 };
 
 } // namespace ptgn

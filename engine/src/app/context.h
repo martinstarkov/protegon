@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "app/scaling_mode.h"
+#include "core/event/event.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 
@@ -16,12 +17,16 @@ class EventHandler;
 class InputHandler;
 class AssetManager;
 
+struct PresentationResized : public Event<PresentationResized> {
+	V2_int size;
+};
+
 class ApplicationContext {
 private:
 	Application& app_;
 
 public:
-	ApplicationContext(Application& app);
+	explicit ApplicationContext(Application& app);
 
 	Window& window;
 	Renderer& renderer;
@@ -37,6 +42,7 @@ public:
 	[[nodiscard]] milliseconds TimeSinceStart() const;
 
 	bool IsRunning() const;
+	std::size_t GetFrameCount() const;
 
 	/// @param game_size Setting to {} will use dynamic window size.
 	void SetGameSize(

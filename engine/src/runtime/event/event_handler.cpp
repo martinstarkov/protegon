@@ -14,7 +14,7 @@ EventHandler::EventHandler(SceneManager& scenes, Renderer& renderer) :
 	scenes_{ scenes }, renderer_{ renderer } {}
 
 void EventHandler::Emit(EventDispatcher d) {
-	d.Dispatch(&Renderer::OnEvent, &renderer_);
+	renderer_.OnEvent(d);
 
 	for (auto& entry : scenes_.entries_) {
 		entry.ptr->InternalEmit(d);

@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
@@ -688,9 +689,16 @@ static constexpr std::array<V2_float, 4> MakeTexCoords(bool flip_y) {
 	}
 }
 
-void Renderer::OnEvent(const WindowResized& resized) {
+void Renderer::OnEvent(EventDispatcher d) {
+	d.Dispatch<PresentationResized>([this](auto& e) {
+		PTGN_LOG("Presentation resized: ", e.size);
+		PTGN_LOG("Frame: ", ctx_->GetFrameCount());
+	});
+	d.Dispatch<WindowResized>([this](auto& e) {
+		PTGN_LOG("Window resized: ", e.size);
+		PTGN_LOG("Frame: ", ctx_->GetFrameCount());
+	});
 	// TODO: Update physical resolution.
-	PTGN_LOG("Rendrerer resolution resized: ", resized.size);
 }
 
 impl::QuadDesc Renderer::MakeQuadDesc(const QuadParams& p) {

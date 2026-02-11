@@ -9,12 +9,34 @@ namespace ptgn {
 
 struct KeyDown : public Event<KeyDown> {
 	Key key;
-	// @return True if key is held for more than one frame in a row.
+	/// True if key is held for more than one frame in a row.
 	bool held{ false };
+
+	bool operator==(Key k) const {
+		return key == k;
+	}
+
+	/// First frame only
+	bool IsPressed(Key k) const {
+		return !held && key == k;
+	}
+
+	/// Repeat frames
+	bool IsHeld(Key k) const {
+		return held && key == k;
+	}
 };
 
 struct KeyUp : public Event<KeyUp> {
 	Key key;
+
+	bool operator==(Key k) const {
+		return key == k;
+	}
+
+	bool IsUp(Key k) const {
+		return key == k;
+	}
 };
 
 struct MouseMove : public Event<MouseMove> {
@@ -25,13 +47,35 @@ struct MouseMove : public Event<MouseMove> {
 struct MouseDown : public Event<MouseDown> {
 	Mouse button;
 	V2_int position;
-	// @return True if mouse is held for more than one frame in a row.
+	/// True if mouse is held for more than one frame in a row.
 	bool held{ false };
+
+	bool operator==(Mouse b) const {
+		return button == b;
+	}
+
+	/// First frame only
+	bool IsPressed(Mouse b) const {
+		return !held && button == b;
+	}
+
+	/// Repeat frames
+	bool IsHeld(Mouse b) const {
+		return held && button == b;
+	}
 };
 
 struct MouseUp : public Event<MouseUp> {
 	Mouse button;
 	V2_int position;
+
+	bool operator==(Mouse b) const {
+		return button == b;
+	}
+
+	bool IsUp(Mouse b) const {
+		return button == b;
+	}
 };
 
 struct MouseScroll : public Event<MouseScroll> {

@@ -154,6 +154,20 @@ public:
 	void OnExit() override {
 		// PTGN_INFO("Exiting test scene");
 	}
+
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<KeyDown>([this](auto& e) {
+			if (e.IsPressed(Key::Enter)) {
+				PTGN_LOG("Pressed enter");
+				PTGN_LOG("Frame: ", app().GetFrameCount());
+				app().SetGameSize(V2_int{ 69, 70 });
+			} else if (e.IsPressed(Key::Space)) {
+				PTGN_LOG("Pressed space");
+				PTGN_LOG("Frame: ", app().GetFrameCount());
+				app().SetGameSize(V2_int{ 20, 30 });
+			}
+		});
+	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {

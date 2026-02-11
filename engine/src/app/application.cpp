@@ -192,6 +192,7 @@ Application::Application(const ApplicationConfig& config) :
 	debug_{ renderer_ },
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
 	scenes_.SetContext(ctx_);
+	renderer_.SetContext(ctx_);
 }
 
 void Application::EnterMainLoop() {
@@ -246,6 +247,8 @@ void Application::Update() {
 	debug_.PostUpdate();
 
 	end = std::chrono::system_clock::now();
+
+	frame_count_++;
 }
 
 void Application::UpdateScalingConfig(std::optional<V2_int> game_size, ScalingMode scaling_mode) {

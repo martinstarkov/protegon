@@ -98,6 +98,7 @@ private:
 
 	secondsf dt_{ 0.0f };
 	bool running_{ false };
+	std::size_t frame_count_{ 0 };
 
 	std::shared_ptr<ApplicationContext> ctx_;
 };
