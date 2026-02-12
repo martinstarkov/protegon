@@ -658,6 +658,9 @@ void Renderer::BeginFrame() {
 }
 
 void Renderer::EndFrame(const Viewport& viewport) {
+	auto half_viewport{ viewport.size * 0.5f };
+	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+
 	SetFramebuffer({}, viewport);
 	SetBlend(BlendMode::ReplaceRGBA);
 

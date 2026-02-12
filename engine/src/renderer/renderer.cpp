@@ -160,6 +160,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 		if (resized) {
 			impl::DisplayResized display_resized;
 			display_resized.size = display_viewport_.size;
+			gl_renderer_->ResizeRenderTarget(gl_renderer_->screen_target_, display_viewport_.size);
 			events_.Emit(display_resized);
 		}
 
