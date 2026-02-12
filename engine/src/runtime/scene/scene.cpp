@@ -314,6 +314,16 @@ const ApplicationContext& Scene::app() const {
 }
 
 void Scene::InternalEmit(EventDispatcher d) {
+	// TODO: Resize all RenderTarget entities that subscribe to DisplayResized or GameResized.
+	/*
+	d.Dispatch([this](const impl::DisplayResized& e) {
+
+	});
+	d.Dispatch([this](const GameResized& e) {
+
+	});
+	*/
+
 	for (auto [e, scripts] : EntitiesWith<Scripts>()) {
 		scripts.Emit(d);
 		if (d.IsHandled()) {
