@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace ptgn {
 
 enum class TextureFormat {
@@ -70,5 +72,34 @@ inline bool IsHDRFormat(TextureFormat fmt) {
 		default:		 return false;
 	}
 }
+
+//
+// Texture Minification Filter (GL_TEXTURE_MIN_FILTER)
+//
+enum class TextureMinFilter : std::uint32_t {
+	Nearest				 = 0x2600, // GL_NEAREST
+	Linear				 = 0x2601, // GL_LINEAR
+	NearestMipmapNearest = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
+	LinearMipmapNearest	 = 0x2701, // GL_LINEAR_MIPMAP_NEAREST
+	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
+	LinearMipmapLinear	 = 0x2703  // GL_LINEAR_MIPMAP_LINEAR
+};
+
+//
+// Texture Magnification Filter (GL_TEXTURE_MAG_FILTER)
+//
+enum class TextureMagFilter : std::uint32_t {
+	Nearest = 0x2600, // GL_NEAREST
+	Linear	= 0x2601  // GL_LINEAR
+};
+
+//
+// Texture Wrap Mode (GL_TEXTURE_WRAP_S / GL_TEXTURE_WRAP_T)
+//
+enum class TextureWrap : std::uint32_t {
+	Repeat		   = 0x2901, // GL_REPEAT
+	MirroredRepeat = 0x8370, // GL_MIRRORED_REPEAT
+	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
+};
 
 } // namespace ptgn

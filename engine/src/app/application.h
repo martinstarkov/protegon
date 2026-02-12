@@ -91,11 +91,6 @@ private:
 	void EnterMainLoop();
 	void Update();
 
-	void UpdateScalingConfig(std::optional<V2_int> game_size, ScalingMode scaling_mode);
-
-	std::optional<V2_int> game_size_;
-	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
-
 	secondsf dt_{ 0.0f };
 	bool running_{ false };
 	std::size_t frame_count_{ 0 };

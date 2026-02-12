@@ -251,8 +251,4 @@ void Application::Update() {
 	frame_count_++;
 }
 
-void Application::UpdateScalingConfig(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
-	game_size_ = game_size;
-}
-
 } // namespace ptgn

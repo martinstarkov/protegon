@@ -20,12 +20,7 @@
 #include "renderer/resources/texture_format.h"
 #include "renderer/resources/vertex.h"
 
-namespace ptgn {
-
-class Application;
-class Window;
-class Renderer;
-class EventHandler;
+namespace ptgn::impl::gl {
 
 template <class State, class Func>
 void UpdateStateIfChanged(Renderer&, State&, const State&, Func&&);
@@ -45,22 +40,16 @@ struct LightParams {
 */
 
 struct RenderTarget {
-	impl::gl::Framebuffer framebuffer;
-	impl::gl::Texture color;
-	impl::gl::Renderbuffer depth; // optional
+	Framebuffer framebuffer;
+	Texture color;
+	Renderbuffer depth; // optional
 	V2_int size;
 	TextureFormat format{ TextureFormat::RGBA8 };
 
 	bool operator==(const RenderTarget&) const = default;
 };
 
-namespace impl {
-
-namespace gl {
-
 class GLContext;
-
-} // namespace gl
 
 using Index = std::uint32_t;
 
@@ -98,8 +87,6 @@ struct PooledTarget {
 	bool in_use					 = false;
 };
 
-} // namespace impl
-
 struct QuadParams {
 	V2_float center{};
 	V2_float size{ 0.0f, 0.0f };
@@ -109,7 +96,7 @@ struct QuadParams {
 
 	Color tint = color::White;
 
-	std::optional<impl::gl::TextureId> texture;
+	std::optional<TextureId> texture;
 
 	std::optional<std::array<V2_float, 4>> tex_coords;
 };
@@ -145,45 +132,44 @@ public:
 	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
 
 	// TODO: Move to private.
-	std::unique_ptr<impl::gl::GLContext> gl_;
+	std::unique_ptr<GLContext> gl_;
 
 	// TODO: Move to private.
 	void BeginFrame();
 	// TODO: Move to private.
 	void EndFrame();
 
-	using UniformSetup = std::function<void(impl::gl::ShaderId)>;
-	using QuadSetup	   = std::function<void(impl::gl::ShaderId, impl::QuadDesc&)>;
+	using UniformSetup = std::function<void(ShaderId)>;
+	using QuadSetup	   = std::function<void(ShaderId, QuadDesc&)>;
 
 	// void DrawLightQuad(const LightParams& light);
 	void DrawTexturedQuad(
-		impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
+		ShaderId shader, TextureId texture, V2_float center, V2_float size,
 		Color tint = color::White, bool flip_y = false
 	);
-	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
-	void DrawTexture(impl::gl::ShaderId shader, RenderPass& pass, const RenderTarget& scene_target);
-	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const UniformSetup& u = {});
-	void DrawQuadEx(impl::gl::ShaderId shader, const QuadParams& p, const QuadSetup& q);
+	void DrawTexture(TextureId texture, V2_float center, V2_float size);
+	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTarget& scene_target);
+	void DrawQuadEx(ShaderId shader, const QuadParams& p, const UniformSetup& u = {});
+	void DrawQuadEx(ShaderId shader, const QuadParams& p, const QuadSetup& q);
 
-	void BindRenderTarget(impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport);
+	void BindRenderTarget(FramebufferId framebuffer, const Viewport& viewport);
 	void BindRenderTarget(const RenderTarget& rt);
 	void BindRenderTarget(RenderPass& pass);
 
-	void SetShader(impl::gl::ShaderId shader);
+	void SetShader(ShaderId shader);
 	void SetBlend(BlendMode mode, bool enabled = true);
-	void SetFramebuffer(impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport);
-	void SetDepth(const impl::gl::DepthState& depth);
-	void SetStencil(const impl::gl::StencilState& stencil);
-	void SetRaster(const impl::gl::RasterState& raster);
-	void SetColorMask(const impl::gl::ColorMaskState& color_mask);
+	void SetFramebuffer(FramebufferId framebuffer, const Viewport& viewport);
+	void SetDepth(const DepthState& depth);
+	void SetStencil(const StencilState& stencil);
+	void SetRaster(const RasterState& raster);
+	void SetColorMask(const ColorMaskState& color_mask);
 
 	// TODO: Move to private.
 	RenderTarget screen_target;
 
 	// TODO: Move to some debug system instead.
 	void SavePNG(
-		const path& path, impl::gl::FramebufferId framebuffer,
-		GLenum attachment /* = GL_COLOR_ATTACHMENT0 */
+		const path& path, FramebufferId framebuffer, GLenum attachment /* = GL_COLOR_ATTACHMENT0 */
 	);
 
 	RenderPass BeginPass(const RenderTarget& scene_target);
@@ -199,44 +185,30 @@ private:
 
 	void FlushBatch();
 
-	std::uint32_t GetTextureSlot(impl::gl::TextureId tex);
+	std::uint32_t GetTextureSlot(TextureId tex);
 
 	RenderTarget AcquirePooledTarget(V2_int size, TextureFormat format);
 	void ReleasePooledTarget(const RenderTarget& target);
-
-	struct RenderState {
-		impl::gl::ShaderId shader;
-		impl::gl::FramebufferId framebuffer;
-		impl::gl::BlendState blend;
-		impl::gl::DepthState depth;
-		impl::gl::StencilState stencil;
-		impl::gl::RasterState raster;
-		impl::gl::ColorMaskState color_mask;
-
-		bool valid{ false };
-	};
-
-	RenderState state;
 
 	static constexpr std::uint32_t MaxQuads	   = 1024;
 	static constexpr std::uint32_t MaxVertices = MaxQuads * 4;
 	static constexpr std::uint32_t MaxIndices  = MaxQuads * 6;
 
-	std::vector<impl::Vertex> batch_vertices;
-	std::vector<impl::Index> batch_indices;
+	std::vector<Vertex> batch_vertices;
+	std::vector<Index> batch_indices;
 
-	std::vector<impl::gl::TextureId> batch_textures;
+	std::vector<TextureId> batch_textures;
 
 	Window& window_;
 
-	impl::gl::VertexBuffer vbo;
-	impl::gl::ElementBuffer ebo;
-	impl::gl::VertexArray vao;
-	impl::gl::Texture white_texture;
+	VertexBuffer vbo;
+	ElementBuffer ebo;
+	VertexArray vao;
+	Texture white_texture;
 
-	std::vector<impl::PooledTarget> rt_pool;
+	std::vector<PooledTarget> rt_pool;
 	std::uint64_t pool_tick	  = 0;
 	std::size_t max_pool_size = 16;
 };
 
-} // namespace ptgn
+} // namespace ptgn::impl::gl

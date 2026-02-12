@@ -3,10 +3,11 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
 #include "core/math/vector2.h"
-#include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
+#include "renderer/backend/gl/gl_handle.h"
 
 namespace ptgn::impl::gl {
 
