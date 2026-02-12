@@ -186,8 +186,9 @@ SDLInstance::~SDLInstance() {
 
 Application::Application(const ApplicationConfig& config) :
 	window_{ config.window },
-	renderer_{ window_ },
-	events_{ scenes_, renderer_ },
+	scenes_{},
+	events_{ scenes_ },
+	renderer_{ window_, events_ },
 	assets_{ sdl_, *renderer_.gl_renderer_->gl_.get() },
 	debug_{},
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
@@ -234,6 +235,8 @@ void Application::Update() {
 	start = end;
 
 	input_.Update([this](impl::EventBase& e) {
+		renderer_.OnEvent(e);
+
 		events_.Emit(e);
 
 		if (EventDispatcher{ e }.IsType<WindowQuit>()) {

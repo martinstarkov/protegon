@@ -8,6 +8,7 @@
 #include "core/log.h"
 #include "platform/input/events.h"
 #include "platform/input/mouse.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -160,12 +161,20 @@ public:
 			if (e.IsPressed(Key::Enter)) {
 				PTGN_LOG("Pressed enter");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
-				// app().SetGameSize(V2_int{ 69, 70 });
+				app().renderer.SetGameSize(V2_int{ 69, 70 });
 			} else if (e.IsPressed(Key::Space)) {
 				PTGN_LOG("Pressed space");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
-				// app().SetGameSize(V2_int{ 20, 30 });
+				app().renderer.SetGameSize(V2_int{ 20, 30 });
 			}
+		});
+		d.Dispatch<GameResized>([this](auto& e) {
+			PTGN_LOG("Game resized: ", e.size);
+			PTGN_LOG("Frame: ", app().GetFrameCount());
+		});
+		d.Dispatch<impl::DisplayResized>([this](auto& e) {
+			PTGN_LOG("Display resized: ", e.size);
+			PTGN_LOG("Frame: ", app().GetFrameCount());
 		});
 	}
 };

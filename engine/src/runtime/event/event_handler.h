@@ -5,11 +5,10 @@
 namespace ptgn {
 
 class SceneManager;
-class Renderer;
 
 class EventHandler {
 public:
-	explicit EventHandler(SceneManager& scenes, Renderer& renderer);
+	explicit EventHandler(SceneManager& scenes);
 	~EventHandler() noexcept						 = default;
 	EventHandler(const EventHandler&)				 = delete;
 	EventHandler& operator=(const EventHandler&)	 = delete;
@@ -20,7 +19,6 @@ public:
 
 private:
 	SceneManager& scenes_;
-	Renderer& renderer_;
 };
 
 } // namespace ptgn

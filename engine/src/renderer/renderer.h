@@ -1,8 +1,13 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "core/event/dispatcher.h"
+#include "core/event/event.h"
+#include "core/math/vector2.h"
+#include "renderer/camera/scaling_mode.h"
+#include "renderer/resources/render_state.h"
 
 namespace ptgn {
 
@@ -10,50 +15,73 @@ class Application;
 class EventHandler;
 class Window;
 
-namespace impl::gl {
+struct GameResized : public Event<GameResized> {
+	V2_int size;
+};
+
+namespace impl {
+
+struct DisplayResized : public Event<DisplayResized> {
+	V2_int size;
+};
+
+struct DisplayViewportChanged : public Event<DisplayViewportChanged> {
+	Viewport viewport;
+};
+
+namespace gl {
 
 class Renderer;
 
-} // namespace impl::gl
+} // namespace gl
+
+} // namespace impl
 
 class Renderer {
 public:
 	Renderer() = delete;
-	explicit Renderer(Window& window);
+	explicit Renderer(Window& window, EventHandler& events);
 	~Renderer() noexcept;
 	Renderer(const Renderer&)				 = delete;
 	Renderer(Renderer&&) noexcept			 = delete;
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
+	/// @param game_size Setting to {} will use dynamic window size.
+	void SetGameSize(
+		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
+	);
+
+	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+
+	/// @return The display size of the renderer.
+	[[nodiscard]] V2_int GetDisplaySize() const;
+
+	/// @return The amount by which game size is scaled to achieve the display size.
+	[[nodiscard]] V2_float GetScale() const;
+
+	/// @return The game size of the renderer. Returns window size if unset.
+	[[nodiscard]] V2_int GetGameSize() const;
+
+	/// @return The game size scaling mode.
+	[[nodiscard]] ScalingMode GetScalingMode() const;
+
 private:
 	friend class Application;
 	friend class EventHandler;
 
-	// struct PresentationResized : public Event<PresentationResized> {
-	//	V2_int size;
-	// };
-	//  void Renderer::SetPresentation(std::optional<V2_int> presentation_size, ScalingMode
-	//  scaling_mode) {
-	//	app_.UpdateScalingConfig(presentation_size, scaling_mode);
-	//	PresentationResized e;
-	//	e.size = presentation_size.value();
-	//	events.Emit(e);
-	//  }
-	//
-	//  void Renderer::SetPresentationScalingMode(ScalingMode scaling_mode) {
-	//	app_.UpdateScalingConfig(app_.presentation_size_, scaling_mode);
-	//  }
-	// V2_int Renderer::GetPresentationSize() const {
-	//	if (app_.presentation_size_) {
-	//		return *app_.presentation_size_;
-	//	}
-	//	return window.GetSize();
-	// }
-
 	void OnEvent(EventDispatcher d);
 
+	Window& window_;
+	EventHandler& events_;
+
 	std::shared_ptr<impl::gl::Renderer> gl_renderer_;
+
+	void UpdateDisplayViewport(V2_int window_size);
+
+	std::optional<V2_int> game_size_;
+	Viewport display_viewport_;
+	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
 };
 
 } // namespace ptgn

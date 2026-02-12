@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/event/event.h"
 #include "core/time/time.h"
 
 namespace ptgn {
@@ -21,7 +20,7 @@ public:
 	explicit ApplicationContext(Application& app);
 
 	Window& window;
-	// Renderer& renderer;
+	Renderer& renderer;
 	SceneManager& scenes;
 	EventHandler& events;
 	InputHandler& input;

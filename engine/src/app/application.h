@@ -75,9 +75,9 @@ private:
 
 	Window window_;
 	InputHandler input_;
-	Renderer renderer_;
 	SceneManager scenes_;
 	EventHandler events_;
+	Renderer renderer_;
 	AssetManager assets_;
 
 	// TODO: Make a no-op version of this for release modes.

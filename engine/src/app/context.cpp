@@ -1,11 +1,11 @@
 #include "app/context.h"
 
 #include <chrono>
-#include <optional>
 
 #include "app/application.h"
 #include "core/time/time.h"
 #include "platform/window/window.h"
+#include "renderer/renderer.h"
 #include "runtime/event/event_handler.h"
 
 namespace ptgn {
@@ -13,7 +13,7 @@ namespace ptgn {
 ApplicationContext::ApplicationContext(Application& app) :
 	app_{ app },
 	window{ app.window_ },
-	// renderer{ app.renderer_ },
+	renderer{ app.renderer_ },
 	scenes{ app.scenes_ },
 	events{ app.events_ },
 	input{ app.input_ },
