@@ -1,3 +1,45 @@
+#pragma once
+
+#include <optional>
+
+#include "core/math/vector2.h"
+#include "renderer/backend/gl/gl_handle.h"
+#include "renderer/resources/texture_format.h"
+
+namespace ptgn {
+
+namespace impl::gl {
+
+class Renderer;
+
+} // namespace impl::gl
+
+class RenderTarget {
+public:
+	RenderTarget() = default;
+
+	V2_int GetSize() const;
+	TextureFormat GetFormat() const;
+
+private:
+	friend class impl::gl::Renderer;
+
+	RenderTarget(
+		const impl::gl::Framebuffer& framebuffer, const std::optional<impl::gl::Texture>& color,
+		const std::optional<impl::gl::Renderbuffer>& depth, V2_int size, TextureFormat format
+	);
+
+	impl::gl::Framebuffer framebuffer_;
+	std::optional<impl::gl::Texture> color_;
+	std::optional<impl::gl::Renderbuffer> depth_;
+	V2_int size_;
+	TextureFormat format_{ TextureFormat::RGBA8 };
+
+	bool operator==(const RenderTarget&) const = default;
+};
+
+} // namespace ptgn
+
 // #pragma once
 //
 // #include <concepts>

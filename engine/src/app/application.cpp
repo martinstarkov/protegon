@@ -1,7 +1,8 @@
 #include "app/application.h"
 
-#include <SDL3/SDL.h>
+#include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_video.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -10,7 +11,7 @@
 #include <cstdint>
 #include <format>
 #include <memory>
-#include <ostream>
+#include <string>
 
 #include "app/context.h"
 #include "core/assert.h"
@@ -22,9 +23,12 @@
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
+#include "SDL3/SDL_audio.h"
+#include "SDL3/SDL_version.h"
 #include "tools/debug/debug_system.h"
 
 #ifdef __EMSCRIPTEN__
@@ -48,10 +52,6 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include <optional>
-
-#include "core/math/vector2.h"
-#include "scaling_mode.h"
 
 namespace ptgn {
 
@@ -188,11 +188,10 @@ Application::Application(const ApplicationConfig& config) :
 	window_{ config.window },
 	renderer_{ window_ },
 	events_{ scenes_, renderer_ },
-	assets_{ sdl_, *renderer_.gl_.get() },
-	debug_{ renderer_ },
+	assets_{ sdl_, *renderer_.gl_renderer_->gl_.get() },
+	debug_{},
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
 	scenes_.SetContext(ctx_);
-	renderer_.SetContext(ctx_);
 }
 
 void Application::EnterMainLoop() {

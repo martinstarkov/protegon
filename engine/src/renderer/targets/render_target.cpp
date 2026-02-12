@@ -1,3 +1,31 @@
+#include "render_target.h"
+
+#include "core/math/vector2.h"
+#include "renderer/backend/gl/gl_handle.h"
+#include "renderer/resources/texture_format.h"
+
+namespace ptgn {
+
+V2_int RenderTarget::GetSize() const {
+	return size_;
+}
+
+TextureFormat RenderTarget::GetFormat() const {
+	return format_;
+}
+
+RenderTarget::RenderTarget(
+	const impl::gl::Framebuffer& framebuffer, const std::optional<impl::gl::Texture>& color,
+	const std::optional<impl::gl::Renderbuffer>& depth, V2_int size, TextureFormat format
+) :
+	framebuffer_{ framebuffer },
+	color_{ color },
+	depth_{ depth },
+	size_{ size },
+	format_{ format } {}
+
+} // namespace ptgn
+
 // #include "renderer/render_target.h"
 //
 // #include <functional>

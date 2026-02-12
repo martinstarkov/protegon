@@ -2,11 +2,8 @@
 
 #include <concepts>
 #include <memory>
-#include <optional>
 #include <string_view>
 
-#include "app/scaling_mode.h"
-#include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
@@ -73,8 +70,6 @@ private:
 	friend void impl::EmscriptenMainLoop(void* application);
 #endif
 	friend class ApplicationContext;
-
-	// TODO: Add game size.
 
 	impl::SDLInstance sdl_;
 

@@ -140,6 +140,8 @@ struct LineWidth {
 	explicit LineWidth(float value) : value{ value } {}
 
 	float value{ 1.0f };
+
+	bool operator==(const LineWidth&) const = default;
 };
 
 struct RasterState {

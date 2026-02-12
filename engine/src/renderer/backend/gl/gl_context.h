@@ -3,6 +3,7 @@
 #include <cmrc/cmrc.hpp>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -175,6 +176,24 @@ constexpr TextureFormatDesc GetTextureFormatDesc(TextureFormat fmt) {
 	}
 }
 
+enum class Attachment : std::uint32_t {
+	// Color attachments
+	Color0 = 0x8CE0, // GL_COLOR_ATTACHMENT0
+	Color1 = 0x8CE1, // GL_COLOR_ATTACHMENT1
+	Color2 = 0x8CE2, // GL_COLOR_ATTACHMENT2
+	Color3 = 0x8CE3, // GL_COLOR_ATTACHMENT3
+	Color4 = 0x8CE4, // GL_COLOR_ATTACHMENT4
+	Color5 = 0x8CE5, // GL_COLOR_ATTACHMENT5
+	Color6 = 0x8CE6, // GL_COLOR_ATTACHMENT6
+	Color7 = 0x8CE7, // GL_COLOR_ATTACHMENT7
+	Color8 = 0x8CE8, // GL_COLOR_ATTACHMENT8
+
+	// Depth / Stencil attachments
+	Depth		 = 0x8D00, // GL_DEPTH_ATTACHMENT
+	Stencil		 = 0x8D20, // GL_STENCIL_ATTACHMENT
+	DepthStencil = 0x821A  // GL_DEPTH_STENCIL_ATTACHMENT
+};
+
 template <typename T>
 class BindGuard {
 public:
@@ -237,8 +256,8 @@ public:
 	Renderbuffer CreateRenderbuffer(V2_int size, GLenum internal_format, bool restore_bind = true);
 
 	Framebuffer CreateFramebuffer(
-		TextureId texture, GLenum texture_attachment = GL_COLOR_ATTACHMENT0,
-		RenderbufferId renderbuffer	   = {},
+		std::optional<TextureId> texture = {}, GLenum texture_attachment = GL_COLOR_ATTACHMENT0,
+		std::optional<RenderbufferId> renderbuffer = {},
 		GLenum renderbuffer_attachment = GL_DEPTH_STENCIL_ATTACHMENT, bool restore_bind = true
 	);
 
@@ -267,6 +286,8 @@ public:
 	[[nodiscard]] BindGuard<FramebufferId> Bind(FramebufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<VertexArrayId> Bind(VertexArrayId id, bool restore_bind = false);
 
+	[[nodiscard]] const State& GetBoundState() const;
+	[[nodiscard]] State& GetBoundState();
 	[[nodiscard]] VertexBufferId GetBoundVertexBuffer() const;
 	[[nodiscard]] ElementBufferId GetBoundElementBuffer() const;
 	[[nodiscard]] UniformBufferId GetBoundUniformBuffer() const;
@@ -354,19 +375,19 @@ public:
 
 	void SetDepth(const DepthState& state);
 	void SetDepthMask(bool enabled);
-	void SetDepthFunc(GLenum depth_func);
+	void SetDepthFunc(CompareFunc depth_func);
 	void SetDepthRange(float near_val, float far_val);
 	void SetLineWidth(float width);
 	void SetLineSmoothing(bool enabled);
-	void SetPolygonMode(GLenum front_mode, GLenum back_mode);
+	void SetPolygonMode(PolygonMode front_mode, PolygonMode back_mode);
 	void SetColorMask(const ColorMaskState& mask);
 	void SetScissor(const ScissorState& scissor);
 	void SetCull(const CullState& cull);
 	void SetRaster(const RasterState& raster);
 	void SetStencil(const StencilState& stencil);
 	void SetClearColor(Color color);
-	void SetClearDepth(GLdouble depth);
-	void SetClearStencil(GLint stencil);
+	void SetClearDepth(double depth);
+	void SetClearStencil(int stencil);
 
 	void DrawElements(
 		VertexArrayId vertex_array, GLsizei element_count, GLenum element_type,
@@ -424,7 +445,7 @@ public:
 
 	[[nodiscard]] Shader GetShader(std::string_view shader_name) const;
 
-	void SetActiveTextureSlot(GLuint slot);
+	void SetActiveTextureSlot(Id slot);
 
 	/// @param target OpenGL buffer binding point (e.g. GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER,
 	/// GL_UNIFORM_BUFFER)
@@ -708,7 +729,7 @@ private:
 
 	[[nodiscard]] GLint GetTextureParameter(TextureId texture, GLenum param) const;
 
-	[[nodiscard]] GLuint GetActiveTextureSlot() const;
+	[[nodiscard]] Id GetActiveTextureSlot() const;
 
 	template <typename T = GLint>
 	T GetBufferParameter(GLenum target, GLenum pname) const {

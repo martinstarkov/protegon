@@ -16,8 +16,8 @@
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/image/surface.h"
-#include "renderer/renderer.h"
 #include "renderer/resources/vertex.h"
 
 int main() {
@@ -38,7 +38,7 @@ int main() {
 	ptgn::Window window{ { "Title", { W, H } } };
 	window.SetSetting(WindowSetting::Shown);
 
-	Renderer renderer{ window };
+	impl::gl::Renderer renderer{ window };
 
 	bool running = true;
 
@@ -63,7 +63,7 @@ int main() {
 		renderer.BeginFrame();
 
 		renderer.BindRenderTarget(scene_target);
-		renderer.gl_->ClearToColor(scene_target.framebuffer, color::Blue);
+		renderer.gl_->ClearToColor(scene_target.framebuffer_, color::Blue);
 		renderer.SetBlend(BlendMode::Blend);
 		renderer.DrawTexture(texture1, { 0, 0 }, renderer.gl_->GetTextureSize(texture1));
 		renderer.DrawTexture(texture1, -window_size / 2.0f, renderer.gl_->GetTextureSize(texture1));

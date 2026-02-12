@@ -160,11 +160,11 @@ public:
 			if (e.IsPressed(Key::Enter)) {
 				PTGN_LOG("Pressed enter");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
-				app().SetGameSize(V2_int{ 69, 70 });
+				// app().SetGameSize(V2_int{ 69, 70 });
 			} else if (e.IsPressed(Key::Space)) {
 				PTGN_LOG("Pressed space");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
-				app().SetGameSize(V2_int{ 20, 30 });
+				// app().SetGameSize(V2_int{ 20, 30 });
 			}
 		});
 	}

@@ -6,7 +6,7 @@
 
 namespace ptgn::impl {
 
-DebugSystem::DebugSystem(Renderer& renderer) : renderer_{ renderer } {}
+DebugSystem::DebugSystem() {}
 
 // TODO: Fix.
 // const Depth max_depth{ std::numeric_limits<std::int32_t>::max() };

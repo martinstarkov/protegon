@@ -3,10 +3,10 @@
 #include <string>
 
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/components/generic.h"
-#include "core/math/geometry/origin.h"
 #include "tools/debug/allocation.h"
 #include "tools/debug/stats.h"
 
@@ -14,13 +14,12 @@ namespace ptgn {
 
 struct Transform;
 class Application;
-class Renderer;
 
 namespace impl {
 
 class DebugSystem {
 public:
-	DebugSystem(Renderer& renderer);
+	DebugSystem();
 	~DebugSystem() noexcept						   = default;
 	DebugSystem(const DebugSystem&)				   = delete;
 	DebugSystem& operator=(const DebugSystem&)	   = delete;
@@ -60,8 +59,6 @@ private:
 
 	void PreUpdate();
 	void PostUpdate();
-
-	Renderer& renderer_;
 };
 
 } // namespace impl

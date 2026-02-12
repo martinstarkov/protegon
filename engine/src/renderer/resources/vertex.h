@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "core/graphics/flip.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/glsl_types.h"
@@ -12,6 +13,22 @@ struct Color;
 struct Depth;
 
 namespace impl {
+
+[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
+	return {
+		V2_float{ 0.0f, 0.0f },
+		V2_float{ 1.0f, 0.0f },
+		V2_float{ 1.0f, 1.0f },
+		V2_float{ 0.0f, 1.0f },
+	};
+}
+
+[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
+	V2_float source_position, V2_float source_size, V2_float texture_size,
+	bool offset_texels = false
+);
+
+void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
 
 struct Vertex : public gl::VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4> {
 	glsl::vec3 position{};
