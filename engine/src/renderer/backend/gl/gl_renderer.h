@@ -83,7 +83,10 @@ public:
 		ShaderId shader, TextureId texture, V2_float center, V2_float size,
 		Color tint = color::White, bool flip_y = false
 	);
-	void DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint = color::White);
+	void DrawTexture(
+		TextureId texture, V2_float center, V2_float size, Color tint = color::White,
+		bool flip_y = false
+	);
 	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTarget& scene_target);
 
 	void SetViewProjection(const Matrix4& view_projection);

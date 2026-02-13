@@ -508,8 +508,10 @@ void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSet
 	}
 }
 
-void Renderer::DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint) {
-	DrawTexture(gl_->GetShader("quad"), texture, center, size, tint);
+void Renderer::DrawTexture(
+	TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
+) {
+	DrawTexture(gl_->GetShader("quad"), texture, center, size, tint, flip_y);
 }
 
 void Renderer::DrawTexture(
@@ -651,7 +653,7 @@ void Renderer::EndFrame(const Viewport& viewport) {
 		screen_target_.color_.has_value(), "Cannot draw to screen target with no color attachment"
 	);
 
-	DrawTexture(*screen_target_.color_, { 0, 0 }, screen_target_.size_);
+	DrawTexture(*screen_target_.color_, { 0, 0 }, screen_target_.size_, color::White, true);
 
 	FlushBatch();
 }
