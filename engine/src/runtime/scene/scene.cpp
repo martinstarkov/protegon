@@ -207,22 +207,22 @@ void Scene::InternalExit() {
 
 void Scene::InternalDraw() {
 	// TODO: Get rid of this.
-	auto game_size{ ctx_->renderer.GetGameSize() };
+	// auto game_size{ ctx_->renderer.GetGameSize() };
 	// auto game_size{ ctx_->renderer.gl_renderer_->screen_target_.GetSize() };
 
-	auto half{ game_size / 2.0f };
-	ctx_->renderer.SetViewProjection(Matrix4::Orthographic(-half, half));
+	/*auto half{ game_size / 2.0f };
+	ctx_->renderer.SetViewProjection(Matrix4::Orthographic(-half, half));*/
 
-	impl::Surface texture1_surface{ "assets/logo.png" };
+	// impl::Surface texture1_surface{ "assets/logo.png" };
 
-	texture1 = ctx_->renderer.gl_renderer_->gl_->CreateTexture(
+	/*texture1 = ctx_->renderer.gl_renderer_->gl_->CreateTexture(
 		texture1_surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, texture1_surface.size, GL_RGBA
-	);
+	);*/
 
-	// ctx_->renderer.DrawRect({ 0, 0 }, game_size, color::Red);
-	ctx_->renderer.DrawTexture(
+	// ctx_->renderer.DrawRect({ 0, 0 }, game_size / 2.0f, color::Red);
+	/*ctx_->renderer.DrawTexture(
 		texture1, {}, ctx_->renderer.gl_renderer_->gl_->GetTextureSize(texture1)
-	);
+	);*/
 	// TODO: Fix.
 	/*if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {

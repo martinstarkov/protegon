@@ -272,9 +272,6 @@ private:
 
 	std::shared_ptr<ApplicationContext> ctx_;
 
-	// TODO: Get rid of this:
-	impl::gl::Texture texture1;
-
 	void InternalEmit(EventDispatcher d);
 
 	void Init();
