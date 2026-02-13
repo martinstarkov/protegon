@@ -172,13 +172,15 @@ public:
 		queue_.push_back(std::move(op));
 	}
 
-	void Update(secondsf dt) {
+	void Update(secondsf dt, bool internal_update) {
 		// TODO: Move this function to private.
 
 		FlushOps();
 		StepTransitions(dt);
-		UpdateScenes(dt);
-		Draw();
+		UpdateScenes(dt, internal_update);
+		if (internal_update) {
+			Draw();
+		}
 	}
 
 	Scene* GetCurrent() {
@@ -408,7 +410,7 @@ private:
 		Compact();
 	}
 
-	void UpdateScenes(secondsf dt) {
+	void UpdateScenes(secondsf dt, bool internal_update) {
 		bool input_blocked = false;
 
 		current_scene_ = nullptr;
@@ -423,7 +425,7 @@ private:
 			bool allow_update = entry.phase == Phase::Running ||
 								(involved && AllowUpdateByPolicy(i)) && entry.updates;
 
-			if (allow_update) {
+			if (allow_update && internal_update) {
 				current_scene_ = entry.ptr.get();
 				entry.ptr->InternalUpdate();
 			}
@@ -442,9 +444,7 @@ private:
 				continue;
 			}
 			current_scene_ = entry.ptr.get();
-			// PTGN_LOG("Drawing scene: ", entry.id);
-			//  TODO: Draw scene.
-			//  entry.ptr->Draw();
+			current_scene_->InternalDraw();
 		}
 	}
 
