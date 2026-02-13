@@ -38,6 +38,23 @@ private:
 	bool operator==(const RenderTarget&) const = default;
 };
 
+class RenderPass {
+private:
+	friend class impl::gl::Renderer;
+
+	RenderTarget source;
+
+	RenderTarget ping;
+	RenderTarget pong;
+
+	bool has_ping{ false };
+	bool has_pong{ false };
+
+	// "latest output" tracking
+	bool has_written_once{ false }; // false -> latest is source
+	bool latest_is_ping{ true };	// valid only if has_written_once == true
+};
+
 } // namespace ptgn
 
 // #pragma once

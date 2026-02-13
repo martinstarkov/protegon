@@ -273,65 +273,6 @@ void Renderer::BindRenderTarget(RenderPass& p) {
 	BindRenderTarget(write);
 }
 
-void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTarget& scene_target) {
-	RenderTarget input;
-
-	// Input = latest output, or source before first draw
-	if (!p.has_written_once) {
-		input = p.source;
-	} else if (p.latest_is_ping) {
-		input = p.ping;
-	} else {
-		input = p.pong;
-	}
-
-	PTGN_ASSERT(input.color_.has_value(), "Cannot draw to input texture with no color attachment");
-
-	auto bound_frame_buffer{ gl_->GetBoundFramebuffer() };
-
-	// Are we rendering *into this pass*?
-	bool writing_to_pass = bound_frame_buffer == p.ping.framebuffer_ ||
-						   (p.has_pong && bound_frame_buffer == p.pong.framebuffer_);
-
-	bool input_is_offscreen = input.framebuffer_ != scene_target.framebuffer_;
-
-	bool output_is_offscreen = bound_frame_buffer != scene_target.framebuffer_;
-
-	bool flip_y = input_is_offscreen && !output_is_offscreen;
-
-	// Only ping-pong if we're writing into the pass
-	if (writing_to_pass) {
-		RenderTarget write;
-
-		if (!p.has_written_once) {
-			write = p.ping;
-		} else {
-			if (!p.has_pong && p.latest_is_ping) {
-				p.pong	   = AcquirePooledTarget(p.source.size_, p.source.format_);
-				p.has_pong = true;
-			}
-			write = p.latest_is_ping ? p.pong : p.ping;
-		}
-
-		BindRenderTarget(write);
-
-		DrawTexturedQuad(
-			shader, *input.color_, { 0, 0 }, gl_->GetTextureSize(*input.color_), color::White,
-			flip_y
-		);
-
-		// Update pass state
-		p.has_written_once = true;
-		p.latest_is_ping   = (write.framebuffer_ == p.ping.framebuffer_);
-	} else {
-		// Read-only draw: no mutation, no flip
-		DrawTexturedQuad(
-			shader, *input.color_, { 0, 0 }, gl_->GetTextureSize(*input.color_), color::White,
-			flip_y
-		);
-	}
-}
-
 void Renderer::FlushBatch() {
 	if (batch_indices_.empty()) {
 		return; // Nothing to draw
@@ -357,12 +298,9 @@ void Renderer::FlushBatch() {
 		auto _ = gl_->Bind(batch_textures_[slot]);
 	}
 
-	// Draw
 	gl_->DrawElements(
 		vao_, static_cast<std::uint32_t>(batch_indices_.size()), GL_UNSIGNED_INT, GL_TRIANGLES
 	);
-
-	PTGN_LOG("Draw call");
 
 	// Clear batch (keep white texture)
 	batch_vertices_.clear();
@@ -519,16 +457,11 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	});
 }
 
-static std::array<V2_float, 4> MakeQuadPointsPixels(V2_float center, V2_float size) {
-	const V2_float h{ size.x * 0.5f, size.y * 0.5f };
-
-	return { center - h, center + V2_float{ h.x, -h.y }, center + h,
-			 center + V2_float{ -h.x, h.y } };
-}
-
-void Renderer::DrawQuadEx(ShaderId shader, const QuadParams& params, const QuadSetup& setup) {
-	QuadDesc quad{};
-	quad.positions = MakeQuadPointsPixels(params.center, params.size);
+void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSetup& setup) {
+	QuadDesc quad;
+	auto half{ params.size / 2.0f };
+	quad.positions = { params.center - half, params.center + V2_float{ half.x, -half.y },
+					   params.center + half, params.center + V2_float{ -half.x, half.y } };
 	quad.color	   = params.tint;
 	quad.rotation  = params.rotation;
 
@@ -573,34 +506,90 @@ void Renderer::DrawQuadEx(ShaderId shader, const QuadParams& params, const QuadS
 	}
 }
 
-void Renderer::DrawQuadEx(ShaderId shader, const QuadParams& params, const UniformSetup& uniforms) {
-	DrawQuadEx(shader, params, [uniforms](ShaderId s, QuadDesc&) {
-		if (uniforms) {
-			uniforms(s);
-		}
-	});
+void Renderer::DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint) {
+	DrawTexture(gl_->GetShader("quad"), texture, center, size, tint);
 }
 
-void Renderer::DrawTexturedQuad(
+void Renderer::DrawTexture(
 	ShaderId shader, TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(
-		TextureId{
-			gl_->GetFramebufferAttachment(gl_->GetBoundFramebuffer(), GL_COLOR_ATTACHMENT0).id } !=
-			texture,
+		gl_->GetBoundFramebuffer() == FramebufferId{ 0 } ||
+			TextureId{
+				gl_->GetFramebufferAttachment(gl_->GetBoundFramebuffer(), GL_COLOR_ATTACHMENT0)
+					.id } != texture,
 		"Cannot draw a texture that is attached to the currently set framebuffer"
 	);
 
-	QuadParams p{};
+	QuadParams p;
 	p.center  = center;
 	p.size	  = size;
 	p.tint	  = tint;
 	p.texture = texture;
 	p.flip_y  = flip_y;
 
-	DrawQuadEx(shader, p, [this](auto s, auto& q) {
+	DrawQuad(shader, p, [this](auto s, auto& q) {
 		gl_->SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
 	});
+}
+
+void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTarget& scene_target) {
+	RenderTarget input;
+
+	// Input = latest output, or source before first draw
+	if (!p.has_written_once) {
+		input = p.source;
+	} else if (p.latest_is_ping) {
+		input = p.ping;
+	} else {
+		input = p.pong;
+	}
+
+	PTGN_ASSERT(input.color_.has_value(), "Cannot draw to input texture with no color attachment");
+
+	auto bound_frame_buffer{ gl_->GetBoundFramebuffer() };
+
+	// Are we rendering *into this pass*?
+	bool writing_to_pass = bound_frame_buffer == p.ping.framebuffer_ ||
+						   (p.has_pong && bound_frame_buffer == p.pong.framebuffer_);
+
+	bool input_is_offscreen = input.framebuffer_ != scene_target.framebuffer_;
+
+	bool output_is_offscreen = bound_frame_buffer != scene_target.framebuffer_;
+
+	bool flip_y = input_is_offscreen && !output_is_offscreen;
+
+	// Only ping-pong if we're writing into the pass
+	if (writing_to_pass) {
+		RenderTarget write;
+
+		if (!p.has_written_once) {
+			write = p.ping;
+		} else {
+			if (!p.has_pong && p.latest_is_ping) {
+				p.pong	   = AcquirePooledTarget(p.source.size_, p.source.format_);
+				p.has_pong = true;
+			}
+			write = p.latest_is_ping ? p.pong : p.ping;
+		}
+
+		BindRenderTarget(write);
+
+		DrawTexture(
+			shader, *input.color_, { 0, 0 }, gl_->GetTextureSize(*input.color_), color::White,
+			flip_y
+		);
+
+		// Update pass state
+		p.has_written_once = true;
+		p.latest_is_ping   = (write.framebuffer_ == p.ping.framebuffer_);
+	} else {
+		// Read-only draw: no mutation, no flip
+		DrawTexture(
+			shader, *input.color_, { 0, 0 }, gl_->GetTextureSize(*input.color_), color::White,
+			flip_y
+		);
+	}
 }
 
 RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
@@ -634,34 +623,25 @@ void Renderer::ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const {
 	rt.size_ = new_size;
 }
 
-void Renderer::DrawTexture(TextureId texture, V2_float center, V2_float size) {
-	QuadParams p{};
-	p.center  = center;
-	p.size	  = size;
-	p.texture = texture;
-
-	auto shader = gl_->GetShader("quad");
-
-	DrawQuadEx(shader, p);
-}
-
 void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
 	auto _1 = gl_->Bind(FramebufferId{});
-	gl_->SetClearColor(color::Transparent);
+	gl_->SetClearColor(color::Red);
 	gl_->Clear();
 
 	BindRenderTarget(screen_target_);
-	gl_->ClearToColor(screen_target_.framebuffer_, color::Transparent);
+	gl_->ClearToColor(screen_target_.framebuffer_, color::Blue);
 }
 
 void Renderer::EndFrame(const Viewport& viewport) {
-	auto half_viewport{ viewport.size * 0.5f };
-	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	PTGN_ASSERT(viewport.size.BothAboveZero());
 
 	SetFramebuffer({}, viewport);
+
+	auto half_viewport{ viewport.size * 0.5f };
+	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	SetBlend(BlendMode::ReplaceRGBA);
 
 	PTGN_ASSERT(

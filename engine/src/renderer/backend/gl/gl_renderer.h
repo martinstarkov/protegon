@@ -64,20 +64,6 @@ struct QuadParams {
 	std::optional<std::array<V2_float, 4>> tex_coords;
 };
 
-struct RenderPass {
-	RenderTarget source;
-
-	RenderTarget ping;
-	RenderTarget pong;
-
-	bool has_ping{ false };
-	bool has_pong{ false };
-
-	// "latest output" tracking
-	bool has_written_once{ false }; // false -> latest is source
-	bool latest_is_ping{ true };	// valid only if has_written_once == true
-};
-
 class Renderer {
 public:
 	Renderer() = delete;
@@ -89,23 +75,16 @@ public:
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
 	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
-
 	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
+	void BindRenderTarget(const RenderTarget& rt);
+	void BindRenderTarget(RenderPass& pass);
 
-	using UniformSetup = std::function<void(ShaderId)>;
-	using QuadSetup	   = std::function<void(ShaderId, QuadDesc&)>;
-
-	void DrawTexturedQuad(
+	void DrawTexture(
 		ShaderId shader, TextureId texture, V2_float center, V2_float size,
 		Color tint = color::White, bool flip_y = false
 	);
-	void DrawTexture(TextureId texture, V2_float center, V2_float size);
+	void DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint = color::White);
 	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTarget& scene_target);
-	void DrawQuadEx(ShaderId shader, const QuadParams& p, const UniformSetup& u = {});
-	void DrawQuadEx(ShaderId shader, const QuadParams& p, const QuadSetup& q);
-
-	void BindRenderTarget(const RenderTarget& rt);
-	void BindRenderTarget(RenderPass& pass);
 
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetShader(ShaderId shader);
@@ -118,12 +97,21 @@ public:
 
 	RenderPass BeginPass(const RenderTarget& scene_target);
 
+	// TODO: Move to private.
+	std::unique_ptr<GLContext> gl_;
+	// TODO: Move to private.
+	RenderTarget screen_target_;
+
 private:
 	friend class Application;
-	friend struct RenderPass;
+	friend class RenderPass;
 	friend class ptgn::Renderer;
 	template <class State, class Func>
 	friend void UpdateStateIfChanged(Renderer&, State&, const State&, Func&&);
+
+	using QuadSetup = std::function<void(ShaderId, QuadDesc&)>;
+
+	void DrawQuad(ShaderId shader, const QuadParams& p, const QuadSetup& q);
 
 	void BeginFrame();
 	void EndFrame(const Viewport& viewport);
@@ -135,8 +123,6 @@ private:
 	RenderTarget AcquirePooledTarget(V2_int size, TextureFormat format);
 	void ReleasePooledTarget(const RenderTarget& target);
 
-	std::unique_ptr<GLContext> gl_;
-
 	std::vector<Vertex> batch_vertices_;
 	std::vector<Index> batch_indices_;
 	std::vector<TextureId> batch_textures_;
@@ -147,7 +133,6 @@ private:
 	ElementBuffer ebo_;
 	VertexArray vao_;
 	Texture white_texture_;
-	RenderTarget screen_target_;
 
 	std::vector<PooledTarget> rt_pool_;
 	std::uint64_t pool_tick_{ 0 };

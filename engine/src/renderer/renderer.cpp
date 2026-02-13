@@ -7,13 +7,18 @@
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
+#include "core/graphics/blend_mode.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/texture_format.h"
+#include "renderer/targets/render_target.h"
 #include "runtime/event/event_handler.h"
 
 namespace ptgn {
@@ -88,7 +93,15 @@ ScalingMode Renderer::GetScalingMode() const {
 	return scaling_mode_;
 }
 
-void Renderer::UpdateDisplayViewport(V2_int window_size) {
+void Renderer::DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size) {
+	gl_renderer_->DrawTexture(texture, center, size);
+}
+
+void Renderer::DrawRect(V2_float center, V2_float size, Color color) {
+	gl_renderer_->DrawTexture(gl_renderer_->white_texture_, center, size, color);
+}
+
+void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 	PTGN_ASSERT(window_size == window_.GetSize());
 
 	auto game_size{ game_size_.value_or(window_size) };
@@ -158,341 +171,77 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 		display_viewport_ = viewport;
 
 		if (resized) {
-			impl::DisplayResized display_resized;
-			display_resized.size = display_viewport_.size;
 			gl_renderer_->ResizeRenderTarget(gl_renderer_->screen_target_, display_viewport_.size);
-			events_.Emit(display_resized);
+
+			if (emit_events) {
+				impl::DisplayResized display_resized;
+				display_resized.size = display_viewport_.size;
+				events_.Emit(display_resized);
+			}
 		}
 
-		impl::DisplayViewportChanged display_changed;
-		display_changed.viewport = display_viewport_;
-		events_.Emit(display_changed);
+		if (emit_events) {
+			impl::DisplayViewportChanged display_changed;
+			display_changed.viewport = display_viewport_;
+			events_.Emit(display_changed);
+		}
 	}
+}
+
+RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
+	return gl_renderer_->CreateRenderTarget(size, format);
+}
+
+void Renderer::ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const {
+	gl_renderer_->ResizeRenderTarget(rt, new_size);
+}
+
+void Renderer::BindRenderTarget(const RenderTarget& rt) {
+	gl_renderer_->BindRenderTarget(rt);
+}
+
+void Renderer::BindRenderTarget(RenderPass& pass) {
+	gl_renderer_->BindRenderTarget(pass);
+}
+
+void Renderer::SetViewProjection(const Matrix4& view_projection) {
+	gl_renderer_->SetViewProjection(view_projection);
+}
+
+void Renderer::SetBlend(BlendMode mode, bool enabled) {
+	gl_renderer_->SetBlend(mode, enabled);
+}
+
+void Renderer::SetDepth(const DepthState& depth) {
+	gl_renderer_->SetDepth(depth);
+}
+
+void Renderer::SetStencil(const StencilState& stencil) {
+	gl_renderer_->SetStencil(stencil);
+}
+
+void Renderer::SetRaster(const RasterState& raster) {
+	gl_renderer_->SetRaster(raster);
+}
+
+void Renderer::SetColorMask(const ColorMaskState& color_mask) {
+	gl_renderer_->SetColorMask(color_mask);
+}
+
+RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
+	return gl_renderer_->BeginPass(scene_target);
+}
+
+void Renderer::BeginFrame() {
+	gl_renderer_->BeginFrame();
+}
+
+void Renderer::EndFrame() {
+	gl_renderer_->EndFrame(display_viewport_);
 }
 
 } // namespace ptgn
 
-//
-// #include <array>
-// #include <cstdint>
-// #include <functional>
-// #include <memory>
-// #include <numeric>
-// #include <optional>
-// #include <span>
-// #include <utility>
-// #include <vector>
-//
-// #include "core/assert.h"
-// #include "core/event/dispatcher.h"
-// #include "core/graphics/blend_mode.h"
-// #include "core/graphics/color.h"
-// #include "core/graphics/flip.h"
-// #include "core/log.h"
-// #include "core/math/matrix4.h"
-// #include "core/math/vector2.h"
-// #include "platform/input/events.h"
-// #include "platform/window/window.h"
-// #include "renderer/backend/gl/gl_context.h"
-// #include "renderer/backend/gl/gl_handle.h"
-// #include "renderer/backend/gl/gl_resource.h"
-// #include "renderer/backend/gl/gl_state.h"
-// #include "renderer/resources/buffer_layout.h"
-// #include "renderer/resources/texture_format.h"
-// #include "renderer/resources/vertex.h"
-//
-// namespace ptgn {
-//
-// namespace impl {
-//
-// std::array<V2_float, 4> GetTextureCoordinates(
-//	V2_float source_position, V2_float source_size, V2_float texture_size, bool offset_texels
-//) {
-//	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
-//	PTGN_ASSERT(texture_size.y > 0.0f, "Texture must have height > 0");
-//
-//	PTGN_ASSERT(
-//		source_position.x < texture_size.x, "Source position X must be within texture width"
-//	);
-//	PTGN_ASSERT(
-//		source_position.y < texture_size.y, "Source position Y must be within texture height"
-//	);
-//
-//	V2_float size{ source_size };
-//
-//	if (size.IsZero()) {
-//		size = texture_size - source_position;
-//	}
-//
-//	// Convert to 0 -> 1 range.
-//	V2_float src_pos{ source_position / texture_size };
-//	V2_float src_size{ size / texture_size };
-//
-//	if (src_size.x > 1.0f || src_size.y > 1.0f) {
-//		PTGN_WARN("Drawing source size from outside of texture size");
-//	}
-//
-//	V2_float half_pixel{ (offset_texels ? 0.5f : 0.0f) / texture_size };
-//
-//	std::array<V2_float, 4> texture_coordinates{
-//		src_pos + half_pixel,
-//		V2_float{ src_pos.x + src_size.x - half_pixel.x, src_pos.y + half_pixel.y },
-//		src_pos + src_size - half_pixel,
-//		V2_float{ src_pos.x + half_pixel.x, src_pos.y + src_size.y - half_pixel.y },
-//	};
-//
-//	return texture_coordinates;
-// }
-//
-// void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
-//	const auto flip_x = [&]() {
-//		std::swap(texture_coords[0].x, texture_coords[1].x);
-//		std::swap(texture_coords[2].x, texture_coords[3].x);
-//	};
-//	const auto flip_y = [&]() {
-//		std::swap(texture_coords[0].y, texture_coords[3].y);
-//		std::swap(texture_coords[1].y, texture_coords[2].y);
-//	};
-//	switch (flip) {
-//		case Flip::None:	   break;
-//		case Flip::Horizontal: flip_x(); break;
-//		case Flip::Vertical:   flip_y(); break;
-//		case Flip::Both:
-//			flip_x();
-//			flip_y();
-//			break;
-//		default: PTGN_ERROR("Unrecognized flip state");
-//	}
-// }
-//
-// } // namespace impl
-//
-///*
-//
-// bool Renderer::IsTextureAttachedToCurrentFramebuffer(
-//	Texture tex
-//) const {
-//	if (!state.framebuffer) {
-//		return false; // default framebuffer
-//	}
-//
-//	const auto& fb = state.framebuffer;
-//
-//	for (GLenum attachment : gl_->GetFramebufferColorAttachments(fb)) {
-//		const auto& info = gl_->GetFramebufferAttachment(fb, attachment);
-//		if (info.type == GL_TEXTURE_2D && info.id == tex) {
-//			return true;
-//		}
-//	}
-//
-//	return false;
-//}
-//
-// struct PingPong {
-//	Texture texture;
-//	Framebuffer fbo;
-//};
-//
-///// Key: texture ID, Value: PingPong struct containing the texture and its associated framebuffer.
-// std::unordered_map<GLuint, PingPong> ping_pong_cache;
-//
-// PingPong& Renderer::GetPingPongFor(
-//	Texture src
-//) {
-//	auto& entry = ping_pong_cache[src.id];
-//	if (entry.texture) {
-//		return entry;
-//	}
-//
-//	const auto& tex_info = gl_->GetTextureInfo(src);
-//
-//	entry.texture = gl_->CreateTexture2D(
-//		tex_info.size,
-//		tex_info.internal_format,
-//		tex_info.filter,
-//		tex_info.wrap
-//	);
-//
-//	entry.fbo = gl_->CreateFramebuffer();
-//	gl_->AttachTexture(entry.fbo, GL_COLOR_ATTACHMENT0, entry.texture);
-//
-//	PTGN_ASSERT(gl_->CheckFramebufferComplete(entry.fbo));
-//
-//	return entry;
-// }
-//
-// void Renderer::ResolveReadWriteHazards() {
-//	if (!state.framebuffer) {
-//		return; // default framebuffer, no hazard
-//	}
-//
-//	for (std::uint32_t i = 0; i < batch_textures.size(); ++i) {
-//		auto tex = batch_textures[i];
-//
-//		if (!IsTextureAttachedToCurrentFramebuffer(tex)) {
-//			continue;
-//		}
-//
-//		// Hazard detected
-//		auto& pp = GetPingPongFor(tex);
-//
-//		// Flush pending geometry before redirecting
-//		FlushBatch();
-//
-//		// Blit tex -> pingpong
-//		gl_->BlitTexture(tex, pp.texture);
-//
-//		// Replace read texture in batch
-//		batch_textures[i] = pp.texture;
-//
-//		// IMPORTANT: future writes now go to the pingpong target
-//		// so swap framebuffer attachment
-//		gl_->ReplaceFramebufferAttachment(
-//			state.framebuffer,
-//			tex,
-//			pp.texture
-//		);
-//
-//		// Update state so next passes read the new texture
-//		std::swap(pp.texture, tex);
-//
-//		break; // only need one resolve per flush
-//	}
-// }
-//
-// void Renderer::FlushBatch() {
-//	if (batch_indices.empty()) {
-//		return;
-//	}
-//
-//	ResolveReadWriteHazards();
-//
-//	...
-// }
-//
-//
-//*/
-//
-////  TODO: Make ping pong system.
-////  TODO: Make render target pooling system.
-////  TODO: Make queued command system.
-////  TODO: Make fork pipeline system.
-//
-///*
-// RecomputeDisplaySize(window_.GetSize());
-//
-//// GLRenderer::EnableLineSmoothing();
-//
-// GLRenderer::DisableDepthTesting();
-// GLRenderer::DisableGammaCorrection();
-//
-// max_texture_slots = GLRenderer::GetMaxTextureSlots();
-//
-// PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
-//
-// const auto& screen_shader{ gl_->GetShader("screen_default") };
-// PTGN_ASSERT(screen_shader.IsValid());
-// gl_->Bind(screen_shader);
-// gl_->SetUniform(screen_shader, "u_Texture", 1);
-//
-// const auto& quad_shader{ gl_->GetShader("quad") };
-//
-// PTGN_ASSERT(quad_shader.IsValid());
-// PTGN_ASSERT(gl_->GetShader("circle").IsValid());
-// PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
-// PTGN_ASSERT(gl_->GetShader("light").IsValid());
-//
-// intermediate_target = {};
-//
-// screen_target_ = CreateRenderTarget(
-//	render_manager, display_viewport_.size, color::Transparent, TextureFormat::RGBA8888, true
-//);
-// AddScript<impl::DisplayResizeScript>(screen_target_);
-//
-// SetBlendMode(screen_target_, BlendMode::ReplaceRGBA);
-//
-// #ifdef PTGN_PLATFORM_MACOS
-//// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-//// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-//// texture because texture unloadable."
-// for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-//	Texture::Bind(white_texture.GetId(), slot);
-// }
-// #endif
-//
-// SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
-//
-// viewport_tracker = render_manager.CreateEntity();
-// AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
-// auto window_size{ window_.GetSize() };
-// RecomputeDisplaySize(window_size);
-//
-// render_manager.Refresh();
-//*/
-//
-// Renderer::Renderer(Window& window) :
-//	gl_{ std::make_unique<impl::gl::GLContext>(window) }, window_{ window } {
-//	ebo = gl_->CreateElementBuffer(
-//		nullptr, impl::index_capacity, sizeof(impl::Index), GL_DYNAMIC_DRAW
-//	);
-//
-//	vbo = gl_->CreateVertexBuffer(
-//		nullptr, impl::vertex_capacity, sizeof(impl::Vertex), GL_DYNAMIC_DRAW
-//	);
-//
-//	vao = gl_->CreateVertexArray(vbo, impl::Vertex::GetLayout(), ebo);
-//
-//	white_texture = gl_->CreateTexture(
-//		static_cast<const void*>(&color::White), GL_RGBA, GL_UNSIGNED_INT, { 1, 1 }, GL_RGBA
-//	);
-//
-//	auto window_size = window.GetSize();
-//
-//	screen_target = CreateRenderTarget(window_size, TextureFormat::RGBA8);
-//	BindRenderTarget(screen_target);
-//
-//	auto max_texture_slots{ gl_->GetMaxTextureSlots() };
-//
-//	std::vector<std::int32_t> samplers(max_texture_slots);
-//	std::iota(samplers.begin(), samplers.end(), 0);
-//
-//	auto quad{ gl_->GetShader("quad") };
-//	auto _1 = gl_->Bind(quad);
-//	gl_->SetUniform(
-//		quad, "u_Textures", samplers.data(), static_cast<std::int32_t>(samplers.size())
-//	);
-//
-// #ifdef PTGN_PLATFORM_MACOS
-//	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-//	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-//	//  texture because texture unloadable."
-//	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-//		gl_->SetActiveTextureSlot(slot);
-//		auto _3 = gl_->Bind(white_texture);
-//	}
-// #endif
-//	gl_->SetActiveTextureSlot(0);
-//	auto _2 = gl_->Bind(white_texture);
-//
-//	PTGN_ASSERT(batch_textures.empty());
-//	batch_textures.push_back(white_texture);
-// }
-//
-// Renderer::~Renderer() noexcept {
-//	// Needs to have access to GLContext destructor, forward declaration is not enough.
-// }
-//
-// RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
-//	RenderPass p{};
-//	p.source		   = scene_target;
-//	p.ping			   = AcquirePooledTarget(scene_target.size, scene_target.format);
-//	p.has_ping		   = true;
-//	p.has_written_once = false; // latest = source initially
-//	p.latest_is_ping   = true;	// irrelevant until has_written_once==true
-//
-//	return p;
-// }
-//
 // void Renderer::BindRenderTarget(RenderPass& p) {
 //	// Bind the next write target (opposite of latest output; ping for first write)
 //	RenderTarget write;
@@ -923,7 +672,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //	BindRenderTarget(rt.framebuffer, { { 0, 0 }, rt.size });
 // }
 //
-///*
+//
 // void Renderer::DrawLightQuad(const LightParams& light) {
 //	QuadParams p{};
 //	p.center = light.position;
@@ -947,17 +696,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // } // namespace ptgn
 //
-///*
-// ViewportResizeScript::ViewportResizeScript(Window& window, Renderer& renderer) :
-//	window{ window }, renderer{ renderer } {}
 //
-// void ViewportResizeScript::OnWindowResized() {
-//	auto window_size{ window.GetSize() };
-//	if (!renderer.game_size_set_) {
-//		renderer.UpdateResolutions(window_size, renderer.resolution_mode_);
-//	}
-//	renderer.RecomputeDisplaySize(window_size);
-// }
 //
 // static float GetFade(float diameter_y) {
 //	constexpr float fade_scaling_constant{ 0.12f };
@@ -1199,42 +938,6 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //	}
 // }
 //
-// void Renderer::DrawCommand(const impl::DrawCommand& cmd) {
-//	std::visit(
-//		[&](const auto& command) {
-//			using T = std::decay_t<decltype(command)>;
-//
-//			if constexpr (std::is_same_v<T, DrawShapeCommand>) {
-//				std::visit(
-//					[&](const auto& shape) { impl::DrawShape(*this, command, shape); },
-//					command.shape
-//				);
-//			} else if constexpr (std::is_same_v<T, DrawTextureCommand>) {
-//				DrawTexture(command);
-//			} else if constexpr (std::is_same_v<T, DrawShaderCommand>) {
-//				DrawShader(command);
-//			} else if constexpr (std::is_same_v<T, DrawLinesCommand>) {
-//				DrawLines(command);
-//			} else if constexpr (std::is_same_v<T, EnableStencilMask>) {
-//				Flush();
-//				StencilMask::Enable();
-//			} else if constexpr (std::is_same_v<T, DisableStencilMask>) {
-//				Flush();
-//				StencilMask::Disable();
-//			} else if constexpr (std::is_same_v<T, DrawInsideStencilMask>) {
-//				Flush();
-//				StencilMask::DrawInside();
-//			} else if constexpr (std::is_same_v<T, DrawOutsideStencilMask>) {
-//				Flush();
-//				StencilMask::DrawOutside();
-//			} else {
-//				PTGN_ERROR("Unknown draw command type");
-//			}
-//		},
-//		cmd
-//	);
-// }
-//
 // void Renderer::DrawLines(const DrawLinesCommand& cmd) {
 //	std::size_t count = cmd.points.size();
 //
@@ -1261,244 +964,8 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //	}
 // }
 //
-// void Renderer::DrawTexture(const DrawTextureCommand& cmd) {
-//	auto texture_id{ cmd.texture_id };
-//
-//	PTGN_ASSERT(texture_id, "Cannot draw textured quad with invalid texture");
-//
-//	if (auto size{ cmd.rect.GetSize(cmd.transform) }; !size.BothAboveZero()) {
-//		return;
-//	}
-//
-//	SetState(cmd.render_state);
-//
-//	auto texture_points{ cmd.rect.GetWorldVertices(cmd.transform, cmd.origin) };
-//
-//	auto texture_vertices{ Vertex::GetQuad(
-//		texture_points, cmd.tint, cmd.depth, { 0.0f }, cmd.texture_coordinates, false
-//	) };
-//
-//	if (!cmd.pre_fx.pre_fx_.empty()) {
-//		PTGN_ASSERT(
-//			cmd.texture_size.BothAboveZero(),
-//			"Texture must have a valid size for it to have post fx"
-//		);
-//
-//		Viewport viewport{ {}, cmd.texture_size };
-//		DrawTarget target;
-//		target.viewport		  = viewport;
-//		target.texture_format = cmd.texture_format;
-//
-//		PTGN_ASSERT(target.viewport.size.BothAboveZero());
-//
-//		auto half_viewport{ target.viewport.size * 0.5f };
-//
-//		target.points = { target.viewport.position - half_viewport,
-//						  target.viewport.position + V2_float{ half_viewport.x, -half_viewport.y },
-//						  target.viewport.position + half_viewport,
-//						  target.viewport.position +
-//							  V2_float{ -half_viewport.x, half_viewport.y } };
-//
-//		target.view_projection = Matrix4::Orthographic(target.points[0], target.points[2]);
-//
-//		texture_id = PingPong(
-//			cmd.pre_fx.pre_fx_, draw_context_pool.Get(viewport.size, target.texture_format),
-//			texture_id, target, true
-//		);
-//
-//		white_texture.Bind(0);
-//		force_flush = true;
-//	}
-//
-//	float texture_index = 0.0f;
-//
-//	auto get_texture_index = [&](TextureId id, float& out_texture_index) {
-//		PTGN_ASSERT(id != white_texture.GetId());
-//		// Texture exists in batch, therefore do not add it again.
-//		for (std::size_t i{ 0 }; i < textures_.size(); i++) {
-//			if (textures_[i] == id) {
-//				// i + 1 because first texture index is white texture.
-//				out_texture_index = static_cast<float>(i + 1);
-//				return true;
-//			}
-//		}
-//		// Batch is at texture capacity.
-//		if (static_cast<std::uint32_t>(textures_.size()) == max_texture_slots - 1) {
-//			Flush();
-//		}
-//		out_texture_index = static_cast<float>(textures_.size() + 1);
-//		return false;
-//	};
-//
-//	bool existing = get_texture_index(texture_id, texture_index);
-//
-//	Vertex::SetTextureIndex(texture_vertices, texture_index);
-//	AddVertices(texture_vertices, quad_indices);
-//
-//	if (!existing) {
-//		// Must be done after AddVertices and SetState because both of them may Flush the
-//		// current batch, which will clear textures.
-//		textures_.emplace_back(texture_id);
-//	}
-//
-//	PTGN_ASSERT(textures_.size() < max_texture_slots);
-// }
-//
-// void Renderer::DrawShader(const DrawShaderCommand& cmd) {
-//	bool state_changed{ SetState(cmd.render_state) };
-//
-//	bool uses_size{ std::holds_alternative<V2_int>(cmd.texture_or_size) };
-//
-//	// Clear the intermediate frame buffer if the shader is new (changes renderer state), or if
-//	// the shader uses size (no texture) and the user desires it (most often true). In the case
-//	// of back-to-back light rendering this is not desired.
-//	bool clear{ state_changed || (uses_size && cmd.clear_between_consecutive_calls) };
-//
-//	if (cmd.clear_between_consecutive_calls) {
-//		force_flush = true;
-//	}
-//
-//	auto target{ drawing_to_ };
-//
-//	if (render_state.camera) {
-//		target.view_projection = render_state.camera;
-//		target.points		   = render_state.camera.GetWorldVertices();
-//	}
-//
-//	target.depth = cmd.depth;
-//	auto entity_tint{ cmd.entity ? GetTint(cmd.entity) : color::White };
-//	target.tint		  = target.tint.Normalized() * entity_tint.Normalized();
-//	target.blend_mode = cmd.intermediate_blend_mode;
-//
-//	if (uses_size) {
-//		if (!std::get<V2_int>(cmd.texture_or_size).IsZero()) {
-//			target.viewport.size = std::get<V2_int>(cmd.texture_or_size);
-//		}
-//		target.texture_format = cmd.texture_format;
-//	} else if (std::holds_alternative<std::reference_wrapper<const Texture>>(cmd.texture_or_size)) {
-//		const Texture& texture =
-//			std::get<std::reference_wrapper<const Texture>>(cmd.texture_or_size).get();
-//
-//		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
-//
-//		target.viewport.size  = texture.GetSize();
-//		target.texture_id	  = texture.GetId();
-//		target.texture_format = texture.GetFormat();
-//	} else {
-//		PTGN_ERROR("Unknown variant value");
-//	}
-//
-//	if (clear) {
-//		intermediate_target = draw_context_pool.Get(target.viewport.size, target.texture_format);
-//	}
-//
-//	intermediate_target->blend_mode = cmd.target_blend_mode;
-//
-//	PTGN_ASSERT(
-//		cmd.render_state.shader_pass.has_value(), "Must specify shader when drawing shader"
-//	);
-//	const auto& shader_pass = *cmd.render_state.shader_pass;
-//	const auto& shader		= shader_pass.GetShader();
-//
-//	shader.Bind();
-//	shader.SetUniform("u_Texture", 1);
-//	shader.SetUniform("u_ViewportSize", V2_float{ target.viewport.size });
-//
-//	if (shader_pass.uniform_callback) {
-//		PTGN_ASSERT(shader_pass.shader);
-//		gl_->Bind(shader_pass.shader);
-//		shader_pass.uniform_callback(cmd.entity, gl_, shader_pass.shader);
-//	}
-//
-//	target.framebuffer = &intermediate_target->framebuffer;
-//
-//	DrawCall(
-//		shader,
-//		Vertex::GetQuad(
-//			target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
-//			false
-//		),
-//		quad_indices, { target.texture_id }, target.framebuffer, clear, cmd.target_clear_color,
-//		target.blend_mode, target.viewport, target.view_projection
-//	);
-// }
-//
-// TextureId Renderer::PingPong(
-//	const std::vector<Entity>& container, const std::shared_ptr<DrawContext>& read_context,
-//	TextureId id, DrawTarget target, bool flip_vertices
-//) {
-//	PTGN_ASSERT(!container.empty(), "Cannot ping pong on an empty container");
-//
-//	auto read{ read_context };
-//	auto write{ draw_context_pool.Get(target.viewport.size, target.texture_format) };
-//
-//	PTGN_ASSERT(read != nullptr && write != nullptr);
-//	PTGN_ASSERT(read->framebuffer.GetTexture().GetSize() == target.viewport.size);
-//	PTGN_ASSERT(write->framebuffer.GetTexture().GetSize() == target.viewport.size);
-//
-//	bool use_previous_texture{ true };
-//
-//	for (const auto& fx : container) {
-//		PTGN_ASSERT(fx.Has<ShaderPass>());
-//
-//		bool first_effect{ fx == container.front() };
-//
-//		if (!first_effect && use_previous_texture) {
-//			std::swap(read, write);
-//		}
-//
-//		auto texture_id{ 0 };
-//
-//		if ((first_effect || !use_previous_texture) && id) {
-//			texture_id = id;
-//		} else {
-//			texture_id = read->framebuffer.GetTexture().GetId();
-//		}
-//
-//		const auto& shader_pass{ fx.Get<ShaderPass>() };
-//		const auto& shader{ shader_pass.shader };
-//
-//		gl_->Bind(shader);
-//		gl_->SetUniform(shader, "u_Texture", 1);
-//		gl_->SetUniform(shader, "u_ViewportSize", V2_float{ target.viewport.size });
-//
-//		if (shader_pass.uniform_callback) {
-//			PTGN_ASSERT(shader_pass.shader);
-//			gl_->Bind(shader_pass.shader);
-//			shader_pass.uniform_callback(fx, gl_, shader_pass.shader);
-//		}
-//
-//		target.texture_id	= texture_id;
-//		target.framebuffer = &write->framebuffer;
-//		target.tint			= GetTint(fx);
-//		target.blend_mode	= GetBlendMode(fx);
-//
-//		DrawCall(
-//			shader,
-//			Vertex::GetQuad(
-//				target.points, target.tint, target.depth, { 1.0f }, GetDefaultTextureCoordinates(),
-//				flip_vertices
-//			),
-//			quad_indices, { target.texture_id }, target.framebuffer, use_previous_texture,
-//			color::Transparent, target.blend_mode, target.viewport, target.view_projection
-//		);
-//
-//		use_previous_texture = fx.GetOrDefault<UsePreviousTexture>();
-//	}
-//	read->in_use = false;
-//
-//	return write->framebuffer.GetTexture().GetId();
-// }
-//
 // void Renderer::AddTemporaryTexture(Texture&& texture) {
 //	temporary_textures.emplace_back(std::move(texture));
-// }
-//
-// std::size_t Renderer::GetMaxTextureSlots() const {
-//	if (!max_texture_slots) {
-//		max_texture_slots = GLRenderer::GetMaxTextureSlots();
-//	}
-//	return max_texture_slots;
 // }
 //
 // void Renderer::AddLinesImpl(
@@ -1520,76 +987,6 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 //		AddVertices(line_vertices, line_indices);
 //	}
-// }
-//
-// void Renderer::AddVertices(
-//	std::span<const Vertex> point_vertices, std::span<const Index> point_indices
-//) {
-//	if (vertices_.size() + point_vertices.size() > vertex_capacity ||
-//		indices_.size() + point_indices.size() > index_capacity) {
-//		Flush();
-//	}
-//
-//	vertices_.insert(vertices_.end(), point_vertices.begin(), point_vertices.end());
-//
-//	indices_.reserve(indices_.size() + point_indices.size());
-//
-//	for (auto index : point_indices) {
-//		indices_.emplace_back(index + index_offset_);
-//	}
-//
-//	index_offset_ += static_cast<Index>(point_vertices.size());
-// }
-//
-// void Renderer::DrawCall(
-//	const Shader& shader, std::span<const Vertex> vertices, std::span<const Index> indices,
-//	const std::vector<Handle<Texture>>& textures, const Framebuffer* framebuffer,
-//	bool clear_framebuffer, Color clear_color, BlendMode blend_mode,
-//	const Viewport& viewport, const Matrix4& view_projection
-//) {
-//	if (vertices.empty() || indices.empty()) {
-//		return;
-//	}
-//
-//	if (framebuffer) {
-//		framebuffer->Bind();
-//	} else {
-//		Framebuffer::Unbind();
-//	}
-//
-//	if (clear_framebuffer) {
-//		GLRenderer::ClearToColor(clear_color);
-//	}
-//
-//	PTGN_ASSERT(viewport.size.BothAboveZero(), "Viewport size must be above zero");
-//
-//	GLRenderer::SetViewport(viewport.position, viewport.size);
-//	GLRenderer::SetBlendMode(blend_mode);
-//
-//	triangle_vao.Bind();
-//
-//	triangle_vao.GetVertexBuffer().SetSubData(
-//		vertices.data(), 0, static_cast<std::uint32_t>(vertices.size()), sizeof(Vertex), false, true
-//	);
-//
-//	triangle_vao.GetIndexBuffer().SetSubData(
-//		indices.data(), 0, static_cast<std::uint32_t>(indices.size()), sizeof(Index), false, true
-//	);
-//
-//	shader.Bind();
-//	shader.SetUniform("u_ViewProjection", view_projection);
-//
-//	PTGN_ASSERT(textures.size() < max_texture_slots);
-//
-//	for (std::uint32_t i{ 0 }; i < static_cast<std::uint32_t>(textures.size()); i++) {
-//		PTGN_ASSERT(textures[i], "Cannot bind invalid texture");
-//		// Save first texture slot for empty white texture.
-//		std::uint32_t slot{ i + 1 };
-//		gl_->SetActiveTextureSlot(slot);
-//		gl_->Bind(textures[i]);
-//	}
-//
-//	gl_->DrawElements(triangle_vao, indices.size(), GL_TRIANGLES);
 // }
 //
 // void Renderer::Flush(bool final_flush) {
@@ -1828,88 +1225,6 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //	);
 // }
 //
-// void Renderer::RecomputeDisplaySize(V2_int window_size) {
-//	if (!game_size_.BothAboveZero()) {
-//		UpdateResolutions(window_size, resolution_mode_);
-//	}
-//
-//	Viewport vp;
-//	vp.position = { 0, 0 };
-//	vp.size		= window_size;
-//
-//	auto compute_aspect_fit = [&](bool letterbox_mode) {
-//		float window_aspect{ static_cast<float>(window_size.x) /
-//							 static_cast<float>(window_size.y) };
-//		float game_aspect{ static_cast<float>(game_size_.x) / static_cast<float>(game_size_.y) };
-//
-//		// In letterbox mode we need require window_aspect > game_aspect to fit height, and in
-//		// overscan we require window_aspect > game_aspect to fit height.
-//		bool fit_height{ (window_aspect > game_aspect) == letterbox_mode };
-//
-//		if (fit_height) {
-//			vp.size.y = window_size.y;
-//			vp.size.x = static_cast<int>(static_cast<float>(window_size.y) * game_aspect + 0.5f);
-//			vp.position.x = (window_size.x - vp.size.x) / 2; // left edge.
-//			vp.position.y = 0;
-//		} else {
-//			// Fit width.
-//			vp.size.x = window_size.x;
-//			vp.size.y = static_cast<int>(static_cast<float>(window_size.x) / game_aspect + 0.5f);
-//			vp.position.x = 0;
-//			vp.position.y = (window_size.y - vp.size.y) / 2; // top edge.
-//		}
-//	};
-//
-//	switch (resolution_mode_) {
-//		case ScalingMode::Letterbox:	compute_aspect_fit(true); break;
-//
-//		case ScalingMode::IntegerScale: {
-//			V2_int ratio{ window_size / game_size_ };
-//			// Find which dimension limits the scaling factor.
-//			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
-//			vp.size		= game_size_ * scale;		   // scale up.
-//			vp.position = (window_size - vp.size) / 2; // center of window.
-//			break;
-//		}
-//
-//		case ScalingMode::Stretch:
-//			// Viewport is full window (default).
-//			break;
-//
-//		case ScalingMode::Disabled:
-//			vp.size		= game_size_;				   // no change.
-//			vp.position = (window_size - vp.size) / 2; // center of window.
-//			break;
-//
-//		case ScalingMode::Overscan: compute_aspect_fit(false); break;
-//
-//		default:					PTGN_ERROR("Unsupported resolution mode");
-//	}
-//
-//	if (vp != display_viewport_) {
-//		// Only update viewport if it changed. This reduces DisplaySizeChanged event
-//		// dispatch.
-//		display_viewport_	  = vp;
-//		display_size_changed_ = true;
-//	}
-// }
-//
-// void Renderer::UpdateResolutions(V2_int game_size, ScalingMode scaling_mode) {
-//	bool new_game_size{ game_size_ != game_size };
-//	if (!new_game_size && resolution_mode_ == scaling_mode) {
-//		return;
-//	}
-//	auto window_size{ window_.GetSize() };
-//	game_size_		   = game_size;
-//	resolution_mode_   = scaling_mode;
-//	game_size_changed_ = new_game_size;
-//	RecomputeDisplaySize(window_size);
-// }
-//
-// void Renderer::ClearScreenTarget() const {
-//	screen_target_.Clear();
-// }
-//
 // void Renderer::ClearRenderTargets(Scene& scene) const {
 //	scene.render_target_.Clear();
 //
@@ -1984,8 +1299,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawTexture(
 //	const Texture& texture, const Transform& transform, V2_float texture_size, Origin origin,
-//	const Tint& tint, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-//	const PreFX& pre_fx, const PostFX& post_fx, const std::array<V2_float, 4>& texture_coordinates
+//	const Tint& tint, const Depth& depth, const std::array<V2_float, 4>& texture_coordinates
 //) {
 //	Rect rect{ !texture_size.IsZero() ? texture_size : V2_float{ texture.GetSize() } };
 //
@@ -2010,8 +1324,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawLines(
 //	const Transform& transform, const std::vector<V2_float>& line_points, const Tint& color,
-//	const LineWidth& line_width, bool connect_last_to_first, const Depth& depth,
-//	BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
+//	const LineWidth& line_width, bool connect_last_to_first, const Depth& depth
 //) {
 //	DrawLinesCommand cmd;
 //
@@ -2030,8 +1343,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawLines(
 //	const std::vector<V2_float>& line_points, const Tint& color, const LineWidth& line_width,
-//	bool connect_last_to_first, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-//	const PostFX& post_fx
+//	bool connect_last_to_first, const Depth& depth
 //) {
 //	DrawLines(
 //		{}, line_points, color, line_width, connect_last_to_first, depth, blend_mode, camera,
@@ -2041,8 +1353,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawShape(
 //	const Transform& transform, const Shape& shape, const Tint& color, const LineWidth& line_width,
-//	Origin origin, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-//	const PostFX& post_fx, const ShaderPass& shader_pass
+//	Origin origin, const Depth& depth, const ShaderPass& shader_pass
 //) {
 //	DrawShapeCommand cmd;
 //
@@ -2062,10 +1373,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawShader(
 //	const ShaderPass& shader_pass, const Entity& entity, bool clear_between_consecutive_calls,
-//	Color target_clear_color, const TextureOrSize& texture_or_size,
-//	BlendMode intermediate_blend_mode, const Depth& depth, BlendMode blend_mode,
-//	const Camera& camera, TextureFormat texture_format, const PostFX& post_fx,
-//	std::optional<BlendMode> target_blend_mode
+//	Color target_clear_color, const TextureOrSize& texture_or_size,const Depth& depth
 //) {
 //	DrawShaderCommand cmd;
 //
@@ -2088,7 +1396,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 // impl::Texture Renderer::CreateTexture(
 //	Transform& out_transform, V2_float& out_text_size, const TextContent& content,
 //	const TextColor& color, const FontSize& font_size, const ResourceHandle& font_key,
-//	const TextProperties& properties, bool hd_text, const Camera& camera
+//	const TextProperties& properties, bool hd_text
 //) {
 //	FontSize final_font_size{ font_size };
 //
@@ -2118,8 +1426,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 // void Renderer::DrawText(
 //	const std::string& content, Transform transform, const TextColor& color, Origin origin,
 //	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties,
-//	V2_float text_size, const Tint& tint, bool hd_text, const Depth& depth, BlendMode blend_mode,
-//	const Camera& camera, const PreFX& pre_fx, const PostFX& post_fx,
+//	V2_float text_size, const Tint& tint, bool hd_text, const Depth& depth
 //	const std::array<V2_float, 4>& texture_coordinates
 //) {
 //	auto texture{ CreateTexture(
@@ -2136,16 +1443,14 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawRect(
 //	const Transform& transform, const Rect& rect, const Tint& color, const LineWidth& line_width,
-//	Origin origin, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-//	const PostFX& post_fx
+//	Origin origin, const Depth& depth
 //) {
 //	DrawShape(transform, rect, color, line_width, origin, depth, blend_mode, camera, post_fx);
 // }
 //
 // void Renderer::DrawRoundedRect(
 //	const Transform& transform, const RoundedRect& rounded_rect, const Tint& color,
-//	const LineWidth& line_width, Origin origin, const Depth& depth, BlendMode blend_mode,
-//	const Camera& camera, const PostFX& post_fx
+//	const LineWidth& line_width, Origin origin, const Depth& depth
 //) {
 //	DrawShape(
 //		transform, rounded_rect, color, line_width, origin, depth, blend_mode, camera, post_fx
@@ -2154,14 +1459,14 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawLine(
 //	V2_float start, V2_float end, const Tint& color, const LineWidth& line_width,
-//	const Depth& depth, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
+//	const Depth& depth
 //) {
 //	DrawLine({}, Line{ start, end }, color, line_width, depth, blend_mode, camera, post_fx);
 // }
 //
 // void Renderer::DrawLine(
 //	const Transform& transform, const Line& line, const Tint& color, const LineWidth& line_width,
-//	const Depth& depth, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
+//	const Depth& depth
 //) {
 //	DrawShape(
 //		transform, line, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
@@ -2210,7 +1515,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //
 // void Renderer::DrawArc(
 //	const Transform& transform, const Arc& arc, const Tint& color, const LineWidth& line_width,
-//	const Depth& depth, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
+//	const Depth& depth
 //) {
 //	DrawShape(
 //		transform, arc, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
@@ -2232,61 +1537,6 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //	const Camera& camera
 //) {
 //	DrawShape({}, point, color, -1.0f, Origin::Center, depth, blend_mode, camera, {});
-// }
-//
-// void Renderer::EnableStencilMask() {
-//	render_data_.Submit(impl::EnableStencilMask{});
-// }
-//
-// void Renderer::DisableStencilMask() {
-//	render_data_.Submit(impl::DisableStencilMask{});
-// }
-//
-// void Renderer::DrawOutsideStencilMask() {
-//	render_data_.Submit(impl::DrawOutsideStencilMask{});
-// }
-//
-// void Renderer::DrawInsideStencilMask() {
-//	render_data_.Submit(impl::DrawInsideStencilMask{});
-// }
-//
-// void Renderer::SetBackgroundColor(Color background_color) {
-//	render_data_.screen_target_.SetClearColor(background_color);
-// }
-//
-// Color Renderer::GetBackgroundColor() const {
-//	return render_data_.screen_target_.GetClearColor();
-// }
-//
-// void Renderer::SetScalingMode(ScalingMode scaling_mode) {
-//	V2_int resolution{ render_data_.game_size_set_ ? render_data_.game_size_ : window_.GetSize() };
-//	render_data_.UpdateResolutions(resolution, scaling_mode);
-// }
-//
-// void Renderer::SetGameSize(V2_int game_size, ScalingMode scaling_mode) {
-//	render_data_.game_size_set_ = !game_size.IsZero();
-//	V2_int resolution{ render_data_.game_size_set_ ? game_size : window_.GetSize() };
-//	render_data_.UpdateResolutions(resolution, scaling_mode);
-// }
-//
-// V2_int Renderer::GetDisplaySize() const {
-//	return render_data_.display_viewport_.size;
-// }
-//
-// V2_float Renderer::GetScale() const {
-//	V2_int display_size{ GetDisplaySize() };
-//	V2_int game_size{ GetGameSize() };
-//	PTGN_ASSERT(display_size.BothAboveZero());
-//	PTGN_ASSERT(game_size.BothAboveZero());
-//	return V2_float{ display_size } / game_size;
-// }
-//
-// V2_int Renderer::GetGameSize() const {
-//	return render_data_.game_size_;
-// }
-//
-// ScalingMode Renderer::GetScalingMode() const {
-//	return render_data_.resolution_mode_;
 // }
 //
 // void Renderer::PresentScreen() {
@@ -2312,13 +1562,6 @@ void Renderer::UpdateDisplayViewport(V2_int window_size) {
 //	);
 //
 //	window->SwapBuffers();
-// }
-//
-// void Renderer::ClearScreen() const {
-//	Framebuffer::Unbind();
-//	GLRenderer::SetClearColor(color::Transparent);
-//	GLRenderer::Clear();
-//	render_data_.ClearScreenTarget();
 // }
 //
 //*/

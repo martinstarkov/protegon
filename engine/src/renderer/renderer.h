@@ -5,9 +5,14 @@
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
+#include "core/graphics/blend_mode.h"
+#include "core/graphics/color.h"
+#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/texture_format.h"
+#include "renderer/targets/render_target.h"
 
 namespace ptgn {
 
@@ -66,18 +71,39 @@ public:
 	/// @return The game size scaling mode.
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
+	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
+	void DrawRect(V2_float center, V2_float size, Color color);
+
+	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
+	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
+	void BindRenderTarget(const RenderTarget& rt);
+	void BindRenderTarget(RenderPass& pass);
+
+	void SetViewProjection(const Matrix4& view_projection);
+	void SetBlend(BlendMode mode, bool enabled = true);
+	void SetDepth(const DepthState& depth);
+	void SetStencil(const StencilState& stencil);
+	void SetRaster(const RasterState& raster);
+	void SetColorMask(const ColorMaskState& color_mask);
+
+	RenderPass BeginPass(const RenderTarget& scene_target);
+
+	// TODO: Move to private.
+	std::shared_ptr<impl::gl::Renderer> gl_renderer_;
+
 private:
 	friend class Application;
 	friend class EventHandler;
 
 	void OnEvent(EventDispatcher d);
 
+	void BeginFrame();
+	void EndFrame();
+
 	Window& window_;
 	EventHandler& events_;
 
-	std::shared_ptr<impl::gl::Renderer> gl_renderer_;
-
-	void UpdateDisplayViewport(V2_int window_size);
+	void UpdateDisplayViewport(V2_int window_size, bool emit_events = true);
 
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
