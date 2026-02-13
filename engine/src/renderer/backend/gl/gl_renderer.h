@@ -28,7 +28,7 @@ class Renderer;
 class GLContext;
 
 template <class State, class Func>
-void UpdateStateIfChanged(Renderer&, State&, const State&, Func&&);
+void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
 
 using Index = std::uint32_t;
 
@@ -107,7 +107,7 @@ private:
 	friend class RenderPass;
 	friend class ptgn::Renderer;
 	template <class State, class Func>
-	friend void UpdateStateIfChanged(Renderer&, State&, const State&, Func&&);
+	friend void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
 
 	using QuadSetup = std::function<void(ShaderId, QuadDesc&)>;
 

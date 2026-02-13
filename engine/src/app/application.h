@@ -74,10 +74,10 @@ private:
 	impl::SDLInstance sdl_;
 
 	Window window_;
+	Renderer renderer_;
+	EventHandler events_;
 	InputHandler input_;
 	SceneManager scenes_;
-	EventHandler events_;
-	Renderer renderer_;
 	AssetManager assets_;
 
 	// TODO: Make a no-op version of this for release modes.

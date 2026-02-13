@@ -400,16 +400,18 @@ std::uint32_t Renderer::GetTextureSlot(TextureId tex) {
 }
 
 template <class State, class Func>
-void UpdateStateIfChanged(Renderer& r, State& cached, const State& desired, Func&& func) {
+void UpdateStateIfChanged(Renderer& r, const State& cached, const State& desired, Func&& func) {
 	if (cached != desired) {
 		r.FlushBatch();
-		cached = desired;
 		std::invoke(std::forward<Func>(func));
 	}
 }
 
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
-	UpdateStateIfChanged(*this, view_projection_, view_projection, [] {});
+	if (view_projection_ != view_projection) {
+		view_projection_ = view_projection;
+		FlushBatch();
+	}
 }
 
 void Renderer::SetShader(ShaderId shader) {
@@ -628,8 +630,7 @@ void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_indices_.empty());
 
 	auto _1 = gl_->Bind(FramebufferId{});
-	// TODO: Change back to transparent.
-	gl_->SetClearColor(color::Red);
+	gl_->SetClearColor(color::Transparent);
 	gl_->Clear();
 
 	BindRenderTarget(screen_target_);

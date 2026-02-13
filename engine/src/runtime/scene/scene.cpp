@@ -207,8 +207,8 @@ void Scene::InternalExit() {
 
 void Scene::InternalDraw() {
 	// TODO: Get rid of this.
-	// auto game_size{ ctx_->renderer.GetGameSize() };
-	auto game_size{ ctx_->renderer.gl_renderer_->screen_target_.GetSize() };
+	auto game_size{ ctx_->renderer.GetGameSize() };
+	// auto game_size{ ctx_->renderer.gl_renderer_->screen_target_.GetSize() };
 
 	auto half{ game_size / 2.0f };
 	ctx_->renderer.SetViewProjection(Matrix4::Orthographic(-half, half));
