@@ -161,11 +161,11 @@ public:
 			if (e.IsPressed(Key::Enter)) {
 				PTGN_LOG("Pressed enter");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
-				app().renderer.SetGameSize(V2_int{ 69, 70 });
+				app().renderer.SetGameSize(V2_int{ 800, 800 });
 			} else if (e.IsPressed(Key::Space)) {
 				PTGN_LOG("Pressed space");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
-				app().renderer.SetGameSize(V2_int{ 20, 30 });
+				app().renderer.SetGameSize(V2_int{ 800, 600 });
 			}
 		});
 		d.Dispatch<GameResized>([this](auto& e) {

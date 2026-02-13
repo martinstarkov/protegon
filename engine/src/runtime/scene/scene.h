@@ -5,6 +5,7 @@
 
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
+#include "renderer/backend/gl/gl_handle.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -270,6 +271,9 @@ private:
 	friend class SceneEventHandler;
 
 	std::shared_ptr<ApplicationContext> ctx_;
+
+	// TODO: Get rid of this:
+	impl::gl::Texture texture1;
 
 	void InternalEmit(EventDispatcher d);
 

@@ -4,6 +4,11 @@
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
 #include "nlohmann/json.hpp"
+#include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_renderer.h"
+#include "renderer/image/surface.h"
+#include "renderer/renderer.h"
+#include "renderer/targets/render_target.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -201,6 +206,23 @@ void Scene::InternalExit() {
 }
 
 void Scene::InternalDraw() {
+	// TODO: Get rid of this.
+	// auto game_size{ ctx_->renderer.GetGameSize() };
+	auto game_size{ ctx_->renderer.gl_renderer_->screen_target_.GetSize() };
+
+	auto half{ game_size / 2.0f };
+	ctx_->renderer.SetViewProjection(Matrix4::Orthographic(-half, half));
+
+	impl::Surface texture1_surface{ "assets/logo.png" };
+
+	texture1 = ctx_->renderer.gl_renderer_->gl_->CreateTexture(
+		texture1_surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, texture1_surface.size, GL_RGBA
+	);
+
+	// ctx_->renderer.DrawRect({ 0, 0 }, game_size, color::Red);
+	ctx_->renderer.DrawTexture(
+		texture1, {}, ctx_->renderer.gl_renderer_->gl_->GetTextureSize(texture1)
+	);
 	// TODO: Fix.
 	/*if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {
@@ -266,8 +288,6 @@ void Scene::InternalUpdate() {
 	// invoke_scripts(*this);
 
 	// TODO: Update dirty vertex caches.
-
-	InternalDraw();
 
 	/*for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
 		transform.ClearDirtyFlags();

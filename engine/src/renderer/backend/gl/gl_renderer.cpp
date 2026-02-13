@@ -628,10 +628,12 @@ void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_indices_.empty());
 
 	auto _1 = gl_->Bind(FramebufferId{});
+	// TODO: Change back to transparent.
 	gl_->SetClearColor(color::Red);
 	gl_->Clear();
 
 	BindRenderTarget(screen_target_);
+	// TODO: Change back to transparent.
 	gl_->ClearToColor(screen_target_.framebuffer_, color::Blue);
 }
 
