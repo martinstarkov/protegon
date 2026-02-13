@@ -60,7 +60,7 @@ public:
 		scenes_.SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
 
 		// Flush queued ops so the first scene becomes active before main loop.
-		scenes_.Update(secondsf{ 0.0f });
+		scenes_.Update(secondsf{ 0.0f }, false);
 
 		EnterMainLoop();
 	}

@@ -1,7 +1,9 @@
 #include "app/application.h"
 
+#include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_version.h>
 #include <SDL3/SDL_video.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
@@ -19,6 +21,7 @@
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
+#include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
@@ -27,8 +30,6 @@
 #include "renderer/renderer.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
-#include "SDL3/SDL_audio.h"
-#include "SDL3/SDL_version.h"
 #include "tools/debug/debug_system.h"
 
 #ifdef __EMSCRIPTEN__
@@ -202,6 +203,8 @@ void Application::EnterMainLoop() {
 	window_.SetSetting(WindowSetting::Shown);
 	running_ = true;
 
+	renderer_.UpdateDisplayViewport(window_.GetSize(), false);
+
 #ifdef __EMSCRIPTEN__
 	EmscriptenInit(window_);
 	emscripten_set_main_loop_arg(
@@ -244,9 +247,14 @@ void Application::Update() {
 		}
 	});
 
-	scenes_.Update(dt_);
+	renderer_.BeginFrame();
+	scenes_.Update(dt_, true);
 
 	debug_.PostUpdate();
+
+	renderer_.EndFrame();
+
+	window_.SwapBuffers();
 
 	end = std::chrono::system_clock::now();
 
