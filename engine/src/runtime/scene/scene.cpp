@@ -61,6 +61,8 @@ void Scene::AddToDisplayList(Entity entity) {
 
 void Scene::RemoveFromDisplayList(Entity entity) {
 	PTGN_ASSERT(render_target_);
+	// TODO: Figure out why render target is destroyed before the hook is called when scene is
+	// destroyed.
 	if (!render_target_.Has<impl::DisplayList>()) {
 		return;
 	}
