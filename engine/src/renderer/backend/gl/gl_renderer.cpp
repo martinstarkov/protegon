@@ -520,6 +520,13 @@ void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSet
 }
 
 void Renderer::DrawTexture(
+	const RenderTarget& rt, V2_float center, V2_float size, Color tint, bool flip_y
+) {
+	PTGN_ASSERT(rt.color_.has_value(), "Cannot draw render target with no color attachment");
+	DrawTexture(*rt.color_, center, size, tint, flip_y);
+}
+
+void Renderer::DrawTexture(
 	TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	DrawTexture(gl_->GetShader("quad"), texture, center, size, tint, flip_y);

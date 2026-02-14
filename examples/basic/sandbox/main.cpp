@@ -148,7 +148,7 @@ public:
 
 		auto sprite = CreateSprite(*this, t, {});
 
-		auto sprite2 = CreateSprite(*this, "assets/smile.png", {});
+		auto sprite2 = CreateSprite(*this, "assets/smile.png", { 200, 0 });
 
 		PTGN_LOG("Loaded all assets!");
 	}

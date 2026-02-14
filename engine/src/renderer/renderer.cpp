@@ -95,8 +95,14 @@ ScalingMode Renderer::GetScalingMode() const {
 	return scaling_mode_;
 }
 
-void Renderer::DrawTexture(Texture texture, V2_float center, V2_float size) {
-	gl_renderer_->DrawTexture(texture, center, size);
+void Renderer::DrawTexture(
+	const RenderTarget& rt, V2_float center, V2_float size, Color tint, bool flip_y
+) {
+	gl_renderer_->DrawTexture(rt, center, size, tint, flip_y);
+}
+
+void Renderer::DrawTexture(Texture texture, V2_float center, V2_float size, Color tint) {
+	gl_renderer_->DrawTexture(texture, center, size, tint);
 }
 
 void Renderer::DrawRect(V2_float center, V2_float size, Color color) {
@@ -190,6 +196,10 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 	}
 }
 
+RenderTarget Renderer::GetScreenTarget() const {
+	return gl_renderer_->screen_target_;
+}
+
 RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
 	return gl_renderer_->CreateRenderTarget(size, format);
 }
@@ -251,6 +261,116 @@ void Renderer::EndFrame() {
 }
 
 } // namespace ptgn
+
+// TODO: Fix.
+/*
+
+void DrawTexture(Renderer& renderer, Entity entity, bool flip_texture) {
+	Sprite sprite{ entity };
+
+	renderer.DrawTexture(
+		sprite.Get<Handle<Texture>>(), GetDrawTransform(entity), sprite.GetSize(),
+		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity), GetBlendMode(entity),
+		entity.GetOrDefault<Camera>(), entity.GetOrDefault<PreFX>(), entity.GetOrDefault<PostFX>(),
+		sprite.GetTextureCoordinates(flip_texture)
+	);
+}
+
+ void DrawText(
+	Text text, const V2_int& text_size, const Camera& camera, const Color& additional_tint,
+	Origin offset_origin, V2_float offset_size
+) {
+	if (!text.Has<TextContent>()) {
+		return;
+	}
+
+	if (text.Get<TextContent>().GetValue().empty()) {
+		return;
+	}
+
+	if (text.Has<TextColor>() && text.Get<TextColor>().a == 0) {
+		return;
+	}
+
+	Tint tint{ GetTint(text) };
+	Transform transform{ GetDrawTransform(text) };
+	Camera cam{ text.GetOrDefault<Camera>() };
+
+	if (tint.a == 0 || additional_tint.a == 0) {
+		return;
+	}
+
+	if (camera) {
+		cam = camera;
+	}
+
+	// Offset text so it is centered on the offset origin and size.
+	auto offset{ -GetOriginOffset(offset_origin, offset_size * Abs(transform.GetScale())) };
+	transform.Translate(offset);
+
+	if (bool is_hd{ text.IsHD() }) {
+		auto scene_scale{ text.GetScene().GetRenderTargetScaleRelativeTo(cam) };
+
+		PTGN_ASSERT(scene_scale.BothAboveZero());
+
+		transform.Scale(transform.GetScale() / scene_scale);
+
+		if (text.GetFontSize(is_hd, cam) != text.Get<impl::CachedFontSize>()) {
+			text.RecreateTexture(cam);
+		}
+	}
+
+	const auto& text_texture{ text.GetTexture() };
+
+	if (!text_texture.IsValid()) {
+		return;
+	}
+
+	V2_int size{ text_size };
+
+	// If the text texture size for any text_size dimension that is zero.
+	if (size.HasZero()) {
+		V2_int texture_size{ text_texture.GetSize() };
+		if (!size.x) {
+			size.x = texture_size.x;
+		}
+		if (!size.y) {
+			size.y = texture_size.y;
+		}
+	}
+
+	auto texture_coordinates{ Sprite{ text }.GetTextureCoordinates(false) };
+
+	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
+
+	Application::Get().render_.DrawTexture(
+		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
+		GetBlendMode(text), cam, text.GetOrDefault<PreFX>(), text.GetOrDefault<PostFX>(),
+		texture_coordinates
+	);
+ }
+
+
+template <ShapeType T>
+static void DrawShape(Renderer& renderer, Entity entity) {
+	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
+
+	Origin origin{ Origin::Center };
+
+	if constexpr (IsAnyOf<T, Rect, RoundedRect>) {
+		origin = GetDrawOrigin(entity);
+	}
+
+	const auto& shape{ entity.Get<T>() };
+
+	renderer.DrawShape(
+		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
+		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
+	);
+}
+
+*/
 
 // void Renderer::BindRenderTarget(RenderPass& p) {
 //	// Bind the next write target (opposite of latest output; ping for first write)
@@ -1098,96 +1218,6 @@ void Renderer::EndFrame() {
 //	draw_context_pool.TrimExpired();
 // }
 //
-// void Renderer::InvokeDrawable(const Entity& entity) {
-//	PTGN_ASSERT(entity.Has<IDrawable>(), "Cannot render entity without drawable component");
-//
-//	const auto& drawable{ entity.GetImpl<IDrawable>() };
-//
-//	const auto& drawable_functions{ IDrawable::data() };
-//
-//	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
-//
-//	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
-//
-//	draw_function(entity);
-// }
-//
-// void Renderer::InvokeDrawFilter(RenderTarget& render_target, FilterType type) {
-//	if (!render_target.Has<IDrawFilter>()) {
-//		return;
-//	}
-//
-//	const auto& filter{ render_target.GetImpl<IDrawFilter>() };
-//	const auto& filter_functions{ IDrawFilter::data() };
-//
-//	PTGN_ASSERT(filter_functions.contains(filter.hash), "Failed to identify filter hash");
-//
-//	const auto& filter_function{ filter_functions.find(filter.hash)->second };
-//
-//	PTGN_ASSERT(filter_function);
-//
-//	filter_function(render_target, type);
-// }
-//
-// void Renderer::FlushDrawQueue(TextureId id, bool draw_debug) {
-//	auto it{ draw_queues_.find(id) };
-//
-//	if (it != draw_queues_.end()) {
-//		std::vector<impl::DrawCommand>& commands{ it->second };
-//
-//		for (const auto& command : commands) {
-//			DrawCommand(command);
-//		}
-//	}
-//
-//	if (draw_debug) {
-//		for (const auto& command : debug_queue_) {
-//			DrawCommand(command);
-//		}
-//	}
-//
-//	Flush(true);
-// }
-//
-// void Renderer::DrawDisplayList(
-//	RenderTarget& render_target, std::vector<Entity>& display_list,
-//	const std::function<bool(const Entity&)>& filter, bool draw_debug
-//) {
-//	Camera camera{ render_target.GetCamera() };
-//
-//	const auto& texture{ render_target.GetTexture() };
-//	auto texture_size{ render_target.GetTextureSize() };
-//
-//	drawing_to_.texture_size	  = texture_size;
-//	drawing_to_.texture_id		  = texture.GetId();
-//	drawing_to_.texture_format	  = texture.GetFormat();
-//	drawing_to_.viewport.position = {};
-//	drawing_to_.viewport.size	  = texture_size;
-//
-//	drawing_to_.view_projection = camera;
-//	drawing_to_.points			= camera.GetWorldVertices();
-//
-//	drawing_to_.blend_mode	 = GetBlendMode(render_target);
-//	drawing_to_.depth		 = GetDepth(render_target);
-//	drawing_to_.tint		 = GetTint(render_target);
-//	drawing_to_.framebuffer = &render_target.GetFramebuffer();
-//
-//	// Must be sorted here so that depth and creation order is accounted for.
-//	SortByDepth(display_list, true);
-//
-//	InvokeDrawFilter(render_target, FilterType::Pre);
-//
-//	for (const auto& entity : display_list) {
-//		if (filter && filter(entity)) {
-//			continue;
-//		}
-//		InvokeDrawable(entity);
-//	}
-//
-//	InvokeDrawFilter(render_target, FilterType::Post);
-//
-//	FlushDrawQueue(drawing_to_.texture_id, draw_debug);
-// }
 //
 // void Renderer::SetDrawingTo(const RenderTarget& render_target) {
 //	const auto& texture{ render_target.GetTexture() };
@@ -1207,42 +1237,6 @@ void Renderer::EndFrame() {
 //	drawing_to_.depth		 = GetDepth(render_target);
 //	drawing_to_.tint		 = GetTint(render_target);
 //	drawing_to_.framebuffer = &render_target.GetFramebuffer();
-// }
-//
-// void Renderer::DrawScene(Scene& scene) {
-//	// Loop through render targets and render their display lists onto their internal frame
-//	// buffers.
-//	for (auto [entity, visible, drawable, framebuffer, display_list] :
-//		 scene.InternalEntitiesWith<Visible, IDrawable, Framebuffer, DisplayList>()) {
-//		if (!visible) {
-//			continue;
-//		}
-//
-//		RenderTarget rt{ entity };
-//
-//		DrawDisplayList(rt, display_list.entities);
-//	}
-//
-//	auto& display_list{ scene.render_target_.GetDisplayList() };
-//
-//	DrawDisplayList(
-//		scene.render_target_, display_list,
-//		[](const Entity& entity) {
-//			// Skip entities which are in the display list of a custom render target.
-//			return entity.Has<RenderTarget>();
-//		},
-//		true
-//	);
-// }
-//
-// void Renderer::ClearRenderTargets(Scene& scene) const {
-//	scene.render_target_.Clear();
-//
-//	for (auto [entity, framebuffer] : scene.EntitiesWith<Framebuffer>()) {
-//		RenderTarget rt{ entity };
-//		rt.Clear();
-//		// rt.ClearDisplayList();
-//	}
 // }
 //
 // void Renderer::DrawScreenTarget() {

@@ -5,9 +5,10 @@
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_handle.h"
+#include "renderer/primitives/draw.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
-#include "runtime/ecs/components/transform.h"
+#include "runtime/ecs/components/entity_transform.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
@@ -54,25 +55,27 @@ RenderTarget::RenderTarget(
 namespace impl {
 
 static Entity CreateRenderTarget(
-	Entity render_target, const Renderer& renderer, V2_int size, TextureFormat format
+	Entity render_target, Renderer& renderer, V2_int size, TextureFormat format
 ) {
 	PTGN_ASSERT(render_target);
 
 	SetPosition(render_target, {});
 
-	// TODO: Add these.
+	render_target.Add<DisplayList>();
+
+	// TODO: Fix.
 	// SetDraw<RenderTarget>(render_target);
-	// Show(render_target);
+	Show(render_target);
 
 	render_target.Add<RenderTarget>(renderer.CreateRenderTarget(size, format));
-	// TODO: Clear render target.
-	// render_target.Clear();
+	// TODO: Add clear color here.
+	renderer.ClearRenderTarget(render_target.Get<RenderTarget>());
 
 	return render_target;
 }
 
 Entity CreateRenderTarget(
-	Entity render_target, const Renderer& renderer, ResizeMode resize_to_resolution,
+	Entity render_target, Renderer& renderer, ResizeMode resize_to_resolution,
 	TextureFormat texture_format
 ) {
 	PTGN_ASSERT(render_target);
@@ -103,8 +106,7 @@ Entity CreateRenderTarget(
 } // namespace impl
 
 Entity CreateRenderTarget(
-	Scene& scene, const Renderer& renderer, ResizeMode resize_to_resolution,
-	TextureFormat texture_format
+	Scene& scene, Renderer& renderer, ResizeMode resize_to_resolution, TextureFormat texture_format
 ) {
 	return impl::CreateRenderTarget(
 		scene.CreateEntity(), renderer, resize_to_resolution, texture_format
@@ -112,7 +114,7 @@ Entity CreateRenderTarget(
 }
 
 Entity CreateRenderTarget(
-	Scene& scene, const Renderer& renderer, V2_int size, TextureFormat texture_format
+	Scene& scene, Renderer& renderer, V2_int size, TextureFormat texture_format
 ) {
 	return impl::CreateRenderTarget(scene.CreateEntity(), renderer, size, texture_format);
 }

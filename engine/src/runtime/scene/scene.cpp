@@ -1,9 +1,11 @@
 #include "runtime/scene/scene.h"
 
 #include <memory>
+#include <vector>
 
 #include "app/context.h"
 #include "core/event/dispatcher.h"
+#include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "ecs/ecs.h"
@@ -11,6 +13,8 @@
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/camera.h"
 #include "renderer/image/surface.h"
+#include "renderer/primitives/draw.h"
+#include "renderer/primitives/drawable.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
@@ -44,24 +48,26 @@ Scene::~Scene() {
 }
 
 void Scene::AddToDisplayList(Entity entity) {
+	PTGN_ASSERT(render_target_);
+	PTGN_ASSERT(render_target_.Has<impl::DisplayList>());
 	// TODO: Fix.
-	// if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
-	//	return;
-	//}
-	// if (!IsVisible(entity) || !HasDraw(entity)) {
-	//	return;
-	//}
-	// auto& dl{ render_target_.GetDisplayList() };
-	// dl.emplace_back(entity);
+	// PTGN_ASSERT(HasDraw(render_target_));
+	if (!IsVisible(entity) || !HasDraw(entity)) {
+		return;
+	}
+	auto& dl{ render_target_.Get<impl::DisplayList>() };
+	dl.entities.emplace_back(entity);
 }
 
 void Scene::RemoveFromDisplayList(Entity entity) {
+	PTGN_ASSERT(render_target_);
+	if (!render_target_.Has<impl::DisplayList>()) {
+		return;
+	}
 	// TODO: Fix.
-	// if (!render_target_ || !render_target_.Has<impl::DisplayList>()) {
-	//	return;
-	//}
-	// auto& dl{ render_target_.GetDisplayList() };
-	// std::erase(dl, entity);
+	// PTGN_ASSERT(HasDraw(render_target_));
+	auto& dl{ render_target_.Get<impl::DisplayList>() };
+	std::erase(dl.entities, entity);
 }
 
 Entity Scene::CreateEntity() {
@@ -151,14 +157,6 @@ Color Scene::GetBackgroundColor() const {
 	return {};
 }
 
-// const RenderTarget& Scene::GetRenderTarget() const {
-//	return render_target_;
-// }
-//
-// RenderTarget& Scene::GetRenderTarget() {
-//	return render_target_;
-// }
-
 // SceneKey Scene::GetKey() const {
 //	return key_;
 // }
@@ -166,12 +164,14 @@ Color Scene::GetBackgroundColor() const {
 void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 
+	auto& renderer{ app().renderer };
+
 	render_target_ = impl::CreateRenderTarget(
-		render_manager_.CreateEntity(), app().renderer, ResizeMode::DisplaySize,
-		TextureFormat::RGBA8
+		render_manager_.CreateEntity(), renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8
 	);
-	camera		 = impl::CreateCamera(render_manager_.CreateEntity(), app().renderer);
-	fixed_camera = impl::CreateCamera(render_manager_.CreateEntity(), app().renderer);
+	render_target_.Add<impl::DisplayList>();
+	camera		 = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
+	fixed_camera = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
 }
 
 // void Scene::SetKey(const SceneKey& key) {
@@ -182,10 +182,10 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 void Scene::InternalEnter() {
 	// Here instead of scene constructor because exiting a scene resets the manager, which will
 	// clear the component pool vector which contains all the hooks.
-	// OnConstruct<Visible>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	// OnDestruct<Visible>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
-	// OnConstruct<impl::IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
-	// OnDestruct<impl::IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
+	OnConstruct<impl::Visible>().Connect<&Scene::AddToDisplayList>();
+	OnDestruct<impl::Visible>().Connect<&Scene::RemoveFromDisplayList>();
+	OnConstruct<impl::IDrawable>().Connect<&Scene::AddToDisplayList>();
+	OnDestruct<impl::IDrawable>().Connect<&Scene::RemoveFromDisplayList>();
 
 	OnEnter();
 	Refresh();
@@ -198,16 +198,46 @@ void Scene::InternalExit() {
 	// Clears component hooks.
 	manager_.Reset();
 	// physics = {};
+	render_target_.Get<impl::DisplayList>().entities.clear();
 	//  TODO: Fix.
-	/*render_target_.ClearDisplayList();
-	render_target_.Get<GameObject<Camera>>().Reset();*/
+	// render_target_.Get<GameObject<Camera>>().Reset();
 	// fixed_camera.Reset();
 	Refresh();
 }
 
-void Scene::InternalDraw() {
-	// TODO: Bind camera.
+static void InvokeDrawable(Renderer& renderer, Entity entity) {
+	PTGN_ASSERT(entity.Has<impl::IDrawable>(), "Cannot render entity without drawable component");
 
+	const auto& drawable{ entity.Get<impl::IDrawable>() };
+
+	const auto& drawable_functions{ impl::IDrawable::data() };
+
+	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
+
+	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
+
+	draw_function(renderer, entity);
+}
+
+template <typename F>
+static void DrawDisplayList(
+	Renderer& renderer, RenderTarget& rt, std::vector<Entity>& display_list, F&& filter
+) {
+	// Must be sorted here so that depth and creation order is accounted for.
+	SortByDepth(display_list, true);
+
+	renderer.BindRenderTarget(rt);
+
+	for (const auto& entity : display_list) {
+		if (filter && filter(entity)) {
+			continue;
+		}
+		renderer.SetBlend(GetBlendMode(entity));
+		InvokeDrawable(renderer, entity);
+	}
+}
+
+void Scene::InternalDraw() {
 	impl::RecalculateViewProjection(camera);
 	impl::RecalculateViewProjection(fixed_camera);
 
@@ -215,20 +245,49 @@ void Scene::InternalDraw() {
 		impl::RecalculateViewProjection(e);
 	}
 
-	app().renderer.ClearRenderTarget(render_target_.Get<RenderTarget>(), color::Transparent);
+	auto& renderer{ app().renderer };
+
+	renderer.ClearRenderTarget(render_target_.Get<RenderTarget>(), color::Transparent);
 
 	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
 		// exist.
 		// TODO: Fix. Clear render target with its clear color instead of transparent.
-		app().renderer.ClearRenderTarget(rt, color::Transparent);
+		renderer.ClearRenderTarget(rt, color::Transparent);
 	}
 
-	for (auto [e, handle] : EntitiesWith<Handle<Asset::Texture>>()) {
-		PTGN_LOG(
-			"Entity ", e.GetHash(), ", texture size: ", app().renderer.GetTextureSize(handle.Get())
-		);
+	// Loop through render targets and render their display lists onto their internal frame
+	// buffers.
+	for (auto [entity, visible, drawable, rt, display_list] :
+		 EntitiesWith<impl::Visible, impl::IDrawable, RenderTarget, impl::DisplayList>()) {
+		DrawDisplayList(renderer, rt, display_list.entities, [](Entity) { return false; });
 	}
+
+	DrawDisplayList(
+		renderer, render_target_.Get<RenderTarget>(),
+		render_target_.Get<impl::DisplayList>().entities,
+		[](Entity entity) {
+			// Skip entities which are in the display list of a custom render target.
+			return entity.Has<RenderTarget>();
+		}
+	);
+
+	renderer.BindRenderTarget(renderer.GetScreenTarget());
+
+	auto half_viewport{ renderer.GetGameSize() * 0.5f };
+	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	renderer.SetBlend(BlendMode::Blend);
+
+	renderer.DrawTexture(
+		render_target_.Get<RenderTarget>(), { 0, 0 }, render_target_.Get<RenderTarget>().GetSize(),
+		GetTint(render_target_), true
+	);
+
+	// for (auto [e, handle] : EntitiesWith<Handle<Asset::Texture>>()) {
+	//	PTGN_LOG(
+	//		"Entity ", e.GetHash(), ", texture size: ", renderer.GetTextureSize(handle.Get())
+	//	);
+	// }
 
 	PTGN_LOG("---");
 

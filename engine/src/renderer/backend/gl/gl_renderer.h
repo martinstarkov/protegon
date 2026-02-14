@@ -86,6 +86,10 @@ public:
 		Color tint = color::White, bool flip_y = false
 	);
 	void DrawTexture(
+		const RenderTarget& rt, V2_float center, V2_float size, Color tint = color::White,
+		bool flip_y = false
+	);
+	void DrawTexture(
 		TextureId texture, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = false
 	);

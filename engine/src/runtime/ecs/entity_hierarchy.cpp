@@ -5,7 +5,7 @@
 
 #include "core/assert.h"
 #include "runtime/ecs/components/relatives.h"
-#include "runtime/ecs/components/transform.h"
+#include "runtime/ecs/components/entity_transform.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 
@@ -66,7 +66,7 @@ void RemoveParent(Entity entity) {
 
 void IgnoreParentTransform(Entity entity, bool ignore_parent_transform) {
 	if (ignore_parent_transform) {
-		entity.Add<impl::IgnoreParentTransform>(ignore_parent_transform);
+		entity.Add<impl::IgnoreParentTransform>();
 	} else {
 		entity.Remove<impl::IgnoreParentTransform>();
 	}

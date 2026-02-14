@@ -181,6 +181,9 @@ public:
 	const Scene& GetScene() const;
 	Scene& GetScene();
 
+	/// @return True if the entity is part of a scene, false otherwise.
+	bool HasScene() const;
+
 	// const Camera& GetCamera() const;
 	// Camera& GetCamera();
 

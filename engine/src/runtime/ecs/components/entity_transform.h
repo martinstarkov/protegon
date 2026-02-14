@@ -2,24 +2,19 @@
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
 
 namespace impl {
 
-struct IgnoreParentTransform : public BoolComponent {
-	using BoolComponent::BoolComponent;
-
-	IgnoreParentTransform() : BoolComponent{ true } {}
-};
+struct IgnoreParentTransform {};
 
 } // namespace impl
 
 // Set the transform of the entity with respect to its parent entity.
 // @return *this.
-Entity SetTransform(Entity entity, const Transform& transform);
+Entity SetTransform(Entity entity, Transform transform);
 
 // @return The transform of the entity.
 Transform GetTransform(Entity entity);

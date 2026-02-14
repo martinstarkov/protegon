@@ -1,13 +1,13 @@
-#include "core/math/transform.h"
+#include "runtime/ecs/components/entity_transform.h"
 
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/transform.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 
 namespace ptgn {
 
-Entity SetTransform(Entity entity, const Transform& transform) {
+Entity SetTransform(Entity entity, Transform transform) {
 	entity.template Add<Transform>(transform);
 	return entity;
 }
@@ -18,7 +18,7 @@ Transform GetTransform(Entity entity) {
 
 Transform GetWorldTransform(Entity entity) {
 	auto transform{ GetTransform(entity) };
-	if (entity.Has<impl::IgnoreParentTransform>() && entity.Get<impl::IgnoreParentTransform>()) {
+	if (entity.Has<impl::IgnoreParentTransform>()) {
 		return transform;
 	}
 	Transform relative_to;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
@@ -30,6 +31,10 @@ public:
 class RenderTargetDisplayResizeScript : public Script {
 public:
 	void OnEvent(EventDispatcher d) override;
+};
+
+struct DisplayList {
+	std::vector<Entity> entities;
 };
 
 } // namespace impl
@@ -86,7 +91,7 @@ private:
 namespace impl {
 
 Entity CreateRenderTarget(
-	Entity render_target, const Renderer& renderer, ResizeMode resize_to_resolution,
+	Entity render_target, Renderer& renderer, ResizeMode resize_to_resolution,
 	TextureFormat texture_format
 );
 
@@ -97,7 +102,7 @@ Entity CreateRenderTarget(
 /// @param clear_color The background color of the render target.
 /// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 Entity CreateRenderTarget(
-	Scene& scene, const Renderer& renderer, V2_int size,
+	Scene& scene, Renderer& renderer, V2_int size,
 	TextureFormat texture_format = TextureFormat::RGBA8
 );
 
@@ -106,69 +111,21 @@ Entity CreateRenderTarget(
 /// @param clear_color The background color of the render target.
 /// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 Entity CreateRenderTarget(
-	Scene& scene, const Renderer& renderer,
-	ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
-	TextureFormat texture_format	= TextureFormat::RGBA8
+	Scene& scene, Renderer& renderer, ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
+	TextureFormat texture_format = TextureFormat::RGBA8
 );
 
 } // namespace ptgn
 
-// #pragma once
-//
-// #include <concepts>
-// #include <functional>
-// #include <string_view>
-// #include <unordered_map>
-// #include <vector>
-//
-// #include "ecs/components/drawable.h"
-// #include "ecs/components/generic.h"
-// #include "ecs/entity.h"
-// #include "core/scripting/script.h"
-// #include "core/scripting/script_interfaces.h"
-// #include "core/util/type_info.h"
-// #include "math/hash.h"
-// #include "math/vector2.h"
-// #include "renderer/api/color.h"
-// #include "renderer/buffer/frame_buffer.h"
-//
-// #include "serialization/json/serializable.h"
-//
-// namespace ptgn {
-//
-// class Scene;
-// class Camera;
-// class Manager;
-// class RenderTarget;
-//
-//
 // enum class FilterType {
 //	Pre,
 //	Post
 // };
 //
-// namespace impl {
-//
-// class RenderData;
-//
-// RenderTarget AddRenderTargetComponents(
-//	const Entity& entity, Manager& manager, const V2_int& render_target_size, bool game_size_camera,
-//	const Color& clear_color, TextureFormat texture_format
-//);
-//
-//
 // struct ClearColor : public ColorComponent {
 //	using ColorComponent::ColorComponent;
 //
 //	ClearColor() : ColorComponent{ color::Transparent } {}
-// };
-//
-// struct GameResizeScript : public Script<GameResizeScript, GameSizeScript> {
-//	void OnGameSizeChanged() override;
-// };
-//
-// struct DisplayResizeScript : public Script<DisplayResizeScript, DisplaySizeScript> {
-//	void OnDisplaySizeChanged() override;
 // };
 //
 // template <typename T>
@@ -324,6 +281,3 @@ Entity CreateRenderTarget(
 //
 // PTGN_DRAWABLE_REGISTER(RenderTarget);
 // PTGN_DRAW_FILTER_REGISTER(RenderTarget);
-//
-//
-// } // namespace ptgn

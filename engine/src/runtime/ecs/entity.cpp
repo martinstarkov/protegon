@@ -70,6 +70,10 @@ Scene& Entity::GetScene() {
 	return const_cast<Scene&>(std::as_const(*this).GetScene());
 }
 
+bool Entity::HasScene() const {
+	return scene_ != nullptr;
+}
+
 /*
 static RenderTarget GetParentRenderTarget(const Entity& root, const Entity& entity) {
 	// @return Root or the entities render target or any of its parents' render targets (whichever

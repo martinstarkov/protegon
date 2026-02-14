@@ -1,6 +1,7 @@
 #include "runtime/animation/offsets.h"
 
 #include "core/math/transform.h"
+#include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 
@@ -14,14 +15,19 @@ Transform Offsets::GetTotal() const {
 
 } // namespace impl
 
-Transform GetRelativeOffset(const Entity& entity) {
+Transform GetRelativeOffset(Entity entity) {
 	return entity.Has<impl::Offsets>() ? entity.Get<impl::Offsets>().GetTotal() : Transform{};
 }
 
-Transform GetOffset(const Entity& entity) {
+Transform GetOffset(Entity entity) {
 	return GetRelativeOffset(entity).RelativeTo(
 		HasParent(entity) ? GetRelativeOffset(GetParent(entity)) : Transform{}
 	);
+}
+
+Entity SetDrawOffset(Entity entity, V2_float offset) {
+	entity.TryAdd<impl::Offsets>().custom.SetPosition(offset);
+	return entity;
 }
 
 } // namespace ptgn

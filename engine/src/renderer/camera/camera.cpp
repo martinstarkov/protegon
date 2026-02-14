@@ -15,7 +15,7 @@
 #include "renderer/camera/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
-#include "runtime/ecs/components/transform.h"
+#include "runtime/ecs/components/entity_transform.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"

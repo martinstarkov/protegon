@@ -10,6 +10,7 @@
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -176,8 +177,15 @@ for (auto e : scene.EntitiesWithout<ProfileTestComponent>()) {
 
 */
 
-struct DisplayList {
-	std::vector<Entity> entities;
+template <typename TComponent>
+struct SceneHook {
+	Scene& scene;
+	ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook;
+
+	template <auto Member>
+	void Connect() {
+		hook.template Connect<Scene, &Scene::template HookThunk<Member>>(&scene);
+	}
 };
 
 class Scene {
@@ -253,6 +261,26 @@ public:
 		};
 	}
 
+	template <typename TComponent>
+	auto OnConstruct() {
+		return SceneHook<TComponent>{ *this, manager_.template OnConstruct<TComponent>() };
+	}
+
+	template <typename TComponent>
+	auto OnDestruct() {
+		return SceneHook<TComponent>{ *this, manager_.template OnDestruct<TComponent>() };
+	}
+
+	template <typename TComponent>
+	auto OnUpdate() {
+		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
+	}
+
+	template <auto Member>
+	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
+		(this->*Member)(Entity{ handle, this });
+	}
+
 	// Call to simulate the scene being re-entered.
 	void ReEnter();
 
@@ -278,9 +306,6 @@ public:
 
 	void SetBackgroundColor(Color background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
-
-	//[[nodiscard]] const RenderTarget& GetRenderTarget() const;
-	//[[nodiscard]] RenderTarget& GetRenderTarget();
 
 	//[[nodiscard]] SceneKey GetKey() const;
 
@@ -345,7 +370,6 @@ private:
 	Manager manager_;
 	Manager render_manager_;
 	Entity render_target_;
-	std::vector<Entity> display_list_;
 
 public:
 	SceneEventHandler events{ *this };
