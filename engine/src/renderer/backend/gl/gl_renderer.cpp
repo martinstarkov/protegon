@@ -257,6 +257,10 @@ RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
 	return p;
 }
 
+V2_int Renderer::GetTextureSize(TextureId texture) const {
+	return gl_->GetTextureSize(texture);
+}
+
 void Renderer::BindRenderTarget(RenderPass& p) {
 	// Bind the next write target (opposite of latest output; ping for first write)
 	RenderTarget write;

@@ -1,61 +1,69 @@
-// #include "ecs/components/sprite.h"
-//
-// #include <array>
-//
-// #include "core/app/manager.h"
-// #include "core/asset/asset_handle.h"
-// #include "ecs/components/draw.h"
-// #include "ecs/components/transform.h"
-// #include "ecs/entity.h"
-// #include "math/vector2.h"
-//
-// namespace ptgn {
-//
-// Sprite::Sprite(const Entity& entity) : Entity{ entity } {}
-//
-// void Sprite::Draw(const Entity& entity) {
-//	impl::DrawTexture(entity, false);
-// }
-//
-// Sprite& Sprite::SetTexture(const Handle<Texture>& texture) {
-//	if (Has<Handle<Texture>>()) {
-//		Get<Handle<Texture>>() = texture;
-//	} else {
-//		Add<Handle<Texture>>(texture);
-//	}
-//	return *this;
-// }
-//
-// V2_int Sprite::GetTextureSize() const {
-//	return impl::GetTextureSize(*this);
-// }
-//
+#include "runtime/ecs/components/sprite.h"
+
+#include "app/context.h"
+#include "core/math/vector2.h"
+#include "core/util/file.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/texture.h"
+#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_handle.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/components/transform.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/scene/scene.h"
+
+namespace ptgn {
+
+Entity SetTexture(Entity sprite, Handle<Asset::Texture> texture) {
+	sprite.Add<Handle<Asset::Texture>>(texture);
+	return sprite;
+}
+
+V2_int GetTextureSize(Entity sprite) {
+	const auto& renderer{ sprite.GetScene().app().renderer };
+	const auto& texture{ sprite.Get<Handle<Asset::Texture>>().Get() };
+	return renderer.GetTextureSize(texture);
+}
+
+// TODO: Fix.
 // V2_int Sprite::GetSize() const {
-//	return impl::GetCroppedSize(*this);
-// }
-//
+// return impl::GetCroppedSize(*this);
+//}
+
+// TODO: Fix.
 // V2_float Sprite::GetDisplaySize() const {
-//	return impl::GetDisplaySize(*this);
-// }
-//
+// return impl::GetDisplaySize(*this);
+//}
+
+// TODO: Fix.
 // void Sprite::SetDisplaySize(const V2_float& display_size) {
-//	impl::SetDisplaySize(*this, display_size);
-// }
-//
+// impl::SetDisplaySize(*this, display_size);
+//}
+
+// TODO: Fix.
 // std::array<V2_float, 4> Sprite::GetTextureCoordinates(bool flip_vertically) const {
-//	return impl::GetTextureCoordinates(*this, flip_vertically);
-// }
-//
-// Sprite CreateSprite(
-//	Manager& manager, const Handle<Texture>& texture, const V2_float& position, Origin draw_origin
-//) {
-//	Sprite sprite{ manager.CreateEntity() };
-//	SetDraw<Sprite>(sprite);
-//	sprite.SetTexture(texture);
-//	Show(sprite);
-//	SetPosition(sprite, position);
-//	SetDrawOrigin(sprite, draw_origin);
-//	return sprite;
-// }
-//
-// } // namespace ptgn
+// return impl::GetTextureCoordinates(*this, flip_vertically);
+//}
+
+Entity CreateSprite(
+	Manager& manager, Handle<Asset::Texture> texture, V2_float position //, Origin draw_origin
+) {
+	auto sprite{ manager.CreateEntity() };
+	// TODO: Fix.
+	// SetDraw<Sprite>(sprite);
+	// Show(sprite);
+	SetTexture(sprite, texture);
+	SetPosition(sprite, position);
+	// TODO: Fix.
+	// SetDrawOrigin(sprite, draw_origin);
+	return sprite;
+}
+
+Entity CreateSprite(Scene& scene, const path& asset_path, V2_float position) {
+	return CreateSprite(
+		static_cast<Manager&>(scene), scene.app().assets.LoadTexture(asset_path), position
+	);
+}
+
+} // namespace ptgn

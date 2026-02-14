@@ -12,6 +12,7 @@
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
 
@@ -72,7 +73,7 @@ public:
 	/// @return The game size scaling mode.
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
-	void DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size);
+	void DrawTexture(Texture texture, V2_float center, V2_float size);
 	void DrawRect(V2_float center, V2_float size, Color color);
 
 	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
@@ -89,6 +90,8 @@ public:
 	void SetColorMask(const ColorMaskState& color_mask);
 
 	RenderPass BeginPass(const RenderTarget& scene_target);
+
+	V2_int GetTextureSize(Texture texture) const;
 
 	// TODO: Move to private.
 	std::shared_ptr<impl::gl::Renderer> gl_renderer_;

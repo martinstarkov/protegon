@@ -102,6 +102,8 @@ public:
 
 	RenderPass BeginPass(const RenderTarget& scene_target);
 
+	V2_int GetTextureSize(TextureId texture) const;
+
 	// TODO: Move to private.
 	std::unique_ptr<GLContext> gl_;
 	// TODO: Move to private.

@@ -9,7 +9,7 @@ namespace ptgn {
 
 class AssetManager;
 
-enum Asset {
+enum class Asset {
 	Shader,
 	Texture,
 	Audio,
@@ -34,11 +34,11 @@ struct AssetTraits;
 		using Type = TypeName;                      \
 	};
 
-PTGN_DEFINE_ASSET_TRAIT(Shader, ShaderAsset)
-PTGN_DEFINE_ASSET_TRAIT(Texture, TextureAsset)
-PTGN_DEFINE_ASSET_TRAIT(Audio, AudioAsset)
-PTGN_DEFINE_ASSET_TRAIT(Font, FontAsset)
-PTGN_DEFINE_ASSET_TRAIT(Json, JsonAsset)
+PTGN_DEFINE_ASSET_TRAIT(Asset::Shader, ShaderAsset)
+PTGN_DEFINE_ASSET_TRAIT(Asset::Texture, TextureAsset)
+PTGN_DEFINE_ASSET_TRAIT(Asset::Audio, AudioAsset)
+PTGN_DEFINE_ASSET_TRAIT(Asset::Font, FontAsset)
+PTGN_DEFINE_ASSET_TRAIT(Asset::Json, JsonAsset)
 
 #undef PTGN_DEFINE_ASSET_TRAIT
 

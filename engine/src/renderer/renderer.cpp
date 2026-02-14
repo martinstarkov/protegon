@@ -17,6 +17,8 @@
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
 #include "runtime/event/event_handler.h"
@@ -93,7 +95,7 @@ ScalingMode Renderer::GetScalingMode() const {
 	return scaling_mode_;
 }
 
-void Renderer::DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size) {
+void Renderer::DrawTexture(Texture texture, V2_float center, V2_float size) {
 	gl_renderer_->DrawTexture(texture, center, size);
 }
 
@@ -234,6 +236,10 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 
 RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
 	return gl_renderer_->BeginPass(scene_target);
+}
+
+V2_int Renderer::GetTextureSize(Texture texture) const {
+	return gl_renderer_->GetTextureSize(texture);
 }
 
 void Renderer::BeginFrame() {

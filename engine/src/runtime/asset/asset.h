@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <memory>
 
-#include "renderer/backend/gl/gl_handle.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "serialization/json/json.h"
 
 struct MIX_Audio;
@@ -26,11 +27,19 @@ struct TTF_FontDeleter {
 };
 
 struct ShaderAsset {
-	gl::Shader shader;
+	operator Shader() const {
+		return shader;
+	}
+
+	Shader shader;
 };
 
 struct TextureAsset {
-	gl::Texture texture;
+	operator Texture() const {
+		return texture;
+	}
+
+	Texture texture;
 };
 
 struct AudioAsset {

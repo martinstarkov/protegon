@@ -57,17 +57,17 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	Handle<Audio> LoadAudio(const path& asset_path);
-	Handle<Json> LoadJson(const path& asset_path);
-	Handle<Shader> LoadShader(
+	Handle<Asset::Audio> LoadAudio(const path& audio_path);
+	Handle<Asset::Json> LoadJson(const path& json_path);
+	Handle<Asset::Shader> LoadShader(
 		std::variant<ShaderCode, path> source, const std::string& shader_name
 	);
-	Handle<Shader> LoadShader(
+	Handle<Asset::Shader> LoadShader(
 		std::variant<ShaderCode, std::string> vertex,
 		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
 	);
-	Handle<Texture> LoadTexture(const path& asset_path);
-	Handle<Font> LoadFont(const path& asset_path, float pt_size);
+	Handle<Asset::Texture> LoadTexture(const path& texture_path);
+	Handle<Asset::Font> LoadFont(const path& font_path, float point_size);
 
 private:
 	impl::SDLInstance& sdl_;

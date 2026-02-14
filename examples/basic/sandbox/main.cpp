@@ -10,6 +10,7 @@
 #include "platform/input/mouse.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/components/sprite.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/scene/scene.h"
@@ -144,6 +145,10 @@ public:
 		auto f = app().assets.LoadFont("assets/retro_gaming.ttf", 11);
 		auto t = app().assets.LoadTexture("assets/smile.png");
 		auto j = app().assets.LoadJson("assets/dialogue.json");
+
+		auto sprite = CreateSprite(*this, t, {});
+
+		auto sprite2 = CreateSprite(*this, "assets/smile.png", {});
 
 		PTGN_LOG("Loaded all assets!");
 	}
