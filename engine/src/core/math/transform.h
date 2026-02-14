@@ -1,40 +1,20 @@
 #pragma once
 
 #include <array>
-#include <cstdint>
 #include <span>
 #include <vector>
 
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
-#include "core/util/flags.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
 
 class Scene;
 
-namespace impl {
-
-enum class TransformDirty : std::uint8_t {
-	None	 = 0,
-	Position = 1 << 0,
-	Rotation = 1 << 1,
-	Scale	 = 1 << 2,
-};
-
-PTGN_FLAGS_OPERATORS(TransformDirty)
-
-} // namespace impl
-
 struct Transform {
-	Transform()			  = default;
-	~Transform() noexcept = default;
-	Transform(Transform&&) noexcept;
-	Transform& operator=(Transform&&) noexcept;
-	Transform(const Transform& other);
-	Transform& operator=(const Transform& other);
+	Transform() = default;
 
 	template <Arithmetic T>
 	Transform(const Vector2<T>& position) : position_{ position } {}
@@ -94,9 +74,6 @@ struct Transform {
 	Transform& ScaleX(float scale_x_multiplier);
 	Transform& ScaleY(float scale_y_multiplier);
 
-	[[nodiscard]] bool IsDirty() const;
-	void ClearDirtyFlags() const;
-
 	[[nodiscard]] V2_float Apply(V2_float point) const;
 
 	[[nodiscard]] V2_float ApplyInverse(V2_float point) const;
@@ -146,14 +123,9 @@ private:
 
 	V2_float scale_{ 1.0f, 1.0f };
 
-	// By default all flags are dirty.
-	mutable Flags<impl::TransformDirty> dirty_flags_{ impl::TransformDirty::Position |
-													  impl::TransformDirty::Rotation |
-													  impl::TransformDirty::Scale };
-
 	PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(
 		Transform, KeyValue("position", position_), KeyValue("rotation", rotation_),
-		KeyValue("scale", scale_), KeyValue("dirty_flags", dirty_flags_)
+		KeyValue("scale", scale_)
 	)
 };
 

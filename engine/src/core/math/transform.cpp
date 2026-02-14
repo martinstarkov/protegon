@@ -3,47 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <span>
-#include <utility>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "core/util/flags.h"
 
 namespace ptgn {
-
-Transform::Transform(const Transform& other) {
-	*this = other;
-}
-
-Transform& Transform::operator=(const Transform& other) {
-	if (&other != this) {
-		SetPosition(other.position_);
-		SetRotation(other.rotation_);
-		SetScale(other.scale_);
-	}
-	return *this;
-}
-
-Transform::Transform(Transform&& other) noexcept :
-	position_{ std::exchange(other.position_, {}) },
-	rotation_{ std::exchange(other.rotation_, 0.0f) },
-	scale_{ std::exchange(other.scale_, {}) },
-	dirty_flags_{ impl::TransformDirty::Position | impl::TransformDirty::Rotation |
-				  impl::TransformDirty::Scale } {}
-
-Transform& Transform::operator=(Transform&& other) noexcept {
-	if (&other != this) {
-		SetPosition(other.position_);
-		SetRotation(other.rotation_);
-		SetScale(other.scale_);
-		other.position_ = {};
-		other.rotation_ = 0.0f;
-		other.scale_	= {};
-	}
-	return *this;
-}
 
 Transform::Transform(V2_float position, float rotation, V2_float scale) :
 	position_{ position }, rotation_{ rotation }, scale_{ scale } {}
@@ -107,11 +73,7 @@ Transform& Transform::SetPosition(std::size_t index, float position) {
 }
 
 Transform& Transform::SetPosition(V2_float position) {
-	if (position_ == position) {
-		return *this;
-	}
 	position_ = position;
-	dirty_flags_.Set(impl::TransformDirty::Position);
 	return *this;
 }
 
@@ -124,11 +86,7 @@ Transform& Transform::SetPositionY(float y) {
 }
 
 Transform& Transform::SetRotation(float rotation) {
-	if (rotation_ == rotation) {
-		return *this;
-	}
 	rotation_ = rotation;
-	dirty_flags_.Set(impl::TransformDirty::Rotation);
 	return *this;
 }
 
@@ -142,11 +100,7 @@ Transform& Transform::SetScale(float scale) {
 
 Transform& Transform::SetScale(V2_float scale) {
 	PTGN_ASSERT(!scale.HasZero(), "Cannot set transform scale with a zero component");
-	if (scale_ == scale) {
-		return *this;
-	}
 	scale_ = scale;
-	dirty_flags_.Set(impl::TransformDirty::Scale);
 	return *this;
 }
 
@@ -184,14 +138,6 @@ Transform& Transform::ScaleX(float scale_x_multiplier) {
 
 Transform& Transform::ScaleY(float scale_y_multiplier) {
 	return SetScaleY(scale_.y * scale_y_multiplier);
-}
-
-bool Transform::IsDirty() const {
-	return dirty_flags_.AnySet();
-}
-
-void Transform::ClearDirtyFlags() const {
-	dirty_flags_.ClearAll();
 }
 
 V2_float Transform::ApplyWithRotation(
