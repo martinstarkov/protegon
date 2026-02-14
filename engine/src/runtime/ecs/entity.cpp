@@ -126,8 +126,7 @@ std::size_t Entity::GetHash() const {
 bool Entity::WasCreatedBefore(const Entity& other) const {
 	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
 	auto version{ entity_.GetVersion() };
-	auto other_version{ other.entity_.GetVersion() };
-	if (version != other_version) {
+	if (auto other_version{ other.entity_.GetVersion() }; version != other_version) {
 		return version < other_version;
 	}
 	return entity_.GetId() < other.entity_.GetId();
