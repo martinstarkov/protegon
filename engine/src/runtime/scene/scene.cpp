@@ -5,6 +5,7 @@
 #include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "ecs/ecs.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
@@ -13,6 +14,8 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
+#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -62,21 +65,21 @@ void Scene::RemoveFromDisplayList(Entity entity) {
 }
 
 Entity Scene::CreateEntity() {
-	auto entity{ Manager::CreateEntity() };
+	auto entity{ manager_.CreateEntity() };
 	entity.scene_ = this;
 	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(UUID uuid) {
-	auto entity{ Manager::CreateEntity(uuid) };
+	auto entity{ manager_.CreateEntity(uuid) };
 	entity.scene_ = this;
 	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(const json& j) {
-	auto entity{ Manager::CreateEntity(j) };
+	auto entity{ manager_.CreateEntity(j) };
 	entity.scene_ = this;
 	// PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
 	return entity;
@@ -163,11 +166,12 @@ Color Scene::GetBackgroundColor() const {
 void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 
-	render_target_ = CreateRenderTarget(
-		render_manager_, app().renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8
+	render_target_ = impl::CreateRenderTarget(
+		render_manager_.CreateEntity(), app().renderer, ResizeMode::DisplaySize,
+		TextureFormat::RGBA8
 	);
-	camera		 = CreateCamera(render_manager_, app().renderer);
-	fixed_camera = CreateCamera(render_manager_, app().renderer);
+	camera		 = impl::CreateCamera(render_manager_.CreateEntity(), app().renderer);
+	fixed_camera = impl::CreateCamera(render_manager_.CreateEntity(), app().renderer);
 }
 
 // void Scene::SetKey(const SceneKey& key) {
@@ -192,7 +196,7 @@ void Scene::InternalExit() {
 	OnExit();
 	Refresh();
 	// Clears component hooks.
-	Reset();
+	manager_.Reset();
 	// physics = {};
 	//  TODO: Fix.
 	/*render_target_.ClearDisplayList();
@@ -219,6 +223,14 @@ void Scene::InternalDraw() {
 		// TODO: Fix. Clear render target with its clear color instead of transparent.
 		app().renderer.ClearRenderTarget(rt, color::Transparent);
 	}
+
+	for (auto [e, handle] : EntitiesWith<Handle<Asset::Texture>>()) {
+		PTGN_LOG(
+			"Entity ", e.GetHash(), ", texture size: ", app().renderer.GetTextureSize(handle.Get())
+		);
+	}
+
+	PTGN_LOG("---");
 
 	// TODO: Draw render target display lists to their render targets.
 	// TODO: Draw display list to render target.
@@ -307,8 +319,12 @@ void Scene::InternalUpdate() {
 	// invoke_scripts(*this);
 }
 
+void Scene::Refresh() {
+	manager_.Refresh();
+}
+
 void to_json(json& j, const Scene& scene) {
-	to_json(j["manager"], static_cast<const Manager&>(scene));
+	to_json(j["manager"], scene.manager_);
 	/*j["camera"]				 = scene.camera;
 	j["key"]				 = scene.key_;
 	j["physics"]			 = scene.physics;
@@ -320,13 +336,13 @@ void to_json(json& j, const Scene& scene) {
 }
 
 void from_json(const json& j, Scene& scene) {
-	scene.Reset();
+	scene.manager_.Reset();
 
 	// j.at("key").get_to(scene.key_);
 
 	// Ensure manager is deserialized before any of the other scene systems which may reference
 	// manager entities (such as the CameraManager).
-	from_json(j.at("manager"), static_cast<Manager&>(scene));
+	from_json(j.at("manager"), scene.manager_);
 
 	// j.at("physics").get_to(scene.physics);
 

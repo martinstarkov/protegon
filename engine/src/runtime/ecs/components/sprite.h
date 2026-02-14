@@ -36,7 +36,7 @@ Entity SetTexture(Entity sprite, Handle<Asset::Texture> texture);
 //[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(bool flip_vertically) const;
 
 Entity CreateSprite(
-	Manager& manager, Handle<Asset::Texture> texture, V2_float position = {}
+	Scene& scene, Handle<Asset::Texture> texture, V2_float position = {}
 	// TODO: Readd origin.
 	// Origin draw_origin = Origin::Center
 );

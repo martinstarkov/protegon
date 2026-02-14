@@ -32,9 +32,62 @@ private:
 	Scene& scene_;
 };
 
-/*
+template <typename SceneT, typename EcsView>
+struct SceneEntityRange {
+	SceneT* scene;
+	EcsView view;
 
-// TODO: Add this.
+	struct iterator {
+		SceneT* scene;
+		using EcsIterator = decltype(std::declval<EcsView&>().begin());
+		EcsIterator it;
+
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type	= std::ptrdiff_t;
+
+		iterator& operator++() {
+			++it;
+			return *this;
+		}
+
+		iterator operator++(int) {
+			auto tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		bool operator==(const iterator& other) const {
+			return it == other.it;
+		}
+
+		bool operator!=(const iterator& other) const {
+			return it != other.it;
+		}
+
+		auto operator*() const {
+			// underlying is ecs::Entity
+			auto native_entity = *it;
+			return Entity{ native_entity, scene };
+		}
+	};
+
+	iterator begin() {
+		return { scene, view.begin() };
+	}
+
+	iterator end() {
+		return { scene, view.end() };
+	}
+
+	iterator begin() const {
+		return { scene, view.begin() };
+	}
+
+	iterator end() const {
+		return { scene, view.end() };
+	}
+};
+
 template <typename SceneT, typename EcsView, typename... TComponents>
 struct SceneEntitiesWithRange {
 	SceneT* scene;
@@ -71,10 +124,10 @@ struct SceneEntitiesWithRange {
 			auto underlying = *it; // tuple<ecs::Entity, TComponents&...>
 
 			return std::apply(
-				[this](auto&& nativeEntity, auto&&... comps) {
+				[this](auto&& native_entity, auto&&... comps) {
 					// Note: TComponents&... matches the underlying refs
 					return std::tuple<Entity, TComponents&...>{
-						Entity{ std::forward<decltype(nativeEntity)>(nativeEntity), scene },
+						Entity{ std::forward<decltype(native_entity)>(native_entity), scene },
 						static_cast<TComponents&>(comps)...
 					};
 				},
@@ -92,18 +145,68 @@ struct SceneEntitiesWithRange {
 	}
 };
 
-class Scene {
-public:
-	Scene() = default;
+/*
 
-	// Create your wrapped entity
-	Entity CreateEntity() {
-		auto h = manager_.CreateEntity();
-		// You may or may not want to Refresh here; depends on your design.
-		return Entity{ h, this };
+Scene scene;
+
+// Create entities
+for (int i = 0; i < 100; ++i) {
+	auto e = scene.CreateEntity();
+	e.Add<ProfileTestComponent>(3, 3);
+}
+
+// Iterate with components
+for (auto [e, c] : scene.EntitiesWith<ProfileTestComponent>()) {
+	c.x += 1;
+	// e is game::Entity, c is ProfileTestComponent&
+}
+
+// Just entities
+for (auto e : scene.Entities()) {
+	if (!e) {
+		continue;
 	}
+	// ...
+}
 
-	// ---- Views ----
+// Entities lacking a component
+for (auto e : scene.EntitiesWithout<ProfileTestComponent>()) {
+	// e is game::Entity
+}
+
+*/
+
+struct DisplayList {
+	std::vector<Entity> entities;
+};
+
+class Scene {
+protected:
+	// void SetColliderColor(Color collider_color);
+	// void SetColliderVisibility(bool collider_visibility);
+
+public:
+	Scene();
+	virtual ~Scene();
+
+	// Make sure to call Refresh() after this function.
+	Entity CreateEntity();
+
+	// Make sure to call Refresh() after this function.
+	// Creates an entity with a specific uuid.
+	Entity CreateEntity(UUID uuid);
+
+	// Make sure to call Refresh() after this function.
+	// Creates an entity from a json object.
+	Entity CreateEntity(const json& j);
+
+	// Make sure to call Refresh() after this function.
+	template <typename... Ts>
+	Entity CopyEntity(Entity from) {
+		auto entity{ manager_.CopyEntity<Ts...>(from) };
+		// entity.template Add<SceneKey>(key_);
+		return entity;
+	}
 
 	// All entities (no component constraint)
 	auto Entities() {
@@ -150,74 +253,6 @@ public:
 		};
 	}
 
-private:
-};
-
-*/
-
-/*
-
-Scene scene;
-
-// Create entities
-for (int i = 0; i < 100; ++i) {
-	auto e = scene.CreateEntity();
-	e.Add<ProfileTestComponent>(3, 3);
-}
-
-// Iterate with components
-for (auto [e, c] : scene.EntitiesWith<ProfileTestComponent>()) {
-	c.x += 1;
-	// e is game::Entity, c is ProfileTestComponent&
-}
-
-// Just entities
-for (auto e : scene.Entities()) {
-	if (!e) {
-		continue;
-	}
-	// ...
-}
-
-// Entities lacking a component
-for (auto e : scene.EntitiesWithout<ProfileTestComponent>()) {
-	// e is game::Entity
-}
-
-*/
-
-struct DisplayList {
-	std::vector<Entity> entities;
-};
-
-class Scene : public Manager {
-protected:
-	// void SetColliderColor(Color collider_color);
-	// void SetColliderVisibility(bool collider_visibility);
-
-public:
-	Scene();
-	~Scene() override;
-
-	// Make sure to call Refresh() after this function.
-	Entity CreateEntity() final;
-
-	// Make sure to call Refresh() after this function.
-	// Creates an entity with a specific uuid.
-	Entity CreateEntity(UUID uuid) final;
-
-	// Make sure to call Refresh() after this function.
-	// Creates an entity from a json object.
-	Entity CreateEntity(const json& j) final;
-
-	// Make sure to call Refresh() after this function.
-	template <typename... Ts>
-	Entity CopyEntity(Entity from) {
-		auto entity{ Manager::CopyEntity<Ts...>(from) };
-		// entity.template Add<SceneKey>(key_);
-		return entity;
-	}
-
 	// Call to simulate the scene being re-entered.
 	void ReEnter();
 
@@ -259,6 +294,8 @@ public:
 	/*SceneInput input;
 	Physics physics;
 	Camera camera;*/
+
+	void Refresh();
 
 	// A default camera with a viewport the size of the Application::Get().
 	// Camera fixed_camera;
@@ -305,6 +342,7 @@ private:
 
 	State state_{ State::Constructed };
 
+	Manager manager_;
 	Manager render_manager_;
 	Entity render_target_;
 	std::vector<Entity> display_list_;

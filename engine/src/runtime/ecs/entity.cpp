@@ -11,6 +11,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/scene/scene.h"
+#include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -119,8 +120,7 @@ UUID Entity::GetUUID() const {
 }
 
 std::size_t Entity::GetHash() const {
-	// TODO: Fix.
-	return 0;
+	return std::hash<ecs::impl::EntityHandle<JsonArchiver>>()(entity_);
 }
 
 bool Entity::WasCreatedBefore(const Entity& other) const {

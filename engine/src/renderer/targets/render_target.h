@@ -11,7 +11,6 @@
 
 namespace ptgn {
 
-class Manager;
 class Scene;
 class Renderer;
 
@@ -84,12 +83,21 @@ private:
 // TODO: Add clear color to render target as an optional component. Otherwise they should be cleared
 // to transparent.
 
+namespace impl {
+
+Entity CreateRenderTarget(
+	Entity render_target, const Renderer& renderer, ResizeMode resize_to_resolution,
+	TextureFormat texture_format
+);
+
+} // namespace impl
+
 /// Create a render target with a custom size.
 /// @param size The size of the render target and its camera viewport.
 /// @param clear_color The background color of the render target.
 /// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 Entity CreateRenderTarget(
-	Manager& manager, const Renderer& renderer, V2_int size,
+	Scene& scene, const Renderer& renderer, V2_int size,
 	TextureFormat texture_format = TextureFormat::RGBA8
 );
 
@@ -98,7 +106,7 @@ Entity CreateRenderTarget(
 /// @param clear_color The background color of the render target.
 /// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 Entity CreateRenderTarget(
-	Manager& manager, const Renderer& renderer,
+	Scene& scene, const Renderer& renderer,
 	ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
 	TextureFormat texture_format	= TextureFormat::RGBA8
 );

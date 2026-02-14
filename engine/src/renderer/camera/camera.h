@@ -12,7 +12,7 @@
 
 namespace ptgn {
 
-class Manager;
+class Scene;
 class Renderer;
 
 namespace impl {
@@ -92,10 +92,16 @@ void SetPixelRounding(Entity camera, bool enabled);
 /// the game size.
 void ResetCamera(Entity camera);
 
+namespace impl {
+
+Entity CreateCamera(Entity camera, const Renderer& renderer);
+
+} // namespace impl
+
 /// Create a default camera which has the same viewport as the game size (automatic resizing).
-Entity CreateCamera(Manager& manager, const Renderer& renderer);
+Entity CreateCamera(Scene& scene, const Renderer& renderer);
 
 /// Create a camera with a custom viewport.
-Entity CreateCamera(Manager& manager, const Renderer& renderer, V2_float viewport_size);
+Entity CreateCamera(Scene& scene, const Renderer& renderer, V2_float viewport_size);
 
 } // namespace ptgn

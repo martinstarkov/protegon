@@ -10,7 +10,6 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/components/transform.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/manager.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -47,9 +46,9 @@ V2_int GetTextureSize(Entity sprite) {
 //}
 
 Entity CreateSprite(
-	Manager& manager, Handle<Asset::Texture> texture, V2_float position //, Origin draw_origin
+	Scene& scene, Handle<Asset::Texture> texture, V2_float position //, Origin draw_origin
 ) {
-	auto sprite{ manager.CreateEntity() };
+	auto sprite{ scene.CreateEntity() };
 	// TODO: Fix.
 	// SetDraw<Sprite>(sprite);
 	// Show(sprite);
@@ -61,9 +60,7 @@ Entity CreateSprite(
 }
 
 Entity CreateSprite(Scene& scene, const path& asset_path, V2_float position) {
-	return CreateSprite(
-		static_cast<Manager&>(scene), scene.app().assets.LoadTexture(asset_path), position
-	);
+	return CreateSprite(scene, scene.app().assets.LoadTexture(asset_path), position);
 }
 
 } // namespace ptgn

@@ -17,7 +17,7 @@
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/components/transform.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/manager.h"
+#include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -269,8 +269,9 @@ void ResetCamera(Entity camera) {
 	AddScript<impl::CameraResizeScript>(camera);
 }
 
-Entity CreateCamera(Manager& manager, const Renderer& renderer) {
-	auto camera{ manager.CreateEntity() };
+namespace impl {
+
+Entity CreateCamera(Entity camera, const Renderer& renderer) {
 	camera.Add<Transform>();
 	camera.Add<impl::Camera>();
 	AddScript<impl::CameraResizeScript>(camera);
@@ -278,8 +279,14 @@ Entity CreateCamera(Manager& manager, const Renderer& renderer) {
 	return camera;
 }
 
-Entity CreateCamera(Manager& manager, const Renderer& renderer, V2_float viewport_size) {
-	auto camera{ CreateCamera(manager, renderer) };
+} // namespace impl
+
+Entity CreateCamera(Scene& scene, const Renderer& renderer) {
+	return impl::CreateCamera(scene.CreateEntity(), renderer);
+}
+
+Entity CreateCamera(Scene& scene, const Renderer& renderer, V2_float viewport_size) {
+	auto camera{ CreateCamera(scene, renderer) };
 	SetCameraViewport(camera, { {}, viewport_size });
 	return camera;
 }

@@ -9,7 +9,6 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/components/transform.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/manager.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -52,29 +51,31 @@ RenderTarget::RenderTarget(
 	size_{ size },
 	format_{ format } {}
 
-Entity AddRenderTargetComponents(
-	Entity entity, const Renderer& renderer, V2_int size, TextureFormat format
-) {
-	PTGN_ASSERT(entity);
+namespace impl {
 
-	SetPosition(entity, {});
+static Entity CreateRenderTarget(
+	Entity render_target, const Renderer& renderer, V2_int size, TextureFormat format
+) {
+	PTGN_ASSERT(render_target);
+
+	SetPosition(render_target, {});
 
 	// TODO: Add these.
 	// SetDraw<RenderTarget>(render_target);
 	// Show(render_target);
 
-	entity.Add<RenderTarget>(renderer.CreateRenderTarget(size, format));
+	render_target.Add<RenderTarget>(renderer.CreateRenderTarget(size, format));
 	// TODO: Clear render target.
 	// render_target.Clear();
 
-	return entity;
+	return render_target;
 }
 
 Entity CreateRenderTarget(
-	Manager& manager, const Renderer& renderer, ResizeMode resize_to_resolution,
+	Entity render_target, const Renderer& renderer, ResizeMode resize_to_resolution,
 	TextureFormat texture_format
 ) {
-	auto render_target{ manager.CreateEntity() };
+	PTGN_ASSERT(render_target);
 
 	V2_int resolution;
 
@@ -92,20 +93,28 @@ Entity CreateRenderTarget(
 		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
 	);
 
-	render_target = AddRenderTargetComponents(render_target, renderer, resolution, texture_format);
+	render_target = CreateRenderTarget(render_target, renderer, resolution, texture_format);
 
 	PTGN_ASSERT(render_target);
 
 	return render_target;
 }
 
+} // namespace impl
+
 Entity CreateRenderTarget(
-	Manager& manager, const Renderer& renderer, V2_int size, TextureFormat texture_format
+	Scene& scene, const Renderer& renderer, ResizeMode resize_to_resolution,
+	TextureFormat texture_format
 ) {
-	auto render_target{
-		AddRenderTargetComponents(manager.CreateEntity(), renderer, size, texture_format)
-	};
-	return render_target;
+	return impl::CreateRenderTarget(
+		scene.CreateEntity(), renderer, resize_to_resolution, texture_format
+	);
+}
+
+Entity CreateRenderTarget(
+	Scene& scene, const Renderer& renderer, V2_int size, TextureFormat texture_format
+) {
+	return impl::CreateRenderTarget(scene.CreateEntity(), renderer, size, texture_format);
 }
 
 } // namespace ptgn
