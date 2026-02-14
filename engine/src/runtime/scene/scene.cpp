@@ -163,9 +163,9 @@ Color Scene::GetBackgroundColor() const {
 void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 
-	render_target_ = render_manager_.CreateEntity();
-	render_target_ =
-		CreateRenderTarget(*this, app().renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8);
+	render_target_ = CreateRenderTarget(
+		render_manager_, app().renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8
+	);
 	camera		 = CreateCamera(render_manager_, app().renderer);
 	fixed_camera = CreateCamera(render_manager_, app().renderer);
 }
@@ -202,6 +202,8 @@ void Scene::InternalExit() {
 }
 
 void Scene::InternalDraw() {
+	// TODO: Bind camera.
+
 	impl::RecalculateViewProjection(camera);
 	impl::RecalculateViewProjection(fixed_camera);
 
@@ -217,6 +219,11 @@ void Scene::InternalDraw() {
 		// TODO: Fix. Clear render target with its clear color instead of transparent.
 		app().renderer.ClearRenderTarget(rt, color::Transparent);
 	}
+
+	// TODO: Draw render target display lists to their render targets.
+	// TODO: Draw display list to render target.
+	// TODO: Bind render target blend mode.
+	// TODO: Draw render target to screen target.
 
 	// TODO: Get rid of this.
 	// auto game_size{ ctx_->renderer.GetGameSize() };

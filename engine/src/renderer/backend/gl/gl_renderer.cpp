@@ -23,6 +23,7 @@
 #include "renderer/backend/gl/gl_handle.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
+#include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture_format.h"
@@ -642,8 +643,7 @@ void Renderer::BeginFrame() {
 	gl_->Clear();
 
 	BindRenderTarget(screen_target_);
-	// TODO: Change back to transparent.
-	gl_->ClearToColor(screen_target_.framebuffer_, color::Blue);
+	gl_->ClearToColor(screen_target_.framebuffer_, color::Transparent);
 }
 
 void Renderer::EndFrame(const Viewport& viewport) {
