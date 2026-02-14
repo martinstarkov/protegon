@@ -139,7 +139,7 @@ public:
 		op.kind	   = OperationKind::Switch;
 		op.make_to = [this, &args...]() {
 			auto scene{ std::make_unique<TScene>(args...) };
-			scene->ctx_ = ctx_;
+			scene->Init(ctx_);
 			return scene;
 		};
 		op.transition = std::move(transition);
@@ -156,7 +156,7 @@ public:
 		op.kind	   = OperationKind::Overlay;
 		op.make_to = [this, &args...]() {
 			auto scene{ std::make_unique<TScene>(args...) };
-			scene->ctx_ = ctx_;
+			scene->Init(ctx_);
 			return scene;
 		};
 		op.transition = std::move(transition);

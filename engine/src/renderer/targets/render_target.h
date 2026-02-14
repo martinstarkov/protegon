@@ -2,17 +2,43 @@
 
 #include <optional>
 
+#include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_handle.h"
 #include "renderer/resources/texture_format.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
+
+class Manager;
+class Scene;
+class Renderer;
 
 namespace impl::gl {
 
 class Renderer;
 
 } // namespace impl::gl
+
+namespace impl {
+
+class RenderTargetGameResizeScript : public Script {
+public:
+	void OnEvent(EventDispatcher d) override;
+};
+
+class RenderTargetDisplayResizeScript : public Script {
+public:
+	void OnEvent(EventDispatcher d) override;
+};
+
+} // namespace impl
+
+enum class ResizeMode {
+	GameSize,
+	DisplaySize
+};
 
 class RenderTarget {
 public:
@@ -55,6 +81,28 @@ private:
 	bool latest_is_ping{ true };	// valid only if has_written_once == true
 };
 
+// TODO: Add clear color to render target as an optional component. Otherwise they should be cleared
+// to transparent.
+
+/// Create a render target with a custom size.
+/// @param size The size of the render target and its camera viewport.
+/// @param clear_color The background color of the render target.
+/// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
+Entity CreateRenderTarget(
+	Manager& manager, const Renderer& renderer, V2_int size,
+	TextureFormat texture_format = TextureFormat::RGBA8
+);
+
+/// Create a render target that is continuously sized to the specified resolution.
+/// @param resize_to_resolution Which resolution the render target automatically resizes to.
+/// @param clear_color The background color of the render target.
+/// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
+Entity CreateRenderTarget(
+	Manager& manager, const Renderer& renderer,
+	ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
+	TextureFormat texture_format	= TextureFormat::RGBA8
+);
+
 } // namespace ptgn
 
 // #pragma once
@@ -85,10 +133,6 @@ private:
 // class Manager;
 // class RenderTarget;
 //
-// enum class ResizeMode {
-//	GameSize,
-//	DisplaySize
-// };
 //
 // enum class FilterType {
 //	Pre,
@@ -104,9 +148,6 @@ private:
 //	const Color& clear_color, TextureFormat texture_format
 //);
 //
-// struct DisplayList {
-//	std::vector<Entity> entities;
-// };
 //
 // struct ClearColor : public ColorComponent {
 //	using ColorComponent::ColorComponent;
@@ -276,25 +317,5 @@ private:
 // PTGN_DRAWABLE_REGISTER(RenderTarget);
 // PTGN_DRAW_FILTER_REGISTER(RenderTarget);
 //
-//// Create a render target with a custom size.
-//// @param size The size of the render target and its camera viewport.
-//// @param clear_color The background color of the render target.
-//// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
-// RenderTarget CreateRenderTarget(
-//	Manager& manager, const V2_int& size, const Color& clear_color = color::Transparent,
-//	TextureFormat texture_format = TextureFormat::RGBA8888, bool game_size_camera = false
-//);
-//
-//// Create a render target that is continuously sized to the specified resolution.
-//// @param resize_to_resolution Which resolution the render target automatically resizes to.
-//// @param clear_color The background color of the render target.
-//// @param game_size_camera If true, render target camera is set to auto resize to the game size
-//// instead of to the render target size.
-//// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
-// RenderTarget CreateRenderTarget(
-//	Manager& manager, ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
-//	bool game_size_camera = true, const Color& clear_color = color::Transparent,
-//	TextureFormat texture_format = TextureFormat::RGBA8888
-//);
 //
 // } // namespace ptgn

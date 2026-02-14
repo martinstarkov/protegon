@@ -10,6 +10,7 @@
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "renderer/camera/scaling_mode.h"
+#include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
@@ -78,6 +79,7 @@ public:
 	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
 	void BindRenderTarget(const RenderTarget& rt);
 	void BindRenderTarget(RenderPass& pass);
+	void ClearRenderTarget(const RenderTarget& rt, Color color = color::Transparent);
 
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetBlend(BlendMode mode, bool enabled = true);

@@ -12,6 +12,7 @@
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_handle.h"
+#include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/resources/vertex.h"
@@ -78,6 +79,7 @@ public:
 	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
 	void BindRenderTarget(const RenderTarget& rt);
 	void BindRenderTarget(RenderPass& pass);
+	void ClearRenderTarget(const RenderTarget& rt, Color color);
 
 	void DrawTexture(
 		ShaderId shader, TextureId texture, V2_float center, V2_float size,

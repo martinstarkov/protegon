@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <type_traits>
+#include <vector>
 
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
@@ -185,6 +186,10 @@ for (auto e : scene.EntitiesWithout<ProfileTestComponent>()) {
 
 */
 
+struct DisplayList {
+	std::vector<Entity> entities;
+};
+
 class Scene : public Manager {
 protected:
 	// void SetColliderColor(Color collider_color);
@@ -274,7 +279,7 @@ private:
 
 	void InternalEmit(EventDispatcher d);
 
-	void Init();
+	void Init(const std::shared_ptr<ApplicationContext>& ctx);
 	// void SetKey(const SceneKey& key);
 
 	// Called by scene manager when a new scene is loaded and entered.
@@ -300,8 +305,14 @@ private:
 
 	State state_{ State::Constructed };
 
+	Manager render_manager_;
+	Entity render_target_;
+	std::vector<Entity> display_list_;
+
 public:
 	SceneEventHandler events{ *this };
+	Entity fixed_camera;
+	Entity camera;
 };
 
 } // namespace ptgn

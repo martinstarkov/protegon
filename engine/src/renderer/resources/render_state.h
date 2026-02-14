@@ -8,14 +8,6 @@
 
 namespace ptgn {
 
-struct Viewport {
-	// Top left position.
-	V2_int position;
-	V2_int size;
-
-	bool operator==(const Viewport&) const = default;
-};
-
 //
 // Comparison function (glStencilFunc, glDepthFunc)
 //

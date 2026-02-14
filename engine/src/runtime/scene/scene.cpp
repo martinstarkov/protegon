@@ -1,13 +1,17 @@
 #include "runtime/scene/scene.h"
 
+#include <memory>
+
 #include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
-#include "nlohmann/json.hpp"
+#include "ecs/ecs.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
+#include "renderer/camera/camera.h"
 #include "renderer/image/surface.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
@@ -23,18 +27,7 @@ void SceneEventHandler::Emit(EventDispatcher d) {
 	scene_.InternalEmit(d);
 }
 
-Scene::Scene() {
-	// TODO: Fix.
-	// auto& app{ Application::Get() };
-	// auto& render_manager{ app.render_.render_data_.render_manager };
-	// render_target_ = CreateRenderTarget(
-	//	render_manager, ResizeMode::DisplaySize, true, color::Transparent, TextureFormat::RGBA8888
-	//);
-	// PTGN_ASSERT(render_target_.Has<GameObject<Camera>>());
-	// camera		 = render_target_.Get<GameObject<Camera>>();
-	// fixed_camera = CreateCamera(render_manager);
-	// SetBlendMode(render_target_, BlendMode::Blend);
-}
+Scene::Scene() {}
 
 Scene::~Scene() {
 	// TODO: Fix.
@@ -167,10 +160,14 @@ Color Scene::GetBackgroundColor() const {
 //	return key_;
 // }
 
-void Scene::Init() {
-	// TODO: Fix.
-	// render_target_.Get<GameObject<Camera>>().Reset();
-	// fixed_camera.Reset();
+void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
+	ctx_ = ctx;
+
+	render_target_ = render_manager_.CreateEntity();
+	render_target_ =
+		CreateRenderTarget(*this, app().renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8);
+	camera		 = CreateCamera(render_manager_, app().renderer);
+	fixed_camera = CreateCamera(render_manager_, app().renderer);
 }
 
 // void Scene::SetKey(const SceneKey& key) {
@@ -186,7 +183,6 @@ void Scene::InternalEnter() {
 	// OnConstruct<impl::IDrawable>().Connect<Scene, &Scene::AddToDisplayList>(this);
 	// OnDestruct<impl::IDrawable>().Connect<Scene, &Scene::RemoveFromDisplayList>(this);
 
-	Init();
 	OnEnter();
 	Refresh();
 }
@@ -206,6 +202,22 @@ void Scene::InternalExit() {
 }
 
 void Scene::InternalDraw() {
+	impl::RecalculateViewProjection(camera);
+	impl::RecalculateViewProjection(fixed_camera);
+
+	for (auto [e, _camera] : EntitiesWith<impl::Camera>()) {
+		impl::RecalculateViewProjection(e);
+	}
+
+	app().renderer.ClearRenderTarget(render_target_.Get<RenderTarget>(), color::Transparent);
+
+	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
+		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
+		// exist.
+		// TODO: Fix. Clear render target with its clear color instead of transparent.
+		app().renderer.ClearRenderTarget(rt, color::Transparent);
+	}
+
 	// TODO: Get rid of this.
 	// auto game_size{ ctx_->renderer.GetGameSize() };
 	// auto game_size{ ctx_->renderer.gl_renderer_->screen_target_.GetSize() };
@@ -286,12 +298,6 @@ void Scene::InternalUpdate() {
 	// physics.PostCollisionUpdate(*this);
 
 	// invoke_scripts(*this);
-
-	// TODO: Update dirty vertex caches.
-
-	/*for (auto [entity, transform] : InternalEntitiesWith<Transform>()) {
-		transform.ClearDirtyFlags();
-	}*/
 }
 
 void to_json(json& j, const Scene& scene) {
@@ -334,17 +340,7 @@ const ApplicationContext& Scene::app() const {
 }
 
 void Scene::InternalEmit(EventDispatcher d) {
-	// TODO: Resize all RenderTarget entities that subscribe to DisplayResized or GameResized.
-	/*
-	d.Dispatch([this](const impl::DisplayResized& e) {
-
-	});
-	d.Dispatch([this](const GameResized& e) {
-
-	});
-	*/
-
-	for (auto [e, scripts] : EntitiesWith<Scripts>()) {
+	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
 		scripts.Emit(d);
 		if (d.IsHandled()) {
 			break;

@@ -56,6 +56,8 @@ public:
 	template <typename TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
+		renderer_.UpdateDisplayViewport(window_.GetSize(), false);
+
 		// Initialize the first scene using the SceneManager.
 		scenes_.SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
 

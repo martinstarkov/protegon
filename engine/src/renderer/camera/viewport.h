@@ -5,7 +5,13 @@
 
 namespace ptgn {
 
-struct Transform;
+struct Viewport {
+	// Top left position.
+	V2_int position;
+	V2_int size;
+
+	bool operator==(const Viewport&) const = default;
+};
 
 enum class ViewportType {
 	Game,
@@ -24,6 +30,8 @@ PTGN_SERIALIZE_ENUM(
 );
 
 /*
+// TODO: Fix these.
+
 [[nodiscard]] V2_float DisplayToGame(V2_float game_scale, V2_float display_point);
 [[nodiscard]] V2_float DisplayToWorld(
 	V2_float game_scale, const Transform& rt_transform, V2_float display_point,

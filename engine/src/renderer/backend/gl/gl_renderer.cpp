@@ -273,6 +273,12 @@ void Renderer::BindRenderTarget(RenderPass& p) {
 	BindRenderTarget(write);
 }
 
+void Renderer::ClearRenderTarget(const RenderTarget& rt, Color color) {
+	auto bind_guard = gl_->Bind(rt.framebuffer_, true);
+	gl_->SetViewport({ {}, rt.size_ });
+	gl_->ClearToColor(rt.framebuffer_, color);
+}
+
 void Renderer::FlushBatch() {
 	if (batch_indices_.empty()) {
 		return; // Nothing to draw

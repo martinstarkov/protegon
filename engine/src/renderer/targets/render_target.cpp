@@ -1,10 +1,38 @@
 #include "render_target.h"
 
+#include "app/context.h"
+#include "core/assert.h"
+#include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_handle.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
+#include "runtime/ecs/components/transform.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
 
 namespace ptgn {
+
+namespace impl {
+
+void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<GameResized>([this](auto& e) {
+		auto& rt{ entity.Get<RenderTarget>() };
+		entity.GetScene().app().renderer.ResizeRenderTarget(rt, e.size);
+	});
+}
+
+void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<DisplayResized>([this](auto& e) {
+		auto& rt{ entity.Get<RenderTarget>() };
+		entity.GetScene().app().renderer.ResizeRenderTarget(rt, e.size);
+	});
+}
+
+} // namespace impl
 
 V2_int RenderTarget::GetSize() const {
 	return size_;
@@ -23,6 +51,62 @@ RenderTarget::RenderTarget(
 	depth_{ depth },
 	size_{ size },
 	format_{ format } {}
+
+Entity AddRenderTargetComponents(
+	Entity entity, const Renderer& renderer, V2_int size, TextureFormat format
+) {
+	PTGN_ASSERT(entity);
+
+	SetPosition(entity, {});
+
+	// TODO: Add these.
+	// SetDraw<RenderTarget>(render_target);
+	// Show(render_target);
+
+	entity.Add<RenderTarget>(renderer.CreateRenderTarget(size, format));
+	// TODO: Clear render target.
+	// render_target.Clear();
+
+	return entity;
+}
+
+Entity CreateRenderTarget(
+	Manager& manager, const Renderer& renderer, ResizeMode resize_to_resolution,
+	TextureFormat texture_format
+) {
+	auto render_target{ manager.CreateEntity() };
+
+	V2_int resolution;
+
+	if (resize_to_resolution == ResizeMode::DisplaySize) {
+		resolution = renderer.GetDisplaySize();
+		AddScript<impl::RenderTargetDisplayResizeScript>(render_target);
+	} else if (resize_to_resolution == ResizeMode::GameSize) {
+		resolution = renderer.GetGameSize();
+		AddScript<impl::RenderTargetGameResizeScript>(render_target);
+	} else {
+		PTGN_ERROR("Unknown resize to resolution value");
+	}
+
+	PTGN_ASSERT(
+		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
+	);
+
+	render_target = AddRenderTargetComponents(render_target, renderer, resolution, texture_format);
+
+	PTGN_ASSERT(render_target);
+
+	return render_target;
+}
+
+Entity CreateRenderTarget(
+	Manager& manager, const Renderer& renderer, V2_int size, TextureFormat texture_format
+) {
+	auto render_target{
+		AddRenderTargetComponents(manager.CreateEntity(), renderer, size, texture_format)
+	};
+	return render_target;
+}
 
 } // namespace ptgn
 
@@ -55,38 +139,6 @@ RenderTarget::RenderTarget(
 //
 // namespace impl {
 //
-// RenderTarget AddRenderTargetComponents(
-//	const Entity& entity, Manager& manager, const V2_int& render_target_size, bool game_size_camera,
-//	const Color& clear_color, TextureFormat texture_format
-//) {
-//	PTGN_ASSERT(entity);
-//
-//	RenderTarget render_target{ entity };
-//
-//	SetPosition(render_target, {});
-//
-//	render_target.Add<TextureHandle>();
-//	render_target.Add<impl::DisplayList>();
-//	render_target.Add<impl::ClearColor>(clear_color);
-//	auto& camera{ render_target.Add<GameObject<Camera>>(CreateCamera(manager)) };
-//	if (!game_size_camera) {
-//		camera.SetViewport({}, render_target_size);
-//	}
-//	SetDraw<RenderTarget>(render_target);
-//	Show(render_target);
-//
-//	// TODO: Move frame buffer object to a FrameBufferManager.
-//	const auto& frame_buffer{ render_target.Add<impl::FrameBuffer>(
-//		impl::Texture{ nullptr, render_target_size, texture_format }, true
-//	) };
-//
-//	PTGN_ASSERT(frame_buffer.IsValid(), "Failed to create valid frame buffer for render target");
-//	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind frame buffer for render target");
-//
-//	render_target.Clear();
-//
-//	return render_target;
-// }
 //
 // void GameResizeScript::OnGameSizeChanged() {
 //	auto game_size{ Application::Get().render_.GetGameSize() };
@@ -263,45 +315,5 @@ RenderTarget::RenderTarget(
 //	return *this;
 // }
 //
-// RenderTarget CreateRenderTarget(
-//	Manager& manager, ResizeMode resize_to_resolution, bool game_size_camera,
-//	const Color& clear_color, TextureFormat texture_format
-//) {
-//	RenderTarget render_target{ manager.CreateEntity() };
-//
-//	V2_int resolution;
-//
-//	if (resize_to_resolution == ResizeMode::DisplaySize) {
-//		resolution = Application::Get().render_.GetDisplaySize();
-//		AddScript<impl::DisplayResizeScript>(render_target);
-//	} else if (resize_to_resolution == ResizeMode::GameSize) {
-//		resolution = Application::Get().render_.GetGameSize();
-//		AddScript<impl::GameResizeScript>(render_target);
-//	} else {
-//		PTGN_ERROR("Unknown resize to resolution value");
-//	}
-//
-//	PTGN_ASSERT(
-//		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
-//	);
-//
-//	render_target = impl::AddRenderTargetComponents(
-//		render_target, manager, resolution, game_size_camera, clear_color, texture_format
-//	);
-//
-//	PTGN_ASSERT(render_target);
-//
-//	return render_target;
-// }
-//
-// RenderTarget CreateRenderTarget(
-//	Manager& manager, const V2_int& size, const Color& clear_color, TextureFormat texture_format,
-//	bool game_size_camera
-//) {
-//	auto render_target{ impl::AddRenderTargetComponents(
-//		manager.CreateEntity(), manager, size, game_size_camera, clear_color, texture_format
-//	) };
-//	return render_target;
-// }
 //
 // } // namespace ptgn

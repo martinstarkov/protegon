@@ -196,6 +196,10 @@ void Renderer::ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const {
 	gl_renderer_->ResizeRenderTarget(rt, new_size);
 }
 
+void Renderer::ClearRenderTarget(const RenderTarget& rt, Color color) {
+	gl_renderer_->ClearRenderTarget(rt, color);
+}
+
 void Renderer::BindRenderTarget(const RenderTarget& rt) {
 	gl_renderer_->BindRenderTarget(rt);
 }
