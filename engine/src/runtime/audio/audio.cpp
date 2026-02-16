@@ -1,3 +1,24 @@
+#include "runtime/audio/audio.h"
+
+#include <SDL3_mixer/SDL_mixer.h>
+
+#include <memory>
+#include <utility>
+
+namespace ptgn {
+
+namespace impl {
+
+void MIX_AudioDeleter::operator()(MIX_Audio* audio) const {
+	MIX_DestroyAudio(audio);
+}
+
+} // namespace impl
+
+Audio::Audio(const std::shared_ptr<MIX_Audio>& audio) : audio_{ audio } {}
+
+} // namespace ptgn
+
 // #include "audio/audio.h"
 //
 // #include <chrono>

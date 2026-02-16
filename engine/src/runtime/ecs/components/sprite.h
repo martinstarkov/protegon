@@ -3,8 +3,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
+#include "renderer/resources/handle.h"
 #include "runtime/ecs/components/drawable.h"
-#include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/entity.h"
 
@@ -40,11 +40,10 @@ struct TextureCrop {
 
 } // namespace impl
 
-Entity SetTexture(Entity sprite, Handle<Asset::Texture> texture);
+Entity SetTexture(Entity sprite, Texture texture);
 
 Entity CreateSprite(
-	Scene& scene, Handle<Asset::Texture> texture, V2_float position = {},
-	Origin draw_origin = Origin::Center
+	Scene& scene, Texture texture, V2_float position = {}, Origin draw_origin = Origin::Center
 );
 
 Entity CreateSprite(

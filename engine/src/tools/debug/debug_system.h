@@ -5,7 +5,6 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/components/generic.h"
 #include "tools/debug/allocation.h"
 #include "tools/debug/stats.h"

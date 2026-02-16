@@ -1,12 +1,14 @@
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <variant>
 
 #include "core/util/file.h"
+#include "renderer/primitives/font.h"
+#include "renderer/resources/handle.h"
 #include "renderer/resources/shader.h"
-#include "runtime/asset/asset_handle.h"
+#include "runtime/audio/audio.h"
+#include "serialization/json/json.h"
 
 // TODO: Add something along the lines of:
 
@@ -57,17 +59,15 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	Handle<Asset::Audio> LoadAudio(const path& audio_path);
-	Handle<Asset::Json> LoadJson(const path& json_path);
-	Handle<Asset::Shader> LoadShader(
-		std::variant<ShaderCode, path> source, const std::string& shader_name
+	Audio LoadAudio(const path& audio_path);
+	json LoadJson(const path& json_path);
+	Shader LoadShader(const std::variant<ShaderCode, path>& source, const std::string& shader_name);
+	Shader LoadShader(
+		const std::variant<ShaderCode, std::string>& vertex,
+		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 	);
-	Handle<Asset::Shader> LoadShader(
-		std::variant<ShaderCode, std::string> vertex,
-		std::variant<ShaderCode, std::string> fragment, const std::string& shader_name
-	);
-	Handle<Asset::Texture> LoadTexture(const path& texture_path);
-	Handle<Asset::Font> LoadFont(const path& font_path, float point_size);
+	Texture LoadTexture(const path& texture_path);
+	Font LoadFont(const path& font_path, float point_size);
 
 private:
 	impl::SDLInstance& sdl_;

@@ -81,21 +81,22 @@ private:
 
 } // namespace impl
 
-using Shader		  = impl::StrongHandle<impl::Resource::Shader>;
+using Shader		= impl::StrongHandle<impl::Resource::Shader>;
+using VertexBuffer	= impl::StrongHandle<impl::Resource::VertexBuffer>;
+using ElementBuffer = impl::StrongHandle<impl::Resource::ElementBuffer>;
+using UniformBuffer = impl::StrongHandle<impl::Resource::UniformBuffer>;
+using Texture		= impl::StrongHandle<impl::Resource::Texture>;
+using Renderbuffer	= impl::StrongHandle<impl::Resource::Renderbuffer>;
+using Framebuffer	= impl::StrongHandle<impl::Resource::Framebuffer>;
+using VertexArray	= impl::StrongHandle<impl::Resource::VertexArray>;
+
 using ShaderId		  = impl::WeakHandle<impl::Resource::Shader>;
-using VertexBuffer	  = impl::StrongHandle<impl::Resource::VertexBuffer>;
 using VertexBufferId  = impl::WeakHandle<impl::Resource::VertexBuffer>;
-using ElementBuffer	  = impl::StrongHandle<impl::Resource::ElementBuffer>;
 using ElementBufferId = impl::WeakHandle<impl::Resource::ElementBuffer>;
-using UniformBuffer	  = impl::StrongHandle<impl::Resource::UniformBuffer>;
 using UniformBufferId = impl::WeakHandle<impl::Resource::UniformBuffer>;
-using Texture		  = impl::StrongHandle<impl::Resource::Texture>;
 using TextureId		  = impl::WeakHandle<impl::Resource::Texture>;
-using Renderbuffer	  = impl::StrongHandle<impl::Resource::Renderbuffer>;
 using RenderbufferId  = impl::WeakHandle<impl::Resource::Renderbuffer>;
-using Framebuffer	  = impl::StrongHandle<impl::Resource::Framebuffer>;
 using FramebufferId	  = impl::WeakHandle<impl::Resource::Framebuffer>;
-using VertexArray	  = impl::StrongHandle<impl::Resource::VertexArray>;
 using VertexArrayId	  = impl::WeakHandle<impl::Resource::VertexArray>;
 
 } // namespace ptgn

@@ -1,22 +1,25 @@
 #include "runtime/asset/asset_manager.h"
 
+#include <SDL3/SDL_error.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "app/application.h"
 #include "core/assert.h"
 #include "core/util/file.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/image/surface.h"
+#include "renderer/primitives/font.h"
+#include "renderer/resources/handle.h"
 #include "renderer/resources/shader.h"
-#include "runtime/asset/asset.h"
-#include "runtime/asset/asset_handle.h"
+#include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 
 // TODO: Add async asset loading.
@@ -26,37 +29,32 @@ namespace ptgn {
 AssetManager::AssetManager(impl::SDLInstance& sdl, impl::gl::GLContext& gl) :
 	sdl_{ sdl }, gl_{ gl } {}
 
-Handle<Asset::Shader> AssetManager::LoadShader(
-	std::variant<ShaderCode, path> source, const std::string& shader_name
+Shader AssetManager::LoadShader(
+	const std::variant<ShaderCode, path>& source, const std::string& shader_name
 ) {
-	auto shader = gl_.CreateShader(source, shader_name);
-
-	return Handle<Asset::Shader>{ std::make_shared<impl::ShaderAsset>(std::move(shader)) };
+	return gl_.CreateShader(source, shader_name);
 }
 
-Handle<Asset::Shader> AssetManager::LoadShader(
-	std::variant<ShaderCode, std::string> vertex, std::variant<ShaderCode, std::string> fragment,
-	const std::string& shader_name
+Shader AssetManager::LoadShader(
+	const std::variant<ShaderCode, std::string>& vertex,
+	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 ) {
-	auto shader = gl_.CreateShader(vertex, fragment, shader_name);
-
-	return Handle<Asset::Shader>{ std::make_shared<impl::ShaderAsset>(std::move(shader)) };
+	return gl_.CreateShader(vertex, fragment, shader_name);
 }
 
-Handle<Asset::Texture> AssetManager::LoadTexture(const path& asset_path) {
+Texture AssetManager::LoadTexture(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create texture from invalid path: ", asset_path.string()
 	);
 
 	impl::Surface surface{ asset_path };
 
-	auto texture =
-		gl_.CreateTexture(surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA);
-
-	return Handle<Asset::Texture>{ std::make_shared<impl::TextureAsset>(std::move(texture)) };
+	return gl_.CreateTexture(
+		surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA
+	);
 }
 
-Handle<Asset::Font> AssetManager::LoadFont(const path& asset_path, float pt_size) {
+Font AssetManager::LoadFont(const path& asset_path, float pt_size) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create font from invalid path: ", asset_path.string()
 	);
@@ -65,12 +63,12 @@ Handle<Asset::Font> AssetManager::LoadFont(const path& asset_path, float pt_size
 
 	PTGN_ASSERT(ttf_font, SDL_GetError());
 
-	std::unique_ptr<TTF_Font, impl::TTF_FontDeleter> font{ ttf_font, impl::TTF_FontDeleter{} };
+	std::shared_ptr<TTF_Font> font{ ttf_font, impl::TTF_FontDeleter{} };
 
-	return Handle<Asset::Font>{ std::make_shared<impl::FontAsset>(std::move(font), pt_size) };
+	return Font{ font, pt_size };
 }
 
-Handle<Asset::Audio> AssetManager::LoadAudio(const path& asset_path) {
+Audio AssetManager::LoadAudio(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create audio from invalid path: ", asset_path.string()
 	);
@@ -81,19 +79,17 @@ Handle<Asset::Audio> AssetManager::LoadAudio(const path& asset_path) {
 
 	PTGN_ASSERT(mix_audio, SDL_GetError());
 
-	std::unique_ptr<MIX_Audio, impl::MIX_AudioDeleter> music{ mix_audio, impl::MIX_AudioDeleter{} };
+	std::shared_ptr<MIX_Audio> music{ mix_audio, impl::MIX_AudioDeleter{} };
 
-	return Handle<Asset::Audio>{ std::make_shared<impl::AudioAsset>(std::move(music)) };
+	return Audio{ music };
 }
 
-Handle<Asset::Json> AssetManager::LoadJson(const path& asset_path) {
+json AssetManager::LoadJson(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create json from invalid path: ", asset_path.string()
 	);
 
-	auto json = ptgn::LoadJson(asset_path);
-
-	return Handle<Asset::Json>{ std::make_shared<impl::JsonAsset>(std::move(json)) };
+	return ptgn::LoadJson(asset_path);
 }
 
 } // namespace ptgn

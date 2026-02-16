@@ -1,4 +1,32 @@
-// #pragma once
+#pragma once
+
+#include <memory>
+
+struct MIX_Audio;
+
+namespace ptgn {
+
+class AssetManager;
+
+namespace impl {
+
+struct MIX_AudioDeleter {
+	void operator()(MIX_Audio* audio) const;
+};
+
+} // namespace impl
+
+class Audio {
+private:
+	friend class AssetManager;
+
+	explicit Audio(const std::shared_ptr<MIX_Audio>& audio);
+
+	std::shared_ptr<MIX_Audio> audio_;
+};
+
+} // namespace ptgn
+
 //
 // #include <memory>
 //

@@ -1,6 +1,7 @@
 #include "runtime/scene/scene.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "app/context.h"
@@ -13,14 +14,12 @@
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/camera.h"
 #include "renderer/image/surface.h"
-#include "runtime/ecs/components/draw.h"
-#include "runtime/ecs/components/drawable.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/targets/render_target.h"
-#include "runtime/asset/asset.h"
-#include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/render_target_component.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"

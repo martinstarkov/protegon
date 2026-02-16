@@ -1,3 +1,25 @@
+#include "renderer/primitives/font.h"
+
+#include <SDL3_ttf/SDL_ttf.h>
+
+#include <memory>
+#include <utility>
+
+namespace ptgn {
+
+namespace impl {
+
+void TTF_FontDeleter::operator()(TTF_Font* font) const {
+	TTF_CloseFont(font);
+}
+
+} // namespace impl
+
+Font::Font(const std::shared_ptr<TTF_Font>& font, float pt_size) :
+	font_{ font }, pt_size_{ pt_size } {}
+
+} // namespace ptgn
+
 // #include "renderer/text/font.h"
 //
 // #include <cstdint>
@@ -179,8 +201,9 @@
 // }
 //
 // Font FontManager::LoadFromBinary(const FontBinary& binary, std::int32_t size, std::int32_t index)
-// { 	auto raw_buffer{ GetRawBuffer(binary) }; 	return Font{ LoadFromBinary(raw_buffer, size, index,
-//true) };
+// { 	auto raw_buffer{ GetRawBuffer(binary) }; 	return Font{ LoadFromBinary(raw_buffer, size,
+// index,
+// true) };
 // }
 //
 // SDL_RWops* FontManager::GetRawBuffer(const FontBinary& binary) {

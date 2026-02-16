@@ -5,12 +5,11 @@
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "renderer/camera/camera.h"
-#include "runtime/ecs/components/draw.h"
 #include "renderer/renderer.h"
-#include "runtime/asset/asset.h"
-#include "runtime/asset/asset_handle.h"
+#include "renderer/resources/handle.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
@@ -25,21 +24,18 @@ void Sprite::Draw(Renderer& renderer, Entity entity) {
 	renderer.SetBlend(GetBlendMode(entity));
 	// TODO: Add rotation and flip here.
 	renderer.DrawTexture(
-		entity.Get<Handle<Asset::Texture>>().Get().texture, GetPosition(entity),
-		GetTextureSize(entity), GetTint(entity)
+		entity.Get<Texture>(), GetPosition(entity), GetTextureSize(entity), GetTint(entity)
 	);
 }
 
 } // namespace impl
 
-Entity SetTexture(Entity sprite, Handle<Asset::Texture> texture) {
-	sprite.Add<Handle<Asset::Texture>>(texture);
+Entity SetTexture(Entity sprite, Texture texture) {
+	sprite.Add<Texture>(texture);
 	return sprite;
 }
 
-Entity CreateSprite(
-	Scene& scene, Handle<Asset::Texture> texture, V2_float position, Origin draw_origin
-) {
+Entity CreateSprite(Scene& scene, Texture texture, V2_float position, Origin draw_origin) {
 	auto sprite{ scene.CreateEntity() };
 	SetDraw<impl::Sprite>(sprite);
 	Show(sprite);

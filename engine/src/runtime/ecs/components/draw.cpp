@@ -14,10 +14,9 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/handle.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
-#include "runtime/asset/asset.h"
-#include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/components/sprite.h"
@@ -151,10 +150,9 @@ V2_int GetTextureSize(Entity entity) {
 
 	if (entity.Has<impl::TextureSize>()) {
 		size = V2_int{ entity.Get<impl::TextureSize>() };
-	} else if (entity.Has<Handle<Asset::Texture>>()) {
+	} else if (entity.Has<Texture>()) {
 		const auto& renderer{ entity.GetScene().app().renderer };
-		const auto& texture{ entity.Get<Handle<Asset::Texture>>().Get() };
-		size = renderer.GetTextureSize(texture.texture);
+		size = renderer.GetTextureSize(entity.Get<Texture>());
 	}
 
 	PTGN_ASSERT(size.has_value(), "Entity does not have a texture");
@@ -176,7 +174,7 @@ void SetDisplaySize(Entity entity, V2_float display_size) {
 }
 
 V2_float GetDisplaySize(Entity entity) {
-	PTGN_ASSERT(entity.Has<Handle<Asset::Texture>>());
+	PTGN_ASSERT(entity.Has<Texture>());
 
 	return GetCroppedSize(entity) * GetScale(entity);
 }
