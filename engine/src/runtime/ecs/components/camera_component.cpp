@@ -1,4 +1,5 @@
-#include "renderer/camera/camera.h"
+
+#include "runtime/ecs/components/camera_component.h"
 
 #include <algorithm>
 #include <array>
@@ -12,10 +13,11 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/camera/camera.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
-#include "runtime/ecs/components/entity_transform.h"
+#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"

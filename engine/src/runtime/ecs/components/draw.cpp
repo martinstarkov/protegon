@@ -1,4 +1,4 @@
-#include "renderer/primitives/draw.h"
+#include "runtime/ecs/components/draw.h"
 
 #include <algorithm>
 #include <array>
@@ -13,15 +13,15 @@
 #include "core/graphics/flip.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/drawable.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_handle.h"
-#include "runtime/ecs/components/entity_transform.h"
+#include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene.h"

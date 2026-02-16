@@ -1,4 +1,4 @@
-#include "runtime/ecs/components/entity_transform.h"
+#include "runtime/ecs/components/transform_component.h"
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"

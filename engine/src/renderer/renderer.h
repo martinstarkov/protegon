@@ -108,9 +108,15 @@ private:
 	void EndFrame();
 
 	Window& window_;
+
+	// TODO: Figure out a way to decouple event emission (specifically with the user accessible
+	// SetGameSize function, which can trigger DisplayResize events) from the renderer.
 	EventHandler& events_;
+
 	std::shared_ptr<impl::gl::Renderer> gl_renderer_;
 
+	// emit_events = false is used to prevent emitting events when initializing the window and
+	// scene.
 	void UpdateDisplayViewport(V2_int window_size, bool emit_events = true);
 
 	std::optional<V2_int> game_size_;

@@ -5,7 +5,7 @@
 
 #include "core/assert.h"
 #include "runtime/ecs/components/relatives.h"
-#include "runtime/ecs/components/entity_transform.h"
+#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 
