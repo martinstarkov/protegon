@@ -5,6 +5,7 @@
 #include "core/util/file.h"
 #include "renderer/primitives/drawable.h"
 #include "runtime/asset/asset_handle.h"
+#include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
@@ -16,6 +17,25 @@ namespace impl {
 
 struct Sprite {
 	static void Draw(Renderer& renderer, Entity entity);
+};
+
+/// Component for a custom texture size to be used instead of the actual texture size. This can be
+/// used for example to render a texture at a larger size.
+struct TextureSize : public Vector2Component<float> {
+	using Vector2Component::Vector2Component;
+};
+
+struct TextureCrop {
+	// Position and size are V2_float instead of V2_int to allow for smooth increase in display size
+	// (for example).
+
+	// Top left position (in pixels) within the texture from which the crop starts.
+	V2_float position;
+
+	// Size of the crop in pixels. Zero size will use full size of texture.
+	V2_float size;
+
+	bool operator==(const TextureCrop&) const = default;
 };
 
 } // namespace impl

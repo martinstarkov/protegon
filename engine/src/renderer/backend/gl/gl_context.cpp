@@ -37,7 +37,7 @@
 #include "core/util/span.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
-#include "renderer/backend/gl/gl_handle.h"
+#include "renderer/resources/handle.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/resources/shader.h"

@@ -1,43 +1,18 @@
 #pragma once
 
 #include <optional>
-#include <vector>
 
-#include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
-#include "renderer/backend/gl/gl_handle.h"
-#include "renderer/resources/texture_format.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/scripting/script.h"
+#include "renderer/resources/handle.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn {
-
-class Scene;
-class Renderer;
 
 namespace impl::gl {
 
 class Renderer;
 
 } // namespace impl::gl
-
-namespace impl {
-
-class RenderTargetGameResizeScript : public Script {
-public:
-	void OnEvent(EventDispatcher d) override;
-};
-
-class RenderTargetDisplayResizeScript : public Script {
-public:
-	void OnEvent(EventDispatcher d) override;
-};
-
-struct DisplayList {
-	std::vector<Entity> entities;
-};
-
-} // namespace impl
 
 enum class ResizeMode {
 	GameSize,
@@ -55,13 +30,14 @@ private:
 	friend class impl::gl::Renderer;
 
 	RenderTarget(
-		const impl::gl::Framebuffer& framebuffer, const std::optional<impl::gl::Texture>& color,
-		const std::optional<impl::gl::Renderbuffer>& depth, V2_int size, TextureFormat format
+		const Framebuffer& framebuffer, const std::optional<Texture>& color,
+		const std::optional<Renderbuffer>& depth, V2_int size, TextureFormat format
 	);
 
-	impl::gl::Framebuffer framebuffer_;
-	std::optional<impl::gl::Texture> color_;
-	std::optional<impl::gl::Renderbuffer> depth_;
+	Framebuffer framebuffer_;
+	std::optional<Texture> color_;
+	std::optional<Renderbuffer> depth_;
+	// TODO: Consider using the cache values instead to prevent synchronization issues.
 	V2_int size_;
 	TextureFormat format_{ TextureFormat::RGBA8 };
 
@@ -72,48 +48,18 @@ class RenderPass {
 private:
 	friend class impl::gl::Renderer;
 
-	RenderTarget source;
+	RenderTarget source_;
 
-	RenderTarget ping;
-	RenderTarget pong;
+	RenderTarget ping_;
+	RenderTarget pong_;
 
-	bool has_ping{ false };
-	bool has_pong{ false };
+	bool has_ping_{ false };
+	bool has_pong_{ false };
 
 	// "latest output" tracking
-	bool has_written_once{ false }; // false -> latest is source
-	bool latest_is_ping{ true };	// valid only if has_written_once == true
+	bool has_written_once_{ false }; // false -> latest is source
+	bool latest_is_ping_{ true };	 // valid only if has_written_once == true
 };
-
-// TODO: Add clear color to render target as an optional component. Otherwise they should be cleared
-// to transparent.
-
-namespace impl {
-
-Entity CreateRenderTarget(
-	Entity render_target, Renderer& renderer, ResizeMode resize_to_resolution,
-	TextureFormat texture_format
-);
-
-} // namespace impl
-
-/// Create a render target with a custom size.
-/// @param size The size of the render target and its camera viewport.
-/// @param clear_color The background color of the render target.
-/// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
-Entity CreateRenderTarget(
-	Scene& scene, Renderer& renderer, V2_int size,
-	TextureFormat texture_format = TextureFormat::RGBA8
-);
-
-/// Create a render target that is continuously sized to the specified resolution.
-/// @param resize_to_resolution Which resolution the render target automatically resizes to.
-/// @param clear_color The background color of the render target.
-/// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
-Entity CreateRenderTarget(
-	Scene& scene, Renderer& renderer, ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
-	TextureFormat texture_format = TextureFormat::RGBA8
-);
 
 } // namespace ptgn
 

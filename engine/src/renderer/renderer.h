@@ -11,9 +11,9 @@
 #include "core/math/vector2.h"
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/camera/viewport.h"
+#include "renderer/resources/handle.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"
-#include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
 
 namespace ptgn {
@@ -77,7 +77,7 @@ public:
 		const RenderTarget& rt, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = true
 	);
-	void DrawTexture(Texture texture, V2_float center, V2_float size, Color tint = color::White);
+	void DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint = color::White);
 	void DrawRect(V2_float center, V2_float size, Color color);
 
 	RenderTarget GetScreenTarget() const;
@@ -96,10 +96,7 @@ public:
 
 	RenderPass BeginPass(const RenderTarget& scene_target);
 
-	V2_int GetTextureSize(Texture texture) const;
-
-	// TODO: Move to private.
-	std::shared_ptr<impl::gl::Renderer> gl_renderer_;
+	V2_int GetTextureSize(TextureId texture) const;
 
 private:
 	friend class Application;
@@ -112,6 +109,7 @@ private:
 
 	Window& window_;
 	EventHandler& events_;
+	std::shared_ptr<impl::gl::Renderer> gl_renderer_;
 
 	void UpdateDisplayViewport(V2_int window_size, bool emit_events = true);
 

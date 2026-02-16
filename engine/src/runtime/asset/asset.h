@@ -3,8 +3,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
+#include "renderer/resources/handle.h"
 #include "serialization/json/json.h"
 
 struct MIX_Audio;

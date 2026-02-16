@@ -16,10 +16,11 @@
 #include "renderer/primitives/draw.h"
 #include "renderer/primitives/drawable.h"
 #include "renderer/renderer.h"
-#include "renderer/resources/texture_format.h"
+#include "renderer/resources/texture.h"
 #include "renderer/targets/render_target.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_handle.h"
+#include "runtime/ecs/components/render_target_component.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -290,8 +291,6 @@ void Scene::InternalDraw() {
 	//		"Entity ", e.GetHash(), ", texture size: ", renderer.GetTextureSize(handle.Get())
 	//	);
 	// }
-
-	PTGN_LOG("---");
 
 	// TODO: Draw render target display lists to their render targets.
 	// TODO: Draw display list to render target.

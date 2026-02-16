@@ -20,13 +20,13 @@
 #include "platform/input/events.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_handle.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
+#include "renderer/resources/handle.h"
 #include "renderer/resources/render_state.h"
-#include "renderer/resources/texture_format.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
 
 namespace ptgn::impl::gl {
@@ -247,12 +247,12 @@ Renderer::~Renderer() noexcept {
 }
 
 RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
-	RenderPass p{};
-	p.source		   = scene_target;
-	p.ping			   = AcquirePooledTarget(scene_target.size_, scene_target.format_);
-	p.has_ping		   = true;
-	p.has_written_once = false; // latest = source initially
-	p.latest_is_ping   = true;	// irrelevant until has_written_once==true
+	RenderPass p;
+	p.source_			= scene_target;
+	p.ping_				= AcquirePooledTarget(scene_target.size_, scene_target.format_);
+	p.has_ping_			= true;
+	p.has_written_once_ = false; // latest = source initially
+	p.latest_is_ping_	= true;	 // irrelevant until has_written_once==true
 
 	return p;
 }
@@ -265,14 +265,14 @@ void Renderer::BindRenderTarget(RenderPass& p) {
 	// Bind the next write target (opposite of latest output; ping for first write)
 	RenderTarget write;
 
-	if (!p.has_written_once) {
-		write = p.ping;
+	if (!p.has_written_once_) {
+		write = p.ping_;
 	} else {
-		if (!p.has_pong && p.latest_is_ping) {
-			p.pong	   = AcquirePooledTarget(p.source.size_, p.source.format_);
-			p.has_pong = true;
+		if (!p.has_pong_ && p.latest_is_ping_) {
+			p.pong_		= AcquirePooledTarget(p.source_.size_, p.source_.format_);
+			p.has_pong_ = true;
 		}
-		write = p.latest_is_ping ? p.pong : p.ping;
+		write = p.latest_is_ping_ ? p.pong_ : p.ping_;
 	}
 
 	BindRenderTarget(write);
@@ -559,12 +559,12 @@ void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTarget& s
 	RenderTarget input;
 
 	// Input = latest output, or source before first draw
-	if (!p.has_written_once) {
-		input = p.source;
-	} else if (p.latest_is_ping) {
-		input = p.ping;
+	if (!p.has_written_once_) {
+		input = p.source_;
+	} else if (p.latest_is_ping_) {
+		input = p.ping_;
 	} else {
-		input = p.pong;
+		input = p.pong_;
 	}
 
 	PTGN_ASSERT(input.color_.has_value(), "Cannot draw to input texture with no color attachment");
@@ -572,8 +572,8 @@ void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTarget& s
 	auto bound_frame_buffer{ gl_->GetBoundFramebuffer() };
 
 	// Are we rendering *into this pass*?
-	bool writing_to_pass = bound_frame_buffer == p.ping.framebuffer_ ||
-						   (p.has_pong && bound_frame_buffer == p.pong.framebuffer_);
+	bool writing_to_pass = bound_frame_buffer == p.ping_.framebuffer_ ||
+						   (p.has_pong_ && bound_frame_buffer == p.pong_.framebuffer_);
 
 	bool input_is_offscreen = input.framebuffer_ != scene_target.framebuffer_;
 
@@ -585,14 +585,14 @@ void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTarget& s
 	if (writing_to_pass) {
 		RenderTarget write;
 
-		if (!p.has_written_once) {
-			write = p.ping;
+		if (!p.has_written_once_) {
+			write = p.ping_;
 		} else {
-			if (!p.has_pong && p.latest_is_ping) {
-				p.pong	   = AcquirePooledTarget(p.source.size_, p.source.format_);
-				p.has_pong = true;
+			if (!p.has_pong_ && p.latest_is_ping_) {
+				p.pong_		= AcquirePooledTarget(p.source_.size_, p.source_.format_);
+				p.has_pong_ = true;
 			}
-			write = p.latest_is_ping ? p.pong : p.ping;
+			write = p.latest_is_ping_ ? p.pong_ : p.ping_;
 		}
 
 		BindRenderTarget(write);
@@ -603,8 +603,8 @@ void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTarget& s
 		);
 
 		// Update pass state
-		p.has_written_once = true;
-		p.latest_is_ping   = (write.framebuffer_ == p.ping.framebuffer_);
+		p.has_written_once_ = true;
+		p.latest_is_ping_	= (write.framebuffer_ == p.ping_.framebuffer_);
 	} else {
 		// Read-only draw: no mutation, no flip
 		DrawTexture(

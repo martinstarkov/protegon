@@ -16,10 +16,9 @@
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/scaling_mode.h"
+#include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
-#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "renderer/resources/texture_format.h"
 #include "renderer/targets/render_target.h"
 #include "runtime/event/event_handler.h"
 
@@ -101,7 +100,7 @@ void Renderer::DrawTexture(
 	gl_renderer_->DrawTexture(rt, center, size, tint, flip_y);
 }
 
-void Renderer::DrawTexture(Texture texture, V2_float center, V2_float size, Color tint) {
+void Renderer::DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint) {
 	gl_renderer_->DrawTexture(texture, center, size, tint);
 }
 
@@ -248,7 +247,7 @@ RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
 	return gl_renderer_->BeginPass(scene_target);
 }
 
-V2_int Renderer::GetTextureSize(Texture texture) const {
+V2_int Renderer::GetTextureSize(TextureId texture) const {
 	return gl_renderer_->GetTextureSize(texture);
 }
 
@@ -549,7 +548,7 @@ static void DrawShape(Renderer& renderer, Entity entity) {
 //	}
 // }
 //
-// std::uint32_t Renderer::GetTextureSlot(impl::gl::TextureId tex) {
+// std::uint32_t Renderer::GetTextureSlot(TextureId tex) {
 //	if (tex == white_texture) {
 //		return 0; // always slot 0
 //	}
@@ -596,7 +595,7 @@ static void DrawShape(Renderer& renderer, Entity entity) {
 // }
 //
 // void Renderer::SetFramebuffer(
-//	impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport
+//	FramebufferId framebuffer, const impl::gl::Viewport& viewport
 //) {
 //	UpdateStateIfChanged(*this, state.framebuffer, framebuffer, [this, framebuffer] {
 //		auto _ = gl_->Bind(framebuffer);
@@ -703,11 +702,11 @@ static void DrawShape(Renderer& renderer, Entity entity) {
 // }
 //
 // void Renderer::DrawTexturedQuad(
-//	impl::gl::ShaderId shader, impl::gl::TextureId texture, V2_float center, V2_float size,
+//	impl::gl::ShaderId shader, TextureId texture, V2_float center, V2_float size,
 //	Color tint, bool flip_y
 //) {
 //	PTGN_ASSERT(
-//		impl::gl::TextureId{
+//		TextureId{
 //			gl_->GetFramebufferAttachment(state.framebuffer, GL_COLOR_ATTACHMENT0).id } != texture,
 //		"Cannot draw a texture that is attached to the currently set framebuffer"
 //	);
@@ -727,17 +726,17 @@ static void DrawShape(Renderer& renderer, Entity entity) {
 // RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
 //	const auto& desc = impl::gl::GetTextureFormatDesc(format);
 //
-//	impl::gl::Texture color =
+//	Texture color =
 //		gl_->CreateTexture(nullptr, desc.pixel_format, desc.pixel_type, size, desc.internal_format);
 //
-//	impl::gl::Renderbuffer depth;
+//	Renderbuffer depth;
 //	if (desc.has_depth || desc.has_stencil) {
 //		GLenum rb_format = desc.has_stencil ? GL_DEPTH_STENCIL : GL_DEPTH_COMPONENT;
 //
 //		depth = gl_->CreateRenderbuffer(size, rb_format);
 //	}
 //
-//	impl::gl::Framebuffer fb = gl_->CreateFramebuffer(
+//	Framebuffer fb = gl_->CreateFramebuffer(
 //		color, GL_COLOR_ATTACHMENT0, depth,
 //		desc.has_stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT
 //	);
@@ -757,7 +756,7 @@ static void DrawShape(Renderer& renderer, Entity entity) {
 //	rt.size = new_size;
 // }
 //
-// void Renderer::DrawTexture(impl::gl::TextureId texture, V2_float center, V2_float size) {
+// void Renderer::DrawTexture(TextureId texture, V2_float center, V2_float size) {
 //	QuadParams p{};
 //	p.center  = center;
 //	p.size	  = size;
@@ -773,7 +772,7 @@ static void DrawShape(Renderer& renderer, Entity entity) {
 //	PTGN_ASSERT(batch_vertices.empty());
 //	PTGN_ASSERT(batch_indices.empty());
 //
-//	auto _1 = gl_->Bind(impl::gl::FramebufferId{});
+//	auto _1 = gl_->Bind(FramebufferId{});
 //	gl_->SetClearColor(color::Transparent);
 //	gl_->Clear();
 //
@@ -793,7 +792,7 @@ static void DrawShape(Renderer& renderer, Entity entity) {
 // }
 //
 // void Renderer::BindRenderTarget(
-//	impl::gl::FramebufferId framebuffer, const impl::gl::Viewport& viewport
+//	FramebufferId framebuffer, const impl::gl::Viewport& viewport
 //) {
 //	SetFramebuffer(framebuffer, viewport);
 // }

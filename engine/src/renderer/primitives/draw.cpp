@@ -21,6 +21,7 @@
 #include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/components/entity_transform.h"
 #include "runtime/ecs/components/generic.h"
+#include "runtime/ecs/components/sprite.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene.h"
@@ -153,7 +154,7 @@ V2_int GetTextureSize(Entity entity) {
 	} else if (entity.Has<Handle<Asset::Texture>>()) {
 		const auto& renderer{ entity.GetScene().app().renderer };
 		const auto& texture{ entity.Get<Handle<Asset::Texture>>().Get() };
-		size = renderer.GetTextureSize(texture);
+		size = renderer.GetTextureSize(texture.texture);
 	}
 
 	PTGN_ASSERT(size.has_value(), "Entity does not have a texture");

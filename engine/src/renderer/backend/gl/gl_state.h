@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "renderer/backend/gl/gl_handle.h"
+#include "renderer/resources/handle.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
-#include "renderer/resources/texture_format.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
 

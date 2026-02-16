@@ -25,8 +25,8 @@ void Sprite::Draw(Renderer& renderer, Entity entity) {
 	renderer.SetBlend(GetBlendMode(entity));
 	// TODO: Add rotation and flip here.
 	renderer.DrawTexture(
-		entity.Get<Handle<Asset::Texture>>().Get(), GetPosition(entity), GetTextureSize(entity),
-		GetTint(entity)
+		entity.Get<Handle<Asset::Texture>>().Get().texture, GetPosition(entity),
+		GetTextureSize(entity), GetTint(entity)
 	);
 }
 

@@ -21,13 +21,13 @@
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
-#include "renderer/backend/gl/gl_handle.h"
+#include "renderer/resources/handle.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/shader.h"
-#include "renderer/resources/texture_format.h"
+#include "renderer/resources/texture.h"
 
 CMRC_DECLARE(shader);
 
