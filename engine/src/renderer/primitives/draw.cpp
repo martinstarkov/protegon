@@ -148,8 +148,8 @@ Color GetTint(Entity entity) {
 V2_int GetTextureSize(Entity entity) {
 	std::optional<V2_int> size;
 
-	if (entity.Has<TextureSize>()) {
-		size = V2_int{ entity.Get<TextureSize>() };
+	if (entity.Has<impl::TextureSize>()) {
+		size = V2_int{ entity.Get<impl::TextureSize>() };
 	} else if (entity.Has<Handle<Asset::Texture>>()) {
 		const auto& renderer{ entity.GetScene().app().renderer };
 		const auto& texture{ entity.Get<Handle<Asset::Texture>>().Get() };
@@ -163,15 +163,15 @@ V2_int GetTextureSize(Entity entity) {
 }
 
 V2_int GetCroppedSize(Entity entity) {
-	if (entity.Has<TextureCrop>()) {
-		const auto& crop{ entity.Get<TextureCrop>() };
+	if (entity.Has<impl::TextureCrop>()) {
+		const auto& crop{ entity.Get<impl::TextureCrop>() };
 		return crop.size;
 	}
 	return GetTextureSize(entity);
 }
 
 void SetDisplaySize(Entity entity, V2_float display_size) {
-	entity.Add<TextureSize>(display_size);
+	entity.Add<impl::TextureSize>(display_size);
 }
 
 V2_float GetDisplaySize(Entity entity) {
@@ -201,9 +201,9 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 		return tex_coords;
 	}
 
-	if (entity.Has<TextureCrop>()) {
-		const auto& crop{ entity.Get<TextureCrop>() };
-		if (crop != TextureCrop{}) {
+	if (entity.Has<impl::TextureCrop>()) {
+		const auto& crop{ entity.Get<impl::TextureCrop>() };
+		if (crop != impl::TextureCrop{}) {
 			tex_coords = impl::GetTextureCoordinates(crop.position, crop.size, texture_size);
 		}
 	}

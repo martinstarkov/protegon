@@ -29,6 +29,10 @@ private:
 	impl::gl::Texture texture;
 };
 
+namespace impl {
+
+/// Component for a custom texture size to be used instead of the actual texture size. This can be
+/// used for example to render a texture at a larger size.
 struct TextureSize : public Vector2Component<float> {
 	using Vector2Component::Vector2Component;
 };
@@ -45,5 +49,7 @@ struct TextureCrop {
 
 	bool operator==(const TextureCrop&) const = default;
 };
+
+} // namespace impl
 
 } // namespace ptgn
