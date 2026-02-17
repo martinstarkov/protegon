@@ -5,28 +5,6 @@
 #include <unordered_map>
 
 // ============================================================
-// Assume ECS Exists
-// ============================================================
-
-struct Scene;
-struct App;
-
-struct Entity {
-	template <typename T>
-	T& Get();
-
-	template <typename T>
-	bool Has() const;
-
-	template <typename T, typename... Args>
-	T& Add(Args&&...);
-
-	void Destroy();
-
-	Scene& GetScene();
-};
-
-// ============================================================
 // Backend Example: OpenGL
 // ============================================================
 

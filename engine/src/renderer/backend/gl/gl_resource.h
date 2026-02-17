@@ -7,9 +7,19 @@
 
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl.h"
-#include "renderer/resources/handle.h"
 
 namespace ptgn::impl::gl {
+
+using Id = std::uint32_t;
+
+using VertexArray	= Id;
+using VertexBuffer	= Id;
+using ElementBuffer = Id;
+using UniformBuffer = Id;
+using Shader		= Id;
+using Texture		= Id;
+using Renderbuffer	= Id;
+using Framebuffer	= Id;
 
 struct BufferCache {
 	GLenum usage{ GL_STATIC_DRAW };
@@ -39,7 +49,7 @@ struct FramebufferCache {
 };
 
 struct VertexArrayCache {
-	ElementBufferId element_buffer;
+	ElementBuffer element_buffer{ 0 };
 	bool layout_set{ false };
 };
 
