@@ -176,27 +176,126 @@ private:
 				return;
 			}
 
-			DestroyResource();
+			ResourceTraits<Tag>::Destroy(m_entity);
 		}
-	}
-
-	void DestroyResource() {
-		auto& gpu = m_entity.Get<TextureGPU>();
-
-		auto& renderer = m_entity.GetScene().app().renderer;
-
-		renderer.DestroyTexture(gpu.handle);
-
-		m_entity.Destroy();
 	}
 
 	Entity m_entity{};
 };
 
+template <typename Tag>
+struct ResourceTraits;
+
 // Alias
 struct TextureTag {};
 
+template <>
+struct ResourceTraits<TextureTag> {
+	static void Destroy(Entity entity) {
+		auto& gpu	   = entity.Get<TextureGPU>();
+		auto& renderer = entity.GetScene().app().renderer;
+
+		renderer.DestroyTexture(gpu.handle);
+		entity.Destroy();
+	}
+};
+
 using Texture = ResourceHandle<TextureTag>;
+
+struct ShaderTag {};
+
+// template <>
+// struct ResourceTraits<ShaderTag> {
+//	static void Destroy(Entity entity) {
+//		auto& gpu	   = entity.Get<ShaderGPU>();
+//		auto& renderer = entity.GetScene().app().renderer;
+//
+//		renderer.DestroyShader(gpu.handle);
+//		entity.Destroy();
+//	}
+// };
+
+template <typename Derived>
+class RefCountedResource {
+public:
+	RefCountedResource() = default;
+
+	explicit RefCountedResource(Entity e) : m_entity(e) {
+		AddRef();
+	}
+
+	RefCountedResource(const RefCountedResource& other) : m_entity(other.m_entity) {
+		AddRef();
+	}
+
+	RefCountedResource(RefCountedResource&& other) noexcept : m_entity(other.m_entity) {
+		other.m_entity = {};
+	}
+
+	RefCountedResource& operator=(const RefCountedResource& other) {
+		if (this != &other) {
+			Release();
+			m_entity = other.m_entity;
+			AddRef();
+		}
+		return *this;
+	}
+
+	RefCountedResource& operator=(RefCountedResource&& other) noexcept {
+		if (this != &other) {
+			Release();
+			m_entity	   = other.m_entity;
+			other.m_entity = {};
+		}
+		return *this;
+	}
+
+	~RefCountedResource() {
+		Release();
+	}
+
+protected:
+	Entity m_entity{};
+
+private:
+	void AddRef() {
+		if (!Valid()) {
+			return;
+		}
+		m_entity.Get<RefCount>().value++;
+	}
+
+	void Release() {
+		if (!Valid()) {
+			return;
+		}
+
+		auto& rc = m_entity.Get<RefCount>();
+
+		if (--rc.value == 0) {
+			if (!m_entity.Has<PersistentTag>()) {
+				static_cast<Derived*>(this)->Destroy();
+			}
+		}
+	}
+
+	bool Valid() const {
+		return m_entity.Has<RefCount>();
+	}
+};
+
+class TextureTest : public RefCountedResource<TextureTest> {
+public:
+	using RefCountedResource::RefCountedResource;
+
+	void Destroy() {
+		auto& gpu	   = m_entity.Get<TextureGPU>();
+		auto& renderer = m_entity.GetScene().app().renderer;
+
+		renderer.DestroyTexture(gpu.handle);
+		m_entity.Destroy();
+	}
+};
 
 // ============================================================
 // AssetManager
