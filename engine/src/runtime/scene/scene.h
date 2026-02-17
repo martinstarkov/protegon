@@ -6,7 +6,6 @@
 
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
-#include "renderer/resources/handle.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"

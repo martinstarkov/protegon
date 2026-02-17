@@ -10,16 +10,13 @@
 
 namespace ptgn::impl::gl {
 
-using Id = std::uint32_t;
-
-using VertexArray	= Id;
-using VertexBuffer	= Id;
-using ElementBuffer = Id;
-using UniformBuffer = Id;
-using Shader		= Id;
-using Texture		= Id;
-using Renderbuffer	= Id;
-using Framebuffer	= Id;
+using VertexArray	= std::uint32_t;
+using VertexBuffer	= std::uint32_t;
+using ElementBuffer = std::uint32_t;
+using UniformBuffer = std::uint32_t;
+using Texture		= std::uint32_t;
+using Renderbuffer	= std::uint32_t;
+using Framebuffer	= std::uint32_t;
 
 struct BufferCache {
 	GLenum usage{ GL_STATIC_DRAW };
@@ -37,7 +34,7 @@ struct TextureCache {
 };
 
 struct AttachmentInfo {
-	Id id{ 0 };
+	std::uint32_t id{ 0 };
 	GLenum type{ 0 }; // GL_TEXTURE_2D, GL_RENDERBUFFER, or 0 (none)
 };
 
@@ -51,14 +48,6 @@ struct FramebufferCache {
 struct VertexArrayCache {
 	ElementBuffer element_buffer{ 0 };
 	bool layout_set{ false };
-};
-
-struct ShaderCache {
-	std::string shader_name;
-	bool batchable{ false };
-
-	// cache needs to be mutable even in const functions.
-	mutable std::unordered_map<std::size_t, std::int32_t> uniform_locations;
 };
 
 } // namespace ptgn::impl::gl

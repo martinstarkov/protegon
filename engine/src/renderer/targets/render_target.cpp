@@ -1,7 +1,6 @@
 #include "renderer/targets/render_target.h"
 
 #include "core/math/vector2.h"
-#include "renderer/resources/handle.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn {

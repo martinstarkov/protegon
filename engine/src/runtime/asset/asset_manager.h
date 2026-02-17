@@ -5,8 +5,6 @@
 
 #include "core/util/file.h"
 #include "renderer/primitives/font.h"
-#include "renderer/resources/handle.h"
-#include "renderer/resources/shader.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 

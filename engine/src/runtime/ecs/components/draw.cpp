@@ -14,7 +14,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
-#include "renderer/resources/handle.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
 #include "runtime/ecs/components/drawable.h"

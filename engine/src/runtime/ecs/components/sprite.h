@@ -3,7 +3,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "renderer/resources/handle.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/entity.h"

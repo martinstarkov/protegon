@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -10,21 +9,16 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
-#include "core/graphics/flip.h"
-#include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "platform/input/events.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
-#include "renderer/resources/handle.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
@@ -194,6 +188,7 @@ render_manager.Refresh();
 */
 
 Renderer::Renderer(Window& window) : gl_{ std::make_unique<GLContext>(window) } {
+	// TODO: Fix and replace with the object which has a destructor.
 	ebo_ = gl_->CreateElementBuffer(nullptr, index_capacity, sizeof(Index), GL_DYNAMIC_DRAW);
 
 	vbo_ = gl_->CreateVertexBuffer(nullptr, vertex_capacity, sizeof(Vertex), GL_DYNAMIC_DRAW);
@@ -220,9 +215,9 @@ Renderer::Renderer(Window& window) : gl_{ std::make_unique<GLContext>(window) } 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
 
-	auto quad{ gl_->GetShader("quad") };
+	auto quad{ gl_->shaders.GetProgram("quad") };
 	auto _1 = gl_->Bind(quad);
-	gl_->SetUniform(
+	gl_->shaders.SetUniform(
 		quad, "u_Textures", samplers.data(), static_cast<std::int32_t>(samplers.size())
 	);
 
@@ -257,7 +252,7 @@ RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
 	return p;
 }
 
-V2_int Renderer::GetTextureSize(TextureId texture) const {
+V2_int Renderer::GetTextureSize(Texture texture) const {
 	return gl_->GetTextureSize(texture);
 }
 
@@ -292,13 +287,13 @@ void Renderer::FlushBatch() {
 	auto _vao = gl_->Bind(vao_);
 
 	// Upload vertex data
-	gl_->SetBufferSubData<VertexBufferId>(
+	gl_->SetBufferSubData<VertexBuffer>(
 		vbo_, GL_ARRAY_BUFFER, batch_vertices_.data(), 0,
 		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(Vertex)
 	);
 
 	// Upload index data
-	gl_->SetBufferSubData<ElementBufferId>(
+	gl_->SetBufferSubData<ElementBuffer>(
 		ebo_, GL_ELEMENT_ARRAY_BUFFER, batch_indices_.data(), 0,
 		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(Index)
 	);
@@ -386,7 +381,7 @@ void Renderer::ReleasePooledTarget(const RenderTarget& target) {
 	}
 }
 
-std::uint32_t Renderer::GetTextureSlot(TextureId tex) {
+std::uint32_t Renderer::GetTextureSlot(Texture tex) {
 	if (tex == white_texture_) {
 		return 0; // always slot 0
 	}
@@ -425,8 +420,8 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 }
 
-void Renderer::SetShader(ShaderId shader) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().shader, shader, [this, shader] {
+void Renderer::SetShader(Shader shader) {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().shader_program, shader, [this, shader] {
 		auto _ = gl_->Bind(shader);
 	});
 }
@@ -439,7 +434,7 @@ void Renderer::SetBlend(BlendMode mode, bool enabled) {
 	});
 }
 
-void Renderer::SetFramebuffer(FramebufferId framebuffer, const Viewport& viewport) {
+void Renderer::SetFramebuffer(Framebuffer framebuffer, const Viewport& viewport) {
 	UpdateStateIfChanged(*this, gl_->GetBoundState().framebuffer, framebuffer, [this, framebuffer] {
 		auto _ = gl_->Bind(framebuffer);
 	});
@@ -470,7 +465,7 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	});
 }
 
-void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSetup& setup) {
+void Renderer::DrawQuad(Shader shader, const QuadParams& params, const QuadSetup& setup) {
 	QuadDesc quad;
 	auto half{ params.size / 2.0f };
 	quad.positions = { params.center - half, params.center + V2_float{ half.x, -half.y },
@@ -495,7 +490,7 @@ void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSet
 	}
 
 	SetShader(shader);
-	gl_->SetUniform(shader, "u_ViewProjection", view_projection_);
+	gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
 
 	setup(shader, quad);
 
@@ -527,13 +522,13 @@ void Renderer::DrawTexture(
 }
 
 void Renderer::DrawTexture(
-	TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
+	Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
-	DrawTexture(gl_->GetShader("quad"), texture, center, size, tint, flip_y);
+	DrawTexture(gl_->shaders.GetShader("quad"), texture, center, size, tint, flip_y);
 }
 
 void Renderer::DrawTexture(
-	ShaderId shader, TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
+	Shader shader, Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(
 		gl_->GetBoundFramebuffer() == FramebufferId{ 0 } ||
@@ -551,11 +546,11 @@ void Renderer::DrawTexture(
 	p.flip_y  = flip_y;
 
 	DrawQuad(shader, p, [this](auto s, auto& q) {
-		gl_->SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
+		gl_->shaders.SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
 	});
 }
 
-void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTarget& scene_target) {
+void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& scene_target) {
 	RenderTarget input;
 
 	// Input = latest output, or source before first draw
@@ -649,7 +644,7 @@ void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
-	auto _1 = gl_->Bind(FramebufferId{});
+	auto _1 = gl_->Bind(Framebuffer{ 0 });
 	gl_->SetClearColor(color::Transparent);
 	gl_->Clear();
 

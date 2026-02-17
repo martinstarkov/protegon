@@ -1,24 +1,26 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
-#include "renderer/resources/handle.h"
+#include "renderer/backend/gl/gl_resource.h"
+#include "renderer/backend/gl/gl_shader.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
 
-struct ActiveTextureSlot {
-	ActiveTextureSlot() = default;
+struct ActiveTexture {
+	ActiveTexture() = default;
 
-	explicit ActiveTextureSlot(Id value) : value{ value } {}
+	explicit ActiveTexture(std::uint32_t slot) : slot{ slot } {}
 
-	Id value{ 0 };
+	std::uint32_t slot{ 0 };
 };
 
 struct TextureUnitState {
-	TextureId id{ 0 };
+	Texture id{ 0 };
 
 	TextureMinFilter min_filter{ TextureMinFilter::Linear };
 	TextureMagFilter mag_filter{ TextureMagFilter::Linear };
@@ -32,12 +34,12 @@ using TextureUnits = std::vector<TextureUnitState>;
 
 struct State {
 	// Core object bindings
-	FramebufferId framebuffer;
-	RenderbufferId renderbuffer;
-	VertexBufferId vertex_buffer;
-	UniformBufferId uniform_buffer;
-	ShaderId shader;
-	VertexArrayId vertex_array;
+	Framebuffer framebuffer{ 0 };
+	Renderbuffer renderbuffer{ 0 };
+	VertexBuffer vertex_buffer{ 0 };
+	UniformBuffer uniform_buffer{ 0 };
+	Program shader_program{ 0 };
+	VertexArray vertex_array{ 0 };
 
 	Viewport viewport;
 
@@ -47,7 +49,7 @@ struct State {
 
 	ColorMaskState color_mask;
 
-	ActiveTextureSlot active_texture_slot;
+	ActiveTexture active_texture;
 	TextureUnits texture_units;
 
 	ClearColor clear_color;

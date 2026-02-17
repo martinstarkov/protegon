@@ -6,7 +6,6 @@
 #include "core/util/file.h"
 #include "renderer/camera/camera.h"
 #include "renderer/renderer.h"
-#include "renderer/resources/handle.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"

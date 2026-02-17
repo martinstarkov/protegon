@@ -11,7 +11,6 @@
 #include "core/math/vector2.h"
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/camera/viewport.h"
-#include "renderer/resources/handle.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"
 #include "renderer/targets/render_target.h"
@@ -77,7 +76,7 @@ public:
 		const RenderTarget& rt, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = true
 	);
-	void DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint = color::White);
+	void DrawTexture(Texture texture, V2_float center, V2_float size, Color tint = color::White);
 	void DrawRect(V2_float center, V2_float size, Color color);
 
 	RenderTarget GetScreenTarget() const;
@@ -96,7 +95,7 @@ public:
 
 	RenderPass BeginPass(const RenderTarget& scene_target);
 
-	V2_int GetTextureSize(TextureId texture) const;
+	V2_int GetTextureSize(Texture texture) const;
 
 private:
 	friend class Application;

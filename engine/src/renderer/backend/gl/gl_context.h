@@ -1,12 +1,8 @@
 #pragma once
 
-#include <cmrc/cmrc.hpp>
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
-#include <string_view>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -14,21 +10,17 @@
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
-#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "core/math/vector3.h"
-#include "core/math/vector4.h"
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_resource.h"
+#include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
-#include "renderer/resources/shader.h"
+#include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"
-
-CMRC_DECLARE(shader);
 
 #ifdef __EMSCRIPTEN__
 
@@ -58,17 +50,6 @@ class Window;
 namespace ptgn::impl::gl {
 
 class GLContext;
-
-struct ShaderOptions {
-	bool auto_layout{ false };
-};
-
-struct ShaderTypeSource {
-	GLuint type{ GL_FRAGMENT_SHADER };
-	ShaderCode source;
-	std::string name; // optional name for shader.
-	ShaderOptions options;
-};
 
 struct TextureFormatDesc {
 	GLenum internal_format{ 0 };
@@ -233,16 +214,6 @@ public:
 
 	UniformBuffer CreateUniformBuffer(const void* data, std::uint32_t size, GLenum usage);
 
-	Shader CreateShader(GLuint vertex, GLuint fragment, const std::string& shader_name);
-
-	// String can be path to shader or the name of a pre-existing shader of the respective type.
-	Shader CreateShader(
-		const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
-	);
-
-	Shader CreateShader(std::variant<ShaderCode, path> source, const std::string& shader_name);
-
 	/// @param pixel_data_format Accepted: GL_RED, GL_RG, GL_RGB, GL_BGR, GL_RGBA, GL_BGRA,
 	/// GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_BGR_INTEGER, GL_RGBA_INTEGER,
 	/// GL_BGRA_INTEGER, GL_STENCIL_INDEX, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL
@@ -277,7 +248,6 @@ public:
 		return vertex_array;
 	}
 
-	void DestroyShader(Shader id);
 	void DestroyTexture(Texture id);
 	void DestroyRenderbuffer(Renderbuffer id);
 	void DestroyFramebuffer(Framebuffer id);
@@ -286,7 +256,7 @@ public:
 	[[nodiscard]] BindGuard<VertexBuffer> Bind(VertexBuffer id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<ElementBuffer> Bind(ElementBuffer id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<UniformBuffer> Bind(UniformBuffer id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<Shader> Bind(Shader id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<Program> Bind(Program id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<Texture> Bind(Texture id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<Renderbuffer> Bind(Renderbuffer id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<Framebuffer> Bind(Framebuffer id, bool restore_bind = false);
@@ -297,7 +267,7 @@ public:
 	[[nodiscard]] VertexBuffer GetBoundVertexBuffer() const;
 	[[nodiscard]] ElementBuffer GetBoundElementBuffer() const;
 	[[nodiscard]] UniformBuffer GetBoundUniformBuffer() const;
-	[[nodiscard]] Shader GetBoundShader() const;
+	[[nodiscard]] Program GetBoundProgram() const;
 	[[nodiscard]] Texture GetBoundTexture() const;
 	[[nodiscard]] Renderbuffer GetBoundRenderbuffer() const;
 	[[nodiscard]] Framebuffer GetBoundFramebuffer() const;
@@ -306,7 +276,7 @@ public:
 	[[nodiscard]] bool IsBound(VertexBuffer id) const;
 	[[nodiscard]] bool IsBound(ElementBuffer id) const;
 	[[nodiscard]] bool IsBound(UniformBuffer id) const;
-	[[nodiscard]] bool IsBound(Shader id) const;
+	[[nodiscard]] bool IsBound(Program id) const;
 	[[nodiscard]] bool IsBound(Texture id) const;
 	[[nodiscard]] bool IsBound(Renderbuffer id) const;
 	[[nodiscard]] bool IsBound(Framebuffer id) const;
@@ -415,40 +385,7 @@ public:
 	void ClearToColor(
 		Framebuffer framebuffer, Color color, GLenum buffer = GL_COLOR, GLint drawbuffer = 0
 	) const;
-
-	void SetUniform(Shader shader, const char* uniform_name, V2_float v);
-	void SetUniform(Shader shader, const char* uniform_name, V3_float v);
-	void SetUniform(Shader shader, const char* uniform_name, V4_float v);
-	void SetUniform(Shader shader, const char* uniform_name, const Matrix4& matrix);
-	void SetUniform(
-		Shader shader, const char* uniform_name, const std::int32_t* data, std::int32_t count
-	);
-	void SetUniform(Shader shader, const char* uniform_name, const float* data, std::int32_t count);
-	void SetUniform(Shader shader, const char* uniform_name, const Vector2<std::int32_t>& v);
-	void SetUniform(Shader shader, const char* uniform_name, const Vector3<std::int32_t>& v);
-	void SetUniform(Shader shader, const char* uniform_name, const Vector4<std::int32_t>& v);
-
-	void SetUniform(Shader shader, const char* uniform_name, float v0);
-	void SetUniform(Shader shader, const char* uniform_name, float v0, float v1);
-	void SetUniform(Shader shader, const char* uniform_name, float v0, float v1, float v2);
-	void SetUniform(
-		Shader shader, const char* uniform_name, float v0, float v1, float v2, float v3
-	);
-	void SetUniform(Shader shader, const char* uniform_name, std::int32_t v0);
-	void SetUniform(Shader shader, const char* uniform_name, std::int32_t v0, std::int32_t v1);
-	void SetUniform(
-		Shader shader, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-	);
-	void SetUniform(
-		Shader shader, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
-		std::int32_t v3
-	);
-	// Behaves identically to SetUniform(name, std::int32_t).
-	void SetUniform(Shader shader, const char* uniform_name, bool value);
-
-	[[nodiscard]] Shader GetShader(std::string_view shader_name) const;
-
-	void SetActiveTextureSlot(Id slot);
+	void SetActiveTextureSlot(std::uint32_t slot);
 
 	/// @param target OpenGL buffer binding point (e.g. GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER,
 	/// GL_UNIFORM_BUFFER)
@@ -603,13 +540,9 @@ public:
 
 	void ResizeTexture(Texture texture, V2_int new_size);
 
-private:
-	bool ShaderExists(std::string_view shader_name, GLenum type) const;
-	GLuint GetShaderId(std::string_view shader_name, GLenum type) const;
-	std::pair<GLuint, bool> GetShaderIdWithDeleteFlag(
-		const std::variant<ShaderCode, std::string>& v, GLenum type, const std::string& shader_name
-	) const;
+	Shaders shaders;
 
+private:
 	[[nodiscard]] bool FramebufferIsComplete(Framebuffer framebuffer) const;
 
 	[[nodiscard]] const char* GetFramebufferStatus() const;
@@ -623,14 +556,6 @@ private:
 	void UpdateFramebufferCache(
 		Framebuffer framebuffer, GLuint image_id, GLenum attachment, GLenum image_type
 	);
-
-	void CompileShader(
-		Shader shader, const std::string& vertex_source, const std::string& fragment_source
-	) const;
-
-	void LinkShader(Shader shader, GLuint vertex, GLuint fragment) const;
-
-	[[nodiscard]] std::int32_t GetUniform(Shader shader, const char* name);
 
 	template <typename T>
 		requires(std::is_same_v<T, VertexBuffer> || std::is_same_v<T, ElementBuffer> || std::is_same_v<T, UniformBuffer>)
@@ -702,7 +627,7 @@ private:
 
 	[[nodiscard]] GLint GetTextureParameter(Texture texture, GLenum param) const;
 
-	[[nodiscard]] Id GetActiveTextureSlot() const;
+	[[nodiscard]] std::uint32_t GetActiveTextureSlot() const;
 
 	template <typename T = GLint>
 	T GetBufferParameter(GLenum target, GLenum pname) const {
@@ -717,8 +642,6 @@ private:
 	[[nodiscard]] static bool SupportsMipmaps(GLenum texture_min_filter);
 
 	void GenerateMipmaps(Texture texture) const;
-
-	[[nodiscard]] Shader CreateShaderImpl(const std::string& shader_name);
 
 	[[nodiscard]] VertexArray CreateVertexArrayImpl();
 
@@ -738,15 +661,10 @@ private:
 	// have. This is set by the constructor and should not be modified afterward.
 	GLuint max_color_attachments_{ 0 };
 
-	std::unordered_map<std::size_t, Shader> shaders_;
-	std::unordered_map<std::size_t, Id> vertex_shaders_;
-	std::unordered_map<std::size_t, Id> fragment_shaders_;
-
-	IdMap<ShaderCache> shader_cache_;
 	IdMap<TextureCache> texture_cache_;
 	IdMap<FramebufferCache> framebuffer_cache_;
 	IdMap<RenderbufferCache> renderbuffer_cache_;
-	// TODO: Consider splitting this up.
+	// TODO: Consider splitting this up into separate buffers.
 	IdMap<BufferCache> buffer_cache_;
 	IdMap<VertexArrayCache> vertex_array_cache_;
 
