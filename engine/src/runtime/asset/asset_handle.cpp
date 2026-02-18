@@ -1,12 +1,12 @@
 #include "runtime/asset/asset_handle.h"
 
+#include <utility>
+
 #include "core/assert.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 template <typename Derived>
 RefCountedAsset<Derived>::RefCountedAsset(Entity e, AssetManager* asset_manager) :
@@ -23,10 +23,8 @@ RefCountedAsset<Derived>::RefCountedAsset(const RefCountedAsset& other) :
 
 template <typename Derived>
 RefCountedAsset<Derived>::RefCountedAsset(RefCountedAsset&& other) noexcept :
-	entity_{ other.entity_ }, asset_manager_{ other.asset_manager_ } {
-	other.entity_		 = {};
-	other.asset_manager_ = nullptr;
-}
+	entity_{ std::exchange(other.entity_, {}) },
+	asset_manager_{ std::exchange(other.asset_manager_, nullptr) } {}
 
 template <typename Derived>
 RefCountedAsset<Derived>& RefCountedAsset<Derived>::operator=(const RefCountedAsset& other) {
@@ -43,10 +41,8 @@ template <typename Derived>
 RefCountedAsset<Derived>& RefCountedAsset<Derived>::operator=(RefCountedAsset&& other) noexcept {
 	if (this != &other) {
 		Release();
-		entity_				 = other.entity_;
-		asset_manager_		 = other.asset_manager_;
-		other.entity_		 = {};
-		other.asset_manager_ = nullptr;
+		entity_		   = std::exchange(other.entity_, {});
+		asset_manager_ = std::exchange(other.asset_manager_, nullptr);
 	}
 	return *this;
 }
@@ -82,6 +78,4 @@ bool RefCountedAsset<Derived>::Valid() const {
 	return entity_.Has<RefCount>();
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

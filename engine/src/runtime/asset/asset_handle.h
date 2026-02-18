@@ -16,6 +16,7 @@ struct RefCount {
 
 struct PersistentTag {};
 
+/// Reference counted asset CRTP class.
 template <typename Derived>
 class RefCountedAsset {
 public:

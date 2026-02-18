@@ -6,13 +6,12 @@
 #include "core/math/vector2.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_handle.h"
+#include "runtime/ecs/entity.h"
 
 namespace ptgn {
 
-class RenderTarget : public impl::RefCountedAsset<RenderTarget> {
+class RenderTarget {
 public:
-	using RefCountedAsset::RefCountedAsset;
-
 	void Resize(V2_int new_size);
 	void Bind();
 	void Clear(Color color = color::Transparent);
@@ -21,9 +20,7 @@ public:
 	TextureFormat GetFormat() const;
 
 private:
-	friend class impl::RefCountedAsset<RenderTarget>;
-
-	void Destroy();
+	Entity entity_;
 };
 
 } // namespace ptgn

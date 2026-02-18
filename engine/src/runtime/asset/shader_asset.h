@@ -3,17 +3,14 @@
 #include <cstdint>
 
 #include "runtime/asset/asset_handle.h"
+#include "runtime/ecs/entity.h"
 
 namespace ptgn {
 
-class Shader : public impl::RefCountedAsset<Shader> {
+class Shader {
 public:
-	using RefCountedAsset::RefCountedAsset;
-
 private:
-	friend class impl::RefCountedAsset<Shader>;
-
-	void Destroy();
+	Entity entity_;
 };
 
 } // namespace ptgn

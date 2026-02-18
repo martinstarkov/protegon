@@ -18,7 +18,6 @@
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
-#include "renderer/backend/gl/gl_render_target.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
@@ -228,7 +227,7 @@ RenderTarget Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
 	// No compatible free target available.
 	// If we have room in the pool, create one.
 	// Pool is at/over the limit and no compatible spare existed:
-	PooledTarget entry{};
+	PooledTarget entry;
 	entry.target		 = CreateRenderTarget(size, format);
 	entry.in_use		 = true;
 	entry.last_used_tick = pool_tick_;
