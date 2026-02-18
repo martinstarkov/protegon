@@ -1,55 +1,42 @@
 #pragma once
 
 #include <type_traits>
-#include <utility>
 
 namespace ptgn::impl {
+
+namespace gl {
+
+class Renderer;
+
+} // namespace gl
 
 template <typename T>
 class Resource {
 public:
+	// TODO: Move to requires.
+	static_assert(std::is_copy_constructible_v<T>);
+
 	Resource() = default;
 
-	explicit Resource(T resource) noexcept : resource_(resource) {}
+	explicit Resource(gl::Renderer* renderer, T resource) noexcept;
 
 	Resource(const Resource&)			 = delete;
 	Resource& operator=(const Resource&) = delete;
 
-	Resource(Resource&& other) noexcept : resource_{ std::exchange(other.resource_, T{}) } {}
+	Resource(Resource&& other) noexcept;
 
-	Resource& operator=(Resource&& other) noexcept {
-		if (this != &other) {
-			Reset();
-			resource_ = std::exchange(other.resource_, T{});
-		}
-		return *this;
-	}
+	Resource& operator=(Resource&& other) noexcept;
 
-	~Resource() {
-		Reset();
-	}
+	~Resource();
+
+	operator T() const noexcept;
 
 protected:
-	T& Get() noexcept {
-		return resource_;
-	}
+	bool IsValid() const noexcept;
 
-	const T& Get() const noexcept {
-		return resource_;
-	}
+	void Reset() noexcept;
 
-	bool Valid() const noexcept {
-		return resource_ != T{};
-	}
-
-	void Reset() noexcept {
-		if (resource_ != T{}) {
-			static_cast<Derived*>(this)->Destroy(resource_);
-			resource_ = T{};
-		}
-	}
-
-private:
+	gl::Renderer* renderer_{ nullptr };
 	T resource_{};
 };
 

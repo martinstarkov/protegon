@@ -1,13 +1,18 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <variant>
 
 #include "core/util/file.h"
-#include "renderer/primitives/font.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "runtime/asset/audio_asset.h"
+#include "runtime/asset/font_asset.h"
+#include "runtime/asset/shader_asset.h"
+#include "runtime/asset/texture_asset.h"
 #include "runtime/audio/audio.h"
+#include "runtime/ecs/manager.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -37,22 +42,30 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	Audio LoadAudio(const path& audio_path);
-	json LoadJson(const path& json_path);
-	impl::Shader LoadShader(
-		const std::variant<ShaderCode, path>& source, const std::string& shader_name
+	Audio LoadAudio(std::string_view key, const path& audio_path);
+	json LoadJson(std::string_view key, const path& json_path);
+	Shader LoadShader(
+		std::string_view key, const std::variant<ShaderCode, path>& source,
+		const std::string& shader_name
 	);
-	impl::Shader LoadShader(
-		const std::variant<ShaderCode, std::string>& vertex,
+	Shader LoadShader(
+		std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
 		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 	);
-	impl::Texture LoadTexture(const path& texture_path);
-	Font LoadFont(const path& font_path, float point_size);
+	Texture LoadTexture(std::string_view key, const path& texture_path);
+	Font LoadFont(std::string_view key, const path& font_path, float point_size);
+
+	void UnloadAudio(std::string_view key);
+	void UnloadJson(std::string_view key);
+	void UnloadShader(std::string_view key);
+	void UnloadTexture(std::string_view key);
+	void UnloadFont(std::string_view key);
 
 private:
 	friend class Shader;
 	friend class Texture;
 
+	Manager manager_;
 	impl::SDLInstance& sdl_;
 	Renderer& renderer_;
 };

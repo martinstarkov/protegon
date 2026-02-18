@@ -16,7 +16,6 @@
 #include "renderer/image/surface.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
-#include "renderer/targets/render_target.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/drawable.h"
@@ -250,13 +249,13 @@ void Scene::InternalDraw() {
 
 	auto& renderer{ app().renderer };
 
-	renderer.ClearRenderTarget(render_target_.Get<RenderTarget>(), color::Transparent);
+	render_target_.Get<ptgn::RenderTarget>().Clear(color::Transparent);
 
 	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
 		// exist.
 		// TODO: Fix. Clear render target with its clear color instead of transparent.
-		renderer.ClearRenderTarget(rt, color::Transparent);
+		rt.Clear(color::Transparent);
 	}
 
 	// Loop through render targets and render their display lists onto their internal frame
@@ -267,7 +266,7 @@ void Scene::InternalDraw() {
 	}
 
 	DrawDisplayList(
-		renderer, render_target_.Get<RenderTarget>(),
+		renderer, render_target_.Get<ptgn::RenderTarget>(),
 		render_target_.Get<impl::DisplayList>().entities,
 		[](Entity entity) {
 			// Skip entities which are in the display list of a custom render target.
@@ -275,15 +274,15 @@ void Scene::InternalDraw() {
 		}
 	);
 
-	renderer.BindRenderTarget(renderer.GetScreenTarget());
+	renderer.GetScreenTarget().Bind(*app().renderer.gl_renderer_->gl);
 
 	auto half_viewport{ renderer.GetGameSize() * 0.5f };
 	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	renderer.SetBlend(BlendMode::Blend);
 
 	renderer.DrawTexture(
-		render_target_.Get<RenderTarget>(), { 0, 0 }, render_target_.Get<RenderTarget>().GetSize(),
-		GetTint(render_target_), true
+		render_target_.Get<ptgn::RenderTarget>(), { 0, 0 },
+		render_target_.Get<ptgn::RenderTarget>().GetSize(), GetTint(render_target_), true
 	);
 
 	// for (auto [e, handle] : EntitiesWith<Handle<Asset::Texture>>()) {

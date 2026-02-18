@@ -16,17 +16,6 @@ class RenderData;
 
 } // namespace impl
 
-// template <bool is_const>
-// using View = ecs::impl::View<Entity, JsonArchiver, is_const, ecs::impl::LoopCriterion::None>;
-//
-// template <bool is_const, typename... TComponents>
-// using ViewWith = ecs::impl::View<
-//	Entity, JsonArchiver, is_const, ecs::impl::LoopCriterion::WithComponents, TComponents...>;
-//
-// template <bool is_const, typename... TComponents>
-// using ViewWithout = ecs::impl::View<
-//	Entity, JsonArchiver, is_const, ecs::impl::LoopCriterion::WithoutComponents, TComponents...>;
-
 class Manager : private ecs::impl::Manager<JsonArchiver> {
 private:
 	using ManagerBase = ecs::impl::Manager<JsonArchiver>;
@@ -81,6 +70,7 @@ public:
 	}
 
 	/*
+	// TODO: Fix these using the thing inside of the scene class.
 	template <typename... Ts>
 	ptgn::ViewWith<true, Ts...> EntitiesWith() const {
 		return { this, next_entity_,

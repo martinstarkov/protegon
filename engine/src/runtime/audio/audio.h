@@ -6,8 +6,6 @@ struct MIX_Audio;
 
 namespace ptgn {
 
-class AssetManager;
-
 namespace impl {
 
 struct MIX_AudioDeleter {
@@ -15,15 +13,6 @@ struct MIX_AudioDeleter {
 };
 
 } // namespace impl
-
-class Audio {
-private:
-	friend class AssetManager;
-
-	explicit Audio(const std::shared_ptr<MIX_Audio>& audio);
-
-	std::shared_ptr<MIX_Audio> audio_;
-};
 
 } // namespace ptgn
 

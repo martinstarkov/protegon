@@ -1,5 +1,6 @@
 #include "renderer/resources/render_target.h"
 
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -10,138 +11,105 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
+#include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/resources/framebuffer.h"
-#include "renderer/resources/id.h"
 #include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/resource.h"
 #include "renderer/resources/texture.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
-V2_int RenderTarget::GetSize() const {
-	return size_;
+namespace impl {
+
+void RenderTarget::Resize(gl::GLContext& gl, V2_int new_size) {
+	if (size_ == new_size) {
+		return;
+	}
+
+	gl.framebuffers.ResizeFramebuffer(framebuffer_, new_size);
+
+	size_ = new_size;
 }
 
-TextureFormat RenderTarget::GetFormat() const {
-	return format_;
+void RenderTarget::Clear(gl::GLContext& gl, Color color) const {
+	auto bind_guard = gl.Bind(framebuffer_, true);
+
+	gl.SetViewport({ {}, size_ });
+
+	gl.framebuffers.ClearToColor(framebuffer_, color);
+}
+
+void RenderTarget::Bind(gl::GLContext& gl) const {
+	auto _ = gl.Bind(framebuffer_);
+
+	gl.SetViewport({ {}, size_ });
 }
 
 RenderTarget::RenderTarget(
-	gl::GLContext* gl, const Framebuffer& framebuffer, const std::optional<Texture>& color,
+	const Framebuffer& framebuffer, const std::optional<Texture>& color,
 	const std::optional<Renderbuffer>& depth, V2_int size, TextureFormat format
 ) :
-	gl_{ gl },
 	framebuffer_{ framebuffer },
 	color_{ color },
 	depth_{ depth },
 	size_{ size },
 	format_{ format } {}
 
-RenderTarget::RenderTarget(gl::GLContext* gl, V2_int size, TextureFormat format) :
-	gl_{ gl }, size_{ size }, format_{ format } {
-	PTGN_ASSERT(gl_ != nullptr);
+void RenderPass::Bind() {
+	// Bind the next write target (opposite of latest output; ping for first write)
+	RenderTarget write;
 
-	const auto& desc = gl::GetTextureFormatDesc(format_);
-
-	color_ = gl_->textures.CreateTexture(
-		nullptr, desc.pixel_format, desc.pixel_type, size_, desc.internal_format
-	);
-
-	if (desc.has_depth || desc.has_stencil) {
-		auto rb_format{ desc.has_stencil ? GL_DEPTH_STENCIL : GL_DEPTH_COMPONENT };
-
-		depth_ = gl_->renderbuffers.CreateRenderbuffer(size_, rb_format);
+	if (!has_written_once_) {
+		write = ping_;
+	} else {
+		if (!has_pong_ && latest_is_ping_) {
+			PTGN_ASSERT(renderer_ != nullptr);
+			pong_	  = renderer_->AcquirePooledTarget(source_.size_, source_.format_);
+			has_pong_ = true;
+		}
+		write = latest_is_ping_ ? pong_ : ping_;
 	}
 
-	framebuffer_ = gl_->framebuffers.CreateFramebuffer(
-		color_, gl::Attachment::Color0, depth_,
-		desc.has_stencil ? gl::Attachment::DepthStencil : gl::Attachment::Depth
-	);
+	write.Bind(*renderer_->gl);
+}
+
+template class Resource<impl::RenderTarget>;
+
+} // namespace impl
+
+V2_int RenderTarget::GetSize() const {
+	return resource_.size_;
+}
+
+TextureFormat RenderTarget::GetFormat() const {
+	return resource_.format_;
 }
 
 void RenderTarget::Resize(V2_int new_size) {
-	if (size_ == new_size) {
-		return;
-	}
-
-	PTGN_ASSERT(gl_ != nullptr);
-	gl_->framebuffers.ResizeFramebuffer(framebuffer_, new_size);
-
-	size_ = new_size;
-}
-
-void RenderTarget::Destroy() {
-	if (!gl_) {
-		return;
-	}
-
-	if (color_.has_value()) {
-		gl_->textures.DestroyTexture(*color_);
-	}
-	if (depth_.has_value()) {
-		gl_->renderbuffers.DestroyRenderbuffer(*depth_);
-	}
-
-	gl_->framebuffers.DestroyFramebuffer(framebuffer_);
-
-	size_	= {};
-	format_ = {};
+	PTGN_ASSERT(IsValid());
+	resource_.Resize(*renderer_->gl, new_size);
 }
 
 void RenderTarget::Clear(Color color) {
-	PTGN_ASSERT(gl_ != nullptr);
-
-	auto bind_guard = gl_->Bind(framebuffer_, true);
-
-	gl_->SetViewport({ {}, size_ });
-
-	gl_->framebuffers.ClearToColor(framebuffer_, color);
+	PTGN_ASSERT(IsValid());
+	resource_.Clear(*renderer_->gl, color);
 }
 
 void RenderTarget::Bind() {
-	PTGN_ASSERT(gl_ != nullptr);
-
-	auto _ = gl_->Bind(framebuffer_);
-
-	gl_->SetViewport({ {}, size_ });
+	PTGN_ASSERT(IsValid());
+	resource_.Bind(*renderer_->gl);
 }
 
-RenderTarget::~RenderTarget() noexcept {
-	Destroy();
-}
-
-RenderTarget::RenderTarget(RenderTarget&& other) noexcept :
-	gl_{ std::exchange(other.gl_, nullptr) },
-	framebuffer_{ std::exchange(other.framebuffer_, Framebuffer{ 0 }) },
-	color_{ std::exchange(other.color_, {}) },
-	depth_{ std::exchange(other.depth_, {}) },
-	size_{ std::exchange(other.size_, {}) },
-	format_{ std::exchange(other.format_, TextureFormat::RGBA8) } {}
-
-RenderTarget& RenderTarget::operator=(RenderTarget&& other) noexcept {
-	if (this != &other) {
-		Destroy();
-
-		color_		 = std::exchange(other.color_, {});
-		depth_		 = std::exchange(other.depth_, {});
-		format_		 = std::exchange(other.format_, TextureFormat::RGBA8);
-		framebuffer_ = std::exchange(other.framebuffer_, Framebuffer{ 0 });
-		gl_			 = std::exchange(other.gl_, nullptr);
-		size_		 = std::exchange(other.size_, {});
-	}
-
-	return *this;
-}
-
-} // namespace ptgn::impl
+} // namespace ptgn
 
 // void GameResizeScript::OnGameSizeChanged() {
-//	auto game_size{ Application::Get().render_.GetGameSize() };
+//	auto game_size{ Application::resource_.render_.GetGameSize() };
 //	RenderTarget{ entity }.Resize(game_size);
 // }
 //
 // void DisplayResizeScript::OnDisplaySizeChanged() {
-//	auto display_size{ Application::Get().render_.GetDisplaySize() };
+//	auto display_size{ Application::resource_.render_.GetDisplaySize() };
 //	RenderTarget{ entity }.Resize(display_size);
 // }
 //
@@ -164,7 +132,7 @@ RenderTarget& RenderTarget::operator=(RenderTarget&& other) noexcept {
 //		texture_size = sprite.GetSize();
 //	}
 //
-//	Application::Get().render_.DrawTexture(
+//	Application::resource_.render_.DrawTexture(
 //		sprite.GetTexture(), GetDrawTransform(entity), texture_size, GetDrawOrigin(entity),
 //		GetTint(entity), GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
 //		entity.GetOrDefault<PreFX>(), entity.GetOrDefault<PostFX>(),

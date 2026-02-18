@@ -2,7 +2,10 @@
 
 #include <cstdint>
 
+#include "core/math/vector2.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/resource.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn {
 
@@ -111,5 +114,19 @@ enum class TextureWrap : std::uint32_t {
 	MirroredRepeat = 0x8370, // GL_MIRRORED_REPEAT
 	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
 };
+
+namespace impl {
+
+class TextureObject : public Resource<Texture> {
+public:
+	using Base = Resource<Texture>;
+	using Base::Base;
+
+	V2_int GetSize() const;
+
+	TextureFormat GetFormat() const;
+};
+
+} // namespace impl
 
 } // namespace ptgn

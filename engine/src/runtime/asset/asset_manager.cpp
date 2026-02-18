@@ -15,11 +15,16 @@
 #include "core/assert.h"
 #include "core/util/file.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/image/surface.h"
 #include "renderer/primitives/font.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "runtime/asset/audio_asset.h"
+#include "runtime/asset/font_asset.h"
+#include "runtime/asset/shader_asset.h"
+#include "runtime/asset/texture_asset.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 
@@ -30,32 +35,53 @@ namespace ptgn {
 AssetManager::AssetManager(impl::SDLInstance& sdl, Renderer& renderer) :
 	sdl_{ sdl }, renderer_{ renderer } {}
 
-impl::Shader AssetManager::LoadShader(
-	const std::variant<ShaderCode, path>& source, const std::string& shader_name
+Shader AssetManager::LoadShader(
+	std::string_view key, const std::variant<ShaderCode, path>& source,
+	const std::string& shader_name
 ) {
-	return renderer.gl_renderer_.shaders.CreateProgram(source, shader_name);
+	Shader shader;
+	shader.entity_ = manager_.CreateEntity();
+	shader.entity_.Add<impl::AssetName>(key);
+	shader.entity_.Add<impl::AssetKey>(Hash(key));
+	shader.entity_.Add<impl::ShaderObject>(
+		renderer_.gl_renderer_->gl->shaders.CreateProgram(source, shader_name)
+	);
+	return shader;
 }
 
-impl::Shader AssetManager::LoadShader(
-	const std::variant<ShaderCode, std::string>& vertex,
+Shader AssetManager::LoadShader(
+	std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
 	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 ) {
-	return gl_.shaders.CreateProgram(vertex, fragment, shader_name);
+	Shader shader;
+	shader.entity_ = manager_.CreateEntity();
+	shader.entity_.Add<impl::AssetName>(key);
+	shader.entity_.Add<impl::AssetKey>(Hash(key));
+	shader.entity_.Add<impl::ShaderObject>(
+		renderer_.gl_renderer_->gl->shaders.CreateProgram(vertex, fragment, shader_name)
+	);
+	return shader;
 }
 
-impl::Texture AssetManager::LoadTexture(const path& asset_path) {
+Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create texture from invalid path: ", asset_path.string()
 	);
 
 	impl::Surface surface{ asset_path };
 
-	return gl_.textures.CreateTexture(
+	Texture texture;
+	texture.entity_ = manager_.CreateEntity();
+	texture.entity_.Add<impl::AssetName>(key);
+	texture.entity_.Add<impl::AssetKey>(Hash(key));
+	texture.entity_.Add<impl::TextureObject>(renderer_.gl_renderer_->gl->textures.CreateTexture(
 		surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA
-	);
+	));
+
+	return texture;
 }
 
-Font AssetManager::LoadFont(const path& asset_path, float pt_size) {
+Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float pt_size) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create font from invalid path: ", asset_path.string()
 	);
@@ -64,12 +90,19 @@ Font AssetManager::LoadFont(const path& asset_path, float pt_size) {
 
 	PTGN_ASSERT(ttf_font, SDL_GetError());
 
-	std::shared_ptr<TTF_Font> font{ ttf_font, impl::TTF_FontDeleter{} };
+	std::shared_ptr<TTF_Font> f{ ttf_font, impl::TTF_FontDeleter{} };
 
-	return Font{ font, pt_size };
+	Font font;
+	font.entity_ = manager_.CreateEntity();
+	font.entity_.Add<impl::AssetName>(key);
+	font.entity_.Add<impl::AssetKey>(Hash(key));
+	font.entity_.Add<impl::FontSize>(pt_size);
+	font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
+
+	return font;
 }
 
-Audio AssetManager::LoadAudio(const path& asset_path) {
+Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create audio from invalid path: ", asset_path.string()
 	);
@@ -80,17 +113,86 @@ Audio AssetManager::LoadAudio(const path& asset_path) {
 
 	PTGN_ASSERT(mix_audio, SDL_GetError());
 
-	std::shared_ptr<MIX_Audio> music{ mix_audio, impl::MIX_AudioDeleter{} };
+	std::shared_ptr<MIX_Audio> a{ mix_audio, impl::MIX_AudioDeleter{} };
 
-	return Audio{ music };
+	Audio audio;
+	audio.entity_ = manager_.CreateEntity();
+	audio.entity_.Add<impl::AssetName>(key);
+	audio.entity_.Add<impl::AssetKey>(Hash(key));
+	audio.entity_.Add<std::shared_ptr<MIX_Audio>>(a);
+
+	return audio;
 }
 
-json AssetManager::LoadJson(const path& asset_path) {
+json AssetManager::LoadJson(std::string_view key, const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create json from invalid path: ", asset_path.string()
 	);
 
-	return ptgn::LoadJson(asset_path);
+	json j{ ptgn::LoadJson(asset_path) };
+
+	/*
+	// TODO: Make json an asset
+	JsonAsset json_asset;
+	json_asset.entity_ = manager_.CreateEntity();
+	json_asset.entity_.Add<impl::AssetName>(key);
+	json_asset.entity_.Add<impl::AssetKey>(Hash(key));
+	json_asset.entity_.Add<json>(j);
+	return json_asset;
+	*/
+
+	return j;
+}
+
+void AssetManager::UnloadAudio(std::string_view key) {
+	auto hash{ Hash(key) };
+	for (auto [entity, k, r] :
+		 manager_.EntitiesWith<impl::AssetKey, std::shared_ptr<MIX_Audio>>()) {
+		if (k.hash == hash) {
+			entity.Destroy();
+		}
+	}
+	manager_.Refresh();
+}
+
+void AssetManager::UnloadJson(std::string_view key) {
+	auto hash{ Hash(key) };
+	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, json>()) {
+		if (k.hash == hash) {
+			entity.Destroy();
+		}
+	}
+	manager_.Refresh();
+}
+
+void AssetManager::UnloadShader(std::string_view key) {
+	auto hash{ Hash(key) };
+	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, impl::ShaderObject>()) {
+		if (k.hash == hash) {
+			entity.Destroy();
+		}
+	}
+	manager_.Refresh();
+}
+
+void AssetManager::UnloadTexture(std::string_view key) {
+	auto hash{ Hash(key) };
+	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, impl::TextureObject>()) {
+		if (k.hash == hash) {
+			entity.Destroy();
+		}
+	}
+	manager_.Refresh();
+}
+
+void AssetManager::UnloadFont(std::string_view key) {
+	auto hash{ Hash(key) };
+	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, std::shared_ptr<TTF_Font>>()) {
+		if (k.hash == hash) {
+			entity.Destroy();
+		}
+	}
+	manager_.Refresh();
 }
 
 } // namespace ptgn

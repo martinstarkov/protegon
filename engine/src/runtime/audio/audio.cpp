@@ -15,8 +15,6 @@ void MIX_AudioDeleter::operator()(MIX_Audio* audio) const {
 
 } // namespace impl
 
-Audio::Audio(const std::shared_ptr<MIX_Audio>& audio) : audio_{ audio } {}
-
 } // namespace ptgn
 
 // #include "audio/audio.h"

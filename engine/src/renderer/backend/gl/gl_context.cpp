@@ -4,6 +4,7 @@
 #include <SDL3/SDL_video.h>
 
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <utility>
 #include <vector>
@@ -18,17 +19,24 @@
 #include "core/util/id_map.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
+#include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
+#include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
+#include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
+#include "renderer/resources/buffer.h"
 #include "renderer/resources/framebuffer.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/render_target.h"
 #include "renderer/resources/renderbuffer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "renderer/resources/vertex_array.h"
 
 /// 0 for immediate updates, 1 for updates synchronized with the vertical retrace, -1 for adaptive
 /// vsync.
@@ -59,8 +67,7 @@ GLContext::GLContext(const Window& window) :
 	textures{ *this },
 	renderbuffers{ *this },
 	framebuffers{ *this },
-	vertex_arrays{ *this },
-	render_targets{ *this } {
+	vertex_arrays{ *this } {
 	if (context_ != nullptr) {
 		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(!result, SDL_GetError());
@@ -298,6 +305,61 @@ bool GLContext::IsBound(Framebuffer id) const {
 
 bool GLContext::IsBound(VertexArray id) const {
 	return GetBoundVertexArray() == id;
+}
+
+void GLContext::Destroy(VertexBuffer id) {
+	buffers.DestroyVertexBuffer(id);
+}
+
+void GLContext::Destroy(ElementBuffer id) {
+	buffers.DestroyElementBuffer(id);
+}
+
+void GLContext::Destroy(UniformBuffer id) {
+	buffers.DestroyUniformBuffer(id);
+}
+
+void GLContext::Destroy(Shader id) {
+	shaders.DestroyProgram(id);
+}
+
+void GLContext::Destroy(Texture id) {
+	textures.DestroyTexture(id);
+}
+
+void GLContext::Destroy(Renderbuffer id) {
+	renderbuffers.DestroyRenderbuffer(id);
+}
+
+void GLContext::Destroy(Framebuffer id) {
+	framebuffers.DestroyFramebuffer(id);
+}
+
+void GLContext::Destroy(VertexArray id) {
+	vertex_arrays.DestroyVertexArray(id);
+}
+
+void Destroy(VertexBuffer id);
+void Destroy(ElementBuffer id);
+void Destroy(UniformBuffer id);
+void Destroy(Shader id);
+void Destroy(Texture id);
+void Destroy(Renderbuffer id);
+void Destroy(Framebuffer id);
+void Destroy(VertexArray id);
+
+void GLContext::Destroy(RenderTarget& render_target) {
+	if (render_target.color_.has_value()) {
+		textures.DestroyTexture(*render_target.color_);
+	}
+	if (render_target.depth_.has_value()) {
+		renderbuffers.DestroyRenderbuffer(*render_target.depth_);
+	}
+
+	framebuffers.DestroyFramebuffer(render_target.framebuffer_);
+
+	render_target.size_	  = {};
+	render_target.format_ = {};
 }
 
 void GLContext::EnableGammaCorrection() const {

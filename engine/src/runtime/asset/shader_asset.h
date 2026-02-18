@@ -1,15 +1,16 @@
 #pragma once
 
-#include <cstdint>
-
-#include "runtime/asset/asset_handle.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
 
+class AssetManager;
+
 class Shader {
 public:
 private:
+	friend class AssetManager;
+
 	Entity entity_;
 };
 

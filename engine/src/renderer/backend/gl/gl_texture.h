@@ -14,6 +14,8 @@ class GLContext;
 struct TextureCache {
 	V2_int size;
 	GLenum internal_format{ GL_RGBA8 };
+
+	TextureFormat GetFormat() const;
 };
 
 struct TextureFormatDesc {
@@ -100,6 +102,58 @@ constexpr TextureFormatDesc GetTextureFormatDesc(TextureFormat fmt) {
 			// No UB / no exceptions:
 			PTGN_ERROR("Unknown TextureFormat");
 	}
+}
+
+constexpr TextureFormat GetTextureFormatFromInternal(GLenum internal) {
+	switch (internal) {
+		using enum TextureFormat;
+		// -----------------------------------------------------------------
+		// Most common color formats
+		// -----------------------------------------------------------------
+		case GL_RGBA8:				return RGBA8;
+		case GL_SRGB8_ALPHA8:		return RGBA8_SRGB;
+		case GL_RGBA16F:			return RGBA16F;
+		case GL_RGBA32F:			return RGBA32F;
+
+		case GL_RG8:				return RG8;
+		case GL_R8:					return R8;
+
+		// -----------------------------------------------------------------
+		// 16-bit float
+		// -----------------------------------------------------------------
+		case GL_R16F:				return R16F;
+		case GL_RG16F:				return RG16F;
+
+		// -----------------------------------------------------------------
+		// 32-bit float
+		// -----------------------------------------------------------------
+		case GL_R32F:				return R32F;
+		case GL_RG32F:				return RG32F;
+
+		// -----------------------------------------------------------------
+		// HDR / packed
+		// -----------------------------------------------------------------
+		case GL_R11F_G11F_B10F:		return R11G11B10F;
+		case GL_RGB10_A2:			return RGB10_A2;
+
+		// -----------------------------------------------------------------
+		// Depth / stencil
+		// -----------------------------------------------------------------
+		case GL_DEPTH_COMPONENT16:	return Depth16;
+		case GL_DEPTH_COMPONENT24:	return Depth24;
+		case GL_DEPTH_COMPONENT32F: return Depth32F;
+
+		case GL_DEPTH24_STENCIL8:	return Depth24_Stencil8;
+		case GL_DEPTH32F_STENCIL8:	return Depth32F_Stencil8;
+
+		case GL_STENCIL_INDEX8:		return Stencil8;
+
+		default:					PTGN_ERROR("Unknown internal format");
+	}
+}
+
+TextureFormat TextureCache::GetFormat() const {
+	return GetTextureFormatFromInternal(internal_format);
 }
 
 [[nodiscard]] constexpr int GetColorComponentCount(GLenum internal_format) {

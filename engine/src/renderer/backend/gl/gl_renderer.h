@@ -11,8 +11,6 @@
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "renderer/backend/gl/gl_buffer.h"
-#include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer.h"
 #include "renderer/resources/framebuffer.h"
@@ -26,6 +24,12 @@
 namespace ptgn {
 
 class Window;
+
+namespace impl {
+
+class RenderPass;
+
+} // namespace impl
 
 namespace impl::gl {
 
@@ -49,7 +53,7 @@ struct QuadDesc {
 };
 
 struct PooledTarget {
-	RenderTarget target;
+	ptgn::RenderTarget target;
 	std::uint64_t last_used_tick{ 0 };
 	bool in_use{ false };
 };
@@ -78,11 +82,7 @@ public:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
-	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
-	void BindRenderTarget(const RenderTarget& rt);
-	void BindRenderTarget(RenderPass& pass);
-	void ClearRenderTarget(const RenderTarget& rt, Color color);
+	ptgn::RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
 
 	void DrawTexture(
 		Shader shader, Texture texture, V2_float center, V2_float size, Color tint = color::White,
@@ -119,9 +119,11 @@ public:
 
 	Texture GetWhiteTexture() const;
 
+	std::unique_ptr<GLContext> gl;
+
 private:
 	friend class Application;
-	friend class RenderPass;
+	friend class ptgn::impl::RenderPass;
 	template <class State, class Func>
 	friend void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
 
@@ -134,15 +136,13 @@ private:
 	std::uint32_t GetTextureSlot(Texture tex);
 
 	RenderTarget AcquirePooledTarget(V2_int size, TextureFormat format);
-	void ReleasePooledTarget(const RenderTarget& target);
+	void ReleasePooledTarget(RenderTarget& target);
 
-	std::unique_ptr<GLContext> gl_;
-
-	RenderTarget screen_target_;
-	VertexBuffer vbo_;
-	ElementBuffer ebo_;
-	VertexArray vao_;
-	Texture white_texture_;
+	ptgn::RenderTarget screen_target_;
+	VertexBufferObject vbo_;
+	ElementBufferObject ebo_;
+	VertexArrayObject vao_;
+	TextureObject white_texture_;
 
 	std::vector<Vertex> batch_vertices_;
 	std::vector<Index> batch_indices_;

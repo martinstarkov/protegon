@@ -141,10 +141,10 @@ public:
 		PTGN_INFO("Entered asset scene");
 
 		PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		auto a = app().assets.LoadAudio("assets/music1.ogg");
-		auto f = app().assets.LoadFont("assets/retro_gaming.ttf", 11);
-		auto t = app().assets.LoadTexture("assets/smile.png");
-		auto j = app().assets.LoadJson("assets/dialogue.json");
+		auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
+		auto f = app().assets.LoadFont("test", "assets/retro_gaming.ttf", 11);
+		auto t = app().assets.LoadTexture("test", "assets/smile.png");
+		auto j = app().assets.LoadJson("test", "assets/dialogue.json");
 
 		auto sprite = CreateSprite(*this, t, {});
 

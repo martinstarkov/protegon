@@ -26,6 +26,7 @@
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/resources/framebuffer.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/renderbuffer.h"
 #include "renderer/resources/texture.h"
 

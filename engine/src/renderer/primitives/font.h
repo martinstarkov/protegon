@@ -13,8 +13,6 @@ struct TTF_Font;
 
 namespace ptgn {
 
-class AssetManager;
-
 namespace impl {
 
 struct TTF_FontDeleter {
@@ -31,16 +29,6 @@ struct FontBinary {
 
 	unsigned char* buffer{ nullptr };
 	unsigned int length{ 0 };
-};
-
-class Font {
-private:
-	friend class AssetManager;
-
-	Font(const std::shared_ptr<TTF_Font>& font, float pt_size);
-
-	std::shared_ptr<TTF_Font> font_;
-	float pt_size_{ 0.0f };
 };
 
 enum class FontRenderMode : int {

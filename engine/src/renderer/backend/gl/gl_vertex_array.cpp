@@ -6,6 +6,7 @@
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/resources/vertex_array.h"
 
 namespace ptgn::impl::gl {
 

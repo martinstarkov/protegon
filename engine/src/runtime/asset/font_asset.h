@@ -1,18 +1,21 @@
 #pragma once
 
-#include "core/math/vector2.h"
-#include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
 
 class AssetManager;
 
-class Texture {
-public:
-	V2_int GetSize() const;
-	TextureFormat GetFormat() const;
+namespace impl {
 
+struct FontSize {
+	float point_size{ 0.0f };
+};
+
+} // namespace impl
+
+class Font {
+public:
 private:
 	friend class AssetManager;
 

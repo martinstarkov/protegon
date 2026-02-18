@@ -16,6 +16,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
+#include "runtime/asset/texture_asset.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/components/sprite.h"
@@ -151,7 +152,7 @@ V2_int GetTextureSize(Entity entity) {
 		size = V2_int{ entity.Get<impl::TextureSize>() };
 	} else if (entity.Has<Texture>()) {
 		const auto& renderer{ entity.GetScene().app().renderer };
-		size = renderer.GetTextureSize(entity.Get<Texture>());
+		size = entity.Get<Texture>().GetSize();
 	}
 
 	PTGN_ASSERT(size.has_value(), "Entity does not have a texture");

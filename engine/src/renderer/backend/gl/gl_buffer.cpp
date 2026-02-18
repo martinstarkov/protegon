@@ -4,8 +4,11 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/resources/buffer.h"
+#include "renderer/resources/vertex_array.h"
 
 namespace ptgn::impl::gl {
 

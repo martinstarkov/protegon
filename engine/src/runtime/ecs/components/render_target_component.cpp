@@ -1,14 +1,16 @@
 #include "runtime/ecs/components/render_target_component.h"
 
+#include <utility>
+
 #include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/draw.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
-#include "renderer/targets/render_target.h"
+#include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
@@ -21,15 +23,15 @@ namespace impl {
 
 void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<GameResized>([this](auto& e) {
-		auto& rt{ entity.Get<RenderTarget>() };
-		entity.GetScene().app().renderer.ResizeRenderTarget(rt, e.size);
+		auto& rt{ entity.Get<ptgn::RenderTarget>() };
+		rt.Resize(e.size);
 	});
 }
 
 void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<DisplayResized>([this](auto& e) {
-		auto& rt{ entity.Get<RenderTarget>() };
-		entity.GetScene().app().renderer.ResizeRenderTarget(rt, e.size);
+		auto& rt{ entity.Get<ptgn::RenderTarget>() };
+		rt.Resize(e.size);
 	});
 }
 
@@ -46,9 +48,9 @@ static Entity CreateRenderTarget(
 	// SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
-	render_target.Add<RenderTarget>(renderer.CreateRenderTarget(size, format));
+	render_target.Add<ptgn::RenderTarget>(renderer.CreateRenderTarget(size, format));
 	// TODO: Add clear color here.
-	renderer.ClearRenderTarget(render_target.Get<RenderTarget>());
+	render_target.Get<ptgn::RenderTarget>().Clear();
 
 	return render_target;
 }

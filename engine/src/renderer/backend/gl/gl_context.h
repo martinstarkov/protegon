@@ -8,18 +8,19 @@
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
-#include "renderer/backend/gl/gl_render_target.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
+#include "renderer/resources/buffer.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/renderbuffer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "renderer/resources/vertex_array.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -43,6 +44,12 @@ struct SDL_GLContextState;
 namespace ptgn {
 
 class Window;
+
+namespace impl {
+
+struct RenderTarget;
+
+} // namespace impl
 
 } // namespace ptgn
 
@@ -87,6 +94,16 @@ public:
 	[[nodiscard]] bool IsBound(Framebuffer id) const;
 	[[nodiscard]] bool IsBound(VertexArray id) const;
 
+	void Destroy(VertexBuffer id);
+	void Destroy(ElementBuffer id);
+	void Destroy(UniformBuffer id);
+	void Destroy(Shader id);
+	void Destroy(Texture id);
+	void Destroy(Renderbuffer id);
+	void Destroy(Framebuffer id);
+	void Destroy(VertexArray id);
+	void Destroy(RenderTarget& render_target);
+
 	void EnableGammaCorrection() const;
 	void DisableGammaCorrection() const;
 
@@ -129,7 +146,6 @@ public:
 	Renderbuffers renderbuffers;
 	Framebuffers framebuffers;
 	VertexArrays vertex_arrays;
-	RenderTargets render_targets;
 
 	int GetInteger(GLenum pname) const;
 	[[nodiscard]] std::uint32_t GetActiveTextureSlot() const;

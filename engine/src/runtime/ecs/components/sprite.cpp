@@ -45,7 +45,10 @@ Entity CreateSprite(Scene& scene, Texture texture, V2_float position, Origin dra
 }
 
 Entity CreateSprite(Scene& scene, const path& asset_path, V2_float position, Origin draw_origin) {
-	return CreateSprite(scene, scene.app().assets.LoadTexture(asset_path), position, draw_origin);
+	// TODO: Fix.
+	return {};
+	// return CreateSprite(scene, scene.app().assets.LoadTexture(asset_path), position,
+	// draw_origin);
 }
 
 } // namespace ptgn

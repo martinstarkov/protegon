@@ -6,6 +6,7 @@
 #include "core/math/vector2.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/resource.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn {
@@ -27,37 +28,29 @@ struct RenderTarget {
 	V2_int size_;
 	TextureFormat format_{ TextureFormat::RGBA8 };
 
+	RenderTarget() = default;
+
 	RenderTarget(
 		const Framebuffer& framebuffer, const std::optional<Texture>& color,
 		const std::optional<Renderbuffer>& depth, V2_int size, TextureFormat format
 	);
 
+	void Resize(gl::GLContext& gl, V2_int new_size);
+
+	void Bind(gl::GLContext& gl) const;
+
+	void Clear(gl::GLContext& gl, Color color) const;
+
 	bool operator==(const RenderTarget&) const = default;
 };
 
-class RenderTargetObject {
+class RenderPass {
 public:
-	V2_int GetSize() const;
-	TextureFormat GetFormat() const;
-	void Resize(V2_int new_size);
-
 	void Bind();
 
-	void Clear(Color color = color::Transparent);
-
-private:
-	friend class gl::Renderer;
-
-	RenderTargetObject(V2_int size, TextureFormat format);
-
-	void Destroy();
-};
-
-class RenderPass {
 private:
 	friend class impl::gl::Renderer;
 
-	// TODO: Use ptr.
 	RenderTarget source_;
 
 	RenderTarget ping_;
@@ -69,8 +62,30 @@ private:
 	// "latest output" tracking
 	bool has_written_once_{ false }; // false -> latest is source
 	bool latest_is_ping_{ true };	 // valid only if has_written_once == true
+
+	gl::Renderer* renderer_{ nullptr };
 };
 
 } // namespace impl
+
+class RenderTarget : public impl::Resource<impl::RenderTarget> {
+public:
+	using Base = impl::Resource<impl::RenderTarget>;
+	using Base::Base;
+
+	V2_int GetSize() const;
+	TextureFormat GetFormat() const;
+	void Resize(V2_int new_size);
+
+	void Bind();
+
+	void Clear(Color color = color::Transparent);
+
+private:
+	friend class impl::gl::Renderer;
+
+	RenderTarget() = default;
+	RenderTarget(impl::gl::GLContext* gl, V2_int size, TextureFormat format);
+};
 
 } // namespace ptgn

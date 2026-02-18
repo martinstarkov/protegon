@@ -20,6 +20,8 @@ namespace ptgn {
 class Application;
 class EventHandler;
 class Window;
+class Scene;
+class AssetManager;
 
 struct GameResized : public Event<GameResized> {
 	V2_int size;
@@ -81,6 +83,8 @@ public:
 	);
 	void DrawRect(V2_float center, V2_float size, Color color);
 
+	ptgn::RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
+
 	impl::RenderTarget GetScreenTarget() const;
 
 	void SetViewProjection(const Matrix4& view_projection);
@@ -94,7 +98,9 @@ public:
 
 private:
 	friend class Application;
+	friend class AssetManager;
 	friend class EventHandler;
+	friend class Scene;
 
 	void OnEvent(EventDispatcher d);
 

@@ -108,28 +108,12 @@ void Renderer::DrawRect(V2_float center, V2_float size, Color color) {
 	gl_renderer_->DrawTexture(gl_renderer_->GetWhiteTexture(), center, size, color);
 }
 
-impl::RenderTarget Renderer::GetScreenTarget() const {
-	return gl_renderer_->GetScreenTarget();
-}
-
-impl::RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
+ptgn::RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	return gl_renderer_->CreateRenderTarget(size, format);
 }
 
-void Renderer::ResizeRenderTarget(impl::RenderTarget& rt, V2_int new_size) const {
-	gl_renderer_->ResizeRenderTarget(rt, new_size);
-}
-
-void Renderer::ClearRenderTarget(const impl::RenderTarget& rt, Color color) {
-	gl_renderer_->ClearRenderTarget(rt, color);
-}
-
-void Renderer::BindRenderTarget(const impl::RenderTarget& rt) {
-	gl_renderer_->BindRenderTarget(rt);
-}
-
-void Renderer::BindRenderTarget(impl::RenderPass& pass) {
-	gl_renderer_->BindRenderTarget(pass);
+impl::RenderTarget Renderer::GetScreenTarget() const {
+	return gl_renderer_->GetScreenTarget();
 }
 
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
@@ -238,9 +222,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 		display_viewport_ = viewport;
 
 		if (resized) {
-			gl_renderer_->ResizeRenderTarget(
-				gl_renderer_->GetScreenTarget(), display_viewport_.size
-			);
+			gl_renderer_->GetScreenTarget().Resize(*gl_renderer_->gl, display_viewport_.size);
 
 			if (emit_events) {
 				impl::DisplayResized display_resized;

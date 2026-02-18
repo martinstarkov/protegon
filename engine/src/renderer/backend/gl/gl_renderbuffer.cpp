@@ -5,6 +5,7 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/resources/renderbuffer.h"
 
 namespace ptgn::impl::gl {
 
