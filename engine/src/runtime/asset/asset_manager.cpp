@@ -17,6 +17,7 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/image/surface.h"
 #include "renderer/primitives/font.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/audio/audio.h"
@@ -26,13 +27,13 @@
 
 namespace ptgn {
 
-AssetManager::AssetManager(impl::SDLInstance& sdl, impl::gl::GLContext& gl) :
-	sdl_{ sdl }, gl_{ gl } {}
+AssetManager::AssetManager(impl::SDLInstance& sdl, Renderer& renderer) :
+	sdl_{ sdl }, renderer_{ renderer } {}
 
 impl::Shader AssetManager::LoadShader(
 	const std::variant<ShaderCode, path>& source, const std::string& shader_name
 ) {
-	return gl_.shaders.CreateProgram(source, shader_name);
+	return renderer.gl_renderer_.shaders.CreateProgram(source, shader_name);
 }
 
 impl::Shader AssetManager::LoadShader(

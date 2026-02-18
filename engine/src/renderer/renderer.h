@@ -83,13 +83,6 @@ public:
 
 	impl::RenderTarget GetScreenTarget() const;
 
-	// Move these into the objects themselves.
-	impl::RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
-	void ResizeRenderTarget(impl::RenderTarget& rt, V2_int new_size) const;
-	void BindRenderTarget(const impl::RenderTarget& rt);
-	void BindRenderTarget(impl::RenderPass& pass);
-	void ClearRenderTarget(const impl::RenderTarget& rt, Color color = color::Transparent);
-
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetBlend(BlendMode mode, bool enabled = true);
 	void SetDepth(const DepthState& depth);

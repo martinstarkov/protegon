@@ -73,6 +73,16 @@ void RenderTargets::BindRenderTarget(const RenderTarget& render_target) {
 	gl_.SetViewport({ {}, render_target.size_ });
 }
 
+RenderTarget::RenderTarget(GLContext& gl) {}
+
+RenderTarget::~RenderTarget() noexcept {}
+
+RenderTarget::RenderTarget(RenderTarget&&) noexcept {}
+
+RenderTarget& RenderTarget::operator=(RenderTarget&&) noexcept {
+	// TODO: insert return statement here
+}
+
 } // namespace ptgn::impl::gl
 
 // void GameResizeScript::OnGameSizeChanged() {

@@ -9,6 +9,10 @@
 
 namespace ptgn {
 
+V2_int Texture::GetSize() const {}
+
+TextureFormat Texture::GetFormat() const {}
+
 void Texture::Destroy() {
 	/*auto& texture  = entity_.Get<impl::Texture>();
 	auto& renderer = entity_.GetScene().app().renderer;
@@ -16,5 +20,7 @@ void Texture::Destroy() {
 	renderer.DestroyTexture(texture);
 	entity_.Destroy();*/
 }
+
+template class impl::RefCountedAsset<Texture>;
 
 } // namespace ptgn

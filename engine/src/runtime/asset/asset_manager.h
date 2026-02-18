@@ -10,55 +10,27 @@
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 
-// TODO: Add something along the lines of:
-
-// Handle<Sound> is a shared_ptr<Mix_Chunk>
-
-// let sound_handle = asset_manager.Load<Sound>("path/to/sound");
-
-// entity.Add<Sound>(sound_handle);
-
-// entity.Get<Sound>().Play();
-
-// In asset manager, map the hashed path to a weak ptr of the resource.
-
-// When the handle gets destroyed (shared ptr custom deleter), free the mapped path.
-
-// When using a duplicate path, get it from the mapped paths and turn the weak ptr into a shared
-// ptr.
-
-// Compile time:
-// template <size_t N>
-// void Load(const char (&filepath)[N]) {}
-
-// Runtime:
-// void Load(const path& filepath) {}
-
-// Internally hash the filepath into std::size_t
-
 namespace ptgn {
+
+class Renderer;
 
 namespace impl {
 
-namespace gl {
-
-class GLContext;
-
-} // namespace gl
-
 struct SDLInstance;
 
-// TODO: Add name component for debugging purposes?
+struct AssetName {
+	std::string name;
+};
 
 struct AssetKey {
-	std::uint64_t hash{ 0 };
+	std::size_t hash{ 0 };
 };
 
 } // namespace impl
 
 class AssetManager {
 public:
-	AssetManager(impl::SDLInstance& sdl, impl::gl::GLContext& gl);
+	AssetManager(impl::SDLInstance& sdl, Renderer& renderer);
 	~AssetManager() noexcept						 = default;
 	AssetManager(const AssetManager&)				 = delete;
 	AssetManager& operator=(const AssetManager&)	 = delete;
@@ -78,8 +50,11 @@ public:
 	Font LoadFont(const path& font_path, float point_size);
 
 private:
+	friend class Shader;
+	friend class Texture;
+
 	impl::SDLInstance& sdl_;
-	impl::gl::GLContext& gl_;
+	Renderer& renderer_;
 };
 
 } // namespace ptgn

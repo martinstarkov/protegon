@@ -4,7 +4,11 @@
 
 #include "runtime/ecs/entity.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+class AssetManager;
+
+namespace impl {
 
 struct RefCount {
 	std::uint32_t value{ 0 };
@@ -17,66 +21,30 @@ class RefCountedAsset {
 public:
 	RefCountedAsset() = default;
 
-	explicit RefCountedAsset(Entity e) : entity_{ e } {
-		AddRef();
-	}
+	explicit RefCountedAsset(Entity e, AssetManager* asset_manager);
 
-	RefCountedAsset(const RefCountedAsset& other) : entity_{ other.entity_ } {
-		AddRef();
-	}
+	RefCountedAsset(const RefCountedAsset& other);
 
-	RefCountedAsset(RefCountedAsset&& other) noexcept : entity_{ other.entity_ } {
-		other.entity_ = {};
-	}
+	RefCountedAsset(RefCountedAsset&& other) noexcept;
 
-	RefCountedAsset& operator=(const RefCountedAsset& other) {
-		if (this != &other) {
-			Release();
-			entity_ = other.entity_;
-			AddRef();
-		}
-		return *this;
-	}
+	RefCountedAsset& operator=(const RefCountedAsset& other);
 
-	RefCountedAsset& operator=(RefCountedAsset&& other) noexcept {
-		if (this != &other) {
-			Release();
-			entity_		  = other.entity_;
-			other.entity_ = {};
-		}
-		return *this;
-	}
+	RefCountedAsset& operator=(RefCountedAsset&& other) noexcept;
 
-	~RefCountedAsset() noexcept {
-		Release();
-	}
+	~RefCountedAsset();
 
 protected:
 	Entity entity_;
+	AssetManager* asset_manager_{ nullptr };
 
 private:
-	void AddRef() {
-		if (!Valid()) {
-			return;
-		}
-		entity_.Get<RefCount>().value++;
-	}
+	void AddRef();
 
-	void Release() noexcept {
-		if (!Valid()) {
-			return;
-		}
+	void Release();
 
-		auto& rc = entity_.Get<RefCount>();
-
-		if (--rc.value == 0 && !entity_.Has<PersistentTag>()) {
-			static_cast<Derived*>(this)->Destroy();
-		}
-	}
-
-	bool Valid() const {
-		return entity_.Has<RefCount>();
-	}
+	bool Valid() const;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
