@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -16,9 +17,12 @@
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_resource.h"
+#include "renderer/backend/gl/gl_framebuffer.h"
+#include "renderer/backend/gl/gl_render_target.h"
+#include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
+#include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/render_state.h"
@@ -199,7 +203,7 @@ Renderer::Renderer(Window& window) : gl_{ std::make_unique<GLContext>(window) } 
 		nullptr, vertex_capacity, sizeof(Vertex), BufferUsage::DynamicDraw
 	);
 
-	vao_ = gl_->CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_);
+	vao_ = gl_->vertex_arrays.CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_);
 
 	white_texture_ = gl_->textures.CreateTexture(
 		static_cast<const void*>(&color::White), GL_RGBA, GL_UNSIGNED_INT, { 1, 1 }, GL_RGBA
@@ -279,12 +283,6 @@ void Renderer::BindRenderTarget(RenderPass& p) {
 	BindRenderTarget(write);
 }
 
-void Renderer::ClearRenderTarget(const RenderTarget& rt, Color color) {
-	auto bind_guard = gl_->Bind(rt.framebuffer_, true);
-	gl_->SetViewport({ {}, rt.size_ });
-	gl_->ClearToColor(rt.framebuffer_, color);
-}
-
 void Renderer::FlushBatch() {
 	if (batch_indices_.empty()) {
 		return; // Nothing to draw
@@ -310,7 +308,7 @@ void Renderer::FlushBatch() {
 		auto _ = gl_->Bind(batch_textures_[slot]);
 	}
 
-	gl_->DrawElements(
+	gl_->vertex_arrays.DrawElements(
 		vao_, static_cast<std::uint32_t>(batch_indices_.size()), GL_UNSIGNED_INT, GL_TRIANGLES
 	);
 
@@ -426,7 +424,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 }
 
-void Renderer::SetShader(Shader shader) {
+void Renderer::SetShader(Program shader) {
 	UpdateStateIfChanged(*this, gl_->GetBoundState().shader_program, shader, [this, shader] {
 		auto _ = gl_->Bind(shader);
 	});
@@ -471,7 +469,7 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	});
 }
 
-void Renderer::DrawQuad(Shader shader, const QuadParams& params, const QuadSetup& setup) {
+void Renderer::DrawQuad(Program shader, const QuadParams& params, const QuadSetup& setup) {
 	QuadDesc quad;
 	auto half{ params.size / 2.0f };
 	quad.positions = { params.center - half, params.center + V2_float{ half.x, -half.y },
@@ -534,11 +532,12 @@ void Renderer::DrawTexture(
 }
 
 void Renderer::DrawTexture(
-	Shader shader, Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
+	Program shader, Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(
 		gl_->GetBoundFramebuffer() == Framebuffer{ 0 } ||
-			Texture{ gl_->GetFramebufferAttachment(gl_->GetBoundFramebuffer(), GL_COLOR_ATTACHMENT0)
+			Texture{ gl_->framebuffers
+						 .GetFramebufferAttachment(gl_->GetBoundFramebuffer(), Attachment::Color0)
 						 .id } != texture,
 		"Cannot draw a texture that is attached to the currently set framebuffer"
 	);
@@ -555,7 +554,7 @@ void Renderer::DrawTexture(
 	});
 }
 
-void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& scene_target) {
+void Renderer::DrawTexture(Program shader, RenderPass& p, const RenderTarget& scene_target) {
 	RenderTarget input;
 
 	// Input = latest output, or source before first draw
@@ -614,48 +613,16 @@ void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& sce
 	}
 }
 
-RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
-	const auto& desc = GetTextureFormatDesc(format);
-
-	Texture color = gl_->textures.CreateTexture(
-		nullptr, desc.pixel_format, desc.pixel_type, size, desc.internal_format
-	);
-
-	std::optional<Renderbuffer> depth;
-	if (desc.has_depth || desc.has_stencil) {
-		GLenum rb_format = desc.has_stencil ? GL_DEPTH_STENCIL : GL_DEPTH_COMPONENT;
-
-		depth = gl_->CreateRenderbuffer(size, rb_format);
-	}
-
-	Framebuffer fb = gl_->CreateFramebuffer(
-		color, GL_COLOR_ATTACHMENT0, depth,
-		desc.has_stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT
-	);
-
-	return RenderTarget{ fb, color, depth, size, format };
-}
-
-void Renderer::ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const {
-	if (rt.size_ == new_size) {
-		return;
-	}
-
-	gl_->ResizeFramebuffer(rt.framebuffer_, new_size);
-
-	rt.size_ = new_size;
-}
-
 void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
 	auto _1 = gl_->Bind(Framebuffer{ 0 });
 	gl_->SetClearColor(color::Transparent);
-	gl_->Clear();
+	gl_->framebuffers.Clear();
 
 	BindRenderTarget(screen_target_);
-	gl_->ClearToColor(screen_target_.framebuffer_, color::Transparent);
+	gl_->framebuffers.ClearToColor(screen_target_.framebuffer_, color::Transparent);
 }
 
 void Renderer::EndFrame(const Viewport& viewport) {

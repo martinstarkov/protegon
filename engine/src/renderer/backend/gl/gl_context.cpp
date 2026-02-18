@@ -1,18 +1,11 @@
 #include "renderer/backend/gl/gl_context.h"
 
 #include <SDL3/SDL_error.h>
-#include <SDL3/SDL_pixels.h>
-#include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_video.h>
-#include <SDL3_image/SDL_image.h>
 
-#include <array>
 #include <cstdint>
-#include <filesystem>
 #include <ostream>
-#include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -22,14 +15,16 @@
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "core/util/file.h"
 #include "core/util/id_map.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_buffer.h"
-#include "renderer/backend/gl/gl_resource.h"
+#include "renderer/backend/gl/gl_framebuffer.h"
+#include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
+#include "renderer/backend/gl/gl_texture.h"
+#include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 
@@ -56,7 +51,13 @@ struct GLVersion {
 	int minor{ 0 };
 };
 
-GLContext::GLContext(const Window& window) : buffers{ *this }, shaders{ *this }, textures{ *this } {
+GLContext::GLContext(const Window& window) :
+	buffers{ *this },
+	shaders{ *this },
+	textures{ *this },
+	renderbuffers{ *this },
+	framebuffers{ *this },
+	vertex_arrays{ *this } {
 	if (context_ != nullptr) {
 		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(!result, SDL_GetError());
@@ -86,8 +87,10 @@ GLContext::GLContext(const Window& window) : buffers{ *this }, shaders{ *this },
 	PTGN_ASSERT(max_texture_slots > 0);
 	bound_.texture_units.resize(max_texture_slots, {});
 
-	max_color_attachments_ = static_cast<std::uint32_t>(GetInteger(GL_MAX_COLOR_ATTACHMENTS));
-	PTGN_ASSERT(max_color_attachments_ > 0);
+	auto max_color_attachments{ static_cast<std::uint32_t>(GetInteger(GL_MAX_COLOR_ATTACHMENTS)) };
+	PTGN_ASSERT(max_color_attachments > 0);
+
+	framebuffers.Init(max_color_attachments);
 
 	shaders.Populate(max_texture_slots);
 }
@@ -100,41 +103,6 @@ GLContext::~GLContext() {
 		// Note: If this is the last message you see and the window does not close, it is likely
 		// that a GL asset is destructed after the GL context has been deleted.
 	}
-}
-
-Renderbuffer GLContext::CreateRenderbuffer(V2_int size, GLenum internal_format, bool restore_bind) {
-	auto renderbuffer{ CreateRenderbufferImpl() };
-
-	auto _ = Bind(renderbuffer, restore_bind);
-
-	SetRenderbufferStorage(renderbuffer, size, internal_format);
-
-	return renderbuffer;
-}
-
-Framebuffer GLContext::CreateFramebuffer(
-	std::optional<Texture> texture, GLenum texture_attachment,
-	std::optional<Renderbuffer> renderbuffer, GLenum renderbuffer_attachment, bool restore_bind
-) {
-	PTGN_ASSERT(
-		texture.has_value() || renderbuffer.has_value(),
-		"Must provide at least one valid image attachment when creating a framebuffer"
-	);
-
-	auto framebuffer{ CreateFramebufferImpl() };
-	auto _ = Bind(framebuffer, restore_bind);
-
-	if (texture.has_value()) {
-		AttachTexture(framebuffer, *texture, texture_attachment);
-	}
-
-	if (renderbuffer.has_value()) {
-		AttachRenderbuffer(framebuffer, *renderbuffer, renderbuffer_attachment);
-	}
-
-	PTGN_ASSERT(FramebufferIsComplete(framebuffer));
-
-	return framebuffer;
 }
 
 BindGuard<VertexBuffer> GLContext::Bind(VertexBuffer id, bool restore_bind) {
@@ -160,7 +128,7 @@ BindGuard<ElementBuffer> GLContext::Bind(ElementBuffer id, bool restore_bind) {
 	GLCall(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
 
 	if (bound_.vertex_array) {
-		vertex_array_cache_.Get(bound_.vertex_array).element_buffer = id;
+		vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer = id;
 	}
 
 	return BindGuard<ElementBuffer>{ *this, previous, restore_bind };
@@ -260,7 +228,7 @@ VertexBuffer GLContext::GetBoundVertexBuffer() const {
 }
 
 ElementBuffer GLContext::GetBoundElementBuffer() const {
-	return bound_.vertex_array ? vertex_array_cache_.Get(bound_.vertex_array).element_buffer
+	return bound_.vertex_array ? vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer
 							   : ElementBuffer{ 0 };
 }
 
@@ -327,54 +295,6 @@ bool GLContext::IsBound(Framebuffer id) const {
 
 bool GLContext::IsBound(VertexArray id) const {
 	return GetBoundVertexArray() == id;
-}
-
-void GLContext::AttachTexture(Framebuffer framebuffer, Texture texture, GLenum texture_attachment) {
-	PTGN_ASSERT(IsBound(framebuffer), "Framebuffer must be bound before attaching a texture");
-
-	if (texture) {
-		PTGN_ASSERT(textures.cache_.Has(texture), "Texture not in cache");
-		PTGN_ASSERT(
-			textures.cache_.Get(texture).size.BothAboveZero(),
-			"Cannot attach a texture with no size"
-		);
-	}
-
-	GLCall(FramebufferTexture2D(GL_FRAMEBUFFER, texture_attachment, GL_TEXTURE_2D, texture, 0));
-
-	UpdateFramebufferCache(framebuffer, texture, texture_attachment, GL_TEXTURE_2D);
-}
-
-void GLContext::AttachRenderbuffer(
-	Framebuffer framebuffer, Renderbuffer renderbuffer, GLenum renderbuffer_attachment
-) {
-	PTGN_ASSERT(IsBound(framebuffer), "Framebuffer must be bound before attaching a renderbuffer");
-
-	if (renderbuffer) {
-		PTGN_ASSERT(renderbuffer_cache_.Has(renderbuffer), "Renderbuffer not in cache");
-		PTGN_ASSERT(
-			renderbuffer_cache_.Get(renderbuffer).size.BothAboveZero(),
-			"Cannot attach a renderbuffer with no size"
-		);
-	}
-
-	GLCall(FramebufferRenderbuffer(
-		GL_FRAMEBUFFER, renderbuffer_attachment, GL_RENDERBUFFER, renderbuffer
-	));
-
-	UpdateFramebufferCache(framebuffer, renderbuffer, renderbuffer_attachment, GL_RENDERBUFFER);
-}
-
-void GLContext::SetVertexBuffer(VertexArray vertex_array, VertexBuffer vertex_buffer) {
-	PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer");
-
-	auto _ = Bind(vertex_buffer, false);
-}
-
-void GLContext::SetElementBuffer(VertexArray vertex_array, ElementBuffer element_buffer) {
-	PTGN_ASSERT(IsBound(vertex_array), "Vertex array must be bound before setting element buffer");
-
-	auto _ = Bind(element_buffer, false);
 }
 
 void GLContext::EnableGammaCorrection() const {
@@ -551,25 +471,6 @@ void GLContext::SetBlendMode(BlendMode mode) {
 	bound_.blend.mode = mode;
 }
 
-void GLContext::DrawElements(
-	VertexArray vertex_array, GLsizei element_count, GLenum element_type, GLenum primitive_mode
-) const {
-	PTGN_ASSERT(IsBound(vertex_array));
-	PTGN_ASSERT(vertex_array_cache_.Get(vertex_array).layout_set);
-	PTGN_ASSERT(GetBoundElementBuffer());
-
-	GLCall(glDrawElements(primitive_mode, element_count, element_type, nullptr));
-}
-
-void GLContext::DrawArrays(VertexArray vertex_array, GLsizei vertex_count, GLenum primitive_mode)
-	const {
-	PTGN_ASSERT(IsBound(vertex_array));
-	PTGN_ASSERT(vertex_array_cache_.Get(vertex_array).layout_set);
-
-	constexpr GLint starting_index{ 0 };
-	GLCall(glDrawArrays(primitive_mode, starting_index, vertex_count));
-}
-
 void GLContext::SetViewport(const Viewport& viewport) {
 	if (bound_.viewport == viewport) {
 		return;
@@ -607,24 +508,6 @@ void GLContext::SetClearStencil(int stencil) {
 	PTGN_ASSERT(stencil >= 0, "glClearStencil: stencil value must be non-negative");
 	GLCall(glClearStencil(stencil));
 	bound_.clear_stencil = ClearStencil{ stencil };
-}
-
-void GLContext::Clear(GLbitfield buffer_bits) const {
-	GLCall(glClear(buffer_bits));
-}
-
-void GLContext::ClearToColor(Framebuffer framebuffer, Color color, GLenum buffer, GLint drawbuffer)
-	const {
-	PTGN_ASSERT(IsBound(framebuffer));
-	PTGN_ASSERT(drawbuffer >= 0, "Drawbuffer cannot be negative");
-	PTGN_ASSERT(
-		buffer == GL_COLOR && static_cast<GLuint>(drawbuffer) < max_color_attachments_ ||
-			buffer != GL_COLOR && drawbuffer == 0,
-		"Drawbuffer must be 0 for depth and stencil buffers and within max color attachments for "
-		"color buffers"
-	);
-	auto c{ static_cast<V4_float>(color) };
-	GLCall(ClearBufferfv(buffer, drawbuffer, c.Data()));
 }
 
 void GLContext::SetColorMask(const ColorMaskState& mask) {
@@ -711,364 +594,8 @@ std::size_t GLContext::GetMaxTextureSlots() const {
 	return bound_.texture_units.size();
 }
 
-GLContext::PixelValue GLContext::ReadPixel(
-	Framebuffer framebuffer, V2_int coordinate, GLenum attachment
-) {
-	auto _1 = Bind(framebuffer, true);
-
-	auto type		 = GetAttachmentDataType(attachment);
-	const auto& info = GetFramebufferAttachment(framebuffer, attachment);
-	PTGN_ASSERT(info.id != 0, "No image attached to that attachment");
-
-	V2_int size;
-	if (info.type == GL_TEXTURE_2D) {
-		size = textures.cache_.Get(info.id).size;
-	} else {
-		size = renderbuffer_cache_.Get(info.id).size;
-	}
-
-	PTGN_ASSERT(
-		coordinate.x >= 0 && coordinate.x < size.x,
-		"Cannot get pixel out of range of frame buffer size"
-	);
-	PTGN_ASSERT(
-		coordinate.y >= 0 && coordinate.y < size.y,
-		"Cannot get pixel out of range of frame buffer size"
-	);
-
-	int read_y = size.y - 1 - coordinate.y;
-
-	if (type == AttachmentDataType::Color) {
-		const auto& tex = textures.cache_.Get(info.id);
-
-		int components = GetColorComponentCount(tex.internal_format);
-		PTGN_ASSERT(components >= 3 && components <= 4);
-
-		std::array<std::uint8_t, 4> v{ 0, 0, 0, 255 };
-
-		GLCall(glReadPixels(
-			coordinate.x, read_y, 1, 1, tex.internal_format, GL_UNSIGNED_BYTE, v.data()
-		));
-
-		return Color{ v[0], v[1], v[2], components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
-	}
-
-	if (type == AttachmentDataType::Depth) {
-		float depth = 0.0f;
-		GLCall(glReadPixels(coordinate.x, read_y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth));
-		return depth;
-	}
-
-	if (type == AttachmentDataType::Stencil) {
-		std::uint8_t stencil = 0;
-		GLCall(
-			glReadPixels(coordinate.x, read_y, 1, 1, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, &stencil)
-		);
-		return stencil;
-	}
-
-	if (type == AttachmentDataType::DepthStencil) {
-		// GL_DEPTH_STENCIL returns two integers: depth + stencil packed.
-		struct {
-			std::uint32_t depth;
-			std::uint8_t stencil;
-		} ds{};
-
-		GLCall(glReadPixels(coordinate.x, read_y, 1, 1, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, &ds)
-		);
-
-		float depth = (ds.depth & 0xFFFFFF) / float(0xFFFFFF);
-		return std::make_pair(depth, ds.stencil);
-	}
-
-	PTGN_ERROR("Unhandled attachment type");
-}
-
-GLContext::PixelBuffer GLContext::ReadPixels(Framebuffer framebuffer, GLenum attachment) {
-	auto type = GetAttachmentDataType(attachment);
-
-	const auto& info = GetFramebufferAttachment(framebuffer, attachment);
-	PTGN_ASSERT(info.id != 0);
-
-	auto _ = Bind(framebuffer, true);
-
-	V2_int size = (info.type == GL_TEXTURE_2D) ? textures.cache_.Get(info.id).size
-											   : renderbuffer_cache_.Get(info.id).size;
-
-	GLenum format	 = GL_RGBA;
-	GLenum type_enum = GL_UNSIGNED_BYTE;
-
-	switch (type) {
-		using enum AttachmentDataType;
-
-		case Color: {
-			const auto& tex = textures.cache_.Get(info.id);
-			PTGN_ASSERT(GetColorComponentCount(tex.internal_format) >= 3);
-			format	  = tex.internal_format;
-			type_enum = GL_UNSIGNED_BYTE;
-			break;
-		}
-		case Depth:
-			format	  = GL_DEPTH_COMPONENT;
-			type_enum = GL_FLOAT;
-			break;
-		case Stencil:
-			format	  = GL_STENCIL_INDEX;
-			type_enum = GL_UNSIGNED_BYTE;
-			break;
-		case DepthStencil:
-			format	  = GL_DEPTH_STENCIL;
-			type_enum = GL_UNSIGNED_INT_24_8;
-			break;
-	}
-
-	// Allocate max possible size (RGBA8 worst case)
-	std::vector<std::uint8_t> buffer(size.x * size.y * 4);
-
-	GLCall(glReadPixels(0, 0, size.x, size.y, format, type_enum, buffer.data()));
-
-	return PixelBuffer{ .size = size, .type = type, .data = std::move(buffer) };
-}
-
-bool GLContext::FramebufferIsComplete(Framebuffer framebuffer) const {
-	PTGN_ASSERT(IsBound(framebuffer), "Cannot check status of framebuffer until it is bound");
-	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
-	return status == GL_FRAMEBUFFER_COMPLETE;
-}
-
-const char* GLContext::GetFramebufferStatus() const {
-	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
-	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE:  return "Framebuffer is complete.";
-		case GL_FRAMEBUFFER_UNDEFINED: return "Framebuffer is undefined (no framebuffer bound).";
-		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-			return "Incomplete attachment: One or more framebuffer attachment points are "
-				   "incomplete.";
-		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-			return "Missing attachment: No images are attached to the framebuffer.";
-		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-			return "Incomplete draw buffer: Draw buffer points to a missing attachment.";
-		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-			return "Incomplete read buffer: Read buffer points to a missing attachment.";
-		case GL_FRAMEBUFFER_UNSUPPORTED:
-			return "Framebuffer unsupported: Format combination not supported by "
-				   "implementation.";
-		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-			return "Incomplete multisample: Mismatched sample counts or improper use of "
-				   "multisampling.";
-		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-			return "Incomplete layer targets: Layered attachments are not all complete or "
-				   "not "
-				   "matching.";
-		default: PTGN_ERROR("Unknown framebuffer status.");
-	}
-}
-
-GLContext::AttachmentDataType GLContext::GetAttachmentDataType(GLenum attachment) const {
-	if (attachment >= GL_COLOR_ATTACHMENT0 &&
-		attachment < GL_COLOR_ATTACHMENT0 + max_color_attachments_) {
-		return AttachmentDataType::Color;
-	}
-
-	if (attachment == GL_DEPTH_ATTACHMENT) {
-		return AttachmentDataType::Depth;
-	}
-
-	if (attachment == GL_STENCIL_ATTACHMENT) {
-		return AttachmentDataType::Stencil;
-	}
-
-	if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
-		return AttachmentDataType::DepthStencil;
-	}
-
-	PTGN_ERROR("Unsupported framebuffer attachment");
-}
-
-AttachmentInfo& GLContext::GetFramebufferAttachment(Framebuffer framebuffer, GLenum attachment) {
-	return const_cast<AttachmentInfo&>(
-		std::as_const(*this).GetFramebufferAttachment(framebuffer, attachment)
-	);
-}
-
-const AttachmentInfo& GLContext::GetFramebufferAttachment(
-	Framebuffer framebuffer, GLenum attachment
-) const {
-	const auto& cache = framebuffer_cache_.Get(framebuffer);
-
-	if (attachment >= GL_COLOR_ATTACHMENT0 &&
-		attachment < GL_COLOR_ATTACHMENT0 + max_color_attachments_) {
-		PTGN_ASSERT(
-			attachment >= GL_COLOR_ATTACHMENT0 &&
-				attachment < GL_COLOR_ATTACHMENT0 + cache.color.size(),
-			"Color attachment out of valid range"
-		);
-		auto idx{ attachment - GL_COLOR_ATTACHMENT0 };
-		return cache.color[idx];
-	} else if (attachment == GL_DEPTH_ATTACHMENT) {
-		return cache.depth;
-	} else if (attachment == GL_STENCIL_ATTACHMENT) {
-		return cache.stencil;
-	} else if (attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
-		return cache.depth_stencil;
-	} else {
-		PTGN_ERROR("Unsupported framebuffer attachment enum");
-	}
-}
-
-void GLContext::UpdateFramebufferCache(
-	Framebuffer framebuffer, GLuint image_id, GLenum attachment, GLenum image_type
-) {
-	PTGN_ASSERT(image_type == GL_TEXTURE_2D || image_type == GL_RENDERBUFFER, "Invalid image type");
-	auto& info{ GetFramebufferAttachment(framebuffer, attachment) };
-	info.id	  = image_id;
-	info.type = image_id ? image_type : 0;
-}
-
-void GLContext::ResizeFramebuffer(Framebuffer framebuffer, V2_int new_size) {
-	const auto& cache = framebuffer_cache_.Get(framebuffer);
-
-	auto resize_attachment = [&](const AttachmentInfo& info) {
-		if (info.id == 0) {
-			return;
-		}
-
-		if (info.type == GL_TEXTURE_2D) {
-			textures.ResizeTexture(Texture{ info.id }, new_size);
-		} else if (info.type == GL_RENDERBUFFER) {
-			ResizeRenderbuffer(Renderbuffer{ info.id }, new_size);
-		} else {
-			PTGN_ERROR("Unknown framebuffer attachment type");
-		}
-	};
-
-	for (const auto& color : cache.color) {
-		resize_attachment(color);
-	}
-
-	resize_attachment(cache.depth);
-	resize_attachment(cache.stencil);
-	resize_attachment(cache.depth_stencil);
-}
-
-void GLContext::ResizeRenderbuffer(Renderbuffer renderbuffer, V2_int new_size) {
-	PTGN_ASSERT(renderbuffer);
-
-	const auto& cache = renderbuffer_cache_.Get(renderbuffer);
-
-	if (cache.size == new_size) {
-		return;
-	}
-
-	auto _ = Bind(renderbuffer, true);
-
-	SetRenderbufferStorage(renderbuffer, new_size, cache.internal_format);
-}
-
-void GLContext::SetRenderbufferStorage(
-	Renderbuffer renderbuffer, V2_int size, GLenum internal_format
-) {
-	PTGN_ASSERT(IsBound(renderbuffer), "Renderbuffer must be bound prior to setting its storage");
-
-	GLCall(RenderbufferStorage(GL_RENDERBUFFER, internal_format, size.x, size.y));
-
-	auto& cache			  = renderbuffer_cache_.Get(renderbuffer);
-	cache.size			  = size;
-	cache.internal_format = internal_format;
-}
-
 std::uint32_t GLContext::GetActiveTextureSlot() const {
 	return bound_.active_texture.slot;
-}
-
-VertexArray GLContext::CreateVertexArrayImpl() {
-	VertexArray id{ 0 };
-	GLCall(GenVertexArrays(1, &id));
-	PTGN_ASSERT(id, "Failed to create vertex array");
-	vertex_array_cache_.Add(id, VertexArrayCache{});
-	return id;
-}
-
-void GLContext::DestroyVertexArray(VertexArray id) {
-	if (!id) {
-		return;
-	}
-	GLCall(DeleteVertexArrays(1, &id));
-	vertex_array_cache_.Remove(id);
-}
-
-Framebuffer GLContext::CreateFramebufferImpl() {
-	Framebuffer id{ 0 };
-	GLCall(GenFramebuffers(1, &id));
-	PTGN_ASSERT(id, "Failed to create framebuffer");
-	framebuffer_cache_.Add(id, FramebufferCache{});
-	return id;
-}
-
-void GLContext::DestroyFramebuffer(Framebuffer id) {
-	if (!id) {
-		return;
-	}
-	GLCall(DeleteFramebuffers(1, &id));
-	framebuffer_cache_.Remove(id);
-}
-
-Renderbuffer GLContext::CreateRenderbufferImpl() {
-	Renderbuffer id{ 0 };
-	GLCall(GenRenderbuffers(1, &id));
-	PTGN_ASSERT(id, "Failed to create renderbuffer");
-	renderbuffer_cache_.Add(id, RenderbufferCache{});
-	return id;
-}
-
-void GLContext::DestroyRenderbuffer(Renderbuffer id) {
-	if (!id) {
-		return;
-	}
-	GLCall(DeleteRenderbuffers(1, &id));
-	renderbuffer_cache_.Remove(id);
-}
-
-void GLContext::SavePNG(const path& path, Framebuffer framebuffer, GLenum attachment) {
-	// Ensure output directory exists
-	if (path.has_parent_path()) {
-		std::filesystem::create_directories(path.parent_path());
-	}
-
-	// Read all pixels from the framebuffer attachment
-	PixelBuffer pb = ReadPixels(framebuffer, attachment);
-
-	PTGN_ASSERT(pb.type == AttachmentDataType::Color, "SavePNG only supports color attachments");
-
-	const V2_int size	   = pb.size;
-	constexpr int channels = 4;
-
-	std::vector<std::uint8_t> rgba(static_cast<std::size_t>(size.x) * size.y * channels);
-
-	// Convert PixelBuffer -> tightly packed RGBA8
-	ForEachPixel(pb, [&rgba, size](V2_int pos, const PixelValue& px) {
-		const Color* c = std::get_if<Color>(&px);
-		PTGN_ASSERT(c != nullptr);
-
-		const std::size_t idx = static_cast<std::size_t>(pos.y * size.x + pos.x) * channels;
-
-		rgba[idx + 0] = c->r;
-		rgba[idx + 1] = c->g;
-		rgba[idx + 2] = c->b;
-		rgba[idx + 3] = c->a;
-	});
-
-	SDL_Surface* surface = SDL_CreateSurfaceFrom(
-		size.x, size.y, SDL_PIXELFORMAT_RGBA32, rgba.data(), size.x * channels
-	);
-
-	PTGN_ASSERT(surface != nullptr, SDL_GetError());
-
-	auto saved{ IMG_SavePNG(surface, path.string().c_str()) };
-
-	PTGN_ASSERT(saved, SDL_GetError());
-
-	SDL_DestroySurface(surface);
 }
 
 int GLContext::GetInteger(GLenum pname) const {

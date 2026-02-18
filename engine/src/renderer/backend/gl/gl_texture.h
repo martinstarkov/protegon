@@ -144,6 +144,9 @@ public:
 
 	void ResizeTexture(Texture texture, V2_int new_size);
 
+	TextureCache& GetCache(Texture texture);
+	const TextureCache& GetCache(Texture texture) const;
+
 private:
 	friend class GLContext;
 

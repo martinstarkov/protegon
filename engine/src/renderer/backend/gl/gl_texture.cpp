@@ -49,6 +49,16 @@ void Textures::ResizeTexture(Texture texture, V2_int new_size) {
 	SetTextureData(texture, nullptr, GL_RGBA, GL_UNSIGNED_BYTE, new_size, cache.internal_format);
 }
 
+TextureCache& Textures::GetCache(Texture texture) {
+	PTGN_ASSERT(cache_.Has(texture), "No texture with id ", texture, " in cache");
+	return cache_.Get(texture);
+}
+
+const TextureCache& Textures::GetCache(Texture texture) const {
+	PTGN_ASSERT(cache_.Has(texture), "No texture with id ", texture, " in cache");
+	return cache_.Get(texture);
+}
+
 void Textures::SetTextureData(
 	Texture texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
 	V2_int size, GLenum internal_format

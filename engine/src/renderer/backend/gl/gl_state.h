@@ -3,8 +3,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "renderer/backend/gl/gl_resource.h"
+#include "renderer/backend/gl/gl_buffer.h"
+#include "renderer/backend/gl/gl_framebuffer.h"
+#include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
+#include "renderer/backend/gl/gl_texture.h"
+#include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"

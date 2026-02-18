@@ -12,12 +12,15 @@
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_buffer.h"
+#include "renderer/backend/gl/gl_framebuffer.h"
+#include "renderer/backend/gl/gl_render_target.h"
+#include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_texture.h"
+#include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
-#include "renderer/targets/render_target.h"
 
 namespace ptgn {
 
@@ -28,6 +31,27 @@ namespace impl::gl {
 
 class Renderer;
 class GLContext;
+
+} // namespace impl::gl
+
+class RenderPass {
+private:
+	friend class impl::gl::Renderer;
+
+	impl::gl::RenderTarget source_;
+
+	impl::gl::RenderTarget ping_;
+	impl::gl::RenderTarget pong_;
+
+	bool has_ping_{ false };
+	bool has_pong_{ false };
+
+	// "latest output" tracking
+	bool has_written_once_{ false }; // false -> latest is source
+	bool latest_is_ping_{ true };	 // valid only if has_written_once == true
+};
+
+namespace impl::gl {
 
 template <class State, class Func>
 void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
@@ -83,7 +107,7 @@ public:
 	void ClearRenderTarget(const RenderTarget& rt, Color color);
 
 	void DrawTexture(
-		Shader shader, Texture texture, V2_float center, V2_float size, Color tint = color::White,
+		Program shader, Texture texture, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = false
 	);
 	void DrawTexture(
@@ -94,10 +118,10 @@ public:
 		Texture texture, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = false
 	);
-	void DrawTexture(Shader shader, RenderPass& pass, const RenderTarget& scene_target);
+	void DrawTexture(Program shader, RenderPass& pass, const RenderTarget& scene_target);
 
 	void SetViewProjection(const Matrix4& view_projection);
-	void SetShader(Shader shader);
+	void SetShader(Program shader);
 	void SetBlend(BlendMode mode, bool enabled = true);
 	void SetFramebuffer(Framebuffer framebuffer, const Viewport& viewport);
 	void SetDepth(const DepthState& depth);
@@ -121,9 +145,9 @@ private:
 	template <class State, class Func>
 	friend void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
 
-	using QuadSetup = std::function<void(Shader, QuadDesc&)>;
+	using QuadSetup = std::function<void(Program, QuadDesc&)>;
 
-	void DrawQuad(Shader shader, const QuadParams& p, const QuadSetup& q);
+	void DrawQuad(Program shader, const QuadParams& p, const QuadSetup& q);
 
 	void BeginFrame();
 	void EndFrame(const Viewport& viewport);
