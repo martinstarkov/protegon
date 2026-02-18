@@ -11,6 +11,8 @@
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "renderer/backend/gl/gl_buffer.h"
+#include "renderer/backend/gl/gl_texture.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/texture.h"

@@ -14,9 +14,11 @@
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
+#include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_state.h"
+#include "renderer/backend/gl/gl_texture.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/render_state.h"
@@ -199,7 +201,7 @@ Renderer::Renderer(Window& window) : gl_{ std::make_unique<GLContext>(window) } 
 
 	vao_ = gl_->CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_);
 
-	white_texture_ = gl_->CreateTexture(
+	white_texture_ = gl_->textures.CreateTexture(
 		static_cast<const void*>(&color::White), GL_RGBA, GL_UNSIGNED_INT, { 1, 1 }, GL_RGBA
 	);
 
@@ -257,7 +259,7 @@ RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
 }
 
 V2_int Renderer::GetTextureSize(Texture texture) const {
-	return gl_->GetTextureSize(texture);
+	return gl_->textures.GetTextureSize(texture);
 }
 
 void Renderer::BindRenderTarget(RenderPass& p) {
@@ -291,14 +293,14 @@ void Renderer::FlushBatch() {
 	auto _vao = gl_->Bind(vao_);
 
 	// Upload vertex data
-	gl_->SetBufferSubData<VertexBuffer>(
-		vbo_, GL_ARRAY_BUFFER, batch_vertices_.data(), 0,
+	gl_->buffers.SetBufferSubData<VertexBuffer>(
+		vbo_, BufferTarget::ArrayBuffer, batch_vertices_.data(), 0,
 		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(Vertex)
 	);
 
 	// Upload index data
-	gl_->SetBufferSubData<ElementBuffer>(
-		ebo_, GL_ELEMENT_ARRAY_BUFFER, batch_indices_.data(), 0,
+	gl_->buffers.SetBufferSubData<ElementBuffer>(
+		ebo_, BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
 		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(Index)
 	);
 
@@ -488,7 +490,7 @@ void Renderer::DrawQuad(Shader shader, const QuadParams& params, const QuadSetup
 	}
 
 	// Texture -> user data slot 0 (convention)
-	if (params.texture) {
+	if (params.texture.has_value()) {
 		std::uint32_t slot = GetTextureSlot(*params.texture);
 		quad.user_data[0]  = static_cast<float>(slot);
 	}
@@ -596,8 +598,8 @@ void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& sce
 		BindRenderTarget(write);
 
 		DrawTexture(
-			shader, *input.color_, { 0, 0 }, gl_->GetTextureSize(*input.color_), color::White,
-			flip_y
+			shader, *input.color_, { 0, 0 }, gl_->textures.GetTextureSize(*input.color_),
+			color::White, flip_y
 		);
 
 		// Update pass state
@@ -606,8 +608,8 @@ void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& sce
 	} else {
 		// Read-only draw: no mutation, no flip
 		DrawTexture(
-			shader, *input.color_, { 0, 0 }, gl_->GetTextureSize(*input.color_), color::White,
-			flip_y
+			shader, *input.color_, { 0, 0 }, gl_->textures.GetTextureSize(*input.color_),
+			color::White, flip_y
 		);
 	}
 }
@@ -615,8 +617,9 @@ void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& sce
 RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
 	const auto& desc = GetTextureFormatDesc(format);
 
-	Texture color =
-		gl_->CreateTexture(nullptr, desc.pixel_format, desc.pixel_type, size, desc.internal_format);
+	Texture color = gl_->textures.CreateTexture(
+		nullptr, desc.pixel_format, desc.pixel_type, size, desc.internal_format
+	);
 
 	std::optional<Renderbuffer> depth;
 	if (desc.has_depth || desc.has_stencil) {
