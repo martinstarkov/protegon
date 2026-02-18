@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -85,10 +86,6 @@ public:
 	);
 
 	Program CreateProgram(
-		const path& vertex_path, const path& fragment_path, const std::string& program_name
-	);
-
-	Program CreateProgram(
 		const std::variant<ShaderCode, path>& source, const std::string& program_name
 	);
 
@@ -127,7 +124,7 @@ public:
 private:
 	friend class GLContext;
 
-	Shaders(GLContext& gl);
+	explicit Shaders(GLContext& gl);
 	~Shaders() noexcept;
 	Shaders(const Shaders&)				   = delete;
 	Shaders(Shaders&&) noexcept			   = delete;
@@ -161,13 +158,13 @@ private:
 
 	[[nodiscard]] static Shader CompileShader(ShaderType type, const std::string& source);
 
-	void CompileProgram(
+	static void CompileProgram(
 		Program id, const std::string& vertex_source, const std::string& fragment_source
-	) const;
+	);
 
 	void LinkProgram(Program id, Shader vertex, Shader fragment);
 
-	[[nodiscard]] std::int32_t GetUniform(Program id, const char* name);
+	[[nodiscard]] std::int32_t GetUniform(Program id, const char* program_name);
 
 	[[nodiscard]] Program CreateProgram(const std::string& program_name);
 

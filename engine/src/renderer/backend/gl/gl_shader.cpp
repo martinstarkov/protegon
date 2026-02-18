@@ -350,7 +350,7 @@ static std::vector<ShaderSpec> ParseShader(
 	return output;
 }
 
-static Shader CompileShaderFromSource(ShaderType type, const std::string& source) {
+Shader Shaders::CompileShader(ShaderType type, const std::string& source) {
 	Shader id{ GLCallReturn(::CreateShader(std::to_underlying(type))) };
 
 	auto src{ source.c_str() };
@@ -380,7 +380,7 @@ static Shader CompileShaderFromSource(ShaderType type, const std::string& source
 void Shaders::CompileShaders(const std::vector<ShaderSpec>& sources) {
 	for (const auto& sts : sources) {
 		auto hash{ Hash(sts.name) };
-		auto shader_id{ CompileShaderFromSource(sts.type, sts.code.content) };
+		auto shader_id{ CompileShader(sts.type, sts.code.content) };
 
 		switch (sts.type) {
 			case ShaderType::Fragment:
@@ -523,7 +523,7 @@ Shader Shaders::CompileShaderSource(
 	PTGN_ASSERT(srcs.size() == 1, "Wrong constructor for a multi-source shader file");
 	const auto& front{ srcs.front() };
 	PTGN_ASSERT(front.type == type, "Shader type mismatch");
-	return CompileShaderFromSource(type, front.code.content);
+	return CompileShader(type, front.code.content);
 }
 
 Shader Shaders::CompileShaderPath(
@@ -573,30 +573,30 @@ void Shaders::LinkProgram(Program id, Shader vertex, Shader fragment) {
 }
 
 void Shaders::CompileProgram(
-	Shader shader, const std::string& vertex_source, const std::string& fragment_source
-) const {
+	Program id, const std::string& vertex_source, const std::string& fragment_source
+) {
 	// TODO: Ensure shader cache is cleared if it exists.
 
-	auto vertex{ CompileShaderFromSource(ShaderType::Vertex, vertex_source) };
-	auto fragment{ CompileShaderFromSource(ShaderType::Fragment, fragment_source) };
+	auto vertex{ CompileShader(ShaderType::Vertex, vertex_source) };
+	auto fragment{ CompileShader(ShaderType::Fragment, fragment_source) };
 
 	if (vertex && fragment) {
-		GLCall(AttachShader(shader, vertex));
-		GLCall(AttachShader(shader, fragment));
-		GLCall(::LinkProgram(shader));
+		GLCall(AttachShader(id, vertex));
+		GLCall(AttachShader(id, fragment));
+		GLCall(::LinkProgram(id));
 
 		// Check for shader link errors.
 		std::int32_t linked{ GL_FALSE };
-		GLCall(GetProgramiv(shader, GL_LINK_STATUS, &linked));
+		GLCall(GetProgramiv(id, GL_LINK_STATUS, &linked));
 
 		if (linked == GL_FALSE) {
 			std::int32_t length{ 0 };
-			GLCall(GetProgramiv(shader, GL_INFO_LOG_LENGTH, &length));
+			GLCall(GetProgramiv(id, GL_INFO_LOG_LENGTH, &length));
 			std::string log;
 			log.resize(static_cast<std::size_t>(length));
-			GLCall(GetProgramInfoLog(shader, length, &length, &log[0]));
+			GLCall(GetProgramInfoLog(id, length, &length, &log[0]));
 
-			GLCall(DeleteProgram(shader));
+			GLCall(DeleteProgram(id));
 
 			GLCall(DeleteShader(vertex));
 			GLCall(DeleteShader(fragment));
@@ -607,7 +607,7 @@ void Shaders::CompileProgram(
 			);
 		}
 
-		GLCall(ValidateProgram(shader));
+		GLCall(ValidateProgram(id));
 	}
 
 	if (vertex) {
@@ -774,8 +774,8 @@ Program Shaders::CreateProgram(
 		PTGN_ERROR("Shader file must provide a vertex and fragment type: ", program_name);
 	}
 
-	auto vertex_id{ CompileShaderFromSource(ShaderType::Vertex, vertex_source) };
-	auto fragment_id{ CompileShaderFromSource(ShaderType::Fragment, fragment_source) };
+	auto vertex_id{ CompileShader(ShaderType::Vertex, vertex_source) };
+	auto fragment_id{ CompileShader(ShaderType::Fragment, fragment_source) };
 
 	LinkProgram(program, vertex_id, fragment_id);
 
@@ -797,7 +797,7 @@ Shader Shaders::CreateProgram(const std::string& program_name) {
 	return id;
 }
 
-void Shaders::DestroyProgram(Shader id) {
+void Shaders::DestroyProgram(Program id) {
 	if (!id) {
 		return;
 	}
@@ -941,21 +941,22 @@ void Shaders::SetUniform(Program id, const char* uniform_name, bool value) {
 	SetUniform(id, uniform_name, static_cast<std::int32_t>(value));
 }
 
-std::int32_t Shaders::GetUniform(Shader shader, const char* name) {
+std::int32_t Shaders::GetUniform(Program id, const char* program_name) {
 	PTGN_ASSERT(
-		gl_.IsBound(shader), "Cannot get uniform location of shader which is not currently bound"
+		gl_.IsBound(id),
+		"Cannot get uniform location of shader program which is not currently bound"
 	);
 
-	auto& cache{ cache_.Get(shader) };
+	auto& cache{ cache_.Get(id) };
 
-	auto hash{ Hash(name) };
+	auto hash{ Hash(program_name) };
 
 	if (auto location{ cache.uniform_locations.find(hash) };
 		location != cache.uniform_locations.end()) {
 		return location->second;
 	}
 
-	std::int32_t location{ GLCallReturn(GetUniformLocation(shader, name)) };
+	std::int32_t location{ GLCallReturn(GetUniformLocation(id, program_name)) };
 
 	cache.uniform_locations.emplace(hash, location);
 

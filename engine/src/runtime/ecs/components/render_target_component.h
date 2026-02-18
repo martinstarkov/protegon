@@ -5,7 +5,6 @@
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/texture.h"
-#include "renderer/targets/render_target.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 
@@ -13,6 +12,11 @@ namespace ptgn {
 
 class Scene;
 class Renderer;
+
+enum class ResizeMode {
+	GameSize,
+	DisplaySize
+};
 
 namespace impl {
 
@@ -35,12 +39,8 @@ struct DisplayList {
 //	static void Draw(Renderer& renderer, Entity entity);
 //};
 
-} // namespace impl
-
 // TODO: Add clear color to render target as an optional component. Otherwise they should be cleared
 // to transparent.
-
-namespace impl {
 
 Entity CreateRenderTarget(
 	Entity render_target, Renderer& renderer, ResizeMode resize_to_resolution,
