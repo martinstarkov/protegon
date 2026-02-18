@@ -11,14 +11,13 @@
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
-#include "renderer/backend/gl/gl_renderbuffer.h"
-#include "renderer/backend/gl/gl_texture.h"
+#include "renderer/resources/framebuffer.h"
+#include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
 
 class GLContext;
-
-using Framebuffer = std::uint32_t;
 
 enum class AttachmentObject : std::uint32_t {
 	None		 = 0,

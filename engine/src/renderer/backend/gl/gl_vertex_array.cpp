@@ -3,6 +3,7 @@
 #include "core/assert.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
+#include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
 
@@ -47,18 +48,30 @@ void VertexArrays::DrawArrays(VertexArray vertex_array, GLsizei vertex_count, GL
 
 VertexArray VertexArrays::CreateVertexArray() {
 	VertexArray id{ 0 };
-	GLCall(GenVertexArrays(1, &id));
+	GLCall(GenVertexArrays(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create vertex array");
 	cache_.Add(id, VertexArrayCache{});
 	return id;
+}
+
+int VertexArrays::GetMaxVertexAttribs() const {
+	return gl_.GetInteger(GL_MAX_VERTEX_ATTRIBS);
 }
 
 void VertexArrays::DestroyVertexArray(VertexArray id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteVertexArrays(1, &id));
+	GLCall(DeleteVertexArrays(1, &id.value));
 	cache_.Remove(id);
+}
+
+BindGuard<VertexArray> VertexArrays::BindVertexArray(VertexArray vertex_array, bool restore_bind) {
+	return gl_.Bind(vertex_array, restore_bind);
+}
+
+[[nodiscard]] bool VertexArrays::IsBound(VertexArray vertex_array) const {
+	return gl_.IsBound(vertex_array);
 }
 
 } // namespace ptgn::impl::gl

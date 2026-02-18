@@ -62,7 +62,7 @@ void Renderbuffers::SetRenderbufferStorage(
 
 Renderbuffer Renderbuffers::CreateRenderbuffer() {
 	Renderbuffer id{ 0 };
-	GLCall(GenRenderbuffers(1, &id));
+	GLCall(GenRenderbuffers(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create renderbuffer");
 	cache_.Add(id, RenderbufferCache{});
 	return id;
@@ -72,7 +72,7 @@ void Renderbuffers::DestroyRenderbuffer(Renderbuffer id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteRenderbuffers(1, &id));
+	GLCall(DeleteRenderbuffers(1, &id.value));
 	cache_.Remove(id);
 }
 

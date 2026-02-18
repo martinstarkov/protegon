@@ -12,8 +12,8 @@
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
-#include "renderer/targets/render_target.h"
 
 namespace ptgn {
 
@@ -73,18 +73,22 @@ public:
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
 	void DrawTexture(
-		const RenderTarget& rt, V2_float center, V2_float size, Color tint = color::White,
+		const impl::RenderTarget& rt, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = true
 	);
-	void DrawTexture(Texture texture, V2_float center, V2_float size, Color tint = color::White);
+	void DrawTexture(
+		impl::Texture texture, V2_float center, V2_float size, Color tint = color::White
+	);
 	void DrawRect(V2_float center, V2_float size, Color color);
 
-	RenderTarget GetScreenTarget() const;
-	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
-	void ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const;
-	void BindRenderTarget(const RenderTarget& rt);
-	void BindRenderTarget(RenderPass& pass);
-	void ClearRenderTarget(const RenderTarget& rt, Color color = color::Transparent);
+	impl::RenderTarget GetScreenTarget() const;
+
+	// Move these into the objects themselves.
+	impl::RenderTarget CreateRenderTarget(V2_int size, TextureFormat format) const;
+	void ResizeRenderTarget(impl::RenderTarget& rt, V2_int new_size) const;
+	void BindRenderTarget(const impl::RenderTarget& rt);
+	void BindRenderTarget(impl::RenderPass& pass);
+	void ClearRenderTarget(const impl::RenderTarget& rt, Color color = color::Transparent);
 
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetBlend(BlendMode mode, bool enabled = true);
@@ -93,9 +97,7 @@ public:
 	void SetRaster(const RasterState& raster);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	RenderPass BeginPass(const RenderTarget& scene_target);
-
-	V2_int GetTextureSize(Texture texture) const;
+	impl::RenderPass BeginPass(const impl::RenderTarget& scene_target);
 
 private:
 	friend class Application;

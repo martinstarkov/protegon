@@ -17,6 +17,8 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/image/surface.h"
 #include "renderer/primitives/font.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 
@@ -27,27 +29,27 @@ namespace ptgn {
 AssetManager::AssetManager(impl::SDLInstance& sdl, impl::gl::GLContext& gl) :
 	sdl_{ sdl }, gl_{ gl } {}
 
-Shader AssetManager::LoadShader(
+impl::Shader AssetManager::LoadShader(
 	const std::variant<ShaderCode, path>& source, const std::string& shader_name
 ) {
-	return gl_.CreateShader(source, shader_name);
+	return gl_.shaders.CreateProgram(source, shader_name);
 }
 
-Shader AssetManager::LoadShader(
+impl::Shader AssetManager::LoadShader(
 	const std::variant<ShaderCode, std::string>& vertex,
 	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 ) {
-	return gl_.CreateShader(vertex, fragment, shader_name);
+	return gl_.shaders.CreateProgram(vertex, fragment, shader_name);
 }
 
-Texture AssetManager::LoadTexture(const path& asset_path) {
+impl::Texture AssetManager::LoadTexture(const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create texture from invalid path: ", asset_path.string()
 	);
 
 	impl::Surface surface{ asset_path };
 
-	return gl_.CreateTexture(
+	return gl_.textures.CreateTexture(
 		surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA
 	);
 }

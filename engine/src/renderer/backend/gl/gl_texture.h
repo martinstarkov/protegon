@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
@@ -12,8 +10,6 @@
 namespace ptgn::impl::gl {
 
 class GLContext;
-
-using Texture = std::uint32_t;
 
 struct TextureCache {
 	V2_int size;

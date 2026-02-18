@@ -107,7 +107,7 @@ T Buffers::CreateBuffer(
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
 
 	T id{ 0 };
-	GLCall(GenBuffers(1, &id));
+	GLCall(GenBuffers(1, &id.value));
 
 	PTGN_ASSERT(id, "Failed to create buffer");
 
@@ -134,11 +134,11 @@ template UniformBuffer Buffers::CreateBuffer<UniformBuffer>(
 );
 
 template <typename T>
-void DestroyBuffer(T id) {
+void Buffers::DestroyBuffer(T id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteBuffers(1, &id));
+	GLCall(DeleteBuffers(1, &id.value));
 	cache_.Remove(id);
 }
 

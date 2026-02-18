@@ -15,6 +15,7 @@
 #include "core/math/vector4.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
+#include "renderer/resources/shader.h"
 #include "serialization/json/fwd.h"
 
 CMRC_DECLARE(shader);
@@ -24,13 +25,6 @@ namespace ptgn {
 struct Matrix4;
 
 namespace impl::gl {
-
-using Program = std::uint32_t;
-using Shader  = std::uint32_t;
-
-struct ShaderCode {
-	std::string content;
-};
 
 struct ShaderOptions {
 	bool auto_layout{ false };
@@ -47,7 +41,7 @@ enum class ShaderType : std::uint32_t {
 
 inline std::ostream& operator<<(std::ostream& os, ShaderType type) {
 	switch (type) {
-		using enum ptgn::impl::gl::ShaderType;
+		using enum ShaderType;
 
 		case Vertex:		 return os << "Vertex";
 		case Fragment:		 return os << "Fragment";
@@ -58,8 +52,6 @@ inline std::ostream& operator<<(std::ostream& os, ShaderType type) {
 		default:			 return os << "Unknown ShaderType";
 	}
 }
-
-using ShaderName = std::string;
 
 struct ShaderSpec {
 	ShaderType type{ ShaderType::Fragment };
@@ -78,48 +70,48 @@ struct ProgramCache {
 
 class Shaders {
 public:
-	Program CreateProgram(Shader vertex, Shader fragment, const std::string& program_name);
+	Shader CreateProgram(Shader vertex, Shader fragment, const std::string& program_name);
 
 	Shader CreateProgram(
 		const std::variant<ShaderCode, ShaderName>& vertex,
 		const std::variant<ShaderCode, ShaderName>& fragment, const std::string& program_name
 	);
 
-	Program CreateProgram(
+	Shader CreateProgram(
 		const std::variant<ShaderCode, path>& source, const std::string& program_name
 	);
 
-	void SetUniform(Program id, const char* uniform_name, V2_float v);
-	void SetUniform(Program id, const char* uniform_name, V3_float v);
-	void SetUniform(Program id, const char* uniform_name, V4_float v);
-	void SetUniform(Program id, const char* uniform_name, const Matrix4& matrix);
+	void SetUniform(Shader id, const char* uniform_name, V2_float v);
+	void SetUniform(Shader id, const char* uniform_name, V3_float v);
+	void SetUniform(Shader id, const char* uniform_name, V4_float v);
+	void SetUniform(Shader id, const char* uniform_name, const Matrix4& matrix);
 	void SetUniform(
-		Program id, const char* uniform_name, const std::int32_t* data, std::int32_t count
+		Shader id, const char* uniform_name, const std::int32_t* data, std::int32_t count
 	);
-	void SetUniform(Program id, const char* uniform_name, const float* data, std::int32_t count);
-	void SetUniform(Program id, const char* uniform_name, const Vector2<std::int32_t>& v);
-	void SetUniform(Program id, const char* uniform_name, const Vector3<std::int32_t>& v);
-	void SetUniform(Program id, const char* uniform_name, const Vector4<std::int32_t>& v);
+	void SetUniform(Shader id, const char* uniform_name, const float* data, std::int32_t count);
+	void SetUniform(Shader id, const char* uniform_name, const Vector2<std::int32_t>& v);
+	void SetUniform(Shader id, const char* uniform_name, const Vector3<std::int32_t>& v);
+	void SetUniform(Shader id, const char* uniform_name, const Vector4<std::int32_t>& v);
 
-	void SetUniform(Program id, const char* uniform_name, float v0);
-	void SetUniform(Program id, const char* uniform_name, float v0, float v1);
-	void SetUniform(Program id, const char* uniform_name, float v0, float v1, float v2);
-	void SetUniform(Program id, const char* uniform_name, float v0, float v1, float v2, float v3);
-	void SetUniform(Program id, const char* uniform_name, std::int32_t v0);
-	void SetUniform(Program id, const char* uniform_name, std::int32_t v0, std::int32_t v1);
+	void SetUniform(Shader id, const char* uniform_name, float v0);
+	void SetUniform(Shader id, const char* uniform_name, float v0, float v1);
+	void SetUniform(Shader id, const char* uniform_name, float v0, float v1, float v2);
+	void SetUniform(Shader id, const char* uniform_name, float v0, float v1, float v2, float v3);
+	void SetUniform(Shader id, const char* uniform_name, std::int32_t v0);
+	void SetUniform(Shader id, const char* uniform_name, std::int32_t v0, std::int32_t v1);
 	void SetUniform(
-		Program id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+		Shader id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
 	);
 	void SetUniform(
-		Program id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
+		Shader id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
 		std::int32_t v3
 	);
 	// Behaves identically to SetUniform(name, std::int32_t).
-	void SetUniform(Program id, const char* uniform_name, bool value);
+	void SetUniform(Shader id, const char* uniform_name, bool value);
 
-	[[nodiscard]] Program GetProgram(std::string_view program_name) const;
+	[[nodiscard]] Shader GetProgram(std::string_view program_name) const;
 
-	void DestroyProgram(Program id);
+	void DestroyProgram(Shader id);
 
 private:
 	friend class GLContext;
@@ -159,20 +151,20 @@ private:
 	[[nodiscard]] static Shader CompileShader(ShaderType type, const std::string& source);
 
 	static void CompileProgram(
-		Program id, const std::string& vertex_source, const std::string& fragment_source
+		Shader id, const std::string& vertex_source, const std::string& fragment_source
 	);
 
-	void LinkProgram(Program id, Shader vertex, Shader fragment);
+	void LinkProgram(Shader id, Shader vertex, Shader fragment);
 
-	[[nodiscard]] std::int32_t GetUniform(Program id, const char* program_name);
+	[[nodiscard]] std::int32_t GetUniform(Shader id, const char* program_name);
 
-	[[nodiscard]] Program CreateProgram(const std::string& program_name);
+	[[nodiscard]] Shader CreateProgram(const std::string& program_name);
 
 	GLContext& gl_;
 
 	std::size_t max_texture_slots_{ 0 };
 
-	std::unordered_map<std::size_t, Program> programs_;
+	std::unordered_map<std::size_t, Shader> programs_;
 
 	std::unordered_map<std::size_t, Shader> vertex_shaders_;
 	std::unordered_map<std::size_t, Shader> fragment_shaders_;

@@ -25,6 +25,9 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
+#include "renderer/resources/framebuffer.h"
+#include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
 
@@ -128,9 +131,9 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 
 	V2_int size;
 	if (spec.object == AttachmentObject::Texture2D) {
-		size = gl_.textures.GetCache(spec.id).size;
+		size = gl_.textures.GetCache(Texture{ spec.id }).size;
 	} else {
-		size = gl_.renderbuffers.GetCache(spec.id).size;
+		size = gl_.renderbuffers.GetCache(Renderbuffer{ spec.id }).size;
 	}
 
 	PTGN_ASSERT(
@@ -145,7 +148,7 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 	int read_y = size.y - 1 - coordinate.y;
 
 	if (type == AttachmentType::Color) {
-		const auto& tex = gl_.textures.GetCache(spec.id);
+		const auto& tex = gl_.textures.GetCache(Texture{ spec.id });
 
 		int components = GetColorComponentCount(tex.internal_format);
 		PTGN_ASSERT(components >= 3 && components <= 4);
@@ -199,8 +202,8 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(Framebuffer framebuffer, Atta
 	auto _ = gl_.Bind(framebuffer, true);
 
 	V2_int size = (spec.object == AttachmentObject::Texture2D)
-					? gl_.textures.GetCache(spec.id).size
-					: gl_.renderbuffers.GetCache(spec.id).size;
+					? gl_.textures.GetCache(Texture{ spec.id }).size
+					: gl_.renderbuffers.GetCache(Renderbuffer{ spec.id }).size;
 
 	GLenum format	 = GL_RGBA;
 	GLenum type_enum = GL_UNSIGNED_BYTE;
@@ -209,7 +212,7 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(Framebuffer framebuffer, Atta
 		using enum AttachmentType;
 
 		case Color: {
-			const auto& tex = gl_.textures.GetCache(spec.id);
+			const auto& tex = gl_.textures.GetCache(Texture{ spec.id });
 			PTGN_ASSERT(GetColorComponentCount(tex.internal_format) >= 3);
 			format	  = tex.internal_format;
 			type_enum = GL_UNSIGNED_BYTE;
@@ -365,7 +368,7 @@ void Framebuffers::ResizeFramebuffer(Framebuffer framebuffer, V2_int new_size) {
 
 Framebuffer Framebuffers::CreateFramebufferImpl() {
 	Framebuffer id{ 0 };
-	GLCall(GenFramebuffers(1, &id));
+	GLCall(GenFramebuffers(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create framebuffer");
 	cache_.Add(id, FramebufferCache{});
 	return id;
@@ -375,7 +378,7 @@ void Framebuffers::DestroyFramebuffer(Framebuffer id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteFramebuffers(1, &id));
+	GLCall(DeleteFramebuffers(1, &id.value));
 	cache_.Remove(id);
 }
 

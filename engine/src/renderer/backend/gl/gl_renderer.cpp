@@ -25,173 +25,14 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/buffer_layout.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/render_target.h"
+#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
 
 namespace ptgn::impl::gl {
-/*
-
-bool Renderer::IsTextureAttachedToCurrentFramebuffer(
-	Texture tex
-) const {
-	if (!state.framebuffer) {
-		return false; // default framebuffer
-	}
-
-	const auto& fb = state.framebuffer;
-
-	for (GLenum attachment : gl_->GetFramebufferColorAttachments(fb)) {
-		const auto& info = gl_->GetFramebufferAttachment(fb, attachment);
-		if (info.type == GL_TEXTURE_2D && info.id == tex) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-struct PingPong {
-	Texture texture;
-	Framebuffer fbo;
-};
-
-/// Key: texture ID, Value: PingPong struct containing the texture and its associated framebuffer.
-std::unordered_map<GLuint, PingPong> ping_pong_cache;
-
-PingPong& Renderer::GetPingPongFor(
-	Texture src
-) {
-	auto& entry = ping_pong_cache[src.id];
-	if (entry.texture) {
-		return entry;
-	}
-
-	const auto& tex_info = gl_->GetTextureInfo(src);
-
-	entry.texture = gl_->CreateTexture2D(
-		tex_info.size,
-		tex_info.internal_format,
-		tex_info.filter,
-		tex_info.wrap
-	);
-
-	entry.fbo = gl_->CreateFramebuffer();
-	gl_->AttachTexture(entry.fbo, GL_COLOR_ATTACHMENT0, entry.texture);
-
-	PTGN_ASSERT(gl_->CheckFramebufferComplete(entry.fbo));
-
-	return entry;
-}
-
-void Renderer::ResolveReadWriteHazards() {
-	if (!state.framebuffer) {
-		return; // default framebuffer, no hazard
-	}
-
-	for (std::uint32_t i = 0; i < batch_textures_.size(); ++i) {
-		auto tex = batch_textures_[i];
-
-		if (!IsTextureAttachedToCurrentFramebuffer(tex)) {
-			continue;
-		}
-
-		// Hazard detected
-		auto& pp = GetPingPongFor(tex);
-
-		// Flush pending geometry before redirecting
-		FlushBatch();
-
-		// Blit tex -> pingpong
-		gl_->BlitTexture(tex, pp.texture);
-
-		// Replace read texture in batch
-		batch_textures_[i] = pp.texture;
-
-		// IMPORTANT: future writes now go to the pingpong target
-		// so swap framebuffer attachment
-		gl_->ReplaceFramebufferAttachment(
-			state.framebuffer,
-			tex,
-			pp.texture
-		);
-
-		// Update state so next passes read the new texture
-		std::swap(pp.texture, tex);
-
-		break; // only need one resolve per flush
-	}
-}
-
-void Renderer::FlushBatch() {
-	if (batch_indices_.empty()) {
-		return;
-	}
-
-	ResolveReadWriteHazards();
-
-	...
-}
-
-
-*/
-
-//  TODO: Make ping pong system.
-//  TODO: Make render target pooling system.
-//  TODO: Make queued command system.
-//  TODO: Make fork pipeline system.
-
-/*
-RecomputeDisplaySize(window_.GetSize());
-
-// GLRenderer::EnableLineSmoothing();
-
-GLRenderer::DisableDepthTesting();
-GLRenderer::DisableGammaCorrection();
-
-max_texture_slots = GLRenderer::GetMaxTextureSlots();
-
-PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
-
-const auto& screen_shader{ gl_->GetShader("screen_default") };
-PTGN_ASSERT(screen_shader.IsValid());
-gl_->Bind(screen_shader);
-gl_->SetUniform(screen_shader, "u_Texture", 1);
-
-const auto& quad_shader{ gl_->GetShader("quad") };
-
-PTGN_ASSERT(quad_shader.IsValid());
-PTGN_ASSERT(gl_->GetShader("circle").IsValid());
-PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
-PTGN_ASSERT(gl_->GetShader("light").IsValid());
-
-intermediate_target = {};
-
-screen_target__ = CreateRenderTarget(
-	render_manager, display_viewport_.size, color::Transparent, TextureFormat::RGBA8888, true
-);
-AddScript<DisplayResizeScript>(screen_target__);
-
-SetBlendMode(screen_target__, BlendMode::ReplaceRGBA);
-
-#ifdef PTGN_PLATFORM_MACOS
-// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-// texture because texture unloadable."
-for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-	Texture::Bind(white_texture_.GetId(), slot);
-}
-#endif
-
-SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
-
-viewport_tracker = render_manager.CreateEntity();
-AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
-auto window_size{ window_.GetSize() };
-RecomputeDisplaySize(window_size);
-
-render_manager.Refresh();
-*/
 
 Renderer::Renderer(Window& window) : gl_{ std::make_unique<GLContext>(window) } {
 	// TODO: Fix and replace with the object which has a destructor.
@@ -248,7 +89,29 @@ Renderer::Renderer(Window& window) : gl_{ std::make_unique<GLContext>(window) } 
 }
 
 Renderer::~Renderer() noexcept {
+	gl_->render_targets.DestroyRenderTarget(screen_target_);
+	gl_->buffers.DestroyVertexBuffer(vbo_);
+	gl_->buffers.DestroyElementBuffer(ebo_);
+	gl_->vertex_arrays.DestroyVertexArray(vao_);
+	gl_->textures.DestroyTexture(white_texture_);
+
 	// Needs to have access to GLContext destructor, forward declaration is not enough.
+}
+
+RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
+	return gl_->render_targets.CreateRenderTarget(size, format);
+}
+
+void Renderer::ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const {
+	gl_->render_targets.ResizeRenderTarget(rt, new_size);
+}
+
+void Renderer::BindRenderTarget(const RenderTarget& rt) {
+	gl_->render_targets.BindRenderTarget(rt);
+}
+
+void Renderer::ClearRenderTarget(const RenderTarget& rt, Color color) {
+	gl_->render_targets.ClearRenderTarget(rt, color);
 }
 
 RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
@@ -424,7 +287,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 }
 
-void Renderer::SetShader(Program shader) {
+void Renderer::SetShader(Shader shader) {
 	UpdateStateIfChanged(*this, gl_->GetBoundState().shader_program, shader, [this, shader] {
 		auto _ = gl_->Bind(shader);
 	});
@@ -469,7 +332,7 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	});
 }
 
-void Renderer::DrawQuad(Program shader, const QuadParams& params, const QuadSetup& setup) {
+void Renderer::DrawQuad(Shader shader, const QuadParams& params, const QuadSetup& setup) {
 	QuadDesc quad;
 	auto half{ params.size / 2.0f };
 	quad.positions = { params.center - half, params.center + V2_float{ half.x, -half.y },
@@ -532,7 +395,7 @@ void Renderer::DrawTexture(
 }
 
 void Renderer::DrawTexture(
-	Program shader, Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
+	Shader shader, Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(
 		gl_->GetBoundFramebuffer() == Framebuffer{ 0 } ||
@@ -554,7 +417,7 @@ void Renderer::DrawTexture(
 	});
 }
 
-void Renderer::DrawTexture(Program shader, RenderPass& p, const RenderTarget& scene_target) {
+void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& scene_target) {
 	RenderTarget input;
 
 	// Input = latest output, or source before first draw
@@ -643,11 +506,182 @@ void Renderer::EndFrame(const Viewport& viewport) {
 	FlushBatch();
 }
 
-void Renderer::BindRenderTarget(const RenderTarget& rt) {
-	SetFramebuffer(rt.framebuffer_, { { 0, 0 }, rt.size_ });
+Texture Renderer::GetWhiteTexture() const {
+	return white_texture_;
+}
+
+const RenderTarget& Renderer::GetScreenTarget() const {
+	return screen_target_;
+}
+
+RenderTarget& Renderer::GetScreenTarget() {
+	return screen_target_;
 }
 
 } // namespace ptgn::impl::gl
+
+/*
+
+bool Renderer::IsTextureAttachedToCurrentFramebuffer(
+	Texture tex
+) const {
+	if (!state.framebuffer) {
+		return false; // default framebuffer
+	}
+
+	const auto& fb = state.framebuffer;
+
+	for (GLenum attachment : gl_->GetFramebufferColorAttachments(fb)) {
+		const auto& info = gl_->GetFramebufferAttachment(fb, attachment);
+		if (info.type == GL_TEXTURE_2D && info.id == tex) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+struct PingPong {
+	Texture texture;
+	Framebuffer fbo;
+};
+
+/// Key: texture ID, Value: PingPong struct containing the texture and its associated framebuffer.
+std::unordered_map<GLuint, PingPong> ping_pong_cache;
+
+PingPong& Renderer::GetPingPongFor(
+	Texture src
+) {
+	auto& entry = ping_pong_cache[src.id];
+	if (entry.texture) {
+		return entry;
+	}
+
+	const auto& tex_info = gl_->GetTextureInfo(src);
+
+	entry.texture = gl_->CreateTexture2D(
+		tex_info.size,
+		tex_info.internal_format,
+		tex_info.filter,
+		tex_info.wrap
+	);
+
+	entry.fbo = gl_->CreateFramebuffer();
+	gl_->AttachTexture(entry.fbo, GL_COLOR_ATTACHMENT0, entry.texture);
+
+	PTGN_ASSERT(gl_->CheckFramebufferComplete(entry.fbo));
+
+	return entry;
+}
+
+void Renderer::ResolveReadWriteHazards() {
+	if (!state.framebuffer) {
+		return; // default framebuffer, no hazard
+	}
+
+	for (std::uint32_t i = 0; i < batch_textures_.size(); ++i) {
+		auto tex = batch_textures_[i];
+
+		if (!IsTextureAttachedToCurrentFramebuffer(tex)) {
+			continue;
+		}
+
+		// Hazard detected
+		auto& pp = GetPingPongFor(tex);
+
+		// Flush pending geometry before redirecting
+		FlushBatch();
+
+		// Blit tex -> pingpong
+		gl_->BlitTexture(tex, pp.texture);
+
+		// Replace read texture in batch
+		batch_textures_[i] = pp.texture;
+
+		// IMPORTANT: future writes now go to the pingpong target
+		// so swap framebuffer attachment
+		gl_->ReplaceFramebufferAttachment(
+			state.framebuffer,
+			tex,
+			pp.texture
+		);
+
+		// Update state so next passes read the new texture
+		std::swap(pp.texture, tex);
+
+		break; // only need one resolve per flush
+	}
+}
+
+void Renderer::FlushBatch() {
+	if (batch_indices_.empty()) {
+		return;
+	}
+
+	ResolveReadWriteHazards();
+
+	...
+}
+
+
+*/
+
+//  TODO: Make ping pong system.
+//  TODO: Make render target pooling system.
+//  TODO: Make queued command system.
+//  TODO: Make fork pipeline system.
+
+/*
+RecomputeDisplaySize(window_.GetSize());
+
+// GLRenderer::EnableLineSmoothing();
+
+GLRenderer::DisableDepthTesting();
+GLRenderer::DisableGammaCorrection();
+
+max_texture_slots = GLRenderer::GetMaxTextureSlots();
+
+PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
+
+const auto& screen_shader{ gl_->GetShader("screen_default") };
+PTGN_ASSERT(screen_shader.IsValid());
+gl_->Bind(screen_shader);
+gl_->SetUniform(screen_shader, "u_Texture", 1);
+
+const auto& quad_shader{ gl_->GetShader("quad") };
+
+PTGN_ASSERT(quad_shader.IsValid());
+PTGN_ASSERT(gl_->GetShader("circle").IsValid());
+PTGN_ASSERT(gl_->GetShader("screen_default").IsValid());
+PTGN_ASSERT(gl_->GetShader("light").IsValid());
+
+intermediate_target = {};
+
+screen_target__ = CreateRenderTarget(
+	render_manager, display_viewport_.size, color::Transparent, TextureFormat::RGBA8888, true
+);
+AddScript<DisplayResizeScript>(screen_target__);
+
+SetBlendMode(screen_target__, BlendMode::ReplaceRGBA);
+
+#ifdef PTGN_PLATFORM_MACOS
+// Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+// GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+// texture because texture unloadable."
+for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+	Texture::Bind(white_texture_.GetId(), slot);
+}
+#endif
+
+SetState(RenderState{ {}, BlendMode::ReplaceRGBA, {} });
+
+viewport_tracker = render_manager.CreateEntity();
+AddScript<ViewportResizeScript>(viewport_tracker, ctx_);
+auto window_size{ window_.GetSize() };
+RecomputeDisplaySize(window_size);
+
+render_manager.Refresh();
+*/
 
 /*
 ViewportResizeScript::ViewportResizeScript(Window& window, Renderer& renderer) :

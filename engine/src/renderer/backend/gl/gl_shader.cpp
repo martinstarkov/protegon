@@ -537,7 +537,7 @@ Shader Shaders::CompileShaderPath(
 	return CompileShaderSource(source, type, name);
 }
 
-void Shaders::LinkProgram(Program id, Shader vertex, Shader fragment) {
+void Shaders::LinkProgram(Shader id, Shader vertex, Shader fragment) {
 	cache_.Get(id).uniform_locations.clear();
 
 	PTGN_ASSERT(vertex);
@@ -573,7 +573,7 @@ void Shaders::LinkProgram(Program id, Shader vertex, Shader fragment) {
 }
 
 void Shaders::CompileProgram(
-	Program id, const std::string& vertex_source, const std::string& fragment_source
+	Shader id, const std::string& vertex_source, const std::string& fragment_source
 ) {
 	// TODO: Ensure shader cache is cleared if it exists.
 
@@ -711,7 +711,7 @@ std::pair<Shader, bool> Shaders::GetShaderIdWithDeleteFlag(
 	}
 }
 
-Program Shaders::CreateProgram(
+Shader Shaders::CreateProgram(
 	const std::variant<ShaderCode, ShaderName>& vertex,
 	const std::variant<ShaderCode, ShaderName>& fragment, const std::string& shader_name
 ) {
@@ -735,7 +735,7 @@ Program Shaders::CreateProgram(
 	return program;
 }
 
-Program Shaders::CreateProgram(
+Shader Shaders::CreateProgram(
 	const std::variant<ShaderCode, path>& source, const std::string& program_name
 ) {
 	auto program{ CreateProgram(program_name) };
@@ -797,7 +797,7 @@ Shader Shaders::CreateProgram(const std::string& program_name) {
 	return id;
 }
 
-void Shaders::DestroyProgram(Program id) {
+void Shaders::DestroyProgram(Shader id) {
 	if (!id) {
 		return;
 	}
@@ -805,28 +805,28 @@ void Shaders::DestroyProgram(Program id) {
 	cache_.Remove(id);
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, V2_float v) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, V2_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v.x, v.y));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, V3_float v) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, V3_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v.x, v.y, v.z));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, V4_float v) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, V4_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4f(location, v.x, v.y, v.z, v.w));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, const Matrix4& matrix) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, const Matrix4& matrix) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		constexpr bool transpose_matrix{ false };
@@ -836,7 +836,7 @@ void Shaders::SetUniform(Program id, const char* uniform_name, const Matrix4& ma
 }
 
 void Shaders::SetUniform(
-	Program id, const char* uniform_name, const std::int32_t* data, std::int32_t count
+	Shader id, const char* uniform_name, const std::int32_t* data, std::int32_t count
 ) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
@@ -845,7 +845,7 @@ void Shaders::SetUniform(
 }
 
 void Shaders::SetUniform(
-	Program id, const char* uniform_name, const float* data, std::int32_t count
+	Shader id, const char* uniform_name, const float* data, std::int32_t count
 ) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
@@ -853,42 +853,42 @@ void Shaders::SetUniform(
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, const Vector2<std::int32_t>& v) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, const Vector2<std::int32_t>& v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2i(location, v.x, v.y));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, const Vector3<std::int32_t>& v) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, const Vector3<std::int32_t>& v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v.x, v.y, v.z));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, const Vector4<std::int32_t>& v) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, const Vector4<std::int32_t>& v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4i(location, v.x, v.y, v.z, v.w));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, float v0) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, float v0) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1f(location, v0));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, float v0, float v1) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, float v0, float v1) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v0, v1));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, float v0, float v1, float v2) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, float v0, float v1, float v2) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v0, v1, v2));
@@ -896,7 +896,7 @@ void Shaders::SetUniform(Program id, const char* uniform_name, float v0, float v
 }
 
 void Shaders::SetUniform(
-	Program id, const char* uniform_name, float v0, float v1, float v2, float v3
+	Shader id, const char* uniform_name, float v0, float v1, float v2, float v3
 ) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
@@ -904,14 +904,14 @@ void Shaders::SetUniform(
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, std::int32_t v0) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, std::int32_t v0) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1i(location, v0));
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, std::int32_t v0, std::int32_t v1) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, std::int32_t v0, std::int32_t v1) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2i(location, v0, v1));
@@ -919,7 +919,7 @@ void Shaders::SetUniform(Program id, const char* uniform_name, std::int32_t v0, 
 }
 
 void Shaders::SetUniform(
-	Program id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
+	Shader id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
 ) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
@@ -928,7 +928,7 @@ void Shaders::SetUniform(
 }
 
 void Shaders::SetUniform(
-	Program id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
+	Shader id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
 	std::int32_t v3
 ) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
@@ -937,11 +937,11 @@ void Shaders::SetUniform(
 	}
 }
 
-void Shaders::SetUniform(Program id, const char* uniform_name, bool value) {
+void Shaders::SetUniform(Shader id, const char* uniform_name, bool value) {
 	SetUniform(id, uniform_name, static_cast<std::int32_t>(value));
 }
 
-std::int32_t Shaders::GetUniform(Program id, const char* program_name) {
+std::int32_t Shaders::GetUniform(Shader id, const char* program_name) {
 	PTGN_ASSERT(
 		gl_.IsBound(id),
 		"Cannot get uniform location of shader program which is not currently bound"
@@ -963,7 +963,7 @@ std::int32_t Shaders::GetUniform(Program id, const char* program_name) {
 	return location;
 }
 
-Program Shaders::GetProgram(std::string_view program_name) const {
+Shader Shaders::GetProgram(std::string_view program_name) const {
 	auto hash{ Hash(program_name) };
 	PTGN_ASSERT(programs_.contains(hash), "No shader program with name '", program_name, "' found");
 	return programs_.find(hash)->second;

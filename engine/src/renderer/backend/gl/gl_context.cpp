@@ -20,13 +20,15 @@
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
-#include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
-#include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 
 /// 0 for immediate updates, 1 for updates synchronized with the vertical retrace, -1 for adaptive
 /// vsync.
@@ -57,7 +59,8 @@ GLContext::GLContext(const Window& window) :
 	textures{ *this },
 	renderbuffers{ *this },
 	framebuffers{ *this },
-	vertex_arrays{ *this } {
+	vertex_arrays{ *this },
+	render_targets{ *this } {
 	if (context_ != nullptr) {
 		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(!result, SDL_GetError());
@@ -147,17 +150,17 @@ BindGuard<UniformBuffer> GLContext::Bind(UniformBuffer id, bool restore_bind) {
 	return BindGuard<UniformBuffer>{ *this, previous, restore_bind };
 }
 
-BindGuard<Program> GLContext::Bind(Program id, bool restore_bind) {
-	auto previous{ GetBoundProgram() };
+BindGuard<Shader> GLContext::Bind(Shader id, bool restore_bind) {
+	auto previous{ GetBoundShader() };
 
 	if (id == previous) {
-		return BindGuard<Program>{ *this, Program{}, false };
+		return BindGuard<Shader>{ *this, Shader{}, false };
 	}
 
 	GLCall(UseProgram(id));
 	bound_.shader_program = id;
 
-	return BindGuard<Program>{ *this, previous, restore_bind };
+	return BindGuard<Shader>{ *this, previous, restore_bind };
 }
 
 BindGuard<Renderbuffer> GLContext::Bind(Renderbuffer id, bool restore_bind) {
@@ -244,7 +247,7 @@ State& GLContext::GetBoundState() {
 	return bound_;
 }
 
-Program GLContext::GetBoundProgram() const {
+Shader GLContext::GetBoundShader() const {
 	return bound_.shader_program;
 }
 
@@ -277,8 +280,8 @@ bool GLContext::IsBound(UniformBuffer id) const {
 	return GetBoundUniformBuffer() == id;
 }
 
-bool GLContext::IsBound(Program id) const {
-	return GetBoundProgram() == id;
+bool GLContext::IsBound(Shader id) const {
+	return GetBoundShader() == id;
 }
 
 bool GLContext::IsBound(Renderbuffer id) const {

@@ -18,8 +18,8 @@
 #include "renderer/camera/scaling_mode.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
-#include "renderer/targets/render_target.h"
 #include "runtime/event/event_handler.h"
 
 namespace ptgn {
@@ -95,17 +95,77 @@ ScalingMode Renderer::GetScalingMode() const {
 }
 
 void Renderer::DrawTexture(
-	const RenderTarget& rt, V2_float center, V2_float size, Color tint, bool flip_y
+	const impl::RenderTarget& rt, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	gl_renderer_->DrawTexture(rt, center, size, tint, flip_y);
 }
 
-void Renderer::DrawTexture(TextureId texture, V2_float center, V2_float size, Color tint) {
+void Renderer::DrawTexture(impl::Texture texture, V2_float center, V2_float size, Color tint) {
 	gl_renderer_->DrawTexture(texture, center, size, tint);
 }
 
 void Renderer::DrawRect(V2_float center, V2_float size, Color color) {
-	gl_renderer_->DrawTexture(gl_renderer_->white_texture_, center, size, color);
+	gl_renderer_->DrawTexture(gl_renderer_->GetWhiteTexture(), center, size, color);
+}
+
+impl::RenderTarget Renderer::GetScreenTarget() const {
+	return gl_renderer_->GetScreenTarget();
+}
+
+impl::RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
+	return gl_renderer_->CreateRenderTarget(size, format);
+}
+
+void Renderer::ResizeRenderTarget(impl::RenderTarget& rt, V2_int new_size) const {
+	gl_renderer_->ResizeRenderTarget(rt, new_size);
+}
+
+void Renderer::ClearRenderTarget(const impl::RenderTarget& rt, Color color) {
+	gl_renderer_->ClearRenderTarget(rt, color);
+}
+
+void Renderer::BindRenderTarget(const impl::RenderTarget& rt) {
+	gl_renderer_->BindRenderTarget(rt);
+}
+
+void Renderer::BindRenderTarget(impl::RenderPass& pass) {
+	gl_renderer_->BindRenderTarget(pass);
+}
+
+void Renderer::SetViewProjection(const Matrix4& view_projection) {
+	gl_renderer_->SetViewProjection(view_projection);
+}
+
+void Renderer::SetBlend(BlendMode mode, bool enabled) {
+	gl_renderer_->SetBlend(mode, enabled);
+}
+
+void Renderer::SetDepth(const DepthState& depth) {
+	gl_renderer_->SetDepth(depth);
+}
+
+void Renderer::SetStencil(const StencilState& stencil) {
+	gl_renderer_->SetStencil(stencil);
+}
+
+void Renderer::SetRaster(const RasterState& raster) {
+	gl_renderer_->SetRaster(raster);
+}
+
+void Renderer::SetColorMask(const ColorMaskState& color_mask) {
+	gl_renderer_->SetColorMask(color_mask);
+}
+
+impl::RenderPass Renderer::BeginPass(const impl::RenderTarget& scene_target) {
+	return gl_renderer_->BeginPass(scene_target);
+}
+
+void Renderer::BeginFrame() {
+	gl_renderer_->BeginFrame();
+}
+
+void Renderer::EndFrame() {
+	gl_renderer_->EndFrame(display_viewport_);
 }
 
 void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
@@ -178,7 +238,9 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 		display_viewport_ = viewport;
 
 		if (resized) {
-			gl_renderer_->ResizeRenderTarget(gl_renderer_->screen_target_, display_viewport_.size);
+			gl_renderer_->ResizeRenderTarget(
+				gl_renderer_->GetScreenTarget(), display_viewport_.size
+			);
 
 			if (emit_events) {
 				impl::DisplayResized display_resized;
@@ -193,70 +255,6 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 			events_.Emit(display_changed);
 		}
 	}
-}
-
-RenderTarget Renderer::GetScreenTarget() const {
-	return gl_renderer_->screen_target_;
-}
-
-RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) const {
-	return gl_renderer_->CreateRenderTarget(size, format);
-}
-
-void Renderer::ResizeRenderTarget(RenderTarget& rt, V2_int new_size) const {
-	gl_renderer_->ResizeRenderTarget(rt, new_size);
-}
-
-void Renderer::ClearRenderTarget(const RenderTarget& rt, Color color) {
-	gl_renderer_->ClearRenderTarget(rt, color);
-}
-
-void Renderer::BindRenderTarget(const RenderTarget& rt) {
-	gl_renderer_->BindRenderTarget(rt);
-}
-
-void Renderer::BindRenderTarget(RenderPass& pass) {
-	gl_renderer_->BindRenderTarget(pass);
-}
-
-void Renderer::SetViewProjection(const Matrix4& view_projection) {
-	gl_renderer_->SetViewProjection(view_projection);
-}
-
-void Renderer::SetBlend(BlendMode mode, bool enabled) {
-	gl_renderer_->SetBlend(mode, enabled);
-}
-
-void Renderer::SetDepth(const DepthState& depth) {
-	gl_renderer_->SetDepth(depth);
-}
-
-void Renderer::SetStencil(const StencilState& stencil) {
-	gl_renderer_->SetStencil(stencil);
-}
-
-void Renderer::SetRaster(const RasterState& raster) {
-	gl_renderer_->SetRaster(raster);
-}
-
-void Renderer::SetColorMask(const ColorMaskState& color_mask) {
-	gl_renderer_->SetColorMask(color_mask);
-}
-
-RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
-	return gl_renderer_->BeginPass(scene_target);
-}
-
-V2_int Renderer::GetTextureSize(TextureId texture) const {
-	return gl_renderer_->GetTextureSize(texture);
-}
-
-void Renderer::BeginFrame() {
-	gl_renderer_->BeginFrame();
-}
-
-void Renderer::EndFrame() {
-	gl_renderer_->EndFrame(display_viewport_);
 }
 
 } // namespace ptgn

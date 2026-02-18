@@ -12,46 +12,24 @@
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_buffer.h"
-#include "renderer/backend/gl/gl_framebuffer.h"
-#include "renderer/backend/gl/gl_render_target.h"
-#include "renderer/backend/gl/gl_shader.h"
-#include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
+#include "renderer/resources/buffer.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/render_target.h"
+#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
+#include "renderer/resources/vertex_array.h"
 
 namespace ptgn {
 
-class Renderer;
 class Window;
 
 namespace impl::gl {
 
-class Renderer;
 class GLContext;
-
-} // namespace impl::gl
-
-class RenderPass {
-private:
-	friend class impl::gl::Renderer;
-
-	impl::gl::RenderTarget source_;
-
-	impl::gl::RenderTarget ping_;
-	impl::gl::RenderTarget pong_;
-
-	bool has_ping_{ false };
-	bool has_pong_{ false };
-
-	// "latest output" tracking
-	bool has_written_once_{ false }; // false -> latest is source
-	bool latest_is_ping_{ true };	 // valid only if has_written_once == true
-};
-
-namespace impl::gl {
 
 template <class State, class Func>
 void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
@@ -107,7 +85,7 @@ public:
 	void ClearRenderTarget(const RenderTarget& rt, Color color);
 
 	void DrawTexture(
-		Program shader, Texture texture, V2_float center, V2_float size, Color tint = color::White,
+		Shader shader, Texture texture, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = false
 	);
 	void DrawTexture(
@@ -118,10 +96,10 @@ public:
 		Texture texture, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = false
 	);
-	void DrawTexture(Program shader, RenderPass& pass, const RenderTarget& scene_target);
+	void DrawTexture(Shader shader, RenderPass& pass, const RenderTarget& scene_target);
 
 	void SetViewProjection(const Matrix4& view_projection);
-	void SetShader(Program shader);
+	void SetShader(Shader shader);
 	void SetBlend(BlendMode mode, bool enabled = true);
 	void SetFramebuffer(Framebuffer framebuffer, const Viewport& viewport);
 	void SetDepth(const DepthState& depth);
@@ -133,24 +111,23 @@ public:
 
 	V2_int GetTextureSize(Texture texture) const;
 
-	// TODO: Move to private.
-	std::unique_ptr<GLContext> gl_;
-	// TODO: Move to private.
-	RenderTarget screen_target_;
+	const RenderTarget& GetScreenTarget() const;
+	RenderTarget& GetScreenTarget();
+
+	void BeginFrame();
+	void EndFrame(const Viewport& viewport);
+
+	Texture GetWhiteTexture() const;
 
 private:
 	friend class Application;
 	friend class RenderPass;
-	friend class ptgn::Renderer;
 	template <class State, class Func>
 	friend void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
 
-	using QuadSetup = std::function<void(Program, QuadDesc&)>;
+	using QuadSetup = std::function<void(Shader, QuadDesc&)>;
 
-	void DrawQuad(Program shader, const QuadParams& p, const QuadSetup& q);
-
-	void BeginFrame();
-	void EndFrame(const Viewport& viewport);
+	void DrawQuad(Shader shader, const QuadParams& p, const QuadSetup& q);
 
 	void FlushBatch();
 
@@ -159,16 +136,19 @@ private:
 	RenderTarget AcquirePooledTarget(V2_int size, TextureFormat format);
 	void ReleasePooledTarget(const RenderTarget& target);
 
+	std::unique_ptr<GLContext> gl_;
+
+	RenderTarget screen_target_;
+	VertexBuffer vbo_;
+	ElementBuffer ebo_;
+	VertexArray vao_;
+	Texture white_texture_;
+
 	std::vector<Vertex> batch_vertices_;
 	std::vector<Index> batch_indices_;
 	std::vector<Texture> batch_textures_;
 
 	Matrix4 view_projection_;
-
-	VertexBuffer vbo_;
-	ElementBuffer ebo_;
-	VertexArray vao_;
-	Texture white_texture_;
 
 	std::vector<PooledTarget> rt_pool_;
 	std::uint64_t pool_tick_{ 0 };

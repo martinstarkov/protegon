@@ -5,38 +5,6 @@
 #include <unordered_map>
 
 // ============================================================
-// Backend Example: OpenGL
-// ============================================================
-
-class OpenGLBackend {
-public:
-	using TextureHandle = uint32_t;
-
-	TextureHandle CreateTexture(int width, int height) {
-		static uint32_t next = 1;
-		TextureHandle id	 = next++;
-		std::cout << "[GL] CreateTexture id=" << id << " size=" << width << "x" << height << "\n";
-		return id;
-	}
-
-	void DestroyTexture(TextureHandle id) {
-		std::cout << "[GL] DestroyTexture id=" << id << "\n";
-	}
-
-	void DrawTexture(TextureHandle id) {
-		if (m_boundTexture != id) {
-			std::cout << "[GL] BindTexture id=" << id << "\n";
-			m_boundTexture = id;
-		}
-
-		std::cout << "[GL] Draw call\n";
-	}
-
-private:
-	TextureHandle m_boundTexture = 0; // state cache
-};
-
-// ============================================================
 // Renderer (Template, Backend-Agnostic)
 // ============================================================
 

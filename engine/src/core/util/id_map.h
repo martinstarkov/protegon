@@ -4,6 +4,8 @@
 #include <limits>
 #include <vector>
 
+#include "core/assert.h"
+
 namespace ptgn {
 
 template <typename T>

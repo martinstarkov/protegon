@@ -1,16 +1,13 @@
 #pragma once
 
-#include <cstdint>
-
 #include "core/math/vector2.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
+#include "renderer/resources/renderbuffer.h"
 
 namespace ptgn::impl::gl {
 
 class GLContext;
-
-using Renderbuffer = std::uint32_t;
 
 struct RenderbufferCache {
 	V2_int size;

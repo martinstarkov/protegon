@@ -2,7 +2,17 @@
 
 #include <cstdint>
 
+#include "renderer/resources/id.h"
+
 namespace ptgn {
+
+namespace impl {
+
+struct TextureTag {};
+
+using Texture = Id<TextureTag>;
+
+} // namespace impl
 
 enum class TextureFormat {
 	// ---------------------------------------------------------------------
@@ -49,7 +59,7 @@ enum class TextureFormat {
 
 inline bool IsDepthFormat(TextureFormat fmt) {
 	switch (fmt) {
-		using enum ptgn::TextureFormat;
+		using enum TextureFormat;
 		case Depth16:
 		case Depth24:
 		case Depth32F:
@@ -65,7 +75,7 @@ inline bool IsColorFormat(TextureFormat fmt) {
 
 inline bool IsHDRFormat(TextureFormat fmt) {
 	switch (fmt) {
-		using enum ptgn::TextureFormat;
+		using enum TextureFormat;
 		case RGBA16F:
 		case RGBA32F:
 		case R11G11B10F: return true;

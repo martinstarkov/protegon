@@ -6,14 +6,14 @@
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
-#include "renderer/backend/gl/gl_buffer.h"
+#include "renderer/backend/gl/gl_bind_guard.h"
+#include "renderer/resources/buffer.h"
 #include "renderer/resources/buffer_layout.h"
+#include "renderer/resources/vertex_array.h"
 
 namespace ptgn::impl::gl {
 
 class GLContext;
-
-using VertexArray = std::uint32_t;
 
 struct VertexArrayCache {
 	ElementBuffer element_buffer{ 0 };
@@ -46,7 +46,7 @@ public:
 	) {
 		auto vertex_array{ CreateVertexArray() };
 
-		auto _ = gl_.Bind(vertex_array, restore_bind);
+		auto _ = BindVertexArray(vertex_array, restore_bind);
 
 		SetVertexBuffer(vertex_array, vertex_buffer);
 		SetElementBuffer(vertex_array, element_buffer);
@@ -65,7 +65,7 @@ public:
 		requires NonEmptyPack<Ts...>
 	void SetBufferLayout(VertexArray vertex_array, const BufferLayout<Ts...>& layout) {
 		PTGN_ASSERT(
-			gl_.IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"
+			IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"
 		);
 
 		PTGN_ASSERT(
@@ -76,7 +76,7 @@ public:
 		const auto& elements{ layout.GetElements() };
 
 		PTGN_ASSERT(
-			elements.size() < static_cast<std::uint32_t>(gl_.GetInteger(GL_MAX_VERTEX_ATTRIBS)),
+			elements.size() < static_cast<std::uint32_t>(GetMaxVertexAttribs()),
 			"Vertex buffer layout cannot exceed maximum number of vertex array attributes"
 		);
 
@@ -121,6 +121,12 @@ private:
 	VertexArrays& operator=(VertexArrays&&) noexcept = delete;
 
 	[[nodiscard]] VertexArray CreateVertexArray();
+
+	BindGuard<VertexArray> BindVertexArray(VertexArray vertex_array, bool restore_bind);
+
+	[[nodiscard]] bool IsBound(VertexArray vertex_array) const;
+
+	[[nodiscard]] int GetMaxVertexAttribs() const;
 
 	GLContext& gl_;
 

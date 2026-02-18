@@ -16,76 +16,8 @@ class Manager;
 class Scene;
 class Camera;
 class SceneInput;
-
 struct Transform;
-
-class Scene; // forward
-
-/*
-
-class Entity {
-public:
-	using Native = ecs::Entity;
-
-	Entity() = default;
-
-	Entity(Native native, Scene* scene) : native_(native), scene_(scene) {}
-
-	explicit operator bool() const {
-		return static_cast<bool>(native_);
-	}
-
-	ecs::impl::Id Id() const {
-		return native_.GetId();
-	}
-
-	ecs::impl::Version Version() const {
-		return native_.GetVersion();
-	}
-
-	Scene* GetScene() const {
-		return scene_;
-	}
-
-	Native& NativeHandle() {
-		return native_;
-	}
-
-	const Native& NativeHandle() const {
-		return native_;
-	}
-
-	// You can forward ECS operations if you like:
-	template <typename T, typename... Args>
-	T& Add(Args&&... args) {
-		return native_.template Add<T>(std::forward<Args>(args)...);
-	}
-
-	template <typename... TComponents>
-	void Remove() {
-		native_.template Remove<TComponents...>();
-	}
-
-	template <typename... TComponents>
-	decltype(auto) Get() {
-		return native_.template Get<TComponents...>();
-	}
-
-	template <typename... TComponents>
-	decltype(auto) Get() const {
-		return native_.template Get<TComponents...>();
-	}
-
-	void Destroy() {
-		native_.Destroy();
-	}
-
-private:
-	Native native_;
-	Scene* scene_{ nullptr };
-};
-
-*/
+class Scene;
 
 class Entity {
 public:

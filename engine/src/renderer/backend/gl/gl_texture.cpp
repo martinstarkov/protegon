@@ -162,7 +162,7 @@ void Textures::GenerateMipmaps(Texture texture) const {
 
 Texture Textures::CreateTexture() {
 	Texture id{ 0 };
-	GLCall(glGenTextures(1, &id));
+	GLCall(glGenTextures(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create texture");
 	cache_.Add(id, TextureCache{});
 	return id;
@@ -172,7 +172,7 @@ void Textures::DestroyTexture(Texture id) {
 	if (!id) {
 		return;
 	}
-	GLCall(glDeleteTextures(1, &id));
+	GLCall(glDeleteTextures(1, &id.value));
 	cache_.Remove(id);
 }
 

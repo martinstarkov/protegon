@@ -5,15 +5,21 @@
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "renderer/backend/gl/gl.h"
+#include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
+#include "renderer/backend/gl/gl_render_target.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/render_state.h"
+#include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -42,27 +48,6 @@ class Window;
 
 namespace ptgn::impl::gl {
 
-class GLContext;
-
-template <typename T>
-class BindGuard {
-public:
-	BindGuard(GLContext& gl, T id, bool restore_bind) :
-		gl_{ gl }, id_{ id }, restore_bind_{ restore_bind } {}
-
-	~BindGuard() noexcept;
-
-	BindGuard(BindGuard&&) noexcept			   = delete;
-	BindGuard& operator=(BindGuard&&) noexcept = delete;
-	BindGuard(const BindGuard&)				   = delete;
-	BindGuard& operator=(const BindGuard&)	   = delete;
-
-private:
-	GLContext& gl_;
-	T id_;
-	bool restore_bind_{ false };
-};
-
 class GLContext {
 public:
 	GLContext() = delete;
@@ -76,7 +61,7 @@ public:
 	[[nodiscard]] BindGuard<VertexBuffer> Bind(VertexBuffer id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<ElementBuffer> Bind(ElementBuffer id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<UniformBuffer> Bind(UniformBuffer id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<Program> Bind(Program id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<Shader> Bind(Shader id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<Texture> Bind(Texture id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<Renderbuffer> Bind(Renderbuffer id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<Framebuffer> Bind(Framebuffer id, bool restore_bind = false);
@@ -87,7 +72,7 @@ public:
 	[[nodiscard]] VertexBuffer GetBoundVertexBuffer() const;
 	[[nodiscard]] ElementBuffer GetBoundElementBuffer() const;
 	[[nodiscard]] UniformBuffer GetBoundUniformBuffer() const;
-	[[nodiscard]] Program GetBoundProgram() const;
+	[[nodiscard]] Shader GetBoundShader() const;
 	[[nodiscard]] Texture GetBoundTexture() const;
 	[[nodiscard]] Renderbuffer GetBoundRenderbuffer() const;
 	[[nodiscard]] Framebuffer GetBoundFramebuffer() const;
@@ -96,7 +81,7 @@ public:
 	[[nodiscard]] bool IsBound(VertexBuffer id) const;
 	[[nodiscard]] bool IsBound(ElementBuffer id) const;
 	[[nodiscard]] bool IsBound(UniformBuffer id) const;
-	[[nodiscard]] bool IsBound(Program id) const;
+	[[nodiscard]] bool IsBound(Shader id) const;
 	[[nodiscard]] bool IsBound(Texture id) const;
 	[[nodiscard]] bool IsBound(Renderbuffer id) const;
 	[[nodiscard]] bool IsBound(Framebuffer id) const;
@@ -144,22 +129,15 @@ public:
 	Renderbuffers renderbuffers;
 	Framebuffers framebuffers;
 	VertexArrays vertex_arrays;
-
-private:
-	[[nodiscard]] std::uint32_t GetActiveTextureSlot() const;
+	RenderTargets render_targets;
 
 	int GetInteger(GLenum pname) const;
+	[[nodiscard]] std::uint32_t GetActiveTextureSlot() const;
 
+private:
 	State bound_;
 
 	SDL_GLContextState* context_{ nullptr };
 };
-
-template <typename T>
-BindGuard<T>::~BindGuard() noexcept {
-	if (restore_bind_) {
-		auto _ = gl_.Bind(id_, false);
-	}
-}
 
 } // namespace ptgn::impl::gl

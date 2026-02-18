@@ -3,14 +3,11 @@
 #include <cstdint>
 
 #include "core/util/id_map.h"
+#include "renderer/resources/buffer.h"
 
 namespace ptgn::impl::gl {
 
 class GLContext;
-
-using VertexBuffer	= std::uint32_t;
-using ElementBuffer = std::uint32_t;
-using UniformBuffer = std::uint32_t;
 
 enum class BufferUsage : std::uint32_t {
 	StaticDraw	= 0x88E4, // GL_STATIC_DRAW
