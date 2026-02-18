@@ -26,6 +26,7 @@
 #include "core/util/id_map.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl.h"
+#include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_resource.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
@@ -55,7 +56,7 @@ struct GLVersion {
 	int minor{ 0 };
 };
 
-GLContext::GLContext(const Window& window) : shaders_{ *this } {
+GLContext::GLContext(const Window& window) : buffers{ *this }, shaders{ *this }, textures{ *this } {
 	if (context_ != nullptr) {
 		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(!result, SDL_GetError());
@@ -81,14 +82,14 @@ GLContext::GLContext(const Window& window) : shaders_{ *this } {
 
 	// PTGN_LOG("OpenGL Build: ", GLCall(glGetString(GL_VERSION)));
 
-	auto max_texture_slots{ GetInteger<GLuint>(GL_MAX_TEXTURE_IMAGE_UNITS) };
+	auto max_texture_slots{ static_cast<std::size_t>(GetInteger(GL_MAX_TEXTURE_IMAGE_UNITS)) };
 	PTGN_ASSERT(max_texture_slots > 0);
 	bound_.texture_units.resize(max_texture_slots, {});
 
-	max_color_attachments_ = GetInteger<GLuint>(GL_MAX_COLOR_ATTACHMENTS);
+	max_color_attachments_ = static_cast<std::uint32_t>(GetInteger(GL_MAX_COLOR_ATTACHMENTS));
 	PTGN_ASSERT(max_color_attachments_ > 0);
 
-	shaders_.Populate(max_texture_slots);
+	shaders.Populate(max_texture_slots);
 }
 
 GLContext::~GLContext() {
@@ -99,44 +100,6 @@ GLContext::~GLContext() {
 		// Note: If this is the last message you see and the window does not close, it is likely
 		// that a GL asset is destructed after the GL context has been deleted.
 	}
-}
-
-VertexBuffer GLContext::CreateVertexBuffer(
-	const void* data, std::uint32_t element_count, std::uint32_t element_size, GLenum usage
-) {
-	return CreateBufferImpl<VertexBuffer>(
-		GL_ARRAY_BUFFER, data, element_count, element_size, usage
-	);
-}
-
-ElementBuffer GLContext::CreateElementBuffer(
-	const void* data, std::uint32_t element_count, std::uint32_t element_size, GLenum usage
-) {
-	return CreateBufferImpl<ElementBuffer>(
-		GL_ELEMENT_ARRAY_BUFFER, data, element_count, element_size, usage
-	);
-}
-
-UniformBuffer GLContext::CreateUniformBuffer(const void* data, std::uint32_t size, GLenum usage) {
-	return CreateBufferImpl<UniformBuffer>(GL_UNIFORM_BUFFER, data, size, 1, usage);
-}
-
-Texture GLContext::CreateTexture(
-	const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type, V2_int size,
-	GLenum internal_format, bool restore_bind
-) {
-	auto texture{ CreateTextureImpl() };
-
-	auto _ = Bind(texture, restore_bind);
-
-	SetTextureData(texture, pixel_data, pixel_data_format, pixel_data_type, size, internal_format);
-
-	SetTextureParameter(texture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	SetTextureParameter(texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	SetTextureParameter(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	SetTextureParameter(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	return texture;
 }
 
 Renderbuffer GLContext::CreateRenderbuffer(V2_int size, GLenum internal_format, bool restore_bind) {
@@ -161,11 +124,11 @@ Framebuffer GLContext::CreateFramebuffer(
 	auto framebuffer{ CreateFramebufferImpl() };
 	auto _ = Bind(framebuffer, restore_bind);
 
-	if (texture) {
+	if (texture.has_value()) {
 		AttachTexture(framebuffer, *texture, texture_attachment);
 	}
 
-	if (renderbuffer) {
+	if (renderbuffer.has_value()) {
 		AttachRenderbuffer(framebuffer, *renderbuffer, renderbuffer_attachment);
 	}
 
@@ -370,20 +333,16 @@ void GLContext::AttachTexture(Framebuffer framebuffer, Texture texture, GLenum t
 	PTGN_ASSERT(IsBound(framebuffer), "Framebuffer must be bound before attaching a texture");
 
 	if (texture) {
-		PTGN_ASSERT(texture_cache_.Has(texture), "Texture not in cache");
+		PTGN_ASSERT(textures.cache_.Has(texture), "Texture not in cache");
 		PTGN_ASSERT(
-			texture_cache_.Get(texture).size.BothAboveZero(), "Cannot attach a texture with no size"
+			textures.cache_.Get(texture).size.BothAboveZero(),
+			"Cannot attach a texture with no size"
 		);
 	}
 
 	GLCall(FramebufferTexture2D(GL_FRAMEBUFFER, texture_attachment, GL_TEXTURE_2D, texture, 0));
 
 	UpdateFramebufferCache(framebuffer, texture, texture_attachment, GL_TEXTURE_2D);
-}
-
-V2_int GLContext::GetTextureSize(Texture texture) const {
-	PTGN_ASSERT(texture_cache_.Has(texture), "Texture not in cache");
-	return texture_cache_.Get(texture).size;
 }
 
 void GLContext::AttachRenderbuffer(
@@ -763,7 +722,7 @@ GLContext::PixelValue GLContext::ReadPixel(
 
 	V2_int size;
 	if (info.type == GL_TEXTURE_2D) {
-		size = texture_cache_.Get(info.id).size;
+		size = textures.cache_.Get(info.id).size;
 	} else {
 		size = renderbuffer_cache_.Get(info.id).size;
 	}
@@ -780,7 +739,7 @@ GLContext::PixelValue GLContext::ReadPixel(
 	int read_y = size.y - 1 - coordinate.y;
 
 	if (type == AttachmentDataType::Color) {
-		const auto& tex = texture_cache_.Get(info.id);
+		const auto& tex = textures.cache_.Get(info.id);
 
 		int components = GetColorComponentCount(tex.internal_format);
 		PTGN_ASSERT(components >= 3 && components <= 4);
@@ -833,7 +792,7 @@ GLContext::PixelBuffer GLContext::ReadPixels(Framebuffer framebuffer, GLenum att
 
 	auto _ = Bind(framebuffer, true);
 
-	V2_int size = (info.type == GL_TEXTURE_2D) ? texture_cache_.Get(info.id).size
+	V2_int size = (info.type == GL_TEXTURE_2D) ? textures.cache_.Get(info.id).size
 											   : renderbuffer_cache_.Get(info.id).size;
 
 	GLenum format	 = GL_RGBA;
@@ -843,7 +802,7 @@ GLContext::PixelBuffer GLContext::ReadPixels(Framebuffer framebuffer, GLenum att
 		using enum AttachmentDataType;
 
 		case Color: {
-			const auto& tex = texture_cache_.Get(info.id);
+			const auto& tex = textures.cache_.Get(info.id);
 			PTGN_ASSERT(GetColorComponentCount(tex.internal_format) >= 3);
 			format	  = tex.internal_format;
 			type_enum = GL_UNSIGNED_BYTE;
@@ -975,7 +934,7 @@ void GLContext::ResizeFramebuffer(Framebuffer framebuffer, V2_int new_size) {
 		}
 
 		if (info.type == GL_TEXTURE_2D) {
-			ResizeTexture(Texture{ info.id }, new_size);
+			textures.ResizeTexture(Texture{ info.id }, new_size);
 		} else if (info.type == GL_RENDERBUFFER) {
 			ResizeRenderbuffer(Renderbuffer{ info.id }, new_size);
 		} else {
@@ -1006,20 +965,6 @@ void GLContext::ResizeRenderbuffer(Renderbuffer renderbuffer, V2_int new_size) {
 	SetRenderbufferStorage(renderbuffer, new_size, cache.internal_format);
 }
 
-void GLContext::ResizeTexture(Texture texture, V2_int new_size) {
-	PTGN_ASSERT(texture);
-
-	const auto& cache = texture_cache_.Get(texture);
-
-	if (cache.size == new_size) {
-		return;
-	}
-
-	auto _ = Bind(texture, true);
-
-	SetTextureData(texture, nullptr, GL_RGBA, GL_UNSIGNED_BYTE, new_size, cache.internal_format);
-}
-
 void GLContext::SetRenderbufferStorage(
 	Renderbuffer renderbuffer, V2_int size, GLenum internal_format
 ) {
@@ -1032,107 +977,8 @@ void GLContext::SetRenderbufferStorage(
 	cache.internal_format = internal_format;
 }
 
-void GLContext::SetTextureData(
-	Texture texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
-	V2_int size, GLenum internal_format
-) {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its data");
-
-	constexpr GLint mipmap_level{ 0 };
-	constexpr GLint border{ 0 };
-
-#ifdef __EMSCRIPTEN__
-	PTGN_ASSERT(
-		pixel_data_format != GL_BGRA && pixel_data_format != GL_BGR && internal_format != GL_BGRA &&
-			internal_format != GL_BGR,
-		"OpenGL ES3.0 does not support BGR(A) formats in glTexImage2D"
-	);
-#endif
-
-	GLCall(glTexImage2D(
-		GL_TEXTURE_2D, mipmap_level, internal_format, size.x, size.y, border, pixel_data_format,
-		pixel_data_type, pixel_data
-	));
-
-	auto& cache			  = texture_cache_.Get(texture);
-	cache.size			  = size;
-	cache.internal_format = internal_format;
-}
-
-void GLContext::SetTextureSubData(
-	Texture texture, const void* pixel_subdata, GLenum pixel_data_format, GLenum pixel_data_type,
-	V2_int subdata_size, V2_int subdata_offset
-) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its subdata");
-	PTGN_ASSERT(pixel_subdata != nullptr, "Cannot set texture subdata to nullptr");
-
-	constexpr GLint mipmap_level{ 0 };
-
-	GLCall(glTexSubImage2D(
-		GL_TEXTURE_2D, mipmap_level, subdata_offset.x, subdata_offset.y, subdata_size.x,
-		subdata_size.y, pixel_data_format, pixel_data_type, pixel_subdata
-	));
-}
-
-void GLContext::SetTextureClampBorderColor(Texture texture, Color color) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its clamp border color");
-
-	auto c{ static_cast<V4_float>(color) };
-	SetTextureParameter(texture, GL_TEXTURE_BORDER_COLOR, c.Data());
-}
-
-void GLContext::SetTextureParameter(Texture texture, GLenum param, const GLfloat* values) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
-	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
-	GLCall(glTexParameterfv(GL_TEXTURE_2D, param, values));
-}
-
-void GLContext::SetTextureParameter(Texture texture, GLenum param, const GLint* values) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
-	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
-	GLCall(glTexParameteriv(GL_TEXTURE_2D, param, values));
-}
-
-void GLContext::SetTextureParameter(Texture texture, GLenum param, GLfloat value) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
-	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-	GLCall(glTexParameterf(GL_TEXTURE_2D, param, value));
-}
-
-void GLContext::SetTextureParameter(Texture texture, GLenum param, GLint value) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to setting its parameters");
-	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-	GLCall(glTexParameteri(GL_TEXTURE_2D, param, value));
-}
-
-GLint GLContext::GetTextureParameter(Texture texture, GLenum param) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to getting its parameters");
-	GLint value{ -1 };
-	GLCall(glGetTexParameteriv(GL_TEXTURE_2D, param, &value));
-	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
-	return value;
-}
-
 std::uint32_t GLContext::GetActiveTextureSlot() const {
 	return bound_.active_texture.slot;
-}
-
-bool GLContext::SupportsMipmaps(GLenum texture_min_filter) {
-	return texture_min_filter == GL_LINEAR_MIPMAP_LINEAR ||
-		   texture_min_filter == GL_LINEAR_MIPMAP_NEAREST ||
-		   texture_min_filter == GL_NEAREST_MIPMAP_LINEAR ||
-		   texture_min_filter == GL_NEAREST_MIPMAP_NEAREST;
-}
-
-void GLContext::GenerateMipmaps(Texture texture) const {
-	PTGN_ASSERT(IsBound(texture), "Texture must be bound prior to generating mipmaps for it");
-#ifndef __EMSCRIPTEN__
-	PTGN_ASSERT(
-		SupportsMipmaps(GetTextureParameter(texture, GL_TEXTURE_MIN_FILTER)),
-		"Set texture minifying scaling to mipmap type before generating mipmaps"
-	);
-#endif
-	GLCall(GenerateMipmap(GL_TEXTURE_2D));
 }
 
 VertexArray GLContext::CreateVertexArrayImpl() {
@@ -1165,22 +1011,6 @@ void GLContext::DestroyFramebuffer(Framebuffer id) {
 	}
 	GLCall(DeleteFramebuffers(1, &id));
 	framebuffer_cache_.Remove(id);
-}
-
-Texture GLContext::CreateTextureImpl() {
-	Texture id{ 0 };
-	GLCall(glGenTextures(1, &id));
-	PTGN_ASSERT(id, "Failed to create texture");
-	texture_cache_.Add(id, TextureCache{});
-	return id;
-}
-
-void GLContext::DestroyTexture(Texture id) {
-	if (!id) {
-		return;
-	}
-	GLCall(glDeleteTextures(1, &id));
-	texture_cache_.Remove(id);
 }
 
 Renderbuffer GLContext::CreateRenderbufferImpl() {
@@ -1239,6 +1069,13 @@ void GLContext::SavePNG(const path& path, Framebuffer framebuffer, GLenum attach
 	PTGN_ASSERT(saved, SDL_GetError());
 
 	SDL_DestroySurface(surface);
+}
+
+int GLContext::GetInteger(GLenum pname) const {
+	int value = -1;
+	GLCall(glGetIntegerv(pname, &value));
+	PTGN_ASSERT(value >= 0, "Failed to query integer parameter");
+	return value;
 }
 
 } // namespace ptgn::impl::gl

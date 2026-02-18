@@ -10,25 +10,11 @@
 
 namespace ptgn::impl::gl {
 
-using VertexArray	= std::uint32_t;
-using VertexBuffer	= std::uint32_t;
-using ElementBuffer = std::uint32_t;
-using UniformBuffer = std::uint32_t;
-using Texture		= std::uint32_t;
-using Renderbuffer	= std::uint32_t;
-using Framebuffer	= std::uint32_t;
-
-struct BufferCache {
-	GLenum usage{ GL_STATIC_DRAW };
-	std::uint32_t count{ 0 };
-};
+using VertexArray  = std::uint32_t;
+using Renderbuffer = std::uint32_t;
+using Framebuffer  = std::uint32_t;
 
 struct RenderbufferCache {
-	V2_int size;
-	GLenum internal_format{ GL_RGBA8 };
-};
-
-struct TextureCache {
 	V2_int size;
 	GLenum internal_format{ GL_RGBA8 };
 };

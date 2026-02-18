@@ -189,9 +189,13 @@ render_manager.Refresh();
 
 Renderer::Renderer(Window& window) : gl_{ std::make_unique<GLContext>(window) } {
 	// TODO: Fix and replace with the object which has a destructor.
-	ebo_ = gl_->CreateElementBuffer(nullptr, index_capacity, sizeof(Index), GL_DYNAMIC_DRAW);
+	ebo_ = gl_->buffers.CreateElementBuffer(
+		nullptr, index_capacity, sizeof(Index), BufferUsage::DynamicDraw
+	);
 
-	vbo_ = gl_->CreateVertexBuffer(nullptr, vertex_capacity, sizeof(Vertex), GL_DYNAMIC_DRAW);
+	vbo_ = gl_->buffers.CreateVertexBuffer(
+		nullptr, vertex_capacity, sizeof(Vertex), BufferUsage::DynamicDraw
+	);
 
 	vao_ = gl_->CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_);
 
@@ -524,17 +528,16 @@ void Renderer::DrawTexture(
 void Renderer::DrawTexture(
 	Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
-	DrawTexture(gl_->shaders.GetShader("quad"), texture, center, size, tint, flip_y);
+	DrawTexture(gl_->shaders.GetProgram("quad"), texture, center, size, tint, flip_y);
 }
 
 void Renderer::DrawTexture(
 	Shader shader, Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(
-		gl_->GetBoundFramebuffer() == FramebufferId{ 0 } ||
-			TextureId{
-				gl_->GetFramebufferAttachment(gl_->GetBoundFramebuffer(), GL_COLOR_ATTACHMENT0)
-					.id } != texture,
+		gl_->GetBoundFramebuffer() == Framebuffer{ 0 } ||
+			Texture{ gl_->GetFramebufferAttachment(gl_->GetBoundFramebuffer(), GL_COLOR_ATTACHMENT0)
+						 .id } != texture,
 		"Cannot draw a texture that is attached to the currently set framebuffer"
 	);
 
