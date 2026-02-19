@@ -32,6 +32,8 @@
 
 namespace ptgn::impl::gl {
 
+Framebuffers::Framebuffers(GLContext& gl) : gl_{ gl } {}
+
 void Framebuffers::Init(std::uint32_t max_color_attachments) {
 	max_color_attachments_ = max_color_attachments;
 }
