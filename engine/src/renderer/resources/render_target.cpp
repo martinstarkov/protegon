@@ -74,8 +74,6 @@ void RenderPass::Bind() {
 	write.Bind(*renderer_->gl);
 }
 
-template class Resource<impl::RenderTarget>;
-
 } // namespace impl
 
 V2_int RenderTarget::GetSize() const {

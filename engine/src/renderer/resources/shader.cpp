@@ -2,8 +2,4 @@
 
 #include "renderer/resources/resource.h"
 
-namespace ptgn::impl {
-
-template class Resource<Shader>;
-
-} // namespace ptgn::impl
+namespace ptgn::impl {} // namespace ptgn::impl

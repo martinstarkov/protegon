@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/ecs/entity.h"
+#include "ecs/ecs.h"
 
 namespace ptgn {
 
@@ -11,7 +11,7 @@ public:
 private:
 	friend class AssetManager;
 
-	Entity entity_;
+	ecs::Entity entity_;
 };
 
 } // namespace ptgn

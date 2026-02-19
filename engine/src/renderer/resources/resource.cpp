@@ -2,11 +2,14 @@
 
 #include <utility>
 
+#include "render_target.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/resources/buffer.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/vertex_array.h"
 
 namespace ptgn::impl {
@@ -60,5 +63,8 @@ template class Resource<ElementBuffer>;
 template class Resource<UniformBuffer>;
 template class Resource<Renderbuffer>;
 template class Resource<Framebuffer>;
+template class Resource<impl::RenderTarget>;
+template class Resource<Texture>;
+template class Resource<Shader>;
 
 } // namespace ptgn::impl

@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "core/util/file.h"
+#include "ecs/ecs.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/audio_asset.h"
@@ -12,7 +13,6 @@
 #include "runtime/asset/shader_asset.h"
 #include "runtime/asset/texture_asset.h"
 #include "runtime/audio/audio.h"
-#include "runtime/ecs/manager.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -24,6 +24,8 @@ namespace impl {
 struct SDLInstance;
 
 struct AssetName {
+	AssetName(std::string_view name) : name{ name } {}
+
 	std::string name;
 };
 
@@ -65,7 +67,7 @@ private:
 	friend class Shader;
 	friend class Texture;
 
-	Manager manager_;
+	ecs::Manager manager_;
 	impl::SDLInstance& sdl_;
 	Renderer& renderer_;
 };

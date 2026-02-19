@@ -1,5 +1,7 @@
 #include "renderer/resources/texture.h"
 
+#include <memory>
+
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
@@ -15,7 +17,5 @@ V2_int TextureObject::GetSize() const {
 TextureFormat TextureObject::GetFormat() const {
 	return renderer_->gl->textures.GetCache(resource_).GetFormat();
 }
-
-template class Resource<Texture>;
 
 } // namespace ptgn::impl

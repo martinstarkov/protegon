@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/math/vector2.h"
+#include "ecs/ecs.h"
 #include "renderer/resources/texture.h"
-#include "runtime/ecs/entity.h"
 
 namespace ptgn {
 
@@ -16,7 +16,7 @@ public:
 private:
 	friend class AssetManager;
 
-	Entity entity_;
+	ecs::Entity entity_;
 };
 
 } // namespace ptgn

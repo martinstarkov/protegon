@@ -15,6 +15,7 @@
 #include "renderer/camera/camera.h"
 #include "renderer/image/surface.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
@@ -223,12 +224,12 @@ static void InvokeDrawable(Renderer& renderer, Entity entity) {
 
 template <typename F>
 static void DrawDisplayList(
-	Renderer& renderer, RenderTarget& rt, std::vector<Entity>& display_list, F&& filter
+	Renderer& renderer, ptgn::RenderTarget& rt, std::vector<Entity>& display_list, F&& filter
 ) {
 	// Must be sorted here so that depth and creation order is accounted for.
 	SortByDepth(display_list, true);
 
-	renderer.BindRenderTarget(rt);
+	rt.Bind();
 
 	for (const auto& entity : display_list) {
 		if (filter && filter(entity)) {
@@ -251,7 +252,7 @@ void Scene::InternalDraw() {
 
 	render_target_.Get<ptgn::RenderTarget>().Clear(color::Transparent);
 
-	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
+	for (auto [e, rt] : EntitiesWith<ptgn::RenderTarget>()) {
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
 		// exist.
 		// TODO: Fix. Clear render target with its clear color instead of transparent.

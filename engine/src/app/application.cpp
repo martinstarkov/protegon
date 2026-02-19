@@ -190,7 +190,7 @@ Application::Application(const ApplicationConfig& config) :
 	renderer_{ window_, events_ },
 	events_{ scenes_ },
 	scenes_{},
-	assets_{ sdl_, *renderer_.gl_renderer_->gl_.get() },
+	assets_{ sdl_, renderer_ },
 	debug_{},
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
 	scenes_.SetContext(ctx_);

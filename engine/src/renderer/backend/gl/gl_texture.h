@@ -152,10 +152,6 @@ constexpr TextureFormat GetTextureFormatFromInternal(GLenum internal) {
 	}
 }
 
-TextureFormat TextureCache::GetFormat() const {
-	return GetTextureFormatFromInternal(internal_format);
-}
-
 [[nodiscard]] constexpr int GetColorComponentCount(GLenum internal_format) {
 	switch (internal_format) {
 		case GL_STENCIL_INDEX:	 return 1; // stencil only

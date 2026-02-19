@@ -7,10 +7,15 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
 
 Textures::Textures(GLContext& gl) : gl_{ gl } {}
+
+TextureFormat TextureCache::GetFormat() const {
+	return GetTextureFormatFromInternal(internal_format);
+}
 
 Texture Textures::CreateTexture(
 	const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type, V2_int size,

@@ -14,6 +14,7 @@
 #include "app/application.h"
 #include "core/assert.h"
 #include "core/util/file.h"
+#include "ecs/ecs.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/image/surface.h"
@@ -44,6 +45,7 @@ Shader AssetManager::LoadShader(
 	shader.entity_.Add<impl::AssetName>(key);
 	shader.entity_.Add<impl::AssetKey>(Hash(key));
 	shader.entity_.Add<impl::ShaderObject>(
+		renderer_.gl_renderer_.get(),
 		renderer_.gl_renderer_->gl->shaders.CreateProgram(source, shader_name)
 	);
 	return shader;
@@ -58,6 +60,7 @@ Shader AssetManager::LoadShader(
 	shader.entity_.Add<impl::AssetName>(key);
 	shader.entity_.Add<impl::AssetKey>(Hash(key));
 	shader.entity_.Add<impl::ShaderObject>(
+		renderer_.gl_renderer_.get(),
 		renderer_.gl_renderer_->gl->shaders.CreateProgram(vertex, fragment, shader_name)
 	);
 	return shader;
@@ -74,9 +77,12 @@ Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) 
 	texture.entity_ = manager_.CreateEntity();
 	texture.entity_.Add<impl::AssetName>(key);
 	texture.entity_.Add<impl::AssetKey>(Hash(key));
-	texture.entity_.Add<impl::TextureObject>(renderer_.gl_renderer_->gl->textures.CreateTexture(
-		surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA
-	));
+	texture.entity_.Add<impl::TextureObject>(
+		renderer_.gl_renderer_.get(),
+		renderer_.gl_renderer_->gl->textures.CreateTexture(
+			surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA
+		)
+	);
 
 	return texture;
 }
@@ -121,7 +127,7 @@ Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 	audio.entity_.Add<impl::AssetKey>(Hash(key));
 	audio.entity_.Add<std::shared_ptr<MIX_Audio>>(a);
 
-	return audio;
+	// return audio;
 }
 
 json AssetManager::LoadJson(std::string_view key, const path& asset_path) {
