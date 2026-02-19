@@ -44,6 +44,16 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
+	Audio LoadAudio(const path& audio_path);
+	json LoadJson(const path& json_path);
+	Shader LoadShader(const std::variant<ShaderCode, path>& source, const std::string& shader_name);
+	Shader LoadShader(
+		const std::variant<ShaderCode, std::string>& vertex,
+		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+	);
+	Texture LoadTexture(const path& texture_path);
+	Font LoadFont(const path& font_path, float point_size);
+
 	Audio LoadAudio(std::string_view key, const path& audio_path);
 	json LoadJson(std::string_view key, const path& json_path);
 	Shader LoadShader(
@@ -66,6 +76,8 @@ public:
 private:
 	friend class Shader;
 	friend class Texture;
+
+	ecs::Entity CreateAsset();
 
 	ecs::Manager manager_;
 	impl::SDLInstance& sdl_;

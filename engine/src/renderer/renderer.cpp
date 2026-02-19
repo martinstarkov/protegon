@@ -95,12 +95,12 @@ ScalingMode Renderer::GetScalingMode() const {
 }
 
 void Renderer::DrawTexture(
-	const impl::RenderTarget& rt, V2_float center, V2_float size, Color tint, bool flip_y
+	const impl::RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	gl_renderer_->DrawTexture(rt, center, size, tint, flip_y);
 }
 
-void Renderer::DrawTexture(impl::Texture texture, V2_float center, V2_float size, Color tint) {
+void Renderer::DrawTexture(impl::TextureId texture, V2_float center, V2_float size, Color tint) {
 	gl_renderer_->DrawTexture(texture, center, size, tint);
 }
 
@@ -108,11 +108,11 @@ void Renderer::DrawRect(V2_float center, V2_float size, Color color) {
 	gl_renderer_->DrawTexture(gl_renderer_->GetWhiteTexture(), center, size, color);
 }
 
-ptgn::RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
+RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	return gl_renderer_->CreateRenderTarget(size, format);
 }
 
-impl::RenderTarget Renderer::GetScreenTarget() const {
+impl::RenderTargetData Renderer::GetScreenTarget() const {
 	return gl_renderer_->GetScreenTarget();
 }
 
@@ -140,7 +140,7 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	gl_renderer_->SetColorMask(color_mask);
 }
 
-impl::RenderPass Renderer::BeginPass(const impl::RenderTarget& scene_target) {
+impl::RenderPass Renderer::BeginPass(const impl::RenderTargetData& scene_target) {
 	return gl_renderer_->BeginPass(scene_target);
 }
 

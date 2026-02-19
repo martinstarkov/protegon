@@ -17,11 +17,11 @@ namespace impl {
 
 struct ShaderTag {};
 
-using Shader = Id<ShaderTag>;
+using ShaderId = Id<ShaderTag>;
 
-class ShaderObject : public Resource<Shader> {
+class ShaderObject : public Resource<ShaderId> {
 public:
-	using Base = Resource<Shader>;
+	using Base = Resource<ShaderId>;
 	using Base::Base;
 };
 

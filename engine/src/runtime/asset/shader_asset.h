@@ -1,17 +1,16 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include "renderer/resources/shader.h"
+#include "runtime/asset/asset_handle.h"
 
 namespace ptgn {
 
-class AssetManager;
-
-class Shader {
+class Shader : public impl::Asset {
 public:
-private:
-	friend class AssetManager;
+	using Base = impl::Asset;
+	using Base::Base;
 
-	ecs::Entity entity_;
+	operator impl::ShaderId() const;
 };
 
 } // namespace ptgn

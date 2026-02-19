@@ -7,11 +7,11 @@ namespace ptgn::impl {
 
 struct RenderbufferTag {};
 
-using Renderbuffer = Id<RenderbufferTag>;
+using RenderbufferId = Id<RenderbufferTag>;
 
-class RenderbufferObject : public Resource<Renderbuffer> {
+class RenderbufferObject : public Resource<RenderbufferId> {
 public:
-	using Base = Resource<Renderbuffer>;
+	using Base = Resource<RenderbufferId>;
 	using Base::Base;
 };
 

@@ -22,7 +22,7 @@ namespace ptgn {
 
 namespace impl {
 
-void RenderTarget::Resize(gl::GLContext& gl, V2_int new_size) {
+void RenderTargetData::Resize(gl::GLContext& gl, V2_int new_size) {
 	if (size_ == new_size) {
 		return;
 	}
@@ -32,7 +32,7 @@ void RenderTarget::Resize(gl::GLContext& gl, V2_int new_size) {
 	size_ = new_size;
 }
 
-void RenderTarget::Clear(gl::GLContext& gl, Color color) const {
+void RenderTargetData::Clear(gl::GLContext& gl, Color color) const {
 	auto bind_guard = gl.Bind(framebuffer_, true);
 
 	gl.SetViewport({ {}, size_ });
@@ -40,15 +40,15 @@ void RenderTarget::Clear(gl::GLContext& gl, Color color) const {
 	gl.framebuffers.ClearToColor(framebuffer_, color);
 }
 
-void RenderTarget::Bind(gl::GLContext& gl) const {
+void RenderTargetData::Bind(gl::GLContext& gl) const {
 	auto _ = gl.Bind(framebuffer_);
 
 	gl.SetViewport({ {}, size_ });
 }
 
-RenderTarget::RenderTarget(
-	const Framebuffer& framebuffer, const std::optional<Texture>& color,
-	const std::optional<Renderbuffer>& depth, V2_int size, TextureFormat format
+RenderTargetData::RenderTargetData(
+	const FramebufferId& framebuffer, const std::optional<TextureId>& color,
+	const std::optional<RenderbufferId>& depth, V2_int size, TextureFormat format
 ) :
 	framebuffer_{ framebuffer },
 	color_{ color },
@@ -58,7 +58,7 @@ RenderTarget::RenderTarget(
 
 void RenderPass::Bind() {
 	// Bind the next write target (opposite of latest output; ping for first write)
-	RenderTarget write;
+	RenderTargetData write;
 
 	if (!has_written_once_) {
 		write = ping_;

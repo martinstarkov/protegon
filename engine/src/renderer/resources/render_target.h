@@ -20,19 +20,19 @@ class GLContext;
 
 } // namespace gl
 
-struct RenderTarget {
-	Framebuffer framebuffer_;
-	std::optional<Texture> color_;
-	std::optional<Renderbuffer> depth_;
+struct RenderTargetData {
+	FramebufferId framebuffer_;
+	std::optional<TextureId> color_;
+	std::optional<RenderbufferId> depth_;
 	// TODO: Consider using the cache values instead to prevent synchronization issues.
 	V2_int size_;
 	TextureFormat format_{ TextureFormat::RGBA8 };
 
-	RenderTarget() = default;
+	RenderTargetData() = default;
 
-	RenderTarget(
-		const Framebuffer& framebuffer, const std::optional<Texture>& color,
-		const std::optional<Renderbuffer>& depth, V2_int size, TextureFormat format
+	RenderTargetData(
+		const FramebufferId& framebuffer, const std::optional<TextureId>& color,
+		const std::optional<RenderbufferId>& depth, V2_int size, TextureFormat format
 	);
 
 	void Resize(gl::GLContext& gl, V2_int new_size);
@@ -41,7 +41,7 @@ struct RenderTarget {
 
 	void Clear(gl::GLContext& gl, Color color) const;
 
-	bool operator==(const RenderTarget&) const = default;
+	bool operator==(const RenderTargetData&) const = default;
 };
 
 class RenderPass {
@@ -51,10 +51,10 @@ public:
 private:
 	friend class impl::gl::Renderer;
 
-	RenderTarget source_;
+	RenderTargetData source_;
 
-	RenderTarget ping_;
-	RenderTarget pong_;
+	RenderTargetData ping_;
+	RenderTargetData pong_;
 
 	bool has_ping_{ false };
 	bool has_pong_{ false };
@@ -68,9 +68,9 @@ private:
 
 } // namespace impl
 
-class RenderTarget : public impl::Resource<impl::RenderTarget> {
+class RenderTarget : public impl::Resource<impl::RenderTargetData> {
 public:
-	using Base = impl::Resource<impl::RenderTarget>;
+	using Base = impl::Resource<impl::RenderTargetData>;
 	using Base::Base;
 
 	V2_int GetSize() const;

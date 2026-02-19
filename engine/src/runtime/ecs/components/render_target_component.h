@@ -35,7 +35,7 @@ struct DisplayList {
 };
 
 // TODO: Fix.
-// struct RenderTarget {
+// struct RenderTargetSomething {
 //	static void Draw(Renderer& renderer, Entity entity);
 //};
 

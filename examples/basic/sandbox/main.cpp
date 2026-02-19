@@ -141,16 +141,27 @@ public:
 		PTGN_INFO("Entered asset scene");
 
 		PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
-		auto f = app().assets.LoadFont("test", "assets/retro_gaming.ttf", 11);
+		// auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
+		// auto f = app().assets.LoadFont("test", "assets/retro_gaming.ttf", 11);
 		auto t = app().assets.LoadTexture("test", "assets/smile.png");
-		auto j = app().assets.LoadJson("test", "assets/dialogue.json");
+		// auto j = app().assets.LoadJson("test", "assets/dialogue.json");
 
 		auto sprite = CreateSprite(*this, t, {});
 
+		PTGN_ASSERT(sprite.Has<Texture>());
+		PTGN_ASSERT((sprite.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
+
 		auto sprite2 = CreateSprite(*this, "assets/smile.png", { 200, 0 });
 
+		PTGN_ASSERT(sprite2.Has<Texture>());
+		PTGN_ASSERT((sprite2.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
+
+		auto texture1 = sprite.Get<Texture>();
+		auto texture2 = sprite2.Get<Texture>();
+
 		PTGN_LOG("Loaded all assets!");
+
+		Refresh();
 	}
 
 	void OnUpdate() override {

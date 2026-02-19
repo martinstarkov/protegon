@@ -224,7 +224,7 @@ static void InvokeDrawable(Renderer& renderer, Entity entity) {
 
 template <typename F>
 static void DrawDisplayList(
-	Renderer& renderer, ptgn::RenderTarget& rt, std::vector<Entity>& display_list, F&& filter
+	Renderer& renderer, RenderTarget& rt, std::vector<Entity>& display_list, F&& filter
 ) {
 	// Must be sorted here so that depth and creation order is accounted for.
 	SortByDepth(display_list, true);
@@ -250,9 +250,9 @@ void Scene::InternalDraw() {
 
 	auto& renderer{ app().renderer };
 
-	render_target_.Get<ptgn::RenderTarget>().Clear(color::Transparent);
+	render_target_.Get<RenderTarget>().Clear(color::Transparent);
 
-	for (auto [e, rt] : EntitiesWith<ptgn::RenderTarget>()) {
+	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
 		// exist.
 		// TODO: Fix. Clear render target with its clear color instead of transparent.
@@ -267,7 +267,7 @@ void Scene::InternalDraw() {
 	}
 
 	DrawDisplayList(
-		renderer, render_target_.Get<ptgn::RenderTarget>(),
+		renderer, render_target_.Get<RenderTarget>(),
 		render_target_.Get<impl::DisplayList>().entities,
 		[](Entity entity) {
 			// Skip entities which are in the display list of a custom render target.
@@ -282,8 +282,8 @@ void Scene::InternalDraw() {
 	renderer.SetBlend(BlendMode::Blend);
 
 	renderer.DrawTexture(
-		render_target_.Get<ptgn::RenderTarget>(), { 0, 0 },
-		render_target_.Get<ptgn::RenderTarget>().GetSize(), GetTint(render_target_), true
+		render_target_.Get<RenderTarget>(), { 0, 0 }, render_target_.Get<RenderTarget>().GetSize(),
+		GetTint(render_target_), true
 	);
 
 	// for (auto [e, handle] : EntitiesWith<Handle<Asset::Texture>>()) {

@@ -57,14 +57,14 @@ void Resource<T>::Reset() noexcept {
 	}
 }
 
-template class Resource<VertexArray>;
-template class Resource<VertexBuffer>;
-template class Resource<ElementBuffer>;
-template class Resource<UniformBuffer>;
-template class Resource<Renderbuffer>;
-template class Resource<Framebuffer>;
-template class Resource<impl::RenderTarget>;
-template class Resource<Texture>;
-template class Resource<Shader>;
+template class Resource<VertexArrayId>;
+template class Resource<VertexBufferId>;
+template class Resource<ElementBufferId>;
+template class Resource<UniformBufferId>;
+template class Resource<RenderbufferId>;
+template class Resource<FramebufferId>;
+template class Resource<RenderTargetData>;
+template class Resource<TextureId>;
+template class Resource<ShaderId>;
 
 } // namespace ptgn::impl

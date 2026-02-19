@@ -7,11 +7,11 @@ namespace ptgn::impl {
 
 struct VertexArrayTag {};
 
-using VertexArray = Id<VertexArrayTag>;
+using VertexArrayId = Id<VertexArrayTag>;
 
-class VertexArrayObject : public Resource<VertexArray> {
+class VertexArrayObject : public Resource<VertexArrayId> {
 public:
-	using Base = Resource<VertexArray>;
+	using Base = Resource<VertexArrayId>;
 	using Base::Base;
 };
 

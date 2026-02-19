@@ -23,14 +23,14 @@ namespace impl {
 
 void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<GameResized>([this](auto& e) {
-		auto& rt{ entity.Get<ptgn::RenderTarget>() };
+		auto& rt{ entity.Get<RenderTarget>() };
 		rt.Resize(e.size);
 	});
 }
 
 void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<DisplayResized>([this](auto& e) {
-		auto& rt{ entity.Get<ptgn::RenderTarget>() };
+		auto& rt{ entity.Get<RenderTarget>() };
 		rt.Resize(e.size);
 	});
 }
@@ -48,9 +48,9 @@ static Entity CreateRenderTarget(
 	// SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
-	render_target.Add<ptgn::RenderTarget>(renderer.CreateRenderTarget(size, format));
+	render_target.Add<RenderTarget>(renderer.CreateRenderTarget(size, format));
 	// TODO: Add clear color here.
-	render_target.Get<ptgn::RenderTarget>().Clear();
+	render_target.Get<RenderTarget>().Clear();
 
 	return render_target;
 }

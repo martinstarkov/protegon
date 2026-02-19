@@ -7,11 +7,11 @@ namespace ptgn::impl {
 
 struct FramebufferTag {};
 
-using Framebuffer = Id<FramebufferTag>;
+using FramebufferId = Id<FramebufferTag>;
 
-class FramebufferObject : public Resource<Framebuffer> {
+class FramebufferObject : public Resource<FramebufferId> {
 public:
-	using Base = Resource<Framebuffer>;
+	using Base = Resource<FramebufferId>;
 	using Base::Base;
 };
 

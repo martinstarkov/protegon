@@ -1,10 +1,8 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include "runtime/asset/asset_handle.h"
 
 namespace ptgn {
-
-class AssetManager;
 
 namespace impl {
 
@@ -14,12 +12,10 @@ struct FontSize {
 
 } // namespace impl
 
-class Font {
+class Font : public impl::Asset {
 public:
-private:
-	friend class AssetManager;
-
-	ecs::Entity entity_;
+	using Base = impl::Asset;
+	using Base::Base;
 };
 
 } // namespace ptgn

@@ -11,25 +11,25 @@ struct ElementBufferTag {};
 
 struct UniformBufferTag {};
 
-using VertexBuffer	= Id<VertexBufferTag>;
-using ElementBuffer = Id<ElementBufferTag>;
-using UniformBuffer = Id<UniformBufferTag>;
+using VertexBufferId  = Id<VertexBufferTag>;
+using ElementBufferId = Id<ElementBufferTag>;
+using UniformBufferId = Id<UniformBufferTag>;
 
-class VertexBufferObject : public Resource<VertexBuffer> {
+class VertexBufferObject : public Resource<VertexBufferId> {
 public:
-	using Base = Resource<VertexBuffer>;
+	using Base = Resource<VertexBufferId>;
 	using Base::Base;
 };
 
-class ElementBufferObject : public Resource<ElementBuffer> {
+class ElementBufferObject : public Resource<ElementBufferId> {
 public:
-	using Base = Resource<ElementBuffer>;
+	using Base = Resource<ElementBufferId>;
 	using Base::Base;
 };
 
-class UniformBufferObject : public Resource<UniformBuffer> {
+class UniformBufferObject : public Resource<UniformBufferId> {
 public:
-	using Base = Resource<UniformBuffer>;
+	using Base = Resource<UniformBufferId>;
 	using Base::Base;
 };
 

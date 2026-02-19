@@ -15,7 +15,7 @@ class Renderer;
 
 namespace impl {
 
-struct Sprite {
+struct SpriteDraw {
 	static void Draw(Renderer& renderer, Entity entity);
 };
 
@@ -51,6 +51,6 @@ Entity CreateSprite(
 	Origin draw_origin = Origin::Center
 );
 
-PTGN_REGISTER_DRAWABLE(impl::Sprite);
+PTGN_REGISTER_DRAWABLE(impl::SpriteDraw);
 
 } // namespace ptgn

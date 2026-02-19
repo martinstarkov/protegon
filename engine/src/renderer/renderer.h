@@ -75,17 +75,17 @@ public:
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
 	void DrawTexture(
-		const impl::RenderTarget& rt, V2_float center, V2_float size, Color tint = color::White,
+		const impl::RenderTargetData& rt, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = true
 	);
 	void DrawTexture(
-		impl::Texture texture, V2_float center, V2_float size, Color tint = color::White
+		impl::TextureId texture, V2_float center, V2_float size, Color tint = color::White
 	);
 	void DrawRect(V2_float center, V2_float size, Color color);
 
-	ptgn::RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
+	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
 
-	impl::RenderTarget GetScreenTarget() const;
+	impl::RenderTargetData GetScreenTarget() const;
 
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetBlend(BlendMode mode, bool enabled = true);
@@ -94,7 +94,7 @@ public:
 	void SetRaster(const RasterState& raster);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	impl::RenderPass BeginPass(const impl::RenderTarget& scene_target);
+	impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
 
 private:
 	friend class Application;

@@ -13,7 +13,7 @@ namespace impl {
 
 struct TextureTag {};
 
-using Texture = Id<TextureTag>;
+using TextureId = Id<TextureTag>;
 
 } // namespace impl
 
@@ -117,9 +117,9 @@ enum class TextureWrap : std::uint32_t {
 
 namespace impl {
 
-class TextureObject : public Resource<Texture> {
+class TextureObject : public Resource<TextureId> {
 public:
-	using Base = Resource<Texture>;
+	using Base = Resource<TextureId>;
 	using Base::Base;
 
 	V2_int GetSize() const;
