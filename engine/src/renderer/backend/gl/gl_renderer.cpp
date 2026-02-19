@@ -98,14 +98,14 @@ Renderer::~Renderer() noexcept {
 	// Needs to have access to GLContext destructor, forward declaration is not enough.
 }
 
-ptgn::RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
+RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	const auto& desc = GetTextureFormatDesc(format);
 
 	auto color = gl->textures.CreateTexture(
 		nullptr, desc.pixel_format, desc.pixel_type, size, desc.internal_format
 	);
 
-	std::optional<Renderbuffer> depth;
+	std::optional<RenderbufferId> depth;
 
 	if (desc.has_depth || desc.has_stencil) {
 		auto rb_format{ desc.has_stencil ? GL_DEPTH_STENCIL : GL_DEPTH_COMPONENT };
@@ -118,10 +118,10 @@ ptgn::RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat forma
 		desc.has_stencil ? gl::Attachment::DepthStencil : gl::Attachment::Depth
 	);
 
-	return ptgn::RenderTarget{ this, RenderTarget{ framebuffer, color, depth, size, format } };
+	return RenderTarget{ this, RenderTargetData{ framebuffer, color, depth, size, format } };
 }
 
-RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
+RenderPass Renderer::BeginPass(const RenderTargetData& scene_target) {
 	RenderPass p;
 	p.source_			= scene_target;
 	p.ping_				= AcquirePooledTarget(scene_target.size_, scene_target.format_);
@@ -132,7 +132,7 @@ RenderPass Renderer::BeginPass(const RenderTarget& scene_target) {
 	return p;
 }
 
-V2_int Renderer::GetTextureSize(Texture texture) const {
+V2_int Renderer::GetTextureSize(TextureId texture) const {
 	return gl->textures.GetTextureSize(texture);
 }
 
@@ -144,13 +144,13 @@ void Renderer::FlushBatch() {
 	auto _vao = gl->Bind(vao_);
 
 	// Upload vertex data
-	gl->buffers.SetBufferSubData<VertexBuffer>(
+	gl->buffers.SetBufferSubData<VertexBufferId>(
 		vbo_, BufferTarget::ArrayBuffer, batch_vertices_.data(), 0,
 		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(Vertex)
 	);
 
 	// Upload index data
-	gl->buffers.SetBufferSubData<ElementBuffer>(
+	gl->buffers.SetBufferSubData<ElementBufferId>(
 		ebo_, BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
 		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(Index)
 	);
@@ -172,7 +172,7 @@ void Renderer::FlushBatch() {
 	batch_textures_[0] = white_texture_;
 }
 
-RenderTarget Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
+RenderTargetData Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
 	++pool_tick_;
 
 	auto claim = [&](PooledTarget& e) {
@@ -223,7 +223,7 @@ RenderTarget Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
 	return rt.target.resource_;
 }
 
-void Renderer::ReleasePooledTarget(RenderTarget& target) {
+void Renderer::ReleasePooledTarget(RenderTargetData& target) {
 	++pool_tick_;
 
 	for (auto& e : rt_pool_) {
@@ -237,7 +237,7 @@ void Renderer::ReleasePooledTarget(RenderTarget& target) {
 	}
 }
 
-std::uint32_t Renderer::GetTextureSlot(Texture tex) {
+std::uint32_t Renderer::GetTextureSlot(TextureId tex) {
 	if (tex == white_texture_.operator Id<TextureTag>()) {
 		return 0; // always slot 0
 	}
@@ -276,7 +276,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 }
 
-void Renderer::SetShader(Shader shader) {
+void Renderer::SetShader(ShaderId shader) {
 	UpdateStateIfChanged(*this, gl->GetBoundState().shader_program, shader, [this, shader] {
 		auto _ = gl->Bind(shader);
 	});
@@ -290,7 +290,7 @@ void Renderer::SetBlend(BlendMode mode, bool enabled) {
 	});
 }
 
-void Renderer::SetFramebuffer(Framebuffer framebuffer, const Viewport& viewport) {
+void Renderer::SetFramebuffer(FramebufferId framebuffer, const Viewport& viewport) {
 	UpdateStateIfChanged(*this, gl->GetBoundState().framebuffer, framebuffer, [this, framebuffer] {
 		auto _ = gl->Bind(framebuffer);
 	});
@@ -321,7 +321,7 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	});
 }
 
-void Renderer::DrawQuad(Shader shader, const QuadParams& params, const QuadSetup& setup) {
+void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSetup& setup) {
 	QuadDesc quad;
 	auto half{ params.size / 2.0f };
 	quad.positions = { params.center - half, params.center + V2_float{ half.x, -half.y },
@@ -371,26 +371,26 @@ void Renderer::DrawQuad(Shader shader, const QuadParams& params, const QuadSetup
 }
 
 void Renderer::DrawTexture(
-	const RenderTarget& rt, V2_float center, V2_float size, Color tint, bool flip_y
+	const RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(rt.color_.has_value(), "Cannot draw render target with no color attachment");
 	DrawTexture(*rt.color_, center, size, tint, flip_y);
 }
 
 void Renderer::DrawTexture(
-	Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
+	TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	DrawTexture(gl->shaders.GetProgram("quad"), texture, center, size, tint, flip_y);
 }
 
 void Renderer::DrawTexture(
-	Shader shader, Texture texture, V2_float center, V2_float size, Color tint, bool flip_y
+	ShaderId shader, TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
 ) {
 	PTGN_ASSERT(
-		gl->GetBoundFramebuffer() == Framebuffer{ 0 } ||
-			Texture{ gl->framebuffers
-						 .GetFramebufferAttachment(gl->GetBoundFramebuffer(), Attachment::Color0)
-						 .id } != texture,
+		gl->GetBoundFramebuffer() == FramebufferId{ 0 } ||
+			TextureId{ gl->framebuffers
+						   .GetFramebufferAttachment(gl->GetBoundFramebuffer(), Attachment::Color0)
+						   .id } != texture,
 		"Cannot draw a texture that is attached to the currently set framebuffer"
 	);
 
@@ -406,8 +406,8 @@ void Renderer::DrawTexture(
 	});
 }
 
-void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& scene_target) {
-	RenderTarget input;
+void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetData& scene_target) {
+	RenderTargetData input;
 
 	// Input = latest output, or source before first draw
 	if (!p.has_written_once_) {
@@ -434,7 +434,7 @@ void Renderer::DrawTexture(Shader shader, RenderPass& p, const RenderTarget& sce
 
 	// Only ping-pong if we're writing into the pass
 	if (writing_to_pass) {
-		RenderTarget write;
+		RenderTargetData write;
 
 		if (!p.has_written_once_) {
 			write = p.ping_;
@@ -469,7 +469,7 @@ void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
-	auto _1 = gl->Bind(Framebuffer{ 0 });
+	auto _1 = gl->Bind(FramebufferId{ 0 });
 	gl->SetClearColor(color::Transparent);
 	gl->framebuffers.Clear();
 
@@ -499,15 +499,15 @@ void Renderer::EndFrame(const Viewport& viewport) {
 	FlushBatch();
 }
 
-Texture Renderer::GetWhiteTexture() const {
+TextureId Renderer::GetWhiteTexture() const {
 	return white_texture_;
 }
 
-const RenderTarget& Renderer::GetScreenTarget() const {
+const RenderTargetData& Renderer::GetScreenTarget() const {
 	return screen_target_.resource_;
 }
 
-RenderTarget& Renderer::GetScreenTarget() {
+RenderTargetData& Renderer::GetScreenTarget() {
 	return screen_target_.resource_;
 }
 

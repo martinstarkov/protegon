@@ -23,7 +23,7 @@ struct ActiveTexture {
 };
 
 struct TextureUnitState {
-	Texture id{ 0 };
+	TextureId id{ 0 };
 
 	TextureMinFilter min_filter{ TextureMinFilter::Linear };
 	TextureMagFilter mag_filter{ TextureMagFilter::Linear };
@@ -37,12 +37,12 @@ using TextureUnits = std::vector<TextureUnitState>;
 
 struct State {
 	// Core object bindings
-	Framebuffer framebuffer{ 0 };
-	Renderbuffer renderbuffer{ 0 };
-	VertexBuffer vertex_buffer{ 0 };
-	UniformBuffer uniform_buffer{ 0 };
-	Shader shader_program{ 0 };
-	VertexArray vertex_array{ 0 };
+	FramebufferId framebuffer{ 0 };
+	RenderbufferId renderbuffer{ 0 };
+	VertexBufferId vertex_buffer{ 0 };
+	UniformBufferId uniform_buffer{ 0 };
+	ShaderId shader_program{ 0 };
+	VertexArrayId vertex_array{ 0 };
 
 	Viewport viewport;
 

@@ -179,19 +179,19 @@ public:
 	/// GL_BGRA_INTEGER, GL_STENCIL_INDEX, GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL
 	/// @param internal_format Accepted: GL_RGBA, GL_RGB, GL_RG, GL_RED, GL_DEPTH_STENCIL,
 	/// GL_DEPTH_COMPONENT
-	Texture CreateTexture(
+	TextureId CreateTexture(
 		const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type, V2_int size,
 		GLenum internal_format, bool restore_bind = true
 	);
 
-	void DestroyTexture(Texture id);
+	void DestroyTexture(TextureId id);
 
-	V2_int GetTextureSize(Texture texture) const;
+	V2_int GetTextureSize(TextureId texture) const;
 
-	void ResizeTexture(Texture texture, V2_int new_size);
+	void ResizeTexture(TextureId texture, V2_int new_size);
 
-	TextureCache& GetCache(Texture texture);
-	const TextureCache& GetCache(Texture texture) const;
+	TextureCache& GetCache(TextureId texture);
+	const TextureCache& GetCache(TextureId texture) const;
 
 private:
 	friend class GLContext;
@@ -209,31 +209,31 @@ private:
 	/// @param internal_format Accepted: GL_RGBA, GL_RGB, GL_RG, GL_RED, GL_DEPTH_STENCIL,
 	/// GL_DEPTH_COMPONENT
 	void SetTextureData(
-		Texture texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
+		TextureId texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
 		V2_int size, GLenum internal_format
 	);
 
 	void SetTextureSubData(
-		Texture texture, const void* pixel_subdata, GLenum pixel_data_format,
+		TextureId texture, const void* pixel_subdata, GLenum pixel_data_format,
 		GLenum pixel_data_type, V2_int subdata_size, V2_int subdata_offset
 	) const;
 
-	void SetTextureClampBorderColor(Texture texture, Color color) const;
+	void SetTextureClampBorderColor(TextureId texture, Color color) const;
 
-	void SetTextureParameter(Texture texture, GLenum param, const GLfloat* values) const;
-	void SetTextureParameter(Texture texture, GLenum param, const GLint* values) const;
-	void SetTextureParameter(Texture texture, GLenum param, GLfloat value) const;
-	void SetTextureParameter(Texture texture, GLenum param, GLint value) const;
+	void SetTextureParameter(TextureId texture, GLenum param, const GLfloat* values) const;
+	void SetTextureParameter(TextureId texture, GLenum param, const GLint* values) const;
+	void SetTextureParameter(TextureId texture, GLenum param, GLfloat value) const;
+	void SetTextureParameter(TextureId texture, GLenum param, GLint value) const;
 
-	[[nodiscard]] GLint GetTextureParameter(Texture texture, GLenum param) const;
+	[[nodiscard]] GLint GetTextureParameter(TextureId texture, GLenum param) const;
 
 	/// Ensure that the texture scaling of the currently bound texture is valid for generating
 	/// mipmaps.
 	[[nodiscard]] static bool SupportsMipmaps(GLenum texture_min_filter);
 
-	void GenerateMipmaps(Texture texture) const;
+	void GenerateMipmaps(TextureId texture) const;
 
-	[[nodiscard]] Texture CreateTexture();
+	[[nodiscard]] TextureId CreateTexture();
 
 	GLContext& gl_;
 

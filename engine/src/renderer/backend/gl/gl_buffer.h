@@ -59,19 +59,19 @@ struct BufferCache {
 
 class Buffers {
 public:
-	VertexBuffer CreateVertexBuffer(
+	VertexBufferId CreateVertexBuffer(
 		const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
 	);
 
-	ElementBuffer CreateElementBuffer(
+	ElementBufferId CreateElementBuffer(
 		const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
 	);
 
-	UniformBuffer CreateUniformBuffer(const void* data, std::uint32_t size, BufferUsage usage);
+	UniformBufferId CreateUniformBuffer(const void* data, std::uint32_t size, BufferUsage usage);
 
-	void DestroyVertexBuffer(VertexBuffer id);
-	void DestroyElementBuffer(ElementBuffer id);
-	void DestroyUniformBuffer(UniformBuffer id);
+	void DestroyVertexBuffer(VertexBufferId id);
+	void DestroyElementBuffer(ElementBufferId id);
+	void DestroyUniformBuffer(UniformBufferId id);
 
 	/// @param target OpenGL buffer binding point (e.g. GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER,
 	/// GL_UNIFORM_BUFFER)

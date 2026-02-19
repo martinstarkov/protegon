@@ -16,13 +16,13 @@ BindGuard<T>::~BindGuard() noexcept {
 	}
 }
 
-template class BindGuard<VertexBuffer>;
-template class BindGuard<ElementBuffer>;
-template class BindGuard<UniformBuffer>;
-template class BindGuard<Texture>;
-template class BindGuard<Shader>;
-template class BindGuard<Renderbuffer>;
-template class BindGuard<Framebuffer>;
-template class BindGuard<VertexArray>;
+template class BindGuard<VertexBufferId>;
+template class BindGuard<ElementBufferId>;
+template class BindGuard<UniformBufferId>;
+template class BindGuard<TextureId>;
+template class BindGuard<ShaderId>;
+template class BindGuard<RenderbufferId>;
+template class BindGuard<FramebufferId>;
+template class BindGuard<VertexArrayId>;
 
 } // namespace ptgn::impl::gl

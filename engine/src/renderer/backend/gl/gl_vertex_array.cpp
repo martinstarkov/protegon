@@ -12,7 +12,7 @@ namespace ptgn::impl::gl {
 
 VertexArrays::VertexArrays(GLContext& gl) : gl_{ gl } {}
 
-void VertexArrays::SetVertexBuffer(VertexArray vertex_array, VertexBuffer vertex_buffer) {
+void VertexArrays::SetVertexBuffer(VertexArrayId vertex_array, VertexBufferId vertex_buffer) {
 	PTGN_ASSERT(
 		gl_.IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer"
 	);
@@ -20,7 +20,7 @@ void VertexArrays::SetVertexBuffer(VertexArray vertex_array, VertexBuffer vertex
 	auto _ = gl_.Bind(vertex_buffer, false);
 }
 
-void VertexArrays::SetElementBuffer(VertexArray vertex_array, ElementBuffer element_buffer) {
+void VertexArrays::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId element_buffer) {
 	PTGN_ASSERT(
 		gl_.IsBound(vertex_array), "Vertex array must be bound before setting element buffer"
 	);
@@ -29,7 +29,7 @@ void VertexArrays::SetElementBuffer(VertexArray vertex_array, ElementBuffer elem
 }
 
 void VertexArrays::DrawElements(
-	VertexArray vertex_array, GLsizei element_count, GLenum element_type, GLenum primitive_mode
+	VertexArrayId vertex_array, GLsizei element_count, GLenum element_type, GLenum primitive_mode
 ) const {
 	PTGN_ASSERT(gl_.IsBound(vertex_array));
 	PTGN_ASSERT(cache_.Get(vertex_array).layout_set);
@@ -38,8 +38,9 @@ void VertexArrays::DrawElements(
 	GLCall(glDrawElements(primitive_mode, element_count, element_type, nullptr));
 }
 
-void VertexArrays::DrawArrays(VertexArray vertex_array, GLsizei vertex_count, GLenum primitive_mode)
-	const {
+void VertexArrays::DrawArrays(
+	VertexArrayId vertex_array, GLsizei vertex_count, GLenum primitive_mode
+) const {
 	PTGN_ASSERT(gl_.IsBound(vertex_array));
 	PTGN_ASSERT(cache_.Get(vertex_array).layout_set);
 
@@ -47,8 +48,8 @@ void VertexArrays::DrawArrays(VertexArray vertex_array, GLsizei vertex_count, GL
 	GLCall(glDrawArrays(primitive_mode, starting_index, vertex_count));
 }
 
-VertexArray VertexArrays::CreateVertexArray() {
-	VertexArray id{ 0 };
+VertexArrayId VertexArrays::CreateVertexArray() {
+	VertexArrayId id{ 0 };
 	GLCall(GenVertexArrays(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create vertex array");
 	cache_.Add(id, VertexArrayCache{});
@@ -59,7 +60,7 @@ int VertexArrays::GetMaxVertexAttribs() const {
 	return gl_.GetInteger(GL_MAX_VERTEX_ATTRIBS);
 }
 
-void VertexArrays::DestroyVertexArray(VertexArray id) {
+void VertexArrays::DestroyVertexArray(VertexArrayId id) {
 	if (!id) {
 		return;
 	}
@@ -67,11 +68,13 @@ void VertexArrays::DestroyVertexArray(VertexArray id) {
 	cache_.Remove(id);
 }
 
-BindGuard<VertexArray> VertexArrays::BindVertexArray(VertexArray vertex_array, bool restore_bind) {
+BindGuard<VertexArrayId> VertexArrays::BindVertexArray(
+	VertexArrayId vertex_array, bool restore_bind
+) {
 	return gl_.Bind(vertex_array, restore_bind);
 }
 
-[[nodiscard]] bool VertexArrays::IsBound(VertexArray vertex_array) const {
+[[nodiscard]] bool VertexArrays::IsBound(VertexArrayId vertex_array) const {
 	return gl_.IsBound(vertex_array);
 }
 

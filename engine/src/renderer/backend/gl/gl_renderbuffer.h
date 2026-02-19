@@ -16,14 +16,16 @@ struct RenderbufferCache {
 
 class Renderbuffers {
 public:
-	Renderbuffer CreateRenderbuffer(V2_int size, GLenum internal_format, bool restore_bind = true);
+	RenderbufferId CreateRenderbuffer(
+		V2_int size, GLenum internal_format, bool restore_bind = true
+	);
 
-	void DestroyRenderbuffer(Renderbuffer id);
-	void ResizeRenderbuffer(Renderbuffer renderbuffer, V2_int new_size);
+	void DestroyRenderbuffer(RenderbufferId id);
+	void ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_size);
 
-	RenderbufferCache& GetCache(Renderbuffer renderbuffer);
+	RenderbufferCache& GetCache(RenderbufferId renderbuffer);
 
-	const RenderbufferCache& GetCache(Renderbuffer renderbuffer) const;
+	const RenderbufferCache& GetCache(RenderbufferId renderbuffer) const;
 
 private:
 	friend class GLContext;
@@ -35,9 +37,9 @@ private:
 	Renderbuffers& operator=(const Renderbuffers&)	   = delete;
 	Renderbuffers& operator=(Renderbuffers&&) noexcept = delete;
 
-	void SetRenderbufferStorage(Renderbuffer renderbuffer, V2_int size, GLenum internal_format);
+	void SetRenderbufferStorage(RenderbufferId renderbuffer, V2_int size, GLenum internal_format);
 
-	[[nodiscard]] Renderbuffer CreateRenderbuffer();
+	[[nodiscard]] RenderbufferId CreateRenderbuffer();
 
 	GLContext& gl_;
 

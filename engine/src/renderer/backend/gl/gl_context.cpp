@@ -115,24 +115,24 @@ GLContext::~GLContext() {
 	}
 }
 
-BindGuard<VertexBuffer> GLContext::Bind(VertexBuffer id, bool restore_bind) {
+BindGuard<VertexBufferId> GLContext::Bind(VertexBufferId id, bool restore_bind) {
 	auto previous{ GetBoundVertexBuffer() };
 
 	if (id == previous) {
-		return BindGuard<VertexBuffer>{ *this, VertexBuffer{}, false };
+		return BindGuard<VertexBufferId>{ *this, VertexBufferId{}, false };
 	}
 
 	GLCall(BindBuffer(GL_ARRAY_BUFFER, id));
 	bound_.vertex_buffer = id;
 
-	return BindGuard<VertexBuffer>{ *this, previous, restore_bind };
+	return BindGuard<VertexBufferId>{ *this, previous, restore_bind };
 }
 
-BindGuard<ElementBuffer> GLContext::Bind(ElementBuffer id, bool restore_bind) {
+BindGuard<ElementBufferId> GLContext::Bind(ElementBufferId id, bool restore_bind) {
 	auto previous{ GetBoundElementBuffer() };
 
 	if (id == previous) {
-		return BindGuard<ElementBuffer>{ *this, ElementBuffer{}, false };
+		return BindGuard<ElementBufferId>{ *this, ElementBufferId{}, false };
 	}
 
 	GLCall(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
@@ -141,53 +141,53 @@ BindGuard<ElementBuffer> GLContext::Bind(ElementBuffer id, bool restore_bind) {
 		vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer = id;
 	}
 
-	return BindGuard<ElementBuffer>{ *this, previous, restore_bind };
+	return BindGuard<ElementBufferId>{ *this, previous, restore_bind };
 }
 
-BindGuard<UniformBuffer> GLContext::Bind(UniformBuffer id, bool restore_bind) {
+BindGuard<UniformBufferId> GLContext::Bind(UniformBufferId id, bool restore_bind) {
 	auto previous{ GetBoundUniformBuffer() };
 
 	if (id == previous) {
-		return BindGuard<UniformBuffer>{ *this, UniformBuffer{}, false };
+		return BindGuard<UniformBufferId>{ *this, UniformBufferId{}, false };
 	}
 
 	GLCall(BindBuffer(GL_UNIFORM_BUFFER, id));
 	bound_.uniform_buffer = id;
 
-	return BindGuard<UniformBuffer>{ *this, previous, restore_bind };
+	return BindGuard<UniformBufferId>{ *this, previous, restore_bind };
 }
 
-BindGuard<Shader> GLContext::Bind(Shader id, bool restore_bind) {
+BindGuard<ShaderId> GLContext::Bind(ShaderId id, bool restore_bind) {
 	auto previous{ GetBoundShader() };
 
 	if (id == previous) {
-		return BindGuard<Shader>{ *this, Shader{}, false };
+		return BindGuard<ShaderId>{ *this, ShaderId{}, false };
 	}
 
 	GLCall(UseProgram(id));
 	bound_.shader_program = id;
 
-	return BindGuard<Shader>{ *this, previous, restore_bind };
+	return BindGuard<ShaderId>{ *this, previous, restore_bind };
 }
 
-BindGuard<Renderbuffer> GLContext::Bind(Renderbuffer id, bool restore_bind) {
+BindGuard<RenderbufferId> GLContext::Bind(RenderbufferId id, bool restore_bind) {
 	auto previous{ GetBoundRenderbuffer() };
 
 	if (id == previous) {
-		return BindGuard<Renderbuffer>{ *this, Renderbuffer{}, false };
+		return BindGuard<RenderbufferId>{ *this, RenderbufferId{}, false };
 	}
 
 	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
 	bound_.renderbuffer = id;
 
-	return BindGuard<Renderbuffer>{ *this, previous, restore_bind };
+	return BindGuard<RenderbufferId>{ *this, previous, restore_bind };
 }
 
-BindGuard<Texture> GLContext::Bind(Texture id, bool restore_bind) {
+BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind) {
 	auto previous{ GetBoundTexture() };
 
 	if (id == previous) {
-		return BindGuard<Texture>{ *this, Texture{}, false };
+		return BindGuard<TextureId>{ *this, TextureId{}, false };
 	}
 
 	auto slot{ GetActiveTextureSlot() };
@@ -197,27 +197,27 @@ BindGuard<Texture> GLContext::Bind(Texture id, bool restore_bind) {
 	GLCall(glBindTexture(GL_TEXTURE_2D, id));
 	bound_.texture_units[slot].id = id;
 
-	return BindGuard<Texture>{ *this, previous, restore_bind };
+	return BindGuard<TextureId>{ *this, previous, restore_bind };
 }
 
-BindGuard<Framebuffer> GLContext::Bind(Framebuffer id, bool restore_bind) {
+BindGuard<FramebufferId> GLContext::Bind(FramebufferId id, bool restore_bind) {
 	auto previous{ GetBoundFramebuffer() };
 
 	if (id == previous) {
-		return BindGuard<Framebuffer>{ *this, Framebuffer{}, false };
+		return BindGuard<FramebufferId>{ *this, FramebufferId{}, false };
 	}
 
 	GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
 	bound_.framebuffer = id;
 
-	return BindGuard<Framebuffer>{ *this, previous, restore_bind };
+	return BindGuard<FramebufferId>{ *this, previous, restore_bind };
 }
 
-BindGuard<VertexArray> GLContext::Bind(VertexArray id, bool restore_bind) {
+BindGuard<VertexArrayId> GLContext::Bind(VertexArrayId id, bool restore_bind) {
 	auto previous{ GetBoundVertexArray() };
 
 	if (id == previous) {
-		return BindGuard<VertexArray>{ *this, VertexArray{}, false };
+		return BindGuard<VertexArrayId>{ *this, VertexArrayId{}, false };
 	}
 
 #ifdef PTGN_PLATFORM_MACOS
@@ -230,19 +230,19 @@ BindGuard<VertexArray> GLContext::Bind(VertexArray id, bool restore_bind) {
 
 	bound_.vertex_array = id;
 
-	return BindGuard<VertexArray>{ *this, previous, restore_bind };
+	return BindGuard<VertexArrayId>{ *this, previous, restore_bind };
 }
 
-VertexBuffer GLContext::GetBoundVertexBuffer() const {
+VertexBufferId GLContext::GetBoundVertexBuffer() const {
 	return bound_.vertex_buffer;
 }
 
-ElementBuffer GLContext::GetBoundElementBuffer() const {
+ElementBufferId GLContext::GetBoundElementBuffer() const {
 	return bound_.vertex_array ? vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer
-							   : ElementBuffer{ 0 };
+							   : ElementBufferId{ 0 };
 }
 
-UniformBuffer GLContext::GetBoundUniformBuffer() const {
+UniformBufferId GLContext::GetBoundUniformBuffer() const {
 	return bound_.uniform_buffer;
 }
 
@@ -254,101 +254,101 @@ State& GLContext::GetBoundState() {
 	return bound_;
 }
 
-Shader GLContext::GetBoundShader() const {
+ShaderId GLContext::GetBoundShader() const {
 	return bound_.shader_program;
 }
 
-Texture GLContext::GetBoundTexture() const {
+TextureId GLContext::GetBoundTexture() const {
 	PTGN_ASSERT(bound_.active_texture.slot < GetMaxTextureSlots());
 	return bound_.texture_units[bound_.active_texture.slot].id;
 }
 
-Renderbuffer GLContext::GetBoundRenderbuffer() const {
+RenderbufferId GLContext::GetBoundRenderbuffer() const {
 	return bound_.renderbuffer;
 }
 
-Framebuffer GLContext::GetBoundFramebuffer() const {
+FramebufferId GLContext::GetBoundFramebuffer() const {
 	return bound_.framebuffer;
 }
 
-VertexArray GLContext::GetBoundVertexArray() const {
+VertexArrayId GLContext::GetBoundVertexArray() const {
 	return bound_.vertex_array;
 }
 
-bool GLContext::IsBound(VertexBuffer id) const {
+bool GLContext::IsBound(VertexBufferId id) const {
 	return GetBoundVertexBuffer() == id;
 }
 
-bool GLContext::IsBound(ElementBuffer id) const {
+bool GLContext::IsBound(ElementBufferId id) const {
 	return GetBoundElementBuffer() == id;
 }
 
-bool GLContext::IsBound(UniformBuffer id) const {
+bool GLContext::IsBound(UniformBufferId id) const {
 	return GetBoundUniformBuffer() == id;
 }
 
-bool GLContext::IsBound(Shader id) const {
+bool GLContext::IsBound(ShaderId id) const {
 	return GetBoundShader() == id;
 }
 
-bool GLContext::IsBound(Renderbuffer id) const {
+bool GLContext::IsBound(RenderbufferId id) const {
 	return GetBoundRenderbuffer() == id;
 }
 
-bool GLContext::IsBound(Texture id) const {
+bool GLContext::IsBound(TextureId id) const {
 	return GetBoundTexture() == id;
 }
 
-bool GLContext::IsBound(Framebuffer id) const {
+bool GLContext::IsBound(FramebufferId id) const {
 	return GetBoundFramebuffer() == id;
 }
 
-bool GLContext::IsBound(VertexArray id) const {
+bool GLContext::IsBound(VertexArrayId id) const {
 	return GetBoundVertexArray() == id;
 }
 
-void GLContext::Destroy(VertexBuffer id) {
+void GLContext::Destroy(VertexBufferId id) {
 	buffers.DestroyVertexBuffer(id);
 }
 
-void GLContext::Destroy(ElementBuffer id) {
+void GLContext::Destroy(ElementBufferId id) {
 	buffers.DestroyElementBuffer(id);
 }
 
-void GLContext::Destroy(UniformBuffer id) {
+void GLContext::Destroy(UniformBufferId id) {
 	buffers.DestroyUniformBuffer(id);
 }
 
-void GLContext::Destroy(Shader id) {
+void GLContext::Destroy(ShaderId id) {
 	shaders.DestroyProgram(id);
 }
 
-void GLContext::Destroy(Texture id) {
+void GLContext::Destroy(TextureId id) {
 	textures.DestroyTexture(id);
 }
 
-void GLContext::Destroy(Renderbuffer id) {
+void GLContext::Destroy(RenderbufferId id) {
 	renderbuffers.DestroyRenderbuffer(id);
 }
 
-void GLContext::Destroy(Framebuffer id) {
+void GLContext::Destroy(FramebufferId id) {
 	framebuffers.DestroyFramebuffer(id);
 }
 
-void GLContext::Destroy(VertexArray id) {
+void GLContext::Destroy(VertexArrayId id) {
 	vertex_arrays.DestroyVertexArray(id);
 }
 
-void Destroy(VertexBuffer id);
-void Destroy(ElementBuffer id);
-void Destroy(UniformBuffer id);
-void Destroy(Shader id);
-void Destroy(Texture id);
-void Destroy(Renderbuffer id);
-void Destroy(Framebuffer id);
-void Destroy(VertexArray id);
+void Destroy(VertexBufferId id);
+void Destroy(ElementBufferId id);
+void Destroy(UniformBufferId id);
+void Destroy(ShaderId id);
+void Destroy(TextureId id);
+void Destroy(RenderbufferId id);
+void Destroy(FramebufferId id);
+void Destroy(VertexArrayId id);
 
-void GLContext::Destroy(RenderTarget& render_target) {
+void GLContext::Destroy(RenderTargetData& render_target) {
 	if (render_target.color_.has_value()) {
 		textures.DestroyTexture(*render_target.color_);
 	}

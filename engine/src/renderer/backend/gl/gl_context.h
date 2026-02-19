@@ -47,7 +47,7 @@ class Window;
 
 namespace impl {
 
-struct RenderTarget;
+struct RenderTargetData;
 
 } // namespace impl
 
@@ -65,44 +65,44 @@ public:
 	GLContext& operator=(const GLContext&)	   = delete;
 	GLContext& operator=(GLContext&&) noexcept = delete;
 
-	[[nodiscard]] BindGuard<VertexBuffer> Bind(VertexBuffer id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<ElementBuffer> Bind(ElementBuffer id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<UniformBuffer> Bind(UniformBuffer id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<Shader> Bind(Shader id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<Texture> Bind(Texture id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<Renderbuffer> Bind(Renderbuffer id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<Framebuffer> Bind(Framebuffer id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<VertexArray> Bind(VertexArray id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<VertexBufferId> Bind(VertexBufferId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<ElementBufferId> Bind(ElementBufferId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<UniformBufferId> Bind(UniformBufferId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<ShaderId> Bind(ShaderId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<TextureId> Bind(TextureId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<RenderbufferId> Bind(RenderbufferId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<FramebufferId> Bind(FramebufferId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<VertexArrayId> Bind(VertexArrayId id, bool restore_bind = false);
 
 	[[nodiscard]] const State& GetBoundState() const;
 	[[nodiscard]] State& GetBoundState();
-	[[nodiscard]] VertexBuffer GetBoundVertexBuffer() const;
-	[[nodiscard]] ElementBuffer GetBoundElementBuffer() const;
-	[[nodiscard]] UniformBuffer GetBoundUniformBuffer() const;
-	[[nodiscard]] Shader GetBoundShader() const;
-	[[nodiscard]] Texture GetBoundTexture() const;
-	[[nodiscard]] Renderbuffer GetBoundRenderbuffer() const;
-	[[nodiscard]] Framebuffer GetBoundFramebuffer() const;
-	[[nodiscard]] VertexArray GetBoundVertexArray() const;
+	[[nodiscard]] VertexBufferId GetBoundVertexBuffer() const;
+	[[nodiscard]] ElementBufferId GetBoundElementBuffer() const;
+	[[nodiscard]] UniformBufferId GetBoundUniformBuffer() const;
+	[[nodiscard]] ShaderId GetBoundShader() const;
+	[[nodiscard]] TextureId GetBoundTexture() const;
+	[[nodiscard]] RenderbufferId GetBoundRenderbuffer() const;
+	[[nodiscard]] FramebufferId GetBoundFramebuffer() const;
+	[[nodiscard]] VertexArrayId GetBoundVertexArray() const;
 
-	[[nodiscard]] bool IsBound(VertexBuffer id) const;
-	[[nodiscard]] bool IsBound(ElementBuffer id) const;
-	[[nodiscard]] bool IsBound(UniformBuffer id) const;
-	[[nodiscard]] bool IsBound(Shader id) const;
-	[[nodiscard]] bool IsBound(Texture id) const;
-	[[nodiscard]] bool IsBound(Renderbuffer id) const;
-	[[nodiscard]] bool IsBound(Framebuffer id) const;
-	[[nodiscard]] bool IsBound(VertexArray id) const;
+	[[nodiscard]] bool IsBound(VertexBufferId id) const;
+	[[nodiscard]] bool IsBound(ElementBufferId id) const;
+	[[nodiscard]] bool IsBound(UniformBufferId id) const;
+	[[nodiscard]] bool IsBound(ShaderId id) const;
+	[[nodiscard]] bool IsBound(TextureId id) const;
+	[[nodiscard]] bool IsBound(RenderbufferId id) const;
+	[[nodiscard]] bool IsBound(FramebufferId id) const;
+	[[nodiscard]] bool IsBound(VertexArrayId id) const;
 
-	void Destroy(VertexBuffer id);
-	void Destroy(ElementBuffer id);
-	void Destroy(UniformBuffer id);
-	void Destroy(Shader id);
-	void Destroy(Texture id);
-	void Destroy(Renderbuffer id);
-	void Destroy(Framebuffer id);
-	void Destroy(VertexArray id);
-	void Destroy(RenderTarget& render_target);
+	void Destroy(VertexBufferId id);
+	void Destroy(ElementBufferId id);
+	void Destroy(UniformBufferId id);
+	void Destroy(ShaderId id);
+	void Destroy(TextureId id);
+	void Destroy(RenderbufferId id);
+	void Destroy(FramebufferId id);
+	void Destroy(VertexArrayId id);
+	void Destroy(RenderTargetData& render_target);
 
 	void EnableGammaCorrection() const;
 	void DisableGammaCorrection() const;

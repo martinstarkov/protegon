@@ -16,7 +16,7 @@ namespace ptgn::impl::gl {
 class GLContext;
 
 struct VertexArrayCache {
-	ElementBuffer element_buffer{ 0 };
+	ElementBufferId element_buffer{ 0 };
 	bool layout_set{ false };
 };
 
@@ -40,9 +40,9 @@ constexpr GLenum ToGLType(BufferElementType type) noexcept {
 class VertexArrays {
 public:
 	template <typename... Ts>
-	VertexArray CreateVertexArray(
-		VertexBuffer vertex_buffer, const BufferLayout<Ts...>& vertex_buffer_layout,
-		ElementBuffer element_buffer, bool restore_bind = true
+	VertexArrayId CreateVertexArray(
+		VertexBufferId vertex_buffer, const BufferLayout<Ts...>& vertex_buffer_layout,
+		ElementBufferId element_buffer, bool restore_bind = true
 	) {
 		auto vertex_array{ CreateVertexArray() };
 
@@ -55,15 +55,15 @@ public:
 		return vertex_array;
 	}
 
-	void DestroyVertexArray(VertexArray id);
+	void DestroyVertexArray(VertexArrayId id);
 
-	void SetVertexBuffer(VertexArray vertex_array, VertexBuffer vertex_buffer);
+	void SetVertexBuffer(VertexArrayId vertex_array, VertexBufferId vertex_buffer);
 
-	void SetElementBuffer(VertexArray vertex_array, ElementBuffer element_buffer);
+	void SetElementBuffer(VertexArrayId vertex_array, ElementBufferId element_buffer);
 
 	template <VertexDataType... Ts>
 		requires NonEmptyPack<Ts...>
-	void SetBufferLayout(VertexArray vertex_array, const BufferLayout<Ts...>& layout) {
+	void SetBufferLayout(VertexArrayId vertex_array, const BufferLayout<Ts...>& layout) {
 		PTGN_ASSERT(
 			IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"
 		);
@@ -105,10 +105,11 @@ public:
 	}
 
 	void DrawElements(
-		VertexArray vertex_array, GLsizei element_count, GLenum element_type, GLenum primitive_mode
+		VertexArrayId vertex_array, GLsizei element_count, GLenum element_type,
+		GLenum primitive_mode
 	) const;
 
-	void DrawArrays(VertexArray vertex_array, GLsizei vertex_count, GLenum primitive_mode) const;
+	void DrawArrays(VertexArrayId vertex_array, GLsizei vertex_count, GLenum primitive_mode) const;
 
 private:
 	friend class GLContext;
@@ -120,11 +121,11 @@ private:
 	VertexArrays& operator=(const VertexArrays&)	 = delete;
 	VertexArrays& operator=(VertexArrays&&) noexcept = delete;
 
-	[[nodiscard]] VertexArray CreateVertexArray();
+	[[nodiscard]] VertexArrayId CreateVertexArray();
 
-	BindGuard<VertexArray> BindVertexArray(VertexArray vertex_array, bool restore_bind);
+	BindGuard<VertexArrayId> BindVertexArray(VertexArrayId vertex_array, bool restore_bind);
 
-	[[nodiscard]] bool IsBound(VertexArray vertex_array) const;
+	[[nodiscard]] bool IsBound(VertexArrayId vertex_array) const;
 
 	[[nodiscard]] int GetMaxVertexAttribs() const;
 

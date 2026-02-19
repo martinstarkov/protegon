@@ -38,9 +38,10 @@ void Framebuffers::Init(std::uint32_t max_color_attachments) {
 	max_color_attachments_ = max_color_attachments;
 }
 
-Framebuffer Framebuffers::CreateFramebuffer(
-	std::optional<Texture> texture, Attachment texture_attachment,
-	std::optional<Renderbuffer> renderbuffer, Attachment renderbuffer_attachment, bool restore_bind
+FramebufferId Framebuffers::CreateFramebuffer(
+	std::optional<TextureId> texture, Attachment texture_attachment,
+	std::optional<RenderbufferId> renderbuffer, Attachment renderbuffer_attachment,
+	bool restore_bind
 ) {
 	PTGN_ASSERT(
 		texture.has_value() || renderbuffer.has_value(),
@@ -63,8 +64,10 @@ Framebuffer Framebuffers::CreateFramebuffer(
 	return framebuffer;
 }
 
-void Framebuffers::AttachTexture(Framebuffer framebuffer, Texture texture, Attachment attachment) {
-	PTGN_ASSERT(gl_.IsBound(framebuffer), "Framebuffer must be bound before attaching a texture");
+void Framebuffers::AttachTexture(
+	FramebufferId framebuffer, TextureId texture, Attachment attachment
+) {
+	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before attaching a texture");
 
 	if (texture) {
 		PTGN_ASSERT(
@@ -82,10 +85,10 @@ void Framebuffers::AttachTexture(Framebuffer framebuffer, Texture texture, Attac
 }
 
 void Framebuffers::AttachRenderbuffer(
-	Framebuffer framebuffer, Renderbuffer renderbuffer, Attachment attachment
+	FramebufferId framebuffer, RenderbufferId renderbuffer, Attachment attachment
 ) {
 	PTGN_ASSERT(
-		gl_.IsBound(framebuffer), "Framebuffer must be bound before attaching a renderbuffer"
+		gl_.IsBound(framebuffer), "FramebufferId must be bound before attaching a renderbuffer"
 	);
 
 	if (renderbuffer) {
@@ -97,10 +100,10 @@ void Framebuffers::AttachRenderbuffer(
 
 	GLCall(FramebufferRenderbuffer(
 		GL_FRAMEBUFFER, std::to_underlying(attachment),
-		std::to_underlying(AttachmentObject::Renderbuffer), renderbuffer
+		std::to_underlying(AttachmentObject::RenderbufferId), renderbuffer
 	));
 
-	UpdateFramebufferCache(framebuffer, renderbuffer, attachment, AttachmentObject::Renderbuffer);
+	UpdateFramebufferCache(framebuffer, renderbuffer, attachment, AttachmentObject::RenderbufferId);
 }
 
 void Framebuffers::Clear(ClearBufferBit buffers) const {
@@ -108,7 +111,7 @@ void Framebuffers::Clear(ClearBufferBit buffers) const {
 }
 
 void Framebuffers::ClearToColor(
-	Framebuffer framebuffer, Color color, ClearBufferType buffer, int drawbuffer
+	FramebufferId framebuffer, Color color, ClearBufferType buffer, int drawbuffer
 ) const {
 	PTGN_ASSERT(gl_.IsBound(framebuffer));
 	PTGN_ASSERT(drawbuffer >= 0, "Drawbuffer cannot be negative");
@@ -124,7 +127,7 @@ void Framebuffers::ClearToColor(
 }
 
 Framebuffers::PixelValue Framebuffers::ReadPixel(
-	Framebuffer framebuffer, V2_int coordinate, Attachment attachment
+	FramebufferId framebuffer, V2_int coordinate, Attachment attachment
 ) {
 	auto _1 = gl_.Bind(framebuffer, true);
 
@@ -134,9 +137,9 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 
 	V2_int size;
 	if (spec.object == AttachmentObject::Texture2D) {
-		size = gl_.textures.GetCache(Texture{ spec.id }).size;
+		size = gl_.textures.GetCache(TextureId{ spec.id }).size;
 	} else {
-		size = gl_.renderbuffers.GetCache(Renderbuffer{ spec.id }).size;
+		size = gl_.renderbuffers.GetCache(RenderbufferId{ spec.id }).size;
 	}
 
 	PTGN_ASSERT(
@@ -151,7 +154,7 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 	int read_y = size.y - 1 - coordinate.y;
 
 	if (type == AttachmentType::Color) {
-		const auto& tex = gl_.textures.GetCache(Texture{ spec.id });
+		const auto& tex = gl_.textures.GetCache(TextureId{ spec.id });
 
 		int components = GetColorComponentCount(tex.internal_format);
 		PTGN_ASSERT(components >= 3 && components <= 4);
@@ -196,7 +199,9 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 	PTGN_ERROR("Unhandled attachment type");
 }
 
-Framebuffers::PixelBuffer Framebuffers::ReadPixels(Framebuffer framebuffer, Attachment attachment) {
+Framebuffers::PixelBuffer Framebuffers::ReadPixels(
+	FramebufferId framebuffer, Attachment attachment
+) {
 	auto type = GetAttachmentType(attachment);
 
 	const auto& spec = GetFramebufferAttachment(framebuffer, attachment);
@@ -205,8 +210,8 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(Framebuffer framebuffer, Atta
 	auto _ = gl_.Bind(framebuffer, true);
 
 	V2_int size = (spec.object == AttachmentObject::Texture2D)
-					? gl_.textures.GetCache(Texture{ spec.id }).size
-					: gl_.renderbuffers.GetCache(Renderbuffer{ spec.id }).size;
+					? gl_.textures.GetCache(TextureId{ spec.id }).size
+					: gl_.renderbuffers.GetCache(RenderbufferId{ spec.id }).size;
 
 	GLenum format	 = GL_RGBA;
 	GLenum type_enum = GL_UNSIGNED_BYTE;
@@ -215,7 +220,7 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(Framebuffer framebuffer, Atta
 		using enum AttachmentType;
 
 		case Color: {
-			const auto& tex = gl_.textures.GetCache(Texture{ spec.id });
+			const auto& tex = gl_.textures.GetCache(TextureId{ spec.id });
 			PTGN_ASSERT(GetColorComponentCount(tex.internal_format) >= 3);
 			format	  = tex.internal_format;
 			type_enum = GL_UNSIGNED_BYTE;
@@ -243,7 +248,7 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(Framebuffer framebuffer, Atta
 	return PixelBuffer{ .size = size, .type = type, .data = std::move(buffer) };
 }
 
-bool Framebuffers::FramebufferIsComplete(Framebuffer framebuffer) const {
+bool Framebuffers::FramebufferIsComplete(FramebufferId framebuffer) const {
 	PTGN_ASSERT(gl_.IsBound(framebuffer), "Cannot check status of framebuffer until it is bound");
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	return status == GL_FRAMEBUFFER_COMPLETE;
@@ -252,8 +257,8 @@ bool Framebuffers::FramebufferIsComplete(Framebuffer framebuffer) const {
 const char* Framebuffers::GetFramebufferStatus() const {
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE:  return "Framebuffer is complete.";
-		case GL_FRAMEBUFFER_UNDEFINED: return "Framebuffer is undefined (no framebuffer bound).";
+		case GL_FRAMEBUFFER_COMPLETE:  return "FramebufferId is complete.";
+		case GL_FRAMEBUFFER_UNDEFINED: return "FramebufferId is undefined (no framebuffer bound).";
 		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
 			return "Incomplete attachment: One or more framebuffer attachment points are "
 				   "incomplete.";
@@ -264,7 +269,7 @@ const char* Framebuffers::GetFramebufferStatus() const {
 		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
 			return "Incomplete read buffer: Read buffer points to a missing attachment.";
 		case GL_FRAMEBUFFER_UNSUPPORTED:
-			return "Framebuffer unsupported: Format combination not supported by "
+			return "FramebufferId unsupported: Format combination not supported by "
 				   "implementation.";
 		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
 			return "Incomplete multisample: Mismatched sample counts or improper use of "
@@ -300,7 +305,7 @@ Framebuffers::AttachmentType Framebuffers::GetAttachmentType(Attachment attachme
 }
 
 AttachmentSpec& Framebuffers::GetFramebufferAttachment(
-	Framebuffer framebuffer, Attachment attachment
+	FramebufferId framebuffer, Attachment attachment
 ) {
 	return const_cast<AttachmentSpec&>(
 		std::as_const(*this).GetFramebufferAttachment(framebuffer, attachment)
@@ -308,7 +313,7 @@ AttachmentSpec& Framebuffers::GetFramebufferAttachment(
 }
 
 const AttachmentSpec& Framebuffers::GetFramebufferAttachment(
-	Framebuffer framebuffer, Attachment attachment
+	FramebufferId framebuffer, Attachment attachment
 ) const {
 	using enum Attachment;
 
@@ -335,7 +340,7 @@ const AttachmentSpec& Framebuffers::GetFramebufferAttachment(
 }
 
 void Framebuffers::UpdateFramebufferCache(
-	Framebuffer framebuffer, std::uint32_t object_id, Attachment attachment,
+	FramebufferId framebuffer, std::uint32_t object_id, Attachment attachment,
 	AttachmentObject object_type
 ) {
 	auto& spec{ GetFramebufferAttachment(framebuffer, attachment) };
@@ -343,7 +348,7 @@ void Framebuffers::UpdateFramebufferCache(
 	spec.object = object_id ? object_type : AttachmentObject::None;
 }
 
-void Framebuffers::ResizeFramebuffer(Framebuffer framebuffer, V2_int new_size) {
+void Framebuffers::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size) {
 	const auto& cache = cache_.Get(framebuffer);
 
 	auto resize_attachment = [&](const AttachmentSpec& spec) {
@@ -352,9 +357,9 @@ void Framebuffers::ResizeFramebuffer(Framebuffer framebuffer, V2_int new_size) {
 		}
 
 		if (spec.object == AttachmentObject::Texture2D) {
-			gl_.textures.ResizeTexture(Texture{ spec.id }, new_size);
-		} else if (spec.object == AttachmentObject::Renderbuffer) {
-			gl_.renderbuffers.ResizeRenderbuffer(Renderbuffer{ spec.id }, new_size);
+			gl_.textures.ResizeTexture(TextureId{ spec.id }, new_size);
+		} else if (spec.object == AttachmentObject::RenderbufferId) {
+			gl_.renderbuffers.ResizeRenderbuffer(RenderbufferId{ spec.id }, new_size);
 		} else {
 			PTGN_ERROR("Unknown framebuffer attachment type");
 		}
@@ -369,15 +374,15 @@ void Framebuffers::ResizeFramebuffer(Framebuffer framebuffer, V2_int new_size) {
 	resize_attachment(cache.depth_stencil);
 }
 
-Framebuffer Framebuffers::CreateFramebufferImpl() {
-	Framebuffer id{ 0 };
+FramebufferId Framebuffers::CreateFramebufferImpl() {
+	FramebufferId id{ 0 };
 	GLCall(GenFramebuffers(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create framebuffer");
 	cache_.Add(id, FramebufferCache{});
 	return id;
 }
 
-void Framebuffers::DestroyFramebuffer(Framebuffer id) {
+void Framebuffers::DestroyFramebuffer(FramebufferId id) {
 	if (!id) {
 		return;
 	}
@@ -385,7 +390,7 @@ void Framebuffers::DestroyFramebuffer(Framebuffer id) {
 	cache_.Remove(id);
 }
 
-void Framebuffers::SavePNG(const path& path, Framebuffer framebuffer, Attachment attachment) {
+void Framebuffers::SavePNG(const path& path, FramebufferId framebuffer, Attachment attachment) {
 	// Ensure output directory exists
 	if (path.has_parent_path()) {
 		std::filesystem::create_directories(path.parent_path());

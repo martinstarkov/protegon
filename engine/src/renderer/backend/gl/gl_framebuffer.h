@@ -20,9 +20,9 @@ namespace ptgn::impl::gl {
 class GLContext;
 
 enum class AttachmentObject : std::uint32_t {
-	None		 = 0,
-	Texture2D	 = 0x0DE1, // GL_TEXTURE_2D
-	Renderbuffer = 0x8D41  // GL_RENDERBUFFER
+	None		   = 0,
+	Texture2D	   = 0x0DE1, // GL_TEXTURE_2D
+	RenderbufferId = 0x8D41	 // GL_RENDERBUFFER
 };
 
 struct AttachmentSpec {
@@ -74,18 +74,18 @@ constexpr ClearBufferBit operator|(ClearBufferBit a, ClearBufferBit b) {
 
 class Framebuffers {
 public:
-	Framebuffer CreateFramebuffer(
-		std::optional<Texture> texture = {}, Attachment texture_attachment = Attachment::Color0,
-		std::optional<Renderbuffer> renderbuffer = {},
+	FramebufferId CreateFramebuffer(
+		std::optional<TextureId> texture = {}, Attachment texture_attachment = Attachment::Color0,
+		std::optional<RenderbufferId> renderbuffer = {},
 		Attachment renderbuffer_attachment = Attachment::DepthStencil, bool restore_bind = true
 	);
 
-	void DestroyFramebuffer(Framebuffer id);
+	void DestroyFramebuffer(FramebufferId id);
 
-	void AttachTexture(Framebuffer framebuffer, Texture texture, Attachment attachment);
+	void AttachTexture(FramebufferId framebuffer, TextureId texture, Attachment attachment);
 
 	void AttachRenderbuffer(
-		Framebuffer framebuffer, Renderbuffer renderbuffer, Attachment attachment
+		FramebufferId framebuffer, RenderbufferId renderbuffer, Attachment attachment
 	);
 
 	/// Clear buffer bits to preset values
@@ -99,7 +99,7 @@ public:
 	/// @param drawbuffer Specify a particular index of draw buffer to clear. Must be 0 for depth
 	/// and stencil buffers and within max color attachments for color buffers.
 	void ClearToColor(
-		Framebuffer framebuffer, Color color, ClearBufferType buffer = ClearBufferType::Color,
+		FramebufferId framebuffer, Color color, ClearBufferType buffer = ClearBufferType::Color,
 		int drawbuffer = 0
 	) const;
 
@@ -112,7 +112,7 @@ public:
 	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
 	// @param coordinate Pixel coordinate from [0, size).
 	PixelValue ReadPixel(
-		Framebuffer framebuffer, V2_int coordinate, Attachment attachment = Attachment::Color0
+		FramebufferId framebuffer, V2_int coordinate, Attachment attachment = Attachment::Color0
 	);
 
 	enum class AttachmentType {
@@ -129,7 +129,7 @@ public:
 	};
 
 	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
-	PixelBuffer ReadPixels(Framebuffer framebuffer, Attachment attachment = Attachment::Color0);
+	PixelBuffer ReadPixels(FramebufferId framebuffer, Attachment attachment = Attachment::Color0);
 
 	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
 	template <typename F>
@@ -182,22 +182,22 @@ public:
 
 	template <typename F>
 	void ForEachPixel(
-		Framebuffer framebuffer, F&& func, Attachment attachment = Attachment::Color0
+		FramebufferId framebuffer, F&& func, Attachment attachment = Attachment::Color0
 	) {
 		PixelBuffer buffer = ReadPixels(framebuffer, attachment);
 		ForEachPixel(buffer, std::forward<F>(func));
 	}
 
 	void SavePNG(
-		const path& path, Framebuffer framebuffer, Attachment attachment = Attachment::Color0
+		const path& path, FramebufferId framebuffer, Attachment attachment = Attachment::Color0
 	);
 
-	AttachmentSpec& GetFramebufferAttachment(Framebuffer framebuffer, Attachment attachment);
+	AttachmentSpec& GetFramebufferAttachment(FramebufferId framebuffer, Attachment attachment);
 
-	const AttachmentSpec& GetFramebufferAttachment(Framebuffer framebuffer, Attachment attachment)
+	const AttachmentSpec& GetFramebufferAttachment(FramebufferId framebuffer, Attachment attachment)
 		const;
 
-	void ResizeFramebuffer(Framebuffer framebuffer, V2_int new_size);
+	void ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size);
 
 private:
 	friend class GLContext;
@@ -211,18 +211,18 @@ private:
 
 	void Init(std::uint32_t max_color_attachments);
 
-	[[nodiscard]] bool FramebufferIsComplete(Framebuffer framebuffer) const;
+	[[nodiscard]] bool FramebufferIsComplete(FramebufferId framebuffer) const;
 
 	[[nodiscard]] const char* GetFramebufferStatus() const;
 
 	AttachmentType GetAttachmentType(Attachment attachment) const;
 
 	void UpdateFramebufferCache(
-		Framebuffer framebuffer, std::uint32_t object_id, Attachment attachment,
+		FramebufferId framebuffer, std::uint32_t object_id, Attachment attachment,
 		AttachmentObject object_type
 	);
 
-	[[nodiscard]] Framebuffer CreateFramebufferImpl();
+	[[nodiscard]] FramebufferId CreateFramebufferImpl();
 
 	// TODO: Make sure to update the cache when the parameters change. I.e. when resizing a
 	// texture.

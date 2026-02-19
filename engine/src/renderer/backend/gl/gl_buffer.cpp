@@ -14,38 +14,38 @@ namespace ptgn::impl::gl {
 
 Buffers::Buffers(GLContext& gl) : gl_{ gl } {}
 
-VertexBuffer Buffers::CreateVertexBuffer(
+VertexBufferId Buffers::CreateVertexBuffer(
 	const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
 ) {
-	return CreateBuffer<VertexBuffer>(
+	return CreateBuffer<VertexBufferId>(
 		BufferTarget::ArrayBuffer, data, element_count, element_size, usage
 	);
 }
 
-ElementBuffer Buffers::CreateElementBuffer(
+ElementBufferId Buffers::CreateElementBuffer(
 	const void* data, std::uint32_t element_count, std::uint32_t element_size, BufferUsage usage
 ) {
-	return CreateBuffer<ElementBuffer>(
+	return CreateBuffer<ElementBufferId>(
 		BufferTarget::ElementArrayBuffer, data, element_count, element_size, usage
 	);
 }
 
-UniformBuffer Buffers::CreateUniformBuffer(
+UniformBufferId Buffers::CreateUniformBuffer(
 	const void* data, std::uint32_t size, BufferUsage usage
 ) {
-	return CreateBuffer<UniformBuffer>(BufferTarget::UniformBuffer, data, size, 1, usage);
+	return CreateBuffer<UniformBufferId>(BufferTarget::UniformBuffer, data, size, 1, usage);
 }
 
-void Buffers::DestroyVertexBuffer(VertexBuffer id) {
-	DestroyBuffer<VertexBuffer>(id);
+void Buffers::DestroyVertexBuffer(VertexBufferId id) {
+	DestroyBuffer<VertexBufferId>(id);
 }
 
-void Buffers::DestroyElementBuffer(ElementBuffer id) {
-	DestroyBuffer<ElementBuffer>(id);
+void Buffers::DestroyElementBuffer(ElementBufferId id) {
+	DestroyBuffer<ElementBufferId>(id);
 }
 
-void Buffers::DestroyUniformBuffer(UniformBuffer id) {
-	DestroyBuffer<UniformBuffer>(id);
+void Buffers::DestroyUniformBuffer(UniformBufferId id) {
+	DestroyBuffer<UniformBufferId>(id);
 }
 
 template <typename T, bool kBufferOrphaning>
@@ -91,14 +91,14 @@ void Buffers::SetBufferSubData(
 	GLCall(BufferSubData(std::to_underlying(target), byte_offset, size, data));
 }
 
-template void Buffers::SetBufferSubData<VertexBuffer>(
-	VertexBuffer, BufferTarget, const void*, std::int32_t, std::uint32_t, std::uint32_t
+template void Buffers::SetBufferSubData<VertexBufferId>(
+	VertexBufferId, BufferTarget, const void*, std::int32_t, std::uint32_t, std::uint32_t
 ) const;
-template void Buffers::SetBufferSubData<ElementBuffer>(
-	ElementBuffer, BufferTarget, const void*, std::int32_t, std::uint32_t, std::uint32_t
+template void Buffers::SetBufferSubData<ElementBufferId>(
+	ElementBufferId, BufferTarget, const void*, std::int32_t, std::uint32_t, std::uint32_t
 ) const;
-template void Buffers::SetBufferSubData<UniformBuffer>(
-	UniformBuffer, BufferTarget, const void*, std::int32_t, std::uint32_t, std::uint32_t
+template void Buffers::SetBufferSubData<UniformBufferId>(
+	UniformBufferId, BufferTarget, const void*, std::int32_t, std::uint32_t, std::uint32_t
 ) const;
 
 template <typename T>
@@ -114,7 +114,7 @@ T Buffers::CreateBuffer(
 
 	PTGN_ASSERT(id, "Failed to create buffer");
 
-	auto _1 = gl_.Bind(VertexArray{ 0 }, true);
+	auto _1 = gl_.Bind(VertexArrayId{ 0 }, true);
 	auto _2 = gl_.Bind(id, false);
 
 	const std::uint32_t size = element_count * element_size;
@@ -126,13 +126,13 @@ T Buffers::CreateBuffer(
 	return id;
 }
 
-template VertexBuffer Buffers::CreateBuffer<VertexBuffer>(
+template VertexBufferId Buffers::CreateBuffer<VertexBufferId>(
 	BufferTarget, const void*, std::uint32_t, std::uint32_t, BufferUsage
 );
-template ElementBuffer Buffers::CreateBuffer<ElementBuffer>(
+template ElementBufferId Buffers::CreateBuffer<ElementBufferId>(
 	BufferTarget, const void*, std::uint32_t, std::uint32_t, BufferUsage
 );
-template UniformBuffer Buffers::CreateBuffer<UniformBuffer>(
+template UniformBufferId Buffers::CreateBuffer<UniformBufferId>(
 	BufferTarget, const void*, std::uint32_t, std::uint32_t, BufferUsage
 );
 
@@ -145,9 +145,9 @@ void Buffers::DestroyBuffer(T id) {
 	cache_.Remove(id);
 }
 
-template void Buffers::DestroyBuffer<VertexBuffer>(VertexBuffer);
-template void Buffers::DestroyBuffer<ElementBuffer>(ElementBuffer);
-template void Buffers::DestroyBuffer<UniformBuffer>(UniformBuffer);
+template void Buffers::DestroyBuffer<VertexBufferId>(VertexBufferId);
+template void Buffers::DestroyBuffer<ElementBufferId>(ElementBufferId);
+template void Buffers::DestroyBuffer<UniformBufferId>(UniformBufferId);
 
 int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) const {
 	int value{ -1 };

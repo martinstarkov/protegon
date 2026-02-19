@@ -53,7 +53,7 @@ struct QuadDesc {
 };
 
 struct PooledTarget {
-	ptgn::RenderTarget target;
+	RenderTarget target;
 	std::uint64_t last_used_tick{ 0 };
 	bool in_use{ false };
 };
@@ -67,7 +67,7 @@ struct QuadParams {
 
 	Color tint{ color::White };
 
-	std::optional<Texture> texture;
+	std::optional<TextureId> texture;
 
 	std::optional<std::array<V2_float, 4>> tex_coords;
 };
@@ -82,42 +82,42 @@ public:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	ptgn::RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
+	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
 
 	void DrawTexture(
-		Shader shader, Texture texture, V2_float center, V2_float size, Color tint = color::White,
+		ShaderId shader, TextureId texture, V2_float center, V2_float size,
+		Color tint = color::White, bool flip_y = false
+	);
+	void DrawTexture(
+		const RenderTargetData& rt, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = false
 	);
 	void DrawTexture(
-		const RenderTarget& rt, V2_float center, V2_float size, Color tint = color::White,
+		TextureId texture, V2_float center, V2_float size, Color tint = color::White,
 		bool flip_y = false
 	);
-	void DrawTexture(
-		Texture texture, V2_float center, V2_float size, Color tint = color::White,
-		bool flip_y = false
-	);
-	void DrawTexture(Shader shader, RenderPass& pass, const RenderTarget& scene_target);
+	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target);
 
 	void SetViewProjection(const Matrix4& view_projection);
-	void SetShader(Shader shader);
+	void SetShader(ShaderId shader);
 	void SetBlend(BlendMode mode, bool enabled = true);
-	void SetFramebuffer(Framebuffer framebuffer, const Viewport& viewport);
+	void SetFramebuffer(FramebufferId framebuffer, const Viewport& viewport);
 	void SetDepth(const DepthState& depth);
 	void SetStencil(const StencilState& stencil);
 	void SetRaster(const RasterState& raster);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	RenderPass BeginPass(const RenderTarget& scene_target);
+	RenderPass BeginPass(const RenderTargetData& scene_target);
 
-	V2_int GetTextureSize(Texture texture) const;
+	V2_int GetTextureSize(TextureId texture) const;
 
-	const RenderTarget& GetScreenTarget() const;
-	RenderTarget& GetScreenTarget();
+	const RenderTargetData& GetScreenTarget() const;
+	RenderTargetData& GetScreenTarget();
 
 	void BeginFrame();
 	void EndFrame(const Viewport& viewport);
 
-	Texture GetWhiteTexture() const;
+	TextureId GetWhiteTexture() const;
 
 	std::unique_ptr<GLContext> gl;
 
@@ -127,18 +127,18 @@ private:
 	template <class State, class Func>
 	friend void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
 
-	using QuadSetup = std::function<void(Shader, QuadDesc&)>;
+	using QuadSetup = std::function<void(ShaderId, QuadDesc&)>;
 
-	void DrawQuad(Shader shader, const QuadParams& p, const QuadSetup& q);
+	void DrawQuad(ShaderId shader, const QuadParams& p, const QuadSetup& q);
 
 	void FlushBatch();
 
-	std::uint32_t GetTextureSlot(Texture tex);
+	std::uint32_t GetTextureSlot(TextureId tex);
 
-	RenderTarget AcquirePooledTarget(V2_int size, TextureFormat format);
-	void ReleasePooledTarget(RenderTarget& target);
+	RenderTargetData AcquirePooledTarget(V2_int size, TextureFormat format);
+	void ReleasePooledTarget(RenderTargetData& target);
 
-	ptgn::RenderTarget screen_target_;
+	RenderTarget screen_target_;
 	VertexBufferObject vbo_;
 	ElementBufferObject ebo_;
 	VertexArrayObject vao_;
@@ -146,7 +146,7 @@ private:
 
 	std::vector<Vertex> batch_vertices_;
 	std::vector<Index> batch_indices_;
-	std::vector<Texture> batch_textures_;
+	std::vector<TextureId> batch_textures_;
 
 	Matrix4 view_projection_;
 
