@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -14,6 +15,8 @@
 #include "renderer/resources/texture.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
+
+struct SDL_IOStream;
 
 namespace ptgn {
 
@@ -38,7 +41,7 @@ struct AssetKey {
 class AssetManager {
 public:
 	AssetManager(impl::SDLInstance& sdl, Renderer& renderer);
-	~AssetManager() noexcept						 = default;
+	~AssetManager() noexcept;
 	AssetManager(const AssetManager&)				 = delete;
 	AssetManager& operator=(const AssetManager&)	 = delete;
 	AssetManager(AssetManager&&) noexcept			 = delete;
@@ -91,6 +94,9 @@ public:
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
 
+	// Empty font key corresponds to the engine default font.
+	void SetDefaultFont(std::string_view key = {});
+
 private:
 	friend class Shader;
 	friend class Texture;
@@ -109,11 +115,17 @@ private:
 
 	ecs::Entity CreateAsset();
 
-	std::unordered_map<std::size_t, json> jsons_;
+	std::shared_ptr<TTF_Font> Get(Font font, std::optional<float> font_size) const;
 
 	ecs::Manager manager_;
 	impl::SDLInstance& sdl_;
 	Renderer& renderer_;
+
+	std::unordered_map<std::size_t, json> jsons_;
+
+	std::size_t default_font_key_{ 0 };
+
+	SDL_IOStream* raw_default_font_{ nullptr };
 };
 
 } // namespace ptgn

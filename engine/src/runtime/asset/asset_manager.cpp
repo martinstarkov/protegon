@@ -1,11 +1,14 @@
 #include "runtime/asset/asset_manager.h"
 
 #include <SDL3/SDL_error.h>
+#include <SDL3/SDL_iostream.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <filesystem>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -24,6 +27,7 @@
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/image/surface.h"
 #include "renderer/primitives/font.h"
+#include "renderer/primitives/fonts.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
@@ -33,15 +37,77 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
-#include <functional>
-#include <optional>
+#include <cstdint>
 
 // TODO: Add async asset loading.
 
 namespace ptgn {
 
+static void AddKey(ecs::Entity asset, std::string_view key, std::optional<path> path) {
+	asset.Add<impl::AssetName>(key);
+	asset.Add<impl::AssetKey>(Hash(key));
+	if (path.has_value()) {
+		asset.Add<ptgn::path>(*path);
+	}
+}
+
+static TTF_Font* LoadFromBinary(SDL_IOStream* raw_buffer, float font_size, bool free_buffer) {
+	PTGN_ASSERT(raw_buffer != nullptr, SDL_GetError());
+	auto ptr{ TTF_OpenFontIO(raw_buffer, free_buffer, font_size) };
+	PTGN_ASSERT(ptr != nullptr, SDL_GetError());
+	return ptr;
+}
+
+static SDL_IOStream* GetRawBuffer(const FontBinary& binary) {
+	PTGN_ASSERT(binary.buffer != nullptr, "Cannot load font from invalid binary");
+	return SDL_IOFromMem(
+		static_cast<void*>(binary.buffer), static_cast<std::int32_t>(binary.length)
+	);
+}
+
 AssetManager::AssetManager(impl::SDLInstance& sdl, Renderer& renderer) :
-	sdl_{ sdl }, renderer_{ renderer } {}
+	sdl_{ sdl }, renderer_{ renderer } {
+	constexpr std::string_view key{ "" };
+	constexpr auto hash{ Hash(key) };
+	if (!raw_default_font_) {
+		raw_default_font_ = GetRawBuffer(impl::GetLiberationSansRegular());
+		auto default_font{ LoadFromBinary(raw_default_font_, default_font_size, false) };
+		Font font{ CreateAsset(), true };
+		font.entity_.Add<impl::FontSize>(default_font_size);
+		font.entity_.Add<std::shared_ptr<TTF_Font>>(default_font);
+		AddKey(font.entity_, key, {});
+	}
+	default_font_key_ = hash;
+}
+
+std::shared_ptr<TTF_Font> AssetManager::Get(Font font, std::optional<float> font_size) const {
+	auto entity{ font.entity_ };
+
+	if (!font_size.has_value()) {
+		return entity.Get<std::shared_ptr<TTF_Font>>();
+	}
+
+	if (entity.Has<path>()) {
+		auto path_string{ entity.Get<path>().string() };
+		PTGN_ASSERT(!path_string.empty(), "Invalid font path");
+		return std::shared_ptr<TTF_Font>{ TTF_OpenFont(path_string.c_str(), *font_size),
+										  impl::TTF_FontDeleter{} };
+	}
+
+	// Font has no path defined.
+	PTGN_ASSERT(
+		entity.Get<impl::AssetKey>().hash == Hash(""),
+		"Font key must have a valid path unless it is the default font"
+	);
+	return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, *font_size, false),
+									  impl::TTF_FontDeleter{} };
+}
+
+AssetManager::~AssetManager() noexcept {
+	if (raw_default_font_) {
+		SDL_CloseIO(raw_default_font_);
+	}
+}
 
 Shader AssetManager::CreateShader(
 	bool persistent, const std::variant<ShaderCode, path>& source, const std::string& shader_name
@@ -150,17 +216,12 @@ json AssetManager::CreateJson(const path& asset_path) {
 	return ptgn::LoadJson(asset_path);
 }
 
-static void AddKey(ecs::Entity asset, std::string_view key) {
-	asset.Add<impl::AssetName>(key);
-	asset.Add<impl::AssetKey>(Hash(key));
-}
-
 Shader AssetManager::LoadShader(
 	std::string_view key, const std::variant<ShaderCode, path>& source,
 	const std::string& shader_name
 ) {
 	auto shader{ CreateShader(true, source, shader_name) };
-	AddKey(shader.entity_, key);
+	AddKey(shader.entity_, key, {});
 	return shader;
 }
 
@@ -169,25 +230,25 @@ Shader AssetManager::LoadShader(
 	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 ) {
 	auto shader{ CreateShader(true, vertex, fragment, shader_name) };
-	AddKey(shader.entity_, key);
+	AddKey(shader.entity_, key, {});
 	return shader;
 }
 
 Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
 	auto texture{ CreateTexture(true, asset_path) };
-	AddKey(texture.entity_, key);
+	AddKey(texture.entity_, key, asset_path);
 	return texture;
 }
 
 Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float pt_size) {
 	auto font{ CreateFont(true, asset_path, pt_size) };
-	AddKey(font.entity_, key);
+	AddKey(font.entity_, key, asset_path);
 	return font;
 }
 
 Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 	auto audio{ CreateAudio(true, asset_path) };
-	AddKey(audio.entity_, key);
+	AddKey(audio.entity_, key, asset_path);
 	return audio;
 }
 
@@ -322,6 +383,11 @@ bool AssetManager::HasTexture(std::string_view key) const {
 
 bool AssetManager::HasFont(std::string_view key) const {
 	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
+}
+
+void AssetManager::SetDefaultFont(std::string_view key) {
+	PTGN_ASSERT(HasFont(key), "Font key must be loaded before setting it as default");
+	default_font_key_ = Hash(key);
 }
 
 } // namespace ptgn

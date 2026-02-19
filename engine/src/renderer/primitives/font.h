@@ -2,8 +2,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
+#include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 
 #ifdef __EMSCRIPTEN__
@@ -14,6 +17,8 @@ struct TTF_Font;
 #endif
 
 namespace ptgn {
+
+static constexpr std::int32_t default_font_size{ 18 };
 
 namespace impl {
 
@@ -63,49 +68,24 @@ class Font : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;
 
+	int GetLineSkip(std::optional<float> font_size) const;
+
+	/// @param Text to calculate size of, in UTF-8 encoding.
+	/// @param font_size Optional font size to check the size for. If {}, uses the current font
+	/// size.
+	/// @param max_wrap_width The maximum width or 0 to wrap on newline characters.
+	V2_int GetSize(
+		const std::string& content, std::optional<float> font_size = {}, int max_wrap_width = 0
+	) const;
+
+	/// @param font_size Optional font size to check the height for. If {}, uses the current font
+	/// size.
+	int GetHeight(std::optional<float> font_size = {}) const;
+
 private:
+	std::shared_ptr<TTF_Font> Get(std::optional<float> font_size) const;
+
 	friend class AssetManager;
 };
-
-namespace impl {
-
-// static constexpr std::int32_t default_font_size{ 18 };
-// static constexpr std::int32_t default_font_index{ 0 };
-
-// struct FontSize : public ArithmeticComponent<std::int32_t> {
-//	using ArithmeticComponent::ArithmeticComponent;
-//
-//	FontSize() : ArithmeticComponent{ default_font_size } {}
-//
-//	[[nodiscard]] FontSize GetHD(const Scene& scene, const Camera& camera) const;
-// };
-
-// Empty font key corresponds to the engine default font.
-// void SetDefaultFont(const ResourceHandle& key = {});
-
-//[[nodiscard]] static SDL_RWops* GetRawBuffer(const FontBinary& binary);
-
-// @param free_buffer If true, frees raw_buffer after use.
-//[[nodiscard]] static TTF_Font* LoadFromBinary(
-//	SDL_RWops* raw_buffer, std::int32_t size, std::int32_t index, bool free_buffer
-//);
-
-//[[nodiscard]] static Font LoadFromBinary(
-//	const FontBinary& binary, std::int32_t size, std::int32_t index
-//);
-
-//[[nodiscard]] static Font LoadFromFile(
-//	const path& filepath, std::int32_t size, std::int32_t index
-//);
-
-//[[nodiscard]] static Font LoadFromFile(const path& filepath);
-
-//[[nodiscard]] TemporaryFont Get(const ResourceHandle& key, const FontSize& font_size = {}) const;
-
-// ResourceHandle default_key_;
-
-// SDL_RWops* raw_default_font_{ nullptr };
-
-} // namespace impl
 
 } // namespace ptgn
