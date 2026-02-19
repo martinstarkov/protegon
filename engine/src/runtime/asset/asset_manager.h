@@ -1,17 +1,17 @@
 #pragma once
 
+#include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 
 #include "core/util/file.h"
 #include "ecs/ecs.h"
+#include "renderer/primitives/font.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "runtime/asset/audio_asset.h"
-#include "runtime/asset/font_asset.h"
-#include "runtime/asset/shader_asset.h"
-#include "runtime/asset/texture_asset.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 
@@ -24,7 +24,7 @@ namespace impl {
 struct SDLInstance;
 
 struct AssetName {
-	AssetName(std::string_view name) : name{ name } {}
+	explicit AssetName(std::string_view name) : name{ name } {}
 
 	std::string name;
 };
@@ -44,40 +44,72 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	Audio LoadAudio(const path& audio_path);
-	json LoadJson(const path& json_path);
-	Shader LoadShader(const std::variant<ShaderCode, path>& source, const std::string& shader_name);
-	Shader LoadShader(
-		const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
-	);
-	Texture LoadTexture(const path& texture_path);
-	Font LoadFont(const path& font_path, float point_size);
-
+	Audio CreateAudio(const path& audio_path);
 	Audio LoadAudio(std::string_view key, const path& audio_path);
-	json LoadJson(std::string_view key, const path& json_path);
+
+	json CreateJson(const path& json_path);
+	json& LoadJson(std::string_view key, const path& json_path);
+
+	Shader CreateShader(
+		const std::variant<ShaderCode, path>& source, const std::string& shader_name
+	);
 	Shader LoadShader(
 		std::string_view key, const std::variant<ShaderCode, path>& source,
 		const std::string& shader_name
+	);
+	Shader CreateShader(
+		const std::variant<ShaderCode, std::string>& vertex,
+		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 	);
 	Shader LoadShader(
 		std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
 		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 	);
+
+	Texture CreateTexture(const path& texture_path);
 	Texture LoadTexture(std::string_view key, const path& texture_path);
+
+	Font CreateFont(const path& font_path, float point_size);
 	Font LoadFont(std::string_view key, const path& font_path, float point_size);
 
-	void UnloadAudio(std::string_view key);
-	void UnloadJson(std::string_view key);
-	void UnloadShader(std::string_view key);
-	void UnloadTexture(std::string_view key);
-	void UnloadFont(std::string_view key);
+	bool UnloadAudio(std::string_view key);
+	bool UnloadJson(std::string_view key);
+	bool UnloadShader(std::string_view key);
+	bool UnloadTexture(std::string_view key);
+	bool UnloadFont(std::string_view key);
+
+	std::optional<std::reference_wrapper<json>> GetJson(std::string_view key);
+	std::optional<std::reference_wrapper<const json>> GetJson(std::string_view key) const;
+	std::optional<Audio> GetAudio(std::string_view key) const;
+	std::optional<Shader> GetShader(std::string_view key) const;
+	std::optional<Texture> GetTexture(std::string_view key) const;
+	std::optional<Font> GetFont(std::string_view key) const;
+
+	[[nodiscard]] bool HasJson(std::string_view key) const;
+	[[nodiscard]] bool HasAudio(std::string_view key) const;
+	[[nodiscard]] bool HasShader(std::string_view key) const;
+	[[nodiscard]] bool HasTexture(std::string_view key) const;
+	[[nodiscard]] bool HasFont(std::string_view key) const;
 
 private:
 	friend class Shader;
 	friend class Texture;
 
+	Shader CreateShader(
+		bool persistent, const std::variant<ShaderCode, path>& source,
+		const std::string& shader_name
+	);
+	Shader CreateShader(
+		bool persistent, const std::variant<ShaderCode, std::string>& vertex,
+		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+	);
+	Texture CreateTexture(bool persistent, const path& asset_path);
+	Font CreateFont(bool persistent, const path& asset_path, float pt_size);
+	Audio CreateAudio(bool persistent, const path& asset_path);
+
 	ecs::Entity CreateAsset();
+
+	std::unordered_map<std::size_t, json> jsons_;
 
 	ecs::Manager manager_;
 	impl::SDLInstance& sdl_;

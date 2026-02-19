@@ -4,6 +4,8 @@
 #include <memory>
 #include <utility>
 
+#include "core/util/entity_handle.h"
+
 #ifdef __EMSCRIPTEN__
 struct _TTF_Font;
 using TTF_Font = _TTF_Font;
@@ -17,6 +19,10 @@ namespace impl {
 
 struct TTF_FontDeleter {
 	void operator()(TTF_Font* font) const;
+};
+
+struct FontSize {
+	float point_size{ 0.0f };
 };
 
 } // namespace impl
@@ -52,6 +58,14 @@ enum class FontStyle : int {
 [[nodiscard]] inline FontStyle operator|(FontStyle a, FontStyle b) {
 	return static_cast<FontStyle>(std::to_underlying(a) | std::to_underlying(b));
 }
+
+class Font : public EntityHandle {
+public:
+	using EntityHandle::EntityHandle;
+
+private:
+	friend class AssetManager;
+};
 
 namespace impl {
 

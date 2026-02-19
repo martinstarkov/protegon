@@ -3,7 +3,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "runtime/asset/texture_asset.h"
+#include "renderer/resources/texture.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/entity.h"

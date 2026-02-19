@@ -3,11 +3,13 @@
 #include <cstdint>
 
 #include "core/math/vector2.h"
+#include "core/util/entity_handle.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
-#include "renderer/resources/texture.h"
 
 namespace ptgn {
+
+class AssetManager;
 
 namespace impl {
 
@@ -86,9 +88,7 @@ inline bool IsHDRFormat(TextureFormat fmt) {
 	}
 }
 
-//
 // Texture Minification Filter (GL_TEXTURE_MIN_FILTER)
-//
 enum class TextureMinFilter : std::uint32_t {
 	Nearest				 = 0x2600, // GL_NEAREST
 	Linear				 = 0x2601, // GL_LINEAR
@@ -98,17 +98,13 @@ enum class TextureMinFilter : std::uint32_t {
 	LinearMipmapLinear	 = 0x2703  // GL_LINEAR_MIPMAP_LINEAR
 };
 
-//
 // Texture Magnification Filter (GL_TEXTURE_MAG_FILTER)
-//
 enum class TextureMagFilter : std::uint32_t {
 	Nearest = 0x2600, // GL_NEAREST
 	Linear	= 0x2601  // GL_LINEAR
 };
 
-//
 // Texture Wrap Mode (GL_TEXTURE_WRAP_S / GL_TEXTURE_WRAP_T)
-//
 enum class TextureWrap : std::uint32_t {
 	Repeat		   = 0x2901, // GL_REPEAT
 	MirroredRepeat = 0x8370, // GL_MIRRORED_REPEAT
@@ -128,5 +124,18 @@ public:
 };
 
 } // namespace impl
+
+class Texture : public EntityHandle {
+public:
+	using EntityHandle::EntityHandle;
+
+	V2_int GetSize() const;
+	TextureFormat GetFormat() const;
+
+	operator impl::TextureId() const;
+
+private:
+	friend class AssetManager;
+};
 
 } // namespace ptgn

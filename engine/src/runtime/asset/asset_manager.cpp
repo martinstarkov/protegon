@@ -7,12 +7,15 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
@@ -24,13 +27,14 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "runtime/asset/asset_handle.h"
-#include "runtime/asset/audio_asset.h"
-#include "runtime/asset/font_asset.h"
-#include "runtime/asset/shader_asset.h"
-#include "runtime/asset/texture_asset.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
+
+#ifdef CreateFont
+#undef CreateFont
+#endif
+#include <functional>
+#include <optional>
 
 // TODO: Add async asset loading.
 
@@ -39,10 +43,10 @@ namespace ptgn {
 AssetManager::AssetManager(impl::SDLInstance& sdl, Renderer& renderer) :
 	sdl_{ sdl }, renderer_{ renderer } {}
 
-Shader AssetManager::LoadShader(
-	const std::variant<ShaderCode, path>& source, const std::string& shader_name
+Shader AssetManager::CreateShader(
+	bool persistent, const std::variant<ShaderCode, path>& source, const std::string& shader_name
 ) {
-	Shader shader{ CreateAsset() };
+	Shader shader{ CreateAsset(), persistent };
 	shader.entity_.Add<impl::ShaderObject>(
 		renderer_.gl_renderer_.get(),
 		renderer_.gl_renderer_->gl->shaders.CreateProgram(source, shader_name)
@@ -50,11 +54,11 @@ Shader AssetManager::LoadShader(
 	return shader;
 }
 
-Shader AssetManager::LoadShader(
-	const std::variant<ShaderCode, std::string>& vertex,
+Shader AssetManager::CreateShader(
+	bool persistent, const std::variant<ShaderCode, std::string>& vertex,
 	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 ) {
-	Shader shader{ CreateAsset() };
+	Shader shader{ CreateAsset(), persistent };
 	shader.entity_.Add<impl::ShaderObject>(
 		renderer_.gl_renderer_.get(),
 		renderer_.gl_renderer_->gl->shaders.CreateProgram(vertex, fragment, shader_name)
@@ -62,14 +66,14 @@ Shader AssetManager::LoadShader(
 	return shader;
 }
 
-Texture AssetManager::LoadTexture(const path& asset_path) {
+Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create texture from invalid path: ", asset_path.string()
 	);
 
 	impl::Surface surface{ asset_path };
 
-	Texture texture{ CreateAsset() };
+	Texture texture{ CreateAsset(), persistent };
 	texture.entity_.Add<impl::TextureObject>(
 		renderer_.gl_renderer_.get(),
 		renderer_.gl_renderer_->gl->textures.CreateTexture(
@@ -80,7 +84,7 @@ Texture AssetManager::LoadTexture(const path& asset_path) {
 	return texture;
 }
 
-Font AssetManager::LoadFont(const path& asset_path, float pt_size) {
+Font AssetManager::CreateFont(bool persistent, const path& asset_path, float pt_size) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create font from invalid path: ", asset_path.string()
 	);
@@ -91,14 +95,14 @@ Font AssetManager::LoadFont(const path& asset_path, float pt_size) {
 
 	std::shared_ptr<TTF_Font> f{ ttf_font, impl::TTF_FontDeleter{} };
 
-	Font font{ CreateAsset() };
+	Font font{ CreateAsset(), persistent };
 	font.entity_.Add<impl::FontSize>(pt_size);
 	font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
 
 	return font;
 }
 
-Audio AssetManager::LoadAudio(const path& asset_path) {
+Audio AssetManager::CreateAudio(bool persistent, const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create audio from invalid path: ", asset_path.string()
 	);
@@ -111,37 +115,52 @@ Audio AssetManager::LoadAudio(const path& asset_path) {
 
 	std::shared_ptr<MIX_Audio> a{ mix_audio, impl::MIX_AudioDeleter{} };
 
-	Audio audio{ CreateAsset() };
+	Audio audio{ CreateAsset(), persistent };
 	audio.entity_.Add<std::shared_ptr<MIX_Audio>>(a);
 
 	return audio;
 }
 
-json AssetManager::LoadJson(const path& asset_path) {
-	PTGN_ASSERT(
-		FileExists(asset_path), "Cannot create json from invalid path: ", asset_path.string()
-	);
+Shader AssetManager::CreateShader(
+	const std::variant<ShaderCode, path>& source, const std::string& shader_name
+) {
+	return CreateShader(false, source, shader_name);
+}
 
-	json j{ ptgn::LoadJson(asset_path) };
+Shader AssetManager::CreateShader(
+	const std::variant<ShaderCode, std::string>& vertex,
+	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+) {
+	return CreateShader(false, vertex, fragment, shader_name);
+}
 
-	/*
-	// TODO: Make json an asset
-	JsonAsset json_asset{ CreateAsset() };
-	json_asset.entity_.Add<json>(j);
-	return json_asset;
-	*/
+Texture AssetManager::CreateTexture(const path& asset_path) {
+	return CreateTexture(false, asset_path);
+}
 
-	return j;
+Font AssetManager::CreateFont(const path& asset_path, float pt_size) {
+	return CreateFont(false, asset_path, pt_size);
+}
+
+Audio AssetManager::CreateAudio(const path& asset_path) {
+	return CreateAudio(false, asset_path);
+}
+
+json AssetManager::CreateJson(const path& asset_path) {
+	return ptgn::LoadJson(asset_path);
+}
+
+static void AddKey(ecs::Entity asset, std::string_view key) {
+	asset.Add<impl::AssetName>(key);
+	asset.Add<impl::AssetKey>(Hash(key));
 }
 
 Shader AssetManager::LoadShader(
 	std::string_view key, const std::variant<ShaderCode, path>& source,
 	const std::string& shader_name
 ) {
-	auto shader{ LoadShader(source, shader_name) };
-	shader.entity_.Add<impl::PersistentTag>();
-	shader.entity_.Add<impl::AssetName>(key);
-	shader.entity_.Add<impl::AssetKey>(Hash(key));
+	auto shader{ CreateShader(true, source, shader_name) };
+	AddKey(shader.entity_, key);
 	return shader;
 }
 
@@ -149,102 +168,160 @@ Shader AssetManager::LoadShader(
 	std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
 	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 ) {
-	auto shader{ LoadShader(vertex, fragment, shader_name) };
-	shader.entity_.Add<impl::PersistentTag>();
-	shader.entity_.Add<impl::AssetName>(key);
-	shader.entity_.Add<impl::AssetKey>(Hash(key));
+	auto shader{ CreateShader(true, vertex, fragment, shader_name) };
+	AddKey(shader.entity_, key);
 	return shader;
 }
 
 Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
-	auto texture{ LoadTexture(asset_path) };
-	texture.entity_.Add<impl::PersistentTag>();
-	texture.entity_.Add<impl::AssetName>(key);
-	texture.entity_.Add<impl::AssetKey>(Hash(key));
+	auto texture{ CreateTexture(true, asset_path) };
+	AddKey(texture.entity_, key);
 	return texture;
 }
 
 Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float pt_size) {
-	auto font{ LoadFont(asset_path, pt_size) };
-	font.entity_.Add<impl::PersistentTag>();
-	font.entity_.Add<impl::AssetName>(key);
-	font.entity_.Add<impl::AssetKey>(Hash(key));
+	auto font{ CreateFont(true, asset_path, pt_size) };
+	AddKey(font.entity_, key);
 	return font;
 }
 
 Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
-	auto audio{ LoadAudio(asset_path) };
-	audio.entity_.Add<impl::PersistentTag>();
-	audio.entity_.Add<impl::AssetName>(key);
-	audio.entity_.Add<impl::AssetKey>(Hash(key));
+	auto audio{ CreateAudio(true, asset_path) };
+	AddKey(audio.entity_, key);
 	return audio;
 }
 
-json AssetManager::LoadJson(std::string_view key, const path& asset_path) {
-	return LoadJson(asset_path);
-	// TODO: Add these back once json is an asset.
-	// auto json{ LoadJson(asset_path) };
-	// json.entity_.Add<impl::PersistentTag>();
-	// json.entity_.Add<impl::AssetName>(key);
-	// json.entity_.Add<impl::AssetKey>(Hash(key));
-	// return json;
+json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
+	auto [it, _] = jsons_.insert_or_assign(Hash(key), ptgn::LoadJson(asset_path));
+	return it->second;
 }
 
-void AssetManager::UnloadAudio(std::string_view key) {
+template <typename ResourceComponent>
+bool UnloadAssetImpl(ecs::Manager& manager, std::string_view key) {
 	auto hash{ Hash(key) };
-	for (auto [entity, k, r] :
-		 manager_.EntitiesWith<impl::AssetKey, std::shared_ptr<MIX_Audio>>()) {
+
+	bool unloaded{ false };
+
+	for (auto [entity, k, resource] : manager.EntitiesWith<impl::AssetKey, ResourceComponent>()) {
 		if (k.hash == hash) {
+			unloaded = true;
 			entity.Destroy();
 		}
 	}
-	manager_.Refresh();
+
+	manager.Refresh();
+	return unloaded;
 }
 
-void AssetManager::UnloadJson(std::string_view key) {
-	auto hash{ Hash(key) };
-	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, json>()) {
-		if (k.hash == hash) {
-			entity.Destroy();
-		}
-	}
-	manager_.Refresh();
+bool AssetManager::UnloadAudio(std::string_view key) {
+	return UnloadAssetImpl<std::shared_ptr<MIX_Audio>>(manager_, key);
 }
 
-void AssetManager::UnloadShader(std::string_view key) {
-	auto hash{ Hash(key) };
-	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, impl::ShaderObject>()) {
-		if (k.hash == hash) {
-			entity.Destroy();
-		}
-	}
-	manager_.Refresh();
+bool AssetManager::UnloadJson(std::string_view key) {
+	return jsons_.erase(Hash(key)) != 0;
 }
 
-void AssetManager::UnloadTexture(std::string_view key) {
-	auto hash{ Hash(key) };
-	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, impl::TextureObject>()) {
-		if (k.hash == hash) {
-			entity.Destroy();
-		}
-	}
-	manager_.Refresh();
+bool AssetManager::UnloadShader(std::string_view key) {
+	return UnloadAssetImpl<impl::ShaderObject>(manager_, key);
 }
 
-void AssetManager::UnloadFont(std::string_view key) {
-	auto hash{ Hash(key) };
-	for (auto [entity, k, r] : manager_.EntitiesWith<impl::AssetKey, std::shared_ptr<TTF_Font>>()) {
-		if (k.hash == hash) {
-			entity.Destroy();
-		}
-	}
-	manager_.Refresh();
+bool AssetManager::UnloadTexture(std::string_view key) {
+	return UnloadAssetImpl<impl::TextureObject>(manager_, key);
+}
+
+bool AssetManager::UnloadFont(std::string_view key) {
+	return UnloadAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
 }
 
 ecs::Entity AssetManager::CreateAsset() {
 	auto asset{ manager_.CreateEntity() };
 	manager_.Refresh();
 	return asset;
+}
+
+template <typename ResourceComponent, typename HandleType>
+std::optional<HandleType> GetAssetImpl(const ecs::Manager& manager, std::string_view key) {
+	auto hash{ Hash(key) };
+
+	for (auto [entity, k, resource] : manager.EntitiesWith<impl::AssetKey, ResourceComponent>()) {
+		if (k.hash == hash) {
+			return HandleType{ entity, true };
+		}
+	}
+
+	return std::nullopt;
+}
+
+std::optional<Audio> AssetManager::GetAudio(std::string_view key) const {
+	return GetAssetImpl<std::shared_ptr<MIX_Audio>, Audio>(manager_, key);
+}
+
+std::optional<Shader> AssetManager::GetShader(std::string_view key) const {
+	return GetAssetImpl<impl::ShaderObject, Shader>(manager_, key);
+}
+
+std::optional<Texture> AssetManager::GetTexture(std::string_view key) const {
+	return GetAssetImpl<impl::TextureObject, Texture>(manager_, key);
+}
+
+std::optional<Font> AssetManager::GetFont(std::string_view key) const {
+	return GetAssetImpl<std::shared_ptr<TTF_Font>, Font>(manager_, key);
+}
+
+std::optional<std::reference_wrapper<const json>> AssetManager::GetJson(std::string_view key
+) const {
+	auto hash{ Hash(key) };
+
+	auto it = jsons_.find(hash);
+	if (it == jsons_.end()) {
+		return std::nullopt;
+	}
+
+	return std::cref(it->second);
+}
+
+std::optional<std::reference_wrapper<json>> AssetManager::GetJson(std::string_view key) {
+	auto hash{ Hash(key) };
+
+	auto it = jsons_.find(hash);
+	if (it == jsons_.end()) {
+		return std::nullopt;
+	}
+
+	return std::ref(it->second);
+}
+
+template <typename ResourceComponent>
+bool HasAssetImpl(const ecs::Manager& manager, std::string_view key) {
+	auto hash{ Hash(key) };
+
+	for (auto [entity, k, resource] : manager.EntitiesWith<impl::AssetKey, ResourceComponent>()) {
+		if (k.hash == hash) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool AssetManager::HasJson(std::string_view key) const {
+	return jsons_.contains(Hash(key));
+}
+
+bool AssetManager::HasAudio(std::string_view key) const {
+	return HasAssetImpl<std::shared_ptr<MIX_Audio>>(manager_, key);
+}
+
+bool AssetManager::HasShader(std::string_view key) const {
+	return HasAssetImpl<impl::ShaderObject>(manager_, key);
+}
+
+bool AssetManager::HasTexture(std::string_view key) const {
+	return HasAssetImpl<impl::TextureObject>(manager_, key);
+}
+
+bool AssetManager::HasFont(std::string_view key) const {
+	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
 }
 
 } // namespace ptgn

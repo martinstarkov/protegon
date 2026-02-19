@@ -2,10 +2,13 @@
 
 #include <string>
 
+#include "core/util/entity_handle.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 
 namespace ptgn {
+
+class AssetManager;
 
 struct ShaderCode {
 	std::string content;
@@ -26,5 +29,15 @@ public:
 };
 
 } // namespace impl
+
+class Shader : public EntityHandle {
+public:
+	using EntityHandle::EntityHandle;
+
+	operator impl::ShaderId() const;
+
+private:
+	friend class AssetManager;
+};
 
 } // namespace ptgn

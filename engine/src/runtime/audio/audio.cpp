@@ -2,9 +2,6 @@
 
 #include <SDL3_mixer/SDL_mixer.h>
 
-#include <memory>
-#include <utility>
-
 namespace ptgn {
 
 namespace impl {

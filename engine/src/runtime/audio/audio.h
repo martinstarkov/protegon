@@ -1,10 +1,12 @@
 #pragma once
 
-#include <memory>
+#include "core/util/entity_handle.h"
 
 struct MIX_Audio;
 
 namespace ptgn {
+
+class AssetManager;
 
 namespace impl {
 
@@ -13,6 +15,14 @@ struct MIX_AudioDeleter {
 };
 
 } // namespace impl
+
+class Audio : public EntityHandle {
+public:
+	using EntityHandle::EntityHandle;
+
+private:
+	friend class AssetManager;
+};
 
 } // namespace ptgn
 

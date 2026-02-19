@@ -16,7 +16,6 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
-#include "runtime/asset/texture_asset.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/components/sprite.h"
