@@ -55,11 +55,32 @@ struct RenderTargetData;
 
 namespace ptgn::impl::gl {
 
+class GLContext;
+
+// This class exists to ensure the OpenGL context is destroyed after things like shaders.
+class SDLGLContext {
+private:
+	friend class GLContext;
+
+	SDLGLContext() = delete;
+	explicit SDLGLContext(const Window& window);
+	~SDLGLContext() noexcept;
+	SDLGLContext(const SDLGLContext&)				 = delete;
+	SDLGLContext(SDLGLContext&&) noexcept			 = delete;
+	SDLGLContext& operator=(const SDLGLContext&)	 = delete;
+	SDLGLContext& operator=(SDLGLContext&&) noexcept = delete;
+
+	SDL_GLContextState* context_{ nullptr };
+};
+
 class GLContext {
+private:
+	SDLGLContext context_;
+
 public:
 	GLContext() = delete;
 	explicit GLContext(const Window& window);
-	~GLContext() noexcept;
+	~GLContext() noexcept					   = default;
 	GLContext(const GLContext&)				   = delete;
 	GLContext(GLContext&&) noexcept			   = delete;
 	GLContext& operator=(const GLContext&)	   = delete;
@@ -152,8 +173,6 @@ public:
 
 private:
 	State bound_;
-
-	SDL_GLContextState* context_{ nullptr };
 };
 
 } // namespace ptgn::impl::gl

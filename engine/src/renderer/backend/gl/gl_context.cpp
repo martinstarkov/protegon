@@ -61,13 +61,7 @@ struct GLVersion {
 	int minor{ 0 };
 };
 
-GLContext::GLContext(const Window& window) :
-	buffers{ *this },
-	shaders{ *this },
-	textures{ *this },
-	renderbuffers{ *this },
-	framebuffers{ *this },
-	vertex_arrays{ *this } {
+SDLGLContext::SDLGLContext(const Window& window) {
 	if (context_ != nullptr) {
 		int result = SDL_GL_MakeCurrent(window, context_);
 		PTGN_ASSERT(!result, SDL_GetError());
@@ -90,7 +84,26 @@ GLContext::GLContext(const Window& window) :
 	}
 
 	LoadGLFunctions();
+}
 
+SDLGLContext::~SDLGLContext() noexcept {
+	if (context_) {
+		SDL_GL_DestroyContext(context_);
+		context_ = nullptr;
+		PTGN_INFO("Destroyed OpenGL context");
+		// Note: If this is the last message you see and the window does not close, it is likely
+		// that a GL asset is destructed after the GL context has been deleted.
+	}
+}
+
+GLContext::GLContext(const Window& window) :
+	context_{ window },
+	buffers{ *this },
+	shaders{ *this },
+	textures{ *this },
+	renderbuffers{ *this },
+	framebuffers{ *this },
+	vertex_arrays{ *this } {
 	// PTGN_LOG("OpenGL Build: ", GLCall(glGetString(GL_VERSION)));
 
 	auto max_texture_slots{ static_cast<std::size_t>(GetInteger(GL_MAX_TEXTURE_IMAGE_UNITS)) };
@@ -103,16 +116,6 @@ GLContext::GLContext(const Window& window) :
 	framebuffers.Init(max_color_attachments);
 
 	shaders.Populate(max_texture_slots);
-}
-
-GLContext::~GLContext() {
-	if (context_) {
-		SDL_GL_DestroyContext(context_);
-		context_ = nullptr;
-		PTGN_INFO("Destroyed OpenGL context");
-		// Note: If this is the last message you see and the window does not close, it is likely
-		// that a GL asset is destructed after the GL context has been deleted.
-	}
 }
 
 BindGuard<VertexBufferId> GLContext::Bind(VertexBufferId id, bool restore_bind) {
