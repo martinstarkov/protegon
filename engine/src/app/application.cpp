@@ -3,6 +3,7 @@
 #include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_version.h>
 #include <SDL3/SDL_video.h>
 #include <SDL3_image/SDL_image.h>
@@ -21,12 +22,11 @@
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
-#include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "platform/input/events.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/renderer.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
@@ -107,7 +107,6 @@ SDLInstance::SDLInstance() {
 	// When using AppleClang, the working directory for the executable is set to $HOME instead of
 	// the executable directory. Therefore, the C++ code corrects the working directory using
 	// std::filesystem so that relative paths work properly.
-	//
 	// TODO: Add check that this hasnt happened yet.
 	char path[1024];
 	std::uint32_t size = sizeof(path);
@@ -133,12 +132,6 @@ SDLInstance::SDLInstance() {
 	chdir(path);*/
 #endif
 
-#ifdef PTGN_DEBUG
-	PTGN_INFO("Build Type: Debug");
-#else
-	PTGN_INFO("Build Type: Release");
-#endif
-
 	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO };
 	PTGN_ASSERT(
 		SDL_WasInit(sdl_flags) != sdl_flags, "Cannot reinitialize SDL instance before shutting down"
@@ -146,6 +139,12 @@ SDLInstance::SDLInstance() {
 
 	bool sdl_init{ SDL_Init(sdl_flags) };
 	PTGN_ASSERT(sdl_init, SDL_GetError());
+
+#ifdef PTGN_DEBUG
+	PTGN_INFO("Build Type: Debug");
+#else
+	PTGN_INFO("Build Type: Release");
+#endif
 
 	PTGN_INFO("Initialized SDL version: ", FormatSDLVersion(SDL_GetVersion()));
 
@@ -196,6 +195,13 @@ Application::Application(const ApplicationConfig& config) :
 	scenes_.SetContext(ctx_);
 }
 
+milliseconds Application::TimeSinceStart() const {
+	return milliseconds{ static_cast<milliseconds::rep>(SDL_GetTicks()) };
+	// return std::chrono::duration_cast<milliseconds>(
+	//	std::chrono::steady_clock::now().time_since_epoch()
+	//);
+}
+
 void Application::EnterMainLoop() {
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
@@ -206,6 +212,7 @@ void Application::EnterMainLoop() {
 	renderer_.UpdateDisplayViewport(window_.GetSize(), false);
 
 #ifdef __EMSCRIPTEN__
+	// TODO: Replace with new SDL3 callbacks.
 	EmscriptenInit(window_);
 	emscripten_set_main_loop_arg(
 		impl::EmscriptenMainLoop, this, /*fps=*/0, /*simulateInfiniteLoop=*/true

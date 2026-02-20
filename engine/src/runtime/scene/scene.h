@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -375,6 +376,11 @@ public:
 	Entity camera;
 };
 
+template <typename T>
+concept SceneType = std::derived_from<T, Scene>;
+
+} // namespace ptgn
+
 /*
 // TODO: Fix these.
 
@@ -442,5 +448,3 @@ namespace impl {
 
 } // namespace impl
 */
-
-} // namespace ptgn

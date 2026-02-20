@@ -12,6 +12,7 @@ class EventHandler;
 class InputHandler;
 class AssetManager;
 
+/// @brief Provides controlled access to core subsystems of an Application.
 class ApplicationContext {
 private:
 	Application& app_;
@@ -26,13 +27,19 @@ public:
 	InputHandler& input;
 	AssetManager& assets;
 
+	/// @brief Terminates the main application loop.
 	void Stop();
 
+	/// @brief Returns the delta time of the current frame.
 	secondsf DeltaTime() const;
 
+	/// @brief Returns the time elapsed since the Application instance was constructed.
 	[[nodiscard]] milliseconds TimeSinceStart() const;
 
+	/// @brief Returns whether the application is currently running.
 	bool IsRunning() const;
+
+	/// @brief Returns the total number of frames that the application has run for.
 	std::size_t GetFrameCount() const;
 };
 

@@ -71,9 +71,10 @@ public:
 		ev.delta	= +1;
 		ev.newCount = *counter_;
 
-		EmitScene(ev);							   // scene-local inventory change
+		EmitScene(ev); // scene-local inventory change
 
-		Emit(EAnnounceGlobal{ "picked up loot" }); // global
+		EAnnounceGlobal g{ "picked up loot" };
+		Emit(g); // global
 	}
 
 private:
@@ -85,7 +86,8 @@ public:
 	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<MouseDown>([this](auto& e) {
 			if (e.button == Mouse::Left && !e.held) {
-				Emit(EAnnounceGlobal{ "Mouse down!" });
+				EAnnounceGlobal g{ "Mouse down!" };
+				Emit(g);
 				return true; // handled -> stop bubbling
 			}
 			return false;

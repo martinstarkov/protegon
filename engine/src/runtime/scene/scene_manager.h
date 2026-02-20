@@ -1,11 +1,16 @@
 #pragma once
 
+#include <algorithm>
+#include <chrono>
 #include <concepts>
+#include <functional>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "app/context.h"
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
 #include "runtime/scene/scene.h"
@@ -129,8 +134,7 @@ public:
 	SceneManager& operator=(const SceneManager&)	 = delete;
 	SceneManager& operator=(SceneManager&&) noexcept = default;
 
-	// TODO: Add concept.
-	template <typename TScene, typename... TArgs>
+	template <SceneType TScene, typename... TArgs>
 	void SwitchTo(
 		std::string_view scene_key, std::unique_ptr<Transition> transition, TArgs&&... args
 	) {
@@ -146,8 +150,7 @@ public:
 		Enqueue(std::move(op));
 	}
 
-	// TODO: Add concept.
-	template <typename TScene, typename... TArgs>
+	template <SceneType TScene, typename... TArgs>
 	void Overlay(
 		std::string_view scene_key, std::unique_ptr<Transition> transition, int z, TArgs&&... args
 	) {
@@ -479,7 +482,6 @@ private:
 		return entries_[index].blocks_input;
 	}
 
-	// --- Bookkeeping ---
 	std::size_t TopIndex() const {
 		return entries_.empty() ? SIZE_MAX : entries_.size() - 1;
 	}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <concepts>
 #include <cstdint>
 #include <ostream>
@@ -10,18 +11,18 @@
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
 
-// TODO: Stop exposing assert.h
-
 struct SDL_Color;
 
 namespace ptgn {
 
+/// @brief 8-bit RGBA color.
 struct Color {
 	std::uint8_t r{ 0 };
 	std::uint8_t g{ 0 };
 	std::uint8_t b{ 0 };
 	std::uint8_t a{ 0 };
 
+	/// @return Pointer to the first color component (r) of the contiguous RGBA byte data.
 	constexpr std::uint8_t* Data() noexcept {
 		static_assert(std::is_standard_layout_v<Color>);
 		return &r;
@@ -32,18 +33,22 @@ struct Color {
 		return &r;
 	}
 
-	// Default color is black.
+	// Default color is transparent.
 	constexpr Color() = default;
 
 	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
 		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
 
+	/// @brief Constructs from normalized RGBA values [r, g, b, a].
+	/// @param color Components expected in range [0, 1].
 	explicit constexpr Color(std::array<float, 4> color) :
 		Color{ V4_float{ color[0], color[1], color[2], color[3] } } {}
 
 	explicit constexpr Color(std::array<std::uint8_t, 4> color) :
 		Color{ color[0], color[1], color[2], color[3] } {}
 
+	/// @brief Constructs from normalized RGBA vector (x == r, y == g, z == b, w == a).
+	/// @param color Components expected in range [0, 1].
 	explicit constexpr Color(V4_float color) :
 		r{ static_cast<std::uint8_t>(color.x * 255.0f) },
 		g{ static_cast<std::uint8_t>(color.y * 255.0f) },
@@ -52,8 +57,8 @@ struct Color {
 		PTGN_ASSERT(color.IsNormalized(), "Color must be normalized");
 	}
 
-	// @param alpha Value of transparency to set for the color.
-	// @return A copy of the color with the alpha value changed.
+	/// @param alpha Value of transparency to set for the color.
+	/// @return A copy of the color with the modified alpha channel.
 	template <Arithmetic T>
 	[[nodiscard]] constexpr Color WithAlpha(T alpha) const {
 		if constexpr (std::is_floating_point_v<T>) {
@@ -69,7 +74,7 @@ struct Color {
 		}
 	}
 
-	// @return Color values normalized to [0, 1] range.
+	/// @return Color values normalized in range [0, 1].
 	[[nodiscard]] constexpr V4_float Normalized() const {
 		return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
 				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
@@ -88,8 +93,21 @@ struct Color {
 		return { r, g, b, a };
 	}
 
+	/// @brief Generates a random fully opaque color.
 	[[nodiscard]] static Color RandomOpaque();
+
+	/// @brief Generates a random color including a random alpha.
 	[[nodiscard]] static Color RandomTransparent();
+
+	/// @return True if color is fully transparent.
+	[[nodiscard]] constexpr bool IsTransparent() const noexcept {
+		return a == 0;
+	}
+
+	/// @return True if color is fully opaque.
+	[[nodiscard]] constexpr bool IsOpaque() const noexcept {
+		return a == 255;
+	}
 
 	bool operator==(const Color&) const = default;
 
@@ -108,6 +126,8 @@ struct Color {
 	}
 };
 
+/// @brief Linearly interpolates between two colors (per-channel).
+/// @param t Interpolation factor in range [0, 1].
 template <std::floating_point U>
 [[nodiscard]] inline Color Lerp(Color lhs, Color rhs, U t) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
@@ -116,6 +136,11 @@ template <std::floating_point U>
 				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
 }
 
+/// @brief Linearly interpolates between two colors (per-channel).
+/// @param t_r Red interpolation factor in range [0, 1]
+/// @param t_g Green interpolation factor in range [0, 1].
+/// @param t_b Blue interpolation factor in range [0, 1].
+/// @param t_a Alpha interpolation factor in range [0, 1].
 template <std::floating_point U>
 [[nodiscard]] inline Color Lerp(Color lhs, Color rhs, U t_r, U t_g, U t_b, U t_a) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),

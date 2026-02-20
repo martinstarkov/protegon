@@ -29,14 +29,17 @@ void from_json(const json& j, Color& color) {
 	PTGN_ASSERT(
 		j.size() == 4, "Deserializing a Color from json requires an array with four elements"
 	);
+
 	PTGN_ASSERT(j[0].is_number_unsigned(), "Color array elements must be unsigned integers");
 	PTGN_ASSERT(j[1].is_number_unsigned(), "Color array elements must be unsigned integers");
 	PTGN_ASSERT(j[2].is_number_unsigned(), "Color array elements must be unsigned integers");
 	PTGN_ASSERT(j[3].is_number_unsigned(), "Color array elements must be unsigned integers");
+
 	PTGN_ASSERT(j[0] >= 0 && j[0] <= 255, "Color value outside of range [0, 255]");
 	PTGN_ASSERT(j[1] >= 0 && j[1] <= 255, "Color value outside of range [0, 255]");
 	PTGN_ASSERT(j[2] >= 0 && j[2] <= 255, "Color value outside of range [0, 255]");
 	PTGN_ASSERT(j[3] >= 0 && j[3] <= 255, "Color value outside of range [0, 255]");
+
 	color.r = j[0];
 	color.g = j[1];
 	color.b = j[2];

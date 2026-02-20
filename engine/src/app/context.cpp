@@ -1,12 +1,7 @@
 #include "app/context.h"
 
-#include <chrono>
-
 #include "app/application.h"
 #include "core/time/time.h"
-#include "platform/window/window.h"
-#include "renderer/renderer.h"
-#include "runtime/event/event_handler.h"
 
 namespace ptgn {
 
@@ -28,9 +23,7 @@ secondsf ApplicationContext::DeltaTime() const {
 }
 
 milliseconds ApplicationContext::TimeSinceStart() const {
-	return std::chrono::duration_cast<milliseconds>(
-		std::chrono::steady_clock::now().time_since_epoch()
-	);
+	return app_.TimeSinceStart();
 }
 
 bool ApplicationContext::IsRunning() const {

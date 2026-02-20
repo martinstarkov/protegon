@@ -7,82 +7,82 @@
 
 namespace ptgn {
 
+/// @brief Defines how a source pixel (src) is composited onto a destination pixel (dst).
 enum class BlendMode {
-	// Aka no blending.
+	/// No blending.
+	/// dstRGB = srcRGB
+	/// dstA   = srcA
 	ReplaceRGBA,
-	/**< Replace RGBA:
-		 dstRGB = srcRGB
-		 dstA   = srcA */
 
+	/// Standard alpha blending (non-premultiplied).
+	/// dstRGB = srcRGB * srcA + dstRGB * (1 - srcA)
+	/// dstA   = srcA + dstA * (1 - srcA)
 	Blend,
-	/**< Alpha blending:
-		 dstRGB = srcRGB * srcA + dstRGB * (1 - srcA)
-		 dstA   = srcA + dstA * (1 - srcA) */
 
+	/// Alpha blending for premultiplied input.
+	/// dstRGB = srcRGB + dstRGB * (1 - srcA)
+	/// dstA   = srcA + dstA * (1 - srcA)
 	PremultipliedBlend,
-	/**< Premultiplied alpha blending:
-		 dstRGB = srcRGB + dstRGB * (1 - srcA)
-		 dstA = srcA + dstA * (1 - srcA) */
 
+	/// Replace RGB only, preserve destination alpha.
+	/// dstRGB = srcRGB
+	/// dstA   = dstA
 	ReplaceRGB,
-	/**< Replace RGB:
-		 dstRGB = srcRGB
-		 dstA   = dstA */
 
+	/// Replace alpha only, preserve destination color.
+	/// dstRGB = dstRGB
+	/// dstA   = srcA
 	ReplaceAlpha,
-	/**< Replace alpha:
-		 dstRGB = dstRGB
-		 dstA   = srcA */
 
+	/// Additive RGB (scaled by source alpha), preserve destination alpha.
+	/// dstRGB = srcRGB * srcA + dstRGB
+	/// dstA   = dstA
 	AddRGB,
-	/**< Additive blending:
-		 dstRGB = srcRGB * srcA + dstRGB
-		 dstA   = dstA */
 
+	/// Additive RGB (scaled by source alpha) and additive alpha.
+	/// dstRGB = srcRGB * srcA + dstRGB
+	/// dstA   = srcA + dstA
 	AddRGBA,
-	/**< Additive blending with alpha:
-		 dstRGB = srcRGB * srcA + dstRGB
-		 dstA   = srcA + dstA */
 
+	/// Additive alpha only.
+	/// dstRGB = dstRGB
+	/// dstA   = srcA + dstA
 	AddAlpha,
-	/**< Additive blending for only alpha:
-		 dstRGB = dstRGB
-		 dstA   = srcA + dstA */
 
+	/// Premultiplied additive RGB, preserve destination alpha.
+	/// dstRGB = srcRGB + dstRGB
+	/// dstA   = dstA
 	PremultipliedAddRGB,
-	/**< Premultiplied additive blending:
-		 dstRGB = srcRGB + dstRGB
-		 dstA   = dstA */
 
+	/// Premultiplied additive RGB and additive alpha.
+	/// dstRGB = srcRGB + dstRGB
+	/// dstA   = srcA + dstA
 	PremultipliedAddRGBA,
-	/**< Premultiplied additive blending with alpha:
-		 dstRGB = srcRGB + dstRGB
-		 dstA   = srcA + dstA */
 
+	/// Color multiply, preserve destination alpha.
+	/// dstRGB = srcRGB * dstRGB
+	/// dstA   = dstA
 	MultiplyRGB,
-	/**< Color multiply:
-		 dstRGB = srcRGB * dstRGB
-		 dstA   = dstA */
 
+	/// Color and alpha multiply.
+	/// dstRGB = srcRGB * dstRGB
+	/// dstA   = srcA * dstA
 	MultiplyRGBA,
-	/**< Color multiply with alpha:
-		 dstRGB = srcRGB * dstRGB
-		 dstA   = srcA * dstA */
 
+	/// Alpha multiply only.
+	/// dstRGB = dstRGB
+	/// dstA   = srcA * dstA
 	MultiplyAlpha,
-	/**< Alpha multiply:
-		 dstRGB = dstRGB
-		 dstA   = srcA * dstA */
 
+	/// Color multiply with alpha blending fallback.
+	/// dstRGB = srcRGB * dstRGB + dstRGB * (1 - srcA)
+	/// dstA   = dstA
 	MultiplyRGBWithAlphaBlend,
-	/**< Color multiply:
-		 dstRGB = srcRGB * dstRGB + dstRGB * (1 - srcA)
-		 dstA   = dstA */
 
+	/// Color and alpha multiply with alpha blending semantics.
+	/// dstRGB = srcRGB * dstRGB + dstRGB * (1 - srcA)
+	/// dstA   = srcA * dstA
 	MultiplyRGBAWithAlphaBlend
-	/**< Color multiply:
-		 dstRGB = srcRGB * dstRGB + dstRGB * (1 - srcA)
-		 dstA   = srcA * dstA */
 };
 
 inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {

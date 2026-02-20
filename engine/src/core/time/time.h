@@ -49,7 +49,7 @@ constexpr To to_duration(const From& duration) {
 	return std::chrono::duration_cast<To>(duration);
 }
 
-// Generic helper: casts to target duration and returns its count.
+/// Generic helper: casts to target duration and returns its count.
 template <Duration To, Duration From>
 constexpr typename To::rep to_duration_value(const From& duration) {
 	return to_duration<To>(duration).count();

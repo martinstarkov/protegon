@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <concepts>
 #include <type_traits>
 
 #include "core/util/hash.h"
@@ -26,6 +26,7 @@ private:
 
 } // namespace impl
 
+/// @brief CRTP base class for strongly-typed events.
 template <typename Derived>
 struct Event : public impl::EventBase {
 private:
@@ -37,5 +38,8 @@ private:
 		return Hash(type_name<Derived>());
 	}
 };
+
+template <typename T>
+concept EventType = std::derived_from<T, Event<T>> && std::is_base_of_v<impl::EventBase, T>;
 
 } // namespace ptgn
