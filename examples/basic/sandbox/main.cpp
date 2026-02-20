@@ -11,6 +11,7 @@
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/text_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/scene/scene.h"
@@ -158,6 +159,8 @@ public:
 
 		auto texture1 = sprite.Get<Texture>();
 		auto texture2 = sprite2.Get<Texture>();
+
+		auto text = CreateText(*this, "Hello", color::Purple, 30, {}, {});
 
 		PTGN_LOG("Loaded all assets!");
 

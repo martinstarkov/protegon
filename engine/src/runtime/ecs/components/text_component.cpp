@@ -7,19 +7,93 @@
 
 #include "app/context.h"
 #include "core/graphics/color.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/font.h"
 #include "renderer/primitives/text.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/drawable.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
 
 namespace impl {
+
+void TextDraw::Draw(Renderer& renderer, Entity text) {
+	if (!text.Has<TextContent>()) {
+		return;
+	}
+
+	if (text.Get<TextContent>().GetValue().empty()) {
+		return;
+	}
+
+	if (text.Has<TextColor>() && text.Get<TextColor>().a == 0) {
+		return;
+	}
+
+	Tint tint{ GetTint(text) };
+	Transform transform{ GetTransform(text) };
+	auto cam{ GetCamera(text) };
+
+	if (tint.a == 0 || additional_tint.a == 0) {
+		return;
+	}
+
+	// Offset text so it is centered on the offset origin and size.
+	auto offset{ -GetOriginOffset(offset_origin, offset_size * Abs(transform.GetScale())) };
+	transform.Translate(offset);
+
+	if (bool is_hd{ IsTextHD(text) }) {
+		auto scene_scale{ text.GetScene().GetRenderTargetScaleRelativeTo(cam) };
+
+		PTGN_ASSERT(scene_scale.BothAboveZero());
+
+		transform.Scale(transform.GetScale() / scene_scale);
+
+		if (GetFontSize(text, is_hd, cam) != text.Get<impl::CachedFontSize>()) {
+			RecreateTexture(text, cam);
+		}
+	}
+
+	const auto& text_texture{ text.GetTexture() };
+
+	if (!text_texture.IsValid()) {
+		return;
+	}
+
+	V2_int size{ text_size };
+
+	// If the text texture size for any text_size dimension that is zero.
+	if (size.HasZero()) {
+		V2_int texture_size{ text_texture.GetSize() };
+		if (!size.x) {
+			size.x = texture_size.x;
+		}
+		if (!size.y) {
+			size.y = texture_size.y;
+		}
+	}
+
+	auto texture_coordinates{ Sprite{ text }.GetTextureCoordinates(false) };
+
+	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
+
+	// TODO: Make a general draw texture function and use that here and in sprite.cpp
+
+	game.renderer.DrawTexture(
+		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
+		GetBlendMode(text), cam, text.GetOrDefault<PreFX>(), text.GetOrDefault<PostFX>(),
+		texture_coordinates
+	);
+}
 
 void TextDraw::RecreateTexture(Entity text, Entity camera) {
 	auto content{ GetTextContent(text) };
