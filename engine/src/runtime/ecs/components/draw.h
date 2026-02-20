@@ -5,13 +5,13 @@
 #include <string_view>
 #include <vector>
 
+#include "core/component.h"
 #include "core/event/event.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/components/drawable.h"
-#include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {

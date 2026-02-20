@@ -3,14 +3,16 @@
 #include <string_view>
 #include <vector>
 
-#include "runtime/ecs/components/generic.h"
+#include "core/component.h"
 #include "runtime/ecs/entity.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn::impl {
 
-struct ChildKey : public HashComponent {
-	using HashComponent::HashComponent;
+struct ChildKey : public ArithmeticComponent<std::size_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	ChildKey(std::string_view key);
 };
 
 struct Parent : public Entity {

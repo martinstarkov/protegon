@@ -12,7 +12,7 @@
 // #include "core/asset/asset_manager.h"
 // #include "ecs/components/animation.h"
 // #include "ecs/components/draw.h"
-// #include "ecs/components/generic.h"
+// #include "core/component.h"
 // #include "ecs/components/interactive.h"
 // #include "ecs/components/sprite.h"
 // #include "ecs/entity.h"
@@ -891,8 +891,9 @@
 // }
 //
 // ToggleButton& ToggleButton::SetTextContentToggled(const TextContent& content, ButtonState state)
-// { 	if (!Has<impl::ButtonTextToggled>()) { 		Add<impl::ButtonTextToggled>( 			*this, GetManager(),
-//state, content, TextColor{}, FontSize{}, Handle<Font>{}, 			TextProperties{}
+// { 	if (!Has<impl::ButtonTextToggled>()) { 		Add<impl::ButtonTextToggled>( 			*this,
+// GetManager(),
+// state, content, TextColor{}, FontSize{}, Handle<Font>{}, 			TextProperties{}
 //		);
 //	} else {
 //		const auto& c{ Get<impl::ButtonTextToggled>() };

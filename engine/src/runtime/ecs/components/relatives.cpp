@@ -3,11 +3,15 @@
 #include <string_view>
 #include <vector>
 
+#include "core/component.h"
 #include "core/log.h"
+#include "core/util/hash.h"
 #include "core/util/span.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn::impl {
+
+ChildKey::ChildKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
 
 Parent::Parent(Entity entity) : Entity{ entity } {}
 

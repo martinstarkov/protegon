@@ -8,6 +8,7 @@
 
 #include "app/context.h"
 #include "core/assert.h"
+#include "core/component.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
@@ -17,7 +18,6 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
 #include "runtime/ecs/components/drawable.h"
-#include "runtime/ecs/components/generic.h"
 #include "runtime/ecs/components/sprite.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"

@@ -2,7 +2,6 @@
 //
 // #include <vector>
 //
-// #include "ecs/components/generic.h"
 // #include "ecs/entity.h"
 // #include "serialization/json/serializable.h"
 //
@@ -18,11 +17,7 @@
 //
 // namespace impl {
 //
-// struct UsePreviousTexture : public BoolComponent {
-//	using BoolComponent::BoolComponent;
-//
-//	UsePreviousTexture() : BoolComponent{ true } {}
-// };
+// struct UsePreviousTexture {};
 //
 // } // namespace impl
 //

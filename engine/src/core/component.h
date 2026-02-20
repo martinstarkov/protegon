@@ -42,44 +42,11 @@ protected:
 	T value_{};
 };
 
-struct BoolComponent : public ArithmeticComponent<bool> {
-	using ArithmeticComponent::ArithmeticComponent;
-};
-
-struct HashComponent {
-	HashComponent() = default;
-
-	HashComponent(std::string_view key);
-
-	HashComponent(const char* key);
-
-	HashComponent(const std::string& key);
-
-	HashComponent(std::size_t value);
-
-	operator std::size_t() const;
-
-	[[nodiscard]] std::size_t GetHash() const;
-
-	[[nodiscard]] std::size_t& GetHash();
-
-	[[nodiscard]] const std::string& GetKey() const;
-
-	[[nodiscard]] std::string& GetKey();
-
-	friend void to_json(json& j, const HashComponent& hash_component);
-	friend void from_json(const json& j, HashComponent& hash_component);
-
-protected:
-	std::size_t hash_{ 0 };
-	std::string key_;
-};
-
 template <Arithmetic T>
 struct Vector2Component {
 	Vector2Component() = default;
 
-	Vector2Component(const Vector2<T>& value) : value_{ value } {}
+	Vector2Component(Vector2<T> value) : value_{ value } {}
 
 	operator Vector2<T>() const {
 		return value_;

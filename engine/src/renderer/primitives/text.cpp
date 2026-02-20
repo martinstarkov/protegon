@@ -16,14 +16,14 @@
 // #include "core/asset/asset_manager.h"
 // #include "ecs/components/draw.h"
 // #include "ecs/components/effects.h"
-// #include "ecs/components/generic.h"
+// #include "core/component.h"
 // #include "ecs/components/sprite.h"
 // #include "ecs/components/transform.h"
 // #include "ecs/entity.h"
 // #include "core/log.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
-// 
+//
 // #include "renderer/render_data.h"
 // #include "renderer/text/font.h"
 // #include "scene/camera.h"

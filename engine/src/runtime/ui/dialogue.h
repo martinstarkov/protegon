@@ -4,7 +4,7 @@
 // #include <unordered_map>
 // #include <vector>
 //
-// #include "ecs/components/generic.h"
+// #include "core/component.h"
 // #include "ecs/components/sprite.h"
 // #include "ecs/entity.h"
 // #include "ecs/game_object.h"

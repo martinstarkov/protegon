@@ -8,7 +8,7 @@
 //
 // #include "ecs/components/animation.h"
 // #include "ecs/components/drawable.h"
-// #include "ecs/components/generic.h"
+// #include "core/component.h"
 // #include "ecs/entity.h"
 // #include "ecs/game_object.h"
 // #include "core/input/mouse.h"

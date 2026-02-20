@@ -14,7 +14,7 @@
 // #include "core/app/manager.h"
 // #include "core/assert.h"
 // #include "ecs/components/draw.h"
-// #include "ecs/components/generic.h"
+// #include "core/component.h"
 // #include "ecs/components/sprite.h"
 // #include "ecs/components/transform.h"
 // #include "ecs/entity.h"
