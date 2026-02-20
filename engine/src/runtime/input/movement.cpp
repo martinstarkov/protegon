@@ -5,7 +5,6 @@
 // #include <type_traits>
 // #include <utility>
 //
-// #include "core/app/application.h"
 // #include "core/assert.h"
 // #include "ecs/components/transform.h"
 // #include "ecs/entity.h"

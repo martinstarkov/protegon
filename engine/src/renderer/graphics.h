@@ -1,4 +1,7 @@
-// #pragma once
+#pragma once
+
+// TODO: Fix graphics.
+
 //
 // #include <vector>
 //

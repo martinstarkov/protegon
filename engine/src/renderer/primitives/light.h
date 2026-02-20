@@ -1,4 +1,7 @@
-// #pragma once
+#pragma once
+
+// TODO: Fix lights.
+
 //
 // #include "ecs/components/drawable.h"
 // #include "ecs/entity.h"

@@ -1,6 +1,5 @@
 // #include "renderer/vfx/light.h"
 //
-// #include "core/app/application.h"
 // #include "core/app/manager.h"
 // #include "core/app/resolution.h"
 // #include "core/assert.h"

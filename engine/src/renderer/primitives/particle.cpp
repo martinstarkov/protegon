@@ -5,7 +5,6 @@
 // #include <cmath>
 // #include <cstdint>
 //
-// #include "core/app/application.h"
 // #include "core/app/manager.h"
 // #include "ecs/components/draw.h"
 // #include "ecs/components/effects.h"

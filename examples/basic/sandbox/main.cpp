@@ -147,10 +147,12 @@ public:
 		app().renderer.SetGameSize(V2_int{ 320, 180 });
 
 		PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		// auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
+		auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
 		// auto f = app().assets.LoadFont("test", "assets/retro_gaming.ttf", 11);
 		auto t = app().assets.LoadTexture("test", "assets/smile.png");
 		// auto j = app().assets.LoadJson("test", "assets/dialogue.json");
+
+		// app().audio.Play("test");
 
 		auto sprite = CreateSprite(*this, t, {});
 
@@ -174,6 +176,9 @@ public:
 	}
 
 	void OnUpdate() override {
+		/*PTGN_LOG("Master Volume: ", app().audio.GetVolume());
+		PTGN_LOG("Volume: ", app().audio.GetVolume("test"));
+		PTGN_LOG("Test audio is playing: ", app().audio.IsPlaying("test"));*/
 		// PTGN_INFO("Updating test scene");
 	}
 
@@ -184,10 +189,12 @@ public:
 	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<KeyDown>([this](auto& e) {
 			if (e.IsPressed(Key::Enter)) {
+				app().audio.Stop("test");
 				PTGN_LOG("Pressed enter");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
 				app().renderer.SetGameSize(V2_int{ 800, 800 });
 			} else if (e.IsPressed(Key::Space)) {
+				app().audio.TogglePause("test");
 				PTGN_LOG("Pressed space");
 				PTGN_LOG("Frame: ", app().GetFrameCount());
 				app().renderer.SetGameSize(V2_int{ 800, 600 });
