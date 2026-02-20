@@ -10,11 +10,15 @@
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/resources/texture.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
+
+class Renderer;
 
 namespace impl {
 
@@ -114,5 +118,15 @@ void SetDisplaySize(Entity entity, V2_float display_size);
 [[nodiscard]] V2_float GetDisplaySize(Entity entity);
 
 [[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
+
+namespace impl {
+
+void DrawTexture(
+	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
+	Color tint, BlendMode blend_mode, const std::array<V2_float, 4>& texture_coordinates,
+	Entity camera
+);
+
+} // namespace impl
 
 } // namespace ptgn

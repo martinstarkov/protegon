@@ -43,8 +43,12 @@ EntityHandle::~EntityHandle() {
 	Release();
 }
 
+bool EntityHandle::IsValid() const {
+	return entity_.operator bool();
+}
+
 void EntityHandle::AddRef() {
-	if (!Valid()) {
+	if (!HasRefCount()) {
 		return;
 	}
 	auto& rc = entity_.Get<impl::RefCount>();
@@ -52,7 +56,7 @@ void EntityHandle::AddRef() {
 }
 
 void EntityHandle::Release() {
-	if (!Valid()) {
+	if (!HasRefCount()) {
 		return;
 	}
 
@@ -63,7 +67,7 @@ void EntityHandle::Release() {
 	}
 }
 
-bool EntityHandle::Valid() const {
+bool EntityHandle::HasRefCount() const {
 	return entity_.Has<impl::RefCount>();
 }
 

@@ -40,6 +40,7 @@
 #include <cstdint>
 
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/text.h"
 
@@ -312,6 +313,16 @@ std::optional<Font> AssetManager::GetFont(std::string_view key) const {
 	return GetAssetImpl<std::shared_ptr<TTF_Font>, Font>(manager_, key);
 }
 
+Font AssetManager::GetDefaultFont() const {
+	for (auto [entity, k, resource] :
+		 manager_.EntitiesWith<impl::AssetKey, std::shared_ptr<TTF_Font>>()) {
+		if (k.hash == default_font_key_) {
+			return Font{ entity, true };
+		}
+	}
+	PTGN_ERROR("Failed to find default font from asset manager");
+}
+
 std::optional<std::reference_wrapper<const json>> AssetManager::GetJson(std::string_view key
 ) const {
 	auto hash{ Hash(key) };
@@ -454,6 +465,14 @@ Texture AssetManager::CreateTextTexture(
 	if (text_content.empty()) {
 		return texture;
 	}
+
+	if (!font_asset.IsValid()) {
+		font_asset = GetDefaultFont();
+	}
+
+	PTGN_ASSERT(font_asset.IsValid());
+
+	PTGN_ASSERT(font_asset.entity_.Has<std::shared_ptr<TTF_Font>>());
 
 	auto font{ font_asset.entity_.Get<std::shared_ptr<TTF_Font>>().get() };
 

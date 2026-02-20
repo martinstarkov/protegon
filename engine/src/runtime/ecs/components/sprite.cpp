@@ -1,6 +1,7 @@
 #include "runtime/ecs/components/sprite.h"
 
 #include "app/context.h"
+#include "core/assert.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
@@ -19,13 +20,11 @@ namespace ptgn {
 namespace impl {
 
 void SpriteDraw::Draw(Renderer& renderer, Entity entity) {
-	auto camera{ entity.Has<Camera>() ? entity : entity.GetScene().camera };
-	renderer.SetViewProjection(GetViewProjection(camera));
-	renderer.SetBlend(GetBlendMode(entity));
-	// TODO: Add rotation and flip here.
 	PTGN_ASSERT(entity.Has<Texture>());
-	renderer.DrawTexture(
-		entity.Get<Texture>(), GetPosition(entity), GetTextureSize(entity), GetTint(entity)
+	impl::DrawTexture(
+		renderer, entity.Get<Texture>(), GetTransform(entity), GetTextureSize(entity),
+		GetDrawOrigin(entity), GetTint(entity), GetBlendMode(entity),
+		GetTextureCoordinates(entity, false), GetCamera(entity)
 	);
 }
 

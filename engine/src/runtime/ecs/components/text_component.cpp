@@ -6,9 +6,12 @@
 #include <string_view>
 
 #include "app/context.h"
+#include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/entity_handle.h"
 #include "renderer/primitives/font.h"
 #include "renderer/primitives/text.h"
 #include "renderer/renderer.h"
@@ -26,7 +29,10 @@ namespace ptgn {
 
 namespace impl {
 
-void TextDraw::Draw(Renderer& renderer, Entity text) {
+void DrawText(
+	Renderer& renderer, Entity text, V2_int text_size, Entity camera, Color additional_tint,
+	Origin offset_origin, V2_float offset_size
+) {
 	if (!text.Has<TextContent>()) {
 		return;
 	}
@@ -40,11 +46,16 @@ void TextDraw::Draw(Renderer& renderer, Entity text) {
 	}
 
 	Tint tint{ GetTint(text) };
+	// TODO: Use draw transform.
 	Transform transform{ GetTransform(text) };
-	auto cam{ GetCamera(text) };
+	Entity cam{ GetCamera(text) };
 
 	if (tint.a == 0 || additional_tint.a == 0) {
 		return;
+	}
+
+	if (camera) {
+		cam = camera;
 	}
 
 	// Offset text so it is centered on the offset origin and size.
@@ -58,12 +69,12 @@ void TextDraw::Draw(Renderer& renderer, Entity text) {
 
 		transform.Scale(transform.GetScale() / scene_scale);
 
-		if (GetFontSize(text, is_hd, cam) != text.Get<impl::CachedFontSize>()) {
-			RecreateTexture(text, cam);
+		if (GetTextFontSize(text, is_hd, cam) != text.Get<impl::HDFontSize>()) {
+			TextDraw::RecreateTexture(text, cam);
 		}
 	}
 
-	const auto& text_texture{ text.GetTexture() };
+	const auto& text_texture{ text.Get<Texture>() };
 
 	if (!text_texture.IsValid()) {
 		return;
@@ -82,17 +93,19 @@ void TextDraw::Draw(Renderer& renderer, Entity text) {
 		}
 	}
 
-	auto texture_coordinates{ Sprite{ text }.GetTextureCoordinates(false) };
+	auto texture_coordinates{ GetTextureCoordinates(text, false) };
 
 	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
 
-	// TODO: Make a general draw texture function and use that here and in sprite.cpp
-
-	game.renderer.DrawTexture(
-		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
-		GetBlendMode(text), cam, text.GetOrDefault<PreFX>(), text.GetOrDefault<PostFX>(),
-		texture_coordinates
+	impl::DrawTexture(
+		renderer, text_texture, transform, size, GetDrawOrigin(text), text_tint, GetBlendMode(text),
+		texture_coordinates, cam
 	);
+}
+
+void TextDraw::Draw(Renderer& renderer, Entity text) {
+	// This wrapper exists so that buttons can draw offset text.
+	impl::DrawText(renderer, text, V2_float{}, {}, color::White, Origin::Center, V2_float{});
 }
 
 void TextDraw::RecreateTexture(Entity text, Entity camera) {

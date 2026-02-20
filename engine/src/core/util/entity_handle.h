@@ -37,6 +37,8 @@ public:
 
 	~EntityHandle();
 
+	bool IsValid() const;
+
 protected:
 	ecs::Entity entity_;
 
@@ -45,7 +47,7 @@ private:
 
 	void Release();
 
-	bool Valid() const;
+	bool HasRefCount() const;
 };
 
 } // namespace ptgn

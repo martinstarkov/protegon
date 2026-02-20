@@ -371,20 +371,23 @@ void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSet
 }
 
 void Renderer::DrawTexture(
-	const RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y
+	const RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y,
+	const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
 	PTGN_ASSERT(rt.color_.has_value(), "Cannot draw render target with no color attachment");
-	DrawTexture(*rt.color_, center, size, tint, flip_y);
+	DrawTexture(*rt.color_, center, size, tint, flip_y, tex_coords);
 }
 
 void Renderer::DrawTexture(
-	TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
+	TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y,
+	const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
-	DrawTexture(gl->shaders.GetProgram("quad"), texture, center, size, tint, flip_y);
+	DrawTexture(gl->shaders.GetProgram("quad"), texture, center, size, tint, flip_y, tex_coords);
 }
 
 void Renderer::DrawTexture(
-	ShaderId shader, TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y
+	ShaderId shader, TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y,
+	const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
 	PTGN_ASSERT(
 		gl->GetBoundFramebuffer() == FramebufferId{ 0 } ||
@@ -395,11 +398,12 @@ void Renderer::DrawTexture(
 	);
 
 	QuadParams p;
-	p.center  = center;
-	p.size	  = size;
-	p.tint	  = tint;
-	p.texture = texture;
-	p.flip_y  = flip_y;
+	p.center	 = center;
+	p.size		 = size;
+	p.tint		 = tint;
+	p.texture	 = texture;
+	p.flip_y	 = flip_y;
+	p.tex_coords = tex_coords;
 
 	DrawQuad(shader, p, [this](auto s, auto& q) {
 		gl->shaders.SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));

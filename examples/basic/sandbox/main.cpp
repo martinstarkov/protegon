@@ -5,6 +5,7 @@
 #include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "platform/input/events.h"
 #include "platform/input/mouse.h"
@@ -160,7 +161,7 @@ public:
 		auto texture1 = sprite.Get<Texture>();
 		auto texture2 = sprite2.Get<Texture>();
 
-		auto text = CreateText(*this, "Hello", color::Purple, 30, {}, {});
+		auto text = CreateText(*this, "Hello World", color::Orange, 70.0f, {}, {});
 
 		PTGN_LOG("Loaded all assets!");
 

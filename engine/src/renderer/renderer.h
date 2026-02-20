@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <optional>
 
@@ -76,10 +77,11 @@ public:
 
 	void DrawTexture(
 		const impl::RenderTargetData& rt, V2_float center, V2_float size, Color tint = color::White,
-		bool flip_y = true
+		bool flip_y = true, const std::optional<std::array<V2_float, 4>>& tex_coords = {}
 	);
 	void DrawTexture(
-		impl::TextureId texture, V2_float center, V2_float size, Color tint = color::White
+		impl::TextureId texture, V2_float center, V2_float size, Color tint = color::White,
+		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
 	);
 	void DrawRect(V2_float center, V2_float size, Color color);
 

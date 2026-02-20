@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/font.h"
 #include "renderer/primitives/text.h"
@@ -18,6 +19,11 @@ class Renderer;
 class Scene;
 
 namespace impl {
+
+void DrawText(
+	Renderer& renderer, Entity text, V2_int text_size, Entity camera, Color additional_tint,
+	Origin offset_origin, V2_float offset_size
+);
 
 class TextDraw {
 public:

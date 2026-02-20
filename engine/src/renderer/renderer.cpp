@@ -2,6 +2,7 @@
 #include "renderer/renderer.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 
@@ -95,13 +96,17 @@ ScalingMode Renderer::GetScalingMode() const {
 }
 
 void Renderer::DrawTexture(
-	const impl::RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y
+	const impl::RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y,
+	const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
-	gl_renderer_->DrawTexture(rt, center, size, tint, flip_y);
+	gl_renderer_->DrawTexture(rt, center, size, tint, flip_y, tex_coords);
 }
 
-void Renderer::DrawTexture(impl::TextureId texture, V2_float center, V2_float size, Color tint) {
-	gl_renderer_->DrawTexture(texture, center, size, tint);
+void Renderer::DrawTexture(
+	impl::TextureId texture, V2_float center, V2_float size, Color tint,
+	const std::optional<std::array<V2_float, 4>>& tex_coords
+) {
+	gl_renderer_->DrawTexture(texture, center, size, tint, false, tex_coords);
 }
 
 void Renderer::DrawRect(V2_float center, V2_float size, Color color) {

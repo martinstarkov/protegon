@@ -92,6 +92,7 @@ public:
 	std::optional<Shader> GetShader(std::string_view key) const;
 	std::optional<Texture> GetTexture(std::string_view key) const;
 	std::optional<Font> GetFont(std::string_view key) const;
+	Font GetDefaultFont() const;
 
 	[[nodiscard]] bool HasJson(std::string_view key) const;
 	[[nodiscard]] bool HasAudio(std::string_view key) const;
