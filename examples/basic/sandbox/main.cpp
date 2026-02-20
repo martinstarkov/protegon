@@ -168,7 +168,7 @@ public:
 		auto texture2 = sprite2.Get<Texture>();
 
 		auto text = CreateText(*this, "Hello World", color::Orange, 18.0f, {}, {});
-		SetTextHD(text, false);
+		// SetTextHD(text, false);
 
 		PTGN_LOG("Loaded all assets!");
 
