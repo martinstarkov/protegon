@@ -39,6 +39,8 @@
 #endif
 #include <cstdint>
 
+#include "core/math/vector2.h"
+
 // TODO: Add async asset loading.
 
 namespace ptgn {
@@ -72,35 +74,14 @@ AssetManager::AssetManager(impl::SDLInstance& sdl, Renderer& renderer) :
 	if (!raw_default_font_) {
 		raw_default_font_ = GetRawBuffer(impl::GetLiberationSansRegular());
 		auto default_font{ LoadFromBinary(raw_default_font_, default_font_size, false) };
+		std::shared_ptr<TTF_Font> f{ default_font, impl::TTF_FontDeleter{} };
+
 		Font font{ CreateAsset(), true };
 		font.entity_.Add<impl::FontSize>(default_font_size);
-		font.entity_.Add<std::shared_ptr<TTF_Font>>(default_font);
+		font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
 		AddKey(font.entity_, key, {});
 	}
 	default_font_key_ = hash;
-}
-
-std::shared_ptr<TTF_Font> AssetManager::Get(Font font, std::optional<float> font_size) const {
-	auto entity{ font.entity_ };
-
-	if (!font_size.has_value()) {
-		return entity.Get<std::shared_ptr<TTF_Font>>();
-	}
-
-	if (entity.Has<path>()) {
-		auto path_string{ entity.Get<path>().string() };
-		PTGN_ASSERT(!path_string.empty(), "Invalid font path");
-		return std::shared_ptr<TTF_Font>{ TTF_OpenFont(path_string.c_str(), *font_size),
-										  impl::TTF_FontDeleter{} };
-	}
-
-	// Font has no path defined.
-	PTGN_ASSERT(
-		entity.Get<impl::AssetKey>().hash == Hash(""),
-		"Font key must have a valid path unless it is the default font"
-	);
-	return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, *font_size, false),
-									  impl::TTF_FontDeleter{} };
 }
 
 AssetManager::~AssetManager() noexcept {
@@ -389,5 +370,72 @@ void AssetManager::SetDefaultFont(std::string_view key) {
 	PTGN_ASSERT(HasFont(key), "Font key must be loaded before setting it as default");
 	default_font_key_ = Hash(key);
 }
+
+std::shared_ptr<TTF_Font> AssetManager::GetFont(
+	std::string_view key, std::optional<float> font_size
+) const {
+	auto font{ GetFont(key) };
+
+	if (!font) {
+		return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, *font_size, false),
+										  impl::TTF_FontDeleter{} };
+	}
+
+	auto entity{ (*font).entity_ };
+
+	if (!font_size.has_value()) {
+		return entity.Get<std::shared_ptr<TTF_Font>>();
+	}
+
+	if (entity.Has<path>()) {
+		auto path_string{ entity.Get<path>().string() };
+		PTGN_ASSERT(!path_string.empty(), "Invalid font path");
+		return std::shared_ptr<TTF_Font>{ TTF_OpenFont(path_string.c_str(), *font_size),
+										  impl::TTF_FontDeleter{} };
+	}
+
+	// Font has no path defined.
+	PTGN_ASSERT(
+		entity.Get<impl::AssetKey>().hash == Hash(""),
+		"Font key must have a valid path unless it is the default font"
+	);
+	return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, *font_size, false),
+									  impl::TTF_FontDeleter{} };
+}
+
+int AssetManager::GetFontLineSkip(std::string_view key, std::optional<float> font_size) const {
+	return TTF_GetFontLineSkip(GetFont(key, font_size).get());
+}
+
+int AssetManager::GetFontHeight(std::string_view key, std::optional<float> font_size) const {
+	return TTF_GetFontHeight(GetFont(key, font_size).get());
+}
+
+V2_int AssetManager::GetFontSize(
+	std::string_view key, const std::string& content, std::optional<float> font_size,
+	int max_wrap_width
+) const {
+	V2_int size;
+
+	if (content.empty()) {
+		size.x = 0;
+		size.y = GetFontHeight(key, font_size);
+		return size;
+	}
+
+	auto success{ TTF_GetStringSizeWrapped(
+		GetFont(key, font_size).get(), content.c_str(), 0, max_wrap_width, &size.x, &size.y
+	) };
+
+	PTGN_ASSERT(success, "Failed to get size of wrapped font string");
+
+	return size;
+}
+
+// float FontSizeToHD(float font_size, const Scene& scene, const Camera& camera) const {
+//	auto render_target_scale{ scene.GetRenderTargetScaleRelativeTo(camera) };
+//	font_size = font_size * render_target_scale.y);
+//  return font_size;
+//}
 
 } // namespace ptgn

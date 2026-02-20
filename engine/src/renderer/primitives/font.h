@@ -1,12 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
 #include <utility>
 
-#include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 
 #ifdef __EMSCRIPTEN__
@@ -18,7 +14,7 @@ struct TTF_Font;
 
 namespace ptgn {
 
-static constexpr std::int32_t default_font_size{ 18 };
+static constexpr float default_font_size{ 18.0f };
 
 namespace impl {
 
@@ -68,23 +64,7 @@ class Font : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;
 
-	int GetLineSkip(std::optional<float> font_size) const;
-
-	/// @param Text to calculate size of, in UTF-8 encoding.
-	/// @param font_size Optional font size to check the size for. If {}, uses the current font
-	/// size.
-	/// @param max_wrap_width The maximum width or 0 to wrap on newline characters.
-	V2_int GetSize(
-		const std::string& content, std::optional<float> font_size = {}, int max_wrap_width = 0
-	) const;
-
-	/// @param font_size Optional font size to check the height for. If {}, uses the current font
-	/// size.
-	int GetHeight(std::optional<float> font_size = {}) const;
-
 private:
-	std::shared_ptr<TTF_Font> Get(std::optional<float> font_size) const;
-
 	friend class AssetManager;
 };
 

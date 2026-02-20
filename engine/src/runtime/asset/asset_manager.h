@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <variant>
 
+#include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/font.h"
@@ -94,8 +95,25 @@ public:
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
 
+	// TODO: Figure out a better place to move the font stuff.
+
 	// Empty font key corresponds to the engine default font.
 	void SetDefaultFont(std::string_view key = {});
+
+	int GetFontLineSkip(std::string_view key, std::optional<float> font_size) const;
+
+	/// @param Text to calculate size of, in UTF-8 encoding.
+	/// @param font_size Optional font size to check the size for. If {}, uses the current font
+	/// size.
+	/// @param max_wrap_width The maximum width or 0 to wrap on newline characters.
+	V2_int GetFontSize(
+		std::string_view key, const std::string& content, std::optional<float> font_size = {},
+		int max_wrap_width = 0
+	) const;
+
+	/// @param font_size Optional font size to check the height for. If {}, uses the current font
+	/// size.
+	int GetFontHeight(std::string_view key, std::optional<float> font_size = {}) const;
 
 private:
 	friend class Shader;
@@ -115,7 +133,7 @@ private:
 
 	ecs::Entity CreateAsset();
 
-	std::shared_ptr<TTF_Font> Get(Font font, std::optional<float> font_size) const;
+	std::shared_ptr<TTF_Font> GetFont(std::string_view key, std::optional<float> font_size) const;
 
 	ecs::Manager manager_;
 	impl::SDLInstance& sdl_;
