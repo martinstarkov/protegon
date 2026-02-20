@@ -6,22 +6,12 @@
 #include "core/component.h"
 #include "core/util/entity_handle.h"
 
-#ifdef __EMSCRIPTEN__
-struct _TTF_Font;
-using TTF_Font = _TTF_Font;
-#else
-struct TTF_Font;
-#endif
-
 namespace ptgn {
 
-static constexpr float default_font_size{ 18.0f };
+class FontSystem;
+class AssetManager;
 
 namespace impl {
-
-struct TTF_FontDeleter {
-	void operator()(TTF_Font* font) const;
-};
 
 struct FontSize : public ArithmeticComponent<float> {
 	using ArithmeticComponent::ArithmeticComponent;
@@ -66,6 +56,7 @@ public:
 	using EntityHandle::EntityHandle;
 
 private:
+	friend class FontSystem;
 	friend class AssetManager;
 };
 

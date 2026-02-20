@@ -12,7 +12,9 @@ ApplicationContext::ApplicationContext(Application& app) :
 	scenes{ app.scenes_ },
 	events{ app.events_ },
 	input{ app.input_ },
-	assets{ app.assets_ } {}
+	assets{ app.assets_ },
+	font{ app.font_ },
+	audio{ app.audio_ } {}
 
 void ApplicationContext::Stop() {
 	app_.running_ = false;

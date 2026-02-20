@@ -7,7 +7,6 @@
 // #include <variant>
 // #include <vector>
 //
-// #include "core/app/application.h"
 // #include "core/assert.h"
 // #include "ecs/components/draw.h"
 // #include "ecs/components/movement.h"

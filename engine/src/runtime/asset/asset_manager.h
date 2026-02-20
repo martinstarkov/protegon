@@ -9,7 +9,6 @@
 #include <variant>
 
 #include "core/graphics/color.h"
-#include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/font.h"
@@ -19,17 +18,21 @@
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 
+#ifdef CreateFont
+#undef CreateFont
+#endif
+
 struct SDL_IOStream;
 
 namespace ptgn {
 
-class Renderer;
+class Application;
+class ApplicationContext;
 
 namespace impl {
 
 class TextDraw;
-
-struct SDLInstance;
+class FontSystem;
 
 struct AssetName {
 	explicit AssetName(std::string_view name) : name{ name } {}
@@ -41,12 +44,14 @@ struct AssetKey {
 	std::size_t hash{ 0 };
 };
 
+void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> path);
+
 } // namespace impl
 
 class AssetManager {
 public:
-	AssetManager(impl::SDLInstance& sdl, Renderer& renderer);
-	~AssetManager() noexcept;
+	AssetManager()									 = default;
+	~AssetManager() noexcept						 = default;
 	AssetManager(const AssetManager&)				 = delete;
 	AssetManager& operator=(const AssetManager&)	 = delete;
 	AssetManager(AssetManager&&) noexcept			 = delete;
@@ -92,7 +97,6 @@ public:
 	std::optional<Shader> GetShader(std::string_view key) const;
 	std::optional<Texture> GetTexture(std::string_view key) const;
 	std::optional<Font> GetFont(std::string_view key) const;
-	Font GetDefaultFont() const;
 
 	[[nodiscard]] bool HasJson(std::string_view key) const;
 	[[nodiscard]] bool HasAudio(std::string_view key) const;
@@ -100,35 +104,14 @@ public:
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
 
-	// TODO: Figure out a better place to move the font stuff.
-
-	// Empty font key corresponds to the engine default font.
-	void SetDefaultFont(std::string_view key = {});
-
-	int GetFontLineSkip(std::string_view key, std::optional<float> font_size) const;
-
-	/// @param Text to calculate size of, in UTF-8 encoding.
-	/// @param font_size Optional font size to check the size for. If {}, uses the current font
-	/// size.
-	/// @param max_wrap_width The maximum width or 0 to wrap on newline characters.
-	V2_int GetFontSize(
-		std::string_view key, std::string_view content, std::optional<float> font_size = {},
-		int max_wrap_width = 0
-	) const;
-
-	V2_int GetFontSize(
-		Font font, std::string_view text_content, std::optional<float> font_size = {},
-		int max_wrap_width = 0
-	) const;
-
-	/// @param font_size Optional font size to check the height for. If {}, uses the current font
-	/// size.
-	int GetFontHeight(std::string_view key, std::optional<float> font_size = {}) const;
-
 private:
+	friend class Application;
 	friend class Shader;
 	friend class Texture;
+	friend class FontSystem;
 	friend class impl::TextDraw;
+
+	std::optional<Font> GetFont(std::size_t key) const;
 
 	Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, path>& source,
@@ -148,17 +131,13 @@ private:
 
 	ecs::Entity CreateAsset();
 
-	std::shared_ptr<TTF_Font> GetFont(std::string_view key, std::optional<float> font_size) const;
-
 	ecs::Manager manager_;
-	impl::SDLInstance& sdl_;
-	Renderer& renderer_;
+
+	void SetContext(const std::shared_ptr<ApplicationContext>& ctx);
+
+	std::shared_ptr<ApplicationContext> ctx_;
 
 	std::unordered_map<std::size_t, json> jsons_;
-
-	std::size_t default_font_key_{ 0 };
-
-	SDL_IOStream* raw_default_font_{ nullptr };
 };
 
 } // namespace ptgn

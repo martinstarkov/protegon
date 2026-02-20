@@ -11,6 +11,8 @@ class SceneManager;
 class EventHandler;
 class InputHandler;
 class AssetManager;
+class FontSystem;
+class AudioSystem;
 
 /// @brief Provides controlled access to core subsystems of an Application.
 class ApplicationContext {
@@ -26,6 +28,8 @@ public:
 	EventHandler& events;
 	InputHandler& input;
 	AssetManager& assets;
+	FontSystem& font;
+	AudioSystem& audio;
 
 	/// @brief Terminates the main application loop.
 	void Stop();

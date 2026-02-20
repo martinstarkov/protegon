@@ -53,6 +53,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include "runtime/audio/audio_system.h"
 
 namespace ptgn {
 
@@ -164,15 +165,10 @@ SDLInstance::SDLInstance() {
 
 	PTGN_ASSERT(mix_init, SDL_GetError());
 
-	mixer_ = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
-
-	PTGN_ASSERT(mixer_, SDL_GetError());
-
 	PTGN_INFO("Initialized SDL_mixer version: ", FormatSDLVersion(MIX_Version()));
 }
 
 SDLInstance::~SDLInstance() {
-	MIX_DestroyMixer(mixer_);
 	MIX_Quit();
 	PTGN_INFO("Deinitialized SDL_mixer");
 	TTF_Quit();
@@ -189,10 +185,13 @@ Application::Application(const ApplicationConfig& config) :
 	renderer_{ window_, events_ },
 	events_{ scenes_ },
 	scenes_{},
-	assets_{ sdl_, renderer_ },
+	assets_{},
+	font_{ assets_ },
+	audio_{ assets_ },
 	debug_{},
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
 	scenes_.SetContext(ctx_);
+	assets_.SetContext(ctx_);
 }
 
 milliseconds Application::TimeSinceStart() const {
@@ -256,6 +255,8 @@ void Application::Update() {
 
 	renderer_.BeginFrame();
 	scenes_.Update(dt_, true);
+
+	audio_.Update();
 
 	debug_.PostUpdate();
 

@@ -9,14 +9,15 @@
 #include "platform/window/window.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/asset/font_system.h"
+#include "runtime/audio/audio_system.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
-struct MIX_Mixer;
-
 namespace ptgn {
 
+class Application;
 class ApplicationContext;
 
 namespace impl {
@@ -27,15 +28,18 @@ void EmscriptenMainLoop(void* application);
 
 #endif
 
-struct SDLInstance {
+// TODO: Move this class elsewhere so entire Application.h does not need to be included when
+// subsystems use sdl.
+class SDLInstance {
+private:
+	friend class Application;
+
 	SDLInstance();
 	~SDLInstance() noexcept;
 	SDLInstance(const SDLInstance&)				   = delete;
 	SDLInstance& operator=(const SDLInstance&)	   = delete;
 	SDLInstance(SDLInstance&&) noexcept			   = delete;
 	SDLInstance& operator=(SDLInstance&&) noexcept = delete;
-
-	MIX_Mixer* mixer_{ nullptr };
 };
 
 } // namespace impl
@@ -94,6 +98,8 @@ private:
 	InputHandler input_;
 	SceneManager scenes_;
 	AssetManager assets_;
+	FontSystem font_;
+	AudioSystem audio_;
 
 	// TODO: Make a no-op version of this for release modes.
 	impl::DebugSystem debug_;

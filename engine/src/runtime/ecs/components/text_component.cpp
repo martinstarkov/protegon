@@ -7,20 +7,21 @@
 
 #include "app/context.h"
 #include "core/assert.h"
+#include "core/component.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/math/vector4.h"
 #include "core/util/entity_handle.h"
 #include "renderer/primitives/font.h"
 #include "renderer/primitives/text.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/asset/font_system.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
-#include "runtime/ecs/components/drawable.h"
-#include "runtime/ecs/components/sprite.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
@@ -290,7 +291,7 @@ V2_int GetTextSize(Entity text, Entity camera) {
 V2_int GetTextSize(
 	Entity text, std::string_view content, Font font, std::optional<float> font_size
 ) {
-	return text.GetScene().app().assets.GetFontSize(font, content, font_size);
+	return text.GetScene().app().font.GetSize(font, content, font_size);
 }
 
 TextProperties GetTextProperties(Entity text) {
