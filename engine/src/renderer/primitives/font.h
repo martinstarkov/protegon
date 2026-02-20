@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "core/component.h"
 #include "core/util/entity_handle.h"
 
 #ifdef __EMSCRIPTEN__
@@ -22,8 +23,8 @@ struct TTF_FontDeleter {
 	void operator()(TTF_Font* font) const;
 };
 
-struct FontSize {
-	float point_size{ 0.0f };
+struct FontSize : public ArithmeticComponent<float> {
+	using ArithmeticComponent::ArithmeticComponent;
 };
 
 } // namespace impl

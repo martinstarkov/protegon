@@ -17,7 +17,6 @@
 // namespace ptgn {
 //
 // class Scene;
-// class Camera;
 // class Button;
 //
 // struct MouseInfo {

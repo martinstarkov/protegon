@@ -13,6 +13,7 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/camera.h"
+#include "renderer/camera/viewport.h"
 #include "renderer/image/surface.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/render_target.h"
@@ -106,15 +107,14 @@ void Scene::ReEnter() {
 // void Scene::SetColliderVisibility(bool collider_visibility) {
 //	collider_visibility_ = collider_visibility;
 // }
-/*
-V2_float Scene::GetCameraScaleRelativeTo(const Camera& relative_to_camera) const {
+V2_float Scene::GetCameraScaleRelativeTo(Entity relative_to_camera) const {
 	if (!relative_to_camera) {
 		return { 1.0f, 1.0f };
 	}
 
-	V2_float camera_size{ relative_to_camera.GetViewportSize() };
+	V2_float camera_size{ GetCameraViewport(relative_to_camera).size };
 
-	V2_float primary_camera_size{ camera.GetViewportSize() };
+	V2_float primary_camera_size{ GetCameraViewport(camera).size };
 
 	PTGN_ASSERT(camera_size.BothAboveZero());
 
@@ -125,18 +125,18 @@ V2_float Scene::GetCameraScaleRelativeTo(const Camera& relative_to_camera) const
 	return scale;
 }
 
-V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera) const {
+V2_float Scene::GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const {
 	auto cam{ relative_to_camera ? relative_to_camera : camera };
 
-	V2_float camera_size{ cam.GetViewportSize() };
+	V2_float camera_size{ GetCameraViewport(cam).size };
 
 	// auto camera_zoom{ cam.GetZoom() };
 	// PTGN_ASSERT(camera_zoom.BothAboveZero());
 	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
 	// camera_size /= camera_zoom;
 
-	// TODO: Fix.
-	V2_float draw_size{ render_target_.GetTextureSize() };
+	// TODO: Check that this is correct.
+	V2_float draw_size{ render_target_.Get<RenderTarget>().GetSize() };
 
 	PTGN_ASSERT(camera_size.BothAboveZero());
 
@@ -146,8 +146,6 @@ V2_float Scene::GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera)
 
 	return scale;
 }
-
-	*/
 
 void Scene::SetBackgroundColor(Color background_color) {
 	// TODO: Fix.

@@ -11,7 +11,6 @@
 //
 // namespace ptgn {
 //
-// class Camera;
 // class Manager;
 // class ChunkManager;
 //

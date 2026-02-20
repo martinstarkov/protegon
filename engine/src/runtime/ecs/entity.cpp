@@ -18,12 +18,6 @@ namespace ptgn {
 
 Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
 
-// ecs::impl::Index Entity::GetId() const {
-//	return entity_.GetId();
-// }
-
-// Entity::Entity(const BaseEntity& entity) : BaseEntity{ entity } {}
-
 void Entity::Clear() const {
 	entity_.Clear();
 }
@@ -59,10 +53,6 @@ const Manager& Entity::GetManager() const {
 }
 
 const Scene& Entity::GetScene() const {
-	// PTGN_ASSERT(Has<SceneKey>());
-	// const auto& scene_key{ Get<SceneKey>() };
-	// PTGN_ASSERT(Application::Get().scene_.Has(scene_key));
-	// return *Application::Get().scene_.Get(scene_key);
 	return *scene_;
 }
 
@@ -73,46 +63,6 @@ Scene& Entity::GetScene() {
 bool Entity::HasScene() const {
 	return scene_ != nullptr;
 }
-
-/*
-static RenderTarget GetParentRenderTarget(const Entity& root, const Entity& entity) {
-	// @return Root or the entities render target or any of its parents' render targets (whichever
-	// is first in the hierarchy).
-	if (auto rt{ entity.TryGet<RenderTarget>() }) {
-		return *rt;
-	}
-	if (HasParent(entity)) {
-		Entity parent{ GetParent(entity) };
-		return GetParentRenderTarget(root, parent);
-	}
-	return root;
-}
-
-const Camera& Entity::GetCamera() const {
-	if (const auto camera{ GetNonPrimaryCamera() }) {
-		return *camera;
-	}
-	if (const auto rt{ TryGet<RenderTarget>() }) {
-		return rt->GetCamera();
-	}
-	if (RenderTarget rt{ GetParentRenderTarget(*this, *this) }; rt != *this) {
-		PTGN_ASSERT(rt);
-		return rt.GetCamera();
-	}
-	return GetScene().camera;
-}
-
-const Camera* Entity::GetNonPrimaryCamera() const {
-	if (const auto camera{ TryGet<Camera>() }; camera && *camera) {
-		return camera;
-	}
-	return nullptr;
-}
-
-Camera& Entity::GetCamera() {
-	return const_cast<Camera&>(std::as_const(*this).GetCamera());
-}
-*/
 
 bool Entity::IsIdenticalTo(const Entity& e) const {
 	return entity_.IsIdenticalTo(e.entity_);
@@ -182,11 +132,7 @@ void to_json(json& j, const Entity& entity) {
 
 	j[uuid_name] = entity.GetUUID();
 
-	// TODO: Fix.
-	/*if (entity.Has<SceneKey>()) {
-		constexpr auto scene_key_name{ type_name_without_namespaces<SceneKey>() };
-		j[scene_key_name] = entity.Get<SceneKey>();
-	}*/
+	// TODO: Fix scene key serialization.
 }
 
 void from_json(const json& j, Entity& entity) {
@@ -211,14 +157,7 @@ void from_json(const json& j, Entity& entity) {
 
 	PTGN_ASSERT(entity, "Failed to find entity with UUID: ", uuid);
 
-	// TODO: Fix.
-	/*constexpr auto scene_key_name{ type_name_without_namespaces<SceneKey>() };
-
-	if (j.contains(scene_key_name)) {
-		SceneKey scene_key;
-		j[scene_key_name].get_to(scene_key);
-		entity.Add<SceneKey>(scene_key);
-	}*/
+	// TODO: Fix scene key serialization.
 }
 
 std::size_t Hash(const Entity& entity) {

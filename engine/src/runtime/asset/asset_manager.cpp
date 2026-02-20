@@ -39,7 +39,9 @@
 #endif
 #include <cstdint>
 
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/text.h"
 
 // TODO: Add async asset loading.
 
@@ -399,6 +401,7 @@ std::shared_ptr<TTF_Font> AssetManager::GetFont(
 		entity.Get<impl::AssetKey>().hash == Hash(""),
 		"Font key must have a valid path unless it is the default font"
 	);
+
 	return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, *font_size, false),
 									  impl::TTF_FontDeleter{} };
 }
@@ -412,19 +415,20 @@ int AssetManager::GetFontHeight(std::string_view key, std::optional<float> font_
 }
 
 V2_int AssetManager::GetFontSize(
-	std::string_view key, const std::string& content, std::optional<float> font_size,
+	std::string_view key, std::string_view text_content, std::optional<float> font_size,
 	int max_wrap_width
 ) const {
 	V2_int size;
 
-	if (content.empty()) {
+	if (text_content.empty()) {
 		size.x = 0;
 		size.y = GetFontHeight(key, font_size);
 		return size;
 	}
 
 	auto success{ TTF_GetStringSizeWrapped(
-		GetFont(key, font_size).get(), content.c_str(), 0, max_wrap_width, &size.x, &size.y
+		GetFont(key, font_size).get(), text_content.data(), text_content.length(), max_wrap_width,
+		&size.x, &size.y
 	) };
 
 	PTGN_ASSERT(success, "Failed to get size of wrapped font string");
@@ -432,10 +436,120 @@ V2_int AssetManager::GetFontSize(
 	return size;
 }
 
-// float FontSizeToHD(float font_size, const Scene& scene, const Camera& camera) const {
-//	auto render_target_scale{ scene.GetRenderTargetScaleRelativeTo(camera) };
-//	font_size = font_size * render_target_scale.y);
-//  return font_size;
-//}
+V2_int AssetManager::GetFontSize(
+	Font font, std::string_view text_content, std::optional<float> font_size, int max_wrap_width
+) const {
+	return GetFontSize(
+		font.entity_ ? font.entity_.Get<impl::AssetName>().name : "", text_content, font_size,
+		max_wrap_width
+	);
+}
+
+Texture AssetManager::CreateTextTexture(
+	std::string_view text_content, Color color, float font_size, Font font_asset,
+	const TextProperties& properties
+) {
+	Texture texture{ CreateAsset(), false };
+
+	if (text_content.empty()) {
+		return texture;
+	}
+
+	auto font{ font_asset.entity_.Get<std::shared_ptr<TTF_Font>>().get() };
+
+	PTGN_ASSERT(font != nullptr, "Cannot create texture for text with nullptr font");
+
+	TTF_SetFontStyle(font, std::to_underlying(properties.style));
+
+	TTF_SetFontWrapAlignment(font, static_cast<TTF_HorizontalAlignment>(properties.justify));
+
+	if (properties.line_skip.GetValue().has_value()) {
+		TTF_SetFontLineSkip(font, *properties.line_skip.GetValue());
+	}
+
+	PTGN_ASSERT(font_size > 0, "Font size must be greater than zero");
+	PTGN_ASSERT(
+		font_size < 10000, "Font size exceeds maximum allowable font size or grew recursively"
+	);
+
+	TTF_SetFontSize(font, font_size);
+
+	SDL_Color text_color{ color.r, color.g, color.b, color.a };
+
+	PTGN_ASSERT(properties.outline.width >= 0, "Cannot have negative font outline width");
+
+	SDL_Surface* outline_surface{ nullptr };
+
+	if (properties.outline.width != 0 && properties.outline.color != color::Transparent) {
+		PTGN_ASSERT(
+			properties.render_mode == FontRenderMode::Blended,
+			"Font render mode must be set to blended when drawing text with outline"
+		);
+		TTF_SetFontOutline(font, properties.outline.width);
+
+		SDL_Color outline_color{ properties.outline.color.r, properties.outline.color.g,
+								 properties.outline.color.b, properties.outline.color.a };
+
+		outline_surface = TTF_RenderText_Blended_Wrapped(
+			font, text_content.data(), text_content.length(), outline_color, properties.wrap_after
+		);
+
+		PTGN_ASSERT(outline_surface != nullptr, "Failed to create text outline");
+
+		TTF_SetFontOutline(font, 0);
+	}
+
+	SDL_Surface* surface{ nullptr };
+
+	switch (properties.render_mode) {
+		case FontRenderMode::Solid:
+			surface = TTF_RenderText_Solid_Wrapped(
+				font, text_content.data(), text_content.length(), text_color, properties.wrap_after
+			);
+			break;
+		case FontRenderMode::Shaded: {
+			SDL_Color shading_color{ properties.shading_color.r, properties.shading_color.g,
+									 properties.shading_color.b, properties.shading_color.a };
+			surface = TTF_RenderText_Shaded_Wrapped(
+				font, text_content.data(), text_content.length(), text_color, shading_color,
+				properties.wrap_after
+			);
+			break;
+		}
+		case FontRenderMode::Blended:
+			surface = TTF_RenderText_Blended_Wrapped(
+				font, text_content.data(), text_content.length(), text_color, properties.wrap_after
+			);
+			break;
+		default:
+			PTGN_ERROR("Unrecognized render mode given when creating surface from font information"
+			);
+	}
+
+	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
+
+	if (outline_surface) {
+		SDL_Rect rect{ properties.outline.width, properties.outline.width, surface->w, surface->h };
+
+		SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
+		SDL_BlitSurface(surface, NULL, outline_surface, &rect);
+		SDL_DestroySurface(surface);
+
+		surface = outline_surface;
+	}
+
+	PTGN_ASSERT(surface != nullptr, "Failed to blit text surface to text outline surface");
+
+	impl::Surface s{ surface };
+
+	texture.entity_.Add<impl::TextureObject>(
+		renderer_.gl_renderer_.get(),
+		renderer_.gl_renderer_->gl->textures.CreateTexture(
+			s.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, s.size, GL_RGBA
+		)
+	);
+
+	return texture;
+}
 
 } // namespace ptgn

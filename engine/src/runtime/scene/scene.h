@@ -6,6 +6,7 @@
 
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
+#include "core/math/vector2.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -306,14 +307,12 @@ public:
 	void SetBackgroundColor(Color background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
-	//[[nodiscard]] SceneKey GetKey() const;
+	///@return Size of scene render target divided by the viewport size of the provided camera.
+	[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const;
 
-	// @return Size of scene render target divided by the viewport size of the provided camera.
-	//[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(const Camera& relative_to_camera) const;
-
-	// @return Viewport size of scene primary camera divided by the viewport size of the provided
-	// camera.
-	//[[nodiscard]] V2_float GetCameraScaleRelativeTo(const Camera& relative_to_camera) const;
+	/// @return Viewport size of scene primary camera divided by the viewport size of the provided
+	/// camera.
+	[[nodiscard]] V2_float GetCameraScaleRelativeTo(Entity relative_to_camera) const;
 
 	/*SceneInput input;
 	Physics physics;

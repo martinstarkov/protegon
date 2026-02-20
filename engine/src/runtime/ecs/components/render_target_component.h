@@ -34,6 +34,10 @@ struct DisplayList {
 	std::vector<Entity> entities;
 };
 
+struct ParentRenderTarget {
+	Entity render_target;
+};
+
 // TODO: Fix.
 // struct RenderTargetSomething {
 //	static void Draw(Renderer& renderer, Entity entity);

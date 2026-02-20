@@ -11,12 +11,7 @@
 
 namespace ptgn {
 
-class Entity;
 class Manager;
-class Scene;
-class Camera;
-class SceneInput;
-struct Transform;
 class Scene;
 
 class Entity {
@@ -115,13 +110,6 @@ public:
 
 	/// @return True if the entity is part of a scene, false otherwise.
 	bool HasScene() const;
-
-	// const Camera& GetCamera() const;
-	// Camera& GetCamera();
-
-	// @return If the entity has a non primary camera attached to it, return its address, otherwise
-	// return nullptr.
-	// const Camera* GetNonPrimaryCamera() const;
 
 	const Manager& GetManager() const;
 	Manager& GetManager();

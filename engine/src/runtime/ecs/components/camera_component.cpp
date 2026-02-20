@@ -17,8 +17,10 @@
 #include "renderer/camera/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
+#include "runtime/ecs/components/render_target_component.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -269,6 +271,40 @@ void ResetCamera(Entity camera) {
 	camera.Add<Transform>();
 	camera.Add<impl::Camera>();
 	AddScript<impl::CameraResizeScript>(camera);
+}
+
+static Entity GetParentRenderTarget(Entity root, Entity entity) {
+	// @return Root or the entities render target or any of its parents' render targets (whichever
+	// is first in the hierarchy).
+	if (auto rt{ entity.TryGet<impl::ParentRenderTarget>() }) {
+		return rt->render_target;
+	}
+	if (HasParent(entity)) {
+		Entity parent{ GetParent(entity) };
+		return GetParentRenderTarget(root, parent);
+	}
+	return root;
+}
+
+Entity GetCamera(Entity entity) {
+	if (const auto camera{ GetNonPrimaryCamera(entity) }) {
+		return *camera;
+	}
+	if (const auto rt{ entity.TryGet<impl::ParentRenderTarget>() }) {
+		return GetCamera(rt->render_target);
+	}
+	if (auto rt{ GetParentRenderTarget(entity, entity) }; rt != entity) {
+		PTGN_ASSERT(rt);
+		return GetCamera(rt);
+	}
+	return entity.GetScene().camera;
+}
+
+std::optional<Entity> GetNonPrimaryCamera(Entity entity) {
+	if (const auto camera{ entity.TryGet<impl::ParentCamera>() }; camera && camera->camera) {
+		return camera->camera;
+	}
+	return std::nullopt;
 }
 
 namespace impl {

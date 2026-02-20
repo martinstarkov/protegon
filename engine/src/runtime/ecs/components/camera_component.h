@@ -22,6 +22,10 @@ public:
 	void OnEvent(EventDispatcher d) override;
 };
 
+struct ParentCamera {
+	Entity camera;
+};
+
 void RecalculateViewProjection(Entity camera);
 
 /// @return Scroll with bounds applied.
@@ -77,6 +81,12 @@ void SetPixelRounding(Entity camera, bool enabled);
 /// Resets the camera's scroll and zoom to the default values and makes it automatically resize with
 /// the game size.
 void ResetCamera(Entity camera);
+
+/// @return Camera entity of the entity. If none is set returns the primary scene camera.
+Entity GetCamera(Entity entity);
+
+/// @return Camera entity of the entity or nullopt if none is set.
+std::optional<Entity> GetNonPrimaryCamera(Entity entity);
 
 namespace impl {
 

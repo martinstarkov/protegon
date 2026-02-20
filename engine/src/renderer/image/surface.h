@@ -1,14 +1,21 @@
 #pragma once
 
+#include <cstdint>
+#include <functional>
 #include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 
+struct SDL_Surface;
+
 namespace ptgn::impl {
 
 struct Surface {
+	// IMPORTANT: This function will destroy the surface.
+	explicit Surface(SDL_Surface* sdl_surface);
+
 	explicit Surface(const path& filepath);
 
 	// Mirrors the surface vertically.

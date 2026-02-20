@@ -8,10 +8,12 @@
 #include <unordered_map>
 #include <variant>
 
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/font.h"
+#include "renderer/primitives/text.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/audio/audio.h"
@@ -24,6 +26,8 @@ namespace ptgn {
 class Renderer;
 
 namespace impl {
+
+class TextDraw;
 
 struct SDLInstance;
 
@@ -107,7 +111,12 @@ public:
 	/// size.
 	/// @param max_wrap_width The maximum width or 0 to wrap on newline characters.
 	V2_int GetFontSize(
-		std::string_view key, const std::string& content, std::optional<float> font_size = {},
+		std::string_view key, std::string_view content, std::optional<float> font_size = {},
+		int max_wrap_width = 0
+	) const;
+
+	V2_int GetFontSize(
+		Font font, std::string_view text_content, std::optional<float> font_size = {},
 		int max_wrap_width = 0
 	) const;
 
@@ -118,6 +127,7 @@ public:
 private:
 	friend class Shader;
 	friend class Texture;
+	friend class impl::TextDraw;
 
 	Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, path>& source,
@@ -128,6 +138,10 @@ private:
 		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
 	);
 	Texture CreateTexture(bool persistent, const path& asset_path);
+	Texture CreateTextTexture(
+		std::string_view text_content, Color text_color, float font_size, Font font,
+		const TextProperties& properties
+	);
 	Font CreateFont(bool persistent, const path& asset_path, float pt_size);
 	Audio CreateAudio(bool persistent, const path& asset_path);
 

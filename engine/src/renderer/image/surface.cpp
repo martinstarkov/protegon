@@ -1,11 +1,16 @@
 #include "renderer/image/surface.h"
 
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_surface.h>
 #include <SDL3_image/SDL_image.h>
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
+#include <string>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -15,15 +20,8 @@
 
 namespace ptgn::impl {
 
-Surface::Surface(const path& filepath) {
-	PTGN_ASSERT(
-		FileExists(filepath),
-		"Cannot create surface from a nonexistent filepath: ", filepath.string()
-	);
-	// Freed by Surface constructor.
-	SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
-
-	PTGN_ASSERT(sdl_surface != nullptr, SDL_GetError());
+Surface::Surface(SDL_Surface* sdl_surface) {
+	PTGN_ASSERT(sdl_surface != nullptr, "Cannot create surface from nullptr");
 
 	// TODO: In the future, instead of converting all formats to RGBA, figure out how to deal with
 	// Windows and MacOS discrepencies between image formats and SDL surface formats to enable the
@@ -65,6 +63,18 @@ Surface::Surface(const path& filepath) {
 	SDL_UnlockSurface(surface);
 	SDL_DestroySurface(surface);
 }
+
+Surface::Surface(const path& filepath) :
+	Surface{ std::invoke([&]() {
+		PTGN_ASSERT(
+			FileExists(filepath),
+			"Cannot create surface from a nonexistent filepath: ", filepath.string()
+		);
+		// Freed by Surface constructor.
+		SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
+		PTGN_ASSERT(sdl_surface != nullptr, SDL_GetError());
+		return sdl_surface;
+	}) } {}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(!pixels.empty(), "Cannot vertically flip an empty surface");
