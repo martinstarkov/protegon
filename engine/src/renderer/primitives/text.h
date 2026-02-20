@@ -80,7 +80,10 @@ struct TextLineSkip {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(TextLineSkip, value_.value_or(0))
+	bool operator==(const TextLineSkip&) const = default;
+
+	// TODO: Fix serialization.
+	// PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(TextLineSkip, value_.value_or(0))
 
 private:
 	std::optional<std::int32_t> value_{};
@@ -95,8 +98,9 @@ struct TextProperties {
 	TextOutline outline{};
 	Color shading_color{ color::White };
 
+	// TODO: Serialize line_skip once that is fixed.
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		TextProperties, style, justify, line_skip, wrap_after, render_mode, outline, shading_color
+		TextProperties, style, justify, wrap_after, render_mode, outline, shading_color // line_skip
 	)
 };
 

@@ -33,6 +33,8 @@ public:
 
 	EntityHandle& operator=(EntityHandle&& other) noexcept;
 
+	bool operator==(const EntityHandle&) const = default;
+
 	~EntityHandle();
 
 protected:

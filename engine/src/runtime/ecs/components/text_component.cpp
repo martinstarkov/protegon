@@ -73,7 +73,11 @@ Entity SetTextHD(Entity text, bool hd, Entity camera) {
 	if (hd == IsTextHD(text)) {
 		return text;
 	}
-	text.Add<impl::HDText>(hd);
+	if (hd) {
+		text.Add<impl::HDText>();
+	} else {
+		text.Remove<impl::HDText>();
+	}
 	impl::TextDraw::RecreateTexture(text, camera);
 	return text;
 }
