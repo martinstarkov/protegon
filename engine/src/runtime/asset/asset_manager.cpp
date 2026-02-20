@@ -491,7 +491,7 @@ Texture AssetManager::CreateTextTexture(
 		font_size < 10000, "Font size exceeds maximum allowable font size or grew recursively"
 	);
 
-	TTF_SetFontSize(font, font_size);
+	TTF_SetFontSize(font, static_cast<float>(static_cast<int>(font_size)));
 
 	SDL_Color text_color{ color.r, color.g, color.b, color.a };
 

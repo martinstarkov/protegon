@@ -142,6 +142,8 @@ public:
 	void OnEnter() override {
 		PTGN_INFO("Entered asset scene");
 
+		app().renderer.SetGameSize(V2_int{ 320, 180 });
+
 		PTGN_LOG("Working Directory: ", GetWorkingDirectory());
 		// auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
 		// auto f = app().assets.LoadFont("test", "assets/retro_gaming.ttf", 11);
@@ -161,7 +163,8 @@ public:
 		auto texture1 = sprite.Get<Texture>();
 		auto texture2 = sprite2.Get<Texture>();
 
-		auto text = CreateText(*this, "Hello World", color::Orange, 70.0f, {}, {});
+		auto text = CreateText(*this, "Hello World", color::Orange, 18.0f, {}, {});
+		SetTextHD(text, false);
 
 		PTGN_LOG("Loaded all assets!");
 

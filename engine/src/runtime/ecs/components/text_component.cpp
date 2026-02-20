@@ -97,9 +97,9 @@ void DrawText(
 
 	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
 
-	impl::DrawTexture(
-		renderer, text_texture, transform, size, GetDrawOrigin(text), text_tint, GetBlendMode(text),
-		texture_coordinates, cam
+	impl::DrawQuadTexture(
+		renderer, text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
+		GetBlendMode(text), texture_coordinates, cam
 	);
 }
 

@@ -121,10 +121,10 @@ void SetDisplaySize(Entity entity, V2_float display_size);
 
 namespace impl {
 
-void DrawTexture(
+void DrawQuadTexture(
 	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
-	Color tint, BlendMode blend_mode, const std::array<V2_float, 4>& texture_coordinates,
-	Entity camera
+	Color tint, Depth depth, BlendMode blend_mode,
+	const std::array<V2_float, 4>& texture_coordinates, Entity camera
 );
 
 } // namespace impl

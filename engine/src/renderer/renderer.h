@@ -3,6 +3,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
@@ -14,6 +15,7 @@
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/render_target.h"
+#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn {
@@ -76,14 +78,25 @@ public:
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
 	void DrawTexture(
-		const impl::RenderTargetData& rt, V2_float center, V2_float size, Color tint = color::White,
-		bool flip_y = true, const std::optional<std::array<V2_float, 4>>& tex_coords = {}
-	);
-	void DrawTexture(
-		impl::TextureId texture, V2_float center, V2_float size, Color tint = color::White,
+		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
+		Color tint = color::White, float depth = 0.0f, bool flip_y = false,
 		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
 	);
-	void DrawRect(V2_float center, V2_float size, Color color);
+
+	void DrawQuadTexture(
+		impl::TextureId texture, const std::array<V2_float, 4>& positions,
+		Color tint = color::White, float depth = 0.0f, bool flip_y = false,
+		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
+	);
+
+	void DrawQuad(
+		const std::array<V2_float, 4>& positions, Color tint = color::White, float depth = 0.0f,
+		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
+	);
+
+	impl::TextureId GetWhiteTexture() const;
+
+	impl::ShaderId GetShader(std::string_view name) const;
 
 	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
 

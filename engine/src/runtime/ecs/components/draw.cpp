@@ -13,6 +13,7 @@
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
@@ -46,17 +47,18 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 	return ascending ? (depth_a < depth_b) : (depth_a > depth_b);
 }
 
-void DrawTexture(
+void DrawQuadTexture(
 	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
-	Color tint, BlendMode blend_mode, const std::array<V2_float, 4>& texture_coordinates,
-	Entity camera
+	Color tint, Depth depth, BlendMode blend_mode,
+	const std::array<V2_float, 4>& texture_coordinates, Entity camera
 ) {
 	PTGN_ASSERT(camera);
 	renderer.SetViewProjection(GetViewProjection(camera));
 	renderer.SetBlend(blend_mode);
-	// TODO: Use rotation and scale.
-	// TODO: Use draw origin.
-	renderer.DrawTexture(texture, transform.GetPosition(), size, tint, texture_coordinates);
+	auto positions{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
+	renderer.DrawQuadTexture(
+		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
+	);
 }
 
 } // namespace impl

@@ -18,6 +18,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
+#include "renderer/resources/vertex.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/drawable.h"
@@ -173,6 +174,8 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	render_target_.Add<impl::DisplayList>();
 	camera		 = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
 	fixed_camera = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
+
+	render_manager_.Refresh();
 }
 
 // void Scene::SetKey(const SceneKey& key) {
@@ -250,6 +253,8 @@ void Scene::InternalDraw() {
 
 	render_target_.Get<RenderTarget>().Clear(color::Transparent);
 
+	PTGN_LOG("Scene target size: ", render_target_.Get<RenderTarget>().GetSize());
+
 	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
 		// exist.
@@ -279,8 +284,9 @@ void Scene::InternalDraw() {
 	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	renderer.SetBlend(BlendMode::Blend);
 
-	renderer.DrawTexture(
-		render_target_.Get<RenderTarget>(), { 0, 0 }, render_target_.Get<RenderTarget>().GetSize(),
+	renderer.DrawQuadTexture(
+		render_target_.Get<RenderTarget>(),
+		impl::GetCenteredQuadPoints(render_target_.Get<RenderTarget>().GetSize()),
 		GetTint(render_target_), true
 	);
 
@@ -421,10 +427,16 @@ const ApplicationContext& Scene::app() const {
 }
 
 void Scene::InternalEmit(EventDispatcher d) {
+	for (auto [e, scripts] : render_manager_.EntitiesWith<impl::Scripts>()) {
+		scripts.Emit(d);
+		if (d.IsHandled()) {
+			return;
+		}
+	}
 	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
 		scripts.Emit(d);
 		if (d.IsHandled()) {
-			break;
+			return;
 		}
 	}
 	if (!d.IsHandled()) {

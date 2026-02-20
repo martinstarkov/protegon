@@ -5,6 +5,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
@@ -20,6 +21,7 @@
 #include "renderer/camera/viewport.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/render_target.h"
+#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/event/event_handler.h"
 
@@ -96,21 +98,32 @@ ScalingMode Renderer::GetScalingMode() const {
 }
 
 void Renderer::DrawTexture(
-	const impl::RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y,
-	const std::optional<std::array<V2_float, 4>>& tex_coords
+	impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
+	Color tint, float depth, bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
-	gl_renderer_->DrawTexture(rt, center, size, tint, flip_y, tex_coords);
+	gl_renderer_->DrawTexture(shader, texture, positions, tint, depth, flip_y, tex_coords);
 }
 
-void Renderer::DrawTexture(
-	impl::TextureId texture, V2_float center, V2_float size, Color tint,
-	const std::optional<std::array<V2_float, 4>>& tex_coords
+void Renderer::DrawQuadTexture(
+	impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
+	bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
-	gl_renderer_->DrawTexture(texture, center, size, tint, false, tex_coords);
+	DrawTexture(GetShader("quad"), texture, positions, tint, depth, flip_y, tex_coords);
 }
 
-void Renderer::DrawRect(V2_float center, V2_float size, Color color) {
-	gl_renderer_->DrawTexture(gl_renderer_->GetWhiteTexture(), center, size, color);
+void Renderer::DrawQuad(
+	const std::array<V2_float, 4>& positions, Color tint, float depth,
+	const std::optional<std::array<V2_float, 4>>& tex_coords
+) {
+	DrawQuadTexture(GetWhiteTexture(), positions, tint, depth, false, tex_coords);
+}
+
+impl::TextureId Renderer::GetWhiteTexture() const {
+	return gl_renderer_->GetWhiteTexture();
+}
+
+impl::ShaderId Renderer::GetShader(std::string_view name) const {
+	return gl_renderer_->GetShader(name);
 }
 
 RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {

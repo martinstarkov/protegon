@@ -42,6 +42,8 @@ struct RenderTargetData {
 	void Clear(gl::GLContext& gl, Color color) const;
 
 	bool operator==(const RenderTargetData&) const = default;
+
+	operator TextureId() const;
 };
 
 class RenderPass {
@@ -80,6 +82,8 @@ public:
 	void Bind();
 
 	void Clear(Color color = color::Transparent);
+
+	operator impl::TextureId() const;
 
 private:
 	friend class impl::gl::Renderer;

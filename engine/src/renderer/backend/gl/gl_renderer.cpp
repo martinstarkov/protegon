@@ -6,6 +6,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -323,11 +324,9 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 
 void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSetup& setup) {
 	QuadDesc quad;
-	auto half{ params.size / 2.0f };
-	quad.positions = { params.center - half, params.center + V2_float{ half.x, -half.y },
-					   params.center + half, params.center + V2_float{ -half.x, half.y } };
+	quad.positions = params.positions;
 	quad.color	   = params.tint;
-	quad.rotation  = params.rotation;
+	quad.depth	   = params.depth;
 
 	if (params.tex_coords) {
 		quad.tex_coords = *params.tex_coords;
@@ -351,7 +350,7 @@ void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSet
 	setup(shader, quad);
 
 	auto vertices{
-		Vertex::GetQuad(quad.positions, quad.color, quad.rotation, quad.user_data, quad.tex_coords)
+		Vertex::GetQuad(quad.positions, quad.color, quad.depth, quad.user_data, quad.tex_coords)
 	};
 
 	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
@@ -370,24 +369,13 @@ void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSet
 	}
 }
 
-void Renderer::DrawTexture(
-	const RenderTargetData& rt, V2_float center, V2_float size, Color tint, bool flip_y,
-	const std::optional<std::array<V2_float, 4>>& tex_coords
-) {
-	PTGN_ASSERT(rt.color_.has_value(), "Cannot draw render target with no color attachment");
-	DrawTexture(*rt.color_, center, size, tint, flip_y, tex_coords);
+ShaderId Renderer::GetShader(std::string_view name) const {
+	return gl->shaders.GetProgram(name);
 }
 
 void Renderer::DrawTexture(
-	TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y,
-	const std::optional<std::array<V2_float, 4>>& tex_coords
-) {
-	DrawTexture(gl->shaders.GetProgram("quad"), texture, center, size, tint, flip_y, tex_coords);
-}
-
-void Renderer::DrawTexture(
-	ShaderId shader, TextureId texture, V2_float center, V2_float size, Color tint, bool flip_y,
-	const std::optional<std::array<V2_float, 4>>& tex_coords
+	ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
+	float depth, bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
 	PTGN_ASSERT(
 		gl->GetBoundFramebuffer() == FramebufferId{ 0 } ||
@@ -398,8 +386,8 @@ void Renderer::DrawTexture(
 	);
 
 	QuadParams p;
-	p.center	 = center;
-	p.size		 = size;
+	p.positions	 = positions;
+	p.depth		 = depth;
 	p.tint		 = tint;
 	p.texture	 = texture;
 	p.flip_y	 = flip_y;
@@ -453,8 +441,9 @@ void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetDat
 		write.Bind(*gl);
 
 		DrawTexture(
-			shader, *input.color_, { 0, 0 }, gl->textures.GetTextureSize(*input.color_),
-			color::White, flip_y
+			shader, *input.color_,
+			GetCenteredQuadPoints(gl->textures.GetTextureSize(*input.color_)), color::White, 0.0f,
+			flip_y
 		);
 
 		// Update pass state
@@ -463,8 +452,9 @@ void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetDat
 	} else {
 		// Read-only draw: no mutation, no flip
 		DrawTexture(
-			shader, *input.color_, { 0, 0 }, gl->textures.GetTextureSize(*input.color_),
-			color::White, flip_y
+			shader, *input.color_,
+			GetCenteredQuadPoints(gl->textures.GetTextureSize(*input.color_)), color::White, 0.0f,
+			flip_y
 		);
 	}
 }
@@ -496,8 +486,8 @@ void Renderer::EndFrame(const Viewport& viewport) {
 	);
 
 	DrawTexture(
-		*screen_target_.resource_.color_, { 0, 0 }, screen_target_.resource_.size_, color::White,
-		true
+		GetShader("quad"), *screen_target_.resource_.color_,
+		GetCenteredQuadPoints(screen_target_.resource_.size_), color::White, 0.0f, true
 	);
 
 	FlushBatch();

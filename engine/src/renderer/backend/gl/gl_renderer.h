@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include "core/graphics/blend_mode.h"
@@ -48,7 +49,7 @@ struct QuadDesc {
 	std::array<V2_float, 4> positions;
 	std::array<V2_float, 4> tex_coords;
 	Color color{ color::White };
-	float rotation{ 0.0f };
+	float depth{ 0.0f };
 	std::array<float, 4> user_data{};
 };
 
@@ -59,9 +60,9 @@ struct PooledTarget {
 };
 
 struct QuadParams {
-	V2_float center{};
-	V2_float size{ 0.0f, 0.0f };
-	float rotation{ 0.0f };
+	std::array<V2_float, 4> positions;
+
+	float depth{ 0.0f };
 
 	bool flip_y{ false };
 
@@ -85,17 +86,9 @@ public:
 	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
 
 	void DrawTexture(
-		ShaderId shader, TextureId texture, V2_float center, V2_float size,
-		Color tint = color::White, bool flip_y = false,
+		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions,
+		Color tint = color::White, float depth = 0.0f, bool flip_y = false,
 		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
-	);
-	void DrawTexture(
-		const RenderTargetData& rt, V2_float center, V2_float size, Color tint = color::White,
-		bool flip_y = false, const std::optional<std::array<V2_float, 4>>& tex_coords = {}
-	);
-	void DrawTexture(
-		TextureId texture, V2_float center, V2_float size, Color tint = color::White,
-		bool flip_y = false, const std::optional<std::array<V2_float, 4>>& tex_coords = {}
 	);
 	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target);
 
@@ -107,6 +100,8 @@ public:
 	void SetStencil(const StencilState& stencil);
 	void SetRaster(const RasterState& raster);
 	void SetColorMask(const ColorMaskState& color_mask);
+
+	ShaderId GetShader(std::string_view name) const;
 
 	RenderPass BeginPass(const RenderTargetData& scene_target);
 

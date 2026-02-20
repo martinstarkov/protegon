@@ -69,6 +69,11 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) 
 	}
 }
 
+std::array<V2_float, 4> GetCenteredQuadPoints(V2_float size) {
+	auto half{ size / 2.0f };
+	return { -half, V2_float{ half.x, -half.y }, half, V2_float{ -half.x, half.y } };
+}
+
 std::array<Vertex, 3> Vertex::GetTriangle(
 	const std::array<V2_float, 3>& triangle_points, Color color, float depth
 ) {

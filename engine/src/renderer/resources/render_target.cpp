@@ -40,6 +40,13 @@ void RenderTargetData::Clear(gl::GLContext& gl, Color color) const {
 	gl.framebuffers.ClearToColor(framebuffer_, color);
 }
 
+RenderTargetData::operator TextureId() const {
+	PTGN_ASSERT(
+		color_.has_value(), "Cannot convert render target with no color attachment to a texture id"
+	);
+	return *color_;
+}
+
 void RenderTargetData::Bind(gl::GLContext& gl) const {
 	auto _ = gl.Bind(framebuffer_);
 
@@ -97,6 +104,10 @@ void RenderTarget::Clear(Color color) {
 void RenderTarget::Bind() {
 	PTGN_ASSERT(IsValid());
 	resource_.Bind(*renderer_->gl);
+}
+
+RenderTarget::operator impl::TextureId() const {
+	return static_cast<impl::TextureId>(static_cast<impl::RenderTargetData>(*this));
 }
 
 } // namespace ptgn

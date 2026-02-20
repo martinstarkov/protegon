@@ -52,6 +52,8 @@ struct Vertex : public gl::VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::ve
 	static void SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_index);
 };
 
+std::array<V2_float, 4> GetCenteredQuadPoints(V2_float size);
+
 } // namespace impl
 
 } // namespace ptgn
