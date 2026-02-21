@@ -1,8 +1,10 @@
 #pragma once
 
 #include <concepts>
+#include <iterator>
 #include <memory>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "core/event/dispatcher.h"
@@ -23,6 +25,8 @@ class EventHandler;
 
 class Renderer;
 class InputHandler;
+
+// TODO: Move classes to other files.
 
 class SceneEventHandler {
 public:
@@ -147,37 +151,6 @@ struct SceneEntitiesWithRange {
 	}
 };
 
-/*
-
-Scene scene;
-
-// Create entities
-for (int i = 0; i < 100; ++i) {
-	auto e = scene.CreateEntity();
-	e.Add<ProfileTestComponent>(3, 3);
-}
-
-// Iterate with components
-for (auto [e, c] : scene.EntitiesWith<ProfileTestComponent>()) {
-	c.x += 1;
-	// e is game::Entity, c is ProfileTestComponent&
-}
-
-// Just entities
-for (auto e : scene.Entities()) {
-	if (!e) {
-		continue;
-	}
-	// ...
-}
-
-// Entities lacking a component
-for (auto e : scene.EntitiesWithout<ProfileTestComponent>()) {
-	// e is game::Entity
-}
-
-*/
-
 template <typename TComponent>
 struct SceneHook {
 	Scene& scene;
@@ -190,26 +163,50 @@ struct SceneHook {
 };
 
 class Scene {
-protected:
-	// void SetColliderColor(Color collider_color);
-	// void SetColliderVisibility(bool collider_visibility);
-
 public:
 	Scene();
 	virtual ~Scene();
 
-	// Make sure to call Refresh() after this function.
+	/// Called when the scene is added to active scenes.
+	virtual void OnEnter() {
+		/* user implementation */
+	}
+
+	/// Called once per frame for each active scene.
+	virtual void OnUpdate() {
+		/* user implementation */
+	}
+
+	/// Called when the scene is removed from active scenes.
+	virtual void OnExit() {
+		/* user implementation */
+	}
+
+	/// Called an event is emitted by the event handler.
+	virtual void OnEvent(EventDispatcher) {
+		/* user implementation */
+	}
+
+	// TODO: Fix.
+	///// Call to simulate the scene being re-entered.
+	// void ReEnter();
+
+	// TODO: Fix scene render target clear color.
+	// void SetBackgroundColor(Color background_color);
+	//[[nodiscard]] Color GetBackgroundColor() const;
+
+	/// Make sure to call Refresh() after this function.
 	Entity CreateEntity();
 
-	// Make sure to call Refresh() after this function.
-	// Creates an entity with a specific uuid.
+	/// Make sure to call Refresh() after this function.
+	/// Creates an entity with a specific uuid.
 	Entity CreateEntity(UUID uuid);
 
-	// Make sure to call Refresh() after this function.
-	// Creates an entity from a json object.
+	/// Make sure to call Refresh() after this function.
+	/// Creates an entity from a json object.
 	Entity CreateEntity(const json& j);
 
-	// Make sure to call Refresh() after this function.
+	/// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(Entity from) {
 		auto entity{ manager_.CopyEntity<Ts...>(from) };
@@ -217,7 +214,6 @@ public:
 		return entity;
 	}
 
-	// All entities (no component constraint)
 	auto Entities() {
 		using EcsView = decltype(manager_.Entities());
 		return SceneEntityRange<Scene, EcsView>{ this, manager_.Entities() };
@@ -228,7 +224,6 @@ public:
 		return SceneEntityRange<const Scene, EcsView>{ this, manager_.Entities() };
 	}
 
-	// Entities WITH components
 	template <typename... TComponents>
 	auto EntitiesWith() {
 		using EcsView = decltype(manager_.template EntitiesWith<TComponents...>());
@@ -245,7 +240,6 @@ public:
 		};
 	}
 
-	// Entities WITHOUT components (note: no component tuple, only Entity)
 	template <typename... TComponents>
 	auto EntitiesWithout() {
 		using EcsView = decltype(manager_.template EntitiesWithout<TComponents...>());
@@ -277,64 +271,49 @@ public:
 		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
 	}
 
-	template <auto Member>
-	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
-		(this->*Member)(Entity{ handle, this });
-	}
-
-	// Call to simulate the scene being re-entered.
-	void ReEnter();
-
-	// Called when the scene is added to active scenes.
-	virtual void OnEnter() {
-		/* user implementation */
-	}
-
-	// Called once per frame for each active scene.
-	virtual void OnUpdate() {
-		/* user implementation */
-	}
-
-	// Called when the scene is removed from active scenes.
-	virtual void OnExit() {
-		/* user implementation */
-	}
-
-	// Called an event is emitted by the event handler.
-	virtual void OnEvent(EventDispatcher) {
-		/* user implementation */
-	}
-
-	void SetBackgroundColor(Color background_color);
-	[[nodiscard]] Color GetBackgroundColor() const;
+	friend void to_json(json& j, const Scene& scene);
+	friend void from_json(const json& j, Scene& scene);
 
 	///@return Size of scene render target divided by the viewport size of the provided camera.
+	// TODO: Move this elsewhere.
 	[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const;
 
 	/// @return Viewport size of scene primary camera divided by the viewport size of the provided
 	/// camera.
+	// TODO: Move this elsewhere.
 	[[nodiscard]] V2_float GetCameraScaleRelativeTo(Entity relative_to_camera) const;
 
-	/*SceneInput input;
-	Physics physics;
-	Camera camera;*/
-
 	void Refresh();
-
-	// A default camera with a viewport the size of the Application::Get().
-	// Camera fixed_camera;
-
-	friend void to_json(json& j, const Scene& scene);
-	friend void from_json(const json& j, Scene& scene);
 
 	ApplicationContext& app();
 
 	const ApplicationContext& app() const;
 
+	// TODO: Fix these systems.
+	// SceneInput input;
+	// Physics physics;
+
+	SceneEventHandler events;
+
+	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
+	/// size.
+	Entity fixed_camera;
+
+	/// @brief The default camera used by all objects in the scene. By default it resizes to the
+	/// game size.
+	Entity camera;
+
 private:
 	friend class SceneManager;
 	friend class EventHandler;
 	friend class SceneEventHandler;
+	template <typename TComponent>
+	friend struct SceneHook;
+
+	template <auto Member>
+	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
+		(this->*Member)(Entity{ handle, this });
+	}
 
 	std::shared_ptr<ApplicationContext> ctx_;
 
@@ -369,11 +348,6 @@ private:
 	Manager manager_;
 	Manager render_manager_;
 	Entity render_target_;
-
-public:
-	SceneEventHandler events{ *this };
-	Entity fixed_camera;
-	Entity camera;
 };
 
 template <typename T>

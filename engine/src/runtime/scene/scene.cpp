@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "app/context.h"
+#include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
@@ -37,7 +38,7 @@ void SceneEventHandler::Emit(EventDispatcher d) {
 	scene_.InternalEmit(d);
 }
 
-Scene::Scene() {}
+Scene::Scene() : events{ *this } {}
 
 Scene::~Scene() {
 	// TODO: Fix.
@@ -50,119 +51,6 @@ Scene::~Scene() {
 	Application::Get().render_.render_data_.render_manager.Refresh();*/
 }
 
-void Scene::AddToDisplayList(Entity entity) {
-	PTGN_ASSERT(render_target_);
-	PTGN_ASSERT(render_target_.Has<impl::DisplayList>());
-	// TODO: Fix.
-	// PTGN_ASSERT(HasDraw(render_target_));
-	if (!IsVisible(entity) || !HasDraw(entity)) {
-		return;
-	}
-	auto& dl{ render_target_.Get<impl::DisplayList>() };
-	dl.entities.emplace_back(entity);
-}
-
-void Scene::RemoveFromDisplayList(Entity entity) {
-	PTGN_ASSERT(render_target_);
-	// TODO: Figure out why render target is destroyed before the hook is called when scene is
-	// destroyed.
-	if (!render_target_.Has<impl::DisplayList>()) {
-		return;
-	}
-	// TODO: Fix.
-	// PTGN_ASSERT(HasDraw(render_target_));
-	auto& dl{ render_target_.Get<impl::DisplayList>() };
-	std::erase(dl.entities, entity);
-}
-
-Entity Scene::CreateEntity() {
-	auto entity{ manager_.CreateEntity() };
-	entity.scene_ = this;
-	// entity.template Add<SceneKey>(key_);
-	return entity;
-}
-
-Entity Scene::CreateEntity(UUID uuid) {
-	auto entity{ manager_.CreateEntity(uuid) };
-	entity.scene_ = this;
-	// entity.template Add<SceneKey>(key_);
-	return entity;
-}
-
-Entity Scene::CreateEntity(const json& j) {
-	auto entity{ manager_.CreateEntity(j) };
-	entity.scene_ = this;
-	// PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
-	return entity;
-}
-
-void Scene::ReEnter() {
-	// TODO: Fix.
-	// Application::Get().scene_.Enter(key_);
-}
-
-// void Scene::SetColliderColor(Color collider_color) {
-//	collider_color_ = collider_color;
-// }
-//
-// void Scene::SetColliderVisibility(bool collider_visibility) {
-//	collider_visibility_ = collider_visibility;
-// }
-V2_float Scene::GetCameraScaleRelativeTo(Entity relative_to_camera) const {
-	if (!relative_to_camera) {
-		return { 1.0f, 1.0f };
-	}
-
-	V2_float camera_size{ GetCameraViewport(relative_to_camera).size };
-
-	V2_float primary_camera_size{ GetCameraViewport(camera).size };
-
-	PTGN_ASSERT(camera_size.BothAboveZero());
-
-	V2_float scale{ primary_camera_size / camera_size };
-
-	PTGN_ASSERT(scale.BothAboveZero());
-
-	return scale;
-}
-
-V2_float Scene::GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const {
-	auto cam{ relative_to_camera ? relative_to_camera : camera };
-
-	V2_float camera_size{ GetCameraViewport(cam).size };
-
-	// auto camera_zoom{ cam.GetZoom() };
-	// PTGN_ASSERT(camera_zoom.BothAboveZero());
-	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
-	// camera_size /= camera_zoom;
-
-	// TODO: Check that this is correct.
-	V2_float draw_size{ render_target_.Get<RenderTarget>().GetSize() };
-
-	PTGN_ASSERT(camera_size.BothAboveZero());
-
-	V2_float scale{ draw_size / camera_size };
-
-	PTGN_ASSERT(scale.BothAboveZero());
-
-	return scale;
-}
-
-void Scene::SetBackgroundColor(Color background_color) {
-	// TODO: Fix.
-	// render_target_.SetClearColor(background_color);
-}
-
-Color Scene::GetBackgroundColor() const {
-	// TODO: Fix.
-	// return render_target_.GetClearColor();
-	return {};
-}
-
-// SceneKey Scene::GetKey() const {
-//	return key_;
-// }
-
 void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 
@@ -174,14 +62,13 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	render_target_.Add<impl::DisplayList>();
 	camera		 = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
 	fixed_camera = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
+	// PTGN_LOG("[scene=", this, "]");
+	// PTGN_LOG("[rt=", render_target_, "]");
+	// PTGN_LOG("[camera=", camera, "]");
+	// PTGN_LOG("[fixed_camera=", fixed_camera, "]");
 
 	render_manager_.Refresh();
 }
-
-// void Scene::SetKey(const SceneKey& key) {
-//	key_			 = key;
-//	input.scene_key_ = key;
-// }
 
 void Scene::InternalEnter() {
 	// Here instead of scene constructor because exiting a scene resets the manager, which will
@@ -195,18 +82,22 @@ void Scene::InternalEnter() {
 	Refresh();
 }
 
-void Scene::InternalExit() {
-	Refresh();
-	OnExit();
-	Refresh();
-	// Clears component hooks.
-	manager_.Reset();
-	// physics = {};
-	render_target_.Get<impl::DisplayList>().entities.clear();
-	//  TODO: Fix.
-	// render_target_.Get<GameObject<Camera>>().Reset();
-	// fixed_camera.Reset();
-	Refresh();
+void Scene::InternalEmit(EventDispatcher d) {
+	for (auto [e, scripts] : render_manager_.EntitiesWith<impl::Scripts>()) {
+		scripts.Emit(d);
+		if (d.IsHandled()) {
+			return;
+		}
+	}
+	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.Emit(d);
+		if (d.IsHandled()) {
+			return;
+		}
+	}
+	if (!d.IsHandled()) {
+		OnEvent(d);
+	}
 }
 
 static void InvokeDrawable(Renderer& renderer, Entity entity) {
@@ -336,52 +227,133 @@ void Scene::InternalUpdate() {
 	// app.render_.render_data_.SetDrawingTo(render_target_);
 
 	Refresh();
-
-	// input.Update(*this);
-
-	// const auto invoke_scripts = [&](Manager& manager) {
-	//	// TODO: Consider moving this into the Scripts class.
-	//	for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-	//		scripts.InvokeActions();
-	//	}
-	//	manager.Refresh();
-	// };
-
-	// invoke_scripts(*this);
-
-	/*const auto update_scripts = [&](Manager& manager) {
-		for (auto [e, scripts] : manager.EntitiesWith<Scripts>()) {
-			scripts.AddAction(&impl::IScript::OnUpdate);
-		}
-
-		invoke_scripts(manager);
-	};*/
-
-	// update_scripts(*this);
-
 	OnUpdate();
-
 	Refresh();
 
-	// invoke_scripts(*this);
-
-	// ParticleEmitter::Update(*this);
-
-	// Tween::Update(*this, dt);
-
 	// TODO: Fix.
+	// ParticleEmitter::Update(*this);
+	// Tween::Update(*this, dt);
 	// impl::AnimationSystem::Update(*this);
-
 	// Lifetime::Update(*this);
-
 	// physics.PreCollisionUpdate(*this);
-
 	// collision_.Update(*this);
-
 	// physics.PostCollisionUpdate(*this);
-
-	// invoke_scripts(*this);
 }
+
+void Scene::InternalExit() {
+	Refresh();
+	OnExit();
+	Refresh();
+	// Clears component hooks.
+	manager_.Reset();
+	// physics = {};
+	render_target_.Get<impl::DisplayList>().entities.clear();
+	//  TODO: Fix.
+	// render_target_.Get<GameObject<Camera>>().Reset();
+	// fixed_camera.Reset();
+	Refresh();
+}
+
+// void Scene::ReEnter() {
+//	// TODO: Fix.
+//	// Application::Get().scene_.Enter(key_);
+// }
+
+V2_float Scene::GetCameraScaleRelativeTo(Entity relative_to_camera) const {
+	if (!relative_to_camera) {
+		return { 1.0f, 1.0f };
+	}
+
+	V2_float camera_size{ GetCameraViewport(relative_to_camera).size };
+
+	V2_float primary_camera_size{ GetCameraViewport(camera).size };
+
+	PTGN_ASSERT(camera_size.BothAboveZero());
+
+	V2_float scale{ primary_camera_size / camera_size };
+
+	PTGN_ASSERT(scale.BothAboveZero());
+
+	return scale;
+}
+
+V2_float Scene::GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const {
+	auto cam{ relative_to_camera ? relative_to_camera : camera };
+
+	V2_float camera_size{ GetCameraViewport(cam).size };
+
+	// auto camera_zoom{ cam.GetZoom() };
+	// PTGN_ASSERT(camera_zoom.BothAboveZero());
+	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
+	// camera_size /= camera_zoom;
+
+	// TODO: Check that this is correct.
+	V2_float draw_size{ render_target_.Get<RenderTarget>().GetSize() };
+
+	PTGN_ASSERT(camera_size.BothAboveZero());
+
+	V2_float scale{ draw_size / camera_size };
+
+	PTGN_ASSERT(scale.BothAboveZero());
+
+	return scale;
+}
+
+void Scene::AddToDisplayList(Entity entity) {
+	PTGN_ASSERT(render_target_);
+	PTGN_ASSERT(render_target_.Has<impl::DisplayList>());
+	// TODO: Fix.
+	// PTGN_ASSERT(HasDraw(render_target_));
+	if (!IsVisible(entity) || !HasDraw(entity)) {
+		return;
+	}
+	auto& dl{ render_target_.Get<impl::DisplayList>() };
+	dl.entities.emplace_back(entity);
+}
+
+void Scene::RemoveFromDisplayList(Entity entity) {
+	PTGN_ASSERT(render_target_);
+	// TODO: Figure out why render target is destroyed before the hook is called when scene is
+	// destroyed.
+	if (!render_target_.Has<impl::DisplayList>()) {
+		return;
+	}
+	// TODO: Fix.
+	// PTGN_ASSERT(HasDraw(render_target_));
+	auto& dl{ render_target_.Get<impl::DisplayList>() };
+	std::erase(dl.entities, entity);
+}
+
+Entity Scene::CreateEntity() {
+	auto entity{ manager_.CreateEntity() };
+	entity.scene_ = this;
+	// entity.template Add<SceneKey>(key_);
+	return entity;
+}
+
+Entity Scene::CreateEntity(UUID uuid) {
+	auto entity{ manager_.CreateEntity(uuid) };
+	entity.scene_ = this;
+	// entity.template Add<SceneKey>(key_);
+	return entity;
+}
+
+Entity Scene::CreateEntity(const json& j) {
+	auto entity{ manager_.CreateEntity(j) };
+	entity.scene_ = this;
+	// PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
+	return entity;
+}
+
+// TODO: Fix.
+// void Scene::SetBackgroundColor(Color background_color) {
+//	// render_target_.SetClearColor(background_color);
+//}
+// TODO: Fix.
+// Color Scene::GetBackgroundColor() const {
+//	// return render_target_.GetClearColor();
+//	return {};
+//}
 
 void Scene::Refresh() {
 	manager_.Refresh();
@@ -424,24 +396,6 @@ ApplicationContext& Scene::app() {
 
 const ApplicationContext& Scene::app() const {
 	return *ctx_.get();
-}
-
-void Scene::InternalEmit(EventDispatcher d) {
-	for (auto [e, scripts] : render_manager_.EntitiesWith<impl::Scripts>()) {
-		scripts.Emit(d);
-		if (d.IsHandled()) {
-			return;
-		}
-	}
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.Emit(d);
-		if (d.IsHandled()) {
-			return;
-		}
-	}
-	if (!d.IsHandled()) {
-		OnEvent(d);
-	}
 }
 
 /*

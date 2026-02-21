@@ -144,9 +144,12 @@ public:
 	void OnEnter() override {
 		PTGN_INFO("Entered asset scene");
 
-		app().renderer.SetGameSize(V2_int{ 320, 180 });
+		V2_int game_size{ 320, 180 };
+		app().renderer.SetGameSize(game_size);
+		V2_int window_size{ 1280, 720 };
+		app().window.SetSize(window_size);
 
-		PTGN_LOG("Working Directory: ", GetWorkingDirectory());
+		// PTGN_LOG("Working Directory: ", GetWorkingDirectory());
 		auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
 		// auto f = app().assets.LoadFont("test", "assets/retro_gaming.ttf", 11);
 		auto t = app().assets.LoadTexture("test", "assets/smile.png");
@@ -167,10 +170,12 @@ public:
 		auto texture1 = sprite.Get<Texture>();
 		auto texture2 = sprite2.Get<Texture>();
 
-		auto text = CreateText(*this, "Hello World", color::Orange, 18.0f, {}, {});
-		// SetTextHD(text, false);
+		auto arial = app().assets.LoadFont("arial", "assets/Arial.ttf", 72.0f);
 
-		PTGN_LOG("Loaded all assets!");
+		auto text = CreateText(*this, "Hello World", color::Orange, 72.0f, arial, {});
+		SetTextHD(text, true);
+
+		// PTGN_LOG("Loaded all assets!");
 
 		Refresh();
 	}
@@ -189,24 +194,10 @@ public:
 	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<KeyDown>([this](auto& e) {
 			if (e.IsPressed(Key::Enter)) {
-				app().audio.Stop("test");
 				PTGN_LOG("Pressed enter");
-				PTGN_LOG("Frame: ", app().GetFrameCount());
-				app().renderer.SetGameSize(V2_int{ 800, 800 });
 			} else if (e.IsPressed(Key::Space)) {
-				app().audio.TogglePause("test");
 				PTGN_LOG("Pressed space");
-				PTGN_LOG("Frame: ", app().GetFrameCount());
-				app().renderer.SetGameSize(V2_int{ 800, 600 });
 			}
-		});
-		d.Dispatch<GameResized>([this](auto& e) {
-			PTGN_LOG("Game resized: ", e.size);
-			PTGN_LOG("Frame: ", app().GetFrameCount());
-		});
-		d.Dispatch<impl::DisplayResized>([this](auto& e) {
-			PTGN_LOG("Display resized: ", e.size);
-			PTGN_LOG("Frame: ", app().GetFrameCount());
 		});
 	}
 };
