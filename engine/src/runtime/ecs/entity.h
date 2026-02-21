@@ -20,8 +20,6 @@ public:
 
 	Entity() = default;
 
-	Entity(ecs::impl::EntityHandle<JsonArchiver> entity) : entity_{ entity } {}
-
 	Entity(ecs::impl::EntityHandle<JsonArchiver> entity, const Scene* scene) :
 		entity_{ entity }, scene_{ const_cast<Scene*>(scene) } {}
 

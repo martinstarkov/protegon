@@ -83,11 +83,11 @@ struct MouseScroll : public Event<MouseScroll> {
 	V2_int position;
 };
 
-// Fires once when the window is quit
+/// Fires once when the window is quit
 struct WindowQuit : public Event<WindowQuit> {};
 
-// Fires one or more times (consult SDL_PollEvent rate and game FPS) after size change occurs or
-// resizing is finished (window is released).
+/// Fires one or more times (consult SDL_PollEvent rate and game FPS) after size change occurs or
+/// resizing is finished (window is released).
 struct WindowResized : public Event<WindowResized> {
 	V2_int size;
 };

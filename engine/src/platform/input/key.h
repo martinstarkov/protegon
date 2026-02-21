@@ -34,16 +34,16 @@ enum class Key {
 	Eight = 37,			// Key 8 // SDL_SCANCODE_8
 	Nine  = 38,			// Key 9 // SDL_SCANCODE_9
 
-	KP_0 = 98,			// Keypad Key 0 SDL_SCANCODE_KP_0
-	KP_1 = 89,			// Keypad Key 1 SDL_SCANCODE_KP_1
-	KP_2 = 90,			// Keypad Key 2 SDL_SCANCODE_KP_2
-	KP_3 = 91,			// Keypad Key 3 SDL_SCANCODE_KP_3
-	KP_4 = 92,			// Keypad Key 4 SDL_SCANCODE_KP_4
-	KP_5 = 93,			// Keypad Key 5 SDL_SCANCODE_KP_5
-	KP_6 = 94,			// Keypad Key 6 SDL_SCANCODE_KP_6
-	KP_7 = 95,			// Keypad Key 7 SDL_SCANCODE_KP_7
-	KP_8 = 96,			// Keypad Key 8 SDL_SCANCODE_KP_8
-	KP_9 = 97,			// Keypad Key 9 SDL_SCANCODE_KP_9
+	KP_0 = 98,			// Keypad Key 0 // SDL_SCANCODE_KP_0
+	KP_1 = 89,			// Keypad Key 1 // SDL_SCANCODE_KP_1
+	KP_2 = 90,			// Keypad Key 2 // SDL_SCANCODE_KP_2
+	KP_3 = 91,			// Keypad Key 3 // SDL_SCANCODE_KP_3
+	KP_4 = 92,			// Keypad Key 4 // SDL_SCANCODE_KP_4
+	KP_5 = 93,			// Keypad Key 5 // SDL_SCANCODE_KP_5
+	KP_6 = 94,			// Keypad Key 6 // SDL_SCANCODE_KP_6
+	KP_7 = 95,			// Keypad Key 7 // SDL_SCANCODE_KP_7
+	KP_8 = 96,			// Keypad Key 8 // SDL_SCANCODE_KP_8
+	KP_9 = 97,			// Keypad Key 9 // SDL_SCANCODE_KP_9
 
 	KP_Zero	 = 98,		// SDL_SCANCODE_KP_0
 	KP_One	 = 89,		// SDL_SCANCODE_KP_1
