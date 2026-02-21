@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ostream>
+
 #include "core/assert.h"
 #include "core/util/concepts.h"
 #include "ecs/ecs.h"
@@ -38,6 +40,15 @@ public:
 			return false;
 		}
 		return lhs.WasCreatedBefore(rhs);
+	}
+
+	friend std::ostream& operator<<(std::ostream& o, const Entity& lhs) {
+		o << "[id=";
+		o << lhs.entity_.GetId();
+		o << ",manager=";
+		o << &lhs.entity_.GetManager();
+		o << "]";
+		return o;
 	}
 
 	// Copying a destroyed entity will return a null entity.

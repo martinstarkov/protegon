@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 
 #include "ecs/ecs.h"
 
@@ -38,6 +39,13 @@ public:
 	~EntityHandle();
 
 	bool IsValid() const;
+
+	friend std::ostream& operator<<(std::ostream& o, const EntityHandle& e) {
+		o << e.entity_.GetId();
+		o << "-";
+		o << e.entity_.GetVersion();
+		return o;
+	}
 
 protected:
 	ecs::Entity entity_;

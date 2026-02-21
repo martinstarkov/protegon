@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ostream>
+
 #include "core/math/vector2.h"
 #include "serialization/json/enum.h"
 
@@ -11,6 +13,15 @@ struct Viewport {
 	V2_int size;
 
 	bool operator==(const Viewport&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& o, const Viewport& viewport) {
+		o << "[pos=";
+		o << viewport.position;
+		o << ",size=";
+		o << viewport.size;
+		o << "]";
+		return o;
+	}
 };
 
 enum class ViewportType {
