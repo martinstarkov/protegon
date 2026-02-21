@@ -45,7 +45,7 @@ struct EntityDepthCompare {
 	bool ascending{ true };
 };
 
-Entity SetDraw(Entity entity, std::string_view drawable_name);
+void SetDraw(Entity entity, std::string_view drawable_name);
 
 } // namespace impl
 
@@ -57,52 +57,42 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 
 void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 
-/// @return entity.
-Entity SetDrawOrigin(Entity entity, Origin origin);
+void SetDrawOrigin(Entity entity, Origin origin);
 
 [[nodiscard]] Origin GetDrawOrigin(Entity entity);
 
-/// @return entity.
 template <DrawableType T>
-Entity SetDraw(Entity entity) {
-	return impl::SetDraw(entity, type_name<T>());
+void SetDraw(Entity entity) {
+	impl::SetDraw(entity, type_name<T>());
 }
 
 [[nodiscard]] bool HasDraw(Entity entity);
 
-/// @return entity.
-Entity RemoveDraw(Entity entity);
+void RemoveDraw(Entity entity);
 
-/// @return entity.
-Entity SetVisible(Entity entity, bool visible);
+void SetVisible(Entity entity, bool visible);
 
-/// @return entity.
-Entity Show(Entity entity);
+void Show(Entity entity);
 
-/// @return entity.
-Entity Hide(Entity entity);
+void Hide(Entity entity);
 
 struct EntityShow : public Event<EntityShow> {};
 
 struct EntityHide : public Event<EntityHide> {};
 
-// @return True if the entity is visible, false otherwise. An entity is considered visible if it has
-// a Visible component.
+/// @return True if the entity is visible, false otherwise.
 [[nodiscard]] bool IsVisible(Entity entity);
 
-/// @return entity.
-Entity SetDepth(Entity entity, Depth depth);
+void SetDepth(Entity entity, Depth depth);
 
 [[nodiscard]] Depth GetDepth(Entity entity);
 
-/// @return entity.
-Entity SetBlendMode(Entity entity, BlendMode blend_mode);
+void SetBlendMode(Entity entity, BlendMode blend_mode);
 
 [[nodiscard]] BlendMode GetBlendMode(Entity entity);
 
-/// color::White will clear tint.
-/// @return entity.
-Entity SetTint(Entity entity, Color color = color::White);
+/// @param color color::White will clear any tint.
+void SetTint(Entity entity, Color color = color::White);
 
 [[nodiscard]] Color GetTint(Entity entity);
 

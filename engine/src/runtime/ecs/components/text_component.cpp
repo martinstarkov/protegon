@@ -157,7 +157,11 @@ void SetTextProperties(
 
 } // namespace impl
 
-Entity SetTextHD(Entity text, bool hd, Entity camera) {
+bool IsTextHD(Entity text) {
+	return text.Has<impl::HDText>();
+}
+
+void SetTextHD(Entity text, bool hd, Entity camera) {
 	if (hd == IsTextHD(text)) {
 		return text;
 	}
@@ -167,68 +171,52 @@ Entity SetTextHD(Entity text, bool hd, Entity camera) {
 		text.Remove<impl::HDText>();
 	}
 	impl::TextDraw::RecreateTexture(text, camera);
-	return text;
 }
 
-bool IsTextHD(Entity text) {
-	return text.Has<impl::HDText>();
-}
-
-Entity SetTextFont(Entity text, std::optional<Font> font) {
+void SetTextFont(Entity text, std::optional<Font> font) {
 	impl::SetTextParameter(text, font.value_or(Font{}));
-	return text;
 }
 
-Entity SetTextContent(Entity text, std::string_view content) {
+void SetTextContent(Entity text, std::string_view content) {
 	impl::SetTextParameter(text, impl::TextContent{ content });
-	return text;
 }
 
-Entity SetTextColor(Entity text, Color color) {
+void SetTextColor(Entity text, Color color) {
 	impl::SetTextParameter(text, impl::TextColor{ color });
-	return text;
 }
 
-Entity SetTextFontStyle(Entity text, FontStyle font_style) {
+void SetTextFontStyle(Entity text, FontStyle font_style) {
 	impl::SetTextParameter(text, font_style);
-	return text;
 }
 
-Entity SetTextFontSize(Entity text, float pixels) {
+void SetTextFontSize(Entity text, float pixels) {
 	impl::SetTextParameter(text, impl::FontSize{ pixels });
-	return text;
 }
 
-Entity SetTextOutline(Entity text, TextOutline outline) {
+void SetTextOutline(Entity text, TextOutline outline) {
 	impl::SetTextParameter(text, FontRenderMode::Blended, false);
 	impl::SetTextParameter(text, outline, true);
-	return text;
 }
 
-Entity SetTextFontRenderMode(Entity text, FontRenderMode render_mode) {
+void SetTextFontRenderMode(Entity text, FontRenderMode render_mode) {
 	impl::SetTextParameter(text, render_mode);
-	return text;
 }
 
-Entity SetTextShadingColor(Entity text, Color shading_color) {
+void SetTextShadingColor(Entity text, Color shading_color) {
 	impl::SetTextParameter(text, FontRenderMode::Shaded, false);
 	impl::SetTextParameter(text, impl::TextShadingColor{ shading_color }, true);
-	return text;
 }
 
-Entity SetTextWrapAfter(Entity text, std::uint32_t pixels) {
+void SetTextWrapAfter(Entity text, std::uint32_t pixels) {
 	impl::SetTextParameter(text, impl::TextWrapAfter{ pixels });
-	return text;
 }
 
-Entity SetTextLineSkip(Entity text, TextLineSkip pixels) {
+void SetTextLineSkip(Entity text, TextLineSkip pixels) {
 	impl::SetTextParameter(text, pixels);
-	return text;
 }
 
-Entity SetTextJustify(Entity text, TextJustify text_justify) {
+void SetTextJustify(Entity text, TextJustify text_justify) {
 	impl::SetTextParameter(text, text_justify);
-	return text;
 }
 
 Font GetTextFont(Entity text) {

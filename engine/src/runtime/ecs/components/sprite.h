@@ -40,7 +40,7 @@ struct TextureCrop {
 
 } // namespace impl
 
-Entity SetTexture(Entity sprite, Texture texture);
+void SetTexture(Entity sprite, Texture texture);
 
 Entity CreateSprite(
 	Scene& scene, Texture texture, V2_float position = {}, Origin draw_origin = Origin::Center

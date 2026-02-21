@@ -8,12 +8,10 @@
 // namespace ptgn {
 //
 //// Note: Will call hide on post_fx entity.
-//// @return entity.
-// Entity& AddPostFX(Entity& entity, Entity post_fx);
+// void AddPostFX(Entity& entity, Entity post_fx);
 //
 //// Note: Will call hide on pre_fx entity.
-//// @return entity.
-// Entity& AddPreFX(Entity& entity, Entity pre_fx);
+// void AddPreFX(Entity& entity, Entity pre_fx);
 //
 // namespace impl {
 //

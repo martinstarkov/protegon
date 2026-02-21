@@ -31,9 +31,8 @@ namespace ptgn {
 
 namespace impl {
 
-Entity SetDraw(Entity entity, std::string_view drawable_name) {
+void SetDraw(Entity entity, std::string_view drawable_name) {
 	entity.Add<IDrawable>(drawable_name);
-	return entity;
 }
 
 EntityDepthCompare::EntityDepthCompare(bool ascending) : ascending{ ascending } {}
@@ -67,28 +66,26 @@ bool HasDraw(Entity entity) {
 	return entity.Has<impl::IDrawable>();
 }
 
-Entity RemoveDraw(Entity entity) {
+void RemoveDraw(Entity entity) {
 	entity.Remove<impl::IDrawable>();
-	return entity;
 }
 
 void SortByDepth(std::vector<Entity>& entities, bool ascending) {
 	std::ranges::sort(entities, impl::EntityDepthCompare{ ascending });
 }
 
-Entity SetDrawOrigin(Entity entity, Origin origin) {
+void SetDrawOrigin(Entity entity, Origin origin) {
 	entity.Add<Origin>(origin);
-	return entity;
 }
 
 Origin GetDrawOrigin(Entity entity) {
 	return entity.GetOrDefault<Origin>(Origin::Center);
 }
 
-Entity SetVisible(Entity entity, bool visible) {
+void SetVisible(Entity entity, bool visible) {
 	if (visible) {
 		if (entity.Has<impl::Visible>()) {
-			return entity;
+			return;
 		}
 		entity.Add<impl::Visible>();
 		EntityShow show;
@@ -97,7 +94,7 @@ Entity SetVisible(Entity entity, bool visible) {
 		}
 	} else {
 		if (!entity.Has<impl::Visible>()) {
-			return entity;
+			return;
 		}
 		entity.Remove<impl::Visible>();
 		EntityHide hide;
@@ -105,24 +102,22 @@ Entity SetVisible(Entity entity, bool visible) {
 			entity.GetScene().app().events.Emit(hide);
 		}
 	}
-	return entity;
 }
 
-Entity Show(Entity entity) {
-	return SetVisible(entity, true);
+void Show(Entity entity) {
+	SetVisible(entity, true);
 }
 
-Entity Hide(Entity entity) {
-	return SetVisible(entity, false);
+void Hide(Entity entity) {
+	SetVisible(entity, false);
 }
 
 bool IsVisible(Entity entity) {
 	return entity.Has<impl::Visible>();
 }
 
-Entity SetDepth(Entity entity, Depth depth) {
+void SetDepth(Entity entity, Depth depth) {
 	entity.Add<Depth>(depth);
-	return entity;
 }
 
 Depth GetDepth(Entity entity) {
@@ -139,22 +134,20 @@ Depth GetDepth(Entity entity) {
 	return entity.GetOrDefault<Depth>();
 }
 
-Entity SetBlendMode(Entity entity, BlendMode blend_mode) {
+void SetBlendMode(Entity entity, BlendMode blend_mode) {
 	entity.Add<BlendMode>(blend_mode);
-	return entity;
 }
 
 BlendMode GetBlendMode(Entity entity) {
 	return entity.GetOrDefault<BlendMode>(BlendMode::Blend);
 }
 
-Entity SetTint(Entity entity, Color color) {
+void SetTint(Entity entity, Color color) {
 	if (color != impl::Tint{}) {
 		entity.Add<impl::Tint>(color);
 	} else {
 		entity.Remove<impl::Tint>();
 	}
-	return entity;
 }
 
 Color GetTint(Entity entity) {

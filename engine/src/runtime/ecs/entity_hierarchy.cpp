@@ -1,5 +1,6 @@
 #include "runtime/ecs/entity_hierarchy.h"
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -13,7 +14,7 @@ namespace ptgn {
 
 namespace impl {
 
-void AddChildImpl(Entity entity, Entity child, std::string_view name) {
+void AddChildImpl(Entity entity, Entity child, std::optional<std::string_view> name) {
 	PTGN_ASSERT(child, "Cannot add an null entity as a child");
 	PTGN_ASSERT(entity != child, "Cannot add an entity as its own child");
 	PTGN_ASSERT(
@@ -80,7 +81,7 @@ void SetParent(Entity entity, Entity parent, bool ignore_parent_transform) {
 	}
 }
 
-void AddChild(Entity entity, Entity child, std::string_view name) {
+void AddChild(Entity entity, Entity child, std::optional<std::string_view> name) {
 	impl::AddChildImpl(entity, child, name);
 	impl::SetParentImpl(child, entity);
 }
@@ -107,7 +108,7 @@ void RemoveChild(Entity entity, std::string_view name) {
 	if (!entity.Has<impl::Children>()) {
 		return;
 	}
-	auto& children{ entity.Get<impl::Children>() };
+	const auto& children{ entity.Get<impl::Children>() };
 	if (children.Has(name)) {
 		auto child{ children.Get(name) };
 		RemoveParent(child);

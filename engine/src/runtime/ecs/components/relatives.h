@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -28,7 +29,7 @@ struct Children {
 
 	void Clear();
 
-	void Add(Entity child, std::string_view name = {});
+	void Add(Entity child, std::optional<std::string_view> name = {});
 
 	void Remove(Entity child);
 	void Remove(std::string_view name);

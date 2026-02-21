@@ -30,9 +30,8 @@ void SpriteDraw::Draw(Renderer& renderer, Entity entity) {
 
 } // namespace impl
 
-Entity SetTexture(Entity sprite, Texture texture) {
+void SetTexture(Entity sprite, Texture texture) {
 	sprite.Add<Texture>(texture);
-	return sprite;
 }
 
 Entity CreateSprite(Scene& scene, Texture texture, V2_float position, Origin draw_origin) {

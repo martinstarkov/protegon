@@ -52,7 +52,7 @@ template <typename T>
 	return GetTextParameter<T>(*this, default_value);
 }
 
-// @return True if the parameter was changed.
+/// @return True if the parameter was changed.
 template <TextParameter T>
 bool SetTextParameter(Entity text, const T& value, bool recreate_texture = true) {
 	if (!text.Has<T>()) {
@@ -84,41 +84,43 @@ void SetTextProperties(
 
 } // namespace impl
 
-// Set text to be in high definition instead of natively scaling to its camera.
-Entity SetTextHD(Entity text, bool hd = true, Entity camera = {});
+/// @return True if the text is rendered in high definition, false otherwise.
 [[nodiscard]] bool IsTextHD(Entity text);
 
-// @param font Default {} corresponds to the default engine font.
-Entity SetTextFont(Entity text, std::optional<Font> font = {});
-Entity SetTextContent(Entity text, std::string_view content);
-Entity SetTextColor(Entity text, Color color);
+/// Set text to be rendered in high definition instead of natively scaling to its camera.
+void SetTextHD(Entity text, bool hd = true, Entity camera = {});
 
-// To create text with multiple FontStyles, simply use &&, e.g.
-// FontStyle::Italic && FontStyle::Bold
-Entity SetTextFontStyle(Entity text, FontStyle font_style);
+/// @param font Default {} corresponds to the default engine font.
+void SetTextFont(Entity text, std::optional<Font> font = {});
+void SetTextContent(Entity text, std::string_view content);
+void SetTextColor(Entity text, Color color);
 
-// Set the point size of text. Infinity will use the current point size of the font.
-Entity SetTextFontSize(Entity text, float pt_size);
+/// To create text with multiple FontStyles, simply use &&, e.g.
+/// FontStyle::Italic && FontStyle::Bold
+void SetTextFontStyle(Entity text, FontStyle font_style);
 
-// Note: This function will implicitly set font render mode to Blended as it is required.
-// @param outline Setting outline.width to 0 will remove the text outline.
-Entity SetTextOutline(Entity text, TextOutline outline);
+/// Set the point size of text. Infinity will use the current point size of the font.
+void SetTextFontSize(Entity text, float pt_size);
 
-Entity SetTextFontRenderMode(Entity text, FontRenderMode render_mode);
+/// Note: This function will implicitly set font render mode to Blended as it is required.
+/// @param outline Setting outline.width to 0 will remove the text outline.
+void SetTextOutline(Entity text, TextOutline outline);
 
-// Sets the background shading color for the text.
-// Also sets the font render mode to FontRenderMode::Shaded.
-Entity SetTextShadingColor(Entity text, Color shading_color);
+void SetTextFontRenderMode(Entity text, FontRenderMode render_mode);
 
-// text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
-// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
-Entity SetTextWrapAfter(Entity text, std::uint32_t pixels);
+/// Sets the background shading color for the text.
+/// Also sets the font render mode to FontRenderMode::Shaded.
+void SetTextShadingColor(Entity text, Color shading_color);
 
-// Set the spacing between lines of text. {} will use the current font line skip.
-Entity SetTextLineSkip(Entity text, TextLineSkip pixels = {});
+/// Text wrapped to multiple lines on line endings and on word boundaries if it extends beyond
+/// this pixel value. Setting pixels = 0 (default) will wrap only after newlines.
+void SetTextWrapAfter(Entity text, std::uint32_t pixels);
 
-// Determines how text is justified.
-Entity SetTextJustify(Entity text, TextJustify text_justify);
+/// Set the spacing between lines of text. {} will use the current font line skip.
+void SetTextLineSkip(Entity text, TextLineSkip pixels = {});
+
+/// Determines how text is justified.
+void SetTextJustify(Entity text, TextJustify text_justify);
 
 [[nodiscard]] Font GetTextFont(Entity text);
 [[nodiscard]] std::string GetTextContent(Entity text);
@@ -128,19 +130,19 @@ Entity SetTextJustify(Entity text, TextJustify text_justify);
 [[nodiscard]] Color GetTextShadingColor(Entity text);
 [[nodiscard]] TextJustify GetTextJustify(Entity text);
 
-// @param hd If true, returns font size scaled to high definition.
-// @param camera The camera relative to which an hd font size is retrieved. Only applicable if
-// hd is true. If {}, uses the text's camera component, which may be the scene camera.
+/// @param hd If true, returns font size scaled to high definition.
+/// @param camera The camera relative to which an hd font size is retrieved. Only applicable if
+/// hd is true. If {}, uses the text's camera component, which may be the scene camera.
 [[nodiscard]] float GetTextFontSize(Entity text, bool hd = false, Entity camera = {});
 
-// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
-// text is hd. If {}, uses the text's camera component, which may be the scene camera.
-// @return The unscaled size of the text texture given the current content and font.
+/// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
+/// text is hd. If {}, uses the text's camera component, which may be the scene camera.
+/// @return The unscaled size of the text texture given the current content and font.
 [[nodiscard]] V2_int GetTextSize(Entity text, Entity camera = {});
 
-// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
-// text is hd. If {}, uses the text's camera component, which may be the scene camera.
-// @return The unscaled size of the text texture given the specified content.
+/// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
+/// text is hd. If {}, uses the text's camera component, which may be the scene camera.
+/// @return The unscaled size of the text texture given the specified content.
 [[nodiscard]] V2_int GetTextSize(Entity text, std::string_view content, Entity camera = {});
 
 [[nodiscard]] V2_int GetTextSize(
@@ -149,7 +151,7 @@ Entity SetTextJustify(Entity text, TextJustify text_justify);
 
 [[nodiscard]] TextProperties GetTextProperties(Entity text);
 
-// @param font Default {} corresponds to the default engine font.
+/// @param font Default {} corresponds to the default engine font.
 Entity CreateText(
 	Scene& scene, std::string_view content, Color text_color = {},
 	std::optional<float> font_size = {}, std::optional<Font> font = {},

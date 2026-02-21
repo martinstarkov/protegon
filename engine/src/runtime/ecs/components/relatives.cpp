@@ -19,9 +19,9 @@ void Children::Clear() {
 	children_.clear();
 }
 
-void Children::Add(Entity child, std::string_view name) {
-	if (!name.empty()) {
-		child.Add<ChildKey>(name);
+void Children::Add(Entity child, std::optional<std::string_view> name) {
+	if (name.has_value()) {
+		child.Add<ChildKey>(*name);
 	}
 	if (VectorContains(children_, child)) {
 		return;

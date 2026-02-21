@@ -20,13 +20,13 @@ struct Offsets {
 	/// @return Transform The total combined offset transform (e.g., shake + bounce).
 	[[nodiscard]] Transform GetTotal() const;
 
-	// Temporary transform applied for camera or entity shake effect.
+	/// @brief Temporary transform applied for camera or entity shake effect.
 	Transform shake;
 
-	// Temporary transform applied for bounce effect.
+	/// @brief Temporary transform applied for bounce effect.
 	Transform bounce;
 
-	// User applied offset.
+	/// @brief User applied offset.
 	Transform custom;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Offsets, shake, bounce, custom)
@@ -53,7 +53,7 @@ struct Offsets {
 /// @return Transform The total offset applied to the entity.
 [[nodiscard]] Transform GetOffset(Entity entity);
 
-/// @return entity.
-Entity SetDrawOffset(Entity entity, V2_float offset = {});
+/// @brief Sets a custom draw offset for the entity relative to its transform position.
+void SetDrawOffset(Entity entity, V2_float offset = {});
 
 } // namespace ptgn

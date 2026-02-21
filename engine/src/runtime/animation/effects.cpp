@@ -5,7 +5,7 @@
 //
 // namespace ptgn {
 //
-// Entity& AddPostFX(Entity& entity, Entity post_fx) {
+// void AddPostFX(Entity& entity, Entity post_fx) {
 //	Hide(post_fx);
 //	auto& post_fx_list{ impl::EntityAccess::TryAdd<PostFX>(entity).post_fx_ };
 //	PTGN_ASSERT(
@@ -16,7 +16,7 @@
 //	return entity;
 // }
 //
-// Entity& AddPreFX(Entity& entity, Entity pre_fx) {
+// void AddPreFX(Entity& entity, Entity pre_fx) {
 //	Hide(pre_fx);
 //	auto& pre_fx_list{ impl::EntityAccess::TryAdd<PreFX>(entity).pre_fx_ };
 //	PTGN_ASSERT(
