@@ -41,6 +41,7 @@ void Renderer::OnEvent(EventDispatcher d) {
 		if (!game_size_) {
 			GameResized game_resized;
 			game_resized.size = e.size;
+			// PTGN_LOG("Emitting game resized: ", e.size);
 			events_.Emit(game_resized);
 		}
 
@@ -68,6 +69,7 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 
 	GameResized game_resized;
 	game_resized.size = GetGameSize();
+	// PTGN_LOG("Emitting game resized: ", game_resized.size);
 	events_.Emit(game_resized);
 	UpdateDisplayViewport(window_.GetSize());
 }
@@ -245,6 +247,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 			if (emit_events) {
 				impl::DisplayResized display_resized;
 				display_resized.size = display_viewport_.size;
+				// PTGN_LOG("Emitting display resized: ", display_resized.size);
 				events_.Emit(display_resized);
 			}
 		}
@@ -252,6 +255,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 		if (emit_events) {
 			impl::DisplayViewportChanged display_changed;
 			display_changed.viewport = display_viewport_;
+			// PTGN_LOG("Emitting viewport changed: ", display_changed.viewport);
 			events_.Emit(display_changed);
 		}
 	}

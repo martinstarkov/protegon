@@ -195,6 +195,11 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 		font_size < 10000, "Font size exceeds maximum allowable font size or grew recursively"
 	);
 
+	// V2_int dpi;
+	// auto success{ TTF_GetFontDPI(font, &dpi.x, &dpi.y) };
+	// PTGN_ASSERT(success, SDL_GetError());
+	// PTGN_LOG("[font=", font_asset, ",size=", font_size, ",dpi=", dpi);
+
 	TTF_SetFontSize(font, static_cast<float>(static_cast<int>(font_size)));
 
 	SDL_Color text_color{ color.r, color.g, color.b, color.a };

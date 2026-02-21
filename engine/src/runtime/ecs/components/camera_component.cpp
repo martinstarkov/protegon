@@ -32,8 +32,8 @@ namespace impl {
 void CameraResizeScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<GameResized>([this](auto& e) {
 		auto& c{ entity.Get<Camera>() };
-		c.viewport.position = {};
-		c.viewport.size		= e.size;
+		c.viewport = { {}, e.size };
+		// PTGN_LOG("Camera ", entity, " received game resize: ", e.size);
 		ApplyCameraBounds(entity);
 	});
 }
