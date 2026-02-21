@@ -208,7 +208,7 @@ void Application::EnterMainLoop() {
 	window_.SetSetting(WindowSetting::Shown);
 	running_ = true;
 
-	renderer_.UpdateDisplayViewport(window_.GetSize(), false);
+	renderer_.UpdateDisplayViewport(window_.GetSize(), true);
 
 #ifdef __EMSCRIPTEN__
 	// TODO: Replace with new SDL3 callbacks.

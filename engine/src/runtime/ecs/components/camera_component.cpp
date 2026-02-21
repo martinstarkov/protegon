@@ -312,8 +312,8 @@ namespace impl {
 Entity CreateCamera(Entity camera, const Renderer& renderer) {
 	camera.Add<Transform>();
 	camera.Add<impl::Camera>();
-	AddScript<impl::CameraResizeScript>(camera);
 	SetCameraViewport(camera, { {}, renderer.GetGameSize() });
+	AddScript<impl::CameraResizeScript>(camera);
 	return camera;
 }
 

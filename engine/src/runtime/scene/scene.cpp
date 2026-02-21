@@ -253,7 +253,7 @@ void Scene::InternalDraw() {
 
 	render_target_.Get<RenderTarget>().Clear(color::Transparent);
 
-	PTGN_LOG("Scene target size: ", render_target_.Get<RenderTarget>().GetSize());
+	// PTGN_LOG("Scene target size: ", render_target_.Get<RenderTarget>().GetSize());
 
 	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
