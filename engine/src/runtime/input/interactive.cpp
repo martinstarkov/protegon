@@ -1,10 +1,14 @@
 #include "runtime/input/interactive.h"
 
 #include <algorithm>
+#include <optional>
+#include <ranges>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
@@ -12,6 +16,110 @@
 #include "runtime/ecs/game_object.h"
 
 namespace ptgn {
+
+template <typename TComponent>
+void SetComponentState(Entity entity, ComponentState state) {
+	switch (state) {
+		using enum ptgn::ComponentState;
+		case Disabled: entity.TryAdd<TComponent>().enabled = true; break;
+		case Enabled:  entity.TryAdd<TComponent>().enabled = false; break;
+		case Removed:  entity.Remove<TComponent>(); break;
+		default:	   PTGN_ERROR("Invalid ComponentState");
+	}
+}
+
+template <typename TComponent>
+bool IsEnabled(Entity entity) {
+	return entity.Has<TComponent>() && entity.Get<TComponent>().enabled;
+}
+
+void SetInteractive(Entity entity, ComponentState state) {
+	SetComponentState<impl::Interactive>(entity, state);
+}
+
+bool IsInteractive(Entity entity) {
+	return IsEnabled<impl::Interactive>(entity);
+}
+
+void AddInteractiveShape(
+	Entity entity, GameObject&& shape, std::optional<std::string_view> shape_id,
+	bool ignore_parent_transform
+) {
+	IgnoreParentTransform(shape, ignore_parent_transform);
+	SetInteractive(entity);
+	if (shape_id.has_value()) {
+		PTGN_ASSERT(
+			!HasChild(entity, *shape_id),
+			"Cannot add the same named interactable to an entity more than once"
+		);
+	}
+	AddChild(entity, shape, shape_id);
+	auto& interactive{ entity.Get<impl::Interactive>() };
+	interactive.shapes.emplace_back(std::move(shape));
+}
+
+void SetInteractiveShape(
+	Entity entity, GameObject&& shape, std::optional<std::string_view> shape_id,
+	bool ignore_parent_transform
+) {
+	ClearInteractiveShapes(entity);
+	AddInteractiveShape(entity, std::move(shape), shape_id, ignore_parent_transform);
+}
+
+void RemoveInteractiveShape(Entity entity, std::string_view name) {
+	if (!entity.Has<impl::Interactive>()) {
+		return;
+	}
+	if (!HasChild(entity, name)) {
+		return;
+	}
+	Entity child{ GetChild(entity, name) };
+	auto& interactive{ entity.Get<impl::Interactive>() };
+	std::erase(interactive.shapes, child);
+}
+
+bool HasInteractiveShape(Entity entity, std::string_view name) {
+	if (!entity.Has<impl::Interactive>()) {
+		return false;
+	}
+	if (!HasChild(entity, name)) {
+		return false;
+	}
+
+	Entity child{ GetChild(entity, name) };
+
+	const auto& interactive{ entity.Get<impl::Interactive>() };
+
+	return std::ranges::contains(interactive.shapes, child);
+}
+
+std::vector<Entity> GetInteractiveShapes(Entity entity) {
+	PTGN_ASSERT(entity.Has<impl::Interactive>());
+	const auto& interactive{ entity.Get<impl::Interactive>() };
+	std::vector<Entity> interactables;
+	interactables.reserve(interactive.shapes.size());
+	for (const auto& shape : interactive.shapes) {
+		interactables.emplace_back(shape);
+	}
+	return interactables;
+}
+
+void ClearInteractiveShapes(Entity entity) {
+	if (!entity.Has<impl::Interactive>()) {
+		return;
+	}
+	auto& interactive{ entity.Get<impl::Interactive>() };
+	// Clear owned entities.
+	interactive.shapes.clear();
+}
+
+void SetDraggable(Entity entity, ComponentState state) {
+	SetComponentState<impl::Draggable>(entity, state);
+}
+
+bool IsDraggable(Entity entity) {
+	return IsEnabled<impl::Draggable>(entity);
+}
 
 V2_float GetDragOffset(Entity draggable) {
 	return draggable.Get<impl::Draggable>().offset;
@@ -25,28 +133,12 @@ bool IsBeingDragged(Entity draggable) {
 	return draggable.Get<impl::Draggable>().dragging;
 }
 
-void SetDraggableCondition(Entity draggable, DragEventPhase phase, TriggerCondition condition) {
-	auto& d = draggable.Get<impl::Draggable>();
-
-	switch (phase) {
-		using enum ptgn::DragEventPhase;
-		case MoveOver: d.move_condition = condition; break;
-		case Drop:	   d.drop_condition = condition; break;
-		case Pickup:   d.pickup_condition = condition; break;
-		default:	   PTGN_ERROR("Unhandled DragEventPhase");
-	}
+void SetDropzone(Entity entity, ComponentState state) {
+	SetComponentState<impl::Dropzone>(entity, state);
 }
 
-void SetDropzoneCondition(Entity dropzone, DragEventPhase phase, TriggerCondition condition) {
-	auto& d = dropzone.Get<impl::Dropzone>();
-
-	switch (phase) {
-		using enum ptgn::DragEventPhase;
-		case MoveOver: d.move_condition = condition; break;
-		case Drop:	   d.drop_condition = condition; break;
-		case Pickup:   d.pickup_condition = condition; break;
-		default:	   PTGN_ERROR("Unhandled DragEventPhase");
-	}
+bool IsDropzone(Entity entity) {
+	return IsEnabled<impl::Dropzone>(entity);
 }
 
 const std::unordered_set<Entity>& GetDropzones(Entity draggable) {
@@ -57,120 +149,24 @@ const std::unordered_set<Entity>& GetDropzones(Entity draggable) {
 	return dropzone.Get<impl::Dropzone>().draggables;
 }
 
-Entity SetInteractive(Entity entity, bool interactive) {
-	entity.TryAdd<impl::Interactive>().enabled = interactive;
-	return entity;
-}
-
-Entity RemoveInteractive(Entity entity) {
-	entity.Remove<impl::Interactive>();
-	return entity;
-}
-
-bool IsInteractive(Entity entity) {
-	return entity.Has<impl::Interactive>() && entity.Get<impl::Interactive>().enabled;
-}
-
-Entity SetInteractable(
-	Entity entity, GameObject&& shape, std::string_view name, bool ignore_parent_transform
-) {
-	ClearInteractables(entity);
-	AddInteractable(entity, std::move(shape), name, ignore_parent_transform);
-	return entity;
-}
-
-Entity AddInteractable(
-	Entity entity, GameObject&& shape, std::string_view name, bool ignore_parent_transform
-) {
-	IgnoreParentTransform(shape, ignore_parent_transform);
-	SetInteractive(entity);
-	if (!name.empty()) {
-		PTGN_ASSERT(
-			!HasChild(entity, name),
-			"Cannot add the same named interactable to an entity more than once"
-		);
+template <typename TComponent>
+void SetCondition(Entity entity, DragEventPhase phase, TriggerCondition condition) {
+	auto& component{ entity.Get<TComponent>() };
+	switch (phase) {
+		using enum ptgn::DragEventPhase;
+		case MoveOver: component.move_condition = condition; break;
+		case Drop:	   component.drop_condition = condition; break;
+		case Pickup:   component.pickup_condition = condition; break;
+		default:	   PTGN_ERROR("Unhandled DragEventPhase");
 	}
-	AddChild(entity, shape, name);
-	auto& shapes{ impl::GetInteractive(entity).shapes };
-	shapes.emplace_back(GameObject{ std::move(shape) });
-	return entity;
 }
 
-Entity RemoveInteractable(Entity entity, std::string_view name) {
-	if (!IsInteractive(entity)) {
-		return entity;
-	}
-	if (!HasChild(entity, name)) {
-		return entity;
-	}
-	Entity child{ GetChild(entity, name) };
-	auto& shapes{ impl::GetInteractive(entity).shapes };
-	std::erase(shapes, child);
-	return entity;
+void SetDraggableCondition(Entity draggable, DragEventPhase phase, TriggerCondition condition) {
+	SetCondition<impl::Draggable>(draggable, phase, condition);
 }
 
-bool HasInteractable(Entity entity, std::string_view name) {
-	if (!IsInteractive(entity)) {
-		return false;
-	}
-	if (!HasChild(entity, name)) {
-		return false;
-	}
-	Entity child{ GetChild(entity, name) };
-	const auto& shapes{ impl::GetInteractive(entity).shapes };
-
-	for (const auto& shape : shapes) {
-		if (shape == child) {
-			return true;
-		}
-	}
-	return false;
+void SetDropzoneCondition(Entity dropzone, DragEventPhase phase, TriggerCondition condition) {
+	SetCondition<impl::Dropzone>(dropzone, phase, condition);
 }
-
-std::vector<Entity> GetInteractables(Entity entity) {
-	PTGN_ASSERT(IsInteractive(entity));
-	const auto& shapes{ impl::GetInteractive(entity).shapes };
-	std::vector<Entity> interactables;
-	interactables.reserve(shapes.size());
-	for (const auto& shape : shapes) {
-		interactables.emplace_back(shape);
-	}
-	return interactables;
-}
-
-void ClearShapes() {
-	shapes.clear();
-}
-
-void ClearInteractables(Entity entity) {
-	if (!entity.Has<Interactive>()) {
-		return;
-	}
-	auto& interactive{ impl::GetInteractive(entity) };
-	// Clear owned entities.
-	interactive.ClearShapes();
-}
-
-Entity SetDraggable(Entity entity, bool draggable) {
-	entity.TryAdd<impl::Draggable>().enabled = draggable;
-	return entity;
-}
-
-bool IsDraggable(Entity entity) {
-	return false;
-}
-
-namespace impl {
-
-const Interactive& GetInteractive(Entity entity) {
-	PTGN_ASSERT(IsInteractive(entity));
-	return impl::EntityAccess::Get<Interactive>(entity);
-}
-
-Interactive& GetInteractive(Entity entity) {
-	return const_cast<Interactive&>(GetInteractive(std::as_const(entity)));
-}
-
-} // namespace impl
 
 } // namespace ptgn

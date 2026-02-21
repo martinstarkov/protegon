@@ -13,13 +13,15 @@
 
 namespace ptgn {
 
-/// Controls the lifecycle state of a behavior/component on an entity.
+/// @brief Controls the lifecycle state of a behavior/component on an entity.
 enum class ComponentState {
 	Disabled, /// Component exists but is inactive.
 	Enabled,  /// Component exists and is active.
 	Removed	  /// Component is removed entirely from the entity.
 };
 
+/// @brief Defines the conditions under which a drag event is triggered for a draggable or dropzone
+/// entity.
 enum class TriggerCondition {
 	None,			   /// Event is never triggered.
 	MouseOverlaps,	   /// Event triggered if the mouse position overlaps the dropzone.
@@ -36,6 +38,8 @@ PTGN_SERIALIZE_ENUM(
 						{ TriggerCondition::Contains, "contains" } }
 );
 
+/// @brief Represents the different phases of a drag event, which can be used to specify when
+/// certain conditions or callbacks should be evaluated for draggable and dropzone entities.
 enum class DragEventPhase {
 	MoveOver,
 	Drop,
@@ -57,9 +61,6 @@ struct Interactive {
 	Interactive& operator=(Interactive&&) noexcept = default;
 	Interactive(const Interactive&)				   = delete;
 	Interactive& operator=(const Interactive&)	   = delete;
-
-	/// Destroys all the shape entities and clears the shapes vector.
-	void ClearShapes();
 
 	/// Interactive owns that shapes.
 	/// List of entities that can be interacted with. They require a valid Rect / Circle component.
@@ -116,82 +117,93 @@ struct Dropzone {
 
 } // namespace impl
 
-/// If true, enables the entity to trigger interaction scripts.
-/// @return entity.
-Entity SetInteractive(Entity entity, bool interactive = true);
+/// Sets the entity to be interactive, allowing it to have interactable shapes as children and
+/// trigger interact scripts.
+void SetInteractive(Entity entity, ComponentState state = ComponentState::Enabled);
 
-/// Removes an entity's interactive component entirely.
-Entity RemoveInteractive(Entity entity);
-
+/// @return True if the entity is interactive and enabled, false otherwise.
 [[nodiscard]] bool IsInteractive(Entity entity);
 
-/// Add an interactable shape to the entity.
-/// @param set_parent If true, will set the parent of shape to *this.
-/// The entity interactive will take ownership of these entities.
-/// @return entity.
-Entity AddInteractable(
-	Entity entity, GameObject&& shape, std::optional<std::string_view> name = {},
+/// @brief Adds an interactable shape as a child to the interactive entity.
+/// @param shape The shape which must have a valid Rect or Circle component.
+/// @param shape_id An optional string identifier for the shape, which can be used to reference it
+/// later.
+/// @param ignore_parent_transform If true, the shape's position will be treated as world space
+/// instead of relative to the interactive entity's transform.
+void AddInteractiveShape(
+	Entity interactive_entity, GameObject&& shape, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
-/// Same as AddInteractable but will clear previous interactables first.
-/// @return entity.
-Entity SetInteractable(
-	Entity entity, GameObject&& shape, std::optional<std::string_view> name = {},
+/// @brief Sets the only interactable shape of the entity to be the provided one. Will clear any
+/// existing shapes.
+/// @param shape The shape which must have a valid Rect or Circle component.
+/// @param shape_id An optional string identifier for the shape, which can be used to reference it
+/// later.
+/// @param ignore_parent_transform If true, the shape's position will be treated as world space
+/// instead of relative to the interactive entity's transform.
+void SetInteractiveShape(
+	Entity interactive_entity, GameObject&& shape, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
-/// Remove an interactable shape from the entity.
-/// @return entity.
-Entity RemoveInteractable(Entity entity, std::string_view name);
+/// Remove an interactable shape from the interactive entity.
+void RemoveInteractiveShape(Entity interactive_entity, std::string_view shape_id);
 
 /// @return True if the entity has the given interactable.
-[[nodiscard]] bool HasInteractable(Entity entity, std::string_view name);
+[[nodiscard]] bool HasInteractiveShape(Entity interactive_entity, std::string_view shape_id);
 
-[[nodiscard]] std::vector<Entity> GetInteractables(Entity entity);
+/// @return Entity handles to interactable shapes attached to the entity.
+[[nodiscard]] std::vector<Entity> GetInteractiveShapes(Entity interactive_entity);
 
-void ClearInteractables(Entity entity);
+/// @brief Destroys all interactable shapes attached to the entity.
+void ClearInteractiveShapes(Entity interactive_entity);
 
 /// @brief If true, enables the entity to trigger drag scripts.
-/// @return entity.
-Entity SetDraggable(Entity entity, bool draggable = true);
+void SetDraggable(Entity entity, ComponentState state = ComponentState::Enabled);
 
-/// @brief Removes an entity's draggable component entirely.
-/// @return entity.
-Entity RemoveDraggable(Entity entity);
-
-/// @return True if the entity is draggable, false otherwise.
+/// @return True if the entity is draggable and enabled, false otherwise.
 [[nodiscard]] bool IsDraggable(Entity entity);
 
 /// @return Offset from the drag target center. Adding this value to the target position will
 /// maintain the relative position between the mouse and drag target.
-[[nodiscard]] V2_float GetDragOffset(Entity draggable);
+[[nodiscard]] V2_float GetDragOffset(Entity draggable_entity);
 
 /// @return Mouse position where the drag started.
-[[nodiscard]] V2_float GetDragStart(Entity draggable);
+[[nodiscard]] V2_float GetDragStart(Entity draggable_entity);
 
 /// @return True if the mouse is currently dragging the draggable, false otherwise.
-[[nodiscard]] bool IsBeingDragged(Entity draggable);
+[[nodiscard]] bool IsBeingDragged(Entity draggable_entity);
 
 /// @brief If true, enables the entity to trigger dropzone scripts.
-/// @return entity.
-Entity SetDropzone(Entity entity, bool dropzone = true);
-
-/// @brief Removes an entity's dropzone component entirely.
-/// @return entity.
-Entity RemoveDropzone(Entity entity);
+void SetDropzone(Entity entity, ComponentState state = ComponentState::Enabled);
 
 /// @return True if the entity is dropzone, false otherwise.
 [[nodiscard]] bool IsDropzone(Entity entity);
 
 /// @return Dropzones that the draggable is currently dropped on.
-[[nodiscard]] const std::unordered_set<Entity>& GetDropzones(Entity draggable);
+[[nodiscard]] const std::unordered_set<Entity>& GetDropzones(Entity draggable_entity);
 
 /// @return Draggable entities which are currently dropped on the dropzone.
-[[nodiscard]] const std::unordered_set<Entity>& GetDraggables(Entity dropzone);
+[[nodiscard]] const std::unordered_set<Entity>& GetDraggables(Entity dropzone_entity);
 
-void SetDraggableCondition(Entity draggable, DragEventPhase phase, TriggerCondition condition);
+/// @brief Assigns a condition that determines whether the specified entity should respond to drag
+/// events for a given drag phase.
+/// @param draggable_entity The draggable entity whose drag behavior is being configured.
+/// @param phase The drag event phase (move over, drop, pickup) during which the condition
+/// will be evaluated.
+/// @param condition A condition that is evaluated during the specified phase; it should
+/// return true to allow the drag action or false to block it.
+void SetDraggableCondition(
+	Entity draggable_entity, DragEventPhase phase, TriggerCondition condition
+);
 
-void SetDropzoneCondition(Entity dropzone, DragEventPhase phase, TriggerCondition condition);
+/// @brief Assigns a condition that determines whether the specified entity should respond to drag
+/// @param dropzone_entity The dropzone entity whose dropzone behavior is being configured.
+/// @param phase The drag event phase (move over, drop, pickup) during which the condition will be
+/// evaluated.
+/// @param condition A condition that is evaluated during the specified phase; it should
+/// return true to allow the drag action or false to block it.
+void SetDropzoneCondition(Entity dropzone_entity, DragEventPhase phase, TriggerCondition condition);
 
 } // namespace ptgn
