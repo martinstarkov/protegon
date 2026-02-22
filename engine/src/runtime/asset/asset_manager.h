@@ -111,6 +111,8 @@ private:
 	friend class FontSystem;
 	friend class impl::TextDraw;
 
+	void Init(const std::shared_ptr<ApplicationContext>& ctx);
+
 	std::optional<Font> GetFont(std::size_t key) const;
 
 	Shader CreateShader(
@@ -132,8 +134,6 @@ private:
 	ecs::Entity CreateAsset();
 
 	ecs::Manager manager_;
-
-	void SetContext(const std::shared_ptr<ApplicationContext>& ctx);
 
 	std::shared_ptr<ApplicationContext> ctx_;
 

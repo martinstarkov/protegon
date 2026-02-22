@@ -165,6 +165,9 @@ void SetDraggable(Entity entity, ComponentState state = ComponentState::Enabled)
 /// @return True if the entity is draggable and enabled, false otherwise.
 [[nodiscard]] bool IsDraggable(Entity entity);
 
+/// @return True if the entity is currently being dragged, false otherwise.
+[[nodiscard]] bool IsDragging(Entity entity);
+
 /// @return Offset from the drag target center. Adding this value to the target position will
 /// maintain the relative position between the mouse and drag target.
 [[nodiscard]] V2_float GetDragOffset(Entity draggable_entity);

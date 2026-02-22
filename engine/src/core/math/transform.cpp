@@ -15,7 +15,9 @@ Transform::Transform(V2_float position, float rotation, V2_float scale) :
 	position_{ position }, rotation_{ rotation }, scale_{ scale } {}
 
 Transform Transform::Inverse() const {
-	PTGN_ASSERT(!scale_.HasZero(), "Cannot get inverse of transform with zero scale");
+	PTGN_ASSERT(
+		scale_.BothAboveZero(), "Cannot get inverse of transform with zero or negative scale"
+	);
 	return { -position_, -rotation_, 1.0f / scale_ };
 }
 
@@ -99,7 +101,7 @@ Transform& Transform::SetScale(float scale) {
 }
 
 Transform& Transform::SetScale(V2_float scale) {
-	PTGN_ASSERT(!scale.HasZero(), "Cannot set transform scale with a zero component");
+	PTGN_ASSERT(scale.BothAboveZero(), "Cannot set transform scale to be zero or negative");
 	scale_ = scale;
 	return *this;
 }
@@ -143,25 +145,35 @@ Transform& Transform::ScaleY(float scale_y_multiplier) {
 V2_float Transform::ApplyWithRotation(
 	V2_float point, float cos_angle_radians, float sin_angle_radians
 ) const {
-	PTGN_ASSERT(!scale_.IsZero(), "Cannot transform point for an object with zero scale");
+	PTGN_ASSERT(
+		scale_.BothAboveZero(), "Cannot transform point for an object with zero or negative scale"
+	);
 	return position_ + (scale_ * point).Rotated(cos_angle_radians, sin_angle_radians);
 }
 
 V2_float Transform::ApplyWithoutRotation(V2_float point) const {
-	PTGN_ASSERT(!scale_.IsZero(), "Cannot transform point for an object with zero scale");
+	PTGN_ASSERT(
+		scale_.BothAboveZero(), "Cannot transform point for an object with zero or negative scale"
+	);
 	return position_ + scale_ * point;
 }
 
 V2_float Transform::ApplyInverseWithRotation(
 	V2_float point, float cos_angle_radians, float sin_angle_radians
 ) const {
-	PTGN_ASSERT(!scale_.IsZero(), "Cannot inverse transform point for an object with zero scale");
+	PTGN_ASSERT(
+		scale_.BothAboveZero(),
+		"Cannot inverse transform point for an object with zero or negative scale"
+	);
 
 	return (point - position_).Rotated(cos_angle_radians, -sin_angle_radians) / scale_;
 }
 
 V2_float Transform::ApplyInverseWithoutRotation(V2_float point) const {
-	PTGN_ASSERT(!scale_.IsZero(), "Cannot inverse transform point for an object with zero scale");
+	PTGN_ASSERT(
+		scale_.BothAboveZero(),
+		"Cannot inverse transform point for an object with zero or negative scale"
+	);
 
 	return (point - position_) / scale_;
 }

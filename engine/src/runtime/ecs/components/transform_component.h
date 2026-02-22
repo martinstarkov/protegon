@@ -18,6 +18,10 @@ Transform GetTransform(Entity entity);
 /// @return The transform of the entity with respect to its parent entity.
 Transform GetWorldTransform(Entity entity);
 
+/// @return The transform of the entity with respect to its parent entity and including any
+/// temporary offsets (e.g., shake or bounce).
+Transform GetDrawTransform(Entity entity);
+
 V2_float GetPosition(Entity entity);
 V2_float GetWorldPosition(Entity entity);
 

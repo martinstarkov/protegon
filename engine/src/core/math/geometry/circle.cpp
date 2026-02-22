@@ -3,8 +3,8 @@
 #include <array>
 
 #include "core/math/math_utils.h"
-#include "core/math/vector2.h"
 #include "core/math/transform.h"
+#include "core/math/vector2.h"
 
 namespace ptgn {
 

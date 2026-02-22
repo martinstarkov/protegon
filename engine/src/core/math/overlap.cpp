@@ -138,9 +138,7 @@ std::pair<float, float> GetPolygonProjectionMinMax(
 	return { min, max };
 }
 
-bool PolygonsHaveOverlapAxis(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
-) {
+bool PolygonsHaveOverlapAxis(Transform t1, const Polygon& A, Transform t2, const Polygon& B) {
 	auto world_pointsA{ A.GetWorldVertices(t1) };
 	auto world_pointsB{ B.GetWorldVertices(t2) };
 
@@ -159,8 +157,7 @@ bool PolygonsHaveOverlapAxis(
 }
 
 bool GetPolygonMinimumOverlap(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B, float& depth,
-	Axis& axis
+	Transform t1, const Polygon& A, Transform t2, const Polygon& B, float& depth, Axis& axis
 ) {
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
@@ -194,7 +191,7 @@ bool GetPolygonMinimumOverlap(
 	return true;
 }
 
-bool LineContainsLine(const Transform& t1, const Line& A, const Transform& t2, const Line& B) {
+bool LineContainsLine(Transform t1, const Line& A, Transform t2, const Line& B) {
 	auto [lineA_start, lineA_end] = A.GetWorldVertices(t1);
 	auto [lineB_start, lineB_end] = B.GetWorldVertices(t2);
 
@@ -219,9 +216,7 @@ bool LineContainsLine(const Transform& t1, const Line& A, const Transform& t2, c
 	return false;
 }
 
-bool PolygonContainsPolygon(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
-) {
+bool PolygonContainsPolygon(Transform t1, const Polygon& A, Transform t2, const Polygon& B) {
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
@@ -233,9 +228,7 @@ bool PolygonContainsPolygon(
 	return true;
 }
 
-bool TriangleContainsTriangle(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Triangle& B
-) {
+bool TriangleContainsTriangle(Transform t1, const Triangle& A, Transform t2, const Triangle& B) {
 	auto [v1A, v2A, v3A] = A.GetWorldVertices(t1);
 	auto [v1B, v2B, v3B] = B.GetWorldVertices(t2);
 	return OverlapPointTriangle(Transform{}, v1B, Transform{}, Triangle{ v1A, v2A, v3A }) &&
@@ -243,9 +236,7 @@ bool TriangleContainsTriangle(
 		   OverlapPointTriangle(Transform{}, v3B, Transform{}, Triangle{ v1A, v2A, v3A });
 }
 
-bool PolygonContainsTriangle(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Triangle& B
-) {
+bool PolygonContainsTriangle(Transform t1, const Polygon& A, Transform t2, const Triangle& B) {
 	auto [a, b, c] = B.GetWorldVertices(t2);
 	Polygon world_polygon{ A.GetWorldVertices(t1) };
 	return OverlapPointPolygon(Transform{}, a, Transform{}, world_polygon) &&
@@ -253,11 +244,11 @@ bool PolygonContainsTriangle(
 		   OverlapPointPolygon(Transform{}, c, Transform{}, world_polygon);
 }
 
-bool OverlapPointPoint(const Transform& t1, V2_float A, const Transform& t2, V2_float B) {
+bool OverlapPointPoint(Transform t1, V2_float A, Transform t2, V2_float B) {
 	return t1.Apply(A) == t2.Apply(B);
 }
 
-bool OverlapPointLine(const Transform& t1, V2_float A, const Transform& t2, const Line& B) {
+bool OverlapPointLine(Transform t1, V2_float A, Transform t2, const Line& B) {
 	auto point{ t1.Apply(A) };
 	auto [line_start, line_end] = B.GetWorldVertices(t2);
 
@@ -284,7 +275,7 @@ bool OverlapPointLine(const Transform& t1, V2_float A, const Transform& t2, cons
 	return NearlyEqual(ac.Dot(ac) * f, e * e);
 }
 
-bool OverlapPointTriangle(const Transform& t1, V2_float A, const Transform& t2, const Triangle& B) {
+bool OverlapPointTriangle(Transform t1, V2_float A, Transform t2, const Triangle& B) {
 	auto point{ t1.Apply(A) };
 	auto [triangle_a, triangle_b, triangle_c] = B.GetWorldVertices(t2);
 
@@ -302,7 +293,7 @@ bool OverlapPointTriangle(const Transform& t1, V2_float A, const Transform& t2, 
 	return s >= 0.0f && t >= 0.0f && (s + t) <= 1.0f;
 }
 
-bool OverlapPointCircle(const Transform& t1, V2_float A, const Transform& t2, const Circle& B) {
+bool OverlapPointCircle(Transform t1, V2_float A, Transform t2, const Circle& B) {
 	auto circle_radius{ B.GetRadius(t2) };
 	if (circle_radius <= 0.0f) {
 		return false;
@@ -314,7 +305,7 @@ bool OverlapPointCircle(const Transform& t1, V2_float A, const Transform& t2, co
 	return impl::WithinPerimeter(circle_radius, dist.Dot(dist));
 }
 
-bool OverlapPointRect(const Transform& t1, V2_float A, const Transform& t2, const Rect& B) {
+bool OverlapPointRect(Transform t1, V2_float A, Transform t2, const Rect& B) {
 	auto rect_size{ B.GetSize(t2) };
 	if (rect_size.IsZero()) {
 		return false;
@@ -349,7 +340,7 @@ bool OverlapPointRect(const Transform& t1, V2_float A, const Transform& t2, cons
 	return true;
 }
 
-bool OverlapPointCapsule(const Transform& t1, V2_float A, const Transform& t2, const Capsule& B) {
+bool OverlapPointCapsule(Transform t1, V2_float A, Transform t2, const Capsule& B) {
 	auto capsule_radius{ B.GetRadius(t2) };
 	if (capsule_radius <= 0.0f) {
 		return false;
@@ -366,7 +357,7 @@ bool OverlapPointCapsule(const Transform& t1, V2_float A, const Transform& t2, c
 	);
 }
 
-bool OverlapPointPolygon(const Transform& t1, V2_float A, const Transform& t2, const Polygon& B) {
+bool OverlapPointPolygon(Transform t1, V2_float A, Transform t2, const Polygon& B) {
 	auto point{ t1.Apply(A) };
 
 	auto world_points{ t2.Apply(B.vertices) };
@@ -389,7 +380,7 @@ bool OverlapPointPolygon(const Transform& t1, V2_float A, const Transform& t2, c
 	return c;
 }
 
-bool OverlapLineLine(const Transform& t1, const Line& A, const Transform& t2, const Line& B) {
+bool OverlapLineLine(Transform t1, const Line& A, Transform t2, const Line& B) {
 	auto [lineA_start, lineA_end] = A.GetWorldVertices(t1);
 	auto [lineB_start, lineB_end] = B.GetWorldVertices(t2);
 	// Source:
@@ -450,7 +441,7 @@ bool OverlapLineLine(const Transform& t1, const Line& A, const Transform& t2, co
 	return false; // collinear && point_overlap;
 }
 
-bool OverlapLineCircle(const Transform& t1, const Line& A, const Transform& t2, const Circle& B) {
+bool OverlapLineCircle(Transform t1, const Line& A, Transform t2, const Circle& B) {
 	auto circle_radius{ B.GetRadius(t2) };
 	if (circle_radius <= 0.0f) {
 		return false;
@@ -489,9 +480,7 @@ bool OverlapLineCircle(const Transform& t1, const Line& A, const Transform& t2, 
 		   !impl::WithinPerimeter(circle_radius, max_dist2);
 }
 
-bool OverlapLineTriangle(
-	const Transform& t1, const Line& A, const Transform& t2, const Triangle& B
-) {
+bool OverlapLineTriangle(Transform t1, const Line& A, Transform t2, const Triangle& B) {
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
 	auto [a, b, c]				= B.GetWorldVertices(t2);
 	return OverlapPointTriangle(Transform{}, line_start, Transform{}, Triangle{ a, b, c }) ||
@@ -501,7 +490,7 @@ bool OverlapLineTriangle(
 		   OverlapLineLine(Transform{}, { line_start, line_end }, Transform{}, Line{ c, a });
 }
 
-bool OverlapLineRect(const Transform& t1, const Line& A, const Transform& t2, const Rect& B) {
+bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B) {
 	auto rect_size{ B.GetSize(t2) };
 	if (rect_size.IsZero()) {
 		return false;
@@ -552,7 +541,7 @@ bool OverlapLineRect(const Transform& t1, const Line& A, const Transform& t2, co
 	// Source: https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm
 }
 
-bool OverlapLineCapsule(const Transform& t1, const Line& A, const Transform& t2, const Capsule& B) {
+bool OverlapLineCapsule(Transform t1, const Line& A, Transform t2, const Capsule& B) {
 	auto capsule_radius{ B.GetRadius(t2) };
 	if (capsule_radius <= 0.0f) {
 		return false;
@@ -572,7 +561,7 @@ bool OverlapLineCapsule(const Transform& t1, const Line& A, const Transform& t2,
 	);
 }
 
-bool OverlapLinePolygon(const Transform& t1, const Line& A, const Transform& t2, const Polygon& B) {
+bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon& B) {
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
 	auto polygon_vertices		= B.GetWorldVertices(t2);
 	if (OverlapPointPolygon(Transform{}, line_start, Transform{}, Polygon{ polygon_vertices })) {
@@ -594,9 +583,7 @@ bool OverlapLinePolygon(const Transform& t1, const Line& A, const Transform& t2,
 	return false;
 }
 
-bool OverlapCircleCircle(
-	const Transform& t1, const Circle& A, const Transform& t2, const Circle& B
-) {
+bool OverlapCircleCircle(Transform t1, const Circle& A, Transform t2, const Circle& B) {
 	auto circleA_center{ A.GetCenter(t1) };
 	auto circleB_center{ B.GetCenter(t2) };
 	auto circleA_radius{ A.GetRadius(t1) };
@@ -609,9 +596,7 @@ bool OverlapCircleCircle(
 	return impl::WithinPerimeter(circleA_radius + circleB_radius, dist.Dot(dist));
 }
 
-bool OverlapCircleTriangle(
-	const Transform& t1, const Circle& A, const Transform& t2, const Triangle& B
-) {
+bool OverlapCircleTriangle(Transform t1, const Circle& A, Transform t2, const Triangle& B) {
 	if (auto circle_radius{ A.GetRadius(t1) }; circle_radius <= 0.0f) {
 		return false;
 	}
@@ -623,7 +608,7 @@ bool OverlapCircleTriangle(
 		   OverlapLineCircle(Transform{}, Line{ c, b }, t1, A);
 }
 
-bool OverlapCircleRect(const Transform& t1, const Circle& A, const Transform& t2, const Rect& B) {
+bool OverlapCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& B) {
 	auto circle_radius{ A.GetRadius(t1) };
 	if (circle_radius <= 0.0f) {
 		return false;
@@ -649,9 +634,7 @@ bool OverlapCircleRect(const Transform& t1, const Circle& A, const Transform& t2
 	);
 }
 
-bool OverlapCirclePolygon(
-	const Transform& t1, const Circle& A, const Transform& t2, const Polygon& B
-) {
+bool OverlapCirclePolygon(Transform t1, const Circle& A, Transform t2, const Polygon& B) {
 	if (auto circle_radius{ A.GetRadius(t1) }; circle_radius <= 0.0f) {
 		return false;
 	}
@@ -678,9 +661,7 @@ bool OverlapCirclePolygon(
 	return false;
 }
 
-bool OverlapCircleCapsule(
-	const Transform& t1, const Circle& A, const Transform& t2, const Capsule& B
-) {
+bool OverlapCircleCapsule(Transform t1, const Circle& A, Transform t2, const Capsule& B) {
 	auto circle_radius{ A.GetRadius(t1) };
 	if (circle_radius <= 0.0f) {
 		return false;
@@ -701,9 +682,7 @@ bool OverlapCircleCapsule(
 	);
 }
 
-bool OverlapTriangleTriangle(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Triangle& B
-) {
+bool OverlapTriangleTriangle(Transform t1, const Triangle& A, Transform t2, const Triangle& B) {
 	auto [A_a, A_b, A_c] = A.GetWorldVertices(t1);
 	auto [B_a, B_b, B_c] = B.GetWorldVertices(t2);
 	return OverlapPointTriangle(Transform{}, A_a, Transform{}, Triangle{ B_a, B_b, B_c }) ||
@@ -719,7 +698,7 @@ bool OverlapTriangleTriangle(
 }
 
 bool OverlapTriangleRect(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Rect& B
+	Transform t1, const Triangle& A, Transform t2, const Rect& B
 
 ) {
 	if (auto rect_size{ B.GetSize(t2) }; rect_size.IsZero()) {
@@ -730,9 +709,7 @@ bool OverlapTriangleRect(
 	);
 }
 
-bool OverlapTrianglePolygon(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Polygon& B
-) {
+bool OverlapTrianglePolygon(Transform t1, const Triangle& A, Transform t2, const Polygon& B) {
 	auto [a, b, c] = A.GetWorldVertices(t1);
 	if (OverlapPointPolygon(Transform{}, a, t2, B)) {
 		return true;
@@ -756,9 +733,7 @@ bool OverlapTrianglePolygon(
 	return false;
 }
 
-bool OverlapTriangleCapsule(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Capsule& B
-) {
+bool OverlapTriangleCapsule(Transform t1, const Triangle& A, Transform t2, const Capsule& B) {
 	auto capsule_radius{ B.GetRadius(t2) };
 	if (capsule_radius <= 0.0f) {
 		return false;
@@ -784,7 +759,7 @@ bool OverlapTriangleCapsule(
 	);
 }
 
-bool OverlapRectRect(const Transform& t1, const Rect& A, const Transform& t2, const Rect& B) {
+bool OverlapRectRect(Transform t1, const Rect& A, Transform t2, const Rect& B) {
 	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
 		return OverlapPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
@@ -823,7 +798,7 @@ bool OverlapRectRect(const Transform& t1, const Rect& A, const Transform& t2, co
 	return true;
 }
 
-bool OverlapRectCapsule(const Transform& t1, const Rect& A, const Transform& t2, const Capsule& B) {
+bool OverlapRectCapsule(Transform t1, const Rect& A, Transform t2, const Capsule& B) {
 	auto capsule_radius{ B.GetRadius(t2) };
 	if (capsule_radius <= 0.0f) {
 		return false;
@@ -889,16 +864,14 @@ bool OverlapRectCapsule(const Transform& t1, const Rect& A, const Transform& t2,
 	return false;
 }
 
-bool OverlapRectPolygon(const Transform& t1, const Rect& A, const Transform& t2, const Polygon& B) {
+bool OverlapRectPolygon(Transform t1, const Rect& A, Transform t2, const Polygon& B) {
 	if (auto rect_size{ A.GetSize(t1) }; rect_size.IsZero()) {
 		return false;
 	}
 	return OverlapPolygonPolygon(t1, Polygon{ A.GetLocalVertices() }, t2, B);
 }
 
-bool OverlapCapsuleCapsule(
-	const Transform& t1, const Capsule& A, const Transform& t2, const Capsule& B
-) {
+bool OverlapCapsuleCapsule(Transform t1, const Capsule& A, Transform t2, const Capsule& B) {
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114-115.
@@ -921,9 +894,7 @@ bool OverlapCapsuleCapsule(
 	);
 }
 
-bool OverlapPolygonPolygon(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
-) {
+bool OverlapPolygonPolygon(Transform t1, const Polygon& A, Transform t2, const Polygon& B) {
 	PTGN_ASSERT(
 		impl::IsConvexPolygon(A.vertices.data(), A.vertices.size()),
 		"PolygonPolygon overlap check only works if both polygons are convex"
@@ -936,9 +907,7 @@ bool OverlapPolygonPolygon(
 		   impl::PolygonsHaveOverlapAxis(t2, B, t1, A);
 }
 
-bool OverlapPolygonCapsule(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Capsule& B
-) {
+bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const Capsule& B) {
 	auto capsule_radius{ B.GetRadius(t2) };
 
 	if (capsule_radius <= 0.0f) {
@@ -963,10 +932,7 @@ bool OverlapPolygonCapsule(
 
 } // namespace impl
 
-bool Overlap(
-	const Transform& t1, const ColliderShape& shape1, const Transform& t2,
-	const ColliderShape& shape2
-) {
+bool Overlap(Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2) {
 	return std::visit(
 		[&](const auto& s1) -> bool {
 			return std::visit(
@@ -987,11 +953,11 @@ bool Overlap(
 	);
 }
 
-bool Overlap(V2_float point, const Transform& t2, const ColliderShape& shape2) {
+bool Overlap(V2_float point, Transform t2, const ColliderShape& shape2) {
 	return Overlap(Transform{}, ColliderShape{ point }, t2, shape2);
 }
 
-bool Overlap(const Transform& t1, const ColliderShape& shape1, V2_float point) {
+bool Overlap(Transform t1, const ColliderShape& shape1, V2_float point) {
 	return Overlap(point, t1, shape1);
 }
 

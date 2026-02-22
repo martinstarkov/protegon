@@ -51,7 +51,7 @@ void from_json(const json& j, Shape& shape) {
 }
 */
 
-std::vector<V2_float> GetWorldVertices(const Shape& shape, const Transform& transform) {
+std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform) {
 	return std::visit(
 		[&](const auto& s) -> std::vector<V2_float> {
 			using T = std::decay_t<decltype(s)>;
@@ -70,7 +70,7 @@ std::vector<V2_float> GetWorldVertices(const Shape& shape, const Transform& tran
 	);
 }
 
-EdgeInfo GetEdges(const Shape& shape, const Transform& transform) {
+EdgeInfo GetEdges(const Shape& shape, Transform transform) {
 	return std::visit(
 		[&](const auto& s) {
 			using T = std::decay_t<decltype(s)>;

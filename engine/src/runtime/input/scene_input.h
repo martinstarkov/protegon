@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <unordered_set>
 #include <vector>
 
@@ -16,130 +17,139 @@ namespace ptgn {
 
 class Scene;
 class Button;
+class ApplicationContext;
+
+namespace impl {
 
 struct MouseInfo {
 	explicit MouseInfo(const Scene& scene);
 
-	V2_int position;
+	V2_float position;
 	V2_int scroll_delta;
 
+	bool left_held{ false };
 	bool left_pressed{ false };
-	bool left_down{ false };
-	bool left_up{ false };
+	bool left_released{ false };
 };
 
 struct DragState {
 	V2_int drag_start_position;
 };
 
+} // namespace impl
+
+struct InteractiveDebugDrawSettings {
+	bool enabled{ true };
+	Color color{ color::Purple };
+	float line_width{ 1.0f };
+
+	PTGN_SERIALIZER_REGISTER(InteractiveDebugDrawSettings, enabled, color, line_width)
+};
+
 class SceneInput {
 public:
-	[[nodiscard]] bool IsDragging(Entity entity) const;
-
+	/// @return True if any draggable entity is being dragged.
 	[[nodiscard]] bool IsAnyDragging() const;
 
-	/// @param True if input is in top only mode, false otherwise.
+	/// @param True if input is in top only mode (only top interactable reacts to events), false
+	/// otherwise.
 	[[nodiscard]] bool IsTopOnly() const;
 
-	/// If set to true, only the interactables in the scene will be triggered, i.e. if there are two
-	/// button on top of each other, only the top one will be able to be hovered or pressed.
-	void SetTopOnly(bool top_only);
+	/// @brief If true, only the top interactables in the scene will be triggered, i.e. if there are
+	/// two buttons on top of each other, only the top one will be able to be hovered or pressed.
+	void SetTopOnly(bool top_only = true);
 
-	void SetDrawInteractives(bool draw_interactives = true);
-	void SetDrawInteractivesColor(Color color);
-	void SetDrawInteractivesLineWidth(float line_width);
+	void SetInteractiveDebugDraw(const InteractiveDebugDrawSettings& settings = {});
 
-	/// @return Mouse position.
+	/// @return Mouse position relative to the specified viewport.
 	[[nodiscard]] V2_float GetMousePosition(
-		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+		ViewportType relative_to_viewport = ViewportType::World, bool clamp_to_viewport = true
 	) const;
 
-	/// @return Mouse position during the previous frame.
-	[[nodiscard]] V2_float GetMousePositionPrevious(
-		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	/// @return Mouse position relative to the specified viewport during the previous frame.
+	[[nodiscard]] V2_float GetPreviousMousePosition(
+		ViewportType relative_to_viewport = ViewportType::World, bool clamp_to_viewport = true
 	) const;
 
-	/// @return Mouse position difference between the current and previous frames.
-	[[nodiscard]] V2_float GetMousePositionDifference(
-		ViewportType relative_to = ViewportType::World, bool clamp_to_viewport = true
+	/// @return Mouse delta (current_position - previous_position) relative to the specified
+	/// viewport.
+	[[nodiscard]] V2_float GetMouseDelta(
+		ViewportType relative_to_viewport = ViewportType::World, bool clamp_to_viewport = true
 	) const;
 
-	/// @param mouse_button The mouse button to check.
-	/// @return The amount of time that the mouse button has been held down, 0 if it is not
-	/// currently pressed.
-	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse mouse_button) const;
+	/// @return The amount scrolled by the mouse vertically in the current frame,
+	/// positive upward, negative downward. Zero if no scroll occurred.
+	[[nodiscard]] float GetMouseScroll() const;
 
-	/// @param key The key to check.
-	/// @return The amount of time that the key has been held down, 0 if it is not currently
-	/// pressed.
-	[[nodiscard]] milliseconds GetKeyHeldTime(Key key) const;
+	/// @param button The mouse button to check.
+	/// @return True the first frame that the mouse is pressed.
+	[[nodiscard]] bool MousePressed(Mouse button) const;
 
-	/// @param mouse_button The mouse button to check.
+	/// @param button The mouse button to check.
+	/// @return True the first frame that the mouse button is released.
+	[[nodiscard]] bool MouseReleased(Mouse button) const;
+
+	/// @param button The mouse button to check.
+	/// @return True every frame that the mouse button is pressed.
+	[[nodiscard]] bool MouseHeld(Mouse button) const;
+
+	/// @param button The mouse button to check.
 	/// @param time The duration of time for which the mouse should be held.
 	/// @return True if the mouse button has been held for the given amount of time.
-	[[nodiscard]] bool MouseHeld(Mouse mouse_button, milliseconds time = milliseconds{ 50 }) const;
+	[[nodiscard]] bool MouseHeld(Mouse button, milliseconds time) const;
+
+	/// @param button The mouse button to check.
+	/// @return The amount of time that the mouse button has been held down, negative numbers
+	/// indicate the time since the mouse button was last held.
+	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button) const;
+
+	/// @param key The key to check.
+	/// @return True the first frame that the key is pressed.
+	[[nodiscard]] bool KeyPressed(Key key) const;
+
+	/// @param key The key to check.
+	/// @return True the first frame that the key is released.
+	[[nodiscard]] bool KeyReleased(Key key) const;
+
+	/// @param key The key to check.
+	/// @return True every frame that the key is pressed.
+	[[nodiscard]] bool KeyHeld(Key key) const;
 
 	/// @param key The key to check.
 	/// @param time The duration of time for which the key should be held.
 	/// @return True if the key has been held for the given amount of time.
-	[[nodiscard]] bool KeyHeld(Key key, milliseconds time = milliseconds{ 50 }) const;
-
-	/// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
-	/// to the window, and there will be continuous relative mouse motion events triggered even if
-	/// the mouse is at the edge of the window.
-	/// @param Whether or not mouse relative mode should be turned on or not.
-	void SetRelativeMouseMode(bool on) const;
-
-	/// @return The amount scrolled by the mouse vertically in the current frame,
-	/// positive upward, negative downward. Zero if no scroll occurred.
-	[[nodiscard]] int GetMouseScroll() const;
-
-	/// @param mouse_button The mouse button to check.
-	/// @return True if the mouse button is pressed (true every frame that the button is down).
-	[[nodiscard]] bool MousePressed(Mouse mouse_button) const;
-
-	/// @param mouse_button The mouse button to check.
-	/// @return True if the mouse button is released (true every frame that the button is up).
-	[[nodiscard]] bool MouseReleased(Mouse mouse_button) const;
-
-	/// @param mouse_button The mouse button to check.
-	/// @return True the first frame that the mouse button is pressed (false every frame after
-	/// that).
-	[[nodiscard]] bool MouseDown(Mouse mouse_button) const;
-
-	/// @param mouse_button The mouse button to check.
-	/// @return True the first frame that the mouse button is released (false every frame after
-	/// that).
-	[[nodiscard]] bool MouseUp(Mouse mouse_button) const;
+	[[nodiscard]] bool KeyHeld(Key key, milliseconds time) const;
 
 	/// @param key The key to check.
-	/// @return True if the key is pressed (true every frame that the key is down).
-	[[nodiscard]] bool KeyPressed(Key key) const;
-
-	/// @param key The key to check.
-	/// @return True if the key is released (true every frame that the key is up).
-	[[nodiscard]] bool KeyReleased(Key key) const;
-
-	/// @param key The key to check.
-	/// @return True the first frame that the key is pressed (false every frame after that).
-	[[nodiscard]] bool KeyDown(Key key) const;
-
-	/// @param key The key to check.
-	/// @return True the first frame that the key is released (false every frame after that).
-	[[nodiscard]] bool KeyUp(Key key) const;
+	/// @return The amount of time that the key has been held down, negative numbers
+	/// indicate the time since the key was last held.
+	[[nodiscard]] milliseconds GetKeyHeldTime(Key key) const;
 
 private:
 	friend class Scene;
 	friend class Button;
-
-	SceneInput() = default;
-	explicit SceneInput(Scene& scene);
+	friend bool IsDragging(Entity entity);
 
 	enum class DropzoneAction {
 		Move,
 		Drop,
 		Pickup
 	};
+
+	struct InteractiveEntities {
+		std::vector<Entity> under_mouse;
+		std::vector<Entity> not_under_mouse;
+	};
+
+	explicit SceneInput(Scene& scene);
+
+	void Init(const std::shared_ptr<ApplicationContext>& ctx);
+
+	/// Convert position from being relative to the center of the window to being relative to
+	/// the center of the specified viewport.
+	[[nodiscard]] V2_float GetMousePositionRelativeTo(
+		V2_float position, ViewportType relative_to_viewport, bool clamp_to_viewport
+	) const;
 
 	template <DropzoneAction action, typename T>
 	TriggerCondition GetTriggerCondition(const T& component) {
@@ -196,52 +206,52 @@ private:
 
 	static void CleanupDropzones(const std::vector<Entity>& dropzones);
 
-	static bool IsOverlappingDropzone(
+	bool IsOverlappingDropzone(
 		const V2_float& mouse_position, const Entity& draggable, const Entity& dropzone,
 		TriggerCondition condition
 	);
 
-	void Update(Scene& scene);
+	void Update();
 
-	struct InteractiveEntities {
-		std::vector<Entity> under_mouse;
-		std::vector<Entity> not_under_mouse;
-	};
+	InteractiveEntities GetInteractiveEntities(const impl::MouseInfo& mouse_state) const;
 
-	InteractiveEntities GetInteractiveEntities(Scene& scene, const MouseInfo& mouse_state) const;
-
-	static std::vector<Entity> GetDropzones(Scene& scene);
+	std::vector<Entity> GetDropzones();
 
 	void DispatchMouseEvents(
-		const std::vector<Entity>& over, const std::vector<Entity>& out, const MouseInfo& mouse
+		const std::vector<Entity>& over, const std::vector<Entity>& out,
+		const impl::MouseInfo& mouse
 	) const;
 
 	void UpdateMouseOverStates(const std::vector<Entity>& current) const;
 
 	void HandleDragging(
 		const std::vector<Entity>& over, const std::vector<Entity>& dropzones,
-		const MouseInfo& mouse
+		const impl::MouseInfo& mouse
 	);
 
-	void HandleDropzones(const std::vector<Entity>& dropzones, const MouseInfo& mouse);
+	void HandleDropzones(const std::vector<Entity>& dropzones, const impl::MouseInfo& mouse);
 
-	SceneKey scene_key_;
+	Scene& scene_;
+	std::shared_ptr<ApplicationContext> ctx_;
 
+	/// @brief A set of entities currently being dragged.
 	std::unordered_set<Entity> dragging_entities_;
+
+	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame.
 	std::unordered_set<Entity> last_mouse_over_;
+
+	/// @brief Stores the set of entities that were dropzones in the previous frame or update cycle.
 	std::unordered_set<Entity> last_dropzones_;
 
+	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 
-	bool draw_interactives_{ false };
-
-	Color draw_interactive_color_{ color::Magenta };
-	float draw_interactive_line_width_{ 1.0f };
+	InteractiveDebugDrawSettings interactive_debug_draw_settings_;
 
 public:
 	PTGN_SERIALIZER_REGISTER_NAMED(
-		SceneInput, KeyValue("scene_key", scene_key_), KeyValue("top_only", top_only_),
-		KeyValue("draw_interactives", draw_interactives_)
+		SceneInput, KeyValue("top_only", top_only_),
+		KeyValue("draw_interactives", interactive_debug_draw_settings_)
 	)
 };
 

@@ -6,6 +6,7 @@
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
@@ -29,80 +30,70 @@ struct RaycastResult {
 namespace impl {
 
 [[nodiscard]] RaycastResult RaycastLine(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Line& B
+	V2_float ray_start, V2_float ray_end, Transform transform2, const Line& B
 );
 
 [[nodiscard]] RaycastResult RaycastCircle(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Circle& B
+	V2_float ray_start, V2_float ray_end, Transform transform2, const Circle& B
 );
 
 [[nodiscard]] RaycastResult RaycastRect(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Rect& B
+	V2_float ray_start, V2_float ray_end, Transform transform2, const Rect& B
 );
 
 [[nodiscard]] RaycastResult RaycastCapsule(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Capsule& B
+	V2_float ray_start, V2_float ray_end, Transform transform2, const Capsule& B
 );
 
 [[nodiscard]] RaycastResult RaycastPolygon(
-	V2_float ray_start, V2_float ray_end, const Transform& transform2, const Polygon& B
+	V2_float ray_start, V2_float ray_end, Transform transform2, const Polygon& B
 );
 
 [[nodiscard]] RaycastResult RaycastCircleLine(
-	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
-	const Line& B
+	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Line& B
 );
 
 [[nodiscard]] RaycastResult RaycastCirclePolygon(
-	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
-	const Polygon& B
+	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Polygon& B
 );
 
 [[nodiscard]] RaycastResult RaycastCircleCircle(
-	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
-	const Circle& B
+	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Circle& B
 );
 
 [[nodiscard]] RaycastResult RaycastCircleRect(
-	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
-	const Rect& B
+	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Rect& B
 );
 
 [[nodiscard]] RaycastResult RaycastCircleCapsule(
-	V2_float ray, const Transform& transform1, const Circle& A, const Transform& transform2,
-	const Capsule& B
+	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Capsule& B
 );
 
 [[nodiscard]] RaycastResult RaycastRectCircle(
-	V2_float ray, const Transform& transform1, const Rect& A, const Transform& transform2,
-	const Circle& B
+	V2_float ray, Transform transform1, const Rect& A, Transform transform2, const Circle& B
 );
 
 [[nodiscard]] RaycastResult RaycastRectRect(
-	V2_float ray, const Transform& transform1, const Rect& A, const Transform& transform2,
-	const Rect& B
+	V2_float ray, Transform transform1, const Rect& A, Transform transform2, const Rect& B
 );
 
 [[nodiscard]] RaycastResult RaycastRectPolygon(
-	V2_float ray, const Transform& transform1, const Rect& A, const Transform& transform2,
-	const Polygon& B
+	V2_float ray, Transform transform1, const Rect& A, Transform transform2, const Polygon& B
 );
 
 [[nodiscard]] RaycastResult RaycastPolygonPolygon(
-	V2_float ray, const Transform& transform1, const Polygon& A, const Transform& transform2,
-	const Polygon& B
+	V2_float ray, Transform transform1, const Polygon& A, Transform transform2, const Polygon& B
 );
 
 [[nodiscard]] RaycastResult RaycastCapsuleCircle(
-	V2_float ray, const Transform& transform1, const Capsule& A, const Transform& transform2,
-	const Circle& B
+	V2_float ray, Transform transform1, const Capsule& A, Transform transform2, const Circle& B
 );
 
 } // namespace impl
 
 [[nodiscard]] RaycastResult Raycast(
-	V2_float ray, const Transform& transform1, const ColliderShape& shape1,
-	const Transform& transform2, const ColliderShape& shape2
+	V2_float ray, Transform transform1, const ColliderShape& shape1, Transform transform2,
+	const ColliderShape& shape2
 );
 
 } // namespace ptgn

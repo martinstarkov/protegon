@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <ostream>
 
 #include "core/log.h"
@@ -10,8 +9,6 @@
 namespace ptgn {
 
 enum class Key {
-	Invalid = 0,		// SDL_SCANCODE_UNKNOWN
-
 	K_0 = 39,			// Key 0 // SDL_SCANCODE_0
 	K_1 = 30,			// Key 1 // SDL_SCANCODE_1
 	K_2 = 31,			// Key 2 // SDL_SCANCODE_2
@@ -332,7 +329,6 @@ inline std::ostream& operator<<(std::ostream& os, Key key) {
 		case Key::KP_Multiply:	os << "Keypad *"; break;
 		case Key::KP_Divide:	os << "Keypad /"; break;
 
-		case Key::Invalid:		[[fallthrough]];
 		default:				PTGN_ERROR("Invalid key enum value");
 	}
 
@@ -340,8 +336,7 @@ inline std::ostream& operator<<(std::ostream& os, Key key) {
 }
 
 PTGN_SERIALIZE_ENUM(
-	Key, { { Key::Invalid, nullptr },
-		   { Key::K_0, "k_0" },
+	Key, { { Key::K_0, "k_0" },
 		   { Key::K_1, "k_1" },
 		   { Key::K_2, "k_2" },
 		   { Key::K_3, "k_3" },

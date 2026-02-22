@@ -1,5 +1,8 @@
 #pragma once
 
+#include <utility>
+#include <vector>
+
 #include "core/math/geometry/axis.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -8,11 +11,10 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 
 namespace ptgn {
-
-struct Transform;
 
 namespace impl {
 
@@ -26,151 +28,115 @@ namespace impl {
 );
 
 [[nodiscard]] bool PolygonsHaveOverlapAxis(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
+	Transform t1, const Polygon& A, Transform t2, const Polygon& B
 );
 
 [[nodiscard]] bool GetPolygonMinimumOverlap(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B, float& depth,
-	Axis& axis
+	Transform t1, const Polygon& A, Transform t2, const Polygon& B, float& depth, Axis& axis
 );
 
-[[nodiscard]] bool LineContainsLine(
-	const Transform& t1, const Line& A, const Transform& t2, const Line& B
-);
+[[nodiscard]] bool LineContainsLine(Transform t1, const Line& A, Transform t2, const Line& B);
 
 [[nodiscard]] bool PolygonContainsPolygon(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
+	Transform t1, const Polygon& A, Transform t2, const Polygon& B
 );
 
 [[nodiscard]] bool TriangleContainsTriangle(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Triangle& B
+	Transform t1, const Triangle& A, Transform t2, const Triangle& B
 );
 
 [[nodiscard]] bool PolygonContainsTriangle(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Triangle& B
+	Transform t1, const Polygon& A, Transform t2, const Triangle& B
 );
 
-[[nodiscard]] bool OverlapPointPoint(
-	const Transform& t1, V2_float A, const Transform& t2, V2_float B
-);
+[[nodiscard]] bool OverlapPointPoint(Transform t1, V2_float A, Transform t2, V2_float B);
 
-[[nodiscard]] bool OverlapPointLine(
-	const Transform& t1, V2_float A, const Transform& t2, const Line& B
-);
+[[nodiscard]] bool OverlapPointLine(Transform t1, V2_float A, Transform t2, const Line& B);
 
-[[nodiscard]] bool OverlapPointTriangle(
-	const Transform& t1, V2_float A, const Transform& t2, const Triangle& B
-);
+[[nodiscard]] bool OverlapPointTriangle(Transform t1, V2_float A, Transform t2, const Triangle& B);
 
-[[nodiscard]] bool OverlapPointCircle(
-	const Transform& t1, V2_float A, const Transform& t2, const Circle& B
-);
+[[nodiscard]] bool OverlapPointCircle(Transform t1, V2_float A, Transform t2, const Circle& B);
 
-[[nodiscard]] bool OverlapPointRect(
-	const Transform& t1, V2_float A, const Transform& t2, const Rect& B
-);
+[[nodiscard]] bool OverlapPointRect(Transform t1, V2_float A, Transform t2, const Rect& B);
 
-[[nodiscard]] bool OverlapPointCapsule(
-	const Transform& t1, V2_float A, const Transform& t2, const Capsule& B
-);
+[[nodiscard]] bool OverlapPointCapsule(Transform t1, V2_float A, Transform t2, const Capsule& B);
 
-[[nodiscard]] bool OverlapPointPolygon(
-	const Transform& t1, V2_float A, const Transform& t2, const Polygon& B
-);
+[[nodiscard]] bool OverlapPointPolygon(Transform t1, V2_float A, Transform t2, const Polygon& B);
 
-[[nodiscard]] bool OverlapLineLine(
-	const Transform& t1, const Line& A, const Transform& t2, const Line& B
-);
+[[nodiscard]] bool OverlapLineLine(Transform t1, const Line& A, Transform t2, const Line& B);
 
-[[nodiscard]] bool OverlapLineCircle(
-	const Transform& t1, const Line& A, const Transform& t2, const Circle& B
-);
+[[nodiscard]] bool OverlapLineCircle(Transform t1, const Line& A, Transform t2, const Circle& B);
 
 [[nodiscard]] bool OverlapLineTriangle(
-	const Transform& t1, const Line& A, const Transform& t2, const Triangle& B
+	Transform t1, const Line& A, Transform t2, const Triangle& B
 );
 
-[[nodiscard]] bool OverlapLineRect(
-	const Transform& t1, const Line& A, const Transform& t2, const Rect& B
-);
+[[nodiscard]] bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B);
 
-[[nodiscard]] bool OverlapLineCapsule(
-	const Transform& t1, const Line& A, const Transform& t2, const Capsule& B
-);
+[[nodiscard]] bool OverlapLineCapsule(Transform t1, const Line& A, Transform t2, const Capsule& B);
 
-[[nodiscard]] bool OverlapLinePolygon(
-	const Transform& t1, const Line& A, const Transform& t2, const Polygon& B
-);
+[[nodiscard]] bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon& B);
 
 [[nodiscard]] bool OverlapCircleCircle(
-	const Transform& t1, const Circle& A, const Transform& t2, const Circle& B
+	Transform t1, const Circle& A, Transform t2, const Circle& B
 );
 
 [[nodiscard]] bool OverlapCircleTriangle(
-	const Transform& t1, const Circle& A, const Transform& t2, const Triangle& B
+	Transform t1, const Circle& A, Transform t2, const Triangle& B
 );
 
-[[nodiscard]] bool OverlapCircleRect(
-	const Transform& t1, const Circle& A, const Transform& t2, const Rect& B
-);
+[[nodiscard]] bool OverlapCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& B);
 
 [[nodiscard]] bool OverlapCirclePolygon(
-	const Transform& t1, const Circle& A, const Transform& t2, const Polygon& B
+	Transform t1, const Circle& A, Transform t2, const Polygon& B
 );
 
 [[nodiscard]] bool OverlapCircleCapsule(
-	const Transform& t1, const Circle& A, const Transform& t2, const Capsule& B
+	Transform t1, const Circle& A, Transform t2, const Capsule& B
 );
 
 [[nodiscard]] bool OverlapTriangleTriangle(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Triangle& B
+	Transform t1, const Triangle& A, Transform t2, const Triangle& B
 );
 
 [[nodiscard]] bool OverlapTriangleRect(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Rect& B
+	Transform t1, const Triangle& A, Transform t2, const Rect& B
 );
 
 [[nodiscard]] bool OverlapTrianglePolygon(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Polygon& B
+	Transform t1, const Triangle& A, Transform t2, const Polygon& B
 );
 
 [[nodiscard]] bool OverlapTriangleCapsule(
-	const Transform& t1, const Triangle& A, const Transform& t2, const Capsule& B
+	Transform t1, const Triangle& A, Transform t2, const Capsule& B
 );
 
-[[nodiscard]] bool OverlapRectRect(
-	const Transform& t1, const Rect& A, const Transform& t2, const Rect& B
-);
+[[nodiscard]] bool OverlapRectRect(Transform t1, const Rect& A, Transform t2, const Rect& B);
 
-[[nodiscard]] bool OverlapRectCapsule(
-	const Transform& t1, const Rect& A, const Transform& t2, const Capsule& B
-);
+[[nodiscard]] bool OverlapRectCapsule(Transform t1, const Rect& A, Transform t2, const Capsule& B);
 
-[[nodiscard]] bool OverlapRectPolygon(
-	const Transform& t1, const Rect& A, const Transform& t2, const Polygon& B
-);
+[[nodiscard]] bool OverlapRectPolygon(Transform t1, const Rect& A, Transform t2, const Polygon& B);
 
 [[nodiscard]] bool OverlapPolygonPolygon(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
+	Transform t1, const Polygon& A, Transform t2, const Polygon& B
 );
 
 [[nodiscard]] bool OverlapPolygonCapsule(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Capsule& B
+	Transform t1, const Polygon& A, Transform t2, const Capsule& B
 );
 
 [[nodiscard]] bool OverlapCapsuleCapsule(
-	const Transform& t1, const Capsule& A, const Transform& t2, const Capsule& B
+	Transform t1, const Capsule& A, Transform t2, const Capsule& B
 );
 
 } // namespace impl
 
 [[nodiscard]] bool Overlap(
-	const Transform& t1, const ColliderShape& shape1, const Transform& t2,
-	const ColliderShape& shape2
+	Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2
 );
 
-[[nodiscard]] bool Overlap(V2_float point, const Transform& t2, const ColliderShape& shape2);
+[[nodiscard]] bool Overlap(V2_float point, Transform t2, const ColliderShape& shape2);
 
-[[nodiscard]] bool Overlap(const Transform& t1, const ColliderShape& shape1, V2_float point);
+[[nodiscard]] bool Overlap(Transform t1, const ColliderShape& shape1, V2_float point);
 
 } // namespace ptgn

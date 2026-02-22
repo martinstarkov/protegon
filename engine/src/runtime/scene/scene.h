@@ -9,16 +9,20 @@
 
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/camera/viewport.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/input/scene_input.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
 
 class Scene;
+class SceneInput;
 class SceneManager;
 class ApplicationContext;
 class EventHandler;
@@ -289,11 +293,11 @@ public:
 
 	const ApplicationContext& app() const;
 
-	// TODO: Fix these systems.
-	// SceneInput input;
-	// Physics physics;
-
 	SceneEventHandler events;
+
+	// TODO: Fix these systems.
+	SceneInput input;
+	// Physics physics;
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.
@@ -306,9 +310,12 @@ public:
 private:
 	friend class SceneManager;
 	friend class EventHandler;
+	friend class SceneInput;
 	friend class SceneEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
+
+	[[nodiscard]] Entity GetRenderTarget() const;
 
 	template <auto Member>
 	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
@@ -353,72 +360,73 @@ private:
 template <typename T>
 concept SceneType = std::derived_from<T, Scene>;
 
-} // namespace ptgn
+V2_float CenterToTopLeft(V2_float point_center, V2_float size);
+V2_float TopLeftToCenter(V2_float point_top_left, V2_float size);
 
-/*
-// TODO: Fix these.
+[[nodiscard]] V2_float WindowToDisplay(V2_float window_point, V2_float display_center);
+[[nodiscard]] V2_float DisplayToWindow(V2_float display_point, V2_float display_center);
 
-[[nodiscard]] V2_float DisplayToGame(V2_float game_scale, V2_float display_point);
+[[nodiscard]] V2_float DisplayToGame(V2_float display_point, V2_float game_scale);
+[[nodiscard]] V2_float GameToDisplay(V2_float game_point, V2_float game_scale);
+
+[[nodiscard]] V2_float GameToScene(V2_float game_point, Transform scene_transform);
+[[nodiscard]] V2_float SceneToGame(V2_float scene_point, Transform scene_transform);
+
+[[nodiscard]] V2_float SceneToCamera(
+	V2_float scene_point, V2_float scene_size, V2_float game_size, Viewport camera_viewport
+);
+
+[[nodiscard]] V2_float CameraToScene(
+	V2_float camera_point, V2_float scene_size, V2_float game_size, Viewport camera_viewport
+);
+
 [[nodiscard]] V2_float DisplayToWorld(
-	V2_float game_scale, const Transform& rt_transform, V2_float display_point,
-	const Camera& camera
+	V2_float game_scale, Transform rt_transform, V2_float display_point, Entity world_camera
 );
 
-[[nodiscard]] V2_float GameToDisplay(V2_float game_scale, V2_float game_point);
 [[nodiscard]] V2_float GameToWorld(
-	const Transform& rt_transform, V2_float game_point, const Camera& camera
+	Transform rt_transform, V2_float game_point, Entity world_camera
 );
 
-[[nodiscard]] V2_float CameraToWorld(V2_float scene_point, const Camera& camera);
-[[nodiscard]] V2_float CameraToDisplay(
-	V2_float game_scale, V2_float game_size, V2_float scene_point,
-	const Camera& camera
-);
-[[nodiscard]] V2_float CameraToGame(
-	V2_float game_size, V2_float scene_point, const Camera& camera
+[[nodiscard]] V2_float SceneToWorld(V2_float scene_point, Entity world_camera);
+[[nodiscard]] V2_float SceneToDisplay(
+	V2_float game_scale, V2_float game_size, V2_float scene_point, Entity world_camera
 );
 
 [[nodiscard]] V2_float WorldToDisplay(
-	V2_float game_scale, V2_float game_size, V2_float world_point,
-	const Camera& camera
+	V2_float game_scale, V2_float game_size, V2_float world_point, Entity world_camera
 );
-[[nodiscard]] V2_float WorldToGame(
-	V2_float game_size, V2_float world_point, const Camera& camera
-);
-[[nodiscard]] V2_float WorldToCamera(V2_float world_point, const Camera& camera);
+[[nodiscard]] V2_float WorldToGame(V2_float game_size, V2_float world_point, Entity world_camera);
+[[nodiscard]] V2_float WorldToScene(V2_float world_point, Entity world_camera);
 
 namespace impl {
 
 // The window is an internal engine concept not exposed to the user directly.
 
-[[nodiscard]] V2_float WindowToDisplay(V2_float window_point);
-[[nodiscard]] V2_float WindowToGame(V2_float game_scale, V2_float window_point);
-[[nodiscard]] V2_float DisplayToWindow(
-	V2_float window_size, V2_float display_size, V2_float display_point
+[[nodiscard]] V2_float WindowToGame(
+	V2_float window_point, V2_float display_center, V2_float game_scale
 );
 [[nodiscard]] V2_float GameToWindow(
-	V2_float window_size, V2_float display_size, V2_float game_scale,
-	V2_float game_point
+	V2_float window_size, V2_float display_size, V2_float game_scale, V2_float game_point
 );
-[[nodiscard]] V2_float WindowToSceneTarget(
-	V2_float game_scale, const Transform& rt_transform, V2_float window_point
+[[nodiscard]] V2_float WindowToScene(
+	V2_float game_scale, Transform rt_transform, V2_float window_point
 );
-[[nodiscard]] V2_float DisplayToSceneTarget(
-	V2_float game_scale, const Transform& rt_transform, V2_float display_point
+[[nodiscard]] V2_float DisplayToScene(
+	V2_float game_scale, Transform rt_transform, V2_float display_point
 );
-[[nodiscard]] V2_float GameToSceneTarget(const Transform& rt_transform, V2_float game_point);
-[[nodiscard]] V2_float CameraToWindow(
-	V2_float window_size, V2_float display_size, V2_float game_scale,
-	V2_float game_size, V2_float scene_point, const Camera& camera
+[[nodiscard]] V2_float SceneToWindow(
+	V2_float window_size, V2_float display_size, V2_float game_scale, V2_float game_size,
+	V2_float scene_point, Entity world_camera
 );
 [[nodiscard]] V2_float WindowToWorld(
-	V2_float game_scale, const Transform& rt_transform, V2_float window_point,
-	const Camera& camera
+	V2_float game_scale, Transform rt_transform, V2_float window_point, Entity world_camera
 );
 [[nodiscard]] V2_float WorldToWindow(
-	V2_float window_size, V2_float display_size, V2_float game_scale,
-	V2_float game_size, V2_float world_point, const Camera& camera
+	V2_float window_size, V2_float display_size, V2_float game_scale, V2_float game_size,
+	V2_float world_point, Entity world_camera
 );
 
 } // namespace impl
-*/
+
+} // namespace ptgn

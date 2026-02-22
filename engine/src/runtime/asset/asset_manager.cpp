@@ -338,7 +338,7 @@ Texture AssetManager::CreateTextTexture(
 	return texture;
 }
 
-void AssetManager::SetContext(const std::shared_ptr<ApplicationContext>& ctx) {
+void AssetManager::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 }
 

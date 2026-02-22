@@ -14,6 +14,8 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/input/scene_input.h"
+#include "runtime/scene/scene.h"
 
 namespace ptgn {
 
@@ -119,6 +121,10 @@ void SetDraggable(Entity entity, ComponentState state) {
 
 bool IsDraggable(Entity entity) {
 	return IsEnabled<impl::Draggable>(entity);
+}
+
+bool IsDragging(Entity entity) {
+	return entity.GetScene().input.dragging_entities_.contains(entity);
 }
 
 V2_float GetDragOffset(Entity draggable) {

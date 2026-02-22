@@ -1,7 +1,10 @@
 #include "runtime/ecs/components/transform_component.h"
 
+#include "core/assert.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/camera/camera.h"
+#include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 
@@ -23,6 +26,14 @@ Transform GetWorldTransform(Entity entity) {
 	}
 	auto world_transform{ transform.RelativeTo(relative_to) };
 	return world_transform;
+}
+
+Transform GetDrawTransform(Entity entity) {
+	auto offset_transform{ GetOffset(entity) };
+	PTGN_ASSERT(!entity.Has<impl::Camera>());
+	auto transform{ GetWorldTransform(entity) };
+	transform = transform.RelativeTo(offset_transform);
+	return transform;
 }
 
 V2_float GetPosition(Entity entity) {

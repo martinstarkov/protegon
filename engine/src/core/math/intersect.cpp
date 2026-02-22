@@ -17,8 +17,8 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/math_utils.h"
 #include "core/math/overlap.h"
-#include "core/math/vector2.h"
 #include "core/math/transform.h"
+#include "core/math/vector2.h"
 
 #define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \
 	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
@@ -51,9 +51,7 @@ bool Intersection::Occurred() const {
 
 namespace impl {
 
-Intersection IntersectCircleCircle(
-	const Transform& t1, const Circle& A, const Transform& t2, const Circle& B
-) {
+Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, const Circle& B) {
 	Intersection c;
 
 	auto circleA_center{ A.GetCenter(t1) };
@@ -87,9 +85,7 @@ Intersection IntersectCircleCircle(
 	return c;
 }
 
-Intersection IntersectCircleRect(
-	const Transform& t1, const Circle& A, const Transform& t2, const Rect& B
-) {
+Intersection IntersectCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& B) {
 	if (t2.GetRotation() != 0.0f) {
 		return IntersectCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
@@ -144,9 +140,7 @@ Intersection IntersectCircleRect(
 	return c;
 }
 
-Intersection IntersectCirclePolygon(
-	const Transform& t1, const Circle& A, const Transform& t2, const Polygon& B
-) {
+Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2, const Polygon& B) {
 	Intersection c;
 
 	float min_penetration{ std::numeric_limits<float>::infinity() };
@@ -189,9 +183,7 @@ Intersection IntersectCirclePolygon(
 	return c;
 }
 
-Intersection IntersectRectRect(
-	const Transform& t1, const Rect& A, const Transform& t2, const Rect& B
-) {
+Intersection IntersectRectRect(Transform t1, const Rect& A, Transform t2, const Rect& B) {
 	Intersection c;
 
 	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
@@ -235,7 +227,7 @@ Intersection IntersectRectRect(
 }
 
 Intersection IntersectPolygonPolygon(
-	const Transform& t1, const Polygon& A, const Transform& t2, const Polygon& B
+	Transform t1, const Polygon& A, Transform t2, const Polygon& B
 ) {
 	Polygon polygon_A{ A.GetWorldVertices(t1) };
 	Polygon polygon_B{ B.GetWorldVertices(t2) };
@@ -311,8 +303,7 @@ Intersection IntersectPolygonPolygon(
 } // namespace impl
 
 Intersection Intersect(
-	const Transform& t1, const ColliderShape& shape1, const Transform& t2,
-	const ColliderShape& shape2
+	Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2
 ) {
 	return std::visit(
 		[&](const auto& s1) -> Intersection {

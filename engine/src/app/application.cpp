@@ -53,6 +53,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
 
 namespace ptgn {
@@ -185,13 +186,14 @@ Application::Application(const ApplicationConfig& config) :
 	renderer_{ window_, events_ },
 	events_{ scenes_ },
 	scenes_{},
+	input_{ window_ },
 	assets_{},
 	font_{ assets_ },
 	audio_{ assets_ },
 	debug_{},
 	ctx_{ std::make_shared<ApplicationContext>(*this) } {
-	scenes_.SetContext(ctx_);
-	assets_.SetContext(ctx_);
+	scenes_.Init(ctx_);
+	assets_.Init(ctx_);
 }
 
 milliseconds Application::TimeSinceStart() const {

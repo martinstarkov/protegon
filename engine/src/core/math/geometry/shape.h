@@ -103,13 +103,11 @@ public:
 	// friend void from_json(const json& j, Shape& shape);
 };
 
-// @return The vertices that fully contain the shape.
-// For a line, this is the start and end points.
-// For polygons, this is equivalent to their vertices.
-// For shapes with curved edges, this is the quad that contains them.
-[[nodiscard]] std::vector<V2_float> GetWorldVertices(
-	const Shape& shape, const Transform& transform
-);
+/// @return The vertices that fully contain the shape.
+/// For a line, this is the start and end points.
+/// For polygons, this is equivalent to their vertices.
+/// For shapes with curved edges, this is the quad that contains them.
+[[nodiscard]] std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform);
 
 struct EdgeInfo {
 	// If a shape has arced edges, this is set to true and edges is populated with the quad edges
@@ -119,6 +117,6 @@ struct EdgeInfo {
 	std::vector<Line> edges;
 };
 
-[[nodiscard]] EdgeInfo GetEdges(const Shape& shape, const Transform& transform);
+[[nodiscard]] EdgeInfo GetEdges(const Shape& shape, Transform transform);
 
 } // namespace ptgn

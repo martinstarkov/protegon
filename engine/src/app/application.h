@@ -95,8 +95,8 @@ private:
 	Window window_;
 	Renderer renderer_;
 	EventHandler events_;
-	InputHandler input_;
 	SceneManager scenes_;
+	InputHandler input_;
 	AssetManager assets_;
 	FontSystem font_;
 	AudioSystem audio_;

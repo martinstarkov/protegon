@@ -228,12 +228,12 @@ private:
 
 	friend class EventHandler;
 
-	void Draw() {
-		DrawScenes();
+	void Init(const std::shared_ptr<ApplicationContext>& ctx) {
+		ctx_ = ctx;
 	}
 
-	void SetContext(const std::shared_ptr<ApplicationContext>& ctx) {
-		ctx_ = ctx;
+	void Draw() {
+		DrawScenes();
 	}
 
 	std::shared_ptr<ApplicationContext> ctx_;

@@ -10,6 +10,8 @@
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
 #include "ecs/ecs.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
@@ -24,6 +26,7 @@
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/render_target_component.h"
+#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -38,7 +41,7 @@ void SceneEventHandler::Emit(EventDispatcher d) {
 	scene_.InternalEmit(d);
 }
 
-Scene::Scene() : events{ *this } {}
+Scene::Scene() : events{ *this }, input{ *this } {}
 
 Scene::~Scene() {
 	// TODO: Fix.
@@ -53,6 +56,8 @@ Scene::~Scene() {
 
 void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
+
+	input.Init(ctx_);
 
 	auto& renderer{ app().renderer };
 
@@ -355,6 +360,10 @@ Entity Scene::CreateEntity(const json& j) {
 //	return {};
 //}
 
+Entity Scene::GetRenderTarget() const {
+	return render_target_;
+}
+
 void Scene::Refresh() {
 	manager_.Refresh();
 }
@@ -398,187 +407,208 @@ const ApplicationContext& Scene::app() const {
 	return *ctx_.get();
 }
 
-/*
-V2_float DisplayToGame(V2_float game_scale, V2_float display_point) {
-PTGN_ASSERT(game_scale.BothAboveZero());
-auto game_point{ display_point / game_scale };
-return game_point;
+V2_float CenterToTopLeft(V2_float point_center, V2_float size) {
+	PTGN_ASSERT(size.BothAboveZero());
+	return point_center + size * 0.5f;
 }
 
-V2_float GameToDisplay(V2_float game_scale, V2_float game_point) {
-PTGN_ASSERT(game_scale.BothAboveZero());
-auto display_point{ game_point * game_scale };
-return display_point;
+V2_float TopLeftToCenter(V2_float point_top_left, V2_float size) {
+	PTGN_ASSERT(size.BothAboveZero());
+	return point_top_left - size * 0.5f;
+}
+
+V2_float WindowToDisplay(V2_float window_point, V2_float display_center) {
+	auto display_point{ window_point - display_center };
+	return display_point;
+}
+
+V2_float DisplayToWindow(V2_float display_point, V2_float display_center) {
+	auto window_point{ display_point + display_center };
+	return window_point;
+}
+
+V2_float DisplayToGame(V2_float display_point, V2_float game_scale) {
+	PTGN_ASSERT(game_scale.BothAboveZero());
+	auto game_point{ display_point * game_scale };
+	return game_point;
+}
+
+V2_float GameToDisplay(V2_float game_point, V2_float game_scale) {
+	PTGN_ASSERT(game_scale.BothAboveZero());
+	auto display_point{ game_point / game_scale };
+	return display_point;
+}
+
+V2_float GameToScene(V2_float game_point, Transform scene_transform) {
+	auto scene_point{ scene_transform.ApplyInverse(game_point) };
+	return scene_point;
+}
+
+V2_float SceneToGame(V2_float scene_point, Transform scene_transform) {
+	auto game_point{ scene_transform.Apply(scene_point) };
+	return game_point;
+}
+
+V2_float SceneToCamera(
+	V2_float scene_point, V2_float scene_size, V2_float game_size, Viewport camera_viewport
+) {
+	PTGN_ASSERT(scene_size.BothAboveZero());
+	PTGN_ASSERT(game_size.BothAboveZero());
+	PTGN_ASSERT(camera_viewport.size.BothAboveZero());
+
+	// Scene center-origin -> Scene top-left-origin
+	V2_float scene_tl = CenterToTopLeft(scene_point, scene_size);
+
+	// Into viewport-local (top-left origin)
+	V2_float vp_local_tl = scene_tl - camera_viewport.position;
+
+	// Map viewport-local into game top-left
+	V2_float game_tl = vp_local_tl * (game_size / camera_viewport.size);
+
+	// Game top-left -> Camera center-origin (camera space)
+	return TopLeftToCenter(game_tl, game_size);
+}
+
+V2_float SceneToCamera(V2_float scene_point, Entity world_camera) {
+	PTGN_ASSERT(world_camera);
+	auto camera_transform{ GetTransform(world_camera) };
+	auto camera_point{ camera_transform.ApplyInverse(scene_point) };
+	return camera_point;
+}
+
+V2_float CameraToScene(V2_float game_size, V2_float scene_point, Entity world_camera) {
+	PTGN_ASSERT(world_camera);
+
+	auto camera_viewport{ GetCameraViewport(world_camera) };
+	PTGN_ASSERT(camera_viewport.size.BothAboveZero());
+	PTGN_ASSERT(game_size.BothAboveZero());
+
+	V2_float game_point{ (scene_point - camera_viewport.position) * game_size /
+						 camera_viewport.size };
+
+	return game_point;
+}
+
+V2_float CameraToWorld(V2_float camera_point, Entity world_camera) {
+	PTGN_ASSERT(world_camera);
+	auto camera_transform{ GetTransform(world_camera) };
+	auto world_point{ camera_transform.Apply(camera_point) };
+	return world_point;
+}
+
+V2_float WorldToCamera(V2_float world_point, Entity world_camera) {
+	PTGN_ASSERT(world_camera);
+	auto camera_transform{ GetTransform(world_camera) };
+	auto camera_point{ camera_transform.ApplyInverse(world_point) };
+	return camera_point;
 }
 
 V2_float DisplayToWorld(
-V2_float game_scale, const Transform& rt_transform, V2_float display_point,
-const Camera& camera
+	V2_float game_scale, const Transform& rt_transform, V2_float display_point, Entity world_camera
 ) {
-auto game_point{ DisplayToGame(game_scale, display_point) };
-auto world_point{ GameToWorld(rt_transform, game_point, camera) };
-return world_point;
+	auto game_point{ DisplayToGame(game_scale, display_point) };
+	auto world_point{ GameToWorld(rt_transform, game_point, camera) };
+	return world_point;
 }
 
 V2_float WorldToDisplay(
-V2_float game_scale, V2_float game_size, V2_float world_point,
-const Camera& camera
+	V2_float game_scale, V2_float game_size, V2_float world_point, Entity world_camera
 ) {
-auto game_point{ WorldToGame(game_size, world_point, camera) };
-auto display_point{ GameToDisplay(game_scale, game_point) };
-return display_point;
+	auto game_point{ WorldToGame(game_size, world_point, camera) };
+	auto display_point{ GameToDisplay(game_scale, game_point) };
+	return display_point;
 }
 
-V2_float GameToWorld(
-const Transform& rt_transform, V2_float game_point, const Camera& camera
+V2_float GameToWorld(const Transform& rt_transform, V2_float game_point, Entity world_camera) {
+	auto camera_point{ impl::GameToScene(rt_transform, game_point) };
+	auto world_point{ CameraToWorld(camera_point, camera) };
+	return world_point;
+}
+
+V2_float WorldToGame(V2_float game_size, V2_float world_point, Entity world_camera) {
+	auto camera_point{ WorldToCamera(world_point, camera) };
+	auto game_point{ CameraToGame(game_size, camera_point, camera) };
+	return game_point;
+}
+
+V2_float SceneToWorld(V2_float scene_point, Entity world_camera) {
+	PTGN_ASSERT(world_camera);
+	auto camera_transform{ GetTransform(world_camera) };
+	auto world_point{ camera_transform.Apply(scene_point) };
+	return world_point;
+}
+
+V2_float WorldToScene(V2_float world_point, Entity world_camera) {
+	PTGN_ASSERT(world_camera);
+	auto camera_transform{ GetTransform(world_camera) };
+	auto camera_point{ camera_transform.ApplyInverse(world_point) };
+	return camera_point;
+}
+
+V2_float SceneToDisplay(
+	V2_float game_scale, V2_float game_size, V2_float camera_point, Entity world_camera
 ) {
-auto camera_point{ impl::GameToSceneTarget(rt_transform, game_point) };
-auto world_point{ CameraToWorld(camera_point, camera) };
-return world_point;
-}
-
-V2_float WorldToGame(V2_float game_size, V2_float world_point, const Camera& camera) {
-auto camera_point{ WorldToCamera(world_point, camera) };
-auto game_point{ CameraToGame(game_size, camera_point, camera) };
-return game_point;
-}
-
-V2_float CameraToWorld(V2_float camera_point, const Camera& camera) {
-PTGN_ASSERT(camera);
-Transform camera_transform{ camera.GetTransform() };
-auto world_point{ camera_transform.Apply(camera_point) };
-
-return world_point;
-}
-
-V2_float WorldToCamera(V2_float world_point, const Camera& camera) {
-PTGN_ASSERT(camera);
-Transform camera_transform{ camera.GetTransform() };
-auto camera_point{ camera_transform.ApplyInverse(world_point) };
-
-return camera_point;
-}
-
-V2_float CameraToDisplay(
-V2_float game_scale, V2_float game_size, V2_float camera_point,
-const Camera& camera
-) {
-auto game_point{ CameraToGame(game_size, camera_point, camera) };
-auto display_point{ GameToDisplay(game_scale, game_point) };
-return display_point;
-}
-
-V2_float CameraToGame(
-V2_float game_size, V2_float camera_point, const Camera& camera
-) {
-PTGN_ASSERT(camera);
-
-auto camera_viewport_pos{ camera.GetViewportPosition() };
-auto camera_viewport_size{ camera.GetViewportSize() };
-PTGN_ASSERT(camera_viewport_size.BothAboveZero());
-PTGN_ASSERT(game_size.BothAboveZero());
-
-V2_float game_point{ (camera_point - camera_viewport_pos) / camera_viewport_size * game_size };
-
-return game_point;
+	auto game_point{ SceneToGame(game_size, camera_point, camera) };
+	auto display_point{ GameToDisplay(game_scale, game_point) };
+	return display_point;
 }
 
 namespace impl {
 
-V2_float WindowToDisplay(V2_float window_point) {
-auto window_size{ window.GetSize() };
-auto display_size{ render.GetDisplaySize() };
-
-V2_float offset{ (window_size - display_size) * 0.5f };
-
-auto display_point{ window_point - offset };
-
-return window_point;
-}
-
-V2_float DisplayToWindow(
-V2_float window_size, V2_float display_size, V2_float display_point
-) {
-V2_float offset{ (window_size - display_size) * 0.5f };
-
-V2_float window_point{ display_point + offset };
-return window_point;
-}
-
-V2_float WindowToGame(V2_float game_scale, V2_float window_point) {
-auto display_point{ WindowToDisplay(window_point) };
-auto game_point{ DisplayToGame(game_scale, display_point) };
-return game_point;
+V2_float WindowToGame(V2_float window_point, V2_float display_center, V2_float game_scale) {
+	auto display_point{ WindowToDisplay(window_point, display_center) };
+	auto game_point{ DisplayToGame(display_point, game_scale) };
+	return game_point;
 }
 
 V2_float GameToWindow(
-V2_float window_size, V2_float display_size, V2_float game_scale,
-V2_float game_point
+	V2_float window_size, V2_float display_size, V2_float game_scale, V2_float game_point
 ) {
-auto display_point{ GameToDisplay(game_scale, game_point) };
-auto window_point{ DisplayToWindow(window_size, display_size, display_point) };
-return window_point;
+	auto display_point{ GameToDisplay(game_scale, game_point) };
+	auto window_point{ DisplayToWindow(window_size, display_size, display_point) };
+	return window_point;
 }
 
-V2_float WindowToSceneTarget(
-V2_float game_scale, const Transform& rt_transform, V2_float window_point
-) {
-auto display_point{ WindowToDisplay(window_point) };
-auto camera_point{ DisplayToSceneTarget(game_scale, rt_transform, display_point) };
-return camera_point;
+V2_float WindowToScene(V2_float game_scale, const Transform& rt_transform, V2_float window_point) {
+	auto display_point{ WindowToDisplay(window_point) };
+	auto camera_point{ DisplayToScene(game_scale, rt_transform, display_point) };
+	return camera_point;
 }
 
-V2_float CameraToWindow(
-V2_float window_size, V2_float display_size, V2_float game_scale,
-V2_float game_size, V2_float camera_point, const Camera& camera
+V2_float SceneToWindow(
+	V2_float window_size, V2_float display_size, V2_float game_scale, V2_float game_size,
+	V2_float camera_point, Entity world_camera
 ) {
-auto display_point{ CameraToDisplay(game_scale, game_size, camera_point, camera) };
-auto window_point{ DisplayToWindow(window_size, display_size, display_point) };
-return window_point;
+	auto display_point{ CameraToDisplay(game_scale, game_size, camera_point, camera) };
+	auto window_point{ DisplayToWindow(window_size, display_size, display_point) };
+	return window_point;
 }
 
 V2_float WindowToWorld(
-V2_float game_scale, const Transform& rt_transform, V2_float window_point,
-const Camera& camera
+	V2_float game_scale, const Transform& rt_transform, V2_float window_point, Entity world_camera
 ) {
-auto display_point{ WindowToDisplay(window_point) };
-auto world_point{ DisplayToWorld(game_scale, rt_transform, display_point, camera) };
-return world_point;
+	auto display_point{ WindowToDisplay(window_point) };
+	auto world_point{ DisplayToWorld(game_scale, rt_transform, display_point, camera) };
+	return world_point;
 }
 
 V2_float WorldToWindow(
-V2_float window_size, V2_float display_size, V2_float game_scale,
-V2_float game_size, V2_float world_point, const Camera& camera
+	V2_float window_size, V2_float display_size, V2_float game_scale, V2_float game_size,
+	V2_float world_point, Entity world_camera
 ) {
-auto display_point{ WorldToDisplay(game_scale, game_size, world_point, camera) };
-auto window_point{ DisplayToWindow(window_size, display_size, display_point) };
-return window_point;
+	auto display_point{ WorldToDisplay(game_scale, game_size, world_point, camera) };
+	auto window_point{ DisplayToWindow(window_size, display_size, display_point) };
+	return window_point;
 }
 
-V2_float DisplayToSceneTarget(
-V2_float game_scale, const Transform& rt_transform, V2_float display_point
+V2_float DisplayToScene(
+	V2_float game_scale, const Transform& rt_transform, V2_float display_point
 ) {
-auto game_point{ DisplayToGame(game_scale, display_point) };
-auto camera_point{ GameToSceneTarget(rt_transform, game_point) };
-return camera_point;
-}
-
-V2_float GameToSceneTarget(const Transform& rt_transform, V2_float game_point) {
-auto position{ rt_transform.GetPosition() };
-auto scale{ rt_transform.GetScale() };
-auto rotation{ rt_transform.GetRotation() };
-
-PTGN_ASSERT(
-	scale.BothAboveZero(), "Cannot transform screen to scene with zero or negative scale"
-);
-
-auto camera_point{ ((game_point - position) / scale).Rotated(-rotation) };
-
-return camera_point;
+	auto game_point{ DisplayToGame(game_scale, display_point) };
+	auto camera_point{ GameToScene(rt_transform, game_point) };
+	return camera_point;
 }
 
 } // namespace impl
-
-*/
 
 } // namespace ptgn
