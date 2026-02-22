@@ -1,0 +1,3 @@
+[submodule "modules/ecs"]
+	path = modules/ecs
+	url = https://github.com/martinstarkov/ecs.git

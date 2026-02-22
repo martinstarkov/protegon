@@ -1,0 +1,45 @@
+{
+  "start_scene": "MainMenu",
+  "scenes": {
+    "MainMenu": {
+      "archetype": "MainMenu",
+      "template": "VerticalList",
+      "layout": {
+        "origin": [0, 0],
+        "spacing": 60
+      },
+      "buttons": [
+        { "label": "Play", "action": "transition:LevelSelect" },
+        { "label": "Options", "action": "transition:OptionsMenu" },
+        { "label": "Quit", "action": "quit" }
+      ]
+    },
+    "OptionsMenu": {
+      "archetype": "OptionsMenu",
+      "template": "Grid",
+      "layout": {
+        "origin": [0, 0],
+        "spacing": [120, 80],
+        "rows": 2,
+        "columns": 2
+      },
+      "buttons": [
+        { "label": "Audio", "action": "open_audio_settings" },
+        { "label": "Back", "action": "transition:MainMenu" }
+      ]
+    },
+    "LevelSelect": {
+      "archetype": "LevelSelect",
+      "template": "HorizontalList",
+      "layout": {
+        "origin": [0, 0],
+        "spacing": 150
+      },
+      "buttons": [
+        { "label": "Level 1", "action": "load_level_1" },
+        { "label": "Level 2", "action": "load_level_2" },
+        { "label": "Back", "action": "transition:MainMenu" }
+      ]
+    }
+  }
+}

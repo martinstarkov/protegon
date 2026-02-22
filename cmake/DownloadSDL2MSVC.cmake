@@ -1,0 +1,41 @@
+if (LINK_STATIC_SDL)
+  set(SDL_SAVE_DIR "${SDL_DOWNLOAD_DIR}/sdl2-msvc-static")
+else()
+  set(SDL_SAVE_DIR "${SDL_DOWNLOAD_DIR}/sdl2-msvc-shared")
+endif()
+
+set(SDL2_LOCATION       "${SDL_SAVE_DIR}/SDL2-${SDL2_VERSION}")
+set(SDL2_IMAGE_LOCATION "${SDL_SAVE_DIR}/SDL2_image-${SDL2_IMAGE_VERSION}")
+set(SDL2_TTF_LOCATION   "${SDL_SAVE_DIR}/SDL2_ttf-${SDL2_TTF_VERSION}")
+set(SDL2_MIXER_LOCATION "${SDL_SAVE_DIR}/SDL2_mixer-${SDL2_MIXER_VERSION}")
+
+if (LINK_STATIC_SDL)
+  if (NOT EXISTS ${SDL_SAVE_DIR})
+    # Static libs are not shipped officially so I prebuilt some for a specific version.
+    if(NOT "${SDL2_VERSION}" MATCHES "2.30.0" OR
+       NOT "${SDL2_IMAGE_VERSION}" MATCHES "2.8.2" OR
+       NOT "${SDL2_TTF_VERSION}" MATCHES "2.22.0" OR
+       NOT "${SDL2_MIXER_VERSION}" MATCHES "2.8.0")
+      message(FATAL_ERROR "One of the specified SDL versions does not have prebuilt static SDL libraries available for it")
+    endif()
+    download_and_extract(https://github.com/martinstarkov/SDL2-static-libs/archive/refs/heads/main.zip "${SDL_SAVE_DIR}" "-m")
+  endif()
+else()
+  if(NOT EXISTS ${SDL2_LOCATION})
+    download_and_extract(https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-VC.zip                         "${SDL_SAVE_DIR}" "")
+  endif()  
+  if(NOT EXISTS ${SDL2_IMAGE_LOCATION})
+    download_and_extract(https://github.com/libsdl-org/SDL_image/releases/download/release-${SDL2_IMAGE_VERSION}/SDL2_image-devel-${SDL2_IMAGE_VERSION}-VC.zip "${SDL_SAVE_DIR}" "")
+  endif()
+  if(NOT EXISTS ${SDL2_TTF_LOCATION})
+    download_and_extract(https://github.com/libsdl-org/SDL_ttf/releases/download/release-${SDL2_TTF_VERSION}/SDL2_ttf-devel-${SDL2_TTF_VERSION}-VC.zip         "${SDL_SAVE_DIR}" "")
+  endif()
+  if(NOT EXISTS ${SDL2_MIXER_LOCATION})
+    download_and_extract(https://github.com/libsdl-org/SDL_mixer/releases/download/release-${SDL2_MIXER_VERSION}/SDL2_mixer-devel-${SDL2_MIXER_VERSION}-VC.zip "${SDL_SAVE_DIR}" "")
+  endif()
+endif()
+
+list(APPEND CMAKE_PREFIX_PATH "${SDL2_LOCATION}")
+list(APPEND CMAKE_PREFIX_PATH "${SDL2_IMAGE_LOCATION}")
+list(APPEND CMAKE_PREFIX_PATH "${SDL2_TTF_LOCATION}")
+list(APPEND CMAKE_PREFIX_PATH "${SDL2_MIXER_LOCATION}")
