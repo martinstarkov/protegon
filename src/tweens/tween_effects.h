@@ -104,7 +104,7 @@ EffectObject<TComponent>& GetTween(Entity& entity) {
 
 template <typename TComponent, typename T>
 EffectObject<TComponent>& AddTweenEffect(
-	Entity& entity, const T& target, milliseconds duration, const Ease& ease, bool force,
+	Entity entity, const T& target, milliseconds duration, const Ease& ease, bool force,
 	const std::function<T(Entity)>& get_current_value,
 	const std::function<void(Entity, T)>& set_current_value
 ) {
@@ -350,7 +350,7 @@ impl::EffectObject<impl::FollowEffect>& StartFollowPathImpl(
  */
 template <EntityBase T = Entity>
 impl::EffectObject<impl::TranslateEffect>& TranslateTo(
-	T& entity, const V2_float& target_position, milliseconds duration,
+	T entity, const V2_float& target_position, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 ) {
 	return impl::AddTweenEffect<impl::TranslateEffect, V2_float>(
@@ -405,7 +405,7 @@ impl::EffectObject<impl::RotateEffect>& RotateTo(
  */
 template <EntityBase T = Entity>
 impl::EffectObject<impl::ScaleEffect>& ScaleTo(
-	T& entity, const V2_float& target_scale, milliseconds duration,
+	T entity, const V2_float& target_scale, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 ) {
 	return impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
@@ -431,7 +431,7 @@ impl::EffectObject<impl::ScaleEffect>& ScaleTo(
  * @param force If true, forcibly overrides any ongoing tinting.
  */
 impl::EffectObject<impl::TintEffect>& TintTo(
-	Entity& entity, const Color& target_tint, milliseconds duration,
+	Entity entity, const Color& target_tint, milliseconds duration,
 	const Ease& ease = SymmetricalEase::Linear, bool force = true
 );
 
@@ -445,7 +445,7 @@ impl::EffectObject<impl::TintEffect>& TintTo(
  * @param force If true, the fade-in will override any ongoing fade effect.
  */
 impl::EffectObject<impl::TintEffect>& FadeIn(
-	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
+	Entity entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 	bool force = true
 );
 
@@ -459,7 +459,7 @@ impl::EffectObject<impl::TintEffect>& FadeIn(
  * @param force If true, the fade-out will override any ongoing fade effect.
  */
 impl::EffectObject<impl::TintEffect>& FadeOut(
-	Entity& entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
+	Entity entity, milliseconds duration, const Ease& ease = SymmetricalEase::Linear,
 	bool force = true
 );
 

@@ -156,8 +156,6 @@ private:
 	void GenerateFrameBuffer();
 	void DeleteFrameBuffer() noexcept;
 
-	static void SetDrawBuffer(FrameBufferAttachment attachment);
-
 	FrameBufferId id_{ 0 };
 	Texture texture_;
 	RenderBuffer render_buffer_;

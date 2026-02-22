@@ -296,7 +296,7 @@ void LoadResource(std::string_view key, const path& resource_path, bool is_music
 
 	bool is_audio{ ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus" };
 	bool is_texture{ ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif" };
-	bool is_font{ ext == ".ttf" };
+	bool is_font{ ext == ".ttf" || ext == ".otf" };
 	bool is_json{ ext == ".json" };
 
 	PTGN_ASSERT(

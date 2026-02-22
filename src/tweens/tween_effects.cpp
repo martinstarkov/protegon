@@ -209,7 +209,7 @@ void EntityFollowStopImpl(Entity e) {
 } // namespace impl
 
 impl::EffectObject<impl::TintEffect>& TintTo(
-	Entity& entity, const Color& target_tint, milliseconds duration, const Ease& ease, bool force
+	Entity entity, const Color& target_tint, milliseconds duration, const Ease& ease, bool force
 ) {
 	return impl::AddTweenEffect<impl::TintEffect, Color>(
 		entity, target_tint, duration, ease, force, [](Entity e) { return GetTint(e); },
@@ -218,13 +218,13 @@ impl::EffectObject<impl::TintEffect>& TintTo(
 }
 
 impl::EffectObject<impl::TintEffect>& FadeIn(
-	Entity& entity, milliseconds duration, const Ease& ease, bool force
+	Entity entity, milliseconds duration, const Ease& ease, bool force
 ) {
 	return TintTo(entity, color::White, duration, ease, force);
 }
 
 impl::EffectObject<impl::TintEffect>& FadeOut(
-	Entity& entity, milliseconds duration, const Ease& ease, bool force
+	Entity entity, milliseconds duration, const Ease& ease, bool force
 ) {
 	return TintTo(entity, color::Transparent, duration, ease, force);
 }

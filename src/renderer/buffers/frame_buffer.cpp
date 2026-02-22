@@ -193,17 +193,6 @@ void FrameBuffer::DeleteFrameBuffer() noexcept {
 	id_ = 0;
 }
 
-void FrameBuffer::SetDrawBuffer(FrameBufferAttachment attachment) {
-	if (attachment != FrameBufferAttachment::DepthStencil &&
-		attachment != FrameBufferAttachment::Stencil &&
-		attachment != FrameBufferAttachment::Depth) {
-		std::vector<GLenum> attachments{ static_cast<GLenum>(attachment) };
-		GLCall(DrawBuffers(static_cast<GLsizei>(attachments.size()), attachments.data()));
-	} else {
-		glDrawBuffer(GL_NONE);
-	}
-}
-
 void FrameBuffer::AttachTexture(Texture&& texture, FrameBufferAttachment attachment) {
 	PTGN_ASSERT(texture.IsValid(), "Cannot attach invalid texture to frame buffer");
 	PTGN_ASSERT(IsBound(), "Cannot attach texture until frame buffer is bound");
@@ -238,26 +227,12 @@ bool FrameBuffer::IsComplete() const {
 const char* FrameBuffer::GetStatus() const {
 	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
 	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE:  return "Framebuffer is complete.";
-		case GL_FRAMEBUFFER_UNDEFINED: return "Framebuffer is undefined (no framebuffer bound).";
-		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-			return "Incomplete attachment: One or more framebuffer attachment points are "
-				   "incomplete.";
 		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
 			return "Missing attachment: No images are attached to the framebuffer.";
-		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-			return "Incomplete draw buffer: Draw buffer points to a missing attachment.";
-		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-			return "Incomplete read buffer: Read buffer points to a missing attachment.";
 		case GL_FRAMEBUFFER_UNSUPPORTED:
-			return "Framebuffer unsupported: Format combination not supported by implementation.";
-		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-			return "Incomplete multisample: Mismatched sample counts or improper use of "
-				   "multisampling.";
-		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-			return "Incomplete layer targets: Layered attachments are not all complete or not "
-				   "matching.";
-		default: return "Unknown framebuffer status.";
+			return "FramebufferId unsupported: Format combination not supported by "
+				   "implementation.";
+		default: PTGN_ERROR("Unknown framebuffer status.");
 	}
 }
 
