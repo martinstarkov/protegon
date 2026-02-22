@@ -244,28 +244,31 @@ V2_float SceneInput::GetMousePositionRelativeTo(
 		using enum ptgn::ViewportType;
 
 		case World: {
-			auto game_scale{ ctx_->renderer.GetScale() };
+			// TODO: Fix.
+			/*auto game_scale{ ctx_->renderer.GetScale() };
 			auto rt_transform{ GetTransform(scene_.GetRenderTarget()) };
-			return WindowToWorld(game_scale, rt_transform, position, scene_.camera);
+			return WindowToWorld(game_scale, rt_transform, position, scene_.camera);*/
 		}
 		case Game: {
-			auto game_scale{ ctx_->renderer.GetScale() };
+			// TODO: Fix.
+			/*auto game_scale{ ctx_->renderer.GetScale() };
 			V2_float game_point{ WindowToGame(game_scale, position) };
 			if (clamp_to_viewport) {
 				auto game_size{ ctx_->renderer.GetGameSize() };
 				auto half_size{ game_size * 0.5f };
 				game_point = Clamp(game_point, -half_size, half_size);
 			}
-			return game_point;
+			return game_point;*/
 		}
 		case Display: {
-			V2_float display_point{ WindowToDisplay(position) };
+			// TODO: Fix.
+			/*V2_float display_point{ WindowToDisplay(position) };
 			if (clamp_to_viewport) {
 				auto display_size{ ctx_->renderer.GetDisplaySize() };
 				auto half_size{ display_size * 0.5f };
 				display_point = Clamp(display_point, -half_size, half_size);
 			}
-			return display_point;
+			return display_point;*/
 		}
 		case WindowCenter:	return position;
 		case WindowTopLeft: return position + ctx_->window.GetSize() / 2;
@@ -302,7 +305,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		for (const auto& [shape, shape_entity] : shapes) {
 			auto transform{ GetWorldOffsetTransform(shape, shape_entity, entity) };
 
-			if (draw_interactives_) {
+			if (interactive_debug_draw_settings_.enabled) {
 				auto draw_transform{ GetDrawTransform(shape_entity) };
 
 				if (entity.Has<Rect>()) {
@@ -311,8 +314,9 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 				// TODO: Fix.
 				/*renderer.DrawShape(
-					draw_transform, shape, draw_interactive_color_, draw_interactive_line_width_,
-					GetDrawOrigin(shape_entity), entity.GetCamera()
+					draw_transform, shape, interactive_debug_draw_settings_.color,
+				interactive_debug_draw_settings_.line_width, GetDrawOrigin(shape_entity),
+				entity.GetCamera()
 				);*/
 			}
 
@@ -392,18 +396,6 @@ std::vector<Entity> SceneInput::GetDropzones() {
 	return objects;
 }
 
-struct MouseEnter : public Event<> {};
-
-struct MouseLeave : public Event<> {};
-
-struct MouseMoveOver : public Event<> {};
-
-struct MouseDownOver : public Event<> {}; // Mouse button; bool held{ false };
-
-struct MouseUpOver : public Event<> {};
-
-struct MouseScrollOver : public Event<> {}; // V2_float scroll_delta;
-
 // Called every frame
 void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const {
 	for (Entity e : current) {
@@ -411,7 +403,8 @@ void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const
 			continue;
 		}
 		if (!last_mouse_over_.contains(e)) {
-			e.Get<impl::Scripts>().AddAction(&MouseScript::OnMouseEnter);
+			MouseEnter event;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 	}
 
@@ -420,7 +413,8 @@ void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const
 			continue;
 		}
 		if (!VectorContains(current, e)) {
-			e.Get<impl::Scripts>().AddAction(&MouseScript::OnMouseLeave);
+			MouseLeave event;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 	}
 }
@@ -433,20 +427,28 @@ void SceneInput::DispatchMouseEvents(
 			continue;
 		}
 
-		auto& scripts{ e.Get<impl::Scripts>() };
-		scripts.AddAction(&MouseScript::OnMouseMoveOver);
+		MouseMoveOver move_over_event;
+		e.Get<impl::Scripts>().Emit(move_over_event);
 
 		if (mouse.left_pressed) {
-			scripts.AddAction(&MouseScript::OnMouseDownOver, Mouse::Left);
+			MousePressedOver event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
 		}
-		if (mouse.left_held || mouse.left_pressed) {
-			scripts.AddAction(&MouseScript::OnMousePressedOver, Mouse::Left);
+		if (mouse.left_held) {
+			MouseHeldOver event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 		if (mouse.left_released) {
-			scripts.AddAction(&MouseScript::OnMouseUpOver, Mouse::Left);
+			MouseReleasedOver event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 		if (!mouse.scroll_delta.IsZero()) {
-			scripts.AddAction(&MouseScript::OnMouseScrollOver, mouse.scroll_delta);
+			MouseScrollOver event;
+			event.scroll_delta = mouse.scroll_delta;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 	}
 
@@ -458,20 +460,28 @@ void SceneInput::DispatchMouseEvents(
 			continue;
 		}
 
-		auto& scripts{ e.Get<impl::Scripts>() };
-		scripts.AddAction(&MouseScript::OnMouseMoveOut);
+		MouseMoveOut mouse_move_out{};
+		e.Get<impl::Scripts>().Emit(mouse_move_out);
 
 		if (mouse.left_pressed) {
-			scripts.AddAction(&MouseScript::OnMouseDownOut, Mouse::Left);
+			MousePressedOut event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
 		}
-		if (mouse.left_held || mouse.left_pressed) {
-			scripts.AddAction(&MouseScript::OnMousePressedOut, Mouse::Left);
+		if (mouse.left_held) {
+			MouseHeldOut event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 		if (mouse.left_released) {
-			scripts.AddAction(&MouseScript::OnMouseUpOut, Mouse::Left);
+			MouseReleasedOut event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 		if (!mouse.scroll_delta.IsZero()) {
-			scripts.AddAction(&MouseScript::OnMouseScrollOut, mouse.scroll_delta);
+			MouseScrollOut event;
+			event.scroll_delta = mouse.scroll_delta;
+			e.Get<impl::Scripts>().Emit(event);
 		}
 	}
 }
@@ -532,10 +542,14 @@ void SceneInput::HandleDragging(
 
 			dragging_entities_.emplace(dragging);
 
-			auto scripts{ dragging.TryGet<impl::Scripts>() };
+			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+				DragStart event;
+				event.start_position = mouse.position;
+				scripts->Emit(event);
+			}
 
-			if (scripts) {
-				scripts->AddAction(&DragScript::OnDragStart, mouse.position);
+			if (!dragging.Has<impl::Draggable>()) {
+				continue;
 			}
 
 			for (Entity dropzone : dropzones) {
@@ -550,18 +564,24 @@ void SceneInput::HandleDragging(
 					[&]() {
 						dropzone.Get<impl::Dropzone>().draggables.erase(dragging);
 						if (auto dropzone_scripts{ dropzone.TryGet<impl::Scripts>() }) {
-							dropzone_scripts->AddAction(
-								&DropzoneScript::OnDraggablePickup, dragging
-							);
+							PickupFromDropzone event;
+							event.draggable = dragging;
+							dropzone_scripts->Emit(event);
 						}
 					},
 					[&]() {
-						if (scripts) {
-							scripts->AddAction(&DragScript::OnPickup, dropzone);
+						if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+							PickupDraggable event;
+							event.dropzone = dropzone;
+							scripts->Emit(event);
 						}
 					},
 					[]() {}
 				);
+			}
+
+			if (!dragging.Has<impl::Draggable>()) {
+				continue;
 			}
 
 			auto& draggable{ dragging.Get<impl::Draggable>() };
@@ -580,10 +600,10 @@ void SceneInput::HandleDragging(
 			if (!dragging.Has<impl::Draggable>()) {
 				continue;
 			}
-			auto scripts{ dragging.TryGet<impl::Scripts>() };
 
-			if (scripts) {
-				scripts->AddAction(&DragScript::OnDrag);
+			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+				Dragging event;
+				scripts->Emit(event);
 			}
 		}
 	}
@@ -596,10 +616,15 @@ void SceneInput::HandleDragging(
 				continue;
 			}
 
-			auto scripts{ dragging.TryGet<impl::Scripts>() };
+			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+				DragStop event;
+				event.stop_position = mouse.position;
+				scripts->Emit(event);
+			}
 
-			if (scripts) {
-				scripts->AddAction(&DragScript::OnDragStop, mouse.position);
+			if (!dragging.Has<impl::Draggable>() || !dragging.Has<impl::Interactive>() ||
+				!dragging.Get<impl::Interactive>().enabled) {
+				continue;
 			}
 
 			for (Entity dropzone : dropzones) {
@@ -614,16 +639,25 @@ void SceneInput::HandleDragging(
 					[&]() {
 						dropzone.Get<impl::Dropzone>().draggables.emplace(dragging);
 						if (auto dropzone_scripts{ dropzone.TryGet<impl::Scripts>() }) {
-							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableDrop, dragging);
+							DropIntoDropzone event;
+							event.draggable = dragging;
+							dropzone_scripts->Emit(event);
 						}
 					},
 					[&]() {
-						if (scripts) {
-							scripts->AddAction(&DragScript::OnDrop, dropzone);
+						if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+							DropDraggable event;
+							event.dropzone = dropzone;
+							scripts->Emit(event);
 						}
 					},
 					[]() {}
 				);
+			}
+
+			if (!dragging.Has<impl::Draggable>() || !dragging.Has<impl::Interactive>() ||
+				!dragging.Get<impl::Interactive>().enabled) {
+				continue;
 			}
 
 			auto& draggable{ dragging.Get<impl::Draggable>() };
@@ -658,7 +692,6 @@ void SceneInput::HandleDropzones(
 		if (!dragging.Has<impl::Draggable>()) {
 			continue;
 		}
-		auto scripts{ dragging.TryGet<impl::Scripts>() };
 
 		auto& draggable{ dragging.Get<impl::Draggable>() };
 		draggable.dropzones = {};
@@ -677,31 +710,45 @@ void SceneInput::HandleDropzones(
 				[&]() {
 					if (entered) {
 						if (auto dropzone_scripts{ dropzone.TryGet<impl::Scripts>() }) {
-							dropzone_scripts->AddAction(
-								&DropzoneScript::OnDraggableEnter, dragging
-							);
-							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOver, dragging);
+							EnterDropzone event1;
+							event1.draggable = dragging;
+							dropzone_scripts->Emit(event1);
+							MoveOverDropzone event2;
+							event2.draggable = dragging;
+							dropzone_scripts->Emit(event2);
 						}
 					} else {
 						if (auto dropzone_scripts{ dropzone.TryGet<impl::Scripts>() }) {
-							dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOver, dragging);
+							MoveOverDropzone event2;
+							event2.draggable = dragging;
+							dropzone_scripts->Emit(event2);
 						}
 					}
 				},
 				[&]() {
 					if (entered) {
-						if (scripts) {
-							scripts->AddAction(&DragScript::OnDragEnter, dropzone);
-							scripts->AddAction(&DragScript::OnDragOver, dropzone);
+						if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+							DragEnter event1;
+							event1.dropzone = dropzone;
+							scripts->Emit(event1);
+							DragOver event2;
+							event2.dropzone = dropzone;
+							scripts->Emit(event2);
 						}
 					} else {
-						if (scripts) {
-							scripts->AddAction(&DragScript::OnDragOver, dropzone);
+						if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+							DragOver event2;
+							event2.dropzone = dropzone;
+							scripts->Emit(event2);
 						}
 					}
 				},
 				[&]() { draggable.dropzones.emplace(dropzone); }
 			);
+		}
+
+		if (!dragging.Has<impl::Draggable>()) {
+			continue;
 		}
 
 		// 2. Handle leaving dropzones
@@ -715,12 +762,20 @@ void SceneInput::HandleDropzones(
 			if (last_dropzone.Has<impl::Dropzone, impl::Interactive>() &&
 				last_dropzone.Get<impl::Interactive>().enabled) {
 				if (auto dropzone_scripts{ last_dropzone.TryGet<impl::Scripts>() }) {
-					dropzone_scripts->AddAction(&DropzoneScript::OnDraggableLeave, dragging);
+					LeaveDropzone event;
+					event.draggable = dragging;
+					dropzone_scripts->Emit(event);
 				}
 			}
-			if (scripts) {
-				scripts->AddAction(&DragScript::OnDragLeave, last_dropzone);
+			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+				DragLeave event;
+				event.last_dropzone = last_dropzone;
+				scripts->Emit(event);
 			}
+		}
+
+		if (!dragging.Has<impl::Draggable>()) {
+			continue;
 		}
 
 		// 3. Always call DragOut if not currently over a dropzone
@@ -734,11 +789,19 @@ void SceneInput::HandleDropzones(
 				continue;
 			}
 			if (auto dropzone_scripts{ dropzone.TryGet<impl::Scripts>() }) {
-				dropzone_scripts->AddAction(&DropzoneScript::OnDraggableOut, dragging);
+				MoveOutsideDropzone event;
+				event.draggable = dragging;
+				dropzone_scripts->Emit(event);
 			}
-			if (scripts) {
-				scripts->AddAction(&DragScript::OnDragOut, dropzone);
+			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
+				DragOut event;
+				event.dropzone = dropzone;
+				scripts->Emit(event);
 			}
+		}
+
+		if (!dragging.Has<impl::Draggable>()) {
+			continue;
 		}
 
 		// Store current for next frame.
@@ -749,12 +812,15 @@ void SceneInput::HandleDropzones(
 void SceneInput::Update() {
 	impl::MouseInfo mouse_state{ scene_ };
 
-	if (draw_interactives_) {
-		Application::Get().debug_.DrawPoint(mouse_state.position, draw_interactive_color_);
-	}
+	// TODO: Fix.
+	// if (interactive_debug_draw_settings_.enabled) {
+	//	ctx_->renderer.debug_.DrawPoint(
+	//		mouse_state.position, interactive_debug_draw_settings_.color
+	//	);
+	//}
 
-	auto entities = GetInteractiveEntities(scene_, mouse_state);
-	auto dropzones{ GetDropzones(scene_) };
+	auto entities = GetInteractiveEntities(mouse_state);
+	auto dropzones{ GetDropzones() };
 	// PTGN_LOG(under_mouse.size());
 
 	UpdateMouseOverStates(entities.under_mouse);
@@ -769,43 +835,6 @@ void SceneInput::Update() {
 
 	// TODO: Move action invocations to separate functions:
 
-	const auto invoke_actions = [](auto& entity) {
-		if (!entity.template Has<impl::Scripts>() || !entity.IsAlive()) {
-			return;
-		}
-
-		auto& scripts{ entity.template Get<impl::Scripts>() };
-
-		if (entity.template Has<impl::Interactive>() &&
-			entity.template Get<impl::Interactive>().enabled) {
-			scripts.InvokeActions();
-		} else {
-			scripts.ClearActions();
-		}
-	};
-
-	for (Entity entity : last_mouse_over_) {
-		invoke_actions(entity);
-	}
-
-	for (Entity entity : dropzones) {
-		if (!entity.Has<impl::Dropzone>()) {
-			continue;
-		}
-		invoke_actions(entity);
-	}
-
-	for (Entity dragging : dragging_entities_) {
-		if (!dragging.Has<impl::Draggable>()) {
-			continue;
-		}
-		invoke_actions(dragging);
-	}
-
-	for (Entity entity : entities.under_mouse) {
-		invoke_actions(entity);
-	}
-
 	std::erase_if(dragging_entities_, [](const auto& entity) {
 		return !entity.template Has<impl::Draggable>();
 	});
@@ -816,10 +845,6 @@ void SceneInput::Update() {
 	CleanupDropzones(dropzones);
 
 	scene_.Refresh();
-}
-
-bool SceneInput::KeyUp(Key key) const {
-	return scene_.app().input.KeyUp(key);
 }
 
 } // namespace ptgn

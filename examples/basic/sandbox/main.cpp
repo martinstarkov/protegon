@@ -84,8 +84,8 @@ private:
 class RestartButton : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<MouseDown>([this](auto& e) {
-			if (e.button == Mouse::Left && !e.held) {
+		d.Dispatch<MousePressed>([this](auto& e) {
+			if (e == Mouse::Left) {
 				EAnnounceGlobal g{ "Mouse down!" };
 				Emit(g);
 				return true; // handled -> stop bubbling
@@ -192,10 +192,10 @@ public:
 	}
 
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<KeyDown>([this](auto& e) {
-			if (e.IsPressed(Key::Enter)) {
+		d.Dispatch<KeyPressed>([this](auto& e) {
+			if (e == Key::Enter) {
 				PTGN_LOG("Pressed enter");
-			} else if (e.IsPressed(Key::Space)) {
+			} else if (e == Key::Space) {
 				PTGN_LOG("Pressed space");
 			}
 		});

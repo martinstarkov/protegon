@@ -163,7 +163,7 @@ bool IsTextHD(Entity text) {
 
 void SetTextHD(Entity text, bool hd, Entity camera) {
 	if (hd == IsTextHD(text)) {
-		return text;
+		return;
 	}
 	if (hd) {
 		text.Add<impl::HDText>();

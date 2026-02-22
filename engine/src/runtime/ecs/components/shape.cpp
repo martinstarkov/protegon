@@ -33,7 +33,6 @@ Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity)
 	const Rect& rect{ std::get<Rect>(shape) };
 	auto draw_origin{ GetDrawOrigin(entity) };
 	return rect.Offset(transform, draw_origin);
-	return {};
 }
 
 template <typename Variant, typename... Ts>

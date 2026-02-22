@@ -360,6 +360,9 @@ private:
 template <typename T>
 concept SceneType = std::derived_from<T, Scene>;
 
+// TODO: Fix.
+// TODO: Move elsewhere.
+/*
 V2_float CenterToTopLeft(V2_float point_center, V2_float size);
 V2_float TopLeftToCenter(V2_float point_top_left, V2_float size);
 
@@ -428,5 +431,6 @@ namespace impl {
 );
 
 } // namespace impl
+*/
 
 } // namespace ptgn

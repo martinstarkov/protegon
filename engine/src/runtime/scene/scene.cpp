@@ -407,6 +407,9 @@ const ApplicationContext& Scene::app() const {
 	return *ctx_.get();
 }
 
+// TODO: Fix.
+// TODO: Move elsewhere.
+/*
 V2_float CenterToTopLeft(V2_float point_center, V2_float size) {
 	PTGN_ASSERT(size.BothAboveZero());
 	return point_center + size * 0.5f;
@@ -610,5 +613,7 @@ V2_float DisplayToScene(
 }
 
 } // namespace impl
+
+*/
 
 } // namespace ptgn

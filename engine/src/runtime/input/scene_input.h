@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -18,6 +19,118 @@ namespace ptgn {
 class Scene;
 class Button;
 class ApplicationContext;
+
+struct MouseEnter : public Event<MouseEnter> {};
+
+struct MouseLeave : public Event<MouseLeave> {};
+
+struct MouseMoveOver : public Event<MouseMoveOver> {};
+
+struct MousePressedOver : public Event<MousePressedOver> {
+	Mouse button;
+};
+
+struct MouseHeldOver : public Event<MouseHeldOver> {
+	Mouse button;
+};
+
+struct MouseReleasedOver : public Event<MouseReleasedOver> {
+	Mouse button;
+};
+
+struct MouseScrollOver : public Event<MouseScrollOver> {
+	V2_float scroll_delta;
+};
+
+struct MouseMoveOut : public Event<MouseMoveOut> {};
+
+struct MousePressedOut : public Event<MousePressedOut> {
+	Mouse button;
+};
+
+struct MouseHeldOut : public Event<MouseHeldOut> {
+	Mouse button;
+};
+
+struct MouseReleasedOut : public Event<MouseReleasedOut> {
+	Mouse button;
+};
+
+struct MouseScrollOut : public Event<MouseScrollOut> {
+	V2_float scroll_delta;
+};
+
+struct DragStart : public Event<DragStart> {
+	/// @brief Position of the mouse in world coordinates at the start of the drag.
+	V2_float start_position;
+};
+
+struct DragStop : public Event<DragStop> {
+	/// @brief Position of the mouse in world coordinates at the end of the drag.
+	V2_float stop_position;
+};
+
+struct PickupFromDropzone : public Event<PickupFromDropzone> {
+	/// @brief The draggable that was picked up from the dropzone.
+	Entity draggable;
+};
+
+struct PickupDraggable : public Event<PickupDraggable> {
+	/// @brief The dropzone that the draggable was picked up from.
+	Entity dropzone;
+};
+
+struct Dragging : public Event<Dragging> {};
+
+struct DropDraggable : public Event<DropDraggable> {
+	/// @brief The dropzone that the draggable was dropped into.
+	Entity dropzone;
+};
+
+struct DropIntoDropzone : public Event<DropIntoDropzone> {
+	/// @brief The draggable that was dropped into the dropzone.
+	Entity draggable;
+};
+
+struct EnterDropzone : public Event<EnterDropzone> {
+	/// @brief The draggable that entered the dropzone.
+	Entity draggable;
+};
+
+struct LeaveDropzone : public Event<LeaveDropzone> {
+	/// @brief The draggable that left the dropzone.
+	Entity draggable;
+};
+
+struct MoveOverDropzone : public Event<MoveOverDropzone> {
+	/// @brief The draggable that is over the dropzone.
+	Entity draggable;
+};
+
+struct MoveOutsideDropzone : public Event<MoveOutsideDropzone> {
+	/// @brief The draggable that is outside the dropzone.
+	Entity draggable;
+};
+
+struct DragEnter : public Event<DragEnter> {
+	/// @brief The dropzone that the draggable entered.
+	Entity dropzone;
+};
+
+struct DragLeave : public Event<DragLeave> {
+	/// @brief The dropzone that the draggable left.
+	Entity last_dropzone;
+};
+
+struct DragOver : public Event<DragOver> {
+	/// @brief The dropzone that the draggable was dragged over.
+	Entity dropzone;
+};
+
+struct DragOut : public Event<DragOut> {
+	/// @brief The dropzone that the draggable was dragged outside of.
+	Entity dropzone;
+};
 
 namespace impl {
 
@@ -154,11 +267,11 @@ private:
 	template <DropzoneAction action, typename T>
 	TriggerCondition GetTriggerCondition(const T& component) {
 		if constexpr (action == DropzoneAction::Move) {
-			return component.move_trigger_;
+			return component.move_condition;
 		} else if constexpr (action == DropzoneAction::Pickup) {
-			return component.pickup_trigger_;
+			return component.pickup_condition;
 		} else if constexpr (action == DropzoneAction::Drop) {
-			return component.drop_trigger_;
+			return component.drop_condition;
 		} else {
 			return TriggerCondition::None;
 		}
@@ -175,11 +288,11 @@ private:
 		// entity is met (since they can be different), and if so it calls the respective provided
 		// function.
 
-		auto draggable_trigger{ dragging.Has<Draggable>()
-									? GetTriggerCondition<action>(dragging.Get<Draggable>())
+		auto draggable_trigger{ dragging.Has<impl::Draggable>()
+									? GetTriggerCondition<action>(dragging.Get<impl::Draggable>())
 									: TriggerCondition::None };
 
-		auto dropzone_trigger{ GetTriggerCondition<action>(dropzone.Get<Dropzone>()) };
+		auto dropzone_trigger{ GetTriggerCondition<action>(dropzone.Get<impl::Dropzone>()) };
 
 		if (draggable_trigger == dropzone_trigger) {
 			if (IsOverlappingDropzone(mouse_position, dragging, dropzone, draggable_trigger)) {
@@ -247,12 +360,6 @@ private:
 	bool top_only_{ false };
 
 	InteractiveDebugDrawSettings interactive_debug_draw_settings_;
-
-public:
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		SceneInput, KeyValue("top_only", top_only_),
-		KeyValue("draw_interactives", interactive_debug_draw_settings_)
-	)
 };
 
 } // namespace ptgn
