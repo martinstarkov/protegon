@@ -1,8 +1,0 @@
-add_subdirectory(audio)
-add_subdirectory(core)
-add_subdirectory(physics)
-add_subdirectory(rendering)
-add_subdirectory(sandbox)
-add_subdirectory(tweens)
-add_subdirectory(ui)
-add_subdirectory(world)
