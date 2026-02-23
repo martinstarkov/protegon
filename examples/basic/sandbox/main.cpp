@@ -18,6 +18,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
+#include "runtime/ui/button.h"
 
 using namespace ptgn;
 
@@ -174,6 +175,10 @@ public:
 
 		auto text = CreateText(*this, "Hello World", color::Orange, 72.0f, arial, {});
 		SetTextHD(text, true);
+
+		auto button = CreateTextButton(*this, "Click me", color::Black);
+		SetButtonSize(button, { 200, 200 });
+		OnButtonActivate(button, []() { std::cout << "Button clicked!\n"; });
 
 		// PTGN_LOG("Loaded all assets!");
 

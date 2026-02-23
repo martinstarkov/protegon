@@ -23,8 +23,8 @@ template <typename TComponent>
 void SetComponentState(Entity entity, ComponentState state) {
 	switch (state) {
 		using enum ptgn::ComponentState;
-		case Disabled: entity.TryAdd<TComponent>().enabled = true; break;
-		case Enabled:  entity.TryAdd<TComponent>().enabled = false; break;
+		case Disabled: entity.TryAdd<TComponent>().enabled = false; break;
+		case Enabled:  entity.TryAdd<TComponent>().enabled = true; break;
 		case Removed:  entity.Remove<TComponent>(); break;
 		default:	   PTGN_ERROR("Invalid ComponentState");
 	}

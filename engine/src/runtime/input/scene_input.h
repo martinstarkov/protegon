@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <ostream>
 #include <unordered_set>
 #include <vector>
 
@@ -13,11 +14,11 @@
 #include "renderer/camera/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/input/interactive.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
 class Scene;
-class Button;
 class ApplicationContext;
 
 struct MouseEnter : public Event<MouseEnter> {};
@@ -240,7 +241,6 @@ public:
 
 private:
 	friend class Scene;
-	friend class Button;
 	friend bool IsDragging(Entity entity);
 
 	enum class DropzoneAction {
@@ -252,6 +252,14 @@ private:
 	struct InteractiveEntities {
 		std::vector<Entity> under_mouse;
 		std::vector<Entity> not_under_mouse;
+
+		friend std::ostream& operator<<(std::ostream& o, const InteractiveEntities& entities) {
+			o << "Under mouse: ";
+			o << entities.under_mouse.size();
+			o << ", Not under mouse: ";
+			o << entities.not_under_mouse.size();
+			return o;
+		}
 	};
 
 	explicit SceneInput(Scene& scene);

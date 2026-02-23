@@ -22,7 +22,7 @@ namespace impl {
 void SpriteDraw::Draw(Renderer& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<Texture>());
 	impl::DrawQuadTexture(
-		renderer, entity.Get<Texture>(), GetTransform(entity), GetTextureSize(entity),
+		renderer, entity.Get<Texture>(), GetDrawTransform(entity), GetTextureSize(entity),
 		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity), GetBlendMode(entity),
 		GetTextureCoordinates(entity, false), GetCamera(entity)
 	);

@@ -231,6 +231,8 @@ void Scene::InternalUpdate() {
 	// app.render_.render_data_.ClearRenderTargets(*this);
 	// app.render_.render_data_.SetDrawingTo(render_target_);
 
+	input.Update();
+
 	Refresh();
 	OnUpdate();
 	Refresh();

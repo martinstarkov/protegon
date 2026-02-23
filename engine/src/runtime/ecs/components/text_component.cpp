@@ -47,8 +47,7 @@ void DrawText(
 	}
 
 	Tint tint{ GetTint(text) };
-	// TODO: Use draw transform.
-	Transform transform{ GetTransform(text) };
+	Transform transform{ GetDrawTransform(text) };
 	Entity cam{ GetCamera(text) };
 
 	if (tint.a == 0 || additional_tint.a == 0) {

@@ -26,11 +26,8 @@
 
 namespace ptgn {
 
-class Button;
 class Renderer;
 class Scene;
-class ToggleButton;
-class ToggleButtonGroup;
 
 enum class ButtonState : std::uint8_t {
 	Default,
@@ -68,12 +65,6 @@ private:
 	void OnMouseReleasedOut(Mouse mouse);
 };
 
-// TODO: Fix.
-// class ToggleButtonScript : public Script {
-// public:
-//	void OnEvent(EventDispatcher d) override;
-//};
-
 struct ButtonActivate : public Event<ButtonActivate> {};
 
 struct ButtonHoverStart : public Event<ButtonHoverStart> {};
@@ -81,6 +72,31 @@ struct ButtonHoverStart : public Event<ButtonHoverStart> {};
 struct ButtonHoverStop : public Event<ButtonHoverStop> {};
 
 struct ButtonHover : public Event<ButtonHover> {};
+
+template <typename T>
+struct ButtonScript : public Script {
+	ButtonScript() = default;
+
+	explicit ButtonScript(const std::function<void()>& callback) : callback_{ callback } {}
+
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<T>([this](T&) { callback_(); });
+	}
+
+private:
+	std::function<void()> callback_;
+};
+
+using ButtonActivateScript	 = ButtonScript<ButtonActivate>;
+using ButtonHoverStartScript = ButtonScript<ButtonHoverStart>;
+using ButtonHoverStopScript	 = ButtonScript<ButtonHoverStop>;
+using ButtonHoverScript		 = ButtonScript<ButtonHover>;
+
+// TODO: Fix.
+// class ToggleButtonScript : public Script {
+// public:
+//	void OnEvent(EventDispatcher d) override;
+//};
 
 // TODO: Fix.
 // struct AnimatedButtonScript : public Script {
@@ -130,10 +146,10 @@ struct ButtonToggled {};
 
 struct ButtonDisabledTexture : public Texture {
 	using Texture::Texture;
-};
 
-struct ButtonTextFixedSize : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
+	ButtonDisabledTexture(const Texture& t);
+
+	ButtonDisabledTexture(Texture&& t);
 };
 
 struct ButtonBorderWidth : public ArithmeticComponent<float> {
@@ -195,7 +211,8 @@ struct ButtonBorderColorToggled : public ButtonBorderColor {
 struct ButtonTexture {
 	ButtonTexture() = default;
 
-	ButtonTexture(Texture texture) : default_{ texture }, hover_{ texture }, pressed_{ texture } {}
+	explicit ButtonTexture(Texture texture) :
+		default_{ texture }, hover_{ texture }, pressed_{ texture } {}
 
 	[[nodiscard]] Texture Get(ButtonState state) const;
 
@@ -264,21 +281,28 @@ public:
 
 } // namespace impl
 
-// Set button callback scripts.
+/// @brief If either axis of the text size is {}, it is stretched to fit the entire size of the
+/// button rectangle (along that axis).
+struct ButtonTextFixedSize {
+	std::optional<float> x;
+	std::optional<float> y;
+};
+
+/// @brief Set button callback scripts.
 void OnButtonActivate(Entity button, const std::function<void()>& callback);
 void OnButtonHover(Entity button, const std::function<void()>& callback);
 void OnButtonHoverStart(Entity button, const std::function<void()>& callback);
 void OnButtonHoverStop(Entity button, const std::function<void()>& callback);
 
-// @param size {} results in texture sized button.
-void SetButtonSize(Entity button, std::optional<V2_float> size = {});
+/// @param Sets the button to have a rectangle interactive shape.
+void SetButtonSize(Entity button, V2_float size = {});
 
-// @return {} if no size is specified via SetSize, SetRadius, or button texture. If radius,
-// returns 2.0f * V2_float{ radius, radius }
+/// @return If no size is specified, returns {}.
+/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.
 [[nodiscard]] V2_float GetButtonSize(Entity button);
 
-// @param radius {} results in texture sized button.
-void SetButtonRadius(Entity button, std::optional<float> radius = {});
+/// @param Sets the button to have a circle interactive shape.
+void SetButtonRadius(Entity button, float radius = {});
 
 void EnableButton(Entity button, bool enable_hover = true, bool reset_state = true);
 void DisableButton(Entity button, bool disable_hover = true, bool reset_state = true);
@@ -286,18 +310,18 @@ void SetButtonEnabled(
 	Entity button, bool enable_activation = true, bool enable_hover = true, bool reset_state = true
 );
 
-// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
-// @return True if the button activation is enabled, false otherwise.
+/// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
+/// @return True if the button activation is enabled, false otherwise.
 [[nodiscard]] bool IsButtonEnabled(Entity button, bool check_for_hover_enabled = false);
 
-// Manual button script triggers.
-// Called when the mouse is clicked over the button.
+/// Manual button script triggers.
+/// Called when the mouse is clicked over the button.
 void ButtonActivate(Entity button);
-// Called once when hovering starts (mouse enters button).
+/// Called once when hovering starts (mouse enters button).
 void ButtonStartHover(Entity button);
-// Called continuously when hovering (including when hover starts).
+/// Called continuously when hovering (including when hover starts).
 void ButtonContinueHover(Entity button);
-// Called once when hovering stops (mouse exits button).
+/// Called once when hovering stops (mouse exits button).
 void ButtonStopHover(Entity button);
 
 [[nodiscard]] ButtonState GetButtonState(Entity button);
@@ -312,7 +336,7 @@ void SetButtonBackgroundColor(Entity button, Color color, ButtonState state = Bu
 
 void SetButtonTexture(Entity button, Texture texture, ButtonState state = ButtonState::Default);
 
-void SetButtonDisabledTextur(Entity button, Texture texture);
+void SetButtonDisabledTexture(Entity button, Texture texture);
 
 [[nodiscard]] Texture GetButtonDisabledTexture(Entity button);
 
@@ -340,17 +364,13 @@ void SetButtonTextJustify(
 	Entity button, TextJustify justify, ButtonState state = ButtonState::Default
 );
 
-[[nodiscard]] V2_float GetButtonTextFixedSize(Entity button);
+/// @return A pair of (x, y) fixed text size, or {} if the text size is not fixed. If either axis is
+/// {}, it is stretched to fit the entire size of the button rectangle (along that axis).
+[[nodiscard]] ButtonTextFixedSize GetButtonTextFixedSize(Entity button);
 
-// If either axis of the text size is {}, it is stretched to fit the entire size of the button
-// rectangle (along that axis).
-void SetButtonTextFixedSize(
-	Entity button, std::optional<float> x = {}, std::optional<float> y = {}
-);
-
-// Make it so the button text no longer has a fixed size,
-// this will cause the text to stretch based its the font size and wrap settings.
-void ClearButtonTextFixedSize(Entity button);
+/// If either axis of the text size is {}, it is stretched to fit the entire size of the button
+/// rectangle (along that axis).
+void SetButtonTextFixedSize(Entity button, ButtonTextFixedSize size = {});
 
 [[nodiscard]] float GetButtonFontSize(Entity button, ButtonState state = ButtonState::Current);
 
@@ -370,8 +390,8 @@ void SetButtonBorderColor(Entity button, Color color, ButtonState state = Button
 
 [[nodiscard]] float GetButtonBackgroundLineWidth(Entity button);
 
-// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
-// width.
+/// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
+/// width.
 void SetButtonBackgroundLineWidth(Entity button, float line_width);
 
 [[nodiscard]] float GetButtonBorderWidth(Entity button);
@@ -521,21 +541,21 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	return os;
 }
 
-Button CreateButton(Scene& scene);
+Entity CreateButton(Scene& scene);
 
-Button CreateTextButton(
+Entity CreateTextButton(
 	Scene& scene, std::string_view text_content, Color text_color = color::Black
 );
 
 // TODO: Fix.
-// @param toggled Whether or not the button start in the toggled state.
-// ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
+/// @param toggled Whether or not the button start in the toggled state.
+// Entity CreateToggleButton(Scene& scene, bool toggled = false);
 
 // TODO: Fix.
-// ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
+// Entity CreateToggleButtonGroup(Scene& scene);
 
 // TODO: Fix.
-// Button CreateAnimatedButton(
+// Entity CreateAnimatedButton(
 //	Scene& scene, V2_float button_size, const Animation& activate_animation,
 //	const Animation& hover_animation = {}, bool force_start_on_activate = true,
 //	bool force_start_on_hover_start = true, bool stop_on_hover_stop = true

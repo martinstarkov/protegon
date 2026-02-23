@@ -17,13 +17,13 @@ public:
 		Entity::Destroy();
 	}
 
-	GameObject(GameObject&& other) noexcept : Entity{ std::exchange(other, {}) } {}
+	GameObject(GameObject&& other) noexcept :
+		Entity{ std::exchange(static_cast<Entity&>(other), Entity{}) } {}
 
 	GameObject& operator=(GameObject&& other) noexcept {
 		if (this != &other) {
 			Entity::Destroy();
 			Entity::operator=(std::move(other));
-			other.Invalidate();
 		}
 		return *this;
 	}

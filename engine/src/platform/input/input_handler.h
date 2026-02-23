@@ -21,6 +21,10 @@ namespace impl {
 
 using Timestamp = std::uint64_t;
 
+/// @brief Number of keys stored in the SDL key states array.
+static constexpr std::size_t key_count{ 512 };
+static constexpr std::size_t mouse_count{ 3 };
+
 } // namespace impl
 
 class InputHandler {
@@ -118,16 +122,12 @@ private:
 	void Update(const EventSink& sink);
 	void PollEvents(const EventSink& sink);
 
-	/// @brief Number of keys stored in the SDL key states array.
-	static constexpr std::size_t key_count_{ 512 };
-	static constexpr std::size_t mouse_count_{ 3 };
-
 	Window& window_;
 
-	std::array<KeyState, key_count_> key_states_{};
-	std::array<impl::Timestamp, key_count_> key_timestamps_{};
-	std::array<MouseState, mouse_count_> mouse_states_{};
-	std::array<impl::Timestamp, mouse_count_> mouse_timestamps_{};
+	std::array<KeyState, impl::key_count> key_states_{};
+	std::array<impl::Timestamp, impl::key_count> key_timestamps_{};
+	std::array<MouseState, impl::mouse_count> mouse_states_{};
+	std::array<impl::Timestamp, impl::mouse_count> mouse_timestamps_{};
 
 	/// @brief Stored mouse positions are relative to the center of the window.
 	V2_float mouse_position_;

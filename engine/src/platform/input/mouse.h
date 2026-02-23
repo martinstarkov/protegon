@@ -8,9 +8,9 @@
 namespace ptgn {
 
 enum class Mouse {
-	Left   = 0, // SDL_BUTTON_LEFT
-	Middle = 1, // SDL_BUTTON_MIDDLE
-	Right  = 2	// SDL_BUTTON_RIGHT
+	Left   = 0, // SDL_BUTTON_LEFT - 1
+	Middle = 1, // SDL_BUTTON_MIDDLE - 1
+	Right  = 2	// SDL_BUTTON_RIGHT - 1
 };
 
 inline std::ostream& operator<<(std::ostream& os, Mouse mouse) {

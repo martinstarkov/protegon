@@ -821,7 +821,7 @@ void SceneInput::Update() {
 
 	auto entities = GetInteractiveEntities(mouse_state);
 	auto dropzones{ GetDropzones() };
-	// PTGN_LOG(under_mouse.size());
+	// PTGN_LOG(entities);
 
 	UpdateMouseOverStates(entities.under_mouse);
 
