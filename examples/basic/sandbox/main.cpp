@@ -179,7 +179,7 @@ public:
 
 		auto button = CreateTextButton(*this, "Click me", color::Black);
 		SetButtonSize(button, { 200, 200 });
-		OnButtonActivate(button, []() { std::cout << "Button clicked!\n"; });
+		OnButtonActivate(button, [this]() { PTGN_LOG("Button clicked!"); });
 
 		// PTGN_LOG("Loaded all assets!");
 

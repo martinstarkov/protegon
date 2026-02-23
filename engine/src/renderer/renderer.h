@@ -109,7 +109,9 @@ public:
 	void SetRaster(const RasterState& raster);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
+	[[nodiscard]] impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
+
+	Viewport GetDisplayViewport() const;
 
 private:
 	friend class Application;

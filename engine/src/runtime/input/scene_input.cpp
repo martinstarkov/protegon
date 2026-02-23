@@ -21,9 +21,6 @@
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
-#include "platform/window/window.h"
-#include "renderer/camera/viewport.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/shape.h"
@@ -32,11 +29,12 @@
 #include "runtime/input/interactive.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
+#include "runtime/scene/resolution.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"
 
-// TODO: Implement Draggable enabled boolean.
-// TODO: Implement Dropzone enabled boolean.
+// TODO: Actually implement Draggable enabled boolean (currently it does nothing).
+// TODO: Actually implement Dropzone enabled boolean (currently it does nothing).
 
 namespace ptgn {
 
@@ -141,7 +139,8 @@ static bool Overlap(const Entity& entityA, const Entity& entityB) {
 namespace impl {
 
 MouseInfo::MouseInfo(const Scene& scene) :
-	position{ scene.input.GetMousePosition(ViewportType::World) },
+	// TODO: Change to window once renderer uses correct viewport system.
+	position{ scene.input.GetMousePosition(Frame::Window) },
 	scroll_delta{ scene.input.GetMouseScroll() },
 	left_held{ scene.input.MouseHeld(Mouse::Left) },
 	left_pressed{ scene.input.MousePressed(Mouse::Left) },
@@ -167,7 +166,7 @@ void SceneInput::SetInteractiveDebugDraw(const InteractiveDebugDrawSettings& set
 	interactive_debug_draw_settings_ = settings;
 }
 
-V2_float SceneInput::GetMousePosition(ViewportType relative_to_viewport, bool clamp_to_viewport)
+V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference, bool clamp_to_viewport)
 	const {
 	auto position{ ctx_->input.GetMousePosition() };
 
@@ -175,22 +174,20 @@ V2_float SceneInput::GetMousePosition(ViewportType relative_to_viewport, bool cl
 		position = ctx_->input.GetMouseScreenPosition();
 	}
 
-	return GetMousePositionRelativeTo(position, relative_to_viewport, clamp_to_viewport);
+	return GetMousePositionRelativeTo(position, position_frame_of_reference, clamp_to_viewport);
 }
 
 V2_float SceneInput::GetPreviousMousePosition(
-	ViewportType relative_to_viewport, bool clamp_to_viewport
+	Frame position_frame_of_reference, bool clamp_to_viewport
 ) const {
 	return GetMousePositionRelativeTo(
-		ctx_->input.GetPreviousMousePosition(), relative_to_viewport, clamp_to_viewport
+		ctx_->input.GetPreviousMousePosition(), position_frame_of_reference, clamp_to_viewport
 	);
 }
 
-V2_float SceneInput::GetMouseDelta(ViewportType relative_to_viewport, bool clamp_to_viewport)
-	const {
-	return GetMousePositionRelativeTo(
-		ctx_->input.GetMouseDelta(), relative_to_viewport, clamp_to_viewport
-	);
+V2_float SceneInput::GetMouseDelta(Frame delta_frame_of_reference, bool clamp_to_viewport) const {
+	return GetMousePosition(delta_frame_of_reference, clamp_to_viewport) -
+		   GetPreviousMousePosition(delta_frame_of_reference, clamp_to_viewport);
 }
 
 float SceneInput::GetMouseScroll() const {
@@ -238,42 +235,11 @@ void SceneInput::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 }
 
 V2_float SceneInput::GetMousePositionRelativeTo(
-	V2_float position, ViewportType relative_to_viewport, bool clamp_to_viewport
+	V2_float position, Frame position_frame_of_reference, bool clamp_to_viewport
 ) const {
-	switch (relative_to_viewport) {
-		using enum ptgn::ViewportType;
-
-		case World: {
-			// TODO: Fix.
-			/*auto game_scale{ ctx_->renderer.GetScale() };
-			auto rt_transform{ GetTransform(scene_.GetRenderTarget()) };
-			return WindowToWorld(game_scale, rt_transform, position, scene_.camera);*/
-		}
-		case Game: {
-			// TODO: Fix.
-			/*auto game_scale{ ctx_->renderer.GetScale() };
-			V2_float game_point{ WindowToGame(game_scale, position) };
-			if (clamp_to_viewport) {
-				auto game_size{ ctx_->renderer.GetGameSize() };
-				auto half_size{ game_size * 0.5f };
-				game_point = Clamp(game_point, -half_size, half_size);
-			}
-			return game_point;*/
-		}
-		case Display: {
-			// TODO: Fix.
-			/*V2_float display_point{ WindowToDisplay(position) };
-			if (clamp_to_viewport) {
-				auto display_size{ ctx_->renderer.GetDisplaySize() };
-				auto half_size{ display_size * 0.5f };
-				display_point = Clamp(display_point, -half_size, half_size);
-			}
-			return display_point;*/
-		}
-		case WindowCenter:	return position;
-		case WindowTopLeft: return position + ctx_->window.GetSize() / 2;
-		default:			PTGN_ERROR("Unrecognized viewport type");
-	}
+	return ConvertPoint(
+		position, Frame::Window, position_frame_of_reference, FrameContext{ scene_ }
+	);
 }
 
 SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(

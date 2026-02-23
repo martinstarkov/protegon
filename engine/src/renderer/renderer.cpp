@@ -164,6 +164,10 @@ impl::RenderPass Renderer::BeginPass(const impl::RenderTargetData& scene_target)
 	return gl_renderer_->BeginPass(scene_target);
 }
 
+Viewport Renderer::GetDisplayViewport() const {
+	return display_viewport_;
+}
+
 void Renderer::BeginFrame() {
 	gl_renderer_->BeginFrame();
 }

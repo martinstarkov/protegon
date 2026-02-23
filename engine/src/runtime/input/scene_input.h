@@ -14,6 +14,7 @@
 #include "renderer/camera/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/input/interactive.h"
+#include "runtime/scene/resolution.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
@@ -177,18 +178,18 @@ public:
 
 	/// @return Mouse position relative to the specified viewport.
 	[[nodiscard]] V2_float GetMousePosition(
-		ViewportType relative_to_viewport = ViewportType::World, bool clamp_to_viewport = true
+		Frame position_frame_of_reference = Frame::World, bool clamp_to_viewport = true
 	) const;
 
 	/// @return Mouse position relative to the specified viewport during the previous frame.
 	[[nodiscard]] V2_float GetPreviousMousePosition(
-		ViewportType relative_to_viewport = ViewportType::World, bool clamp_to_viewport = true
+		Frame position_frame_of_reference = Frame::World, bool clamp_to_viewport = true
 	) const;
 
 	/// @return Mouse delta (current_position - previous_position) relative to the specified
 	/// viewport.
 	[[nodiscard]] V2_float GetMouseDelta(
-		ViewportType relative_to_viewport = ViewportType::World, bool clamp_to_viewport = true
+		Frame delta_frame_of_reference = Frame::World, bool clamp_to_viewport = true
 	) const;
 
 	/// @return The amount scrolled by the mouse vertically in the current frame,
@@ -269,7 +270,7 @@ private:
 	/// Convert position from being relative to the center of the window to being relative to
 	/// the center of the specified viewport.
 	[[nodiscard]] V2_float GetMousePositionRelativeTo(
-		V2_float position, ViewportType relative_to_viewport, bool clamp_to_viewport
+		V2_float position, Frame frame_of_reference, bool clamp_to_viewport
 	) const;
 
 	template <DropzoneAction action, typename T>
