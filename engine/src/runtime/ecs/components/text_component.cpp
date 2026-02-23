@@ -77,7 +77,7 @@ void DrawText(
 
 	const auto& text_texture{ text.Get<Texture>() };
 
-	if (!text_texture.IsValid()) {
+	if (!text_texture) {
 		return;
 	}
 

@@ -13,7 +13,7 @@ class Renderer;
 template <typename T>
 class Resource {
 public:
-	// TODO: Move to requires.
+	// TODO: Move to concept requires, but last time I tried it messed with explicit instantiation.
 	static_assert(std::is_copy_constructible_v<T>);
 
 	Resource() = default;
@@ -31,9 +31,9 @@ public:
 
 	operator T() const noexcept;
 
-protected:
-	bool IsValid() const noexcept;
+	explicit operator bool() const noexcept;
 
+protected:
 	void Reset() noexcept;
 
 	gl::Renderer* renderer_{ nullptr };

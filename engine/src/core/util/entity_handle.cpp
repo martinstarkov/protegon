@@ -43,7 +43,7 @@ EntityHandle::~EntityHandle() {
 	Release();
 }
 
-bool EntityHandle::IsValid() const {
+EntityHandle::operator bool() const {
 	return entity_.operator bool();
 }
 

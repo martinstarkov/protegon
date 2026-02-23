@@ -44,13 +44,13 @@ Resource<T>::operator T() const noexcept {
 }
 
 template <typename T>
-bool Resource<T>::IsValid() const noexcept {
+Resource<T>::operator bool() const noexcept {
 	return renderer_ != nullptr && resource_ != T{};
 }
 
 template <typename T>
 void Resource<T>::Reset() noexcept {
-	if (IsValid()) {
+	if (*this) {
 		renderer_->gl->Destroy(resource_);
 		resource_ = T{};
 		renderer_ = nullptr;

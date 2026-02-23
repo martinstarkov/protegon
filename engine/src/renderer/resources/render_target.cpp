@@ -92,17 +92,17 @@ TextureFormat RenderTarget::GetFormat() const {
 }
 
 void RenderTarget::Resize(V2_int new_size) {
-	PTGN_ASSERT(IsValid());
+	PTGN_ASSERT(*this);
 	resource_.Resize(*renderer_->gl, new_size);
 }
 
 void RenderTarget::Clear(Color color) {
-	PTGN_ASSERT(IsValid());
+	PTGN_ASSERT(*this);
 	resource_.Clear(*renderer_->gl, color);
 }
 
 void RenderTarget::Bind() {
-	PTGN_ASSERT(IsValid());
+	PTGN_ASSERT(*this);
 	resource_.Bind(*renderer_->gl);
 }
 
@@ -173,7 +173,7 @@ RenderTarget::operator impl::TextureId() const {
 //
 // void RenderTarget::Bind() const {
 //	const auto& frame_buffer{ Get<impl::FrameBuffer>() };
-//	PTGN_ASSERT(frame_buffer.IsValid(), "Cannot bind invalid or uninitialized frame buffer");
+//	PTGN_ASSERT(frame_buffer, "Cannot bind invalid or uninitialized frame buffer");
 //	frame_buffer.Bind();
 //	PTGN_ASSERT(frame_buffer.IsBound(), "Failed to bind render target frame buffer");
 // }

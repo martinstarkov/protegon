@@ -170,11 +170,11 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 		return {};
 	}
 
-	if (!font_asset.IsValid()) {
+	if (!font_asset) {
 		font_asset = GetDefault();
 	}
 
-	PTGN_ASSERT(font_asset.IsValid());
+	PTGN_ASSERT(font_asset);
 
 	PTGN_ASSERT(font_asset.entity_.Has<std::shared_ptr<TTF_Font>>());
 

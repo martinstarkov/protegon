@@ -631,16 +631,16 @@ max_texture_slots = GLRenderer::GetMaxTextureSlots();
 PTGN_INFO("Renderer Texture Slots: ", max_texture_slots);
 
 const auto& screen_shader{ gl->GetShader("screen_default") };
-PTGN_ASSERT(screen_shader.IsValid());
+PTGN_ASSERT(screen_shader);
 gl->Bind(screen_shader);
 gl->SetUniform(screen_shader, "u_Texture", 1);
 
 const auto& quad_shader{ gl->GetShader("quad") };
 
-PTGN_ASSERT(quad_shader.IsValid());
-PTGN_ASSERT(gl->GetShader("circle").IsValid());
-PTGN_ASSERT(gl->GetShader("screen_default").IsValid());
-PTGN_ASSERT(gl->GetShader("light").IsValid());
+PTGN_ASSERT(quad_shader);
+PTGN_ASSERT(gl->GetShader("circle"));
+PTGN_ASSERT(gl->GetShader("screen_default"));
+PTGN_ASSERT(gl->GetShader("light"));
 
 intermediate_target = {};
 
@@ -1102,7 +1102,7 @@ void Renderer::DrawShader(const DrawShaderCommand& cmd) {
 		const Texture& texture =
 			std::get<std::reference_wrapper<const Texture>>(cmd.texture_or_size).get();
 
-		PTGN_ASSERT(texture.IsValid(), "Cannot draw shader to an invalid texture");
+		PTGN_ASSERT(texture, "Cannot draw shader to an invalid texture");
 
 		target.viewport.size  = texture.GetSize();
 		target.texture_id	  = texture.GetId();

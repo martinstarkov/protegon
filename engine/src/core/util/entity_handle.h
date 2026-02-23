@@ -38,7 +38,7 @@ public:
 
 	~EntityHandle();
 
-	bool IsValid() const;
+	explicit operator bool() const;
 
 	friend std::ostream& operator<<(std::ostream& o, const EntityHandle& e) {
 		o << e.entity_.GetId();

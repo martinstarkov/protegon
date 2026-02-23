@@ -323,7 +323,7 @@ void DrawTexture(Renderer& renderer, Entity entity, bool flip_texture) {
 
 	const auto& text_texture{ text.GetTexture() };
 
-	if (!text_texture.IsValid()) {
+	if (!text_texture) {
 		return;
 	}
 

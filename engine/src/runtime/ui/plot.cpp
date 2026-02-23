@@ -292,16 +292,16 @@
 //			if (!button.Get<ButtonProperty::Toggleable>()) {
 //				button.Set<ButtonProperty::Toggleable>(true);
 //			}
-//			if (legend.button_texture_default.IsValid() &&
-//				!button.Get<ButtonProperty::Texture>(ButtonState::Default).IsValid()) {
+//			if (legend.button_texture_default &&
+//				!button.Get<ButtonProperty::Texture>(ButtonState::Default)) {
 //				button.Set<ButtonProperty::Texture>(
 //					legend.button_texture_default, ButtonState::Default
 //				);
 //			} else {
 //				button.Set<ButtonProperty::BackgroundColor>(color::DarkGreen, ButtonState::Default);
 //			}
-//			if (legend.button_texture_hover.IsValid() &&
-//				!button.Get<ButtonProperty::Texture>(ButtonState::Hover).IsValid()) {
+//			if (legend.button_texture_hover &&
+//				!button.Get<ButtonProperty::Texture>(ButtonState::Hover)) {
 //				button.Set<ButtonProperty::Texture>(
 //					legend.button_texture_hover, ButtonState::Hover
 //				);
@@ -314,8 +314,8 @@
 //					color::DarkGray, ButtonState::Hover, true
 //				);
 //			}
-//			if (legend.button_texture_toggled.IsValid() &&
-//				!button.Get<ButtonProperty::Texture>(ButtonState::Default, true).IsValid()) {
+//			if (legend.button_texture_toggled &&
+//				!button.Get<ButtonProperty::Texture>(ButtonState::Default, true)) {
 //				button.Set<ButtonProperty::Texture>(
 //					legend.button_texture_toggled, ButtonState::Default, true
 //				);
@@ -427,7 +427,7 @@
 //		// Do not display data sets which are disabled in the legend.
 //		if (has_legend) {
 //			const Button& button{ series.GetButton() };
-//			if (button.IsValid()) {
+//			if (button) {
 //				bool toggled{ button.Get<ButtonProperty::Toggled>() };
 //				if (toggled) {
 //					continue;
