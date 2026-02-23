@@ -7,6 +7,7 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/geometry/shape.h"
 #include "platform/input/events.h"
 #include "platform/input/mouse.h"
 #include "renderer/renderer.h"

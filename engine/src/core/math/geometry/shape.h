@@ -17,6 +17,8 @@
 #include "core/math/vector2.h"
 #include "serialization/json/fwd.h"
 
+// TODO: Change this to be something more readable and doesn't cause IntelliSense issues.
+
 namespace ptgn {
 
 class Shape;

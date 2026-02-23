@@ -613,11 +613,6 @@ void Renderer::FlushBatch() {
 
 */
 
-//  TODO: Make ping pong system.
-//  TODO: Make render target pooling system.
-//  TODO: Make queued command system.
-//  TODO: Make fork pipeline system.
-
 /*
 RecomputeDisplaySize(window_.GetSize());
 

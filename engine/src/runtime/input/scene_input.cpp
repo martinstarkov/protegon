@@ -282,9 +282,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
 
-	using Shapes = std::vector<std::pair<InteractiveShape, Entity>>;
-
-	std::unordered_map<Entity, Shapes> entity_shapes;
+	std::unordered_map<Entity, std::vector<std::pair<InteractiveShape, Entity>>> entity_shapes;
 
 	std::vector<Entity> all_entities;
 
