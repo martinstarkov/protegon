@@ -92,10 +92,11 @@ public:
 	);
 	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target);
 
+	void SetViewport(Viewport viewport);
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetShader(ShaderId shader);
 	void SetBlend(BlendMode mode, bool enabled = true);
-	void SetFramebuffer(FramebufferId framebuffer, const Viewport& viewport);
+	void SetFramebuffer(FramebufferId framebuffer);
 	void SetDepth(const DepthState& depth);
 	void SetStencil(const StencilState& stencil);
 	void SetRaster(const RasterState& raster);
@@ -110,8 +111,8 @@ public:
 	const RenderTargetData& GetScreenTarget() const;
 	RenderTargetData& GetScreenTarget();
 
-	void BeginFrame();
-	void EndFrame(const Viewport& viewport);
+	void BeginFrame(V2_int window_size);
+	void EndFrame(Viewport display_viewport);
 
 	TextureId GetWhiteTexture() const;
 

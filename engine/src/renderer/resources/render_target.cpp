@@ -49,8 +49,6 @@ RenderTargetData::operator TextureId() const {
 
 void RenderTargetData::Bind(gl::GLContext& gl) const {
 	auto _ = gl.Bind(framebuffer_);
-
-	gl.SetViewport({ {}, size_ });
 }
 
 RenderTargetData::RenderTargetData(

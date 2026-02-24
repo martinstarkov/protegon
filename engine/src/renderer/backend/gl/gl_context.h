@@ -153,7 +153,7 @@ public:
 	void SetClearDepth(double depth);
 	void SetClearStencil(int stencil);
 
-	void SetViewport(const Viewport& viewport);
+	void SetViewport(Viewport viewport);
 	[[nodiscard]] Viewport GetViewport() const;
 
 	void SetActiveTextureSlot(std::uint32_t slot);

@@ -270,6 +270,12 @@ void UpdateStateIfChanged(Renderer& r, const State& cached, const State& desired
 	}
 }
 
+void Renderer::SetViewport(Viewport viewport) {
+	UpdateStateIfChanged(*this, gl->GetBoundState().viewport, viewport, [this, viewport] {
+		gl->SetViewport(viewport);
+	});
+}
+
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	if (view_projection_ != view_projection) {
 		view_projection_ = view_projection;
@@ -291,11 +297,10 @@ void Renderer::SetBlend(BlendMode mode, bool enabled) {
 	});
 }
 
-void Renderer::SetFramebuffer(FramebufferId framebuffer, const Viewport& viewport) {
+void Renderer::SetFramebuffer(FramebufferId framebuffer) {
 	UpdateStateIfChanged(*this, gl->GetBoundState().framebuffer, framebuffer, [this, framebuffer] {
 		auto _ = gl->Bind(framebuffer);
 	});
-	gl->SetViewport(viewport);
 }
 
 void Renderer::SetDepth(const DepthState& depth) {
@@ -459,24 +464,27 @@ void Renderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetDat
 	}
 }
 
-void Renderer::BeginFrame() {
+void Renderer::BeginFrame(V2_int window_size) {
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
 	auto _1 = gl->Bind(FramebufferId{ 0 });
 	gl->SetClearColor(color::Transparent);
+	SetViewport({ {}, window_size });
 	gl->framebuffers.Clear();
 
 	screen_target_.Bind();
+	SetViewport({ {}, screen_target_.GetSize() });
 	gl->framebuffers.ClearToColor(screen_target_.resource_.framebuffer_, color::Transparent);
 }
 
-void Renderer::EndFrame(const Viewport& viewport) {
-	PTGN_ASSERT(viewport.size.BothAboveZero());
+void Renderer::EndFrame(Viewport display_viewport) {
+	PTGN_ASSERT(display_viewport.size.BothAboveZero());
 
-	SetFramebuffer({}, viewport);
+	SetFramebuffer({});
 
-	auto half_viewport{ viewport.size * 0.5f };
+	auto half_viewport{ display_viewport.size * 0.5f };
+	SetViewport(display_viewport);
 	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	SetBlend(BlendMode::ReplaceRGBA);
 
@@ -487,7 +495,7 @@ void Renderer::EndFrame(const Viewport& viewport) {
 
 	DrawTexture(
 		GetShader("quad"), *screen_target_.resource_.color_,
-		GetCenteredQuadPoints(screen_target_.resource_.size_), color::White, 0.0f, true
+		GetCenteredQuadPoints(display_viewport.size), color::White, 0.0f, true
 	);
 
 	FlushBatch();

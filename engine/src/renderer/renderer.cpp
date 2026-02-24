@@ -169,7 +169,7 @@ Viewport Renderer::GetDisplayViewport() const {
 }
 
 void Renderer::BeginFrame() {
-	gl_renderer_->BeginFrame();
+	gl_renderer_->BeginFrame(window_.GetSize());
 }
 
 void Renderer::EndFrame() {

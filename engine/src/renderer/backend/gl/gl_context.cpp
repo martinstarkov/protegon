@@ -539,7 +539,7 @@ void GLContext::SetBlendMode(BlendMode mode) {
 	bound_.blend.mode = mode;
 }
 
-void GLContext::SetViewport(const Viewport& viewport) {
+void GLContext::SetViewport(Viewport viewport) {
 	if (bound_.viewport == viewport) {
 		return;
 	}
