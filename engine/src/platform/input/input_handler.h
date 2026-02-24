@@ -22,8 +22,8 @@ namespace impl {
 using Timestamp = std::uint64_t;
 
 /// @brief Number of keys stored in the SDL key states array.
-static constexpr std::size_t key_count{ 512 };
-static constexpr std::size_t mouse_count{ 3 };
+inline constexpr std::size_t kKeyCount{ 512 };
+inline constexpr std::size_t kMouseCount{ 3 };
 
 } // namespace impl
 
@@ -124,10 +124,10 @@ private:
 
 	Window& window_;
 
-	std::array<KeyState, impl::key_count> key_states_{};
-	std::array<impl::Timestamp, impl::key_count> key_timestamps_{};
-	std::array<MouseState, impl::mouse_count> mouse_states_{};
-	std::array<impl::Timestamp, impl::mouse_count> mouse_timestamps_{};
+	std::array<KeyState, impl::kKeyCount> key_states_{};
+	std::array<impl::Timestamp, impl::kKeyCount> key_timestamps_{};
+	std::array<MouseState, impl::kMouseCount> mouse_states_{};
+	std::array<impl::Timestamp, impl::kMouseCount> mouse_timestamps_{};
 
 	/// @brief Stored mouse positions are relative to the center of the window.
 	V2_float mouse_position_;

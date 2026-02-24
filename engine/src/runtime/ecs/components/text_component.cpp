@@ -305,7 +305,7 @@ Entity CreateText(
 	impl::SetTextParameter(text, impl::TextContent{ content }, false);
 	impl::SetTextParameter(text, impl::TextColor{ text_color }, false);
 	impl::SetTextParameter(text, font.value_or(Font{}), false);
-	impl::SetTextParameter(text, impl::FontSize{ font_size.value_or(default_font_size) }, false);
+	impl::SetTextParameter(text, impl::FontSize{ font_size.value_or(kDefaultFontSize) }, false);
 	impl::SetTextProperties(text, properties, true, {});
 	return text;
 }

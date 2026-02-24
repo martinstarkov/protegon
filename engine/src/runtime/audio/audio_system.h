@@ -15,8 +15,8 @@ struct MIX_Track;
 
 namespace ptgn {
 
-static constexpr float min_volume{ 0.0f };
-static constexpr float max_volume{ 5.0f };
+inline constexpr float kMinVolume{ 0.0f };
+inline constexpr float kMaxVolume{ 5.0f };
 
 class AssetManager;
 class Application;
@@ -40,15 +40,15 @@ public:
 	AudioSystem(AudioSystem&&) noexcept			   = delete;
 	AudioSystem& operator=(AudioSystem&&) noexcept = delete;
 
-	/// @param volume Volume of the master audio in range [min_volume, max_volume].
+	/// @param volume Volume of the master audio in range [kMinVolume, kMaxVolume].
 	void SetVolume(float volume);
 
-	/// @return Volume of the master audio in range [min_volume, max_volume].
+	/// @return Volume of the master audio in range [kMinVolume, kMaxVolume].
 	[[nodiscard]] float GetVolume();
 
-	/// Toggles the master volume between min_volume and new_volume.
+	/// Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
-	/// in range [min_volume, max_volume].
+	/// in range [kMinVolume, kMaxVolume].
 	void ToggleVolume(float new_volume);
 
 	/// Stops all audio tracks.
@@ -78,15 +78,15 @@ public:
 	/// Toggles the pause state of the audio.
 	void TogglePause(std::string_view key);
 
-	/// @param volume Volume of the specific audio in range [min_volume, max_volume].
+	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
 	void SetVolume(std::string_view key, float volume);
 
-	/// @return Volume of the specific audio in range [min_volume, max_volume].
+	/// @return Volume of the specific audio in range [kMinVolume, kMaxVolume].
 	[[nodiscard]] float GetVolume(std::string_view key);
 
-	/// Toggles the volume between min_volume and new_volume.
+	/// Toggles the volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new volume of the audio to this value
-	/// in range [min_volume, max_volume].
+	/// in range [kMinVolume, kMaxVolume].
 	void ToggleVolume(std::string_view key, float new_volume = 1.0f);
 
 	/// @return True if the audio is currently, false otherwise.

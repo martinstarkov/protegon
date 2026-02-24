@@ -149,7 +149,7 @@ bool AudioSystem::IsPlaying(std::string_view key) {
 void AudioSystem::SetVolume(std::string_view key, float volume) {
 	std::size_t id = Hash(key);
 
-	const float clamped = std::clamp(volume, min_volume, max_volume);
+	const float clamped = std::clamp(volume, kMinVolume, kMaxVolume);
 
 	std::scoped_lock lock(mutex_);
 
@@ -173,24 +173,24 @@ float AudioSystem::GetVolume(std::string_view key) {
 
 	auto it = tracks_.find(id);
 	if (it == tracks_.end()) {
-		return min_volume;
+		return kMinVolume;
 	}
 
 	MIX_Track* track = it->second.Get();
 	if (!track) {
-		return min_volume;
+		return kMinVolume;
 	}
 
 	return MIX_GetTrackGain(track);
 }
 
 void AudioSystem::ToggleVolume(std::string_view key, float new_volume) {
-	PTGN_ASSERT(new_volume >= min_volume && new_volume <= max_volume);
+	PTGN_ASSERT(new_volume >= kMinVolume && new_volume <= kMaxVolume);
 
 	float current = GetVolume(key);
 
-	if (current > min_volume) {
-		SetVolume(key, min_volume);
+	if (current > kMinVolume) {
+		SetVolume(key, kMinVolume);
 	} else {
 		SetVolume(key, new_volume);
 	}
@@ -206,7 +206,7 @@ void AudioSystem::OnTrackStopped(void* userdata, [[maybe_unused]] MIX_Track* tra
 }
 
 void AudioSystem::SetVolume(float volume) {
-	const float clamped = std::clamp(volume, min_volume, max_volume);
+	const float clamped = std::clamp(volume, kMinVolume, kMaxVolume);
 	MIX_SetMixerGain(mixer_, clamped);
 }
 
@@ -215,12 +215,12 @@ float AudioSystem::GetVolume() {
 }
 
 void AudioSystem::ToggleVolume(float new_volume) {
-	PTGN_ASSERT(new_volume >= min_volume && new_volume <= max_volume);
+	PTGN_ASSERT(new_volume >= kMinVolume && new_volume <= kMaxVolume);
 
 	float current = GetVolume();
 
-	if (current > min_volume) {
-		SetVolume(min_volume);
+	if (current > kMinVolume) {
+		SetVolume(kMinVolume);
 	} else {
 		SetVolume(new_volume);
 	}

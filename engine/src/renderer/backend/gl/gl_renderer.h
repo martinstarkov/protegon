@@ -41,9 +41,9 @@ void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
 
 using Index = std::uint32_t;
 
-constexpr std::size_t batch_capacity{ 10000 };
-constexpr std::size_t vertex_capacity{ batch_capacity * 4 };
-constexpr std::size_t index_capacity{ batch_capacity * 6 };
+inline constexpr std::size_t kBatchCapacity{ 10000 };
+inline constexpr std::size_t kVertexCapacity{ kBatchCapacity * 4 };
+inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
 
 struct QuadDesc {
 	std::array<V2_float, 4> positions;

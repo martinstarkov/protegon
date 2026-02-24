@@ -26,7 +26,7 @@ struct SDL_IOStream;
 
 namespace ptgn {
 
-static constexpr float default_font_size{ 18.0f };
+inline constexpr float kDefaultFontSize{ 18.0f };
 
 class AssetManager;
 

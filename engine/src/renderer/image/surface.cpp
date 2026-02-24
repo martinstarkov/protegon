@@ -34,7 +34,7 @@ Surface::Surface(SDL_Surface* sdl_surface) {
 	PTGN_ASSERT(surface != nullptr, SDL_GetError());
 
 	PTGN_ASSERT(
-		SDL_GetPixelFormatDetails(surface->format)->bytes_per_pixel == bytes_per_pixel,
+		SDL_GetPixelFormatDetails(surface->format)->bytes_per_pixel == kBytesPerPixel,
 		"Failed to convert surface to RGBA32"
 	);
 
@@ -46,15 +46,15 @@ Surface::Surface(SDL_Surface* sdl_surface) {
 	size = { surface->w, surface->h };
 
 	std::size_t total_pixels{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) *
-							  bytes_per_pixel };
+							  kBytesPerPixel };
 
 	pixels.reserve(total_pixels);
 
 	for (int y{ 0 }; y < size.y; ++y) {
 		auto row{ static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch };
 		for (int x{ 0 }; x < size.x; ++x) {
-			auto pixel{ row + static_cast<std::size_t>(x) * bytes_per_pixel };
-			for (std::size_t b{ 0 }; b < bytes_per_pixel; ++b) {
+			auto pixel{ row + static_cast<std::size_t>(x) * kBytesPerPixel };
+			for (std::size_t b{ 0 }; b < kBytesPerPixel; ++b) {
 				pixels.push_back(pixel[b]);
 			}
 		}
@@ -94,21 +94,21 @@ Color Surface::GetPixel(V2_int coordinate) const {
 	PTGN_ASSERT(coordinate.y < size.y, "Y Coordinate outside of range of grid");
 	auto index{ (static_cast<std::size_t>(coordinate.y) * static_cast<std::size_t>(size.x) +
 				 static_cast<std::size_t>(coordinate.x)) *
-				bytes_per_pixel };
+				kBytesPerPixel };
 	return GetPixel(index);
 }
 
 Color Surface::GetPixel(std::size_t index) const {
 	PTGN_ASSERT(!pixels.empty(), "Cannot get pixel of an empty surface");
 	PTGN_ASSERT(index < pixels.size(), "Coordinate outside of range of grid");
-	index *= bytes_per_pixel;
-	if constexpr (bytes_per_pixel == 4) {
+	index *= kBytesPerPixel;
+	if constexpr (kBytesPerPixel == 4) {
 		PTGN_ASSERT(index + 3 < pixels.size(), "Coordinate outside of range of grid");
 		return { pixels[index + 0], pixels[index + 1], pixels[index + 2], pixels[index + 3] };
-	} else if constexpr (bytes_per_pixel == 3) {
+	} else if constexpr (kBytesPerPixel == 3) {
 		PTGN_ASSERT(index + 2 < pixels.size(), "Coordinate outside of range of grid");
 		return { pixels[index + 0], pixels[index + 1], pixels[index + 2], 255 };
-	} else if constexpr (bytes_per_pixel == 1) {
+	} else if constexpr (kBytesPerPixel == 1) {
 		PTGN_ASSERT(index < pixels.size(), "Coordinate outside of range of grid");
 		return { 255, 255, 255, pixels[index] };
 	} else {

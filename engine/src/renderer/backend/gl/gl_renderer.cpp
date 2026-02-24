@@ -40,11 +40,11 @@ Renderer::Renderer(Window& window) : gl{ std::make_unique<GLContext>(window) } {
 	// TODO: Fix and replace with the object which has a destructor.
 	ebo_ = ElementBufferObject{ this,
 								gl->buffers.CreateElementBuffer(
-									nullptr, index_capacity, sizeof(Index), BufferUsage::DynamicDraw
+									nullptr, kIndexCapacity, sizeof(Index), BufferUsage::DynamicDraw
 								) };
 
 	vbo_ = VertexBufferObject{ this, gl->buffers.CreateVertexBuffer(
-										 nullptr, vertex_capacity, sizeof(Vertex),
+										 nullptr, kVertexCapacity, sizeof(Vertex),
 										 BufferUsage::DynamicDraw
 									 ) };
 
@@ -355,8 +355,8 @@ void Renderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSet
 
 	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
 
-	if (batch_vertices_.size() + vertices.size() >= vertex_capacity ||
-		batch_indices_.size() + indices.size() >= index_capacity) {
+	if (batch_vertices_.size() + vertices.size() >= kVertexCapacity ||
+		batch_indices_.size() + indices.size() >= kIndexCapacity) {
 		FlushBatch();
 	}
 
@@ -1243,8 +1243,8 @@ void Renderer::AddLinesImpl(
 void Renderer::AddVertices(
 	std::span<const Vertex> point_vertices, std::span<const Index> point_indices
 ) {
-	if (vertices_.size() + point_vertices.size() > vertex_capacity ||
-		indices_.size() + point_indices.size() > index_capacity) {
+	if (vertices_.size() + point_vertices.size() > kVertexCapacity ||
+		indices_.size() + point_indices.size() > kIndexCapacity) {
 		Flush();
 	}
 

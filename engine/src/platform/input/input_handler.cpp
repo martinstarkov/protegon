@@ -24,13 +24,13 @@ static milliseconds GetTimeSince(impl::Timestamp timestamp) {
 
 static Mouse GetMouse(const SDL_MouseButtonEvent& event) {
 	auto mouse{ event.button - 1 };
-	PTGN_ASSERT(mouse >= 0 && mouse < impl::mouse_count, "Mouse button not supported: ", mouse);
+	PTGN_ASSERT(mouse >= 0 && mouse < impl::kMouseCount, "Mouse button not supported: ", mouse);
 	return static_cast<Mouse>(mouse);
 }
 
 static Key GetKey(const SDL_KeyboardEvent& event) {
 	PTGN_ASSERT(
-		event.scancode >= 0 && event.scancode < impl::key_count,
+		event.scancode >= 0 && event.scancode < impl::kKeyCount,
 		"Key scancode is not supported: ", event.scancode
 	);
 	return static_cast<Key>(event.scancode);

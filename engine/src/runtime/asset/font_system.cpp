@@ -63,11 +63,11 @@ FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 	constexpr auto hash{ Hash(key) };
 	if (!raw_default_font_) {
 		raw_default_font_ = GetRawBuffer(impl::GetLiberationSansRegular());
-		auto default_font{ LoadFromBinary(raw_default_font_, default_font_size, false) };
+		auto default_font{ LoadFromBinary(raw_default_font_, kDefaultFontSize, false) };
 		std::shared_ptr<TTF_Font> f{ default_font, impl::TTF_FontDeleter{} };
 
 		Font font{ assets_.CreateAsset(), true };
-		font.entity_.Add<impl::FontSize>(default_font_size);
+		font.entity_.Add<impl::FontSize>(kDefaultFontSize);
 		font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
 		impl::AddAssetKey(font.entity_, key, {});
 	}

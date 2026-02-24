@@ -28,8 +28,8 @@
 
 namespace {
 
-constexpr int kWindowStartWidth	 = 400;
-constexpr int kWindowStartHeight = 400;
+inline constexpr int kWindowStartWidth	= 400;
+inline constexpr int kWindowStartHeight = 400;
 
 SDL_AppResult Fail(const char* what) {
 	SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", what, SDL_GetError());
