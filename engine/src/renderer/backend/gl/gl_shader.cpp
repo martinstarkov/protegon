@@ -9,7 +9,6 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -65,7 +64,7 @@ static void TrimRawStringLiteral(std::string& content) {
 }
 
 static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
-	const std::string& source, const std::string& name_without_ext
+	const std::string& source, std::string_view name_without_ext
 ) {
 	Header header;
 	std::vector<ShaderSpec> sources;
@@ -118,7 +117,7 @@ static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 
 		PTGN_ASSERT(!contains_type(type), "GLSL file can only contain one type of shader: ", type);
 
-		sources.emplace_back(type, ShaderCode{ code }, name_without_ext);
+		sources.emplace_back(type, ShaderCode{ code }, std::string{ name_without_ext });
 	}
 
 	return { header, sources };
@@ -313,7 +312,7 @@ static std::string ReplaceAll(std::string str, std::string_view from, std::strin
 }
 
 static std::vector<ShaderSpec> ParseShader(
-	const std::string& source, const std::string& name_without_ext
+	const std::string& source, std::string_view name_without_ext
 ) {
 	std::vector<ShaderSpec> output;
 
@@ -509,7 +508,7 @@ void Shaders::PopulateShadersFromCache(const json& manifest) {
 }
 
 std::vector<ShaderSpec> Shaders::ParseShaderSourceFile(
-	const std::string& source, const std::string& name
+	const std::string& source, std::string_view name
 ) const {
 	auto srcs{ ParseShader(source, name) };
 	SubstituteShaderTokens(srcs, max_texture_slots_);
@@ -517,7 +516,7 @@ std::vector<ShaderSpec> Shaders::ParseShaderSourceFile(
 }
 
 ShaderId Shaders::CompileShaderSource(
-	const std::string& source, ShaderType type, const std::string& name
+	const std::string& source, ShaderType type, std::string_view name
 ) {
 	auto srcs{ ParseShaderSourceFile(source, name) };
 	PTGN_ASSERT(srcs.size() == 1, "Wrong constructor for a multi-source shader file");
@@ -527,7 +526,7 @@ ShaderId Shaders::CompileShaderSource(
 }
 
 ShaderId Shaders::CompileShaderPath(
-	const path& shader_path, ShaderType type, const std::string& name
+	const path& shader_path, ShaderType type, std::string_view name
 ) {
 	PTGN_ASSERT(
 		FileExists(shader_path),
@@ -638,9 +637,7 @@ Shaders::~Shaders() {
 	programs_.clear();
 }
 
-ShaderId Shaders::CreateProgram(
-	ShaderId vertex, ShaderId fragment, const std::string& program_name
-) {
+ShaderId Shaders::CreateProgram(ShaderId vertex, ShaderId fragment, std::string_view program_name) {
 	auto shader{ CreateProgram(program_name) };
 
 	LinkProgram(shader, vertex, fragment);
@@ -693,7 +690,7 @@ ShaderId Shaders::GetShaderId(std::string_view shader_name, ShaderType type) con
 
 std::pair<ShaderId, bool> Shaders::GetShaderIdWithDeleteFlag(
 	const std::variant<ShaderCode, std::string>& variant, ShaderType type,
-	const std::string& shader_name
+	std::string_view shader_name
 ) {
 	if (std::holds_alternative<std::string>(variant)) {
 		const auto& name{ std::get<std::string>(variant) };
@@ -715,7 +712,7 @@ std::pair<ShaderId, bool> Shaders::GetShaderIdWithDeleteFlag(
 
 ShaderId Shaders::CreateProgram(
 	const std::variant<ShaderCode, ShaderName>& vertex,
-	const std::variant<ShaderCode, ShaderName>& fragment, const std::string& shader_name
+	const std::variant<ShaderCode, ShaderName>& fragment, std::string_view shader_name
 ) {
 	auto program{ CreateProgram(shader_name) };
 
@@ -738,7 +735,7 @@ ShaderId Shaders::CreateProgram(
 }
 
 ShaderId Shaders::CreateProgram(
-	const std::variant<ShaderCode, path>& source, const std::string& program_name
+	const std::variant<ShaderCode, path>& source, std::string_view program_name
 ) {
 	auto program{ CreateProgram(program_name) };
 
@@ -792,10 +789,10 @@ ShaderId Shaders::CreateProgram(
 	return program;
 }
 
-ShaderId Shaders::CreateProgram(const std::string& program_name) {
+ShaderId Shaders::CreateProgram(std::string_view program_name) {
 	ShaderId id{ GLCallReturn(::CreateProgram()) };
 	PTGN_ASSERT(id, "Failed to create shader program");
-	cache_.Add(id, ProgramCache{ .program_name = program_name });
+	cache_.Add(id, ProgramCache{ .program_name = std::string{ program_name } });
 	return id;
 }
 

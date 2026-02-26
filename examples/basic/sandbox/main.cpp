@@ -152,8 +152,8 @@ public:
 		app().window.SetSize(window_size);
 
 		// PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		auto a = app().assets.LoadAudio("test", "assets/music1.ogg");
-		// auto f = app().assets.LoadFont("test", "assets/retro_gaming.ttf", 11);
+		auto a = app().assets.LoadAudio("test", "assets/music.ogg");
+		// auto f = app().assets.LoadFont("test", "assets/ttf.ttf", 11);
 		auto t = app().assets.LoadTexture("test", "assets/smile.png");
 		// auto j = app().assets.LoadJson("test", "assets/dialogue.json");
 

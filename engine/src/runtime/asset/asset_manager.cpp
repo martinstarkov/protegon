@@ -38,6 +38,10 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
+#include <unordered_set>
+
+#include "core/log.h"
+#include "core/util/string.h"
 #include "runtime/audio/audio_system.h"
 
 // TODO: Add async asset loading.
@@ -57,7 +61,7 @@ void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> pa
 } // namespace impl
 
 Shader AssetManager::CreateShader(
-	bool persistent, const std::variant<ShaderCode, path>& source, const std::string& shader_name
+	bool persistent, const std::variant<ShaderCode, path>& source, std::string_view shader_name
 ) {
 	Shader shader{ CreateAsset(), persistent };
 	shader.entity_.Add<impl::ShaderObject>(
@@ -69,7 +73,7 @@ Shader AssetManager::CreateShader(
 
 Shader AssetManager::CreateShader(
 	bool persistent, const std::variant<ShaderCode, std::string>& vertex,
-	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+	const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
 ) {
 	Shader shader{ CreateAsset(), persistent };
 	shader.entity_.Add<impl::ShaderObject>(
@@ -97,10 +101,10 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	return texture;
 }
 
-Font AssetManager::CreateFont(bool persistent, const path& asset_path, float pt_size) {
+Font AssetManager::CreateFont(bool persistent, const path& asset_path, float font_size) {
 	Font font{ CreateAsset(), persistent };
-	font.entity_.Add<impl::FontSize>(pt_size);
-	auto f{ FontSystem::CreateFont(asset_path, pt_size) };
+	font.entity_.Add<impl::FontSize>(font_size);
+	auto f{ FontSystem::CreateFont(asset_path, font_size) };
 	font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
 
 	return font;
@@ -115,14 +119,14 @@ Audio AssetManager::CreateAudio(bool persistent, const path& asset_path) {
 }
 
 Shader AssetManager::CreateShader(
-	const std::variant<ShaderCode, path>& source, const std::string& shader_name
+	const std::variant<ShaderCode, path>& source, std::string_view shader_name
 ) {
 	return CreateShader(false, source, shader_name);
 }
 
 Shader AssetManager::CreateShader(
 	const std::variant<ShaderCode, std::string>& vertex,
-	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+	const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
 ) {
 	return CreateShader(false, vertex, fragment, shader_name);
 }
@@ -131,8 +135,8 @@ Texture AssetManager::CreateTexture(const path& asset_path) {
 	return CreateTexture(false, asset_path);
 }
 
-Font AssetManager::CreateFont(const path& asset_path, float pt_size) {
-	return CreateFont(false, asset_path, pt_size);
+Font AssetManager::CreateFont(const path& asset_path, float font_size) {
+	return CreateFont(false, asset_path, font_size);
 }
 
 Audio AssetManager::CreateAudio(const path& asset_path) {
@@ -144,8 +148,7 @@ json AssetManager::CreateJson(const path& asset_path) {
 }
 
 Shader AssetManager::LoadShader(
-	std::string_view key, const std::variant<ShaderCode, path>& source,
-	const std::string& shader_name
+	std::string_view key, const std::variant<ShaderCode, path>& source, std::string_view shader_name
 ) {
 	auto shader{ CreateShader(true, source, shader_name) };
 	impl::AddAssetKey(shader.entity_, key, {});
@@ -154,7 +157,7 @@ Shader AssetManager::LoadShader(
 
 Shader AssetManager::LoadShader(
 	std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
-	const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+	const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
 ) {
 	auto shader{ CreateShader(true, vertex, fragment, shader_name) };
 	impl::AddAssetKey(shader.entity_, key, {});
@@ -167,8 +170,8 @@ Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) 
 	return texture;
 }
 
-Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float pt_size) {
-	auto font{ CreateFont(true, asset_path, pt_size) };
+Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float font_size) {
+	auto font{ CreateFont(true, asset_path, font_size) };
 	impl::AddAssetKey(font.entity_, key, asset_path);
 	return font;
 }
@@ -182,6 +185,74 @@ Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
 	auto [it, _] = jsons_.insert_or_assign(Hash(key), ptgn::LoadJson(asset_path));
 	return it->second;
+}
+
+void AssetManager::LoadMany(const path& asset_manifest_file) {
+	PTGN_ASSERT(
+		ToLower(asset_manifest_file.extension().string()) == ".json",
+		"Asset manifest file must be json file"
+	);
+
+	json assets{ ptgn::LoadJson(asset_manifest_file) };
+
+	PTGN_ASSERT(
+		assets.is_object(),
+		"Expected json object, but got something else for assets: ", assets.dump(4)
+	);
+
+	std::unordered_set<std::size_t> taken_asset_keys;
+
+	for (const auto& [key, asset_path] : assets.items()) {
+		auto key_hash{ Hash(key) };
+
+		PTGN_ASSERT(
+			taken_asset_keys.count(key_hash) == 0,
+			"Asset key should not be repeated more than once: ", key
+		);
+
+		taken_asset_keys.insert(key_hash);
+
+		PTGN_ASSERT(
+			asset_path.is_string(),
+			"Expected string, but got something else for asset path: ", asset_path.dump(4)
+		);
+
+		path filepath{ asset_path.get<std::string>() };
+
+		Load(key, filepath);
+	}
+}
+
+void AssetManager::LoadMany(const std::vector<std::pair<std::string, path>>& asset_keys_and_paths) {
+	for (const auto& [asset_key, asset_path] : asset_keys_and_paths) {
+		Load(asset_key, asset_path);
+	}
+}
+
+void AssetManager::Load(std::string_view key, const path& asset_path) {
+	PTGN_ASSERT(
+		FileExists(asset_path), "Cannot load non-existent asset file: ", asset_path.string()
+	);
+
+	std::string ext{ ToLower(asset_path.extension().string()) };
+
+	PTGN_ASSERT(!ext.empty(), "Asset file extension is invalid: ", asset_path.string());
+
+	if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif") {
+		LoadTexture(key, asset_path);
+	} else if (ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus") {
+		LoadAudio(key, asset_path);
+	} else if (ext == ".ttf" || ext == ".otf") {
+		LoadFont(key, asset_path);
+	} else if (ext == ".json") {
+		LoadJson(key, asset_path);
+	} else if (ext == ".glsl") {
+		LoadShader(key, asset_path, key);
+	} else {
+		PTGN_ERROR(
+			"Attempting to load unsupported file extension from asset file: ", asset_path.string()
+		);
+	}
 }
 
 template <typename ResourceComponent>

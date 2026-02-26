@@ -42,7 +42,6 @@ enum class ShaderType : std::uint32_t {
 inline std::ostream& operator<<(std::ostream& os, ShaderType type) {
 	switch (type) {
 		using enum ShaderType;
-
 		case Vertex:		 return os << "Vertex";
 		case Fragment:		 return os << "Fragment";
 		case Geometry:		 return os << "Geometry";
@@ -70,15 +69,15 @@ struct ProgramCache {
 
 class Shaders {
 public:
-	ShaderId CreateProgram(ShaderId vertex, ShaderId fragment, const std::string& program_name);
+	ShaderId CreateProgram(ShaderId vertex, ShaderId fragment, std::string_view program_name);
 
 	ShaderId CreateProgram(
 		const std::variant<ShaderCode, ShaderName>& vertex,
-		const std::variant<ShaderCode, ShaderName>& fragment, const std::string& program_name
+		const std::variant<ShaderCode, ShaderName>& fragment, std::string_view program_name
 	);
 
 	ShaderId CreateProgram(
-		const std::variant<ShaderCode, path>& source, const std::string& program_name
+		const std::variant<ShaderCode, path>& source, std::string_view program_name
 	);
 
 	void SetUniform(ShaderId id, const char* uniform_name, V2_float v);
@@ -123,15 +122,12 @@ private:
 	Shaders& operator=(const Shaders&)	   = delete;
 	Shaders& operator=(Shaders&&) noexcept = delete;
 
-	std::vector<ShaderSpec> ParseShaderSourceFile(
-		const std::string& source, const std::string& name
-	) const;
+	std::vector<ShaderSpec> ParseShaderSourceFile(const std::string& source, std::string_view name)
+		const;
 
-	ShaderId CompileShaderSource(
-		const std::string& source, ShaderType type, const std::string& name
-	);
+	ShaderId CompileShaderSource(const std::string& source, ShaderType type, std::string_view name);
 
-	ShaderId CompileShaderPath(const path& shader_path, ShaderType type, const std::string& name);
+	ShaderId CompileShaderPath(const path& shader_path, ShaderType type, std::string_view name);
 
 	void CompileShaders(const std::vector<ShaderSpec>& sources);
 
@@ -147,7 +143,7 @@ private:
 
 	std::pair<ShaderId, bool> GetShaderIdWithDeleteFlag(
 		const std::variant<ShaderCode, std::string>& variant, ShaderType type,
-		const std::string& shader_name
+		std::string_view shader_name
 	);
 
 	[[nodiscard]] static ShaderId CompileShader(ShaderType type, const std::string& source);
@@ -160,7 +156,7 @@ private:
 
 	[[nodiscard]] std::int32_t GetUniform(ShaderId id, const char* program_name);
 
-	[[nodiscard]] ShaderId CreateProgram(const std::string& program_name);
+	[[nodiscard]] ShaderId CreateProgram(std::string_view program_name);
 
 	GLContext& gl_;
 

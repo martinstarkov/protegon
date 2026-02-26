@@ -15,12 +15,15 @@
 #include "renderer/primitives/text.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"
 
 #ifdef CreateFont
 #undef CreateFont
 #endif
+#include <utility>
+#include <vector>
 
 struct SDL_IOStream;
 
@@ -57,33 +60,64 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
+	// TODO: Add separate shader loading support to LoadMany (.VERT + .FRAG) or (existing_key +
+	// .FRAG)
+
+	/// @brief Load various different asset types from a json manifest file. Json format must be:
+	///
+	/// {
+	///    "asset_key": "path/to/asset/file.extension",
+	///    ...
+	/// }
+	///
+	/// Supported extensions:
+	///
+	/// Texture: .PNG, .JPG, .BMP, .GIF
+	///
+	/// Audio: .OGG (only one supported by Emscripten), MP3, WAV, OPUS
+	///
+	/// Font: .TTF, .OTF
+	///
+	/// JSON: .JSON
+	/// @param asset_manifest_file The path to the asset json manifest file.
+	void LoadMany(const path& asset_manifest_file);
+
+	/// @brief Loads multiple assets from the specified file paths.
+	/// @param asset_keys_and_paths A vector of key-path pairs where each pair contains an asset
+	/// identifier string and its corresponding file path.
+	void LoadMany(const std::vector<std::pair<std::string, path>>& asset_keys_and_paths);
+
+	/// @brief Loads a supported asset type (based on extension) from the specified file path and
+	/// associates it with a key.
+	/// @param key The unique identifier used to reference the loaded asset.
+	/// @param asset_path The file system path to the asset to be loaded.
+	void Load(std::string_view key, const path& asset_path);
+
 	Audio CreateAudio(const path& audio_path);
 	Audio LoadAudio(std::string_view key, const path& audio_path);
 
 	json CreateJson(const path& json_path);
 	json& LoadJson(std::string_view key, const path& json_path);
 
-	Shader CreateShader(
-		const std::variant<ShaderCode, path>& source, const std::string& shader_name
-	);
+	Shader CreateShader(const std::variant<ShaderCode, path>& source, std::string_view shader_name);
 	Shader LoadShader(
 		std::string_view key, const std::variant<ShaderCode, path>& source,
-		const std::string& shader_name
+		std::string_view shader_name
 	);
 	Shader CreateShader(
 		const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+		const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
 	);
 	Shader LoadShader(
 		std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+		const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
 	);
 
 	Texture CreateTexture(const path& texture_path);
 	Texture LoadTexture(std::string_view key, const path& texture_path);
 
-	Font CreateFont(const path& font_path, float point_size);
-	Font LoadFont(std::string_view key, const path& font_path, float point_size);
+	Font CreateFont(const path& font_path, float font_size);
+	Font LoadFont(std::string_view key, const path& font_path, float font_size = kDefaultFontSize);
 
 	bool UnloadAudio(std::string_view key);
 	bool UnloadJson(std::string_view key);
@@ -116,12 +150,11 @@ private:
 	std::optional<Font> GetFont(std::size_t key) const;
 
 	Shader CreateShader(
-		bool persistent, const std::variant<ShaderCode, path>& source,
-		const std::string& shader_name
+		bool persistent, const std::variant<ShaderCode, path>& source, std::string_view shader_name
 	);
 	Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, const std::string& shader_name
+		const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
 	);
 	Texture CreateTexture(bool persistent, const path& asset_path);
 	Texture CreateTextTexture(
