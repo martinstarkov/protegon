@@ -44,8 +44,6 @@ static Entity CreateRenderTarget(
 
 	SetPosition(render_target, {});
 
-	render_target.Add<DisplayList>();
-
 	// TODO: Fix.
 	// SetDraw<RenderTarget>(render_target);
 	Show(render_target);

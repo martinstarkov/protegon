@@ -17,10 +17,8 @@
 #include "renderer/camera/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
-#include "runtime/ecs/components/render_target_component.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -77,7 +75,7 @@ void ApplyCameraBounds(Entity camera) {
 	SetScroll(camera, ApplyCameraBounds(camera, GetScroll(camera)));
 }
 
-void RecalculateViewProjection(Entity camera) {
+void RecalculateCameraViewProjection(Entity camera) {
 	auto& c{ camera.Get<impl::Camera>() };
 
 	V2_float flip_dir{ 1.0f, 1.0f };
@@ -245,24 +243,24 @@ std::optional<Viewport> GetCameraBounds(Entity camera) {
 	return camera.Get<impl::Camera>().bounding_box;
 }
 
-void SetPixelRounding(Entity camera, bool enabled) {
+void SetCameraPixelRounding(Entity camera, bool enabled) {
 	auto& c{ camera.Get<impl::Camera>() };
 	c.pixel_rounding = enabled;
 }
 
-bool GetPixelRounding(Entity camera) {
+bool GetCameraPixelRounding(Entity camera) {
 	return camera.Get<impl::Camera>().pixel_rounding;
 }
 
-const Matrix4& GetView(Entity camera) {
+const Matrix4& GetCameraView(Entity camera) {
 	return camera.Get<impl::Camera>().view;
 }
 
-const Matrix4& GetProjection(Entity camera) {
+const Matrix4& GetCameraProjection(Entity camera) {
 	return camera.Get<impl::Camera>().projection;
 }
 
-const Matrix4& GetViewProjection(Entity camera) {
+const Matrix4& GetCameraViewProjection(Entity camera) {
 	return camera.Get<impl::Camera>().view_projection;
 }
 
@@ -273,38 +271,85 @@ void ResetCamera(Entity camera) {
 	AddScript<impl::CameraResizeScript>(camera);
 }
 
-static Entity GetParentRenderTarget(Entity root, Entity entity) {
-	// @return Root or the entities render target or any of its parents' render targets (whichever
-	// is first in the hierarchy).
-	if (auto rt{ entity.TryGet<impl::ParentRenderTarget>() }) {
-		return rt->render_target;
-	}
-	if (HasParent(entity)) {
-		Entity parent{ GetParent(entity) };
-		return GetParentRenderTarget(root, parent);
-	}
-	return root;
+LayerMask GetMask(Entity entity) {
+	return entity.GetOrDefault<impl::RenderMask>(entity).layers;
 }
 
-Entity GetCamera(Entity entity) {
-	if (const auto camera{ GetNonPrimaryCamera(entity) }) {
-		return *camera;
-	}
-	if (const auto rt{ entity.TryGet<impl::ParentRenderTarget>() }) {
-		return GetCamera(rt->render_target);
-	}
-	if (auto rt{ GetParentRenderTarget(entity, entity) }; rt != entity) {
-		PTGN_ASSERT(rt);
-		return GetCamera(rt);
-	}
-	return entity.GetScene().camera;
+void SetMask(Entity entity, LayerMask mask) {
+	entity.TryAdd<impl::RenderMask>().layers = mask;
 }
 
-std::optional<Entity> GetNonPrimaryCamera(Entity entity) {
-	if (const auto camera{ entity.TryGet<impl::ParentCamera>() }; camera && camera->camera) {
-		return camera->camera;
-	}
-	return std::nullopt;
+void AddMasks(Entity entity, LayerMask layers_to_add) {
+	entity.TryAdd<impl::RenderMask>().layers |= layers_to_add;
+}
+
+void RemoveMasks(Entity entity, LayerMask layers_to_remove) {
+	entity.TryAdd<impl::RenderMask>().layers &= ~layers_to_remove;
+}
+
+void ClearMasks(Entity entity) {
+	entity.Remove<impl::RenderMask>();
+}
+
+bool HasAnyMask(Entity entity, LayerMask test) {
+	return (GetMask(entity) & test) != 0;
+}
+
+bool HasAllMasks(Entity entity, LayerMask test) {
+	auto m{ GetMask(entity) };
+	return (m & test) == test;
+}
+
+LayerMask GetCameraIncludeMask(Entity camera) {
+	return camera.GetOrDefault<impl::CameraMask>().include;
+}
+
+LayerMask GetCameraExcludeMask(Entity camera) {
+	return camera.GetOrDefault<impl::CameraMask>().exclude;
+}
+
+void SetCameraMasks(Entity camera, LayerMask include, LayerMask exclude) {
+	auto& c	  = camera.TryAdd<impl::CameraMask>();
+	c.include = include;
+	c.exclude = exclude;
+}
+
+void SetCameraIncludeMask(Entity camera, LayerMask include) {
+	camera.TryAdd<impl::CameraMask>().include = include;
+}
+
+void SetCameraExcludeMask(Entity camera, LayerMask exclude) {
+	camera.TryAdd<impl::CameraMask>().exclude = exclude;
+}
+
+void AddCameraIncludeMasks(Entity camera, LayerMask layers_to_add) {
+	camera.TryAdd<impl::CameraMask>().include |= layers_to_add;
+}
+
+void RemoveCameraIncludeMasks(Entity camera, LayerMask layers_to_remove) {
+	camera.TryAdd<impl::CameraMask>().include &= ~layers_to_remove;
+}
+
+void AddCameraExcludeMasks(Entity camera, LayerMask layers_to_add) {
+	camera.TryAdd<impl::CameraMask>().exclude |= layers_to_add;
+}
+
+void RemoveCameraExcludeMasks(Entity camera, LayerMask layers_to_remove) {
+	camera.TryAdd<impl::CameraMask>().exclude &= ~layers_to_remove;
+}
+
+void ClearCameraMasks(Entity camera) {
+	camera.Remove<impl::CameraMask>();
+}
+
+bool IsVisibleToCamera(Entity entity, Entity camera) {
+	auto entity_mask = GetMask(entity);
+	auto include	 = GetCameraIncludeMask(camera);
+	auto exclude	 = GetCameraExcludeMask(camera);
+
+	bool in_include = (entity_mask & include) != 0;
+	bool in_exclude = (entity_mask & exclude) != 0;
+	return in_include && !in_exclude;
 }
 
 namespace impl {

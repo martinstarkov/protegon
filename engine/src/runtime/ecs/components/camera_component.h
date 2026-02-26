@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <optional>
 
 #include "core/event/dispatcher.h"
@@ -15,6 +16,11 @@ namespace ptgn {
 class Scene;
 class Renderer;
 
+using LayerMask = std::uint64_t;
+
+inline constexpr LayerMask kLayersAll  = ~LayerMask{ 0 };
+inline constexpr LayerMask kLayersNone = LayerMask{ 0 };
+
 namespace impl {
 
 class CameraResizeScript : public Script {
@@ -22,11 +28,24 @@ public:
 	void OnEvent(EventDispatcher d) override;
 };
 
-struct ParentCamera {
-	Entity camera;
+/// @brief If an entity has no RenderMask, we treat it as having
+/// RenderMask{} (default ctor).
+struct RenderMask {
+	/// @brief Neutral engine default: entity belongs to all layers
+	/// (i.e. visible to any camera that includes anything).
+	LayerMask layers{ kLayersAll };
 };
 
-void RecalculateViewProjection(Entity camera);
+/// @brief If a camera has no CameraMask, we treat it as having
+/// CameraMask{} (default ctor).
+struct CameraMask {
+	/// @brief Neutral engine default: include all, exclude none.
+
+	LayerMask include{ kLayersAll };
+	LayerMask exclude{ kLayersNone };
+};
+
+void RecalculateCameraViewProjection(Entity camera);
 
 /// @return Scroll with bounds applied.
 [[nodiscard]] V2_float ApplyCameraBounds(Entity camera, V2_float scroll);
@@ -70,23 +89,43 @@ void ZoomY(Entity camera, float zoom_y_amount);
 [[nodiscard]] V2_float GetScroll(Entity camera);
 [[nodiscard]] V2_float GetZoom(Entity camera);
 
-void SetPixelRounding(Entity camera, bool enabled);
+void SetCameraPixelRounding(Entity camera, bool enabled);
 
-[[nodiscard]] bool GetPixelRounding(Entity camera);
+[[nodiscard]] bool GetCameraPixelRounding(Entity camera);
 
-[[nodiscard]] const Matrix4& GetViewProjection(Entity camera);
-[[nodiscard]] const Matrix4& GetView(Entity camera);
-[[nodiscard]] const Matrix4& GetProjection(Entity camera);
+[[nodiscard]] const Matrix4& GetCameraViewProjection(Entity camera);
+[[nodiscard]] const Matrix4& GetCameraView(Entity camera);
+[[nodiscard]] const Matrix4& GetCameraProjection(Entity camera);
 
-/// Resets the camera's scroll and zoom to the default values and makes it automatically resize with
-/// the game size.
+/// @brief Resets the camera's viewport and scroll and zoom to the default values.
 void ResetCamera(Entity camera);
 
-/// @return Camera entity of the entity. If none is set returns the primary scene camera.
-Entity GetCamera(Entity entity);
+LayerMask GetMask(Entity entity);
 
-/// @return Camera entity of the entity or nullopt if none is set.
-std::optional<Entity> GetNonPrimaryCamera(Entity entity);
+void SetMask(Entity entity, LayerMask mask);
+void AddMasks(Entity entity, LayerMask layers_to_add);
+void RemoveMasks(Entity entity, LayerMask layers_to_remove);
+void ClearMasks(Entity entity);
+
+bool HasAnyMask(Entity entity, LayerMask test);
+bool HasAllMasks(Entity entity, LayerMask test);
+
+LayerMask GetCameraIncludeMask(Entity camera);
+LayerMask GetCameraExcludeMask(Entity camera);
+
+void SetCameraMasks(Entity camera, LayerMask include, LayerMask exclude = kLayersNone);
+void SetCameraIncludeMask(Entity camera, LayerMask include);
+void SetCameraExcludeMask(Entity camera, LayerMask exclude);
+
+void AddCameraIncludeMasks(Entity camera, LayerMask layers_to_add);
+void RemoveCameraIncludeMasks(Entity camera, LayerMask layers_to_remove);
+
+void AddCameraExcludeMasks(Entity camera, LayerMask layers_to_add);
+void RemoveCameraExcludeMasks(Entity camera, LayerMask layers_to_remove);
+
+void ClearCameraMasks(Entity camera);
+
+bool IsVisibleToCamera(Entity entity, Entity camera);
 
 namespace impl {
 

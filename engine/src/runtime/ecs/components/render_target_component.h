@@ -30,12 +30,8 @@ public:
 	void OnEvent(EventDispatcher d) override;
 };
 
-struct DisplayList {
-	std::vector<Entity> entities;
-};
-
 struct ParentRenderTarget {
-	Entity render_target;
+	std::size_t render_target{ 0 };
 };
 
 // TODO: Fix.

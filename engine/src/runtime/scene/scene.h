@@ -332,9 +332,6 @@ private:
 	void InternalDraw();
 	void InternalExit();
 
-	void AddToDisplayList(Entity entity);
-	void RemoveFromDisplayList(Entity entity);
-
 	// If the actions is manually numbered, its order determines the execution order of scene
 	// functions.
 	enum class State {

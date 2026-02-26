@@ -49,7 +49,6 @@ Scene::~Scene() {
 		return;
 	}
 	PTGN_ASSERT(render_taret.IsAlive());
-	render_target_.GetDisplayList().clear();
 	render_target_.Destroy();
 	Application::Get().render_.render_data_.render_manager.Refresh();*/
 }
@@ -64,7 +63,6 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	render_target_ = impl::CreateRenderTarget(
 		render_manager_.CreateEntity(), renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8
 	);
-	render_target_.Add<impl::DisplayList>();
 	camera		 = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
 	fixed_camera = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
 	// PTGN_LOG("[scene=", this, "]");
@@ -76,13 +74,6 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 }
 
 void Scene::InternalEnter() {
-	// Here instead of scene constructor because exiting a scene resets the manager, which will
-	// clear the component pool vector which contains all the hooks.
-	OnConstruct<impl::Visible>().Connect<&Scene::AddToDisplayList>();
-	OnDestruct<impl::Visible>().Connect<&Scene::RemoveFromDisplayList>();
-	OnConstruct<impl::IDrawable>().Connect<&Scene::AddToDisplayList>();
-	OnDestruct<impl::IDrawable>().Connect<&Scene::RemoveFromDisplayList>();
-
 	OnEnter();
 	Refresh();
 }
@@ -138,11 +129,11 @@ static void DrawDisplayList(
 }
 
 void Scene::InternalDraw() {
-	impl::RecalculateViewProjection(camera);
-	impl::RecalculateViewProjection(fixed_camera);
+	impl::RecalculateCameraViewProjection(camera);
+	impl::RecalculateCameraViewProjection(fixed_camera);
 
 	for (auto [e, _camera] : EntitiesWith<impl::Camera>()) {
-		impl::RecalculateViewProjection(e);
+		impl::RecalculateCameraViewProjection(e);
 	}
 
 	auto& renderer{ app().renderer };
@@ -161,18 +152,14 @@ void Scene::InternalDraw() {
 	// Loop through render targets and render their display lists onto their internal frame
 	// buffers.
 	for (auto [entity, visible, drawable, rt, display_list] :
-		 EntitiesWith<impl::Visible, impl::IDrawable, RenderTarget, impl::DisplayList>()) {
+		 EntitiesWith<impl::Visible, impl::IDrawable, RenderTarget>()) {
 		DrawDisplayList(renderer, rt, display_list.entities, [](Entity) { return false; });
 	}
 
-	DrawDisplayList(
-		renderer, render_target_.Get<RenderTarget>(),
-		render_target_.Get<impl::DisplayList>().entities,
-		[](Entity entity) {
-			// Skip entities which are in the display list of a custom render target.
-			return entity.Has<RenderTarget>();
-		}
-	);
+	DrawDisplayList(renderer, render_target_.Get<RenderTarget>(), [](Entity entity) {
+		// Skip entities which are in the display list of a custom render target.
+		return entity.Has<RenderTarget>();
+	});
 
 	renderer.GetScreenTarget().Bind(*app().renderer.gl_renderer_->gl);
 
@@ -254,7 +241,6 @@ void Scene::InternalExit() {
 	// Clears component hooks.
 	manager_.Reset();
 	// physics = {};
-	render_target_.Get<impl::DisplayList>().entities.clear();
 	//  TODO: Fix.
 	// render_target_.Get<GameObject<Camera>>().Reset();
 	// fixed_camera.Reset();
@@ -304,31 +290,6 @@ V2_float Scene::GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const 
 	PTGN_ASSERT(scale.BothAboveZero());
 
 	return scale;
-}
-
-void Scene::AddToDisplayList(Entity entity) {
-	PTGN_ASSERT(render_target_);
-	PTGN_ASSERT(render_target_.Has<impl::DisplayList>());
-	// TODO: Fix.
-	// PTGN_ASSERT(HasDraw(render_target_));
-	if (!IsVisible(entity) || !HasDraw(entity)) {
-		return;
-	}
-	auto& dl{ render_target_.Get<impl::DisplayList>() };
-	dl.entities.emplace_back(entity);
-}
-
-void Scene::RemoveFromDisplayList(Entity entity) {
-	PTGN_ASSERT(render_target_);
-	// TODO: Figure out why render target is destroyed before the hook is called when scene is
-	// destroyed.
-	if (!render_target_.Has<impl::DisplayList>()) {
-		return;
-	}
-	// TODO: Fix.
-	// PTGN_ASSERT(HasDraw(render_target_));
-	auto& dl{ render_target_.Get<impl::DisplayList>() };
-	std::erase(dl.entities, entity);
 }
 
 Entity Scene::CreateEntity() {
