@@ -17,7 +17,7 @@ public:
 	virtual ~EventBase() = default;
 
 private:
-	friend class EventDispatcher;
+	friend class ptgn::EventDispatcher;
 
 	bool event_handled_{ false };
 

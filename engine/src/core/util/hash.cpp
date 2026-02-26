@@ -11,8 +11,8 @@ std::size_t Hash(Vector2<T> vector) {
 	return std::hash<Vector2<T>>()(vector);
 }
 
-template std::size_t Hash<int>(const V2_int&);
-template std::size_t Hash<float>(const V2_float&);
-template std::size_t Hash<double>(const V2_double&);
+template std::size_t Hash<int>(V2_int);
+template std::size_t Hash<float>(V2_float);
+template std::size_t Hash<double>(V2_double);
 
 } // namespace ptgn

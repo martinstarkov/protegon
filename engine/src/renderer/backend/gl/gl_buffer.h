@@ -73,8 +73,7 @@ public:
 	void DestroyElementBuffer(ElementBufferId id);
 	void DestroyUniformBuffer(UniformBufferId id);
 
-	/// @param target OpenGL buffer binding point (e.g. GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER,
-	/// GL_UNIFORM_BUFFER)
+	/// @param target OpenGL buffer binding point.
 	template <typename T, bool kBufferOrphaning = true>
 	void SetBufferSubData(
 		T id, BufferTarget target, const void* data, std::int32_t byte_offset,

@@ -193,7 +193,7 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 		"Asset manifest file must be json file"
 	);
 
-	json assets{ ptgn::LoadJson(asset_manifest_file) };
+	json assets = ptgn::LoadJson(asset_manifest_file);
 
 	PTGN_ASSERT(
 		assets.is_object(),

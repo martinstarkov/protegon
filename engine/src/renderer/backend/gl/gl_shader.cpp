@@ -260,7 +260,7 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType typ
 
 #ifdef __EMSCRIPTEN__
 		// Only inject layout for Vertex ShaderId & 'in' variables on WebAssembly
-		if (!(type == GL_VERTEX_SHADER && qualifier == "in")) {
+		if (!(type == ShaderType::Vertex && qualifier == "in")) {
 			inject_layout = false;
 		}
 #endif
@@ -459,6 +459,7 @@ static json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
 }
 
 void Shaders::PopulateShadersFromCache(const json& manifest) {
+	PTGN_ASSERT(manifest.is_object(), "Shader manifest must be a json object");
 	for (const auto& [shader_name, shader_object] : manifest.items()) {
 		std::string vertex_name;
 		std::string fragment_name;
@@ -475,7 +476,8 @@ void Shaders::PopulateShadersFromCache(const json& manifest) {
 				"Manifest shader ", shader_name,
 				" must specify either a 'vertex' and 'fragment' property for individual "
 				"specification, or a combined 'source' "
-				"property for same-name vertex/fragment shaders"
+				"property for same-name vertex/fragment shaders, instead it is: ",
+				shader_object.dump(4)
 			);
 		}
 
@@ -620,7 +622,7 @@ void Shaders::CompileProgram(
 
 Shaders::Shaders(GLContext& gl) : gl_{ gl } {}
 
-Shaders::~Shaders() {
+Shaders::~Shaders() noexcept {
 	const auto delete_shaders = [](const auto& container) {
 		for (const auto& [hash, id] : container) {
 			if (id) {
@@ -653,7 +655,7 @@ void Shaders::Populate(std::size_t max_texture_slots) {
 
 	PopulateShaderCache(fs);
 
-	auto manifest{ GetShaderManifest(fs) };
+	auto manifest(GetShaderManifest(fs));
 
 	PopulateShadersFromCache(manifest);
 }

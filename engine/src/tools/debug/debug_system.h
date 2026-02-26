@@ -48,7 +48,7 @@ public:
 	*/
 
 private:
-	friend class Application;
+	friend class ptgn::Application;
 
 	void PreUpdate();
 	void PostUpdate();

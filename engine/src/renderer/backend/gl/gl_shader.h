@@ -26,6 +26,8 @@ struct Matrix4;
 
 namespace impl::gl {
 
+class GLContext;
+
 struct ShaderOptions {
 	bool auto_layout{ false };
 };

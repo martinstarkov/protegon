@@ -96,7 +96,12 @@ public:
 	Audio CreateAudio(const path& audio_path);
 	Audio LoadAudio(std::string_view key, const path& audio_path);
 
+	/// @brief Note: Do not brace initialize JSON objects.
+	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	json CreateJson(const path& json_path);
+
+	/// @brief Note: Do not brace initialize JSON objects.
+	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	json& LoadJson(std::string_view key, const path& json_path);
 
 	Shader CreateShader(const std::variant<ShaderCode, path>& source, std::string_view shader_name);
@@ -125,7 +130,10 @@ public:
 	bool UnloadTexture(std::string_view key);
 	bool UnloadFont(std::string_view key);
 
+	/// @brief Note: Do not brace initialize JSON objects.
+	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	std::optional<std::reference_wrapper<json>> GetJson(std::string_view key);
+
 	std::optional<std::reference_wrapper<const json>> GetJson(std::string_view key) const;
 	std::optional<Audio> GetAudio(std::string_view key) const;
 	std::optional<Shader> GetShader(std::string_view key) const;

@@ -20,6 +20,8 @@ struct ActiveTexture {
 	explicit ActiveTexture(std::uint32_t slot) : slot{ slot } {}
 
 	std::uint32_t slot{ 0 };
+
+	bool operator==(const ActiveTexture&) const = default;
 };
 
 struct TextureUnitState {

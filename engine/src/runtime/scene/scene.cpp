@@ -282,21 +282,18 @@ void Scene::InternalExit() {
 Entity Scene::CreateEntity() {
 	auto entity{ manager_.CreateEntity() };
 	entity.scene_ = this;
-	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(UUID uuid) {
 	auto entity{ manager_.CreateEntity(uuid) };
 	entity.scene_ = this;
-	// entity.template Add<SceneKey>(key_);
 	return entity;
 }
 
 Entity Scene::CreateEntity(const json& j) {
 	auto entity{ manager_.CreateEntity(j) };
 	entity.scene_ = this;
-	// PTGN_ASSERT(entity.Has<SceneKey>(), "Scene entity created from json must have a scene key");
 	return entity;
 }
 

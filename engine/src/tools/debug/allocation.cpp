@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <exception>
+#include <new>
 
 namespace ptgn::impl {
 

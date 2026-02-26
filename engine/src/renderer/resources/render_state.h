@@ -152,6 +152,8 @@ struct ClearColor {
 	explicit ClearColor(Color value) : value{ value } {}
 
 	Color value;
+
+	bool operator==(const ClearColor&) const = default;
 };
 
 struct ClearDepth {
@@ -160,6 +162,8 @@ struct ClearDepth {
 	explicit ClearDepth(double value) : value{ value } {}
 
 	double value{ 0.0 };
+
+	bool operator==(const ClearDepth&) const = default;
 };
 
 struct ClearStencil {
@@ -168,6 +172,8 @@ struct ClearStencil {
 	explicit ClearStencil(int value) : value{ value } {}
 
 	int value{ 0 };
+
+	bool operator==(const ClearStencil&) const = default;
 };
 
 } // namespace ptgn

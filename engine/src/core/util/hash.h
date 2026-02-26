@@ -46,6 +46,6 @@ struct Vector2;
 }
 
 template <Arithmetic T>
-[[nodiscard]] std::size_t Hash(const Vector2<T>& vector);
+[[nodiscard]] std::size_t Hash(Vector2<T> vector);
 
 } // namespace ptgn

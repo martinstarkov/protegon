@@ -11,8 +11,6 @@
 
 namespace ptgn {
 
-class Scene;
-
 struct Transform {
 	Transform() = default;
 
@@ -97,8 +95,6 @@ struct Transform {
 	}
 
 private:
-	friend class Scene;
-
 	void Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points) const;
 
 	void ApplyInverse(std::span<const V2_float> points, std::span<V2_float> out_transformed_points)

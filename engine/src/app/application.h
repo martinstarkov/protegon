@@ -32,7 +32,7 @@ void EmscriptenMainLoop(void* application);
 // subsystems use sdl.
 class SDLInstance {
 private:
-	friend class Application;
+	friend class ptgn::Application;
 
 	SDLInstance();
 	~SDLInstance() noexcept;
@@ -59,7 +59,7 @@ public:
 	/// @param config Application initialization settings (window, etc.).
 	explicit Application(const ApplicationConfig& config = {});
 
-	~Application() noexcept						   = default;
+	~Application() noexcept;
 	Application(const Application&)				   = delete;
 	Application& operator=(const Application&)	   = delete;
 	Application(Application&&) noexcept			   = delete;

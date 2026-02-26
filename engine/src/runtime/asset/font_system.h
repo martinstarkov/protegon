@@ -15,12 +15,7 @@
 #undef CreateFont
 #endif
 
-#ifdef __EMSCRIPTEN__
-struct _TTF_Font;
-using TTF_Font = _TTF_Font;
-#else
 struct TTF_Font;
-#endif
 
 struct SDL_IOStream;
 

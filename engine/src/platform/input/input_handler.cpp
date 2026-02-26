@@ -55,15 +55,15 @@ float InputHandler::GetMouseScroll() const {
 }
 
 bool InputHandler::MousePressed(Mouse mouse_button) const {
-	return mouse_states_[std::to_underlying(mouse_button)] == MouseState::Pressed;
+	return mouse_states_[std::to_underlying(mouse_button)] == impl::MouseState::Pressed;
 }
 
 bool InputHandler::MouseReleased(Mouse mouse_button) const {
-	return mouse_states_[std::to_underlying(mouse_button)] == MouseState::Released;
+	return mouse_states_[std::to_underlying(mouse_button)] == impl::MouseState::Released;
 }
 
 bool InputHandler::MouseHeld(Mouse mouse_button) const {
-	return mouse_states_[std::to_underlying(mouse_button)] == MouseState::Held;
+	return mouse_states_[std::to_underlying(mouse_button)] == impl::MouseState::Held;
 }
 
 bool InputHandler::MouseHeld(Mouse mouse_button, milliseconds time) const {
@@ -75,15 +75,15 @@ milliseconds InputHandler::GetMouseHeldTime(Mouse button) const {
 }
 
 bool InputHandler::KeyPressed(Key key) const {
-	return key_states_[std::to_underlying(key)] == KeyState::Pressed;
+	return key_states_[std::to_underlying(key)] == impl::KeyState::Pressed;
 }
 
 bool InputHandler::KeyReleased(Key key) const {
-	return key_states_[std::to_underlying(key)] == KeyState::Released;
+	return key_states_[std::to_underlying(key)] == impl::KeyState::Released;
 }
 
 bool InputHandler::KeyHeld(Key key) const {
-	return key_states_[std::to_underlying(key)] == KeyState::Held;
+	return key_states_[std::to_underlying(key)] == impl::KeyState::Held;
 }
 
 bool InputHandler::KeyHeld(Key key, milliseconds time) const {
@@ -111,7 +111,7 @@ void InputHandler::Update(const EventSink& sink) {
 	// Set key state from pressed to held and from released to idle to ensure those states only
 	// last one frame.
 	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
-		using enum KeyState;
+		using enum impl::KeyState;
 		auto& state{ key_states_[i] };
 		if (state == Released) {
 			state			   = Idle;
@@ -124,7 +124,7 @@ void InputHandler::Update(const EventSink& sink) {
 	// Set mouse button states from pressed to held and from released to idle to ensure those states
 	// only last one frame.
 	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
-		using enum MouseState;
+		using enum impl::MouseState;
 		auto& state{ mouse_states_[i] };
 		if (state == Released) {
 			state				 = Idle;
@@ -140,7 +140,7 @@ void InputHandler::Update(const EventSink& sink) {
 	// idle. This means that if a key or mouse button is still held after polling events, it has
 	// must have been held.
 	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
-		if (mouse_states_[i] == MouseState::Held) {
+		if (mouse_states_[i] == impl::MouseState::Held) {
 			ptgn::MouseHeld held;
 			held.button	  = static_cast<Mouse>(i);
 			held.position = mouse_position_;
@@ -149,7 +149,7 @@ void InputHandler::Update(const EventSink& sink) {
 	}
 
 	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
-		if (key_states_[i] == KeyState::Held) {
+		if (key_states_[i] == impl::KeyState::Held) {
 			ptgn::KeyHeld held;
 			held.key = static_cast<Key>(i);
 			sink(held);
@@ -180,7 +180,7 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				// TODO: Convert SDL button to enum correctly.
 
 				mouse_timestamps_[index] = e.button.timestamp;
-				mouse_states_[index]	 = MouseState::Pressed;
+				mouse_states_[index]	 = impl::MouseState::Pressed;
 
 				ptgn::MousePressed pressed;
 				pressed.button	 = mouse;
@@ -198,7 +198,7 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				auto index{ std::to_underlying(mouse) };
 
 				mouse_timestamps_[index] = e.button.timestamp;
-				mouse_states_[index]	 = MouseState::Released;
+				mouse_states_[index]	 = impl::MouseState::Released;
 
 				ptgn::MouseReleased released;
 				released.button	  = mouse;
@@ -211,7 +211,7 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				auto index{ std::to_underlying(key) };
 
 				key_timestamps_[index] = e.key.timestamp;
-				key_states_[index]	   = KeyState::Pressed;
+				key_states_[index]	   = impl::KeyState::Pressed;
 
 				ptgn::KeyPressed pressed;
 				pressed.key = key;
@@ -227,7 +227,7 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				auto index{ std::to_underlying(key) };
 
 				key_timestamps_[index] = e.key.timestamp;
-				key_states_[index]	   = KeyState::Released;
+				key_states_[index]	   = impl::KeyState::Released;
 
 				ptgn::KeyReleased released;
 				released.key = key;

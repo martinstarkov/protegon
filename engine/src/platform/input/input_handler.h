@@ -25,6 +25,32 @@ using Timestamp = std::uint64_t;
 inline constexpr std::size_t kKeyCount{ 512 };
 inline constexpr std::size_t kMouseCount{ 3 };
 
+enum class KeyState : std::uint8_t {
+	Idle	 = 0, /// When the key is not pressed.
+	Pressed	 = 1, /// First frame that the key is pressed.
+	Held	 = 2, /// Every subsequent frame that the key is pressed.
+	Released = 3, /// First frame that the key is released.
+};
+
+enum class MouseState : std::uint8_t {
+	Idle	 = 0, /// When the mouse button is not pressed.
+	Pressed	 = 1, /// First frame that the mouse button is pressed.
+	Held	 = 2, /// Every subsequent frame that the mouse button is pressed.
+	Released = 3, /// First frame that the mouse button is released.
+};
+
+PTGN_SERIALIZE_ENUM(
+	MouseState, { { MouseState::Idle, "idle" },
+				  { MouseState::Pressed, "pressed" },
+				  { MouseState::Released, "released" } }
+);
+
+PTGN_SERIALIZE_ENUM(
+	KeyState, { { KeyState::Idle, "idle" },
+				{ KeyState::Pressed, "pressed" },
+				{ KeyState::Released, "released" } }
+);
+
 } // namespace impl
 
 class InputHandler {
@@ -100,20 +126,6 @@ private:
 
 	using EventSink = std::function<void(impl::EventBase&)>;
 
-	enum class KeyState : std::uint8_t {
-		Idle	 = 0, /// When the key is not pressed.
-		Pressed	 = 1, /// First frame that the key is pressed.
-		Held	 = 2, /// Every subsequent frame that the key is pressed.
-		Released = 3, /// First frame that the key is released.
-	};
-
-	enum class MouseState : std::uint8_t {
-		Idle	 = 0, /// When the mouse button is not pressed.
-		Pressed	 = 1, /// First frame that the mouse button is pressed.
-		Held	 = 2, /// Every subsequent frame that the mouse button is pressed.
-		Released = 3, /// First frame that the mouse button is released.
-	};
-
 	/// @return Mouse position relative to the top left of the screen.
 	[[nodiscard]] V2_float GetMouseScreenPosition() const;
 
@@ -124,9 +136,9 @@ private:
 
 	Window& window_;
 
-	std::array<KeyState, impl::kKeyCount> key_states_{};
+	std::array<impl::KeyState, impl::kKeyCount> key_states_{};
 	std::array<impl::Timestamp, impl::kKeyCount> key_timestamps_{};
-	std::array<MouseState, impl::kMouseCount> mouse_states_{};
+	std::array<impl::MouseState, impl::kMouseCount> mouse_states_{};
 	std::array<impl::Timestamp, impl::kMouseCount> mouse_timestamps_{};
 
 	/// @brief Stored mouse positions are relative to the center of the window.
@@ -144,17 +156,5 @@ private:
 	/// @brief Timestamp of the most recent scroll event.
 	impl::Timestamp mouse_scroll_timestamp_{ 0 };
 };
-
-PTGN_SERIALIZE_ENUM(
-	InputHandler::MouseState, { { InputHandler::MouseState::Idle, "idle" },
-								{ InputHandler::MouseState::Pressed, "pressed" },
-								{ InputHandler::MouseState::Released, "released" } }
-);
-
-PTGN_SERIALIZE_ENUM(
-	InputHandler::KeyState, { { InputHandler::KeyState::Idle, "idle" },
-							  { InputHandler::KeyState::Pressed, "pressed" },
-							  { InputHandler::KeyState::Released, "released" } }
-);
 
 } // namespace ptgn

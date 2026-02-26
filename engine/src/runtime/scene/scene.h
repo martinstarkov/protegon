@@ -157,9 +157,7 @@ struct SceneHook {
 	ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook;
 
 	template <auto Member>
-	void Connect() {
-		hook.template Connect<Scene, &Scene::template HookThunk<Member>>(&scene);
-	}
+	void Connect();
 };
 
 class Scene {
@@ -342,5 +340,11 @@ private:
 
 template <typename T>
 concept SceneType = std::derived_from<T, Scene>;
+
+template <typename TComponent>
+template <auto Member>
+void SceneHook<TComponent>::Connect() {
+	hook.template Connect<Scene, &Scene::template HookThunk<Member>>(&scene);
+}
 
 } // namespace ptgn

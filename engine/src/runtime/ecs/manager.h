@@ -57,14 +57,14 @@ public:
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
-		ManagerBase::CopyEntity<UUID>(from, to);
-		ManagerBase::CopyEntity<Ts...>(from, to);
+		ManagerBase::CopyEntity<UUID>(from.entity_, to.entity_);
+		ManagerBase::CopyEntity<Ts...>(from.entity_, to.entity_);
 	}
 
 	// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(const Entity& from) {
-		auto entity{ ManagerBase::CopyEntity<Ts...>(from) };
+		auto entity{ ManagerBase::CopyEntity<Ts...>(from.entity_) };
 		entity.template Add<UUID>();
 		return entity;
 	}

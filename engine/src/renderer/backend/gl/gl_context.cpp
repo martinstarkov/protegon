@@ -125,7 +125,7 @@ BindGuard<VertexBufferId> GLContext::Bind(VertexBufferId id, bool restore_bind) 
 		return BindGuard<VertexBufferId>{ *this, VertexBufferId{}, false };
 	}
 
-	GLCall(BindBuffer(GL_ARRAY_BUFFER, id));
+	GLCall(BindBuffer(std::to_underlying(BufferTarget::ArrayBuffer), id));
 	bound_.vertex_buffer = id;
 
 	return BindGuard<VertexBufferId>{ *this, previous, restore_bind };
@@ -138,7 +138,7 @@ BindGuard<ElementBufferId> GLContext::Bind(ElementBufferId id, bool restore_bind
 		return BindGuard<ElementBufferId>{ *this, ElementBufferId{}, false };
 	}
 
-	GLCall(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
+	GLCall(BindBuffer(std::to_underlying(BufferTarget::ElementArrayBuffer), id));
 
 	if (bound_.vertex_array) {
 		vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer = id;
@@ -154,7 +154,7 @@ BindGuard<UniformBufferId> GLContext::Bind(UniformBufferId id, bool restore_bind
 		return BindGuard<UniformBufferId>{ *this, UniformBufferId{}, false };
 	}
 
-	GLCall(BindBuffer(GL_UNIFORM_BUFFER, id));
+	GLCall(BindBuffer(std::to_underlying(BufferTarget::UniformBuffer), id));
 	bound_.uniform_buffer = id;
 
 	return BindGuard<UniformBufferId>{ *this, previous, restore_bind };

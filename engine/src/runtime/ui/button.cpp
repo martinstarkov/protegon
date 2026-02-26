@@ -274,7 +274,7 @@ void ButtonText::Set(
 		impl::SetTextParameter(text, impl::TextColor{ text_color }, false);
 		impl::SetTextParameter(text, impl::TextContent{ text_content }, false);
 		impl::SetTextParameter(text, font.value_or(Font{}), false);
-		impl::SetTextParameter(text, FontSize{ font_size.value_or({}) }, false);
+		impl::SetTextParameter(text, FontSize{ font_size.value_or(FontSize{}) }, false);
 		SetTextProperties(text, text_properties, true);
 	}
 }

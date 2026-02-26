@@ -97,7 +97,7 @@ void EmscriptenMainLoop(void* application) {
 
 	app.Update();
 
-	if (!app.IsRunning()) {
+	if (!app.running_) {
 		emscripten_cancel_main_loop();
 	}
 }
@@ -169,7 +169,7 @@ SDLInstance::SDLInstance() {
 	PTGN_INFO("Initialized SDL_mixer version: ", FormatSDLVersion(MIX_Version()));
 }
 
-SDLInstance::~SDLInstance() {
+SDLInstance::~SDLInstance() noexcept {
 	MIX_Quit();
 	PTGN_INFO("Deinitialized SDL_mixer");
 	TTF_Quit();
@@ -196,6 +196,10 @@ Application::Application(const ApplicationConfig& config) :
 	assets_.Init(ctx_);
 }
 
+Application::~Application() noexcept {
+	// Requires access to destructors.
+}
+
 milliseconds Application::TimeSinceStart() const {
 	return milliseconds{ static_cast<milliseconds::rep>(SDL_GetTicks()) };
 	// return std::chrono::duration_cast<milliseconds>(
@@ -214,7 +218,7 @@ void Application::EnterMainLoop() {
 
 #ifdef __EMSCRIPTEN__
 	// TODO: Replace with new SDL3 callbacks.
-	EmscriptenInit(window_);
+	impl::EmscriptenInit(window_);
 	emscripten_set_main_loop_arg(
 		impl::EmscriptenMainLoop, this, /*fps=*/0, /*simulateInfiniteLoop=*/true
 	);

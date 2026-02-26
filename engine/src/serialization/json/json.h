@@ -12,6 +12,8 @@ namespace ptgn {
 
 void SaveJson(const json& j, const path& filepath, bool indent = true);
 
+// Note: Do not brace initialize JSON objects.
+// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 [[nodiscard]] json LoadJson(const path& filepath);
 
 // template <typename T>

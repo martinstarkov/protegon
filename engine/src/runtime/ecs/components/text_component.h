@@ -47,11 +47,6 @@ template <TextParameter T>
 	return text.Get<T>();
 }
 
-template <typename T>
-[[nodiscard]] const T& GetTExtParameter(const T& default_value) {
-	return GetTextParameter<T>(*this, default_value);
-}
-
 /// @return True if the parameter was changed.
 template <TextParameter T>
 bool SetTextParameter(Entity text, const T& value, bool recreate_texture = true) {
