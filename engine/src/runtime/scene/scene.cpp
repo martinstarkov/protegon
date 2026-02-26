@@ -149,6 +149,84 @@ void Scene::InternalDraw() {
 		rt.Clear(color::Transparent);
 	}
 
+	struct ParentRenderTarget {
+		// Hash(render_target)
+		std::size_t render_target;
+	};
+
+	struct ParentCamera {
+		// Hash(camera)
+		std::vector<std::size_t> cameras;
+	};
+
+	// When creating entity or elsewhere:
+
+	camera.Add<ParentRenderTarget>(Hash(custom_render_target));
+	entity.TryAdd<ParentCamera>().camera.push_back(Hash(custom_camera));
+
+	// In draw loop:
+
+	// { Hash(render_target), camera }
+	std::unordered_map<std::size_t, std::vector<Entity>> rt_to_cameras;
+
+	std::size_t default_render_target{ Hash(default_render_target_) };
+
+	for (auto camera in GetCameras()) {
+		if (auto parent{ camera.TryGet<ParentRenderTarget>() }) {
+			rt_to_cameras[parent->render_target].push_back(camera);
+		} else {
+			rt_to_cameras[default_render_target].push_back(camera);
+		}
+	}
+
+	std::unordered_map<std::size_t, std::vector<Entity>> camera_to_drawables;
+
+	std::size_t default_camera{ Hash(default_camera_) };
+
+	for (auto drawable : GetDrawables()) {
+		if (auto parent{ drawable.TryGet<ParentCamera>() }) {
+			if (!parent->cameras.empty()) {
+				for (auto camera : parent->cameras) {
+					camera_to_drawables[camera].push_back(drawable);
+				}
+				continue;
+			}
+		}
+		// No parent camera attached, use default camera.
+		camera_to_drawables[default_camera].push_back(drawable);
+	}
+
+	std::vector<Entity> render_targets;
+
+	for (auto rt in GetRenderTargets()) {
+		render_targets.push_back(rt);
+	}
+
+	SortByDepth(render_targets);
+
+	for (auto render_target : render_targets) {
+		Bind(render_target);
+		auto it = rt_to_cameras.find(Hash(render_target));
+		if (it == rt_to_cameras.end()) {
+			continue;
+		}
+		auto& cameras{ it->second };
+		SortByDepth(cameras);
+		for (auto camera : cameras) {
+			SetViewport(camera.GetViewport());
+			SetViewProjection(camera.GetViewProjection());
+			auto it = camera_to_drawables.find(Hash(camera));
+			if (it == camera_to_drawables.end()) {
+				continue;
+			}
+			auto& drawables{ it->second };
+			SortByDepth(drawables);
+			for (auto drawable : drawables) {
+				Render(drawable);
+			}
+		}
+	}
+
 	// Loop through render targets and render their display lists onto their internal frame
 	// buffers.
 	for (auto [entity, visible, drawable, rt, display_list] :
