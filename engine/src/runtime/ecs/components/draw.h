@@ -114,7 +114,7 @@ namespace impl {
 void DrawQuadTexture(
 	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
 	Color tint, Depth depth, BlendMode blend_mode,
-	const std::array<V2_float, 4>& texture_coordinates, Entity camera
+	const std::array<V2_float, 4>& texture_coordinates
 );
 
 } // namespace impl

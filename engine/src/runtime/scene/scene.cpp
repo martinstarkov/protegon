@@ -1,6 +1,7 @@
 #include "runtime/scene/scene.h"
 
 #include <memory>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -9,15 +10,10 @@
 #include "core/event/dispatcher.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
-#include "core/log.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "ecs/ecs.h"
-#include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/camera.h"
 #include "renderer/camera/viewport.h"
-#include "renderer/image/surface.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
@@ -26,6 +22,7 @@
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/render_target_component.h"
+#include "runtime/ecs/components/shape.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
@@ -60,17 +57,15 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 
 	auto& renderer{ app().renderer };
 
-	render_target_ = impl::CreateRenderTarget(
-		render_manager_.CreateEntity(), renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8
-	);
-	camera		 = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
-	fixed_camera = impl::CreateCamera(render_manager_.CreateEntity(), renderer);
+	render_target_ =
+		CreateRenderTarget(*this, renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8);
+	camera		 = CreateCamera(*this, renderer);
+	fixed_camera = CreateCamera(*this, renderer);
+	SetCameraMasks(fixed_camera, kLayersNone, kLayersAll);
 	// PTGN_LOG("[scene=", this, "]");
 	// PTGN_LOG("[rt=", render_target_, "]");
 	// PTGN_LOG("[camera=", camera, "]");
 	// PTGN_LOG("[fixed_camera=", fixed_camera, "]");
-
-	render_manager_.Refresh();
 }
 
 void Scene::InternalEnter() {
@@ -79,12 +74,6 @@ void Scene::InternalEnter() {
 }
 
 void Scene::InternalEmit(EventDispatcher d) {
-	for (auto [e, scripts] : render_manager_.EntitiesWith<impl::Scripts>()) {
-		scripts.Emit(d);
-		if (d.IsHandled()) {
-			return;
-		}
-	}
 	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
 		scripts.Emit(d);
 		if (d.IsHandled()) {
@@ -98,6 +87,7 @@ void Scene::InternalEmit(EventDispatcher d) {
 
 static void InvokeDrawable(Renderer& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<impl::IDrawable>(), "Cannot render entity without drawable component");
+	PTGN_ASSERT(entity.Has<impl::Visible>(), "Cannot render entity without visible component");
 
 	const auto& drawable{ entity.Get<impl::IDrawable>() };
 
@@ -110,138 +100,103 @@ static void InvokeDrawable(Renderer& renderer, Entity entity) {
 	draw_function(renderer, entity);
 }
 
-template <typename F>
-static void DrawDisplayList(
-	Renderer& renderer, RenderTarget& rt, std::vector<Entity>& display_list, F&& filter
-) {
-	// Must be sorted here so that depth and creation order is accounted for.
-	SortByDepth(display_list, true);
-
-	rt.Bind();
-
-	for (const auto& entity : display_list) {
-		if (filter && filter(entity)) {
-			continue;
-		}
-		renderer.SetBlend(GetBlendMode(entity));
-		InvokeDrawable(renderer, entity);
-	}
-}
-
 void Scene::InternalDraw() {
-	impl::RecalculateCameraViewProjection(camera);
-	impl::RecalculateCameraViewProjection(fixed_camera);
-
 	for (auto [e, _camera] : EntitiesWith<impl::Camera>()) {
 		impl::RecalculateCameraViewProjection(e);
 	}
 
 	auto& renderer{ app().renderer };
 
-	render_target_.Get<RenderTarget>().Clear(color::Transparent);
-
 	// PTGN_LOG("Scene target size: ", render_target_.Get<RenderTarget>().GetSize());
-
-	for (auto [e, rt] : EntitiesWith<RenderTarget>()) {
-		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
-		// exist.
-		// TODO: Fix. Clear render target with its clear color instead of transparent.
-		rt.Clear(color::Transparent);
-	}
-
-	struct ParentRenderTarget {
-		// Hash(render_target)
-		std::size_t render_target;
-	};
-
-	struct ParentCamera {
-		// Hash(camera)
-		std::vector<std::size_t> cameras;
-	};
-
-	// When creating entity or elsewhere:
-
-	camera.Add<ParentRenderTarget>(Hash(custom_render_target));
-	entity.TryAdd<ParentCamera>().camera.push_back(Hash(custom_camera));
-
-	// In draw loop:
 
 	// { Hash(render_target), camera }
 	std::unordered_map<std::size_t, std::vector<Entity>> rt_to_cameras;
 
-	std::size_t default_render_target{ Hash(default_render_target_) };
+	std::size_t default_render_target{ Hash(render_target_) };
 
-	for (auto camera in GetCameras()) {
-		if (auto parent{ camera.TryGet<ParentRenderTarget>() }) {
-			rt_to_cameras[parent->render_target].push_back(camera);
+	for (auto [e, _camera] : EntitiesWith<impl::Camera>()) {
+		if (auto parent{ e.TryGet<impl::ParentRenderTarget>() }) {
+			rt_to_cameras[parent->render_target].emplace_back(e);
 		} else {
-			rt_to_cameras[default_render_target].push_back(camera);
+			rt_to_cameras[default_render_target].emplace_back(e);
 		}
 	}
 
-	std::unordered_map<std::size_t, std::vector<Entity>> camera_to_drawables;
+	std::vector<Entity> drawables;
+	drawables.reserve(25);
 
-	std::size_t default_camera{ Hash(default_camera_) };
+	// impl::KDTree tree{ 20 };
+	// std::vector<impl::KDObject> objects;
 
-	for (auto drawable : GetDrawables()) {
-		if (auto parent{ drawable.TryGet<ParentCamera>() }) {
-			if (!parent->cameras.empty()) {
-				for (auto camera : parent->cameras) {
-					camera_to_drawables[camera].push_back(drawable);
-				}
-				continue;
-			}
-		}
-		// No parent camera attached, use default camera.
-		camera_to_drawables[default_camera].push_back(drawable);
+	for (auto [e, _visible, _drawable] : EntitiesWith<impl::Visible, impl::IDrawable>()) {
+		drawables.push_back(e);
+
+		// if (auto shape = GetSpriteOrShape(e)) {
+		//	auto transform{ GetWorldTransform(e) };
+		//	objects.emplace_back(e, GetBoundingAABB(*shape, transform));
+		// }
 	}
+
+	SortByDepth(drawables);
 
 	std::vector<Entity> render_targets;
 
-	for (auto rt in GetRenderTargets()) {
-		render_targets.push_back(rt);
+	// TODO: Fix render target draw.
+	for (auto [e, _rt, _visible, _drawable] :
+		 EntitiesWith<RenderTarget, impl::Visible, impl::IDrawable>()) {
+		render_targets.push_back(e);
 	}
 
 	SortByDepth(render_targets);
 
-	for (auto render_target : render_targets) {
-		Bind(render_target);
+	for (const auto& render_target : render_targets) {
+		auto& rt{ render_target.Get<RenderTarget>() };
+		rt.Bind();
+
+		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
+		// exist.
+		// TODO: Fix. Clear render target with its clear color instead of transparent.
+		rt.Clear(color::Transparent);
+
 		auto it = rt_to_cameras.find(Hash(render_target));
 		if (it == rt_to_cameras.end()) {
 			continue;
 		}
+
 		auto& cameras{ it->second };
+
 		SortByDepth(cameras);
-		for (auto camera : cameras) {
-			SetViewport(camera.GetViewport());
-			SetViewProjection(camera.GetViewProjection());
-			auto it = camera_to_drawables.find(Hash(camera));
-			if (it == camera_to_drawables.end()) {
-				continue;
-			}
-			auto& drawables{ it->second };
-			SortByDepth(drawables);
-			for (auto drawable : drawables) {
-				Render(drawable);
+
+		for (const auto& cam : cameras) {
+			renderer.SetViewport(GetCameraViewport(cam));
+			renderer.SetViewProjection(GetCameraViewProjection(cam));
+
+			// auto vertices{ GetCameraWorldVertices(cam) };
+			//  auto frustum_objects{ tree.Query(BoundingAABB{ vertices[0], vertices[2] }) };
+
+			for (const auto& drawable : drawables) {
+				// Mask test (entity layers vs camera include/exclude)
+				if (!IsVisibleToCamera(drawable, cam)) {
+					continue;
+				}
+
+				// Extra checks (frustum cull, occlusion, etc.)
+				/*if (!VectorContains(frustum_objects, drawable)) {
+					continue;
+				}*/
+
+				InvokeDrawable(renderer, drawable);
 			}
 		}
-	}
 
-	// Loop through render targets and render their display lists onto their internal frame
-	// buffers.
-	for (auto [entity, visible, drawable, rt, display_list] :
-		 EntitiesWith<impl::Visible, impl::IDrawable, RenderTarget>()) {
-		DrawDisplayList(renderer, rt, display_list.entities, [](Entity) { return false; });
+		// TODO: Draw render target.
 	}
-
-	DrawDisplayList(renderer, render_target_.Get<RenderTarget>(), [](Entity entity) {
-		// Skip entities which are in the display list of a custom render target.
-		return entity.Has<RenderTarget>();
-	});
 
 	renderer.GetScreenTarget().Bind(*app().renderer.gl_renderer_->gl);
 
-	auto half_viewport{ renderer.GetGameSize() * 0.5f };
+	Viewport viewport{ {}, renderer.GetGameSize() };
+	renderer.SetViewport(viewport);
+	auto half_viewport{ viewport.size * 0.5f };
 	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	renderer.SetBlend(BlendMode::Blend);
 
@@ -329,46 +284,6 @@ void Scene::InternalExit() {
 //	// TODO: Fix.
 //	// Application::Get().scene_.Enter(key_);
 // }
-
-V2_float Scene::GetCameraScaleRelativeTo(Entity relative_to_camera) const {
-	if (!relative_to_camera) {
-		return { 1.0f, 1.0f };
-	}
-
-	V2_float camera_size{ GetCameraViewport(relative_to_camera).size };
-
-	V2_float primary_camera_size{ GetCameraViewport(camera).size };
-
-	PTGN_ASSERT(camera_size.BothAboveZero());
-
-	V2_float scale{ primary_camera_size / camera_size };
-
-	PTGN_ASSERT(scale.BothAboveZero());
-
-	return scale;
-}
-
-V2_float Scene::GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const {
-	auto cam{ relative_to_camera ? relative_to_camera : camera };
-
-	V2_float camera_size{ GetCameraViewport(cam).size };
-
-	// auto camera_zoom{ cam.GetZoom() };
-	// PTGN_ASSERT(camera_zoom.BothAboveZero());
-	// Not accounting for camera zoom because otherwise text scaling becomes jittery.
-	// camera_size /= camera_zoom;
-
-	// TODO: Check that this is correct.
-	V2_float draw_size{ render_target_.Get<RenderTarget>().GetSize() };
-
-	PTGN_ASSERT(camera_size.BothAboveZero());
-
-	V2_float scale{ draw_size / camera_size };
-
-	PTGN_ASSERT(scale.BothAboveZero());
-
-	return scale;
-}
 
 Entity Scene::CreateEntity() {
 	auto entity{ manager_.CreateEntity() };

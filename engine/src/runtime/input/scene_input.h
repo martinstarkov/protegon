@@ -11,7 +11,6 @@
 #include "core/time/time.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
-#include "renderer/camera/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/input/interactive.h"
 #include "runtime/scene/resolution.h"

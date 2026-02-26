@@ -41,8 +41,7 @@ namespace ptgn {
 // TODO: Move these static functions elsewhere.
 
 static void GetShapes(
-	const Entity& entity, const Entity& root_entity,
-	std::vector<std::pair<InteractiveShape, Entity>>& vector
+	Entity entity, Entity root_entity, std::vector<std::pair<InteractiveShape, Entity>>& vector
 ) {
 	bool is_parent{ entity == root_entity };
 
@@ -82,9 +81,7 @@ static void GetShapes(
 	}
 }
 
-static Transform GetWorldOffsetTransform(
-	const auto& shape, const Entity& shape_entity, const Entity& parent
-) {
+static Transform GetWorldOffsetTransform(const auto& shape, Entity shape_entity, Entity parent) {
 	auto transform{ GetWorldTransform(shape_entity) };
 
 	if (parent.Has<Rect>()) {
@@ -95,7 +92,7 @@ static Transform GetWorldOffsetTransform(
 	return transform;
 }
 
-static bool Overlap(const V2_float& point, const Entity& entity) {
+static bool Overlap(V2_float point, Entity entity) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapes;
 	GetShapes(entity, entity, shapes);
 
@@ -111,7 +108,7 @@ static bool Overlap(const V2_float& point, const Entity& entity) {
 	return false;
 }
 
-static bool Overlap(const Entity& entityA, const Entity& entityB) {
+static bool Overlap(Entity entityA, Entity entityB) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapesA;
 	GetShapes(entityA, entityA, shapesA);
 
@@ -463,7 +460,7 @@ bool SceneInput::IsOverlappingDropzone(
 		}
 		case TransformOverlaps: {
 			PTGN_ASSERT(
-				GetCamera(draggable) == GetCamera(dropzone),
+				GetMask(draggable) == GetMask(dropzone),
 				"Dropzone entity and drag entity must share the same camera"
 			);
 			// Origin not accounted for because this is about TransformOverlaps, not center.
@@ -473,7 +470,7 @@ bool SceneInput::IsOverlappingDropzone(
 		}
 		case Overlaps: {
 			PTGN_ASSERT(
-				GetCamera(draggable) == GetCamera(dropzone),
+				GetMask(draggable) == GetMask(dropzone),
 				"Dropzone entity and drag entity must share the same camera"
 			);
 			is_overlapping = Overlap(draggable, dropzone);

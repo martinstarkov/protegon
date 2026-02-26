@@ -49,10 +49,8 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 void DrawQuadTexture(
 	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
 	Color tint, Depth depth, BlendMode blend_mode,
-	const std::array<V2_float, 4>& texture_coordinates, Entity camera
+	const std::array<V2_float, 4>& texture_coordinates
 ) {
-	PTGN_ASSERT(camera);
-	renderer.SetViewProjection(GetViewProjection(camera));
 	renderer.SetBlend(blend_mode);
 	auto positions{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	renderer.DrawQuadTexture(

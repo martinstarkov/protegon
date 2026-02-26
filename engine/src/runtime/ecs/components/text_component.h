@@ -21,8 +21,8 @@ class Scene;
 namespace impl {
 
 void DrawText(
-	Renderer& renderer, Entity text, V2_int text_size, Entity camera, Color additional_tint,
-	Origin offset_origin, V2_float offset_size
+	Renderer& renderer, Entity text, V2_int text_size, Color additional_tint, Origin offset_origin,
+	V2_float offset_size
 );
 
 class TextDraw {
@@ -30,7 +30,7 @@ public:
 	static void Draw(Renderer& renderer, Entity entity);
 
 	// Using own properties.
-	static void RecreateTexture(Entity text, Entity camera);
+	static void RecreateTexture(Entity text);
 
 	// Using custom properties.
 	static void RecreateTexture(
@@ -58,29 +58,27 @@ bool SetTextParameter(Entity text, const T& value, bool recreate_texture = true)
 	if (!text.Has<T>()) {
 		text.Add<T>(value);
 		if (recreate_texture) {
-			TextDraw::RecreateTexture(text, {});
+			TextDraw::RecreateTexture(text);
 		}
 		return true;
 	}
 	T& t{ text.Get<T>() };
 	if (t == value) {
 		if (recreate_texture) {
-			TextDraw::RecreateTexture(text, {});
+			TextDraw::RecreateTexture(text);
 		}
 		return false;
 	}
 	t = value;
 	if (recreate_texture) {
-		TextDraw::RecreateTexture(text, {});
+		TextDraw::RecreateTexture(text);
 	}
 	return true;
 }
 
-void SetTextProperties(Entity text, const TextProperties& properties, Entity camera = {});
+void SetTextProperties(Entity text, const TextProperties& properties);
 
-void SetTextProperties(
-	Entity text, const TextProperties& properties, bool recreate_texture, Entity camera = {}
-);
+void SetTextProperties(Entity text, const TextProperties& properties, bool recreate_texture);
 
 } // namespace impl
 
@@ -88,7 +86,7 @@ void SetTextProperties(
 [[nodiscard]] bool IsTextHD(Entity text);
 
 /// Set text to be rendered in high definition instead of natively scaling to its camera.
-void SetTextHD(Entity text, bool hd = true, Entity camera = {});
+void SetTextHD(Entity text, bool hd = true);
 
 /// @param font Default {} corresponds to the default engine font.
 void SetTextFont(Entity text, std::optional<Font> font = {});
@@ -132,18 +130,18 @@ void SetTextJustify(Entity text, TextJustify text_justify);
 
 /// @param hd If true, returns font size scaled to high definition.
 /// @param camera The camera relative to which an hd font size is retrieved. Only applicable if
-/// hd is true. If {}, uses the text's camera component, which may be the scene camera.
-[[nodiscard]] float GetTextFontSize(Entity text, bool hd = false, Entity camera = {});
+/// hd is true.
+[[nodiscard]] float GetTextFontSize(Entity text, bool hd = false);
 
 /// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
-/// text is hd. If {}, uses the text's camera component, which may be the scene camera.
+/// text is hd
 /// @return The unscaled size of the text texture given the current content and font.
-[[nodiscard]] V2_int GetTextSize(Entity text, Entity camera = {});
+[[nodiscard]] V2_int GetTextSize(Entity text);
 
 /// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
-/// text is hd. If {}, uses the text's camera component, which may be the scene camera.
+/// text is hd
 /// @return The unscaled size of the text texture given the specified content.
-[[nodiscard]] V2_int GetTextSize(Entity text, std::string_view content, Entity camera = {});
+[[nodiscard]] V2_int GetTextSize(Entity text, std::string_view content);
 
 [[nodiscard]] V2_int GetTextSize(
 	Entity text, std::string_view content, Font font, std::optional<float> font_size = {}

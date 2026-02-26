@@ -230,7 +230,7 @@ std::string ButtonText::GetTextContent(ButtonState state) const {
 }
 
 float ButtonText::GetFontSize(ButtonState state) const {
-	return ptgn::GetTextFontSize(GetValid(state), false, {});
+	return ptgn::GetTextFontSize(GetValid(state), false);
 }
 
 TextJustify ButtonText::GetTextJustify(ButtonState state) const {
@@ -275,7 +275,7 @@ void ButtonText::Set(
 		impl::SetTextParameter(text, impl::TextContent{ text_content }, false);
 		impl::SetTextParameter(text, font.value_or(Font{}), false);
 		impl::SetTextParameter(text, FontSize{ font_size.value_or({}) }, false);
-		SetTextProperties(text, text_properties, true, {});
+		SetTextProperties(text, text_properties, true);
 	}
 }
 
@@ -364,7 +364,6 @@ void impl::ButtonDraw::Draw(Renderer& renderer, Entity button) {
 	auto transform{ GetDrawTransform(button) };
 	auto depth{ GetDepth(button) };
 	auto blend_mode{ GetBlendMode(button) };
-	auto camera{ GetCamera(button) };
 
 	auto tint_n{ tint.Normalized() };
 	const auto state{ GetButtonState(button) };
@@ -392,7 +391,7 @@ void impl::ButtonDraw::Draw(Renderer& renderer, Entity button) {
 			impl::DrawQuadTexture(
 				renderer, *button_texture, transform, button_size, button_origin,
 				Tint{ texture_tint.Normalized() * tint_n }, depth, blend_mode,
-				GetTextureCoordinates(button, false), camera
+				GetTextureCoordinates(button, false)
 			);
 		}
 	} else {
@@ -440,9 +439,7 @@ void impl::ButtonDraw::Draw(Renderer& renderer, Entity button) {
 					  fixed_size->y.value_or(button_size.y) };
 	}
 
-	auto text_camera{ GetNonPrimaryCamera(text).value_or(camera) };
-
-	impl::DrawText(renderer, text, text_size, text_camera, tint, button_origin, button_size);
+	impl::DrawText(renderer, text, text_size, tint, button_origin, button_size);
 }
 
 void OnButtonActivate(Entity button, const std::function<void()>& callback) {

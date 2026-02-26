@@ -136,6 +136,10 @@ impl::RenderTargetData Renderer::GetScreenTarget() const {
 	return gl_renderer_->GetScreenTarget();
 }
 
+void Renderer::SetViewport(Viewport viewport) {
+	gl_renderer_->SetViewport(viewport);
+}
+
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	gl_renderer_->SetViewProjection(view_projection);
 }

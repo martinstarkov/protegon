@@ -24,7 +24,7 @@ void SpriteDraw::Draw(Renderer& renderer, Entity entity) {
 	impl::DrawQuadTexture(
 		renderer, entity.Get<Texture>(), GetDrawTransform(entity), GetTextureSize(entity),
 		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity), GetBlendMode(entity),
-		GetTextureCoordinates(entity, false), GetCamera(entity)
+		GetTextureCoordinates(entity, false)
 	);
 }
 

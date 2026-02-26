@@ -102,6 +102,7 @@ public:
 
 	impl::RenderTargetData GetScreenTarget() const;
 
+	void SetViewport(Viewport viewport);
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetBlend(BlendMode mode, bool enabled = true);
 	void SetDepth(const DepthState& depth);

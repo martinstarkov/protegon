@@ -272,7 +272,7 @@ void ResetCamera(Entity camera) {
 }
 
 LayerMask GetMask(Entity entity) {
-	return entity.GetOrDefault<impl::RenderMask>(entity).layers;
+	return entity.GetOrDefault<impl::RenderMask>().layers;
 }
 
 void SetMask(Entity entity, LayerMask mask) {

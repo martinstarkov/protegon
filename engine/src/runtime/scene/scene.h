@@ -274,15 +274,6 @@ public:
 	friend void to_json(json& j, const Scene& scene);
 	friend void from_json(const json& j, Scene& scene);
 
-	///@return Size of scene render target divided by the viewport size of the provided camera.
-	// TODO: Move this elsewhere.
-	[[nodiscard]] V2_float GetRenderTargetScaleRelativeTo(Entity relative_to_camera) const;
-
-	/// @return Viewport size of scene primary camera divided by the viewport size of the provided
-	/// camera.
-	// TODO: Move this elsewhere.
-	[[nodiscard]] V2_float GetCameraScaleRelativeTo(Entity relative_to_camera) const;
-
 	void Refresh();
 
 	ApplicationContext& app();
@@ -291,8 +282,8 @@ public:
 
 	SceneEventHandler events;
 
-	// TODO: Fix these systems.
 	SceneInput input;
+	// TODO: Fix physics system.
 	// Physics physics;
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
@@ -324,7 +315,6 @@ private:
 	void InternalEmit(EventDispatcher d);
 
 	void Init(const std::shared_ptr<ApplicationContext>& ctx);
-	// void SetKey(const SceneKey& key);
 
 	// Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
@@ -347,10 +337,7 @@ private:
 	State state_{ State::Constructed };
 
 	Manager manager_;
-	Manager render_manager_;
 	Entity render_target_;
-	// How many world units correspond to a pixel in scene render target frame of reference.
-	V2_float world_units_per_render_target_pixel_{ 1.0f };
 };
 
 template <typename T>

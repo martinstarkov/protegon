@@ -13,14 +13,12 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "core/util/entity_handle.h"
 #include "renderer/primitives/font.h"
 #include "renderer/primitives/text.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
-#include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
@@ -28,11 +26,18 @@
 
 namespace ptgn {
 
+static V2_float GetScale(const Scene& scene) {
+	// TODO: Switch to using scene camera scale?
+	auto scale{ scene.app().renderer.GetScale() };
+	PTGN_ASSERT(scale.BothAboveZero());
+	return scale;
+}
+
 namespace impl {
 
 void DrawText(
-	Renderer& renderer, Entity text, V2_int text_size, Entity camera, Color additional_tint,
-	Origin offset_origin, V2_float offset_size
+	Renderer& renderer, Entity text, V2_int text_size, Color additional_tint, Origin offset_origin,
+	V2_float offset_size
 ) {
 	if (!text.Has<TextContent>()) {
 		return;
@@ -48,14 +53,9 @@ void DrawText(
 
 	Tint tint{ GetTint(text) };
 	Transform transform{ GetDrawTransform(text) };
-	Entity cam{ GetCamera(text) };
 
 	if (tint.a == 0 || additional_tint.a == 0) {
 		return;
-	}
-
-	if (camera) {
-		cam = camera;
 	}
 
 	// Offset text so it is centered on the offset origin and size.
@@ -63,14 +63,12 @@ void DrawText(
 	transform.Translate(offset);
 
 	if (bool is_hd{ IsTextHD(text) }) {
-		auto scene_scale{ text.GetScene().GetRenderTargetScaleRelativeTo(cam) };
-
-		PTGN_ASSERT(scene_scale.BothAboveZero());
+		auto scene_scale{ GetScale(text.GetScene()) };
 
 		transform.Scale(transform.GetScale() / scene_scale);
 
-		if (GetTextFontSize(text, is_hd, cam) != text.Get<impl::HDFontSize>()) {
-			TextDraw::RecreateTexture(text, cam);
+		if (GetTextFontSize(text, is_hd) != text.Get<impl::HDFontSize>()) {
+			TextDraw::RecreateTexture(text);
 		}
 	}
 
@@ -99,19 +97,19 @@ void DrawText(
 
 	impl::DrawQuadTexture(
 		renderer, text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
-		GetBlendMode(text), texture_coordinates, cam
+		GetBlendMode(text), texture_coordinates
 	);
 }
 
 void TextDraw::Draw(Renderer& renderer, Entity text) {
 	// This wrapper exists so that buttons can draw offset text.
-	impl::DrawText(renderer, text, V2_float{}, {}, color::White, Origin::Center, V2_float{});
+	impl::DrawText(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
-void TextDraw::RecreateTexture(Entity text, Entity camera) {
+void TextDraw::RecreateTexture(Entity text) {
 	auto content{ GetTextContent(text) };
 	auto color{ GetTextColor(text) };
-	auto font_size{ GetTextFontSize(text, IsTextHD(text), camera) };
+	auto font_size{ GetTextFontSize(text, IsTextHD(text)) };
 	auto font{ GetTextFont(text) };
 	auto properties{ GetTextProperties(text) };
 
@@ -133,13 +131,11 @@ void TextDraw::RecreateTexture(
 	text.Add<Texture>(texture);
 }
 
-void SetTextProperties(Entity text, const TextProperties& properties, Entity camera) {
-	SetTextProperties(text, properties, true, camera);
+void SetTextProperties(Entity text, const TextProperties& properties) {
+	SetTextProperties(text, properties, true);
 }
 
-void SetTextProperties(
-	Entity text, const TextProperties& properties, bool recreate_texture, Entity camera
-) {
+void SetTextProperties(Entity text, const TextProperties& properties, bool recreate_texture) {
 	bool changed  = false;
 	changed		 |= SetTextParameter(text, properties.justify, false);
 	changed		 |= SetTextParameter(text, properties.line_skip, false);
@@ -150,7 +146,7 @@ void SetTextProperties(
 	changed |= SetTextParameter(text, impl::TextWrapAfter{ properties.wrap_after }, false);
 
 	if (changed && recreate_texture) {
-		TextDraw::RecreateTexture(text, camera);
+		TextDraw::RecreateTexture(text);
 	}
 }
 
@@ -160,7 +156,7 @@ bool IsTextHD(Entity text) {
 	return text.Has<impl::HDText>();
 }
 
-void SetTextHD(Entity text, bool hd, Entity camera) {
+void SetTextHD(Entity text, bool hd) {
 	if (hd == IsTextHD(text)) {
 		return;
 	}
@@ -169,7 +165,7 @@ void SetTextHD(Entity text, bool hd, Entity camera) {
 	} else {
 		text.Remove<impl::HDText>();
 	}
-	impl::TextDraw::RecreateTexture(text, camera);
+	impl::TextDraw::RecreateTexture(text);
 }
 
 void SetTextFont(Entity text, std::optional<Font> font) {
@@ -246,32 +242,29 @@ TextJustify GetTextJustify(Entity text) {
 	return impl::GetTextParameter(text, TextJustify{});
 }
 
-static float FontSizeToHD(float font_size, const Scene& scene, Entity camera) {
-	auto render_target_scale{ scene.GetRenderTargetScaleRelativeTo(camera) };
+static float FontSizeToHD(float font_size, const Scene& scene) {
+	auto render_target_scale{ GetScale(scene) };
 	font_size = font_size * render_target_scale.y;
 	return font_size;
 }
 
-float GetTextFontSize(Entity text, bool hd, Entity camera) {
+float GetTextFontSize(Entity text, bool hd) {
 	const auto& font_size{ impl::GetTextParameter(text, impl::FontSize{}) };
 	if (hd) {
 		const auto& scene{ text.GetScene() };
-		auto cam{ camera ? camera : GetCamera(text) };
-		return FontSizeToHD(font_size, scene, cam);
+		return FontSizeToHD(font_size, scene);
 	}
 	return font_size;
 }
 
-V2_int GetTextSize(Entity text, std::string_view content, Entity camera) {
-	return GetTextSize(
-		text, content, GetTextFont(text), GetTextFontSize(text, IsTextHD(text), camera)
-	);
+V2_int GetTextSize(Entity text, std::string_view content) {
+	return GetTextSize(text, content, GetTextFont(text), GetTextFontSize(text, IsTextHD(text)));
 }
 
-V2_int GetTextSize(Entity text, Entity camera) {
+V2_int GetTextSize(Entity text) {
 	return GetTextSize(
 		text, impl::GetTextParameter(text, impl::TextContent{}),
-		impl::GetTextParameter(text, Font{}), GetTextFontSize(text, IsTextHD(text), camera)
+		impl::GetTextParameter(text, Font{}), GetTextFontSize(text, IsTextHD(text))
 	);
 }
 
@@ -306,7 +299,7 @@ Entity CreateText(
 	impl::SetTextParameter(text, impl::TextColor{ text_color }, false);
 	impl::SetTextParameter(text, font.value_or(Font{}), false);
 	impl::SetTextParameter(text, impl::FontSize{ font_size.value_or(kDefaultFontSize) }, false);
-	impl::SetTextProperties(text, properties, true, {});
+	impl::SetTextProperties(text, properties, true);
 	return text;
 }
 
