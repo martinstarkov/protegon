@@ -29,12 +29,17 @@ endif()
 set(_examples_dir "${PTGN_ROOT_DIR}/examples")
 
 # ---- Discover examples by main.cpp convention ----
-file(GLOB_RECURSE _example_mains
+# file(GLOB_RECURSE _example_mains
+#   CONFIGURE_DEPENDS
+#   "${_examples_dir}/*/*/main.cpp"
+# )
+# ---- Discover examples by single .cpp files ----
+file(GLOB_RECURSE _example_sources
   CONFIGURE_DEPENDS
-  "${_examples_dir}/*/*/main.cpp"
+  "${_examples_dir}/*.cpp"
 )
 
-if(NOT _example_mains)
+if(NOT _example_sources)
   message(STATUS "No examples found under ${_examples_dir}")
   return()
 endif()
@@ -49,9 +54,14 @@ if(EMSCRIPTEN AND NOT _select_all)
     if(_req MATCHES "\\.\\.")
       message(FATAL_ERROR "PTGN_WEB_EXAMPLES entry must not contain '..': '${_req}'")
     endif()
-    if(NOT EXISTS "${_examples_dir}/${_req}/main.cpp")
+    # if(NOT EXISTS "${_examples_dir}/${_req}/main.cpp")
+    #   message(FATAL_ERROR
+    #     "Requested web example '${_req}' not found. Expected examples/${_req}/main.cpp")
+    # endif()
+    if(NOT EXISTS "${_examples_dir}/${_req}.cpp")
       message(FATAL_ERROR
-        "Requested web example '${_req}' not found. Expected examples/${_req}/main.cpp")
+        "Requested web example '${_req}' not found. "
+        "Expected examples/${_req}.cpp")
     endif()
   endforeach()
 endif()
@@ -60,20 +70,34 @@ endif()
 set(_used_target_names "")
 set(_built_examples "")
 
-foreach(_main IN LISTS _example_mains)
-  get_filename_component(_example_dir "${_main}" DIRECTORY) # examples/<cat>/<ex>
-  file(RELATIVE_PATH _rel "${_examples_dir}" "${_example_dir}") # <cat>/<ex>
-
+# foreach(_main IN LISTS _example_mains)
+#   get_filename_component(_example_dir "${_main}" DIRECTORY) # examples/<cat>/<ex>
+#   file(RELATIVE_PATH _rel "${_examples_dir}" "${_example_dir}") # <cat>/<ex>
+foreach(_src IN LISTS _example_sources)
+  get_filename_component(_example_dir "${_src}" DIRECTORY)
+  file(RELATIVE_PATH _rel "${_examples_dir}" "${_src}")  # e.g. audio/basic.cpp
   # selection (only applies to emscripten)
   if(EMSCRIPTEN AND NOT _select_all)
-    list(FIND _select_list "${_rel}" _idx)
+    get_filename_component(_rel_no_ext "${_rel}" NAME_WE)
+    get_filename_component(_rel_dir "${_rel}" DIRECTORY)
+
+    if(_rel_dir STREQUAL "")
+      set(_rel_key "${_rel_no_ext}")
+    else()
+      set(_rel_key "${_rel_dir}/${_rel_no_ext}")
+    endif()
+
+    list(FIND _select_list "${_rel_key}" _idx)
     if(_idx EQUAL -1)
       continue()
     endif()
   endif()
 
   # ---- Target name: use leaf folder name ----
-  get_filename_component(_leaf "${_rel}" NAME)
+  # get_filename_component(_leaf "${_rel}" NAME)
+  # set(_t "${_leaf}")
+  # ---- Target name: use leaf .cpp file name ----
+  get_filename_component(_leaf "${_src}" NAME_WE)  # basic (no .cpp)
   set(_t "${_leaf}")
 
   # If the leaf name is duplicated across categories, disambiguate
@@ -88,14 +112,15 @@ foreach(_main IN LISTS _example_mains)
   endif()
   list(APPEND _used_target_names "${_t}")
 
-  add_executable(${_t} "${_main}")
+  # add_executable(${_t} "${_main}")
+  add_executable(${_t} "${_src}")
 
   # optional: auto-add other .cpp files in that example folder
-  file(GLOB _more CONFIGURE_DEPENDS "${_example_dir}/*.cpp")
-  list(REMOVE_ITEM _more "${_main}")
-  if(_more)
-    target_sources(${_t} PRIVATE ${_more})
-  endif()
+  # file(GLOB _more CONFIGURE_DEPENDS "${_example_dir}/*.cpp")
+  # list(REMOVE_ITEM _more "${_main}")
+  # if(_more)
+  #   target_sources(${_t} PRIVATE ${_more})
+  # endif()
   
   set(_assets_src "${_examples_dir}/assets")
 
@@ -125,7 +150,16 @@ foreach(_main IN LISTS _example_mains)
   endif()
   set_target_properties(${_t} PROPERTIES FOLDER "${_folder}")
 
-  list(APPEND _built_examples "${_rel}")
+  get_filename_component(_rel_no_ext "${_rel}" NAME_WE)
+  get_filename_component(_rel_dir "${_rel}" DIRECTORY)
+
+  if(_rel_dir STREQUAL "")
+    set(_rel_key "${_rel_no_ext}")
+  else()
+    set(_rel_key "${_rel_dir}/${_rel_no_ext}")
+  endif()
+
+  list(APPEND _built_examples "${_rel_key}")
 endforeach()
 
 if(_built_examples)
@@ -147,7 +181,8 @@ if(EMSCRIPTEN AND _built_examples)
 
   set(PTGN_EXAMPLE_ITEMS "")
   foreach(_rel IN LISTS _built_examples)
-    get_filename_component(_leaf "${_rel}" NAME)
+    #get_filename_component(_leaf "${_rel}" NAME)
+    get_filename_component(_leaf "${_rel}" NAME_WE)
     set(_t "${_leaf}") # NOTE: if collisions exist, mirror disambiguation for web filenames too
     set(_file "${_t}.html")
     string(APPEND PTGN_EXAMPLE_ITEMS
@@ -172,7 +207,8 @@ if(EMSCRIPTEN AND _built_examples)
   )
 
   foreach(_rel IN LISTS _built_examples)
-    get_filename_component(_leaf "${_rel}" NAME)
+    #get_filename_component(_leaf "${_rel}" NAME)
+    get_filename_component(_leaf "${_rel}" NAME_WE)
     set(_t "${_leaf}")
 
     add_custom_command(TARGET ${_t} POST_BUILD
