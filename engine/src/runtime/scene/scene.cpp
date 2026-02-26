@@ -10,6 +10,9 @@
 #include "core/event/dispatcher.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/camera.h"
@@ -59,6 +62,7 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 
 	render_target_ =
 		CreateRenderTarget(*this, renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8);
+	render_target_.Remove<impl::IDrawable>();
 	camera		 = CreateCamera(*this, renderer);
 	fixed_camera = CreateCamera(*this, renderer);
 	SetCameraMasks(fixed_camera, kLayersNone, kLayersAll);
@@ -66,6 +70,7 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	// PTGN_LOG("[rt=", render_target_, "]");
 	// PTGN_LOG("[camera=", camera, "]");
 	// PTGN_LOG("[fixed_camera=", fixed_camera, "]");
+	Refresh();
 }
 
 void Scene::InternalEnter() {
@@ -107,18 +112,16 @@ void Scene::InternalDraw() {
 
 	auto& renderer{ app().renderer };
 
-	// PTGN_LOG("Scene target size: ", render_target_.Get<RenderTarget>().GetSize());
-
 	// { Hash(render_target), camera }
 	std::unordered_map<std::size_t, std::vector<Entity>> rt_to_cameras;
 
-	std::size_t default_render_target{ Hash(render_target_) };
+	std::size_t scene_render_target{ Hash(render_target_) };
 
 	for (auto [e, _camera] : EntitiesWith<impl::Camera>()) {
 		if (auto parent{ e.TryGet<impl::ParentRenderTarget>() }) {
 			rt_to_cameras[parent->render_target].emplace_back(e);
 		} else {
-			rt_to_cameras[default_render_target].emplace_back(e);
+			rt_to_cameras[scene_render_target].emplace_back(e);
 		}
 	}
 
@@ -141,16 +144,19 @@ void Scene::InternalDraw() {
 
 	std::vector<Entity> render_targets;
 
-	// TODO: Fix render target draw.
 	for (auto [e, _rt, _visible, _drawable] :
 		 EntitiesWith<RenderTarget, impl::Visible, impl::IDrawable>()) {
+		PTGN_ASSERT(Hash(e) != scene_render_target);
 		render_targets.push_back(e);
 	}
 
 	SortByDepth(render_targets);
 
-	for (const auto& render_target : render_targets) {
+	auto game_size{ renderer.GetGameSize() };
+
+	auto draw_to_render_target = [&](Entity render_target) {
 		auto& rt{ render_target.Get<RenderTarget>() };
+
 		rt.Bind();
 
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
@@ -160,15 +166,22 @@ void Scene::InternalDraw() {
 
 		auto it = rt_to_cameras.find(Hash(render_target));
 		if (it == rt_to_cameras.end()) {
-			continue;
+			return;
 		}
+
+		auto rt_size{ rt.GetSize() };
+
+		auto scale{ V2_float{ rt_size } / game_size };
 
 		auto& cameras{ it->second };
 
 		SortByDepth(cameras);
 
 		for (const auto& cam : cameras) {
-			renderer.SetViewport(GetCameraViewport(cam));
+			auto viewport{ GetCameraViewport(cam) };
+			viewport.position = viewport.position * scale;
+			viewport.size	  = viewport.size * scale;
+			renderer.SetViewport(viewport);
 			renderer.SetViewProjection(GetCameraViewProjection(cam));
 
 			// auto vertices{ GetCameraWorldVertices(cam) };
@@ -180,7 +193,7 @@ void Scene::InternalDraw() {
 					continue;
 				}
 
-				// Extra checks (frustum cull, occlusion, etc.)
+				// Frustum culling
 				/*if (!VectorContains(frustum_objects, drawable)) {
 					continue;
 				}*/
@@ -188,54 +201,17 @@ void Scene::InternalDraw() {
 				InvokeDrawable(renderer, drawable);
 			}
 		}
+	};
 
-		// TODO: Draw render target.
+	for (const auto& render_target : render_targets) {
+		draw_to_render_target(render_target);
 	}
 
-	renderer.GetScreenTarget().Bind(*app().renderer.gl_renderer_->gl);
+	draw_to_render_target(render_target_);
 
-	Viewport viewport{ {}, renderer.GetGameSize() };
-	renderer.SetViewport(viewport);
-	auto half_viewport{ viewport.size * 0.5f };
-	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
-	renderer.SetBlend(BlendMode::Blend);
-
-	renderer.DrawQuadTexture(
-		render_target_.Get<RenderTarget>(),
-		impl::GetCenteredQuadPoints(render_target_.Get<RenderTarget>().GetSize()),
-		GetTint(render_target_), true
-	);
-
-	// for (auto [e, handle] : EntitiesWith<Handle<Asset::Texture>>()) {
-	//	PTGN_LOG(
-	//		"Entity ", e.GetHash(), ", texture size: ", renderer.GetTextureSize(handle.Get())
-	//	);
-	// }
-
-	// TODO: Draw render target display lists to their render targets.
-	// TODO: Draw display list to render target.
-	// TODO: Bind render target blend mode.
-	// TODO: Draw render target to screen target.
-
-	// TODO: Get rid of this.
-	// auto game_size{ ctx_->renderer.GetGameSize() };
-	// auto game_size{ ctx_->renderer.gl_renderer_->screen_target_.GetSize() };
-
-	/*auto half{ game_size / 2.0f };
-	ctx_->renderer.SetViewProjection(Matrix4::Orthographic(-half, half));*/
-
-	// impl::Surface texture1_surface{ "assets/logo.png" };
-
-	/*texture1 = ctx_->renderer.gl_renderer_->gl_->CreateTexture(
-		texture1_surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, texture1_surface.size, GL_RGBA
-	);*/
-
-	// ctx_->renderer.DrawRect({ 0, 0 }, game_size / 2.0f, color::Red);
-	/*ctx_->renderer.DrawTexture(
-		texture1, {}, ctx_->renderer.gl_renderer_->gl_->GetTextureSize(texture1)
-	);*/
 	// TODO: Fix.
-	/*if (collider_visibility_) {
+	/*
+	if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {
 			Application::Get().debug_.DrawShape(
 				GetDrawTransform(entity), collider.shape, collider_color_, collider_line_width_,
@@ -243,7 +219,25 @@ void Scene::InternalDraw() {
 			);
 		}
 	}
-	Application::Get().render_.render_data_.Draw(*this);*/
+	*/
+
+	auto screen_target_size{ renderer.GetScreenTarget().size_ };
+	Viewport viewport{ {}, screen_target_size };
+	auto half_viewport{ viewport.size * 0.5f };
+
+	renderer.GetScreenTarget().Bind(*app().renderer.gl_renderer_->gl);
+
+	renderer.SetViewport(viewport);
+	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	renderer.SetBlend(BlendMode::Blend);
+
+	auto transform{ GetDrawTransform(render_target_) };
+	auto scene_target_size{ render_target_.Get<RenderTarget>().GetSize() };
+	auto positions{ Rect{ scene_target_size }.GetWorldVertices(transform, Origin::Center) };
+
+	renderer.DrawQuadTexture(
+		render_target_.Get<RenderTarget>(), positions, GetTint(render_target_), 0.0f, true, {}
+	);
 }
 
 void Scene::InternalUpdate() {

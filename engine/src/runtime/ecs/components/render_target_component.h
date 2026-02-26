@@ -5,6 +5,7 @@
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/texture.h"
+#include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 
@@ -34,10 +35,9 @@ struct ParentRenderTarget {
 	std::size_t render_target{ 0 };
 };
 
-// TODO: Fix.
-// struct RenderTargetSomething {
-//	static void Draw(Renderer& renderer, Entity entity);
-//};
+struct RenderTargetDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
 
 // TODO: Add clear color to render target as an optional component. Otherwise they should be cleared
 // to transparent.
@@ -67,7 +67,6 @@ Entity CreateRenderTarget(
 	TextureFormat texture_format = TextureFormat::RGBA8
 );
 
-// TODO: Fix.
-// PTGN_REGISTER_DRAWABLE(impl::RenderTarget);
+PTGN_REGISTER_DRAWABLE(impl::RenderTargetDraw);
 
 } // namespace ptgn
