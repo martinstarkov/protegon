@@ -19,7 +19,6 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
-#include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/sprite.h"
 #include "runtime/ecs/components/transform_component.h"
@@ -158,7 +157,6 @@ V2_int GetTextureSize(Entity entity) {
 	if (entity.Has<impl::TextureSize>()) {
 		size = V2_int{ entity.Get<impl::TextureSize>() };
 	} else if (entity.Has<Texture>()) {
-		const auto& renderer{ entity.GetScene().app().renderer };
 		size = entity.Get<Texture>().GetSize();
 	}
 
