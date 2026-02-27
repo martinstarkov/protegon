@@ -1,5 +1,4 @@
-# examples/CMakeLists.txt
-# No project() call here.
+# examples/CMakeLists.txt No project() call here.
 
 # Enable IDE folders (harmless on generators that don't use it)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -29,15 +28,10 @@ endif()
 set(_examples_dir "${PTGN_ROOT_DIR}/examples")
 
 # ---- Discover examples by main.cpp convention ----
-# file(GLOB_RECURSE _example_mains
-#   CONFIGURE_DEPENDS
-#   "${_examples_dir}/*/*/main.cpp"
-# )
+# file(GLOB_RECURSE _example_mains CONFIGURE_DEPENDS
+# "${_examples_dir}/*/*/main.cpp" )
 # ---- Discover examples by single .cpp files ----
-file(GLOB_RECURSE _example_sources
-  CONFIGURE_DEPENDS
-  "${_examples_dir}/*.cpp"
-)
+file(GLOB_RECURSE _example_sources CONFIGURE_DEPENDS "${_examples_dir}/*.cpp")
 
 if(NOT _example_sources)
   message(STATUS "No examples found under ${_examples_dir}")
@@ -52,16 +46,15 @@ if(EMSCRIPTEN AND NOT _select_all)
       continue()
     endif()
     if(_req MATCHES "\\.\\.")
-      message(FATAL_ERROR "PTGN_WEB_EXAMPLES entry must not contain '..': '${_req}'")
+      message(
+        FATAL_ERROR "PTGN_WEB_EXAMPLES entry must not contain '..': '${_req}'")
     endif()
-    # if(NOT EXISTS "${_examples_dir}/${_req}/main.cpp")
-    #   message(FATAL_ERROR
-    #     "Requested web example '${_req}' not found. Expected examples/${_req}/main.cpp")
-    # endif()
+    # if(NOT EXISTS "${_examples_dir}/${_req}/main.cpp") message(FATAL_ERROR
+    # "Requested web example '${_req}' not found. Expected
+    # examples/${_req}/main.cpp") endif()
     if(NOT EXISTS "${_examples_dir}/${_req}.cpp")
-      message(FATAL_ERROR
-        "Requested web example '${_req}' not found. "
-        "Expected examples/${_req}.cpp")
+      message(FATAL_ERROR "Requested web example '${_req}' not found. "
+                          "Expected examples/${_req}.cpp")
     endif()
   endforeach()
 endif()
@@ -70,23 +63,24 @@ endif()
 set(_used_target_names "")
 set(_built_examples "")
 
-# foreach(_main IN LISTS _example_mains)
-#   get_filename_component(_example_dir "${_main}" DIRECTORY) # examples/<cat>/<ex>
-#   file(RELATIVE_PATH _rel "${_examples_dir}" "${_example_dir}") # <cat>/<ex>
+# foreach(_main IN LISTS _example_mains) get_filename_component(_example_dir
+# "${_main}" DIRECTORY) # examples/<cat>/<ex> file(RELATIVE_PATH _rel
+# "${_examples_dir}" "${_example_dir}") # <cat>/<ex>
 foreach(_src IN LISTS _example_sources)
   get_filename_component(_example_dir "${_src}" DIRECTORY)
-  file(RELATIVE_PATH _rel "${_examples_dir}" "${_src}")  # e.g. audio/basic.cpp
+  file(RELATIVE_PATH _rel "${_examples_dir}" "${_src}") # e.g. audio/basic.cpp
+
+  get_filename_component(_rel_no_ext "${_rel}" NAME_WE)
+  get_filename_component(_rel_dir "${_rel}" DIRECTORY)
+
+  if(_rel_dir STREQUAL "")
+    set(_rel_key "${_rel_no_ext}")
+  else()
+    set(_rel_key "${_rel_dir}/${_rel_no_ext}")
+  endif()
+
   # selection (only applies to emscripten)
   if(EMSCRIPTEN AND NOT _select_all)
-    get_filename_component(_rel_no_ext "${_rel}" NAME_WE)
-    get_filename_component(_rel_dir "${_rel}" DIRECTORY)
-
-    if(_rel_dir STREQUAL "")
-      set(_rel_key "${_rel_no_ext}")
-    else()
-      set(_rel_key "${_rel_dir}/${_rel_no_ext}")
-    endif()
-
     list(FIND _select_list "${_rel_key}" _idx)
     if(_idx EQUAL -1)
       continue()
@@ -94,20 +88,21 @@ foreach(_src IN LISTS _example_sources)
   endif()
 
   # ---- Target name: use leaf folder name ----
-  # get_filename_component(_leaf "${_rel}" NAME)
-  # set(_t "${_leaf}")
+  # get_filename_component(_leaf "${_rel}" NAME) set(_t "${_leaf}")
   # ---- Target name: use leaf .cpp file name ----
-  get_filename_component(_leaf "${_src}" NAME_WE)  # basic (no .cpp)
+  get_filename_component(_leaf "${_src}" NAME_WE) # basic (no .cpp)
   set(_t "${_leaf}")
 
   # If the leaf name is duplicated across categories, disambiguate
   list(FIND _used_target_names "${_t}" _taken)
   if(NOT _taken EQUAL -1)
-    string(REPLACE "/" "_" _suffix "${_rel}")
+    string(REPLACE "/" "_" _suffix "${_rel_key}")
     set(_t "${_suffix}")
     list(FIND _used_target_names "${_t}" _taken2)
     if(NOT _taken2 EQUAL -1)
-      message(FATAL_ERROR "Target name collision even after disambiguation for '${_rel}'.")
+      message(
+        FATAL_ERROR
+          "Target name collision even after disambiguation for '${_rel_key}'.")
     endif()
   endif()
   list(APPEND _used_target_names "${_t}")
@@ -115,13 +110,10 @@ foreach(_src IN LISTS _example_sources)
   # add_executable(${_t} "${_main}")
   add_executable(${_t} "${_src}")
 
-  # optional: auto-add other .cpp files in that example folder
-  # file(GLOB _more CONFIGURE_DEPENDS "${_example_dir}/*.cpp")
-  # list(REMOVE_ITEM _more "${_main}")
-  # if(_more)
-  #   target_sources(${_t} PRIVATE ${_more})
-  # endif()
-  
+  # optional: auto-add other .cpp files in that example folder file(GLOB _more
+  # CONFIGURE_DEPENDS "${_example_dir}/*.cpp") list(REMOVE_ITEM _more
+  # "${_main}") if(_more) target_sources(${_t} PRIVATE ${_more}) endif()
+
   set(_assets_src "${_examples_dir}/assets")
 
   add_protegon_to(${_t} ASSETS_DIR "${_assets_src}")
@@ -136,9 +128,11 @@ foreach(_src IN LISTS _example_sources)
   if(EXISTS "${_assets_src}")
     create_symlink(${_t} "${_assets_src}" "$<TARGET_FILE_DIR:${_t}>")
   endif()
-  
+
   if(MSVC)
-    set_target_properties(${_t} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+    set_target_properties(
+      ${_t} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY
+                       "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
   endif()
 
   # IDE folder grouping
@@ -166,7 +160,8 @@ if(_built_examples)
   message(STATUS "Built examples: ${_built_examples}")
 else()
   if(EMSCRIPTEN AND _select_all)
-    message(WARNING "Selection was ALL but no examples were built (unexpected).")
+    message(
+      WARNING "Selection was ALL but no examples were built (unexpected).")
   elseif(EMSCRIPTEN)
     message(STATUS "No web examples matched selection: ${PTGN_WEB_EXAMPLES}")
   else()
@@ -176,46 +171,40 @@ endif()
 
 # ---- Emscripten: generate dist/index and copy outputs for built examples ----
 if(EMSCRIPTEN AND _built_examples)
-  set(PTGN_DIST_DIR "${CMAKE_BINARY_DIR}/dist" CACHE PATH "Web output folder")
+  set(PTGN_DIST_DIR
+      "${CMAKE_BINARY_DIR}/dist"
+      CACHE PATH "Web output folder")
   file(MAKE_DIRECTORY "${PTGN_DIST_DIR}")
 
   set(PTGN_EXAMPLE_ITEMS "")
   foreach(_rel IN LISTS _built_examples)
-    #get_filename_component(_leaf "${_rel}" NAME)
+    # get_filename_component(_leaf "${_rel}" NAME)
     get_filename_component(_leaf "${_rel}" NAME_WE)
-    set(_t "${_leaf}") # NOTE: if collisions exist, mirror disambiguation for web filenames too
+    set(_t "${_leaf}") # NOTE: if collisions exist, mirror disambiguation for
+                       # web filenames too
     set(_file "${_t}.html")
     string(APPEND PTGN_EXAMPLE_ITEMS
-      "      { label: \"${_rel}\", file: \"${_file}\" },\n"
-    )
+           "      { label: \"${_rel}\", file: \"${_file}\" },\n")
   endforeach()
 
-  configure_file(
-    "${_examples_dir}/web/index.html.in"
-    "${PTGN_DIST_DIR}/index.html"
-    @ONLY
-  )
-  configure_file(
-    "${_examples_dir}/web/app.js.in"
-    "${PTGN_DIST_DIR}/app.js"
-    @ONLY
-  )
-  configure_file(
-    "${_examples_dir}/web/style.css"
-    "${PTGN_DIST_DIR}/style.css"
-    COPYONLY
-  )
+  configure_file("${_examples_dir}/web/index.html.in"
+                 "${PTGN_DIST_DIR}/index.html" @ONLY)
+  configure_file("${_examples_dir}/web/app.js.in" "${PTGN_DIST_DIR}/app.js"
+                 @ONLY)
+  configure_file("${_examples_dir}/web/style.css" "${PTGN_DIST_DIR}/style.css"
+                 COPYONLY)
 
   foreach(_rel IN LISTS _built_examples)
-    #get_filename_component(_leaf "${_rel}" NAME)
+    # get_filename_component(_leaf "${_rel}" NAME)
     get_filename_component(_leaf "${_rel}" NAME_WE)
     set(_t "${_leaf}")
 
-    add_custom_command(TARGET ${_t} POST_BUILD
-      COMMAND ${CMAKE_COMMAND}
-        -DINPUT_HTML=$<TARGET_FILE:${_t}>
-        -DDEST_DIR=${PTGN_DIST_DIR}
-        -P ${PTGN_ROOT_DIR}/cmake/CopyEmscriptenOutput.cmake
-    )
+    add_custom_command(
+      TARGET ${_t}
+      POST_BUILD
+      COMMAND
+        ${CMAKE_COMMAND} -DINPUT_HTML=$<TARGET_FILE:${_t}>
+        -DDEST_DIR=${PTGN_DIST_DIR} -P
+        ${PTGN_ROOT_DIR}/cmake/CopyEmscriptenOutput.cmake)
   endforeach()
 endif()
