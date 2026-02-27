@@ -15,11 +15,6 @@ class Renderer;
 
 namespace impl {
 
-// TODO: Move to sprite class.
-struct SpriteDraw {
-	static void Draw(Renderer& renderer, Entity entity);
-};
-
 /// Component for a custom texture size to be used instead of the actual texture size. This can be
 /// used for example to render a texture at a larger size.
 struct TextureSize : public Vector2Component<float> {
@@ -41,17 +36,25 @@ struct TextureCrop {
 
 } // namespace impl
 
-void SetTexture(Entity sprite, Texture texture);
+class Sprite : public Entity {
+public:
+	Sprite() = default;
+	explicit Sprite(Entity entity);
 
-Entity CreateSprite(
+	static void Draw(Renderer& renderer, Entity entity);
+
+	Sprite& SetTexture(Texture texture);
+};
+
+Sprite CreateSprite(
 	Scene& scene, Texture texture, V2_float position = {}, Origin draw_origin = Origin::Center
 );
 
-Entity CreateSprite(
+Sprite CreateSprite(
 	Scene& scene, const path& asset_path, V2_float position = {},
 	Origin draw_origin = Origin::Center
 );
 
-PTGN_REGISTER_DRAWABLE(impl::SpriteDraw);
+PTGN_REGISTER_DRAWABLE(Sprite);
 
 } // namespace ptgn
