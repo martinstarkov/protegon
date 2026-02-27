@@ -85,10 +85,13 @@ public:
 
 	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
+	void DrawShape(
+		ShaderId shader, const std::array<V2_float, 4>& positions,
+		const std::array<float, 4>& user_data, Color tint, float depth
+	);
 	void DrawTexture(
-		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint = color::White, float depth = 0.0f, bool flip_y = false,
-		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
+		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
+		float depth, bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
 	);
 	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target);
 
@@ -124,6 +127,10 @@ private:
 	friend void UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
 
 	using QuadSetup = std::function<void(ShaderId, QuadDesc&)>;
+
+	/// @return True if the given texture is currently attached to the framebuffer that is currently
+	/// bound.
+	bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
 
 	void DrawQuad(ShaderId shader, const QuadParams& p, const QuadSetup& q);
 

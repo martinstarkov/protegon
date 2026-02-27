@@ -78,6 +78,11 @@ public:
 	/// @return The game size scaling mode.
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
+	void DrawShape(
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
+		const std::array<float, 4>& user_data, Color tint = color::White, float depth = 0.0f
+	);
+
 	void DrawTexture(
 		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
 		Color tint = color::White, float depth = 0.0f, bool flip_y = false,

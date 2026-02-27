@@ -4,18 +4,27 @@
 #include <array>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "app/context.h"
+#include "camera_component.h"
 #include "core/assert.h"
 #include "core/component.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
+#include "core/math/geometry/arc.h"
+#include "core/math/geometry/capsule.h"
+#include "core/math/geometry/ellipse.h"
+#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/geometry/rounded_rect.h"
+#include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
@@ -56,6 +65,136 @@ void DrawQuadTexture(
 		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
 	);
 }
+
+inline constexpr float kMinLineWidth{ 1.0f };
+
+static float GetFade(float diameter_y) {
+	PTGN_ASSERT(diameter_y > 0.0f, "Diameter cannot be negative or zero");
+	constexpr float fade_scaling_constant{ 0.12f };
+	return fade_scaling_constant / diameter_y;
+}
+
+static float GetFade(V2_float diameter) {
+	return GetFade(diameter.y);
+}
+
+static float NormalizeArcLineWidthToThickness(float line_width, float fade, V2_float radii) {
+	if (line_width == -1.0f) {
+		// Internally line width for a filled SDF is 1.0f.
+		line_width = 1.0f;
+	} else {
+		PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for circle");
+
+		// Internally line width for a completely hollow ellipse is 0.0f.
+		line_width = fade + line_width / std::min(radii.x, radii.y);
+	}
+	return line_width;
+}
+
+static float GetAspectRatio(V2_float size) {
+	PTGN_ASSERT(size.x > 0.0f);
+	return size.y / size.x;
+}
+
+static float GetNormalizedRadius(float diameter, float size_x) {
+	PTGN_ASSERT(size_x > 0.0f);
+	float normalized_radius{ diameter / size_x };
+	return std::clamp(normalized_radius, 0.0f, 1.0f);
+}
+
+template <ShapeType T>
+static std::array<float, 4> GetData(const T& shape, auto radius, float line_width, V2_float size) {
+	std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+	auto diameter{ 2.0f * radius };
+
+	float fade{ GetFade(diameter) };
+
+	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
+
+	data[0] = thickness;
+	data[1] = fade;
+
+	if constexpr (std::is_same_v<T, Arc>) {
+		float aperture{ shape.GetAperture() };
+		float direction{ shape.clockwise ? 1.0f : -1.0f };
+
+		data[2] = aperture;
+		data[3] = direction;
+	} else if constexpr (IsAnyOf<T, Capsule, RoundedRect>) {
+		float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+		float aspect_ratio{ GetAspectRatio(size) };
+
+		data[2] = normalized_radius;
+		data[3] = aspect_ratio;
+	}
+
+	return data;
+}
+
+void DrawShape(
+	Renderer& renderer, const Shape& shape, Transform transform, Color tint, float line_width,
+	Origin draw_origin, Depth depth, BlendMode blend_mode
+) {
+	renderer.SetBlend(blend_mode);
+	auto vertices{ GetWorldVertices(shape, transform) };
+	GetData(shape, line_width, draw_origin);
+	renderer.DrawQuadTexture(
+		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
+	);
+}
+
+void CapsuleDraw::Draw(Renderer& renderer, Entity entity) {
+	PTGN_ASSERT(entity.Has<Capsule>(), "Entity is not a capsule");
+
+	const auto& shape{ entity.Get<T>() };
+
+	renderer.DrawShape(
+		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
+		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
+	);
+}
+
+void CircleDraw::Draw(Renderer& renderer, Entity entity) {}
+
+void EllipseDraw::Draw(Renderer& renderer, Entity entity) {}
+
+void ArcDraw::Draw(Renderer& renderer, Entity entity) {}
+
+void PolygonDraw::Draw(Renderer& renderer, Entity entity) {}
+
+void RectDraw::Draw(Renderer& renderer, Entity entity) {
+	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
+
+	Origin origin{ GetDrawOrigin(entity) };
+
+	const auto& shape{ entity.Get<T>() };
+
+	renderer.DrawShape(
+		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
+		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
+	);
+}
+
+void RoundedRectDraw::Draw(Renderer& renderer, Entity entity) {
+	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
+
+	Origin origin{ GetDrawOrigin(entity) };
+
+	const auto& shape{ entity.Get<T>() };
+
+	renderer.DrawShape(
+		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
+		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
+		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
+	);
+}
+
+void TriangleDraw::Draw(Renderer& renderer, Entity entity) {}
+
+void LineDraw::Draw(Renderer& renderer, Entity entity) {}
 
 } // namespace impl
 
@@ -241,3 +380,224 @@ Depth Depth::RelativeTo(Depth parent) const {
 }
 
 } // namespace ptgn
+
+/*
+
+
+template <ShapeType T>
+static std::optional<QuadInfo> GetQuadInfo(Renderer& ctx, DrawShapeCommand& cmd, const T& shape) {
+	QuadInfo info;
+
+	const auto set_shader = [](DrawShapeCommand& c, std::string_view shader_name) {
+		if (c.render_state.shader_pass.has_value() && *c.render_state.shader_pass != ShaderPass{}) {
+			return;
+		}
+		c.render_state.shader_pass = Application::Get().shader.Get(shader_name);
+	};
+
+	if constexpr (std::is_same_v<T, V2_float>) {
+		Transform translated = cmd.transform;
+		translated.Translate(shape);
+
+		Rect r{ V2_float{ 1.0f } };
+
+		info.points = r.GetWorldVertices(translated, Origin::Center);
+	} else if constexpr (std::is_same_v<T, Line>) {
+		if (cmd.line_width < kMinLineWidth) {
+			return std::nullopt;
+		}
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+	} else if constexpr (std::is_same_v<T, Capsule>) {
+		auto radius{ shape.GetRadius(cmd.transform) };
+
+		if (radius <= 0.0f) {
+			return std::nullopt;
+		}
+
+		V2_float size;
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform, &size);
+		info.data	= GetData(shape, radius, cmd.line_width, size);
+
+		set_shader(cmd, "capsule");
+	} else if constexpr (std::is_same_v<T, Arc>) {
+		auto radius{ shape.GetRadius(cmd.transform) };
+
+		if (radius <= 0.0f) {
+			return std::nullopt;
+		}
+
+		Transform rotated{ cmd.transform };
+		rotated.Rotate(shape.GetStartAngle());
+
+		info.points = shape.GetWorldQuadVertices(rotated);
+		info.data	= GetData(shape, radius, cmd.line_width, {});
+
+		set_shader(cmd, "arc");
+	} else if constexpr (std::is_same_v<T, RoundedRect>) {
+		auto size = shape.GetSize(cmd.transform);
+
+		if (!size.BothAboveZero()) {
+			return std::nullopt;
+		}
+
+		float radius = shape.GetRadius(cmd.transform);
+
+		if (radius <= 0.0f) {
+			cmd.render_state.shader_pass = std::nullopt;
+			cmd.shape					 = Rect{ shape.GetSize() };
+			ctx.DrawCommand(cmd);
+			return std::nullopt;
+		}
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform, cmd.origin);
+		info.data	= GetData(shape, radius, cmd.line_width, size);
+
+		set_shader(cmd, "rounded_rect");
+	} else if constexpr (std::is_same_v<T, Ellipse>) {
+		auto radius = shape.GetRadius(cmd.transform);
+
+		if (!radius.BothAboveZero()) {
+			return std::nullopt;
+		}
+
+		info.points = shape.GetWorldQuadVertices(cmd.transform);
+		info.data	= GetData(shape, radius, cmd.line_width, {});
+
+		set_shader(cmd, "circle");
+	} else {
+		return std::nullopt;
+	}
+
+	return info;
+}
+
+
+template <ShapeType T>
+static void DrawShape(Renderer& ctx, DrawShapeCommand cmd, const T& shape) {
+	if constexpr (IsAnyOf<T, V2_float, Line, Capsule, Arc, RoundedRect, Ellipse>) {
+		auto info{ GetQuadInfo(ctx, cmd, shape) };
+
+		if (!info.has_value()) {
+			return;
+		}
+
+		const auto& [points, data] = *info;
+
+		auto quad_vertices{
+			Vertex::GetQuad(points, cmd.tint, cmd.depth, data, GetDefaultTextureCoordinates())
+		};
+
+		ctx.SetState(cmd.render_state);
+		ctx.AddVertices(quad_vertices, quad_indices);
+	} else if constexpr (std::is_same_v<T, Circle>) {
+		cmd.shape = Ellipse{ V2_float{ shape.GetRadius() } };
+		ctx.DrawCommand(cmd);
+	} else if constexpr (std::is_same_v<T, Rect>) {
+		if (auto size{ shape.GetSize(cmd.transform) }; !size.BothAboveZero()) {
+			return;
+		}
+
+		auto points = shape.GetWorldVertices(cmd.transform, cmd.origin);
+		auto vertices =
+			Vertex::GetQuad(points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates());
+
+		ctx.SetState(cmd.render_state);
+
+		if (cmd.line_width == -1.0f) {
+			ctx.AddVertices(vertices, quad_indices);
+		} else {
+			ctx.AddLinesImpl(vertices, quad_indices, points, cmd.line_width, {});
+		}
+
+	} else if constexpr (std::is_same_v<T, Triangle>) {
+		auto points	  = shape.GetWorldVertices(cmd.transform);
+		auto vertices = Vertex::GetTriangle(points, cmd.tint, cmd.depth);
+
+		ctx.SetState(cmd.render_state);
+
+		if (cmd.line_width == -1.0f) {
+			ctx.AddVertices(vertices, triangle_indices);
+		} else {
+			ctx.AddLinesImpl(vertices, triangle_indices, points, cmd.line_width, {});
+		}
+	} else if constexpr (std::is_same_v<T, Polygon>) {
+		ctx.SetState(cmd.render_state);
+
+		if (shape.vertices.size() < 3) {
+			if (shape.vertices.empty()) {
+				return;
+			} else if (shape.vertices.size() == 1) {
+				cmd.shape = V2_float{ shape.vertices.front() };
+				ctx.DrawCommand(cmd);
+				return;
+			} else if (shape.vertices.size() == 2) {
+				cmd.shape = Line{ shape.vertices[0], shape.vertices[1] };
+				ctx.DrawCommand(cmd);
+				return;
+			}
+		}
+
+		auto points = shape.GetWorldVertices(cmd.transform);
+
+		if (cmd.line_width == -1.0f) {
+			auto triangles{ Triangulate(points) };
+			for (const auto& triangle : triangles) {
+				auto vertices = Vertex::GetTriangle(triangle, cmd.tint, cmd.depth);
+				ctx.AddVertices(vertices, triangle_indices);
+			}
+		} else {
+			auto vertices =
+				Vertex::GetQuad({}, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates());
+			ctx.AddLinesImpl(vertices, quad_indices, points, cmd.line_width, {});
+		}
+	}
+}
+void Renderer::DrawLines(const DrawLinesCommand& cmd) {
+	std::size_t count = cmd.points.size();
+
+	PTGN_ASSERT(cmd.line_width >= kMinLineWidth);
+
+	PTGN_ASSERT(
+		(cmd.connect_last_to_first && count >= 3) || (!cmd.connect_last_to_first && count >= 2)
+	);
+
+	std::size_t vertex_modulo = count;
+	if (!cmd.connect_last_to_first) {
+		vertex_modulo -= 1;
+	}
+
+	SetState(cmd.render_state);
+
+	for (std::size_t i = 0; i < count; ++i) {
+		Line l{ cmd.points[i], cmd.points[(i + 1) % vertex_modulo] };
+		auto quad_points   = l.GetWorldQuadVertices(cmd.transform, cmd.line_width);
+		auto quad_vertices = Vertex::GetQuad(
+			quad_points, cmd.tint, cmd.depth, { 0.0f }, GetDefaultTextureCoordinates()
+		);
+		AddVertices(quad_vertices, quad_indices);
+	}
+}
+
+void Renderer::AddLinesImpl(
+	std::span<Vertex> line_vertices, std::span<const Index> line_indices,
+	std::span<const V2_float> points, float line_width, const Transform& transform
+) {
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for lines");
+
+	for (std::size_t i = 0; i < points.size(); ++i) {
+		Line l{ points[i], points[(i + 1) % points.size()] };
+		auto line_points{ l.GetWorldQuadVertices(transform, line_width) };
+
+		PTGN_ASSERT(line_vertices.size() <= line_points.size());
+
+		for (std::size_t j = 0; j < line_vertices.size(); ++j) {
+			line_vertices[j].position[0] = line_points[j].x;
+			line_vertices[j].position[1] = line_points[j].y;
+		}
+
+		AddVertices(line_vertices, line_indices);
+	}
+}
+*/

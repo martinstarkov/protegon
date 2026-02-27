@@ -47,6 +47,42 @@ struct EntityDepthCompare {
 
 void SetDraw(Entity entity, std::string_view drawable_name);
 
+struct CapsuleDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct CircleDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct EllipseDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct ArcDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct PolygonDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct RectDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct RoundedRectDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct TriangleDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
+struct LineDraw {
+	static void Draw(Renderer& renderer, Entity entity);
+};
+
 } // namespace impl
 
 struct Depth : public ArithmeticComponent<std::int32_t> {
