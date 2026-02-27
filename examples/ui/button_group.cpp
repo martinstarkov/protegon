@@ -18,16 +18,15 @@ class ToggleButtonGroupScene : public Scene {
 	ToggleButtonGroup group;
 
 	ToggleButton CreateToggleButtonGroupItem(const V2_float& position, int number) {
-		ToggleButton b =
-			CreateToggleButton(*this, false)
-				.SetSize({ 200, 130 })
-				.SetBackgroundColor(color::LightRed)
-				.SetBackgroundColor(color::Red, ButtonState::Hover)
-				.SetBackgroundColor(color::DarkRed, ButtonState::Pressed)
-				.SetBackgroundColorToggled(color::LightBlue)
-				.SetBackgroundColorToggled(color::Blue, ButtonState::Hover)
-				.SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed)
-				.OnToggle([number](bool toggled) { PTGN_LOG("Toggled ", number, ": ", toggled); });
+		ToggleButton b = CreateToggleButton(*this, false)
+							 .SetSize({ 200, 130 })
+							 .SetBackgroundColor(color::LightRed)
+							 .SetBackgroundColor(color::Red, ButtonState::Hover)
+							 .SetBackgroundColor(color::DarkRed, ButtonState::Pressed)
+							 .SetBackgroundColorToggled(color::LightBlue)
+							 .SetBackgroundColorToggled(color::Blue, ButtonState::Hover)
+							 .SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed);
+		//.OnToggle([number](bool toggled) { PTGN_LOG("Toggled ", number, ": ", toggled); });
 		SetPosition(b, position);
 		SetDrawOrigin(b, Origin::TopLeft);
 		return b;
