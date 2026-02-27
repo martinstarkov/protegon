@@ -7,6 +7,7 @@
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
+#include "core/util/hash.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
@@ -99,6 +100,34 @@ struct StringComponent {
 
 protected:
 	std::string value_;
+};
+
+struct HashComponent {
+	HashComponent() = default;
+
+	HashComponent(std::string_view key) : value_{ Hash(key) } {}
+
+	HashComponent(const char* key) : value_{ Hash(key) } {}
+
+	HashComponent(const std::string& key) : value_{ Hash(key) } {}
+
+	HashComponent(std::size_t value) : value_{ value } {}
+
+	operator std::size_t() const {
+		return value_;
+	}
+
+	std::size_t GetHash() const {
+		return value_;
+	}
+
+	std::size_t& GetHash() {
+		return value_;
+	}
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(HashComponent, value_)
+protected:
+	std::size_t value_{ 0 };
 };
 
 } // namespace ptgn
