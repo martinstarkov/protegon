@@ -18,6 +18,7 @@
 #include "renderer/primitives/text.h"
 #include "renderer/resources/texture.h"
 #include "runtime/ecs/components/drawable.h"
+#include "runtime/ecs/components/text_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/scripting/script.h"
@@ -249,8 +250,8 @@ struct ButtonText {
 	[[nodiscard]] std::string GetTextContent(ButtonState state) const;
 	[[nodiscard]] float GetFontSize(ButtonState state) const;
 	[[nodiscard]] TextJustify GetTextJustify(ButtonState state) const;
-	[[nodiscard]] Entity Get(ButtonState state) const;
-	[[nodiscard]] Entity GetValid(ButtonState state) const;
+	[[nodiscard]] Text Get(ButtonState state) const;
+	[[nodiscard]] Text GetValid(ButtonState state) const;
 
 	void Set(
 		Entity parent, Scene& scene, ButtonState state, std::string_view text_content,
@@ -274,11 +275,6 @@ struct ButtonEnabled {
 	PTGN_SERIALIZER_REGISTER(ButtonEnabled, activate, hover)
 };
 
-class ButtonDraw {
-public:
-	static void Draw(Renderer& renderer, Entity entity);
-};
-
 } // namespace impl
 
 /// @brief If either axis of the text size is {}, it is stretched to fit the entire size of the
@@ -288,117 +284,85 @@ struct ButtonTextFixedSize {
 	std::optional<float> y;
 };
 
-/// @brief Set button callback scripts.
-void OnButtonActivate(Entity button, const std::function<void()>& callback);
-void OnButtonHover(Entity button, const std::function<void()>& callback);
-void OnButtonHoverStart(Entity button, const std::function<void()>& callback);
-void OnButtonHoverStop(Entity button, const std::function<void()>& callback);
+class Button : public Entity {
+public:
+	Button() = default;
+	Button(Entity entity);
 
-/// @param Sets the button to have a rectangle interactive shape.
-void SetButtonSize(Entity button, V2_float size = {});
+	static void Draw(Renderer& renderer, Entity entity);
 
-/// @return If no size is specified, returns {}.
-/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.
-[[nodiscard]] V2_float GetButtonSize(Entity button);
+	/// @return If no size is specified, returns {}.
+	/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.
+	[[nodiscard]] V2_float GetSize() const;
+	/// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
+	/// @return True if the button activation is enabled, false otherwise.
+	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
+	[[nodiscard]] ButtonState GetState() const;
+	[[nodiscard]] Color GetBackgroundColor(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Texture GetTexture(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Texture GetDisabledTexture() const;
+	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] TextJustify GetTextJustify(ButtonState state = ButtonState::Current) const;
+	/// @return A pair of (x, y) fixed text size, or {} if the text size is not fixed. If either
+	/// axis is
+	/// {}, it is stretched to fit the entire size of the button rectangle (along that axis).
+	[[nodiscard]] ButtonTextFixedSize GetTextFixedSize() const;
+	[[nodiscard]] float GetFontSize(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Entity GetText(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] float GetBackgroundLineWidth() const;
+	[[nodiscard]] float GetBorderWidth() const;
 
-/// @param Sets the button to have a circle interactive shape.
-void SetButtonRadius(Entity button, float radius = {});
+	/// @brief Set button callback scripts.
+	Button& OnActivate(const std::function<void()>& callback);
+	Button& OnHover(const std::function<void()>& callback);
+	Button& OnHoverStart(const std::function<void()>& callback);
+	Button& OnHoverStop(const std::function<void()>& callback);
 
-void EnableButton(Entity button, bool enable_hover = true, bool reset_state = true);
-void DisableButton(Entity button, bool disable_hover = true, bool reset_state = true);
-void SetButtonEnabled(
-	Entity button, bool enable_activation = true, bool enable_hover = true, bool reset_state = true
-);
+	Button& Enable(bool enable_hover = true, bool reset_state = true);
+	Button& Disable(bool disable_hover = true, bool reset_state = true);
+	Button& SetEnabled(
+		bool enable_activation = true, bool enable_hover = true, bool reset_state = true
+	);
 
-/// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
-/// @return True if the button activation is enabled, false otherwise.
-[[nodiscard]] bool IsButtonEnabled(Entity button, bool check_for_hover_enabled = false);
-
-/// Manual button script triggers.
-/// Called when the mouse is clicked over the button.
-void ButtonActivate(Entity button);
-/// Called once when hovering starts (mouse enters button).
-void ButtonStartHover(Entity button);
-/// Called continuously when hovering (including when hover starts).
-void ButtonContinueHover(Entity button);
-/// Called once when hovering stops (mouse exits button).
-void ButtonStopHover(Entity button);
-
-[[nodiscard]] ButtonState GetButtonState(Entity button);
-
-[[nodiscard]] Color GetButtonBackgroundColor(
-	Entity button, ButtonState state = ButtonState::Current
-);
-
-void SetButtonBackgroundColor(Entity button, Color color, ButtonState state = ButtonState::Default);
-
-[[nodiscard]] Texture GetButtonTexture(Entity button, ButtonState state = ButtonState::Current);
-
-void SetButtonTexture(Entity button, Texture texture, ButtonState state = ButtonState::Default);
-
-void SetButtonDisabledTexture(Entity button, Texture texture);
-
-[[nodiscard]] Texture GetButtonDisabledTexture(Entity button);
-
-[[nodiscard]] Color GetButtonTint(Entity button, ButtonState state = ButtonState::Current);
-
-void SetButtonTint(Entity button, Color tint, ButtonState state = ButtonState::Default);
-
-[[nodiscard]] Color GetButtonTextColor(Entity button, ButtonState state = ButtonState::Current);
-
-void SetButtonTextColor(Entity button, Color text_color, ButtonState state = ButtonState::Default);
-
-[[nodiscard]] std::string GetButtonTextContent(
-	Entity button, ButtonState state = ButtonState::Current
-);
-
-void SetButtonTextContent(
-	Entity button, std::string_view content, ButtonState state = ButtonState::Default
-);
-
-[[nodiscard]] TextJustify GetButtonTextJustify(
-	Entity button, ButtonState state = ButtonState::Current
-);
-
-void SetButtonTextJustify(
-	Entity button, TextJustify justify, ButtonState state = ButtonState::Default
-);
-
-/// @return A pair of (x, y) fixed text size, or {} if the text size is not fixed. If either axis is
-/// {}, it is stretched to fit the entire size of the button rectangle (along that axis).
-[[nodiscard]] ButtonTextFixedSize GetButtonTextFixedSize(Entity button);
-
-/// If either axis of the text size is {}, it is stretched to fit the entire size of the button
-/// rectangle (along that axis).
-void SetButtonTextFixedSize(Entity button, ButtonTextFixedSize size = {});
-
-[[nodiscard]] float GetButtonFontSize(Entity button, ButtonState state = ButtonState::Current);
-
-void SetButtonFontSize(Entity button, float font_size, ButtonState state = ButtonState::Default);
-
-void SetButtonText(
-	Entity button, std::string_view content, Color text_color = color::Black,
-	std::optional<float> font_size = {}, std::optional<Font> font = {},
-	const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
-);
-
-[[nodiscard]] Entity GetButtonText(Entity button, ButtonState state = ButtonState::Current);
-
-[[nodiscard]] Color GetButtonBorderColor(Entity button, ButtonState state = ButtonState::Current);
-
-void SetButtonBorderColor(Entity button, Color color, ButtonState state = ButtonState::Default);
-
-[[nodiscard]] float GetButtonBackgroundLineWidth(Entity button);
-
-/// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
-/// width.
-void SetButtonBackgroundLineWidth(Entity button, float line_width);
-
-[[nodiscard]] float GetButtonBorderWidth(Entity button);
-
-void SetButtonBorderWidth(Entity button, float line_width);
-
-[[nodiscard]] impl::InternalButtonState GetButtonInternalState(Entity button);
+	/// Manual button script triggers.
+	/// Called when the mouse is clicked over the button.
+	Button& Activate();
+	/// Called once when hovering starts (mouse enters button).
+	Button& StartHover();
+	/// Called continuously when hovering (including when hover starts).
+	Button& ContinueHover();
+	/// Called once when hovering stops (mouse exits button).
+	Button& StopHover();
+	/// @param Sets the button to have a rectangle interactive shape.
+	Button& SetSize(V2_float size = {});
+	/// @param Sets the button to have a circle interactive shape.
+	Button& SetRadius(float radius = {});
+	Button& SetBackgroundColor(Color color, ButtonState state = ButtonState::Default);
+	Button& SetTexture(Texture texture, ButtonState state = ButtonState::Default);
+	Button& SetDisabledTexture(Texture texture);
+	Button& SetTint(Color tint, ButtonState state = ButtonState::Default);
+	Button& SetTextColor(Color text_color, ButtonState state = ButtonState::Default);
+	Button& SetTextContent(std::string_view content, ButtonState state = ButtonState::Default);
+	Button& SetTextJustify(TextJustify justify, ButtonState state = ButtonState::Default);
+	/// If either axis of the text size is {}, it is stretched to fit the entire size of the button
+	/// rectangle (along that axis).
+	Button& SetTextFixedSize(ButtonTextFixedSize size = {});
+	Button& SetFontSize(float font_size, ButtonState state = ButtonState::Default);
+	Button& SetText(
+		std::string_view content, Color text_color = color::Black,
+		std::optional<float> font_size = {}, std::optional<Font> font = {},
+		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
+	);
+	Button& SetBorderColor(Color color, ButtonState state = ButtonState::Default);
+	/// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
+	/// width.
+	Button& SetBackgroundLineWidth(float line_width);
+	Button& SetBorderWidth(float line_width);
+	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
+};
 
 // TODO: Fix.
 // class ToggleButton : public Button {
@@ -425,9 +389,9 @@ void SetButtonBorderWidth(Entity button, float line_width);
 //		const Texture& texture, ButtonState state = ButtonState::Default
 //	);
 //
-//	[[nodiscard]] Color GetButtonTintToggled(ButtonState state = ButtonState::Current) const;
+//	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Current) const;
 //
-//	Entity SetButtonTintToggled(
+//	Entity SetTintToggled(
 //		const Color& color, ButtonState state = ButtonState::Default
 //	);
 //
@@ -541,9 +505,9 @@ inline std::ostream& operator<<(std::ostream& os, impl::InternalButtonState stat
 	return os;
 }
 
-Entity CreateButton(Scene& scene);
+Button CreateButton(Scene& scene);
 
-Entity CreateTextButton(
+Button CreateTextButton(
 	Scene& scene, std::string_view text_content, Color text_color = color::Black
 );
 
@@ -581,6 +545,6 @@ PTGN_SERIALIZE_ENUM(
 
 } // namespace impl
 
-PTGN_REGISTER_DRAWABLE(impl::ButtonDraw);
+PTGN_REGISTER_DRAWABLE(Button);
 
 } // namespace ptgn

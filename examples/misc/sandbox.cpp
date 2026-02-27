@@ -175,11 +175,10 @@ public:
 		auto arial = app().assets.LoadFont("arial", "assets/Arial.ttf", 72.0f);
 
 		auto text = CreateText(*this, "Hello World", color::Orange, 72.0f, arial, {});
-		SetTextHD(text, true);
+		text.SetHD(true);
 
 		auto button = CreateTextButton(*this, "Click me", color::Black);
-		SetButtonSize(button, { 200, 200 });
-		OnButtonActivate(button, [this]() { PTGN_LOG("Button clicked!"); });
+		button.SetSize({ 200, 200 }).OnActivate([this]() { PTGN_LOG("Button clicked!"); });
 
 		// PTGN_LOG("Loaded all assets!");
 

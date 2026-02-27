@@ -33,25 +33,33 @@ static V2_float GetScale(const Scene& scene) {
 	return scale;
 }
 
-namespace impl {
+static float FontSizeToHD(float font_size, const Scene& scene) {
+	auto render_target_scale{ GetScale(scene) };
+	font_size = font_size * render_target_scale.y;
+	return font_size;
+}
 
-void DrawText(
-	Renderer& renderer, Entity text, V2_int text_size, Color additional_tint, Origin offset_origin,
-	V2_float offset_size
+Text::Text(Entity entity) : Entity{ entity } {}
+
+void Text::Draw(
+	Renderer& renderer, Entity entity, V2_int text_size, Color additional_tint,
+	Origin offset_origin, V2_float offset_size
 ) {
-	if (!text.Has<TextContent>()) {
+	Text text{ entity };
+
+	if (!text.Has<impl::TextContent>()) {
 		return;
 	}
 
-	if (text.Get<TextContent>().GetValue().empty()) {
+	if (text.Get<impl::TextContent>().GetValue().empty()) {
 		return;
 	}
 
-	if (text.Has<TextColor>() && text.Get<TextColor>().a == 0) {
+	if (text.Has<impl::TextColor>() && text.Get<impl::TextColor>().a == 0) {
 		return;
 	}
 
-	Tint tint{ GetTint(text) };
+	impl::Tint tint{ GetTint(text) };
 	Transform transform{ GetDrawTransform(text) };
 
 	if (tint.a == 0 || additional_tint.a == 0) {
@@ -62,13 +70,13 @@ void DrawText(
 	auto offset{ -GetOriginOffset(offset_origin, offset_size * Abs(transform.GetScale())) };
 	transform.Translate(offset);
 
-	if (bool is_hd{ IsTextHD(text) }) {
+	if (bool is_hd{ text.IsHD() }) {
 		auto scene_scale{ GetScale(text.GetScene()) };
 
 		transform.Scale(transform.GetScale() / scene_scale);
 
-		if (GetTextFontSize(text, is_hd) != text.Get<impl::HDFontSize>()) {
-			TextDraw::RecreateTexture(text);
+		if (text.GetFontSize(is_hd) != text.Get<impl::HDFontSize>()) {
+			Text::RecreateTexture(text);
 		}
 	}
 
@@ -101,22 +109,23 @@ void DrawText(
 	);
 }
 
-void TextDraw::Draw(Renderer& renderer, Entity text) {
+void Text::Draw(Renderer& renderer, Entity text) {
 	// This wrapper exists so that buttons can draw offset text.
-	impl::DrawText(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
+	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
-void TextDraw::RecreateTexture(Entity text) {
-	auto content{ GetTextContent(text) };
-	auto color{ GetTextColor(text) };
-	auto font_size{ GetTextFontSize(text, IsTextHD(text)) };
-	auto font{ GetTextFont(text) };
-	auto properties{ GetTextProperties(text) };
+void Text::RecreateTexture(Entity entity) {
+	Text text{ entity };
+	auto content{ text.GetContent() };
+	auto color{ text.GetColor() };
+	auto font_size{ text.GetFontSize(text.IsHD()) };
+	auto font{ text.GetFont() };
+	auto properties{ text.GetProperties() };
 
 	RecreateTexture(text, content, color, font_size, font, properties);
 }
 
-void TextDraw::RecreateTexture(
+void Text::RecreateTexture(
 	Entity text, std::string_view content, Color text_color, float font_size, Font font,
 	const TextProperties& properties
 ) {
@@ -131,175 +140,177 @@ void TextDraw::RecreateTexture(
 	text.Add<Texture>(texture);
 }
 
-void SetTextProperties(Entity text, const TextProperties& properties) {
-	SetTextProperties(text, properties, true);
+void Text::SetProperties(Entity text, const TextProperties& properties) {
+	SetProperties(text, properties, true);
 }
 
-void SetTextProperties(Entity text, const TextProperties& properties, bool recreate_texture) {
+void Text::SetProperties(Entity text, const TextProperties& properties, bool recreate_texture) {
 	bool changed  = false;
-	changed		 |= SetTextParameter(text, properties.justify, false);
-	changed		 |= SetTextParameter(text, properties.line_skip, false);
-	changed		 |= SetTextParameter(text, properties.outline, false);
-	changed		 |= SetTextParameter(text, properties.render_mode, false);
-	changed |= SetTextParameter(text, impl::TextShadingColor{ properties.shading_color }, false);
-	changed |= SetTextParameter(text, properties.style, false);
-	changed |= SetTextParameter(text, impl::TextWrapAfter{ properties.wrap_after }, false);
+	changed		 |= Text::SetParameter(text, properties.justify, false);
+	changed		 |= Text::SetParameter(text, properties.line_skip, false);
+	changed		 |= Text::SetParameter(text, properties.outline, false);
+	changed		 |= Text::SetParameter(text, properties.render_mode, false);
+	changed |= Text::SetParameter(text, impl::TextShadingColor{ properties.shading_color }, false);
+	changed |= Text::SetParameter(text, properties.style, false);
+	changed |= Text::SetParameter(text, impl::TextWrapAfter{ properties.wrap_after }, false);
 
 	if (changed && recreate_texture) {
-		TextDraw::RecreateTexture(text);
+		Text::RecreateTexture(text);
 	}
 }
 
-} // namespace impl
-
-bool IsTextHD(Entity text) {
-	return text.Has<impl::HDText>();
+bool Text::IsHD() const {
+	return Has<impl::HDText>();
 }
 
-void SetTextHD(Entity text, bool hd) {
-	if (hd == IsTextHD(text)) {
-		return;
+Text& Text::SetHD(bool hd) {
+	if (hd == IsHD()) {
+		return *this;
 	}
 	if (hd) {
-		text.Add<impl::HDText>();
+		Add<impl::HDText>();
 	} else {
-		text.Remove<impl::HDText>();
+		Remove<impl::HDText>();
 	}
-	impl::TextDraw::RecreateTexture(text);
+	Text::RecreateTexture(*this);
+	return *this;
 }
 
-void SetTextFont(Entity text, std::optional<Font> font) {
-	impl::SetTextParameter(text, font.value_or(Font{}));
+Text& Text::SetFont(std::optional<Font> font) {
+	Text::SetParameter(*this, font.value_or(Font{}));
+	return *this;
 }
 
-void SetTextContent(Entity text, std::string_view content) {
-	impl::SetTextParameter(text, impl::TextContent{ content });
+Text& Text::SetContent(std::string_view content) {
+	Text::SetParameter(*this, impl::TextContent{ content });
+	return *this;
 }
 
-void SetTextColor(Entity text, Color color) {
-	impl::SetTextParameter(text, impl::TextColor{ color });
+Text& Text::SetColor(Color color) {
+	Text::SetParameter(*this, impl::TextColor{ color });
+	return *this;
 }
 
-void SetTextFontStyle(Entity text, FontStyle font_style) {
-	impl::SetTextParameter(text, font_style);
+Text& Text::SetFontStyle(FontStyle font_style) {
+	Text::SetParameter(*this, font_style);
+	return *this;
 }
 
-void SetTextFontSize(Entity text, float pixels) {
-	impl::SetTextParameter(text, impl::FontSize{ pixels });
+Text& Text::SetFontSize(float pixels) {
+	Text::SetParameter(*this, impl::FontSize{ pixels });
+	return *this;
 }
 
-void SetTextOutline(Entity text, TextOutline outline) {
-	impl::SetTextParameter(text, FontRenderMode::Blended, false);
-	impl::SetTextParameter(text, outline, true);
+Text& Text::SetOutline(TextOutline outline) {
+	Text::SetParameter(*this, FontRenderMode::Blended, false);
+	Text::SetParameter(*this, outline, true);
+	return *this;
 }
 
-void SetTextFontRenderMode(Entity text, FontRenderMode render_mode) {
-	impl::SetTextParameter(text, render_mode);
+Text& Text::SetFontRenderMode(FontRenderMode render_mode) {
+	Text::SetParameter(*this, render_mode);
+	return *this;
 }
 
-void SetTextShadingColor(Entity text, Color shading_color) {
-	impl::SetTextParameter(text, FontRenderMode::Shaded, false);
-	impl::SetTextParameter(text, impl::TextShadingColor{ shading_color }, true);
+Text& Text::SetShadingColor(Color shading_color) {
+	Text::SetParameter(*this, FontRenderMode::Shaded, false);
+	Text::SetParameter(*this, impl::TextShadingColor{ shading_color }, true);
+	return *this;
 }
 
-void SetTextWrapAfter(Entity text, std::uint32_t pixels) {
-	impl::SetTextParameter(text, impl::TextWrapAfter{ pixels });
+Text& Text::SetWrapAfter(std::uint32_t pixels) {
+	Text::SetParameter(*this, impl::TextWrapAfter{ pixels });
+	return *this;
 }
 
-void SetTextLineSkip(Entity text, TextLineSkip pixels) {
-	impl::SetTextParameter(text, pixels);
+Text& Text::SetLineSkip(TextLineSkip pixels) {
+	Text::SetParameter(*this, pixels);
+	return *this;
 }
 
-void SetTextJustify(Entity text, TextJustify text_justify) {
-	impl::SetTextParameter(text, text_justify);
+Text& Text::SetJustify(TextJustify text_justify) {
+	Text::SetParameter(*this, text_justify);
+	return *this;
 }
 
-Font GetTextFont(Entity text) {
-	return impl::GetTextParameter(text, Font{});
+Font Text::GetFont() const {
+	return Text::GetParameter(*this, Font{});
 }
 
-std::string GetTextContent(Entity text) {
-	return impl::GetTextParameter(text, impl::TextContent{});
+std::string Text::GetContent() const {
+	return Text::GetParameter(*this, impl::TextContent{});
 }
 
-Color GetTextColor(Entity text) {
-	return impl::GetTextParameter(text, impl::TextColor{});
+Color Text::GetColor() const {
+	return Text::GetParameter(*this, impl::TextColor{});
 }
 
-FontStyle GetTextFontStyle(Entity text) {
-	return impl::GetTextParameter(text, FontStyle{});
+FontStyle Text::GetFontStyle() const {
+	return Text::GetParameter(*this, FontStyle{});
 }
 
-FontRenderMode GetTextFontRenderMode(Entity text) {
-	return impl::GetTextParameter(text, FontRenderMode{});
+FontRenderMode Text::GetFontRenderMode() const {
+	return Text::GetParameter(*this, FontRenderMode{});
 }
 
-Color GetTextShadingColor(Entity text) {
-	return impl::GetTextParameter(text, impl::TextShadingColor{});
+Color Text::GetShadingColor() const {
+	return Text::GetParameter(*this, impl::TextShadingColor{});
 }
 
-TextJustify GetTextJustify(Entity text) {
-	return impl::GetTextParameter(text, TextJustify{});
+TextJustify Text::GetJustify() const {
+	return Text::GetParameter(*this, TextJustify{});
 }
 
-static float FontSizeToHD(float font_size, const Scene& scene) {
-	auto render_target_scale{ GetScale(scene) };
-	font_size = font_size * render_target_scale.y;
-	return font_size;
-}
-
-float GetTextFontSize(Entity text, bool hd) {
-	const auto& font_size{ impl::GetTextParameter(text, impl::FontSize{}) };
+float Text::GetFontSize(bool hd) const {
+	const auto& font_size{ Text::GetParameter(*this, impl::FontSize{}) };
 	if (hd) {
-		const auto& scene{ text.GetScene() };
+		const auto& scene{ GetScene() };
 		return FontSizeToHD(font_size, scene);
 	}
 	return font_size;
 }
 
-V2_int GetTextSize(Entity text, std::string_view content) {
-	return GetTextSize(text, content, GetTextFont(text), GetTextFontSize(text, IsTextHD(text)));
+V2_int Text::GetSize(std::string_view content) const {
+	return GetSize(content, GetFont(), GetFontSize(IsHD()));
 }
 
-V2_int GetTextSize(Entity text) {
-	return GetTextSize(
-		text, impl::GetTextParameter(text, impl::TextContent{}),
-		impl::GetTextParameter(text, Font{}), GetTextFontSize(text, IsTextHD(text))
+V2_int Text::GetSize() const {
+	return GetSize(
+		Text::GetParameter(*this, impl::TextContent{}), Text::GetParameter(*this, Font{}),
+		GetFontSize(IsHD())
 	);
 }
 
-V2_int GetTextSize(
-	Entity text, std::string_view content, Font font, std::optional<float> font_size
-) {
-	return text.GetScene().app().font.GetSize(font, content, font_size);
+V2_int Text::GetSize(std::string_view content, Font font, std::optional<float> font_size) const {
+	return GetScene().app().font.GetSize(font, content, font_size);
 }
 
-TextProperties GetTextProperties(Entity text) {
+TextProperties Text::GetProperties() const {
 	TextProperties properties;
-	properties.justify		 = impl::GetTextParameter(text, TextJustify{});
-	properties.line_skip	 = impl::GetTextParameter(text, TextLineSkip{});
-	properties.outline		 = impl::GetTextParameter(text, TextOutline{});
-	properties.render_mode	 = impl::GetTextParameter(text, FontRenderMode{});
-	properties.shading_color = impl::GetTextParameter(text, impl::TextShadingColor{});
-	properties.style		 = impl::GetTextParameter(text, FontStyle{});
-	properties.wrap_after	 = impl::GetTextParameter(text, impl::TextWrapAfter{});
+	properties.justify		 = Text::GetParameter(*this, TextJustify{});
+	properties.line_skip	 = Text::GetParameter(*this, TextLineSkip{});
+	properties.outline		 = Text::GetParameter(*this, TextOutline{});
+	properties.render_mode	 = Text::GetParameter(*this, FontRenderMode{});
+	properties.shading_color = Text::GetParameter(*this, impl::TextShadingColor{});
+	properties.style		 = Text::GetParameter(*this, FontStyle{});
+	properties.wrap_after	 = Text::GetParameter(*this, impl::TextWrapAfter{});
 	return properties;
 }
 
-Entity CreateText(
+Text CreateText(
 	Scene& scene, std::string_view content, Color text_color, std::optional<float> font_size,
 	std::optional<Font> font, const TextProperties& properties
 ) {
-	auto text{ scene.CreateEntity() };
+	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();
-	SetDraw<impl::TextDraw>(text);
+	SetDraw<Text>(text);
 	Show(text);
 	text.Add<impl::HDText>();
-	impl::SetTextParameter(text, impl::TextContent{ content }, false);
-	impl::SetTextParameter(text, impl::TextColor{ text_color }, false);
-	impl::SetTextParameter(text, font.value_or(Font{}), false);
-	impl::SetTextParameter(text, impl::FontSize{ font_size.value_or(kDefaultFontSize) }, false);
-	impl::SetTextProperties(text, properties, true);
+	Text::SetParameter(text, impl::TextContent{ content }, false);
+	Text::SetParameter(text, impl::TextColor{ text_color }, false);
+	Text::SetParameter(text, font.value_or(Font{}), false);
+	Text::SetParameter(text, impl::FontSize{ font_size.value_or(kDefaultFontSize) }, false);
+	Text::SetProperties(text, properties, true);
 	return text;
 }
 

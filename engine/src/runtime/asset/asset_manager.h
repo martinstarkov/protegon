@@ -31,10 +31,10 @@ namespace ptgn {
 
 class Application;
 class ApplicationContext;
+class Text;
 
 namespace impl {
 
-class TextDraw;
 class FontSystem;
 
 struct AssetName {
@@ -151,7 +151,7 @@ private:
 	friend class Shader;
 	friend class Texture;
 	friend class FontSystem;
-	friend class impl::TextDraw;
+	friend class Text;
 
 	void Init(const std::shared_ptr<ApplicationContext>& ctx);
 
