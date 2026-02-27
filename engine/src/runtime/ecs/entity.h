@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <ostream>
 
 #include "core/assert.h"
@@ -219,6 +220,9 @@ private:
 };
 
 [[nodiscard]] std::size_t Hash(const Entity& entity);
+
+// template <typename T>
+// concept EntityWrapper = std::derived_from<T, Entity>;
 
 } // namespace ptgn
 
