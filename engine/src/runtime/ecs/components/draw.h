@@ -70,11 +70,11 @@ void SetDraw(Entity entity) {
 
 void RemoveDraw(Entity entity);
 
-void SetVisible(Entity entity, bool visible);
+void SetVisible(Entity entity, bool visible, bool emit_visibility_event = true);
 
-void Show(Entity entity);
+void Show(Entity entity, bool emit_visibility_event = true);
 
-void Hide(Entity entity);
+void Hide(Entity entity, bool emit_visibility_event = true);
 
 struct EntityShow : public Event<EntityShow> {};
 

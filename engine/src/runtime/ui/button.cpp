@@ -154,7 +154,7 @@ void ToggleButtonScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) { OnButtonActivate(); });
 }
 
-void ToggleButtonScript::OnButtonActivate() {
+void ToggleButtonScript::OnButtonActivate() const {
 	ToggleButton self{ entity };
 	if (!self.IsEnabled(false)) {
 		return;
@@ -178,7 +178,7 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 	PTGN_ASSERT(self.Has<ToggleButtonGroupKey>());
 
 	PTGN_ASSERT(toggle_button_group_);
-	toggle_button_group_.SetActive(self.Get<ToggleButtonGroupKey>());
+	toggle_button_group_.SetActiveKey(self.Get<ToggleButtonGroupKey>());
 }
 
 void ButtonColor::SetToState(ButtonState state) {
@@ -913,11 +913,24 @@ bool ToggleButton::IsToggled() const {
 	return Has<impl::ButtonToggled>();
 }
 
+// ToggleButton& ToggleButton::OnToggle(const std::function<void(bool)>& callback) {
+//	AddScript<impl::ButtonToggledScript>(*this, callback);
+//	return *this;
+// }
+
 ToggleButton& ToggleButton::SetToggled(bool toggled) {
+	if (toggled == IsToggled()) {
+		return *this;
+	}
 	if (toggled) {
 		Add<impl::ButtonToggled>();
 	} else {
 		Remove<impl::ButtonToggled>();
+	}
+	if (auto scripts{ TryGet<impl::Scripts>() }) {
+		impl::ButtonToggleEvent event;
+		event.toggled = toggled;
+		scripts->Emit(event);
 	}
 	return *this;
 }
@@ -1068,8 +1081,7 @@ ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton to
 	toggle_button.Add<impl::ToggleButtonGroupKey>(button_key);
 
 	if (auto it{ info.buttons.find(button_key) }; it == info.buttons.end()) {
-		auto [new_it, inserted] =
-			info.buttons.try_emplace(button_key, GameObject{ std::move(toggle_button) });
+		auto [new_it, inserted] = info.buttons.try_emplace(button_key, std::move(toggle_button));
 		PTGN_ASSERT(inserted, "Failed to insert toggle button");
 		ToggleButton btn{ new_it->second };
 		AddToggleScript(btn);
@@ -1109,14 +1121,14 @@ ToggleButton ToggleButtonGroup::GetActive() const {
 }
 
 void ToggleButtonGroup::SetActive(std::string_view button_key) {
-	SetActive(impl::ToggleButtonGroupKey{ button_key });
+	SetActiveKey(impl::ToggleButtonGroupKey{ button_key });
 }
 
-void ToggleButtonGroup::AddToggleScript(ToggleButton toggle_button) {
-	AddScript<impl::ToggleButtonGroupScript>(toggle_button);
+void ToggleButtonGroup::AddToggleScript(ToggleButton toggle_button) const {
+	AddScript<impl::ToggleButtonGroupScript>(toggle_button, *this);
 }
 
-void ToggleButtonGroup::SetActive(impl::ToggleButtonGroupKey key) {
+void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupData>());
 
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
@@ -1127,7 +1139,7 @@ void ToggleButtonGroup::SetActive(impl::ToggleButtonGroupKey key) {
 		it != info.buttons.end(), "Cannot set non-existent toggle button key to active: ", key
 	);
 
-	for (auto& [_, toggle_button] : info.buttons) {
+	for (const auto& [_, toggle_button] : info.buttons) {
 		ToggleButton{ toggle_button }.SetToggled(false);
 	}
 
@@ -1139,7 +1151,7 @@ void ToggleButtonGroup::SetActive(impl::ToggleButtonGroupKey key) {
 Button CreateButton(Scene& scene) {
 	Button button{ scene.CreateEntity() };
 
-	Show(button);
+	Show(button, false);
 	SetDraw<Button>(button);
 
 	SetInteractive(button);

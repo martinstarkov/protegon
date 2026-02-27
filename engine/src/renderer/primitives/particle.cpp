@@ -256,7 +256,7 @@
 //	auto& i{ emitter.Add<impl::ParticleEmitterComponent>() };
 //	i.info = info;
 //	i.manager.Reserve(i.info.max_particles);
-//	Show(emitter);
+//	Show(emitter, false);
 //	SetPosition(emitter, {});
 //
 //	return emitter;

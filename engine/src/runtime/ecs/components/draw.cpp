@@ -79,14 +79,14 @@ Origin GetDrawOrigin(Entity entity) {
 	return entity.GetOrDefault<Origin>(Origin::Center);
 }
 
-void SetVisible(Entity entity, bool visible) {
+void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 	if (visible) {
 		if (entity.Has<impl::Visible>()) {
 			return;
 		}
 		entity.Add<impl::Visible>();
-		EntityShow show;
-		if (entity.HasScene()) {
+		if (emit_visibility_event && entity.HasScene()) {
+			EntityShow show;
 			entity.GetScene().app().events.Emit(show);
 		}
 	} else {
@@ -94,19 +94,19 @@ void SetVisible(Entity entity, bool visible) {
 			return;
 		}
 		entity.Remove<impl::Visible>();
-		EntityHide hide;
-		if (entity.HasScene()) {
+		if (emit_visibility_event && entity.HasScene()) {
+			EntityHide hide;
 			entity.GetScene().app().events.Emit(hide);
 		}
 	}
 }
 
-void Show(Entity entity) {
-	SetVisible(entity, true);
+void Show(Entity entity, bool emit_visibility_event) {
+	SetVisible(entity, true, emit_visibility_event);
 }
 
-void Hide(Entity entity) {
-	SetVisible(entity, false);
+void Hide(Entity entity, bool emit_visibility_event) {
+	SetVisible(entity, false, emit_visibility_event);
 }
 
 bool IsVisible(Entity entity) {

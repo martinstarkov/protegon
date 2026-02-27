@@ -116,7 +116,7 @@
 //	graphics.Add<impl::GraphicsInstance>();
 //	SetPosition(graphics, position);
 //	SetDraw<Graphics>(graphics);
-//	Show(graphics);
+//	Show(graphics, false);
 //
 //	return graphics;
 // }

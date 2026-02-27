@@ -283,7 +283,7 @@
 //		return false;
 //	}
 //	auto& active{ GetActive() };
-//	Hide(active);
+//	Hide(active, false);
 //	active.Pause();
 //	ActiveMapManager::SetActive(key);
 //	auto& new_active{ GetActive() };

@@ -34,7 +34,7 @@ Sprite& Sprite::SetTexture(Texture texture) {
 Sprite CreateSprite(Scene& scene, Texture texture, V2_float position, Origin draw_origin) {
 	Sprite sprite{ scene.CreateEntity() };
 	SetDraw<Sprite>(sprite);
-	Show(sprite);
+	Show(sprite, false);
 	sprite.SetTexture(texture);
 	SetPosition(sprite, position);
 	SetDrawOrigin(sprite, draw_origin);

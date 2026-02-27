@@ -100,7 +100,7 @@ void RenderTarget::AddRenderTargetComponents(
 	PTGN_ASSERT(render_target);
 
 	SetDraw<RenderTarget>(render_target);
-	Show(render_target);
+	Show(render_target, false);
 
 	render_target.Add<impl::RenderTargetObject>(renderer.CreateRenderTarget(size, format));
 	// TODO: Add clear color here.

@@ -304,7 +304,7 @@ Text CreateText(
 	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();
 	SetDraw<Text>(text);
-	Show(text);
+	Show(text, false);
 	text.Add<impl::HDText>();
 	Text::SetParameter(text, impl::TextContent{ content }, false);
 	Text::SetParameter(text, impl::TextColor{ text_color }, false);

@@ -126,7 +126,11 @@ struct ButtonHoverStop : public Event<ButtonHoverStop> {};
 
 struct ButtonHover : public Event<ButtonHover> {};
 
-template <typename T>
+struct ButtonToggleEvent : public Event<ButtonToggleEvent> {
+	bool toggled{ false };
+};
+
+template <EventType T>
 struct ButtonScript : public Script {
 	ButtonScript() = default;
 
@@ -145,12 +149,28 @@ using ButtonHoverStartScript = ButtonScript<ButtonHoverStart>;
 using ButtonHoverStopScript	 = ButtonScript<ButtonHoverStop>;
 using ButtonHoverScript		 = ButtonScript<ButtonHover>;
 
+struct ButtonToggledScript : public Script {
+	ButtonToggledScript() = default;
+
+	explicit ButtonToggledScript(const std::function<void(bool)>& callback) :
+		callback_{ callback } {}
+
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<ButtonToggleEvent>([this](ButtonToggleEvent& e) {
+			std::invoke(callback_, e.toggled);
+		});
+	}
+
+private:
+	std::function<void(bool)> callback_;
+};
+
 class ToggleButtonScript : public Script {
 public:
 	void OnEvent(EventDispatcher d) override;
 
 private:
-	void OnButtonActivate();
+	void OnButtonActivate() const;
 };
 
 // TODO: Fix.
@@ -471,6 +491,8 @@ public:
 	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 
+	// TODO: Fix.
+	// ToggleButton& OnToggle(const std::function<void(bool)>& callback);
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
 	ToggleButton& SetBackgroundColorToggled(Color color, ButtonState state = ButtonState::Default);
@@ -502,12 +524,12 @@ public:
 	/// @return Active button, or null entity if no button is active.
 	[[nodiscard]] ToggleButton GetActive() const;
 
-	void AddToggleScript(ToggleButton toggle_button);
+	void AddToggleScript(ToggleButton toggle_button) const;
 
 private:
 	friend class impl::ToggleButtonGroupScript;
 
-	void SetActive(impl::ToggleButtonGroupKey key);
+	void SetActiveKey(impl::ToggleButtonGroupKey key);
 };
 
 namespace impl {

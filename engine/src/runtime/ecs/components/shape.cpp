@@ -70,7 +70,7 @@ Entity CreateRect(
 
 	// TODO: Fix.
 	// SetDraw<Rect>(rect);
-	Show(rect);
+	Show(rect, false);
 
 	SetPosition(rect, position);
 	rect.Add<Rect>(size);
@@ -90,7 +90,7 @@ Entity CreatePolygon(
 
 	// TODO: Fix.
 	// SetDraw<Polygon>(polygon);
-	Show(polygon);
+	Show(polygon, false);
 
 	SetPosition(polygon, position);
 	polygon.Add<Polygon>(vertices);
@@ -106,7 +106,7 @@ Entity CreateCircle(Scene& scene, V2_float position, float radius, Color color, 
 
 	// TODO: Fix.
 	// SetDraw<Circle>(circle);
-	Show(circle);
+	Show(circle, false);
 
 	SetPosition(circle, position);
 	circle.Add<Circle>(radius);
