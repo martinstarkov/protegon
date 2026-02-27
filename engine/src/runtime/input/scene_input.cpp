@@ -273,12 +273,12 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 					draw_transform = OffsetByOrigin(entity.Get<Rect>(), draw_transform, entity);
 				}
 
-				// TODO: Fix.
-				/*renderer.DrawShape(
-					draw_transform, shape, interactive_debug_draw_settings_.color,
-				interactive_debug_draw_settings_.line_width, GetDrawOrigin(shape_entity),
-				entity.GetCamera()
-				);*/
+				// TODO: Use debub shape draw.
+				impl::DrawShape(
+					ctx_->renderer, shape, draw_transform, interactive_debug_draw_settings_.color,
+					interactive_debug_draw_settings_.line_width, GetDrawOrigin(shape_entity),
+					GetDepth(shape_entity), GetBlendMode(shape_entity)
+				);
 			}
 
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
@@ -773,12 +773,13 @@ void SceneInput::HandleDropzones(
 void SceneInput::Update() {
 	impl::MouseInfo mouse_state{ scene_ };
 
-	// TODO: Fix.
-	// if (interactive_debug_draw_settings_.enabled) {
-	//	ctx_->renderer.debug_.DrawPoint(
-	//		mouse_state.position, interactive_debug_draw_settings_.color
-	//	);
-	//}
+	if (interactive_debug_draw_settings_.enabled) {
+		// TODO: Use debub shape draw.
+		impl::DrawShape(
+			ctx_->renderer, V2_float{ mouse_state.position }, Transform{},
+			interactive_debug_draw_settings_.color, FillStyle{}, Origin::Center, 0, BlendMode::Blend
+		);
+	}
 
 	auto entities = GetInteractiveEntities(mouse_state);
 	auto dropzones{ GetDropzones() };

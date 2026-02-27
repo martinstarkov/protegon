@@ -68,8 +68,7 @@ Entity CreateRect(
 ) {
 	auto rect{ scene.CreateEntity() };
 
-	// TODO: Fix.
-	// SetDraw<Rect>(rect);
+	SetDraw<impl::RectDraw>(rect);
 	Show(rect, false);
 
 	SetPosition(rect, position);
@@ -88,8 +87,7 @@ Entity CreatePolygon(
 ) {
 	auto polygon{ scene.CreateEntity() };
 
-	// TODO: Fix.
-	// SetDraw<Polygon>(polygon);
+	SetDraw<impl::PolygonDraw>(polygon);
 	Show(polygon, false);
 
 	SetPosition(polygon, position);
@@ -104,8 +102,7 @@ Entity CreatePolygon(
 Entity CreateCircle(Scene& scene, V2_float position, float radius, Color color, float line_width) {
 	auto circle{ scene.CreateEntity() };
 
-	// TODO: Fix.
-	// SetDraw<Circle>(circle);
+	SetDraw<impl::CircleDraw>(circle);
 	Show(circle, false);
 
 	SetPosition(circle, position);

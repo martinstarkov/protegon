@@ -416,11 +416,10 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 			};
 
 			if (color.a) {
-				// TODO: Fix.
-				/*renderer.DrawRect(
-					transform, button_size, Tint{ color.Normalized() * tint_n },
-					line_width.GetValue(), button_origin, depth, blend_mode, camera, post_fx
-				);*/
+				impl::DrawShape(
+					renderer, Rect{ button_size }, transform, Tint{ color.Normalized() * tint_n },
+					line_width.GetValue(), button_origin, depth, blend_mode
+				);
 			}
 		}
 	}
@@ -433,11 +432,10 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 		) };
 
 		if (color.a) {
-			// TODO: Fix.
-			/*renderer.DrawRect(
-				transform, button_size, Tint{ color.Normalized() * tint_n }, line_width.GetValue(),
-				button_origin, depth, blend_mode, camera, post_fx
-			);*/
+			impl::DrawShape(
+				renderer, Rect{ button_size }, transform, Tint{ color.Normalized() * tint_n },
+				line_width.GetValue(), button_origin, depth, blend_mode
+			);
 		}
 	}
 

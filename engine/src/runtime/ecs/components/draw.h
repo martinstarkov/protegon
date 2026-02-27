@@ -2,7 +2,9 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "core/component.h"
@@ -10,6 +12,7 @@
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/texture.h"
@@ -20,7 +23,56 @@ namespace ptgn {
 
 class Renderer;
 
+inline constexpr float kMinLineWidth{ 1.0f };
+
 namespace impl {
+
+struct Solid {};
+
+struct Hollow {
+	float line_width{ kMinLineWidth }; // must be positive and >= kMinLineWidth
+};
+
+} // namespace impl
+
+struct FillStyle {
+	FillStyle() = default;
+	FillStyle(float line_width);
+
+	static FillStyle Solid();
+
+	std::variant<impl::Hollow, impl::Solid> style{ impl::Hollow{} };
+
+private:
+	FillStyle(impl::Solid);
+};
+
+struct Depth : public ArithmeticComponent<std::int32_t> {
+	using ArithmeticComponent::ArithmeticComponent;
+
+	[[nodiscard]] Depth RelativeTo(Depth parent) const;
+};
+
+namespace impl {
+
+void DrawQuadTexture(
+	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
+	Color tint, Depth depth, BlendMode blend_mode,
+	const std::array<V2_float, 4>& texture_coordinates
+);
+
+void DrawLines(
+	Renderer& renderer, std::span<const V2_float> points, float line_width,
+	const Transform& transform, Color tint, float depth
+);
+
+void DrawShape(
+	Renderer& renderer, const Shape& shape, Transform transform, Color tint, FillStyle fill_style,
+	Origin draw_origin, Depth depth_component, BlendMode blend_mode
+);
+
+template <ShapeType T>
+void DrawShape(Renderer& renderer, Entity entity);
 
 struct Visible {};
 
@@ -85,12 +137,6 @@ struct LineDraw {
 
 } // namespace impl
 
-struct Depth : public ArithmeticComponent<std::int32_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	[[nodiscard]] Depth RelativeTo(Depth parent) const;
-};
-
 void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 
 void SetDrawOrigin(Entity entity, Origin origin);
@@ -145,14 +191,14 @@ void SetDisplaySize(Entity entity, V2_float display_size);
 
 [[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
 
-namespace impl {
-
-void DrawQuadTexture(
-	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
-	Color tint, Depth depth, BlendMode blend_mode,
-	const std::array<V2_float, 4>& texture_coordinates
-);
-
-} // namespace impl
+PTGN_REGISTER_DRAWABLE(impl::CapsuleDraw);
+PTGN_REGISTER_DRAWABLE(impl::CircleDraw);
+PTGN_REGISTER_DRAWABLE(impl::EllipseDraw);
+PTGN_REGISTER_DRAWABLE(impl::ArcDraw);
+PTGN_REGISTER_DRAWABLE(impl::PolygonDraw);
+PTGN_REGISTER_DRAWABLE(impl::RectDraw);
+PTGN_REGISTER_DRAWABLE(impl::RoundedRectDraw);
+PTGN_REGISTER_DRAWABLE(impl::TriangleDraw);
+PTGN_REGISTER_DRAWABLE(impl::LineDraw);
 
 } // namespace ptgn

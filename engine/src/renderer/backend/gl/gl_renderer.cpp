@@ -263,68 +263,74 @@ std::uint32_t GLRenderer::GetTextureSlot(TextureId tex) {
 }
 
 template <class State, class Func>
-void UpdateStateIfChanged(GLRenderer& r, const State& cached, const State& desired, Func&& func) {
+bool UpdateStateIfChanged(GLRenderer& r, const State& cached, const State& desired, Func&& func) {
 	if (cached != desired) {
 		r.FlushBatch();
 		std::invoke(std::forward<Func>(func));
+		return true;
 	}
+	return false;
 }
 
-void GLRenderer::SetViewport(Viewport viewport) {
-	UpdateStateIfChanged(*this, gl->GetBoundState().viewport, viewport, [this, viewport] {
+bool GLRenderer::SetViewport(Viewport viewport) {
+	return UpdateStateIfChanged(*this, gl->GetBoundState().viewport, viewport, [this, viewport] {
 		gl->SetViewport(viewport);
 	});
 }
 
-void GLRenderer::SetViewProjection(const Matrix4& view_projection) {
+bool GLRenderer::SetViewProjection(const Matrix4& view_projection) {
 	if (view_projection_ != view_projection) {
 		view_projection_ = view_projection;
 		FlushBatch();
+		return true;
 	}
+	return false;
 }
 
-void GLRenderer::SetShader(ShaderId shader) {
-	UpdateStateIfChanged(*this, gl->GetBoundState().shader_program, shader, [this, shader] {
+bool GLRenderer::SetShader(ShaderId shader) {
+	return UpdateStateIfChanged(*this, gl->GetBoundState().shader_program, shader, [this, shader] {
 		auto _ = gl->Bind(shader);
 	});
 }
 
-void GLRenderer::SetBlend(BlendMode mode, bool enabled) {
+bool GLRenderer::SetBlend(BlendMode mode, bool enabled) {
 	BlendState desired{ mode, enabled };
 
-	UpdateStateIfChanged(*this, gl->GetBoundState().blend, desired, [this, desired] {
+	return UpdateStateIfChanged(*this, gl->GetBoundState().blend, desired, [this, desired] {
 		gl->SetBlend(desired);
 	});
 }
 
-void GLRenderer::SetFramebuffer(FramebufferId framebuffer) {
-	UpdateStateIfChanged(*this, gl->GetBoundState().framebuffer, framebuffer, [this, framebuffer] {
-		auto _ = gl->Bind(framebuffer);
-	});
+bool GLRenderer::SetFramebuffer(FramebufferId framebuffer) {
+	return UpdateStateIfChanged(
+		*this, gl->GetBoundState().framebuffer, framebuffer,
+		[this, framebuffer] { auto _ = gl->Bind(framebuffer); }
+	);
 }
 
-void GLRenderer::SetDepth(const DepthState& depth) {
-	UpdateStateIfChanged(*this, gl->GetBoundState().depth, depth, [this, depth] {
+bool GLRenderer::SetDepth(const DepthState& depth) {
+	return UpdateStateIfChanged(*this, gl->GetBoundState().depth, depth, [this, depth] {
 		gl->SetDepth(depth);
 	});
 }
 
-void GLRenderer::SetStencil(const StencilState& stencil) {
-	UpdateStateIfChanged(*this, gl->GetBoundState().stencil, stencil, [this, stencil] {
+bool GLRenderer::SetStencil(const StencilState& stencil) {
+	return UpdateStateIfChanged(*this, gl->GetBoundState().stencil, stencil, [this, stencil] {
 		gl->SetStencil(stencil);
 	});
 }
 
-void GLRenderer::SetRaster(const RasterState& raster) {
-	UpdateStateIfChanged(*this, gl->GetBoundState().raster, raster, [this, raster] {
+bool GLRenderer::SetRaster(const RasterState& raster) {
+	return UpdateStateIfChanged(*this, gl->GetBoundState().raster, raster, [this, raster] {
 		gl->SetRaster(raster);
 	});
 }
 
-void GLRenderer::SetColorMask(const ColorMaskState& color_mask) {
-	UpdateStateIfChanged(*this, gl->GetBoundState().color_mask, color_mask, [this, color_mask] {
-		gl->SetColorMask(color_mask);
-	});
+bool GLRenderer::SetColorMask(const ColorMaskState& color_mask) {
+	return UpdateStateIfChanged(
+		*this, gl->GetBoundState().color_mask, color_mask,
+		[this, color_mask] { gl->SetColorMask(color_mask); }
+	);
 }
 
 void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSetup& setup) {
@@ -349,8 +355,10 @@ void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadS
 		quad.user_data[0]  = static_cast<float>(slot);
 	}
 
-	SetShader(shader);
-	gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	auto updated{ SetShader(shader) };
+	if (updated) {
+		gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	}
 
 	setup(shader, quad);
 
@@ -372,6 +380,52 @@ void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadS
 	for (auto idx : indices) {
 		batch_indices_.push_back(idx + start_index);
 	}
+}
+
+void GLRenderer::DrawTriangle(
+	ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+) {
+	auto updated{ SetShader(shader) };
+	if (updated) {
+		gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	}
+
+	auto vertices{ Vertex::GetTriangle(positions, tint, depth) };
+
+	constexpr std::size_t triangle_indices{ 3 };
+
+	if (batch_vertices_.size() + vertices.size() >= kVertexCapacity ||
+		batch_indices_.size() + triangle_indices >= kIndexCapacity) {
+		FlushBatch();
+	}
+
+	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
+
+	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
+	batch_indices_.insert(batch_indices_.end(), { start_index, start_index + 1, start_index + 2 });
+}
+
+void GLRenderer::DrawLine(
+	ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
+) {
+	auto updated{ SetShader(shader) };
+	if (updated) {
+		gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	}
+
+	auto vertices{ Vertex::GetLine(positions, tint, depth) };
+
+	constexpr std::size_t lines_indices{ 2 };
+
+	if (batch_vertices_.size() + vertices.size() >= kVertexCapacity ||
+		batch_indices_.size() + lines_indices >= kIndexCapacity) {
+		FlushBatch();
+	}
+
+	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
+
+	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
+	batch_indices_.insert(batch_indices_.end(), { start_index, start_index + 1 });
 }
 
 ShaderId GLRenderer::GetShader(std::string_view name) const {
@@ -410,7 +464,7 @@ void GLRenderer::DrawTexture(
 	});
 }
 
-void GLRenderer::DrawShape(
+void GLRenderer::DrawQuad(
 	ShaderId shader, const std::array<V2_float, 4>& positions,
 	const std::array<float, 4>& user_data, Color tint, float depth
 ) {

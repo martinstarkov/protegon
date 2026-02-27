@@ -78,11 +78,6 @@ public:
 	/// @return The game size scaling mode.
 	[[nodiscard]] ScalingMode GetScalingMode() const;
 
-	void DrawShape(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint = color::White, float depth = 0.0f
-	);
-
 	void DrawTexture(
 		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
 		Color tint = color::White, float depth = 0.0f, bool flip_y = false,
@@ -96,8 +91,19 @@ public:
 	);
 
 	void DrawQuad(
-		const std::array<V2_float, 4>& positions, Color tint = color::White, float depth = 0.0f,
-		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
+		const std::array<V2_float, 4>& positions, Color tint = color::White, float depth = 0.0f
+	);
+	void DrawLine(
+		impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint = color::White,
+		float depth = 0.0f
+	);
+	void DrawTriangle(
+		impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint = color::White,
+		float depth = 0.0f
+	);
+	void DrawQuad(
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
+		const std::array<float, 4>& user_data, Color tint = color::White, float depth = 0.0f
 	);
 
 	impl::TextureId GetWhiteTexture() const;

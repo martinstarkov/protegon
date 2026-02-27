@@ -39,6 +39,10 @@ struct Vertex : public gl::VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::ve
 	// Index 0: For circles this stores the thickness: 0 is hollow, 1 is solid.
 	glsl::vec4 data{};
 
+	[[nodiscard]] static std::array<Vertex, 2> GetLine(
+		const std::array<V2_float, 2>& line_points, Color color, float depth
+	);
+
 	[[nodiscard]] static std::array<Vertex, 3> GetTriangle(
 		const std::array<V2_float, 3>& triangle_points, Color color, float depth
 	);

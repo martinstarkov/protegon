@@ -6,6 +6,7 @@
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
+#include "core/math/vector4.h"
 
 namespace ptgn::impl {
 
@@ -72,6 +73,28 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) 
 std::array<V2_float, 4> GetCenteredQuadPoints(V2_float size) {
 	auto half{ size / 2.0f };
 	return { -half, V2_float{ half.x, -half.y }, half, V2_float{ -half.x, half.y } };
+}
+
+std::array<Vertex, 2> Vertex::GetLine(
+	const std::array<V2_float, 2>& line_points, Color color, float depth
+) {
+	constexpr std::array<V2_float, 2> line_coordinates{ V2_float{ 0.0f, 0.0f },
+														V2_float{ 1.0f, 0.0f } };
+
+	std::array<Vertex, 2> vertices{};
+
+	auto c{ color.Normalized() };
+
+	PTGN_ASSERT(vertices.size() == line_points.size());
+	PTGN_ASSERT(vertices.size() == line_coordinates.size());
+
+	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
+		vertices[i].position  = { line_points[i].x, line_points[i].y, depth };
+		vertices[i].color	  = { c.x, c.y, c.z, c.w };
+		vertices[i].tex_coord = { line_coordinates[i].x, line_coordinates[i].y };
+	}
+
+	return vertices;
 }
 
 std::array<Vertex, 3> Vertex::GetTriangle(

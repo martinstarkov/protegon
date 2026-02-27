@@ -99,11 +99,23 @@ ScalingMode Renderer::GetScalingMode() const {
 	return scaling_mode_;
 }
 
-void Renderer::DrawShape(
+void Renderer::DrawLine(
+	impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
+) {
+	gl_renderer_->DrawLine(shader, positions, tint, depth);
+}
+
+void Renderer::DrawTriangle(
+	impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+) {
+	gl_renderer_->DrawTriangle(shader, positions, tint, depth);
+}
+
+void Renderer::DrawQuad(
 	impl::ShaderId shader, const std::array<V2_float, 4>& positions,
 	const std::array<float, 4>& user_data, Color tint, float depth
 ) {
-	gl_renderer_->DrawShape(shader, positions, user_data, tint, depth);
+	gl_renderer_->DrawQuad(shader, positions, user_data, tint, depth);
 }
 
 void Renderer::DrawTexture(
@@ -120,11 +132,8 @@ void Renderer::DrawQuadTexture(
 	DrawTexture(GetShader("quad"), texture, positions, tint, depth, flip_y, tex_coords);
 }
 
-void Renderer::DrawQuad(
-	const std::array<V2_float, 4>& positions, Color tint, float depth,
-	const std::optional<std::array<V2_float, 4>>& tex_coords
-) {
-	DrawQuadTexture(GetWhiteTexture(), positions, tint, depth, false, tex_coords);
+void Renderer::DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth) {
+	DrawQuadTexture(GetWhiteTexture(), positions, tint, depth, false, {});
 }
 
 impl::TextureId Renderer::GetWhiteTexture() const {

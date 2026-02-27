@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <type_traits>
 #include <vector>
@@ -16,7 +17,9 @@
 #include "core/graphics/flip.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
+#include "core/math/geometry/circle.h"
 #include "core/math/geometry/ellipse.h"
+#include "core/math/geometry/geometry_utils.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -36,6 +39,16 @@
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
+
+FillStyle::FillStyle(float line_width) : style{ impl::Hollow{ line_width } } {
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for hollow fill style");
+}
+
+FillStyle::FillStyle(impl::Solid) : style{ impl::Solid{} } {}
+
+FillStyle FillStyle::Solid() {
+	return FillStyle{ impl::Solid{} };
+}
 
 namespace impl {
 
@@ -65,8 +78,6 @@ void DrawQuadTexture(
 		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
 	);
 }
-
-inline constexpr float kMinLineWidth{ 1.0f };
 
 static float GetFade(float diameter_y) {
 	PTGN_ASSERT(diameter_y > 0.0f, "Diameter cannot be negative or zero");
@@ -102,99 +113,246 @@ static float GetNormalizedRadius(float diameter, float size_x) {
 	return std::clamp(normalized_radius, 0.0f, 1.0f);
 }
 
-template <ShapeType T>
-static std::array<float, 4> GetData(const T& shape, auto radius, float line_width, V2_float size) {
-	std::array<float, 4> data{ 0.0f, 0.0f, 0.0f, 0.0f };
+void DrawLines(
+	Renderer& renderer, std::span<const V2_float> points, float line_width,
+	const Transform& transform, Color tint, float depth
+) {
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for lines");
 
-	auto diameter{ 2.0f * radius };
+	for (std::size_t i = 0; i < points.size(); ++i) {
+		Line l{ points[i], points[(i + 1) % points.size()] };
+		auto line_points{ l.GetWorldQuadVertices(transform, line_width) };
 
-	float fade{ GetFade(diameter) };
-
-	float thickness{ NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius }) };
-
-	data[0] = thickness;
-	data[1] = fade;
-
-	if constexpr (std::is_same_v<T, Arc>) {
-		float aperture{ shape.GetAperture() };
-		float direction{ shape.clockwise ? 1.0f : -1.0f };
-
-		data[2] = aperture;
-		data[3] = direction;
-	} else if constexpr (IsAnyOf<T, Capsule, RoundedRect>) {
-		float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
-		float aspect_ratio{ GetAspectRatio(size) };
-
-		data[2] = normalized_radius;
-		data[3] = aspect_ratio;
+		renderer.DrawQuad(line_points, tint, depth);
 	}
-
-	return data;
 }
 
 void DrawShape(
-	Renderer& renderer, const Shape& shape, Transform transform, Color tint, float line_width,
-	Origin draw_origin, Depth depth, BlendMode blend_mode
+	Renderer& renderer, const Shape& shape, Transform transform, Color tint, FillStyle fill_style,
+	Origin draw_origin, Depth depth_component, BlendMode blend_mode
 ) {
-	renderer.SetBlend(blend_mode);
-	auto vertices{ GetWorldVertices(shape, transform) };
-	GetData(shape, line_width, draw_origin);
-	renderer.DrawQuadTexture(
-		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
+	float line_width{ 0.0f };
+
+	if (std::holds_alternative<Solid>(fill_style.style)) {
+		if (std::holds_alternative<Line>(shape)) {
+			return;
+		}
+		line_width = -1.0f;
+	} else {
+		if (auto width{ std::get<Hollow>(fill_style.style).line_width }; width >= 1.0f) {
+			line_width = width;
+		} else {
+			return;
+		}
+	}
+
+	PTGN_ASSERT(line_width != 0.0f);
+
+	auto depth{ static_cast<float>(depth_component.GetValue()) };
+
+	std::visit(
+		[&](const auto& s) {
+			using T = std::decay_t<decltype(s)>;
+
+			if constexpr (std::is_same_v<T, Rect>) {
+				if (auto size{ s.GetSize(transform) }; !size.BothAboveZero()) {
+					return;
+				}
+
+				if (line_width == -1.0f) {
+					renderer.DrawQuad(s.GetWorldVertices(transform, draw_origin), tint, depth);
+				} else {
+					DrawLines(renderer, s.GetLocalVertices(), line_width, transform, tint, depth);
+				}
+			} else if constexpr (std::is_same_v<T, Circle>) {
+				DrawShape(
+					renderer, Ellipse{ V2_float{ s.GetRadius() } }, transform, tint, fill_style,
+					draw_origin, depth_component, blend_mode
+				);
+			} else if constexpr (std::is_same_v<T, Line>) {
+				DrawLines(renderer, s.GetLocalVertices(), line_width, transform, tint, depth);
+			} else if constexpr (std::is_same_v<T, Triangle>) {
+				auto triangle{ s.GetWorldVertices(transform) };
+				std::array<V2_float, 4> points{ triangle[0], triangle[1], triangle[2],
+												triangle[0] };
+				if (line_width == -1.0f) {
+					renderer.DrawQuad(points, tint, depth);
+				} else {
+					DrawLines(renderer, s.GetLocalVertices(), line_width, transform, tint, depth);
+				}
+
+			} else if constexpr (std::is_same_v<T, Polygon>) {
+				auto vertices{ s.GetLocalVertices() };
+
+				if (vertices.size() < 3) {
+					if (vertices.empty()) {
+					} else if (vertices.size() == 1) {
+						DrawShape(
+							renderer, vertices.front(), transform, tint, fill_style, draw_origin,
+							depth_component, blend_mode
+						);
+					} else if (vertices.size() == 2) {
+						DrawShape(
+							renderer, Line{ vertices[0], vertices[1] }, transform, tint, fill_style,
+							draw_origin, depth_component, blend_mode
+						);
+						return;
+					}
+				}
+
+				if (line_width == -1.0f) {
+					auto points{ s.GetWorldVertices(transform) };
+					auto triangles{ Triangulate(points) };
+					for (const auto& triangle : triangles) {
+						renderer.DrawTriangle(renderer.GetShader("color"), triangle, tint, depth);
+					}
+				} else {
+					DrawLines(renderer, vertices, line_width, transform, tint, depth);
+				}
+			} else if constexpr (std::is_same_v<T, V2_float>) {
+				renderer.DrawQuad(
+					Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform, Origin::Center), tint,
+					depth
+				);
+			} else if constexpr (std::is_same_v<T, Capsule>) {
+				auto radius{ s.GetRadius(transform) };
+
+				if (radius <= 0.0f) {
+					return;
+				}
+
+				V2_float size;
+				auto positions{ s.GetWorldQuadVertices(transform, &size) };
+
+				auto diameter{ 2.0f * radius };
+				float fade{ GetFade(diameter) };
+				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+				float aspect_ratio{ GetAspectRatio(size) };
+				auto thickness{
+					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
+				};
+
+				std::array<float, 4> data{ thickness, fade, normalized_radius, aspect_ratio };
+
+				renderer.DrawQuad(renderer.GetShader("capsule"), positions, data, tint, depth);
+			} else if constexpr (std::is_same_v<T, Arc>) {
+				auto radius{ s.GetRadius(transform) };
+
+				if (radius <= 0.0f) {
+					return;
+				}
+
+				auto diameter{ 2.0f * radius };
+				float fade{ GetFade(diameter) };
+				float thickness{
+					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
+				};
+				float aperture{ s.GetAperture() };
+				float direction{ s.clockwise ? 1.0f : -1.0f };
+				std::array<float, 4> data{ thickness, fade, aperture, direction };
+
+				transform.Rotate(s.GetStartAngle());
+
+				auto positions{ s.GetWorldQuadVertices(transform) };
+
+				renderer.DrawQuad(renderer.GetShader("arc"), positions, data, tint, depth);
+			} else if constexpr (std::is_same_v<T, RoundedRect>) {
+				auto size = s.GetSize(transform);
+
+				if (!size.BothAboveZero()) {
+					return;
+				}
+
+				float radius = s.GetRadius(transform);
+
+				if (radius <= 0.0f) {
+					DrawShape(
+						renderer, Rect{ s.GetSize() }, transform, tint, fill_style, draw_origin,
+						depth_component, blend_mode
+					);
+					return;
+				}
+
+				auto diameter{ 2.0f * radius };
+				float fade{ GetFade(diameter) };
+				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+				float aspect_ratio{ GetAspectRatio(size) };
+				auto thickness{
+					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
+				};
+				std::array<float, 4> data{ thickness, fade, normalized_radius, aspect_ratio };
+
+				auto positions{ s.GetWorldQuadVertices(transform, draw_origin) };
+
+				renderer.DrawQuad(renderer.GetShader("rounded_rect"), positions, data, tint, depth);
+			} else if constexpr (std::is_same_v<T, Ellipse>) {
+				auto radius = s.GetRadius(transform);
+
+				if (!radius.BothAboveZero()) {
+					return;
+				}
+
+				auto diameter{ 2.0f * radius };
+				float fade{ GetFade(diameter) };
+				float thickness{
+					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
+				};
+				std::array<float, 4> data{ thickness, fade, 0.0f, 0.0f };
+
+				auto positions{ s.GetWorldQuadVertices(transform) };
+
+				renderer.DrawQuad(renderer.GetShader("circle"), positions, data, tint, depth);
+			}
+		},
+		shape
+	);
+}
+
+template <ShapeType T>
+void DrawShape(Renderer& renderer, Entity entity) {
+	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
+	DrawShape(
+		renderer, entity.Get<T>(), GetDrawTransform(entity), GetTint(entity),
+		entity.GetOrDefault<FillStyle>(), GetDrawOrigin(entity), GetDepth(entity),
+		GetBlendMode(entity)
 	);
 }
 
 void CapsuleDraw::Draw(Renderer& renderer, Entity entity) {
-	PTGN_ASSERT(entity.Has<Capsule>(), "Entity is not a capsule");
-
-	const auto& shape{ entity.Get<T>() };
-
-	renderer.DrawShape(
-		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
-		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
-		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
-	);
+	DrawShape<Capsule>(renderer, entity);
 }
 
-void CircleDraw::Draw(Renderer& renderer, Entity entity) {}
+void CircleDraw::Draw(Renderer& renderer, Entity entity) {
+	DrawShape<Circle>(renderer, entity);
+}
 
-void EllipseDraw::Draw(Renderer& renderer, Entity entity) {}
+void EllipseDraw::Draw(Renderer& renderer, Entity entity) {
+	DrawShape<Ellipse>(renderer, entity);
+}
 
-void ArcDraw::Draw(Renderer& renderer, Entity entity) {}
+void ArcDraw::Draw(Renderer& renderer, Entity entity) {
+	DrawShape<Arc>(renderer, entity);
+}
 
-void PolygonDraw::Draw(Renderer& renderer, Entity entity) {}
+void PolygonDraw::Draw(Renderer& renderer, Entity entity) {
+	DrawShape<Polygon>(renderer, entity);
+}
 
 void RectDraw::Draw(Renderer& renderer, Entity entity) {
-	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
-
-	Origin origin{ GetDrawOrigin(entity) };
-
-	const auto& shape{ entity.Get<T>() };
-
-	renderer.DrawShape(
-		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
-		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
-		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
-	);
+	DrawShape<Rect>(renderer, entity);
 }
 
 void RoundedRectDraw::Draw(Renderer& renderer, Entity entity) {
-	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
-
-	Origin origin{ GetDrawOrigin(entity) };
-
-	const auto& shape{ entity.Get<T>() };
-
-	renderer.DrawShape(
-		GetDrawTransform(entity), shape, GetTint(entity), entity.GetOrDefault<LineWidth>(), origin,
-		GetDepth(entity), GetBlendMode(entity), entity.GetOrDefault<Camera>(),
-		entity.GetOrDefault<PostFX>(), entity.GetOrDefault<ShaderPass>()
-	);
+	DrawShape<RoundedRect>(renderer, entity);
 }
 
-void TriangleDraw::Draw(Renderer& renderer, Entity entity) {}
+void TriangleDraw::Draw(Renderer& renderer, Entity entity) {
+	DrawShape<Triangle>(renderer, entity);
+}
 
-void LineDraw::Draw(Renderer& renderer, Entity entity) {}
+void LineDraw::Draw(Renderer& renderer, Entity entity) {
+	DrawShape<Line>(renderer, entity);
+}
 
 } // namespace impl
 

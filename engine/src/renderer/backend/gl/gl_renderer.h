@@ -37,7 +37,7 @@ namespace impl::gl {
 class GLContext;
 
 template <class State, class Func>
-void UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
+bool UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
 
 using Index = std::uint32_t;
 
@@ -59,17 +59,18 @@ struct PooledTarget {
 	bool in_use{ false };
 };
 
+struct TriangleParams {
+	std::array<V2_float, 3> positions;
+	Color tint{ color::White };
+	float depth{ 0.0f };
+};
+
 struct QuadParams {
 	std::array<V2_float, 4> positions;
-
 	float depth{ 0.0f };
-
 	bool flip_y{ false };
-
 	Color tint{ color::White };
-
 	std::optional<TextureId> texture;
-
 	std::optional<std::array<V2_float, 4>> tex_coords;
 };
 
@@ -85,7 +86,13 @@ public:
 
 	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
-	void DrawShape(
+	void DrawLine(
+		ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
+	);
+	void DrawTriangle(
+		ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+	);
+	void DrawQuad(
 		ShaderId shader, const std::array<V2_float, 4>& positions,
 		const std::array<float, 4>& user_data, Color tint, float depth
 	);
@@ -95,15 +102,15 @@ public:
 	);
 	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target);
 
-	void SetViewport(Viewport viewport);
-	void SetViewProjection(const Matrix4& view_projection);
-	void SetShader(ShaderId shader);
-	void SetBlend(BlendMode mode, bool enabled = true);
-	void SetFramebuffer(FramebufferId framebuffer);
-	void SetDepth(const DepthState& depth);
-	void SetStencil(const StencilState& stencil);
-	void SetRaster(const RasterState& raster);
-	void SetColorMask(const ColorMaskState& color_mask);
+	bool SetViewport(Viewport viewport);
+	bool SetViewProjection(const Matrix4& view_projection);
+	bool SetShader(ShaderId shader);
+	bool SetBlend(BlendMode mode, bool enabled = true);
+	bool SetFramebuffer(FramebufferId framebuffer);
+	bool SetDepth(const DepthState& depth);
+	bool SetStencil(const StencilState& stencil);
+	bool SetRaster(const RasterState& raster);
+	bool SetColorMask(const ColorMaskState& color_mask);
 
 	ShaderId GetShader(std::string_view name) const;
 
@@ -124,7 +131,7 @@ public:
 private:
 	friend class ptgn::impl::RenderPass;
 	template <class State, class Func>
-	friend void UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
+	friend bool UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
 
 	using QuadSetup = std::function<void(ShaderId, QuadDesc&)>;
 
