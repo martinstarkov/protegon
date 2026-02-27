@@ -392,6 +392,7 @@ public:
 
 	static void Draw(Renderer& renderer, Entity entity);
 
+	// TODO: Make this optional.
 	/// @return If no size is specified, returns {}.
 	/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.
 	[[nodiscard]] V2_float GetSize() const;

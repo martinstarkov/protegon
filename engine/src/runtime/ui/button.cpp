@@ -529,6 +529,7 @@ V2_float ButtonBase<Derived>::GetSize() const {
 		return V2_float{ circle->radius * 2.0f };
 	}
 
+	// TODO: Make this optional.
 	return {};
 }
 
