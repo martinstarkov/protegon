@@ -15,7 +15,7 @@
 namespace ptgn::impl {
 
 template <typename T>
-Resource<T>::Resource(gl::Renderer* renderer, T resource) noexcept :
+Resource<T>::Resource(gl::GLRenderer* renderer, T resource) noexcept :
 	renderer_{ renderer }, resource_{ resource } {}
 
 template <typename T>

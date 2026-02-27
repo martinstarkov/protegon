@@ -287,7 +287,7 @@ struct ButtonTextFixedSize {
 class Button : public Entity {
 public:
 	Button() = default;
-	Button(Entity entity);
+	explicit Button(Entity entity);
 
 	static void Draw(Renderer& renderer, Entity entity);
 
@@ -298,6 +298,7 @@ public:
 	/// @return True if the button activation is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
 	[[nodiscard]] ButtonState GetState() const;
+	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 	[[nodiscard]] Color GetBackgroundColor(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Texture GetTexture(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Texture GetDisabledTexture() const;
@@ -361,7 +362,6 @@ public:
 	/// width.
 	Button& SetBackgroundLineWidth(float line_width);
 	Button& SetBorderWidth(float line_width);
-	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 };
 
 // TODO: Fix.

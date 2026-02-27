@@ -2,9 +2,11 @@
 
 #include <optional>
 
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/component.h"
 #include "core/event/dispatcher.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
@@ -23,15 +25,55 @@ namespace ptgn {
 
 namespace impl {
 
-void RenderTargetDraw::Draw(Renderer& renderer, Entity entity) {
-	PTGN_ASSERT(entity.Has<RenderTarget>());
+void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<GameResized>([this](auto& e) {
+		auto& rt{ entity.Get<RenderTargetObject>() };
+		// PTGN_LOG("Render target ", entity, " received game resize: ", e.size);
+		rt.Resize(e.size);
+	});
+}
+
+void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<DisplayResized>([this](auto& e) {
+		auto& rt{ entity.Get<RenderTargetObject>() };
+		// PTGN_LOG("Render target ", entity, " received display resize: ", e.size);
+		rt.Resize(e.size);
+	});
+}
+
+} // namespace impl
+
+RenderTarget::RenderTarget(Entity entity) : Entity{ entity } {}
+
+void RenderTarget::Bind() {
+	Get<impl::RenderTargetObject>().Bind();
+}
+
+void RenderTarget::Clear(Color color) {
+	Get<impl::RenderTargetObject>().Clear(color);
+}
+
+V2_int RenderTarget::GetSize() const {
+	return Get<impl::RenderTargetObject>().GetSize();
+}
+
+TextureFormat RenderTarget::GetFormat() const {
+	return Get<impl::RenderTargetObject>().GetFormat();
+}
+
+RenderTarget::operator impl::TextureId() const {
+	return Get<impl::RenderTargetObject>();
+}
+
+void RenderTarget::Draw(Renderer& renderer, Entity entity) {
+	PTGN_ASSERT(entity.Has<impl::RenderTargetObject>());
 
 	std::optional<V2_int> size;
 
-	if (entity.Has<TextureSize>()) {
-		size = V2_int{ entity.Get<TextureSize>() };
+	if (entity.Has<impl::TextureSize>()) {
+		size = V2_int{ entity.Get<impl::TextureSize>() };
 	} else {
-		size = entity.Get<RenderTarget>().GetSize();
+		size = entity.Get<impl::RenderTargetObject>().GetSize();
 	}
 
 	PTGN_ASSERT(size.has_value(), "Render target does not have a texture");
@@ -44,7 +86,7 @@ void RenderTargetDraw::Draw(Renderer& renderer, Entity entity) {
 	auto tint{ GetTint(entity) };
 	auto depth{ GetDepth(entity) };
 	auto texture_coordinates{ GetTextureCoordinates(entity, false) };
-	auto texture{ entity.Get<RenderTarget>().operator TextureId() };
+	auto texture{ entity.Get<impl::RenderTargetObject>().operator impl::TextureId() };
 
 	renderer.SetBlend(blend_mode);
 	renderer.DrawQuadTexture(
@@ -52,39 +94,21 @@ void RenderTargetDraw::Draw(Renderer& renderer, Entity entity) {
 	);
 }
 
-void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<GameResized>([this](auto& e) {
-		auto& rt{ entity.Get<RenderTarget>() };
-		// PTGN_LOG("Render target ", entity, " received game resize: ", e.size);
-		rt.Resize(e.size);
-	});
-}
-
-void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<DisplayResized>([this](auto& e) {
-		auto& rt{ entity.Get<RenderTarget>() };
-		// PTGN_LOG("Render target ", entity, " received display resize: ", e.size);
-		rt.Resize(e.size);
-	});
-}
-
-static Entity CreateRenderTarget(
-	Entity render_target, Renderer& renderer, V2_int size, TextureFormat format
+void RenderTarget::AddRenderTargetComponents(
+	RenderTarget render_target, Renderer& renderer, V2_int size, TextureFormat format
 ) {
 	PTGN_ASSERT(render_target);
 
-	SetDraw<impl::RenderTargetDraw>(render_target);
+	SetDraw<RenderTarget>(render_target);
 	Show(render_target);
 
-	render_target.Add<RenderTarget>(renderer.CreateRenderTarget(size, format));
+	render_target.Add<impl::RenderTargetObject>(renderer.CreateRenderTarget(size, format));
 	// TODO: Add clear color here.
-	render_target.Get<RenderTarget>().Clear();
-
-	return render_target;
+	render_target.Get<impl::RenderTargetObject>().Clear();
 }
 
-Entity CreateRenderTarget(
-	Entity render_target, Renderer& renderer, ResizeMode resize_to_resolution,
+void RenderTarget::AddRenderTargetComponents(
+	RenderTarget render_target, Renderer& renderer, ResizeMode resize_to_resolution,
 	TextureFormat texture_format
 ) {
 	PTGN_ASSERT(render_target);
@@ -105,27 +129,27 @@ Entity CreateRenderTarget(
 		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
 	);
 
-	render_target = CreateRenderTarget(render_target, renderer, resolution, texture_format);
+	AddRenderTargetComponents(render_target, renderer, resolution, texture_format);
 
 	PTGN_ASSERT(render_target);
+}
 
+RenderTarget CreateRenderTarget(
+	Scene& scene, ResizeMode resize_to_resolution, TextureFormat texture_format
+) {
+	RenderTarget render_target{ scene.CreateEntity() };
+	RenderTarget::AddRenderTargetComponents(
+		render_target, scene.app().renderer, resize_to_resolution, texture_format
+	);
 	return render_target;
 }
 
-} // namespace impl
-
-Entity CreateRenderTarget(
-	Scene& scene, Renderer& renderer, ResizeMode resize_to_resolution, TextureFormat texture_format
-) {
-	return impl::CreateRenderTarget(
-		scene.CreateEntity(), renderer, resize_to_resolution, texture_format
+RenderTarget CreateRenderTarget(Scene& scene, V2_int size, TextureFormat texture_format) {
+	RenderTarget render_target{ scene.CreateEntity() };
+	RenderTarget::AddRenderTargetComponents(
+		render_target, scene.app().renderer, size, texture_format
 	);
-}
-
-Entity CreateRenderTarget(
-	Scene& scene, Renderer& renderer, V2_int size, TextureFormat texture_format
-) {
-	return impl::CreateRenderTarget(scene.CreateEntity(), renderer, size, texture_format);
+	return render_target;
 }
 
 } // namespace ptgn

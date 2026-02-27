@@ -10,8 +10,8 @@
 #include "renderer/camera/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/render_target_component.h"
 #include "runtime/ecs/components/transform_component.h"
-#include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -20,11 +20,11 @@ FrameContext::FrameContext(const Scene& scene) :
 	FrameContext{ *scene.ctx_, scene.render_target_, scene.camera } {}
 
 FrameContext::FrameContext(
-	const ApplicationContext& app, Entity render_target_entity, Entity camera_entity
+	const ApplicationContext& app, RenderTarget render_target_entity, Camera camera_entity
 ) :
 	display{ app.renderer.GetDisplayViewport().GetCenter() },
 	render_target{ GetTransform(render_target_entity) },
-	camera{ GetCameraViewport(camera_entity) },
+	camera{ camera_entity.GetViewport() },
 	world{ GetTransform(camera_entity) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {

@@ -60,12 +60,11 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 
 	auto& renderer{ app().renderer };
 
-	render_target_ =
-		CreateRenderTarget(*this, renderer, ResizeMode::DisplaySize, TextureFormat::RGBA8);
+	render_target_ = CreateRenderTarget(*this, ResizeMode::DisplaySize, TextureFormat::RGBA8);
 	render_target_.Remove<impl::IDrawable>();
-	camera		 = CreateCamera(*this, renderer);
-	fixed_camera = CreateCamera(*this, renderer);
-	SetCameraMasks(fixed_camera, kLayersNone, kLayersAll);
+	camera		 = CreateCamera(*this);
+	fixed_camera = CreateCamera(*this);
+	fixed_camera.SetMasks(kLayersNone, kLayersAll);
 	// PTGN_LOG("[scene=", this, "]");
 	// PTGN_LOG("[rt=", render_target_, "]");
 	// PTGN_LOG("[camera=", camera, "]");
@@ -106,8 +105,8 @@ static void InvokeDrawable(Renderer& renderer, Entity entity) {
 }
 
 void Scene::InternalDraw() {
-	for (auto [e, _camera] : EntitiesWith<impl::Camera>()) {
-		impl::RecalculateCameraViewProjection(e);
+	for (auto [e, _camera] : EntitiesWith<impl::CameraData>()) {
+		impl::RecalculateCameraViewProjection(Camera{ e });
 	}
 
 	auto& renderer{ app().renderer };
@@ -117,7 +116,7 @@ void Scene::InternalDraw() {
 
 	std::size_t scene_render_target{ Hash(render_target_) };
 
-	for (auto [e, _camera] : EntitiesWith<impl::Camera>()) {
+	for (auto [e, _camera] : EntitiesWith<impl::CameraData>()) {
 		if (auto parent{ e.TryGet<impl::ParentRenderTarget>() }) {
 			rt_to_cameras[parent->render_target].emplace_back(e);
 		} else {
@@ -145,31 +144,29 @@ void Scene::InternalDraw() {
 	std::vector<Entity> render_targets;
 
 	for (auto [e, _rt, _visible, _drawable] :
-		 EntitiesWith<RenderTarget, impl::Visible, impl::IDrawable>()) {
+		 EntitiesWith<impl::RenderTargetObject, impl::Visible, impl::IDrawable>()) {
 		PTGN_ASSERT(Hash(e) != scene_render_target);
-		render_targets.push_back(e);
+		render_targets.emplace_back(e);
 	}
 
 	SortByDepth(render_targets);
 
 	auto game_size{ renderer.GetGameSize() };
 
-	auto draw_to_render_target = [&](Entity render_target) {
-		auto& rt{ render_target.Get<RenderTarget>() };
-
-		rt.Bind();
+	auto draw_to_render_target = [&](RenderTarget render_target) {
+		render_target.Bind();
 
 		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
 		// exist.
 		// TODO: Fix. Clear render target with its clear color instead of transparent.
-		rt.Clear(color::Transparent);
+		render_target.Clear(color::Transparent);
 
 		auto it = rt_to_cameras.find(Hash(render_target));
 		if (it == rt_to_cameras.end()) {
 			return;
 		}
 
-		auto rt_size{ rt.GetSize() };
+		auto rt_size{ render_target.GetSize() };
 
 		auto scale{ V2_float{ rt_size } / game_size };
 
@@ -177,19 +174,20 @@ void Scene::InternalDraw() {
 
 		SortByDepth(cameras);
 
-		for (const auto& cam : cameras) {
-			auto viewport{ GetCameraViewport(cam) };
+		for (const auto& c : cameras) {
+			Camera cam{ c };
+			auto viewport{ cam.GetViewport() };
 			viewport.position = viewport.position * scale;
 			viewport.size	  = viewport.size * scale;
 			renderer.SetViewport(viewport);
-			renderer.SetViewProjection(GetCameraViewProjection(cam));
+			renderer.SetViewProjection(cam.GetViewProjection());
 
 			// auto vertices{ GetCameraWorldVertices(cam) };
 			//  auto frustum_objects{ tree.Query(BoundingAABB{ vertices[0], vertices[2] }) };
 
 			for (const auto& drawable : drawables) {
 				// Mask test (entity layers vs camera include/exclude)
-				if (!IsVisibleToCamera(drawable, cam)) {
+				if (!cam.IsVisible(drawable)) {
 					continue;
 				}
 
@@ -204,7 +202,7 @@ void Scene::InternalDraw() {
 	};
 
 	for (const auto& render_target : render_targets) {
-		draw_to_render_target(render_target);
+		draw_to_render_target(RenderTarget{ render_target });
 	}
 
 	draw_to_render_target(render_target_);
@@ -221,30 +219,22 @@ void Scene::InternalDraw() {
 	}
 	*/
 
-	auto screen_target_size{ renderer.GetScreenTarget().size_ };
-	Viewport viewport{ {}, screen_target_size };
+	Viewport viewport{ {}, renderer.GetDisplayViewport().size };
 	auto half_viewport{ viewport.size * 0.5f };
 
-	renderer.GetScreenTarget().Bind(*app().renderer.gl_renderer_->gl);
-
+	renderer.BindScreenTarget();
 	renderer.SetViewport(viewport);
 	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	renderer.SetBlend(BlendMode::Blend);
 
 	auto transform{ GetDrawTransform(render_target_) };
-	auto scene_target_size{ render_target_.Get<RenderTarget>().GetSize() };
+	auto scene_target_size{ render_target_.GetSize() };
 	auto positions{ Rect{ scene_target_size }.GetWorldVertices(transform, Origin::Center) };
 
-	renderer.DrawQuadTexture(
-		render_target_.Get<RenderTarget>(), positions, GetTint(render_target_), 0.0f, true, {}
-	);
+	renderer.DrawQuadTexture(render_target_, positions, GetTint(render_target_), 0.0f, true, {});
 }
 
 void Scene::InternalUpdate() {
-	// TODO: Fix.
-	// app.render_.render_data_.ClearRenderTargets(*this);
-	// app.render_.render_data_.SetDrawingTo(render_target_);
-
 	input.Update();
 
 	Refresh();

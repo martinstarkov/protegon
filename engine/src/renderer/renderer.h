@@ -25,6 +25,7 @@ class EventHandler;
 class Window;
 class Scene;
 class AssetManager;
+class RenderTarget;
 
 struct GameResized : public Event<GameResized> {
 	V2_int size;
@@ -42,7 +43,7 @@ struct DisplayViewportChanged : public Event<DisplayViewportChanged> {
 
 namespace gl {
 
-class Renderer;
+class GLRenderer;
 
 } // namespace gl
 
@@ -98,9 +99,7 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
-
-	impl::RenderTargetData GetScreenTarget() const;
+	void BindScreenTarget();
 
 	void SetViewport(Viewport viewport);
 	void SetViewProjection(const Matrix4& view_projection);
@@ -119,6 +118,9 @@ private:
 	friend class AssetManager;
 	friend class EventHandler;
 	friend class Scene;
+	friend class RenderTarget;
+
+	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
 	void OnEvent(EventDispatcher d);
 
@@ -131,7 +133,7 @@ private:
 	// SetGameSize function, which can trigger DisplayResize events) from the renderer.
 	EventHandler& events_;
 
-	std::shared_ptr<impl::gl::Renderer> gl_renderer_;
+	std::shared_ptr<impl::gl::GLRenderer> gl_renderer_;
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.

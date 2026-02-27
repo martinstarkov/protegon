@@ -6,6 +6,7 @@
 #include <limits>
 #include <optional>
 
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/rect.h"
@@ -29,15 +30,15 @@ namespace impl {
 
 void CameraResizeScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<GameResized>([this](auto& e) {
-		auto& c{ entity.Get<Camera>() };
+		auto& c{ entity.Get<CameraData>() };
 		c.viewport = { {}, e.size };
 		// PTGN_LOG("Camera ", entity, " received game resize: ", e.size);
-		ApplyCameraBounds(entity);
+		ApplyCameraBounds(Camera{ entity });
 	});
 }
 
-V2_float ApplyCameraBounds(Entity camera, V2_float scroll) {
-	auto& c{ camera.Get<impl::Camera>() };
+V2_float ApplyCameraBounds(Camera camera, V2_float scroll) {
+	auto& c{ camera.Get<impl::CameraData>() };
 	if (!c.bounding_box) {
 		return scroll;
 	}
@@ -46,7 +47,7 @@ V2_float ApplyCameraBounds(Entity camera, V2_float scroll) {
 
 	V2_float clamped_scroll;
 
-	V2_float display_size{ GetCameraDisplaySize(camera) };
+	V2_float display_size{ camera.GetDisplaySize() };
 	V2_float half_display{ display_size * 0.5f };
 
 	V2_float min{ bounding_box.position };
@@ -71,12 +72,12 @@ V2_float ApplyCameraBounds(Entity camera, V2_float scroll) {
 	return clamped_scroll;
 }
 
-void ApplyCameraBounds(Entity camera) {
-	SetScroll(camera, ApplyCameraBounds(camera, GetScroll(camera)));
+void ApplyCameraBounds(Camera camera) {
+	camera.SetScroll(ApplyCameraBounds(camera, camera.GetScroll()));
 }
 
-void RecalculateCameraViewProjection(Entity camera) {
-	auto& c{ camera.Get<impl::Camera>() };
+void RecalculateCameraViewProjection(Camera camera) {
+	auto& c{ camera.Get<impl::CameraData>() };
 
 	V2_float flip_dir{ 1.0f, 1.0f };
 
@@ -123,152 +124,218 @@ void RecalculateCameraViewProjection(Entity camera) {
 
 } // namespace impl
 
-void SetScroll(Entity camera, V2_float new_scroll_position) {
-	if (GetScroll(camera) == new_scroll_position) {
-		return;
+Camera::Camera(Entity entity) : Entity{ entity } {}
+
+Camera& Camera::SetScroll(V2_float new_scroll_position) {
+	if (GetScroll() == new_scroll_position) {
+		return *this;
 	}
-	SetPosition(camera, new_scroll_position);
-	impl::ApplyCameraBounds(camera);
+	SetPosition(*this, new_scroll_position);
+	impl::ApplyCameraBounds(*this);
+	return *this;
 }
 
-void SetScrollX(Entity camera, float new_scroll_x_position) {
-	SetScroll(camera, { new_scroll_x_position, GetScroll(camera).y });
+Camera& Camera::SetScrollX(float new_scroll_x_position) {
+	return SetScroll({ new_scroll_x_position, GetScroll().y });
 }
 
-void SetScrollY(Entity camera, float new_scroll_y_position) {
-	SetScroll(camera, { GetScroll(camera).x, new_scroll_y_position });
+Camera& Camera::SetScrollY(float new_scroll_y_position) {
+	return SetScroll({ GetScroll().x, new_scroll_y_position });
 }
 
-void Scroll(Entity camera, V2_float scroll_amount) {
-	SetScroll(camera, GetScroll(camera) + scroll_amount);
+Camera& Camera::Scroll(V2_float scroll_amount) {
+	return SetScroll(GetScroll() + scroll_amount);
 }
 
-void ScrollX(Entity camera, float scroll_x_amount) {
-	SetScrollX(camera, GetScroll(camera).x + scroll_x_amount);
+Camera& Camera::ScrollX(float scroll_x_amount) {
+	return SetScrollX(GetScroll().x + scroll_x_amount);
 }
 
-void ScrollY(Entity camera, float scroll_y_amount) {
-	SetScrollY(camera, GetScroll(camera).y + scroll_y_amount);
+Camera& Camera::ScrollY(float scroll_y_amount) {
+	return SetScrollY(GetScroll().y + scroll_y_amount);
 }
 
-void SetZoom(Entity camera, V2_float new_zoom) {
+Camera& Camera::SetZoom(V2_float new_zoom) {
 	auto clamped{ Clamp(
 		new_zoom, V2_float{ 1000.0f * epsilon<float> },
 		V2_float{ std::numeric_limits<float>::max() }
 	) };
-	if (GetZoom(camera) == clamped) {
-		return;
+	if (GetZoom() == clamped) {
+		return *this;
 	}
 	PTGN_ASSERT(clamped.BothAboveZero(), "Cannot set negative or zero zoom");
-	SetScale(camera, 1.0f / clamped);
-	impl::ApplyCameraBounds(camera);
+	SetScale(*this, 1.0f / clamped);
+	impl::ApplyCameraBounds(*this);
+	return *this;
 }
 
-void SetZoom(Entity camera, float new_xy_zoom) {
-	SetZoom(camera, V2_float{ new_xy_zoom });
+Camera& Camera::SetZoom(float new_xy_zoom) {
+	return SetZoom(V2_float{ new_xy_zoom });
 }
 
-void SetZoomX(Entity camera, float new_x_zoom) {
-	SetZoom(camera, V2_float{ new_x_zoom, GetZoom(camera).y });
+Camera& Camera::SetZoomX(float new_x_zoom) {
+	return SetZoom(V2_float{ new_x_zoom, GetZoom().y });
 }
 
-void SetZoomY(Entity camera, float new_y_zoom) {
-	SetZoom(camera, V2_float{ GetZoom(camera).x, new_y_zoom });
+Camera& Camera::SetZoomY(float new_y_zoom) {
+	return SetZoom(V2_float{ GetZoom().x, new_y_zoom });
 }
 
-void Zoom(Entity camera, V2_float zoom_amount) {
-	auto new_zoom{ GetZoom(camera) + zoom_amount };
-	SetZoom(camera, new_zoom);
+Camera& Camera::Zoom(V2_float zoom_amount) {
+	auto new_zoom{ GetZoom() + zoom_amount };
+	return SetZoom(new_zoom);
 }
 
-void Zoom(Entity camera, float zoom_xy_amount) {
-	auto new_zoom{ GetZoom(camera) + V2_float{ zoom_xy_amount } };
-	SetZoom(camera, new_zoom);
+Camera& Camera::Zoom(float zoom_xy_amount) {
+	auto new_zoom{ GetZoom() + V2_float{ zoom_xy_amount } };
+	return SetZoom(new_zoom);
 }
 
-void ZoomX(Entity camera, float zoom_x_amount) {
-	SetZoomX(camera, GetZoom(camera).x + zoom_x_amount);
+Camera& Camera::ZoomX(float zoom_x_amount) {
+	return SetZoomX(GetZoom().x + zoom_x_amount);
 }
 
-void ZoomY(Entity camera, float zoom_y_amount) {
-	SetZoomY(camera, GetZoom(camera).y + zoom_y_amount);
+Camera& Camera::ZoomY(float zoom_y_amount) {
+	return SetZoomY(GetZoom().y + zoom_y_amount);
 }
 
-V2_float GetScroll(Entity camera) {
-	return GetPosition(camera);
+V2_float Camera::GetScroll() const {
+	return GetPosition(*this);
 }
 
-V2_float GetZoom(Entity camera) {
-	auto scale{ GetScale(camera) };
+V2_float Camera::GetZoom() const {
+	auto scale{ GetScale(*this) };
 	PTGN_ASSERT(scale.BothAboveZero(), "Cannot divide by negative or zero camera scale");
 	return 1.0f / scale;
 }
 
-std::array<V2_float, 4> GetCameraWorldVertices(Entity camera) {
-	Rect rect{ GetCameraViewport(camera).size };
-	auto transform{ GetTransform(camera) };
+std::array<V2_float, 4> Camera::GetWorldVertices() const {
+	Rect rect{ GetViewport().size };
+	auto transform{ GetTransform(*this) };
 	auto world_vertices{ rect.GetWorldVertices(transform) };
 	return world_vertices;
 }
 
-void SetCameraViewport(Entity camera, Viewport viewport) {
-	auto& c{ camera.Get<impl::Camera>() };
-	RemoveScript<impl::CameraResizeScript>(camera);
+Camera& Camera::SetViewport(Viewport viewport) {
+	auto& c{ Get<impl::CameraData>() };
+	RemoveScript<impl::CameraResizeScript>(*this);
 	c.viewport.position = viewport.position;
 	if (c.viewport.size == viewport.size) {
-		return;
+		return *this;
 	}
 	c.viewport.size = viewport.size;
-	impl::ApplyCameraBounds(camera);
+	impl::ApplyCameraBounds(*this);
+	return *this;
 }
 
-Viewport GetCameraViewport(Entity camera) {
-	return camera.Get<impl::Camera>().viewport;
+Viewport Camera::GetViewport() const {
+	return Get<impl::CameraData>().viewport;
 }
 
-V2_float GetCameraDisplaySize(Entity camera) {
-	PTGN_ASSERT(
-		GetZoom(camera).BothAboveZero(), "Cannot get display size of camera with zero zoom"
-	);
-	return camera.Get<impl::Camera>().viewport.size / GetZoom(camera);
+V2_float Camera::GetDisplaySize() const {
+	PTGN_ASSERT(GetZoom().BothAboveZero(), "Cannot get display size of camera with zero zoom");
+	return Get<impl::CameraData>().viewport.size / GetZoom();
 }
 
-void SetCameraBounds(Entity camera, std::optional<Viewport> bounds) {
-	auto& c{ camera.Get<impl::Camera>() };
+Camera& Camera::SetBounds(std::optional<Viewport> bounds) {
+	auto& c{ Get<impl::CameraData>() };
 	c.bounding_box = bounds;
-	impl::ApplyCameraBounds(camera);
+	impl::ApplyCameraBounds(*this);
+	return *this;
 }
 
-std::optional<Viewport> GetCameraBounds(Entity camera) {
-	return camera.Get<impl::Camera>().bounding_box;
+std::optional<Viewport> Camera::GetBounds() const {
+	return Get<impl::CameraData>().bounding_box;
 }
 
-void SetCameraPixelRounding(Entity camera, bool enabled) {
-	auto& c{ camera.Get<impl::Camera>() };
+Camera& Camera::SetPixelRounding(bool enabled) {
+	auto& c{ Get<impl::CameraData>() };
 	c.pixel_rounding = enabled;
+	return *this;
 }
 
-bool GetCameraPixelRounding(Entity camera) {
-	return camera.Get<impl::Camera>().pixel_rounding;
+bool Camera::GetPixelRounding() const {
+	return Get<impl::CameraData>().pixel_rounding;
 }
 
-const Matrix4& GetCameraView(Entity camera) {
-	return camera.Get<impl::Camera>().view;
+const Matrix4& Camera::GetView() const {
+	return Get<impl::CameraData>().view;
 }
 
-const Matrix4& GetCameraProjection(Entity camera) {
-	return camera.Get<impl::Camera>().projection;
+const Matrix4& Camera::GetProjection() const {
+	return Get<impl::CameraData>().projection;
 }
 
-const Matrix4& GetCameraViewProjection(Entity camera) {
-	return camera.Get<impl::Camera>().view_projection;
+const Matrix4& Camera::GetViewProjection() const {
+	return Get<impl::CameraData>().view_projection;
 }
 
-void ResetCamera(Entity camera) {
-	PTGN_ASSERT(camera.Has<impl::Camera>());
-	camera.Add<Transform>();
-	camera.Add<impl::Camera>();
-	AddScript<impl::CameraResizeScript>(camera);
+Camera& Camera::Reset() {
+	PTGN_ASSERT(Has<impl::CameraData>());
+	Add<Transform>();
+	Add<impl::CameraData>();
+	AddScript<impl::CameraResizeScript>(*this);
+	return *this;
+}
+
+LayerMask Camera::GetIncludeMask() const {
+	return GetOrDefault<impl::CameraMask>().include;
+}
+
+LayerMask Camera::GetExcludeMask() const {
+	return GetOrDefault<impl::CameraMask>().exclude;
+}
+
+Camera& Camera::SetMasks(LayerMask include, LayerMask exclude) {
+	auto& c	  = TryAdd<impl::CameraMask>();
+	c.include = include;
+	c.exclude = exclude;
+	return *this;
+}
+
+Camera& Camera::SetIncludeMask(LayerMask include) {
+	TryAdd<impl::CameraMask>().include = include;
+	return *this;
+}
+
+Camera& Camera::SetExcludeMask(LayerMask exclude) {
+	TryAdd<impl::CameraMask>().exclude = exclude;
+	return *this;
+}
+
+Camera& Camera::AddIncludeMasks(LayerMask layers_to_add) {
+	TryAdd<impl::CameraMask>().include |= layers_to_add;
+	return *this;
+}
+
+Camera& Camera::RemoveIncludeMasks(LayerMask layers_to_remove) {
+	TryAdd<impl::CameraMask>().include &= ~layers_to_remove;
+	return *this;
+}
+
+Camera& Camera::AddExcludeMasks(LayerMask layers_to_add) {
+	TryAdd<impl::CameraMask>().exclude |= layers_to_add;
+	return *this;
+}
+
+Camera& Camera::RemoveExcludeMasks(LayerMask layers_to_remove) {
+	TryAdd<impl::CameraMask>().exclude &= ~layers_to_remove;
+	return *this;
+}
+
+Camera& Camera::ClearMasks() {
+	Remove<impl::CameraMask>();
+	return *this;
+}
+
+bool Camera::IsVisible(Entity entity) const {
+	auto entity_mask = GetMask(entity);
+	auto include	 = GetIncludeMask();
+	auto exclude	 = GetExcludeMask();
+
+	bool in_include = (entity_mask & include) != 0;
+	bool in_exclude = (entity_mask & exclude) != 0;
+	return in_include && !in_exclude;
 }
 
 LayerMask GetMask(Entity entity) {
@@ -300,77 +367,26 @@ bool HasAllMasks(Entity entity, LayerMask test) {
 	return (m & test) == test;
 }
 
-LayerMask GetCameraIncludeMask(Entity camera) {
-	return camera.GetOrDefault<impl::CameraMask>().include;
-}
-
-LayerMask GetCameraExcludeMask(Entity camera) {
-	return camera.GetOrDefault<impl::CameraMask>().exclude;
-}
-
-void SetCameraMasks(Entity camera, LayerMask include, LayerMask exclude) {
-	auto& c	  = camera.TryAdd<impl::CameraMask>();
-	c.include = include;
-	c.exclude = exclude;
-}
-
-void SetCameraIncludeMask(Entity camera, LayerMask include) {
-	camera.TryAdd<impl::CameraMask>().include = include;
-}
-
-void SetCameraExcludeMask(Entity camera, LayerMask exclude) {
-	camera.TryAdd<impl::CameraMask>().exclude = exclude;
-}
-
-void AddCameraIncludeMasks(Entity camera, LayerMask layers_to_add) {
-	camera.TryAdd<impl::CameraMask>().include |= layers_to_add;
-}
-
-void RemoveCameraIncludeMasks(Entity camera, LayerMask layers_to_remove) {
-	camera.TryAdd<impl::CameraMask>().include &= ~layers_to_remove;
-}
-
-void AddCameraExcludeMasks(Entity camera, LayerMask layers_to_add) {
-	camera.TryAdd<impl::CameraMask>().exclude |= layers_to_add;
-}
-
-void RemoveCameraExcludeMasks(Entity camera, LayerMask layers_to_remove) {
-	camera.TryAdd<impl::CameraMask>().exclude &= ~layers_to_remove;
-}
-
-void ClearCameraMasks(Entity camera) {
-	camera.Remove<impl::CameraMask>();
-}
-
-bool IsVisibleToCamera(Entity entity, Entity camera) {
-	auto entity_mask = GetMask(entity);
-	auto include	 = GetCameraIncludeMask(camera);
-	auto exclude	 = GetCameraExcludeMask(camera);
-
-	bool in_include = (entity_mask & include) != 0;
-	bool in_exclude = (entity_mask & exclude) != 0;
-	return in_include && !in_exclude;
-}
-
 namespace impl {
 
-Entity CreateCamera(Entity camera, const Renderer& renderer) {
+void AddCameraComponents(Camera camera, const Renderer& renderer) {
 	camera.Add<Transform>();
-	camera.Add<impl::Camera>();
-	SetCameraViewport(camera, { {}, renderer.GetGameSize() });
+	camera.Add<impl::CameraData>();
+	camera.SetViewport({ {}, renderer.GetGameSize() });
 	AddScript<impl::CameraResizeScript>(camera);
-	return camera;
 }
 
 } // namespace impl
 
-Entity CreateCamera(Scene& scene, const Renderer& renderer) {
-	return impl::CreateCamera(scene.CreateEntity(), renderer);
+Camera CreateCamera(Scene& scene) {
+	Camera camera{ scene.CreateEntity() };
+	impl::AddCameraComponents(camera, scene.app().renderer);
+	return camera;
 }
 
-Entity CreateCamera(Scene& scene, const Renderer& renderer, V2_float viewport_size) {
-	auto camera{ CreateCamera(scene, renderer) };
-	SetCameraViewport(camera, { {}, viewport_size });
+Camera CreateCamera(Scene& scene, V2_float viewport_size) {
+	auto camera{ CreateCamera(scene) };
+	camera.SetViewport({ {}, viewport_size });
 	return camera;
 }
 

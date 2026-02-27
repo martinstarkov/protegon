@@ -108,7 +108,7 @@ public:
 		return entity_.TryGet<T>();
 	}
 
-	void Clear() const;
+	// void Clear() const;
 
 	// Destroy the given entity and potentially its children.
 	// @param orphan_children If false, destroys all the children (and their children). If true,

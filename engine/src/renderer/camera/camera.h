@@ -7,7 +7,7 @@
 
 namespace ptgn::impl {
 
-struct Camera {
+struct CameraData {
 	Viewport viewport;
 
 	// If true, rounds camera position to pixel precision.

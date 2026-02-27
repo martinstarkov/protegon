@@ -7,6 +7,8 @@
 
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
+#include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/render_target_component.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -22,7 +24,6 @@ class SceneManager;
 class FrameContext;
 class ApplicationContext;
 class EventHandler;
-
 class Renderer;
 class InputHandler;
 
@@ -286,11 +287,11 @@ public:
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.
-	Entity fixed_camera;
+	Camera fixed_camera;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// game size.
-	Entity camera;
+	Camera camera;
 
 private:
 	friend class SceneManager;
@@ -335,7 +336,7 @@ private:
 	State state_{ State::Constructed };
 
 	Manager manager_;
-	Entity render_target_;
+	RenderTarget render_target_;
 };
 
 template <typename T>

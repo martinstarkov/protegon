@@ -45,60 +45,75 @@ struct CameraMask {
 	LayerMask exclude{ kLayersNone };
 };
 
-void RecalculateCameraViewProjection(Entity camera);
-
-/// @return Scroll with bounds applied.
-[[nodiscard]] V2_float ApplyCameraBounds(Entity camera, V2_float scroll);
-
-/// Apply bounds to the current scroll.
-void ApplyCameraBounds(Entity camera);
-
 } // namespace impl
 
-[[nodiscard]] std::array<V2_float, 4> GetCameraWorldVertices(Entity camera);
+class Camera : public Entity {
+public:
+	Camera() = default;
+	explicit Camera(Entity entity);
 
-void SetCameraViewport(Entity camera, Viewport viewport);
+	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
-[[nodiscard]] Viewport GetCameraViewport(Entity camera);
-[[nodiscard]] V2_float GetCameraDisplaySize(Entity camera);
+	[[nodiscard]] Viewport GetViewport() const;
+	[[nodiscard]] V2_float GetDisplaySize() const;
 
-/// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
-/// the bounding box.
-/// If bounds is {}, no bounds are enforced.
-void SetCameraBounds(Entity camera, std::optional<Viewport> bounds);
+	[[nodiscard]] V2_float GetScroll() const;
+	[[nodiscard]] V2_float GetZoom() const;
 
-/// @return Bounding box viewport if set.
-[[nodiscard]] std::optional<Viewport> GetCameraBounds(Entity camera);
+	[[nodiscard]] bool GetPixelRounding() const;
 
-void SetScroll(Entity camera, V2_float new_scroll_position);
-void SetScrollX(Entity camera, float new_scroll_x_position);
-void SetScrollY(Entity camera, float new_scroll_y_position);
-void Scroll(Entity camera, V2_float scroll_amount);
-void ScrollX(Entity camera, float scroll_x_amount);
-void ScrollY(Entity camera, float scroll_y_amount);
+	[[nodiscard]] const Matrix4& GetViewProjection() const;
+	[[nodiscard]] const Matrix4& GetView() const;
+	[[nodiscard]] const Matrix4& GetProjection() const;
 
-void SetZoom(Entity camera, V2_float new_zoom);
-void SetZoom(Entity camera, float new_xy_zoom);
-void SetZoomX(Entity camera, float new_x_zoom);
-void SetZoomY(Entity camera, float new_y_zoom);
-void Zoom(Entity camera, V2_float zoom_amount);
-void Zoom(Entity camera, float zoom_xy_amount);
-void ZoomX(Entity camera, float zoom_x_amount);
-void ZoomY(Entity camera, float zoom_y_amount);
+	/// @return Bounding box viewport if set.
+	[[nodiscard]] std::optional<Viewport> GetBounds() const;
 
-[[nodiscard]] V2_float GetScroll(Entity camera);
-[[nodiscard]] V2_float GetZoom(Entity camera);
+	Camera& SetViewport(Viewport viewport);
 
-void SetCameraPixelRounding(Entity camera, bool enabled);
+	/// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
+	/// the bounding box.
+	/// If bounds is {}, no bounds are enforced.
+	Camera& SetBounds(std::optional<Viewport> bounds);
 
-[[nodiscard]] bool GetCameraPixelRounding(Entity camera);
+	Camera& SetScroll(V2_float new_scroll_position);
+	Camera& SetScrollX(float new_scroll_x_position);
+	Camera& SetScrollY(float new_scroll_y_position);
+	Camera& Scroll(V2_float scroll_amount);
+	Camera& ScrollX(float scroll_x_amount);
+	Camera& ScrollY(float scroll_y_amount);
 
-[[nodiscard]] const Matrix4& GetCameraViewProjection(Entity camera);
-[[nodiscard]] const Matrix4& GetCameraView(Entity camera);
-[[nodiscard]] const Matrix4& GetCameraProjection(Entity camera);
+	Camera& SetZoom(V2_float new_zoom);
+	Camera& SetZoom(float new_xy_zoom);
+	Camera& SetZoomX(float new_x_zoom);
+	Camera& SetZoomY(float new_y_zoom);
+	Camera& Zoom(V2_float zoom_amount);
+	Camera& Zoom(float zoom_xy_amount);
+	Camera& ZoomX(float zoom_x_amount);
+	Camera& ZoomY(float zoom_y_amount);
 
-/// @brief Resets the camera's viewport and scroll and zoom to the default values.
-void ResetCamera(Entity camera);
+	Camera& SetPixelRounding(bool enabled);
+
+	/// @brief Resets the camera's viewport and scroll and zoom to the default values.
+	Camera& Reset();
+
+	[[nodiscard]] LayerMask GetIncludeMask() const;
+	[[nodiscard]] LayerMask GetExcludeMask() const;
+
+	Camera& SetMasks(LayerMask include, LayerMask exclude = kLayersNone);
+	Camera& SetIncludeMask(LayerMask include);
+	Camera& SetExcludeMask(LayerMask exclude);
+
+	Camera& AddIncludeMasks(LayerMask layers_to_add);
+	Camera& RemoveIncludeMasks(LayerMask layers_to_remove);
+
+	Camera& AddExcludeMasks(LayerMask layers_to_add);
+	Camera& RemoveExcludeMasks(LayerMask layers_to_remove);
+
+	Camera& ClearMasks();
+
+	[[nodiscard]] bool IsVisible(Entity entity) const;
+};
 
 LayerMask GetMask(Entity entity);
 
@@ -110,33 +125,24 @@ void ClearMasks(Entity entity);
 bool HasAnyMask(Entity entity, LayerMask test);
 bool HasAllMasks(Entity entity, LayerMask test);
 
-LayerMask GetCameraIncludeMask(Entity camera);
-LayerMask GetCameraExcludeMask(Entity camera);
-
-void SetCameraMasks(Entity camera, LayerMask include, LayerMask exclude = kLayersNone);
-void SetCameraIncludeMask(Entity camera, LayerMask include);
-void SetCameraExcludeMask(Entity camera, LayerMask exclude);
-
-void AddCameraIncludeMasks(Entity camera, LayerMask layers_to_add);
-void RemoveCameraIncludeMasks(Entity camera, LayerMask layers_to_remove);
-
-void AddCameraExcludeMasks(Entity camera, LayerMask layers_to_add);
-void RemoveCameraExcludeMasks(Entity camera, LayerMask layers_to_remove);
-
-void ClearCameraMasks(Entity camera);
-
-bool IsVisibleToCamera(Entity entity, Entity camera);
-
 namespace impl {
 
-Entity CreateCamera(Entity camera, const Renderer& renderer);
+void AddCameraComponents(Camera camera, const Renderer& renderer);
+
+void RecalculateCameraViewProjection(Camera camera);
+
+/// @return Scroll with bounds applied.
+[[nodiscard]] V2_float ApplyCameraBounds(Camera camera, V2_float scroll);
+
+/// Apply bounds to the current scroll.
+void ApplyCameraBounds(Camera camera);
 
 } // namespace impl
 
 /// Create a default camera which has the same viewport as the game size (automatic resizing).
-Entity CreateCamera(Scene& scene, const Renderer& renderer);
+Camera CreateCamera(Scene& scene);
 
 /// Create a camera with a custom viewport.
-Entity CreateCamera(Scene& scene, const Renderer& renderer, V2_float viewport_size);
+Camera CreateCamera(Scene& scene, V2_float viewport_size);
 
 } // namespace ptgn

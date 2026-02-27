@@ -6,7 +6,7 @@ namespace ptgn::impl {
 
 namespace gl {
 
-class Renderer;
+class GLRenderer;
 
 } // namespace gl
 
@@ -18,7 +18,7 @@ public:
 
 	Resource() = default;
 
-	explicit Resource(gl::Renderer* renderer, T resource) noexcept;
+	explicit Resource(gl::GLRenderer* renderer, T resource) noexcept;
 
 	Resource(const Resource&)			 = delete;
 	Resource& operator=(const Resource&) = delete;
@@ -36,7 +36,7 @@ public:
 protected:
 	void Reset() noexcept;
 
-	gl::Renderer* renderer_{ nullptr };
+	gl::GLRenderer* renderer_{ nullptr };
 	T resource_{};
 };
 

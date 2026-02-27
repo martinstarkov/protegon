@@ -15,6 +15,7 @@ class Renderer;
 
 namespace impl {
 
+// TODO: Move to sprite class.
 struct SpriteDraw {
 	static void Draw(Renderer& renderer, Entity entity);
 };

@@ -37,7 +37,7 @@ namespace impl::gl {
 class GLContext;
 
 template <class State, class Func>
-void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
+void UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
 
 using Index = std::uint32_t;
 
@@ -54,7 +54,7 @@ struct QuadDesc {
 };
 
 struct PooledTarget {
-	RenderTarget target;
+	RenderTargetObject target;
 	std::uint64_t last_used_tick{ 0 };
 	bool in_use{ false };
 };
@@ -73,17 +73,17 @@ struct QuadParams {
 	std::optional<std::array<V2_float, 4>> tex_coords;
 };
 
-class Renderer {
+class GLRenderer {
 public:
-	Renderer() = delete;
-	explicit Renderer(Window& window);
-	~Renderer() noexcept;
-	Renderer(const Renderer&)				 = delete;
-	Renderer(Renderer&&) noexcept			 = delete;
-	Renderer& operator=(const Renderer&)	 = delete;
-	Renderer& operator=(Renderer&&) noexcept = delete;
+	GLRenderer() = delete;
+	explicit GLRenderer(Window& window);
+	~GLRenderer() noexcept;
+	GLRenderer(const GLRenderer&)				 = delete;
+	GLRenderer(GLRenderer&&) noexcept			 = delete;
+	GLRenderer& operator=(const GLRenderer&)	 = delete;
+	GLRenderer& operator=(GLRenderer&&) noexcept = delete;
 
-	RenderTarget CreateRenderTarget(V2_int size, TextureFormat format);
+	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
 	void DrawTexture(
 		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions,
@@ -108,21 +108,20 @@ public:
 
 	V2_int GetTextureSize(TextureId texture) const;
 
-	const RenderTargetData& GetScreenTarget() const;
-	RenderTargetData& GetScreenTarget();
-
 	void BeginFrame(V2_int window_size);
 	void EndFrame(Viewport display_viewport);
 
 	TextureId GetWhiteTexture() const;
 
+	void ResizeScreenTarget(V2_int size);
+	void BindScreenTarget();
+
 	std::unique_ptr<GLContext> gl;
 
 private:
-	friend class Application;
 	friend class ptgn::impl::RenderPass;
 	template <class State, class Func>
-	friend void UpdateStateIfChanged(Renderer&, const State&, const State&, Func&&);
+	friend void UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
 
 	using QuadSetup = std::function<void(ShaderId, QuadDesc&)>;
 
@@ -135,7 +134,7 @@ private:
 	RenderTargetData AcquirePooledTarget(V2_int size, TextureFormat format);
 	void ReleasePooledTarget(RenderTargetData& target);
 
-	RenderTarget screen_target_;
+	RenderTargetObject screen_target_;
 	VertexBufferObject vbo_;
 	ElementBufferObject ebo_;
 	VertexArrayObject vao_;

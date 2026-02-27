@@ -206,9 +206,9 @@ ButtonText::ButtonText(
 Text ButtonText::Get(ButtonState state) const {
 	switch (state) {
 		using enum ptgn::ButtonState;
-		case Default: return default_;
-		case Hover:	  return hover_;
-		case Pressed: return pressed_;
+		case Default: return Text{ default_ };
+		case Hover:	  return Text{ hover_ };
+		case Pressed: return Text{ pressed_ };
 		case Current: [[fallthrough]];
 		default:	  PTGN_ERROR("Invalid button state");
 	}
@@ -336,7 +336,7 @@ static Color GetEffectiveColor(
 
 // @return Button texture, or {} is button has no valid texture.
 static std::optional<Texture> GetButtonTexture(
-	Entity button, bool is_toggled, const ButtonState& state
+	Button button, bool is_toggled, const ButtonState& state
 ) {
 	SetTextureState(button, is_toggled, state);
 

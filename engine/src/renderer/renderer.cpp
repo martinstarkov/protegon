@@ -30,10 +30,10 @@ namespace ptgn {
 Renderer::Renderer(Window& window, EventHandler& events) :
 	window_{ window },
 	events_{ events },
-	gl_renderer_{ std::make_shared<impl::gl::Renderer>(window) } {}
+	gl_renderer_{ std::make_shared<impl::gl::GLRenderer>(window) } {}
 
 Renderer::~Renderer() noexcept {
-	// Destructor access to impl::gl::Renderer is needed.
+	// Destructor access to impl::gl::GLRenderer is needed.
 }
 
 void Renderer::OnEvent(EventDispatcher d) {
@@ -128,12 +128,12 @@ impl::ShaderId Renderer::GetShader(std::string_view name) const {
 	return gl_renderer_->GetShader(name);
 }
 
-RenderTarget Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
+impl::RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	return gl_renderer_->CreateRenderTarget(size, format);
 }
 
-impl::RenderTargetData Renderer::GetScreenTarget() const {
-	return gl_renderer_->GetScreenTarget();
+void Renderer::BindScreenTarget() {
+	return gl_renderer_->BindScreenTarget();
 }
 
 void Renderer::SetViewport(Viewport viewport) {
@@ -250,7 +250,7 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 		display_viewport_ = viewport;
 
 		if (resized) {
-			gl_renderer_->GetScreenTarget().Resize(*gl_renderer_->gl, display_viewport_.size);
+			gl_renderer_->ResizeScreenTarget(display_viewport_.size);
 
 			if (emit_events) {
 				impl::DisplayResized display_resized;

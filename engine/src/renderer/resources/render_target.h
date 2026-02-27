@@ -15,7 +15,7 @@ namespace impl {
 
 namespace gl {
 
-class Renderer;
+class GLRenderer;
 class GLContext;
 
 } // namespace gl
@@ -51,7 +51,7 @@ public:
 	void Bind();
 
 private:
-	friend class impl::gl::Renderer;
+	friend class impl::gl::GLRenderer;
 
 	RenderTargetData source_;
 
@@ -65,14 +65,12 @@ private:
 	bool has_written_once_{ false }; // false -> latest is source
 	bool latest_is_ping_{ true };	 // valid only if has_written_once == true
 
-	gl::Renderer* renderer_{ nullptr };
+	gl::GLRenderer* renderer_{ nullptr };
 };
 
-} // namespace impl
-
-class RenderTarget : public impl::Resource<impl::RenderTargetData> {
+class RenderTargetObject : public Resource<RenderTargetData> {
 public:
-	using Base = impl::Resource<impl::RenderTargetData>;
+	using Base = Resource<RenderTargetData>;
 	using Base::Base;
 
 	V2_int GetSize() const;
@@ -83,13 +81,15 @@ public:
 
 	void Clear(Color color = color::Transparent);
 
-	operator impl::TextureId() const;
+	operator TextureId() const;
 
 private:
-	friend class impl::gl::Renderer;
+	friend class gl::GLRenderer;
 
-	RenderTarget() = default;
-	RenderTarget(impl::gl::GLContext* gl, V2_int size, TextureFormat format);
+	RenderTargetObject() = default;
+	RenderTargetObject(gl::GLContext* gl, V2_int size, TextureFormat format);
 };
+
+} // namespace impl
 
 } // namespace ptgn

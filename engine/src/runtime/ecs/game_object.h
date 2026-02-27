@@ -30,6 +30,10 @@ public:
 
 	GameObject(const GameObject&)			 = delete;
 	GameObject& operator=(const GameObject&) = delete;
+
+	operator Entity() const {
+		return *this;
+	}
 };
 
 } // namespace ptgn

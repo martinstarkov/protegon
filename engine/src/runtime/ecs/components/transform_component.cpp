@@ -30,7 +30,7 @@ Transform GetWorldTransform(Entity entity) {
 
 Transform GetDrawTransform(Entity entity) {
 	auto offset_transform{ GetOffset(entity) };
-	PTGN_ASSERT(!entity.Has<impl::Camera>());
+	PTGN_ASSERT(!entity.Has<impl::CameraData>(), "GetDrawTransform is not meant for cameras");
 	auto transform{ GetWorldTransform(entity) };
 	transform = transform.RelativeTo(offset_transform);
 	return transform;

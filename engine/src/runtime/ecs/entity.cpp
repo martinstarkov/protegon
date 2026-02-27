@@ -18,9 +18,9 @@ namespace ptgn {
 
 Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
 
-void Entity::Clear() const {
-	entity_.Clear();
-}
+// void Entity::Clear() const {
+//	entity_.Clear();
+// }
 
 Entity& Entity::Destroy(bool orphan_children) {
 	if (*this == Entity{}) {

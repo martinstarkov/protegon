@@ -21,7 +21,7 @@ class Scene;
 class Text : public Entity {
 public:
 	Text() = default;
-	Text(Entity entity);
+	explicit Text(Entity entity);
 
 	static void Draw(
 		Renderer& renderer, Entity text, V2_int text_size, Color additional_tint,

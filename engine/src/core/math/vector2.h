@@ -51,7 +51,8 @@ struct Vector2 {
 		x{ static_cast<T>(x_component) }, y{ static_cast<T>(y_component) } {}
 
 	template <Arithmetic U>
-	constexpr Vector2(std::array<U, 2> o) : x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
+	explicit constexpr Vector2(std::array<U, 2> o) :
+		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
 	friend bool operator==(Vector2 lhs, Vector2 rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);

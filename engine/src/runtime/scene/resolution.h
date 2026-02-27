@@ -3,7 +3,8 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/camera/viewport.h"
-#include "runtime/ecs/entity.h"
+#include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/render_target_component.h"
 
 namespace ptgn {
 
@@ -44,7 +45,7 @@ class FrameContext {
 public:
 	FrameContext() = default;
 
-	FrameContext(const ApplicationContext& app, Entity render_target, Entity camera);
+	FrameContext(const ApplicationContext& app, RenderTarget render_target, Camera camera);
 	explicit FrameContext(const Scene& scene);
 
 	DisplayFrame display;
