@@ -19,6 +19,7 @@
 #include "renderer/primitives/text.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
+#include "runtime/asset/font_system.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/text_component.h"
 #include "runtime/ecs/components/transform_component.h"
@@ -30,6 +31,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
+#include "runtime/ui/dropdown.h"
 
 namespace ptgn {
 
@@ -287,7 +289,7 @@ void ButtonText::Set(
 		Text::SetParameter(text, impl::TextColor{ text_color }, false);
 		Text::SetParameter(text, impl::TextContent{ text_content }, false);
 		Text::SetParameter(text, font.value_or(Font{}), false);
-		Text::SetParameter(text, FontSize{ font_size.value_or(FontSize{}) }, false);
+		Text::SetParameter(text, FontSize{ font_size.value_or(kDefaultFontSize) }, false);
 		Text::SetProperties(text, text_properties, true);
 	}
 }
@@ -527,7 +529,7 @@ V2_float ButtonBase<Derived>::GetSize() const {
 		return V2_float{ circle->radius * 2.0f };
 	}
 
-	PTGN_ERROR("Button has no valid size");
+	return {};
 }
 
 template <typename Derived>
@@ -903,8 +905,13 @@ const Derived& ButtonBase<Derived>::Self() const {
 
 template class ButtonBase<Button>;
 template class ButtonBase<ToggleButton>;
+template class ButtonBase<Dropdown>;
 
 } // namespace impl
+
+ToggleButton::operator Button() const {
+	return Button{ *this };
+}
 
 bool ToggleButton::IsToggled() const {
 	return Has<impl::ButtonToggled>();

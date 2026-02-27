@@ -1,16 +1,13 @@
-#include <functional>
-#include <string_view>
-
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "debug/core/log.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
-#include "ui/button.h"
-#include "ui/dropdown.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/log.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "platform/window/window.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/scene/scene.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/dropdown.h"
 
 using namespace ptgn;
 
@@ -28,27 +25,22 @@ public:
 	}
 
 	Dropdown CreateDropdown(bool open = false) {
-		auto game_size{ game.renderer.GetGameSize() };
-
-		Dropdown d;
-		d = CreateDropdownButton(*this, open);
-		d.SetText("Dropdown", color::Yellow);
-		d.SetBackgroundColor(color::Gray);
-		d.SetBackgroundColor(color::LightGray, ButtonState::Hover);
-		d.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
-		SetPosition(d, -game_size * 0.5f + V2_float{ 400, 200 });
-		d.SetSize({ 200, 100 });
+		Dropdown d = CreateDropdownButton(*this, open)
+						 .SetText("Dropdown", color::Yellow)
+						 .SetBackgroundColor(color::Gray)
+						 .SetBackgroundColor(color::LightGray, ButtonState::Hover)
+						 .SetBackgroundColor(color::DarkGray, ButtonState::Pressed)
+						 .SetSize({ 200, 100 })
+						 .SetBorderColor(color::Gold)
+						 .SetBorderWidth(3.0f)
+						 .SetButtonSize({ 100, 50 })
+						 .SetDropdownDirection(Origin::CenterBottom);
 		// SetDrawOrigin(d, Origin::Center);
-		d.SetBorderColor(color::Gold);
-		d.SetBorderWidth(3.0f);
-		d.SetButtonSize({ 100, 50 });
-		d.SetDropdownDirection(Origin::CenterBottom);
+		SetPosition(d, -app().renderer.GetGameSize() * 0.5f + V2_float{ 400, 200 });
 		return d;
 	}
 
-	void Enter() override {
-		game.window.SetResizable();
-
+	void OnEnter() override {
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);
 		Dropdown dropdown3 = CreateDropdown(true);
@@ -85,7 +77,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("DropdownScene", { 800, 800 });
-	game.scene.Enter<DropdownScene>("");
-	return 0;
+	Application game{ { .window = { .title = "DropdownScene", .resizeable = true } } };
+	game.StartWith<DropdownScene>("");
 }

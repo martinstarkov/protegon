@@ -481,6 +481,7 @@ class ToggleButton : public impl::ButtonBase<ToggleButton> {
 public:
 	ToggleButton() = default;
 	using impl::ButtonBase<ToggleButton>::ButtonBase;
+	operator Button() const;
 
 	[[nodiscard]] bool IsToggled() const;
 	[[nodiscard]] Color GetBackgroundColorToggled(ButtonState state = ButtonState::Current) const;
