@@ -1,15 +1,24 @@
-#include "core/ecs/components/movement.h"
-#include "core/app/game.h"
-#include "renderer/vfx/graphics.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/event/dispatcher.h"
+#include "core/graphics/color.h"
+#include "core/log.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "platform/input/events.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/graphics_component.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/scene/scene.h"
+#include "runtime/ui/button.h"
 
 using namespace ptgn;
 
 struct GraphicsScene : public Scene {
 	Graphics graphics;
 
-	void Enter() override {
+	void OnEnter() override {
 		graphics = CreateGraphics(*this);
 
 		graphics.SetFillColor(color::Red);
@@ -22,13 +31,14 @@ struct GraphicsScene : public Scene {
 		graphics.Line({ 100, 50 }, { -100, -50 });
 	}
 
-	void Update() override {
-		MoveWASD(graphics, V2_float{ 300.0f * game.dt() });
+	void OnUpdate() override {
+		// MoveWASD(graphics, V2_float{ 300.0f * game.dt() });
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("GraphicsScene");
-	game.scene.Enter<GraphicsScene>("");
+	Application game{ { .window = { .title		= "GraphicsScene: WASD to move graphics object",
+									.resizeable = true } } };
+	game.StartWith<GraphicsScene>("");
 	return 0;
 }

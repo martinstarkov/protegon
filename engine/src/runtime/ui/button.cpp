@@ -410,7 +410,7 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 	} else {
 		auto line_width{ button.GetOrDefault<impl::ButtonBackgroundWidth>() };
 
-		if (line_width > 0.0f) {
+		if (line_width >= kMinLineWidth || line_width == -1.0f) {
 			auto color{
 				GetEffectiveColor<impl::ButtonColor, impl::ButtonColorToggled>(button, is_toggled)
 			};
@@ -424,9 +424,8 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 		}
 	}
 
-	auto line_width{ button.GetOrDefault<impl::ButtonBorderWidth>() };
-
-	if (line_width > 0.0f) {
+	if (auto line_width{ button.GetOrDefault<impl::ButtonBorderWidth>() };
+		line_width >= kMinLineWidth || line_width == -1.0f) {
 		auto color{ GetEffectiveColor<impl::ButtonBorderColor, impl::ButtonBorderColorToggled>(
 			button, is_toggled
 		) };

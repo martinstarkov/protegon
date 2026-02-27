@@ -35,9 +35,13 @@ void RenderTargetData::Resize(gl::GLContext& gl, V2_int new_size) {
 void RenderTargetData::Clear(gl::GLContext& gl, Color color) const {
 	auto bind_guard = gl.Bind(framebuffer_, true);
 
+	auto viewport{ gl.GetViewport() };
+
 	gl.SetViewport({ {}, size_ });
 
 	gl.framebuffers.ClearToColor(framebuffer_, color);
+
+	gl.SetViewport(viewport);
 }
 
 RenderTargetData::operator TextureId() const {
@@ -47,8 +51,8 @@ RenderTargetData::operator TextureId() const {
 	return *color_;
 }
 
-void RenderTargetData::Bind(gl::GLContext& gl) const {
-	auto _ = gl.Bind(framebuffer_);
+void RenderTargetData::Bind(gl::GLRenderer& renderer) const {
+	renderer.SetFramebuffer(framebuffer_);
 }
 
 RenderTargetData::RenderTargetData(
@@ -76,7 +80,7 @@ void RenderPass::Bind() {
 		write = latest_is_ping_ ? pong_ : ping_;
 	}
 
-	write.Bind(*renderer_->gl);
+	write.Bind(*renderer_);
 }
 
 V2_int RenderTargetObject::GetSize() const {
@@ -99,7 +103,7 @@ void RenderTargetObject::Clear(Color color) {
 
 void RenderTargetObject::Bind() {
 	PTGN_ASSERT(*this);
-	resource_.Bind(*renderer_->gl);
+	resource_.Bind(*renderer_);
 }
 
 RenderTargetObject::operator TextureId() const {

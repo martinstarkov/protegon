@@ -15,6 +15,7 @@
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
+#include "core/log.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -41,7 +42,13 @@
 namespace ptgn {
 
 FillStyle::FillStyle(float line_width) : style{ impl::Hollow{ line_width } } {
-	PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for hollow fill style");
+	if (line_width == -1.0f) {
+		style = impl::Solid{};
+	} else if (line_width >= kMinLineWidth) {
+		style = impl::Hollow{ line_width };
+	} else {
+		PTGN_ERROR("Invalid line width for fill style");
+	}
 }
 
 FillStyle::FillStyle(impl::Solid) : style{ impl::Solid{} } {}

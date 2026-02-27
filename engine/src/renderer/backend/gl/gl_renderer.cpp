@@ -356,9 +356,8 @@ void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadS
 	}
 
 	auto updated{ SetShader(shader) };
-	if (updated) {
-		gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
-	}
+	// TODO: Dont update view projection every time.
+	gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
 
 	setup(shader, quad);
 
@@ -386,9 +385,8 @@ void GLRenderer::DrawTriangle(
 	ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
 ) {
 	auto updated{ SetShader(shader) };
-	if (updated) {
-		gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
-	}
+	// TODO: Dont update view projection every time.
+	gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
 
 	auto vertices{ Vertex::GetTriangle(positions, tint, depth) };
 
@@ -409,9 +407,8 @@ void GLRenderer::DrawLine(
 	ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
 ) {
 	auto updated{ SetShader(shader) };
-	if (updated) {
-		gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
-	}
+	// TODO: Dont update view projection every time.
+	gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
 
 	auto vertices{ Vertex::GetLine(positions, tint, depth) };
 
@@ -516,7 +513,7 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 			write = p.latest_is_ping_ ? p.pong_ : p.ping_;
 		}
 
-		write.Bind(*gl);
+		write.Bind(*this);
 
 		DrawTexture(
 			shader, *input.color_,

@@ -37,7 +37,7 @@ struct RenderTargetData {
 
 	void Resize(gl::GLContext& gl, V2_int new_size);
 
-	void Bind(gl::GLContext& gl) const;
+	void Bind(gl::GLRenderer& renderer) const;
 
 	void Clear(gl::GLContext& gl, Color color) const;
 
