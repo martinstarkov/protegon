@@ -60,10 +60,14 @@ GLRenderer::GLRenderer(Window& window) : gl{ std::make_unique<GLContext>(window)
 		VertexArrayObject{ this,
 						   gl->vertex_arrays.CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_) };
 
+	// Important to use unsigned byte for the white texture as color::White is stored in
+	// std::uint8_t.
+	constexpr PixelDataType pixel_type{ PixelDataType::UnsignedByte };
+
 	white_texture_ =
 		TextureObject{ this, gl->textures.CreateTexture(
 								 static_cast<const void*>(&color::White), PixelDataFormat::RGBA,
-								 PixelDataType::UnsignedInt, V2_int{ 1, 1 }, TextureFormat::RGBA8
+								 pixel_type, V2_int{ 1, 1 }, TextureFormat::RGBA8
 							 ) };
 
 	// TODO: Use display size instead of window size.
