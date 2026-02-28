@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <utility>
 #include <variant>
@@ -100,10 +101,10 @@ void Framebuffers::AttachRenderbuffer(
 
 	GLCall(FramebufferRenderbuffer(
 		GL_FRAMEBUFFER, std::to_underlying(attachment),
-		std::to_underlying(AttachmentObject::RenderbufferId), renderbuffer
+		std::to_underlying(AttachmentObject::Renderbuffer), renderbuffer
 	));
 
-	UpdateFramebufferCache(framebuffer, renderbuffer, attachment, AttachmentObject::RenderbufferId);
+	UpdateFramebufferCache(framebuffer, renderbuffer, attachment, AttachmentObject::Renderbuffer);
 }
 
 void Framebuffers::Clear(ClearBufferBit buffers) const {
@@ -358,7 +359,7 @@ void Framebuffers::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size)
 
 		if (spec.object == AttachmentObject::Texture2D) {
 			gl_.textures.ResizeTexture(TextureId{ spec.id }, new_size);
-		} else if (spec.object == AttachmentObject::RenderbufferId) {
+		} else if (spec.object == AttachmentObject::Renderbuffer) {
 			gl_.renderbuffers.ResizeRenderbuffer(RenderbufferId{ spec.id }, new_size);
 		} else {
 			PTGN_ERROR("Unknown framebuffer attachment type");
@@ -430,6 +431,16 @@ void Framebuffers::SavePNG(const path& path, FramebufferId framebuffer, Attachme
 	PTGN_ASSERT(saved, SDL_GetError());
 
 	SDL_DestroySurface(surface);
+}
+
+std::ostream& operator<<(std::ostream& os, AttachmentObject object) {
+	switch (object) {
+		using enum ptgn::impl::gl::AttachmentObject;
+		case None:		   return os << "None";
+		case Texture2D:	   return os << "Texture2D";
+		case Renderbuffer: return os << "Renderbuffer";
+		default:		   PTGN_ERROR("UnknownAttachmentObject: ", std::to_underlying(object));
+	}
 }
 
 } // namespace ptgn::impl::gl

@@ -20,10 +20,12 @@ namespace ptgn::impl::gl {
 class GLContext;
 
 enum class AttachmentObject : std::uint32_t {
-	None		   = 0,
-	Texture2D	   = 0x0DE1, // GL_TEXTURE_2D
-	RenderbufferId = 0x8D41	 // GL_RENDERBUFFER
+	None		 = 0,
+	Texture2D	 = 0x0DE1, // GL_TEXTURE_2D
+	Renderbuffer = 0x8D41  // GL_RENDERBUFFER
 };
+
+std::ostream& operator<<(std::ostream& os, AttachmentObject object);
 
 struct AttachmentSpec {
 	std::uint32_t id{ 0 };

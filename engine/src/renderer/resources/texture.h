@@ -89,7 +89,7 @@ inline bool IsHDRFormat(TextureFormat fmt) {
 }
 
 // Texture Minification Filter (GL_TEXTURE_MIN_FILTER)
-enum class TextureMinFilter : std::uint32_t {
+enum class TextureMinFilter : std::int32_t {
 	Nearest				 = 0x2600, // GL_NEAREST
 	Linear				 = 0x2601, // GL_LINEAR
 	NearestMipmapNearest = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
@@ -99,13 +99,13 @@ enum class TextureMinFilter : std::uint32_t {
 };
 
 // Texture Magnification Filter (GL_TEXTURE_MAG_FILTER)
-enum class TextureMagFilter : std::uint32_t {
+enum class TextureMagFilter : std::int32_t {
 	Nearest = 0x2600, // GL_NEAREST
 	Linear	= 0x2601  // GL_LINEAR
 };
 
 // Texture Wrap Mode (GL_TEXTURE_WRAP_S / GL_TEXTURE_WRAP_T)
-enum class TextureWrap : std::uint32_t {
+enum class TextureWrap : std::int32_t {
 	Repeat		   = 0x2901, // GL_REPEAT
 	MirroredRepeat = 0x8370, // GL_MIRRORED_REPEAT
 	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE

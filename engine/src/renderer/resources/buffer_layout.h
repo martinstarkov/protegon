@@ -29,58 +29,58 @@ enum class BufferElementType : std::uint8_t {
 };
 
 template <typename T>
-struct BufferType {
+struct BufferTypeTrait {
 	static_assert(sizeof(T) == 0, "Unsupported buffer element type");
 };
 
 template <>
-struct BufferType<float> {
+struct BufferTypeTrait<float> {
 	static constexpr auto value = BufferElementType::Float;
 };
 
 template <>
-struct BufferType<double> {
+struct BufferTypeTrait<double> {
 	static constexpr auto value = BufferElementType::Double;
 };
 
 template <>
-struct BufferType<std::int32_t> {
+struct BufferTypeTrait<std::int32_t> {
 	static constexpr auto value = BufferElementType::Int;
 };
 
 template <>
-struct BufferType<std::uint32_t> {
+struct BufferTypeTrait<std::uint32_t> {
 	static constexpr auto value = BufferElementType::UInt;
 };
 
 template <>
-struct BufferType<std::int16_t> {
+struct BufferTypeTrait<std::int16_t> {
 	static constexpr auto value = BufferElementType::Short;
 };
 
 template <>
-struct BufferType<std::uint16_t> {
+struct BufferTypeTrait<std::uint16_t> {
 	static constexpr auto value = BufferElementType::UShort;
 };
 
 template <>
-struct BufferType<std::int8_t> {
+struct BufferTypeTrait<std::int8_t> {
 	static constexpr auto value = BufferElementType::Byte;
 };
 
 template <>
-struct BufferType<std::uint8_t> {
+struct BufferTypeTrait<std::uint8_t> {
 	static constexpr auto value = BufferElementType::UByte;
 };
 
 template <>
-struct BufferType<bool> {
+struct BufferTypeTrait<bool> {
 	static constexpr auto value = BufferElementType::Bool;
 };
 
 template <typename T>
 constexpr BufferElementType GetBufferElementType() {
-	return BufferType<typename T::value_type>::value;
+	return BufferTypeTrait<typename T::value_type>::value;
 }
 
 struct BufferElement {
@@ -88,7 +88,7 @@ struct BufferElement {
 		std::uint16_t buffer_size, std::uint16_t buffer_count, bool buffer_is_integer,
 		BufferElementType type
 	) :
-		size{ buffer_size }, count{ buffer_count }, is_integer{ buffer_is_integer }, type{ type } {}
+		size{ buffer_size }, count{ buffer_count }, type{ type }, is_integer{ buffer_is_integer } {}
 
 	std::uint16_t size{ 0 };  // Number of elements x Size of element.
 	std::uint16_t count{ 0 }; // Number of elements

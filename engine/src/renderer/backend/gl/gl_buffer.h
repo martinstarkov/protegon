@@ -1,6 +1,8 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
+#include <ostream>
 
 #include "core/util/id_map.h"
 #include "renderer/resources/buffer.h"
@@ -23,6 +25,8 @@ enum class BufferUsage : std::uint32_t {
 	StreamCopy	= 0x88E2  // GL_STREAM_COPY
 };
 
+std::ostream& operator<<(std::ostream& os, BufferUsage usage);
+
 enum class BufferTarget : std::uint32_t {
 	ArrayBuffer				= 0x8892, // GL_ARRAY_BUFFER
 	AtomicCounterBuffer		= 0x92C0, // GL_ATOMIC_COUNTER_BUFFER
@@ -40,6 +44,8 @@ enum class BufferTarget : std::uint32_t {
 	UniformBuffer			= 0x8A11  // GL_UNIFORM_BUFFER
 };
 
+std::ostream& operator<<(std::ostream& os, BufferTarget target);
+
 enum class BufferParameter : std::uint32_t {
 	Access			 = 0x88BB, // GL_BUFFER_ACCESS
 	AccessFlags		 = 0x911F, // GL_BUFFER_ACCESS_FLAGS
@@ -52,10 +58,16 @@ enum class BufferParameter : std::uint32_t {
 	Usage			 = 0x8765  // GL_BUFFER_USAGE
 };
 
+std::ostream& operator<<(std::ostream& os, BufferParameter parameter);
+
 struct BufferCache {
 	BufferUsage usage{ BufferUsage::StaticDraw };
 	std::uint32_t count{ 0 };
 };
+
+template <typename T>
+concept BufferType = std::same_as<T, VertexBufferId> || std::same_as<T, ElementBufferId> ||
+					 std::same_as<T, UniformBufferId>;
 
 class Buffers {
 public:
@@ -74,7 +86,7 @@ public:
 	void DestroyUniformBuffer(UniformBufferId id);
 
 	/// @param target OpenGL buffer binding point.
-	template <typename T, bool kBufferOrphaning = true>
+	template <BufferType T, bool kBufferOrphaning = true>
 	void SetBufferSubData(
 		T id, BufferTarget target, const void* data, std::int32_t byte_offset,
 		std::uint32_t element_count, std::uint32_t element_size
@@ -90,13 +102,13 @@ private:
 	Buffers& operator=(const Buffers&)	   = delete;
 	Buffers& operator=(Buffers&&) noexcept = delete;
 
-	template <typename T>
+	template <BufferType T>
 	T CreateBuffer(
 		BufferTarget target, const void* data, std::uint32_t element_count,
 		std::uint32_t element_size, BufferUsage usage
 	);
 
-	template <typename T>
+	template <BufferType T>
 	void DestroyBuffer(T id);
 
 	int GetBufferParameter(BufferTarget target, BufferParameter parameter) const;

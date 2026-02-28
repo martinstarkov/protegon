@@ -1,0 +1,14 @@
+#pragma once
+
+#define GL_DEBUG
+
+#ifdef GL_DEBUG
+
+#define GL_DEBUG_BUFFERS
+#define GL_DEBUG_SHADERS
+#define GL_DEBUG_FRAMEBUFFERS
+#define GL_DEBUG_RENDERBUFFERS
+#define GL_DEBUG_TEXTURES
+#define GL_DEBUG_VERTEX_ARRAYS
+
+#endif

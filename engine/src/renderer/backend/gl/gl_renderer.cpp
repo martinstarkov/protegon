@@ -163,7 +163,8 @@ void GLRenderer::FlushBatch() {
 	}
 
 	gl->vertex_arrays.DrawElements(
-		vao_, static_cast<std::uint32_t>(batch_indices_.size()), GL_UNSIGNED_INT, GL_TRIANGLES
+		vao_, static_cast<std::uint32_t>(batch_indices_.size()), IndexType::UnsignedInt,
+		PrimitiveMode::Triangles
 	);
 
 	// Clear batch (keep white texture)

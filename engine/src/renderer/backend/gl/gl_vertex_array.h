@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 
 #include "core/assert.h"
 #include "core/util/concepts.h"
@@ -36,6 +37,26 @@ constexpr GLenum ToGLType(BufferElementType type) noexcept {
 	}
 	return GL_FLOAT;
 }
+
+enum class PrimitiveMode : std::uint32_t {
+	Points		  = 0x0000, // GL_POINTS
+	Lines		  = 0x0001, // GL_LINES
+	LineLoop	  = 0x0002, // GL_LINE_LOOP
+	LineStrip	  = 0x0003, // GL_LINE_STRIP
+	Triangles	  = 0x0004, // GL_TRIANGLES
+	TriangleStrip = 0x0005, // GL_TRIANGLE_STRIP
+	TriangleFan	  = 0x0006	// GL_TRIANGLE_FAN
+};
+
+std::ostream& operator<<(std::ostream& os, PrimitiveMode mode);
+
+enum class IndexType : std::uint32_t {
+	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
+	UnsignedShort = 0x1403, // GL_UNSIGNED_SHORT
+	UnsignedInt	  = 0x1405	// GL_UNSIGNED_INT
+};
+
+std::ostream& operator<<(std::ostream& os, IndexType type);
 
 class VertexArrays {
 public:
@@ -105,11 +126,12 @@ public:
 	}
 
 	void DrawElements(
-		VertexArrayId vertex_array, GLsizei element_count, GLenum element_type,
-		GLenum primitive_mode
+		VertexArrayId vertex_array, GLsizei index_count, IndexType index_type,
+		PrimitiveMode primitive_mode
 	) const;
 
-	void DrawArrays(VertexArrayId vertex_array, GLsizei vertex_count, GLenum primitive_mode) const;
+	void DrawArrays(VertexArrayId vertex_array, GLsizei vertex_count, PrimitiveMode primitive_mode)
+		const;
 
 private:
 	friend class GLContext;

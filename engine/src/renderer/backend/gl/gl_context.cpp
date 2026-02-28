@@ -180,7 +180,9 @@ BindGuard<RenderbufferId> GLContext::Bind(RenderbufferId id, bool restore_bind) 
 		return BindGuard<RenderbufferId>{ *this, RenderbufferId{}, false };
 	}
 
-	GLCall(BindRenderbuffer(GL_RENDERBUFFER, id));
+	constexpr AttachmentObject target{ AttachmentObject::Renderbuffer };
+
+	GLCall(BindRenderbuffer(std::to_underlying(target), id));
 	bound_.renderbuffer = id;
 
 	return BindGuard<RenderbufferId>{ *this, previous, restore_bind };
@@ -197,7 +199,9 @@ BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind) {
 	PTGN_ASSERT(slot < GetMaxTextureSlots(), "Slot out of range of max slots");
 	PTGN_ASSERT(bound_.texture_units[slot].id != id);
 
-	GLCall(glBindTexture(GL_TEXTURE_2D, id));
+	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
+
+	GLCall(glBindTexture(std::to_underlying(target), id));
 	bound_.texture_units[slot].id = id;
 
 	return BindGuard<TextureId>{ *this, previous, restore_bind };
