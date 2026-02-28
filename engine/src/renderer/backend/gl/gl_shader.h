@@ -27,6 +27,7 @@ struct Matrix4;
 namespace impl::gl {
 
 class GLContext;
+class GLRenderer;
 
 struct ShaderOptions {
 	bool auto_layout{ false };
@@ -105,6 +106,7 @@ public:
 
 private:
 	friend class GLContext;
+	friend class GLRenderer;
 
 	explicit Shaders(GLContext& gl);
 	~Shaders() noexcept;

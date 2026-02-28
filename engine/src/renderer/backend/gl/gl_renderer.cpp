@@ -172,13 +172,21 @@ void GLRenderer::FlushBatch() {
 
 #ifdef GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::FlushBatch");
-	PTGN_LOG("Vertices (", batch_vertices_.size(), "):");
+	PTGN_LOG("Framebuffer: ", gl->GetBoundState().framebuffer);
+	PTGN_LOG("Blend Mode: ", gl->GetBoundState().blend);
+	auto shader_id{ gl->GetBoundShader() };
+	Print("Shader: (id=", shader_id);
+	if (auto shader{ gl->shaders.cache_.TryGet(shader_id) }) {
+		Print(", name=", shader->program_name);
+	}
+	PrintLine(")");
+	PTGN_LOG("Vertices: (", batch_vertices_.size(), "):");
 
 	for (std::size_t i = 0; i < batch_vertices_.size(); ++i) {
 		PTGN_LOG("  [", i, "] ", batch_vertices_[i]);
 	}
 
-	Print("Indices (", batch_indices_.size(), "): [");
+	Print("Indices: (", batch_indices_.size(), "): [");
 
 	for (std::size_t i = 0; i < batch_indices_.size(); ++i) {
 		Print(batch_indices_[i]);
@@ -188,7 +196,7 @@ void GLRenderer::FlushBatch() {
 	}
 	PrintLine("]");
 
-	Print("Textures (", batch_textures_.size(), "): [");
+	Print("Textures: (", batch_textures_.size(), "): [");
 
 	for (std::size_t i = 0; i < batch_textures_.size(); ++i) {
 		Print(batch_textures_[i]);
@@ -321,8 +329,11 @@ bool GLRenderer::SetViewport(Viewport viewport) {
 
 bool GLRenderer::SetViewProjection(const Matrix4& view_projection) {
 	if (view_projection_ != view_projection) {
-		view_projection_ = view_projection;
 		FlushBatch();
+		view_projection_ = view_projection;
+		if (auto shader{ gl->GetBoundShader() }; shader) {
+			gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+		}
 		return true;
 	}
 	return false;
@@ -331,6 +342,7 @@ bool GLRenderer::SetViewProjection(const Matrix4& view_projection) {
 bool GLRenderer::SetShader(ShaderId shader) {
 	return UpdateStateIfChanged(*this, gl->GetBoundState().shader_program, shader, [this, shader] {
 		auto _ = gl->Bind(shader);
+		gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
 	});
 }
 
@@ -396,9 +408,7 @@ void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadS
 		quad.user_data[0]  = static_cast<float>(slot);
 	}
 
-	auto updated{ SetShader(shader) };
-	// TODO: Dont update view projection every time.
-	gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	SetShader(shader);
 
 	setup(shader, quad);
 
@@ -425,9 +435,7 @@ void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadS
 void GLRenderer::DrawTriangle(
 	ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
 ) {
-	auto updated{ SetShader(shader) };
-	// TODO: Dont update view projection every time.
-	gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	SetShader(shader);
 
 	auto vertices{ Vertex::GetTriangle(positions, tint, depth) };
 
@@ -447,9 +455,7 @@ void GLRenderer::DrawTriangle(
 void GLRenderer::DrawLine(
 	ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
 ) {
-	auto updated{ SetShader(shader) };
-	// TODO: Dont update view projection every time.
-	gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	SetShader(shader);
 
 	auto vertices{ Vertex::GetLine(positions, tint, depth) };
 
@@ -497,9 +503,11 @@ void GLRenderer::DrawTexture(
 	p.flip_y	 = flip_y;
 	p.tex_coords = tex_coords;
 
-	DrawQuad(shader, p, [this](auto s, auto& q) {
+	auto setup = [this](auto s, auto& q) {
 		gl->shaders.SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
-	});
+	};
+
+	DrawQuad(shader, p, setup);
 }
 
 void GLRenderer::DrawQuad(
@@ -576,21 +584,43 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 }
 
 void GLRenderer::BeginFrame(V2_int window_size) {
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::BeginFrame: BEGIN");
+#endif
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
+
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::BeginFrame: Clearing back buffer to transparent");
+#endif
 
 	auto _1 = gl->Bind(FramebufferId{ 0 });
 	gl->SetClearColor(color::Transparent);
 	SetViewport({ {}, window_size });
 	gl->framebuffers.Clear();
 
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::BeginFrame: Clearing screen target to transparent");
+#endif
+
 	screen_target_.Bind();
 	SetViewport({ {}, screen_target_.GetSize() });
 	gl->framebuffers.ClearToColor(screen_target_.resource_.framebuffer_, color::Transparent);
+
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::BeginFrame: END");
+#endif
 }
 
 void GLRenderer::EndFrame(Viewport display_viewport) {
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::EndFrame(display_viewport=", display_viewport, "): BEGIN");
+#endif
 	PTGN_ASSERT(display_viewport.size.BothAboveZero());
+
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::EndFrame: Binding back buffer");
+#endif
 
 	SetFramebuffer({});
 
@@ -604,12 +634,20 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 		"Cannot draw to screen target with no color attachment"
 	);
 
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::EndFrame: Drawing screen target to back buffer");
+#endif
+
 	DrawTexture(
 		GetShader("quad"), *screen_target_.resource_.color_,
 		GetCenteredQuadPoints(display_viewport.size), color::White, 0.0f, true, {}
 	);
 
 	FlushBatch();
+
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::EndFrame: END");
+#endif
 }
 
 TextureId GLRenderer::GetWhiteTexture() const {

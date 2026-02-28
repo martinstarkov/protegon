@@ -176,11 +176,11 @@ template void Buffers::DestroyBuffer<UniformBufferId>(UniformBufferId);
 int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) const {
 	int value{ -1 };
 	GLCall(GetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value));
-#ifdef GL_DEBUG_BUFFERS
-	PTGN_LOG(
-		"glGetBufferParameteriv(target=", target, ",parameter=", parameter, ") -> value=", value
-	);
-#endif
+	// #ifdef GL_DEBUG_BUFFERS
+	//	PTGN_LOG(
+	//		"glGetBufferParameteriv(target=", target, ",parameter=", parameter, ") -> value=", value
+	//	);
+	// #endif
 	PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
 	return value;
 }

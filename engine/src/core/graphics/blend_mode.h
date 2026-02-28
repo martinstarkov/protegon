@@ -9,15 +9,15 @@ namespace ptgn {
 
 /// @brief Defines how a source pixel (src) is composited onto a destination pixel (dst).
 enum class BlendMode {
-	/// No blending.
-	/// dstRGB = srcRGB
-	/// dstA   = srcA
-	ReplaceRGBA,
-
 	/// Standard alpha blending (non-premultiplied).
 	/// dstRGB = srcRGB * srcA + dstRGB * (1 - srcA)
 	/// dstA   = srcA + dstA * (1 - srcA)
 	Blend,
+
+	/// No blending.
+	/// dstRGB = srcRGB
+	/// dstA   = srcA
+	ReplaceRGBA,
 
 	/// Alpha blending for premultiplied input.
 	/// dstRGB = srcRGB + dstRGB * (1 - srcA)

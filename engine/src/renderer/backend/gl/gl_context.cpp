@@ -190,7 +190,11 @@ BindGuard<ShaderId> GLContext::Bind(ShaderId id, bool restore_bind) {
 
 	GLCall(UseProgram(id));
 #ifdef GL_DEBUG_CONTEXT
-	PTGN_LOG("glUseProgram(id=", id, ") (previous=", previous, ")");
+	Print("glUseProgram(id=", id, ")");
+	if (auto shader{ shaders.cache_.TryGet(id) }) {
+		Print(" (name=", shader->program_name, ")");
+	}
+	PrintLine(" (previous=", previous, ")");
 #endif
 
 	bound_.shader_program = id;

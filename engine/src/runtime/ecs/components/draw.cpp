@@ -122,9 +122,11 @@ static float GetNormalizedRadius(float diameter, float size_x) {
 
 void DrawLines(
 	Renderer& renderer, std::span<const V2_float> points, float line_width,
-	const Transform& transform, Color tint, float depth
+	const Transform& transform, Color tint, float depth, BlendMode blend_mode
 ) {
 	PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for lines");
+
+	renderer.SetBlend(blend_mode);
 
 	for (std::size_t i = 0; i < points.size(); ++i) {
 		Line l{ points[i], points[(i + 1) % points.size()] };
@@ -153,6 +155,8 @@ void DrawShape(
 		}
 	}
 
+	renderer.SetBlend(blend_mode);
+
 	PTGN_ASSERT(line_width != 0.0f);
 
 	auto depth{ static_cast<float>(depth_component.GetValue()) };
@@ -169,7 +173,10 @@ void DrawShape(
 				if (line_width == -1.0f) {
 					renderer.DrawQuad(s.GetWorldVertices(transform, draw_origin), tint, depth);
 				} else {
-					DrawLines(renderer, s.GetLocalVertices(), line_width, transform, tint, depth);
+					DrawLines(
+						renderer, s.GetLocalVertices(), line_width, transform, tint, depth,
+						blend_mode
+					);
 				}
 			} else if constexpr (std::is_same_v<T, Circle>) {
 				DrawShape(
@@ -177,7 +184,9 @@ void DrawShape(
 					draw_origin, depth_component, blend_mode
 				);
 			} else if constexpr (std::is_same_v<T, Line>) {
-				DrawLines(renderer, s.GetLocalVertices(), line_width, transform, tint, depth);
+				DrawLines(
+					renderer, s.GetLocalVertices(), line_width, transform, tint, depth, blend_mode
+				);
 			} else if constexpr (std::is_same_v<T, Triangle>) {
 				auto triangle{ s.GetWorldVertices(transform) };
 				std::array<V2_float, 4> points{ triangle[0], triangle[1], triangle[2],
@@ -185,7 +194,10 @@ void DrawShape(
 				if (line_width == -1.0f) {
 					renderer.DrawQuad(points, tint, depth);
 				} else {
-					DrawLines(renderer, s.GetLocalVertices(), line_width, transform, tint, depth);
+					DrawLines(
+						renderer, s.GetLocalVertices(), line_width, transform, tint, depth,
+						blend_mode
+					);
 				}
 
 			} else if constexpr (std::is_same_v<T, Polygon>) {
@@ -214,7 +226,7 @@ void DrawShape(
 						renderer.DrawTriangle(renderer.GetShader("color"), triangle, tint, depth);
 					}
 				} else {
-					DrawLines(renderer, vertices, line_width, transform, tint, depth);
+					DrawLines(renderer, vertices, line_width, transform, tint, depth, blend_mode);
 				}
 			} else if constexpr (std::is_same_v<T, V2_float>) {
 				renderer.DrawQuad(

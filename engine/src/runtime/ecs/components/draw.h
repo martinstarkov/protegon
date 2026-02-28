@@ -63,7 +63,7 @@ void DrawQuadTexture(
 
 void DrawLines(
 	Renderer& renderer, std::span<const V2_float> points, float line_width,
-	const Transform& transform, Color tint, float depth
+	const Transform& transform, Color tint, float depth, BlendMode blend_mode
 );
 
 void DrawShape(

@@ -129,11 +129,13 @@ void Renderer::DrawQuadTexture(
 	impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
 	bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
-	DrawTexture(GetShader("quad"), texture, positions, tint, depth, flip_y, tex_coords);
+	auto quad_shader{ GetShader("quad") };
+	DrawTexture(quad_shader, texture, positions, tint, depth, flip_y, tex_coords);
 }
 
 void Renderer::DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth) {
-	DrawQuadTexture(GetWhiteTexture(), positions, tint, depth, false, {});
+	auto white_texture{ GetWhiteTexture() };
+	DrawQuadTexture(white_texture, positions, tint, depth, false, {});
 }
 
 impl::TextureId Renderer::GetWhiteTexture() const {

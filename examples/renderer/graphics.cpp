@@ -21,14 +21,16 @@ struct GraphicsScene : public Scene {
 	void OnEnter() override {
 		graphics = CreateGraphics(*this);
 
-		graphics.SetFillColor(color::Red);
-		graphics.FillRect({}, Rect{ 30.0f, 30.0f });
-
 		graphics.SetStrokeColor(color::Blue);
 		graphics.SetLineWidth(2.0f);
 		graphics.StrokeCircle({ 0, 80 }, Circle{ 40.0f });
+		graphics.StrokeCircle({ 40, 80 }, Circle{ 20.0f });
 
-		graphics.Line({ 100, 50 }, { -100, -50 });
+		graphics.SetFillColor(color::Blue);
+		graphics.FillRect(Transform{ V2_int{ 0, 0 } }, Rect{ 40.0f, 30.0f });
+		graphics.FillRect(Transform{ V2_int{ 70, 70 } }, Rect{ 40.0f, 30.0f });
+
+		// graphics.Line({ 100, 50 }, { -100, -50 });
 	}
 
 	void OnUpdate() override {

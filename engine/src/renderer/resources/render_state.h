@@ -106,6 +106,16 @@ struct DepthState {
 	float range_far{ 1.0f };
 
 	bool operator==(const DepthState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const DepthState& depth) {
+		if (depth.test) {
+			os << "(test=" << depth.test << ", write=" << depth.write << ", func=" << depth.func
+			   << ", range_near=" << depth.range_near << ", range_far=" << depth.range_far << ")";
+		} else {
+			os << "(test=" << depth.test << ")";
+		}
+		return os;
+	}
 };
 
 struct ColorMaskState {
@@ -215,6 +225,11 @@ struct PolygonState {
 	PolygonMode back{ PolygonMode::Fill };
 
 	bool operator==(const PolygonState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const PolygonState& polygon) {
+		os << "(front=" << polygon.front << ", back=" << polygon.back << ")";
+		return os;
+	}
 };
 
 struct LineWidth {
@@ -225,6 +240,11 @@ struct LineWidth {
 	float value{ 1.0f };
 
 	bool operator==(const LineWidth&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const LineWidth& line_width) {
+		os << line_width.value;
+		return os;
+	}
 };
 
 struct RasterState {
@@ -234,6 +254,13 @@ struct RasterState {
 	bool line_smoothing{ false };
 
 	bool operator==(const RasterState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const RasterState& raster) {
+		os << "(cull=" << raster.cull << ", polygon=" << raster.polygon
+		   << ", line_width=" << raster.line_width.value
+		   << ", line_smoothing=" << raster.line_smoothing << ")";
+		return os;
+	}
 };
 
 struct BlendState {
@@ -245,6 +272,15 @@ struct BlendState {
 	bool enabled{ false };
 
 	bool operator==(const BlendState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const BlendState& blend) {
+		if (blend.enabled) {
+			os << "(enabled=" << blend.enabled << ", mode=" << blend.mode << ")";
+		} else {
+			os << "(enabled=" << blend.enabled << ")";
+		}
+		return os;
+	}
 };
 
 struct ClearColor {
@@ -255,6 +291,11 @@ struct ClearColor {
 	Color value;
 
 	bool operator==(const ClearColor&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const ClearColor& clear) {
+		os << clear.value;
+		return os;
+	}
 };
 
 struct ClearDepth {
@@ -265,6 +306,11 @@ struct ClearDepth {
 	double value{ 0.0 };
 
 	bool operator==(const ClearDepth&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const ClearDepth& clear) {
+		os << clear.value;
+		return os;
+	}
 };
 
 struct ClearStencil {
@@ -275,6 +321,11 @@ struct ClearStencil {
 	int value{ 0 };
 
 	bool operator==(const ClearStencil&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const ClearStencil& clear) {
+		os << clear.value;
+		return os;
+	}
 };
 
 } // namespace ptgn
