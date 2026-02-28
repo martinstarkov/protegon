@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <list>
 #include <ostream>
 #include <regex>
 #include <sstream>
@@ -25,13 +26,36 @@
 #include "core/util/span.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_debug.h"
+#include "renderer/resources/shader.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::impl::gl {
 
 using Header = std::string;
 
-static std::string TrimWhitespace(const std::string& s) {
+static void DeleteShaderId(ShaderId id, ShaderType type) {
+	GLCall(DeleteShader(id));
+#ifdef GL_DEBUG_SHADERS
+	PTGN_LOG("glDeleteShader(type=", type, ",id=", id, ")");
+#endif
+}
+
+static void DeleteProgramId(ShaderId id) {
+	GLCall(DeleteProgram(id));
+#ifdef GL_DEBUG_SHADERS
+	PTGN_LOG("glDeleteProgram(id=", id, ")");
+#endif
+}
+
+static void LinkProgramId(ShaderId id) {
+	GLCall(::LinkProgram(id));
+#ifdef GL_DEBUG_SHADERS
+	PTGN_LOG("glLinkProgram(id=", id, ")");
+#endif
+}
+
+static std::string_view TrimWhitespace(std::string_view s) {
 	std::size_t start{ s.find_first_not_of(" \n\r\t") };
 	if (start == std::string::npos) {
 		return "";
@@ -349,8 +373,11 @@ static std::vector<ShaderSpec> ParseShader(
 	return output;
 }
 
-ShaderId Shaders::CompileShader(ShaderType type, const std::string& source) {
+ShaderId Shaders::CompileShader(ShaderType type, const std::string& source) const {
 	ShaderId id{ GLCallReturn(::CreateShader(std::to_underlying(type))) };
+#ifdef GL_DEBUG_SHADERS
+	PTGN_LOG("glCreateShader(type=", type, ") -> id=", id);
+#endif
 
 	auto src{ source.c_str() };
 
@@ -368,7 +395,7 @@ ShaderId Shaders::CompileShader(ShaderType type, const std::string& source) {
 		log.resize(static_cast<std::size_t>(length));
 		GLCall(GetShaderInfoLog(id, length, &length, &log[0]));
 
-		GLCall(DeleteShader(id));
+		DeleteShaderId(id, type);
 
 		PTGN_ERROR("Failed to compile ", type, " shader: \n", source, "\n", log);
 	}
@@ -418,19 +445,20 @@ static void SubstituteShaderTokens(
 }
 
 void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
-	const std::string subdir{ "common/" };
-	auto dir{ filesystem.iterate_directory(subdir) };
+	path subdir{ "common/" };
+	auto dir{ filesystem.iterate_directory(subdir.string()) };
 
 	std::vector<ShaderSpec> sources;
 
-	for (auto resource : dir) {
+	for (const auto& resource : dir) {
 		if (!resource.is_file()) {
 			continue;
 		}
-		const std::string& filename{ resource.filename() };
-		auto file{ filesystem.open(subdir + filename) };
+
+		path filename{ resource.filename() };
+		auto file{ filesystem.open((subdir / filename).string()) };
 		std::string shader_src(file.begin(), file.end());
-		std::string name_without_ext{ path(filename).stem().string() };
+		std::string name_without_ext{ filename.stem().string() };
 		auto srcs{ ParseShader(shader_src, name_without_ext) };
 		sources.insert(sources.end(), srcs.begin(), srcs.end());
 	}
@@ -519,7 +547,7 @@ std::vector<ShaderSpec> Shaders::ParseShaderSourceFile(
 
 ShaderId Shaders::CompileShaderSource(
 	const std::string& source, ShaderType type, std::string_view name
-) {
+) const {
 	auto srcs{ ParseShaderSourceFile(source, name) };
 	PTGN_ASSERT(srcs.size() == 1, "Wrong constructor for a multi-source shader file");
 	const auto& front{ srcs.front() };
@@ -527,9 +555,8 @@ ShaderId Shaders::CompileShaderSource(
 	return CompileShader(type, front.code.content);
 }
 
-ShaderId Shaders::CompileShaderPath(
-	const path& shader_path, ShaderType type, std::string_view name
-) {
+ShaderId Shaders::CompileShaderPath(const path& shader_path, ShaderType type, std::string_view name)
+	const {
 	PTGN_ASSERT(
 		FileExists(shader_path),
 		"Cannot create shader from nonexistent shader path: ", shader_path.string()
@@ -546,7 +573,8 @@ void Shaders::LinkProgram(ShaderId id, ShaderId vertex, ShaderId fragment) {
 
 	GLCall(AttachShader(id, vertex));
 	GLCall(AttachShader(id, fragment));
-	GLCall(::LinkProgram(id));
+
+	LinkProgramId(id);
 
 	// Check for shader link errors.
 	std::int32_t linked{ GL_FALSE };
@@ -559,10 +587,10 @@ void Shaders::LinkProgram(ShaderId id, ShaderId vertex, ShaderId fragment) {
 		log.resize(static_cast<std::size_t>(length));
 		GLCall(GetProgramInfoLog(id, length, &length, &log[0]));
 
-		GLCall(DeleteProgram(id));
+		DeleteProgramId(id);
 
-		GLCall(DeleteShader(vertex));
-		GLCall(DeleteShader(fragment));
+		DeleteShaderId(vertex, ShaderType::Vertex);
+		DeleteShaderId(fragment, ShaderType::Fragment);
 
 		PTGN_ERROR(
 			"Failed to link shaders to program:\nVertex : ", vertex, "\nFragment : ", fragment,
@@ -575,8 +603,11 @@ void Shaders::LinkProgram(ShaderId id, ShaderId vertex, ShaderId fragment) {
 
 void Shaders::CompileProgram(
 	ShaderId id, const std::string& vertex_source, const std::string& fragment_source
-) {
-	// TODO: Ensure shader cache is cleared if it exists.
+) const {
+	PTGN_ASSERT(
+		cache_.Get(id).uniform_locations.empty(),
+		"Shader program uniform cache must be clear when compiling the shader program"
+	);
 
 	auto vertex{ CompileShader(ShaderType::Vertex, vertex_source) };
 	auto fragment{ CompileShader(ShaderType::Fragment, fragment_source) };
@@ -584,7 +615,7 @@ void Shaders::CompileProgram(
 	if (vertex && fragment) {
 		GLCall(AttachShader(id, vertex));
 		GLCall(AttachShader(id, fragment));
-		GLCall(::LinkProgram(id));
+		LinkProgramId(id);
 
 		// Check for shader link errors.
 		std::int32_t linked{ GL_FALSE };
@@ -597,10 +628,10 @@ void Shaders::CompileProgram(
 			log.resize(static_cast<std::size_t>(length));
 			GLCall(GetProgramInfoLog(id, length, &length, &log[0]));
 
-			GLCall(DeleteProgram(id));
+			DeleteProgramId(id);
 
-			GLCall(DeleteShader(vertex));
-			GLCall(DeleteShader(fragment));
+			DeleteShaderId(vertex, ShaderType::Vertex);
+			DeleteShaderId(fragment, ShaderType::Fragment);
 
 			PTGN_ERROR(
 				"Failed to link shaders to program: \n", vertex_source, "\n", fragment_source, "\n",
@@ -612,28 +643,28 @@ void Shaders::CompileProgram(
 	}
 
 	if (vertex) {
-		GLCall(DeleteShader(vertex));
+		DeleteShaderId(vertex, ShaderType::Vertex);
 	}
 
 	if (fragment) {
-		GLCall(DeleteShader(fragment));
+		DeleteShaderId(fragment, ShaderType::Fragment);
 	}
 }
 
 Shaders::Shaders(GLContext& gl) : gl_{ gl } {}
 
 Shaders::~Shaders() noexcept {
-	const auto delete_shaders = [](const auto& container) {
+	const auto delete_shaders = [](const auto& container, auto type) {
 		for (const auto& [hash, id] : container) {
 			if (id) {
-				GLCall(DeleteShader(id));
+				DeleteShaderId(id, type);
 			}
 		}
 	};
 
 	// Delete cached vertex and fragment shaders.
-	delete_shaders(vertex_shaders_);
-	delete_shaders(fragment_shaders_);
+	delete_shaders(vertex_shaders_, ShaderType::Vertex);
+	delete_shaders(fragment_shaders_, ShaderType::Fragment);
 
 	// Must be done before deleting context.
 	programs_.clear();
@@ -693,7 +724,7 @@ ShaderId Shaders::GetShaderId(std::string_view shader_name, ShaderType type) con
 std::pair<ShaderId, bool> Shaders::GetShaderIdWithDeleteFlag(
 	const std::variant<ShaderCode, std::string>& variant, ShaderType type,
 	std::string_view shader_name
-) {
+) const {
 	if (std::holds_alternative<std::string>(variant)) {
 		const auto& name{ std::get<std::string>(variant) };
 		path file{ name };
@@ -716,21 +747,22 @@ ShaderId Shaders::CreateProgram(
 	const std::variant<ShaderCode, ShaderName>& vertex,
 	const std::variant<ShaderCode, ShaderName>& fragment, std::string_view shader_name
 ) {
+	using enum ShaderType;
+
 	auto program{ CreateProgram(shader_name) };
 
-	auto [vertex_id, delete_vert_after] =
-		GetShaderIdWithDeleteFlag(vertex, ShaderType::Vertex, shader_name);
+	auto [vertex_id, delete_vert_after] = GetShaderIdWithDeleteFlag(vertex, Vertex, shader_name);
 	auto [fragment_id, delete_frag_after] =
-		GetShaderIdWithDeleteFlag(fragment, ShaderType::Fragment, shader_name);
+		GetShaderIdWithDeleteFlag(fragment, Fragment, shader_name);
 
 	LinkProgram(program, vertex_id, fragment_id);
 
 	if (delete_vert_after && vertex_id) {
-		GLCall(DeleteShader(vertex_id));
+		DeleteShaderId(vertex_id, Vertex);
 	}
 
 	if (delete_frag_after && fragment_id) {
-		GLCall(DeleteShader(fragment_id));
+		DeleteShaderId(fragment_id, Fragment);
 	}
 
 	return program;
@@ -781,11 +813,11 @@ ShaderId Shaders::CreateProgram(
 	LinkProgram(program, vertex_id, fragment_id);
 
 	if (vertex_id) {
-		GLCall(DeleteShader(vertex_id));
+		DeleteShaderId(vertex_id, ShaderType::Vertex);
 	}
 
 	if (fragment_id) {
-		GLCall(DeleteShader(fragment_id));
+		DeleteShaderId(fragment_id, ShaderType::Fragment);
 	}
 
 	return program;
@@ -793,6 +825,10 @@ ShaderId Shaders::CreateProgram(
 
 ShaderId Shaders::CreateProgram(std::string_view program_name) {
 	ShaderId id{ GLCallReturn(::CreateProgram()) };
+#ifdef GL_DEBUG_SHADERS
+	PTGN_LOG("glCreateProgram() -> id=", id);
+#endif
+
 	PTGN_ASSERT(id, "Failed to create shader program");
 	cache_.Add(id, ProgramCache{ .program_name = std::string{ program_name } });
 	return id;
@@ -802,7 +838,7 @@ void Shaders::DestroyProgram(ShaderId id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteProgram(id));
+	DeleteProgramId(id);
 	cache_.Remove(id);
 }
 
@@ -810,6 +846,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V2_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v.x, v.y));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform2f(location=", location, ",name=", uniform_name, ",value=", v, ")");
+#endif
 	}
 }
 
@@ -817,6 +856,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V3_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v.x, v.y, v.z));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform3f(location=", location, ",name=", uniform_name, ",value=", v, ")");
+#endif
 	}
 }
 
@@ -824,6 +866,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V4_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4f(location, v.x, v.y, v.z, v.w));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform4f(location=", location, ",name=", uniform_name, ",value=", v, ")");
+#endif
 	}
 }
 
@@ -833,6 +878,11 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Matrix4& m
 		constexpr bool transpose_matrix{ false };
 		constexpr int matrix_count{ 1 };
 		GLCall(UniformMatrix4fv(location, matrix_count, transpose_matrix, matrix.Data()));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniformMatrix4fv(location=", location, ",name=", uniform_name, ",value=", matrix, ")"
+		);
+#endif
 	}
 }
 
@@ -842,6 +892,12 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform1iv(location=", location, ",name=", uniform_name, ",count=", count,
+			",data=", data, ")"
+		);
+#endif
 	}
 }
 
@@ -851,6 +907,12 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1fv(location, count, data));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform1fv(location=", location, ",name=", uniform_name, ",count=", count,
+			",data=", data, ")"
+		);
+#endif
 	}
 }
 
@@ -858,6 +920,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Vector2<st
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2i(location, v.x, v.y));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform2i(location=", location, ",name=", uniform_name, ",value=", v, ")");
+#endif
 	}
 }
 
@@ -865,6 +930,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Vector3<st
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v.x, v.y, v.z));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform3i(location=", location, ",name=", uniform_name, ",value=", v, ")");
+#endif
 	}
 }
 
@@ -872,6 +940,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Vector4<st
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4i(location, v.x, v.y, v.z, v.w));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform4i(location=", location, ",name=", uniform_name, ",value=", v, ")");
+#endif
 	}
 }
 
@@ -879,6 +950,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, float v0) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1f(location, v0));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform1f(location=", location, ",name=", uniform_name, ",v0=", v0, ")");
+#endif
 	}
 }
 
@@ -886,6 +960,11 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, float v0, float 
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v0, v1));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform2f(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1, ")"
+		);
+#endif
 	}
 }
 
@@ -893,6 +972,12 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, float v0, float 
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v0, v1, v2));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform3f(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
+			",v2=", v2, ")"
+		);
+#endif
 	}
 }
 
@@ -902,6 +987,12 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4f(location, v0, v1, v2, v3));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform4f(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
+			",v2=", v2, ",v3=", v3, ")"
+		);
+#endif
 	}
 }
 
@@ -909,6 +1000,9 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::int32_t v0)
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1i(location, v0));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG("glUniform1i(location=", location, ",name=", uniform_name, ",v0=", v0, ")");
+#endif
 	}
 }
 
@@ -916,6 +1010,11 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::int32_t v0,
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2i(location, v0, v1));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform2i(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1, ")"
+		);
+#endif
 	}
 }
 
@@ -925,6 +1024,12 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform3i(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
+			",v2=", v2, ")"
+		);
+#endif
 	}
 }
 
@@ -935,6 +1040,12 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4i(location, v0, v1, v2, v3));
+#ifdef GL_DEBUG_SHADERS
+		PTGN_LOG(
+			"glUniform4i(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
+			",v2=", v2, ",v3=", v3, ")"
+		);
+#endif
 	}
 }
 
@@ -942,7 +1053,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, bool value) {
 	SetUniform(id, uniform_name, static_cast<std::int32_t>(value));
 }
 
-std::int32_t Shaders::GetUniform(ShaderId id, const char* program_name) {
+std::int32_t Shaders::GetUniform(ShaderId id, const char* uniform_name) {
 	PTGN_ASSERT(
 		gl_.IsBound(id),
 		"Cannot get uniform location of shader program which is not currently bound"
@@ -950,14 +1061,17 @@ std::int32_t Shaders::GetUniform(ShaderId id, const char* program_name) {
 
 	auto& cache{ cache_.Get(id) };
 
-	auto hash{ Hash(program_name) };
+	auto hash{ Hash(uniform_name) };
 
 	if (auto location{ cache.uniform_locations.find(hash) };
 		location != cache.uniform_locations.end()) {
 		return location->second;
 	}
 
-	std::int32_t location{ GLCallReturn(GetUniformLocation(id, program_name)) };
+	std::int32_t location{ GLCallReturn(GetUniformLocation(id, uniform_name)) };
+#ifdef GL_DEBUG_SHADERS
+	PTGN_LOG("glGetUniformLocation(id=", id, ",name=", uniform_name, ") -> location=", location);
+#endif
 
 	cache.uniform_locations.emplace(hash, location);
 
@@ -968,6 +1082,19 @@ ShaderId Shaders::GetProgram(std::string_view program_name) const {
 	auto hash{ Hash(program_name) };
 	PTGN_ASSERT(programs_.contains(hash), "No shader program with name '", program_name, "' found");
 	return programs_.find(hash)->second;
+}
+
+std::ostream& operator<<(std::ostream& os, ShaderType type) {
+	switch (type) {
+		using enum ShaderType;
+		case Vertex:		 return os << "Vertex";
+		case Fragment:		 return os << "Fragment";
+		case Geometry:		 return os << "Geometry";
+		case TessControl:	 return os << "TessControl";
+		case TessEvaluation: return os << "TessEvaluation";
+		case Compute:		 return os << "Compute";
+		default:			 PTGN_ERROR("Unknown ShaderType: ", std::to_underlying(type));
+	}
 }
 
 } // namespace ptgn::impl::gl

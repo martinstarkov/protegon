@@ -87,25 +87,24 @@ enum class BlendMode {
 
 inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 	switch (blend_mode) {
-		using enum ptgn::BlendMode;
-		case Blend:						 os << "Blend"; break;
-		case PremultipliedBlend:		 os << "PremultipliedBlend"; break;
-		case ReplaceRGBA:				 os << "ReplaceRGBA"; break;
-		case ReplaceRGB:				 os << "ReplaceRGB"; break;
-		case ReplaceAlpha:				 os << "ReplaceAlpha"; break;
-		case AddRGB:					 os << "AddRGB"; break;
-		case AddRGBA:					 os << "AddRGBA"; break;
-		case AddAlpha:					 os << "AddAlpha"; break;
-		case PremultipliedAddRGB:		 os << "PremultipliedAddRGB"; break;
-		case PremultipliedAddRGBA:		 os << "PremultipliedAddRGBA"; break;
-		case MultiplyRGB:				 os << "MultiplyRGB"; break;
-		case MultiplyRGBA:				 os << "MultiplyRGBA"; break;
-		case MultiplyAlpha:				 os << "MultiplyAlpha"; break;
-		case MultiplyRGBWithAlphaBlend:	 os << "MultiplyRGBWithAlphaBlend"; break;
-		case MultiplyRGBAWithAlphaBlend: os << "MultiplyRGBAWithAlphaBlend"; break;
+		using enum BlendMode;
+		case Blend:						 return os << "Blend";
+		case PremultipliedBlend:		 return os << "PremultipliedBlend";
+		case ReplaceRGBA:				 return os << "ReplaceRGBA";
+		case ReplaceRGB:				 return os << "ReplaceRGB";
+		case ReplaceAlpha:				 return os << "ReplaceAlpha";
+		case AddRGB:					 return os << "AddRGB";
+		case AddRGBA:					 return os << "AddRGBA";
+		case AddAlpha:					 return os << "AddAlpha";
+		case PremultipliedAddRGB:		 return os << "PremultipliedAddRGB";
+		case PremultipliedAddRGBA:		 return os << "PremultipliedAddRGBA";
+		case MultiplyRGB:				 return os << "MultiplyRGB";
+		case MultiplyRGBA:				 return os << "MultiplyRGBA";
+		case MultiplyAlpha:				 return os << "MultiplyAlpha";
+		case MultiplyRGBWithAlphaBlend:	 return os << "MultiplyRGBWithAlphaBlend";
+		case MultiplyRGBAWithAlphaBlend: return os << "MultiplyRGBAWithAlphaBlend";
 		default:						 PTGN_ERROR("Failed to identify blend mode");
 	}
-	return os;
 }
 
 PTGN_SERIALIZE_ENUM(

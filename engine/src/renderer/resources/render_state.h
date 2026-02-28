@@ -1,9 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
+#include <utility>
 
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
 
 namespace ptgn {
@@ -20,6 +23,21 @@ enum class CompareFunc : std::uint32_t {
 	Always	 = 0x0207  // GL_ALWAYS
 };
 
+inline std::ostream& operator<<(std::ostream& os, CompareFunc func) {
+	switch (func) {
+		using enum CompareFunc;
+		case Never:	   return os << "Never";
+		case Less:	   return os << "Less";
+		case Equal:	   return os << "Equal";
+		case LEqual:   return os << "LEqual";
+		case Greater:  return os << "Greater";
+		case NotEqual: return os << "NotEqual";
+		case GEqual:   return os << "GEqual";
+		case Always:   return os << "Always";
+		default:	   PTGN_ERROR("Unknown CompareFunc: ", std::to_underlying(func));
+	}
+}
+
 /// Stencil operations (glStencilOp / GL_STENCIL_FAIL, etc.)
 enum class StencilOp : std::uint32_t {
 	Keep	 = 0x1E00, // GL_KEEP
@@ -31,6 +49,21 @@ enum class StencilOp : std::uint32_t {
 	DecrWrap = 0x8508, // GL_DECR_WRAP
 	Invert	 = 0x150A  // GL_INVERT
 };
+
+inline std::ostream& operator<<(std::ostream& os, StencilOp op) {
+	switch (op) {
+		using enum StencilOp;
+		case Keep:	   return os << "Keep";
+		case Zero:	   return os << "Zero";
+		case Replace:  return os << "Replace";
+		case Incr:	   return os << "Incr";
+		case IncrWrap: return os << "IncrWrap";
+		case Decr:	   return os << "Decr";
+		case DecrWrap: return os << "DecrWrap";
+		case Invert:   return os << "Invert";
+		default:	   PTGN_ERROR("Unknown StencilOp: ", std::to_underlying(op));
+	}
+}
 
 struct StencilState {
 	bool enabled{ false };
@@ -48,6 +81,19 @@ struct StencilState {
 	std::uint32_t write_mask{ 0xFFFFFFFF };
 
 	bool operator==(const StencilState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const StencilState& stencil) {
+		if (stencil.enabled) {
+			os << "(enabled=" << stencil.enabled << ", func=" << stencil.func
+			   << ", ref=" << stencil.ref << ", mask=0x" << std::hex << stencil.mask << std::dec
+			   << ", fail_op=" << stencil.fail_op << ", zfail_op=" << stencil.zfail_op
+			   << ", zpass_op=" << stencil.zpass_op << ", write_mask=0x" << std::hex
+			   << stencil.write_mask << std::dec << ")";
+		} else {
+			os << "(enabled=" << stencil.enabled << ")";
+		}
+		return os;
+	}
 };
 
 struct DepthState {
@@ -69,6 +115,12 @@ struct ColorMaskState {
 	bool alpha{ true };
 
 	bool operator==(const ColorMaskState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const ColorMaskState& mask) {
+		os << "(r=" << mask.red << ",g=" << mask.green << ",b=" << mask.blue << ",a=" << mask.alpha
+		   << ")";
+		return os;
+	}
 };
 
 struct ScissorState {
@@ -78,6 +130,16 @@ struct ScissorState {
 	V2_int size;
 
 	bool operator==(const ScissorState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const ScissorState& scissor) {
+		if (scissor.enabled) {
+			os << "(enabled=" << scissor.enabled << ", pos=" << scissor.position
+			   << ", size=" << scissor.size << ")";
+		} else {
+			os << "(enabled=" << scissor.enabled << ")";
+		}
+		return os;
+	}
 };
 
 /// Cull face selection (glCullFace)
@@ -87,11 +149,30 @@ enum class CullFace : std::uint32_t {
 	FrontAndBack = 0x0408  // GL_FRONT_AND_BACK
 };
 
+inline std::ostream& operator<<(std::ostream& os, CullFace face) {
+	switch (face) {
+		using enum CullFace;
+		case Front:		   return os << "Front";
+		case Back:		   return os << "Back";
+		case FrontAndBack: return os << "FrontAndBack";
+		default:		   PTGN_ERROR("Unknown CullFace: ", std::to_underlying(face));
+	}
+}
+
 /// Front face winding order (glFrontFace)
 enum class FrontFace : std::uint32_t {
 	CW	= 0x0900, // GL_CW, Clockwise
 	CCW = 0x0901  // GL_CCW, Counter-clockwise
 };
+
+inline std::ostream& operator<<(std::ostream& os, FrontFace face) {
+	switch (face) {
+		using enum FrontFace;
+		case CW:  return os << "Clockwise";
+		case CCW: return os << "Counter-clockwise";
+		default:  PTGN_ERROR("Unknown FrontFace: ", std::to_underlying(face));
+	}
+}
 
 struct CullState {
 	bool enabled{ false };
@@ -100,6 +181,16 @@ struct CullState {
 	FrontFace front_face{ FrontFace::CCW };
 
 	bool operator==(const CullState&) const = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const CullState& cull) {
+		if (cull.enabled) {
+			os << "(enabled=" << cull.enabled << ", cull_face=" << cull.cull_face
+			   << ", front_face=" << cull.front_face << ")";
+		} else {
+			os << "(enabled=" << cull.enabled << ")";
+		}
+		return os;
+	}
 };
 
 /// Polygon rasterization mode (glPolygonMode)
@@ -108,6 +199,16 @@ enum class PolygonMode : std::uint32_t {
 	Line  = 0x1B01, // GL_LINE
 	Fill  = 0x1B02	// GL_FILL
 };
+
+inline std::ostream& operator<<(std::ostream& os, PolygonMode mode) {
+	switch (mode) {
+		using enum PolygonMode;
+		case Point: return os << "Point";
+		case Line:	return os << "Line";
+		case Fill:	return os << "Fill";
+		default:	PTGN_ERROR("Unknown PolygonMode: ", std::to_underlying(mode));
+	}
+}
 
 struct PolygonState {
 	PolygonMode front{ PolygonMode::Fill };

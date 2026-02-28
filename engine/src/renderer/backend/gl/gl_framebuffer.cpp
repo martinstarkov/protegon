@@ -24,6 +24,7 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/resources/framebuffer.h"
@@ -32,6 +33,20 @@
 #include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
+
+static void ReadPixels(
+	V2_int coord, V2_int size, PixelDataFormat format, PixelDataType type, void* data
+) {
+	GLCall(glReadPixels(
+		coord.x, coord.y, size.x, size.y, std::to_underlying(format), std::to_underlying(type), data
+	));
+#ifdef GL_DEBUG_FRAMEBUFFERS
+	PTGN_LOG(
+		"glReadPixels(coordinate=", coord, ",size=", size, ",format=", format, ",pixel_type=", type,
+		") -> pixel=", data
+	);
+#endif
+}
 
 Framebuffers::Framebuffers(GLContext& gl) : gl_{ gl } {}
 
@@ -77,12 +92,22 @@ void Framebuffers::AttachTexture(
 		);
 	}
 
-	GLCall(FramebufferTexture2D(
-		GL_FRAMEBUFFER, std::to_underlying(attachment),
-		std::to_underlying(AttachmentObject::Texture2D), texture, 0
-	));
+	constexpr AttachmentObject texture_target{ AttachmentObject::Texture2D };
+	constexpr std::int32_t mipmap_level{ 0 };
 
-	UpdateFramebufferCache(framebuffer, texture, attachment, AttachmentObject::Texture2D);
+	GLCall(FramebufferTexture2D(
+		kFrameBufferTarget, std::to_underlying(attachment), std::to_underlying(texture_target),
+		texture, mipmap_level
+	));
+#ifdef GL_DEBUG_FRAMEBUFFERS
+	PTGN_LOG(
+		"glFramebufferTexture2D(target=kFrameBufferTarget,attachment=", attachment,
+		",texture_target=", texture_target, ",texture=", texture, ",mipmap_level=", mipmap_level,
+		")"
+	);
+#endif
+
+	UpdateFramebufferCache(framebuffer, texture, attachment, texture_target);
 }
 
 void Framebuffers::AttachRenderbuffer(
@@ -99,16 +124,27 @@ void Framebuffers::AttachRenderbuffer(
 		);
 	}
 
-	GLCall(FramebufferRenderbuffer(
-		GL_FRAMEBUFFER, std::to_underlying(attachment),
-		std::to_underlying(AttachmentObject::Renderbuffer), renderbuffer
-	));
+	constexpr AttachmentObject renderbuffer_target{ AttachmentObject::Renderbuffer };
 
-	UpdateFramebufferCache(framebuffer, renderbuffer, attachment, AttachmentObject::Renderbuffer);
+	GLCall(FramebufferRenderbuffer(
+		kFrameBufferTarget, std::to_underlying(attachment), std::to_underlying(renderbuffer_target),
+		renderbuffer
+	));
+#ifdef GL_DEBUG_FRAMEBUFFERS
+	PTGN_LOG(
+		"glFramebufferRenderbuffer(target=kFrameBufferTarget,attachment=", attachment,
+		",renderbuffer_target=", renderbuffer_target, ",renderbuffer=", renderbuffer, ")"
+	);
+#endif
+
+	UpdateFramebufferCache(framebuffer, renderbuffer, attachment, renderbuffer_target);
 }
 
 void Framebuffers::Clear(ClearBufferBit buffers) const {
 	GLCall(glClear(std::to_underlying(buffers)));
+#ifdef GL_DEBUG_FRAMEBUFFERS
+	PTGN_LOG("glClear(bits=", buffers, ")");
+#endif
 }
 
 void Framebuffers::ClearToColor(
@@ -116,15 +152,19 @@ void Framebuffers::ClearToColor(
 ) const {
 	PTGN_ASSERT(gl_.IsBound(framebuffer));
 	PTGN_ASSERT(drawbuffer >= 0, "Drawbuffer cannot be negative");
+	// TODO: Make function for clearing depth and stencil buffers to specific values.
 	PTGN_ASSERT(
 		buffer == ClearBufferType::Color &&
-				static_cast<std::uint32_t>(drawbuffer) < max_color_attachments_ ||
-			buffer != ClearBufferType::Color && drawbuffer == 0,
+			static_cast<std::uint32_t>(drawbuffer) < max_color_attachments_,
+		// || buffer != ClearBufferType::Color && drawbuffer == 0,
 		"Drawbuffer must be 0 for depth and stencil buffers and within max color attachments for "
 		"color buffers"
 	);
 	auto c{ static_cast<V4_float>(color) };
 	GLCall(ClearBufferfv(std::to_underlying(buffer), drawbuffer, c.Data()));
+#ifdef GL_DEBUG_FRAMEBUFFERS
+	PTGN_LOG("glClearBufferfv(type=", buffer, ",drawbuffer=", drawbuffer, ",color=", color, ")");
+#endif
 }
 
 Framebuffers::PixelValue Framebuffers::ReadPixel(
@@ -132,15 +172,28 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 ) {
 	auto _1 = gl_.Bind(framebuffer, true);
 
-	auto type		 = GetAttachmentType(attachment);
+	auto type = GetAttachmentType(attachment);
+
+	PTGN_ASSERT(
+		type != AttachmentType::Depth && type != AttachmentType::Stencil &&
+			type != AttachmentType::DepthStencil,
+		"Unsupported attachment type for reading pixels"
+	);
+
 	const auto& spec = GetFramebufferAttachment(framebuffer, attachment);
 	PTGN_ASSERT(spec.id != 0, "No image attached to that attachment");
 
 	V2_int size;
+	TextureFormat format{};
+
 	if (spec.object == AttachmentObject::Texture2D) {
-		size = gl_.textures.GetCache(TextureId{ spec.id }).size;
+		const auto& cache{ gl_.textures.GetCache(TextureId{ spec.id }) };
+		size   = cache.size;
+		format = cache.format;
 	} else {
-		size = gl_.renderbuffers.GetCache(RenderbufferId{ spec.id }).size;
+		const auto& cache{ gl_.renderbuffers.GetCache(RenderbufferId{ spec.id }) };
+		size   = cache.size;
+		format = cache.format;
 	}
 
 	PTGN_ASSERT(
@@ -154,49 +207,52 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 
 	int read_y = size.y - 1 - coordinate.y;
 
+	constexpr V2_int query_size{ 1, 1 };
+
+	V2_int coord{ coordinate.x, read_y };
+
 	if (type == AttachmentType::Color) {
 		const auto& tex = gl_.textures.GetCache(TextureId{ spec.id });
 
-		int components = GetColorComponentCount(tex.internal_format);
+		int components = GetBitCount(tex.format);
 		PTGN_ASSERT(components >= 3 && components <= 4);
 
 		std::array<std::uint8_t, 4> v{ 0, 0, 0, 255 };
 
-		GLCall(glReadPixels(
-			coordinate.x, read_y, 1, 1, tex.internal_format, GL_UNSIGNED_BYTE, v.data()
-		));
+		auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
+
+		ptgn::impl::gl::ReadPixels(coord, query_size, pixel_format, pixel_type, v.data());
 
 		return Color{ v[0], v[1], v[2], components == 4 ? v[3] : static_cast<std::uint8_t>(255) };
 	}
-
+	/*
 	if (type == AttachmentType::Depth) {
-		float depth = 0.0f;
-		GLCall(glReadPixels(coordinate.x, read_y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth));
-		return depth;
+		float depth						= 0.0f;
+		auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
+		// TODO: Fix to use the correct pixel format and type.
+		ptgn::impl::gl::ReadPixels(coord, query_size, PixelDataFormat::Depth, PixelDataType::Float,
+	&depth); , return depth;
 	}
-
 	if (type == AttachmentType::Stencil) {
 		std::uint8_t stencil = 0;
-		GLCall(
-			glReadPixels(coordinate.x, read_y, 1, 1, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, &stencil)
-		);
-		return stencil;
+		auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
+		// TODO: Fix to use the correct pixel format and type.
+		ptgn::impl::gl::ReadPixels(coord, query_size, PixelDataFormat::Stencil,
+	PixelDataType::UnsignedByte, &stencil); return stencil;
 	}
-
 	if (type == AttachmentType::DepthStencil) {
 		// GL_DEPTH_STENCIL returns two integers: depth + stencil packed.
 		struct {
 			std::uint32_t depth;
 			std::uint8_t stencil;
 		} ds{};
-
-		GLCall(glReadPixels(coordinate.x, read_y, 1, 1, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, &ds)
-		);
-
-		float depth = (ds.depth & 0xFFFFFF) / float(0xFFFFFF);
+		auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
+		// TODO: Fix to use the correct pixel format and type.
+		ptgn::impl::gl::ReadPixels(coord, query_size, PixelDataFormat::DepthStencil,
+	PixelDataType::UnsignedInt_24_8, &ds); float depth = (ds.depth & 0xFFFFFF) / float(0xFFFFFF);
 		return std::make_pair(depth, ds.stencil);
 	}
-
+	*/
 	PTGN_ERROR("Unhandled attachment type");
 }
 
@@ -204,6 +260,12 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(
 	FramebufferId framebuffer, Attachment attachment
 ) {
 	auto type = GetAttachmentType(attachment);
+
+	PTGN_ASSERT(
+		type != AttachmentType::Depth && type != AttachmentType::Stencil &&
+			type != AttachmentType::DepthStencil,
+		"Unsupported attachment type for reading pixels"
+	);
 
 	const auto& spec = GetFramebufferAttachment(framebuffer, attachment);
 	PTGN_ASSERT(spec.id != 0);
@@ -214,49 +276,29 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(
 					? gl_.textures.GetCache(TextureId{ spec.id }).size
 					: gl_.renderbuffers.GetCache(RenderbufferId{ spec.id }).size;
 
-	GLenum format	 = GL_RGBA;
-	GLenum type_enum = GL_UNSIGNED_BYTE;
+	TextureFormat format = (spec.object == AttachmentObject::Texture2D)
+							 ? gl_.textures.GetCache(TextureId{ spec.id }).format
+							 : gl_.renderbuffers.GetCache(RenderbufferId{ spec.id }).format;
 
-	switch (type) {
-		using enum AttachmentType;
+	auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
 
-		case Color: {
-			const auto& tex = gl_.textures.GetCache(TextureId{ spec.id });
-			PTGN_ASSERT(GetColorComponentCount(tex.internal_format) >= 3);
-			format	  = tex.internal_format;
-			type_enum = GL_UNSIGNED_BYTE;
-			break;
-		}
-		case Depth:
-			format	  = GL_DEPTH_COMPONENT;
-			type_enum = GL_FLOAT;
-			break;
-		case Stencil:
-			format	  = GL_STENCIL_INDEX;
-			type_enum = GL_UNSIGNED_BYTE;
-			break;
-		case DepthStencil:
-			format	  = GL_DEPTH_STENCIL;
-			type_enum = GL_UNSIGNED_INT_24_8;
-			break;
-	}
-
+	// TODO: Fix to use the correct pixel format and type for the buffer.
 	// Allocate max possible size (RGBA8 worst case)
 	std::vector<std::uint8_t> buffer(size.x * size.y * 4);
 
-	GLCall(glReadPixels(0, 0, size.x, size.y, format, type_enum, buffer.data()));
+	ptgn::impl::gl::ReadPixels({ 0, 0 }, size, pixel_format, pixel_type, buffer.data());
 
 	return PixelBuffer{ .size = size, .type = type, .data = std::move(buffer) };
 }
 
 bool Framebuffers::FramebufferIsComplete(FramebufferId framebuffer) const {
 	PTGN_ASSERT(gl_.IsBound(framebuffer), "Cannot check status of framebuffer until it is bound");
-	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+	auto status{ GLCallReturn(CheckFramebufferStatus(kFrameBufferTarget)) };
 	return status == GL_FRAMEBUFFER_COMPLETE;
 }
 
 const char* Framebuffers::GetFramebufferStatus() const {
-	auto status{ GLCallReturn(CheckFramebufferStatus(GL_FRAMEBUFFER)) };
+	auto status{ GLCallReturn(CheckFramebufferStatus(kFrameBufferTarget)) };
 	switch (status) {
 		case GL_FRAMEBUFFER_COMPLETE:  return "FramebufferId is complete.";
 		case GL_FRAMEBUFFER_UNDEFINED: return "FramebufferId is undefined (no framebuffer bound).";
@@ -378,9 +420,47 @@ void Framebuffers::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size)
 FramebufferId Framebuffers::CreateFramebufferImpl() {
 	FramebufferId id{ 0 };
 	GLCall(GenFramebuffers(1, &id.value));
+#ifdef GL_DEBUG_FRAMEBUFFERS
+	PTGN_LOG("glGenFramebuffers() -> id=", id.value);
+#endif
 	PTGN_ASSERT(id, "Failed to create framebuffer");
 	cache_.Add(id, FramebufferCache{});
 	return id;
+}
+
+Framebuffers::PixelValue Framebuffers::DecodePixel(
+	const std::vector<std::uint8_t>& data, int idx, AttachmentType type
+) {
+	// TODO: Fix this function to work with format.
+	switch (type) {
+		case AttachmentType::Color: {
+			const std::uint8_t* p = &data[idx * 4];
+			return Color{ p[0], p[1], p[2], p[3] };
+		}
+
+		case AttachmentType::Depth: {
+			const float* p = reinterpret_cast<const float*>(data.data());
+			return p[idx];
+		}
+
+		case AttachmentType::Stencil: {
+			return data[idx];
+		}
+
+		case AttachmentType::DepthStencil: {
+			const auto* p = reinterpret_cast<const std::uint32_t*>(data.data());
+
+			const std::uint32_t packed = p[idx];
+
+			float depth = float(packed & 0xFFFFFF) / float(0xFFFFFF);
+
+			std::uint8_t stencil = (packed >> 24) & 0xFF;
+
+			return std::make_pair(depth, stencil);
+		}
+	}
+
+	PTGN_ERROR("Unknown AttachmentType");
 }
 
 void Framebuffers::DestroyFramebuffer(FramebufferId id) {
@@ -388,6 +468,9 @@ void Framebuffers::DestroyFramebuffer(FramebufferId id) {
 		return;
 	}
 	GLCall(DeleteFramebuffers(1, &id.value));
+#ifdef GL_DEBUG_FRAMEBUFFERS
+	PTGN_LOG("glDeleteFramebuffers(id=", id.value, ")");
+#endif
 	cache_.Remove(id);
 }
 
@@ -435,11 +518,64 @@ void Framebuffers::SavePNG(const path& path, FramebufferId framebuffer, Attachme
 
 std::ostream& operator<<(std::ostream& os, AttachmentObject object) {
 	switch (object) {
-		using enum ptgn::impl::gl::AttachmentObject;
+		using enum AttachmentObject;
 		case None:		   return os << "None";
 		case Texture2D:	   return os << "Texture2D";
 		case Renderbuffer: return os << "Renderbuffer";
-		default:		   PTGN_ERROR("UnknownAttachmentObject: ", std::to_underlying(object));
+		default:		   PTGN_ERROR("Unknown AttachmentObject: ", std::to_underlying(object));
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, Attachment attachment) {
+	switch (attachment) {
+		using enum Attachment;
+		case Color0:	   return os << "Color0";
+		case Color1:	   return os << "Color1";
+		case Color2:	   return os << "Color2";
+		case Color3:	   return os << "Color3";
+		case Color4:	   return os << "Color4";
+		case Color5:	   return os << "Color5";
+		case Color6:	   return os << "Color6";
+		case Color7:	   return os << "Color7";
+		case Color8:	   return os << "Color8";
+		case Depth:		   return os << "Depth";
+		case Stencil:	   return os << "Stencil";
+		case DepthStencil: return os << "DepthStencil";
+		default:		   PTGN_ERROR("Unknown Attachment: ", std::to_underlying(attachment));
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, ClearBufferBit bits) {
+	if (bits == ClearBufferBit::None) {
+		return os << "None";
+	}
+
+	bool first = true;
+
+	auto print_flag = [&](ClearBufferBit flag, const char* name) {
+		if ((bits & flag) == flag) {
+			if (!first) {
+				os << " | ";
+			}
+			os << name;
+			first = false;
+		}
+	};
+
+	print_flag(ClearBufferBit::Color, "Color");
+	print_flag(ClearBufferBit::Depth, "Depth");
+	print_flag(ClearBufferBit::Stencil, "Stencil");
+
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, ClearBufferType clear_buffer_type) {
+	switch (clear_buffer_type) {
+		using enum ClearBufferType;
+		case Color:	  return os << "Color";
+		case Depth:	  return os << "Depth";
+		case Stencil: return os << "Stencil";
+		default:	  PTGN_ERROR("Unknown ClearBufferType: ", std::to_underlying(clear_buffer_type));
 	}
 }
 

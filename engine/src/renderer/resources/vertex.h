@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <ostream>
 
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
@@ -59,5 +60,7 @@ struct Vertex : public gl::VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::ve
 std::array<V2_float, 4> GetCenteredQuadPoints(V2_float size);
 
 } // namespace impl
+
+std::ostream& operator<<(std::ostream& os, const impl::Vertex& v);
 
 } // namespace ptgn

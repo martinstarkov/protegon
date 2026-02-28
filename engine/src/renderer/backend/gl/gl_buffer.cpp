@@ -204,13 +204,13 @@ std::ostream& operator<<(std::ostream& os, BufferUsage usage) {
 std::ostream& operator<<(std::ostream& os, BufferTarget target) {
 	switch (target) {
 		using enum BufferTarget;
-		case ArrayBuffer:			  return os << "ArrayBuffer";
+		case ArrayBuffer:			  return os << "VertexBuffer";
 		case AtomicCounterBuffer:	  return os << "AtomicCounterBuffer";
 		case CopyReadBuffer:		  return os << "CopyReadBuffer";
 		case CopyWriteBuffer:		  return os << "CopyWriteBuffer";
 		case DispatchIndirectBuffer:  return os << "DispatchIndirectBuffer";
 		case DrawIndirectBuffer:	  return os << "DrawIndirectBuffer";
-		case ElementArrayBuffer:	  return os << "ElementArrayBuffer";
+		case ElementArrayBuffer:	  return os << "ElementBuffer";
 		case PixelPackBuffer:		  return os << "PixelPackBuffer";
 		case PixelUnpackBuffer:		  return os << "PixelUnpackBuffer";
 		case QueryBuffer:			  return os << "QueryBuffer";

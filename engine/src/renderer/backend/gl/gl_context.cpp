@@ -21,6 +21,7 @@
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
+#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
@@ -38,11 +39,15 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex_array.h"
 
-/// 0 for immediate updates, 1 for updates synchronized with the vertical retrace, -1 for adaptive
-/// vsync.
-#define PTGN_VSYNC_MODE -1
-
 namespace ptgn::impl::gl {
+
+enum class VSyncMode : int {
+	Immediate = 0, /// No sync
+	VSync	  = 1, /// Sync with vertical retrace
+	Adaptive  = -1 /// Adaptive vsync (late swap tearing)
+};
+
+constexpr VSyncMode kVSyncMode{ VSyncMode::Adaptive };
 
 struct GLVersion {
 	GLVersion() {
@@ -78,9 +83,9 @@ SDLGLContext::SDLGLContext(const Window& window) {
 
 	// From: https://nullprogram.com/blog/2023/01/08/
 	// Set a non-zero SDL_GL_SetSwapInterval so that SDL_GL_SwapWindow synchronizes.
-	if (!SDL_GL_SetSwapInterval(PTGN_VSYNC_MODE)) {
+	if (!SDL_GL_SetSwapInterval(std::to_underlying(kVSyncMode))) {
 		// If no adaptive VSYNC available, fallback to VSYNC.
-		SDL_GL_SetSwapInterval(1);
+		SDL_GL_SetSwapInterval(std::to_underlying(VSyncMode::VSync));
 	}
 
 	LoadGLFunctions();
@@ -125,7 +130,12 @@ BindGuard<VertexBufferId> GLContext::Bind(VertexBufferId id, bool restore_bind) 
 		return BindGuard<VertexBufferId>{ *this, VertexBufferId{}, false };
 	}
 
-	GLCall(BindBuffer(std::to_underlying(BufferTarget::ArrayBuffer), id));
+	constexpr BufferTarget target{ BufferTarget::ArrayBuffer };
+
+	GLCall(BindBuffer(std::to_underlying(target), id));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glBindBuffer(target=", target, ",id=", id, ") (previous=", previous, ")");
+#endif
 	bound_.vertex_buffer = id;
 
 	return BindGuard<VertexBufferId>{ *this, previous, restore_bind };
@@ -138,7 +148,12 @@ BindGuard<ElementBufferId> GLContext::Bind(ElementBufferId id, bool restore_bind
 		return BindGuard<ElementBufferId>{ *this, ElementBufferId{}, false };
 	}
 
-	GLCall(BindBuffer(std::to_underlying(BufferTarget::ElementArrayBuffer), id));
+	constexpr BufferTarget target{ BufferTarget::ElementArrayBuffer };
+
+	GLCall(BindBuffer(std::to_underlying(target), id));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glBindBuffer(target=", target, ",id=", id, ") (previous=", previous, ")");
+#endif
 
 	if (bound_.vertex_array) {
 		vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer = id;
@@ -154,7 +169,13 @@ BindGuard<UniformBufferId> GLContext::Bind(UniformBufferId id, bool restore_bind
 		return BindGuard<UniformBufferId>{ *this, UniformBufferId{}, false };
 	}
 
-	GLCall(BindBuffer(std::to_underlying(BufferTarget::UniformBuffer), id));
+	constexpr BufferTarget target{ BufferTarget::UniformBuffer };
+
+	GLCall(BindBuffer(std::to_underlying(target), id));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glBindBuffer(target=", target, ",id=", id, ") (previous=", previous, ")");
+#endif
+
 	bound_.uniform_buffer = id;
 
 	return BindGuard<UniformBufferId>{ *this, previous, restore_bind };
@@ -168,6 +189,10 @@ BindGuard<ShaderId> GLContext::Bind(ShaderId id, bool restore_bind) {
 	}
 
 	GLCall(UseProgram(id));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glUseProgram(id=", id, ") (previous=", previous, ")");
+#endif
+
 	bound_.shader_program = id;
 
 	return BindGuard<ShaderId>{ *this, previous, restore_bind };
@@ -183,6 +208,10 @@ BindGuard<RenderbufferId> GLContext::Bind(RenderbufferId id, bool restore_bind) 
 	constexpr AttachmentObject target{ AttachmentObject::Renderbuffer };
 
 	GLCall(BindRenderbuffer(std::to_underlying(target), id));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glBindRenderbuffer(id=", id, ") (previous=", previous, ")");
+#endif
+
 	bound_.renderbuffer = id;
 
 	return BindGuard<RenderbufferId>{ *this, previous, restore_bind };
@@ -202,6 +231,9 @@ BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind) {
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 
 	GLCall(glBindTexture(std::to_underlying(target), id));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glBindTexture(id=", id, ") (previous=", previous, ")");
+#endif
 	bound_.texture_units[slot].id = id;
 
 	return BindGuard<TextureId>{ *this, previous, restore_bind };
@@ -214,7 +246,10 @@ BindGuard<FramebufferId> GLContext::Bind(FramebufferId id, bool restore_bind) {
 		return BindGuard<FramebufferId>{ *this, FramebufferId{}, false };
 	}
 
-	GLCall(BindFramebuffer(GL_FRAMEBUFFER, id));
+	GLCall(BindFramebuffer(kFrameBufferTarget, id));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glBindFramebuffer(id=", id, ") (previous=", previous, ")");
+#endif
 	bound_.framebuffer = id;
 
 	return BindGuard<FramebufferId>{ *this, previous, restore_bind };
@@ -227,12 +262,18 @@ BindGuard<VertexArrayId> GLContext::Bind(VertexArrayId id, bool restore_bind) {
 		return BindGuard<VertexArrayId>{ *this, VertexArrayId{}, false };
 	}
 
+	// On Mac we cannot bind 0 for vertex arrays, so we skip it.
 #ifdef PTGN_PLATFORM_MACOS
 	if (id) {
+#endif
+
 		GLCall(BindVertexArray(id));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glBindVertexArray(id=", id, ") (previous=", previous, ")");
+#endif
+
+#ifdef PTGN_PLATFORM_MACOS
 	}
-#else
-	GLCall(BindVertexArray(id));
 #endif
 
 	bound_.vertex_array = id;
@@ -372,6 +413,9 @@ void GLContext::Destroy(RenderTargetData& render_target) {
 void GLContext::EnableGammaCorrection() const {
 #ifndef __EMSCRIPTEN__
 	GLCall(glEnable(GL_FRAMEBUFFER_SRGB));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glEnable(GL_FRAMEBUFFER_SRGB)");
+#endif
 #else
 	PTGN_WARN("glEnable(GL_FRAMEBUFFER_SRGB) not supported by Emscripten");
 #endif
@@ -380,6 +424,9 @@ void GLContext::EnableGammaCorrection() const {
 void GLContext::DisableGammaCorrection() const {
 #ifndef __EMSCRIPTEN__
 	GLCall(glDisable(GL_FRAMEBUFFER_SRGB));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glDisable(GL_FRAMEBUFFER_SRGB)");
+#endif
 #else
 	PTGN_WARN("glDisable(GL_FRAMEBUFFER_SRGB) not supported by Emscripten");
 #endif
@@ -401,8 +448,14 @@ void GLContext::SetBlending(bool enabled) {
 	}
 	if (enabled) {
 		GLCall(glEnable(GL_BLEND));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glEnable(GL_BLEND)");
+#endif
 	} else {
 		GLCall(glDisable(GL_BLEND));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glDisable(GL_BLEND)");
+#endif
 	}
 	bound_.blend.enabled = enabled;
 }
@@ -419,6 +472,9 @@ void GLContext::SetDepthMask(bool enabled) {
 		return;
 	}
 	GLCall(glDepthMask(enabled));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glDepthMask(enabled=", enabled, ")");
+#endif
 	bound_.depth.write = enabled;
 }
 
@@ -427,6 +483,9 @@ void GLContext::SetDepthFunc(CompareFunc depth_func) {
 		return;
 	}
 	GLCall(glDepthFunc(std::to_underlying(depth_func)));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glDepthFunc(func=", depth_func, ")");
+#endif
 	bound_.depth.func = depth_func;
 }
 
@@ -438,10 +497,20 @@ void GLContext::SetDepthTesting(bool enabled) {
 		return;
 	}
 	if (enabled) {
-		GLCall(glClearDepth(1.0));
+		constexpr double value{ 1.0 };
+		GLCall(glClearDepth(value));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glClearDepth(value=", value, ")");
+#endif
 		GLCall(glEnable(GL_DEPTH_TEST));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glEnable(GL_DEPTH_TEST)");
+#endif
 	} else {
 		GLCall(glDisable(GL_DEPTH_TEST));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glDisable(GL_DEPTH_TEST)");
+#endif
 	}
 	bound_.depth.test = enabled;
 }
@@ -452,6 +521,9 @@ void GLContext::SetDepthRange(float near_val, float far_val) {
 		return;
 	}
 	GLCall(glDepthRange(near_val, far_val));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glDepthRange(near=", near_val, ",far=", far_val, ")");
+#endif
 	bound_.depth.range_near = near_val;
 	bound_.depth.range_far	= far_val;
 }
@@ -462,6 +534,9 @@ void GLContext::SetLineWidth(float width) {
 	}
 	PTGN_ASSERT(width >= 1.0f, "Only line widths >= 1.0 are supported");
 	GLCall(glLineWidth(width));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glLineWidth(width=", width, ")");
+#endif
 	bound_.raster.line_width = LineWidth{ width };
 }
 
@@ -473,8 +548,14 @@ void GLContext::SetLineSmoothing(bool enabled) {
 	if (enabled) {
 		SetBlending(GL_TRUE);
 		GLCall(glEnable(GL_LINE_SMOOTH));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glEnable(GL_LINE_SMOOTH)");
+#endif
 	} else {
 		GLCall(glDisable(GL_LINE_SMOOTH));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glDisable(GL_LINE_SMOOTH)");
+#endif
 	}
 #else
 	if (enabled) {
@@ -492,9 +573,18 @@ void GLContext::SetPolygonMode(PolygonMode front_mode, PolygonMode back_mode) {
 
 	if (front_mode == back_mode) {
 		GLCall(glPolygonMode(GL_FRONT_AND_BACK, std::to_underlying(front_mode)));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glPolygonMode(face=GL_FRONT_AND_BACK,mode=", front_mode, ")");
+#endif
 	} else {
 		GLCall(glPolygonMode(GL_FRONT, std::to_underlying(front_mode)));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glPolygonMode(face=GL_FRONT,mode=", front_mode, ")");
+#endif
 		GLCall(glPolygonMode(GL_BACK, std::to_underlying(back_mode)));
+#ifdef GL_DEBUG_CONTEXT
+		PTGN_LOG("glPolygonMode(face=GL_BACK,mode=", back_mode, ")");
+#endif
 	}
 
 	bound_.raster.polygon.front = front_mode;
@@ -510,6 +600,10 @@ void GLContext::SetBlendMode(BlendMode mode) {
 	if (bound_.blend.mode == mode) {
 		return;
 	}
+
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glBlendMode(", mode, ")");
+#endif
 
 	GLCall(BlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD));
 
@@ -548,6 +642,9 @@ void GLContext::SetViewport(Viewport viewport) {
 		return;
 	}
 	GLCall(glViewport(viewport.position.x, viewport.position.y, viewport.size.x, viewport.size.y));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glViewport(", viewport, ")");
+#endif
 	bound_.viewport = viewport;
 }
 
@@ -560,6 +657,9 @@ void GLContext::SetClearColor(Color color) {
 		return;
 	}
 	auto n{ static_cast<V4_float>(color) };
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glClearColor(", color, ")");
+#endif
 	GLCall(glClearColor(n.x, n.y, n.z, n.w));
 	bound_.clear_color = ClearColor{ color };
 }
@@ -569,6 +669,9 @@ void GLContext::SetClearDepth(double depth) {
 		return;
 	}
 	PTGN_ASSERT(depth >= 0.0 && depth <= 1.0, "glClearDepth: depth must be in range [0.0, 1.0]");
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glClearDepth(", depth, ")");
+#endif
 	GLCall(glClearDepth(depth));
 	bound_.clear_depth = ClearDepth{ depth };
 }
@@ -578,6 +681,9 @@ void GLContext::SetClearStencil(int stencil) {
 		return;
 	}
 	PTGN_ASSERT(stencil >= 0, "glClearStencil: stencil value must be non-negative");
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glClearStencil(", stencil, ")");
+#endif
 	GLCall(glClearStencil(stencil));
 	bound_.clear_stencil = ClearStencil{ stencil };
 }
@@ -586,6 +692,9 @@ void GLContext::SetColorMask(const ColorMaskState& mask) {
 	if (bound_.color_mask == mask) {
 		return;
 	}
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glColorMask(", mask, ")");
+#endif
 	GLCall(glColorMask(mask.red, mask.green, mask.blue, mask.alpha));
 	bound_.color_mask = mask;
 }
@@ -601,6 +710,9 @@ void GLContext::SetScissor(const ScissorState& scissor) {
 	} else {
 		GLCall(glDisable(GL_SCISSOR_TEST));
 	}
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glScissorState(", scissor, ")");
+#endif
 
 	bound_.scissor = scissor;
 }
@@ -618,6 +730,10 @@ void GLContext::SetCull(const CullState& cull) {
 
 	GLCall(glCullFace(std::to_underlying(cull.cull_face)));
 	GLCall(glFrontFace(std::to_underlying(cull.front_face)));
+
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glCullState(", cull, ")");
+#endif
 
 	bound_.raster.cull = cull;
 }
@@ -647,6 +763,10 @@ void GLContext::SetStencil(const StencilState& stencil) {
 	));
 	GLCall(glStencilMask(stencil.write_mask));
 
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glStencilState(", stencil, ")");
+#endif
+
 	bound_.stencil = stencil;
 }
 
@@ -659,6 +779,11 @@ void GLContext::SetActiveTextureSlot(std::uint32_t slot) {
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
 	GLCall(::ActiveTexture(GL_TEXTURE0 + slot));
+
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glActiveTexture(slot=", slot, ")");
+#endif
+
 	bound_.active_texture = ActiveTexture{ slot };
 }
 
@@ -673,6 +798,9 @@ std::uint32_t GLContext::GetActiveTextureSlot() const {
 int GLContext::GetInteger(GLenum pname) const {
 	int value = -1;
 	GLCall(glGetIntegerv(pname, &value));
+#ifdef GL_DEBUG_CONTEXT
+	PTGN_LOG("glGetIntegerv(param=", pname, ") -> value=", value);
+#endif
 	PTGN_ASSERT(value >= 0, "Failed to query integer parameter");
 	return value;
 }

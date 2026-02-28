@@ -1,14 +1,18 @@
 #include "renderer/resources/vertex.h"
 
 #include <array>
+#include <ostream>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
+#include "renderer/resources/glsl_types.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 std::array<V2_float, 4> GetTextureCoordinates(
 	V2_float source_position, V2_float source_size, V2_float texture_size, bool offset_texels
@@ -154,4 +158,29 @@ void Vertex::SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_inde
 	}
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+template <typename T, std::size_t N>
+std::ostream& operator<<(std::ostream& os, const std::array<T, N>& arr) {
+	os << "(";
+	for (std::size_t i = 0; i < N; ++i) {
+		os << arr[i];
+		if (i + 1 < N) {
+			os << ", ";
+		}
+	}
+	os << ")";
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const impl::Vertex& v) {
+	os << "Vertex{ ";
+	os << "pos=" << v.position;
+	os << ", col=" << v.color;
+	os << ", uv=" << v.tex_coord;
+	os << ", data=" << v.data;
+	os << " }";
+	return os;
+}
+
+} // namespace ptgn

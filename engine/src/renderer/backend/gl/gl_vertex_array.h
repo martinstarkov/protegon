@@ -6,7 +6,6 @@
 #include "core/assert.h"
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
-#include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/resources/buffer.h"
 #include "renderer/resources/buffer_layout.h"
@@ -20,23 +19,6 @@ struct VertexArrayCache {
 	ElementBufferId element_buffer{ 0 };
 	bool layout_set{ false };
 };
-
-constexpr GLenum ToGLType(BufferElementType type) noexcept {
-	switch (type) {
-		using enum BufferElementType;
-
-		case Float:	 return GL_FLOAT;
-		case Double: return GL_DOUBLE;
-		case Int:	 return GL_INT;
-		case UInt:	 return GL_UNSIGNED_INT;
-		case Short:	 return GL_SHORT;
-		case UShort: return GL_UNSIGNED_SHORT;
-		case Byte:	 return GL_BYTE;
-		case UByte:	 return GL_UNSIGNED_BYTE;
-		case Bool:	 return GL_BOOL;
-	}
-	return GL_FLOAT;
-}
 
 enum class PrimitiveMode : std::uint32_t {
 	Points		  = 0x0000, // GL_POINTS
@@ -106,31 +88,18 @@ public:
 		PTGN_ASSERT(stride > 0, "Failed to calculate buffer layout stride");
 
 		for (std::uint32_t i{ 0 }; i < elements.size(); ++i) {
-			const auto& element{ elements[i] };
-			GLCall(EnableVertexAttribArray(i));
-			if (element.is_integer) {
-				GLCall(VertexAttribIPointer(
-					i, element.count, ToGLType(element.type), stride,
-					reinterpret_cast<const void*>(element.offset)
-				));
-			} else {
-				GLCall(VertexAttribPointer(
-					i, element.count, ToGLType(element.type),
-					element.normalized ? GL_TRUE : GL_FALSE, stride,
-					reinterpret_cast<const void*>(element.offset)
-				));
-			}
+			SetupVertexAttrib(i, elements[i], stride);
 		}
 
 		cache_.Get(vertex_array).layout_set = true;
 	}
 
 	void DrawElements(
-		VertexArrayId vertex_array, GLsizei index_count, IndexType index_type,
+		VertexArrayId vertex_array, int index_count, IndexType index_type,
 		PrimitiveMode primitive_mode
 	) const;
 
-	void DrawArrays(VertexArrayId vertex_array, GLsizei vertex_count, PrimitiveMode primitive_mode)
+	void DrawArrays(VertexArrayId vertex_array, int vertex_count, PrimitiveMode primitive_mode)
 		const;
 
 private:
@@ -148,6 +117,10 @@ private:
 	BindGuard<VertexArrayId> BindVertexArray(VertexArrayId vertex_array, bool restore_bind);
 
 	[[nodiscard]] bool IsBound(VertexArrayId vertex_array) const;
+
+	static void SetupVertexAttrib(
+		std::uint32_t index, const BufferElement& element, std::int32_t stride
+	);
 
 	[[nodiscard]] int GetMaxVertexAttribs() const;
 

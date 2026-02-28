@@ -2,9 +2,12 @@
 
 #include <array>
 #include <cstdint>
+#include <ostream>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
+#include "core/log.h"
 #include "core/util/concepts.h"
 #include "renderer/resources/glsl_types.h"
 
@@ -16,17 +19,33 @@ concept VertexDataType = IsAnyOf<
 	glsl::dvec4, glsl::bool_, glsl::bvec2, glsl::bvec3, glsl::bvec4, glsl::int_, glsl::ivec2,
 	glsl::ivec3, glsl::ivec4, glsl::uint_, glsl::uvec2, glsl::uvec3, glsl::uvec4>;
 
-enum class BufferElementType : std::uint8_t {
-	Float,
-	Double,
-	Int,
-	UInt,
-	Short,
-	UShort,
-	Byte,
-	UByte,
-	Bool
+enum class BufferElementType : std::uint32_t {
+	Float		  = 0x1406, // GL_FLOAT
+	Double		  = 0x140A, // GL_DOUBLE
+	Int			  = 0x1404, // GL_INT
+	UnsignedInt	  = 0x1405, // GL_UNSIGNED_INT
+	Short		  = 0x1402, // GL_SHORT
+	UnsignedShort = 0x1403, // GL_UNSIGNED_SHORT
+	Byte		  = 0x1400, // GL_BYTE
+	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
+	Bool		  = 0x8B56	// GL_BOOL
 };
+
+inline std::ostream& operator<<(std::ostream& os, BufferElementType type) {
+	switch (type) {
+		using enum BufferElementType;
+		case Float:			return os << "Float";
+		case Double:		return os << "Double";
+		case Int:			return os << "Int";
+		case UnsignedInt:	return os << "UnsignedInt";
+		case Short:			return os << "Short";
+		case UnsignedShort: return os << "UnsignedShort";
+		case Byte:			return os << "Byte";
+		case UnsignedByte:	return os << "UnsignedByte";
+		case Bool:			return os << "Bool";
+		default:			PTGN_ERROR("Unknown BufferElementType: ", std::to_underlying(type));
+	}
+}
 
 template <typename T>
 struct BufferTypeTrait {
@@ -50,7 +69,7 @@ struct BufferTypeTrait<std::int32_t> {
 
 template <>
 struct BufferTypeTrait<std::uint32_t> {
-	static constexpr auto value = BufferElementType::UInt;
+	static constexpr auto value = BufferElementType::UnsignedInt;
 };
 
 template <>
@@ -60,7 +79,7 @@ struct BufferTypeTrait<std::int16_t> {
 
 template <>
 struct BufferTypeTrait<std::uint16_t> {
-	static constexpr auto value = BufferElementType::UShort;
+	static constexpr auto value = BufferElementType::UnsignedShort;
 };
 
 template <>
@@ -70,7 +89,7 @@ struct BufferTypeTrait<std::int8_t> {
 
 template <>
 struct BufferTypeTrait<std::uint8_t> {
-	static constexpr auto value = BufferElementType::UByte;
+	static constexpr auto value = BufferElementType::UnsignedByte;
 };
 
 template <>
@@ -119,8 +138,10 @@ struct BufferLayout {
 	template <VertexDataType T>
 	[[nodiscard]] constexpr static bool IsInteger() {
 		using V = typename T::value_type;
-		return std::is_same_v<V, bool> || std::is_same_v<V, std::int32_t> ||
-			   std::is_same_v<V, std::uint32_t>;
+		return std::is_same_v<V, bool> || std::is_same_v<V, std::uint32_t> ||
+			   std::is_same_v<V, std::int32_t> || std::is_same_v<V, std::uint16_t> ||
+			   std::is_same_v<V, std::int16_t> || std::is_same_v<V, std::uint8_t> ||
+			   std::is_same_v<V, std::int16_t>;
 	}
 
 	std::int32_t stride_{ 0 };

@@ -1,11 +1,13 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "core/graphics/blend_mode.h"
@@ -36,8 +38,9 @@ namespace impl::gl {
 
 class GLContext;
 
-template <class State, class Func>
-bool UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
+template <typename State, typename F>
+	requires std::same_as<std::invoke_result_t<F&>, void>
+bool UpdateStateIfChanged(GLRenderer&, const State&, const State&, F&&);
 
 using Index = std::uint32_t;
 
@@ -130,8 +133,9 @@ public:
 
 private:
 	friend class ptgn::impl::RenderPass;
-	template <class State, class Func>
-	friend bool UpdateStateIfChanged(GLRenderer&, const State&, const State&, Func&&);
+	template <typename State, typename F>
+		requires std::same_as<std::invoke_result_t<F&>, void>
+	friend bool UpdateStateIfChanged(GLRenderer&, const State&, const State&, F&&);
 
 	using QuadSetup = std::function<void(ShaderId, QuadDesc&)>;
 

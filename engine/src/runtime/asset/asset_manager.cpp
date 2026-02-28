@@ -1,8 +1,6 @@
 #include "runtime/asset/asset_manager.h"
 
-#include <SDL3/SDL_error.h>
 #include <SDL3_mixer/SDL_mixer.h>
-#include <SDL3_ttf/SDL_ttf.h>
 
 #include <filesystem>
 #include <functional>
@@ -42,6 +40,7 @@
 
 #include "core/log.h"
 #include "core/util/string.h"
+#include "renderer/backend/gl/gl_texture.h"
 #include "runtime/audio/audio_system.h"
 
 // TODO: Add async asset loading.
@@ -94,7 +93,8 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	texture.entity_.Add<impl::TextureObject>(
 		ctx_->renderer.gl_renderer_.get(),
 		ctx_->renderer.gl_renderer_->gl->textures.CreateTexture(
-			surface.pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface.size, GL_RGBA
+			surface.pixels.data(), impl::gl::PixelDataFormat::RGBA,
+			impl::gl::PixelDataType::UnsignedByte, surface.size, TextureFormat::RGBA8
 		)
 	);
 
@@ -402,7 +402,8 @@ Texture AssetManager::CreateTextTexture(
 	texture.entity_.Add<impl::TextureObject>(
 		ctx_->renderer.gl_renderer_.get(),
 		ctx_->renderer.gl_renderer_->gl->textures.CreateTexture(
-			surface->pixels.data(), GL_RGBA, GL_UNSIGNED_BYTE, surface->size, GL_RGBA
+			surface->pixels.data(), impl::gl::PixelDataFormat::RGBA,
+			impl::gl::PixelDataType::UnsignedByte, surface->size, TextureFormat::RGBA8
 		)
 	);
 

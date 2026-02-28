@@ -2,8 +2,8 @@
 
 #include "core/math/vector2.h"
 #include "core/util/id_map.h"
-#include "renderer/backend/gl/gl.h"
 #include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
 
@@ -11,14 +11,12 @@ class GLContext;
 
 struct RenderbufferCache {
 	V2_int size;
-	GLenum internal_format{ GL_RGBA8 };
+	TextureFormat format{ TextureFormat::RGBA8 };
 };
 
 class Renderbuffers {
 public:
-	RenderbufferId CreateRenderbuffer(
-		V2_int size, GLenum internal_format, bool restore_bind = true
-	);
+	RenderbufferId CreateRenderbuffer(V2_int size, TextureFormat format, bool restore_bind = true);
 
 	void DestroyRenderbuffer(RenderbufferId id);
 	void ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_size);
@@ -37,7 +35,7 @@ private:
 	Renderbuffers& operator=(const Renderbuffers&)	   = delete;
 	Renderbuffers& operator=(Renderbuffers&&) noexcept = delete;
 
-	void SetRenderbufferStorage(RenderbufferId renderbuffer, V2_int size, GLenum internal_format);
+	void SetRenderbufferStorage(RenderbufferId renderbuffer, V2_int size, TextureFormat format);
 
 	[[nodiscard]] RenderbufferId CreateRenderbuffer();
 

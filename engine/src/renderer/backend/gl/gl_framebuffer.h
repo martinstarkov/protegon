@@ -1,8 +1,11 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <optional>
+#include <ostream>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -18,6 +21,8 @@
 namespace ptgn::impl::gl {
 
 class GLContext;
+
+inline constexpr std::uint32_t kFrameBufferTarget{ 0x8D40 }; // GL_FRAMEBUFFER
 
 enum class AttachmentObject : std::uint32_t {
 	None		 = 0,
@@ -57,6 +62,8 @@ enum class Attachment : std::uint32_t {
 	DepthStencil = 0x821A  // GL_DEPTH_STENCIL_ATTACHMENT
 };
 
+std::ostream& operator<<(std::ostream& os, Attachment attachment);
+
 enum class ClearBufferBit : std::uint32_t {
 	None	= 0,
 	Color	= 0x00004000, // GL_COLOR_BUFFER_BIT
@@ -64,15 +71,27 @@ enum class ClearBufferBit : std::uint32_t {
 	Stencil = 0x00000400  // GL_STENCIL_BUFFER_BIT
 };
 
+constexpr ClearBufferBit operator|(ClearBufferBit a, ClearBufferBit b) {
+	return static_cast<ClearBufferBit>(std::to_underlying(a) | std::to_underlying(b));
+}
+
+constexpr ClearBufferBit operator&(ClearBufferBit a, ClearBufferBit b) {
+	return static_cast<ClearBufferBit>(std::to_underlying(a) & std::to_underlying(b));
+}
+
+constexpr ClearBufferBit& operator|=(ClearBufferBit& a, ClearBufferBit b) {
+	return a = a | b;
+}
+
+std::ostream& operator<<(std::ostream& os, ClearBufferBit clear_buffer_bit);
+
 enum class ClearBufferType : std::uint32_t {
 	Color	= 0x1800, // GL_COLOR
 	Depth	= 0x1801, // GL_DEPTH
 	Stencil = 0x1802  // GL_STENCIL
 };
 
-constexpr ClearBufferBit operator|(ClearBufferBit a, ClearBufferBit b) {
-	return static_cast<ClearBufferBit>(std::to_underlying(a) | std::to_underlying(b));
-}
+std::ostream& operator<<(std::ostream& os, ClearBufferType clear_buffer_type);
 
 class Framebuffers {
 public:
@@ -105,14 +124,15 @@ public:
 		int drawbuffer = 0
 	) const;
 
-	// Color
-	// Depth -> float
-	// Stencil -> uint8_t
-	// Depth+Stencil -> {float depth, uint8_t stencil}
+	/// Color -> Color
+	/// Depth -> float
+	/// Stencil -> uint8_t
+	/// Depth+Stencil -> {float depth, uint8_t stencil}
 	using PixelValue = std::variant<Color, float, std::uint8_t, std::pair<float, std::uint8_t>>;
 
-	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
-	// @param coordinate Pixel coordinate from [0, size).
+	/// @brief WARNING: This function is slow and should be primarily used for debugging
+	/// framebuffers.
+	/// @param coordinate Pixel coordinate from [0, size).
 	PixelValue ReadPixel(
 		FramebufferId framebuffer, V2_int coordinate, Attachment attachment = Attachment::Color0
 	);
@@ -130,63 +150,35 @@ public:
 		std::vector<std::uint8_t> data;
 	};
 
-	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
+	/// @brief WARNING: This function is slow and should be primarily used for debugging
+	/// framebuffers.
 	PixelBuffer ReadPixels(FramebufferId framebuffer, Attachment attachment = Attachment::Color0);
 
-	// WARNING: This function is slow and should be primarily used for debugging framebuffers.
+	/// @brief WARNING: This function is slow and should be primarily used for debugging
+	/// framebuffers.
 	template <typename F>
+		requires std::same_as<std::invoke_result_t<F&, V2_int, PixelValue>, void>
 	void ForEachPixel(
 		const PixelBuffer& buffer, F&& func /* (V2_int, PixelValue) */
 	) const {
-		const auto& data		  = buffer.data;
-		const V2_int size		  = buffer.size;
-		const AttachmentType type = buffer.type;
-
-		for (int y = 0; y < size.y; ++y) {
-			int flipped = size.y - 1 - y;
-
-			for (int x = 0; x < size.x; ++x) {
-				const int idx = flipped * size.x + x;
-				PixelValue px;
-
-				switch (type) {
-					case AttachmentType::Color: {
-						const std::uint8_t* p = &data[idx * 4];
-						px					  = Color{ p[0], p[1], p[2], p[3] };
-						break;
-					}
-
-					case AttachmentType::Depth: {
-						const float* p = reinterpret_cast<const float*>(data.data());
-						px			   = p[idx];
-						break;
-					}
-
-					case AttachmentType::Stencil: {
-						px = data[idx];
-						break;
-					}
-
-					case AttachmentType::DepthStencil: {
-						const auto* p = reinterpret_cast<const std::uint32_t*>(data.data());
-						const std::uint32_t packed = p[idx];
-						float depth				   = float(packed & 0xFFFFFF) / float(0xFFFFFF);
-						std::uint8_t stencil	   = (packed >> 24) & 0xFF;
-						px						   = std::make_pair(depth, stencil);
-						break;
-					}
-				}
-
+		for (int y = 0; y < buffer.size.y; ++y) {
+			int flipped = buffer.size.y - 1 - y;
+			for (int x = 0; x < buffer.size.x; ++x) {
+				int idx = flipped * buffer.size.x + x;
+				PixelValue px{ DecodePixel(buffer.data, idx, buffer.type) };
 				func(V2_int{ x, y }, px);
 			}
 		}
 	}
 
+	/// @brief WARNING: This function is slow and should be primarily used for debugging
+	/// framebuffers.
 	template <typename F>
+		requires std::same_as<std::invoke_result_t<F&, V2_int, PixelValue>, void>
 	void ForEachPixel(
 		FramebufferId framebuffer, F&& func, Attachment attachment = Attachment::Color0
 	) {
-		PixelBuffer buffer = ReadPixels(framebuffer, attachment);
+		PixelBuffer buffer{ ReadPixels(framebuffer, attachment) };
 		ForEachPixel(buffer, std::forward<F>(func));
 	}
 
@@ -226,16 +218,14 @@ private:
 
 	[[nodiscard]] FramebufferId CreateFramebufferImpl();
 
-	// TODO: Make sure to update the cache when the parameters change. I.e. when resizing a
-	// texture.
-	// TODO: Store resource cached values here by GLuint key and erase them in the resource
-	// deleter. e.g. std::unordered_map<GLuint, location_cache> location_caches_;
-	// UnsafeDelete(); location_caches_.erase(id);
+	[[nodiscard]] static PixelValue DecodePixel(
+		const std::vector<std::uint8_t>& data, int index, AttachmentType type
+	);
 
 	GLContext& gl_;
 
-	// equivalent to GL_MAX_COLOR_ATTACHMENTS, or the number of color attachments a framebuffer can
-	// have. This is set by the constructor and should not be modified afterward.
+	/// @brief Equivalent to GL_MAX_COLOR_ATTACHMENTS, or the number of color attachments a
+	/// framebuffer can have. This is set by the Init function and should not be modified afterward.
 	std::uint32_t max_color_attachments_{ 0 };
 
 	IdMap<FramebufferCache> cache_;

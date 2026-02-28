@@ -1,23 +1,28 @@
 #include "renderer/backend/gl/gl_renderer.h"
 
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <ostream>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/blend_mode.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
@@ -25,19 +30,22 @@
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/camera/viewport.h"
+#include "renderer/resources/buffer.h"
 #include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/framebuffer.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/render_state.h"
 #include "renderer/resources/render_target.h"
 #include "renderer/resources/renderbuffer.h"
+#include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/vertex.h"
+#include "renderer/resources/vertex_array.h"
 
 namespace ptgn::impl::gl {
 
 GLRenderer::GLRenderer(Window& window) : gl{ std::make_unique<GLContext>(window) } {
-	// TODO: Fix and replace with the object which has a destructor.
 	ebo_ = ElementBufferObject{ this,
 								gl->buffers.CreateElementBuffer(
 									nullptr, kIndexCapacity, sizeof(Index), BufferUsage::DynamicDraw
@@ -52,17 +60,17 @@ GLRenderer::GLRenderer(Window& window) : gl{ std::make_unique<GLContext>(window)
 		VertexArrayObject{ this,
 						   gl->vertex_arrays.CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_) };
 
-	white_texture_ = TextureObject{ this, gl->textures.CreateTexture(
-											  static_cast<const void*>(&color::White), GL_RGBA,
-											  GL_UNSIGNED_INT, { 1, 1 }, GL_RGBA
-										  ) };
+	white_texture_ =
+		TextureObject{ this, gl->textures.CreateTexture(
+								 static_cast<const void*>(&color::White), PixelDataFormat::RGBA,
+								 PixelDataType::UnsignedInt, V2_int{ 1, 1 }, TextureFormat::RGBA8
+							 ) };
 
 	// TODO: Use display size instead of window size.
-	auto viewport = window.GetSize();
+	auto viewport{ window.GetSize() };
 
 	PTGN_ASSERT(viewport.BothAboveZero(), "Viewport cannot be zero");
 
-	// TODO: Resize screen target when display size event is emitted.
 	screen_target_ = CreateRenderTarget(viewport, TextureFormat::RGBA8);
 	screen_target_.Bind();
 	auto half_viewport{ viewport / 2.0f };
@@ -100,23 +108,18 @@ GLRenderer::~GLRenderer() noexcept {
 }
 
 RenderTargetObject GLRenderer::CreateRenderTarget(V2_int size, TextureFormat format) {
-	const auto& desc = GetTextureFormatDesc(format);
-
-	auto color = gl->textures.CreateTexture(
-		nullptr, desc.pixel_format, desc.pixel_type, size, desc.internal_format
-	);
+	auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
+	auto color = gl->textures.CreateTexture(nullptr, pixel_format, pixel_type, size, format);
 
 	std::optional<RenderbufferId> depth;
 
-	if (desc.has_depth || desc.has_stencil) {
-		auto rb_format{ desc.has_stencil ? GL_DEPTH_STENCIL : GL_DEPTH_COMPONENT };
-
-		depth = gl->renderbuffers.CreateRenderbuffer(size, rb_format);
+	if (!IsColorFormat(format)) {
+		depth = gl->renderbuffers.CreateRenderbuffer(size, format);
 	}
 
 	auto framebuffer = gl->framebuffers.CreateFramebuffer(
-		color, gl::Attachment::Color0, depth,
-		desc.has_stencil ? gl::Attachment::DepthStencil : gl::Attachment::Depth
+		color, Attachment::Color0, depth,
+		IsDepthOnlyFormat(format) ? Attachment::Depth : Attachment::DepthStencil
 	);
 
 	return RenderTargetObject{ this, RenderTargetData{ framebuffer, color, depth, size, format } };
@@ -166,6 +169,35 @@ void GLRenderer::FlushBatch() {
 		vao_, static_cast<std::uint32_t>(batch_indices_.size()), IndexType::UnsignedInt,
 		PrimitiveMode::Triangles
 	);
+
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::FlushBatch");
+	PTGN_LOG("Vertices (", batch_vertices_.size(), "):");
+
+	for (std::size_t i = 0; i < batch_vertices_.size(); ++i) {
+		PTGN_LOG("  [", i, "] ", batch_vertices_[i]);
+	}
+
+	Print("Indices (", batch_indices_.size(), "): [");
+
+	for (std::size_t i = 0; i < batch_indices_.size(); ++i) {
+		Print(batch_indices_[i]);
+		if (i + 1 < batch_indices_.size()) {
+			Print(", ");
+		}
+	}
+	PrintLine("]");
+
+	Print("Textures (", batch_textures_.size(), "): [");
+
+	for (std::size_t i = 0; i < batch_textures_.size(); ++i) {
+		Print(batch_textures_[i]);
+		if (i + 1 < batch_textures_.size()) {
+			Print(", ");
+		}
+	}
+	PrintLine("]");
+#endif
 
 	// Clear batch (keep white texture)
 	batch_vertices_.clear();
@@ -222,21 +254,28 @@ RenderTargetData GLRenderer::AcquirePooledTarget(V2_int size, TextureFormat form
 	// Pool is at/over the limit and no compatible spare existed:
 	PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
 	const auto& rt{ rt_pool_.emplace_back(std::move(entry)) };
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::AcquirePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
+#endif
+
 	return rt.target.resource_;
 }
 
 void GLRenderer::ReleasePooledTarget(RenderTargetData& target) {
 	++pool_tick_;
 
-	for (auto& e : rt_pool_) {
+	std::erase_if(rt_pool_, [&target](auto& e) {
 		if (e.target.resource_ == target) {
-			e.in_use		 = false;
-			e.last_used_tick = pool_tick_;
-			gl->Destroy(target);
-			// TODO: Remove target from rt_pool_.
-			return;
+			return true; // remove from pool
 		}
-	}
+		return false;
+	});
+
+#ifdef GL_DEBUG_RENDERER
+	PTGN_LOG("GLRenderer::ReleasePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
+#endif
+
+	target = {};
 }
 
 std::uint32_t GLRenderer::GetTextureSlot(TextureId tex) {
@@ -263,11 +302,12 @@ std::uint32_t GLRenderer::GetTextureSlot(TextureId tex) {
 	return static_cast<std::uint32_t>(batch_textures_.size() - 1);
 }
 
-template <class State, class Func>
-bool UpdateStateIfChanged(GLRenderer& r, const State& cached, const State& desired, Func&& func) {
+template <typename State, typename F>
+	requires std::same_as<std::invoke_result_t<F&>, void>
+bool UpdateStateIfChanged(GLRenderer& r, const State& cached, const State& desired, F&& func) {
 	if (cached != desired) {
 		r.FlushBatch();
-		std::invoke(std::forward<Func>(func));
+		std::invoke(std::forward<F>(func));
 		return true;
 	}
 	return false;
@@ -471,7 +511,7 @@ void GLRenderer::DrawQuad(
 	p.depth		= depth;
 	p.tint		= tint;
 
-	DrawQuad(shader, p, [this, user_data](auto s, auto& q) { q.user_data = user_data; });
+	DrawQuad(shader, p, [this, user_data](auto, auto& q) { q.user_data = user_data; });
 }
 
 void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetData& scene_target) {

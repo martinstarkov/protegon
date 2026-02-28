@@ -1,11 +1,11 @@
 #include "renderer/backend/gl/gl_texture.h"
 
+#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
-#include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
-#include "core/math/vector4.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
@@ -19,28 +19,30 @@ namespace ptgn::impl::gl {
 Textures::Textures(GLContext& gl) : gl_{ gl } {}
 
 TextureFormat TextureCache::GetFormat() const {
-	return GetTextureFormatFromInternal(internal_format);
+	return format;
 }
 
 TextureId Textures::CreateTexture(
-	const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type, V2_int size,
-	GLenum internal_format, bool restore_bind
+	const void* pixel_data, PixelDataFormat pixel_data_format, PixelDataType pixel_data_type,
+	V2_int size, TextureFormat format, bool restore_bind
 ) {
 	auto texture{ CreateTexture() };
 
 	auto _ = gl_.Bind(texture, restore_bind);
 
-	SetTextureData(texture, pixel_data, pixel_data_format, pixel_data_type, size, internal_format);
+	SetTextureData(texture, pixel_data, pixel_data_format, pixel_data_type, size, format);
 
 	constexpr TextureMinFilter min_filter{ TextureMinFilter::Nearest };
 	constexpr TextureMagFilter mag_filter{ TextureMagFilter::Nearest };
 	constexpr TextureWrap wrap_s{ TextureWrap::ClampToEdge };
 	constexpr TextureWrap wrap_t{ TextureWrap::ClampToEdge };
 
-	SetTextureParameter(texture, GL_TEXTURE_MIN_FILTER, std::to_underlying(min_filter));
-	SetTextureParameter(texture, GL_TEXTURE_MAG_FILTER, std::to_underlying(mag_filter));
-	SetTextureParameter(texture, GL_TEXTURE_WRAP_S, std::to_underlying(wrap_s));
-	SetTextureParameter(texture, GL_TEXTURE_WRAP_T, std::to_underlying(wrap_t));
+	using enum TextureParameter;
+
+	SetTextureParameter(texture, MinFilter, std::to_underlying(min_filter));
+	SetTextureParameter(texture, MagFilter, std::to_underlying(mag_filter));
+	SetTextureParameter(texture, WrapS, std::to_underlying(wrap_s));
+	SetTextureParameter(texture, WrapT, std::to_underlying(wrap_t));
 
 	return texture;
 }
@@ -61,7 +63,9 @@ void Textures::ResizeTexture(TextureId texture, V2_int new_size) {
 
 	auto _ = gl_.Bind(texture, true);
 
-	SetTextureData(texture, nullptr, GL_RGBA, GL_UNSIGNED_BYTE, new_size, cache.internal_format);
+	SetTextureData(
+		texture, nullptr, PixelDataFormat::RGBA, PixelDataType::UnsignedByte, new_size, cache.format
+	);
 }
 
 TextureCache& Textures::GetCache(TextureId texture) {
@@ -75,45 +79,36 @@ const TextureCache& Textures::GetCache(TextureId texture) const {
 }
 
 void Textures::SetTextureData(
-	TextureId texture, const void* pixel_data, GLenum pixel_data_format, GLenum pixel_data_type,
-	V2_int size, GLenum internal_format
+	TextureId texture, const void* pixel_data, PixelDataFormat pixel_data_format,
+	PixelDataType pixel_data_type, V2_int size, TextureFormat format
 ) {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its data");
 
-	constexpr GLint mipmap_level{ 0 };
-	constexpr GLint border{ 0 };
-
-#ifdef __EMSCRIPTEN__
-	PTGN_ASSERT(
-		pixel_data_format != GL_BGRA && pixel_data_format != GL_BGR && internal_format != GL_BGRA &&
-			internal_format != GL_BGR,
-		"OpenGL ES3.0 does not support BGR(A) formats in glTexImage2D"
-	);
-#endif
-
+	constexpr int mipmap_level{ 0 };
+	constexpr int border{ 0 };
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 
 	GLCall(glTexImage2D(
-		std::to_underlying(target), mipmap_level, internal_format, size.x, size.y, border,
-		pixel_data_format, pixel_data_type, pixel_data
+		std::to_underlying(target), mipmap_level, std::to_underlying(format), size.x, size.y,
+		border, std::to_underlying(pixel_data_format), std::to_underlying(pixel_data_type),
+		pixel_data
 	));
 #ifdef GL_DEBUG_TEXTURES
 	PTGN_LOG(
-		"glTexImage2D(target=", target, ",mipmap_level=", mipmap_level,
-		",internal_format=", internal_format, ",size=", size, ",border=", border,
-		",pixel_format=", pixel_data_format, ",pixel_type=", pixel_data_type,
-		",pixel_data=", pixel_data, ")"
+		"glTexImage2D(target=", target, ",mipmap_level=", mipmap_level, ",format=", format,
+		",size=", size, ",border=", border, ",pixel_format=", pixel_data_format,
+		",pixel_type=", pixel_data_type, ",pixel_data=", pixel_data, ")"
 	);
 #endif
 
-	auto& cache			  = cache_.Get(texture);
-	cache.size			  = size;
-	cache.internal_format = internal_format;
+	auto& cache	 = cache_.Get(texture);
+	cache.size	 = size;
+	cache.format = format;
 }
 
 void Textures::SetTextureSubData(
-	TextureId texture, const void* pixel_subdata, GLenum pixel_data_format, GLenum pixel_data_type,
-	V2_int subdata_size, V2_int subdata_offset
+	TextureId texture, const void* pixel_subdata, PixelDataFormat pixel_data_format,
+	PixelDataType pixel_data_type, V2_int subdata_size, V2_int subdata_offset
 ) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its subdata");
 	PTGN_ASSERT(pixel_subdata != nullptr, "Cannot set texture subdata to nullptr");
@@ -123,7 +118,8 @@ void Textures::SetTextureSubData(
 
 	GLCall(glTexSubImage2D(
 		std::to_underlying(target), mipmap_level, subdata_offset.x, subdata_offset.y,
-		subdata_size.x, subdata_size.y, pixel_data_format, pixel_data_type, pixel_subdata
+		subdata_size.x, subdata_size.y, std::to_underlying(pixel_data_format),
+		std::to_underlying(pixel_data_type), pixel_subdata
 	));
 #ifdef GL_DEBUG_TEXTURES
 	PTGN_LOG(
@@ -134,60 +130,53 @@ void Textures::SetTextureSubData(
 #endif
 }
 
-void Textures::SetTextureClampBorderColor(TextureId texture, Color color) const {
-	PTGN_ASSERT(
-		gl_.IsBound(texture), "TextureId must be bound prior to setting its clamp border color"
-	);
-
-	auto c{ static_cast<V4_float>(color) };
-	SetTextureParameter(texture, GL_TEXTURE_BORDER_COLOR, c.Data());
-}
-
-void Textures::SetTextureParameter(TextureId texture, GLenum param, const GLfloat* values) const {
+void Textures::SetTextureParameter(TextureId texture, TextureParameter param, const float* values)
+	const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameterfv(std::to_underlying(target), param, values));
+	GLCall(glTexParameterfv(std::to_underlying(target), std::to_underlying(param), values));
 #ifdef GL_DEBUG_TEXTURES
 	PTGN_LOG("glTexParameterfv(target=", target, ",param=", param, ",values=", values, ")");
 #endif
 }
 
-void Textures::SetTextureParameter(TextureId texture, GLenum param, const GLint* values) const {
+void Textures::SetTextureParameter(TextureId texture, TextureParameter param, const int* values)
+	const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameteriv(std::to_underlying(target), param, values));
+	GLCall(glTexParameteriv(std::to_underlying(target), std::to_underlying(param), values));
 #ifdef GL_DEBUG_TEXTURES
 	PTGN_LOG("glTexParameteriv(target=", target, ",param=", param, ",values=", values, ")");
 #endif
 }
 
-void Textures::SetTextureParameter(TextureId texture, GLenum param, GLfloat value) const {
+void Textures::SetTextureParameter(TextureId texture, TextureParameter param, float value) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameterf(std::to_underlying(target), param, value));
+	GLCall(glTexParameterf(std::to_underlying(target), std::to_underlying(param), value));
 #ifdef GL_DEBUG_TEXTURES
 	PTGN_LOG("glTexParameterf(target=", target, ",param=", param, ",value=", value, ")");
 #endif
 }
 
-void Textures::SetTextureParameter(TextureId texture, GLenum param, GLint value) const {
+void Textures::SetTextureParameter(TextureId texture, TextureParameter param, int value) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameteri(std::to_underlying(target), param, value));
+	GLCall(glTexParameteri(std::to_underlying(target), std::to_underlying(param), value));
 #ifdef GL_DEBUG_TEXTURES
 	PTGN_LOG("glTexParameteri(target=", target, ",param=", param, ",value=", value, ")");
 #endif
 }
 
-GLint Textures::GetTextureParameter(TextureId texture, GLenum param) const {
+int Textures::GetTextureParameter(TextureId texture, TextureParameter param) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to getting its parameters");
 	GLint value{ -1 };
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glGetTexParameteriv(std::to_underlying(target), param, &value));
+	GLCall(glGetTexParameteriv(std::to_underlying(target), std::to_underlying(param), &value));
 #ifdef GL_DEBUG_TEXTURES
 	PTGN_LOG("glGetTexParameteriv(target=", target, ",param=", param, ") -> value=", value);
 #endif
@@ -195,18 +184,19 @@ GLint Textures::GetTextureParameter(TextureId texture, GLenum param) const {
 	return value;
 }
 
-bool Textures::SupportsMipmaps(GLenum texture_min_filter) {
-	return texture_min_filter == GL_LINEAR_MIPMAP_LINEAR ||
-		   texture_min_filter == GL_LINEAR_MIPMAP_NEAREST ||
-		   texture_min_filter == GL_NEAREST_MIPMAP_LINEAR ||
-		   texture_min_filter == GL_NEAREST_MIPMAP_NEAREST;
+bool Textures::SupportsMipmaps(TextureMinFilter texture_min_filter) {
+	using enum ptgn::TextureMinFilter;
+	return texture_min_filter == LinearMipmapLinear || texture_min_filter == LinearMipmapNearest ||
+		   texture_min_filter == NearestMipmapLinear || texture_min_filter == NearestMipmapNearest;
 }
 
 void Textures::GenerateMipmaps(TextureId texture) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to generating mipmaps for it");
 #ifndef __EMSCRIPTEN__
 	PTGN_ASSERT(
-		SupportsMipmaps(GetTextureParameter(texture, GL_TEXTURE_MIN_FILTER)),
+		SupportsMipmaps(
+			static_cast<TextureMinFilter>(GetTextureParameter(texture, TextureParameter::MinFilter))
+		),
 		"Set texture minifying scaling to mipmap type before generating mipmaps"
 	);
 #endif
@@ -237,6 +227,54 @@ void Textures::DestroyTexture(TextureId id) {
 	PTGN_LOG("glDeleteTextures(id=", id.value, ")");
 #endif
 	cache_.Remove(id);
+}
+
+std::ostream& operator<<(std::ostream& os, PixelDataFormat fmt) {
+	switch (fmt) {
+		using enum PixelDataFormat;
+		case RED:			 return os << "RED";
+		case RED_INTEGER:	 return os << "RED_INTEGER";
+		case RG:			 return os << "RG";
+		case RG_INTEGER:	 return os << "RG_INTEGER";
+		case RGB:			 return os << "RGB";
+		case RGB_INTEGER:	 return os << "RGB_INTEGER";
+		case RGBA:			 return os << "RGBA";
+		case RGBA_INTEGER:	 return os << "RGBA_INTEGER";
+		case DepthComponent: return os << "DepthComponent";
+		case DepthStencil:	 return os << "DepthStencil";
+		case Stencil:		 return os << "Stencil";
+		case LuminanceAlpha: return os << "LuminanceAlpha";
+		case Luminance:		 return os << "Luminance";
+		case Alpha:			 return os << "Alpha";
+		default:			 PTGN_ERROR("Unknown PixelDataFormat: ", std::to_underlying(fmt));
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, PixelDataType type) {
+	switch (type) {
+		using enum PixelDataType;
+		case UnsignedByte:	   return os << "UnsignedByte";
+		case Byte:			   return os << "Byte";
+		case UnsignedShort:	   return os << "UnsignedShort";
+		case Short:			   return os << "Short";
+		case UnsignedInt:	   return os << "UnsignedInt";
+		case Int:			   return os << "Int";
+		case HalfFloat:		   return os << "HalfFloat";
+		case Float:			   return os << "Float";
+		case UnsignedInt_24_8: return os << "UnsignedInt_24_8";
+		default:			   PTGN_ERROR("Unknown PixelDataType: ", std::to_underlying(type));
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, TextureParameter param) {
+	switch (param) {
+		using enum TextureParameter;
+		case MinFilter: return os << "MinFilter";
+		case MagFilter: return os << "MagFilter";
+		case WrapS:		return os << "WrapS";
+		case WrapT:		return os << "WrapT";
+		default:		PTGN_ERROR("Unknown TextureParameter: ", std::to_underlying(param));
+	}
 }
 
 } // namespace ptgn::impl::gl

@@ -1,5 +1,6 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 
+#include <cstdint>
 #include <ostream>
 #include <utility>
 
@@ -11,6 +12,7 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_debug.h"
 #include "renderer/resources/buffer.h"
+#include "renderer/resources/buffer_layout.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/vertex_array.h"
 
@@ -34,9 +36,41 @@ void VertexArrays::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId 
 	auto _ = gl_.Bind(element_buffer, false);
 }
 
+void VertexArrays::SetupVertexAttrib(
+	std::uint32_t index, const BufferElement& element, std::int32_t stride
+) {
+	GLCall(EnableVertexAttribArray(index));
+#ifdef GL_DEBUG_VERTEX_ARRAYS
+	PTGN_LOG("glEnableVertexAttribArray(index=", index, ")");
+#endif
+
+	if (element.is_integer) {
+		GLCall(VertexAttribIPointer(
+			index, element.count, std::to_underlying(element.type), stride,
+			reinterpret_cast<const void*>(element.offset)
+		));
+#ifdef GL_DEBUG_VERTEX_ARRAYS
+		PTGN_LOG(
+			"glVertexAttribIPointer(index=", index, ",size=", element.count, ",type=", element.type,
+			",stride=", stride, ",offset=", element.offset, ")"
+		);
+#endif
+	} else {
+		GLCall(VertexAttribPointer(
+			index, element.count, std::to_underlying(element.type), element.normalized, stride,
+			reinterpret_cast<const void*>(element.offset)
+		));
+#ifdef GL_DEBUG_VERTEX_ARRAYS
+		PTGN_LOG(
+			"glVertexAttribPointer(index=", index, ",size=", element.count, ",type=", element.type,
+			",normalized=", element.normalized, ",stride=", stride, ",offset=", element.offset, ")"
+		);
+#endif
+	}
+}
+
 void VertexArrays::DrawElements(
-	VertexArrayId vertex_array, GLsizei index_count, IndexType index_type,
-	PrimitiveMode primitive_mode
+	VertexArrayId vertex_array, int index_count, IndexType index_type, PrimitiveMode primitive_mode
 ) const {
 	PTGN_ASSERT(gl_.IsBound(vertex_array));
 	PTGN_ASSERT(cache_.Get(vertex_array).layout_set);
@@ -53,7 +87,7 @@ void VertexArrays::DrawElements(
 }
 
 void VertexArrays::DrawArrays(
-	VertexArrayId vertex_array, GLsizei vertex_count, PrimitiveMode primitive_mode
+	VertexArrayId vertex_array, int vertex_count, PrimitiveMode primitive_mode
 ) const {
 	PTGN_ASSERT(gl_.IsBound(vertex_array));
 	PTGN_ASSERT(cache_.Get(vertex_array).layout_set);

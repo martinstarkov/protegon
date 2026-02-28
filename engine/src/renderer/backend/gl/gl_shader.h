@@ -41,18 +41,7 @@ enum class ShaderType : std::uint32_t {
 	Compute		   = 0x91B9	 // GL_COMPUTE_SHADER
 };
 
-inline std::ostream& operator<<(std::ostream& os, ShaderType type) {
-	switch (type) {
-		using enum ShaderType;
-		case Vertex:		 return os << "Vertex";
-		case Fragment:		 return os << "Fragment";
-		case Geometry:		 return os << "Geometry";
-		case TessControl:	 return os << "TessControl";
-		case TessEvaluation: return os << "TessEvaluation";
-		case Compute:		 return os << "Compute";
-		default:			 return os << "Unknown ShaderType";
-	}
-}
+std::ostream& operator<<(std::ostream& os, ShaderType type);
 
 struct ShaderSpec {
 	ShaderType type{ ShaderType::Fragment };
@@ -127,9 +116,11 @@ private:
 	std::vector<ShaderSpec> ParseShaderSourceFile(const std::string& source, std::string_view name)
 		const;
 
-	ShaderId CompileShaderSource(const std::string& source, ShaderType type, std::string_view name);
+	ShaderId CompileShaderSource(const std::string& source, ShaderType type, std::string_view name)
+		const;
 
-	ShaderId CompileShaderPath(const path& shader_path, ShaderType type, std::string_view name);
+	ShaderId CompileShaderPath(const path& shader_path, ShaderType type, std::string_view name)
+		const;
 
 	void CompileShaders(const std::vector<ShaderSpec>& sources);
 
@@ -146,17 +137,17 @@ private:
 	std::pair<ShaderId, bool> GetShaderIdWithDeleteFlag(
 		const std::variant<ShaderCode, std::string>& variant, ShaderType type,
 		std::string_view shader_name
-	);
+	) const;
 
-	[[nodiscard]] static ShaderId CompileShader(ShaderType type, const std::string& source);
+	[[nodiscard]] ShaderId CompileShader(ShaderType type, const std::string& source) const;
 
-	static void CompileProgram(
+	void CompileProgram(
 		ShaderId id, const std::string& vertex_source, const std::string& fragment_source
-	);
+	) const;
 
 	void LinkProgram(ShaderId id, ShaderId vertex, ShaderId fragment);
 
-	[[nodiscard]] std::int32_t GetUniform(ShaderId id, const char* program_name);
+	[[nodiscard]] std::int32_t GetUniform(ShaderId id, const char* uniform_name);
 
 	[[nodiscard]] ShaderId CreateProgram(std::string_view program_name);
 
