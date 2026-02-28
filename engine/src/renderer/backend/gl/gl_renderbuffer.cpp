@@ -66,7 +66,7 @@ void Renderbuffers::SetRenderbufferStorage(
 	GLCall(
 		RenderbufferStorage(std::to_underlying(target), std::to_underlying(format), size.x, size.y)
 	);
-#ifdef GL_DEBUG_RENDERBUFFERS
+#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
 	PTGN_LOG("glRenderbufferStorage(target=", target, ",format=", format, ",size=", size, ")");
 #endif
 
@@ -78,7 +78,7 @@ void Renderbuffers::SetRenderbufferStorage(
 RenderbufferId Renderbuffers::CreateRenderbuffer() {
 	RenderbufferId id{ 0 };
 	GLCall(GenRenderbuffers(1, &id.value));
-#ifdef GL_DEBUG_RENDERBUFFERS
+#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
 	PTGN_LOG("glGenRenderbuffers() -> id=", id.value);
 #endif
 	PTGN_ASSERT(id, "Failed to create renderbuffer");
@@ -91,7 +91,7 @@ void Renderbuffers::DestroyRenderbuffer(RenderbufferId id) {
 		return;
 	}
 	GLCall(DeleteRenderbuffers(1, &id.value));
-#ifdef GL_DEBUG_RENDERBUFFERS
+#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
 	PTGN_LOG("glDeleteRenderbuffers(id=", id.value, ")");
 #endif
 	cache_.Remove(id);

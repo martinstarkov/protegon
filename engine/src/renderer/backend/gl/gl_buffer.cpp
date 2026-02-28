@@ -88,7 +88,7 @@ void Buffers::SetBufferSubData(
 			GLCall(BufferData(
 				std::to_underlying(target), buffer_size, nullptr, std::to_underlying(cache.usage)
 			));
-#ifdef GL_DEBUG_BUFFERS
+#ifdef PTGN_GL_DEBUG_BUFFERS
 			PTGN_LOG(
 				"glBufferData(target=", target, ",size=", buffer_size,
 				",data=nullptr(orphaning),usage=", cache.usage, ")"
@@ -98,7 +98,7 @@ void Buffers::SetBufferSubData(
 	}
 
 	GLCall(BufferSubData(std::to_underlying(target), byte_offset, size, data));
-#ifdef GL_DEBUG_BUFFERS
+#ifdef PTGN_GL_DEBUG_BUFFERS
 	PTGN_LOG(
 		"glBufferSubData(target=", target, ",offset=", byte_offset, ",size=", size, ",data=", data,
 		")"
@@ -126,7 +126,7 @@ T Buffers::CreateBuffer(
 
 	T id{ 0 };
 	GLCall(GenBuffers(1, &id.value));
-#ifdef GL_DEBUG_BUFFERS
+#ifdef PTGN_GL_DEBUG_BUFFERS
 	PTGN_LOG("glGenBuffers() -> id=", id.value);
 #endif
 
@@ -138,7 +138,7 @@ T Buffers::CreateBuffer(
 	const std::uint32_t size = element_count * element_size;
 
 	GLCall(BufferData(std::to_underlying(target), size, data, std::to_underlying(usage)));
-#ifdef GL_DEBUG_BUFFERS
+#ifdef PTGN_GL_DEBUG_BUFFERS
 	PTGN_LOG("glBufferData(target=", target, ",size=", size, ",data=", data, ",usage=", usage, ")");
 #endif
 
@@ -163,7 +163,7 @@ void Buffers::DestroyBuffer(T id) {
 		return;
 	}
 	GLCall(DeleteBuffers(1, &id.value));
-#ifdef GL_DEBUG_BUFFERS
+#ifdef PTGN_GL_DEBUG_BUFFERS
 	PTGN_LOG("glDeleteBuffers(id=", id.value, ")");
 #endif
 	cache_.Remove(id);
@@ -176,7 +176,7 @@ template void Buffers::DestroyBuffer<UniformBufferId>(UniformBufferId);
 int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) const {
 	int value{ -1 };
 	GLCall(GetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value));
-	// #ifdef GL_DEBUG_BUFFERS
+	// #ifdef PTGN_GL_DEBUG_BUFFERS
 	//	PTGN_LOG(
 	//		"glGetBufferParameteriv(target=", target, ",parameter=", parameter, ") -> value=", value
 	//	);

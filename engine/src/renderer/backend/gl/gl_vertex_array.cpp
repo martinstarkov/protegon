@@ -40,7 +40,7 @@ void VertexArrays::SetupVertexAttrib(
 	std::uint32_t index, const BufferElement& element, std::int32_t stride
 ) {
 	GLCall(EnableVertexAttribArray(index));
-#ifdef GL_DEBUG_VERTEX_ARRAYS
+#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
 	PTGN_LOG("glEnableVertexAttribArray(index=", index, ")");
 #endif
 
@@ -49,7 +49,7 @@ void VertexArrays::SetupVertexAttrib(
 			index, element.count, std::to_underlying(element.type), stride,
 			reinterpret_cast<const void*>(element.offset)
 		));
-#ifdef GL_DEBUG_VERTEX_ARRAYS
+#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
 		PTGN_LOG(
 			"glVertexAttribIPointer(index=", index, ",size=", element.count, ",type=", element.type,
 			",stride=", stride, ",offset=", element.offset, ")"
@@ -60,7 +60,7 @@ void VertexArrays::SetupVertexAttrib(
 			index, element.count, std::to_underlying(element.type), element.normalized, stride,
 			reinterpret_cast<const void*>(element.offset)
 		));
-#ifdef GL_DEBUG_VERTEX_ARRAYS
+#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
 		PTGN_LOG(
 			"glVertexAttribPointer(index=", index, ",size=", element.count, ",type=", element.type,
 			",normalized=", element.normalized, ",stride=", stride, ",offset=", element.offset, ")"
@@ -78,7 +78,7 @@ void VertexArrays::DrawElements(
 	GLCall(glDrawElements(
 		std::to_underlying(primitive_mode), index_count, std::to_underlying(index_type), nullptr
 	));
-#ifdef GL_DEBUG_VERTEX_ARRAYS
+#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
 	PTGN_LOG(
 		"glDrawElements(primitive=", primitive_mode, ",index_count=", index_count,
 		",index_type=", index_type, ")"
@@ -94,7 +94,7 @@ void VertexArrays::DrawArrays(
 
 	constexpr GLint starting_index{ 0 };
 	GLCall(glDrawArrays(std::to_underlying(primitive_mode), starting_index, vertex_count));
-#ifdef GL_DEBUG_VERTEX_ARRAYS
+#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
 	PTGN_LOG(
 		"glDrawArrays(primitive=", primitive_mode, ",first=", starting_index,
 		",vertex_count=", vertex_count, ")"
@@ -105,7 +105,7 @@ void VertexArrays::DrawArrays(
 VertexArrayId VertexArrays::CreateVertexArray() {
 	VertexArrayId id{ 0 };
 	GLCall(GenVertexArrays(1, &id.value));
-#ifdef GL_DEBUG_VERTEX_ARRAYS
+#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
 	PTGN_LOG("glGenVertexArrays() -> id=", id.value);
 #endif
 	PTGN_ASSERT(id, "Failed to create vertex array");
@@ -122,7 +122,7 @@ void VertexArrays::DestroyVertexArray(VertexArrayId id) {
 		return;
 	}
 	GLCall(DeleteVertexArrays(1, &id.value));
-#ifdef GL_DEBUG_VERTEX_ARRAYS
+#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
 	PTGN_LOG("glDeleteVertexArrays(id=", id.value, ")");
 #endif
 	cache_.Remove(id);

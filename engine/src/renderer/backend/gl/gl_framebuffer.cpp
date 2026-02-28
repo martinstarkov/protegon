@@ -40,7 +40,7 @@ static void ReadPixels(
 	GLCall(glReadPixels(
 		coord.x, coord.y, size.x, size.y, std::to_underlying(format), std::to_underlying(type), data
 	));
-#ifdef GL_DEBUG_FRAMEBUFFERS
+#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
 	PTGN_LOG(
 		"glReadPixels(coordinate=", coord, ",size=", size, ",format=", format, ",pixel_type=", type,
 		") -> pixel=", data
@@ -99,7 +99,7 @@ void Framebuffers::AttachTexture(
 		kFrameBufferTarget, std::to_underlying(attachment), std::to_underlying(texture_target),
 		texture, mipmap_level
 	));
-#ifdef GL_DEBUG_FRAMEBUFFERS
+#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
 	PTGN_LOG(
 		"glFramebufferTexture2D(target=kFrameBufferTarget,attachment=", attachment,
 		",texture_target=", texture_target, ",texture=", texture, ",mipmap_level=", mipmap_level,
@@ -130,7 +130,7 @@ void Framebuffers::AttachRenderbuffer(
 		kFrameBufferTarget, std::to_underlying(attachment), std::to_underlying(renderbuffer_target),
 		renderbuffer
 	));
-#ifdef GL_DEBUG_FRAMEBUFFERS
+#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
 	PTGN_LOG(
 		"glFramebufferRenderbuffer(target=kFrameBufferTarget,attachment=", attachment,
 		",renderbuffer_target=", renderbuffer_target, ",renderbuffer=", renderbuffer, ")"
@@ -142,7 +142,7 @@ void Framebuffers::AttachRenderbuffer(
 
 void Framebuffers::Clear(ClearBufferBit buffers) const {
 	GLCall(glClear(std::to_underlying(buffers)));
-#ifdef GL_DEBUG_FRAMEBUFFERS
+#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
 	PTGN_LOG("glClear(bits=", buffers, ")");
 #endif
 }
@@ -162,7 +162,7 @@ void Framebuffers::ClearToColor(
 	);
 	auto c{ static_cast<V4_float>(color) };
 	GLCall(ClearBufferfv(std::to_underlying(buffer), drawbuffer, c.Data()));
-#ifdef GL_DEBUG_FRAMEBUFFERS
+#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
 	PTGN_LOG("glClearBufferfv(type=", buffer, ",drawbuffer=", drawbuffer, ",color=", color, ")");
 #endif
 }
@@ -420,7 +420,7 @@ void Framebuffers::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size)
 FramebufferId Framebuffers::CreateFramebufferImpl() {
 	FramebufferId id{ 0 };
 	GLCall(GenFramebuffers(1, &id.value));
-#ifdef GL_DEBUG_FRAMEBUFFERS
+#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
 	PTGN_LOG("glGenFramebuffers() -> id=", id.value);
 #endif
 	PTGN_ASSERT(id, "Failed to create framebuffer");
@@ -468,7 +468,7 @@ void Framebuffers::DestroyFramebuffer(FramebufferId id) {
 		return;
 	}
 	GLCall(DeleteFramebuffers(1, &id.value));
-#ifdef GL_DEBUG_FRAMEBUFFERS
+#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
 	PTGN_LOG("glDeleteFramebuffers(id=", id.value, ")");
 #endif
 	cache_.Remove(id);

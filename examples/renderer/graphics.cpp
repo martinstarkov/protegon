@@ -30,7 +30,7 @@ struct GraphicsScene : public Scene {
 		graphics.FillRect(Transform{ V2_int{ 0, 0 } }, Rect{ 40.0f, 30.0f });
 		graphics.FillRect(Transform{ V2_int{ 70, 70 } }, Rect{ 40.0f, 30.0f });
 
-		// graphics.Line({ 100, 50 }, { -100, -50 });
+		graphics.Line({ 100, 50 }, { -100, -50 });
 	}
 
 	void OnUpdate() override {

@@ -36,21 +36,21 @@ using Header = std::string;
 
 static void DeleteShaderId(ShaderId id, ShaderType type) {
 	GLCall(DeleteShader(id));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 	PTGN_LOG("glDeleteShader(type=", type, ",id=", id, ")");
 #endif
 }
 
 static void DeleteProgramId(ShaderId id) {
 	GLCall(DeleteProgram(id));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 	PTGN_LOG("glDeleteProgram(id=", id, ")");
 #endif
 }
 
 static void LinkProgramId(ShaderId id) {
 	GLCall(::LinkProgram(id));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 	PTGN_LOG("glLinkProgram(id=", id, ")");
 #endif
 }
@@ -375,7 +375,7 @@ static std::vector<ShaderSpec> ParseShader(
 
 ShaderId Shaders::CompileShader(ShaderType type, const std::string& source) const {
 	ShaderId id{ GLCallReturn(::CreateShader(std::to_underlying(type))) };
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 	PTGN_LOG("glCreateShader(type=", type, ") -> id=", id);
 #endif
 
@@ -825,7 +825,7 @@ ShaderId Shaders::CreateProgram(
 
 ShaderId Shaders::CreateProgram(std::string_view program_name) {
 	ShaderId id{ GLCallReturn(::CreateProgram()) };
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 	PTGN_LOG("glCreateProgram() -> id=", id);
 #endif
 
@@ -846,7 +846,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V2_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v.x, v.y));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform2f(location=", location, ",name=", uniform_name, ",value=", v, ")");
 #endif
 	}
@@ -856,7 +856,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V3_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v.x, v.y, v.z));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform3f(location=", location, ",name=", uniform_name, ",value=", v, ")");
 #endif
 	}
@@ -866,7 +866,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V4_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4f(location, v.x, v.y, v.z, v.w));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform4f(location=", location, ",name=", uniform_name, ",value=", v, ")");
 #endif
 	}
@@ -878,7 +878,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Matrix4& m
 		constexpr bool transpose_matrix{ false };
 		constexpr int matrix_count{ 1 };
 		GLCall(UniformMatrix4fv(location, matrix_count, transpose_matrix, matrix.Data()));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniformMatrix4fv(location=", location, ",name=", uniform_name, ",value=", matrix, ")"
 		);
@@ -892,7 +892,7 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1iv(location, count, data));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform1iv(location=", location, ",name=", uniform_name, ",count=", count,
 			",data=", data, ")"
@@ -907,7 +907,7 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1fv(location, count, data));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform1fv(location=", location, ",name=", uniform_name, ",count=", count,
 			",data=", data, ")"
@@ -920,7 +920,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Vector2<st
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2i(location, v.x, v.y));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform2i(location=", location, ",name=", uniform_name, ",value=", v, ")");
 #endif
 	}
@@ -930,7 +930,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Vector3<st
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v.x, v.y, v.z));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform3i(location=", location, ",name=", uniform_name, ",value=", v, ")");
 #endif
 	}
@@ -940,7 +940,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Vector4<st
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4i(location, v.x, v.y, v.z, v.w));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform4i(location=", location, ",name=", uniform_name, ",value=", v, ")");
 #endif
 	}
@@ -950,7 +950,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, float v0) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1f(location, v0));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform1f(location=", location, ",name=", uniform_name, ",v0=", v0, ")");
 #endif
 	}
@@ -960,7 +960,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, float v0, float 
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2f(location, v0, v1));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform2f(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1, ")"
 		);
@@ -972,7 +972,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, float v0, float 
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3f(location, v0, v1, v2));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform3f(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
 			",v2=", v2, ")"
@@ -987,7 +987,7 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4f(location, v0, v1, v2, v3));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform4f(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
 			",v2=", v2, ",v3=", v3, ")"
@@ -1000,7 +1000,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::int32_t v0)
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform1i(location, v0));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG("glUniform1i(location=", location, ",name=", uniform_name, ",v0=", v0, ")");
 #endif
 	}
@@ -1010,7 +1010,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::int32_t v0,
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform2i(location, v0, v1));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform2i(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1, ")"
 		);
@@ -1024,7 +1024,7 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform3i(location, v0, v1, v2));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform3i(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
 			",v2=", v2, ")"
@@ -1040,7 +1040,7 @@ void Shaders::SetUniform(
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(Uniform4i(location, v0, v1, v2, v3));
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 		PTGN_LOG(
 			"glUniform4i(location=", location, ",name=", uniform_name, ",v0=", v0, ",v1=", v1,
 			",v2=", v2, ",v3=", v3, ")"
@@ -1069,7 +1069,7 @@ std::int32_t Shaders::GetUniform(ShaderId id, const char* uniform_name) {
 	}
 
 	std::int32_t location{ GLCallReturn(GetUniformLocation(id, uniform_name)) };
-#ifdef GL_DEBUG_SHADERS
+#ifdef PTGN_GL_DEBUG_SHADERS
 	PTGN_LOG("glGetUniformLocation(id=", id, ",name=", uniform_name, ") -> location=", location);
 #endif
 

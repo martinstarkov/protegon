@@ -174,7 +174,7 @@ void GLRenderer::FlushBatch() {
 		PrimitiveMode::Triangles
 	);
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::FlushBatch");
 	PTGN_LOG("Framebuffer: ", gl->GetBoundState().framebuffer);
 	PTGN_LOG("Blend Mode: ", gl->GetBoundState().blend);
@@ -266,7 +266,7 @@ RenderTargetData GLRenderer::AcquirePooledTarget(V2_int size, TextureFormat form
 	// Pool is at/over the limit and no compatible spare existed:
 	PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
 	const auto& rt{ rt_pool_.emplace_back(std::move(entry)) };
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::AcquirePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
 #endif
 
@@ -283,7 +283,7 @@ void GLRenderer::ReleasePooledTarget(RenderTargetData& target) {
 		return false;
 	});
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::ReleasePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
 #endif
 
@@ -332,14 +332,20 @@ bool GLRenderer::SetViewport(Viewport viewport) {
 }
 
 bool GLRenderer::SetViewProjection(const Matrix4& view_projection) {
-	if (view_projection_ != view_projection) {
-		FlushBatch();
-		view_projection_ = view_projection;
+	// TODO: Find a better way to do this. This is needed to ensure that the shader's uniform is
+	// updated even if the shader itself doesn't change.
+	auto update_shader = [&]() {
 		if (auto shader{ gl->GetBoundShader() }; shader) {
 			gl->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
 		}
+	};
+	if (view_projection_ != view_projection) {
+		FlushBatch();
+		view_projection_ = view_projection;
+		update_shader();
 		return true;
 	}
+	update_shader();
 	return false;
 }
 
@@ -588,13 +594,13 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 }
 
 void GLRenderer::BeginFrame(V2_int window_size) {
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::BeginFrame: BEGIN");
 #endif
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::BeginFrame: Clearing back buffer to transparent");
 #endif
 
@@ -603,7 +609,7 @@ void GLRenderer::BeginFrame(V2_int window_size) {
 	SetViewport({ {}, window_size });
 	gl->framebuffers.Clear();
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::BeginFrame: Clearing screen target to transparent");
 #endif
 
@@ -611,18 +617,18 @@ void GLRenderer::BeginFrame(V2_int window_size) {
 	SetViewport({ {}, screen_target_.GetSize() });
 	gl->framebuffers.ClearToColor(screen_target_.resource_.framebuffer_, color::Transparent);
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::BeginFrame: END");
 #endif
 }
 
 void GLRenderer::EndFrame(Viewport display_viewport) {
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::EndFrame(display_viewport=", display_viewport, "): BEGIN");
 #endif
 	PTGN_ASSERT(display_viewport.size.BothAboveZero());
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::EndFrame: Binding back buffer");
 #endif
 
@@ -638,7 +644,7 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 		"Cannot draw to screen target with no color attachment"
 	);
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::EndFrame: Drawing screen target to back buffer");
 #endif
 
@@ -649,7 +655,7 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 
 	FlushBatch();
 
-#ifdef GL_DEBUG_RENDERER
+#ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::EndFrame: END");
 #endif
 }
