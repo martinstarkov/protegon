@@ -8,12 +8,14 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/component.h"
 #include "core/event/dispatcher.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "core/math/vector4.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/font.h"
 #include "renderer/primitives/text.h"
@@ -94,8 +96,7 @@ void InternalButtonScript::OnMouseMoveOut() {
 }
 
 void InternalButtonScript::OnMousePressedOver(Mouse mouse) {
-	Button button{ entity };
-	if (!button.IsEnabled(false)) {
+	if (Button button{ entity }; !button.IsEnabled(false)) {
 		return;
 	}
 	if (mouse == Mouse::Left) {
@@ -107,8 +108,7 @@ void InternalButtonScript::OnMousePressedOver(Mouse mouse) {
 }
 
 void InternalButtonScript::OnMousePressedOut(Mouse mouse) {
-	Button button{ entity };
-	if (!button.IsEnabled(false)) {
+	if (Button button{ entity }; !button.IsEnabled(false)) {
 		return;
 	}
 	if (mouse == Mouse::Left) {
@@ -137,8 +137,7 @@ void InternalButtonScript::OnMouseReleasedOver(Mouse mouse) {
 }
 
 void InternalButtonScript::OnMouseReleasedOut(Mouse mouse) {
-	Button button{ entity };
-	if (!button.IsEnabled(false)) {
+	if (Button button{ entity }; !button.IsEnabled(false)) {
 		return;
 	}
 	if (mouse == Mouse::Left) {
@@ -384,7 +383,7 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 	const auto state{ button.GetState() };
 	auto button_size{ button.GetSize() };
 	bool is_toggled{ IsToggled(button) };
-	PTGN_ASSERT(!button_size.IsZero(), "Buttons must have a non-zero size");
+	PTGN_ASSERT(button_size.has_value(), "Buttons must have a non-zero size to be drawn");
 	auto button_origin{ GetDrawOrigin(button) };
 	auto text{ GetButtonText(button, is_toggled, state) };
 
@@ -404,7 +403,7 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 
 		if (texture_tint.a) {
 			impl::DrawQuadTexture(
-				renderer, *button_texture, transform, button_size, button_origin,
+				renderer, *button_texture, transform, *button_size, button_origin,
 				impl::Tint{ texture_tint.Normalized() * tint_n }, depth, blend_mode,
 				GetTextureCoordinates(button, false)
 			);
@@ -419,7 +418,7 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 
 			if (color.a) {
 				impl::DrawShape(
-					renderer, Rect{ button_size }, transform, Tint{ color.Normalized() * tint_n },
+					renderer, Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
 					line_width.GetValue(), button_origin, depth, blend_mode
 				);
 			}
@@ -434,7 +433,7 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 
 		if (color.a) {
 			impl::DrawShape(
-				renderer, Rect{ button_size }, transform, Tint{ color.Normalized() * tint_n },
+				renderer, Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
 				line_width.GetValue(), button_origin, depth, blend_mode
 			);
 		}
@@ -447,11 +446,11 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 	V2_float text_size;
 
 	if (auto fixed_size{ button.TryGet<ButtonTextFixedSize>() }) {
-		text_size = { fixed_size->x.value_or(button_size.x),
-					  fixed_size->y.value_or(button_size.y) };
+		text_size = { fixed_size->x.value_or(button_size->x),
+					  fixed_size->y.value_or(button_size->y) };
 	}
 
-	Text::Draw(renderer, text, text_size, tint, button_origin, button_size);
+	Text::Draw(renderer, text, text_size, tint, button_origin, *button_size);
 }
 
 template <typename Derived>
@@ -516,7 +515,7 @@ bool ButtonBase<Derived>::IsEnabled(bool check_for_hover_enabled) const {
 }
 
 template <typename Derived>
-V2_float ButtonBase<Derived>::GetSize() const {
+std::optional<V2_float> ButtonBase<Derived>::GetSize() const {
 	if (auto texture{ TryGet<Texture>() }) {
 		return texture->GetSize();
 	}
@@ -528,8 +527,6 @@ V2_float ButtonBase<Derived>::GetSize() const {
 	if (auto circle{ TryGet<Circle>() }) {
 		return V2_float{ circle->radius * 2.0f };
 	}
-
-	// TODO: Make this optional.
 	return {};
 }
 
@@ -1053,7 +1050,7 @@ ToggleButton& ToggleButton::SetTextureToggled(Texture texture, ButtonState state
 	if (!Has<impl::ButtonTextureToggled>()) {
 		Add<impl::ButtonTextureToggled>(texture);
 	} else {
-		auto& c{ Get<impl::ButtonTextureToggled>() };
+		const auto& c{ Get<impl::ButtonTextureToggled>() };
 		c.Get(state) = texture;
 	}
 	return *this;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include "core/event/dispatcher.h"
@@ -24,7 +25,7 @@ struct DropdownInstance {
 	bool open_{ false };
 
 	/// @brief Default value of {} results in, each button having the size of the parent button.
-	V2_float button_size_;
+	std::optional<V2_float> button_size_;
 	/// @brief Fixed static offset for each of the dropdown buttons.
 	V2_float button_offset_;
 	/// @brief Which direction the dropdown drops relative to the parent button.
@@ -63,7 +64,7 @@ public:
 
 	/// @brief Set the size that each dropdown button will be.
 	/// If not specified, each button will have the size of the parent button.
-	Dropdown& SetButtonSize(V2_float button_size);
+	Dropdown& SetButtonSize(std::optional<V2_float> button_size);
 
 	/// @brief Specify a fixed static offset for each of the dropdown buttons.
 	Dropdown& SetButtonOffset(V2_float button_offset);

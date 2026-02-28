@@ -33,7 +33,7 @@ public:
 						 .SetSize({ 200, 100 })
 						 .SetBorderColor(color::Gold)
 						 .SetBorderWidth(3.0f)
-						 .SetButtonSize({ 100, 50 })
+						 .SetButtonSize(V2_float{ 100, 50 })
 						 .SetDropdownDirection(Origin::CenterBottom);
 		// SetDrawOrigin(d, Origin::Center);
 		SetPosition(d, -app().renderer.GetGameSize() * 0.5f + V2_float{ 400, 200 });

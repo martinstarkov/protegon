@@ -1,8 +1,10 @@
 #include "runtime/ui/dropdown.h"
 
+#include <optional>
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/dispatcher.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/components/draw.h"
@@ -65,20 +67,22 @@ void Dropdown::RecalculateButtonPositions() {
 		return;
 	}
 
-	V2_float parent_size{ GetSize() };
+	auto parent_size{ GetSize() };
+
+	PTGN_ASSERT(parent_size.has_value(), "Dropdown parent button must have a valid size");
 
 	const auto get_size = [parent_size, &info](const auto& button) {
-		if (auto size{ button.GetSize() }; !size.IsZero()) {
-			return size;
+		if (auto size{ button.GetSize() }; size.has_value()) {
+			return *size;
 		}
-		if (!info.button_size_.IsZero()) {
-			return info.button_size_;
+		if (info.button_size_.has_value()) {
+			return *info.button_size_;
 		}
-		return parent_size;
+		return *parent_size;
 	};
 
-	V2_float parent_center{ -GetOriginOffset(GetDrawOrigin(*this), parent_size) };
-	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, parent_size) };
+	V2_float parent_center{ -GetOriginOffset(GetDrawOrigin(*this), *parent_size) };
+	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, *parent_size) };
 
 	PTGN_ASSERT(info.buttons_.size() >= 1);
 	const auto& first_button{ info.buttons_.front() };
@@ -136,7 +140,7 @@ Dropdown& Dropdown::AddButton(Button button) {
 	return *this;
 }
 
-Dropdown& Dropdown::SetButtonSize(V2_float button_size) {
+Dropdown& Dropdown::SetButtonSize(std::optional<V2_float> button_size) {
 	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
 	auto& i{ Get<impl::DropdownInstance>() };
 	if (i.button_size_ == button_size) {

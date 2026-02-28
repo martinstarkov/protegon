@@ -153,7 +153,7 @@ struct DragState {
 } // namespace impl
 
 struct InteractiveDebugDrawSettings {
-	bool enabled{ true };
+	bool enabled{ false };
 	Color color{ color::Purple };
 	float line_width{ 1.0f };
 

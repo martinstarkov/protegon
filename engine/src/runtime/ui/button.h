@@ -392,10 +392,9 @@ public:
 
 	static void Draw(Renderer& renderer, Entity entity);
 
-	// TODO: Make this optional.
 	/// @return If no size is specified, returns {}.
 	/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.
-	[[nodiscard]] V2_float GetSize() const;
+	[[nodiscard]] std::optional<V2_float> GetSize() const;
 	/// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
 	/// @return True if the button activation is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
