@@ -1,5 +1,6 @@
 #include "runtime/scene/scene.h"
 
+#include <list>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -14,22 +15,21 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/camera/camera.h"
 #include "renderer/camera/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
-#include "renderer/resources/vertex.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/render_target_component.h"
-#include "runtime/ecs/components/shape.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/physics/collision_handler.h"
+#include "runtime/physics/physics.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
 
@@ -41,7 +41,7 @@ void SceneEventHandler::Emit(EventDispatcher d) {
 	scene_.InternalEmit(d);
 }
 
-Scene::Scene() : events{ *this }, input{ *this } {}
+Scene::Scene() : event{ *this }, input{ *this } {}
 
 Scene::~Scene() {
 	// TODO: Fix.
@@ -211,7 +211,7 @@ void Scene::InternalDraw() {
 	/*
 	if (collider_visibility_) {
 		for (auto [entity, collider] : EntitiesWith<Collider>()) {
-			Application::Get().debug_.DrawShape(
+			app().debug.DrawShape(
 				GetDrawTransform(entity), collider.shape, collider_color_, collider_line_width_,
 				GetDrawOrigin(entity), entity.GetCamera()
 			);
@@ -246,9 +246,9 @@ void Scene::InternalUpdate() {
 	// Tween::Update(*this, dt);
 	// impl::AnimationSystem::Update(*this);
 	// Lifetime::Update(*this);
-	// physics.PreCollisionUpdate(*this);
-	// collision_.Update(*this);
-	// physics.PostCollisionUpdate(*this);
+	physics.PreCollisionUpdate(*this);
+	collision_.Update(*this);
+	physics.PostCollisionUpdate(*this);
 }
 
 void Scene::InternalExit() {
@@ -257,7 +257,7 @@ void Scene::InternalExit() {
 	Refresh();
 	// Clears component hooks.
 	manager_.Reset();
-	// physics = {};
+	physics = {};
 	//  TODO: Fix.
 	// render_target_.Get<GameObject<Camera>>().Reset();
 	// fixed_camera.Reset();
@@ -303,6 +303,10 @@ Entity Scene::GetRenderTarget() const {
 
 void Scene::Refresh() {
 	manager_.Refresh();
+}
+
+std::size_t Scene::GetEntityCount() const {
+	return manager_.Size();
 }
 
 void to_json(json& j, const Scene& scene) {
