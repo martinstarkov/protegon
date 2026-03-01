@@ -16,10 +16,10 @@ namespace ptgn {
 
 class Scene;
 
-struct PlayerMoveStarted : public Event<PlayerMoveStarted> {
-	PlayerMoveStarted() = default;
+struct PlayerMoveStart : public Event<PlayerMoveStart> {
+	PlayerMoveStart() = default;
 
-	explicit PlayerMoveStarted(MoveDirection direction) : direction{ direction } {}
+	explicit PlayerMoveStart(MoveDirection direction) : direction{ direction } {}
 
 	MoveDirection direction; // Direction at start
 
@@ -40,10 +40,10 @@ struct PlayerMoveHeld : public Event<PlayerMoveHeld> {
 	}
 };
 
-struct PlayerMoveStopped : public Event<PlayerMoveStopped> {
-	PlayerMoveStopped() = default;
+struct PlayerMoveStop : public Event<PlayerMoveStop> {
+	PlayerMoveStop() = default;
 
-	explicit PlayerMoveStopped(MoveDirection last_direction) : last_direction{ last_direction } {}
+	explicit PlayerMoveStop(MoveDirection last_direction) : last_direction{ last_direction } {}
 
 	MoveDirection last_direction; // Direction before stopping
 
@@ -52,10 +52,10 @@ struct PlayerMoveStopped : public Event<PlayerMoveStopped> {
 	}
 };
 
-struct PlayerMoveDirectionChanged : public Event<PlayerMoveDirectionChanged> {
-	PlayerMoveDirectionChanged() = default;
+struct PlayerMoveDirectionChange : public Event<PlayerMoveDirectionChange> {
+	PlayerMoveDirectionChange() = default;
 
-	explicit PlayerMoveDirectionChanged(V2_float difference, MoveDirection current_direction) :
+	explicit PlayerMoveDirectionChange(V2_float difference, MoveDirection current_direction) :
 		difference{ difference }, current_direction{ current_direction } {}
 
 	V2_float difference;
@@ -66,10 +66,10 @@ struct PlayerMoveDirectionChanged : public Event<PlayerMoveDirectionChanged> {
 	}
 };
 
-struct PlayerMoveDirectionStarted : public Event<PlayerMoveDirectionStarted> {
-	PlayerMoveDirectionStarted() = default;
+struct PlayerMoveDirectionStart : public Event<PlayerMoveDirectionStart> {
+	PlayerMoveDirectionStart() = default;
 
-	explicit PlayerMoveDirectionStarted(MoveDirection direction) : direction{ direction } {}
+	explicit PlayerMoveDirectionStart(MoveDirection direction) : direction{ direction } {}
 
 	MoveDirection direction;
 
@@ -90,10 +90,10 @@ struct PlayerMoveDirectionHeld : public Event<PlayerMoveDirectionHeld> {
 	}
 };
 
-struct PlayerMoveDirectionStopped : public Event<PlayerMoveDirectionStopped> {
-	PlayerMoveDirectionStopped() = default;
+struct PlayerMoveDirectionStop : public Event<PlayerMoveDirectionStop> {
+	PlayerMoveDirectionStop() = default;
 
-	explicit PlayerMoveDirectionStopped(MoveDirection direction) : direction{ direction } {}
+	explicit PlayerMoveDirectionStop(MoveDirection direction) : direction{ direction } {}
 
 	MoveDirection direction;
 

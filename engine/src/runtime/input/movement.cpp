@@ -220,7 +220,7 @@ void TopDownMovement::InvokeCallbacks(Entity entity) const {
 		// which we see as the same as 1.0f.
 		V2_float diff{ Clamp(prev_dir - dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
 		auto dir_state{ GetDirectionState(diff) };
-		PlayerMoveDirectionChanged event;
+		PlayerMoveDirectionChange event;
 		event.difference		= diff;
 		event.current_direction = dir_state;
 		scripts.Emit(event);
@@ -230,28 +230,37 @@ void TopDownMovement::InvokeCallbacks(Entity entity) const {
 	// comparison with -1 or 1 or 0.
 
 	// Generic movements.
-	InvokeMoveCallbacks<PlayerMoveStarted, PlayerMoveHeld, PlayerMoveStopped>(
-		scripts, !WasMoving(None), !IsMoving(None),
-		GetDirection() // pass direction to event
-	);
+	auto was_moving{ !WasMoving(None) };
+	auto is_moving{ !IsMoving(None) };
 
-	InvokeMoveCallbacks<
-		PlayerMoveDirectionStarted, PlayerMoveDirectionHeld, PlayerMoveDirectionStopped>(
+	if (!was_moving && is_moving) {
+		PlayerMoveStart e{ GetDirection() };
+		scripts.Emit(e);
+	}
+
+	if (is_moving) {
+		PlayerMoveHeld e{ GetDirection() };
+		scripts.Emit(e);
+	}
+
+	if (was_moving && !is_moving) {
+		PlayerMoveStop e{ GetPreviousDirection() };
+		scripts.Emit(e);
+	}
+
+	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
 		scripts, WasMoving(Up), IsMoving(Up), Up
 	);
 
-	InvokeMoveCallbacks<
-		PlayerMoveDirectionStarted, PlayerMoveDirectionHeld, PlayerMoveDirectionStopped>(
+	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
 		scripts, WasMoving(Down), IsMoving(Down), Down
 	);
 
-	InvokeMoveCallbacks<
-		PlayerMoveDirectionStarted, PlayerMoveDirectionHeld, PlayerMoveDirectionStopped>(
+	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
 		scripts, WasMoving(Left), IsMoving(Left), Left
 	);
 
-	InvokeMoveCallbacks<
-		PlayerMoveDirectionStarted, PlayerMoveDirectionHeld, PlayerMoveDirectionStopped>(
+	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
 		scripts, WasMoving(Right), IsMoving(Right), Right
 	);
 }
