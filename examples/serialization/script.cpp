@@ -1,14 +1,14 @@
 // #include <functional>
 //
-// #include "debug/runtime/assert.h"
-// #include "core/app/game.h"
+// #include "core/assert.h"
+// #include "app/application.h"
 //
-// #include "core/app/window.h"
-// #include "debug/core/log.h"
-// #include "core/input/input_handler.h"
-// #include "math/vector2.h"
-// #include "world/scene/scene.h"
-// #include "world/scene/scene_manager.h"
+// #include "platform/window/window.h"
+// #include "core/log.h"
+// #include "platform/input/input_handler.h"
+// #include "core/math/vector2.h"
+// #include "runtime/scene/scene.h"
+// #include "runtime/scene/scene_manager.h"
 //
 // using namespace ptgn;
 //
@@ -21,7 +21,7 @@
 // };
 //
 // struct TestScript : public Script<TestScript> {
-//	void OnKeyDown(Key k) {
+//	void OnKeyPressed(Key k) {
 //		if (entity.GetId() == 4) {
 //			if (k == Key::R) {
 //				// PTGN_LOG("Removing test script from ", entity.GetId());
@@ -29,7 +29,7 @@
 //
 //				// entity.Destroy();
 //				// PTGN_LOG("Destroying entity: ", entity.GetId());
-//				game.scene.Transition<OtherScene>("", "other", {});
+//				app().scene.Transition<OtherScene>("", "other", {});
 //			} else {
 //				PTGN_WARN("Should not be here after pressing R");
 //			}
@@ -40,7 +40,7 @@
 // };
 //
 // struct TestScript2 : public Script<TestScript2> {
-//	void OnKeyDown(Key k) {
+//	void OnKeyPressed(Key k) {
 //		PTGN_LOG("Key down on ", entity.GetId(), ": ", k);
 //	}
 //
@@ -65,7 +65,7 @@
 //	Entity e2;
 //
 //	void OnEnter() override {
-//		game.window.SetResizable();
+//
 //
 //		e1 = CreateEntity();
 //		e2 = CreateEntity();
@@ -79,9 +79,9 @@
 //	void OnUpdate() override {}
 // };
 //
-// int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+// int main(int, char**) {
 //	game.Init("EventScene", window_size);
-//	game.scene.Enter<EventScene>();
+//	app().scene.Enter<EventScene>();
 //
 // }
 
@@ -219,7 +219,7 @@ int main() {
 }
 
 */
-#include "core/scripting/script.h"
+#include "runtime/scripting/script.h"
 
 #include <array>
 #include <iostream>
@@ -230,7 +230,7 @@ int main() {
 #include <unordered_set>
 #include <vector>
 
-#include "core/app/manager.h"
+#include "runtime/ecs/manager.h"
 
 using namespace ptgn;
 
@@ -239,7 +239,7 @@ struct TestScript : public Script<TestScript, GlobalMouseScript, KeyScript> {
 		PTGN_LOG("Mouse moved 1");
 	}
 
-	void OnKeyDown(Key k) {
+	void OnKeyPressed(Key k) {
 		PTGN_LOG("Key down 1: ", k);
 	}
 };
@@ -285,7 +285,7 @@ int main() {
 	// script4.mouse_index = 33.0f;
 
 	test.AddAction(&GlobalMouseScript::OnMouseMove);
-	test.AddAction(&KeyScript::OnKeyDown, Key::W);
+	test.AddAction(&KeyScript::OnKeyPressed, Key::W);
 	test.AddAction(&GlobalMouseScript::OnMouseMove);
 
 	test.InvokeActions();

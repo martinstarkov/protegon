@@ -1,12 +1,12 @@
-#include "core/ecs/components/animation.h"
+#include "runtime/ecs/components/animation.h"
 
-#include "core/app/game.h"
-#include "core/input/input_handler.h"
-#include "core/scripting/script.h"
-#include "core/utils/time.h"
-#include "math/vector2.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/math/vector2.h"
+#include "core/time/time.h"
+#include "platform/input/input_handler.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
 
 using namespace ptgn;
 
@@ -51,9 +51,9 @@ public:
 	Animation sprite;
 
 	void OnEnter() override {
-		LoadResource("anim", "resources/animation.png");
-		LoadResource("anim2", "resources/animation4.png");
-		// LoadResource("anim3", "resources/animation3.png");
+		app().asset.Load("anim", "assets/animation.png");
+		app().asset.Load("anim2", "assets/animation4.png");
+		// app().asset.Load("anim3", "assets/animation3.png");
 
 		/*sprite = CreateSprite(*this, "anim", GetPosition(camera) + V2_int{ 64, 0 });
 		SetScale(sprite, 3.0f);
@@ -78,23 +78,23 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			animation.Resume();
-		} else if (input.KeyDown(Key::P)) {
+		} else if (input.KeyPressed(Key::P)) {
 			animation.Pause();
 		}
-		if (input.KeyDown(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			animation.Toggle();
 		}
 	}
 
 	void OnExit() override {
 		json j = *this;
-		SaveJson(j, "resources/animation_scene.json");
+		SaveJson(j, "assets/animation_scene.json");
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "AnimationScene: (P)ause/(R)esume/(T)oggle" };
 	app.StartWith<AnimationScene>();
 }

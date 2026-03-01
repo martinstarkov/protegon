@@ -1,18 +1,19 @@
 
-#include "core/app/game.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "math/geometry/rect.h"
-#include "math/rng.h"
-#include "math/vector2.h"
-#include "physics/physics.h"
-#include "physics/rigid_body.h"
-#include "renderer/api/color.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/rng.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/input/movement.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -64,20 +65,20 @@ struct PhysicsBoundaryScene : public Scene {
 
 	void OnUpdate() override {
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
+		MoveWASD(pos, V2_float{ 100.0f } * app().DeltaTime(), false);
 		SetPosition(player, pos);
 
-		if (input.KeyDown(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			behavior = BoundaryBehavior::StopVelocity;
 			ReEnter();
-		} else if (input.KeyDown(Key::E)) {
+		} else if (input.KeyPressed(Key::E)) {
 			behavior = BoundaryBehavior::ReflectVelocity;
 			ReEnter();
 		}
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "PhysicsBoundaryScene: Q/E to switch boundary behavior", game_size };
 	app.StartWith<PhysicsBoundaryScene>();
 }

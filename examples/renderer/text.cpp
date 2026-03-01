@@ -1,16 +1,16 @@
-#include "renderer/text/text.h"
+#include "renderer/primitives/text.h"
 
 #include <string>
 #include <string_view>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/entity.h"
-#include "renderer/api/color.h"
-#include "renderer/text/font.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "platform/window/window.h"
+#include "renderer/primitives/font.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -33,9 +33,7 @@ constexpr V2_int game_size{ 800, 800 } ga
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
-		game.window.SetResizable();
-
-		LoadResource(font, "resources/Arial.ttf");
+		app().asset.Load(font, "assets/Arial.ttf");
 
 		// Default font.
 		CreateText(color::Black, 0, {});
@@ -74,7 +72,7 @@ constexpr V2_int game_size{ 800, 800 } ga
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "TextScene", game_size };
 	app.StartWith<TextScene>();
 }

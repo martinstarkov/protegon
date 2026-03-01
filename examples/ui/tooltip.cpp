@@ -1,14 +1,16 @@
 
-#include "ui/tooltip.h"
+#include "runtime/ui/tooltip.h"
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/scripting/script.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "platform/window/window.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/shape.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 
@@ -17,7 +19,7 @@ public:
 	void OnEnter() override {
 		input.SetDrawInteractives();
 
-		LoadResource("bg", "resources/bg.png");
+		app().asset.Load("bg", "assets/bg.png");
 
 		auto r0 = CreateRect(*this, {}, { 200, 100 }, color::Blue, 1.0f);
 		SetInteractive(r0);
@@ -28,7 +30,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "TooltipScene" };
 	app.StartWith<TooltipScene>();
 }

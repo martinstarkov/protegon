@@ -1,13 +1,13 @@
 #include <optional>
 
-#include "core/app/game.h"
-#include "core/ecs/components/draw.h"
-#include "debug/runtime/assert.h"
-#include "renderer/api/color.h"
-#include "renderer/text/text.h"
-#include "ui/menu_template.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/assert.h"
+#include "core/graphics/color.h"
+#include "renderer/primitives/text.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/ui/menu_template.h"
 
 using namespace ptgn;
 
@@ -37,21 +37,21 @@ public:
 class SceneTemplateExample : public Scene {
 public:
 	SceneTemplateExample() {
-		LoadResource({ { "bg1", "resources/bg1.png" },
-					   { "bg2", "resources/bg2.png" },
-					   { "bg3", "resources/bg3.png" } });
+		app().asset.LoadMany({ { "bg1", "assets/bg1.png" },
+							   { "bg2", "assets/bg2.png" },
+							   { "bg3", "assets/bg3.png" } });
 
 		SceneAction::Register("load_level_1", []() {
-			game.scene.Transition<GameScene>(std::nullopt, "game_scene", 1);
+			app().scene.Transition<GameScene>(std::nullopt, "game_scene", 1);
 		});
 		SceneAction::Register("load_level_2", []() {
-			game.scene.Transition<GameScene>(std::nullopt, "game_scene", 2);
+			app().scene.Transition<GameScene>(std::nullopt, "game_scene", 2);
 		});
-		game.scene.EnterConfig("resources/scenes.json");
+		app().scene.EnterConfig("assets/scenes.json");
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "SceneTemplateExample" };
 	app.StartWith<SceneTemplateExample>();
 }

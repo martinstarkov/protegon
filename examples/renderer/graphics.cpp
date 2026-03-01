@@ -34,11 +34,11 @@ struct GraphicsScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		// MoveWASD(graphics, V2_float{ 300.0f * game.dt() });
+		// MoveWASD(graphics, V2_float{ 300.0f * app().DeltaTime() });
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application game{ "GraphicsScene: WASD to move graphics object" };
 	game.StartWith<GraphicsScene>();
 }

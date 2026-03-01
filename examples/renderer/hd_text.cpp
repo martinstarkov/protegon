@@ -1,19 +1,19 @@
 #include <string>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "platform/window/window.h"
 #include "renderer/materials/texture.h"
+#include "renderer/primitives/font.h"
+#include "renderer/primitives/text.h"
 #include "renderer/renderer.h"
-#include "renderer/text/font.h"
-#include "renderer/text/text.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -29,8 +29,8 @@ class ResolutionTextScene : public Scene {
 	FontSize font_size{ 20 };
 
 	void OnEnter() override {
-		LoadResource("background", "resources/bg.png");
-		game.renderer.SetGameSize(game_size);
+		app().asset.Load("background", "assets/bg.png");
+		app().renderer.SetGameSize(game_size);
 
 		CreateSprite(*this, "background", {});
 
@@ -43,18 +43,18 @@ class ResolutionTextScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		game.renderer.DrawText(
+		app().renderer.DrawText(
 			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
 			{}, {}, {}, {}, false
 		);
-		game.renderer.DrawText(
+		app().renderer.DrawText(
 			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size, {},
 			{}, {}, {}, true
 		);
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "ResolutionTextScene", window_size };
 	app.StartWith<ResolutionTextScene>();
 }

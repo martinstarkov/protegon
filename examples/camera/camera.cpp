@@ -1,29 +1,27 @@
-#include "world/scene/camera.h"
-
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/drawable.h"
-#include "core/ecs/components/effects.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "debug/core/log.h"
-#include "debug/runtime/debug_system.h"
-#include "math/vector2.h"
-#include "renderer/api/blend_mode.h"
-#include "renderer/api/color.h"
-#include "renderer/materials/shader.h"
-#include "renderer/render_data.h"
+#include "app/application.h"
+#include "core/graphics/blend_mode.h"
+#include "core/graphics/color.h"
+#include "core/log.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/input/mouse.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "tweens/follow_config.h"
-#include "tweens/tween_effects.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "renderer/resources/shader.h"
+#include "runtime/animation/effects.h"
+#include "runtime/animation/follow_config.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/drawable.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/input/scene_input.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
@@ -32,7 +30,7 @@ class CameraUIScene : public Scene {
 constexpr V2_int deadzone_size{ 150, 150 };
 public:
 	void OnEnter() override {
-		game.texture.Load("ui_texture2", "resources/ui2.jpg");
+		game.texture.Load("ui_texture2", "assets/ui2.jpg");
 
 		auto ui = CreateSprite(*this, "ui_texture2");
 		ui.SetPosition({});
@@ -40,14 +38,14 @@ public:
 
 		auto camera_center = manager.CreateEntity();
 		camera_center.Add<Circle>(3.0f);
-		camera_center.SetPosition(game.window.GetCenter());
+		camera_center.SetPosition(app().window.GetCenter());
 		camera_center.SetTint(color::Black);
 		camera_center.Show();
 
 		auto deadzone = manager.CreateEntity();
 		deadzone.Add<Rect>(deadzone_size, Origin::Center);
-		deadzone.SetPosition(game.window.GetCenter());
-		deadzone.Add<LineWidth>(2.0f);
+		deadzone.SetPosition(app().window.GetCenter());
+		deadzone.Add<FillStyle>(2.0f);
 		deadzone.SetOrigin;
 		deadzone.SetTint(color::DarkGreen);
 		deadzone.Show();
@@ -71,19 +69,19 @@ public:
 	Entity mouse;
 
 	CameraExampleScene() {
-		game.scene.Load<CameraUIScene>("ui_scene");
+		app().scene.Load<CameraUIScene>("ui_scene");
 	}
 
 	void OnEnter() override {
-		game.texture.Load("texture", "resources/test1.jpg");
+		game.texture.Load("texture", "assets/test1.jpg");
 
-		camera.SetPosition(game.window.GetCenter());
+		camera.SetPosition(app().window.GetCenter());
 		// camera.SetBounds({}, window_size);
 
 		auto texture = CreateSprite(*this, "texture");
-		texture.SetPosition(game.window.GetCenter());
+		texture.SetPosition(app().window.GetCenter());
 		texture.Add<Interactive>();
-		texture.Add<callback::KeyDown>([](auto key) {
+		texture.Add<callback::KeyPressed>([](auto key) {
 			if (key == Key::W) {
 				PTGN_LOG("Key down W");
 			}
@@ -107,13 +105,13 @@ public:
 		auto b = manager.CreateEntity();
 		b.Add<Rect>(window_size, Origin::TopLeft);
 		b.SetPosition({});
-		b.Add<LineWidth>(3.0f);
+		b.Add<FillStyle>(3.0f);
 		b.SetTint(color::Red);
 		b.Show();
 
-		game.scene.Enter("ui_scene");
+		app().scene.Enter("ui_scene");
 
-		game.texture.Load("ui_texture", "resources/ui.jpg");
+		game.texture.Load("ui_texture", "assets/ui.jpg");
 
 		ui = CreateSprite(*this, "ui_texture");
 		ui.SetPosition(V2_float{ window_size.x, 0 });
@@ -152,8 +150,8 @@ public:
 	}
 
 	void OnUpdate() override {
-		V2_float center{ game.window.GetCenter() };
-		float dt{ game.dt() };
+		V2_float center{ app().window.GetCenter() };
+		float dt{ app().DeltaTime() };
 
 		if (input.KeyPressed(Key::W)) {
 			Translate(camera,{ 0, -pan_speed * dt });
@@ -199,16 +197,16 @@ public:
 			camera.Zoom(-zoom_speed * dt);
 		}
 
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			camera.SetPosition(center);
 			camera.SetZoom(1.0f);
 		}
 
-		if (input.MouseDown(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			mouse.SetPosition( =
 				camera.TransformToCamera(input.GetMousePosition());
 			//camera.PanTo(camera.TransformToCamera(input.GetMousePosition()),
-seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (input.MouseDown(Mouse::Right)) {
+seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (input.MousePressed(Mouse::Right)) {
 			StopFollow(camera);
 		}
 
@@ -270,7 +268,7 @@ public:
 
 	void OnEnter() override {
 		//	camera.SetPixelRounding(true);
-		LoadResource("tree", "resources/test1.jpg");
+		app().asset.Load("tree", "assets/test1.jpg");
 
 		mouse = CreateEntity();
 		SetPosition(mouse, {});
@@ -297,7 +295,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		float dt{ game.dt() };
+		float dt{ app().DeltaTime() };
 
 		/*	PTGN_LOG(
 				"Mouse screen pos: ", input.GetMouseWindowPosition(),
@@ -334,24 +332,24 @@ public:
 			camera.Zoom(-zoom_speed * dt);
 		}
 
-		if (input.MouseDown(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			StopFollow(camera);
-		} else if (input.MouseDown(Mouse::Right)) {
+		} else if (input.MousePressed(Mouse::Right)) {
 			StartFollow(camera, mouse, follow_config);
 		}
 
-		game.renderer.DrawText(
+		app().renderer.DrawText(
 			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
 			{}, {}, {}, false
 		);
-		game.renderer.DrawText(
+		app().renderer.DrawText(
 			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
 			{}, {}, {}, true
 		);
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application game{ "Camera: WASD move, Q/E zoom" };
 	game.StartWith<CameraScene>();
 }

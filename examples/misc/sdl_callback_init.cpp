@@ -362,7 +362,7 @@ void main() {
 #endif
 
 GLuint CompileShader(const GLApi& gl, GLenum type, const char* source) {
-	ShaderId shader = gl.glCreateShader(type);
+	auto shader = gl.glCreateShader(type);
 	if (!shader) {
 		return 0;
 	}

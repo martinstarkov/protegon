@@ -1,23 +1,23 @@
-#include "math/noise.h"
+#include "core/math/noise.h"
 
 #include <algorithm>
 #include <cstdint>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/movement.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "platform/window/window.h"
+#include "runtime/input/movement.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "core/log.h"
+#include "core/assert.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/ecs/components/camera_component.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -38,20 +38,20 @@ public:
 	int types{ 4 };
 
 	void OnEnter() override {
-		game.renderer.SetBackgroundColor(color::Magenta);
+		app().renderer.SetBackgroundColor(color::Magenta);
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 	}
 
 	void OnUpdate() override {
-		if (input.KeyDown(Key::Left)) {
+		if (input.KeyPressed(Key::Left)) {
 			type--;
 			type = Mod(type, types);
-		} else if (input.KeyDown(Key::Right)) {
+		} else if (input.KeyPressed(Key::Right)) {
 			type++;
 			type = Mod(type, types);
 		}
 
-		if (input.KeyDown(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			if (type == 0) {
 				fractal_noise.SetFrequency(fractal_noise.GetFrequency() + 0.01f);
 			} else if (type == 1) {
@@ -62,7 +62,7 @@ public:
 				value_noise.SetFrequency(value_noise.GetFrequency() + 0.01f);
 			}
 		}
-		if (input.KeyDown(Key::G)) {
+		if (input.KeyPressed(Key::G)) {
 			if (type == 0) {
 				fractal_noise.SetFrequency(fractal_noise.GetFrequency() - 0.01f);
 			} else if (type == 1) {
@@ -75,25 +75,25 @@ public:
 		}
 
 		if (type == 0) {
-			if (input.KeyDown(Key::R)) {
+			if (input.KeyPressed(Key::R)) {
 				fractal_noise.SetOctaves(fractal_noise.GetOctaves() + 1);
 			}
-			if (input.KeyDown(Key::F)) {
+			if (input.KeyPressed(Key::F)) {
 				fractal_noise.SetOctaves(std::clamp((int)fractal_noise.GetOctaves() - 1, 1, 1000));
 			}
-			if (input.KeyDown(Key::Y)) {
+			if (input.KeyPressed(Key::Y)) {
 				fractal_noise.SetLacunarity(fractal_noise.GetLacunarity() + 0.1f);
 			}
-			if (input.KeyDown(Key::H)) {
+			if (input.KeyPressed(Key::H)) {
 				fractal_noise.SetLacunarity(
 					std::clamp(fractal_noise.GetLacunarity() - 0.1f, 0.001f, 1000.0f)
 				);
 			}
 
-			if (input.KeyDown(Key::U)) {
+			if (input.KeyPressed(Key::U)) {
 				fractal_noise.SetPersistence(fractal_noise.GetPersistence() + 0.05f);
 			}
-			if (input.KeyDown(Key::J)) {
+			if (input.KeyPressed(Key::J)) {
 				fractal_noise.SetPersistence(
 					std::clamp(fractal_noise.GetPersistence() - 0.05f, 0.001f, 1000.f)
 				);
@@ -104,20 +104,20 @@ public:
 			divisions = std::clamp((int)divisions, 1, 32);
 		};
 
-		if (input.KeyDown(Key::Q)) {
+		if (input.KeyPressed(Key::Q)) {
 			divisions--;
 			cap_divisions();
 		}
-		if (input.KeyDown(Key::E)) {
+		if (input.KeyPressed(Key::E)) {
 			divisions++;
 			cap_divisions();
 		}
 
-		if (input.KeyDown(Key::Z)) {
+		if (input.KeyPressed(Key::Z)) {
 			thresholding = !thresholding;
 		}
 
-		MoveWASD(camera, V2_float{ 200.0f * game.dt() });
+		MoveWASD(camera, V2_float{ 200.0f * app().DeltaTime() });
 
 		// Clamp fractal noise parameters.
 
@@ -134,7 +134,7 @@ public:
 			value_noise.SetFrequency(std::clamp(value_noise.GetFrequency(), 0.005f, 1.0f));
 		}
 
-		if (input.KeyDown(Key::P)) {
+		if (input.KeyPressed(Key::P)) {
 			PTGN_LOG("--------------------------------");
 			if (type == 0) {
 				PTGN_LOG("octaves: ", fractal_noise.GetOctaves());
@@ -214,20 +214,20 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				game.renderer.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
+				app().renderer.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
 			}
 		}
 
-		game.renderer.DrawRect(
+		app().renderer.DrawRect(
 			(min * pixel_size + max * pixel_size) * 0.5f, (max - min) * pixel_size, color::Orange,
 			3.0f, Origin::Center
 		);
 
-		game.renderer.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
+		app().renderer.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "NoiseExample: Arrow keys to swap noise type" };
 	app.StartWith<NoiseExampleScene>();
 }

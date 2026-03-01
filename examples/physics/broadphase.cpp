@@ -1,26 +1,29 @@
-#include "physics/broadphase.h"
+#include "runtime/physics/broadphase.h"
 
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "debug/runtime/profiling.h"
-#include "math/geometry/rect.h"
-#include "math/rng.h"
-#include "math/vector2.h"
-#include "physics/bounding_aabb.h"
-#include "physics/physics.h"
-#include "physics/rigid_body.h"
+#include "app/application.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/rng.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/shape.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/input/movement.h"
+#include "runtime/physics/bounding_aabb.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "tools/debug/profiling.h"
 
 using namespace ptgn;
+
+constexpr V2_float game_size{ 800, 600 };
 
 // TODO: Move all of this into the collision system.
 
@@ -57,7 +60,7 @@ struct BroadphaseScene : public Scene {
 	RNG<float> rngsize{ 5.0f, 30.0f };
 
 	void OnEnter() override {
-		physics.SetBounds(-game_size * 0.5f, game_size, BoundaryBehavior::ReflectVelocity);
+		physics.SetBounds(Bounds{ V2_float{}, game_size, BoundaryBehavior::ReflectVelocity });
 
 		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
@@ -78,10 +81,10 @@ struct BroadphaseScene : public Scene {
 
 	void OnUpdate() override {
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
+		MoveWASD(*this, pos, V2_float{ 100.0f } * app().DeltaTime().count(), false);
 		SetPosition(player, pos);
 
-		for (auto [e, tint] : EntitiesWith<Tint>()) {
+		for (auto [e, tint] : EntitiesWith<impl::Tint>()) {
 			SetTint(e, color::Green);
 		}
 
@@ -92,7 +95,8 @@ struct BroadphaseScene : public Scene {
 #ifdef KDTREE
 
 		if (KDTREE) {
-			PTGN_PROFILE_FUNCTION();
+			// TOOD: Fix.
+			// PTGN_PROFILE_FUNCTION();
 			// Check only collisions with relevant k-d tree nodes.
 
 			// TODO: Only update if player moved.
@@ -104,9 +108,10 @@ struct BroadphaseScene : public Scene {
 			// }
 			tree.EndFrameUpdate();
 		} else {
-			PTGN_PROFILE_FUNCTION();
+			// TOOD: Fix.
+			// PTGN_PROFILE_FUNCTION();
 			std::vector<impl::KDObject> objects;
-			objects.reserve(Size());
+			objects.reserve(GetEntityCount());
 			for (auto [e, rect] : EntitiesWith<Rect>()) {
 				objects.emplace_back(e, GetBoundingAABB(e));
 			}
@@ -157,7 +162,8 @@ struct BroadphaseScene : public Scene {
 			SetTint(candidate, color::Red);
 		}
 
-		game.renderer.DrawLine(player_pos, mouse_pos, color::Gold, 2.0f);
+		// TODO: Fix.
+		// app().renderer.DrawLine(player_pos, mouse_pos, color::Gold, 2.0f);
 
 #else
 		PTGN_PROFILE_FUNCTION();
@@ -177,7 +183,7 @@ struct BroadphaseScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "BroadphaseScene", game_size };
 	app.StartWith<BroadphaseScene>();
 }

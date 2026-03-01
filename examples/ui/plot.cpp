@@ -1,18 +1,18 @@
 #include <chrono>
 #include <cmath>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/utils/time.h"
-#include "core/utils/timer.h"
-#include "math/rng.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/rng.h"
+#include "core/math/vector2.h"
+#include "core/time/time.h"
+#include "core/time/timer.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -33,7 +33,7 @@ public:
 
 	[[nodiscard]] float GetValue() {
 		sampling.Start();
-		return amplitude_rng() * std::sin(sine_frequency * game.time());
+		return amplitude_rng() * std::sin(sine_frequency * app().TimeSinceStart());
 	}
 
 	float sine_frequency{ 0.0005f };
@@ -111,15 +111,15 @@ class PlotScene : public Scene {
 				);
 		}
 
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			plot.Reset();
 		}
 
-		plot.Draw({ game.window.GetCenter(), { 500, 500 }, Origin::Center });
+		plot.Draw({ app().window.GetCenter(), { 500, 500 }, Origin::Center });
 	}*/
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "PlotScene", game_size };
 	app.StartWith<PlotScene>();
 }

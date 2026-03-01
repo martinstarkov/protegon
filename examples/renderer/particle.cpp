@@ -2,20 +2,20 @@
 
 #include <string_view>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/input/input_handler.h"
-#include "core/utils/time.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "platform/window/window.h"
+#include "runtime/ecs/components/draw.h"
+#include "platform/input/input_handler.h"
+#include "core/time/time.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
-#include "ui/button.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
-#include "world/tile/grid.h"
+#include "runtime/ui/button.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/world/grid.h"
 
 using namespace ptgn;
 
@@ -70,7 +70,7 @@ public:
 		p.SetEmissionDelay(milliseconds{ 1 });
 		p.Start();
 
-		V2_float ws{ game.renderer.GetGameSize() };
+		V2_float ws{ app().renderer.GetGameSize() };
 
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 400, 300 }, color::Orange, color::Red);
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 500, 500 }, color::Cyan, color::Magenta);
@@ -111,7 +111,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "ParticleScene" };
 	app.StartWith<ParticleScene>();
 }

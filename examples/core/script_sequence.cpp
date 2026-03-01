@@ -1,11 +1,11 @@
 
-#include "core/scripting/script_sequence.h"
+#include "runtime/scripting/script_sequence.h"
 
-#include "core/app/game.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -44,12 +44,12 @@ public:
 
 	void OnUpdate() override {
 		if (input.KeyPressed(Key::I)) {
-			PTGN_LOG("Entity Count: ", Size());
+			PTGN_LOG("Entity Count: ", GetEntityCount());
 		}
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application game{ "ScriptSequenceScene" };
 	game.StartWith<ScriptSequenceScene>();
 }

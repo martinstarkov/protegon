@@ -1,19 +1,22 @@
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "core/utils/string.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "core/util/string.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/input/mouse.h"
+#include "renderer/primitives/text.h"
 #include "renderer/renderer.h"
-#include "renderer/text/text.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
-#include "world/tile/grid.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/text_component.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/world/grid.h"
 
 using namespace ptgn;
 
@@ -44,7 +47,7 @@ public:
 			}
 		});
 		inner_grid = Grid<int>{ outer_grid.GetSize(), cells_without };
-		if (input.KeyDown(Key::B)) {
+		if (input.KeyPressed(Key::B)) {
 			toggle = !toggle;
 		}
 		if (toggle) {
@@ -53,7 +56,7 @@ public:
 			grid = inner_grid;
 		}
 
-		auto res{ game.renderer.GetGameSize() };
+		auto res{ app().renderer.GetGameSize() };
 
 		V2_int mouse_pos = input.GetMousePosition() + res * 0.5f;
 
@@ -76,13 +79,13 @@ public:
 					case 1: c = color::Green; break;
 				}
 			}
-			game.renderer.DrawRect(
+			app().renderer.DrawRect(
 				-res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, c, -1.0f,
 				Origin::TopLeft
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			game.renderer.DrawRect(
+			app().renderer.DrawRect(
 				-res * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
 				Origin::TopLeft
 			);
@@ -92,7 +95,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "paint: left click to draw; right click to erase; B to flip color",
 					 { 720, 720 } };
 	app.StartWith<Paint>();

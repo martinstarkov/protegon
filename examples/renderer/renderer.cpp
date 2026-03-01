@@ -1,24 +1,23 @@
 
 #include "renderer/renderer.h"
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/drawable.h"
-#include "core/ecs/components/sprite.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/scripting/script.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/rect.h"
-#include "math/rng.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/materials/shader.h"
-#include "renderer/render_data.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/rng.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
+#include "renderer/resources/shader.h"
 #include "renderer/vfx/light.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/drawable.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
 
 using namespace ptgn;
 
@@ -65,7 +64,7 @@ void SetWhirlpoolUniform(Entity entity, const Shader& shader) {
 	/*auto transform{ GetDrawTransform(entity) };
 	float radius{ radius * Abs(transform.scale.x) };*/
 
-	float time{ game.time() };
+	float time{ app().TimeSinceStart() };
 
 	const auto& info = entity.Get<WhirlpoolInfo>();
 
@@ -84,7 +83,7 @@ Entity CreateWhirlpoolEffect(
 	effect.Add<impl::UsePreviousTexture>(false);
 	effect.Add<WhirlpoolInfo>(info);
 	const auto& shader{
-		game.shader.TryLoad("whirlpool", "screen_default", "resources/whirlpool.glsl")
+		game.shader.TryLoad("whirlpool", "screen_default", "assets/whirlpool.glsl")
 	};
 	effect.Add<impl::ShaderPass>(shader, &SetWhirlpoolUniform);
 
@@ -212,16 +211,16 @@ struct FollowMouseScript : public Script<FollowMouseScript> {
 	void OnUpdate() override {
 		SetPosition(entity, entity.GetScene().input.GetMousePosition());
 		float timescale{ 1000 };
-		V2_float size{ V2_float{ Abs(std::sin(game.time() / timescale) * 256),
-								 Abs(std::sin(game.time() / timescale) * 256) } +
+		V2_float size{ V2_float{ Abs(std::sin(app().TimeSinceStart() / timescale) * 256),
+								 Abs(std::sin(app().TimeSinceStart() / timescale) * 256) } +
 					   V2_float{ 256, 256 } };
 		Sprite{ entity }.SetDisplaySize(size);
 	}
 };
 
 void GenerateTestCases() {
-	LoadResource("test", "resources/test1.jpg");
-	LoadResource("noise", "resources/noise.png");
+	app().asset.Load("test", "assets/test1.jpg");
+	app().asset.Load("noise", "assets/noise.png");
 
 	tests.emplace_back([](Scene& s) { auto sprite{ AddSprite(s, rect1_pos) }; });
 
@@ -652,7 +651,7 @@ struct RendererScene : public Scene {
 
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
-		game.window.SetResizable();
+
 		PTGN_LOG("-------- Test ", test_index, " --------");
 		PTGN_ASSERT(test_index < tests.size());
 		if (tests[test_index]) {
@@ -661,8 +660,8 @@ struct RendererScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		CycleTest(input.KeyDown(Key::Q), -1);
-		CycleTest(input.KeyDown(Key::E), 1);
+		CycleTest(input.KeyPressed(Key::Q), -1);
+		CycleTest(input.KeyPressed(Key::E), 1);
 	}
 };
 

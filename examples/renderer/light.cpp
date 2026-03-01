@@ -1,14 +1,14 @@
 #include "renderer/vfx/light.h"
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/sprite.h"
-#include "core/input/input_handler.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "platform/input/input_handler.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -17,10 +17,10 @@ public:
 	PointLight mouse_light;
 
 	void OnEnter() override {
-		// game.renderer.SetBackgroundColor(color::White);
+		// app().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		LoadResource("test", "resources/test1.jpg");
+		app().asset.Load("test", "assets/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
@@ -73,11 +73,11 @@ public:
 	void OnExit() override {
 		// TODO: Fix.
 		// json j = *this;
-		// SaveJson(j, "resources/light_scene.json");
+		// SaveJson(j, "assets/light_scene.json");
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "LightScene" };
 	app.StartWith<LightScene>();
 }

@@ -1,22 +1,22 @@
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/mouse.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/mouse.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "tweens/follow_config.h"
-#include "tweens/tween_effects.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/animation/follow_config.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/input/scene_input.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -46,7 +46,7 @@ struct FollowEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		LoadResource("smile", "resources/smile.png");
+		app().asset.Load("smile", "assets/smile.png");
 
 		mouse = CreateEntity();
 		SetPosition(mouse, {});
@@ -77,7 +77,7 @@ struct FollowEffectScene : public Scene {
 		config5.stop_distance = 40.0f;
 		config5.move_mode	  = MoveMode::Velocity;
 
-		V2_float game_size{ game.renderer.GetGameSize() };
+		V2_float game_size{ app().renderer.GetGameSize() };
 		V2_float half{ game_size * 0.5f };
 		V2_float center{ 0, 0 };
 
@@ -111,15 +111,15 @@ struct FollowEffectScene : public Scene {
 
 	void OnUpdate() override {
 		SetPosition(mouse, input.GetMousePosition());
-		if (input.MouseDown(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			Stop();
-		} else if (input.MouseDown(Mouse::Right)) {
+		} else if (input.MousePressed(Mouse::Right)) {
 			Start();
 		}
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "FollowEffectScene: Left/Right: Stop/Start Follow" };
 	app.StartWith<FollowEffectScene>();
 }

@@ -1,11 +1,11 @@
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/animation.h"
-#include "core/ecs/components/transform.h"
-#include "ui/button.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "platform/window/window.h"
+#include "runtime/ecs/components/animation.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/ui/button.h"
 
 using namespace ptgn;
 
@@ -16,7 +16,7 @@ public:
 	void OnEnter() override {
 		input.SetDrawInteractives();
 
-		LoadResource("animation", "resources/animation.png");
+		app().asset.Load("animation", "assets/animation.png");
 
 		auto activate_animation{
 			CreateAnimation(*this, "animation", {}, 4, milliseconds{ 1000 }, { 16, 32 }, 1)
@@ -30,7 +30,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "AnimatedButtonScene" };
 	app.StartWith<AnimatedButtonScene>();
 }

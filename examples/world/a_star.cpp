@@ -1,19 +1,19 @@
-#include "world/tile/a_star.h"
+#include "runtime/world/a_star.h"
 
 #include <cassert>
 #include <deque>
 
-#include "core/app/game.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/input/mouse.h"
+#include "core/math/vector2.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
-#include "world/tile/grid.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/world/grid.h"
 
 using namespace ptgn;
 
@@ -74,13 +74,13 @@ class PathfindingScene : public Scene {
 			} else if (tile == end) {
 				c = color::Gold;
 			}
-			game.renderer.DrawRect(
+			app().renderer.DrawRect(
 				-game_size * 0.5f + tile * tile_size, tile_size, c, -1.0f, Origin::TopLeft
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
-			game.renderer.DrawRect(
+			app().renderer.DrawRect(
 				-game_size * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
 				Origin::Center
 			);
@@ -99,7 +99,7 @@ class PathfindingScene : public Scene {
 		}
 
 		if (path_exists) { // global or local path exists
-			current_waypoint += game.dt() * vel;
+			current_waypoint += app().DeltaTime() * vel;
 			assert(idx >= 0);
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
@@ -119,7 +119,7 @@ class PathfindingScene : public Scene {
 			assert(idx >= 0);
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
-			game.renderer.DrawRect(
+			app().renderer.DrawRect(
 				-game_size * 0.5f +
 					V2_int{ Lerp(
 						V2_float{ pos * tile_size },
@@ -130,7 +130,7 @@ class PathfindingScene : public Scene {
 				tile_size, color::Purple, -1.0f, Origin::TopLeft
 			);
 		} else {
-			game.renderer.DrawRect(
+			app().renderer.DrawRect(
 				-game_size * 0.5f + pos * tile_size, tile_size, color::Purple, -1.0f,
 				Origin::TopLeft
 			);
@@ -138,7 +138,7 @@ class PathfindingScene : public Scene {
 
 		const auto display_waypoints = [=](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-				game.renderer.DrawLine(
+				app().renderer.DrawLine(
 					{},
 					{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
 					  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
@@ -152,7 +152,7 @@ class PathfindingScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "Pathfinding: 'ESC' (++category), 'left/right' "
 					 "(place/remove), 'ctrl+left/right' "
 					 "(start/end), 'V' (visited) ",

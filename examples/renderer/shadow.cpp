@@ -2,34 +2,34 @@
 #include <optional>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/effects.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/ecs/game_object.h"
-#include "core/input/input_handler.h"
-#include "core/input/mouse.h"
-#include "math/geometry/line.h"
-#include "math/geometry/rect.h"
-#include "math/geometry/shape.h"
-#include "math/geometry_utils.h"
-#include "math/vector2.h"
-#include "renderer/api/blend_mode.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "renderer/materials/shader.h"
+#include "app/application.h"
+#include "core/graphics/blend_mode.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/geometry_utils.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/mouse.h"
+#include "platform/window/window.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/shader.h"
 #include "renderer/stencil_mask.h"
 #include "renderer/vfx/light.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/animation/effects.h"
+#include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/game_object.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/input/scene_input.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 // TODO: Move LightMap to engine.
 
@@ -94,10 +94,10 @@ public:
 	static void Draw(const Entity& entity) {
 		const auto& light_map{ entity.Get<impl::LightMapInstance>() };
 
-		game.renderer.EnableStencilMask();
+		app().renderer.EnableStencilMask();
 
 		const auto add_to_stencil_mask = [entity](const auto& shape, const Transform& transform) {
-			game.renderer.DrawShape(
+			app().renderer.DrawShape(
 				transform, shape, color::Black, -1.0f, Origin::Center, GetDepth(entity) + 1,
 				BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
 				entity.GetOrDefault<PostFX>()
@@ -128,19 +128,19 @@ public:
 			}
 		}
 
-		game.renderer.DrawOutsideStencilMask();
+		app().renderer.DrawOutsideStencilMask();
 
-		game.renderer.DrawShape(
-			{}, Rect{ game.renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
+		app().renderer.DrawShape(
+			{}, Rect{ app().renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
 			Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
 		);
 
-		game.renderer.DisableStencilMask();
+		app().renderer.DisableStencilMask();
 	}
 
 private:
 	static void AddWorldBoundaries(std::vector<Line>& shadow_segments) {
-		auto size{ game.renderer.GetGameSize() };
+		auto size{ app().renderer.GetGameSize() };
 		auto half_size{ size * 0.5f };
 
 		shadow_segments.emplace_back(-half_size, V2_float{ half_size.x, -half_size.y });
@@ -214,10 +214,10 @@ public:
 	LightMap light_map;
 
 	void OnEnter() override {
-		// game.renderer.SetBackgroundColor(color::White);
+		// app().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		LoadResource("test", "resources/test1.jpg");
+		app().asset.Load("test", "assets/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
@@ -231,7 +231,7 @@ public:
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
 			auto light	 = CreatePointLight(
-				  *this, -game.renderer.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
+				  *this, -app().renderer.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
 				  intensity, falloff
 			  );
 			i++;
@@ -271,7 +271,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "ShadowScene: Right: Move static light" };
 	app.StartWith<ShadowScene>();
 }

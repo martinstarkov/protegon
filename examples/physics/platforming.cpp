@@ -1,17 +1,19 @@
-#include "core/app/game.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "math/geometry/rect.h"
-#include "math/vector2.h"
-#include "physics/collider.h"
-#include "physics/physics.h"
-#include "physics/rigid_body.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/shape.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/input/movement.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/scripts.h"
 
 // TODO: Fix this demo.
 
@@ -19,20 +21,24 @@ using namespace ptgn;
 
 constexpr V2_int game_size{ 960, 540 };
 
-constexpr CollisionCategory ground_category{ 1 };
+constexpr ColliderMask ground_mask{ 1 };
 
-class GroundScript : public Script<GroundScript, CollisionScript> {
+class GroundScript : public Script {
 public:
 	GroundScript() {}
 
-	void Ground(Collision c) {
-		if (c.normal == V2_float{ 0.0f, -1.0f }) {
-			PlatformerJump::Ground(entity, c, ground_category);
-		}
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<CollisionEvent>([this](CollisionEvent& e) {
+			if (e.collision.entity == entity) {
+				Ground(e.collision);
+			}
+		});
 	}
 
-	void OnCollision(Collision c) override {
-		Ground(c);
+	void Ground(Collision c) {
+		if (c.normal == V2_float{ 0.0f, -1.0f }) {
+			PlatformerJump::Ground(entity, c, ground_mask);
+		}
 	}
 };
 
@@ -40,7 +46,7 @@ class PlatformingScene : public Scene {
 	Entity CreatePlatform(const V2_float& position, const V2_float& size, Origin origin) {
 		auto entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
 		auto& box	= entity.Add<Collider>(Rect{ size });
-		box.SetCollisionCategory(ground_category);
+		box.SetMask(ground_mask);
 		return entity;
 	}
 
@@ -59,7 +65,9 @@ class PlatformingScene : public Scene {
 	}
 
 	void OnEnter() override {
-		SetColliderVisibility(true);
+		// TODO: Fix.
+		// SetColliderVisibility(true);
+
 		V2_float ws{ game_size };
 		physics.SetGravity({ 0.0f, 1.0f });
 
@@ -74,7 +82,7 @@ class PlatformingScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "PlatformingScene", game_size };
 	app.StartWith<PlatformingScene>();
 }

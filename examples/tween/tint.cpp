@@ -1,12 +1,12 @@
-#include "core/app/game.h"
-#include "core/ecs/components/sprite.h"
-#include "core/input/input_handler.h"
-#include "core/input/mouse.h"
-#include "core/utils/time.h"
-#include "math/easing.h"
-#include "tweens/tween_effects.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/math/easing.h"
+#include "core/time/time.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/mouse.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -17,8 +17,8 @@ struct TintEffectScene : public Scene {
 	Sprite sprite4;
 
 	void OnEnter() override {
-		LoadResource("tree", "resources/tree.jpg");
-		LoadResource("smile", "resources/smile.png");
+		app().asset.Load("tree", "assets/tree.jpg");
+		app().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -300, -300 });
 		sprite2 = CreateSprite(*this, "tree", { -300, 200 });
@@ -36,16 +36,16 @@ struct TintEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MouseDown(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			TintTo(sprite1, color::Purple, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
-		if (input.MouseDown(Mouse::Right)) {
+		if (input.MousePressed(Mouse::Right)) {
 			TintTo(sprite1, color::White, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "TintEffectScene: left/right: tint/untint" };
 	app.StartWith<TintEffectScene>();
 }

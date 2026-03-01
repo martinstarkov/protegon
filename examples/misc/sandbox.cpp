@@ -3,23 +3,25 @@
 
 #include "app/application.h"
 #include "app/context.h"
+#include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
-#include "core/math/geometry/shape.h"
+#include "core/math/vector2.h"
 #include "platform/input/events.h"
+#include "platform/input/key.h"
 #include "platform/input/mouse.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/components/sprite.h"
 #include "runtime/ecs/components/text_component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/manager.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
-#include "runtime/ui/button.h"
 
 using namespace ptgn;
 
@@ -152,10 +154,10 @@ public:
 		app().window.SetSize(window_size);
 
 		// PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		auto a = app().assets.LoadAudio("test", "assets/music.ogg");
-		// auto f = app().assets.LoadFont("test", "assets/ttf.ttf", 11);
-		auto t = app().assets.LoadTexture("test", "assets/smile.png");
-		// auto j = app().assets.LoadJson("test", "assets/dialogue.json");
+		auto a = app().asset.LoadAudio("test", "assets/music.ogg");
+		// auto f = app().asset.LoadFont("test", "assets/ttf.ttf", 11);
+		auto t = app().asset.LoadTexture("test", "assets/smile.png");
+		// auto j = app().asset.LoadJson("test", "assets/dialogue.json");
 
 		// app().audio.Play("test");
 
@@ -169,10 +171,7 @@ public:
 		PTGN_ASSERT(sprite2.Has<Texture>());
 		PTGN_ASSERT((sprite2.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
 
-		auto texture1 = sprite.Get<Texture>();
-		auto texture2 = sprite2.Get<Texture>();
-
-		auto arial = app().assets.LoadFont("arial", "assets/Arial.ttf", 72.0f);
+		auto arial = app().asset.LoadFont("arial", "assets/Arial.ttf", 72.0f);
 
 		auto text = CreateText(*this, "Hello World", color::Orange, 72.0f, arial, {});
 		text.SetHD(true);
@@ -207,7 +206,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "AssetScene" };
 	app.StartWith<AssetScene>();
 }

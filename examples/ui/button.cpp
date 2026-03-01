@@ -66,7 +66,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application game{ "ButtonScene: Q/E to disable/enable buttons" };
 	game.StartWith<ButtonScene>();
 }

@@ -76,7 +76,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application game{ "DropdownScene" };
 	game.StartWith<DropdownScene>();
 }

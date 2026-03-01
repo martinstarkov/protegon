@@ -2,16 +2,16 @@
 #include <cstdint>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/input/mouse.h"
+#include "core/math/vector2.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -293,22 +293,22 @@ public:
 			initialized = true;
 		}
 
-		if (input.KeyDown(Key::Space)) {
+		if (input.KeyPressed(Key::Space)) {
 			fluid.Reset();
 		}
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			gravity = {};
 		}
-		if (input.KeyDown(Key::Down)) {
+		if (input.KeyPressed(Key::Down)) {
 			gravity.y += gravity_increment;
 		}
-		if (input.KeyDown(Key::Up)) {
+		if (input.KeyPressed(Key::Up)) {
 			gravity.y -= gravity_increment;
 		}
-		if (input.KeyDown(Key::Left)) {
+		if (input.KeyPressed(Key::Left)) {
 			gravity.x -= gravity_increment;
 		}
-		if (input.KeyDown(Key::Right)) {
+		if (input.KeyPressed(Key::Right)) {
 			gravity.x += gravity_increment;
 		}
 
@@ -351,7 +351,7 @@ public:
 
 	void Draw() {
 		static bool density_graph{ false };
-		if (input.KeyDown(Key::D)) {
+		if (input.KeyPressed(Key::D)) {
 			density_graph = !density_graph;
 		}
 
@@ -374,7 +374,7 @@ public:
 					}
 				}
 
-				game.renderer.DrawRect(
+				app().renderer.DrawRect(
 					-game_size * 0.5f + position * scale, scale, color, -1.0f, Origin::TopLeft
 				);
 			}
@@ -382,7 +382,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "Fluid with Obstacles: Click (add), Arrows (flow), R "
 					 "(reset gravity), Space (reset fluid), "
 					 "D (toggle view)",

@@ -1,9 +1,9 @@
-#include "core/app/game.h"
-#include "core/ecs/components/sprite.h"
-#include "core/input/input_handler.h"
-#include "tweens/tween_effects.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "platform/input/input_handler.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -13,7 +13,7 @@ struct ScaleEffectScene : public Scene {
 	Sprite sprite3;
 
 	void OnEnter() override {
-		LoadResource("smile", "resources/smile.png");
+		app().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
@@ -28,16 +28,16 @@ struct ScaleEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MouseDown(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			ScaleTo(sprite1, { 5.0f, 5.0f }, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
-		if (input.MouseDown(Mouse::Right)) {
+		if (input.MousePressed(Mouse::Right)) {
 			ScaleTo(sprite1, { 0.25f, 0.25f }, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "ScaleEffectScene: left/right click to scale" };
 	app.StartWith<ScaleEffectScene>();
 }

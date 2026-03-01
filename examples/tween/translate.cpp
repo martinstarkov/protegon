@@ -1,10 +1,10 @@
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/sprite.h"
-#include "core/input/input_handler.h"
-#include "tweens/tween_effects.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "platform/input/input_handler.h"
+#include "platform/window/window.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -16,7 +16,7 @@ struct TranslateEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		LoadResource("smile", "resources/smile.png");
+		app().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
@@ -40,7 +40,7 @@ struct TranslateEffectScene : public Scene {
 			", Game: ", input.GetMousePosition(ViewportType::Game),
 			", World: ", input.GetMousePosition(ViewportType::World)
 		);
-		if (input.MouseDown(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			TranslateTo(
 				sprite1, input.GetMousePosition(), milliseconds{ 1000 }, SymmetricalEase::Linear,
 				true
@@ -49,7 +49,7 @@ struct TranslateEffectScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "TranslateEffectScene: left click to translate to mouse" };
 	app.StartWith<TranslateEffectScene>();
 }

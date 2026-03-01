@@ -1,19 +1,17 @@
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
+#include "app/application.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
 constexpr V2_int game_size{ 800, 800 };
 
 struct ShapeScene : public Scene {
-	void OnEnter() override {
-		game.window.SetResizable();
-	}
+	void OnEnter() override {}
 
 	std::vector<V2_float> GetStarVertices(int count, float outer_radius, float inner_radius) {
 		std::vector<V2_float> vertices;
@@ -31,25 +29,25 @@ struct ShapeScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		game.renderer.DrawLines(
+		app().renderer.DrawLines(
 			{}, { { -375, -375 }, { -350, -350 }, { -325, -375 } }, color::Beige, 1.0f, false
 		);
-		game.renderer.DrawLines(
+		app().renderer.DrawLines(
 			{ { -300, -375 }, { -275, -350 }, { -250, -375 } }, color::Beige, 5.0f, false
 		);
-		game.renderer.DrawLines(
+		app().renderer.DrawLines(
 			{ { -225, -375 }, { -200, -350 }, { -175, -375 } }, color::Beige, 1.0f, true
 		);
-		game.renderer.DrawPoint({ -350, -300 }, color::Red);
-		game.renderer.DrawLine({ -300, -300 }, { -250, -325 }, color::Orange, 1.0f);
-		game.renderer.DrawLine({ -200, -325 }, { -150, -300 }, color::Yellow, 5.0f);
-		game.renderer.DrawCapsule(
+		app().renderer.DrawPoint({ -350, -300 }, color::Red);
+		app().renderer.DrawLine({ -300, -300 }, { -250, -325 }, color::Orange, 1.0f);
+		app().renderer.DrawLine({ -200, -325 }, { -150, -300 }, color::Yellow, 5.0f);
+		app().renderer.DrawCapsule(
 			{}, { { -275, -250 }, { -175, -250 }, 12.0f }, color::Yellow, 1.0f
 		);
-		game.renderer.DrawCapsule(
+		app().renderer.DrawCapsule(
 			{}, { { -300, -300 + 150 }, { -250, -350 + 150 }, 12.0f }, color::Orange, 5.0f
 		);
-		game.renderer.DrawCapsule(
+		app().renderer.DrawCapsule(
 			{}, { { -200, -350 + 150 }, { -150, -300 + 150 }, 12.0f }, color::LightGold, -1.0f
 		);
 
@@ -67,198 +65,198 @@ struct ShapeScene : public Scene {
 
 		float arc_y{ -10 };
 
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ -50, arc_y }, { arc_radius, start_angle1, end_angle1, clockwise },
 			color::BrightGreen, 1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 0, arc_y }, { arc_radius, start_angle2, end_angle2, clockwise },
 			color::BrightGreen, 1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 50, arc_y }, { arc_radius, start_angle3, end_angle3, clockwise },
 			color::BrightGreen, 1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 100, arc_y }, { arc_radius, start_angle4, end_angle4, clockwise },
 			color::BrightGreen, 1.0f
 		);
 
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ -50, arc_y + 50.0f }, { arc_radius, start_angle1, end_angle1, clockwise },
 			color::BrightPink, 5.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 0, arc_y + 50.0f }, { arc_radius, start_angle3, end_angle2, clockwise },
 			color::BrightPink, 5.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 50, arc_y + 50.0f }, { arc_radius, start_angle3, end_angle3, clockwise },
 			color::BrightPink, 5.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 100, arc_y + 50.0f }, { arc_radius, start_angle4, end_angle4, clockwise },
 			color::BrightPink, 5.0f
 		);
 
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ -50, arc_y + 100.0f }, { arc_radius, start_angle1, end_angle1, clockwise },
 			color::BrightYellow, -1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 0, arc_y + 100.0f }, { arc_radius, start_angle3, end_angle2, clockwise },
 			color::BrightYellow, -1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 50, arc_y + 100.0f }, { arc_radius, start_angle3, end_angle3, clockwise },
 			color::BrightYellow, -1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 100, arc_y + 100.0f }, { arc_radius, start_angle4, end_angle4, clockwise },
 			color::BrightYellow, -1.0f
 		);
 
 		clockwise = false;
 
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ -50, arc_y + 150.0f }, { arc_radius, start_angle1, end_angle1, clockwise },
 			color::BrightGreen, 1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 0, arc_y + 150.0f }, { arc_radius, start_angle2, end_angle2, clockwise },
 			color::BrightGreen, 1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 50, arc_y + 150.0f }, { arc_radius, start_angle3, end_angle3, clockwise },
 			color::BrightGreen, 1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 100, arc_y + 150.0f }, { arc_radius, start_angle4, end_angle4, clockwise },
 			color::BrightGreen, 1.0f
 		);
 
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ -50, arc_y + 200.0f }, { arc_radius, start_angle1, end_angle1, clockwise },
 			color::BrightPink, 5.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 0, arc_y + 200.0f }, { arc_radius, start_angle3, end_angle2, clockwise },
 			color::BrightPink, 5.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 50, arc_y + 200.0f }, { arc_radius, start_angle3, end_angle3, clockwise },
 			color::BrightPink, 5.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 100, arc_y + 200.0f }, { arc_radius, start_angle4, end_angle4, clockwise },
 			color::BrightPink, 5.0f
 		);
 
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ -50, arc_y + 250.0f }, { arc_radius, start_angle1, end_angle1, clockwise },
 			color::BrightYellow, -1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 0, arc_y + 250.0f }, { arc_radius, start_angle3, end_angle2, clockwise },
 			color::BrightYellow, -1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 50, arc_y + 250.0f }, { arc_radius, start_angle3, end_angle3, clockwise },
 			color::BrightYellow, -1.0f
 		);
-		game.renderer.DrawArc(
+		app().renderer.DrawArc(
 			V2_float{ 100, arc_y + 250.0f }, { arc_radius, start_angle4, end_angle4, clockwise },
 			color::BrightYellow, -1.0f
 		);
 
-		game.renderer.DrawRect(
+		app().renderer.DrawRect(
 			V2_int{ -50, -325 }, V2_int{ 50, 25 }, color::Blue, 1.0f, Origin::Center
 		);
-		game.renderer.DrawRect(
+		app().renderer.DrawRect(
 			V2_int{ 0, -325 }, V2_int{ 50, 25 }, color::LightBlue, -1.0f, Origin::TopLeft
 		);
-		game.renderer.DrawRect(
+		app().renderer.DrawRect(
 			V2_int{ 100, -325 }, V2_int{ 50, 25 }, color::DarkBlue, 5.0f, Origin::Center
 		);
-		game.renderer.DrawRect(
-			{ { -50, -250 }, DegToRad(game.time() / 10.0f) }, V2_int{ 50, 25 }, color::Blue, 1.0f,
-			Origin::Center
+		app().renderer.DrawRect(
+			{ { -50, -250 }, DegToRad(app().TimeSinceStart() / 10.0f) }, V2_int{ 50, 25 },
+			color::Blue, 1.0f, Origin::Center
 		);
-		game.renderer.DrawRect(
-			{ { 0, -250 }, DegToRad(game.time() / 10.0f) }, V2_int{ 50, 25 }, color::LightBlue,
-			-1.0f, Origin::TopLeft
+		app().renderer.DrawRect(
+			{ { 0, -250 }, DegToRad(app().TimeSinceStart() / 10.0f) }, V2_int{ 50, 25 },
+			color::LightBlue, -1.0f, Origin::TopLeft
 
 		);
-		game.renderer.DrawRect(
-			{ { 100, -250 }, DegToRad(game.time() / 10.0f) }, V2_int{ 50, 25 }, color::DarkBlue,
-			5.0f, Origin::Center
+		app().renderer.DrawRect(
+			{ { 100, -250 }, DegToRad(app().TimeSinceStart() / 10.0f) }, V2_int{ 50, 25 },
+			color::DarkBlue, 5.0f, Origin::Center
 
 		);
 
-		game.renderer.DrawRoundedRect(
+		app().renderer.DrawRoundedRect(
 			V2_int{ -50, -175 }, { { 50, 25 }, 12.0f }, color::Blue, 1.0f, Origin::Center
 		);
-		game.renderer.DrawRoundedRect(
+		app().renderer.DrawRoundedRect(
 			V2_int{ 0, -175 }, { { 50, 25 }, 12.0f }, color::LightBlue, -1.0f, Origin::TopLeft
 		);
-		game.renderer.DrawRoundedRect(
-			{ { 100, -175 }, DegToRad(game.time() / 10.0f) }, { { 50, 25 }, 12.0f },
+		app().renderer.DrawRoundedRect(
+			{ { 100, -175 }, DegToRad(app().TimeSinceStart() / 10.0f) }, { { 50, 25 }, 12.0f },
 			color::DarkBlue, 5.0f, Origin::Center
 		);
-		game.renderer.DrawRoundedRect(
-			{ { -50, -100 }, DegToRad(game.time() / 10.0f) }, { { 50, 25 }, 12.0f }, color::Blue,
-			1.0f, Origin::Center
+		app().renderer.DrawRoundedRect(
+			{ { -50, -100 }, DegToRad(app().TimeSinceStart() / 10.0f) }, { { 50, 25 }, 12.0f },
+			color::Blue, 1.0f, Origin::Center
 
 		);
-		game.renderer.DrawRoundedRect(
-			{ { 0, -100 }, DegToRad(game.time() / 10.0f) }, { { 50, 25 }, 12.0f }, color::LightBlue,
-			-1.0f, Origin::TopLeft
+		app().renderer.DrawRoundedRect(
+			{ { 0, -100 }, DegToRad(app().TimeSinceStart() / 10.0f) }, { { 50, 25 }, 12.0f },
+			color::LightBlue, -1.0f, Origin::TopLeft
 
 		);
-		game.renderer.DrawRoundedRect(
-			{ { 100, -100 }, DegToRad(game.time() / 10.0f) }, { { 50, 25 }, 12.0f },
+		app().renderer.DrawRoundedRect(
+			{ { 100, -100 }, DegToRad(app().TimeSinceStart() / 10.0f) }, { { 50, 25 }, 12.0f },
 			color::DarkBlue, 5.0f, Origin::Center
 
 		);
 
-		game.renderer.DrawCircle(V2_int{ 200, -325 }, 25.0f, color::Gold, 1.0f);
-		game.renderer.DrawCircle(V2_int{ 275, -325 }, 25.0f, color::DarkYellow, 5.0f);
-		game.renderer.DrawCircle(V2_int{ 350, -325 }, 25.0f, color::LightYellow, -1.0f);
+		app().renderer.DrawCircle(V2_int{ 200, -325 }, 25.0f, color::Gold, 1.0f);
+		app().renderer.DrawCircle(V2_int{ 275, -325 }, 25.0f, color::DarkYellow, 5.0f);
+		app().renderer.DrawCircle(V2_int{ 350, -325 }, 25.0f, color::LightYellow, -1.0f);
 
-		game.renderer.DrawEllipse(
+		app().renderer.DrawEllipse(
 			V2_int{ 200, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::Purple, 1.0f
 		);
-		game.renderer.DrawEllipse(
+		app().renderer.DrawEllipse(
 			V2_int{ 275, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::Magenta, 5.0f
 		);
-		game.renderer.DrawEllipse(
+		app().renderer.DrawEllipse(
 			V2_int{ 350, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::LightPurple, -1.0f
 		);
-		game.renderer.DrawEllipse(
-			{ V2_int{ 200, -175 }, DegToRad(game.time() / 10.0f) }, Ellipse{ V2_int{ 25, 12 } },
-			color::Green, 1.0f
+		app().renderer.DrawEllipse(
+			{ V2_int{ 200, -175 }, DegToRad(app().TimeSinceStart() / 10.0f) },
+			Ellipse{ V2_int{ 25, 12 } }, color::Green, 1.0f
 
 		);
-		game.renderer.DrawEllipse(
-			{ V2_int{ 275, -175 }, DegToRad(game.time() / 10.0f) }, Ellipse{ V2_int{ 25, 12 } },
-			color::DarkGreen, 5.0f
+		app().renderer.DrawEllipse(
+			{ V2_int{ 275, -175 }, DegToRad(app().TimeSinceStart() / 10.0f) },
+			Ellipse{ V2_int{ 25, 12 } }, color::DarkGreen, 5.0f
 
 		);
-		game.renderer.DrawEllipse(
-			{ V2_int{ 350, -175 }, DegToRad(game.time() / 10.0f) }, Ellipse{ V2_int{ 25, 12 } },
-			color::LightGreen, -1.0f
+		app().renderer.DrawEllipse(
+			{ V2_int{ 350, -175 }, DegToRad(app().TimeSinceStart() / 10.0f) },
+			Ellipse{ V2_int{ 25, 12 } }, color::LightGreen, -1.0f
 
 		);
 
 		Polygon p{ GetStarVertices(5, 10, 20) };
 
-		game.renderer.DrawShape(V2_int{ -225, -100 }, p, color::Cyan, 1.0f);
-		game.renderer.DrawShape(V2_int{ -300, -100 }, p, color::Cyan, -1.0f);
-		game.renderer.DrawShape(V2_int{ -150, -100 }, p, color::Cyan, 5.0f);
+		app().renderer.DrawShape(V2_int{ -225, -100 }, p, color::Cyan, 1.0f);
+		app().renderer.DrawShape(V2_int{ -300, -100 }, p, color::Cyan, -1.0f);
+		app().renderer.DrawShape(V2_int{ -150, -100 }, p, color::Cyan, 5.0f);
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "ShapeScene", game_size };
 	app.StartWith<ShapeScene>();
 }

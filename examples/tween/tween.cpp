@@ -1,4 +1,4 @@
-#include "tweens/tween.h"
+#include "runtime/animation/tween.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -8,30 +8,30 @@
 #include <tuple>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/relatives.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/ecs/entity_hierarchy.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/scripting/script.h"
-#include "core/utils/time.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
+#include "app/application.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/relatives.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "runtime/scripting/script.h"
+#include "core/time/time.h"
+#include "core/log.h"
+#include "core/assert.h"
 #include "ecs/ecs.h"
-#include "math/easing.h"
-#include "math/geometry/rect.h"
-#include "math/hash.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "core/math/easing.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/hash.h"
+#include "core/math/vector2.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/text/text.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "renderer/primitives/text.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -111,7 +111,7 @@ public:
 };
 
 void SetProgress(const V2_float& size, const Entity& e, float progress) {
-	V2_float res{ game.renderer.GetGameSize() };
+	V2_float res{ app().renderer.GetGameSize() };
 	auto width{ res.x - size.x };
 	Entity target{ e };
 	if (HasParent(e)) {
@@ -127,7 +127,7 @@ public:
 	V2_float size{ 40.0f };
 
 	V2_float GetNextPosition() const {
-		V2_float res{ game.renderer.GetGameSize() };
+		V2_float res{ app().renderer.GetGameSize() };
 		static int count{ 0 };
 		V2_float pos{ -res.x * 0.5f + size.x / 2.0f,
 					  -res.y * 0.5f + size.y * static_cast<float>(count) };
@@ -220,7 +220,7 @@ public:
 
 		PTGN_ASSERT(tween_count > 0);
 
-		V2_float res{ game.renderer.GetGameSize() };
+		V2_float res{ app().renderer.GetGameSize() };
 		size   = { 0.0f, res.y / static_cast<float>(tween_count) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
 
@@ -237,7 +237,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyDown(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			for (auto e : EntitiesWithout<Parent>()) {
 				PTGN_ASSERT(e.Has<Rect>());
 				Tween tween{ GetChild(e, "tween") };
@@ -249,7 +249,7 @@ public:
 			}
 		}
 
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			for (auto e : EntitiesWithout<Parent>()) {
 				PTGN_ASSERT(e.Has<Rect>());
 				Tween tween{ GetChild(e, "tween") };
@@ -257,7 +257,7 @@ public:
 			}
 		}
 
-		if (input.KeyDown(Key::S)) {
+		if (input.KeyPressed(Key::S)) {
 			for (auto e : EntitiesWithout<Parent>()) {
 				PTGN_ASSERT(e.Has<Rect>());
 				Tween tween{ GetChild(e, "tween") };
@@ -267,7 +267,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "TweenScene: (T)oggle pause, (R)estart, (S)top" };
 	app.StartWith<TweenScene>();
 }

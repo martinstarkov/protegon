@@ -1,11 +1,11 @@
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "math/vector2.h"
+#include "app/application.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 // TODO: Fix this demo.
 
@@ -30,17 +30,17 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void OnEnter() override {
-		LoadResource({ { "background", "resources/background.png" },
-					   { "planet_b", "resources/planet_b.png" },
-					   { "planet_s", "resources/planet_s.png" },
-					   { "stars", "resources/stars.png" } });
+		app().asset.LoadMany({ { "background", "assets/background.png" },
+							   { "planet_b", "assets/planet_b.png" },
+							   { "planet_s", "assets/planet_s.png" },
+							   { "stars", "assets/stars.png" } });
 
-		bg_pos		 = game.renderer.GetGameSize() * 0.5f;
-		planet_b_pos = game.renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };
-		planet_s_pos = game.renderer.GetGameSize() * 0.5f + V2_float{ 200, 200 };
-		stars_pos	 = game.renderer.GetGameSize() * 0.5f;
+		bg_pos		 = app().renderer.GetGameSize() * 0.5f;
+		planet_b_pos = app().renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };
+		planet_s_pos = app().renderer.GetGameSize() * 0.5f + V2_float{ 200, 200 };
+		stars_pos	 = app().renderer.GetGameSize() * 0.5f;
 
-		size			= game.renderer.GetGameSize() * scale;
+		size			= app().renderer.GetGameSize() * scale;
 		background_size = game.texture.GetSize("background");
 		bg_aspect_ratio = background_size.x / background_size.y;
 
@@ -54,7 +54,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		float speed = 10.0f * game.dt();
+		float speed = 10.0f * app().DeltaTime();
 
 		V2_float velocity;
 
@@ -71,7 +71,7 @@ public:
 			velocity.x = +speed;
 		}
 
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			ResetPositions();
 		}
 
@@ -81,25 +81,25 @@ public:
 
 		// TODO: Fix by implementing SetScrollFactor().
 
-		game.renderer.DrawTexture(
+		app().renderer.DrawTexture(
 			"background", bg_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
 		);
 		Translate(camera, background_cam);
-		game.renderer.DrawTexture(
+		app().renderer.DrawTexture(
 			"stars", stars_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
 		);
 		Translate(camera, star_cam);
-		game.renderer.DrawTexture(
+		app().renderer.DrawTexture(
 			"planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale, Origin::Center
 		);
-		game.renderer.DrawTexture(
+		app().renderer.DrawTexture(
 			"planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale, Origin::Center
 		);
 		Translate(camera, foreground_cam);
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "ParallaxExampleScene" };
 	app.StartWith<ParallaxExampleScene>();
 }

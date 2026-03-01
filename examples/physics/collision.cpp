@@ -3,30 +3,30 @@
 #include <string>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/scripting/script.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/rect.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
-#include "physics/collider.h"
-#include "physics/physics.h"
-#include "physics/rigid_body.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/assert.h"
+#include "core/graphics/color.h"
+#include "core/log.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/input/movement.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
@@ -38,9 +38,10 @@ struct CollisionTest {
 	virtual ~CollisionTest() = default;
 
 	Manager* manager;
+	std::shared_ptr<ApplicationContext> ctx_;
 
-	CollisionTest() {
-		manager = &game.scene.Get("");
+	CollisionTest(std::shared_ptr<ApplicationContext> ctx) : ctx_{ ctx } {
+		manager = &ctx->scene.Get("");
 	}
 
 	virtual void Enter() {}
@@ -206,10 +207,10 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (game.input.KeyDown(Key::E)) {
+		if (game.input.KeyPressed(Key::E)) {
 			move_entity++;
 		}
-		if (game.input.KeyDown(Key::Q)) {
+		if (game.input.KeyPressed(Key::Q)) {
 			move_entity--;
 		}
 		move_entity = Mod(move_entity, move_entities);
@@ -232,12 +233,12 @@ public:
 
 		PTGN_ASSERT(vel != nullptr);
 
-		MoveWASD(*vel, speed * game.scene.Get("").physics.dt());
+		MoveWASD(*vel, speed * app().scene.Get("").physics.dt());
 	}
 
 	void Draw() override {
 		constexpr Color text_color{ color::Blue };
-		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
+		for (auto [e, collider] : app().scene.Get("").EntitiesWith<Collider>()) {
 			auto transform{ GetAbsoluteTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
 				game.debug.DrawText("Intersect", transform.GetPosition(), text_color);
@@ -277,10 +278,10 @@ public:
 	void OnUpdate() override {
 		MoveWASD(
 			entity.Get<RigidBody>().velocity,
-			speed * game.scene.Get("").physics.dt()
+			speed * app().scene.Get("").physics.dt()
 		);
 
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			Enter();
 		}
 	}
@@ -626,31 +627,31 @@ public:
 	void OnUpdate() override {
 		auto mouse = input.GetMousePosition();
 
-		if (input.KeyDown(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			option++;
 			option = option++ % options;
 		}
 
-		if (input.KeyDown(Key::G)) {
+		if (input.KeyPressed(Key::G)) {
 			type++;
 			type = type++ % types;
 		}
 
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			position4 = mouse;
 		}
 
 		if (input.KeyPressed(Key::Q)) {
-			rot_1 -= rot_speed * game.dt();
+			rot_1 -= rot_speed * app().DeltaTime();
 		}
 		if (input.KeyPressed(Key::E)) {
-			rot_1 += rot_speed * game.dt();
+			rot_1 += rot_speed * app().DeltaTime();
 		}
 		if (input.KeyPressed(Key::Z)) {
-			rot_2 -= rot_speed * game.dt();
+			rot_2 -= rot_speed * app().DeltaTime();
 		}
 		if (input.KeyPressed(Key::C)) {
-			rot_2 += rot_speed * game.dt();
+			rot_2 += rot_speed * app().DeltaTime();
 		}
 
 		V2_float position2 = mouse;
@@ -1323,12 +1324,12 @@ struct SweepTest : public CollisionTest {
 
 		if (player.Has<BoxCollider>()) {
 			auto& box = player.Get<BoxCollider>();
-			Rect{ transform.position + rb.velocity * game.dt(), box.size, box.origin }.Draw(
+			Rect{ transform.position + rb.velocity * app().DeltaTime(), box.size, box.origin }.Draw(
 				color::DarkGreen
 			);
 		} else if (player.Has<CircleCollider>()) {
 			auto& circle = player.Get<CircleCollider>();
-			Circle{ transform.position + rb.velocity * game.dt(), circle.radius }.Draw(
+			Circle{ transform.position + rb.velocity * app().DeltaTime(), circle.radius }.Draw(
 				color::DarkGreen, 1.0f
 			);
 		}
@@ -1367,8 +1368,8 @@ struct SweepTest : public CollisionTest {
 			game.collision.Intersect(player, collider, boxes, circles);
 		}
 
-		if (input.KeyDown(Key::Space)) {
-			transform.position += rb.velocity * game.dt();
+		if (input.KeyPressed(Key::Space)) {
+			transform.position += rb.velocity * app().DeltaTime();
 		}
 
 		const auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
@@ -1394,7 +1395,7 @@ struct SweepTest : public CollisionTest {
 
 	void Draw() override {
 
-		V2_int grid_size = game.renderer.GetGameSize() / size;
+		V2_int grid_size = app().renderer.GetGameSize() / size;
 
 		for (std::size_t i = 0; i < grid_size.x; i++) {
 			for (std::size_t j = 0; j < grid_size.y; j++) {
@@ -1556,7 +1557,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	}
 
 	void OnUpdate() override {
-		bool space_down = input.KeyDown(Key::Space);
+		bool space_down = input.KeyPressed(Key::Space);
 		for (auto [e, rb, id] : manager.EntitiesWith<RigidBody, Id>()) {
 			PTGN_ASSERT(id < entity_data.size());
 			rb.velocity = entity_data[id].velocity;
@@ -1575,7 +1576,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 			 manager.EntitiesWith<BoxCollider, RigidBody, Id, NextVel>()) {
 			 auto& t{ GetTransform(e) };
 			if (space_down) {
-				t.position += rb.velocity * game.dt();
+				t.position += rb.velocity * app().DeltaTime();
 			}
 			for (auto [e2, b2, rb2] :
 				 manager.EntitiesWith<BoxCollider, RigidBody>()) {
@@ -1606,10 +1607,10 @@ struct DynamicRectCollisionTest : public CollisionTest {
 struct HeadOnDynamicRectTest1 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest1(float speed) : DynamicRectCollisionTest{ speed } {
 		CreateDynamicEntity(
-			{ 0, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+			{ 0, app().window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
 		);
 		CreateDynamicEntity(
-			{ ws.x, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
+			{ ws.x, app().window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
 			{ -1.0f, 0.0f }
 		);
 	}
@@ -1618,17 +1619,17 @@ struct HeadOnDynamicRectTest1 : public DynamicRectCollisionTest {
 struct HeadOnDynamicRectTest2 : public DynamicRectCollisionTest {
 	HeadOnDynamicRectTest2(float speed) : DynamicRectCollisionTest{ speed } {
 		CreateDynamicEntity(
-			{ game.window.GetCenter().x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f }
+			{ app().window.GetCenter().x, 0 }, { 40.0f, 40.0f }, Origin::CenterTop, { 0, 1.0f }
 		);
 		CreateDynamicEntity(
-			{ game.window.GetCenter().x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom,
+			{ app().window.GetCenter().x, ws.y }, { 40.0f, 40.0f }, Origin::CenterBottom,
 			{ 0, -1.0f }
 		);
 		CreateDynamicEntity(
-			{ 0, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
+			{ 0, app().window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterLeft, { 1.0f, 0.0f }
 		);
 		CreateDynamicEntity(
-			{ ws.x, game.window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
+			{ ws.x, app().window.GetCenter().y }, { 40.0f, 40.0f }, Origin::CenterRight,
 			{ -1.0f, 0.0f }
 		);
 	}
@@ -1764,12 +1765,12 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyDown(Key::Left)) {
+		if (input.KeyPressed(Key::Left)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
 			tests[static_cast<std::size_t>(current_test)]->Enter();
-		} else if (input.KeyDown(Key::Right)) {
+		} else if (input.KeyPressed(Key::Right)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
@@ -1780,7 +1781,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "CollisionScene: Arrow keys to flip between tests", game_size };
 	app.StartWith<CollisionScene>();
 }

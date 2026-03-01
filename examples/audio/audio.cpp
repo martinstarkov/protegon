@@ -61,10 +61,10 @@ public:
 	}
 
 	void OnEnter() override {
-		app().assets.Load("music1", "assets/music.ogg");
-		app().assets.Load("music2", "assets/music2.ogg");
-		app().assets.Load("sound1", "assets/sound.ogg");
-		app().assets.Load("sound2", "assets/sound2.ogg");
+		app().asset.Load("music1", "assets/music.ogg");
+		app().asset.Load("music2", "assets/music2.ogg");
+		app().asset.Load("sound1", "assets/sound.ogg");
+		app().asset.Load("sound2", "assets/sound2.ogg");
 
 		app().audio.SetVolume(starting_volume);
 		app().audio.SetVolume("sound1", starting_volume);
@@ -349,7 +349,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application game{ "AudioScene" };
 	game.StartWith<AudioScene>();
 }

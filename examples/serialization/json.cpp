@@ -2,20 +2,20 @@
 
 #include <string>
 
-#include "audio/audio.h"
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/interactive.h"
-#include "core/ecs/components/lifetime.h"
-#include "core/ecs/components/offsets.h"
-#include "core/ecs/entity.h"
-#include "math/geometry/circle.h"
-#include "math/rng.h"
-#include "math/vector2.h"
-#include "physics/rigid_body.h"
+#include "app/application.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/rng.h"
+#include "core/math/vector2.h"
 #include "renderer/materials/texture.h"
-#include "renderer/text/font.h"
+#include "renderer/primitives/font.h"
+#include "runtime/audio/audio.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/interactive.h"
+#include "runtime/ecs/components/lifetime.h"
+#include "runtime/ecs/components/offsets.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/physics/rigid_body.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json_manager.h"
 #include "serialization/json/serializable.h"
@@ -33,7 +33,7 @@ public:
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(MyData, id, message, value)
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
 	SetPosition(entity, { 30, 50 });
@@ -49,7 +49,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	SetDepth(e1, 22);
 	auto tint_color{ color::Blue };
 	SetTint(e1, tint_color);
-	e1.Add<LineWidth>(3.5f);
+	e1.Add<FillStyle>(3.5f);
 	e1.Add<TextureHandle>("sheep1");
 	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
@@ -65,7 +65,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	{
 		json j = e1.Serialize();
 
-		SaveJson(j, "resources/mydata.json");
+		SaveJson(j, "assets/mydata.json");
 
 		PTGN_LOG("Successfully serialized all entity components: ", j.dump(4));
 
@@ -83,7 +83,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	}
 
 	{
-		auto j = LoadJson("resources/mydata.json");
+		auto j = LoadJson("assets/mydata.json");
 
 		Entity e2{ m.CreateEntity(j) };
 
@@ -95,7 +95,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 		PTGN_ASSERT(e2.Has<Depth>());
 		PTGN_ASSERT(e2.Has<Tint>());
 		PTGN_ASSERT(e2.Get<Tint>() == tint_color);
-		PTGN_ASSERT(e2.Has<LineWidth>());
+		PTGN_ASSERT(e2.Has<FillStyle>());
 		PTGN_ASSERT(e2.Has<TextureHandle>());
 		PTGN_ASSERT(e2.Has<RigidBody>());
 		PTGN_ASSERT(e2.Has<Interactive>());
@@ -109,8 +109,8 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	const auto test_manager_serialization = [](const std::string& manager_name,
 											   auto& resource_manager, const path& resource1_path,
 											   const path& resource2_path, bool is_music = false) {
-		LoadResource(manager_name + "1", resource1_path, is_music);
-		LoadResource(manager_name + "2", resource2_path, is_music);
+		app().asset.Load(manager_name + "1", resource1_path, is_music);
+		app().asset.Load(manager_name + "2", resource2_path, is_music);
 
 		PTGN_ASSERT(resource_manager.Has(manager_name + "1"));
 		PTGN_ASSERT(resource_manager.Has(manager_name + "2"));
@@ -140,22 +140,18 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 
 	{
 		test_manager_serialization(
-			"texture", game.texture, "resources/texture1.png", "resources/texture2.png"
+			"texture", game.texture, "assets/texture1.png", "assets/texture2.png"
 		);
-		test_manager_serialization("font", game.font, "resources/font1.ttf", "resources/font2.ttf");
+		test_manager_serialization("font", game.font, "assets/font1.ttf", "assets/font2.ttf");
+		test_manager_serialization("sound", game.sound, "assets/sound1.ogg", "assets/sound2.ogg");
 		test_manager_serialization(
-			"sound", game.sound, "resources/sound1.ogg", "resources/sound2.ogg"
+			"music", game.music, "assets/sound1.ogg", "assets/sound2.ogg", true
 		);
-		test_manager_serialization(
-			"music", game.music, "resources/sound1.ogg", "resources/sound2.ogg", true
-		);
-		test_manager_serialization(
-			"json", game.json, "resources/json1.json", "resources/json2.json"
-		);
+		test_manager_serialization("json", game.json, "assets/json1.json", "assets/json2.json");
 	}
 
 	/*{
-		JsonOutputArchive json_output("resources/mydata.json");
+		JsonOutputArchive json_output("assets/mydata.json");
 		MyData data3;
 		data3.id	  = 456;
 		data3.message = "JSON Data";
@@ -165,7 +161,7 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	}*/
 
 	/*{
-		JsonInputArchive json_input("resources/mydata.json");
+		JsonInputArchive json_input("assets/mydata.json");
 		MyData data4;
 
 		json_input.Read("data3", data4);
@@ -206,10 +202,10 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 
 		PTGN_LOG("Serialized script with name: ", test->GetName(), "\n", j.dump(4));
 
-		SaveJson(j, "resources/myscripts.json");
+		SaveJson(j, "assets/myscripts.json");
 	}
 	{
-		auto j = LoadJson("resources/myscripts.json");
+		auto j = LoadJson("assets/myscripts.json");
 
 		std::unique_ptr<TweenScript> test2{ std::make_unique<TweenScript1>() };
 		j.get_to(*test2);

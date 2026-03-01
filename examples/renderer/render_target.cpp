@@ -1,15 +1,14 @@
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/sprite.h"
-#include "math/vector2.h"
-#include "renderer/materials/shader.h"
-#include "renderer/render_data.h"
+#include "app/application.h"
+#include "core/math/vector2.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "renderer/resources/shader.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/input/movement.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -72,8 +71,8 @@ struct RenderTargetScene : public Scene {
 
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
-		game.window.SetResizable();
-		game.renderer.SetGameSize(game_size);
+
+		app().renderer.SetGameSize(game_size);
 
 		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);
 
@@ -103,7 +102,7 @@ struct RenderTargetScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "RenderTargetScene", game_size };
 	app.StartWith<RenderTargetScene>();
 }

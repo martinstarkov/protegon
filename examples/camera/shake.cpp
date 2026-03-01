@@ -1,24 +1,25 @@
 #include <functional>
 #include <string_view>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "tweens/tween_effects.h"
-#include "ui/button.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
-#include "world/tile/grid.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/shape.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/input/movement.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/ui/button.h"
+#include "runtime/world/grid.h"
 
 using namespace ptgn;
 
@@ -40,7 +41,7 @@ public:
 	}
 
 	void OnEnter() override {
-		auto res{ game.renderer.GetGameSize() };
+		auto res{ app().renderer.GetGameSize() };
 
 		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);
 		player = CreateRect(*this, -res * 0.5f + V2_float{ 400, 150 }, { 50, 50 }, color::Red);
@@ -76,7 +77,7 @@ public:
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application game{ "CameraShakeScene: WASD: Move" };
 	game.StartWith<CameraShakeScene>();
 }

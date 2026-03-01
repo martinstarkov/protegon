@@ -1,24 +1,24 @@
 
-#include "core/ecs/components/interactive.h"
+#include "runtime/input/interactive.h"
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/scripting/script.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/input/movement.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
 
 using namespace ptgn;
 
 struct ScriptC0 : public Script<ScriptC0, KeyScript, MouseScript> {
 	/*
-	void OnKeyDown(Key key) override {
+	void OnKeyPressed(Key key) override {
 		PTGN_LOG("c0 Key down");
 	}
 
@@ -72,7 +72,7 @@ struct ScriptC0 : public Script<ScriptC0, KeyScript, MouseScript> {
 
 struct ScriptC1 : public Script<ScriptC1, KeyScript, MouseScript> {
 	/*
-	void OnKeyDown(Key key) override {
+	void OnKeyPressed(Key key) override {
 		PTGN_LOG("c1 Key down");
 	}
 
@@ -126,7 +126,7 @@ struct ScriptC1 : public Script<ScriptC1, KeyScript, MouseScript> {
 
 struct ScriptR0 : public Script<ScriptR0, KeyScript, MouseScript> {
 	/*
-	void OnKeyDown(Key key) override {
+	void OnKeyPressed(Key key) override {
 		PTGN_LOG("r0 Key down");
 	}
 
@@ -180,7 +180,7 @@ struct ScriptR0 : public Script<ScriptR0, KeyScript, MouseScript> {
 
 struct ScriptR1 : public Script<ScriptR1, KeyScript, MouseScript> {
 	/*
-	void OnKeyDown(Key key) override {
+	void OnKeyPressed(Key key) override {
 		PTGN_LOG("r1 Key down");
 	}
 
@@ -235,7 +235,7 @@ struct ScriptR1 : public Script<ScriptR1, KeyScript, MouseScript> {
 
 struct ScriptR2 : public Script<ScriptR2, KeyScript, MouseScript> {
 	/*
-	void OnKeyDown(Key key) override {
+	void OnKeyPressed(Key key) override {
 		PTGN_LOG("r2 Key down");
 	}
 
@@ -413,9 +413,9 @@ struct InteractiveScene : public Scene {
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(3.0f);
 
-		LoadResource({ { "drag", "resources/drag.png" },
-					   { "drag_circle", "resources/drag_circle.png" },
-					   { "dropzone", "resources/dropzone.png" } });
+		app().asset.LoadMany({ { "drag", "assets/drag.png" },
+							   { "drag_circle", "assets/drag_circle.png" },
+							   { "dropzone", "assets/dropzone.png" } });
 
 		V2_float center{ GetTransform(camera).GetPosition() };
 
@@ -450,7 +450,7 @@ struct InteractiveScene : public Scene {
 		AddInteractable(r1, std::move(r1_child));
 		AddScript<ScriptR1>(r1);
 
-		game.texture.Load("box", "resources/box.png");
+		game.texture.Load("box", "assets/box.png");
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateInteractiveRect(r2.GetDisplaySize());
@@ -485,7 +485,7 @@ struct InteractiveScene : public Scene {
 	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {
-		if (input.KeyDown(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			bool desired{ !input.IsTopOnly() };
 			input.SetTopOnly(desired);
 			PTGN_LOG("Top only input: ", desired);
@@ -493,7 +493,7 @@ struct InteractiveScene : public Scene {
 
 		MoveWASD(camera, { 3.0f, 3.0f });
 
-		auto dt{ game.dt() };
+		auto dt{ app().DeltaTime() };
 
 		if (input.KeyPressed(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
@@ -510,7 +510,7 @@ struct InteractiveScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
 					 "Move/Rotate/Zoom Camera",
 					 game_size };

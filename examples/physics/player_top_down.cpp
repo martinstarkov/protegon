@@ -1,84 +1,49 @@
-#include "core/app/game.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/movement.h"
-#include "math/geometry/rect.h"
-#include "math/vector2.h"
-#include "physics/collider.h"
-#include "physics/rigid_body.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "core/event/dispatcher.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/shape.h"
+#include "runtime/input/movement.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 
 constexpr V2_int game_size{ 960, 540 };
 
-constexpr CollisionCategory ground_category{ 1 };
+constexpr ColliderMask ground_mask{ 1 };
 
-struct TopDownScript1 : public Script<TopDownScript1, PlayerMoveScript> {
-	virtual void OnMoveStart() {
-		PTGN_LOG("OnMoveStart");
+struct TopDownScript1 : public Script {
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<PlayerMoveStart>([this](const PlayerMoveStart& m) { OnMoveStart(m); });
+		d.Dispatch<PlayerMoveStop>([this](const PlayerMoveStop& m) { OnMoveStop(m); });
+		d.Dispatch<PlayerMoveHeld>([this](const PlayerMoveHeld& m) { OnMove(m); });
+		d.Dispatch<PlayerMoveDirectionChange>([this](const PlayerMoveDirectionChange& m) {
+			OnDirectionChange(m);
+		});
 	}
 
-	virtual void OnMove() {
-		PTGN_LOG("OnMove");
+	void OnMoveStart(const PlayerMoveStart& m) {
+		PTGN_LOG("OnMoveStart: ", m.direction);
 	}
 
-	virtual void OnMoveStop() {
-		PTGN_LOG("OnMoveStop");
+	void OnMove(const PlayerMoveHeld& m) {
+		PTGN_LOG("OnMove: ", m.direction);
 	}
 
-	virtual void OnDirectionChange([[maybe_unused]] MoveDirection direction_difference) {
-		PTGN_LOG("OnDirectionChange: ", direction_difference);
+	void OnMoveStop(const PlayerMoveStop& m) {
+		PTGN_LOG("OnMoveStop: ", m.last_direction);
 	}
 
-	virtual void OnMoveUpStart() {
-		PTGN_LOG("OnMoveUpStart");
-	}
-
-	virtual void OnMoveUp() {
-		PTGN_LOG("OnMoveUp");
-	}
-
-	virtual void OnMoveUpStop() {
-		PTGN_LOG("OnMoveUpStop");
-	}
-
-	virtual void OnMoveDownStart() {
-		PTGN_LOG("OnMoveDownStart");
-	}
-
-	virtual void OnMoveDown() {
-		PTGN_LOG("OnMoveDown");
-	}
-
-	virtual void OnMoveDownStop() {
-		PTGN_LOG("OnMoveDownStop");
-	}
-
-	virtual void OnMoveLeftStart() {
-		PTGN_LOG("OnMoveLeftStart");
-	}
-
-	virtual void OnMoveLeft() {
-		PTGN_LOG("OnMoveLeft");
-	}
-
-	virtual void OnMoveLeftStop() {
-		PTGN_LOG("OnMoveLeftStop");
-	}
-
-	virtual void OnMoveRightStart() {
-		PTGN_LOG("OnMoveRightStart");
-	}
-
-	virtual void OnMoveRight() {
-		PTGN_LOG("OnMoveRight");
-	}
-
-	virtual void OnMoveRightStop() {
-		PTGN_LOG("OnMoveRightStop");
+	void OnDirectionChange(const PlayerMoveDirectionChange& m) {
+		PTGN_LOG("OnDirectionChange: difference: ", m.difference);
 	}
 };
 
@@ -87,7 +52,7 @@ class TopDownMovementScene : public Scene {
 		Entity entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
 		auto& box	  = entity.Add<Collider>(Rect{ size });
 		SetDrawOrigin(entity, origin);
-		box.SetCollisionCategory(ground_category);
+		box.SetMask(ground_mask);
 		return entity;
 	}
 
@@ -104,7 +69,8 @@ class TopDownMovementScene : public Scene {
 	}
 
 	void OnEnter() override {
-		SetColliderVisibility(true);
+		// TODO: Fix.
+		// SetColliderVisibility(true);
 
 		V2_float ws{ game_size };
 
@@ -119,7 +85,7 @@ class TopDownMovementScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "TopDownMovementScene: WASD to move", game_size };
 	app.StartWith<TopDownMovementScene>();
 }

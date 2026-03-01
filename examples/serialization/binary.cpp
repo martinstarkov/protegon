@@ -1,7 +1,7 @@
 
-#include "core/app/game.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "app/application.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -64,7 +64,7 @@ public:
 			std::map<int, int> map{ { 10, 11 }, { 12, 13 }, { 14, 15 } };
 			std::unordered_map<int, int> unordered_map{ { 16, 17 }, { 18, 19 }, { 20, 21 } };
 
-			FileStreamWriter w{ "resources/data.bin" };
+			FileStreamWriter w{ "assets/data.bin" };
 
 			w.Write(trivial);
 			w.Write(trivial_composite);
@@ -86,7 +86,7 @@ public:
 			std::map<int, int> map;
 			std::unordered_map<int, int> unordered_map;
 
-			FileStreamReader r{ "resources/data.bin" };
+			FileStreamReader r{ "assets/data.bin" };
 
 			auto print_values = [&]() {
 				PTGN_LOG("trivial: ", trivial.a, ", ", trivial.b);
@@ -122,7 +122,7 @@ public:
 */
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "BinarySerializationScene" };
 	app.StartWith<BinarySerializationScene>();
 }

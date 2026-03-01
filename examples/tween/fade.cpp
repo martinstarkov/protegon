@@ -1,20 +1,20 @@
-#include "core/app/game.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "core/utils/time.h"
-#include "debug/core/log.h"
-#include "math/easing.h"
-#include "renderer/api/color.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/log.h"
+#include "core/math/easing.h"
+#include "core/time/time.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/input/mouse.h"
 #include "renderer/renderer.h"
-#include "tweens/tween.h"
-#include "tweens/tween_effects.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "runtime/animation/tween.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/ecs/components/draw.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/input/scene_input.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -25,8 +25,8 @@ struct FadeEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		LoadResource("tree", "resources/tree.jpg");
-		LoadResource("smile", "resources/smile.png");
+		app().asset.Load("tree", "assets/tree.jpg");
+		app().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -200, -200 });
 		sprite2 = CreateSprite(*this, "smile", { 200, 200 });
@@ -40,18 +40,18 @@ struct FadeEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MouseDown(Mouse::Left)) {
+		if (input.MousePressed(Mouse::Left)) {
 			FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
-		if (input.MouseDown(Mouse::Right)) {
+		if (input.MousePressed(Mouse::Right)) {
 			FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
-		if (input.KeyDown(Key::T)) {
+		if (input.KeyPressed(Key::T)) {
 			FadeOut(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([](Entity) {
 				PTGN_LOG("Finished fading out scene");
 			});
 		}
-		if (input.KeyDown(Key::R)) {
+		if (input.KeyPressed(Key::R)) {
 			FadeIn(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([](Entity) {
 				PTGN_LOG("Finished fading in scene");
 			});
@@ -59,7 +59,7 @@ struct FadeEffectScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "FadeEffectScene: R/T: Scene Fade In/Out, Left/Right: Tree Fade In/Out" };
 	app.StartWith<FadeEffectScene>();
 }

@@ -1,29 +1,27 @@
 
 #include <utility>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/interactive.h"
-#include "core/ecs/components/movement.h"
-#include "core/ecs/components/sprite.h"
-#include "core/ecs/components/transform.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
-#include "core/scripting/script.h"
-#include "core/scripting/script_interfaces.h"
-#include "math/geometry/circle.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
-#include "renderer/api/color.h"
-#include "renderer/render_data.h"
-#include "renderer/render_target.h"
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
+#include "renderer/primitives/light.h"
 #include "renderer/renderer.h"
-#include "renderer/vfx/light.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_input.h"
-#include "world/scene/scene_manager.h"
+#include "renderer/resources/render_target.h"
+#include "runtime/ecs/components/camera_component.h"
+#include "runtime/ecs/components/sprite.h"
+#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/input/interactive.h"
+#include "runtime/input/movement.h"
+#include "runtime/input/scene_input.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
 
 using namespace ptgn;
 
@@ -39,8 +37,8 @@ struct ResolutionScene : public Scene {
 	Sprite circle;
 
 	void OnEnter() override {
-		game.renderer.SetBackgroundColor(color::LightBlue);
-		game.renderer.SetScalingMode(ScalingMode::Letterbox);
+		app().renderer.SetBackgroundColor(color::LightBlue);
+		app().renderer.SetScalingMode(ScalingMode::Letterbox);
 
 		RenderTarget rt{ GetRenderTarget() };
 
@@ -82,7 +80,7 @@ struct ResolutionScene : public Scene {
 	void OnUpdate() override {
 		MoveWASD(camera, { 3.0f, 3.0f });
 
-		auto dt{ game.dt() };
+		auto dt{ app().DeltaTime() };
 
 		if (input.KeyPressed(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
@@ -115,7 +113,7 @@ struct ResolutionScene : public Scene {
 	}
 };
 
-int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
+int main(int, char**) {
 	Application app{ "ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
 					 "Move/Rotate/Scale scene target",
 					 { 1200, 800 } };
