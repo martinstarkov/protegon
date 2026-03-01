@@ -174,8 +174,8 @@ void DrawShape(
 					renderer.DrawQuad(s.GetWorldVertices(transform, draw_origin), tint, depth);
 				} else {
 					DrawLines(
-						renderer, s.GetLocalVertices(), line_width, transform, tint, depth,
-						blend_mode
+						renderer, s.GetWorldVertices({}, draw_origin), line_width, transform, tint,
+						depth, blend_mode
 					);
 				}
 			} else if constexpr (std::is_same_v<T, Circle>) {
