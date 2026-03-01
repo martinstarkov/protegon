@@ -42,7 +42,7 @@ Sprite CreateSprite(Scene& scene, Texture texture, V2_float position, Origin dra
 }
 
 Sprite CreateSprite(Scene& scene, const path& asset_path, V2_float position, Origin draw_origin) {
-	return CreateSprite(scene, scene.app().assets.CreateTexture(asset_path), position, draw_origin);
+	return CreateSprite(scene, scene.app().asset.CreateTexture(asset_path), position, draw_origin);
 }
 
 } // namespace ptgn

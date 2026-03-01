@@ -76,7 +76,7 @@ Entity CreateRect(
 	SetDrawOrigin(rect, origin);
 
 	SetTint(rect, color);
-	rect.Add<impl::LineWidth>(line_width);
+	rect.Add<FillStyle>(line_width);
 
 	return rect;
 }
@@ -94,7 +94,7 @@ Entity CreatePolygon(
 	polygon.Add<Polygon>(vertices);
 
 	SetTint(polygon, color);
-	polygon.Add<impl::LineWidth>(line_width);
+	polygon.Add<FillStyle>(line_width);
 
 	return polygon;
 }
@@ -109,7 +109,7 @@ Entity CreateCircle(Scene& scene, V2_float position, float radius, Color color, 
 	circle.Add<Circle>(radius);
 
 	SetTint(circle, color);
-	circle.Add<impl::LineWidth>(line_width);
+	circle.Add<FillStyle>(line_width);
 
 	return circle;
 }

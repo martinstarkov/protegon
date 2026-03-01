@@ -82,12 +82,6 @@ struct Tint : public ColorComponent {
 	Tint() : ColorComponent{ color::White } {}
 };
 
-struct LineWidth : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	LineWidth() : ArithmeticComponent{ 1.0f } {}
-};
-
 struct EntityDepthCompare {
 	EntityDepthCompare() = default;
 	explicit EntityDepthCompare(bool ascending);
