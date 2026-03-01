@@ -542,7 +542,7 @@ Derived& ButtonBase<Derived>::SetSize(V2_float size) {
 		ClearInteractiveShapes(*this);
 		auto shape{ GetScene().CreateEntity() };
 		AddChild(*this, shape);
-		shape.Add<Rect>(size);
+		shape.template Add<Rect>(size);
 		AddInteractiveShape(*this, GameObject{ std::move(shape) });
 	}
 	return Self();
@@ -560,7 +560,7 @@ Derived& ButtonBase<Derived>::SetRadius(float radius) {
 		ClearInteractiveShapes(*this);
 		auto shape{ GetScene().CreateEntity() };
 		AddChild(*this, shape);
-		shape.Add<Circle>(radius);
+		shape.template Add<Circle>(radius);
 		AddInteractiveShape(*this, GameObject{ std::move(shape) });
 	}
 	return Self();
@@ -717,7 +717,7 @@ Derived& ButtonBase<Derived>::SetTexture(Texture texture, ButtonState state) {
 		auto shape{ GetScene().CreateEntity() };
 		AddChild(*this, shape);
 		auto size{ texture.GetSize() };
-		shape.Add<Rect>(size);
+		shape.template Add<Rect>(size);
 		AddInteractiveShape(*this, GameObject{ std::move(shape) });
 	}
 	if (!Has<Texture>()) {

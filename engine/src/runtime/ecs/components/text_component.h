@@ -136,7 +136,7 @@ private:
 	);
 
 	template <impl::TextParameter T>
-	static [[nodiscard]] const T& GetParameter(Entity text, const T& default_value) {
+	[[nodiscard]] static const T& GetParameter(Entity text, const T& default_value) {
 		if (!text.Has<T>()) {
 			return default_value;
 		}
