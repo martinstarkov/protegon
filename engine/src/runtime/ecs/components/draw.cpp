@@ -403,7 +403,7 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 		entity.Add<impl::Visible>();
 		if (emit_visibility_event && entity.HasScene()) {
 			EntityShow show;
-			entity.GetScene().app().events.Emit(show);
+			entity.GetScene().app().event.Emit(show);
 		}
 	} else {
 		if (!entity.Has<impl::Visible>()) {
@@ -412,7 +412,7 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 		entity.Remove<impl::Visible>();
 		if (emit_visibility_event && entity.HasScene()) {
 			EntityHide hide;
-			entity.GetScene().app().events.Emit(hide);
+			entity.GetScene().app().event.Emit(hide);
 		}
 	}
 }

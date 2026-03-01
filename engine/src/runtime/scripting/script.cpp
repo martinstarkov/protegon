@@ -8,11 +8,11 @@
 namespace ptgn {
 
 void Script::Emit(EventDispatcher d) {
-	entity.GetScene().app().events.Emit(d);
+	entity.GetScene().app().event.Emit(d);
 }
 
 void Script::EmitScene(EventDispatcher d) {
-	entity.GetScene().events.Emit(d);
+	entity.GetScene().event.Emit(d);
 }
 
 } // namespace ptgn

@@ -133,9 +133,9 @@ void Text::RecreateTexture(
 	// before drawing.
 	text.Add<impl::HDFontSize>(font_size);
 
-	auto& assets{ text.GetScene().app().assets };
+	auto& asset{ text.GetScene().app().asset };
 
-	auto texture{ assets.CreateTextTexture(content, text_color, font_size, font, properties) };
+	auto texture{ asset.CreateTextTexture(content, text_color, font_size, font, properties) };
 
 	text.Add<Texture>(texture);
 }

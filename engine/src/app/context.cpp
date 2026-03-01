@@ -9,10 +9,10 @@ ApplicationContext::ApplicationContext(Application& app) :
 	app_{ app },
 	window{ app.window_ },
 	renderer{ app.renderer_ },
-	scenes{ app.scenes_ },
-	events{ app.events_ },
+	scene{ app.scenes_ },
+	event{ app.events_ },
 	input{ app.input_ },
-	assets{ app.assets_ },
+	asset{ app.assets_ },
 	font{ app.font_ },
 	audio{ app.audio_ } {}
 

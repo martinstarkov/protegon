@@ -13,6 +13,8 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/input/scene_input.h"
+#include "runtime/physics/collision_handler.h"
+#include "runtime/physics/physics.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
@@ -279,11 +281,10 @@ public:
 
 	const ApplicationContext& app() const;
 
-	SceneEventHandler events;
+	SceneEventHandler event;
 
 	SceneInput input;
-	// TODO: Fix physics system.
-	// Physics physics;
+	Physics physics;
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.
@@ -292,6 +293,8 @@ public:
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// game size.
 	Camera camera;
+
+	[[nodiscard]] std::size_t GetEntityCount() const;
 
 private:
 	friend class SceneManager;
@@ -335,6 +338,7 @@ private:
 
 	State state_{ State::Constructed };
 
+	impl::CollisionHandler collision_;
 	Manager manager_;
 	RenderTarget render_target_;
 };

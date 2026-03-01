@@ -24,10 +24,10 @@ public:
 
 	Window& window;
 	Renderer& renderer;
-	SceneManager& scenes;
-	EventHandler& events;
+	SceneManager& scene;
+	EventHandler& event;
 	InputHandler& input;
-	AssetManager& assets;
+	AssetManager& asset;
 	FontSystem& font;
 	AudioSystem& audio;
 
