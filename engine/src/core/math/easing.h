@@ -1,14 +1,18 @@
 #pragma once
 
-#include <variant>
+#include <ostream>
 
 #include "serialization/json/enum.h"
 
 namespace ptgn {
 
-enum class SymmetricalEase {
+enum class Ease {
 	Invalid = -1,
+
 	None,
+
+	// Symmetrical eases.
+
 	Linear,
 	InOutSine,
 	InOutQuad,
@@ -19,11 +23,10 @@ enum class SymmetricalEase {
 	InOutCirc,
 	InOutElastic,
 	InOutBack,
-	InOutBounce
-};
+	InOutBounce,
 
-enum class AsymmetricalEase {
-	Invalid = -1,
+	// Asymmetrical eases.
+
 	InSine,
 	OutSine,
 	InQuad,
@@ -46,50 +49,44 @@ enum class AsymmetricalEase {
 	OutBounce
 };
 
-using Ease = std::variant<SymmetricalEase, AsymmetricalEase>;
+std::ostream& operator<<(std::ostream& os, Ease ease);
 
-[[nodiscard]] float ApplyEase(float t, SymmetricalEase ease);
-
-[[nodiscard]] float ApplyEase(float t, AsymmetricalEase ease);
-
-[[nodiscard]] float ApplyEase(float t, const Ease& ease);
+[[nodiscard]] float ApplyEase(float t, Ease ease);
 
 PTGN_SERIALIZE_ENUM(
-	SymmetricalEase, { { SymmetricalEase::Invalid, nullptr },
-					   { SymmetricalEase::None, "none" },
-					   { SymmetricalEase::Linear, "linear" },
-					   { SymmetricalEase::InOutSine, "in_out_sine" },
-					   { SymmetricalEase::InOutQuad, "in_out_quad" },
-					   { SymmetricalEase::InOutCubic, "in_out_cubic" },
-					   { SymmetricalEase::InOutQuart, "in_out_quart" },
-					   { SymmetricalEase::InOutQuint, "in_out_quint" },
-					   { SymmetricalEase::InOutExpo, "in_out_expo" },
-					   { SymmetricalEase::InOutCirc, "in_out_circ" },
-					   { SymmetricalEase::InOutElastic, "in_out_elastic" },
-					   { SymmetricalEase::InOutBack, "in_out_back" },
-					   { SymmetricalEase::InOutBounce, "in_out_bounce" } }
+	Ease, { { Ease::Invalid, nullptr },
+			{ Ease::None, "none" },
+			{ Ease::Linear, "linear" },
+			{ Ease::InOutSine, "in_out_sine" },
+			{ Ease::InOutQuad, "in_out_quad" },
+			{ Ease::InOutCubic, "in_out_cubic" },
+			{ Ease::InOutQuart, "in_out_quart" },
+			{ Ease::InOutQuint, "in_out_quint" },
+			{ Ease::InOutExpo, "in_out_expo" },
+			{ Ease::InOutCirc, "in_out_circ" },
+			{ Ease::InOutElastic, "in_out_elastic" },
+			{ Ease::InOutBack, "in_out_back" },
+			{ Ease::InOutBounce, "in_out_bounce" },
+			{ Ease::InSine, "in_sine" },
+			{ Ease::OutSine, "out_sine" },
+			{ Ease::InQuad, "in_quad" },
+			{ Ease::OutQuad, "out_quad" },
+			{ Ease::InCubic, "in_cubic" },
+			{ Ease::OutCubic, "out_cubic" },
+			{ Ease::InQuart, "in_quart" },
+			{ Ease::OutQuart, "out_quart" },
+			{ Ease::InQuint, "in_quint" },
+			{ Ease::OutQuint, "out_quint" },
+			{ Ease::InExpo, "in_expo" },
+			{ Ease::OutExpo, "out_expo" },
+			{ Ease::InCirc, "in_circ" },
+			{ Ease::OutCirc, "out_circ" },
+			{ Ease::InElastic, "in_elastic" },
+			{ Ease::OutElastic, "out_elastic" },
+			{ Ease::InBack, "in_back" },
+			{ Ease::OutBack, "out_back" },
+			{ Ease::InBounce, "in_bounce" },
+			{ Ease::OutBounce, "out_bounce" } }
 );
-
-PTGN_SERIALIZE_ENUM(AsymmetricalEase, { { AsymmetricalEase::Invalid, nullptr },
-										{ AsymmetricalEase::InSine, "in_sine" },
-										{ AsymmetricalEase::OutSine, "out_sine" },
-										{ AsymmetricalEase::InQuad, "in_quad" },
-										{ AsymmetricalEase::OutQuad, "out_quad" },
-										{ AsymmetricalEase::InCubic, "in_cubic" },
-										{ AsymmetricalEase::OutCubic, "out_cubic" },
-										{ AsymmetricalEase::InQuart, "in_quart" },
-										{ AsymmetricalEase::OutQuart, "out_quart" },
-										{ AsymmetricalEase::InQuint, "in_quint" },
-										{ AsymmetricalEase::OutQuint, "out_quint" },
-										{ AsymmetricalEase::InExpo, "in_expo" },
-										{ AsymmetricalEase::OutExpo, "out_expo" },
-										{ AsymmetricalEase::InCirc, "in_circ" },
-										{ AsymmetricalEase::OutCirc, "out_circ" },
-										{ AsymmetricalEase::InElastic, "in_elastic" },
-										{ AsymmetricalEase::OutElastic, "out_elastic" },
-										{ AsymmetricalEase::InBack, "in_back" },
-										{ AsymmetricalEase::OutBack, "out_back" },
-										{ AsymmetricalEase::InBounce, "in_bounce" },
-										{ AsymmetricalEase::OutBounce, "out_bounce" } });
 
 } // namespace ptgn

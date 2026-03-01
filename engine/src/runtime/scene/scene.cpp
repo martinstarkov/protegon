@@ -20,6 +20,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
+#include "runtime/animation/tween.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/drawable.h"
@@ -243,8 +244,10 @@ void Scene::InternalUpdate() {
 
 	// TODO: Fix.
 	// ParticleEmitter::Update(*this);
-	// Tween::Update(*this, dt);
+	Tween::Update(*this, app().DeltaTime());
+	// TODO: Fix.
 	// impl::AnimationSystem::Update(*this);
+	// TODO: Fix.
 	// Lifetime::Update(*this);
 	physics.PreCollisionUpdate(*this);
 	collision_.Update(*this);
