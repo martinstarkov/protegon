@@ -46,45 +46,50 @@ public:
 	/// @return Volume of the master audio in range [kMinVolume, kMaxVolume].
 	[[nodiscard]] float GetVolume();
 
-	/// Toggles the master volume between kMinVolume and new_volume.
+	/// @brief Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
 	/// in range [kMinVolume, kMaxVolume].
 	void ToggleVolume(float new_volume);
 
-	/// Stops all audio tracks.
+	/// @brief Stops all audio tracks.
 	void StopAll();
 
-	/// Pauses all audio tracks.
+	/// @brief Pauses all audio tracks.
 	void PauseAll();
 
-	/// Resumes all audio tracks.
+	/// @brief Resumes all audio tracks.
 	void ResumeAll();
 
 	/// @return True if any audio track is playing.
 	[[nodiscard]] bool IsAnyPlaying();
 
 	/// @param loops The number of loops to play the audio for, -1 for infinite looping.
-	void Play(std::string_view key, int loops = -1);
+	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
+	void Play(std::string_view key, float volume = 0.5f, int loops = -1);
 
-	/// Stop the audio.
+	/// @brief Stop the audio.
 	void Stop(std::string_view key);
 
-	/// Pauses the audio.
+	/// @brief Pauses the audio.
 	void Pause(std::string_view key);
 
-	/// Resumes the audio.
+	/// @brief Resumes the audio.
 	void Resume(std::string_view key);
 
-	/// Toggles the pause state of the audio.
+	/// @brief Toggles the pause state of the audio.
 	void TogglePause(std::string_view key);
 
+	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
+	/// nothing.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
 	void SetVolume(std::string_view key, float volume);
 
+	/// @brief Only gets the volume of the specific audio if it's currently playing; otherwise,
+	/// returns 0
 	/// @return Volume of the specific audio in range [kMinVolume, kMaxVolume].
 	[[nodiscard]] float GetVolume(std::string_view key);
 
-	/// Toggles the volume between kMinVolume and new_volume.
+	/// @brief Toggles the volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new volume of the audio to this value
 	/// in range [kMinVolume, kMaxVolume].
 	void ToggleVolume(std::string_view key, float new_volume = 1.0f);

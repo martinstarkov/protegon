@@ -4,11 +4,15 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3_mixer/SDL_mixer.h>
 
+#include <algorithm>
 #include <filesystem>
+#include <list>
 #include <memory>
-#include <mutex>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/util/entity_handle.h"
@@ -16,6 +20,7 @@
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/audio/track.h"
 
 namespace ptgn {
 
@@ -31,9 +36,6 @@ AudioSystem::AudioSystem(AssetManager& assets) : assets_{ assets } {
 	mixer_ = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
 
 	PTGN_ASSERT(mixer_, SDL_GetError());
-
-	// TODO: Fix.
-	// MIX_SetTrackStoppedCallback(mixer_, &AudioSystem::OnTrackStopped, this);
 }
 
 AudioSystem::~AudioSystem() noexcept {
@@ -44,7 +46,7 @@ AudioSystem::~AudioSystem() noexcept {
 	MIX_DestroyMixer(mixer_);
 }
 
-void AudioSystem::Play(std::string_view key, int loops) {
+void AudioSystem::Play(std::string_view key, float volume, int loops) {
 	std::size_t id = Hash(key);
 
 	Stop(key); // replace if present
@@ -59,6 +61,9 @@ void AudioSystem::Play(std::string_view key, int loops) {
 	PTGN_ASSERT(mix_audio);
 
 	impl::Track track{ mixer_, mix_audio, loops };
+
+	float clamped{ std::clamp(volume, kMinVolume, kMaxVolume) };
+	MIX_SetTrackGain(track.Get(), clamped);
 
 	// Attach per-track stopped callback (per SDL3_mixer API).
 	// Track owns callback userdata for lifetime safety.
@@ -149,7 +154,7 @@ bool AudioSystem::IsPlaying(std::string_view key) {
 void AudioSystem::SetVolume(std::string_view key, float volume) {
 	std::size_t id = Hash(key);
 
-	const float clamped = std::clamp(volume, kMinVolume, kMaxVolume);
+	float clamped{ std::clamp(volume, kMinVolume, kMaxVolume) };
 
 	std::scoped_lock lock(mutex_);
 
@@ -228,14 +233,14 @@ void AudioSystem::ToggleVolume(float new_volume) {
 
 void AudioSystem::PauseAll() {
 	std::scoped_lock lock(mutex_);
-	for (auto& [id, track] : tracks_) {
+	for (const auto& [id, track] : tracks_) {
 		MIX_PauseTrack(track.Get());
 	}
 }
 
 void AudioSystem::ResumeAll() {
 	std::scoped_lock lock(mutex_);
-	for (auto& [id, track] : tracks_) {
+	for (const auto& [id, track] : tracks_) {
 		MIX_ResumeTrack(track.Get());
 	}
 }
@@ -250,7 +255,7 @@ void AudioSystem::StopAll() {
 bool AudioSystem::IsAnyPlaying() {
 	std::scoped_lock lock(mutex_);
 
-	for (auto& [id, track] : tracks_) {
+	for (const auto& [id, track] : tracks_) {
 		MIX_Track* raw = track.Get();
 		if (!raw) {
 			continue;
