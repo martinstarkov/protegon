@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ostream>
+
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
@@ -18,6 +20,8 @@ struct Intersection {
 
 	[[nodiscard]] bool Occurred() const;
 };
+
+std::ostream& operator<<(std::ostream& os, const Intersection& c);
 
 namespace impl {
 

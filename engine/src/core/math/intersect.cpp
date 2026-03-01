@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <ostream>
 #include <type_traits>
 #include <variant>
 #include <vector>
@@ -47,6 +48,11 @@ bool Intersection::Occurred() const {
 		"Failed to identify correct intersection depth"
 	);
 	return !normal.IsZero();
+}
+
+std::ostream& operator<<(std::ostream& os, const Intersection& c) {
+	os << "{ depth: " << c.depth << ", normal: " << c.normal << " }";
+	return os;
 }
 
 namespace impl {

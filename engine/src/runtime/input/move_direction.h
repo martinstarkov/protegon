@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <utility>
 
 #include "core/log.h"
 #include "serialization/json/enum.h"
@@ -21,19 +22,18 @@ enum class MoveDirection {
 
 inline std::ostream& operator<<(std::ostream& os, MoveDirection direction) {
 	switch (direction) {
-		case MoveDirection::None:	   os << "None"; break;
-		case MoveDirection::UpLeft:	   os << "Up Left"; break;
-		case MoveDirection::Up:		   os << "Up"; break;
-		case MoveDirection::UpRight:   os << "Up Right"; break;
-		case MoveDirection::Left:	   os << "Left"; break;
-		case MoveDirection::Right:	   os << "Right"; break;
-		case MoveDirection::DownLeft:  os << "Down Left"; break;
-		case MoveDirection::Down:	   os << "Down"; break;
-		case MoveDirection::DownRight: os << "Down Right"; break;
-		default:					   PTGN_ERROR("Invalid movement direction");
+		using enum MoveDirection;
+		case None:		return os << "None";
+		case UpLeft:	return os << "Up Left";
+		case Up:		return os << "Up";
+		case UpRight:	return os << "Up Right";
+		case Left:		return os << "Left";
+		case Right:		return os << "Right";
+		case DownLeft:	return os << "Down Left";
+		case Down:		return os << "Down";
+		case DownRight: return os << "Down Right";
+		default:		PTGN_ERROR("Unknown MoveDirection: ", std::to_underlying(direction));
 	}
-
-	return os;
 }
 
 PTGN_SERIALIZE_ENUM(

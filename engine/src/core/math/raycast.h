@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ostream>
+
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/line.h"
@@ -11,8 +13,6 @@
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
-
-struct Transform;
 
 struct RaycastResult {
 	float t{ 1.0f }; // How far along the ray the impact occurred.
@@ -26,6 +26,8 @@ struct RaycastResult {
 
 	[[nodiscard]] bool Occurred() const;
 };
+
+std::ostream& operator<<(std::ostream& os, const RaycastResult& result);
 
 namespace impl {
 

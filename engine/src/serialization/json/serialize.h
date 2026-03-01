@@ -118,11 +118,6 @@ template <typename T, typename S>
 		const Type nlohmann_json_default_obj{};                                             \
 		(void)nlohmann_json_default_obj;                                                    \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_FROM_JSON_WITH_DEFAULT, __VA_ARGS__)) \
-	}                                                                                       \
-	friend std::ostream& operator<<(std::ostream& os, const Type& p) {                      \
-		json j = p;                                                                         \
-		os << j.dump(4);                                                                    \
-		return os;                                                                          \
 	}
 
 #define PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Type, ...)                                 \
@@ -138,11 +133,6 @@ template <typename T, typename S>
 	friend void from_json(const json& nlohmann_json_j, Type& nlohmann_json_t) {             \
 		const Type nlohmann_json_default_obj{};                                             \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_FROM_JSON_WITH_DEFAULT, __VA_ARGS__)) \
-	}                                                                                       \
-	friend std::ostream& operator<<(std::ostream& os, const Type& p) {                      \
-		json j = p;                                                                         \
-		os << j.dump(4);                                                                    \
-		return os;                                                                          \
 	}
 
 // Must be placed in public field of class.
@@ -179,11 +169,6 @@ public:                                                                         
 			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>             \
 	friend void from_json(const BasicJsonType& nlohmann_json_j, Type& nlohmann_json_t) { \
 		nlohmann_json_t.local_from_json_impl(nlohmann_json_j);                           \
-	}                                                                                    \
-	friend std::ostream& operator<<(std::ostream& os, const Type& p) {                   \
-		json j = p;                                                                      \
-		os << j.dump(4);                                                                 \
-		return os;                                                                       \
 	}
 
 #define PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(Type, ...)                                  \
@@ -223,11 +208,6 @@ public:                                                                         
 			nlohmann::detail::is_basic_json<BasicJsonType>::value, int> = 0>                       \
 	friend void from_json(const BasicJsonType& nlohmann_json_j, Type& nlohmann_json_t) {           \
 		nlohmann_json_t.local_from_json_impl(nlohmann_json_j);                                     \
-	}                                                                                              \
-	friend std::ostream& operator<<(std::ostream& os, const Type& p) {                             \
-		json j = p;                                                                                \
-		os << j.dump(4);                                                                           \
-		return os;                                                                                 \
 	}
 
 #define PTGN_SERIALIZER_REGISTER_NAMELESS(Type, member)                                  \
@@ -248,11 +228,6 @@ public:                                                                         
 		} else {                                                                         \
 			nlohmann_json_j.get_to(nlohmann_json_t.member);                              \
 		}                                                                                \
-	}                                                                                    \
-	friend std::ostream& operator<<(std::ostream& os, const Type& p) {                   \
-		json j = p;                                                                      \
-		os << j.dump(4);                                                                 \
-		return os;                                                                       \
 	}
 
 #define PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Type, member)                  \
@@ -282,9 +257,4 @@ public:                                                                         
 		} else {                                                                         \
 			nlohmann_json_j.get_to(nlohmann_json_t.member);                              \
 		}                                                                                \
-	}                                                                                    \
-	friend std::ostream& operator<<(std::ostream& os, const Type& p) {                   \
-		json j = p;                                                                      \
-		os << j.dump(4);                                                                 \
-		return os;                                                                       \
 	}

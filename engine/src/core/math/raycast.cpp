@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <ostream>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -57,6 +58,11 @@ using Point = V2_float;
 bool RaycastResult::Occurred() const {
 	PTGN_ASSERT(t >= 0.0f);
 	return t >= 0.0f && t < 1.0f && !normal.IsZero();
+}
+
+std::ostream& operator<<(std::ostream& os, const RaycastResult& result) {
+	os << "{ t: " << result.t << ", normal: " << result.normal << " }";
+	return os;
 }
 
 namespace impl {
