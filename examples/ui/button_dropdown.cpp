@@ -77,6 +77,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application game{ { .window = { .title = "DropdownScene", .resizeable = true } } };
-	game.StartWith<DropdownScene>("");
+	Application game{ "DropdownScene" };
+	game.StartWith<DropdownScene>();
 }

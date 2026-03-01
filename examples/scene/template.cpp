@@ -17,7 +17,7 @@ public:
 
 	GameScene(int level) : level{ level } {}
 
-	void Enter() override {
+	void OnEnter() override {
 		PTGN_ASSERT(level != -1);
 
 		std::string label{ std::format("Level {}", level) };
@@ -52,7 +52,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTemplateExample");
-	game.scene.Enter<SceneTemplateExample>("");
-	return 0;
+	Application app{ "SceneTemplateExample" };
+	app.StartWith<SceneTemplateExample>();
 }

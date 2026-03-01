@@ -1,17 +1,17 @@
 
-#include "core/ecs/components/draw.h"
 #include "core/app/game.h"
 #include "core/app/window.h"
+#include "core/ecs/components/draw.h"
 #include "renderer/renderer.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 struct ShapeScene : public Scene {
-	void Enter() override {
+	void OnEnter() override {
 		game.window.SetResizable();
 	}
 
@@ -30,7 +30,7 @@ struct ShapeScene : public Scene {
 		return vertices;
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		game.renderer.DrawLines(
 			{}, { { -375, -375 }, { -350, -350 }, { -325, -375 } }, color::Beige, 1.0f, false
 		);
@@ -259,7 +259,6 @@ struct ShapeScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ShapeScene", resolution);
-	game.scene.Enter<ShapeScene>("");
-	return 0;
+	Application app{ "ShapeScene", game_size };
+	app.StartWith<ShapeScene>();
 }

@@ -1,22 +1,22 @@
 #include <variant>
 #include <vector>
 
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/mouse.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
+#include "tweens/follow_config.h"
+#include "tweens/tween_effects.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_input.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/follow_config.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -43,8 +43,7 @@ struct FollowEffectScene : public Scene {
 		return follower;
 	}
 
-	void Enter() override {
-		game.window.SetResizable();
+	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
 		LoadResource("smile", "resources/smile.png");
@@ -110,7 +109,7 @@ struct FollowEffectScene : public Scene {
 		StopFollow(entity5);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		SetPosition(mouse, input.GetMousePosition());
 		if (input.MouseDown(Mouse::Left)) {
 			Stop();
@@ -121,7 +120,6 @@ struct FollowEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("FollowEffectScene: Left/Right: Stop/Start Follow");
-	game.scene.Enter<FollowEffectScene>("");
-	return 0;
+	Application app{ "FollowEffectScene: Left/Right: Stop/Start Follow" };
+	app.StartWith<FollowEffectScene>();
 }

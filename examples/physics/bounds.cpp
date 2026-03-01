@@ -1,8 +1,8 @@
 
+#include "core/app/game.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "math/geometry/rect.h"
@@ -16,7 +16,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 struct PhysicsBoundaryScene : public Scene {
 	Entity player;
@@ -26,8 +26,8 @@ struct PhysicsBoundaryScene : public Scene {
 
 	std::size_t entity_count{ 1000 };
 
-	RNG<float> rngx{ -(float)resolution.x * 0.5f, (float)resolution.x * 0.5f };
-	RNG<float> rngy{ -(float)resolution.y * 0.5f, (float)resolution.y * 0.5f };
+	RNG<float> rngx{ -(float)game_size.x * 0.5f, (float)game_size.x * 0.5f };
+	RNG<float> rngy{ -(float)game_size.y * 0.5f, (float)game_size.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 10.0f };
 
 	Entity AddEntity(
@@ -52,8 +52,8 @@ struct PhysicsBoundaryScene : public Scene {
 		return entity;
 	}
 
-	void Enter() override {
-		physics.SetBounds(-resolution * 0.5f, resolution, behavior);
+	void OnEnter() override {
+		physics.SetBounds(-game_size * 0.5f, game_size, behavior);
 		player = AddEntity({}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
@@ -62,7 +62,7 @@ struct PhysicsBoundaryScene : public Scene {
 		}
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		V2_float pos{ GetPosition(player) };
 		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
 		SetPosition(player, pos);
@@ -78,7 +78,6 @@ struct PhysicsBoundaryScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("PhysicsBoundaryScene: Q/E to switch boundary behavior", resolution);
-	game.scene.Enter<PhysicsBoundaryScene>("");
-	return 0;
+	Application app{ "PhysicsBoundaryScene: Q/E to switch boundary behavior", game_size };
+	app.StartWith<PhysicsBoundaryScene>();
 }

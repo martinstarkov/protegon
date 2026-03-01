@@ -1,23 +1,24 @@
+#include "ui/dialogue.h"
+
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "math/vector2.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "ui/dialogue.h"
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 struct DialogueScene : public Scene {
 	Entity npc;
 
-	void Enter() override {
+	void OnEnter() override {
 		PTGN_LOG("Entity count: ", Size());
 		game.window.SetResizable();
 		LoadResource("dialogue_box", "resources/box.png");
@@ -36,7 +37,7 @@ struct DialogueScene : public Scene {
 		PTGN_LOG("Entity count: ", Size());
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (auto dialogue{ npc.TryGet<DialogueComponent>() }) {
 			if (input.KeyDown(Key::Space)) {
 				dialogue->Open();
@@ -56,7 +57,7 @@ struct DialogueScene : public Scene {
 			if (input.KeyDown(Key::E)) {
 				dialogue->SetDialogue("epilogue");
 			}
-			dialogue->DrawInfo(-resolution * 0.5f);
+			dialogue->DrawInfo(-game_size * 0.5f);
 		}
 		if (input.KeyDown(Key::A)) {
 			npc.Add<DialogueComponent>(
@@ -72,11 +73,9 @@ struct DialogueScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
-		"DialogueScene: Space: Show, Enter: Continue, N: Next, A/D: Add/Delete, I: Intro, O: "
-		"Outro, E: Epilogue",
-		resolution
-	);
-	game.scene.Enter<DialogueScene>("");
-	return 0;
+	Application app{ "DialogueScene: Space: Show, Enter: Continue, N: Next, "
+					 "A/D: Add/Delete, I: Intro, O: "
+					 "Outro, E: Epilogue",
+					 game_size };
+	app.StartWith<DialogueScene>();
 }

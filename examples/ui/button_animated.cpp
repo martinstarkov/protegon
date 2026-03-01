@@ -1,11 +1,11 @@
 
-#include "core/ecs/components/animation.h"
-#include "core/ecs/components/transform.h"
 #include "core/app/game.h"
 #include "core/app/window.h"
+#include "core/ecs/components/animation.h"
+#include "core/ecs/components/transform.h"
+#include "ui/button.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "ui/button.h"
 
 using namespace ptgn;
 
@@ -13,8 +13,7 @@ class AnimatedButtonScene : public Scene {
 public:
 	Button b1;
 
-	void Enter() override {
-		game.window.SetResizable();
+	void OnEnter() override {
 		input.SetDrawInteractives();
 
 		LoadResource("animation", "resources/animation.png");
@@ -32,7 +31,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("AnimatedButtonScene");
-	game.scene.Enter<AnimatedButtonScene>("");
-	return 0;
+	Application app{ "AnimatedButtonScene" };
+	app.StartWith<AnimatedButtonScene>();
 }

@@ -3,19 +3,19 @@
 #include <string>
 #include <vector>
 
-#include "debug/runtime/assert.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "core/scripting/script.h"
-#include "core/app/window.h"
-#include "debug/runtime/debug_system.h"
-#include "debug/core/log.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/scripting/script.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
+#include "debug/runtime/debug_system.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/math_utils.h"
@@ -30,7 +30,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 V2_float ws;
 
@@ -111,7 +111,7 @@ public:
 	int move_entity{ 5 };
 	V2_float speed{ 300.0f };
 
-	void Enter() override {
+	void OnEnter() override {
 		PTGN_ASSERT(manager != nullptr);
 		intersect		 = manager->CreateEntity();
 		sweep			 = manager->CreateEntity();
@@ -134,12 +134,12 @@ public:
 		SetTint(overlap, color::Orange);
 		SetTint(overlap_circle, color::Orange);
 
-		SetPosition(intersect, -resolution * 0.5f + V2_float{ 100, 100 });
-		SetPosition(overlap, -resolution * 0.5f + V2_float{ 200, 200 });
-		SetPosition(sweep, -resolution * 0.5f + V2_float{ 300, 300 });
-		SetPosition(intersect_circle, -resolution * 0.5f + V2_float{ 400, 400 });
-		SetPosition(overlap_circle, -resolution * 0.5f + V2_float{ 500, 500 });
-		SetPosition(sweep_circle, -resolution * 0.5f + V2_float{ 300, 600 });
+		SetPosition(intersect, -game_size * 0.5f + V2_float{ 100, 100 });
+		SetPosition(overlap, -game_size * 0.5f + V2_float{ 200, 200 });
+		SetPosition(sweep, -game_size * 0.5f + V2_float{ 300, 300 });
+		SetPosition(intersect_circle, -game_size * 0.5f + V2_float{ 400, 400 });
+		SetPosition(overlap_circle, -game_size * 0.5f + V2_float{ 500, 500 });
+		SetPosition(sweep_circle, -game_size * 0.5f + V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
@@ -205,7 +205,7 @@ public:
 		SetDrawOrigin(obstacle, origin);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (game.input.KeyDown(Key::E)) {
 			move_entity++;
 		}
@@ -259,7 +259,7 @@ public:
 
 	V2_float speed{ 300.0f };
 
-	void Enter() override {
+	void OnEnter() override {
 		entity = manager.CreateEntity();
 		entity.SetPosition(V2_float{ 400, 100 });
 		entity.Add<RigidBody>();
@@ -274,7 +274,7 @@ public:
 		obstacle.Add<BoxCollider>(size, origin);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		MoveWASD(
 			entity.Get<RigidBody>().velocity,
 			speed * game.scene.Get("").physics.dt()
@@ -300,7 +300,7 @@ public:
 
 class SweepEntityCollisionTest : public EntityCollisionTest {
 public:
-	void Enter() override {
+	void OnEnter() override {
 		EntityCollisionTest::Enter();
 		entity.Get<BoxCollider>().continuous = true;
 	}
@@ -336,11 +336,11 @@ public:
 
 	V2_int size{ 31, 31 };
 
-	void Enter() override {
+	void OnEnter() override {
 		camera.GetPrimary().CenterOnArea(size);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.MousePressed(Mouse::Left)) {
 			p1 = V2_int{ input.GetMousePosition() };
 		}
@@ -362,7 +362,7 @@ public:
 
 class PointOverlapTest : public ShapeCollisionTest {
 public:
-	void Update() override {
+	void OnUpdate() override {
 		DrawGrid();
 		p1 = V2_int{ input.GetMousePosition() };
 
@@ -402,7 +402,7 @@ public:
 
 class LineOverlapTest : public ShapeCollisionTest {
 public:
-	void Update() override {
+	void OnUpdate() override {
 		DrawGrid();
 		ShapeCollisionTest::Update();
 
@@ -442,7 +442,7 @@ public:
 
 class CircleOverlapTest : public ShapeCollisionTest {
 public:
-	void Update() override {
+	void OnUpdate() override {
 		DrawGrid();
 		p1 = V2_int{ input.GetMousePosition() };
 
@@ -482,7 +482,7 @@ public:
 
 class RectOverlapTest : public ShapeCollisionTest {
 public:
-	void Update() override {
+	void OnUpdate() override {
 		DrawGrid();
 		p1 = V2_int{ input.GetMousePosition() };
 
@@ -522,7 +522,7 @@ public:
 
 class CapsuleOverlapTest : public ShapeCollisionTest {
 public:
-	void Update() override {
+	void OnUpdate() override {
 		DrawGrid();
 		ShapeCollisionTest::Update();
 
@@ -562,7 +562,7 @@ public:
 
 class RectangleSweepTest : public ShapeCollisionTest {
 public:
-	void Update() override {
+	void OnUpdate() override {
 		DrawGrid();
 		ShapeCollisionTest::Update();
 
@@ -621,9 +621,9 @@ public:
 
 	float rot_speed{ 1.0f };
 
-	void Enter() override {}
+	void OnEnter() override {}
 
-	void Update() override {
+	void OnUpdate() override {
 		auto mouse = input.GetMousePosition();
 
 		if (input.KeyDown(Key::T)) {
@@ -976,7 +976,7 @@ public:
 };
 
 struct SegmentRectOverlapTest : public CollisionTest {
-	void Enter() override {
+	void OnEnter() override {
 		game.camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
 	}
 
@@ -993,7 +993,7 @@ struct SegmentRectOverlapTest : public CollisionTest {
 		l1.Draw(c);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		aabb.Draw(color::Cyan);
 
 		// Lines which are inside the rectangle.
@@ -1053,7 +1053,7 @@ struct SegmentRectOverlapTest : public CollisionTest {
 };
 
 struct SegmentRectDynamicTest : public CollisionTest {
-	void Enter() override {
+	void OnEnter() override {
 		game.camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
 	}
 
@@ -1127,7 +1127,7 @@ struct SegmentRectDynamicTest : public CollisionTest {
 };
 
 struct RectRectDynamicTest : public CollisionTest {
-	void Enter() override {
+	void OnEnter() override {
 		game.camera.GetPrimary().CenterOnArea({ 200.0f, 200.0f });
 	}
 
@@ -1155,7 +1155,7 @@ struct RectRectDynamicTest : public CollisionTest {
 		}
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		aabb.Draw(color::Cyan);
 
 		// Rects which are inside the rectangle.
@@ -1280,7 +1280,7 @@ struct SweepTest : public CollisionTest {
 			AddCollisionObject(player_pos, player_size, player_vel, origin, player_is_circle);
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		PTGN_ASSERT(player.Has<Transform>());
 		auto& t	   = player.GetTransform();
 		t.position = player_start_pos;
@@ -1300,7 +1300,7 @@ struct SweepTest : public CollisionTest {
 
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		auto& rb		= player.Get<RigidBody>();
 		auto& transform = player.GetTransform();
 
@@ -1407,7 +1407,7 @@ struct SweepTest : public CollisionTest {
 ;
 
 struct RectCollisionTest : public SweepTest {
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer({ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 45.0f, 84.5f });
 		AddCollisionObject({ 150.0f, 50.0f }, { 20.0f, 20.0f });
@@ -1430,7 +1430,7 @@ struct RectCollisionTest : public SweepTest {
 };
 
 struct RectCollisionTest1 : public SweepTest {
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 45.0f, 84.5f }, { 50, 50 },
@@ -1446,7 +1446,7 @@ struct RectCollisionTest1 : public SweepTest {
 };
 
 struct RectCollisionTest2 : public SweepTest {
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 25.0f, 30.0f }, { 50, 50 },
@@ -1460,7 +1460,7 @@ struct RectCollisionTest2 : public SweepTest {
 };
 
 struct RectCollisionTest3 : public SweepTest {
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 175.0f, 75.0f }, { 50, 50 },
@@ -1473,7 +1473,7 @@ struct RectCollisionTest3 : public SweepTest {
 };
 
 struct RectCollisionTest4 : public SweepTest {
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(
 			{ 100000.0f, 100000.0f }, { 30.0f, 30.0f }, { 97.5000000f, 74.9999924f }, { 50, 50 },
@@ -1487,7 +1487,7 @@ struct RectCollisionTest4 : public SweepTest {
 };
 
 struct CircleRectCollisionTest1 : public SweepTest {
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(
 			{ 10000.0f, 10000.0f }, { 30.0f, 30.0f }, { 563.608337f, 623.264038f },
@@ -1529,7 +1529,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 
 	using NextVel = V2_float;
 
-	void Enter() override {
+	void OnEnter() override {
 
 
 		for (std::size_t i = 0; i < entity_data.size(); ++i) {
@@ -1555,7 +1555,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		bool space_down = input.KeyDown(Key::Space);
 		for (auto [e, rb, id] : manager.EntitiesWith<RigidBody, Id>()) {
 			PTGN_ASSERT(id < entity_data.size());
@@ -1639,7 +1639,7 @@ struct SweepCornerTest1 : public SweepTest {
 
 	SweepCornerTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
 
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
@@ -1654,7 +1654,7 @@ struct SweepCornerTest2 : public SweepTest {
 
 	SweepCornerTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
 
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300 - 10, 300 });
@@ -1669,7 +1669,7 @@ struct SweepCornerTest3 : public SweepTest {
 
 	SweepCornerTest3(const V2_float& player_vel) : player_vel{ player_vel } {}
 
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(player_vel);
 		AddCollisionObject({ 250, 300 });
@@ -1684,7 +1684,7 @@ struct SweepTunnelTest1 : public SweepTest {
 
 	SweepTunnelTest1(const V2_float& player_vel) : player_vel{ player_vel } {}
 
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
@@ -1704,7 +1704,7 @@ struct SweepTunnelTest2 : public SweepTest {
 
 	SweepTunnelTest2(const V2_float& player_vel) : player_vel{ player_vel } {}
 
-	void Enter() override {
+	void OnEnter() override {
 
 		AddPlayer(player_vel);
 		AddCollisionObject({ 300, 300 });
@@ -1730,7 +1730,7 @@ public:
 
 	std::vector<std::shared_ptr<CollisionTest>> tests;
 
-	void Enter() override {
+	void OnEnter() override {
 		// TODO: Rework this whole test thing.
 		tests.emplace_back(new CollisionCallbackTest());
 		/*
@@ -1763,7 +1763,7 @@ public:
 		tests[static_cast<std::size_t>(current_test)]->Enter();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyDown(Key::Left)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test--;
@@ -1781,7 +1781,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CollisionScene:  Arrow keys to flip between tests", resolution);
-	game.scene.Enter<CollisionScene>("");
-	return 0;
+	Application app{ "CollisionScene: Arrow keys to flip between tests", game_size };
+	app.StartWith<CollisionScene>();
 }

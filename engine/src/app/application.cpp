@@ -53,6 +53,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
+#include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
 
@@ -195,6 +196,12 @@ Application::Application(const ApplicationConfig& config) :
 	scenes_.Init(ctx_);
 	assets_.Init(ctx_);
 }
+
+Application::Application(const std::string& title) :
+	Application{ ApplicationConfig{ .window = { .title = title } } } {}
+
+Application::Application(const std::string& title, V2_int window_size) :
+	Application{ ApplicationConfig{ .window = { .title = title, .size = window_size } } } {}
 
 Application::~Application() noexcept {
 	// Requires access to destructors.

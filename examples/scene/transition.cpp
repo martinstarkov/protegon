@@ -7,12 +7,12 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 class Scene3 : public Scene {
 public:
-	void Update() final {
-		game.renderer.DrawTexture("bg3", -resolution * 0.5f, resolution * 0.5f, Origin::TopLeft);
+	void OnUpdate() final {
+		game.renderer.DrawTexture("bg3", -game_size * 0.5f, game_size * 0.5f, Origin::TopLeft);
 		if (input.KeyDown(Key::N)) {
 			game.scene.Transition(
 				"scene3", "scene1", FadeInTransition{ milliseconds{ 3000 } },
@@ -30,12 +30,12 @@ public:
 
 	int i{ 0 };
 
-	void Enter() {
+	void OnEnter() {
 		PTGN_LOG("Entered scene 2: ", i);
 	}
 
-	void Update() final {
-		game.renderer.DrawTexture("bg2", {}, resolution * 0.5f, Origin::TopLeft);
+	void OnUpdate() final {
+		game.renderer.DrawTexture("bg2", {}, game_size * 0.5f, Origin::TopLeft);
 		if (input.KeyDown(Key::A)) {
 			// game.scene.Enter("scene2");
 			game.scene.Enter<Scene2>("scene2", ++i);
@@ -54,10 +54,10 @@ public:
 
 class Scene1 : public Scene {
 public:
-	void Update() final {
+	void OnUpdate() final {
 		// SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
 		game.renderer.DrawTexture(
-			"bg1", V2_float{ 0.0f, -resolution.y * 0.5f }, resolution * 0.5f, Origin::TopLeft
+			"bg1", V2_float{ 0.0f, -game_size.y * 0.5f }, game_size * 0.5f, Origin::TopLeft
 		);
 
 		if (input.KeyDown(Key::N)) {
@@ -81,15 +81,14 @@ public:
 		game.scene.Load<Scene3>("scene3");
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		game.scene.Enter("scene1");
 	}
 
-	void Update() override {}
+	void OnUpdate() override {}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneTransitionExample: N: Transition to next scene", resolution);
-	game.scene.Enter<SceneTransitionExample>("scene_transition_example");
-	return 0;
+	Application app{ "SceneTransitionExample: N: Transition to next scene", game_size };
+	app.StartWith<SceneTransitionExample>("scene_transition_example");
 }

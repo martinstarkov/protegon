@@ -1,24 +1,25 @@
 
+#include "world/tile/chunk.h"
+
 #include <string_view>
 
+#include "core/app/game.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "math/noise.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
-#include "renderer/renderer.h"
 #include "renderer/materials/texture.h"
+#include "renderer/renderer.h"
+#include "tweens/tween_effects.h"
 #include "world/scene/camera.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "world/tile/chunk.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -56,7 +57,7 @@ public:
 
 	ChunkManager chunk_manager;
 
-	void Enter() override {
+	void OnEnter() override {
 		FractalNoise fractal_noise;
 		fractal_noise.SetOctaves(3);
 		fractal_noise.SetFrequency(0.001f);
@@ -79,7 +80,7 @@ public:
 		StartFollow(camera, sheep);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		MoveWASD(vel, speed, true);
 		Translate(sheep, vel * game.dt());
 
@@ -95,7 +96,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ChunkScene", { 1280, 720 });
-	game.scene.Enter<ChunkScene>("");
-	return 0;
+	Application app{ "ChunkScene", { 1280, 720 } };
+	app.StartWith<ChunkScene>();
 }

@@ -1,3 +1,5 @@
+#include "world/tile/a_star.h"
+
 #include <cassert>
 #include <deque>
 
@@ -11,12 +13,11 @@
 #include "renderer/renderer.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "world/tile/a_star.h"
 #include "world/tile/grid.h"
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 class PathfindingScene : public Scene {
 	V2_int tile_size{ 20, 20 };
@@ -29,14 +30,14 @@ class PathfindingScene : public Scene {
 	std::deque<V2_int> global_waypoints;
 	std::deque<V2_int> local_waypoints;
 
-	void Enter() override {
+	void OnEnter() override {
 		start = { 1, grid.GetSize().y / 2 };
 		pos	  = start;
 		end	  = { grid.GetSize().x - 2, grid.GetSize().y / 2 };
 	}
 
-	void Update() override {
-		V2_float mouse_pos	= input.GetMousePosition() + resolution * 0.5f;
+	void OnUpdate() override {
+		V2_float mouse_pos	= input.GetMousePosition() + game_size * 0.5f;
 		V2_float mouse_tile = mouse_pos / tile_size;
 
 		if (input.MousePressed(Mouse::Right)) {
@@ -74,13 +75,13 @@ class PathfindingScene : public Scene {
 				c = color::Gold;
 			}
 			game.renderer.DrawRect(
-				-resolution * 0.5f + tile * tile_size, tile_size, c, -1.0f, Origin::TopLeft
+				-game_size * 0.5f + tile * tile_size, tile_size, c, -1.0f, Origin::TopLeft
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
 			game.renderer.DrawRect(
-				-resolution * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
+				-game_size * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
 				Origin::Center
 			);
 		}
@@ -119,7 +120,7 @@ class PathfindingScene : public Scene {
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
 			game.renderer.DrawRect(
-				-resolution * 0.5f +
+				-game_size * 0.5f +
 					V2_int{ Lerp(
 						V2_float{ pos * tile_size },
 						V2_float{ (pos + local_waypoints[idx + 1] - local_waypoints[idx]) *
@@ -130,7 +131,7 @@ class PathfindingScene : public Scene {
 			);
 		} else {
 			game.renderer.DrawRect(
-				-resolution * 0.5f + pos * tile_size, tile_size, color::Purple, -1.0f,
+				-game_size * 0.5f + pos * tile_size, tile_size, color::Purple, -1.0f,
 				Origin::TopLeft
 			);
 		}
@@ -139,8 +140,8 @@ class PathfindingScene : public Scene {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
 				game.renderer.DrawLine(
 					{},
-					{ -resolution * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
-					  -resolution * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
+					{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
+					  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
 					color
 				);
 			}
@@ -152,11 +153,9 @@ class PathfindingScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
-		"Pathfinding: 'ESC' (++category), 'left/right' (place/remove), 'ctrl+left/right' "
-		"(start/end), 'V' (visited) ",
-		resolution
-	);
-	game.scene.Enter<PathfindingScene>("");
-	return 0;
+	Application app{ "Pathfinding: 'ESC' (++category), 'left/right' "
+					 "(place/remove), 'ctrl+left/right' "
+					 "(start/end), 'V' (visited) ",
+					 game_size };
+	app.StartWith<PathfindingScene>();
 }

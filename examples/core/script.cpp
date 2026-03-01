@@ -1,14 +1,15 @@
+#include "core/scripting/script.h"
+
+#include "core/app/game.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/scripting/script.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
 #include "core/scripting/script_interfaces.h"
 #include "core/utils/time.h"
 #include "debug/core/log.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
@@ -42,7 +43,7 @@ public:
 struct ScriptScene : public Scene {
 	Entity entity;
 
-	void Enter() override {
+	void OnEnter() override {
 		entity = CreateRect(*this, {}, { 30, 30 }, color::Red);
 
 		AddScript<RemoveScript>(entity);
@@ -51,7 +52,6 @@ struct ScriptScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScriptScene: WASD: move, Q/E: add/remove script");
-	game.scene.Enter<ScriptScene>("");
-	return 0;
+	Application game{ "ScriptScene: WASD: move, Q/E: add/remove script" };
+	game.StartWith<ScriptScene>();
 }

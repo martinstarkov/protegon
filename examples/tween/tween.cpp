@@ -1,3 +1,5 @@
+#include "tweens/tween.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -6,20 +8,20 @@
 #include <tuple>
 #include <vector>
 
-#include "debug/runtime/assert.h"
+#include "core/app/game.h"
+#include "core/app/manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/relatives.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
 #include "core/ecs/entity_hierarchy.h"
-#include "core/app/game.h"
-#include "core/app/manager.h"
+#include "core/input/input_handler.h"
+#include "core/input/key.h"
 #include "core/scripting/script.h"
 #include "core/utils/time.h"
 #include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "ecs/ecs.h"
-#include "core/input/input_handler.h"
-#include "core/input/key.h"
 #include "math/easing.h"
 #include "math/geometry/rect.h"
 #include "math/hash.h"
@@ -30,7 +32,6 @@
 #include "renderer/text/text.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween.h"
 
 using namespace ptgn;
 
@@ -144,7 +145,7 @@ public:
 		return tween;
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		// Basic tween configurations
 		Tween tweenA{ CreateRectTween(color::White, "A") };
 		Tween tweenB{ CreateRectTween(color::Red, "B") };
@@ -235,7 +236,7 @@ public:
 		tweenB.Pause();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyDown(Key::T)) {
 			for (auto e : EntitiesWithout<Parent>()) {
 				PTGN_ASSERT(e.Has<Rect>());
@@ -267,7 +268,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TweenScene: (T)oggle pause, (R)estart, (S)top");
-	game.scene.Enter<TweenScene>("");
-	return 0;
+	Application app{ "TweenScene: (T)oggle pause, (R)estart, (S)top" };
+	app.StartWith<TweenScene>();
 }

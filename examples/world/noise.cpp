@@ -1,15 +1,16 @@
+#include "math/noise.h"
+
 #include <algorithm>
 #include <cstdint>
 
-#include "debug/runtime/assert.h"
-#include "core/ecs/components/movement.h"
 #include "core/app/game.h"
 #include "core/app/window.h"
-#include "debug/core/log.h"
+#include "core/ecs/components/movement.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "debug/core/log.h"
+#include "debug/runtime/assert.h"
 #include "math/math_utils.h"
-#include "math/noise.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -19,8 +20,6 @@
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
-
-constexpr V2_int resolution{ 800, 800 };
 
 class NoiseExampleScene : public Scene {
 public:
@@ -38,13 +37,12 @@ public:
 	int type{ 0 };
 	int types{ 4 };
 
-	void Enter() override {
+	void OnEnter() override {
 		game.renderer.SetBackgroundColor(color::Magenta);
-		game.window.SetResizable();
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyDown(Key::Left)) {
 			type--;
 			type = Mod(type, types);
@@ -230,7 +228,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("NoiseExample: Arrow keys to swap noise type", resolution);
-	game.scene.Enter<NoiseExampleScene>("");
-	return 0;
+	Application app{ "NoiseExample: Arrow keys to swap noise type" };
+	app.StartWith<NoiseExampleScene>();
 }

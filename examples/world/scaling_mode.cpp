@@ -1,6 +1,6 @@
-#include "core/ecs/components/sprite.h"
 #include "core/app/game.h"
 #include "core/app/window.h"
+#include "core/ecs/components/sprite.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "math/vector2.h"
@@ -13,18 +13,18 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 1280, 720 };
-constexpr V2_int resolution{ 320, 240 }; // 4, 3
+constexpr V2_int game_size{ 320, 240 }; // 4, 3
 
 class ScalingModeScene : public Scene {
-	void Enter() override {
+	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 		game.window.SetResizable();
 		game.window.SetSize(window_size);
 		LoadResource("background", "resources/test1.jpg");
-		game.renderer.SetGameSize(resolution, ScalingMode::Disabled);
+		game.renderer.SetGameSize(game_size, ScalingMode::Disabled);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyDown(Key::Q)) {
 			game.renderer.SetScalingMode(ScalingMode::Disabled);
 		}
@@ -41,29 +41,28 @@ class ScalingModeScene : public Scene {
 			game.renderer.SetScalingMode(ScalingMode::Overscan);
 		}
 
-		game.renderer.DrawTexture("background", V2_int{ 0, 0 }, resolution, Origin::Center);
+		game.renderer.DrawTexture("background", V2_int{ 0, 0 }, game_size, Origin::Center);
 
 		game.renderer.DrawRect(
-			V2_int{ -resolution.x * 0.5f, -resolution.y * 0.5f }, V2_int{ resolution.x, 30 },
+			V2_int{ -game_size.x * 0.5f, -game_size.y * 0.5f }, V2_int{ game_size.x, 30 },
 			color::Red, -1.0f, Origin::TopLeft
 		);
 		game.renderer.DrawRect(
-			V2_int{ resolution.x * 0.5f - 30, -resolution.y * 0.5f }, V2_int{ 30, resolution.y },
+			V2_int{ game_size.x * 0.5f - 30, -game_size.y * 0.5f }, V2_int{ 30, game_size.y },
 			color::Green, -1.0f, Origin::TopLeft
 		);
 		game.renderer.DrawRect(
-			V2_int{ -resolution.x * 0.5f, resolution.y * 0.5f - 30 }, V2_int{ resolution.x, 30 },
+			V2_int{ -game_size.x * 0.5f, game_size.y * 0.5f - 30 }, V2_int{ game_size.x, 30 },
 			color::Blue, -1.0f, Origin::TopLeft
 		);
 		game.renderer.DrawRect(
-			V2_int{ -resolution.x * 0.5f, -resolution.y * 0.5f }, V2_int{ 30, resolution.y },
+			V2_int{ -game_size.x * 0.5f, -game_size.y * 0.5f }, V2_int{ 30, game_size.y },
 			color::Teal, -1.0f, Origin::TopLeft
 		);
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScalingModeScene: QWERT: Switch Resolution Modes", resolution);
-	game.scene.Enter<ScalingModeScene>("");
-	return 0;
+	Application app{ "ScalingModeScene: QWERT: Switch Resolution Modes", game_size };
+	app.StartWith<ScalingModeScene>();
 }

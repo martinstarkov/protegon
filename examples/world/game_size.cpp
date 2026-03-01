@@ -1,17 +1,17 @@
 
 #include <utility>
 
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "core/ecs/components/interactive.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/scripting/script.h"
-#include "core/scripting/script_interfaces.h"
-#include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/scripting/script.h"
+#include "core/scripting/script_interfaces.h"
 #include "math/geometry/circle.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
@@ -38,9 +38,8 @@ struct CircleDragScript : public Script<CircleDragScript, DragScript> {
 struct ResolutionScene : public Scene {
 	Sprite circle;
 
-	void Enter() override {
+	void OnEnter() override {
 		game.renderer.SetBackgroundColor(color::LightBlue);
-		game.window.SetResizable();
 		game.renderer.SetScalingMode(ScalingMode::Letterbox);
 
 		RenderTarget rt{ GetRenderTarget() };
@@ -80,7 +79,7 @@ struct ResolutionScene : public Scene {
 	const float rotation_speed{ 1.0f };
 	const float zoom_speed{ 0.4f };
 
-	void Update() override {
+	void OnUpdate() override {
 		MoveWASD(camera, { 3.0f, 3.0f });
 
 		auto dt{ game.dt() };
@@ -117,11 +116,8 @@ struct ResolutionScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
-		"ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
-		"Move/Rotate/Scale scene target",
-		{ 1200, 800 }
-	);
-	game.scene.Enter<ResolutionScene>("");
-	return 0;
+	Application app{ "ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
+					 "Move/Rotate/Scale scene target",
+					 { 1200, 800 } };
+	app.StartWith<ResolutionScene>();
 }

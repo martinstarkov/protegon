@@ -2,28 +2,28 @@
 #include <optional>
 #include <vector>
 
+#include "core/app/game.h"
+#include "core/app/manager.h"
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/effects.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
 #include "core/ecs/game_object.h"
-#include "core/app/manager.h"
-#include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/mouse.h"
-#include "math/geometry_utils.h"
 #include "math/geometry/line.h"
 #include "math/geometry/rect.h"
 #include "math/geometry/shape.h"
+#include "math/geometry_utils.h"
 #include "math/vector2.h"
 #include "renderer/api/blend_mode.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
+#include "renderer/materials/shader.h"
 #include "renderer/render_target.h"
 #include "renderer/renderer.h"
-#include "renderer/materials/shader.h"
 #include "renderer/stencil_mask.h"
 #include "renderer/vfx/light.h"
 #include "world/scene/camera.h"
@@ -213,11 +213,10 @@ public:
 
 	LightMap light_map;
 
-	void Enter() override {
+	void OnEnter() override {
 		// game.renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		game.window.SetResizable();
 		LoadResource("test", "resources/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
@@ -262,7 +261,7 @@ public:
 		// light_map.HideShadowEntities();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		auto pos{ input.GetMousePosition() };
 		SetPosition(mouse_light, pos);
 
@@ -273,7 +272,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ShadowScene: Right: Move static light", { 800, 800 });
-	game.scene.Enter<ShadowScene>("");
-	return 0;
+	Application app{ "ShadowScene: Right: Move static light" };
+	app.StartWith<ShadowScene>();
 }

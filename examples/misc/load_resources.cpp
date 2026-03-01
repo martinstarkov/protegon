@@ -16,8 +16,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application app{ { .window = { .resizeable = true } } };
-	app.StartWith<LoadResourcesScene>("");
-
-	return 0;
+	Application game{ "LoadResourcesScene" };
+	game.StartWith<LoadResourcesScene>();
 }

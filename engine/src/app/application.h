@@ -3,7 +3,9 @@
 #include <concepts>
 #include <memory>
 #include <string_view>
+#include <type_traits>
 
+#include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
@@ -12,6 +14,7 @@
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/event/event_handler.h"
+#include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -58,6 +61,8 @@ public:
 	/// @brief Constructs the application using the provided configuration.
 	/// @param config Application initialization settings (window, etc.).
 	explicit Application(const ApplicationConfig& config = {});
+	explicit Application(const std::string& title);
+	explicit Application(const std::string& title, V2_int window_size);
 
 	~Application() noexcept;
 	Application(const Application&)				   = delete;
@@ -70,7 +75,7 @@ public:
 	/// @tparam TScene Scene type to instantiate.
 	/// @param scene_key Unique identifier for the scene instance.
 	/// @param args Arguments forwarded to the scene constructor.
-	template <typename TScene, typename... TArgs>
+	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
 		renderer_.UpdateDisplayViewport(window_.GetSize(), false);
@@ -82,6 +87,12 @@ public:
 		scenes_.Update(secondsf{ 0.0f }, false);
 
 		EnterMainLoop();
+	}
+
+	template <SceneType TScene>
+		requires std::is_default_constructible_v<TScene>
+	void StartWith() {
+		StartWith<TScene>("");
 	}
 
 private:

@@ -1,6 +1,7 @@
 
-#include "core/app/game.h"
 #include "core/scripting/script_sequence.h"
+
+#include "core/app/game.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "world/scene/scene.h"
@@ -18,7 +19,7 @@ class ScriptSequenceScene : public Scene {
 public:
 	ScriptSequence s1;
 
-	void Enter() override {
+	void OnEnter() override {
 		using namespace std::literals::chrono_literals;
 
 		During(*this, 100ms, [](Entity) { PTGN_LOG("During 100ms!"); });
@@ -41,7 +42,7 @@ public:
 		s2.Start();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyPressed(Key::I)) {
 			PTGN_LOG("Entity Count: ", Size());
 		}
@@ -49,7 +50,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScriptSequenceScene");
-	game.scene.Enter<ScriptSequenceScene>("");
-	return 0;
+	Application game{ "ScriptSequenceScene" };
+	game.StartWith<ScriptSequenceScene>();
 }

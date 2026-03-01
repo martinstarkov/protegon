@@ -208,8 +208,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application app{ { .window = { .resizeable = true } } };
-	app.StartWith<AssetScene>("");
-
-	return 0;
+	Application app{ "AssetScene" };
+	app.StartWith<AssetScene>();
 }

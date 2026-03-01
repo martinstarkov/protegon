@@ -27,13 +27,11 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
-
 /*
 class CameraUIScene : public Scene {
 constexpr V2_int deadzone_size{ 150, 150 };
 public:
-	void Enter() override {
+	void OnEnter() override {
 		game.texture.Load("ui_texture2", "resources/ui2.jpg");
 
 		auto ui = CreateSprite(*this, "ui_texture2");
@@ -76,7 +74,7 @@ public:
 		game.scene.Load<CameraUIScene>("ui_scene");
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		game.texture.Load("texture", "resources/test1.jpg");
 
 		camera.SetPosition(game.window.GetCenter());
@@ -153,7 +151,7 @@ public:
 		camera.RotateTo(DegToRad(0.0f), seconds{ 3 });
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		V2_float center{ game.window.GetCenter() };
 		float dt{ game.dt() };
 
@@ -270,8 +268,7 @@ public:
 	FontSize font_size{ 20 };
 	V2_int center{ 0, 0 };
 
-	void Enter() override {
-		game.window.SetResizable();
+	void OnEnter() override {
 		//	camera.SetPixelRounding(true);
 		LoadResource("tree", "resources/test1.jpg");
 
@@ -280,9 +277,10 @@ public:
 
 		auto blur{ CreateBlur(*this) };
 		auto grayscale{ CreateGrayscale(*this) };
-		auto s1{ CreateSprite(*this, "tree", -resolution * 0.5f + V2_float{ 100, 400 }) };
+		auto game_size{ app().renderer.GetGameSize() };
+		auto s1{ CreateSprite(*this, "tree", -game_size * 0.5f + V2_float{ 100, 400 }) };
 		AddPreFX(s1, blur);
-		auto s2{ CreateSprite(*this, "tree", -resolution * 0.5f + V2_float{ 700, 400 }) };
+		auto s2{ CreateSprite(*this, "tree", -game_size * 0.5f + V2_float{ 700, 400 }) };
 		AddPostFX(s2, grayscale);
 
 		follow_config.move_mode = MoveMode::Lerp;
@@ -298,7 +296,7 @@ public:
 		// StartFollow(camera, mouse, follow_config);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		float dt{ game.dt() };
 
 		/*	PTGN_LOG(
@@ -354,7 +352,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Camera: WASD move, Q/E zoom", resolution);
-	game.scene.Enter<CameraScene>("");
-	return 0;
+	Application game{ "Camera: WASD move, Q/E zoom" };
+	game.StartWith<CameraScene>();
 }

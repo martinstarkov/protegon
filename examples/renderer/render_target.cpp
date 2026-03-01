@@ -1,19 +1,19 @@
 
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/sprite.h"
-#include "core/app/game.h"
-#include "core/app/window.h"
 #include "math/vector2.h"
+#include "renderer/materials/shader.h"
 #include "renderer/render_data.h"
 #include "renderer/renderer.h"
-#include "renderer/materials/shader.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 float rect_thickness{ -1.0f };
 float circle_thickness{ -1.0f };
@@ -70,16 +70,16 @@ struct RenderTargetScene : public Scene {
 	RenderTarget rt1;
 	RenderTarget rt2;
 
-	void Enter() override {
+	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 		game.window.SetResizable();
-		game.renderer.SetGameSize(resolution);
+		game.renderer.SetGameSize(game_size);
 
 		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);
 
 		rt1 = CreateRenderTarget(*this, { 400, 400 }, color::Red);
 		SetDrawOrigin(rt1, Origin::TopLeft);
-		SetPosition(rt1, -resolution * 0.5f);
+		SetPosition(rt1, -game_size * 0.5f);
 
 		auto rect1 =
 			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange, -1.0f, Origin::Center);
@@ -88,7 +88,7 @@ struct RenderTargetScene : public Scene {
 
 		rt2 = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
 		SetDrawOrigin(rt2, Origin::TopLeft);
-		SetPosition(rt2, -resolution * 0.5f + V2_float{ 400, 400 });
+		SetPosition(rt2, -game_size * 0.5f + V2_float{ 400, 400 });
 
 		// Rect2 position is relative to rt position (0, 0 is center of rt).
 		auto rect2 =
@@ -97,14 +97,13 @@ struct RenderTargetScene : public Scene {
 		rt2.AddToDisplayList(rect2);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		MoveArrowKeys(rt1.GetCamera(), V2_float{ 3.0f });
 		MoveWASD(rt2.GetCamera(), V2_float{ 3.0f });
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("RenderTargetScene", resolution);
-	game.scene.Enter<RenderTargetScene>("");
-	return 0;
+	Application app{ "RenderTargetScene", game_size };
+	app.StartWith<RenderTargetScene>();
 }

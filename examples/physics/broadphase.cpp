@@ -1,18 +1,19 @@
+#include "physics/broadphase.h"
+
 #include <vector>
 
+#include "core/app/game.h"
+#include "core/app/manager.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "debug/runtime/profiling.h"
 #include "core/input/input_handler.h"
+#include "debug/runtime/profiling.h"
 #include "math/geometry/rect.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "physics/bounding_aabb.h"
-#include "physics/broadphase.h"
 #include "physics/physics.h"
 #include "physics/rigid_body.h"
 #include "renderer/renderer.h"
@@ -20,8 +21,6 @@
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
-
-constexpr V2_int resolution{ 800, 800 };
 
 // TODO: Move all of this into the collision system.
 
@@ -53,12 +52,12 @@ struct BroadphaseScene : public Scene {
 	Entity player;
 	V2_float player_size{ 20, 20 };
 
-	RNG<float> rngx{ -(float)resolution.x * 0.5f, (float)resolution.x * 0.5f };
-	RNG<float> rngy{ -(float)resolution.y * 0.5f, (float)resolution.y * 0.5f };
+	RNG<float> rngx{ -(float)game_size.x * 0.5f, (float)game_size.x * 0.5f };
+	RNG<float> rngy{ -(float)game_size.y * 0.5f, (float)game_size.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 30.0f };
 
-	void Enter() override {
-		physics.SetBounds(-resolution * 0.5f, resolution, BoundaryBehavior::ReflectVelocity);
+	void OnEnter() override {
+		physics.SetBounds(-game_size * 0.5f, game_size, BoundaryBehavior::ReflectVelocity);
 
 		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
@@ -77,7 +76,7 @@ struct BroadphaseScene : public Scene {
 		tree.EndFrameUpdate();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		V2_float pos{ GetPosition(player) };
 		MoveWASD(pos, V2_float{ 100.0f } * game.dt(), false);
 		SetPosition(player, pos);
@@ -179,7 +178,6 @@ struct BroadphaseScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BroadphaseScene", resolution);
-	game.scene.Enter<BroadphaseScene>("");
-	return 0;
+	Application app{ "BroadphaseScene", game_size };
+	app.StartWith<BroadphaseScene>();
 }

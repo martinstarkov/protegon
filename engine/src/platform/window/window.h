@@ -42,9 +42,9 @@ class GLContext;
 }; // namespace impl
 
 struct WindowConfig {
-	const char* title{ "Default Title" };
+	std::string title{ "Default Title" };
 	V2_int size{ 800, 800 };
-	bool resizeable{ false };
+	bool resizeable{ true };
 };
 
 class Window {

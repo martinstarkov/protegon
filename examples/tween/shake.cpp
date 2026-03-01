@@ -1,11 +1,11 @@
-#include "core/ecs/components/sprite.h"
 #include "core/app/game.h"
-#include "core/utils/time.h"
+#include "core/ecs/components/sprite.h"
 #include "core/input/input_handler.h"
+#include "core/utils/time.h"
 #include "math/easing.h"
+#include "tweens/tween_effects.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -14,7 +14,7 @@ struct ShakeEffectScene : public Scene {
 	Sprite sprite2;
 	Sprite sprite3;
 
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource("smile", "resources/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
@@ -27,7 +27,7 @@ struct ShakeEffectScene : public Scene {
 		Shake(sprite3, 0.5f, milliseconds{ -1 }, {}, SymmetricalEase::Linear, false);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.MouseDown(Mouse::Left)) {
 			Shake(sprite3, 1.0f, {}, true);
 		}
@@ -38,7 +38,6 @@ struct ShakeEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ShakeEffectScene: left/right click to start/stop shake");
-	game.scene.Enter<ShakeEffectScene>("");
-	return 0;
+	Application app{ "ShakeEffectScene: left/right click to start/stop shake" };
+	app.StartWith<ShakeEffectScene>();
 }

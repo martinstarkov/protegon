@@ -2,11 +2,11 @@
 #include <cmath>
 
 #include "core/app/game.h"
-#include "core/utils/time.h"
-#include "core/utils/timer.h"
 #include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/utils/time.h"
+#include "core/utils/timer.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
@@ -16,7 +16,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 class Sensor {
 public:
@@ -58,7 +58,7 @@ class PlotScene : public Scene {
 	using x_axis_unit = secondsf;
 	x_axis_unit x_axis_length{ 10.0f };
 
-	void Enter() override {
+	void OnEnter() override {
 		plot.Init({ 0, -250 }, { 10, 250 });
 
 		plot.Load("temperature");
@@ -96,7 +96,7 @@ class PlotScene : public Scene {
 		clock.Start();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (temperature.HasNewValue()) {
 			plot.Get("temperature")
 				.data.points.emplace_back(
@@ -120,7 +120,6 @@ class PlotScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("Plot Scene", window_size);
-	game.scene.Enter<PlotScene>("plot");
-	return 0;
+	Application app{ "PlotScene", game_size };
+	app.StartWith<PlotScene>();
 }

@@ -1,12 +1,13 @@
 
-#include "core/ecs/components/draw.h"
 #include "core/ecs/components/interactive.h"
+
+#include "core/app/game.h"
+#include "core/app/window.h"
+#include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/components/transform.h"
-#include "core/app/game.h"
 #include "core/scripting/script.h"
-#include "core/app/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
@@ -408,9 +409,7 @@ struct InteractiveScene : public Scene {
 		return entity;
 	}
 
-	void Enter() override {
-		game.window.SetResizable();
-
+	void OnEnter() override {
 		input.SetDrawInteractives(true);
 		input.SetDrawInteractivesLineWidth(3.0f);
 
@@ -485,7 +484,7 @@ struct InteractiveScene : public Scene {
 	const float rotation_speed{ 1.0f };
 	const float zoom_speed{ 0.4f };
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyDown(Key::T)) {
 			bool desired{ !input.IsTopOnly() };
 			input.SetTopOnly(desired);
@@ -512,11 +511,8 @@ struct InteractiveScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
-		"InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
-		"Move/Rotate/Zoom Camera",
-		{ 800, 800 }
-	);
-	game.scene.Enter<InteractiveScene>("");
-	return 0;
+	Application app{ "InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
+					 "Move/Rotate/Zoom Camera",
+					 game_size };
+	app.StartWith<InteractiveScene>();
 }

@@ -1,10 +1,11 @@
 #include <vector>
 
-#include "core/ecs/entity.h"
 #include "core/app/game.h"
+#include "core/ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "core/utils/string.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -13,7 +14,6 @@
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 #include "world/tile/grid.h"
-#include "core/utils/string.h"
 
 using namespace ptgn;
 
@@ -26,7 +26,7 @@ public:
 
 	Text text;
 
-	void Enter() override {
+	void OnEnter() override {
 		outer_grid.Fill(0);
 		text = CreateText(*this, "", color::Orange);
 		SetDepth(text, 1);
@@ -34,7 +34,7 @@ public:
 
 	bool toggle = true;
 
-	void Update() override {
+	void OnUpdate() override {
 		std::vector<int> cells_without;
 		cells_without.resize(static_cast<std::size_t>(outer_grid.GetLength()), -1);
 		outer_grid.ForEachIndex([&](int index) {
@@ -93,7 +93,7 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("paint: left click to draw; right click to erase; B to flip color", { 720, 720 });
-	game.scene.Enter<Paint>("");
-	return 0;
+	Application app{ "paint: left click to draw; right click to erase; B to flip color",
+					 { 720, 720 } };
+	app.StartWith<Paint>();
 }

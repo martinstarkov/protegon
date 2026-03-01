@@ -290,6 +290,4 @@ int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	json j2 = script_container;
 	PTGN_LOG(j2.dump(4));
 	*/
-
-	return 0;
 }

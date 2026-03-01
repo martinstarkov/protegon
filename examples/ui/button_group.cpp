@@ -51,7 +51,6 @@ class ToggleButtonGroupScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application game{ { .window = { .title = "ToggleButtonGroupScene: I to print active button ID",
-									.resizeable = true } } };
-	game.StartWith<ToggleButtonGroupScene>("");
+	Application game{ "ToggleButtonGroupScene: I to print active button ID" };
+	game.StartWith<ToggleButtonGroupScene>();
 }

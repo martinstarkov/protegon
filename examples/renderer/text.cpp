@@ -1,21 +1,22 @@
+#include "renderer/text/text.h"
+
 #include <string>
 #include <string_view>
 
-#include "core/ecs/components/draw.h"
-#include "core/ecs/entity.h"
 #include "core/app/game.h"
 #include "core/app/window.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/entity.h"
 #include "renderer/api/color.h"
 #include "renderer/text/font.h"
-#include "renderer/text/text.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 } ga
 
-struct TextScene : public Scene {
+	struct TextScene : public Scene {
 	static constexpr std::string_view font{ "arial" };
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 
@@ -25,11 +26,11 @@ struct TextScene : public Scene {
 
 		auto text = ptgn::CreateText(*this, content, color, font_size, font_key);
 		SetDrawOrigin(text, Origin::CenterTop);
-		SetPosition(text, { 0.0f, -resolution.y * 0.5f + stride * static_cast<float>(index) });
+		SetPosition(text, { 0.0f, -game_size.y * 0.5f + stride * static_cast<float>(index) });
 		return text;
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
 		game.window.SetResizable();
@@ -74,7 +75,6 @@ struct TextScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextScene", resolution);
-	game.scene.Enter<TextScene>("");
-	return 0;
+	Application app{ "TextScene", game_size };
+	app.StartWith<TextScene>();
 }

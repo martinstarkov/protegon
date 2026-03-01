@@ -64,7 +64,7 @@
 //	Entity e1;
 //	Entity e2;
 //
-//	void Enter() override {
+//	void OnEnter() override {
 //		game.window.SetResizable();
 //
 //		e1 = CreateEntity();
@@ -76,13 +76,13 @@
 //		AddScript<TestScript2>(e2);
 //	}
 //
-//	void Update() override {}
+//	void OnUpdate() override {}
 // };
 //
 // int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 //	game.Init("EventScene", window_size);
-//	game.scene.Enter<EventScene>("");
-//	return 0;
+//	game.scene.Enter<EventScene>();
+//
 // }
 
 /*
@@ -215,10 +215,12 @@ int main() {
 	r.Dispatch(KeyEvent::Down, 65);
 	r.Dispatch(KeyEvent::Up);
 
-	return 0;
+
 }
 
 */
+#include "core/scripting/script.h"
+
 #include <array>
 #include <iostream>
 #include <memory>
@@ -229,7 +231,6 @@ int main() {
 #include <vector>
 
 #include "core/app/manager.h"
-#include "core/scripting/script.h"
 
 using namespace ptgn;
 

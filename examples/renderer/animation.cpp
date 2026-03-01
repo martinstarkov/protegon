@@ -1,8 +1,9 @@
 #include "core/ecs/components/animation.h"
+
 #include "core/app/game.h"
+#include "core/input/input_handler.h"
 #include "core/scripting/script.h"
 #include "core/utils/time.h"
-#include "core/input/input_handler.h"
 #include "math/vector2.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
@@ -49,7 +50,7 @@ public:
 	Animation animation2;
 	Animation sprite;
 
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource("anim", "resources/animation.png");
 		LoadResource("anim2", "resources/animation4.png");
 		// LoadResource("anim3", "resources/animation3.png");
@@ -76,7 +77,7 @@ public:
 		// animation2.Start();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyDown(Key::R)) {
 			animation.Resume();
 		} else if (input.KeyDown(Key::P)) {
@@ -87,14 +88,13 @@ public:
 		}
 	}
 
-	void Exit() override {
+	void OnExit() override {
 		json j = *this;
 		SaveJson(j, "resources/animation_scene.json");
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("AnimationScene: (P)ause/(R)esume/(T)oggle");
-	game.scene.Enter<AnimationScene>("");
-	return 0;
+	Application app{ "AnimationScene: (P)ause/(R)esume/(T)oggle" };
+	app.StartWith<AnimationScene>();
 }

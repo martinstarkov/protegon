@@ -2,38 +2,38 @@
 #include <utility>
 #include <vector>
 
+#include "core/app/game.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
-#include "core/app/game.h"
+#include "core/utils/file.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "core/utils/file.h"
 
 using namespace ptgn;
 
 class TextureFormatScene : public Scene {
 	std::vector<Sprite> sprites;
 
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource({ { "jpg1", "resources/jpg1.jpg" },
-						{ "jpg2", "resources/jpg2.jpg" },
-						{ "jpg3", "resources/jpg3.jpg" },
-						{ "bmp1", "resources/bmp1.bmp" },
-						{ "bmp2", "resources/bmp2.bmp" },
-						{ "bmp3", "resources/bmp3.bmp" },
-						{ "png1", "resources/png1.png" },
-						{ "png2", "resources/png2.png" },
-						{ "png3", "resources/png3.png" },
-						{ "png4", "resources/png4.png" },
-						{ "png5", "resources/png5.png" },
-						{ "png6", "resources/png6.png" },
-						{ "png7", "resources/png7.png" },
-						{ "png8", "resources/png8.png" },
-						{ "png9", "resources/png9.png" },
-						{ "png10", "resources/png10.png" },
-						{ "png11", "resources/png11.png" } });
+					   { "jpg2", "resources/jpg2.jpg" },
+					   { "jpg3", "resources/jpg3.jpg" },
+					   { "bmp1", "resources/bmp1.bmp" },
+					   { "bmp2", "resources/bmp2.bmp" },
+					   { "bmp3", "resources/bmp3.bmp" },
+					   { "png1", "resources/png1.png" },
+					   { "png2", "resources/png2.png" },
+					   { "png3", "resources/png3.png" },
+					   { "png4", "resources/png4.png" },
+					   { "png5", "resources/png5.png" },
+					   { "png6", "resources/png6.png" },
+					   { "png7", "resources/png7.png" },
+					   { "png8", "resources/png8.png" },
+					   { "png9", "resources/png9.png" },
+					   { "png10", "resources/png10.png" },
+					   { "png11", "resources/png11.png" } });
 
 		V2_float ws{ game.renderer.GetGameSize() };
 
@@ -112,7 +112,6 @@ class TextureFormatScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TextureFormatScene");
-	game.scene.Enter<TextureFormatScene>("TextureFormatScene");
-	return 0;
+	Application app{ "TextureFormatScene" };
+	app.StartWith<TextureFormatScene>();
 }

@@ -1,13 +1,13 @@
+#include "core/app/game.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/utils/time.h"
 #include "core/input/input_handler.h"
 #include "core/input/mouse.h"
+#include "core/utils/time.h"
 #include "math/easing.h"
+#include "tweens/tween_effects.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -16,7 +16,7 @@ struct BounceEffectScene : public Scene {
 	Sprite sprite2;
 	Sprite sprite3;
 
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource("smile", "resources/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", V2_float{ 250, 0 });
@@ -30,7 +30,7 @@ struct BounceEffectScene : public Scene {
 		);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.MouseDown(Mouse::Left)) {
 			SymmetricalBounce(
 				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, SymmetricalEase::Linear, {}, true
@@ -58,7 +58,6 @@ struct BounceEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BounceEffectScene: left/right click switches bounce type");
-	game.scene.Enter<BounceEffectScene>("");
-	return 0;
+	Application app{ "BounceEffectScene: left/right click switches bounce type" };
+	app.StartWith<BounceEffectScene>();
 }

@@ -1,34 +1,35 @@
 
+#include "renderer/renderer.h"
+
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/drawable.h"
 #include "core/ecs/components/sprite.h"
-#include "core/app/game.h"
-#include "core/scripting/script.h"
-#include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "core/scripting/script.h"
 #include "math/geometry/circle.h"
 #include "math/geometry/rect.h"
 #include "math/rng.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
-#include "renderer/render_data.h"
-#include "renderer/renderer.h"
 #include "renderer/materials/shader.h"
+#include "renderer/render_data.h"
 #include "renderer/vfx/light.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 constexpr int start_test_index{ 0 };
 
 using SceneBuilder = std::function<void(Scene&)>;
 std::vector<SceneBuilder> tests;
 
-RNG<float> pos_rngx{ 0.0f, static_cast<float>(window_size.x) };
-RNG<float> pos_rngy{ 0.0f, static_cast<float>(window_size.y) };
+RNG<float> pos_rngx{ 0.0f, static_cast<float>(game_size.x) };
+RNG<float> pos_rngy{ 0.0f, static_cast<float>(game_size.y) };
 RNG<float> size_rng{ 10.0f, 70.0f };
 RNG<float> light_radius_rng{ 10.0f, 200.0f };
 RNG<float> intensity_rng{ 0.0f, 10.0f };
@@ -649,7 +650,7 @@ struct RendererScene : public Scene {
 		ReEnter();
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 		game.window.SetResizable();
 		PTGN_LOG("-------- Test ", test_index, " --------");
@@ -659,14 +660,13 @@ struct RendererScene : public Scene {
 		}
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		CycleTest(input.KeyDown(Key::Q), -1);
 		CycleTest(input.KeyDown(Key::E), 1);
 	}
 };
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-	game.Init("RendererScene", window_size);
-	game.scene.Enter<RendererScene>("");
-	return 0;
+	Application app{ "RendererScene", game_size };
+	app.StartWith<RendererScene>();
 }

@@ -1,19 +1,20 @@
+#include "world/scene/scene.h"
+
 #include "core/app/game.h"
 #include "math/vector2.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 800, 800 };
+constexpr V2_int game_size{ 800, 800 };
 
 class Scene3 : public Scene {
 public:
-	void Update() final {
+	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		game.renderer.DrawTexture("bg3", {}, resolution, Origin::Center);
+		game.renderer.DrawTexture("bg3", {}, game_size, Origin::Center);
 	}
 };
 
@@ -25,13 +26,13 @@ public:
 
 	int i{ 0 };
 
-	void Enter() {
+	void OnEnter() {
 		PTGN_LOG("Entered scene 2: ", i);
 	}
 
-	void Update() final {
+	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		game.renderer.DrawTexture("bg2", {}, resolution, Origin::Center);
+		game.renderer.DrawTexture("bg2", {}, game_size, Origin::Center);
 		if (input.KeyDown(Key::A)) {
 			// game.scene.Enter("scene2");
 			game.scene.Enter<Scene2>("scene2", ++i);
@@ -44,9 +45,9 @@ public:
 
 class Scene1 : public Scene {
 public:
-	void Update() final {
+	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		game.renderer.DrawTexture("bg1", {}, resolution, Origin::Center);
+		game.renderer.DrawTexture("bg1", {}, game_size, Origin::Center);
 	}
 };
 
@@ -62,16 +63,15 @@ public:
 		game.scene.Load<Scene3>("scene3");
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		game.scene.Enter("scene1");
 		game.scene.Enter("scene2");
 	}
 
-	void Update() override {}
+	void OnUpdate() override {}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("SceneExample", resolution);
-	game.scene.Enter<SceneExample>("scene_example");
-	return 0;
+	Application app{ "SceneExample", game_size };
+	app.StartWith<SceneExample>("scene_example");
 }

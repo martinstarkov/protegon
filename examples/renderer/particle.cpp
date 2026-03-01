@@ -1,20 +1,21 @@
+#include "renderer/vfx/particle.h"
+
 #include <string_view>
 
-#include "core/ecs/components/draw.h"
 #include "core/app/game.h"
-#include "core/utils/time.h"
 #include "core/app/window.h"
+#include "core/ecs/components/draw.h"
 #include "core/input/input_handler.h"
+#include "core/utils/time.h"
 #include "math/math_utils.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/vfx/particle.h"
+#include "ui/button.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 #include "world/tile/grid.h"
-#include "ui/button.h"
 
 using namespace ptgn;
 
@@ -58,8 +59,7 @@ public:
 		fixed_emitter.Start();
 	}
 
-	void Enter() override {
-		game.window.SetResizable();
+	void OnEnter() override {
 		p = CreateParticleEmitter(*this);
 
 		p.SetMaxParticles(1000);
@@ -102,17 +102,16 @@ public:
 		});
 	}
 
-	void Exit() override {
+	void OnExit() override {
 		p.Reset();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		SetPosition(p, input.GetMousePosition());
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ParticleScene");
-	game.scene.Enter<ParticleScene>("");
-	return 0;
+	Application app{ "ParticleScene" };
+	app.StartWith<ParticleScene>();
 }

@@ -1,20 +1,20 @@
+#include "core/app/game.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/sprite.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/utils/time.h"
-#include "debug/core/log.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "core/utils/time.h"
+#include "debug/core/log.h"
 #include "math/easing.h"
 #include "renderer/api/color.h"
 #include "renderer/renderer.h"
+#include "tweens/tween.h"
+#include "tweens/tween_effects.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_input.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -22,7 +22,7 @@ struct FadeEffectScene : public Scene {
 	Sprite sprite1;
 	Sprite sprite2;
 
-	void Enter() override {
+	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
 		LoadResource("tree", "resources/tree.jpg");
@@ -39,7 +39,7 @@ struct FadeEffectScene : public Scene {
 		FadeIn(sprite2, milliseconds{ 4000 }, AsymmetricalEase::InSine, false);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.MouseDown(Mouse::Left)) {
 			FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
@@ -60,9 +60,6 @@ struct FadeEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
-		"FadeEffectScene: R/T: Scene Fade In/Out, Left/Right: Tree Fade In/Out", { 800, 800 }
-	);
-	game.scene.Enter<FadeEffectScene>("");
-	return 0;
+	Application app{ "FadeEffectScene: R/T: Scene Fade In/Out, Left/Right: Tree Fade In/Out" };
+	app.StartWith<FadeEffectScene>();
 }

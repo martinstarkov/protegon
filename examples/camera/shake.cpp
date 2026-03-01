@@ -1,24 +1,24 @@
 #include <functional>
 #include <string_view>
 
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
 #include "core/ecs/components/transform.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
-#include "core/app/window.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
+#include "tweens/tween_effects.h"
+#include "ui/button.h"
 #include "world/scene/camera.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 #include "world/tile/grid.h"
-#include "tweens/tween_effects.h"
-#include "ui/button.h"
 
 using namespace ptgn;
 
@@ -39,9 +39,7 @@ public:
 		return b;
 	}
 
-	void Enter() override {
-		game.window.SetResizable();
-
+	void OnEnter() override {
 		auto res{ game.renderer.GetGameSize() };
 
 		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);
@@ -70,7 +68,7 @@ public:
 		});
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		constexpr V2_float speed{ 3.0f, 3.0f };
 		V2_float pos{ GetPosition(player) };
 		MoveWASD(pos, speed, false);
@@ -79,7 +77,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("CameraShakeScene: WASD: Move");
-	game.scene.Enter<CameraShakeScene>("");
-	return 0;
+	Application game{ "CameraShakeScene: WASD: Move" };
+	game.StartWith<CameraShakeScene>();
 }

@@ -67,7 +67,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application game{ { .window = { .title		= "ButtonScene: Q/E to disable/enable buttons",
-									.resizeable = true } } };
-	game.StartWith<ButtonScene>("");
+	Application game{ "ButtonScene: Q/E to disable/enable buttons" };
+	game.StartWith<ButtonScene>();
 }

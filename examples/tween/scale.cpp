@@ -1,9 +1,9 @@
-#include "core/ecs/components/sprite.h"
 #include "core/app/game.h"
+#include "core/ecs/components/sprite.h"
 #include "core/input/input_handler.h"
+#include "tweens/tween_effects.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -12,7 +12,7 @@ struct ScaleEffectScene : public Scene {
 	Sprite sprite2;
 	Sprite sprite3;
 
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource("smile", "resources/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
@@ -27,7 +27,7 @@ struct ScaleEffectScene : public Scene {
 		ScaleTo(sprite3, { 1.0f, 1.0f }, milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.MouseDown(Mouse::Left)) {
 			ScaleTo(sprite1, { 5.0f, 5.0f }, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
 		}
@@ -38,7 +38,6 @@ struct ScaleEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ScaleEffectScene: left/right click to scale");
-	game.scene.Enter<ScaleEffectScene>("");
-	return 0;
+	Application app{ "ScaleEffectScene: left/right click to scale" };
+	app.StartWith<ScaleEffectScene>();
 }

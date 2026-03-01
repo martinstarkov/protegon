@@ -1,22 +1,23 @@
+#include "audio/audio.h"
+
 #include <algorithm>
 #include <functional>
 #include <string>
 
-#include "audio/audio.h"
+#include "core/app/game.h"
+#include "core/app/window.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/entity.h"
-#include "core/app/game.h"
 #include "core/utils/time.h"
-#include "core/app/window.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text.h"
+#include "ui/button.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 #include "world/tile/grid.h"
-#include "ui/button.h"
 
 using namespace ptgn;
 
@@ -60,7 +61,7 @@ public:
 		return b;
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		game.window.SetResizable();
 		game.music.Load("music1", "resources/music1.ogg");
 		game.sound.Load("sound1", "resources/sound1.ogg");
@@ -282,12 +283,12 @@ public:
 		});
 	}
 
-	void Exit() override {
+	void OnExit() override {
 		game.music.Clear();
 		game.sound.Clear();
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		b1.SetTextContent(std::string("Music Volume: ") + std::to_string(game.music.GetVolume()));
 		b2.SetTextContent(
 			std::string("Music Is Playing: ") + (game.music.IsPlaying() ? "true" : "false")
@@ -326,7 +327,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("AudioScene", { 800, 800 });
-	game.scene.Enter<AudioScene>("");
-	return 0;
+	Application game{ "AudioScene" };
+	game.StartWith<AudioScene>();
 }

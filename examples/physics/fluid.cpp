@@ -15,7 +15,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 1280, 720 };
+constexpr V2_int game_size{ 1280, 720 };
 
 class FluidContainer {
 public:
@@ -281,13 +281,13 @@ public:
 class FluidScene : public Scene {
 public:
 	const V2_float scale{ 6, 6 };
-	FluidContainer fluid{ resolution / scale, 0.1f, 0.0001f, 0.000001f };
+	FluidContainer fluid{ game_size / scale, 0.1f, 0.0001f, 0.000001f };
 	V2_float gravity{};
 	float gravity_increment{ 1.0f };
 
 	bool initialized{ false };
 
-	void Update() override {
+	void OnUpdate() override {
 		if (!initialized) {
 			// No automatic obstacles here
 			initialized = true;
@@ -314,7 +314,7 @@ public:
 
 		// Left click: add fluid
 		if (input.MousePressed(Mouse::Left)) {
-			auto mouse_position = input.GetMousePosition() + resolution * 0.5f;
+			auto mouse_position = input.GetMousePosition() + game_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			fluid.AddDensity(pos.x, pos.y, 1000, static_cast<int>(10.0f / scale.x));
 			fluid.AddVelocity(pos.x, pos.y, gravity.x, gravity.y);
@@ -322,7 +322,7 @@ public:
 
 		// Right click: draw obstacles
 		if (input.MousePressed(Mouse::Right)) {
-			auto mouse_position = input.GetMousePosition() + resolution * 0.5f;
+			auto mouse_position = input.GetMousePosition() + game_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			// Make a small brush radius to draw obstacles
 			int brush_radius = static_cast<int>(3.0f / scale.x);
@@ -375,7 +375,7 @@ public:
 				}
 
 				game.renderer.DrawRect(
-					-resolution * 0.5f + position * scale, scale, color, -1.0f, Origin::TopLeft
+					-game_size * 0.5f + position * scale, scale, color, -1.0f, Origin::TopLeft
 				);
 			}
 		}
@@ -383,11 +383,9 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init(
-		"Fluid with Obstacles: Click (add), Arrows (flow), R (reset gravity), Space (reset fluid), "
-		"D (toggle view)",
-		resolution
-	);
-	game.scene.Enter<FluidScene>("");
-	return 0;
+	Application app{ "Fluid with Obstacles: Click (add), Arrows (flow), R "
+					 "(reset gravity), Space (reset fluid), "
+					 "D (toggle view)",
+					 game_size };
+	app.StartWith<FluidScene>();
 }

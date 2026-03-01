@@ -1,10 +1,10 @@
-#include "core/ecs/components/sprite.h"
 #include "core/app/game.h"
 #include "core/app/window.h"
+#include "core/ecs/components/sprite.h"
 #include "core/input/input_handler.h"
+#include "tweens/tween_effects.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
-#include "tweens/tween_effects.h"
 
 using namespace ptgn;
 
@@ -13,8 +13,7 @@ struct TranslateEffectScene : public Scene {
 	Sprite sprite2;
 	Sprite sprite3;
 
-	void Enter() override {
-		game.window.SetResizable();
+	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
 		LoadResource("smile", "resources/smile.png");
@@ -33,7 +32,7 @@ struct TranslateEffectScene : public Scene {
 		TranslateTo(sprite3, { 200, -300 }, milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		PTGN_LOG(
 			"WindowTL: ", input.GetMousePosition(ViewportType::WindowTopLeft),
 			", WindowC: ", input.GetMousePosition(ViewportType::WindowCenter),
@@ -51,7 +50,6 @@ struct TranslateEffectScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TranslateEffectScene: left click to translate to mouse");
-	game.scene.Enter<TranslateEffectScene>("");
-	return 0;
+	Application app{ "TranslateEffectScene: left click to translate to mouse" };
+	app.StartWith<TranslateEffectScene>();
 }

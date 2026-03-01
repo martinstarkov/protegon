@@ -39,8 +39,6 @@ struct GraphicsScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application game{ { .window = { .title		= "GraphicsScene: WASD to move graphics object",
-									.resizeable = true } } };
-	game.StartWith<GraphicsScene>("");
-	return 0;
+	Application game{ "GraphicsScene: WASD to move graphics object" };
+	game.StartWith<GraphicsScene>();
 }

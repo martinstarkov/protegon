@@ -1,7 +1,7 @@
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/sprite.h"
 #include "core/app/game.h"
 #include "core/app/window.h"
+#include "core/ecs/components/draw.h"
+#include "core/ecs/components/sprite.h"
 #include "math/vector2.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
@@ -12,11 +12,11 @@
 using namespace ptgn;
 
 struct BlendModeScene : public Scene {
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource("semitransparent", "resources/semitransparent.png");
 		LoadResource("opaque", "resources/opaque.png");
 
-		V2_float ws{ game.renderer.GetGameSize() };
+		V2_float ws{ app().renderer.GetGameSize() };
 
 		CreateRect(
 			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, -1.0f, Origin::TopLeft
@@ -38,7 +38,6 @@ struct BlendModeScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BlendModeScene");
-	game.scene.Enter<BlendModeScene>("");
-	return 0;
+	Application app{ "BlendModeScene" };
+	app.StartWith<BlendModeScene>();
 }

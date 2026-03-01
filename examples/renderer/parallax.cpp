@@ -11,8 +11,6 @@
 
 using namespace ptgn;
 
-constexpr V2_int window_size{ 800, 800 };
-
 class ParallaxExampleScene : public Scene {
 public:
 	V2_float bg_pos;
@@ -31,7 +29,7 @@ public:
 	V2_float background_size;
 	float bg_aspect_ratio{ 0.0f };
 
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource({ { "background", "resources/background.png" },
 					   { "planet_b", "resources/planet_b.png" },
 					   { "planet_s", "resources/planet_s.png" },
@@ -55,7 +53,7 @@ public:
 		foreground_cam = {};
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		float speed = 10.0f * game.dt();
 
 		V2_float velocity;
@@ -102,7 +100,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ParallaxExampleScene", window_size);
-	game.scene.Enter<ParallaxExampleScene>("");
-	return 0;
+	Application app{ "ParallaxExampleScene" };
+	app.StartWith<ParallaxExampleScene>();
 }

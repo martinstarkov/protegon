@@ -50,7 +50,7 @@ public:
 		PrintLine();
 	};
 
-	void Enter() override {
+	void OnEnter() override {
 		static_assert(std::is_trivially_copyable_v<Trivial>);
 		static_assert(std::is_trivially_copyable_v<TrivialComposite>);
 
@@ -123,7 +123,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("BinarySerializationScene", { 1280, 720 });
-	game.scene.Enter<BinarySerializationScene>("");
-	return 0;
+	Application app{ "BinarySerializationScene" };
+	app.StartWith<BinarySerializationScene>();
 }

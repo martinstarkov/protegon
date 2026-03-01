@@ -1,5 +1,6 @@
-#include "core/app/game.h"
 #include "world/scene/scene.h"
+
+#include "core/app/game.h"
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -8,7 +9,7 @@ using namespace ptgn;
 
 class DeserializedScene : public Scene {
 public:
-	void Enter() override {
+	void OnEnter() override {
 		LoadResource("anim", "resources/animation.png");
 		LoadResource("test", "resources/test1.jpg");
 		json j = LoadJson("resources/animation_scene.json");
@@ -19,7 +20,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("DeserializedScene", { 800, 800 });
-	game.scene.Enter<DeserializedScene>("");
-	return 0;
+	Application app{ "DeserializedScene" };
+	app.StartWith<DeserializedScene>();
 }

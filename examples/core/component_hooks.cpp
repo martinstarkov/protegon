@@ -2,20 +2,18 @@
 #include <memory>
 #include <vector>
 
-#include "core/ecs/entity.h"
 #include "core/app/game.h"
 #include "core/app/manager.h"
-#include "debug/core/log.h"
-#include "ecs/ecs.h"
+#include "core/ecs/entity.h"
 #include "core/input/input_handler.h"
 #include "core/input/key.h"
+#include "debug/core/log.h"
+#include "ecs/ecs.h"
 #include "math/vector2.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
 using namespace ptgn;
-
-constexpr V2_int window_size{ 800, 800 };
 
 struct Test {};
 
@@ -30,14 +28,14 @@ struct ComponentHookScene : public Scene {
 		list.erase(std::remove(list.begin(), list.end(), entity), list.end());
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		OnConstruct<Test>().Connect<ComponentHookScene, &ComponentHookScene::AddToUpdateList>(this);
 		OnDestruct<Test>().Connect<ComponentHookScene, &ComponentHookScene::RemoveFromUpdateList>(
 			this
 		);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		if (input.KeyDown(Key::A)) {
 			CreateEntity().Add<Test>();
 		}
@@ -54,7 +52,6 @@ struct ComponentHookScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("ComponentHookScene: A: Add Entity, C: Clear Entities", window_size);
-	game.scene.Enter<ComponentHookScene>("");
-	return 0;
+	Application game{ "ComponentHookScene: A: Add Entity, C: Clear Entities" };
+	game.StartWith<ComponentHookScene>();
 }

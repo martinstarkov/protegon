@@ -51,7 +51,7 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 Window::Window(const WindowConfig& config) {
 	// TODO: Add flags to window constructor.
 	SDL_PropertiesID props = SDL_CreateProperties();
-	SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, config.title);
+	SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, config.title.c_str());
 	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED);
 	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED);
 	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, config.size.x);

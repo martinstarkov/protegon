@@ -25,22 +25,16 @@ using namespace ptgn;
 
 class TemplateScene : public Scene {
 public:
-	void OnEnter() override {
-	}
+	void OnEnter() override {}
 
-	void OnUpdate() override {
-	}
+	void OnUpdate() override {}
 
-	void OnExit() override {
-	}
+	void OnExit() override {}
 
-	void OnEvent(EventDispatcher d) override {
-	}
+	void OnEvent(EventDispatcher d) override {}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application app{ { .window = { .resizeable = true } } };
-	app.StartWith<TemplateScene>("");
-
-	return 0;
+	Application app{ "TemplateScene" };
+	app.StartWith<TemplateScene>();
 }

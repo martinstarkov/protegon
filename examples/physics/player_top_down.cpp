@@ -1,6 +1,6 @@
+#include "core/app/game.h"
 #include "core/ecs/components/draw.h"
 #include "core/ecs/components/movement.h"
-#include "core/app/game.h"
 #include "math/geometry/rect.h"
 #include "math/vector2.h"
 #include "physics/collider.h"
@@ -12,7 +12,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int resolution{ 960, 540 };
+constexpr V2_int game_size{ 960, 540 };
 
 constexpr CollisionCategory ground_category{ 1 };
 
@@ -103,10 +103,10 @@ class TopDownMovementScene : public Scene {
 		return entity;
 	}
 
-	void Enter() override {
+	void OnEnter() override {
 		SetColliderVisibility(true);
 
-		V2_float ws{ resolution };
+		V2_float ws{ game_size };
 
 		CreatePlayer();
 		CreateWall(-ws * 0.5f + V2_float{ 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft);
@@ -120,7 +120,6 @@ class TopDownMovementScene : public Scene {
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("TopDownMovementScene: WASD to move", resolution);
-	game.scene.Enter<TopDownMovementScene>("");
-	return 0;
+	Application app{ "TopDownMovementScene: WASD to move", game_size };
+	app.StartWith<TopDownMovementScene>();
 }

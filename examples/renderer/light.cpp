@@ -1,11 +1,12 @@
-#include "core/ecs/components/sprite.h"
+#include "renderer/vfx/light.h"
+
 #include "core/app/game.h"
 #include "core/app/window.h"
+#include "core/ecs/components/sprite.h"
 #include "core/input/input_handler.h"
 #include "renderer/api/color.h"
 #include "renderer/api/origin.h"
 #include "renderer/renderer.h"
-#include "renderer/vfx/light.h"
 #include "world/scene/scene.h"
 #include "world/scene/scene_manager.h"
 
@@ -15,11 +16,10 @@ class LightScene : public Scene {
 public:
 	PointLight mouse_light;
 
-	void Enter() override {
+	void OnEnter() override {
 		// game.renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		game.window.SetResizable();
 		LoadResource("test", "resources/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
@@ -63,21 +63,21 @@ public:
 		// mouse_light.SetAmbientIntensity(0.1f);
 	}
 
-	void Update() override {
+	void OnUpdate() override {
 		// PTGN_LOG(input.GetMousePosition());
 		SetPosition(mouse_light, input.GetMousePosition());
 
 		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
 	}
 
-	void Exit() override {
-		json j = *this;
+	void OnExit() override {
+		// TODO: Fix.
+		// json j = *this;
 		// SaveJson(j, "resources/light_scene.json");
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	game.Init("LightScene", { 800, 800 });
-	game.scene.Enter<LightScene>("");
-	return 0;
+	Application app{ "LightScene" };
+	app.StartWith<LightScene>();
 }
