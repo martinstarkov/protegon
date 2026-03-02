@@ -141,7 +141,7 @@ public:
 		Operation op;
 		op.key	   = Hash(scene_key);
 		op.kind	   = OperationKind::Switch;
-		op.make_to = [this, &args...]() {
+		op.make_to = [this, args...]() {
 			auto scene{ std::make_unique<TScene>(args...) };
 			scene->Init(ctx_);
 			return scene;
@@ -157,7 +157,7 @@ public:
 		Operation op;
 		op.key	   = Hash(scene_key);
 		op.kind	   = OperationKind::Overlay;
-		op.make_to = [this, &args...]() {
+		op.make_to = [this, args...]() {
 			auto scene{ std::make_unique<TScene>(args...) };
 			scene->Init(ctx_);
 			return scene;

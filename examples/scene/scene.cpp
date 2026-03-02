@@ -54,9 +54,9 @@ public:
 class SceneExample : public Scene {
 public:
 	SceneExample() {
-		app().asset.LoadMany({ { "bg1", "assets/bg1.png" },
-							   { "bg2", "assets/bg2.png" },
-							   { "bg3", "assets/bg3.png" } });
+		app().asset.LoadMany({ { "bg1", "assets/scene1.png" },
+							   { "bg2", "assets/scene2.png" },
+							   { "bg3", "assets/scene3.png" } });
 
 		app().scene.Load<Scene1>("scene1");
 		app().scene.Load<Scene2>("scene2");

@@ -352,6 +352,10 @@ void from_json(const json& j, Scene& scene) {
 	//  j.at("render_target").get_to(scene.render_target_);
 }
 
+const std::shared_ptr<ApplicationContext>& Scene::GetContext() const {
+	return ctx_;
+}
+
 ApplicationContext& Scene::app() {
 	return *ctx_.get();
 }

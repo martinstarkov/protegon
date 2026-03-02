@@ -278,6 +278,8 @@ public:
 
 	void Refresh();
 
+	const std::shared_ptr<ApplicationContext>& GetContext() const;
+
 	ApplicationContext& app();
 
 	const ApplicationContext& app() const;
