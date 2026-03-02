@@ -2,9 +2,9 @@
 #include "runtime/ui/tooltip.h"
 
 #include "app/application.h"
-#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/scene/scene.h"
@@ -17,9 +17,10 @@ using namespace ptgn;
 class TooltipScene : public Scene {
 public:
 	void OnEnter() override {
-		input.SetDrawInteractives();
+		// TODO: Fix draw scene interactables.
+		// input.SetDrawInteractives();
 
-		app().asset.Load("bg", "assets/bg.png");
+		app().asset.Load("bg", "assets/tooltip_bg.png");
 
 		auto r0 = CreateRect(*this, {}, { 200, 100 }, color::Blue, 1.0f);
 		SetInteractive(r0);

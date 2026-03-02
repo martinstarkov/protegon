@@ -1,66 +1,68 @@
-// #pragma once
-//
-// #include <string>
-// #include <string_view>
-//
-// #include "core/app/manager.h"
-// #include "ecs/components/sprite.h"
-// #include "ecs/entity.h"
-// #include "ecs/game_object.h"
-// #include "core/scripting/script.h"
-// #include "core/scripting/script_interfaces.h"
-// #include "math/vector2.h"
-// #include "renderer/api/color.h"
-//
-// #include "runtime/graphics/text.h"
-//
-// namespace ptgn {
-//
-// namespace impl {
-//
-// class TooltipInstance {
-// public:
-//	std::size_t hash{ 0 };
-//	GameObject<Text> text;
-//	GameObject<Sprite> bg;
-// };
-//
-// } // namespace impl
-//
-// class Tooltip : public Entity {
-// public:
-//	Tooltip() = default;
-//
-//	Tooltip(const Entity& entity);
-//
-//	void Show(const V2_float& position);
-//	void Hide();
-//
-//	// @return Null if no tooltip with the given name exists.
-//	[[nodiscard]] static Tooltip Get(Manager& manager, std::string_view name);
-// };
-//
-// struct TooltipHoverScript : public Script<TooltipHoverScript, MouseScript> {
-//	std::string name;
-//	V2_float offset;
-//
-//	TooltipHoverScript() = default;
-//
-//	TooltipHoverScript(const std::string& name, const V2_float& offset);
-//
-//	void OnCreate() override;
-//
-//	void OnMouseEnter() override;
-//
-//	void OnMouseLeave() override;
-//
-// private:
-//	[[nodiscard]] Tooltip GetTooltip();
-// };
-//
-// Tooltip CreateTooltip(
-//	Manager& manager, std::string_view name, std::string_view content, const Color& text_color,
-//	const TextureHandle& texture_key
-//);
-//
-// } // namespace ptgn
+#pragma once
+
+#include <optional>
+#include <string>
+#include <string_view>
+#include <variant>
+
+#include "core/event/dispatcher.h"
+#include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/texture.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/game_object.h"
+#include "runtime/scripting/script.h"
+
+namespace ptgn {
+
+class Scene;
+
+namespace impl {
+
+class TooltipData {
+public:
+	std::size_t hash{ 0 };
+	GameObject text;
+	std::optional<GameObject> bg;
+};
+
+} // namespace impl
+
+class Tooltip : public Entity {
+public:
+	Tooltip() = default;
+	explicit Tooltip(Entity entity);
+
+	void Show(V2_float position);
+	void Hide();
+
+	/// @return Nullopt if no tooltip with the given name exists.
+	[[nodiscard]] static std::optional<Tooltip> Get(Scene& scene, std::string_view name);
+};
+
+struct TooltipHoverScript : public Script {
+	std::string name;
+	V2_float offset;
+
+	TooltipHoverScript() = default;
+
+	TooltipHoverScript(const std::string& name, V2_float offset);
+
+	void OnEvent(EventDispatcher d) override;
+
+	void OnCreate() override;
+
+	void OnMouseEnter();
+
+	void OnMouseLeave();
+
+private:
+	[[nodiscard]] Tooltip GetTooltip();
+};
+
+Tooltip CreateTooltip(
+	Scene& scene, std::string_view name, std::string_view content, Color text_color,
+	std::variant<std::monostate, Texture, std::string_view> texture
+);
+
+} // namespace ptgn

@@ -1,125 +1,169 @@
-// #include "ui/tooltip.h"
-//
-// #include <string>
-// #include <string_view>
-//
-// #include "core/app/manager.h"
-// #include "core/assert.h"
-// #include "ecs/components/draw.h"
-// #include "ecs/components/sprite.h"
-// #include "ecs/components/transform.h"
-// #include "ecs/entity.h"
-// #include "ecs/entity_hierarchy.h"
-// #include "ecs/game_object.h"
-// #include "core/scripting/script_interfaces.h"
-// #include "core/util/time.h"
-// #include "math/easing.h"
-// #include "math/hash.h"
-// #include "math/vector2.h"
-// #include "renderer/api/color.h"
-// #include "renderer/api/origin.h"
-//
-// #include "runtime/graphics/text.h"
-// #include "tween/tween_effect.h"
-//
-// namespace ptgn {
-//
-// Tooltip::Tooltip(const Entity& entity) : Entity{ entity } {}
-//
-// void Tooltip::Show(const V2_float& position) {
-//	SetPosition(*this, position);
-//
-//	auto& instance{ Entity::Get<impl::TooltipInstance>() };
-//
-//	milliseconds fade_in_duration{ 250 };
-//	SymmetricalEase fade_in_ease{ SymmetricalEase::Linear };
-//	bool fade_in_force{ true };
-//
-//	const auto fade_in = [=](auto& entity) {
-//		SetTint(entity, color::Transparent);
-//		FadeIn(entity, fade_in_duration, fade_in_ease, fade_in_force);
-//	};
-//
-//	fade_in(instance.text);
-//	fade_in(instance.bg);
-// }
-//
-// void Tooltip::Hide() {
-//	auto& instance{ Entity::Get<impl::TooltipInstance>() };
-//
-//	milliseconds fade_out_duration{ 250 };
-//	SymmetricalEase fade_out_ease{ SymmetricalEase::Linear };
-//	bool fade_out_force{ true };
-//
-//	const auto fade_out = [=](auto& entity) {
-//		FadeOut(entity, fade_out_duration, fade_out_ease, fade_out_force);
-//	};
-//
-//	fade_out(instance.text);
-//	fade_out(instance.bg);
-// }
-//
-// Tooltip Tooltip::Get(Manager& manager, std::string_view name) {
-//	auto key{ Hash(name) };
-//	for (auto [entity, tooltip] : manager.EntitiesWith<impl::TooltipInstance>()) {
-//		if (tooltip.hash == key) {
-//			return entity;
-//		}
-//	}
-//	return {};
-// }
-//
-// TooltipHoverScript::TooltipHoverScript(const std::string& name, const V2_float& offset) :
-//	name{ name }, offset{ offset } {}
-//
-// void TooltipHoverScript::OnCreate() {
-//	auto& manager{ entity.GetManager() };
-//	manager.Refresh();
-//	auto tooltip{ GetTooltip() };
-//	AddChild(entity, tooltip);
-// }
-//
-// void TooltipHoverScript::OnMouseEnter() {
-//	auto tooltip{ GetTooltip() };
-//	tooltip.Show(offset);
-// }
-//
-// void TooltipHoverScript::OnMouseLeave() {
-//	auto tooltip{ GetTooltip() };
-//	tooltip.Hide();
-// }
-//
-// Tooltip TooltipHoverScript::GetTooltip() {
-//	auto& manager{ entity.GetManager() };
-//	auto tooltip{ Tooltip::Get(manager, name) };
-//	PTGN_ASSERT(tooltip);
-//	return tooltip;
-// }
-//
-// Tooltip CreateTooltip(
-//	Manager& manager, std::string_view name, std::string_view content, const Color& text_color,
-//	const TextureHandle& texture_key
-//) {
-//	PTGN_ASSERT(
-//		Tooltip::Get(manager, name) == Tooltip{}, "Tooltip with the name: ", name,
-//		" already exists in the manager"
-//	);
-//
-//	Tooltip tooltip{ manager.CreateEntity() };
-//
-//	auto& instance{ tooltip.Add<impl::TooltipInstance>() };
-//
-//	instance.bg	  = CreateSprite(manager, texture_key, {}, Origin::Center);
-//	instance.text = CreateText(manager, content, text_color);
-//	instance.hash = Hash(name);
-//
-//	SetTint(instance.bg, color::Transparent);
-//	SetTint(instance.text, color::Transparent);
-//
-//	AddChild(tooltip, instance.bg);
-//	AddChild(tooltip, instance.text);
-//
-//	return tooltip;
-// }
-//
-// } // namespace ptgn
+#include "runtime/ui/tooltip.h"
+
+#include <optional>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <variant>
+
+#include "app/context.h"
+#include "core/assert.h"
+#include "core/event/dispatcher.h"
+#include "core/math/easing.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "core/time/time.h"
+#include "core/util/hash.h"
+#include "ecs/ecs.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/texture.h"
+#include "runtime/animation/tween_effect.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/game_object.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
+#include "runtime/scripting/script.h"
+
+namespace ptgn {
+
+Tooltip::Tooltip(Entity entity) : Entity{ entity } {}
+
+void Tooltip::Show(V2_float position) {
+	SetPosition(*this, position);
+
+	auto& instance{ Entity::Get<impl::TooltipData>() };
+
+	milliseconds fade_in_duration{ 250 };
+	Ease fade_in_ease{ Ease::Linear };
+	bool fade_in_force{ true };
+
+	const auto fade_in = [=](auto& entity) {
+		SetTint(entity, color::Transparent);
+		FadeIn(entity, fade_in_duration, fade_in_ease, fade_in_force);
+	};
+
+	fade_in(instance.text);
+
+	if (instance.bg.has_value()) {
+		fade_in(*instance.bg);
+	}
+}
+
+void Tooltip::Hide() {
+	auto& instance{ Entity::Get<impl::TooltipData>() };
+
+	milliseconds fade_out_duration{ 250 };
+	Ease fade_out_ease{ Ease::Linear };
+	bool fade_out_force{ true };
+
+	const auto fade_out = [=](auto& entity) {
+		FadeOut(entity, fade_out_duration, fade_out_ease, fade_out_force);
+	};
+
+	fade_out(instance.text);
+
+	if (instance.bg.has_value()) {
+		fade_out(*instance.bg);
+	}
+}
+
+std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view name) {
+	auto key{ Hash(name) };
+	for (auto [entity, tooltip] : scene.EntitiesWith<impl::TooltipData>()) {
+		if (tooltip.hash == key) {
+			return Tooltip{ entity };
+		}
+	}
+	return {};
+}
+
+TooltipHoverScript::TooltipHoverScript(const std::string& name, V2_float offset) :
+	name{ name }, offset{ offset } {}
+
+void TooltipHoverScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<MouseEnter>([this](const MouseEnter&) { OnMouseEnter(); });
+	d.Dispatch<MouseLeave>([this](const MouseLeave&) { OnMouseLeave(); });
+}
+
+void TooltipHoverScript::OnCreate() {
+	auto& manager{ entity.GetManager() };
+	manager.Refresh();
+	auto tooltip{ GetTooltip() };
+	AddChild(entity, tooltip);
+}
+
+void TooltipHoverScript::OnMouseEnter() {
+	auto tooltip{ GetTooltip() };
+	tooltip.Show(offset);
+}
+
+void TooltipHoverScript::OnMouseLeave() {
+	auto tooltip{ GetTooltip() };
+	tooltip.Hide();
+}
+
+Tooltip TooltipHoverScript::GetTooltip() {
+	auto& scene{ entity.GetScene() };
+	auto tooltip{ Tooltip::Get(scene, name) };
+	PTGN_ASSERT(
+		tooltip.has_value(), "Tooltip with the name: ", name, " does not exist in the manager"
+	);
+	return *tooltip;
+}
+
+Tooltip CreateTooltip(
+	Scene& scene, std::string_view name, std::string_view content, Color text_color,
+	std::variant<std::monostate, Texture, std::string_view> texture
+) {
+	PTGN_ASSERT(
+		!Tooltip::Get(scene, name).has_value(), "Tooltip with the name: ", name,
+		" already exists in the manager"
+	);
+
+	std::optional<Texture> resolved_texture;
+
+	std::visit(
+		[&](auto&& arg) {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, std::monostate>) {
+				resolved_texture = std::nullopt;
+			} else if constexpr (std::is_same_v<T, Texture>) {
+				resolved_texture = arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					scene.app().asset.HasTexture(arg),
+					"Texture key must be loaded in the asset manager before creating tooltip"
+				);
+
+				resolved_texture = *scene.app().asset.GetTexture(arg);
+			}
+		},
+		texture
+	);
+
+	Tooltip tooltip{ scene.CreateEntity() };
+
+	auto& instance{ tooltip.Add<impl::TooltipData>() };
+
+	instance.hash = Hash(name);
+
+	if (resolved_texture.has_value()) {
+		instance.bg = GameObject{ CreateSprite(scene, *resolved_texture, {}, Origin::Center) };
+		SetTint(*instance.bg, color::Transparent);
+		AddChild(tooltip, *instance.bg);
+	}
+
+	instance.text = GameObject{ CreateText(scene, content, text_color) };
+	SetTint(instance.text, color::Transparent);
+	AddChild(tooltip, instance.text);
+
+	return tooltip;
+}
+
+} // namespace ptgn
