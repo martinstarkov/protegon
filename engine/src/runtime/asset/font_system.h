@@ -4,10 +4,10 @@
 #include <optional>
 #include <string_view>
 
-#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "renderer/image/surface.h"
+#include "renderer/primitives/color.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 
@@ -22,6 +22,7 @@ struct SDL_IOStream;
 namespace ptgn {
 
 inline constexpr float kDefaultFontSize{ 18.0f };
+inline constexpr const char* kDefaultFontKey{ "" };
 
 class AssetManager;
 
@@ -44,8 +45,8 @@ public:
 
 	Font GetDefault() const;
 
-	// Empty font key corresponds to the engine default font.
-	void SetDefault(std::string_view key = {});
+	/// @brief Empty font key corresponds to the engine default font.
+	void SetDefault(std::string_view key = kDefaultFontKey);
 
 	int GetLineSkip(std::string_view key, std::optional<float> font_size) const;
 

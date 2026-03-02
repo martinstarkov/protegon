@@ -17,7 +17,6 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
@@ -25,10 +24,11 @@
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
 #include "renderer/image/surface.h"
+#include "renderer/primitives/color.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/fonts.h"
 #include "runtime/graphics/text.h"
-#include "runtime/asset/asset_manager.h"
 
 #ifdef CreateFont
 #undef CreateFont
@@ -59,8 +59,7 @@ static SDL_IOStream* GetRawBuffer(const FontBinary& binary) {
 }
 
 FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
-	constexpr std::string_view key{ "" };
-	constexpr auto hash{ Hash(key) };
+	constexpr auto hash{ Hash(kDefaultFontKey) };
 	if (!raw_default_font_) {
 		raw_default_font_ = GetRawBuffer(impl::GetLiberationSansRegular());
 		auto default_font{ LoadFromBinary(raw_default_font_, kDefaultFontSize, false) };
@@ -69,7 +68,7 @@ FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 		Font font{ assets_.CreateAsset(), true };
 		font.entity_.Add<impl::FontSize>(kDefaultFontSize);
 		font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
-		impl::AddAssetKey(font.entity_, key, {});
+		impl::AddAssetKey(font.entity_, kDefaultFontKey, {});
 	}
 	default_font_key_ = hash;
 }
