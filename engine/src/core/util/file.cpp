@@ -35,6 +35,10 @@ bool FileExists(const path& file_path) {
 	return fs::exists(file_path);
 }
 
+bool DirectoryExists(const path& directory_path) {
+	return fs::is_directory(directory_path);
+}
+
 path GetAbsolutePath(const path& relative_file_path) {
 	return fs::current_path() / relative_file_path;
 }
