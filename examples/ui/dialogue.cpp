@@ -14,8 +14,6 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
-
 struct DialogueScene : public Scene {
 	Entity npc;
 
@@ -59,7 +57,7 @@ struct DialogueScene : public Scene {
 			if (input.KeyPressed(Key::E)) {
 				dialogue->SetDialogue("epilogue");
 			}
-			dialogue->DrawInfo(-game_size * 0.5f);
+			dialogue->DrawInfo(-app().renderer.GetGameSize() * 0.5f);
 		}
 		if (input.KeyPressed(Key::A)) {
 			npc.Add<DialogueComponent>(
@@ -77,7 +75,6 @@ struct DialogueScene : public Scene {
 int main(int, char**) {
 	Application app{ "DialogueScene: Space: Show, Enter: Continue, N: Next, "
 					 "A/D: Add/Delete, I: Intro, O: "
-					 "Outro, E: Epilogue",
-					 game_size };
+					 "Outro, E: Epilogue" };
 	app.StartWith<DialogueScene>();
 }
