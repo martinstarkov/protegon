@@ -19,22 +19,20 @@ struct RotateEffectScene : public Scene {
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
 		sprite3 = CreateSprite(*this, "smile", { 200, -300 });
 
-		RotateTo(sprite1, DegToRad(180.0f), milliseconds{ 4000 }, SymmetricalEase::Linear);
-		RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 1000 }, SymmetricalEase::Linear, false);
-		RotateTo(sprite2, DegToRad(-180.0f), milliseconds{ 4000 }, SymmetricalEase::InOutSine);
-		RotateTo(sprite2, DegToRad(0.0f), milliseconds{ 1000 }, SymmetricalEase::InOutSine, false);
-		RotateTo(sprite3, DegToRad(360.0f), milliseconds{ 4000 }, AsymmetricalEase::InSine);
-		RotateTo(sprite3, DegToRad(0.0f), milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
+		RotateTo(sprite1, DegToRad(180.0f), milliseconds{ 4000 }, Ease::Linear);
+		RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 1000 }, Ease::Linear, false);
+		RotateTo(sprite2, DegToRad(-180.0f), milliseconds{ 4000 }, Ease::InOutSine);
+		RotateTo(sprite2, DegToRad(0.0f), milliseconds{ 1000 }, Ease::InOutSine, false);
+		RotateTo(sprite3, DegToRad(360.0f), milliseconds{ 4000 }, Ease::InSine);
+		RotateTo(sprite3, DegToRad(0.0f), milliseconds{ 1000 }, Ease::InSine, false);
 	}
 
 	void OnUpdate() override {
 		if (input.MousePressed(Mouse::Left)) {
-			RotateTo(
-				sprite1, DegToRad(360.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true
-			);
+			RotateTo(sprite1, DegToRad(360.0f), milliseconds{ 4000 }, Ease::Linear, true);
 		}
 		if (input.MousePressed(Mouse::Right)) {
-			RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 4000 }, SymmetricalEase::Linear, true);
+			RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 4000 }, Ease::Linear, true);
 		}
 	}
 };

@@ -1,6 +1,8 @@
 #include "runtime/ui/button.h"
 
 #include <functional>
+#include <iterator>
+#include <list>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -21,6 +23,7 @@
 #include "renderer/primitives/text.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
+#include "runtime/animation/animation.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/text_component.h"
@@ -38,6 +41,45 @@
 namespace ptgn {
 
 namespace impl {
+
+AnimatedButtonScript::AnimatedButtonScript(
+	std::optional<Animation> activate_animation, std::optional<Animation> hover_animation,
+	bool force_start_on_activate, bool force_start_on_hover_start, bool stop_on_hover_stop
+) :
+	activate_animation{ activate_animation },
+	hover_animation{ hover_animation },
+	force_start_on_activate{ force_start_on_activate },
+	force_start_on_hover_start{ force_start_on_hover_start },
+	stop_on_hover_stop{ stop_on_hover_stop } {
+	PTGN_ASSERT(
+		activate_animation.has_value() || hover_animation.has_value(),
+		"Animated button must have at least one animation provided (activate or hover)"
+	);
+}
+
+void AnimatedButtonScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<ButtonHoverStart>([this](const ButtonHoverStart&) { OnButtonHoverStart(); });
+	d.Dispatch<ButtonHoverStop>([this](const ButtonHoverStop&) { OnButtonHoverStop(); });
+	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) { OnButtonActivate(); });
+}
+
+void AnimatedButtonScript::OnButtonHoverStart() {
+	if (hover_animation.has_value()) {
+		hover_animation->Start(force_start_on_hover_start);
+	}
+}
+
+void AnimatedButtonScript::OnButtonHoverStop() {
+	if (hover_animation.has_value() && stop_on_hover_stop) {
+		hover_animation->Stop();
+	}
+}
+
+void AnimatedButtonScript::OnButtonActivate() {
+	if (activate_animation.has_value()) {
+		activate_animation->Start(force_start_on_activate);
+	}
+}
 
 ButtonDisabledTexture::ButtonDisabledTexture(const Texture& t) : Texture{ t } {}
 
@@ -394,9 +436,8 @@ void ButtonBase<Derived>::Draw(Renderer& renderer, Entity entity) {
 	UpdateStateProperty<impl::ButtonBorderColor>(button, state);
 	UpdateStateProperty<impl::ButtonBorderColorToggled>(button, state);
 
-	auto button_texture{ GetButtonTexture(button, is_toggled, state) };
-
-	if (button_texture.has_value()) {
+	if (auto button_texture{ GetButtonTexture(button, is_toggled, state) };
+		button_texture.has_value()) {
 		auto texture_tint{ GetEffectiveColor<impl::ButtonTint, impl::ButtonTintToggled>(
 			button, is_toggled, color::White
 		) };
@@ -1080,10 +1121,12 @@ ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton to
 
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
 
-	toggle_button.Add<impl::ToggleButtonGroupKey>(button_key);
+	impl::ToggleButtonGroupKey key{ button_key };
 
-	if (auto it{ info.buttons.find(button_key) }; it == info.buttons.end()) {
-		auto [new_it, inserted] = info.buttons.try_emplace(button_key, std::move(toggle_button));
+	toggle_button.Add<impl::ToggleButtonGroupKey>(key);
+
+	if (auto it{ info.buttons.find(key) }; it == info.buttons.end()) {
+		auto [new_it, inserted] = info.buttons.try_emplace(key, std::move(toggle_button));
 		PTGN_ASSERT(inserted, "Failed to insert toggle button");
 		ToggleButton btn{ new_it->second };
 		AddToggleScript(btn);
@@ -1098,17 +1141,12 @@ void ToggleButtonGroup::Remove(std::string_view button_key) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupData>());
 
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
+	impl::ToggleButtonGroupKey key{ button_key };
 
-	auto it{ info.buttons.find(button_key) };
-
-	if (it == info.buttons.end()) {
-		return;
-	}
-
-	info.buttons.erase(it);
+	info.buttons.erase(key);
 }
 
-ToggleButton ToggleButtonGroup::GetActive() const {
+std::optional<ToggleButton> ToggleButtonGroup::GetActive() const {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupData>());
 
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
@@ -1190,33 +1228,28 @@ ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 	return toggle_button_group;
 }
 
-// TODO: Fix.
-// Entity CreateAnimatedButton(
-//	Scene& scene, const V2_float& button_size, const Animation& activate_animation,
-//	const Animation& hover_animation, bool force_start_on_activate, bool force_start_on_hover_start,
-//	bool stop_on_hover_stop
-//) {
-//	auto button{ CreateButton(scene) };
-//
-//	if (activate_animation) {
-//		// TODO: Change this once AddChild takes an Entity and not Entity&.
-//		Entity activate{ activate_animation };
-//		AddChild(button, activate, "activate_animation");
-//	}
-//	if (hover_animation) {
-//		// TODO: Change this once AddChild takes an Entity and not Entity&.
-//		Entity hover{ hover_animation };
-//		AddChild(button, hover, "hover_animation");
-//	}
-//
-//	SetSize(button, button_size);
-//
-//	AddScript<impl::AnimatedButtonScript>(
-//		button, activate_animation, hover_animation, force_start_on_activate,
-//		force_start_on_hover_start, stop_on_hover_stop
-//	);
-//
-//	return button;
-//}
+Button CreateAnimatedButton(
+	Scene& scene, V2_float button_size, std::optional<Animation> activate_animation,
+	std::optional<Animation> hover_animation, bool force_start_on_activate,
+	bool force_start_on_hover_start, bool stop_on_hover_stop
+) {
+	auto button{ CreateButton(scene) };
+
+	if (activate_animation) {
+		AddChild(button, *activate_animation, "activate_animation");
+	}
+	if (hover_animation) {
+		AddChild(button, *hover_animation, "hover_animation");
+	}
+
+	button.SetSize(button_size);
+
+	AddScript<impl::AnimatedButtonScript>(
+		button, activate_animation, hover_animation, force_start_on_activate,
+		force_start_on_hover_start, stop_on_hover_stop
+	);
+
+	return button;
+}
 
 } // namespace ptgn

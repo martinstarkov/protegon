@@ -21,10 +21,10 @@ struct ShakeEffectScene : public Scene {
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
 		sprite3 = CreateSprite(*this, "smile", { 200, -300 });
 
-		Shake(sprite1, 1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::Linear, false, true);
-		Shake(sprite1, -1.0f, milliseconds{ 4000 }, {}, SymmetricalEase::Linear, false);
+		Shake(sprite1, 1.0f, milliseconds{ 4000 }, {}, Ease::Linear, false, true);
+		Shake(sprite1, -1.0f, milliseconds{ 4000 }, {}, Ease::Linear, false);
 		Shake(sprite2, 1.0f, milliseconds{ 4000 }, {}, false, true);
-		Shake(sprite3, 0.5f, milliseconds{ -1 }, {}, SymmetricalEase::Linear, false);
+		Shake(sprite3, 0.5f, milliseconds{ -1 }, {}, Ease::Linear, false);
 	}
 
 	void OnUpdate() override {

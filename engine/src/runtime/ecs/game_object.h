@@ -32,4 +32,10 @@ public:
 	GameObject& operator=(const GameObject&) = delete;
 };
 
+template <typename T>
+class TaggedGameObject : public GameObject {
+public:
+	using GameObject::GameObject;
+};
+
 } // namespace ptgn

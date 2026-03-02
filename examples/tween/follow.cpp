@@ -37,18 +37,19 @@ struct FollowEffectScene : public Scene {
 
 	std::vector<V2_float> waypoints;
 
-	Entity CreateFollower(const Color& color, const V2_float& start_position) {
+	Sprite CreateFollower(const Color& color, const V2_float& start_position) {
 		auto follower{ CreateSprite(*this, "smile", start_position) };
 		SetTint(follower, color);
 		return follower;
 	}
 
 	void OnEnter() override {
-		SetBackgroundColor(color::DarkGray);
+		// TODO: Fix scene bg color.
+		// SetBackgroundColor(color::DarkGray);
 
-		app().asset.Load("smile", "assets/smile.png");
+		app().asset.Load("smile", "assets/white_smile.png");
 
-		mouse = CreateEntity();
+		mouse = Sprite{ CreateEntity() };
 		SetPosition(mouse, {});
 
 		entity1 = CreateFollower(color::Red, { -300, -300 });

@@ -194,6 +194,15 @@ struct TweenRepeat : public Event<TweenRepeat> {};
 namespace impl {
 
 struct TweenPoint {
+	TweenPoint()		   = default;
+	~TweenPoint() noexcept = default;
+
+	TweenPoint(const TweenPoint&)			 = delete;
+	TweenPoint& operator=(const TweenPoint&) = delete;
+
+	TweenPoint(TweenPoint&&) noexcept			 = default;
+	TweenPoint& operator=(TweenPoint&&) noexcept = default;
+
 	bool operator==(const TweenPoint&) const = default;
 
 	/// @brief Current number of repetitions of the tween.
@@ -242,6 +251,15 @@ PTGN_SERIALIZE_ENUM(
 );
 
 struct TweenInstance {
+	TweenInstance()			  = default;
+	~TweenInstance() noexcept = default;
+
+	TweenInstance(const TweenInstance&)			   = delete;
+	TweenInstance& operator=(const TweenInstance&) = delete;
+
+	TweenInstance(TweenInstance&&) noexcept			   = default;
+	TweenInstance& operator=(TweenInstance&&) noexcept = default;
+
 	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
 	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
 	/// is reversed or yoyoing.
@@ -265,7 +283,7 @@ struct TweenCallbackScript : public Script {
 
 	explicit TweenCallbackScript(const TweenCallback& callback) : callback_{ callback } {}
 
-	void OnEvent(EventDispatcher& d) override {
+	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<T>([this](const T&) { std::invoke(callback_, entity); });
 	}
 
@@ -306,9 +324,9 @@ std::ostream& operator<<(std::ostream& os, impl::TweenState state);
 
 template <typename T, typename... TArgs>
 Tween& Tween::AddScript(TArgs&&... args) {
-	auto& script{ GetLastTweenPoint().script_container_.AddScript<T>(std::forward<TArgs>(args)...
-	) };
-	script.entity = *this;
+	auto& script{
+		GetLastTweenPoint().script_container_.Add<T>(*this, std::forward<TArgs>(args)...)
+	};
 	return *this;
 }
 

@@ -23,36 +23,27 @@ struct BounceEffectScene : public Scene {
 		sprite2 = CreateSprite(*this, "smile", V2_float{ 0, 0 });
 		sprite3 = CreateSprite(*this, "smile", V2_float{ -250, 0 });
 
-		Bounce(sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, AsymmetricalEase::InSine, {}, true);
-		Bounce(sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, AsymmetricalEase::OutSine, {}, true);
-		Bounce(
-			sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, SymmetricalEase::InOutSine, {}, true
-		);
+		Bounce(sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InSine, {}, true);
+		Bounce(sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::OutSine, {}, true);
+		Bounce(sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutSine, {}, true);
 	}
 
 	void OnUpdate() override {
 		if (input.MousePressed(Mouse::Left)) {
 			SymmetricalBounce(
-				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, SymmetricalEase::Linear, {}, true
+				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::Linear, {}, true
 			);
 			SymmetricalBounce(
-				sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, SymmetricalEase::InOutSine, {}, true
+				sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutSine, {}, true
 			);
 			SymmetricalBounce(
-				sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, SymmetricalEase::InOutElastic, {},
-				true
+				sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutElastic, {}, true
 			);
 		}
 		if (input.MousePressed(Mouse::Right)) {
-			Bounce(
-				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, AsymmetricalEase::InSine, {}, true
-			);
-			Bounce(
-				sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, AsymmetricalEase::OutSine, {}, true
-			);
-			Bounce(
-				sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, SymmetricalEase::InOutSine, {}, true
-			);
+			Bounce(sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InSine, {}, true);
+			Bounce(sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::OutSine, {}, true);
+			Bounce(sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutSine, {}, true);
 		}
 	}
 };

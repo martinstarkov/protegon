@@ -2,116 +2,114 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <functional>
 #include <string>
-#include <string_view>
-#include <tuple>
 #include <vector>
 
 #include "app/application.h"
-#include "runtime/ecs/manager.h"
+#include "app/context.h"
+#include "core/assert.h"
+#include "core/event/dispatcher.h"
+#include "core/graphics/color.h"
+#include "core/log.h"
+#include "core/math/easing.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
+#include "core/time/time.h"
+#include "ecs/ecs.h"
+#include "platform/input/key.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/components/draw.h"
 #include "runtime/ecs/components/relatives.h"
+#include "runtime/ecs/components/shape.h"
+#include "runtime/ecs/components/text_component.h"
 #include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "runtime/scripting/script.h"
-#include "core/time/time.h"
-#include "core/log.h"
-#include "core/assert.h"
-#include "ecs/ecs.h"
-#include "core/math/easing.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/hash.h"
-#include "core/math/vector2.h"
-#include "core/graphics/color.h"
-#include "core/math/geometry/origin.h"
-#include "renderer/renderer.h"
-#include "renderer/primitives/text.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
 
 using namespace ptgn;
 
-class TweenScriptA : public Script<TweenScriptA, TweenScript> {
+class TweenScriptA : public Script {
 public:
-	void OnComplete() override {
-		PTGN_LOG("Completed tween A");
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<TweenComplete>([this](auto e) { PTGN_LOG("Completed tween A"); });
 	}
 };
 
-class TweenScriptB : public Script<TweenScriptB, TweenScript> {
+class TweenScriptB : public Script {
 public:
-	void OnPause() override {
-		PTGN_LOG("Paused tween B");
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<TweenPause>([this](auto e) { PTGN_LOG("Paused tween B"); });
 	}
 };
 
-class TweenScriptC : public Script<TweenScriptC, TweenScript> {
+class TweenScriptC : public Script {
 public:
-	void OnStart() override {
-		PTGN_LOG("Starting tween C with value ", Tween{ entity }.GetProgress());
-	}
-
-	void OnProgress([[maybe_unused]] float f) override {
-		// PTGN_LOG("Updated Value: ", Tween{ entity }.GetProgress());
-	}
-
-	void OnComplete() override {
-		PTGN_LOG("Completed tween C with value ", Tween{ entity }.GetProgress());
-	}
-
-	void OnStop() override {
-		PTGN_LOG("Stopped tween C with value ", Tween{ entity }.GetProgress());
-	}
-
-	void OnPause() override {
-		PTGN_LOG("Paused tween C with value ", Tween{ entity }.GetProgress());
-	}
-
-	void OnResume() override {
-		PTGN_LOG("Resumed tween C with value ", Tween{ entity }.GetProgress());
-	}
-
-	void OnRepeat() override {
-		PTGN_ERROR("This repeat should never be triggered for tween C");
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<TweenRepeat>([this](auto e) {
+			PTGN_ERROR("This repeat should never be triggered for tween C");
+		});
+		d.Dispatch<TweenResume>([this](auto e) {
+			PTGN_LOG("Resumed tween C with value ", Tween{ entity }.GetProgress());
+		});
+		d.Dispatch<TweenPause>([this](auto e) {
+			PTGN_LOG("Paused tween C with value ", Tween{ entity }.GetProgress());
+		});
+		d.Dispatch<TweenStop>([this](auto e) {
+			PTGN_LOG("Stopped tween C with value ", Tween{ entity }.GetProgress());
+		});
+		d.Dispatch<TweenComplete>([this](auto e) {
+			PTGN_LOG("Completed tween C with value ", Tween{ entity }.GetProgress());
+		});
+		d.Dispatch<TweenStart>([this](auto e) {
+			PTGN_LOG("Starting tween C with value ", Tween{ entity }.GetProgress());
+		});
+		d.Dispatch<TweenProgress>([this](auto e) {
+			// PTGN_LOG("Updated Value: ", Tween{ entity }.GetProgress());
+		});
 	}
 };
 
-class TweenScriptE : public Script<TweenScriptE, TweenScript> {
+class TweenScriptE : public Script {
 public:
-	void OnRepeat() override {
-		PTGN_LOG("Repeating tween E (repeat #", Tween{ entity }.GetRepeats(), ")");
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<TweenRepeat>([this](auto e) {
+			PTGN_LOG("Repeating tween E (repeat #", Tween{ entity }.GetRepeats(), ")");
+		});
 	}
 };
 
-class TweenScriptG : public Script<TweenScriptG, TweenScript> {
+class TweenScriptG : public Script {
 public:
-	void OnYoyo() override {
-		PTGN_LOG("Yoyoing tween G (repeat #", Tween{ entity }.GetRepeats(), ")");
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<TweenYoyo>([this](auto e) {
+			PTGN_LOG("Yoyoing tween G (repeat #", Tween{ entity }.GetRepeats(), ")");
+		});
 	}
 };
 
-class TweenScriptI : public Script<TweenScriptI, TweenScript> {
+class TweenScriptI : public Script {
 public:
-	void OnRepeat() override {
-		PTGN_LOG("Infinitely repeating tween I (repeat #", Tween{ entity }.GetRepeats(), ")");
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<TweenRepeat>([this](auto e) {
+			PTGN_LOG("Infinitely repeating tween I (repeat #", Tween{ entity }.GetRepeats(), ")");
+		});
 	}
 };
 
-class TweenScriptCustom : public Script<TweenScriptCustom, TweenScript> {
+class TweenScriptCustom : public Script {
 public:
-	TweenScriptCustom() {}
-
-	void OnPointComplete() override {
-		SetTint(GetParent(entity), Color::RandomOpaque());
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<TweenPointComplete>([this](auto e) {
+			SetTint(GetParent(entity), Color::RandomOpaque());
+		});
 	}
 };
 
 void SetProgress(const V2_float& size, const Entity& e, float progress) {
-	V2_float res{ app().renderer.GetGameSize() };
+	V2_float res{ e.GetScene().app().renderer.GetGameSize() };
 	auto width{ res.x - size.x };
 	Entity target{ e };
 	if (HasParent(e)) {
@@ -183,12 +181,9 @@ public:
 		tweenK.Yoyo().Repeat(-1);
 		tweenL.Yoyo().Repeat(-1).Reverse();
 
-		tweenM.Ease(SymmetricalEase::InOutQuart)
-			.Yoyo()
-			.Repeat(-1)
-			.Reverse()
-			.OnRepeat([](auto entity) { PTGN_LOG("Lambda repeat: ", Tween{ entity }.GetRepeats()); }
-			);
+		tweenM.Ease(Ease::InOutQuart).Yoyo().Repeat(-1).Reverse().OnRepeat([](auto entity) {
+			PTGN_LOG("Lambda repeat: ", Tween{ entity }.GetRepeats());
+		});
 
 		tweenN.AddScript<TweenScriptCustom>()
 			.During(duration)
@@ -216,7 +211,7 @@ public:
 
 		Refresh();
 
-		auto tween_count{ EntitiesWith<Rect>().GetVector().size() };
+		auto tween_count{ EntitiesWith<Rect>().view.GetVector().size() };
 
 		PTGN_ASSERT(tween_count > 0);
 
@@ -224,8 +219,10 @@ public:
 		size   = { 0.0f, res.y / static_cast<float>(tween_count) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
 
-		for (auto e : EntitiesWithout<Parent>()) {
-			PTGN_ASSERT(e.Has<Rect>());
+		for (auto e : EntitiesWithout<impl::Parent>()) {
+			if (!e.Has<Rect>()) {
+				continue;
+			}
 			e.Get<Rect>() = Rect{ size };
 			auto position{ GetNextPosition() };
 			SetPosition(e, position);
@@ -238,8 +235,10 @@ public:
 
 	void OnUpdate() override {
 		if (input.KeyPressed(Key::T)) {
-			for (auto e : EntitiesWithout<Parent>()) {
-				PTGN_ASSERT(e.Has<Rect>());
+			for (auto e : EntitiesWithout<impl::Parent>()) {
+				if (!e.Has<Rect>()) {
+					continue;
+				}
 				Tween tween{ GetChild(e, "tween") };
 				if (tween.IsPaused()) {
 					tween.Resume();
@@ -250,16 +249,20 @@ public:
 		}
 
 		if (input.KeyPressed(Key::R)) {
-			for (auto e : EntitiesWithout<Parent>()) {
-				PTGN_ASSERT(e.Has<Rect>());
+			for (auto e : EntitiesWithout<impl::Parent>()) {
+				if (!e.Has<Rect>()) {
+					continue;
+				}
 				Tween tween{ GetChild(e, "tween") };
 				tween.Start();
 			}
 		}
 
 		if (input.KeyPressed(Key::S)) {
-			for (auto e : EntitiesWithout<Parent>()) {
-				PTGN_ASSERT(e.Has<Rect>());
+			for (auto e : EntitiesWithout<impl::Parent>()) {
+				if (!e.Has<Rect>()) {
+					continue;
+				}
 				Tween tween{ GetChild(e, "tween") };
 				tween.Stop();
 			}

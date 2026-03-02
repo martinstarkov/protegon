@@ -1,5 +1,7 @@
 #include "runtime/ecs/components/sprite.h"
 
+#include <string_view>
+
 #include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
@@ -41,8 +43,15 @@ Sprite CreateSprite(Scene& scene, Texture texture, V2_float position, Origin dra
 	return sprite;
 }
 
-Sprite CreateSprite(Scene& scene, const path& asset_path, V2_float position, Origin draw_origin) {
-	return CreateSprite(scene, scene.app().asset.CreateTexture(asset_path), position, draw_origin);
+Sprite CreateSprite(
+	Scene& scene, std::string_view texture_key, V2_float position, Origin draw_origin
+) {
+	PTGN_ASSERT(
+		scene.app().asset.HasTexture(texture_key),
+		"Texture key must be loaded in the asset manager before creating an entity with it"
+	);
+	auto texture{ *scene.app().asset.GetTexture(texture_key) };
+	return CreateSprite(scene, texture, position, draw_origin);
 }
 
 } // namespace ptgn

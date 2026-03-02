@@ -168,4 +168,22 @@ std::ostream& operator<<(std::ostream& os, Ease ease) {
 	}
 }
 
+bool IsSymmetricalEase(Ease ease) {
+	switch (ease) {
+		using enum Ease;
+		case Linear:
+		case InOutSine:
+		case InOutQuad:
+		case InOutCubic:
+		case InOutQuart:
+		case InOutQuint:
+		case InOutExpo:
+		case InOutCirc:
+		case InOutElastic:
+		case InOutBack:
+		case InOutBounce:  return true;
+		default:		   return false;
+	}
+}
+
 } // namespace ptgn

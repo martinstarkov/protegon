@@ -23,9 +23,10 @@ struct FadeEffectScene : public Scene {
 	Sprite sprite2;
 
 	void OnEnter() override {
-		SetBackgroundColor(color::LightBlue);
+		// TODO: Fix scene bg color.
+		// SetBackgroundColor(color::LightBlue);
 
-		app().asset.Load("tree", "assets/tree.jpg");
+		app().asset.Load("tree", "assets/jpg.jpg");
 		app().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -200, -200 });
@@ -33,18 +34,18 @@ struct FadeEffectScene : public Scene {
 
 		SetTint(sprite1, color::Transparent);
 
-		FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear);
-		FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, false);
-		FadeOut(sprite2, milliseconds{ 4000 }, AsymmetricalEase::InSine);
-		FadeIn(sprite2, milliseconds{ 4000 }, AsymmetricalEase::InSine, false);
+		FadeIn(sprite1, milliseconds{ 4000 }, Ease::Linear);
+		FadeOut(sprite1, milliseconds{ 4000 }, Ease::Linear, false);
+		FadeOut(sprite2, milliseconds{ 4000 }, Ease::InSine);
+		FadeIn(sprite2, milliseconds{ 4000 }, Ease::InSine, false);
 	}
 
 	void OnUpdate() override {
 		if (input.MousePressed(Mouse::Left)) {
-			FadeIn(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
+			FadeIn(sprite1, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 		if (input.MousePressed(Mouse::Right)) {
-			FadeOut(sprite1, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
+			FadeOut(sprite1, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 		if (input.KeyPressed(Key::T)) {
 			FadeOut(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([](Entity) {

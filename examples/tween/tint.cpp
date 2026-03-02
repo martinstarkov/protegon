@@ -17,7 +17,7 @@ struct TintEffectScene : public Scene {
 	Sprite sprite4;
 
 	void OnEnter() override {
-		app().asset.Load("tree", "assets/tree.jpg");
+		app().asset.Load("tree", "assets/jpg.jpg");
 		app().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -300, -300 });
@@ -25,22 +25,22 @@ struct TintEffectScene : public Scene {
 		sprite3 = CreateSprite(*this, "tree", { 200, -300 });
 		sprite4 = CreateSprite(*this, "smile", { 200, 200 });
 
-		TintTo(sprite1, color::Red, milliseconds{ 4000 }, SymmetricalEase::Linear);
-		TintTo(sprite1, color::White, milliseconds{ 1000 }, SymmetricalEase::Linear, false);
-		TintTo(sprite2, color::Green, milliseconds{ 4000 }, SymmetricalEase::InOutSine);
-		TintTo(sprite2, color::White, milliseconds{ 1000 }, SymmetricalEase::InOutSine, false);
-		TintTo(sprite3, color::Blue, milliseconds{ 4000 }, AsymmetricalEase::InSine);
-		TintTo(sprite3, color::White, milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
-		TintTo(sprite4, { 0, 0, 255, 128 }, milliseconds{ 4000 }, AsymmetricalEase::InSine);
-		TintTo(sprite4, color::White, milliseconds{ 1000 }, AsymmetricalEase::InSine, false);
+		TintTo(sprite1, color::Red, milliseconds{ 4000 }, Ease::Linear);
+		TintTo(sprite1, color::White, milliseconds{ 1000 }, Ease::Linear, false);
+		TintTo(sprite2, color::Green, milliseconds{ 4000 }, Ease::InOutSine);
+		TintTo(sprite2, color::White, milliseconds{ 1000 }, Ease::InOutSine, false);
+		TintTo(sprite3, color::Blue, milliseconds{ 4000 }, Ease::InSine);
+		TintTo(sprite3, color::White, milliseconds{ 1000 }, Ease::InSine, false);
+		TintTo(sprite4, { 0, 0, 255, 128 }, milliseconds{ 4000 }, Ease::InSine);
+		TintTo(sprite4, color::White, milliseconds{ 1000 }, Ease::InSine, false);
 	}
 
 	void OnUpdate() override {
 		if (input.MousePressed(Mouse::Left)) {
-			TintTo(sprite1, color::Purple, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
+			TintTo(sprite1, color::Purple, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 		if (input.MousePressed(Mouse::Right)) {
-			TintTo(sprite1, color::White, milliseconds{ 4000 }, SymmetricalEase::Linear, true);
+			TintTo(sprite1, color::White, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 	}
 };

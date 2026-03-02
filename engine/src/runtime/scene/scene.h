@@ -296,6 +296,8 @@ public:
 
 	[[nodiscard]] std::size_t GetEntityCount() const;
 
+	[[nodiscard]] RenderTarget GetRenderTarget() const;
+
 private:
 	friend class SceneManager;
 	friend class EventHandler;
@@ -304,8 +306,6 @@ private:
 	friend class SceneEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
-
-	[[nodiscard]] Entity GetRenderTarget() const;
 
 	template <auto Member>
 	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {

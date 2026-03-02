@@ -1,9 +1,10 @@
 #pragma once
 
+#include <string_view>
+
 #include "core/component.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "renderer/resources/texture.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/entity.h"
@@ -51,7 +52,7 @@ Sprite CreateSprite(
 );
 
 Sprite CreateSprite(
-	Scene& scene, const path& asset_path, V2_float position = {},
+	Scene& scene, std::string_view texture_key, V2_float position = {},
 	Origin draw_origin = Origin::Center
 );
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -19,6 +18,7 @@
 #include "renderer/primitives/font.h"
 #include "renderer/primitives/text.h"
 #include "renderer/resources/texture.h"
+#include "runtime/animation/animation.h"
 #include "runtime/ecs/components/drawable.h"
 #include "runtime/ecs/components/text_component.h"
 #include "runtime/ecs/entity.h"
@@ -173,49 +173,31 @@ private:
 	void OnButtonActivate() const;
 };
 
-// TODO: Fix.
-// struct AnimatedButtonScript : public Script {
-//	AnimatedButtonScript() = default;
-//
-//	AnimatedButtonScript(
-//		const Animation& activate_animation, const Animation& hover_animation = {},
-//		bool force_start_on_activate = true, bool force_start_on_hover_start = true,
-//		bool stop_on_hover_stop = true
-//	) :
-//		activate_animation{ activate_animation },
-//		hover_animation{ hover_animation },
-//		force_start_on_activate{ force_start_on_activate },
-//		force_start_on_hover_start{ force_start_on_hover_start },
-//		stop_on_hover_stop{ stop_on_hover_stop } {}
-//
-//	Animation activate_animation;
-//	Animation hover_animation;
-//
-//	bool force_start_on_activate{ true };
-//
-//	bool force_start_on_hover_start{ true };
-//	bool stop_on_hover_stop{ true };
-//
-//	void OnButtonHoverStart() override {
-//		if (hover_animation) {
-//			hover_animation.Start(force_start_on_hover_start);
-//		}
-//	}
-//
-//	// void OnButtonHover() {}
-//
-//	void OnButtonHoverStop() override {
-//		if (hover_animation && stop_on_hover_stop) {
-//			hover_animation.Stop();
-//		}
-//	}
-//
-//	void OnButtonActivate() override {
-//		if (activate_animation) {
-//			activate_animation.Start(force_start_on_activate);
-//		}
-//	}
-//};
+struct AnimatedButtonScript : public Script {
+	AnimatedButtonScript() = default;
+
+	explicit AnimatedButtonScript(
+		std::optional<Animation> activate_animation, std::optional<Animation> hover_animation = {},
+		bool force_start_on_activate = true, bool force_start_on_hover_start = true,
+		bool stop_on_hover_stop = true
+	);
+
+	void OnEvent(EventDispatcher d) override;
+
+	void OnButtonHoverStart();
+
+	void OnButtonHoverStop();
+
+	void OnButtonActivate();
+
+	std::optional<Animation> activate_animation;
+	std::optional<Animation> hover_animation;
+
+	bool force_start_on_activate{ true };
+
+	bool force_start_on_hover_start{ true };
+	bool stop_on_hover_stop{ true };
+};
 
 struct ToggleButtonGroupKey : public HashComponent {
 	using HashComponent::HashComponent;
@@ -229,8 +211,8 @@ namespace std {
 
 template <>
 struct hash<ptgn::impl::ToggleButtonGroupKey> {
-	std::size_t operator()(const ptgn::impl::ToggleButtonGroupKey& group_key) const {
-		return group_key.GetHash();
+	std::size_t operator()(const ptgn::impl::ToggleButtonGroupKey& key) const {
+		return key.GetHash();
 	}
 };
 
@@ -242,7 +224,7 @@ namespace impl {
 
 struct ToggleButtonGroupData {
 	ToggleButtonGroupData()											   = default;
-	~ToggleButtonGroupData()										   = default;
+	~ToggleButtonGroupData() noexcept								   = default;
 	ToggleButtonGroupData(ToggleButtonGroupData&&) noexcept			   = default;
 	ToggleButtonGroupData& operator=(ToggleButtonGroupData&&) noexcept = default;
 	ToggleButtonGroupData(const ToggleButtonGroupData&)				   = delete;
@@ -330,7 +312,7 @@ struct ButtonTexture {
 	Texture hover_;
 	Texture pressed_;
 
-	// TODO: Fix.
+	// TODO: Fix serialization.
 	// PTGN_SERIALIZER_REGISTER_NAMED(
 	//	ButtonTexture, KeyValue("default", default_), KeyValue("hover", hover_),
 	//	KeyValue("pressed", pressed_)
@@ -492,7 +474,7 @@ public:
 	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 
-	// TODO: Fix.
+	// TODO: Fix OnToggle callback.
 	// ToggleButton& OnToggle(const std::function<void(bool)>& callback);
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
@@ -522,8 +504,8 @@ public:
 
 	void SetActive(std::string_view button_key);
 
-	/// @return Active button, or null entity if no button is active.
-	[[nodiscard]] ToggleButton GetActive() const;
+	/// @return Active button, or nullopt if no button is active.
+	[[nodiscard]] std::optional<ToggleButton> GetActive() const;
 
 	void AddToggleScript(ToggleButton toggle_button) const;
 
@@ -561,12 +543,11 @@ ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
 
-// TODO: Fix.
-// Entity CreateAnimatedButton(
-//	Scene& scene, V2_float button_size, const Animation& activate_animation,
-//	const Animation& hover_animation = {}, bool force_start_on_activate = true,
-//	bool force_start_on_hover_start = true, bool stop_on_hover_stop = true
-//);
+Button CreateAnimatedButton(
+	Scene& scene, V2_float button_size, std::optional<Animation> activate_animation,
+	std::optional<Animation> hover_animation = {}, bool force_start_on_activate = true,
+	bool force_start_on_hover_start = true, bool stop_on_hover_stop = true
+);
 
 PTGN_REGISTER_DRAWABLE(Button);
 

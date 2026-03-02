@@ -20,6 +20,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/render_target.h"
 #include "renderer/resources/texture.h"
+#include "runtime/animation/animation.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/components/camera_component.h"
 #include "runtime/ecs/components/draw.h"
@@ -245,8 +246,7 @@ void Scene::InternalUpdate() {
 	// TODO: Fix.
 	// ParticleEmitter::Update(*this);
 	Tween::Update(*this, app().DeltaTime());
-	// TODO: Fix.
-	// impl::AnimationSystem::Update(*this);
+	impl::AnimationSystem::Update(*this);
 	// TODO: Fix.
 	// Lifetime::Update(*this);
 	physics.PreCollisionUpdate(*this);
@@ -300,7 +300,7 @@ Entity Scene::CreateEntity(const json& j) {
 //	return {};
 //}
 
-Entity Scene::GetRenderTarget() const {
+RenderTarget Scene::GetRenderTarget() const {
 	return render_target_;
 }
 

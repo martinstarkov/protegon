@@ -206,7 +206,7 @@ public:
 			mouse.SetPosition( =
 				camera.TransformToCamera(input.GetMousePosition());
 			//camera.PanTo(camera.TransformToCamera(input.GetMousePosition()),
-seconds{ 4 },SymmetricalEase::InOutSine, false); } else if (input.MousePressed(Mouse::Right)) {
+seconds{ 4 },Ease::InOutSine, false); } else if (input.MousePressed(Mouse::Right)) {
 			StopFollow(camera);
 		}
 
@@ -287,10 +287,10 @@ public:
 
 		// Shake(camera, 0.5f, seconds{ 5 });
 		// RotateTo(camera, DegToRad(360.0f), seconds{ 5 });
-		// Shake(camera, 1, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
-		// Shake(camera, 0, seconds{ 5 }, {}, SymmetricalEase::Linear, false);
+		// Shake(camera, 1, seconds{ 5 }, {}, Ease::Linear, false);
+		// Shake(camera, 0, seconds{ 5 }, {}, Ease::Linear, false);
 		// FadeTo(camera, color::Red, seconds{ 5 });
-		// FadeFrom(camera, color::Red, seconds{ 3 }, SymmetricalEase::InOutBack, false);
+		// FadeFrom(camera, color::Red, seconds{ 3 }, Ease::InOutBack, false);
 		// StartFollow(camera, mouse, follow_config);
 	}
 

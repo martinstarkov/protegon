@@ -51,6 +51,8 @@ enum class Ease {
 
 std::ostream& operator<<(std::ostream& os, Ease ease);
 
+[[nodiscard]] bool IsSymmetricalEase(Ease ease);
+
 [[nodiscard]] float ApplyEase(float t, Ease ease);
 
 PTGN_SERIALIZE_ENUM(

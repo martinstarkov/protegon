@@ -25,7 +25,6 @@ struct Transform {
 
 	[[nodiscard]] Transform InverseRelativeTo(const Transform& parent) const;
 
-	// Dirty flags should not be compared.
 	friend bool operator==(const Transform& a, const Transform& b) {
 		return a.position_ == b.position_ && NearlyEqual(a.rotation_, b.rotation_) &&
 			   a.scale_ == b.scale_;
@@ -34,30 +33,30 @@ struct Transform {
 	[[nodiscard]] V2_float GetPosition() const;
 
 	Transform& SetPosition(V2_float position);
-	// Set position along a particular axis: x == 0, y == 1.
+	/// @brief Set position along a particular axis: x == 0, y == 1.
 	Transform& SetPosition(std::size_t index, float position);
 	Transform& SetPositionX(float x);
 	Transform& SetPositionY(float y);
 
-	// position += position_difference
+	/// @brief position += position_difference
 	Transform& Translate(V2_float position_difference);
 	Transform& TranslateX(float position_x_difference);
 	Transform& TranslateY(float position_y_difference);
 
-	// @return Unit: Radians, Direction: Clockwise positive.
+	/// @return Unit: Radians, Direction: Clockwise positive.
 	[[nodiscard]] float GetRotation() const;
 
-	// @param rotation Unit: Radians, Direction: Clockwise positive.
+	/// @param rotation Unit: Radians, Direction: Clockwise positive.
 	Transform& SetRotation(float rotation);
 
-	// @param angle_difference Unit: Radians, Direction: Clockwise positive.
-	// rotation += angle_difference
+	/// @brief rotation += angle_difference
+	/// @param angle_difference Unit: Radians, Direction: Clockwise positive.
 	Transform& Rotate(float angle_difference);
 
-	// Clamps rotation between [0, 2 pi).
+	/// @brief Clamps rotation between [0, 2 pi).
 	Transform& ClampRotation();
 
-	// @return (scale_x + scale_y) / 2
+	/// @return (scale_x + scale_y) / 2
 	[[nodiscard]] float GetAverageScale() const;
 
 	[[nodiscard]] V2_float GetScale() const;
@@ -67,7 +66,7 @@ struct Transform {
 	Transform& SetScaleX(float x);
 	Transform& SetScaleY(float y);
 
-	// scale *= scale_multiplier
+	/// @brief scale *= scale_multiplier
 	Transform& Scale(V2_float scale_multiplier);
 	Transform& ScaleX(float scale_x_multiplier);
 	Transform& ScaleY(float scale_y_multiplier);
@@ -114,9 +113,11 @@ private:
 
 	V2_float position_;
 
-	// @param rotation Unit: Radians, Direction: Clockwise positive.
+	/// @param rotation Unit: Radians, Direction: Clockwise positive.
 	float rotation_{ 0.0f };
 
+	/// @brief Can be negative but not zero. Negative scale will flip the transform across the
+	/// corresponding axis.
 	V2_float scale_{ 1.0f, 1.0f };
 
 	PTGN_SERIALIZER_REGISTER_NAMED_IGNORE_DEFAULTS(
