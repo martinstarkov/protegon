@@ -7,6 +7,7 @@
 
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
+#include "ecs/ecs.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
@@ -68,10 +69,6 @@ struct SceneEntityRange {
 			return it == other.it;
 		}
 
-		bool operator!=(const iterator& other) const {
-			return it != other.it;
-		}
-
 		auto operator*() const {
 			// underlying is ecs::Entity
 			auto native_entity = *it;
@@ -122,10 +119,6 @@ struct SceneEntitiesWithRange {
 
 		bool operator==(const iterator& other) const {
 			return it == other.it;
-		}
-
-		bool operator!=(const iterator& other) const {
-			return it != other.it;
 		}
 
 		auto operator*() const {
@@ -195,6 +188,9 @@ public:
 	// void SetBackgroundColor(Color background_color);
 	//[[nodiscard]] Color GetBackgroundColor() const;
 
+	/// @return {} if no entity with the given uuid exists in the manager.
+	[[nodiscard]] Entity GetEntityByUUID(UUID uuid) const;
+
 	/// Make sure to call Refresh() after this function.
 	Entity CreateEntity();
 
@@ -210,8 +206,14 @@ public:
 	template <typename... Ts>
 	Entity CopyEntity(Entity from) {
 		auto entity{ manager_.CopyEntity<Ts...>(from) };
-		// entity.template Add<SceneKey>(key_);
+		entity.template Add<UUID>();
 		return entity;
+	}
+
+	template <typename... Ts>
+	void CopyEntity(const Entity& from, Entity& to) {
+		manager_.CopyEntity<UUID>(from.entity_, to.entity_);
+		manager_.CopyEntity<Ts...>(from.entity_, to.entity_);
 	}
 
 	auto Entities() {

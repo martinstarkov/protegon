@@ -9,73 +9,15 @@
 #include "core/assert.h"
 #include "ecs/ecs.h"
 #include "runtime/ecs/component_registry.h"
-#include "runtime/ecs/entity.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
 
-void Manager::Refresh() {
-	ManagerBase::Refresh();
-}
-
-void Manager::Reserve(std::size_t capacity) {
-	ManagerBase::Reserve(capacity);
-}
-
-Entity Manager::GetEntityByUUID(const UUID& uuid) const {
-	auto entities{ Entities() };
-	for (Entity e : entities) {
-		PTGN_ASSERT(e.Has<UUID>(), "Entity does not have a valid UUID component");
-		if (e.Get<UUID>() == uuid) {
-			return e;
-		}
-	}
-	return {};
-}
-
-Entity Manager::CreateEntity(const json& j) {
-	Entity entity{ Manager::CreateEntity() };
-	PTGN_ASSERT(entity, "Failed to create entity");
-	entity.Deserialize(j);
-	PTGN_ASSERT(entity.Has<UUID>(), "Entity created from json must have a UUID");
-	return entity;
-}
-
-Entity Manager::CreateEntity(UUID uuid) {
-	Entity entity{ ManagerBase::CreateEntity() };
-	entity.Add<UUID>(uuid);
-	return entity;
-}
-
-Entity Manager::CreateEntity() {
-	return CreateEntity(UUID{});
-}
-
-std::size_t Manager::Size() const {
-	return ManagerBase::Size();
-}
-
-bool Manager::IsEmpty() const {
-	return ManagerBase::IsEmpty();
-}
-
-std::size_t Manager::Capacity() const {
-	return ManagerBase::Capacity();
-}
-
 void Manager::ClearEntities() {
 	for (auto entity : Entities()) {
 		entity.Destroy();
 	}
-}
-
-void Manager::Clear() {
-	return ManagerBase::Clear();
-}
-
-void Manager::Reset() {
-	return ManagerBase::Reset();
 }
 
 Manager::Manager(ManagerBase&& manager) : ManagerBase{ std::move(manager) } {}

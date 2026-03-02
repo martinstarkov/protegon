@@ -26,8 +26,10 @@
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/particle.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/physics/collision_handler.h"
+#include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
@@ -240,12 +242,10 @@ void Scene::InternalUpdate() {
 	OnUpdate();
 	Refresh();
 
-	// TODO: Fix.
-	// ParticleEmitter::Update(*this);
+	ParticleEmitter::Update(*this);
 	Tween::Update(*this, app().DeltaTime());
 	impl::AnimationSystem::Update(*this);
-	// TODO: Fix.
-	// Lifetime::Update(*this);
+	Lifetime::Update(*this);
 	physics.PreCollisionUpdate(*this);
 	collision_.Update(*this);
 	physics.PostCollisionUpdate(*this);
@@ -269,22 +269,34 @@ void Scene::InternalExit() {
 //	// Application::Get().scene_.Enter(key_);
 // }
 
+Entity Scene::GetEntityByUUID(UUID uuid) const {
+	auto entities{ Entities() };
+	for (Entity e : entities) {
+		PTGN_ASSERT(e.Has<UUID>(), "Entity does not have a valid UUID component");
+		if (e.Get<UUID>() == uuid) {
+			return e;
+		}
+	}
+	return {};
+}
+
 Entity Scene::CreateEntity() {
-	auto entity{ manager_.CreateEntity() };
-	entity.scene_ = this;
-	return entity;
+	return CreateEntity(UUID{});
 }
 
 Entity Scene::CreateEntity(UUID uuid) {
-	auto entity{ manager_.CreateEntity(uuid) };
-	entity.scene_ = this;
-	return entity;
+	auto entity{ manager_.CreateEntity() };
+	entity.Add<UUID>(uuid);
+	return Entity{ entity, this };
 }
 
 Entity Scene::CreateEntity(const json& j) {
-	auto entity{ manager_.CreateEntity(j) };
-	entity.scene_ = this;
-	return entity;
+	auto entity{ manager_.CreateEntity() };
+	PTGN_ASSERT(entity, "Failed to create entity");
+	Entity e{ entity, this };
+	e.Deserialize(j);
+	PTGN_ASSERT(e.Has<UUID>(), "Entity created from json must have a UUID");
+	return e;
 }
 
 // TODO: Fix.
