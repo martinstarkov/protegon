@@ -4,7 +4,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
-#include "renderer/materials/texture.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
@@ -25,7 +24,7 @@ class ResolutionTextScene : public Scene {
 
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 	Color color{ color::White };
-	FontSize font_size{ 20 };
+	float font_size{ 20 };
 
 	void OnEnter() override {
 		app().asset.Load("background", "assets/bg.png");
