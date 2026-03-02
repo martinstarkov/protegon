@@ -8,15 +8,15 @@
 #include <unordered_map>
 #include <variant>
 
-#include "renderer/primitives/color.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
-#include "runtime/graphics/font.h"
-#include "runtime/graphics/text.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
+#include "runtime/graphics/font.h"
+#include "runtime/graphics/text.h"
 #include "serialization/json/json.h"
 
 #ifdef CreateFont
@@ -62,6 +62,12 @@ public:
 
 	// TODO: Add separate shader loading support to LoadMany (.VERT + .FRAG) or (existing_key +
 	// .FRAG)
+
+	/// @brief Loads all supported asset files from a directory.
+	/// @param directory The directory to scan.
+	/// @param recursive If true, scans subdirectories recursively. If false only scans the provided
+	/// directory.
+	void LoadDirectory(const path& directory, bool recursive = true);
 
 	/// @brief Load various different asset types from a json manifest file. Json format must be:
 	///

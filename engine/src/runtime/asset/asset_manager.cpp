@@ -15,7 +15,6 @@
 
 #include "app/context.h"
 #include "core/assert.h"
-#include "renderer/primitives/color.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
@@ -24,6 +23,7 @@
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/image/surface.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/renderer.h"
@@ -185,6 +185,46 @@ Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
 	auto [it, _] = jsons_.insert_or_assign(Hash(key), ptgn::LoadJson(asset_path));
 	return it->second;
+}
+
+void AssetManager::LoadDirectory(const path& directory, bool recursive) {
+	PTGN_ASSERT(
+		FileExists(directory) && DirectoryExists(directory),
+		"Provided path is not a valid directory: ", directory.string()
+	);
+
+	std::unordered_set<std::size_t> taken_asset_keys;
+
+	auto process_entry = [&](const fs::directory_entry& entry) {
+		if (!entry.is_regular_file()) {
+			return;
+		}
+
+		const path& filepath = entry.path();
+
+		// Use filename without extension as key
+		std::string key = filepath.stem().string();
+		auto key_hash	= Hash(key);
+
+		PTGN_ASSERT(
+			taken_asset_keys.count(key_hash) == 0,
+			"Duplicate asset key detected while loading directory: ", key
+		);
+
+		taken_asset_keys.insert(key_hash);
+
+		Load(key, filepath);
+	};
+
+	if (recursive) {
+		for (const auto& entry : fs::recursive_directory_iterator(directory)) {
+			process_entry(entry);
+		}
+	} else {
+		for (const auto& entry : fs::directory_iterator(directory)) {
+			process_entry(entry);
+		}
+	}
 }
 
 void AssetManager::LoadMany(const path& asset_manifest_file) {
