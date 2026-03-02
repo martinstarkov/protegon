@@ -85,8 +85,8 @@ bool Entity::HasScene() const {
 	return scene_ != nullptr;
 }
 
-bool Entity::IsIdenticalTo(const Entity& e) const {
-	return entity_.IsIdenticalTo(e.entity_);
+bool Entity::IsIdenticalTo(Entity entity) const {
+	return entity_.IsIdenticalTo(entity.entity_);
 }
 
 UUID Entity::GetUUID() const {
@@ -98,7 +98,7 @@ std::size_t Entity::GetHash() const {
 	return std::hash<ecs::impl::EntityHandle<JsonArchiver>>()(entity_);
 }
 
-bool Entity::WasCreatedBefore(const Entity& other) const {
+bool Entity::WasCreatedBefore(Entity other) const {
 	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
 	auto version{ entity_.GetVersion() };
 	if (auto other_version{ other.entity_.GetVersion() }; version != other_version) {
@@ -170,9 +170,9 @@ void from_json(const json& j, Entity& entity) {
 
 	j[uuid_name].get_to(uuid);
 
-	const auto& manager{ entity.GetManager() };
+	const auto& scene{ entity.GetScene() };
 
-	auto found_entity{ manager.GetEntityByUUID(uuid) };
+	auto found_entity{ scene.GetEntityByUUID(uuid) };
 
 	PTGN_ASSERT(!found_entity || (found_entity && found_entity == entity));
 
@@ -181,7 +181,7 @@ void from_json(const json& j, Entity& entity) {
 	// TODO: Fix scene key serialization.
 }
 
-std::size_t Hash(const Entity& entity) {
+std::size_t Hash(Entity entity) {
 	return std::hash<Entity>()(entity);
 }
 

@@ -42,6 +42,9 @@ public:
 	Entity(ecs::impl::EntityHandle<JsonArchiver> entity, const Scene* scene) :
 		entity_{ entity }, scene_{ const_cast<Scene*>(scene) } {}
 
+	Entity(Entity entity, const Scene* scene) :
+		entity_{ entity.entity_ }, scene_{ const_cast<Scene*>(scene) } {}
+
 	explicit Entity(Scene& scene);
 
 	explicit operator bool() const {
@@ -140,7 +143,7 @@ public:
 	const Manager& GetManager() const;
 	Manager& GetManager();
 
-	bool IsIdenticalTo(const Entity& e) const;
+	bool IsIdenticalTo(Entity entity) const;
 
 	// Entity property functions.
 
@@ -202,7 +205,7 @@ public:
 	}
 
 	// @return True if *this was created before other.
-	bool WasCreatedBefore(const Entity& other) const;
+	bool WasCreatedBefore(Entity other) const;
 
 	// Equivalent of setting the entity handle to {}
 	void Invalidate();
@@ -233,7 +236,7 @@ private:
 	Scene* scene_{ nullptr };
 };
 
-[[nodiscard]] std::size_t Hash(const Entity& entity);
+[[nodiscard]] std::size_t Hash(Entity entity);
 
 // template <typename T>
 // concept EntityWrapper = std::derived_from<T, Entity>;
