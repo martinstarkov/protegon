@@ -4,7 +4,7 @@
 // #include <unordered_map>
 // #include <vector>
 //
-// #include "core/component.h"
+// #include "runtime/ecs/component.h"
 // #include "ecs/components/sprite.h"
 // #include "ecs/entity.h"
 // #include "ecs/game_object.h"
@@ -15,8 +15,8 @@
 // #include "core/util/time.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
-// #include "renderer/text/font.h"
-// #include "renderer/text/text.h"
+// #include "runtime/graphics/font.h"
+// #include "runtime/graphics/text.h"
 // #include "serialization/json/enum.h"
 // #include "serialization/json/fwd.h"
 // #include "serialization/json/serializable.h"

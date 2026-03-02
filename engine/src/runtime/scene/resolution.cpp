@@ -7,11 +7,11 @@
 #include "core/assert.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/camera/viewport.h"
+#include "renderer/primitives/viewport.h"
 #include "renderer/renderer.h"
-#include "runtime/ecs/components/camera_component.h"
-#include "runtime/ecs/components/render_target_component.h"
-#include "runtime/ecs/components/transform_component.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
+#include "runtime/graphics/render_target_component.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {

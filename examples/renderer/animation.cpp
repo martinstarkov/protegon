@@ -1,4 +1,4 @@
-#include "runtime/ecs/components/animation.h"
+#include "runtime/graphics/animation.h"
 
 #include "app/application.h"
 #include "core/math/vector2.h"

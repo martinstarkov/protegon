@@ -1,20 +1,20 @@
-#include "renderer/vfx/particle.h"
+#include "runtime/graphics/particle.h"
 
 #include <string_view>
 
 #include "app/application.h"
-#include "platform/window/window.h"
-#include "runtime/ecs/components/draw.h"
-#include "platform/input/input_handler.h"
-#include "core/time/time.h"
+#include "renderer/primitives/color.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
-#include "core/math/geometry/origin.h"
+#include "core/time/time.h"
+#include "platform/input/input_handler.h"
+#include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "runtime/ui/button.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
 
 using namespace ptgn;

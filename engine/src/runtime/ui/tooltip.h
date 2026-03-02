@@ -12,7 +12,7 @@
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
 //
-// #include "renderer/text/text.h"
+// #include "runtime/graphics/text.h"
 //
 // namespace ptgn {
 //

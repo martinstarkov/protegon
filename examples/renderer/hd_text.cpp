@@ -1,17 +1,16 @@
 #include <string>
 
 #include "app/application.h"
-#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
 #include "renderer/materials/texture.h"
-#include "renderer/primitives/font.h"
-#include "renderer/primitives/text.h"
+#include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
-#include "runtime/ecs/components/sprite.h"
-#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/font.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

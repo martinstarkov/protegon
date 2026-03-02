@@ -6,19 +6,19 @@
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
-#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/texture.h"
 #include "renderer/renderer.h"
-#include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/components/sprite.h"
-#include "runtime/ecs/components/text_component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -139,7 +139,7 @@ public:
 		click.mouseButton = 0;
 		click.clicks	  = 1;
 
-		events.Emit(click); // scene-local bubbling
+		event.Emit(click); // scene-local bubbling
 	}
 };
 
@@ -166,7 +166,7 @@ public:
 		PTGN_ASSERT(sprite.Has<Texture>());
 		PTGN_ASSERT((sprite.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
 
-		auto sprite2 = CreateSprite(*this, "assets/smile.png", { 200, 0 });
+		auto sprite2 = CreateSprite(*this, "test", { 200, 0 });
 
 		PTGN_ASSERT(sprite2.Has<Texture>());
 		PTGN_ASSERT((sprite2.Get<Texture>().GetSize() == V2_int{ 300, 300 }));

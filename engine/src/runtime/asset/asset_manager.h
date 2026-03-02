@@ -8,13 +8,13 @@
 #include <unordered_map>
 #include <variant>
 
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
-#include "renderer/primitives/font.h"
-#include "renderer/primitives/text.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
+#include "runtime/graphics/font.h"
+#include "runtime/graphics/text.h"
+#include "renderer/primitives/shader.h"
+#include "renderer/primitives/texture.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
 #include "serialization/json/json.h"

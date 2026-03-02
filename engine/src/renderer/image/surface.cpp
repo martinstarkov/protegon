@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"

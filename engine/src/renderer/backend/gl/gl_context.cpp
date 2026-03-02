@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/graphics/blend_mode.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/blend_mode.h"
+#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
@@ -28,16 +28,16 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/camera/viewport.h"
-#include "renderer/resources/buffer.h"
-#include "renderer/resources/framebuffer.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/render_state.h"
-#include "renderer/resources/render_target.h"
-#include "renderer/resources/renderbuffer.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
-#include "renderer/resources/vertex_array.h"
+#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/buffer.h"
+#include "renderer/primitives/framebuffer.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/render_state.h"
+#include "renderer/primitives/render_target.h"
+#include "renderer/primitives/renderbuffer.h"
+#include "renderer/primitives/shader.h"
+#include "renderer/primitives/texture.h"
+#include "renderer/primitives/vertex_array.h"
 
 namespace ptgn::impl::gl {
 

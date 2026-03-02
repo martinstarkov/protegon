@@ -7,14 +7,13 @@
 
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/components/camera_component.h"
-#include "runtime/ecs/components/render_target_component.h"
-#include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/input/scene_input.h"
+#include "runtime/graphics/camera.h"
+#include "runtime/graphics/render_target_component.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
+#include "runtime/scene/scene_input.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 

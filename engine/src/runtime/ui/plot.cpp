@@ -16,10 +16,10 @@
 // #include "math/math_utils.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
-// #include "renderer/text/font.h"
+// #include "runtime/graphics/font.h"
 // #include "renderer/api/origin.h"
-// #include "renderer/text/text.h"
-// #include "renderer/text/fonts.h"
+// #include "runtime/graphics/text.h"
+// #include "runtime/graphics/fonts.h"
 // #include "ui/button.h"
 // #include "core/assert.h"
 //

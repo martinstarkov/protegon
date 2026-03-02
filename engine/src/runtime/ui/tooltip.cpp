@@ -19,7 +19,7 @@
 // #include "renderer/api/color.h"
 // #include "renderer/api/origin.h"
 //
-// #include "renderer/text/text.h"
+// #include "runtime/graphics/text.h"
 // #include "tween/tween_effect.h"
 //
 // namespace ptgn {

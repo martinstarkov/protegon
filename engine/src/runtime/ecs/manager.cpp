@@ -9,7 +9,6 @@
 #include "core/assert.h"
 #include "ecs/ecs.h"
 #include "runtime/ecs/component_registry.h"
-#include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"

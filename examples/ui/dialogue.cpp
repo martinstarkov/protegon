@@ -5,9 +5,8 @@
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/window/window.h"
-#include "runtime/ecs/components/sprite.h"
-#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

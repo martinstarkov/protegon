@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ecs/ecs.h"
-#include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"

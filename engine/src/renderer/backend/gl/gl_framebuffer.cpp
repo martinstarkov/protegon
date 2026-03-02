@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -27,10 +27,10 @@
 #include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
-#include "renderer/resources/framebuffer.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/renderbuffer.h"
-#include "renderer/resources/texture.h"
+#include "renderer/primitives/framebuffer.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/renderbuffer.h"
+#include "renderer/primitives/texture.h"
 
 namespace ptgn::impl::gl {
 

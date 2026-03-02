@@ -5,7 +5,7 @@
 #include "platform/window/window.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/components/sprite.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

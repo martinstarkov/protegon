@@ -9,7 +9,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/input/movement.h"
+#include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 

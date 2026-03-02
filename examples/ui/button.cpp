@@ -2,15 +2,15 @@
 
 #include "app/application.h"
 #include "core/event/dispatcher.h"
-#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/input/key.h"
 #include "platform/window/window.h"
-#include "runtime/ecs/components/draw.h"
-#include "runtime/ecs/components/transform_component.h"
+#include "renderer/primitives/color.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
 
 using namespace ptgn;

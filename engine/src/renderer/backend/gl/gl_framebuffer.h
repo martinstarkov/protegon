@@ -10,13 +10,13 @@
 #include <variant>
 #include <vector>
 
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
-#include "renderer/resources/framebuffer.h"
-#include "renderer/resources/renderbuffer.h"
-#include "renderer/resources/texture.h"
+#include "renderer/primitives/framebuffer.h"
+#include "renderer/primitives/renderbuffer.h"
+#include "renderer/primitives/texture.h"
 
 namespace ptgn::impl::gl {
 

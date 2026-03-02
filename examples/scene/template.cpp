@@ -2,9 +2,9 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/graphics/color.h"
-#include "renderer/primitives/text.h"
-#include "runtime/ecs/components/draw.h"
+#include "renderer/primitives/color.h"
+#include "runtime/graphics/text.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/menu_template.h"

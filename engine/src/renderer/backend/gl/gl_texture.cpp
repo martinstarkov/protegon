@@ -11,8 +11,8 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/texture.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/texture.h"
 
 namespace ptgn::impl::gl {
 

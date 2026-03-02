@@ -5,12 +5,12 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "core/component.h"
 #include "core/event/event.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
-#include "renderer/resources/texture.h"
+#include "renderer/primitives/texture.h"
+#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "serialization/json/serialize.h"

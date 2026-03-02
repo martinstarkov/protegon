@@ -17,7 +17,7 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
@@ -25,9 +25,9 @@
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
 #include "renderer/image/surface.h"
-#include "renderer/primitives/font.h"
-#include "renderer/primitives/fonts.h"
-#include "renderer/primitives/text.h"
+#include "runtime/graphics/font.h"
+#include "runtime/graphics/fonts.h"
+#include "runtime/graphics/text.h"
 #include "runtime/asset/asset_manager.h"
 
 #ifdef CreateFont

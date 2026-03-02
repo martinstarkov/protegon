@@ -11,10 +11,10 @@
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_debug.h"
-#include "renderer/resources/buffer.h"
-#include "renderer/resources/buffer_layout.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/vertex_array.h"
+#include "renderer/primitives/buffer.h"
+#include "renderer/primitives/buffer_layout.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/vertex_array.h"
 
 namespace ptgn::impl::gl {
 

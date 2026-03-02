@@ -6,7 +6,7 @@
 // #include <string_view>
 // #include <vector>
 //
-// #include "core/component.h"
+// #include "runtime/ecs/component.h"
 // #include "core/asset/asset_manager.h"
 // #include "ecs/entity.h"
 // #include "core/app/manager.h"
@@ -14,12 +14,12 @@
 // #include "math/geometry_utils.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
-// #include "renderer/text/font.h"
+// #include "runtime/graphics/font.h"
 // #include "renderer/api/origin.h"
 // #include "renderer/render_target.h"
-// #include "renderer/text/text.h"
+// #include "runtime/graphics/text.h"
 //
-// #include "renderer/text/fonts.h"
+// #include "runtime/graphics/fonts.h"
 // #include "ui/button.h"
 // #include "core/assert.h"
 //

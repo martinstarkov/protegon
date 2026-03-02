@@ -2,7 +2,7 @@
 #include <cmath>
 
 #include "app/application.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"

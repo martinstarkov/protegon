@@ -2,8 +2,8 @@
 
 #include "core/math/vector2.h"
 #include "core/util/id_map.h"
-#include "renderer/resources/renderbuffer.h"
-#include "renderer/resources/texture.h"
+#include "renderer/primitives/renderbuffer.h"
+#include "renderer/primitives/texture.h"
 
 namespace ptgn::impl::gl {
 

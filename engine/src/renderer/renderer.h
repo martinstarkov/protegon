@@ -7,16 +7,16 @@
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
-#include "core/graphics/blend_mode.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/blend_mode.h"
+#include "renderer/primitives/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "renderer/camera/scaling_mode.h"
-#include "renderer/camera/viewport.h"
-#include "renderer/resources/render_state.h"
-#include "renderer/resources/render_target.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
+#include "renderer/primitives/scaling_mode.h"
+#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/render_state.h"
+#include "renderer/primitives/render_target.h"
+#include "renderer/primitives/shader.h"
+#include "renderer/primitives/texture.h"
 
 namespace ptgn {
 

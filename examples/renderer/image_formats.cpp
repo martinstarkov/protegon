@@ -6,8 +6,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/util/file.h"
 #include "renderer/renderer.h"
-#include "runtime/ecs/components/draw.h"
-#include "runtime/ecs/components/sprite.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

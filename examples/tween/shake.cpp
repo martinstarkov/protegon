@@ -3,7 +3,7 @@
 #include "core/time/time.h"
 #include "platform/input/input_handler.h"
 #include "runtime/animation/tween_effect.h"
-#include "runtime/ecs/components/sprite.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

@@ -2,10 +2,10 @@
 
 #include "gl_vertex_array.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/resources/framebuffer.h"
-#include "renderer/resources/renderbuffer.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
+#include "renderer/primitives/framebuffer.h"
+#include "renderer/primitives/renderbuffer.h"
+#include "renderer/primitives/shader.h"
+#include "renderer/primitives/texture.h"
 
 namespace ptgn::impl::gl {
 

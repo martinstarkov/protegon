@@ -6,10 +6,10 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/graphics/color.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "renderer/primitives/color.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"

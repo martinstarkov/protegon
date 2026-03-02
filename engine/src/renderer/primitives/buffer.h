@@ -1,0 +1,36 @@
+#pragma once
+
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/resource.h"
+
+namespace ptgn::impl {
+
+struct VertexBufferTag {};
+
+struct ElementBufferTag {};
+
+struct UniformBufferTag {};
+
+using VertexBufferId  = Id<VertexBufferTag>;
+using ElementBufferId = Id<ElementBufferTag>;
+using UniformBufferId = Id<UniformBufferTag>;
+
+class VertexBufferObject : public Resource<VertexBufferId> {
+public:
+	using Base = Resource<VertexBufferId>;
+	using Base::Base;
+};
+
+class ElementBufferObject : public Resource<ElementBufferId> {
+public:
+	using Base = Resource<ElementBufferId>;
+	using Base::Base;
+};
+
+class UniformBufferObject : public Resource<UniformBufferId> {
+public:
+	using Base = Resource<UniformBufferId>;
+	using Base::Base;
+};
+
+} // namespace ptgn::impl

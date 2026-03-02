@@ -1,6 +1,6 @@
 #include "renderer/image/image_utils.h"
 
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "renderer/image/surface.h"
 

@@ -7,7 +7,7 @@
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
 #include "runtime/scene/scene.h"

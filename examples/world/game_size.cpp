@@ -2,30 +2,29 @@
 #include <utility>
 
 #include "app/application.h"
-#include "core/graphics/color.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/window/window.h"
-#include "renderer/primitives/light.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/render_target.h"
 #include "renderer/renderer.h"
-#include "renderer/resources/render_target.h"
-#include "runtime/ecs/components/camera_component.h"
-#include "runtime/ecs/components/sprite.h"
-#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/input/interactive.h"
-#include "runtime/input/movement.h"
-#include "runtime/input/scene_input.h"
+#include "runtime/graphics/camera.h"
+#include "runtime/graphics/light.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
+#include "runtime/ui/interactive.h"
 
 using namespace ptgn;
 
-struct CircleDragScript : public Script<CircleDragScript, DragScript> {
+struct CircleDragScript : public Script {
 	void OnDrag() override {
 		SetPosition(
 			entity, entity.GetScene().input.GetMousePosition() + entity.Get<Draggable>().GetOffset()

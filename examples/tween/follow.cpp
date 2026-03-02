@@ -2,20 +2,19 @@
 #include <vector>
 
 #include "app/application.h"
-#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "platform/input/input_handler.h"
 #include "platform/input/mouse.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/tween_effect.h"
-#include "runtime/ecs/components/draw.h"
-#include "runtime/ecs/components/sprite.h"
-#include "runtime/ecs/components/transform_component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/input/scene_input.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;

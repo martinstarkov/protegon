@@ -1,12 +1,12 @@
-#include "renderer/vfx/light.h"
+#include "runtime/graphics/light.h"
 
 #include "app/application.h"
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/math/geometry/origin.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "runtime/ecs/components/sprite.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

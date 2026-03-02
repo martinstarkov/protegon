@@ -2,9 +2,9 @@
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/camera/viewport.h"
-#include "runtime/ecs/components/camera_component.h"
-#include "runtime/ecs/components/render_target_component.h"
+#include "renderer/primitives/viewport.h"
+#include "runtime/graphics/camera.h"
+#include "runtime/graphics/render_target_component.h"
 
 namespace ptgn {
 

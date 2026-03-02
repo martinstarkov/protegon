@@ -5,7 +5,7 @@
 #include <ostream>
 
 #include "core/util/id_map.h"
-#include "renderer/resources/buffer.h"
+#include "renderer/primitives/buffer.h"
 
 namespace ptgn::impl::gl {
 

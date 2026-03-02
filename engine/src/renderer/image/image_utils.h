@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/graphics/color.h"
+#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 

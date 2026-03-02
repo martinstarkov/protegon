@@ -4,7 +4,7 @@
 #include "platform/input/input_handler.h"
 #include "platform/input/mouse.h"
 #include "runtime/animation/tween_effect.h"
-#include "runtime/ecs/components/sprite.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

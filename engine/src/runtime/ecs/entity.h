@@ -1,21 +1,35 @@
 #pragma once
 
-#include <concepts>
+#include <cstdint>
 #include <ostream>
 
 #include "core/assert.h"
-#include "core/util/concepts.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
 #include "ecs/ecs.h"
-#include "runtime/ecs/components/uuid.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
+#include "serialization/json/serialize.h"
 
 namespace ptgn {
 
 class Manager;
 class Scene;
+
+class UUID {
+public:
+	UUID();
+	explicit UUID(std::uint64_t uuid);
+
+	operator std::uint64_t() const;
+
+	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(UUID, uuid_)
+
+private:
+	std::uint64_t uuid_{ 0 };
+};
 
 class Entity {
 public:
@@ -224,6 +238,62 @@ private:
 // template <typename T>
 // concept EntityWrapper = std::derived_from<T, Entity>;
 
+namespace impl {
+
+struct IgnoreParentTransform {};
+
+} // namespace impl
+
+/// @return The transform of the entity.
+Transform GetTransform(Entity entity);
+
+/// @return The transform of the entity with respect to its parent entity.
+Transform GetWorldTransform(Entity entity);
+
+/// @return The transform of the entity with respect to its parent entity and including any
+/// temporary offsets (e.g., shake or bounce).
+Transform GetDrawTransform(Entity entity);
+
+V2_float GetPosition(Entity entity);
+V2_float GetWorldPosition(Entity entity);
+
+float GetRotation(Entity entity);
+float GetWorldRotation(Entity entity);
+
+V2_float GetScale(Entity entity);
+V2_float GetWorldScale(Entity entity);
+
+/// Set the transform of the entity with respect to its parent entity.
+void SetTransform(Entity entity, Transform transform);
+
+void SetPosition(Entity entity, V2_float position);
+void SetPositionX(Entity entity, float position_x);
+void SetPositionY(Entity entity, float position_y);
+
+void Translate(Entity entity, V2_float position_difference);
+void TranslateX(Entity entity, float position_x_difference);
+void TranslateY(Entity entity, float position_y_difference);
+
+/// Set 2D rotation angle in radians.
+/// Range: (-3.14159, 3.14159].
+/// (clockwise positive).
+///            -1.5708
+///               |
+///    3.14159 ---o--- 0
+///               |
+///             1.5708
+void SetRotation(Entity entity, float rotation);
+void Rotate(Entity entity, float angle_difference);
+
+void SetScale(Entity entity, V2_float scale);
+void SetScale(Entity entity, float scale);
+void SetScaleX(Entity entity, float scale_x);
+void SetScaleY(Entity entity, float scale_y);
+
+void Scale(Entity entity, V2_float scale_multiplier);
+void ScaleX(Entity entity, float scale_x_multiplier);
+void ScaleY(Entity entity, float scale_y_multiplier);
+
 } // namespace ptgn
 
 namespace std {
@@ -232,6 +302,13 @@ template <>
 struct hash<ptgn::Entity> {
 	std::size_t operator()(const ptgn::Entity& entity) const {
 		return entity.GetHash();
+	}
+};
+
+template <>
+struct hash<ptgn::UUID> {
+	std::size_t operator()(const ptgn::UUID& uuid) const {
+		return static_cast<std::uint64_t>(uuid);
 	}
 };
 
