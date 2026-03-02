@@ -1,19 +1,23 @@
 #include "runtime/graphics/particle.h"
 
+#include <chrono>
+#include <functional>
 #include <string_view>
+#include <utility>
 
 #include "app/application.h"
-#include "renderer/primitives/color.h"
+#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/input/input_handler.h"
-#include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
 
@@ -29,13 +33,13 @@ public:
 		std::string_view content, const std::function<void()>& on_activate
 	) {
 		Button b{ CreateButton(*this) };
-		b.SetBackgroundColor(color::Gold);
-		b.SetBackgroundColor(color::Red, ButtonState::Hover);
-		b.SetBackgroundColor(color::DarkRed, ButtonState::Hover);
-		b.SetBorderColor(color::LightGray);
-		b.SetBorderWidth(3.0f);
-		b.SetText(content, color::Black);
-		b.OnActivate(on_activate);
+		b.SetBackgroundColor(color::Gold)
+			.SetBackgroundColor(color::Red, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkRed, ButtonState::Hover)
+			.SetBorderColor(color::LightGray)
+			.SetBorderWidth(3.0f)
+			.SetText(content, color::Black)
+			.OnActivate(on_activate);
 		SetParent(b, p, true);
 		return b;
 	}
@@ -76,7 +80,7 @@ public:
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 500, 500 }, color::Cyan, color::Magenta);
 
 		grid.Set({ 0, 0 }, CreateParticleButton("Switch Particle Shape", [=]() {
-					 int shape{ static_cast<int>(p.GetShape()) };
+					 int shape{ std::to_underlying(p.GetShape()) };
 					 shape++;
 					 shape = Mod(shape, 2);
 					 p.SetShape(static_cast<ParticleShape>(shape));
