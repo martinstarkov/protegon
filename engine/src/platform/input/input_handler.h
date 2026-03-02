@@ -141,6 +141,11 @@ private:
 	std::array<impl::MouseState, impl::kMouseCount> mouse_states_{};
 	std::array<impl::Timestamp, impl::kMouseCount> mouse_timestamps_{};
 
+	/// @brief Flag that is set to true once the mouse position has been set at least once. This
+	/// prevents sending the first mouse move event. Using std::optional for mouse_position_ might
+	/// be a better alternative.
+	bool mouse_set_{ false };
+
 	/// @brief Stored mouse positions are relative to the center of the window.
 	V2_float mouse_position_;
 

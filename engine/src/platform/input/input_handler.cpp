@@ -162,11 +162,14 @@ void InputHandler::PollEvents(const EventSink& sink) {
 
 	auto half_window_size{ window_.GetSize() / 2.0f };
 
+	bool mouse_moved{ false };
+
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 			case SDL_EVENT_MOUSE_MOTION: {
 				mouse_position_ = V2_float{ e.motion.x, e.motion.y } - half_window_size;
-
+				mouse_moved		= true;
+				mouse_set_		= true;
 				MouseMove move;
 				move.position = mouse_position_;
 				move.delta	  = { e.motion.xrel, e.motion.yrel };
@@ -288,23 +291,31 @@ void InputHandler::PollEvents(const EventSink& sink) {
 		}
 	}
 
-	V2_float new_mouse_position;
-	// TODO: Consider using global mouse position here in the future.
-	// I can foresee a bug where mouse position difference is zero if the user alt+tabs to
-	// lose window focus and then regains it via alt+tab while the mouse is technically in the same
-	// location. This would result in no MouseMove event being queued, which may make certain
-	// scripts function incorrectly. But I'm not sure to be honest, so I won't change it.
-	SDL_GetMouseState(&new_mouse_position.x, &new_mouse_position.y);
+	if (!mouse_moved) {
+		V2_float global_mouse_position;
+		// If mouse moves outside the window, SDL does not send a mouse motion event, so we query
+		// manually.
+		SDL_GetGlobalMouseState(&global_mouse_position.x, &global_mouse_position.y);
 
-	V2_float difference{ new_mouse_position - mouse_position_ };
+		auto window_position{ window_.GetPosition() };
 
-	if (!difference.IsZero()) {
-		mouse_position_ = new_mouse_position - half_window_size;
+		V2_float new_mouse_position{ global_mouse_position - window_position - half_window_size };
 
-		ptgn::MouseMove move;
-		move.position = mouse_position_;
-		move.delta	  = difference;
-		sink(move);
+		V2_float difference{ new_mouse_position - mouse_position_ };
+
+		// Mouse moved outside the window.
+		if (!difference.IsZero()) {
+			mouse_position_ = new_mouse_position;
+
+			if (mouse_set_) {
+				ptgn::MouseMove move;
+				move.position = mouse_position_;
+				move.delta	  = difference;
+				sink(move);
+			}
+
+			mouse_set_ = true;
+		}
 	}
 }
 
