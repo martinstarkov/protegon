@@ -5,8 +5,10 @@
 #include <list>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 
 #include "app/context.h"
 #include "core/assert.h"
@@ -40,8 +42,7 @@ Animation& Animation::Start(bool force) {
 	auto& crop		   = Get<impl::TextureCrop>();
 	crop.position	   = anim.GetCurrentFramePosition();
 	crop.size		   = anim.frame_size;
-	bool started{ anim.frame_timer.Start(force) };
-	if (started) {
+	if (bool started{ anim.frame_timer.Start(force) }; started) {
 		if (auto scripts{ TryGet<impl::Scripts>() }) {
 			AnimationStart event;
 			scripts->Emit(event);
@@ -374,10 +375,30 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, Texture texture, V2_float position, std::size_t frame_count,
-	milliseconds animation_duration, std::optional<V2_int> frame_size, std::int64_t play_count,
-	V2_int start_pixel
+	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
+	std::size_t frame_count, milliseconds animation_duration, std::optional<V2_int> frame_size,
+	std::int64_t play_count, V2_int start_pixel
 ) {
+	Texture resolved_texture;
+
+	std::visit(
+		[&](auto&& arg) {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, Texture>) {
+				resolved_texture = arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					scene.app().asset.HasTexture(arg),
+					"Texture key must be loaded in the asset manager before creating animation"
+				);
+
+				resolved_texture = *scene.app().asset.GetTexture(arg);
+			}
+		},
+		texture
+	);
+
 	PTGN_ASSERT(
 		play_count == -1 || play_count >= 0,
 		"Play count must be -1 (infinite) or otherwise non-negative"
@@ -385,9 +406,9 @@ Animation CreateAnimation(
 
 	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
 
-	Animation animation{ CreateSprite(scene, texture, position) };
+	Animation animation{ CreateSprite(scene, resolved_texture, position) };
 
-	auto texture_size{ texture.GetSize() };
+	auto texture_size{ resolved_texture.GetSize() };
 
 	if (!frame_size.has_value()) {
 		frame_size = { static_cast<std::size_t>(texture_size.x) / frame_count, texture_size.y };
@@ -402,22 +423,6 @@ Animation CreateAnimation(
 	crop.size	  = anim.frame_size;
 
 	return animation;
-}
-
-Animation CreateAnimation(
-	Scene& scene, std::string_view texture_key, V2_float position, std::size_t frame_count,
-	milliseconds animation_duration, std::optional<V2_int> frame_size, std::int64_t play_count,
-	V2_int start_pixel
-) {
-	PTGN_ASSERT(
-		scene.app().asset.HasTexture(texture_key),
-		"Texture key must be loaded in the asset manager before creating an entity with it"
-	);
-	auto texture{ *scene.app().asset.GetTexture(texture_key) };
-	return CreateAnimation(
-		scene, texture, position, frame_count, animation_duration, frame_size, play_count,
-		start_pixel
-	);
 }
 
 AnimationMap CreateAnimationMap(Scene& scene) {

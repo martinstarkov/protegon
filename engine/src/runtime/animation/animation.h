@@ -4,6 +4,7 @@
 #include <optional>
 #include <string_view>
 #include <unordered_map>
+#include <variant>
 
 #include "core/event/event.h"
 #include "core/math/vector2.h"
@@ -214,7 +215,7 @@ public:
 } // namespace impl
 
 /// @param manager Which manager the entity is added to.
-/// @param texture Texture used for the animation.
+/// @param texture Texture or texture key to be used for the animation.
 /// @param position Where on the screen to place the animation object.
 /// @param frame_count Number of frames in the animation sequence.
 /// @param animation_duration Duration of the full animation sequence.
@@ -224,14 +225,9 @@ public:
 /// @param start_pixel Pixel within the texture which indicates the top left position of the
 /// animation sequence.
 Animation CreateAnimation(
-	Scene& scene, Texture texture, V2_float position, std::size_t frame_count,
-	milliseconds animation_duration = milliseconds{ 0 }, std::optional<V2_int> frame_size = {},
-	std::int64_t play_count = -1, V2_int start_pixel = {}
-);
-Animation CreateAnimation(
-	Scene& scene, std::string_view texture_key, V2_float position, std::size_t frame_count,
-	milliseconds animation_duration = milliseconds{ 0 }, std::optional<V2_int> frame_size = {},
-	std::int64_t play_count = -1, V2_int start_pixel = {}
+	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
+	std::size_t frame_count, milliseconds animation_duration = milliseconds{ 0 },
+	std::optional<V2_int> frame_size = {}, std::int64_t play_count = -1, V2_int start_pixel = {}
 );
 
 AnimationMap CreateAnimationMap(Scene& scene);

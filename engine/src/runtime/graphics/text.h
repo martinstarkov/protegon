@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
@@ -252,8 +253,9 @@ private:
 /// @param font Default {} corresponds to the default engine font.
 Text CreateText(
 	Scene& scene, std::string_view content, Color text_color = {},
-	std::optional<float> font_size = {}, std::optional<Font> font = {},
-	const TextProperties& properties = {}
+	std::optional<float> font_size							  = {},
+	std::variant<std::monostate, Font, std::string_view> font = {},
+	const TextProperties& properties						  = {}
 );
 
 PTGN_REGISTER_DRAWABLE(Text);

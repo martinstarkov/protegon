@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <variant>
 
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
@@ -48,11 +49,7 @@ public:
 };
 
 Sprite CreateSprite(
-	Scene& scene, Texture texture, V2_float position = {}, Origin draw_origin = Origin::Center
-);
-
-Sprite CreateSprite(
-	Scene& scene, std::string_view texture_key, V2_float position = {},
+	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position = {},
 	Origin draw_origin = Origin::Center
 );
 

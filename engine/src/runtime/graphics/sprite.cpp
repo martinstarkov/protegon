@@ -1,12 +1,14 @@
 #include "runtime/graphics/sprite.h"
 
+#include <optional>
 #include <string_view>
+#include <type_traits>
+#include <variant>
 
 #include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
@@ -32,25 +34,40 @@ Sprite& Sprite::SetTexture(Texture texture) {
 	return *this;
 }
 
-Sprite CreateSprite(Scene& scene, Texture texture, V2_float position, Origin draw_origin) {
+Sprite CreateSprite(
+	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
+	Origin draw_origin
+) {
+	Texture resolved_texture;
+
+	std::visit(
+		[&](auto&& arg) {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, Texture>) {
+				resolved_texture = arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					scene.app().asset.HasTexture(arg),
+					"Texture key must be loaded in the asset manager before creating sprite"
+				);
+
+				resolved_texture = *scene.app().asset.GetTexture(arg);
+			}
+		},
+		texture
+	);
+
 	Sprite sprite{ scene.CreateEntity() };
 	SetDraw<Sprite>(sprite);
 	Show(sprite, false);
-	sprite.SetTexture(texture);
+
+	sprite.SetTexture(resolved_texture);
+
 	SetPosition(sprite, position);
 	SetDrawOrigin(sprite, draw_origin);
-	return sprite;
-}
 
-Sprite CreateSprite(
-	Scene& scene, std::string_view texture_key, V2_float position, Origin draw_origin
-) {
-	PTGN_ASSERT(
-		scene.app().asset.HasTexture(texture_key),
-		"Texture key must be loaded in the asset manager before creating an entity with it"
-	);
-	auto texture{ *scene.app().asset.GetTexture(texture_key) };
-	return CreateSprite(scene, texture, position, draw_origin);
+	return sprite;
 }
 
 } // namespace ptgn

@@ -4,6 +4,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <variant>
 
 #include "app/context.h"
 #include "core/assert.h"
@@ -298,8 +300,31 @@ TextProperties Text::GetProperties() const {
 
 Text CreateText(
 	Scene& scene, std::string_view content, Color text_color, std::optional<float> font_size,
-	std::optional<Font> font, const TextProperties& properties
+	std::variant<std::monostate, Font, std::string_view> font, const TextProperties& properties
 ) {
+	std::optional<Font> resolved_font;
+
+	std::visit(
+		[&](auto&& arg) {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, std::monostate>) {
+				// Default engine font
+				resolved_font = std::nullopt;
+			} else if constexpr (std::is_same_v<T, Font>) {
+				resolved_font = arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					scene.app().asset.HasFont(arg),
+					"Font key must be loaded in the asset manager before creating text"
+				);
+
+				resolved_font = *scene.app().asset.GetFont(arg);
+			}
+		},
+		font
+	);
+
 	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();
 	SetDraw<Text>(text);
@@ -307,7 +332,7 @@ Text CreateText(
 	text.Add<impl::HDText>();
 	Text::SetParameter(text, impl::TextContent{ content }, false);
 	Text::SetParameter(text, impl::TextColor{ text_color }, false);
-	Text::SetParameter(text, font.value_or(Font{}), false);
+	Text::SetParameter(text, resolved_font.value_or(Font{}), false);
 	Text::SetParameter(text, impl::FontSize{ font_size.value_or(kDefaultFontSize) }, false);
 	Text::SetProperties(text, properties, true);
 	return text;

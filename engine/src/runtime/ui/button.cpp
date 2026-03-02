@@ -8,6 +8,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
@@ -301,7 +302,12 @@ void ButtonText::Set(
 	);
 	auto text{ Get(state) };
 	if (!text) {
-		text = CreateText(scene, text_content, text_color, font_size, font, text_properties);
+		std::variant<std::monostate, Font, std::string_view> resolved_font{};
+		if (font.has_value()) {
+			resolved_font = *font;
+		}
+		text =
+			CreateText(scene, text_content, text_color, font_size, resolved_font, text_properties);
 		Hide(text);
 		SetParent(text, parent);
 		switch (state) {
