@@ -39,8 +39,8 @@ struct ShapeScene : public Scene {
 			{ { -225, -375 }, { -200, -350 }, { -175, -375 } }, color::Beige, 1.0f, true
 		);
 		app().renderer.DrawPoint({ -350, -300 }, color::Red);
-		app().renderer.DrawLine({ -300, -300 }, { -250, -325 }, color::Orange, 1.0f);
-		app().renderer.DrawLine({ -200, -325 }, { -150, -300 }, color::Yellow, 5.0f);
+		impl::DrawLine({ -300, -300 }, { -250, -325 }, color::Orange, 1.0f);
+		impl::DrawLine({ -200, -325 }, { -150, -300 }, color::Yellow, 5.0f);
 		app().renderer.DrawCapsule(
 			{}, { { -275, -250 }, { -175, -250 }, 12.0f }, color::Yellow, 1.0f
 		);

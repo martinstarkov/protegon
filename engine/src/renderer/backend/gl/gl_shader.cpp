@@ -1058,6 +1058,7 @@ std::int32_t Shaders::GetUniform(ShaderId id, const char* uniform_name) {
 		gl_.IsBound(id),
 		"Cannot get uniform location of shader program which is not currently bound"
 	);
+	PTGN_ASSERT(id, "Invalid shader id");
 
 	auto& cache{ cache_.Get(id) };
 

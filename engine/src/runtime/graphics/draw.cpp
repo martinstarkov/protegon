@@ -147,9 +147,10 @@ void DrawShape(
 	float line_width{ 0.0f };
 
 	if (std::holds_alternative<Solid>(fill_style.style)) {
-		if (std::holds_alternative<Line>(shape)) {
-			return;
-		}
+		PTGN_ASSERT(
+			!std::holds_alternative<Line>(shape),
+			"Cannot draw a solid line, use FillStyle::Hollow(line_width)"
+		);
 		line_width = -1.0f;
 	} else {
 		if (auto width{ std::get<Hollow>(fill_style.style).line_width }; width >= 1.0f) {

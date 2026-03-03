@@ -146,11 +146,12 @@ class PathfindingScene : public Scene {
 
 		const auto display_waypoints = [=](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-				app().renderer.DrawLine(
-					{},
-					{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
-					  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
-					color
+				impl::DrawShape(
+					app().renderer,
+					Line{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
+						  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
+					Transform{}, color, FillStyle::Hollow(1.0f), Origin::Center, Depth{},
+					BlendMode::Blend
 				);
 			}
 		};

@@ -161,8 +161,10 @@ struct BroadphaseScene : public Scene {
 			SetTint(candidate, color::Red);
 		}
 
-		// TODO: Fix.
-		// app().renderer.DrawLine(player_pos, mouse_pos, color::Gold, 2.0f);
+		impl::DrawShape(
+			app().renderer, Line{ player_pos, mouse_pos }, Transform{}, color::Gold,
+			FillStyle::Hollow(2.0f), Origin::Center, Depth{}, BlendMode::Blend
+		);
 
 #else
 		PTGN_PROFILE_FUNCTION();
