@@ -81,7 +81,11 @@ struct PickupDraggable : public Event<PickupDraggable> {
 	Entity dropzone;
 };
 
-struct Dragging : public Event<Dragging> {};
+struct Dragging : public Event<Dragging> {
+	/// @brief Current offset of the mouse position relative to where it started in world
+	/// coordinates.
+	V2_float offset;
+};
 
 struct DropDraggable : public Event<DropDraggable> {
 	/// @brief The dropzone that the draggable was dropped into.

@@ -563,6 +563,7 @@ void SceneInput::HandleDragging(
 
 			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
 				Dragging event;
+				event.offset = dragging.Get<impl::Draggable>().offset;
 				scripts->Emit(event);
 			}
 		}
