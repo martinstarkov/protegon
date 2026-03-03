@@ -46,11 +46,16 @@ FillStyle::FillStyle(float line_width) : style{ impl::Hollow{ line_width } } {
 	} else if (line_width >= kMinLineWidth) {
 		style = impl::Hollow{ line_width };
 	} else {
-		PTGN_ERROR("Invalid line width for fill style");
+		PTGN_ERROR("Invalid line width for fill style: ", line_width);
 	}
 }
 
 FillStyle::FillStyle(impl::Solid) : style{ impl::Solid{} } {}
+
+FillStyle FillStyle::Hollow(float line_width) {
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Hollow line width must be >= kMinLineWidth");
+	return FillStyle{ line_width };
+}
 
 FillStyle FillStyle::Solid() {
 	return FillStyle{ impl::Solid{} };

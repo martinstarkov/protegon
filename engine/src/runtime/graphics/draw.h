@@ -39,6 +39,7 @@ struct FillStyle {
 	FillStyle() = default;
 	FillStyle(float line_width);
 
+	static FillStyle Hollow(float line_width);
 	static FillStyle Solid();
 
 	std::variant<impl::Hollow, impl::Solid> style{ impl::Hollow{} };
