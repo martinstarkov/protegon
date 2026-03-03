@@ -9,20 +9,20 @@
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/window/window.h"
 #include "renderer/backend/gl/gl_renderer.h"
-#include "renderer/primitives/scaling_mode.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/blend_mode.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
+#include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
+#include "renderer/primitives/viewport.h"
 #include "runtime/event/event_handler.h"
 
 namespace ptgn {
@@ -148,6 +148,14 @@ impl::ShaderId Renderer::GetShader(std::string_view name) const {
 
 impl::RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	return gl_renderer_->CreateRenderTarget(size, format);
+}
+
+void Renderer::SetBackgroundColor(Color background_color) {
+	gl_renderer_->SetBackgroundColor(background_color);
+}
+
+[[nodiscard]] Color Renderer::GetBackgroundColor() const {
+	return gl_renderer_->GetBackgroundColor();
 }
 
 void Renderer::BindScreenTarget() {

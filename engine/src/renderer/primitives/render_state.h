@@ -1,17 +1,18 @@
 #pragma once
 
 #include <cstdint>
+#include <ios>
 #include <ostream>
 #include <utility>
 
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/blend_mode.h"
+#include "renderer/primitives/color.h"
 
 namespace ptgn {
 
-/// Comparison function (glStencilFunc, glDepthFunc)
+/// @brief Comparison function (glStencilFunc, glDepthFunc)
 enum class CompareFunc : std::uint32_t {
 	Never	 = 0x0200, // GL_NEVER
 	Less	 = 0x0201, // GL_LESS
@@ -38,7 +39,7 @@ inline std::ostream& operator<<(std::ostream& os, CompareFunc func) {
 	}
 }
 
-/// Stencil operations (glStencilOp / GL_STENCIL_FAIL, etc.)
+/// @brief Stencil operations (glStencilOp / GL_STENCIL_FAIL, etc.)
 enum class StencilOp : std::uint32_t {
 	Keep	 = 0x1E00, // GL_KEEP
 	Zero	 = 0x0000, // GL_ZERO
@@ -135,7 +136,7 @@ struct ColorMaskState {
 
 struct ScissorState {
 	bool enabled{ false };
-	/// Top left position.
+	/// @brief Top left position.
 	V2_int position;
 	V2_int size;
 
@@ -152,7 +153,7 @@ struct ScissorState {
 	}
 };
 
-/// Cull face selection (glCullFace)
+/// @brief Cull face selection (glCullFace)
 enum class CullFace : std::uint32_t {
 	Front		 = 0x0404, // GL_FRONT
 	Back		 = 0x0405, // GL_BACK
@@ -169,7 +170,7 @@ inline std::ostream& operator<<(std::ostream& os, CullFace face) {
 	}
 }
 
-/// Front face winding order (glFrontFace)
+/// @brief Front face winding order (glFrontFace)
 enum class FrontFace : std::uint32_t {
 	CW	= 0x0900, // GL_CW, Clockwise
 	CCW = 0x0901  // GL_CCW, Counter-clockwise
@@ -203,7 +204,7 @@ struct CullState {
 	}
 };
 
-/// Polygon rasterization mode (glPolygonMode)
+/// @brief Polygon rasterization mode (glPolygonMode)
 enum class PolygonMode : std::uint32_t {
 	Point = 0x1B00, // GL_POINT
 	Line  = 0x1B01, // GL_LINE
@@ -288,7 +289,7 @@ struct ClearColor {
 
 	explicit ClearColor(Color value) : value{ value } {}
 
-	Color value;
+	Color value{ color::Transparent };
 
 	bool operator==(const ClearColor&) const = default;
 

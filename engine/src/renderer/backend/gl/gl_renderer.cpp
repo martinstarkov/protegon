@@ -14,8 +14,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
@@ -29,9 +27,10 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/buffer.h"
 #include "renderer/primitives/buffer_layout.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
@@ -42,6 +41,7 @@
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex.h"
 #include "renderer/primitives/vertex_array.h"
+#include "renderer/primitives/viewport.h"
 
 namespace ptgn::impl::gl {
 
@@ -615,7 +615,7 @@ void GLRenderer::BeginFrame(V2_int window_size) {
 
 	screen_target_.Bind();
 	SetViewport({ {}, screen_target_.GetSize() });
-	gl->framebuffers.ClearToColor(screen_target_.resource_.framebuffer_, color::Transparent);
+	gl->framebuffers.ClearToColor(screen_target_.resource_.framebuffer_, background_color_.value);
 
 #ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::BeginFrame: END");
@@ -662,6 +662,14 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 
 TextureId GLRenderer::GetWhiteTexture() const {
 	return white_texture_;
+}
+
+void GLRenderer::SetBackgroundColor(Color background_color) {
+	background_color_.value = background_color;
+}
+
+Color GLRenderer::GetBackgroundColor() const {
+	return background_color_.value;
 }
 
 void GLRenderer::ResizeScreenTarget(V2_int size) {

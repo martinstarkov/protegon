@@ -8,6 +8,7 @@
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "ecs/ecs.h"
+#include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
@@ -184,9 +185,11 @@ public:
 	///// Call to simulate the scene being re-entered.
 	// void ReEnter();
 
-	// TODO: Fix scene render target clear color.
-	// void SetBackgroundColor(Color background_color);
-	//[[nodiscard]] Color GetBackgroundColor() const;
+	/// @brief Sets the background color of the scene. The default background color is transparent.
+	void SetBackgroundColor(Color background_color);
+
+	/// @return The background color of the scene.
+	[[nodiscard]] Color GetBackgroundColor() const;
 
 	/// @return {} if no entity with the given uuid exists in the manager.
 	[[nodiscard]] Entity GetEntityByUUID(UUID uuid) const;

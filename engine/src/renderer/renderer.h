@@ -7,16 +7,16 @@
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/scaling_mode.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/blend_mode.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
+#include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
+#include "renderer/primitives/viewport.h"
 
 namespace ptgn {
 
@@ -109,6 +109,9 @@ public:
 	impl::TextureId GetWhiteTexture() const;
 
 	impl::ShaderId GetShader(std::string_view name) const;
+
+	void SetBackgroundColor(Color background_color);
+	[[nodiscard]] Color GetBackgroundColor() const;
 
 	void BindScreenTarget();
 

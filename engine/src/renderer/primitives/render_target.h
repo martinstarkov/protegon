@@ -2,8 +2,8 @@
 
 #include <optional>
 
-#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/renderbuffer.h"
 #include "renderer/primitives/resource.h"
@@ -31,7 +31,7 @@ struct RenderTargetData {
 	RenderTargetData() = default;
 
 	RenderTargetData(
-		const FramebufferId& framebuffer, const std::optional<TextureId>& color,
+		FramebufferId framebuffer, const std::optional<TextureId>& color,
 		const std::optional<RenderbufferId>& depth, V2_int size, TextureFormat format
 	);
 

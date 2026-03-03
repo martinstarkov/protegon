@@ -5,7 +5,6 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
@@ -13,6 +12,7 @@
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_renderer.h"
 #include "renderer/backend/gl/gl_texture.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/renderbuffer.h"
 #include "renderer/primitives/resource.h"
@@ -56,7 +56,7 @@ void RenderTargetData::Bind(gl::GLRenderer& renderer) const {
 }
 
 RenderTargetData::RenderTargetData(
-	const FramebufferId& framebuffer, const std::optional<TextureId>& color,
+	FramebufferId framebuffer, const std::optional<TextureId>& color,
 	const std::optional<RenderbufferId>& depth, V2_int size, TextureFormat format
 ) :
 	framebuffer_{ framebuffer },

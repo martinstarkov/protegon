@@ -7,7 +7,7 @@
 namespace ptgn {
 
 struct Viewport {
-	// Top left position.
+	/// @brief Top left position.
 	V2_int position;
 	V2_int size;
 

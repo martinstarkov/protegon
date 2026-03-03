@@ -61,7 +61,9 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 
 	auto& renderer{ app().renderer };
 
-	render_target_ = CreateRenderTarget(*this, ResizeMode::DisplaySize, TextureFormat::RGBA8);
+	render_target_ = CreateRenderTarget(
+		*this, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8
+	);
 	render_target_.Remove<impl::IDrawable>();
 	camera		 = CreateCamera(*this);
 	fixed_camera = CreateCamera(*this);
@@ -156,11 +158,7 @@ void Scene::InternalDraw() {
 
 	auto draw_to_render_target = [&](RenderTarget render_target) {
 		render_target.Bind();
-
-		// TODO: Bind guard outside this loop to avoid redundant binds if multiple render targets
-		// exist.
-		// TODO: Fix. Clear render target with its clear color instead of transparent.
-		render_target.Clear(color::Transparent);
+		render_target.Clear();
 
 		auto it = rt_to_cameras.find(Hash(render_target));
 		if (it == rt_to_cameras.end()) {
@@ -299,15 +297,13 @@ Entity Scene::CreateEntity(const json& j) {
 	return e;
 }
 
-// TODO: Fix.
-// void Scene::SetBackgroundColor(Color background_color) {
-//	// render_target_.SetClearColor(background_color);
-//}
-// TODO: Fix.
-// Color Scene::GetBackgroundColor() const {
-//	// return render_target_.GetClearColor();
-//	return {};
-//}
+void Scene::SetBackgroundColor(Color background_color) {
+	render_target_.SetClearColor(background_color);
+}
+
+Color Scene::GetBackgroundColor() const {
+	return render_target_.GetClearColor();
+}
 
 RenderTarget Scene::GetRenderTarget() const {
 	return render_target_;

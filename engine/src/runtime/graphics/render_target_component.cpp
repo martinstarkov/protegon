@@ -9,6 +9,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/renderer.h"
@@ -48,8 +49,28 @@ void RenderTarget::Bind() {
 	Get<impl::RenderTargetObject>().Bind();
 }
 
-void RenderTarget::Clear(Color color) {
-	Get<impl::RenderTargetObject>().Clear(color);
+void RenderTarget::Clear(std::optional<Color> color) {
+	Color clear;
+
+	if (color.has_value()) {
+		clear = *color;
+	} else {
+		clear = GetOrDefault<ClearColor>().value;
+	}
+
+	Get<impl::RenderTargetObject>().Clear(clear);
+}
+
+void RenderTarget::SetClearColor(Color clear_color) {
+	if (clear_color == ClearColor{}.value) {
+		Remove<ClearColor>();
+	} else {
+		Add<ClearColor>(clear_color);
+	}
+}
+
+Color RenderTarget::GetClearColor() const {
+	return GetOrDefault<ClearColor>().value;
 }
 
 V2_int RenderTarget::GetSize() const {
@@ -94,23 +115,24 @@ void RenderTarget::Draw(Renderer& renderer, Entity entity) {
 }
 
 void RenderTarget::AddRenderTargetComponents(
-	RenderTarget render_target, Renderer& renderer, V2_int size, TextureFormat format
+	RenderTarget render_target, Renderer& renderer, V2_int size, Color clear_color,
+	TextureFormat format
 ) {
-	PTGN_ASSERT(render_target);
+	PTGN_ASSERT(render_target, "Failed to create render target entity");
 
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target, false);
+	render_target.SetClearColor(clear_color);
 
 	render_target.Add<impl::RenderTargetObject>(renderer.CreateRenderTarget(size, format));
-	// TODO: Add clear color here.
 	render_target.Get<impl::RenderTargetObject>().Clear();
 }
 
 void RenderTarget::AddRenderTargetComponents(
 	RenderTarget render_target, Renderer& renderer, ResizeMode resize_to_resolution,
-	TextureFormat texture_format
+	Color clear_color, TextureFormat texture_format
 ) {
-	PTGN_ASSERT(render_target);
+	PTGN_ASSERT(render_target, "Failed to create render target entity");
 
 	V2_int resolution;
 
@@ -128,25 +150,27 @@ void RenderTarget::AddRenderTargetComponents(
 		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
 	);
 
-	AddRenderTargetComponents(render_target, renderer, resolution, texture_format);
+	AddRenderTargetComponents(render_target, renderer, resolution, clear_color, texture_format);
 
 	PTGN_ASSERT(render_target);
 }
 
 RenderTarget CreateRenderTarget(
-	Scene& scene, ResizeMode resize_to_resolution, TextureFormat texture_format
+	Scene& scene, ResizeMode resize_to_resolution, Color clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
 	RenderTarget::AddRenderTargetComponents(
-		render_target, scene.app().renderer, resize_to_resolution, texture_format
+		render_target, scene.app().renderer, resize_to_resolution, clear_color, texture_format
 	);
 	return render_target;
 }
 
-RenderTarget CreateRenderTarget(Scene& scene, V2_int size, TextureFormat texture_format) {
+RenderTarget CreateRenderTarget(
+	Scene& scene, V2_int size, Color clear_color, TextureFormat texture_format
+) {
 	RenderTarget render_target{ scene.CreateEntity() };
 	RenderTarget::AddRenderTargetComponents(
-		render_target, scene.app().renderer, size, texture_format
+		render_target, scene.app().renderer, size, clear_color, texture_format
 	);
 	return render_target;
 }

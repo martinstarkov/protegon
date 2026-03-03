@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
@@ -14,13 +16,16 @@ class Scene;
 class Renderer;
 class RenderTarget;
 
+/// @brief Determines which resolution the render target automatically resizes to when the game or
+/// display is resized. GameSize resizes to the current game size, while DisplaySize resizes to the
+/// current display size.
 enum class ResizeMode {
 	GameSize,
 	DisplaySize
 };
 
-RenderTarget CreateRenderTarget(Scene&, V2_int, TextureFormat);
-RenderTarget CreateRenderTarget(Scene&, ResizeMode, TextureFormat);
+RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
+RenderTarget CreateRenderTarget(Scene&, ResizeMode, Color, TextureFormat);
 
 namespace impl {
 
@@ -38,9 +43,6 @@ struct ParentRenderTarget {
 	std::size_t render_target{ 0 };
 };
 
-// TODO: Add clear color to render target as an optional component. Otherwise they should be cleared
-// to transparent.
-
 } // namespace impl
 
 class RenderTarget : public Entity {
@@ -50,12 +52,16 @@ public:
 
 	static void Draw(Renderer& renderer, Entity entity);
 
+	/// @brief Binds the render target's internal frame buffer as the current render target.
 	void Bind();
-	void Clear(Color color = color::Transparent);
 
-	// TODO: Add.
-	// void SetClearColor(Color clear_color);
-	//[[nodiscard]] Color GetClearColor() const;
+	/// @brief Clears the render target internal frame buffer color attachment.
+	/// Render target must be bound before calling this function.
+	/// @param color If {}, uses the render target's clear color (default to color::Transparent).
+	void Clear(std::optional<Color> color = {});
+
+	void SetClearColor(Color clear_color);
+	[[nodiscard]] Color GetClearColor() const;
 
 	[[nodiscard]] V2_int GetSize() const;
 	[[nodiscard]] TextureFormat GetFormat() const;
@@ -63,16 +69,17 @@ public:
 	operator impl::TextureId() const;
 
 private:
-	friend RenderTarget CreateRenderTarget(Scene&, V2_int, TextureFormat);
-	friend RenderTarget CreateRenderTarget(Scene&, ResizeMode, TextureFormat);
+	friend RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
+	friend RenderTarget CreateRenderTarget(Scene&, ResizeMode, Color, TextureFormat);
 
 	static void AddRenderTargetComponents(
-		RenderTarget render_target, Renderer& renderer, V2_int size, TextureFormat format
+		RenderTarget render_target, Renderer& renderer, V2_int size, Color clear_color,
+		TextureFormat format
 	);
 
 	static void AddRenderTargetComponents(
 		RenderTarget render_target, Renderer& renderer, ResizeMode resize_to_resolution,
-		TextureFormat texture_format
+		Color clear_color, TextureFormat texture_format
 	);
 };
 
@@ -81,7 +88,8 @@ private:
 /// @param clear_color The background color of the render target.
 /// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 RenderTarget CreateRenderTarget(
-	Scene& scene, V2_int size, TextureFormat texture_format = TextureFormat::RGBA8
+	Scene& scene, V2_int size, Color clear_color = color::Transparent,
+	TextureFormat texture_format = TextureFormat::RGBA8
 );
 
 /// Create a render target that is continuously sized to the specified resolution.
@@ -90,7 +98,7 @@ RenderTarget CreateRenderTarget(
 /// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 RenderTarget CreateRenderTarget(
 	Scene& scene, ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
-	TextureFormat texture_format = TextureFormat::RGBA8
+	Color clear_color = color::Transparent, TextureFormat texture_format = TextureFormat::RGBA8
 );
 
 PTGN_REGISTER_DRAWABLE(RenderTarget);

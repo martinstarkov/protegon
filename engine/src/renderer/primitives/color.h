@@ -17,6 +17,7 @@ struct SDL_Color;
 namespace ptgn {
 
 /// @brief 8-bit RGBA color.
+/// Default: Transparent.
 struct Color {
 	std::uint8_t r{ 0 };
 	std::uint8_t g{ 0 };

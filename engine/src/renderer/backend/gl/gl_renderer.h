@@ -10,12 +10,11 @@
 #include <type_traits>
 #include <vector>
 
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/buffer.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
@@ -23,6 +22,7 @@
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex.h"
 #include "renderer/primitives/vertex_array.h"
+#include "renderer/primitives/viewport.h"
 
 namespace ptgn {
 
@@ -126,6 +126,9 @@ public:
 
 	TextureId GetWhiteTexture() const;
 
+	void SetBackgroundColor(Color background_color);
+	[[nodiscard]] Color GetBackgroundColor() const;
+
 	void ResizeScreenTarget(V2_int size);
 	void BindScreenTarget();
 
@@ -152,6 +155,7 @@ private:
 	RenderTargetData AcquirePooledTarget(V2_int size, TextureFormat format);
 	void ReleasePooledTarget(RenderTargetData& target);
 
+	ClearColor background_color_;
 	RenderTargetObject screen_target_;
 	VertexBufferObject vbo_;
 	ElementBufferObject ebo_;
