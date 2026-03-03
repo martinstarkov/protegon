@@ -2,11 +2,14 @@
 
 #include "app/application.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
+#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
@@ -61,10 +64,10 @@ public:
 		V2_int mouse_tile = mouse_pos / tile_size;
 
 		if (grid.Has(mouse_tile)) {
-			if (input.MousePressed(Mouse::Left)) {
+			if (input.MouseHeld(Mouse::Left)) {
 				outer_grid.Set(mouse_tile, 1);
 			}
-			if (input.MousePressed(Mouse::Right)) {
+			if (input.MouseHeld(Mouse::Right)) {
 				outer_grid.Set(mouse_tile, 0);
 			}
 		}
@@ -77,15 +80,18 @@ public:
 					case 1: c = color::Green; break;
 				}
 			}
-			app().renderer.DrawRect(
-				-res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y }, tile_size, c, -1.0f,
-				Origin::TopLeft
+
+			impl::DrawShape(
+				app().renderer, Rect{ tile_size },
+				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } }, c,
+				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			app().renderer.DrawRect(
-				-res * 0.5f + mouse_tile * tile_size, tile_size, color::Yellow, 1.0f,
-				Origin::TopLeft
+			impl::DrawShape(
+				app().renderer, Rect{ tile_size },
+				Transform{ -res * 0.5f + mouse_tile * tile_size }, color::Yellow,
+				FillStyle::Hollow(1.0f), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		}
 		text.SetContent(ToString(mouse_tile));

@@ -2,8 +2,8 @@
 #include "app/application.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
-#include "renderer/renderer.h"
 #include "renderer/primitives/shader.h"
+#include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
@@ -97,8 +97,8 @@ struct RenderTargetScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		MoveArrowKeys(rt1.GetCamera(), V2_float{ 3.0f });
-		MoveWASD(rt2.GetCamera(), V2_float{ 3.0f });
+		MoveArrowKeys(camera1, V2_float{ 3.0f });
+		MoveWASD(camera2, V2_float{ 3.0f });
 	}
 };
 

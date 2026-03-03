@@ -3,13 +3,14 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
-#include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
-#include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -299,21 +300,21 @@ public:
 		if (input.KeyPressed(Key::R)) {
 			gravity = {};
 		}
-		if (input.KeyPressed(Key::Down)) {
+		if (input.KeyHeld(Key::Down)) {
 			gravity.y += gravity_increment;
 		}
-		if (input.KeyPressed(Key::Up)) {
+		if (input.KeyHeld(Key::Up)) {
 			gravity.y -= gravity_increment;
 		}
-		if (input.KeyPressed(Key::Left)) {
+		if (input.KeyHeld(Key::Left)) {
 			gravity.x -= gravity_increment;
 		}
-		if (input.KeyPressed(Key::Right)) {
+		if (input.KeyHeld(Key::Right)) {
 			gravity.x += gravity_increment;
 		}
 
 		// Left click: add fluid
-		if (input.MousePressed(Mouse::Left)) {
+		if (input.MouseHeld(Mouse::Left)) {
 			auto mouse_position = input.GetMousePosition() + game_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			fluid.AddDensity(pos.x, pos.y, 1000, static_cast<int>(10.0f / scale.x));
@@ -321,7 +322,7 @@ public:
 		}
 
 		// Right click: draw obstacles
-		if (input.MousePressed(Mouse::Right)) {
+		if (input.MouseHeld(Mouse::Right)) {
 			auto mouse_position = input.GetMousePosition() + game_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			// Make a small brush radius to draw obstacles
@@ -374,8 +375,10 @@ public:
 					}
 				}
 
-				app().renderer.DrawRect(
-					-game_size * 0.5f + position * scale, scale, color, -1.0f, Origin::TopLeft
+				impl::DrawShape(
+					app().renderer, Rect{ scale },
+					Transform{ -game_size * 0.5f + position * scale }, color, FillStyle::Solid(),
+					Origin::TopLeft, Depth{}, BlendMode::Blend
 				);
 			}
 		}

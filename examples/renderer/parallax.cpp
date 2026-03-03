@@ -41,7 +41,7 @@ public:
 		stars_pos	 = app().renderer.GetGameSize() * 0.5f;
 
 		size			= app().renderer.GetGameSize() * scale;
-		background_size = game.texture.GetSize("background");
+		background_size = app().asset.GetTexture("background")->GetSize();
 		bg_aspect_ratio = background_size.x / background_size.y;
 
 		ResetPositions();
@@ -54,20 +54,20 @@ public:
 	}
 
 	void OnUpdate() override {
-		float speed = 10.0f * app().DeltaTime();
+		float speed = 10.0f * app().DeltaTime().count();
 
 		V2_float velocity;
 
-		if (input.KeyPressed(Key::W)) {
+		if (input.KeyHeld(Key::W)) {
 			velocity.y = -speed;
 		}
-		if (input.KeyPressed(Key::S)) {
+		if (input.KeyHeld(Key::S)) {
 			velocity.y = +speed;
 		}
-		if (input.KeyPressed(Key::A)) {
+		if (input.KeyHeld(Key::A)) {
 			velocity.x = -speed;
 		}
-		if (input.KeyPressed(Key::D)) {
+		if (input.KeyHeld(Key::D)) {
 			velocity.x = +speed;
 		}
 

@@ -3,7 +3,10 @@
 #include "app/application.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
+#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/input/key.h"
@@ -11,6 +14,7 @@
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/ui/button.h"
 
@@ -35,7 +39,7 @@ struct GraphicsScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		// MoveWASD(graphics, V2_float{ 300.0f * app().DeltaTime() });
+		MoveWASD(graphics, V2_float{ 300.0f * app().DeltaTime().count() });
 	}
 };
 

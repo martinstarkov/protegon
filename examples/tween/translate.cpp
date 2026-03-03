@@ -1,8 +1,12 @@
 #include "app/application.h"
 #include "app/context.h"
 #include "core/log.h"
+#include "core/math/easing.h"
+#include "core/time/time.h"
 #include "platform/input/input_handler.h"
+#include "platform/input/mouse.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/sprite.h"
@@ -17,8 +21,7 @@ struct TranslateEffectScene : public Scene {
 	Sprite sprite3;
 
 	void OnEnter() override {
-		// TODO: Fix scene bg color.
-		// SetBackgroundColor(color::LightBlue);
+		SetBackgroundColor(color::LightBlue);
 
 		app().asset.Load("smile", "assets/smile.png");
 

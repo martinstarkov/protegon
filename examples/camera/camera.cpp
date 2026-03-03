@@ -151,53 +151,53 @@ public:
 
 	void OnUpdate() override {
 		V2_float center{ app().window.GetCenter() };
-		float dt{ app().DeltaTime() };
+		float dt{ app().DeltaTime().count() };
 
-		if (input.KeyPressed(Key::W)) {
+		if (input.KeyHeld(Key::W)) {
 			Translate(camera,{ 0, -pan_speed * dt });
 		}
-		if (input.KeyPressed(Key::S)) {
+		if (input.KeyHeld(Key::S)) {
 			Translate(camera,{ 0, pan_speed * dt });
 		}
-		if (input.KeyPressed(Key::A)) {
+		if (input.KeyHeld(Key::A)) {
 			Translate(camera,{ -pan_speed * dt, 0 });
 		}
-		if (input.KeyPressed(Key::D)) {
+		if (input.KeyHeld(Key::D)) {
 			Translate(camera,{ pan_speed * dt, 0 });
 		}
 
-		if (input.KeyPressed(Key::Z)) {
+		if (input.KeyHeld(Key::Z)) {
 			camera.Yaw(rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::X)) {
+		if (input.KeyHeld(Key::X)) {
 			camera.Yaw(-rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::C)) {
+		if (input.KeyHeld(Key::C)) {
 			camera.Pitch(rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::V)) {
+		if (input.KeyHeld(Key::V)) {
 			camera.Pitch(-rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::B)) {
+		if (input.KeyHeld(Key::B)) {
 			camera.Roll(rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::N)) {
+		if (input.KeyHeld(Key::N)) {
 			camera.Roll(-rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::E)) {
+		if (input.KeyHeld(Key::E)) {
 			camera.Zoom(zoom_speed * dt);
 		}
-		if (input.KeyPressed(Key::Q)) {
+		if (input.KeyHeld(Key::Q)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::R)) {
+		if (input.KeyHeld(Key::R)) {
 			camera.SetPosition(center);
 			camera.SetZoom(1.0f);
 		}
@@ -295,7 +295,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		float dt{ app().DeltaTime() };
+		float dt{ app().DeltaTime().count() };
 
 		/*	PTGN_LOG(
 				"Mouse screen pos: ", input.GetMouseWindowPosition(),
@@ -304,31 +304,31 @@ public:
 
 		SetPosition(mouse, input.GetMousePosition());
 
-		if (input.KeyPressed(Key::W)) {
+		if (input.KeyHeld(Key::W)) {
 			Translate(camera, { 0, -pan_speed * dt });
 		}
-		if (input.KeyPressed(Key::S)) {
+		if (input.KeyHeld(Key::S)) {
 			Translate(camera, { 0, pan_speed * dt });
 		}
-		if (input.KeyPressed(Key::A)) {
+		if (input.KeyHeld(Key::A)) {
 			Translate(camera, { -pan_speed * dt, 0 });
 		}
-		if (input.KeyPressed(Key::D)) {
+		if (input.KeyHeld(Key::D)) {
 			Translate(camera, { pan_speed * dt, 0 });
 		}
 
-		if (input.KeyPressed(Key::Z)) {
+		if (input.KeyHeld(Key::Z)) {
 			Rotate(camera, rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::X)) {
+		if (input.KeyHeld(Key::X)) {
 			Rotate(camera, -rotation_speed * dt);
 		}
 
-		if (input.KeyPressed(Key::E)) {
+		if (input.KeyHeld(Key::E)) {
 			camera.Zoom(zoom_speed * dt);
 		}
-		if (input.KeyPressed(Key::Q)) {
+		if (input.KeyHeld(Key::Q)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
 

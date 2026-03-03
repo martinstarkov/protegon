@@ -23,8 +23,7 @@ struct FadeEffectScene : public Scene {
 	Sprite sprite2;
 
 	void OnEnter() override {
-		// TODO: Fix scene bg color.
-		// SetBackgroundColor(color::LightBlue);
+		SetBackgroundColor(color::LightBlue);
 
 		app().asset.Load("tree", "assets/jpg.jpg");
 		app().asset.Load("smile", "assets/smile.png");

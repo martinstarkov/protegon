@@ -1,11 +1,8 @@
-#include <variant>
 #include <vector>
 
 #include "app/application.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
 #include "platform/input/mouse.h"
-#include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"
@@ -15,7 +12,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
@@ -43,8 +39,7 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void OnEnter() override {
-		// TODO: Fix scene bg color.
-		// SetBackgroundColor(color::DarkGray);
+		SetBackgroundColor(color::DarkGray);
 
 		app().asset.Load("smile", "assets/white_smile.png");
 

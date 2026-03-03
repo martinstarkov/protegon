@@ -2,33 +2,35 @@
 #include <utility>
 
 #include "app/application.h"
+#include "core/event/dispatcher.h"
 #include "core/math/geometry/circle.h"
-#include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
 #include "platform/input/key.h"
-#include "platform/window/window.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/render_target.h"
+#include "renderer/primitives/scaling_mode.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
-#include "runtime/graphics/light.h"
+#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
 
 using namespace ptgn;
 
 struct CircleDragScript : public Script {
-	void OnDrag() override {
-		SetPosition(
-			entity, entity.GetScene().input.GetMousePosition() + entity.Get<Draggable>().GetOffset()
-		);
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.offset); });
+	}
+
+	void OnDrag(V2_float offset) {
+		SetPosition(entity, entity.GetScene().input.GetMousePosition() + offset);
 	}
 };
 
@@ -47,29 +49,30 @@ struct ResolutionScene : public Scene {
 
 		SetBackgroundColor(color::LightGray);
 
-		camera.CenterOnViewport({ 600, 300 });
+		camera.SetViewport({ {}, { 600, 300 } });
 
-		input.SetDrawInteractives(true);
-		input.SetDrawInteractivesLineWidth(10.0f);
+		input.SetInteractiveDebugDraw({ .enabled = true, .line_width = 10.0f });
 
 		V2_float camera_center{ GetTransform(camera).GetPosition() };
 
 		CreateRect(*this, camera_center - V2_float{ 100, 0 }, { 100, 100 }, color::Green);
 
+		// TODO: Fix point light.
+		/*
 		float intensity{ 0.5f };
 		float falloff{ 2.0f };
 
 		CreatePointLight(
 			*this, camera_center + V2_float{ 100, 0 }, 50.0f, color::Red, intensity, falloff
-		);
+		);*/
 
 		float radius{ 50.0f };
-		circle = CreateEntity();
+		circle = Sprite{ CreateEntity() };
 		SetPosition(circle, camera_center);
-		auto child{ CreateEntity(*this) };
+		auto child{ CreateEntity() };
 		child.Add<Circle>(radius);
-		AddInteractable(circle, std::move(child));
-		circle.Add<Draggable>();
+		AddInteractiveShape(circle, GameObject{ std::move(child) });
+		SetDraggable(circle);
 		AddScript<CircleDragScript>(circle);
 	}
 
@@ -79,34 +82,36 @@ struct ResolutionScene : public Scene {
 	void OnUpdate() override {
 		MoveWASD(camera, { 3.0f, 3.0f });
 
-		auto dt{ app().DeltaTime() };
+		float dt{ app().DeltaTime().count() };
 
-		if (input.KeyPressed(Key::Q)) {
+		PTGN_LOG("Dt: ", dt);
+
+		if (input.KeyHeld(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
 		}
-		if (input.KeyPressed(Key::E)) {
+		if (input.KeyHeld(Key::E)) {
 			Rotate(camera, -rotation_speed * dt);
 		}
-		if (input.KeyPressed(Key::Z)) {
+		if (input.KeyHeld(Key::Z)) {
 			camera.Zoom(zoom_speed * dt);
 		}
-		if (input.KeyPressed(Key::C)) {
+		if (input.KeyHeld(Key::C)) {
 			camera.Zoom(-zoom_speed * dt);
 		}
 
 		RenderTarget scene_target{ GetRenderTarget() };
 		MoveArrowKeys(GetRenderTarget(), { 3.0f, 3.0f });
 
-		if (input.KeyPressed(Key::R)) {
+		if (input.KeyHeld(Key::R)) {
 			Rotate(scene_target, rotation_speed * dt);
 		}
-		if (input.KeyPressed(Key::T)) {
+		if (input.KeyHeld(Key::T)) {
 			Rotate(scene_target, -rotation_speed * dt);
 		}
-		if (input.KeyPressed(Key::F)) {
+		if (input.KeyHeld(Key::F)) {
 			SetScale(scene_target, GetScale(scene_target) + V2_float{ zoom_speed * dt });
 		}
-		if (input.KeyPressed(Key::G)) {
+		if (input.KeyHeld(Key::G)) {
 			SetScale(scene_target, GetScale(scene_target) + V2_float{ -zoom_speed * dt });
 		}
 	}

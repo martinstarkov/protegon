@@ -4,18 +4,19 @@
 #include <cstdint>
 
 #include "app/application.h"
-#include "platform/window/window.h"
-#include "runtime/physics/movement.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "core/log.h"
 #include "core/assert.h"
+#include "core/log.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
+#include "platform/input/input_handler.h"
+#include "platform/input/key.h"
+#include "platform/window/window.h"
 #include "renderer/primitives/color.h"
-#include "core/math/geometry/origin.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/camera.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -117,7 +118,7 @@ public:
 			thresholding = !thresholding;
 		}
 
-		MoveWASD(camera, V2_float{ 200.0f * app().DeltaTime() });
+		MoveWASD(camera, V2_float{ 200.0f * app().DeltaTime().count() });
 
 		// Clamp fractal noise parameters.
 
@@ -214,16 +215,24 @@ public:
 					float opacity = noise_value * 255.0f;
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
-				app().renderer.DrawRect(p * pixel_size, pixel_size, color, -1.0f, Origin::Center);
+
+				impl::DrawShape(
+					app().renderer, Rect{ pixel_size }, Transform{ p * pixel_size }, color,
+					FillStyle::Solid(), Origin::Center, Depth{}, BlendMode::Blend
+				);
 			}
 		}
 
-		app().renderer.DrawRect(
-			(min * pixel_size + max * pixel_size) * 0.5f, (max - min) * pixel_size, color::Orange,
-			3.0f, Origin::Center
+		impl::DrawShape(
+			app().renderer, Rect{ (max - min) * pixel_size },
+			Transform{ (min * pixel_size + max * pixel_size) * 0.5f }, color::Orange,
+			FillStyle::Hollow(3.0f), Origin::Center, Depth{}, BlendMode::Blend
 		);
 
-		app().renderer.DrawRect({}, V2_float{ 30.0f, 30.0f }, color::Red, -1.0f, Origin::TopLeft);
+		impl::DrawShape(
+			app().renderer, Rect{ 30, 30 }, Transform{}, color::Red, FillStyle::Solid(),
+			Origin::TopLeft, Depth{}, BlendMode::Blend
+		);
 	}
 };
 

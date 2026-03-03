@@ -1,10 +1,10 @@
 #include "runtime/graphics/light.h"
 
 #include "app/application.h"
-#include "renderer/primitives/color.h"
 #include "core/math/geometry/origin.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
@@ -17,7 +17,7 @@ public:
 	PointLight mouse_light;
 
 	void OnEnter() override {
-		// app().renderer.SetBackgroundColor(color::White);
+		app().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
 		app().asset.Load("test", "assets/test1.jpg");

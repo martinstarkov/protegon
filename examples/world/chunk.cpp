@@ -16,6 +16,8 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/shape.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
@@ -24,25 +26,18 @@ using namespace ptgn;
 
 class ChunkScene : public Scene {
 public:
-	Entity CreateSheep(const V2_float& position) {
-		auto e = CreateEntity();
-		SetPosition(e, position);
-		Show(e);
+	Entity CreateSheep(V2_float position) {
+		auto e = CreateSprite(*this, "sheep", position);
 		SetDepth(e, 1);
-		e.Add<TextureHandle>("sheep");
 		return e;
 	}
 
-	Entity CreateTile(const V2_float& position, std::string_view texture_key) {
-		auto e = CreateEntity();
-		SetPosition(e, position);
-		Show(e);
-		SetDrawOrigin(e, Origin::TopLeft);
-		e.Add<TextureHandle>(texture_key);
+	Entity CreateTile(V2_float position, std::string_view texture_key) {
+		auto e = CreateSprite(*this, texture_key, position, Origin::TopLeft);
 		return e;
 	}
 
-	Entity CreateColorTile(const V2_float& position, const Color& color) {
+	Entity CreateColorTile(V2_float position, const Color& color) {
 		auto e =
 			CreateRect(*this, position, chunk_manager.tile_size, color, -1.0f, Origin::TopLeft);
 		return e;
@@ -63,13 +58,13 @@ public:
 		fractal_noise.SetLacunarity(20.0f);
 		fractal_noise.SetPersistence(0.8f);
 
-		game.texture.Load("sheep", "assets/test.png");
-		game.texture.Load("red", "assets/red_tile.png");
-		game.texture.Load("blue", "assets/blue_tile.png");
-		game.texture.Load("green", "assets/green_tile.png");
+		app().asset.LoadTexture("sheep", "assets/test.png");
+		app().asset.LoadTexture("red", "assets/red_tile.png");
+		app().asset.LoadTexture("blue", "assets/blue_tile.png");
+		app().asset.LoadTexture("green", "assets/green_tile.png");
 
 		chunk_manager.AddNoiseLayer(NoiseLayer{
-			fractal_noise, [&](const V2_float& coordinate, float noise) {
+			fractal_noise, [&](V2_float coordinate, float noise) {
 				return CreateColorTile(
 					-app().renderer.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
 				);
@@ -80,14 +75,14 @@ public:
 	}
 
 	void OnUpdate() override {
-		MoveWASD(vel, speed, true);
-		Translate(sheep, vel * app().DeltaTime());
+		MoveWASD(*this, vel, speed, true);
+		Translate(sheep, vel * app().DeltaTime().count());
 
-		if (input.KeyPressed(Key::Q)) {
-			camera.Zoom(-zoom_speed * app().DeltaTime());
+		if (input.KeyHeld(Key::Q)) {
+			camera.Zoom(-zoom_speed * app().DeltaTime().count());
 		}
-		if (input.KeyPressed(Key::E)) {
-			camera.Zoom(zoom_speed * app().DeltaTime());
+		if (input.KeyHeld(Key::E)) {
+			camera.Zoom(zoom_speed * app().DeltaTime().count());
 		}
 
 		chunk_manager.Update(*this, camera);

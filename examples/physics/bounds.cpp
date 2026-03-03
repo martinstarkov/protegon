@@ -8,6 +8,7 @@
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
@@ -53,7 +54,7 @@ struct PhysicsBoundaryScene : public Scene {
 	}
 
 	void OnEnter() override {
-		physics.SetBounds(-game_size * 0.5f, game_size, behavior);
+		physics.SetBounds(Bounds{ {}, game_size, behavior });
 		player = AddEntity({}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
@@ -64,7 +65,7 @@ struct PhysicsBoundaryScene : public Scene {
 
 	void OnUpdate() override {
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(pos, V2_float{ 100.0f } * app().DeltaTime(), false);
+		MoveWASD(*this, pos, V2_float{ 100.0f } * app().DeltaTime().count(), false);
 		SetPosition(player, pos);
 
 		if (input.KeyPressed(Key::Q)) {

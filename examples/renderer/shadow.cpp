@@ -213,7 +213,7 @@ public:
 	LightMap light_map;
 
 	void OnEnter() override {
-		// app().renderer.SetBackgroundColor(color::White);
+		app().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
 		app().asset.Load("test", "assets/test1.jpg");
@@ -264,7 +264,7 @@ public:
 		auto pos{ input.GetMousePosition() };
 		SetPosition(mouse_light, pos);
 
-		if (input.MousePressed(Mouse::Right)) {
+		if (input.MouseHeld(Mouse::Right)) {
 			SetPosition(static_light, pos);
 		}
 	}
