@@ -66,12 +66,14 @@ void InternalAnimatedButtonScript::OnEvent(EventDispatcher d) {
 }
 
 void InternalAnimatedButtonScript::OnButtonHoverStart() {
+	// TODO: Check button state. If pressed we dont start hover animation.
 	if (hover_animation.has_value()) {
 		hover_animation->Start(force_start_on_hover_start);
 	}
 }
 
 void InternalAnimatedButtonScript::OnButtonHoverStop() {
+	// TODO: Check button state. If pressed we dont stop hover animation.
 	if (hover_animation.has_value() && stop_on_hover_stop) {
 		hover_animation->Stop();
 	}
@@ -810,21 +812,13 @@ Color ButtonBase<Derived>::GetTint(ButtonState state) const {
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::SetTint(Color color, ButtonState state) {
-	if (!Has<impl::ButtonTint>()) {
-		auto& c{ Add<impl::ButtonTint>() };
-		c.Get(state) = color;
-	} else {
-		auto& c{ Get<impl::ButtonTint>() };
-		c.Get(state) = color;
-	}
+	TryAdd<impl::ButtonTint>().Get(state) = color;
 	return Self();
 }
 
 template <typename Derived>
 Color ButtonBase<Derived>::GetBorderColor(ButtonState state) const {
-	const auto c{ Has<impl::ButtonBorderColor>() ? Get<impl::ButtonBorderColor>()
-												 : impl::ButtonBorderColor{} };
-	return c.Get(state);
+	return GetOrDefault<impl::ButtonBorderColor>().Get(state);
 }
 
 template <typename Derived>
@@ -840,8 +834,7 @@ Derived& ButtonBase<Derived>::SetBorderColor(Color color, ButtonState state) {
 
 template <typename Derived>
 float ButtonBase<Derived>::GetBackgroundLineWidth() const {
-	return Has<impl::ButtonBackgroundWidth>() ? Get<impl::ButtonBackgroundWidth>()
-											  : impl::ButtonBackgroundWidth{};
+	return GetOrDefault<impl::ButtonBackgroundWidth>();
 }
 
 template <typename Derived>
@@ -857,8 +850,7 @@ Derived& ButtonBase<Derived>::SetBackgroundLineWidth(float line_width) {
 
 template <typename Derived>
 float ButtonBase<Derived>::GetBorderWidth() const {
-	return Has<impl::ButtonBorderWidth>() ? Get<impl::ButtonBorderWidth>()
-										  : impl::ButtonBorderWidth{};
+	return GetOrDefault<impl::ButtonBorderWidth>();
 }
 
 template <typename Derived>

@@ -487,7 +487,7 @@ V2_int GetTextureSize(Entity entity) {
 	return *size;
 }
 
-V2_int GetCroppedSize(Entity entity) {
+V2_int GetCroppedTextureSize(Entity entity) {
 	if (entity.Has<impl::TextureCrop>()) {
 		const auto& crop{ entity.Get<impl::TextureCrop>() };
 		return crop.size;
@@ -502,7 +502,7 @@ void SetDisplaySize(Entity entity, V2_float display_size) {
 V2_float GetDisplaySize(Entity entity) {
 	PTGN_ASSERT(entity.Has<Texture>());
 
-	return GetCroppedSize(entity) * GetScale(entity);
+	return GetCroppedTextureSize(entity) * GetScale(entity);
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {

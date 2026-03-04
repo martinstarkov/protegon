@@ -23,7 +23,7 @@ Sprite::Sprite(Entity entity) : Entity{ entity } {}
 void Sprite::Draw(Renderer& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<Texture>());
 	impl::DrawQuadTexture(
-		renderer, entity.Get<Texture>(), GetDrawTransform(entity), GetTextureSize(entity),
+		renderer, entity.Get<Texture>(), GetDrawTransform(entity), GetCroppedTextureSize(entity),
 		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity), GetBlendMode(entity),
 		GetTextureCoordinates(entity, false)
 	);

@@ -69,6 +69,8 @@ public:
 	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
 
 	[[nodiscard]] Viewport GetViewport() const;
+	/// @return Viewport size scaled by the inverse of the zoom. In other words, the size of the
+	/// viewport in world units.
 	[[nodiscard]] V2_float GetDisplaySize() const;
 
 	[[nodiscard]] V2_float GetScroll() const;

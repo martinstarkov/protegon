@@ -23,13 +23,24 @@ public:
 		// TODO: Fix draw interactables.
 		// input.SetDrawInteractives();
 
-		app().asset.Load("animation", "assets/button_animation.png");
+		app().asset.Load("animation_hover", "assets/button_animation_hover.png");
+		app().asset.Load("animation_activate", "assets/button_animation_activate.png");
 
-		auto activate_animation{ CreateAnimation(
-			*this, "animation", V2_int{}, 4, milliseconds{ 1000 }, V2_int{ 16, 32 }, 1
+		auto hover_animation{ CreateAnimation(
+			*this, "animation_activate", V2_int{}, 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1
 		) };
 
-		b1 = CreateAnimatedButton(*this, GetDisplaySize(activate_animation), activate_animation);
+		auto activate_animation{ CreateAnimation(
+			*this, "animation_activate", V2_int{}, 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1
+		) };
+
+		b1 = CreateAnimatedButton(
+			*this, GetDisplaySize(activate_animation), activate_animation, hover_animation
+		);
+		// TODO: Fix tints.
+		/*.SetTint(color::Red, ButtonState::Default)
+		.SetTint(color::Green, ButtonState::Hover)
+		.SetTint(color::Blue, ButtonState::Pressed);*/
 
 		SetScale(b1, 4.0f);
 

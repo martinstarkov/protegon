@@ -177,7 +177,7 @@ void SetTint(Entity entity, Color color = color::White);
 [[nodiscard]] V2_int GetTextureSize(Entity entity);
 
 /// @return Unscaled size of the cropped texture in pixels.
-[[nodiscard]] V2_int GetCroppedSize(Entity entity);
+[[nodiscard]] V2_int GetCroppedTextureSize(Entity entity);
 
 void SetDisplaySize(Entity entity, V2_float display_size);
 
