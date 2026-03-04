@@ -3,28 +3,34 @@
 #include <vector>
 
 #include "app/application.h"
+#include "app/context.h"
+#include "core/assert.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry_utils.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "ecs/ecs.h"
 #include "platform/input/input_handler.h"
 #include "platform/input/mouse.h"
 #include "platform/window/window.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/render_target.h"
 #include "renderer/primitives/shader.h"
-#include "renderer/render_target.h"
 #include "renderer/renderer.h"
-#include "renderer/stencil_mask.h"
 #include "runtime/animation/effects.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/light.h"
+#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
@@ -158,7 +164,7 @@ private:
 
 		for (const auto& entity : shadow_entities) {
 			if (auto shape{ GetSpriteOrShape(entity) }) {
-				auto transform{ GetAbsoluteTransform(entity) };
+				auto transform{ GetWorldTransform(entity) };
 
 				transform = OffsetByOrigin(*shape, transform, entity);
 
