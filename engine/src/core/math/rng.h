@@ -1,8 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <cstdint>
 #include <limits>
+#include <numeric>
 #include <optional>
 #include <random>
 #include <type_traits>
@@ -180,6 +182,41 @@ template <impl::RNGType T = std::int32_t>
 [[nodiscard]] T RandomNumber() {
 	static RNG<T> rng{ std::numeric_limits<T>::min(), std::numeric_limits<T>::max() };
 	return rng();
+}
+
+template <typename Container>
+auto RandomSample(const Container& choices, std::size_t count, bool unique = true) {
+	using T = typename Container::value_type;
+
+	static std::mt19937 rng{ std::random_device{}() };
+
+	std::vector<T> result;
+	result.reserve(count);
+
+	if (choices.empty() || !count) {
+		return result;
+	}
+
+	if (unique) {
+		std::vector<std::size_t> indices(choices.size());
+		std::iota(indices.begin(), indices.end(), 0);
+
+		std::shuffle(indices.begin(), indices.end(), rng);
+
+		count = std::min(count, indices.size());
+
+		for (std::size_t i = 0; i < count; ++i) {
+			result.push_back(choices[indices[i]]);
+		}
+	} else {
+		std::uniform_int_distribution<std::size_t> dist(0, choices.size() - 1);
+
+		for (std::size_t i = 0; i < count; ++i) {
+			result.push_back(choices[dist(rng)]);
+		}
+	}
+
+	return result;
 }
 
 template <typename T>
