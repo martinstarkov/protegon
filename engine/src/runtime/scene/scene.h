@@ -292,10 +292,6 @@ public:
 	SceneInput input;
 	Physics physics;
 
-	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
-	/// size.
-	Camera fixed_camera;
-
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// game size.
 	Camera camera;
@@ -305,6 +301,10 @@ public:
 	[[nodiscard]] RenderTarget GetRenderTarget() const;
 
 private:
+	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
+	/// size.
+	Camera fixed_camera;
+
 	friend class SceneManager;
 	friend class EventHandler;
 	friend class FrameContext;

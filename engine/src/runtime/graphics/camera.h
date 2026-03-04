@@ -21,7 +21,13 @@ using LayerMask = std::uint64_t;
 inline constexpr LayerMask kLayersAll  = ~LayerMask{ 0 };
 inline constexpr LayerMask kLayersNone = LayerMask{ 0 };
 
+constexpr LayerMask Layer(int i) {
+	return LayerMask{ 1 } << i;
+}
+
 namespace impl {
+
+struct UILayer {};
 
 struct CameraData {
 	Viewport viewport;
@@ -51,10 +57,8 @@ struct RenderMask {
 };
 
 /// @brief If a camera has no CameraMask, we treat it as having
-/// CameraMask{} (default ctor).
+/// CameraMask{} (default ctor). Neutral engine default: include all, exclude none.
 struct CameraMask {
-	/// @brief Neutral engine default: include all, exclude none.
-
 	LayerMask include{ kLayersAll };
 	LayerMask exclude{ kLayersNone };
 };
@@ -132,6 +136,13 @@ public:
 };
 
 LayerMask GetMask(Entity entity);
+
+/// @brief If ui_layer is true, the entity will be rendered on the UI layer, which uses the scene's
+/// fixed_camera. Note this will modify the entity's layer mask.
+void SetUI(Entity entity, bool ui_layer = true);
+
+/// @return True if the entity is on the UI layer, false otherwise.
+bool IsUI(Entity entity);
 
 void SetMask(Entity entity, LayerMask mask);
 void AddMasks(Entity entity, LayerMask layers_to_add);

@@ -135,7 +135,7 @@ static bool Overlap(Entity entityA, Entity entityB) {
 namespace impl {
 
 MouseInfo::MouseInfo(const Scene& scene) :
-	// TODO: Change to window once renderer uses correct viewport system.
+	// TODO: Use the world frame of the camera.
 	position{ scene.input.GetMousePosition(Frame::Window) },
 	scroll_delta{ scene.input.GetMouseScroll() },
 	left_held{ scene.input.MouseHeld(Mouse::Left) },

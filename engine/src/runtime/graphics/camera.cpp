@@ -336,6 +336,20 @@ bool Camera::IsVisible(Entity entity) const {
 	return in_include && !in_exclude;
 }
 
+void SetUI(Entity entity, bool ui_layer) {
+	if (ui_layer) {
+		entity.Add<impl::UILayer>();
+		SetMask(entity, kLayersNone);
+	} else {
+		entity.Remove<impl::UILayer>();
+		SetMask(entity, kLayersAll);
+	}
+}
+
+bool IsUI(Entity entity) {
+	return entity.Has<impl::UILayer>();
+}
+
 LayerMask GetMask(Entity entity) {
 	return entity.GetOrDefault<impl::RenderMask>().layers;
 }

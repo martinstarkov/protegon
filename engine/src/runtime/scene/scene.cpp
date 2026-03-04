@@ -68,6 +68,7 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	camera		 = CreateCamera(*this);
 	fixed_camera = CreateCamera(*this);
 	fixed_camera.SetMasks(kLayersNone, kLayersAll);
+	SetUI(fixed_camera, true);
 	// PTGN_LOG("[scene=", this, "]");
 	// PTGN_LOG("[rt=", render_target_, "]");
 	// PTGN_LOG("[camera=", camera, "]");
@@ -181,16 +182,20 @@ void Scene::InternalDraw() {
 			renderer.SetViewport(viewport);
 			renderer.SetViewProjection(cam.GetViewProjection());
 
+			bool ui_camera{ IsUI(cam) };
+
 			// auto vertices{ GetCameraWorldVertices(cam) };
 			//  auto frustum_objects{ tree.Query(BoundingAABB{ vertices[0], vertices[2] }) };
 
 			for (const auto& drawable : drawables) {
-				// Mask test (entity layers vs camera include/exclude)
-				if (!cam.IsVisible(drawable)) {
+				bool ui_entity{ IsUI(drawable) && ui_camera };
+
+				// Mask test (entity layers vs camera include/exclude).
+				if (!cam.IsVisible(drawable) && !ui_entity) {
 					continue;
 				}
 
-				// Frustum culling
+				// Frustum culling.
 				/*if (!VectorContains(frustum_objects, drawable)) {
 					continue;
 				}*/

@@ -30,6 +30,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
@@ -1276,8 +1277,12 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	}
 }
 
-Button CreateButton(Scene& scene) {
+Button CreateButton(Scene& scene, bool ui_layer) {
 	Button button{ scene.CreateEntity() };
+
+	if (ui_layer) {
+		SetUI(button, true);
+	}
 
 	Show(button, false);
 	SetDraw<Button>(button);

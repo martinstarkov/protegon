@@ -2,6 +2,7 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/input/input_handler.h"
@@ -57,14 +58,16 @@ public:
 		V2_float offset{ 6, 6 };
 		V2_float size{ 200, 50 };
 
-		grid.ForEach([&](auto coord, Button& b) {
+		grid.ForEach([&](V2_int coord, Button& b) {
 			if (!b) {
 				return;
 			}
 			SetPosition(b, -res * 0.5f + screen_offset + (offset + size) * coord);
 			b.SetSize(size);
 			SetDrawOrigin(b, Origin::TopLeft);
-			b.Add<Camera>(fixed_camera);
+			if (coord == V2_int{}) {
+				SetUI(b, false);
+			}
 		});
 	}
 

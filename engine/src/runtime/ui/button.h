@@ -540,7 +540,7 @@ private:
 
 } // namespace impl
 
-Button CreateButton(Scene& scene);
+Button CreateButton(Scene& scene, bool ui_layer = true);
 
 Button CreateTextButton(
 	Scene& scene, std::string_view text_content, Color text_color = color::Black
