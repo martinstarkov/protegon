@@ -23,32 +23,48 @@ public:
 	Scripts(Scripts&&) noexcept			   = default;
 	Scripts& operator=(Scripts&&) noexcept = default;
 
-	template <ScriptType T, typename... Args>
-	T& Add(Entity e, Args&&... args) {
-		auto sp	   = std::make_unique<T>(std::forward<Args>(args)...);
+	/// @brief Adds an instance of a script of type T to the given entity (multiple instances can
+	/// exist), forwarding the given arguments to its constructor.
+	/// @return Reference to the added script instance.
+	template <ScriptType T, typename... TArgs>
+	T& Add(Entity e, TArgs&&... constructor_args) {
+		auto sp	   = std::make_unique<T>(std::forward<TArgs>(constructor_args)...);
 		sp->entity = e;
 		auto& script{ scripts_.emplace_back(std::move(sp)) };
 		script->OnCreate();
 		return static_cast<T&>(*script);
 	}
 
+	/// @brief Removes all instances of the script type T from the scripts.
 	/// @return True if a script of type T was found and removed, false otherwise.
 	template <ScriptType T>
 	bool Remove() {
+		bool removed = false;
+
 		auto it =
-			std::find_if(scripts_.begin(), scripts_.end(), [](const std::unique_ptr<Script>& s) {
-				return dynamic_cast<T*>(s.get()) != nullptr;
+			std::remove_if(scripts_.begin(), scripts_.end(), [&](const std::unique_ptr<Script>& s) {
+				if (dynamic_cast<T*>(s.get())) {
+					// s->OnDestroy(); // optional lifecycle hook
+					removed = true;
+					return true;
+				}
+				return false;
 			});
 
-		if (it == scripts_.end()) {
-			return false;
-		}
-
-		// (*it)->OnDestroy(); // optional lifecycle hook
-		scripts_.erase(it);
-		return true;
+		scripts_.erase(it, scripts_.end());
+		return removed;
 	}
 
+	/// @return True if an instance of a script of type T was found, false otherwise.
+	template <ScriptType T>
+	[[nodiscard]] bool Has() const {
+		return std::any_of(scripts_.begin(), scripts_.end(), [](const std::unique_ptr<Script>& s) {
+			return dynamic_cast<T*>(s.get()) != nullptr;
+		});
+	}
+
+	/// @brief Emits the given event to all scripts of the entity in the order they were added until
+	/// one of them handles it (or until all scripts have been tried).
 	void Emit(EventDispatcher d) {
 		for (auto& s : scripts_) {
 			s->OnEvent(d);
@@ -64,15 +80,17 @@ private:
 
 } // namespace impl
 
-/// Adds a script of type T to the given entity, forwarding the given arguments to the script's
-/// constructor.
+/// @brief Adds an instance of a script of type T to the given entity (multiple instances can
+/// exist), forwarding the given arguments to its constructor.
+/// @return Reference to the added script instance.
 template <ScriptType T, typename... TArgs>
-T& AddScript(Entity entity, TArgs&&... args) {
+T& AddScript(Entity entity, TArgs&&... constructor_args) {
 	auto& sc = entity.TryAdd<impl::Scripts>();
 
-	return sc.Add<T>(entity, std::forward<TArgs>(args)...);
+	return sc.Add<T>(entity, std::forward<TArgs>(constructor_args)...);
 }
 
+/// @brief Removes all instances of the script type T from the entity's scripts.
 /// @return True if a script of type T was found and removed, false otherwise.
 template <ScriptType T>
 bool RemoveScript(Entity entity) {
@@ -80,6 +98,15 @@ bool RemoveScript(Entity entity) {
 		return sc->Remove<T>();
 	}
 
+	return false;
+}
+
+/// @return True if the entity has an instance of a script of type T, false otherwise.
+template <ScriptType T>
+bool HasScript(Entity entity) {
+	if (auto* sc = entity.TryGet<impl::Scripts>()) {
+		return sc->Has<T>();
+	}
 	return false;
 }
 
