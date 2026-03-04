@@ -7,6 +7,8 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
@@ -148,10 +150,10 @@ using ButtonHoverStartScript = ButtonScript<ButtonHoverStart>;
 using ButtonHoverStopScript	 = ButtonScript<ButtonHoverStop>;
 using ButtonHoverScript		 = ButtonScript<ButtonHover>;
 
-struct ButtonToggledScript : public Script {
-	ButtonToggledScript() = default;
+struct ButtonToggleScript : public Script {
+	ButtonToggleScript() = default;
 
-	explicit ButtonToggledScript(const std::function<void(bool)>& callback) :
+	explicit ButtonToggleScript(const std::function<void(bool)>& callback) :
 		callback_{ callback } {}
 
 	void OnEvent(EventDispatcher d) override {
@@ -164,7 +166,7 @@ private:
 	std::function<void(bool)> callback_;
 };
 
-class ToggleButtonScript : public Script {
+class InternalToggleButtonScript : public Script {
 public:
 	void OnEvent(EventDispatcher d) override;
 
@@ -172,10 +174,10 @@ private:
 	void OnButtonActivate() const;
 };
 
-struct AnimatedButtonScript : public Script {
-	AnimatedButtonScript() = default;
+struct InternalAnimatedButtonScript : public Script {
+	InternalAnimatedButtonScript() = default;
 
-	explicit AnimatedButtonScript(
+	explicit InternalAnimatedButtonScript(
 		std::optional<Animation> activate_animation, std::optional<Animation> hover_animation = {},
 		bool force_start_on_activate = true, bool force_start_on_hover_start = true,
 		bool stop_on_hover_stop = true
@@ -229,8 +231,9 @@ struct ToggleButtonGroupData {
 	ToggleButtonGroupData(const ToggleButtonGroupData&)				   = delete;
 	ToggleButtonGroupData& operator=(const ToggleButtonGroupData&)	   = delete;
 
-	ToggleButtonGroupKey active;
-	std::unordered_map<ToggleButtonGroupKey, GameObject> buttons;
+	bool always_active{ true };
+	std::optional<ToggleButtonGroupKey> active;
+	std::vector<std::pair<ToggleButtonGroupKey, GameObject>> buttons;
 };
 
 struct ButtonToggled {};
@@ -473,8 +476,7 @@ public:
 	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 
-	// TODO: Fix OnToggle callback.
-	// ToggleButton& OnToggle(const std::function<void(bool)>& callback);
+	ToggleButton& OnToggle(const std::function<void(bool)>& callback);
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
 	ToggleButton& SetBackgroundColorToggled(Color color, ButtonState state = ButtonState::Default);
@@ -497,7 +499,14 @@ public:
 	ToggleButtonGroup() = default;
 	explicit ToggleButtonGroup(Entity entity);
 
-	ToggleButton Add(std::string_view button_key, ToggleButton toggle_button);
+	/// @brief If true (default), the button group will always have an active button (i.e. pressing
+	/// an active button does not toggle it).
+	/// @param button_key If always_active is true, the button with this key will be the one that is
+	/// set to active. If nullopt, uses the first loaded button in the toggle
+	/// button group. If no buttons are loaded, button_key does nothing.
+	void SetAlwaysOneActive(bool always_active, std::optional<std::string_view> button_key = {});
+
+	ToggleButton Add(std::string_view button_key, ToggleButton&& toggle_button);
 
 	void Remove(std::string_view button_key);
 

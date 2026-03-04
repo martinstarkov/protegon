@@ -1,5 +1,7 @@
 #include "runtime/ui/button.h"
 
+#include <ios>
+
 #include "app/application.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
@@ -33,7 +35,10 @@ public:
 		SetDrawOrigin(b1, button_origin);
 
 		b2 = CreateToggleButton(*this, false)
-				 .OnActivate([]() { PTGN_LOG("Toggled button!"); })
+				 .OnActivate([]() { PTGN_LOG("Clicked toggle button!"); })
+				 .OnToggle([](bool toggled) {
+					 PTGN_LOG("Toggled button: ", ": ", std::boolalpha, toggled, std::noboolalpha);
+				 })
 				 .SetSize({ 200, 100 })
 				 .SetBackgroundColor(color::LightRed)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)

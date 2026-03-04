@@ -1,14 +1,17 @@
 #include "runtime/ui/button.h"
 
+#include <algorithm>
 #include <functional>
 #include <iterator>
 #include <list>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
@@ -41,7 +44,7 @@ namespace ptgn {
 
 namespace impl {
 
-AnimatedButtonScript::AnimatedButtonScript(
+InternalAnimatedButtonScript::InternalAnimatedButtonScript(
 	std::optional<Animation> activate_animation, std::optional<Animation> hover_animation,
 	bool force_start_on_activate, bool force_start_on_hover_start, bool stop_on_hover_stop
 ) :
@@ -56,25 +59,25 @@ AnimatedButtonScript::AnimatedButtonScript(
 	);
 }
 
-void AnimatedButtonScript::OnEvent(EventDispatcher d) {
+void InternalAnimatedButtonScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<ButtonHoverStart>([this](const ButtonHoverStart&) { OnButtonHoverStart(); });
 	d.Dispatch<ButtonHoverStop>([this](const ButtonHoverStop&) { OnButtonHoverStop(); });
 	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) { OnButtonActivate(); });
 }
 
-void AnimatedButtonScript::OnButtonHoverStart() {
+void InternalAnimatedButtonScript::OnButtonHoverStart() {
 	if (hover_animation.has_value()) {
 		hover_animation->Start(force_start_on_hover_start);
 	}
 }
 
-void AnimatedButtonScript::OnButtonHoverStop() {
+void InternalAnimatedButtonScript::OnButtonHoverStop() {
 	if (hover_animation.has_value() && stop_on_hover_stop) {
 		hover_animation->Stop();
 	}
 }
 
-void AnimatedButtonScript::OnButtonActivate() {
+void InternalAnimatedButtonScript::OnButtonActivate() {
 	if (activate_animation.has_value()) {
 		activate_animation->Start(force_start_on_activate);
 	}
@@ -192,11 +195,11 @@ void InternalButtonScript::OnMouseReleasedOut(Mouse mouse) {
 	}
 }
 
-void ToggleButtonScript::OnEvent(EventDispatcher d) {
+void InternalToggleButtonScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) { OnButtonActivate(); });
 }
 
-void ToggleButtonScript::OnButtonActivate() const {
+void InternalToggleButtonScript::OnButtonActivate() const {
 	ToggleButton self{ entity };
 	if (!self.IsEnabled(false)) {
 		return;
@@ -960,10 +963,10 @@ bool ToggleButton::IsToggled() const {
 	return Has<impl::ButtonToggled>();
 }
 
-// ToggleButton& ToggleButton::OnToggle(const std::function<void(bool)>& callback) {
-//	AddScript<impl::ButtonToggledScript>(*this, callback);
-//	return *this;
-// }
+ToggleButton& ToggleButton::OnToggle(const std::function<void(bool)>& callback) {
+	AddScript<impl::ButtonToggleScript>(*this, callback);
+	return *this;
+}
 
 ToggleButton& ToggleButton::SetToggled(bool toggled) {
 	if (toggled == IsToggled()) {
@@ -1120,25 +1123,75 @@ ToggleButton& ToggleButton::SetTintToggled(Color color, ButtonState state) {
 
 ToggleButtonGroup::ToggleButtonGroup(Entity entity) : Entity{ entity } {}
 
-ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton toggle_button) {
+void ToggleButtonGroup::SetAlwaysOneActive(
+	bool always_active, std::optional<std::string_view> button_key
+) {
+	PTGN_ASSERT(Has<impl::ToggleButtonGroupData>());
+	auto& info{ Get<impl::ToggleButtonGroupData>() };
+	info.always_active = always_active;
+	if (info.always_active) {
+		// In the past, I had it so that if there is already an active button, then there is no need
+		// to set an active button, but I find that more confusing.
+		// if (info.active.has_value()) {
+		//	return;
+		//}
+
+		impl::ToggleButtonGroupKey key{};
+		if (button_key.has_value()) {
+			PTGN_ASSERT(
+				std::ranges::contains(
+					info.buttons, impl::ToggleButtonGroupKey{ *button_key },
+					&std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+				),
+				"Cannot set always active button key until it has been added to the toggle button "
+				"group"
+			);
+			key = *button_key;
+		} else {
+			if (info.buttons.empty()) {
+				return;
+			}
+			key = info.buttons.front().first;
+		}
+		SetActiveKey(key);
+	}
+}
+
+ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton&& toggle_button) {
 	PTGN_ASSERT(Has<impl::ToggleButtonGroupData>());
 
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
 
 	impl::ToggleButtonGroupKey key{ button_key };
 
+	RemoveScript<impl::InternalToggleButtonScript>(toggle_button);
 	toggle_button.Add<impl::ToggleButtonGroupKey>(key);
 
-	if (auto it{ info.buttons.find(key) }; it == info.buttons.end()) {
-		auto [new_it, inserted] = info.buttons.try_emplace(key, std::move(toggle_button));
-		PTGN_ASSERT(inserted, "Failed to insert toggle button");
-		ToggleButton btn{ new_it->second };
+	auto it = std::ranges::find(
+		info.buttons, key, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+	);
+
+	ToggleButton btn;
+
+	if (it == info.buttons.end()) {
+		info.buttons.emplace_back(key, std::move(toggle_button));
+		const auto& obj = info.buttons.back().second;
+
+		btn = ToggleButton{ obj };
 		AddToggleScript(btn);
-		return btn;
 	} else {
 		it->second = GameObject{ std::move(toggle_button) };
-		return ToggleButton{ it->second };
+		AddToggleScript(ToggleButton{ it->second });
+		btn = ToggleButton{ it->second };
 	}
+
+	// If always active is enabled, there must always be an active button, so if there is still no
+	// active button, set the first button to active.
+	if (info.always_active && !info.active.has_value() && info.buttons.size() == 1) {
+		SetActiveKey(key);
+	}
+
+	return btn;
 }
 
 void ToggleButtonGroup::Remove(std::string_view button_key) {
@@ -1147,7 +1200,19 @@ void ToggleButtonGroup::Remove(std::string_view button_key) {
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
 	impl::ToggleButtonGroupKey key{ button_key };
 
-	info.buttons.erase(key);
+	auto it = std::ranges::find(
+		info.buttons, key, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+	);
+
+	if (it != info.buttons.end()) {
+		PTGN_ASSERT(
+			!HasScript<impl::InternalToggleButtonScript>(it->second),
+			"When removing a toggle button from the group, it must not already have the internal "
+			"toggle button script as it is part of a group: logic error somewhere"
+		);
+		AddScript<impl::InternalToggleButtonScript>(it->second);
+		info.buttons.erase(it);
+	}
 }
 
 std::optional<ToggleButton> ToggleButtonGroup::GetActive() const {
@@ -1155,11 +1220,23 @@ std::optional<ToggleButton> ToggleButtonGroup::GetActive() const {
 
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
 
-	auto it{ info.buttons.find(info.active) };
-
-	if (it == info.buttons.end() || !ToggleButton{ it->second }.IsToggled()) {
+	if (!info.active.has_value()) {
 		return {};
 	}
+
+	auto it = std::ranges::find(
+		info.buttons, info.active, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+	);
+
+	if (it == info.buttons.end()) {
+		return {};
+	}
+
+	PTGN_ASSERT(
+		ToggleButton{ it->second }.IsToggled(),
+		"Active toggle button should always be toggled: If not, some function is incorrect "
+		"changing button states"
+	);
 
 	return ToggleButton{ it->second };
 }
@@ -1169,6 +1246,10 @@ void ToggleButtonGroup::SetActive(std::string_view button_key) {
 }
 
 void ToggleButtonGroup::AddToggleScript(ToggleButton toggle_button) const {
+	PTGN_ASSERT(
+		!HasScript<impl::ToggleButtonGroupScript>(toggle_button),
+		"Attempting to add toggle button group script to a button more than once"
+	);
 	AddScript<impl::ToggleButtonGroupScript>(toggle_button, *this);
 }
 
@@ -1177,19 +1258,30 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 
 	auto& info{ Get<impl::ToggleButtonGroupData>() };
 
-	auto it{ info.buttons.find(key) };
-
-	PTGN_ASSERT(
-		it != info.buttons.end(), "Cannot set non-existent toggle button key to active: ", key
-	);
-
-	for (const auto& [_, toggle_button] : info.buttons) {
-		ToggleButton{ toggle_button }.SetToggled(false);
-	}
+	bool same_as_current{ info.active == key };
 
 	info.active = key;
 
-	ToggleButton{ it->second }.SetToggled(true);
+	auto it = std::ranges::find(
+		info.buttons, info.active, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+	);
+
+	PTGN_ASSERT(
+		it != info.buttons.end(),
+		"Cannot set non-existent toggle button key to active: ", *info.active
+	);
+
+	const auto& active_button{ it->second };
+
+	for (const auto& [_, button] : info.buttons) {
+		if (!info.always_active && same_as_current) {
+			ToggleButton{ button }.SetToggled(false);
+			info.active.reset();
+			continue;
+		}
+		bool is_active{ button == active_button };
+		ToggleButton{ button }.SetToggled(is_active);
+	}
 }
 
 Button CreateButton(Scene& scene) {
@@ -1201,6 +1293,7 @@ Button CreateButton(Scene& scene) {
 	SetInteractive(button);
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
+	PTGN_ASSERT(!HasScript<impl::InternalButtonScript>(button));
 	AddScript<impl::InternalButtonScript>(button);
 	button.Enable();
 
@@ -1218,7 +1311,8 @@ Button CreateTextButton(Scene& scene, std::string_view text_content, Color text_
 ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
 	ToggleButton toggle_button{ CreateButton(scene) };
 
-	AddScript<impl::ToggleButtonScript>(toggle_button);
+	PTGN_ASSERT(!HasScript<impl::InternalToggleButtonScript>(toggle_button));
+	AddScript<impl::InternalToggleButtonScript>(toggle_button);
 	toggle_button.SetToggled(toggled);
 
 	return toggle_button;
@@ -1248,7 +1342,8 @@ Button CreateAnimatedButton(
 
 	button.SetSize(button_size);
 
-	AddScript<impl::AnimatedButtonScript>(
+	PTGN_ASSERT(!HasScript<impl::InternalAnimatedButtonScript>(button));
+	AddScript<impl::InternalAnimatedButtonScript>(
 		button, activate_animation, hover_animation, force_start_on_activate,
 		force_start_on_hover_start, stop_on_hover_stop
 	);
