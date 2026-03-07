@@ -11,6 +11,8 @@
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/shape.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -24,8 +26,27 @@ class ScalingModeScene : public Scene {
 		SetBackgroundColor(color::LightBlue);
 
 		app().window.SetSize(window_size);
-		app().asset.Load("background", "assets/test1.jpg");
+		app().asset.Load("background", "assets/outlined.jpg");
 		app().renderer.SetGameSize(game_size, ScalingMode::Disabled);
+
+		auto s1 = CreateSprite(*this, "background", {}, Origin::Center);
+		SetTextureSize(s1, game_size);
+		CreateRect(
+			*this, V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f },
+			V2_float{ game_size.x, 30 }, color::Red, FillStyle::Solid(), Origin::TopLeft
+		);
+		CreateRect(
+			*this, V2_float{ game_size.x * 0.5f - 30, -game_size.y * 0.5f },
+			V2_float{ 30, game_size.y }, color::Green, FillStyle::Solid(), Origin::TopLeft
+		);
+		CreateRect(
+			*this, V2_float{ -game_size.x * 0.5f, game_size.y * 0.5f - 30 },
+			V2_float{ game_size.x, 30 }, color::Blue, FillStyle::Solid(), Origin::TopLeft
+		);
+		CreateRect(
+			*this, V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f },
+			V2_float{ 30, game_size.y }, color::Teal, FillStyle::Solid(), Origin::TopLeft
+		);
 	}
 
 	void OnUpdate() override {
@@ -44,33 +65,6 @@ class ScalingModeScene : public Scene {
 		if (input.KeyPressed(Key::T)) {
 			app().renderer.SetScalingMode(ScalingMode::Overscan);
 		}
-
-		impl::DrawQuadTexture(
-			app().renderer, *app().asset.GetTexture("background"), Transform{}, game_size,
-			Origin::Center, color::White, Depth{}, BlendMode::Blend,
-			GetTextureCoordinates({}, false)
-		);
-
-		impl::DrawShape(
-			app().renderer, Rect{ game_size.x, 30 },
-			Transform{ V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f } }, color::Red,
-			FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
-		);
-		impl::DrawShape(
-			app().renderer, Rect{ 30, game_size.y },
-			Transform{ V2_float{ game_size.x * 0.5f - 30, -game_size.y * 0.5f } }, color::Green,
-			FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
-		);
-		impl::DrawShape(
-			app().renderer, Rect{ game_size.x, 30 },
-			Transform{ V2_float{ -game_size.x * 0.5f, game_size.y * 0.5f - 30 } }, color::Blue,
-			FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
-		);
-		impl::DrawShape(
-			app().renderer, Rect{ 30, game_size.y },
-			Transform{ V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f } }, color::Teal,
-			FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
-		);
 	}
 };
 
