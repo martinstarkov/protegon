@@ -122,7 +122,7 @@ void Scene::InternalDraw() {
 
 	for (auto [e, _camera] : EntitiesWith<impl::CameraData>()) {
 		if (auto parent{ e.TryGet<impl::ParentRenderTarget>() }) {
-			rt_to_cameras[parent->render_target].emplace_back(e);
+			rt_to_cameras[Hash(parent->render_target)].emplace_back(e);
 		} else {
 			rt_to_cameras[scene_render_target].emplace_back(e);
 		}
@@ -159,7 +159,6 @@ void Scene::InternalDraw() {
 
 	auto draw_to_render_target = [&](RenderTarget render_target) {
 		render_target.Bind();
-		render_target.Clear();
 
 		auto it = rt_to_cameras.find(Hash(render_target));
 		if (it == rt_to_cameras.end()) {
@@ -235,6 +234,12 @@ void Scene::InternalDraw() {
 }
 
 void Scene::InternalUpdate() {
+	for (auto [e, _rt, _visible, _drawable] :
+		 EntitiesWith<impl::RenderTargetObject, impl::Visible, impl::IDrawable>()) {
+		RenderTarget{ e }.Bind();
+		RenderTarget{ e }.Clear();
+	}
+
 	input.Update();
 
 	Refresh();

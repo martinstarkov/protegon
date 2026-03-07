@@ -39,10 +39,6 @@ public:
 	void OnEvent(EventDispatcher d) override;
 };
 
-struct ParentRenderTarget {
-	std::size_t render_target{ 0 };
-};
-
 } // namespace impl
 
 class RenderTarget : public Entity {
@@ -82,6 +78,14 @@ private:
 		Color clear_color, TextureFormat texture_format
 	);
 };
+
+namespace impl {
+
+struct ParentRenderTarget {
+	RenderTarget render_target;
+};
+
+} // namespace impl
 
 /// Create a render target with a custom size.
 /// @param size The size of the render target and its camera viewport.
