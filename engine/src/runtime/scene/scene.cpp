@@ -159,6 +159,7 @@ void Scene::InternalDraw() {
 
 	auto draw_to_render_target = [&](RenderTarget render_target) {
 		render_target.Bind();
+		render_target.Clear();
 
 		auto it = rt_to_cameras.find(Hash(render_target));
 		if (it == rt_to_cameras.end()) {
@@ -234,12 +235,6 @@ void Scene::InternalDraw() {
 }
 
 void Scene::InternalUpdate() {
-	for (auto [e, _rt, _visible, _drawable] :
-		 EntitiesWith<impl::RenderTargetObject, impl::Visible, impl::IDrawable>()) {
-		RenderTarget{ e }.Bind();
-		RenderTarget{ e }.Clear();
-	}
-
 	input.Update();
 
 	Refresh();
