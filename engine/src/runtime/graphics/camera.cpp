@@ -18,6 +18,7 @@
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/render_target_component.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -335,6 +336,14 @@ bool Camera::IsVisible(Entity entity) const {
 	bool in_exclude = (entity_mask & exclude) != 0;
 
 	return in_include && !in_exclude || IsUI(*this) && IsUI(entity);
+}
+
+Camera& Camera::SetParentRenderTarget(std::optional<RenderTarget> render_target) {
+	if (render_target.has_value()) {
+		Add<impl::ParentRenderTarget>(*render_target);
+	}
+	Add<impl::ParentRenderTarget>(GetScene().GetRenderTarget());
+	return *this;
 }
 
 void SetUI(Entity entity, bool ui_layer) {

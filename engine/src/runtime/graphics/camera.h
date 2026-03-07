@@ -9,6 +9,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/viewport.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/render_target_component.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -133,6 +134,10 @@ public:
 	Camera& ClearMasks();
 
 	[[nodiscard]] bool IsVisible(Entity entity) const;
+
+	/// @brief Sets the camera's parent render target. If render_target is {}, sets the parent
+	/// render target to the default scene render target.
+	Camera& SetParentRenderTarget(std::optional<RenderTarget> render_target = {});
 };
 
 LayerMask GetMask(Entity entity);
