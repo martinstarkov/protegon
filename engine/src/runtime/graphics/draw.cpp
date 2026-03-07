@@ -472,6 +472,10 @@ Color GetTint(Entity entity) {
 	return entity.GetOrDefault<impl::Tint>();
 }
 
+void SetTextureSize(Entity entity, V2_float size) {
+	entity.Add<impl::TextureSize>(size);
+}
+
 V2_int GetTextureSize(Entity entity) {
 	std::optional<V2_int> size;
 

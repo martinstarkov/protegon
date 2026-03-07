@@ -39,7 +39,7 @@ struct FillStyle {
 	FillStyle() = default;
 	FillStyle(float line_width);
 
-	static FillStyle Hollow(float line_width);
+	static FillStyle Hollow(float line_width = 1.0f);
 	static FillStyle Solid();
 
 	std::variant<impl::Hollow, impl::Solid> style{ impl::Hollow{} };
@@ -172,6 +172,10 @@ void SetBlendMode(Entity entity, BlendMode blend_mode);
 void SetTint(Entity entity, Color color = color::White);
 
 [[nodiscard]] Color GetTint(Entity entity);
+
+/// @brief Set the size of the texture to be drawn. This will stretch the texture to fit the given
+/// size.
+void SetTextureSize(Entity entity, V2_float size);
 
 /// @return Unscaled size of the entire texture in pixels.
 [[nodiscard]] V2_int GetTextureSize(Entity entity);
