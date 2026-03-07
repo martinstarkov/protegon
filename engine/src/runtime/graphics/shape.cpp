@@ -63,7 +63,7 @@ std::optional<Shape> GetShape(Entity entity) {
 }
 
 Entity CreateRect(
-	Scene& scene, V2_float position, V2_float size, Color color, float line_width, Origin origin
+	Scene& scene, V2_float position, V2_float size, Color color, FillStyle fill_style, Origin origin
 ) {
 	auto rect{ scene.CreateEntity() };
 
@@ -75,14 +75,14 @@ Entity CreateRect(
 	SetDrawOrigin(rect, origin);
 
 	SetTint(rect, color);
-	rect.Add<FillStyle>(line_width);
+	rect.Add<FillStyle>(fill_style);
 
 	return rect;
 }
 
 Entity CreatePolygon(
 	Scene& scene, V2_float position, const std::vector<V2_float>& vertices, Color color,
-	float line_width
+	FillStyle fill_style
 ) {
 	auto polygon{ scene.CreateEntity() };
 
@@ -93,12 +93,14 @@ Entity CreatePolygon(
 	polygon.Add<Polygon>(vertices);
 
 	SetTint(polygon, color);
-	polygon.Add<FillStyle>(line_width);
+	polygon.Add<FillStyle>(fill_style);
 
 	return polygon;
 }
 
-Entity CreateCircle(Scene& scene, V2_float position, float radius, Color color, float line_width) {
+Entity CreateCircle(
+	Scene& scene, V2_float position, float radius, Color color, FillStyle fill_style
+) {
 	auto circle{ scene.CreateEntity() };
 
 	SetDraw<impl::CircleDraw>(circle);
@@ -108,7 +110,7 @@ Entity CreateCircle(Scene& scene, V2_float position, float radius, Color color, 
 	circle.Add<Circle>(radius);
 
 	SetTint(circle, color);
-	circle.Add<FillStyle>(line_width);
+	circle.Add<FillStyle>(fill_style);
 
 	return circle;
 }
