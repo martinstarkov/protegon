@@ -17,20 +17,23 @@ struct DisplayFrame {
 };
 
 struct RenderTargetFrame {
-	/// @brief  Position in pixels relative to display center in display frame of reference.
+	/// @brief Position in pixels relative to display center in display frame of reference.
 	Transform render_target_transform;
 };
 
 struct CameraFrame {
-	/// @brief  Pixels in display frame of reference.
+	/// @brief Pixels in display frame of reference.
 	Viewport camera_viewport;
+
+	/// @brief Size of the parent render target.
+	V2_float render_target_size;
 
 	/// @brief Scale of the display relative to the game size.
 	V2_float scale{ 1.0f, 1.0f };
 };
 
 struct WorldFrame {
-	/// @brief  Position in world units Relative to world center in world frame of reference.
+	/// @brief Position in world units Relative to world center in world frame of reference.
 	Transform camera_transform;
 };
 
@@ -62,20 +65,22 @@ V2_float ConvertPoint(V2_float position, Frame from, Frame to, const FrameContex
 V2_float CenterToTopLeft(V2_float point_center, V2_float size);
 V2_float TopLeftToCenter(V2_float point_top_left, V2_float size);
 
-[[nodiscard]] V2_float WindowToDisplay(V2_float window_point, DisplayFrame display_frame);
-[[nodiscard]] V2_float DisplayToWindow(V2_float display_point, DisplayFrame display_frame);
+[[nodiscard]] V2_float WindowToDisplay(V2_float window_point, const DisplayFrame& display_frame);
+[[nodiscard]] V2_float DisplayToWindow(V2_float display_point, const DisplayFrame& display_frame);
 
 [[nodiscard]] V2_float DisplayToRenderTarget(
-	V2_float display_point, RenderTargetFrame render_target_frame
+	V2_float display_point, const RenderTargetFrame& render_target_frame
 );
 [[nodiscard]] V2_float RenderTargetToDisplay(
-	V2_float render_target_point, RenderTargetFrame render_target_frame
+	V2_float render_target_point, const RenderTargetFrame& render_target_frame
 );
 
-[[nodiscard]] V2_float RenderTargetToCamera(V2_float render_target_point, CameraFrame camera_frame);
-[[nodiscard]] V2_float CameraToRenderTarget(V2_float camera_point, CameraFrame camera_frame);
+[[nodiscard]] V2_float RenderTargetToCamera(
+	V2_float render_target_point, const CameraFrame& camera_frame
+);
+[[nodiscard]] V2_float CameraToRenderTarget(V2_float camera_point, const CameraFrame& camera_frame);
 
-[[nodiscard]] V2_float CameraToWorld(V2_float camera_point, WorldFrame world_frame);
-[[nodiscard]] V2_float WorldToCamera(V2_float world_point, WorldFrame world_frame);
+[[nodiscard]] V2_float CameraToWorld(V2_float camera_point, const WorldFrame& world_frame);
+[[nodiscard]] V2_float WorldToCamera(V2_float world_point, const WorldFrame& world_frame);
 
 } // namespace ptgn

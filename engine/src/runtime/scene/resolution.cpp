@@ -24,7 +24,7 @@ FrameContext::FrameContext(
 ) :
 	display{ app.renderer.GetDisplayViewport().position },
 	render_target{ GetTransform(render_target_entity) },
-	camera{ camera_entity.GetViewport(), app.renderer.GetScale() },
+	camera{ camera_entity.GetViewport(), render_target_entity.GetSize(), app.renderer.GetScale() },
 	world{ GetTransform(camera_entity) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {
@@ -103,39 +103,45 @@ V2_float TopLeftToCenter(V2_float point_top_left, V2_float size) {
 	return point_top_left - size * 0.5f;
 }
 
-V2_float WindowToDisplay(V2_float window_point, DisplayFrame display_frame) {
+V2_float WindowToDisplay(V2_float window_point, const DisplayFrame& display_frame) {
 	return window_point - display_frame.display_center;
 }
 
-V2_float DisplayToWindow(V2_float display_point, DisplayFrame display_frame) {
+V2_float DisplayToWindow(V2_float display_point, const DisplayFrame& display_frame) {
 	return display_point + display_frame.display_center;
 }
 
-V2_float DisplayToRenderTarget(V2_float display_point, RenderTargetFrame render_target_frame) {
+V2_float DisplayToRenderTarget(
+	V2_float display_point, const RenderTargetFrame& render_target_frame
+) {
 	return render_target_frame.render_target_transform.ApplyInverse(display_point);
 }
 
 V2_float RenderTargetToDisplay(
-	V2_float render_target_point, RenderTargetFrame render_target_frame
+	V2_float render_target_point, const RenderTargetFrame& render_target_frame
 ) {
 	return render_target_frame.render_target_transform.Apply(render_target_point);
 }
 
-V2_float RenderTargetToCamera(V2_float render_target_point, CameraFrame camera_frame) {
+V2_float RenderTargetToCamera(V2_float render_target_point, const CameraFrame& camera_frame) {
 	PTGN_ASSERT(camera_frame.scale.BothAboveZero(), "Display scale cannot be negative or zero");
-	return render_target_point / camera_frame.scale - camera_frame.camera_viewport.position;
+	return (render_target_point + camera_frame.render_target_size / 2.0f) / camera_frame.scale -
+		   (camera_frame.camera_viewport.position + camera_frame.camera_viewport.size / 2.0f);
 }
 
-V2_float CameraToRenderTarget(V2_float camera_point, CameraFrame camera_frame) {
+V2_float CameraToRenderTarget(V2_float camera_point, const CameraFrame& camera_frame) {
 	PTGN_ASSERT(camera_frame.scale.BothAboveZero(), "Display scale cannot be negative or zero");
-	return (camera_point + camera_frame.camera_viewport.position) * camera_frame.scale;
+	return (camera_point + camera_frame.camera_viewport.position +
+			camera_frame.camera_viewport.size / 2.0f) *
+			   camera_frame.scale -
+		   camera_frame.render_target_size / 2.0f;
 }
 
-V2_float CameraToWorld(V2_float camera_point, WorldFrame world_frame) {
+V2_float CameraToWorld(V2_float camera_point, const WorldFrame& world_frame) {
 	return world_frame.camera_transform.Apply(camera_point);
 }
 
-V2_float WorldToCamera(V2_float world_point, WorldFrame world_frame) {
+V2_float WorldToCamera(V2_float world_point, const WorldFrame& world_frame) {
 	return world_frame.camera_transform.ApplyInverse(world_point);
 }
 
