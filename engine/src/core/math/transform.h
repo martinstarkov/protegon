@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <ostream>
 #include <span>
 #include <vector>
 
@@ -91,6 +92,16 @@ struct Transform {
 		std::array<V2_float, N> transformed_points;
 		ApplyInverse(points, transformed_points);
 		return transformed_points;
+	}
+
+	friend std::ostream& operator<<(std::ostream& os, const Transform& transform) {
+		os << "{ position: ";
+		os << transform.position_;
+		os << ", rotation: ";
+		os << transform.rotation_;
+		os << ", scale: ";
+		os << transform.scale_ << "}";
+		return os;
 	}
 
 private:
