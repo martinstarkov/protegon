@@ -49,7 +49,7 @@ void RenderTarget::Bind() {
 	Get<impl::RenderTargetObject>().Bind();
 }
 
-void RenderTarget::Clear(std::optional<Color> color) {
+void RenderTarget::Clear(std::optional<Color> color, bool set_viewport) {
 	Color clear;
 
 	if (color.has_value()) {
@@ -58,7 +58,7 @@ void RenderTarget::Clear(std::optional<Color> color) {
 		clear = GetOrDefault<ClearColor>().value;
 	}
 
-	Get<impl::RenderTargetObject>().Clear(clear);
+	Get<impl::RenderTargetObject>().Clear(clear, set_viewport);
 }
 
 void RenderTarget::SetClearColor(Color clear_color) {
@@ -125,7 +125,7 @@ void RenderTarget::AddRenderTargetComponents(
 	render_target.SetClearColor(clear_color);
 
 	render_target.Add<impl::RenderTargetObject>(renderer.CreateRenderTarget(size, format));
-	render_target.Get<impl::RenderTargetObject>().Clear();
+	render_target.Get<impl::RenderTargetObject>().Clear(clear_color, true);
 }
 
 void RenderTarget::AddRenderTargetComponents(

@@ -54,7 +54,9 @@ public:
 	/// @brief Clears the render target internal frame buffer color attachment.
 	/// Render target must be bound before calling this function.
 	/// @param color If {}, uses the render target's clear color (default to color::Transparent).
-	void Clear(std::optional<Color> color = {});
+	/// @param set_viewport If true, also sets the renderer viewport to match the render target
+	/// size (previous viewport will be restored after the clear).
+	void Clear(std::optional<Color> color = {}, bool set_viewport = true);
 
 	void SetClearColor(Color clear_color);
 	[[nodiscard]] Color GetClearColor() const;

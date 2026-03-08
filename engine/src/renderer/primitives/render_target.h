@@ -39,7 +39,7 @@ struct RenderTargetData {
 
 	void Bind(gl::GLRenderer& renderer) const;
 
-	void Clear(gl::GLContext& gl, Color color) const;
+	void Clear(gl::GLContext& gl, Color color, bool set_viewport) const;
 
 	bool operator==(const RenderTargetData&) const = default;
 
@@ -79,7 +79,7 @@ public:
 
 	void Bind();
 
-	void Clear(Color color = color::Transparent);
+	void Clear(Color color, bool set_viewport);
 
 	operator TextureId() const;
 

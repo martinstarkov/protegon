@@ -17,6 +17,7 @@
 #include "renderer/primitives/renderbuffer.h"
 #include "renderer/primitives/resource.h"
 #include "renderer/primitives/texture.h"
+#include "renderer/primitives/viewport.h"
 
 namespace ptgn {
 
@@ -32,16 +33,21 @@ void RenderTargetData::Resize(gl::GLContext& gl, V2_int new_size) {
 	size_ = new_size;
 }
 
-void RenderTargetData::Clear(gl::GLContext& gl, Color color) const {
+void RenderTargetData::Clear(gl::GLContext& gl, Color color, bool set_viewport) const {
 	auto bind_guard = gl.Bind(framebuffer_, true);
 
-	auto viewport{ gl.GetViewport() };
+	std::optional<Viewport> viewport;
+	if (set_viewport) {
+		viewport = gl.GetViewport();
 
-	gl.SetViewport({ {}, size_ });
+		gl.SetViewport({ {}, size_ });
+	}
 
 	gl.framebuffers.ClearToColor(framebuffer_, color);
 
-	gl.SetViewport(viewport);
+	if (set_viewport && viewport.has_value()) {
+		gl.SetViewport(*viewport);
+	}
 }
 
 RenderTargetData::operator TextureId() const {
@@ -96,9 +102,9 @@ void RenderTargetObject::Resize(V2_int new_size) {
 	resource_.Resize(*renderer_->gl, new_size);
 }
 
-void RenderTargetObject::Clear(Color color) {
+void RenderTargetObject::Clear(Color color, bool set_viewport) {
 	PTGN_ASSERT(*this);
-	resource_.Clear(*renderer_->gl, color);
+	resource_.Clear(*renderer_->gl, color, set_viewport);
 }
 
 void RenderTargetObject::Bind() {
