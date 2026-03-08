@@ -24,7 +24,7 @@ FrameContext::FrameContext(
 ) :
 	display{ app.renderer.GetDisplayViewport().position },
 	render_target{ GetTransform(render_target_entity) },
-	camera{ camera_entity.GetViewport() },
+	camera{ camera_entity.GetViewport(), app.renderer.GetScale() },
 	world{ GetTransform(camera_entity) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {
@@ -122,11 +122,13 @@ V2_float RenderTargetToDisplay(
 }
 
 V2_float RenderTargetToCamera(V2_float render_target_point, CameraFrame camera_frame) {
-	return render_target_point - camera_frame.camera_viewport.position;
+	PTGN_ASSERT(camera_frame.scale.BothAboveZero(), "Display scale cannot be negative or zero");
+	return render_target_point / camera_frame.scale - camera_frame.camera_viewport.position;
 }
 
 V2_float CameraToRenderTarget(V2_float camera_point, CameraFrame camera_frame) {
-	return camera_point + camera_frame.camera_viewport.position;
+	PTGN_ASSERT(camera_frame.scale.BothAboveZero(), "Display scale cannot be negative or zero");
+	return (camera_point + camera_frame.camera_viewport.position) * camera_frame.scale;
 }
 
 V2_float CameraToWorld(V2_float camera_point, WorldFrame world_frame) {

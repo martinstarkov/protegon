@@ -12,27 +12,30 @@ class ApplicationContext;
 class Scene;
 
 struct DisplayFrame {
-	// Pixels relative to window center in window frame of reference.
+	/// @brief Pixels relative to window center in window frame of reference.
 	V2_float display_center;
 };
 
 struct RenderTargetFrame {
-	// Position in pixels relative to display center in display frame of reference.
+	/// @brief  Position in pixels relative to display center in display frame of reference.
 	Transform render_target_transform;
 };
 
 struct CameraFrame {
-	// Pixels in display frame of reference.
+	/// @brief  Pixels in display frame of reference.
 	Viewport camera_viewport;
+
+	/// @brief Scale of the display relative to the game size.
+	V2_float scale{ 1.0f, 1.0f };
 };
 
 struct WorldFrame {
-	// Position in world units Relative to world center in world frame of reference.
+	/// @brief  Position in world units Relative to world center in world frame of reference.
 	Transform camera_transform;
 };
 
-// Must be ordered from lowest rank to highest rank, where higher rank frames depend on lower rank
-// frames of reference for their definition.
+/// @brief  Must be ordered from lowest rank to highest rank, where higher rank frames depend on
+/// lower rank frames of reference for their definition.
 enum class Frame {
 	Window,
 	Display,
