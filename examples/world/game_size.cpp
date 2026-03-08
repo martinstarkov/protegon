@@ -2,12 +2,16 @@
 #include <utility>
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/circle.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "platform/input/key.h"
+#include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/scaling_mode.h"
+#include "renderer/primitives/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
@@ -24,6 +28,20 @@
 
 using namespace ptgn;
 
+constexpr V2_int window_size{ 1280, 720 };
+constexpr V2_int game_size{ 320, 180 };
+constexpr Viewport camera_viewport{ {}, { game_size.x / 2.0f, game_size.y } };
+
+struct RectDragScript : public Script {
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.offset); });
+	}
+
+	void OnDrag(V2_float offset) {
+		SetPosition(entity, entity.GetScene().input.GetMousePosition() + offset);
+	}
+};
+
 struct CircleDragScript : public Script {
 	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.offset); });
@@ -38,24 +56,27 @@ struct ResolutionScene : public Scene {
 	Sprite circle;
 
 	void OnEnter() override {
+		app().renderer.SetGameSize(game_size);
+		app().window.SetBackgroundColor(color::LightPurple);
 		app().renderer.SetBackgroundColor(color::LightBlue);
 		app().renderer.SetScalingMode(ScalingMode::Letterbox);
 
-		RenderTarget rt{ GetRenderTarget() };
+		SetBackgroundColor(color::LightGray.WithAlpha(0.8f));
 
-		// SetRotation(rt, DegToRad(45.0f));
-		// SetScale(rt, 0.5f);
-		// SetPosition(rt, V2_float{ 600, 0 });
+		camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
 
-		SetBackgroundColor(color::LightGray);
-
-		camera.SetViewport({ {}, { 600, 300 } });
+		camera.SetViewport(camera_viewport);
 
 		input.SetInteractiveDebugDraw({ .enabled = true, .line_width = 10.0f });
 
-		V2_float camera_center{ GetTransform(camera).GetPosition() };
+		V2_int rect_size{ 100, 100 };
 
-		CreateRect(*this, camera_center - V2_float{ 100, 0 }, { 100, 100 }, color::Green);
+		auto rect = CreateRect(*this, { 0, 0 }, rect_size, color::Green);
+		auto child0{ CreateEntity() };
+		child0.Add<Rect>(rect_size);
+		AddInteractiveShape(rect, GameObject{ std::move(child0) });
+		SetDraggable(rect);
+		AddScript<RectDragScript>(rect);
 
 		// TODO: Fix point light.
 		/*
@@ -68,7 +89,6 @@ struct ResolutionScene : public Scene {
 
 		float radius{ 50.0f };
 		circle = Sprite{ CreateEntity() };
-		SetPosition(circle, camera_center);
 		auto child{ CreateEntity() };
 		child.Add<Circle>(radius);
 		AddInteractiveShape(circle, GameObject{ std::move(child) });
@@ -83,8 +103,6 @@ struct ResolutionScene : public Scene {
 		MoveWASD(camera, { 3.0f, 3.0f });
 
 		float dt{ app().DeltaTime().count() };
-
-		PTGN_LOG("Dt: ", dt);
 
 		if (input.KeyHeld(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
@@ -120,6 +138,6 @@ struct ResolutionScene : public Scene {
 int main(int, char**) {
 	Application app{ "ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
 					 "Move/Rotate/Scale scene target",
-					 { 1200, 800 } };
+					 window_size };
 	app.StartWith<ResolutionScene>();
 }
