@@ -470,7 +470,7 @@ void ButtonBase<Derived>::Draw(RenderContext& renderer, Entity entity) {
 			if (color.a) {
 				impl::DrawShape(
 					renderer, Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
-					line_width.GetValue(), button_origin, depth, blend_mode
+					FillStyle{ line_width.GetValue() }, button_origin, depth, blend_mode
 				);
 			}
 		}
@@ -485,7 +485,7 @@ void ButtonBase<Derived>::Draw(RenderContext& renderer, Entity entity) {
 		if (color.a) {
 			impl::DrawShape(
 				renderer, Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
-				line_width.GetValue(), button_origin, depth, blend_mode
+				FillStyle{ line_width.GetValue() }, button_origin, depth, blend_mode
 			);
 		}
 	}
