@@ -110,7 +110,7 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	void SetBackgroundColor(Color background_color);
+	void SetBackgroundColor(Color background_color = color::Transparent);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
 	void BindScreenTarget();
@@ -121,6 +121,7 @@ public:
 	void SetDepth(const DepthState& depth);
 	void SetStencil(const StencilState& stencil);
 	void SetRaster(const RasterState& raster);
+	void SetScissor(const ScissorState& scissor);
 	void SetColorMask(const ColorMaskState& color_mask);
 
 	[[nodiscard]] impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);

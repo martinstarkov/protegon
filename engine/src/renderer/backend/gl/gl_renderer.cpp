@@ -389,6 +389,12 @@ bool GLRenderer::SetRaster(const RasterState& raster) {
 	});
 }
 
+bool GLRenderer::SetScissor(const ScissorState& scissor) {
+	return UpdateStateIfChanged(*this, gl->GetBoundState().scissor, scissor, [this, scissor] {
+		gl->SetScissor(scissor);
+	});
+}
+
 bool GLRenderer::SetColorMask(const ColorMaskState& color_mask) {
 	return UpdateStateIfChanged(
 		*this, gl->GetBoundState().color_mask, color_mask,
@@ -593,7 +599,7 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 	}
 }
 
-void GLRenderer::BeginFrame(V2_int window_size) {
+void GLRenderer::BeginFrame(V2_int window_size, Color window_background_color) {
 #ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("GLRenderer::BeginFrame: BEGIN");
 #endif
@@ -605,7 +611,7 @@ void GLRenderer::BeginFrame(V2_int window_size) {
 #endif
 
 	auto _1 = gl->Bind(FramebufferId{ 0 });
-	gl->SetClearColor(color::Transparent);
+	gl->SetClearColor(window_background_color);
 	SetViewport({ {}, window_size });
 	gl->framebuffers.Clear();
 

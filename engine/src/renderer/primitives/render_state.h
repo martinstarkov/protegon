@@ -6,9 +6,9 @@
 #include <utility>
 
 #include "core/log.h"
-#include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/viewport.h"
 
 namespace ptgn {
 
@@ -135,17 +135,22 @@ struct ColorMaskState {
 };
 
 struct ScissorState {
+	ScissorState() = default;
+
+	explicit ScissorState(Viewport viewport) : viewport{ viewport }, enabled{ true } {}
+
+	explicit ScissorState(bool enabled) : enabled{ enabled } {}
+
 	bool enabled{ false };
-	/// @brief Top left position.
-	V2_int position;
-	V2_int size;
+
+	/// @brief Viewport of the scissor rectangle.
+	Viewport viewport;
 
 	bool operator==(const ScissorState&) const = default;
 
 	friend std::ostream& operator<<(std::ostream& os, const ScissorState& scissor) {
 		if (scissor.enabled) {
-			os << "(enabled=" << scissor.enabled << ", pos=" << scissor.position
-			   << ", size=" << scissor.size << ")";
+			os << "(enabled=" << scissor.enabled << ", viewport=" << scissor.viewport << ")";
 		} else {
 			os << "(enabled=" << scissor.enabled << ")";
 		}

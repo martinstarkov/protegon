@@ -10,8 +10,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
@@ -28,8 +26,9 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/buffer.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
@@ -38,6 +37,7 @@
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex_array.h"
+#include "renderer/primitives/viewport.h"
 
 namespace ptgn::impl::gl {
 
@@ -709,10 +709,19 @@ void GLContext::SetScissor(const ScissorState& scissor) {
 	}
 
 	if (scissor.enabled) {
-		GLCall(glEnable(GL_SCISSOR_TEST));
-		GLCall(glScissor(scissor.position.x, scissor.position.y, scissor.size.x, scissor.size.y));
+		if (!bound_.scissor.enabled) {
+			GLCall(glEnable(GL_SCISSOR_TEST));
+		}
+		if (bound_.scissor.viewport != scissor.viewport) {
+			GLCall(glScissor(
+				scissor.viewport.position.x, scissor.viewport.position.y, scissor.viewport.size.x,
+				scissor.viewport.size.y
+			));
+		}
 	} else {
-		GLCall(glDisable(GL_SCISSOR_TEST));
+		if (bound_.scissor.enabled) {
+			GLCall(glDisable(GL_SCISSOR_TEST));
+		}
 	}
 #ifdef PTGN_GL_DEBUG_CONTEXT
 	PTGN_LOG("glScissorState(", scissor, ")");

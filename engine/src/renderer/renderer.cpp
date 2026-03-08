@@ -186,6 +186,10 @@ void Renderer::SetRaster(const RasterState& raster) {
 	gl_renderer_->SetRaster(raster);
 }
 
+void Renderer::SetScissor(const ScissorState& scissor) {
+	gl_renderer_->SetScissor(scissor);
+}
+
 void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	gl_renderer_->SetColorMask(color_mask);
 }
@@ -199,7 +203,7 @@ Viewport Renderer::GetDisplayViewport() const {
 }
 
 void Renderer::BeginFrame() {
-	gl_renderer_->BeginFrame(window_.GetSize());
+	gl_renderer_->BeginFrame(window_.GetSize(), window_.GetBackgroundColor());
 }
 
 void Renderer::EndFrame() {
