@@ -22,7 +22,7 @@ FrameContext::FrameContext(const Scene& scene) :
 FrameContext::FrameContext(
 	const ApplicationContext& app, RenderTarget render_target_entity, Camera camera_entity
 ) :
-	display{ app.renderer.GetDisplayViewport().GetCenter() },
+	display{ app.renderer.GetDisplayViewport().position },
 	render_target{ GetTransform(render_target_entity) },
 	camera{ camera_entity.GetViewport() },
 	world{ GetTransform(camera_entity) } {}

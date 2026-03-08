@@ -3,15 +3,19 @@
 #include <memory>
 #include <ostream>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "core/event/event.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/scene/resolution.h"
 #include "runtime/ui/interactive.h"
 #include "serialization/json/serialize.h"
@@ -276,6 +280,13 @@ private:
 		V2_float position, Frame frame_of_reference, bool clamp_to_viewport
 	) const;
 
+	[[nodiscard]] bool Overlap(V2_float point, Entity entity) const;
+	[[nodiscard]] bool Overlap(Entity entityA, Entity entityB) const;
+
+	[[nodiscard]] Transform GetWorldOffsetTransform(
+		const Shape& shape, Entity shape_entity, Entity parent
+	) const;
+
 	template <DropzoneAction action, typename T>
 	TriggerCondition GetTriggerCondition(const T& component) {
 		if constexpr (action == DropzoneAction::Move) {
@@ -338,7 +349,9 @@ private:
 
 	void Update();
 
-	InteractiveEntities GetInteractiveEntities(const impl::MouseInfo& mouse_state) const;
+	InteractiveEntities GetInteractiveEntities(
+		const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities
+	) const;
 
 	std::vector<Entity> GetDropzones();
 

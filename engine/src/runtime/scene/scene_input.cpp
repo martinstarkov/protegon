@@ -24,6 +24,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_target_component.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
@@ -31,9 +32,6 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
-
-// TODO: Actually implement Draggable enabled boolean (currently it does nothing).
-// TODO: Actually implement Dropzone enabled boolean (currently it does nothing).
 
 namespace ptgn {
 
@@ -80,7 +78,9 @@ static void GetShapes(
 	}
 }
 
-static Transform GetWorldOffsetTransform(const auto& shape, Entity shape_entity, Entity parent) {
+Transform SceneInput::GetWorldOffsetTransform(
+	const Shape& shape, Entity shape_entity, Entity parent
+) const {
 	auto transform{ GetWorldTransform(shape_entity) };
 
 	if (parent.Has<Rect>()) {
@@ -88,10 +88,11 @@ static Transform GetWorldOffsetTransform(const auto& shape, Entity shape_entity,
 	}
 
 	transform = OffsetByOrigin(shape, transform, shape_entity);
+
 	return transform;
 }
 
-static bool Overlap(V2_float point, Entity entity) {
+bool SceneInput::Overlap(V2_float point, Entity entity) const {
 	std::vector<std::pair<InteractiveShape, Entity>> shapes;
 	GetShapes(entity, entity, shapes);
 
@@ -99,7 +100,7 @@ static bool Overlap(V2_float point, Entity entity) {
 
 	for (const auto& [shape, e] : shapes) {
 		auto transform{ GetWorldOffsetTransform(shape, e, entity) };
-		if (Overlap(point, transform, shape)) {
+		if (ptgn::Overlap(point, transform, shape)) {
 			return true;
 		}
 	}
@@ -107,7 +108,7 @@ static bool Overlap(V2_float point, Entity entity) {
 	return false;
 }
 
-static bool Overlap(Entity entityA, Entity entityB) {
+bool SceneInput::Overlap(Entity entityA, Entity entityB) const {
 	std::vector<std::pair<InteractiveShape, Entity>> shapesA;
 	GetShapes(entityA, entityA, shapesA);
 
@@ -123,7 +124,7 @@ static bool Overlap(Entity entityA, Entity entityB) {
 		auto transformA{ GetWorldOffsetTransform(shapeA, eA, entityA) };
 		for (const auto& [shapeB, eB] : shapesB) {
 			auto transformB{ GetWorldOffsetTransform(shapeB, eB, entityB) };
-			if (Overlap(transformA, shapeA, transformB, shapeB)) {
+			if (ptgn::Overlap(transformA, shapeA, transformB, shapeB)) {
 				return true;
 			}
 		}
@@ -239,21 +240,12 @@ V2_float SceneInput::GetMousePositionRelativeTo(
 }
 
 SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
-	const impl::MouseInfo& mouse_state
+	const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities
 ) const {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
 
 	std::unordered_map<Entity, std::vector<std::pair<InteractiveShape, Entity>>> entity_shapes;
-
-	std::vector<Entity> all_entities;
-
-	for (auto [entity, interactive] : scene_.EntitiesWith<impl::Interactive>()) {
-		if (!interactive.enabled) {
-			continue;
-		}
-		all_entities.emplace_back(entity);
-	}
 
 	for (Entity entity : all_entities) {
 		std::vector<std::pair<InteractiveShape, Entity>> shapes;
@@ -310,7 +302,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 			auto transform{ GetWorldOffsetTransform(shape, shape_entity, entity) };
 
-			if (Overlap(mouse_state.position, transform, shape)) {
+			if (ptgn::Overlap(mouse_state.position, transform, shape)) {
 				PTGN_ASSERT(
 					!VectorContains(entities.under_mouse, entity),
 					"Attempting to check same interactive entity under mouse twice"
@@ -336,8 +328,13 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 		entities.under_mouse = { *draggable_it };
 	}
-	VectorSubtract(all_entities, entities.under_mouse);
+
+	auto all{ all_entities };
+
+	VectorSubtract(all, entities.under_mouse);
+
 	entities.not_under_mouse = all_entities;
+
 	return entities;
 }
 
@@ -548,8 +545,8 @@ void SceneInput::HandleDragging(
 
 			draggable.dragging = true;
 			draggable.start	   = mouse.position;
-			// Origin does not need to be accounted for here because offset will be used to set the
-			// position (most often).
+			// Origin does not need to be accounted for here because offset will be used to set
+			// the position (most often).
 			draggable.offset = GetWorldTransform(dragging).GetPosition() - draggable.start;
 		}
 	}
@@ -777,34 +774,91 @@ void SceneInput::Update() {
 		// TODO: Use debub shape draw.
 		impl::DrawShape(
 			ctx_->renderer, V2_float{ mouse_state.position }, Transform{},
-			interactive_debug_draw_settings_.color, FillStyle{}, Origin::Center, 0, BlendMode::Blend
+			interactive_debug_draw_settings_.color, FillStyle::Solid(), Origin::Center, 0,
+			BlendMode::Blend
 		);
 	}
 
-	auto entities = GetInteractiveEntities(mouse_state);
-	auto dropzones{ GetDropzones() };
-	// PTGN_LOG(entities);
+	std::vector<Entity> cameras;
 
-	UpdateMouseOverStates(entities.under_mouse);
-
-	DispatchMouseEvents(entities.under_mouse, entities.not_under_mouse, mouse_state);
-
-	HandleDragging(entities.under_mouse, dropzones, mouse_state);
-
-	if (IsAnyDragging()) {
-		HandleDropzones(dropzones, mouse_state);
+	for (auto [camera, _cam] : scene_.EntitiesWith<impl::CameraData>()) {
+		cameras.emplace_back(camera);
 	}
 
-	// TODO: Move action invocations to separate functions:
+	SortByDepth(cameras, false);
+
+	std::vector<Entity> under_mouse;
+
+	for (Entity camera_entity : cameras) {
+		Camera camera{ camera_entity };
+
+		RenderTarget render_target;
+
+		if (auto rt{ camera.TryGet<impl::ParentRenderTarget>() }) {
+			render_target = rt->render_target;
+		} else {
+			render_target = scene_.GetRenderTarget();
+		}
+
+		PTGN_ASSERT(render_target);
+
+		impl::MouseInfo mouse{ mouse_state };
+
+		mouse.position = ConvertPoint(
+			mouse.position, Frame::Window, Frame::Camera,
+			FrameContext{ *ctx_, render_target, camera }
+		);
+
+		PTGN_LOG("Mouse pos relative to camera ", camera, ": ", mouse.position);
+
+		std::vector<Entity> camera_entities;
+
+		for (auto [entity, interactive] : scene_.EntitiesWith<impl::Interactive>()) {
+			if (!interactive.enabled) {
+				continue;
+			}
+			if (!camera.IsVisible(entity)) {
+				continue;
+			}
+			camera_entities.emplace_back(entity);
+		}
+
+		auto entities = GetInteractiveEntities(mouse, camera_entities);
+
+		// if (entities.under_mouse.empty()) {
+		//	continue;
+		// }
+
+		under_mouse = ConcatenateVectors(under_mouse, entities.under_mouse);
+
+		auto dropzones{ GetDropzones() };
+		// PTGN_LOG(entities);
+
+		UpdateMouseOverStates(entities.under_mouse);
+
+		DispatchMouseEvents(entities.under_mouse, entities.not_under_mouse, mouse);
+
+		HandleDragging(entities.under_mouse, dropzones, mouse);
+
+		if (IsAnyDragging()) {
+			HandleDropzones(dropzones, mouse);
+		}
+
+		CleanupDropzones(dropzones);
+
+		// TODO: Fix top only.
+
+		// if (top_only_) {
+		//	break;
+		// }
+	}
 
 	std::erase_if(dragging_entities_, [](const auto& entity) {
 		return !entity.template Has<impl::Draggable>();
 	});
 
 	// Save for next frame.
-	last_mouse_over_ = std::unordered_set(entities.under_mouse.begin(), entities.under_mouse.end());
-
-	CleanupDropzones(dropzones);
+	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
 
 	scene_.Refresh();
 }
