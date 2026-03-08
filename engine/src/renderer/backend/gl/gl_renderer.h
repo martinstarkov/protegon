@@ -113,6 +113,7 @@ public:
 	bool SetDepth(const DepthState& depth);
 	bool SetStencil(const StencilState& stencil);
 	bool SetRaster(const RasterState& raster);
+	bool SetScissor(const ScissorState& scissor);
 	bool SetColorMask(const ColorMaskState& color_mask);
 
 	ShaderId GetShader(std::string_view name) const;
@@ -121,7 +122,7 @@ public:
 
 	V2_int GetTextureSize(TextureId texture) const;
 
-	void BeginFrame(V2_int window_size);
+	void BeginFrame(V2_int window_size, Color window_background_color);
 	void EndFrame(Viewport display_viewport);
 
 	TextureId GetWhiteTexture() const;

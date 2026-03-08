@@ -11,6 +11,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -141,6 +142,14 @@ void Window::SetSize(V2_int new_size, bool centered) const {
 	if (centered) {
 		Center();
 	}
+}
+
+void Window::SetBackgroundColor(Color background_color) {
+	background_color_ = background_color;
+}
+
+Color Window::GetBackgroundColor() const {
+	return background_color_;
 }
 
 void Window::SetPosition(V2_int new_origin) const {

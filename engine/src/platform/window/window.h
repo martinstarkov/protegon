@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
 #include "serialization/json/enum.h"
 
 struct SDL_Window;
@@ -74,6 +75,9 @@ public:
 
 	void Center() const;
 
+	void SetBackgroundColor(Color background_color = color::Transparent);
+	[[nodiscard]] Color GetBackgroundColor() const;
+
 	void SetPosition(V2_int new_origin) const;
 
 	void SetSetting(WindowSetting setting) const;
@@ -110,6 +114,7 @@ private:
 	void CaptureMouse(bool on) const;
 	void SetAlwaysOnTop(bool on) const;
 
+	Color background_color_{ color::Transparent };
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> instance_;
 };
 
