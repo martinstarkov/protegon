@@ -353,7 +353,6 @@ std::vector<Entity> SceneInput::GetDropzones() {
 	return objects;
 }
 
-// Called every frame
 void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const {
 	for (Entity e : current) {
 		if (!e.Has<impl::Scripts>()) {
@@ -371,73 +370,6 @@ void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const
 		}
 		if (!VectorContains(current, e)) {
 			MouseLeave event;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-	}
-}
-
-void SceneInput::DispatchMouseEvents(
-	const std::vector<Entity>& over, const std::vector<Entity>& out, const impl::MouseInfo& mouse
-) const {
-	for (Entity e : over) {
-		if (!e.Has<impl::Scripts>()) {
-			continue;
-		}
-
-		MouseMoveOver move_over_event;
-		e.Get<impl::Scripts>().Emit(move_over_event);
-
-		if (mouse.left_pressed) {
-			MousePressedOver event;
-			event.button = Mouse::Left;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-		if (mouse.left_held) {
-			MouseHeldOver event;
-			event.button = Mouse::Left;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-		if (mouse.left_released) {
-			MouseReleasedOver event;
-			event.button = Mouse::Left;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-		if (!mouse.scroll_delta.IsZero()) {
-			MouseScrollOver event;
-			event.scroll_delta = mouse.scroll_delta;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-	}
-
-	for (Entity e : out) {
-		if (!e.Has<impl::Scripts>()) {
-			continue;
-		}
-		if (VectorContains(over, e)) {
-			continue;
-		}
-
-		MouseMoveOut mouse_move_out{};
-		e.Get<impl::Scripts>().Emit(mouse_move_out);
-
-		if (mouse.left_pressed) {
-			MousePressedOut event;
-			event.button = Mouse::Left;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-		if (mouse.left_held) {
-			MouseHeldOut event;
-			event.button = Mouse::Left;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-		if (mouse.left_released) {
-			MouseReleasedOut event;
-			event.button = Mouse::Left;
-			e.Get<impl::Scripts>().Emit(event);
-		}
-		if (!mouse.scroll_delta.IsZero()) {
-			MouseScrollOut event;
-			event.scroll_delta = mouse.scroll_delta;
 			e.Get<impl::Scripts>().Emit(event);
 		}
 	}
@@ -767,6 +699,73 @@ void SceneInput::HandleDropzones(
 	}
 }
 
+void SceneInput::DispatchMouseEvents(
+	const std::vector<Entity>& over, const std::vector<Entity>& out, const impl::MouseInfo& mouse
+) const {
+	for (Entity e : over) {
+		if (!e.Has<impl::Scripts>()) {
+			continue;
+		}
+
+		MouseMoveOver move_over_event;
+		e.Get<impl::Scripts>().Emit(move_over_event);
+
+		if (mouse.left_pressed) {
+			MousePressedOver event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+		if (mouse.left_held) {
+			MouseHeldOver event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+		if (mouse.left_released) {
+			MouseReleasedOver event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+		if (!mouse.scroll_delta.IsZero()) {
+			MouseScrollOver event;
+			event.scroll_delta = mouse.scroll_delta;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+	}
+
+	for (Entity e : out) {
+		if (!e.Has<impl::Scripts>()) {
+			continue;
+		}
+		if (VectorContains(over, e)) {
+			continue;
+		}
+
+		MouseMoveOut mouse_move_out{};
+		e.Get<impl::Scripts>().Emit(mouse_move_out);
+
+		if (mouse.left_pressed) {
+			MousePressedOut event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+		if (mouse.left_held) {
+			MouseHeldOut event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+		if (mouse.left_released) {
+			MouseReleasedOut event;
+			event.button = Mouse::Left;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+		if (!mouse.scroll_delta.IsZero()) {
+			MouseScrollOut event;
+			event.scroll_delta = mouse.scroll_delta;
+			e.Get<impl::Scripts>().Emit(event);
+		}
+	}
+}
+
 void SceneInput::Update() {
 	impl::MouseInfo mouse_state{ scene_ };
 
@@ -804,12 +803,12 @@ void SceneInput::Update() {
 
 		impl::MouseInfo mouse{ mouse_state };
 
+		auto before{ mouse.position };
+
 		mouse.position = ConvertPoint(
 			mouse.position, Frame::Window, Frame::Camera,
 			FrameContext{ *ctx_, render_target, camera }
 		);
-
-		PTGN_LOG("Mouse pos relative to camera ", camera, ": ", mouse.position);
 
 		std::vector<Entity> camera_entities;
 
@@ -825,14 +824,14 @@ void SceneInput::Update() {
 
 		auto entities = GetInteractiveEntities(mouse, camera_entities);
 
-		// if (entities.under_mouse.empty()) {
-		//	continue;
-		// }
+		if (top_only_ && !under_mouse.empty()) {
+			entities.under_mouse	 = {};
+			entities.not_under_mouse = camera_entities;
+		}
 
 		under_mouse = ConcatenateVectors(under_mouse, entities.under_mouse);
 
 		auto dropzones{ GetDropzones() };
-		// PTGN_LOG(entities);
 
 		UpdateMouseOverStates(entities.under_mouse);
 
@@ -845,12 +844,6 @@ void SceneInput::Update() {
 		}
 
 		CleanupDropzones(dropzones);
-
-		// TODO: Fix top only.
-
-		// if (top_only_) {
-		//	break;
-		// }
 	}
 
 	std::erase_if(dragging_entities_, [](const auto& entity) {

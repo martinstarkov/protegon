@@ -35,7 +35,7 @@ V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx)
 	}
 
 	// Move "up" (towards World)
-	while (a < b) {
+	while (a <= b) {
 		switch (from) {
 			using enum Frame;
 			case Window:
@@ -56,11 +56,14 @@ V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx)
 				break;
 			case World: break;
 		}
+		if (a == b) {
+			return p;
+		}
 		++a;
 	}
 
 	// Move "down" (towards Window)
-	while (a > b) {
+	while (a >= b) {
 		switch (from) {
 			using enum Frame;
 			case World:
@@ -80,6 +83,9 @@ V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx)
 				from = Window;
 				break;
 			case Window: break;
+		}
+		if (a == b) {
+			return p;
 		}
 		--a;
 	}
@@ -116,17 +122,11 @@ V2_float RenderTargetToDisplay(
 }
 
 V2_float RenderTargetToCamera(V2_float render_target_point, CameraFrame camera_frame) {
-	return render_target_point -
-		   TopLeftToCenter(
-			   camera_frame.camera_viewport.position, camera_frame.camera_viewport.size
-		   );
+	return render_target_point - camera_frame.camera_viewport.position;
 }
 
 V2_float CameraToRenderTarget(V2_float camera_point, CameraFrame camera_frame) {
-	return camera_point +
-		   TopLeftToCenter(
-			   camera_frame.camera_viewport.position, camera_frame.camera_viewport.size
-		   );
+	return camera_point + camera_frame.camera_viewport.position;
 }
 
 V2_float CameraToWorld(V2_float camera_point, WorldFrame world_frame) {

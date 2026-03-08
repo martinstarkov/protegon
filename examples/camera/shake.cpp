@@ -41,6 +41,7 @@ public:
 	}
 
 	void OnEnter() override {
+		input.SetTopOnly(true);
 		auto res{ app().renderer.GetGameSize() };
 
 		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);
