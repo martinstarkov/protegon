@@ -265,11 +265,11 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 				}
 
 				// TODO: Use debub shape draw.
-				impl::DrawShape(
+				/*impl::DrawShape(
 					ctx_->renderer, shape, draw_transform, interactive_debug_draw_settings_.color,
 					interactive_debug_draw_settings_.line_width, GetDrawOrigin(shape_entity),
 					GetDepth(shape_entity), GetBlendMode(shape_entity)
-				);
+				);*/
 			}
 
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
@@ -771,11 +771,11 @@ void SceneInput::Update() {
 
 	if (interactive_debug_draw_settings_.enabled) {
 		// TODO: Use debub shape draw.
-		impl::DrawShape(
+		/*impl::DrawShape(
 			ctx_->renderer, V2_float{ mouse_state.position }, Transform{},
 			interactive_debug_draw_settings_.color, FillStyle::Solid(), Origin::Center, 0,
 			BlendMode::Blend
-		);
+		);*/
 	}
 
 	std::vector<Entity> cameras;

@@ -14,6 +14,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "ecs/ecs.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/render_state.h"
@@ -33,6 +34,7 @@
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
 
@@ -107,7 +109,7 @@ static void InvokeDrawable(Renderer& renderer, Entity entity) {
 
 	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
 
-	draw_function(renderer, entity);
+	draw_function(renderer.GetContext(), entity);
 }
 
 void Scene::InternalDraw() {
@@ -116,6 +118,7 @@ void Scene::InternalDraw() {
 	}
 
 	auto& renderer{ app().renderer };
+	auto& render_context{ renderer.GetContext() };
 
 	// { Hash(render_target), camera }
 	std::unordered_map<std::size_t, std::vector<Entity>> rt_to_cameras;
@@ -181,13 +184,13 @@ void Scene::InternalDraw() {
 			auto viewport{ cam.GetViewport() };
 			viewport.position = viewport.position * scale;
 			viewport.size	  = viewport.size * scale;
-			renderer.SetViewport(viewport);
-			renderer.SetViewProjection(cam.GetViewProjection());
+			render_context.SetViewport(viewport);
+			render_context.SetViewProjection(cam.GetViewProjection());
 
 			if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
-				renderer.SetScissor(ScissorState{ viewport });
+				render_context.SetScissor(ScissorState{ viewport });
 				render_target.Clear(*clear_color, false);
-				renderer.SetScissor(ScissorState{ false });
+				render_context.SetScissor(ScissorState{ false });
 			}
 
 			// auto vertices{ GetCameraWorldVertices(cam) };
@@ -230,16 +233,18 @@ void Scene::InternalDraw() {
 	Viewport viewport{ {}, renderer.GetDisplayViewport().size };
 	auto half_viewport{ viewport.size * 0.5f };
 
-	renderer.BindScreenTarget();
-	renderer.SetViewport(viewport);
-	renderer.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
-	renderer.SetBlend(BlendMode::Blend);
+	render_context.BindScreenTarget();
+	render_context.SetViewport(viewport);
+	render_context.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	render_context.SetBlend(BlendMode::Blend);
 
 	auto transform{ GetDrawTransform(render_target_) };
 	auto scene_target_size{ render_target_.GetSize() };
 	auto positions{ Rect{ scene_target_size }.GetWorldVertices(transform, Origin::Center) };
 
-	renderer.DrawQuadTexture(render_target_, positions, GetTint(render_target_), 0.0f, true, {});
+	render_context.DrawQuadTexture(
+		render_target_, positions, GetTint(render_target_), 0.0f, true, {}
+	);
 }
 
 void Scene::InternalUpdate() {

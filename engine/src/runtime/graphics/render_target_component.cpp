@@ -85,7 +85,7 @@ RenderTarget::operator impl::TextureId() const {
 	return Get<impl::RenderTargetObject>();
 }
 
-void RenderTarget::Draw(Renderer& renderer, Entity entity) {
+void RenderTarget::Draw(RenderContext& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<impl::RenderTargetObject>());
 
 	std::optional<V2_int> size;

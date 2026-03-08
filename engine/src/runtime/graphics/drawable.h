@@ -20,13 +20,13 @@
 
 namespace ptgn {
 
-class Renderer;
+class RenderContext;
 
 class Entity;
 
 template <typename T>
-concept DrawableType = requires(Renderer& renderer, Entity entity) {
-	{ T::Draw(renderer, entity) } -> std::same_as<void>;
+concept DrawableType = requires(RenderContext& render_context, Entity entity) {
+	{ T::Draw(render_context, entity) } -> std::same_as<void>;
 };
 
 namespace impl {
@@ -37,7 +37,7 @@ public:
 
 	IDrawable(std::string_view name) : hash{ Hash(name) } {}
 
-	using DrawFunc = void (*)(Renderer&, Entity);
+	using DrawFunc = void (*)(RenderContext&, Entity);
 
 	static auto& data() {
 		static std::unordered_map<std::size_t, DrawFunc> s;

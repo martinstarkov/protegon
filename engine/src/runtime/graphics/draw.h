@@ -21,7 +21,7 @@
 
 namespace ptgn {
 
-class Renderer;
+class RenderContext;
 
 inline constexpr float kMinLineWidth{ 1.0f };
 
@@ -57,23 +57,23 @@ struct Depth : public ArithmeticComponent<std::int32_t> {
 namespace impl {
 
 void DrawQuadTexture(
-	Renderer& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
-	Color tint, Depth depth, BlendMode blend_mode,
+	RenderContext& renderer, Texture texture, Transform transform, V2_float size,
+	Origin draw_origin, Color tint, Depth depth, BlendMode blend_mode,
 	const std::array<V2_float, 4>& texture_coordinates
 );
 
 void DrawLines(
-	Renderer& renderer, std::span<const V2_float> points, float line_width,
+	RenderContext& renderer, std::span<const V2_float> points, float line_width,
 	const Transform& transform, Color tint, float depth, BlendMode blend_mode
 );
 
 void DrawShape(
-	Renderer& renderer, const Shape& shape, Transform transform, Color tint, FillStyle fill_style,
-	Origin draw_origin, Depth depth_component, BlendMode blend_mode
+	RenderContext& renderer, const Shape& shape, Transform transform, Color tint,
+	FillStyle fill_style, Origin draw_origin, Depth depth_component, BlendMode blend_mode
 );
 
 template <ShapeType T>
-void DrawShape(Renderer& renderer, Entity entity);
+void DrawShape(RenderContext& renderer, Entity entity);
 
 struct Visible {};
 
@@ -95,39 +95,39 @@ struct EntityDepthCompare {
 void SetDraw(Entity entity, std::string_view drawable_name);
 
 struct CapsuleDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct CircleDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct EllipseDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct ArcDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct PolygonDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct RectDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct RoundedRectDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct TriangleDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 struct LineDraw {
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 };
 
 } // namespace impl

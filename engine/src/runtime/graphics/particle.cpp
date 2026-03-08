@@ -98,7 +98,7 @@ void ParticleEmitterComponent::ResetParticle(V2_float start_position, Particle& 
 
 ParticleEmitter::ParticleEmitter(Entity entity) : Entity{ entity } {}
 
-void ParticleEmitter::Draw(Renderer& renderer, Entity entity) {
+void ParticleEmitter::Draw(RenderContext& renderer, Entity entity) {
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 

@@ -38,8 +38,9 @@ void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill
 	commands_.emplace_back(cmd);
 }
 
-void GraphicsData::Draw(Renderer& renderer, Transform transform, Depth depth, BlendMode blend_mode)
-	const {
+void GraphicsData::Draw(
+	RenderContext& renderer, Transform transform, Depth depth, BlendMode blend_mode
+) const {
 	for (const auto& cmd : commands_) {
 		DrawShape(
 			renderer, cmd.shape, cmd.transform.RelativeTo(transform), cmd.color, cmd.line_width,
@@ -52,7 +53,7 @@ void GraphicsData::Draw(Renderer& renderer, Transform transform, Depth depth, Bl
 
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
-void Graphics::Draw(Renderer& renderer, Entity entity) {
+void Graphics::Draw(RenderContext& renderer, Entity entity) {
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	const auto& transform{ GetDrawTransform(entity) };

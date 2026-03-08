@@ -26,6 +26,7 @@ class Window;
 class Scene;
 class AssetManager;
 class RenderTarget;
+class Renderer;
 
 struct GameResized : public Event<GameResized> {
 	V2_int size;
@@ -49,35 +50,8 @@ class GLRenderer;
 
 } // namespace impl
 
-class Renderer {
+class RenderContext {
 public:
-	Renderer() = delete;
-	explicit Renderer(Window& window, EventHandler& events);
-	~Renderer() noexcept;
-	Renderer(const Renderer&)				 = delete;
-	Renderer(Renderer&&) noexcept			 = delete;
-	Renderer& operator=(const Renderer&)	 = delete;
-	Renderer& operator=(Renderer&&) noexcept = delete;
-
-	/// @param game_size Setting to {} will use dynamic window size.
-	void SetGameSize(
-		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
-	);
-
-	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
-
-	/// @return The display size of the renderer.
-	[[nodiscard]] V2_int GetDisplaySize() const;
-
-	/// @return The amount by which game size is scaled to achieve the display size.
-	[[nodiscard]] V2_float GetScale() const;
-
-	/// @return The game size of the renderer. Returns window size if unset.
-	[[nodiscard]] V2_int GetGameSize() const;
-
-	/// @return The game size scaling mode.
-	[[nodiscard]] ScalingMode GetScalingMode() const;
-
 	void DrawTexture(
 		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
 		Color tint = color::White, float depth = 0.0f, bool flip_y = false,
@@ -110,9 +84,6 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	void SetBackgroundColor(Color background_color = color::Transparent);
-	[[nodiscard]] Color GetBackgroundColor() const;
-
 	void BindScreenTarget();
 
 	void SetViewport(Viewport viewport);
@@ -126,7 +97,50 @@ public:
 
 	[[nodiscard]] impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
 
+private:
+	friend class Renderer;
+
+	RenderContext() = delete;
+	explicit RenderContext(Renderer& renderer);
+
+	Renderer& renderer_;
+};
+
+class Renderer {
+public:
+	Renderer() = delete;
+	explicit Renderer(Window& window, EventHandler& events);
+	~Renderer() noexcept;
+	Renderer(const Renderer&)				 = delete;
+	Renderer(Renderer&&) noexcept			 = delete;
+	Renderer& operator=(const Renderer&)	 = delete;
+	Renderer& operator=(Renderer&&) noexcept = delete;
+
+	/// @param game_size Setting to {} will use dynamic window size.
+	void SetGameSize(
+		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
+	);
+
+	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+
+	/// @return The display size of the renderer.
+	[[nodiscard]] V2_int GetDisplaySize() const;
+
 	Viewport GetDisplayViewport() const;
+
+	/// @return The amount by which game size is scaled to achieve the display size.
+	[[nodiscard]] V2_float GetScale() const;
+
+	/// @return The game size of the renderer. Returns window size if unset.
+	[[nodiscard]] V2_int GetGameSize() const;
+
+	/// @return The game size scaling mode.
+	[[nodiscard]] ScalingMode GetScalingMode() const;
+
+	void SetBackgroundColor(Color background_color);
+	[[nodiscard]] Color GetBackgroundColor() const;
+
+	[[nodiscard]] RenderContext& GetContext();
 
 private:
 	friend class Application;
@@ -134,6 +148,7 @@ private:
 	friend class EventHandler;
 	friend class Scene;
 	friend class RenderTarget;
+	friend class RenderContext;
 
 	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
@@ -157,6 +172,8 @@ private:
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
 	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
+
+	RenderContext context_;
 };
 
 } // namespace ptgn

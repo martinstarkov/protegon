@@ -20,7 +20,7 @@
 namespace ptgn {
 
 class Scene;
-class Renderer;
+class RenderContext;
 
 enum class ParticleShape {
 	Circle,
@@ -136,7 +136,7 @@ public:
 	ParticleEmitter() = default;
 	explicit ParticleEmitter(Entity entity);
 
-	static void Draw(Renderer& renderer, Entity entity);
+	static void Draw(RenderContext& renderer, Entity entity);
 
 	// Starts emitting particles.
 	ParticleEmitter& Start();
