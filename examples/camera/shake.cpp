@@ -48,6 +48,7 @@ public:
 		player = CreateRect(*this, -res * 0.5f + V2_float{ 400, 150 }, { 50, 50 }, color::Red);
 
 		StartFollow(camera, player);
+		// TranslateTo(camera, GetPosition(player), 1000ms);
 
 		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera); }));
 		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { Shake(camera, 0.1f); }));
