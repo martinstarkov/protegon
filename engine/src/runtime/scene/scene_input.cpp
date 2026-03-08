@@ -803,8 +803,6 @@ void SceneInput::Update() {
 
 		impl::MouseInfo mouse{ mouse_state };
 
-		auto before{ mouse.position };
-
 		mouse.position = ConvertPoint(
 			mouse.position, Frame::Window, Frame::Camera,
 			FrameContext{ *ctx_, render_target, camera }
