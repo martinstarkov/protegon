@@ -2,6 +2,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -15,6 +16,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/viewport.h"
@@ -181,6 +183,12 @@ void Scene::InternalDraw() {
 			viewport.size	  = viewport.size * scale;
 			renderer.SetViewport(viewport);
 			renderer.SetViewProjection(cam.GetViewProjection());
+
+			if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
+				renderer.SetScissor(ScissorState{ viewport });
+				render_target.Clear(*clear_color, false);
+				renderer.SetScissor(ScissorState{ false });
+			}
 
 			// auto vertices{ GetCameraWorldVertices(cam) };
 			//  auto frustum_objects{ tree.Query(BoundingAABB{ vertices[0], vertices[2] }) };

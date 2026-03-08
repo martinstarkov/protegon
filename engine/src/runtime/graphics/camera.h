@@ -7,6 +7,7 @@
 #include "core/event/dispatcher.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/render_target_component.h"
@@ -138,6 +139,10 @@ public:
 	/// @brief Sets the camera's parent render target. If render_target is {}, sets the parent
 	/// render target to the default scene render target.
 	Camera& SetParentRenderTarget(std::optional<RenderTarget> render_target = {});
+
+	/// @brief If clear_color is {}, uses the render target's clear color.
+	void SetClearColor(std::optional<Color> clear_color);
+	[[nodiscard]] std::optional<Color> GetClearColor() const;
 };
 
 LayerMask GetMask(Entity entity);

@@ -14,6 +14,8 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
@@ -344,6 +346,22 @@ Camera& Camera::SetParentRenderTarget(std::optional<RenderTarget> render_target)
 	}
 	Add<impl::ParentRenderTarget>(GetScene().GetRenderTarget());
 	return *this;
+}
+
+void Camera::SetClearColor(std::optional<Color> clear_color) {
+	if (clear_color.has_value()) {
+		Add<ClearColor>(*clear_color);
+	} else {
+		Remove<ClearColor>();
+	}
+}
+
+std::optional<Color> Camera::GetClearColor() const {
+	if (auto color{ TryGet<ClearColor>() }) {
+		return color->value;
+	} else {
+		return {};
+	}
 }
 
 void SetUI(Entity entity, bool ui_layer) {
