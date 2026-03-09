@@ -30,30 +30,35 @@ using namespace ptgn;
 
 constexpr V2_int window_size{ 1280, 720 };
 constexpr V2_int game_size{ 320, 180 };
-constexpr Viewport camera_viewport{ {}, { game_size.x / 2.0f, game_size.y } };
+constexpr Viewport camera0_viewport{ {}, { game_size.x / 2.0f, game_size.y } };
+constexpr Viewport camera_viewport{ { game_size.x / 2.0f, 0.0f },
+									{ game_size.x / 2.0f, game_size.y } };
 
 struct RectDragScript : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.offset); });
+		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.position); });
 	}
 
-	void OnDrag(V2_float offset) {
-		SetPosition(entity, entity.GetScene().input.GetMousePosition() + offset);
+	void OnDrag(V2_float pos) {
+		SetPosition(entity, pos);
+		PTGN_LOG("Position: ", pos);
 	}
 };
 
 struct CircleDragScript : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.offset); });
+		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.position); });
 	}
 
-	void OnDrag(V2_float offset) {
-		SetPosition(entity, entity.GetScene().input.GetMousePosition() + offset);
+	void OnDrag(V2_float pos) {
+		SetPosition(entity, pos);
 	}
 };
 
 struct ResolutionScene : public Scene {
 	Sprite circle;
+
+	Camera camera0;
 
 	void OnEnter() override {
 		app().renderer.SetGameSize(game_size);
@@ -63,8 +68,12 @@ struct ResolutionScene : public Scene {
 
 		SetBackgroundColor(color::LightGray.WithAlpha(0.8f));
 
+		camera0 = CreateCamera(*this);
+
+		camera0.SetClearColor(color::LightPink.WithAlpha(0.5f));
 		camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
 
+		camera0.SetViewport(camera0_viewport);
 		camera.SetViewport(camera_viewport);
 
 		input.SetInteractiveDebugDraw({ .enabled = true, .line_width = 10.0f });
@@ -87,13 +96,13 @@ struct ResolutionScene : public Scene {
 			*this, camera_center + V2_float{ 100, 0 }, 50.0f, color::Red, intensity, falloff
 		);*/
 
-		float radius{ 50.0f };
+		/*float radius{ 50.0f };
 		circle = Sprite{ CreateEntity() };
 		auto child{ CreateEntity() };
 		child.Add<Circle>(radius);
 		AddInteractiveShape(circle, GameObject{ std::move(child) });
 		SetDraggable(circle);
-		AddScript<CircleDragScript>(circle);
+		AddScript<CircleDragScript>(circle);*/
 	}
 
 	const float rotation_speed{ 1.0f };
