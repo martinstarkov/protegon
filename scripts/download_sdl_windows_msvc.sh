@@ -46,9 +46,9 @@ download_and_extract() {
   rm -f "$zip_path"
 }
 
-download_and_extract "https://github.com/libsdl-org/SDL/releases/download/release-{VERSION}/SDL3-devel-{VERSION}-VC.zip"                "$SDL_VERSION"
-download_and_extract "https://github.com/libsdl-org/SDL_image/releases/download/release-{VERSION}/SDL3_image-devel-{VERSION}-VC.zip"    "$SDL_IMAGE_VERSION"
-download_and_extract "https://github.com/libsdl-org/SDL_ttf/releases/download/release-{VERSION}/SDL3_ttf-devel-{VERSION}-VC.zip"        "$SDL_TTF_VERSION"
-download_and_extract "https://github.com/libsdl-org/SDL_mixer/releases/download/prerelease-{VERSION}/SDL3_mixer-devel-{VERSION}-VC.zip" "$SDL_MIXER_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL/releases/download/release-{VERSION}/SDL3-devel-{VERSION}-VC.zip"             "$SDL_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL_image/releases/download/release-{VERSION}/SDL3_image-devel-{VERSION}-VC.zip" "$SDL_IMAGE_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL_ttf/releases/download/release-{VERSION}/SDL3_ttf-devel-{VERSION}-VC.zip"     "$SDL_TTF_VERSION"
+download_and_extract "https://github.com/libsdl-org/SDL_mixer/releases/download/release-{VERSION}/SDL3_mixer-devel-{VERSION}-VC.zip" "$SDL_MIXER_VERSION"
 
 echo "[info] Done"

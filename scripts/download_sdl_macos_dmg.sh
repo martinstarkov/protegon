@@ -69,6 +69,6 @@ download_mount_copy() {
 download_mount_copy "SDL3"       "SDL"       "release" "$SDL_VERSION"       "SDL3-${SDL_VERSION}.dmg"
 download_mount_copy "SDL3_image" "SDL_image" "release" "$SDL_IMAGE_VERSION" "SDL3_image-${SDL_IMAGE_VERSION}.dmg"
 download_mount_copy "SDL3_ttf"   "SDL_ttf"   "release" "$SDL_TTF_VERSION"   "SDL3_ttf-${SDL_TTF_VERSION}.dmg"
-download_mount_copy "SDL3_mixer" "SDL_mixer" "prerelease" "$SDL_MIXER_VERSION" "SDL3_mixer-${SDL_MIXER_VERSION}.dmg"
+download_mount_copy "SDL3_mixer" "SDL_mixer" "release" "$SDL_MIXER_VERSION" "SDL3_mixer-${SDL_MIXER_VERSION}.dmg"
 
 echo "[info] Done"

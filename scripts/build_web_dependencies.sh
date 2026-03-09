@@ -69,6 +69,6 @@ build_install() {
 build_install "SDL"       "https://github.com/libsdl-org/SDL/archive/refs/tags/release-${SDL_VERSION}.zip"
 build_install "SDL_image" "https://github.com/libsdl-org/SDL_image/archive/refs/tags/release-${SDL_IMAGE_VERSION}.zip"
 build_install "SDL_ttf"   "https://github.com/libsdl-org/SDL_ttf/archive/refs/tags/release-${SDL_TTF_VERSION}.zip"
-build_install "SDL_mixer" "https://github.com/libsdl-org/SDL_mixer/archive/refs/tags/prerelease-${SDL_MIXER_VERSION}.zip"
+build_install "SDL_mixer" "https://github.com/libsdl-org/SDL_mixer/archive/refs/tags/release-${SDL_MIXER_VERSION}.zip"
 
 echo "[info] Done. Prefix populated at: $PREFIX"
