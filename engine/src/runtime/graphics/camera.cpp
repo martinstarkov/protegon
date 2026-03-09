@@ -102,8 +102,10 @@ void RecalculateCameraViewProjection(Camera camera) {
 
 	auto half_size{ flip_dir * size * 0.5f };
 
-	c.projection =
-		Matrix4::Orthographic(c.viewport.position - half_size, c.viewport.position + half_size);
+	V2_float min{ -half_size };
+	V2_float max{ half_size };
+
+	c.projection = Matrix4::Orthographic(min, max);
 
 	Transform t{ GetTransform(camera) };
 
