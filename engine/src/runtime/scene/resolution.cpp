@@ -1,5 +1,6 @@
 #include "runtime/scene/resolution.h"
 
+#include <functional>
 #include <memory>
 #include <utility>
 
@@ -24,7 +25,11 @@ FrameContext::FrameContext(
 ) :
 	display{ app.renderer.GetDisplayViewport().position },
 	render_target{ GetTransform(render_target_entity) },
-	camera{ camera_entity.GetViewport(), render_target_entity.GetSize(), app.renderer.GetScale() },
+	camera{ camera_entity.GetViewport(), render_target_entity.GetSize(), std::invoke([&]() {
+				auto game_size{ app.renderer.GetGameSize() };
+				PTGN_ASSERT(game_size.BothAboveZero(), "Game size cannot be negative or zero");
+				return render_target_entity.GetSize() / game_size;
+			}) },
 	world{ GetTransform(camera_entity) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {

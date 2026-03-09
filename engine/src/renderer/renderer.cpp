@@ -160,6 +160,11 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 		return;
 	}
 
+	PTGN_ASSERT(
+		!game_size.has_value() || game_size.has_value() && game_size->BothAboveZero(),
+		"Game size cannot be negative or zero"
+	);
+
 	game_size_	  = game_size;
 	scaling_mode_ = scaling_mode;
 
