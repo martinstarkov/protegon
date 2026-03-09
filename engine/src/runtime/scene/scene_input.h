@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <ostream>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -86,6 +87,10 @@ struct PickupDraggable : public Event<PickupDraggable> {
 };
 
 struct Dragging : public Event<Dragging> {
+	/// @brief Current position of the mouse in world coordinates relative to the camera the entity
+	/// is being dragged in.
+	V2_float position;
+
 	/// @brief Current offset of the mouse position relative to where it started in world
 	/// coordinates.
 	V2_float offset;
@@ -171,7 +176,7 @@ struct InteractiveDebugDrawSettings {
 class SceneInput {
 public:
 	/// @return True if any draggable entity is being dragged.
-	[[nodiscard]] bool IsAnyDragging() const;
+	[[nodiscard]] bool IsAnyDragging(Camera camera) const;
 
 	/// @param True if input is in top only mode (only top interactable reacts to events), false
 	/// otherwise.
@@ -280,15 +285,15 @@ private:
 		V2_float position, Frame frame_of_reference, bool clamp_to_viewport
 	) const;
 
-	[[nodiscard]] bool Overlap(V2_float point, Entity entity) const;
-	[[nodiscard]] bool Overlap(Entity entityA, Entity entityB) const;
+	[[nodiscard]] static bool Overlap(V2_float point, Entity entity);
+	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
 
-	[[nodiscard]] Transform GetWorldOffsetTransform(
+	[[nodiscard]] static Transform GetWorldOffsetTransform(
 		const Shape& shape, Entity shape_entity, Entity parent
-	) const;
+	);
 
 	template <DropzoneAction action, typename T>
-	TriggerCondition GetTriggerCondition(const T& component) {
+	static TriggerCondition GetTriggerCondition(const T& component) {
 		if constexpr (action == DropzoneAction::Move) {
 			return component.move_condition;
 		} else if constexpr (action == DropzoneAction::Pickup) {
@@ -303,7 +308,7 @@ private:
 	template <
 		SceneInput::DropzoneAction action, typename DropzoneFunc, typename DraggableFunc,
 		typename OverlapFunc>
-	void AddDropzoneActions(
+	static void AddDropzoneActions(
 		Entity& dragging, Entity& dropzone, const V2_float& mouse_position,
 		DropzoneFunc&& dropzone_func, DraggableFunc&& draggable_func, OverlapFunc&& overlap_func
 	) {
@@ -342,7 +347,7 @@ private:
 
 	static void CleanupDropzones(const std::vector<Entity>& dropzones);
 
-	bool IsOverlappingDropzone(
+	static bool IsOverlappingDropzone(
 		const V2_float& mouse_position, const Entity& draggable, const Entity& dropzone,
 		TriggerCondition condition
 	);
@@ -355,31 +360,34 @@ private:
 
 	std::vector<Entity> GetDropzones();
 
-	void DispatchMouseEvents(
+	static void DispatchMouseEvents(
 		const std::vector<Entity>& over, const std::vector<Entity>& out,
-		const impl::MouseInfo& mouse
-	) const;
-
-	void UpdateMouseOverStates(const std::vector<Entity>& current) const;
-
-	void HandleDragging(
-		const std::vector<Entity>& over, const std::vector<Entity>& dropzones,
 		const impl::MouseInfo& mouse
 	);
 
-	void HandleDropzones(const std::vector<Entity>& dropzones, const impl::MouseInfo& mouse);
+	static void UpdateMouseOverStates(
+		const std::vector<Entity>& current, const std::unordered_set<Entity>& last_mouse_over
+	);
+
+	static void HandleDragging(
+		const std::vector<Entity>& over, const std::vector<Entity>& dropzones,
+		const impl::MouseInfo& mouse, std::unordered_set<Entity>& dragging_entities
+	);
+
+	static void HandleDropzones(
+		const std::vector<Entity>& dropzones, const impl::MouseInfo& mouse,
+		const std::unordered_set<Entity>& dragging_entities
+	);
 
 	Scene& scene_;
 	std::shared_ptr<ApplicationContext> ctx_;
 
-	/// @brief A set of entities currently being dragged.
-	std::unordered_set<Entity> dragging_entities_;
+	/// @brief A set of entities currently being dragged per a given camera.
+	std::unordered_map<Entity, std::unordered_set<Entity>> dragging_entities_;
 
-	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame.
-	std::unordered_set<Entity> last_mouse_over_;
-
-	/// @brief Stores the set of entities that were dropzones in the previous frame or update cycle.
-	std::unordered_set<Entity> last_dropzones_;
+	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame per
+	/// a given camera.
+	std::unordered_map<Entity, std::unordered_set<Entity>> last_mouse_over_;
 
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };

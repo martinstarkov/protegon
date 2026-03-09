@@ -80,7 +80,7 @@ static void GetShapes(
 
 Transform SceneInput::GetWorldOffsetTransform(
 	const Shape& shape, Entity shape_entity, Entity parent
-) const {
+) {
 	auto transform{ GetWorldTransform(shape_entity) };
 
 	if (parent.Has<Rect>()) {
@@ -92,7 +92,7 @@ Transform SceneInput::GetWorldOffsetTransform(
 	return transform;
 }
 
-bool SceneInput::Overlap(V2_float point, Entity entity) const {
+bool SceneInput::Overlap(V2_float point, Entity entity) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapes;
 	GetShapes(entity, entity, shapes);
 
@@ -108,7 +108,7 @@ bool SceneInput::Overlap(V2_float point, Entity entity) const {
 	return false;
 }
 
-bool SceneInput::Overlap(Entity entityA, Entity entityB) const {
+bool SceneInput::Overlap(Entity entityA, Entity entityB) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapesA;
 	GetShapes(entityA, entityA, shapesA);
 
@@ -147,8 +147,14 @@ MouseInfo::MouseInfo(const Scene& scene) :
 
 SceneInput::SceneInput(Scene& scene) : scene_{ scene } {}
 
-bool SceneInput::IsAnyDragging() const {
-	return !dragging_entities_.empty();
+bool SceneInput::IsAnyDragging(Camera camera) const {
+	auto it{ dragging_entities_.find(camera) };
+
+	if (it == dragging_entities_.end()) {
+		return false;
+	}
+
+	return !it->second.empty();
 }
 
 bool SceneInput::IsTopOnly() const {
@@ -280,8 +286,6 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	// Broadphase check.
 	auto candidates{ tree.Query(mouse_state.position) };
 
-	// PTGN_LOG("Mouse: ", mouse_state.position);
-
 	VectorRemoveDuplicates(candidates);
 
 	InteractiveEntities entities;
@@ -353,18 +357,20 @@ std::vector<Entity> SceneInput::GetDropzones() {
 	return objects;
 }
 
-void SceneInput::UpdateMouseOverStates(const std::vector<Entity>& current) const {
+void SceneInput::UpdateMouseOverStates(
+	const std::vector<Entity>& current, const std::unordered_set<Entity>& last_mouse_over
+) {
 	for (Entity e : current) {
 		if (!e.Has<impl::Scripts>()) {
 			continue;
 		}
-		if (!last_mouse_over_.contains(e)) {
+		if (!last_mouse_over.contains(e)) {
 			MouseEnter event;
 			e.Get<impl::Scripts>().Emit(event);
 		}
 	}
 
-	for (Entity e : last_mouse_over_) {
+	for (Entity e : last_mouse_over) {
 		if (!e.Has<impl::Scripts>()) {
 			continue;
 		}
@@ -416,7 +422,7 @@ bool SceneInput::IsOverlappingDropzone(
 
 void SceneInput::HandleDragging(
 	const std::vector<Entity>& over, const std::vector<Entity>& dropzones,
-	const impl::MouseInfo& mouse
+	const impl::MouseInfo& mouse, std::unordered_set<Entity>& dragging_entities
 ) {
 	// Start dragging
 	if (mouse.left_pressed) {
@@ -425,11 +431,11 @@ void SceneInput::HandleDragging(
 				continue;
 			}
 
-			if (dragging_entities_.contains(dragging)) {
+			if (dragging_entities.contains(dragging)) {
 				continue; // Already dragging this
 			}
 
-			dragging_entities_.emplace(dragging);
+			dragging_entities.emplace(dragging);
 
 			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
 				DragStart event;
@@ -485,14 +491,15 @@ void SceneInput::HandleDragging(
 
 	// Continue dragging
 	if (mouse.left_held || mouse.left_pressed) {
-		for (Entity dragging : dragging_entities_) {
+		for (Entity dragging : dragging_entities) {
 			if (!dragging.Has<impl::Draggable>()) {
 				continue;
 			}
 
 			if (auto scripts{ dragging.TryGet<impl::Scripts>() }) {
 				Dragging event;
-				event.offset = dragging.Get<impl::Draggable>().offset;
+				event.offset   = dragging.Get<impl::Draggable>().offset;
+				event.position = mouse.position + event.offset;
 				scripts->Emit(event);
 			}
 		}
@@ -500,7 +507,7 @@ void SceneInput::HandleDragging(
 
 	// Stop dragging
 	if (mouse.left_released) {
-		for (Entity dragging : dragging_entities_) {
+		for (Entity dragging : dragging_entities) {
 			if (!dragging.Has<impl::Draggable>() || !dragging.Has<impl::Interactive>() ||
 				!dragging.Get<impl::Interactive>().enabled) {
 				continue;
@@ -555,7 +562,7 @@ void SceneInput::HandleDragging(
 			draggable.start	   = {};
 			draggable.offset   = {};
 		}
-		dragging_entities_.clear(); // End all drags
+		dragging_entities.clear(); // End all drags
 	}
 }
 
@@ -575,10 +582,11 @@ void SceneInput::CleanupDropzones(const std::vector<Entity>& dropzones) {
 }
 
 void SceneInput::HandleDropzones(
-	const std::vector<Entity>& dropzones, const impl::MouseInfo& mouse
+	const std::vector<Entity>& dropzones, const impl::MouseInfo& mouse,
+	const std::unordered_set<Entity>& dragging_entities
 ) {
 	// 1. Compute which dropzones each dragged entity is currently over
-	for (Entity dragging : dragging_entities_) {
+	for (Entity dragging : dragging_entities) {
 		if (!dragging.Has<impl::Draggable>()) {
 			continue;
 		}
@@ -701,7 +709,7 @@ void SceneInput::HandleDropzones(
 
 void SceneInput::DispatchMouseEvents(
 	const std::vector<Entity>& over, const std::vector<Entity>& out, const impl::MouseInfo& mouse
-) const {
+) {
 	for (Entity e : over) {
 		if (!e.Has<impl::Scripts>()) {
 			continue;
@@ -786,7 +794,7 @@ void SceneInput::Update() {
 
 	SortByDepth(cameras, false);
 
-	std::vector<Entity> under_mouse;
+	bool handled_under_mouse{ false };
 
 	for (Entity camera_entity : cameras) {
 		Camera camera{ camera_entity };
@@ -822,34 +830,50 @@ void SceneInput::Update() {
 
 		auto entities = GetInteractiveEntities(mouse, camera_entities);
 
-		if (top_only_ && !under_mouse.empty()) {
+		if (top_only_ && handled_under_mouse) {
 			entities.under_mouse	 = {};
 			entities.not_under_mouse = camera_entities;
 		}
 
-		under_mouse = ConcatenateVectors(under_mouse, entities.under_mouse);
+		if (!entities.under_mouse.empty()) {
+			handled_under_mouse = true;
+		}
 
 		auto dropzones{ GetDropzones() };
 
-		UpdateMouseOverStates(entities.under_mouse);
+		auto& dragging_entities = dragging_entities_[camera];
+		auto& last_mouse_over	= last_mouse_over_[camera];
+
+		UpdateMouseOverStates(entities.under_mouse, last_mouse_over);
 
 		DispatchMouseEvents(entities.under_mouse, entities.not_under_mouse, mouse);
 
-		HandleDragging(entities.under_mouse, dropzones, mouse);
+		HandleDragging(entities.under_mouse, dropzones, mouse, dragging_entities);
 
-		if (IsAnyDragging()) {
-			HandleDropzones(dropzones, mouse);
+		if (IsAnyDragging(camera)) {
+			HandleDropzones(dropzones, mouse, dragging_entities);
 		}
 
 		CleanupDropzones(dropzones);
+
+		std::erase_if(dragging_entities, [](const auto& entity) {
+			return !entity.template Has<impl::Draggable>();
+		});
+
+		// Save for next frame.
+		last_mouse_over =
+			std::unordered_set(entities.under_mouse.begin(), entities.under_mouse.end());
 	}
 
-	std::erase_if(dragging_entities_, [](const auto& entity) {
-		return !entity.template Has<impl::Draggable>();
+	// Remove deleted cameras.
+
+	std::erase_if(dragging_entities_, [&](const auto& pair) {
+		return !VectorContains(cameras, pair.first);
 	});
 
-	// Save for next frame.
-	last_mouse_over_ = std::unordered_set(under_mouse.begin(), under_mouse.end());
+	std::erase_if(last_mouse_over_, [&](const auto& pair) {
+		return !VectorContains(cameras, pair.first);
+	});
 
 	scene_.Refresh();
 }
