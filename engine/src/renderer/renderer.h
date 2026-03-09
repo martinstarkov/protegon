@@ -58,7 +58,7 @@ public:
 		const std::optional<std::array<V2_float, 4>>& tex_coords = {}
 	);
 
-	void DrawQuadTexture(
+	void DrawTexture(
 		impl::TextureId texture, const std::array<V2_float, 4>& positions,
 		Color tint = color::White, float depth = 0.0f, bool flip_y = false,
 		const std::optional<std::array<V2_float, 4>>& tex_coords = {}

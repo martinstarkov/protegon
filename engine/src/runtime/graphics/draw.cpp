@@ -85,7 +85,7 @@ void DrawQuadTexture(
 ) {
 	renderer.SetBlend(blend_mode);
 	auto positions{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
-	renderer.DrawQuadTexture(
+	renderer.DrawTexture(
 		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
 	);
 }

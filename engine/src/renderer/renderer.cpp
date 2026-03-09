@@ -57,7 +57,7 @@ void RenderContext::DrawTexture(
 	);
 }
 
-void RenderContext::DrawQuadTexture(
+void RenderContext::DrawTexture(
 	impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
 	bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
 ) {
@@ -67,7 +67,7 @@ void RenderContext::DrawQuadTexture(
 
 void RenderContext::DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth) {
 	auto white_texture{ GetWhiteTexture() };
-	DrawQuadTexture(white_texture, positions, tint, depth, false, {});
+	DrawTexture(white_texture, positions, tint, depth, false, {});
 }
 
 void RenderContext::BindScreenTarget() {

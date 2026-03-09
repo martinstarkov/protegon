@@ -242,9 +242,7 @@ void Scene::InternalDraw() {
 	auto scene_target_size{ render_target_.GetSize() };
 	auto positions{ Rect{ scene_target_size }.GetWorldVertices(transform, Origin::Center) };
 
-	render_context.DrawQuadTexture(
-		render_target_, positions, GetTint(render_target_), 0.0f, true, {}
-	);
+	render_context.DrawTexture(render_target_, positions, GetTint(render_target_), 0.0f, true, {});
 }
 
 void Scene::InternalUpdate() {
