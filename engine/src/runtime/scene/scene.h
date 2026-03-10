@@ -12,6 +12,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
@@ -287,6 +288,7 @@ public:
 
 	const ApplicationContext& app() const;
 
+	RenderContext renderer;
 	SceneEventHandler event;
 
 	SceneInput input;
