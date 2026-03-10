@@ -22,99 +22,99 @@
 #include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
+#include "renderer/primitives/vertex.h"
 #include "renderer/primitives/viewport.h"
 #include "runtime/event/event_handler.h"
+#include "runtime/scene/scene.h"
 
 namespace ptgn {
 
-RenderContext::RenderContext(Renderer& renderer) : renderer_{ renderer } {}
+DrawContext::DrawContext(Renderer& renderer) : renderer_{ renderer } {}
 
-void RenderContext::DrawLine(
+void DrawContext::DrawLine(
 	impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
 ) {
 	renderer_.gl_renderer_->DrawLine(shader, positions, tint, depth);
 }
 
-void RenderContext::DrawTriangle(
+void DrawContext::DrawTriangle(
 	impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
 ) {
 	renderer_.gl_renderer_->DrawTriangle(shader, positions, tint, depth);
 }
 
-void RenderContext::DrawQuad(
+void DrawContext::DrawQuad(
 	impl::ShaderId shader, const std::array<V2_float, 4>& positions,
 	const std::array<float, 4>& user_data, Color tint, float depth
 ) {
 	renderer_.gl_renderer_->DrawQuad(shader, positions, user_data, tint, depth);
 }
 
-void RenderContext::DrawTexture(
+void DrawContext::DrawTexture(
 	impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-	Color tint, float depth, bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
+	Color tint, float depth, const std::array<V2_float, 4>& tex_coords
 ) {
-	renderer_.gl_renderer_->DrawTexture(
-		shader, texture, positions, tint, depth, flip_y, tex_coords
-	);
+	renderer_.gl_renderer_->DrawTexture(shader, texture, positions, tint, depth, tex_coords);
 }
 
-void RenderContext::DrawTexture(
+void DrawContext::DrawTexture(
 	impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
-	bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
+	const std::array<V2_float, 4>& tex_coords
 ) {
 	auto quad_shader{ GetShader("quad") };
-	DrawTexture(quad_shader, texture, positions, tint, depth, flip_y, tex_coords);
+	DrawTexture(quad_shader, texture, positions, tint, depth, tex_coords);
 }
 
-void RenderContext::DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth) {
+void DrawContext::DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth) {
 	auto white_texture{ GetWhiteTexture() };
-	DrawTexture(white_texture, positions, tint, depth, false, {});
+	DrawTexture(white_texture, positions, tint, depth, impl::GetDefaultTextureCoordinates(false));
 }
 
-void RenderContext::BindScreenTarget() {
+void DrawContext::BindScreenTarget() {
 	return renderer_.gl_renderer_->BindScreenTarget();
 }
 
-void RenderContext::SetViewport(Viewport viewport) {
+void DrawContext::SetViewport(Viewport viewport) {
 	renderer_.gl_renderer_->SetViewport(viewport);
 }
 
-void RenderContext::SetViewProjection(const Matrix4& view_projection) {
+void DrawContext::SetViewProjection(const Matrix4& view_projection) {
 	renderer_.gl_renderer_->SetViewProjection(view_projection);
 }
 
-void RenderContext::SetBlend(BlendMode mode, bool enabled) {
+void DrawContext::SetBlend(BlendMode mode, bool enabled) {
 	renderer_.gl_renderer_->SetBlend(mode, enabled);
 }
 
-void RenderContext::SetDepth(const DepthState& depth) {
+void DrawContext::SetDepth(const DepthState& depth) {
 	renderer_.gl_renderer_->SetDepth(depth);
 }
 
-void RenderContext::SetStencil(const StencilState& stencil) {
+void DrawContext::SetStencil(const StencilState& stencil) {
 	renderer_.gl_renderer_->SetStencil(stencil);
 }
 
-void RenderContext::SetRaster(const RasterState& raster) {
+void DrawContext::SetRaster(const RasterState& raster) {
 	renderer_.gl_renderer_->SetRaster(raster);
 }
 
-void RenderContext::SetScissor(const ScissorState& scissor) {
+void DrawContext::SetScissor(const ScissorState& scissor) {
 	renderer_.gl_renderer_->SetScissor(scissor);
 }
 
-void RenderContext::SetColorMask(const ColorMaskState& color_mask) {
+void DrawContext::SetColorMask(const ColorMaskState& color_mask) {
 	renderer_.gl_renderer_->SetColorMask(color_mask);
 }
 
-impl::RenderPass RenderContext::BeginPass(const impl::RenderTargetData& scene_target) {
+impl::RenderPass DrawContext::BeginPass(const impl::RenderTargetData& scene_target) {
 	return renderer_.gl_renderer_->BeginPass(scene_target);
 }
 
-impl::TextureId RenderContext::GetWhiteTexture() const {
+impl::TextureId DrawContext::GetWhiteTexture() const {
 	return renderer_.gl_renderer_->GetWhiteTexture();
 }
 
-impl::ShaderId RenderContext::GetShader(std::string_view name) const {
+impl::ShaderId DrawContext::GetShader(std::string_view name) const {
 	return renderer_.gl_renderer_->GetShader(name);
 }
 
@@ -128,7 +128,7 @@ Renderer::~Renderer() noexcept {
 	// Destructor access to impl::gl::GLRenderer is needed.
 }
 
-RenderContext& Renderer::GetContext() {
+DrawContext& Renderer::GetContext() {
 	return context_;
 }
 
