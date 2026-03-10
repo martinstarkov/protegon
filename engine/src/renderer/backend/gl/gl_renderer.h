@@ -71,10 +71,9 @@ struct TriangleParams {
 struct QuadParams {
 	std::array<V2_float, 4> positions;
 	float depth{ 0.0f };
-	bool flip_y{ false };
 	Color tint{ color::White };
 	std::optional<TextureId> texture;
-	std::optional<std::array<V2_float, 4>> tex_coords;
+	std::array<V2_float, 4> tex_coords;
 };
 
 class GLRenderer {
@@ -101,7 +100,7 @@ public:
 	);
 	void DrawTexture(
 		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
-		float depth, bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
+		float depth, const std::array<V2_float, 4>& tex_coords
 	);
 	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target);
 

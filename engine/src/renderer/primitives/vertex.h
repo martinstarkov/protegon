@@ -3,9 +3,9 @@
 #include <array>
 #include <ostream>
 
-#include "renderer/primitives/flip.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/buffer_layout.h"
+#include "renderer/primitives/flip.h"
 #include "renderer/primitives/glsl_types.h"
 
 namespace ptgn {
@@ -15,13 +15,19 @@ struct Depth;
 
 namespace impl {
 
-[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
-	return {
-		V2_float{ 0.0f, 0.0f },
-		V2_float{ 1.0f, 0.0f },
-		V2_float{ 1.0f, 1.0f },
-		V2_float{ 0.0f, 1.0f },
-	};
+[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates(bool flip_y) {
+	if (flip_y) {
+		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
+				 V2_float{ 0.0f, 0.0f } };
+
+	} else {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		};
+	}
 }
 
 [[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(

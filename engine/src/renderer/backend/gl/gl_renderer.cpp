@@ -404,19 +404,10 @@ bool GLRenderer::SetColorMask(const ColorMaskState& color_mask) {
 
 void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadSetup& setup) {
 	QuadDesc quad;
-	quad.positions = params.positions;
-	quad.color	   = params.tint;
-	quad.depth	   = params.depth;
-
-	if (params.tex_coords) {
-		quad.tex_coords = *params.tex_coords;
-	} else if (params.flip_y) {
-		quad.tex_coords = { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
-							V2_float{ 0.0f, 0.0f } };
-	} else {
-		quad.tex_coords = { V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f },
-							V2_float{ 0.0f, 1.0f } };
-	}
+	quad.positions	= params.positions;
+	quad.color		= params.tint;
+	quad.depth		= params.depth;
+	quad.tex_coords = params.tex_coords;
 
 	// Texture -> user data slot 0 (convention)
 	if (params.texture.has_value()) {
@@ -504,7 +495,7 @@ bool GLRenderer::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const 
 
 void GLRenderer::DrawTexture(
 	ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
-	float depth, bool flip_y, const std::optional<std::array<V2_float, 4>>& tex_coords
+	float depth, const std::array<V2_float, 4>& tex_coords
 ) {
 	PTGN_ASSERT(
 		!IsTextureAttachedToCurrentFramebuffer(texture),
@@ -516,7 +507,6 @@ void GLRenderer::DrawTexture(
 	p.depth		 = depth;
 	p.tint		 = tint;
 	p.texture	 = texture;
-	p.flip_y	 = flip_y;
 	p.tex_coords = tex_coords;
 
 	auto setup = [this](auto s, auto& q) {
@@ -531,9 +521,10 @@ void GLRenderer::DrawQuad(
 	const std::array<float, 4>& user_data, Color tint, float depth
 ) {
 	QuadParams p;
-	p.positions = positions;
-	p.depth		= depth;
-	p.tint		= tint;
+	p.positions	 = positions;
+	p.depth		 = depth;
+	p.tint		 = tint;
+	p.tex_coords = impl::GetDefaultTextureCoordinates(false);
 
 	DrawQuad(shader, p, [this, user_data](auto, auto& q) { q.user_data = user_data; });
 }
@@ -583,7 +574,7 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 		DrawTexture(
 			shader, *input.color_,
 			GetCenteredQuadPoints(gl->textures.GetTextureSize(*input.color_)), color::White, 0.0f,
-			flip_y, {}
+			impl::GetDefaultTextureCoordinates(flip_y)
 		);
 
 		// Update pass state
@@ -594,7 +585,7 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 		DrawTexture(
 			shader, *input.color_,
 			GetCenteredQuadPoints(gl->textures.GetTextureSize(*input.color_)), color::White, 0.0f,
-			flip_y, {}
+			impl::GetDefaultTextureCoordinates(flip_y)
 		);
 	}
 }
@@ -656,7 +647,8 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 
 	DrawTexture(
 		GetShader("quad"), *screen_target_.resource_.color_,
-		GetCenteredQuadPoints(display_viewport.size), color::White, 0.0f, true, {}
+		GetCenteredQuadPoints(display_viewport.size), color::White, 0.0f,
+		impl::GetDefaultTextureCoordinates(true)
 	);
 
 	FlushBatch();
