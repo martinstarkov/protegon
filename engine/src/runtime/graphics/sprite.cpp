@@ -10,10 +10,10 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/texture.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -22,9 +22,10 @@ Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
 void Sprite::Draw(DrawContext& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<Texture>());
-	impl::DrawQuadTexture(
-		renderer, entity.Get<Texture>(), GetDrawTransform(entity), GetCroppedTextureSize(entity),
-		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity), GetBlendMode(entity),
+	renderer.SetBlend(GetBlendMode(entity));
+	renderer.DrawTexture(
+		entity.Get<Texture>(), GetDrawTransform(entity), GetCroppedTextureSize(entity),
+		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity),
 		GetTextureCoordinates(entity, false)
 	);
 }

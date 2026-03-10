@@ -22,6 +22,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
 
@@ -104,9 +105,10 @@ void Text::Draw(
 
 	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
 
-	impl::DrawQuadTexture(
-		renderer, text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
-		GetBlendMode(text), texture_coordinates
+	renderer.SetBlend(GetBlendMode(text));
+	renderer.DrawTexture(
+		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
+		texture_coordinates
 	);
 }
 

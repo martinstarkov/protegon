@@ -3,24 +3,151 @@
 #include <array>
 #include <optional>
 #include <span>
+#include <string_view>
+#include <utility>
 #include <variant>
+#include <vector>
 
+#include "core/math/geometry/arc.h"
+#include "core/math/geometry/capsule.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/ellipse.h"
+#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
+#include "core/math/geometry/triangle.h"
+#include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/render_state.h"
+#include "renderer/primitives/render_target.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
+#include "renderer/primitives/viewport.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 
 namespace ptgn {
 
 class Scene;
 class Renderer;
+
+namespace impl {
+
+struct LineCommand {
+	impl::ShaderId shader;
+	Color color = color::White;
+	std::array<V2_float, 2> positions;
+	BlendMode blend_mode{ BlendMode::Blend };
+};
+
+struct TriangleCommand {
+	impl::ShaderId shader;
+	Color color = color::White;
+	std::array<V2_float, 3> positions;
+	BlendMode blend_mode{ BlendMode::Blend };
+};
+
+struct QuadCommand {
+	impl::ShaderId shader;
+	Color color = color::White;
+	std::array<V2_float, 4> positions;
+	BlendMode blend_mode{ BlendMode::Blend };
+};
+
+struct TextureCommand {
+	impl::ShaderId shader;
+	impl::TextureId texture;
+	std::array<V2_float, 4> positions;
+	Color tint = color::White;
+	std::array<V2_float, 4> tex_coords;
+	BlendMode blend_mode{ BlendMode::Blend };
+};
+
+using ManualCommand = std::variant<TextureCommand, QuadCommand, TriangleCommand, LineCommand>;
+
+struct DrawCommand {
+	float depth{ 0.0f };
+	std::variant<Entity, ManualCommand> payload;
+};
+
+} // namespace impl
+
+class DrawContext {
+public:
+	void DrawTexture(
+		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
+		Color tint, float depth, const std::array<V2_float, 4>& tex_coords
+	);
+
+	void DrawTexture(
+		impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
+		const std::array<V2_float, 4>& tex_coords
+	);
+
+	void DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth);
+	void DrawLine(
+		impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
+	);
+	void DrawTriangle(
+		impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+	);
+	void DrawQuad(
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
+		const std::array<float, 4>& user_data, Color tint, float depth
+	);
+
+	void DrawTexture(
+		Texture texture, Transform transform, V2_float size, Origin draw_origin, Color tint,
+		float depth, const std::array<V2_float, 4>& texture_coordinates
+	);
+
+	void DrawLines(
+		std::span<const V2_float> points, float line_width, Transform transform, Color tint,
+		float depth
+	);
+
+	void DrawShape(
+		const Shape& shape, Transform transform, Color tint, FillStyle fill_style,
+		Origin draw_origin, float depth
+	);
+
+	impl::TextureId GetWhiteTexture() const;
+
+	impl::ShaderId GetShader(std::string_view name) const;
+
+	void BindScreenTarget();
+
+	void SetViewport(Viewport viewport);
+	void SetViewProjection(const Matrix4& view_projection);
+	void SetBlend(BlendMode mode, bool enabled = true);
+	void SetDepth(const DepthState& depth);
+	void SetStencil(const StencilState& stencil);
+	void SetRaster(const RasterState& raster);
+	void SetScissor(const ScissorState& scissor);
+	void SetColorMask(const ColorMaskState& color_mask);
+
+	[[nodiscard]] impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
+
+private:
+	friend class Renderer;
+	friend class Scene;
+
+	void Draw(const impl::ManualCommand& command, float depth);
+
+	DrawContext() = delete;
+	explicit DrawContext(Renderer& renderer);
+
+	Renderer& renderer_;
+};
 
 class RenderContext {
 public:
@@ -149,6 +276,8 @@ private:
 
 	Scene* scene_{ nullptr };
 	Renderer* renderer_{ nullptr };
+
+	std::vector<std::pair<Camera, std::vector<impl::DrawCommand>>> draw_commands_;
 };
 
 } // namespace ptgn

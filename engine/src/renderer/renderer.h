@@ -3,19 +3,11 @@
 #include <array>
 #include <memory>
 #include <optional>
-#include <span>
 #include <string_view>
-#include <unordered_map>
-#include <utility>
-#include <variant>
-#include <vector>
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/shape.h"
 #include "core/math/matrix4.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
@@ -25,15 +17,13 @@
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/viewport.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
-#include "runtime/graphics/draw.h"
 
 namespace ptgn {
 
 class Application;
 class EventHandler;
 class RenderContext;
+class DrawContext;
 class Window;
 class Scene;
 class AssetManager;
@@ -60,94 +50,7 @@ class GLRenderer;
 
 } // namespace gl
 
-struct LineCommand {
-	impl::ShaderId shader;
-	Color color = color::White;
-	std::array<V2_float, 2> positions;
-	BlendMode blend_mode{ BlendMode::Blend };
-};
-
-struct TriangleCommand {
-	impl::ShaderId shader;
-	Color color = color::White;
-	std::array<V2_float, 3> positions;
-	BlendMode blend_mode{ BlendMode::Blend };
-};
-
-struct QuadCommand {
-	impl::ShaderId shader;
-	Color color = color::White;
-	std::array<V2_float, 4> positions;
-	BlendMode blend_mode{ BlendMode::Blend };
-};
-
-struct TextureCommand {
-	impl::ShaderId shader;
-	impl::TextureId texture;
-	std::array<V2_float, 4> positions;
-	Color tint = color::White;
-	std::array<V2_float, 4> tex_coords;
-	BlendMode blend_mode{ BlendMode::Blend };
-};
-
-using ManualCommand = std::variant<TextureCommand, QuadCommand, TriangleCommand, LineCommand>;
-
-struct DrawCommand {
-	float depth{ 0.0f };
-	std::variant<Entity, ManualCommand> payload;
-};
-
 } // namespace impl
-
-class DrawContext {
-public:
-	void DrawTexture(
-		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint, float depth, const std::array<V2_float, 4>& tex_coords
-	);
-
-	void DrawTexture(
-		impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
-		const std::array<V2_float, 4>& tex_coords
-	);
-
-	void DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth);
-	void DrawLine(
-		impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
-	);
-	void DrawTriangle(
-		impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
-	);
-	void DrawQuad(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint, float depth
-	);
-
-	impl::TextureId GetWhiteTexture() const;
-
-	impl::ShaderId GetShader(std::string_view name) const;
-
-	void BindScreenTarget();
-
-	void SetViewport(Viewport viewport);
-	void SetViewProjection(const Matrix4& view_projection);
-	void SetBlend(BlendMode mode, bool enabled = true);
-	void SetDepth(const DepthState& depth);
-	void SetStencil(const StencilState& stencil);
-	void SetRaster(const RasterState& raster);
-	void SetScissor(const ScissorState& scissor);
-	void SetColorMask(const ColorMaskState& color_mask);
-
-	[[nodiscard]] impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
-
-private:
-	friend class Renderer;
-
-	DrawContext() = delete;
-	explicit DrawContext(Renderer& renderer);
-
-	Renderer& renderer_;
-};
 
 class Renderer {
 public:
@@ -183,8 +86,6 @@ public:
 	void SetBackgroundColor(Color background_color);
 	[[nodiscard]] Color GetBackgroundColor() const;
 
-	[[nodiscard]] DrawContext& GetContext();
-
 private:
 	friend class Application;
 	friend class AssetManager;
@@ -193,6 +94,48 @@ private:
 	friend class RenderTarget;
 	friend class DrawContext;
 	friend class RenderContext;
+
+	void BindScreenTarget();
+
+	void SetViewport(Viewport viewport);
+
+	void SetViewProjection(const Matrix4& view_projection);
+
+	void SetBlend(BlendMode mode, bool enabled);
+
+	void SetDepth(const DepthState& depth);
+
+	void SetStencil(const StencilState& stencil);
+
+	void SetRaster(const RasterState& raster);
+
+	void SetScissor(const ScissorState& scissor);
+
+	void SetColorMask(const ColorMaskState& color_mask);
+
+	impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
+
+	impl::TextureId GetWhiteTexture() const;
+
+	impl::ShaderId GetShader(std::string_view name) const;
+
+	void DrawLine(
+		impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
+	);
+
+	void DrawTriangle(
+		impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+	);
+
+	void DrawQuad(
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
+		const std::array<float, 4>& user_data, Color tint, float depth
+	);
+
+	void DrawTexture(
+		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
+		Color tint, float depth, const std::array<V2_float, 4>& tex_coords
+	);
 
 	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
@@ -216,10 +159,6 @@ private:
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
 	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
-
-	std::vector<std::pair<Camera, std::vector<impl::DrawCommand>>> draw_commands_;
-
-	DrawContext context_;
 };
 
 } // namespace ptgn

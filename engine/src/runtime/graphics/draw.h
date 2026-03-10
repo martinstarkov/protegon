@@ -56,22 +56,6 @@ struct Depth : public ArithmeticComponent<float> {
 
 namespace impl {
 
-void DrawQuadTexture(
-	DrawContext& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
-	Color tint, Depth depth, BlendMode blend_mode,
-	const std::array<V2_float, 4>& texture_coordinates
-);
-
-void DrawLines(
-	DrawContext& renderer, std::span<const V2_float> points, float line_width,
-	const Transform& transform, Color tint, float depth, BlendMode blend_mode
-);
-
-void DrawShape(
-	DrawContext& renderer, const Shape& shape, Transform transform, Color tint,
-	FillStyle fill_style, Origin draw_origin, Depth depth_component, BlendMode blend_mode
-);
-
 template <ShapeType T>
 void DrawShape(DrawContext& renderer, Entity entity);
 

@@ -109,9 +109,7 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 	auto texture{ entity.Get<impl::RenderTargetObject>().operator impl::TextureId() };
 
 	renderer.SetBlend(blend_mode);
-	renderer.DrawTexture(
-		texture, positions, tint, static_cast<float>(depth.GetValue()), texture_coordinates
-	);
+	renderer.DrawTexture(texture, positions, tint, depth.GetValue(), texture_coordinates);
 }
 
 void RenderTarget::AddRenderTargetComponents(

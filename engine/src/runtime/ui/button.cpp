@@ -33,6 +33,7 @@
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
@@ -453,9 +454,10 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 		) };
 
 		if (texture_tint.a) {
-			impl::DrawQuadTexture(
-				renderer, *button_texture, transform, *button_size, button_origin,
-				impl::Tint{ texture_tint.Normalized() * tint_n }, depth, blend_mode,
+			renderer.SetBlend(blend_mode);
+			renderer.DrawTexture(
+				*button_texture, transform, *button_size, button_origin,
+				impl::Tint{ texture_tint.Normalized() * tint_n }, depth,
 				GetTextureCoordinates(button, false)
 			);
 		}
@@ -468,9 +470,10 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 			};
 
 			if (color.a) {
-				impl::DrawShape(
-					renderer, Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
-					FillStyle{ line_width.GetValue() }, button_origin, depth, blend_mode
+				renderer.SetBlend(blend_mode);
+				renderer.DrawShape(
+					Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
+					FillStyle{ line_width.GetValue() }, button_origin, depth
 				);
 			}
 		}
@@ -483,9 +486,10 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 		) };
 
 		if (color.a) {
-			impl::DrawShape(
-				renderer, Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
-				FillStyle{ line_width.GetValue() }, button_origin, depth, blend_mode
+			renderer.SetBlend(blend_mode);
+			renderer.DrawShape(
+				Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
+				FillStyle{ line_width.GetValue() }, button_origin, depth
 			);
 		}
 	}

@@ -21,11 +21,11 @@
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -105,6 +105,8 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 
 	if (i.info.texture_key.has_value()) {
+		renderer.SetBlend(blend_mode);
+
 		const auto& scene{ entity.GetScene() };
 		PTGN_ASSERT(
 			scene.app().asset.HasTexture(*i.info.texture_key),
@@ -119,30 +121,31 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 				tint = p.color;
 			}
 
-			impl::DrawQuadTexture(
-				renderer, texture, Transform{ p.position },
-				V2_float{ 2.0f * p.radius, 2.0f * p.radius }, Origin::Center, tint, depth,
-				blend_mode, GetTextureCoordinates({}, false)
+			renderer.DrawTexture(
+				texture, Transform{ p.position }, V2_float{ 2.0f * p.radius, 2.0f * p.radius },
+				Origin::Center, tint, depth, GetTextureCoordinates({}, false)
 			);
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
+			renderer.SetBlend(blend_mode);
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
-				impl::DrawShape(
-					renderer, Circle{ p.radius }, Transform{ p.position }, p.color,
-					i.info.fill_style, Origin::Center, depth, blend_mode
+				renderer.DrawShape(
+					Circle{ p.radius }, Transform{ p.position }, p.color, i.info.fill_style,
+					Origin::Center, depth
 				);
 			}
 			break;
 		}
 		case ParticleShape::Square: {
+			renderer.SetBlend(blend_mode);
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				// TODO: Add rotation.
-				impl::DrawShape(
-					renderer, Rect{ V2_float{ 2.0f * p.radius } }, Transform{ p.position }, p.color,
-					i.info.fill_style, Origin::Center, depth, blend_mode
+				renderer.DrawShape(
+					Rect{ V2_float{ 2.0f * p.radius } }, Transform{ p.position }, p.color,
+					i.info.fill_style, Origin::Center, depth
 				);
 			}
 			break;
