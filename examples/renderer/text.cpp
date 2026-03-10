@@ -14,15 +14,15 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 } ga
+constexpr V2_int game_size{ 800, 800 };
 
-	struct TextScene : public Scene {
+struct TextScene : public Scene {
 	static constexpr std::string_view font{ "arial" };
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 
 	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
 		constexpr float stride{ 44.0f };
-		FontSize font_size{ 30 };
+		float font_size{ 30.0f };
 
 		auto text = ptgn::CreateText(*this, content, color, font_size, font_key);
 		SetDrawOrigin(text, Origin::CenterTop);
@@ -31,6 +31,7 @@ constexpr V2_int game_size{ 800, 800 } ga
 	}
 
 	void OnEnter() override {
+		app().renderer.SetGameSize(game_size);
 		SetBackgroundColor(color::LightGray);
 
 		app().asset.Load(font, "assets/Arial.ttf");
