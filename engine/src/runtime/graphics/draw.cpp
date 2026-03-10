@@ -29,7 +29,6 @@
 #include "renderer/primitives/flip.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/event/event_handler.h"
