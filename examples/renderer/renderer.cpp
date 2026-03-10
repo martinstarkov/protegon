@@ -2,7 +2,6 @@
 #include "renderer/renderer.h"
 
 #include "app/application.h"
-#include "renderer/primitives/color.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
@@ -10,14 +9,18 @@
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/shader.h"
-#include "runtime/graphics/light.h"
+#include "runtime/animation/tween.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/light.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 
@@ -148,8 +151,8 @@ std::vector<std::vector<std::size_t>> GenerateNumberPermutations(std::size_t N) 
 	return all_permutations;
 }
 
-float rect_thickness{ -1.0f };
-float circle_thickness{ -1.0f };
+FillStyle rect_thickness{ -1.0f };
+FillStyle circle_thickness{ -1.0f };
 V2_float rect1_pos{ -100, -100 };
 V2_float rect1_size{ 400, 400 };
 Color rect1_color{ color::Red };
@@ -207,14 +210,14 @@ Entity TestAddBlur(Scene& s) {
 	return CreateBlur(s);
 }
 
-struct FollowMouseScript : public Script<FollowMouseScript> {
+struct FollowMouseScript : public Script {
 	void OnUpdate() override {
 		SetPosition(entity, entity.GetScene().input.GetMousePosition());
 		float timescale{ 1000 };
 		V2_float size{ V2_float{ Abs(std::sin(app().TimeSinceStart() / timescale) * 256),
 								 Abs(std::sin(app().TimeSinceStart() / timescale) * 256) } +
 					   V2_float{ 256, 256 } };
-		Sprite{ entity }.SetDisplaySize(size);
+		SetDisplaySize(entity, size);
 	}
 };
 

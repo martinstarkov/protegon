@@ -17,12 +17,13 @@ class TextureFormatScene : public Scene {
 	std::vector<Sprite> sprites;
 
 	void OnEnter() override {
-		app().asset.LoadMany({ { "jpg1", "assets/jpg1.jpg" },
+		SetBackgroundColor(color::Pink);
+
+		app().asset.LoadMany({ { "jpg", "assets/jpg.jpg" },
 							   { "jpg2", "assets/jpg2.jpg" },
 							   { "jpg3", "assets/jpg3.jpg" },
-							   { "bmp1", "assets/bmp1.bmp" },
+							   { "bmp", "assets/bmp.bmp" },
 							   { "bmp2", "assets/bmp2.bmp" },
-							   { "bmp3", "assets/bmp3.bmp" },
 							   { "png1", "assets/png1.png" },
 							   { "png2", "assets/png2.png" },
 							   { "png3", "assets/png3.png" },
@@ -38,7 +39,7 @@ class TextureFormatScene : public Scene {
 		V2_float ws{ app().renderer.GetGameSize() };
 
 		SetScale(
-			sprites.emplace_back(CreateSprite(*this, "jpg1", -ws * 0.5f + V2_float{ 0, 0 })), 1.0f
+			sprites.emplace_back(CreateSprite(*this, "jpg", -ws * 0.5f + V2_float{ 0, 0 })), 1.0f
 		);
 		SetScale(
 			sprites.emplace_back(CreateSprite(*this, "jpg2", -ws * 0.5f + V2_float{ 320, 0 })), 0.5f
@@ -48,15 +49,11 @@ class TextureFormatScene : public Scene {
 			0.25f
 		);
 		SetScale(
-			sprites.emplace_back(CreateSprite(*this, "bmp1", -ws * 0.5f + V2_float{ 0, 432 })), 0.1f
+			sprites.emplace_back(CreateSprite(*this, "bmp", -ws * 0.5f + V2_float{ 0, 432 })), 0.1f
 		);
 		SetScale(
 			sprites.emplace_back(CreateSprite(*this, "bmp2", -ws * 0.5f + V2_float{ 76.2, 432 })),
 			0.25f
-		);
-		SetScale(
-			sprites.emplace_back(CreateSprite(*this, "bmp3", -ws * 0.5f + V2_float{ 204.2, 432 })),
-			0.5f
 		);
 		SetScale(
 			sprites.emplace_back(CreateSprite(*this, "png1", -ws * 0.5f + V2_float{ 0, 562.9 })),

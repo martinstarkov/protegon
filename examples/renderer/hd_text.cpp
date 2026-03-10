@@ -41,14 +41,14 @@ class ResolutionTextScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		app().renderer.DrawText(
+		/*app().renderer.DrawText(
 			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
 			{}, {}, {}, {}, false
 		);
 		app().renderer.DrawText(
 			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size, {},
 			{}, {}, {}, true
-		);
+		);*/
 	}
 };
 

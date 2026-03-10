@@ -5,6 +5,7 @@
 #include "renderer/primitives/shader.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"

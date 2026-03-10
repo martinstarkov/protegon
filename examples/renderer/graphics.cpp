@@ -27,7 +27,7 @@ struct GraphicsScene : public Scene {
 		graphics = CreateGraphics(*this);
 
 		graphics.SetStrokeColor(color::Blue);
-		graphics.SetLineWidth(2.0f);
+		graphics.SetLineWidth(FillStyle::Hollow(2.0f));
 		graphics.StrokeCircle({ 0, 80 }, Circle{ 40.0f });
 		graphics.StrokeCircle({ 40, 80 }, Circle{ 20.0f });
 
