@@ -15,6 +15,7 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -42,8 +43,8 @@ void GraphicsData::Draw(
 	DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode
 ) const {
 	for (const auto& cmd : commands_) {
-		DrawShape(
-			renderer, cmd.shape, cmd.transform.RelativeTo(transform), cmd.color, cmd.line_width,
+		renderer.DrawShape(
+			cmd.shape, cmd.transform.RelativeTo(transform), cmd.color, cmd.line_width,
 			Origin::Center, depth, blend_mode
 		);
 	}

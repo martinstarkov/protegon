@@ -105,10 +105,9 @@ void Text::Draw(
 
 	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
 
-	renderer.SetBlend(GetBlendMode(text));
 	renderer.DrawTexture(
 		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
-		texture_coordinates
+		texture_coordinates, GetBlendMode(text)
 	);
 }
 

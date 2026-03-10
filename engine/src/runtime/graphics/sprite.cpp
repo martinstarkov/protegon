@@ -22,11 +22,10 @@ Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
 void Sprite::Draw(DrawContext& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<Texture>());
-	renderer.SetBlend(GetBlendMode(entity));
 	renderer.DrawTexture(
 		entity.Get<Texture>(), GetDrawTransform(entity), GetCroppedTextureSize(entity),
 		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity),
-		GetTextureCoordinates(entity, false)
+		GetTextureCoordinates(entity, false), GetBlendMode(entity)
 	);
 }
 

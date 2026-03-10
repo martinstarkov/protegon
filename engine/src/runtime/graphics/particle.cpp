@@ -105,8 +105,6 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 	auto& i{ entity.Get<impl::ParticleEmitterComponent>() };
 
 	if (i.info.texture_key.has_value()) {
-		renderer.SetBlend(blend_mode);
-
 		const auto& scene{ entity.GetScene() };
 		PTGN_ASSERT(
 			scene.app().asset.HasTexture(*i.info.texture_key),
@@ -123,29 +121,27 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 
 			renderer.DrawTexture(
 				texture, Transform{ p.position }, V2_float{ 2.0f * p.radius, 2.0f * p.radius },
-				Origin::Center, tint, depth, GetTextureCoordinates({}, false)
+				Origin::Center, tint, depth, GetTextureCoordinates({}, false), blend_mode
 			);
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
-			renderer.SetBlend(blend_mode);
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				renderer.DrawShape(
 					Circle{ p.radius }, Transform{ p.position }, p.color, i.info.fill_style,
-					Origin::Center, depth
+					Origin::Center, depth, blend_mode
 				);
 			}
 			break;
 		}
 		case ParticleShape::Square: {
-			renderer.SetBlend(blend_mode);
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				// TODO: Add rotation.
 				renderer.DrawShape(
 					Rect{ V2_float{ 2.0f * p.radius } }, Transform{ p.position }, p.color,
-					i.info.fill_style, Origin::Center, depth
+					i.info.fill_style, Origin::Center, depth, blend_mode
 				);
 			}
 			break;
