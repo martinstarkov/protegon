@@ -37,7 +37,7 @@ struct Hollow {
 
 struct FillStyle {
 	FillStyle() = default;
-	explicit FillStyle(float line_width);
+	FillStyle(float line_width);
 
 	static FillStyle Hollow(float line_width = 1.0f);
 	static FillStyle Solid();
