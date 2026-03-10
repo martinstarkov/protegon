@@ -64,6 +64,8 @@ Window::Window(const WindowConfig& config) {
 
 	instance_ = { SDL_CreateWindowWithProperties(props), impl::WindowDeleter{} };
 
+	SDL_SetWindowMinimumSize(instance_.get(), 1, 1);
+
 	PTGN_ASSERT(instance_, "SDL_CreateWindow failed: {}", SDL_GetError());
 	PTGN_INFO("Created window");
 
