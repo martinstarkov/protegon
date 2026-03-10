@@ -868,11 +868,11 @@ void SceneInput::Update() {
 	// Remove deleted cameras.
 
 	std::erase_if(dragging_entities_, [&](const auto& pair) {
-		return !VectorContains(cameras, pair.first);
+		return !VectorContains(cameras, Entity{ pair.first });
 	});
 
 	std::erase_if(last_mouse_over_, [&](const auto& pair) {
-		return !VectorContains(cameras, pair.first);
+		return !VectorContains(cameras, Entity{ pair.first });
 	});
 
 	scene_.Refresh();

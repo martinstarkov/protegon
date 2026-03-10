@@ -263,7 +263,7 @@ public:
 
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 	Color color{ color::White };
-	FontSize font_size{ 20 };
+	float font_size{ 20.0f };
 	V2_int center{ 0, 0 };
 
 	void OnEnter() override {

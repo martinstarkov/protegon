@@ -183,3 +183,14 @@ Camera CreateCamera(Scene& scene);
 Camera CreateCamera(Scene& scene, V2_float viewport_size);
 
 } // namespace ptgn
+
+namespace std {
+
+template <>
+struct hash<ptgn::Camera> {
+	std::size_t operator()(const ptgn::Camera& camera) const {
+		return camera.GetHash();
+	}
+};
+
+} // namespace std
