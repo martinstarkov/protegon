@@ -39,7 +39,7 @@ void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill
 }
 
 void GraphicsData::Draw(
-	RenderContext& renderer, Transform transform, Depth depth, BlendMode blend_mode
+	DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode
 ) const {
 	for (const auto& cmd : commands_) {
 		DrawShape(
@@ -53,7 +53,7 @@ void GraphicsData::Draw(
 
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
-void Graphics::Draw(RenderContext& renderer, Entity entity) {
+void Graphics::Draw(DrawContext& renderer, Entity entity) {
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	const auto& transform{ GetDrawTransform(entity) };

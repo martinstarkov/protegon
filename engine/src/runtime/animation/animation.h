@@ -19,7 +19,7 @@
 namespace ptgn {
 
 class Scene;
-class RenderContext;
+class DrawContext;
 
 struct AnimationStart : Event<AnimationStart> {};
 
@@ -41,7 +41,7 @@ struct Animation : public Entity {
 	Animation() = default;
 	explicit Animation(Entity entity);
 
-	static void Draw(RenderContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	Animation& SetTexture(Texture texture);
 

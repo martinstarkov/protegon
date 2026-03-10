@@ -419,7 +419,7 @@ static Entity GetButtonText(Entity button, bool is_toggled, const ButtonState& s
 }
 
 template <typename Derived>
-void ButtonBase<Derived>::Draw(RenderContext& renderer, Entity entity) {
+void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 	Button button{ entity };
 	Color tint{ ptgn::GetTint(button) };
 

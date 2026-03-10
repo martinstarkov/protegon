@@ -20,7 +20,7 @@
 
 namespace ptgn {
 
-class RenderContext;
+class DrawContext;
 class Scene;
 
 namespace impl {
@@ -130,11 +130,11 @@ public:
 	explicit Text(Entity entity);
 
 	static void Draw(
-		RenderContext& renderer, Entity text, V2_int text_size, Color additional_tint,
+		DrawContext& renderer, Entity text, V2_int text_size, Color additional_tint,
 		Origin offset_origin, V2_float offset_size
 	);
 
-	static void Draw(RenderContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	/// @return True if the text is rendered in high definition, false otherwise.
 	[[nodiscard]] bool IsHD() const;

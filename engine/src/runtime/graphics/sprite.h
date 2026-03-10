@@ -13,7 +13,7 @@
 namespace ptgn {
 
 class Scene;
-class RenderContext;
+class DrawContext;
 
 namespace impl {
 
@@ -43,7 +43,7 @@ public:
 	Sprite() = default;
 	explicit Sprite(Entity entity);
 
-	static void Draw(RenderContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	Sprite& SetTexture(Texture texture);
 };

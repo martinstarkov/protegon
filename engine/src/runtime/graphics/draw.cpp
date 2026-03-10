@@ -79,14 +79,14 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 }
 
 void DrawQuadTexture(
-	RenderContext& renderer, Texture texture, Transform transform, V2_float size,
-	Origin draw_origin, Color tint, Depth depth, BlendMode blend_mode,
+	DrawContext& renderer, Texture texture, Transform transform, V2_float size, Origin draw_origin,
+	Color tint, Depth depth, BlendMode blend_mode,
 	const std::array<V2_float, 4>& texture_coordinates
 ) {
 	renderer.SetBlend(blend_mode);
 	auto positions{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
 	renderer.DrawTexture(
-		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
+		texture, positions, tint, static_cast<float>(depth.GetValue()), texture_coordinates
 	);
 }
 
@@ -125,7 +125,7 @@ static float GetNormalizedRadius(float diameter, float size_x) {
 }
 
 void DrawLines(
-	RenderContext& renderer, std::span<const V2_float> points, float line_width,
+	DrawContext& renderer, std::span<const V2_float> points, float line_width,
 	const Transform& transform, Color tint, float depth, BlendMode blend_mode
 ) {
 	PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for lines");
@@ -141,7 +141,7 @@ void DrawLines(
 }
 
 void DrawShape(
-	RenderContext& renderer, const Shape& shape, Transform transform, Color tint,
+	DrawContext& renderer, const Shape& shape, Transform transform, Color tint,
 	FillStyle fill_style, Origin draw_origin, Depth depth_component, BlendMode blend_mode
 ) {
 	float line_width{ 0.0f };
@@ -333,7 +333,7 @@ void DrawShape(
 }
 
 template <ShapeType T>
-void DrawShape(RenderContext& renderer, Entity entity) {
+void DrawShape(DrawContext& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
 	DrawShape(
 		renderer, entity.Get<T>(), GetDrawTransform(entity), GetTint(entity),
@@ -342,39 +342,39 @@ void DrawShape(RenderContext& renderer, Entity entity) {
 	);
 }
 
-void CapsuleDraw::Draw(RenderContext& renderer, Entity entity) {
+void CapsuleDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Capsule>(renderer, entity);
 }
 
-void CircleDraw::Draw(RenderContext& renderer, Entity entity) {
+void CircleDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Circle>(renderer, entity);
 }
 
-void EllipseDraw::Draw(RenderContext& renderer, Entity entity) {
+void EllipseDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Ellipse>(renderer, entity);
 }
 
-void ArcDraw::Draw(RenderContext& renderer, Entity entity) {
+void ArcDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Arc>(renderer, entity);
 }
 
-void PolygonDraw::Draw(RenderContext& renderer, Entity entity) {
+void PolygonDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Polygon>(renderer, entity);
 }
 
-void RectDraw::Draw(RenderContext& renderer, Entity entity) {
+void RectDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Rect>(renderer, entity);
 }
 
-void RoundedRectDraw::Draw(RenderContext& renderer, Entity entity) {
+void RoundedRectDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<RoundedRect>(renderer, entity);
 }
 
-void TriangleDraw::Draw(RenderContext& renderer, Entity entity) {
+void TriangleDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Triangle>(renderer, entity);
 }
 
-void LineDraw::Draw(RenderContext& renderer, Entity entity) {
+void LineDraw::Draw(DrawContext& renderer, Entity entity) {
 	DrawShape<Line>(renderer, entity);
 }
 
@@ -510,23 +510,15 @@ V2_float GetDisplaySize(Entity entity) {
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {
-	auto tex_coords{ impl::GetDefaultTextureCoordinates() };
-
-	auto check_vertical_flip = [flip_vertically, &tex_coords]() {
-		if (flip_vertically) {
-			impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
-		}
-	};
+	auto tex_coords{ impl::GetDefaultTextureCoordinates(flip_vertically) };
 
 	if (!entity) {
-		check_vertical_flip();
 		return tex_coords;
 	}
 
 	V2_int texture_size{ GetTextureSize(entity) };
 
 	if (texture_size.IsZero()) {
-		check_vertical_flip();
 		return tex_coords;
 	}
 
@@ -534,6 +526,9 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 		const auto& crop{ entity.Get<impl::TextureCrop>() };
 		if (crop != impl::TextureCrop{}) {
 			tex_coords = impl::GetTextureCoordinates(crop.position, crop.size, texture_size);
+			if (flip_vertically) {
+				impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+			}
 		}
 	}
 
@@ -554,8 +549,6 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 	if (entity.Has<Flip>()) {
 		impl::FlipTextureCoordinates(tex_coords, entity.Get<Flip>());
 	}
-
-	check_vertical_flip();
 
 	return tex_coords;
 }

@@ -13,7 +13,7 @@
 namespace ptgn {
 
 class Scene;
-class RenderContext;
+class DrawContext;
 class Renderer;
 class RenderTarget;
 
@@ -47,7 +47,7 @@ public:
 	RenderTarget() = default;
 	explicit RenderTarget(Entity entity);
 
-	static void Draw(RenderContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	/// @brief Binds the render target's internal frame buffer as the current render target.
 	void Bind();

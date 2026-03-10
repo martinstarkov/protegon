@@ -85,7 +85,7 @@ RenderTarget::operator impl::TextureId() const {
 	return Get<impl::RenderTargetObject>();
 }
 
-void RenderTarget::Draw(RenderContext& renderer, Entity entity) {
+void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<impl::RenderTargetObject>());
 
 	std::optional<V2_int> size;
@@ -110,7 +110,7 @@ void RenderTarget::Draw(RenderContext& renderer, Entity entity) {
 
 	renderer.SetBlend(blend_mode);
 	renderer.DrawTexture(
-		texture, positions, tint, static_cast<float>(depth.GetValue()), false, texture_coordinates
+		texture, positions, tint, static_cast<float>(depth.GetValue()), texture_coordinates
 	);
 }
 

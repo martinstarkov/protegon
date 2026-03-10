@@ -29,7 +29,7 @@ namespace ptgn {
 
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
-void Animation::Draw(RenderContext& renderer, Entity entity) {
+void Animation::Draw(DrawContext& renderer, Entity entity) {
 	Sprite::Draw(renderer, entity);
 }
 

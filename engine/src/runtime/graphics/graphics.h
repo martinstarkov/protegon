@@ -17,7 +17,7 @@
 
 namespace ptgn {
 
-class RenderContext;
+class DrawContext;
 class Scene;
 
 namespace impl {
@@ -32,7 +32,7 @@ struct GraphicsData {
 
 	void AddCommand(Transform transform, const Shape& shape, bool fill);
 
-	void Draw(RenderContext& renderer, Transform transform, Depth depth, BlendMode blend_mode)
+	void Draw(DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode)
 		const;
 
 	std::vector<Command> commands_;
@@ -48,7 +48,7 @@ public:
 	Graphics() = default;
 	explicit Graphics(Entity entity);
 
-	static void Draw(RenderContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	void Clear();
 

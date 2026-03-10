@@ -43,7 +43,7 @@ static float FontSizeToHD(float font_size, const Scene& scene) {
 Text::Text(Entity entity) : Entity{ entity } {}
 
 void Text::Draw(
-	RenderContext& renderer, Entity entity, V2_int text_size, Color additional_tint,
+	DrawContext& renderer, Entity entity, V2_int text_size, Color additional_tint,
 	Origin offset_origin, V2_float offset_size
 ) {
 	Text text{ entity };
@@ -110,7 +110,7 @@ void Text::Draw(
 	);
 }
 
-void Text::Draw(RenderContext& renderer, Entity text) {
+void Text::Draw(DrawContext& renderer, Entity text) {
 	// This wrapper exists so that buttons can draw offset text.
 	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }

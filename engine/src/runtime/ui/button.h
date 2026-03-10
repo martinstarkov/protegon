@@ -30,7 +30,7 @@
 
 namespace ptgn {
 
-class RenderContext;
+class DrawContext;
 class Scene;
 
 enum class ButtonState : std::uint8_t {
@@ -374,7 +374,7 @@ public:
 	ButtonBase() = default;
 	explicit ButtonBase(Entity entity);
 
-	static void Draw(RenderContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	/// @return If no size is specified, returns {}.
 	/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.
