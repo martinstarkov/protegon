@@ -32,15 +32,18 @@ class ResolutionTextScene : public Scene {
 
 		CreateSprite(*this, "background", {});
 
-		text = CreateText(*this, content, color, font_size);
+		text =
+			CreateText(*this, content, color, font_size, {}, TextProperties{ .wrap_after = 300 });
 		SetPosition(text, -2 * V2_float{ 0.0f, text.GetFontSize() });
 		text.SetHD(false);
 
-		text_hd = CreateText(*this, content, color, font_size);
+		text_hd =
+			CreateText(*this, content, color, font_size, {}, TextProperties{ .wrap_after = 300 });
 		SetPosition(text_hd, 2 * V2_float{ 0.0f, text.GetFontSize() });
 	}
 
 	void OnUpdate() override {
+		// TODO: Fix.
 		/*app().renderer.DrawText(
 			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
 			{}, {}, {}, {}, false

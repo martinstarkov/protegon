@@ -119,16 +119,18 @@ void Text::RecreateTexture(Entity entity) {
 	Text text{ entity };
 	auto content{ text.GetContent() };
 	auto color{ text.GetColor() };
-	auto font_size{ text.GetFontSize(text.IsHD()) };
+	float hd_scale{ GetScale(text.GetScene()).y };
+	bool is_hd{ text.IsHD() };
+	auto font_size{ text.GetFontSize(is_hd) };
 	auto font{ text.GetFont() };
 	auto properties{ text.GetProperties() };
 
-	RecreateTexture(text, content, color, font_size, font, properties);
+	RecreateTexture(text, content, color, font_size, font, properties, hd_scale, is_hd);
 }
 
 void Text::RecreateTexture(
 	Entity text, std::string_view content, Color text_color, float font_size, Font font,
-	const TextProperties& properties
+	const TextProperties& properties, float hd_scale, bool hd
 ) {
 	// Cache the font size of the texture so that if HD resolution changes, the text is updated
 	// before drawing.
@@ -136,7 +138,9 @@ void Text::RecreateTexture(
 
 	auto& asset{ text.GetScene().app().asset };
 
-	auto texture{ asset.CreateTextTexture(content, text_color, font_size, font, properties) };
+	auto texture{
+		asset.CreateTextTexture(content, text_color, font_size, font, properties, hd_scale, hd)
+	};
 
 	text.Add<Texture>(texture);
 }

@@ -163,7 +163,7 @@ V2_int FontSystem::GetSize(
 
 std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	std::string_view text_content, Color color, float font_size, Font font_asset,
-	const TextProperties& properties
+	const TextProperties& properties, float hd_scale, bool hd
 ) const {
 	if (text_content.empty()) {
 		return {};
@@ -172,6 +172,8 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	if (!font_asset) {
 		font_asset = GetDefault();
 	}
+
+	float scale{ hd ? hd_scale : 1.0f };
 
 	PTGN_ASSERT(font_asset);
 
@@ -186,7 +188,7 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	TTF_SetFontWrapAlignment(font, static_cast<TTF_HorizontalAlignment>(properties.justify));
 
 	if (properties.line_skip.GetValue().has_value()) {
-		TTF_SetFontLineSkip(font, *properties.line_skip.GetValue());
+		TTF_SetFontLineSkip(font, static_cast<int>(*properties.line_skip.GetValue() * scale));
 	}
 
 	PTGN_ASSERT(font_size > 0, "Font size must be greater than zero");
@@ -203,22 +205,26 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 
 	SDL_Color text_color{ color.r, color.g, color.b, color.a };
 
-	PTGN_ASSERT(properties.outline.width >= 0, "Cannot have negative font outline width");
+	auto outline_width{ static_cast<int>(properties.outline.width * scale) };
+
+	PTGN_ASSERT(outline_width >= 0, "Cannot have negative font outline width");
 
 	SDL_Surface* outline_surface{ nullptr };
 
-	if (properties.outline.width != 0 && properties.outline.color != color::Transparent) {
+	auto wrap_after{ static_cast<int>(properties.wrap_after * scale) };
+
+	if (outline_width != 0 && properties.outline.color != color::Transparent) {
 		PTGN_ASSERT(
 			properties.render_mode == FontRenderMode::Blended,
 			"Font render mode must be set to blended when drawing text with outline"
 		);
-		TTF_SetFontOutline(font, properties.outline.width);
+		TTF_SetFontOutline(font, outline_width);
 
 		SDL_Color outline_color{ properties.outline.color.r, properties.outline.color.g,
 								 properties.outline.color.b, properties.outline.color.a };
 
 		outline_surface = TTF_RenderText_Blended_Wrapped(
-			font, text_content.data(), text_content.length(), outline_color, properties.wrap_after
+			font, text_content.data(), text_content.length(), outline_color, wrap_after
 		);
 
 		PTGN_ASSERT(outline_surface != nullptr, "Failed to create text outline");
@@ -231,7 +237,7 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	switch (properties.render_mode) {
 		case FontRenderMode::Solid:
 			surface = TTF_RenderText_Solid_Wrapped(
-				font, text_content.data(), text_content.length(), text_color, properties.wrap_after
+				font, text_content.data(), text_content.length(), text_color, wrap_after
 			);
 			break;
 		case FontRenderMode::Shaded: {
@@ -239,13 +245,13 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 									 properties.shading_color.b, properties.shading_color.a };
 			surface = TTF_RenderText_Shaded_Wrapped(
 				font, text_content.data(), text_content.length(), text_color, shading_color,
-				properties.wrap_after
+				wrap_after
 			);
 			break;
 		}
 		case FontRenderMode::Blended:
 			surface = TTF_RenderText_Blended_Wrapped(
-				font, text_content.data(), text_content.length(), text_color, properties.wrap_after
+				font, text_content.data(), text_content.length(), text_color, wrap_after
 			);
 			break;
 		default:
@@ -256,7 +262,7 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
 
 	if (outline_surface) {
-		SDL_Rect rect{ properties.outline.width, properties.outline.width, surface->w, surface->h };
+		SDL_Rect rect{ outline_width, outline_width, surface->w, surface->h };
 
 		SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
 		SDL_BlitSurface(surface, NULL, outline_surface, &rect);

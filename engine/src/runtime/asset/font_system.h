@@ -75,7 +75,7 @@ private:
 
 	std::optional<impl::Surface> CreateTextSurface(
 		std::string_view text_content, Color color, float font_size, Font font_asset,
-		const TextProperties& properties
+		const TextProperties& properties, float hd_scale, bool hd
 	) const;
 
 	static std::shared_ptr<TTF_Font> CreateFont(const path& font_path, float pt_size);

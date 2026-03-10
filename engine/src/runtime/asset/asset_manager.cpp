@@ -427,13 +427,13 @@ bool AssetManager::HasFont(std::string_view key) const {
 
 Texture AssetManager::CreateTextTexture(
 	std::string_view text_content, Color color, float font_size, Font font_asset,
-	const TextProperties& properties
+	const TextProperties& properties, float hd_scale, bool hd
 ) {
 	Texture texture{ CreateAsset(), false };
 
-	auto surface{
-		ctx_->font.CreateTextSurface(text_content, color, font_size, font_asset, properties)
-	};
+	auto surface{ ctx_->font.CreateTextSurface(
+		text_content, color, font_size, font_asset, properties, hd_scale, hd
+	) };
 
 	if (!surface.has_value()) {
 		return texture;

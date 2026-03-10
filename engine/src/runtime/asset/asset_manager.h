@@ -173,7 +173,7 @@ private:
 	Texture CreateTexture(bool persistent, const path& asset_path);
 	Texture CreateTextTexture(
 		std::string_view text_content, Color text_color, float font_size, Font font,
-		const TextProperties& properties
+		const TextProperties& properties, float hd_scale, bool hd
 	);
 	Font CreateFont(bool persistent, const path& asset_path, float pt_size);
 	Audio CreateAudio(bool persistent, const path& asset_path);

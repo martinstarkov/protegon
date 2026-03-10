@@ -238,7 +238,7 @@ private:
 	// Using custom properties.
 	static void RecreateTexture(
 		Entity text, std::string_view text_content, Color text_color, float font_size, Font font,
-		const TextProperties& properties
+		const TextProperties& properties, float hd_scale, bool hd
 	);
 
 	template <impl::TextParameter T>
