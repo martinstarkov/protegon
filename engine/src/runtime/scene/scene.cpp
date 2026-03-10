@@ -137,22 +137,8 @@ void Scene::InternalDraw() {
 				continue;
 			}*/
 
-			bool found{ false };
-
-			for (auto& [cmd_cam, cmds] : renderer.draw_commands_) {
-				if (cmd_cam == cam) {
-					cmds.emplace_back(GetDepth(drawable), drawable);
-					found = true;
-					break;
-				}
-			}
-
-			if (!found) {
-				renderer.draw_commands_.emplace_back(
-					cam, std::vector<impl::DrawCommand>{ impl::DrawCommand{ GetDepth(drawable),
-																			drawable } }
-				);
-			}
+			auto& draw_commands{ renderer.GetDrawCommandsForCamera(cam) };
+			draw_commands.emplace_back(drawable, GetDepth(drawable));
 		}
 	}
 
