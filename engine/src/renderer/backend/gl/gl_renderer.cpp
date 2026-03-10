@@ -524,7 +524,7 @@ void GLRenderer::DrawQuad(
 	p.positions	 = positions;
 	p.depth		 = depth;
 	p.tint		 = tint;
-	p.tex_coords = impl::GetDefaultTextureCoordinates(false);
+	p.tex_coords = impl::GetDefaultTextureCoordinates<false>();
 
 	DrawQuad(shader, p, [this, user_data](auto, auto& q) { q.user_data = user_data; });
 }
@@ -648,7 +648,7 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 	DrawTexture(
 		GetShader("quad"), *screen_target_.resource_.color_,
 		GetCenteredQuadPoints(display_viewport.size), color::White, 0.0f,
-		impl::GetDefaultTextureCoordinates(true)
+		impl::GetDefaultTextureCoordinates<true>()
 	);
 
 	FlushBatch();

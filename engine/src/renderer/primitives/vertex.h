@@ -15,6 +15,22 @@ struct Depth;
 
 namespace impl {
 
+template <bool kFlipY>
+[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
+	if constexpr (kFlipY) {
+		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
+				 V2_float{ 0.0f, 0.0f } };
+
+	} else {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		};
+	}
+}
+
 [[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates(bool flip_y) {
 	if (flip_y) {
 		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
