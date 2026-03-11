@@ -112,7 +112,7 @@ void Renderer::DrawTexture(
 
 void Renderer::OnEvent(EventDispatcher d) {
 	d.Dispatch<WindowResized>([this](auto& e) {
-		if (!game_size_) {
+		if (!game_size_.has_value()) {
 			GameResized game_resized;
 			game_resized.size = e.size;
 			// PTGN_LOG("Emitting game resized: ", e.size);

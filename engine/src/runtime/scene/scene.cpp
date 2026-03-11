@@ -38,12 +38,14 @@
 #include "runtime/graphics/particle.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target_component.h"
+#include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -55,15 +57,7 @@ void SceneEventHandler::Emit(EventDispatcher d) {
 
 Scene::Scene() : event{ *this }, input{ *this } {}
 
-Scene::~Scene() {
-	// TODO: Fix.
-	/*if (!render_target_.IsAlive()) {
-		return;
-	}
-	PTGN_ASSERT(render_taret.IsAlive());
-	render_target_.Destroy();
-	Application::Get().render_.render_data_.render_manager.Refresh();*/
-}
+Scene::~Scene() {}
 
 void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
@@ -126,9 +120,15 @@ void Scene::InternalDraw() {
 		Camera cam{ c };
 		impl::RecalculateCameraViewProjection(Camera{ cam });
 
-		for (auto [drawable, _v, _d] : EntitiesWith<impl::Visible, impl::IDrawable>()) {
+		for (auto entity : Entities()) {
+			bool visible{ entity.Has<impl::Visible, impl::IDrawable>() };
+
+			if (!collider_debug_draw_.enabled && !visible) {
+				continue;
+			}
+
 			// Mask test (entity layers vs camera include/exclude).
-			if (!cam.IsVisible(drawable)) {
+			if (!cam.IsVisible(entity)) {
 				continue;
 			}
 
@@ -137,78 +137,108 @@ void Scene::InternalDraw() {
 				continue;
 			}*/
 
-			auto& draw_commands{ renderer.GetDrawCommandsForCamera(cam) };
-			draw_commands.emplace_back(drawable, GetDepth(drawable));
-		}
-	}
+			if (visible) {
+				auto& draw_commands{ renderer.GetDrawCommandsForCamera(cam) };
+				draw_commands.emplace_back(entity, GetDepth(entity));
+			}
 
-	PTGN_ASSERT((!VectorContainsDuplicates(
-		renderer.draw_commands_, [](const auto& c1, const auto& c2) { return c1.first == c2.first; }
-	)));
-
-	impl::EntityDepthCompare compare{ true };
-
-	std::ranges::sort(
-		renderer.draw_commands_, [&](const std::pair<Camera, std::vector<impl::DrawCommand>>& a,
-									 const std::pair<Camera, std::vector<impl::DrawCommand>>& b
-								 ) { return compare(a.first, b.first); }
-	);
-
-	DrawContext draw_context{ global_renderer };
-
-	for (auto& [cam, cmd] : renderer.draw_commands_) {
-		RenderTarget render_target;
-
-		if (auto parent_rt = cam.TryGet<impl::ParentRenderTarget>()) {
-			render_target = parent_rt->render_target;
-		} else {
-			render_target = render_target_;
-		}
-
-		render_target.Bind();
-		render_target.Clear();
-
-		auto rt_size{ render_target.GetSize() };
-		auto scale{ V2_float{ rt_size } / game_size };
-
-		auto viewport{ cam.GetViewport() };
-		viewport.position = viewport.position * scale;
-		viewport.size	  = viewport.size * scale;
-		draw_context.SetViewport(viewport);
-		draw_context.SetViewProjection(cam.GetViewProjection());
-
-		if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
-			draw_context.SetScissor(ScissorState{ viewport });
-			render_target.Clear(*clear_color, false);
-			draw_context.SetScissor(ScissorState{ false });
-		}
-
-		std::ranges::sort(cmd, [&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
-			return a.depth < b.depth;
-		});
-
-		for (const auto& draw_cmd : cmd) {
-			if (std::holds_alternative<Entity>(draw_cmd.payload)) {
-				InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload));
-			} else {
-				draw_context.Draw(std::get<impl::ManualCommand>(draw_cmd.payload), draw_cmd.depth);
+			if (collider_debug_draw_.enabled && entity.Has<Collider>()) {
+				const auto& collider{ entity.Get<Collider>() };
+				auto transform{ GetDrawTransform(entity) };
+				auto draw_origin{ GetDrawOrigin(entity) };
+				debug.DrawShape(
+					collider.shape, transform, collider_debug_draw_.color,
+					collider_debug_draw_.fill_style, draw_origin, cam
+				);
 			}
 		}
 	}
 
-	renderer.draw_commands_.clear();
+	impl::EntityDepthCompare compare{ true };
 
-	// TODO: Fix.
-	/*
-	if (collider_visibility_) {
-		for (auto [entity, collider] : EntitiesWith<Collider>()) {
-			app().debug.DrawShape(
-				GetDrawTransform(entity), collider.shape, collider_color_, collider_line_width_,
-				GetDrawOrigin(entity), entity.GetCamera()
-			);
+	DrawContext draw_context{ global_renderer };
+
+	const auto draw_commands = [&](auto& commands, const auto& sort_func, const auto& draw_func,
+								   bool clear) {
+		PTGN_ASSERT((!VectorContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
+			return c1.first == c2.first;
+		})));
+
+		std::ranges::sort(commands, [&](const auto& a, const auto& b) {
+			return compare(a.first, b.first);
+		});
+
+		for (auto& [cam, cmds] : commands) {
+			RenderTarget render_target;
+
+			if (auto parent_rt = cam.TryGet<impl::ParentRenderTarget>()) {
+				render_target = parent_rt->render_target;
+			} else {
+				render_target = render_target_;
+			}
+
+			render_target.Bind();
+			if (clear) {
+				render_target.Clear();
+			}
+
+			auto rt_size{ render_target.GetSize() };
+			auto scale{ V2_float{ rt_size } / game_size };
+
+			auto viewport{ cam.GetViewport() };
+			viewport.position = viewport.position * scale;
+			viewport.size	  = viewport.size * scale;
+			draw_context.SetViewport(viewport);
+			draw_context.SetViewProjection(cam.GetViewProjection());
+
+			if (clear) {
+				if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
+					draw_context.SetScissor(ScissorState{ viewport });
+					render_target.Clear(*clear_color, false);
+					draw_context.SetScissor(ScissorState{ false });
+				}
+			}
+
+			sort_func(cmds);
+
+			draw_func(cmds);
 		}
-	}
-	*/
+		commands.clear();
+	};
+
+	draw_commands(
+		renderer.draw_commands_,
+		[](auto& cmds) {
+			std::ranges::sort(cmds, [&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
+				return a.depth < b.depth;
+			});
+		},
+		[&draw_context](const auto& cmds) {
+			for (const auto& draw_cmd : cmds) {
+				if (std::holds_alternative<Entity>(draw_cmd.payload)) {
+					InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload));
+				} else {
+					draw_context.Draw(
+						std::get<impl::ManualCommand>(draw_cmd.payload), draw_cmd.depth
+					);
+				}
+			}
+		},
+		true
+	);
+
+	draw_commands(
+		renderer.debug_commands_,
+		[](auto&) {
+			/* No-op, debug commands are not sorted by depth */
+		},
+		[&draw_context](const auto& cmds) {
+			for (const auto& draw_cmd : cmds) {
+				draw_context.Draw(draw_cmd.payload, draw_cmd.depth);
+			}
+		},
+		false
+	);
 
 	Viewport viewport{ {}, global_renderer.GetDisplayViewport().size };
 	auto half_viewport{ viewport.size * 0.5f };
@@ -251,15 +281,12 @@ void Scene::InternalExit() {
 	// Clears component hooks.
 	manager_.Reset();
 	physics = {};
-	//  TODO: Fix.
-	// render_target_.Get<GameObject<Camera>>().Reset();
-	// fixed_camera.Reset();
 	Refresh();
 }
 
+// TODO: Fix.
 // void Scene::ReEnter() {
-//	// TODO: Fix.
-//	// Application::Get().scene_.Enter(key_);
+//	app().scene.Enter(*this);
 // }
 
 Entity Scene::GetEntityByUUID(UUID uuid) const {
@@ -308,39 +335,34 @@ void Scene::Refresh() {
 	manager_.Refresh();
 }
 
+void Scene::SetColliderSettings(const ColliderSettings& settings) {
+	collider_debug_draw_ = settings;
+}
+
 std::size_t Scene::GetEntityCount() const {
 	return manager_.Size();
 }
 
 void to_json(json& j, const Scene& scene) {
 	to_json(j["manager"], scene.manager_);
-	/*j["camera"]				 = scene.camera;
+	/*
 	j["key"]				 = scene.key_;
 	j["physics"]			 = scene.physics;
 	j["input"]				 = scene.input;
 	j["collider_visibility"] = scene.collider_visibility_;
-	j["collider_color"]		 = scene.collider_color_;*/
-	// TODO: Fix.
-	// j["render_target"]		 = scene.render_target_;
+	j["collider_color"]		 = scene.collider_color_;
+	*/
 }
 
 void from_json(const json& j, Scene& scene) {
 	scene.manager_.Reset();
-
-	// j.at("key").get_to(scene.key_);
 
 	// Ensure manager is deserialized before any of the other scene systems which may reference
 	// manager entities (such as the CameraManager).
 	from_json(j.at("manager"), scene.manager_);
 
 	// j.at("physics").get_to(scene.physics);
-
-	// j.at("collider_visibility").get_to(scene.collider_visibility_);
-	// j.at("collider_color").get_to(scene.collider_color_);
-
 	// j.at("input").get_to(scene.input);
-	//  TODO: Fix.
-	//  j.at("render_target").get_to(scene.render_target_);
 }
 
 const std::shared_ptr<ApplicationContext>& Scene::GetContext() const {

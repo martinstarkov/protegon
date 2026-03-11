@@ -165,12 +165,12 @@ struct DragState {
 
 } // namespace impl
 
-struct InteractiveDebugDrawSettings {
+struct InteractiveSettings {
 	bool enabled{ false };
-	Color color{ color::Purple };
+	Color color{ color::Magenta };
 	float line_width{ 1.0f };
 
-	PTGN_SERIALIZER_REGISTER(InteractiveDebugDrawSettings, enabled, color, line_width)
+	PTGN_SERIALIZER_REGISTER(InteractiveSettings, enabled, color, line_width)
 };
 
 class SceneInput {
@@ -186,7 +186,7 @@ public:
 	/// two buttons on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only = true);
 
-	void SetInteractiveDebugDraw(const InteractiveDebugDrawSettings& settings = {});
+	void SetInteractiveSettings(const InteractiveSettings& settings = {});
 
 	/// @return Mouse position relative to the specified viewport.
 	[[nodiscard]] V2_float GetMousePosition(
@@ -355,7 +355,7 @@ private:
 	void Update();
 
 	InteractiveEntities GetInteractiveEntities(
-		const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities
+		const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities, Camera camera
 	) const;
 
 	std::vector<Entity> GetDropzones();
@@ -392,7 +392,7 @@ private:
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 
-	InteractiveDebugDrawSettings interactive_debug_draw_settings_;
+	InteractiveSettings interactive_debug_draw_;
 };
 
 } // namespace ptgn

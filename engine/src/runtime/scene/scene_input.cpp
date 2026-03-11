@@ -32,6 +32,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -165,8 +166,8 @@ void SceneInput::SetTopOnly(bool top_only) {
 	top_only_ = top_only;
 }
 
-void SceneInput::SetInteractiveDebugDraw(const InteractiveDebugDrawSettings& settings) {
-	interactive_debug_draw_settings_ = settings;
+void SceneInput::SetInteractiveSettings(const InteractiveSettings& settings) {
+	interactive_debug_draw_ = settings;
 }
 
 V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference, bool clamp_to_viewport)
@@ -246,7 +247,7 @@ V2_float SceneInput::GetMousePositionRelativeTo(
 }
 
 SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
-	const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities
+	const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities, Camera camera
 ) const {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
@@ -263,19 +264,17 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		for (const auto& [shape, shape_entity] : shapes) {
 			auto transform{ GetWorldOffsetTransform(shape, shape_entity, entity) };
 
-			if (interactive_debug_draw_settings_.enabled) {
+			if (interactive_debug_draw_.enabled) {
 				auto draw_transform{ GetDrawTransform(shape_entity) };
 
 				if (entity.Has<Rect>()) {
 					draw_transform = OffsetByOrigin(entity.Get<Rect>(), draw_transform, entity);
 				}
 
-				// TODO: Use debub shape draw.
-				/*impl::DrawShape(
-					ctx_->renderer, shape, draw_transform, interactive_debug_draw_settings_.color,
-					interactive_debug_draw_settings_.line_width, GetDrawOrigin(shape_entity),
-					GetDepth(shape_entity), GetBlendMode(shape_entity)
-				);*/
+				scene_.debug.DrawShape(
+					shape, draw_transform, interactive_debug_draw_.color,
+					interactive_debug_draw_.line_width, GetDrawOrigin(shape_entity), camera
+				);
 			}
 
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
@@ -775,16 +774,7 @@ void SceneInput::DispatchMouseEvents(
 }
 
 void SceneInput::Update() {
-	impl::MouseInfo mouse_state{ scene_ };
-
-	if (interactive_debug_draw_settings_.enabled) {
-		// TODO: Use debub shape draw.
-		/*impl::DrawShape(
-			ctx_->renderer, V2_float{ mouse_state.position }, Transform{},
-			interactive_debug_draw_settings_.color, FillStyle::Solid(), Origin::Center, 0,
-			BlendMode::Blend
-		);*/
-	}
+	const impl::MouseInfo mouse_state{ scene_ };
 
 	std::vector<Entity> cameras;
 
@@ -816,6 +806,10 @@ void SceneInput::Update() {
 			FrameContext{ *ctx_, render_target, camera }
 		);
 
+		if (interactive_debug_draw_.enabled) {
+			scene_.debug.DrawPoint(mouse.position, interactive_debug_draw_.color, camera);
+		}
+
 		std::vector<Entity> camera_entities;
 
 		for (auto [entity, interactive] : scene_.EntitiesWith<impl::Interactive>()) {
@@ -828,7 +822,7 @@ void SceneInput::Update() {
 			camera_entities.emplace_back(entity);
 		}
 
-		auto entities = GetInteractiveEntities(mouse, camera_entities);
+		auto entities = GetInteractiveEntities(mouse, camera_entities, camera);
 
 		if (top_only_ && handled_under_mouse) {
 			entities.under_mouse	 = {};

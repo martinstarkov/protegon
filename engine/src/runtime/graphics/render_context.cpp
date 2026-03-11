@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -216,10 +215,11 @@ DrawContext::GetShapeDrawCommand(
 					);
 				}
 			} else if constexpr (std::is_same_v<T, V2_float>) {
-				return impl::QuadCommand{
-					Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform, Origin::Center), tint,
-					blend_mode
-				};
+				Rect rect{ V2_float{ 1.0f } };
+				transform.Translate(s);
+				auto positions{ rect.GetWorldVertices(transform, Origin::Center) };
+
+				return impl::QuadCommand{ positions, tint, blend_mode };
 			} else if constexpr (std::is_same_v<T, Capsule>) {
 				auto radius{ s.GetRadius(transform) };
 
@@ -519,6 +519,21 @@ std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(std::opt
 	return draw_commands_.emplace_back(cam, std::vector<impl::DrawCommand>{}).second;
 }
 
+std::vector<impl::ManualDrawCommand>& RenderContext::GetDebugCommandsForCamera(
+	std::optional<Camera> camera
+) {
+	Camera cam{ camera.value_or(scene_->camera) };
+
+	PTGN_ASSERT(cam);
+
+	for (auto& [c, commands] : debug_commands_) {
+		if (c == cam) {
+			return commands;
+		}
+	}
+	return debug_commands_.emplace_back(cam, std::vector<impl::ManualDrawCommand>{}).second;
+}
+
 void RenderContext::DrawTexture(
 	Texture texture, impl::ShaderId shader, Transform transform, std::optional<V2_float> size,
 	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
@@ -607,36 +622,16 @@ void RenderContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
 	Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
 ) {
-	PTGN_ASSERT(renderer_ != nullptr, "Render context must be initialized before use");
-
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
+
+	PTGN_ASSERT(renderer_ != nullptr, "Render context must be initialized before use");
 
 	auto shape_draw_commands{ DrawContext::GetShapeDrawCommand(
 		*renderer_, shape, transform, color, fill_style, draw_origin, blend_mode
 	) };
 
 	std::visit(
-		[&](const auto& cmd) {
-			using T = std::decay_t<decltype(cmd)>;
-			if constexpr (std::is_same_v<T, impl::QuadCommand>) {
-				draw_commands.emplace_back(cmd, depth);
-			} else if constexpr (std::is_same_v<T, impl::QuadShapeCommand>) {
-				draw_commands.emplace_back(cmd, depth);
-			} else if constexpr (std::is_same_v<T, std::vector<impl::QuadCommand>>) {
-				for (const auto& quad : cmd) {
-					draw_commands.emplace_back(quad, depth);
-				}
-			} else if constexpr (std::is_same_v<T, std::vector<impl::TriangleCommand>>) {
-				for (const auto& triangle : cmd) {
-					draw_commands.emplace_back(triangle, depth);
-				}
-			} else if constexpr (std::is_same_v<T, std::monostate>) {
-				return;
-			} else {
-				PTGN_ERROR("Unknown shape draw command variant");
-			}
-		},
-		shape_draw_commands
+		[&](const auto& cmd) { AddDrawCommand(draw_commands, cmd, depth); }, shape_draw_commands
 	);
 }
 
@@ -647,6 +642,8 @@ void RenderContext::DrawText(
 	bool hd_text, Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
 ) {
 	// TODO: Fix once text is refactored.
+
+	// auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 }
 
 void RenderContext::DrawRect(
@@ -664,17 +661,23 @@ void RenderContext::DrawRoundedRect(
 }
 
 void RenderContext::DrawLine(
-	Transform transform, const Line& line, Color color, FillStyle fill_style, Depth depth,
+	Transform transform, const Line& line, Color color, float line_width, Depth depth,
 	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
 ) {
-	DrawShape(line, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
+	DrawShape(
+		line, transform, color, FillStyle::Hollow(line_width), Origin::Center, depth, blend_mode,
+		camera
+	);
 }
 
 void RenderContext::DrawLine(
-	V2_float start, V2_float end, Color color, FillStyle fill_style, Depth depth,
+	V2_float start, V2_float end, Color color, float line_width, Depth depth,
 	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
 ) {
-	DrawShape(Line{ start, end }, {}, color, fill_style, Origin::Center, depth, blend_mode, camera);
+	DrawShape(
+		Line{ start, end }, {}, color, FillStyle::Hollow(line_width), Origin::Center, depth,
+		blend_mode, camera
+	);
 }
 
 void RenderContext::DrawTriangle(

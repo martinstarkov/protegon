@@ -12,6 +12,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/physics/collision_handler.h"
@@ -19,6 +20,7 @@
 #include "runtime/scene/scene_input.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -157,6 +159,12 @@ struct SceneHook {
 	void Connect();
 };
 
+struct ColliderSettings {
+	bool enabled{ false };
+	Color color{ color::Magenta };
+	FillStyle fill_style{ FillStyle::Hollow(1.0f) };
+};
+
 class Scene {
 public:
 	Scene();
@@ -282,6 +290,8 @@ public:
 
 	void Refresh();
 
+	void SetColliderSettings(const ColliderSettings& settings = {});
+
 	const std::shared_ptr<ApplicationContext>& GetContext() const;
 
 	ApplicationContext& app();
@@ -289,6 +299,7 @@ public:
 	const ApplicationContext& app() const;
 
 	RenderContext renderer;
+	DebugContext debug{ renderer };
 	SceneEventHandler event;
 
 	SceneInput input;
@@ -306,6 +317,8 @@ private:
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.
 	Camera fixed_camera;
+
+	ColliderSettings collider_debug_draw_;
 
 	friend class SceneManager;
 	friend class EventHandler;

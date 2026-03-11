@@ -113,7 +113,7 @@ private:
 	AudioSystem audio_;
 
 	// TODO: Make a no-op version of this for release modes.
-	impl::DebugSystem debug_;
+	DebugSystem debug_;
 
 	void EnterMainLoop();
 	void Update();

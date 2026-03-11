@@ -4,6 +4,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -22,6 +23,7 @@
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/render_state.h"
@@ -40,6 +42,7 @@ namespace ptgn {
 class Scene;
 class Renderer;
 class RenderContext;
+class DebugContext;
 
 namespace impl {
 
@@ -120,6 +123,11 @@ struct TextureCommand {
 using ManualCommand =
 	std::variant<TextureCommand, QuadCommand, QuadShapeCommand, TriangleCommand, LineCommand>;
 
+struct ManualDrawCommand {
+	ManualCommand payload;
+	float depth{ 0.0f };
+};
+
 struct DrawCommand {
 	std::variant<Entity, ManualCommand> payload;
 	float depth{ 0.0f };
@@ -187,6 +195,7 @@ public:
 private:
 	friend class Renderer;
 	friend class Scene;
+	friend class DebugContext;
 	friend class RenderContext;
 
 	[[nodiscard]] static std::variant<
@@ -292,13 +301,13 @@ public:
 	);
 
 	void DrawLine(
-		Transform transform, const Line& line, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		Transform transform, const Line& line, Color color, float line_width = kMinLineWidth,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		std::optional<Camera> camera = {}
 	);
 
 	void DrawLine(
-		V2_float start, V2_float end, Color color, FillStyle fill_style = FillStyle::Hollow(1.0f),
+		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		std::optional<Camera> camera = {}
 	);
@@ -346,6 +355,7 @@ public:
 
 private:
 	friend class Scene;
+	friend class DebugContext;
 
 	void DrawTexture(
 		Texture texture, impl::ShaderId shader, Transform transform, std::optional<V2_float> size,
@@ -355,9 +365,23 @@ private:
 		std::optional<Camera> camera
 	);
 
+	template <typename T, typename R>
+	static void AddDrawCommand(T& commands, const R& command, float depth) {
+		if constexpr (std::is_same_v<R, std::monostate>) {
+			return;
+		} else if constexpr (SpecializationOf<R, std::vector>) {
+			for (const auto& c : command) {
+				commands.emplace_back(c, depth);
+			}
+		} else {
+			commands.emplace_back(command, depth);
+		}
+	}
+
 	/// @brief If camera is {}, returns draw commands for the primary scene camera. If draw commands
 	/// do not exist for the camera, adds them to the vector.
 	std::vector<impl::DrawCommand>& GetDrawCommandsForCamera(std::optional<Camera> camera);
+	std::vector<impl::ManualDrawCommand>& GetDebugCommandsForCamera(std::optional<Camera> camera);
 
 	void Init(Scene& scene, Renderer& renderer);
 
@@ -365,6 +389,7 @@ private:
 	Renderer* renderer_{ nullptr };
 
 	std::vector<std::pair<Camera, std::vector<impl::DrawCommand>>> draw_commands_;
+	std::vector<std::pair<Camera, std::vector<impl::ManualDrawCommand>>> debug_commands_;
 };
 
 } // namespace ptgn
