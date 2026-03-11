@@ -97,7 +97,7 @@ public:
 		ShaderId id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
 		std::int32_t v3
 	);
-	// Behaves identically to SetUniform(name, std::int32_t).
+	/// @brief Behaves identically to SetUniform(name, std::int32_t).
 	void SetUniform(ShaderId id, const char* uniform_name, bool value);
 
 	[[nodiscard]] ShaderId GetProgram(std::string_view program_name) const;
